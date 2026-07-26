@@ -108,6 +108,30 @@ static auto const& CONFIG_VARIABLE_DEFINITIONS = *new Array<ConfigVariableDefini
         .default_value = true,
         .array_element_type = {},
     },
+    {
+        .id = ConfigVariableID::MaximumConnectionsPerDownload,
+        .name = "downloads.maximum_connections_per_download"sv,
+        .title = "Maximum connections per download"sv,
+        .description = "Download a file over up to this many parallel connections when the server supports byte ranges. Set to 1 to always download over a single connection."sv,
+        .default_value = 4,
+        .array_element_type = {},
+    },
+    {
+        .id = ConfigVariableID::SplitDownloadsWithoutValidators,
+        .name = "downloads.split_without_validators"sv,
+        .title = "Split downloads without server validators"sv,
+        .description = "Allow multi-connection downloads even when the server sends no ETag or Last-Modified header, without which the browser cannot verify that every connection is being served the same file."sv,
+        .default_value = false,
+        .array_element_type = {},
+    },
+    {
+        .id = ConfigVariableID::RestartStalledConnections,
+        .name = "downloads.restart_stalled_connections"sv,
+        .title = "Restart stalled download connections"sv,
+        .description = "When one connection of a multi-connection download stops receiving data, drop it and request the rest of its byte range over a new connection."sv,
+        .default_value = true,
+        .array_element_type = {},
+    },
 } };
 
 ReadonlySpan<ConfigVariableDefinition const> config_variable_definitions()
@@ -827,6 +851,15 @@ bool Settings::config_variable_as_bool(ConfigVariableID id) const
     auto value = config_variable(id).get_bool();
     VERIFY(value.has_value());
     return *value;
+}
+
+u32 Settings::config_variable_as_u32(ConfigVariableID id) const
+{
+    auto const& variable = config_variable_definition(id);
+    VERIFY(variable.default_value.is_number());
+
+    auto value = config_variable(id).get_u32();
+    return value.value_or_lazy_evaluated([&] { return variable.default_value.get_u32().value(); });
 }
 
 Vector<String> Settings::config_variable_as_string_array(ConfigVariableID id) const

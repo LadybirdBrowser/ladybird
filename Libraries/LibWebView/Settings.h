@@ -65,6 +65,9 @@ enum class ConfigVariableID : u8 {
     ShowAdvancedDebugMenu,
     ContentBlockerListPaths,
     UseClientSideWindowDecorations,
+    MaximumConnectionsPerDownload,
+    SplitDownloadsWithoutValidators,
+    RestartStalledConnections,
 
     Count,
 };
@@ -170,6 +173,7 @@ public:
 
     JsonValue const& config_variable(ConfigVariableID) const;
     bool config_variable_as_bool(ConfigVariableID) const;
+    u32 config_variable_as_u32(ConfigVariableID) const;
     Vector<String> config_variable_as_string_array(ConfigVariableID) const;
     void set_config_variable(ConfigVariableID, JsonValue);
     void set_config_variable(StringView name, JsonValue const&);

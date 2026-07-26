@@ -16,7 +16,9 @@
 #include <AK/Span.h>
 #include <AK/String.h>
 #include <LibHTTP/Forward.h>
+#include <LibRequests/CameFromCache.h>
 #include <LibRequests/Forward.h>
+#include <LibRequests/NetworkError.h>
 #include <LibURL/URL.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/PrivateBrowsing.h>
@@ -57,6 +59,9 @@ public:
         u64 downloaded_size { 0 };
         Optional<u64> total_size;
         Optional<String> error;
+
+        bool can_resume { false };
+        u32 connection_count { 0 };
     };
 
     FileDownloader();
@@ -90,10 +95,24 @@ private:
     void start_download_request(u64 id, URL::URL const&);
     void follow_download_redirect(u64 id, HTTP::HeaderList const&);
     void attach_request_to_download(u64 id, size_t segment_index, NonnullRefPtr<Requests::Request>);
-    void append_segment_data(u64 id, size_t segment_index, ReadonlyBytes);
+    void maybe_redistribute_segments(u64 id);
+    void start_stall_watchdog(u64 id);
+    void check_for_stalled_segments(u64 id);
+    void restart_stalled_segment(u64 id, size_t segment_index);
+    void handle_segment_headers(u64 id, size_t segment_index, u64 request_generation, HTTP::HeaderList const&, Optional<u32> response_code, Optional<String> const& reason_phrase, Requests::CameFromCache);
+    void handle_segment_finished(u64 id, size_t segment_index, u64 request_generation, u64 delivered_size, Optional<Requests::NetworkError> const&);
+    bool validate_range_response(u64 id, size_t segment_index, HTTP::HeaderList const&, Optional<u32> response_code);
+    void append_segment_data(u64 id, size_t segment_index, ReadonlyBytes, Optional<u64> request_generation = {});
     static ErrorOr<void> write_segment_data(ActiveDownload&, Segment&, ReadonlyBytes);
-    static void recompute_downloaded_size(Download&, ActiveDownload const&);
+    static void refresh_download_progress(Download&, ActiveDownload const&);
     static void stop_segment_request(ActiveDownload&, size_t segment_index);
+
+    void maybe_split_download(u64 id);
+    void start_segment_request(u64 id, size_t segment_index);
+    bool retry_segment_request(u64 id, size_t segment_index);
+    void abandon_segmentation(u64 id);
+    void restart_download_from_zero(u64 id);
+    void maybe_finish_download(u64 id);
     void discard_active_download(u64 id);
 
     void notify_download_added(Download const&);
