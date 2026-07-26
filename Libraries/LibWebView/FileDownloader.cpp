@@ -80,8 +80,9 @@ struct FileDownloader::ActiveDownload {
     RefPtr<Core::Timer> stall_timer;
 
     // Segments share one file descriptor, so we track where it is currently positioned to avoid seeking when the
-    // same segment writes twice in a row (which is every write for an unsegmented download).
-    u64 file_offset { 0 };
+    // same segment writes twice in a row (which is every write for an unsegmented download). Empty means we do not
+    // know where it is, and must seek before writing.
+    Optional<u64> file_offset;
 
     LexicalPath temporary_destination;
     Core::ElapsedTimer progress_update_timer;
@@ -590,11 +591,14 @@ void FileDownloader::restart_download_from_zero(u64 download_id)
     forget_persisted_download(download_id);
 
     if (active->file) {
+        // Truncating leaves the descriptor wherever it happened to be, so the next write has to seek rather than
+        // trust where it thinks it is.
+        active->file_offset = {};
+
         if (auto result = active->file->truncate(0); result.is_error()) {
             fail_download(download_id, MUST(String::formatted("Unable to save downloaded file: {}", result.error())));
             return;
         }
-        active->file_offset = 0;
     }
 
     refresh_download_progress(*download, *active);
@@ -714,14 +718,18 @@ ErrorOr<void> FileDownloader::write_segment_data(ActiveDownload& active, Segment
     VERIFY(active.file);
 
     if (active.file_offset != segment.next_offset) {
+        active.file_offset = {};
         TRY(active.file->seek(static_cast<i64>(segment.next_offset), SeekMode::SetPosition));
         active.file_offset = segment.next_offset;
     }
 
+    // If a write fails part way through we have no idea how much of it landed, so the position is only known again
+    // once it has succeeded outright.
+    active.file_offset = {};
     TRY(active.file->write_until_depleted(bytes));
 
     segment.next_offset += bytes.size();
-    active.file_offset += bytes.size();
+    active.file_offset = segment.next_offset;
 
     return {};
 }
@@ -800,7 +808,7 @@ void FileDownloader::pause_download(u64 id)
         stop_segment_request(*active, i - 1);
 
     active->file = nullptr;
-    active->file_offset = 0;
+    active->file_offset = {};
 
     download->status = DownloadStatus::Paused;
     refresh_download_progress(*download, *active);
@@ -832,7 +840,7 @@ void FileDownloader::resume_download(u64 id)
         }
 
         active->file = file_or_error.release_value();
-        active->file_offset = 0;
+        active->file_offset = {};
     }
 
     u64 required_size = 0;
