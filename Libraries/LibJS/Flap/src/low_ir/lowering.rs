@@ -2151,10 +2151,12 @@ fn lower_instruction(
                 emit!(output; narrow_integer_operation(machine_operation) => [destination.clone(), lhs, rhs];);
             } else if *operation == IntegerBinaryOperation::Binary(BinaryOperation::Multiply) {
                 emit!(output; machine_operation => [destination.clone(), lhs.clone(), rhs.clone()];);
+                narrow_wide_result_to_i32(function, instruction.results[0], destination, output);
             } else {
                 emit!(output; MachineOperation::Move(IntegerWidth::U64) => [destination.clone(), lhs.clone()];);
                 let rhs = materialize_symbolic_logical_rhs(*operation, destination, rhs, output)?;
                 emit!(output; machine_operation => [destination.clone(), rhs];);
+                narrow_wide_result_to_i32(function, instruction.results[0], destination, output);
             }
         }
         Operation::Intrinsic(Intrinsic::IntegerComparison(operation)) => {
@@ -2679,6 +2681,25 @@ fn are_i32_pair(function: &Function, inputs: &[ValueId]) -> bool {
         && inputs
             .iter()
             .all(|input| function.values[input.0].ty == Type::I32)
+}
+
+/// Clear the top half of a 32-bit result computed at full width.
+///
+/// Addition, subtraction and multiplication cannot produce a narrow result
+/// directly, because the overflow check they usually carry needs the wide one,
+/// so they are emitted at full width and the checked form truncates afterwards.
+/// An unchecked one has no such check to truncate for it, and everything that
+/// consumes an `i32` is entitled to assume the top half is clear.
+fn narrow_wide_result_to_i32(
+    function: &Function,
+    result: ValueId,
+    destination: &Operand,
+    output: &mut Vec<Instruction>,
+) {
+    if function.values[result.0].ty != Type::I32 {
+        return;
+    }
+    emit!(output; MachineOperation::Move(IntegerWidth::U32) => [destination.clone(), destination.clone()];);
 }
 
 fn integer_result_can_stay_narrow(function: &Function, result: ValueId) -> bool {
