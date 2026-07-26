@@ -17,7 +17,6 @@ pub(crate) struct FunctionAnalyses<'a> {
     pub(crate) cfg: &'a ControlFlowGraph,
     pub(crate) dominators: &'a DominatorTree,
     pub(crate) instruction_layout: &'a InstructionLayout,
-    pub(crate) loops: &'a [NaturalLoop],
     pub(crate) effects: &'a EffectDependencies,
 }
 
@@ -117,13 +116,11 @@ impl AnalysisManager {
         self.cfg(function);
         self.dominators(function);
         self.instruction_layout(function);
-        self.loops(function);
         self.effects(function);
         FunctionAnalyses {
             cfg: self.cfg.as_ref().unwrap(),
             dominators: self.dominators.as_ref().unwrap(),
             instruction_layout: self.instruction_layout.as_ref().unwrap(),
-            loops: self.loops.as_deref().unwrap(),
             effects: self.effects.as_ref().unwrap(),
         }
     }
