@@ -47,7 +47,8 @@ public:
         HTTP::Cookie::IncludeCredentials include_credentials,
         Optional<ByteString> alt_svc_cache_path,
         Core::ProxyData proxy_data,
-        bool keep_alive_for_transfer);
+        bool keep_alive_for_transfer,
+        Optional<u32> address_selection_hint);
 
     static NonnullOwnPtr<Request> connect(
         u64 request_id,
@@ -242,6 +243,9 @@ private:
     size_t m_bytes_transferred_to_client { 0 };
 
     Optional<Requests::NetworkError> m_network_error;
+
+    Optional<u32> m_address_selection_hint;
+
     bool m_keep_alive_for_transfer { false };
     RefPtr<ConnectionFromClient> m_network_connection_keep_alive;
 };

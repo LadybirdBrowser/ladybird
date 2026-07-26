@@ -40,6 +40,24 @@ ByteString build_curl_resolve_list(DNS::LookupResult const& dns_result, StringVi
     return resolve_opt_builder.to_byte_string();
 }
 
+Optional<ByteString> build_curl_connect_to_entry(DNS::LookupResult const& dns_result, StringView host, u16 port, u32 address_index)
+{
+    auto addresses = dns_result.cached_addresses();
+    if (addresses.size() < 2)
+        return {};
+
+    auto formatted_address = addresses[address_index % addresses.size()].visit(
+        [&](IPv4Address const& ipv4) { return ipv4.to_byte_string(); },
+        // CURLOPT_CONNECT_TO, unlike CURLOPT_RESOLVE, parses its host field, so an IPv6 address has to be bracketed
+        // for its colons not to read as a port separator.
+        [&](IPv6Address const& ipv6) { return ByteString::formatted("[{}]", MUST(ipv6.to_string())); });
+
+    auto entry = ByteString::formatted("{}:{}:{}:{}", host, port, formatted_address, port);
+    dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: Connect-to entry: {}", entry);
+
+    return entry;
+}
+
 Requests::NetworkError curl_code_to_network_error(int code)
 {
     switch (code) {
