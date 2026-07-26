@@ -76,6 +76,7 @@ mod tests {
         let layout = OpLayout {
             field_offsets: HashMap::from([("m_lhs".to_string(), 4), ("m_rhs".to_string(), 8)]),
             size: Some(12),
+            ..OpLayout::default()
         };
         let prepared = HandlerLayout::new(&["lhs".to_string(), "m_rhs".to_string()], Some(&layout));
 

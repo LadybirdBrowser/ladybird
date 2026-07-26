@@ -12,11 +12,8 @@
 
 use bytecode_def::Field;
 use bytecode_def::OpDef;
-use bytecode_def::STRUCT_ALIGN;
 use bytecode_def::compute_layouts;
 use bytecode_def::field_type_info;
-use bytecode_def::find_m_length_offset;
-use bytecode_def::round_up;
 use bytecode_def::user_fields;
 use std::env;
 use std::fs;
@@ -31,29 +28,10 @@ fn rust_field_name(name: &str) -> String {
     }
 }
 
-/// Find the count field corresponding to a given array field, using the same
-/// heuristic as the Python generator: prefer `<name>_count`, fall back to
-/// `<singularized name>_count`. Panics if no matching u32/size_t field is
-/// found, mirroring the Python `find_count_field_name_or_die`.
-fn find_count_field_name(op: &OpDef, array_field: &Field) -> String {
-    let mut candidates = vec![format!("{}_count", array_field.name)];
-    if let Some(stripped) = array_field.name.strip_suffix('s') {
-        candidates.push(format!("{stripped}_count"));
-    }
-    for candidate in &candidates {
-        for f in &op.fields {
-            if f.is_array {
-                continue;
-            }
-            if &f.name == candidate && (f.ty == "u32" || f.ty == "size_t") {
-                return candidate.clone();
-            }
-        }
-    }
-    panic!(
-        "No count field (u32/size_t) found for array field '{}' in op '{}'",
-        array_field.name, op.name
-    );
+fn count_field_name<'a>(op: &'a OpDef, array_field: &Field) -> &'a str {
+    let array = op.array.as_ref().expect("the parser validates array metadata");
+    assert_eq!(op.fields[array.field_index].name, array_field.name);
+    &op.fields[array.count_field_index].name
 }
 
 fn generate_rust_code(mut w: impl Write, ops: &[OpDef]) -> Result<(), Box<dyn std::error::Error>> {
@@ -132,33 +110,15 @@ fn generate_instruction_length_from_bytes(mut w: impl Write, ops: &[OpDef]) -> R
     writeln!(w, "    match opcode {{")?;
 
     for (i, op) in ops.iter().enumerate() {
-        let has_array = op.fields.iter().any(|f| f.is_array);
-
-        if !has_array {
-            let mut offset: usize = 2;
-            for f in &op.fields {
-                if f.is_array || f.name == "m_type" || f.name == "m_strict" {
-                    continue;
-                }
-                let info = field_type_info(&f.ty);
-                offset = round_up(offset, info.align);
-                offset += info.size;
-            }
-            let final_size = round_up(offset, STRUCT_ALIGN);
+        if let Some(final_size) = op.layout.size {
             let op_name = &op.name;
             writeln!(w, "        {i} => Ok({final_size}), // {op_name}")?;
         } else {
-            let mut fixed_offset: usize = 2;
-            for f in &op.fields {
-                if f.is_array || f.name == "m_type" || f.name == "m_strict" {
-                    continue;
-                }
-                let info = field_type_info(&f.ty);
-                fixed_offset = round_up(fixed_offset, info.align);
-                fixed_offset += info.size;
-            }
-            let minimum_length = round_up(fixed_offset, STRUCT_ALIGN);
-            let m_length_offset = find_m_length_offset(&op.fields);
+            let minimum_length = op.layout.minimum_size;
+            let m_length_offset = op
+                .layout
+                .m_length_offset
+                .expect("the parser requires m_length for array ops");
             let op_name = &op.name;
             writeln!(w, "        {i} => {{ // {op_name} (variable-length)")?;
             writeln!(w, "            let m_length_end = at + {m_length_offset} + 4;")?;
@@ -263,7 +223,7 @@ fn generate_array_bounds(
             continue;
         }
         let rname = rust_field_name(&f.name);
-        let count_name = rust_field_name(&find_count_field_name(op, f));
+        let count_name = rust_field_name(count_field_name(op, f));
         let offset = layout.field_offsets.get(&f.name).expect("array offset missing");
         let elem_size = field_type_info(&f.ty).size;
         writeln!(w, "            let {rname}_offset = at + {offset};")?;
@@ -299,9 +259,9 @@ fn generate_instruction_dump_from_bytes(mut w: impl Write, ops: &[OpDef]) -> Res
         let mut array_to_count = std::collections::HashMap::new();
         let mut count_fields = std::collections::HashSet::new();
         for af in arrays {
-            let count_field_name = find_count_field_name(op, af);
-            count_fields.insert(count_field_name.clone());
-            array_to_count.insert(af.name.clone(), rust_field_name(&count_field_name));
+            let count_field_name = count_field_name(op, af);
+            count_fields.insert(count_field_name);
+            array_to_count.insert(af.name.clone(), rust_field_name(count_field_name));
         }
 
         for f in &op.fields {
@@ -472,7 +432,7 @@ fn generate_instruction_dump_from_bytes(mut w: impl Write, ops: &[OpDef]) -> Res
                     w,
                     "            dumper.append_piece(|dumper| dumper.append_put_kind(\"{label}\", {rname}));"
                 )?,
-                _ if (ty == "u32" || ty == "u64" || ty == "u8") && !count_fields.contains(&f.name) => {
+                _ if (ty == "u32" || ty == "u64" || ty == "u8") && !count_fields.contains(f.name.as_str()) => {
                     writeln!(
                         w,
                         "            dumper.append_piece(|dumper| dumper.append_number(\"{label}\", {rname}));"
@@ -694,7 +654,7 @@ fn generate_validate_instruction(mut w: impl Write, ops: &[OpDef]) -> Result<(),
         // the array bound below) and avoid duplicate work.
         let mut count_field_names: std::collections::HashSet<String> = std::collections::HashSet::new();
         for af in &arrays {
-            count_field_names.insert(find_count_field_name(op, af));
+            count_field_names.insert(count_field_name(op, af).to_string());
         }
 
         let op_name = &op.name;
@@ -723,10 +683,10 @@ fn generate_validate_instruction(mut w: impl Write, ops: &[OpDef]) -> Result<(),
             // array; if that ever changes, this loop validates each independently.
             for af in &arrays {
                 let array_offset = *layout.field_offsets.get(&af.name).expect("missing array offset");
-                let count_field = find_count_field_name(op, af);
+                let count_field = count_field_name(op, af);
                 let count_offset = *layout
                     .field_offsets
-                    .get(&count_field)
+                    .get(count_field)
                     .expect("missing count field offset");
                 let elem_size = field_type_info(&af.ty).size;
 
@@ -884,20 +844,8 @@ fn generate_encoded_size_method(mut w: impl Write, ops: &[OpDef]) -> Result<(), 
 
     for op in ops {
         let fields = user_fields(op);
-        let has_array = op.fields.iter().any(|f| f.is_array);
 
-        if !has_array {
-            // Fixed-length: compute size statically
-            let mut offset: usize = 2; // header
-            for f in &op.fields {
-                if f.is_array || f.name == "m_type" || f.name == "m_strict" {
-                    continue;
-                }
-                let info = field_type_info(&f.ty);
-                offset = round_up(offset, info.align);
-                offset += info.size;
-            }
-            let final_size = round_up(offset, 8);
+        if let Some(final_size) = op.layout.size {
             let pat = if fields.is_empty() {
                 format!("Instruction::{}", op.name)
             } else {
@@ -905,28 +853,9 @@ fn generate_encoded_size_method(mut w: impl Write, ops: &[OpDef]) -> Result<(), 
             };
             writeln!(w, "            {pat} => {final_size},")?;
         } else {
-            // Variable-length: depends on array size
-            // Compute fixed part size
-            let mut fixed_offset: usize = 2;
-            for f in &op.fields {
-                if f.is_array || f.name == "m_type" || f.name == "m_strict" {
-                    continue;
-                }
-                let info = field_type_info(&f.ty);
-                fixed_offset = round_up(fixed_offset, info.align);
-                fixed_offset += info.size;
-            }
-
-            // Find the array field and its element size
-            let Some(array_field) = op.fields.iter().find(|f| f.is_array) else {
-                continue;
-            };
-            let info = field_type_info(&array_field.ty);
+            let array = op.array.as_ref().expect("variable op missing array metadata");
+            let array_field = &op.fields[array.field_index];
             let arr_name = rust_field_name(&array_field.name);
-            // C++ computes m_length as:
-            //   round_up(alignof(void*), sizeof(*this) + sizeof(elem) * count)
-            // sizeof(*this) = round_up(fixed_offset, STRUCT_ALIGN) due to alignas(void*).
-            let sizeof_this = round_up(fixed_offset, STRUCT_ALIGN);
 
             // Bind only the array field
             let bindings: Vec<String> = fields
@@ -949,7 +878,7 @@ fn generate_encoded_size_method(mut w: impl Write, ops: &[OpDef]) -> Result<(), 
             writeln!(
                 w,
                 "                let base = {} + {}.len() * {};",
-                sizeof_this, arr_name, info.size
+                op.layout.minimum_size, arr_name, array.element_size
             )?;
             writeln!(w, "                (base + 7) & !7 // round up to 8")?;
             writeln!(w, "            }}")?;
@@ -974,8 +903,6 @@ fn generate_encode_method(mut w: impl Write, ops: &[OpDef]) -> Result<(), Box<dy
 
     for op in ops {
         let fields = user_fields(op);
-        let has_array = op.fields.iter().any(|f| f.is_array);
-        let has_m_length = op.fields.iter().any(|f| f.name == "m_length");
 
         // Generate match arm with field bindings
         if fields.is_empty() {
@@ -1010,14 +937,18 @@ fn generate_encode_method(mut w: impl Write, ops: &[OpDef]) -> Result<(), Box<dy
             }
 
             let info = field_type_info(&f.ty);
-
-            // Pad to alignment
-            let aligned_offset = round_up(offset, info.align);
-            let pad = aligned_offset - offset;
+            let field_offset = op.layout.field_offsets[&f.name];
+            assert!(
+                field_offset >= offset,
+                "{}: tracked offset {offset} passed layout offset {field_offset} for {}",
+                op.name,
+                f.name
+            );
+            let pad = field_offset - offset;
             if pad > 0 {
                 writeln!(w, "                buf.extend_from_slice(&[0u8; {pad}]);")?;
             }
-            offset = aligned_offset;
+            offset = field_offset;
 
             if f.name == "m_length" {
                 // Write placeholder (patched at end for variable-length instructions)
@@ -1033,55 +964,53 @@ fn generate_encode_method(mut w: impl Write, ops: &[OpDef]) -> Result<(), Box<dy
         }
 
         // Write trailing array elements
-        if has_array {
-            // sizeof(*this) in C++ = round_up(fixed_offset, STRUCT_ALIGN)
-            let sizeof_this = round_up(offset, STRUCT_ALIGN);
-
-            for f in &op.fields {
-                if !f.is_array {
-                    continue;
-                }
-                let info = field_type_info(&f.ty);
-                let rname = rust_field_name(&f.name);
-
-                // Pad before first element if needed
-                let aligned_offset = round_up(offset, info.align);
-                let pad = aligned_offset - offset;
-                if pad > 0 {
-                    writeln!(w, "                buf.extend_from_slice(&[0u8; {pad}]);")?;
-                }
-
-                writeln!(w, "                for item in {rname} {{")?;
-                emit_field_write(&mut w, "item", info.kind, true)?;
-                writeln!(w, "                }}")?;
-
-                // Compute target size matching C++:
-                //   round_up(STRUCT_ALIGN, sizeof(*this) + count * elem_size)
-                writeln!(
-                    w,
-                    "                let target = ({} + {}.len() * {} + 7) & !7;",
-                    sizeof_this, rname, info.size
-                )?;
-                writeln!(
-                    w,
-                    "                while (buf.len() - start) < target {{ buf.push(0); }}"
-                )?;
+        if let Some(array) = &op.array {
+            let field = &op.fields[array.field_index];
+            let info = field_type_info(&field.ty);
+            let rname = rust_field_name(&field.name);
+            assert!(
+                array.offset >= offset,
+                "{}: tracked offset {offset} passed array offset {} for {}",
+                op.name,
+                array.offset,
+                field.name
+            );
+            let pad = array.offset - offset;
+            if pad > 0 {
+                writeln!(w, "                buf.extend_from_slice(&[0u8; {pad}]);")?;
             }
 
-            if has_m_length {
-                // Patch m_length: it's the first u32 field after the header
-                let m_length_offset = find_m_length_offset(&op.fields);
-                writeln!(w, "                let total_len = (buf.len() - start) as u32;")?;
-                writeln!(
-                    w,
-                    "                buf[start + {}..start + {}].copy_from_slice(&total_len.to_ne_bytes());",
-                    m_length_offset,
-                    m_length_offset + 4
-                )?;
-            }
+            writeln!(w, "                for item in {rname} {{")?;
+            emit_field_write(&mut w, "item", info.kind, true)?;
+            writeln!(w, "                }}")?;
+            writeln!(
+                w,
+                "                let target = ({} + {}.len() * {} + 7) & !7;",
+                op.layout.minimum_size, rname, array.element_size
+            )?;
+            writeln!(
+                w,
+                "                while (buf.len() - start) < target {{ buf.push(0); }}"
+            )?;
+
+            let m_length_offset = op
+                .layout
+                .m_length_offset
+                .expect("the parser requires m_length for array ops");
+            writeln!(w, "                let total_len = (buf.len() - start) as u32;")?;
+            writeln!(
+                w,
+                "                buf[start + {}..start + {}].copy_from_slice(&total_len.to_ne_bytes());",
+                m_length_offset,
+                m_length_offset + 4
+            )?;
         } else {
-            // Fixed-length: pad statically
-            let final_size = round_up(offset, 8);
+            let final_size = op.layout.size.expect("fixed op missing encoded size");
+            assert!(
+                final_size >= offset,
+                "{}: tracked offset {offset} passed final size {final_size}",
+                op.name
+            );
             let tail_pad = final_size - offset;
             if tail_pad > 0 {
                 writeln!(w, "                buf.extend_from_slice(&[0u8; {tail_pad}]);")?;

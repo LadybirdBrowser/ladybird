@@ -22,10 +22,22 @@ pub struct Field {
 }
 
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub struct OpDef {
     pub name: String,
+    pub parent: String,
     pub fields: Vec<Field>,
     pub is_terminator: bool,
+    pub layout: OpLayout,
+    pub array: Option<ArrayLayout>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ArrayLayout {
+    pub field_index: usize,
+    pub count_field_index: usize,
+    pub offset: usize,
+    pub element_size: usize,
 }
 
 pub struct FieldType {
@@ -146,8 +158,11 @@ pub fn parse_bytecode_def(source_name: &str, content: &str) -> Result<Vec<OpDef>
             }
             current = Some(OpDef {
                 name: name.to_string(),
+                parent: parent.unwrap_or_default().to_string(),
                 fields: Vec::new(),
                 is_terminator: false,
+                layout: OpLayout::default(),
+                array: None,
             });
             field_names.clear();
             op_start = Some((line, column));
@@ -155,10 +170,10 @@ pub fn parse_bytecode_def(source_name: &str, content: &str) -> Result<Vec<OpDef>
         }
 
         if stripped == "endop" {
-            let Some(op) = current.take() else {
+            let Some(mut op) = current.take() else {
                 return Err(ParseError::new(source_name, line, column, "endop without op"));
             };
-            validate_op_layout(&op).map_err(|message| ParseError::new(source_name, line, column, message))?;
+            validate_op(&mut op).map_err(|message| ParseError::new(source_name, line, column, message))?;
             ops.push(op);
             op_start = None;
             continue;
@@ -301,28 +316,45 @@ pub fn user_fields(op: &OpDef) -> Vec<&Field> {
         .collect()
 }
 
-/// Compute the byte offset of the m_length field within the C++ struct.
-pub fn find_m_length_offset(fields: &[Field]) -> usize {
-    let mut offset: usize = 2; // after m_type + m_strict
-    for f in fields {
-        if f.is_array {
-            continue;
-        }
-        if f.name == "m_type" || f.name == "m_strict" {
-            continue;
-        }
-        let info = field_type_info(&f.ty);
-        offset = round_up(offset, info.align);
-        if f.name == "m_length" {
-            return offset;
-        }
-        offset += info.size;
-    }
-    panic!("m_length field not found");
+fn count_field_index(op: &OpDef, array_field: &Field) -> Option<usize> {
+    let plural = format!("{}_count", array_field.name);
+    let singular = array_field.name.strip_suffix('s').map(|name| format!("{name}_count"));
+    op.fields.iter().position(|field| {
+        !field.is_array
+            && field.ty == "u32"
+            && (field.name == plural || singular.as_ref().is_some_and(|name| field.name == *name))
+    })
 }
 
-fn validate_op_layout(op: &OpDef) -> Result<(), String> {
+fn validate_op(op: &mut OpDef) -> Result<(), String> {
+    if op.name == "Instruction" {
+        if !op.parent.is_empty() {
+            return Err("base op 'Instruction' cannot have a parent".to_string());
+        }
+    } else if op.parent != "Instruction" {
+        return Err(format!("op '{}' must derive directly from Instruction", op.name));
+    }
+
     let mut offset = 2usize;
+    let mut field_offsets = HashMap::new();
+    let array_indices = op
+        .fields
+        .iter()
+        .enumerate()
+        .filter_map(|(index, field)| field.is_array.then_some(index))
+        .collect::<Vec<_>>();
+    if array_indices.len() > 1 {
+        return Err(format!("op '{}' has more than one flexible array field", op.name));
+    }
+    if let Some(array_index) = array_indices.first()
+        && *array_index + 1 != op.fields.len()
+    {
+        return Err(format!(
+            "flexible array field '{}' in op '{}' must be last",
+            op.fields[*array_index].name, op.name
+        ));
+    }
+
     for field in &op.fields {
         if field.is_array || field.name == "m_type" || field.name == "m_strict" {
             continue;
@@ -331,77 +363,83 @@ fn validate_op_layout(op: &OpDef) -> Result<(), String> {
         offset = offset
             .checked_add(info.align - 1)
             .map(|offset| offset & !(info.align - 1))
-            .and_then(|offset| offset.checked_add(info.size))
+            .ok_or_else(|| format!("layout of op '{}' overflows usize", op.name))?;
+        field_offsets.insert(field.name.clone(), offset);
+        offset = offset
+            .checked_add(info.size)
             .ok_or_else(|| format!("layout of op '{}' overflows usize", op.name))?;
     }
-    if op.fields.iter().any(|field| field.is_array) {
-        if !op
+
+    let array = if let Some(array_index) = array_indices.first().copied() {
+        let length_field = op
             .fields
             .iter()
-            .any(|field| field.name == "m_length" && field.ty == "u32" && !field.is_array)
-        {
+            .position(|field| field.name == "m_length" && field.ty == "u32" && !field.is_array);
+        if length_field.is_none() {
             return Err(format!("array op '{}' requires a u32 m_length field", op.name));
         }
-    } else {
-        offset
-            .checked_add(STRUCT_ALIGN - 1)
+        let count_field_index = count_field_index(op, &op.fields[array_index]).ok_or_else(|| {
+            format!(
+                "array field '{}' in op '{}' requires a matching u32 count field",
+                op.fields[array_index].name, op.name
+            )
+        })?;
+        let info = try_field_type_info(&op.fields[array_index].ty).expect("field types are checked while parsing");
+        let array_offset = offset
+            .checked_add(info.align - 1)
+            .map(|offset| offset & !(info.align - 1))
             .ok_or_else(|| format!("layout of op '{}' overflows usize", op.name))?;
-    }
+        field_offsets.insert(op.fields[array_index].name.clone(), array_offset);
+        Some(ArrayLayout {
+            field_index: array_index,
+            count_field_index,
+            offset: array_offset,
+            element_size: info.size,
+        })
+    } else {
+        None
+    };
+    let size = if array.is_some() {
+        None
+    } else {
+        Some(
+            offset
+                .checked_add(STRUCT_ALIGN - 1)
+                .map(|offset| offset & !(STRUCT_ALIGN - 1))
+                .ok_or_else(|| format!("layout of op '{}' overflows usize", op.name))?,
+        )
+    };
+    let minimum_size = offset
+        .checked_add(STRUCT_ALIGN - 1)
+        .map(|offset| offset & !(STRUCT_ALIGN - 1))
+        .ok_or_else(|| format!("layout of op '{}' overflows usize", op.name))?;
+    let m_length_offset = field_offsets.get("m_length").copied();
+    op.layout = OpLayout {
+        field_offsets,
+        size,
+        minimum_size,
+        m_length_offset,
+    };
+    op.array = array;
     Ok(())
 }
 
 /// Computed layout info for a single opcode.
-#[derive(Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct OpLayout {
     /// Byte offset of each field within the C++ struct (keyed by field name, e.g. "m_dst").
     pub field_offsets: HashMap<String, usize>,
     /// Total encoded size (for fixed-size instructions), or None for variable-length.
     pub size: Option<usize>,
+    /// Minimum encoded size, including the fixed header and tail padding.
+    pub minimum_size: usize,
+    /// Byte offset of m_length for variable-length instructions.
+    pub m_length_offset: Option<usize>,
 }
 
 /// Compute field offsets and total sizes for all opcodes.
 pub fn compute_layouts(ops: &[OpDef]) -> HashMap<String, OpLayout> {
-    let mut result = HashMap::new();
-
-    for op in ops {
-        let has_array = op.fields.iter().any(|f| f.is_array);
-        let mut field_offsets = HashMap::new();
-        let mut offset: usize = 2; // after m_type + m_strict header
-
-        // First pass: fixed (non-array) fields
-        for f in &op.fields {
-            if f.is_array || f.name == "m_type" || f.name == "m_strict" {
-                continue;
-            }
-            let info = field_type_info(&f.ty);
-            offset = round_up(offset, info.align);
-            field_offsets.insert(f.name.clone(), offset);
-            offset += info.size;
-        }
-
-        // Flexible array members start after the fixed fields with only the
-        // element's alignment. This can be before the struct's final tail
-        // padding on targets like MSVC.
-        if has_array {
-            for f in &op.fields {
-                if !f.is_array {
-                    continue;
-                }
-                let info = field_type_info(&f.ty);
-                field_offsets.insert(f.name.clone(), round_up(offset, info.align));
-            }
-        }
-
-        let size = if has_array {
-            None
-        } else {
-            Some(round_up(offset, STRUCT_ALIGN))
-        };
-
-        result.insert(op.name.clone(), OpLayout { field_offsets, size });
-    }
-
-    result
+    ops.iter().map(|op| (op.name.clone(), op.layout.clone())).collect()
 }
 
 #[cfg(test)]
@@ -473,15 +511,27 @@ endop
             ("op 42\nendop\n", "invalid op name"),
             ("op Bad < Parent < Other\nendop\n", "invalid parent op name"),
             ("op Bad\n    42: u32\nendop\n", "invalid field name"),
-            ("op First\nendop\nop First\nendop\n", "duplicate op 'First'"),
             (
-                "op Fields\n    value: u32\n    value: u64\nendop\n",
+                "op First < Instruction\nendop\nop First < Instruction\nendop\n",
+                "duplicate op 'First'",
+            ),
+            (
+                "op Fields < Instruction\n    value: u32\n    value: u64\nendop\n",
                 "duplicate field 'value'",
             ),
             (
-                "op Array\n    m_values: Value[]\nendop\n",
+                "op Array < Instruction\n    m_values: Value[]\nendop\n",
                 "requires a u32 m_length field",
             ),
+            (
+                "op Array < Instruction\n    m_length: u32\n    m_values: Value[]\nendop\n",
+                "requires a matching u32 count field",
+            ),
+            (
+                "op Array < Instruction\n    m_length: u32\n    m_value_count: u32\n    m_values: Value[]\n    m_tail: u32\nendop\n",
+                "must be last",
+            ),
+            ("op Derived < Mystery\nendop\n", "must derive directly from Instruction"),
         ] {
             let error = parse_bytecode_def("broken.def", source).unwrap_err();
             assert!(
