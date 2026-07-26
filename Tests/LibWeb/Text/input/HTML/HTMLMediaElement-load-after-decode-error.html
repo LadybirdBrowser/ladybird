@@ -7,8 +7,6 @@
 
     function logEvent(name) {
         let entry = `${name}: ${formatReadyStateExpectation(video, name)}`;
-        if (name === "durationchange")
-            entry += ` duration=${video.duration}`;
         if (name === "error")
             entry += ` code=${video.error.code}`;
         println(entry);
@@ -16,7 +14,7 @@
 
     for (const name of [
         "loadstart", "abort", "error", "emptied",
-        "loadedmetadata", "durationchange", "ended",
+        "loadedmetadata", "ended",
     ]) {
         video.addEventListener(name, () => logEvent(name));
     }

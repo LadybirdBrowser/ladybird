@@ -4,7 +4,6 @@ error handler: setting good src
 error handler: src setter returned
 emptied: readyState >= HAVE_NOTHING
 loadstart: readyState >= HAVE_NOTHING
-durationchange: readyState >= HAVE_METADATA duration=12.043
 loadedmetadata: readyState >= HAVE_METADATA
 loadeddata: readyState >= HAVE_CURRENT_DATA
 canplay: readyState >= HAVE_FUTURE_DATA

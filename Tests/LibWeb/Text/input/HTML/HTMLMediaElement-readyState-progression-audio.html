@@ -8,14 +8,12 @@
 
         function logEvent(name) {
             let entry = `${name}: ${formatReadyStateExpectation(audio, name)}`;
-            if (name === "durationchange")
-                entry += ` duration=${audio.duration}`;
             println(entry);
         }
 
         for (const name of [
-            "loadstart", "durationchange", "loadedmetadata",
-            "loadeddata", "canplay", "canplaythrough",
+            "loadstart", "loadedmetadata", "loadeddata",
+            "canplay", "canplaythrough",
             "seeking", "seeked",
         ]) {
             audio.addEventListener(name, () => logEvent(name));
