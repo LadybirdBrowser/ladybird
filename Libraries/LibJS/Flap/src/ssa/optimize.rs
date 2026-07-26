@@ -151,8 +151,8 @@ pub(crate) fn fuse_operand_accesses(function: &mut Function) {
             };
             let first = &mut function.instructions[first_id.0];
             first.operation = Operation::Intrinsic(Intrinsic::Operand(operation));
-            first.inputs = inputs;
-            first.results = results;
+            first.inputs = inputs.into();
+            first.results = results.into();
             let memory = if operation == OperandOperation::Copy {
                 super::MemoryEffect::ReadWrite
             } else {
@@ -284,7 +284,7 @@ fn resolve_block_references(function: &mut Function, _: &mut AnalysisManager) ->
             continue;
         };
         function.blocks[block_index].terminator =
-            Some(Terminator::jump_with_arguments(target, instruction.inputs.clone()));
+            Some(Terminator::jump_with_arguments(target, instruction.inputs.to_vec()));
         changed = true;
     }
     changed
@@ -743,7 +743,7 @@ fn eliminate_common_subexpressions_pass(function: &mut Function, analyses: &mut 
             };
             let expression = Expression {
                 operation: instruction.operation.clone(),
-                inputs: instruction.inputs.clone(),
+                inputs: instruction.inputs.to_vec(),
                 result_types: instruction
                     .results
                     .iter()
@@ -766,7 +766,7 @@ fn eliminate_common_subexpressions_pass(function: &mut Function, analyses: &mut 
             } else {
                 let expression = Rc::new(expression);
                 undo.push((Rc::clone(&expression), None));
-                available.insert(expression, instruction.results.clone());
+                available.insert(expression, instruction.results.to_vec());
             }
         }
         let children = dominators.children(block);
@@ -1513,7 +1513,7 @@ mod tests {
 
         assert!(function.blocks[header.0].parameters.is_empty());
         assert!(matches!(function.values[parameter.0].definition, ValueDefinition::Dead));
-        assert_eq!(function.instructions[0].inputs, vec![constant]);
+        assert_eq!(function.instructions[0].inputs.as_slice(), [constant]);
         for block in &function.blocks {
             for edge in block.terminator.as_ref().unwrap().successors() {
                 assert!(edge.arguments.is_empty());
@@ -1545,7 +1545,7 @@ handler Add(lhs: i32, rhs: i32) {
         assert_eq!(entry.instructions.len(), 4);
         let first_add = &function.instructions[entry.instructions[0].0];
         let total = &function.instructions[entry.instructions[1].0];
-        assert_eq!(total.inputs, vec![first_add.results[0], first_add.results[0]]);
+        assert_eq!(total.inputs.as_slice(), [first_add.results[0], first_add.results[0]]);
     }
 
     #[test]

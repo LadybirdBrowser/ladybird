@@ -323,7 +323,7 @@ fn address_location(function: &Function, value: ValueId, bytes: u8) -> Option<Me
         return None;
     }
     Some(MemoryLocation {
-        identity: MemoryLocationIdentity::Address(instruction.inputs.clone()),
+        identity: MemoryLocationIdentity::Address(instruction.inputs.to_vec()),
         bytes,
     })
 }

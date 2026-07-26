@@ -639,7 +639,7 @@ fn block_reference(function: &Function, value: ValueId) -> Option<Edge> {
     let Operation::BlockReference(block) = &instruction.operation else {
         return None;
     };
-    Some(Edge::with_arguments(*block, instruction.inputs.clone()))
+    Some(Edge::with_arguments(*block, instruction.inputs.to_vec()))
 }
 
 fn coerce_value(

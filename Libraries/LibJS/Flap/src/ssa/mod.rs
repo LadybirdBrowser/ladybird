@@ -29,6 +29,7 @@ pub(crate) use crate::intrinsic::{
 };
 use crate::ssa as ir;
 use crate::types::{BlockTemperature, InterpreterRegister, RegisterReference, Type};
+use smallvec::SmallVec;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub(crate) struct BlockId(pub usize);
@@ -127,8 +128,8 @@ impl Operation {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Instruction {
     pub(crate) operation: Operation,
-    pub(crate) inputs: Vec<ValueId>,
-    pub(crate) results: Vec<ValueId>,
+    pub(crate) inputs: SmallVec<[ValueId; 2]>,
+    pub(crate) results: SmallVec<[ValueId; 2]>,
     base_effects: Effects,
     pub(crate) effects: Effects,
 }
@@ -539,8 +540,8 @@ impl Function {
             .collect::<Vec<_>>();
         self.instructions.push(Instruction {
             operation,
-            inputs,
-            results: results.clone(),
+            inputs: inputs.into(),
+            results: results.clone().into(),
             base_effects,
             effects,
         });
