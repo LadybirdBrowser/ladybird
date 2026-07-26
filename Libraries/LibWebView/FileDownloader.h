@@ -70,9 +70,11 @@ public:
 
         bool can_resume { false };
         u32 connection_count { 0 };
-
-        // Set while we are waiting out a server that told us we are asking for too much, too fast.
+        Optional<u64> bytes_per_second;
         bool is_waiting_to_retry { false };
+        UnixDateTime created_time;
+
+        Optional<AK::Duration> estimated_time_remaining() const;
     };
 
     FileDownloader();
@@ -125,6 +127,7 @@ private:
     void append_segment_data(u64 id, size_t segment_index, ReadonlyBytes, Optional<u64> request_generation = {});
     static ErrorOr<void> write_segment_data(ActiveDownload&, Segment&, ReadonlyBytes);
     static void refresh_download_progress(Download&, ActiveDownload const&);
+    static void sample_download_rate(Download&, ActiveDownload&);
     static void stop_segment_request(ActiveDownload&, size_t segment_index);
 
     void fail_or_pause_download(u64 id, String);

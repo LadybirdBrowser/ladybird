@@ -263,6 +263,22 @@
                 return sizeUnits[0];
             }
 
+            function rateLabel(bytesPerSecond) {
+                const unit = unitForDownloadSize(bytesPerSecond);
+                return `${sizeFormatter.format(bytesPerSecond / unit.divisor)} ${unit.suffix}/s`;
+            }
+
+            function timeRemainingLabel(seconds) {
+                if (seconds < 60) return `${Math.max(seconds, 1)} sec left`;
+
+                const totalMinutes = Math.ceil(seconds / 60);
+                if (totalMinutes < 60) return `${totalMinutes} min left`;
+
+                const hours = Math.floor(totalMinutes / 60);
+                const minutes = totalMinutes % 60;
+                return `${hours} hr ${minutes} min left`;
+            }
+
             function statusLabel(download) {
                 if (download.status === "completed") return "Completed";
                 if (download.status === "canceled") return "Canceled";
@@ -279,10 +295,18 @@
                     return "The server asked us to slow down - waiting to retry.";
                 if (download.status !== "completed" && download.totalSize > 0) {
                     const unit = unitForDownloadSize(download.totalSize);
-                    const size = `${sizeFormatter.format(download.downloadedSize / unit.divisor)}/${sizeFormatter.format(download.totalSize / unit.divisor)} ${unit.suffix}`;
-                    if (download.status === "in-progress" && download.connectionCount > 1)
-                        return `${size} - ${download.connectionCount} connections`;
-                    return size;
+                    const parts = [
+                        `${sizeFormatter.format(download.downloadedSize / unit.divisor)}/${sizeFormatter.format(download.totalSize / unit.divisor)} ${unit.suffix}`,
+                    ];
+
+                    if (download.status === "in-progress") {
+                        if (download.bytesPerSecond > 0) parts.push(rateLabel(download.bytesPerSecond));
+                        if (download.secondsRemaining !== null && download.secondsRemaining !== undefined)
+                            parts.push(timeRemainingLabel(download.secondsRemaining));
+                        if (download.connectionCount > 1) parts.push(`${download.connectionCount} connections`);
+                    }
+
+                    return parts.join(" - ");
                 }
 
                 const unit = unitForDownloadSize(download.downloadedSize);

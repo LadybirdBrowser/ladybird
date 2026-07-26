@@ -103,7 +103,21 @@ struct FileDownloader::ActiveDownload {
     bool restored_from_disk { false };
 
     u8 restart_count { 0 };
+    u64 last_request_generation { 0 };
+    Optional<MonotonicTime> rate_sample_time;
+    u64 rate_sample_downloaded_size { 0 };
 };
+
+Optional<AK::Duration> FileDownloader::Download::estimated_time_remaining() const
+{
+    if (!bytes_per_second.has_value() || *bytes_per_second == 0)
+        return {};
+    if (!total_size.has_value() || downloaded_size >= *total_size)
+        return {};
+
+    auto remaining_size = *total_size - downloaded_size;
+    return AK::Duration::from_seconds(static_cast<i64>(remaining_size / *bytes_per_second));
+}
 
 Optional<double> FileDownloader::Download::progress() const
 {
@@ -740,6 +754,9 @@ void FileDownloader::handle_rate_limited_segment(u64 download_id, size_t segment
     }
 
     download->is_waiting_to_retry = true;
+    download->bytes_per_second = {};
+    active->rate_sample_time = {};
+
     refresh_download_progress(*download, *active);
     notify_download_updated(*download);
 }
@@ -825,6 +842,8 @@ u64 FileDownloader::start_download(IsPrivate is_private, URL::URL const& url, Le
         .destination = move(destination),
         .total_size = total_size,
         .error = {},
+        .bytes_per_second = {},
+        .created_time = UnixDateTime::now(),
     });
     auto& download = m_downloads.last();
     notify_download_added(download);
@@ -918,6 +937,7 @@ void FileDownloader::append_segment_data(u64 id, size_t segment_index, ReadonlyB
         return;
 
     active->progress_update_timer.start();
+    sample_download_rate(*download, *active);
     persist_download_snapshot(id, PersistUrgency::Throttled);
     notify_download_updated(*download);
 }
@@ -941,6 +961,37 @@ ErrorOr<void> FileDownloader::write_segment_data(ActiveDownload& active, Segment
     active.file_offset = segment.next_offset;
 
     return {};
+}
+
+void FileDownloader::sample_download_rate(Download& download, ActiveDownload& active)
+{
+    static constexpr auto rate_sample_interval = AK::Duration::from_milliseconds(500);
+    static constexpr double rate_sample_weight = 0.3;
+
+    auto now = MonotonicTime::now();
+
+    if (!active.rate_sample_time.has_value()) {
+        active.rate_sample_time = now;
+        active.rate_sample_downloaded_size = download.downloaded_size;
+        return;
+    }
+
+    auto elapsed = now - *active.rate_sample_time;
+    if (elapsed < rate_sample_interval)
+        return;
+
+    auto downloaded_since_sample = download.downloaded_size > active.rate_sample_downloaded_size
+        ? download.downloaded_size - active.rate_sample_downloaded_size
+        : 0;
+
+    auto sampled_rate = static_cast<double>(downloaded_since_sample) * 1000.0 / static_cast<double>(elapsed.to_milliseconds());
+
+    download.bytes_per_second = download.bytes_per_second.has_value()
+        ? static_cast<u64>((1.0 - rate_sample_weight) * static_cast<double>(*download.bytes_per_second) + rate_sample_weight * sampled_rate)
+        : static_cast<u64>(sampled_rate);
+
+    active.rate_sample_time = now;
+    active.rate_sample_downloaded_size = download.downloaded_size;
 }
 
 void FileDownloader::refresh_download_progress(Download& download, ActiveDownload const& active)
@@ -996,6 +1047,7 @@ void FileDownloader::finish_download(u64 id)
     forget_persisted_download(id);
 
     download->status = DownloadStatus::Completed;
+    download->bytes_per_second = {};
     if (!download->total_size.has_value())
         download->total_size = download->downloaded_size;
     notify_download_updated(*download);
@@ -1022,6 +1074,9 @@ void FileDownloader::pause_download(u64 id)
     active->file_offset = {};
 
     download->status = DownloadStatus::Paused;
+    download->is_waiting_to_retry = false;
+    active->rate_sample_time = {};
+
     refresh_download_progress(*download, *active);
     persist_download_snapshot(id, PersistUrgency::Immediate);
     notify_download_updated(*download);
@@ -1081,6 +1136,7 @@ void FileDownloader::resume_download(u64 id)
 
     download->status = DownloadStatus::InProgress;
     download->error = {};
+    active->rate_sample_time = {};
 
     for (size_t i = 0; i < active->segments.size(); ++i) {
         auto& segment = active->segments[i];
@@ -1256,6 +1312,8 @@ bool FileDownloader::restore_persisted_download(DownloadRecord& record)
         .total_size = record.total_size,
         .error = {},
         .can_resume = true,
+        .bytes_per_second = {},
+        .created_time = record.created_time,
     });
 
     auto active = make<ActiveDownload>(move(temporary_destination));
