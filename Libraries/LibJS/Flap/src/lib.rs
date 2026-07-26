@@ -40,6 +40,7 @@ use frontend::layout::{LayoutConstants, LayoutDatabase, LayoutError};
 use identity::HandlerId;
 use std::error::Error;
 use std::fmt;
+use std::time::{Duration, Instant};
 use target::emitter::DISPATCH_TABLE_SIZE;
 use types::BlockTemperature;
 
@@ -100,6 +101,31 @@ pub struct CompilationUnit<'a> {
     pub source: SourceInput<'a>,
     pub constants: Option<SourceInput<'a>>,
     pub bytecode_def: Option<SourceInput<'a>>,
+}
+
+/// Timing and IR size measurements collected by an instrumented compilation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CompilationMetrics {
+    pub prepare: Duration,
+    pub lower: Duration,
+    pub select: Duration,
+    pub allocate: Duration,
+    pub finalize: Duration,
+    pub emit: Duration,
+    pub handlers: usize,
+    pub ssa_blocks: usize,
+    pub ssa_instructions: usize,
+    pub ssa_values: usize,
+    pub low_ir_instructions: usize,
+    pub target_instructions: usize,
+    pub virtual_registers: usize,
+    pub machine_instructions: usize,
+}
+
+impl CompilationMetrics {
+    pub fn elapsed(&self) -> Duration {
+        self.prepare + self.lower + self.select + self.allocate + self.finalize + self.emit
+    }
 }
 
 #[derive(Clone)]
@@ -268,6 +294,91 @@ impl Compiler {
     pub fn compile(&self, unit: CompilationUnit<'_>) -> Result<Assembly, CompileError> {
         let prepared = self.prepare(unit)?;
         self.compile_prepared(&prepared)
+    }
+
+    /// Compile while collecting stage timings and IR size measurements.
+    ///
+    /// The regular compilation entry points do not collect these metrics and
+    /// therefore do not pay for timers or IR traversal.
+    pub fn compile_with_metrics(
+        &self,
+        unit: CompilationUnit<'_>,
+    ) -> Result<(Assembly, CompilationMetrics), CompileError> {
+        let started_at = Instant::now();
+        let prepared = self.prepare(unit)?;
+        let prepare = started_at.elapsed();
+        let handlers = prepared.handlers.len();
+        let ssa_blocks = prepared
+            .handlers
+            .iter()
+            .map(|handler| handler.function.blocks.len())
+            .sum();
+        let ssa_instructions = prepared
+            .handlers
+            .iter()
+            .map(|handler| handler.function.instructions.len())
+            .sum();
+        let ssa_values = prepared
+            .handlers
+            .iter()
+            .map(|handler| handler.function.values.len())
+            .sum();
+
+        let started_at = Instant::now();
+        let program = self.lower(&prepared)?;
+        let lower = started_at.elapsed();
+        let low_ir_instructions = program.handlers.iter().map(|handler| handler.instructions.len()).sum();
+
+        let started_at = Instant::now();
+        let selected = self.select(program)?;
+        let select = started_at.elapsed();
+        let target_instructions = selected
+            .functions
+            .iter()
+            .map(|function| function.instructions.len())
+            .sum();
+        let virtual_registers = selected
+            .functions
+            .iter()
+            .map(|function| function.virtual_registers.len())
+            .sum();
+
+        let started_at = Instant::now();
+        let allocated = self.allocate(selected)?;
+        let allocate = started_at.elapsed();
+
+        let started_at = Instant::now();
+        let machine = self.finalize(allocated)?;
+        let finalize = started_at.elapsed();
+        let machine_instructions = machine
+            .functions
+            .iter()
+            .map(|function| function.hot_instructions.len() + function.cold_instructions.len())
+            .sum();
+
+        let started_at = Instant::now();
+        let assembly = self.emit_program(&machine)?;
+        let emit = started_at.elapsed();
+
+        Ok((
+            assembly,
+            CompilationMetrics {
+                prepare,
+                lower,
+                select,
+                allocate,
+                finalize,
+                emit,
+                handlers,
+                ssa_blocks,
+                ssa_instructions,
+                ssa_values,
+                low_ir_instructions,
+                target_instructions,
+                virtual_registers,
+                machine_instructions,
+            },
+        ))
     }
 
     /// Parse, type-check, inline, and optimize all reusable handler templates.
@@ -554,6 +665,26 @@ const CANON_NAN_BITS = 0x7FF8000000000000
             assert!(assembly.as_str().contains("js_interpreter"));
             assert!(assembly.as_str().contains("handler_Nop"));
         }
+    }
+
+    #[test]
+    fn reports_compilation_metrics() {
+        let compiler = compiler(Architecture::X86_64);
+        let (assembly, metrics) = compiler
+            .compile_with_metrics(unit("op Nop < Instruction\nendop\n"))
+            .expect("instrumented compilation should succeed");
+
+        assert!(assembly.as_str().contains("handler_Nop"));
+        assert_eq!(metrics.handlers, 1);
+        assert!(metrics.ssa_blocks != 0);
+        assert!(metrics.ssa_instructions != 0);
+        assert!(metrics.low_ir_instructions != 0);
+        assert!(metrics.target_instructions != 0);
+        assert!(metrics.machine_instructions != 0);
+        assert_eq!(
+            metrics.elapsed(),
+            metrics.prepare + metrics.lower + metrics.select + metrics.allocate + metrics.finalize + metrics.emit
+        );
     }
 
     #[test]

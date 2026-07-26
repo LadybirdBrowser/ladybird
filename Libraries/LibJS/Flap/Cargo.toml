@@ -5,3 +5,7 @@ edition = "2024"
 
 [dependencies]
 bytecode_def = { path = "../BytecodeDef" }
+
+[[bench]]
+name = "compiler"
+harness = false
