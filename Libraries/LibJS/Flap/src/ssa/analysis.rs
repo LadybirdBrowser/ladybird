@@ -74,41 +74,68 @@ impl ControlFlowGraph {
 
 #[derive(Debug)]
 pub(crate) struct DominatorTree {
-    dominators: Vec<HashSet<BlockId>>,
     immediate_dominators: Vec<Option<BlockId>>,
     children: Vec<Vec<BlockId>>,
+    /// Depth in the dominator tree, with the entry at zero.
+    depths: Vec<usize>,
+    /// Preorder interval of each block's subtree, which answers a dominance
+    /// question by containment rather than by set membership.
+    entered: Vec<u32>,
+    exited: Vec<u32>,
 }
 
 impl DominatorTree {
+    /// Compute immediate dominators by the Cooper-Harvey-Kennedy algorithm.
+    ///
+    /// Only the immediate dominator of each block is stored. The full dominator
+    /// set of a block is its path to the entry, so keeping the sets themselves
+    /// costs quadratic space and turns every recomputation into set cloning and
+    /// intersection.
     pub(crate) fn compute(function: &Function, cfg: &ControlFlowGraph) -> Self {
-        let all_reachable = cfg.reverse_postorder().iter().copied().collect::<HashSet<_>>();
-        let mut dominators = vec![HashSet::new(); function.blocks.len()];
-        for block in cfg.reverse_postorder() {
-            dominators[block.0] = all_reachable.clone();
+        let block_count = function.blocks.len();
+        let reverse_postorder = cfg.reverse_postorder();
+
+        // Intersection walks two blocks up the tree until they meet, comparing
+        // by postorder number, so a block deeper in the traversal is the one
+        // that moves.
+        let mut postorder_number = vec![0usize; block_count];
+        for (index, block) in reverse_postorder.iter().enumerate() {
+            postorder_number[block.0] = reverse_postorder.len() - index;
         }
-        dominators[function.entry.0] = HashSet::from([function.entry]);
+
+        // A block is its own dominator here so the fixed point has a starting
+        // point to intersect against; the entry keeps that value and every
+        // other block is refined away from it.
+        let mut immediate_dominators = vec![None; block_count];
+        immediate_dominators[function.entry.0] = Some(function.entry);
+
+        let intersect = |immediate_dominators: &[Option<BlockId>], mut lhs: BlockId, mut rhs: BlockId| {
+            while lhs != rhs {
+                while postorder_number[lhs.0] < postorder_number[rhs.0] {
+                    lhs = immediate_dominators[lhs.0].expect("a processed block has an immediate dominator");
+                }
+                while postorder_number[rhs.0] < postorder_number[lhs.0] {
+                    rhs = immediate_dominators[rhs.0].expect("a processed block has an immediate dominator");
+                }
+            }
+            lhs
+        };
 
         loop {
             let mut changed = false;
-            for block in cfg.reverse_postorder().iter().copied().skip(1) {
-                let reachable_predecessors = cfg
-                    .predecessors(block)
-                    .iter()
-                    .copied()
-                    .filter(|predecessor| cfg.is_reachable(*predecessor))
-                    .collect::<Vec<_>>();
-                let mut next = if let Some((first, rest)) = reachable_predecessors.split_first() {
-                    let mut intersection = dominators[first.0].clone();
-                    for predecessor in rest {
-                        intersection.retain(|candidate| dominators[predecessor.0].contains(candidate));
+            for block in reverse_postorder.iter().copied().skip(1) {
+                let mut new_immediate_dominator = None;
+                for predecessor in cfg.predecessors(block).iter().copied() {
+                    if !cfg.is_reachable(predecessor) || immediate_dominators[predecessor.0].is_none() {
+                        continue;
                     }
-                    intersection
-                } else {
-                    HashSet::new()
-                };
-                next.insert(block);
-                if next != dominators[block.0] {
-                    dominators[block.0] = next;
+                    new_immediate_dominator = Some(match new_immediate_dominator {
+                        None => predecessor,
+                        Some(current) => intersect(&immediate_dominators, predecessor, current),
+                    });
+                }
+                if new_immediate_dominator.is_some() && immediate_dominators[block.0] != new_immediate_dominator {
+                    immediate_dominators[block.0] = new_immediate_dominator;
                     changed = true;
                 }
             }
@@ -117,33 +144,53 @@ impl DominatorTree {
             }
         }
 
-        let mut immediate_dominators = vec![None; function.blocks.len()];
-        let mut children = vec![Vec::new(); function.blocks.len()];
-        for block_index in 0..function.blocks.len() {
-            let block = BlockId(block_index);
-            if block == function.entry || !cfg.is_reachable(block) {
+        // The entry dominates itself but is nobody's child, and an unreachable
+        // block has no dominator at all.
+        immediate_dominators[function.entry.0] = None;
+        let mut children = vec![Vec::new(); block_count];
+        for block_index in 0..block_count {
+            if let Some(immediate_dominator) = immediate_dominators[block_index] {
+                children[immediate_dominator.0].push(BlockId(block_index));
+            }
+        }
+
+        // Numbering the tree once turns dominance into an interval containment
+        // test, which is what the passes ask for over and over.
+        let mut depths = vec![0usize; block_count];
+        let mut entered = vec![0u32; block_count];
+        let mut exited = vec![0u32; block_count];
+        let mut clock = 0u32;
+        let mut worklist = vec![(function.entry, false)];
+        while let Some((block, finished)) = worklist.pop() {
+            if finished {
+                exited[block.0] = clock;
                 continue;
             }
-            let immediate_dominator = dominators[block.0]
-                .iter()
-                .copied()
-                .filter(|dominator| *dominator != block)
-                .max_by_key(|dominator| dominators[dominator.0].len());
-            immediate_dominators[block.0] = immediate_dominator;
-            if let Some(immediate_dominator) = immediate_dominator {
-                children[immediate_dominator.0].push(block);
+            clock += 1;
+            entered[block.0] = clock;
+            worklist.push((block, true));
+            for child in children[block.0].iter().copied() {
+                depths[child.0] = depths[block.0] + 1;
+                worklist.push((child, false));
             }
         }
 
         Self {
-            dominators,
             immediate_dominators,
             children,
+            depths,
+            entered,
+            exited,
         }
     }
 
     pub(crate) fn dominates(&self, dominator: BlockId, block: BlockId) -> bool {
-        self.dominators[block.0].contains(&dominator)
+        // An unvisited block was never entered, so it dominates nothing and is
+        // dominated by nothing, which is what the set-based answer used to be.
+        self.entered[block.0] != 0
+            && self.entered[dominator.0] != 0
+            && self.entered[dominator.0] <= self.entered[block.0]
+            && self.exited[block.0] <= self.exited[dominator.0]
     }
 
     pub(crate) fn immediate_dominator(&self, block: BlockId) -> Option<BlockId> {
@@ -155,14 +202,24 @@ impl DominatorTree {
     }
 
     pub(crate) fn depth(&self, block: BlockId) -> usize {
-        self.dominators[block.0].len().saturating_sub(1)
+        self.depths[block.0]
     }
 
-    pub(crate) fn nearest_common_dominator(&self, lhs: BlockId, rhs: BlockId) -> Option<BlockId> {
-        self.dominators[lhs.0]
-            .intersection(&self.dominators[rhs.0])
-            .copied()
-            .max_by_key(|block| self.depth(*block))
+    pub(crate) fn nearest_common_dominator(&self, mut lhs: BlockId, mut rhs: BlockId) -> Option<BlockId> {
+        if self.entered[lhs.0] == 0 || self.entered[rhs.0] == 0 {
+            return None;
+        }
+        while self.depths[lhs.0] > self.depths[rhs.0] {
+            lhs = self.immediate_dominators[lhs.0]?;
+        }
+        while self.depths[rhs.0] > self.depths[lhs.0] {
+            rhs = self.immediate_dominators[rhs.0]?;
+        }
+        while lhs != rhs {
+            lhs = self.immediate_dominators[lhs.0]?;
+            rhs = self.immediate_dominators[rhs.0]?;
+        }
+        Some(lhs)
     }
 }
 
