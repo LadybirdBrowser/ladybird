@@ -689,17 +689,17 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     location_edit_layout->setSpacing(0);
     location_edit_layout->setContentsMargins(TOOLBAR_LOCATION_EDIT_SIDE_GAP, 0, TOOLBAR_LOCATION_EDIT_SIDE_GAP, 0);
 
-    toolbar_layout->addWidget(navigation_button_cluster, 0, Qt::AlignTop);
+    toolbar_layout->addWidget(navigation_button_cluster, 0, Qt::AlignVCenter);
     m_location_edit->set_trailing_action(create_application_action(*m_location_edit, view().toggle_bookmark_action()));
     m_location_edit->set_zoom_action(create_application_action(*m_location_edit, view().reset_zoom_action(), IncludeActionIcon::No));
     location_edit_layout->addWidget(m_location_edit);
     toolbar_layout->addWidget(location_edit_container, 1);
     m_right_toggle_vertical_tabs_expanded_button = create_toolbar_button(*m_toolbar, *m_toggle_vertical_tabs_expanded_action);
-    toolbar_layout->addWidget(m_right_toggle_vertical_tabs_expanded_button, 0, Qt::AlignTop);
+    toolbar_layout->addWidget(m_right_toggle_vertical_tabs_expanded_button, 0, Qt::AlignVCenter);
 
-    toolbar_layout->addWidget(m_downloads_button, 0, Qt::AlignTop);
+    toolbar_layout->addWidget(m_downloads_button, 0, Qt::AlignVCenter);
     toolbar_layout->addWidget(m_private_badge, 0, Qt::AlignVCenter);
-    toolbar_layout->addWidget(m_hamburger_button, 0, Qt::AlignTop);
+    toolbar_layout->addWidget(m_hamburger_button, 0, Qt::AlignVCenter);
 
     if constexpr (!use_native_macos_window_controls()) {
         toolbar_layout->addWidget(m_toolbar_window_controls_separator, 0, Qt::AlignVCenter);
