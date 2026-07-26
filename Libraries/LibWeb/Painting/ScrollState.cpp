@@ -44,7 +44,7 @@ ErrorOr<Web::Painting::ScrollStateSnapshot> decode(Decoder& decoder)
         auto offset = TRY(decoder.decode<Gfx::FloatPoint>());
         if (index >= NumericLimits<u32>::max())
             return Error::from_string_literal("IPC decode: ScrollStateSnapshot index out of range");
-        snapshot.set_device_offset_for_index(Web::Painting::SpatialNodeIndex { static_cast<u32>(index) }, offset);
+        TRY(snapshot.m_staged_offsets.try_append({ static_cast<u32>(index), offset }));
     }
     return snapshot;
 }
