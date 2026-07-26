@@ -185,6 +185,7 @@ set(SOURCES
     CSS/HypotheticalElement.cpp
     CSS/Invalidation/AdoptedStyleSheetInvalidator.cpp
     CSS/Invalidation/AttributeInvalidator.cpp
+    CSS/Invalidation/ContainerQueryInvalidator.cpp
     CSS/Invalidation/CustomElementInvalidator.cpp
     CSS/Invalidation/EmbeddedContentInvalidator.cpp
     CSS/Invalidation/ElementStateInvalidator.cpp
