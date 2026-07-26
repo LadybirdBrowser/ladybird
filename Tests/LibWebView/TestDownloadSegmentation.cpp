@@ -1,0 +1,150 @@
+/*
+ * Copyright (c) 2026-present, the Ladybird developers.
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#include <LibHTTP/HeaderList.h>
+#include <LibTest/TestCase.h>
+#include <LibWebView/DownloadSegmentation.h>
+
+static NonnullRefPtr<HTTP::HeaderList> headers(Vector<HTTP::Header> headers)
+{
+    return HTTP::HeaderList::create(move(headers));
+}
+
+static Vector<HTTP::Header> ok_headers()
+{
+    return {
+        { "Content-Length", "1048576" },
+        { "Accept-Ranges", "bytes" },
+        { "ETag", "\"abc123\"" },
+    };
+}
+
+static WebView::DownloadRangeSupport evaluate(Vector<HTTP::Header> header_list, Optional<u32> response_code = 200u, Requests::CameFromCache came_from_cache = Requests::CameFromCache::No)
+{
+    return WebView::evaluate_range_support(headers(move(header_list)), response_code, came_from_cache);
+}
+
+TEST_CASE(range_support_for_a_well_behaved_response)
+{
+    auto support = evaluate(ok_headers());
+    EXPECT(support.supports_ranges);
+    EXPECT_EQ(support.total_size, 1048576u);
+    EXPECT_EQ(support.validator.etag, "\"abc123\""_string);
+    EXPECT(support.can_resume());
+}
+
+TEST_CASE(range_support_requires_accept_ranges)
+{
+    EXPECT(!evaluate({ { "Content-Length", "1048576" } }).supports_ranges);
+    EXPECT(!evaluate({ { "Content-Length", "1048576" }, { "Accept-Ranges", "none" } }).supports_ranges);
+    EXPECT(evaluate({ { "Content-Length", "1048576" }, { "Accept-Ranges", "none, bytes" } }).supports_ranges);
+    EXPECT(evaluate({ { "Content-Length", "1048576" }, { "Accept-Ranges", "BYTES" } }).supports_ranges);
+}
+
+TEST_CASE(range_support_requires_a_known_non_zero_length)
+{
+    EXPECT(!evaluate({ { "Accept-Ranges", "bytes" } }).supports_ranges);
+    EXPECT(!evaluate({ { "Content-Length", "0" }, { "Accept-Ranges", "bytes" } }).supports_ranges);
+}
+
+TEST_CASE(range_support_requires_an_unencoded_body)
+{
+    auto with_header = [](StringView name, StringView value) {
+        auto header_list = ok_headers();
+        header_list.append({ name, value });
+        return evaluate(move(header_list));
+    };
+
+    EXPECT(!with_header("Content-Encoding"sv, "gzip"sv).supports_ranges);
+    EXPECT(!with_header("Content-Encoding"sv, "identity, gzip"sv).supports_ranges);
+    EXPECT(with_header("Content-Encoding"sv, "identity"sv).supports_ranges);
+    EXPECT(!with_header("Transfer-Encoding"sv, "chunked"sv).supports_ranges);
+    EXPECT(with_header("Transfer-Encoding"sv, "identity"sv).supports_ranges);
+}
+
+TEST_CASE(range_support_requires_a_fresh_complete_response)
+{
+    EXPECT(!evaluate(ok_headers(), 206u).supports_ranges);
+    EXPECT(!evaluate(ok_headers(), 302u).supports_ranges);
+    EXPECT(!evaluate(ok_headers(), {}).supports_ranges);
+    EXPECT(!evaluate(ok_headers(), 200u, Requests::CameFromCache::Yes).supports_ranges);
+}
+
+TEST_CASE(range_validators)
+{
+    auto weak = evaluate({ { "Content-Length", "1048576" }, { "Accept-Ranges", "bytes" }, { "ETag", "W/\"abc123\"" } });
+    EXPECT(weak.supports_ranges);
+    EXPECT(!weak.validator.etag.has_value());
+    EXPECT(!weak.can_resume());
+
+    auto last_modified = evaluate({ { "Content-Length", "1048576" }, { "Accept-Ranges", "bytes" }, { "Last-Modified", "Wed, 21 Oct 2015 07:28:00 GMT" } });
+    EXPECT(last_modified.can_resume());
+    EXPECT_EQ(last_modified.validator.if_range_value(), "Wed, 21 Oct 2015 07:28:00 GMT"_string);
+
+    auto both = evaluate({ { "Content-Length", "1048576" }, { "Accept-Ranges", "bytes" }, { "ETag", "\"abc123\"" }, { "Last-Modified", "Wed, 21 Oct 2015 07:28:00 GMT" } });
+    EXPECT_EQ(both.validator.if_range_value(), "\"abc123\""_string);
+}
+
+static void expect_segments_tile(Vector<WebView::DownloadSegmentRange> const& segments, u64 total_size)
+{
+    EXPECT(!segments.is_empty());
+    EXPECT_EQ(segments.first().start_offset, 0u);
+    EXPECT_EQ(segments.last().end_offset, total_size - 1);
+
+    for (size_t i = 0; i < segments.size(); ++i) {
+        EXPECT(segments[i].start_offset <= segments[i].end_offset);
+        if (i > 0)
+            EXPECT_EQ(segments[i].start_offset, segments[i - 1].end_offset + 1);
+    }
+}
+
+TEST_CASE(segments_are_not_planned_for_small_downloads)
+{
+    WebView::DownloadSegmentationParameters parameters { .maximum_connections = 4, .minimum_size_to_split = 8 * MiB, .minimum_segment_size = 2 * MiB };
+
+    EXPECT(WebView::plan_download_segments(0, 0, parameters).is_empty());
+    EXPECT(WebView::plan_download_segments(5 * MiB, 0, parameters).is_empty());
+    EXPECT(WebView::plan_download_segments(8 * MiB - 1, 0, parameters).is_empty());
+    EXPECT(!WebView::plan_download_segments(8 * MiB, 0, parameters).is_empty());
+
+    EXPECT(WebView::plan_download_segments(8 * MiB, 7 * MiB, parameters).is_empty());
+    EXPECT(WebView::plan_download_segments(8 * MiB, 8 * MiB, parameters).is_empty());
+}
+
+TEST_CASE(segment_count_is_capped_by_the_minimum_segment_size)
+{
+    WebView::DownloadSegmentationParameters parameters { .maximum_connections = 4, .minimum_size_to_split = 8 * MiB, .minimum_segment_size = 2 * MiB };
+
+    EXPECT_EQ(WebView::plan_download_segments(8 * MiB, 0, parameters).size(), 4u);
+    EXPECT_EQ(WebView::plan_download_segments(100 * MiB, 0, parameters).size(), 4u);
+
+    EXPECT_EQ(WebView::plan_download_segments(20 * MiB, 14 * MiB, parameters).size(), 3u);
+    EXPECT_EQ(WebView::plan_download_segments(20 * MiB, 16 * MiB, parameters).size(), 2u);
+}
+
+TEST_CASE(segments_tile_the_whole_file)
+{
+    WebView::DownloadSegmentationParameters parameters { .maximum_connections = 4, .minimum_size_to_split = 8 * MiB, .minimum_segment_size = 2 * MiB };
+
+    auto segments = WebView::plan_download_segments(100 * MiB + 7, 0, parameters);
+    expect_segments_tile(segments, 100 * MiB + 7);
+    EXPECT_EQ(segments.size(), 4u);
+    EXPECT_EQ(segments.last().size(), segments.first().size() + 3);
+
+    auto resumed = WebView::plan_download_segments(100 * MiB, 30 * MiB, parameters);
+    expect_segments_tile(resumed, 100 * MiB);
+    EXPECT_EQ(resumed.first().start_offset, 0u);
+    EXPECT(resumed.first().size() > resumed[1].size());
+}
+
+TEST_CASE(segments_are_not_planned_without_room_for_two_connections)
+{
+    WebView::DownloadSegmentationParameters parameters { .maximum_connections = 1, .minimum_size_to_split = 8 * MiB, .minimum_segment_size = 2 * MiB };
+    EXPECT(WebView::plan_download_segments(100 * MiB, 0, parameters).is_empty());
+
+    parameters = { .maximum_connections = 4, .minimum_size_to_split = 8 * MiB, .minimum_segment_size = 0 };
+    EXPECT(WebView::plan_download_segments(100 * MiB, 0, parameters).is_empty());
+}

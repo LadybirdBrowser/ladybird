@@ -2,6 +2,7 @@ set(TEST_SOURCES
     TestAutocompleteMuxer.cpp
     TestAutocompleteRanker.cpp
     TestCookieJar.cpp
+    TestDownloadSegmentation.cpp
     TestHistoryStore.cpp
     TestHSTSStore.cpp
     TestOmnibox.cpp
@@ -13,7 +14,7 @@ set(TEST_SOURCES
 
 foreach(source IN LISTS TEST_SOURCES)
     set(test_libraries LibDatabase LibWebView LibURL)
-    if (source STREQUAL "TestProfile.cpp")
+    if (source STREQUAL "TestProfile.cpp" OR source STREQUAL "TestDownloadSegmentation.cpp")
         list(APPEND test_libraries LibHTTP)
     endif()
     ladybird_test("${source}" LibWebView LIBS ${test_libraries})
