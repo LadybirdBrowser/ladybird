@@ -474,7 +474,7 @@ impl Compiler {
             .iter()
             .map(|handler| (handler.name(), handler.id))
             .collect::<HashMap<_, _>>();
-        let (op_layouts, dispatch_handlers) = if let Some(bytecode_def) = unit.bytecode_def {
+        let (ops, dispatch_handlers) = if let Some(bytecode_def) = unit.bytecode_def {
             let ops = bytecode_def::parse_bytecode_def(bytecode_def.name, bytecode_def.contents)
                 .map_err(|error| CompileError::from_bytecode_def_error(bytecode_def, error))?;
             // The interpreter dispatches on a single opcode byte, so a table beyond 256 entries
@@ -489,24 +489,30 @@ impl Compiler {
                     ),
                 ));
             }
-            (
-                Some(bytecode_def::compute_layouts(&ops)),
-                ops.iter()
-                    .map(|op| handler_ids.get(op.name.as_str()).copied())
-                    .collect(),
-            )
+            let dispatch_handlers = ops
+                .iter()
+                .map(|op| handler_ids.get(op.name.as_str()).copied())
+                .collect();
+            (Some(ops), dispatch_handlers)
         } else {
             (None, Vec::new())
         };
+        let ops_by_name = ops
+            .as_ref()
+            .map(|ops| ops.iter().map(|op| (op.name.as_str(), op)).collect::<HashMap<_, _>>())
+            .unwrap_or_default();
         let handler_layouts = handlers
             .iter()
             .map(|handler| {
                 BytecodeHandlerLayout::new(
+                    handler.name(),
                     &handler.function.parameter_names,
-                    op_layouts.as_ref().and_then(|layouts| layouts.get(handler.name())),
+                    &handler.function.parameter_types,
+                    ops_by_name.get(handler.name()).copied(),
                 )
+                .map_err(|message| CompileError::new(CompileStage::Semantic, Some(handler.name()), message))
             })
-            .collect();
+            .collect::<Result<Vec<_>, _>>()?;
 
         Ok((
             PreparedProgram {
@@ -723,6 +729,30 @@ const CANON_NAN_BITS = 0x7FF8000000000000
         let lowered = compiler.lower(&prepared).unwrap();
         assert_eq!(lowered.handlers[0].id, handler_id);
         assert_eq!(lowered.dispatch_handlers, [Some(handler_id), None]);
+    }
+
+    #[test]
+    fn rejects_handler_parameter_type_mismatches_against_bytecode_fields() {
+        let compiler = compiler(Architecture::X86_64);
+        let error = compiler
+            .prepare(CompilationUnit {
+                source: SourceInput {
+                    name: "test.flap",
+                    contents: "handler Test(lhs: u64) { let value = load(lhs); dispatch_variable(value); }",
+                },
+                constants: None,
+                bytecode_def: Some(SourceInput {
+                    name: "TestBytecode.def",
+                    contents: "op Test < Instruction\n    m_lhs: Operand\nendop\n",
+                }),
+            })
+            .err()
+            .expect("handler parameter type mismatch should fail");
+
+        assert_eq!(error.stage, CompileStage::Semantic);
+        assert_eq!(error.handler.as_deref(), Some("Test"));
+        assert!(error.message.contains("handler parameter 'm_lhs' has type u64"));
+        assert!(error.message.contains("bytecode field 'Test.m_lhs' has type Operand"));
     }
 
     #[test]
