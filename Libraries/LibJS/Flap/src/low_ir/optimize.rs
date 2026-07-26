@@ -100,20 +100,72 @@ pub(crate) fn remove_unreferenced_labels<
     });
 }
 
+/// How many operands of a listing name each virtual register.
+///
+/// A peephole rewrite that folds a value away has to know the value is named
+/// nowhere else. Counting that per window means scanning the whole listing per
+/// instruction, which on a large function is thousands of scans of thousands
+/// of instructions.
+#[derive(Default)]
+struct OperandReferences(HashMap<VirtualRegister, usize>);
+
+impl OperandReferences {
+    fn count(instructions: &[Instruction]) -> Self {
+        let mut counts: HashMap<VirtualRegister, usize> = HashMap::new();
+        for instruction in instructions {
+            for operand in &instruction.operands {
+                match operand {
+                    Operand::VirtualRegister(register) => *counts.entry(register.clone()).or_default() += 1,
+                    // An address naming the same register as both base and
+                    // index is still one operand that references it.
+                    Operand::Address(address) => {
+                        let mut counted = None;
+                        for candidate in std::iter::once(&address.base).chain(&address.index) {
+                            let AddressRegister::Virtual(register) = candidate else {
+                                continue;
+                            };
+                            if counted == Some(register) {
+                                continue;
+                            }
+                            counted = Some(register);
+                            *counts.entry(register.clone()).or_default() += 1;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+        Self(counts)
+    }
+
+    fn get(&self, register: &VirtualRegister) -> usize {
+        self.0.get(register).copied().unwrap_or_default()
+    }
+}
+
 fn rewrite_windows(
     instructions: &mut Vec<Instruction>,
     width: usize,
-    mut rewrite: impl FnMut(&[Instruction], usize) -> Option<Instruction>,
+    mut rewrite: impl FnMut(&[Instruction], &OperandReferences) -> Option<Instruction>,
 ) {
-    let mut index = 0;
-    while index + width <= instructions.len() {
-        let Some(replacement) = rewrite(instructions, index) else {
-            index += 1;
+    let references = OperandReferences::count(instructions);
+    let (mut read, mut write) = (0, 0);
+    while read < instructions.len() {
+        if read + width <= instructions.len()
+            && let Some(replacement) = rewrite(&instructions[read..read + width], &references)
+        {
+            instructions[write] = replacement;
+            read += width;
+            write += 1;
             continue;
-        };
-        instructions.splice(index..index + width, [replacement]);
-        index += 1;
+        }
+        if write != read {
+            instructions.swap(write, read);
+        }
+        read += 1;
+        write += 1;
     }
+    instructions.truncate(write);
 }
 
 pub(crate) fn propagate_single_assignment_copies(instructions: &mut Vec<Instruction>) {
@@ -199,10 +251,8 @@ pub(crate) fn propagate_single_assignment_copies(instructions: &mut Vec<Instruct
 }
 
 pub(crate) fn select_copy_add_immediates(instructions: &mut Vec<Instruction>) {
-    rewrite_windows(instructions, 2, |instructions, index| {
-        let [copy, add] = &instructions[index..index + 2] else {
-            unreachable!()
-        };
+    rewrite_windows(instructions, 2, |window, _| {
+        let [copy, add] = window else { unreachable!() };
         let (
             [Operand::VirtualRegister(destination), Operand::VirtualRegister(source)],
             [Operand::VirtualRegister(add_destination), Operand::Immediate(immediate)],
@@ -237,10 +287,8 @@ pub(crate) fn select_copy_add_immediates(instructions: &mut Vec<Instruction>) {
 }
 
 pub(crate) fn fuse_or32_sign_branches(instructions: &mut Vec<Instruction>) {
-    rewrite_windows(instructions, 2, |instructions, index| {
-        let [operation, branch] = &instructions[index..index + 2] else {
-            unreachable!()
-        };
+    rewrite_windows(instructions, 2, |window, _| {
+        let [operation, branch] = window else { unreachable!() };
         let [destination, lhs, rhs] = operation.operands.as_slice() else {
             return None;
         };
@@ -296,10 +344,8 @@ pub(crate) fn fuse_adjacent_sequence_stores(instructions: &mut Vec<Instruction>)
                 .then(|| (destination.clone(), base.clone()))
         })
         .collect::<HashMap<_, _>>();
-    rewrite_windows(instructions, 2, |instructions, index| {
-        let [first, second] = &instructions[index..index + 2] else {
-            unreachable!()
-        };
+    rewrite_windows(instructions, 2, |window, _| {
+        let [first, second] = window else { unreachable!() };
         let (
             [Operand::Address(first_address), first_value],
             [Operand::Address(second_address), second_value],
@@ -332,11 +378,17 @@ pub(crate) fn fuse_adjacent_sequence_stores(instructions: &mut Vec<Instruction>)
 }
 
 pub(crate) fn fuse_indexed_offset_stores(instructions: &mut Vec<Instruction>) {
-    rewrite_windows(instructions, 2, |instructions, index| {
+    rewrite_windows(instructions, 2, |window, references| {
+        let [load_address, store] = window else {
+            unreachable!()
+        };
         let (
             [Operand::VirtualRegister(address), Operand::Address(offset_address)],
             [Operand::Address(store_address), value],
-        ) = (instructions[index].operands.as_slice(), instructions[index + 1].operands.as_slice())
+        ) = (
+            load_address.operands.as_slice(),
+            store.operands.as_slice(),
+        )
         else {
             return None;
         };
@@ -351,18 +403,12 @@ pub(crate) fn fuse_indexed_offset_stores(instructions: &mut Vec<Instruction>) {
             _ => return None,
         };
         let (store_index, scale) = virtual_scaled_index(store_address)?;
-        if instructions[index].opcode.operation() != Operation::LoadEffectiveAddress
-            || instructions[index + 1].opcode.operation()
-                != Operation::store(MemoryWidth::DoubleWord)
+        if load_address.opcode.operation() != Operation::LoadEffectiveAddress
+            || store.opcode.operation() != Operation::store(MemoryWidth::DoubleWord)
             || store_address.base != AddressRegister::Virtual(address.clone())
             || offset_address.index.is_some()
             || offset_address.scale.is_some()
-            || instructions
-                .iter()
-                .flat_map(|instruction| &instruction.operands)
-                .filter(|operand| operand.references(address))
-                .count()
-                != 2
+            || references.get(address) != 2
         {
             return None;
         }
@@ -401,10 +447,10 @@ pub(crate) fn select_zero_moves(instructions: &mut [Instruction]) {
 }
 
 pub(crate) fn fuse_scaled_addresses(instructions: &mut Vec<Instruction>) {
-    rewrite_windows(instructions, 3, |instructions, index| {
-        let multiply = &instructions[index];
-        let copy = &instructions[index + 1];
-        let add = &instructions[index + 2];
+    rewrite_windows(instructions, 3, |window, references| {
+        let [multiply, copy, add] = window else {
+            unreachable!()
+        };
         let (
             [Operand::VirtualRegister(product), Operand::VirtualRegister(scaled_index), Operand::Immediate(scale)],
             [Operand::VirtualRegister(destination), Operand::VirtualRegister(base)],
@@ -431,12 +477,7 @@ pub(crate) fn fuse_scaled_addresses(instructions: &mut Vec<Instruction>) {
             || destination != add_destination
             || product != addend
             || !matches!(scale, 1 | 2 | 4 | 8)
-            || instructions
-                .iter()
-                .flat_map(|instruction| &instruction.operands)
-                .filter(|operand| operand.references(product))
-                .count()
-                != 2
+            || references.get(product) != 2
         {
             return None;
         }
