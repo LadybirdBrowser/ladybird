@@ -24,7 +24,7 @@ pub(crate) use crate::intrinsic::IntrinsicEffects as Effects;
 pub(crate) use crate::intrinsic::ModRef as MemoryEffect;
 use crate::hir as typecheck;
 use crate::ssa as ir;
-use std::collections::{HashMap, HashSet};
+use crate::hash::{HashMap, HashSet};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub(crate) struct BlockId(pub usize);
@@ -412,7 +412,7 @@ impl Function {
             instructions: Vec::new(),
             values,
             entry: BlockId(0),
-            constant_values: HashMap::new(),
+            constant_values: HashMap::default(),
         }
     }
 
@@ -704,7 +704,7 @@ impl Function {
                     .ok_or_else(|| format!("block {block:?} switches on invalid value {value:?}"))?
                     .ty
                     .clone();
-                let mut seen = HashSet::new();
+                let mut seen = HashSet::default();
                 for (pattern, _) in cases {
                     let pattern_type = self
                         .values

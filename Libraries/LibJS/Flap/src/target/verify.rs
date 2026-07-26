@@ -11,7 +11,7 @@ use crate::Architecture;
 use crate::target::description::{OperandKind, Operation};
 use crate::target::ir::AllocatedOperand as Operand;
 use crate::{CompileError, CompileStage};
-use std::collections::HashSet;
+use crate::hash::HashSet;
 
 pub(crate) fn verify_program(program: &Program) -> Result<(), CompileError> {
     for handler in &program.functions {
@@ -24,7 +24,7 @@ pub(crate) fn verify_handler(
     handler: &Handler,
     architecture: Architecture,
 ) -> Result<(), CompileError> {
-    let mut definitions = HashSet::new();
+    let mut definitions = HashSet::default();
     let mut references = Vec::new();
     for instruction in handler.cfg.instructions() {
         if instruction.opcode.architecture() != architecture {

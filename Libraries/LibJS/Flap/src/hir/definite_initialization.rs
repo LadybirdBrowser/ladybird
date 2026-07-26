@@ -14,7 +14,8 @@ use super::{
 use crate::frontend::ast::ParameterMode;
 use crate::frontend::diagnostic::Diagnostic;
 use crate::types::Type;
-use std::collections::{HashSet, VecDeque};
+use std::collections::VecDeque;
+use crate::hash::HashSet;
 
 fn successors(index: usize, statements: &[Statement]) -> Vec<usize> {
     let next = (index + 1 < statements.len()).then_some(index + 1);

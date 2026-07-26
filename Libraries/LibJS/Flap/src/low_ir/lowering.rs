@@ -18,7 +18,7 @@ use crate::ssa::{BlockId, BlockLayout, Constant, Edge, Function, InstructionId, 
 use crate::target::description::{BinaryOperation, EqualityCondition, IntegerWidth, MemoryWidth, Operation as MachineOperation, OrderedCondition, OverflowOperation, PairWidth, SignCondition, TestCondition, ZeroCondition};
 use crate::{CompileError, CompileStage};
 use super::{AddressDisplacement, AddressRegister, AddressScale, Handler, Instruction, Label, MemoryAddress, Operand, Relocation, VirtualRegister, emit_instructions as emit, intern_virtual_registers};
-use std::collections::{HashMap, HashSet};
+use crate::hash::{HashMap, HashSet};
 
 pub(crate) fn lower_handler_with_constants(
     function: &Function,
@@ -315,7 +315,7 @@ fn lower_blocks(
 ) -> Result<Vec<Instruction>, String> {
     let mut body = Vec::new();
     let mut edge_temporary = 0usize;
-    let mut deferred_switch_tails = HashMap::<BlockId, Vec<Instruction>>::new();
+    let mut deferred_switch_tails = HashMap::<BlockId, Vec<Instruction>>::default();
     for (position, &block_id) in block_order.iter().enumerate() {
         let block = &function.blocks[block_id.0];
         if block_id != function.entry {
@@ -640,7 +640,7 @@ fn schedule_blocks_with_successor_order(function: &Function, reverse_successors:
         postorder.push(block);
     }
 
-    let mut visited = HashSet::new();
+    let mut visited = HashSet::default();
     let mut reverse_postorder = Vec::new();
     visit(
         function,
@@ -2750,7 +2750,7 @@ fn narrow_wide_result_to_i32(
 fn integer_result_can_stay_narrow(function: &FunctionUses<'_>, result: ValueId) -> bool {
     match function.values[result.0].ty {
         Type::U32 => true,
-        Type::I32 => i32_consumers_stay_narrow(function, result, &mut HashSet::new()),
+        Type::I32 => i32_consumers_stay_narrow(function, result, &mut HashSet::default()),
         _ => false,
     }
 }

@@ -14,7 +14,7 @@ use crate::intrinsic::{
     ComparisonRelation, FieldAccess, Intrinsic, OperationValue, ValueOperation,
 };
 use crate::types::{BlockTemperature, InterpreterRegister, RegisterReference, Type};
-use std::collections::HashSet;
+use crate::hash::HashSet;
 use std::fmt;
 
 pub(crate) type VariableId = usize;

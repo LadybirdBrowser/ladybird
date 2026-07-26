@@ -14,7 +14,7 @@ use super::{
     ValueDefinition, ValueId, ValueOperation,
 };
 use crate::types::Type;
-use std::collections::HashMap;
+use crate::hash::HashMap;
 
 /// How far a boxed value's tag sits above its payload.
 ///
@@ -837,7 +837,7 @@ fn arithmetic_candidates(lhs: IntegerFacts, rhs: IntegerFacts, operation: Arithm
 
 fn rewrite(function: &mut Function, values: &[LatticeValue], executable_blocks: &[bool]) -> bool {
     let mut changed = false;
-    let mut replacements = HashMap::new();
+    let mut replacements = HashMap::default();
     let mut eliminated_checked_results = Vec::new();
     for (index, lattice) in values.iter().enumerate() {
         let value = ValueId(index);

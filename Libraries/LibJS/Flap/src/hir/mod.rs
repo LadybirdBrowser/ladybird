@@ -27,7 +27,7 @@ use intrinsic::{
     resolve_intrinsic,
     operation_signature, resolve_operation, signature, signatures_match,
 };
-use std::collections::{HashMap, HashSet};
+use crate::hash::{HashMap, HashSet};
 
 #[derive(Clone)]
 struct Symbol {
@@ -96,13 +96,13 @@ impl<'a> Checker<'a> {
             signatures,
             inline_function_ids,
             variables: Vec::new(),
-            scopes: vec![HashMap::new()],
+            scopes: vec![HashMap::default()],
             continuation_scopes: Vec::new(),
             next_continuation_scope: 0,
             statements: Vec::new(),
             layouts,
             aggregate_strides,
-            bytecode_fields: HashSet::new(),
+            bytecode_fields: HashSet::default(),
             active_value_tags: Vec::new(),
         }
     }
@@ -149,7 +149,7 @@ impl<'a> Checker<'a> {
     fn collect_continuations(&mut self, block: &ast::Block) -> Result<HashMap<String, ContinuationSymbol>, Diagnostic> {
         let scope_id = self.next_continuation_scope;
         self.next_continuation_scope += 1;
-        let mut continuations = HashMap::new();
+        let mut continuations = HashMap::default();
         for statement in &block.statements {
             if let StatementKind::Continuation {
                 name,
@@ -158,7 +158,7 @@ impl<'a> Checker<'a> {
                 ..
             } = &statement.kind
             {
-                let mut names = HashSet::new();
+                let mut names = HashSet::default();
                 let mut continuation_parameters = Vec::with_capacity(parameters.len());
                 for parameter in parameters {
                     if !names.insert(parameter.name.clone()) {
@@ -193,7 +193,7 @@ impl<'a> Checker<'a> {
 
     fn check_block(&mut self, block: &ast::Block, create_scope: bool) -> Result<(), Diagnostic> {
         if create_scope {
-            self.scopes.push(HashMap::new());
+            self.scopes.push(HashMap::default());
         }
         let continuations = self.collect_continuations(block)?;
         self.continuation_scopes.push(continuations);
@@ -208,7 +208,7 @@ impl<'a> Checker<'a> {
     }
 
     fn check_scoped_block(&mut self, block: &ast::Block) -> Result<Vec<Statement>, Diagnostic> {
-        self.scopes.push(HashMap::new());
+        self.scopes.push(HashMap::default());
         let start = self.statements.len();
         let result = self.check_block(block, false);
         let statements = self.statements.split_off(start);
@@ -342,7 +342,7 @@ impl<'a> Checker<'a> {
         block: &ast::Block,
         span: SourceSpan,
     ) -> Result<(Option<VariableId>, Vec<Statement>), Diagnostic> {
-        self.scopes.push(HashMap::new());
+        self.scopes.push(HashMap::default());
         let binding = binding
             .map(|binding| self.declare(binding, ty, None, span))
             .transpose()?;
@@ -362,7 +362,7 @@ impl<'a> Checker<'a> {
         expected: Option<&Type>,
         span: SourceSpan,
     ) -> Result<(Option<VariableId>, Vec<Statement>, Call), Diagnostic> {
-        self.scopes.push(HashMap::new());
+        self.scopes.push(HashMap::default());
         let binding = binding
             .map(|binding| self.declare(binding, binding_type, None, span))
             .transpose()?;
@@ -2138,7 +2138,7 @@ impl<'a> Checker<'a> {
             .value
             .as_ref()
             .expect("the parser requires a tail expression for value-producing blocks");
-        self.scopes.push(HashMap::new());
+        self.scopes.push(HashMap::default());
         let start = self.statements.len();
         self.check_block(block, false)?;
         let mut value = self.check_initializer_with_expected(value, expected)?;
@@ -2990,7 +2990,7 @@ fn ast_statement_is_terminal(statement: &ast::Statement, signatures: &HashMap<St
 }
 
 fn collect_signatures(filename: &str, program: &ast::Program) -> Result<HashMap<String, Signature>, Diagnostic> {
-    let mut signatures = HashMap::new();
+    let mut signatures = HashMap::default();
     for declaration in &program.declarations {
         let ast::Declaration::InlineFunction(declaration) = declaration else {
             continue;
@@ -3074,7 +3074,7 @@ fn check_body(
         bytecode_fields: if parameters_are_bytecode_fields {
             parameter_ids.iter().copied().collect()
         } else {
-            HashSet::new()
+            HashSet::default()
         },
     };
     check_definite_initialization(filename, &body, &parameter_ids, check_outputs)?;
@@ -3090,9 +3090,9 @@ pub(crate) fn check_with_layouts(
     program: &ast::Program,
     layout_fields: &[layout::Field],
 ) -> Result<Program, Diagnostic> {
-    let mut layouts = HashMap::new();
-    let mut aggregate_strides = HashMap::new();
-    let mut pairs = HashMap::new();
+    let mut layouts = HashMap::default();
+    let mut aggregate_strides = HashMap::default();
+    let mut pairs = HashMap::default();
     let mut next_pair_id = 0u32;
     for field in layout_fields {
         let owner = field.owner.clone();
@@ -3139,7 +3139,7 @@ pub(crate) fn check_with_layouts(
         .collect::<HashMap<_, _>>();
     let mut inline_functions = Vec::new();
     let mut handlers = Vec::new();
-    let mut declaration_names = HashSet::new();
+    let mut declaration_names = HashSet::default();
     for declaration in &program.declarations {
         match declaration {
             ast::Declaration::InlineFunction(declaration) => {

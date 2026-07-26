@@ -12,12 +12,12 @@ use super::ir::{
 };
 use super::description::OperandKind;
 use crate::{Architecture, CompileError, CompileStage};
-use std::collections::HashSet;
+use crate::hash::HashSet;
 
 pub(crate) fn verify_program(program: &MachineProgram) -> Result<(), CompileError> {
     let architecture = program.target.architecture;
-    let mut handler_ids = HashSet::new();
-    let mut handler_names = HashSet::new();
+    let mut handler_ids = HashSet::default();
+    let mut handler_names = HashSet::default();
     for function in &program.functions {
         if !handler_ids.insert(function.id) {
             return program_error(format!(
@@ -51,7 +51,7 @@ pub(crate) fn verify_function(
         .hot_instructions
         .iter()
         .chain(&function.cold_instructions);
-    let mut definitions = HashSet::new();
+    let mut definitions = HashSet::default();
     let mut references = Vec::new();
     for instruction in instructions {
         verify_instruction(function, instruction, architecture)?;

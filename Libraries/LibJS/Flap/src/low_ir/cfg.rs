@@ -10,7 +10,8 @@ use super::{
 use crate::target::description::{ControlOperation, Operation};
 #[cfg(test)]
 use crate::target::description::{CallKind, EqualityCondition, IntegerWidth, PairWidth, ZeroCondition};
-use std::collections::{BTreeSet, HashMap, HashSet};
+use crate::hash::{HashMap, HashSet};
+use std::collections::BTreeSet;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) struct BlockId(usize);
@@ -264,7 +265,7 @@ impl<O: ControlFlowOperand, C: ControlFlowOpcode> ControlFlowGraph<O, C> {
         let resolved = redirects
             .keys()
             .filter_map(|start| {
-                let mut visited = HashSet::new();
+                let mut visited = HashSet::default();
                 let mut target = start;
                 while visited.insert(target) {
                     let Some(redirect) = redirects.get(target) else {
@@ -299,7 +300,7 @@ impl<O: ControlFlowOperand, C: ControlFlowOpcode> ControlFlowGraph<O, C> {
         // labels that are. Removing a block drops exactly the references its
         // own instructions made, so the tally is adjusted instead of being
         // rebuilt after each block removal.
-        let mut references: HashMap<Label, usize> = HashMap::new();
+        let mut references: HashMap<Label, usize> = HashMap::default();
         for label in block_label_references(&self.blocks) {
             *references.entry(label.clone()).or_default() += 1;
         }
@@ -418,7 +419,7 @@ impl<O: ControlFlowOperand, C: ControlFlowOpcode> ControlFlowGraph<O, C> {
             .cloned()
             .collect::<HashSet<_>>();
         let mut inverted_branches = inverted_branches;
-        let mut skipped_blocks = HashSet::new();
+        let mut skipped_blocks = HashSet::default();
         for blocks in blocks.windows(3) {
             let [source_id, fallthrough_id, target_id] = blocks else {
                 unreachable!();
@@ -485,7 +486,7 @@ impl<O: ControlFlowOperand, C: ControlFlowOpcode> ControlFlowGraph<O, C> {
             .filter(|block| !inverted_branches.contains_key(block))
             .filter(|block| !skipped_blocks.contains(block))
             .collect::<HashSet<_>>();
-        let mut referenced_labels = HashSet::new();
+        let mut referenced_labels = HashSet::default();
         for (block_index, block) in self.blocks.iter().enumerate() {
             let block_id = BlockId(block_index);
             if skipped_blocks.contains(&block_id) {

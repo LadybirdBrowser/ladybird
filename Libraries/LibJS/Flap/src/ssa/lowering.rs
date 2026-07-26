@@ -16,7 +16,7 @@ use crate::hir::{
     ValueMatchArm, ValueMatchArmKind, ValueMatchFallbackIr, VariableId,
 };
 use crate::{CompileError, CompileStage};
-use std::collections::HashMap;
+use crate::hash::HashMap;
 
 pub(crate) fn lower_handler(handler: &Handler) -> Result<Function, CompileError> {
     lower_body(
@@ -82,13 +82,13 @@ fn lower_body(
         .map(|result| body.variables[*result].ty.clone())
         .collect();
     let mut lowered = Function::new(name, parameter_types, result_types);
-    let mut bindings = HashMap::new();
+    let mut bindings = HashMap::default();
     for (index, parameter) in parameters.iter().enumerate() {
         lowered.set_parameter_name(index, &body.variables[*parameter].name);
         bindings.insert(*parameter, lowered.parameter(index));
     }
     let mut continuations = Vec::new();
-    let mut continuation_indices = HashMap::new();
+    let mut continuation_indices = HashMap::default();
     declare_continuations(
         &body.statements,
         body,
@@ -104,8 +104,8 @@ fn lower_body(
         body,
         continuations,
         continuation_indices,
-        indirect_targets: HashMap::new(),
-        int32_value_sources: HashMap::new(),
+        indirect_targets: HashMap::default(),
+        int32_value_sources: HashMap::default(),
     };
     lowerer.lower_statements(&body.statements)?;
     if let Some(block) = lowerer.current_block.take() {
