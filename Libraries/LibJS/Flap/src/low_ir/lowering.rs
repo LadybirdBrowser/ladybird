@@ -28,6 +28,7 @@ use crate::target::description::{
 };
 use crate::types::{InterpreterRegister, RegisterClass, Type};
 use crate::{CompileError, CompileStage};
+use std::ops::Range;
 
 pub(crate) fn lower_handler_with_constants(
     function: &Function,
@@ -244,9 +245,10 @@ fn lower_handler_internal(
         candidate_orders.push(profile_order);
     }
     let lowered = lower_blocks(function, &folded_instructions, constants, preferred_order.clone())?;
+    let lowered_blocks = LoweredBlockFragments::new(&lowered, &preferred_order)?;
     let mut selected = None;
     for order in candidate_orders {
-        let instructions = reorder_lowered_blocks(&lowered, &preferred_order, &order)?;
+        let instructions = lowered_blocks.layout_instructions(&lowered, &order);
         let mut graph = super::cfg::ControlFlowGraph::from_instructions(instructions)?;
         graph.simplify();
         let cost = graph.linearized_instruction_count()?;
@@ -261,7 +263,7 @@ fn lower_handler_internal(
     let mut instructions = if selected_order == preferred_order {
         lowered
     } else {
-        reorder_lowered_blocks(&lowered, &preferred_order, &selected_order)?
+        lowered_blocks.reorder(&lowered, &selected_order)
     };
     // Preserve the semantic exec_ctx value for targets that derive it from a
     // different pinned base. The dedicated instruction also exposes any
@@ -511,56 +513,112 @@ fn lower_blocks(
     Ok(body)
 }
 
-fn reorder_lowered_blocks(
-    instructions: &[Instruction],
-    original_order: &[BlockId],
-    new_order: &[BlockId],
-) -> Result<Vec<Instruction>, String> {
-    let labels = original_order
-        .iter()
-        .map(|block| (block_label(*block), *block))
-        .collect::<HashMap<_, _>>();
-    let mut starts = Vec::with_capacity(original_order.len());
-    for (index, instruction) in instructions.iter().enumerate() {
-        if instruction.opcode.operation() != MachineOperation::Label {
-            continue;
+struct LoweredBlockFragments {
+    ranges: Vec<Range<usize>>,
+}
+
+impl LoweredBlockFragments {
+    fn new(instructions: &[Instruction], original_order: &[BlockId]) -> Result<Self, String> {
+        let labels = original_order
+            .iter()
+            .map(|block| (block_label(*block), *block))
+            .collect::<HashMap<_, _>>();
+        let mut starts = Vec::with_capacity(original_order.len());
+        for (index, instruction) in instructions.iter().enumerate() {
+            if instruction.opcode.operation() != MachineOperation::Label {
+                continue;
+            }
+            let [Operand::Label(label)] = instruction.operands.as_slice() else {
+                continue;
+            };
+            let Some(block) = labels.get(label).copied() else {
+                continue;
+            };
+            let start = if index > 0
+                && instructions[index - 1].opcode.operation() == MachineOperation::Cold
+                && instructions[index - 1].operands == instruction.operands
+            {
+                index - 1
+            } else {
+                index
+            };
+            starts.push((block, start));
         }
-        let [Operand::Label(label)] = instruction.operands.as_slice() else {
-            continue;
-        };
-        let Some(block) = labels.get(label).copied() else {
-            continue;
-        };
-        let start = if index > 0
-            && instructions[index - 1].opcode.operation() == MachineOperation::Cold
-            && instructions[index - 1].operands == instruction.operands
-        {
-            index - 1
-        } else {
-            index
-        };
-        starts.push((block, start));
-    }
-    if starts.first().is_none_or(|(_, start)| *start != 0) {
-        starts.insert(0, (original_order[0], 0));
-    }
-    let ranges = starts
-        .iter()
-        .enumerate()
-        .map(|(position, (block, start))| {
+        if starts.first().is_none_or(|(_, start)| *start != 0) {
+            starts.insert(0, (original_order[0], 0));
+        }
+        let mut ranges = vec![0..0; original_order.len()];
+        let mut found = vec![false; original_order.len()];
+        for (position, (block, start)) in starts.iter().enumerate() {
             let end = starts.get(position + 1).map_or(instructions.len(), |(_, start)| *start);
-            (*block, (*start, end))
-        })
-        .collect::<HashMap<_, _>>();
-    if ranges.len() != original_order.len() {
-        return Err("lowered block fragments do not cover the scheduled SSA blocks".to_string());
+            if block.0 >= ranges.len() || std::mem::replace(&mut found[block.0], true) {
+                return Err("lowered block fragments do not cover the scheduled SSA blocks".to_string());
+            }
+            ranges[block.0] = *start..end;
+        }
+        if found.contains(&false) {
+            return Err("lowered block fragments do not cover the scheduled SSA blocks".to_string());
+        }
+        Ok(Self { ranges })
     }
-    let mut reordered = Vec::with_capacity(instructions.len());
-    for block in new_order {
-        let (start, end) = ranges[block];
-        reordered.extend_from_slice(&instructions[start..end]);
+
+    fn reorder(&self, instructions: &[Instruction], new_order: &[BlockId]) -> Vec<Instruction> {
+        let mut reordered = Vec::with_capacity(instructions.len());
+        for block in new_order {
+            reordered.extend_from_slice(&instructions[self.ranges[block.0].clone()]);
+        }
+        reordered
     }
-    Ok(reordered)
+
+    fn layout_instructions(
+        &self,
+        instructions: &[Instruction],
+        new_order: &[BlockId],
+    ) -> Vec<Instruction<LayoutOperand>> {
+        let mut reordered = Vec::with_capacity(instructions.len());
+        for block in new_order {
+            reordered.extend(instructions[self.ranges[block.0].clone()].iter().map(|instruction| {
+                Instruction {
+                    opcode: instruction.opcode,
+                    operands: instruction
+                        .operands
+                        .iter()
+                        .map(|operand| match operand {
+                            Operand::Label(label) => LayoutOperand::Label(label.clone()),
+                            _ => LayoutOperand::Other,
+                        })
+                        .collect(),
+                }
+            }));
+        }
+        reordered
+    }
+}
+
+#[derive(Clone, Debug)]
+enum LayoutOperand {
+    Label(Label),
+    Other,
+}
+
+impl super::ControlFlowOperand for LayoutOperand {
+    fn label(&self) -> Option<&Label> {
+        match self {
+            Self::Label(label) => Some(label),
+            Self::Other => None,
+        }
+    }
+
+    fn label_mut(&mut self) -> Option<&mut Label> {
+        match self {
+            Self::Label(label) => Some(label),
+            Self::Other => None,
+        }
+    }
+
+    fn from_label(label: Label) -> Self {
+        Self::Label(label)
+    }
 }
 
 fn schedule_blocks(function: &Function) -> Vec<BlockId> {
@@ -2560,7 +2618,7 @@ fn value_operand(function: &FunctionUses<'_>, value: ValueId) -> Result<Operand,
         | ValueDefinition::TerminatorResult { .. } => Operand::VirtualRegister(
             function
                 .register(value)
-                .expect("materialized SSA values have a register class")
+                .ok_or_else(|| format!("SSA value {value:?} has no register class"))?
                 .clone(),
         ),
         ValueDefinition::Constant(Constant::Integer(value)) => Operand::Immediate(*value),
@@ -2824,6 +2882,7 @@ fn i32_consumers_stay_narrow(function: &FunctionUses<'_>, value: ValueId, visiti
                 {
                     return false;
                 }
+                found_use = true;
                 continue;
             }
             ValueUser::Instruction(instruction) => &function.instructions[instruction.0],
@@ -3146,6 +3205,49 @@ mod tests {
     use super::*;
 
     #[test]
+    fn rejects_materialized_values_without_a_register_class() {
+        let mut function = Function::new("invalid", Vec::new(), Vec::new());
+        let value = function.append_instruction(
+            function.entry,
+            Intrinsic::LowLevel(LowLevelOperation::Negate),
+            Vec::new(),
+            vec![Type::Tuple(Vec::new())],
+        )[0];
+        let function = FunctionUses::new(&function, crate::identity::HandlerId::new(0));
+
+        assert_eq!(
+            value_operand(&function, value).unwrap_err(),
+            format!("SSA value {value:?} has no register class")
+        );
+    }
+
+    #[test]
+    fn keeps_i32_values_narrow_when_only_a_checked_terminator_uses_them() {
+        let mut function = Function::new("narrow", vec![Type::I32, Type::I32], Vec::new());
+        let value = function.append_instruction(
+            function.entry,
+            Intrinsic::IntegerBinary(IntegerBinaryOperation::Binary(BinaryOperation::Add)),
+            vec![function.parameter(0), function.parameter(1)],
+            vec![Type::I32],
+        )[0];
+        let success = function.create_named_block("success", BlockLayout::Hot, vec![Type::I32]);
+        let failure = function.create_empty_block("failure", BlockLayout::Cold);
+        function.set_checked_operation(
+            function.entry,
+            Intrinsic::CheckedInteger(CheckedIntegerOperation::Add),
+            vec![value, function.parameter(1)],
+            vec![Type::I32],
+            crate::ssa::Effects::PURE,
+            success,
+            Vec::new(),
+            Edge::new(failure),
+        );
+        let function = FunctionUses::new(&function, crate::identity::HandlerId::new(0));
+
+        assert!(integer_result_can_stay_narrow(&function, value));
+    }
+
+    #[test]
     fn reorders_lowered_block_fragments_without_splitting_internal_labels() {
         let first = BlockId(0);
         let second = BlockId(1);
@@ -3154,7 +3256,8 @@ mod tests {
             machine_instruction(MachineOperation::Label, vec![Operand::Label(block_label(second))]),
             machine_instruction(MachineOperation::Label, vec![Operand::Label(Label::new(".internal"))]),
         ];
-        let reordered = reorder_lowered_blocks(&instructions, &[first, second], &[second, first]).unwrap();
+        let fragments = LoweredBlockFragments::new(&instructions, &[first, second]).unwrap();
+        let reordered = fragments.reorder(&instructions, &[second, first]);
 
         assert_eq!(reordered[0].operands, [Operand::Label(block_label(second))]);
         assert_eq!(reordered[1].operands, [Operand::Label(Label::new(".internal"))]);
