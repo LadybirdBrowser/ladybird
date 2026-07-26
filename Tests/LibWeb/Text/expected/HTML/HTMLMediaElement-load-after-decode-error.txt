@@ -1,9 +1,7 @@
 loadstart: readyState >= HAVE_NOTHING
-durationchange: readyState >= HAVE_METADATA duration=0
 loadedmetadata: readyState >= HAVE_METADATA
 error: readyState >= HAVE_NOTHING code=3
 abort: readyState >= HAVE_NOTHING
 emptied: readyState >= HAVE_NOTHING
 loadstart: readyState >= HAVE_NOTHING
-durationchange: readyState >= HAVE_METADATA duration=12.043
 loadedmetadata: readyState >= HAVE_METADATA

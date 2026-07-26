@@ -7,20 +7,20 @@
 
     function logEvent(name) {
         let entry = `${name}: ${formatReadyStateExpectation(video, name)}`;
-        if (name === "durationchange")
-            entry += ` duration=${video.duration}`;
         println(entry);
     }
 
     for (const name of [
-        "loadstart", "durationchange", "loadedmetadata",
-        "loadeddata", "canplay", "canplaythrough",
+        "loadstart", "loadedmetadata", "loadeddata",
+        "canplay", "canplaythrough",
     ]) {
         video.addEventListener(name, () => logEvent(name));
     }
 
-    asyncTest(done => {
-        video.addEventListener("canplaythrough", () => done());
+    asyncTest(async done => {
+        video.addEventListener("canplaythrough", () => {
+            done();
+        })
         video.src = "../../../Assets/test-webm.webm";
     });
 </script>

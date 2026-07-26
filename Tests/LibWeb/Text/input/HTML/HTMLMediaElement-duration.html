@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="HTMLMediaElement-include.js"></script>
+<video id="video"></video>
+<script>
+    const video = document.getElementById("video");
+
+    asyncTest(async done => {
+        video.addEventListener("loadedmetadata", () => {
+            println(`duration=${video.duration}`);
+            done();
+        });
+        video.src = "../../../Assets/test-webm.webm";
+    });
+</script>
