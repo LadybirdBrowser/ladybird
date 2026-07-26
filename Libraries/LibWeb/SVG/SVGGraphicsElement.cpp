@@ -229,12 +229,8 @@ Optional<Gfx::Color> SVGGraphicsElement::fill_color() const
     if (!paint.has_value())
         return {};
 
-    if (paint->is_url()) {
-        if (auto referenced_element = try_resolve_url_to<SVGGraphicsElement const>(paint->as_url()))
-            return referenced_element->fill_color();
-
+    if (paint->is_url())
         return paint->fallback_color();
-    }
 
     return paint->as_color();
 }
@@ -248,12 +244,8 @@ Optional<Gfx::Color> SVGGraphicsElement::stroke_color() const
     if (!paint.has_value())
         return {};
 
-    if (paint->is_url()) {
-        if (auto referenced_element = try_resolve_url_to<SVGGraphicsElement const>(paint->as_url()))
-            return referenced_element->stroke_color();
-
+    if (paint->is_url())
         return paint->fallback_color();
-    }
 
     return paint->as_color();
 }

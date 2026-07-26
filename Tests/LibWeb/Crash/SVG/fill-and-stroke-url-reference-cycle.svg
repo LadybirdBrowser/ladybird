@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg">
+<rect id="self-fill" width="10" height="10" fill="url(#self-fill)"/>
+<rect id="self-stroke" x="20" width="10" height="10" stroke="url(#self-stroke)"/>
+<rect id="cycle-a" x="40" width="10" height="10" fill="url(#cycle-b)" stroke="url(#cycle-b)"/>
+<rect id="cycle-b" x="60" width="10" height="10" fill="url(#cycle-a)" stroke="url(#cycle-a)"/>
+</svg>
