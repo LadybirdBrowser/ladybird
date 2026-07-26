@@ -198,16 +198,55 @@ impl fmt::Display for Relocation {
 }
 
 /// A branch target within a machine function.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub(crate) struct Label(String);
+///
+/// Every control-flow pass copies labels around, indexes blocks by them and
+/// compares them, so the name is shared rather than copied and its hash is
+/// taken once, when the label is made.
+#[derive(Debug, Clone)]
+pub(crate) struct Label {
+    name: Arc<str>,
+    hash: u64,
+}
 
 impl Label {
     pub(crate) fn new(name: impl Into<String>) -> Self {
-        Self(name.into())
+        let name: Arc<str> = name.into().into();
+        let mut hasher = DefaultHasher::new();
+        name.hash(&mut hasher);
+        Self {
+            hash: hasher.finish(),
+            name,
+        }
     }
 
     pub(crate) fn as_str(&self) -> &str {
-        &self.0
+        &self.name
+    }
+}
+
+impl PartialEq for Label {
+    fn eq(&self, other: &Self) -> bool {
+        self.hash == other.hash && self.name == other.name
+    }
+}
+
+impl Eq for Label {}
+
+impl PartialOrd for Label {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Label {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.name.cmp(&other.name)
+    }
+}
+
+impl Hash for Label {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.hash.hash(state);
     }
 }
 
@@ -225,7 +264,7 @@ impl From<String> for Label {
 
 impl fmt::Display for Label {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(formatter)
+        self.name.fmt(formatter)
     }
 }
 
