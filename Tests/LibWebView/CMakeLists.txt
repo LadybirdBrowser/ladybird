@@ -3,6 +3,7 @@ set(TEST_SOURCES
     TestAutocompleteRanker.cpp
     TestCookieJar.cpp
     TestDownloadSegmentation.cpp
+    TestDownloadStore.cpp
     TestHistoryStore.cpp
     TestHSTSStore.cpp
     TestOmnibox.cpp

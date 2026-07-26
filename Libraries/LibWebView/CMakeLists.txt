@@ -18,6 +18,7 @@ set(SOURCES
     DOMNodeProperties.cpp
     DownloadPresentation.cpp
     DownloadSegmentation.cpp
+    DownloadStore.cpp
     FileDownloader.cpp
     Geolocation.cpp
     HeadlessWebView.cpp
