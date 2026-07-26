@@ -770,7 +770,7 @@ fn schedule_blocks_by_profile(function: &Function) -> Vec<BlockId> {
 
 #[allow(clippy::too_many_arguments)]
 fn lower_switch(
-    function: &Function,
+    function: &FunctionUses<'_>,
     block: BlockId,
     next_block: Option<BlockId>,
     preferred_tail_after: Option<BlockId>,
@@ -859,7 +859,7 @@ fn first_preferred_switch_group<'a>(
 }
 
 fn emit_inverted_switch_group_test(
-    function: &Function,
+    function: &FunctionUses<'_>,
     value: &Operand,
     cases: &[(ValueId, Edge)],
     failure: &Label,
@@ -893,7 +893,7 @@ fn emit_inverted_switch_group_test(
 
 #[allow(clippy::too_many_arguments)]
 fn lower_switch_cases(
-    function: &Function,
+    function: &FunctionUses<'_>,
     block: BlockId,
     value: &Operand,
     cases: &[(ValueId, Edge)],
@@ -1361,7 +1361,7 @@ fn select_branch(function: &FunctionUses<'_>, condition: ValueId) -> Option<Sele
 }
 
 fn branch_input_operand(
-    function: &Function,
+    function: &FunctionUses<'_>,
     constants: &LayoutConstants,
     input: &SelectedBranchInput,
 ) -> Result<Operand, String> {
@@ -1451,7 +1451,7 @@ fn fold_load_into_branch(function: &FunctionUses<'_>, branch: &mut SelectedBranc
 }
 
 fn branch_register_is_compatible(
-    function: &Function,
+    function: &FunctionUses<'_>,
     input: &SelectedBranchInput,
     load_width: MemoryWidth,
     branch_width: IntegerWidth,
@@ -1638,6 +1638,7 @@ pub(crate) struct FunctionUses<'a> {
     counts: Vec<u32>,
     user_offsets: Vec<u32>,
     users: Vec<ValueUser>,
+    registers: Vec<Option<VirtualRegister>>,
 }
 
 /// One place a value is read.
@@ -1693,12 +1694,40 @@ impl<'a> FunctionUses<'a> {
                 filled[input.0] += 1;
             }
         }
+        // Every operand naming an SSA value names it by the same virtual
+        // register, and lowering emits an operand per use, so the register is
+        // built once per value rather than formatted, allocated and hashed once
+        // per use.
+        let registers = function
+            .values
+            .iter()
+            .enumerate()
+            .map(|(index, value)| {
+                if !matches!(
+                    value.definition,
+                    ValueDefinition::InstructionResult { .. }
+                        | ValueDefinition::BlockParameter { .. }
+                        | ValueDefinition::TerminatorResult { .. }
+                ) {
+                    return None;
+                }
+                let class = value.ty.register_class()?;
+                Some(VirtualRegister::with_class(format!("ssa_{index}"), class))
+            })
+            .collect();
+
         Self {
             function,
             counts,
             user_offsets,
             users,
+            registers,
         }
+    }
+
+    /// The virtual register an SSA value is named by, if it lives in one.
+    fn register(&self, value: ValueId) -> Option<&VirtualRegister> {
+        self.registers[value.0].as_ref()
     }
 
     fn users_of(&self, value: ValueId) -> &[ValueUser] {
@@ -1793,7 +1822,7 @@ fn integer_constant(function: &Function, value: ValueId) -> Option<i64> {
 }
 
 fn lower_edge_copies(
-    function: &Function,
+    function: &FunctionUses<'_>,
     edge: &Edge,
     output: &mut Vec<Instruction>,
     temporary_index: &mut usize,
@@ -1894,7 +1923,7 @@ fn lower_memory_operation(
 }
 
 fn lower_field_access_pair(
-    function: &Function,
+    function: &FunctionUses<'_>,
     first_id: InstructionId,
     second_id: InstructionId,
     output: &mut Vec<Instruction>,
@@ -2526,7 +2555,7 @@ fn folded_unary_source(
     Some((unbox_instruction, *boxed))
 }
 
-fn value_operand(function: &Function, value: ValueId) -> Result<Operand, String> {
+fn value_operand(function: &FunctionUses<'_>, value: ValueId) -> Result<Operand, String> {
     let value = resolve_reuse_value(function, value);
     let virtual_register = |name| {
         let class = function.values[value.0]
@@ -2554,7 +2583,12 @@ fn value_operand(function: &Function, value: ValueId) -> Result<Operand, String>
                 Operand::Label(block_label(target))
             }
         ValueDefinition::InstructionResult { .. } | ValueDefinition::BlockParameter { .. }
-        | ValueDefinition::TerminatorResult { .. } => virtual_register(format!("ssa_{}", value.0)),
+        | ValueDefinition::TerminatorResult { .. } => Operand::VirtualRegister(
+            function
+                .register(value)
+                .expect("materialized SSA values have a register class")
+                .clone(),
+        ),
         ValueDefinition::Constant(Constant::Integer(value)) => Operand::Immediate(*value),
         ValueDefinition::Constant(Constant::Layout(constant)) => {
             Operand::LayoutConstant(*constant)
@@ -2631,7 +2665,7 @@ fn resolve_reuse_value(function: &Function, mut value: ValueId) -> ValueId {
     }
 }
 
-fn memory_operand(function: &Function, components: &[ValueId]) -> Result<Operand, String> {
+fn memory_operand(function: &FunctionUses<'_>, components: &[ValueId]) -> Result<Operand, String> {
     if !(1..=3).contains(&components.len()) {
         return Err(format!("memory address requires one to three components, got {}", components.len()));
     }
