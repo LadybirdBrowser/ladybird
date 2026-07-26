@@ -319,8 +319,9 @@ pub(crate) const AARCH64_REGS: TargetRegisterInfo = TargetRegisterInfo {
         Some(aarch64::SP),
         Some(aarch64::X29),
     ],
-    // x9 and x10 are reserved as instruction-expansion scratch. Keep nine
-    // allocatable GPRs to match x86-64.
+    // x9 and x10 are reserved as instruction-expansion scratch, and x16 and
+    // x17 are the procedure call standard's veneer registers. Every other
+    // caller-saved register is available for allocation.
     temporaries: &[
         aarch64::X0,
         aarch64::X1,
@@ -331,6 +332,11 @@ pub(crate) const AARCH64_REGS: TargetRegisterInfo = TargetRegisterInfo {
         aarch64::X6,
         aarch64::X7,
         aarch64::X8,
+        aarch64::X11,
+        aarch64::X12,
+        aarch64::X13,
+        aarch64::X14,
+        aarch64::X15,
     ],
     fp_temporaries: &[aarch64::D0, aarch64::D1, aarch64::D2, aarch64::D3],
     caller_saved_gpr: &[
