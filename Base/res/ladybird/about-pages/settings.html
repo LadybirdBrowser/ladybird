@@ -65,6 +65,10 @@
                 width: 50%;
             }
 
+            .inline-container input[type="checkbox"] {
+                flex-shrink: 0;
+            }
+
             .button-container {
                 display: flex;
                 justify-content: flex-end;
@@ -704,6 +708,13 @@
                     <label for="clear-browsing-data-history">
                         Browsing history
                         <p class="description">Remove visited pages from history and address bar suggestions</p>
+                    </label>
+                </div>
+                <div class="input-field-container">
+                    <input id="clear-browsing-data-download-history" type="checkbox" value="" checked />
+                    <label for="clear-browsing-data-download-history">
+                        Download history
+                        <p class="description">Remove records of downloaded files, but keep the files themselves</p>
                     </label>
                 </div>
                 <div class="input-field-container">

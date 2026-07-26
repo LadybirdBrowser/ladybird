@@ -34,6 +34,7 @@
 #include <LibWeb/HTML/CrossProcessId.h>
 #include <LibWebView/BookmarkStore.h>
 #include <LibWebView/BrowserProcess.h>
+#include <LibWebView/DownloadStore.h>
 #include <LibWebView/FileDownloader.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/Options.h>
@@ -226,6 +227,7 @@ public:
         UnixDateTime since { UnixDateTime::earliest() };
         Delete delete_cached_files { Delete::No };
         Delete delete_history { Delete::No };
+        Delete delete_download_history { Delete::No };
         Delete delete_site_data { Delete::No };
     };
     void clear_browsing_data(ClearBrowsingDataOptions const&);
@@ -451,6 +453,7 @@ private:
     OwnPtr<CookieJar> m_cookie_jar;
     OwnPtr<HSTSStore> m_hsts_store;
     OwnPtr<StorageJar> m_storage_jar;
+    OwnPtr<DownloadStore> m_download_store;
     OwnPtr<PrivateBrowsingSession> m_private_browsing_session;
 
     OwnPtr<Core::GeolocationProvider> m_geolocation_provider;

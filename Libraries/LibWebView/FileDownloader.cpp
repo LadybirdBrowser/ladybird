@@ -4,21 +4,28 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AnyOf.h>
+#include <AK/CharacterTypes.h>
 #include <AK/NumericLimits.h>
 #include <AK/QuickSort.h>
 #include <AK/Random.h>
+#include <LibCore/DirIterator.h>
 #include <LibCore/ElapsedTimer.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/File.h>
+#include <LibCore/StandardPaths.h>
+#include <LibCore/System.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibHTTP/HeaderList.h>
 #include <LibRequests/Request.h>
 #include <LibRequests/RequestClient.h>
+#include <LibURL/Parser.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Statuses.h>
 #include <LibWeb/Loader/DownloadFilename.h>
 #include <LibWeb/Loader/UserAgent.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/DownloadSegmentation.h>
+#include <LibWebView/DownloadStore.h>
 #include <LibWebView/FileDownloader.h>
 
 namespace WebView {
@@ -62,6 +69,11 @@ struct FileDownloader::ActiveDownload {
         segments.empend();
     }
 
+    explicit ActiveDownload(LexicalPath temporary_destination)
+        : temporary_destination(move(temporary_destination))
+    {
+    }
+
     Vector<Segment> segments;
     Function<void()> on_cancel;
     OwnPtr<Core::File> file;
@@ -73,6 +85,8 @@ struct FileDownloader::ActiveDownload {
 
     LexicalPath temporary_destination;
     Core::ElapsedTimer progress_update_timer;
+    Core::ElapsedTimer persist_timer;
+    UnixDateTime created_time { UnixDateTime::now() };
     bool stopped { false };
     URL::URL effective_url;
     u32 redirect_count { 0 };
@@ -306,6 +320,7 @@ void FileDownloader::handle_segment_headers(u64 download_id, size_t segment_inde
         download->can_resume = active->range_support.can_resume();
 
         maybe_split_download(download_id);
+        persist_download_snapshot(download_id, PersistUrgency::Immediate);
     }
 
     // Splitting can reallocate the segment list or fail the download, so re-resolve afterwards.
@@ -399,6 +414,7 @@ void FileDownloader::handle_segment_finished(u64 download_id, size_t segment_ind
     }
 
     refresh_download_progress(*download, *active);
+    persist_download_snapshot(download_id, PersistUrgency::Immediate);
     notify_download_updated(*download);
 
     maybe_finish_download(download_id);
@@ -525,6 +541,7 @@ void FileDownloader::abandon_segmentation(u64 download_id)
     active->segmentation_abandoned = true;
     active->range_support = {};
     download->can_resume = false;
+    forget_persisted_download(download_id);
 
     auto& first_segment = active->segments[0];
     if (first_segment.request && !first_segment.request_is_ranged) {
@@ -570,6 +587,7 @@ void FileDownloader::restart_download_from_zero(u64 download_id)
 
     download->can_resume = false;
     download->total_size = {};
+    forget_persisted_download(download_id);
 
     if (active->file) {
         if (auto result = active->file->truncate(0); result.is_error()) {
@@ -677,6 +695,7 @@ void FileDownloader::append_segment_data(u64 id, size_t segment_index, ReadonlyB
         return;
 
     active->progress_update_timer.start();
+    persist_download_snapshot(id, PersistUrgency::Throttled);
     notify_download_updated(*download);
 }
 
@@ -745,6 +764,8 @@ void FileDownloader::finish_download(u64 id)
         return;
     }
 
+    forget_persisted_download(id);
+
     download->status = DownloadStatus::Completed;
     if (!download->total_size.has_value())
         download->total_size = download->downloaded_size;
@@ -773,6 +794,7 @@ void FileDownloader::pause_download(u64 id)
 
     download->status = DownloadStatus::Paused;
     refresh_download_progress(*download, *active);
+    persist_download_snapshot(id, PersistUrgency::Immediate);
     notify_download_updated(*download);
 }
 
@@ -842,6 +864,7 @@ void FileDownloader::resume_download(u64 id)
         start_stall_watchdog(id);
 
     refresh_download_progress(*download, *active);
+    persist_download_snapshot(id, PersistUrgency::Immediate);
     notify_download_updated(*download);
 
     maybe_finish_download(id);
@@ -874,6 +897,207 @@ void FileDownloader::fail_or_pause_download(u64 id, String error)
     }
 
     fail_download(id, move(error));
+}
+
+void FileDownloader::adopt_download_store(Badge<Application>, DownloadStore& download_store)
+{
+    m_download_store = &download_store;
+
+    m_next_download_id = max(m_next_download_id, download_store.maximum_download_id() + 1);
+
+    restore_persisted_downloads();
+}
+
+void FileDownloader::persist_download_snapshot(u64 id, PersistUrgency urgency)
+{
+    static constexpr i64 persist_interval_ms = 1000;
+
+    if (!m_download_store)
+        return;
+
+    auto* download = mutable_download_or_null(id);
+    auto* active = active_download(id);
+    if (!download || !active)
+        return;
+
+    if (download->is_private == IsPrivate::Yes)
+        return;
+
+    if (!download->can_resume || !download->total_size.has_value() || !status_is_active(download->status))
+        return;
+
+    if (urgency == PersistUrgency::Throttled && active->persist_timer.is_valid() && active->persist_timer.elapsed_milliseconds() < persist_interval_ms)
+        return;
+
+    active->persist_timer.start();
+
+    DownloadRecord record {
+        .id = download->id,
+        .url = active->effective_url.serialize(),
+        .display_url = download->url.serialize(),
+        .destination = String::from_byte_string(download->destination.string()).release_value_but_fixme_should_propagate_errors(),
+        .temporary_destination = String::from_byte_string(active->temporary_destination.string()).release_value_but_fixme_should_propagate_errors(),
+        .total_size = *download->total_size,
+        .etag = active->range_support.validator.etag,
+        .last_modified = active->range_support.validator.last_modified,
+        .segments = {},
+        .created_time = active->created_time,
+    };
+
+    record.segments.ensure_capacity(active->segments.size());
+    for (auto const& segment : active->segments)
+        record.segments.unchecked_append({ segment.start_offset, segment.end_offset, segment.next_offset });
+
+    quick_sort(record.segments, [](auto const& a, auto const& b) { return a.start_offset < b.start_offset; });
+
+    m_download_store->save_download(record);
+}
+
+void FileDownloader::forget_persisted_download(u64 id)
+{
+    if (m_download_store)
+        m_download_store->remove_download(id);
+}
+
+void FileDownloader::restore_persisted_downloads()
+{
+    VERIFY(m_download_store);
+
+    HashTable<ByteString> directories;
+    HashTable<ByteString> temporary_paths_in_use;
+
+    directories.set(Core::StandardPaths::downloads_directory());
+
+    for (auto& record : m_download_store->resumable_downloads()) {
+        LexicalPath temporary_destination { record.temporary_destination.to_byte_string() };
+        directories.set(temporary_destination.dirname());
+
+        if (restore_persisted_download(record)) {
+            temporary_paths_in_use.set(temporary_destination.string());
+            continue;
+        }
+
+        m_download_store->remove_download(record.id);
+        (void)FileSystem::remove(temporary_destination.string(), FileSystem::RecursionMode::Disallowed);
+    }
+
+    remove_orphaned_temporary_files(directories, temporary_paths_in_use);
+}
+
+bool FileDownloader::restore_persisted_download(DownloadRecord& record)
+{
+    if (record.total_size == 0 || record.segments.is_empty())
+        return false;
+
+    if (record.segments.last().end_offset + 1 != record.total_size)
+        return false;
+
+    // The persisted segments must tile [0, total_size) in order, with each segment's resume point inside its own range.
+    u64 highest_next_offset = 0;
+    u64 expected_start_offset = 0;
+    for (auto const& segment : record.segments) {
+        if (segment.start_offset != expected_start_offset)
+            return false;
+        if (segment.end_offset < segment.start_offset || segment.end_offset >= record.total_size)
+            return false;
+        if (segment.next_offset < segment.start_offset || segment.next_offset > segment.end_offset + 1)
+            return false;
+
+        expected_start_offset = segment.end_offset + 1;
+        highest_next_offset = max(highest_next_offset, segment.next_offset);
+    }
+
+    auto url = URL::Parser::basic_parse(record.display_url);
+    auto effective_url = URL::Parser::basic_parse(record.url);
+    if (!url.has_value() || !effective_url.has_value())
+        return false;
+
+    LexicalPath temporary_destination { record.temporary_destination.to_byte_string() };
+
+    auto size = FileSystem::size_from_stat(temporary_destination.string());
+    if (size.is_error() || static_cast<u64>(size.value()) < highest_next_offset)
+        return false;
+
+    m_downloads.append(Download {
+        .id = record.id,
+        .is_private = IsPrivate::No,
+        .url = url.release_value(),
+        .destination = LexicalPath { record.destination.to_byte_string() },
+        .status = DownloadStatus::Paused,
+        .total_size = record.total_size,
+        .error = {},
+        .can_resume = true,
+    });
+
+    auto active = make<ActiveDownload>(move(temporary_destination));
+    active->effective_url = effective_url.release_value();
+    active->can_follow_redirects = true;
+    active->created_time = record.created_time;
+    active->restored_from_disk = true;
+    active->range_support.supports_ranges = true;
+    active->range_support.total_size = record.total_size;
+    active->range_support.validator.etag = move(record.etag);
+    active->range_support.validator.last_modified = move(record.last_modified);
+
+    active->segments.ensure_capacity(record.segments.size());
+    for (auto const& segment : record.segments) {
+        active->segments.empend();
+
+        auto& restored_segment = active->segments.last();
+        restored_segment.start_offset = segment.start_offset;
+        restored_segment.end_offset = segment.end_offset;
+        restored_segment.next_offset = segment.next_offset;
+    }
+
+    auto& download = m_downloads.last();
+    refresh_download_progress(download, *active);
+
+    m_active_downloads.set(record.id, move(active));
+    notify_download_added(download);
+
+    return true;
+}
+
+void FileDownloader::remove_orphaned_temporary_files(HashTable<ByteString> const& directories, HashTable<ByteString> const& temporary_paths_in_use)
+{
+    // Another Ladybird may well be downloading right now, and its partial files look exactly like ours. Only sweep
+    // files old enough that nothing could plausibly still be writing to them.
+    static constexpr auto minimum_orphan_age = AK::Duration::from_seconds(24 * 60 * 60);
+
+    auto is_temporary_download_filename = [](StringView filename) {
+        auto parts = filename.split_view('.');
+        if (parts.size() < 4 || parts.take_last() != "download"sv)
+            return false;
+
+        auto uuid = parts.take_last();
+        if (uuid.length() != 36)
+            return false;
+
+        auto download_id = parts.take_last();
+        return !download_id.is_empty() && all_of(download_id, is_ascii_digit);
+    };
+
+    auto now = UnixDateTime::now();
+
+    for (auto const& directory : directories) {
+        Core::DirIterator iterator { directory, Core::DirIterator::SkipParentAndBaseDir };
+
+        while (iterator.has_next()) {
+            auto path = iterator.next_full_path();
+            if (!is_temporary_download_filename(LexicalPath::basename(path)))
+                continue;
+            if (temporary_paths_in_use.contains(path))
+                continue;
+
+            auto stat = Core::File::stat(path);
+            if (stat.is_error())
+                continue;
+            if (now - UnixDateTime::from_seconds_since_epoch(stat.value().st_mtime) < minimum_orphan_age)
+                continue;
+
+            (void)FileSystem::remove(path, FileSystem::RecursionMode::Disallowed);
+        }
+    }
 }
 
 Optional<FileDownloader::Download const&> FileDownloader::download(u64 id) const
@@ -965,6 +1189,7 @@ void FileDownloader::cancel_download(u64 id)
 
     download->status = DownloadStatus::Canceled;
     download->error = {};
+    forget_persisted_download(id);
 
     discard_active_download(id);
 
@@ -979,6 +1204,7 @@ void FileDownloader::fail_download(u64 id, String error)
 
     download->status = DownloadStatus::Failed;
     download->error = move(error);
+    forget_persisted_download(id);
 
     discard_active_download(id);
 
@@ -987,6 +1213,11 @@ void FileDownloader::fail_download(u64 id, String error)
 
 Vector<u64> FileDownloader::prune_inactive_downloads()
 {
+    return remove_inactive_downloads_created_since(UnixDateTime::earliest());
+}
+
+Vector<u64> FileDownloader::remove_inactive_downloads_created_since(UnixDateTime since)
+{
     Vector<u64> removed_download_ids;
 
     for (size_t i = m_downloads.size(); i > 0; --i) {
@@ -994,7 +1225,10 @@ Vector<u64> FileDownloader::prune_inactive_downloads()
         auto const id = m_downloads[index].id;
         if (status_is_active(m_downloads[index].status))
             continue;
+        if (m_downloads[index].created_time < since)
+            continue;
 
+        forget_persisted_download(id);
         m_active_downloads.remove(id);
         m_downloads.remove(index);
         removed_download_ids.append(id);
