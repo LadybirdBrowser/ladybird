@@ -41,14 +41,14 @@ impl EffectSet {
         Self(vec![definition])
     }
 
-    pub(crate) fn insert(&mut self, definition: EffectDefinition) {
-        if let Err(position) = self.0.binary_search(&definition) {
-            self.0.insert(position, definition);
-        }
+    /// Take a set from definitions already sorted and free of duplicates.
+    pub(crate) fn from_sorted(definitions: Vec<EffectDefinition>) -> Self {
+        debug_assert!(definitions.windows(2).all(|pair| pair[0] < pair[1]));
+        Self(definitions)
     }
 
-    pub(crate) fn is_empty(&self) -> bool {
-        self.0.is_empty()
+    pub(crate) fn as_slice(&self) -> &[EffectDefinition] {
+        &self.0
     }
 
     pub(crate) fn len(&self) -> usize {
@@ -512,25 +512,33 @@ fn compute_domain_block_states(
     let mut order = cfg.reverse_postorder().to_vec();
     order.extend((0..function.blocks.len()).map(BlockId).filter(|block| !cfg.is_reachable(*block)));
 
+    // Building each block's input into a scratch buffer and only storing it
+    // when it actually moved keeps the later sweeps, where almost nothing
+    // changes, from allocating a set per block and throwing it away.
+    let mut input = Vec::new();
     loop {
         let mut changed = false;
         for id in order.iter().copied() {
             let block_index = id.0;
-            let mut input = if id == function.entry || cfg.predecessors(id).is_empty() {
-                EffectSet::from_one(EffectDefinition::Entry)
+            input.clear();
+            if id == function.entry || cfg.predecessors(id).is_empty() {
+                input.push(EffectDefinition::Entry);
             } else if phi_blocks.get(block_index) == Some(&true) {
-                EffectSet::from_one(EffectDefinition::Phi(id))
+                input.push(EffectDefinition::Phi(id));
             } else {
-                cfg.predecessors(id)
-                    .iter()
-                    .flat_map(|predecessor| outputs[predecessor.0].iter().copied())
-                    .collect()
-            };
-            if input.is_empty() {
-                input.insert(EffectDefinition::Entry);
+                for predecessor in cfg.predecessors(id) {
+                    input.extend(outputs[predecessor.0].iter().copied());
+                }
+                if input.len() > 1 {
+                    input.sort_unstable();
+                    input.dedup();
+                }
             }
-            if input != inputs[block_index] {
-                inputs[block_index] = input;
+            if input.is_empty() {
+                input.push(EffectDefinition::Entry);
+            }
+            if inputs[block_index].as_slice() != input {
+                inputs[block_index] = EffectSet::from_sorted(input.clone());
                 changed = true;
                 // A block that writes ends the chain, so only one that does
                 // not passes what reached it along.
