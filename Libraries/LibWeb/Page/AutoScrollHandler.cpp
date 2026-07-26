@@ -203,6 +203,7 @@ void AutoScrollHandler::perform_tick()
     int scroll_y = m_fractional_delta.y().to_int();
     m_fractional_delta -= CSSPixelPoint { scroll_x, scroll_y };
 
+    m_navigable->note_user_scroll_input_intent(Painting::SnapSelectionStrategy::Type::EndPosition);
     if (paintable_box->scroll_by(scroll_x, scroll_y) == Painting::Paintable::ScrollHandled::No)
         return;
 

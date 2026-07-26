@@ -347,20 +347,49 @@ static QPointF wheel_delta_from_angle_delta(QPoint angle_delta)
     return { step_x * scroll_step_size, step_y * scroll_step_size };
 }
 
-static QPointF wheel_delta_from_qt_event(QWheelEvent const& wheel_event)
+struct WheelDelta {
+    QPointF delta;
+    Web::WheelDeltaPrecision precision { Web::WheelDeltaPrecision::Discrete };
+};
+
+static bool wheel_event_scrolls_continuously(QWheelEvent const& wheel_event)
+{
+    if (wheel_event.phase() != Qt::NoScrollPhase)
+        return true;
+    // Some platforms deliver touchpad scrolling without scroll phases, so fall back to the type of the device.
+    auto const* pointing_device = wheel_event.pointingDevice();
+    return pointing_device && pointing_device->type() == QInputDevice::DeviceType::TouchPad;
+}
+
+static WheelDelta wheel_delta_from_qt_event(QWheelEvent const& wheel_event)
 {
     auto pixel_delta = -wheel_event.pixelDelta();
-    auto const* pointing_device = wheel_event.pointingDevice();
-    // NB: macOS can report a tiny pixel delta for mouse-wheel ticks. Use it only for touchpads so physical wheels
-    //     continue through the line-step conversion below.
-    if (!pixel_delta.isNull() && pointing_device && pointing_device->type() == QInputDevice::DeviceType::TouchPad)
-        return pixel_delta;
+    // NB: macOS can report a tiny pixel delta for mouse-wheel ticks. Use it only for continuous scrolling so physical
+    //     wheels continue through the line-step conversion below.
+    if (!pixel_delta.isNull() && wheel_event_scrolls_continuously(wheel_event))
+        return { pixel_delta, Web::WheelDeltaPrecision::Precise };
 
     auto angle_delta = -wheel_event.angleDelta();
     if (!angle_delta.isNull())
-        return wheel_delta_from_angle_delta(angle_delta);
+        return { wheel_delta_from_angle_delta(angle_delta), Web::WheelDeltaPrecision::Discrete };
 
-    return pixel_delta;
+    return { pixel_delta, Web::WheelDeltaPrecision::Precise };
+}
+
+static Web::ScrollGesturePhase scroll_gesture_phase_from_qt_event(QWheelEvent const& wheel_event)
+{
+    switch (wheel_event.phase()) {
+    case Qt::ScrollBegin:
+    case Qt::ScrollUpdate:
+        return Web::ScrollGesturePhase::Ongoing;
+    case Qt::ScrollMomentum:
+        return Web::ScrollGesturePhase::Momentum;
+    case Qt::ScrollEnd:
+        return Web::ScrollGesturePhase::Ended;
+    case Qt::NoScrollPhase:
+        break;
+    }
+    return Web::ScrollGesturePhase::None;
 }
 
 static Web::UIEvents::KeyCode get_keycode_from_qt_key_event(QKeyEvent const& event)
@@ -1358,15 +1387,19 @@ void WebContentView::enqueue_native_event(Web::MouseEvent::Type type, QSinglePoi
 
     double wheel_delta_x = 0;
     double wheel_delta_y = 0;
+    auto wheel_delta_precision = Web::WheelDeltaPrecision::Discrete;
+    auto scroll_gesture_phase = Web::ScrollGesturePhase::None;
 
     if (type == Web::MouseEvent::Type::MouseWheel) {
         auto const& wheel_event = static_cast<QWheelEvent const&>(event);
         auto wheel_delta = wheel_delta_from_qt_event(wheel_event);
-        wheel_delta_x = wheel_delta.x();
-        wheel_delta_y = wheel_delta.y();
+        wheel_delta_x = wheel_delta.delta.x();
+        wheel_delta_y = wheel_delta.delta.y();
+        wheel_delta_precision = wheel_delta.precision;
+        scroll_gesture_phase = scroll_gesture_phase_from_qt_event(wheel_event);
     }
 
-    enqueue_input_event(Web::MouseEvent { type, position, screen_position.to_type<Web::DevicePixels>(), button, buttons, modifiers, wheel_delta_x, wheel_delta_y, m_click_count, nullptr });
+    enqueue_input_event(Web::MouseEvent { type, position, screen_position.to_type<Web::DevicePixels>(), button, buttons, modifiers, wheel_delta_x, wheel_delta_y, wheel_delta_precision, scroll_gesture_phase, m_click_count, nullptr });
 }
 
 struct DragData : Web::BrowserInputData {

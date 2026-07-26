@@ -984,6 +984,7 @@ Paintable::ScrollHandled Paintable::scroll_by(double delta_x, double delta_y)
 
 Paintable::ScrollHandled Paintable::set_scroll_offset_from_user_input(CSSPixelPoint offset)
 {
+    auto scroll_offset_before_scroll = scroll_offset();
     auto scroll_handled = set_scroll_offset(offset);
     auto navigable = document().navigable();
     if (!navigable)
@@ -991,7 +992,7 @@ Paintable::ScrollHandled Paintable::set_scroll_offset_from_user_input(CSSPixelPo
 
     if (scroll_handled == ScrollHandled::Yes) {
         if (auto event_target = scroll_event_target())
-            navigable->queue_scrollend_event_after_user_scroll(*event_target, async_scroll_node_stable_id());
+            navigable->queue_scrollend_event_after_user_scroll(*event_target, async_scroll_node_stable_id(), scroll_offset_before_scroll);
     } else {
         // User input keeps the scroll gesture in progress even when it does not move the scrolling box.
         navigable->defer_user_scroll_settlement();
