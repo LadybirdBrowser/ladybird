@@ -11,6 +11,16 @@
 //! allocation, and target-specific assembly emission. The compiler operates
 //! entirely on in-memory inputs and outputs; the `flapc` binary is only a file
 //! system and command-line adapter.
+//!
+//! # Security and resource contract
+//!
+//! Flap is an internal compiler for trusted, generated build inputs. Its parser
+//! and optimization pipeline do not impose general-purpose nesting, value,
+//! block, or diagnostic budgets, and its internal string tables use a
+//! deterministic non-cryptographic hasher. Do not expose this API directly to
+//! attacker-controlled source. A service accepting untrusted Flap programs
+//! must enforce input and resource limits before compilation and replace or
+//! isolate the deterministic source-key tables.
 
 pub(crate) mod bytecode;
 pub(crate) mod frontend;

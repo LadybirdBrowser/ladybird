@@ -6,11 +6,13 @@
 
 //! Hash tables for the compiler's own bookkeeping.
 //!
-//! Nearly every key here is a small dense index, or a value carrying an
-//! identity hash it computed once. The standard library's hasher is built to
-//! resist keys chosen by an attacker, which none of these tables ever see, and
-//! hashing shows up across the whole compiler when compiling a program: the
-//! tables are rebuilt from nothing on every compile.
+//! Most keys here are small dense indices or values carrying an identity hash
+//! computed once. Some front-end tables also contain identifiers copied from
+//! source. Using a deterministic hasher for those is safe only under the
+//! crate-level contract that Flap compiles trusted generated input; it is not
+//! collision resistant and must not silently cross an untrusted-source
+//! boundary. Hashing shows up across the whole compiler, and these tables are
+//! rebuilt from nothing on every compile.
 
 use std::hash::{BuildHasherDefault, Hasher};
 
