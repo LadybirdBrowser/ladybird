@@ -6,8 +6,8 @@
 
 //! Target-aware instruction combining before register allocation.
 
-use super::{Instruction, Operand, VirtualRegister, visit_virtual_registers};
-use crate::hash::HashMap;
+use super::{Instruction, Operand, VirtualRegister, visit_virtual_registers, visit_virtual_registers_mut};
+use crate::hash::{HashMap, HashSet};
 use crate::intrinsic::{BranchOperation, IntegerBinaryOperation, IntegerSignedness};
 use crate::target::description::{
     BinaryOperation, EqualityCondition, IntegerWidth, MemoryWidth, OperandKind, Operation, PairWidth,
@@ -276,4 +276,263 @@ pub(crate) fn orient_commutative_updates(instructions: &mut [Instruction]) {
         }
         index += 1;
     }
+}
+
+/// Split cheap values around calls when their entire live range is local to
+/// one machine block. This keeps the AOT interpreter spill-free while letting
+/// constants be recreated after caller-saved registers are destroyed.
+pub(crate) fn split_rematerializable_live_ranges_across_calls(instructions: &mut Vec<Instruction>) {
+    let calls = instructions
+        .iter()
+        .enumerate()
+        .filter_map(|(index, instruction)| instruction.opcode.description().is_call.then_some(index))
+        .collect::<Vec<_>>();
+    if calls.is_empty() {
+        return;
+    }
+
+    let instruction_blocks = instruction_blocks(instructions);
+    let mut register_blocks = HashMap::<VirtualRegister, Option<usize>>::default();
+    let mut registers = HashSet::default();
+    for (index, instruction) in instructions.iter().enumerate() {
+        for operand in &instruction.operands {
+            visit_virtual_registers(operand, &mut |register| {
+                registers.insert(register.clone());
+                register_blocks
+                    .entry(register.clone())
+                    .and_modify(|block| {
+                        if *block != Some(instruction_blocks[index]) {
+                            *block = None;
+                        }
+                    })
+                    .or_insert(Some(instruction_blocks[index]));
+            });
+        }
+    }
+
+    let mut split_index = 0u64;
+    for call in calls.into_iter().rev() {
+        let block = instruction_blocks[call];
+        let start = machine_block_start(instructions, call);
+        let end = machine_block_end(instructions, call);
+        let mut recipes = rematerialization_recipes(&instructions[start..call])
+            .into_iter()
+            .collect::<Vec<_>>();
+        recipes.sort_by(|(lhs, _), (rhs, _)| lhs.cmp(rhs));
+        let mut splits = Vec::new();
+        for (register, recipe) in recipes {
+            if register_blocks.get(&register) != Some(&Some(block))
+                || instruction_defines_register(&instructions[call], &register)
+            {
+                continue;
+            }
+            let Some(last_reference) = instructions[call + 1..end]
+                .iter()
+                .rposition(|instruction| instruction_references_register(instruction, &register))
+                .map(|position| call + 1 + position)
+            else {
+                continue;
+            };
+            if instructions[call + 1..=last_reference]
+                .iter()
+                .any(|instruction| instruction.opcode.description().is_call)
+            {
+                continue;
+            }
+            let first_reference = instructions[call + 1..=last_reference]
+                .iter()
+                .find(|instruction| instruction_references_register(instruction, &register))
+                .expect("last reference guarantees a first reference");
+            if !instruction_reads_register(first_reference, &register) {
+                continue;
+            }
+
+            let replacement = loop {
+                let candidate =
+                    VirtualRegister::with_class(format!("{register}_after_call_{split_index}"), register.class());
+                split_index += 1;
+                if registers.insert(candidate.clone()) {
+                    break candidate;
+                }
+            };
+            splits.push((register, replacement, recipe));
+        }
+
+        for (register, replacement, _) in &splits {
+            for instruction in &mut instructions[call + 1..end] {
+                for operand in &mut instruction.operands {
+                    visit_virtual_registers_mut(operand, &mut |candidate| {
+                        if candidate == register {
+                            *candidate = replacement.clone();
+                        }
+                    });
+                }
+            }
+        }
+        let rematerializations = splits
+            .into_iter()
+            .map(|(_, replacement, mut recipe)| {
+                let Operand::VirtualRegister(destination) = &mut recipe.operands[0] else {
+                    unreachable!("rematerialization recipe must define a virtual register")
+                };
+                *destination = replacement;
+                recipe
+            })
+            .collect::<Vec<_>>();
+        instructions.splice(call + 1..call + 1, rematerializations);
+    }
+}
+
+fn instruction_blocks(instructions: &[Instruction]) -> Vec<usize> {
+    let mut blocks = Vec::with_capacity(instructions.len());
+    let mut block = 0usize;
+    for (index, instruction) in instructions.iter().enumerate() {
+        if index > 0
+            && (instruction.opcode.operation() == Operation::Label
+                || machine_instruction_ends_block(&instructions[index - 1]))
+        {
+            block += 1;
+        }
+        blocks.push(block);
+    }
+    blocks
+}
+
+fn machine_block_start(instructions: &[Instruction], instruction: usize) -> usize {
+    (0..=instruction)
+        .rev()
+        .find(|index| {
+            *index == 0
+                || instructions[*index].opcode.operation() == Operation::Label
+                || machine_instruction_ends_block(&instructions[*index - 1])
+        })
+        .unwrap()
+}
+
+fn machine_block_end(instructions: &[Instruction], instruction: usize) -> usize {
+    (instruction..instructions.len())
+        .find_map(|index| {
+            (machine_instruction_ends_block(&instructions[index])
+                || instructions
+                    .get(index + 1)
+                    .is_some_and(|instruction| instruction.opcode.operation() == Operation::Label))
+            .then_some(index + 1)
+        })
+        .unwrap_or(instructions.len())
+}
+
+fn machine_instruction_ends_block(instruction: &Instruction) -> bool {
+    instruction.opcode.description().terminal
+        || (instruction.opcode.operation() != Operation::Label
+            && instruction
+                .operands
+                .iter()
+                .any(|operand| matches!(operand, Operand::Label(_))))
+}
+
+fn rematerialization_recipes(instructions: &[Instruction]) -> HashMap<VirtualRegister, Instruction> {
+    let mut seen = HashSet::default();
+    let mut recipes = HashMap::default();
+    for instruction in instructions {
+        let recipe = rematerialization_recipe(instruction);
+        let mut referenced = Vec::new();
+        for operand in &instruction.operands {
+            visit_virtual_registers(operand, &mut |register| {
+                if !referenced.contains(register) {
+                    referenced.push(register.clone());
+                }
+            });
+        }
+        for register in referenced {
+            let first_reference = seen.insert(register.clone());
+            if recipe
+                .as_ref()
+                .is_some_and(|(recipe_register, _)| *recipe_register == register)
+            {
+                if first_reference {
+                    recipes.insert(register, recipe.as_ref().unwrap().1.clone());
+                } else {
+                    recipes.remove(&register);
+                }
+            } else if instruction_defines_register(instruction, &register) {
+                recipes.remove(&register);
+            }
+        }
+    }
+    recipes
+}
+
+fn rematerialization_recipe(instruction: &Instruction) -> Option<(VirtualRegister, Instruction)> {
+    if !matches!(
+        instruction.opcode.operation(),
+        Operation::Move(IntegerWidth::U32 | IntegerWidth::U64)
+    ) {
+        return None;
+    }
+    let [
+        Operand::VirtualRegister(register),
+        source @ (Operand::Immediate(_) | Operand::ValueConstant(_)),
+    ] = instruction.operands.as_slice()
+    else {
+        return None;
+    };
+    Some((
+        register.clone(),
+        Instruction {
+            opcode: instruction.opcode,
+            operands: vec![Operand::VirtualRegister(register.clone()), source.clone()],
+        },
+    ))
+}
+
+fn instruction_references_register(instruction: &Instruction, register: &VirtualRegister) -> bool {
+    instruction.operands.iter().any(|operand| {
+        let mut references = false;
+        visit_virtual_registers(operand, &mut |candidate| references |= candidate == register);
+        references
+    })
+}
+
+fn instruction_reads_register(instruction: &Instruction, register: &VirtualRegister) -> bool {
+    let description = instruction.opcode.description();
+    instruction.operands.iter().enumerate().any(|(index, operand)| {
+        if matches!(operand, Operand::Address(_)) {
+            let mut reads = false;
+            visit_virtual_registers(operand, &mut |candidate| reads |= candidate == register);
+            return reads;
+        }
+        let Operand::VirtualRegister(candidate) = operand else {
+            return false;
+        };
+        candidate == register
+            && matches!(
+                description.operand_kind(index, instruction.operands.len()),
+                Some(
+                    OperandKind::GprIn
+                        | OperandKind::GprInOut
+                        | OperandKind::FprIn
+                        | OperandKind::FprInOut
+                        | OperandKind::RegisterIn
+                        | OperandKind::GprInOrImm
+                        | OperandKind::GprInOrMemory
+                )
+            )
+    })
+}
+
+fn instruction_defines_register(instruction: &Instruction, register: &VirtualRegister) -> bool {
+    let description = instruction.opcode.description();
+    instruction.operands.iter().enumerate().any(|(index, operand)| {
+        matches!(operand, Operand::VirtualRegister(candidate) if candidate == register)
+            && matches!(
+                description.operand_kind(index, instruction.operands.len()),
+                Some(
+                    OperandKind::GprOut
+                        | OperandKind::GprInOut
+                        | OperandKind::FprOut
+                        | OperandKind::FprInOut
+                        | OperandKind::RegisterOut
+                )
+            )
+    })
 }
