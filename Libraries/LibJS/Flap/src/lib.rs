@@ -78,12 +78,18 @@ pub struct OptimizationReportOptions {
     pub dump_changed_ir: bool,
 }
 
+/// One named in-memory compiler input.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SourceInput<'a> {
+    pub name: &'a str,
+    pub contents: &'a str,
+}
+
 /// In-memory source inputs for one Flap compilation.
 pub struct CompilationUnit<'a> {
-    pub source_name: &'a str,
-    pub source: &'a str,
-    pub constants: Option<&'a str>,
-    pub bytecode_def: Option<&'a str>,
+    pub source: SourceInput<'a>,
+    pub constants: Option<SourceInput<'a>>,
+    pub bytecode_def: Option<SourceInput<'a>>,
 }
 
 #[derive(Clone)]
@@ -166,26 +172,50 @@ impl CompileError {
         }
     }
 
-    fn from_layout_error(error: LayoutError) -> Self {
-        let location = SourceLocation {
-            offset: 0,
-            line: error.line,
-            column: 1,
+    fn from_layout_error(source: SourceInput<'_>, error: LayoutError) -> Self {
+        let location = (error.line != 0).then(|| {
+            let offset = source
+                .contents
+                .split_inclusive('\n')
+                .take(error.line.saturating_sub(1))
+                .map(str::len)
+                .sum::<usize>();
+            let line = source.contents[offset..].lines().next().unwrap_or_default();
+            let indentation = line.len() - line.trim_start().len();
+            SourceLocation {
+                offset: offset + indentation,
+                line: error.line,
+                column: indentation + 1,
+            }
+        });
+        let message = if let Some(location) = location {
+            format!(
+                "{}:{}:{}: error: {}",
+                source.name, location.line, location.column, error.message
+            )
+        } else {
+            format!("{}: error: {}", source.name, error.message)
         };
         Self {
             stage: CompileStage::Layout,
             handler: None,
-            span: Some(SourceSpan {
+            span: location.map(|location| SourceSpan {
                 start: location,
                 end: location,
             }),
-            message: error.to_string(),
+            message,
         }
     }
 
-    fn from_bytecode_def_error(error: bytecode_def::ParseError) -> Self {
+    fn from_bytecode_def_error(source: SourceInput<'_>, error: bytecode_def::ParseError) -> Self {
+        let line_offset = source
+            .contents
+            .split_inclusive('\n')
+            .take(error.line.saturating_sub(1))
+            .map(str::len)
+            .sum::<usize>();
         let location = SourceLocation {
-            offset: 0,
+            offset: line_offset + error.column.saturating_sub(1),
             line: error.line,
             column: error.column,
         };
@@ -252,16 +282,17 @@ impl Compiler {
     ) -> Result<(PreparedProgram, Option<OptimizationReport>), CompileError> {
         let layouts = unit
             .constants
-            .map(LayoutDatabase::parse)
-            .transpose()
-            .map_err(CompileError::from_layout_error)?;
+            .map(|source| {
+                LayoutDatabase::parse(source.contents).map_err(|error| CompileError::from_layout_error(source, error))
+            })
+            .transpose()?;
 
-        let ast = frontend::parser::parse(unit.source_name, unit.source)
+        let ast = frontend::parser::parse(unit.source.name, unit.source.contents)
             .map_err(|diagnostic| CompileError::from_diagnostic(CompileStage::Parse, diagnostic))?;
         let typed_program = if let Some(layouts) = &layouts {
-            hir::check_with_layouts(unit.source_name, &ast, layouts.fields())
+            hir::check_with_layouts(unit.source.name, &ast, layouts.fields())
         } else {
-            hir::check(unit.source_name, &ast)
+            hir::check(unit.source.name, &ast)
         }
         .map_err(|diagnostic| CompileError::from_diagnostic(CompileStage::Semantic, diagnostic))?;
 
@@ -323,8 +354,8 @@ impl Compiler {
             .map(|handler| (handler.name(), handler.id))
             .collect::<HashMap<_, _>>();
         let (op_layouts, dispatch_handlers) = if let Some(bytecode_def) = unit.bytecode_def {
-            let ops = bytecode_def::parse_bytecode_def("Bytecode.def", bytecode_def)
-                .map_err(CompileError::from_bytecode_def_error)?;
+            let ops = bytecode_def::parse_bytecode_def(bytecode_def.name, bytecode_def.contents)
+                .map_err(|error| CompileError::from_bytecode_def_error(bytecode_def, error))?;
             // The interpreter dispatches on a single opcode byte, so a table beyond 256 entries
             // would have unreachable handlers.
             if ops.len() > DISPATCH_TABLE_SIZE {
@@ -488,10 +519,18 @@ const CANON_NAN_BITS = 0x7FF8000000000000
 
     fn unit(bytecode_def: &'static str) -> CompilationUnit<'static> {
         CompilationUnit {
-            source_name: "test.flap",
-            source: "handler Nop() { dispatch_next; }",
-            constants: Some(REQUIRED_LAYOUT),
-            bytecode_def: Some(bytecode_def),
+            source: SourceInput {
+                name: "test.flap",
+                contents: "handler Nop() { dispatch_next; }",
+            },
+            constants: Some(SourceInput {
+                name: "layout.conf",
+                contents: REQUIRED_LAYOUT,
+            }),
+            bytecode_def: Some(SourceInput {
+                name: "TestBytecode.def",
+                contents: bytecode_def,
+            }),
         }
     }
 
@@ -584,8 +623,10 @@ const CANON_NAN_BITS = 0x7FF8000000000000
         let compiler = compiler(Architecture::X86_64);
         let parse_error = compiler
             .prepare(CompilationUnit {
-                source_name: "bad.flap",
-                source: "handler Broken(",
+                source: SourceInput {
+                    name: "bad.flap",
+                    contents: "handler Broken(",
+                },
                 constants: None,
                 bytecode_def: None,
             })
@@ -597,9 +638,14 @@ const CANON_NAN_BITS = 0x7FF8000000000000
 
         let layout_error = compiler
             .prepare(CompilationUnit {
-                source_name: "test.flap",
-                source: "handler Nop() { dispatch_next; }",
-                constants: Some("field Object.shape Shape MISSING nullable\n"),
+                source: SourceInput {
+                    name: "test.flap",
+                    contents: "handler Nop() { dispatch_next; }",
+                },
+                constants: Some(SourceInput {
+                    name: "broken-layout.conf",
+                    contents: "field Object.shape Shape MISSING nullable\n",
+                }),
                 bytecode_def: None,
             })
             .err()
@@ -607,32 +653,44 @@ const CANON_NAN_BITS = 0x7FF8000000000000
         assert_eq!(layout_error.stage, CompileStage::Layout);
         assert_eq!(layout_error.span.unwrap().start.line, 1);
         assert!(layout_error.message.contains("undefined layout value"));
+        assert!(layout_error.message.contains("broken-layout.conf:1:1"));
 
         let bytecode_error = compiler
             .prepare(CompilationUnit {
-                source_name: "test.flap",
-                source: "handler Nop() { dispatch_next; }",
+                source: SourceInput {
+                    name: "test.flap",
+                    contents: "handler Nop() { dispatch_next; }",
+                },
                 constants: None,
-                bytecode_def: Some("op Nop\n    malformed\nendop\n"),
+                bytecode_def: Some(SourceInput {
+                    name: "BrokenBytecode.def",
+                    contents: "op Nop\n    malformed\nendop\n",
+                }),
             })
             .err()
             .expect("invalid bytecode definition should fail");
         assert_eq!(bytecode_error.stage, CompileStage::Parse);
         let span = bytecode_error.span.unwrap();
+        assert_eq!(span.start.offset, 11);
         assert_eq!(span.start.line, 2);
         assert_eq!(span.start.column, 5);
         assert!(
             bytecode_error
                 .message
-                .contains("Bytecode.def:2:5: error: malformed field line")
+                .contains("BrokenBytecode.def:2:5: error: malformed field line")
         );
 
         let emission_error = compiler
             .compile(CompilationUnit {
-                source_name: "test.flap",
-                source: "handler Nop() { dispatch_next; }",
+                source: SourceInput {
+                    name: "test.flap",
+                    contents: "handler Nop() { dispatch_next; }",
+                },
                 constants: None,
-                bytecode_def: Some("op Nop < Instruction\nendop\n"),
+                bytecode_def: Some(SourceInput {
+                    name: "TestBytecode.def",
+                    contents: "op Nop < Instruction\nendop\n",
+                }),
             })
             .expect_err("missing runtime metadata should fail");
         assert_eq!(emission_error.stage, CompileStage::Emission);
