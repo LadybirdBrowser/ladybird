@@ -18,6 +18,11 @@ use super::{
 use crate::types::Type;
 use std::collections::{HashMap, HashSet};
 
+/// How far a boxed value's tag sits above its payload.
+///
+/// This is what `extract_tag` shifts by on every target.
+const VALUE_TAG_SHIFT: u32 = 48;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum LatticeValue {
     Unknown,
@@ -192,7 +197,13 @@ pub(super) fn run(function: &mut Function, analyses: &mut AnalysisManager) -> bo
 
 fn initial_value(ty: &Type, definition: &ValueDefinition) -> LatticeValue {
     match definition {
+        // A layout constant is a number the target's memory layout fixes, and
+        // preparation has already resolved it to one, so it propagates like any
+        // other literal even though it is still named rather than spelled out.
         ValueDefinition::Constant(Constant::Integer(value)) => IntegerFacts::constant(ty, *value)
+            .map(LatticeValue::Integer)
+            .unwrap_or(LatticeValue::Overdefined),
+        ValueDefinition::Constant(Constant::Layout(constant)) => IntegerFacts::constant(ty, constant.value())
             .map(LatticeValue::Integer)
             .unwrap_or(LatticeValue::Overdefined),
         ValueDefinition::FunctionParameter(_) => IntegerFacts::full(ty)
@@ -313,11 +324,23 @@ fn evaluate_value_operation(
             | ValueOperation::TruncateUint8
             | ValueOperation::TruncateUint16
             | ValueOperation::AssumeInt32
-            | ValueOperation::AssumeUint32,
+            | ValueOperation::AssumeUint32
+            // Unboxing an integer keeps the payload bits and drops the tag,
+            // which is what narrowing to the result's width already does.
+            | ValueOperation::UnboxInt32 { .. }
+            | ValueOperation::ReinterpretUint64AsValue,
             [input],
         ) => exact_unary(*input, result, |value| value),
+        (ValueOperation::UnboxObject, [input]) => {
+            exact_unary(*input, result, |value| value & ((1 << VALUE_TAG_SHIFT) - 1))
+        }
         (ValueOperation::LogicalNot, [input]) => {
             exact_unary(*input, result, |value| u64::from(value == 0))
+        }
+        // A value's tag is the top of its bits, so knowing a value is knowing
+        // its type. This lets checks on known values fold.
+        (ValueOperation::ExtractTag { .. }, [input]) => {
+            exact_unary(*input, result, |value| value >> VALUE_TAG_SHIFT)
         }
         _ => result,
     }
@@ -785,7 +808,9 @@ fn integer_type(ty: &Type) -> Option<(u8, bool)> {
         Type::U8 => (8, false),
         Type::U16 | Type::ValueTag => (16, false),
         Type::U32 => (32, false),
-        Type::U64 => (64, false),
+        // A Value is nothing but the 64 bits it is boxed into, so reasoning
+        // about those bits is reasoning about the value.
+        Type::U64 | Type::Value => (64, false),
         Type::Bool => (1, false),
         _ => return None,
     })
