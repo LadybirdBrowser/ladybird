@@ -4235,6 +4235,22 @@ inline fn terminal(value: out Value, slow: SlowPath) {
     );
 
     accepts!(
+        permits_uninitialized_output_on_terminal_match_paths,
+        r#"
+inline fn terminal(value: out Value, input: Value, slow: SlowPath) {
+    match input {
+        Value<i32>(integer) => {
+            call_slow_path(slow);
+        },
+        _ => {
+            call_slow_path(slow);
+        },
+    }
+}
+"#
+    );
+
+    accepts!(
         treats_goto_handler_as_terminal_in_continuations,
         r#"
 handler Jump(target: BytecodeOffset) {

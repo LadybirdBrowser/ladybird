@@ -11,29 +11,15 @@ use crate::frontend::ast::ParameterMode;
 use crate::frontend::diagnostic::Diagnostic;
 use crate::hash::HashSet;
 use crate::types::Type;
-use std::collections::VecDeque;
 
-fn successors(index: usize, statements: &[Statement]) -> Vec<usize> {
-    let next = (index + 1 < statements.len()).then_some(index + 1);
-    match &statements[index].kind {
-        StatementKindIr::Call(_, call) if call.terminal => Vec::new(),
-        StatementKindIr::ScalarMatch { .. } => Vec::new(),
-        StatementKindIr::ValueMatch { destination: None, .. } => Vec::new(),
-        _ => next.into_iter().collect(),
-    }
-}
-
-fn definitions_on_edge(statement: &Statement, successor: usize, next: Option<usize>) -> Vec<VariableId> {
-    match &statement.kind {
-        StatementKindIr::ValueRefinement { binding, tag, .. } => {
-            let mut definitions = vec![*tag];
-            if Some(successor) == next {
-                definitions.push(*binding);
-            }
-            definitions
-        }
-        _ => statement_uses_and_defs(statement).1,
-    }
+fn statement_continues(statement: &Statement) -> bool {
+    !matches!(
+        &statement.kind,
+        StatementKindIr::Call(_, call) if call.terminal
+    ) && !matches!(
+        &statement.kind,
+        StatementKindIr::ScalarMatch { .. } | StatementKindIr::ValueMatch { destination: None, .. }
+    )
 }
 
 pub(super) fn check_definite_initialization(
@@ -68,61 +54,17 @@ fn check_definite_initialization_with_entry(
     check_outputs: bool,
 ) -> Result<(), Diagnostic> {
     if statements.is_empty() {
-        if check_outputs
-            && let Some(id) = outputs
-                .iter()
-                .find(|id| variables[**id].parameter_mode == Some(ParameterMode::Out))
-        {
-            return Err(Diagnostic::new(
-                filename,
-                variables[*id].span,
-                format!(
-                    "Out<{}> parameter '{}' is not initialized on this returning path",
-                    variables[*id].ty, variables[*id].name
-                ),
-            ));
-        }
+        check_initialized_outputs(filename, variables, outputs, &entry, check_outputs, None)?;
         return Ok(());
     }
-    let all: HashSet<VariableId> = (0..variables.len()).collect();
-    let mut inputs = vec![all; statements.len()];
-    inputs[0] = entry;
-    let mut reachable = vec![false; statements.len()];
-    reachable[0] = true;
-    let mut queue: VecDeque<usize> = (0..statements.len()).collect();
-    while let Some(index) = queue.pop_front() {
-        if !reachable[index] {
-            continue;
-        }
-        for successor in successors(index, statements) {
-            let mut output = inputs[index].clone();
-            output.extend(definitions_on_edge(
-                &statements[index],
-                successor,
-                (index + 1 < statements.len()).then_some(index + 1),
-            ));
-            let new_input = if reachable[successor] {
-                inputs[successor].intersection(&output).copied().collect()
-            } else {
-                output.clone()
-            };
-            if !reachable[successor] || new_input != inputs[successor] {
-                reachable[successor] = true;
-                inputs[successor] = new_input;
-                queue.push_back(successor);
-            }
-        }
-    }
 
-    for (index, statement) in statements.iter().enumerate() {
-        if !reachable[index] {
-            continue;
-        }
-        let check_nested = |statements: &[Statement], entry| {
-            check_definite_initialization_with_entry(filename, variables, statements, entry, &[], false)
-        };
-        let (uses, _) = statement_uses_and_defs(statement);
-        if let Some(id) = uses.into_iter().find(|id| !inputs[index].contains(id)) {
+    let mut initialized = entry;
+    let check_nested = |statements: &[Statement], entry| {
+        check_definite_initialization_with_entry(filename, variables, statements, entry, &[], false)
+    };
+    for statement in statements {
+        let (uses, definitions) = statement_uses_and_defs(statement);
+        if let Some(id) = uses.into_iter().find(|id| !initialized.contains(id)) {
             return Err(Diagnostic::new(
                 filename,
                 statement.span,
@@ -142,14 +84,14 @@ fn check_definite_initialization_with_entry(
                 .collect::<Vec<_>>();
             nested_arms.push((&fallback.body, tag.iter().copied().collect()));
             for (arm, bindings) in nested_arms {
-                let entry = inputs[index].iter().copied().chain(bindings).collect();
+                let entry = initialized.iter().copied().chain(bindings).collect();
                 check_nested(arm, entry)?;
             }
         }
         if let StatementKindIr::Call(_, call) = &statement.kind
             && let Some(failure) = &call.failure
         {
-            check_nested(&failure.body, inputs[index].clone())?;
+            check_nested(&failure.body, initialized.clone())?;
         }
         if let StatementKindIr::If {
             destination,
@@ -164,7 +106,7 @@ fn check_definite_initialization_with_entry(
             } else {
                 condition_uses_and_defs(condition).1
             };
-            let entry = inputs[index].iter().copied().chain(definitions).collect::<HashSet<_>>();
+            let entry = initialized.iter().copied().chain(definitions).collect::<HashSet<_>>();
             check_nested(then_body, entry.clone())?;
             if let Some(else_body) = else_body {
                 check_nested(else_body, entry)?;
@@ -177,12 +119,12 @@ fn check_definite_initialization_with_entry(
             ..
         } = &statement.kind
         {
-            check_nested(condition_setup, inputs[index].clone())?;
+            check_nested(condition_setup, initialized.clone())?;
             let setup_definitions = condition_setup
                 .iter()
                 .flat_map(|statement| statement_uses_and_defs(statement).1);
             let (_, condition_definitions) = condition_uses_and_defs(condition);
-            let entry = inputs[index]
+            let entry = initialized
                 .iter()
                 .copied()
                 .chain(setup_definitions)
@@ -190,32 +132,47 @@ fn check_definite_initialization_with_entry(
                 .collect();
             check_nested(loop_body, entry)?;
         }
-    }
-
-    if check_outputs {
-        for (index, statement) in statements.iter().enumerate() {
-            if !reachable[index] || !successors(index, statements).is_empty() {
-                continue;
-            }
-            let is_terminal = matches!(&statement.kind, StatementKindIr::Call(_, call) if call.terminal);
-            if is_terminal {
-                continue;
-            }
-            let (_, defs) = statement_uses_and_defs(statement);
-            let initialized: HashSet<_> = inputs[index].iter().copied().chain(defs).collect();
-            for id in outputs {
-                if variables[*id].parameter_mode == Some(ParameterMode::Out) && !initialized.contains(id) {
-                    return Err(Diagnostic::new(
-                        filename,
-                        statement.span,
-                        format!(
-                            "Out<{}> parameter '{}' is not initialized on this returning path",
-                            variables[*id].ty, variables[*id].name
-                        ),
-                    ));
-                }
-            }
+        initialized.extend(definitions);
+        if !statement_continues(statement) {
+            check_initialized_outputs(filename, variables, outputs, &initialized, false, Some(statement))?;
+            return Ok(());
         }
     }
+
+    check_initialized_outputs(
+        filename,
+        variables,
+        outputs,
+        &initialized,
+        check_outputs,
+        statements.last(),
+    )?;
     Ok(())
+}
+
+fn check_initialized_outputs(
+    filename: &str,
+    variables: &[Variable],
+    outputs: &[VariableId],
+    initialized: &HashSet<VariableId>,
+    check_outputs: bool,
+    exit: Option<&Statement>,
+) -> Result<(), Diagnostic> {
+    if !check_outputs {
+        return Ok(());
+    }
+    let Some(id) = outputs
+        .iter()
+        .find(|id| variables[**id].parameter_mode == Some(ParameterMode::Out) && !initialized.contains(id))
+    else {
+        return Ok(());
+    };
+    Err(Diagnostic::new(
+        filename,
+        exit.map_or(variables[*id].span, |statement| statement.span),
+        format!(
+            "Out<{}> parameter '{}' is not initialized on this returning path",
+            variables[*id].ty, variables[*id].name
+        ),
+    ))
 }
