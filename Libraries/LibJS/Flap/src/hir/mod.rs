@@ -546,16 +546,18 @@ impl<'a> Checker<'a> {
         Ok(())
     }
 
-    fn check_if_statement(
-        &mut self,
-        statement: &ast::Statement,
-        name: &Option<String>,
-        ty: &Option<Type>,
-        condition: &ast::Expression,
-        temperature: &BlockTemperature,
-        then_body: &ast::Block,
-        else_body: &Option<ast::Block>,
-    ) -> Result<(), Diagnostic> {
+    fn check_if_statement(&mut self, statement: &ast::Statement) -> Result<(), Diagnostic> {
+        let ast::StatementKind::If {
+            name,
+            ty,
+            condition,
+            temperature,
+            then_body,
+            else_body,
+        } = &statement.kind
+        else {
+            unreachable!()
+        };
         let mut condition = self.check_condition(condition)?;
         let outer_variable_count = self.variables.len();
         let Some(else_body) = else_body else {
@@ -1233,14 +1235,7 @@ impl<'a> Checker<'a> {
                 let (_, _, body) = self.check_continuation_invocation(target, arguments, statement.span)?;
                 self.statements.extend(body);
             }
-            StatementKind::If {
-                name,
-                ty,
-                condition,
-                temperature,
-                then_body,
-                else_body,
-            } => self.check_if_statement(statement, name, ty, condition, temperature, then_body, else_body)?,
+            StatementKind::If { .. } => self.check_if_statement(statement)?,
             StatementKind::While {
                 condition,
                 body,
