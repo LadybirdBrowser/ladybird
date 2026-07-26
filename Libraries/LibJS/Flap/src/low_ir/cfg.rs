@@ -46,6 +46,8 @@ struct LinearizationPlan<O, C> {
     referenced_labels: HashSet<Label>,
 }
 
+type InstructionList<O, C> = Vec<Instruction<O, C>>;
+
 #[derive(Debug, Clone)]
 pub(crate) struct ControlFlowGraph<O = Operand, C = Operation> {
     blocks: Vec<BasicBlock<O, C>>,
@@ -359,8 +361,8 @@ impl<O: ControlFlowOperand, C: ControlFlowOpcode> ControlFlowGraph<O, C> {
         loop {
             let mut removed_any = false;
             let mut previous: Option<usize> = None;
-            for index in 0..self.blocks.len() {
-                if removed[index] {
+            for (index, is_removed) in removed.iter_mut().enumerate() {
+                if *is_removed {
                     continue;
                 }
                 let removable = (|| {
@@ -386,7 +388,7 @@ impl<O: ControlFlowOperand, C: ControlFlowOpcode> ControlFlowGraph<O, C> {
                     previous = Some(index);
                     continue;
                 }
-                removed[index] = true;
+                *is_removed = true;
                 removed_any = true;
                 for label in block_label_references(std::slice::from_ref(&self.blocks[index])) {
                     if let Some(count) = references.get_mut(label) {
@@ -436,7 +438,7 @@ impl<O: ControlFlowOperand, C: ControlFlowOpcode> ControlFlowGraph<O, C> {
     pub(crate) fn linearize_hot_and_cold(
         mut self,
         layout: &BlockLayout,
-    ) -> (Vec<Instruction<O, C>>, Vec<Instruction<O, C>>) {
+    ) -> (InstructionList<O, C>, InstructionList<O, C>) {
         let referenced_anywhere = self.explicitly_referenced_labels();
         let hot = self.plan_linearization(&layout.hot, &referenced_anywhere);
         let cold = self.plan_linearization(&layout.cold, &referenced_anywhere);
@@ -713,11 +715,9 @@ impl<O: ControlFlowOperand, C: ControlFlowOpcode> ControlFlowGraph<O, C> {
                 .collect::<Vec<_>>()
         };
 
-        for block_index in 0..self.blocks.len() {
-            let (branch_targets, terminal) = edges[block_index].clone();
-
-            let has_fallthrough = !terminal && block_index + 1 < self.blocks.len();
-            let block = &mut self.blocks[block_index];
+        let block_count = self.blocks.len();
+        for (block_index, (block, (branch_targets, terminal))) in self.blocks.iter_mut().zip(edges).enumerate() {
+            let has_fallthrough = !terminal && block_index + 1 < block_count;
             block.successors.clear();
             block.successors.extend(branch_targets.into_iter().map(|target| Edge {
                 target,

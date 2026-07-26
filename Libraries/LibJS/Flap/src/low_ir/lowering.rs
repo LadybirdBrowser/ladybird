@@ -555,8 +555,8 @@ fn schedule_blocks_with_successor_order(function: &Function, reverse_successors:
         }
     }
     reverse_postorder.reverse();
-    for index in 0..function.blocks.len() {
-        if !std::mem::replace(&mut visited[index], true) {
+    for (index, was_visited) in visited.iter_mut().enumerate() {
+        if !std::mem::replace(was_visited, true) {
             reverse_postorder.push(BlockId(index));
         }
     }

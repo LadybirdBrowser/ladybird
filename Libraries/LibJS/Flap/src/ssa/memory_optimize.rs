@@ -60,7 +60,7 @@ pub(super) fn run(function: &mut Function, analyses: &mut AnalysisManager) -> bo
             // NB: A load that traps carries an assertion about what it loaded, so it can only reuse
             //     a load that made the same assertion. Reusing a plain load would drop the check.
             let traps = function.instructions[instruction_id.0].effects.may_trap;
-            let key = location_key(function, &location);
+            let key = location_key(function, location);
             let forwarded_load =
                 available_loads
                     .get(&key)

@@ -157,8 +157,8 @@ impl DominatorTree {
         // block has no dominator at all.
         immediate_dominators[function.entry.0] = None;
         let mut children = vec![Vec::new(); block_count];
-        for block_index in 0..block_count {
-            if let Some(immediate_dominator) = immediate_dominators[block_index] {
+        for (block_index, immediate_dominator) in immediate_dominators.iter().copied().enumerate() {
+            if let Some(immediate_dominator) = immediate_dominator {
                 children[immediate_dominator.0].push(BlockId(block_index));
             }
         }
