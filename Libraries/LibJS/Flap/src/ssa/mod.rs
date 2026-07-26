@@ -73,6 +73,17 @@ pub(crate) enum Operation {
     },
     BlockReference(BlockId),
     Address,
+    /// A conditional side exit: control leaves the block for `failure` when the
+    /// condition is false, and falls through to the next instruction otherwise.
+    ///
+    /// A handler is mostly checks, and spelling each one as a branch terminator
+    /// costs two blocks -- the one the check continues into and the one its
+    /// join needs -- for code that is a single conditional jump. Keeping the
+    /// check inside the block leaves the path that passes it straight-line,
+    /// which is what every later phase is indexed by.
+    Guard {
+        failure: BlockId,
+    },
 }
 
 impl From<Intrinsic> for Operation {
@@ -96,7 +107,15 @@ impl Operation {
                 };
                 effects
             }
-            Self::BlockReference(_) | Self::Address => Effects::PURE,
+            Self::BlockReference(_) | Self::Address | Self::Guard { .. } => Effects::PURE,
+        }
+    }
+
+    /// Where control goes when this operation decides not to continue.
+    pub(crate) fn guard_failure(&self) -> Option<BlockId> {
+        match self {
+            Self::Guard { failure } => Some(*failure),
+            _ => None,
         }
     }
 }
@@ -107,6 +126,12 @@ pub(crate) struct Instruction {
     pub(crate) inputs: Vec<ValueId>,
     pub(crate) results: Vec<ValueId>,
     pub(crate) effects: Effects,
+}
+
+impl Instruction {
+    pub(crate) fn can_be_eliminated(&self) -> bool {
+        self.effects.can_be_eliminated() && self.operation.guard_failure().is_none()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -162,6 +187,13 @@ pub(crate) enum ValueDefinition {
         index: usize,
     },
     Constant(Constant),
+}
+
+struct UseAnalyses<'a> {
+    cfg: &'a analysis::ControlFlowGraph,
+    dominators: &'a analysis::DominatorTree,
+    instruction_layout: &'a analysis::InstructionLayout,
+    guards: &'a analysis::GuardExits,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -556,6 +588,28 @@ impl Function {
         }
     }
 
+    /// The blocks a guard in `block` can exit to, with where the guard sits.
+    ///
+    /// A guard exit is an edge the terminator knows nothing about, so anything
+    /// that walks control flow has to ask for these as well.
+    pub(crate) fn guard_exits(&self, block: BlockId) -> impl Iterator<Item = (usize, BlockId)> + '_ {
+        self.blocks[block.0]
+            .instructions
+            .iter()
+            .enumerate()
+            .filter_map(|(position, instruction)| {
+                self.instructions[instruction.0]
+                    .operation
+                    .guard_failure()
+                    .map(|failure| (position, failure))
+            })
+    }
+
+    /// Where the first guard in `block` sits, if it has one.
+    pub(crate) fn first_guard_position(&self, block: BlockId) -> Option<usize> {
+        self.guard_exits(block).next().map(|(position, _)| position)
+    }
+
     pub(crate) fn set_terminator(&mut self, block: BlockId, terminator: Terminator) {
         assert!(self.blocks[block.0].terminator.is_none());
         self.blocks[block.0].terminator = Some(terminator);
@@ -647,7 +701,7 @@ impl Function {
         }
         for (index, instruction) in self.instructions.iter().enumerate() {
             let instruction_id = InstructionId(index);
-            self.validate_operation(&instruction.operation)?;
+            self.validate_instruction(instruction_id, instruction)?;
             for (result_index, result) in instruction.results.iter().enumerate() {
                 let Some(value) = self.values.get(result.0) else {
                     return Err(format!("instruction {instruction_id:?} has an invalid result"));
@@ -665,7 +719,46 @@ impl Function {
         self.validate_uses()
     }
 
+    fn validate_instruction(&self, instruction_id: InstructionId, instruction: &Instruction) -> Result<(), String> {
+        self.validate_operation(&instruction.operation)?;
+        if !matches!(instruction.operation, Operation::Guard { .. }) {
+            return Ok(());
+        }
+        let [condition] = instruction.inputs.as_slice() else {
+            return Err(format!(
+                "guard instruction {instruction_id:?} in '{}' must have exactly one input",
+                self.name
+            ));
+        };
+        let condition_type = &self
+            .values
+            .get(condition.0)
+            .ok_or_else(|| format!("guard instruction {instruction_id:?} uses invalid value {condition:?}"))?
+            .ty;
+        if condition_type != &Type::Bool {
+            return Err(format!(
+                "guard instruction {instruction_id:?} in '{}' uses {condition_type:?}, not Bool",
+                self.name
+            ));
+        }
+        Ok(())
+    }
+
     fn validate_operation(&self, operation: &Operation) -> Result<(), String> {
+        if let Operation::Guard { failure } = operation {
+            let Some(target) = self.blocks.get(failure.0) else {
+                return Err(format!("a guard in '{}' exits to invalid block {failure:?}", self.name));
+            };
+            // A guard exit carries no arguments, so nothing can supply the
+            // parameters of the block it leaves for.
+            if !target.parameters.is_empty() {
+                return Err(format!(
+                    "a guard in '{}' exits to {failure:?}, which takes parameters",
+                    self.name
+                ));
+            }
+            return Ok(());
+        }
         let Operation::Parameter(parameter) = operation else {
             return Ok(());
         };
@@ -827,6 +920,13 @@ impl Function {
         let cfg = analysis::ControlFlowGraph::compute(self);
         let dominators = analysis::DominatorTree::compute(self, &cfg);
         let instruction_layout = analysis::InstructionLayout::compute(self)?;
+        let guards = analysis::GuardExits::compute(self, &cfg);
+        let analyses = UseAnalyses {
+            cfg: &cfg,
+            dominators: &dominators,
+            instruction_layout: &instruction_layout,
+            guards: &guards,
+        };
 
         for (instruction_index, instruction) in self.instructions.iter().enumerate() {
             let instruction_id = InstructionId(instruction_index);
@@ -836,8 +936,7 @@ impl Function {
                     *input,
                     block,
                     Some(instruction_layout.position(instruction_id)),
-                    &dominators,
-                    &instruction_layout,
+                    &analyses,
                 )?;
             }
         }
@@ -847,8 +946,7 @@ impl Function {
                     input,
                     BlockId(block_index),
                     None,
-                    &dominators,
-                    &instruction_layout,
+                    &analyses,
                 )?;
             }
         }
@@ -860,9 +958,14 @@ impl Function {
         value: ValueId,
         use_block: BlockId,
         use_position: Option<usize>,
-        dominators: &analysis::DominatorTree,
-        instruction_layout: &analysis::InstructionLayout,
+        analyses: &UseAnalyses<'_>,
     ) -> Result<(), String> {
+        let UseAnalyses {
+            cfg,
+            dominators,
+            instruction_layout,
+            guards,
+        } = analyses;
         let definition = self
             .values
             .get(value.0)
@@ -894,6 +997,14 @@ impl Function {
         }
         if !dominators.dominates(definition_block, use_block) {
             return Err(format!("value {value:?} does not dominate its use in {use_block:?}"));
+        }
+        let position = definition_position.unwrap_or(0);
+        if !guards.definition_reaches(definition_block, position, use_block)
+            && guards.definition_escapes(self, cfg, definition_block, position, use_block)
+        {
+            return Err(format!(
+                "value {value:?} is defined past a guard in {definition_block:?} and cannot reach {use_block:?}"
+            ));
         }
         Ok(())
     }
@@ -1067,6 +1178,84 @@ mod tests {
         assert_eq!(first, repeated);
         assert_ne!(first, differently_typed);
         assert_eq!(function.values.len(), 2);
+    }
+
+    fn guarded_function() -> (Function, BlockId, ValueId) {
+        let mut function =
+            Function::new("guarded", vec![Type::Bool, Type::I32], vec![Type::I32]);
+        let failure = function.create_empty_block("failure", BlockLayout::Cold);
+        function.append_instruction(
+            function.entry,
+            Operation::Guard { failure },
+            vec![function.parameter(0)],
+            Vec::new(),
+        );
+        let value = function.append_instruction(
+            function.entry,
+            Intrinsic::Value(ValueOperation::Reuse),
+            vec![function.parameter(1)],
+            vec![Type::I32],
+        )[0];
+        function.set_terminator(function.entry, Terminator::Return(vec![value]));
+        (function, failure, value)
+    }
+
+    #[test]
+    fn a_guard_exit_is_an_edge_out_of_the_middle_of_its_block() {
+        let (mut function, failure, _) = guarded_function();
+        function.set_terminator(failure, Terminator::Return(vec![function.parameter(1)]));
+
+        let cfg = analysis::ControlFlowGraph::compute(&function);
+
+        assert_eq!(cfg.successors(function.entry), [failure]);
+        assert_eq!(cfg.predecessors(failure), [function.entry]);
+        assert!(cfg.is_reachable(failure));
+        function.validate().unwrap();
+    }
+
+    #[test]
+    fn rejects_guards_without_one_boolean_condition() {
+        let (mut function, failure, _) = guarded_function();
+        function.set_terminator(failure, Terminator::Unreachable);
+        let guard = function.blocks[function.entry.0].instructions[0];
+        function.instructions[guard.0].inputs.clear();
+        assert!(function.validate().unwrap_err().contains("must have exactly one input"));
+
+        let non_boolean = function.parameter(1);
+        function.instructions[guard.0].inputs.push(non_boolean);
+        assert!(function.validate().unwrap_err().contains("uses I32, not Bool"));
+    }
+
+    #[test]
+    fn rejects_a_value_defined_past_a_guard_where_the_guard_leaves_for() {
+        let (mut function, failure, value) = guarded_function();
+        function.set_terminator(failure, Terminator::Return(vec![value]));
+
+        assert!(
+            function
+                .validate()
+                .unwrap_err()
+                .contains("is defined past a guard in BlockId(0)")
+        );
+    }
+
+    #[test]
+    fn accepts_a_value_defined_past_a_guard_no_exit_of_its_own_reaches() {
+        let (mut function, failure, value) = guarded_function();
+        let reader = function.create_empty_block("reader", BlockLayout::Hot);
+        let elsewhere = function.create_empty_block("elsewhere", BlockLayout::Hot);
+        function.blocks[function.entry.0].terminator = Some(Terminator::jump(elsewhere));
+        function.append_instruction(
+            elsewhere,
+            Operation::Guard { failure: reader },
+            vec![function.parameter(0)],
+            Vec::new(),
+        );
+        function.set_terminator(elsewhere, Terminator::jump(reader));
+        function.set_terminator(reader, Terminator::Return(vec![value]));
+        function.set_terminator(failure, Terminator::Unreachable);
+
+        function.validate().unwrap();
     }
 
     #[test]

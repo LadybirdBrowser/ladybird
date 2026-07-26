@@ -205,6 +205,7 @@ impl fmt::Display for DisplayOperation<'_> {
             }
             Operation::BlockReference(block) => write!(formatter, "block-reference bb{}", block.0),
             Operation::Address => formatter.write_str("address"),
+            Operation::Guard { failure } => write!(formatter, "guard else bb{}", failure.0),
         }
     }
 }

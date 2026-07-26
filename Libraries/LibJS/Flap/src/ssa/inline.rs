@@ -266,6 +266,9 @@ fn cloned_operation(
 ) -> Result<Operation, CompileError> {
     match operation {
         Operation::BlockReference(target) => Ok(Operation::BlockReference(blocks[target])),
+        Operation::Guard { failure } => Ok(Operation::Guard {
+            failure: blocks[failure],
+        }),
         Operation::Parameter(parameter) => {
             let parameter_index = parameter.index();
             let value = mapped(function, values, callee.parameter(parameter_index), &callee.name)?;
