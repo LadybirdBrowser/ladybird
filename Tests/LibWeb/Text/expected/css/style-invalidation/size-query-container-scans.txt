@@ -1,0 +1,4 @@
+dependent before: rgb(0, 0, 0)
+elements walked after resizing a container no query names: 1
+elements walked after resizing the query container: 1
+dependent after: rgb(1, 2, 3)

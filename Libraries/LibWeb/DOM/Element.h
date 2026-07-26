@@ -364,6 +364,8 @@ public:
     void set_style_depends_on_size_container_query() { m_style_depends_on_size_container_query = true; }
     bool style_depends_on_style_container_query() const { return m_style_depends_on_style_container_query; }
     void set_style_depends_on_style_container_query() { m_style_depends_on_style_container_query = true; }
+    bool is_size_query_container() const { return m_is_size_query_container; }
+    void set_is_size_query_container() { m_is_size_query_container = true; }
     void invalidate_descendant_styles_depending_on_style_container_query();
 
     bool child_style_uses_tree_counting_function() const { return m_child_style_uses_tree_counting_function; }
@@ -788,6 +790,7 @@ private:
     bool m_style_uses_inherit_css_function : 1 { false };
     bool m_style_depends_on_size_container_query : 1 { false };
     bool m_style_depends_on_style_container_query : 1 { false };
+    bool m_is_size_query_container : 1 { false };
     bool m_child_style_uses_tree_counting_function : 1 { false };
     bool m_affected_by_has_pseudo_class_in_subject_position : 1 { false };
     bool m_affected_by_has_pseudo_class_in_non_subject_position : 1 { false };

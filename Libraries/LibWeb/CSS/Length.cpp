@@ -148,6 +148,10 @@ double Length::container_relative_length_to_px_without_rounding(ResolutionContex
         const_cast<DOM::Element&>(subject).set_style_depends_on_size_container_query();
 
         auto query_container = get_or_compute_query_container_for_axis(context, physical_axis);
+        // A container unit asks about the container's box exactly as a size query does, so the
+        // container has to know that a resize of it is a change for something under it.
+        if (query_container)
+            const_cast<DOM::Element&>(*query_container).set_is_size_query_container();
         if (!query_container) {
             context.record_viewport_relative_length_resolution();
             auto viewport_length = physical_axis == ContainerRelativeAxis::Width ? context.viewport_rect.width() : context.viewport_rect.height();

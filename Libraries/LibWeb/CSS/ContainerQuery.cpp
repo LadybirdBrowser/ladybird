@@ -764,6 +764,10 @@ MatchResult ContainerQuery::evaluate(DOM::AbstractElement const& element, Option
         if (!container_satisfies_requirements(*container, m_feature_requirements))
             continue;
 
+        // A size feature asks about the container's own box, and the scan a resize does for the
+        // dependents under it starts from the same fact: whether anything ever asked.
+        if (m_feature_requirements.contains_size_feature())
+            const_cast<DOM::Element&>(*container).set_is_size_query_container();
         // Once an eligible query container has been selected for an element, each container feature in the
         // <container-query> is evaluated against that query container.
         return m_condition->evaluate({

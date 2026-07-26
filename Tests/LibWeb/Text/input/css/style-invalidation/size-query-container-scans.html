@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="structural-matrix.js"></script>
+<style>
+    #queried, #unqueried { container-type: inline-size; width: 200px }
+    @container (min-width: 300px) {
+        #dependent { color: rgb(1, 2, 3) }
+    }
+</style>
+<div id="unqueried"></div>
+<div id="queried"><span id="dependent"></span></div>
+<script>
+    test(() => {
+        const dependent = document.getElementById("dependent");
+        const queried = document.getElementById("queried");
+        const unqueried = document.getElementById("unqueried");
+        for (let i = 0; i < 50; ++i)
+            unqueried.appendChild(document.createElement("span"));
+
+        // Resizing a query container has to reach the descendants whose size queries resolved
+        // against it, which means walking the subtree looking for them. `container-type` is set far
+        // more widely than it is asked about, so a container no query ever named is not walked at
+        // all - what the count answers for is which subtrees the resize had to look through.
+        println(`dependent before: ${getComputedStyle(dependent).color}`);
+
+        flushPendingStyleWork();
+        unqueried.style.width = "400px";
+        internals.updateStyle();
+        document.body.offsetWidth;
+        println(`elements walked after resizing a container no query names: ${styleCounters().sizeQueryContainerScanVisits}`);
+
+        flushPendingStyleWork();
+        queried.style.width = "400px";
+        internals.updateStyle();
+        document.body.offsetWidth;
+        println(`elements walked after resizing the query container: ${styleCounters().sizeQueryContainerScanVisits}`);
+        println(`dependent after: ${getComputedStyle(dependent).color}`);
+    });
+</script>

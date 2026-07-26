@@ -15,6 +15,7 @@
 #include <LibGfx/Font/Font.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/ComputedValues.h>
+#include <LibWeb/CSS/Invalidation/ContainerQueryInvalidator.h>
 #include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/CSS/StyleValues/BorderImageSliceStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorSchemeStyleValue.h>
@@ -551,13 +552,8 @@ static void invalidate_descendant_styles_for_container_query_size_change(Paintab
     if (!content_size_change_affects_container_queries(paintable_box, old_size, new_size))
         return;
 
-    if (auto* element = as_if<DOM::Element>(paintable_box.dom_node().ptr())) {
-        element->for_each_shadow_including_descendant([](DOM::Node& node) {
-            if (auto* descendant_element = as_if<DOM::Element>(node); descendant_element && descendant_element->style_depends_on_size_container_query())
-                descendant_element->set_needs_style_update(true);
-            return TraversalDecision::Continue;
-        });
-    }
+    if (auto* element = as_if<DOM::Element>(paintable_box.dom_node().ptr()))
+        CSS::Invalidation::invalidate_descendant_styles_depending_on_size_container_query(*element);
 }
 
 void set_paint_viewport_scrollbars(bool const enabled)
