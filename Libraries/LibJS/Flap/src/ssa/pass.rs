@@ -98,7 +98,7 @@ impl AnalysisManager {
     /// The analyses a pass needs to decide where an instruction belongs.
     ///
     /// Placement says nothing about effects, and computing the effect
-    /// dependencies of a whole stitched function is the most expensive analysis
+    /// dependencies of a whole large function is the most expensive analysis
     /// there is, so asking for the bundle that includes them costs a pass that
     /// never reads them dearly.
     pub(crate) fn placement<'a>(&'a mut self, function: &Function) -> PlacementAnalyses<'a> {

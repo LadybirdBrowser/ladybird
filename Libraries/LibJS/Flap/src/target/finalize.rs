@@ -29,7 +29,7 @@ use crate::frontend::layout::KnownLayoutConstant;
 use crate::{Architecture, ObjectFormat};
 
 fn finalize_function_for_target(
-    function: AllocatedFunction,
+    mut function: AllocatedFunction,
     runtime: &RuntimeConstants,
     options: &CompileOptions,
 ) -> Result<MachineFunction, CompileError> {
@@ -57,17 +57,12 @@ fn finalize_function_for_target(
             .cfg
             .layout_hot_and_cold()
             .map_err(|message| finalization_error(&function.name, message))?;
+        // Nothing reads the graph after this, so it hands its instructions over
+        // rather than being copied out of.
+        let (hot, cold) = std::mem::take(&mut function.cfg).linearize_hot_and_cold(&layout);
         (
-            finalize_instructions(
-                function.cfg.linearize_omitting_jumps_to_next_block(&layout.hot),
-                backend,
-                &mut emit,
-            )?,
-            finalize_instructions(
-                function.cfg.linearize_omitting_jumps_to_next_block(&layout.cold),
-                backend,
-                &mut emit,
-            )?,
+            finalize_instructions(hot, backend, &mut emit)?,
+            finalize_instructions(cold, backend, &mut emit)?,
         )
     };
 
