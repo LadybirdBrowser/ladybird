@@ -87,6 +87,16 @@ impl VirtualRegister {
         }
     }
 
+    pub(crate) fn ssa(function: HandlerId, index: u32, value: usize, class: RegisterClass) -> Self {
+        Self {
+            id: Some(VirtualRegisterId { function, index }),
+            name: format!("ssa_{value}").into(),
+            class,
+            origin: VirtualRegisterOrigin::Ssa,
+            identity_hash: 0,
+        }
+    }
+
     pub(crate) fn class(&self) -> RegisterClass {
         self.class
     }
@@ -452,16 +462,11 @@ pub(crate) fn visit_virtual_registers_mut(operand: &mut Operand, visit: &mut imp
 }
 
 pub(crate) fn intern_virtual_registers(function: HandlerId, instructions: &mut [Instruction]) -> Vec<VirtualRegister> {
-    // Number the registers in the order they first appear. The numbering only
-    // has to be deterministic, and ordering by name means comparing strings
-    // while sorting every register of a large function, which is among the
-    // most expensive things the whole pipeline does.
     let mut ids = HashMap::default();
     let mut interned_registers = Vec::new();
     for instruction in instructions.iter() {
         for operand in &instruction.operands {
             visit_virtual_registers(operand, &mut |register| {
-                assert!(register.id.is_none(), "virtual registers may only be interned once");
                 if !ids.contains_key(register) {
                     let id = VirtualRegisterId {
                         function,
@@ -589,5 +594,26 @@ mod tests {
         assert_ne!(value.id(), index.id());
         assert!(value.id().is_some());
         assert_eq!(registers, [value.clone(), index.clone()]);
+    }
+
+    #[test]
+    fn compacts_preassigned_virtual_register_ids() {
+        let handler = HandlerId::new(3);
+        let first = VirtualRegister::ssa(handler, 0, 0, RegisterClass::GeneralPurpose);
+        let last = VirtualRegister::ssa(handler, 2, 9, RegisterClass::GeneralPurpose);
+        let mut instructions = vec![Instruction {
+            opcode: MachineOperation::Move(IntegerWidth::U64),
+            operands: vec![Operand::VirtualRegister(first), Operand::VirtualRegister(last)],
+        }];
+
+        let registers = intern_virtual_registers(handler, &mut instructions);
+
+        assert_eq!(registers.len(), 2);
+        assert_eq!(registers[0].id().unwrap().index(), 0);
+        assert_eq!(registers[1].id().unwrap().index(), 1);
+        let Operand::VirtualRegister(last) = &instructions[0].operands[1] else {
+            unreachable!()
+        };
+        assert_eq!(last.id().unwrap().index(), 1);
     }
 }

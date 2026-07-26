@@ -35,7 +35,7 @@ pub(crate) fn lower_handler_with_constants(
     constants: &LayoutConstants,
     id: crate::identity::HandlerId,
 ) -> Result<Handler, CompileError> {
-    let function = &FunctionUses::new(function);
+    let function = &FunctionUses::new(function, id);
     let mut handler = lower_handler_internal(function, is_cold, constants, id)
         .map_err(|message| CompileError::new(CompileStage::LowIr, Some(&function.name), message))?;
     materialize_layout_constants(&mut handler);
@@ -1591,7 +1591,7 @@ enum ValueUser {
 }
 
 impl<'a> FunctionUses<'a> {
-    fn new(function: &'a Function) -> Self {
+    fn new(function: &'a Function, handler: crate::identity::HandlerId) -> Self {
         let mut counts = vec![0u32; function.values.len()];
         let mut terminator_inputs = Vec::new();
         // Where each instruction sits. Selection asks whether two instructions
@@ -1645,15 +1645,12 @@ impl<'a> FunctionUses<'a> {
                 filled[input.0] += 1;
             }
         }
-        // Every operand naming an SSA value names it by the same virtual
-        // register, and lowering emits an operand per use, so the register is
-        // built once per value rather than formatted, allocated and hashed once
-        // per use.
+        let mut register_index = 0u32;
         let registers = function
             .values
             .iter()
             .enumerate()
-            .map(|(index, value)| {
+            .map(|(value_index, value)| {
                 if !matches!(
                     value.definition,
                     ValueDefinition::InstructionResult { .. }
@@ -1663,10 +1660,13 @@ impl<'a> FunctionUses<'a> {
                     return None;
                 }
                 let class = value.ty.register_class()?;
-                Some(VirtualRegister::with_class(format!("ssa_{index}"), class))
+                let register = VirtualRegister::ssa(handler, register_index, value_index, class);
+                register_index = register_index
+                    .checked_add(1)
+                    .expect("one handler cannot contain more than u32::MAX virtual registers");
+                Some(register)
             })
             .collect();
-
         Self {
             function,
             counts,
