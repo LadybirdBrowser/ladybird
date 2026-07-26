@@ -496,7 +496,7 @@ const CANON_NAN_BITS = 0x7FF8000000000000
     fn compiles_from_in_memory_sources_for_each_target() {
         for architecture in [Architecture::X86_64, Architecture::Aarch64] {
             let assembly = compiler(architecture)
-                .compile(unit("op Nop\nendop\n"))
+                .compile(unit("op Nop < Instruction\nendop\n"))
                 .expect("in-memory compilation should succeed");
 
             assert!(assembly.as_str().contains("js_interpreter"));
@@ -509,7 +509,7 @@ const CANON_NAN_BITS = 0x7FF8000000000000
         let compiler = compiler(Architecture::X86_64);
 
         let prepared = compiler
-            .prepare(unit("op Nop\nendop\n"))
+            .prepare(unit("op Nop < Instruction\nendop\n"))
             .expect("preparation should succeed");
         let program = compiler.lower(&prepared).expect("machine lowering should succeed");
         let selected = compiler.select(program).expect("selection should succeed");
@@ -523,7 +523,7 @@ const CANON_NAN_BITS = 0x7FF8000000000000
             compiler.emit_program(&machine).expect("re-emission should succeed")
         );
         let one_shot = compiler
-            .compile(unit("op Nop\nendop\n"))
+            .compile(unit("op Nop < Instruction\nendop\n"))
             .expect("one-shot compilation should succeed");
         assert_eq!(staged, one_shot);
     }
@@ -531,7 +531,9 @@ const CANON_NAN_BITS = 0x7FF8000000000000
     #[test]
     fn resolves_bytecode_dispatch_to_handler_identities() {
         let compiler = compiler(Architecture::X86_64);
-        let prepared = compiler.prepare(unit("op Nop\nendop\nop Missing\nendop\n")).unwrap();
+        let prepared = compiler
+            .prepare(unit("op Nop < Instruction\nendop\nop Missing < Instruction\nendop\n"))
+            .unwrap();
         let handler_id = prepared.handlers[0].id;
 
         assert_eq!(prepared.bytecode.dispatch_handlers, [Some(handler_id), None]);
@@ -545,7 +547,7 @@ const CANON_NAN_BITS = 0x7FF8000000000000
         let compiler = compiler(Architecture::X86_64);
         let (_, report) = compiler
             .prepare_with_optimization_report(
-                unit("op Nop\nendop\n"),
+                unit("op Nop < Instruction\nendop\n"),
                 OptimizationReportOptions {
                     include_remarks: true,
                     dump_changed_ir: true,
@@ -614,7 +616,7 @@ const CANON_NAN_BITS = 0x7FF8000000000000
                 source_name: "test.flap",
                 source: "handler Nop() { dispatch_next; }",
                 constants: None,
-                bytecode_def: Some("op Nop\nendop\n"),
+                bytecode_def: Some("op Nop < Instruction\nendop\n"),
             })
             .expect_err("missing runtime metadata should fail");
         assert_eq!(emission_error.stage, CompileStage::Emission);
