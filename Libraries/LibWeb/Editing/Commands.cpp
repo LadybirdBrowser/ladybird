@@ -1306,8 +1306,13 @@ bool command_insert_image_action(DOM::Document& document, Utf16View value)
         return false;
 
     // 2. Delete the selection, with strip wrappers false.
+    // AD-HOC: Delete the selection, with strip wrappers *true*. Gecko/WebKit/Blink all remove inline elements that the
+    //         deletion leaves empty around the insertion point — instead of keeping them as wrappers. WPT expectations
+    //         follow the Gecko/WebKit/Blink behavior. The spec hasn't yet been updated to match.
+    //         https://github.com/web-platform-tests/wpt/commit/38a8c54e7095713f7c290318480c68bb6f2322ef
+    //         https://github.com/w3c/editing/issues/543
     auto& selection = *document.get_selection();
-    delete_the_selection(selection, true, false);
+    delete_the_selection(selection, true, true);
 
     // 3. Let range be the active range.
     auto range = active_range(document);
@@ -1329,8 +1334,52 @@ bool command_insert_image_action(DOM::Document& document, Utf16View value)
     // 7. Run setAttribute("src", value) on img.
     set_attribute_value(*img, HTML::AttributeNames::src, value);
 
-    // 8. Run insertNode(img) on range.
-    MUST(insert_node_into_range(*range, img));
+    // AD-HOC: Gecko/WebKit/Blink all split ancestor inline elements around the insertion point, instead of inserting
+    //         the image into them as the spec's step 8 specifies. WPT expectations follow the Gecko/WebKit/Blink
+    //         behavior. The spec hasn't yet been updated to match.
+    //         https://github.com/web-platform-tests/wpt/commit/38a8c54e7095713f7c290318480c68bb6f2322ef
+    //         https://github.com/w3c/editing/issues/543
+    GC::Ptr<DOM::Node> topmost_inline_element;
+    for (GC::Ptr<DOM::Node> candidate = range->start_container(); candidate; candidate = candidate->parent()) {
+        if (candidate->is_editing_host() || is_block_node(*candidate))
+            break;
+        if (is<DOM::Element>(*candidate))
+            topmost_inline_element = candidate;
+    }
+    if (topmost_inline_element) {
+        GC::Ref<DOM::Node> current = range->start_container();
+        size_t offset = range->start_offset();
+        while (true) {
+            GC::Ref<DOM::Node> parent = *current->parent();
+            size_t gap_offset = 0;
+            if (auto* text = as_if<DOM::Text>(*current)) {
+                if (offset > 0 && offset < text->length())
+                    MUST(split_text(*text, offset));
+                gap_offset = current->index() + (offset > 0 ? 1 : 0);
+            } else if (!is<DOM::Element>(*current)) {
+                // Nodes that can't be split and can't contain children to redistribute — such as comments — are kept
+                // intact, and the gap is placed before them.
+                gap_offset = current->index();
+            } else if (offset > 0 && offset < current->child_count()) {
+                auto left_part = MUST(clone_node_for_editing(current, false));
+                insert_node_before(left_part, parent, current);
+                for (size_t i = 0; i < offset; ++i)
+                    move_node_preserving_ranges(*current->first_child(), left_part, i);
+                gap_offset = current->index();
+            } else {
+                gap_offset = current->index() + (offset > 0 ? 1 : 0);
+            }
+            if (current == topmost_inline_element) {
+                insert_node_before(img, parent, parent->child_at_index(gap_offset));
+                break;
+            }
+            current = parent;
+            offset = gap_offset;
+        }
+    } else {
+        // 8. Run insertNode(img) on range.
+        MUST(insert_node_into_range(*range, img));
+    }
 
     // 9. Let selection be the result of calling getSelection() on the context object.
     // NOTE: Already done so in step 2.
