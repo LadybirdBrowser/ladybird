@@ -3712,7 +3712,6 @@ asm_handler_UnaryMinus:
     shr rcx, 48
     cmp cx, 32762
     jne .Lasm_UnaryMinus.ssa_block_6
-    movsxd rax, eax
     test eax, eax
     jz .Lasm_UnaryMinus.ssa_block_1
     neg eax
@@ -7401,6 +7400,7 @@ asm_handler_LooselyInequals_cold_end:
 asm_handler_UnaryMinus_cold:
 # Cold paths for UnaryMinus
 .Lasm_UnaryMinus.ssa_block_2:
+    movsxd rax, eax
     cvtsi2sd xmm0, rax
     movq rax, xmm0
     mov r11d, DWORD PTR [r14 + r13 + 4]

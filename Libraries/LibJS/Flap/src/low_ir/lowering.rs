@@ -208,7 +208,10 @@ fn lower_handler_internal(
         if matches!(
             operation,
             Operation::Intrinsic(Intrinsic::CheckedInteger(
-                CheckedIntegerOperation::Add | CheckedIntegerOperation::Subtract | CheckedIntegerOperation::Multiply
+                CheckedIntegerOperation::Add
+                    | CheckedIntegerOperation::Subtract
+                    | CheckedIntegerOperation::Multiply
+                    | CheckedIntegerOperation::Negate
             ))
         ) {
             folded_instructions.extend(
@@ -1106,9 +1109,12 @@ fn lower_checked_operation(
             let [input] = require_inputs(inputs, "neg32_overflow")?;
             let result_id = *result;
             let input_id = *input;
-            let input_operand = value_operand(function, input_id)?;
+            let input = folded_checked_i32_source(function, input_id)
+                .map(|(_, source)| source)
+                .unwrap_or(input_id);
+            let input_operand = value_operand(function, input)?;
             let result = value_operand(function, *result)?;
-            emit!(output; MachineOperation::Move(IntegerWidth::U64) => [result.clone(), value_operand(function, *input)?];);
+            emit!(output; MachineOperation::Move(IntegerWidth::U64) => [result.clone(), input_operand.clone()];);
             emit!(output; MachineOperation::Overflow(OverflowOperation::Negate) => [result.clone(), Operand::Label(failure_label.clone())];);
             // A checked inout operation exposes its destructive result to both
             // continuations. Updating the captured input lets allocation coalesce
@@ -1239,7 +1245,7 @@ fn select_branch(function: &FunctionUses<'_>, condition: ValueId) -> Option<Sele
             None
         };
         if let Some(value) = nonzero_value {
-            return Some(SelectedBranch::new(
+            let mut branch = SelectedBranch::new(
                 instruction,
                 MachineOperation::branch_zero(
                     if matches!(function.values[value.0].ty, Type::I32 | Type::U32) {
@@ -1254,7 +1260,14 @@ fn select_branch(function: &FunctionUses<'_>, condition: ValueId) -> Option<Sele
                     },
                 ),
                 vec![SelectedBranchInput::Value(value)],
-            ));
+            );
+            if function.values[value.0].ty == Type::I32
+                && let Some((instructions, source)) = folded_32bit_operation_source(function, value)
+            {
+                branch.folded_inputs = instructions;
+                branch.inputs[0] = SelectedBranchInput::Value(source);
+            }
+            return Some(branch);
         }
     }
     if matches!(
@@ -2980,10 +2993,12 @@ fn typed_signed_comparison_uses_narrow_inputs(
     are_i32_pair(function, inputs)
         && matches!(
             operation,
-            IntegerComparisonOperation::Relational {
-                domain: ComparisonDomain::SignedInteger,
-                ..
-            }
+            IntegerComparisonOperation::Equal
+                | IntegerComparisonOperation::NotEqual
+                | IntegerComparisonOperation::Relational {
+                    domain: ComparisonDomain::SignedInteger,
+                    ..
+                }
         )
 }
 
@@ -2992,7 +3007,10 @@ fn checked_i32_operation_uses_narrow_inputs(
     operation: CheckedIntegerOperation,
     inputs: &[ValueId],
 ) -> bool {
-    are_i32_pair(function, inputs) && operation != CheckedIntegerOperation::Negate
+    match operation {
+        CheckedIntegerOperation::Negate => inputs.len() == 1 && function.values[inputs[0].0].ty == Type::I32,
+        _ => are_i32_pair(function, inputs),
+    }
 }
 
 fn are_i32_pair(function: &Function, inputs: &[ValueId]) -> bool {
