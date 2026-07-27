@@ -343,6 +343,7 @@ public:
     GC::Ref<WebIDL::Promise> perform_a_scroll_of_the_viewport(CSSPixelPoint position, Bindings::ScrollBehavior = Bindings::ScrollBehavior::Auto, ScrollTrigger = ScrollTrigger::Programmatic, Optional<CSSPixelPoint> relative_displacement = {});
     GC::Ref<WebIDL::Promise> perform_a_scroll_of_an_element(DOM::Element&, CSSPixelPoint position, Bindings::ScrollBehavior, Optional<CSSPixelPoint> relative_displacement = {});
     bool perform_a_snapped_relative_user_scroll(Layout::Node&, CSSPixelPoint delta, Painting::SnapSelectionStrategy::Type, SnapStepAccumulation);
+    void re_snap_scroll_containers_after_layout_change();
     void abort_in_flight_smooth_scrolls(Compositor::AsyncScrollNodeStableID, SmoothScrollAbortCause);
     void abort_in_flight_smooth_scrolls_taken_over_by_user_input(Compositor::AsyncScrollNodeStableID, CSSPixelPoint scroll_offset_at_gesture_start);
     void queue_scrollend_event_after_user_scroll(GC::Ref<DOM::EventTarget>, Optional<Compositor::AsyncScrollNodeStableID>, Optional<CSSPixelPoint> scroll_offset_before_scroll = {}, SnapPositionSelection = SnapPositionSelection::AtGestureEnd);
@@ -393,7 +394,13 @@ private:
     void resolve_async_scroll_operation(Compositor::AsyncScrollOperationID, AsyncScrollCompletion = AsyncScrollCompletion::Finished);
     void resolve_all_pending_async_scroll_operations();
     void resolve_pending_smooth_scrolls(Compositor::AsyncScrollNodeStableID, SmoothScrollAbortCause);
-    GC::Ref<WebIDL::Promise> perform_a_scroll_of_a_scrolling_box(Compositor::AsyncScrollNodeStableID, CSSPixelPoint position, Bindings::ScrollBehavior, GC::Ptr<DOM::Element> associated_element, ScrollTrigger, Optional<CSSPixelPoint> relative_displacement = {});
+    // Whether a programmatic scroll still needs a snap position selected for its destination, or was given a
+    // destination that snap position selection already produced.
+    enum class DestinationSnapping {
+        SelectSnapPosition,
+        DestinationIsSnapPosition,
+    };
+    GC::Ref<WebIDL::Promise> perform_a_scroll_of_a_scrolling_box(Compositor::AsyncScrollNodeStableID, CSSPixelPoint position, Bindings::ScrollBehavior, GC::Ptr<DOM::Element> associated_element, ScrollTrigger, Optional<CSSPixelPoint> relative_displacement = {}, DestinationSnapping = DestinationSnapping::SelectSnapPosition);
     Optional<CSSPixelPoint> scroll_offset_for(Compositor::AsyncScrollNodeStableID) const;
     bool set_scroll_offset_for(Compositor::AsyncScrollNodeStableID, CSSPixelPoint);
     void queue_scrollend_event(Compositor::AsyncScrollNodeStableID, ScrollTrigger, Optional<CSSPixelPoint> scroll_offset_before_scroll = {});
@@ -512,6 +519,7 @@ private:
     bool m_user_scroll_gesture_travels_under_momentum { false };
     size_t m_scrolls_being_started { 0 };
     bool m_user_scroll_settlement_awaits_scroll_start { false };
+    bool m_is_re_snapping_scroll_containers { false };
 
     struct PendingAsyncScrollOperation {
         Compositor::AsyncScrollOperationID operation_id { 0 };

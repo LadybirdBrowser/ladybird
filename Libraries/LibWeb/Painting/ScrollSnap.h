@@ -8,6 +8,7 @@
 
 #include <AK/Optional.h>
 #include <AK/Vector.h>
+#include <LibGC/Ptr.h>
 #include <LibGC/WeakInlines.h>
 #include <LibWeb/CSS/PseudoElement.h>
 #include <LibWeb/Export.h>
@@ -16,6 +17,7 @@
 namespace Web::DOM {
 
 class Element;
+class Node;
 
 }
 
@@ -72,14 +74,38 @@ struct SnapAxes {
 
 WEB_API SnapAxes snap_axes_of_scroll_container(Layout::Node const& snap_container);
 
+WEB_API bool is_scroll_snap_container(Layout::Node const&);
+
+// The snap areas a scroll container is snapped to in each axis, so that it can be re-snapped to those same snap areas
+// after a content change.
+struct SnappedAreas {
+    Vector<SnapAreaReference> x;
+    Vector<SnapAreaReference> y;
+
+    bool is_empty() const { return x.is_empty() && y.is_empty(); }
+};
+
 struct SnapDestination {
     CSSPixelPoint position;
     // Whether a snap position was selected in each axis; an axis whose snap positions are all ineligible for the
     // scroll keeps the destination it was given.
     bool snapped_x { false };
     bool snapped_y { false };
+    // Whether snap position selection ran in each axis. An axis the scroll did not travel in is not evaluated, and
+    // whatever snap area the container is snapped to there remains snapped.
+    bool evaluated_x { false };
+    bool evaluated_y { false };
+    SnappedAreas snapped_areas {};
 };
 
 WEB_API SnapDestination adjust_scroll_destination_for_snapping(Layout::Node const& snap_container, CSSPixelPoint destination, SnapSelectionStrategy const& strategy = {});
+
+struct ResnapSelection {
+    SnappedAreas const& snapped_areas;
+    GC::Ptr<DOM::Node const> focused_node;
+    GC::Ptr<DOM::Element const> targeted_element;
+};
+
+WEB_API SnapDestination select_resnap_destination(Layout::Node const& snap_container, CSSPixelPoint current_offset, ResnapSelection const&);
 
 }

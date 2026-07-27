@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="help" href="https://drafts.csswg.org/css-scroll-snap" />
+    <script src="../../../../resources/testharness.js"></script>
+    <script src="../../../../resources/testharnessreport.js"></script>
+    <script src="../../../../dom/events/scrolling/scroll_support.js"></script>
+    <script src="resources/common.js" ></script>
+  </head>
+  <body>
+    <style>
+      /* A scaled ancestor does not change the scroller's own layout-pixel
+         coordinate space (scroll offset, viewport size, snap area rects),
+         so the focused-but-offscreen exclusion below should be unaffected
+         by it, the same way it is unaffected by a pinch-zoomed page. */
+      .scaled-ancestor {
+        transform: scale(2);
+        transform-origin: top left;
+      }
+      .scroller {
+        overflow: scroll;
+        position: relative;
+        height: 400px;
+        width: 400px;
+        border:solid 1px black;
+        scroll-snap-type: y mandatory;
+      }
+      .no-snap { scroll-snap-align: none }
+      .scroller div:focus {
+        border: solid 1px red;
+      }
+      .large-space {
+        height: 300vh;
+        width: 300vw;
+      }
+      .target {
+        scroll-snap-align: start;
+        position: absolute;
+        width: 100px;
+        height: 100px;
+        border: solid 1px black;
+      }
+      .top {
+        top: 0px;
+      }
+      .left {
+        left: 0px;
+      }
+      .right {
+        left: 200px;
+      }
+      .bottom {
+        top: 200px;
+      }
+      </style>
+    <div class="scaled-ancestor">
+      <div id="scroller" class="scroller">
+        <div class="large-space no-snap" tabindex="1" id="space"></div>
+        <div id="topleft" tabindex="1" class="top left target"></div>
+        <div id="topright" tabindex="1" class="top right target"></div>
+        <div id="bottomleft" tabindex="1" class="bottom left target"></div>
+        <div id="bottomright" tabindex="1" class="bottom right target"></div>
+      </div>
+    </div>
+    <script>
+      window.onload = () => {
+        const bottomright = document.getElementById("bottomright");
+        const bottomleft = document.getElementById("bottomleft");
+        const scroller = document.getElementById("scroller");
+
+        promise_test(async (t) => {
+          t.add_cleanup(() => {
+            bottomright.style.left = "200px";
+          })
+          await waitForCompositorCommit();
+          assert_equals(scroller.scrollTop, 0, "snapped to top row");
+
+          // Move bottomright out of the snapport.
+          bottomright.style.left = "500px";
+
+          // Set focus on bottomright without scrolling to it.
+          focusAndAssert(bottomright, true);
+          await runScrollSnapSelectionVerificationTest(t, scroller,
+                               /*aligned_elements_x=*/[],
+                               /*aligned_elements_y=*/[bottomright, bottomleft],
+                               /*axis=*/"y",
+                               /*expected_target_x=*/null,
+                               /*expected_target_y=*/bottomleft);
+        }, "out-of-viewport focused element is not the selected snap target under a scaled ancestor.");
+      }
+    </script>
+  </body>
+</html>

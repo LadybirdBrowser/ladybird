@@ -31,6 +31,7 @@
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxViews.h>
+#include <LibWeb/Painting/ScrollSnap.h>
 #include <LibWeb/SVG/SVGClipPathElement.h>
 #include <LibWeb/SVG/SVGFilterElement.h>
 #include <LibWeb/SVG/SVGGradientElement.h>
@@ -1105,6 +1106,16 @@ void NodeWithStyle::bind_generated_style_record(CSS::StyleRecordID target_style_
     publish_style_record_to_node_data();
 }
 
+static Node const* scroll_snap_container_of(NodeWithStyle const& node)
+{
+    // The scroll snap properties specified on the root element apply to the viewport rather than to its own box.
+    if (node.is_viewport() || (node.dom_node() && node.dom_node() == node.document().document_element()))
+        return node.document().unsafe_layout_node();
+    if (!node.is_scroll_container())
+        return nullptr;
+    return &node;
+}
+
 void NodeWithStyle::publish_style_record_to_node_data()
 {
     auto const* payloads = document().style_computer().style_engine().style_record_payloads(m_style_record_identity);
@@ -1112,6 +1123,26 @@ void NodeWithStyle::publish_style_record_to_node_data()
     node_data().style = payloads;
     if (content_visibility() == CSS::ContentVisibility::Auto)
         document().note_content_visibility_auto_style();
+
+    if (scroll_snap_type().strictness != CSS::ScrollSnapStrictness::None)
+        document().set_may_have_scroll_snap_areas();
+
+    // NB: The root element's style can be published before the layout tree gives the document a viewport to snap
+    //     with, and is published again once building the layout tree binds this node's style record.
+    auto const* snap_container = scroll_snap_container_of(*this);
+    if (!snap_container)
+        return;
+
+    // A style change can make a box a snap container without the paint tree being built again, so the box registers
+    // itself here as well as when it is built.
+    if (Painting::is_scroll_snap_container(*snap_container)) {
+        document().register_scroll_snap_container(*snap_container);
+        return;
+    }
+
+    // A box that does not snap is snapped to no snap areas, so that a scroll it is given while it does not snap is not
+    // undone by a re-snap once it snaps again.
+    document().forget_snapped_areas_of_scroll_container(*snap_container);
 }
 
 bool NodeWithStyle::synchronize_table_span_data()

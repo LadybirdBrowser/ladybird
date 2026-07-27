@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<title>
+  On-screen vs. Off-screen Snapped Initial Scroll Position (Mandatory and Proximity)
+</title>
+<link rel="help" href="https://drafts.csswg.org/css-scroll-snap-1/#scroll-snap-align">
+<link rel="help" href="https://drafts.csswg.org/css-scroll-snap/#re-snap">
+<link rel="author" title="Elika J. Etemad" href="http://fantasai.inkedblade.net/contact">
+<!-- Test assumes 2px proximity is enough to snap.
+     If your implementation has a cogent argument as to why this is too much,
+     please request a change to this test. ~fantasai -->
+<link rel="match" href="../../../../../expected/wpt-import/css/css-scroll-snap/snap-after-initial-layout/scroll-snap-initial-layout-000-ref.html">
+
+<style>
+body {
+  position: absolute;
+  bottom: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  overflow: hidden;
+}
+
+.scroller {
+  scroll-snap-type: both mandatory;
+  overflow: hidden;
+  scroll-padding: 0;
+  width: 100px;
+  height: 100px;
+  border: solid blue;
+  margin: 10px;
+  display: inline-block;
+}
+
+.mandatory > .scroller {
+  scroll-snap-type: both mandatory;
+}
+
+.proximity > .scroller {
+  scroll-snap-type: both proximity;
+}
+
+.scroller > div {
+  /* padding wrapper */
+  width: 30px;
+}
+
+.scroller > div > div {
+  /* target box */
+  height: 30px;
+  background: orange;
+  scroll-snap-align: start;
+}
+
+.proxfar {
+  border-color: orange;
+}
+.proxfar > div > div {
+  background: red;
+}
+
+</style>
+
+<p>Test passes if there is an orange square precisely at the top left corner of each blue box (no gap),
+and each orange box is empty.
+
+
+<div class="mandatory">
+  <!-- off-screen -->
+  <div class="scroller">
+    <div style="padding: 110px;"><div class="small-target"></div></div>
+  </div>
+
+  <div class="scroller">
+    <div style="padding-block: 110px;"><div class="small-target"></div></div>
+  </div>
+
+  <div class="scroller">
+    <div style="padding-inline: 110px;"><div class="small-target"></div></div>
+  </div>
+
+  <!-- on-screen -->
+  <div class="scroller">
+    <div style="padding: 90px;"><div class="small-target"></div></div>
+  </div>
+
+  <div class="scroller">
+    <div style="padding-block: 90px;"><div class="small-target"></div></div>
+  </div>
+
+  <div class="scroller">
+    <div style="padding-inline: 90px;"><div class="small-target"></div></div>
+  </div>
+</div>
+
+<div class="proximity">
+  <!-- off-screen -->
+  <div class="scroller proxfar">
+    <div style="padding: 110px;"><div class="small-target"></div></div>
+  </div>
+
+  <div class="scroller proxfar">
+    <div style="padding-block: 110px;"><div class="small-target"></div></div>
+  </div>
+
+  <div class="scroller proxfar">
+    <div style="padding-inline: 110px;"><div class="small-target"></div></div>
+  </div>
+
+  <!-- on-screen -->
+  <div class="scroller">
+    <div style="padding: 2px 110px 110px 2px;"><div class="small-target"></div></div>
+  </div>
+
+  <div class="scroller">
+    <div style="padding: 2px 110px 110px 2px;"><div class="small-target"></div></div>
+  </div>
+
+  <div class="scroller">
+    <div style="padding: 2px 110px 110px 2px;"><div class="small-target"></div></div>
+  </div>
+</div>

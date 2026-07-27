@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1">
+<title>
+  Resnap when the current snap position is no longer a valid snap target.
+</title>
+<link rel="help" href="https://drafts.csswg.org/css-scroll-snap-1/#snap-scope"/>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/css-scroll-snap/support/common.js"></script>
+<style>
+  html {
+    scroll-snap-type: y mandatory;
+  }
+  body {
+    margin:  0;
+  }
+  .snap {
+    scroll-snap-align: center;
+    height: 100vh;
+    margin:  0;
+  }
+</style>
+<body onload = "runTest()">
+<div id = "card1" class="snap">ONE</div>
+<div id = "card2" class="snap">TWO</div>
+<div id = "card3" class="snap">THREE</div>
+</body>
+<script type="text/javascript">
+  function runTest() {
+    promise_test(async t => {
+      const scroller = document.scrollingElement;
+      // scroll to card THREE
+      let expectedSnapPosition = card3.offsetTop;
+      scroller.scrollTo(0, expectedSnapPosition);
+      assert_equals(scroller.scrollTop, expectedSnapPosition,
+                    'Aligned with card THREE before style change');
+
+      // Snap to card TWO after invalidating card THREE as a snap target.
+      card3.style.scrollSnapAlign = 'none center';
+      await waitForNextFrame();
+      expectedSnapPosition = card2.offsetTop;
+      assert_equals(scroller.scrollTop, expectedSnapPosition,
+                    'Aligned with card TWO after style change');
+    }, 'Resnap when the current snap position is no longer a valid snap target');
+  }
+</script>
+</html>
