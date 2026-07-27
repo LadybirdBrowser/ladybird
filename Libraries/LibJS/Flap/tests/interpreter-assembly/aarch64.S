@@ -5362,13 +5362,13 @@ asm_handler_MovUndefined3_hot_end:
 asm_handler_AddRhsInt32:
     ldr w0, [x21, #8]
     ldr x0, [x27, x0, lsl #3]
-    ldr w2, [x21, #12]
     lsr x1, x0, #48
     cmp w1, w22
     b.ne .Lasm_AddRhsInt32.ssa_block_5
     sxtw x0, w0
     mov x1, x0
-    adds w1, w1, w2
+    ldr w9, [x21, #12]
+    adds w1, w1, w9
     b.vs .Lasm_AddRhsInt32.ssa_block_8
     movk x1, #0x7ffa, lsl #48
     ldr w9, [x21, #4]

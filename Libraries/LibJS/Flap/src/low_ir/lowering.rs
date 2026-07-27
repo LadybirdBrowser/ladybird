@@ -16,8 +16,9 @@ use crate::hash::{HashMap, HashSet};
 use crate::intrinsic::{
     AddressOperation, AggregateOperation, AssertionOperation, BranchOperation, BytecodeOperation, CallOperation,
     CheckedIntegerOperation, ClassificationOperation, ComparisonDomain, ComparisonRelation, ControlOperation,
-    FloatConversion, FloatingPointOperation, IntegerBinaryOperation, IntegerComparisonOperation, IntegerSignedness,
-    Intrinsic, LowLevelOperation, MemoryOperation, OperandLoad, OperandOperation, OperandStore, ValueOperation,
+    FieldWidth, FloatConversion, FloatingPointOperation, IntegerBinaryOperation, IntegerComparisonOperation,
+    IntegerSignedness, Intrinsic, LowLevelOperation, MemoryOperation, OperandLoad, OperandOperation, OperandStore,
+    ValueOperation,
 };
 use crate::ssa::{
     BlockId, BlockLayout, Constant, Edge, Function, InstructionId, Operation, Terminator, ValueDefinition, ValueId,
@@ -214,6 +215,15 @@ fn lower_handler_internal(
                     folded_checked_i32_source(function, *input).map(|(instruction, _)| instruction)
                 }),
             );
+            if matches!(
+                operation,
+                Operation::Intrinsic(Intrinsic::CheckedInteger(
+                    CheckedIntegerOperation::Add | CheckedIntegerOperation::Subtract
+                ))
+            ) && let Some((instruction, _)) = folded_checked_i32_bytecode_field(function, inputs[1])
+            {
+                folded_instructions.insert(instruction);
+            }
         } else if let Operation::Intrinsic(Intrinsic::Branch(operation)) = operation
             && typed_narrow_signed_branch_operation(function, *operation, inputs).is_some()
         {
@@ -1005,6 +1015,9 @@ fn lower_checked_operation(
             let rhs_value = folded_checked_i32_source(function, *rhs)
                 .map(|(_, source)| source)
                 .unwrap_or(*rhs);
+            let rhs_operand = folded_checked_i32_bytecode_field(function, *rhs)
+                .map(|(_, field)| bytecode_field_memory(&field))
+                .map_or_else(|| value_operand(function, rhs_value), Ok)?;
             let checked_operation = match operation {
                 CheckedIntegerOperation::Add => OverflowOperation::AddWithOverflow,
                 CheckedIntegerOperation::Subtract => OverflowOperation::SubtractWithOverflow,
@@ -1024,7 +1037,7 @@ fn lower_checked_operation(
                 {
                     emit!(output; MachineOperation::Overflow(OverflowOperation::Decrement) => [result, Operand::Label(failure_label.clone())];);
                 } else {
-                    emit!(output; MachineOperation::Overflow(checked_operation) => [result, value_operand(function, rhs_value)?, Operand::Label(failure_label.clone())];);
+                    emit!(output; MachineOperation::Overflow(checked_operation) => [result, rhs_operand, Operand::Label(failure_label.clone())];);
                 }
             }
         } else {
@@ -2479,6 +2492,26 @@ fn folded_checked_i32_source(function: &FunctionUses<'_>, value: ValueId) -> Opt
         return None;
     };
     Some((instruction, *source))
+}
+
+fn folded_checked_i32_bytecode_field(
+    function: &FunctionUses<'_>,
+    value: ValueId,
+) -> Option<(InstructionId, BytecodeFieldId)> {
+    if value_use_count(function, value) != 1 {
+        return None;
+    }
+    let (instruction, load) = defining_instruction(function, value)?;
+    if load.operation != Operation::Intrinsic(Intrinsic::Bytecode(BytecodeOperation::Load(FieldWidth::U32))) {
+        return None;
+    }
+    let [field] = load.inputs.as_slice() else {
+        return None;
+    };
+    let ValueDefinition::FunctionParameter(index) = function.values[field.0].definition else {
+        return None;
+    };
+    Some((instruction, BytecodeFieldId::new(index)))
 }
 
 fn folded_32bit_operation_source(function: &FunctionUses<'_>, value: ValueId) -> Option<(Vec<InstructionId>, ValueId)> {

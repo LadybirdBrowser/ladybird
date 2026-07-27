@@ -74,7 +74,11 @@ pub(crate) fn materialize_program_counter_reads(instructions: &mut Vec<Instructi
             }
             match description.operand_kind(position, operand_count) {
                 Some(
-                    OperandKind::GprIn | OperandKind::RegisterIn | OperandKind::GprInOrImm | OperandKind::GprInOrMemory,
+                    OperandKind::GprIn
+                    | OperandKind::RegisterIn
+                    | OperandKind::GprInOrImm
+                    | OperandKind::GprInOrMemory
+                    | OperandKind::GprInOrImmOrMemory,
                 ) => read_positions.push(position),
                 Some(OperandKind::GprInOut) => {
                     return Err(format!(
