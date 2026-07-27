@@ -14,15 +14,15 @@ void StartingStateHandler::start()
 {
     m_started = true;
 
-    if (!m_pipeline_blocked)
+    if (m_data_available)
         resume();
 }
 
 void StartingStateHandler::on_pipeline_status_changed(PipelineStatus status)
 {
-    m_pipeline_blocked = status == PipelineStatus::Blocked;
+    m_data_available = resolves_seek(status);
 
-    if (m_started && !m_pipeline_blocked)
+    if (m_started && m_data_available)
         resume();
 }
 
