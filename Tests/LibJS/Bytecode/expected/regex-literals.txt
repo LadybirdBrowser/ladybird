@@ -12,7 +12,7 @@ block0:
   [  28] NewRegExp dst:reg5, bar, gi
   [  40] DynamicInitializeLexicalBinding `b`, src:reg5
   [  50] NewRegExp dst:reg5, baz, i
-  [  68] Add dst:reg6, lhs:Int32(1), rhs:reg5
+  [  68] AddLhsInt32 dst:reg6, lhs:1, rhs:reg5
   [  78] DynamicInitializeLexicalBinding `c`, src:reg6
   [  88] GetGlobal dst:reg5, `matchDigits`
   [  98] Call dst:reg6, callee:reg5, this_value:Undefined, matchDigits, arguments:[String("abc123")]
