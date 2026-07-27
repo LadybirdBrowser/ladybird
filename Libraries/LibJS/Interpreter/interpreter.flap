@@ -837,7 +837,19 @@ specialize Mov(src: Undefined);
 specialize Mov(src: Undefined) + Mov(src: Undefined) as MovUndefined2;
 specialize Mov(src: Undefined) + Mov(src: Undefined) + Mov(src: Undefined) as MovUndefined3;
 
+specialize Add(lhs: Int32);
 specialize Add(rhs: Int32);
+specialize Sub(rhs: Int32);
+specialize Mul(rhs: Int32);
+specialize Exp(rhs: Int32);
+specialize Div(rhs: Int32);
+specialize BitwiseXor(rhs: Int32);
+specialize BitwiseAnd(rhs: Int32);
+specialize BitwiseOr(rhs: Int32);
+specialize LeftShift(rhs: Int32);
+specialize RightShift(rhs: Int32);
+specialize UnsignedRightShift(rhs: Int32);
+specialize Mod(rhs: Int32);
 
 handler Add(
     dst: out Operand,

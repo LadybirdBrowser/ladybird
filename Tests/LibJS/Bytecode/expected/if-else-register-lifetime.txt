@@ -67,7 +67,7 @@ block10:
   [ 170] Mov2 c0_dst:reg10, c0_src:arg0, c1_dst:reg6, c1_src:j~2
   [ 188] GetGlobal dst:reg8, `parseInt`
   [ 198] Mov dst:reg9, src:arg0
-  [ 1a8] Sub dst:reg11, lhs:j~2, rhs:Int32(3)
+  [ 1a8] SubRhsInt32 dst:reg11, lhs:j~2, rhs:3
   [ 1b8] GetByValue dst:reg12, base:reg9, property:reg11 (x[reg11])
   [ 1d0] Call dst:reg7, callee:reg8, this_value:Undefined, parseInt, arguments:[reg12, Int32(1)]
   [ 1f8] PutByValue base:reg10, property:reg6, src:reg7, kind:Normal (x[reg6])

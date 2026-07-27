@@ -1,0 +1,37 @@
+$646081a0 int32-binary-specializations.js:20:1
+  Registers: 7
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+    [1] = Int32(8)
+
+block0:
+  [   0] GetGlobal dst:reg6, `int32_binary_specializations`
+  [  10] Call dst:reg5, callee:reg6, this_value:Undefined, int32_binary_specializations, arguments:[Int32(8)]
+  [  38] End value:reg5
+
+
+int32_binary_specializations$e0948c88 int32-binary-specializations.js:2:5
+  Registers: 20
+  Blocks:    1
+  Constants:
+    [0] = Int32(2)
+    [1] = Double(2.5)
+
+block0:
+  [   0] AddLhsInt32 dst:reg5, lhs:2, rhs:arg0
+  [  10] AddRhsInt32 dst:reg6, lhs:arg0, rhs:2
+  [  20] SubRhsInt32 dst:reg7, lhs:arg0, rhs:2
+  [  30] MulRhsInt32 dst:reg8, lhs:arg0, rhs:2
+  [  40] ExpRhsInt32 dst:reg9, lhs:arg0, rhs:2
+  [  50] DivRhsInt32 dst:reg10, lhs:arg0, rhs:2
+  [  60] BitwiseXorRhsInt32 dst:reg11, lhs:arg0, rhs:2
+  [  70] BitwiseAndRhsInt32 dst:reg12, lhs:arg0, rhs:2
+  [  80] BitwiseOrRhsInt32 dst:reg13, lhs:arg0, rhs:2
+  [  90] LeftShiftRhsInt32 dst:reg14, lhs:arg0, rhs:2
+  [  a0] RightShiftRhsInt32 dst:reg15, lhs:arg0, rhs:2
+  [  b0] UnsignedRightShiftRhsInt32 dst:reg16, lhs:arg0, rhs:2
+  [  c0] ModRhsInt32 dst:reg17, lhs:arg0, rhs:2
+  [  d0] Add dst:reg18, lhs:arg0, rhs:Double(2.5)
+  [  e0] NewArray dst:reg19, elements:[reg5, reg6, reg7, reg8, reg9, reg10, reg11, reg12, reg13, reg14, reg15, reg16, reg17, reg18]
+  [ 128] Return value:reg19
