@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	SVGAnimatedLength interface - utilizing the width property of SVGRectElement
+1 Pass
+Pass	SVGAnimatedLength interface - utilizing the width property of SVGRectElement
