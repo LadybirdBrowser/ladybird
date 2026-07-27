@@ -13,8 +13,8 @@ use super::report::FunctionOptimizationReport;
 #[cfg(test)]
 use super::{BinaryOperation, IntegerBinaryOperation};
 use super::{
-    BlockId, BlockLayout, Edge, Effects, Function, Instruction, InstructionId, Intrinsic, OperandOperation, Operation,
-    Terminator, ValueDefinition, ValueId, ValueOperation,
+    BlockId, BlockLayout, CheckedIntegerOperation, Edge, Effects, Function, Instruction, InstructionId, Intrinsic,
+    OperandOperation, Operation, Terminator, ValueDefinition, ValueId, ValueOperation,
 };
 use crate::frontend::layout::{LayoutConstants, LayoutValue};
 use crate::hash::{HashMap, HashSet};
@@ -262,10 +262,7 @@ fn run_optimization_pipeline(
     );
     run_pass!("dead-code-elimination", eliminate_dead_code_pass);
     run_pass!("global-code-motion", schedule_global_code_motion_pass);
-    run_pass!(
-        "rematerialize-cold-bytecode-field-loads",
-        rematerialize_cold_bytecode_field_loads
-    );
+    run_pass!("rematerialize-cold-values", rematerialize_cold_values);
     report
 }
 
@@ -982,85 +979,115 @@ fn schedule_global_code_motion_pass(function: &mut Function, analyses: &mut Anal
     true
 }
 
-fn rematerialize_cold_bytecode_field_loads(function: &mut Function, _: &mut AnalysisManager) -> bool {
+struct ColdRematerialization {
+    operation: Operation,
+    inputs: Vec<ValueId>,
+    result: ValueId,
+}
+
+fn block_uses_value(function: &Function, block_index: usize, value: ValueId) -> bool {
+    function.blocks[block_index]
+        .instructions
+        .iter()
+        .any(|instruction| function.instructions[instruction.0].inputs.contains(&value))
+        || function.blocks[block_index]
+            .terminator
+            .as_ref()
+            .is_some_and(|terminator| terminator.inputs().contains(&value))
+}
+
+fn rematerialize_cold_values(function: &mut Function, _: &mut AnalysisManager) -> bool {
     let candidates = function
         .instructions
         .iter()
         .filter_map(|instruction| {
-            if instruction.operation
-                != Operation::Intrinsic(Intrinsic::Bytecode(BytecodeOperation::Load(FieldWidth::U32)))
-            {
-                return None;
-            }
-            let [field] = instruction.inputs.as_slice() else {
-                return None;
-            };
             let [result] = instruction.results.as_slice() else {
                 return None;
             };
-            Some((*field, *result))
+            let operation = match instruction.operation {
+                Operation::Intrinsic(Intrinsic::Bytecode(BytecodeOperation::Load(FieldWidth::U32)))
+                    if function
+                        .blocks
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, block)| block.layout != BlockLayout::Cold)
+                        .any(|(block_index, _)| block_uses_value(function, block_index, *result)) =>
+                {
+                    instruction.operation.clone()
+                }
+                Operation::Intrinsic(Intrinsic::Value(ValueOperation::UnboxInt32 { rematerialized: false }))
+                    if function
+                        .blocks
+                        .iter()
+                        .filter(|block| block.layout != BlockLayout::Cold)
+                        .any(|block| match &block.terminator {
+                            Some(Terminator::CheckedOperation {
+                                operation:
+                                    Operation::Intrinsic(Intrinsic::CheckedInteger(
+                                        CheckedIntegerOperation::Add
+                                        | CheckedIntegerOperation::Subtract
+                                        | CheckedIntegerOperation::Multiply,
+                                    )),
+                                inputs,
+                                ..
+                            }) => inputs.contains(result),
+                            _ => false,
+                        }) =>
+                {
+                    Intrinsic::Value(ValueOperation::UnboxInt32 { rematerialized: true }).into()
+                }
+                _ => return None,
+            };
+            Some(ColdRematerialization {
+                operation,
+                inputs: instruction.inputs.to_vec(),
+                result: *result,
+            })
         })
         .collect::<Vec<_>>();
 
     let mut changed = false;
     let mut replacements_by_block = vec![HashMap::default(); function.blocks.len()];
-    for (field, result) in candidates {
-        let has_hot_use = function
-            .blocks
-            .iter()
-            .filter(|block| block.layout != BlockLayout::Cold)
-            .any(|block| {
-                block
-                    .instructions
-                    .iter()
-                    .any(|instruction| function.instructions[instruction.0].inputs.contains(&result))
-                    || block
-                        .terminator
-                        .as_ref()
-                        .is_some_and(|terminator| terminator.inputs().contains(&result))
-            });
-        if !has_hot_use {
-            continue;
-        }
+    for candidate in candidates {
         for (block_index, prior_replacements) in replacements_by_block.iter_mut().enumerate() {
-            if function.blocks[block_index].layout != BlockLayout::Cold {
-                continue;
-            }
-            let is_used = function.blocks[block_index]
-                .instructions
-                .iter()
-                .any(|instruction| function.instructions[instruction.0].inputs.contains(&result))
-                || function.blocks[block_index]
-                    .terminator
-                    .as_ref()
-                    .is_some_and(|terminator| terminator.inputs().contains(&result));
-            if !is_used {
+            if function.blocks[block_index].layout != BlockLayout::Cold
+                || !block_uses_value(function, block_index, candidate.result)
+            {
                 continue;
             }
 
             let block = BlockId(block_index);
-            let field = prior_replacements.get(&field).copied().unwrap_or(field);
+            let mut inputs = candidate.inputs.clone();
+            rewrite_values(&mut inputs, prior_replacements);
             let insertion_index = function.blocks[block_index]
                 .instructions
                 .iter()
-                .position(|instruction| function.instructions[instruction.0].results.contains(&field))
-                .map_or(0, |index| index + 1);
+                .enumerate()
+                .filter_map(|(index, instruction)| {
+                    function.instructions[instruction.0]
+                        .results
+                        .iter()
+                        .any(|result| inputs.contains(result))
+                        .then_some(index + 1)
+                })
+                .max()
+                .unwrap_or(0);
             let replacement = function.append_instruction(
                 block,
-                Intrinsic::Bytecode(BytecodeOperation::Load(FieldWidth::U32)),
-                vec![field],
-                vec![Type::I32],
+                candidate.operation.clone(),
+                inputs,
+                vec![function.values[candidate.result.0].ty.clone()],
             )[0];
             let replacement_instruction = function.blocks[block_index]
                 .instructions
                 .pop()
-                .expect("the rematerialized load was just appended");
+                .expect("the rematerialized instruction was just appended");
             function.blocks[block_index]
                 .instructions
                 .insert(insertion_index, replacement_instruction);
 
-            let replacements = HashMap::from_iter([(result, replacement)]);
-            prior_replacements.insert(result, replacement);
+            let replacements = HashMap::from_iter([(candidate.result, replacement)]);
+            prior_replacements.insert(candidate.result, replacement);
             for instruction in function.blocks[block_index]
                 .instructions
                 .iter()
@@ -1429,7 +1456,7 @@ mod tests {
     use crate::intrinsic::{
         AssertionOperation, CallOperation, ControlOperation, OperandLoad, OperandOperation, OperandStore,
     };
-    use crate::ssa::{CheckedIntegerOperation, Constant, LowLevelOperation, MemoryEffect, lowering as ir_lowering};
+    use crate::ssa::{Constant, LowLevelOperation, MemoryEffect, lowering as ir_lowering};
 
     fn append_test_operation(
         function: &mut Function,
@@ -1475,7 +1502,7 @@ mod tests {
         );
         function.set_terminator(failure, Terminator::Return(Vec::new()));
 
-        assert!(rematerialize_cold_bytecode_field_loads(
+        assert!(rematerialize_cold_values(
             &mut function,
             &mut AnalysisManager::default()
         ));
@@ -1498,6 +1525,69 @@ mod tests {
             unreachable!()
         };
         assert_eq!(inputs, &[lhs, loaded]);
+        function.validate().unwrap();
+    }
+
+    #[test]
+    fn rematerializes_checked_int32_unboxes_for_cold_consumers() {
+        let mut function = Function::new("cold-int32-unbox", vec![Type::Value, Type::I32], Vec::new());
+        let unboxed = function.append_instruction(
+            function.entry,
+            Intrinsic::Value(ValueOperation::UnboxInt32 { rematerialized: false }),
+            vec![function.parameter(0)],
+            vec![Type::I32],
+        )[0];
+        let success = function.create_named_block("success", BlockLayout::Hot, vec![Type::I32]);
+        let failure = function.create_empty_block("failure", BlockLayout::Cold);
+        let cold_consumer = function.create_empty_block("cold-consumer", BlockLayout::Cold);
+        function.set_checked_operation(
+            function.entry,
+            Intrinsic::CheckedInteger(CheckedIntegerOperation::Subtract),
+            vec![unboxed, function.parameter(1)],
+            vec![Type::I32],
+            Effects::PURE,
+            success,
+            Vec::new(),
+            Edge::new(failure),
+        );
+        function.set_terminator(success, Terminator::jump(cold_consumer));
+        function.append_instruction(
+            failure,
+            Intrinsic::LowLevel(LowLevelOperation::Negate),
+            vec![unboxed],
+            vec![Type::I32],
+        );
+        function.set_terminator(failure, Terminator::Return(Vec::new()));
+        function.append_instruction(
+            cold_consumer,
+            Intrinsic::LowLevel(LowLevelOperation::Negate),
+            vec![unboxed],
+            vec![Type::I32],
+        );
+        function.set_terminator(cold_consumer, Terminator::Return(Vec::new()));
+
+        assert!(rematerialize_cold_values(
+            &mut function,
+            &mut AnalysisManager::default()
+        ));
+
+        assert_eq!(function.blocks[failure.0].instructions.len(), 2);
+        assert_eq!(
+            function.instructions[function.blocks[failure.0].instructions[0].0].operation,
+            Operation::Intrinsic(Intrinsic::Value(ValueOperation::UnboxInt32 { rematerialized: true }))
+        );
+        let rematerialized = function.blocks[cold_consumer.0].instructions[0];
+        let rematerialized_value = function.instructions[rematerialized.0].results[0];
+        assert_eq!(
+            function.instructions[rematerialized.0].operation,
+            Operation::Intrinsic(Intrinsic::Value(ValueOperation::UnboxInt32 { rematerialized: true }))
+        );
+        assert_eq!(
+            function.instructions[function.blocks[cold_consumer.0].instructions[1].0]
+                .inputs
+                .as_slice(),
+            [rematerialized_value]
+        );
         function.validate().unwrap();
     }
 
@@ -1534,7 +1624,7 @@ mod tests {
         );
         function.set_terminator(hot, Terminator::Return(Vec::new()));
 
-        assert!(rematerialize_cold_bytecode_field_loads(
+        assert!(rematerialize_cold_values(
             &mut function,
             &mut AnalysisManager::default()
         ));

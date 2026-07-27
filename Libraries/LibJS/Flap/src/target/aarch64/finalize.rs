@@ -1994,7 +1994,6 @@ impl Backend for Aarch64Backend {
                 if let Some(source) = source {
                     push_overflow_add_subtract_register(emit, operation, destination, source);
                 }
-                emit!(emit.output, Aarch64; Opcode::SignExtend32To64 => [register destination, register destination];);
                 return;
             }
             (

@@ -1550,7 +1550,6 @@ impl Backend for X86_64Backend {
                         push_alu_register(emit, operation, IntegerWidth::U32, destination, verified_register(rhs));
                     }
                 }
-                emit!(emit.output, X86_64; Opcode::SignExtend32To64 => [register destination, register destination];);
                 return;
             }
             (OverflowOperation::MultiplyWithOverflow, [destination, source, target_operand]) => {
