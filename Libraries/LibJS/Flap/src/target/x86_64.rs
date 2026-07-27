@@ -913,6 +913,31 @@ mod tests {
     }
 
     #[test]
+    fn recovers_checked_add_lhs_from_the_wrapped_result() {
+        let output = emit([
+            instruction(
+                Opcode::AluMemory {
+                    operation: AluOperation::Subtract,
+                    width: IntegerWidth::U32,
+                },
+                vec![
+                    Operand::PhysicalRegister(crate::target::registers::x86_64::RCX),
+                    memory("pb", Some("pc"), None, Some(12)),
+                ],
+            ),
+            instruction(
+                Opcode::SignExtend32To64,
+                vec![
+                    Operand::PhysicalRegister(crate::target::registers::x86_64::RCX),
+                    Operand::PhysicalRegister(crate::target::registers::x86_64::RCX),
+                ],
+            ),
+        ]);
+
+        assert_eq!(output, "    sub ecx, DWORD PTR [r14 + r13 + 12]\n    movsxd rcx, ecx\n");
+    }
+
+    #[test]
     fn emits_high_single_bit_branch_mask_with_bt() {
         let output = emit([
             instruction(

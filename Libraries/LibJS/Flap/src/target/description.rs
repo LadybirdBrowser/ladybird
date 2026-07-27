@@ -109,6 +109,8 @@ pub(crate) enum OverflowOperation {
     Increment,
     Decrement,
     SubtractWithOverflow,
+    RecoverAddLhs,
+    RecoverSubtractLhs,
     MultiplyWithOverflow,
     MultiplyCopy,
     Negate,
@@ -940,6 +942,9 @@ fn lookup_operation(operation: Operation) -> &'static InstructionDescription {
                     .trailing(&[Label])
                     .pre_scratches(&[], &[X9])
             }
+        }
+        Operation::Overflow(RecoverAddLhs) | Operation::Overflow(RecoverSubtractLhs) => {
+            &const { plain(&[GprInOut, GprInOrImmOrMemory]).pre_scratches(&[], &[X9]) }
         }
         Operation::Overflow(Increment) | Operation::Overflow(Decrement) | Operation::Overflow(Negate) => {
             &const { plain(&[GprInOut, Label]) }

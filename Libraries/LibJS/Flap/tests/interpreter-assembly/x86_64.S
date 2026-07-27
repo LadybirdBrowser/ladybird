@@ -5440,10 +5440,8 @@ asm_handler_AddRhsInt32:
     shr rax, 48
     cmp ax, 32762
     jne .Lasm_AddRhsInt32.ssa_block_5
-    movsxd rax, ecx
-    mov rcx, rax
     add ecx, DWORD PTR [r14 + r13 + 12]
-    jo .Lasm_AddRhsInt32.ssa_block_8
+    jo .Lasm_AddRhsInt32.ssa_checked_6_failure
     or rcx, r15
     mov r11d, DWORD PTR [r14 + r13 + 4]
     mov QWORD PTR [rbx + r11 * 8], rcx
@@ -9447,30 +9445,23 @@ asm_handler_MovUndefined3_cold:
 asm_handler_MovUndefined3_cold_end:
 asm_handler_AddRhsInt32_cold:
 # Cold paths for AddRhsInt32
+.Lasm_AddRhsInt32.ssa_checked_6_failure:
+    sub ecx, DWORD PTR [r14 + r13 + 12]
+    movsxd rcx, ecx
+    mov eax, DWORD PTR [r14 + r13 + 12]
+    cvtsi2sd xmm0, rcx
+    cvtsi2sd xmm1, rax
+    addsd xmm0, xmm1
+    movq rax, xmm0
+    mov r11d, DWORD PTR [r14 + r13 + 4]
+    mov QWORD PTR [rbx + r11 * 8], rax
+    add r13d, 16
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
 .Lasm_AddRhsInt32.ssa_block_5:
     and ax, 32760
     cmp ax, 32760
-    jne .Lasm_AddRhsInt32.ssa_block_9
-    mov edx, DWORD PTR [r14 + r13 + 12]
-    or rdx, r15
-    mov esi, DWORD PTR [r14 + r13 + 4]
-    mov DWORD PTR [rbx + -64], r13d
-    mov r8, rdx
-    mov rdx, rsi
-    mov rdi, QWORD PTR [rbp - 48]
-    mov esi, r13d
-    call CSYM(asm_slow_path_add_values)
-    test rax, rax
-    js .Lexit
-    mov r11, QWORD PTR [rbp - 48]
-    mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
-    mov r11, QWORD PTR [rbx + -40]
-    mov r14, QWORD PTR [r11 + 104]
-    mov r13d, eax
-    movzx eax, BYTE PTR [r14 + r13]
-    jmp [r12 + rax * 8]
-.Lasm_AddRhsInt32.ssa_block_9:
+    je .Lasm_AddRhsInt32.ssa_block_1
     movq xmm0, rcx
     mov eax, DWORD PTR [r14 + r13 + 12]
     cvtsi2sd xmm1, rax
@@ -9504,15 +9495,24 @@ asm_handler_AddRhsInt32_cold:
     add r13d, 16
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
-.Lasm_AddRhsInt32.ssa_block_8:
-    mov ecx, DWORD PTR [r14 + r13 + 12]
-    cvtsi2sd xmm0, rax
-    cvtsi2sd xmm1, rcx
-    addsd xmm0, xmm1
-    movq rax, xmm0
-    mov r11d, DWORD PTR [r14 + r13 + 4]
-    mov QWORD PTR [rbx + r11 * 8], rax
-    add r13d, 16
+.Lasm_AddRhsInt32.ssa_block_1:
+    mov edx, DWORD PTR [r14 + r13 + 12]
+    or rdx, r15
+    mov esi, DWORD PTR [r14 + r13 + 4]
+    mov DWORD PTR [rbx + -64], r13d
+    mov r8, rdx
+    mov rdx, rsi
+    mov rdi, QWORD PTR [rbp - 48]
+    mov esi, r13d
+    call CSYM(asm_slow_path_add_values)
+    test rax, rax
+    js .Lexit
+    mov r11, QWORD PTR [rbp - 48]
+    mov rbx, QWORD PTR [r11 + 15288]
+    add rbx, 120
+    mov r11, QWORD PTR [rbx + -40]
+    mov r14, QWORD PTR [r11 + 104]
+    mov r13d, eax
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
 .Lasm_AddRhsInt32.canon_nan_0:

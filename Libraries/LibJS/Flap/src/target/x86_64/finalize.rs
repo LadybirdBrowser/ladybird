@@ -1528,6 +1528,31 @@ impl Backend for X86_64Backend {
                 }
                 verified_label(target_operand)
             }
+            (
+                operation @ (OverflowOperation::RecoverAddLhs | OverflowOperation::RecoverSubtractLhs),
+                [destination, rhs],
+            ) => {
+                let destination = verified_register(destination);
+                let operation = match operation {
+                    OverflowOperation::RecoverAddLhs => super::AluOperation::Subtract,
+                    OverflowOperation::RecoverSubtractLhs => super::AluOperation::Add,
+                    _ => unreachable!(),
+                };
+                match rhs {
+                    AllocatedOperand::Immediate(value) => {
+                        debug_assert!(super::alu_immediate_fits(IntegerWidth::U32, *value));
+                        push_alu_immediate(emit, operation, IntegerWidth::U32, destination, *value);
+                    }
+                    AllocatedOperand::Address(address) => {
+                        push_alu_memory(emit, operation, IntegerWidth::U32, destination, address.clone());
+                    }
+                    rhs => {
+                        push_alu_register(emit, operation, IntegerWidth::U32, destination, verified_register(rhs));
+                    }
+                }
+                emit!(emit.output, X86_64; Opcode::SignExtend32To64 => [register destination, register destination];);
+                return;
+            }
             (OverflowOperation::MultiplyWithOverflow, [destination, source, target_operand]) => {
                 push_overflow_multiply(emit, verified_register(destination), verified_register(source));
                 verified_label(target_operand)
