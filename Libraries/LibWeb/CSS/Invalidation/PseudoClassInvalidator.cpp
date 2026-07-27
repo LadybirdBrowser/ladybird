@@ -16,6 +16,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/StyleInvalidationReason.h>
+#include <LibWeb/HTML/AttributeNames.h>
 
 namespace Web::CSS::Invalidation {
 
@@ -69,18 +70,31 @@ static bool pseudo_class_subject_may_match_element(DOM::Element& element, CSS::S
 
 static bool element_may_match_rule_containing_pseudo_class_in_style_scope(DOM::Element& element, CSS::StyleScope& style_scope, CSS::PseudoClass pseudo_class)
 {
+    auto const& rule_cache = style_scope.get_pseudo_class_rule_cache(pseudo_class);
+
+    auto any_rule_may_match = [&](Vector<CSS::MatchingRule> const& matching_rules) {
+        for (auto const& matching_rule : matching_rules) {
+            if (pseudo_class_subject_may_match_element(element, matching_rule.selector, pseudo_class))
+                return true;
+        }
+        return false;
+    };
+
     bool may_match = false;
     auto abstract_element = DOM::AbstractElement { element };
     Function<bool(u32)> const may_contain_ancestor_hash = [](u32) { return true; };
-    style_scope.get_pseudo_class_rule_cache(pseudo_class).for_each_matching_rules(abstract_element, may_contain_ancestor_hash, [&](auto const& matching_rules) {
-        for (auto const& matching_rule : matching_rules) {
-            if (pseudo_class_subject_may_match_element(element, matching_rule.selector, pseudo_class)) {
-                may_match = true;
-                return IterationDecision::Break;
-            }
-        }
-        return IterationDecision::Continue;
+    rule_cache.for_each_matching_rules(abstract_element, may_contain_ancestor_hash, [&](auto const& matching_rules) {
+        if (!any_rule_may_match(matching_rules))
+            return IterationDecision::Continue;
+        may_match = true;
+        return IterationDecision::Break;
     });
+
+    if (!may_match && element.has_attribute(HTML::AttributeNames::part))
+        may_match = any_rule_may_match(rule_cache.part_rules);
+    if (!may_match && element.assigned_slot_internal())
+        may_match = any_rule_may_match(rule_cache.slotted_rules);
+
     return may_match;
 }
 
