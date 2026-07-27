@@ -86,6 +86,7 @@ Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithS
         return {};
 
     auto const& current_color = layout_node.computed_values().color();
+    auto const current_color_scheme = document.page().preferred_color_scheme();
 
     // Create a bitmap if needed.
     // The cursor size for a given image never changes. It's based either on the image itself, or our default size,
@@ -117,9 +118,7 @@ Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithS
     }
 
     // Repaint the bitmap if necessary
-    if (m_cached_bitmap_color != current_color) {
-        m_cached_bitmap_color = current_color;
-
+    if (m_cached_bitmap_color != current_color || m_cached_bitmap_color_scheme != current_color_scheme) {
         // Clear whatever was in the bitmap before.
         auto& bitmap = *m_cached_bitmap->bitmap();
         auto painter = Gfx::Painter::create(bitmap);
@@ -133,12 +132,16 @@ Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithS
         DisplayListRecordingContext paint_context { display_list_recorder, document.page().palette(), document.page().client().device_pixels_per_css_pixel(), document.page().chrome_metrics() };
 
         image.resolve_for_size(layout_node, CSSPixelSize { bitmap.size() });
-        image.paint(paint_context, document, DevicePixelRect { bitmap.rect() }, ImageRendering::Auto);
+        // A cursor image is not embedded by any element, so it follows the page's own preference.
+        image.paint(paint_context, document, DevicePixelRect { bitmap.rect() }, ImageRendering::Auto, current_color_scheme);
 
         auto painting_surface = Gfx::PaintingSurface::wrap_bitmap(bitmap);
         Painting::DisplayListPlayerSkia display_list_player;
         display_list_player.execute(*display_list, visual_context_tree, resource_storage, {}, painting_surface);
         display_list_player.flush(*painting_surface);
+
+        m_cached_bitmap_color = current_color;
+        m_cached_bitmap_color_scheme = current_color_scheme;
     }
 
     // "If the values are unspecified, then the natural hotspot defined inside the image resource itself is used.

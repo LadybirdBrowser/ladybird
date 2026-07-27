@@ -62,6 +62,7 @@ private:
     ValueComparingRefPtr<StyleValue const> m_y;
 
     mutable Optional<Color> m_cached_bitmap_color;
+    mutable Optional<PreferredColorScheme> m_cached_bitmap_color_scheme;
     mutable Optional<Gfx::ShareableBitmap> m_cached_bitmap;
 };
 

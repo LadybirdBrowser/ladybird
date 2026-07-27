@@ -37,7 +37,7 @@ public:
     virtual void resolve_for_size(Layout::NodeWithStyle const&, CSSPixelSize) const { }
 
     virtual bool is_paintable(DOM::Document const&) const = 0;
-    virtual void paint(DisplayListRecordingContext& context, DOM::Document const&, DevicePixelRect const& dest_rect, ImageRendering) const = 0;
+    virtual void paint(DisplayListRecordingContext& context, DOM::Document const&, DevicePixelRect const& dest_rect, ImageRendering, PreferredColorScheme) const = 0;
 
     virtual Optional<Gfx::Color> color_if_single_pixel_bitmap(DOM::Document const&) const { return {}; }
 

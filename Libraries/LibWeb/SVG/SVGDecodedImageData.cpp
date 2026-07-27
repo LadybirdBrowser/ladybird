@@ -232,13 +232,26 @@ void SVGDecodedImageData::append_paint_command_cache_source_resources(Painting::
     document_paintable->append_paint_command_cache_source_resources(retained_resources);
 }
 
-Optional<Painting::DisplayListResource> SVGDecodedImageData::record_display_list(Gfx::IntSize size, Painting::DisplayListResourceStorage& destination_resource_storage) const
+Optional<Painting::DisplayListResource> SVGDecodedImageData::record_display_list(Gfx::IntSize size, CSS::PreferredColorScheme color_scheme, Painting::DisplayListResourceStorage& destination_resource_storage) const
 {
     ScopedSVGImageDocument scoped_document { *m_page_client, *m_document, ScopedSVGImageDocument::FrameRequests::RouteToCurrentImage, const_cast<SVGDecodedImageData&>(*this) };
     auto& navigable = *m_document->navigable();
     auto& resource_storage = navigable.display_list_resource_storage();
 
-    if (auto it = m_cached_display_lists.find(size); it != m_cached_display_lists.end()) {
+    RenderKey const key { size, color_scheme };
+
+    // `prefers-color-scheme` inside the image answers with the embedding element's used scheme, so
+    // the media query has to be evaluated again whenever that differs from the last recording.
+    if (m_color_scheme != color_scheme) {
+        m_color_scheme = color_scheme;
+        m_cached_rendered_frames.clear();
+        m_cached_rendered_surfaces.clear();
+        m_document->set_svg_image_color_scheme(color_scheme);
+        m_document->style_scope().invalidate_style_cache();
+        m_document->invalidate_style(DOM::StyleInvalidationReason::SettingsChange);
+    }
+
+    if (auto it = m_cached_display_lists.find(key); it != m_cached_display_lists.end()) {
         copy_referenced_resources_to(destination_resource_storage, resource_storage, it->value.referenced_resources);
         return Painting::DisplayListResource { *it->value.display_list, it->value.visual_context_tree };
     }
@@ -277,7 +290,7 @@ Optional<Painting::DisplayListResource> SVGDecodedImageData::record_display_list
     copy_referenced_resources_to(destination_resource_storage, resource_storage, referenced_resources);
     auto visual_context_tree = document_paintable->visual_context_tree();
     auto display_list_resource = Painting::DisplayListResource { *display_list, visual_context_tree };
-    m_cached_display_lists.set(size, CachedDisplayList { NonnullRefPtr<Painting::DisplayList> { *display_list }, move(visual_context_tree), move(referenced_resources) });
+    m_cached_display_lists.set(key, CachedDisplayList { NonnullRefPtr<Painting::DisplayList> { *display_list }, move(visual_context_tree), move(referenced_resources) });
     prune_cached_display_list_resources();
     return display_list_resource;
 }
@@ -297,7 +310,7 @@ RefPtr<Gfx::PaintingSurface> SVGDecodedImageData::render_to_surface(Gfx::IntSize
 
     auto surface = Gfx::PaintingSurface::create_with_size(size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
     Painting::DisplayListResourceStorage resource_storage;
-    auto display_list = record_display_list(size, resource_storage);
+    auto display_list = record_display_list(size, m_color_scheme, resource_storage);
     if (!display_list.has_value())
         return nullptr;
 
@@ -486,9 +499,9 @@ void SVGDecodedImageData::invalidate_cached_rendering()
     prune_cached_display_list_resources();
 }
 
-void SVGDecodedImageData::paint(DisplayListRecordingContext& context, Gfx::IntRect dst_rect, CSS::ImageRendering) const
+void SVGDecodedImageData::paint(DisplayListRecordingContext& context, Gfx::IntRect dst_rect, CSS::ImageRendering, CSS::PreferredColorScheme color_scheme) const
 {
-    auto display_list = record_display_list(dst_rect.size(), context.display_list_recorder().resource_storage());
+    auto display_list = record_display_list(dst_rect.size(), color_scheme, context.display_list_recorder().resource_storage());
     if (!display_list.has_value())
         return;
 

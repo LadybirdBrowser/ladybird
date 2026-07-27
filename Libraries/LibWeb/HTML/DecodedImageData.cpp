@@ -35,7 +35,7 @@ DecodedImageData::DecodedImageData() = default;
 
 DecodedImageData::~DecodedImageData() = default;
 
-Optional<Painting::DisplayListResource> DecodedImageData::record_display_list(Gfx::IntSize, Painting::DisplayListResourceStorage&) const
+Optional<Painting::DisplayListResource> DecodedImageData::record_display_list(Gfx::IntSize, CSS::PreferredColorScheme, Painting::DisplayListResourceStorage&) const
 {
     return {};
 }

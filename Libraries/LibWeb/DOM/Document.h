@@ -561,6 +561,13 @@ public:
         bump_dom_tree_version();
     }
 
+    // The used `color-scheme` of the element referencing this document, when it is an SVG being
+    // used as an image. `prefers-color-scheme` inside such a document answers with it rather than
+    // with the page's preference, and the same image can be referenced twice with different
+    // answers.
+    Optional<CSS::PreferredColorScheme> svg_image_color_scheme() const { return m_svg_image_color_scheme; }
+    void set_svg_image_color_scheme(CSS::PreferredColorScheme color_scheme) { m_svg_image_color_scheme = color_scheme; }
+
     bool parser_cannot_change_the_mode() const { return m_parser_cannot_change_the_mode; }
     void set_parser_cannot_change_the_mode(bool parser_cannot_change_the_mode) { m_parser_cannot_change_the_mode = parser_cannot_change_the_mode; }
 
@@ -1481,6 +1488,7 @@ private:
 
     QuirksMode m_quirks_mode { QuirksMode::No };
 
+    Optional<CSS::PreferredColorScheme> m_svg_image_color_scheme;
     bool m_parser_cannot_change_the_mode { false };
 
     // https://dom.spec.whatwg.org/#concept-document-type

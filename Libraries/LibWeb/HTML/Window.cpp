@@ -554,7 +554,12 @@ Optional<CSS::FeatureValue> Window::query_media_feature(CSS::MediaFeatureID medi
     case CSS::MediaFeatureID::Pointer:
         return CSS::FeatureValue(CSS::FeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Fine));
     case CSS::MediaFeatureID::PrefersColorScheme: {
-        switch (page().preferred_color_scheme()) {
+        // https://github.com/w3c/csswg-drafts/issues/7213
+        // An SVG used as an image answers with the used `color-scheme` of the element referencing
+        // it rather than with the page's preference, and the same image can be referenced twice on
+        // one page with different answers.
+        auto preference = associated_document().svg_image_color_scheme().value_or(page().preferred_color_scheme());
+        switch (preference) {
         case CSS::PreferredColorScheme::Light:
             return CSS::FeatureValue(CSS::FeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Light));
         case CSS::PreferredColorScheme::Dark:

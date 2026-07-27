@@ -251,7 +251,7 @@ Optional<CSSPixelFraction> AnimatedBitmapDecodedImageData::intrinsic_aspect_rati
     return CSSPixels(m_size.width()) / CSSPixels(m_size.height());
 }
 
-void AnimatedBitmapDecodedImageData::paint(DisplayListRecordingContext& context, Gfx::IntRect dst_rect, CSS::ImageRendering image_rendering) const
+void AnimatedBitmapDecodedImageData::paint(DisplayListRecordingContext& context, Gfx::IntRect dst_rect, CSS::ImageRendering image_rendering, CSS::PreferredColorScheme) const
 {
     auto decoded_frame = current_frame();
     if (!decoded_frame.has_value())
