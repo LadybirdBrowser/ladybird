@@ -168,8 +168,16 @@ WebIDL::ExceptionOr<void> SVGLength::set_value(float value)
     if (m_source.has<DetachedSource>())
         m_source.get<DetachedSource>().value = CSS::NumberStyleValue::create(value);
 
-    // FIXME: 4. If the SVGLength reflects the base value of a reflected attribute, reflects a presentation attribute, or
+    // 4. If the SVGLength reflects the base value of a reflected attribute, reflects a presentation attribute, or
     //    reflects an element of the base value of a reflected attribute, then reserialize the reflected attribute.
+    // FIXME: Implement this for "reflects a presentation attribute" and "reflects an element of the base value of a
+    //        reflected attribute" if/when we support those modes.
+    if (m_source.has<ReflectedAttributeSource>()) {
+        // NB: All attribute reflecting lengths should have an associated element
+        VERIFY(m_element);
+
+        m_element->set_attribute_value(m_source.get<ReflectedAttributeSource>().name, Utf16String::number(value));
+    }
 
     return {};
 }
