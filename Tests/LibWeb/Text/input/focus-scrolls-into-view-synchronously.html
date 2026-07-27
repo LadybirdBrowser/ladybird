@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<div style="height: 3000px"></div>
+<button id="button">bottom button</button>
+<script>
+    test(() => {
+        document.getElementById("button").focus();
+        println(`scrollY immediately after focus() is nonzero: ${window.scrollY > 0}`);
+    });
+</script>
