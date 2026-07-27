@@ -6340,18 +6340,24 @@ asm_handler_JumpGreaterThanEquals_cold_end:
 asm_handler_JumpLooselyEquals_cold:
 # Cold paths for JumpLooselyEquals
 .Lasm_JumpLooselyEquals.ssa_block_1:
+    mov esi, DWORD PTR [r14 + r13 + 12]
+    mov edi, DWORD PTR [r14 + r13 + 16]
     mov DWORD PTR [rbx + -64], r13d
+    mov r8, rsi
+    mov r9, rdi
+    mov r11, rdx
+    mov rdx, rcx
+    mov rcx, r11
     mov rdi, QWORD PTR [rbp - 48]
     mov esi, r13d
-    lea rdx, [r14 + r13]
-    call CSYM(asm_slow_path_jump_loosely_equals)
+    call CSYM(asm_slow_path_jump_loosely_equals_values)
     test rax, rax
     js .Lexit
-    mov rcx, QWORD PTR [rbp - 48]
-    mov rbx, QWORD PTR [rcx + 15288]
+    mov r11, QWORD PTR [rbp - 48]
+    mov rbx, QWORD PTR [r11 + 15288]
     add rbx, 120
-    mov rcx, QWORD PTR [rbx + -40]
-    mov r14, QWORD PTR [rcx + 104]
+    mov r11, QWORD PTR [rbx + -40]
+    mov r14, QWORD PTR [r11 + 104]
     mov r13d, eax
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
@@ -6359,18 +6365,24 @@ asm_handler_JumpLooselyEquals_cold_end:
 asm_handler_JumpLooselyInequals_cold:
 # Cold paths for JumpLooselyInequals
 .Lasm_JumpLooselyInequals.ssa_block_1:
+    mov esi, DWORD PTR [r14 + r13 + 12]
+    mov edi, DWORD PTR [r14 + r13 + 16]
     mov DWORD PTR [rbx + -64], r13d
+    mov r8, rsi
+    mov r9, rdi
+    mov r11, rdx
+    mov rdx, rcx
+    mov rcx, r11
     mov rdi, QWORD PTR [rbp - 48]
     mov esi, r13d
-    lea rdx, [r14 + r13]
-    call CSYM(asm_slow_path_jump_loosely_inequals)
+    call CSYM(asm_slow_path_jump_loosely_inequals_values)
     test rax, rax
     js .Lexit
-    mov rcx, QWORD PTR [rbp - 48]
-    mov rbx, QWORD PTR [rcx + 15288]
+    mov r11, QWORD PTR [rbp - 48]
+    mov rbx, QWORD PTR [r11 + 15288]
     add rbx, 120
-    mov rcx, QWORD PTR [rbx + -40]
-    mov r14, QWORD PTR [rcx + 104]
+    mov r11, QWORD PTR [rbx + -40]
+    mov r14, QWORD PTR [r11 + 104]
     mov r13d, eax
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
@@ -6378,18 +6390,21 @@ asm_handler_JumpLooselyInequals_cold_end:
 asm_handler_JumpStrictlyEquals_cold:
 # Cold paths for JumpStrictlyEquals
 .Lasm_JumpStrictlyEquals.ssa_block_1:
+    mov esi, DWORD PTR [r14 + r13 + 12]
+    mov edi, DWORD PTR [r14 + r13 + 16]
     mov DWORD PTR [rbx + -64], r13d
+    mov r8, rsi
+    mov r9, rdi
     mov rdi, QWORD PTR [rbp - 48]
     mov esi, r13d
-    lea rdx, [r14 + r13]
-    call CSYM(asm_slow_path_jump_strictly_equals)
+    call CSYM(asm_slow_path_jump_strictly_equals_values)
     test rax, rax
     js .Lexit
-    mov rcx, QWORD PTR [rbp - 48]
-    mov rbx, QWORD PTR [rcx + 15288]
+    mov r11, QWORD PTR [rbp - 48]
+    mov rbx, QWORD PTR [r11 + 15288]
     add rbx, 120
-    mov rcx, QWORD PTR [rbx + -40]
-    mov r14, QWORD PTR [rcx + 104]
+    mov r11, QWORD PTR [rbx + -40]
+    mov r14, QWORD PTR [r11 + 104]
     mov r13d, eax
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
@@ -6397,18 +6412,21 @@ asm_handler_JumpStrictlyEquals_cold_end:
 asm_handler_JumpStrictlyInequals_cold:
 # Cold paths for JumpStrictlyInequals
 .Lasm_JumpStrictlyInequals.ssa_block_1:
+    mov esi, DWORD PTR [r14 + r13 + 12]
+    mov edi, DWORD PTR [r14 + r13 + 16]
     mov DWORD PTR [rbx + -64], r13d
+    mov r8, rsi
+    mov r9, rdi
     mov rdi, QWORD PTR [rbp - 48]
     mov esi, r13d
-    lea rdx, [r14 + r13]
-    call CSYM(asm_slow_path_jump_strictly_inequals)
+    call CSYM(asm_slow_path_jump_strictly_inequals_values)
     test rax, rax
     js .Lexit
-    mov rcx, QWORD PTR [rbp - 48]
-    mov rbx, QWORD PTR [rcx + 15288]
+    mov r11, QWORD PTR [rbp - 48]
+    mov rbx, QWORD PTR [r11 + 15288]
     add rbx, 120
-    mov rcx, QWORD PTR [rbx + -40]
-    mov r14, QWORD PTR [rcx + 104]
+    mov r11, QWORD PTR [rbx + -40]
+    mov r14, QWORD PTR [r11 + 104]
     mov r13d, eax
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
@@ -7811,18 +7829,21 @@ asm_handler_Mod_cold_end:
 asm_handler_StrictlyEquals_cold:
 # Cold paths for StrictlyEquals
 .Lasm_StrictlyEquals.ssa_block_1:
+    mov esi, DWORD PTR [r14 + r13 + 4]
     mov DWORD PTR [rbx + -64], r13d
+    mov r8, rcx
+    mov rcx, rdx
+    mov rdx, rsi
     mov rdi, QWORD PTR [rbp - 48]
     mov esi, r13d
-    lea rdx, [r14 + r13]
-    call CSYM(asm_slow_path_strictly_equals)
+    call CSYM(asm_slow_path_strictly_equals_values)
     test rax, rax
     js .Lexit
-    mov rcx, QWORD PTR [rbp - 48]
-    mov rbx, QWORD PTR [rcx + 15288]
+    mov r11, QWORD PTR [rbp - 48]
+    mov rbx, QWORD PTR [r11 + 15288]
     add rbx, 120
-    mov rcx, QWORD PTR [rbx + -40]
-    mov r14, QWORD PTR [rcx + 104]
+    mov r11, QWORD PTR [rbx + -40]
+    mov r14, QWORD PTR [r11 + 104]
     mov r13d, eax
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
@@ -7830,18 +7851,21 @@ asm_handler_StrictlyEquals_cold_end:
 asm_handler_StrictlyInequals_cold:
 # Cold paths for StrictlyInequals
 .Lasm_StrictlyInequals.ssa_block_1:
+    mov esi, DWORD PTR [r14 + r13 + 4]
     mov DWORD PTR [rbx + -64], r13d
+    mov r8, rcx
+    mov rcx, rdx
+    mov rdx, rsi
     mov rdi, QWORD PTR [rbp - 48]
     mov esi, r13d
-    lea rdx, [r14 + r13]
-    call CSYM(asm_slow_path_strictly_inequals)
+    call CSYM(asm_slow_path_strictly_inequals_values)
     test rax, rax
     js .Lexit
-    mov rcx, QWORD PTR [rbp - 48]
-    mov rbx, QWORD PTR [rcx + 15288]
+    mov r11, QWORD PTR [rbp - 48]
+    mov rbx, QWORD PTR [r11 + 15288]
     add rbx, 120
-    mov rcx, QWORD PTR [rbx + -40]
-    mov r14, QWORD PTR [rcx + 104]
+    mov r11, QWORD PTR [rbx + -40]
+    mov r14, QWORD PTR [r11 + 104]
     mov r13d, eax
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
@@ -7887,18 +7911,20 @@ asm_handler_DynamicGetCalleeAndThisFromEnvironment_cold_end:
 asm_handler_LooselyEquals_cold:
 # Cold paths for LooselyEquals
 .Lasm_LooselyEquals.ssa_block_1:
+    mov esi, DWORD PTR [r14 + r13 + 4]
     mov DWORD PTR [rbx + -64], r13d
+    mov r8, rdx
+    mov rdx, rsi
     mov rdi, QWORD PTR [rbp - 48]
     mov esi, r13d
-    lea rdx, [r14 + r13]
-    call CSYM(asm_slow_path_loosely_equals)
+    call CSYM(asm_slow_path_loosely_equals_values)
     test rax, rax
     js .Lexit
-    mov rcx, QWORD PTR [rbp - 48]
-    mov rbx, QWORD PTR [rcx + 15288]
+    mov r11, QWORD PTR [rbp - 48]
+    mov rbx, QWORD PTR [r11 + 15288]
     add rbx, 120
-    mov rcx, QWORD PTR [rbx + -40]
-    mov r14, QWORD PTR [rcx + 104]
+    mov r11, QWORD PTR [rbx + -40]
+    mov r14, QWORD PTR [r11 + 104]
     mov r13d, eax
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
@@ -7906,18 +7932,20 @@ asm_handler_LooselyEquals_cold_end:
 asm_handler_LooselyInequals_cold:
 # Cold paths for LooselyInequals
 .Lasm_LooselyInequals.ssa_block_1:
+    mov esi, DWORD PTR [r14 + r13 + 4]
     mov DWORD PTR [rbx + -64], r13d
+    mov r8, rdx
+    mov rdx, rsi
     mov rdi, QWORD PTR [rbp - 48]
     mov esi, r13d
-    lea rdx, [r14 + r13]
-    call CSYM(asm_slow_path_loosely_inequals)
+    call CSYM(asm_slow_path_loosely_inequals_values)
     test rax, rax
     js .Lexit
-    mov rcx, QWORD PTR [rbp - 48]
-    mov rbx, QWORD PTR [rcx + 15288]
+    mov r11, QWORD PTR [rbp - 48]
+    mov rbx, QWORD PTR [r11 + 15288]
     add rbx, 120
-    mov rcx, QWORD PTR [rbx + -40]
-    mov r14, QWORD PTR [rcx + 104]
+    mov r11, QWORD PTR [rbx + -40]
+    mov r14, QWORD PTR [r11 + 104]
     mov r13d, eax
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]

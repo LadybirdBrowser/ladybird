@@ -6270,74 +6270,92 @@ asm_handler_JumpGreaterThanEquals_cold_end:
 asm_handler_JumpLooselyEquals_cold:
 // Cold paths for JumpLooselyEquals
 .Lasm_JumpLooselyEquals.ssa_block_1:
+    ldr w3, [x21, #12]
+    ldr w4, [x21, #16]
+    mov x5, x4
+    mov x4, x3
+    mov x3, x2
+    mov x2, x1
     mov x0, x20
     sub w1, w21, w26
     str w1, [x28, #56]
-    mov x2, x21
-    bl CSYM(asm_slow_path_jump_loosely_equals)
+    bl CSYM(asm_slow_path_jump_loosely_equals_values)
     tbnz x0, #63, .Lexit
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
-    ldr x26, [x9, #104]
+    ldr x0, [x28, #80]
+    ldr x26, [x0, #104]
     add x27, x28, #120
     add x21, x26, w0, uxtw
-    ldrb w9, [x21]
-    ldr x10, [x19, x9, lsl #3]
-    br x10
+    ldrb w0, [x21]
+    ldr x9, [x19, x0, lsl #3]
+    br x9
 asm_handler_JumpLooselyEquals_cold_end:
 asm_handler_JumpLooselyInequals_cold:
 // Cold paths for JumpLooselyInequals
 .Lasm_JumpLooselyInequals.ssa_block_1:
+    ldr w3, [x21, #12]
+    ldr w4, [x21, #16]
+    mov x5, x4
+    mov x4, x3
+    mov x3, x2
+    mov x2, x1
     mov x0, x20
     sub w1, w21, w26
     str w1, [x28, #56]
-    mov x2, x21
-    bl CSYM(asm_slow_path_jump_loosely_inequals)
+    bl CSYM(asm_slow_path_jump_loosely_inequals_values)
     tbnz x0, #63, .Lexit
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
-    ldr x26, [x9, #104]
+    ldr x0, [x28, #80]
+    ldr x26, [x0, #104]
     add x27, x28, #120
     add x21, x26, w0, uxtw
-    ldrb w9, [x21]
-    ldr x10, [x19, x9, lsl #3]
-    br x10
+    ldrb w0, [x21]
+    ldr x9, [x19, x0, lsl #3]
+    br x9
 asm_handler_JumpLooselyInequals_cold_end:
 asm_handler_JumpStrictlyEquals_cold:
 // Cold paths for JumpStrictlyEquals
 .Lasm_JumpStrictlyEquals.ssa_block_1:
+    ldr w3, [x21, #12]
+    ldr w4, [x21, #16]
+    mov x5, x4
+    mov x4, x3
+    mov x3, x1
     mov x0, x20
     sub w1, w21, w26
     str w1, [x28, #56]
-    mov x2, x21
-    bl CSYM(asm_slow_path_jump_strictly_equals)
+    bl CSYM(asm_slow_path_jump_strictly_equals_values)
     tbnz x0, #63, .Lexit
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
-    ldr x26, [x9, #104]
+    ldr x0, [x28, #80]
+    ldr x26, [x0, #104]
     add x27, x28, #120
     add x21, x26, w0, uxtw
-    ldrb w9, [x21]
-    ldr x10, [x19, x9, lsl #3]
-    br x10
+    ldrb w0, [x21]
+    ldr x9, [x19, x0, lsl #3]
+    br x9
 asm_handler_JumpStrictlyEquals_cold_end:
 asm_handler_JumpStrictlyInequals_cold:
 // Cold paths for JumpStrictlyInequals
 .Lasm_JumpStrictlyInequals.ssa_block_1:
+    ldr w3, [x21, #12]
+    ldr w4, [x21, #16]
+    mov x5, x4
+    mov x4, x3
+    mov x3, x1
     mov x0, x20
     sub w1, w21, w26
     str w1, [x28, #56]
-    mov x2, x21
-    bl CSYM(asm_slow_path_jump_strictly_inequals)
+    bl CSYM(asm_slow_path_jump_strictly_inequals_values)
     tbnz x0, #63, .Lexit
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
-    ldr x26, [x9, #104]
+    ldr x0, [x28, #80]
+    ldr x26, [x0, #104]
     add x27, x28, #120
     add x21, x26, w0, uxtw
-    ldrb w9, [x21]
-    ldr x10, [x19, x9, lsl #3]
-    br x10
+    ldrb w0, [x21]
+    ldr x9, [x19, x0, lsl #3]
+    br x9
 asm_handler_JumpStrictlyInequals_cold_end:
 asm_handler_Increment_cold:
 // Cold paths for Increment
@@ -7664,38 +7682,46 @@ asm_handler_Mod_cold_end:
 asm_handler_StrictlyEquals_cold:
 // Cold paths for StrictlyEquals
 .Lasm_StrictlyEquals.ssa_block_1:
+    ldr w3, [x21, #4]
+    mov x4, x1
+    mov x9, x2
+    mov x2, x3
+    mov x3, x9
     mov x0, x20
     sub w1, w21, w26
     str w1, [x28, #56]
-    mov x2, x21
-    bl CSYM(asm_slow_path_strictly_equals)
+    bl CSYM(asm_slow_path_strictly_equals_values)
     tbnz x0, #63, .Lexit
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
-    ldr x26, [x9, #104]
+    ldr x0, [x28, #80]
+    ldr x26, [x0, #104]
     add x27, x28, #120
     add x21, x26, w0, uxtw
-    ldrb w9, [x21]
-    ldr x10, [x19, x9, lsl #3]
-    br x10
+    ldrb w0, [x21]
+    ldr x9, [x19, x0, lsl #3]
+    br x9
 asm_handler_StrictlyEquals_cold_end:
 asm_handler_StrictlyInequals_cold:
 // Cold paths for StrictlyInequals
 .Lasm_StrictlyInequals.ssa_block_1:
+    ldr w3, [x21, #4]
+    mov x4, x1
+    mov x9, x2
+    mov x2, x3
+    mov x3, x9
     mov x0, x20
     sub w1, w21, w26
     str w1, [x28, #56]
-    mov x2, x21
-    bl CSYM(asm_slow_path_strictly_inequals)
+    bl CSYM(asm_slow_path_strictly_inequals_values)
     tbnz x0, #63, .Lexit
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
-    ldr x26, [x9, #104]
+    ldr x0, [x28, #80]
+    ldr x26, [x0, #104]
     add x27, x28, #120
     add x21, x26, w0, uxtw
-    ldrb w9, [x21]
-    ldr x10, [x19, x9, lsl #3]
-    br x10
+    ldrb w0, [x21]
+    ldr x9, [x19, x0, lsl #3]
+    br x9
 asm_handler_StrictlyInequals_cold_end:
 asm_handler_GetCalleeAndThisFromEnvironment_cold:
 // Cold paths for GetCalleeAndThisFromEnvironment
@@ -7736,38 +7762,44 @@ asm_handler_DynamicGetCalleeAndThisFromEnvironment_cold_end:
 asm_handler_LooselyEquals_cold:
 // Cold paths for LooselyEquals
 .Lasm_LooselyEquals.ssa_block_1:
+    ldr w3, [x21, #4]
+    mov x4, x2
+    mov x2, x3
+    mov x3, x1
     mov x0, x20
     sub w1, w21, w26
     str w1, [x28, #56]
-    mov x2, x21
-    bl CSYM(asm_slow_path_loosely_equals)
+    bl CSYM(asm_slow_path_loosely_equals_values)
     tbnz x0, #63, .Lexit
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
-    ldr x26, [x9, #104]
+    ldr x0, [x28, #80]
+    ldr x26, [x0, #104]
     add x27, x28, #120
     add x21, x26, w0, uxtw
-    ldrb w9, [x21]
-    ldr x10, [x19, x9, lsl #3]
-    br x10
+    ldrb w0, [x21]
+    ldr x9, [x19, x0, lsl #3]
+    br x9
 asm_handler_LooselyEquals_cold_end:
 asm_handler_LooselyInequals_cold:
 // Cold paths for LooselyInequals
 .Lasm_LooselyInequals.ssa_block_1:
+    ldr w3, [x21, #4]
+    mov x4, x2
+    mov x2, x3
+    mov x3, x1
     mov x0, x20
     sub w1, w21, w26
     str w1, [x28, #56]
-    mov x2, x21
-    bl CSYM(asm_slow_path_loosely_inequals)
+    bl CSYM(asm_slow_path_loosely_inequals_values)
     tbnz x0, #63, .Lexit
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
-    ldr x26, [x9, #104]
+    ldr x0, [x28, #80]
+    ldr x26, [x0, #104]
     add x27, x28, #120
     add x21, x26, w0, uxtw
-    ldrb w9, [x21]
-    ldr x10, [x19, x9, lsl #3]
-    br x10
+    ldrb w0, [x21]
+    ldr x9, [x19, x0, lsl #3]
+    br x9
 asm_handler_LooselyInequals_cold_end:
 asm_handler_UnaryMinus_cold:
 // Cold paths for UnaryMinus

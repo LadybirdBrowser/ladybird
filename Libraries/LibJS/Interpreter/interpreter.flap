@@ -633,7 +633,7 @@ inline fn store_equality_result(
     slow: SlowPath
 ) {
     let failure = || @cold {
-        call_slow_path(slow);
+        call_binary_slow_path(slow, dst, lhs, rhs);
     };
     let store_true = || {
         store(dst, Value<True>);
@@ -656,7 +656,7 @@ inline fn jump_equality(
     slow: SlowPath
 ) {
     let failure = || @cold {
-        call_slow_path(slow);
+        call_jump_slow_path(slow, lhs, rhs, true_target, false_target);
     };
     let take_true = || {
         jump(true_target);
@@ -1218,7 +1218,7 @@ handler JumpLooselyEquals(
     true_target,
     false_target,
     loose_equality,
-    jump_loosely_equals
+    jump_loosely_equals_values
 );
 
 handler JumpLooselyInequals(
@@ -1232,7 +1232,7 @@ handler JumpLooselyInequals(
     true_target,
     false_target,
     loose_inequality,
-    jump_loosely_inequals
+    jump_loosely_inequals_values
 );
 
 handler JumpStrictlyEquals(
@@ -1246,7 +1246,7 @@ handler JumpStrictlyEquals(
     true_target,
     false_target,
     strict_equality,
-    jump_strictly_equals
+    jump_strictly_equals_values
 );
 
 handler JumpStrictlyInequals(
@@ -1260,7 +1260,7 @@ handler JumpStrictlyInequals(
     true_target,
     false_target,
     strict_inequality,
-    jump_strictly_inequals
+    jump_strictly_inequals_values
 );
 
 handler Increment(
@@ -1885,7 +1885,7 @@ handler StrictlyEquals(
     load(lhs),
     load(rhs),
     strict_equality,
-    strictly_equals
+    strictly_equals_values
 );
 
 handler StrictlyInequals(
@@ -1897,7 +1897,7 @@ handler StrictlyInequals(
     load(lhs),
     load(rhs),
     strict_inequality,
-    strictly_inequals
+    strictly_inequals_values
 );
 
 handler GetCalleeAndThisFromEnvironment(
@@ -1946,7 +1946,7 @@ handler LooselyEquals(
     load(lhs),
     load(rhs),
     loose_equality,
-    loosely_equals
+    loosely_equals_values
 );
 
 handler LooselyInequals(
@@ -1958,7 +1958,7 @@ handler LooselyInequals(
     load(lhs),
     load(rhs),
     loose_inequality,
-    loosely_inequals
+    loosely_inequals_values
 );
 
 handler UnaryMinus(
