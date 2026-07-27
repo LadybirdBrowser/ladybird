@@ -3701,7 +3701,6 @@ asm_handler_UnaryMinus:
     lsr x1, x0, #48
     cmp w1, w22
     b.ne .Lasm_UnaryMinus.ssa_block_6
-    sxtw x0, w0
     cbz w0, .Lasm_UnaryMinus.ssa_block_1
     negs w0, w0
     b.vs .Lasm_UnaryMinus.ssa_block_2
@@ -7226,6 +7225,7 @@ asm_handler_LooselyInequals_cold_end:
 asm_handler_UnaryMinus_cold:
 // Cold paths for UnaryMinus
 .Lasm_UnaryMinus.ssa_block_2:
+    sxtw x0, w0
     scvtf d0, x0
     fmov x0, d0
     ldr w9, [x21, #4]

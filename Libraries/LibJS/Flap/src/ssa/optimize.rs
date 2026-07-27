@@ -1026,7 +1026,8 @@ fn rematerialize_cold_values(function: &mut Function, _: &mut AnalysisManager) -
                                     Operation::Intrinsic(Intrinsic::CheckedInteger(
                                         CheckedIntegerOperation::Add
                                         | CheckedIntegerOperation::Subtract
-                                        | CheckedIntegerOperation::Multiply,
+                                        | CheckedIntegerOperation::Multiply
+                                        | CheckedIntegerOperation::Negate,
                                     )),
                                 inputs,
                                 ..
