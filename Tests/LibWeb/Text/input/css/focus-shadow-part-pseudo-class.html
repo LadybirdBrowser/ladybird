@@ -53,6 +53,8 @@
 
         logState("direct before focus", directControl, directPanel, "direct");
         directControl.focus();
+        // Flush the style the focus invalidated, so that the blur below has to invalidate the part styles by itself.
+        internals.updateStyle();
         logState("direct after focus", directControl, directPanel, "direct");
         directControl.blur();
         logState("direct after blur", directControl, directPanel, "direct");
@@ -79,6 +81,7 @@
 
         logState("forwarded before focus", forwardedControl, forwardedPanel, "forwarded");
         forwardedControl.focus();
+        internals.updateStyle();
         logState("forwarded after focus", forwardedControl, forwardedPanel, "forwarded");
         forwardedControl.blur();
         logState("forwarded after blur", forwardedControl, forwardedPanel, "forwarded");
