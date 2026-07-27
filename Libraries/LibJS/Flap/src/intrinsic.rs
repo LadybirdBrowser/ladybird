@@ -803,6 +803,7 @@ define_named_intrinsic_enum! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
     pub(crate) enum CallOperation {
         SlowPath => "call_slow_path" signatures [signature!([In SlowPath])];
+        BinarySlowPath => "call_binary_slow_path" signatures [signature!([In SlowPath, Out Operand, In Value, In Value])];
         Interpreter => "call_interp" signatures [signature!([In FunctionSymbol] -> I32), signature!([In FunctionSymbol, Out AnyGpr])];
         Helper => "call_helper" signatures [signature!([In FunctionSymbol, In AnyGpr, Out AnyGpr])];
         RawNative => "call_raw_native" signatures [signature!([In AnyGpr] -> (Value, U64)), signature!([In AnyGpr, Out AnyGpr, Out AnyGpr])];
@@ -812,7 +813,7 @@ define_named_intrinsic_enum! {
 impl CallOperation {
     pub(crate) fn result_count(self) -> usize {
         match self {
-            Self::SlowPath => 0,
+            Self::SlowPath | Self::BinarySlowPath => 0,
             Self::Interpreter | Self::Helper => 1,
             Self::RawNative => 2,
         }
@@ -1105,7 +1106,10 @@ impl Intrinsic {
         matches!(
             self,
             Self::Control(operation) if operation.is_terminal()
-        ) || self == Self::Call(CallOperation::SlowPath)
+        ) || matches!(
+            self,
+            Self::Call(CallOperation::SlowPath | CallOperation::BinarySlowPath)
+        )
     }
 }
 

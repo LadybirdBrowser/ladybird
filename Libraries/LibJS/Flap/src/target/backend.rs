@@ -96,6 +96,8 @@ pub(crate) trait Backend: Sync {
 
     fn slow_path_call(&self, emit: &mut Emit<'_>, operands: &[AllocatedOperand]) -> Result<(), CompileError>;
 
+    fn binary_slow_path_call(&self, emit: &mut Emit<'_>, operands: &[AllocatedOperand]) -> Result<(), CompileError>;
+
     fn dispatch_current(&self, emit: &mut Emit<'_>, scratches: &[AllocatedOperand]) -> Result<(), CompileError>;
 
     fn dispatch_variable(

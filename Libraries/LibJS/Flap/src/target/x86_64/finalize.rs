@@ -20,7 +20,7 @@ use crate::target::description::{FloatConversion, FloatingPointOperation};
 use crate::target::finalize_support::{
     AllocatedOperands, Emit, MemoryBranch, finalization_error, finalize_error,
     indexed_pair_store as decode_indexed_pair_store, interpreter_layout, machine_address, pair_access,
-    required_runtime_constant, verified_label, verified_register,
+    required_runtime_constant, schedule_parallel_moves, verified_label, verified_register,
 };
 use crate::target::finalize_support::{memory_branch, push_plain_move};
 use crate::target::ir::{AllocatedOperand, MachineInstruction, MachineMemoryAddress, MachineOpcode, MachineOperand};
@@ -576,8 +576,69 @@ pub(crate) fn interpreter_call_arguments(emit: &mut Emit<'_>) {
     );
 }
 
+fn store_slow_path_program_counter(emit: &mut Emit<'_>) -> Result<(), CompileError> {
+    use crate::target::registers::x86_64::{R13, RBX};
+
+    let [_, _, program_counter, _, values_offset] = interpreter_layout(emit.runtime, emit.handler)?;
+    let program_counter_from_values = program_counter
+        .checked_sub(values_offset)
+        .ok_or_else(|| finalization_error(emit.handler, "execution-context program-counter offset overflow"))?;
+    emit!(emit.output, X86_64; Opcode::StoreAdditiveDisplacement(MemoryWidth::Word) => [address MachineMemoryAddress::offset(RBX, program_counter_from_values), register R13];);
+    Ok(())
+}
+
+fn finish_slow_path_call(
+    emit: &mut Emit<'_>,
+    result_scratch: PhysicalRegister,
+    state_scratch: PhysicalRegister,
+) -> Result<(), CompileError> {
+    use crate::target::registers::x86_64::{R13, R14, RBX};
+
+    let [execution_context, executable, _, bytecode, values_offset] = interpreter_layout(emit.runtime, emit.handler)?;
+    emit!(emit.output, X86_64;
+        Opcode::TestRegister(IntegerWidth::U64) => [register result_scratch];
+        Opcode::JumpNegativeToExit => [];
+    );
+
+    vm_load(emit, state_scratch);
+    push_load(
+        emit,
+        RBX,
+        MachineMemoryAddress::offset(state_scratch, execution_context),
+    );
+    emit!(emit.output, X86_64;
+        Opcode::AluImmediate {
+        operation: super::AluOperation::Add,
+        width: IntegerWidth::U64,
+    } => [register RBX, immediate values_offset];
+    );
+    let executable_from_values = executable
+        .checked_sub(values_offset)
+        .ok_or_else(|| finalization_error(emit.handler, "execution-context executable offset overflow"))?;
+    emit!(emit.output, X86_64;
+        Opcode::LoadAdditiveDisplacement {
+        width: MemoryWidth::DoubleWord,
+        signed: false,
+    } => [register state_scratch, address MachineMemoryAddress::offset(RBX, executable_from_values)];
+    );
+    push_load(emit, R14, MachineMemoryAddress::offset(state_scratch, bytecode));
+    emit!(emit.output, X86_64; Opcode::Move32Register => [register R13, register result_scratch];);
+    dispatch_from_instruction_pointer(emit, result_scratch);
+    Ok(())
+}
+
 fn push_register_move(emit: &mut Emit<'_>, destination: PhysicalRegister, source: PhysicalRegister) {
     emit!(emit.output, X86_64; Opcode::Move64Register => [register destination, register source];);
+}
+
+fn push_parallel_register_moves(
+    emit: &mut Emit<'_>,
+    requested_moves: &[(PhysicalRegister, PhysicalRegister)],
+    scratch: PhysicalRegister,
+) {
+    for (destination, source) in schedule_parallel_moves(requested_moves, scratch) {
+        push_register_move(emit, destination, source);
+    }
 }
 
 fn push_load(emit: &mut Emit<'_>, destination: PhysicalRegister, address: MachineMemoryAddress) {
@@ -798,47 +859,42 @@ impl Backend for X86_64Backend {
     fn slow_path_call(&self, emit: &mut Emit<'_>, operands: &[AllocatedOperand]) -> Result<(), CompileError> {
         let function = operands.relocation(0);
         let [result_scratch, state_scratch] = [operands.physical_register(1), operands.physical_register(2)];
-        use crate::target::registers::x86_64::{R13, R14, RBX};
 
-        let [execution_context, executable, program_counter, bytecode, values_offset] =
-            interpreter_layout(emit.runtime, emit.handler)?;
-        let program_counter_from_values = program_counter
-            .checked_sub(values_offset)
-            .ok_or_else(|| finalization_error(emit.handler, "execution-context program-counter offset overflow"))?;
-        emit!(emit.output, X86_64; Opcode::StoreAdditiveDisplacement(MemoryWidth::Word) => [address MachineMemoryAddress::offset(RBX, program_counter_from_values), register R13];);
-
+        store_slow_path_program_counter(emit)?;
         interpreter_call_arguments(emit);
         direct_call(emit, function);
-        emit!(emit.output, X86_64;
-            Opcode::TestRegister(IntegerWidth::U64) => [register result_scratch];
-            Opcode::JumpNegativeToExit => [];
-        );
+        finish_slow_path_call(emit, result_scratch, state_scratch)
+    }
 
-        vm_load(emit, state_scratch);
-        push_load(
-            emit,
-            RBX,
-            MachineMemoryAddress::offset(state_scratch, execution_context),
-        );
-        emit!(emit.output, X86_64;
-            Opcode::AluImmediate {
-            operation: super::AluOperation::Add,
-            width: IntegerWidth::U64,
-        } => [register RBX, immediate values_offset];
-        );
-        let executable_from_values = executable
-            .checked_sub(values_offset)
-            .ok_or_else(|| finalization_error(emit.handler, "execution-context executable offset overflow"))?;
-        emit!(emit.output, X86_64;
-            Opcode::LoadAdditiveDisplacement {
-            width: MemoryWidth::DoubleWord,
-            signed: false,
-        } => [register state_scratch, address MachineMemoryAddress::offset(RBX, executable_from_values)];
-        );
-        push_load(emit, R14, MachineMemoryAddress::offset(state_scratch, bytecode));
-        emit!(emit.output, X86_64; Opcode::Move32Register => [register R13, register result_scratch];);
-        dispatch_from_instruction_pointer(emit, result_scratch);
-        Ok(())
+    fn binary_slow_path_call(&self, emit: &mut Emit<'_>, operands: &[AllocatedOperand]) -> Result<(), CompileError> {
+        let function = operands.relocation(0);
+        let [destination, lhs, rhs] = [
+            operands.physical_register(1),
+            operands.physical_register(2),
+            operands.physical_register(3),
+        ];
+        let [result_scratch, state_scratch] = [operands.physical_register(4), operands.physical_register(5)];
+        use crate::target::registers::x86_64::{R8, R9, R13, RBP, RCX, RDI, RDX, RSI};
+
+        store_slow_path_program_counter(emit)?;
+        if emit.object_format == ObjectFormat::Coff {
+            store(
+                emit,
+                MemoryWidth::DoubleWord,
+                MachineMemoryAddress::offset(RBP, super::WIN64_RAW_NATIVE_RETURN_SLOT),
+                StoreSource::Register(rhs),
+                None,
+            );
+            push_parallel_register_moves(emit, &[(R8, destination), (R9, lhs)], state_scratch);
+            vm_load(emit, RCX);
+            emit!(emit.output, X86_64; Opcode::Move32Register => [register RDX, register R13];);
+        } else {
+            push_parallel_register_moves(emit, &[(RDX, destination), (RCX, lhs), (R8, rhs)], state_scratch);
+            vm_load(emit, RDI);
+            emit!(emit.output, X86_64; Opcode::Move32Register => [register RSI, register R13];);
+        }
+        direct_call(emit, function);
+        finish_slow_path_call(emit, result_scratch, state_scratch)
     }
 
     fn dispatch_current(&self, emit: &mut Emit<'_>, scratches: &[AllocatedOperand]) -> Result<(), CompileError> {

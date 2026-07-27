@@ -236,6 +236,7 @@ fn finalize_call(
         CallKind::Interpreter => backend.interpreter_call(emit, operands.relocation(0)),
         CallKind::RawNative => backend.raw_native_call(emit, operands),
         CallKind::SlowPath => backend.slow_path_call(emit, operands)?,
+        CallKind::BinarySlowPath => backend.binary_slow_path_call(emit, operands)?,
     }
     Ok(())
 }

@@ -21,7 +21,7 @@ use crate::target::description::{
 use crate::target::finalize_support::{
     AllocatedOperands, Emit, MemoryBranch, finalization_error, finalize_error,
     indexed_pair_store as decode_indexed_pair_store, interpreter_layout, machine_address, operand_register,
-    pair_access, pair_element_size, verified_label, verified_register,
+    pair_access, pair_element_size, schedule_parallel_moves, verified_label, verified_register,
 };
 use crate::target::finalize_support::{memory_branch, push_plain_move};
 use crate::target::ir::{
@@ -851,6 +851,77 @@ pub(crate) fn instruction_argument(emit: &mut Emit<'_>) {
     emit!(emit.output, Aarch64; Opcode::MoveRegister(IntegerWidth::U64) => [register X2, register X21];);
 }
 
+fn push_parallel_register_moves(
+    emit: &mut Emit<'_>,
+    requested_moves: &[(PhysicalRegister, PhysicalRegister)],
+    scratch: PhysicalRegister,
+) {
+    for (destination, source) in schedule_parallel_moves(requested_moves, scratch) {
+        emit!(emit.output, Aarch64; Opcode::MoveRegister(IntegerWidth::U64) => [register destination, register source];);
+    }
+}
+
+fn store_slow_path_program_counter(
+    emit: &mut Emit<'_>,
+    dispatch_register: PhysicalRegister,
+    dispatch_scratch: PhysicalRegister,
+) -> Result<(), CompileError> {
+    use crate::target::registers::aarch64::{X1, X28};
+
+    let [_, _, program_counter, _, _] = interpreter_layout(emit.runtime, emit.handler)?;
+    store(
+        emit,
+        MemoryWidth::Word,
+        MachineMemoryAddress::offset(X28, program_counter),
+        StoreSource::Register(X1),
+        [dispatch_register, dispatch_scratch],
+    )
+    .map_err(|error| memory_address_compile_error(emit.handler, error))
+}
+
+fn finish_slow_path_call(
+    emit: &mut Emit<'_>,
+    dispatch_register: PhysicalRegister,
+    dispatch_scratch: PhysicalRegister,
+) -> Result<(), CompileError> {
+    use crate::target::registers::aarch64::{X0, X20, X26, X27, X28};
+
+    let [execution_context, executable, _, bytecode, values_offset] = interpreter_layout(emit.runtime, emit.handler)?;
+    emit!(emit.output, Aarch64; Opcode::BranchBitSetToExit(63) => [register X0];);
+
+    load(
+        emit,
+        MemoryWidth::DoubleWord,
+        false,
+        X28,
+        MachineMemoryAddress::offset(X20, execution_context),
+        &[dispatch_register, dispatch_scratch],
+    )
+    .map_err(|error| memory_address_compile_error(emit.handler, error))?;
+    load(
+        emit,
+        MemoryWidth::DoubleWord,
+        false,
+        dispatch_register,
+        MachineMemoryAddress::offset(X28, executable),
+        &[dispatch_register, dispatch_scratch],
+    )
+    .map_err(|error| memory_address_compile_error(emit.handler, error))?;
+    load(
+        emit,
+        MemoryWidth::DoubleWord,
+        false,
+        X26,
+        MachineMemoryAddress::offset(dispatch_register, bytecode),
+        &[dispatch_register, dispatch_scratch],
+    )
+    .map_err(|error| memory_address_compile_error(emit.handler, error))?;
+    address_offset(emit, X27, X28, values_offset, dispatch_register);
+    emit!(emit.output, Aarch64; Opcode::SetInstructionPointer => [register X0];);
+    dispatch_from_instruction_pointer(emit, dispatch_register, dispatch_scratch)
+        .map_err(|error| memory_address_compile_error(emit.handler, error))
+}
+
 fn dispatch_from_instruction_pointer(
     emit: &mut Emit<'_>,
     opcode_scratch: PhysicalRegister,
@@ -1131,55 +1202,29 @@ impl Backend for Aarch64Backend {
     fn slow_path_call(&self, emit: &mut Emit<'_>, operands: &[AllocatedOperand]) -> Result<(), CompileError> {
         let function = operands.relocation(0);
         let [dispatch_register, dispatch_scratch] = [operands.physical_register(1), operands.physical_register(2)];
-        use crate::target::registers::aarch64::{X0, X1, X20, X26, X27, X28};
-
-        let [execution_context, executable, program_counter, bytecode, values_offset] =
-            interpreter_layout(emit.runtime, emit.handler)?;
 
         vm_pc_arguments(emit);
-        store(
-            emit,
-            MemoryWidth::Word,
-            MachineMemoryAddress::offset(X28, program_counter),
-            StoreSource::Register(X1),
-            [dispatch_register, dispatch_scratch],
-        )
-        .map_err(|error| memory_address_compile_error(emit.handler, error))?;
+        store_slow_path_program_counter(emit, dispatch_register, dispatch_scratch)?;
         instruction_argument(emit);
         direct_call(emit, function);
-        emit!(emit.output, Aarch64; Opcode::BranchBitSetToExit(63) => [register X0];);
+        finish_slow_path_call(emit, dispatch_register, dispatch_scratch)
+    }
 
-        load(
-            emit,
-            MemoryWidth::DoubleWord,
-            false,
-            X28,
-            MachineMemoryAddress::offset(X20, execution_context),
-            &[dispatch_register, dispatch_scratch],
-        )
-        .map_err(|error| memory_address_compile_error(emit.handler, error))?;
-        load(
-            emit,
-            MemoryWidth::DoubleWord,
-            false,
-            dispatch_register,
-            MachineMemoryAddress::offset(X28, executable),
-            &[dispatch_register, dispatch_scratch],
-        )
-        .map_err(|error| memory_address_compile_error(emit.handler, error))?;
-        load(
-            emit,
-            MemoryWidth::DoubleWord,
-            false,
-            X26,
-            MachineMemoryAddress::offset(dispatch_register, bytecode),
-            &[dispatch_register, dispatch_scratch],
-        )
-        .map_err(|error| memory_address_compile_error(emit.handler, error))?;
-        address_offset(emit, X27, X28, values_offset, dispatch_register);
-        emit!(emit.output, Aarch64; Opcode::SetInstructionPointer => [register X0];);
-        dispatch_from_instruction_pointer(emit, dispatch_register, dispatch_scratch)
-            .map_err(|error| memory_address_compile_error(emit.handler, error))
+    fn binary_slow_path_call(&self, emit: &mut Emit<'_>, operands: &[AllocatedOperand]) -> Result<(), CompileError> {
+        let function = operands.relocation(0);
+        let [destination, lhs, rhs] = [
+            operands.physical_register(1),
+            operands.physical_register(2),
+            operands.physical_register(3),
+        ];
+        let [dispatch_register, dispatch_scratch] = [operands.physical_register(4), operands.physical_register(5)];
+        use crate::target::registers::aarch64::{X2, X3, X4};
+
+        push_parallel_register_moves(emit, &[(X2, destination), (X3, lhs), (X4, rhs)], dispatch_scratch);
+        vm_pc_arguments(emit);
+        store_slow_path_program_counter(emit, dispatch_register, dispatch_scratch)?;
+        direct_call(emit, function);
+        finish_slow_path_call(emit, dispatch_register, dispatch_scratch)
     }
 
     fn dispatch_current(&self, emit: &mut Emit<'_>, scratches: &[AllocatedOperand]) -> Result<(), CompileError> {
