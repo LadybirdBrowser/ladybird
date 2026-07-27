@@ -918,7 +918,11 @@ impl Lowerer<'_> {
             let next = if index + 1 == arms.len() {
                 fallback.clone()
             } else {
-                let layout = if self.function.blocks[test_block.0].layout == BlockLayout::Cold {
+                let remaining_is_cold = arms[index + 1..]
+                    .iter()
+                    .all(|(_, block)| self.function.blocks[block.0].layout == BlockLayout::Cold)
+                    && self.function.blocks[fallback.block.0].layout == BlockLayout::Cold;
+                let layout = if remaining_is_cold {
                     BlockLayout::Cold
                 } else {
                     BlockLayout::Hot
@@ -1948,6 +1952,29 @@ handler Match(value: Value, nested: Value) {
                 .filter(|block| block.name.as_deref() == Some("value_match_test_1"))
                 .any(|block| block.layout == BlockLayout::Cold)
         );
+        function.validate().unwrap();
+    }
+
+    #[test]
+    fn outlines_an_all_cold_value_match_tail() {
+        let function = lower_source(
+            r#"
+handler Match(value: Value) {
+    match value {
+        Value<i32> => { dispatch_next; },
+        Value<f64> => @cold { dispatch_next; },
+        _ => @cold { dispatch_next; },
+    }
+}
+"#,
+        );
+
+        let test = function
+            .blocks
+            .iter()
+            .find(|block| block.name.as_deref() == Some("value_match_test_1"))
+            .unwrap();
+        assert_eq!(test.layout, BlockLayout::Cold);
         function.validate().unwrap();
     }
 }

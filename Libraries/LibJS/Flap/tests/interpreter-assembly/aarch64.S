@@ -1401,16 +1401,6 @@ asm_handler_Add:
     add x21, x21, #16
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_Add.ssa_block_8:
-    and w3, w3, #0x7ff8
-    cmp w3, w24
-    b.ne .Lasm_Add.ssa_block_7
-    b .Lasm_Add.ssa_block_1
-.Lasm_Add.ssa_block_5:
-    and w2, w2, #0x7ff8
-    cmp w2, w24
-    b.ne .Lasm_Add.ssa_block_4
-    b .Lasm_Add.ssa_block_1
 asm_handler_Add_hot_end:
 
 .p2align 4
@@ -1436,16 +1426,6 @@ asm_handler_Sub:
     add x21, x21, #16
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_Sub.ssa_block_8:
-    and w3, w3, #0x7ff8
-    cmp w3, w24
-    b.ne .Lasm_Sub.ssa_block_7
-    b .Lasm_Sub.ssa_block_1
-.Lasm_Sub.ssa_block_5:
-    and w2, w2, #0x7ff8
-    cmp w2, w24
-    b.ne .Lasm_Sub.ssa_block_4
-    b .Lasm_Sub.ssa_block_1
 asm_handler_Sub_hot_end:
 
 .p2align 4
@@ -1477,16 +1457,6 @@ asm_handler_Mul:
     add x21, x21, #16
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_Mul.ssa_block_9:
-    and w3, w3, #0x7ff8
-    cmp w3, w24
-    b.ne .Lasm_Mul.ssa_block_8
-    b .Lasm_Mul.ssa_block_1
-.Lasm_Mul.ssa_block_6:
-    and w2, w2, #0x7ff8
-    cmp w2, w24
-    b.ne .Lasm_Mul.ssa_block_5
-    b .Lasm_Mul.ssa_block_1
 asm_handler_Mul_hot_end:
 
 .p2align 4
@@ -3131,11 +3101,6 @@ asm_handler_UnaryPlus:
     add x21, x21, #16
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_UnaryPlus.ssa_block_4:
-    and w1, w1, #0x7ff8
-    cmp w1, w24
-    b.ne .Lasm_UnaryPlus.ssa_block_2
-    b .Lasm_UnaryPlus.ssa_block_3
 asm_handler_UnaryPlus_hot_end:
 
 .p2align 4
@@ -3755,11 +3720,6 @@ asm_handler_UnaryMinus:
     add x21, x21, #16
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_UnaryMinus.ssa_block_6:
-    and w1, w1, #0x7ff8
-    cmp w1, w24
-    b.ne .Lasm_UnaryMinus.ssa_block_4
-    b .Lasm_UnaryMinus.ssa_block_5
 asm_handler_UnaryMinus_hot_end:
 
 .p2align 4
@@ -5419,11 +5379,6 @@ asm_handler_AddRhsInt32:
     add x21, x21, #16
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_AddRhsInt32.ssa_block_5:
-    and w2, w2, #0x7ff8
-    cmp w2, w24
-    b.ne .Lasm_AddRhsInt32.ssa_block_4
-    b .Lasm_AddRhsInt32.ssa_block_1
 asm_handler_AddRhsInt32_hot_end:
 
 // Cold handler paths
@@ -5443,11 +5398,17 @@ asm_handler_Add_cold:
     add x21, x21, #16
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_Add.ssa_block_7:
+.Lasm_Add.ssa_block_8:
+    and w3, w3, #0x7ff8
+    cmp w3, w24
+    b.eq .Lasm_Add.ssa_block_1
     fmov d1, x0
     scvtf d0, x2
     b .Lasm_Add.ssa_block_2
-.Lasm_Add.ssa_block_4:
+.Lasm_Add.ssa_block_5:
+    and w2, w2, #0x7ff8
+    cmp w2, w24
+    b.eq .Lasm_Add.ssa_block_1
     lsr x2, x0, #48
     fmov d0, x1
     cmp w2, w22
@@ -5522,11 +5483,17 @@ asm_handler_Sub_cold:
     add x21, x21, #16
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_Sub.ssa_block_7:
+.Lasm_Sub.ssa_block_8:
+    and w3, w3, #0x7ff8
+    cmp w3, w24
+    b.eq .Lasm_Sub.ssa_block_1
     fmov d1, x0
     scvtf d0, x2
     b .Lasm_Sub.ssa_block_2
-.Lasm_Sub.ssa_block_4:
+.Lasm_Sub.ssa_block_5:
+    and w2, w2, #0x7ff8
+    cmp w2, w24
+    b.eq .Lasm_Sub.ssa_block_1
     lsr x2, x0, #48
     fmov d0, x1
     cmp w2, w22
@@ -5601,11 +5568,17 @@ asm_handler_Mul_cold:
     add x21, x21, #16
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_Mul.ssa_block_8:
+.Lasm_Mul.ssa_block_9:
+    and w3, w3, #0x7ff8
+    cmp w3, w24
+    b.eq .Lasm_Mul.ssa_block_1
     fmov d1, x0
     scvtf d0, x2
     b .Lasm_Mul.ssa_block_2
-.Lasm_Mul.ssa_block_5:
+.Lasm_Mul.ssa_block_6:
+    and w2, w2, #0x7ff8
+    cmp w2, w24
+    b.eq .Lasm_Mul.ssa_block_1
     lsr x2, x0, #48
     fmov d0, x1
     cmp w2, w22
@@ -6656,14 +6629,10 @@ asm_handler_BitwiseXor_cold:
 asm_handler_BitwiseXor_cold_end:
 asm_handler_UnaryPlus_cold:
 // Cold paths for UnaryPlus
-.Lasm_UnaryPlus.ssa_block_2:
-    ldr w9, [x21, #4]
-    str x0, [x27, x9, lsl #3]
-    ldrb w9, [x21, #16]
-    add x21, x21, #16
-    ldr x10, [x19, x9, lsl #3]
-    br x10
-.Lasm_UnaryPlus.ssa_block_3:
+.Lasm_UnaryPlus.ssa_block_4:
+    and w1, w1, #0x7ff8
+    cmp w1, w24
+    b.ne .Lasm_UnaryPlus.ssa_block_2
     mov x0, x20
     sub w1, w21, w26
     str w1, [x28, #56]
@@ -6676,6 +6645,13 @@ asm_handler_UnaryPlus_cold:
     add x27, x28, #120
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_UnaryPlus.ssa_block_2:
+    ldr w9, [x21, #4]
+    str x0, [x27, x9, lsl #3]
+    ldrb w9, [x21, #16]
+    add x21, x21, #16
     ldr x10, [x19, x9, lsl #3]
     br x10
 asm_handler_UnaryPlus_cold_end:
@@ -7259,7 +7235,10 @@ asm_handler_UnaryMinus_cold:
     add x21, x21, #16
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_UnaryMinus.ssa_block_4:
+.Lasm_UnaryMinus.ssa_block_6:
+    and w1, w1, #0x7ff8
+    cmp w1, w24
+    b.eq .Lasm_UnaryMinus.ssa_block_5
     eor x0, x0, #0x8000000000000000
     ldr w9, [x21, #4]
     str x0, [x27, x9, lsl #3]
@@ -9209,15 +9188,25 @@ asm_handler_MovUndefined3_cold:
 asm_handler_MovUndefined3_cold_end:
 asm_handler_AddRhsInt32_cold:
 // Cold paths for AddRhsInt32
-.Lasm_AddRhsInt32.ssa_block_8:
-    scvtf d0, x1
-    scvtf d1, x0
-    fadd d0, d0, d1
-    fmov x0, d0
-    ldr w9, [x21, #4]
-    str x0, [x27, x9, lsl #3]
-    ldrb w9, [x21, #16]
-    add x21, x21, #16
+.Lasm_AddRhsInt32.ssa_block_5:
+    and w2, w2, #0x7ff8
+    cmp w2, w24
+    b.ne .Lasm_AddRhsInt32.ssa_block_4
+    ldr w0, [x21, #4]
+    mov x2, x0
+    mov x4, x3
+    mov x3, x1
+    mov x0, x20
+    sub w1, w21, w26
+    str w1, [x28, #56]
+    bl CSYM(asm_slow_path_add_values)
+    tbnz x0, #63, .Lexit
+    ldr x28, [x20, #15288]
+    ldr x9, [x28, #80]
+    ldr x26, [x9, #104]
+    add x27, x28, #120
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
     br x10
 .Lasm_AddRhsInt32.ssa_block_4:
@@ -9250,22 +9239,15 @@ asm_handler_AddRhsInt32_cold:
     add x21, x21, #16
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_AddRhsInt32.ssa_block_1:
-    ldr w0, [x21, #4]
-    mov x2, x0
-    mov x4, x3
-    mov x3, x1
-    mov x0, x20
-    sub w1, w21, w26
-    str w1, [x28, #56]
-    bl CSYM(asm_slow_path_add_values)
-    tbnz x0, #63, .Lexit
-    ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
-    ldr x26, [x9, #104]
-    add x27, x28, #120
-    add x21, x26, w0, uxtw
-    ldrb w9, [x21]
+.Lasm_AddRhsInt32.ssa_block_8:
+    scvtf d0, x1
+    scvtf d1, x0
+    fadd d0, d0, d1
+    fmov x0, d0
+    ldr w9, [x21, #4]
+    str x0, [x27, x9, lsl #3]
+    ldrb w9, [x21, #16]
+    add x21, x21, #16
     ldr x10, [x19, x9, lsl #3]
     br x10
 .Lasm_AddRhsInt32.canon_nan_0:

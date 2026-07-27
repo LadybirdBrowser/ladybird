@@ -1386,16 +1386,6 @@ asm_handler_Add:
     add r13d, 16
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
-.Lasm_Add.ssa_block_8:
-    and si, 32760
-    cmp si, 32760
-    jne .Lasm_Add.ssa_block_7
-    jmp .Lasm_Add.ssa_block_1
-.Lasm_Add.ssa_block_5:
-    and ax, 32760
-    cmp ax, 32760
-    jne .Lasm_Add.ssa_block_4
-    jmp .Lasm_Add.ssa_block_1
 asm_handler_Add_hot_end:
 
 .p2align 6
@@ -1423,16 +1413,6 @@ asm_handler_Sub:
     add r13d, 16
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
-.Lasm_Sub.ssa_block_8:
-    and si, 32760
-    cmp si, 32760
-    jne .Lasm_Sub.ssa_block_7
-    jmp .Lasm_Sub.ssa_block_1
-.Lasm_Sub.ssa_block_5:
-    and ax, 32760
-    cmp ax, 32760
-    jne .Lasm_Sub.ssa_block_4
-    jmp .Lasm_Sub.ssa_block_1
 asm_handler_Sub_hot_end:
 
 .p2align 6
@@ -1465,16 +1445,6 @@ asm_handler_Mul:
     add r13d, 16
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
-.Lasm_Mul.ssa_block_9:
-    and si, 32760
-    cmp si, 32760
-    jne .Lasm_Mul.ssa_block_8
-    jmp .Lasm_Mul.ssa_block_1
-.Lasm_Mul.ssa_block_6:
-    and ax, 32760
-    cmp ax, 32760
-    jne .Lasm_Mul.ssa_block_5
-    jmp .Lasm_Mul.ssa_block_1
 asm_handler_Mul_hot_end:
 
 .p2align 6
@@ -3135,11 +3105,6 @@ asm_handler_UnaryPlus:
     add r13d, 16
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
-.Lasm_UnaryPlus.ssa_block_4:
-    and cx, 32760
-    cmp cx, 32760
-    jne .Lasm_UnaryPlus.ssa_block_2
-    jmp .Lasm_UnaryPlus.ssa_block_3
 asm_handler_UnaryPlus_hot_end:
 
 .p2align 6
@@ -3766,11 +3731,6 @@ asm_handler_UnaryMinus:
     add r13d, 16
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
-.Lasm_UnaryMinus.ssa_block_6:
-    and cx, 32760
-    cmp cx, 32760
-    jne .Lasm_UnaryMinus.ssa_block_4
-    jmp .Lasm_UnaryMinus.ssa_block_5
 asm_handler_UnaryMinus_hot_end:
 
 .p2align 6
@@ -5493,11 +5453,6 @@ asm_handler_AddRhsInt32:
     add r13d, 16
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
-.Lasm_AddRhsInt32.ssa_block_5:
-    and dx, 32760
-    cmp dx, 32760
-    jne .Lasm_AddRhsInt32.ssa_block_4
-    jmp .Lasm_AddRhsInt32.ssa_block_1
 asm_handler_AddRhsInt32_hot_end:
 
 # Cold handler paths
@@ -5516,11 +5471,17 @@ asm_handler_Add_cold:
     add r13d, 16
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
-.Lasm_Add.ssa_block_7:
+.Lasm_Add.ssa_block_8:
+    and si, 32760
+    cmp si, 32760
+    je .Lasm_Add.ssa_block_1
     movq xmm1, rcx
     cvtsi2sd xmm0, rax
     jmp .Lasm_Add.ssa_block_2
-.Lasm_Add.ssa_block_4:
+.Lasm_Add.ssa_block_5:
+    and ax, 32760
+    cmp ax, 32760
+    je .Lasm_Add.ssa_block_1
     mov rax, rcx
     shr rax, 48
     movq xmm0, rdx
@@ -5600,11 +5561,17 @@ asm_handler_Sub_cold:
     add r13d, 16
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
-.Lasm_Sub.ssa_block_7:
+.Lasm_Sub.ssa_block_8:
+    and si, 32760
+    cmp si, 32760
+    je .Lasm_Sub.ssa_block_1
     movq xmm1, rcx
     cvtsi2sd xmm0, rax
     jmp .Lasm_Sub.ssa_block_2
-.Lasm_Sub.ssa_block_4:
+.Lasm_Sub.ssa_block_5:
+    and ax, 32760
+    cmp ax, 32760
+    je .Lasm_Sub.ssa_block_1
     mov rax, rcx
     shr rax, 48
     movq xmm0, rdx
@@ -5684,11 +5651,17 @@ asm_handler_Mul_cold:
     add r13d, 16
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
-.Lasm_Mul.ssa_block_8:
+.Lasm_Mul.ssa_block_9:
+    and si, 32760
+    cmp si, 32760
+    je .Lasm_Mul.ssa_block_1
     movq xmm1, rcx
     cvtsi2sd xmm0, rax
     jmp .Lasm_Mul.ssa_block_2
-.Lasm_Mul.ssa_block_5:
+.Lasm_Mul.ssa_block_6:
+    and ax, 32760
+    cmp ax, 32760
+    je .Lasm_Mul.ssa_block_1
     mov rax, rcx
     shr rax, 48
     movq xmm0, rdx
@@ -6795,13 +6768,10 @@ asm_handler_BitwiseXor_cold:
 asm_handler_BitwiseXor_cold_end:
 asm_handler_UnaryPlus_cold:
 # Cold paths for UnaryPlus
-.Lasm_UnaryPlus.ssa_block_2:
-    mov r11d, DWORD PTR [r14 + r13 + 4]
-    mov QWORD PTR [rbx + r11 * 8], rax
-    add r13d, 16
-    movzx eax, BYTE PTR [r14 + r13]
-    jmp [r12 + rax * 8]
-.Lasm_UnaryPlus.ssa_block_3:
+.Lasm_UnaryPlus.ssa_block_4:
+    and cx, 32760
+    cmp cx, 32760
+    jne .Lasm_UnaryPlus.ssa_block_2
     mov DWORD PTR [rbx + -64], r13d
     mov rdi, QWORD PTR [rbp - 48]
     mov esi, r13d
@@ -6815,6 +6785,12 @@ asm_handler_UnaryPlus_cold:
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 104]
     mov r13d, eax
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+.Lasm_UnaryPlus.ssa_block_2:
+    mov r11d, DWORD PTR [r14 + r13 + 4]
+    mov QWORD PTR [rbx + r11 * 8], rax
+    add r13d, 16
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
 asm_handler_UnaryPlus_cold_end:
@@ -7434,7 +7410,10 @@ asm_handler_UnaryMinus_cold:
     add r13d, 16
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
-.Lasm_UnaryMinus.ssa_block_4:
+.Lasm_UnaryMinus.ssa_block_6:
+    and cx, 32760
+    cmp cx, 32760
+    je .Lasm_UnaryMinus.ssa_block_5
     btc rax, 63
     mov r11d, DWORD PTR [r14 + r13 + 4]
     mov QWORD PTR [rbx + r11 * 8], rax
@@ -9471,14 +9450,24 @@ asm_handler_MovUndefined3_cold:
 asm_handler_MovUndefined3_cold_end:
 asm_handler_AddRhsInt32_cold:
 # Cold paths for AddRhsInt32
-.Lasm_AddRhsInt32.ssa_block_8:
-    cvtsi2sd xmm0, rcx
-    cvtsi2sd xmm1, rax
-    addsd xmm0, xmm1
-    movq rax, xmm0
-    mov r11d, DWORD PTR [r14 + r13 + 4]
-    mov QWORD PTR [rbx + r11 * 8], rax
-    add r13d, 16
+.Lasm_AddRhsInt32.ssa_block_5:
+    and dx, 32760
+    cmp dx, 32760
+    jne .Lasm_AddRhsInt32.ssa_block_4
+    mov edx, DWORD PTR [r14 + r13 + 4]
+    mov DWORD PTR [rbx + -64], r13d
+    mov r8, rsi
+    mov rdi, QWORD PTR [rbp - 48]
+    mov esi, r13d
+    call CSYM(asm_slow_path_add_values)
+    test rax, rax
+    js .Lexit
+    mov r11, QWORD PTR [rbp - 48]
+    mov rbx, QWORD PTR [r11 + 15288]
+    add rbx, 120
+    mov r11, QWORD PTR [rbx + -40]
+    mov r14, QWORD PTR [r11 + 104]
+    mov r13d, eax
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
 .Lasm_AddRhsInt32.ssa_block_4:
@@ -9514,21 +9503,14 @@ asm_handler_AddRhsInt32_cold:
     add r13d, 16
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
-.Lasm_AddRhsInt32.ssa_block_1:
-    mov edx, DWORD PTR [r14 + r13 + 4]
-    mov DWORD PTR [rbx + -64], r13d
-    mov r8, rsi
-    mov rdi, QWORD PTR [rbp - 48]
-    mov esi, r13d
-    call CSYM(asm_slow_path_add_values)
-    test rax, rax
-    js .Lexit
-    mov r11, QWORD PTR [rbp - 48]
-    mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
-    mov r11, QWORD PTR [rbx + -40]
-    mov r14, QWORD PTR [r11 + 104]
-    mov r13d, eax
+.Lasm_AddRhsInt32.ssa_block_8:
+    cvtsi2sd xmm0, rcx
+    cvtsi2sd xmm1, rax
+    addsd xmm0, xmm1
+    movq rax, xmm0
+    mov r11d, DWORD PTR [r14 + r13 + 4]
+    mov QWORD PTR [rbx + r11 * 8], rax
+    add r13d, 16
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
 .Lasm_AddRhsInt32.canon_nan_0:
