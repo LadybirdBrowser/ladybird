@@ -681,12 +681,12 @@ void LayoutState::UsedValues::set_indefinite_content_block_size()
 void LayoutState::register_contained_abspos_child(Box const& target, Box const& child, StaticPositionRect const& static_position_rect)
 {
     auto& children = m_contained_abspos_children.ensure(&target);
-    // Entries are inserted in layout index order so consumption follows document order.
+    // Entries are inserted in tree order so consumption follows document order.
     size_t insertion_index = children.size();
     for (size_t i = 0; i < children.size(); ++i) {
         // Every box is laid out at most once per state, so it can only be registered once.
         VERIFY(children[i].box != &child);
-        if (insertion_index == children.size() && child.layout_index() < children[i].box->layout_index())
+        if (insertion_index == children.size() && child.is_before(*children[i].box))
             insertion_index = i;
     }
     children.insert(insertion_index, { &child, static_position_rect });
