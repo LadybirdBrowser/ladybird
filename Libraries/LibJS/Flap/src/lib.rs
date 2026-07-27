@@ -52,6 +52,20 @@ pub fn validate_specializations(
 }
 use types::BlockTemperature;
 
+/// Generates a C++ probe that exposes the requested layout values as object symbols.
+pub fn generate_layout_probe(spec: &str) -> Result<String, String> {
+    frontend::layout_source::generate_probe(spec)
+}
+
+/// Reads the layout database out of a target object compiled from `generate_layout_probe()`.
+pub fn read_layout_from_object(
+    spec: &str,
+    objdump_path: &std::path::Path,
+    object_path: &std::path::Path,
+) -> Result<String, String> {
+    frontend::layout_source::read_object(spec, objdump_path, object_path)
+}
+
 pub use frontend::diagnostic::{SourceLocation, SourceSpan};
 pub use low_ir::Program as LowProgram;
 pub use ssa::report::{
