@@ -1227,6 +1227,28 @@ impl Backend for Aarch64Backend {
         finish_slow_path_call(emit, dispatch_register, dispatch_scratch)
     }
 
+    fn jump_slow_path_call(&self, emit: &mut Emit<'_>, operands: &[AllocatedOperand]) -> Result<(), CompileError> {
+        let function = operands.relocation(0);
+        let [lhs, rhs, true_target, false_target] = [
+            operands.physical_register(1),
+            operands.physical_register(2),
+            operands.physical_register(3),
+            operands.physical_register(4),
+        ];
+        let [dispatch_register, dispatch_scratch] = [operands.physical_register(5), operands.physical_register(6)];
+        use crate::target::registers::aarch64::{X2, X3, X4, X5};
+
+        push_parallel_register_moves(
+            emit,
+            &[(X2, lhs), (X3, rhs), (X4, true_target), (X5, false_target)],
+            dispatch_scratch,
+        );
+        vm_pc_arguments(emit);
+        store_slow_path_program_counter(emit, dispatch_register, dispatch_scratch)?;
+        direct_call(emit, function);
+        finish_slow_path_call(emit, dispatch_register, dispatch_scratch)
+    }
+
     fn dispatch_current(&self, emit: &mut Emit<'_>, scratches: &[AllocatedOperand]) -> Result<(), CompileError> {
         let [opcode_scratch, target_scratch] = scratches.physical_registers();
         use crate::target::registers::aarch64::X25;

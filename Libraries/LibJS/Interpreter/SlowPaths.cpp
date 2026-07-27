@@ -557,10 +557,10 @@ extern "C" {
 
 // Forward declarations for all functions called from assembly.
 i64 asm_fallback_handler(VM*, u32 pc, u8 const* instruction);
-i64 asm_slow_path_jump_less_than(VM*, u32 pc, Op::JumpLessThan const*);
-i64 asm_slow_path_jump_greater_than(VM*, u32 pc, Op::JumpGreaterThan const*);
-i64 asm_slow_path_jump_less_than_equals(VM*, u32 pc, Op::JumpLessThanEquals const*);
-i64 asm_slow_path_jump_greater_than_equals(VM*, u32 pc, Op::JumpGreaterThanEquals const*);
+i64 asm_slow_path_jump_less_than_values(VM*, u32 pc, Value, Value, u32, u32);
+i64 asm_slow_path_jump_greater_than_values(VM*, u32 pc, Value, Value, u32, u32);
+i64 asm_slow_path_jump_less_than_equals_values(VM*, u32 pc, Value, Value, u32, u32);
+i64 asm_slow_path_jump_greater_than_equals_values(VM*, u32 pc, Value, Value, u32, u32);
 i64 asm_slow_path_jump_loosely_equals(VM*, u32 pc, Op::JumpLooselyEquals const*);
 i64 asm_slow_path_create_private_environment(VM*, u32 pc, Op::CreatePrivateEnvironment const*);
 i64 asm_slow_path_throw_const_assignment(VM*, u32 pc, Op::ThrowConstAssignment const*);
@@ -832,22 +832,29 @@ i64 asm_slow_path_decrement(VM* vm, u32 pc, Op::Decrement const* instruction)
 }
 
 // Comparison jump slow paths return one of two target PCs.
-#define DEFINE_JUMP_COMPARISON_SLOW_PATH(snake_name, op_name, compare_call)                   \
-    i64 asm_slow_path_jump_##snake_name(VM* vm, u32 pc, Op::Jump##op_name const* instruction) \
-    {                                                                                         \
-        auto lhs = vm->get(instruction->lhs());                                               \
-        auto rhs = vm->get(instruction->rhs());                                               \
-        if (ASM_TRY(*vm, pc, compare_call))                                                   \
-            return static_cast<i64>(instruction->true_target().address());                    \
-        return static_cast<i64>(instruction->false_target().address());                       \
+#define DEFINE_JUMP_COMPARISON_SLOW_PATH(snake_name, compare_call)               \
+    i64 asm_slow_path_jump_##snake_name##_values(                                \
+        VM* vm, u32 pc, Value lhs, Value rhs, u32 true_target, u32 false_target) \
+    {                                                                            \
+        if (ASM_TRY(*vm, pc, compare_call))                                      \
+            return static_cast<i64>(true_target);                                \
+        return static_cast<i64>(false_target);                                   \
     }
 
-DEFINE_JUMP_COMPARISON_SLOW_PATH(less_than, LessThan, less_than(*vm, lhs, rhs))
-DEFINE_JUMP_COMPARISON_SLOW_PATH(greater_than, GreaterThan, greater_than(*vm, lhs, rhs))
-DEFINE_JUMP_COMPARISON_SLOW_PATH(less_than_equals, LessThanEquals, less_than_equals(*vm, lhs, rhs))
-DEFINE_JUMP_COMPARISON_SLOW_PATH(greater_than_equals, GreaterThanEquals, greater_than_equals(*vm, lhs, rhs))
-DEFINE_JUMP_COMPARISON_SLOW_PATH(loosely_equals, LooselyEquals, is_loosely_equal(*vm, lhs, rhs))
+DEFINE_JUMP_COMPARISON_SLOW_PATH(less_than, less_than(*vm, lhs, rhs))
+DEFINE_JUMP_COMPARISON_SLOW_PATH(greater_than, greater_than(*vm, lhs, rhs))
+DEFINE_JUMP_COMPARISON_SLOW_PATH(less_than_equals, less_than_equals(*vm, lhs, rhs))
+DEFINE_JUMP_COMPARISON_SLOW_PATH(greater_than_equals, greater_than_equals(*vm, lhs, rhs))
 #undef DEFINE_JUMP_COMPARISON_SLOW_PATH
+
+i64 asm_slow_path_jump_loosely_equals(VM* vm, u32 pc, Op::JumpLooselyEquals const* instruction)
+{
+    auto lhs = vm->get(instruction->lhs());
+    auto rhs = vm->get(instruction->rhs());
+    if (ASM_TRY(*vm, pc, is_loosely_equal(*vm, lhs, rhs)))
+        return static_cast<i64>(instruction->true_target().address());
+    return static_cast<i64>(instruction->false_target().address());
+}
 
 i64 asm_slow_path_jump_loosely_inequals(VM* vm, u32 pc, Op::JumpLooselyInequals const* instruction)
 {

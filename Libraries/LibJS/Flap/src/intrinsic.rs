@@ -804,6 +804,7 @@ define_named_intrinsic_enum! {
     pub(crate) enum CallOperation {
         SlowPath => "call_slow_path" signatures [signature!([In SlowPath])];
         BinarySlowPath => "call_binary_slow_path" signatures [signature!([In SlowPath, Out Operand, In Value, In Value])];
+        JumpSlowPath => "call_jump_slow_path" signatures [signature!([In SlowPath, In Value, In Value, In BytecodeOffset, In BytecodeOffset])];
         Interpreter => "call_interp" signatures [signature!([In FunctionSymbol] -> I32), signature!([In FunctionSymbol, Out AnyGpr])];
         Helper => "call_helper" signatures [signature!([In FunctionSymbol, In AnyGpr, Out AnyGpr])];
         RawNative => "call_raw_native" signatures [signature!([In AnyGpr] -> (Value, U64)), signature!([In AnyGpr, Out AnyGpr, Out AnyGpr])];
@@ -813,7 +814,7 @@ define_named_intrinsic_enum! {
 impl CallOperation {
     pub(crate) fn result_count(self) -> usize {
         match self {
-            Self::SlowPath | Self::BinarySlowPath => 0,
+            Self::SlowPath | Self::BinarySlowPath | Self::JumpSlowPath => 0,
             Self::Interpreter | Self::Helper => 1,
             Self::RawNative => 2,
         }
@@ -1108,7 +1109,7 @@ impl Intrinsic {
             Self::Control(operation) if operation.is_terminal()
         ) || matches!(
             self,
-            Self::Call(CallOperation::SlowPath | CallOperation::BinarySlowPath)
+            Self::Call(CallOperation::SlowPath | CallOperation::BinarySlowPath | CallOperation::JumpSlowPath)
         )
     }
 }

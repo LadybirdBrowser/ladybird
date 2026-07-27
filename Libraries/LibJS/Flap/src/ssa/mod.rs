@@ -1095,6 +1095,7 @@ mod tests {
         assert!(ControlOperation::DispatchNext.is_terminal());
         assert!(ControlOperation::JumpBytecode.writes_machine_state());
         assert_eq!(CallOperation::SlowPath.result_count(), 0);
+        assert_eq!(CallOperation::JumpSlowPath.result_count(), 0);
         assert_eq!(CallOperation::RawNative.result_count(), 2);
     }
 

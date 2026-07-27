@@ -1605,6 +1605,36 @@ impl Lowerer<'_> {
             );
             return Ok(Vec::new());
         }
+        if call.intrinsic() == Some(Intrinsic::Call(CallOperation::JumpSlowPath)) {
+            let [slow_path, lhs, rhs, true_target, false_target] = inputs.as_slice() else {
+                return Err(
+                    "'call_jump_slow_path' requires a slow path, lhs, rhs, true target, and false target".to_string(),
+                );
+            };
+            if !result_types.is_empty() {
+                return Err("'call_jump_slow_path' cannot return a value".to_string());
+            }
+            let block = self.current()?;
+            let true_target = self.function.append_instruction(
+                block,
+                Intrinsic::Bytecode(BytecodeOperation::Load(FieldWidth::U32)),
+                vec![*true_target],
+                vec![Type::U32],
+            )[0];
+            let false_target = self.function.append_instruction(
+                block,
+                Intrinsic::Bytecode(BytecodeOperation::Load(FieldWidth::U32)),
+                vec![*false_target],
+                vec![Type::U32],
+            )[0];
+            self.function.append_instruction(
+                block,
+                Intrinsic::Call(CallOperation::JumpSlowPath),
+                vec![*slow_path, *lhs, *rhs, true_target, false_target],
+                Vec::new(),
+            );
+            return Ok(Vec::new());
+        }
         if call.intrinsic() == Some(Intrinsic::Operand(OperandOperation::Load(OperandLoad::Field)))
             && accesses_inout_operand
         {
