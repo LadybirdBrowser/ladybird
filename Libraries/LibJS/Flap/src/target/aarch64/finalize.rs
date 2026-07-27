@@ -1363,8 +1363,36 @@ impl Backend for Aarch64Backend {
         operands: &[AllocatedOperand],
     ) -> Result<(), CompileError> {
         let (width, condition) = operation.scalar_branch().expect("allocated scalar branch was verified");
-        let lhs = operands.physical_register(0);
-        let rhs = operands.operand(1);
+        if let [
+            AllocatedOperand::Immediate(lhs),
+            AllocatedOperand::Immediate(rhs),
+            _scratch,
+            AllocatedOperand::Label(target),
+        ] = operands
+        {
+            let mask = match width {
+                IntegerWidth::U16 => u16::MAX as u64,
+                IntegerWidth::U32 => u32::MAX as u64,
+                IntegerWidth::U64 => u64::MAX,
+                _ => unreachable!("allocated scalar branch was verified"),
+            };
+            let equal = (*lhs as u64 & mask) == (*rhs as u64 & mask);
+            if condition == ScalarBranchCondition::Equal && equal
+                || condition == ScalarBranchCondition::NotEqual && !equal
+            {
+                emit!(emit.output, Aarch64; Opcode::Branch => [label target.clone()];);
+            }
+            return Ok(());
+        }
+        let (lhs, rhs) = if let Some(lhs) = operands.operand(0).physical_register() {
+            (lhs, operands.operand(1))
+        } else if matches!(operation, Operation::Branch(BranchOperation::Equality { .. }))
+            && let Some(rhs) = operands.operand(1).physical_register()
+        {
+            (rhs, operands.operand(0))
+        } else {
+            return emit.error("scalar comparison requires at least one register operand");
+        };
         let scratch = operands.physical_register(2);
         let target = operands.label(3);
         compare(

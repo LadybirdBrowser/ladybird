@@ -734,7 +734,13 @@ const fn spec() -> ArchSpec {
     ArchSpec::NONE
 }
 
-const fn scalar_compare_branch() -> InstructionDescription {
+const fn scalar_equality_branch() -> InstructionDescription {
+    plain(&[GprInOrImm, GprInOrImm])
+        .trailing(&[Label])
+        .pre_scratches(&[], &[X9])
+}
+
+const fn scalar_ordered_branch() -> InstructionDescription {
     plain(&[GprIn, GprInOrImm]).trailing(&[Label]).pre_scratches(&[], &[X9])
 }
 
@@ -993,8 +999,8 @@ fn lookup_operation(operation: Operation) -> &'static InstructionDescription {
         Operation::Float(FloatingPointOperation::CanonicalizeNan) => &const { plain(&[GprOut, FprIn]) },
         Operation::Branch(BranchOperation::Equality {
             width: U16 | U32 | U64, ..
-        })
-        | Operation::Branch(BranchOperation::Ordered { width: U32 | U64, .. }) => &const { scalar_compare_branch() },
+        }) => &const { scalar_equality_branch() },
+        Operation::Branch(BranchOperation::Ordered { width: U32 | U64, .. }) => &const { scalar_ordered_branch() },
         Operation::Branch(BranchOperation::Tag(_)) => {
             &const {
                 plain(&[GprIn, Imm])

@@ -18,6 +18,7 @@ use super::{
 };
 use crate::frontend::layout::KnownLayoutConstant;
 use crate::hash::HashMap;
+use crate::intrinsic::{BranchOperation, IntegerWidth};
 use crate::types::Type;
 
 /// How far a boxed value's tag sits above its payload.
@@ -901,10 +902,9 @@ fn selected_terminator_edges(function: &Function, block: BlockId, values: &[Latt
             if inputs.iter().any(|input| values[input.0] == LatticeValue::Unknown) {
                 return;
             }
-            if checked_operation_cannot_fail(operation, inputs, values) {
-                selected.push(0);
-            } else {
-                selected.extend([0, 1]);
+            match checked_operation_selected_edge(operation, inputs, values) {
+                Some(edge) => selected.push(edge),
+                None => selected.extend([0, 1]),
             }
         }
         Terminator::IndirectJump { .. } | Terminator::Return(_) | Terminator::Unreachable => {}
@@ -942,6 +942,31 @@ fn checked_operation_cannot_fail(operation: &Operation, inputs: &[ValueId], valu
         (CheckedIntegerOperation::Multiply, [lhs, rhs]) => range_fits(*lhs, *rhs, Arithmetic::Mul, 32, true),
         _ => false,
     }
+}
+
+fn checked_operation_selected_edge(
+    operation: &Operation,
+    inputs: &[ValueId],
+    values: &[LatticeValue],
+) -> Option<usize> {
+    if checked_operation_cannot_fail(operation, inputs, values) {
+        return Some(0);
+    }
+    let Operation::Intrinsic(Intrinsic::Branch(BranchOperation::Equality { width, condition })) = operation else {
+        return None;
+    };
+    let [lhs, rhs] = inputs else { return None };
+    let lhs = exact_integer(values[lhs.0])?;
+    let rhs = exact_integer(values[rhs.0])?;
+    let mask = match width {
+        IntegerWidth::U16 => u16::MAX as i64,
+        IntegerWidth::U32 => u32::MAX as i64,
+        IntegerWidth::U64 => -1,
+        _ => return None,
+    };
+    let equal = lhs & mask == rhs & mask;
+    let branch_taken = condition.select(equal, !equal);
+    Some(usize::from(branch_taken))
 }
 
 fn range_fits(lhs: IntegerFacts, rhs: IntegerFacts, operation: Arithmetic, bits: u8, signed: bool) -> bool {
@@ -1008,28 +1033,34 @@ fn rewrite(function: &mut Function, values: &[LatticeValue], executable_blocks: 
                 results,
                 effects,
                 success,
-                ..
-            } if checked_operation_cannot_fail(&operation, &inputs, values) => {
-                if results.iter().all(|result| replacements.contains_key(result)) {
-                    Some(Terminator::Jump(success))
+                failure,
+            } => {
+                if let Some(selected_edge) = checked_operation_selected_edge(&operation, &inputs, values) {
+                    if selected_edge == 1 {
+                        Some(Terminator::Jump(failure))
+                    } else if results.iter().all(|result| replacements.contains_key(result)) {
+                        Some(Terminator::Jump(success))
+                    } else {
+                        unchecked_operation(&operation).map(|operation| {
+                            let result_types = results
+                                .iter()
+                                .map(|result| function.values[result.0].ty.clone())
+                                .collect();
+                            let new_results = function.append_instruction_with_effects(
+                                BlockId(block_index),
+                                operation,
+                                inputs,
+                                result_types,
+                                effects,
+                            );
+                            for (old, new) in results.iter().zip(&new_results) {
+                                replacements.insert(*old, *new);
+                            }
+                            Terminator::Jump(success)
+                        })
+                    }
                 } else {
-                    unchecked_operation(&operation).map(|operation| {
-                        let result_types = results
-                            .iter()
-                            .map(|result| function.values[result.0].ty.clone())
-                            .collect();
-                        let new_results = function.append_instruction_with_effects(
-                            BlockId(block_index),
-                            operation,
-                            inputs,
-                            result_types,
-                            effects,
-                        );
-                        for (old, new) in results.iter().zip(&new_results) {
-                            replacements.insert(*old, *new);
-                        }
-                        Terminator::Jump(success)
-                    })
+                    None
                 }
             }
             _ => None,
@@ -1559,6 +1590,39 @@ mod tests {
             panic!("expected a return")
         };
         assert_eq!(values, &[product]);
+    }
+
+    #[test]
+    fn folds_constant_checked_equality_branches() {
+        let mut function = Function::new("checked-equality", Vec::new(), vec![Type::I32]);
+        let success = function.create_empty_block("success", super::super::BlockLayout::Hot);
+        let failure = function.create_empty_block("failure", super::super::BlockLayout::Cold);
+        let value = function.add_constant(Type::U64, Constant::Integer(42));
+        let zero = function.add_constant(Type::I32, Constant::Integer(0));
+        let one = function.add_constant(Type::I32, Constant::Integer(1));
+        function.set_checked_operation(
+            function.entry,
+            Intrinsic::Branch(BranchOperation::Equality {
+                width: IntegerWidth::U64,
+                condition: crate::intrinsic::EqualityCondition::Equal,
+            }),
+            vec![value, value],
+            Vec::new(),
+            Effects::PURE,
+            success,
+            Vec::new(),
+            Edge::new(failure),
+        );
+        function.set_terminator(success, Terminator::Return(vec![zero]));
+        function.set_terminator(failure, Terminator::Return(vec![one]));
+
+        run_sccp(&mut function);
+
+        assert_eq!(function.blocks.len(), 2);
+        let Terminator::Return(values) = function.blocks[1].terminator.as_ref().unwrap() else {
+            panic!("expected the taken equality branch")
+        };
+        assert_eq!(constant_integer(&function, values[0]), Some(1));
     }
 
     fn constant_integer(function: &Function, value: ValueId) -> Option<i64> {
