@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<title>
+  The scroller should try to resnap to targets for both axes if possible.
+</title>
+<link rel="help" href="https://drafts.csswg.org/css-scroll-snap/#re-snap" />
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+div {
+  position: absolute;
+  margin: 0;
+}
+
+#scroller {
+  height: 500px;
+  width: 500px;
+  overflow: hidden;
+  scroll-snap-type: both mandatory;
+}
+
+#x-axis-target {
+  scroll-snap-align: none start;
+  background-color: blue;
+  width: 100px;
+  height: 100px;
+  top: 400px;
+  left: 200px;
+}
+
+#y-axis-target {
+  scroll-snap-align: start none;
+  background-color: green;
+  width: 100px;
+  height: 100px;
+  top: 200px;
+  left: 400px;
+}
+
+#far-x-axis-target {
+  scroll-snap-align: none start;
+  background-color: blue;
+  width: 100px;
+  height: 100px;
+  top: 1200px;
+  left: 300px;
+}
+
+#far-y-axis-target {
+  scroll-snap-align: start none;
+  background-color: green;
+  width: 100px;
+  height: 100px;
+  top: 300px;
+  left: 1200px;
+}
+
+.area {
+  width: 2000px;
+  height: 2000px;
+}
+</style>
+
+<div id="scroller">
+  <div class="area"></div>
+  <div id="x-axis-target"></div>
+  <div id="y-axis-target"></div>
+  <div id="far-x-axis-target"></div>
+  <div id="far-y-axis-target"></div>
+</div>
+
+<script>
+
+const x_target = document.getElementById("x-axis-target");
+const y_target = document.getElementById("y-axis-target");
+const scroller = document.getElementById("scroller");
+
+test(t => {
+  // The scroller should be snapped to the two closest points on first layout.
+  assert_equals(scroller.scrollTop, 200);
+  assert_equals(scroller.scrollLeft, 200);
+  x_target.style.setProperty("left", "1000px");
+  y_target.style.setProperty("top", "1000px");
+
+  // The style change makes it impossible for the scroller to snap to both
+  // targets, but at least one of the targets should be preserved. The scroller
+  // should then re-evaluate the snap point for the other axis.
+  const snapped_to_x = scroller.scrollLeft == 1000 && scroller.scrollTop == 300;
+  const snapped_to_y = scroller.scrollTop == 1000 && scroller.scrollLeft == 300;
+  assert_true(snapped_to_x || snapped_to_y);
+}, "Scroller should snap to at least one of the targets if unable to snap to both after a layout change.");
+</script>

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<title>
+  Adding a new snap area when there are none should make the scroller snap to it.
+</title>
+<link rel="help" href="https://drafts.csswg.org/css-scroll-snap/#re-snap" />
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+div {
+  position: absolute;
+  margin: 0;
+}
+
+#scroller {
+  height: 500px;
+  width: 500px;
+  overflow: hidden;
+  scroll-snap-type: both mandatory;
+}
+
+#target {
+  width: 300px;
+  height: 300px;
+  top: 100px;
+  left: 100px;
+  background-color: green;
+  scroll-snap-align: start;
+}
+
+.area {
+  width: 2000px;
+  height: 2000px;
+}
+</style>
+
+<div id="scroller">
+  <div class="area"></div>
+  <div id="target"></div>
+</div>
+
+<script>
+const target = document.getElementById("target");
+const scroller = document.getElementById("scroller");
+
+test(() => {
+  scroller.removeChild(target);
+  scroller.scrollTo(0,0);
+  assert_equals(scroller.scrollTop, 0);
+  assert_equals(scroller.scrollLeft, 0);
+
+  scroller.appendChild(target);
+  assert_equals(scroller.scrollTop, 100);
+  assert_equals(scroller.scrollLeft, 100);
+}, "Adding a new snap area when there are none should make the scroller snap to it.");
+</script>

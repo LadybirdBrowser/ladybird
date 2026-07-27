@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Scroll snap: re-snap to the focused target after scrollBy</title>
+<link rel="help" href="https://drafts.csswg.org/css-scroll-snap-1/#re-snap">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<style>
+  #scroller {
+    overflow-y: scroll;
+    position: relative;
+    width: 400px;
+    height: 400px;
+    scroll-snap-type: y mandatory;
+    scrollbar-width: none;
+  }
+  #space {
+    height: 300vh;
+    scroll-snap-align: none;
+  }
+  .target {
+    position: absolute;
+    left: 0;
+    width: 100px;
+    height: 100px;
+    scroll-snap-align: start;
+  }
+  #top { top: 0; }
+  /* #first and #second coincide. */
+  #first, #second { top: 200px; }
+</style>
+</head>
+<body>
+  <div id="scroller">
+    <div id="space"></div>
+    <div id="top" class="target">top</div>
+    <div id="first" tabindex="0" class="target">first</div>
+    <div id="second" tabindex="0" class="target">second</div>
+  </div>
+  <script>
+    promise_test(async (t) => {
+      const scroller = document.getElementById("scroller");
+      const first = document.getElementById("first");
+      const second = document.getElementById("second");
+
+      // Wait for the initial mandatory snap to settle.
+      await new Promise(resolve =>
+          requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      assert_equals(scroller.scrollTop, 0, "initially snapped to #top");
+      assert_equals(first.offsetTop, second.offsetTop,
+                    "#first and #second are coincident");
+
+      // Focus one of the two coincident targets without scrolling to it, so
+      // that the scrollBy below is what brings them into view.
+      first.focus({ preventScroll: true });
+      assert_equals(document.activeElement, first, "#first is focused");
+
+      // Scroll to the coincident targets with a scrollBy. The scroller should
+      // snap and select the focused target, #first.
+      const snapped_offset = first.offsetTop;
+      const scrollend = new Promise(resolve =>
+          scroller.addEventListener("scrollend", resolve, { once: true }));
+      scroller.scrollBy(0, snapped_offset);
+      await scrollend;
+      assert_equals(scroller.scrollTop, snapped_offset,
+                    "snapped to the coincident targets");
+
+      // Move the focused target slightly. If #first is the selected snap
+      // target, the scroller re-snaps to follow it; had #second been selected,
+      // the scroller would stay put.
+      first.style.top = `${snapped_offset + 50}px`;
+      assert_equals(scroller.scrollTop, first.offsetTop,
+                    "scroller re-snapped to follow the focused target #first");
+      assert_not_equals(scroller.scrollTop, snapped_offset,
+                        "scroller actually moved when the focused target moved");
+    }, "Scroller re-snaps to the focused target after scrollBy");
+  </script>
+</body>
+</html>

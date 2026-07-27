@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Moving the current snap target should make the scroller resnap to it.
+Pass	Changing the layout of other elements should be able to cause resnapping to the target.
+Pass	Transforming the current snap target should make the scroller resnap to it.
+Pass	Applying two property changes that do not change the visual offset of the target should not change the scroll offset.

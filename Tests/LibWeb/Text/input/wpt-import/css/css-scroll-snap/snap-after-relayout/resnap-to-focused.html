@@ -1,0 +1,82 @@
+<!doctype html>
+<title>Resnap to focused element after relayout</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+
+#snapper {
+    counter-reset: child 0;
+    width: 200px;
+    scroll-snap-type: block mandatory;
+    overflow:hidden;
+    height: 100px;
+}
+.child {
+    width: 100px;
+    height: 100px;
+    background:red;
+    text-align: center;
+    box-sizing: border-box;
+    counter-increment: child;
+    float: left;
+}
+.child.f {
+    background: green;
+    scroll-snap-align: center;
+}
+.child::before {
+    content: counter(child);
+}
+
+</style>
+
+<link rel=author title="Tab Atkins-Bittner" href="https://www.xanthir.com/contact/">
+<link rel="help" href="https://drafts.csswg.org/css-scroll-snap/#re-snap">
+<!--
+When re-snapping after a layout change,
+if multiple elements were capable of being the snap target previously,
+and one of them is focused,
+you must resnap to the focused one.
+-->
+<div id=snapper>
+    <div class="child no-snap" tabindex=-1></div>
+    <div class=child></div>
+    <div class="child f" tabindex=-1></div>
+    <div class="child f" tabindex=-1></div>
+    <div class=child></div>
+    <div class=child></div>
+</div>
+
+<script>
+
+var container = document.querySelector("#snapper");
+var [one,two] = document.querySelectorAll(".child.f");
+var unsnappable = document.querySelector(".child.no-snap");
+
+async_test(t=>{
+    requestAnimationFrame(()=>{
+        testSnap(t, one, 3);
+        requestAnimationFrame(()=>{
+            testSnap(t, two, 4);
+            requestAnimationFrame(()=>{
+                testSnap(t, one, 3);
+                t.done();
+            });
+        });
+    });
+});
+
+function testSnap(t, child, expectedRow) {
+    t.step(()=>{
+        unsnappable.focus();
+        container.style.width = "200px";
+        var startingRow = container.scrollTop/100 + 1;
+        assert_equals(startingRow, 2, "Initially snapped to row 2");
+        child.focus();
+        container.style.width = "100px";
+        var endingRow = container.scrollTop/100 + 1;
+        assert_equals(endingRow, expectedRow, `After resize, should snap to row ${expectedRow}.`);
+    });
+}
+
+</script>

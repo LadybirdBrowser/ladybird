@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<link rel="help" href='https://drafts.csswg.org/css-scroll-snap/#re-snap'>
+<style>
+.scroller {
+  overflow-y: scroll;
+  scroll-snap-type: y mandatory;
+  border: 1px solid black;
+  width: 400px;
+  height: 400px;
+}
+
+.scroller .box {
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  width: 100%;
+  height: 100%;
+}
+
+.changer {
+  height: 100%;
+  width: 100%;
+  background-color: red;
+}
+
+body.changed .changer {
+  height: 0;
+}
+</style>
+
+<div class="scroller" id="scroller">
+  <div class="changer"></div>
+  <div class="box"></div>
+  <div class="box"></div>
+  <div class="box"></div>
+</div>
+
+<script>
+let scroller = document.getElementById('scroller');
+promise_test(async t => {
+  await new Promise(resolve => step_timeout(resolve, 0));
+  assert_equals(scroller.scrollTop, 400);
+  document.body.classList.add('changed');
+  assert_equals(scroller.scrollTop, 0);
+}, "When re-snap happens on layout, the new scroll position should be set immediately");
+
+</script>
