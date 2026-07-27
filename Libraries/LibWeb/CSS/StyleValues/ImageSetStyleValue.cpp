@@ -178,10 +178,10 @@ bool ImageSetStyleValue::is_paintable(DOM::Document const& document) const
     return false;
 }
 
-void ImageSetStyleValue::paint(DisplayListRecordingContext& context, DOM::Document const& document, DevicePixelRect const& dest_rect, ImageRendering image_rendering) const
+void ImageSetStyleValue::paint(DisplayListRecordingContext& context, DOM::Document const& document, DevicePixelRect const& dest_rect, ImageRendering image_rendering, PreferredColorScheme color_scheme) const
 {
     if (m_selected_image)
-        m_selected_image->paint(context, document, dest_rect, image_rendering);
+        m_selected_image->paint(context, document, dest_rect, image_rendering, color_scheme);
 }
 
 Optional<Gfx::Color> ImageSetStyleValue::color_if_single_pixel_bitmap(DOM::Document const& document) const

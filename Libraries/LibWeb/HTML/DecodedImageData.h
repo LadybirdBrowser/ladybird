@@ -12,6 +12,7 @@
 #include <LibGfx/ScalingMode.h>
 #include <LibGfx/Size.h>
 #include <LibJS/Heap/Cell.h>
+#include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
 #include <LibWeb/PixelUnits.h>
@@ -39,8 +40,11 @@ public:
     [[nodiscard]] bool is_cors_cross_origin() const { return m_is_cors_cross_origin; }
     void set_is_cors_cross_origin(bool value) { m_is_cors_cross_origin = value; }
 
-    virtual void paint([[maybe_unused]] DisplayListRecordingContext&, [[maybe_unused]] Gfx::IntRect dst_rect, CSS::ImageRendering) const = 0;
-    virtual Optional<Painting::DisplayListResource> record_display_list(Gfx::IntSize, Painting::DisplayListResourceStorage&) const;
+    virtual void paint([[maybe_unused]] DisplayListRecordingContext&, [[maybe_unused]] Gfx::IntRect dst_rect, CSS::ImageRendering, CSS::PreferredColorScheme) const = 0;
+    // An SVG used as an image resolves `prefers-color-scheme` from the used `color-scheme` of the
+    // element referencing it, so the scheme is part of what is being asked for rather than a
+    // property of the page.
+    virtual Optional<Painting::DisplayListResource> record_display_list(Gfx::IntSize, CSS::PreferredColorScheme, Painting::DisplayListResourceStorage&) const;
 
     virtual Optional<Gfx::DecodedImageFrame> default_frame(Gfx::IntSize = {}) const = 0;
     virtual Optional<Gfx::DecodedImageFrame> current_frame(Gfx::IntSize = {}) const = 0;

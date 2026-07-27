@@ -192,7 +192,7 @@ void LinearGradientStyleValue::resolve_for_size(Layout::NodeWithStyle const& nod
     }
 }
 
-void LinearGradientStyleValue::paint(DisplayListRecordingContext& context, DOM::Document const&, DevicePixelRect const& dest_rect, CSS::ImageRendering) const
+void LinearGradientStyleValue::paint(DisplayListRecordingContext& context, DOM::Document const&, DevicePixelRect const& dest_rect, CSS::ImageRendering, PreferredColorScheme) const
 {
     VERIFY(m_resolved.has_value());
     context.display_list_recorder().fill_rect_with_linear_gradient(dest_rect.to_type<int>(), m_resolved.value());

@@ -79,7 +79,7 @@ public:
     void resolve_for_size(Layout::NodeWithStyle const&, CSSPixelSize) const override;
 
     bool is_paintable(DOM::Document const&) const override { return true; }
-    void paint(DisplayListRecordingContext& context, DOM::Document const&, DevicePixelRect const& dest_rect, CSS::ImageRendering image_rendering) const override;
+    void paint(DisplayListRecordingContext& context, DOM::Document const&, DevicePixelRect const& dest_rect, CSS::ImageRendering image_rendering, PreferredColorScheme) const override;
 
 private:
     friend class StyleValue;

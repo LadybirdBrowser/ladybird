@@ -340,6 +340,9 @@ void paint_background(DisplayListRecordingContext& context, Paintable const& pai
         auto tile_count = tile_columns * tile_rows;
 
         auto const& document = paintable_box.layout_node().document();
+        // An SVG used as an image resolves `prefers-color-scheme` from the used `color-scheme` of
+        // the element referencing it.
+        auto const color_scheme = paintable_box.computed_values().color_scheme();
         if (auto color = image.color_if_single_pixel_bitmap(document); color.has_value()) {
             apply_blend_layer();
             // OPTIMIZATION: If the image is a single pixel, we can just fill the whole area with it.
@@ -365,7 +368,7 @@ void paint_background(DisplayListRecordingContext& context, Paintable const& pai
                 dest_rect.set_height(1);
 
             auto const& image_style_value = static_cast<CSS::ImageStyleValue const&>(image);
-            if (auto display_list = image_style_value.record_display_list(context, document, dest_rect); display_list.has_value()) {
+            if (auto display_list = image_style_value.record_display_list(context, document, dest_rect, color_scheme); display_list.has_value()) {
                 apply_blend_layer();
                 auto dest_int_rect = dest_rect.to_type<int>();
                 auto scaling_mode = to_gfx_scaling_mode(image_rendering, dest_int_rect.size(), dest_int_rect.size());
@@ -402,7 +405,7 @@ void paint_background(DisplayListRecordingContext& context, Paintable const& pai
             auto tile_display_list = DisplayList::create(visual_context_tree);
             DisplayListRecorder tile_recorder(*tile_display_list, visual_context_tree, display_list_recorder.resource_storage());
             auto tile_context = context.clone(tile_recorder);
-            image.paint(tile_context, document, tile_device_rect, image_rendering);
+            image.paint(tile_context, document, tile_device_rect, image_rendering, color_scheme);
 
             // A pattern repeats along both axes. On any non-repeating axis, constrain the coverage to a single tile.
             auto coverage = clip_rect;
@@ -430,7 +433,7 @@ void paint_background(DisplayListRecordingContext& context, Paintable const& pai
         } else {
             apply_blend_layer();
             for_each_image_device_rect([&](auto const& image_device_rect) {
-                image.paint(context, document, image_device_rect, image_rendering);
+                image.paint(context, document, image_device_rect, image_rendering, color_scheme);
             });
         }
 

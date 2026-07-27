@@ -65,7 +65,7 @@ void SVGImagePaintable::paint(DisplayListRecordingContext& context, PaintPhase p
         context.display_list_recorder().add_clip_rect(positioning_rectangle);
     }
 
-    decoded_image_data->paint(context, draw_rect, computed_values().image_rendering());
+    decoded_image_data->paint(context, draw_rect, computed_values().image_rendering(), computed_values().color_scheme());
 
     if (draw_rect_needs_clip)
         context.display_list_recorder().restore();
