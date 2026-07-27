@@ -210,6 +210,11 @@ define_machine_opcodes! {
     [MoveAbsolute64Immediate] => Self::MoveAbsolute64Immediate => [[R, I]] printing simple!("movabs"; native(0), SimpleOperand::Immediate(1));
     [Or64Register] => Self::Or64Register => [[R, R]] printing simple!("or"; native(0), native(1));
     [AluRegister { operation: AluOperation, width: IntegerWidth }] => Self::AluRegister { operation, width } => [[R, R]] printing simple!(operation.mnemonic(); integer(0, width), integer(1, width));
+    [AluMemory { operation: AluOperation, width: IntegerWidth }] => Self::AluMemory { operation, width } => [[R, A]] printing simple!(operation.mnemonic(); integer(0, width), SimpleOperand::Resolved(1, match width {
+        IntegerWidth::U32 => "DWORD PTR ",
+        IntegerWidth::U64 => "QWORD PTR ",
+        IntegerWidth::U8 | IntegerWidth::U16 => unreachable!("unsupported x86-64 memory ALU width"),
+    }));
     [AluImmediate { operation: AluOperation, width: IntegerWidth }] => Self::AluImmediate { operation, width } => [[R, I]] encoding {
         immediate(1).is_some_and(|value| alu_immediate_fits(width, value))
     } printing simple!(operation.mnemonic(); integer(0, width), SimpleOperand::Immediate(1));
@@ -889,6 +894,22 @@ mod tests {
         )]);
 
         assert_eq!(output, "    or rax, r15\n");
+    }
+
+    #[test]
+    fn emits_checked_arithmetic_with_a_bytecode_field_operand() {
+        let output = emit([instruction(
+            Opcode::AluMemory {
+                operation: AluOperation::Add,
+                width: IntegerWidth::U32,
+            },
+            vec![
+                Operand::PhysicalRegister(crate::target::registers::x86_64::RAX),
+                memory("pb", Some("pc"), None, Some(12)),
+            ],
+        )]);
+
+        assert_eq!(output, "    add eax, DWORD PTR [r14 + r13 + 12]\n");
     }
 
     #[test]

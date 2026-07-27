@@ -1941,6 +1941,18 @@ impl Backend for Aarch64Backend {
                         move_immediate(emit, scratch, *value, IntegerWidth::U32);
                         push_overflow_add_subtract_register(emit, operation, destination, scratch);
                     }
+                    AllocatedOperand::Address(address) => {
+                        let loaded = load(
+                            emit,
+                            MemoryWidth::Word,
+                            false,
+                            scratch,
+                            address.clone(),
+                            std::slice::from_ref(&scratch),
+                        );
+                        assert!(loaded.is_ok(), "verified bytecode field addresses are encodable");
+                        push_overflow_add_subtract_register(emit, operation, destination, scratch);
+                    }
                     rhs => push_overflow_add_subtract_register(emit, operation, destination, verified_register(rhs)),
                 }
                 (Opcode::BranchOverflow, verified_label(target_operand), None)

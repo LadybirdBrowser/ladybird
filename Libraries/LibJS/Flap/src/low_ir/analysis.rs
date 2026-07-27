@@ -65,6 +65,7 @@ pub(crate) fn virtual_register_access(
                 | OperandKind::RegisterIn
                 | OperandKind::GprInOrImm
                 | OperandKind::GprInOrMemory
+                | OperandKind::GprInOrImmOrMemory
                 | OperandKind::Memory
         );
         let defines = matches!(

@@ -423,6 +423,8 @@ pub(crate) enum OperandKind {
     GprInOrImm,
     /// GPR input or memory address.
     GprInOrMemory,
+    /// GPR input, immediate, or memory address.
+    GprInOrImmOrMemory,
     /// Compile-time integer (immediate, named constant, or field reference).
     Imm,
     /// Memory operand `[base, ...]`. Reads the GPRs referenced inside the
@@ -453,6 +455,10 @@ impl OperandKind {
             }
             Self::GprInOrMemory => {
                 register_class == Some(RegisterClass::GeneralPurpose) || shape == OperandShape::Address
+            }
+            Self::GprInOrImmOrMemory => {
+                register_class == Some(RegisterClass::GeneralPurpose)
+                    || matches!(shape, OperandShape::Immediate | OperandShape::Address)
             }
             Self::Imm => shape == OperandShape::Immediate,
             Self::Memory => shape == OperandShape::Address,
@@ -930,7 +936,7 @@ fn lookup_operation(operation: Operation) -> &'static InstructionDescription {
         }
         Operation::Overflow(AddWithOverflow) | Operation::Overflow(SubtractWithOverflow) => {
             &const {
-                plain(&[GprInOut, GprInOrImm])
+                plain(&[GprInOut, GprInOrImmOrMemory])
                     .trailing(&[Label])
                     .pre_scratches(&[], &[X9])
             }

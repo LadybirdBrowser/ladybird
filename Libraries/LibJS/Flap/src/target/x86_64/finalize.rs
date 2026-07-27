@@ -226,6 +226,16 @@ fn push_alu_register(
     emit!(emit.output, X86_64; Opcode::AluRegister { operation, width } => [register destination, register source];);
 }
 
+fn push_alu_memory(
+    emit: &mut Emit<'_>,
+    operation: super::AluOperation,
+    width: IntegerWidth,
+    destination: PhysicalRegister,
+    source: MachineMemoryAddress,
+) {
+    emit!(emit.output, X86_64; Opcode::AluMemory { operation, width } => [register destination, address source];);
+}
+
 fn push_alu_immediate(
     emit: &mut Emit<'_>,
     operation: super::AluOperation,
@@ -1501,6 +1511,9 @@ impl Backend for X86_64Backend {
                             width: IntegerWidth::U32,
                         } => [register destination, immediate *value];
                         );
+                    }
+                    AllocatedOperand::Address(address) => {
+                        push_alu_memory(emit, operation, IntegerWidth::U32, destination, address.clone());
                     }
                     rhs => emit.output.push(machine_instruction(
                         Opcode::AluRegister {

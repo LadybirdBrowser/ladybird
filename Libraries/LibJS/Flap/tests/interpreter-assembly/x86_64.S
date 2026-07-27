@@ -5436,14 +5436,13 @@ asm_handler_MovUndefined3_hot_end:
 asm_handler_AddRhsInt32:
     mov eax, DWORD PTR [r14 + r13 + 8]
     mov rcx, QWORD PTR [rbx + rax * 8]
-    mov edx, DWORD PTR [r14 + r13 + 12]
     mov rax, rcx
     shr rax, 48
     cmp ax, 32762
     jne .Lasm_AddRhsInt32.ssa_block_5
     movsxd rax, ecx
     mov rcx, rax
-    add ecx, edx
+    add ecx, DWORD PTR [r14 + r13 + 12]
     jo .Lasm_AddRhsInt32.ssa_block_8
     or rcx, r15
     mov r11d, DWORD PTR [r14 + r13 + 4]
