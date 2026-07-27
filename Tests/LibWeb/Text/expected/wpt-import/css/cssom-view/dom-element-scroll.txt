@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Element test for having scrolling box
+Pass	Element test for having overflow
+Pass	Element test for not having scrolling box
+Pass	Element test for not having overflow

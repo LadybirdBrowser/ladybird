@@ -1,0 +1,35 @@
+Harness status: OK
+
+Found 30 tests
+
+30 Pass
+Pass	Execution of tests in quirks mode
+Pass	Execution of tests in non-quirks mode
+Pass	scrollingElement in quirks mode
+Pass	scroll() on the root element in quirks mode
+Pass	scrollBy() on the root element in quirks mode
+Pass	scrollLeft/scrollTop on the root element in quirks mode
+Pass	scrollWidth/scrollHeight on the root element in quirks mode
+Pass	clientWidth/clientHeight on the root element in quirks mode
+Pass	scroll() on the HTML body element in quirks mode
+Pass	scrollBy() on the HTML body element in quirks mode
+Pass	scrollLeft/scrollTop on the HTML body element in quirks mode
+Pass	scrollWidth/scrollHeight on the HTML body element in quirks mode
+Pass	clientWidth/clientHeight on the HTML body element in quirks mode
+Pass	scrollLeft/scrollRight of the content in quirks mode
+Pass	scrollWidth/scrollHeight of the content in quirks mode
+Pass	clientWidth/clientHeight of the content in quirks mode
+Pass	scrollingElement in non-quirks mode
+Pass	scroll() on the root element in non-quirks mode
+Pass	scrollBy() on the root element in non-quirks mode
+Pass	scrollLeft/scrollTop on the root element in non-quirks mode
+Pass	scrollWidth/scrollHeight on the root element in non-quirks mode
+Pass	clientWidth/clientHeight on the root element in non-quirks mode
+Pass	scroll() on the HTML body element in non-quirks mode
+Pass	scrollBy() on the HTML body element in non-quirks mode
+Pass	scrollLeft/scrollTop on the HTML body element in non-quirks mode
+Pass	scrollWidth/scrollHeight on the HTML body element in non-quirks mode
+Pass	clientWidth/clientHeight on the HTML body element in non-quirks mode
+Pass	scrollLeft/scrollRight of the content in non-quirks mode
+Pass	scrollWidth/scrollHeight of the content in non-quirks mode
+Pass	clientWidth/clientHeight of the content in non-quirks mode
