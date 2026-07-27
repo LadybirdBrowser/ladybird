@@ -1417,27 +1417,27 @@ asm_handler_Add:
     lsr x2, x1, #48
     cmp w2, w22
     b.ne .Lasm_Add.ssa_block_5
-    lsr x2, x0, #48
-    sxtw x1, w1
-    cmp w2, w22
+    lsr x3, x0, #48
+    sxtw x2, w1
+    cmp w3, w22
     b.ne .Lasm_Add.ssa_block_8
     sxtw x0, w0
-    mov x2, x1
-    adds w2, w2, w0
+    mov x1, x2
+    adds w1, w1, w0
     b.vs .Lasm_Add.ssa_block_10
-    movk x2, #0x7ffa, lsl #48
+    movk x1, #0x7ffa, lsl #48
     ldr w9, [x21, #4]
-    str x2, [x27, x9, lsl #3]
+    str x1, [x27, x9, lsl #3]
     ldrb w9, [x21, #16]
     add x21, x21, #16
     ldr x10, [x19, x9, lsl #3]
     br x10
 .Lasm_Add.ssa_block_8:
-    and w2, w2, #0x7ff8
-    cmp w2, w24
+    and w3, w3, #0x7ff8
+    cmp w3, w24
     b.eq .Lasm_Add.ssa_block_1
     fmov d1, x0
-    scvtf d0, x1
+    scvtf d0, x2
     b .Lasm_Add.ssa_block_2
 .Lasm_Add.ssa_block_5:
     and w2, w2, #0x7ff8
@@ -1466,27 +1466,27 @@ asm_handler_Sub:
     lsr x2, x1, #48
     cmp w2, w22
     b.ne .Lasm_Sub.ssa_block_5
-    lsr x2, x0, #48
-    sxtw x1, w1
-    cmp w2, w22
+    lsr x3, x0, #48
+    sxtw x2, w1
+    cmp w3, w22
     b.ne .Lasm_Sub.ssa_block_8
     sxtw x0, w0
-    mov x2, x1
-    subs w2, w2, w0
+    mov x1, x2
+    subs w1, w1, w0
     b.vs .Lasm_Sub.ssa_block_10
-    movk x2, #0x7ffa, lsl #48
+    movk x1, #0x7ffa, lsl #48
     ldr w9, [x21, #4]
-    str x2, [x27, x9, lsl #3]
+    str x1, [x27, x9, lsl #3]
     ldrb w9, [x21, #16]
     add x21, x21, #16
     ldr x10, [x19, x9, lsl #3]
     br x10
 .Lasm_Sub.ssa_block_8:
-    and w2, w2, #0x7ff8
-    cmp w2, w24
+    and w3, w3, #0x7ff8
+    cmp w3, w24
     b.eq .Lasm_Sub.ssa_block_1
     fmov d1, x0
-    scvtf d0, x1
+    scvtf d0, x2
     b .Lasm_Sub.ssa_block_2
 .Lasm_Sub.ssa_block_5:
     and w2, w2, #0x7ff8
@@ -1515,33 +1515,33 @@ asm_handler_Mul:
     lsr x2, x1, #48
     cmp w2, w22
     b.ne .Lasm_Mul.ssa_block_6
-    lsr x2, x0, #48
-    sxtw x1, w1
-    cmp w2, w22
+    lsr x3, x0, #48
+    sxtw x2, w1
+    cmp w3, w22
     b.ne .Lasm_Mul.ssa_block_9
     sxtw x0, w0
-    smull x2, w1, w0
-    sxtw x9, w2
-    cmp x2, x9
+    smull x1, w2, w0
+    sxtw x9, w1
+    cmp x1, x9
     b.ne .Lasm_Mul.ssa_block_11
-    mov w2, w2
-    cbnz w2, .Lasm_Mul.ssa_block_13
-    orr w0, w1, w0
+    mov w1, w1
+    cbnz w1, .Lasm_Mul.ssa_block_13
+    orr w0, w2, w0
     tbnz w0, #31, .Lasm_Mul.ssa_block_3
 .Lasm_Mul.ssa_block_13:
-    movk x2, #0x7ffa, lsl #48
+    movk x1, #0x7ffa, lsl #48
     ldr w9, [x21, #4]
-    str x2, [x27, x9, lsl #3]
+    str x1, [x27, x9, lsl #3]
     ldrb w9, [x21, #16]
     add x21, x21, #16
     ldr x10, [x19, x9, lsl #3]
     br x10
 .Lasm_Mul.ssa_block_9:
-    and w2, w2, #0x7ff8
-    cmp w2, w24
+    and w3, w3, #0x7ff8
+    cmp w3, w24
     b.eq .Lasm_Mul.ssa_block_1
     fmov d1, x0
-    scvtf d0, x1
+    scvtf d0, x2
     b .Lasm_Mul.ssa_block_2
 .Lasm_Mul.ssa_block_6:
     and w2, w2, #0x7ff8
@@ -1561,6 +1561,29 @@ asm_handler_Mul:
     fmov d1, x0
     b .Lasm_Mul.ssa_block_2
 asm_handler_Mul_hot_end:
+
+.p2align 4
+asm_handler_Exp:
+    ldp w0, w1, [x21, #8]
+    ldr x0, [x27, x0, lsl #3]
+    ldr x1, [x27, x1, lsl #3]
+    ldr w2, [x21, #4]
+    mov x3, x0
+    mov x4, x1
+    mov x0, x20
+    sub w1, w21, w26
+    str w1, [x28, #56]
+    bl CSYM(asm_slow_path_exp_values)
+    tbnz x0, #63, .Lexit
+    ldr x28, [x20, #15288]
+    ldr x9, [x28, #80]
+    ldr x26, [x9, #104]
+    add x27, x28, #120
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+asm_handler_Exp_hot_end:
 
 .p2align 4
 asm_handler_Jump:
@@ -2912,8 +2935,8 @@ asm_handler_Div:
     lsr x2, x1, #48
     cmp w2, w22
     b.ne .Lasm_Div.ssa_block_12
-    sxtw x1, w1
-    scvtf d0, x1
+    sxtw x2, w1
+    scvtf d0, x2
     b .Lasm_Div.ssa_block_11
 .Lasm_Div.ssa_block_12:
     and w2, w2, #0x7ff8
@@ -2921,15 +2944,15 @@ asm_handler_Div:
     b.eq .Lasm_Div.ssa_block_1
     fmov d0, x1
 .Lasm_Div.ssa_block_11:
-    lsr x1, x0, #48
-    cmp w1, w22
+    lsr x2, x0, #48
+    cmp w2, w22
     b.ne .Lasm_Div.ssa_block_17
     sxtw x0, w0
     scvtf d1, x0
     b .Lasm_Div.ssa_block_16
 .Lasm_Div.ssa_block_17:
-    and w1, w1, #0x7ff8
-    cmp w1, w24
+    and w2, w2, #0x7ff8
+    cmp w2, w24
     b.eq .Lasm_Div.ssa_block_1
     fmov d1, x0
 .Lasm_Div.ssa_block_16:
@@ -3363,12 +3386,12 @@ asm_handler_Mod:
     lsr x9, x1, #48
     cmp x9, x22
     b.ne .Lasm_Mod.ssa_block_1
-    sxtw x1, w1
-    cbz w1, .Lasm_Mod.ssa_block_1
-    sxtw x0, w0
-    tbnz w0, #31, .Lasm_Mod.ssa_block_1
-    sdiv x9, x0, x1
-    msub x0, x9, x1, x0
+    sxtw x2, w1
+    cbz w2, .Lasm_Mod.ssa_block_1
+    sxtw x3, w0
+    tbnz w3, #31, .Lasm_Mod.ssa_block_1
+    sdiv x9, x3, x2
+    msub x0, x9, x2, x3
     mov x1, x9
     movk x0, #0x7ffa, lsl #48
     ldr w9, [x21, #4]
@@ -5391,7 +5414,7 @@ asm_handler_Mov3_cold_end:
 asm_handler_Add_cold:
 // Cold paths for Add
 .Lasm_Add.ssa_block_10:
-    scvtf d0, x1
+    scvtf d0, x2
     scvtf d1, x0
     fadd d0, d0, d1
     fmov x0, d0
@@ -5406,23 +5429,23 @@ asm_handler_Add_cold:
     fcvtzs w1, d0
     scvtf d16, w1
     fcmp d0, d16
-    b.ne .Lasm_Add.ssa_box_number_36_not_integer
-    cbz x1, .Lasm_Add.ssa_box_number_36_check_negative_zero
+    b.ne .Lasm_Add.ssa_box_number_37_not_integer
+    cbz x1, .Lasm_Add.ssa_box_number_37_check_negative_zero
     mov w0, w1
     movk x0, #0x7ffa, lsl #48
-    b .Lasm_Add.ssa_box_number_36_done
-.Lasm_Add.ssa_box_number_36_check_negative_zero:
+    b .Lasm_Add.ssa_box_number_37_done
+.Lasm_Add.ssa_box_number_37_check_negative_zero:
     fmov x0, d0
-    tbnz x0, #63, .Lasm_Add.ssa_box_number_36_not_integer
+    tbnz x0, #63, .Lasm_Add.ssa_box_number_37_not_integer
     mov w0, w1
     movk x0, #0x7ffa, lsl #48
-    b .Lasm_Add.ssa_box_number_36_done
-.Lasm_Add.ssa_box_number_36_not_integer:
+    b .Lasm_Add.ssa_box_number_37_done
+.Lasm_Add.ssa_box_number_37_not_integer:
     fmov x0, d0
     fcmp d0, d0
     b.vs .Lasm_Add.canon_nan_0
 .Lasm_Add.canon_nan_0_ret:
-.Lasm_Add.ssa_box_number_36_done:
+.Lasm_Add.ssa_box_number_37_done:
     ldr w9, [x21, #4]
     str x0, [x27, x9, lsl #3]
     ldrb w9, [x21, #16]
@@ -5430,11 +5453,13 @@ asm_handler_Add_cold:
     ldr x10, [x19, x9, lsl #3]
     br x10
 .Lasm_Add.ssa_block_1:
+    ldr w2, [x21, #4]
+    mov x3, x1
+    mov x4, x0
     mov x0, x20
     sub w1, w21, w26
     str w1, [x28, #56]
-    mov x2, x21
-    bl CSYM(asm_slow_path_add)
+    bl CSYM(asm_slow_path_add_values)
     tbnz x0, #63, .Lexit
     ldr x28, [x20, #15288]
     ldr x9, [x28, #80]
@@ -5451,7 +5476,7 @@ asm_handler_Add_cold_end:
 asm_handler_Sub_cold:
 // Cold paths for Sub
 .Lasm_Sub.ssa_block_10:
-    scvtf d0, x1
+    scvtf d0, x2
     scvtf d1, x0
     fsub d0, d0, d1
     fmov x0, d0
@@ -5466,23 +5491,23 @@ asm_handler_Sub_cold:
     fcvtzs w1, d0
     scvtf d16, w1
     fcmp d0, d16
-    b.ne .Lasm_Sub.ssa_box_number_36_not_integer
-    cbz x1, .Lasm_Sub.ssa_box_number_36_check_negative_zero
+    b.ne .Lasm_Sub.ssa_box_number_37_not_integer
+    cbz x1, .Lasm_Sub.ssa_box_number_37_check_negative_zero
     mov w0, w1
     movk x0, #0x7ffa, lsl #48
-    b .Lasm_Sub.ssa_box_number_36_done
-.Lasm_Sub.ssa_box_number_36_check_negative_zero:
+    b .Lasm_Sub.ssa_box_number_37_done
+.Lasm_Sub.ssa_box_number_37_check_negative_zero:
     fmov x0, d0
-    tbnz x0, #63, .Lasm_Sub.ssa_box_number_36_not_integer
+    tbnz x0, #63, .Lasm_Sub.ssa_box_number_37_not_integer
     mov w0, w1
     movk x0, #0x7ffa, lsl #48
-    b .Lasm_Sub.ssa_box_number_36_done
-.Lasm_Sub.ssa_box_number_36_not_integer:
+    b .Lasm_Sub.ssa_box_number_37_done
+.Lasm_Sub.ssa_box_number_37_not_integer:
     fmov x0, d0
     fcmp d0, d0
     b.vs .Lasm_Sub.canon_nan_0
 .Lasm_Sub.canon_nan_0_ret:
-.Lasm_Sub.ssa_box_number_36_done:
+.Lasm_Sub.ssa_box_number_37_done:
     ldr w9, [x21, #4]
     str x0, [x27, x9, lsl #3]
     ldrb w9, [x21, #16]
@@ -5490,11 +5515,13 @@ asm_handler_Sub_cold:
     ldr x10, [x19, x9, lsl #3]
     br x10
 .Lasm_Sub.ssa_block_1:
+    ldr w2, [x21, #4]
+    mov x3, x1
+    mov x4, x0
     mov x0, x20
     sub w1, w21, w26
     str w1, [x28, #56]
-    mov x2, x21
-    bl CSYM(asm_slow_path_sub)
+    bl CSYM(asm_slow_path_sub_values)
     tbnz x0, #63, .Lexit
     ldr x28, [x20, #15288]
     ldr x9, [x28, #80]
@@ -5511,7 +5538,7 @@ asm_handler_Sub_cold_end:
 asm_handler_Mul_cold:
 // Cold paths for Mul
 .Lasm_Mul.ssa_block_11:
-    scvtf d0, x1
+    scvtf d0, x2
     scvtf d1, x0
     fmul d0, d0, d1
     fmov x0, d0
@@ -5526,23 +5553,23 @@ asm_handler_Mul_cold:
     fcvtzs w1, d0
     scvtf d16, w1
     fcmp d0, d16
-    b.ne .Lasm_Mul.ssa_box_number_40_not_integer
-    cbz x1, .Lasm_Mul.ssa_box_number_40_check_negative_zero
+    b.ne .Lasm_Mul.ssa_box_number_41_not_integer
+    cbz x1, .Lasm_Mul.ssa_box_number_41_check_negative_zero
     mov w0, w1
     movk x0, #0x7ffa, lsl #48
-    b .Lasm_Mul.ssa_box_number_40_done
-.Lasm_Mul.ssa_box_number_40_check_negative_zero:
+    b .Lasm_Mul.ssa_box_number_41_done
+.Lasm_Mul.ssa_box_number_41_check_negative_zero:
     fmov x0, d0
-    tbnz x0, #63, .Lasm_Mul.ssa_box_number_40_not_integer
+    tbnz x0, #63, .Lasm_Mul.ssa_box_number_41_not_integer
     mov w0, w1
     movk x0, #0x7ffa, lsl #48
-    b .Lasm_Mul.ssa_box_number_40_done
-.Lasm_Mul.ssa_box_number_40_not_integer:
+    b .Lasm_Mul.ssa_box_number_41_done
+.Lasm_Mul.ssa_box_number_41_not_integer:
     fmov x0, d0
     fcmp d0, d0
     b.vs .Lasm_Mul.canon_nan_0
 .Lasm_Mul.canon_nan_0_ret:
-.Lasm_Mul.ssa_box_number_40_done:
+.Lasm_Mul.ssa_box_number_41_done:
     ldr w9, [x21, #4]
     str x0, [x27, x9, lsl #3]
     ldrb w9, [x21, #16]
@@ -5550,11 +5577,13 @@ asm_handler_Mul_cold:
     ldr x10, [x19, x9, lsl #3]
     br x10
 .Lasm_Mul.ssa_block_1:
+    ldr w2, [x21, #4]
+    mov x3, x1
+    mov x4, x0
     mov x0, x20
     sub w1, w21, w26
     str w1, [x28, #56]
-    mov x2, x21
-    bl CSYM(asm_slow_path_mul)
+    bl CSYM(asm_slow_path_mul_values)
     tbnz x0, #63, .Lexit
     ldr x28, [x20, #15288]
     ldr x9, [x28, #80]
@@ -5576,26 +5605,8 @@ asm_handler_Mul_cold:
     fmov x0, d8
     b .Lasm_Mul.canon_nan_0_ret
 asm_handler_Mul_cold_end:
-.p2align 4
-asm_handler_Exp:
-    mov x0, x20
-    sub w1, w21, w26
-    str w1, [x28, #56]
-    mov x2, x21
-    bl CSYM(asm_slow_path_exp)
-    tbnz x0, #63, .Lexit
-    ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
-    ldr x26, [x9, #104]
-    add x27, x28, #120
-    add x21, x26, w0, uxtw
-    ldrb w9, [x21]
-    ldr x10, [x19, x9, lsl #3]
-    br x10
-asm_handler_Exp_hot_end:
 asm_handler_Exp_cold:
 asm_handler_Exp_cold_end:
-
 .p2align 4
 asm_handler_ConcatString:
     mov x0, x20
@@ -6413,11 +6424,13 @@ asm_handler_PostfixIncrement_cold_end:
 asm_handler_Div_cold:
 // Cold paths for Div
 .Lasm_Div.ssa_block_1:
+    ldr w2, [x21, #4]
+    mov x3, x1
+    mov x4, x0
     mov x0, x20
     sub w1, w21, w26
     str w1, [x28, #56]
-    mov x2, x21
-    bl CSYM(asm_slow_path_div)
+    bl CSYM(asm_slow_path_div_values)
     tbnz x0, #63, .Lexit
     ldr x28, [x20, #15288]
     ldr x9, [x28, #80]
@@ -6434,11 +6447,13 @@ asm_handler_Div_cold_end:
 asm_handler_LessThan_cold:
 // Cold paths for LessThan
 .Lasm_LessThan.ssa_block_3:
+    ldr w2, [x21, #4]
+    mov x3, x1
+    mov x4, x0
     mov x0, x20
     sub w1, w21, w26
     str w1, [x28, #56]
-    mov x2, x21
-    bl CSYM(asm_slow_path_less_than)
+    bl CSYM(asm_slow_path_less_than_values)
     tbnz x0, #63, .Lexit
     ldr x28, [x20, #15288]
     ldr x9, [x28, #80]
@@ -6452,11 +6467,13 @@ asm_handler_LessThan_cold_end:
 asm_handler_LessThanEquals_cold:
 // Cold paths for LessThanEquals
 .Lasm_LessThanEquals.ssa_block_3:
+    ldr w2, [x21, #4]
+    mov x3, x1
+    mov x4, x0
     mov x0, x20
     sub w1, w21, w26
     str w1, [x28, #56]
-    mov x2, x21
-    bl CSYM(asm_slow_path_less_than_equals)
+    bl CSYM(asm_slow_path_less_than_equals_values)
     tbnz x0, #63, .Lexit
     ldr x28, [x20, #15288]
     ldr x9, [x28, #80]
@@ -6470,11 +6487,13 @@ asm_handler_LessThanEquals_cold_end:
 asm_handler_GreaterThan_cold:
 // Cold paths for GreaterThan
 .Lasm_GreaterThan.ssa_block_3:
+    ldr w2, [x21, #4]
+    mov x3, x1
+    mov x4, x0
     mov x0, x20
     sub w1, w21, w26
     str w1, [x28, #56]
-    mov x2, x21
-    bl CSYM(asm_slow_path_greater_than)
+    bl CSYM(asm_slow_path_greater_than_values)
     tbnz x0, #63, .Lexit
     ldr x28, [x20, #15288]
     ldr x9, [x28, #80]
@@ -6488,11 +6507,13 @@ asm_handler_GreaterThan_cold_end:
 asm_handler_GreaterThanEquals_cold:
 // Cold paths for GreaterThanEquals
 .Lasm_GreaterThanEquals.ssa_block_3:
+    ldr w2, [x21, #4]
+    mov x3, x1
+    mov x4, x0
     mov x0, x20
     sub w1, w21, w26
     str w1, [x28, #56]
-    mov x2, x21
-    bl CSYM(asm_slow_path_greater_than_equals)
+    bl CSYM(asm_slow_path_greater_than_equals_values)
     tbnz x0, #63, .Lexit
     ldr x28, [x20, #15288]
     ldr x9, [x28, #80]
@@ -6513,33 +6534,35 @@ asm_handler_BitwiseXor_cold:
     cmp w2, w24
     b.eq .Lasm_BitwiseXor.ssa_block_1
     fmov d0, x1
-    fcvtzs w1, d0
-    scvtf d16, w1
+    fcvtzs w2, d0
+    scvtf d16, w2
     fcmp d0, d16
     b.ne .Lasm_BitwiseXor.ssa_block_1
     b .Lasm_BitwiseXor.ssa_block_8
 .Lasm_BitwiseXor.ssa_block_5:
-    sxtw x1, w1
+    sxtw x2, w1
 .Lasm_BitwiseXor.ssa_block_8:
-    lsr x2, x0, #48
-    cmp x2, x22
-    ccmp x2, x23, #4, ne
+    lsr x3, x0, #48
+    cmp x3, x22
+    ccmp x3, x23, #4, ne
     b.eq .Lasm_BitwiseXor.ssa_block_10
-    and w2, w2, #0x7ff8
-    cmp w2, w24
+    and w3, w3, #0x7ff8
+    cmp w3, w24
     b.eq .Lasm_BitwiseXor.ssa_block_1
     fmov d0, x0
-    fcvtzs w0, d0
-    scvtf d16, w0
+    fcvtzs w3, d0
+    scvtf d16, w3
     fcmp d0, d16
     b.ne .Lasm_BitwiseXor.ssa_block_1
     b .Lasm_BitwiseXor.ssa_block_13
 .Lasm_BitwiseXor.ssa_block_1:
+    ldr w2, [x21, #4]
+    mov x3, x1
+    mov x4, x0
     mov x0, x20
     sub w1, w21, w26
     str w1, [x28, #56]
-    mov x2, x21
-    bl CSYM(asm_slow_path_bitwise_xor)
+    bl CSYM(asm_slow_path_bitwise_xor_values)
     tbnz x0, #63, .Lexit
     ldr x28, [x20, #15288]
     ldr x9, [x28, #80]
@@ -6550,12 +6573,12 @@ asm_handler_BitwiseXor_cold:
     ldr x10, [x19, x9, lsl #3]
     br x10
 .Lasm_BitwiseXor.ssa_block_10:
-    sxtw x0, w0
+    sxtw x3, w0
 .Lasm_BitwiseXor.ssa_block_13:
-    eor w1, w1, w0
-    movk x1, #0x7ffa, lsl #48
+    eor w2, w2, w3
+    movk x2, #0x7ffa, lsl #48
     ldr w9, [x21, #4]
-    str x1, [x27, x9, lsl #3]
+    str x2, [x27, x9, lsl #3]
     ldrb w9, [x21, #16]
     add x21, x21, #16
     ldr x10, [x19, x9, lsl #3]
@@ -6841,33 +6864,35 @@ asm_handler_BitwiseAnd_cold:
     cmp w2, w24
     b.eq .Lasm_BitwiseAnd.ssa_block_1
     fmov d0, x1
-    fcvtzs w1, d0
-    scvtf d16, w1
+    fcvtzs w2, d0
+    scvtf d16, w2
     fcmp d0, d16
     b.ne .Lasm_BitwiseAnd.ssa_block_1
     b .Lasm_BitwiseAnd.ssa_block_8
 .Lasm_BitwiseAnd.ssa_block_5:
-    sxtw x1, w1
+    sxtw x2, w1
 .Lasm_BitwiseAnd.ssa_block_8:
-    lsr x2, x0, #48
-    cmp x2, x22
-    ccmp x2, x23, #4, ne
+    lsr x3, x0, #48
+    cmp x3, x22
+    ccmp x3, x23, #4, ne
     b.eq .Lasm_BitwiseAnd.ssa_block_10
-    and w2, w2, #0x7ff8
-    cmp w2, w24
+    and w3, w3, #0x7ff8
+    cmp w3, w24
     b.eq .Lasm_BitwiseAnd.ssa_block_1
     fmov d0, x0
-    fcvtzs w0, d0
-    scvtf d16, w0
+    fcvtzs w3, d0
+    scvtf d16, w3
     fcmp d0, d16
     b.ne .Lasm_BitwiseAnd.ssa_block_1
     b .Lasm_BitwiseAnd.ssa_block_13
 .Lasm_BitwiseAnd.ssa_block_1:
+    ldr w2, [x21, #4]
+    mov x3, x1
+    mov x4, x0
     mov x0, x20
     sub w1, w21, w26
     str w1, [x28, #56]
-    mov x2, x21
-    bl CSYM(asm_slow_path_bitwise_and)
+    bl CSYM(asm_slow_path_bitwise_and_values)
     tbnz x0, #63, .Lexit
     ldr x28, [x20, #15288]
     ldr x9, [x28, #80]
@@ -6878,12 +6903,12 @@ asm_handler_BitwiseAnd_cold:
     ldr x10, [x19, x9, lsl #3]
     br x10
 .Lasm_BitwiseAnd.ssa_block_10:
-    sxtw x0, w0
+    sxtw x3, w0
 .Lasm_BitwiseAnd.ssa_block_13:
-    and w1, w1, w0
-    movk x1, #0x7ffa, lsl #48
+    and w2, w2, w3
+    movk x2, #0x7ffa, lsl #48
     ldr w9, [x21, #4]
-    str x1, [x27, x9, lsl #3]
+    str x2, [x27, x9, lsl #3]
     ldrb w9, [x21, #16]
     add x21, x21, #16
     ldr x10, [x19, x9, lsl #3]
@@ -6899,33 +6924,35 @@ asm_handler_BitwiseOr_cold:
     cmp w2, w24
     b.eq .Lasm_BitwiseOr.ssa_block_1
     fmov d0, x1
-    fcvtzs w1, d0
-    scvtf d16, w1
+    fcvtzs w2, d0
+    scvtf d16, w2
     fcmp d0, d16
     b.ne .Lasm_BitwiseOr.ssa_block_1
     b .Lasm_BitwiseOr.ssa_block_8
 .Lasm_BitwiseOr.ssa_block_5:
-    sxtw x1, w1
+    sxtw x2, w1
 .Lasm_BitwiseOr.ssa_block_8:
-    lsr x2, x0, #48
-    cmp x2, x22
-    ccmp x2, x23, #4, ne
+    lsr x3, x0, #48
+    cmp x3, x22
+    ccmp x3, x23, #4, ne
     b.eq .Lasm_BitwiseOr.ssa_block_10
-    and w2, w2, #0x7ff8
-    cmp w2, w24
+    and w3, w3, #0x7ff8
+    cmp w3, w24
     b.eq .Lasm_BitwiseOr.ssa_block_1
     fmov d0, x0
-    fcvtzs w0, d0
-    scvtf d16, w0
+    fcvtzs w3, d0
+    scvtf d16, w3
     fcmp d0, d16
     b.ne .Lasm_BitwiseOr.ssa_block_1
     b .Lasm_BitwiseOr.ssa_block_13
 .Lasm_BitwiseOr.ssa_block_1:
+    ldr w2, [x21, #4]
+    mov x3, x1
+    mov x4, x0
     mov x0, x20
     sub w1, w21, w26
     str w1, [x28, #56]
-    mov x2, x21
-    bl CSYM(asm_slow_path_bitwise_or)
+    bl CSYM(asm_slow_path_bitwise_or_values)
     tbnz x0, #63, .Lexit
     ldr x28, [x20, #15288]
     ldr x9, [x28, #80]
@@ -6936,12 +6963,12 @@ asm_handler_BitwiseOr_cold:
     ldr x10, [x19, x9, lsl #3]
     br x10
 .Lasm_BitwiseOr.ssa_block_10:
-    sxtw x0, w0
+    sxtw x3, w0
 .Lasm_BitwiseOr.ssa_block_13:
-    orr w1, w1, w0
-    movk x1, #0x7ffa, lsl #48
+    orr w2, w2, w3
+    movk x2, #0x7ffa, lsl #48
     ldr w9, [x21, #4]
-    str x1, [x27, x9, lsl #3]
+    str x2, [x27, x9, lsl #3]
     ldrb w9, [x21, #16]
     add x21, x21, #16
     ldr x10, [x19, x9, lsl #3]
@@ -6950,11 +6977,13 @@ asm_handler_BitwiseOr_cold_end:
 asm_handler_LeftShift_cold:
 // Cold paths for LeftShift
 .Lasm_LeftShift.ssa_block_1:
+    ldr w2, [x21, #4]
+    mov x3, x0
+    mov x4, x1
     mov x0, x20
     sub w1, w21, w26
     str w1, [x28, #56]
-    mov x2, x21
-    bl CSYM(asm_slow_path_left_shift)
+    bl CSYM(asm_slow_path_left_shift_values)
     tbnz x0, #63, .Lexit
     ldr x28, [x20, #15288]
     ldr x9, [x28, #80]
@@ -6968,11 +6997,13 @@ asm_handler_LeftShift_cold_end:
 asm_handler_RightShift_cold:
 // Cold paths for RightShift
 .Lasm_RightShift.ssa_block_1:
+    ldr w2, [x21, #4]
+    mov x3, x0
+    mov x4, x1
     mov x0, x20
     sub w1, w21, w26
     str w1, [x28, #56]
-    mov x2, x21
-    bl CSYM(asm_slow_path_right_shift)
+    bl CSYM(asm_slow_path_right_shift_values)
     tbnz x0, #63, .Lexit
     ldr x28, [x20, #15288]
     ldr x9, [x28, #80]
@@ -6995,11 +7026,13 @@ asm_handler_UnsignedRightShift_cold:
     ldr x10, [x19, x9, lsl #3]
     br x10
 .Lasm_UnsignedRightShift.ssa_block_1:
+    ldr w2, [x21, #4]
+    mov x3, x0
+    mov x4, x1
     mov x0, x20
     sub w1, w21, w26
     str w1, [x28, #56]
-    mov x2, x21
-    bl CSYM(asm_slow_path_unsigned_right_shift)
+    bl CSYM(asm_slow_path_unsigned_right_shift_values)
     tbnz x0, #63, .Lexit
     ldr x28, [x20, #15288]
     ldr x9, [x28, #80]
@@ -7013,11 +7046,13 @@ asm_handler_UnsignedRightShift_cold_end:
 asm_handler_Mod_cold:
 // Cold paths for Mod
 .Lasm_Mod.ssa_block_1:
+    ldr w2, [x21, #4]
+    mov x3, x0
+    mov x4, x1
     mov x0, x20
     sub w1, w21, w26
     str w1, [x28, #56]
-    mov x2, x21
-    bl CSYM(asm_slow_path_mod)
+    bl CSYM(asm_slow_path_mod_values)
     tbnz x0, #63, .Lexit
     ldr x28, [x20, #15288]
     ldr x9, [x28, #80]

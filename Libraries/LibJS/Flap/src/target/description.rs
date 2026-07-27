@@ -765,6 +765,15 @@ fn lookup_operation(operation: Operation) -> &'static InstructionDescription {
                     .aarch64(spec().scratches(&[X9, X10]))
             }
         }
+        Operation::Call(CallKind::BinarySlowPath) => {
+            &const {
+                plain(&[FuncSymbol, GprIn, GprIn, GprIn])
+                    .terminal()
+                    .call()
+                    .x86_64(spec().scratches(&[RAX, R11]))
+                    .aarch64(spec().scratches(&[X9, X10]))
+            }
+        }
         Operation::Call(CallKind::Helper) => {
             &const {
                 plain(&[FuncSymbol, GprIn, GprOut])
@@ -1054,5 +1063,12 @@ mod tests {
             assert!(info.x86_64.trailing_scratch_registers.is_empty());
             assert!(info.aarch64.trailing_scratch_registers.is_empty());
         }
+    }
+
+    #[test]
+    fn aarch64_slow_path_dispatch_preserves_the_return_register() {
+        let info = lookup_operation(Operation::Call(CallKind::BinarySlowPath));
+        assert_eq!(info.aarch64.trailing_scratch_registers, &[X9, X10]);
+        assert!(!info.aarch64.trailing_scratch_registers.contains(&X0));
     }
 }

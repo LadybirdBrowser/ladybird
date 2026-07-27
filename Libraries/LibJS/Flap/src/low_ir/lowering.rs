@@ -2361,6 +2361,7 @@ fn lower_instruction(
         Operation::Intrinsic(Intrinsic::Call(operation)) => {
             let expected_inputs = match operation {
                 CallOperation::SlowPath | CallOperation::Interpreter | CallOperation::RawNative => 1,
+                CallOperation::BinarySlowPath => 4,
                 CallOperation::Helper => 2,
             };
             if inputs.len() != expected_inputs || results.len() != operation.result_count() {

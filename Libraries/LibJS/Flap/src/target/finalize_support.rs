@@ -378,3 +378,82 @@ pub(crate) fn push_plain_move(
         operands: operands.to_vec(),
     });
 }
+
+/// Schedules parallel register moves into a safe sequential order.
+///
+/// The scratch register must not alias any move operand, and move destinations
+/// must be unique.
+pub(crate) fn schedule_parallel_moves(
+    requested_moves: &[(PhysicalRegister, PhysicalRegister)],
+    scratch: PhysicalRegister,
+) -> Vec<(PhysicalRegister, PhysicalRegister)> {
+    debug_assert!(
+        requested_moves
+            .iter()
+            .all(|(destination, source)| *destination != scratch && *source != scratch),
+        "scratch register must not alias any move operand"
+    );
+    debug_assert!(
+        requested_moves.iter().enumerate().all(|(index, (destination, _))| {
+            requested_moves[index + 1..]
+                .iter()
+                .all(|(other_destination, _)| destination != other_destination)
+        }),
+        "parallel move destinations must be unique"
+    );
+
+    let mut pending = requested_moves
+        .iter()
+        .copied()
+        .filter(|(destination, source)| destination != source)
+        .collect::<Vec<_>>();
+    let mut scheduled = Vec::with_capacity(pending.len() + 1);
+    while !pending.is_empty() {
+        if let Some(index) = pending
+            .iter()
+            .position(|(destination, _)| !pending.iter().any(|(_, source)| source == destination))
+        {
+            scheduled.push(pending.remove(index));
+            continue;
+        }
+
+        let saved = pending[0].0;
+        scheduled.push((scratch, saved));
+        for (_, source) in &mut pending {
+            if *source == saved {
+                *source = scratch;
+            }
+        }
+    }
+    scheduled
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::target::registers::x86_64::{R8, R11, RCX, RDX};
+
+    #[test]
+    fn schedules_parallel_move_cycles_through_scratch() {
+        assert_eq!(
+            schedule_parallel_moves(&[(RDX, RCX), (RCX, RDX)], R11),
+            [(R11, RDX), (RDX, RCX), (RCX, R11)]
+        );
+        assert_eq!(
+            schedule_parallel_moves(&[(RDX, RCX), (RCX, R8), (R8, RDX)], R11),
+            [(R11, RDX), (RDX, RCX), (RCX, R8), (R8, R11)]
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "scratch register must not alias any move operand")]
+    fn rejects_parallel_moves_that_alias_scratch() {
+        schedule_parallel_moves(&[(RDX, R11)], R11);
+    }
+
+    #[test]
+    #[should_panic(expected = "parallel move destinations must be unique")]
+    fn rejects_parallel_moves_with_duplicate_destinations() {
+        schedule_parallel_moves(&[(RDX, RCX), (RDX, R8)], R11);
+    }
+}
