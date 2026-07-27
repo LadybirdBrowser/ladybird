@@ -421,14 +421,10 @@ void run_focusing_steps(DOM::Node* new_focus_target, DOM::Node* fallback_target,
     if (!focused_element || is<NavigableContainer>(*focused_element))
         return;
 
-    focused_element->queue_an_element_task(Task::Source::UserInteraction, [focused_element] {
-        if (focused_element->document().focused_area().ptr() != focused_element)
-            return;
-        Bindings::ScrollIntoViewOptions scroll_options;
-        scroll_options.block = Bindings::ScrollLogicalPosition::Nearest;
-        scroll_options.inline_ = Bindings::ScrollLogicalPosition::Nearest;
-        (void)focused_element->scroll_into_view(scroll_options);
-    });
+    Bindings::ScrollIntoViewOptions scroll_options;
+    scroll_options.block = Bindings::ScrollLogicalPosition::Nearest;
+    scroll_options.inline_ = Bindings::ScrollLogicalPosition::Nearest;
+    (void)focused_element->scroll_into_view(scroll_options);
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#unfocusing-steps

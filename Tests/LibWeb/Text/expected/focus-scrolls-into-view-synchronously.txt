@@ -1,0 +1,1 @@
+scrollY immediately after focus() is nonzero: true
