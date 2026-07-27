@@ -26,7 +26,7 @@ block0:
   [ 198] End value:reg5
 
 
-eval$6559f0fb line 1, column 1
+eval$e6bbe983 line 1, column 1
   Registers: 7
   Blocks:    3
   Locals:    x~0
@@ -36,18 +36,18 @@ eval$6559f0fb line 1, column 1
     [2] = String("hello")
 
 block0:
-  [   0] Mov dst:reg5, src:Undefined
-  [  10] JumpStrictlyEquals lhs:Int32(1), rhs:Int32(1), true_target:block2, false_target:block1
+  [   0] MovSrcUndefined dst:reg5
+  [   8] JumpStrictlyEquals lhs:Int32(1), rhs:Int32(1), true_target:block2, false_target:block1
 
 block1:
-  [  28] End value:reg5
+  [  20] End value:reg5
 
 block2:
-  [  30] Mov2 dst1:reg5, src1:String("hello"), dst2:x~0, src2:Int32(1)
-  [  48] End value:reg5
+  [  28] Mov2 c0_dst:reg5, c0_src:String("hello"), c1_dst:x~0, c1_src:Int32(1)
+  [  40] End value:reg5
 
 
-eval$6559f0fb line 1, column 1
+eval$e6bbe983 line 1, column 1
   Registers: 7
   Blocks:    3
   Constants:
@@ -57,18 +57,18 @@ eval$6559f0fb line 1, column 1
     [3] = String("second")
 
 block0:
-  [   0] Mov dst:reg5, src:Undefined
-  [  10] JumpStrictlyEquals lhs:Int32(1), rhs:Int32(1), true_target:block2, false_target:block1
+  [   0] MovSrcUndefined dst:reg5
+  [   8] JumpStrictlyEquals lhs:Int32(1), rhs:Int32(1), true_target:block2, false_target:block1
 
 block1:
-  [  28] End value:reg5
+  [  20] End value:reg5
 
 block2:
-  [  30] Mov2 dst1:reg5, src1:String("first"), dst2:reg5, src2:String("second")
-  [  48] End value:reg5
+  [  28] Mov2 c0_dst:reg5, c0_src:String("first"), c1_dst:reg5, c1_src:String("second")
+  [  40] End value:reg5
 
 
-eval$6da5c42b line 1, column 1
+eval$e3f7f873 line 1, column 1
   Registers: 7
   Blocks:    4
   Constants:
@@ -78,19 +78,19 @@ eval$6da5c42b line 1, column 1
     [3] = String("default")
 
 block0:
-  [   0] Mov dst:reg5, src:Undefined
-  [  10] JumpStrictlyEquals lhs:Int32(1), rhs:Int32(1), true_target:block2, false_target:block1
+  [   0] MovSrcUndefined dst:reg5
+  [   8] JumpStrictlyEquals lhs:Int32(1), rhs:Int32(1), true_target:block2, false_target:block1
 
 block1:
-  [  28] Jump target:block3
+  [  20] Jump target:block3
 
 block2:
-  [  30] Mov dst:reg5, src:String("matched")
-  [  40] End value:reg5
+  [  28] Mov dst:reg5, src:String("matched")
+  [  38] End value:reg5
 
 block3:
-  [  48] Mov dst:reg5, src:String("default")
-  [  58] End value:reg5
+  [  40] Mov dst:reg5, src:String("default")
+  [  50] End value:reg5
 
 
 "hello"

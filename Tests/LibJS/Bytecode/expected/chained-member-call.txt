@@ -1,4 +1,4 @@
-$8581badb chained-member-call.js:12:1
+$9355702b chained-member-call.js:12:1
   Registers: 10
   Blocks:    6
   Constants:
@@ -12,34 +12,34 @@ block0:
 block1:
   [  10] Catch dst:reg5
   [  18] SetLexicalEnvironment environment:reg4
-  [  20] Mov2 dst1:reg6, src1:Undefined, dst2:reg7, src2:reg6
+  [  20] Mov2 c0_dst:reg6, c0_src:Undefined, c1_dst:reg7, c1_src:reg6
 
 block2:
   [  38] Jump target:block5
 
 block3:
-  [  40] Mov dst:reg5, src:Undefined
-  [  50] GetGlobal dst:reg8, `chained_computed_call`
-  [  60] Call dst:reg6, callee:reg8, this_value:Undefined, chained_computed_call, arguments:[Int32(0), Int32(0), Int32(0)]
-  [  90] Mov2 dst1:reg5, src1:reg6, dst2:reg6, src2:reg5
-  [  a8] Jump target:block2
+  [  40] MovSrcUndefined dst:reg5
+  [  48] GetGlobal dst:reg8, `chained_computed_call`
+  [  58] Call dst:reg6, callee:reg8, this_value:Undefined, chained_computed_call, arguments:[Int32(0), Int32(0), Int32(0)]
+  [  88] Mov2 c0_dst:reg5, c0_src:reg6, c1_dst:reg6, c1_src:reg5
+  [  a0] Jump target:block2
 
 block4:
-  [  b0] Catch dst:reg5
-  [  b8] SetLexicalEnvironment environment:reg4
-  [  c0] Mov2 dst1:reg7, src1:Undefined, dst2:reg8, src2:reg7
-  [  d8] End value:reg7
+  [  a8] Catch dst:reg5
+  [  b0] SetLexicalEnvironment environment:reg4
+  [  b8] Mov2 c0_dst:reg7, c0_src:Undefined, c1_dst:reg8, c1_src:reg7
+  [  d0] End value:reg7
 
 block5:
-  [  e0] Mov dst:reg5, src:Undefined
-  [  f0] GetGlobal dst:reg9, `chained_dot_call`
-  [ 100] Call dst:reg7, callee:reg9, this_value:Undefined, chained_dot_call, arguments:[Int32(0)]
-  [ 128] Mov2 dst1:reg5, src1:reg7, dst2:reg7, src2:reg5
-  [ 140] End value:reg7
+  [  d8] MovSrcUndefined dst:reg5
+  [  e0] GetGlobal dst:reg9, `chained_dot_call`
+  [  f0] Call dst:reg7, callee:reg9, this_value:Undefined, chained_dot_call, arguments:[Int32(0)]
+  [ 118] Mov2 c0_dst:reg5, c0_src:reg7, c1_dst:reg7, c1_src:reg5
+  [ 130] End value:reg7
 
 Exception handlers:
-  [  40 ..   b0] => handler block1
-  [  e0 ..  148] => handler block4
+  [  40 ..   a8] => handler block1
+  [  d8 ..  138] => handler block4
 
 
 chained_computed_call$f75d09e2 chained-member-call.js:5:5

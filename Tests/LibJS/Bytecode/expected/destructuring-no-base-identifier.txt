@@ -1,4 +1,4 @@
-$b6d86a12 destructuring-no-base-identifier.js:1:1
+$3576718a destructuring-no-base-identifier.js:1:1
   Registers: 14
   Blocks:    16
   Constants:
@@ -30,46 +30,46 @@ block3:
   [  b8] Jump target:block5
 
 block4:
-  [  c0] Mov dst:reg13, src:Undefined
-  [  d0] Jump target:block6
+  [  c0] MovSrcUndefined dst:reg13
+  [  c8] Jump target:block6
 
 block5:
-  [  d8] IteratorNextUnpack dst_value:reg13, dst_done:reg6, iterator_object:reg7, iterator_next:reg8, iterator_done:reg9
-  [  f0] JumpTrue condition:reg6, target:block4
+  [  d0] IteratorNextUnpack dst_value:reg13, dst_done:reg6, iterator_object:reg7, iterator_next:reg8, iterator_done:reg9
+  [  e8] JumpTrue condition:reg6, target:block4
 
 block6:
-  [ 100] PutById base:reg12, `y`, src:reg13, kind:Normal
+  [  f8] PutById base:reg12, `y`, src:reg13, kind:Normal
 
 block7:
-  [ 120] JumpFalse condition:reg9, target:block9
+  [ 118] JumpFalse condition:reg9, target:block9
 
 block8:
-  [ 130] End value:reg5
+  [ 128] End value:reg5
 
 block9:
-  [ 138] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
-  [ 150] Jump target:block8
+  [ 130] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
+  [ 148] Jump target:block8
 
 block10:
-  [ 158] JumpStrictlyEquals lhs:reg10, rhs:Int32(1), true_target:block12, false_target:block13
+  [ 150] JumpStrictlyEquals lhs:reg10, rhs:Int32(1), true_target:block12, false_target:block13
 
 block11:
-  [ 170] JumpStrictlyEquals lhs:reg10, rhs:Int32(2), true_target:block14, false_target:block15
+  [ 168] JumpStrictlyEquals lhs:reg10, rhs:Int32(2), true_target:block14, false_target:block15
 
 block12:
-  [ 188] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:reg11
-  [ 1a0] Throw src:reg11
+  [ 180] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:reg11
+  [ 198] Throw src:reg11
 
 block13:
-  [ 1a8] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
-  [ 1c0] Jump target:block11
+  [ 1a0] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
+  [ 1b8] Jump target:block11
 
 block14:
-  [ 1c8] Return value:reg11
+  [ 1c0] Return value:reg11
 
 block15:
-  [ 1d0] Throw src:reg11
+  [ 1c8] Throw src:reg11
 
 Exception handlers:
-  [  a8 ..   d8] => handler block1
-  [ 100 ..  120] => handler block1
+  [  a8 ..   d0] => handler block1
+  [  f8 ..  118] => handler block1

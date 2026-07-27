@@ -20,7 +20,7 @@ source_order_locals$4b1aeb83 local-source-order.js:6:5
     [2] = Int32(3)
 
 block0:
-  [   0] Mov3 dst1:zebra~0, src1:Int32(1), dst2:yak~1, src2:Int32(2), dst3:aardvark~2, src3:Int32(3)
+  [   0] Mov3 c0_dst:zebra~0, c0_src:Int32(1), c1_dst:yak~1, c1_src:Int32(2), c2_dst:aardvark~2, c2_src:Int32(3)
   [  20] Add dst:reg5, lhs:zebra~0, rhs:yak~1
   [  30] Add dst:reg6, lhs:reg5, rhs:aardvark~2
   [  40] Return value:reg6

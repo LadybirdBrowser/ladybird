@@ -11,7 +11,7 @@ block0:
   [  38] End value:reg5
 
 
-f$8a532e3d for-of-cond-rhs-block-order.js:2:21
+f$8d171f4d for-of-cond-rhs-block-order.js:2:21
   Registers: 19
   Blocks:    31
   Locals:    r~0, n~1
@@ -75,78 +75,78 @@ block11:
   [ 1b8] Jump target:block13
 
 block12:
-  [ 1c0] Mov dst:reg18, src:Undefined
-  [ 1d0] Jump target:block14
+  [ 1c0] MovSrcUndefined dst:reg18
+  [ 1c8] Jump target:block14
 
 block13:
-  [ 1d8] IteratorNextUnpack dst_value:reg18, dst_done:reg12, iterator_object:reg13, iterator_next:reg14, iterator_done:reg15
-  [ 1f0] JumpTrue condition:reg12, target:block12
+  [ 1d0] IteratorNextUnpack dst_value:reg18, dst_done:reg12, iterator_object:reg13, iterator_next:reg14, iterator_done:reg15
+  [ 1e8] JumpTrue condition:reg12, target:block12
 
 block14:
-  [ 200] Mov dst:r~0, src:reg18
-  [ 210] JumpFalse condition:reg12, target:block16
+  [ 1f8] Mov dst:r~0, src:reg18
+  [ 208] JumpFalse condition:reg12, target:block16
 
 block15:
-  [ 220] Mov dst:reg18, src:Undefined
-  [ 230] Jump target:block17
+  [ 218] MovSrcUndefined dst:reg18
+  [ 220] Jump target:block17
 
 block16:
-  [ 238] IteratorNextUnpack dst_value:reg18, dst_done:reg12, iterator_object:reg13, iterator_next:reg14, iterator_done:reg15
-  [ 250] JumpTrue condition:reg12, target:block15
+  [ 228] IteratorNextUnpack dst_value:reg18, dst_done:reg12, iterator_object:reg13, iterator_next:reg14, iterator_done:reg15
+  [ 240] JumpTrue condition:reg12, target:block15
 
 block17:
-  [ 260] Mov dst:n~1, src:reg18
+  [ 250] Mov dst:n~1, src:reg18
 
 block18:
-  [ 270] JumpFalse condition:reg15, target:block20
+  [ 260] JumpFalse condition:reg15, target:block20
 
 block19:
-  [ 280] Jump target:block10
+  [ 270] Jump target:block10
 
 block20:
-  [ 288] IteratorClose iterator_object:reg13, iterator_next:reg14, iterator_done:reg15, completion_value:Undefined
-  [ 2a0] Jump target:block19
+  [ 278] IteratorClose iterator_object:reg13, iterator_next:reg14, iterator_done:reg15, completion_value:Undefined
+  [ 290] Jump target:block19
 
 block21:
-  [ 2a8] JumpStrictlyEquals lhs:reg16, rhs:Int32(1), true_target:block23, false_target:block24
+  [ 298] JumpStrictlyEquals lhs:reg16, rhs:Int32(1), true_target:block23, false_target:block24
 
 block22:
-  [ 2c0] JumpStrictlyEquals lhs:reg16, rhs:Int32(2), true_target:block25, false_target:block26
+  [ 2b0] JumpStrictlyEquals lhs:reg16, rhs:Int32(2), true_target:block25, false_target:block26
 
 block23:
-  [ 2d8] IteratorClose iterator_object:reg13, iterator_next:reg14, iterator_done:reg15, completion_value:reg17
-  [ 2f0] Throw src:reg17
+  [ 2c8] IteratorClose iterator_object:reg13, iterator_next:reg14, iterator_done:reg15, completion_value:reg17
+  [ 2e0] Throw src:reg17
 
 block24:
-  [ 2f8] IteratorClose iterator_object:reg13, iterator_next:reg14, iterator_done:reg15, completion_value:Undefined
-  [ 310] Jump target:block22
+  [ 2e8] IteratorClose iterator_object:reg13, iterator_next:reg14, iterator_done:reg15, completion_value:Undefined
+  [ 300] Jump target:block22
 
 block25:
-  [ 318] Mov2 dst1:reg7, src1:reg16, dst2:reg9, src2:reg17
-  [ 330] Jump target:block7
+  [ 308] Mov2 c0_dst:reg7, c0_src:reg16, c1_dst:reg9, c1_src:reg17
+  [ 320] Jump target:block7
 
 block26:
-  [ 338] Throw src:reg17
+  [ 328] Throw src:reg17
 
 block27:
-  [ 340] IteratorClose iterator_object:reg5, iterator_next:reg8, iterator_done:reg6, completion_value:reg9
-  [ 358] Throw src:reg9
+  [ 330] IteratorClose iterator_object:reg5, iterator_next:reg8, iterator_done:reg6, completion_value:reg9
+  [ 348] Throw src:reg9
 
 block28:
-  [ 360] IteratorClose iterator_object:reg5, iterator_next:reg8, iterator_done:reg6, completion_value:Undefined
-  [ 378] JumpStrictlyEquals lhs:reg7, rhs:Int32(2), true_target:block29, false_target:block30
+  [ 350] IteratorClose iterator_object:reg5, iterator_next:reg8, iterator_done:reg6, completion_value:Undefined
+  [ 368] JumpStrictlyEquals lhs:reg7, rhs:Int32(2), true_target:block29, false_target:block30
 
 block29:
-  [ 390] Return value:reg9
+  [ 380] Return value:reg9
 
 block30:
-  [ 398] Throw src:reg9
+  [ 388] Throw src:reg9
 
 Exception handlers:
   [ 150 ..  1b8] => handler block6
-  [ 1b8 ..  1d8] => handler block9
-  [ 1d8 ..  200] => handler block6
-  [ 200 ..  238] => handler block9
-  [ 238 ..  260] => handler block6
-  [ 260 ..  270] => handler block9
-  [ 270 ..  340] => handler block6
+  [ 1b8 ..  1d0] => handler block9
+  [ 1d0 ..  1f8] => handler block6
+  [ 1f8 ..  228] => handler block9
+  [ 228 ..  250] => handler block6
+  [ 250 ..  260] => handler block9
+  [ 260 ..  330] => handler block6

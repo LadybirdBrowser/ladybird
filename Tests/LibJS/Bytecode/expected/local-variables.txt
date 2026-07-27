@@ -47,6 +47,6 @@ multiple_locals$77559ec6 local-variables.js:15:5
     [1] = Int32(2)
 
 block0:
-  [   0] Mov2 dst1:a~0, src1:Int32(1), dst2:b~1, src2:Int32(2)
+  [   0] Mov2 c0_dst:a~0, c0_src:Int32(1), c1_dst:b~1, c1_src:Int32(2)
   [  18] Add dst:reg5, lhs:a~0, rhs:b~1
   [  28] Return value:reg5

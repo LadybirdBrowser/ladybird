@@ -24,7 +24,7 @@ block0:
 
 block1:
   [  10] GetIterator dst_iterator_object:reg8, dst_iterator_next:reg9, dst_iterator_done:reg10, iterable:arg0
-  [  28] Mov2 dst1:reg6, src1:Int32(1), dst2:reg7, src2:Undefined
+  [  28] Mov2 c0_dst:reg6, c0_src:Int32(1), c1_dst:reg7, c1_src:Undefined
 
 block2:
   [  40] JumpStrictlyEquals lhs:reg6, rhs:Int32(1), true_target:block5, false_target:block6

@@ -1,4 +1,4 @@
-$73266a71 tagged-template-if-register-order.js:2:1
+$f74c5409 tagged-template-if-register-order.js:2:1
   Registers: 11
   Blocks:    3
   Constants:
@@ -16,16 +16,16 @@ block0:
   [  80] DynamicInitializeLexicalBinding `y`, src:Null
   [  90] GetGlobal dst:reg8, `x`
   [  a0] StrictlyEquals dst:reg6, lhs:reg8, rhs:String("hello")
-  [  b0] Mov dst:reg8, src:Undefined
-  [  c0] JumpFalse condition:reg6, target:block2
+  [  b0] MovSrcUndefined dst:reg8
+  [  b8] JumpFalse condition:reg6, target:block2
 
 block1:
-  [  d0] ResolveBinding dst:reg7, `y`
-  [  e0] GetGlobal dst:reg9, `x`
-  [  f0] GetById dst:reg10, base:reg9, `toUpperCase` (x.toUpperCase)
-  [ 108] Call dst:reg5, callee:reg10, this_value:reg9, x.toUpperCase
-  [ 128] SetResolvedBinding environment:reg7, `y`, src:reg5
-  [ 138] Mov dst:reg8, src:reg5
+  [  c8] ResolveBinding dst:reg7, `y`
+  [  d8] GetGlobal dst:reg9, `x`
+  [  e8] GetById dst:reg10, base:reg9, `toUpperCase` (x.toUpperCase)
+  [ 100] Call dst:reg5, callee:reg10, this_value:reg9, x.toUpperCase
+  [ 120] SetResolvedBinding environment:reg7, `y`, src:reg5
+  [ 130] Mov dst:reg8, src:reg5
 
 block2:
-  [ 148] End value:reg8
+  [ 140] End value:reg8

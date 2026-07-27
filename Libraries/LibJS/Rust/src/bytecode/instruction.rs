@@ -11,3 +11,59 @@
 //! of truth for instruction definitions.
 
 include!(concat!(env!("OUT_DIR"), "/instruction_generated.rs"));
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::bytecode::generator::ConstantValue;
+
+    #[test]
+    fn selects_declarative_int32_specializations() {
+        let instruction = Instruction::Add {
+            dst: Operand::register(Register(0)),
+            lhs: Operand::register(Register(1)),
+            rhs: Operand::constant(0),
+        };
+        let constants = [ConstantValue::Number(42.0)];
+
+        let (specialized, component_count) =
+            specialize_instruction_sequence([&instruction].into_iter(), &constants).expect("Add should specialize");
+
+        assert_eq!(component_count, 1);
+        assert!(matches!(specialized, Instruction::AddRhsInt32 { rhs: 42, .. }));
+    }
+
+    #[test]
+    fn selects_declarative_undefined_move_specializations() {
+        let instructions = [
+            Instruction::Mov {
+                dst: Operand::register(Register(0)),
+                src: Operand::constant(0),
+            },
+            Instruction::Mov {
+                dst: Operand::register(Register(1)),
+                src: Operand::constant(0),
+            },
+            Instruction::Mov {
+                dst: Operand::register(Register(2)),
+                src: Operand::constant(0),
+            },
+        ];
+        let constants = [ConstantValue::Undefined];
+
+        let (specialized, component_count) =
+            specialize_instruction_sequence(instructions[..1].iter(), &constants).expect("Mov should specialize");
+        assert_eq!(component_count, 1);
+        assert!(matches!(specialized, Instruction::MovSrcUndefined { .. }));
+
+        let (specialized, component_count) =
+            specialize_instruction_sequence(instructions[..2].iter(), &constants).expect("Mov pair should specialize");
+        assert_eq!(component_count, 2);
+        assert!(matches!(specialized, Instruction::MovUndefined2 { .. }));
+
+        let (specialized, component_count) =
+            specialize_instruction_sequence(instructions.iter(), &constants).expect("Mov triplet should specialize");
+        assert_eq!(component_count, 3);
+        assert!(matches!(specialized, Instruction::MovUndefined3 { .. }));
+    }
+}

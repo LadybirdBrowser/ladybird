@@ -24,7 +24,7 @@ block0:
 
 block1:
   [  30] PostfixDecrement dst:reg7, src:arg0
-  [  40] Mov2 dst1:arg0, src1:arg0, dst2:reg6, src2:reg7
+  [  40] Mov2 c0_dst:arg0, c0_src:arg0, c1_dst:reg6, c1_src:reg7
 
 block2:
   [  58] Return value:reg6

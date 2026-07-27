@@ -1,4 +1,4 @@
-$00f604d5 invalid-lhs-forin-no-dead-code.js:6:6
+$95b394cd invalid-lhs-forin-no-dead-code.js:6:6
   Registers: 11
   Blocks:    6
   Constants:
@@ -20,11 +20,11 @@ block3:
 
 block4:
   [  50] GetObjectPropertyIterator dst_iterator:reg6, object:reg5
-  [  60] Mov dst:reg5, src:Undefined
-  [  70] Jump target:block2
+  [  60] MovSrcUndefined dst:reg5
+  [  68] Jump target:block2
 
 block5:
-  [  78] GetGlobal dst:reg10, `f`
-  [  88] Call dst:reg9, callee:reg10, this_value:Undefined, f
-  [  a8] NewReferenceError dst:reg9, Invalid left-hand side in assignment
-  [  b8] Throw src:reg9
+  [  70] GetGlobal dst:reg10, `f`
+  [  80] Call dst:reg9, callee:reg10, this_value:Undefined, f
+  [  a0] NewReferenceError dst:reg9, Invalid left-hand side in assignment
+  [  b0] Throw src:reg9

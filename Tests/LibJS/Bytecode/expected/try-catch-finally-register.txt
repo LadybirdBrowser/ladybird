@@ -19,18 +19,18 @@ block1:
   [  20] Mov dst:reg5, src:Int32(1)
 
 block2:
-  [  30] Mov2 dst1:reg9, src1:Undefined, dst2:reg9, src2:Int32(3)
+  [  30] Mov2 c0_dst:reg9, c0_src:Undefined, c1_dst:reg9, c1_src:Int32(3)
   [  48] JumpStrictlyEquals lhs:reg5, rhs:Int32(0), true_target:block5, false_target:block6
 
 block3:
   [  60] Catch dst:reg7
   [  68] SetLexicalEnvironment environment:reg4
-  [  70] Mov3 dst1:e~0, src1:reg7, dst2:reg8, src2:Undefined, dst3:reg8, src3:Int32(2)
-  [  90] Mov2 dst1:reg9, src1:reg8, dst2:reg5, src2:Int32(0)
+  [  70] Mov3 c0_dst:e~0, c0_src:reg7, c1_dst:reg8, c1_src:Undefined, c2_dst:reg8, c2_src:Int32(2)
+  [  90] Mov2 c0_dst:reg9, c0_src:reg8, c1_dst:reg5, c1_src:Int32(0)
   [  a8] Jump target:block2
 
 block4:
-  [  b0] Mov3 dst1:reg7, src1:Undefined, dst2:reg7, src2:Int32(1), dst3:reg8, src3:reg7
+  [  b0] Mov3 c0_dst:reg7, c0_src:Undefined, c1_dst:reg7, c1_src:Int32(1), c2_dst:reg8, c2_src:reg7
   [  d0] Mov dst:reg5, src:Int32(0)
   [  e0] Jump target:block2
 

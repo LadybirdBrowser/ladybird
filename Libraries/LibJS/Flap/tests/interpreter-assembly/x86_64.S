@@ -13,8 +13,6 @@
 .p2align 3
 asm_dispatch_table:
     .quad asm_handler_Mov
-    .quad asm_handler_Mov2
-    .quad asm_handler_Mov3
     .quad asm_handler_Add
     .quad asm_handler_Sub
     .quad asm_handler_Mul
@@ -195,10 +193,12 @@ asm_dispatch_table:
     .quad asm_handler_ResolveThisBinding
     .quad asm_handler_GetPrivateById
     .quad asm_handler_PutPrivateById
-    .quad asm_handler_fallback
-    .quad asm_handler_fallback
-    .quad asm_handler_fallback
-    .quad asm_handler_fallback
+    .quad asm_handler_Mov2
+    .quad asm_handler_Mov3
+    .quad asm_handler_MovSrcUndefined
+    .quad asm_handler_MovUndefined2
+    .quad asm_handler_MovUndefined3
+    .quad asm_handler_AddRhsInt32
     .quad asm_handler_fallback
     .quad asm_handler_fallback
     .quad asm_handler_fallback
@@ -276,14 +276,6 @@ CSYM(js_interpreter_handler_ranges):
     .quad asm_handler_Mov_hot_end
     .quad asm_handler_Mov_cold
     .quad asm_handler_Mov_cold_end
-    .quad asm_handler_Mov2
-    .quad asm_handler_Mov2_hot_end
-    .quad asm_handler_Mov2_cold
-    .quad asm_handler_Mov2_cold_end
-    .quad asm_handler_Mov3
-    .quad asm_handler_Mov3_hot_end
-    .quad asm_handler_Mov3_cold
-    .quad asm_handler_Mov3_cold_end
     .quad asm_handler_Add
     .quad asm_handler_Add_hot_end
     .quad asm_handler_Add_cold
@@ -1004,22 +996,30 @@ CSYM(js_interpreter_handler_ranges):
     .quad asm_handler_PutPrivateById_hot_end
     .quad asm_handler_PutPrivateById_cold
     .quad asm_handler_PutPrivateById_cold_end
-    .quad asm_handler_fallback
-    .quad asm_handler_fallback_hot_end
-    .quad asm_handler_fallback_cold
-    .quad asm_handler_fallback_cold_end
-    .quad asm_handler_fallback
-    .quad asm_handler_fallback_hot_end
-    .quad asm_handler_fallback_cold
-    .quad asm_handler_fallback_cold_end
-    .quad asm_handler_fallback
-    .quad asm_handler_fallback_hot_end
-    .quad asm_handler_fallback_cold
-    .quad asm_handler_fallback_cold_end
-    .quad asm_handler_fallback
-    .quad asm_handler_fallback_hot_end
-    .quad asm_handler_fallback_cold
-    .quad asm_handler_fallback_cold_end
+    .quad asm_handler_Mov2
+    .quad asm_handler_Mov2_hot_end
+    .quad asm_handler_Mov2_cold
+    .quad asm_handler_Mov2_cold_end
+    .quad asm_handler_Mov3
+    .quad asm_handler_Mov3_hot_end
+    .quad asm_handler_Mov3_cold
+    .quad asm_handler_Mov3_cold_end
+    .quad asm_handler_MovSrcUndefined
+    .quad asm_handler_MovSrcUndefined_hot_end
+    .quad asm_handler_MovSrcUndefined_cold
+    .quad asm_handler_MovSrcUndefined_cold_end
+    .quad asm_handler_MovUndefined2
+    .quad asm_handler_MovUndefined2_hot_end
+    .quad asm_handler_MovUndefined2_cold
+    .quad asm_handler_MovUndefined2_cold_end
+    .quad asm_handler_MovUndefined3
+    .quad asm_handler_MovUndefined3_hot_end
+    .quad asm_handler_MovUndefined3_cold
+    .quad asm_handler_MovUndefined3_cold_end
+    .quad asm_handler_AddRhsInt32
+    .quad asm_handler_AddRhsInt32_hot_end
+    .quad asm_handler_AddRhsInt32_cold
+    .quad asm_handler_AddRhsInt32_cold_end
     .quad asm_handler_fallback
     .quad asm_handler_fallback_hot_end
     .quad asm_handler_fallback_cold
@@ -1360,40 +1360,6 @@ asm_handler_Mov:
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
 asm_handler_Mov_hot_end:
-
-.p2align 6
-asm_handler_Mov2:
-    mov eax, DWORD PTR [r14 + r13 + 4]
-    mov ecx, DWORD PTR [r14 + r13 + 8]
-    mov rcx, QWORD PTR [rbx + rcx * 8]
-    mov QWORD PTR [rbx + rax * 8], rcx
-    mov eax, DWORD PTR [r14 + r13 + 12]
-    mov ecx, DWORD PTR [r14 + r13 + 16]
-    mov rcx, QWORD PTR [rbx + rcx * 8]
-    mov QWORD PTR [rbx + rax * 8], rcx
-    add r13d, 24
-    movzx eax, BYTE PTR [r14 + r13]
-    jmp [r12 + rax * 8]
-asm_handler_Mov2_hot_end:
-
-.p2align 6
-asm_handler_Mov3:
-    mov eax, DWORD PTR [r14 + r13 + 4]
-    mov ecx, DWORD PTR [r14 + r13 + 8]
-    mov rcx, QWORD PTR [rbx + rcx * 8]
-    mov QWORD PTR [rbx + rax * 8], rcx
-    mov eax, DWORD PTR [r14 + r13 + 12]
-    mov ecx, DWORD PTR [r14 + r13 + 16]
-    mov rcx, QWORD PTR [rbx + rcx * 8]
-    mov QWORD PTR [rbx + rax * 8], rcx
-    mov eax, DWORD PTR [r14 + r13 + 20]
-    mov ecx, DWORD PTR [r14 + r13 + 24]
-    mov rcx, QWORD PTR [rbx + rcx * 8]
-    mov QWORD PTR [rbx + rax * 8], rcx
-    add r13d, 32
-    movzx eax, BYTE PTR [r14 + r13]
-    jmp [r12 + rax * 8]
-asm_handler_Mov3_hot_end:
 
 .p2align 6
 asm_handler_Add:
@@ -5482,14 +5448,135 @@ asm_handler_ResolveThisBinding:
     jmp [r12 + rax * 8]
 asm_handler_ResolveThisBinding_hot_end:
 
+.p2align 6
+asm_handler_Mov2:
+    mov eax, DWORD PTR [r14 + r13 + 4]
+    mov ecx, DWORD PTR [r14 + r13 + 8]
+    mov rcx, QWORD PTR [rbx + rcx * 8]
+    mov QWORD PTR [rbx + rax * 8], rcx
+    mov eax, DWORD PTR [r14 + r13 + 12]
+    mov ecx, DWORD PTR [r14 + r13 + 16]
+    mov rcx, QWORD PTR [rbx + rcx * 8]
+    mov QWORD PTR [rbx + rax * 8], rcx
+    add r13d, 24
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+asm_handler_Mov2_hot_end:
+
+.p2align 6
+asm_handler_Mov3:
+    mov eax, DWORD PTR [r14 + r13 + 4]
+    mov ecx, DWORD PTR [r14 + r13 + 8]
+    mov rcx, QWORD PTR [rbx + rcx * 8]
+    mov QWORD PTR [rbx + rax * 8], rcx
+    mov eax, DWORD PTR [r14 + r13 + 12]
+    mov ecx, DWORD PTR [r14 + r13 + 16]
+    mov rcx, QWORD PTR [rbx + rcx * 8]
+    mov QWORD PTR [rbx + rax * 8], rcx
+    mov eax, DWORD PTR [r14 + r13 + 20]
+    mov ecx, DWORD PTR [r14 + r13 + 24]
+    mov rcx, QWORD PTR [rbx + rcx * 8]
+    mov QWORD PTR [rbx + rax * 8], rcx
+    add r13d, 32
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+asm_handler_Mov3_hot_end:
+
+.p2align 6
+asm_handler_MovSrcUndefined:
+    movabs r11, 9222809086901354496
+    mov eax, DWORD PTR [r14 + r13 + 4]
+    mov QWORD PTR [rbx + rax * 8], r11
+    add r13d, 8
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+asm_handler_MovSrcUndefined_hot_end:
+
+.p2align 6
+asm_handler_MovUndefined2:
+    movabs r11, 9222809086901354496
+    mov eax, DWORD PTR [r14 + r13 + 4]
+    mov QWORD PTR [rbx + rax * 8], r11
+    movabs r11, 9222809086901354496
+    mov eax, DWORD PTR [r14 + r13 + 8]
+    mov QWORD PTR [rbx + rax * 8], r11
+    add r13d, 16
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+asm_handler_MovUndefined2_hot_end:
+
+.p2align 6
+asm_handler_MovUndefined3:
+    movabs r11, 9222809086901354496
+    mov eax, DWORD PTR [r14 + r13 + 4]
+    mov QWORD PTR [rbx + rax * 8], r11
+    movabs r11, 9222809086901354496
+    mov eax, DWORD PTR [r14 + r13 + 8]
+    mov QWORD PTR [rbx + rax * 8], r11
+    movabs r11, 9222809086901354496
+    mov eax, DWORD PTR [r14 + r13 + 12]
+    mov QWORD PTR [rbx + rax * 8], r11
+    add r13d, 16
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+asm_handler_MovUndefined3_hot_end:
+
+.p2align 6
+asm_handler_AddRhsInt32:
+    mov eax, DWORD PTR [r14 + r13 + 8]
+    mov rdx, QWORD PTR [rbx + rax * 8]
+    mov ecx, DWORD PTR [r14 + r13 + 12]
+    or rcx, r15
+    mov rax, rdx
+    shr rax, 48
+    cmp ax, 32762
+    jne .Lasm_AddRhsInt32.ssa_block_5
+    movsxd rax, edx
+    mov rsi, rcx
+    shr rsi, 48
+    cmp si, 32762
+    jne .Lasm_AddRhsInt32.ssa_block_8
+    movsxd rcx, ecx
+    mov rdx, rax
+    add edx, ecx
+    jo .Lasm_AddRhsInt32.ssa_block_10
+    or rdx, r15
+    mov r11d, DWORD PTR [r14 + r13 + 4]
+    mov QWORD PTR [rbx + r11 * 8], rdx
+    add r13d, 16
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+.Lasm_AddRhsInt32.ssa_block_8:
+    and si, 32760
+    cmp si, 32760
+    je .Lasm_AddRhsInt32.ssa_block_1
+    movq xmm1, rcx
+    cvtsi2sd xmm0, rax
+    jmp .Lasm_AddRhsInt32.ssa_block_2
+.Lasm_AddRhsInt32.ssa_block_5:
+    and ax, 32760
+    cmp ax, 32760
+    je .Lasm_AddRhsInt32.ssa_block_1
+    movq xmm0, rdx
+    mov rax, rcx
+    shr rax, 48
+    cmp ax, 32762
+    jne .Lasm_AddRhsInt32.ssa_block_13
+    movsxd rax, ecx
+    cvtsi2sd xmm1, rax
+    jmp .Lasm_AddRhsInt32.ssa_block_2
+.Lasm_AddRhsInt32.ssa_block_13:
+    and ax, 32760
+    cmp ax, 32760
+    je .Lasm_AddRhsInt32.ssa_block_1
+    movq xmm1, rcx
+    jmp .Lasm_AddRhsInt32.ssa_block_2
+asm_handler_AddRhsInt32_hot_end:
+
 # Cold handler paths
 asm_cold_handler_paths:
 asm_handler_Mov_cold:
 asm_handler_Mov_cold_end:
-asm_handler_Mov2_cold:
-asm_handler_Mov2_cold_end:
-asm_handler_Mov3_cold:
-asm_handler_Mov3_cold_end:
 asm_handler_Add_cold:
 # Cold paths for Add
 .Lasm_Add.ssa_block_10:
@@ -9378,6 +9465,82 @@ asm_handler_PutPrivateById_hot_end:
 asm_handler_PutPrivateById_cold:
 asm_handler_PutPrivateById_cold_end:
 
+asm_handler_Mov2_cold:
+asm_handler_Mov2_cold_end:
+asm_handler_Mov3_cold:
+asm_handler_Mov3_cold_end:
+asm_handler_MovSrcUndefined_cold:
+asm_handler_MovSrcUndefined_cold_end:
+asm_handler_MovUndefined2_cold:
+asm_handler_MovUndefined2_cold_end:
+asm_handler_MovUndefined3_cold:
+asm_handler_MovUndefined3_cold_end:
+asm_handler_AddRhsInt32_cold:
+# Cold paths for AddRhsInt32
+.Lasm_AddRhsInt32.ssa_block_10:
+    cvtsi2sd xmm0, rax
+    cvtsi2sd xmm1, rcx
+    addsd xmm0, xmm1
+    movq rax, xmm0
+    mov r11d, DWORD PTR [r14 + r13 + 4]
+    mov QWORD PTR [rbx + r11 * 8], rax
+    add r13d, 16
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+.Lasm_AddRhsInt32.ssa_block_2:
+    addsd xmm0, xmm1
+    cvttsd2si edx, xmm0
+    movsxd rcx, edx
+    cvtsi2sd xmm3, rcx
+    ucomisd xmm0, xmm3
+    jp .Lasm_AddRhsInt32.ssa_box_number_39_not_integer
+    jne .Lasm_AddRhsInt32.ssa_box_number_39_not_integer
+    test rdx, rdx
+    jz .Lasm_AddRhsInt32.ssa_box_number_39_check_negative_zero
+    mov eax, edx
+    or rax, r15
+    jmp .Lasm_AddRhsInt32.ssa_box_number_39_done
+.Lasm_AddRhsInt32.ssa_box_number_39_check_negative_zero:
+    movq rax, xmm0
+    test rax, rax
+    js .Lasm_AddRhsInt32.ssa_box_number_39_not_integer
+    mov eax, edx
+    or rax, r15
+    jmp .Lasm_AddRhsInt32.ssa_box_number_39_done
+.Lasm_AddRhsInt32.ssa_box_number_39_not_integer:
+    movq rax, xmm0
+    ucomisd xmm0, xmm0
+    jp .Lasm_AddRhsInt32.canon_nan_0
+.Lasm_AddRhsInt32.canon_nan_0_ret:
+.Lasm_AddRhsInt32.ssa_box_number_39_done:
+    mov r11d, DWORD PTR [r14 + r13 + 4]
+    mov QWORD PTR [rbx + r11 * 8], rax
+    add r13d, 16
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+.Lasm_AddRhsInt32.ssa_block_1:
+    mov esi, DWORD PTR [r14 + r13 + 4]
+    mov DWORD PTR [rbx + -64], r13d
+    mov r8, rcx
+    mov rcx, rdx
+    mov rdx, rsi
+    mov rdi, QWORD PTR [rbp - 48]
+    mov esi, r13d
+    call CSYM(asm_slow_path_add_values)
+    test rax, rax
+    js .Lexit
+    mov r11, QWORD PTR [rbp - 48]
+    mov rbx, QWORD PTR [r11 + 15288]
+    add rbx, 120
+    mov r11, QWORD PTR [rbx + -40]
+    mov r14, QWORD PTR [r11 + 104]
+    mov r13d, eax
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+.Lasm_AddRhsInt32.canon_nan_0:
+    movabs rax, 9221120237041090560
+    jmp .Lasm_AddRhsInt32.canon_nan_0_ret
+asm_handler_AddRhsInt32_cold_end:
 .Lexit:
     add rsp, 8
     pop r15

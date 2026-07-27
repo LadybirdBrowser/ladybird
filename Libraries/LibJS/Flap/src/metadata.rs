@@ -45,6 +45,24 @@ pub struct Specialization {
     pub name: Option<String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SpecializedParameterBinding {
+    Field(String),
+    Undefined,
+}
+
+#[derive(Debug, Clone)]
+pub struct SpecializedComponentLayout {
+    pub bytecode: String,
+    pub parameters: HashMap<String, SpecializedParameterBinding>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SpecializedInstruction {
+    pub definition: InstructionDefinition,
+    pub components: Vec<SpecializedComponentLayout>,
+}
+
 pub fn specialization_name(specialization: &Specialization) -> String {
     if let Some(name) = &specialization.name {
         return name.clone();
@@ -653,6 +671,79 @@ pub fn compute_layouts(ops: &[InstructionDefinition]) -> HashMap<String, OpLayou
     ops.iter().map(|op| (op.name.clone(), op.layout.clone())).collect()
 }
 
+pub fn derive_specialized_instructions(
+    ops: &[InstructionDefinition],
+    specializations: &[Specialization],
+) -> Result<Vec<SpecializedInstruction>, String> {
+    let ops_by_name = ops.iter().map(|op| (op.name.as_str(), op)).collect::<HashMap<_, _>>();
+    let mut derived = Vec::with_capacity(specializations.len());
+
+    for specialization in specializations {
+        let name = specialization_name(specialization);
+        let mut fields = Vec::new();
+        let mut components = Vec::with_capacity(specialization.components.len());
+        let is_fused = specialization.components.len() > 1;
+        for (component_index, component) in specialization.components.iter().enumerate() {
+            let op = ops_by_name
+                .get(component.bytecode.as_str())
+                .ok_or_else(|| format!("specialization references unknown bytecode '{}'", component.bytecode))?;
+            let constraints = component
+                .parameters
+                .iter()
+                .map(|parameter| (parameter.name.as_str(), &parameter.constraint))
+                .collect::<HashMap<_, _>>();
+            let mut parameters = HashMap::new();
+
+            for field in user_fields(op) {
+                let source_name = field.name.strip_prefix("m_").unwrap_or(&field.name);
+                let constraint = constraints.get(source_name).copied();
+                let binding = match constraint {
+                    Some(SpecializationConstraint::Undefined) => SpecializedParameterBinding::Undefined,
+                    constraint => {
+                        let specialized_name = if is_fused {
+                            format!("c{component_index}_{source_name}")
+                        } else {
+                            source_name.to_string()
+                        };
+                        let ty = match constraint {
+                            Some(SpecializationConstraint::Int32) => "i32",
+                            _ => field.ty.as_str(),
+                        };
+                        fields.push(Field {
+                            name: format!("m_{specialized_name}"),
+                            ty: ty.to_string(),
+                            is_array: field.is_array,
+                        });
+                        SpecializedParameterBinding::Field(specialized_name)
+                    }
+                };
+                parameters.insert(source_name.to_string(), binding);
+            }
+            components.push(SpecializedComponentLayout {
+                bytecode: component.bytecode.clone(),
+                parameters,
+            });
+        }
+
+        let last_component = specialization
+            .components
+            .last()
+            .expect("specializations contain at least one component");
+        let mut definition = InstructionDefinition {
+            name,
+            parent: "Instruction".to_string(),
+            fields,
+            is_terminator: ops_by_name[last_component.bytecode.as_str()].is_terminator,
+            layout: OpLayout::default(),
+            array: None,
+        };
+        validate_op(&mut definition)?;
+        derived.push(SpecializedInstruction { definition, components });
+    }
+
+    Ok(derived)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -746,6 +837,102 @@ specialize Increment() # Continue with the comparison.
 
         assert_eq!(specializations.len(), 1);
         assert_eq!(specializations[0].components.len(), 2);
+    }
+
+    #[test]
+    fn derives_compact_single_and_fused_instruction_layouts() {
+        let source = r#"
+handler Add(dst: out Operand, lhs: in Operand, rhs: in Operand) {
+    dispatch_next;
+}
+handler Increment(dst: inout Operand) {
+    dispatch_next;
+}
+handler Mov(dst: out Operand, src: in Operand) {
+    dispatch_next;
+}
+handler JumpLessThan(lhs: in Operand, rhs: in Operand, target: Label) @terminator {
+    dispatch_next;
+}
+specialize Add(rhs: Int32);
+specialize Mov(src: Undefined);
+specialize Increment() + JumpLessThan(rhs: Int32);
+"#;
+        let ops = parse_flap_metadata("test.flap", source).unwrap();
+        let specializations = parse_specializations("test.flap", source).unwrap();
+        let derived = derive_specialized_instructions(&ops, &specializations).unwrap();
+
+        assert_eq!(derived[0].definition.name, "AddRhsInt32");
+        assert_eq!(
+            derived[0]
+                .definition
+                .fields
+                .iter()
+                .map(|field| (field.name.as_str(), field.ty.as_str()))
+                .collect::<Vec<_>>(),
+            [("m_dst", "Operand"), ("m_lhs", "Operand"), ("m_rhs", "i32")]
+        );
+        assert_eq!(derived[1].definition.name, "MovSrcUndefined");
+        assert_eq!(
+            derived[1]
+                .definition
+                .fields
+                .iter()
+                .map(|field| (field.name.as_str(), field.ty.as_str()))
+                .collect::<Vec<_>>(),
+            [("m_dst", "Operand")]
+        );
+        assert_eq!(
+            derived[1].components[0].parameters["src"],
+            SpecializedParameterBinding::Undefined
+        );
+        assert_eq!(derived[2].definition.name, "IncrementJumpLessThanRhsInt32");
+        assert_eq!(
+            derived[2]
+                .definition
+                .fields
+                .iter()
+                .map(|field| (field.name.as_str(), field.ty.as_str()))
+                .collect::<Vec<_>>(),
+            [
+                ("m_c0_dst", "Operand"),
+                ("m_c1_lhs", "Operand"),
+                ("m_c1_rhs", "i32"),
+                ("m_c1_target", "Label"),
+            ]
+        );
+        assert!(derived[2].definition.is_terminator);
+        assert_eq!(
+            derived[2].components[1].parameters["lhs"],
+            SpecializedParameterBinding::Field("c1_lhs".to_string())
+        );
+    }
+
+    #[test]
+    fn qualifies_field_names_across_fused_components() {
+        let source = r#"
+handler Copy(dst: out Operand) { dispatch_next; }
+handler Convert(dst: out Operand) { dispatch_next; }
+handler Use(dst1: in Operand) { dispatch_next; }
+specialize Copy() + Convert() + Use();
+"#;
+        let ops = parse_flap_metadata("test.flap", source).unwrap();
+        let specializations = parse_specializations("test.flap", source).unwrap();
+        let derived = derive_specialized_instructions(&ops, &specializations).unwrap();
+
+        assert_eq!(
+            derived[0]
+                .definition
+                .fields
+                .iter()
+                .map(|field| field.name.as_str())
+                .collect::<Vec<_>>(),
+            ["m_c0_dst", "m_c1_dst", "m_c2_dst1"]
+        );
+        assert_eq!(
+            derived[0].components[2].parameters["dst1"],
+            SpecializedParameterBinding::Field("c2_dst1".to_string())
+        );
     }
 
     #[test]

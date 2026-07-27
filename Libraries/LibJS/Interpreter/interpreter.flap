@@ -831,30 +831,13 @@ handler Mov(
     dispatch_next;
 }
 
-handler Mov2(
-    dst1: out Operand,
-    src1: in Operand,
-    dst2: out Operand,
-    src2: in Operand
-) {
-    store(dst1, load(src1));
-    store(dst2, load(src2));
-    dispatch_next;
-}
+specialize Mov() + Mov() as Mov2;
+specialize Mov() + Mov() + Mov() as Mov3;
+specialize Mov(src: Undefined);
+specialize Mov(src: Undefined) + Mov(src: Undefined) as MovUndefined2;
+specialize Mov(src: Undefined) + Mov(src: Undefined) + Mov(src: Undefined) as MovUndefined3;
 
-handler Mov3(
-    dst1: out Operand,
-    src1: in Operand,
-    dst2: out Operand,
-    src2: in Operand,
-    dst3: out Operand,
-    src3: in Operand
-) {
-    store(dst1, load(src1));
-    store(dst2, load(src2));
-    store(dst3, load(src3));
-    dispatch_next;
-}
+specialize Add(rhs: Int32);
 
 handler Add(
     dst: out Operand,
