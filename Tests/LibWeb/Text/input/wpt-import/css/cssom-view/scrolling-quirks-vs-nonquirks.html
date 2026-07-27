@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>cssom-view - scrolling quirks VS nonquirks mode</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  iframe {
+    width: 300px;
+    height: 500px;
+  }
+</style>
+<iframe id="quirksframe"></iframe>
+<iframe id="nonquirksframe"></iframe>
+<div id="log"></div>
+<script>
+function setBodyContent(body)  {
+  // Hide scrollbars and remove body margin to make measures more reliable.
+  body.style.overflow = "hidden";
+  body.style.margin = 0;
+
+  // Add an orange border to the body.
+  body.style.borderWidth = "10px 0px 0px 20px";
+  body.style.borderColor = "orange";
+  body.style.borderStyle = "solid";
+
+  // Create a 700x900 box with a green border.
+  body.innerHTML = "<div id='content' style='border-width: 30px 0px 0px 40px; border-style: solid; border-color: green; width: 660px; height: 870px; background: linear-gradient(135deg, red, blue);'></div>";
+}
+
+var quirksModeTest = async_test("Execution of tests in quirks mode");
+var quirksFrame = document.getElementById("quirksframe");
+quirksFrame.onload = function() {
+  var doc = quirksFrame.contentDocument;
+  setBodyContent(doc.body);
+  var content = doc.getElementById("content");
+
+  quirksModeTest.step(function () {
+    assert_equals(doc.compatMode, "BackCompat", "Should be in quirks mode.");
+  });
+
+  test(function () {
+    assert_equals(doc.scrollingElement, doc.body, "scrollingElement should be HTML body");
+  }, "scrollingElement in quirks mode");
+
+  test(function () {
+    doc.documentElement.scroll(50, 60);
+    assert_equals(doc.documentElement.scrollLeft, 0, "scrollLeft should be 0");
+    assert_equals(doc.documentElement.scrollTop, 0, "scrollTop should be 0");
+  }, "scroll() on the root element in quirks mode");
+
+  test(function () {
+    doc.documentElement.scrollBy(10, 20);
+    assert_equals(doc.documentElement.scrollLeft, 0, "scrollLeft should be 0");
+    assert_equals(doc.documentElement.scrollTop, 0, "scrollTop should be 0");
+  }, "scrollBy() on the root element in quirks mode");
+
+  test(function () {
+    doc.documentElement.scrollLeft = 70;
+    doc.documentElement.scrollTop = 80;
+    assert_equals(doc.documentElement.scrollLeft, 0, "scrollLeft should be 0");
+    assert_equals(doc.documentElement.scrollTop, 0, "scrollTop should be 0");
+  }, "scrollLeft/scrollTop on the root element in quirks mode");
+
+  test(function () {
+    assert_equals(doc.documentElement.scrollWidth, 720, "scrollWidth should be 720");
+    assert_equals(doc.documentElement.scrollHeight, 910, "scrollHeight should be 910");
+  }, "scrollWidth/scrollHeight on the root element in quirks mode");
+
+  test(function () {
+    assert_equals(doc.documentElement.clientWidth, 300, "clientWidth should be 300");
+    assert_equals(doc.documentElement.clientHeight, 910, "clientHeight should be 910");
+  }, "clientWidth/clientHeight on the root element in quirks mode");
+
+  test(function () {
+    doc.body.scroll(90, 100);
+    assert_equals(doc.body.scrollLeft, 90, "scrollLeft should be 90");
+    assert_equals(doc.body.scrollTop, 100, "scrollTop should be 100");
+  }, "scroll() on the HTML body element in quirks mode");
+
+  test(function () {
+    doc.body.scrollBy(10, 20);
+    assert_equals(doc.body.scrollLeft, 100, "scrollLeft should be 100");
+    assert_equals(doc.body.scrollTop, 120, "scrollTop should be 120");
+  }, "scrollBy() on the HTML body element in quirks mode");
+
+  test(function () {
+    doc.body.scrollLeft = 120;
+    doc.body.scrollTop = 110;
+    assert_equals(doc.body.scrollLeft, 120, "scrollLeft should be 120");
+    assert_equals(doc.body.scrollTop, 110, "scrollTop should be 110");
+  }, "scrollLeft/scrollTop on the HTML body element in quirks mode");
+
+  test(function () {
+    assert_equals(doc.body.scrollWidth, 720, "scrollWidth should be 720");
+    assert_equals(doc.body.scrollHeight, 910, "scrollHeight should be 910");
+  }, "scrollWidth/scrollHeight on the HTML body element in quirks mode");
+
+  test(function () {
+    assert_equals(doc.body.clientWidth, 300, "clientWidth should be 300");
+    assert_equals(doc.body.clientHeight, 500, "clientHeight should be 500");
+  }, "clientWidth/clientHeight on the HTML body element in quirks mode");
+
+  test(function () {
+    doc.scrollingElement.scroll(0, 0);
+    content.scrollLeft = 130;
+    content.scrollTop = 140;
+    assert_equals(content.scrollLeft, 0, "scrollLeft should be 0");
+    assert_equals(content.scrollTop, 0, "scrollTop should be 0");
+  }, "scrollLeft/scrollRight of the content in quirks mode");
+
+  test(function () {
+    assert_equals(content.scrollWidth, 660, "scrollWidth should be 660");
+    assert_equals(content.scrollHeight, 870, "scrollHeight should be 870");
+  }, "scrollWidth/scrollHeight of the content in quirks mode");
+
+  test(function () {
+    assert_equals(content.clientWidth, 660, "clientWidth should be 660");
+    assert_equals(content.clientHeight, 870, "clientHeight should be 870");
+  }, "clientWidth/clientHeight of the content in quirks mode");
+
+  quirksModeTest.done();
+}
+quirksFrame.src = URL.createObjectURL(new Blob([""], { type: "text/html" }));
+
+var nonQuirksModeTest = async_test("Execution of tests in non-quirks mode");
+var nonQuirksFrame = document.getElementById("nonquirksframe");
+nonQuirksFrame.onload = function() {
+  var doc = nonQuirksFrame.contentDocument;
+  setBodyContent(doc.body);
+  var content = doc.getElementById("content");
+
+  nonQuirksModeTest.step(function() {
+    assert_equals(doc.compatMode, "CSS1Compat", "Should be in standards mode.");
+  });
+
+  test(function () {
+    assert_equals(doc.scrollingElement, doc.documentElement, "scrollingElement should be documentElement");
+  }, "scrollingElement in non-quirks mode");
+
+  test(function () {
+    doc.documentElement.scroll(50, 60);
+    assert_equals(doc.documentElement.scrollLeft, 50, "scrollLeft should be 50");
+    assert_equals(doc.documentElement.scrollTop, 60, "scrollTop should be 60");
+  }, "scroll() on the root element in non-quirks mode");
+
+  test(function () {
+    doc.documentElement.scrollBy(10, 20);
+    assert_equals(doc.documentElement.scrollLeft, 60, "scrollLeft should be 60");
+    assert_equals(doc.documentElement.scrollTop, 80, "scrollTop should be 80");
+  }, "scrollBy() on the root element in non-quirks mode");
+
+  test(function () {
+    doc.documentElement.scrollLeft = 70;
+    doc.documentElement.scrollTop = 80;
+    assert_equals(doc.documentElement.scrollLeft, 70, "scrollLeft should be 70");
+    assert_equals(doc.documentElement.scrollTop, 80, "scrollTop should be 80");
+  }, "scrollLeft/scrollTop on the root element in non-quirks mode");
+
+  test(function () {
+    assert_equals(doc.documentElement.scrollWidth, 720, "scrollWidth should be 720");
+    assert_equals(doc.documentElement.scrollHeight, 910, "scrollHeight should be 910");
+  }, "scrollWidth/scrollHeight on the root element in non-quirks mode");
+
+  test(function () {
+    assert_equals(doc.documentElement.clientWidth, 300, "clientWidth should be 300");
+    assert_equals(doc.documentElement.clientHeight, 500, "clientHeight should be 500");
+  }, "clientWidth/clientHeight on the root element in non-quirks mode");
+
+  test(function () {
+    doc.body.scroll(90, 100);
+    assert_equals(doc.body.scrollLeft, 0, "scrollLeft should be 0");
+    assert_equals(doc.body.scrollTop, 0, "scrollTop should be 0");
+  }, "scroll() on the HTML body element in non-quirks mode");
+
+  test(function () {
+    doc.body.scrollBy(10, 20);
+    assert_equals(doc.body.scrollLeft, 0, "scrollLeft should be 0");
+    assert_equals(doc.body.scrollTop, 0, "scrollTop should be 0");
+  }, "scrollBy() on the HTML body element in non-quirks mode");
+
+  test(function () {
+    doc.body.scrollLeft = 120;
+    doc.body.scrollTop = 110;
+    assert_equals(doc.body.scrollLeft, 0, "scrollLeft should be 0");
+    assert_equals(doc.body.scrollTop, 0, "scrollTop should be 0");
+  }, "scrollLeft/scrollTop on the HTML body element in non-quirks mode");
+
+  test(function () {
+    assert_equals(doc.body.scrollWidth, 700, "scrollWidth should be 700");
+    assert_equals(doc.body.scrollHeight, 900, "scrollHeight should be 900");
+  }, "scrollWidth/scrollHeight on the HTML body element in non-quirks mode");
+
+  test(function () {
+    assert_equals(doc.body.clientWidth, 280, "clientWidth should be 280");
+    assert_equals(doc.body.clientHeight, 900, "clientHeight should be 900");
+  }, "clientWidth/clientHeight on the HTML body element in non-quirks mode");
+
+  test(function () {
+    doc.scrollingElement.scroll(0, 0);
+    content.scrollLeft = 130;
+    content.scrollTop = 140;
+    assert_equals(content.scrollLeft, 0, "scrollLeft should be 0");
+    assert_equals(content.scrollTop, 0, "scrollTop should be 0");
+  }, "scrollLeft/scrollRight of the content in non-quirks mode");
+
+  test(function () {
+    assert_equals(content.scrollWidth, 660, "scrollWidth should be 660");
+    assert_equals(content.scrollHeight, 870, "scrollHeight should be 870");
+  }, "scrollWidth/scrollHeight of the content in non-quirks mode");
+
+  test(function () {
+    assert_equals(content.clientWidth, 660, "clientWidth should be ");
+    assert_equals(content.clientHeight, 870, "clientHeight should be 870");
+  }, "clientWidth/clientHeight of the content in non-quirks mode");
+
+  nonQuirksModeTest.done();
+}
+nonQuirksFrame.src = URL.createObjectURL(new Blob(["<!doctype html>"], { type: "text/html" }));
+
+</script>

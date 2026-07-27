@@ -1,0 +1,100 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>dom-element-scroll tests</title>
+<link rel="help" href="https://drafts.csswg.org/cssom-view/#dom-element-scrolltop">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+    #section1 {
+        width: 300px;
+        height: 500px;
+        top: 16px;
+        left: 16px;
+        border: inset gray 3px;
+        background: white;
+    }
+
+    #scrollable {
+        width: 400px;
+        height: 700px;
+        background: linear-gradient(135deg, red, blue);
+    }
+
+    #section2 {
+        width: 300px;
+        height: 500px;
+        top: 16px;
+        left: 16px;
+        border: inset gray 3px;
+        background: white;
+    }
+
+    #unscrollable {
+        width: 200px;
+        height: 300px;
+        background: linear-gradient(135deg, red, blue);
+    }
+</style>
+<section id="section1">
+    <div id="scrollable"></div>
+</section>
+<section id="section2">
+    <div id="unscrollable"></div>
+</section>
+<script>
+    var section1 = document.getElementById("section1");
+    var section2 = document.getElementById("section2");
+
+    test(function () {
+        // let it be "hidden" to have scrolling box
+        section1.style.overflow = "hidden";
+
+        section1.scroll(50, 60);
+        assert_equals(section1.scrollLeft, 50, "changed scrollLeft should be 50");
+        assert_equals(section1.scrollTop, 60, "changed scrollTop should be 60");
+
+        section1.scroll(0, 0); // back to the origin
+    }, "Element test for having scrolling box");
+
+    test(function () {
+        section1.scroll(10, 20);
+        assert_equals(section1.scrollLeft, 10, "changed scrollLeft should be 10");
+        assert_equals(section1.scrollTop, 20, "changed scrollTop should be 20");
+
+        section1.scroll(0, 0); // back to the origin
+    }, "Element test for having overflow");
+
+    test(function () {
+        // make it not "hidden" to not have scrolling box
+        section1.style.overflow = "visible";
+
+        section1.scroll(50, 0);
+        assert_equals(section1.scrollLeft, 0, "changed scrollLeft should be 0");
+        assert_equals(section1.scrollTop, 0, "changed scrollTop should be 0");
+
+        section1.scroll(0, 60);
+        assert_equals(section1.scrollLeft, 0, "changed scrollLeft should be 0");
+        assert_equals(section1.scrollTop, 0, "changed scrollTop should be 0");
+
+        section1.scroll(50, 60);
+        assert_equals(section1.scrollLeft, 0, "changed scrollLeft should be 0");
+        assert_equals(section1.scrollTop, 0, "changed scrollTop should be 0");
+
+        section1.scroll(0, 0); // back to the origin
+    }, "Element test for not having scrolling box");
+
+    test(function () {
+        section2.scroll(0, 20);
+        assert_equals(section2.scrollLeft, 0, "changed scrollLeft should be 0");
+        assert_equals(section2.scrollTop, 0, "changed scrollTop should be 0");
+
+        section2.scroll(10, 0);
+        assert_equals(section2.scrollLeft, 0, "changed scrollLeft should be 0");
+        assert_equals(section2.scrollTop, 0, "changed scrollTop should be 0");
+
+        section2.scroll(10, 20);
+        assert_equals(section2.scrollLeft, 0, "changed scrollLeft should be 0");
+        assert_equals(section2.scrollTop, 0, "changed scrollTop should be 0");
+    }, "Element test for not having overflow");
+
+</script>
