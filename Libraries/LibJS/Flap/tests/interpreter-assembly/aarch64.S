@@ -1386,14 +1386,11 @@ asm_handler_Add:
     lsr x2, x1, #48
     cmp w2, w22
     b.ne .Lasm_Add.ssa_block_5
-    lsr x3, x0, #48
-    sxtw x2, w1
-    cmp w3, w22
+    lsr x2, x0, #48
+    cmp w2, w22
     b.ne .Lasm_Add.ssa_block_8
-    sxtw x0, w0
-    mov x1, x2
     adds w1, w1, w0
-    b.vs .Lasm_Add.ssa_block_10
+    b.vs .Lasm_Add.ssa_checked_6_failure
     movk x1, #0x7ffa, lsl #48
     ldr w9, [x21, #4]
     str x1, [x27, x9, lsl #3]
@@ -1411,14 +1408,11 @@ asm_handler_Sub:
     lsr x2, x1, #48
     cmp w2, w22
     b.ne .Lasm_Sub.ssa_block_5
-    lsr x3, x0, #48
-    sxtw x2, w1
-    cmp w3, w22
+    lsr x2, x0, #48
+    cmp w2, w22
     b.ne .Lasm_Sub.ssa_block_8
-    sxtw x0, w0
-    mov x1, x2
     subs w1, w1, w0
-    b.vs .Lasm_Sub.ssa_block_10
+    b.vs .Lasm_Sub.ssa_checked_6_failure
     movk x1, #0x7ffa, lsl #48
     ldr w9, [x21, #4]
     str x1, [x27, x9, lsl #3]
@@ -1436,23 +1430,21 @@ asm_handler_Mul:
     lsr x2, x1, #48
     cmp w2, w22
     b.ne .Lasm_Mul.ssa_block_6
-    lsr x3, x0, #48
-    sxtw x2, w1
-    cmp w3, w22
+    lsr x2, x0, #48
+    cmp w2, w22
     b.ne .Lasm_Mul.ssa_block_9
-    sxtw x0, w0
-    smull x1, w2, w0
-    sxtw x9, w1
-    cmp x1, x9
+    smull x2, w1, w0
+    sxtw x9, w2
+    cmp x2, x9
     b.ne .Lasm_Mul.ssa_block_11
-    mov w1, w1
-    cbnz w1, .Lasm_Mul.ssa_block_13
-    orr w0, w2, w0
+    mov w2, w2
+    cbnz w2, .Lasm_Mul.ssa_block_13
+    orr w0, w1, w0
     tbnz w0, #31, .Lasm_Mul.ssa_block_3
 .Lasm_Mul.ssa_block_13:
-    movk x1, #0x7ffa, lsl #48
+    movk x2, #0x7ffa, lsl #48
     ldr w9, [x21, #4]
-    str x1, [x27, x9, lsl #3]
+    str x2, [x27, x9, lsl #3]
     ldrb w9, [x21, #16]
     add x21, x21, #16
     ldr x10, [x19, x9, lsl #3]
@@ -5383,8 +5375,11 @@ asm_handler_Mov_cold:
 asm_handler_Mov_cold_end:
 asm_handler_Add_cold:
 // Cold paths for Add
-.Lasm_Add.ssa_block_10:
-    scvtf d0, x2
+.Lasm_Add.ssa_checked_6_failure:
+    subs w1, w1, w0
+    sxtw x0, w0
+    sxtw x1, w1
+    scvtf d0, x1
     scvtf d1, x0
     fadd d0, d0, d1
     fmov x0, d0
@@ -5395,11 +5390,12 @@ asm_handler_Add_cold:
     ldr x10, [x19, x9, lsl #3]
     br x10
 .Lasm_Add.ssa_block_8:
-    and w3, w3, #0x7ff8
-    cmp w3, w24
+    and w2, w2, #0x7ff8
+    cmp w2, w24
     b.eq .Lasm_Add.ssa_block_1
+    sxtw x1, w1
     fmov d1, x0
-    scvtf d0, x2
+    scvtf d0, x1
     b .Lasm_Add.ssa_block_2
 .Lasm_Add.ssa_block_5:
     and w2, w2, #0x7ff8
@@ -5468,8 +5464,11 @@ asm_handler_Add_cold:
 asm_handler_Add_cold_end:
 asm_handler_Sub_cold:
 // Cold paths for Sub
-.Lasm_Sub.ssa_block_10:
-    scvtf d0, x2
+.Lasm_Sub.ssa_checked_6_failure:
+    adds w1, w1, w0
+    sxtw x0, w0
+    sxtw x1, w1
+    scvtf d0, x1
     scvtf d1, x0
     fsub d0, d0, d1
     fmov x0, d0
@@ -5480,11 +5479,12 @@ asm_handler_Sub_cold:
     ldr x10, [x19, x9, lsl #3]
     br x10
 .Lasm_Sub.ssa_block_8:
-    and w3, w3, #0x7ff8
-    cmp w3, w24
+    and w2, w2, #0x7ff8
+    cmp w2, w24
     b.eq .Lasm_Sub.ssa_block_1
+    sxtw x1, w1
     fmov d1, x0
-    scvtf d0, x2
+    scvtf d0, x1
     b .Lasm_Sub.ssa_block_2
 .Lasm_Sub.ssa_block_5:
     and w2, w2, #0x7ff8
@@ -5554,7 +5554,9 @@ asm_handler_Sub_cold_end:
 asm_handler_Mul_cold:
 // Cold paths for Mul
 .Lasm_Mul.ssa_block_11:
-    scvtf d0, x2
+    sxtw x0, w0
+    sxtw x1, w1
+    scvtf d0, x1
     scvtf d1, x0
     fmul d0, d0, d1
     fmov x0, d0
@@ -5565,11 +5567,12 @@ asm_handler_Mul_cold:
     ldr x10, [x19, x9, lsl #3]
     br x10
 .Lasm_Mul.ssa_block_9:
-    and w3, w3, #0x7ff8
-    cmp w3, w24
+    and w2, w2, #0x7ff8
+    cmp w2, w24
     b.eq .Lasm_Mul.ssa_block_1
+    sxtw x1, w1
     fmov d1, x0
-    scvtf d0, x2
+    scvtf d0, x1
     b .Lasm_Mul.ssa_block_2
 .Lasm_Mul.ssa_block_6:
     and w2, w2, #0x7ff8

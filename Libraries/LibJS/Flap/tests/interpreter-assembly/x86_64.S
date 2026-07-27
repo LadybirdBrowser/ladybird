@@ -1371,15 +1371,12 @@ asm_handler_Add:
     shr rax, 48
     cmp ax, 32762
     jne .Lasm_Add.ssa_block_5
-    mov rsi, rcx
-    shr rsi, 48
-    movsxd rax, edx
-    cmp si, 32762
+    mov rax, rcx
+    shr rax, 48
+    cmp ax, 32762
     jne .Lasm_Add.ssa_block_8
-    movsxd rcx, ecx
-    mov rdx, rax
     add edx, ecx
-    jo .Lasm_Add.ssa_block_10
+    jo .Lasm_Add.ssa_checked_6_failure
     or rdx, r15
     mov r11d, DWORD PTR [r14 + r13 + 4]
     mov QWORD PTR [rbx + r11 * 8], rdx
@@ -1398,15 +1395,12 @@ asm_handler_Sub:
     shr rax, 48
     cmp ax, 32762
     jne .Lasm_Sub.ssa_block_5
-    mov rsi, rcx
-    shr rsi, 48
-    movsxd rax, edx
-    cmp si, 32762
+    mov rax, rcx
+    shr rax, 48
+    cmp ax, 32762
     jne .Lasm_Sub.ssa_block_8
-    movsxd rcx, ecx
-    mov rdx, rax
     sub edx, ecx
-    jo .Lasm_Sub.ssa_block_10
+    jo .Lasm_Sub.ssa_checked_6_failure
     or rdx, r15
     mov r11d, DWORD PTR [r14 + r13 + 4]
     mov QWORD PTR [rbx + r11 * 8], rdx
@@ -1425,23 +1419,21 @@ asm_handler_Mul:
     shr rax, 48
     cmp ax, 32762
     jne .Lasm_Mul.ssa_block_6
-    mov rsi, rcx
-    shr rsi, 48
-    movsxd rax, edx
-    cmp si, 32762
+    mov rax, rcx
+    shr rax, 48
+    cmp ax, 32762
     jne .Lasm_Mul.ssa_block_9
-    movsxd rcx, ecx
-    mov edx, eax
-    imul edx, ecx
+    mov eax, edx
+    imul eax, ecx
     jo .Lasm_Mul.ssa_block_11
-    test edx, edx
+    test eax, eax
     jnz .Lasm_Mul.ssa_block_13
-    or eax, ecx
+    or ecx, edx
     js .Lasm_Mul.ssa_block_3
 .Lasm_Mul.ssa_block_13:
-    or rdx, r15
+    or rax, r15
     mov r11d, DWORD PTR [r14 + r13 + 4]
-    mov QWORD PTR [rbx + r11 * 8], rdx
+    mov QWORD PTR [rbx + r11 * 8], rax
     add r13d, 16
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
@@ -5456,9 +5448,12 @@ asm_handler_Mov_cold:
 asm_handler_Mov_cold_end:
 asm_handler_Add_cold:
 # Cold paths for Add
-.Lasm_Add.ssa_block_10:
-    cvtsi2sd xmm0, rax
-    cvtsi2sd xmm1, rcx
+.Lasm_Add.ssa_checked_6_failure:
+    sub edx, ecx
+    movsxd rax, ecx
+    movsxd rcx, edx
+    cvtsi2sd xmm0, rcx
+    cvtsi2sd xmm1, rax
     addsd xmm0, xmm1
     movq rax, xmm0
     mov r11d, DWORD PTR [r14 + r13 + 4]
@@ -5467,9 +5462,10 @@ asm_handler_Add_cold:
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
 .Lasm_Add.ssa_block_8:
-    and si, 32760
-    cmp si, 32760
+    and ax, 32760
+    cmp ax, 32760
     je .Lasm_Add.ssa_block_1
+    movsxd rax, edx
     movq xmm1, rcx
     cvtsi2sd xmm0, rax
     jmp .Lasm_Add.ssa_block_2
@@ -5546,9 +5542,12 @@ asm_handler_Add_cold:
 asm_handler_Add_cold_end:
 asm_handler_Sub_cold:
 # Cold paths for Sub
-.Lasm_Sub.ssa_block_10:
-    cvtsi2sd xmm0, rax
-    cvtsi2sd xmm1, rcx
+.Lasm_Sub.ssa_checked_6_failure:
+    add edx, ecx
+    movsxd rax, ecx
+    movsxd rcx, edx
+    cvtsi2sd xmm0, rcx
+    cvtsi2sd xmm1, rax
     subsd xmm0, xmm1
     movq rax, xmm0
     mov r11d, DWORD PTR [r14 + r13 + 4]
@@ -5557,9 +5556,10 @@ asm_handler_Sub_cold:
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
 .Lasm_Sub.ssa_block_8:
-    and si, 32760
-    cmp si, 32760
+    and ax, 32760
+    cmp ax, 32760
     je .Lasm_Sub.ssa_block_1
+    movsxd rax, edx
     movq xmm1, rcx
     cvtsi2sd xmm0, rax
     jmp .Lasm_Sub.ssa_block_2
@@ -5637,8 +5637,10 @@ asm_handler_Sub_cold_end:
 asm_handler_Mul_cold:
 # Cold paths for Mul
 .Lasm_Mul.ssa_block_11:
-    cvtsi2sd xmm0, rax
-    cvtsi2sd xmm1, rcx
+    movsxd rax, ecx
+    movsxd rcx, edx
+    cvtsi2sd xmm0, rcx
+    cvtsi2sd xmm1, rax
     mulsd xmm0, xmm1
     movq rax, xmm0
     mov r11d, DWORD PTR [r14 + r13 + 4]
@@ -5647,9 +5649,10 @@ asm_handler_Mul_cold:
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
 .Lasm_Mul.ssa_block_9:
-    and si, 32760
-    cmp si, 32760
+    and ax, 32760
+    cmp ax, 32760
     je .Lasm_Mul.ssa_block_1
+    movsxd rax, edx
     movq xmm1, rcx
     cvtsi2sd xmm0, rax
     jmp .Lasm_Mul.ssa_block_2
@@ -9447,10 +9450,10 @@ asm_handler_AddRhsInt32_cold:
 # Cold paths for AddRhsInt32
 .Lasm_AddRhsInt32.ssa_checked_6_failure:
     sub ecx, DWORD PTR [r14 + r13 + 12]
-    movsxd rcx, ecx
-    mov eax, DWORD PTR [r14 + r13 + 12]
-    cvtsi2sd xmm0, rcx
-    cvtsi2sd xmm1, rax
+    movsxd rax, ecx
+    mov ecx, DWORD PTR [r14 + r13 + 12]
+    cvtsi2sd xmm0, rax
+    cvtsi2sd xmm1, rcx
     addsd xmm0, xmm1
     movq rax, xmm0
     mov r11d, DWORD PTR [r14 + r13 + 4]
