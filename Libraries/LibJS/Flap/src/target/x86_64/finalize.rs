@@ -307,6 +307,48 @@ fn branch_scalar(emit: &mut Emit<'_>, condition: ScalarBranchCondition, target: 
     emit!(emit.output, X86_64; Opcode::JumpCondition(condition) => [label target.clone()];);
 }
 
+fn immediate_scalar_branch_taken(lhs: i64, rhs: i64, width: IntegerWidth, condition: ScalarBranchCondition) -> bool {
+    let mask = match width {
+        IntegerWidth::U16 => u16::MAX as u64,
+        IntegerWidth::U32 => u32::MAX as u64,
+        IntegerWidth::U64 => u64::MAX,
+        _ => unreachable!("allocated scalar branch was verified"),
+    };
+    let lhs = lhs as u64 & mask;
+    let rhs = rhs as u64 & mask;
+    match condition {
+        ScalarBranchCondition::Equal => lhs == rhs,
+        ScalarBranchCondition::NotEqual => lhs != rhs,
+        ScalarBranchCondition::Unsigned(relation) => ordered_relation_holds(lhs, rhs, relation),
+        ScalarBranchCondition::Signed(relation) => {
+            let lhs = match width {
+                IntegerWidth::U16 => lhs as i16 as i64,
+                IntegerWidth::U32 => lhs as i32 as i64,
+                IntegerWidth::U64 => lhs as i64,
+                _ => unreachable!("allocated scalar branch was verified"),
+            };
+            let rhs = match width {
+                IntegerWidth::U16 => rhs as i16 as i64,
+                IntegerWidth::U32 => rhs as i32 as i64,
+                IntegerWidth::U64 => rhs as i64,
+                _ => unreachable!("allocated scalar branch was verified"),
+            };
+            ordered_relation_holds(lhs, rhs, relation)
+        }
+    }
+}
+
+fn ordered_relation_holds<T: PartialOrd>(lhs: T, rhs: T, relation: crate::intrinsic::ComparisonRelation) -> bool {
+    use crate::intrinsic::ComparisonRelation;
+
+    match relation {
+        ComparisonRelation::Less => lhs < rhs,
+        ComparisonRelation::LessOrEqual => lhs <= rhs,
+        ComparisonRelation::Greater => lhs > rhs,
+        ComparisonRelation::GreaterOrEqual => lhs >= rhs,
+    }
+}
+
 pub(crate) enum StoreSource {
     Immediate(i64),
     Register(PhysicalRegister),
@@ -1041,7 +1083,27 @@ impl Backend for X86_64Backend {
         operands: &[AllocatedOperand],
     ) -> Result<(), CompileError> {
         let (width, condition) = operation.scalar_branch().expect("allocated scalar branch was verified");
-        scalar_compare(emit, operands.physical_register(0), operands.operand(1), width)?;
+        if let [
+            AllocatedOperand::Immediate(lhs),
+            AllocatedOperand::Immediate(rhs),
+            AllocatedOperand::Label(target),
+        ] = operands
+        {
+            if immediate_scalar_branch_taken(*lhs, *rhs, width, condition) {
+                emit!(emit.output, X86_64; Opcode::Jump => [label target.clone()];);
+            }
+            return Ok(());
+        }
+        let (lhs, rhs) = if let Some(lhs) = operands.operand(0).physical_register() {
+            (lhs, operands.operand(1))
+        } else if matches!(operation, Operation::Branch(BranchOperation::Equality { .. }))
+            && let Some(rhs) = operands.operand(1).physical_register()
+        {
+            (rhs, operands.operand(0))
+        } else {
+            return emit.error("scalar comparison requires at least one register operand");
+        };
+        scalar_compare(emit, lhs, rhs, width)?;
         branch_scalar(emit, condition, &operands.label(2));
         Ok(())
     }
@@ -1696,5 +1758,39 @@ impl Backend for X86_64Backend {
             Opcode::SignExtendEaxToEdx => [];
             Opcode::SignedDivide32Register => [register divisor];
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::intrinsic::ComparisonRelation;
+
+    #[test]
+    fn evaluates_ordered_immediate_branches() {
+        assert!(immediate_scalar_branch_taken(
+            -1,
+            1,
+            IntegerWidth::U32,
+            ScalarBranchCondition::Signed(ComparisonRelation::Less),
+        ));
+        assert!(immediate_scalar_branch_taken(
+            -1,
+            1,
+            IntegerWidth::U32,
+            ScalarBranchCondition::Unsigned(ComparisonRelation::Greater),
+        ));
+        assert!(!immediate_scalar_branch_taken(
+            2,
+            1,
+            IntegerWidth::U16,
+            ScalarBranchCondition::Signed(ComparisonRelation::LessOrEqual),
+        ));
+        assert!(immediate_scalar_branch_taken(
+            2,
+            1,
+            IntegerWidth::U64,
+            ScalarBranchCondition::Unsigned(ComparisonRelation::GreaterOrEqual),
+        ));
     }
 }
