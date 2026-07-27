@@ -399,6 +399,12 @@ void StackingContext::paint_internal(DisplayListRecordingContext& context) const
 
         SVGSVGPaintable::paint_svg_box(context, svg_svg_paintable, PaintPhase::Foreground);
 
+        // An `<svg>` that establishes a stacking context still has descendants that establish one
+        // of their own - a `<foreignObject>` always does - and those are painted by their own
+        // context rather than by the SVG walk, so this has to paint them like any other root.
+        for (auto& child : m_children)
+            paint_child(context, *child);
+
         paint_node(svg_svg_paintable, context, PaintPhase::Outline);
         if (context.should_paint_overlay()) {
             paint_node(svg_svg_paintable, context, PaintPhase::Overlay);
