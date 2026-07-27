@@ -84,7 +84,7 @@ breakThroughBlockScopes$3fb5dfc7 block-scoping.js:16:5
 
 block0:
   [   0] GetLexicalEnvironment dst:reg4
-  [   8] Mov2 dst1:result~2, src1:Undefined, dst2:i~1, src2:Int32(0)
+  [   8] Mov2 c0_dst:result~2, c0_src:Undefined, c1_dst:i~1, c1_src:Int32(0)
   [  20] Jump target:block3
 
 block1:

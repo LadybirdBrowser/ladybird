@@ -18,7 +18,7 @@ use super::basic_block::BasicBlock;
 use super::basic_block::SourceMapEntry;
 use super::ffi::AbstractOperationKind;
 use super::ffi::WellKnownSymbolKind;
-use super::instruction::Instruction;
+use super::instruction::{Instruction, specialize_instruction_sequence};
 use super::operand::*;
 use crate::ast::AstArena;
 use crate::ast::FunctionData;
@@ -1715,6 +1715,37 @@ impl Generator {
             None
         };
 
+        // Select declarative single-instruction specializations and fused
+        // sequences before operand indices are rewritten away from the
+        // generator's constant table.
+        for block in &mut self.basic_blocks {
+            remove_redundant_movs(&mut block.instructions);
+
+            let mut index = 0;
+            while index < block.instructions.len() {
+                let instructions = block.instructions[index..]
+                    .iter()
+                    .map(|(instruction, _, _)| instruction);
+                let Some((specialized, component_count)) =
+                    specialize_instruction_sequence(instructions, &self.constants)
+                else {
+                    index += 1;
+                    continue;
+                };
+                let strict = block.instructions[index].2;
+                if block.instructions[index..index + component_count]
+                    .iter()
+                    .any(|(_, _, component_strict)| *component_strict != strict)
+                {
+                    index += 1;
+                    continue;
+                }
+                block.instructions[index].0 = specialized;
+                block.instructions.drain(index + 1..index + component_count);
+                index += 1;
+            }
+        }
+
         let number_of_registers = self.next_register;
         let number_of_locals = u32_from_usize(self.local_variables.len());
         let number_of_constants = u32_from_usize(self.constants.len());
@@ -1740,85 +1771,6 @@ impl Generator {
             }
         }
         let number_of_arguments = max_argument_index.map_or(0, |m| m + 1);
-
-        // Phase 1b: Peephole optimization - merge consecutive Mov instructions into Mov2/Mov3.
-        for block in &mut self.basic_blocks {
-            let mut i = 0;
-            while i < block.instructions.len() {
-                if !matches!(block.instructions[i].0, Instruction::Mov { .. }) {
-                    i += 1;
-                    continue;
-                }
-                let (dst1, src1) = match &block.instructions[i].0 {
-                    Instruction::Mov { dst, src } => (*dst, *src),
-                    _ => unreachable!(),
-                };
-                // Check for a second consecutive Mov.
-                if i + 1 < block.instructions.len()
-                    && let Instruction::Mov { dst, src } = &block.instructions[i + 1].0
-                {
-                    let (dst2, src2) = (*dst, *src);
-                    // Identical Movs: deduplicate to a single Mov.
-                    if dst1 == dst2 && src1 == src2 {
-                        block.instructions.remove(i + 1);
-                        continue; // Re-check from same position.
-                    }
-                    // Check for a third consecutive Mov.
-                    if i + 2 < block.instructions.len()
-                        && let Instruction::Mov { dst, src } = &block.instructions[i + 2].0
-                    {
-                        let (dst3, src3) = (*dst, *src);
-                        let mov2_is_dup = dst2 == dst1 && src2 == src1;
-                        let mov3_is_dup = (dst3 == dst1 && src3 == src1) || (dst3 == dst2 && src3 == src2);
-                        if mov2_is_dup && mov3_is_dup {
-                            // All three identical: keep single Mov.
-                            block.instructions.remove(i + 2);
-                            block.instructions.remove(i + 1);
-                            continue;
-                        } else if mov2_is_dup {
-                            // mov1 == mov2, mov3 different: Mov2(mov1, mov3).
-                            block.instructions[i].0 = Instruction::Mov2 {
-                                dst1,
-                                src1,
-                                dst2: dst3,
-                                src2: src3,
-                            };
-                            block.instructions.remove(i + 2);
-                            block.instructions.remove(i + 1);
-                            i += 1;
-                            continue;
-                        } else if mov3_is_dup {
-                            // mov3 is dup: Mov2(mov1, mov2).
-                            block.instructions[i].0 = Instruction::Mov2 { dst1, src1, dst2, src2 };
-                            block.instructions.remove(i + 2);
-                            block.instructions.remove(i + 1);
-                            i += 1;
-                            continue;
-                        } else {
-                            // All three unique: Mov3.
-                            block.instructions[i].0 = Instruction::Mov3 {
-                                dst1,
-                                src1,
-                                dst2,
-                                src2,
-                                dst3,
-                                src3,
-                            };
-                            block.instructions.remove(i + 2);
-                            block.instructions.remove(i + 1);
-                            i += 1;
-                            continue;
-                        }
-                    }
-                    // Only two unique Movs: Mov2.
-                    block.instructions[i].0 = Instruction::Mov2 { dst1, src1, dst2, src2 };
-                    block.instructions.remove(i + 1);
-                    i += 1;
-                    continue;
-                }
-                i += 1;
-            }
-        }
 
         // Phase 2: Compute block byte offsets, applying assembly-time optimizations:
         //   - Skip Jump-to-next-block
@@ -2173,5 +2125,95 @@ pub fn choose_dst(generator: &mut Generator, preferred_dst: Option<&ScopedOperan
     match preferred_dst {
         Some(dst) => dst.clone(),
         None => generator.allocate_register(),
+    }
+}
+
+fn remove_redundant_movs(instructions: &mut Vec<(Instruction, SourceMapEntry, bool)>) {
+    let mut index = 0;
+    while index < instructions.len() {
+        let Instruction::Mov { dst, src } = instructions[index].0 else {
+            index += 1;
+            continue;
+        };
+        if index + 1 < instructions.len()
+            && matches!(
+                instructions[index + 1].0,
+                Instruction::Mov {
+                    dst: next_dst,
+                    src: next_src,
+                } if next_dst == dst && next_src == src
+            )
+        {
+            instructions.remove(index + 1);
+            continue;
+        }
+        if index + 2 < instructions.len()
+            && matches!(
+                instructions[index + 1].0,
+                Instruction::Mov {
+                    dst: middle_dst,
+                    ..
+                } if middle_dst != dst && middle_dst != src
+            )
+            && matches!(
+                instructions[index + 2].0,
+                Instruction::Mov {
+                    dst: next_dst,
+                    src: next_src,
+                } if next_dst == dst && next_src == src
+            )
+        {
+            instructions.remove(index + 2);
+        }
+        index += 1;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn mov(dst: Operand, src: Operand) -> (Instruction, SourceMapEntry, bool) {
+        (
+            Instruction::Mov { dst, src },
+            SourceMapEntry {
+                bytecode_offset: 0,
+                line: 0,
+                column: 0,
+            },
+            false,
+        )
+    }
+
+    fn register(index: u32) -> Operand {
+        Operand::register(Register(index))
+    }
+
+    #[test]
+    fn keeps_a_repeated_mov_after_either_operand_is_clobbered() {
+        let dst = register(Register::RESERVED_COUNT);
+        let src = register(Register::RESERVED_COUNT + 1);
+        let other = register(Register::RESERVED_COUNT + 2);
+
+        for clobbered in [src, dst] {
+            let mut instructions = vec![mov(dst, src), mov(clobbered, other), mov(dst, src)];
+
+            remove_redundant_movs(&mut instructions);
+
+            assert_eq!(instructions.len(), 3);
+        }
+    }
+
+    #[test]
+    fn removes_a_repeated_mov_after_an_unrelated_mov() {
+        let dst = register(Register::RESERVED_COUNT);
+        let src = register(Register::RESERVED_COUNT + 1);
+        let other_dst = register(Register::RESERVED_COUNT + 2);
+        let other_src = register(Register::RESERVED_COUNT + 3);
+        let mut instructions = vec![mov(dst, src), mov(other_dst, other_src), mov(dst, src)];
+
+        remove_redundant_movs(&mut instructions);
+
+        assert_eq!(instructions.len(), 2);
     }
 }

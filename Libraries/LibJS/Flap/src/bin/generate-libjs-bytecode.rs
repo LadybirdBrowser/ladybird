@@ -4,7 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use flapc::metadata::{Field, InstructionDefinition, parse_flap_metadata};
+use flapc::metadata::{
+    Field, InstructionDefinition, derive_specialized_instructions, parse_flap_metadata, parse_specializations,
+};
+use flapc::validate_specializations;
 use std::env;
 use std::fmt::Write;
 use std::fs;
@@ -211,6 +214,19 @@ fn required_path(arguments: &mut impl Iterator<Item = String>, option: &str) -> 
         .ok_or_else(|| format!("{option} requires a path"))
 }
 
+fn parse_instruction_definitions(source_name: &str, source: &str) -> Result<Vec<InstructionDefinition>, String> {
+    let mut ops = parse_flap_metadata(source_name, source).map_err(|error| error.to_string())?;
+    let specializations = parse_specializations(source_name, source).map_err(|error| error.to_string())?;
+    validate_specializations(&ops, &specializations)?;
+    let specialized_ops = derive_specialized_instructions(&ops, &specializations)?;
+    ops.extend(
+        specialized_ops
+            .into_iter()
+            .map(|specialization| specialization.definition),
+    );
+    Ok(ops)
+}
+
 fn run() -> Result<(), String> {
     let mut arguments = env::args().skip(1);
     let mut input = None;
@@ -229,7 +245,8 @@ fn run() -> Result<(), String> {
     let op_header = op_header.ok_or_else(|| "missing --op-header".to_string())?;
     let opcodes_header = opcodes_header.ok_or_else(|| "missing --opcodes-header".to_string())?;
     let source = fs::read_to_string(&input).map_err(|error| format!("failed to read {}: {error}", input.display()))?;
-    let ops = parse_flap_metadata(&input.to_string_lossy(), &source).map_err(|error| error.to_string())?;
+    let source_name = input.to_string_lossy();
+    let ops = parse_instruction_definitions(&source_name, &source)?;
     fs::write(&op_header, generate_op_header(&ops)?)
         .map_err(|error| format!("failed to write {}: {error}", op_header.display()))?;
     fs::write(&opcodes_header, generate_opcodes_header(&ops))
@@ -262,5 +279,20 @@ mod tests {
 
         assert!(output.contains("size_t length_impl() const { return m_length; }"));
         assert!(!output.contains("auto const& length() const"));
+    }
+
+    #[test]
+    fn rejects_invalid_specializations_before_header_generation() {
+        let error = parse_instruction_definitions(
+            "test.flap",
+            r#"
+handler Add(rhs: Operand) { dispatch_next; }
+specialize Add(rhs: Int32);
+specialize Add(rhs: Int32);
+"#,
+        )
+        .unwrap_err();
+
+        assert_eq!(error, "duplicate specialization name 'AddRhsInt32'");
     }
 }

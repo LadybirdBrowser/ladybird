@@ -43,6 +43,13 @@ use std::error::Error;
 use std::fmt;
 use std::time::{Duration, Instant};
 use target::emitter::DISPATCH_TABLE_SIZE;
+
+pub fn validate_specializations(
+    ops: &[metadata::InstructionDefinition],
+    specializations: &[metadata::Specialization],
+) -> Result<(), String> {
+    bytecode::validate_specializations(ops, specializations)
+}
 use types::BlockTemperature;
 
 pub use frontend::diagnostic::{SourceLocation, SourceSpan};
@@ -408,12 +415,19 @@ impl Compiler {
             })
             .transpose()?;
 
-        let ops = metadata::parse_flap_metadata(unit.source.name, unit.source.contents)
+        let mut ops = metadata::parse_flap_metadata(unit.source.name, unit.source.contents)
             .map_err(|error| CompileError::from_flap_metadata_error(unit.source, error))?;
         let specializations = metadata::parse_specializations(unit.source.name, unit.source.contents)
             .map_err(|error| CompileError::from_flap_metadata_error(unit.source, error))?;
         bytecode::validate_specializations(&ops, &specializations)
             .map_err(|message| CompileError::new(CompileStage::Semantic, None, message))?;
+        let specialized_ops = metadata::derive_specialized_instructions(&ops, &specializations)
+            .map_err(|message| CompileError::new(CompileStage::Semantic, None, message))?;
+        ops.extend(
+            specialized_ops
+                .iter()
+                .map(|specialization| specialization.definition.clone()),
+        );
         // The interpreter dispatches on a single opcode byte, so a table beyond
         // 256 entries would have unreachable handlers.
         if ops.len() > DISPATCH_TABLE_SIZE {
@@ -428,8 +442,10 @@ impl Compiler {
             ));
         }
 
-        let ast = frontend::parser::parse(unit.source.name, unit.source.contents)
+        let mut ast = frontend::parser::parse(unit.source.name, unit.source.contents)
             .map_err(|diagnostic| CompileError::from_diagnostic(CompileStage::Parse, diagnostic))?;
+        frontend::specialize::expand_declarative_specializations(unit.source.name, &mut ast, &specialized_ops)
+            .map_err(|diagnostic| CompileError::from_diagnostic(CompileStage::Semantic, diagnostic))?;
         let typed_program = if let Some(layouts) = &layouts {
             hir::check_with_layouts(unit.source.name, &ast, layouts.fields())
         } else {
@@ -672,6 +688,56 @@ handler Nop() { dispatch_next; }
     }
 
     #[test]
+    fn compiles_declarative_single_and_fused_specializations() {
+        let source = r#"
+handler Copy(dst: out Operand, src: in Operand) {
+    store(dst, load(src));
+    dispatch_next;
+}
+handler Touch(src: in Operand) {
+    let value = load(src);
+    assert_nonzero(value);
+    dispatch_next;
+}
+specialize Copy(src: Int32);
+specialize Copy() + Touch();
+specialize Copy() + Touch() + Touch();
+"#;
+
+        for architecture in [Architecture::X86_64, Architecture::Aarch64] {
+            let compiler = compiler(architecture);
+            let prepared = compiler
+                .prepare(CompilationUnit {
+                    source: SourceInput {
+                        name: "test.flap",
+                        contents: source,
+                    },
+                    constants: Some(SourceInput {
+                        name: "layout.conf",
+                        contents: REQUIRED_LAYOUT,
+                    }),
+                })
+                .expect("declarative specializations should prepare");
+            assert!(prepared.handlers.iter().any(|handler| handler.name() == "CopySrcInt32"));
+            assert!(prepared.handlers.iter().any(|handler| handler.name() == "CopyTouch"));
+            assert!(
+                prepared
+                    .handlers
+                    .iter()
+                    .any(|handler| { handler.name() == "CopyTouchTouch" })
+            );
+
+            compiler
+                .lower(&prepared)
+                .and_then(|program| compiler.select(program))
+                .and_then(|program| compiler.allocate(program))
+                .and_then(|program| compiler.finalize(program))
+                .and_then(|program| compiler.emit_program(&program))
+                .expect("declarative specializations should compile");
+        }
+    }
+
+    #[test]
     fn reports_compilation_metrics() {
         let compiler = compiler(Architecture::X86_64);
         let (assembly, metrics) = compiler
@@ -785,6 +851,30 @@ handler Test(lhs: Mystery) { dispatch_next; }
         assert_eq!(
             error.message,
             "generated program contains 257 operations, which exceeds the 256-entry dispatch table"
+        );
+    }
+
+    #[test]
+    fn rejects_undefined_output_parameter_specializations() {
+        let error = compiler(Architecture::X86_64)
+            .prepare(unit(
+                r#"
+handler Clear(dst: inout Operand) {
+    dst = dst;
+    dispatch_next;
+}
+specialize Clear(dst: Undefined);
+"#,
+            ))
+            .err()
+            .expect("undefined output parameter specializations should fail");
+
+        assert!(
+            error
+                .message
+                .contains("cannot constrain output parameter 'Clear.dst' to Undefined"),
+            "{}",
+            error.message
         );
     }
 

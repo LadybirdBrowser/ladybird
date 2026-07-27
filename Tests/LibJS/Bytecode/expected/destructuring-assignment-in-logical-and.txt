@@ -12,7 +12,7 @@ block0:
   [  38] End value:reg5
 
 
-f$e8e4cc1a destructuring-assignment-in-logical-and.js:2:5
+f$f1309f4a destructuring-assignment-in-logical-and.js:2:5
   Registers: 14
   Blocks:    21
   Locals:    a~0, b~1
@@ -24,11 +24,11 @@ f$e8e4cc1a destructuring-assignment-in-logical-and.js:2:5
 
 block0:
   [   0] GetLexicalEnvironment dst:reg4
-  [   8] Mov3 dst1:a~0, src1:Undefined, dst2:b~1, src2:Undefined, dst3:reg5, src3:arg0
+  [   8] Mov3 c0_dst:a~0, c0_src:Undefined, c1_dst:b~1, c1_src:Undefined, c2_dst:reg5, c2_src:arg0
   [  28] JumpFalse condition:arg0, target:block2
 
 block1:
-  [  38] Mov2 dst1:reg7, src1:arg0, dst2:reg8, src2:arg1
+  [  38] Mov2 c0_dst:reg7, c0_src:arg0, c1_dst:reg8, c1_src:arg1
   [  50] Call dst:reg6, callee:reg7, this_value:Undefined, t, arguments:[reg8]
   [  78] Mov dst:reg7, src:Bool(false)
   [  88] GetIterator dst_iterator_object:reg8, dst_iterator_next:reg9, dst_iterator_done:reg10, iterable:reg6
@@ -51,59 +51,59 @@ block5:
   [  f8] Jump target:block7
 
 block6:
-  [ 100] Mov dst:reg13, src:Undefined
-  [ 110] Jump target:block8
+  [ 100] MovSrcUndefined dst:reg13
+  [ 108] Jump target:block8
 
 block7:
-  [ 118] IteratorNextUnpack dst_value:reg13, dst_done:reg7, iterator_object:reg8, iterator_next:reg9, iterator_done:reg10
-  [ 130] JumpTrue condition:reg7, target:block6
+  [ 110] IteratorNextUnpack dst_value:reg13, dst_done:reg7, iterator_object:reg8, iterator_next:reg9, iterator_done:reg10
+  [ 128] JumpTrue condition:reg7, target:block6
 
 block8:
-  [ 140] Mov dst:a~0, src:reg13
-  [ 150] JumpFalse condition:reg7, target:block10
+  [ 138] Mov dst:a~0, src:reg13
+  [ 148] JumpFalse condition:reg7, target:block10
 
 block9:
-  [ 160] Mov dst:reg13, src:Undefined
-  [ 170] Jump target:block11
+  [ 158] MovSrcUndefined dst:reg13
+  [ 160] Jump target:block11
 
 block10:
-  [ 178] IteratorNextUnpack dst_value:reg13, dst_done:reg7, iterator_object:reg8, iterator_next:reg9, iterator_done:reg10
-  [ 190] JumpTrue condition:reg7, target:block9
+  [ 168] IteratorNextUnpack dst_value:reg13, dst_done:reg7, iterator_object:reg8, iterator_next:reg9, iterator_done:reg10
+  [ 180] JumpTrue condition:reg7, target:block9
 
 block11:
-  [ 1a0] Mov dst:b~1, src:reg13
+  [ 190] Mov dst:b~1, src:reg13
 
 block12:
-  [ 1b0] JumpFalse condition:reg10, target:block14
+  [ 1a0] JumpFalse condition:reg10, target:block14
 
 block13:
-  [ 1c0] Jump target:block4
+  [ 1b0] Jump target:block4
 
 block14:
-  [ 1c8] IteratorClose iterator_object:reg8, iterator_next:reg9, iterator_done:reg10, completion_value:Undefined
-  [ 1e0] Jump target:block13
+  [ 1b8] IteratorClose iterator_object:reg8, iterator_next:reg9, iterator_done:reg10, completion_value:Undefined
+  [ 1d0] Jump target:block13
 
 block15:
-  [ 1e8] JumpStrictlyEquals lhs:reg11, rhs:Int32(1), true_target:block17, false_target:block18
+  [ 1d8] JumpStrictlyEquals lhs:reg11, rhs:Int32(1), true_target:block17, false_target:block18
 
 block16:
-  [ 200] JumpStrictlyEquals lhs:reg11, rhs:Int32(2), true_target:block19, false_target:block20
+  [ 1f0] JumpStrictlyEquals lhs:reg11, rhs:Int32(2), true_target:block19, false_target:block20
 
 block17:
-  [ 218] IteratorClose iterator_object:reg8, iterator_next:reg9, iterator_done:reg10, completion_value:reg12
-  [ 230] Throw src:reg12
+  [ 208] IteratorClose iterator_object:reg8, iterator_next:reg9, iterator_done:reg10, completion_value:reg12
+  [ 220] Throw src:reg12
 
 block18:
-  [ 238] IteratorClose iterator_object:reg8, iterator_next:reg9, iterator_done:reg10, completion_value:Undefined
-  [ 250] Jump target:block16
+  [ 228] IteratorClose iterator_object:reg8, iterator_next:reg9, iterator_done:reg10, completion_value:Undefined
+  [ 240] Jump target:block16
 
 block19:
-  [ 258] Return value:reg12
+  [ 248] Return value:reg12
 
 block20:
-  [ 260] Throw src:reg12
+  [ 250] Throw src:reg12
 
 Exception handlers:
-  [  f8 ..  118] => handler block3
-  [ 140 ..  178] => handler block3
-  [ 1a0 ..  1b0] => handler block3
+  [  f8 ..  110] => handler block3
+  [ 138 ..  168] => handler block3
+  [ 190 ..  1a0] => handler block3

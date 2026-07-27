@@ -1,4 +1,4 @@
-$460e17ea for-in-register-lifetime.js:1:1
+$ca340182 for-in-register-lifetime.js:1:1
   Registers: 14
   Blocks:    6
   Constants:
@@ -31,18 +31,18 @@ block3:
 
 block4:
   [  d8] GetObjectPropertyIterator dst_iterator:reg6, object:reg5
-  [  e8] Mov dst:reg5, src:Undefined
-  [  f8] Jump target:block2
+  [  e8] MovSrcUndefined dst:reg5
+  [  f0] Jump target:block2
 
 block5:
-  [ 100] SetGlobal `k`, src:reg7
-  [ 110] GetGlobal dst:reg9, `result`
-  [ 120] GetGlobal dst:reg10, `k`
-  [ 130] GetGlobal dst:reg11, `obj`
-  [ 140] GetGlobal dst:reg12, `k`
-  [ 150] GetByValue dst:reg13, base:reg11, property:reg12 (obj[reg12])
-  [ 168] Add dst:reg11, lhs:reg10, rhs:reg13
-  [ 178] Add dst:reg10, lhs:reg9, rhs:reg11
-  [ 188] SetGlobal `result`, src:reg10
-  [ 198] Mov dst:reg5, src:reg10
-  [ 1a8] Jump target:block2
+  [  f8] SetGlobal `k`, src:reg7
+  [ 108] GetGlobal dst:reg9, `result`
+  [ 118] GetGlobal dst:reg10, `k`
+  [ 128] GetGlobal dst:reg11, `obj`
+  [ 138] GetGlobal dst:reg12, `k`
+  [ 148] GetByValue dst:reg13, base:reg11, property:reg12 (obj[reg12])
+  [ 160] Add dst:reg11, lhs:reg10, rhs:reg13
+  [ 170] Add dst:reg10, lhs:reg9, rhs:reg11
+  [ 180] SetGlobal `result`, src:reg10
+  [ 190] Mov dst:reg5, src:reg10
+  [ 1a0] Jump target:block2

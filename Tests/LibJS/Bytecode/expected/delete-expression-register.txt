@@ -22,7 +22,7 @@ f$04c49ea7 delete-expression-register.js:3:7
 
 block0:
   [   0] CreateArguments dst:arguments~1, is_immutable:false
-  [  10] Mov3 dst1:x~0, src1:Undefined, dst2:x~0, src2:Bool(false), dst3:reg5, src3:x~0
+  [  10] Mov3 c0_dst:x~0, c0_src:Undefined, c1_dst:x~0, c1_src:Bool(false), c2_dst:reg5, c2_src:x~0
   [  30] JumpTrue condition:x~0, target:block2
 
 block1:

@@ -26,5 +26,5 @@ block1:
   [  10] Mov dst:arg0, src:Int32(1)
 
 block2:
-  [  20] Mov3 dst1:reg5, src1:Undefined, dst2:x~0, src2:reg5, dst3:x~0, src3:String("inside")
+  [  20] Mov3 c0_dst:reg5, c0_src:Undefined, c1_dst:x~0, c1_src:reg5, c2_dst:x~0, c2_src:String("inside")
   [  40] End value:Undefined

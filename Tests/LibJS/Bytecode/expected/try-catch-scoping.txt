@@ -30,7 +30,7 @@ block0:
 block1:
   [  20] Catch dst:reg5
   [  28] SetLexicalEnvironment environment:reg4
-  [  30] Mov2 dst1:e~2, src1:reg5, dst2:z~1, src2:Int32(3)
+  [  30] Mov2 c0_dst:e~2, c0_src:reg5, c1_dst:z~1, c1_src:Int32(3)
   [  48] GetGlobal dst:reg7, `console`
   [  58] GetById dst:reg8, base:reg7, `log` (console.log)
   [  70] Add dst:reg9, lhs:x~3, rhs:e~2

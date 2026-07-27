@@ -1,4 +1,4 @@
-$84f4cb35 using-declaration-non-local-env.js:1:1
+$091ab4cd using-declaration-non-local-env.js:1:1
   Registers: 9
   Blocks:    3
   Locals:    e~0
@@ -12,18 +12,18 @@ block0:
 block1:
   [  10] Catch dst:reg5
   [  18] SetLexicalEnvironment environment:reg4
-  [  20] Mov3 dst1:e~0, src1:reg5, dst2:reg6, src2:Undefined, dst3:reg7, src3:reg6
+  [  20] Mov3 c0_dst:e~0, c0_src:reg5, c1_dst:reg6, c1_src:Undefined, c2_dst:reg7, c2_src:reg6
   [  40] End value:reg6
 
 block2:
-  [  48] Mov dst:reg5, src:Undefined
-  [  58] NewFunction dst:reg8, shared_function_data_index:0
-  [  70] Call dst:reg6, callee:reg8, this_value:Undefined
-  [  90] Mov2 dst1:reg5, src1:reg6, dst2:reg6, src2:reg5
-  [  a8] End value:reg6
+  [  48] MovSrcUndefined dst:reg5
+  [  50] NewFunction dst:reg8, shared_function_data_index:0
+  [  68] Call dst:reg6, callee:reg8, this_value:Undefined
+  [  88] Mov2 c0_dst:reg5, c0_src:reg6, c1_dst:reg6, c1_src:reg5
+  [  a0] End value:reg6
 
 Exception handlers:
-  [  48 ..   b0] => handler block1
+  [  48 ..   a8] => handler block1
 
 
 $66e73949 using-declaration-non-local-env.js:1:21

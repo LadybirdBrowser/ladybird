@@ -47,6 +47,6 @@ block4:
 block5:
   [  68] Mov dst:key~0, src:reg6
   [  78] GetById dst:reg9, base:keys~1, `push` (keys.push)
-  [  90] Mov2 dst1:reg10, src1:keys~1, dst2:reg11, src2:key~0
+  [  90] Mov2 c0_dst:reg10, c0_src:keys~1, c1_dst:reg11, c1_src:key~0
   [  a8] Call dst:reg8, callee:reg9, this_value:reg10, keys.push, arguments:[reg11]
   [  d0] Jump target:block2

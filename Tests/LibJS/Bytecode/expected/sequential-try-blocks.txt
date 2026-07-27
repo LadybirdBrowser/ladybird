@@ -34,7 +34,7 @@ block0:
 block1:
   [  20] Catch dst:reg5
   [  28] SetLexicalEnvironment environment:reg4
-  [  30] Mov2 dst1:e~0, src1:reg5, dst2:reg6, src2:result~2
+  [  30] Mov2 c0_dst:e~0, c0_src:reg5, c1_dst:reg6, c1_src:result~2
   [  48] Add dst:reg7, lhs:reg6, rhs:String("b")
   [  58] Mov dst:result~2, src:reg7
   [  68] Jump target:block4
@@ -48,7 +48,7 @@ block2:
 block3:
   [  a8] Catch dst:reg7
   [  b0] SetLexicalEnvironment environment:reg4
-  [  b8] Mov2 dst1:e~1, src1:reg7, dst2:reg5, src2:result~2
+  [  b8] Mov2 c0_dst:e~1, c0_src:reg7, c1_dst:reg5, c1_src:result~2
   [  d0] Add dst:reg6, lhs:reg5, rhs:String("d")
   [  e0] Mov dst:result~2, src:reg6
   [  f0] Return value:result~2

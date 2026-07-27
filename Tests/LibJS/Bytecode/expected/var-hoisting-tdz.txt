@@ -20,7 +20,7 @@ isect$63c4d7d5 var-hoisting-tdz.js:5:5
     [2] = Int32(3)
 
 block0:
-  [   0] Mov2 dst1:i~0, src1:Undefined, dst2:i~0, src2:Int32(0)
+  [   0] Mov2 c0_dst:i~0, c0_src:Undefined, c1_dst:i~0, c1_src:Int32(0)
   [  18] Jump target:block2
 
 block1:

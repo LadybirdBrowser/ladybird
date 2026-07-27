@@ -80,7 +80,7 @@ blockTeardown$b6f5c4f0 lexical-env-teardown.js:17:5
     [1] = Int32(3)
 
 block0:
-  [   0] Mov2 dst1:outer~1, src1:Int32(2), dst2:inner~0, src2:Int32(3)
+  [   0] Mov2 c0_dst:outer~1, c0_src:Int32(2), c1_dst:inner~0, c1_src:Int32(3)
   [  18] Return value:outer~1
 
 

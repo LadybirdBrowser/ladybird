@@ -27,7 +27,7 @@ twoLocals$848f6408 mov-merging.js:2:5
     [1] = Int32(2)
 
 block0:
-  [   0] Mov2 dst1:a~0, src1:Int32(1), dst2:b~1, src2:Int32(2)
+  [   0] Mov2 c0_dst:a~0, c0_src:Int32(1), c1_dst:b~1, c1_src:Int32(2)
   [  18] Add dst:reg5, lhs:a~0, rhs:b~1
   [  28] Return value:reg5
 
@@ -42,7 +42,7 @@ threeLocals$f4c3fc48 mov-merging.js:8:5
     [2] = Int32(3)
 
 block0:
-  [   0] Mov3 dst1:a~0, src1:Int32(1), dst2:b~1, src2:Int32(2), dst3:c~2, src3:Int32(3)
+  [   0] Mov3 c0_dst:a~0, c0_src:Int32(1), c1_dst:b~1, c1_src:Int32(2), c2_dst:c~2, c2_src:Int32(3)
   [  20] Add dst:reg5, lhs:a~0, rhs:b~1
   [  30] Add dst:reg6, lhs:reg5, rhs:c~2
   [  40] Return value:reg6

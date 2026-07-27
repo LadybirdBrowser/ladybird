@@ -42,7 +42,7 @@ block1:
 block2:
   [  48] Catch dst:reg6
   [  50] SetLexicalEnvironment environment:reg4
-  [  58] Mov2 dst1:e2~0, src1:reg6, dst2:result~2, src2:String("good")
+  [  58] Mov2 c0_dst:e2~0, c0_src:reg6, c1_dst:result~2, c1_src:String("good")
   [  70] Return value:result~2
 
 block3:

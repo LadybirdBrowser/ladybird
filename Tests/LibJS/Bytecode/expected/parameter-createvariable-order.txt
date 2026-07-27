@@ -13,7 +13,7 @@ block0:
   [  40] End value:reg5
 
 
-f$8982c134 parameter-createvariable-order.js:2:5
+f$0ae4b9bc parameter-createvariable-order.js:2:5
   Registers: 6
   Blocks:    1
   Locals:    inner~0
@@ -27,11 +27,11 @@ block0:
   [  30] InitializeLexicalBinding `a`, src:arg0
   [  48] InitializeLexicalBinding `b`, src:arg1
   [  60] InitializeLexicalBinding `c`, src:arg2
-  [  78] Mov dst:inner~0, src:Undefined
-  [  88] NewFunction dst:reg5, shared_function_data_index:0 (inner)
-  [  a0] Mov dst:inner~0, src:reg5
-  [  b0] Call dst:reg5, callee:inner~0, this_value:Undefined, inner
-  [  d0] Return value:reg5
+  [  78] MovSrcUndefined dst:inner~0
+  [  80] NewFunction dst:reg5, shared_function_data_index:0 (inner)
+  [  98] Mov dst:inner~0, src:reg5
+  [  a8] Call dst:reg5, callee:inner~0, this_value:Undefined, inner
+  [  c8] Return value:reg5
 
 
 inner$2575e5f9 parameter-createvariable-order.js:3:9

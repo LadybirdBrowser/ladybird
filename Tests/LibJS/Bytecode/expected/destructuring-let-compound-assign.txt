@@ -23,7 +23,7 @@ f$ffd4f57c destructuring-let-compound-assign.js:2:5
 block0:
   [   0] ThrowIfNullish src:arg0
   [   8] GetById dst:reg5, base:arg0, `patchFlag`
-  [  20] Mov3 dst1:a~0, src1:reg5, dst2:reg5, src2:a~0, dst3:reg6, src3:arg1
+  [  20] Mov3 c0_dst:a~0, c0_src:reg5, c1_dst:reg5, c1_src:a~0, c2_dst:reg6, c2_src:arg1
   [  40] GetById dst:reg7, base:reg6, `patchFlag` (e.patchFlag)
   [  58] BitwiseAnd dst:reg6, lhs:Int32(16), rhs:reg7
   [  68] BitwiseOr dst:reg7, lhs:reg5, rhs:reg6

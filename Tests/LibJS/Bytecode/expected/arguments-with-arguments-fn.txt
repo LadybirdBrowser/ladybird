@@ -25,6 +25,6 @@ block1:
   [  10] Mov dst:arg0, src:Int32(1)
 
 block2:
-  [  20] Mov2 dst1:reg5, src1:Undefined, dst2:arguments~0, src2:reg5
+  [  20] Mov2 c0_dst:reg5, c0_src:Undefined, c1_dst:arguments~0, c1_src:reg5
   [  38] NewFunction dst:arguments~0, shared_function_data_index:0
   [  50] End value:Undefined

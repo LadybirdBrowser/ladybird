@@ -20,7 +20,7 @@ test$e6d8239f do-while-register-allocation.js:9:5
     [2] = Int32(7)
 
 block0:
-  [   0] Mov2 dst1:i~0, src1:Undefined, dst2:i~0, src2:Int32(0)
+  [   0] Mov2 c0_dst:i~0, c0_src:Undefined, c1_dst:i~0, c1_src:Int32(0)
   [  18] GetGlobal dst:reg6, `foo`
   [  28] NewArray dst:reg7
   [  38] Call dst:reg5, callee:reg6, this_value:Undefined, foo, arguments:[reg7]

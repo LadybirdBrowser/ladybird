@@ -10,3 +10,4 @@ pub(crate) mod ast;
 pub(crate) mod diagnostic;
 pub(crate) mod layout;
 pub(crate) mod parser;
+pub(crate) mod specialize;

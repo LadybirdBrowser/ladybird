@@ -19,5 +19,5 @@ f$44906188 assign-to-argument-no-tdz.js:6:5
     [0] = Int32(1)
 
 block0:
-  [   0] Mov2 dst1:y~0, src1:Int32(1), dst2:arg0, src2:y~0
+  [   0] Mov2 c0_dst:y~0, c0_src:Int32(1), c1_dst:arg0, c1_src:y~0
   [  18] Return value:arg0
