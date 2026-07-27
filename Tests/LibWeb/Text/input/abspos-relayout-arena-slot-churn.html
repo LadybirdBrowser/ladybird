@@ -17,12 +17,9 @@
     </div>
 </div>
 <script>
-    // Every structural partial relayout builds fresh layout nodes, whose indices grow past
-    // the dense range assigned by the last full pass; the per-pass used values store sizes
-    // its page table by the highest index it touches. Repeated churn inside a boundary must
-    // therefore be interrupted by an occasional full pass that renumbers the tree densely
-    // and resets the counter, keeping per-pass cost bounded, while the vast majority of the
-    // updates stay on the partial path.
+    // Structural partial relayout frees the replaced layout nodes before allocating their
+    // replacements. The arena reuses those slots, keeping the per-pass used values store
+    // bounded without periodic full passes to compact a separate index space.
     asyncTest(async (done) => {
         document.body.offsetHeight;
 
@@ -41,11 +38,11 @@
         const fullDelta = internals.fullLayoutCount() - fullBefore;
 
         const boundaryRect = document.getElementById("boundary").getBoundingClientRect();
-        println(`layout-passes-sum-matches=${partialDelta + fullDelta === iterations}`);
-        println(`full-passes-bounded=${fullDelta >= 1 && fullDelta <= 4}`);
+        println(`all-passes-partial=${partialDelta === iterations}`);
+        println(`no-full-passes=${fullDelta === 0}`);
         println(`boundary=${boundaryRect.left},${boundaryRect.top},${boundaryRect.width},${boundaryRect.height}`);
-        println(partialDelta + fullDelta === iterations
-            && fullDelta >= 1 && fullDelta <= 4
+        println(partialDelta === iterations
+            && fullDelta === 0
             && boundaryRect.height === 40 ? "PASS" : "FAIL");
         done();
     });

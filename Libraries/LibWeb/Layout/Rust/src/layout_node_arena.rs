@@ -223,8 +223,8 @@ mod tests {
         // SAFETY: The first allocation is still live, and the comparison above
         // confirms that its pointer still addresses the arena slot.
         unsafe {
-            (*first_data).layout_index = 42;
-            assert_eq!((*arena.data(first.slot)).layout_index, 42);
+            (*first_data).initial_quote_nesting_level = 42;
+            assert_eq!((*arena.data(first.slot)).initial_quote_nesting_level, 42);
         }
         arena.free(first.slot, first.generation);
         for allocation in allocations {

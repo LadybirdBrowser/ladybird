@@ -1,0 +1,4 @@
+all-passes-partial=true
+no-full-passes=true
+boundary=40,30,200,40
+PASS

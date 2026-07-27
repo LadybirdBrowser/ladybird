@@ -42,10 +42,9 @@ static_assert(offsetof(RustFFI::NodeData, kind) == 28);
 static_assert(offsetof(RustFFI::NodeData, generated_for) == 29);
 static_assert(offsetof(RustFFI::NodeData, flags) == 32);
 static_assert(offsetof(RustFFI::NodeData, initial_quote_nesting_level) == 36);
-static_assert(offsetof(RustFFI::NodeData, layout_index) == 40);
-static_assert(offsetof(RustFFI::NodeData, table_display) == 44);
-static_assert(offsetof(RustFFI::NodeData, table_display_before) == 45);
-static_assert(offsetof(RustFFI::NodeData, display_bits) == 46);
+static_assert(offsetof(RustFFI::NodeData, table_display) == 40);
+static_assert(offsetof(RustFFI::NodeData, table_display_before) == 41);
+static_assert(offsetof(RustFFI::NodeData, display_bits) == 42);
 static_assert(offsetof(RustFFI::NodeData, style) == 48);
 static_assert(offsetof(RustFFI::NodeData, shell) == 56);
 
@@ -113,6 +112,7 @@ public:
     virtual StringView class_name() const { return "Node"sv; }
 
     static RustFFI::NodeSlotId slot_id(Node const*);
+    u32 arena_slot_index() const { return m_slot.index; }
     void* arena_handle() const;
 
     bool is_anonymous() const { return has_flag(RustFFI::NodeFlag::Anonymous); }
@@ -459,9 +459,6 @@ public:
     void set_display(CSS::Display);
     void set_content(CSS::ContentData const&);
     void set_overflow(CSS::Overflow overflow_x, CSS::Overflow overflow_y);
-
-    u32 layout_index() const { return node_data().layout_index; }
-    void set_layout_index(u32 index) { node_data().layout_index = index; }
 
 protected:
     NodeWithStyle(DOM::Document&, DOM::Node*, NonnullRefPtr<CSS::ComputedValues const>);

@@ -742,24 +742,7 @@ public:
     [[nodiscard]] bool needs_full_layout_tree_update() const { return m_needs_full_layout_tree_update; }
     void set_needs_full_layout_tree_update(bool b) { m_needs_full_layout_tree_update = b; }
 
-    // Layout indices key the per-pass used values store in LayoutState. Every layout node gets
-    // one at construction; a full layout pass renumbers the whole tree densely and resets the
-    // counter past the dense range.
-    [[nodiscard]] u32 allocate_layout_node_index() { return m_next_layout_node_index++; }
     [[nodiscard]] Layout::NodeArena& layout_node_arena();
-    void reset_layout_node_index_counter(u32 next_index)
-    {
-        m_next_layout_node_index = next_index;
-        m_layout_node_index_count_after_last_full_pass = next_index;
-    }
-
-    // The per-pass used values store sizes its page table by the highest index it touches, and
-    // partial relayout never renumbers, so between-pass indices grow its cost without bound.
-    // Once they outgrow the dense range, the next layout must be a full, renumbering pass.
-    [[nodiscard]] bool layout_node_indices_outgrew_dense_range() const
-    {
-        return m_next_layout_node_index > 2 * m_layout_node_index_count_after_last_full_pass + 2048;
-    }
 
     // Attribution of pending updates for partial relayout. Invariant: every update recorded
     // since the last layout pass is either attributed to a boundary in the registered root
@@ -1567,9 +1550,6 @@ private:
     bool m_is_decoded_svg { false };
 
     bool m_is_running_update_layout { false };
-
-    u32 m_next_layout_node_index { 0 };
-    u32 m_layout_node_index_count_after_last_full_pass { 0 };
 
     PartialRelayoutInvalidation m_partial_relayout_invalidation;
 

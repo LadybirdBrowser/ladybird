@@ -701,7 +701,6 @@ NodeWithStyle::NodeWithStyle(DOM::Document& document, DOM::Node* node, NonnullRe
     : Node(document, node)
     , m_computed_values(move(computed_values))
 {
-    node_data().layout_index = document.allocate_layout_node_index();
     set_flag(RustFFI::NodeFlag::HasStyle, true);
     set_flag(RustFFI::NodeFlag::IsBody, node && node == document.body());
     mirror_computed_values_to_node_data();
