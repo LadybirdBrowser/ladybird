@@ -295,6 +295,17 @@ void StyleScope::populate_rule_cache(StyleRuleCache& rule_cache)
 {
     build_user_style_sheet_if_needed();
 
+    // A user-agent sheet is a process-wide singleton with no owning document, so nothing that walks a
+    // document's own sheets ever evaluates its media rules. Its `@media` answers are still per
+    // document - `(scripting)` is - so they are evaluated here, where the rule cache that consumes
+    // them is built. Without this the cache is built against whatever state some other document
+    // happened to leave behind, and `noscript` keeps the UA sheet's `display: none` only by accident.
+    for (auto origin : { CascadeOrigin::UserAgent, CascadeOrigin::User }) {
+        for_each_stylesheet(origin, [&](CSSStyleSheet& sheet) {
+            sheet.evaluate_media_queries(document());
+        });
+    }
+
     build_qualified_layer_names_cache(rule_cache);
 
     rule_cache.pseudo_class_rule_cache[to_underlying(PseudoClass::Hover)] = make<RuleCache>();
