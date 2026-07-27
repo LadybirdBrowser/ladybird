@@ -5403,30 +5403,22 @@ asm_handler_AddRhsInt32:
     ldr w0, [x21, #8]
     ldr x1, [x27, x0, lsl #3]
     ldr w0, [x21, #12]
-    movk x0, #0x7ffa, lsl #48
+    mov x3, x0
+    movk x3, #0x7ffa, lsl #48
     lsr x2, x1, #48
     cmp w2, w22
     b.ne .Lasm_AddRhsInt32.ssa_block_5
-    sxtw x2, w1
-    lsr x3, x0, #48
-    cmp w3, w22
-    b.ne .Lasm_AddRhsInt32.ssa_block_8
-    sxtw x0, w0
-    mov x1, x2
-    adds w1, w1, w0
-    b.vs .Lasm_AddRhsInt32.ssa_block_10
-    movk x1, #0x7ffa, lsl #48
+    sxtw x1, w1
+    mov x2, x1
+    adds w2, w2, w0
+    b.vs .Lasm_AddRhsInt32.ssa_block_8
+    movk x2, #0x7ffa, lsl #48
     ldr w9, [x21, #4]
-    str x1, [x27, x9, lsl #3]
+    str x2, [x27, x9, lsl #3]
     ldrb w9, [x21, #16]
     add x21, x21, #16
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_AddRhsInt32.ssa_block_8:
-    and w3, w3, #0x7ff8
-    cmp w3, w24
-    b.ne .Lasm_AddRhsInt32.ssa_block_7
-    b .Lasm_AddRhsInt32.ssa_block_1
 .Lasm_AddRhsInt32.ssa_block_5:
     and w2, w2, #0x7ff8
     cmp w2, w24
@@ -9217,8 +9209,8 @@ asm_handler_MovUndefined3_cold:
 asm_handler_MovUndefined3_cold_end:
 asm_handler_AddRhsInt32_cold:
 // Cold paths for AddRhsInt32
-.Lasm_AddRhsInt32.ssa_block_10:
-    scvtf d0, x2
+.Lasm_AddRhsInt32.ssa_block_8:
+    scvtf d0, x1
     scvtf d1, x0
     fadd d0, d0, d1
     fmov x0, d0
@@ -9228,45 +9220,30 @@ asm_handler_AddRhsInt32_cold:
     add x21, x21, #16
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_AddRhsInt32.ssa_block_7:
-    fmov d1, x0
-    scvtf d0, x2
-    b .Lasm_AddRhsInt32.ssa_block_2
 .Lasm_AddRhsInt32.ssa_block_4:
     fmov d0, x1
-    lsr x2, x0, #48
-    cmp w2, w22
-    b.ne .Lasm_AddRhsInt32.ssa_block_13
-    sxtw x0, w0
     scvtf d1, x0
-    b .Lasm_AddRhsInt32.ssa_block_2
-.Lasm_AddRhsInt32.ssa_block_13:
-    and w2, w2, #0x7ff8
-    cmp w2, w24
-    b.eq .Lasm_AddRhsInt32.ssa_block_1
-    fmov d1, x0
-.Lasm_AddRhsInt32.ssa_block_2:
     fadd d0, d0, d1
     fcvtzs w1, d0
     scvtf d16, w1
     fcmp d0, d16
-    b.ne .Lasm_AddRhsInt32.ssa_box_number_39_not_integer
-    cbz x1, .Lasm_AddRhsInt32.ssa_box_number_39_check_negative_zero
+    b.ne .Lasm_AddRhsInt32.ssa_box_number_8_not_integer
+    cbz x1, .Lasm_AddRhsInt32.ssa_box_number_8_check_negative_zero
     mov w0, w1
     movk x0, #0x7ffa, lsl #48
-    b .Lasm_AddRhsInt32.ssa_box_number_39_done
-.Lasm_AddRhsInt32.ssa_box_number_39_check_negative_zero:
+    b .Lasm_AddRhsInt32.ssa_box_number_8_done
+.Lasm_AddRhsInt32.ssa_box_number_8_check_negative_zero:
     fmov x0, d0
-    tbnz x0, #63, .Lasm_AddRhsInt32.ssa_box_number_39_not_integer
+    tbnz x0, #63, .Lasm_AddRhsInt32.ssa_box_number_8_not_integer
     mov w0, w1
     movk x0, #0x7ffa, lsl #48
-    b .Lasm_AddRhsInt32.ssa_box_number_39_done
-.Lasm_AddRhsInt32.ssa_box_number_39_not_integer:
+    b .Lasm_AddRhsInt32.ssa_box_number_8_done
+.Lasm_AddRhsInt32.ssa_box_number_8_not_integer:
     fmov x0, d0
     fcmp d0, d0
     b.vs .Lasm_AddRhsInt32.canon_nan_0
 .Lasm_AddRhsInt32.canon_nan_0_ret:
-.Lasm_AddRhsInt32.ssa_box_number_39_done:
+.Lasm_AddRhsInt32.ssa_box_number_8_done:
     ldr w9, [x21, #4]
     str x0, [x27, x9, lsl #3]
     ldrb w9, [x21, #16]
@@ -9274,9 +9251,10 @@ asm_handler_AddRhsInt32_cold:
     ldr x10, [x19, x9, lsl #3]
     br x10
 .Lasm_AddRhsInt32.ssa_block_1:
-    ldr w2, [x21, #4]
+    ldr w0, [x21, #4]
+    mov x2, x0
+    mov x4, x3
     mov x3, x1
-    mov x4, x0
     mov x0, x20
     sub w1, w21, w26
     str w1, [x28, #56]
