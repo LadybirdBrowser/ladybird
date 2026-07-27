@@ -10,14 +10,13 @@ use flapc::{
 };
 use std::fs;
 
-const USAGE: &str = "Usage: flapc --arch x86_64 --input <file.flap> --output <file.S> [--constants <file>] [--bytecode-def <file>] [--optimization-report <file>] [--dump-changed-ir]";
+const USAGE: &str = "Usage: flapc --arch x86_64 --input <file.flap> --output <file.S> [--constants <file>] [--optimization-report <file>] [--dump-changed-ir]";
 
 struct CommandLine {
     options: CompileOptions,
     input_path: String,
     output_path: String,
     constants_path: Option<String>,
-    bytecode_def_path: Option<String>,
     optimization_report_path: Option<String>,
     dump_changed_ir: bool,
 }
@@ -33,7 +32,6 @@ fn run() -> Result<(), String> {
     let command_line = parse_command_line()?;
     let source = read_source(&command_line.input_path)?;
     let constants = command_line.constants_path.as_deref().map(read_source).transpose()?;
-    let bytecode_def = command_line.bytecode_def_path.as_deref().map(read_source).transpose()?;
 
     let compiler = Compiler::new(command_line.options);
     let unit = CompilationUnit {
@@ -45,11 +43,6 @@ fn run() -> Result<(), String> {
             .constants_path
             .as_deref()
             .zip(constants.as_deref())
-            .map(|(name, contents)| SourceInput { name, contents }),
-        bytecode_def: command_line
-            .bytecode_def_path
-            .as_deref()
-            .zip(bytecode_def.as_deref())
             .map(|(name, contents)| SourceInput { name, contents }),
     };
     let assembly = if let Some(report_path) = &command_line.optimization_report_path {
@@ -83,7 +76,6 @@ fn parse_command_line() -> Result<CommandLine, String> {
     let mut input_path = None;
     let mut output_path = None;
     let mut constants_path = None;
-    let mut bytecode_def_path = None;
     let mut has_jscvt = false;
     let mut enable_assertions = false;
     let mut optimization_report_path = None;
@@ -112,9 +104,6 @@ fn parse_command_line() -> Result<CommandLine, String> {
             "--input" => input_path = Some(required_value(&mut args, "--input")?),
             "--output" => output_path = Some(required_value(&mut args, "--output")?),
             "--constants" => constants_path = Some(required_value(&mut args, "--constants")?),
-            "--bytecode-def" => {
-                bytecode_def_path = Some(required_value(&mut args, "--bytecode-def")?);
-            }
             "--optimization-report" => {
                 optimization_report_path = Some(required_value(&mut args, "--optimization-report")?);
             }
@@ -138,7 +127,6 @@ fn parse_command_line() -> Result<CommandLine, String> {
         input_path: input_path.ok_or(USAGE)?,
         output_path: output_path.ok_or(USAGE)?,
         constants_path,
-        bytecode_def_path,
         optimization_report_path,
         dump_changed_ir,
     })

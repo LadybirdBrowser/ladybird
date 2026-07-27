@@ -29,6 +29,7 @@ pub(crate) mod hir;
 pub(crate) mod identity;
 pub(crate) mod intrinsic;
 pub(crate) mod low_ir;
+pub mod metadata;
 pub(crate) mod ssa;
 pub(crate) mod target;
 pub(crate) mod types;
@@ -100,7 +101,6 @@ pub struct SourceInput<'a> {
 pub struct CompilationUnit<'a> {
     pub source: SourceInput<'a>,
     pub constants: Option<SourceInput<'a>>,
-    pub bytecode_def: Option<SourceInput<'a>>,
 }
 
 /// Timing and IR size measurements collected by an instrumented compilation.
@@ -148,7 +148,7 @@ pub struct PreparedProgram {
     handlers: Vec<HandlerTemplate>,
 }
 
-/// Parsed bytecode definitions shared by all handlers in a program.
+/// Instruction metadata derived from the handlers in a program.
 struct BytecodeMetadata {
     handler_layouts: Vec<BytecodeHandlerLayout>,
     dispatch_handlers: Vec<Option<HandlerId>>,
@@ -243,7 +243,7 @@ impl CompileError {
         }
     }
 
-    fn from_bytecode_def_error(source: SourceInput<'_>, error: bytecode_def::ParseError) -> Self {
+    fn from_flap_metadata_error(source: SourceInput<'_>, error: metadata::ParseError) -> Self {
         let line_offset = source
             .contents
             .split_inclusive('\n')
@@ -408,6 +408,22 @@ impl Compiler {
             })
             .transpose()?;
 
+        let ops = metadata::parse_flap_metadata(unit.source.name, unit.source.contents)
+            .map_err(|error| CompileError::from_flap_metadata_error(unit.source, error))?;
+        // The interpreter dispatches on a single opcode byte, so a table beyond
+        // 256 entries would have unreachable handlers.
+        if ops.len() > DISPATCH_TABLE_SIZE {
+            return Err(CompileError::new(
+                CompileStage::Parse,
+                None,
+                format!(
+                    "generated program contains {} operations, which exceeds the \
+                     {DISPATCH_TABLE_SIZE}-entry dispatch table",
+                    ops.len()
+                ),
+            ));
+        }
+
         let ast = frontend::parser::parse(unit.source.name, unit.source.contents)
             .map_err(|diagnostic| CompileError::from_diagnostic(CompileStage::Parse, diagnostic))?;
         let typed_program = if let Some(layouts) = &layouts {
@@ -474,33 +490,11 @@ impl Compiler {
             .iter()
             .map(|handler| (handler.name(), handler.id))
             .collect::<HashMap<_, _>>();
-        let (ops, dispatch_handlers) = if let Some(bytecode_def) = unit.bytecode_def {
-            let ops = bytecode_def::parse_bytecode_def(bytecode_def.name, bytecode_def.contents)
-                .map_err(|error| CompileError::from_bytecode_def_error(bytecode_def, error))?;
-            // The interpreter dispatches on a single opcode byte, so a table beyond 256 entries
-            // would have unreachable handlers.
-            if ops.len() > DISPATCH_TABLE_SIZE {
-                return Err(CompileError::new(
-                    CompileStage::Parse,
-                    None,
-                    format!(
-                        "bytecode definition has {} operations, which exceeds the {DISPATCH_TABLE_SIZE}-entry dispatch table",
-                        ops.len()
-                    ),
-                ));
-            }
-            let dispatch_handlers = ops
-                .iter()
-                .map(|op| handler_ids.get(op.name.as_str()).copied())
-                .collect();
-            (Some(ops), dispatch_handlers)
-        } else {
-            (None, Vec::new())
-        };
-        let ops_by_name = ops
-            .as_ref()
-            .map(|ops| ops.iter().map(|op| (op.name.as_str(), op)).collect::<HashMap<_, _>>())
-            .unwrap_or_default();
+        let dispatch_handlers = ops
+            .iter()
+            .map(|op| handler_ids.get(op.name.as_str()).copied())
+            .collect();
+        let ops_by_name = ops.iter().map(|op| (op.name.as_str(), op)).collect::<HashMap<_, _>>();
         let handler_layouts = handlers
             .iter()
             .map(|handler| {
@@ -644,19 +638,19 @@ const CANON_NAN_BITS = 0x7FF8000000000000
         })
     }
 
-    fn unit(bytecode_def: &'static str) -> CompilationUnit<'static> {
+    const NOP_SOURCE: &str = r#"
+handler Nop() { dispatch_next; }
+"#;
+
+    fn unit(source: &'static str) -> CompilationUnit<'static> {
         CompilationUnit {
             source: SourceInput {
                 name: "test.flap",
-                contents: "handler Nop() { dispatch_next; }",
+                contents: source,
             },
             constants: Some(SourceInput {
                 name: "layout.conf",
                 contents: REQUIRED_LAYOUT,
-            }),
-            bytecode_def: Some(SourceInput {
-                name: "TestBytecode.def",
-                contents: bytecode_def,
             }),
         }
     }
@@ -665,7 +659,7 @@ const CANON_NAN_BITS = 0x7FF8000000000000
     fn compiles_from_in_memory_sources_for_each_target() {
         for architecture in [Architecture::X86_64, Architecture::Aarch64] {
             let assembly = compiler(architecture)
-                .compile(unit("op Nop < Instruction\nendop\n"))
+                .compile(unit(NOP_SOURCE))
                 .expect("in-memory compilation should succeed");
 
             assert!(assembly.as_str().contains("js_interpreter"));
@@ -677,7 +671,7 @@ const CANON_NAN_BITS = 0x7FF8000000000000
     fn reports_compilation_metrics() {
         let compiler = compiler(Architecture::X86_64);
         let (assembly, metrics) = compiler
-            .compile_with_metrics(unit("op Nop < Instruction\nendop\n"))
+            .compile_with_metrics(unit(NOP_SOURCE))
             .expect("instrumented compilation should succeed");
 
         assert!(assembly.as_str().contains("handler_Nop"));
@@ -697,9 +691,7 @@ const CANON_NAN_BITS = 0x7FF8000000000000
     fn exposes_reusable_compiler_stages() {
         let compiler = compiler(Architecture::X86_64);
 
-        let prepared = compiler
-            .prepare(unit("op Nop < Instruction\nendop\n"))
-            .expect("preparation should succeed");
+        let prepared = compiler.prepare(unit(NOP_SOURCE)).expect("preparation should succeed");
         let program = compiler.lower(&prepared).expect("machine lowering should succeed");
         let selected = compiler.select(program).expect("selection should succeed");
         assert_eq!(selected.architecture(), Architecture::X86_64);
@@ -712,7 +704,7 @@ const CANON_NAN_BITS = 0x7FF8000000000000
             compiler.emit_program(&machine).expect("re-emission should succeed")
         );
         let one_shot = compiler
-            .compile(unit("op Nop < Instruction\nendop\n"))
+            .compile(unit(NOP_SOURCE))
             .expect("one-shot compilation should succeed");
         assert_eq!(staged, one_shot);
     }
@@ -721,38 +713,75 @@ const CANON_NAN_BITS = 0x7FF8000000000000
     fn resolves_bytecode_dispatch_to_handler_identities() {
         let compiler = compiler(Architecture::X86_64);
         let prepared = compiler
-            .prepare(unit("op Nop < Instruction\nendop\nop Missing < Instruction\nendop\n"))
+            .prepare(unit(
+                r#"
+handler Nop() { dispatch_next; }
+handler Missing() { dispatch_next; }
+"#,
+            ))
             .unwrap();
         let handler_id = prepared.handlers[0].id;
 
-        assert_eq!(prepared.bytecode.dispatch_handlers, [Some(handler_id), None]);
+        assert_eq!(
+            prepared.bytecode.dispatch_handlers,
+            [Some(handler_id), Some(prepared.handlers[1].id)]
+        );
         let lowered = compiler.lower(&prepared).unwrap();
         assert_eq!(lowered.handlers[0].id, handler_id);
-        assert_eq!(lowered.dispatch_handlers, [Some(handler_id), None]);
+        assert_eq!(
+            lowered.dispatch_handlers,
+            [Some(handler_id), Some(prepared.handlers[1].id)]
+        );
     }
 
     #[test]
-    fn rejects_handler_parameter_type_mismatches_against_bytecode_fields() {
+    fn rejects_unknown_encoded_handler_parameter_types() {
         let compiler = compiler(Architecture::X86_64);
         let error = compiler
             .prepare(CompilationUnit {
                 source: SourceInput {
                     name: "test.flap",
-                    contents: "handler Test(lhs: u64) { let value = load(lhs); dispatch_variable(value); }",
+                    contents: r#"
+handler Test(lhs: Mystery) { dispatch_next; }
+"#,
                 },
                 constants: None,
-                bytecode_def: Some(SourceInput {
-                    name: "TestBytecode.def",
-                    contents: "op Test < Instruction\n    m_lhs: Operand\nendop\n",
+            })
+            .err()
+            .expect("unknown encoded handler parameter type should fail");
+
+        assert_eq!(error.stage, CompileStage::Parse);
+        assert!(
+            error
+                .message
+                .contains("unknown encoded handler parameter type 'Mystery'")
+        );
+    }
+
+    #[test]
+    fn reports_generated_operation_count_for_dispatch_overflow() {
+        let source = (0..=DISPATCH_TABLE_SIZE)
+            .map(|index| format!("handler H{index}() {{ dispatch_next; }}\n"))
+            .collect::<String>();
+        let error = compiler(Architecture::X86_64)
+            .prepare(CompilationUnit {
+                source: SourceInput {
+                    name: "test.flap",
+                    contents: &source,
+                },
+                constants: Some(SourceInput {
+                    name: "layout.conf",
+                    contents: REQUIRED_LAYOUT,
                 }),
             })
             .err()
-            .expect("handler parameter type mismatch should fail");
+            .expect("an oversized dispatch table should fail");
 
-        assert_eq!(error.stage, CompileStage::Semantic);
-        assert_eq!(error.handler.as_deref(), Some("Test"));
-        assert!(error.message.contains("handler parameter 'm_lhs' has type u64"));
-        assert!(error.message.contains("bytecode field 'Test.m_lhs' has type Operand"));
+        assert_eq!(error.stage, CompileStage::Parse);
+        assert_eq!(
+            error.message,
+            "generated program contains 257 operations, which exceeds the 256-entry dispatch table"
+        );
     }
 
     #[test]
@@ -760,7 +789,7 @@ const CANON_NAN_BITS = 0x7FF8000000000000
         let compiler = compiler(Architecture::X86_64);
         let (_, report) = compiler
             .prepare_with_optimization_report(
-                unit("op Nop < Instruction\nendop\n"),
+                unit(NOP_SOURCE),
                 OptimizationReportOptions {
                     include_remarks: true,
                     dump_changed_ir: true,
@@ -799,7 +828,6 @@ const CANON_NAN_BITS = 0x7FF8000000000000
                     contents: "handler Broken(",
                 },
                 constants: None,
-                bytecode_def: None,
             })
             .err()
             .expect("invalid source should fail");
@@ -817,7 +845,6 @@ const CANON_NAN_BITS = 0x7FF8000000000000
                     name: "broken-layout.conf",
                     contents: "field Object.shape Shape MISSING nullable\n",
                 }),
-                bytecode_def: None,
             })
             .err()
             .expect("invalid layout should fail");
@@ -829,39 +856,30 @@ const CANON_NAN_BITS = 0x7FF8000000000000
         let bytecode_error = compiler
             .prepare(CompilationUnit {
                 source: SourceInput {
-                    name: "test.flap",
-                    contents: "handler Nop() { dispatch_next; }",
+                    name: "Broken.flap",
+                    contents: "handler Nop(value: Mystery) { dispatch_next; }",
                 },
                 constants: None,
-                bytecode_def: Some(SourceInput {
-                    name: "BrokenBytecode.def",
-                    contents: "op Nop\n    malformed\nendop\n",
-                }),
             })
             .err()
-            .expect("invalid bytecode definition should fail");
+            .expect("invalid handler metadata should fail");
         assert_eq!(bytecode_error.stage, CompileStage::Parse);
         let span = bytecode_error.span.unwrap();
-        assert_eq!(span.start.offset, 11);
-        assert_eq!(span.start.line, 2);
-        assert_eq!(span.start.column, 5);
+        assert_eq!(span.start.line, 1);
+        assert_eq!(span.start.column, 1);
         assert!(
             bytecode_error
                 .message
-                .contains("BrokenBytecode.def:2:5: error: malformed field line")
+                .contains("Broken.flap:1:1: error: unknown encoded handler parameter type 'Mystery'")
         );
 
         let emission_error = compiler
             .compile(CompilationUnit {
                 source: SourceInput {
                     name: "test.flap",
-                    contents: "handler Nop() { dispatch_next; }",
+                    contents: NOP_SOURCE,
                 },
                 constants: None,
-                bytecode_def: Some(SourceInput {
-                    name: "TestBytecode.def",
-                    contents: "op Nop < Instruction\nendop\n",
-                }),
             })
             .expect_err("missing runtime metadata should fail");
         assert_eq!(emission_error.stage, CompileStage::Emission);

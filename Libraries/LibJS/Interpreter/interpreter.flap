@@ -823,7 +823,10 @@ inline fn load_primitive_string_utf16_code_unit(
 
 # Bytecode handlers are kept in native layout order.
 
-handler Mov(dst: out Operand, src: in Operand) {
+handler Mov(
+    dst: out Operand,
+    src: in Operand
+) {
     store(dst, load(src));
     dispatch_next;
 }
@@ -1000,23 +1003,51 @@ handler Mul(
     }
 }
 
-handler Exp() @cold = call_slow_path(exp);
+handler Exp(
+    dst: out Operand,
+    lhs: Operand,
+    rhs: Operand
+) @cold = call_slow_path(exp);
 
-handler ConcatString() @cold = call_slow_path(concat_string);
+handler ConcatString(
+    dst: out Operand,
+    src: Operand
+) @cold = call_slow_path(concat_string);
 
-handler CopyObjectExcludingProperties() @cold = call_slow_path(copy_object_excluding_properties);
+handler CopyObjectExcludingProperties(
+    length: u32,
+    dst: out Operand,
+    from_object: Operand,
+    excluded_names_count: u32,
+    excluded_names: Operand[]
+) @cold = call_slow_path(copy_object_excluding_properties);
 
-handler ImportCall() @cold = call_slow_path(import_call);
+handler ImportCall(
+    dst: out Operand,
+    specifier: Operand,
+    options: Operand
+) @cold = call_slow_path(import_call);
 
-handler NewClass() @cold = call_slow_path(new_class);
+handler NewClass(
+    length: u32,
+    dst: out Operand,
+    super_class: Optional<Operand>,
+    class_environment: Operand,
+    class_blueprint_index: u32,
+    lhs_name: Optional<IdentifierTableIndex>,
+    element_keys_count: u32,
+    element_keys: Optional<Operand>[]
+) @cold = call_slow_path(new_class);
 
-handler Jump(target: BytecodeOffset) = jump(target);
+handler Jump(
+    target: BytecodeOffset
+) @terminator = jump(target);
 
 handler JumpIf(
     condition: in Operand,
     true_target: BytecodeOffset,
     false_target: BytecodeOffset
-) {
+) @terminator {
     let value = load(condition);
     let take_false = || {
         jump(false_target);
@@ -1046,7 +1077,7 @@ handler JumpIf(
 handler JumpTrue(
     condition: in Operand,
     target: BytecodeOffset
-) {
+) @terminator {
     let value = load(condition);
     let take = || {
         jump(target);
@@ -1073,7 +1104,7 @@ handler JumpTrue(
 handler JumpFalse(
     condition: in Operand,
     target: BytecodeOffset
-) {
+) @terminator {
     let value = load(condition);
     let take = || {
         jump(target);
@@ -1101,7 +1132,7 @@ handler JumpNullish(
     condition: in Operand,
     true_target: BytecodeOffset,
     false_target: BytecodeOffset
-) {
+) @terminator {
     if load(condition) is Value<Nullish> {
         jump(true_target);
     }
@@ -1112,7 +1143,7 @@ handler JumpUndefined(
     condition: in Operand,
     true_target: BytecodeOffset,
     false_target: BytecodeOffset
-) {
+) @terminator {
     if load(condition) is Value<Undefined> {
         jump(true_target);
     }
@@ -1124,7 +1155,7 @@ handler JumpLessThan(
     rhs: in Operand,
     true_target: BytecodeOffset,
     false_target: BytecodeOffset
-) = jump_relational(
+) @terminator = jump_relational(
     load(lhs),
     load(rhs),
     true_target,
@@ -1139,7 +1170,7 @@ handler JumpGreaterThan(
     rhs: in Operand,
     true_target: BytecodeOffset,
     false_target: BytecodeOffset
-) = jump_relational(
+) @terminator = jump_relational(
     load(lhs),
     load(rhs),
     true_target,
@@ -1154,7 +1185,7 @@ handler JumpLessThanEquals(
     rhs: in Operand,
     true_target: BytecodeOffset,
     false_target: BytecodeOffset
-) = jump_relational(
+) @terminator = jump_relational(
     load(lhs),
     load(rhs),
     true_target,
@@ -1169,7 +1200,7 @@ handler JumpGreaterThanEquals(
     rhs: in Operand,
     true_target: BytecodeOffset,
     false_target: BytecodeOffset
-) = jump_relational(
+) @terminator = jump_relational(
     load(lhs),
     load(rhs),
     true_target,
@@ -1184,7 +1215,7 @@ handler JumpLooselyEquals(
     rhs: in Operand,
     true_target: BytecodeOffset,
     false_target: BytecodeOffset
-) = jump_equality(
+) @terminator = jump_equality(
     load(lhs),
     load(rhs),
     true_target,
@@ -1198,7 +1229,7 @@ handler JumpLooselyInequals(
     rhs: in Operand,
     true_target: BytecodeOffset,
     false_target: BytecodeOffset
-) = jump_equality(
+) @terminator = jump_equality(
     load(lhs),
     load(rhs),
     true_target,
@@ -1212,7 +1243,7 @@ handler JumpStrictlyEquals(
     rhs: in Operand,
     true_target: BytecodeOffset,
     false_target: BytecodeOffset
-) = jump_equality(
+) @terminator = jump_equality(
     load(lhs),
     load(rhs),
     true_target,
@@ -1226,7 +1257,7 @@ handler JumpStrictlyInequals(
     rhs: in Operand,
     true_target: BytecodeOffset,
     false_target: BytecodeOffset
-) = jump_equality(
+) @terminator = jump_equality(
     load(lhs),
     load(rhs),
     true_target,
@@ -1235,11 +1266,18 @@ handler JumpStrictlyInequals(
     jump_strictly_inequals
 );
 
-handler Increment(dst: inout Operand) = update_operand(dst, checked_add, add_f64, increment);
+handler Increment(
+    dst: inout Operand
+) = update_operand(dst, checked_add, add_f64, increment);
 
-handler Decrement(dst: inout Operand) = update_operand(dst, checked_sub, sub_f64, decrement);
+handler Decrement(
+    dst: inout Operand
+) = update_operand(dst, checked_sub, sub_f64, decrement);
 
-handler Not(dst: out Operand, src: in Operand) {
+handler Not(
+    dst: out Operand,
+    src: in Operand
+) {
     let value = load(src);
     let store_true = || {
         store(dst, Value<True>);
@@ -1276,20 +1314,29 @@ handler Not(dst: out Operand, src: in Operand) {
     }
 }
 
-handler ToBoolean(dst: out Operand, value: in Operand) {
+handler ToBoolean(
+    dst: out Operand,
+    value: in Operand
+) {
     store(dst, box_boolean(runtime_truthiness(load(value))));
     dispatch_next;
 }
 
-handler Catch(dst: out Operand) {
+handler Catch(
+    dst: out Operand
+) {
     store(dst, exec_ctx.exception);
     exec_ctx.exception = Value<Empty>;
     dispatch_next;
 }
 
-handler Return(value: in Operand) = return_value(load(value));
+handler Return(
+    value: in Operand
+) @terminator = return_value(load(value));
 
-handler End(value: in Operand) {
+handler End(
+    value: in Operand
+) @terminator {
     let value = load(value);
     assert_not_tag(value, EMPTY_VALUE);
     return_to_caller(value) else {
@@ -1298,20 +1345,30 @@ handler End(value: in Operand) {
     };
 }
 
-handler GetLexicalEnvironment(dst: out Operand) {
+handler GetLexicalEnvironment(
+    dst: out Operand
+) {
     let environment = exec_ctx.lexical_environment;
     assert_nonzero(environment);
     store(dst, box_cell(environment));
     dispatch_next;
 }
 
-handler GetImportMeta() @cold = call_slow_path(get_import_meta);
+handler GetImportMeta(
+    dst: out Operand
+) @cold = call_slow_path(get_import_meta);
 
-handler GetNewTarget() @cold = call_slow_path(get_new_target);
+handler GetNewTarget(
+    dst: out Operand
+) @cold = call_slow_path(get_new_target);
 
-handler GetSuperConstructor() @cold = call_slow_path(get_super_constructor);
+handler GetSuperConstructor(
+    dst: out Operand
+) @cold = call_slow_path(get_super_constructor);
 
-handler SetLexicalEnvironment(environment: in Operand) {
+handler SetLexicalEnvironment(
+    environment: in Operand
+) {
     let environment_value = load(environment);
     assert_tag(environment_value, IS_CELL_PATTERN);
     let environment: Environment = unbox_object(environment_value);
@@ -1321,6 +1378,7 @@ handler SetLexicalEnvironment(environment: in Operand) {
 
 handler GetBinding(
     dst: out Operand,
+    identifier: IdentifierTableIndex,
     cache: EnvironmentCoordinate
 ) {
     let [environment, binding_index] =
@@ -1334,6 +1392,7 @@ handler GetBinding(
 
 handler DynamicGetBinding(
     dst: out Operand,
+    identifier: IdentifierTableIndex,
     cache: EnvironmentCoordinateCacheIndex
 ) {
     let slow = || @cold {
@@ -1352,6 +1411,7 @@ handler DynamicGetBinding(
 
 handler GetInitializedBinding(
     dst: out Operand,
+    identifier: IdentifierTableIndex,
     cache: EnvironmentCoordinate
 ) {
     let [environment, binding_index] =
@@ -1362,6 +1422,7 @@ handler GetInitializedBinding(
 
 handler DynamicGetInitializedBinding(
     dst: out Operand,
+    identifier: IdentifierTableIndex,
     cache: EnvironmentCoordinateCacheIndex
 ) {
     let slow = || @cold {
@@ -1378,16 +1439,19 @@ handler DynamicGetInitializedBinding(
 }
 
 handler InitializeLexicalBinding(
+    identifier: IdentifierTableIndex,
     src: in Operand,
     cache: EnvironmentCoordinate
 ) = initialize_binding(src, cache, exec_ctx.lexical_environment);
 
 handler InitializeVariableBinding(
+    identifier: IdentifierTableIndex,
     src: in Operand,
     cache: EnvironmentCoordinate
 ) = initialize_binding(src, cache, exec_ctx.variable_environment);
 
 handler DynamicInitializeLexicalBinding(
+    identifier: IdentifierTableIndex,
     src: in Operand,
     cache: EnvironmentCoordinateCacheIndex
 ) {
@@ -1405,6 +1469,7 @@ handler DynamicInitializeLexicalBinding(
 }
 
 handler DynamicInitializeVariableBinding(
+    identifier: IdentifierTableIndex,
     src: in Operand,
     cache: EnvironmentCoordinateCacheIndex
 ) {
@@ -1422,16 +1487,19 @@ handler DynamicInitializeVariableBinding(
 }
 
 handler SetLexicalBinding(
+    identifier: IdentifierTableIndex,
     src: in Operand,
     cache: EnvironmentCoordinate
 ) = set_binding(src, cache, exec_ctx.lexical_environment, set_lexical_binding);
 
 handler SetVariableBinding(
+    identifier: IdentifierTableIndex,
     src: in Operand,
     cache: EnvironmentCoordinate
 ) = set_binding(src, cache, exec_ctx.variable_environment, set_variable_binding);
 
 handler DynamicSetLexicalBinding(
+    identifier: IdentifierTableIndex,
     src: in Operand,
     cache: EnvironmentCoordinateCacheIndex
 ) {
@@ -1452,6 +1520,7 @@ handler DynamicSetLexicalBinding(
 }
 
 handler DynamicSetVariableBinding(
+    identifier: IdentifierTableIndex,
     src: in Operand,
     cache: EnvironmentCoordinateCacheIndex
 ) {
@@ -1471,27 +1540,68 @@ handler DynamicSetVariableBinding(
     dispatch_next;
 }
 
-handler ResolveBinding() @cold = call_slow_path(resolve_binding);
+handler ResolveBinding(
+    dst: out Operand,
+    identifier: IdentifierTableIndex
+) @cold = call_slow_path(resolve_binding);
 
-handler ResolveSuperBase() @cold = call_slow_path(resolve_super_base);
+handler ResolveSuperBase(
+    dst: out Operand
+) @cold = call_slow_path(resolve_super_base);
 
-handler SetResolvedBinding() @cold = call_slow_path(set_resolved_binding);
+handler SetResolvedBinding(
+    environment: Operand,
+    identifier: IdentifierTableIndex,
+    src: Operand
+) @cold = call_slow_path(set_resolved_binding);
 
-handler TypeofBinding() @cold = call_slow_path(typeof_binding);
+handler TypeofBinding(
+    dst: out Operand,
+    identifier: IdentifierTableIndex,
+    cache: EnvironmentCoordinate
+) @cold = call_slow_path(typeof_binding);
 
-handler DynamicTypeofBinding() @cold = call_slow_path(dynamic_typeof_binding);
+handler DynamicTypeofBinding(
+    dst: out Operand,
+    identifier: IdentifierTableIndex,
+    cache: EnvironmentCoordinateCacheIndex
+) @cold = call_slow_path(dynamic_typeof_binding);
 
-handler HasPrivateId() @cold = call_slow_path(has_private_id);
+handler HasPrivateId(
+    dst: out Operand,
+    base: Operand,
+    property: IdentifierTableIndex
+) @cold = call_slow_path(has_private_id);
 
-handler SetFunctionName() @cold = call_slow_path(set_function_name);
+handler SetFunctionName(
+    function: Operand,
+    name: Operand,
+    prefix: FunctionNamePrefix
+) @cold = call_slow_path(set_function_name);
 
-handler NewArrayWithLength() @cold = call_slow_path(new_array_with_length);
+handler NewArrayWithLength(
+    dst: out Operand,
+    array_length: Operand
+) @cold = call_slow_path(new_array_with_length);
 
-handler ArrayAppend() @cold = call_slow_path(array_append);
+handler ArrayAppend(
+    dst: out Operand,
+    src: Operand,
+    is_spread: bool
+) @cold = call_slow_path(array_append);
 
-handler CreateVariable() @cold = call_slow_path(create_variable);
+handler CreateVariable(
+    identifier: IdentifierTableIndex,
+    mode: EnvironmentMode,
+    is_immutable: bool,
+    is_global: bool,
+    is_strict: bool
+) @cold = call_slow_path(create_variable);
 
-handler EnterObjectEnvironment() @cold = call_slow_path(enter_object_environment);
+handler EnterObjectEnvironment(
+    dst: out Operand,
+    object: Operand
+) @cold = call_slow_path(enter_object_environment);
 
 handler PostfixIncrement(
     dst: out Operand,
@@ -1590,7 +1700,10 @@ handler BitwiseXor(
     rhs: in Operand
 ) = bitwise_binary(dst, load(lhs), load(rhs), xor, bitwise_xor);
 
-handler UnaryPlus(dst: out Operand, src: in Operand) {
+handler UnaryPlus(
+    dst: out Operand,
+    src: in Operand
+) {
     let value = load(src);
     let matched = || {
         store(dst, value);
@@ -1606,21 +1719,27 @@ handler UnaryPlus(dst: out Operand, src: in Operand) {
     goto matched;
 }
 
-handler ThrowIfTDZ(src: in Operand) {
+handler ThrowIfTDZ(
+    src: in Operand
+) {
     guard load(src) is not Value<Empty> else @cold {
         call_slow_path(throw_if_tdz);
     };
     dispatch_next;
 }
 
-handler ThrowIfNotObject(src: in Operand) {
+handler ThrowIfNotObject(
+    src: in Operand
+) {
     guard load(src) is Value<Object> else @cold {
         call_slow_path(throw_if_not_object);
     };
     dispatch_next;
 }
 
-handler ThrowIfNullish(src: in Operand) {
+handler ThrowIfNullish(
+    src: in Operand
+) {
     guard load(src) is not Value<Nullish> else @cold {
         call_slow_path(throw_if_nullish);
     };
@@ -1629,23 +1748,49 @@ handler ThrowIfNullish(src: in Operand) {
 
 handler ThrowConstAssignment() @cold = call_slow_path(throw_const_assignment);
 
-handler Throw() @cold = call_slow_path(throw);
+handler Throw(
+    src: Operand
+) @terminator @cold = call_slow_path(throw);
 
-handler Await() @cold = call_slow_path(await);
+handler Await(
+    continuation_label: BytecodeOffset,
+    argument: Operand
+) @terminator @cold = call_slow_path(await);
 
-handler Yield() @cold = call_slow_path(yield);
+handler Yield(
+    continuation_label: Optional<Label>,
+    value: Operand
+) @terminator @cold = call_slow_path(yield);
 
-handler YieldIteratorResult() @cold = call_slow_path(yield_iterator_result);
+handler YieldIteratorResult(
+    continuation_label: BytecodeOffset,
+    value: Operand
+) @terminator @cold = call_slow_path(yield_iterator_result);
 
-handler ToString() @cold = call_slow_path(to_string);
+handler ToString(
+    dst: out Operand,
+    value: Operand
+) @cold = call_slow_path(to_string);
 
-handler ToPrimitiveWithStringHint() @cold = call_slow_path(to_primitive_with_string_hint);
+handler ToPrimitiveWithStringHint(
+    dst: out Operand,
+    value: Operand
+) @cold = call_slow_path(to_primitive_with_string_hint);
 
-handler ToObject() @cold = call_slow_path(to_object);
+handler ToObject(
+    dst: out Operand,
+    value: Operand
+) @cold = call_slow_path(to_object);
 
-handler ToLength() @cold = call_slow_path(to_length);
+handler ToLength(
+    dst: out Operand,
+    value: Operand
+) @cold = call_slow_path(to_length);
 
-handler BitwiseNot(dst: out Operand, src: in Operand) {
+handler BitwiseNot(
+    dst: out Operand,
+    src: in Operand
+) {
     match load(src) {
         Value<i32>(integer) => {
             integer = ~integer;
@@ -1758,6 +1903,7 @@ handler StrictlyInequals(
 handler GetCalleeAndThisFromEnvironment(
     callee: out Operand,
     this_value: out Operand,
+    identifier: IdentifierTableIndex,
     cache: EnvironmentCoordinate
 ) {
     let [environment, binding_index] =
@@ -1773,6 +1919,7 @@ handler GetCalleeAndThisFromEnvironment(
 handler DynamicGetCalleeAndThisFromEnvironment(
     callee: out Operand,
     this_value: out Operand,
+    identifier: IdentifierTableIndex,
     cache: EnvironmentCoordinateCacheIndex
 ) {
     let slow = || @cold {
@@ -1814,7 +1961,10 @@ handler LooselyInequals(
     loosely_inequals
 );
 
-handler UnaryMinus(dst: out Operand, src: in Operand) {
+handler UnaryMinus(
+    dst: out Operand,
+    src: in Operand
+) {
     let value = load(src);
 
     match value {
@@ -1852,7 +2002,10 @@ handler PostfixDecrement(
     src: inout Operand
 ) = post_update_operand(dst, src, checked_sub, sub_f64, postfix_decrement);
 
-handler ToInt32(dst: out Operand, value: in Operand) {
+handler ToInt32(
+    dst: out Operand,
+    value: in Operand
+) {
     let loaded_value = load(value);
     let slow = || @cold {
         call_slow_path(to_int32);
@@ -1873,7 +2026,8 @@ handler PutByValue(
     base: in Operand,
     property: in Operand,
     src: in Operand,
-    kind: u8
+    kind: PutKind,
+    base_identifier: Optional<IdentifierTableIndex>
 ) {
     let slow = || @cold {
         call_slow_path(put_by_value);
@@ -2048,6 +2202,8 @@ handler PutByValue(
 handler GetById(
     dst: out Operand,
     base: in Operand,
+    property: PropertyKeyTableIndex,
+    base_identifier: Optional<IdentifierTableIndex>,
     cache: PropertyLookupCacheIndex
 ) {
     let try_cache = || @cold {
@@ -2082,12 +2238,21 @@ handler GetById(
     dispatch_next;
 }
 
-handler GetByIdWithThis() @cold = call_slow_path(get_by_id_with_this);
+handler GetByIdWithThis(
+    dst: out Operand,
+    base: Operand,
+    property: PropertyKeyTableIndex,
+    this_value: Operand,
+    cache: PropertyLookupCacheIndex
+) @cold = call_slow_path(get_by_id_with_this);
 
 handler PutById(
     base: in Operand,
+    property: PropertyKeyTableIndex,
     src: in Operand,
-    cache: PropertyLookupCacheIndex
+    kind: PutKind,
+    cache: PropertyLookupCacheIndex,
+    base_identifier: Optional<IdentifierTableIndex>
 ) {
     let slow = || @cold {
         call_slow_path(put_by_id);
@@ -2109,12 +2274,20 @@ handler PutById(
     dispatch_next;
 }
 
-handler PutByIdWithThis() @cold = call_slow_path(put_by_id_with_this);
+handler PutByIdWithThis(
+    base: Operand,
+    this_value: Operand,
+    property: PropertyKeyTableIndex,
+    src: Operand,
+    kind: PutKind,
+    cache: PropertyLookupCacheIndex
+) @cold = call_slow_path(put_by_id_with_this);
 
 handler GetByValue(
     dst: out Operand,
     base: in Operand,
-    property: in Operand
+    property: in Operand,
+    base_identifier: Optional<IdentifierTableIndex>
 ) {
     let slow = || @cold {
         call_slow_path(get_by_value);
@@ -2241,15 +2414,30 @@ handler GetByValue(
     }
 }
 
-handler GetByValueWithThis() @cold = call_slow_path(get_by_value_with_this);
+handler GetByValueWithThis(
+    dst: out Operand,
+    base: Operand,
+    property: Operand,
+    this_value: Operand
+) @cold = call_slow_path(get_by_value_with_this);
 
-handler PutByValueWithThis() @cold = call_slow_path(put_by_value_with_this);
+handler PutByValueWithThis(
+    base: Operand,
+    property: Operand,
+    this_value: Operand,
+    src: Operand,
+    kind: PutKind
+) @cold = call_slow_path(put_by_value_with_this);
 
-handler PutBySpread() @cold = call_slow_path(put_by_spread);
+handler PutBySpread(
+    base: Operand,
+    src: Operand
+) @cold = call_slow_path(put_by_spread);
 
 handler GetLength(
     dst: out Operand,
     base: in Operand,
+    base_identifier: Optional<IdentifierTableIndex>,
     cache: PropertyLookupCacheIndex
 ) {
     let slow = || @cold {
@@ -2280,14 +2468,30 @@ handler GetLength(
     dispatch_next;
 }
 
-handler GetLengthWithThis() @cold = call_slow_path(get_length_with_this);
+handler GetLengthWithThis(
+    dst: out Operand,
+    base: Operand,
+    this_value: Operand,
+    cache: PropertyLookupCacheIndex
+) @cold = call_slow_path(get_length_with_this);
 
-handler GetMethod() @cold = call_slow_path(get_method);
+handler GetMethod(
+    dst: out Operand,
+    object: Operand,
+    property: PropertyKeyTableIndex
+) @cold = call_slow_path(get_method);
 
-handler GetIterator() @cold = call_slow_path(get_iterator);
+handler GetIterator(
+    dst_iterator_object: out Operand,
+    dst_iterator_next: out Operand,
+    dst_iterator_done: out Operand,
+    iterable: Operand,
+    hint: IteratorHint
+) @cold = call_slow_path(get_iterator);
 
 handler GetGlobal(
     dst: out Operand,
+    identifier: IdentifierTableIndex,
     cache: GlobalVariableCacheIndex
 ) {
     let slow_environment = || @cold {
@@ -2326,6 +2530,7 @@ handler GetGlobal(
 }
 
 handler SetGlobal(
+    identifier: IdentifierTableIndex,
     src: in Operand,
     cache: GlobalVariableCacheIndex
 ) {
@@ -2364,12 +2569,13 @@ handler SetGlobal(
 }
 
 handler Call(
+    length: u32,
     dst: out Operand,
     callee: in Operand,
     this_value: in Operand,
-    length: u32,
     argument_count: u32,
-    arguments: Sequence<u32>
+    expression_string: Optional<StringTableIndex>,
+    arguments: Operand[]
 ) {
     let slow = || @cold {
         call_slow_path(asm_slow_path_call);
@@ -2621,7 +2827,9 @@ handler Call(
 handler CallBuiltinMathAbs(
     dst: out Operand,
     callee: in Operand,
-    argument: in Operand
+    this_value: Operand,
+    argument: in Operand,
+    expression_string: Optional<StringTableIndex>
 ) {
     let slow = || @cold {
         call_slow_path(call_builtin_math_abs);
@@ -2657,7 +2865,9 @@ handler CallBuiltinMathAbs(
 handler CallBuiltinMathFloor(
     dst: out Operand,
     callee: in Operand,
-    argument: in Operand
+    this_value: Operand,
+    argument: in Operand,
+    expression_string: Optional<StringTableIndex>
 ) {
     guard let [_, argument_f64] = load_builtin_f64(
         callee,
@@ -2673,7 +2883,9 @@ handler CallBuiltinMathFloor(
 handler CallBuiltinMathCeil(
     dst: out Operand,
     callee: in Operand,
-    argument: in Operand
+    this_value: Operand,
+    argument: in Operand,
+    expression_string: Optional<StringTableIndex>
 ) {
     guard let [_, argument_f64] = load_builtin_f64(
         callee,
@@ -2689,7 +2901,9 @@ handler CallBuiltinMathCeil(
 handler CallBuiltinMathSqrt(
     dst: out Operand,
     callee: in Operand,
-    argument: in Operand
+    this_value: Operand,
+    argument: in Operand,
+    expression_string: Optional<StringTableIndex>
 ) {
     guard let [_, argument_f64] = load_builtin_f64(
         callee,
@@ -2705,7 +2919,9 @@ handler CallBuiltinMathSqrt(
 handler CallBuiltinMathExp(
     dst: out Operand,
     callee: in Operand,
-    argument: in Operand
+    this_value: Operand,
+    argument: in Operand,
+    expression_string: Optional<StringTableIndex>
 ) {
     guard let [argument_value, _] = load_builtin_f64(
         callee,
@@ -2722,42 +2938,139 @@ handler CallBuiltinMathExp(
     dispatch_next;
 }
 
-handler CallBuiltinMathLog() @cold = call_slow_path(call_builtin_math_log);
+handler CallBuiltinMathLog(
+    dst: out Operand,
+    callee: Operand,
+    this_value: Operand,
+    argument: Operand,
+    expression_string: Optional<StringTableIndex>
+) @cold = call_slow_path(call_builtin_math_log);
 
-handler CallBuiltinMathPow() @cold = call_slow_path(call_builtin_math_pow);
+handler CallBuiltinMathPow(
+    dst: out Operand,
+    callee: Operand,
+    this_value: Operand,
+    argument0: Operand,
+    argument1: Operand,
+    expression_string: Optional<StringTableIndex>
+) @cold = call_slow_path(call_builtin_math_pow);
 
-handler CallBuiltinMathImul() @cold = call_slow_path(call_builtin_math_imul);
+handler CallBuiltinMathImul(
+    dst: out Operand,
+    callee: Operand,
+    this_value: Operand,
+    argument0: Operand,
+    argument1: Operand,
+    expression_string: Optional<StringTableIndex>
+) @cold = call_slow_path(call_builtin_math_imul);
 
-handler CallBuiltinMathRandom() @cold = call_slow_path(call_builtin_math_random);
+handler CallBuiltinMathRandom(
+    dst: out Operand,
+    callee: Operand,
+    this_value: Operand,
+    expression_string: Optional<StringTableIndex>
+) @cold = call_slow_path(call_builtin_math_random);
 
-handler CallBuiltinMathRound() @cold = call_slow_path(call_builtin_math_round);
+handler CallBuiltinMathRound(
+    dst: out Operand,
+    callee: Operand,
+    this_value: Operand,
+    argument: Operand,
+    expression_string: Optional<StringTableIndex>
+) @cold = call_slow_path(call_builtin_math_round);
 
-handler CallBuiltinMathSin() @cold = call_slow_path(call_builtin_math_sin);
+handler CallBuiltinMathSin(
+    dst: out Operand,
+    callee: Operand,
+    this_value: Operand,
+    argument: Operand,
+    expression_string: Optional<StringTableIndex>
+) @cold = call_slow_path(call_builtin_math_sin);
 
-handler CallBuiltinMathCos() @cold = call_slow_path(call_builtin_math_cos);
+handler CallBuiltinMathCos(
+    dst: out Operand,
+    callee: Operand,
+    this_value: Operand,
+    argument: Operand,
+    expression_string: Optional<StringTableIndex>
+) @cold = call_slow_path(call_builtin_math_cos);
 
-handler CallBuiltinMathTan() @cold = call_slow_path(call_builtin_math_tan);
+handler CallBuiltinMathTan(
+    dst: out Operand,
+    callee: Operand,
+    this_value: Operand,
+    argument: Operand,
+    expression_string: Optional<StringTableIndex>
+) @cold = call_slow_path(call_builtin_math_tan);
 
-handler CallBuiltinRegExpPrototypeExec() @cold = call_slow_path(call_builtin_regexp_prototype_exec);
+handler CallBuiltinRegExpPrototypeExec(
+    dst: out Operand,
+    callee: Operand,
+    this_value: Operand,
+    argument: Operand,
+    expression_string: Optional<StringTableIndex>
+) @cold = call_slow_path(call_builtin_regexp_prototype_exec);
 
-handler CallBuiltinRegExpPrototypeReplace() @cold = call_slow_path(call_builtin_regexp_prototype_replace);
+handler CallBuiltinRegExpPrototypeReplace(
+    dst: out Operand,
+    callee: Operand,
+    this_value: Operand,
+    argument0: Operand,
+    argument1: Operand,
+    expression_string: Optional<StringTableIndex>
+) @cold = call_slow_path(call_builtin_regexp_prototype_replace);
 
-handler CallBuiltinRegExpPrototypeSplit() @cold = call_slow_path(call_builtin_regexp_prototype_split);
+handler CallBuiltinRegExpPrototypeSplit(
+    dst: out Operand,
+    callee: Operand,
+    this_value: Operand,
+    argument0: Operand,
+    argument1: Operand,
+    expression_string: Optional<StringTableIndex>
+) @cold = call_slow_path(call_builtin_regexp_prototype_split);
 
-handler CallBuiltinOrdinaryHasInstance() @cold = call_slow_path(call_builtin_ordinary_has_instance);
+handler CallBuiltinOrdinaryHasInstance(
+    dst: out Operand,
+    callee: Operand,
+    this_value: Operand,
+    argument: Operand,
+    expression_string: Optional<StringTableIndex>
+) @cold = call_slow_path(call_builtin_ordinary_has_instance);
 
-handler CallBuiltinArrayIteratorPrototypeNext() @cold = call_slow_path(call_builtin_array_iterator_prototype_next);
+handler CallBuiltinArrayIteratorPrototypeNext(
+    dst: out Operand,
+    callee: Operand,
+    this_value: Operand,
+    expression_string: Optional<StringTableIndex>
+) @cold = call_slow_path(call_builtin_array_iterator_prototype_next);
 
-handler CallBuiltinMapIteratorPrototypeNext() @cold = call_slow_path(call_builtin_map_iterator_prototype_next);
+handler CallBuiltinMapIteratorPrototypeNext(
+    dst: out Operand,
+    callee: Operand,
+    this_value: Operand,
+    expression_string: Optional<StringTableIndex>
+) @cold = call_slow_path(call_builtin_map_iterator_prototype_next);
 
-handler CallBuiltinSetIteratorPrototypeNext() @cold = call_slow_path(call_builtin_set_iterator_prototype_next);
+handler CallBuiltinSetIteratorPrototypeNext(
+    dst: out Operand,
+    callee: Operand,
+    this_value: Operand,
+    expression_string: Optional<StringTableIndex>
+) @cold = call_slow_path(call_builtin_set_iterator_prototype_next);
 
-handler CallBuiltinStringIteratorPrototypeNext() @cold = call_slow_path(call_builtin_string_iterator_prototype_next);
+handler CallBuiltinStringIteratorPrototypeNext(
+    dst: out Operand,
+    callee: Operand,
+    this_value: Operand,
+    expression_string: Optional<StringTableIndex>
+) @cold = call_slow_path(call_builtin_string_iterator_prototype_next);
 
 handler CallBuiltinStringFromCharCode(
     dst: out Operand,
     callee: in Operand,
-    argument: in Operand
+    this_value: Operand,
+    argument: in Operand,
+    expression_string: Optional<StringTableIndex>
 ) {
     let slow = || @cold {
         call_slow_path(call_builtin_string_from_char_code);
@@ -2787,7 +3100,8 @@ handler CallBuiltinStringPrototypeCharCodeAt(
     dst: out Operand,
     callee: in Operand,
     this_value: in Operand,
-    argument: in Operand
+    argument: in Operand,
+    expression_string: Optional<StringTableIndex>
 ) {
     let out_of_bounds = || @cold {
         let result: Value = CANON_NAN_BITS;
@@ -2814,7 +3128,8 @@ handler CallBuiltinStringPrototypeCharAt(
     dst: out Operand,
     callee: in Operand,
     this_value: in Operand,
-    argument: in Operand
+    argument: in Operand,
+    expression_string: Optional<StringTableIndex>
 ) {
     let slow = || @cold {
         call_slow_path(call_builtin_string_prototype_char_at);
@@ -2843,7 +3158,11 @@ handler CallBuiltinStringPrototypeCharAt(
     dispatch_next;
 }
 
-handler GetObjectPropertyIterator() @cold = call_slow_path(get_object_property_iterator);
+handler GetObjectPropertyIterator(
+    dst_iterator: out Operand,
+    object: Operand,
+    cache: ObjectPropertyIteratorCacheIndex
+) @cold = call_slow_path(get_object_property_iterator);
 
 handler ObjectPropertyIteratorNext(
     dst_value: out Operand,
@@ -2920,49 +3239,155 @@ handler ObjectPropertyIteratorNext(
     dispatch_next;
 }
 
-handler IteratorClose() @cold = call_slow_path(iterator_close);
+handler IteratorClose(
+    iterator_object: Operand,
+    iterator_next: Operand,
+    iterator_done: Operand,
+    completion_type: Completion::Type,
+    completion_value: Operand
+) @cold = call_slow_path(iterator_close);
 
-handler IteratorNext() @cold = call_slow_path(iterator_next);
+handler IteratorNext(
+    dst: out Operand,
+    iterator_object: Operand,
+    iterator_next: Operand,
+    iterator_done: Operand
+) @cold = call_slow_path(asm_slow_path_iterator_next);
 
-handler IteratorNextUnpack() @cold = call_slow_path(iterator_next_unpack);
+handler IteratorNextUnpack(
+    dst_value: out Operand,
+    dst_done: out Operand,
+    iterator_object: Operand,
+    iterator_next: Operand,
+    iterator_done: Operand
+) @cold = call_slow_path(iterator_next_unpack);
 
-handler IteratorToArray() @cold = call_slow_path(iterator_to_array);
+handler IteratorToArray(
+    dst: out Operand,
+    iterator_object: Operand,
+    iterator_next_method: Operand,
+    iterator_done_property: Operand
+) @cold = call_slow_path(iterator_to_array);
 
-handler CallConstruct() @cold = call_slow_path(call_construct);
+handler CallConstruct(
+    length: u32,
+    dst: out Operand,
+    callee: Operand,
+    argument_count: u32,
+    expression_string: Optional<StringTableIndex>,
+    arguments: Operand[]
+) @cold = call_slow_path(call_construct);
 
-handler CallDirectEval() @cold = call_slow_path(call_direct_eval);
+handler CallDirectEval(
+    length: u32,
+    dst: out Operand,
+    callee: Operand,
+    this_value: Operand,
+    argument_count: u32,
+    expression_string: Optional<StringTableIndex>,
+    arguments: Operand[]
+) @cold = call_slow_path(call_direct_eval);
 
-handler CallWithArgumentArray() @cold = call_slow_path(call_with_argument_array);
+handler CallWithArgumentArray(
+    dst: out Operand,
+    callee: Operand,
+    this_value: Operand,
+    arguments: Operand,
+    expression_string: Optional<StringTableIndex>
+) @cold = call_slow_path(call_with_argument_array);
 
-handler CallDirectEvalWithArgumentArray() @cold = call_slow_path(call_direct_eval_with_argument_array);
+handler CallDirectEvalWithArgumentArray(
+    dst: out Operand,
+    callee: Operand,
+    this_value: Operand,
+    arguments: Operand,
+    expression_string: Optional<StringTableIndex>
+) @cold = call_slow_path(call_direct_eval_with_argument_array);
 
-handler CallConstructWithArgumentArray() @cold = call_slow_path(call_construct_with_argument_array);
+handler CallConstructWithArgumentArray(
+    dst: out Operand,
+    callee: Operand,
+    this_value: Operand,
+    arguments: Operand,
+    expression_string: Optional<StringTableIndex>
+) @cold = call_slow_path(call_construct_with_argument_array);
 
-handler SuperCallWithArgumentArray() @cold = call_slow_path(super_call_with_argument_array);
+handler SuperCallWithArgumentArray(
+    dst: out Operand,
+    super_constructor: Operand,
+    arguments: Operand,
+    is_synthetic: bool
+) @cold = call_slow_path(super_call_with_argument_array);
 
-handler NewObject() @cold = call_slow_path(new_object);
+handler NewObject(
+    dst: out Operand,
+    cache: ObjectShapeCacheIndex
+) @cold = call_slow_path(new_object);
 
-handler NewObjectWithNoPrototype() @cold = call_slow_path(new_object_with_no_prototype);
+handler NewObjectWithNoPrototype(
+    dst: out Operand
+) @cold = call_slow_path(new_object_with_no_prototype);
 
-handler CacheObjectShape() @cold = call_slow_path(cache_object_shape);
+handler CacheObjectShape(
+    object: Operand,
+    cache: ObjectShapeCacheIndex
+) @cold = call_slow_path(cache_object_shape);
 
-handler InitObjectLiteralProperty() @cold = call_slow_path(init_object_literal_property);
+handler InitObjectLiteralProperty(
+    object: Operand,
+    property: PropertyKeyTableIndex,
+    src: Operand,
+    shape_cache_index: u32,
+    property_slot: u32
+) @cold = call_slow_path(init_object_literal_property);
 
-handler NewArray() @cold = call_slow_path(new_array);
+handler NewArray(
+    length: u32,
+    dst: out Operand,
+    element_count: u32,
+    elements: Operand[]
+) @cold = call_slow_path(new_array);
 
-handler NewPrimitiveArray() @cold = call_slow_path(new_primitive_array);
+handler NewPrimitiveArray(
+    length: u32,
+    dst: out Operand,
+    element_count: u32,
+    elements: Value[]
+) @cold = call_slow_path(new_primitive_array);
 
-handler NewRegExp() @cold = call_slow_path(new_regexp);
+handler NewRegExp(
+    dst: out Operand,
+    source_index: StringTableIndex,
+    flags_index: StringTableIndex,
+    regex_index: RegexTableIndex
+) @cold = call_slow_path(new_regexp);
 
-handler NewReferenceError() @cold = call_slow_path(new_reference_error);
+handler NewReferenceError(
+    dst: out Operand,
+    error_string: StringTableIndex
+) @cold = call_slow_path(new_reference_error);
 
-handler NewTypeError() @cold = call_slow_path(new_type_error);
+handler NewTypeError(
+    dst: out Operand,
+    error_string: StringTableIndex
+) @cold = call_slow_path(new_type_error);
 
-handler InstanceOf() @cold = call_slow_path(instance_of);
+handler InstanceOf(
+    dst: out Operand,
+    lhs: Operand,
+    rhs: Operand
+) @cold = call_slow_path(instance_of);
 
-handler In() @cold = call_slow_path(in);
+handler In(
+    dst: out Operand,
+    lhs: Operand,
+    rhs: Operand
+) @cold = call_slow_path(in);
 
-handler IsCallable(dst: out Operand, value: in Operand) {
+handler IsCallable(
+    dst: out Operand,
+    value: in Operand
+) {
     let not_callable = || {
         store(dst, Value<False>);
         dispatch_next;
@@ -2974,43 +3399,111 @@ handler IsCallable(dst: out Operand, value: in Operand) {
     dispatch_next;
 }
 
-handler IsConstructor() @cold = call_slow_path(is_constructor);
+handler IsConstructor(
+    dst: out Operand,
+    value: Operand
+) @cold = call_slow_path(is_constructor);
 
-handler AddPrivateName() @cold = call_slow_path(add_private_name);
+handler AddPrivateName(
+    name: IdentifierTableIndex
+) @cold = call_slow_path(add_private_name);
 
-handler CreateAsyncFromSyncIterator() @cold = call_slow_path(create_async_from_sync_iterator);
+handler CreateAsyncFromSyncIterator(
+    dst: out Operand,
+    iterator: Operand,
+    next_method: Operand,
+    done: Operand
+) @cold = call_slow_path(create_async_from_sync_iterator);
 
-handler CreateDataPropertyOrThrow() @cold = call_slow_path(create_data_property_or_throw);
+handler CreateDataPropertyOrThrow(
+    object: Operand,
+    property: Operand,
+    value: Operand
+) @cold = call_slow_path(create_data_property_or_throw);
 
-handler CreateImmutableBinding() @cold = call_slow_path(create_immutable_binding);
+handler CreateImmutableBinding(
+    environment: Operand,
+    identifier: IdentifierTableIndex,
+    strict_binding: bool
+) @cold = call_slow_path(create_immutable_binding);
 
-handler CreateMutableBinding() @cold = call_slow_path(create_mutable_binding);
+handler CreateMutableBinding(
+    environment: Operand,
+    identifier: IdentifierTableIndex,
+    can_be_deleted: bool
+) @cold = call_slow_path(create_mutable_binding);
 
-handler CreateRestParams() @cold = call_slow_path(create_rest_params);
+handler CreateRestParams(
+    dst: out Operand,
+    rest_index: u32
+) @cold = call_slow_path(create_rest_params);
 
-handler CreateArguments() @cold = call_slow_path(create_arguments);
+handler CreateArguments(
+    dst: out Optional<Operand>,
+    kind: ArgumentsKind,
+    is_immutable: bool
+) @cold = call_slow_path(create_arguments);
 
-handler CreateLexicalEnvironment() @cold = call_slow_path(create_lexical_environment);
+handler CreateLexicalEnvironment(
+    dst: out Operand,
+    parent: Operand,
+    capacity: u32,
+    is_catch_environment: bool
+) @cold = call_slow_path(create_lexical_environment);
 
 handler CreatePrivateEnvironment() @cold = call_slow_path(create_private_environment);
 
-handler CreateVariableEnvironment() @cold = call_slow_path(create_variable_environment);
+handler CreateVariableEnvironment(
+    capacity: u32
+) @cold = call_slow_path(create_variable_environment);
 
-handler DeleteById() @cold = call_slow_path(delete_by_id);
+handler DeleteById(
+    dst: out Operand,
+    base: Operand,
+    property: PropertyKeyTableIndex
+) @cold = call_slow_path(delete_by_id);
 
-handler DeleteByValue() @cold = call_slow_path(delete_by_value);
+handler DeleteByValue(
+    dst: out Operand,
+    base: Operand,
+    property: Operand
+) @cold = call_slow_path(delete_by_value);
 
-handler DeleteVariable() @cold = call_slow_path(delete_variable);
+handler DeleteVariable(
+    dst: out Operand,
+    identifier: IdentifierTableIndex
+) @cold = call_slow_path(delete_variable);
 
-handler GetCompletionFields() @cold = call_slow_path(get_completion_fields);
+handler GetCompletionFields(
+    type_dst: Operand,
+    value_dst: Operand,
+    completion: Operand
+) @cold = call_slow_path(get_completion_fields);
 
-handler SetCompletionType() @cold = call_slow_path(set_completion_type);
+handler SetCompletionType(
+    completion: Operand,
+    completion_type: Completion::Type
+) @cold = call_slow_path(set_completion_type);
 
-handler GetTemplateObject() @cold = call_slow_path(get_template_object);
+handler GetTemplateObject(
+    length: u32,
+    dst: out Operand,
+    strings_count: u32,
+    cache: TemplateObjectCacheIndex,
+    strings: Operand[]
+) @cold = call_slow_path(get_template_object);
 
-handler NewFunction() @cold = call_slow_path(new_function);
+handler NewFunction(
+    dst: out Operand,
+    shared_function_data_index: u32,
+    lhs_name: Optional<IdentifierTableIndex>,
+    home_object: Optional<Operand>
+) @cold = call_slow_path(new_function);
 
-handler Typeof() @cold = call_slow_path(typeof);
+handler Typeof(
+    dst: out Operand,
+    src: Operand
+) @cold = call_slow_path(typeof);
 
 handler LeavePrivateEnvironment() {
     let private_environment = exec_ctx.private_environment;
@@ -3026,6 +3519,14 @@ handler ResolveThisBinding() {
     dispatch_next;
 }
 
-handler GetPrivateById() @cold = call_slow_path(get_private_by_id);
+handler GetPrivateById(
+    dst: out Operand,
+    base: Operand,
+    property: IdentifierTableIndex
+) @cold = call_slow_path(get_private_by_id);
 
-handler PutPrivateById() @cold = call_slow_path(put_private_by_id);
+handler PutPrivateById(
+    base: Operand,
+    property: IdentifierTableIndex,
+    src: Operand
+) @cold = call_slow_path(put_private_by_id);

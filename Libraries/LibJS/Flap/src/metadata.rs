@@ -4,11 +4,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Shared Bytecode.def parser and layout computation.
+//! Shared Flap handler metadata parser and instruction layout computation.
 //!
 //! Used by both `Libraries/LibJS/Rust/build.rs` (bytecode codegen) and
 //! `Libraries/LibJS/Flap` (interpreter codegen) to ensure a single source
-//! of truth for instruction field offsets and sizes.
+//! of truth for instruction names, fields, offsets, and sizes.
 
 use std::collections::HashMap;
 use std::error::Error;
@@ -23,7 +23,7 @@ pub struct Field {
 
 #[derive(Debug, Clone)]
 #[non_exhaustive]
-pub struct OpDef {
+pub struct InstructionDefinition {
     pub name: String,
     pub parent: String,
     pub fields: Vec<Field>,
@@ -101,171 +101,180 @@ fn is_identifier(name: &str) -> bool {
         && characters.all(|character| character.is_ascii_alphanumeric() || character == '_')
 }
 
-pub fn parse_bytecode_def(source_name: &str, content: &str) -> Result<Vec<OpDef>, ParseError> {
+pub fn parse_flap_metadata(source_name: &str, content: &str) -> Result<Vec<InstructionDefinition>, ParseError> {
     let mut ops = Vec::new();
-    let mut current: Option<OpDef> = None;
     let mut op_names = HashMap::new();
-    let mut field_names = HashMap::new();
-    let mut op_start = None;
-
-    for (line_index, raw_line) in content.lines().enumerate() {
-        let line = line_index + 1;
-        let stripped = raw_line.trim();
-        let column = raw_line.len() - raw_line.trim_start().len() + 1;
-        if stripped.is_empty() || stripped.starts_with("//") || stripped.starts_with('#') {
+    let lines = content.lines().collect::<Vec<_>>();
+    let mut line_index = 0;
+    while line_index < lines.len() {
+        let raw_line = lines[line_index];
+        let stripped = raw_line.split_once('#').map_or(raw_line, |(source, _)| source).trim();
+        if !stripped.starts_with("handler ") {
+            line_index += 1;
             continue;
         }
 
-        if stripped.starts_with("op ") {
-            if current.is_some() {
-                return Err(ParseError::new(source_name, line, column, "nested op block"));
-            }
-            let declaration = stripped.strip_prefix("op ").unwrap().trim();
-            let (name, parent) = if let Some((name, parent)) = declaration.split_once('<') {
-                (name.trim(), Some(parent.trim()))
-            } else {
-                (declaration, None)
+        let start_line = line_index + 1;
+        let mut declaration = stripped.to_string();
+        let mut parenthesis_depth = declaration.chars().fold(0i32, |depth, character| match character {
+            '(' => depth + 1,
+            ')' => depth - 1,
+            _ => depth,
+        });
+        while parenthesis_depth > 0 {
+            line_index += 1;
+            let Some(next_line) = lines.get(line_index) else {
+                return Err(ParseError::new(
+                    source_name,
+                    start_line,
+                    1,
+                    "unterminated handler parameter list",
+                ));
             };
-            if name.is_empty() {
-                return Err(ParseError::new(source_name, line, column, "missing op name"));
-            }
-            if !is_identifier(name) {
-                return Err(ParseError::new(
-                    source_name,
-                    line,
-                    column,
-                    format!("invalid op name '{name}'"),
-                ));
-            }
-            if parent.is_some_and(str::is_empty) {
-                return Err(ParseError::new(source_name, line, column, "missing parent op name"));
-            }
-            if parent.is_some_and(|parent| !is_identifier(parent)) {
-                return Err(ParseError::new(
-                    source_name,
-                    line,
-                    column,
-                    format!("invalid parent op name '{}'", parent.unwrap()),
-                ));
-            }
-            if let Some(previous_line) = op_names.insert(name.to_string(), line) {
-                return Err(ParseError::new(
-                    source_name,
-                    line,
-                    column,
-                    format!("duplicate op '{name}' previously defined on line {previous_line}"),
-                ));
-            }
-            current = Some(OpDef {
-                name: name.to_string(),
-                parent: parent.unwrap_or_default().to_string(),
-                fields: Vec::new(),
-                is_terminator: false,
-                layout: OpLayout::default(),
-                array: None,
+            let next_line = next_line
+                .split_once('#')
+                .map_or(*next_line, |(source, _)| source)
+                .trim();
+            declaration.push(' ');
+            declaration.push_str(next_line);
+            parenthesis_depth += next_line.chars().fold(0i32, |depth, character| match character {
+                '(' => depth + 1,
+                ')' => depth - 1,
+                _ => depth,
             });
-            field_names.clear();
-            op_start = Some((line, column));
-            continue;
         }
 
-        if stripped == "endop" {
-            let Some(mut op) = current.take() else {
-                return Err(ParseError::new(source_name, line, column, "endop without op"));
-            };
-            validate_op(&mut op).map_err(|message| ParseError::new(source_name, line, column, message))?;
-            ops.push(op);
-            op_start = None;
-            continue;
-        }
-
-        let Some(op) = current.as_mut() else {
+        let declaration = declaration.strip_prefix("handler ").unwrap();
+        let Some(open) = declaration.find('(') else {
+            return Err(ParseError::new(source_name, start_line, 1, "handler is missing '('"));
+        };
+        let name = declaration[..open].trim();
+        if !is_identifier(name) {
             return Err(ParseError::new(
                 source_name,
-                line,
-                column,
-                format!("unexpected top-level line '{stripped}'"),
+                start_line,
+                1,
+                format!("invalid handler name '{name}'"),
             ));
-        };
+        }
+        if let Some(previous_line) = op_names.insert(name.to_string(), start_line) {
+            return Err(ParseError::new(
+                source_name,
+                start_line,
+                1,
+                format!("duplicate handler '{name}' previously defined on line {previous_line}"),
+            ));
+        }
 
-        if stripped.starts_with('@') {
-            match stripped {
-                "@terminator" => op.is_terminator = true,
-                "@nothrow" => {}
-                _ => {
+        let close = find_matching_parenthesis(declaration, open)
+            .ok_or_else(|| ParseError::new(source_name, start_line, 1, "unterminated handler parameter list"))?;
+        let fields = parse_handler_fields(source_name, start_line, &declaration[open + 1..close])?;
+        let mut op = InstructionDefinition {
+            name: name.to_string(),
+            parent: "Instruction".to_string(),
+            fields,
+            is_terminator: declaration[close + 1..]
+                .split_whitespace()
+                .any(|token| token == "@terminator"),
+            layout: OpLayout::default(),
+            array: None,
+        };
+        validate_op(&mut op).map_err(|message| ParseError::new(source_name, start_line, 1, message))?;
+        ops.push(op);
+        line_index += 1;
+    }
+    Ok(ops)
+}
+
+fn find_matching_parenthesis(source: &str, open: usize) -> Option<usize> {
+    let mut depth = 0i32;
+    for (offset, character) in source[open..].char_indices() {
+        match character {
+            '(' => depth += 1,
+            ')' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(open + offset);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+fn parse_handler_fields(source_name: &str, line: usize, source: &str) -> Result<Vec<Field>, ParseError> {
+    let mut fields = Vec::new();
+    let mut names = std::collections::HashSet::new();
+    let mut start = 0;
+    let mut depth = 0i32;
+    for (offset, character) in source.char_indices().chain([(source.len(), ',')]) {
+        match character {
+            '<' | '[' => depth += 1,
+            '>' | ']' => depth -= 1,
+            ',' if depth == 0 => {
+                let parameter = source[start..offset].trim();
+                start = offset + 1;
+                if parameter.is_empty() {
+                    continue;
+                }
+                let (name, ty) = parameter
+                    .split_once(':')
+                    .ok_or_else(|| ParseError::new(source_name, line, 1, "malformed handler parameter"))?;
+                let name = name.trim();
+                if !is_identifier(name) {
                     return Err(ParseError::new(
                         source_name,
                         line,
-                        column,
-                        format!("unknown annotation '{stripped}'"),
+                        1,
+                        format!("invalid handler parameter name '{name}'"),
                     ));
                 }
+                if !names.insert(name) {
+                    return Err(ParseError::new(
+                        source_name,
+                        line,
+                        1,
+                        format!("duplicate handler parameter '{name}'"),
+                    ));
+                }
+                let ty = ty.trim();
+                let ty = ["inout ", "in ", "out "]
+                    .into_iter()
+                    .find_map(|mode| ty.strip_prefix(mode))
+                    .unwrap_or(ty);
+                let is_array = ty.ends_with("[]");
+                let ty = ty.strip_suffix("[]").unwrap_or(ty);
+                let ty = match ty {
+                    "BytecodeOffset" => "Label",
+                    "Int32" => "i32",
+                    other => other,
+                };
+                if try_field_type_info(ty).is_none() {
+                    return Err(ParseError::new(
+                        source_name,
+                        line,
+                        1,
+                        format!("unknown encoded handler parameter type '{ty}'"),
+                    ));
+                }
+                fields.push(Field {
+                    name: format!("m_{name}"),
+                    ty: ty.to_string(),
+                    is_array,
+                });
             }
-            continue;
+            _ => {}
         }
-
-        let Some((lhs, rhs)) = stripped.split_once(':') else {
-            return Err(ParseError::new(source_name, line, column, "malformed field line"));
-        };
-        let field_name = lhs.trim();
-        if field_name.is_empty() {
-            return Err(ParseError::new(source_name, line, column, "missing field name"));
-        }
-        if !is_identifier(field_name) {
-            return Err(ParseError::new(
-                source_name,
-                line,
-                column,
-                format!("invalid field name '{field_name}'"),
-            ));
-        }
-        if let Some(previous_line) = field_names.insert(field_name.to_string(), line) {
-            return Err(ParseError::new(
-                source_name,
-                line,
-                column,
-                format!("duplicate field '{field_name}' previously defined on line {previous_line}"),
-            ));
-        }
-        let mut field_type = rhs.trim();
-        let is_array = field_type.ends_with("[]");
-        if is_array {
-            field_type = field_type[..field_type.len() - 2].trim();
-        }
-        if try_field_type_info(field_type).is_none() {
-            let type_column = raw_line.find(':').unwrap() + 2 + rhs.len() - rhs.trim_start().len();
-            return Err(ParseError::new(
-                source_name,
-                line,
-                type_column,
-                format!("unknown field type '{field_type}'"),
-            ));
-        }
-        op.fields.push(Field {
-            name: field_name.to_string(),
-            ty: field_type.to_string(),
-            is_array,
-        });
     }
-    if let Some(op) = current {
-        let (line, column) = op_start.unwrap();
-        return Err(ParseError::new(
-            source_name,
-            line,
-            column,
-            format!("unclosed op block '{}'", op.name),
-        ));
-    }
-
-    // Remove the base "Instruction" definition (not an actual opcode).
-    ops.retain(|op| op.name != "Instruction");
-    Ok(ops)
+    Ok(fields)
 }
 
 fn try_field_type_info(ty: &str) -> Option<FieldType> {
     Some(
         match ty {
             "bool" => ("bool", 1, 1, "bool"),
+            "i32" => ("i32", 4, 4, "i32"),
             "u32" => ("u32", 4, 4, "u32"),
             "u64" => ("u64", 8, 8, "u64"),
             "Operand" => ("Operand", 4, 4, "operand"),
@@ -309,14 +318,14 @@ pub fn round_up(value: usize, align: usize) -> usize {
 }
 
 /// Returns the user-visible fields (excludes m_type, m_strict, m_length).
-pub fn user_fields(op: &OpDef) -> Vec<&Field> {
+pub fn user_fields(op: &InstructionDefinition) -> Vec<&Field> {
     op.fields
         .iter()
         .filter(|f| f.name != "m_type" && f.name != "m_strict" && f.name != "m_length")
         .collect()
 }
 
-fn count_field_index(op: &OpDef, array_field: &Field) -> Option<usize> {
+fn count_field_index(op: &InstructionDefinition, array_field: &Field) -> Option<usize> {
     let plural = format!("{}_count", array_field.name);
     let singular = array_field.name.strip_suffix('s').map(|name| format!("{name}_count"));
     op.fields.iter().position(|field| {
@@ -326,7 +335,7 @@ fn count_field_index(op: &OpDef, array_field: &Field) -> Option<usize> {
     })
 }
 
-fn validate_op(op: &mut OpDef) -> Result<(), String> {
+fn validate_op(op: &mut InstructionDefinition) -> Result<(), String> {
     if op.name == "Instruction" {
         if !op.parent.is_empty() {
             return Err("base op 'Instruction' cannot have a parent".to_string());
@@ -438,7 +447,7 @@ pub struct OpLayout {
 }
 
 /// Compute field offsets and total sizes for all opcodes.
-pub fn compute_layouts(ops: &[OpDef]) -> HashMap<String, OpLayout> {
+pub fn compute_layouts(ops: &[InstructionDefinition]) -> HashMap<String, OpLayout> {
     ops.iter().map(|op| (op.name.clone(), op.layout.clone())).collect()
 }
 
@@ -448,21 +457,14 @@ mod tests {
 
     #[test]
     fn parses_operations_fields_and_annotations() {
-        let ops = parse_bytecode_def(
-            "Bytecode.def",
+        let ops = parse_flap_metadata(
+            "interpreter.flap",
             r#"
-op Instruction
-    m_type: bool
-    m_strict: bool
-endop
-
-op Call < Instruction
-    @terminator
-    @nothrow
-    m_length: u32
-    m_argument_count: u32
-    m_arguments: Operand[]
-endop
+handler Call(
+    length: u32,
+    argument_count: u32,
+    arguments: Operand[]
+) @terminator = call_slow_path(call);
 "#,
         )
         .unwrap();
@@ -475,10 +477,27 @@ endop
     }
 
     #[test]
-    fn parses_current_bytecode_definition() {
-        let ops = parse_bytecode_def(
-            "Libraries/LibJS/Bytecode/Bytecode.def",
-            include_str!("../../Bytecode/Bytecode.def"),
+    fn ignores_comments_in_handler_declarations() {
+        let ops = parse_flap_metadata(
+            "test.flap",
+            r#"
+handler First(
+    value: Value # Ignore unmatched ( and @terminator.
+) # This is not an @terminator annotation.
+handler Second() { dispatch_next; }
+"#,
+        )
+        .unwrap();
+
+        assert_eq!(ops.len(), 2);
+        assert!(!ops[0].is_terminator);
+    }
+
+    #[test]
+    fn parses_current_interpreter_handlers() {
+        let ops = parse_flap_metadata(
+            "Libraries/LibJS/Interpreter/interpreter.flap",
+            include_str!("../../Interpreter/interpreter.flap"),
         )
         .unwrap();
 
@@ -487,27 +506,27 @@ endop
 
     #[test]
     fn reports_structured_parse_errors() {
-        let error = parse_bytecode_def("broken.def", "op Add\n    m_value: Mystery\nendop\n").unwrap_err();
+        let error = parse_flap_metadata("broken.flap", "handler Add(value: Mystery) { dispatch_next; }\n").unwrap_err();
 
-        assert_eq!(error.source_name, "broken.def");
-        assert_eq!(error.line, 2);
-        assert_eq!(error.column, 14);
-        assert_eq!(error.message, "unknown field type 'Mystery'");
+        assert_eq!(error.source_name, "broken.flap");
+        assert_eq!(error.line, 1);
+        assert_eq!(error.column, 1);
+        assert_eq!(error.message, "unknown encoded handler parameter type 'Mystery'");
         assert_eq!(
             error.to_string(),
-            "broken.def:2:14: error: unknown field type 'Mystery'"
+            "broken.flap:1:1: error: unknown encoded handler parameter type 'Mystery'"
         );
     }
 
     #[test]
     fn parses_single_byte_mutations_without_panicking() {
-        let seed = b"op Add < Instruction\n    m_value: Value\n    m_length: u32\nendop\n";
+        let seed = b"handler Add(value: Value, length: u32) { dispatch_next; }\n";
         for index in 0..seed.len() {
             for replacement in [b' ', b'\n', b'<', b':', b'[', b']', b'0', b'a'] {
                 let mut mutated = seed.to_vec();
                 mutated[index] = replacement;
                 let source = std::str::from_utf8(&mutated).unwrap();
-                let _ = parse_bytecode_def("mutated.def", source);
+                let _ = parse_flap_metadata("mutated.flap", source);
             }
         }
     }
@@ -515,38 +534,35 @@ endop
     #[test]
     fn rejects_malformed_definitions() {
         for (source, message) in [
-            ("unexpected\n", "unexpected top-level line"),
-            ("endop\n", "endop without op"),
-            ("op Outer\nop Inner\n", "nested op block"),
-            ("op Open\n", "unclosed op block"),
-            ("op Bad\n    @mystery\nendop\n", "unknown annotation"),
-            ("op Bad\n    malformed\nendop\n", "malformed field line"),
-            ("op 42\nendop\n", "invalid op name"),
-            ("op Bad < Parent < Other\nendop\n", "invalid parent op name"),
-            ("op Bad\n    42: u32\nendop\n", "invalid field name"),
+            ("handler Open(\n", "unterminated handler parameter list"),
+            ("handler Missing { dispatch_next; }\n", "missing '('"),
+            ("handler 42() { dispatch_next; }\n", "invalid handler name"),
             (
-                "op First < Instruction\nendop\nop First < Instruction\nendop\n",
-                "duplicate op 'First'",
+                "handler Bad(42: u32) { dispatch_next; }\n",
+                "invalid handler parameter name",
             ),
             (
-                "op Fields < Instruction\n    value: u32\n    value: u64\nendop\n",
-                "duplicate field 'value'",
+                "handler First() { dispatch_next; }\nhandler First() { dispatch_next; }\n",
+                "duplicate handler 'First'",
             ),
             (
-                "op Array < Instruction\n    m_values: Value[]\nendop\n",
+                "handler Fields(value: u32, value: u64) { dispatch_next; }\n",
+                "duplicate handler parameter 'value'",
+            ),
+            (
+                "handler Array(values: Value[]) { dispatch_next; }\n",
                 "requires a u32 m_length field",
             ),
             (
-                "op Array < Instruction\n    m_length: u32\n    m_values: Value[]\nendop\n",
+                "handler Array(length: u32, values: Value[]) { dispatch_next; }\n",
                 "requires a matching u32 count field",
             ),
             (
-                "op Array < Instruction\n    m_length: u32\n    m_value_count: u32\n    m_values: Value[]\n    m_tail: u32\nendop\n",
+                "handler Array(length: u32, value_count: u32, values: Value[], tail: u32) { dispatch_next; }\n",
                 "must be last",
             ),
-            ("op Derived < Mystery\nendop\n", "must derive directly from Instruction"),
         ] {
-            let error = parse_bytecode_def("broken.def", source).unwrap_err();
+            let error = parse_flap_metadata("broken.flap", source).unwrap_err();
             assert!(
                 error.message.contains(message),
                 "expected '{message}', got '{}'",

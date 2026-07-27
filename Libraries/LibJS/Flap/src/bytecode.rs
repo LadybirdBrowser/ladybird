@@ -6,8 +6,8 @@
 
 //! Prepared bytecode metadata used by reusable handler lowering.
 
+use crate::metadata::InstructionDefinition;
 use crate::types::Type;
-use bytecode_def::OpDef;
 
 /// The identity of a handler parameter that names a bytecode field.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -41,7 +41,7 @@ impl HandlerLayout {
         handler_name: &str,
         parameter_names: &[String],
         parameter_types: &[Type],
-        op: Option<&OpDef>,
+        op: Option<&InstructionDefinition>,
     ) -> Result<Self, String> {
         if parameter_names.len() != parameter_types.len() {
             return Err(format!(
@@ -96,7 +96,7 @@ fn bytecode_field_name(name: &str) -> String {
         .map_or_else(|| format!("m_{name}"), |_| name.to_string())
 }
 
-fn bytecode_field_type_name(field: &bytecode_def::Field) -> String {
+fn bytecode_field_type_name(field: &crate::metadata::Field) -> String {
     if field.is_array {
         format!("{}[]", field.ty)
     } else {
@@ -104,17 +104,34 @@ fn bytecode_field_type_name(field: &bytecode_def::Field) -> String {
     }
 }
 
-fn bytecode_field_type_matches(field: &bytecode_def::Field, parameter_type: &Type) -> bool {
+fn bytecode_field_type_matches(field: &crate::metadata::Field, parameter_type: &Type) -> bool {
     if field.is_array {
-        return field.ty == "Operand" && *parameter_type == Type::Sequence(Box::new(Type::U32));
+        return match field.ty.as_str() {
+            "Operand" | "Optional<Operand>" => *parameter_type == Type::Sequence(Box::new(Type::U32)),
+            "Value" => *parameter_type == Type::Sequence(Box::new(Type::Value)),
+            _ => false,
+        };
     }
     match field.ty.as_str() {
         "bool" => *parameter_type == Type::Bool || *parameter_type == Type::U8,
-        "u32" | "Completion::Type" | "IteratorHint" | "EnvironmentMode" | "ArgumentsKind" | "FunctionNamePrefix" => {
-            *parameter_type == Type::U32
-        }
+        "u32"
+        | "Completion::Type"
+        | "IteratorHint"
+        | "EnvironmentMode"
+        | "ArgumentsKind"
+        | "FunctionNamePrefix"
+        | "IdentifierTableIndex"
+        | "ObjectPropertyIteratorCacheIndex"
+        | "ObjectShapeCacheIndex"
+        | "PropertyKeyTableIndex"
+        | "RegexTableIndex"
+        | "StringTableIndex"
+        | "TemplateObjectCacheIndex"
+        | "Optional<IdentifierTableIndex>"
+        | "Optional<StringTableIndex>" => *parameter_type == Type::U32,
         "u64" => *parameter_type == Type::U64,
-        "Operand" => *parameter_type == Type::Operand,
+        "i32" => *parameter_type == Type::InlineInt32,
+        "Operand" | "Optional<Operand>" => *parameter_type == Type::Operand,
         "Label" | "Optional<Label>" => *parameter_type == Type::BytecodeOffset,
         "EnvironmentCoordinate" => *parameter_type == Type::EnvironmentCoordinate,
         "EnvironmentCoordinateCacheIndex" => *parameter_type == Type::EnvironmentCoordinateCacheIndex,
@@ -132,9 +149,9 @@ mod tests {
 
     #[test]
     fn aligns_layout_offsets_with_handler_parameters() {
-        let mut op = bytecode_def::parse_bytecode_def(
-            "TestBytecode.def",
-            "op Add < Instruction\n    m_lhs: Operand\n    m_rhs: Operand\nendop\n",
+        let mut op = crate::metadata::parse_flap_metadata(
+            "test.flap",
+            "handler Add(lhs: Operand, rhs: Operand) { dispatch_next; }\n",
         )
         .unwrap()
         .remove(0);
@@ -156,9 +173,9 @@ mod tests {
 
     #[test]
     fn rejects_unrelated_index_types_as_property_lookup_cache_indices() {
-        let op = bytecode_def::parse_bytecode_def(
-            "TestBytecode.def",
-            "op Get < Instruction\n    m_cache: PropertyKeyTableIndex\nendop\n",
+        let op = crate::metadata::parse_flap_metadata(
+            "test.flap",
+            "handler Get(cache: PropertyKeyTableIndex) { dispatch_next; }\n",
         )
         .unwrap()
         .remove(0);
@@ -179,11 +196,19 @@ mod tests {
     }
 
     #[test]
+    fn accepts_inline_int32_handler_parameters() {
+        let op = crate::metadata::parse_flap_metadata("test.flap", "handler AddInt32(rhs: Int32) { dispatch_next; }\n")
+            .unwrap()
+            .remove(0);
+
+        HandlerLayout::new("AddInt32", &["rhs".to_string()], &[Type::InlineInt32], Some(&op)).unwrap();
+    }
+
+    #[test]
     fn rejects_wide_put_kind_handler_parameters() {
-        let op =
-            bytecode_def::parse_bytecode_def("TestBytecode.def", "op Put < Instruction\n    m_kind: PutKind\nendop\n")
-                .unwrap()
-                .remove(0);
+        let op = crate::metadata::parse_flap_metadata("test.flap", "handler Put(kind: PutKind) { dispatch_next; }\n")
+            .unwrap()
+            .remove(0);
         let error = HandlerLayout::new("Put", &["kind".to_string()], &[Type::U32], Some(&op)).unwrap_err();
 
         assert!(
@@ -194,10 +219,9 @@ mod tests {
 
     #[test]
     fn rejects_mismatched_handler_parameter_metadata_before_field_types() {
-        let op =
-            bytecode_def::parse_bytecode_def("TestBytecode.def", "op Put < Instruction\n    m_kind: PutKind\nendop\n")
-                .unwrap()
-                .remove(0);
+        let op = crate::metadata::parse_flap_metadata("test.flap", "handler Put(kind: PutKind) { dispatch_next; }\n")
+            .unwrap()
+            .remove(0);
         let error = HandlerLayout::new(
             "Put",
             &["kind".to_string(), "extra".to_string()],

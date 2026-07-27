@@ -2337,6 +2337,9 @@ fn lower_instruction(
             let width = (*field_width).into();
             emit!(output; MachineOperation::load(width, false) => [destination.clone(), bytecode_field_memory(field)];);
         }
+        Operation::Intrinsic(Intrinsic::Bytecode(BytecodeOperation::LoadInlineInt32)) => {
+            return Err("'load_inline_int32' reached LowIR lowering".to_string());
+        }
         Operation::Intrinsic(Intrinsic::Address(AddressOperation::BytecodeField)) => {
             let [destination] = require_results(&results, "bytecode_field_address")?;
             let [Operand::BytecodeField(field)] = inputs.as_slice() else {

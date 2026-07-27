@@ -223,6 +223,7 @@ define_named_types! {
     source {
         F64 => "f64", Some(8), false;
         F32 => "f32", Some(4), false;
+        InlineInt32 => "Int32", Some(4), false;
         SlotIndex => "SlotIndex", Some(4), false;
         BytecodeOffset => "BytecodeOffset", Some(4), false;
         EnvironmentCoordinateCacheIndex => "EnvironmentCoordinateCacheIndex", Some(4), false;
