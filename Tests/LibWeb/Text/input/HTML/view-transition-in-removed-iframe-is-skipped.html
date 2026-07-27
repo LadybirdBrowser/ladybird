@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A view transition started in the document of a removed iframe must be skipped with an InvalidStateError — because
+    // the document's visibility state is "hidden" after removal. See #9893.
+    asyncTest(async (done) => {
+        const iframe = document.createElement("iframe");
+        iframe.srcdoc = "<p>child</p>";
+        await new Promise(r => { iframe.onload = r; document.body.appendChild(iframe); });
+        const childDocument = iframe.contentDocument;
+        const hidden = new Promise(resolve => childDocument.addEventListener("visibilitychange", resolve, { once: true }));
+        iframe.remove();
+        await hidden;
+        println(`after removal: ${childDocument.visibilityState}`);
+        const transition = childDocument.startViewTransition(() => {});
+        const result = await Promise.race([
+            transition.ready.then(() => "ready resolved", (e) => `ready rejected: ${e.name}`),
+            new Promise(r => setTimeout(() => r("ready never settled (hang)"), 1500)),
+        ]);
+        println(result);
+        done();
+    });
+</script>

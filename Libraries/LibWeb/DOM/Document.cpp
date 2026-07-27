@@ -5781,10 +5781,16 @@ void Document::unload(GC::Ptr<Document>)
         // 2. Fire a page transition event named pagehide at oldDocument's relevant global object with oldDocument's
         //    salvageable state.
         HTML::relevant_window(*this).fire_a_page_transition_event(HTML::EventNames::pagehide, m_salvageable);
-
-        // 3. Update the visibility state of oldDocument to "hidden".
-        update_the_visibility_state(HTML::VisibilityState::Hidden);
     }
+
+    // 3. Update the visibility state of oldDocument to "hidden".
+    // AD-HOC: Violate the spec requirement for the page to be showing (in the spec, this step is a substep of step 10
+    //         above — not a sibling step) and instead do this for any page ready for post-load tasks; e.g., the initial
+    //         about:blank of a never-navigated child. Gecko/WebKit/Blink consider such pages to be completely loaded —
+    //         and update their visibility state when unloading them.
+    //         See https://github.com/whatwg/html/issues/12288
+    if (m_ready_for_post_load_tasks)
+        update_the_visibility_state(HTML::VisibilityState::Hidden);
 
     // FIXME: 11. If unloadTimingInfo is not null, then set unloadTimingInfo's unload event start time to the current high
     //     resolution time given newDocument's relevant global object, coarsened given oldDocument's relevant settings
