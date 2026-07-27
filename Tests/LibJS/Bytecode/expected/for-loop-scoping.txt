@@ -50,7 +50,7 @@ block1:
 
 block2:
   [ 1c8] GetBinding dst:reg6, `i`
-  [ 1e0] JumpLessThan lhs:reg6, rhs:Int32(3), true_target:block1, false_target:block3
+  [ 1e0] JumpLessThanRhsInt32 lhs:reg6, rhs:3, true_target:block1, false_target:block3
 
 block3:
   [ 1f8] SetLexicalEnvironment environment:reg4

@@ -74,6 +74,7 @@ pub(crate) fn alu_immediate_fits(width: IntegerWidth, value: i64) -> bool {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum FloatConversion {
     Signed64ToDouble,
+    Signed32ToDouble,
     FloatToDouble,
     DoubleToFloat,
     DoubleToSigned32Truncate,
@@ -276,12 +277,13 @@ define_machine_opcodes! {
     };
     [FloatConversion(FloatConversion)] => Self::FloatConversion(conversion) => {
         match conversion {
-            FloatConversion::Signed64ToDouble => operands_match(operands, &[FR, R]),
+            FloatConversion::Signed64ToDouble | FloatConversion::Signed32ToDouble => operands_match(operands, &[FR, R]),
             FloatConversion::FloatToDouble | FloatConversion::DoubleToFloat => operands_match(operands, &[FR, FR]),
             FloatConversion::DoubleToSigned32Truncate | FloatConversion::DoubleToSigned64Truncate => operands_match(operands, &[R, FR]),
         }
     } printing match conversion {
         FloatConversion::Signed64ToDouble => simple!("cvtsi2sd"; native(0), native(1)),
+        FloatConversion::Signed32ToDouble => simple!("cvtsi2sd"; native(0), integer(1, IntegerWidth::U32)),
         FloatConversion::FloatToDouble => simple!("cvtss2sd"; native(0), native(1)),
         FloatConversion::DoubleToFloat => simple!("cvtsd2ss"; native(0), native(1)),
         FloatConversion::DoubleToSigned32Truncate => simple!("cvttsd2si"; integer(0, IntegerWidth::U32), native(1)),
@@ -395,9 +397,12 @@ impl Opcode {
             Operation::Float(operation) => match operation {
                 FloatingPointOperation::Binary(operation) => Self::FloatArithmetic(operation),
                 FloatingPointOperation::Unary(operation) => Self::FloatUnary(operation),
-                FloatingPointOperation::Convert(
-                    IntrinsicFloatConversion::Int32ToFloat64 | IntrinsicFloatConversion::Uint32ToFloat64,
-                ) => Self::FloatConversion(FloatConversion::Signed64ToDouble),
+                FloatingPointOperation::Convert(IntrinsicFloatConversion::Int32ToFloat64) => {
+                    Self::FloatConversion(FloatConversion::Signed32ToDouble)
+                }
+                FloatingPointOperation::Convert(IntrinsicFloatConversion::Uint32ToFloat64) => {
+                    Self::FloatConversion(FloatConversion::Signed64ToDouble)
+                }
                 FloatingPointOperation::Convert(IntrinsicFloatConversion::Float32ToFloat64) => {
                     Self::FloatConversion(FloatConversion::FloatToDouble)
                 }

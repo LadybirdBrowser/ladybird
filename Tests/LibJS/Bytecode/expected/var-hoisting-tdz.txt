@@ -27,7 +27,7 @@ block1:
   [  20] PostfixIncrement dst:reg5, src:i~0
 
 block2:
-  [  30] JumpLessThan lhs:i~0, rhs:Int32(3), true_target:block1, false_target:block3
+  [  30] JumpLessThanRhsInt32 lhs:i~0, rhs:3, true_target:block1, false_target:block3
 
 block3:
   [  48] Mov dst:i~0, src:Int32(0)
@@ -37,7 +37,7 @@ block4:
   [  60] PostfixIncrement dst:reg5, src:i~0
 
 block5:
-  [  70] JumpLessThan lhs:i~0, rhs:Int32(3), true_target:block4, false_target:block6
+  [  70] JumpLessThanRhsInt32 lhs:i~0, rhs:3, true_target:block4, false_target:block6
 
 block6:
   [  88] End value:Undefined

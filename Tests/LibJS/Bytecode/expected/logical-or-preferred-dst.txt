@@ -26,7 +26,7 @@ block1:
   [  20] End value:Undefined
 
 block2:
-  [  28] GreaterThan dst:reg5, lhs:arg0, rhs:Int32(0)
+  [  28] GreaterThanRhsInt32 dst:reg5, lhs:arg0, rhs:0
 
 block3:
   [  38] JumpFalse condition:reg5, target:block5

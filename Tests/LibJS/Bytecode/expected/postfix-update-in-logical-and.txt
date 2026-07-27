@@ -18,7 +18,7 @@ postfixInLogicalAnd$ff9880b2 postfix-update-in-logical-and.js:2:5
     [0] = Int32(0)
 
 block0:
-  [   0] GreaterThan dst:reg5, lhs:arg0, rhs:Int32(0)
+  [   0] GreaterThanRhsInt32 dst:reg5, lhs:arg0, rhs:0
   [  10] Mov dst:reg6, src:reg5
   [  20] JumpFalse condition:reg5, target:block2
 

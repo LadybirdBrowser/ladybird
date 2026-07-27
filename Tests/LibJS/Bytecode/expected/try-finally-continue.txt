@@ -42,7 +42,7 @@ block2:
   [  30] PostfixIncrement dst:reg5, src:i~0
 
 block3:
-  [  40] JumpLessThan lhs:i~0, rhs:Int32(3), true_target:block1, false_target:block4
+  [  40] JumpLessThanRhsInt32 lhs:i~0, rhs:3, true_target:block1, false_target:block4
 
 block4:
   [  58] Return value:result~1
@@ -115,7 +115,7 @@ block2:
   [  30] PostfixIncrement dst:reg5, src:i~0
 
 block3:
-  [  40] JumpLessThan lhs:i~0, rhs:Int32(10), true_target:block1, false_target:block4
+  [  40] JumpLessThanRhsInt32 lhs:i~0, rhs:10, true_target:block1, false_target:block4
 
 block4:
   [  58] Return value:result~1

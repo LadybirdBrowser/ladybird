@@ -628,9 +628,12 @@ impl Opcode {
             Operation::Float(operation) => match operation {
                 FloatingPointOperation::Binary(operation) => Self::FloatArithmetic(operation),
                 FloatingPointOperation::Unary(operation) => Self::FloatUnary(operation),
-                FloatingPointOperation::Convert(
-                    IntrinsicFloatConversion::Int32ToFloat64 | IntrinsicFloatConversion::Uint32ToFloat64,
-                ) => Self::FloatConversion(FloatConversion::Signed64ToDouble),
+                FloatingPointOperation::Convert(IntrinsicFloatConversion::Int32ToFloat64) => {
+                    Self::FloatConversion(FloatConversion::Signed32ToDouble)
+                }
+                FloatingPointOperation::Convert(IntrinsicFloatConversion::Uint32ToFloat64) => {
+                    Self::FloatConversion(FloatConversion::Signed64ToDouble)
+                }
                 FloatingPointOperation::Convert(IntrinsicFloatConversion::Float32ToFloat64) => {
                     Self::FloatConversion(FloatConversion::FloatToDouble)
                 }

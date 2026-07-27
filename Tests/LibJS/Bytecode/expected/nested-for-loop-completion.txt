@@ -26,7 +26,7 @@ block2:
 
 block3:
   [  70] GetGlobal dst:reg6, `n`
-  [  80] JumpLessThanEquals lhs:reg6, rhs:Int32(7), true_target:block1, false_target:block4
+  [  80] JumpLessThanEqualsRhsInt32 lhs:reg6, rhs:7, true_target:block1, false_target:block4
 
 block4:
   [  98] End value:reg5
@@ -38,7 +38,7 @@ block5:
 
 block6:
   [  d0] GetGlobal dst:reg7, `depth`
-  [  e0] JumpLessThanEquals lhs:reg7, rhs:Int32(0), true_target:block5, false_target:block7
+  [  e0] JumpLessThanEqualsRhsInt32 lhs:reg7, rhs:0, true_target:block5, false_target:block7
 
 block7:
   [  f8] Mov dst:reg5, src:reg6

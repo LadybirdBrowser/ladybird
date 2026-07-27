@@ -472,22 +472,14 @@ inline fn store_relational_result(
         call_binary_slow_path(slow_path, dst, lhs, rhs);
     };
 
-    match lhs {
-        Value<i32>(lhs_integer) => {
-            guard let Value<i32>(rhs_integer) = rhs else slow;
-            integer_condition(lhs_integer, rhs_integer, store_true);
-            goto store_false;
-        },
-
-        Value<f64>(lhs_double) => {
-            guard let Value<f64>(rhs_double) = rhs else slow;
-            branch_fp_unordered(lhs_double, rhs_double, store_false);
-            float_condition(lhs_double, rhs_double, store_true);
-            goto store_false;
-        },
-
-        _ => slow,
-    }
+    compare_numeric_values(
+        lhs,
+        rhs,
+        integer_condition,
+        float_condition,
+        store_true,
+        store_false
+    ) else slow;
 }
 
 inline fn equality_same_tag(
@@ -698,13 +690,13 @@ inline fn compare_numeric_values(
                     integer_condition(lhs_integer, rhs_integer, true_result);
                     goto false_result;
                 },
-                Value<f64>(rhs_double) => {
+                Value<f64>(rhs_double) => @cold {
                     goto compare_double(to_f64(lhs_integer), rhs_double);
                 },
                 _ => slow,
             }
         },
-        Value<f64>(lhs_double) => {
+        Value<f64>(lhs_double) => @cold {
             match rhs {
                 Value<i32>(rhs_integer) => {
                     goto compare_double(lhs_double, to_f64(rhs_integer));
@@ -850,6 +842,14 @@ specialize LeftShift(rhs: Int32);
 specialize RightShift(rhs: Int32);
 specialize UnsignedRightShift(rhs: Int32);
 specialize Mod(rhs: Int32);
+specialize LessThan(rhs: Int32);
+specialize LessThanEquals(rhs: Int32);
+specialize GreaterThan(rhs: Int32);
+specialize GreaterThanEquals(rhs: Int32);
+specialize JumpLessThan(rhs: Int32);
+specialize JumpLessThanEquals(rhs: Int32);
+specialize JumpGreaterThan(rhs: Int32);
+specialize JumpGreaterThanEquals(rhs: Int32);
 
 handler Add(
     dst: out Operand,
@@ -1975,7 +1975,9 @@ handler UnaryMinus(
             };
 
             let overflow = || @cold {
-                store(dst, box_f64(to_f64(integer)));
+                neg(integer);
+                let unsigned_integer: u32 = alias(integer);
+                store(dst, box_f64(u32_to_f64(unsigned_integer)));
                 dispatch_next;
             };
 
@@ -2848,7 +2850,8 @@ handler CallBuiltinMathAbs(
             let overflow = || @cold {
                 let overflowed_integer = unbox_i32(argument_value);
                 neg(overflowed_integer);
-                store(dst, box_f64(to_f64(overflowed_integer)));
+                let unsigned_integer: u32 = alias(overflowed_integer);
+                store(dst, box_f64(u32_to_f64(unsigned_integer)));
                 dispatch_next;
             };
             if integer_value < 0 {
