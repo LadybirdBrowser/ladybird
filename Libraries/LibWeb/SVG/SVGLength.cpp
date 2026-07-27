@@ -7,18 +7,25 @@
 
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/SVGLength.h>
+#include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
+#include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/SVG/SVGLength.h>
 
 namespace Web::SVG {
 
 GC_DEFINE_ALLOCATOR(SVGLength);
 
-GC::Ref<SVGLength> SVGLength::create(JS::Realm& realm, u8 unit_type, float value, ReadOnly read_only)
+GC::Ref<SVGLength> SVGLength::create_detached(JS::Realm& realm, NonnullRefPtr<CSS::StyleValue const> value, ReadOnly read_only)
 {
-    return realm.create<SVGLength>(realm, unit_type, value, read_only);
+    return realm.create<SVGLength>(realm, nullptr, DetachedSource { .value = move(value) }, read_only);
+}
+
+GC::Ref<SVGLength> SVGLength::create_reflected_attribute(JS::Realm& realm, GC::Ref<SVGElement> element, Utf16FlyString name, ReflectedAttributeType type, NonnullRefPtr<CSS::StyleValue const> default_value, ReadOnly read_only)
+{
+    return realm.create<SVGLength>(realm, element, ReflectedAttributeSource { .name = move(name), .type = type, .default_value = move(default_value) }, read_only);
 }
 
 SVGLength::ParsedValue SVGLength::parsed_value_from_style_value(CSS::StyleValue const& style_value)
@@ -66,10 +73,10 @@ SVGLength::ParsedValue SVGLength::parsed_value_from_style_value(CSS::StyleValue 
     VERIFY_NOT_REACHED();
 }
 
-SVGLength::SVGLength(JS::Realm& realm, u8 unit_type, float value, ReadOnly read_only)
+SVGLength::SVGLength(JS::Realm& realm, GC::Ptr<SVGElement> associated_element, Source&& source, ReadOnly read_only)
     : PlatformObject(realm)
-    , m_value(value)
-    , m_unit_type(unit_type)
+    , m_element(associated_element)
+    , m_source(move(source))
     , m_read_only(read_only)
 {
 }
@@ -80,7 +87,72 @@ void SVGLength::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
+void SVGLength::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    if (m_source.has<ReflectedAttributeSource>())
+        visitor.visit(m_element);
+}
+
 SVGLength::~SVGLength() = default;
+
+float SVGLength::value() const
+{
+    return parsed_value_from_style_value(internal_value()).value;
+}
+
+u8 SVGLength::unit_type() const
+{
+    return parsed_value_from_style_value(internal_value()).unit;
+}
+
+static RefPtr<CSS::StyleValue const> parse_css_length_value(JS::Realm& realm, Utf16View const& value)
+{
+    // https://svgwg.org/svg2-draft/types.html#presentation-attribute-css-value
+    // When a presentation attribute defined using the CSS Value Definition Syntax is parsed, this is done as follows:
+    // Replace all instances of <length-percentage> in grammar with [<length-percentage> | <number>].
+    // FIXME: This is implemented in parse_literal_length_value() when using
+    //        ParsingMode::SVGPresentationAttribute but is incomplete as it only supports literal numbers and
+    //        immediately converts them to the equivalent length value in pixels (we should support all
+    //        <number> values, including math and tree-counting functions) so we implement this again here until
+    //        that is fixed.
+
+    // FIXME: Respect attribute specific range restrictions (e.g. <circle>/r must be non-negative)
+
+    CSS::Parser::ParsingParams parsing_params { realm, CSS::Parser::ParsingMode::SVGPresentationAttribute };
+    if (auto parsed_style_value = parse_css_type(parsing_params, value, CSS::ValueType::Number))
+        return parsed_style_value.release_nonnull();
+
+    if (auto parsed_style_value = parse_css_type(parsing_params, value, CSS::ValueType::LengthPercentage))
+        return parsed_style_value.release_nonnull();
+
+    return nullptr;
+}
+
+NonnullRefPtr<CSS::StyleValue const> SVGLength::internal_value() const
+{
+    return m_source.visit(
+        [&](ReflectedAttributeSource const& source) -> NonnullRefPtr<CSS::StyleValue const> {
+            // NB: All attribute reflecting lengths should have an associated element
+            VERIFY(m_element);
+
+            // FIXME: Respect source.type once we support SMIL animation.
+            // FIXME: Respect attribute namespaces
+            auto maybe_attribute_value = m_element->get_attribute_value_view(source.name);
+            if (!maybe_attribute_value.has_value())
+                return source.default_value;
+
+            auto attribute_value = maybe_attribute_value.release_value();
+
+            if (auto parsed_style_value = parse_css_length_value(realm(), attribute_value))
+                return parsed_style_value.release_nonnull();
+
+            return source.default_value;
+        },
+        [](DetachedSource const& source) -> NonnullRefPtr<CSS::StyleValue const> {
+            return source.value;
+        });
+}
 
 // https://svgwg.org/svg2-draft/types.html#__svg__SVGLength__value
 WebIDL::ExceptionOr<void> SVGLength::set_value(float value)
@@ -91,8 +163,9 @@ WebIDL::ExceptionOr<void> SVGLength::set_value(float value)
 
     // 2. Let value be the value being assigned to value.
     // 3. Set the SVGLength's value to a <number> whose value is value.
-    m_value = value;
-    m_unit_type = SVG_LENGTHTYPE_NUMBER;
+    // NB: Modes other than DetachedSource have their value set implicitly when reserializing the reflected attribute.
+    if (m_source.has<DetachedSource>())
+        m_source.get<DetachedSource>().value = CSS::NumberStyleValue::create(value);
 
     // FIXME: 4. If the SVGLength reflects the base value of a reflected attribute, reflects a presentation attribute, or
     //    reflects an element of the base value of a reflected attribute, then reserialize the reflected attribute.

@@ -113,7 +113,7 @@ GC::Ref<SVGAnimatedLengthList> SVGTextPositioningElement::ensure_length_list(GC:
         if (maybe_number_percentage.has_value())
             value = maybe_number_percentage.release_value().value();
 
-        auto length = SVGLength::create(realm(), SVGLength::SVG_LENGTHTYPE_NUMBER, value, SVGLength::ReadOnly::Yes);
+        auto length = SVGLength::create_detached(realm(), CSS::NumberStyleValue::create(value), SVGLength::ReadOnly::Yes);
         auto length_list = SVGLengthList::create(realm(), { length }, ReadOnlyList::Yes);
         list = SVGAnimatedLengthList::create(realm(), length_list);
     }

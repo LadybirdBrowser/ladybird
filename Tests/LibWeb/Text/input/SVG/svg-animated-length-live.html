@@ -1,0 +1,54 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const svgNamespace = "http://www.w3.org/2000/svg";
+        const viewport = document.createElementNS(svgNamespace, "svg");
+        viewport.setAttribute("viewBox", "0 0 100 100");
+        document.body.appendChild(viewport);
+
+        const rect = document.createElementNS(svgNamespace, "rect");
+        viewport.appendChild(rect);
+        const animatedLength = rect.x;
+        const baseValue = animatedLength.baseVal;
+        const animatedValue = animatedLength.animVal;
+
+        rect.setAttribute("x", "25%");
+
+        if (baseValue.unitType !== SVGLength.SVG_LENGTHTYPE_PERCENTAGE || baseValue.value !== 25)
+            throw new Error("baseVal did not reflect the current x attribute");
+        if (animatedValue.unitType !== SVGLength.SVG_LENGTHTYPE_PERCENTAGE || animatedValue.value !== 25)
+            throw new Error("animVal did not reflect the current x attribute");
+        if (animatedLength.baseVal !== baseValue || animatedLength.animVal !== animatedValue)
+            throw new Error("baseVal and animVal did not return the same SVGLength objects");
+
+        rect.removeAttribute("x");
+
+        if (baseValue.unitType !== SVGLength.SVG_LENGTHTYPE_NUMBER || baseValue.value !== 0)
+            throw new Error("baseVal did not reflect removal of the x attribute");
+        if (animatedValue.unitType !== SVGLength.SVG_LENGTHTYPE_NUMBER || animatedValue.value !== 0)
+            throw new Error("animVal did not reflect removal of the x attribute");
+
+        const svg = document.createElementNS(svgNamespace, "svg");
+        viewport.appendChild(svg);
+        const width = svg.width;
+        svg.setAttribute("width", "10px");
+        if (
+            width.baseVal.unitType !== SVGLength.SVG_LENGTHTYPE_PX ||
+            width.baseVal.value !== 10 ||
+            width.animVal.unitType !== SVGLength.SVG_LENGTHTYPE_PX ||
+            width.animVal.value !== 10
+        )
+            throw new Error("width did not reflect the current attribute");
+        svg.removeAttribute("width");
+        if (
+            width.baseVal.unitType !== SVGLength.SVG_LENGTHTYPE_PERCENTAGE ||
+            width.baseVal.value !== 100 ||
+            width.animVal.unitType !== SVGLength.SVG_LENGTHTYPE_PERCENTAGE ||
+            width.animVal.value !== 100
+        )
+            throw new Error("width did not return to its default value after removing the attribute");
+
+        println("PASS");
+    });
+</script>
