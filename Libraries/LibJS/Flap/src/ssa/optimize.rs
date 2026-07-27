@@ -1004,7 +1004,7 @@ fn escapes_through_a_guard(
 }
 
 fn instruction_is_globally_movable(instruction: &super::Instruction) -> bool {
-    instruction.effects == Effects::PURE
+    instruction.base_effects == Effects::PURE
         && !instruction.results.is_empty()
         && match &instruction.operation {
             Operation::Address => true,
@@ -1411,6 +1411,48 @@ mod tests {
 
         assert!(function.blocks[entry.0].instructions.is_empty());
         assert_eq!(function.blocks[cold.0].instructions, vec![computation, consume]);
+        function.validate().unwrap();
+    }
+
+    #[test]
+    fn global_code_motion_sinks_pure_work_derived_from_a_read() {
+        let mut function = Function::new("sink-derived", vec![Type::Bool, Type::Operand], Vec::new());
+        let entry = function.entry;
+        let cold = function.create_empty_block("cold", BlockLayout::Cold);
+        let hot = function.create_empty_block("hot", BlockLayout::Hot);
+        let loaded = function.append_instruction(
+            entry,
+            Intrinsic::Operand(OperandOperation::Load(OperandLoad::Field)),
+            vec![function.parameter(1)],
+            vec![Type::Value],
+        )[0];
+        let tag = function.append_instruction(
+            entry,
+            Intrinsic::Value(ValueOperation::ExtractTag { rematerialized: false }),
+            vec![loaded],
+            vec![Type::ValueTag],
+        )[0];
+        function.append_instruction(
+            cold,
+            Intrinsic::Assertion(AssertionOperation::NonZero),
+            vec![tag],
+            Vec::new(),
+        );
+        function.set_terminator(
+            entry,
+            Terminator::branch_edges(function.parameter(0), Edge::new(cold), Edge::new(hot)),
+        );
+        function.set_terminator(cold, Terminator::Return(Vec::new()));
+        function.set_terminator(hot, Terminator::Return(Vec::new()));
+
+        schedule_global_code_motion(&mut function);
+
+        assert_eq!(function.blocks[entry.0].instructions.len(), 1);
+        assert_eq!(
+            function.instructions[function.blocks[entry.0].instructions[0].0].results[0],
+            loaded
+        );
+        assert_eq!(function.blocks[cold.0].instructions.len(), 2);
         function.validate().unwrap();
     }
 
