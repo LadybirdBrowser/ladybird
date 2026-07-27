@@ -3271,13 +3271,10 @@ asm_handler_Mod:
     lsr x9, x1, #48
     cmp x9, x22
     b.ne .Lasm_Mod.ssa_block_1
-    sxtw x2, w1
-    cbz w2, .Lasm_Mod.ssa_block_1
-    sxtw x3, w0
-    tbnz w3, #31, .Lasm_Mod.ssa_block_1
-    sdiv x9, x3, x2
-    msub x0, x9, x2, x3
-    mov x1, x9
+    cbz w1, .Lasm_Mod.ssa_block_1
+    tbnz w0, #31, .Lasm_Mod.ssa_block_1
+    sdiv w9, w0, w1
+    msub w0, w9, w1, w0
     movk x0, #0x7ffa, lsl #48
     ldr w9, [x21, #4]
     str x0, [x27, x9, lsl #3]

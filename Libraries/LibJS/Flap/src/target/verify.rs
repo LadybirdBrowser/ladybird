@@ -325,12 +325,11 @@ mod tests {
     fn rejects_explicit_scratch_aliases() {
         let error = verify_instruction_for_architecture(
             Instruction {
-                opcode: Operation::DivMod,
+                opcode: Operation::Modulo,
                 operands: vec![
                     Operand::PhysicalRegister(aarch64::X1),
                     Operand::PhysicalRegister(aarch64::X2),
                     Operand::PhysicalRegister(aarch64::X3),
-                    Operand::PhysicalRegister(aarch64::X4),
                     Operand::PhysicalRegister(aarch64::X3),
                 ],
             },
@@ -338,7 +337,7 @@ mod tests {
         )
         .unwrap_err();
 
-        assert!(error.message.contains("scratch operand 4"));
+        assert!(error.message.contains("scratch operand 3"));
         assert!(error.message.contains("aliases another operand"));
 
         let error = verify_instruction_for_architecture(
@@ -440,14 +439,14 @@ mod tests {
         );
         assert_invalid_arity(
             Architecture::Aarch64,
-            Operation::DivMod,
-            [aarch64::X1, aarch64::X2, aarch64::X3, aarch64::X4]
+            Operation::Modulo,
+            [aarch64::X1, aarch64::X2, aarch64::X3]
                 .map(Operand::PhysicalRegister)
                 .into(),
         );
         assert_invalid_arity(
             Architecture::X86_64,
-            Operation::DivMod,
+            Operation::Modulo,
             vec![
                 Operand::PhysicalRegister(x86_64::RAX),
                 Operand::PhysicalRegister(x86_64::RDX),

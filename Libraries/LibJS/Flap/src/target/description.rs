@@ -162,7 +162,7 @@ pub(crate) enum Operation {
     Or32Branch(SignCondition),
     Negate,
     Not(IntegerWidth),
-    DivMod,
+    Modulo,
     Overflow(OverflowOperation),
     ExtractTag,
     UnboxInt32,
@@ -929,10 +929,10 @@ fn lookup_operation(operation: Operation) -> &'static InstructionDescription {
                     .coalesces(&[(0, 1)])
             }
         }
-        Operation::DivMod => {
+        Operation::Modulo => {
             &const {
-                plain(&[GprOut, GprOut, GprIn, GprIn])
-                    .x86_64(spec().outputs(&[RAX, RDX]).fixed(&[(0, RAX), (1, RDX)]))
+                plain(&[GprOut, GprIn, GprIn])
+                    .x86_64(spec().outputs(&[RDX]).fixed(&[(0, RDX)]).scratches(&[RAX]))
                     .aarch64(spec().scratches(&[X9]))
             }
         }
