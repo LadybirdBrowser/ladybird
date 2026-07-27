@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<title>SVGLength.convertToSpecifiedUnits percentage precision</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<link rel="help" href="https://svgwg.org/svg2-draft/types.html#__svg__SVGLength__convertToSpecifiedUnits"/>
+<svg width="0" height="0">
+  <!-- 120px in a 400-wide viewport: 120/400 = 30% exactly -->
+  <svg id="vp1" width="400" height="400">
+    <rect id="r1" width="120" height="120"/>
+  </svg>
+  <!-- 180px in a 600-wide viewport: 180/600 = 30% exactly -->
+  <svg id="vp2" width="600" height="400">
+    <rect id="r2" width="180" height="120"/>
+  </svg>
+  <!-- 120px in a 700-wide viewport: 120/700 = 17.142857...% -->
+  <svg id="vp3" width="700" height="400">
+    <rect id="r3" width="120" height="120"/>
+  </svg>
+</svg>
+<script>
+const SVG_LENGTHTYPE_PERCENTAGE = SVGLength.SVG_LENGTHTYPE_PERCENTAGE;
+
+// 120px width in a 400px viewport should convert to exactly 30%
+// With float arithmetic: 120.0f / 400.0f = 0.3f = 0.300000011...
+//   then * 100 = 30.0000019... (one ULP above 30)
+// With double arithmetic: 120.0 / 400.0 * 100 rounds to exactly 30.0
+let tWidth400 = async_test("convertToSpecifiedUnits: width 120px in 400px viewport = 30%");
+let tWidth400Done = tWidth400.step_func_done(() => {
+  let width = document.getElementById("r1").width.baseVal;
+  assert_equals(width.value, 120, "r1.width starts at 120 user units");
+  width.convertToSpecifiedUnits(SVG_LENGTHTYPE_PERCENTAGE);
+  assert_equals(width.valueInSpecifiedUnits, 30,
+    "120px / 400px viewport = exactly 30%");
+});
+
+// 120px height in a 400px viewport (height dimension)
+let tHeight400 = async_test("convertToSpecifiedUnits: height 120px in 400px viewport = 30%");
+let tHeight400Done = tHeight400.step_func_done(() => {
+  let height = document.getElementById("r1").height.baseVal;
+  assert_equals(height.value, 120, "r1.height starts at 120 user units");
+  height.convertToSpecifiedUnits(SVG_LENGTHTYPE_PERCENTAGE);
+  assert_equals(height.valueInSpecifiedUnits, 30,
+    "120px / 400px viewport height = exactly 30%");
+});
+
+// 180px in a 600px viewport: 180/600 = 0.3, same float rounding trap
+let tWidth600 = async_test("convertToSpecifiedUnits: width 180px in 600px viewport = 30%");
+let tWidth600Done = tWidth600.step_func_done(() => {
+  let width = document.getElementById("r2").width.baseVal;
+  assert_equals(width.value, 180, "r2.width starts at 180 user units");
+  width.convertToSpecifiedUnits(SVG_LENGTHTYPE_PERCENTAGE);
+  assert_equals(width.valueInSpecifiedUnits, 30,
+    "180px / 600px viewport = exactly 30%");
+});
+
+// 120px in a 700px viewport: 120/700 is not exactly representable
+// in any precision, but double gives a much closer result.
+// float:  120.0f / 700.0f * 100 = 17.142858505249023...
+// double: 120.0  / 700.0  * 100 = 17.142857142857142...
+let tWidth700 = async_test("convertToSpecifiedUnits: 120px in 700px viewport (irrational %)");
+let tWidth700Done = tWidth700.step_func_done(() => {
+  let width = document.getElementById("r3").width.baseVal;
+  assert_equals(width.value, 120, "r3.width starts at 120 user units");
+  width.convertToSpecifiedUnits(SVG_LENGTHTYPE_PERCENTAGE);
+  let result = width.valueInSpecifiedUnits;
+  // With double precision the result should be closer to the exact value
+  assert_approx_equals(result, 120 / 700 * 100, 1e-6,
+    "120px / 700px viewport should be close to 17.142857...");
+});
+
+const main = () => {
+  window.requestAnimationFrame(() => {
+    tWidth400Done();
+    tHeight400Done();
+    tWidth600Done();
+    tWidth700Done();
+  });
+};
+
+if (document.readyState === "complete") {
+  main();
+} else {
+  window.addEventListener("load", main);
+}
+</script>

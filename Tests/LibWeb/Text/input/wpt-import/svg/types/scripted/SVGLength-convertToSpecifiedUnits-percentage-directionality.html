@@ -1,0 +1,120 @@
+<!DOCTYPE HTML>
+<title>SVGLength, percentage conversion with different directionalities</title>
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/single-page.html#types-__svg__SVGLength__convertToSpecifiedUnits">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<p></p>
+<script>
+// Step 5 of the spec algorithm defines the "viewport size" basis for
+// percentage conversion based on the SVGLength's directionality:
+//   - horizontal → width of SVG viewport
+//   - vertical → height of SVG viewport
+//   - unspecified → diagonal / sqrt(2)
+// The existing tests only exercise horizontal (rect.x).
+
+setup(function() {
+  // Use a non-square viewport so horizontal and vertical produce
+  // visibly different percentage values.
+  let svgElement = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svgElement.setAttribute("width", "150");
+  svgElement.setAttribute("height", "50");
+  svgElement.setAttribute("viewBox", "0 0 150 50");
+
+  let rectElement = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  svgElement.appendChild(rectElement);
+
+  let circleElement = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  svgElement.appendChild(circleElement);
+
+  document.querySelector("p").appendChild(svgElement);
+
+  window.svgWidth = 150;
+  window.svgHeight = 50;
+  window.xLength = rectElement.x.baseVal;
+  window.yLength = rectElement.y.baseVal;
+  window.widthLength = rectElement.width.baseVal;
+  window.heightLength = rectElement.height.baseVal;
+  window.rLength = circleElement.r.baseVal;
+});
+
+test(function() {
+  // x has horizontal directionality → percentage basis is viewport width (150).
+  xLength.valueAsString = "30px";
+  xLength.convertToSpecifiedUnits(SVGLength.SVG_LENGTHTYPE_PERCENTAGE);
+  let referenceValue = 30 / svgWidth * 100;
+  assert_equals(xLength.valueInSpecifiedUnits, referenceValue);
+  assert_equals(xLength.value, 30);
+  assert_equals(xLength.unitType, SVGLength.SVG_LENGTHTYPE_PERCENTAGE);
+}, document.title + ", horizontal (x)");
+
+test(function() {
+  // y has vertical directionality → percentage basis is viewport height (50).
+  yLength.valueAsString = "10px";
+  yLength.convertToSpecifiedUnits(SVGLength.SVG_LENGTHTYPE_PERCENTAGE);
+  let referenceValue = 10 / svgHeight * 100;
+  assert_equals(yLength.valueInSpecifiedUnits, referenceValue);
+  assert_equals(yLength.value, 10);
+  assert_equals(yLength.unitType, SVGLength.SVG_LENGTHTYPE_PERCENTAGE);
+}, document.title + ", vertical (y)");
+
+test(function() {
+  // width has horizontal directionality → percentage basis is viewport width (150).
+  widthLength.valueAsString = "75px";
+  widthLength.convertToSpecifiedUnits(SVGLength.SVG_LENGTHTYPE_PERCENTAGE);
+  let referenceValue = 75 / svgWidth * 100;
+  assert_equals(widthLength.valueInSpecifiedUnits, referenceValue);
+  assert_equals(widthLength.value, 75);
+  assert_equals(widthLength.unitType, SVGLength.SVG_LENGTHTYPE_PERCENTAGE);
+}, document.title + ", horizontal (width)");
+
+test(function() {
+  // height has vertical directionality → percentage basis is viewport height (50).
+  heightLength.valueAsString = "25px";
+  heightLength.convertToSpecifiedUnits(SVGLength.SVG_LENGTHTYPE_PERCENTAGE);
+  let referenceValue = 25 / svgHeight * 100;
+  assert_equals(heightLength.valueInSpecifiedUnits, referenceValue);
+  assert_equals(heightLength.value, 25);
+  assert_equals(heightLength.unitType, SVGLength.SVG_LENGTHTYPE_PERCENTAGE);
+}, document.title + ", vertical (height)");
+
+test(function() {
+  // r has unspecified directionality → percentage basis is diagonal / sqrt(2).
+  rLength.valueAsString = "10px";
+  rLength.convertToSpecifiedUnits(SVGLength.SVG_LENGTHTYPE_PERCENTAGE);
+  let diagonal = Math.sqrt(svgWidth * svgWidth + svgHeight * svgHeight);
+  let viewportDimension = diagonal / Math.sqrt(2);
+  let referenceValue = 10 / viewportDimension * 100;
+  assert_approx_equals(rLength.valueInSpecifiedUnits, referenceValue, 0.01);
+  assert_approx_equals(rLength.value, 10, 0.01);
+  assert_equals(rLength.unitType, SVGLength.SVG_LENGTHTYPE_PERCENTAGE);
+}, document.title + ", unspecified directionality (circle r)");
+
+test(function() {
+  // Verify that horizontal and vertical produce different percentages
+  // for the same pixel value on a non-square viewport.
+  xLength.valueAsString = "30px";
+  xLength.convertToSpecifiedUnits(SVGLength.SVG_LENGTHTYPE_PERCENTAGE);
+  let xPercent = xLength.valueInSpecifiedUnits;
+
+  yLength.valueAsString = "30px";
+  yLength.convertToSpecifiedUnits(SVGLength.SVG_LENGTHTYPE_PERCENTAGE);
+  let yPercent = yLength.valueInSpecifiedUnits;
+
+  // 30/150*100 = 20% vs 30/50*100 = 60%
+  assert_approx_equals(xPercent, 20, 0.001);
+  assert_approx_equals(yPercent, 60, 0.001);
+  assert_not_equals(xPercent, yPercent);
+}, document.title + ", horizontal vs vertical produce different percentages");
+
+test(function() {
+  // Verify that percentage round-trips correctly for vertical directionality.
+  // Convert 10px to percentage, then read value back as user units.
+  yLength.valueAsString = "10px";
+  yLength.convertToSpecifiedUnits(SVGLength.SVG_LENGTHTYPE_PERCENTAGE);
+  assert_equals(yLength.value, 10);
+  // Convert back to px.
+  yLength.convertToSpecifiedUnits(SVGLength.SVG_LENGTHTYPE_PX);
+  assert_equals(yLength.value, 10);
+  assert_equals(yLength.unitType, SVGLength.SVG_LENGTHTYPE_PX);
+}, document.title + ", vertical percentage round-trip");
+</script>

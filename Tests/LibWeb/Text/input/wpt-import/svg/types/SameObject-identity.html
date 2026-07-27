@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>SVG2 [SameObject] identity is honored at runtime</title>
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/">
+<link rel="help" href="https://webidl.spec.whatwg.org/#SameObject">
+<!--
+  Regression guard: for every SVG2 [SameObject] attribute, reading it twice must
+  return the same object. idlharness only checks that [SameObject] is DECLARED;
+  it does not exercise the runtime identity, so this test fills that gap.
+
+  Excluded: SVGUseElement.instanceRoot / animatedInstanceRoot — unimplemented in
+  all engines, proposed for removal in w3c/svgwg#852.
+
+  Note on SVGTransform.matrix: the [SameObject] guarantee is per-SVGTransform, so
+  the test holds ONE SVGTransform and reads .matrix twice. (SVGTransformList.getItem
+  is NOT required to return the same wrapper, so re-fetching the item would test the
+  wrong thing.)
+-->
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<svg id="root" xmlns="http://www.w3.org/2000/svg" width="0" height="0"
+     viewBox="0 0 10 10" style="position:absolute">
+  <defs>
+    <linearGradient id="lg" gradientTransform="translate(1)"/>
+    <radialGradient id="rg"/>
+    <pattern id="pat" patternTransform="translate(1)"/>
+    <marker id="mk" orient="45"/>
+  </defs>
+  <rect id="rect" transform="translate(1)" class="c" requiredExtensions="x" systemLanguage="en"/>
+  <circle id="circle"/>
+  <ellipse id="ellipse"/>
+  <line id="line"/>
+  <polygon id="poly" points="0,0 1,1"/>
+  <path id="path" pathLength="10"/>
+  <text id="text" x="0" y="0" dx="0" dy="0" rotate="0" textLength="5">
+    <textPath id="tp" href="#path">abc</textPath>
+  </text>
+  <stop id="stop" offset="0.5"/>
+  <use id="use" href="#rect"/>
+  <a id="anchor" href="#x" target="_blank">a</a>
+</svg>
+<script>
+const $ = id => document.getElementById(id);
+
+// One subtest per attribute: reading twice must yield the identical object.
+function identity(name, get) {
+  test(() => { assert_equals(get(), get()); }, name);
+}
+// element[prop], with an optional sub-path (.baseVal / .animVal).
+function attr(elId, prop, sub) {
+  return () => { const v = $(elId)[prop]; return sub ? v[sub] : v; };
+}
+
+// --- SVGAnimatedLength (geometry) ---
+[["rect","x"],["rect","y"],["rect","width"],["rect","height"],["rect","rx"],["rect","ry"],
+ ["circle","cx"],["circle","cy"],["circle","r"],
+ ["ellipse","cx"],["ellipse","cy"],["ellipse","rx"],["ellipse","ry"],
+ ["line","x1"],["line","y1"],["line","x2"],["line","y2"],
+ ["mk","refX"],["mk","refY"],["mk","markerWidth"],["mk","markerHeight"],
+ ["pat","x"],["pat","y"],["pat","width"],["pat","height"],
+ ["lg","x1"],["lg","y1"],["lg","x2"],["lg","y2"],
+ ["rg","cx"],["rg","cy"],["rg","r"],["rg","fx"],["rg","fy"],["rg","fr"],
+ ["tp","startOffset"],["text","textLength"]
+].forEach(([e,p]) => identity(`SVGAnimatedLength: ${e}.${p}`, attr(e,p)));
+
+// --- SVGAnimatedLength .baseVal (SVGLength) / .animVal ---
+identity("SVGAnimatedLength.baseVal: rect.x.baseVal", attr("rect","x","baseVal"));
+identity("SVGAnimatedLength.animVal: rect.x.animVal", attr("rect","x","animVal"));
+identity("SVGAnimatedLength.baseVal: circle.r.baseVal", attr("circle","r","baseVal"));
+
+// --- SVGAnimatedLengthList (text positioning) + baseVal/animVal ---
+["x","y","dx","dy"].forEach(p =>
+  identity(`SVGAnimatedLengthList: text.${p}`, attr("text",p)));
+identity("SVGAnimatedLengthList.baseVal: text.x.baseVal", attr("text","x","baseVal"));
+identity("SVGAnimatedLengthList.animVal: text.x.animVal", attr("text","x","animVal"));
+
+// --- SVGAnimatedNumber / SVGAnimatedNumberList ---
+identity("SVGAnimatedNumber: path.pathLength", attr("path","pathLength"));
+identity("SVGAnimatedNumber: stop.offset", attr("stop","offset"));
+identity("SVGAnimatedNumberList: text.rotate", attr("text","rotate"));
+identity("SVGAnimatedNumberList.baseVal: text.rotate.baseVal", attr("text","rotate","baseVal"));
+
+// --- SVGAnimatedEnumeration ---
+[["lg","gradientUnits"],["lg","spreadMethod"],["rg","gradientUnits"],
+ ["pat","patternUnits"],["pat","patternContentUnits"],
+ ["mk","markerUnits"],["mk","orientType"],
+ ["tp","method"],["tp","spacing"],["text","lengthAdjust"]
+].forEach(([e,p]) => identity(`SVGAnimatedEnumeration: ${e}.${p}`, attr(e,p)));
+
+// --- SVGAnimatedAngle (+ baseVal SVGAngle) ---
+identity("SVGAnimatedAngle: mk.orientAngle", attr("mk","orientAngle"));
+identity("SVGAnimatedAngle.baseVal: mk.orientAngle.baseVal", attr("mk","orientAngle","baseVal"));
+
+// --- SVGAnimatedTransformList (+ baseVal SVGTransformList) ---
+identity("SVGAnimatedTransformList: rect.transform", attr("rect","transform"));
+identity("SVGAnimatedTransformList.baseVal: rect.transform.baseVal", attr("rect","transform","baseVal"));
+identity("SVGAnimatedTransformList: pat.patternTransform", attr("pat","patternTransform"));
+identity("SVGAnimatedTransformList: lg.gradientTransform", attr("lg","gradientTransform"));
+
+// --- SVGTransform.matrix (DOMMatrix) — held transform, read twice ---
+const heldXf = $("rect").transform.baseVal.getItem(0);
+identity("SVGTransform.matrix (held transform)", () => heldXf.matrix);
+
+// --- SVGAnimatedString ---
+identity("SVGAnimatedString: use.href", attr("use","href"));
+identity("SVGAnimatedString: rect.className", attr("rect","className"));
+identity("SVGAnimatedString: anchor.target", attr("anchor","target"));
+
+// --- SVGAnimatedRect — viewBox (baseVal DOMRect / animVal DOMRectReadOnly) ---
+identity("SVGAnimatedRect: root.viewBox", attr("root","viewBox"));
+identity("SVGAnimatedRect.baseVal (DOMRect): root.viewBox.baseVal", attr("root","viewBox","baseVal"));
+identity("SVGAnimatedRect.animVal (DOMRectReadOnly): root.viewBox.animVal", attr("root","viewBox","animVal"));
+
+// --- SVGAnimatedPreserveAspectRatio (+ baseVal) ---
+identity("SVGAnimatedPreserveAspectRatio: root.preserveAspectRatio", attr("root","preserveAspectRatio"));
+identity("SVGAnimatedPreserveAspectRatio.baseVal: root.preserveAspectRatio.baseVal", attr("root","preserveAspectRatio","baseVal"));
+
+// --- Live lists ---
+identity("SVGPointList: poly.points", attr("poly","points"));
+identity("SVGPointList: poly.animatedPoints", attr("poly","animatedPoints"));
+identity("SVGStringList: rect.requiredExtensions", attr("rect","requiredExtensions"));
+identity("SVGStringList: rect.systemLanguage", attr("rect","systemLanguage"));
+
+// --- One-off objects ---
+identity("DOMPointReadOnly: root.currentTranslate", attr("root","currentTranslate"));
+identity("DOMTokenList: anchor.relList", attr("anchor","relList"));
+</script>

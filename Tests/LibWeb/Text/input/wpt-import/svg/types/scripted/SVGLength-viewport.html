@@ -1,0 +1,35 @@
+<!DOCTYPE HTML>
+<title>SVGLength with 'viewport' units</title>
+<link rel="help" href="https://www.w3.org/TR/SVG/types.html#InterfaceSVGLength">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<div id="ref"></div>
+<svg>
+  <rect id="rect"/>
+</svg>
+<script>
+  const units = ['vw', 'vh', 'vmin', 'vmax'];
+
+  for (const unit of units) {
+
+    const ref = document.getElementById("ref");
+    ref.style.width=`10${unit}`;
+    const rect = document.getElementById("rect");
+    rect.setAttribute("x", `10${unit}`);
+
+    const ref_width = ref.getBoundingClientRect().width;
+    let length = rect.x.baseVal;
+
+    test(() => {
+      assert_equals(length.unitType, SVGLength.SVG_LENGTHTYPE_UNKNOWN);
+      assert_approx_equals(length.value, ref_width, 0.1);
+    }, `${unit} unit in SVGLength`);
+
+    test(() => {
+      const old_value = length.value
+      length.value = ref_width * 2;
+      assert_approx_equals(length.valueInSpecifiedUnits, 20, 0.2);
+      length.value = old_value;
+    }, `Convert back to ${unit} from new user unit value`);
+  }
+</script>

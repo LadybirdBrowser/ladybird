@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>SVG radialGradient fx and fy default to 50%</title>
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/pservers.html#RadialGradientElementFXAttribute">
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/pservers.html#RadialGradientElementFYAttribute">
+<link rel="author" title="Karl Dubost" href="https://otsukare.info/">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+</head>
+<body>
+<script>
+'use strict';
+
+test(function() {
+  const grad = document.createElementNS('http://www.w3.org/2000/svg', 'radialGradient');
+
+  assert_equals(grad.fx.baseVal.valueAsString, '50%', 'fx initial value should be 50%');
+  assert_equals(grad.fy.baseVal.valueAsString, '50%', 'fy initial value should be 50%');
+}, 'radialGradient fx and fy default to 50% when no attributes are set');
+
+test(function() {
+  const grad = document.createElementNS('http://www.w3.org/2000/svg', 'radialGradient');
+
+  // Set cx and cy to different values
+  grad.setAttribute('cx', '30%');
+  grad.setAttribute('cy', '40%');
+
+  // fx and fy should remain at 50%, not inherit from cx/cy
+  assert_equals(grad.fx.baseVal.valueAsString, '50%', 'fx should remain 50% when cx is set');
+  assert_equals(grad.fy.baseVal.valueAsString, '50%', 'fy should remain 50% when cy is set');
+}, 'radialGradient fx and fy remain 50% when cx and cy are set to different values');
+
+test(function() {
+  const grad = document.createElementNS('http://www.w3.org/2000/svg', 'radialGradient');
+
+  // Set cx, cy, fx, fy
+  grad.setAttribute('cx', '30%');
+  grad.setAttribute('cy', '40%');
+  grad.setAttribute('fx', '20%');
+  grad.setAttribute('fy', '25%');
+
+  assert_equals(grad.fx.baseVal.valueAsString, '20%', 'fx should be 20% when explicitly set');
+  assert_equals(grad.fy.baseVal.valueAsString, '25%', 'fy should be 25% when explicitly set');
+
+  // Remove fx and fy attributes
+  grad.removeAttribute('fx');
+  grad.removeAttribute('fy');
+
+  // fx and fy should return to 50%, not follow cx/cy
+  assert_equals(grad.fx.baseVal.valueAsString, '50%', 'fx should return to 50% when attribute is removed');
+  assert_equals(grad.fy.baseVal.valueAsString, '50%', 'fy should return to 50% when attribute is removed');
+}, 'radialGradient fx and fy return to 50% when explicitly set then removed');
+
+test(function() {
+  const grad = document.createElementNS('http://www.w3.org/2000/svg', 'radialGradient');
+
+  // Set cx and cy
+  grad.setAttribute('cx', '70%');
+  grad.setAttribute('cy', '80%');
+
+  assert_equals(grad.fx.baseVal.valueAsString, '50%', 'fx should be 50%');
+  assert_equals(grad.fy.baseVal.valueAsString, '50%', 'fy should be 50%');
+
+  // Change cx and cy
+  grad.setAttribute('cx', '10%');
+  grad.setAttribute('cy', '20%');
+
+  // fx and fy should still be 50%
+  assert_equals(grad.fx.baseVal.valueAsString, '50%', 'fx should remain 50% when cx changes');
+  assert_equals(grad.fy.baseVal.valueAsString, '50%', 'fy should remain 50% when cy changes');
+}, 'radialGradient fx and fy do not follow cx and cy changes');
+
+test(function() {
+  const grad = document.createElementNS('http://www.w3.org/2000/svg', 'radialGradient');
+
+  // Set fx and fy explicitly
+  grad.setAttribute('fx', '25%');
+  grad.setAttribute('fy', '35%');
+
+  assert_equals(grad.fx.baseVal.valueAsString, '25%', 'fx should be 25%');
+  assert_equals(grad.fy.baseVal.valueAsString, '35%', 'fy should be 35%');
+
+  // Set cx and cy
+  grad.setAttribute('cx', '60%');
+  grad.setAttribute('cy', '70%');
+
+  // fx and fy should remain at their explicit values
+  assert_equals(grad.fx.baseVal.valueAsString, '25%', 'fx should remain 25% when cx is set');
+  assert_equals(grad.fy.baseVal.valueAsString, '35%', 'fy should remain 35% when cy is set');
+}, 'radialGradient explicit fx and fy are independent of cx and cy');
+
+test(function() {
+  const grad = document.createElementNS('http://www.w3.org/2000/svg', 'radialGradient');
+
+  // Set invalid values for fx and fy
+  grad.setAttribute('fx', 'invalid');
+  grad.setAttribute('fy', 'invalid');
+
+  // Should fall back to default of 50%
+  assert_equals(grad.fx.baseVal.valueAsString, '50%', 'fx should fall back to 50% when invalid');
+  assert_equals(grad.fy.baseVal.valueAsString, '50%', 'fy should fall back to 50% when invalid');
+}, 'radialGradient fx and fy fall back to 50% with invalid values');
+
+test(function() {
+  const grad = document.createElementNS('http://www.w3.org/2000/svg', 'radialGradient');
+
+  // Set cx and cy to invalid values
+  grad.setAttribute('cx', 'invalid');
+  grad.setAttribute('cy', 'invalid');
+
+  // fx and fy should still be 50%
+  assert_equals(grad.fx.baseVal.valueAsString, '50%', 'fx should be 50% when cx is invalid');
+  assert_equals(grad.fy.baseVal.valueAsString, '50%', 'fy should be 50% when cy is invalid');
+}, 'radialGradient fx and fy are 50% when cx and cy are invalid');
+
+</script>
+</body>
+</html>

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<title>baseVal in symbol and other display:none</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/types.html#InterfaceSVGAnimatedLength"/>
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/types.html#__svg__SVGAnimatedLength__baseVal"/>
+<svg width="0" height="0">
+  <svg width="600" height="400" font-size="5">
+    <symbol width="40em" height="20em">
+      <g font-size="10px">
+        <rect id="r1" x="5em" y="6em" width="20%" height="30%" />
+        <circle id="c1" cx="5em" cy="6em" r="10em" />
+      </g>
+    </symbol>
+    <g font-size="10px" style="display:none">
+      <rect id="r2" x="5em" y="6em" width="20%" height="30%" />
+      <circle id="c2" cx="5em" cy="6em" r="10em" />
+    </g>
+  </svg>
+  <!-- Viewport with swapped dimensions to trigger float rounding on width too -->
+  <svg width="400" height="600" font-size="5">
+    <g font-size="10px">
+      <rect id="r3" x="5em" y="6em" width="30%" height="20%" />
+    </g>
+    <g font-size="10px" style="display:none">
+      <rect id="r4" x="5em" y="6em" width="30%" height="20%" />
+    </g>
+  </svg>
+</svg>
+<script>
+  let r1 = document.getElementById("r1"),
+      c1 = document.getElementById("c1"),
+      r2 = document.getElementById("r2"),
+      c2 = document.getElementById("c2"),
+      r3 = document.getElementById("r3"),
+      r4 = document.getElementById("r4");
+
+  const assertBaseVal = (length, expected, info) => {
+    assert_equals(length.baseVal.value, expected, info);
+  };
+
+  let tEm = async_test("With em");
+  let tEmDone = tEm.step_func_done(() => {
+    assertBaseVal(r1.x, 50, "r1.x");
+    assertBaseVal(r1.y, 60, "r1.y");
+    assertBaseVal(c1.cx, 50, "c1.cx");
+    assertBaseVal(c1.cy, 60, "c1.cy");
+    assertBaseVal(c1.r, 100, "c1.r");
+
+    assertBaseVal(r2.x, 50, "r2.x");
+    assertBaseVal(r2.y, 60, "r2.y");
+    assertBaseVal(c2.cx, 50, "c2.cx");
+    assertBaseVal(c2.cy, 60, "c2.cy");
+    assertBaseVal(c2.r, 100, "c2.r");
+  });
+
+  let tEmPercentage = async_test("With em and percentage");
+  let tEmPercentageDone = tEmPercentage.step_func_done(() => {
+    assertBaseVal(r1.width, 120, "r1.width");
+    assertBaseVal(r1.height, 120, "r1.height");
+
+    assertBaseVal(r2.width, 120, "r2.width");
+    assertBaseVal(r2.height, 120, "r2.height");
+  });
+
+  let tWidthRounding = async_test("Width with 30% of 400 viewport (float rounding)");
+  let tWidthRoundingDone = tWidthRounding.step_func_done(() => {
+    // 30% of 400 = 120, but float(0.3) * 400 = 120.00000762939453 if precision is lost
+    assertBaseVal(r3.width, 120, "r3.width (30% of 400)");
+    assertBaseVal(r3.height, 120, "r3.height (20% of 600)");
+
+    assertBaseVal(r4.width, 120, "r4.width (30% of 400, display:none)");
+    assertBaseVal(r4.height, 120, "r4.height (20% of 600, display:none)");
+  });
+
+  const main = () => {
+    window.requestAnimationFrame(() => {
+      tEmDone();
+      tEmPercentageDone();
+      tWidthRoundingDone();
+    });
+  };
+
+  if (document.readyState === "complete") {
+    main();
+  } else {
+    window.addEventListener("load", main);
+  }
+</script>

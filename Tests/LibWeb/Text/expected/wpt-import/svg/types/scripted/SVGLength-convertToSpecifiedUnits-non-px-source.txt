@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Fail
+Fail	SVGLength, convertToSpecifiedUnits from non-px source units, cm to in
+Fail	SVGLength, convertToSpecifiedUnits from non-px source units, in to pt
+Fail	SVGLength, convertToSpecifiedUnits from non-px source units, em to unitless
+Fail	SVGLength, convertToSpecifiedUnits from non-px source units, em to cm
+Fail	SVGLength, convertToSpecifiedUnits from non-px source units, percentage to in
+Fail	SVGLength, convertToSpecifiedUnits from non-px source units, pt to mm
+Fail	SVGLength, convertToSpecifiedUnits from non-px source units, mm to pc

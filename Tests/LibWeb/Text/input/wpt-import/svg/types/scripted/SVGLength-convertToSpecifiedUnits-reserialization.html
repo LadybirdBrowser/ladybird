@@ -1,0 +1,96 @@
+<!DOCTYPE HTML>
+<title>SVGLength, convertToSpecifiedUnits reserialization of reflected attribute</title>
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/single-page.html#types-__svg__SVGLength__convertToSpecifiedUnits">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<p></p>
+<script>
+// Step 8 of the spec algorithm: "If the SVGLength reflects the base value
+// of a reflected attribute or reflects an element of the base value of a
+// reflected attribute, then reserialize the reflected attribute."
+// This means getAttribute() must return the new unit after conversion.
+
+const cssPixelsPerInch = 96;
+
+setup(function() {
+  let svgElement = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svgElement.setAttribute("width", "200");
+  svgElement.setAttribute("height", "100");
+  svgElement.setAttribute("viewBox", "0 0 200 100");
+  let rectElement = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  svgElement.appendChild(rectElement);
+  document.querySelector("p").appendChild(svgElement);
+
+  window.svgElement = svgElement;
+  window.rectElement = rectElement;
+});
+
+test(function() {
+  rectElement.setAttribute("x", "48");
+  let length = rectElement.x.baseVal;
+  length.convertToSpecifiedUnits(SVGLength.SVG_LENGTHTYPE_CM);
+  let attr = rectElement.getAttribute("x");
+  let referenceValue = 48 * 2.54 / cssPixelsPerInch;
+  assert_regexp_match(attr, /cm$/);
+  assert_approx_equals(parseFloat(attr), referenceValue, 0.01);
+}, document.title + ", px to cm");
+
+test(function() {
+  rectElement.setAttribute("x", "96");
+  let length = rectElement.x.baseVal;
+  length.convertToSpecifiedUnits(SVGLength.SVG_LENGTHTYPE_IN);
+  let attr = rectElement.getAttribute("x");
+  assert_equals(attr, "1in");
+}, document.title + ", px to in");
+
+test(function() {
+  rectElement.setAttribute("x", "20");
+  let length = rectElement.x.baseVal;
+  length.convertToSpecifiedUnits(SVGLength.SVG_LENGTHTYPE_PERCENTAGE);
+  let attr = rectElement.getAttribute("x");
+  // 20 / 200 (viewport width) * 100 = 10%
+  assert_regexp_match(attr, /%$/);
+  assert_equals(parseFloat(attr), 10);
+}, document.title + ", px to percentage");
+
+test(function() {
+  rectElement.setAttribute("x", "48");
+  let length = rectElement.x.baseVal;
+  length.convertToSpecifiedUnits(SVGLength.SVG_LENGTHTYPE_NUMBER);
+  let attr = rectElement.getAttribute("x");
+  // NUMBER serializes without a unit suffix.
+  assert_equals(attr, "48");
+}, document.title + ", px to unitless");
+
+test(function() {
+  rectElement.setAttribute("x", "4");
+  let length = rectElement.x.baseVal;
+  length.convertToSpecifiedUnits(SVGLength.SVG_LENGTHTYPE_PT);
+  let attr = rectElement.getAttribute("x");
+  let referenceValue = 4 / cssPixelsPerInch * 72;
+  assert_regexp_match(attr, /pt$/);
+  assert_equals(parseFloat(attr), referenceValue);
+}, document.title + ", px to pt");
+
+test(function() {
+  rectElement.setAttribute("x", "48");
+  let length = rectElement.x.baseVal;
+  length.convertToSpecifiedUnits(SVGLength.SVG_LENGTHTYPE_MM);
+  let attr = rectElement.getAttribute("x");
+  let referenceValue = 48 * 25.4 / cssPixelsPerInch;
+  assert_regexp_match(attr, /mm$/);
+  assert_approx_equals(parseFloat(attr), referenceValue, 0.01);
+}, document.title + ", px to mm");
+
+test(function() {
+  // Verify double conversion is reserialized both times.
+  rectElement.setAttribute("x", "96");
+  let length = rectElement.x.baseVal;
+  length.convertToSpecifiedUnits(SVGLength.SVG_LENGTHTYPE_IN);
+  assert_equals(rectElement.getAttribute("x"), "1in");
+  length.convertToSpecifiedUnits(SVGLength.SVG_LENGTHTYPE_PT);
+  let attr = rectElement.getAttribute("x");
+  assert_regexp_match(attr, /pt$/);
+  assert_equals(parseFloat(attr), 72);
+}, document.title + ", double conversion reserializes both times");
+</script>
