@@ -33,7 +33,7 @@ public:
 
 private:
     bool m_started { false };
-    bool m_pipeline_blocked { false };
+    bool m_data_available { false };
 };
 
 }
