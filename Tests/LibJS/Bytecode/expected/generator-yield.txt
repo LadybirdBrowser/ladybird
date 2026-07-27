@@ -35,13 +35,13 @@ block1:
 block2:
   [  20] Mov dst:reg5, src:reg0
   [  30] GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
-  [  40] JumpStrictlyEquals lhs:reg6, rhs:Int32(1), true_target:block3, false_target:block4
+  [  40] JumpStrictlyEqualsRhsInt32 lhs:reg6, rhs:1, true_target:block3, false_target:block4
 
 block3:
   [  58] Yield continuation_label:block7, value:Int32(2)
 
 block4:
-  [  68] JumpStrictlyEquals lhs:reg6, rhs:Int32(5), true_target:block5, false_target:block6
+  [  68] JumpStrictlyEqualsRhsInt32 lhs:reg6, rhs:5, true_target:block5, false_target:block6
 
 block5:
   [  80] Throw src:reg7
@@ -52,13 +52,13 @@ block6:
 block7:
   [  98] Mov dst:reg7, src:reg0
   [  a8] GetCompletionFields type_dst:reg5, value_dst:reg6, completion:reg7
-  [  b8] JumpStrictlyEquals lhs:reg5, rhs:Int32(1), true_target:block8, false_target:block9
+  [  b8] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:1, true_target:block8, false_target:block9
 
 block8:
   [  d0] Yield value:Undefined
 
 block9:
-  [  e0] JumpStrictlyEquals lhs:reg5, rhs:Int32(5), true_target:block10, false_target:block11
+  [  e0] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:5, true_target:block10, false_target:block11
 
 block10:
   [  f8] Throw src:reg6

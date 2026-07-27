@@ -4,6 +4,10 @@ function comparison_results(value) {
         value <= 2,
         value > 2,
         value >= 2,
+        value === 2,
+        value !== 2,
+        value == 2,
+        value != 2,
     ];
 }
 
@@ -17,6 +21,14 @@ function comparison_jumps(value) {
         result += 4;
     if (value >= 2)
         result += 8;
+    if (value === 2)
+        result += 16;
+    if (value !== 2)
+        result += 32;
+    if (value == 2)
+        result += 64;
+    if (value != 2)
+        result += 128;
     return result;
 }
 

@@ -56,10 +56,10 @@ block6:
   [  80] Mov dst:reg8, src:result~1
   [  90] AddRhsInt32 dst:reg7, lhs:reg8, rhs:10
   [  a0] Mov dst:result~1, src:reg7
-  [  b0] JumpStrictlyEquals lhs:reg5, rhs:Int32(0), true_target:block10, false_target:block11
+  [  b0] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:0, true_target:block10, false_target:block11
 
 block7:
-  [  c8] JumpStrictlyEquals lhs:i~0, rhs:Int32(1), true_target:block8, false_target:block9
+  [  c8] JumpStrictlyEqualsRhsInt32 lhs:i~0, rhs:1, true_target:block8, false_target:block9
 
 block8:
   [  e0] Mov dst:reg5, src:Int32(3)
@@ -75,10 +75,10 @@ block10:
   [ 138] Jump target:block2
 
 block11:
-  [ 140] JumpStrictlyEquals lhs:reg5, rhs:Int32(3), true_target:block2, false_target:block12
+  [ 140] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:3, true_target:block2, false_target:block12
 
 block12:
-  [ 158] JumpStrictlyEquals lhs:reg5, rhs:Int32(2), true_target:block13, false_target:block14
+  [ 158] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:2, true_target:block13, false_target:block14
 
 block13:
   [ 170] Return value:reg6
@@ -129,10 +129,10 @@ block6:
   [  80] Mov dst:reg8, src:result~1
   [  90] AddRhsInt32 dst:reg7, lhs:reg8, rhs:100
   [  a0] Mov dst:result~1, src:reg7
-  [  b0] JumpStrictlyEquals lhs:reg5, rhs:Int32(0), true_target:block10, false_target:block11
+  [  b0] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:0, true_target:block10, false_target:block11
 
 block7:
-  [  c8] JumpStrictlyEquals lhs:i~0, rhs:Int32(2), true_target:block8, false_target:block9
+  [  c8] JumpStrictlyEqualsRhsInt32 lhs:i~0, rhs:2, true_target:block8, false_target:block9
 
 block8:
   [  e0] Mov dst:reg5, src:Int32(3)
@@ -148,10 +148,10 @@ block10:
   [ 138] Jump target:block2
 
 block11:
-  [ 140] JumpStrictlyEquals lhs:reg5, rhs:Int32(3), true_target:block4, false_target:block12
+  [ 140] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:3, true_target:block4, false_target:block12
 
 block12:
-  [ 158] JumpStrictlyEquals lhs:reg5, rhs:Int32(2), true_target:block13, false_target:block14
+  [ 158] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:2, true_target:block13, false_target:block14
 
 block13:
   [ 170] Return value:reg6

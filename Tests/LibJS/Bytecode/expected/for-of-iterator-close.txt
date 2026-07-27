@@ -44,11 +44,11 @@ block3:
   [  90] Mov dst:reg5, src:Int32(1)
 
 block4:
-  [  a0] JumpStrictlyEquals lhs:reg5, rhs:Int32(1), true_target:block8, false_target:block9
+  [  a0] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:1, true_target:block8, false_target:block9
 
 block5:
   [  b8] Mov dst:x~0, src:reg10
-  [  c8] JumpStrictlyEquals lhs:x~0, rhs:Int32(2), true_target:block6, false_target:block7
+  [  c8] JumpStrictlyEqualsRhsInt32 lhs:x~0, rhs:2, true_target:block6, false_target:block7
 
 block6:
   [  e0] Mov dst:reg5, src:Int32(3)
@@ -63,10 +63,10 @@ block8:
 
 block9:
   [ 120] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:Undefined
-  [ 138] JumpStrictlyEquals lhs:reg5, rhs:Int32(3), true_target:block1, false_target:block10
+  [ 138] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:3, true_target:block1, false_target:block10
 
 block10:
-  [ 150] JumpStrictlyEquals lhs:reg5, rhs:Int32(2), true_target:block11, false_target:block12
+  [ 150] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:2, true_target:block11, false_target:block12
 
 block11:
   [ 168] Return value:reg9
@@ -106,7 +106,7 @@ block3:
   [  90] Mov dst:reg5, src:Int32(1)
 
 block4:
-  [  a0] JumpStrictlyEquals lhs:reg5, rhs:Int32(1), true_target:block6, false_target:block7
+  [  a0] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:1, true_target:block6, false_target:block7
 
 block5:
   [  b8] Mov3 c0_dst:x~0, c0_src:reg10, c1_dst:reg9, c1_src:x~0, c2_dst:reg5, c2_src:Int32(2)
@@ -118,7 +118,7 @@ block6:
 
 block7:
   [ 100] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:Undefined
-  [ 118] JumpStrictlyEquals lhs:reg5, rhs:Int32(2), true_target:block8, false_target:block9
+  [ 118] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:2, true_target:block8, false_target:block9
 
 block8:
   [ 130] Return value:reg9
@@ -162,12 +162,12 @@ block4:
   [  90] Mov dst:reg8, src:Int32(1)
 
 block5:
-  [  a0] JumpStrictlyEquals lhs:reg8, rhs:Int32(1), true_target:block13, false_target:block14
+  [  a0] JumpStrictlyEqualsRhsInt32 lhs:reg8, rhs:1, true_target:block13, false_target:block14
 
 block6:
   [  b8] Mov dst:reg13, src:reg0
   [  c8] GetCompletionFields type_dst:reg14, value_dst:reg15, completion:reg13
-  [  d8] JumpStrictlyEquals lhs:reg14, rhs:Int32(1), true_target:block7, false_target:block8
+  [  d8] JumpStrictlyEqualsRhsInt32 lhs:reg14, rhs:1, true_target:block7, false_target:block8
 
 block7:
   [  f0] Mov dst:reg12, src:reg15
@@ -183,7 +183,7 @@ block9:
 
 block10:
   [ 150] Mov dst:x~0, src:reg10
-  [ 160] JumpStrictlyEquals lhs:x~0, rhs:Int32(2), true_target:block11, false_target:block12
+  [ 160] JumpStrictlyEqualsRhsInt32 lhs:x~0, rhs:2, true_target:block11, false_target:block12
 
 block11:
   [ 178] Mov dst:reg8, src:Int32(3)
@@ -200,7 +200,7 @@ block14:
   [ 1b0] JumpUndefined condition:reg12, true_target:block15, false_target:block16
 
 block15:
-  [ 1c0] JumpStrictlyEquals lhs:reg8, rhs:Int32(3), true_target:block2, false_target:block20
+  [ 1c0] JumpStrictlyEqualsRhsInt32 lhs:reg8, rhs:3, true_target:block2, false_target:block20
 
 block16:
   [ 1d8] Call dst:reg13, callee:reg12, this_value:reg5
@@ -209,7 +209,7 @@ block16:
 block17:
   [ 208] Mov dst:reg14, src:reg0
   [ 218] GetCompletionFields type_dst:reg15, value_dst:reg16, completion:reg14
-  [ 228] JumpStrictlyEquals lhs:reg15, rhs:Int32(1), true_target:block18, false_target:block19
+  [ 228] JumpStrictlyEqualsRhsInt32 lhs:reg15, rhs:1, true_target:block18, false_target:block19
 
 block18:
   [ 240] ThrowIfNotObject src:reg16
@@ -219,7 +219,7 @@ block19:
   [ 250] Throw src:reg16
 
 block20:
-  [ 258] JumpStrictlyEquals lhs:reg8, rhs:Int32(2), true_target:block21, false_target:block22
+  [ 258] JumpStrictlyEqualsRhsInt32 lhs:reg8, rhs:2, true_target:block21, false_target:block22
 
 block21:
   [ 270] Return value:reg9
@@ -245,7 +245,7 @@ block26:
 block27:
   [ 2e8] Mov dst:reg14, src:reg0
   [ 2f8] GetCompletionFields type_dst:reg15, value_dst:reg16, completion:reg14
-  [ 308] JumpStrictlyEquals lhs:reg15, rhs:Int32(1), true_target:block28, false_target:block29
+  [ 308] JumpStrictlyEqualsRhsInt32 lhs:reg15, rhs:1, true_target:block28, false_target:block29
 
 block28:
   [ 320] Jump target:block23

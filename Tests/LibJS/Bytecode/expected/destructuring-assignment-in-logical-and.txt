@@ -84,10 +84,10 @@ block14:
   [ 1d0] Jump target:block13
 
 block15:
-  [ 1d8] JumpStrictlyEquals lhs:reg11, rhs:Int32(1), true_target:block17, false_target:block18
+  [ 1d8] JumpStrictlyEqualsRhsInt32 lhs:reg11, rhs:1, true_target:block17, false_target:block18
 
 block16:
-  [ 1f0] JumpStrictlyEquals lhs:reg11, rhs:Int32(2), true_target:block19, false_target:block20
+  [ 1f0] JumpStrictlyEqualsRhsInt32 lhs:reg11, rhs:2, true_target:block19, false_target:block20
 
 block17:
   [ 208] IteratorClose iterator_object:reg8, iterator_next:reg9, iterator_done:reg10, completion_value:reg12

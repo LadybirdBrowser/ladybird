@@ -42,7 +42,7 @@ block3:
   [  78] Catch dst:reg9
   [  80] SetLexicalEnvironment environment:reg4
   [  88] Mov dst:reg5, src:Int32(1)
-  [  98] JumpStrictlyEquals lhs:reg5, rhs:Int32(1), true_target:block5, false_target:block6
+  [  98] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:1, true_target:block5, false_target:block6
 
 block4:
   [  b0] ResolveThisBinding
@@ -56,7 +56,7 @@ block5:
 
 block6:
   [ 108] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:Undefined
-  [ 120] JumpStrictlyEquals lhs:reg5, rhs:Int32(2), true_target:block7, false_target:block8
+  [ 120] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:2, true_target:block7, false_target:block8
 
 block7:
   [ 138] Return value:reg9

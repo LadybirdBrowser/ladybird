@@ -30,7 +30,7 @@ block1:
 block2:
   [  30] Mov dst:reg8, src:reg0
   [  40] GetCompletionFields type_dst:reg9, value_dst:reg10, completion:reg8
-  [  50] JumpStrictlyEquals lhs:reg9, rhs:Int32(1), true_target:block3, false_target:block4
+  [  50] JumpStrictlyEqualsRhsInt32 lhs:reg9, rhs:1, true_target:block3, false_target:block4
 
 block3:
   [  68] Await continuation_label:block6, argument:reg10
@@ -41,12 +41,12 @@ block4:
 block5:
   [  80] Mov dst:reg5, src:reg0
   [  90] GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
-  [  a0] JumpStrictlyEquals lhs:reg6, rhs:Int32(1), true_target:block15, false_target:block16
+  [  a0] JumpStrictlyEqualsRhsInt32 lhs:reg6, rhs:1, true_target:block15, false_target:block16
 
 block6:
   [  b8] Mov dst:reg5, src:reg0
   [  c8] GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
-  [  d8] JumpStrictlyEquals lhs:reg6, rhs:Int32(1), true_target:block7, false_target:block8
+  [  d8] JumpStrictlyEqualsRhsInt32 lhs:reg6, rhs:1, true_target:block7, false_target:block8
 
 block7:
   [  f0] Yield continuation_label:block9, value:reg7
@@ -57,7 +57,7 @@ block8:
 block9:
   [ 108] Mov dst:reg5, src:reg0
   [ 118] GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
-  [ 128] JumpStrictlyInequals lhs:reg6, rhs:Int32(4), true_target:block5, false_target:block10
+  [ 128] JumpStrictlyInequalsRhsInt32 lhs:reg6, rhs:4, true_target:block5, false_target:block10
 
 block10:
   [ 140] Await continuation_label:block11, argument:reg7
@@ -65,10 +65,10 @@ block10:
 block11:
   [ 150] Mov dst:reg5, src:reg0
   [ 160] GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
-  [ 170] JumpStrictlyEquals lhs:reg6, rhs:Int32(1), true_target:block12, false_target:block13
+  [ 170] JumpStrictlyEqualsRhsInt32 lhs:reg6, rhs:1, true_target:block12, false_target:block13
 
 block12:
-  [ 188] JumpStrictlyEquals lhs:reg6, rhs:Int32(5), true_target:block5, false_target:block14
+  [ 188] JumpStrictlyEqualsRhsInt32 lhs:reg6, rhs:5, true_target:block5, false_target:block14
 
 block13:
   [ 1a0] Throw src:reg7
@@ -81,7 +81,7 @@ block15:
   [ 1c0] Yield value:Undefined
 
 block16:
-  [ 1d0] JumpStrictlyEquals lhs:reg6, rhs:Int32(5), true_target:block17, false_target:block18
+  [ 1d0] JumpStrictlyEqualsRhsInt32 lhs:reg6, rhs:5, true_target:block17, false_target:block18
 
 block17:
   [ 1e8] Throw src:reg7

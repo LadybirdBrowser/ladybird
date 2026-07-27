@@ -1,4 +1,4 @@
-$876d400b int32-comparison-specializations.js:23:1
+$08de21bf int32-comparison-specializations.js:35:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -13,8 +13,8 @@ block0:
   [  70] End value:reg6
 
 
-comparison_results$bd8304c6 int32-comparison-specializations.js:2:5
-  Registers: 10
+comparison_results$cb56ba16 int32-comparison-specializations.js:2:5
+  Registers: 14
   Blocks:    1
   Constants:
     [0] = Int32(2)
@@ -24,13 +24,17 @@ block0:
   [  10] LessThanEqualsRhsInt32 dst:reg6, lhs:arg0, rhs:2
   [  20] GreaterThanRhsInt32 dst:reg7, lhs:arg0, rhs:2
   [  30] GreaterThanEqualsRhsInt32 dst:reg8, lhs:arg0, rhs:2
-  [  40] NewArray dst:reg9, elements:[reg5, reg6, reg7, reg8]
-  [  60] Return value:reg9
+  [  40] StrictlyEqualsRhsInt32 dst:reg9, lhs:arg0, rhs:2
+  [  50] StrictlyInequalsRhsInt32 dst:reg10, lhs:arg0, rhs:2
+  [  60] LooselyEqualsRhsInt32 dst:reg11, lhs:arg0, rhs:2
+  [  70] LooselyInequalsRhsInt32 dst:reg12, lhs:arg0, rhs:2
+  [  80] NewArray dst:reg13, elements:[reg5, reg6, reg7, reg8, reg9, reg10, reg11, reg12]
+  [  b0] Return value:reg13
 
 
-comparison_jumps$508970cf int32-comparison-specializations.js:11:5
+comparison_jumps$ed0f09b6 int32-comparison-specializations.js:15:5
   Registers: 8
-  Blocks:    9
+  Blocks:    17
   Locals:    result~0
   Constants:
     [0] = Int32(0)
@@ -38,6 +42,10 @@ comparison_jumps$508970cf int32-comparison-specializations.js:11:5
     [2] = Int32(1)
     [3] = Int32(4)
     [4] = Int32(8)
+    [5] = Int32(16)
+    [6] = Int32(32)
+    [7] = Int32(64)
+    [8] = Int32(128)
 
 block0:
   [   0] Mov dst:result~0, src:Int32(0)
@@ -73,4 +81,36 @@ block7:
   [ 120] Mov dst:result~0, src:reg6
 
 block8:
-  [ 130] Return value:result~0
+  [ 130] JumpStrictlyEqualsRhsInt32 lhs:arg0, rhs:2, true_target:block9, false_target:block10
+
+block9:
+  [ 148] Mov dst:reg6, src:result~0
+  [ 158] AddRhsInt32 dst:reg7, lhs:reg6, rhs:16
+  [ 168] Mov dst:result~0, src:reg7
+
+block10:
+  [ 178] JumpStrictlyInequalsRhsInt32 lhs:arg0, rhs:2, true_target:block11, false_target:block12
+
+block11:
+  [ 190] Mov dst:reg7, src:result~0
+  [ 1a0] AddRhsInt32 dst:reg6, lhs:reg7, rhs:32
+  [ 1b0] Mov dst:result~0, src:reg6
+
+block12:
+  [ 1c0] JumpLooselyEqualsRhsInt32 lhs:arg0, rhs:2, true_target:block13, false_target:block14
+
+block13:
+  [ 1d8] Mov dst:reg6, src:result~0
+  [ 1e8] AddRhsInt32 dst:reg7, lhs:reg6, rhs:64
+  [ 1f8] Mov dst:result~0, src:reg7
+
+block14:
+  [ 208] JumpLooselyInequalsRhsInt32 lhs:arg0, rhs:2, true_target:block15, false_target:block16
+
+block15:
+  [ 220] Mov dst:reg7, src:result~0
+  [ 230] AddRhsInt32 dst:reg6, lhs:reg7, rhs:128
+  [ 240] Mov dst:result~0, src:reg6
+
+block16:
+  [ 250] Return value:result~0

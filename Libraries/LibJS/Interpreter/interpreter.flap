@@ -534,8 +534,9 @@ inline fn strict_equality(
     not_equal: Label,
     else slow: Label
 ) {
-    let lhs_tag = extract_tag(lhs);
     let rhs_tag = extract_tag(rhs);
+    branch_eq(rhs_tag, INT32_TAG, rhs_i32);
+    let lhs_tag = extract_tag(lhs);
     guard lhs_tag == rhs_tag else different_tags;
     equality_same_tag(lhs, rhs, lhs_tag, equal, not_equal, compare_f64) else slow;
 
@@ -547,7 +548,6 @@ inline fn strict_equality(
 
     let different_tags = || {
         branch_eq(lhs_tag, INT32_TAG, lhs_i32);
-        branch_eq(rhs_tag, INT32_TAG, rhs_i32);
         check_tag_is_double(lhs_tag) else not_equal;
         check_tag_is_double(rhs_tag) else not_equal;
         goto compare_f64;
@@ -563,12 +563,17 @@ inline fn strict_equality(
     };
 
     let rhs_i32 = || {
-        check_tag_is_double(lhs_tag) else not_equal;
-        let lhs_number = unbox_f64(lhs);
-        let integer = unbox_i32(rhs);
-        let rhs_number = to_f64(integer);
-        branch_fp_equal(lhs_number, rhs_number, equal);
-        goto not_equal;
+        let rhs_integer = unbox_i32(rhs);
+        match lhs {
+            Value<i32>(lhs_integer) => {
+                branch_eq(lhs_integer, rhs_integer, equal);
+                goto not_equal;
+            },
+            Value<f64>(lhs_double) => @cold {
+                compare_f64_equality(lhs_double, to_f64(rhs_integer), equal, not_equal);
+            },
+            _ => not_equal,
+        }
     };
 }
 
@@ -579,8 +584,9 @@ inline fn loose_equality(
     not_equal: Label,
     else slow: Label
 ) {
-    let lhs_tag = extract_tag(lhs);
     let rhs_tag = extract_tag(rhs);
+    branch_eq(rhs_tag, INT32_TAG, rhs_i32);
+    let lhs_tag = extract_tag(lhs);
     guard lhs_tag == rhs_tag else different_tags;
     equality_same_tag(lhs, rhs, lhs_tag, equal, not_equal, compare_f64) else slow;
 
@@ -602,6 +608,20 @@ inline fn loose_equality(
         guard lhs is Value<f64> else slow;
         guard rhs is Value<f64> else slow;
         goto compare_f64;
+    };
+
+    let rhs_i32 = || {
+        let rhs_integer = unbox_i32(rhs);
+        match lhs {
+            Value<i32>(lhs_integer) => {
+                branch_eq(lhs_integer, rhs_integer, equal);
+                goto not_equal;
+            },
+            Value<f64>(lhs_double) => @cold {
+                compare_f64_equality(lhs_double, to_f64(rhs_integer), equal, not_equal);
+            },
+            _ => slow,
+        }
     };
 }
 
@@ -850,6 +870,14 @@ specialize JumpLessThan(rhs: Int32);
 specialize JumpLessThanEquals(rhs: Int32);
 specialize JumpGreaterThan(rhs: Int32);
 specialize JumpGreaterThanEquals(rhs: Int32);
+specialize StrictlyEquals(rhs: Int32);
+specialize StrictlyInequals(rhs: Int32);
+specialize LooselyEquals(rhs: Int32);
+specialize LooselyInequals(rhs: Int32);
+specialize JumpStrictlyEquals(rhs: Int32);
+specialize JumpStrictlyInequals(rhs: Int32);
+specialize JumpLooselyEquals(rhs: Int32);
+specialize JumpLooselyInequals(rhs: Int32);
 
 handler Add(
     dst: out Operand,

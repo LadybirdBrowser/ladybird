@@ -76,10 +76,10 @@ block11:
   [ 180] Jump target:block10
 
 block12:
-  [ 188] JumpStrictlyEquals lhs:reg10, rhs:Int32(1), true_target:block14, false_target:block15
+  [ 188] JumpStrictlyEqualsRhsInt32 lhs:reg10, rhs:1, true_target:block14, false_target:block15
 
 block13:
-  [ 1a0] JumpStrictlyEquals lhs:reg10, rhs:Int32(2), true_target:block16, false_target:block17
+  [ 1a0] JumpStrictlyEqualsRhsInt32 lhs:reg10, rhs:2, true_target:block16, false_target:block17
 
 block14:
   [ 1b8] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:reg11
@@ -179,10 +179,10 @@ block9:
   [ 1a0] Jump target:block8
 
 block10:
-  [ 1a8] JumpStrictlyEquals lhs:reg10, rhs:Int32(1), true_target:block12, false_target:block13
+  [ 1a8] JumpStrictlyEqualsRhsInt32 lhs:reg10, rhs:1, true_target:block12, false_target:block13
 
 block11:
-  [ 1c0] JumpStrictlyEquals lhs:reg10, rhs:Int32(2), true_target:block14, false_target:block15
+  [ 1c0] JumpStrictlyEqualsRhsInt32 lhs:reg10, rhs:2, true_target:block14, false_target:block15
 
 block12:
   [ 1d8] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:reg11

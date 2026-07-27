@@ -31,7 +31,7 @@ block1:
 block2:
   [  80] Mov dst:reg7, src:reg0
   [  90] GetCompletionFields type_dst:reg6, value_dst:reg8, completion:reg7
-  [  a0] JumpStrictlyEquals lhs:reg6, rhs:Int32(1), true_target:block3, false_target:block4
+  [  a0] JumpStrictlyEqualsRhsInt32 lhs:reg6, rhs:1, true_target:block3, false_target:block4
 
 block3:
   [  b8] Yield value:reg8

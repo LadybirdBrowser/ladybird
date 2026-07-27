@@ -27,7 +27,7 @@ block1:
   [  28] Mov2 c0_dst:reg6, c0_src:Int32(1), c1_dst:reg7, c1_src:Undefined
 
 block2:
-  [  40] JumpStrictlyEquals lhs:reg6, rhs:Int32(1), true_target:block5, false_target:block6
+  [  40] JumpStrictlyEqualsRhsInt32 lhs:reg6, rhs:1, true_target:block5, false_target:block6
 
 block3:
   [  58] Mov dst:reg5, src:reg0
@@ -44,7 +44,7 @@ block5:
   [  d8] JumpIf condition:reg13, true_target:block7, false_target:block8
 
 block6:
-  [  e8] JumpStrictlyEquals lhs:reg6, rhs:Int32(5), true_target:block9, false_target:block10
+  [  e8] JumpStrictlyEqualsRhsInt32 lhs:reg6, rhs:5, true_target:block9, false_target:block10
 
 block7:
   [ 100] GetById dst:reg14, base:reg12, `value`
