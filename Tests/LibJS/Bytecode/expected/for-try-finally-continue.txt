@@ -31,7 +31,7 @@ block3:
 
 block4:
   [  88] GetGlobal dst:reg10, `i`
-  [  98] StrictlyInequals dst:reg8, lhs:reg10, rhs:Int32(5)
+  [  98] StrictlyInequalsRhsInt32 dst:reg8, lhs:reg10, rhs:5
   [  a8] MovSrcUndefined dst:reg10
   [  b0] JumpIf condition:reg8, true_target:block14, false_target:block15
 
@@ -42,7 +42,7 @@ block5:
 
 block6:
   [  e0] MovSrcUndefined dst:reg9
-  [  e8] JumpStrictlyEquals lhs:reg6, rhs:Int32(0), true_target:block9, false_target:block10
+  [  e8] JumpStrictlyEqualsRhsInt32 lhs:reg6, rhs:0, true_target:block9, false_target:block10
 
 block7:
   [ 100] Catch dst:reg8
@@ -60,10 +60,10 @@ block9:
   [ 180] Jump target:block2
 
 block10:
-  [ 188] JumpStrictlyEquals lhs:reg6, rhs:Int32(3), true_target:block2, false_target:block11
+  [ 188] JumpStrictlyEqualsRhsInt32 lhs:reg6, rhs:3, true_target:block2, false_target:block11
 
 block11:
-  [ 1a0] JumpStrictlyEquals lhs:reg6, rhs:Int32(2), true_target:block12, false_target:block13
+  [ 1a0] JumpStrictlyEqualsRhsInt32 lhs:reg6, rhs:2, true_target:block12, false_target:block13
 
 block12:
   [ 1b8] Return value:reg7

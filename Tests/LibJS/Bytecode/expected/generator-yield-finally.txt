@@ -43,13 +43,13 @@ block4:
 block5:
   [  70] Mov dst:reg7, src:reg0
   [  80] GetCompletionFields type_dst:reg8, value_dst:reg9, completion:reg7
-  [  90] JumpStrictlyEquals lhs:reg8, rhs:Int32(1), true_target:block6, false_target:block7
+  [  90] JumpStrictlyEqualsRhsInt32 lhs:reg8, rhs:1, true_target:block6, false_target:block7
 
 block6:
   [  a8] Yield continuation_label:block10, value:Int32(2)
 
 block7:
-  [  b8] JumpStrictlyEquals lhs:reg8, rhs:Int32(5), true_target:block8, false_target:block9
+  [  b8] JumpStrictlyEqualsRhsInt32 lhs:reg8, rhs:5, true_target:block8, false_target:block9
 
 block8:
   [  d0] Throw src:reg9
@@ -61,14 +61,14 @@ block9:
 block10:
   [  f8] Mov dst:reg9, src:reg0
   [ 108] GetCompletionFields type_dst:reg7, value_dst:reg8, completion:reg9
-  [ 118] JumpStrictlyEquals lhs:reg7, rhs:Int32(1), true_target:block11, false_target:block12
+  [ 118] JumpStrictlyEqualsRhsInt32 lhs:reg7, rhs:1, true_target:block11, false_target:block12
 
 block11:
   [ 130] Mov dst:reg5, src:Int32(0)
   [ 140] Jump target:block3
 
 block12:
-  [ 148] JumpStrictlyEquals lhs:reg7, rhs:Int32(5), true_target:block13, false_target:block14
+  [ 148] JumpStrictlyEqualsRhsInt32 lhs:reg7, rhs:5, true_target:block13, false_target:block14
 
 block13:
   [ 160] Throw src:reg8
@@ -80,13 +80,13 @@ block14:
 block15:
   [ 188] Mov2 c0_dst:reg1, c0_src:reg10, c1_dst:reg8, c1_src:reg0
   [ 1a0] GetCompletionFields type_dst:reg9, value_dst:reg7, completion:reg8
-  [ 1b0] JumpStrictlyEquals lhs:reg9, rhs:Int32(1), true_target:block16, false_target:block17
+  [ 1b0] JumpStrictlyEqualsRhsInt32 lhs:reg9, rhs:1, true_target:block16, false_target:block17
 
 block16:
-  [ 1c8] JumpStrictlyEquals lhs:reg5, rhs:Int32(0), true_target:block20, false_target:block21
+  [ 1c8] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:0, true_target:block20, false_target:block21
 
 block17:
-  [ 1e0] JumpStrictlyEquals lhs:reg9, rhs:Int32(5), true_target:block18, false_target:block19
+  [ 1e0] JumpStrictlyEqualsRhsInt32 lhs:reg9, rhs:5, true_target:block18, false_target:block19
 
 block18:
   [ 1f8] Throw src:reg7
@@ -98,7 +98,7 @@ block20:
   [ 210] Yield value:Undefined
 
 block21:
-  [ 220] JumpStrictlyEquals lhs:reg5, rhs:Int32(2), true_target:block22, false_target:block23
+  [ 220] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:2, true_target:block22, false_target:block23
 
 block22:
   [ 238] Yield value:reg6

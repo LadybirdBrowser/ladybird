@@ -266,6 +266,7 @@ pub(crate) fn emit_handlers(
     comment_prefix: &str,
     mut emit_alignment: impl FnMut(&mut String, bool),
     mut emit_instruction: impl FnMut(&mut String, &MachineInstruction, &Handler),
+    emit_between_hot_and_cold: impl FnOnce(&mut String),
 ) {
     let mut cold_handlers = String::new();
     for handler in &program.functions {
@@ -302,6 +303,7 @@ pub(crate) fn emit_handlers(
         }
         w!(cold_handlers, "asm_handler_{}_cold_end:", handler.name);
     }
+    emit_between_hot_and_cold(out);
     if !cold_handlers.is_empty() {
         w!(out, "{comment_prefix} Cold handler paths");
         w!(out, "asm_cold_handler_paths:");

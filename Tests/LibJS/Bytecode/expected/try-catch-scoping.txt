@@ -73,7 +73,7 @@ block2:
   [  60] GetById dst:reg10, base:reg8, `log` (console.log)
   [  78] Mov dst:reg9, src:z~2
   [  88] Call dst:reg7, callee:reg10, this_value:reg8, console.log, arguments:[reg9]
-  [  b0] JumpStrictlyEquals lhs:reg5, rhs:Int32(0), true_target:block5, false_target:block6
+  [  b0] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:0, true_target:block5, false_target:block6
 
 block3:
   [  c8] Catch dst:reg7
@@ -94,7 +94,7 @@ block5:
   [ 178] End value:Undefined
 
 block6:
-  [ 180] JumpStrictlyEquals lhs:reg5, rhs:Int32(2), true_target:block7, false_target:block8
+  [ 180] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:2, true_target:block7, false_target:block8
 
 block7:
   [ 198] Return value:reg6

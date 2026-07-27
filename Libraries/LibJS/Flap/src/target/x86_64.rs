@@ -534,6 +534,7 @@ pub(crate) fn generate(program: &Program, options: &CompileOptions) -> String {
                 "#",
                 |out, cold| w!(out, "{}", if cold { ".p2align 4" } else { ".p2align 6" }),
                 |out, instruction, handler| emit_instruction(out, instruction, handler, program),
+                |_| {},
             )
         },
         |out| generate_exit_point(out, object_format, abi),

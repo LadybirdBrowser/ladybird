@@ -58,10 +58,10 @@ block11:
   [ 170] Jump target:block10
 
 block12:
-  [ 178] JumpStrictlyEquals lhs:reg10, rhs:Int32(1), true_target:block14, false_target:block15
+  [ 178] JumpStrictlyEqualsRhsInt32 lhs:reg10, rhs:1, true_target:block14, false_target:block15
 
 block13:
-  [ 190] JumpStrictlyEquals lhs:reg10, rhs:Int32(2), true_target:block16, false_target:block17
+  [ 190] JumpStrictlyEqualsRhsInt32 lhs:reg10, rhs:2, true_target:block16, false_target:block17
 
 block14:
   [ 1a8] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:reg11

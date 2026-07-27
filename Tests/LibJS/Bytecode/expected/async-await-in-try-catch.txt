@@ -42,7 +42,7 @@ block4:
 block5:
   [  80] Mov dst:reg6, src:reg0
   [  90] GetCompletionFields type_dst:reg7, value_dst:reg8, completion:reg6
-  [  a0] JumpStrictlyEquals lhs:reg7, rhs:Int32(1), true_target:block6, false_target:block7
+  [  a0] JumpStrictlyEqualsRhsInt32 lhs:reg7, rhs:1, true_target:block6, false_target:block7
 
 block6:
   [  b8] SetLexicalEnvironment environment:reg4

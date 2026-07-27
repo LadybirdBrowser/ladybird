@@ -50,7 +50,7 @@ block6:
   [  88] GetById dst:reg9, base:reg8, `log` (console.log)
   [  a0] Mov dst:reg11, src:i~0
   [  b0] Call dst:reg7, callee:reg9, this_value:reg8, console.log, arguments:[String("outer"), reg11]
-  [  d8] JumpStrictlyEquals lhs:reg5, rhs:Int32(0), true_target:block19, false_target:block20
+  [  d8] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:0, true_target:block19, false_target:block20
 
 block7:
   [  f0] Jump target:block10
@@ -65,10 +65,10 @@ block9:
   [ 128] GetById dst:reg11, base:reg10, `log` (console.log)
   [ 140] Mov dst:reg12, src:i~0
   [ 150] Call dst:reg9, callee:reg11, this_value:reg10, console.log, arguments:[String("inner"), reg12]
-  [ 178] JumpStrictlyEquals lhs:reg7, rhs:Int32(0), true_target:block14, false_target:block15
+  [ 178] JumpStrictlyEqualsRhsInt32 lhs:reg7, rhs:0, true_target:block14, false_target:block15
 
 block10:
-  [ 190] JumpStrictlyEquals lhs:i~0, rhs:Int32(1), true_target:block11, false_target:block12
+  [ 190] JumpStrictlyEqualsRhsInt32 lhs:i~0, rhs:1, true_target:block11, false_target:block12
 
 block11:
   [ 1a8] Mov dst:reg7, src:Int32(3)
@@ -87,10 +87,10 @@ block14:
   [ 200] Jump target:block6
 
 block15:
-  [ 208] JumpStrictlyEquals lhs:reg7, rhs:Int32(3), true_target:block13, false_target:block16
+  [ 208] JumpStrictlyEqualsRhsInt32 lhs:reg7, rhs:3, true_target:block13, false_target:block16
 
 block16:
-  [ 220] JumpStrictlyEquals lhs:reg7, rhs:Int32(2), true_target:block17, false_target:block18
+  [ 220] JumpStrictlyEqualsRhsInt32 lhs:reg7, rhs:2, true_target:block17, false_target:block18
 
 block17:
   [ 238] Mov2 c0_dst:reg5, c0_src:reg7, c1_dst:reg6, c1_src:reg8
@@ -103,10 +103,10 @@ block19:
   [ 260] Jump target:block2
 
 block20:
-  [ 268] JumpStrictlyEquals lhs:reg5, rhs:Int32(3), true_target:block2, false_target:block21
+  [ 268] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:3, true_target:block2, false_target:block21
 
 block21:
-  [ 280] JumpStrictlyEquals lhs:reg5, rhs:Int32(2), true_target:block22, false_target:block23
+  [ 280] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:2, true_target:block22, false_target:block23
 
 block22:
   [ 298] Return value:reg6

@@ -50,7 +50,7 @@ block2:
   [ 268] Call dst:reg6, callee:reg8, this_value:Undefined, expect_type_error, arguments:[reg7]
   [ 290] GetGlobal dst:reg5, `array`
   [ 2a0] GetLength dst:reg8, base:reg5 (array.length)
-  [ 2b8] StrictlyInequals dst:reg5, lhs:reg8, rhs:Int32(2)
+  [ 2b8] StrictlyInequalsRhsInt32 dst:reg5, lhs:reg8, rhs:2
   [ 2c8] MovSrcUndefined dst:reg8
   [ 2d0] JumpFalse condition:reg5, target:block4
 

@@ -37,7 +37,7 @@ block2:
   [  30] GetGlobal dst:reg8, `console`
   [  40] GetById dst:reg9, base:reg8, `log` (console.log)
   [  58] Call dst:reg7, callee:reg9, this_value:reg8, console.log, arguments:[String("finally")]
-  [  80] JumpStrictlyEquals lhs:reg5, rhs:Int32(0), true_target:block4, false_target:block5
+  [  80] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:0, true_target:block4, false_target:block5
 
 block3:
   [  98] Mov2 c0_dst:reg6, c0_src:Int32(1), c1_dst:reg5, c1_src:Int32(2)
@@ -47,7 +47,7 @@ block4:
   [  b8] End value:Undefined
 
 block5:
-  [  c0] JumpStrictlyEquals lhs:reg5, rhs:Int32(2), true_target:block6, false_target:block7
+  [  c0] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:2, true_target:block6, false_target:block7
 
 block6:
   [  d8] Return value:reg6
@@ -99,10 +99,10 @@ block6:
   [  88] GetById dst:reg9, base:reg8, `log` (console.log)
   [  a0] Mov dst:reg10, src:i~0
   [  b0] Call dst:reg7, callee:reg9, this_value:reg8, console.log, arguments:[reg10]
-  [  d8] JumpStrictlyEquals lhs:reg5, rhs:Int32(0), true_target:block10, false_target:block11
+  [  d8] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:0, true_target:block10, false_target:block11
 
 block7:
-  [  f0] JumpStrictlyEquals lhs:i~0, rhs:Int32(5), true_target:block8, false_target:block9
+  [  f0] JumpStrictlyEqualsRhsInt32 lhs:i~0, rhs:5, true_target:block8, false_target:block9
 
 block8:
   [ 108] Mov dst:reg5, src:Int32(3)
@@ -116,10 +116,10 @@ block10:
   [ 138] Jump target:block2
 
 block11:
-  [ 140] JumpStrictlyEquals lhs:reg5, rhs:Int32(3), true_target:block4, false_target:block12
+  [ 140] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:3, true_target:block4, false_target:block12
 
 block12:
-  [ 158] JumpStrictlyEquals lhs:reg5, rhs:Int32(2), true_target:block13, false_target:block14
+  [ 158] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:2, true_target:block13, false_target:block14
 
 block13:
   [ 170] Return value:reg6
@@ -167,7 +167,7 @@ block5:
   [  60] GetGlobal dst:reg8, `console`
   [  70] GetById dst:reg9, base:reg8, `log` (console.log)
   [  88] Call dst:reg7, callee:reg9, this_value:reg8, console.log, arguments:[String("outer")]
-  [  b0] JumpStrictlyEquals lhs:reg5, rhs:Int32(0), true_target:block16, false_target:block17
+  [  b0] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:0, true_target:block16, false_target:block17
 
 block6:
   [  c8] Jump target:block9
@@ -181,7 +181,7 @@ block8:
   [  f0] GetGlobal dst:reg10, `console`
   [ 100] GetById dst:reg11, base:reg10, `log` (console.log)
   [ 118] Call dst:reg9, callee:reg11, this_value:reg10, console.log, arguments:[String("inner")]
-  [ 140] JumpStrictlyEquals lhs:reg7, rhs:Int32(0), true_target:block11, false_target:block12
+  [ 140] JumpStrictlyEqualsRhsInt32 lhs:reg7, rhs:0, true_target:block11, false_target:block12
 
 block9:
   [ 158] Mov dst:reg7, src:Int32(3)
@@ -196,10 +196,10 @@ block11:
   [ 198] Jump target:block5
 
 block12:
-  [ 1a0] JumpStrictlyEquals lhs:reg7, rhs:Int32(3), true_target:block10, false_target:block13
+  [ 1a0] JumpStrictlyEqualsRhsInt32 lhs:reg7, rhs:3, true_target:block10, false_target:block13
 
 block13:
-  [ 1b8] JumpStrictlyEquals lhs:reg7, rhs:Int32(2), true_target:block14, false_target:block15
+  [ 1b8] JumpStrictlyEqualsRhsInt32 lhs:reg7, rhs:2, true_target:block14, false_target:block15
 
 block14:
   [ 1d0] Mov2 c0_dst:reg5, c0_src:reg7, c1_dst:reg6, c1_src:reg8
@@ -212,10 +212,10 @@ block16:
   [ 1f8] Jump target:block2
 
 block17:
-  [ 200] JumpStrictlyEquals lhs:reg5, rhs:Int32(3), true_target:block3, false_target:block18
+  [ 200] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:3, true_target:block3, false_target:block18
 
 block18:
-  [ 218] JumpStrictlyEquals lhs:reg5, rhs:Int32(2), true_target:block19, false_target:block20
+  [ 218] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:2, true_target:block19, false_target:block20
 
 block19:
   [ 230] Return value:reg6

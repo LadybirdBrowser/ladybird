@@ -37,7 +37,7 @@ eval$e6bbe983 line 1, column 1
 
 block0:
   [   0] MovSrcUndefined dst:reg5
-  [   8] JumpStrictlyEquals lhs:Int32(1), rhs:Int32(1), true_target:block2, false_target:block1
+  [   8] JumpStrictlyEqualsRhsInt32 lhs:Int32(1), rhs:1, true_target:block2, false_target:block1
 
 block1:
   [  20] End value:reg5
@@ -58,7 +58,7 @@ eval$e6bbe983 line 1, column 1
 
 block0:
   [   0] MovSrcUndefined dst:reg5
-  [   8] JumpStrictlyEquals lhs:Int32(1), rhs:Int32(1), true_target:block2, false_target:block1
+  [   8] JumpStrictlyEqualsRhsInt32 lhs:Int32(1), rhs:1, true_target:block2, false_target:block1
 
 block1:
   [  20] End value:reg5
@@ -79,7 +79,7 @@ eval$e3f7f873 line 1, column 1
 
 block0:
   [   0] MovSrcUndefined dst:reg5
-  [   8] JumpStrictlyEquals lhs:Int32(1), rhs:Int32(1), true_target:block2, false_target:block1
+  [   8] JumpStrictlyEqualsRhsInt32 lhs:Int32(1), rhs:1, true_target:block2, false_target:block1
 
 block1:
   [  20] Jump target:block3
