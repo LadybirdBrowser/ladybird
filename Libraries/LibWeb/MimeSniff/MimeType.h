@@ -16,6 +16,7 @@
 namespace Web::MimeSniff {
 
 bool is_javascript_mime_type_essence_match(Utf16View);
+bool is_valid_mime_type_string(Utf16View);
 
 // https://mimesniff.spec.whatwg.org/#javascript-mime-type
 // A JavaScript MIME type is any MIME type whose essence is one of the following:

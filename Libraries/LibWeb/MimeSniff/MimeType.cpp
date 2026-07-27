@@ -3,10 +3,12 @@
  * Copyright (c) 2022-2023, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2022, networkException <networkexception@serenityos.org>
  * Copyright (c) 2024, Jamie Mansfield <jmansfield@cadixdev.org>
+ * Copyright (c) 2026-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AllOf.h>
 #include <AK/CharacterTypes.h>
 #include <AK/GenericLexer.h>
 #include <AK/String.h>
@@ -43,16 +45,92 @@ bool is_javascript_mime_type_essence_match(Utf16View string)
     return false;
 }
 
+// https://mimesniff.spec.whatwg.org/#http-quoted-string-token-code-point
+// An HTTP quoted-string token code point is U+0009 TAB, a code point in the range U+0020 SPACE to U+007E (~), inclusive,
+// or a code point in the range U+0080 through U+00FF (ÿ), inclusive.
+static constexpr bool is_http_quoted_string_token_code_point(u32 code_point)
+{
+    return code_point == '\t' || (code_point >= 0x20 && code_point <= 0x7E) || (code_point >= 0x80 && code_point <= 0xFF);
+}
+
+// https://mimesniff.spec.whatwg.org/#valid-mime-type-string
+bool is_valid_mime_type_string(Utf16View string)
+{
+    // A valid MIME type string is a string that matches the media-type token production. In particular, a valid MIME
+    // type string may include parameters. [HTTP-SEMANTICS]
+
+    // The media-type production per RFC 9110 sections 8.3.1 and 5.6:
+    // media-type = type "/" subtype parameters
+    // type       = token
+    // subtype    = token
+    // parameters      = *( OWS ";" OWS parameter )
+    // parameter       = parameter-name "=" parameter-value
+    // parameter-name  = token
+    // parameter-value = ( token / quoted-string )
+    // quoted-string   = DQUOTE *( qdtext / quoted-pair ) DQUOTE
+    // qdtext          = HTAB / SP / %x21 / %x23-5B / %x5D-7E / obs-text
+    // quoted-pair     = "\" ( HTAB / SP / VCHAR / obs-text )
+    //
+    // NOTE: RFC 9110 also permits a U+003B (;) that's not followed by a param. But per examples in the MIME Sniffing
+    //       Standard, a string such as "text/html;" isn't a valid MIME type string — so we require a param after each
+    //       U+003B (;) here.
+    //       https://mimesniff.spec.whatwg.org/#example-valid-mime-type-string
+    Utf16GenericLexer lexer { string };
+
+    auto consume_http_token = [&lexer]() {
+        return lexer.consume_while([](char16_t code_point) { return HTTP::is_http_token_code_point(code_point); });
+    };
+    auto ignore_optional_whitespace = [&lexer]() {
+        lexer.ignore_while([](char16_t code_point) { return code_point == ' ' || code_point == '\t'; });
+    };
+
+    auto type = consume_http_token();
+    if (type.is_empty() || !lexer.consume_specific('/'))
+        return false;
+
+    auto subtype = consume_http_token();
+    if (subtype.is_empty())
+        return false;
+
+    while (!lexer.is_eof()) {
+        ignore_optional_whitespace();
+        if (!lexer.consume_specific(';'))
+            return false;
+        ignore_optional_whitespace();
+
+        auto parameter_name = consume_http_token();
+        if (parameter_name.is_empty() || !lexer.consume_specific('='))
+            return false;
+
+        if (lexer.consume_specific('"')) {
+            while (true) {
+                if (lexer.is_eof())
+                    return false;
+                auto code_point = lexer.consume();
+                if (code_point == '"')
+                    break;
+                if (code_point == '\\') {
+                    if (lexer.is_eof())
+                        return false;
+                    if (!is_http_quoted_string_token_code_point(lexer.consume()))
+                        return false;
+                } else if (!is_http_quoted_string_token_code_point(code_point)) {
+                    return false;
+                }
+            }
+        } else {
+            auto parameter_value = consume_http_token();
+            if (parameter_value.is_empty())
+                return false;
+        }
+    }
+
+    return true;
+}
+
 static bool contains_only_http_quoted_string_token_code_points(StringView string)
 {
-    // https://mimesniff.spec.whatwg.org/#http-quoted-string-token-code-point
-    // An HTTP quoted-string token code point is U+0009 TAB, a code point in the range U+0020 SPACE to U+007E (~), inclusive,
-    // or a code point in the range U+0080 through U+00FF (ÿ), inclusive.
-    for (auto ch : Utf8View(string)) {
-        if (!(ch == '\t' || (ch >= 0x20 && ch <= 0x7E) || (ch >= 0x80 && ch <= 0xFF)))
-            return false;
-    }
-    return true;
+    return all_of(Utf8View(string), is_http_quoted_string_token_code_point);
 }
 
 static bool contains_only_http_token_code_points(StringView string)

@@ -375,6 +375,17 @@ promise_test(t => {
 }, 'Test that decodingInfo with mismatched codec color space is unsupported');
 
 promise_test(t => {
+  return navigator.mediaCapabilities.decodingInfo({
+    type: 'media-source',
+    video: videoConfigurationWithDynamicRange,
+  }).then(ability => {
+    assert_equals(typeof ability.supported, "boolean");
+    assert_equals(typeof ability.smooth, "boolean");
+    assert_equals(typeof ability.powerEfficient, "boolean");
+  });
+}, "Test that decodingInfo with type media-source accepts colorGamut and transferFunction");
+
+promise_test(t => {
   return promise_rejects_js(t, TypeError, navigator.mediaCapabilities.decodingInfo({
     type: 'file',
     video: {
