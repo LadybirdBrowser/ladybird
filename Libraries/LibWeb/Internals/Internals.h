@@ -166,10 +166,10 @@ public:
     void set_page_muted(bool muted);
     JS::Object* async_scrolling_state();
     bool async_scrolling_state_blocks_wheel_event_at(double x, double y);
-    bool async_scrolling_state_can_wheel_scroll_at(double x, double y, double delta_x, double delta_y, bool force_stale_wheel_event_regions);
+    bool async_scrolling_state_can_wheel_scroll_at(double x, double y, double delta_x, double delta_y, bool precise, bool force_stale_wheel_event_regions);
     Utf16String async_scrolling_state_wheel_routing_admission();
-    Utf16String async_scrolling_state_wheel_scroll_admission_at(double x, double y, double delta_x, double delta_y, bool force_stale_wheel_event_regions);
-    Utf16String async_scrolling_state_wheel_target_at(double x, double y, double delta_x, double delta_y);
+    Utf16String async_scrolling_state_wheel_scroll_admission_at(double x, double y, double delta_x, double delta_y, bool precise, bool force_stale_wheel_event_regions);
+    Utf16String async_scrolling_state_wheel_target_at(double x, double y, double delta_x, double delta_y, bool precise);
     String viewport_overflow_x();
 
 private:

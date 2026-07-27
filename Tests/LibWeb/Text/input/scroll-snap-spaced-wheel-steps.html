@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    #scroller {
+        width: 200px;
+        height: 200px;
+        overflow: scroll;
+        scroll-snap-type: y mandatory;
+    }
+    .item {
+        width: 100%;
+        height: 200px;
+        scroll-snap-align: start;
+    }
+    .gap {
+        height: 200px;
+    }
+</style>
+<div id="scroller">
+    <div class="item"></div>
+    <div class="gap"></div>
+    <div class="item"></div>
+    <div class="gap"></div>
+    <div class="item"></div>
+    <div class="gap"></div>
+    <div class="item"></div>
+    <div class="gap"></div>
+</div>
+<script>
+    promiseTest(async () => {
+        const scroller = document.getElementById("scroller");
+
+        await animationFrame();
+        await animationFrame();
+
+        // Each step arrives once the previous step's scroll has finished but before the gesture settles.
+        const stepAfterPreviousScrollFinishes = async deltaY => {
+            await internals.wheel(50, 50, 0, deltaY);
+            await new Promise(resolve => setTimeout(resolve, 350));
+        };
+
+        await stepAfterPreviousScrollFinishes(53);
+        println(`scroll offset after the first step: ${scroller.scrollLeft},${scroller.scrollTop}`);
+
+        // The gesture stays latched between its steps, so its deltas go on accumulating and a step that leaves them
+        // short of the next snap position selects the one already occupied.
+        await stepAfterPreviousScrollFinishes(53);
+        println(`scroll offset after a second step of the same gesture: ${scroller.scrollLeft},${scroller.scrollTop}`);
+
+        await stepAfterPreviousScrollFinishes(400);
+        println(`scroll offset after a step taking them past the next snap position: ${scroller.scrollLeft},${scroller.scrollTop}`);
+
+        // Settling the gesture starts the accumulation over from the scrolling box.
+        await new Promise(resolve => setTimeout(resolve, 700));
+        await stepAfterPreviousScrollFinishes(53);
+        println(`scroll offset after the first step of a new gesture: ${scroller.scrollLeft},${scroller.scrollTop}`);
+    });
+</script>

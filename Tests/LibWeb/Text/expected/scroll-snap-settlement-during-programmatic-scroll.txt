@@ -1,0 +1,3 @@
+scroll offset after the pan: 0,60
+scroll offset after the programmatic scroll: 0,1000
+scroll offset once everything settles: 0,1000

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    html {
+        scroll-snap-type: y mandatory;
+    }
+
+    body {
+        margin: 0;
+    }
+
+    .section {
+        height: 300px;
+        scroll-snap-align: start;
+    }
+
+    iframe {
+        width: 200px;
+        height: 200px;
+        border: 0;
+    }
+</style>
+<div class="section">
+    <iframe id="frame" srcdoc="<style>body{margin:0}div{height:2000px}</style><div></div>"></iframe>
+</div>
+<div class="section"></div>
+<div class="section"></div>
+<script>
+    promiseTest(async () => {
+        await new Promise(resolve => frame.addEventListener("load", resolve, { once: true }));
+        await animationFrame();
+        await animationFrame();
+
+        await internals.wheel(50, 50, 0, 40);
+        await animationFrame();
+        await animationFrame();
+        await animationFrame();
+
+        println(`nested navigable scrolled: ${frame.contentWindow.scrollY > 0}`);
+        println(`snap container scrollY: ${window.scrollY}`);
+    });
+</script>

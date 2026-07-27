@@ -58,6 +58,7 @@
 #include <LibWeb/Painting/SVGGraphicsPaintable.h>
 #include <LibWeb/Painting/SVGPaintable.h>
 #include <LibWeb/Painting/SVGSVGPaintable.h>
+#include <LibWeb/Painting/ScrollSnap.h>
 #include <LibWeb/Painting/Scrollbar.h>
 #include <LibWeb/Painting/ShadowPainting.h>
 #include <LibWeb/Painting/StackingContext.h>
@@ -642,6 +643,8 @@ static void record_scroll_node(Paintable const& paintable_box, DisplayListRecord
         ? Gfx::IntRect { {}, context.device_viewport_rect().size().to_type<int>() }
         : context.rounded_device_rect(paintable_box.absolute_padding_box_rect()).to_type<int>();
 
+    auto snap_axes = snap_axes_of_scroll_container(paintable_box);
+
     auto& recorder = context.display_list_recorder();
     recorder.compositor_scroll_node({
         .document_id = paintable_box.document().unique_id(),
@@ -655,6 +658,8 @@ static void record_scroll_node(Paintable const& paintable_box, DisplayListRecord
         .is_viewport = paintable_box.is_viewport_paintable(),
         .can_be_wheel_scrolled_horizontally = paintable_box.could_be_scrolled_by_wheel_event(Paintable::ScrollDirection::Horizontal),
         .can_be_wheel_scrolled_vertically = paintable_box.could_be_scrolled_by_wheel_event(Paintable::ScrollDirection::Vertical),
+        .snaps_scroll_position_horizontally = snap_axes.x,
+        .snaps_scroll_position_vertically = snap_axes.y,
     });
 }
 
@@ -1207,6 +1212,7 @@ Paintable::ScrollHandled Paintable::scroll_by(double delta_x, double delta_y)
 
 Paintable::ScrollHandled Paintable::set_scroll_offset_from_user_input(CSSPixelPoint offset)
 {
+    auto stable_node_id = async_scroll_node_stable_id();
     auto scroll_offset_before_scroll = scroll_offset();
     auto scroll_handled = set_scroll_offset(offset);
     auto navigable = document().navigable();
@@ -1215,7 +1221,7 @@ Paintable::ScrollHandled Paintable::set_scroll_offset_from_user_input(CSSPixelPo
 
     if (scroll_handled == ScrollHandled::Yes) {
         if (auto event_target = scroll_event_target())
-            navigable->queue_scrollend_event_after_user_scroll(*event_target, async_scroll_node_stable_id(), scroll_offset_before_scroll);
+            navigable->queue_scrollend_event_after_user_scroll(*event_target, stable_node_id, scroll_offset_before_scroll);
     } else {
         // User input keeps the scroll gesture in progress even when it does not move the scrolling box.
         navigable->defer_user_scroll_settlement();

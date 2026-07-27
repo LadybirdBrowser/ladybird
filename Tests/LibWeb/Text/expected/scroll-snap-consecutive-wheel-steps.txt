@@ -1,0 +1,3 @@
+scroll offset after two small steps: 0,260
+scroll offset after two large steps: 0,660
+scroll offset after two steps of one snap position: 0,400

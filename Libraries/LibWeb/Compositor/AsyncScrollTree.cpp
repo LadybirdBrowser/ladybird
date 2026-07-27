@@ -342,8 +342,24 @@ Optional<AsyncScrollNodeID> AsyncScrollTree::scroll_node_id_for_stable_id(AsyncS
     return {};
 }
 
-WheelHitTestResult AsyncScrollTree::hit_test_scroll_node_for_wheel(Gfx::FloatPoint position, Gfx::FloatPoint delta) const
+WheelHitTestResult AsyncScrollTree::hit_test_scroll_node_for_wheel(Gfx::FloatPoint position, Gfx::FloatPoint delta, SnapContainerHandling snap_container_handling) const
 {
+    auto scrolled_on_the_main_thread_instead = [&](WheelHitTestResult const& result) {
+        if (snap_container_handling == SnapContainerHandling::ScrollOnCompositor || !result.node_id.has_value())
+            return false;
+        auto const* node = scroll_node_for_id(*result.node_id);
+        if (!node)
+            return false;
+        return (node->snaps_scroll_position_horizontally && delta.x() != 0)
+            || (node->snaps_scroll_position_vertically && delta.y() != 0);
+    };
+    auto hit_test_result_for_wheel_scroll_of_node = [&](AsyncScrollNodeID node_id) {
+        auto result = hit_test_result_for_scroll_node(node_id, delta);
+        if (scrolled_on_the_main_thread_instead(result))
+            return WheelHitTestResult { {}, true };
+        return result;
+    };
+
     if (!m_visual_context_tree)
         return {};
 
@@ -377,7 +393,7 @@ WheelHitTestResult AsyncScrollTree::hit_test_scroll_node_for_wheel(Gfx::FloatPoi
             continue;
         if (!target.target_node_id.has_value())
             return {};
-        return hit_test_result_for_scroll_node(*target.target_node_id, delta);
+        return hit_test_result_for_wheel_scroll_of_node(*target.target_node_id);
     }
 
     auto viewport_node_id = viewport_scroll_node_id();
@@ -386,7 +402,7 @@ WheelHitTestResult AsyncScrollTree::hit_test_scroll_node_for_wheel(Gfx::FloatPoi
     auto const* viewport_node = scroll_node_for_id(*viewport_node_id);
     if (!viewport_node || !viewport_node->scrollport_rect.to_type<float>().contains(position))
         return {};
-    return hit_test_result_for_scroll_node(*viewport_node_id, delta);
+    return hit_test_result_for_wheel_scroll_of_node(*viewport_node_id);
 }
 
 bool AsyncScrollTree::scroll_node_is_viewport(AsyncScrollNodeID node_id) const

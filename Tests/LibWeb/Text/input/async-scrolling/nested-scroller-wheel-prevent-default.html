@@ -34,7 +34,7 @@
             wheelEventWasDefaultPrevented = event.defaultPrevented;
         }, { passive: false });
 
-        println(`async can scroll before wheel: ${internals.asyncScrollingStateCanWheelScrollAt(50, 50, 0, 100, false)}`);
+        println(`async can scroll before wheel: ${internals.asyncScrollingStateCanWheelScrollAt(50, 50, 0, 100)}`);
 
         await internals.wheel(50, 50, 0, 100);
 

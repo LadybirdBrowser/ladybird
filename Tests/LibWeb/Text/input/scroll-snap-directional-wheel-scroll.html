@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    #scroller {
+        width: 200px;
+        height: 200px;
+        overflow: scroll;
+        scroll-snap-type: y mandatory;
+    }
+    .item {
+        width: 100%;
+        height: 200px;
+        scroll-snap-align: start;
+    }
+</style>
+<div id="scroller">
+    <div class="item"></div>
+    <div style="height: 60px"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+    <div style="height: 100px"></div>
+</div>
+<script>
+    promiseTest(async () => {
+        const scroller = document.getElementById("scroller");
+
+        await animationFrame();
+        await animationFrame();
+
+        let scrollendCount = 0;
+        scroller.addEventListener("scrollend", () => ++scrollendCount);
+
+        const wheelScrollSettled = deltaY => scrollSettled(scroller, () => internals.wheel(50, 50, 0, deltaY));
+
+        await wheelScrollSettled(40);
+        println(`scroll offset after small downward step: ${scroller.scrollLeft},${scroller.scrollTop}`);
+
+        // The step's travel to the snap position it selected is one gesture.
+        println(`scrollend events fired by the step: ${scrollendCount}`);
+
+        await wheelScrollSettled(-40);
+        println(`scroll offset after small upward step: ${scroller.scrollLeft},${scroller.scrollTop}`);
+
+        await wheelScrollSettled(40);
+        await wheelScrollSettled(40);
+        println(`scroll offset at last snap position: ${scroller.scrollLeft},${scroller.scrollTop}`);
+
+        // A step past the last snap position selects that same position, so the scroller stays where it is.
+        await internals.wheel(50, 50, 0, 40);
+        await animationFrame();
+        await animationFrame();
+        await animationFrame();
+        println(`scroll offset after step beyond last snap position: ${scroller.scrollLeft},${scroller.scrollTop}`);
+    });
+</script>

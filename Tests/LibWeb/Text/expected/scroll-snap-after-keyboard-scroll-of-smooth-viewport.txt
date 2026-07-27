@@ -1,0 +1,3 @@
+down arrow key press scrolls to the second section: PASS
+another press scrolls to the third section: PASS
+up arrow key press scrolls back to the second section: PASS

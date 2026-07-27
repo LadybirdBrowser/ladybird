@@ -1,0 +1,5 @@
+scroll offset after small downward step: 0,260
+scrollend events fired by the step: 1
+scroll offset after small upward step: 0,0
+scroll offset at last snap position: 0,460
+scroll offset after step beyond last snap position: 0,460

@@ -1,0 +1,4 @@
+scroll offset after the first step: 0,400
+scroll offset after a second step of the same gesture: 0,400
+scroll offset after a step taking them past the next snap position: 0,800
+scroll offset after the first step of a new gesture: 0,1200

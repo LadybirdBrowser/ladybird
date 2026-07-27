@@ -1,0 +1,5 @@
+scale: 2
+visual viewport panned by the wheel step: true
+page scroll offset after the wheel step: 0
+visual viewport panned by the key press: true
+page scroll offset after the key press: 0

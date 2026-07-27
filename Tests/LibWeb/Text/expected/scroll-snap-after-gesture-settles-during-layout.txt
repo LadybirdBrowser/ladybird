@@ -1,0 +1,2 @@
+the drag ended between snap positions: true
+the gesture snapped once layout was up to date: true
