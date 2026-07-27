@@ -545,12 +545,17 @@ static ThrowCompletionOr<GC::Ref<PropertyNameIterator>> asm_get_object_property_
     return PropertyNameIterator::create(vm.realm(), object, move(properties));
 }
 
+static i64 finish_binary_slow_path_value(VM& vm, u32 pc, Operand destination, Value result)
+{
+    vm.set(destination, result);
+    auto const* instruction = bit_cast<Instruction const*>(vm.current_executable().bytecode.data() + pc);
+    return static_cast<i64>(pc + instruction->length());
+}
+
 template<typename Result>
 static i64 finish_binary_slow_path(VM& vm, u32 pc, Operand destination, ThrowCompletionOr<Result> result)
 {
-    vm.set(destination, Value { ASM_TRY(vm, pc, move(result)) });
-    auto const* instruction = bit_cast<Instruction const*>(vm.current_executable().bytecode.data() + pc);
-    return static_cast<i64>(pc + instruction->length());
+    return finish_binary_slow_path_value(vm, pc, destination, Value { ASM_TRY(vm, pc, move(result)) });
 }
 
 extern "C" {
@@ -561,7 +566,7 @@ i64 asm_slow_path_jump_less_than_values(VM*, u32 pc, Value, Value, u32, u32);
 i64 asm_slow_path_jump_greater_than_values(VM*, u32 pc, Value, Value, u32, u32);
 i64 asm_slow_path_jump_less_than_equals_values(VM*, u32 pc, Value, Value, u32, u32);
 i64 asm_slow_path_jump_greater_than_equals_values(VM*, u32 pc, Value, Value, u32, u32);
-i64 asm_slow_path_jump_loosely_equals(VM*, u32 pc, Op::JumpLooselyEquals const*);
+i64 asm_slow_path_jump_loosely_equals_values(VM*, u32 pc, Value, Value, u32, u32);
 i64 asm_slow_path_create_private_environment(VM*, u32 pc, Op::CreatePrivateEnvironment const*);
 i64 asm_slow_path_throw_const_assignment(VM*, u32 pc, Op::ThrowConstAssignment const*);
 i64 asm_slow_path_resolve_this_binding(VM*, u32 pc, Op::ResolveThisBinding const*);
@@ -585,9 +590,9 @@ i64 asm_slow_path_greater_than_values(VM*, u32 pc, Operand, Value, Value);
 i64 asm_slow_path_greater_than_equals_values(VM*, u32 pc, Operand, Value, Value);
 i64 asm_slow_path_increment(VM*, u32 pc, Op::Increment const*);
 i64 asm_slow_path_decrement(VM*, u32 pc, Op::Decrement const*);
-i64 asm_slow_path_jump_loosely_inequals(VM*, u32 pc, Op::JumpLooselyInequals const*);
-i64 asm_slow_path_jump_strictly_equals(VM*, u32 pc, Op::JumpStrictlyEquals const*);
-i64 asm_slow_path_jump_strictly_inequals(VM*, u32 pc, Op::JumpStrictlyInequals const*);
+i64 asm_slow_path_jump_loosely_inequals_values(VM*, u32 pc, Value, Value, u32, u32);
+i64 asm_slow_path_jump_strictly_equals_values(VM*, u32 pc, Value, Value, u32, u32);
+i64 asm_slow_path_jump_strictly_inequals_values(VM*, u32 pc, Value, Value, u32, u32);
 i64 asm_slow_path_get_initialized_binding(VM*, u32 pc, Op::GetInitializedBinding const*);
 i64 asm_slow_path_dynamic_get_initialized_binding(VM*, u32 pc, Op::DynamicGetInitializedBinding const*);
 i64 asm_slow_path_get_callee_and_this(VM*, u32 pc, Op::GetCalleeAndThisFromEnvironment const*);
@@ -645,10 +650,10 @@ i64 asm_slow_path_left_shift_values(VM*, u32 pc, Operand, Value, Value);
 i64 asm_slow_path_right_shift_values(VM*, u32 pc, Operand, Value, Value);
 i64 asm_slow_path_unsigned_right_shift_values(VM*, u32 pc, Operand, Value, Value);
 i64 asm_slow_path_mod_values(VM*, u32 pc, Operand, Value, Value);
-i64 asm_slow_path_strictly_equals(VM*, u32 pc, Op::StrictlyEquals const*);
-i64 asm_slow_path_strictly_inequals(VM*, u32 pc, Op::StrictlyInequals const*);
-i64 asm_slow_path_loosely_equals(VM*, u32 pc, Op::LooselyEquals const*);
-i64 asm_slow_path_loosely_inequals(VM*, u32 pc, Op::LooselyInequals const*);
+i64 asm_slow_path_strictly_equals_values(VM*, u32 pc, Operand, Value, Value);
+i64 asm_slow_path_strictly_inequals_values(VM*, u32 pc, Operand, Value, Value);
+i64 asm_slow_path_loosely_equals_values(VM*, u32 pc, Operand, Value, Value);
+i64 asm_slow_path_loosely_inequals_values(VM*, u32 pc, Operand, Value, Value);
 i64 asm_slow_path_unary_minus(VM*, u32 pc, Op::UnaryMinus const*);
 i64 asm_slow_path_to_string(VM*, u32 pc, Op::ToString const*);
 i64 asm_slow_path_to_primitive_with_string_hint(VM*, u32 pc, Op::ToPrimitiveWithStringHint const*);
@@ -847,40 +852,34 @@ DEFINE_JUMP_COMPARISON_SLOW_PATH(less_than_equals, less_than_equals(*vm, lhs, rh
 DEFINE_JUMP_COMPARISON_SLOW_PATH(greater_than_equals, greater_than_equals(*vm, lhs, rhs))
 #undef DEFINE_JUMP_COMPARISON_SLOW_PATH
 
-i64 asm_slow_path_jump_loosely_equals(VM* vm, u32 pc, Op::JumpLooselyEquals const* instruction)
+i64 asm_slow_path_jump_loosely_equals_values(VM* vm, u32 pc, Value lhs, Value rhs, u32 true_target, u32 false_target)
 {
-    auto lhs = vm->get(instruction->lhs());
-    auto rhs = vm->get(instruction->rhs());
     if (ASM_TRY(*vm, pc, is_loosely_equal(*vm, lhs, rhs)))
-        return static_cast<i64>(instruction->true_target().address());
-    return static_cast<i64>(instruction->false_target().address());
+        return static_cast<i64>(true_target);
+    return static_cast<i64>(false_target);
 }
 
-i64 asm_slow_path_jump_loosely_inequals(VM* vm, u32 pc, Op::JumpLooselyInequals const* instruction)
+i64 asm_slow_path_jump_loosely_inequals_values(VM* vm, u32 pc, Value lhs, Value rhs, u32 true_target, u32 false_target)
 {
-    auto lhs = vm->get(instruction->lhs());
-    auto rhs = vm->get(instruction->rhs());
     if (!ASM_TRY(*vm, pc, is_loosely_equal(*vm, lhs, rhs)))
-        return static_cast<i64>(instruction->true_target().address());
-    return static_cast<i64>(instruction->false_target().address());
+        return static_cast<i64>(true_target);
+    return static_cast<i64>(false_target);
 }
 
-i64 asm_slow_path_jump_strictly_equals(VM* vm, [[maybe_unused]] u32 pc, Op::JumpStrictlyEquals const* instruction)
+i64 asm_slow_path_jump_strictly_equals_values(
+    [[maybe_unused]] VM* vm, [[maybe_unused]] u32 pc, Value lhs, Value rhs, u32 true_target, u32 false_target)
 {
-    auto lhs = vm->get(instruction->lhs());
-    auto rhs = vm->get(instruction->rhs());
     if (is_strictly_equal(lhs, rhs))
-        return static_cast<i64>(instruction->true_target().address());
-    return static_cast<i64>(instruction->false_target().address());
+        return static_cast<i64>(true_target);
+    return static_cast<i64>(false_target);
 }
 
-i64 asm_slow_path_jump_strictly_inequals(VM* vm, [[maybe_unused]] u32 pc, Op::JumpStrictlyInequals const* instruction)
+i64 asm_slow_path_jump_strictly_inequals_values(
+    [[maybe_unused]] VM* vm, [[maybe_unused]] u32 pc, Value lhs, Value rhs, u32 true_target, u32 false_target)
 {
-    auto lhs = vm->get(instruction->lhs());
-    auto rhs = vm->get(instruction->rhs());
     if (!is_strictly_equal(lhs, rhs))
-        return static_cast<i64>(instruction->true_target().address());
-    return static_cast<i64>(instruction->false_target().address());
+        return static_cast<i64>(true_target);
+    return static_cast<i64>(false_target);
 }
 
 // ===== Dedicated slow paths for hot instructions =====
@@ -2000,28 +1999,24 @@ static bool strictly_equals(Value lhs, Value rhs)
     return is_strictly_equal(lhs, rhs);
 }
 
-i64 asm_slow_path_strictly_equals(VM* vm, u32 pc, Op::StrictlyEquals const* instruction)
+i64 asm_slow_path_strictly_equals_values(VM* vm, u32 pc, Operand destination, Value lhs, Value rhs)
 {
-    vm->set(instruction->dst(), Value { strictly_equals(vm->get(instruction->lhs()), vm->get(instruction->rhs())) });
-    return static_cast<i64>(pc + sizeof(Op::StrictlyEquals));
+    return finish_binary_slow_path_value(*vm, pc, destination, Value { strictly_equals(lhs, rhs) });
 }
 
-i64 asm_slow_path_strictly_inequals(VM* vm, u32 pc, Op::StrictlyInequals const* instruction)
+i64 asm_slow_path_strictly_inequals_values(VM* vm, u32 pc, Operand destination, Value lhs, Value rhs)
 {
-    vm->set(instruction->dst(), Value { !strictly_equals(vm->get(instruction->lhs()), vm->get(instruction->rhs())) });
-    return static_cast<i64>(pc + sizeof(Op::StrictlyInequals));
+    return finish_binary_slow_path_value(*vm, pc, destination, Value { !strictly_equals(lhs, rhs) });
 }
 
-i64 asm_slow_path_loosely_equals(VM* vm, u32 pc, Op::LooselyEquals const* instruction)
+i64 asm_slow_path_loosely_equals_values(VM* vm, u32 pc, Operand destination, Value lhs, Value rhs)
 {
-    vm->set(instruction->dst(), Value { ASM_TRY(*vm, pc, loosely_equals(*vm, vm->get(instruction->lhs()), vm->get(instruction->rhs()))) });
-    return static_cast<i64>(pc + sizeof(Op::LooselyEquals));
+    return finish_binary_slow_path(*vm, pc, destination, loosely_equals(*vm, lhs, rhs));
 }
 
-i64 asm_slow_path_loosely_inequals(VM* vm, u32 pc, Op::LooselyInequals const* instruction)
+i64 asm_slow_path_loosely_inequals_values(VM* vm, u32 pc, Operand destination, Value lhs, Value rhs)
 {
-    vm->set(instruction->dst(), Value { ASM_TRY(*vm, pc, loosely_inequals(*vm, vm->get(instruction->lhs()), vm->get(instruction->rhs()))) });
-    return static_cast<i64>(pc + sizeof(Op::LooselyInequals));
+    return finish_binary_slow_path(*vm, pc, destination, loosely_inequals(*vm, lhs, rhs));
 }
 
 i64 asm_slow_path_unary_minus(VM* vm, u32 pc, Op::UnaryMinus const* instruction)
