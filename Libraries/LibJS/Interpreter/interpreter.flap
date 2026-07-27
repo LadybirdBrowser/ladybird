@@ -864,13 +864,13 @@ handler Add(
                     store(dst, box_i32(sum));
                     dispatch_next;
                 },
-                Value<f64>(rhs_double) => {
+                Value<f64>(rhs_double) => @cold {
                     goto add_double(to_f64(lhs_integer), rhs_double);
                 },
                 _ => slow,
             }
         },
-        Value<f64>(lhs_double) => {
+        Value<f64>(lhs_double) => @cold {
             match rhs_value {
                 Value<i32>(rhs_integer) => {
                     goto add_double(lhs_double, to_f64(rhs_integer));
@@ -910,13 +910,13 @@ handler Sub(
                     store(dst, box_i32(difference));
                     dispatch_next;
                 },
-                Value<f64>(rhs_double) => {
+                Value<f64>(rhs_double) => @cold {
                     goto subtract_double(to_f64(lhs_integer), rhs_double);
                 },
                 _ => slow,
             }
         },
-        Value<f64>(lhs_double) => {
+        Value<f64>(lhs_double) => @cold {
             match rhs_value {
                 Value<i32>(rhs_integer) => {
                     goto subtract_double(lhs_double, to_f64(rhs_integer));
@@ -965,13 +965,13 @@ handler Mul(
                     store(dst, box_i32(product));
                     dispatch_next;
                 },
-                Value<f64>(rhs_double) => {
+                Value<f64>(rhs_double) => @cold {
                     goto multiply_double(to_f64(lhs_integer), rhs_double);
                 },
                 _ => slow,
             }
         },
-        Value<f64>(lhs_double) => {
+        Value<f64>(lhs_double) => @cold {
             match rhs_value {
                 Value<i32>(rhs_integer) => {
                     goto multiply_double(lhs_double, to_f64(rhs_integer));
@@ -1690,18 +1690,21 @@ handler UnaryPlus(
     src: in Operand
 ) {
     let value = load(src);
-    let matched = || {
-        store(dst, value);
-        dispatch_next;
-    };
-    let slow = || @cold {
-        call_slow_path(unary_plus);
-    };
-    let tag = extract_tag(value);
-    guard tag != INT32_TAG else matched;
-    tag = tag & NAN_BASE_TAG;
-    guard tag != NAN_BASE_TAG else slow;
-    goto matched;
+    match value {
+        Value<i32> => {
+            store(dst, value);
+            dispatch_next;
+        },
+
+        Value<f64> => @cold {
+            store(dst, value);
+            dispatch_next;
+        },
+
+        _ => @cold {
+            call_slow_path(unary_plus);
+        },
+    }
 }
 
 handler ThrowIfTDZ(
@@ -1970,7 +1973,7 @@ handler UnaryMinus(
             dispatch_next;
         },
 
-        Value<f64> => {
+        Value<f64> => @cold {
             toggle_bit(value, 63);
             store(dst, value);
             dispatch_next;
