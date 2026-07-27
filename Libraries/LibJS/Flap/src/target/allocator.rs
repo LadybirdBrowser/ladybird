@@ -2670,18 +2670,16 @@ mod tests {
     }
 
     #[test]
-    fn divmod_pins_outputs_and_keeps_inputs_off_rax_rdx() {
+    fn modulo_pins_output_and_keeps_inputs_off_rax_rdx() {
         // x86 idiv reads rax/rdx, so dividend / divisor operands must not
-        // be allocated to rax or rdx (the implicit_outputs); the quotient
-        // and remainder, however, are pinned to rax/rdx by fixed_operands
-        // and that pin must NOT be vetoed by the operand-forbids rule.
+        // be allocated to rax or rdx; the remainder is pinned to rdx and
+        // rax is an explicit scratch register.
         let out = allocated(
             vec![
                 instruction!(Operation::Move(IntegerWidth::U64), register("dividend"), immediate(1)),
                 instruction!(Operation::Move(IntegerWidth::U64), register("divisor"), immediate(2)),
                 instruction!(
-                    Operation::DivMod,
-                    register("quot"),
+                    Operation::Modulo,
                     register("rem"),
                     register("dividend"),
                     register("divisor")
@@ -2692,14 +2690,15 @@ mod tests {
             ],
             Architecture::X86_64,
         );
-        let names = find_operation(&out, Operation::DivMod)
+        let names = find_operation(&out, Operation::Modulo)
             .operands
             .iter()
             .map(|operand| operand.register_name().unwrap_or("<non-reg>"))
             .collect::<Vec<_>>();
-        assert_eq!(&names[..2], ["rax", "rdx"]);
+        assert_eq!(names[0], "rdx");
+        assert!(!["rax", "rdx"].contains(&names[1]));
         assert!(!["rax", "rdx"].contains(&names[2]));
-        assert!(!["rax", "rdx"].contains(&names[3]));
+        assert_eq!(names[3], "rax");
     }
 
     #[test]

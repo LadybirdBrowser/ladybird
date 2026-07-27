@@ -3277,24 +3277,22 @@ asm_handler_Mod:
     mov ecx, DWORD PTR [r14 + r13 + 8]
     mov eax, DWORD PTR [r14 + r13 + 12]
     mov rcx, QWORD PTR [rbx + rcx * 8]
-    mov rdx, QWORD PTR [rbx + rax * 8]
+    mov rsi, QWORD PTR [rbx + rax * 8]
     mov r11, rcx
     shr r11, 48
     cmp r11w, 32762
     jne .Lasm_Mod.ssa_block_1
-    mov r11, rdx
+    mov r11, rsi
     shr r11, 48
     cmp r11w, 32762
     jne .Lasm_Mod.ssa_block_1
-    movsxd rsi, edx
     test esi, esi
     jz .Lasm_Mod.ssa_block_1
-    movsxd rdi, ecx
-    test edi, edi
+    test ecx, ecx
     js .Lasm_Mod.ssa_block_1
-    mov rax, rdi
-    cqo
-    idiv rsi
+    mov eax, ecx
+    cdq
+    idiv esi
     or rdx, r15
     mov r11d, DWORD PTR [r14 + r13 + 4]
     mov QWORD PTR [rbx + r11 * 8], rdx
@@ -7265,10 +7263,9 @@ asm_handler_UnsignedRightShift_cold_end:
 asm_handler_Mod_cold:
 # Cold paths for Mod
 .Lasm_Mod.ssa_block_1:
-    mov esi, DWORD PTR [r14 + r13 + 4]
+    mov edx, DWORD PTR [r14 + r13 + 4]
     mov DWORD PTR [rbx + -64], r13d
-    mov r8, rdx
-    mov rdx, rsi
+    mov r8, rsi
     mov rdi, QWORD PTR [rbp - 48]
     mov esi, r13d
     call CSYM(asm_slow_path_mod_values)

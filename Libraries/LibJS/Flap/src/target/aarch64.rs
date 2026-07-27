@@ -397,8 +397,8 @@ define_machine_opcodes! {
     [BitClear64Immediate] => Self::BitClear64Immediate => [[R, I]] encoding {
         immediate(1).is_some_and(|value| is_logical_immediate(IntegerWidth::U64, value as u64))
     } printing simple!("bic"; native(0), native(0), SimpleOperand::HashImmediate(1, true));
-    [SignedDivide64] => Self::SignedDivide64 => [[R, R, R]] printing simple!("sdiv"; native(0), native(1), native(2));
-    [MultiplySubtract64] => Self::MultiplySubtract64 => [[R, R, R, R]] printing simple!("msub"; native(0), native(1), native(2), native(3));
+    [SignedDivide32] => Self::SignedDivide32 => [[R, R, R]] printing simple!("sdiv"; word(0), word(1), word(2));
+    [MultiplySubtract32] => Self::MultiplySubtract32 => [[R, R, R, R]] printing simple!("msub"; word(0), word(1), word(2), word(3));
 }
 
 pub(crate) struct ImmediateMove {

@@ -1646,13 +1646,12 @@ impl Backend for X86_64Backend {
     }
 
     fn finalize_divide(&self, emit: &mut Emit<'_>, operands: &[AllocatedOperand]) {
-        let [_, _, dividend, divisor] = operands.physical_registers();
-        use crate::target::registers::x86_64::RAX;
+        let [_, dividend, divisor, accumulator] = operands.physical_registers();
 
         emit!(emit.output, X86_64;
-            Opcode::Move64Register => [register RAX, register dividend];
-            Opcode::SignExtendRaxToRdx => [];
-            Opcode::SignedDivide64Register => [register divisor];
+            Opcode::Move32Register => [register accumulator, register dividend];
+            Opcode::SignExtendEaxToEdx => [];
+            Opcode::SignedDivide32Register => [register divisor];
         );
     }
 }

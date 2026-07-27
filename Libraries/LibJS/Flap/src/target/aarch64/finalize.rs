@@ -2093,11 +2093,8 @@ impl Backend for Aarch64Backend {
     }
 
     fn finalize_divide(&self, emit: &mut Emit<'_>, operands: &[AllocatedOperand]) {
-        let [quotient, remainder, dividend, divisor, scratch] = operands.physical_registers();
-        emit!(emit.output, Aarch64; Opcode::SignedDivide64 => [register scratch, register dividend, register divisor];);
-        emit!(emit.output, Aarch64; Opcode::MultiplySubtract64 => [register remainder, register scratch, register divisor, register dividend];);
-        if quotient != remainder {
-            emit!(emit.output, Aarch64; Opcode::MoveRegister(IntegerWidth::U64) => [register quotient, register scratch];);
-        }
+        let [remainder, dividend, divisor, scratch] = operands.physical_registers();
+        emit!(emit.output, Aarch64; Opcode::SignedDivide32 => [register scratch, register dividend, register divisor];);
+        emit!(emit.output, Aarch64; Opcode::MultiplySubtract32 => [register remainder, register scratch, register divisor, register dividend];);
     }
 }

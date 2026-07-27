@@ -403,7 +403,7 @@ fn finalize_instruction(
         Operation::Cold => {
             return emit.error("operation Cold was not expanded into legal machine instructions");
         }
-        Operation::DivMod => backend.finalize_divide(emit, operands),
+        Operation::Modulo => backend.finalize_divide(emit, operands),
         _ => emit.output.push(MachineInstruction {
             opcode,
             operands: instruction.operands,

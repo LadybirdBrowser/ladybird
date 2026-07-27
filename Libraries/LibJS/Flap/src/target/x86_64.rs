@@ -303,8 +303,8 @@ define_machine_opcodes! {
     [ResetBit] => Self::ResetBit => [[R, I]] encoding {
         immediate(1).is_some_and(|value| (0..64).contains(&value))
     } printing simple!("btr"; native(0), SimpleOperand::Immediate(1));
-    [SignExtendRaxToRdx] => Self::SignExtendRaxToRdx => [[]] printing simple!("cqo");
-    [SignedDivide64Register] => Self::SignedDivide64Register => [[R]] printing simple!("idiv"; native(0));
+    [SignExtendEaxToEdx] => Self::SignExtendEaxToEdx => [[]] printing simple!("cdq");
+    [SignedDivide32Register] => Self::SignedDivide32Register => [[R]] printing simple!("idiv"; integer(0, IntegerWidth::U32));
 }
 
 impl Opcode {

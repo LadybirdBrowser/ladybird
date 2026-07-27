@@ -179,6 +179,13 @@ fn lower_handler_internal(
         if let Some((instruction, _)) = folded_i32_bool_source(function, instruction) {
             folded_instructions.insert(instruction);
         }
+        if instruction.operation == Operation::Intrinsic(Intrinsic::LowLevel(LowLevelOperation::DivideModulo)) {
+            for input in &instruction.inputs {
+                if let Some((instructions, _)) = folded_32bit_operation_source(function, *input) {
+                    folded_instructions.extend(instructions);
+                }
+            }
+        }
         if matches!(instruction.operation, Operation::Intrinsic(Intrinsic::IntegerBinary(operation)) if operation.supports_narrow_result())
             && instruction
                 .results
@@ -1309,8 +1316,16 @@ fn select_branch(function: &FunctionUses<'_>, condition: ValueId) -> Option<Sele
             return None;
         };
         if is_integer_zero(function, *rhs) {
-            let (lhs, folded_inputs) = single_use_reused_source(function, *lhs)
-                .map(|(instruction, source)| (source, vec![instruction]))
+            let width = if function.values[lhs.0].ty == Type::I32 {
+                IntegerWidth::U32
+            } else {
+                IntegerWidth::U64
+            };
+            let (lhs, folded_inputs) = folded_32bit_operation_source(function, *lhs)
+                .or_else(|| {
+                    single_use_reused_source(function, *lhs).map(|(instruction, source)| (vec![instruction], source))
+                })
+                .map(|(instructions, source)| (source, instructions))
                 .unwrap_or((*lhs, Vec::new()));
             let mut branch = SelectedBranch::new(
                 instruction,
@@ -1321,23 +1336,9 @@ fn select_branch(function: &FunctionUses<'_>, condition: ValueId) -> Option<Sele
                         ..
                     })
                 ) {
-                    MachineOperation::branch_sign(
-                        if function.values[lhs.0].ty == Type::I32 {
-                            IntegerWidth::U32
-                        } else {
-                            IntegerWidth::U64
-                        },
-                        SignCondition::Negative,
-                    )
+                    MachineOperation::branch_sign(width, SignCondition::Negative)
                 } else {
-                    MachineOperation::branch_sign(
-                        if function.values[lhs.0].ty == Type::I32 {
-                            IntegerWidth::U32
-                        } else {
-                            IntegerWidth::U64
-                        },
-                        SignCondition::NotNegative,
-                    )
+                    MachineOperation::branch_sign(width, SignCondition::NotNegative)
                 },
                 vec![SelectedBranchInput::Value(lhs)],
             );
@@ -2480,10 +2481,25 @@ fn lower_instruction(
             ));
         }
         Operation::Intrinsic(Intrinsic::LowLevel(operation)) => {
-            output.push(machine_instruction(
-                low_level_machine_operation(*operation),
-                results.into_iter().chain(inputs).collect(),
-            ));
+            if *operation == LowLevelOperation::DivideModulo {
+                let [_quotient, remainder] = require_results(&results, operation.name())?;
+                let [lhs, rhs] = require_inputs(&instruction.inputs, operation.name())?;
+                let lhs = folded_32bit_operation_source(function, *lhs)
+                    .map(|(_, source)| value_operand(function, source))
+                    .unwrap_or_else(|| value_operand(function, *lhs))?;
+                let rhs = folded_32bit_operation_source(function, *rhs)
+                    .map(|(_, source)| value_operand(function, source))
+                    .unwrap_or_else(|| value_operand(function, *rhs))?;
+                output.push(machine_instruction(
+                    MachineOperation::Modulo,
+                    vec![remainder.clone(), lhs, rhs],
+                ));
+            } else {
+                output.push(machine_instruction(
+                    low_level_machine_operation(*operation),
+                    results.into_iter().chain(inputs).collect(),
+                ));
+            }
         }
         Operation::Intrinsic(Intrinsic::CheckedInteger(operation)) => {
             return Err(format!(
@@ -3090,6 +3106,7 @@ fn i32_consumers_stay_narrow(function: &FunctionUses<'_>, value: ValueId, visiti
             Operation::Intrinsic(Intrinsic::Value(
                 ValueOperation::BoxInt32 { clean: true } | ValueOperation::ToUint32,
             )) => continue,
+            Operation::Intrinsic(Intrinsic::LowLevel(LowLevelOperation::DivideModulo)) => {}
             Operation::Intrinsic(Intrinsic::IntegerBinary(operation)) if operation.supports_narrow_result() => {}
             Operation::Intrinsic(Intrinsic::IntegerComparison(operation))
                 if typed_signed_comparison_uses_narrow_inputs(function, *operation, &instruction.inputs) =>
@@ -3099,8 +3116,10 @@ fn i32_consumers_stay_narrow(function: &FunctionUses<'_>, value: ValueId, visiti
             _ => return false,
         }
         if !instruction.results.iter().all(|result| {
-            matches!(function.values[result.0].ty, Type::I32 | Type::U32)
-                && (function.values[result.0].ty == Type::U32 || i32_consumers_stay_narrow(function, *result, visiting))
+            value_use_count(function, *result) == 0
+                || matches!(function.values[result.0].ty, Type::I32 | Type::U32)
+                    && (function.values[result.0].ty == Type::U32
+                        || i32_consumers_stay_narrow(function, *result, visiting))
         }) {
             return false;
         }
@@ -3334,7 +3353,7 @@ fn value_machine_operation(operation: ValueOperation) -> Option<MachineOperation
 fn low_level_machine_operation(operation: LowLevelOperation) -> MachineOperation {
     match operation {
         LowLevelOperation::LoadLabel => MachineOperation::LoadLabel,
-        LowLevelOperation::DivideModulo => MachineOperation::DivMod,
+        LowLevelOperation::DivideModulo => MachineOperation::Modulo,
         LowLevelOperation::Move => MachineOperation::Move(IntegerWidth::U64),
         LowLevelOperation::LoadEffectiveAddress => MachineOperation::LoadEffectiveAddress,
         LowLevelOperation::LoadVm => MachineOperation::LoadVm,
