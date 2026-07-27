@@ -1958,6 +1958,46 @@ impl Backend for Aarch64Backend {
                 (Opcode::BranchOverflow, verified_label(target_operand), None)
             }
             (
+                operation @ (OverflowOperation::RecoverAddLhs | OverflowOperation::RecoverSubtractLhs),
+                [destination, rhs, scratch],
+            ) => {
+                let destination = verified_register(destination);
+                let scratch = verified_register(scratch);
+                let operation = match operation {
+                    OverflowOperation::RecoverAddLhs => AddSubtractOperation::Subtract,
+                    OverflowOperation::RecoverSubtractLhs => AddSubtractOperation::Add,
+                    _ => unreachable!(),
+                };
+                let source = match rhs {
+                    AllocatedOperand::Immediate(value) if *value > 0 && *value <= 4095 => {
+                        emit!(emit.output, Aarch64; Opcode::AddSubtract32ImmediateWithFlags(operation) => [register destination, immediate *value];);
+                        None
+                    }
+                    AllocatedOperand::Immediate(value) => {
+                        move_immediate(emit, scratch, *value, IntegerWidth::U32);
+                        Some(scratch)
+                    }
+                    AllocatedOperand::Address(address) => {
+                        let loaded = load(
+                            emit,
+                            MemoryWidth::Word,
+                            false,
+                            scratch,
+                            address.clone(),
+                            std::slice::from_ref(&scratch),
+                        );
+                        assert!(loaded.is_ok(), "verified bytecode field addresses are encodable");
+                        Some(scratch)
+                    }
+                    rhs => Some(verified_register(rhs)),
+                };
+                if let Some(source) = source {
+                    push_overflow_add_subtract_register(emit, operation, destination, source);
+                }
+                emit!(emit.output, Aarch64; Opcode::SignExtend32To64 => [register destination, register destination];);
+                return;
+            }
+            (
                 operation @ (OverflowOperation::Increment | OverflowOperation::Decrement),
                 [destination, target_operand],
             ) => {
