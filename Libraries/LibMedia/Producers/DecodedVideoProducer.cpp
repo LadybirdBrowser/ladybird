@@ -35,6 +35,7 @@ DecoderErrorOr<NonnullRefPtr<DecodedVideoProducer>> DecodedVideoProducer::try_cr
             thread_data->handle_seek();
             thread_data->push_data_and_decode_some_frames();
         }
+        thread_data->release_decoder();
         return 0;
     }));
     thread->start();
@@ -184,6 +185,12 @@ DecoderErrorOr<void> DecodedVideoProducer::ThreadData::create_decoder()
     auto codec_initialization_data = TRY(m_demuxer->get_codec_initialization_data_for_track(m_track));
     m_decoder = TRY(FFmpeg::FFmpegVideoDecoder::try_create(codec_id, codec_initialization_data));
     return {};
+}
+
+void DecodedVideoProducer::ThreadData::release_decoder()
+{
+    auto locker = take_lock();
+    m_decoder.clear();
 }
 
 TimeRanges DecodedVideoProducer::buffered_time_ranges() const
