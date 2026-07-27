@@ -310,7 +310,7 @@ void NavigableContainer::destroy_the_child_navigable()
 
     // Not in the spec:
     // Setting container's content navigable makes document *not* be "fully active".
-    // Therefore, it is moved to run in afterAllDestruction callback of "destroy a document and its descendants"
+    // Therefore, it is moved to run in the after-all-unloads callback of "unload a document and its descendants"
     // when all queued tasks are done.
     // "Has been destroyed" flag is used instead to check whether navigable is already destroyed.
     auto& local_navigable = as<LocalNavigable>(*navigable);
@@ -363,14 +363,21 @@ void NavigableContainer::destroy_the_child_navigable()
     });
 
     // 5. Destroy a document and its descendants given navigable's active document.
+    // AD-HOC: We unload the document and its descendants, instead of just destroying. Unloading fires pagehide at the
+    //         document's relevant global object, updates its visibility state to "hidden" (firing visibilitychange),
+    //         and fires unload — before destroying the document. The spec as written would leave a removed container's
+    //         content documents reporting a "visible" visibility state — with no events fired; Gecko/WebKit/Blink all
+    //         fire those events, and report such documents as hidden. This also means starting a view transition in a
+    //         removed document skips the transition — since startViewTransition() skips transitions for hidden docs.
+    //         See https://github.com/whatwg/html/issues/12288
     // AD-HOC: The spec assumes the active document is non-null here, but during an ancestor
     //         unload the child documents are unloaded (and destroyed) before the ancestor's
     //         pagehide fires. If that pagehide handler then removes a subtree containing this
     //         container, we reach step 5 with navigable's active document already null. We
-    //         treat the destroy step as a no-op in that case and proceed with the remaining
+    //         treat the unload step as a no-op in that case and proceed with the remaining
     //         post-destruction cleanup.
     if (auto active_document = local_navigable.active_document())
-        active_document->destroy_a_document_and_its_descendants(after_document_destruction);
+        active_document->unload_a_document_and_its_descendants({}, after_document_destruction);
     else
         after_document_destruction->function()();
 }
