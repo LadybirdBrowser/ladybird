@@ -267,6 +267,8 @@ impl PaintRecorder<'_> {
             is_viewport,
             can_be_wheel_scrolled_horizontally: hit_test_facts.could_be_scrolled_horizontally,
             can_be_wheel_scrolled_vertically: hit_test_facts.could_be_scrolled_vertically,
+            snaps_scroll_position_horizontally: facts.snaps_scroll_position_horizontally,
+            snaps_scroll_position_vertically: facts.snaps_scroll_position_vertically,
         });
     }
 

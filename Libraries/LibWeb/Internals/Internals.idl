@@ -217,10 +217,10 @@ interface Internals {
 
     [ImplementedAs=async_scrolling_state_object] object asyncScrollingState();
     boolean asyncScrollingStateBlocksWheelEventAt(double x, double y);
-    boolean asyncScrollingStateCanWheelScrollAt(double x, double y, double deltaX, double deltaY, optional boolean forceStaleWheelEventRegions = false);
+    boolean asyncScrollingStateCanWheelScrollAt(double x, double y, double deltaX, double deltaY, optional boolean precise = false, optional boolean forceStaleWheelEventRegions = false);
     Utf16DOMString asyncScrollingStateWheelRoutingAdmission();
-    Utf16DOMString asyncScrollingStateWheelScrollAdmissionAt(double x, double y, double deltaX, double deltaY, optional boolean forceStaleWheelEventRegions = false);
-    Utf16DOMString asyncScrollingStateWheelTargetAt(double x, double y, double deltaX, double deltaY);
+    Utf16DOMString asyncScrollingStateWheelScrollAdmissionAt(double x, double y, double deltaX, double deltaY, optional boolean precise = false, optional boolean forceStaleWheelEventRegions = false);
+    Utf16DOMString asyncScrollingStateWheelTargetAt(double x, double y, double deltaX, double deltaY, optional boolean precise = false);
     DOMString viewportOverflowX();
 
 };

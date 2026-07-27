@@ -61,6 +61,7 @@
 #include <LibWeb/Painting/ChromeWidget.h>
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
 #include <LibWeb/Painting/HitTestDisplayList.h>
+#include <LibWeb/Painting/ScrollSnap.h>
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/InputEvent.h>
@@ -710,6 +711,56 @@ static CSSPixelPoint compute_mouse_event_offset(CSSPixelPoint position, Layout::
     return offset;
 }
 
+struct VisualViewportPanAxes {
+    bool x { false };
+    bool y { false };
+
+    bool is_empty() const { return !x && !y; }
+};
+
+static VisualViewportPanAxes visual_viewport_pan_axes_for_scroll_step(DOM::Document& document, double delta_x, double delta_y)
+{
+    auto visual_viewport = document.visual_viewport();
+    auto maximum_offset_left = document.viewport_rect().width().to_double() - visual_viewport->width();
+    auto maximum_offset_top = document.viewport_rect().height().to_double() - visual_viewport->height();
+    return {
+        .x = (delta_x < 0 && visual_viewport->offset_left() > 0) || (delta_x > 0 && visual_viewport->offset_left() < maximum_offset_left),
+        .y = (delta_y < 0 && visual_viewport->offset_top() > 0) || (delta_y > 0 && visual_viewport->offset_top() < maximum_offset_top),
+    };
+}
+
+static Layout::Node* scrolling_box_for_scroll_step(Layout::Node& target, CSSPixelPoint delta)
+{
+    auto scrolling_box_moved_by = [](Layout::Node const& node, CSSPixelPoint delta) {
+        return Painting::clamp_scroll_offset(node, Painting::scroll_offset(node) + delta) != Painting::scroll_offset(node);
+    };
+
+    auto deltas_the_scrolling_box_accepts = [](Layout::Node const& node, CSSPixelPoint delta) {
+        if (!Painting::could_be_scrolled_by_wheel_event(node, Painting::ScrollDirection::Horizontal))
+            delta.set_x(0);
+        if (!Painting::could_be_scrolled_by_wheel_event(node, Painting::ScrollDirection::Vertical))
+            delta.set_y(0);
+        return delta;
+    };
+
+    for (Layout::Node* node = &target; node && !node->is_viewport(); node = node->containing_block()) {
+        auto accepted_delta = deltas_the_scrolling_box_accepts(*node, delta);
+        if (!accepted_delta.is_zero() && scrolling_box_moved_by(*node, accepted_delta))
+            return node;
+    }
+
+    // The viewport is scrolled by the default action itself rather than by the chain above, so it comes last.
+    auto* viewport_layout_node = target.document().layout_node();
+    if (!viewport_layout_node)
+        return nullptr;
+    auto accepted_delta = deltas_the_scrolling_box_accepts(*viewport_layout_node, delta);
+    if (accepted_delta.is_zero() || !scrolling_box_moved_by(*viewport_layout_node, accepted_delta))
+        return nullptr;
+    if (!visual_viewport_pan_axes_for_scroll_step(target.document(), delta.x().to_double(), delta.y().to_double()).is_empty())
+        return nullptr;
+    return viewport_layout_node;
+}
+
 EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers, double wheel_delta_x, double wheel_delta_y, WheelDeltaPrecision wheel_delta_precision, ScrollGesturePhase scroll_gesture_phase, bool async_scroll_performed_default_action, Optional<AsyncScrollOperation>* async_scroll_operation)
 {
     record_last_known_mouse_position(visual_viewport_position, screen_position, buttons, modifiers);
@@ -723,6 +774,7 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
     if (!document->is_fully_active())
         return EventResult::Dropped;
 
+    m_navigable->adopt_pending_async_scroll_offsets();
     m_navigable->note_user_scroll_gesture_phase(scroll_gesture_phase);
 
     // Wheel activity marks the scroll gesture as still in progress even when it no longer moves any scrolling box.
@@ -743,13 +795,39 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
 
     auto target = target_for_mouse_position(visual_viewport_position);
 
+    CSSPixelPoint wheel_step_delta { CSSPixels::nearest_value_for(wheel_delta_x), CSSPixels::nearest_value_for(wheel_delta_y) };
+
+    auto perform_snapped_wheel_step = [&](Layout::Node* target) {
+        if (wheel_delta_precision != WheelDeltaPrecision::Discrete || !target)
+            return false;
+        auto* scrolling_box = scrolling_box_for_scroll_step(*target, wheel_step_delta);
+        if (!scrolling_box)
+            return false;
+        return m_navigable->perform_a_snapped_relative_user_scroll(*scrolling_box, wheel_step_delta, Painting::SnapSelectionStrategy::Type::Direction, HTML::LocalNavigable::SnapStepAccumulation::UntilGestureSettles);
+    };
+
+    auto wheel_step_selects_a_snap_position = [&] {
+        auto* target_layout_node = layout_node_for_target(*document, target->box);
+        if (!target_layout_node)
+            return false;
+        auto* scrolling_box = scrolling_box_for_scroll_step(*target_layout_node, wheel_step_delta);
+        if (!scrolling_box)
+            return false;
+        auto snap_axes = Painting::snap_axes_of_scroll_container(*scrolling_box);
+        return (snap_axes.x && wheel_step_delta.x() != 0) || (snap_axes.y && wheel_step_delta.y() != 0);
+    };
+
     auto can_attempt_async_scroll = m_navigable->page().async_scrolling_enabled() && m_navigable->has_compositor_context();
     if (can_attempt_async_scroll && async_scroll_performed_default_action) {
         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Not attempting wheel async scroll: default action already performed");
     } else if (can_attempt_async_scroll && visual_viewport->scale() != 1.0) {
         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Not attempting wheel async scroll: visual viewport is scaled");
     } else if (can_attempt_async_scroll) {
-        if (target.has_value()) {
+        if (target.has_value() && wheel_delta_precision == WheelDeltaPrecision::Discrete && wheel_step_selects_a_snap_position()) {
+            // The step's snap position is selected by the default action below, so that the wheel event still has its
+            // chance to cancel the scroll and a nested navigable still gets the step first.
+            dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Not attempting wheel async scroll: the step selects a snap position");
+        } else if (target.has_value()) {
             auto viewport_rect = m_navigable->page().css_to_device_rect(m_navigable->viewport_rect()).to_type<int>();
             auto async_scroll_delta = Gfx::FloatPoint { static_cast<float>(wheel_delta_x), static_cast<float>(wheel_delta_y) };
             auto device_position = m_navigable->page().css_to_device_point(visual_viewport_position);
@@ -759,8 +837,9 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
             auto operation_tracking = async_scroll_operation
                 ? Compositor::AsyncScrollOperationTracking::Yes
                 : Compositor::AsyncScrollOperationTracking::No;
+            auto snap_container_handling = Compositor::snap_container_handling_for(wheel_delta_precision);
             auto enqueue_result = m_navigable->compositor_context().async_scroll_by(
-                document->unique_id(), async_scroll_position, async_scroll_delta_in_device_pixels, viewport_rect, operation_tracking);
+                document->unique_id(), async_scroll_position, async_scroll_delta_in_device_pixels, viewport_rect, snap_container_handling, operation_tracking);
             async_scroll_performed_default_action = enqueue_result.accepted;
             if (enqueue_result.operation_id.has_value() && async_scroll_operation)
                 *async_scroll_operation = AsyncScrollOperation { m_navigable, *enqueue_result.operation_id };
@@ -795,6 +874,9 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
         };
 
         auto perform_wheel_default_action = [&](Layout::Node* target) -> EventResult {
+            if (perform_snapped_wheel_step(target))
+                return EventResult::Handled;
+
             if (target && Painting::wheel_scroll_along_containing_block_chain(*target, wheel_delta_x, wheel_delta_y) == Painting::ScrollHandled::Yes)
                 return EventResult::Handled;
 
@@ -802,15 +884,9 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
                 return EventResult::Dropped;
 
             auto document = m_navigable->active_document();
-            auto visual_viewport = document->visual_viewport();
-            auto visual_viewport_max_x = m_navigable->viewport_rect().width().to_double() - visual_viewport->width();
-            auto visual_viewport_max_y = m_navigable->viewport_rect().height().to_double() - visual_viewport->height();
-            auto visual_viewport_can_scroll_horizontally = (wheel_delta_x < 0 && visual_viewport->offset_left() > 0)
-                || (wheel_delta_x > 0 && visual_viewport->offset_left() < visual_viewport_max_x);
-            auto visual_viewport_can_scroll_vertically = (wheel_delta_y < 0 && visual_viewport->offset_top() > 0)
-                || (wheel_delta_y > 0 && visual_viewport->offset_top() < visual_viewport_max_y);
-            auto viewport_wheel_delta_x = Painting::could_be_scrolled_by_wheel_event(*document->layout_node(), Painting::ScrollDirection::Horizontal) || visual_viewport_can_scroll_horizontally ? wheel_delta_x : 0;
-            auto viewport_wheel_delta_y = Painting::could_be_scrolled_by_wheel_event(*document->layout_node(), Painting::ScrollDirection::Vertical) || visual_viewport_can_scroll_vertically ? wheel_delta_y : 0;
+            auto visual_viewport_pan_axes = visual_viewport_pan_axes_for_scroll_step(*document, wheel_delta_x, wheel_delta_y);
+            auto viewport_wheel_delta_x = Painting::could_be_scrolled_by_wheel_event(*document->layout_node(), Painting::ScrollDirection::Horizontal) || visual_viewport_pan_axes.x ? wheel_delta_x : 0;
+            auto viewport_wheel_delta_y = Painting::could_be_scrolled_by_wheel_event(*document->layout_node(), Painting::ScrollDirection::Vertical) || visual_viewport_pan_axes.y ? wheel_delta_y : 0;
 
             if (viewport_wheel_delta_x != 0 || viewport_wheel_delta_y != 0) {
                 auto viewport_scroll_position_before = CSSPixelPoint { CSSPixels(document->visual_viewport()->page_left()), CSSPixels(document->visual_viewport()->page_top()) };
@@ -1349,8 +1425,24 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         return scroll_target_layout_node
             && Painting::wheel_scroll_along_containing_block_chain(*scroll_target_layout_node, delta_x, delta_y) == Painting::ScrollHandled::Yes;
     };
+    auto perform_snapped_scroll_step_for_key_input = [&](CSSPixelPoint delta, Painting::SnapSelectionStrategy::Type strategy_type) {
+        document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleKeyDown);
+        Layout::Node* target = nullptr;
+        if (auto scroll_target = scroll_target_for_key_input())
+            target = scroll_target->layout_node();
+        if (!target)
+            target = document->layout_node();
+        if (!target)
+            return false;
+        auto* scrolling_box = scrolling_box_for_scroll_step(*target, delta);
+        if (!scrolling_box)
+            return false;
+        return m_navigable->perform_a_snapped_relative_user_scroll(*scrolling_box, delta, strategy_type, HTML::LocalNavigable::SnapStepAccumulation::UntilScrollFinishes);
+    };
     auto scroll_by_for_key_input = [&](CSSPixels delta_x, CSSPixels delta_y, Painting::SnapSelectionStrategy::Type intent) {
         hold_scroll_gesture_until_key_release(intent);
+        if (perform_snapped_scroll_step_for_key_input({ delta_x, delta_y }, intent))
+            return;
         if (scroll_container_of_scroll_target_by(delta_x.to_double(), delta_y.to_double()))
             return;
         m_navigable->scroll_viewport_by_delta({ delta_x, delta_y }, Bindings::ScrollBehavior::Auto);

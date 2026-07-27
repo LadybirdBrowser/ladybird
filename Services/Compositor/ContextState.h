@@ -115,12 +115,13 @@ public:
         Gfx::FloatPoint position,
         Gfx::FloatPoint delta,
         Gfx::IntRect viewport_rect,
+        Web::Compositor::SnapContainerHandling,
         Web::Compositor::AsyncScrollOperationTracking);
     AsyncScrollResult smooth_scroll_to(Web::Compositor::AsyncScrollNodeStableID, Gfx::FloatPoint offset, Gfx::FloatPoint main_thread_offset, Gfx::IntRect viewport_rect, double device_pixels_per_css_pixel);
     void cancel_smooth_scroll(Web::Compositor::AsyncScrollNodeStableID);
     Optional<Gfx::IntRect> advance_smooth_scroll_animations(MonotonicTime now);
     bool has_active_smooth_scroll_animations() const { return !m_smooth_scroll_animations.is_empty(); }
-    ContextUpdateResult async_scroll_by(Gfx::FloatPoint position, Gfx::FloatPoint delta);
+    ContextUpdateResult async_scroll_by(Gfx::FloatPoint position, Gfx::FloatPoint delta, Web::Compositor::SnapContainerHandling);
     bool should_defer_main_thread_present_for_async_scroll() const;
     Web::Compositor::PendingAsyncScrollUpdates take_pending_async_scroll_updates();
 

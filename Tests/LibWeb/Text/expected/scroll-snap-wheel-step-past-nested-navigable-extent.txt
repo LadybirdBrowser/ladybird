@@ -1,0 +1,4 @@
+nested navigable scroll offset after the first step: 200
+page scroll offset after the first step: 0
+nested navigable scroll offset after the second step: 200
+page scroll offset after the second step: 200

@@ -377,12 +377,15 @@ ContextState::AsyncScrollResult ContextState::async_scroll_by(
     Gfx::FloatPoint position,
     Gfx::FloatPoint delta,
     Gfx::IntRect viewport_rect,
+    Web::Compositor::SnapContainerHandling snap_container_handling,
     Web::Compositor::AsyncScrollOperationTracking operation_tracking)
 {
     if (!m_can_accept_async_wheel_events)
         return {};
 
-    auto scroll_target = m_async_scroll_tree.hit_test_scroll_node_for_wheel(position, delta);
+    // Scroll node chaining selects a scrolling box the main thread never examined, so the snap containers among the
+    // chained boxes are recognized here rather than only before the step is admitted to this path.
+    auto scroll_target = m_async_scroll_tree.hit_test_scroll_node_for_wheel(position, delta, snap_container_handling);
     if (scroll_target.blocked_by_main_thread_region || scroll_target.blocked_by_wheel_event_region || !scroll_target.node_id.has_value())
         return {};
     if (scroll_target.node_id->document_id != expected_document_id)
@@ -529,14 +532,14 @@ Optional<Gfx::IntRect> ContextState::advance_smooth_scroll_animations(MonotonicT
     return {};
 }
 
-ContextState::ContextUpdateResult ContextState::async_scroll_by(Gfx::FloatPoint position, Gfx::FloatPoint delta)
+ContextState::ContextUpdateResult ContextState::async_scroll_by(Gfx::FloatPoint position, Gfx::FloatPoint delta, Web::Compositor::SnapContainerHandling snap_container_handling)
 {
     if (!presents_to_client())
         return {};
     if (!m_can_accept_async_wheel_events)
         return {};
 
-    auto initial_scroll_target = m_async_scroll_tree.hit_test_scroll_node_for_wheel(position, delta);
+    auto initial_scroll_target = m_async_scroll_tree.hit_test_scroll_node_for_wheel(position, delta, snap_container_handling);
     if (initial_scroll_target.blocked_by_main_thread_region || initial_scroll_target.blocked_by_wheel_event_region)
         return {};
 
@@ -561,7 +564,7 @@ ContextState::ContextUpdateResult ContextState::async_scroll_by(Gfx::FloatPoint 
     if (auto scale = visual_viewport_scale_for_compositing(); scale.has_value() && *scale > 1.0f)
         async_scroll_delta.scale_by(1.0f / *scale);
 
-    auto scroll_target = m_async_scroll_tree.hit_test_scroll_node_for_wheel(position, async_scroll_delta);
+    auto scroll_target = m_async_scroll_tree.hit_test_scroll_node_for_wheel(position, async_scroll_delta, snap_container_handling);
     if (scroll_target.blocked_by_main_thread_region || scroll_target.blocked_by_wheel_event_region || !scroll_target.node_id.has_value()) {
         if (frame_to_present.has_value())
             return {

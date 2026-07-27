@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+    iframe {
+        width: 200px;
+        height: 200px;
+        border: 0;
+    }
+    #spacer {
+        height: 2000px;
+    }
+</style>
+<iframe id="frame" srcdoc="<style>html{scroll-snap-type:y mandatory}body{margin:0}div{height:200px;scroll-snap-align:start}</style><div></div><div></div>"></iframe>
+<div id="spacer"></div>
+<script>
+    promiseTest(async () => {
+        await new Promise(resolve => frame.addEventListener("load", resolve, { once: true }));
+        await animationFrame();
+        await animationFrame();
+
+        // The first step takes the nested navigable to its last snap position, which is also its scroll extent.
+        await internals.wheel(100, 100, 0, 200);
+        await scrollOffsetStopsChanging(() => frame.contentWindow.scrollY);
+        println(`nested navigable scroll offset after the first step: ${frame.contentWindow.scrollY}`);
+        println(`page scroll offset after the first step: ${window.scrollY}`);
+
+        await internals.wheel(100, 100, 0, 200);
+        await scrollOffsetStopsChanging(() => frame.contentWindow.scrollY);
+        println(`nested navigable scroll offset after the second step: ${frame.contentWindow.scrollY}`);
+        println(`page scroll offset after the second step: ${window.scrollY}`);
+    });
+</script>

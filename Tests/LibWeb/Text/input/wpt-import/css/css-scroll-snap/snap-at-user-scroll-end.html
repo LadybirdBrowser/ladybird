@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-scroll-snap-1/#scroll-snap-type" />
+<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1">
+<title>Tests that window should snap at user scroll end.</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-actions.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<script src="../../dom/events/scrolling/scroll_support.js"></script>
+<script src="support/common.js"></script>
+<style>
+html {
+  margin: 0px;
+  scroll-snap-type: both mandatory;
+}
+#content {
+  width: 1000vw;
+  height: 1000vh;
+  padding: 0px;
+  margin: 0px;
+}
+#target {
+  position: relative;
+  left: 400px;
+  top: 400px;
+  width: 400px;
+  height: 400px;
+  background-color: lightblue;
+  overflow: hidden;
+  scroll-snap-align: start;
+}
+</style>
+<div id="content">
+  <div id="target">
+    <!-- CSSScrollSnap
+    Tests that the window snaps at user scroll end.
+    Manual steps:
+      1. Scroll the page once vertically and once horizontally.
+      2. Verify in console (or otherwise) window scroll position is same as
+      target's offset position -->
+  </div>
+</div>
+<script>
+promise_test(async t => {
+  await waitForCompositorReady();
+  const target = document.getElementById("target");
+  // Inject scroll actions.
+  const pos_x = 20;
+  const pos_y = 20;
+  const scroll_delta_x = 100;
+  const scroll_delta_y = 100;
+  const wheelPromise = waitForWheelEvent(window);
+  await new test_driver.Actions()
+      .scroll(pos_x, pos_y, scroll_delta_x, scroll_delta_y)
+      .send()
+  await wheelPromise;
+  await waitForAnimationEnd(() => window.scrollY);
+  assert_approx_equals(window.scrollX, target.offsetLeft, 0.5,
+        "window.scrollX should be at snapped position.");
+  assert_approx_equals(window.scrollY, target.offsetTop, 0.5,
+        "window.scrollY should be at snapped position.");
+}, "Tests that window should snap at user scroll end.");
+</script>

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    #scroller {
+        width: 200px;
+        height: 100px;
+        overflow: scroll;
+        scroll-snap-type: y mandatory;
+        position: relative;
+    }
+    .area {
+        position: absolute;
+        width: 50%;
+        height: 100px;
+        scroll-snap-align: start;
+    }
+</style>
+<div id="scroller">
+    <div class="area" style="top: 0"></div>
+    <div class="area" style="top: 1000px"></div>
+</div>
+<script>
+    promiseTest(async () => {
+        const scroller = document.getElementById("scroller");
+
+        await animationFrame();
+        await animationFrame();
+
+        // Precise input snaps only once its gesture settles, which takes 500 milliseconds of no further input.
+        await internals.wheel(50, 50, 0, 60, true);
+        println(`scroll offset after the pan: ${scroller.scrollLeft},${scroller.scrollTop}`);
+
+        // The gesture runs out of input while the programmatic scroll is under way, so it must leave the scrolling box
+        // to the scroll that owns it.
+        await new Promise(resolve => setTimeout(resolve, 400));
+        await scroller.scrollTo({ top: 1000, behavior: "smooth" });
+        println(`scroll offset after the programmatic scroll: ${scroller.scrollLeft},${scroller.scrollTop}`);
+
+        let previousScrollTop = null;
+        while (previousScrollTop !== scroller.scrollTop) {
+            previousScrollTop = scroller.scrollTop;
+            for (let frame = 0; frame < 5; frame++)
+                await animationFrame();
+        }
+        println(`scroll offset once everything settles: ${scroller.scrollLeft},${scroller.scrollTop}`);
+    });
+</script>

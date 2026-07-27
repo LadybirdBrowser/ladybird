@@ -56,6 +56,7 @@
 #include <LibWeb/Painting/PaintingRustFFI.h>
 #include <LibWeb/Painting/ResizeHandle.h>
 #include <LibWeb/Painting/ResolvedCSSFilter.h>
+#include <LibWeb/Painting/ScrollSnap.h>
 #include <LibWeb/Painting/Scrollbar.h>
 #include <LibWeb/Painting/ShadowData.h>
 #include <LibWeb/Platform/FontPlugin.h>
@@ -819,6 +820,11 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
                 facts.scrollable_node_id = dom_node->unique_id().value();
             }
             facts.pseudo_element_type = layout_node.generated_for_pseudo_element().has_value() ? static_cast<u8>(to_underlying(*layout_node.generated_for_pseudo_element())) : 0;
+            if (facts.scroll_node_kind != Layout::RustFFI::FfiScrollNodeKind::None) {
+                auto snap_axes = snap_axes_of_scroll_container(layout_node);
+                facts.snaps_scroll_position_horizontally = snap_axes.x;
+                facts.snaps_scroll_position_vertically = snap_axes.y;
+            }
             facts.inside_blocking_wheel_event_handler = dom_node && dom_node->inside_blocking_wheel_event_handler();
             facts.records_viewport_scrollbars = is_viewport_paintable(layout_node)
                 && layout_node.document().page().async_scrolling_enabled()

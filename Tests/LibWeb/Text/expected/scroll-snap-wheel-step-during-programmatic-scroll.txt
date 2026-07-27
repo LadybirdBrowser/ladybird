@@ -1,0 +1,3 @@
+scroll offset after the first step: 0,100
+step travels on from the offset it arrived at: true
+step lands on a snap position: true
