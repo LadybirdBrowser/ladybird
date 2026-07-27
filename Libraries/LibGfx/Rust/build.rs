@@ -14,9 +14,11 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=cbindgen.toml");
+    println!("cargo:rerun-if-env-changed=CARGO_PRIMARY_PACKAGE");
     println!("cargo:rerun-if-env-changed=FFI_OUTPUT_DIR");
     println!("cargo:rerun-if-changed=src");
 
+    let is_primary_package = env::var_os("CARGO_PRIMARY_PACKAGE").is_some();
     let ffi_out_dir = env::var("FFI_OUTPUT_DIR")
         .map(PathBuf::from)
         .unwrap_or_else(|_| out_dir.clone());
@@ -30,7 +32,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             let header_path = out_dir.join("RustFFI.h");
             bindings.write_to_file(&header_path);
 
-            if ffi_out_dir != out_dir {
+            if is_primary_package && ffi_out_dir != out_dir {
                 bindings.write_to_file(ffi_out_dir.join("RustFFI.h"));
             }
         },

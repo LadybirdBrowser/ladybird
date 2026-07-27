@@ -26,6 +26,11 @@
 #include <harfbuzz/hb-ot.h>
 #include <harfbuzz/hb.h>
 
+extern "C" {
+float ladybird_gfx_font_glyph_width(void const*, u32);
+u32 ladybird_gfx_font_glyph_id(void const*, u32);
+}
+
 namespace Gfx {
 
 static Atomic<u64> s_next_id { 1 };
@@ -242,4 +247,16 @@ bool Font::is_emoji_font() const
     return m_is_emoji_font == TriState::True;
 }
 
+}
+
+extern "C" float ladybird_gfx_font_glyph_width(void const* font, u32 code_point)
+{
+    VERIFY(font);
+    return static_cast<Gfx::Font const*>(font)->glyph_width(code_point);
+}
+
+extern "C" u32 ladybird_gfx_font_glyph_id(void const* font, u32 code_point)
+{
+    VERIFY(font);
+    return static_cast<Gfx::Font const*>(font)->glyph_id_for_code_point(code_point);
 }
