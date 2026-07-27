@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Adding a new snap area when there are none should make the scroller snap to it.

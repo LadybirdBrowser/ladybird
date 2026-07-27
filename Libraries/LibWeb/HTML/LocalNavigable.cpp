@@ -6,8 +6,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AllOf.h>
 #include <AK/AnyOf.h>
 #include <AK/NeverDestroyed.h>
+#include <AK/TemporaryChange.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf16StringBuilder.h>
 #include <AK/Variant.h>
@@ -3957,6 +3959,22 @@ bool LocalNavigable::set_scroll_offset_for(Compositor::AsyncScrollNodeStableID s
     return Painting::set_scroll_offset(*layout_node, scroll_offset) == Painting::ScrollHandled::Yes;
 }
 
+static void record_snapped_areas_of_scroll_container(DOM::Document& document, Compositor::AsyncScrollNodeStableID stable_node_id, Painting::SnapDestination& snap_destination)
+{
+    // https://drafts.csswg.org/css-scroll-snap-1/#re-snap
+    // If the scroll container was snapped before the content change and those same snap areas still exist (e.g. their
+    // associated elements were not deleted), the scroll container must be re-snapped to those same snap areas after the
+    // content change.
+
+    // NB: An axis the selection did not evaluate keeps the snap areas it is already snapped to.
+    Painting::SnappedAreas snapped_areas = document.snapped_areas_of_scroll_container(stable_node_id);
+    if (snap_destination.evaluated_x)
+        snapped_areas.x = move(snap_destination.snapped_areas.x);
+    if (snap_destination.evaluated_y)
+        snapped_areas.y = move(snap_destination.snapped_areas.y);
+    document.set_snapped_areas_of_scroll_container(stable_node_id, move(snapped_areas));
+}
+
 static GC::Ptr<DOM::EventTarget> scroll_event_target_for_async_scroll_node(DOM::Document& document, Compositor::AsyncScrollNodeStableID stable_node_id)
 {
     if (stable_node_id.kind == Compositor::AsyncScrollNodeKind::Viewport) {
@@ -4110,6 +4128,101 @@ void LocalNavigable::snap_user_scroll_gestures_that_awaited_layout()
     if (!any_of(m_pending_user_scrollend_targets, [](auto const& entry) { return entry.awaits_layout_for_snapping; }))
         return;
     user_scroll_did_settle(UserScrollSettlement::SnappingDeferredUntilLayout);
+}
+
+// https://drafts.csswg.org/css-scroll-snap-1/#re-snap
+void LocalNavigable::re_snap_scroll_containers_after_layout_change()
+{
+    // If the content or layout of the document changes (e.g. content is added, moved, deleted, resized) such that the
+    // content of a snapport changes, the UA must re-evaluate the resulting scroll position, and re-snap if required.
+
+    if (m_is_re_snapping_scroll_containers)
+        return;
+
+    auto document = active_document();
+    if (!document || !document->needs_scroll_container_resnap())
+        return;
+
+    if (!document->may_have_scroll_snap_areas()) {
+        document->cancel_scheduled_scroll_container_resnap();
+        return;
+    }
+
+    // NB: Not every completed layout update leaves usable layout behind, such as one for a document created for
+    //     template contents; re-snapping then waits for an update that does.
+    if (!document->layout_is_up_to_date() || document->is_running_update_layout())
+        return;
+
+    auto const* viewport_layout_node = document->unsafe_layout_node();
+    if (!viewport_layout_node || !Painting::has_committed_box(*viewport_layout_node))
+        return;
+
+    if (m_user_scroll_gesture_hold_count > 0)
+        return;
+
+    document->cancel_scheduled_scroll_container_resnap();
+    TemporaryChange re_snapping_in_progress { m_is_re_snapping_scroll_containers, true };
+
+    auto snap_containers = document->collect_scroll_snap_containers();
+
+    bool any_snap_container_deferred = false;
+    for (auto const& snap_container : snap_containers) {
+        auto stable_node_id = Painting::async_scroll_node_stable_id(snap_container);
+        if (!stable_node_id.has_value())
+            continue;
+
+        // A scrolling box that is being scrolled re-snaps once that scroll settles from wherever it comes to rest,
+        // rather than having the position it is moving toward re-evaluated out from under it.
+        auto target = scroll_event_target_for_async_scroll_node(*document, *stable_node_id);
+        bool has_latched_gesture = target && latched_user_scroll_gesture_for(*target, stable_node_id);
+        if (has_latched_gesture || in_flight_scroll_for(*stable_node_id).has_value()) {
+            any_snap_container_deferred = true;
+            continue;
+        }
+
+        auto current_scroll_offset = scroll_offset_for(*stable_node_id);
+        if (!current_scroll_offset.has_value())
+            continue;
+
+        auto const& snapped_areas = document->snapped_areas_of_scroll_container(*stable_node_id);
+        Painting::ResnapSelection resnap_selection {
+            .snapped_areas = snapped_areas,
+            .focused_node = document->focused_area(),
+            .targeted_element = document->target_element(),
+        };
+        auto snap_destination = Painting::select_resnap_destination(*snap_container, *current_scroll_offset, resnap_selection);
+
+        // Scrolling behavior for re-snapping to the same box as before however, is UA-defined. The UA may, for
+        // example, when snapped to the start of a section, choose not to animate the scroll to the section's new
+        // position as content is dynamically added earlier in the document in order to create the illusion of not
+        // scrolling.
+        // NB: Re-snapping to snap areas the container was already snapped to is therefore instant.
+        auto is_subset_of = [](Vector<Painting::SnapAreaReference> const& areas, Vector<Painting::SnapAreaReference> const& other_areas) {
+            return all_of(areas, [&](auto const& area) { return other_areas.contains_slow(area); });
+        };
+        bool re_snapped_to_same_areas = !snap_destination.snapped_areas.is_empty()
+            && is_subset_of(snap_destination.snapped_areas.x, snapped_areas.x)
+            && is_subset_of(snap_destination.snapped_areas.y, snapped_areas.y);
+
+        document->set_snapped_areas_of_scroll_container(*stable_node_id, move(snap_destination.snapped_areas));
+
+        if (snap_destination.position == *current_scroll_offset)
+            continue;
+
+        // Scrolling required by a re-snap operation to a new or different box must behave and animate the same way as
+        // any other scroll-into-view operation, including honoring controls such as scroll-behavior.
+        auto behavior = re_snapped_to_same_areas ? Bindings::ScrollBehavior::Instant : Bindings::ScrollBehavior::Auto;
+        GC::Ptr<DOM::Element> associated_element = stable_node_id->kind == Compositor::AsyncScrollNodeKind::Viewport
+            ? document->document_element()
+            : element_for_async_scroll_node_stable_id(*document, *stable_node_id);
+
+        TemporaryExecutionContext temporary_execution_context { HTML::relevant_realm(*document) };
+        perform_a_scroll_of_a_scrolling_box(*stable_node_id, snap_destination.position, behavior, associated_element, ScrollTrigger::Programmatic, {}, DestinationSnapping::DestinationIsSnapPosition);
+    }
+
+    // A deferred snap container re-snaps once the scroll that owns it completes and settlement runs this again.
+    if (any_snap_container_deferred)
+        document->schedule_scroll_container_resnap();
 }
 
 void LocalNavigable::cancel_user_scroll_settlement()
@@ -4271,11 +4384,12 @@ void LocalNavigable::user_scroll_did_settle(UserScrollSettlement settlement)
                             strategy.start_offset = *entry.scroll_offset_at_gesture_start;
                     }
                 }
-                auto snapped_offset = Painting::adjust_scroll_destination_for_snapping(*snap_container, *current_scroll_offset, strategy).position;
-                if (snapped_offset != *current_scroll_offset) {
+                auto snap_destination = Painting::adjust_scroll_destination_for_snapping(*snap_container, *current_scroll_offset, strategy);
+                record_snapped_areas_of_scroll_container(*document, *stable_node_id, snap_destination);
+                if (snap_destination.position != *current_scroll_offset) {
                     // The snap animation queues this target's scrollend event once it completes.
                     TemporaryExecutionContext temporary_execution_context { HTML::relevant_realm(*document) };
-                    perform_a_scroll_of_a_scrolling_box(*stable_node_id, snapped_offset, Bindings::ScrollBehavior::Smooth, nullptr, ScrollTrigger::UserInput);
+                    perform_a_scroll_of_a_scrolling_box(*stable_node_id, snap_destination.position, Bindings::ScrollBehavior::Smooth, nullptr, ScrollTrigger::UserInput);
                     continue;
                 }
             }
@@ -5111,7 +5225,7 @@ void LocalNavigable::abort_in_flight_smooth_scrolls_taken_over_by_user_input(Com
     abort_in_flight_smooth_scrolls(stable_node_id, SmoothScrollAbortCause::TakenOverByUserInput);
 }
 
-GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_a_scrolling_box(Compositor::AsyncScrollNodeStableID stable_node_id, CSSPixelPoint position, Bindings::ScrollBehavior behavior, GC::Ptr<DOM::Element> associated_element, ScrollTrigger trigger, Optional<CSSPixelPoint> relative_displacement)
+GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_a_scrolling_box(Compositor::AsyncScrollNodeStableID stable_node_id, CSSPixelPoint position, Bindings::ScrollBehavior behavior, GC::Ptr<DOM::Element> associated_element, ScrollTrigger trigger, Optional<CSSPixelPoint> relative_displacement, DestinationSnapping destination_snapping)
 {
     auto document = active_document();
     VERIFY(document);
@@ -5135,14 +5249,16 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_a_scrolling_box(Com
     // https://drafts.csswg.org/css-scroll-snap-1/#snap-strictness
     // If a valid snap position exists then the scroll container must snap at the termination of a scroll (if none
     // exist then no snapping occurs).
-    if (trigger == ScrollTrigger::Programmatic) {
+    if (trigger == ScrollTrigger::Programmatic && destination_snapping == DestinationSnapping::SelectSnapPosition) {
         abandon_snapping_of_user_scroll_gesture(stable_node_id);
         document->update_layout(DOM::UpdateLayoutReason::ElementScroll);
         if (auto const* snap_container = layout_node_for_async_scroll_node(*document, stable_node_id)) {
             Painting::SnapSelectionStrategy strategy;
             if (relative_displacement.has_value() && !relative_displacement->is_zero())
                 strategy = { Painting::SnapSelectionStrategy::Type::EndPositionAndDirection, *initial_scroll_offset, *relative_displacement };
-            position = Painting::adjust_scroll_destination_for_snapping(*snap_container, position, strategy).position;
+            auto snap_destination = Painting::adjust_scroll_destination_for_snapping(*snap_container, position, strategy);
+            position = snap_destination.position;
+            record_snapped_areas_of_scroll_container(*document, stable_node_id, snap_destination);
         }
     }
 
@@ -5303,6 +5419,8 @@ bool LocalNavigable::perform_a_snapped_relative_user_scroll(Layout::Node& scroll
     //     relative scroll.
     if (!(snap_destination.snapped_x && delta.x() != 0) && !(snap_destination.snapped_y && delta.y() != 0))
         return false;
+
+    record_snapped_areas_of_scroll_container(*document, *stable_node_id, snap_destination);
 
     // NB: A step whose selected snap position is where the scrolling box already rests, or is already scrolling to, is
     //     consumed without disturbing where it is going.

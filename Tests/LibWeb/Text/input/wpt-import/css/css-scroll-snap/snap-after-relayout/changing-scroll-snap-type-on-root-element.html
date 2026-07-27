@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<title>
+  Updating the scroll-snap-type of the root element should make it resnap accordingly.
+  This is another vairant of changing-scroll-snap-type.html for the root element.
+</title>
+<link rel="help" href="https://drafts.csswg.org/css-scroll-snap/#re-snap" />
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+div {
+  position: absolute;
+  margin: 0;
+}
+
+html {
+  overflow: hidden;
+  scroll-snap-type: none;
+}
+
+#y-target {
+  width: 300px;
+  height: 300px;
+  top: 100px;
+  left: 0;
+  background-color: green;
+  scroll-snap-align: start none;
+}
+
+#x-target {
+  width: 300px;
+  height: 300px;
+  top: 0;
+  left: 100px;
+  background-color: red;
+  scroll-snap-align: none start;
+}
+
+.area {
+  width: 1000vw;
+  height: 1000vh;
+}
+</style>
+
+<div class="area"></div>
+<div id="x-target"></div>
+<div id="y-target"></div>
+
+<script>
+const x_target = document.getElementById("x_target");
+const y_target = document.getElementById("y_target");
+const scroller = document.documentElement;
+
+function cleanup() {
+  scroller.style.setProperty("scroll-snap-type", "none");
+}
+
+test(t => {
+  t.add_cleanup(cleanup);
+  scroller.scrollTo(0,0);
+  assert_equals(scroller.scrollTop, 0);
+  assert_equals(scroller.scrollLeft, 0);
+
+  scroller.style.setProperty("scroll-snap-type", "y mandatory");
+  assert_equals(scroller.scrollTop, 100);
+  assert_equals(scroller.scrollLeft, 0);
+}, "Changing the scroller's snap type to y should make it resnap on the y-axis.");
+
+test(t => {
+  t.add_cleanup(cleanup);
+  scroller.scrollTo(0,0);
+  assert_equals(scroller.scrollTop, 0);
+  assert_equals(scroller.scrollLeft, 0);
+
+  scroller.style.setProperty("scroll-snap-type", "x mandatory");
+  assert_equals(scroller.scrollLeft, 100);
+  assert_equals(scroller.scrollTop, 0);
+}, "Changing the scroller's snap type to x should make it resnap on the x-axis.");
+
+
+test(t => {
+  t.add_cleanup(cleanup);
+  scroller.scrollTo(0,0);
+  assert_equals(scroller.scrollTop, 0);
+  assert_equals(scroller.scrollLeft, 0);
+
+  scroller.style.setProperty("scroll-snap-type", "x mandatory");
+  assert_equals(scroller.scrollLeft, 100);
+  assert_equals(scroller.scrollTop, 0);
+
+  scroller.style.setProperty("scroll-snap-type", "y mandatory");
+  assert_equals(scroller.scrollTop, 100);
+}, "Changing the scroller's snap type axis should make it resnap.");
+</script>
+</html>

@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<title>
+  Updating the snap alignment of a snap container's content should make the snap
+  container resnap accordingly.
+</title>
+<link rel="help" href="https://drafts.csswg.org/css-scroll-snap/#re-snap" />
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+div {
+  position: absolute;
+  margin: 0;
+}
+
+#scroller {
+  height: 200px;
+  width: 200px;
+  overflow: hidden;
+  scroll-snap-type: both mandatory;
+}
+
+#initial-target {
+  width: 300px;
+  height: 300px;
+  top: 100px;
+  left: 100px;
+  background-color: green;
+  scroll-snap-align: start;
+}
+
+#other-target {
+  width: 300px;
+  height: 300px;
+  top: 300px;
+  left: 300px;
+  background-color: red;
+  scroll-snap-align: start;
+}
+
+.area {
+  width: 2000px;
+  height: 2000px;
+}
+
+.snap-area {
+  scroll-snap-align: start !important;
+}
+</style>
+
+<div id="scroller">
+  <div class="area"></div>
+  <div id="initial-target"></div>
+  <div id="other-target"></div>
+</div>
+
+<script>
+const initial_target = document.getElementById("initial-target");
+const other_target = document.getElementById("other-target");
+const scroller = document.getElementById("scroller");
+
+function cleanup() {
+  initial_target.style.setProperty("scroll-snap-align", "start");
+  other_target.style.setProperty("scroll-snap-align", "start");
+  initial_target.removeAttribute("class");
+}
+
+test(t => {
+  t.add_cleanup(cleanup);
+  scroller.scrollTo(0,0);
+  assert_equals(scroller.scrollTop, 100);
+  assert_equals(scroller.scrollLeft, 100);
+
+  initial_target.style.setProperty("scroll-snap-align", "end");
+  // scroller maintains scroll position which is still valid as the target's
+  // snap area covers the snap port.
+  assert_equals(scroller.scrollTop, 100);
+  assert_equals(scroller.scrollLeft, 100);
+}, "Changing a large target's snap alignment shouldn't make the scroller" +
+   " resnap if the scroller is already in a valid snap position.");
+
+// Similar to above test case except targets are too small to cover snap port,
+// so scroller must snap in response to change in scroll-snap-align.
+test(t => {
+  t.add_cleanup(cleanup);
+  const initial_target_height = initial_target.offsetHeight;
+  const initial_target_width = initial_target.offsetWidth;
+  const other_target_height = initial_target.offsetHeight;
+  const other_target_width = initial_target.offsetWidth;
+  t.add_cleanup(() => {
+    initial_target.style.setProperty("height", `${initial_target_height}px`);
+    initial_target.style.setProperty("width", `${initial_target_width}px`);
+    other_target.style.setProperty("height", `${other_target_height}px`);
+    other_target.style.setProperty("width", `${other_target_width}px`);
+  })
+  scroller.scrollTo(0,0);
+  assert_equals(scroller.scrollTop, 100);
+  assert_equals(scroller.scrollLeft, 100);
+
+  initial_target.style.setProperty("height", `${scroller.clientHeight * 2/3 }px`);
+  initial_target.style.setProperty("width", `${scroller.clientWidth * 2/3 }px`);
+  other_target.style.setProperty("height", `${scroller.clientHeight * 2/3 }px`);
+  other_target.style.setProperty("width", `${scroller.clientWidth * 2/3 }px`);
+
+  // scroll (and snap) to top left of other target.
+  scroller.scrollTo(other_target.offsetTop,
+                    other_target.offsetLeft);
+  assert_equals(scroller.scrollTop, other_target.offsetTop);
+  assert_equals(scroller.scrollLeft, other_target.offsetLeft);
+
+  other_target.style.setProperty("scroll-snap-align", "end");
+  // should be scrolled so as to align scroller's bottom-right with
+  // other_target's bottom-right.
+  assert_approx_equals(scroller.scrollTop,
+    other_target.offsetTop + other_target.offsetHeight - scroller.clientHeight, 1.0);
+  assert_approx_equals(scroller.scrollLeft,
+     other_target.offsetLeft + other_target.offsetWidth - scroller.clientWidth, 1.0);
+}, "Changing the current (non-covering) target's snap alignment should make " +
+   "the scroller snap according to the new alignment.");
+</script>

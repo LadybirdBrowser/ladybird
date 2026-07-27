@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<title>
+  Scrollers should snap to the closest snap point on initial layout
+  (using 'writing-mode: vertical-rl')
+</title>
+<link rel="help" href="https://drafts.csswg.org/css-scroll-snap/#re-snap" />
+<link rel="match" href="../../../../../expected/wpt-import/css/css-scroll-snap/snap-after-initial-layout/snap-after-initial-layout-ref.html" />
+<style>
+div {
+  position: absolute;
+  margin: 0;
+}
+
+#scroller {
+  /* Chrome bug using 'position:absolute' with LayoutNG disabled */
+  position: relative;
+
+  height: 500px;
+  width: 500px;
+  overflow: hidden;
+  scroll-snap-type: both mandatory;
+  writing-mode: vertical-rl;
+}
+
+#close-target {
+  width: 200px;
+  height: 200px;
+  border: solid green 50px;
+  top: 50px;
+  left: 150px;
+  margin: 50px;
+  background-color: green;
+  scroll-snap-align: start;
+}
+
+#far-target {
+  width: 300px;
+  height: 300px;
+  top: 100px;
+  left: 500px;
+  background-color: red;
+  scroll-snap-align: start;
+}
+
+.area {
+  width: 2000px;
+  height: 2000px;
+}
+</style>
+
+<div id="scroller">
+  <div class="area"></div>
+  <div id="close-target"></div>
+  <div id="far-target"></div>
+</div>

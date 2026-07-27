@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width">
+<title>Resnap to empty sized element</title>
+<link rel="help" href="https://drafts.csswg.org/css-scroll-snap/#example-d0a2d86f"/>
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1914178">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+#scroller {
+  height: 500px;
+  width: 500px;
+  overflow: scroll;
+  scroll-snap-type: y proximity;
+}
+
+#scroller::after {
+  display: block;
+  content: "";
+  scroll-snap-align: end;
+}
+
+li {
+  height: 100px;
+}
+</style>
+<ul id="scroller">
+  <li></li>
+  <li></li>
+  <li></li>
+  <li></li>
+  <li></li>
+  <li></li>
+</ul>
+<script>
+test(t => {
+  const scroller = document.getElementById("scroller");
+  // Scroll to the last child in the scroll container.
+  document.querySelector("#scroller > :last-child").scrollIntoView();
+
+  const scrollTop = scroller.scrollTop;
+  assert_greater_than(scrollTop, 0);
+
+  // Append a new element into the scroll container.
+  const li = document.createElement("li");
+  scroller.appendChild(li);
+
+  // The ::after pseudo content should be the snap target, even if the size
+  // is empty.
+  assert_equals(scroller.scrollTop, scrollTop + 100);
+}, "Resnap to empty sized element");
+</script>

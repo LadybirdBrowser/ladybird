@@ -275,7 +275,7 @@ ScrollHandled scroll_by(Layout::Node& node, double delta_x, double delta_y)
 
 static Optional<CompositorScrollNodeKind> scroll_node_kind_for(Layout::Node const& node)
 {
-    if (is_viewport_paintable(node))
+    if (node.is_viewport())
         return CompositorScrollNodeKind::Viewport;
     if (node.generated_for_pseudo_element().has_value())
         return CompositorScrollNodeKind::PseudoElement;
@@ -286,7 +286,7 @@ static Optional<CompositorScrollNodeKind> scroll_node_kind_for(Layout::Node cons
 
 static UniqueNodeID scrollable_node_id_for(Layout::Node const& node)
 {
-    if (is_viewport_paintable(node))
+    if (node.is_viewport())
         return node.document().unique_id();
     if (node.generated_for_pseudo_element().has_value())
         return node.pseudo_element_generator()->unique_id();

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width">
+<title>
+  Snap to points of combinations of two different elements
+</title>
+<link rel="help" href="https://drafts.csswg.org/css-scroll-snap-1/"/>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+div {
+  position: absolute;
+  margin: 0px;
+}
+
+#scroller {
+  height: 600px;
+  width: 600px;
+  overflow: hidden;
+  scroll-snap-type: both mandatory;
+}
+
+#space {
+  width: 2000px;
+  height: 2000px;
+}
+
+#left-top {
+  /*
+   * the scroll position of this `scroll-snap-align: start start` is (200, 200)
+   */
+  left: 200px;
+  top: 200px;
+  height: 450px;
+  width: 450px;
+  background-color: rgb(255, 0, 0);
+  opacity: 0.5;
+  scroll-snap-align: start start;
+}
+
+#right-bottom {
+  /*
+   * the scroll position of this `scroll-snap-align: end end` is (50, 50),
+   * i.e, (`left` - scroll container's `width`  + this element's `width,
+           `top`  - scroll container's `height` + this element's `height)
+   */
+  left: 600px;
+  top: 600px;
+  width: 50px;
+  height: 50px;
+  background-color: rgb(0, 255, 0);
+  opacity: 0.5;
+  scroll-snap-align: end end;
+}
+
+</style>
+<div id="scroller">
+  <div id="space"></div>
+  <div id="left-top"></div>
+  <div id="right-bottom"></div>
+</div>
+<script>
+test(t => {
+  const scroller = document.getElementById("scroller");
+  assert_equals(scroller.scrollLeft, 50);
+  assert_equals(scroller.scrollTop, 50);
+
+  scroller.scrollTo(100, 150);
+  assert_equals(scroller.scrollLeft, 50);
+  assert_equals(scroller.scrollTop, 200);
+
+  scroller.scrollTo(300, 300);
+  assert_equals(scroller.scrollLeft, 200);
+  assert_equals(scroller.scrollTop, 200);
+
+  scroller.scrollTo(150, 100);
+  assert_equals(scroller.scrollLeft, 200);
+  assert_equals(scroller.scrollTop, 50);
+}, 'Snap to points of combinations of two different elements');
+</script>
