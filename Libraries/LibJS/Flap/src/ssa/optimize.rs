@@ -686,7 +686,8 @@ fn eliminate_common_subexpressions_pass(function: &mut Function, analyses: &mut 
         // Everything published past a guard is unavailable wherever the guard's
         // exit leads, since taking the exit skipped it.
         let mut guard_mark = None;
-        for instruction_id in function.blocks[block.0].instructions.clone() {
+        for position in 0..function.blocks[block.0].instructions.len() {
+            let instruction_id = function.blocks[block.0].instructions[position];
             let instruction = &mut function.instructions[instruction_id.0];
             if instruction.operation.guard_failure().is_some() && guard_mark.is_none() {
                 guard_mark = Some(undo.len());
