@@ -77,7 +77,7 @@ target_link_libraries(LibGfx PRIVATE LibCompress LibCore LibCrypto LibFileSystem
 
 target_link_libraries(LibGfx PRIVATE PkgConfig::WOFF2 JPEG::JPEG PNG::PNG skia harfbuzz)
 
-import_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME libgfx_rust FFI_HEADER RustFFI.h)
+import_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME libgfx_rust FEATURES allocator FFI_HEADER RustFFI.h)
 target_link_libraries(LibGfx PRIVATE libgfx_rust)
 
 if (HAS_FONTCONFIG)
