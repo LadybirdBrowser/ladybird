@@ -93,13 +93,13 @@ block1:
   [  50] InitializeLexicalBinding `x`, src:i~1
   [  68] NewFunction dst:f~0, shared_function_data_index:0 (f)
   [  80] GetBinding dst:reg6, `x`
-  [  98] JumpGreaterThan lhs:reg6, rhs:Int32(1), true_target:block5, false_target:block6
+  [  98] JumpGreaterThanRhsInt32 lhs:reg6, rhs:1, true_target:block5, false_target:block6
 
 block2:
   [  b0] PostfixIncrement dst:reg5, src:i~1
 
 block3:
-  [  c0] JumpLessThan lhs:i~1, rhs:Int32(3), true_target:block1, false_target:block4
+  [  c0] JumpLessThanRhsInt32 lhs:i~1, rhs:3, true_target:block1, false_target:block4
 
 block4:
   [  d8] Call dst:reg5, callee:result~2, this_value:Undefined, result

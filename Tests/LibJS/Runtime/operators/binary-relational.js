@@ -727,3 +727,34 @@ test("basic functionality", () => {
         expect(x >= y).toBe(test[5]);
     }
 });
+
+test("mixed double and specialized negative Int32 comparisons", () => {
+    function less_than(value) {
+        if (value < -1) return true;
+        return false;
+    }
+
+    function less_than_equals(value) {
+        if (value <= -1) return true;
+        return false;
+    }
+
+    function greater_than(value) {
+        if (value > -1) return true;
+        return false;
+    }
+
+    function greater_than_equals(value) {
+        if (value >= -1) return true;
+        return false;
+    }
+
+    expect(less_than(-1.5)).toBeTrue();
+    expect(less_than(-0.5)).toBeFalse();
+    expect(less_than_equals(-1.5)).toBeTrue();
+    expect(less_than_equals(-0.5)).toBeFalse();
+    expect(greater_than(-0.5)).toBeTrue();
+    expect(greater_than(-1.5)).toBeFalse();
+    expect(greater_than_equals(-0.5)).toBeTrue();
+    expect(greater_than_equals(-1.5)).toBeFalse();
+});

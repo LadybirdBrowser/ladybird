@@ -36,7 +36,7 @@ block2:
   [  48] PostfixIncrement dst:reg5, src:i~1
 
 block3:
-  [  58] JumpLessThan lhs:i~1, rhs:Int32(10), true_target:block1, false_target:block4
+  [  58] JumpLessThanRhsInt32 lhs:i~1, rhs:10, true_target:block1, false_target:block4
 
 block4:
   [  70] GetGlobal dst:reg7, `parseInt`
@@ -45,13 +45,13 @@ block4:
   [  b8] Return value:reg5
 
 block5:
-  [  c0] JumpLessThan lhs:j~2, rhs:Int32(5), true_target:block9, false_target:block10
+  [  c0] JumpLessThanRhsInt32 lhs:j~2, rhs:5, true_target:block9, false_target:block10
 
 block6:
   [  d8] PostfixIncrement dst:reg5, src:j~2
 
 block7:
-  [  e8] JumpLessThan lhs:j~2, rhs:Int32(10), true_target:block5, false_target:block8
+  [  e8] JumpLessThanRhsInt32 lhs:j~2, rhs:10, true_target:block5, false_target:block8
 
 block8:
   [ 100] Jump target:block2

@@ -30,7 +30,7 @@ block1:
   [  70] Mov dst:reg8, src:i~0
   [  80] Call dst:reg6, callee:reg7, this_value:Undefined, bar, arguments:[reg8]
   [  a8] PostfixIncrement dst:reg6, src:i~0
-  [  b8] JumpLessThan lhs:i~0, rhs:Int32(7), true_target:block1, false_target:block2
+  [  b8] JumpLessThanRhsInt32 lhs:i~0, rhs:7, true_target:block1, false_target:block2
 
 block2:
   [  d0] End value:Undefined

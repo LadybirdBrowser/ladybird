@@ -84,7 +84,7 @@ block2:
   [  28] PostfixIncrement dst:reg5, src:i~0
 
 block3:
-  [  38] JumpLessThan lhs:i~0, rhs:Int32(10), true_target:block1, false_target:block4
+  [  38] JumpLessThanRhsInt32 lhs:i~0, rhs:10, true_target:block1, false_target:block4
 
 block4:
   [  50] End value:Undefined

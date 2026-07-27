@@ -27,7 +27,7 @@ block2:
 
 block3:
   [  60] GetGlobal dst:reg6, `i`
-  [  70] JumpLessThan lhs:reg6, rhs:Int32(5), true_target:block1, false_target:block4
+  [  70] JumpLessThanRhsInt32 lhs:reg6, rhs:5, true_target:block1, false_target:block4
 
 block4:
   [  88] GetGlobal dst:reg10, `i`
