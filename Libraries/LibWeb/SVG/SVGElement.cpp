@@ -10,7 +10,6 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/SVGElement.h>
 #include <LibWeb/CSS/ComputedProperties.h>
-#include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ShadowRoot.h>
@@ -384,34 +383,12 @@ GC::Ptr<SVGElement> SVGElement::viewport_element()
 
 GC::Ref<SVGAnimatedLength> SVGElement::svg_animated_length_for_attribute(Utf16FlyString const& attribute_name, NonnullRefPtr<CSS::StyleValue const>&& default_value)
 {
-    auto style_value = default_value;
+    auto base_length = SVGLength::create_reflected_attribute(realm(), *this, attribute_name, SVGLength::ReflectedAttributeType::BaseValue, default_value, SVGLength::ReadOnly::No);
+    // AD-HOC: The spec says this should reflect the base value of the attribute but other browsers reflect the SMIL
+    //         animated value instead.
+    auto anim_length = SVGLength::create_reflected_attribute(realm(), *this, attribute_name, SVGLength::ReflectedAttributeType::AnimatedValue, default_value, SVGLength::ReadOnly::Yes);
 
-    CSS::Parser::ParsingParams parsing_params { document(), CSS::Parser::ParsingMode::SVGPresentationAttribute };
-    auto const& attribute_value = get_attribute_value(attribute_name);
-
-    // https://svgwg.org/svg2-draft/types.html#presentation-attribute-css-value
-    // When a presentation attribute defined using the CSS Value Definition Syntax is parsed, this is done as follows:
-    // Replace all instances of <length-percentage> in grammar with [<length-percentage> | <number>].
-    // FIXME: This is implemented in parse_literal_length_value() when using ParsingMode::SVGPresentationAttribute but
-    //        is incomplete as it only supports literal numbers and immediately converts them to the equivalent length
-    //        value in pixels (we should support all <number> values, including math and tree-counting functions) so we
-    //        implement this again here until that is fixed.
-
-    // FIXME: Respect attribute specific range restrictions (e.g. <circle>/r must be non-negative)
-
-    if (auto parsed_style_value = parse_css_type(parsing_params, attribute_value, CSS::ValueType::Number)) {
-        style_value = parsed_style_value.release_nonnull();
-    } else if (auto parsed_style_value = parse_css_type(parsing_params, attribute_value, CSS::ValueType::LengthPercentage)) {
-        style_value = parsed_style_value.release_nonnull();
-    }
-
-    auto [unit_type, value] = SVGLength::parsed_value_from_style_value(style_value);
-
-    auto base_length = SVGLength::create(realm(), unit_type, value, SVGLength::ReadOnly::No);
-    // FIXME: The spec says this should reflect the base value of the attribute but other browsers reflect the SMIL
-    //        animated value instead - implement that once we support SMIL animation.
-    auto anim_length = SVGLength::create(realm(), unit_type, value, SVGLength::ReadOnly::Yes);
-
+    // FIXME: This should be SameObject
     return SVGAnimatedLength::create(realm(), base_length, anim_length);
 }
 
