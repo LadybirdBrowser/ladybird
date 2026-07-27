@@ -151,10 +151,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bytecode_def"
-version = "0.1.0"
-
-[[package]]
 name = "calendrical_calculations"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -413,6 +409,13 @@ name = "fastrand"
 version = "2.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a043dc74da1e37d6afe657061213aa6f425f855399a11d3463c6ecccc4dfda1f"
+
+[[package]]
+name = "flapc"
+version = "0.1.0"
+dependencies = [
+ "smallvec",
+]
 
 [[package]]
 name = "flatbuffers"
@@ -724,9 +727,9 @@ dependencies = [
 name = "libjs_rust"
 version = "0.1.0"
 dependencies = [
- "bytecode_def",
  "cbindgen",
  "fARM64",
+ "flapc",
  "foldhash",
  "iced-x86",
  "indexmap",

@@ -18,9 +18,9 @@ use crate::hir::{
     ValueMatchArm, ValueMatchArmKind, ValueMatchFallbackIr, VariableId,
 };
 use crate::intrinsic::{
-    BinaryOperation, ClassificationOperation, ComparisonDomain, ControlOperation, IntegerBinaryOperation,
-    IntegerComparisonOperation, Intrinsic, LowLevelOperation, OperandLoad, OperandOperation, OperandStore,
-    ValueOperation,
+    BinaryOperation, BytecodeOperation, ClassificationOperation, ComparisonDomain, ControlOperation, FieldWidth,
+    IntegerBinaryOperation, IntegerComparisonOperation, Intrinsic, LowLevelOperation, OperandLoad, OperandOperation,
+    OperandStore, ValueOperation,
 };
 use crate::types::{BlockTemperature, Type};
 use crate::{CompileError, CompileStage};
@@ -1534,6 +1534,28 @@ impl Lowerer<'_> {
                 };
                 outputs.push((variable, argument.ty.clone()));
             }
+        }
+        if call.intrinsic() == Some(Intrinsic::Bytecode(BytecodeOperation::LoadInlineInt32)) {
+            let [field] = inputs.as_slice() else {
+                return Err("'load_inline_int32' requires one bytecode field".to_string());
+            };
+            if result_types != [Type::Value] {
+                return Err("'load_inline_int32' requires one Value result".to_string());
+            }
+            let block = self.current()?;
+            let integer = self.function.append_instruction(
+                block,
+                Intrinsic::Bytecode(BytecodeOperation::Load(FieldWidth::U32)),
+                vec![*field],
+                vec![Type::I32],
+            )[0];
+            let value = self.function.append_instruction(
+                block,
+                Intrinsic::Value(ValueOperation::BoxInt32 { clean: true }),
+                vec![integer],
+                vec![Type::Value],
+            )[0];
+            return Ok(vec![value]);
         }
         if call.intrinsic() == Some(Intrinsic::Operand(OperandOperation::Load(OperandLoad::Field)))
             && accesses_inout_operand

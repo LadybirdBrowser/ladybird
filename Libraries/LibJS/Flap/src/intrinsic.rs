@@ -620,6 +620,7 @@ define_named_intrinsic_enum! {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum BytecodeOperation {
     Load(FieldWidth),
+    LoadInlineInt32,
 }
 
 impl BytecodeOperation {
@@ -629,6 +630,7 @@ impl BytecodeOperation {
             Self::Load(FieldWidth::U16) => 2,
             Self::Load(FieldWidth::U32) => 4,
             Self::Load(FieldWidth::U64) => 8,
+            Self::LoadInlineInt32 => 4,
         }
     }
 }
@@ -638,6 +640,7 @@ intrinsic_names!(BytecodeOperation {
     Self::Load(FieldWidth::U16) => "load_bytecode_u16";
     Self::Load(FieldWidth::U32) => "load_bytecode_u32";
     Self::Load(FieldWidth::U64) => "load_bytecode_u64";
+    Self::LoadInlineInt32 => "load_inline_int32";
 });
 
 define_named_intrinsic_enum! {
@@ -1041,7 +1044,10 @@ impl Intrinsic {
             },
             Self::Bytecode(operation) => IntrinsicEffects {
                 memory: ModRef::Read,
-                machine_state: if matches!(operation, BytecodeOperation::Load(FieldWidth::U8 | FieldWidth::U32)) {
+                machine_state: if matches!(
+                    operation,
+                    BytecodeOperation::Load(FieldWidth::U8 | FieldWidth::U32) | BytecodeOperation::LoadInlineInt32
+                ) {
                     ModRef::Read
                 } else {
                     ModRef::None

@@ -10,7 +10,6 @@ use std::path::{Path, PathBuf};
 
 const INTERPRETER: &str = include_str!("../../Interpreter/interpreter.flap");
 const LAYOUT: &str = include_str!("interpreter-layout.conf");
-const BYTECODE_DEF: &str = include_str!("../../Bytecode/Bytecode.def");
 
 fn compile_interpreter(architecture: Architecture) -> String {
     let compiler = Compiler::new(CompileOptions {
@@ -30,10 +29,6 @@ fn compile_interpreter(architecture: Architecture) -> String {
             constants: Some(SourceInput {
                 name: "interpreter-layout.conf",
                 contents: LAYOUT,
-            }),
-            bytecode_def: Some(SourceInput {
-                name: "Bytecode.def",
-                contents: BYTECODE_DEF,
             }),
         })
         .expect("interpreter compilation should succeed")

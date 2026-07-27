@@ -3,14 +3,9 @@
 version = 4
 
 [[package]]
-name = "bytecode_def"
-version = "0.1.0"
-
-[[package]]
 name = "flapc"
 version = "0.1.0"
 dependencies = [
- "bytecode_def",
  "smallvec",
 ]
 

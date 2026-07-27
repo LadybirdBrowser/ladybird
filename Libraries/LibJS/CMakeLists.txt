@@ -1,5 +1,12 @@
 include(libjs_generators)
 
+build_rust_binary(
+    MANIFEST_PATH Flap/Cargo.toml
+    CRATE_NAME flapc
+    BINARY_NAME generate-libjs-bytecode
+    OUTPUT_PATH_VAR BYTECODE_GENERATOR_BIN
+)
+
 set(SOURCES
     Interpreter/SlowPaths.cpp
     Bytecode/Executable.cpp
@@ -263,9 +270,9 @@ set(SOURCES
     SyntheticModule.cpp
 )
 
-generate_bytecode_def_derived()
+generate_libjs_bytecode()
 
-set(GENERATED_SOURCES Bytecode/Op.cpp)
+set(GENERATED_SOURCES Bytecode/Op.h)
 
 ladybird_lib(LibJS js EXPLICIT_SYMBOL_EXPORT)
 
@@ -355,7 +362,7 @@ if (DEFINED FLAP_ARCH)
         target_link_options(generate_interpreter_layout PRIVATE -fno-sanitize=fuzzer)
     endif()
     # NB: GenerateLayout.cpp does not depend on Op.h since opcode field
-    # offsets are now computed from Bytecode.def by flapc directly.
+    # offsets are computed from interpreter.flap by flapc directly.
 
     add_custom_command(
         OUTPUT "${INTERPRETER_LAYOUT_FILE}"
@@ -370,8 +377,6 @@ if (DEFINED FLAP_ARCH)
         BINARY_NAME flapc
         OUTPUT_PATH_VAR FLAPC_BIN
     )
-
-    set(BYTECODE_DEF "${CMAKE_CURRENT_SOURCE_DIR}/Bytecode/Bytecode.def")
 
     if (WIN32)
         set(FLAP_OBJECT_FORMAT "coff")
@@ -398,12 +403,11 @@ if (DEFINED FLAP_ARCH)
         COMMAND "${FLAPC_BIN}" --arch ${FLAP_ARCH}
             --object-format ${FLAP_OBJECT_FORMAT}
             --constants "${INTERPRETER_LAYOUT_FILE}"
-            --bytecode-def "${BYTECODE_DEF}"
             --input "${FLAP_DSL}"
             --output "${FLAP_GENERATED_S}"
             ${FLAP_EXTRA_FLAGS}
         DEPENDS "${FLAPC_BIN}" "${FLAP_DSL}"
-            "${INTERPRETER_LAYOUT_FILE}" "${BYTECODE_DEF}"
+            "${INTERPRETER_LAYOUT_FILE}"
         COMMENT "Generating interpreter_${FLAP_ARCH}.S from Flap"
     )
 

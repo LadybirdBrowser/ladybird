@@ -41,6 +41,7 @@ enum TokenKind {
     Caret,
     Bang,
     Tilde,
+    Apostrophe,
     At,
     End,
 }
@@ -151,6 +152,7 @@ impl<'a> Lexer<'a> {
                 '^' => TokenKind::Caret,
                 '!' => TokenKind::Bang,
                 '~' => TokenKind::Tilde,
+                '\'' => TokenKind::Apostrophe,
                 '@' => TokenKind::At,
                 _ => return None,
             };
@@ -330,15 +332,32 @@ impl<'a> Parser<'a> {
     fn parse_program(&mut self) -> Result<Program, Diagnostic> {
         let mut declarations = Vec::new();
         while self.current().kind != TokenKind::End {
-            if self.at_keyword("inline") {
+            if self.at_keyword("specialize") {
+                if self.index > 0 && self.tokens[self.index - 1].span.end.line == self.current().span.start.line {
+                    return self.error("a specialization declaration must begin on a new line");
+                }
+                self.skip_specialization_declaration()?;
+            } else if self.at_keyword("inline") {
                 declarations.push(Declaration::InlineFunction(self.parse_inline_function()?));
             } else if self.at_keyword("handler") {
                 declarations.push(Declaration::Handler(self.parse_handler()?));
             } else {
-                return self.error("expected 'inline fn' or 'handler'");
+                return self.error("expected 'specialize', 'inline fn', or 'handler'");
             }
         }
         Ok(Program { declarations })
+    }
+
+    fn skip_specialization_declaration(&mut self) -> Result<(), Diagnostic> {
+        self.consume_keyword("specialize")?;
+        while self.current().kind != TokenKind::Semicolon {
+            if self.current().kind == TokenKind::End {
+                return self.error("expected ';'");
+            }
+            self.advance();
+        }
+        self.advance();
+        Ok(())
     }
 
     fn parse_inline_function(&mut self) -> Result<InlineFunctionDeclaration, Diagnostic> {
@@ -383,13 +402,22 @@ impl<'a> Parser<'a> {
         if parameters.iter().any(|parameter| parameter.is_else) {
             return self.error("a handler cannot declare an else parameter");
         }
-        let temperature = if self.current().kind == TokenKind::At {
+        let mut temperature = BlockTemperature::Default;
+        while self.current().kind == TokenKind::At {
             self.advance();
-            self.consume_keyword("cold")?;
-            BlockTemperature::Cold
-        } else {
-            BlockTemperature::Default
-        };
+            let (annotation, span) = self.consume_identifier("handler annotation")?;
+            match annotation.as_str() {
+                "cold" => temperature = BlockTemperature::Cold,
+                "terminator" => {}
+                _ => {
+                    return Err(Diagnostic::new(
+                        self.filename,
+                        span,
+                        format!("unknown handler annotation '@{annotation}'"),
+                    ));
+                }
+            }
+        }
         let body = if self.current().kind == TokenKind::Equals {
             self.advance();
             let expression = self.parse_expression()?;
@@ -503,29 +531,65 @@ impl<'a> Parser<'a> {
             return Ok(Type::Tuple(elements));
         }
         let (name, span) = self.consume_identifier("type")?;
-        if let Some(ty) = Type::from_source_name(&name) {
-            return Ok(ty);
-        }
-        if name == "Value" && self.current().kind != TokenKind::LeftAngle {
-            return Ok(Type::Value);
-        }
-        let constructor = match name.as_str() {
-            "Label" => return Ok(Type::label()),
-            "Value" | "ptr" | "Sequence" | "Field" | "BinaryOperation" | "CheckedBinaryOperation" => name,
-            _ => return Err(Diagnostic::new(self.filename, span, format!("unknown type '{name}'"))),
+        let mut ty = if let Some(ty) = Type::from_source_name(&name) {
+            ty
+        } else if name == "Value" && self.current().kind != TokenKind::LeftAngle {
+            Type::Value
+        } else if name == "Label" {
+            Type::label()
+        } else if name == "Completion" {
+            self.consume(TokenKind::Colon, "':'")?;
+            self.consume(TokenKind::Colon, "':'")?;
+            self.consume_keyword("Type")?;
+            Type::U32
+        } else if matches!(
+            name.as_str(),
+            "ArgumentsKind"
+                | "EnvironmentMode"
+                | "FunctionNamePrefix"
+                | "IdentifierTableIndex"
+                | "IteratorHint"
+                | "ObjectPropertyIteratorCacheIndex"
+                | "ObjectShapeCacheIndex"
+                | "PropertyKeyTableIndex"
+                | "RegexTableIndex"
+                | "StringTableIndex"
+                | "TemplateObjectCacheIndex"
+        ) {
+            Type::U32
+        } else if name == "PutKind" {
+            Type::U8
+        } else {
+            let constructor = match name.as_str() {
+                "Optional" | "Value" | "ptr" | "Sequence" | "Field" | "BinaryOperation" | "CheckedBinaryOperation" => {
+                    name
+                }
+                _ => return Err(Diagnostic::new(self.filename, span, format!("unknown type '{name}'"))),
+            };
+            self.consume(TokenKind::LeftAngle, "'<'")?;
+            let inner = Box::new(self.parse_type()?);
+            self.consume(TokenKind::RightAngle, "'>'")?;
+            match constructor.as_str() {
+                "Optional" if *inner == Type::label() => Type::BytecodeOffset,
+                "Optional" => *inner,
+                "Value" => Type::Boxed(inner),
+                "ptr" => Type::Pointer(inner),
+                "Sequence" => Type::Sequence(inner),
+                "Field" => Type::Field(inner),
+                "BinaryOperation" => Type::BinaryOperation(inner),
+                "CheckedBinaryOperation" => Type::CheckedBinaryOperation(inner),
+                _ => unreachable!(),
+            }
         };
-        self.consume(TokenKind::LeftAngle, "'<'")?;
-        let inner = Box::new(self.parse_type()?);
-        self.consume(TokenKind::RightAngle, "'>'")?;
-        Ok(match constructor.as_str() {
-            "Value" => Type::Boxed(inner),
-            "ptr" => Type::Pointer(inner),
-            "Sequence" => Type::Sequence(inner),
-            "Field" => Type::Field(inner),
-            "BinaryOperation" => Type::BinaryOperation(inner),
-            "CheckedBinaryOperation" => Type::CheckedBinaryOperation(inner),
-            _ => unreachable!(),
-        })
+        if self.current().kind == TokenKind::LeftBracket {
+            self.advance();
+            self.consume(TokenKind::RightBracket, "']'")?;
+            if ty == Type::Operand {
+                ty = Type::U32;
+            }
+            ty = Type::Sequence(Box::new(ty));
+        }
+        Ok(ty)
     }
 
     fn parse_block(&mut self) -> Result<Block, Diagnostic> {
@@ -1615,7 +1679,7 @@ handler Mod(lhs: Value, rhs: Value) {
     #[test]
     fn rejects_legacy_declaration_and_binding_syntax() {
         let cases = [
-            ("macro check() {}", "expected 'inline fn' or 'handler'"),
+            ("macro check() {}", "expected 'specialize', 'inline fn', or 'handler'"),
             (
                 "handler Check(value: Value) { let Value<i32>(integer) = value else .slow; }",
                 "refutable bindings use 'guard let'",
@@ -1650,6 +1714,27 @@ handler Mod(lhs: Value, rhs: Value) {
                 ..
             }) if callee == "call_slow_path"
         ));
+    }
+
+    #[test]
+    fn accepts_specialization_declarations() {
+        let program = parse(
+            "test.flap",
+            "
+specialize Increment() + JumpLessThan(rhs: Int32);
+handler Increment(dst: inout Operand) { dispatch_next; }
+",
+        )
+        .unwrap();
+
+        assert_eq!(program.declarations.len(), 1);
+    }
+
+    #[test]
+    fn rejects_specialization_declarations_after_other_source() {
+        let error = parse("test.flap", "handler Nop() { dispatch_next; } specialize Nop();").unwrap_err();
+
+        assert_eq!(error.message, "a specialization declaration must begin on a new line");
     }
 
     #[test]

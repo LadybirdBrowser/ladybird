@@ -46,7 +46,6 @@ static ALLOCATOR: CountingAllocator = CountingAllocator;
 
 const INTERPRETER: &str = include_str!("../../Interpreter/interpreter.flap");
 const LAYOUT: &str = include_str!("../tests/interpreter-layout.conf");
-const BYTECODE_DEF: &str = include_str!("../../Bytecode/Bytecode.def");
 
 fn compiler() -> Compiler {
     Compiler::new(CompileOptions {
@@ -68,10 +67,6 @@ fn compilation_unit() -> CompilationUnit<'static> {
         constants: Some(SourceInput {
             name: "interpreter-layout.conf",
             contents: LAYOUT,
-        }),
-        bytecode_def: Some(SourceInput {
-            name: "Bytecode.def",
-            contents: BYTECODE_DEF,
         }),
     }
 }

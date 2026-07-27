@@ -49,7 +49,7 @@ pub struct FFIValidatorBounds {
     pub object_property_iterator_cache_count: u32,
     pub class_blueprint_count: u32,
     pub shared_function_data_count: u32,
-    /// Variant counts for the C++ enum types referenced by Bytecode.def
+    /// Variant counts for the C++ enum types referenced by bytecode declarations
     /// fields. Plumbed across the FFI rather than hardcoded so that adding
     /// or removing a variant in the C++ enum can't silently outdate the
     /// Rust validator.

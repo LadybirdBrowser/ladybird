@@ -81,7 +81,7 @@ static StringView validation_error_kind_to_string(JS::FFI::ValidationErrorKind k
     VERIFY_NOT_REACHED();
 }
 
-// Variant counts for the C++ enums referenced by Bytecode.def fields. The
+// Variant counts for the C++ enums referenced by bytecode declaration fields. The
 // static_asserts pin the last variant so adding a new one without bumping
 // the count here breaks the build instead of silently outdating the
 // validator.

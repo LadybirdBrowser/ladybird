@@ -23,8 +23,8 @@ iced-x86 = { version = "1.21", default-features = false, features = ["decoder", 
 farm64 = { package = "fARM64", version = "0.0.2", features = ["alloc"] }
 
 [build-dependencies]
-bytecode_def = { path = "../BytecodeDef" }
 cbindgen = "0.29"
+flapc = { path = "../Flap" }
 
 [lints]
 workspace = true

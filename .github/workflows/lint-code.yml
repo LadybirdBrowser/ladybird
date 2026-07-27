@@ -53,14 +53,6 @@ jobs:
           cargo test --manifest-path Libraries/LibJS/Flap/Cargo.toml \
             --all-targets
 
-      - name: Check BytecodeDef
-        run: |
-          cargo fmt --manifest-path Libraries/LibJS/BytecodeDef/Cargo.toml -- --check
-          cargo clippy --manifest-path Libraries/LibJS/BytecodeDef/Cargo.toml \
-            --all-targets -- -D clippy::all
-          cargo test --manifest-path Libraries/LibJS/BytecodeDef/Cargo.toml \
-            --all-targets
-
       - name: Generate and assemble the Flap interpreter
         run: |
           cargo build --release --manifest-path Libraries/LibJS/Flap/Cargo.toml
@@ -70,7 +62,6 @@ jobs:
               --arch "${arch}" \
               --object-format elf \
               --constants Libraries/LibJS/Flap/tests/interpreter-layout.conf \
-              --bytecode-def Libraries/LibJS/Bytecode/Bytecode.def \
               --input Libraries/LibJS/Interpreter/interpreter.flap \
               --output "${RUNNER_TEMP}/flap-smoke/${arch}.S"
             clang --target="${arch}-unknown-linux-gnu" \
@@ -80,7 +71,6 @@ jobs:
               --arch "${arch}" \
               --object-format elf \
               --constants Libraries/LibJS/Flap/tests/interpreter-layout.conf \
-              --bytecode-def Libraries/LibJS/Bytecode/Bytecode.def \
               --input Libraries/LibJS/Interpreter/interpreter.flap \
               --output "${RUNNER_TEMP}/flap-smoke/${arch}-repeat.S"
             cmp "${RUNNER_TEMP}/flap-smoke/${arch}.S" \

@@ -20,7 +20,6 @@ from pathlib import Path
 
 REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_SOURCE = REPOSITORY_ROOT / "Libraries/LibJS/Interpreter/interpreter.flap"
-DEFAULT_BYTECODE_DEF = REPOSITORY_ROOT / "Libraries/LibJS/Bytecode/Bytecode.def"
 DEFAULT_LAYOUT = REPOSITORY_ROOT / "Build/release/Libraries/LibJS/Interpreter/layout.conf"
 ARCHITECTURES = ("x86_64", "aarch64")
 ELF_SECTION_TYPE_REL = 9
@@ -75,8 +74,6 @@ def compile_interpreter(flapc, architecture, output, arguments):
         "elf",
         "--constants",
         str(arguments.constants),
-        "--bytecode-def",
-        str(arguments.bytecode_def),
         "--input",
         str(arguments.input),
         "--output",
@@ -227,7 +224,6 @@ def parse_arguments():
     parser.add_argument("candidate", type=Path)
     parser.add_argument("--input", type=Path, default=DEFAULT_SOURCE)
     parser.add_argument("--constants", type=Path, default=DEFAULT_LAYOUT)
-    parser.add_argument("--bytecode-def", type=Path, default=DEFAULT_BYTECODE_DEF)
     parser.add_argument(
         "--compiler",
         default=os.environ.get("CC", "clang"),
@@ -247,7 +243,7 @@ def parse_arguments():
 
 def main():
     arguments = parse_arguments()
-    for path in (arguments.baseline, arguments.candidate, arguments.input, arguments.constants, arguments.bytecode_def):
+    for path in (arguments.baseline, arguments.candidate, arguments.input, arguments.constants):
         if not path.is_file():
             print(f"missing input: {path}", file=sys.stderr)
             return 2

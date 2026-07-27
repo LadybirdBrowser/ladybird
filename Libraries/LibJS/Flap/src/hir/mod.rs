@@ -1342,10 +1342,13 @@ impl<'a> Checker<'a> {
                 symbol.ty,
                 Type::EnvironmentCoordinateCacheIndex | Type::GlobalVariableCacheIndex | Type::PropertyLookupCacheIndex
             ) {
-                return Some((symbol.ty.clone(), Type::U32, FieldWidth::U32));
+                return Some((symbol.ty.clone(), Type::U32, BytecodeOperation::Load(FieldWidth::U32)));
             }
             if !self.bytecode_fields.contains(&symbol.id) {
                 return None;
+            }
+            if symbol.ty == Type::InlineInt32 {
+                return Some((Type::InlineInt32, Type::Value, BytecodeOperation::LoadInlineInt32));
             }
             let width = match symbol.ty {
                 Type::U8 | Type::I8 | Type::Bool => FieldWidth::U8,
@@ -1354,16 +1357,16 @@ impl<'a> Checker<'a> {
                 Type::U64 | Type::I64 => FieldWidth::U64,
                 _ => return None,
             };
-            Some((symbol.ty.clone(), symbol.ty.clone(), width))
+            Some((symbol.ty.clone(), symbol.ty.clone(), BytecodeOperation::Load(width)))
         })();
         let (target, signature) = if returning_builtin {
             let resolved = resolved_intrinsic
                 .take()
                 .expect("returning builtins are resolved intrinsics");
             (CallTarget::Intrinsic(resolved.intrinsic), resolved.signature)
-        } else if let Some((parameter_type, return_type, width)) = &bytecode_load {
+        } else if let Some((parameter_type, return_type, operation)) = &bytecode_load {
             (
-                CallTarget::Intrinsic(Intrinsic::Bytecode(BytecodeOperation::Load(*width))),
+                CallTarget::Intrinsic(Intrinsic::Bytecode(*operation)),
                 signature(
                     &[(ParameterMode::In, parameter_type.clone())],
                     Some(return_type.clone()),
@@ -2665,28 +2668,6 @@ impl<'a> Checker<'a> {
                         expression.span,
                     ));
                 }
-                if let Some(ty) = machine_register_type(name) {
-                    if &ty != expected {
-                        return self.error(expression.span, format!("expected {expected}, found {ty} for '{name}'"));
-                    }
-                    return Ok(Value::new(
-                        ValueKind::MachineRegister(name.clone().into()),
-                        ty,
-                        expression.span,
-                    ));
-                }
-                if matches!(expected, Type::Continuation(_)) {
-                    if let Some(continuation) = self.resolve_continuation_symbol(name)
-                        && &continuation.ty != expected
-                    {
-                        return self.error(
-                            expression.span,
-                            format!("expected {expected}, found {} for '{name}'", continuation.ty),
-                        );
-                    }
-                    let name = self.check_label(name, expression.span)?;
-                    return Ok(Value::new(ValueKind::Label(name), expected.clone(), expression.span));
-                }
                 if *expected == Type::SlowPath
                     && (name.starts_with("asm_slow_path_")
                         || name.chars().all(|character| {
@@ -2709,6 +2690,28 @@ impl<'a> Checker<'a> {
                         Type::FunctionSymbol,
                         expression.span,
                     ));
+                }
+                if let Some(ty) = machine_register_type(name) {
+                    if &ty != expected {
+                        return self.error(expression.span, format!("expected {expected}, found {ty} for '{name}'"));
+                    }
+                    return Ok(Value::new(
+                        ValueKind::MachineRegister(name.clone().into()),
+                        ty,
+                        expression.span,
+                    ));
+                }
+                if matches!(expected, Type::Continuation(_)) {
+                    if let Some(continuation) = self.resolve_continuation_symbol(name)
+                        && &continuation.ty != expected
+                    {
+                        return self.error(
+                            expression.span,
+                            format!("expected {expected}, found {} for '{name}'", continuation.ty),
+                        );
+                    }
+                    let name = self.check_label(name, expression.span)?;
+                    return Ok(Value::new(ValueKind::Label(name), expected.clone(), expression.span));
                 }
                 let matches_inline_operation = operation_signature(expected).is_some_and(|signature| {
                     self.signatures
@@ -4464,6 +4467,12 @@ inline fn terminal(value: out Value, input: Value, slow: SlowPath) {
     }
 }
 "#
+    );
+
+    rejects!(
+        rejects_local_values_used_as_external_slow_paths,
+        "handler Bad(slow: Value) { call_slow_path(slow); }",
+        "expected SlowPath, found Value for 'slow'"
     );
 
     accepts!(
