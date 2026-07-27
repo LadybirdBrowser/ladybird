@@ -123,6 +123,8 @@ static NonnullRefPtr<Web::Painting::DisplayList> make_scrollable_viewport_displa
             .is_viewport = true,
             .can_be_wheel_scrolled_horizontally = false,
             .can_be_wheel_scrolled_vertically = true,
+            .snaps_scroll_position_horizontally = false,
+            .snaps_scroll_position_vertically = false,
         },
         true);
 

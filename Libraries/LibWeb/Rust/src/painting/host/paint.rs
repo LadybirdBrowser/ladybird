@@ -234,6 +234,8 @@ pub struct FfiAsyncScrollFacts {
     pub scroll_node_kind: FfiScrollNodeKind,
     pub scrollable_node_id: i64,
     pub pseudo_element_type: u8,
+    pub snaps_scroll_position_horizontally: bool,
+    pub snaps_scroll_position_vertically: bool,
     pub inside_blocking_wheel_event_handler: bool,
     pub records_viewport_scrollbars: bool,
     pub viewport_scrollbars: [FfiViewportScrollbarFacts; 2],

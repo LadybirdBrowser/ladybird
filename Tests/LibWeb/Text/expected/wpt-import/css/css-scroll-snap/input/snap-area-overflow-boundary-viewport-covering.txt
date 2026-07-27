@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Keyboard scrolling with vertical snap-area overflow
+Pass	Mouse-wheel scrolling with vertical snap-area overflow

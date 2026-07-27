@@ -106,7 +106,7 @@ public:
     void notify_compositor_process_reconnected(Badge<Application>);
     Web::Compositor::CompositorContextId compositor_context_id_for_page(u64 page_id);
     Optional<u64> page_id_for_compositor_context_id(Web::Compositor::CompositorContextId) const;
-    bool send_async_scroll_to_compositor(u64 page_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels);
+    bool send_async_scroll_to_compositor(u64 page_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels, Web::Compositor::SnapContainerHandling);
     bool handle_mouse_event_in_compositor(u64 page_id, Web::MouseEvent const&);
     bool handle_pinch_event_in_compositor(u64 page_id, Web::PinchEvent const&);
     void dispatch_mouse_event_to_web_content(u64 page_id, Web::MouseEvent const&);

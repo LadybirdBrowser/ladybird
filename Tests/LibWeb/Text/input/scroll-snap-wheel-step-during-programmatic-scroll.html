@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    #scroller {
+        width: 200px;
+        height: 100px;
+        overflow: scroll;
+        scroll-snap-type: y mandatory;
+    }
+    .item {
+        height: 100px;
+        scroll-snap-align: start;
+    }
+</style>
+<div id="scroller">
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+</div>
+<script>
+    promiseTest(async () => {
+        const scroller = document.getElementById("scroller");
+
+        await animationFrame();
+        await animationFrame();
+
+        await internals.wheel(50, 50, 0, 100);
+        await scrollOffsetStopsChanging(() => scroller.scrollTop);
+        println(`scroll offset after the first step: ${scroller.scrollLeft},${scroller.scrollTop}`);
+
+        // The gesture stays latched for as long as it may still produce scrolls, so the next step must travel from
+        // where the programmatic scroll has taken the scrolling box.
+        scroller.scrollTo({ top: 900, behavior: "smooth" });
+        while (scroller.scrollTop < 400)
+            await animationFrame();
+
+        const scrollOffsetWhenStepArrived = scroller.scrollTop;
+        await internals.wheel(50, 50, 0, 100);
+        await scrollOffsetStopsChanging(() => scroller.scrollTop);
+        println(`step travels on from the offset it arrived at: ${scroller.scrollTop > scrollOffsetWhenStepArrived}`);
+        println(`step lands on a snap position: ${scroller.scrollTop % 100 === 0}`);
+    });
+</script>

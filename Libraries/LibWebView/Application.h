@@ -179,7 +179,7 @@ public:
     void update_compositor_viewport(Web::Compositor::CompositorContextId, Gfx::IntSize viewport_size, Web::Compositor::WindowResizingInProgress = Web::Compositor::WindowResizingInProgress::No);
     void update_compositor_display_metadata(Web::Compositor::CompositorContextId, Optional<u64> display_id, double refresh_rate);
     void update_compositor_context_visibility(Web::Compositor::CompositorContextId, Web::HTML::VisibilityState);
-    bool send_async_scroll_to_compositor(Web::Compositor::CompositorContextId, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels);
+    bool send_async_scroll_to_compositor(Web::Compositor::CompositorContextId, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels, Web::Compositor::SnapContainerHandling);
     bool handle_mouse_event_in_compositor(Web::Compositor::CompositorContextId, Web::MouseEvent const&);
     bool handle_pinch_event_in_compositor(Web::Compositor::CompositorContextId, Web::PinchEvent const&);
     bool dispatch_mouse_event_to_web_content(Web::Compositor::CompositorContextId, Web::MouseEvent const&);

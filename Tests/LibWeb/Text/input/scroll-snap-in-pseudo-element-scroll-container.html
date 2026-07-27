@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    #scroller {
+        width: 200px;
+        height: 200px;
+        overflow: scroll;
+        scroll-snap-type: y mandatory;
+        /* Keeps the first snap position below the pseudo-element, so that resting there leaves it visible. */
+        scroll-padding-top: 40px;
+    }
+    /* A scroll container of its own, so a gesture over it scrolls the pseudo-element. */
+    #scroller::before {
+        content: "one\A two\A three\A four\A five\A six\A seven\A eight";
+        white-space: pre;
+        display: block;
+        height: 40px;
+        overflow: scroll;
+    }
+    .item {
+        height: 200px;
+        scroll-snap-align: start;
+    }
+</style>
+<div id="scroller">
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+</div>
+<script>
+    promiseTest(async () => {
+        const scroller = document.getElementById("scroller");
+
+        await animationFrame();
+        await animationFrame();
+
+        println(`scroll offset before scrolling the pseudo-element: ${scroller.scrollLeft},${scroller.scrollTop}`);
+
+        // A pseudo-element scroll container has no event target of its own, so its scrollend event is fired for the
+        // element it is generated for.
+        await scrollSettled(scroller, () => internals.wheel(50, 20, 0, 20, true));
+        println(`scroll offset after scrolling the pseudo-element: ${scroller.scrollLeft},${scroller.scrollTop}`);
+    });
+</script>

@@ -1,0 +1,2 @@
+nested navigable scrolled: true
+snap container scrollY: 0
