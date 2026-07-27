@@ -40,8 +40,14 @@ public:
         AnimatedValue,
     };
 
+    enum class Directionality : u8 {
+        Horizontal,
+        Vertical,
+        Unspecified,
+    };
+
     [[nodiscard]] static GC::Ref<SVGLength> create_detached(JS::Realm&, NonnullRefPtr<CSS::StyleValue const> value, ReadOnly);
-    [[nodiscard]] static GC::Ref<SVGLength> create_reflected_attribute(JS::Realm&, GC::Ref<SVGElement> element, Utf16FlyString name, ReflectedAttributeType, NonnullRefPtr<CSS::StyleValue const> default_value, ReadOnly);
+    [[nodiscard]] static GC::Ref<SVGLength> create_reflected_attribute(JS::Realm&, GC::Ref<SVGElement> element, Utf16FlyString name, Directionality, ReflectedAttributeType, NonnullRefPtr<CSS::StyleValue const> default_value, ReadOnly);
 
     virtual ~SVGLength() override;
 
@@ -55,8 +61,7 @@ private:
     // An SVGLength object can be associated with a particular element, as well as being designated with a
     // directionality: horizontal, vertical or unspecified.
     GC::Ptr<SVGElement> m_element;
-
-    // FIXME: Store directionality
+    Directionality m_directionality;
 
     // Every SVGLength object operates in one of four modes. It can:
     // 1. reflect the base value of a reflected animatable attribute (being exposed through the baseVal member of an
@@ -82,7 +87,7 @@ private:
 
     using Source = Variant<ReflectedAttributeSource, DetachedSource>;
 
-    SVGLength(JS::Realm&, GC::Ptr<SVGElement> associated_element, Source&&, ReadOnly);
+    SVGLength(JS::Realm&, GC::Ptr<SVGElement> associated_element, Directionality, Source&&, ReadOnly);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;

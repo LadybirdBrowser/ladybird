@@ -20,12 +20,12 @@ GC_DEFINE_ALLOCATOR(SVGLength);
 
 GC::Ref<SVGLength> SVGLength::create_detached(JS::Realm& realm, NonnullRefPtr<CSS::StyleValue const> value, ReadOnly read_only)
 {
-    return realm.create<SVGLength>(realm, nullptr, DetachedSource { .value = move(value) }, read_only);
+    return realm.create<SVGLength>(realm, nullptr, Directionality::Unspecified, DetachedSource { .value = move(value) }, read_only);
 }
 
-GC::Ref<SVGLength> SVGLength::create_reflected_attribute(JS::Realm& realm, GC::Ref<SVGElement> element, Utf16FlyString name, ReflectedAttributeType type, NonnullRefPtr<CSS::StyleValue const> default_value, ReadOnly read_only)
+GC::Ref<SVGLength> SVGLength::create_reflected_attribute(JS::Realm& realm, GC::Ref<SVGElement> element, Utf16FlyString name, Directionality directionality, ReflectedAttributeType type, NonnullRefPtr<CSS::StyleValue const> default_value, ReadOnly read_only)
 {
-    return realm.create<SVGLength>(realm, element, ReflectedAttributeSource { .name = move(name), .type = type, .default_value = move(default_value) }, read_only);
+    return realm.create<SVGLength>(realm, element, directionality, ReflectedAttributeSource { .name = move(name), .type = type, .default_value = move(default_value) }, read_only);
 }
 
 SVGLength::ParsedValue SVGLength::parsed_value_from_style_value(CSS::StyleValue const& style_value)
@@ -73,9 +73,10 @@ SVGLength::ParsedValue SVGLength::parsed_value_from_style_value(CSS::StyleValue 
     VERIFY_NOT_REACHED();
 }
 
-SVGLength::SVGLength(JS::Realm& realm, GC::Ptr<SVGElement> associated_element, Source&& source, ReadOnly read_only)
+SVGLength::SVGLength(JS::Realm& realm, GC::Ptr<SVGElement> associated_element, Directionality directionality, Source&& source, ReadOnly read_only)
     : PlatformObject(realm)
     , m_element(associated_element)
+    , m_directionality(directionality)
     , m_source(move(source))
     , m_read_only(read_only)
 {

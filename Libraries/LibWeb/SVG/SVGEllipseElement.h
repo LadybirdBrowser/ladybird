@@ -27,16 +27,16 @@ public:
     //         https://github.com/w3c/svgwg/issues/1153
 
     // https://w3c.github.io/svgwg/svg2-draft/shapes.html#__svg__SVGEllipseElement__cx
-    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(cx, CSS::NumberStyleValue::create(0));
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(cx, Horizontal, CSS::NumberStyleValue::create(0));
 
     // https://w3c.github.io/svgwg/svg2-draft/shapes.html#__svg__SVGEllipseElement__cy
-    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(cy, CSS::NumberStyleValue::create(0));
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(cy, Vertical, CSS::NumberStyleValue::create(0));
 
     // https://w3c.github.io/svgwg/svg2-draft/shapes.html#__svg__SVGEllipseElement__rx
-    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(rx, CSS::NumberStyleValue::create(0));
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(rx, Horizontal, CSS::NumberStyleValue::create(0));
 
     // https://w3c.github.io/svgwg/svg2-draft/shapes.html#__svg__SVGEllipseElement__ry
-    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(ry, CSS::NumberStyleValue::create(0));
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(ry, Vertical, CSS::NumberStyleValue::create(0));
 
 private:
     SVGEllipseElement(DOM::Document&, DOM::QualifiedName);

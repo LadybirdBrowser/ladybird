@@ -42,16 +42,16 @@ public:
     //         https://github.com/w3c/svgwg/issues/1153
 
     // https://w3c.github.io/svgwg/svg2-draft/struct.html#__svg__SVGSVGElement__x
-    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(x, CSS::NumberStyleValue::create(0));
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(x, Horizontal, CSS::NumberStyleValue::create(0));
 
     // https://w3c.github.io/svgwg/svg2-draft/struct.html#__svg__SVGSVGElement__y
-    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(y, CSS::NumberStyleValue::create(0));
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(y, Vertical, CSS::NumberStyleValue::create(0));
 
     // https://w3c.github.io/svgwg/svg2-draft/struct.html#__svg__SVGSVGElement__width
-    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(width, CSS::PercentageStyleValue::create(CSS::Percentage { 100 }));
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(width, Horizontal, CSS::PercentageStyleValue::create(CSS::Percentage { 100 }));
 
     // https://w3c.github.io/svgwg/svg2-draft/struct.html#__svg__SVGSVGElement__height
-    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(height, CSS::PercentageStyleValue::create(CSS::Percentage { 100 }));
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(height, Vertical, CSS::PercentageStyleValue::create(CSS::Percentage { 100 }));
 
     float current_scale() const;
     void set_current_scale(float);

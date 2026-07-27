@@ -38,16 +38,16 @@ public:
     //         https://github.com/w3c/svgwg/issues/1153
 
     // https://w3c.github.io/svgwg/svg2-draft/struct.html#__svg__SVGUseElement__x
-    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(x, CSS::NumberStyleValue::create(0));
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(x, Horizontal, CSS::NumberStyleValue::create(0));
 
     // https://w3c.github.io/svgwg/svg2-draft/struct.html#__svg__SVGUseElement__y
-    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(y, CSS::NumberStyleValue::create(0));
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(y, Vertical, CSS::NumberStyleValue::create(0));
 
     // https://w3c.github.io/svgwg/svg2-draft/struct.html#__svg__SVGUseElement__width
-    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(width, CSS::NumberStyleValue::create(0));
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(width, Horizontal, CSS::NumberStyleValue::create(0));
 
     // https://w3c.github.io/svgwg/svg2-draft/struct.html#__svg__SVGUseElement__height
-    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(height, CSS::NumberStyleValue::create(0));
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(height, Vertical, CSS::NumberStyleValue::create(0));
 
     GC::Ptr<SVGElement> instance_root() const;
     GC::Ptr<SVGElement> animated_instance_root() const;

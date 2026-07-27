@@ -31,16 +31,16 @@ public:
     GC::Ref<SVGAnimatedEnumeration> primitive_units() const;
 
     // https://drafts.csswg.org/filter-effects-1#dom-svgfilterelement-x
-    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(x, CSS::PercentageStyleValue::create(CSS::Percentage { -10 }));
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(x, Horizontal, CSS::PercentageStyleValue::create(CSS::Percentage { -10 }));
 
     // https://drafts.csswg.org/filter-effects-1#dom-svgfilterelement-y
-    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(y, CSS::PercentageStyleValue::create(CSS::Percentage { -10 }));
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(y, Vertical, CSS::PercentageStyleValue::create(CSS::Percentage { -10 }));
 
     // https://drafts.csswg.org/filter-effects-1#dom-svgfilterelement-width
-    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(width, CSS::PercentageStyleValue::create(CSS::Percentage { 120 }));
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(width, Horizontal, CSS::PercentageStyleValue::create(CSS::Percentage { 120 }));
 
     // https://drafts.csswg.org/filter-effects-1#dom-svgfilterelement-height
-    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(height, CSS::PercentageStyleValue::create(CSS::Percentage { 120 }));
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE(height, Vertical, CSS::PercentageStyleValue::create(CSS::Percentage { 120 }));
 
 private:
     SVGFilterElement(DOM::Document&, DOM::QualifiedName);

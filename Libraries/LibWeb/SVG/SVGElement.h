@@ -12,12 +12,13 @@
 #include <LibWeb/HTML/GlobalEventHandlers.h>
 #include <LibWeb/HTML/HTMLOrSVGOrMathMLElement.h>
 #include <LibWeb/SVG/SVGAnimatedString.h>
+#include <LibWeb/SVG/SVGLength.h>
 
-#define REFLECT_ANIMATED_LENGTH_ATTRIBUTE_WITH_GETTER(attribute_name, getter_name, default_value) \
-    GC::Ref<SVGAnimatedLength> getter_name() { return svg_animated_length_for_attribute(AttributeNames::attribute_name, default_value); }
+#define REFLECT_ANIMATED_LENGTH_ATTRIBUTE_WITH_GETTER(attribute_name, getter_name, directionality, default_value) \
+    GC::Ref<SVGAnimatedLength> getter_name() { return svg_animated_length_for_attribute(AttributeNames::attribute_name, SVGLength::Directionality::directionality, default_value); }
 
-#define REFLECT_ANIMATED_LENGTH_ATTRIBUTE(attribute_name, default_value) \
-    REFLECT_ANIMATED_LENGTH_ATTRIBUTE_WITH_GETTER(attribute_name, attribute_name, default_value)
+#define REFLECT_ANIMATED_LENGTH_ATTRIBUTE(attribute_name, directionality, default_value) \
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE_WITH_GETTER(attribute_name, attribute_name, directionality, default_value)
 
 namespace Web::SVG {
 
@@ -38,7 +39,7 @@ public:
     bool should_include_in_accessibility_tree() const;
     virtual Optional<ARIA::Role> default_role() const override;
 
-    GC::Ref<SVGAnimatedLength> svg_animated_length_for_attribute(Utf16FlyString const&, NonnullRefPtr<CSS::StyleValue const>&& default_value);
+    GC::Ref<SVGAnimatedLength> svg_animated_length_for_attribute(Utf16FlyString const&, SVGLength::Directionality, NonnullRefPtr<CSS::StyleValue const>&& default_value);
 
     virtual bool is_presentational_hint(Utf16FlyString const&) const final override;
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const final override;
