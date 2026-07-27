@@ -5435,19 +5435,19 @@ asm_handler_MovUndefined3_hot_end:
 .p2align 6
 asm_handler_AddRhsInt32:
     mov eax, DWORD PTR [r14 + r13 + 8]
-    mov rdx, QWORD PTR [rbx + rax * 8]
-    mov ecx, DWORD PTR [r14 + r13 + 12]
-    mov rax, rdx
+    mov rcx, QWORD PTR [rbx + rax * 8]
+    mov edx, DWORD PTR [r14 + r13 + 12]
+    mov rax, rcx
     shr rax, 48
     cmp ax, 32762
     jne .Lasm_AddRhsInt32.ssa_block_5
-    movsxd rax, edx
-    mov rdx, rax
-    add edx, ecx
+    movsxd rax, ecx
+    mov rcx, rax
+    add ecx, edx
     jo .Lasm_AddRhsInt32.ssa_block_8
-    or rdx, r15
+    or rcx, r15
     mov r11d, DWORD PTR [r14 + r13 + 4]
-    mov QWORD PTR [rbx + r11 * 8], rdx
+    mov QWORD PTR [rbx + r11 * 8], rcx
     add r13d, 16
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
@@ -9452,11 +9452,11 @@ asm_handler_AddRhsInt32_cold:
     and ax, 32760
     cmp ax, 32760
     jne .Lasm_AddRhsInt32.ssa_block_9
-    or rcx, r15
+    mov edx, DWORD PTR [r14 + r13 + 12]
+    or rdx, r15
     mov esi, DWORD PTR [r14 + r13 + 4]
     mov DWORD PTR [rbx + -64], r13d
-    mov r8, rcx
-    mov rcx, rdx
+    mov r8, rdx
     mov rdx, rsi
     mov rdi, QWORD PTR [rbp - 48]
     mov esi, r13d
@@ -9472,8 +9472,9 @@ asm_handler_AddRhsInt32_cold:
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
 .Lasm_AddRhsInt32.ssa_block_9:
-    movq xmm0, rdx
-    cvtsi2sd xmm1, rcx
+    movq xmm0, rcx
+    mov eax, DWORD PTR [r14 + r13 + 12]
+    cvtsi2sd xmm1, rax
     addsd xmm0, xmm1
     cvttsd2si edx, xmm0
     movsxd rcx, edx
@@ -9505,6 +9506,7 @@ asm_handler_AddRhsInt32_cold:
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
 .Lasm_AddRhsInt32.ssa_block_8:
+    mov ecx, DWORD PTR [r14 + r13 + 12]
     cvtsi2sd xmm0, rax
     cvtsi2sd xmm1, rcx
     addsd xmm0, xmm1

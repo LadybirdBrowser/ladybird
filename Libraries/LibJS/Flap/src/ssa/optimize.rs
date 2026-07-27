@@ -20,7 +20,7 @@ use crate::frontend::layout::{LayoutConstants, LayoutValue};
 use crate::hash::{HashMap, HashSet};
 #[cfg(test)]
 use crate::identity::ExternalSymbol;
-use crate::intrinsic::{OperandLoad, OperandStore};
+use crate::intrinsic::{BytecodeOperation, FieldWidth, OperandLoad, OperandStore};
 use crate::types::Type;
 use crate::{CompileError, CompileStage};
 use std::rc::Rc;
@@ -262,6 +262,10 @@ fn run_optimization_pipeline(
     );
     run_pass!("dead-code-elimination", eliminate_dead_code_pass);
     run_pass!("global-code-motion", schedule_global_code_motion_pass);
+    run_pass!(
+        "rematerialize-cold-bytecode-field-loads",
+        rematerialize_cold_bytecode_field_loads
+    );
     report
 }
 
@@ -978,6 +982,108 @@ fn schedule_global_code_motion_pass(function: &mut Function, analyses: &mut Anal
     true
 }
 
+fn rematerialize_cold_bytecode_field_loads(function: &mut Function, _: &mut AnalysisManager) -> bool {
+    let candidates = function
+        .instructions
+        .iter()
+        .filter_map(|instruction| {
+            if instruction.operation
+                != Operation::Intrinsic(Intrinsic::Bytecode(BytecodeOperation::Load(FieldWidth::U32)))
+            {
+                return None;
+            }
+            let [field] = instruction.inputs.as_slice() else {
+                return None;
+            };
+            let [result] = instruction.results.as_slice() else {
+                return None;
+            };
+            Some((*field, *result))
+        })
+        .collect::<Vec<_>>();
+
+    let mut changed = false;
+    let mut replacements_by_block = vec![HashMap::default(); function.blocks.len()];
+    for (field, result) in candidates {
+        let has_hot_use = function
+            .blocks
+            .iter()
+            .filter(|block| block.layout != BlockLayout::Cold)
+            .any(|block| {
+                block
+                    .instructions
+                    .iter()
+                    .any(|instruction| function.instructions[instruction.0].inputs.contains(&result))
+                    || block
+                        .terminator
+                        .as_ref()
+                        .is_some_and(|terminator| terminator.inputs().contains(&result))
+            });
+        if !has_hot_use {
+            continue;
+        }
+        for (block_index, prior_replacements) in replacements_by_block.iter_mut().enumerate() {
+            if function.blocks[block_index].layout != BlockLayout::Cold {
+                continue;
+            }
+            let is_used = function.blocks[block_index]
+                .instructions
+                .iter()
+                .any(|instruction| function.instructions[instruction.0].inputs.contains(&result))
+                || function.blocks[block_index]
+                    .terminator
+                    .as_ref()
+                    .is_some_and(|terminator| terminator.inputs().contains(&result));
+            if !is_used {
+                continue;
+            }
+
+            let block = BlockId(block_index);
+            let field = prior_replacements.get(&field).copied().unwrap_or(field);
+            let insertion_index = function.blocks[block_index]
+                .instructions
+                .iter()
+                .position(|instruction| function.instructions[instruction.0].results.contains(&field))
+                .map_or(0, |index| index + 1);
+            let replacement = function.append_instruction(
+                block,
+                Intrinsic::Bytecode(BytecodeOperation::Load(FieldWidth::U32)),
+                vec![field],
+                vec![Type::I32],
+            )[0];
+            let replacement_instruction = function.blocks[block_index]
+                .instructions
+                .pop()
+                .expect("the rematerialized load was just appended");
+            function.blocks[block_index]
+                .instructions
+                .insert(insertion_index, replacement_instruction);
+
+            let replacements = HashMap::from_iter([(result, replacement)]);
+            prior_replacements.insert(result, replacement);
+            for instruction in function.blocks[block_index]
+                .instructions
+                .iter()
+                .skip(insertion_index + 1)
+            {
+                rewrite_values(&mut function.instructions[instruction.0].inputs, &replacements);
+            }
+            rewrite_terminator(
+                function.blocks[block_index]
+                    .terminator
+                    .as_mut()
+                    .expect("every SSA block has a terminator"),
+                &replacements,
+            );
+            changed = true;
+        }
+    }
+    if changed {
+        recompute_effects(function);
+    }
+    changed
+}
+
 /// Whether another block reads this instruction's result along a guard's exit.
 fn escapes_through_a_guard(
     function: &Function,
@@ -1323,7 +1429,7 @@ mod tests {
     use crate::intrinsic::{
         AssertionOperation, CallOperation, ControlOperation, OperandLoad, OperandOperation, OperandStore,
     };
-    use crate::ssa::{Constant, LowLevelOperation, MemoryEffect, lowering as ir_lowering};
+    use crate::ssa::{CheckedIntegerOperation, Constant, LowLevelOperation, MemoryEffect, lowering as ir_lowering};
 
     fn append_test_operation(
         function: &mut Function,
@@ -1336,6 +1442,108 @@ mod tests {
         let instruction = InstructionId(function.instructions.len());
         let results = function.append_instruction_with_effects(block, operation, inputs, result_types, effects);
         (instruction, results)
+    }
+
+    #[test]
+    fn rematerializes_bytecode_field_loads_for_cold_consumers() {
+        let mut function = Function::new("cold-bytecode-field", vec![Type::InlineInt32], Vec::new());
+        let loaded = function.append_instruction(
+            function.entry,
+            Intrinsic::Bytecode(BytecodeOperation::Load(FieldWidth::U32)),
+            vec![function.parameter(0)],
+            vec![Type::I32],
+        )[0];
+        let lhs = function.add_constant(Type::I32, Constant::Integer(1));
+        let success = function.create_named_block("success", BlockLayout::Hot, vec![Type::I32]);
+        let failure = function.create_empty_block("failure", BlockLayout::Cold);
+        function.set_checked_operation(
+            function.entry,
+            Intrinsic::CheckedInteger(CheckedIntegerOperation::Add),
+            vec![lhs, loaded],
+            vec![Type::I32],
+            Effects::PURE,
+            success,
+            Vec::new(),
+            Edge::new(failure),
+        );
+        function.set_terminator(success, Terminator::Return(Vec::new()));
+        function.append_instruction(
+            failure,
+            Intrinsic::LowLevel(LowLevelOperation::Negate),
+            vec![loaded],
+            vec![Type::I32],
+        );
+        function.set_terminator(failure, Terminator::Return(Vec::new()));
+
+        assert!(rematerialize_cold_bytecode_field_loads(
+            &mut function,
+            &mut AnalysisManager::default()
+        ));
+
+        let rematerialized = function.blocks[failure.0].instructions[0];
+        let rematerialized_value = function.instructions[rematerialized.0].results[0];
+        assert_eq!(
+            function.instructions[rematerialized.0].operation,
+            Operation::Intrinsic(Intrinsic::Bytecode(BytecodeOperation::Load(FieldWidth::U32)))
+        );
+        assert_eq!(
+            function.instructions[function.blocks[failure.0].instructions[1].0]
+                .inputs
+                .as_slice(),
+            [rematerialized_value]
+        );
+        let Terminator::CheckedOperation { inputs, .. } =
+            function.blocks[function.entry.0].terminator.as_ref().unwrap()
+        else {
+            unreachable!()
+        };
+        assert_eq!(inputs, &[lhs, loaded]);
+        function.validate().unwrap();
+    }
+
+    #[test]
+    fn rematerializes_after_same_block_input_definitions() {
+        let mut function = Function::new("cold-local-rematerialization", vec![Type::I32], Vec::new());
+        let cold = function.create_empty_block("cold", BlockLayout::Cold);
+        let hot = function.create_empty_block("hot", BlockLayout::Hot);
+        function.set_terminator(function.entry, Terminator::jump(cold));
+        let field = function.append_instruction(
+            cold,
+            Intrinsic::LowLevel(LowLevelOperation::Negate),
+            vec![function.parameter(0)],
+            vec![Type::InlineInt32],
+        )[0];
+        let loaded = function.append_instruction(
+            cold,
+            Intrinsic::Bytecode(BytecodeOperation::Load(FieldWidth::U32)),
+            vec![field],
+            vec![Type::I32],
+        )[0];
+        function.append_instruction(
+            cold,
+            Intrinsic::LowLevel(LowLevelOperation::Negate),
+            vec![loaded],
+            vec![Type::I32],
+        );
+        function.set_terminator(cold, Terminator::jump(hot));
+        function.append_instruction(
+            hot,
+            Intrinsic::LowLevel(LowLevelOperation::Negate),
+            vec![loaded],
+            vec![Type::I32],
+        );
+        function.set_terminator(hot, Terminator::Return(Vec::new()));
+
+        assert!(rematerialize_cold_bytecode_field_loads(
+            &mut function,
+            &mut AnalysisManager::default()
+        ));
+
+        let field_definition = function.blocks[cold.0].instructions[0];
+        let rematerialized = function.blocks[cold.0].instructions[1];
+        assert_eq!(function.instructions[field_definition.0].results.as_slice(), [field]);
+        assert_eq!(function.instructions[rematerialized.0].inputs.as_slice(), [field]);
+        function.validate().unwrap();
     }
 
     #[test]

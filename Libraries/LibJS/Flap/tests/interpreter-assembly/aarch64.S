@@ -5361,18 +5361,18 @@ asm_handler_MovUndefined3_hot_end:
 .p2align 4
 asm_handler_AddRhsInt32:
     ldr w0, [x21, #8]
-    ldr x1, [x27, x0, lsl #3]
-    ldr w0, [x21, #12]
-    lsr x2, x1, #48
-    cmp w2, w22
+    ldr x0, [x27, x0, lsl #3]
+    ldr w2, [x21, #12]
+    lsr x1, x0, #48
+    cmp w1, w22
     b.ne .Lasm_AddRhsInt32.ssa_block_5
-    sxtw x1, w1
-    mov x2, x1
-    adds w2, w2, w0
+    sxtw x0, w0
+    mov x1, x0
+    adds w1, w1, w2
     b.vs .Lasm_AddRhsInt32.ssa_block_8
-    movk x2, #0x7ffa, lsl #48
+    movk x1, #0x7ffa, lsl #48
     ldr w9, [x21, #4]
-    str x2, [x27, x9, lsl #3]
+    str x1, [x27, x9, lsl #3]
     ldrb w9, [x21, #16]
     add x21, x21, #16
     ldr x10, [x19, x9, lsl #3]
@@ -9187,13 +9187,14 @@ asm_handler_MovUndefined3_cold_end:
 asm_handler_AddRhsInt32_cold:
 // Cold paths for AddRhsInt32
 .Lasm_AddRhsInt32.ssa_block_5:
-    and w2, w2, #0x7ff8
-    cmp w2, w24
+    and w1, w1, #0x7ff8
+    cmp w1, w24
     b.ne .Lasm_AddRhsInt32.ssa_block_9
-    movk x0, #0x7ffa, lsl #48
+    ldr w1, [x21, #12]
+    movk x1, #0x7ffa, lsl #48
     ldr w2, [x21, #4]
-    mov x3, x1
-    mov x4, x0
+    mov x3, x0
+    mov x4, x1
     mov x0, x20
     sub w1, w21, w26
     str w1, [x28, #56]
@@ -9208,7 +9209,8 @@ asm_handler_AddRhsInt32_cold:
     ldr x10, [x19, x9, lsl #3]
     br x10
 .Lasm_AddRhsInt32.ssa_block_9:
-    fmov d0, x1
+    fmov d0, x0
+    ldr w0, [x21, #12]
     scvtf d1, x0
     fadd d0, d0, d1
     fcvtzs w1, d0
@@ -9238,8 +9240,9 @@ asm_handler_AddRhsInt32_cold:
     ldr x10, [x19, x9, lsl #3]
     br x10
 .Lasm_AddRhsInt32.ssa_block_8:
-    scvtf d0, x1
-    scvtf d1, x0
+    ldr w1, [x21, #12]
+    scvtf d0, x0
+    scvtf d1, x1
     fadd d0, d0, d1
     fmov x0, d0
     ldr w9, [x21, #4]
