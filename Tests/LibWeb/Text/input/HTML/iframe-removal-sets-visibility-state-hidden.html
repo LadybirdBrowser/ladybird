@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Removing an iframe must unload its content document: pagehide fires at the content window, the content document's
+    // visibility state becomes "hidden" (firing visibilitychange), and "unload" fires. See #9893.
+    asyncTest(async (done) => {
+        const iframe = document.createElement("iframe");
+        iframe.srcdoc = "<p>child</p>";
+        await new Promise(resolve => {
+            iframe.onload = resolve;
+            document.body.appendChild(iframe);
+        });
+
+        const childDocument = iframe.contentDocument;
+        const childWindow = iframe.contentWindow;
+        println(`before removal: ${childDocument.visibilityState}`);
+
+        childWindow.addEventListener("pagehide", event => {
+            println(`pagehide fired: persisted=${event.persisted}`);
+        });
+        childDocument.addEventListener("visibilitychange", () => {
+            println(`visibilitychange fired: ${childDocument.visibilityState}`);
+        });
+        childWindow.addEventListener("unload", () => {
+            println("unload fired");
+            setTimeout(() => {
+                println(`after removal: ${childDocument.visibilityState}`);
+                done();
+            }, 0);
+        });
+
+        iframe.remove();
+    });
+</script>

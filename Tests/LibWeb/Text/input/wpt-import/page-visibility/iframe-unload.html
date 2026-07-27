@@ -1,0 +1,49 @@
+<html>
+<title>visibilitychange fires on unload with iframes</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+
+var frameDocs = [];
+var docsLoaded = 0;
+var numFrames = 3;
+
+var ast = new async_test("visibilitychange fires on unload with iframes");
+
+function startTest() {
+  if (++docsLoaded < numFrames)
+    return;
+
+  ast.step(function () {
+    frameDocs.push(window[0].document);
+    frameDocs.push(window[0][0].document);
+    frameDocs.push(window[0][1].document);
+
+    for (var i = 0; i < frameDocs.length; ++i) {
+      frameDocs[i].addEventListener(
+          "visibilitychange",
+          onVisibilityChange.bind(null, i), false);
+    }
+
+    document.body.removeChild(document.getElementById("frame1"));
+  });
+}
+
+var checkedFrames = 0;
+
+function onVisibilityChange(i) {
+  ast.step(function () {
+    assert_equals(frameDocs[i].visibilityState, "hidden");
+  });
+  if (++checkedFrames >= numFrames) {
+    ast.done();
+  }
+}
+
+
+
+</script>
+<iframe id="frame1" src="resources/iframe-with-subframes.html"></iframe>
+</body>
+</html>

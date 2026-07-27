@@ -1,0 +1,5 @@
+before removal: visible
+pagehide fired: persisted=false
+visibilitychange fired: hidden
+unload fired
+after removal: hidden
