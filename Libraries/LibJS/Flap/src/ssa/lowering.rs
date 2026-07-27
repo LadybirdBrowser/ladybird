@@ -593,16 +593,31 @@ impl Lowerer<'_> {
         let tag_value = self.extract_tag(value, false)?;
         self.bindings.insert(tag, tag_value);
         let original_bindings = self.bindings.clone();
+        let inherited_cold = self.function.blocks[source.0].layout == BlockLayout::Cold;
+        let arm_layout = |layout: BlockTemperature| {
+            if inherited_cold {
+                BlockLayout::Cold
+            } else {
+                layout.into()
+            }
+        };
         let arm = |kind| arms.iter().find(|arm| arm.kind == kind);
         let int32_arm = arm(ValueMatchArmKind::Int32).expect("control value match must have an Int32 arm");
-        let int32_block = self.function.create_empty_block("value_match_int32", BlockLayout::Hot);
-        let double_block = arm(ValueMatchArmKind::Double)
-            .map(|_| self.function.create_empty_block("value_match_double", BlockLayout::Hot));
-        let boolean_block = arm(ValueMatchArmKind::Boolean).map(|_| {
+        let int32_block = self
+            .function
+            .create_empty_block("value_match_int32", arm_layout(int32_arm.layout));
+        let double_block = arm(ValueMatchArmKind::Double).map(|arm| {
             self.function
-                .create_empty_block("value_match_boolean", BlockLayout::Hot)
+                .create_empty_block("value_match_double", arm_layout(arm.layout))
+        });
+        let boolean_block = arm(ValueMatchArmKind::Boolean).map(|arm| {
+            self.function
+                .create_empty_block("value_match_boolean", arm_layout(arm.layout))
         });
         let (fallback_edge, fallback_block) = self.value_match_fallback(fallback, "value_match_fallback", &[], &[])?;
+        if inherited_cold && let Some(block) = fallback_block {
+            self.function.blocks[block.0].layout = BlockLayout::Cold;
+        }
 
         let arm_blocks = arms
             .iter()
@@ -617,7 +632,9 @@ impl Lowerer<'_> {
                 ))
             })
             .collect::<Vec<_>>();
-        if let Some((_, block)) = arm_blocks.first() {
+        if let Some((_, block)) = arm_blocks.first()
+            && self.function.blocks[block.0].layout != BlockLayout::Cold
+        {
             self.function.blocks[block.0].layout = BlockLayout::Preferred;
         }
         self.lower_value_match_tests(
@@ -901,9 +918,14 @@ impl Lowerer<'_> {
             let next = if index + 1 == arms.len() {
                 fallback.clone()
             } else {
+                let layout = if self.function.blocks[test_block.0].layout == BlockLayout::Cold {
+                    BlockLayout::Cold
+                } else {
+                    BlockLayout::Hot
+                };
                 Edge::new(
                     self.function
-                        .create_empty_block(format!("{block_name}_{}", index + 1), BlockLayout::Hot),
+                        .create_empty_block(format!("{block_name}_{}", index + 1), layout),
                 )
             };
             self.function.set_terminator(
@@ -1883,6 +1905,49 @@ handler Check(value: i32) {
             function.blocks[function.entry.0].terminator,
             Some(Terminator::Branch { .. })
         ));
+        function.validate().unwrap();
+    }
+
+    #[test]
+    fn preserves_cold_control_value_match_regions() {
+        let function = lower_source(
+            r#"
+handler Match(value: Value, nested: Value) {
+    match value {
+        Value<i32> => { dispatch_next; },
+        Value<f64> => @cold {
+            match nested {
+                Value<i32> => { dispatch_next; },
+                Value<f64> => { dispatch_next; },
+                _ => { dispatch_next; },
+            }
+        },
+        _ => @cold { dispatch_next; },
+    }
+}
+"#,
+        );
+
+        let double = function
+            .blocks
+            .iter()
+            .find(|block| block.name.as_deref() == Some("value_match_double"))
+            .unwrap();
+        assert_eq!(double.layout, BlockLayout::Cold);
+        assert!(
+            function
+                .blocks
+                .iter()
+                .filter(|block| block.name.as_deref() == Some("value_match_int32"))
+                .any(|block| block.layout == BlockLayout::Cold)
+        );
+        assert!(
+            function
+                .blocks
+                .iter()
+                .filter(|block| block.name.as_deref() == Some("value_match_test_1"))
+                .any(|block| block.layout == BlockLayout::Cold)
+        );
         function.validate().unwrap();
     }
 }
