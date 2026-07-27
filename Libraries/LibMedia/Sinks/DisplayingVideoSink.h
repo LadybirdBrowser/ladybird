@@ -16,6 +16,7 @@
 #include <LibMedia/MediaTime.h>
 #include <LibMedia/PipelineStatus.h>
 #include <LibMedia/Sinks/VideoSink.h>
+#include <LibSync/Weakable.h>
 
 namespace Media {
 
@@ -24,7 +25,8 @@ enum class [[nodiscard]] DisplayingVideoSinkUpdateResult : u8 {
     NoChange,
 };
 
-class MEDIA_API DisplayingVideoSink final : public VideoSink {
+class MEDIA_API DisplayingVideoSink final : public VideoSink
+    , public Sync::Weakable<DisplayingVideoSink> {
 public:
     static ErrorOr<NonnullRefPtr<DisplayingVideoSink>> try_create(MediaTimeReader);
 
