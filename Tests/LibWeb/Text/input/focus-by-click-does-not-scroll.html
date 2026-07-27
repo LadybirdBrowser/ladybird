@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0 }
+    #spacer { height: 580px }
+    #button { display: block; width: 200px; height: 100px }
+    #filler { height: 2000px }
+</style>
+<div id="spacer"></div>
+<button id="button">partially visible</button>
+<div id="filler"></div>
+<script>
+    promiseTest(async () => {
+        let clickCount = 0;
+        document.getElementById("button").addEventListener("click", () => clickCount++);
+
+        internals.click(100, 590);
+
+        // Give a scroll queued by the click a chance to happen before concluding that none did.
+        await animationFrame();
+        await timeout(0);
+
+        println(`clicks received: ${clickCount}`);
+        printElement(document.activeElement);
+        println(`scrollY after clicking a partially visible button: ${window.scrollY}`);
+    });
+</script>
