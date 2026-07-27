@@ -1,0 +1,62 @@
+<!doctype html>
+<title>focus(options) - preventScroll on nested scroll elements</title>
+<script src=../../../../resources/testharness.js></script>
+<script src=../../../../resources/testharnessreport.js></script>
+<style>
+  .scrollBox { width: 400px; height: 300px; border: 1px solid }
+  .bigbox { width: 380px; height: 300px; border: 1px solid }
+  .box { width: 380px; height: 150px; border: 1px solid }
+</style>
+<div class="scrollBox" style="overflow-y: scroll;">
+  <div class="bigbox" id="1" style="overflow-y: scroll;" tabindex=1>
+    <div class="box" id="1_1" tabindex=1>1_1</div>
+    <div class="box" id="1_2" tabindex=1>1_2</div>
+    <div class="box" id="1_3" tabindex=1>1_3</div>
+  </div>
+  <div class="bigbox" id="2" style="overflow-y: scroll;" tabindex=1>
+    <div class="box" id="2_1" tabindex=1>2_1</div>
+    <div class="box" id="2_2" tabindex=1>2_2</div>
+    <div class="box" id="2_3" tabindex=1>2_3</div>
+  </div>
+  <div class="bigbox" id="3" style="overflow-y: scroll;" tabindex=1>
+    <div class="box" id="3_1" tabindex=1>3_1</div>
+    <div class="box" id="3_2" tabindex=1>3_2</div>
+    <div class="box" id="3_3" tabindex=1>3_3</div>
+  </div>
+</div>
+<script>
+promise_test(async function(t) {
+  await new Promise(resolve => window.addEventListener("load", resolve));
+  let div2_2 = document.getElementById("2_2");
+  div2_2.focus({ preventScroll: true });
+
+  await new Promise(resolve => {
+    requestAnimationFrame(() => requestAnimationFrame(resolve));
+  });
+
+  assert_equals(document.activeElement, div2_2, `box 2_2: should have been focused`);
+  assert_equals(div2_2.scrollTop, 0, "box 2_2: should not have scrolled");
+  assert_equals(div2_2.parentNode.scrollTop, 0, "box 2_2: should not have scrolled ancestor");
+
+  // Reset focus
+  let div1_1 = document.getElementById("1_1");
+  div1_1.focus();
+
+  await new Promise(resolve => {
+    requestAnimationFrame(() => requestAnimationFrame(resolve));
+  });
+  assert_equals(document.activeElement, div1_1, `box 1_1: should have been focused`);
+
+  let div2 = document.getElementById("2");
+  div2.focus({ preventScroll: true });
+
+  await new Promise(resolve => {
+    requestAnimationFrame(() => requestAnimationFrame(resolve));
+  });
+
+  assert_equals(document.activeElement, div2, `box 2: should have been focused`);
+  assert_equals(div2.scrollTop, 0, "box 2: should not have scrolled");
+  assert_equals(div2_2.scrollTop, 0, "box 2_2: should not have scrolled");
+  assert_equals(div2.parentNode.scrollTop, 0, "box 2: should not have scrolled ancestor");
+});
+</script>

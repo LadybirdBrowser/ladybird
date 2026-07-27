@@ -47,6 +47,12 @@ interface HTMLElement : Element {
 
 };
 
+// https://html.spec.whatwg.org/multipage/interaction.html#focusoptions
+dictionary FocusOptions {
+    boolean preventScroll = false;
+    boolean focusVisible;
+};
+
 // https://html.spec.whatwg.org/multipage/dom.html#showpopoveroptions
 dictionary ShowPopoverOptions {
     HTMLElement source;

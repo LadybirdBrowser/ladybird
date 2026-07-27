@@ -29,18 +29,20 @@ GC::Ref<DOMStringMap> HTMLOrSVGOrMathMLElement<ElementBase>::dataset()
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-focus
 template<typename ElementBase>
-void HTMLOrSVGOrMathMLElement<ElementBase>::focus()
+void HTMLOrSVGOrMathMLElement<ElementBase>::focus(Bindings::FocusOptions const& options)
 {
     // 1. If the allow focus steps given this's node document return false, then return.
     if (!static_cast<ElementBase*>(this)->document().allow_focus())
         return;
 
     // 2. Run the focusing steps for this.
-    run_focusing_steps(static_cast<ElementBase*>(this), nullptr, FocusTrigger::Script);
+    // 4. If options["preventScroll"] is false, then scroll a target into view given this, "auto", "center", and
+    //    "center".
+    // NB: The scroll into view of step 4 is performed by the focus update steps, which scroll the newly focused
+    //     element into  view for every way of focusing it.
+    run_focusing_steps(static_cast<ElementBase*>(this), nullptr, FocusTrigger::Script, options.prevent_scroll ? ScrollIntoView::No : ScrollIntoView::Yes);
 
     // FIXME: 3. If options["focusVisible"] is true, or does not exist but in an implementation-defined way the user agent determines it would be best to do so, then indicate focus.
-
-    // FIXME: 4. If options["preventScroll"] is false, then scroll a target into view given this, "auto", "center", and "center".
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-blur

@@ -10,6 +10,7 @@
 #include <AK/Utf16View.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Heap/Cell.h>
+#include <LibWeb/Bindings/HTMLElement.h>
 #include <LibWeb/HTML/DOMStringMap.h>
 
 namespace Web::HTML {
@@ -23,7 +24,7 @@ public:
     Utf16String const& nonce() const { return m_cryptographic_nonce; }
     void set_nonce(Utf16View nonce) { m_cryptographic_nonce = Utf16String::from_utf16(nonce); }
 
-    void focus();
+    void focus(Bindings::FocusOptions const& = {});
     void blur();
 
 protected:

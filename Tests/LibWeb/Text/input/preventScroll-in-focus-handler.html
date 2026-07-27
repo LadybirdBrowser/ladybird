@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0 }
+    button { display: block }
+    #first { margin-top: 2000px }
+    #second { margin-top: 2000px }
+</style>
+<button id="first">first</button>
+<button id="second">second</button>
+<script>
+    // A focus handler may move focus on to something else. The nested focus() is responsible for revealing its own
+    // target, so the outer focus() must not reveal a target which asked not to be revealed.
+    test(() => {
+        const first = document.getElementById("first");
+        const second = document.getElementById("second");
+
+        first.addEventListener("focus", () => second.focus({ preventScroll: true }), { once: true });
+        first.focus();
+
+        printElement(document.activeElement);
+        println(`scrollY after a focus handler refocused with preventScroll: ${window.scrollY}`);
+    });
+</script>

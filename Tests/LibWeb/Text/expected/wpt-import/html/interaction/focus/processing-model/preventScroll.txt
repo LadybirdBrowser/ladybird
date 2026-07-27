@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	Sanity test
+Pass	elm.focus() without arguments
+Pass	elm.focus(undefined)
+Pass	elm.focus(null)
+Pass	elm.focus({})
+Pass	elm.focus({preventScroll: false})
+Pass	elm.focus({preventScroll: true})
