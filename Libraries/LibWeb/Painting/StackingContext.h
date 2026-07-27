@@ -48,6 +48,7 @@ public:
     static void paint_node_as_stacking_context(Paintable const&, DisplayListRecordingContext&);
     static void paint_descendants(DisplayListRecordingContext&, Paintable const&, StackingContextPaintPhase);
     static void paint_svg(DisplayListRecordingContext&, Paintable const&, PaintPhase);
+    static void paint_child(DisplayListRecordingContext&, StackingContext const&);
     void paint(DisplayListRecordingContext&) const;
 
     void dump(StringBuilder&, int indent = 0) const;
@@ -69,7 +70,6 @@ private:
     Vector<WeakPtr<Paintable>> m_non_positioned_floating_descendants;
     bool m_contains_inline_or_replaced_descendants { false };
 
-    static void paint_child(DisplayListRecordingContext&, StackingContext const&);
     void paint_internal(DisplayListRecordingContext&) const;
 };
 
