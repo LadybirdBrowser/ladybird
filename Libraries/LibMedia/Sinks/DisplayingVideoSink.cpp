@@ -184,7 +184,10 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update(MonotonicTime now)
 
     // Dispatch the new state with a deferred invoke to avoid reentrancy. This prevents a seek from resolving while
     // an update is being processed.
-    Core::deferred_invoke([self = NonnullRefPtr(*this), last_status, seek_id = m_seek_id] {
+    Core::deferred_invoke([weak_self = make_weak_ref(), last_status, seek_id = m_seek_id] {
+        auto self = weak_self.strong_ref();
+        if (!self)
+            return;
         if (seek_id != self->m_seek_id)
             return;
         self->dispatch_state_if_changed(last_status);
