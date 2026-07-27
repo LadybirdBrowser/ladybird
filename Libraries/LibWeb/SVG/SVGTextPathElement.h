@@ -29,7 +29,7 @@ public:
     float start_offset_for_path_length(float path_length) const;
 
     // https://w3c.github.io/svgwg/svg2-draft/text.html#__svg__SVGTextPathElement__startOffset
-    REFLECT_ANIMATED_LENGTH_ATTRIBUTE_WITH_GETTER(startOffset, start_offset, CSS::NumberStyleValue::create(0));
+    REFLECT_ANIMATED_LENGTH_ATTRIBUTE_WITH_GETTER(startOffset, start_offset, Horizontal, CSS::NumberStyleValue::create(0));
 
 protected:
     SVGTextPathElement(DOM::Document&, DOM::QualifiedName);
