@@ -907,6 +907,49 @@ impl Backend for X86_64Backend {
         finish_slow_path_call(emit, result_scratch, state_scratch)
     }
 
+    fn jump_slow_path_call(&self, emit: &mut Emit<'_>, operands: &[AllocatedOperand]) -> Result<(), CompileError> {
+        let function = operands.relocation(0);
+        let [lhs, rhs, true_target, false_target] = [
+            operands.physical_register(1),
+            operands.physical_register(2),
+            operands.physical_register(3),
+            operands.physical_register(4),
+        ];
+        let [result_scratch, state_scratch] = [operands.physical_register(5), operands.physical_register(6)];
+        use crate::target::registers::x86_64::{R8, R9, R13, RBP, RCX, RDI, RDX, RSI};
+
+        store_slow_path_program_counter(emit)?;
+        if emit.object_format == ObjectFormat::Coff {
+            store(
+                emit,
+                MemoryWidth::DoubleWord,
+                MachineMemoryAddress::offset(RBP, super::WIN64_RAW_NATIVE_RETURN_SLOT),
+                StoreSource::Register(true_target),
+                None,
+            );
+            store(
+                emit,
+                MemoryWidth::DoubleWord,
+                MachineMemoryAddress::offset(RBP, super::WIN64_RAW_NATIVE_VARIANT_SLOT),
+                StoreSource::Register(false_target),
+                None,
+            );
+            push_parallel_register_moves(emit, &[(R8, lhs), (R9, rhs)], state_scratch);
+            vm_load(emit, RCX);
+            emit!(emit.output, X86_64; Opcode::Move32Register => [register RDX, register R13];);
+        } else {
+            push_parallel_register_moves(
+                emit,
+                &[(RDX, lhs), (RCX, rhs), (R8, true_target), (R9, false_target)],
+                state_scratch,
+            );
+            vm_load(emit, RDI);
+            emit!(emit.output, X86_64; Opcode::Move32Register => [register RSI, register R13];);
+        }
+        direct_call(emit, function);
+        finish_slow_path_call(emit, result_scratch, state_scratch)
+    }
+
     fn dispatch_current(&self, emit: &mut Emit<'_>, scratches: &[AllocatedOperand]) -> Result<(), CompileError> {
         dispatch_from_instruction_pointer(emit, scratches.physical_register(0));
         Ok(())

@@ -782,6 +782,15 @@ fn lookup_operation(operation: Operation) -> &'static InstructionDescription {
                     .aarch64(spec().scratches(&[X9, X10]))
             }
         }
+        Operation::Call(CallKind::JumpSlowPath) => {
+            &const {
+                plain(&[FuncSymbol, GprIn, GprIn, GprIn, GprIn])
+                    .terminal()
+                    .call()
+                    .x86_64(spec().scratches(&[RAX, R11]))
+                    .aarch64(spec().scratches(&[X9, X10]))
+            }
+        }
         Operation::Call(CallKind::Helper) => {
             &const {
                 plain(&[FuncSymbol, GprIn, GprOut])
@@ -1078,8 +1087,10 @@ mod tests {
 
     #[test]
     fn aarch64_slow_path_dispatch_preserves_the_return_register() {
-        let info = lookup_operation(Operation::Call(CallKind::BinarySlowPath));
-        assert_eq!(info.aarch64.trailing_scratch_registers, &[X9, X10]);
-        assert!(!info.aarch64.trailing_scratch_registers.contains(&X0));
+        for kind in [CallKind::BinarySlowPath, CallKind::JumpSlowPath] {
+            let info = lookup_operation(Operation::Call(kind));
+            assert_eq!(info.aarch64.trailing_scratch_registers, &[X9, X10]);
+            assert!(!info.aarch64.trailing_scratch_registers.contains(&X0));
+        }
     }
 }
