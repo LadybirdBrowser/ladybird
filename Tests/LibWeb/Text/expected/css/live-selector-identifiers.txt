@@ -7,4 +7,4 @@ disconnected match: true
 shadow initial match: true
 shadow mutated match: true
 document root: true
-disconnected html root: true
+disconnected html root: false
