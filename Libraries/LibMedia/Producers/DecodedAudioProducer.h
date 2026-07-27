@@ -69,6 +69,7 @@ private:
 
         void start();
         DecoderErrorOr<void> create_decoder();
+        void release_decoder();
         void exit();
 
         void wait_for_start();
