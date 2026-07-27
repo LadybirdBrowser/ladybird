@@ -18,7 +18,12 @@ enum class FocusTrigger : u8 {
     Other,
 };
 
-WEB_API void run_focusing_steps(DOM::Node* new_focus_target, DOM::Node* fallback_target = nullptr, FocusTrigger focus_trigger = FocusTrigger::Other);
+enum class ScrollIntoView : u8 {
+    No,
+    Yes,
+};
+
+WEB_API void run_focusing_steps(DOM::Node* new_focus_target, DOM::Node* fallback_target = nullptr, FocusTrigger focus_trigger = FocusTrigger::Other, ScrollIntoView = ScrollIntoView::Yes);
 WEB_API void run_unfocusing_steps(DOM::Node* old_focus_target);
 
 }

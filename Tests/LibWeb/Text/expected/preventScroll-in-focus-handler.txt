@@ -1,0 +1,2 @@
+<BUTTON id="second">
+scrollY after a focus handler refocused with preventScroll: 0

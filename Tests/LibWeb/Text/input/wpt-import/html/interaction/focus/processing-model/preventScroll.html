@@ -1,0 +1,76 @@
+<!doctype html>
+<title>focus(options) - preventScroll</title>
+<script src=../../../../resources/testharness.js></script>
+<script src=../../../../resources/testharnessreport.js></script>
+<style>
+#iframe { width: 500px; height: 500px; border: none }
+</style>
+<iframe id=iframe src="support/preventScroll-helper.html"></iframe>
+<script>
+function isEntirelyInView(elm, win) {
+  const inViewHorizontal = (elm.offsetLeft >= win.scrollX) &&
+                           ((elm.offsetLeft + elm.clientWidth) <= (win.scrollX + win.innerWidth));
+  const inViewVertical = (elm.offsetTop >= win.scrollY) &&
+                         ((elm.offsetTop + elm.clientHeight) <= (win.scrollY + win.innerHeight));
+  return inViewHorizontal && inViewVertical;
+}
+
+setup({explicit_done: true});
+
+function resetState(win) {
+  win.scrollTo(0, 0);
+  win.document.activeElement.blur();
+}
+
+onload = () => {
+  const win = document.getElementById('iframe').contentWindow;
+  const elm = win.document.getElementById('button');
+
+  test(() => {
+    assert_false(isEntirelyInView(elm, win), 'initial state');
+    elm.scrollIntoView();
+    assert_true(isEntirelyInView(elm, win), 'after elm.scrollIntoView()');
+    resetState(win);
+    assert_false(isEntirelyInView(elm, win), 'after resetScrollPosition(win)');
+  }, 'Sanity test');
+
+  test(() => {
+    resetState(win);
+    elm.focus();
+    assert_true(isEntirelyInView(elm, win));
+  }, 'elm.focus() without arguments');
+
+  test(() => {
+    resetState(win);
+    elm.focus(undefined);
+    assert_true(isEntirelyInView(elm, win));
+  }, 'elm.focus(undefined)');
+
+  test(() => {
+    resetState(win);
+    elm.focus(null);
+    assert_true(isEntirelyInView(elm, win));
+  }, 'elm.focus(null)');
+
+  test(() => {
+    resetState(win);
+    elm.focus({});
+    assert_true(isEntirelyInView(elm, win));
+  }, 'elm.focus({})');
+
+  test(() => {
+    resetState(win);
+    elm.focus({preventScroll: false});
+    assert_true(isEntirelyInView(elm, win));
+  }, 'elm.focus({preventScroll: false})');
+
+  test(() => {
+    resetState(win);
+    elm.focus({preventScroll: true});
+    assert_equals(win.scrollX, 0);
+    assert_equals(win.scrollY, 0);
+  }, 'elm.focus({preventScroll: true})');
+
+  done();
+}
+</script>

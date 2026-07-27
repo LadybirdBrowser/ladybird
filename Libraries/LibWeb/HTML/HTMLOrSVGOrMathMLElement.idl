@@ -5,7 +5,6 @@ interface mixin HTMLOrSVGOrMathMLElement {
 
     [CEReactions, Reflect] attribute boolean autofocus;
     [CEReactions] attribute long tabIndex;
-    // FIXME: Support the optional FocusOptions parameter.
-    undefined focus();
+    undefined focus(optional FocusOptions options = {});
     undefined blur();
 };

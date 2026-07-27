@@ -341,7 +341,7 @@ static DOM::Node* get_focusable_area(DOM::Node& focus_target, FocusTrigger focus
 
 // https://html.spec.whatwg.org/multipage/interaction.html#focusing-steps
 // FIXME: This should accept more types.
-void run_focusing_steps(DOM::Node* new_focus_target, DOM::Node* fallback_target, FocusTrigger focus_trigger)
+void run_focusing_steps(DOM::Node* new_focus_target, DOM::Node* fallback_target, FocusTrigger focus_trigger, ScrollIntoView scroll_into_view)
 {
     // 1. If new focus target is not a focusable area, then set new focus target to the result of getting the focusable
     //    area for new focus target, given focus trigger if it was passed.
@@ -408,7 +408,13 @@ void run_focusing_steps(DOM::Node* new_focus_target, DOM::Node* fallback_target,
     // AD-HOC: An element focused by clicking it is already under the pointer, so other engines do not scroll it into
     //         view. Scrolling would also move the element out from under the pointer between mousedown and mouseup,
     //         leaving the two with different hit-test targets and suppressing the click.
-    if (focus_trigger == FocusTrigger::Click)
+    if (focus_trigger == FocusTrigger::Click || scroll_into_view == ScrollIntoView::No)
+        return;
+
+    // NB: A focus event handler may have moved focus on to something else. That nested run of these steps is
+    //     responsible for revealing whatever it focused, and may have been asked not to reveal it at all, so this run
+    //     only reveals the target it focused itself.
+    if (focused_area.ptr() != new_focus_target)
         return;
 
     // AD-HOC: Scroll the newly focused element into view. The focus update steps do not do this, so an element
