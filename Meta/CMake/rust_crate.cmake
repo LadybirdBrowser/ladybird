@@ -1,3 +1,5 @@
+include_guard()
+
 # import_rust_crate(MANIFEST_PATH path/to/Cargo.toml CRATE_NAME name)
 #
 # Builds a Rust static library crate using cargo and creates an IMPORTED target.
@@ -106,25 +108,35 @@ function(import_rust_crate)
     endif()
 endfunction()
 
-# build_rust_binary(MANIFEST_PATH path/to/Cargo.toml CRATE_NAME name BINARY_NAME name OUTPUT_PATH_VAR var)
+# build_rust_binary(MANIFEST_PATH path/to/Cargo.toml CRATE_NAME name BINARY_NAME name OUTPUT_PATH_VAR var
+#                   [HOST] [EXTRA_ENV VAR=value ...])
 #
 # Builds a Rust binary crate target using cargo and exposes the copied binary path through OUTPUT_PATH_VAR.
+# HOST builds an executable for the build machine, for use during cross-compilation.
+# EXTRA_ENV entries are added to cargo's environment, for crates whose build.rs needs
+# paths discovered by CMake.
 function(build_rust_binary)
-    cmake_parse_arguments(PARSE_ARGV 0 ARG "" "MANIFEST_PATH;CRATE_NAME;BINARY_NAME;OUTPUT_NAME;OUTPUT_PATH_VAR;FFI_OUTPUT_DIR" "")
+    cmake_parse_arguments(PARSE_ARGV 0 ARG "HOST" "MANIFEST_PATH;CRATE_NAME;BINARY_NAME;OUTPUT_NAME;OUTPUT_PATH_VAR;FFI_OUTPUT_DIR" "EXTRA_ENV")
 
     if (NOT ARG_OUTPUT_NAME)
         set(ARG_OUTPUT_NAME "${ARG_BINARY_NAME}")
     endif()
 
-    _rust_crate_common_setup(
+    set(rust_setup_arguments
         MANIFEST_PATH "${ARG_MANIFEST_PATH}"
         CRATE_NAME ${ARG_CRATE_NAME}
         FFI_OUTPUT_DIR "${ARG_FFI_OUTPUT_DIR}"
     )
+    if (ARG_HOST)
+        list(APPEND rust_setup_arguments HOST)
+    endif()
+    _rust_crate_common_setup(${rust_setup_arguments})
 
-    set(cargo_binary "${cargo_output_dir}/${ARG_BINARY_NAME}${CMAKE_EXECUTABLE_SUFFIX}")
+    list(APPEND cargo_env ${ARG_EXTRA_ENV})
+
+    set(cargo_binary "${cargo_output_dir}/${ARG_BINARY_NAME}${rust_executable_suffix}")
     set(depfile "${cargo_output_dir}/${ARG_BINARY_NAME}.d")
-    set(output_binary "${CMAKE_BINARY_DIR}/bin/${ARG_OUTPUT_NAME}${CMAKE_EXECUTABLE_SUFFIX}")
+    set(output_binary "${CMAKE_BINARY_DIR}/bin/${ARG_OUTPUT_NAME}${rust_executable_suffix}")
 
     add_custom_command(
         OUTPUT "${cargo_binary}"
@@ -163,7 +175,7 @@ endfunction()
 
 # Shared cargo setup for import_rust_crate() and build_rust_binary().
 function(_rust_crate_common_setup)
-    cmake_parse_arguments(PARSE_ARGV 0 ARG "" "MANIFEST_PATH;CRATE_NAME;FFI_OUTPUT_DIR" "")
+    cmake_parse_arguments(PARSE_ARGV 0 ARG "HOST" "MANIFEST_PATH;CRATE_NAME;FFI_OUTPUT_DIR" "")
 
     set(manifest_path "${CMAKE_CURRENT_SOURCE_DIR}/${ARG_MANIFEST_PATH}")
 
@@ -185,15 +197,33 @@ function(_rust_crate_common_setup)
             set(RUSTC_WRAPPER "${SCCACHE_PROGRAM}" CACHE FILEPATH "Path to a rustc wrapper program, e.g. sccache" FORCE)
         endif()
     endif()
-    if (NOT DEFINED CACHE{RUST_TARGET_TRIPLE})
+    if (NOT DEFINED CACHE{RUST_HOST_TRIPLE})
         execute_process(COMMAND "${RUST_RUSTC}" -vV OUTPUT_VARIABLE rustc_verbose)
         string(REGEX MATCH "host: ([^\n]+)" _ "${rustc_verbose}")
         string(STRIP "${CMAKE_MATCH_1}" host_triple)
-        set(RUST_TARGET_TRIPLE "${host_triple}" CACHE INTERNAL "Rust target triple")
+        set(RUST_HOST_TRIPLE "${host_triple}" CACHE INTERNAL "Rust host triple")
+    endif()
+    if (ARG_HOST)
+        set(rust_target_triple "${RUST_HOST_TRIPLE}")
+    else()
+        if (NOT DEFINED CACHE{RUST_TARGET_TRIPLE})
+            set(RUST_TARGET_TRIPLE "${RUST_HOST_TRIPLE}" CACHE INTERNAL "Rust target triple")
+        endif()
+        set(rust_target_triple "${RUST_TARGET_TRIPLE}")
+    endif()
+
+    # A HOST binary runs on the build machine, so WIN32 and APPLE, which describe
+    # the target, answer the wrong question about it.
+    if (ARG_HOST)
+        string(COMPARE EQUAL "${CMAKE_HOST_SYSTEM_NAME}" "Windows" platform_is_windows)
+        string(COMPARE EQUAL "${CMAKE_HOST_SYSTEM_NAME}" "Darwin" platform_is_apple)
+    else()
+        set(platform_is_windows "${WIN32}")
+        set(platform_is_apple "${APPLE}")
     endif()
 
     # Build the uppercased and underscored variants of the target triple.
-    string(REPLACE "-" "_" target_underscore "${RUST_TARGET_TRIPLE}")
+    string(REPLACE "-" "_" target_underscore "${rust_target_triple}")
     string(TOUPPER "${target_underscore}" target_upper)
 
     # Determine the cargo profile and output directory name.
@@ -207,14 +237,16 @@ function(_rust_crate_common_setup)
     endif()
 
     set(cargo_target_dir "${CMAKE_BINARY_DIR}/cargo/build")
-    set(cargo_output_dir "${cargo_target_dir}/${RUST_TARGET_TRIPLE}/${cargo_profile_dir}")
+    set(cargo_output_dir "${cargo_target_dir}/${rust_target_triple}/${cargo_profile_dir}")
 
     # Build environment variables for cargo.
-    set(cargo_env
-        "CC_${target_underscore}=${CMAKE_C_COMPILER}"
-        "CXX_${target_underscore}=${CMAKE_CXX_COMPILER}"
-        "CARGO_BUILD_RUSTC=${RUST_RUSTC}"
-    )
+    set(cargo_env "CARGO_BUILD_RUSTC=${RUST_RUSTC}")
+    if (NOT ARG_HOST)
+        list(APPEND cargo_env
+            "CC_${target_underscore}=${CMAKE_C_COMPILER}"
+            "CXX_${target_underscore}=${CMAKE_CXX_COMPILER}"
+        )
+    endif()
 
     if (RUSTC_WRAPPER)
         list(APPEND cargo_env
@@ -229,19 +261,19 @@ function(_rust_crate_common_setup)
 
     # On Windows, rustc invokes the linker directly with MSVC-style flags, so we must not override it with a
     # compiler driver like clang-cl.
-    if (NOT WIN32)
+    if (NOT ARG_HOST AND NOT platform_is_windows)
         list(APPEND cargo_env
             "CARGO_TARGET_${target_upper}_LINKER=${CMAKE_C_COMPILER}"
             "AR_${target_underscore}=${CMAKE_AR}"
         )
     endif()
 
-    if (APPLE AND CMAKE_OSX_SYSROOT)
+    if (NOT ARG_HOST AND platform_is_apple AND CMAKE_OSX_SYSROOT)
         list(APPEND cargo_env "SDKROOT=${CMAKE_OSX_SYSROOT}")
     endif()
 
     set(cargo_common_flags
-        "--target=${RUST_TARGET_TRIPLE}"
+        "--target=${rust_target_triple}"
         --package ${ARG_CRATE_NAME}
         --manifest-path "${manifest_path}"
         --target-dir "${cargo_target_dir}"
@@ -258,6 +290,11 @@ function(_rust_crate_common_setup)
     set(cargo_common_flags "${cargo_common_flags}" PARENT_SCOPE)
     set(cargo_env "${cargo_env}" PARENT_SCOPE)
     set(cargo_output_dir "${cargo_output_dir}" PARENT_SCOPE)
+    if (platform_is_windows)
+        set(rust_executable_suffix ".exe" PARENT_SCOPE)
+    else()
+        set(rust_executable_suffix "" PARENT_SCOPE)
+    endif()
     set(manifest_path "${manifest_path}" PARENT_SCOPE)
     set(workspace_dir "${workspace_dir}" PARENT_SCOPE)
 endfunction()
