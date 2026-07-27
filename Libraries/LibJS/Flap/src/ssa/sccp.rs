@@ -7,7 +7,8 @@
 //! Sparse conditional constant propagation and integer value analysis.
 
 use super::optimize::{
-    InstructionOrder, eliminate_unreachable_blocks, rebuild_instruction_arena, rewrite_terminator, rewrite_values,
+    InstructionOrder, eliminate_unreachable_blocks, rebuild_instruction_arena, rewrite_function_uses,
+    rewrite_terminator, rewrite_values,
 };
 use super::pass::AnalysisManager;
 use super::{
@@ -15,6 +16,7 @@ use super::{
     Function, IntegerBinaryOperation, IntegerComparisonOperation, Intrinsic, Operation, ShiftOperation, Terminator,
     ValueDefinition, ValueId, ValueOperation,
 };
+use crate::frontend::layout::KnownLayoutConstant;
 use crate::hash::HashMap;
 use crate::types::Type;
 
@@ -361,6 +363,7 @@ impl<'a> Solver<'a> {
 }
 
 pub(super) fn run(function: &mut Function, analyses: &mut AnalysisManager) -> bool {
+    let mut changed = fold_boxed_int32_projections(function);
     let mut solver = Solver::new(function, analyses);
     solver.solve();
     let Solver {
@@ -368,7 +371,59 @@ pub(super) fn run(function: &mut Function, analyses: &mut AnalysisManager) -> bo
         executable_blocks,
         ..
     } = solver;
-    rewrite(function, &values, &executable_blocks)
+    changed |= rewrite(function, &values, &executable_blocks);
+    changed
+}
+
+fn fold_boxed_int32_projections(function: &mut Function) -> bool {
+    let mut replacements = HashMap::default();
+    let mut tag_results = Vec::new();
+    for instruction in &function.instructions {
+        let [input] = instruction.inputs.as_slice() else {
+            continue;
+        };
+        let [result] = instruction.results.as_slice() else {
+            continue;
+        };
+        let ValueDefinition::InstructionResult {
+            instruction: box_instruction,
+            ..
+        } = function.values[input.0].definition
+        else {
+            continue;
+        };
+        let box_instruction = &function.instructions[box_instruction.0];
+        if !matches!(
+            box_instruction.operation,
+            Operation::Intrinsic(Intrinsic::Value(ValueOperation::BoxInt32 { .. }))
+        ) {
+            continue;
+        }
+        let [integer] = box_instruction.inputs.as_slice() else {
+            continue;
+        };
+        match instruction.operation {
+            Operation::Intrinsic(Intrinsic::Value(ValueOperation::ExtractTag { .. })) => {
+                tag_results.push(*result);
+            }
+            Operation::Intrinsic(Intrinsic::Value(ValueOperation::UnboxInt32 { .. }))
+                if function.values[result.0].ty == function.values[integer.0].ty =>
+            {
+                replacements.insert(*result, *integer);
+            }
+            _ => {}
+        }
+    }
+    if !tag_results.is_empty() {
+        let int32_tag = function.add_constant(Type::ValueTag, Constant::KnownLayout(KnownLayoutConstant::Int32Tag));
+        replacements.extend(tag_results.into_iter().map(|result| (result, int32_tag)));
+    }
+    if replacements.is_empty() {
+        return false;
+    }
+    rewrite_function_uses(function, &replacements);
+    function.recompute_machine_state_dependencies();
+    true
 }
 
 fn initial_value(ty: &Type, definition: &ValueDefinition) -> LatticeValue {
@@ -467,6 +522,19 @@ fn evaluate_operation(
 ) -> Evaluation {
     if effects != Effects::PURE {
         return Evaluation::Widest;
+    }
+    if let Operation::Intrinsic(Intrinsic::IntegerComparison(operation)) = operation
+        && let [lhs, rhs] = inputs
+        && lhs == rhs
+    {
+        let value = match operation {
+            IntegerComparisonOperation::Equal => Some(true),
+            IntegerComparisonOperation::NotEqual => Some(false),
+            _ => None,
+        };
+        if let Some(value) = value {
+            return Evaluation::Single(LatticeValue::Integer(IntegerFacts::bool(value)));
+        }
     }
     if inputs.iter().any(|input| values[input.0] == LatticeValue::Unknown) {
         return Evaluation::Unknown;
@@ -1190,6 +1258,88 @@ mod tests {
 
         assert_eq!(function.blocks.len(), 2);
         assert!(matches!(function.blocks[entry.0].terminator, Some(Terminator::Jump(_))));
+    }
+
+    #[test]
+    fn folds_boxed_int32_tag_checks_and_unboxing() {
+        let mut function = Function::new("boxed-int32", vec![Type::I32], vec![Type::I32]);
+        let entry = function.entry;
+        let int32 = function.create_empty_block("int32", super::super::BlockLayout::Hot);
+        let other = function.create_empty_block("other", super::super::BlockLayout::Cold);
+        let input = function.parameter(0);
+        let boxed = append_pure(
+            &mut function,
+            entry,
+            Operation::Intrinsic(Intrinsic::Value(ValueOperation::BoxInt32 { clean: true })),
+            vec![input],
+            Type::Value,
+        );
+        let tag = append_pure(
+            &mut function,
+            entry,
+            Operation::Intrinsic(Intrinsic::Value(ValueOperation::ExtractTag { rematerialized: false })),
+            vec![boxed],
+            Type::ValueTag,
+        );
+        let int32_tag = function.add_constant(Type::ValueTag, Constant::KnownLayout(KnownLayoutConstant::Int32Tag));
+        let not_int32 = append_pure(
+            &mut function,
+            entry,
+            Operation::Intrinsic(Intrinsic::IntegerComparison(IntegerComparisonOperation::NotEqual)),
+            vec![tag, int32_tag],
+            Type::Bool,
+        );
+        function.set_terminator(
+            entry,
+            Terminator::branch_edges(not_int32, Edge::new(other), Edge::new(int32)),
+        );
+        let unboxed = append_pure(
+            &mut function,
+            int32,
+            Operation::Intrinsic(Intrinsic::Value(ValueOperation::UnboxInt32 { rematerialized: false })),
+            vec![boxed],
+            Type::I32,
+        );
+        function.set_terminator(int32, Terminator::Return(vec![unboxed]));
+        function.set_terminator(other, Terminator::Return(vec![input]));
+
+        run_sccp(&mut function);
+
+        assert_eq!(function.blocks.len(), 2);
+        assert!(matches!(function.blocks[entry.0].terminator, Some(Terminator::Jump(_))));
+        let Terminator::Return(values) = function.blocks[1].terminator.as_ref().unwrap() else {
+            panic!("expected the int32 return")
+        };
+        assert_eq!(values, &[input]);
+    }
+
+    #[test]
+    fn preserves_unboxing_of_a_differently_typed_int32_payload() {
+        let mut function = Function::new("boxed-u32", vec![Type::U32], vec![Type::I32]);
+        let entry = function.entry;
+        let input = function.parameter(0);
+        let boxed = append_pure(
+            &mut function,
+            entry,
+            Operation::Intrinsic(Intrinsic::Value(ValueOperation::BoxInt32 { clean: false })),
+            vec![input],
+            Type::Value,
+        );
+        let unboxed = append_pure(
+            &mut function,
+            entry,
+            Operation::Intrinsic(Intrinsic::Value(ValueOperation::UnboxInt32 { rematerialized: false })),
+            vec![boxed],
+            Type::I32,
+        );
+        function.set_terminator(entry, Terminator::Return(vec![unboxed]));
+
+        run_sccp(&mut function);
+
+        let Terminator::Return(values) = function.blocks[entry.0].terminator.as_ref().unwrap() else {
+            panic!("expected a return")
+        };
+        assert_eq!(values, &[unboxed]);
     }
 
     #[test]

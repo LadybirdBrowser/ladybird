@@ -5475,36 +5475,27 @@ asm_handler_MovUndefined3_hot_end:
 .p2align 6
 asm_handler_AddRhsInt32:
     mov eax, DWORD PTR [r14 + r13 + 8]
-    mov rdx, QWORD PTR [rbx + rax * 8]
-    mov ecx, DWORD PTR [r14 + r13 + 12]
-    or rcx, r15
-    mov rax, rdx
-    shr rax, 48
-    cmp ax, 32762
+    mov rcx, QWORD PTR [rbx + rax * 8]
+    mov eax, DWORD PTR [r14 + r13 + 12]
+    mov rsi, rax
+    or rsi, r15
+    mov rdx, rcx
+    shr rdx, 48
+    cmp dx, 32762
     jne .Lasm_AddRhsInt32.ssa_block_5
-    movsxd rax, edx
-    mov rsi, rcx
-    shr rsi, 48
-    cmp si, 32762
-    jne .Lasm_AddRhsInt32.ssa_block_8
     movsxd rcx, ecx
-    mov rdx, rax
-    add edx, ecx
-    jo .Lasm_AddRhsInt32.ssa_block_10
+    mov rdx, rcx
+    add edx, eax
+    jo .Lasm_AddRhsInt32.ssa_block_8
     or rdx, r15
     mov r11d, DWORD PTR [r14 + r13 + 4]
     mov QWORD PTR [rbx + r11 * 8], rdx
     add r13d, 16
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
-.Lasm_AddRhsInt32.ssa_block_8:
-    and si, 32760
-    cmp si, 32760
-    jne .Lasm_AddRhsInt32.ssa_block_7
-    jmp .Lasm_AddRhsInt32.ssa_block_1
 .Lasm_AddRhsInt32.ssa_block_5:
-    and ax, 32760
-    cmp ax, 32760
+    and dx, 32760
+    cmp dx, 32760
     jne .Lasm_AddRhsInt32.ssa_block_4
     jmp .Lasm_AddRhsInt32.ssa_block_1
 asm_handler_AddRhsInt32_hot_end:
@@ -9480,9 +9471,9 @@ asm_handler_MovUndefined3_cold:
 asm_handler_MovUndefined3_cold_end:
 asm_handler_AddRhsInt32_cold:
 # Cold paths for AddRhsInt32
-.Lasm_AddRhsInt32.ssa_block_10:
-    cvtsi2sd xmm0, rax
-    cvtsi2sd xmm1, rcx
+.Lasm_AddRhsInt32.ssa_block_8:
+    cvtsi2sd xmm0, rcx
+    cvtsi2sd xmm1, rax
     addsd xmm0, xmm1
     movq rax, xmm0
     mov r11d, DWORD PTR [r14 + r13 + 4]
@@ -9490,61 +9481,43 @@ asm_handler_AddRhsInt32_cold:
     add r13d, 16
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
-.Lasm_AddRhsInt32.ssa_block_7:
-    movq xmm1, rcx
-    cvtsi2sd xmm0, rax
-    jmp .Lasm_AddRhsInt32.ssa_block_2
 .Lasm_AddRhsInt32.ssa_block_4:
-    movq xmm0, rdx
-    mov rax, rcx
-    shr rax, 48
-    cmp ax, 32762
-    jne .Lasm_AddRhsInt32.ssa_block_13
-    movsxd rax, ecx
+    movq xmm0, rcx
     cvtsi2sd xmm1, rax
-    jmp .Lasm_AddRhsInt32.ssa_block_2
-.Lasm_AddRhsInt32.ssa_block_13:
-    and ax, 32760
-    cmp ax, 32760
-    je .Lasm_AddRhsInt32.ssa_block_1
-    movq xmm1, rcx
-.Lasm_AddRhsInt32.ssa_block_2:
     addsd xmm0, xmm1
     cvttsd2si edx, xmm0
     movsxd rcx, edx
     cvtsi2sd xmm3, rcx
     ucomisd xmm0, xmm3
-    jp .Lasm_AddRhsInt32.ssa_box_number_39_not_integer
-    jne .Lasm_AddRhsInt32.ssa_box_number_39_not_integer
+    jp .Lasm_AddRhsInt32.ssa_box_number_8_not_integer
+    jne .Lasm_AddRhsInt32.ssa_box_number_8_not_integer
     test rdx, rdx
-    jz .Lasm_AddRhsInt32.ssa_box_number_39_check_negative_zero
+    jz .Lasm_AddRhsInt32.ssa_box_number_8_check_negative_zero
     mov eax, edx
     or rax, r15
-    jmp .Lasm_AddRhsInt32.ssa_box_number_39_done
-.Lasm_AddRhsInt32.ssa_box_number_39_check_negative_zero:
+    jmp .Lasm_AddRhsInt32.ssa_box_number_8_done
+.Lasm_AddRhsInt32.ssa_box_number_8_check_negative_zero:
     movq rax, xmm0
     test rax, rax
-    js .Lasm_AddRhsInt32.ssa_box_number_39_not_integer
+    js .Lasm_AddRhsInt32.ssa_box_number_8_not_integer
     mov eax, edx
     or rax, r15
-    jmp .Lasm_AddRhsInt32.ssa_box_number_39_done
-.Lasm_AddRhsInt32.ssa_box_number_39_not_integer:
+    jmp .Lasm_AddRhsInt32.ssa_box_number_8_done
+.Lasm_AddRhsInt32.ssa_box_number_8_not_integer:
     movq rax, xmm0
     ucomisd xmm0, xmm0
     jp .Lasm_AddRhsInt32.canon_nan_0
 .Lasm_AddRhsInt32.canon_nan_0_ret:
-.Lasm_AddRhsInt32.ssa_box_number_39_done:
+.Lasm_AddRhsInt32.ssa_box_number_8_done:
     mov r11d, DWORD PTR [r14 + r13 + 4]
     mov QWORD PTR [rbx + r11 * 8], rax
     add r13d, 16
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
 .Lasm_AddRhsInt32.ssa_block_1:
-    mov esi, DWORD PTR [r14 + r13 + 4]
+    mov edx, DWORD PTR [r14 + r13 + 4]
     mov DWORD PTR [rbx + -64], r13d
-    mov r8, rcx
-    mov rcx, rdx
-    mov rdx, rsi
+    mov r8, rsi
     mov rdi, QWORD PTR [rbp - 48]
     mov esi, r13d
     call CSYM(asm_slow_path_add_values)
