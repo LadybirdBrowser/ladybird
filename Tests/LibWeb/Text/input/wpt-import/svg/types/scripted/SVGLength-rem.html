@@ -1,0 +1,30 @@
+<!DOCTYPE HTML>
+<title>SVGLength with 'rem' unit</title>
+<link rel="help" href="https://www.w3.org/TR/SVG/types.html#InterfaceSVGLength">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  :root {
+     /* default is 16px in all desktop browsers */
+     /* the math for 100px is: 16px * 0.25 = 4px/rem -> 100px / 4px/rem = 25rem = 100px */
+    font-size: 25%;
+  }
+</style>
+<div id="rem_ref" style="width:25rem"></div>
+<svg>
+  <rect id="rect" x="25rem"/>
+</svg>
+<script>
+  let ref_width = document.getElementById("rem_ref").getBoundingClientRect().width;
+  let rem_length = document.getElementById("rect").x.baseVal;
+
+  test(() => {
+    assert_equals(rem_length.unitType, SVGLength.SVG_LENGTHTYPE_UNKNOWN);
+    assert_equals(rem_length.value, 100);
+  }, "rem unit in SVGLength");
+
+  test(() => {
+    rem_length.value = ref_width * 2;
+    assert_equals(rem_length.valueInSpecifiedUnits, 50);
+  }, "Convert back to rem from new user unit value");
+</script>

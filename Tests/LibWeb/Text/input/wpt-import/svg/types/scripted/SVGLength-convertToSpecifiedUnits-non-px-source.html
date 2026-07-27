@@ -1,0 +1,110 @@
+<!DOCTYPE HTML>
+<title>SVGLength, convertToSpecifiedUnits from non-px source units</title>
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/single-page.html#types-__svg__SVGLength__convertToSpecifiedUnits">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<p></p>
+<script>
+// Step 3 of the spec algorithm: "Let absolute be the value that would be
+// returned from the value member." This means the source unit is first
+// resolved to user units (px), then converted to the target unit.
+// All existing tests start from px. These tests verify conversion
+// from other source units.
+
+const cssPixelsPerInch = 96;
+
+setup(function() {
+  let svgElement = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svgElement.setAttribute("width", "200");
+  svgElement.setAttribute("height", "100");
+  svgElement.setAttribute("viewBox", "0 0 200 100");
+  let rectElement = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  rectElement.setAttribute("style", "visibility: hidden; font-size: 20px; font-family: Ahem;");
+  svgElement.appendChild(rectElement);
+  document.querySelector("p").appendChild(svgElement);
+
+  window.length = rectElement.x.baseVal;
+  window.svgWidth = 200;
+  window.fontSize = 20;
+});
+
+test(function() {
+  // 2.54cm = 1in = 96px → convert to in
+  length.valueAsString = "2.54cm";
+  assert_equals(length.unitType, SVGLength.SVG_LENGTHTYPE_CM);
+  assert_approx_equals(length.value, cssPixelsPerInch, 0.01);
+  length.convertToSpecifiedUnits(SVGLength.SVG_LENGTHTYPE_IN);
+  assert_approx_equals(length.valueInSpecifiedUnits, 1, 0.01);
+  assert_approx_equals(length.value, cssPixelsPerInch, 0.01);
+  assert_equals(length.unitType, SVGLength.SVG_LENGTHTYPE_IN);
+}, document.title + ", cm to in");
+
+test(function() {
+  // 1in = 96px = 72pt → convert to pt
+  length.valueAsString = "1in";
+  assert_equals(length.unitType, SVGLength.SVG_LENGTHTYPE_IN);
+  length.convertToSpecifiedUnits(SVGLength.SVG_LENGTHTYPE_PT);
+  assert_equals(length.valueInSpecifiedUnits, 72);
+  assert_equals(length.value, cssPixelsPerInch);
+  assert_equals(length.unitType, SVGLength.SVG_LENGTHTYPE_PT);
+}, document.title + ", in to pt");
+
+test(function() {
+  // 1em = 20px (font-size: 20px) → convert to unitless number
+  length.valueAsString = "1em";
+  assert_equals(length.unitType, SVGLength.SVG_LENGTHTYPE_EMS);
+  assert_equals(length.value, fontSize);
+  length.convertToSpecifiedUnits(SVGLength.SVG_LENGTHTYPE_NUMBER);
+  assert_equals(length.valueInSpecifiedUnits, fontSize);
+  assert_equals(length.value, fontSize);
+  assert_equals(length.unitType, SVGLength.SVG_LENGTHTYPE_NUMBER);
+}, document.title + ", em to unitless");
+
+test(function() {
+  // 1em = 20px → convert to cm
+  length.valueAsString = "1em";
+  assert_equals(length.value, fontSize);
+  length.convertToSpecifiedUnits(SVGLength.SVG_LENGTHTYPE_CM);
+  let referenceValue = fontSize * 2.54 / cssPixelsPerInch;
+  assert_approx_equals(length.valueInSpecifiedUnits, referenceValue, 0.001);
+  assert_approx_equals(length.value, fontSize, 0.01);
+  assert_equals(length.unitType, SVGLength.SVG_LENGTHTYPE_CM);
+}, document.title + ", em to cm");
+
+test(function() {
+  // 50% of viewport width 200 = 100px → convert to in
+  length.valueAsString = "50%";
+  assert_equals(length.unitType, SVGLength.SVG_LENGTHTYPE_PERCENTAGE);
+  assert_equals(length.value, svgWidth / 2);
+  length.convertToSpecifiedUnits(SVGLength.SVG_LENGTHTYPE_IN);
+  let referenceValue = (svgWidth / 2) / cssPixelsPerInch;
+  assert_approx_equals(length.valueInSpecifiedUnits, referenceValue, 0.001);
+  assert_approx_equals(length.value, svgWidth / 2, 0.01);
+  assert_equals(length.unitType, SVGLength.SVG_LENGTHTYPE_IN);
+}, document.title + ", percentage to in");
+
+test(function() {
+  // 48pt = 64px → convert to mm
+  length.valueAsString = "48pt";
+  assert_equals(length.unitType, SVGLength.SVG_LENGTHTYPE_PT);
+  let valueInPx = 48 / 72 * cssPixelsPerInch;
+  assert_approx_equals(length.value, valueInPx, 0.01);
+  length.convertToSpecifiedUnits(SVGLength.SVG_LENGTHTYPE_MM);
+  let referenceValue = valueInPx * 25.4 / cssPixelsPerInch;
+  assert_approx_equals(length.valueInSpecifiedUnits, referenceValue, 0.01);
+  assert_approx_equals(length.value, valueInPx, 0.01);
+  assert_equals(length.unitType, SVGLength.SVG_LENGTHTYPE_MM);
+}, document.title + ", pt to mm");
+
+test(function() {
+  // 25.4mm = 1in = 96px → convert to pc (1pc = 1/6 in)
+  length.valueAsString = "25.4mm";
+  assert_approx_equals(length.value, cssPixelsPerInch, 0.01);
+  length.convertToSpecifiedUnits(SVGLength.SVG_LENGTHTYPE_PC);
+  let referenceValue = cssPixelsPerInch / cssPixelsPerInch * 6;
+  assert_approx_equals(length.valueInSpecifiedUnits, referenceValue, 0.01);
+  assert_approx_equals(length.value, cssPixelsPerInch, 0.01);
+  assert_equals(length.unitType, SVGLength.SVG_LENGTHTYPE_PC);
+}, document.title + ", mm to pc");
+</script>

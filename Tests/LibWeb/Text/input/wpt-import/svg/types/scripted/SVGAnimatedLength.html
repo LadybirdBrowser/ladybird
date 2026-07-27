@@ -1,0 +1,33 @@
+<!DOCTYPE HTML>
+<title>SVGAnimatedLength interface - utilizing the width property of SVGRectElement</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script>
+test(function() {
+  // This test checks the SVGAnimatedLength API - utilizing the width property of SVGRectElement.
+
+  var rectElement = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+
+  // Check initial width value.
+  assert_true(rectElement.width instanceof SVGAnimatedLength);
+  assert_true(rectElement.width.baseVal instanceof SVGLength);
+  assert_equals(rectElement.width.baseVal.value, 0);
+
+  // Check that lengths are dynamic, caching value in a local variable and modifying it, should take effect.
+  var numRef = rectElement.width.baseVal;
+  numRef.value = 100;
+  assert_equals(numRef.value, 100);
+  assert_equals(rectElement.width.baseVal.value, 100);
+
+  // Check that assigning to baseVal has no effect, as no setter is defined.
+  rectElement.width.baseVal = -1;
+  assert_equals(rectElement.width.baseVal.value, 100);
+  rectElement.width.baseVal = 'aString';
+  assert_equals(rectElement.width.baseVal.value, 100);
+  rectElement.width.baseVal = rectElement;
+  assert_equals(rectElement.width.baseVal.value, 100);
+
+  // Check that the width baseVal type has not been changed.
+  assert_true(rectElement.width.baseVal instanceof SVGLength);
+});
+</script>

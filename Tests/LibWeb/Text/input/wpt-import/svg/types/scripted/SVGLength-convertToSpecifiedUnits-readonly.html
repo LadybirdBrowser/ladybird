@@ -1,0 +1,61 @@
+<!DOCTYPE HTML>
+<title>SVGLength, convertToSpecifiedUnits on read-only animVal</title>
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/single-page.html#types-__svg__SVGLength__convertToSpecifiedUnits">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<p></p>
+<script>
+setup(function() {
+  let svgElement = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svgElement.setAttribute("width", "200");
+  svgElement.setAttribute("height", "100");
+  let rectElement = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  rectElement.setAttribute("x", "10");
+  svgElement.appendChild(rectElement);
+  document.querySelector("p").appendChild(svgElement);
+
+  window.rectElement = rectElement;
+});
+
+// Step 1 of the spec algorithm: "If the SVGLength object is read only,
+// then throw a NoModificationAllowedError."
+
+test(function() {
+  let animVal = rectElement.x.animVal;
+  assert_throws_dom("NoModificationAllowedError", function() {
+    animVal.convertToSpecifiedUnits(SVGLength.SVG_LENGTHTYPE_CM);
+  });
+}, document.title + ", animVal throws NoModificationAllowedError");
+
+test(function() {
+  let animVal = rectElement.x.animVal;
+  assert_throws_dom("NoModificationAllowedError", function() {
+    animVal.convertToSpecifiedUnits(SVGLength.SVG_LENGTHTYPE_NUMBER);
+  });
+  // Verify animVal is unchanged after failed conversion.
+  assert_equals(animVal.value, 10);
+  assert_equals(animVal.unitType, SVGLength.SVG_LENGTHTYPE_NUMBER);
+}, document.title + ", animVal unchanged after failed conversion");
+
+test(function() {
+  let animVal = rectElement.x.animVal;
+  assert_throws_dom("NoModificationAllowedError", function() {
+    animVal.convertToSpecifiedUnits(SVGLength.SVG_LENGTHTYPE_PERCENTAGE);
+  });
+}, document.title + ", animVal throws for percentage");
+
+test(function() {
+  let animVal = rectElement.x.animVal;
+  assert_throws_dom("NoModificationAllowedError", function() {
+    animVal.convertToSpecifiedUnits(SVGLength.SVG_LENGTHTYPE_EMS);
+  });
+}, document.title + ", animVal throws for ems");
+
+test(function() {
+  // baseVal should still work fine.
+  let baseVal = rectElement.x.baseVal;
+  baseVal.valueAsString = "10";
+  baseVal.convertToSpecifiedUnits(SVGLength.SVG_LENGTHTYPE_CM);
+  assert_equals(baseVal.unitType, SVGLength.SVG_LENGTHTYPE_CM);
+}, document.title + ", baseVal still accepts conversion");
+</script>

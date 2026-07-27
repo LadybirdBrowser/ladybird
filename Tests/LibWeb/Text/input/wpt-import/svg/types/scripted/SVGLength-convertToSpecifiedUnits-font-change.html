@@ -1,0 +1,109 @@
+<!DOCTYPE HTML>
+<title>SVGLength, value updates after font-size change on em/ex conversion</title>
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/single-page.html#types-__svg__SVGLength__convertToSpecifiedUnits">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<p></p>
+<script>
+// Step 6 of the spec algorithm: for EMS/EXS, the font-size basis is the
+// computed value of the associated element's font-size property. This means
+// that after converting to em, changing the element's font-size should
+// change what .value (user units) resolves to, while .valueInSpecifiedUnits
+// stays the same.
+
+setup(function() {
+  let svgElement = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svgElement.setAttribute("width", "200");
+  svgElement.setAttribute("height", "100");
+  svgElement.setAttribute("viewBox", "0 0 200 100");
+  let rectElement = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  rectElement.setAttribute("style", "visibility: hidden; font-size: 20px; font-family: Ahem;");
+  svgElement.appendChild(rectElement);
+  document.querySelector("p").appendChild(svgElement);
+
+  window.svgElement = svgElement;
+  window.rectElement = rectElement;
+  window.length = rectElement.x.baseVal;
+});
+
+test(function() {
+  // 40px with font-size 20px → 2em, value = 40.
+  length.valueAsString = "40px";
+  length.convertToSpecifiedUnits(SVGLength.SVG_LENGTHTYPE_EMS);
+  assert_equals(length.valueInSpecifiedUnits, 2);
+  assert_equals(length.value, 40);
+
+  // Change font-size to 10px → 2em should now resolve to 20px.
+  rectElement.style.fontSize = "10px";
+  document.body.offsetWidth; // flush style
+  assert_equals(length.valueInSpecifiedUnits, 2);
+  assert_equals(length.value, 20);
+
+  // Restore font-size → 2em resolves back to 40px.
+  rectElement.style.fontSize = "20px";
+  document.body.offsetWidth;
+  assert_equals(length.valueInSpecifiedUnits, 2);
+  assert_equals(length.value, 40);
+}, document.title + ", changing em basis");
+
+test(function() {
+  // 40px with font-size 20px → 2em, then double font-size to 40px.
+  length.valueAsString = "40px";
+  length.convertToSpecifiedUnits(SVGLength.SVG_LENGTHTYPE_EMS);
+  assert_equals(length.valueInSpecifiedUnits, 2);
+
+  rectElement.style.fontSize = "40px";
+  document.body.offsetWidth;
+  // 2em * 40px = 80px
+  assert_equals(length.valueInSpecifiedUnits, 2);
+  assert_equals(length.value, 80);
+
+  // Restore.
+  rectElement.style.fontSize = "20px";
+  document.body.offsetWidth;
+}, document.title + ", doubling em basis doubles value");
+
+test(function() {
+  // Convert to ex, then change font-size.
+  length.valueAsString = "20px";
+  length.convertToSpecifiedUnits(SVGLength.SVG_LENGTHTYPE_EXS);
+  let originalExUnits = length.valueInSpecifiedUnits;
+  assert_approx_equals(length.value, 20, 0.1);
+
+  // Halve font-size → x-height halves, so value halves too.
+  rectElement.style.fontSize = "10px";
+  document.body.offsetWidth;
+  assert_equals(length.valueInSpecifiedUnits, originalExUnits);
+  // value should be approximately half of 20.
+  assert_approx_equals(length.value, 10, 1);
+
+  // Restore.
+  rectElement.style.fontSize = "20px";
+  document.body.offsetWidth;
+  assert_approx_equals(length.value, 20, 0.1);
+}, document.title + ", changing ex basis");
+
+test(function() {
+  // Inherited font-size: set font-size on parent SVG, not on rect.
+  rectElement.style.fontSize = "";
+  svgElement.style.fontSize = "24px";
+  document.body.offsetWidth;
+
+  length.valueAsString = "48px";
+  length.convertToSpecifiedUnits(SVGLength.SVG_LENGTHTYPE_EMS);
+  assert_equals(length.valueInSpecifiedUnits, 2);
+  assert_equals(length.value, 48);
+
+  // Change inherited font-size.
+  svgElement.style.fontSize = "12px";
+  document.body.offsetWidth;
+  assert_equals(length.valueInSpecifiedUnits, 2);
+  assert_equals(length.value, 24);
+
+  // Restore.
+  svgElement.style.fontSize = "";
+  rectElement.style.fontSize = "20px";
+  document.body.offsetWidth;
+}, document.title + ", inherited font-size change");
+</script>

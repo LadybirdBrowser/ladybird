@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<title>SVGAnimatedLength, initial values</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/initial-value-helper.js"></script>
+<script>
+// Initial values of '0' need not be specified.
+assert_initial_values([
+  { interface: 'SVGCircleElement', attributes: [ 'cx', 'cy', 'r' ] },
+  { interface: 'SVGEllipseElement', attributes: [ 'cx', 'cy', 'rx', 'ry' ] },
+  { interface: 'SVGFilterElement', attributes: [ 'x', 'y', 'width', 'height' ],
+    x: { initial: '-10%' }, y: { initial: '-10%' }, width: { initial: '120%' }, height: { initial: '120%' } },
+  { interface: 'SVGFilterPrimitiveStandardAttributes', attributes: [ 'x', 'y', 'width', 'height' ],
+    x: { initial: '0%' }, y: { initial: '0%' }, width: { initial: '100%' }, height: { initial: '100%' } },
+  { interface: 'SVGForeignObjectElement', attributes: [ 'x', 'y', 'width', 'height' ] },
+  { interface: 'SVGImageElement', attributes: [ 'x', 'y', 'width', 'height' ] },
+  { interface: 'SVGLineElement', attributes: [ 'x1', 'y1', 'x2', 'y2' ] },
+  { interface: 'SVGLinearGradientElement', attributes: [ 'x1', 'y1', 'x2', 'y2' ],
+    x1: { initial: '0%' }, y1: { initial: '0%' }, x2: { initial: '100%' }, y2: { initial: '0%' } },
+  { interface: 'SVGMarkerElement', attributes: [ 'refX', 'refY', 'markerWidth', 'markerHeight' ],
+    markerWidth: { initial: '3' }, markerHeight: { initial: '3' } },
+  { interface: 'SVGMaskElement', attributes: [ 'x', 'y', 'width', 'height' ],
+    x: { initial: '-10%' }, y: { initial: '-10%' }, width: { initial: '120%' }, height: { initial: '120%' } },
+  { interface: 'SVGPatternElement', attributes: [ 'x', 'y', 'width', 'height' ] },
+  { interface: 'SVGRadialGradientElement', attributes: [ 'cx', 'cy', 'r', 'fx', 'fy', 'fr' ],
+    cx: { initial: '50%' }, cy: { initial: '50%' }, r: { initial: '50%' },
+    fx: { initial: '50%' }, fy: { initial: '50%' }, fr: { initial: '0%' } },
+  { interface: 'SVGRectElement', attributes: [ 'x', 'y', 'width', 'height', 'rx', 'ry' ] },
+  { interface: 'SVGSVGElement', attributes: [ 'x', 'y', 'width', 'height' ],
+    width: { initial: '100%' }, height: { initial: '100%' } },
+  { interface: 'SVGTextContentElement', attributes: [ 'textLength' ] },
+  { interface: 'SVGTextPathElement', attributes: [ 'startOffset' ] },
+  { interface: 'SVGUseElement', attributes: [ 'x', 'y', 'width', 'height' ] },
+], { initial: '0', valid: '42', getValue: function(value) { return value.valueAsString } });
+</script>
