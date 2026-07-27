@@ -1,0 +1,2 @@
+scroll offset before scrolling the pseudo-element: 0,0
+scroll offset after scrolling the pseudo-element: 0,0

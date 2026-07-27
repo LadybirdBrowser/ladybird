@@ -43,7 +43,7 @@
     }
 
     function canWheel(output, label, x, y, forceStaleWheelEventRegions = false) {
-        const canScroll = internals.asyncScrollingStateCanWheelScrollAt(x, y, 0, 100, forceStaleWheelEventRegions);
+        const canScroll = internals.asyncScrollingStateCanWheelScrollAt(x, y, 0, 100, false, forceStaleWheelEventRegions);
         output.push(`${label}: ${canScroll}`);
     }
 

@@ -66,6 +66,8 @@ struct AsyncScrollNode {
     bool is_viewport { false };
     bool can_be_wheel_scrolled_horizontally { false };
     bool can_be_wheel_scrolled_vertically { false };
+    bool snaps_scroll_position_horizontally { false };
+    bool snaps_scroll_position_vertically { false };
 };
 
 // Sticky elements are represented as scroll nodes whose offset is derived from ancestor scroll offsets. Keep only
@@ -150,6 +152,13 @@ enum class WheelRoutingAdmission {
     StaleWheelEventListeners,
 };
 
+enum class SnapContainerHandling : u8 {
+    ScrollOnCompositor,
+    DeferToMainThread,
+};
+
+WEB_API SnapContainerHandling snap_container_handling_for(WheelDeltaPrecision);
+
 enum class WheelScrollAdmission {
     Accepted,
     NoScrollableTarget,
@@ -162,6 +171,6 @@ WEB_API AsyncScrollingState async_scrolling_state_from_display_list(Painting::Di
 WEB_API WheelRoutingAdmission wheel_routing_admission_for(AsyncScrollingState const&);
 WEB_API Utf16View wheel_routing_admission_to_utf16_view(WheelRoutingAdmission);
 WEB_API bool blocks_wheel_event_at_position(AsyncScrollingState const&, RefPtr<Painting::DisplayList const> const&, Painting::AccumulatedVisualContextTree const*, Painting::ScrollStateSnapshot const&, Gfx::FloatPoint position);
-WEB_API WheelScrollAdmission admit_wheel_scroll(AsyncScrollingState const&, RefPtr<Painting::DisplayList const> const&, Painting::AccumulatedVisualContextTree const*, Painting::ScrollStateSnapshot const&, Gfx::FloatPoint position, Gfx::FloatPoint delta, bool blocking_wheel_event_regions_are_current);
+WEB_API WheelScrollAdmission admit_wheel_scroll(AsyncScrollingState const&, RefPtr<Painting::DisplayList const> const&, Painting::AccumulatedVisualContextTree const*, Painting::ScrollStateSnapshot const&, Gfx::FloatPoint position, Gfx::FloatPoint delta, SnapContainerHandling, bool blocking_wheel_event_regions_are_current);
 
 }

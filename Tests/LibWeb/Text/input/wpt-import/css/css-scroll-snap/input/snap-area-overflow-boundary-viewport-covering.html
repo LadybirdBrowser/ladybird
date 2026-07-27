@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<link rel="help" href="https://www.w3.org/TR/css-scroll-snap-1/#snap-overflow" />
+<title></title>
+<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1">
+<meta name="assert" content="Test passes if snap is to the nearest edge">
+<style>
+  body {
+    margin: 0px;
+  }
+  #scroller {
+    scroll-snap-type: block mandatory;
+    overflow-y: scroll;
+    height:  400px;
+    width: 400px
+  }
+  #space {
+    width: 200px;
+    height: 4000px;
+  }
+  .box {
+    scroll-snap-align: start;
+    background: #ccccff;
+    margin-bottom:  10px;
+    width: 300px;
+    height: 500px;
+    position:  relative;
+  }
+  .header {
+    top: 0;
+    position:  absolute;
+  }
+  .footer {
+    bottom:  0;
+    position:  absolute;
+  }
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/testdriver.js"></script>
+<script src="../../../resources/testdriver-vendor.js"></script>
+<script src="../../../resources/testdriver-actions.js"></script>
+<script src="../../../dom/events/scrolling/scroll_support.js"></script>
+<script src="../support/common.js"></script>
+
+<div id="scroller" tabindex="0">
+  <div id="target" class="box">
+    <div class="header">Header 1</div>
+    <div class="footer">Footer 1</div>
+  </div>
+  <div id="next" class="box">
+    <div class="header">Header 2</div>
+    <div class="footer">Footer 2</div>
+  </div>
+  <div id="space"></div>
+</div>
+
+<script>
+// If all of the following conditions are met:
+//   1. the snap area is larger than the snapport along the scroll axis, and
+//   2. the distance between the previous and subsequent snap positions along
+//      the axis is greater then the snapport size.
+//
+// Then any scroll position in which the snap area covers the snapport is
+// valid snap position. This rule facilitates scrolling around in oversized
+// elements.
+//
+// These test covers edge cases with snap-areas that overflow the snapport.
+// It should be possible to scroll to the end of an oversized snap-area.
+
+const scroller = document.getElementById("scroller");
+const target = document.getElementById("target");
+const next = document.getElementById("next");
+const scrollTop = () => {
+  return scroller.scrollTop;
+};
+const cleanup = () => {
+  target.style.height = '500px';
+};
+
+promise_test(async t => {
+  await waitForCompositorCommit();
+  t.add_cleanup(cleanup);
+  scroller.scrollTo(0, 0);
+  assert_equals(scroller.scrollTop, 0, "verify test pre-condition");
+
+  // Ensure we can freely scroll in an oversized element.
+  let scrollEndPromise = waitForScrollEndFallbackToDelayWithoutScrollEvent(scroller);
+  await keyPress(scroller, "ArrowDown");
+  await scrollEndPromise;
+  assert_greater_than(scroller.scrollTop, 0,
+                      'Arrowkey scroll moved scroll position');
+  assert_less_than_equal(scroller.scrollTop, target.clientHeight,
+                         'Scroll within snap-area overflow');
+
+  // Resize the element so it is oversized by less than the line scroll amount.
+  // The next keyboard-triggered scroll should stop at the end of the snap-area.
+  // Otherwise it is not possible to scroll to the last line of the snap-area
+  // via keyboard.
+  const scrollAmount = scroller.scrollTop;
+  target.style.height = `${scroller.clientHeight + 2 * scrollAmount - 1}px`;
+  assert_equals(scroller.scrollTop, scrollAmount, "Verify container remains " +
+      "at the same covering snap offset.");
+  scrollEndPromise = waitForScrollEndFallbackToDelayWithoutScrollEvent(scroller);
+  await keyPress(scroller, "ArrowDown");
+  await scrollEndPromise;
+  assert_equals(scroller.scrollTop,
+                target.clientHeight - scroller.clientHeight,
+                'End boundary of snap-area is valid snap target');
+
+  // Must not get stuck at a snap position. Since already at the end of the
+  // snap area, we should advance to the next.
+  scrollEndPromise = waitForScrollEndFallbackToDelayWithoutScrollEvent(scroller);
+  await keyPress(scroller, "ArrowDown");
+  await scrollEndPromise;
+  assert_equals(scroller.scrollTop,
+                next.offsetTop,
+                'Advance to next snap-area');
+
+}, "Keyboard scrolling with vertical snap-area overflow");
+
+promise_test(async t => {
+  await waitForScrollReset(t, scroller);
+  await waitForCompositorCommit();
+  assert_equals(scroller.scrollTop, 0, "verify test pre-condition");
+
+  // Ensure we can freely scroll in an oversized element.
+  let scrollEndPromise = waitForScrollEndFallbackToDelayWithoutScrollEvent(scroller);
+  await new test_driver.Actions()
+  .scroll(50, 50, 0, 50, {origin: scroller})
+  .send();
+  await scrollEndPromise;
+  assert_equals(scroller.scrollTop, 50,
+                      'Wheel-scroll moved scroll position');
+
+  // Target position for wheel scroll overshoots the boundary of the snap-area.
+  // Ensure that we stop at the boundary.
+  let scrollAmount =
+      target.clientHeight - scroller.clientHeight - scroller.scrollTop + 1;
+
+  scrollEndPromise = waitForScrollEndFallbackToDelayWithoutScrollEvent(scroller);
+  await new test_driver.Actions()
+  .scroll(50, 50, 0, scrollAmount, {origin: scroller})
+  .send();
+  await scrollEndPromise;
+  assert_equals(scroller.scrollTop, 100,
+                      'End boundary of snap-area is valid snap target');
+
+  // Must not get stuck at a snap position. Since already at the end of the
+  // snap area, we should advance to the next. scrollAmount must be enough to
+  // advance to next snap position.
+  scrollAmount = next.clientHeight / 2 + 10 /* margin-bottom */;
+  scrollEndPromise = waitForScrollEndFallbackToDelayWithoutScrollEvent(scroller);
+  await new test_driver.Actions()
+  .scroll(50, 50, 0, scrollAmount, {origin: scroller})
+  .send();
+  await scrollEndPromise;
+  assert_equals(scroller.scrollTop, next.offsetTop,
+                'Advance to next snap-area');
+
+}, "Mouse-wheel scrolling with vertical snap-area overflow");
+</script>
