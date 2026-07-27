@@ -7,8 +7,10 @@
 #pragma once
 
 #include <AK/Forward.h>
+#include <AK/HashFunctions.h>
 #include <AK/Optional.h>
 #include <AK/StringView.h>
+#include <AK/Traits.h>
 #include <AK/Types.h>
 #include <AK/Vector.h>
 #include <LibGfx/Color.h>
@@ -174,3 +176,12 @@ WEB_API bool blocks_wheel_event_at_position(AsyncScrollingState const&, RefPtr<P
 WEB_API WheelScrollAdmission admit_wheel_scroll(AsyncScrollingState const&, RefPtr<Painting::DisplayList const> const&, Painting::AccumulatedVisualContextTree const*, Painting::ScrollStateSnapshot const&, Gfx::FloatPoint position, Gfx::FloatPoint delta, SnapContainerHandling, bool blocking_wheel_event_regions_are_current);
 
 }
+
+template<>
+struct AK::Traits<Web::Compositor::AsyncScrollNodeStableID> : DefaultTraits<Web::Compositor::AsyncScrollNodeStableID> {
+    static unsigned hash(Web::Compositor::AsyncScrollNodeStableID const& stable_node_id)
+    {
+        return pair_int_hash(u64_hash(static_cast<u64>(stable_node_id.node_id.value())),
+            pair_int_hash(to_underlying(stable_node_id.kind), stable_node_id.pseudo_element_type));
+    }
+};

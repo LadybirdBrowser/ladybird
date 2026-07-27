@@ -423,6 +423,18 @@ RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::Property
     if (CSS::property_affects_scrollable_overflow(property_id))
         invalidation.set_needs_scrollable_overflow_recalculation();
 
+    // https://drafts.csswg.org/css-scroll-snap-1/#re-snap
+    // NB: A scroll snap property change moves the snap positions of a snap container without necessarily changing
+    //     layout, so snap containers re-evaluate their scroll position for these properties as they do after a
+    //     layout change.
+    if (CSS::property_affects_scrollable_overflow(property_id)
+        || AK::first_is_one_of(property_id,
+            CSS::PropertyID::ScrollSnapType, CSS::PropertyID::ScrollSnapAlign, CSS::PropertyID::ScrollSnapStop,
+            CSS::PropertyID::ScrollMarginTop, CSS::PropertyID::ScrollMarginRight, CSS::PropertyID::ScrollMarginBottom, CSS::PropertyID::ScrollMarginLeft,
+            CSS::PropertyID::ScrollPaddingTop, CSS::PropertyID::ScrollPaddingRight, CSS::PropertyID::ScrollPaddingBottom, CSS::PropertyID::ScrollPaddingLeft)) {
+        invalidation.needs_scroll_container_resnap = true;
+    }
+
     if (CSS::property_affects_stacking_context(property_id)) {
         // z-index changes always require rebuilding the stacking context tree because
         // the value determines painting order within the tree, not just whether a

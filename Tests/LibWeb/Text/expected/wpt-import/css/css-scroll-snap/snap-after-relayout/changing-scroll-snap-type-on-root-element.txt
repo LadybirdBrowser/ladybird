@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Changing the scroller's snap type to y should make it resnap on the y-axis.
+Pass	Changing the scroller's snap type to x should make it resnap on the x-axis.
+Pass	Changing the scroller's snap type axis should make it resnap.

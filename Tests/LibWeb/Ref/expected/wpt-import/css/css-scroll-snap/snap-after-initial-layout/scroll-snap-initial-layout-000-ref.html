@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<title>
+  CSS Scroll Snap Reference
+</title>
+<style>
+body {
+  position: absolute;
+  bottom: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  overflow: hidden;
+}
+
+.scroller {
+  width: 100px;
+  height: 100px;
+  border: solid blue;
+  margin: 10px;
+  display: inline-block;
+}
+
+.scroller > div {
+  width: 30px;
+  height: 30px;
+  background: orange;
+}
+
+.proxfar {
+  border-color: orange;
+}
+
+</style>
+
+<p>Test passes if there is an orange square precisely at the top left corner of each blue box (no gap),
+and each orange box is empty.
+
+
+<div class="mandatory">
+  <div class="scroller">
+    <div></div>
+  </div>
+
+  <div class="scroller">
+    <div></div>
+  </div>
+
+  <div class="scroller">
+    <div></div>
+  </div>
+
+  <!-- on-screen -->
+  <div class="scroller">
+    <div></div>
+  </div>
+
+  <div class="scroller">
+    <div></div>
+  </div>
+
+  <div class="scroller">
+    <div></div>
+  </div>
+</div>
+
+<div class="proximity">
+  <!-- off-screen -->
+  <div class="scroller proxfar">
+  </div>
+
+  <div class="scroller proxfar">
+  </div>
+
+  <div class="scroller proxfar">
+  </div>
+
+  <!-- on-screen -->
+  <div class="scroller">
+    <div></div>
+  </div>
+
+  <div class="scroller">
+    <div></div>
+  </div>
+
+  <div class="scroller">
+    <div></div>
+  </div>
+</div>

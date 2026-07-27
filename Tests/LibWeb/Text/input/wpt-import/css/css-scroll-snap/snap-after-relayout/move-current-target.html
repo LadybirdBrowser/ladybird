@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<title>
+  Moving the current snap target should make the scroller resnap to it.
+</title>
+<link rel="help" href="https://drafts.csswg.org/css-scroll-snap/#re-snap" />
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+div {
+  position: relative;
+  margin: 0;
+}
+
+#block {
+  height: 100px;
+  width: 100px;
+}
+
+#scroller {
+  height: 500px;
+  width: 500px;
+  overflow: hidden;
+  scroll-snap-type: both mandatory;
+}
+
+#initial-target {
+  width: 300px;
+  height: 300px;
+  left: 100px;
+  top: 0;
+  transform: none;
+  background-color: green;
+  scroll-snap-align: start;
+}
+
+#other-target {
+  width: 300px;
+  height: 300px;
+  left: 300px;
+  background-color: red;
+  scroll-snap-align: start;
+}
+
+.area {
+  width: 2000px;
+  height: 2000px;
+}
+</style>
+
+<div id="scroller">
+  <div id="block"></div>
+  <div id="initial-target"></div>
+  <div id="other-target"></div>
+  <div class="area"></div>
+</div>
+
+<script>
+const initial_target = document.getElementById("initial-target");
+const other_target = document.getElementById("other-target");
+const block = document.getElementById("block");
+const scroller = document.getElementById("scroller");
+
+function cleanup() {
+  initial_target.style.setProperty("transform", "none");
+  initial_target.style.setProperty("top", "0");
+  block.style.setProperty("height", "100px");
+}
+
+test(t => {
+  t.add_cleanup(cleanup);
+  scroller.scrollTo(0,0);
+  assert_equals(scroller.scrollTop, 100);
+  assert_equals(scroller.scrollLeft, 100);
+
+  initial_target.style.setProperty("top", "300px");
+  assert_equals(scroller.scrollTop, 400);
+  assert_equals(scroller.scrollLeft, 100);
+}, "Moving the current snap target should make the scroller resnap to it.");
+
+test(t => {
+  t.add_cleanup(cleanup);
+  scroller.scrollTo(0,0);
+  assert_equals(scroller.scrollTop, 100);
+  assert_equals(scroller.scrollLeft, 100);
+
+  block.style.setProperty("height", "200px");
+  assert_equals(scroller.scrollTop, 200);
+  assert_equals(scroller.scrollLeft, 100);
+}, "Changing the layout of other elements should be able to cause resnapping to \
+the target.");
+
+test(t => {
+  t.add_cleanup(cleanup);
+  scroller.scrollTo(0,0);
+  assert_equals(scroller.scrollTop, 100);
+  assert_equals(scroller.scrollLeft, 100);
+
+  initial_target.style.setProperty("transform", "translate(0,100px)");
+  assert_equals(scroller.scrollTop, 200);
+  assert_equals(scroller.scrollLeft, 100);
+}, "Transforming the current snap target should make the scroller resnap to it.");
+
+test(t => {
+  t.add_cleanup(cleanup);
+  initial_target.style.setProperty("top", "100px");
+  scroller.scrollTo(0,0);
+  assert_equals(scroller.scrollTop, 200);
+  assert_equals(scroller.scrollLeft, 100);
+
+  initial_target.style.setProperty("transform", "translate(0,100px)");
+  initial_target.style.setProperty("top", "0");
+  assert_equals(scroller.scrollTop, 200);
+  assert_equals(scroller.scrollLeft, 100);
+}, "Applying two property changes that do not change the visual offset of the \
+target should not change the scroll offset.");
+</script>

@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	out-of-viewport focused element is not the selected snap target under a scaled ancestor.

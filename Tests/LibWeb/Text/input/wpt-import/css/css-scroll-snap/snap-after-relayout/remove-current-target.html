@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<title>
+  Removing the current snap target should make the scroller snap to a new target.
+</title>
+<link rel="help" href="https://drafts.csswg.org/css-scroll-snap/#re-snap" />
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+div {
+  position: absolute;
+  margin: 0;
+}
+
+#scroller {
+  height: 500px;
+  width: 500px;
+  overflow: hidden;
+  scroll-snap-type: both mandatory;
+}
+
+#initial-target {
+  width: 300px;
+  height: 300px;
+  top: 100px;
+  left: 100px;
+  background-color: red;
+  scroll-snap-align: start;
+}
+
+#other-target {
+  width: 300px;
+  height: 300px;
+  top: 300px;
+  left: 300px;
+  background-color: green;
+  scroll-snap-align: start;
+}
+
+.area {
+  width: 2000px;
+  height: 2000px;
+}
+</style>
+
+<div id="scroller">
+  <div class="area"></div>
+  <div id="initial-target"></div>
+  <div id="other-target"></div>
+</div>
+
+<script>
+const initial_target = document.getElementById("initial-target");
+const other_target = document.getElementById("other-target");
+const scroller = document.getElementById("scroller");
+
+test(() => {
+  scroller.scrollTo(0,0);
+  assert_equals(scroller.scrollTop, 100);
+  assert_equals(scroller.scrollLeft, 100);
+
+  scroller.removeChild(initial_target);
+  assert_equals(scroller.scrollTop, 300);
+  assert_equals(scroller.scrollLeft, 300);
+}, "Removing the current snap target should make the scroller snap to a new target.");
+</script>

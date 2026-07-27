@@ -35,6 +35,7 @@
 #include <LibWeb/CSS/EnvironmentVariable.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/CSS/StyleScope.h>
+#include <LibWeb/Compositor/AsyncScrollingState.h>
 #include <LibWeb/DOM/AnchorNameMap.h>
 #include <LibWeb/DOM/HoverEventData.h>
 #include <LibWeb/DOM/ParentNode.h>
@@ -59,6 +60,7 @@
 #include <LibWeb/Painting/Forward.h>
 #include <LibWeb/Painting/GridInspectorOverlay.h>
 #include <LibWeb/Painting/HitTestResult.h>
+#include <LibWeb/Painting/ScrollSnap.h>
 #include <LibWeb/ResizeObserver/ResizeObserver.h>
 #include <LibWeb/SVG/SVGUseElement.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -1133,6 +1135,19 @@ public:
     void schedule_scrollable_overflow_recalculation(Element&);
     void schedule_scrollable_overflow_recalculation(Layout::Node const&);
 
+    Painting::SnappedAreas const& snapped_areas_of_scroll_container(Compositor::AsyncScrollNodeStableID const&) const;
+    void set_snapped_areas_of_scroll_container(Compositor::AsyncScrollNodeStableID const&, Painting::SnappedAreas);
+    void forget_snapped_areas_of_scroll_container(Painting::Paintable const&);
+
+    void schedule_scroll_container_resnap() { m_needs_scroll_container_resnap = true; }
+    void cancel_scheduled_scroll_container_resnap() { m_needs_scroll_container_resnap = false; }
+    [[nodiscard]] bool needs_scroll_container_resnap() const { return m_needs_scroll_container_resnap; }
+    void set_may_have_scroll_snap_areas() { m_may_have_scroll_snap_areas = true; }
+    [[nodiscard]] bool may_have_scroll_snap_areas() const { return m_may_have_scroll_snap_areas; }
+
+    void register_scroll_snap_container(Painting::Paintable const&);
+    [[nodiscard]] Vector<NonnullRefPtr<Painting::Paintable const>> collect_scroll_snap_containers();
+
     virtual Vector<Utf16FlyString> supported_property_names() const override;
     Vector<GC::Ref<DOM::Element>> const& potentially_named_elements() const { return m_potentially_named_elements; }
     Vector<GC::Ref<DOM::Element>> named_elements_with_name(Utf16FlyString const&) const;
@@ -1817,6 +1832,11 @@ private:
 
     bool m_needs_full_scrollable_overflow_recalculation { false };
     Vector<WeakPtr<Painting::Paintable>> m_paintable_boxes_needing_scrollable_overflow_recalculation;
+
+    HashMap<Compositor::AsyncScrollNodeStableID, Painting::SnappedAreas> m_scroll_container_snapped_areas;
+    Vector<WeakPtr<Painting::Paintable const>> m_scroll_snap_containers;
+    bool m_needs_scroll_container_resnap { false };
+    bool m_may_have_scroll_snap_areas { false };
     CSS::SheetSetStyleCacheRegistry m_sheet_set_style_cache_registry;
     RefPtr<Painting::HitTestDisplayList> m_hit_test_display_list;
     // The previous recording's list, retained so cached per-paintable item ranges can be spliced into

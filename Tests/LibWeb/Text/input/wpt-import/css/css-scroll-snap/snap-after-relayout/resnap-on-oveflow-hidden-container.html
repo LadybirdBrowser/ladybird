@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-scroll-snap/#re-snap" />
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1946375">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+#scroller {
+  display: flex;
+  overflow-x: hidden;
+  scroll-snap-align: start;
+  scroll-snap-type: x mandatory;
+  width: 500px;
+  height: 200px;
+  position: absolute;
+}
+.child {
+  display: flex;
+  flex: 0 0 500px;
+  scroll-snap-align: start;
+  width: 500px;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  font-size: 30px;
+}
+</style>
+<div id="scroller">
+  <div class="child" style="background-color: blue;">1</div>
+  <div class="child" style="background-color: green;">2</div>
+  <div class="child" style="background-color: yellow;">3</div>
+</div>
+<script>
+promise_test(async () => {
+  assert_equals(scroller.scrollLeft, 0, "The initial scroll position");
+
+  const scrollPromise = new Promise(resolve => {
+    scroller.addEventListener("scroll", resolve);
+  });
+  // Do an async scroll operation to the second child.
+  scroller.scrollTo({ left: 500, behavior: "smooth" });
+
+  // Wait a scroll event.
+  await scrollPromise;
+
+  // Assuming that the current scroll position is not yet the scroll
+  // destination, i.e. during the async scroll is runnig try to do
+  // a new async scroll operation to the third child.
+  const scrollendPromise = new Promise(resolve => {
+    scroller.addEventListener("scrollend", resolve);
+  });
+  scroller.scrollTo({ left: 1000, behavior: "smooth" });
+  await scrollendPromise;
+
+  assert_equals(scroller.scrollLeft, 1000,
+    "Now the scroll position should be 1000px");
+
+  // Change a child element width so that re-snapping will happen.
+  document.querySelectorAll(".child")[0].style.width = "501px";
+
+  assert_equals(scroller.scrollLeft, 1000, "The scroll position should stay");
+});
+</script>

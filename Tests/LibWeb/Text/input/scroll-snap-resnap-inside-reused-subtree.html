@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    #pusher {
+        height: 20px;
+    }
+    /* A formatting context root of its own, so that the reused subtree is not rooted at the scroll container. */
+    #outer {
+        display: flow-root;
+    }
+    #scroller {
+        position: relative;
+        width: 200px;
+        height: 200px;
+        overflow-y: scroll;
+        scroll-snap-type: y mandatory;
+    }
+    /* An absolutely positioned box is a partial relayout boundary, so a change inside it commits without visiting
+       the scroll container above it. */
+    #wrapper {
+        position: absolute;
+        top: 0;
+        width: 100%;
+        height: 600px;
+    }
+    #spacer {
+        height: 100px;
+    }
+    .area {
+        height: 100px;
+        scroll-snap-align: start;
+    }
+</style>
+<div id="pusher"></div>
+<div id="outer">
+    <div id="scroller">
+        <div id="wrapper">
+            <div id="spacer"></div>
+            <div class="area"></div>
+            <div class="area"></div>
+        </div>
+    </div>
+</div>
+<script>
+    promiseTest(async () => {
+        const scroller = document.getElementById("scroller");
+
+        await animationFrame();
+        await animationFrame();
+        const offsetAfterInitialSnap = scroller.scrollTop;
+
+        // A translation-only change outside the scroller lets the commit reuse the subtree containing it.
+        document.getElementById("pusher").style.height = "70px";
+        const offsetAfterTranslation = scroller.scrollTop;
+
+        // Growing the spacer moves the snap areas without the commit or a style update visiting the scroll
+        // container, which must re-snap to the moved area regardless.
+        document.getElementById("spacer").style.height = "150px";
+        const offsetAfterMovingAreas = scroller.scrollTop;
+
+        println(`scroll offset after initial snap: ${offsetAfterInitialSnap}`);
+        println(`scroll offset after translating the scroller: ${offsetAfterTranslation}`);
+        println(`scroll offset after moving the snap areas: ${offsetAfterMovingAreas}`);
+    });
+</script>
