@@ -388,7 +388,7 @@ private:
     IndexedStorageKind m_indexed_storage_kind { IndexedStorageKind::None };
     // 2 bytes padding
     u32 m_indexed_array_like_size { 0 };
-    void set_shape(Shape& shape) { m_shape = &shape; }
+    void set_shape(Shape& shape) { m_shape = shape; }
 
     Object* prototype() { return shape().prototype(); }
 
@@ -408,7 +408,7 @@ public:
     static constexpr u32 INLINE_NAMED_PROPERTY_CAPACITY = 2;
 
 private:
-    GC::Ptr<Shape> m_shape;
+    GC::Ref<Shape> m_shape;
     Value* m_named_properties { m_inline_named_storage };
     Value* m_indexed_elements { nullptr };
     OwnPtr<Vector<PrivateElement>> m_private_elements; // [[PrivateElements]]
