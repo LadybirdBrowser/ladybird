@@ -54,11 +54,6 @@ public:
     PagedStore(PagedStore&&) = delete;
     PagedStore& operator=(PagedStore&&) = delete;
 
-    void ensure_capacity(u32 count)
-    {
-        m_pages.resize((count + PageSize - 1) >> PageBits);
-    }
-
     T* get(u32 index) const
     {
         auto page_index = index >> PageBits;
@@ -356,8 +351,6 @@ struct LayoutState {
     // position; the plain overload replaces the root's own paintable when there is one.
     void commit(Box& root);
     void commit(Box& root, Painting::Paintable& paintable_to_replace);
-
-    void ensure_capacity(u32 node_count);
 
     void set_should_collect_devtools_layout_data(bool should_collect) { m_should_collect_devtools_layout_data = should_collect; }
     bool should_collect_devtools_layout_data() const { return m_should_collect_devtools_layout_data; }

@@ -2015,7 +2015,6 @@ Document::PartialRelayoutResult Document::try_partial_relayout(HashTable<WeakPtr
         || registered_partial_relayout_roots.is_empty()
         || m_layout_root->needs_layout_update()
         || !m_query_containers_needing_container_query_evaluation_after_layout.is_empty()
-        || layout_node_indices_outgrew_dense_range()
         || should_collect_devtools_layout_data
         || any_anchor_names_are_registered())
         return PartialRelayoutResult::NotEligible;
@@ -2217,11 +2216,7 @@ void Document::update_layout(UpdateLayoutReason reason)
             });
         }
 
-        u32 layout_index_counter = 0;
         m_layout_root->for_each_in_inclusive_subtree([&](auto& layout_node) {
-            if (auto* node_with_style = as_if<Layout::NodeWithStyle>(layout_node))
-                node_with_style->set_layout_index(layout_index_counter++);
-
             recompute_containing_block_and_derive_abspos_escape_flags(layout_node);
 
             return TraversalDecision::Continue;
@@ -2231,10 +2226,7 @@ void Document::update_layout(UpdateLayoutReason reason)
         // on, so pending changes that escaped classification are accounted for from here on.
         m_partial_relayout_invalidation.clear_escape(PartialRelayoutEscapeClearReason::FullLayoutPass);
 
-        reset_layout_node_index_counter(layout_index_counter);
-
         Layout::LayoutState layout_state;
-        layout_state.ensure_capacity(layout_index_counter);
         layout_state.set_should_collect_devtools_layout_data(should_collect_devtools_layout_data);
 
         {

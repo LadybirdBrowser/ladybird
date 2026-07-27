@@ -63,14 +63,9 @@ static CSSPixelRect rect_for_line_box(LineBox const& line_box, CSSPixels contain
     return united_fragment_rect_for_line_box(line_box);
 }
 
-void LayoutState::ensure_capacity(u32 node_count)
-{
-    m_used_values_store.ensure_capacity(node_count);
-}
-
 LayoutState::UsedValues& LayoutState::get_mutable(NodeWithStyle const& node)
 {
-    auto* used_values = m_used_values_store.get(node.layout_index());
+    auto* used_values = m_used_values_store.get(node.arena_slot_index());
     if (!used_values) {
         dbgln("LayoutState::get_mutable: no used values for {}; boxes must be created before their state is read", node.debug_description());
         VERIFY_NOT_REACHED();
@@ -80,7 +75,7 @@ LayoutState::UsedValues& LayoutState::get_mutable(NodeWithStyle const& node)
 
 LayoutState::UsedValues const& LayoutState::get(NodeWithStyle const& node) const
 {
-    auto const* used_values = m_used_values_store.get(node.layout_index());
+    auto const* used_values = m_used_values_store.get(node.arena_slot_index());
     if (!used_values) {
         dbgln("LayoutState::get: no used values for {}; boxes must be created before their state is read", node.debug_description());
         VERIFY_NOT_REACHED();
@@ -90,21 +85,21 @@ LayoutState::UsedValues const& LayoutState::get(NodeWithStyle const& node) const
 
 LayoutState::UsedValues& LayoutState::create(NodeWithStyle const& node, Optional<CSSPixels> percentage_basis_inline_size, Optional<CSSPixels> percentage_basis_block_size)
 {
-    auto index = node.layout_index();
-    if (m_used_values_store.get(index)) {
+    auto slot_index = node.arena_slot_index();
+    if (m_used_values_store.get(slot_index)) {
         dbgln("LayoutState::create: used values for {} already exist", node.debug_description());
         VERIFY_NOT_REACHED();
     }
 
     VERIFY(!m_subtree_root || m_subtree_root == &node || m_subtree_root->is_inclusive_ancestor_of(node));
 
-    auto& used_values = m_used_values_store.allocate(index);
+    auto& used_values = m_used_values_store.allocate(slot_index);
     used_values.set_node(node, percentage_basis_inline_size, percentage_basis_block_size);
 
     if (auto const* list_item_box = as_if<ListItemBox>(node); list_item_box && list_item_box->marker()) {
         auto const& marker = *list_item_box->marker();
-        if (!m_used_values_store.get(marker.layout_index())) {
-            auto& marker_used_values = m_used_values_store.allocate(marker.layout_index());
+        if (!m_used_values_store.get(marker.arena_slot_index())) {
+            auto& marker_used_values = m_used_values_store.allocate(marker.arena_slot_index());
             marker_used_values.set_node(marker,
                 used_values.has_definite_inline_size() ? Optional<CSSPixels> { used_values.content_inline_size() } : Optional<CSSPixels> {},
                 used_values.has_definite_block_size() ? Optional<CSSPixels> { used_values.content_block_size() } : Optional<CSSPixels> {});
@@ -117,11 +112,11 @@ LayoutState::UsedValues& LayoutState::create(NodeWithStyle const& node, Optional
 LayoutState::UsedValues& LayoutState::populate_from_paintable(NodeWithStyle const& node, Painting::Paintable const& paintable)
 {
     VERIFY(m_subtree_root);
-    auto index = node.layout_index();
+    auto slot_index = node.arena_slot_index();
 
     // NOTE: We skip set_node() here since it performs size resolution that requires percentage bases,
     //       and materialize_from_paintable() overwrites all computed sizes immediately after.
-    auto& used_values = m_used_values_store.allocate(index);
+    auto& used_values = m_used_values_store.allocate(slot_index);
     used_values.m_node = &node;
     used_values.materialize_from_paintable(paintable);
     return used_values;
@@ -129,12 +124,12 @@ LayoutState::UsedValues& LayoutState::populate_from_paintable(NodeWithStyle cons
 
 LayoutState::UsedValues const* LayoutState::try_get(NodeWithStyle const& node) const
 {
-    return m_used_values_store.get(node.layout_index());
+    return m_used_values_store.get(node.arena_slot_index());
 }
 
 LayoutState::UsedValues* LayoutState::try_get_mutable(NodeWithStyle const& node)
 {
-    return m_used_values_store.get(node.layout_index());
+    return m_used_values_store.get(node.arena_slot_index());
 }
 
 LayoutState::UsedValues const* LayoutState::try_get(Node const& node) const

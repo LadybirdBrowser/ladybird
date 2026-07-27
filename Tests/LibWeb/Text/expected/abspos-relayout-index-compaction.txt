@@ -1,4 +1,0 @@
-layout-passes-sum-matches=true
-full-passes-bounded=true
-boundary=40,30,200,40
-PASS
