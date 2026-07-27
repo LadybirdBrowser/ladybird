@@ -9,6 +9,7 @@
 #include <AK/TypeCasts.h>
 #include <AK/Vector.h>
 #include <LibGC/Root.h>
+#include <LibWeb/Bindings/Element.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ShadowRoot.h>
@@ -398,10 +399,36 @@ void run_focusing_steps(DOM::Node* new_focus_target, DOM::Node* fallback_target,
 
     // INTEROP: Keyboard input follows the deepest focused navigable. Focus event handlers can move focus reentrantly,
     //          so derive the input target from the final focused area instead of the target which began this update.
-    if (auto focused_area = top_level_traversable->currently_focused_area()) {
+    auto focused_area = top_level_traversable->currently_focused_area();
+    if (focused_area) {
         if (auto navigable = focused_area->document().navigable())
             navigable->page().set_focused_navigable(*navigable);
     }
+
+    // AD-HOC: An element focused by clicking it is already under the pointer, so other engines do not scroll it into
+    //         view. Scrolling would also move the element out from under the pointer between mousedown and mouseup,
+    //         leaving the two with different hit-test targets and suppressing the click.
+    if (focus_trigger == FocusTrigger::Click)
+        return;
+
+    // AD-HOC: Scroll the newly focused element into view. The focus update steps do not do this, so an element
+    //         focused any way other than by focus() would never be revealed.
+    // NB: Not if the focused element is a navigable container: focus moving into a frame lands on its container
+    //     element in this document, and other engines do not scroll embedded content into view on focus. Ad scripts
+    //     commonly pull focus into an offscreen iframe during page load, and scrolling to it would hijack the
+    //     viewport.
+    auto* focused_element = as_if<DOM::Element>(focused_area.ptr());
+    if (!focused_element || is<NavigableContainer>(*focused_element))
+        return;
+
+    focused_element->queue_an_element_task(Task::Source::UserInteraction, [focused_element] {
+        if (focused_element->document().focused_area().ptr() != focused_element)
+            return;
+        Bindings::ScrollIntoViewOptions scroll_options;
+        scroll_options.block = Bindings::ScrollLogicalPosition::Nearest;
+        scroll_options.inline_ = Bindings::ScrollLogicalPosition::Nearest;
+        (void)focused_element->scroll_into_view(scroll_options);
+    });
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#unfocusing-steps

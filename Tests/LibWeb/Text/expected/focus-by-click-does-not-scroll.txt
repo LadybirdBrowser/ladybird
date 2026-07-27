@@ -1,0 +1,3 @@
+clicks received: 1
+<BUTTON id="button">
+scrollY after clicking a partially visible button: 0
