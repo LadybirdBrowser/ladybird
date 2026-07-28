@@ -58,6 +58,7 @@ pub enum CalcNumericValue {
 }
 
 pub(crate) const BASE_TYPE_COUNT: usize = 7;
+pub(crate) const BASE_TYPE_LENGTH: usize = 0;
 pub(crate) const BASE_TYPE_PERCENT: usize = 6;
 
 /// https://drafts.css-houdini.org/css-typed-om-1/#numeric-typing
@@ -2418,6 +2419,59 @@ mod value_type {
     pub const PERCENTAGE: u8 = 31;
     pub const RESOLUTION: u8 = 35;
     pub const TIME: u8 = 38;
+}
+
+pub(crate) fn length_percentage_calculated_style_value(
+    calculation: Arc<CalcNode>,
+    resolved_type: FfiNumericType,
+) -> crate::css::style_value::StyleValueData {
+    use crate::css::style_value::{RetainedNumericRangeList, StyleValueData};
+
+    StyleValueData::Calculated {
+        rust_calculation: CalcNodeHandle::from_arc(calculation),
+        resolve_as_is_number: false,
+        resolve_as_base: BASE_TYPE_LENGTH as u8,
+        resolved_type,
+        has_percentages_resolve_as: true,
+        percentages_resolve_as: value_type::LENGTH,
+        resolve_numbers_as_integers: false,
+        accepted_ranges: RetainedNumericRangeList::empty(),
+    }
+}
+
+/// Wraps a computed anchor() inset value into the calculated style value the
+/// layout engine resolves, matching what the C++ bridge built through
+/// CalculatedStyleValue::create with CalculationContext::for_property for the
+/// top/right/bottom/left properties: the anchor value as a non-math-function
+/// leaf of the length numeric type, percentages resolving as length, and no
+/// integer rounding. Those properties accept the full float range for both
+/// length and percentage, which equals the clamp fallback for an absent
+/// accepted-range entry, so the wrapper carries an empty range list.
+///
+/// # Safety
+/// `anchor` must point at live anchor style value data.
+// NB: Same main-thread-only contract as `handle` above.
+#[allow(clippy::arc_with_non_send_sync)]
+pub(crate) unsafe fn create_anchor_inset_calculated(
+    anchor: *const crate::css::style_value::StyleValueData,
+) -> Arc<crate::css::style_value::StyleValueData> {
+    use crate::css::style_value::StyleValueData;
+
+    assert!(
+        matches!(unsafe { &*anchor }, StyleValueData::Anchor { .. }),
+        "anchor inset handle holds a non-anchor style value"
+    );
+    unsafe { Arc::increment_strong_count(anchor) };
+    let anchor_value = unsafe { RetainedStyleValueData::from_retained_pointer(anchor) };
+    let mut length_type = CalcNumericType::default();
+    length_type.exponents[BASE_TYPE_LENGTH] = Some(1);
+    Arc::new(length_percentage_calculated_style_value(
+        shared(CalcNode::NonMathFunction {
+            value: anchor_value,
+            numeric_type: length_type,
+        }),
+        FfiNumericType::from_calc(Some(length_type)),
+    ))
 }
 
 /// The resolution inputs marshaled from the C++ CalculationResolutionContext.

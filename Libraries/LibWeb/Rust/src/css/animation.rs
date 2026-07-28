@@ -1173,16 +1173,7 @@ fn retained_length_percentage_calculation(
         crate::css::calc::CalcNode::Numeric(crate::css::calc::CalcNumericValue::Percentage(value)) => {
             StyleValueData::Percentage { value: *value }
         }
-        _ => StyleValueData::Calculated {
-            rust_calculation: crate::css::calc::CalcNodeHandle::from_arc(calculation),
-            resolve_as_is_number: false,
-            resolve_as_base: 0,
-            resolved_type,
-            has_percentages_resolve_as: true,
-            percentages_resolve_as: VALUE_TYPE_LENGTH,
-            resolve_numbers_as_integers: false,
-            accepted_ranges: RetainedNumericRangeList::empty(),
-        },
+        _ => crate::css::calc::length_percentage_calculated_style_value(calculation, resolved_type),
     };
     let value = Arc::into_raw(Arc::new(value));
     unsafe { RetainedStyleValueData::from_retained_pointer(value) }
