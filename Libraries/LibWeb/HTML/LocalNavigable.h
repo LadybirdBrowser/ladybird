@@ -342,7 +342,8 @@ public:
     GC::Ref<WebIDL::Promise> scroll_viewport_by_delta(CSSPixelPoint delta, Bindings::ScrollBehavior = Bindings::ScrollBehavior::Instant);
     GC::Ref<WebIDL::Promise> perform_a_scroll_of_the_viewport(CSSPixelPoint position, Bindings::ScrollBehavior = Bindings::ScrollBehavior::Auto, ScrollTrigger = ScrollTrigger::Programmatic, Optional<CSSPixelPoint> relative_displacement = {});
     GC::Ref<WebIDL::Promise> perform_a_scroll_of_an_element(DOM::Element&, CSSPixelPoint position, Bindings::ScrollBehavior, Optional<CSSPixelPoint> relative_displacement = {});
-    bool perform_a_snapped_relative_user_scroll(Layout::Node&, CSSPixelPoint delta, Painting::SnapSelectionStrategy::Type, SnapStepAccumulation);
+    bool perform_a_snapped_relative_user_scroll(Layout::Node&, CSSPixelPoint delta, Painting::SnapSelectionStrategy::Type, SnapStepAccumulation, Compositor::ScrollAnimationKind = Compositor::ScrollAnimationKind::SmoothScroll);
+    bool perform_a_snapped_momentum_scroll(Layout::Node&, CSSPixelPoint momentum_delta);
     void re_snap_scroll_containers_after_layout_change();
     void abort_in_flight_smooth_scrolls(Compositor::AsyncScrollNodeStableID, SmoothScrollAbortCause);
     void abort_in_flight_smooth_scrolls_taken_over_by_user_input(Compositor::AsyncScrollNodeStableID, CSSPixelPoint scroll_offset_at_gesture_start);
@@ -400,7 +401,7 @@ private:
         SelectSnapPosition,
         DestinationIsSnapPosition,
     };
-    GC::Ref<WebIDL::Promise> perform_a_scroll_of_a_scrolling_box(Compositor::AsyncScrollNodeStableID, CSSPixelPoint position, Bindings::ScrollBehavior, GC::Ptr<DOM::Element> associated_element, ScrollTrigger, Optional<CSSPixelPoint> relative_displacement = {}, DestinationSnapping = DestinationSnapping::SelectSnapPosition);
+    GC::Ref<WebIDL::Promise> perform_a_scroll_of_a_scrolling_box(Compositor::AsyncScrollNodeStableID, CSSPixelPoint position, Bindings::ScrollBehavior, GC::Ptr<DOM::Element> associated_element, ScrollTrigger, Optional<CSSPixelPoint> relative_displacement = {}, DestinationSnapping = DestinationSnapping::SelectSnapPosition, Compositor::ScrollAnimationKind = Compositor::ScrollAnimationKind::SmoothScroll);
     Optional<CSSPixelPoint> scroll_offset_for(Compositor::AsyncScrollNodeStableID) const;
     bool set_scroll_offset_for(Compositor::AsyncScrollNodeStableID, CSSPixelPoint);
     void queue_scrollend_event(Compositor::AsyncScrollNodeStableID, ScrollTrigger, Optional<CSSPixelPoint> scroll_offset_before_scroll = {});
@@ -429,6 +430,7 @@ private:
     void abandon_snapping_of_user_scroll_gesture(Compositor::AsyncScrollNodeStableID);
     void settle_user_scroll_gesture();
     void settle_user_scroll_gesture_if_input_deadline_passed();
+    void reset_momentum_fling_state();
     // Which of the latched gestures a settlement is for: every gesture that ran out of input, or only those left
     // waiting for layout by an earlier settlement.
     enum class UserScrollSettlement {
@@ -517,6 +519,15 @@ private:
     size_t m_user_scroll_gesture_hold_count { 0 };
     Painting::SnapSelectionStrategy::Type m_user_scroll_input_intent { Painting::SnapSelectionStrategy::Type::EndPosition };
     bool m_user_scroll_gesture_travels_under_momentum { false };
+    // Momentum that selects no snap position is scrolled by for the rest of the gesture rather than being asked again
+    // for each delta it produces.
+    enum class MomentumSnapPositionSelection : u8 {
+        NotSelectedYet,
+        ScrollingToSelectedPosition,
+        NoPositionSelected,
+    };
+    MomentumSnapPositionSelection m_momentum_snap_position_selection { MomentumSnapPositionSelection::NotSelectedYet };
+    Painting::MomentumFlingEstimator m_momentum_fling_estimator;
     size_t m_scrolls_being_started { 0 };
     bool m_user_scroll_settlement_awaits_scroll_start { false };
     bool m_is_re_snapping_scroll_containers { false };

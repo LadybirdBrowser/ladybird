@@ -218,7 +218,7 @@ public:
     bool async_scrolling_state_can_wheel_scroll_at(double x, double y, double delta_x, double delta_y, bool precise, bool force_stale_wheel_event_regions);
     Utf16String async_scrolling_state_wheel_routing_admission();
     Utf16String async_scrolling_state_wheel_scroll_admission_at(double x, double y, double delta_x, double delta_y, bool precise, bool force_stale_wheel_event_regions);
-    Utf16String async_scrolling_state_wheel_target_at(double x, double y, double delta_x, double delta_y, bool precise);
+    Utf16String async_scrolling_state_wheel_target_at(double x, double y, double delta_x, double delta_y, bool precise, Bindings::ScrollGesturePhase);
     String viewport_overflow_x();
 
 private:

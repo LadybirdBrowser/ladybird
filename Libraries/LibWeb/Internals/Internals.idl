@@ -220,7 +220,7 @@ interface Internals {
     boolean asyncScrollingStateCanWheelScrollAt(double x, double y, double deltaX, double deltaY, optional boolean precise = false, optional boolean forceStaleWheelEventRegions = false);
     Utf16DOMString asyncScrollingStateWheelRoutingAdmission();
     Utf16DOMString asyncScrollingStateWheelScrollAdmissionAt(double x, double y, double deltaX, double deltaY, optional boolean precise = false, optional boolean forceStaleWheelEventRegions = false);
-    Utf16DOMString asyncScrollingStateWheelTargetAt(double x, double y, double deltaX, double deltaY, optional boolean precise = false);
+    Utf16DOMString asyncScrollingStateWheelTargetAt(double x, double y, double deltaX, double deltaY, optional boolean precise = false, optional ScrollGesturePhase scrollGesturePhase = "none");
     DOMString viewportOverflowX();
 
 };

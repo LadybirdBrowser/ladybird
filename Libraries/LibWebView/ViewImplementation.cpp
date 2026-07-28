@@ -693,7 +693,7 @@ void ViewImplementation::enqueue_input_event(Web::InputEvent event)
             auto delta_in_device_pixels = Gfx::FloatPoint { wheel_delta_x, wheel_delta_y }.scaled(device_pixels_per_css_pixel);
             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI attempting compositor wheel bypass for page {} at {},{} device delta {},{}",
                 m_client_state.page_index, position.x(), position.y(), delta_in_device_pixels.x(), delta_in_device_pixels.y());
-            auto snap_container_handling = Web::Compositor::snap_container_handling_for(mouse_event->wheel_delta_precision);
+            auto snap_container_handling = Web::Compositor::snap_container_handling_for(mouse_event->wheel_delta_precision, mouse_event->scroll_gesture_phase);
             if (client().send_async_scroll_to_compositor(m_client_state.page_index, position, delta_in_device_pixels, snap_container_handling))
                 mouse_event->async_scroll_performed_default_action = true;
             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor wheel bypass result for page {}: {}",

@@ -4087,11 +4087,16 @@ void LocalNavigable::note_user_scroll_gesture_phase(ScrollGesturePhase phase)
     switch (phase) {
     case ScrollGesturePhase::None:
         m_user_scroll_gesture_travels_under_momentum = false;
+        reset_momentum_fling_state();
         m_wheel_user_scroll_gesture_hold = nullptr;
         break;
     case ScrollGesturePhase::Ongoing:
     case ScrollGesturePhase::Momentum: {
         bool travels_under_momentum = phase == ScrollGesturePhase::Momentum;
+
+        if (!travels_under_momentum)
+            reset_momentum_fling_state();
+
         if (m_wheel_user_scroll_gesture_hold && m_user_scroll_gesture_travels_under_momentum != travels_under_momentum)
             m_wheel_user_scroll_gesture_hold = nullptr;
         m_user_scroll_gesture_travels_under_momentum = travels_under_momentum;
@@ -4102,6 +4107,7 @@ void LocalNavigable::note_user_scroll_gesture_phase(ScrollGesturePhase phase)
     }
     case ScrollGesturePhase::Ended:
         m_user_scroll_gesture_travels_under_momentum = false;
+        reset_momentum_fling_state();
         if (m_wheel_user_scroll_gesture_hold) {
             m_wheel_user_scroll_gesture_hold = nullptr;
             break;
@@ -4109,6 +4115,12 @@ void LocalNavigable::note_user_scroll_gesture_phase(ScrollGesturePhase phase)
         settle_user_scroll_gesture();
         break;
     }
+}
+
+void LocalNavigable::reset_momentum_fling_state()
+{
+    m_momentum_snap_position_selection = MomentumSnapPositionSelection::NotSelectedYet;
+    m_momentum_fling_estimator.reset();
 }
 
 void LocalNavigable::settle_user_scroll_gesture()
@@ -5225,7 +5237,7 @@ void LocalNavigable::abort_in_flight_smooth_scrolls_taken_over_by_user_input(Com
     abort_in_flight_smooth_scrolls(stable_node_id, SmoothScrollAbortCause::TakenOverByUserInput);
 }
 
-GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_a_scrolling_box(Compositor::AsyncScrollNodeStableID stable_node_id, CSSPixelPoint position, Bindings::ScrollBehavior behavior, GC::Ptr<DOM::Element> associated_element, ScrollTrigger trigger, Optional<CSSPixelPoint> relative_displacement, DestinationSnapping destination_snapping)
+GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_a_scrolling_box(Compositor::AsyncScrollNodeStableID stable_node_id, CSSPixelPoint position, Bindings::ScrollBehavior behavior, GC::Ptr<DOM::Element> associated_element, ScrollTrigger trigger, Optional<CSSPixelPoint> relative_displacement, DestinationSnapping destination_snapping, Compositor::ScrollAnimationKind animation_kind)
 {
     auto document = active_document();
     VERIFY(document);
@@ -5313,7 +5325,7 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_a_scrolling_box(Com
             static_cast<float>(initial_scroll_offset->y().to_double() * device_pixels_per_css_pixel),
         };
         auto viewport_rect = page().css_to_device_rect(this->viewport_rect()).to_type<int>();
-        auto enqueue_result = compositor_context().smooth_scroll_to(stable_node_id, target_offset, main_thread_offset, viewport_rect, device_pixels_per_css_pixel);
+        auto enqueue_result = compositor_context().smooth_scroll_to(stable_node_id, target_offset, main_thread_offset, viewport_rect, device_pixels_per_css_pixel, animation_kind);
         if (enqueue_result.accepted) {
             VERIFY(enqueue_result.operation_id.has_value());
             m_pending_async_scroll_operations.append(PendingAsyncScrollOperation {
@@ -5347,7 +5359,7 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_a_scrolling_box(Com
     }
     m_main_thread_smooth_scrolls.append(MainThreadSmoothScroll {
         .stable_node_id = stable_node_id,
-        .animation = Compositor::SmoothScrollAnimation { initial_scroll_offset->to_type<float>(), position.to_type<float>(), 1.0 },
+        .animation = Compositor::SmoothScrollAnimation { initial_scroll_offset->to_type<float>(), position.to_type<float>(), 1.0, animation_kind },
         .last_tick = MonotonicTime::now(),
         .elapsed = AK::Duration::zero(),
         .initial_scroll_offset = *initial_scroll_offset,
@@ -5368,7 +5380,7 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_an_element(DOM::Ele
         position, behavior, element, ScrollTrigger::Programmatic, relative_displacement);
 }
 
-bool LocalNavigable::perform_a_snapped_relative_user_scroll(Layout::Node& scroll_container, CSSPixelPoint delta, Painting::SnapSelectionStrategy::Type strategy_type, SnapStepAccumulation step_accumulation)
+bool LocalNavigable::perform_a_snapped_relative_user_scroll(Layout::Node& scroll_container, CSSPixelPoint delta, Painting::SnapSelectionStrategy::Type strategy_type, SnapStepAccumulation step_accumulation, Compositor::ScrollAnimationKind animation_kind)
 {
     auto document = active_document();
     if (!document)
@@ -5436,7 +5448,29 @@ bool LocalNavigable::perform_a_snapped_relative_user_scroll(Layout::Node& scroll
         return true;
 
     TemporaryExecutionContext temporary_execution_context { HTML::relevant_realm(*document) };
-    perform_a_scroll_of_a_scrolling_box(*stable_node_id, snap_destination.position, Bindings::ScrollBehavior::Smooth, nullptr, ScrollTrigger::UserInput);
+    perform_a_scroll_of_a_scrolling_box(*stable_node_id, snap_destination.position, Bindings::ScrollBehavior::Smooth, nullptr, ScrollTrigger::UserInput, {}, DestinationSnapping::SelectSnapPosition, animation_kind);
+    return true;
+}
+
+// https://drafts.csswg.org/css-scroll-snap-1/#choosing
+bool LocalNavigable::perform_a_snapped_momentum_scroll(Layout::Node& scroll_container, CSSPixelPoint momentum_delta)
+{
+    if (m_momentum_snap_position_selection == MomentumSnapPositionSelection::ScrollingToSelectedPosition)
+        return true;
+
+    if (m_momentum_snap_position_selection == MomentumSnapPositionSelection::NoPositionSelected)
+        return false;
+
+    auto remaining_displacement = m_momentum_fling_estimator.estimate_remaining_displacement(momentum_delta);
+    if (!remaining_displacement.has_value())
+        return false;
+
+    if (!perform_a_snapped_relative_user_scroll(scroll_container, *remaining_displacement, Painting::SnapSelectionStrategy::Type::EndPositionAndDirection, SnapStepAccumulation::UntilScrollFinishes, Compositor::ScrollAnimationKind::Momentum)) {
+        m_momentum_snap_position_selection = MomentumSnapPositionSelection::NoPositionSelected;
+        return false;
+    }
+
+    m_momentum_snap_position_selection = MomentumSnapPositionSelection::ScrollingToSelectedPosition;
     return true;
 }
 

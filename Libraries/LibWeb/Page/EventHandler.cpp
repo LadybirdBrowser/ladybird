@@ -797,13 +797,16 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
 
     CSSPixelPoint wheel_step_delta { CSSPixels::nearest_value_for(wheel_delta_x), CSSPixels::nearest_value_for(wheel_delta_y) };
 
-    auto perform_snapped_wheel_step = [&](Layout::Node* target) {
-        if (wheel_delta_precision != WheelDeltaPrecision::Discrete || !target)
+    auto perform_snapped_wheel_scroll = [&](Layout::Node* target) {
+        bool is_discrete_step = wheel_delta_precision == WheelDeltaPrecision::Discrete;
+        if (!target || (!is_discrete_step && scroll_gesture_phase != ScrollGesturePhase::Momentum))
             return false;
         auto* scrolling_box = scrolling_box_for_scroll_step(*target, wheel_step_delta);
         if (!scrolling_box)
             return false;
-        return m_navigable->perform_a_snapped_relative_user_scroll(*scrolling_box, wheel_step_delta, Painting::SnapSelectionStrategy::Type::Direction, HTML::LocalNavigable::SnapStepAccumulation::UntilGestureSettles);
+        if (is_discrete_step)
+            return m_navigable->perform_a_snapped_relative_user_scroll(*scrolling_box, wheel_step_delta, Painting::SnapSelectionStrategy::Type::Direction, HTML::LocalNavigable::SnapStepAccumulation::UntilGestureSettles);
+        return m_navigable->perform_a_snapped_momentum_scroll(*scrolling_box, wheel_step_delta);
     };
 
     auto wheel_step_selects_a_snap_position = [&] {
@@ -837,7 +840,7 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
             auto operation_tracking = async_scroll_operation
                 ? Compositor::AsyncScrollOperationTracking::Yes
                 : Compositor::AsyncScrollOperationTracking::No;
-            auto snap_container_handling = Compositor::snap_container_handling_for(wheel_delta_precision);
+            auto snap_container_handling = Compositor::snap_container_handling_for(wheel_delta_precision, scroll_gesture_phase);
             auto enqueue_result = m_navigable->compositor_context().async_scroll_by(
                 document->unique_id(), async_scroll_position, async_scroll_delta_in_device_pixels, viewport_rect, snap_container_handling, operation_tracking);
             async_scroll_performed_default_action = enqueue_result.accepted;
@@ -874,7 +877,7 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
         };
 
         auto perform_wheel_default_action = [&](Layout::Node* target) -> EventResult {
-            if (perform_snapped_wheel_step(target))
+            if (perform_snapped_wheel_scroll(target))
                 return EventResult::Handled;
 
             if (target && Painting::wheel_scroll_along_containing_block_chain(*target, wheel_delta_x, wheel_delta_y) == Painting::ScrollHandled::Yes)

@@ -65,6 +65,21 @@ struct SnapSelectionStrategy {
     Optional<CSSPixelPoint> starting_positions_boundary {};
 };
 
+// The displacement the momentum of a flick has left to travel, estimated from the deltas that momentum has produced
+// so far.
+class WEB_API MomentumFlingEstimator {
+public:
+    void reset();
+
+    // The displacement left to travel, including the delta given; momentum that has not yet decayed far enough to
+    // tell where it is headed reports no estimate.
+    Optional<CSSPixelPoint> estimate_remaining_displacement(CSSPixelPoint momentum_delta);
+
+private:
+    Optional<CSSPixelPoint> m_previous_momentum_delta;
+    u32 m_consecutively_decaying_momentum_deltas { 0 };
+};
+
 struct SnapAxes {
     bool x { false };
     bool y { false };

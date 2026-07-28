@@ -60,6 +60,11 @@ enum class AsyncScrollOperationTracking {
     Yes,
 };
 
+enum class ScrollAnimationKind : u8 {
+    SmoothScroll,
+    Momentum,
+};
+
 }
 
 namespace IPC {
