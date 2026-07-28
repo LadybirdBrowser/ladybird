@@ -16,7 +16,7 @@ Origin Origin::create_opaque(OpaqueData::Type type)
     return Origin { OpaqueData { get_random<OpaqueData::Nonce>(), type } };
 }
 
-Origin::Origin(Optional<String> const& scheme, Host const& host, Optional<u16> port, Optional<String> domain)
+Origin::Origin(Optional<String> const& scheme, Host const& host, Optional<u16> port, Optional<Host> domain)
     : m_state(Tuple {
           .scheme = scheme,
           .host = host,
@@ -80,7 +80,7 @@ Optional<Host> Origin::effective_domain() const
     // 2. If origin's domain is non-null, then return origin's domain.
     auto const& tuple = m_state.get<Tuple>();
     if (tuple.domain.has_value())
-        return Host { tuple.domain.value() };
+        return tuple.domain.value();
 
     // 3. Return origin's host.
     return tuple.host;
@@ -153,7 +153,7 @@ unsigned Traits<URL::Origin>::hash(URL::Origin const& origin)
     hash = pair_int_hash(hash, origin.host().serialize().hash());
 
     if (origin.domain().has_value())
-        hash = pair_int_hash(hash, origin.domain()->hash());
+        hash = pair_int_hash(hash, origin.domain()->serialize().hash());
 
     return hash;
 }
