@@ -45,7 +45,6 @@ flatpak_runtime_libs = [
     "libproxy",
     "nghttp2",
     "qtbase",
-    "qtmultimedia",
     "qtpositioning",
     "qtserialport",
     "sqlite3",
