@@ -249,6 +249,27 @@ fn vtable(group_index: usize) -> &'static StyleGroupVTable {
     &registry.vtables[group_index]
 }
 
+/// Resolves the registered group index of a Rust-native style group, letting
+/// the layout engine locate its typed payloads without a C++-supplied schema.
+#[allow(dead_code)]
+pub(crate) fn style_group_index_with_lifecycle(lifecycle: StyleGroupLifecycle) -> usize {
+    let registry = REGISTRY.get().expect("style groups used before registration");
+    registry
+        .vtables
+        .iter()
+        .position(|table| table.lifecycle == lifecycle)
+        .expect("style group lifecycle not registered")
+}
+
+#[allow(dead_code)]
+pub(crate) fn registered_style_group_count() -> usize {
+    REGISTRY
+        .get()
+        .expect("style groups used before registration")
+        .vtables
+        .len()
+}
+
 fn payload_size(table: &StyleGroupVTable) -> usize {
     match table.lifecycle {
         StyleGroupLifecycle::Cpp => table.size,
