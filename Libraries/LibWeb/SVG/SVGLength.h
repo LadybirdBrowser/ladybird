@@ -55,6 +55,10 @@ public:
     WebIDL::ExceptionOr<void> set_value(float value);
 
     u8 unit_type() const;
+
+    Utf16String value_as_string() const;
+    WebIDL::ExceptionOr<void> set_value_as_string(Utf16String);
+
     ReadOnly read_only() const { return m_read_only; }
 
 private:

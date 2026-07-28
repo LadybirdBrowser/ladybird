@@ -2,10 +2,11 @@ Harness status: OK
 
 Found 11 tests
 
-11 Fail
+1 Pass
+10 Fail
 Fail	SVGLength, converting from 'px' to other units (attached), unitless
 Fail	SVGLength, converting from 'px' to other units (attached), percentage
-Fail	SVGLength, converting from 'px' to other units (attached), changing percentage basis
+Pass	SVGLength, converting from 'px' to other units (attached), changing percentage basis
 Fail	SVGLength, converting from 'px' to other units (attached), ems
 Fail	SVGLength, converting from 'px' to other units (attached) , exs
 Fail	SVGLength, converting from 'px' to other units (attached), exs (check style flush)

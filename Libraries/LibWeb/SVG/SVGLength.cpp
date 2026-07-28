@@ -339,4 +339,73 @@ WebIDL::ExceptionOr<void> SVGLength::set_value(float value)
     return {};
 }
 
+// https://w3c.github.io/svgwg/svg2-draft/types.html#__svg__SVGLength__valueAsString
+Utf16String SVGLength::value_as_string() const
+{
+    // On getting valueAsString, the following steps are run:
+
+    // 1. Let value be the SVGLength's value.
+
+    // 2. Let string be an empty string.
+
+    // 3. If value is a <number>, <percentage> or scalar <length> value, then:
+    {
+        // 1. Let factor be value's numeric factor, if it is a <percentage> or <length>, or value itself it is a
+        //    <number>.
+
+        // 2. Append to string an implementation specific string that, if parsed as a <number> using CSS syntax,
+        //    would return the number value closest to factor, given the implementation's supported real number
+        //    precision.
+
+        // 3. If value is a <percentage> then append to string a single U+0025 PERCENT SIGN character.
+
+        // 4. Otherwise, if value is a <length>, then append to string the canonical spelling of value's unit.
+
+        // 5. Return string.
+    }
+
+    // 6. Otherwise, return an implementation specific string that, if parsed as a <length>, would return the closest
+    //    length value to value, given the implementation's supported real number precision.
+
+    // AD-HOC: We can achieve the same functionality by just serializing the internal value to a string.
+    return internal_value()->to_utf16_string(CSS::SerializationMode::Normal);
+}
+
+// https://w3c.github.io/svgwg/svg2-draft/types.html#__svg__SVGLength__valueAsString
+WebIDL::ExceptionOr<void> SVGLength::set_value_as_string(Utf16String value)
+{
+    // On setting valueAsString, the following steps are run:
+
+    // 1. If the SVGLength object is read only, then throw a NoModificationAllowedError.
+    if (m_read_only == ReadOnly::Yes)
+        return WebIDL::NoModificationAllowedError::create(realm(), "Cannot modify value of read-only SVGLength"_utf16);
+
+    // 2. Let value be the value being assigned to valueAsString.
+
+    // 3. Parse value using the CSS syntax [ <number> | <length> | <percentage> ].
+    auto parsed_value = parse_css_length_value(realm(), value);
+
+    // 4. If parsing failed, then throw a SyntaxError.
+    if (!parsed_value)
+        return WebIDL::SyntaxError::create(realm(), "Failed to parse value as a <number>, <length> or <percentage>"_utf16);
+
+    // 5. Otherwise, parsing succeeded. Set SVGLength's value to the parsed value.
+    // NB: Modes other than DetachedSource have their value set implicitly when reserializing the reflected attribute.
+    if (m_source.has<DetachedSource>())
+        m_source.get<DetachedSource>().value = *parsed_value;
+
+    // 6. If the SVGLength reflects the base value of a reflected attribute or reflects an element of the base value of
+    //    a reflected attribute, then reserialize the reflected attribute.
+    // FIXME: Implement this for "reflects an element of the base value of a reflected attribute" when we support it.
+    // FIXME: Should this also happen for "reflects a presentation attribute" as we do with set_value()?
+    if (m_source.has<ReflectedAttributeSource>()) {
+        // NB: All attribute reflecting lengths should have an associated element
+        VERIFY(m_element);
+
+        m_element->set_attribute_value(m_source.get<ReflectedAttributeSource>().name, parsed_value->to_utf16_string(CSS::SerializationMode::Normal));
+    }
+
+    return {};
+}
+
 }
