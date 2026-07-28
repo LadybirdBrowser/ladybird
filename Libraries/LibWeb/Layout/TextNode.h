@@ -106,6 +106,9 @@ public:
 
     void invalidate_text_for_rendering();
 
+    void enroll_for_arena_text_content_sync() const;
+    void sync_text_content_to_arena() const;
+
     Unicode::Segmenter& grapheme_segmenter() const;
     Unicode::Segmenter& line_segmenter() const;
 
@@ -162,6 +165,8 @@ private:
     TextDependentCache const& ensure_text_dependent_cache() const;
 
     mutable Optional<TextDependentCache> m_text_dependent_cache;
+    mutable bool m_arena_text_content_in_sync { false };
+    mutable bool m_enrolled_for_arena_text_content_sync { false };
 };
 
 class GeneratedTextNode final : public TextNode {

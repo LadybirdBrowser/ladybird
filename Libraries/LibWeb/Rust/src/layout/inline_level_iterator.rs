@@ -69,6 +69,7 @@ struct ExtraBoxMetrics {
 #[derive(Clone, Copy)]
 struct TextNodeContext {
     facts: FfiTextNodeFacts,
+    text: &'static [u16],
     next_chunk_index: usize,
     should_collapse_whitespace: bool,
     should_respect_linebreaks: bool,
@@ -114,7 +115,6 @@ impl<'iterator, 'context, 'pass> InlineLevelIteratorGenerator<'iterator, 'contex
         iterator.skip_to_next();
         iterator.generate_all_items();
         InlineLevelIterator {
-            is_unidirectional_left_to_right: iterator.is_unidirectional_left_to_right,
             visited_fragmented_inlines: iterator.visited_fragmented_inlines,
             items: iterator.items,
             next_item_index: iterator.next_item_index,
@@ -135,14 +135,6 @@ impl<'iterator, 'context, 'pass> InlineLevelIteratorGenerator<'iterator, 'contex
         }
         // SAFETY: The state-owned text snapshot remains alive for the pass.
         unsafe { std::slice::from_raw_parts(facts.chunks, facts.chunk_count) }
-    }
-
-    fn text(facts: FfiTextNodeFacts) -> &'static [u16] {
-        if facts.text_length_in_code_units == 0 {
-            return &[];
-        }
-        // SAFETY: The state-owned text snapshot remains alive for the pass.
-        unsafe { std::slice::from_raw_parts(facts.text_utf16, facts.text_length_in_code_units) }
     }
 
     fn is_out_of_flow(&self, node: Node) -> bool {
@@ -340,6 +332,7 @@ impl<'iterator, 'context, 'pass> InlineLevelIteratorGenerator<'iterator, 'contex
             .ffi();
         self.text_node_context = Some(TextNodeContext {
             facts,
+            text: &callbacks.text_content(text_node).text,
             next_chunk_index: 0,
             should_collapse_whitespace,
             should_respect_linebreaks,
@@ -419,7 +412,7 @@ impl<'iterator, 'context, 'pass> InlineLevelIteratorGenerator<'iterator, 'contex
         let is_empty_editable = chunk.is_none()
             && is_first_chunk
             && is_last_chunk
-            && text_context.facts.text_length_in_code_units == 0
+            && text_context.text.is_empty()
             && text_context.facts.is_empty_editable;
         let chunk = if let Some(chunk) = chunk {
             chunk
@@ -463,7 +456,7 @@ impl<'iterator, 'context, 'pass> InlineLevelIteratorGenerator<'iterator, 'contex
 
         let style = self.context().style(self.context().parent_node(text_node));
         let mut inline_offset = 0.0f32;
-        let full_text = Self::text(text_context.facts);
+        let full_text = text_context.text;
         let mut shaped_start = chunk.start;
         let mut shaped_length = chunk.length;
         if chunk.has_breaking_tab {
@@ -595,7 +588,6 @@ impl<'iterator, 'context, 'pass> InlineLevelIteratorGenerator<'iterator, 'contex
 }
 
 pub(crate) struct InlineLevelIterator {
-    is_unidirectional_left_to_right: bool,
     visited_fragmented_inlines: Vec<Node>,
     items: Vec<Item>,
     next_item_index: usize,
@@ -604,14 +596,6 @@ pub(crate) struct InlineLevelIterator {
 impl InlineLevelIterator {
     pub(crate) fn new(context: &mut InlineFormattingContext<'_, '_>) -> Self {
         InlineLevelIteratorGenerator::generate(context)
-    }
-
-    fn text(facts: FfiTextNodeFacts) -> &'static [u16] {
-        if facts.text_length_in_code_units == 0 {
-            return &[];
-        }
-        // SAFETY: The state-owned text snapshot remains alive for the pass.
-        unsafe { std::slice::from_raw_parts(facts.text_utf16, facts.text_length_in_code_units) }
     }
 
     pub(crate) fn next(&mut self) -> Option<Item> {
@@ -640,17 +624,7 @@ impl InlineLevelIterator {
                 if item.type_ != ItemType::Text || item.is_collapsible_whitespace {
                     break;
                 }
-                let facts = context
-                    .state
-                    .text_facts(
-                        &context.callbacks,
-                        item.node,
-                        true,
-                        false,
-                        self.is_unidirectional_left_to_right,
-                    )
-                    .ffi();
-                let text = Self::text(facts);
+                let text = &context.callbacks.text_content(item.node).text;
                 if text[item.offset_in_node..item.offset_in_node + item.length_in_node]
                     .iter()
                     .all(|unit| *unit <= 0x7f && (*unit as u8).is_ascii_whitespace())
@@ -665,23 +639,8 @@ impl InlineLevelIterator {
 
     pub(crate) fn item_is_ascii_whitespace(&self, context: &InlineFormattingContext<'_, '_>, item: &Item) -> bool {
         assert_eq!(item.type_, ItemType::Text);
-        let style = context.style(context.parent_node(item.node));
-        let should_wrap = style.text_wrap_mode == text_wrap_mode::WRAP;
-        let should_respect = matches!(
-            style.white_space_collapse,
-            white_space_collapse::PRESERVE | white_space_collapse::PRESERVE_BREAKS | white_space_collapse::BREAK_SPACES
-        );
-        let facts = context
-            .state
-            .text_facts(
-                &context.callbacks,
-                item.node,
-                should_wrap,
-                should_respect,
-                self.is_unidirectional_left_to_right,
-            )
-            .ffi();
-        Self::text(facts)[item.offset_in_node..item.offset_in_node + item.length_in_node]
+        let text = &context.callbacks.text_content(item.node).text;
+        text[item.offset_in_node..item.offset_in_node + item.length_in_node]
             .iter()
             .all(|unit| *unit <= 0x7f && (*unit as u8).is_ascii_whitespace())
     }
@@ -707,8 +666,6 @@ pub struct FfiTextChunk {
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct FfiTextNodeFacts {
-    pub text_utf16: *const u16,
-    pub text_length_in_code_units: usize,
     pub chunks: *const FfiTextChunk,
     pub chunk_count: usize,
     pub is_empty_editable: bool,
@@ -755,7 +712,6 @@ impl TextNodeFacts {
         // SAFETY: `built` is true, so the callback initialized every field.
         let ffi = unsafe { ffi.assume_init() };
         assert!(!ffi.retained.is_null());
-        assert!(ffi.text_length_in_code_units == 0 || !ffi.text_utf16.is_null());
         assert!(ffi.chunk_count == 0 || !ffi.chunks.is_null());
         Self {
             ffi,

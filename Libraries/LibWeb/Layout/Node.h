@@ -105,6 +105,7 @@ public:
     static RustFFI::NodeSlotId slot_id(Node const*);
     u32 arena_slot_index() const { return m_slot.index; }
     void* arena_handle() const;
+    NodeArena& node_arena() const { return *m_arena; }
 
     bool is_anonymous() const { return has_flag(RustFFI::NodeFlag::Anonymous); }
     DOM::Node const* dom_node() const;

@@ -93,6 +93,18 @@ struct SavedAbsposLayoutInputsSlot {
     inputs: Option<Box<AbsposLayoutInputs>>,
 }
 
+#[derive(Default)]
+pub(crate) struct TextContent {
+    pub(crate) text: Vec<u16>,
+    pub(crate) may_require_bidi_processing: bool,
+}
+
+#[derive(Default)]
+struct TextContentSlot {
+    generation: u8,
+    content: Option<Box<TextContent>>,
+}
+
 // NodeData is sized to one cache line; the aligned chunk keeps every densely-strided slot
 // line-aligned, and per-slot bookkeeping lives in a parallel array so it stays that way.
 #[repr(align(64))]
@@ -134,6 +146,7 @@ pub(crate) struct LayoutNodeArena {
     live_count: u32,
     intrinsic_size_caches: RefCell<Vec<IntrinsicSizeCacheSlot>>,
     saved_abspos_layout_inputs: RefCell<Vec<SavedAbsposLayoutInputsSlot>>,
+    text_contents: Vec<TextContentSlot>,
     owner_thread: thread::ThreadId,
 }
 
@@ -148,6 +161,7 @@ impl LayoutNodeArena {
             live_count: 0,
             intrinsic_size_caches: RefCell::new(Vec::new()),
             saved_abspos_layout_inputs: RefCell::new(Vec::new()),
+            text_contents: Vec::new(),
             owner_thread: thread::current().id(),
         }
     }
@@ -233,6 +247,9 @@ impl LayoutNodeArena {
         }
         if let Some(slot) = self.saved_abspos_layout_inputs.get_mut().get_mut(index as usize) {
             *slot = SavedAbsposLayoutInputsSlot::default();
+        }
+        if let Some(slot) = self.text_contents.get_mut(index as usize) {
+            *slot = TextContentSlot::default();
         }
         *self.data_mut(index) = NodeData::default();
 
@@ -498,6 +515,30 @@ impl LayoutNodeArena {
         }
     }
 
+    pub(crate) fn set_text_content(&mut self, id: NodeSlotId, text: Vec<u16>, may_require_bidi_processing: bool) {
+        self.assert_owner_thread();
+        self.data(id);
+        let index = id.slot_index() as usize;
+        if self.text_contents.len() <= index {
+            self.text_contents.resize_with(index + 1, TextContentSlot::default);
+        }
+        self.text_contents[index] = TextContentSlot {
+            generation: id.generation(),
+            content: Some(Box::new(TextContent {
+                text,
+                may_require_bidi_processing,
+            })),
+        };
+    }
+
+    pub(crate) fn text_content(&self, id: NodeSlotId) -> Option<&TextContent> {
+        assert!(!id.is_invalid(), "invalid layout node arena slot ID");
+        self.text_contents
+            .get(id.slot_index() as usize)
+            .filter(|slot| slot.generation == id.generation())
+            .and_then(|slot| slot.content.as_deref())
+    }
+
     pub(crate) fn transfer_saved_abspos_layout_inputs(&self, old: NodeSlotId, new: NodeSlotId) {
         self.assert_owner_thread();
         assert_ne!(old, new, "cannot transfer saved abspos inputs to the same arena slot");
@@ -584,6 +625,38 @@ pub unsafe extern "C" fn layout_arena_free(arena: *mut c_void, id: NodeSlotId, g
         // SAFETY: The C++ wrapper keeps the arena alive for this call and
         // serializes all access on the document thread.
         unsafe { &mut *arena.cast::<LayoutNodeArena>() }.free(id, generation);
+    });
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_set_text_content(
+    arena: *mut c_void,
+    id: NodeSlotId,
+    ascii_text: *const u8,
+    utf16_text: *const u16,
+    length_in_code_units: usize,
+    may_require_bidi_processing: bool,
+) {
+    abort_on_panic(|| {
+        assert!(!arena.is_null(), "layout node arena handle is null");
+        let text = if length_in_code_units == 0 {
+            Vec::new()
+        } else if !ascii_text.is_null() {
+            // SAFETY: The C++ caller passes the live ASCII storage of the
+            // node's rendered text for the duration of this synchronous call.
+            unsafe { std::slice::from_raw_parts(ascii_text, length_in_code_units) }
+                .iter()
+                .map(|unit| u16::from(*unit))
+                .collect()
+        } else {
+            assert!(!utf16_text.is_null(), "text content push carries no storage");
+            // SAFETY: The C++ caller passes the live UTF-16 storage of the
+            // node's rendered text for the duration of this synchronous call.
+            unsafe { std::slice::from_raw_parts(utf16_text, length_in_code_units) }.to_vec()
+        };
+        // SAFETY: The C++ wrapper keeps the arena alive for this call and
+        // serializes all access on the document thread.
+        unsafe { &mut *arena.cast::<LayoutNodeArena>() }.set_text_content(id, text, may_require_bidi_processing);
     });
 }
 
