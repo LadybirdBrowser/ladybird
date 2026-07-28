@@ -2,6 +2,7 @@ Harness status: OK
 
 Found 2 tests
 
-2 Fail
-Fail	rem unit in SVGLength
+1 Pass
+1 Fail
+Pass	rem unit in SVGLength
 Fail	Convert back to rem from new user unit value

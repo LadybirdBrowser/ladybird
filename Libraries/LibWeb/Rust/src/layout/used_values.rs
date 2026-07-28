@@ -31,6 +31,13 @@ impl Default for FfiCssPixelPoint {
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(C)]
+pub struct FfiCssPixelSize {
+    pub width: CssPixels,
+    pub height: CssPixels,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[repr(C)]
 pub(crate) struct LineBoxFragmentCoordinate {
     pub line_box_index: usize,
     pub fragment_index: usize,

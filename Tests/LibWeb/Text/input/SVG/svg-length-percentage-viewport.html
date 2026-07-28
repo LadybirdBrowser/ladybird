@@ -1,0 +1,28 @@
+<!doctype html>
+<script src="../include.js"></script>
+<div style="width: 400px; height: 300px">
+    <svg id="root" width="50%" height="50%"></svg>
+</div>
+<svg width="200" height="100" viewBox="0 0 -500 250">
+    <rect id="invalid-view-box-child" x="50%"></rect>
+</svg>
+<svg width="200" height="100" viewBox="0 0 100 50">
+    <svg width="40" height="20" viewBox="0 0 -10 10">
+        <rect id="nested-invalid-view-box-child" x="50%"></rect>
+    </svg>
+</svg>
+<script>
+    test(() => {
+        function check(actual, expected, description) {
+            if (actual !== expected) throw new Error(`${description}: got ${actual}, expected ${expected}`);
+        }
+
+        const root = document.getElementById("root");
+        check(root.width.baseVal.value, 100, "outermost percentage width");
+        check(root.height.baseVal.value, 75, "outermost percentage height");
+        check(document.getElementById("invalid-view-box-child").x.baseVal.value, 100, "invalid viewBox percentage");
+        check(document.getElementById("nested-invalid-view-box-child").x.baseVal.value, 20, "nested invalid viewBox percentage");
+
+        println("PASS");
+    });
+</script>

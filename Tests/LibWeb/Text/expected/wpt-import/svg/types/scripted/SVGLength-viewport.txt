@@ -2,12 +2,13 @@ Harness status: OK
 
 Found 8 tests
 
-8 Fail
-Fail	vw unit in SVGLength
+4 Pass
+4 Fail
+Pass	vw unit in SVGLength
 Fail	Convert back to vw from new user unit value
-Fail	vh unit in SVGLength
+Pass	vh unit in SVGLength
 Fail	Convert back to vh from new user unit value
-Fail	vmin unit in SVGLength
+Pass	vmin unit in SVGLength
 Fail	Convert back to vmin from new user unit value
-Fail	vmax unit in SVGLength
+Pass	vmax unit in SVGLength
 Fail	Convert back to vmax from new user unit value

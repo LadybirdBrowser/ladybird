@@ -23,6 +23,9 @@ public:
     void set_computed_transforms(SVGGraphicsPaintable::ComputedTransforms computed_transforms) { m_computed_transforms = computed_transforms; }
     SVGGraphicsPaintable::ComputedTransforms const& computed_transforms() const { return m_computed_transforms; }
 
+    void set_svg_viewport_size(CSSPixelSize viewport_size) { m_svg_viewport_size = viewport_size; }
+    CSSPixelSize svg_viewport_size() const { return m_svg_viewport_size; }
+
 protected:
     SVGSVGPaintable(Layout::SVGSVGBox const&);
 
@@ -30,6 +33,7 @@ private:
     virtual bool is_svg_svg_paintable() const final { return true; }
 
     SVGGraphicsPaintable::ComputedTransforms m_computed_transforms;
+    CSSPixelSize m_svg_viewport_size;
 };
 
 template<>

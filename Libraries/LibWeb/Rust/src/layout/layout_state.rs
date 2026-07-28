@@ -302,6 +302,7 @@ pub struct FfiPaintableGeometry {
     pub content_inline_size: crate::layout::CssPixels,
     pub content_block_size: crate::layout::CssPixels,
     pub content_offset: crate::layout::FfiCssPixelPoint,
+    pub svg_viewport_size: crate::layout::FfiCssPixelSize,
     pub margin_left: crate::layout::CssPixels,
     pub margin_right: crate::layout::CssPixels,
     pub margin_top: crate::layout::CssPixels,
@@ -336,6 +337,7 @@ pub struct FfiCommitSink {
     pub emit_inline_box_piece: unsafe extern "C" fn(*mut c_void, FfiInlineBoxPiece),
     pub finish_line_data: unsafe extern "C" fn(*mut c_void),
     pub set_computed_svg_transforms: unsafe extern "C" fn(*mut c_void, *mut c_void, crate::layout::FfiSvgComputedTransforms),
+    pub set_svg_viewport_size: unsafe extern "C" fn(*mut c_void, *mut c_void, crate::layout::FfiCssPixelSize),
     pub set_computed_svg_path: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void),
     pub set_grid_layout_data: unsafe extern "C" fn(*mut c_void, *mut c_void, *const FfiGridLayoutData),
     pub set_flex_layout_data: unsafe extern "C" fn(*mut c_void, *mut c_void, *const FfiFlexLayoutData),
@@ -880,6 +882,7 @@ pub(crate) struct UsedValuesRareData {
     pub(crate) table_cell_coordinates: Option<FfiTableCellCoordinates>,
     pub(crate) computed_svg_path: Option<RetainedLayoutHandle>,
     pub(crate) computed_svg_transforms: Option<crate::layout::FfiSvgComputedTransforms>,
+    pub(crate) svg_viewport_size: Option<crate::layout::FfiCssPixelSize>,
     pub(crate) grid_layout_data: Option<OwnedGridLayoutData>,
     pub(crate) flex_layout_data: Option<OwnedFlexLayoutData>,
     pub(crate) used_grid_tracks: Option<OwnedUsedGridTracks>,
@@ -1162,6 +1165,9 @@ impl LayoutState {
         used.inset_right.set(geometry.inset_right);
         used.inset_top.set(geometry.inset_top);
         used.inset_bottom.set(geometry.inset_bottom);
+        if self.node_facts(callbacks, node).is_svg_svg_box() {
+            self.used_values_rare_data_mut(slot_index).svg_viewport_size = Some(geometry.svg_viewport_size);
+        }
 
         Some(self.used_values.allocate(slot_index, used))
     }
@@ -1622,17 +1628,21 @@ impl LayoutState {
                 }
             }
 
-            let (transforms, path) = self
+            let (transforms, viewport_size, path) = self
                 .used_values_rare_data_mut_if_present(slot_index)
-                .map_or((None, None), |mut rare| {
+                .map_or((None, None, None), |mut rare| {
                     (
                         rare.computed_svg_transforms,
+                        rare.svg_viewport_size,
                         rare.computed_svg_path.as_mut().map(RetainedLayoutHandle::take),
                     )
                 });
             unsafe {
                 if let Some(transforms) = transforms {
                     (sink.set_computed_svg_transforms)(sink.context, paintable, transforms);
+                }
+                if let Some(viewport_size) = viewport_size {
+                    (sink.set_svg_viewport_size)(sink.context, paintable, viewport_size);
                 }
                 if let Some(path) = path {
                     (sink.set_computed_svg_path)(sink.context, paintable, path);

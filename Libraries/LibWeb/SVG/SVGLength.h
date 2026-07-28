@@ -51,7 +51,7 @@ public:
 
     virtual ~SVGLength() override;
 
-    float value() const;
+    WebIDL::ExceptionOr<float> value() const;
     WebIDL::ExceptionOr<void> set_value(float value);
 
     u8 unit_type() const;
