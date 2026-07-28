@@ -17,11 +17,11 @@ SaveLayer@0
   DrawGlyphRun@2 rect=[11,11 30x13] translation=[11,21.390625] color=rgb(0, 0, 0)
   FillRect@2 rect=[11,11 1x13] color=rgb(0, 0, 0)
   FillPath@1 path_bounding_rect=[6,6 110x36]
-  DrawLine@1 from=[109,37] to=[111,35] color=rgba(255, 255, 255, 0.392) thickness=1
-  DrawLine@1 from=[108,37] to=[111,34] color=rgba(0, 0, 0, 0.392) thickness=1
-  DrawLine@1 from=[106,37] to=[111,32] color=rgba(255, 255, 255, 0.392) thickness=1
-  DrawLine@1 from=[105,37] to=[111,31] color=rgba(0, 0, 0, 0.392) thickness=1
-  DrawLine@1 from=[103,37] to=[111,29] color=rgba(255, 255, 255, 0.392) thickness=1
-  DrawLine@1 from=[102,37] to=[111,28] color=rgba(0, 0, 0, 0.392) thickness=1
+  DrawLine@1 from=[109,37] to=[111,35] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
+  DrawLine@1 from=[108,37] to=[111,34] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
+  DrawLine@1 from=[106,37] to=[111,32] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
+  DrawLine@1 from=[105,37] to=[111,31] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
+  DrawLine@1 from=[103,37] to=[111,29] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
+  DrawLine@1 from=[102,37] to=[111,28] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
 Restore@0
 

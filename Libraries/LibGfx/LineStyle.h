@@ -8,7 +8,7 @@
 
 namespace Gfx {
 
-enum class LineStyle {
+enum class LineStyle : u8 {
     Solid,
     Dotted,
     Dashed,

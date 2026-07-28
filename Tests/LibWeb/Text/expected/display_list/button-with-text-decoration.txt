@@ -14,6 +14,6 @@ SaveLayer@0
   CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[13,10 95.671875x16]
   CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[13,10 95.671875x16]
   DrawGlyphRun@1 rect=[13,10 96x16] translation=[13,22.796875] color=rgb(0, 0, 0)
-  DrawLine@1 from=[13,26] to=[109,26] color=rgb(0, 0, 0) thickness=2
+  DrawLine@1 from=[13,26] to=[109,26] color=rgb(0, 0, 0) thickness=2 style=Solid
 Restore@0
 
