@@ -25,13 +25,13 @@ pub struct FfiReplacedContentFacts {
 }
 
 /// Marker linkage and font-measured marker metrics, fetched lazily once per
-/// pass for list items and their marker boxes only. The marker link mirrors
-/// the C++ WeakPtr so a marker detached mid-lifetime reads as absent instead
-/// of tripping a stale-slot assertion.
+/// pass for list items and their marker boxes only. The marker slot id is
+/// read from the C++ WeakPtr at fetch time, so a marker detached before the
+/// pass reads as INVALID instead of tripping a stale-slot assertion.
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiListItemFacts {
-    pub marker: *mut c_void,
+    pub marker: NodeSlotId,
     pub has_css_marker_content: bool,
     pub marker_content_inline_size: CssPixels,
     pub marker_content_block_size: CssPixels,
@@ -42,7 +42,7 @@ pub struct FfiListItemFacts {
 impl Default for FfiListItemFacts {
     fn default() -> Self {
         Self {
-            marker: std::ptr::null_mut(),
+            marker: NodeSlotId::INVALID,
             has_css_marker_content: false,
             marker_content_inline_size: CssPixels::default(),
             marker_content_block_size: CssPixels::default(),

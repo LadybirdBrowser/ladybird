@@ -640,7 +640,7 @@ impl<'pass> NodeFacts<'pass> {
     }
 
     pub(crate) fn list_item_marker(&self) -> Node {
-        self.callbacks.node_for_shell_or_invalid(self.list_item().marker)
+        self.list_item().marker
     }
 
     pub(crate) fn has_css_marker_content(&self) -> bool {
