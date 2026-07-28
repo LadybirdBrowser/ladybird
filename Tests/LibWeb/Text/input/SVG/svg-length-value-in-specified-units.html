@@ -1,0 +1,29 @@
+<!doctype html>
+<script src="../include.js"></script>
+<svg>
+    <rect id="rect"></rect>
+</svg>
+<script>
+    test(() => {
+        const rect = document.getElementById("rect");
+        const length = rect.x.baseVal;
+        const cases = [
+            ["12", 12, "24"],
+            ["12%", 12, "24%"],
+            ["12em", 12, "24em"],
+            ["calc(12px + 5%)", 0, "24"],
+        ];
+
+        for (const [value, expectedValue, expectedUpdatedValue] of cases) {
+            rect.setAttribute("x", value);
+            if (length.valueInSpecifiedUnits !== expectedValue)
+                throw new Error(`valueInSpecifiedUnits for ${value} was ${length.valueInSpecifiedUnits}`);
+
+            length.valueInSpecifiedUnits = 24;
+            if (rect.getAttribute("x") !== expectedUpdatedValue)
+                throw new Error(`Setting valueInSpecifiedUnits for ${value} produced ${rect.getAttribute("x")}`);
+        }
+
+        println("PASS");
+    });
+</script>
