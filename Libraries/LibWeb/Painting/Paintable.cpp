@@ -1014,6 +1014,18 @@ void Paintable::invalidate_paint_cache() const
     m_cached_paint_data = nullptr;
 }
 
+// Descendant boxes paint this box's propagated text decorations from its computed values, so their
+// cached commands go stale when those values change even though the descendants' style is unchanged.
+void Paintable::invalidate_propagated_text_decoration_caches() const
+{
+    for_each_in_subtree([](Paintable const& descendant) {
+        if (descendant.layout_node().is_text_decoration_propagation_boundary())
+            return TraversalDecision::SkipChildrenAndContinue;
+        descendant.invalidate_paint_cache();
+        return TraversalDecision::Continue;
+    });
+}
+
 void Paintable::set_cached_commands(PaintPhase phase, u64 display_list_id, DisplayListCommandRange range, VisualContextIndex recorded_context_index, bool captured_under_empty_effective_clip) const
 {
     if (!m_cached_paint_data)

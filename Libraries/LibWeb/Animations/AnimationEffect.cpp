@@ -958,10 +958,21 @@ AnimationUpdateContext::~AnimationUpdateContext()
 
         if (invalidation.needs_repaint()) {
             if (element.pseudo_element().has_value()) {
-                if (auto pseudo_element_node = target->pseudo_element_unsafe_layout_node(*element.pseudo_element()); pseudo_element_node && pseudo_element_node->paintable())
-                    pseudo_element_node->paintable()->set_needs_repaint();
+                if (auto pseudo_element_node = target->pseudo_element_unsafe_layout_node(*element.pseudo_element())) {
+                    if (auto paintable = pseudo_element_node->paintable()) {
+                        paintable->set_needs_repaint();
+                        if (invalidation.repaint_propagated_text_decorations)
+                            paintable->invalidate_propagated_text_decoration_caches();
+                    }
+                }
             } else {
                 target->set_needs_repaint();
+                if (invalidation.repaint_propagated_text_decorations) {
+                    if (auto* layout_node = target->unsafe_layout_node()) {
+                        if (auto paintable = layout_node->paintable())
+                            paintable->invalidate_propagated_text_decoration_caches();
+                    }
+                }
             }
         }
         if (invalidation.needs_stacking_context_tree_rebuild())

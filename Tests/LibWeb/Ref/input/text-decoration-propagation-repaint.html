@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/text-decoration-propagation-repaint-ref.html">
+<style>
+    #color { text-decoration: underline transparent; }
+    #color.on { text-decoration: underline red; }
+
+    #removal.on { text-decoration: underline red; }
+
+    #offset {
+        text-decoration: underline;
+        text-decoration-skip-ink: none;
+        text-underline-offset: 0;
+    }
+
+    #offset.on { text-underline-offset: 12px; }
+    #offset-descendant { text-underline-offset: 0; }
+
+    #position {
+        text-decoration: underline;
+        text-decoration-skip-ink: none;
+        text-underline-position: auto;
+    }
+
+    #position.on { text-underline-position: under; }
+    #position-descendant { text-underline-position: auto; }
+</style>
+<span id="color"><div>This text must have a red underline.</div></span>
+<span id="removal" class="on"><div>This text must not have an underline.</div></span>
+<span id="offset">before <div id="offset-descendant">nested</div> after</span>
+<span id="position">before <div id="position-descendant">nested</div> after</span>
+<script>
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            for (let id of ["color", "offset", "position"])
+                document.getElementById(id).classList.add("on");
+            document.getElementById("removal").classList.remove("on");
+            requestAnimationFrame(() => {
+                if (window.internals)
+                    internals.signalTestIsDone("PASS");
+                else
+                    document.documentElement.classList.remove("reftest-wait");
+            });
+        });
+    });
+</script>
+</html>
