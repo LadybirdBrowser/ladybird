@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<!-- Appending an iframe queues the navigable-creation bookkeeping — a null-navigationType apply-history-step run.
+     reload() marks the reloading frame's active entry as reload-pending synchronously, before the reload's own history
+     step enters the session history traversal queue. The earlier-queued bookkeeping run must not pick up the pending
+     reload. Performing that would populate a fresh document, and fail the spec step-11 assert that a creation/
+     destruction update never performs a cross-document change. See #10893. -->
+<html class="test-wait">
+<iframe id="x" srcdoc="reloadable"></iframe>
+<script>
+    window.onload = () => {
+        setTimeout(() => {
+            const f = document.createElement("iframe");
+            document.body.append(f);
+            x.onload = () => document.documentElement.classList.remove("test-wait");
+            x.contentWindow.location.reload();
+        }, 0);
+    };
+</script>
+</html>

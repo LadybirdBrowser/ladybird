@@ -980,6 +980,20 @@ void ApplyHistoryStepState::start()
         if (!target_entry)
             continue;
 
+        // https://html.spec.whatwg.org/multipage/browsing-the-web.html#update-for-navigable-creation/destruction
+        // AD-HOC: Unconditionally populating a document here could unload and re-navigate a frame because an unrelated
+        //         navigable was created or destroyed — which no other engine does. So we skip such applying-the-target-
+        //         entry-would-cross-documents navigables here. A navigable still showing the initial about:blank
+        //         Document is the exception — activating its populated document is this update's job.
+        //         https://github.com/whatwg/html/issues/12724
+        if (!m_navigation_type.has_value()) {
+            bool would_cross_documents = target_entry->document_state()->document_id() != navigable->active_document_id()
+                || target_entry->document_state()->reload_pending();
+            auto active_document = navigable->active_document();
+            if (would_cross_documents && !(active_document && active_document->is_initial_about_blank()))
+                continue;
+        }
+
         // https://html.spec.whatwg.org/multipage/nav-history-apis.html#fire-a-traverse-navigate-event
         // NB: Same-document traversals are synchronous in browser engines, but the specification routes them through
         //     the traversal queue. If a later cross-document navigation has already claimed the navigable by the time
