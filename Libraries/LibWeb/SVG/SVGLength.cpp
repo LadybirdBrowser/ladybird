@@ -31,51 +31,6 @@ GC::Ref<SVGLength> SVGLength::create_reflected_attribute(JS::Realm& realm, GC::R
     return realm.create<SVGLength>(realm, element, directionality, ReflectedAttributeSource { .name = move(name), .type = type, .default_value = move(default_value) }, read_only);
 }
 
-SVGLength::ParsedValue SVGLength::parsed_value_from_style_value(CSS::StyleValue const& style_value)
-{
-    if (style_value.is_number())
-        return { SVGLength::SVG_LENGTHTYPE_NUMBER, static_cast<float>(style_value.as_number().number()) };
-
-    if (style_value.is_percentage())
-        return { SVGLength::SVG_LENGTHTYPE_PERCENTAGE, static_cast<float>(style_value.as_percentage().percentage().value()) };
-
-    if (style_value.is_length()) {
-        auto length = style_value.as_length().length();
-        auto unit_type = [&] {
-            switch (length.unit()) {
-            case CSS::LengthUnit::Em:
-                return SVG_LENGTHTYPE_EMS;
-            case CSS::LengthUnit::Ex:
-                return SVG_LENGTHTYPE_EXS;
-            case CSS::LengthUnit::Px:
-                return SVG_LENGTHTYPE_PX;
-            case CSS::LengthUnit::Cm:
-                return SVG_LENGTHTYPE_CM;
-            case CSS::LengthUnit::Mm:
-                return SVG_LENGTHTYPE_MM;
-            case CSS::LengthUnit::In:
-                return SVG_LENGTHTYPE_IN;
-            case CSS::LengthUnit::Pt:
-                return SVG_LENGTHTYPE_PT;
-            case CSS::LengthUnit::Pc:
-                return SVG_LENGTHTYPE_PC;
-            default:
-                return SVG_LENGTHTYPE_UNKNOWN;
-            }
-        }();
-        return { static_cast<u8>(unit_type), static_cast<float>(length.raw_value()) };
-    }
-
-    // FIXME: Implement the proper spec algorithms for SVGLength getters so that we support non-scalar values
-    if (style_value.is_tree_counting_function())
-        return { SVG_LENGTHTYPE_UNKNOWN, 0 };
-
-    if (style_value.is_calculated())
-        return { SVG_LENGTHTYPE_UNKNOWN, 0 };
-
-    VERIFY_NOT_REACHED();
-}
-
 SVGLength::SVGLength(JS::Realm& realm, GC::Ptr<SVGElement> associated_element, Directionality directionality, Source&& source, ReadOnly read_only)
     : PlatformObject(realm)
     , m_element(associated_element)
@@ -269,9 +224,44 @@ WebIDL::ExceptionOr<float> SVGLength::value() const
     return CSS::Length::from_style_value(absolutized_value, CSS::Length::make_px(viewport_size)).absolute_length_to_px_without_rounding();
 }
 
+// https://w3c.github.io/svgwg/svg2-draft/types.html#__svg__SVGLength__unitType
 u8 SVGLength::unit_type() const
 {
-    return parsed_value_from_style_value(internal_value()).unit;
+    // 1. If the SVGLength's value is a unitless <number>, a <percentage>, or a <length> with an em, ex, px, cm, mm, in,
+    //    pt or pc unit, then return the corresponding constant value from the length unit type table above.
+    auto value = internal_value();
+
+    if (value->is_number())
+        return SVG_LENGTHTYPE_NUMBER;
+
+    if (value->is_percentage())
+        return SVG_LENGTHTYPE_PERCENTAGE;
+
+    if (value->is_length()) {
+        switch (value->as_length().length().unit()) {
+        case CSS::LengthUnit::Em:
+            return SVG_LENGTHTYPE_EMS;
+        case CSS::LengthUnit::Ex:
+            return SVG_LENGTHTYPE_EXS;
+        case CSS::LengthUnit::Px:
+            return SVG_LENGTHTYPE_PX;
+        case CSS::LengthUnit::Cm:
+            return SVG_LENGTHTYPE_CM;
+        case CSS::LengthUnit::Mm:
+            return SVG_LENGTHTYPE_MM;
+        case CSS::LengthUnit::In:
+            return SVG_LENGTHTYPE_IN;
+        case CSS::LengthUnit::Pt:
+            return SVG_LENGTHTYPE_PT;
+        case CSS::LengthUnit::Pc:
+            return SVG_LENGTHTYPE_PC;
+        default:
+            break;
+        }
+    }
+
+    // 2. Otherwise, return SVG_LENGTHTYPE_UNKNOWN.
+    return SVG_LENGTHTYPE_UNKNOWN;
 }
 
 static RefPtr<CSS::StyleValue const> parse_css_length_value(JS::Realm& realm, Utf16View const& value)

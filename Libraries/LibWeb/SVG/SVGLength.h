@@ -95,12 +95,6 @@ private:
     // An SVGLength object maintains an internal <length> or <percentage> or <number> value, which is called its value.
     NonnullRefPtr<CSS::StyleValue const> internal_value() const;
 
-    struct ParsedValue {
-        u8 unit;
-        float value;
-    };
-    static ParsedValue parsed_value_from_style_value(CSS::StyleValue const& style_value);
-
     Source m_source;
 
     // https://svgwg.org/svg2-draft/types.html#ReadOnlyLength
