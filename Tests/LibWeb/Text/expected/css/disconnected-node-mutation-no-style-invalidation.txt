@@ -7,5 +7,7 @@ div:has(> .flag) outline color: rgb(1, 2, 3)
 custom element :defined color: rgb(128, 0, 128)
 un-classed child color: rgb(0, 0, 0)
 detached child initial color: rgb(255, 0, 0)
-detached child inline color: rgb(0, 128, 0)
-detached child ancestor class color: rgb(0, 0, 255)
+detached child inline color: undefined
+detached child ancestor class color: undefined
+detached child map size: 0
+detached child map has color: false
