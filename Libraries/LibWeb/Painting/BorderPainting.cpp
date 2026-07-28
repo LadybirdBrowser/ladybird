@@ -428,271 +428,107 @@ void paint_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect
      *    / /-----------\ \
      *   /-/ 3         4 \-\
      *  1  2             5  6
-     * For each border edge, need to compute 8 points at most, then paint them as closed path.
-     * 8 points are the most complicated case, it happens when the joined border width is not 0 and border radius larger than border width on both side.
-     * If border radius is smaller than the border width, then the inner corner of the border corner is a right angle.
+     * For each border edge, need to compute 8 points at most, then paint them as closed path. 8 points are the most
+     * complicated case; it happens when the joined border width is not 0 and the border radius is larger than the
+     * border width on both sides. If the border radius is smaller than the border width, then the inner corner of the
+     * border corner is a right angle.
      */
+    struct Frame {
+        Gfx::FloatPoint along;
+        Gfx::FloatPoint into;
+        DevicePixelPoint start_outer;
+        DevicePixelPoint start_inner;
+        DevicePixelPoint end_inner;
+        DevicePixelPoint end_outer;
+        BorderEdge next_edge;
+    };
+
+    auto is_horizontal_edge = edge == BorderEdge::Top || edge == BorderEdge::Bottom;
+
+    Frame frame;
+    DevicePixels joined_border_width;
+    DevicePixels opposite_joined_border_width;
     switch (edge) {
-    case BorderEdge::Top: {
-        auto joined_border_width = borders_data.left.width;
-        auto opposite_joined_border_width = borders_data.right.width;
-        bool joined_corner_has_inner_corner = border_data.width < radius.vertical_radius && joined_border_width < radius.horizontal_radius;
-        bool opposite_joined_corner_has_inner_corner = border_data.width < opposite_radius.vertical_radius && opposite_joined_border_width < opposite_radius.horizontal_radius;
-
-        Gfx::FloatPoint joined_corner_endpoint_offset;
-        Gfx::FloatPoint opposite_joined_border_corner_offset;
-
-        {
-            auto midpoint = compute_midpoint(radius.horizontal_radius, radius.vertical_radius, border_data.width.value(), joined_border_width.value());
-            joined_corner_endpoint_offset = Gfx::FloatPoint(-midpoint.x(), radius.vertical_radius - midpoint.y());
-        }
-
-        {
-            auto midpoint = compute_midpoint(opposite_radius.horizontal_radius, opposite_radius.vertical_radius, border_data.width.value(), opposite_joined_border_width.value());
-            opposite_joined_border_corner_offset = Gfx::FloatPoint(midpoint.x(), opposite_radius.vertical_radius - midpoint.y());
-        }
-
-        Vector<Gfx::FloatPoint, 8> points;
-        points.append(Gfx::FloatPoint(rect.top_left().to_type<int>()));
-        points.append(Gfx::FloatPoint(rect.top_left().to_type<int>()) + joined_corner_endpoint_offset);
-
-        if (joined_corner_has_inner_corner) {
-            Gfx::FloatPoint midpoint = compute_midpoint(
-                radius.horizontal_radius - joined_border_width.value(),
-                radius.vertical_radius - border_data.width.value(),
-                border_data.width.value(),
-                joined_border_width.value());
-            Gfx::FloatPoint inner_corner_endpoint_offset = Gfx::FloatPoint(
-                -midpoint.x(),
-                radius.vertical_radius - border_data.width.value() - midpoint.y());
-            points.append(Gfx::FloatPoint(rect.bottom_left().to_type<int>()) + inner_corner_endpoint_offset);
-            points.append(Gfx::FloatPoint(rect.bottom_left().to_type<int>()));
-        } else {
-            Gfx::FloatPoint inner_right_angle_offset = Gfx::FloatPoint(
-                joined_border_width.value() - radius.horizontal_radius,
-                0);
-            points.append(Gfx::FloatPoint(rect.bottom_left().to_type<int>()) + inner_right_angle_offset);
-        }
-
-        if (opposite_joined_corner_has_inner_corner) {
-            Gfx::FloatPoint midpoint = compute_midpoint(
-                opposite_radius.horizontal_radius - opposite_joined_border_width.value(),
-                opposite_radius.vertical_radius - border_data.width.value(),
-                border_data.width.value(),
-                opposite_joined_border_width.value());
-            Gfx::FloatPoint inner_corner_endpoint_offset = Gfx::FloatPoint(
-                midpoint.x(),
-                opposite_radius.vertical_radius - border_data.width.value() - midpoint.y());
-            points.append(Gfx::FloatPoint(rect.bottom_right().to_type<int>()));
-            points.append(Gfx::FloatPoint(rect.bottom_right().to_type<int>()) + inner_corner_endpoint_offset);
-        } else {
-            Gfx::FloatPoint inner_right_angle_offset = Gfx::FloatPoint(
-                opposite_joined_border_width.value() - opposite_radius.horizontal_radius,
-                0);
-            points.append(Gfx::FloatPoint(rect.bottom_right().to_type<int>()) - inner_right_angle_offset);
-        }
-
-        points.append(Gfx::FloatPoint(rect.top_right().to_type<int>()) + opposite_joined_border_corner_offset);
-        points.append(Gfx::FloatPoint(rect.top_right().to_type<int>()));
-
-        draw_border(
-            points,
-            joined_corner_has_inner_corner,
-            opposite_joined_corner_has_inner_corner,
-            Gfx::FloatSize(joined_border_width.value(), border_data.width.value()),
-            Gfx::FloatSize(opposite_joined_border_width.value(), border_data.width.value()),
-            last || color != border_color(BorderEdge::Right, borders_data));
+    case BorderEdge::Top:
+        frame = { { 1, 0 }, { 0, 1 }, rect.top_left(), rect.bottom_left(), rect.bottom_right(), rect.top_right(), BorderEdge::Right };
+        joined_border_width = borders_data.left.width;
+        opposite_joined_border_width = borders_data.right.width;
+        break;
+    case BorderEdge::Right:
+        frame = { { 0, 1 }, { -1, 0 }, rect.top_right(), rect.top_left(), rect.bottom_left(), rect.bottom_right(), BorderEdge::Bottom };
+        joined_border_width = borders_data.top.width;
+        opposite_joined_border_width = borders_data.bottom.width;
+        break;
+    case BorderEdge::Bottom:
+        frame = { { -1, 0 }, { 0, -1 }, rect.bottom_right(), rect.top_right(), rect.top_left(), rect.bottom_left(), BorderEdge::Left };
+        joined_border_width = borders_data.right.width;
+        opposite_joined_border_width = borders_data.left.width;
+        break;
+    case BorderEdge::Left:
+        frame = { { 0, -1 }, { 1, 0 }, rect.bottom_left(), rect.bottom_right(), rect.top_right(), rect.top_left(), BorderEdge::Top };
+        joined_border_width = borders_data.bottom.width;
+        opposite_joined_border_width = borders_data.top.width;
         break;
     }
-    case BorderEdge::Right: {
-        auto joined_border_width = borders_data.top.width;
-        auto opposite_joined_border_width = borders_data.bottom.width;
-        bool joined_corner_has_inner_corner = border_data.width < radius.horizontal_radius && joined_border_width < radius.vertical_radius;
-        bool opposite_joined_corner_has_inner_corner = border_data.width < opposite_radius.horizontal_radius && opposite_joined_border_width < opposite_radius.vertical_radius;
 
-        Gfx::FloatPoint joined_corner_endpoint_offset;
-        Gfx::FloatPoint opposite_joined_border_corner_offset;
+    auto width_into = static_cast<float>(border_data.width.value());
+    auto radius_along = [&](Gfx::CornerRadius const& corner) { return static_cast<float>(is_horizontal_edge ? corner.horizontal_radius : corner.vertical_radius); };
+    auto radius_into = [&](Gfx::CornerRadius const& corner) { return static_cast<float>(is_horizontal_edge ? corner.vertical_radius : corner.horizontal_radius); };
 
-        {
-            auto midpoint = compute_midpoint(radius.horizontal_radius, radius.vertical_radius, joined_border_width.value(), border_data.width.value());
-            joined_corner_endpoint_offset = Gfx::FloatPoint(midpoint.x() - radius.horizontal_radius, -midpoint.y());
-        }
+    // compute_midpoint() works in page axes, so both its arguments and its result pass through the frame.
+    auto midpoint = [&](float along, float into, float width_along) {
+        auto point = is_horizontal_edge ? compute_midpoint(along, into, width_into, width_along) : compute_midpoint(into, along, width_along, width_into);
+        return is_horizontal_edge ? point : Gfx::FloatPoint { point.y(), point.x() };
+    };
 
-        {
-            auto midpoint = compute_midpoint(opposite_radius.horizontal_radius, opposite_radius.vertical_radius, opposite_joined_border_width.value(), border_data.width.value());
-            opposite_joined_border_corner_offset = Gfx::FloatPoint(midpoint.x() - opposite_radius.horizontal_radius, midpoint.y());
-        }
+    auto point_at = [&](DevicePixelPoint corner, Gfx::FloatPoint offset) {
+        return Gfx::FloatPoint(corner.to_type<int>())
+            + Gfx::FloatPoint(frame.along.x() * offset.x() + frame.into.x() * offset.y(), frame.along.y() * offset.x() + frame.into.y() * offset.y());
+    };
 
-        Vector<Gfx::FloatPoint, 8> points;
-        points.append(Gfx::FloatPoint(rect.top_right().to_type<int>()));
-        points.append(Gfx::FloatPoint(rect.top_right().to_type<int>()) + joined_corner_endpoint_offset);
+    auto joined_width = static_cast<float>(joined_border_width.value());
+    auto opposite_joined_width = static_cast<float>(opposite_joined_border_width.value());
 
-        if (joined_corner_has_inner_corner) {
-            auto midpoint = compute_midpoint(
-                radius.horizontal_radius - border_data.width.value(),
-                radius.vertical_radius - joined_border_width.value(),
-                joined_border_width.value(),
-                border_data.width.value());
-            Gfx::FloatPoint inner_corner = Gfx::FloatPoint(
-                -(radius.horizontal_radius - midpoint.x() - border_data.width.value()),
-                -midpoint.y());
-            points.append(Gfx::FloatPoint(rect.top_left().to_type<int>()) + inner_corner);
-            points.append(Gfx::FloatPoint(rect.top_left().to_type<int>()));
-        } else {
-            Gfx::FloatPoint inner_right_angle_offset = Gfx::FloatPoint(0, joined_border_width.value() - radius.horizontal_radius);
-            points.append(Gfx::FloatPoint(rect.top_left().to_type<int>()) + inner_right_angle_offset);
-        }
+    bool joined_corner_has_inner_corner = width_into < radius_into(radius) && joined_width < radius_along(radius);
+    bool opposite_joined_corner_has_inner_corner = width_into < radius_into(opposite_radius) && opposite_joined_width < radius_along(opposite_radius);
 
-        if (opposite_joined_corner_has_inner_corner) {
-            auto midpoint = compute_midpoint(
-                opposite_radius.horizontal_radius - border_data.width.value(),
-                opposite_radius.vertical_radius - opposite_joined_border_width.value(),
-                opposite_joined_border_width.value(),
-                border_data.width.value());
-            Gfx::FloatPoint inner_corner = Gfx::FloatPoint(
-                -(opposite_radius.horizontal_radius - midpoint.x() - border_data.width.value()),
-                midpoint.y());
-            points.append(Gfx::FloatPoint(rect.bottom_left().to_type<int>()));
-            points.append(Gfx::FloatPoint(rect.bottom_left().to_type<int>()) + inner_corner);
-        } else {
-            Gfx::FloatPoint inner_right_angle_offset = Gfx::FloatPoint(0, opposite_joined_border_width.value() - opposite_radius.horizontal_radius);
-            points.append(Gfx::FloatPoint(rect.bottom_left().to_type<int>()) - inner_right_angle_offset);
-        }
+    auto joined_corner_endpoint = midpoint(radius_along(radius), radius_into(radius), joined_width);
+    auto opposite_joined_corner_endpoint = midpoint(radius_along(opposite_radius), radius_into(opposite_radius), opposite_joined_width);
 
-        points.append(Gfx::FloatPoint(rect.bottom_right().to_type<int>()) + opposite_joined_border_corner_offset);
-        points.append(Gfx::FloatPoint(rect.bottom_right().to_type<int>()));
+    Vector<Gfx::FloatPoint, 8> points;
+    points.append(point_at(frame.start_outer, {}));
+    points.append(point_at(frame.start_outer, { -joined_corner_endpoint.x(), radius_into(radius) - joined_corner_endpoint.y() }));
 
-        draw_border(
-            points,
-            joined_corner_has_inner_corner,
-            opposite_joined_corner_has_inner_corner,
-            Gfx::FloatSize(border_data.width.value(), joined_border_width.value()),
-            Gfx::FloatSize(border_data.width.value(), opposite_joined_border_width.value()),
-            last || color != border_color(BorderEdge::Bottom, borders_data));
-        break;
+    if (joined_corner_has_inner_corner) {
+        auto inner = midpoint(radius_along(radius) - joined_width, radius_into(radius) - width_into, joined_width);
+        points.append(point_at(frame.start_inner, { -inner.x(), radius_into(radius) - width_into - inner.y() }));
+        points.append(point_at(frame.start_inner, {}));
+    } else {
+        points.append(point_at(frame.start_inner, { joined_width - radius_along(radius), 0 }));
     }
-    case BorderEdge::Bottom: {
-        auto joined_border_width = borders_data.right.width;
-        auto opposite_joined_border_width = borders_data.left.width;
-        bool joined_corner_has_inner_corner = border_data.width < radius.vertical_radius && joined_border_width < radius.horizontal_radius;
-        bool opposite_joined_corner_has_inner_corner = border_data.width < opposite_radius.vertical_radius && opposite_joined_border_width < opposite_radius.horizontal_radius;
 
-        Gfx::FloatPoint joined_corner_endpoint_offset = [&] -> Gfx::FloatPoint {
-            auto midpoint = compute_midpoint(radius.horizontal_radius, radius.vertical_radius, border_data.width.value(), joined_border_width.value());
-            return { midpoint.x(), midpoint.y() - radius.vertical_radius };
-        }();
-        Gfx::FloatPoint opposite_joined_border_corner_offset = [&] -> Gfx::FloatPoint {
-            auto midpoint = compute_midpoint(opposite_radius.horizontal_radius, opposite_radius.vertical_radius, border_data.width.value(), opposite_joined_border_width.value());
-            return { -midpoint.x(), midpoint.y() - opposite_radius.vertical_radius };
-        }();
-
-        Vector<Gfx::FloatPoint, 8> points;
-        points.append(Gfx::FloatPoint(rect.bottom_right().to_type<int>()));
-        points.append(Gfx::FloatPoint(rect.bottom_right().to_type<int>()) + joined_corner_endpoint_offset);
-
-        if (joined_corner_has_inner_corner) {
-            auto midpoint = compute_midpoint(
-                radius.horizontal_radius - joined_border_width.value(),
-                radius.vertical_radius - border_data.width.value(),
-                border_data.width.value(),
-                joined_border_width.value());
-            Gfx::FloatPoint inner_corner = Gfx::FloatPoint(midpoint.x(), -(radius.vertical_radius - midpoint.y() - border_data.width.value()));
-            points.append(Gfx::FloatPoint(rect.top_right().to_type<int>()) + inner_corner);
-            points.append(Gfx::FloatPoint(rect.top_right().to_type<int>()));
-        } else {
-            Gfx::FloatPoint inner_right_angle_offset = Gfx::FloatPoint(joined_border_width.value() - radius.horizontal_radius, 0);
-            points.append(Gfx::FloatPoint(rect.top_right().to_type<int>()) - inner_right_angle_offset);
-        }
-
-        if (opposite_joined_corner_has_inner_corner) {
-            auto midpoint = compute_midpoint(
-                opposite_radius.horizontal_radius - opposite_joined_border_width.value(),
-                opposite_radius.vertical_radius - border_data.width.value(),
-                border_data.width.value(),
-                opposite_joined_border_width.value());
-            Gfx::FloatPoint inner_corner = Gfx::FloatPoint(
-                -midpoint.x(),
-                -(opposite_radius.vertical_radius - midpoint.y() - border_data.width.value()));
-            points.append(Gfx::FloatPoint(rect.top_left().to_type<int>()));
-            points.append(Gfx::FloatPoint(rect.top_left().to_type<int>()) + inner_corner);
-        } else {
-            Gfx::FloatPoint inner_right_angle_offset = Gfx::FloatPoint(opposite_joined_border_width.value() - opposite_radius.horizontal_radius, 0);
-            points.append(Gfx::FloatPoint(rect.top_left().to_type<int>()) + inner_right_angle_offset);
-        }
-
-        points.append(Gfx::FloatPoint(rect.bottom_left().to_type<int>()) + opposite_joined_border_corner_offset);
-        points.append(Gfx::FloatPoint(rect.bottom_left().to_type<int>()));
-        draw_border(
-            points,
-            joined_corner_has_inner_corner,
-            opposite_joined_corner_has_inner_corner,
-            Gfx::FloatSize(joined_border_width.value(), border_data.width.value()),
-            Gfx::FloatSize(opposite_joined_border_width.value(), border_data.width.value()),
-            last || color != border_color(BorderEdge::Left, borders_data));
-        break;
+    if (opposite_joined_corner_has_inner_corner) {
+        auto inner = midpoint(radius_along(opposite_radius) - opposite_joined_width, radius_into(opposite_radius) - width_into, opposite_joined_width);
+        points.append(point_at(frame.end_inner, {}));
+        points.append(point_at(frame.end_inner, { inner.x(), radius_into(opposite_radius) - width_into - inner.y() }));
+    } else {
+        points.append(point_at(frame.end_inner, { radius_along(opposite_radius) - opposite_joined_width, 0 }));
     }
-    case BorderEdge::Left: {
-        auto joined_border_width = borders_data.bottom.width;
-        auto opposite_joined_border_width = borders_data.top.width;
-        bool joined_corner_has_inner_corner = border_data.width < radius.horizontal_radius && joined_border_width < radius.vertical_radius;
-        bool opposite_joined_corner_has_inner_corner = border_data.width < opposite_radius.horizontal_radius && opposite_joined_border_width < opposite_radius.vertical_radius;
 
-        Gfx::FloatPoint joined_corner_endpoint_offset = [&] -> Gfx::FloatPoint {
-            auto midpoint = compute_midpoint(radius.horizontal_radius, radius.vertical_radius, joined_border_width.value(), border_data.width.value());
-            return { radius.horizontal_radius - midpoint.x(), midpoint.y() };
-        }();
-        Gfx::FloatPoint opposite_joined_border_corner_offset = [&] -> Gfx::FloatPoint {
-            auto midpoint = compute_midpoint(opposite_radius.horizontal_radius, opposite_radius.vertical_radius, opposite_joined_border_width.value(), border_data.width.value());
-            return { opposite_radius.horizontal_radius - midpoint.x(), -midpoint.y() };
-        }();
+    points.append(point_at(frame.end_outer, { opposite_joined_corner_endpoint.x(), radius_into(opposite_radius) - opposite_joined_corner_endpoint.y() }));
+    points.append(point_at(frame.end_outer, {}));
 
-        Vector<Gfx::FloatPoint, 8> points;
-        points.append(Gfx::FloatPoint(rect.bottom_left().to_type<int>()));
-        points.append(Gfx::FloatPoint(rect.bottom_left().to_type<int>()) + joined_corner_endpoint_offset);
+    auto inner_corner_offset = [&](float width_along) {
+        return is_horizontal_edge ? Gfx::FloatSize(width_along, width_into) : Gfx::FloatSize(width_into, width_along);
+    };
 
-        if (joined_corner_has_inner_corner) {
-            auto midpoint = compute_midpoint(
-                radius.horizontal_radius - border_data.width.value(),
-                radius.vertical_radius - joined_border_width.value(),
-                joined_border_width.value(),
-                border_data.width.value());
-            Gfx::FloatPoint inner_corner = { radius.horizontal_radius - border_data.width.value() - midpoint.x(), midpoint.y() };
-            points.append(Gfx::FloatPoint(rect.bottom_right().to_type<int>()) + inner_corner);
-            points.append(Gfx::FloatPoint(rect.bottom_right().to_type<int>()));
-        } else {
-            Gfx::FloatPoint inner_right_angle_offset = { 0, joined_border_width.value() - radius.vertical_radius };
-            points.append(Gfx::FloatPoint(rect.bottom_right().to_type<int>()) - inner_right_angle_offset);
-        }
-
-        if (opposite_joined_corner_has_inner_corner) {
-            auto midpoint = compute_midpoint(
-                opposite_radius.horizontal_radius - border_data.width.value(),
-                opposite_radius.vertical_radius - opposite_joined_border_width.value(),
-                opposite_joined_border_width.value(),
-                border_data.width.value());
-            Gfx::FloatPoint inner_corner = {
-                opposite_radius.horizontal_radius - border_data.width.value() - midpoint.x(),
-                -midpoint.y(),
-            };
-            points.append(Gfx::FloatPoint(rect.top_right().to_type<int>()));
-            points.append(Gfx::FloatPoint(rect.top_right().to_type<int>()) + inner_corner);
-        } else {
-            Gfx::FloatPoint inner_right_angle_offset = { 0, opposite_joined_border_width.value() - opposite_radius.vertical_radius };
-            points.append(Gfx::FloatPoint(rect.top_right().to_type<int>()) + inner_right_angle_offset);
-        }
-        points.append(Gfx::FloatPoint(rect.top_left().to_type<int>()) + opposite_joined_border_corner_offset);
-        points.append(Gfx::FloatPoint(rect.top_left().to_type<int>()));
-
-        draw_border(
-            points,
-            joined_corner_has_inner_corner,
-            opposite_joined_corner_has_inner_corner,
-            Gfx::FloatSize(border_data.width.value(), joined_border_width.value()),
-            Gfx::FloatSize(border_data.width.value(), opposite_joined_border_width.value()),
-            last || color != border_color(BorderEdge::Top, borders_data));
-        break;
-    }
-    }
+    draw_border(
+        points,
+        joined_corner_has_inner_corner,
+        opposite_joined_corner_has_inner_corner,
+        inner_corner_offset(joined_width),
+        inner_corner_offset(opposite_joined_width),
+        last || color != border_color(frame.next_edge, borders_data));
 }
 
 // When every edge shares a width, color and style there is nothing to attribute to one edge or the other, so the whole

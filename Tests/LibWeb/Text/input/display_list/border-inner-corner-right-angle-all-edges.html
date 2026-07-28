@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    div {
+        width: 150px;
+        height: 90px;
+        border-style: solid;
+        border-color: red blue green orange;
+    }
+
+    .wide-corners {
+        border-width: 15px 20px 15px 8px;
+        border-radius: 40px / 10px;
+    }
+
+    .tall-corners {
+        border-width: 20px 15px 20px 15px;
+        border-radius: 10px / 40px;
+    }
+</style>
+<div class="wide-corners"></div>
+<div class="tall-corners"></div>
+<script>
+    test(() => {
+        println(internals.dumpDisplayList());
+    });
+</script>
