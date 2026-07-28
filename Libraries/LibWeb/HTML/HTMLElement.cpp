@@ -348,13 +348,27 @@ static Vector<Variant<Utf16String, RequiredLineBreakCount>> rendered_text_collec
     if (auto const* layout_text_node = as_if<Layout::TextNode>(layout_node)) {
         Layout::TextOffsetMapping mapping { layout_text_node->dom_node() };
         mapping.for_each_fragment([&](Layout::TextNode const& slice) {
-            Layout::TextNode::ChunkIterator iterator { slice, false, false };
-            while (true) {
-                auto chunk = iterator.next();
-                if (!chunk.has_value())
-                    break;
-                items.append(Utf16String::from_utf16(chunk.release_value().view));
+            // Collapse whitespace like the text chunker feeding inline layout
+            // does: within each run of collapsible whitespace, every code
+            // point after the first is removed.
+            auto const& text = slice.text_for_rendering();
+            auto should_collapse_whitespace = first_is_one_of(
+                slice.parent()->computed_values().white_space_collapse(),
+                CSS::WhiteSpaceCollapse::Collapse, CSS::WhiteSpaceCollapse::PreserveBreaks);
+            if (!should_collapse_whitespace) {
+                items.append(text);
+                return;
             }
+            Utf16StringBuilder builder { text.length_in_code_units() };
+            bool previous_code_unit_is_collapsible = false;
+            for (size_t index = 0; index < text.length_in_code_units(); ++index) {
+                auto code_unit = text.utf16_view().code_unit_at(index);
+                auto is_collapsible = code_unit < 0x80 && is_ascii_space(code_unit);
+                if (!is_collapsible || !previous_code_unit_is_collapsible)
+                    builder.append_code_unit(code_unit);
+                previous_code_unit_is_collapsible = is_collapsible;
+            }
+            items.append(builder.to_string());
         });
         return items;
     }
