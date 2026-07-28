@@ -227,7 +227,7 @@ pub unsafe extern "C" fn layout_arena_free(arena: *mut c_void, id: NodeSlotId, g
 
 #[cfg(test)]
 mod tests {
-    use super::{Chunk, LayoutNodeArena, SLOTS_PER_CHUNK};
+    use crate::layout::layout_node_arena::{Chunk, LayoutNodeArena, SLOTS_PER_CHUNK};
 
     #[test]
     fn node_data_addresses_remain_stable_when_chunks_are_added() {

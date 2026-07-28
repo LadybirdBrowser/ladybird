@@ -14,21 +14,21 @@ use std::ffi::c_void;
 type LayoutNode = NodeSlotId;
 
 #[derive(Default)]
-struct TreeBuilderState {
-    ancestor_stack: Vec<LayoutNode>,
-    quote_nesting_level: u32,
+pub(crate) struct TreeBuilderState {
+    pub(crate) ancestor_stack: Vec<LayoutNode>,
+    pub(crate) quote_nesting_level: u32,
 }
 
 #[derive(Default)]
-struct TreeBuilderContext {
-    has_svg_root: bool,
-    layout_top_layer: bool,
+pub(crate) struct TreeBuilderContext {
+    pub(crate) has_svg_root: bool,
+    pub(crate) layout_top_layer: bool,
     layout_svg_mask_or_clip_path: bool,
     layout_svg_pattern: bool,
 }
 
 impl TreeBuilderState {
-    fn current_parent(&self) -> LayoutNode {
+    pub(crate) fn current_parent(&self) -> LayoutNode {
         *self
             .ancestor_stack
             .last()
@@ -207,7 +207,7 @@ pub enum FfiElementLayoutKind {
     Normal,
 }
 
-fn element_layout_kind(
+pub(crate) fn element_layout_kind(
     facts: FfiElementLayoutFacts,
     layout_svg_mask_or_clip_path: bool,
     layout_svg_pattern: bool,
@@ -230,34 +230,34 @@ fn element_layout_kind(
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum TopLayerEntryDecision {
+pub(crate) enum TopLayerEntryDecision {
     Continue,
     Skip,
     SkipAndRequestZoneRebuild,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum SvgEntryDecision {
+pub(crate) enum SvgEntryDecision {
     Continue,
     EnterSvgRoot,
     Skip,
 }
 
 #[derive(Clone, Copy)]
-struct PrincipalNodeEntryDecision {
-    should_create_layout_node: bool,
-    top_layer: TopLayerEntryDecision,
-    svg: SvgEntryDecision,
+pub(crate) struct PrincipalNodeEntryDecision {
+    pub(crate) should_create_layout_node: bool,
+    pub(crate) top_layer: TopLayerEntryDecision,
+    pub(crate) svg: SvgEntryDecision,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum PrincipalBoxGenerationDecision {
+pub(crate) enum PrincipalBoxGenerationDecision {
     Suppress,
     DisplayContents,
     PrincipalBox,
 }
 
-fn principal_box_generation_decision(
+pub(crate) fn principal_box_generation_decision(
     is_element: bool,
     display_is_none: bool,
     display_is_contents: bool,
@@ -273,7 +273,7 @@ fn principal_box_generation_decision(
     })
 }
 
-fn display_contents_text_needs_style_wrapper(
+pub(crate) fn display_contents_text_needs_style_wrapper(
     has_style_parent: bool,
     parent_display_is_contents: bool,
     text_is_ascii_whitespace: bool,
@@ -443,16 +443,16 @@ pub enum FfiPrincipalBoxPlacement {
 }
 
 #[derive(Clone, Copy)]
-struct PrincipalBoxPlacementDecision {
-    placement: FfiPrincipalBoxPlacement,
+pub(crate) struct PrincipalBoxPlacementDecision {
+    pub(crate) placement: FfiPrincipalBoxPlacement,
     may_replace_existing_layout_node: bool,
-    start_rebuild_root: bool,
-    mark_update_escaped_rebuild_roots: bool,
-    create_backdrop: bool,
-    clear_layout_top_layer_for_descendants: bool,
+    pub(crate) start_rebuild_root: bool,
+    pub(crate) mark_update_escaped_rebuild_roots: bool,
+    pub(crate) create_backdrop: bool,
+    pub(crate) clear_layout_top_layer_for_descendants: bool,
 }
 
-fn principal_box_placement_decision(
+pub(crate) fn principal_box_placement_decision(
     facts: FfiPrincipalBoxPlacementFacts,
     layout_node_is_svg_box: bool,
     layout_top_layer: bool,
@@ -492,7 +492,7 @@ fn principal_box_placement_decision(
     })
 }
 
-fn principal_node_entry_decision(
+pub(crate) fn principal_node_entry_decision(
     facts: FfiPrincipalNodeEntryFacts,
     context: &TreeBuilderContext,
 ) -> PrincipalNodeEntryDecision {
@@ -1591,7 +1591,7 @@ pub struct FfiPseudoTreeBuilderCallbacks {
     pub create_content_item: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiPseudoElement, usize) -> NodeSlotId,
 }
 
-fn pseudo_element_decision(facts: FfiPseudoElementFacts) -> FfiPseudoElementDecision {
+pub(crate) fn pseudo_element_decision(facts: FfiPseudoElementFacts) -> FfiPseudoElementDecision {
     abort_on_panic(|| {
         if !facts.has_style {
             return FfiPseudoElementDecision::None;
@@ -1773,7 +1773,7 @@ fn create_pseudo_element_with_frame(
     layout_node
 }
 
-fn adjusted_table_display_for_replaced_element(
+pub(crate) fn adjusted_table_display_for_replaced_element(
     is_table_inside: bool,
     is_block_outside: bool,
     is_internal_table: bool,
@@ -1912,6 +1912,7 @@ pub struct FfiNodeKindFacts {
     pub is_block_container: bool,
     pub is_text: bool,
     pub is_svg_box: bool,
+    pub is_replaced_box: bool,
 }
 
 // Exhaustive on purpose: adding a NodeKind variant must not compile until its facts are declared.
@@ -1921,6 +1922,7 @@ fn kind_facts(kind: NodeKind) -> FfiNodeKindFacts {
         is_block_container: false,
         is_text: false,
         is_svg_box: false,
+        is_replaced_box: false,
     };
     const TEXT: FfiNodeKindFacts = FfiNodeKindFacts {
         is_text: true,
@@ -1929,6 +1931,10 @@ fn kind_facts(kind: NodeKind) -> FfiNodeKindFacts {
     const BOX: FfiNodeKindFacts = FfiNodeKindFacts {
         is_box: true,
         ..NON_BOX
+    };
+    const REPLACED_BOX: FfiNodeKindFacts = FfiNodeKindFacts {
+        is_replaced_box: true,
+        ..BOX
     };
     const BLOCK_CONTAINER: FfiNodeKindFacts = FfiNodeKindFacts {
         is_block_container: true,
@@ -1947,17 +1953,16 @@ fn kind_facts(kind: NodeKind) -> FfiNodeKindFacts {
         | NodeKind::NodeWithStyle
         | NodeKind::NodeWithStyleAndBoxModelMetrics => NON_BOX,
         NodeKind::GeneratedTextNode | NodeKind::TextNode | NodeKind::TextSliceNode => TEXT,
+        NodeKind::Box | NodeKind::ListItemMarkerBox => BOX,
         NodeKind::AudioBox
-        | NodeKind::Box
         | NodeKind::CanvasBox
         | NodeKind::CheckBox
         | NodeKind::ImageBox
-        | NodeKind::ListItemMarkerBox
         | NodeKind::NavigableContainerViewport
         | NodeKind::RadioButton
         | NodeKind::ReplacedBox
         | NodeKind::SVGSVGBox
-        | NodeKind::VideoBox => BOX,
+        | NodeKind::VideoBox => REPLACED_BOX,
         NodeKind::BlockContainer
         | NodeKind::FieldSetBox
         | NodeKind::LegendBox
@@ -2375,8 +2380,8 @@ fn insert_node_into_inline_or_block_ancestor(
     }
 }
 
-struct FirstLetterTextHost<'a> {
-    callbacks: &'a FfiFirstLetterTextCallbacks,
+pub(crate) struct FirstLetterTextHost<'a> {
+    pub(crate) callbacks: &'a FfiFirstLetterTextCallbacks,
 }
 
 impl FirstLetterTextHost<'_> {
@@ -2406,7 +2411,10 @@ fn code_unit_length_for_code_point(code_point: u32) -> usize {
 }
 
 // https://drafts.csswg.org/css-pseudo-4/#first-letter-pattern
-fn find_first_letter_in_text(host: &FirstLetterTextHost<'_>, preserves_segment_breaks: bool) -> FfiFirstLetterTarget {
+pub(crate) fn find_first_letter_in_text(
+    host: &FirstLetterTextHost<'_>,
+    preserves_segment_breaks: bool,
+) -> FfiFirstLetterTarget {
     // NB: Matches the first-letter text pattern: (P (Zs|P)*)? (L|N|S) ((Zs|P-(Ps|Pd))* (P-(Ps|Pd))?)?
 
     let code_units = host.code_unit_length();
@@ -3136,7 +3144,8 @@ fn fixup_tables(host: &TreeBuilderHost<'_>, root: LayoutNode) {
 
 #[cfg(test)]
 mod tests {
-    use super::{
+    use crate::layout::node_data::NodeSlotId;
+    use crate::layout::tree_builder::{
         FfiComputedContentType, FfiElementLayoutFacts, FfiElementLayoutKind, FfiFirstLetterCodePointFacts,
         FfiFirstLetterTextCallbacks, FfiPrincipalBoxPlacement, FfiPrincipalBoxPlacementFacts,
         FfiPrincipalNodeEntryFacts, FfiPseudoElement, FfiPseudoElementDecision, FfiPseudoElementFacts,
@@ -3146,7 +3155,6 @@ mod tests {
         principal_box_generation_decision, principal_box_placement_decision, principal_node_entry_decision,
         pseudo_element_decision,
     };
-    use crate::layout::node_data::NodeSlotId;
     use std::ffi::c_void;
 
     unsafe extern "C" fn text_length(context: *mut c_void) -> usize {
@@ -3175,7 +3183,10 @@ mod tests {
         }
     }
 
-    fn first_letter_target(text: &str, preserves_segment_breaks: bool) -> super::FfiFirstLetterTarget {
+    fn first_letter_target(
+        text: &str,
+        preserves_segment_breaks: bool,
+    ) -> crate::layout::tree_builder::FfiFirstLetterTarget {
         let mut text = text.encode_utf16().collect::<Vec<_>>();
         let callbacks = FfiFirstLetterTextCallbacks {
             context: (&raw mut text).cast(),
@@ -3234,7 +3245,7 @@ mod tests {
 
     #[test]
     fn tree_builder_state_tracks_ancestors_and_quotes() {
-        let mut state = super::TreeBuilderState::default();
+        let mut state = crate::layout::tree_builder::TreeBuilderState::default();
         let parent = NodeSlotId { index: 42 };
         state.ancestor_stack.push(parent);
         assert_eq!(state.ancestor_stack.len(), 1);
