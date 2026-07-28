@@ -23,7 +23,6 @@ enum class BorderEdge : u8 {
 };
 
 struct BorderDataDevicePixels {
-public:
     Color color { Color::Transparent };
     CSS::LineStyle line_style { CSS::LineStyle::None };
     DevicePixels width { 0 };
@@ -46,9 +45,10 @@ struct BordersDataDevicePixels {
             return right;
         case BorderEdge::Bottom:
             return bottom;
-        default: // BorderEdge::Left:
+        case BorderEdge::Left:
             return left;
         }
+        ASSERT_NOT_REACHED();
     }
 
     BorderDataDevicePixels const& for_edge(BorderEdge edge) const
