@@ -259,11 +259,6 @@ public:
     }
 
 private:
-    bool is_hovered() const
-    {
-        return rect().contains(mapFromGlobal(QCursor::pos()));
-    }
-
     virtual void enterEvent(QEnterEvent* event) override
     {
         QToolButton::enterEvent(event);
@@ -296,7 +291,7 @@ private:
                       ? horizontal_new_tab_button_shape_rect(QRectF(rect()))
                       : QRectF(rect()).adjusted(4.0, 3.0, -4.0, -3.0));
         auto tab_path = tab_shape_path(shape_rect, 9.0, 9.0);
-        auto hovered = is_hovered();
+        auto hovered = underMouse();
 
         if (isDown()) {
             painter.setBrush(ChromeStyle::chrome_surface_pressed(palette()));
