@@ -241,10 +241,6 @@ void paint_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect
             p2.translate_by(border_data.width / 2, -border_data.width / 2);
             break;
         }
-        if (border_style == CSS::LineStyle::Dotted) {
-            painter.draw_line(p1.to_type<int>(), p2.to_type<int>(), color, border_data.width.value(), gfx_line_style);
-            return;
-        }
         painter.draw_line(p1.to_type<int>(), p2.to_type<int>(), color, border_data.width.value(), gfx_line_style);
         return;
     }
