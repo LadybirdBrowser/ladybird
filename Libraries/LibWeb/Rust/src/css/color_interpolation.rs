@@ -11,8 +11,8 @@
 
 use std::sync::Arc;
 
-use crate::color_conversion;
-use crate::style_value::{ColorBase, RetainedStyleValueData, StyleValueData};
+use crate::css::color_conversion;
+use crate::css::style_value::{ColorBase, RetainedStyleValueData, StyleValueData};
 
 const COLOR_SYNTAX_MODERN: u8 = 1;
 
@@ -226,7 +226,7 @@ fn retained_number(value: f32) -> RetainedStyleValueData {
 
 fn retained_none() -> RetainedStyleValueData {
     let value = Arc::into_raw(Arc::new(StyleValueData::Keyword {
-        keyword: crate::style_compute::none_keyword(),
+        keyword: crate::css::style_compute::none_keyword(),
     }));
     unsafe { RetainedStyleValueData::from_retained_pointer(value) }
 }
@@ -259,7 +259,7 @@ fn make_result(color_type: u8, components: [f32; 4], missing: [bool; 4]) -> Styl
         channel_2: retained_component(components[2], missing[2]),
         alpha: retained_component(components[3], missing[3]),
         has_name: false,
-        name: unsafe { crate::style_value::RetainedUtf16FlyString::from_leaked_raw(0) },
+        name: unsafe { crate::css::style_value::RetainedUtf16FlyString::from_leaked_raw(0) },
         origin_color: unsafe { RetainedStyleValueData::from_retained_optional_pointer(std::ptr::null()) },
     }
 }

@@ -6,7 +6,28 @@
 
 //! The CSS `display` value and its predicates, mirroring `Web::CSS::Display`.
 
-use crate::css_enums::{display_box, display_inside, display_internal, display_outside};
+use crate::css::css_enums::{display_box, display_inside, display_internal, display_outside};
+
+const DISPLAY_BOX_CONTENTS: u8 = display_box::CONTENTS;
+const DISPLAY_BOX_NONE: u8 = display_box::NONE;
+const DISPLAY_INSIDE_FLOW: u8 = display_inside::FLOW;
+const DISPLAY_INSIDE_FLOW_ROOT: u8 = display_inside::FLOW_ROOT;
+const DISPLAY_INSIDE_TABLE: u8 = display_inside::TABLE;
+const DISPLAY_INSIDE_FLEX: u8 = display_inside::FLEX;
+const DISPLAY_INSIDE_GRID: u8 = display_inside::GRID;
+const DISPLAY_INSIDE_RUBY: u8 = display_inside::RUBY;
+const DISPLAY_INSIDE_MATH: u8 = display_inside::MATH;
+const DISPLAY_INSIDE_WEBKIT_BOX: u8 = display_inside::_WEBKIT_BOX;
+const DISPLAY_INTERNAL_TABLE_ROW_GROUP: u8 = display_internal::TABLE_ROW_GROUP;
+const DISPLAY_INTERNAL_TABLE_HEADER_GROUP: u8 = display_internal::TABLE_HEADER_GROUP;
+const DISPLAY_INTERNAL_TABLE_FOOTER_GROUP: u8 = display_internal::TABLE_FOOTER_GROUP;
+const DISPLAY_INTERNAL_TABLE_ROW: u8 = display_internal::TABLE_ROW;
+const DISPLAY_INTERNAL_TABLE_CELL: u8 = display_internal::TABLE_CELL;
+const DISPLAY_INTERNAL_TABLE_COLUMN_GROUP: u8 = display_internal::TABLE_COLUMN_GROUP;
+const DISPLAY_INTERNAL_TABLE_COLUMN: u8 = display_internal::TABLE_COLUMN;
+const DISPLAY_INTERNAL_TABLE_CAPTION: u8 = display_internal::TABLE_CAPTION;
+const DISPLAY_OUTSIDE_BLOCK: u8 = display_outside::BLOCK;
+const DISPLAY_OUTSIDE_INLINE: u8 = display_outside::INLINE;
 
 /// Mirror of the CSS Display value; the C++ tagged union crosses as explicit
 /// fields, with the unused fields zeroed so equality is field-wise. `tag` uses
@@ -68,27 +89,27 @@ impl FfiDisplay {
     }
 
     pub fn block() -> Self {
-        Self::outside_and_inside(display_outside::BLOCK, display_inside::FLOW, false)
+        Self::outside_and_inside(DISPLAY_OUTSIDE_BLOCK, DISPLAY_INSIDE_FLOW, false)
     }
 
     pub fn inline() -> Self {
-        Self::outside_and_inside(display_outside::INLINE, display_inside::FLOW, false)
+        Self::outside_and_inside(DISPLAY_OUTSIDE_INLINE, DISPLAY_INSIDE_FLOW, false)
     }
 
     pub fn inline_block() -> Self {
-        Self::outside_and_inside(display_outside::INLINE, display_inside::FLOW_ROOT, false)
+        Self::outside_and_inside(DISPLAY_OUTSIDE_INLINE, DISPLAY_INSIDE_FLOW_ROOT, false)
     }
 
     pub fn flow_root() -> Self {
-        Self::outside_and_inside(display_outside::BLOCK, display_inside::FLOW_ROOT, false)
+        Self::outside_and_inside(DISPLAY_OUTSIDE_BLOCK, DISPLAY_INSIDE_FLOW_ROOT, false)
     }
 
     pub fn table() -> Self {
-        Self::outside_and_inside(display_outside::BLOCK, display_inside::TABLE, false)
+        Self::outside_and_inside(DISPLAY_OUTSIDE_BLOCK, DISPLAY_INSIDE_TABLE, false)
     }
 
     pub fn inline_table() -> Self {
-        Self::outside_and_inside(display_outside::INLINE, display_inside::TABLE, false)
+        Self::outside_and_inside(DISPLAY_OUTSIDE_INLINE, DISPLAY_INSIDE_TABLE, false)
     }
 
     pub fn encoded(&self) -> u32 {
@@ -108,7 +129,7 @@ impl FfiDisplay {
             inside: 0,
             list_item: false,
             internal: 0,
-            box_value: display_box::NONE,
+            box_value: DISPLAY_BOX_NONE,
         }
     }
 
@@ -119,7 +140,7 @@ impl FfiDisplay {
             inside: 0,
             list_item: false,
             internal: 0,
-            box_value: display_box::CONTENTS,
+            box_value: DISPLAY_BOX_CONTENTS,
         }
     }
 
@@ -132,19 +153,19 @@ impl FfiDisplay {
     }
 
     pub fn is_none(&self) -> bool {
-        self.tag == DISPLAY_TAG_BOX && self.box_value == display_box::NONE
+        self.tag == DISPLAY_TAG_BOX && self.box_value == DISPLAY_BOX_NONE
     }
 
     pub fn is_contents(&self) -> bool {
-        self.tag == DISPLAY_TAG_BOX && self.box_value == display_box::CONTENTS
+        self.tag == DISPLAY_TAG_BOX && self.box_value == DISPLAY_BOX_CONTENTS
     }
 
     pub fn is_block_outside(&self) -> bool {
-        self.is_outside_and_inside() && self.outside == display_outside::BLOCK
+        self.is_outside_and_inside() && self.outside == DISPLAY_OUTSIDE_BLOCK
     }
 
     pub fn is_inline_outside(&self) -> bool {
-        self.is_outside_and_inside() && self.outside == display_outside::INLINE
+        self.is_outside_and_inside() && self.outside == DISPLAY_OUTSIDE_INLINE
     }
 
     pub fn is_inline_block(&self) -> bool {
@@ -156,76 +177,75 @@ impl FfiDisplay {
     }
 
     pub fn is_flow_inside(&self) -> bool {
-        self.is_outside_and_inside() && self.inside == display_inside::FLOW
+        self.is_outside_and_inside() && self.inside == DISPLAY_INSIDE_FLOW
     }
 
     pub fn is_flow_root_inside(&self) -> bool {
-        self.is_outside_and_inside() && self.inside == display_inside::FLOW_ROOT
+        self.is_outside_and_inside() && self.inside == DISPLAY_INSIDE_FLOW_ROOT
     }
 
     pub fn is_table_inside(&self) -> bool {
-        self.is_outside_and_inside() && self.inside == display_inside::TABLE
+        self.is_outside_and_inside() && self.inside == DISPLAY_INSIDE_TABLE
     }
 
     pub fn is_flex_inside(&self) -> bool {
-        self.is_outside_and_inside()
-            && (self.inside == display_inside::FLEX || self.inside == display_inside::_WEBKIT_BOX)
+        self.is_outside_and_inside() && (self.inside == DISPLAY_INSIDE_FLEX || self.inside == DISPLAY_INSIDE_WEBKIT_BOX)
     }
 
     pub fn is_grid_inside(&self) -> bool {
-        self.is_outside_and_inside() && self.inside == display_inside::GRID
+        self.is_outside_and_inside() && self.inside == DISPLAY_INSIDE_GRID
     }
 
     pub fn is_ruby_inside(&self) -> bool {
-        self.is_outside_and_inside() && self.inside == display_inside::RUBY
+        self.is_outside_and_inside() && self.inside == DISPLAY_INSIDE_RUBY
     }
 
     pub fn is_math_inside(&self) -> bool {
-        self.is_outside_and_inside() && self.inside == display_inside::MATH
+        self.is_outside_and_inside() && self.inside == DISPLAY_INSIDE_MATH
     }
 
     pub fn is_table_row(&self) -> bool {
-        self.is_internal() && self.internal == display_internal::TABLE_ROW
+        self.is_internal() && self.internal == DISPLAY_INTERNAL_TABLE_ROW
     }
 
     pub fn is_table_cell(&self) -> bool {
-        self.is_internal() && self.internal == display_internal::TABLE_CELL
+        self.is_internal() && self.internal == DISPLAY_INTERNAL_TABLE_CELL
     }
 
     pub fn is_table_column(&self) -> bool {
-        self.is_internal() && self.internal == display_internal::TABLE_COLUMN
+        self.is_internal() && self.internal == DISPLAY_INTERNAL_TABLE_COLUMN
     }
 
     pub fn is_table_column_group(&self) -> bool {
-        self.is_internal() && self.internal == display_internal::TABLE_COLUMN_GROUP
+        self.is_internal() && self.internal == DISPLAY_INTERNAL_TABLE_COLUMN_GROUP
     }
 
     pub fn is_table_row_group(&self) -> bool {
-        self.is_internal() && self.internal == display_internal::TABLE_ROW_GROUP
+        self.is_internal() && self.internal == DISPLAY_INTERNAL_TABLE_ROW_GROUP
     }
 
     pub fn is_table_header_group(&self) -> bool {
-        self.is_internal() && self.internal == display_internal::TABLE_HEADER_GROUP
+        self.is_internal() && self.internal == DISPLAY_INTERNAL_TABLE_HEADER_GROUP
     }
 
     pub fn is_table_footer_group(&self) -> bool {
-        self.is_internal() && self.internal == display_internal::TABLE_FOOTER_GROUP
+        self.is_internal() && self.internal == DISPLAY_INTERNAL_TABLE_FOOTER_GROUP
     }
 
     pub fn is_table_caption(&self) -> bool {
-        self.is_internal() && self.internal == display_internal::TABLE_CAPTION
+        self.is_internal() && self.internal == DISPLAY_INTERNAL_TABLE_CAPTION
     }
 
     // https://drafts.csswg.org/css-display-3/#internal-table-element
     pub fn is_internal_table(&self) -> bool {
         self.is_internal()
-            && (self.internal == display_internal::TABLE_ROW_GROUP
-                || self.internal == display_internal::TABLE_HEADER_GROUP
-                || self.internal == display_internal::TABLE_FOOTER_GROUP
-                || self.internal == display_internal::TABLE_ROW
-                || self.internal == display_internal::TABLE_CELL
-                || self.internal == display_internal::TABLE_COLUMN_GROUP
-                || self.internal == display_internal::TABLE_COLUMN)
+            && (self.internal == DISPLAY_INTERNAL_TABLE_ROW_GROUP
+                || self.internal == DISPLAY_INTERNAL_TABLE_HEADER_GROUP
+                || self.internal == DISPLAY_INTERNAL_TABLE_FOOTER_GROUP
+                || self.internal == DISPLAY_INTERNAL_TABLE_ROW
+                || self.internal == DISPLAY_INTERNAL_TABLE_CELL
+                || self.internal == DISPLAY_INTERNAL_TABLE_COLUMN_GROUP
+                || self.internal == DISPLAY_INTERNAL_TABLE_COLUMN)
     }
 }
 

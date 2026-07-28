@@ -19,11 +19,11 @@ use std::hash::BuildHasherDefault;
 use std::hash::Hasher;
 
 use crate::abort_on_panic;
-use crate::property_metadata::LAST_LONGHAND_PROPERTY_ID;
-use crate::style_compute::expand_shorthands_with;
-use crate::style_value::RetainedStyleValueData;
-use crate::style_value::RetainedUtf16FlyString;
-use crate::style_value::StyleValueData;
+use crate::css::property_metadata::LAST_LONGHAND_PROPERTY_ID;
+use crate::css::style_compute::expand_shorthands_with;
+use crate::css::style_value::RetainedStyleValueData;
+use crate::css::style_value::RetainedUtf16FlyString;
+use crate::css::style_value::StyleValueData;
 
 /// Mirrors the C++ `enum class CascadeOrigin : u8`; the C++ side static_asserts
 /// that every discriminant matches.
@@ -298,7 +298,7 @@ pub unsafe extern "C" fn rust_cascaded_properties_property(
     store: *const CascadedPropertyStore,
     property_id: u16,
 ) -> *const c_void {
-    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadedStoreQueryEntry);
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CascadedStoreQueryEntry);
     abort_on_panic(|| match unsafe { &*store }.last_entry(property_id) {
         Some(entry) => entry.value.pointer().cast(),
         None => std::ptr::null(),
@@ -314,7 +314,7 @@ pub unsafe extern "C" fn rust_cascaded_properties_source_slot(
     store: *const CascadedPropertyStore,
     property_id: u16,
 ) -> i64 {
-    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadedStoreQueryEntry);
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CascadedStoreQueryEntry);
     abort_on_panic(|| match unsafe { &*store }.last_entry(property_id) {
         Some(entry) => entry.source_slot as i64,
         None => -1,
@@ -331,7 +331,7 @@ pub unsafe extern "C" fn rust_cascaded_properties_has_style_sheet_context(
     store: *const CascadedPropertyStore,
     property_id: u16,
 ) -> bool {
-    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadedStoreQueryEntry);
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CascadedStoreQueryEntry);
     abort_on_panic(|| {
         unsafe { &*store }
             .last_entry(property_id)
@@ -403,20 +403,20 @@ fn apply_declaration_block(
 
         if declared_is_unresolved {
             let native_resolution = unsafe {
-                crate::custom_properties::resolve_vars(custom_property_store, custom_property_registry, data)
+                crate::css::custom_properties::resolve_vars(custom_property_store, custom_property_registry, data)
             };
             match native_resolution {
-                crate::custom_properties::NativeVarResolution::Resolved(source) => {
+                crate::css::custom_properties::NativeVarResolution::Resolved(source) => {
                     let resolved = parse_substituted(declaration.property_id, &source);
                     data = resolved.data;
                     has_style_sheet_context = resolved.has_style_sheet_context;
                 }
-                crate::custom_properties::NativeVarResolution::Invalid => {
+                crate::css::custom_properties::NativeVarResolution::Invalid => {
                     let resolved = parse_substituted(declaration.property_id, &[]);
                     data = resolved.data;
                     has_style_sheet_context = resolved.has_style_sheet_context;
                 }
-                crate::custom_properties::NativeVarResolution::NotHandled => {
+                crate::css::custom_properties::NativeVarResolution::NotHandled => {
                     let resolved = resolve_unresolved(declaration.property_id, data);
                     data = resolved.data;
                     has_style_sheet_context = resolved.has_style_sheet_context;
@@ -472,9 +472,9 @@ fn apply_declaration_block(
                     StyleValueData::Keyword { keyword } => Some(*keyword),
                     _ => None,
                 };
-                if longhand_keyword == Some(crate::style_compute::keyword::REVERT) {
+                if longhand_keyword == Some(crate::css::style_compute::keyword::REVERT) {
                     store.revert_property(longhand_id, important, origin);
-                } else if longhand_keyword == Some(crate::style_compute::keyword::REVERT_LAYER) {
+                } else if longhand_keyword == Some(crate::css::style_compute::keyword::REVERT_LAYER) {
                     store.revert_layer_property(
                         longhand_id,
                         important,
@@ -488,7 +488,7 @@ fn apply_declaration_block(
                     // stylesheet can be adopted into multiple scopes at once, so the declaration object alone is
                     // not specific enough.
                     let retained_value = unsafe {
-                        RetainedStyleValueData::from_retained_pointer(crate::style_value::rust_style_value_retain(
+                        RetainedStyleValueData::from_retained_pointer(crate::css::style_value::rust_style_value_retain(
                             longhand_data.cast(),
                         ))
                     };
@@ -620,7 +620,7 @@ pub unsafe extern "C" fn rust_cascade_matched_blocks(
     unset_data: *const c_void,
     callbacks: *const FfiBulkCascadeCallbacks,
 ) {
-    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadeBulkEntry);
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CascadeBulkEntry);
     abort_on_panic(|| {
         let store = unsafe { &mut *store };
         let callbacks = unsafe { &*callbacks };
@@ -711,9 +711,9 @@ pub unsafe extern "C" fn rust_cascade_matched_blocks(
 
         let has_pseudo_element = pseudo_element != NO_PSEUDO_ELEMENT;
         let cascade_custom_properties = !has_pseudo_element
-            || crate::property_metadata::pseudo_element_supports_property(
+            || crate::css::property_metadata::pseudo_element_supports_property(
                 pseudo_element,
-                crate::property_metadata::property_id::CUSTOM,
+                crate::css::property_metadata::property_id::CUSTOM,
             );
         let mut custom_property_store = std::ptr::null();
         if cascade_custom_properties {
@@ -748,7 +748,7 @@ pub unsafe extern "C" fn rust_cascade_matched_blocks(
                     }
                 }
             }
-            crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadeCustomPropertyBatchCallback);
+            crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CascadeCustomPropertyBatchCallback);
             unsafe {
                 custom_property_store =
                     (callbacks.set_custom_properties)(context, custom_properties.as_ptr(), custom_properties.len());
@@ -768,7 +768,7 @@ pub unsafe extern "C" fn rust_cascade_matched_blocks(
                 if block.bypass_pseudo_element_property_whitelist || !has_pseudo_element {
                     return false;
                 }
-                !crate::property_metadata::pseudo_element_supports_property(pseudo_element, property_id)
+                !crate::css::property_metadata::pseudo_element_supports_property(pseudo_element, property_id)
             };
             apply_declaration_block(
                 store,
@@ -781,11 +781,11 @@ pub unsafe extern "C" fn rust_cascade_matched_blocks(
                 unset_data,
                 &is_property_disallowed,
                 &|property_id, data| {
-                    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadeResolveUnresolvedCallback);
+                    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CascadeResolveUnresolvedCallback);
                     unsafe { (callbacks.resolve_unresolved)(context, property_id, data) }
                 },
                 &|property_id, source| {
-                    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadeParseSubstitutedCallback);
+                    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CascadeParseSubstitutedCallback);
                     unsafe { (callbacks.parse_substituted)(context, property_id, source.as_ptr(), source.len()) }
                 },
                 custom_property_store,
@@ -804,7 +804,7 @@ pub unsafe extern "C" fn rust_cascade_matched_blocks(
         }
 
         if !source_slot_assignments.is_empty() {
-            crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CascadeSourceSlotCallback);
+            crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CascadeSourceSlotCallback);
             unsafe {
                 (callbacks.assign_source_slots)(
                     context,
@@ -830,7 +830,7 @@ mod tests {
         let mut store = CascadedPropertyStore::new();
 
         store.set_property(
-            crate::property_metadata::property_id::OPACITY,
+            crate::css::property_metadata::property_id::OPACITY,
             retained_value,
             false,
             false,
@@ -840,7 +840,7 @@ mod tests {
         );
 
         let (data, important, source_slot, has_style_sheet_context) = store
-            .winning_declaration(crate::property_metadata::property_id::OPACITY)
+            .winning_declaration(crate::css::property_metadata::property_id::OPACITY)
             .expect("the declaration must be retained");
         assert!(!important);
         assert_eq!(source_slot, 0);

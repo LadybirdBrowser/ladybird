@@ -30,6 +30,10 @@ use std::sync::OnceLock;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::abort_on_panic;
+pub use crate::css::computed_value_types::{
+    AlignmentValues, ComputedFlexBasis, ComputedGap, ComputedLengthBox, ComputedLengthPercentageOrAuto, ComputedSize,
+    ComputedSizeKind, ComputedStyleValueHandle, SVGResetValues, SizingValues, SurroundValues,
+};
 
 /// Reference count value marking an intentionally leaked payload.
 pub const STYLE_GROUP_STATIC_REFCOUNT: usize = usize::MAX;
@@ -50,28 +54,6 @@ pub struct InheritedBoxValues {
     pub image_rendering: u8,
 }
 
-/// The computed forms accepted by width and height sizing properties.
-#[repr(u8)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ComputedSizeKind {
-    Auto,
-    Calculated,
-    Length,
-    Percentage,
-    MinContent,
-    MaxContent,
-    FitContent,
-    None,
-}
-
-/// A computed sizing value. Scalar and calculated values retain their
-/// immutable Rust style-value identity. Fit-content retains only its argument,
-/// and keyword-only forms leave the handle empty.
-#[repr(C)]
-pub struct ComputedStyleValueHandle {
-    pub pointer: *const c_void,
-}
-
 impl ComputedStyleValueHandle {
     fn empty() -> Self {
         Self {
@@ -79,35 +61,38 @@ impl ComputedStyleValueHandle {
         }
     }
 
-    fn retained(data: *const crate::style_value::StyleValueData) -> Self {
+    fn retained(data: *const crate::css::style_value::StyleValueData) -> Self {
         Self {
-            pointer: unsafe { crate::style_value::rust_style_value_retain(data) }.cast(),
+            pointer: unsafe { crate::css::style_value::rust_style_value_retain(data) }.cast(),
         }
     }
 
     fn length(value: f64) -> Self {
         Self {
-            pointer: crate::style_value::rust_style_value_create_length(value, crate::style_compute::px_length_unit())
-                .cast(),
+            pointer: crate::css::style_value::rust_style_value_create_length(
+                value,
+                crate::css::style_compute::px_length_unit(),
+            )
+            .cast(),
         }
     }
 
-    fn data(&self) -> Option<&crate::style_value::StyleValueData> {
-        unsafe { self.pointer.cast::<crate::style_value::StyleValueData>().as_ref() }
+    fn data(&self) -> Option<&crate::css::style_value::StyleValueData> {
+        unsafe { self.pointer.cast::<crate::css::style_value::StyleValueData>().as_ref() }
     }
 }
 
 impl Clone for ComputedStyleValueHandle {
     fn clone(&self) -> Self {
         Self {
-            pointer: unsafe { crate::style_value::rust_style_value_retain(self.pointer.cast()) }.cast(),
+            pointer: unsafe { crate::css::style_value::rust_style_value_retain(self.pointer.cast()) }.cast(),
         }
     }
 }
 
 impl Drop for ComputedStyleValueHandle {
     fn drop(&mut self) {
-        unsafe { crate::style_value::rust_style_value_release(self.pointer.cast()) };
+        unsafe { crate::css::style_value::rust_style_value_release(self.pointer.cast()) };
     }
 }
 
@@ -119,12 +104,6 @@ impl PartialEq for ComputedStyleValueHandle {
             _ => false,
         }
     }
-}
-
-#[repr(C)]
-pub struct ComputedSize {
-    pub kind: ComputedSizeKind,
-    pub value: ComputedStyleValueHandle,
 }
 
 impl Clone for ComputedSize {
@@ -142,105 +121,81 @@ impl PartialEq for ComputedSize {
     }
 }
 
-/// Layout of the six computed sizing properties.
-#[repr(C)]
-#[derive(Clone, PartialEq)]
-pub struct SizingValues {
-    pub width: ComputedSize,
-    pub min_width: ComputedSize,
-    pub max_width: ComputedSize,
-    pub height: ComputedSize,
-    pub min_height: ComputedSize,
-    pub max_height: ComputedSize,
+macro_rules! impl_computed_payload_clone_and_eq {
+    ($type:ty { $($field:ident),+ $(,)? }) => {
+        impl Clone for $type {
+            fn clone(&self) -> Self {
+                Self {
+                    $($field: self.$field.clone(),)+
+                }
+            }
+        }
+
+        impl PartialEq for $type {
+            fn eq(&self, other: &Self) -> bool {
+                true $(&& self.$field == other.$field)+
+            }
+        }
+    };
 }
 
-/// A computed flex-basis value. Content uses the flag; every other form uses
-/// the same computed-size representation as width and height.
-#[repr(C)]
-#[derive(Clone, PartialEq)]
-pub struct ComputedFlexBasis {
-    pub is_content: bool,
-    pub size: ComputedSize,
-}
-
-/// A computed row-gap or column-gap value. Normal uses the flag; every other
-/// form retains its immutable length-percentage identity.
-#[repr(C)]
-#[derive(Clone, PartialEq)]
-pub struct ComputedGap {
-    pub is_normal: bool,
-    pub value: ComputedStyleValueHandle,
-}
-
-/// Layout of the computed flexbox and box-alignment properties.
-#[repr(C)]
-#[derive(Clone, PartialEq)]
-pub struct AlignmentValues {
-    pub flex_direction: u8,
-    pub flex_wrap: u8,
-    pub flex_basis: ComputedFlexBasis,
-    pub flex_grow: f64,
-    pub flex_shrink: f64,
-    pub order: i32,
-    pub align_content: u8,
-    pub align_items: u8,
-    pub align_self: u8,
-    pub justify_content: u8,
-    pub justify_items: u8,
-    pub justify_self: u8,
-    pub column_gap: ComputedGap,
-    pub row_gap: ComputedGap,
-}
-
-/// A computed length-percentage-or-auto value.
-#[repr(C)]
-#[derive(Clone, PartialEq)]
-pub struct ComputedLengthPercentageOrAuto {
-    pub is_auto: bool,
-    pub value: ComputedStyleValueHandle,
-}
-
-/// Four physical computed length-percentage-or-auto sides.
-#[repr(C)]
-#[derive(Clone, PartialEq)]
-pub struct ComputedLengthBox {
-    pub top: ComputedLengthPercentageOrAuto,
-    pub right: ComputedLengthPercentageOrAuto,
-    pub bottom: ComputedLengthPercentageOrAuto,
-    pub left: ComputedLengthPercentageOrAuto,
-}
-
-/// Layout of the computed inset, margin, and padding properties.
-#[repr(C)]
-#[derive(Clone, PartialEq)]
-pub struct SurroundValues {
-    pub inset: ComputedLengthBox,
-    pub top_anchor_inset: ComputedStyleValueHandle,
-    pub right_anchor_inset: ComputedStyleValueHandle,
-    pub bottom_anchor_inset: ComputedStyleValueHandle,
-    pub left_anchor_inset: ComputedStyleValueHandle,
-    pub margin: ComputedLengthBox,
-    pub padding: ComputedLengthBox,
-}
-
-/// Layout of the non-inherited SVG geometry and painting properties.
-#[repr(C)]
-#[derive(Clone, PartialEq)]
-pub struct SVGResetValues {
-    pub cx: ComputedStyleValueHandle,
-    pub cy: ComputedStyleValueHandle,
-    pub r: ComputedStyleValueHandle,
-    pub rx: ComputedLengthPercentageOrAuto,
-    pub ry: ComputedLengthPercentageOrAuto,
-    pub x: ComputedStyleValueHandle,
-    pub y: ComputedStyleValueHandle,
-    pub stop_color: u32,
-    pub stop_opacity: f32,
-    pub flood_color: u32,
-    pub flood_opacity: f32,
-    pub vector_effect: u8,
-    pub shape_rendering: u8,
-}
+impl_computed_payload_clone_and_eq!(SizingValues {
+    width,
+    min_width,
+    max_width,
+    height,
+    min_height,
+    max_height,
+});
+impl_computed_payload_clone_and_eq!(ComputedFlexBasis { is_content, size });
+impl_computed_payload_clone_and_eq!(ComputedGap { is_normal, value });
+impl_computed_payload_clone_and_eq!(AlignmentValues {
+    flex_direction,
+    flex_wrap,
+    flex_basis,
+    flex_grow,
+    flex_shrink,
+    order,
+    align_content,
+    align_items,
+    align_self,
+    justify_content,
+    justify_items,
+    justify_self,
+    column_gap,
+    row_gap,
+});
+impl_computed_payload_clone_and_eq!(ComputedLengthPercentageOrAuto { is_auto, value });
+impl_computed_payload_clone_and_eq!(ComputedLengthBox {
+    top,
+    right,
+    bottom,
+    left,
+});
+impl_computed_payload_clone_and_eq!(SurroundValues {
+    inset,
+    top_anchor_inset,
+    right_anchor_inset,
+    bottom_anchor_inset,
+    left_anchor_inset,
+    margin,
+    padding,
+});
+impl_computed_payload_clone_and_eq!(SVGResetValues {
+    cx,
+    cy,
+    r,
+    rx,
+    ry,
+    x,
+    y,
+    stop_color,
+    stop_opacity,
+    flood_color,
+    flood_opacity,
+    vector_effect,
+    shape_rendering,
+});
 
 /// Selects the language that owns a style group's payload lifecycle.
 #[repr(u8)]
@@ -493,7 +448,7 @@ pub unsafe extern "C" fn rust_style_group_registry_register(
 /// `source` must be a valid payload of the same group type.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_group_clone(group_index: usize, source: *const c_void) -> *mut c_void {
-    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::StyleGroupCloneEntry);
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::StyleGroupCloneEntry);
     abort_on_panic(|| unsafe {
         let table = vtable(group_index);
         let payload = allocate_payload(table, 1);
@@ -509,7 +464,7 @@ pub unsafe extern "C" fn rust_style_group_clone(group_index: usize, source: *con
 /// references, and must not be a static default payload.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_group_free(group_index: usize, payload: *mut c_void) {
-    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::StyleGroupFreeEntry);
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::StyleGroupFreeEntry);
     abort_on_panic(|| unsafe {
         let table = vtable(group_index);
         debug_assert!(refcount_of(payload, payload_align(table)).load(Ordering::Relaxed) == 0);
@@ -641,7 +596,7 @@ pub unsafe extern "C" fn rust_build_style_group(
     count: usize,
     parent_payload: *const c_void,
 ) -> *const c_void {
-    use crate::style_value::StyleValueData;
+    use crate::css::style_value::StyleValueData;
 
     abort_on_panic(|| {
         let all = &FIELD_DESCRIPTORS.get()?.0;
@@ -696,12 +651,12 @@ pub unsafe extern "C" fn rust_build_style_group(
                     let StyleValueData::Length { value, unit } = data else {
                         return None;
                     };
-                    if *unit != crate::style_compute::px_length_unit() {
+                    if *unit != crate::css::style_compute::px_length_unit() {
                         return None;
                     }
                     pokes.push(Poke::I32(
                         descriptor.offset,
-                        crate::css_pixels::CssPixels::nearest_value_for(*value).raw_value(),
+                        crate::css::css_pixels::CssPixels::nearest_value_for(*value).raw_value(),
                     ));
                 }
                 GROUP_FIELD_U64 => {
@@ -750,7 +705,7 @@ pub unsafe extern "C" fn rust_build_style_group(
                     let StyleValueData::Length { value, unit } = data else {
                         return None;
                     };
-                    if *unit != crate::style_compute::px_length_unit() || *value != descriptor.required_px {
+                    if *unit != crate::css::style_compute::px_length_unit() || *value != descriptor.required_px {
                         return None;
                     }
                 }
@@ -764,7 +719,7 @@ pub unsafe extern "C" fn rust_build_style_group(
                     }
                 },
                 GROUP_FIELD_REQUIRE_INITIAL_VALUE => {
-                    if value.data != crate::style_compute::initial_value_data(descriptor.property_id).cast() {
+                    if value.data != crate::css::style_compute::initial_value_data(descriptor.property_id).cast() {
                         return None;
                     }
                 }
@@ -772,12 +727,12 @@ pub unsafe extern "C" fn rust_build_style_group(
                     let StyleValueData::Length { value, unit } = data else {
                         return None;
                     };
-                    if *unit != crate::style_compute::px_length_unit() {
+                    if *unit != crate::css::style_compute::px_length_unit() {
                         return None;
                     }
                     pokes.push(Poke::I32(
                         descriptor.offset,
-                        crate::css_pixels::CssPixels::nearest_value_for(value.max(0.0)).raw_value(),
+                        crate::css::css_pixels::CssPixels::nearest_value_for(value.max(0.0)).raw_value(),
                     ));
                 }
                 GROUP_FIELD_RESOLVED_F64 => {
@@ -821,7 +776,7 @@ pub unsafe extern "C" fn rust_build_style_group(
                     Poke::U32(offset, value) => *(base.add(offset as usize) as *mut u32) = value,
                     Poke::Data(offset, data) => {
                         // The slot's constructor default is null, so nothing is released.
-                        let retained = crate::style_value::rust_style_value_retain(data);
+                        let retained = crate::css::style_value::rust_style_value_retain(data);
                         *(base.add(offset as usize) as *mut *const StyleValueData) = retained;
                     }
                 }
@@ -872,7 +827,7 @@ pub unsafe extern "C" fn rust_build_inherited_box_group(
     image_rendering: *const c_void,
     parent_payload: *const c_void,
 ) -> *const c_void {
-    use crate::style_value::StyleValueData;
+    use crate::css::style_value::StyleValueData;
 
     abort_on_panic(|| {
         let keyword_code = |data: *const c_void, map: fn(u16) -> Option<u8>| -> Option<u8> {
@@ -882,11 +837,14 @@ pub unsafe extern "C" fn rust_build_inherited_box_group(
             }
         };
         let built = InheritedBoxValues {
-            visibility: keyword_code(visibility, crate::style_compute::keyword_to_visibility)?,
-            direction: keyword_code(direction, crate::style_compute::keyword_to_direction)?,
-            writing_mode: keyword_code(writing_mode, crate::style_compute::keyword_to_writing_mode)?,
-            content_visibility: keyword_code(content_visibility, crate::style_compute::keyword_to_content_visibility)?,
-            image_rendering: keyword_code(image_rendering, crate::style_compute::keyword_to_image_rendering)?,
+            visibility: keyword_code(visibility, crate::css::style_compute::keyword_to_visibility)?,
+            direction: keyword_code(direction, crate::css::style_compute::keyword_to_direction)?,
+            writing_mode: keyword_code(writing_mode, crate::css::style_compute::keyword_to_writing_mode)?,
+            content_visibility: keyword_code(
+                content_visibility,
+                crate::css::style_compute::keyword_to_content_visibility,
+            )?,
+            image_rendering: keyword_code(image_rendering, crate::css::style_compute::keyword_to_image_rendering)?,
         };
 
         if !parent_payload.is_null() {
@@ -919,7 +877,7 @@ impl ComputedSize {
         }
     }
 
-    fn retained(kind: ComputedSizeKind, data: *const crate::style_value::StyleValueData) -> Self {
+    fn retained(kind: ComputedSizeKind, data: *const crate::css::style_value::StyleValueData) -> Self {
         Self {
             kind,
             value: ComputedStyleValueHandle::retained(data),
@@ -927,8 +885,8 @@ impl ComputedSize {
     }
 
     fn from_data(data: *const c_void) -> Self {
-        use crate::css_enums::keyword;
-        use crate::style_value::StyleValueData;
+        use crate::css::css_enums::keyword;
+        use crate::css::style_value::StyleValueData;
 
         let data = data.cast::<StyleValueData>();
         match unsafe { data.as_ref() } {
@@ -975,8 +933,8 @@ impl SizingValues {
 
 impl ComputedFlexBasis {
     fn from_data(data: *const c_void) -> Self {
-        use crate::css_enums::keyword;
-        use crate::style_value::StyleValueData;
+        use crate::css::css_enums::keyword;
+        use crate::css::style_value::StyleValueData;
 
         let is_content = matches!(
             unsafe { data.cast::<StyleValueData>().as_ref() },
@@ -995,8 +953,8 @@ impl ComputedFlexBasis {
 
 impl ComputedGap {
     fn from_data(data: *const c_void) -> Self {
-        use crate::css_enums::keyword;
-        use crate::style_value::StyleValueData;
+        use crate::css::css_enums::keyword;
+        use crate::css::style_value::StyleValueData;
 
         let data = data.cast::<StyleValueData>();
         let is_normal = matches!(
@@ -1016,7 +974,7 @@ impl ComputedGap {
 
 impl AlignmentValues {
     fn initial() -> Self {
-        use crate::css_enums::{
+        use crate::css::css_enums::{
             align_content, align_items, align_self, flex_direction, flex_wrap, justify_content, justify_items,
             justify_self,
         };
@@ -1065,8 +1023,8 @@ impl ComputedLengthPercentageOrAuto {
     }
 
     fn from_data(data: *const c_void) -> Self {
-        use crate::css_enums::keyword;
-        use crate::style_value::StyleValueData;
+        use crate::css::css_enums::keyword;
+        use crate::css::style_value::StyleValueData;
 
         let data = data.cast::<StyleValueData>();
         let is_auto = matches!(
@@ -1084,8 +1042,8 @@ impl ComputedLengthPercentageOrAuto {
     }
 
     fn from_length_box_data(data: *const c_void, default_is_auto: bool) -> Self {
-        use crate::css_enums::keyword;
-        use crate::style_value::StyleValueData;
+        use crate::css::css_enums::keyword;
+        use crate::css::style_value::StyleValueData;
 
         let data = data.cast::<StyleValueData>();
         match unsafe { data.as_ref() } {
@@ -1158,7 +1116,7 @@ impl SurroundValues {
 
 impl SVGResetValues {
     fn initial() -> Self {
-        use crate::css_enums::{shape_rendering, vector_effect};
+        use crate::css::css_enums::{shape_rendering, vector_effect};
 
         const OPAQUE_BLACK_BGRA: u32 = 0xff00_0000;
 
@@ -1215,7 +1173,7 @@ pub unsafe extern "C" fn rust_build_alignment_group(
     row_gap: *const c_void,
     parent_payload: *const c_void,
 ) -> *const c_void {
-    use crate::style_value::StyleValueData;
+    use crate::css::style_value::StyleValueData;
 
     abort_on_panic(|| {
         let keyword_code = |data: *const c_void, map: fn(u16) -> Option<u8>| -> Option<u8> {
@@ -1225,18 +1183,18 @@ pub unsafe extern "C" fn rust_build_alignment_group(
             }
         };
         let built = AlignmentValues {
-            flex_direction: keyword_code(flex_direction, crate::css_enums::keyword_to_flex_direction)?,
-            flex_wrap: keyword_code(flex_wrap, crate::css_enums::keyword_to_flex_wrap)?,
+            flex_direction: keyword_code(flex_direction, crate::css::css_enums::keyword_to_flex_direction)?,
+            flex_wrap: keyword_code(flex_wrap, crate::css::css_enums::keyword_to_flex_wrap)?,
             flex_basis: ComputedFlexBasis::from_data(flex_basis),
             flex_grow,
             flex_shrink,
             order,
-            align_content: keyword_code(align_content, crate::css_enums::keyword_to_align_content)?,
-            align_items: keyword_code(align_items, crate::css_enums::keyword_to_align_items)?,
-            align_self: keyword_code(align_self, crate::css_enums::keyword_to_align_self)?,
-            justify_content: keyword_code(justify_content, crate::css_enums::keyword_to_justify_content)?,
-            justify_items: keyword_code(justify_items, crate::css_enums::keyword_to_justify_items)?,
-            justify_self: keyword_code(justify_self, crate::css_enums::keyword_to_justify_self)?,
+            align_content: keyword_code(align_content, crate::css::css_enums::keyword_to_align_content)?,
+            align_items: keyword_code(align_items, crate::css::css_enums::keyword_to_align_items)?,
+            align_self: keyword_code(align_self, crate::css::css_enums::keyword_to_align_self)?,
+            justify_content: keyword_code(justify_content, crate::css::css_enums::keyword_to_justify_content)?,
+            justify_items: keyword_code(justify_items, crate::css::css_enums::keyword_to_justify_items)?,
+            justify_self: keyword_code(justify_self, crate::css::css_enums::keyword_to_justify_self)?,
             column_gap: ComputedGap::from_data(column_gap),
             row_gap: ComputedGap::from_data(row_gap),
         };
@@ -1285,7 +1243,7 @@ pub unsafe extern "C" fn rust_build_svg_reset_group(
     shape_rendering: *const c_void,
     parent_payload: *const c_void,
 ) -> *const c_void {
-    use crate::style_value::StyleValueData;
+    use crate::css::style_value::StyleValueData;
 
     abort_on_panic(|| {
         let keyword_code = |data: *const c_void, map: fn(u16) -> Option<u8>| -> Option<u8> {
@@ -1307,8 +1265,8 @@ pub unsafe extern "C" fn rust_build_svg_reset_group(
             stop_opacity,
             flood_color,
             flood_opacity,
-            vector_effect: keyword_code(vector_effect, crate::css_enums::keyword_to_vector_effect)?,
-            shape_rendering: keyword_code(shape_rendering, crate::css_enums::keyword_to_shape_rendering)?,
+            vector_effect: keyword_code(vector_effect, crate::css::css_enums::keyword_to_vector_effect)?,
+            shape_rendering: keyword_code(shape_rendering, crate::css::css_enums::keyword_to_shape_rendering)?,
         };
 
         if !parent_payload.is_null() && built.eq(unsafe { &*parent_payload.cast::<SVGResetValues>() }) {
@@ -1352,7 +1310,7 @@ pub unsafe extern "C" fn rust_build_surround_group(
     padding_left: *const c_void,
     parent_payload: *const c_void,
 ) -> *const c_void {
-    use crate::style_value::StyleValueData;
+    use crate::css::style_value::StyleValueData;
 
     abort_on_panic(|| {
         let anchor = |data: *const c_void| {
@@ -1451,7 +1409,7 @@ pub unsafe extern "C" fn rust_build_inherited_table_group(
     border_spacing: *const c_void,
     parent_payload: *const c_void,
 ) -> *const c_void {
-    use crate::style_value::StyleValueData;
+    use crate::css::style_value::StyleValueData;
 
     abort_on_panic(|| {
         let keyword_code = |data: *const c_void, map: fn(u16) -> Option<u8>| -> Option<u8> {
@@ -1461,15 +1419,15 @@ pub unsafe extern "C" fn rust_build_inherited_table_group(
             }
         };
         let spacing = match unsafe { (border_spacing as *const StyleValueData).as_ref() } {
-            Some(StyleValueData::Length { value, unit }) if *unit == crate::style_compute::px_length_unit() => {
-                crate::css_pixels::CssPixels::nearest_value_for(*value).raw_value()
+            Some(StyleValueData::Length { value, unit }) if *unit == crate::css::style_compute::px_length_unit() => {
+                crate::css::css_pixels::CssPixels::nearest_value_for(*value).raw_value()
             }
             _ => return None,
         };
         let built = InheritedTableValues {
-            border_collapse: keyword_code(border_collapse, crate::style_compute::keyword_to_border_collapse)?,
-            caption_side: keyword_code(caption_side, crate::style_compute::keyword_to_caption_side)?,
-            empty_cells: keyword_code(empty_cells, crate::style_compute::keyword_to_empty_cells)?,
+            border_collapse: keyword_code(border_collapse, crate::css::style_compute::keyword_to_border_collapse)?,
+            caption_side: keyword_code(caption_side, crate::css::style_compute::keyword_to_caption_side)?,
+            empty_cells: keyword_code(empty_cells, crate::css::style_compute::keyword_to_empty_cells)?,
             border_spacing_horizontal: spacing,
             border_spacing_vertical: spacing,
         };
@@ -1512,7 +1470,7 @@ pub struct InheritedTableValues {
 
 impl InheritedTableValues {
     fn initial() -> Self {
-        use crate::css_enums::{border_collapse, caption_side, empty_cells};
+        use crate::css::css_enums::{border_collapse, caption_side, empty_cells};
 
         Self {
             border_collapse: border_collapse::SEPARATE,
@@ -1526,7 +1484,7 @@ impl InheritedTableValues {
 
 impl InheritedBoxValues {
     fn initial() -> Self {
-        use crate::css_enums::{content_visibility, direction, image_rendering, visibility, writing_mode};
+        use crate::css::css_enums::{content_visibility, direction, image_rendering, visibility, writing_mode};
 
         Self {
             visibility: visibility::VISIBLE,

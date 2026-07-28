@@ -21,11 +21,11 @@ pub enum FfiTransitionActionKind {
 #[repr(C)]
 pub struct FfiTransitionPropertyInput {
     pub property_id: u16,
-    pub before_change_value: *const crate::style_value::StyleValueData,
-    pub after_change_value: *const crate::style_value::StyleValueData,
-    pub current_value: *const crate::style_value::StyleValueData,
-    pub existing_end_value: *const crate::style_value::StyleValueData,
-    pub reversing_adjusted_start_value: *const crate::style_value::StyleValueData,
+    pub before_change_value: *const crate::css::style_value::StyleValueData,
+    pub after_change_value: *const crate::css::style_value::StyleValueData,
+    pub current_value: *const crate::css::style_value::StyleValueData,
+    pub existing_end_value: *const crate::css::style_value::StyleValueData,
+    pub reversing_adjusted_start_value: *const crate::css::style_value::StyleValueData,
     pub has_matching_transition: bool,
     pub allow_discrete: bool,
     pub before_change_value_originates_from_current_color: bool,
@@ -40,7 +40,7 @@ pub struct FfiTransitionPropertyInput {
 
 #[repr(C)]
 pub struct FfiTransitionInput {
-    pub context: crate::animation::FfiAnimationContext,
+    pub context: crate::css::animation::FfiAnimationContext,
     pub properties: *const FfiTransitionPropertyInput,
     pub property_count: usize,
 }
@@ -55,18 +55,18 @@ pub struct FfiTransitionAction {
 }
 
 fn property_values_are_transitionable(
-    context: &crate::animation::FfiAnimationContext,
+    context: &crate::css::animation::FfiAnimationContext,
     property_id: u16,
-    old_value: *const crate::style_value::StyleValueData,
-    new_value: *const crate::style_value::StyleValueData,
+    old_value: *const crate::css::style_value::StyleValueData,
+    new_value: *const crate::css::style_value::StyleValueData,
     allow_discrete: bool,
 ) -> bool {
-    let animation_type = crate::property_metadata::property_animation_type(property_id);
+    let animation_type = crate::css::property_metadata::property_animation_type(property_id);
 
     // https://drafts.csswg.org/css-transitions/#transitionable
     // When comparing the before-change style and after-change style for a given property, the property values are transitionable if they have an animation type that is neither not animatable nor discrete.
-    if animation_type == crate::animation::ANIMATION_TYPE_NONE
-        || !allow_discrete && animation_type == crate::animation::ANIMATION_TYPE_DISCRETE
+    if animation_type == crate::css::animation::ANIMATION_TYPE_NONE
+        || !allow_discrete && animation_type == crate::css::animation::ANIMATION_TYPE_DISCRETE
     {
         return false;
     }
@@ -74,7 +74,7 @@ fn property_values_are_transitionable(
         return true;
     }
 
-    let result = crate::animation::interpolate_value(
+    let result = crate::css::animation::interpolate_value(
         Some(context),
         property_id,
         unsafe { &*old_value },
@@ -83,18 +83,18 @@ fn property_values_are_transitionable(
     );
     assert!(result.handled);
     if !result.value.is_null() {
-        unsafe { crate::style_value::rust_style_value_release(result.value) };
+        unsafe { crate::css::style_value::rust_style_value_release(result.value) };
         return true;
     }
     false
 }
 
 fn decide_transition(
-    context: &crate::animation::FfiAnimationContext,
+    context: &crate::css::animation::FfiAnimationContext,
     input: &FfiTransitionPropertyInput,
 ) -> FfiTransitionAction {
-    let values_equal = |first: *const crate::style_value::StyleValueData,
-                        second: *const crate::style_value::StyleValueData| {
+    let values_equal = |first: *const crate::css::style_value::StyleValueData,
+                        second: *const crate::css::style_value::StyleValueData| {
         assert!(!first.is_null());
         assert!(!second.is_null());
         let (first, second) = unsafe { (&*first, &*second) };
@@ -267,7 +267,7 @@ fn decide_transition(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_decide_transitions(input: *const FfiTransitionInput, actions: *mut FfiTransitionAction) {
     crate::abort_on_panic(|| {
-        crate::ffi_stats::rust_style_ffi_note_transition_decision();
+        crate::css::ffi_stats::rust_style_ffi_note_transition_decision();
         let input = unsafe { &*input };
         let properties = if input.property_count == 0 {
             &[]
@@ -284,19 +284,19 @@ pub unsafe extern "C" fn rust_decide_transitions(input: *const FfiTransitionInpu
 mod tests {
     use super::*;
 
-    fn animation_context() -> crate::animation::FfiAnimationContext {
-        let font_metrics = || crate::animation::FfiAnimationFontMetrics {
+    fn animation_context() -> crate::css::animation::FfiAnimationContext {
+        let font_metrics = || crate::css::animation::FfiAnimationFontMetrics {
             font_size: 0.0,
             x_height: 0.0,
             cap_height: 0.0,
             zero_advance: 0.0,
             line_height: 0.0,
         };
-        crate::animation::FfiAnimationContext {
+        crate::css::animation::FfiAnimationContext {
             allow_discrete: false,
             current_color: std::ptr::null(),
             has_length_resolution_context: false,
-            length_resolution_context: crate::animation::FfiAnimationLengthResolutionContext {
+            length_resolution_context: crate::css::animation::FfiAnimationLengthResolutionContext {
                 viewport_width: 0.0,
                 viewport_height: 0.0,
                 font_metrics: font_metrics(),
@@ -311,18 +311,19 @@ mod tests {
     }
 
     fn by_computed_value_property() -> u16 {
-        (crate::property_metadata::FIRST_LONGHAND_PROPERTY_ID..=crate::property_metadata::LAST_LONGHAND_PROPERTY_ID)
+        (crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID
+            ..=crate::css::property_metadata::LAST_LONGHAND_PROPERTY_ID)
             .find(|property_id| {
-                crate::property_metadata::property_animation_type(*property_id)
-                    == crate::animation::ANIMATION_TYPE_BY_COMPUTED_VALUE
+                crate::css::property_metadata::property_animation_type(*property_id)
+                    == crate::css::animation::ANIMATION_TYPE_BY_COMPUTED_VALUE
             })
             .unwrap()
     }
 
     fn input(
-        before_change_value: &crate::style_value::StyleValueData,
-        after_change_value: &crate::style_value::StyleValueData,
-        current_value: &crate::style_value::StyleValueData,
+        before_change_value: &crate::css::style_value::StyleValueData,
+        after_change_value: &crate::css::style_value::StyleValueData,
+        current_value: &crate::css::style_value::StyleValueData,
     ) -> FfiTransitionPropertyInput {
         FfiTransitionPropertyInput {
             property_id: by_computed_value_property(),
@@ -346,8 +347,8 @@ mod tests {
 
     #[test]
     fn starts_an_initial_transition() {
-        let before = crate::style_value::StyleValueData::Number { value: 0.0 };
-        let after = crate::style_value::StyleValueData::Number { value: 1.0 };
+        let before = crate::css::style_value::StyleValueData::Number { value: 0.0 };
+        let after = crate::css::style_value::StyleValueData::Number { value: 1.0 };
         assert_eq!(
             decide_transition(&animation_context(), &input(&before, &after, &before)).kind,
             FfiTransitionActionKind::Start
@@ -367,11 +368,12 @@ mod tests {
     #[test]
     fn equal_nested_values_do_not_start_a_transition() {
         let nested_value = || {
-            let number = std::sync::Arc::into_raw(std::sync::Arc::new(crate::style_value::StyleValueData::Number {
-                value: 0.5,
-            }));
-            crate::style_value::StyleValueData::OpacityValue {
-                value: unsafe { crate::style_value::RetainedStyleValueData::from_retained_pointer(number) },
+            let number =
+                std::sync::Arc::into_raw(std::sync::Arc::new(crate::css::style_value::StyleValueData::Number {
+                    value: 0.5,
+                }));
+            crate::css::style_value::StyleValueData::OpacityValue {
+                value: unsafe { crate::css::style_value::RetainedStyleValueData::from_retained_pointer(number) },
             }
         };
         let before = nested_value();
@@ -384,8 +386,8 @@ mod tests {
 
     #[test]
     fn current_color_origins_are_equivalent() {
-        let before = crate::style_value::StyleValueData::Number { value: 0.0 };
-        let after = crate::style_value::StyleValueData::Number { value: 1.0 };
+        let before = crate::css::style_value::StyleValueData::Number { value: 0.0 };
+        let after = crate::css::style_value::StyleValueData::Number { value: 1.0 };
         let mut input = input(&before, &after, &before);
         input.before_change_value_originates_from_current_color = true;
         input.after_change_value_originates_from_current_color = true;
@@ -397,8 +399,8 @@ mod tests {
 
     #[test]
     fn removes_a_completed_transition_before_replacement() {
-        let before = crate::style_value::StyleValueData::Number { value: 0.0 };
-        let after = crate::style_value::StyleValueData::Number { value: 1.0 };
+        let before = crate::css::style_value::StyleValueData::Number { value: 0.0 };
+        let after = crate::css::style_value::StyleValueData::Number { value: 1.0 };
         let mut input = input(&before, &after, &before);
         input.has_completed_transition = true;
         input.existing_end_value = &raw const before;
@@ -410,9 +412,9 @@ mod tests {
 
     #[test]
     fn adjusts_a_reversing_transition() {
-        let before = crate::style_value::StyleValueData::Number { value: 0.0 };
-        let after = crate::style_value::StyleValueData::Number { value: 1.0 };
-        let current = crate::style_value::StyleValueData::Number { value: 0.5 };
+        let before = crate::css::style_value::StyleValueData::Number { value: 0.0 };
+        let after = crate::css::style_value::StyleValueData::Number { value: 1.0 };
+        let current = crate::css::style_value::StyleValueData::Number { value: 0.5 };
         let mut input = input(&before, &after, &current);
         input.has_running_transition = true;
         input.existing_end_value = &raw const before;

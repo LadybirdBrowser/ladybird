@@ -11,8 +11,8 @@
 
 use std::sync::Arc;
 
-use crate::property_metadata::{property_animation_type, property_numeric_ranges};
-use crate::style_value::{
+use crate::css::property_metadata::{property_animation_type, property_numeric_ranges};
+use crate::css::style_value::{
     ColorBase, GridTrackEntryKind, RetainedGridTrackEntry, RetainedGridTrackEntryList, RetainedNumericRangeList,
     RetainedShapePoint, RetainedShapePointList, RetainedStyleValueData, RetainedStyleValueDataList,
     RetainedUtf16FlyString, RetainedUtf16FlyStringList, StyleValueData,
@@ -496,7 +496,7 @@ struct AnimationPropertyConflictCandidate {
 
 fn property_is_important(property_id: u16, bitmap: &[u8]) -> bool {
     let Some(index) = property_id
-        .checked_sub(crate::property_metadata::FIRST_LONGHAND_PROPERTY_ID)
+        .checked_sub(crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID)
         .map(usize::from)
     else {
         return false;
@@ -525,15 +525,15 @@ fn animation_specified_value_source(value: &StyleValueData, property_id: u16) ->
     // https://www.w3.org/TR/css-cascade-4/#inherit
     // If the cascaded value of a property is the inherit keyword, the property's specified and
     // computed values are the inherited value.
-    if *keyword == crate::style_compute::keyword::INHERIT {
+    if *keyword == crate::css::style_compute::keyword::INHERIT {
         return FfiAnimationSpecifiedValueSource::Inherited;
     }
 
     // https://www.w3.org/TR/css-cascade-4/#inherit-initial
     // If the cascaded value of a property is the unset keyword, then if it is an inherited
     // property, this is treated as inherit, and if it is not, this is treated as initial.
-    if *keyword == crate::style_compute::keyword::UNSET {
-        return if crate::property_metadata::property_is_inherited(property_id) {
+    if *keyword == crate::css::style_compute::keyword::UNSET {
+        return if crate::css::property_metadata::property_is_inherited(property_id) {
             FfiAnimationSpecifiedValueSource::Inherited
         } else {
             FfiAnimationSpecifiedValueSource::Initial
@@ -543,12 +543,12 @@ fn animation_specified_value_source(value: &StyleValueData, property_id: u16) ->
     // https://www.w3.org/TR/css-cascade-4/#initial
     // If the cascaded value of a property is the initial keyword, the property's specified value
     // is its initial value.
-    if *keyword == crate::style_compute::keyword::INITIAL {
+    if *keyword == crate::css::style_compute::keyword::INITIAL {
         return FfiAnimationSpecifiedValueSource::Initial;
     }
     if matches!(
         *keyword,
-        crate::style_compute::keyword::REVERT | crate::style_compute::keyword::REVERT_LAYER
+        crate::css::style_compute::keyword::REVERT | crate::css::style_compute::keyword::REVERT_LAYER
     ) {
         return FfiAnimationSpecifiedValueSource::Underlying;
     }
@@ -579,7 +579,7 @@ fn resolve_animation_property_conflicts(
             continue;
         }
         if !winner.use_initial
-            && !crate::property_metadata::animation_property_is_preferred(
+            && !crate::css::property_metadata::animation_property_is_preferred(
                 candidate.source_property_id,
                 winner.source_property_id,
             )
@@ -613,20 +613,20 @@ fn resolve_animation_declarations(
             !declaration.value.is_null(),
             "animation declaration value must not be null"
         );
-        crate::style_compute::expand_shorthands_with(
+        crate::css::style_compute::expand_shorthands_with(
             declaration.property_id,
             declaration.value.cast(),
             false,
             &mut |longhand_id, data, _| {
                 let physical_property_id =
-                    crate::style_compute::map_logical_alias_to_physical(longhand_id, writing_mode, direction);
+                    crate::css::style_compute::map_logical_alias_to_physical(longhand_id, writing_mode, direction);
                 candidates.push(AnimationPropertyConflictCandidate {
                     keyframe_index: declaration.keyframe_index,
                     physical_property_id,
                     source_property_id: declaration.property_id,
                     source_longhand_id: longhand_id,
                     value: unsafe {
-                        RetainedStyleValueData::from_retained_pointer(crate::style_value::rust_style_value_retain(
+                        RetainedStyleValueData::from_retained_pointer(crate::css::style_value::rust_style_value_retain(
                             data.cast(),
                         ))
                     },
@@ -827,7 +827,7 @@ fn handled_without_value() -> FfiAnimationValueResult {
 }
 
 fn handled_retained_value(value: RetainedStyleValueData) -> FfiAnimationValueResult {
-    let pointer = unsafe { crate::style_value::rust_style_value_retain(value.data()) };
+    let pointer = unsafe { crate::css::style_value::rust_style_value_retain(value.data()) };
     FfiAnimationValueResult {
         value: pointer,
         handled: true,
@@ -845,7 +845,7 @@ fn discrete_value(
     }
     let value = if delta < 0.5 { from } else { to };
     FfiAnimationValueResult {
-        value: unsafe { crate::style_value::rust_style_value_retain(value) },
+        value: unsafe { crate::css::style_value::rust_style_value_retain(value) },
         handled: true,
     }
 }
@@ -864,7 +864,7 @@ fn interpolate_visibility(
 
     if from_keyword == to_keyword {
         return FfiAnimationValueResult {
-            value: unsafe { crate::style_value::rust_style_value_retain(from) },
+            value: unsafe { crate::css::style_value::rust_style_value_retain(from) },
             handled: true,
         };
     }
@@ -872,7 +872,7 @@ fn interpolate_visibility(
     // https://drafts.csswg.org/web-animations-1/#animating-visibility
     // For the visibility property, visible is interpolated as a discrete step where values of p between 0 and 1 map to visible and other values of p map to the closer endpoint.
     // If neither value is visible, then discrete animation is used.
-    let visible = crate::style_compute::keyword::VISIBLE;
+    let visible = crate::css::style_compute::keyword::VISIBLE;
     if *from_keyword == visible || *to_keyword == visible {
         let value = if delta <= 0.0 {
             from
@@ -884,7 +884,7 @@ fn interpolate_visibility(
             to
         };
         return FfiAnimationValueResult {
-            value: unsafe { crate::style_value::rust_style_value_retain(value) },
+            value: unsafe { crate::css::style_value::rust_style_value_retain(value) },
             handled: true,
         };
     }
@@ -906,7 +906,7 @@ fn interpolate_content_visibility(
 
     if from_keyword == to_keyword {
         return FfiAnimationValueResult {
-            value: unsafe { crate::style_value::rust_style_value_retain(from) },
+            value: unsafe { crate::css::style_value::rust_style_value_retain(from) },
             handled: true,
         };
     }
@@ -915,7 +915,7 @@ fn interpolate_content_visibility(
     // In general, the content-visibility property’s animation type is discrete.
     // However, similar to interpolation of visibility, during interpolation between hidden and any other content-visibility value,
     // p values between 0 and 1 map to the non-hidden value.
-    let hidden = crate::style_compute::keyword::HIDDEN;
+    let hidden = crate::css::style_compute::keyword::HIDDEN;
     if *from_keyword == hidden || *to_keyword == hidden {
         if !context.is_some_and(|context| context.allow_discrete) {
             return handled_without_value();
@@ -928,7 +928,7 @@ fn interpolate_content_visibility(
             from
         };
         return FfiAnimationValueResult {
-            value: unsafe { crate::style_value::rust_style_value_retain(value) },
+            value: unsafe { crate::css::style_value::rust_style_value_retain(value) },
             handled: true,
         };
     }
@@ -948,7 +948,7 @@ fn interpolate_display(
 
     if from_raw == to_raw {
         return FfiAnimationValueResult {
-            value: unsafe { crate::style_value::rust_style_value_retain(from) },
+            value: unsafe { crate::css::style_value::rust_style_value_retain(from) },
             handled: true,
         };
     }
@@ -960,8 +960,8 @@ fn interpolate_display(
     // inert as long as its display value would compute to none when ignoring the Transitions and Animations
     // cascade origins.
     // FIXME: Implement the inertness portion of this.
-    let from_is_none = crate::style_compute::display_is_none(*from_raw);
-    let to_is_none = crate::style_compute::display_is_none(*to_raw);
+    let from_is_none = crate::css::style_compute::display_is_none(*from_raw);
+    let to_is_none = crate::css::style_compute::display_is_none(*to_raw);
     if from_is_none || to_is_none {
         if !context.is_some_and(|context| context.allow_discrete) {
             return handled_without_value();
@@ -974,7 +974,7 @@ fn interpolate_display(
             from
         };
         return FfiAnimationValueResult {
-            value: unsafe { crate::style_value::rust_style_value_retain(value) },
+            value: unsafe { crate::css::style_value::rust_style_value_retain(value) },
             handled: true,
         };
     }
@@ -983,12 +983,12 @@ fn interpolate_display(
 }
 
 fn interpolate_scale(from: &StyleValueData, to: &StyleValueData, delta: f32) -> FfiAnimationValueResult {
-    let none = crate::style_compute::none_keyword();
+    let none = crate::css::style_compute::none_keyword();
     if matches!(from, StyleValueData::Keyword { keyword } if *keyword == none)
         && matches!(to, StyleValueData::Keyword { keyword } if *keyword == none)
     {
         return FfiAnimationValueResult {
-            value: unsafe { crate::style_value::rust_style_value_retain(from) },
+            value: unsafe { crate::css::style_value::rust_style_value_retain(from) },
             handled: true,
         };
     }
@@ -1019,8 +1019,8 @@ fn interpolate_scale(from: &StyleValueData, to: &StyleValueData, delta: f32) -> 
                 StyleValueData::Number { value } => Some(*value),
                 StyleValueData::Percentage { value } => Some(*value / 100.0),
                 calculated @ StyleValueData::Calculated { .. } => {
-                    crate::calc::resolve_calculated_number_without_context(calculated).or_else(|| {
-                        crate::calc::resolve_calculated_percentage_without_context(calculated)
+                    crate::css::calc::resolve_calculated_number_without_context(calculated).or_else(|| {
+                        crate::css::calc::resolve_calculated_percentage_without_context(calculated)
                             .map(|value| value / 100.0)
                     })
                 }
@@ -1042,7 +1042,7 @@ fn interpolate_scale(from: &StyleValueData, to: &StyleValueData, delta: f32) -> 
         .map(|(from, to)| retained_number(interpolate_f64(from, to, delta, None)))
         .collect();
     owned(StyleValueData::Transformation {
-        property: crate::property_metadata::property_id::SCALE,
+        property: crate::css::property_metadata::property_id::SCALE,
         transform_function: if is_3d {
             TRANSFORM_FUNCTION_SCALE_3D
         } else {
@@ -1052,61 +1052,61 @@ fn interpolate_scale(from: &StyleValueData, to: &StyleValueData, delta: f32) -> 
     })
 }
 
-fn length_percentage_calculation_node(value: &StyleValueData) -> Option<Arc<crate::calc::CalcNode>> {
+fn length_percentage_calculation_node(value: &StyleValueData) -> Option<Arc<crate::css::calc::CalcNode>> {
     match value {
-        StyleValueData::Length { value, unit } => Some(Arc::new(crate::calc::CalcNode::Numeric(
-            crate::calc::CalcNumericValue::Length {
+        StyleValueData::Length { value, unit } => Some(Arc::new(crate::css::calc::CalcNode::Numeric(
+            crate::css::calc::CalcNumericValue::Length {
                 value: *value,
                 unit: *unit,
             },
         ))),
-        StyleValueData::Percentage { value } => Some(Arc::new(crate::calc::CalcNode::Numeric(
-            crate::calc::CalcNumericValue::Percentage(*value),
+        StyleValueData::Percentage { value } => Some(Arc::new(crate::css::calc::CalcNode::Numeric(
+            crate::css::calc::CalcNumericValue::Percentage(*value),
         ))),
         StyleValueData::Calculated { rust_calculation, .. } => Some(rust_calculation.node_arc()),
         _ => None,
     }
 }
 
-fn numeric_calculation_node(value: &StyleValueData) -> Option<Arc<crate::calc::CalcNode>> {
+fn numeric_calculation_node(value: &StyleValueData) -> Option<Arc<crate::css::calc::CalcNode>> {
     let numeric = match value {
-        StyleValueData::Number { value } => crate::calc::CalcNumericValue::Number {
+        StyleValueData::Number { value } => crate::css::calc::CalcNumericValue::Number {
             value: *value,
             number_type: 0,
         },
-        StyleValueData::Integer { value } => crate::calc::CalcNumericValue::Number {
+        StyleValueData::Integer { value } => crate::css::calc::CalcNumericValue::Number {
             value: *value as f64,
             number_type: 2,
         },
-        StyleValueData::Angle { value, unit } => crate::calc::CalcNumericValue::Angle {
+        StyleValueData::Angle { value, unit } => crate::css::calc::CalcNumericValue::Angle {
             value: *value,
             unit: *unit,
         },
-        StyleValueData::Flex { value, unit } => crate::calc::CalcNumericValue::Flex {
+        StyleValueData::Flex { value, unit } => crate::css::calc::CalcNumericValue::Flex {
             value: *value,
             unit: *unit,
         },
-        StyleValueData::Frequency { value, unit } => crate::calc::CalcNumericValue::Frequency {
+        StyleValueData::Frequency { value, unit } => crate::css::calc::CalcNumericValue::Frequency {
             value: *value,
             unit: *unit,
         },
-        StyleValueData::Length { value, unit } => crate::calc::CalcNumericValue::Length {
+        StyleValueData::Length { value, unit } => crate::css::calc::CalcNumericValue::Length {
             value: *value,
             unit: *unit,
         },
-        StyleValueData::Percentage { value } => crate::calc::CalcNumericValue::Percentage(*value),
-        StyleValueData::Resolution { value, unit } => crate::calc::CalcNumericValue::Resolution {
+        StyleValueData::Percentage { value } => crate::css::calc::CalcNumericValue::Percentage(*value),
+        StyleValueData::Resolution { value, unit } => crate::css::calc::CalcNumericValue::Resolution {
             value: *value,
             unit: *unit,
         },
-        StyleValueData::Time { value, unit } => crate::calc::CalcNumericValue::Time {
+        StyleValueData::Time { value, unit } => crate::css::calc::CalcNumericValue::Time {
             value: *value,
             unit: *unit,
         },
         StyleValueData::Calculated { rust_calculation, .. } => return Some(rust_calculation.node_arc()),
         _ => return None,
     };
-    Some(Arc::new(crate::calc::CalcNode::Numeric(numeric)))
+    Some(Arc::new(crate::css::calc::CalcNode::Numeric(numeric)))
 }
 
 struct AnimationCalculationContext<'a> {
@@ -1142,12 +1142,12 @@ fn animation_calculation_context(value: &StyleValueData) -> Option<AnimationCalc
 }
 
 fn retained_calculation(
-    calculation: Arc<crate::calc::CalcNode>,
-    resolved_type: crate::calc::FfiNumericType,
+    calculation: Arc<crate::css::calc::CalcNode>,
+    resolved_type: crate::css::calc::FfiNumericType,
     context: &AnimationCalculationContext<'_>,
 ) -> RetainedStyleValueData {
     let value = Arc::into_raw(Arc::new(StyleValueData::Calculated {
-        rust_calculation: crate::calc::CalcNodeHandle::from_arc(calculation),
+        rust_calculation: crate::css::calc::CalcNodeHandle::from_arc(calculation),
         resolve_as_is_number: context.resolve_as_is_number,
         resolve_as_base: context.resolve_as_base,
         resolved_type,
@@ -1160,21 +1160,21 @@ fn retained_calculation(
 }
 
 fn retained_length_percentage_calculation(
-    calculation: Arc<crate::calc::CalcNode>,
-    resolved_type: crate::calc::FfiNumericType,
+    calculation: Arc<crate::css::calc::CalcNode>,
+    resolved_type: crate::css::calc::FfiNumericType,
 ) -> RetainedStyleValueData {
     let value = match &*calculation {
-        crate::calc::CalcNode::Numeric(crate::calc::CalcNumericValue::Length { value, unit }) => {
+        crate::css::calc::CalcNode::Numeric(crate::css::calc::CalcNumericValue::Length { value, unit }) => {
             StyleValueData::Length {
                 value: *value,
                 unit: *unit,
             }
         }
-        crate::calc::CalcNode::Numeric(crate::calc::CalcNumericValue::Percentage(value)) => {
+        crate::css::calc::CalcNode::Numeric(crate::css::calc::CalcNumericValue::Percentage(value)) => {
             StyleValueData::Percentage { value: *value }
         }
         _ => StyleValueData::Calculated {
-            rust_calculation: crate::calc::CalcNodeHandle::from_arc(calculation),
+            rust_calculation: crate::css::calc::CalcNodeHandle::from_arc(calculation),
             resolve_as_is_number: false,
             resolve_as_base: 0,
             resolved_type,
@@ -1221,17 +1221,17 @@ fn interpolate_translate_component(
 
     let from = length_percentage_calculation_node(from)?;
     let to = length_percentage_calculation_node(to)?;
-    let (calculation, resolved_type) = crate::calc::interpolate_length_percentage_calculations(from, to, delta)?;
+    let (calculation, resolved_type) = crate::css::calc::interpolate_length_percentage_calculations(from, to, delta)?;
     Some(retained_length_percentage_calculation(calculation, resolved_type))
 }
 
 fn interpolate_translate(from: &StyleValueData, to: &StyleValueData, delta: f32) -> FfiAnimationValueResult {
-    let none = crate::style_compute::none_keyword();
+    let none = crate::css::style_compute::none_keyword();
     if matches!(from, StyleValueData::Keyword { keyword } if *keyword == none)
         && matches!(to, StyleValueData::Keyword { keyword } if *keyword == none)
     {
         return FfiAnimationValueResult {
-            value: unsafe { crate::style_value::rust_style_value_retain(from) },
+            value: unsafe { crate::css::style_value::rust_style_value_retain(from) },
             handled: true,
         };
     }
@@ -1248,7 +1248,7 @@ fn interpolate_translate(from: &StyleValueData, to: &StyleValueData, delta: f32)
         let zero = || {
             let zero = Arc::into_raw(Arc::new(StyleValueData::Length {
                 value: 0.0,
-                unit: crate::calc::canonical_pixel_unit(),
+                unit: crate::css::calc::canonical_pixel_unit(),
             }));
             unsafe { RetainedStyleValueData::from_retained_pointer(zero) }
         };
@@ -1276,7 +1276,7 @@ fn interpolate_translate(from: &StyleValueData, to: &StyleValueData, delta: f32)
     let zero = || {
         let zero = Arc::into_raw(Arc::new(StyleValueData::Length {
             value: 0.0,
-            unit: crate::calc::canonical_pixel_unit(),
+            unit: crate::css::calc::canonical_pixel_unit(),
         }));
         unsafe { RetainedStyleValueData::from_retained_pointer(zero) }
     };
@@ -1289,7 +1289,7 @@ fn interpolate_translate(from: &StyleValueData, to: &StyleValueData, delta: f32)
         .zip(to.iter())
         .map(|(from, to)| {
             interpolate_translate_component(
-                crate::property_metadata::property_id::TRANSLATE,
+                crate::css::property_metadata::property_id::TRANSLATE,
                 from.data(),
                 to.data(),
                 delta,
@@ -1300,7 +1300,7 @@ fn interpolate_translate(from: &StyleValueData, to: &StyleValueData, delta: f32)
         return not_handled();
     };
     owned(StyleValueData::Transformation {
-        property: crate::property_metadata::property_id::TRANSLATE,
+        property: crate::css::property_metadata::property_id::TRANSLATE,
         transform_function: if is_3d {
             TRANSFORM_FUNCTION_TRANSLATE_3D
         } else {
@@ -1311,12 +1311,12 @@ fn interpolate_translate(from: &StyleValueData, to: &StyleValueData, delta: f32)
 }
 
 fn interpolate_individual_rotate(from: &StyleValueData, to: &StyleValueData, delta: f32) -> FfiAnimationValueResult {
-    let none = crate::style_compute::none_keyword();
+    let none = crate::css::style_compute::none_keyword();
     if matches!(from, StyleValueData::Keyword { keyword } if *keyword == none)
         && matches!(to, StyleValueData::Keyword { keyword } if *keyword == none)
     {
         return FfiAnimationValueResult {
-            value: unsafe { crate::style_value::rust_style_value_retain(from) },
+            value: unsafe { crate::css::style_value::rust_style_value_retain(from) },
             handled: true,
         };
     }
@@ -1356,7 +1356,7 @@ fn interpolate_individual_rotate(from: &StyleValueData, to: &StyleValueData, del
             unit: 0,
         }));
         return owned(StyleValueData::Transformation {
-            property: crate::property_metadata::property_id::ROTATE,
+            property: crate::css::property_metadata::property_id::ROTATE,
             transform_function: TRANSFORM_FUNCTION_ROTATE,
             values: RetainedStyleValueDataList::from_retained_values(vec![unsafe {
                 RetainedStyleValueData::from_retained_pointer(angle)
@@ -1405,7 +1405,7 @@ fn interpolate_individual_rotate(from: &StyleValueData, to: &StyleValueData, del
         return not_handled();
     };
     interpolate_rotate_3d(
-        crate::property_metadata::property_id::ROTATE,
+        crate::css::property_metadata::property_id::ROTATE,
         TRANSFORM_FUNCTION_ROTATE_3D,
         &from,
         &to,
@@ -1704,7 +1704,7 @@ fn composite_grid_component(
         length_percentage_calculation_node(underlying.data()),
         length_percentage_calculation_node(animated.data()),
     ) && let Some((calculation, resolved_type)) =
-        crate::calc::add_length_percentage_calculations(underlying, animated)
+        crate::css::calc::add_length_percentage_calculations(underlying, animated)
     {
         // https://drafts.csswg.org/css-values-4/#combine-mixed
         // Addition of <percentage> is defined the same as interpolation except by adding each component rather than interpolating it.
@@ -1869,7 +1869,9 @@ fn resolve_color_component(value: &StyleValueData, reference_value: f32) -> Opti
     match value {
         StyleValueData::Number { value } => Some((*value as f32, false)),
         StyleValueData::Percentage { value } => Some((*value as f32 / 100.0 * reference_value, false)),
-        StyleValueData::Keyword { keyword } if *keyword == crate::style_compute::none_keyword() => Some((0.0, true)),
+        StyleValueData::Keyword { keyword } if *keyword == crate::css::style_compute::none_keyword() => {
+            Some((0.0, true))
+        }
         _ => None,
     }
 }
@@ -1894,7 +1896,9 @@ fn native_color_components(value: &StyleValueData) -> Option<NativeColor> {
     let resolve_hue = |value: &StyleValueData| match value {
         StyleValueData::Number { value } => Some((*value as f32, false)),
         StyleValueData::Angle { value, unit } => angle_to_degrees(*value, *unit).map(|value| (value as f32, false)),
-        StyleValueData::Keyword { keyword } if *keyword == crate::style_compute::none_keyword() => Some((0.0, true)),
+        StyleValueData::Keyword { keyword } if *keyword == crate::css::style_compute::none_keyword() => {
+            Some((0.0, true))
+        }
         _ => None,
     };
     let resolve = |value: &RetainedStyleValueData, reference: f32| resolve_color_component(value.data(), reference);
@@ -2062,7 +2066,7 @@ fn substitute_missing_components(
 
 fn legacy_srgb_components(value: &StyleValueData) -> Option<([f32; 4], [bool; 4])> {
     let color = native_color_components(value)?;
-    let components = crate::color_conversion::legacy_color_to_srgb(color.color_type, color.components)?;
+    let components = crate::css::color_conversion::legacy_color_to_srgb(color.color_type, color.components)?;
     let missing = carry_forward_missing_components(
         color.missing,
         color_component_categories(color.color_type),
@@ -2086,8 +2090,8 @@ fn interpolate_modern_color(from: &StyleValueData, to: &StyleValueData, delta: f
 
     // 3. converting them both to a given color space which will be referred to as the interpolation color space
     //    below.
-    let mut from_components = crate::color_conversion::to_oklab(from.color_type, from.components)?;
-    let mut to_components = crate::color_conversion::to_oklab(to.color_type, to.components)?;
+    let mut from_components = crate::css::color_conversion::to_oklab(from.color_type, from.components)?;
+    let mut to_components = crate::css::color_conversion::to_oklab(to.color_type, to.components)?;
     let target_categories = color_component_categories(COLOR_TYPE_OKLAB);
     let from_missing = carry_forward_missing_components(
         from.missing,
@@ -2643,7 +2647,7 @@ fn composite_scalar_value(
     if let Some(context) = animation_calculation_context(underlying).or_else(|| animation_calculation_context(animated))
         && let (Some(underlying), Some(animated)) =
             (numeric_calculation_node(underlying), numeric_calculation_node(animated))
-        && let Some((calculation, resolved_type)) = crate::calc::add_calculations(
+        && let Some((calculation, resolved_type)) = crate::css::calc::add_calculations(
             underlying,
             animated,
             context.has_percentages_resolve_as,
@@ -2664,7 +2668,7 @@ fn composite_scalar_value(
             length_percentage_calculation_node(animated),
         )
         && let Some((calculation, resolved_type)) =
-            crate::calc::add_length_percentage_calculations(underlying, animated)
+            crate::css::calc::add_length_percentage_calculations(underlying, animated)
     {
         // https://drafts.csswg.org/css-values-4/#combine-mixed
         // Addition of <percentage> is defined the same as interpolation except by adding each component rather than interpolating it.
@@ -3268,7 +3272,7 @@ fn interpolate_scalar_value(
 ) -> FfiAnimationValueResult {
     if let Some(context) = animation_calculation_context(from).or_else(|| animation_calculation_context(to))
         && let (Some(from), Some(to)) = (numeric_calculation_node(from), numeric_calculation_node(to))
-        && let Some((calculation, resolved_type)) = crate::calc::interpolate_calculations(
+        && let Some((calculation, resolved_type)) = crate::css::calc::interpolate_calculations(
             from,
             to,
             delta,
@@ -3309,7 +3313,7 @@ fn interpolate_scalar_value(
             length_percentage_calculation_node(to),
         )
         && let Some((calculation, resolved_type)) =
-            crate::calc::interpolate_length_percentage_calculations(from, to, delta)
+            crate::css::calc::interpolate_length_percentage_calculations(from, to, delta)
     {
         return handled_retained_value(retained_length_percentage_calculation(calculation, resolved_type));
     }
@@ -3363,7 +3367,7 @@ fn interpolate_scalar_value(
             if from == to =>
         {
             FfiAnimationValueResult {
-                value: unsafe { crate::style_value::rust_style_value_retain(from_value) },
+                value: unsafe { crate::css::style_value::rust_style_value_retain(from_value) },
                 handled: true,
             }
         }
@@ -4167,7 +4171,7 @@ fn retained_number(value: f64) -> RetainedStyleValueData {
 fn retained_zero_px() -> RetainedStyleValueData {
     let value = Arc::into_raw(Arc::new(StyleValueData::Length {
         value: 0.0,
-        unit: crate::style_compute::px_length_unit(),
+        unit: crate::css::style_compute::px_length_unit(),
     }));
     unsafe { RetainedStyleValueData::from_retained_pointer(value) }
 }
@@ -4179,7 +4183,7 @@ fn retained_length(value: f64, unit: u8) -> RetainedStyleValueData {
 
 fn retained_none_keyword() -> RetainedStyleValueData {
     let value = Arc::into_raw(Arc::new(StyleValueData::Keyword {
-        keyword: crate::style_compute::none_keyword(),
+        keyword: crate::css::style_compute::none_keyword(),
     }));
     unsafe { RetainedStyleValueData::from_retained_pointer(value) }
 }
@@ -4759,7 +4763,7 @@ fn transformation_to_matrix(
         _ => None,
     };
     let length = |argument: &RetainedStyleValueData, reference_length: Option<f64>| match argument.data() {
-        StyleValueData::Length { value, unit } => crate::style_compute::absolute_length_to_px(*value, *unit),
+        StyleValueData::Length { value, unit } => crate::css::style_compute::absolute_length_to_px(*value, *unit),
         StyleValueData::Percentage { value } => {
             reference_length.map(|reference_length| value / 100.0 * reference_length)
         }
@@ -4838,7 +4842,7 @@ fn transformation_to_matrix(
             }))
         }
         (TRANSFORM_FUNCTION_PERSPECTIVE, [argument]) => match argument.data() {
-            StyleValueData::Keyword { keyword } if *keyword == crate::style_compute::none_keyword() => {
+            StyleValueData::Keyword { keyword } if *keyword == crate::css::style_compute::none_keyword() => {
                 Some(identity_matrix())
             }
             _ => {
@@ -4961,14 +4965,14 @@ fn interpolate_transform_list(
     to: &StyleValueData,
     delta: f32,
 ) -> Option<Option<StyleValueData>> {
-    if matches!(from, StyleValueData::Keyword { keyword } if *keyword == crate::style_compute::none_keyword())
-        && matches!(to, StyleValueData::Keyword { keyword } if *keyword == crate::style_compute::none_keyword())
+    if matches!(from, StyleValueData::Keyword { keyword } if *keyword == crate::css::style_compute::none_keyword())
+        && matches!(to, StyleValueData::Keyword { keyword } if *keyword == crate::css::style_compute::none_keyword())
     {
         // https://drafts.csswg.org/css-transforms-1/#interpolation-of-transforms
         // * If both Va and Vb are none:
         //   * Vresult is none.
         return Some(Some(StyleValueData::Keyword {
-            keyword: crate::style_compute::none_keyword(),
+            keyword: crate::css::style_compute::none_keyword(),
         }));
     }
 
@@ -4986,7 +4990,7 @@ fn interpolate_transform_list(
             *separator,
             *collapsible,
         )),
-        StyleValueData::Keyword { keyword } if *keyword == crate::style_compute::none_keyword() => {
+        StyleValueData::Keyword { keyword } if *keyword == crate::css::style_compute::none_keyword() => {
             Some((Vec::new(), 0, false))
         }
         _ => None,
@@ -5060,7 +5064,7 @@ fn interpolate_transform_list(
             };
             let reciprocal_depth = |argument: &RetainedStyleValueData| match argument.data() {
                 StyleValueData::Length { value, unit } => Some((1.0 / value.max(1.0), Some(*unit))),
-                StyleValueData::Keyword { keyword } if *keyword == crate::style_compute::none_keyword() => {
+                StyleValueData::Keyword { keyword } if *keyword == crate::css::style_compute::none_keyword() => {
                     Some((0.0, None))
                 }
                 _ => None,
@@ -5088,7 +5092,7 @@ fn interpolate_transform_list(
                     value: 1.0 / reciprocal_depth,
                     unit: from_unit
                         .or(to_unit)
-                        .unwrap_or_else(crate::style_compute::px_length_unit),
+                        .unwrap_or_else(crate::css::style_compute::px_length_unit),
                 }));
                 unsafe { RetainedStyleValueData::from_retained_pointer(value) }
             };
@@ -5220,18 +5224,18 @@ fn retained_transparent_legacy_color() -> RetainedStyleValueData {
 
 fn animation_length_resolution_context(
     context: Option<&FfiAnimationContext>,
-) -> Option<crate::style_compute::FfiLengthResolutionContext> {
+) -> Option<crate::css::style_compute::FfiLengthResolutionContext> {
     let animation_context = &context
         .filter(|context| context.has_length_resolution_context)?
         .length_resolution_context;
-    let font_metrics = |metrics: &FfiAnimationFontMetrics| crate::style_compute::FfiFontMetrics {
+    let font_metrics = |metrics: &FfiAnimationFontMetrics| crate::css::style_compute::FfiFontMetrics {
         font_size: metrics.font_size,
         x_height: metrics.x_height,
         cap_height: metrics.cap_height,
         zero_advance: metrics.zero_advance,
         line_height: metrics.line_height,
     };
-    Some(crate::style_compute::FfiLengthResolutionContext {
+    Some(crate::css::style_compute::FfiLengthResolutionContext {
         viewport_width: animation_context.viewport_width,
         viewport_height: animation_context.viewport_height,
         font_metrics: font_metrics(&animation_context.font_metrics),
@@ -5244,10 +5248,11 @@ fn animation_length_resolution_context(
 
 fn resolve_animation_length(context: Option<&FfiAnimationContext>, value: &StyleValueData) -> Option<f64> {
     match value {
-        StyleValueData::Length { value, unit } => crate::style_compute::absolute_length_to_px(*value, *unit),
-        StyleValueData::Calculated { .. } => {
-            crate::calc::resolve_calculated_length_with_context(value, &animation_length_resolution_context(context)?)
-        }
+        StyleValueData::Length { value, unit } => crate::css::style_compute::absolute_length_to_px(*value, *unit),
+        StyleValueData::Calculated { .. } => crate::css::calc::resolve_calculated_length_with_context(
+            value,
+            &animation_length_resolution_context(context)?,
+        ),
         _ => None,
     }
 }
@@ -5266,7 +5271,7 @@ fn interpolate_animation_length(
             delta,
             range,
         ),
-        crate::style_compute::px_length_unit(),
+        crate::css::style_compute::px_length_unit(),
     ))
 }
 
@@ -5274,8 +5279,8 @@ fn resolve_animation_angle(context: Option<&FfiAnimationContext>, value: &StyleV
     match value {
         StyleValueData::Angle { value, unit } => angle_to_degrees(*value, *unit),
         StyleValueData::Calculated { .. } => animation_length_resolution_context(context)
-            .and_then(|context| crate::calc::resolve_calculated_angle_with_context(value, &context))
-            .or_else(|| crate::calc::resolve_calculated_angle_without_context(value)),
+            .and_then(|context| crate::css::calc::resolve_calculated_angle_with_context(value, &context))
+            .or_else(|| crate::css::calc::resolve_calculated_angle_without_context(value)),
         _ => None,
     }
 }
@@ -5284,8 +5289,8 @@ fn resolve_animation_number(context: Option<&FfiAnimationContext>, value: &Style
     match value {
         StyleValueData::Number { value } => Some(*value),
         StyleValueData::Calculated { .. } => animation_length_resolution_context(context)
-            .and_then(|context| crate::calc::resolve_calculated_number_with_context(value, &context))
-            .or_else(|| crate::calc::resolve_calculated_number_without_context(value)),
+            .and_then(|context| crate::css::calc::resolve_calculated_number_with_context(value, &context))
+            .or_else(|| crate::css::calc::resolve_calculated_number_without_context(value)),
         _ => None,
     }
 }
@@ -5296,7 +5301,7 @@ fn resolve_animation_color(
 ) -> Option<RetainedStyleValueData> {
     let use_current_color = match color.optional_data() {
         None => true,
-        Some(StyleValueData::Keyword { keyword }) => *keyword == crate::style_compute::current_color_keyword(),
+        Some(StyleValueData::Keyword { keyword }) => *keyword == crate::css::style_compute::current_color_keyword(),
         Some(_) => false,
     };
     if !use_current_color {
@@ -5306,7 +5311,7 @@ fn resolve_animation_color(
     if current_color.is_null() {
         return None;
     }
-    let retained = unsafe { crate::style_value::rust_style_value_retain(current_color) };
+    let retained = unsafe { crate::css::style_value::rust_style_value_retain(current_color) };
     Some(unsafe { RetainedStyleValueData::from_retained_pointer(retained) })
 }
 
@@ -5330,7 +5335,7 @@ fn resolve_root_animation_color<'a>(
 ) -> Option<RootAnimationColor<'a>> {
     match color {
         StyleValueData::ColorFunction { .. } => Some(RootAnimationColor::Borrowed(color)),
-        StyleValueData::Keyword { keyword } if *keyword == crate::style_compute::current_color_keyword() => {
+        StyleValueData::Keyword { keyword } if *keyword == crate::css::style_compute::current_color_keyword() => {
             let current_color = context?.current_color;
             if current_color.is_null() {
                 return None;
@@ -5495,7 +5500,7 @@ fn interpolate_shadow_list(
     //                 the shorter list is otherwise compatible with the longer one
     let list = |value: &StyleValueData| -> Option<(Vec<RetainedStyleValueData>, u8, bool)> {
         match value {
-            StyleValueData::Keyword { keyword } if *keyword == crate::style_compute::none_keyword() => {
+            StyleValueData::Keyword { keyword } if *keyword == crate::css::style_compute::none_keyword() => {
                 Some((Vec::new(), 0, false))
             }
             StyleValueData::ValueList {
@@ -5756,7 +5761,7 @@ fn accumulate_filter_function(
         FILTER_KIND_BLUR => retained_length(
             resolve_animation_length(Some(context), underlying_value.data())?
                 + resolve_animation_length(Some(context), animated_value.data())?,
-            crate::style_compute::px_length_unit(),
+            crate::css::style_compute::px_length_unit(),
         ),
         FILTER_KIND_HUE_ROTATE => {
             let angle = Arc::into_raw(Arc::new(StyleValueData::Angle {
@@ -5801,7 +5806,7 @@ fn accumulate_filter_function(
                 Some(retained_length(
                     resolve_animation_length(Some(context), underlying.data())?
                         + resolve_animation_length(Some(context), animated.data())?,
-                    crate::style_compute::px_length_unit(),
+                    crate::css::style_compute::px_length_unit(),
                 ))
             };
             let offset_x = add_lengths(underlying_offset_x, animated_offset_x)?;
@@ -5816,7 +5821,7 @@ fn accumulate_filter_function(
                         Some(value) => resolve_animation_length(Some(context), value)?,
                         None => 0.0,
                     };
-                    retained_length(underlying + animated, crate::style_compute::px_length_unit())
+                    retained_length(underlying + animated, crate::css::style_compute::px_length_unit())
                 } else {
                     empty_retained_style_value()
                 };
@@ -5868,7 +5873,7 @@ fn composite_filter_list(
     }
     let list = |value: &StyleValueData| -> Option<(Vec<RetainedStyleValueData>, u8, bool)> {
         match value {
-            StyleValueData::Keyword { keyword } if *keyword == crate::style_compute::none_keyword() => {
+            StyleValueData::Keyword { keyword } if *keyword == crate::css::style_compute::none_keyword() => {
                 Some((Vec::new(), 0, false))
             }
             StyleValueData::ValueList {
@@ -5979,7 +5984,7 @@ fn interpolate_filter_list(
 ) -> FfiAnimationValueResult {
     let list = |value: &StyleValueData| -> Option<(Vec<RetainedStyleValueData>, u8, bool)> {
         match value {
-            StyleValueData::Keyword { keyword } if *keyword == crate::style_compute::none_keyword() => {
+            StyleValueData::Keyword { keyword } if *keyword == crate::css::style_compute::none_keyword() => {
                 Some((Vec::new(), 0, false))
             }
             StyleValueData::ValueList {
@@ -6076,7 +6081,7 @@ pub(crate) fn interpolate_value(
         // NB: Such values are normally filtered before evaluation. Preserve the C++ scalar API's
         //     existing endpoint behavior if one reaches this lower-level operation.
         return FfiAnimationValueResult {
-            value: unsafe { crate::style_value::rust_style_value_retain(to) },
+            value: unsafe { crate::css::style_value::rust_style_value_retain(to) },
             handled: true,
         };
     }
@@ -6099,7 +6104,8 @@ pub(crate) fn interpolate_value(
     if animation_type == ANIMATION_TYPE_CUSTOM
         && matches!(
             property_id,
-            crate::property_metadata::property_id::FILTER | crate::property_metadata::property_id::BACKDROP_FILTER
+            crate::css::property_metadata::property_id::FILTER
+                | crate::css::property_metadata::property_id::BACKDROP_FILTER
         )
     {
         let result = interpolate_filter_list(context, property_id, from, to, delta);
@@ -6110,7 +6116,8 @@ pub(crate) fn interpolate_value(
     if animation_type == ANIMATION_TYPE_CUSTOM
         && matches!(
             property_id,
-            crate::property_metadata::property_id::BOX_SHADOW | crate::property_metadata::property_id::TEXT_SHADOW
+            crate::css::property_metadata::property_id::BOX_SHADOW
+                | crate::css::property_metadata::property_id::TEXT_SHADOW
         )
     {
         let result = interpolate_shadow_list(context, property_id, from, to, delta);
@@ -6119,7 +6126,7 @@ pub(crate) fn interpolate_value(
         }
     }
     let is_stroke_dasharray = animation_type == ANIMATION_TYPE_CUSTOM
-        && property_id == crate::property_metadata::property_id::STROKE_DASHARRAY;
+        && property_id == crate::css::property_metadata::property_id::STROKE_DASHARRAY;
     if is_stroke_dasharray
         && (!matches!(from, StyleValueData::ValueList { .. }) || !matches!(to, StyleValueData::ValueList { .. }))
     {
@@ -6202,7 +6209,7 @@ pub(crate) fn interpolate_value(
         });
     }
     if animation_type == ANIMATION_TYPE_CUSTOM
-        && property_id == crate::property_metadata::property_id::FONT_STYLE
+        && property_id == crate::css::property_metadata::property_id::FONT_STYLE
         && let (
             StyleValueData::FontStyle {
                 font_style: from_font_style,
@@ -6262,46 +6269,47 @@ pub(crate) fn interpolate_value(
             angle_value,
         });
     }
-    if animation_type == ANIMATION_TYPE_CUSTOM && property_id == crate::property_metadata::property_id::VISIBILITY {
+    if animation_type == ANIMATION_TYPE_CUSTOM && property_id == crate::css::property_metadata::property_id::VISIBILITY
+    {
         let result = interpolate_visibility(context, from, to, delta);
         if result.handled {
             return result;
         }
     }
     if animation_type == ANIMATION_TYPE_CUSTOM
-        && property_id == crate::property_metadata::property_id::CONTENT_VISIBILITY
+        && property_id == crate::css::property_metadata::property_id::CONTENT_VISIBILITY
     {
         let result = interpolate_content_visibility(context, from, to, delta);
         if result.handled {
             return result;
         }
     }
-    if animation_type == ANIMATION_TYPE_CUSTOM && property_id == crate::property_metadata::property_id::DISPLAY {
+    if animation_type == ANIMATION_TYPE_CUSTOM && property_id == crate::css::property_metadata::property_id::DISPLAY {
         let result = interpolate_display(context, from, to, delta);
         if result.handled {
             return result;
         }
     }
-    if animation_type == ANIMATION_TYPE_CUSTOM && property_id == crate::property_metadata::property_id::SCALE {
+    if animation_type == ANIMATION_TYPE_CUSTOM && property_id == crate::css::property_metadata::property_id::SCALE {
         let result = interpolate_scale(from, to, delta);
         if result.handled {
             return result;
         }
     }
-    if animation_type == ANIMATION_TYPE_CUSTOM && property_id == crate::property_metadata::property_id::TRANSLATE {
+    if animation_type == ANIMATION_TYPE_CUSTOM && property_id == crate::css::property_metadata::property_id::TRANSLATE {
         let result = interpolate_translate(from, to, delta);
         if result.handled {
             return result;
         }
     }
-    if animation_type == ANIMATION_TYPE_CUSTOM && property_id == crate::property_metadata::property_id::ROTATE {
+    if animation_type == ANIMATION_TYPE_CUSTOM && property_id == crate::css::property_metadata::property_id::ROTATE {
         let result = interpolate_individual_rotate(from, to, delta);
         if result.handled {
             return result;
         }
     }
     if animation_type == ANIMATION_TYPE_CUSTOM
-        && property_id == crate::property_metadata::property_id::FONT_VARIATION_SETTINGS
+        && property_id == crate::css::property_metadata::property_id::FONT_VARIATION_SETTINGS
     {
         let result = interpolate_font_variation_settings(context, property_id, from, to, delta);
         if result.handled {
@@ -6309,7 +6317,7 @@ pub(crate) fn interpolate_value(
         }
     }
     if animation_type == ANIMATION_TYPE_CUSTOM
-        && property_id == crate::property_metadata::property_id::TRANSFORM
+        && property_id == crate::css::property_metadata::property_id::TRANSFORM
         && let Some(value) = interpolate_transform_list(context, property_id, from, to, delta)
     {
         return value.map_or_else(
@@ -6326,8 +6334,8 @@ pub(crate) fn interpolate_value(
     if animation_type == ANIMATION_TYPE_CUSTOM
         && matches!(
             property_id,
-            crate::property_metadata::property_id::GRID_TEMPLATE_COLUMNS
-                | crate::property_metadata::property_id::GRID_TEMPLATE_ROWS
+            crate::css::property_metadata::property_id::GRID_TEMPLATE_COLUMNS
+                | crate::css::property_metadata::property_id::GRID_TEMPLATE_ROWS
         )
         && let (
             StyleValueData::GridTrackSizeList {
@@ -6395,7 +6403,8 @@ fn composite_batch_value<'a>(
 ) -> BatchAnimationValue<'a> {
     let result = if matches!(
         property_id,
-        crate::property_metadata::property_id::FILTER | crate::property_metadata::property_id::BACKDROP_FILTER
+        crate::css::property_metadata::property_id::FILTER
+            | crate::css::property_metadata::property_id::BACKDROP_FILTER
     ) {
         composite_filter_list(context, underlying, animated, operation)
     } else {
@@ -6453,7 +6462,7 @@ fn evaluate_animation_value(
         }
         return FfiAnimatedProperty {
             property_id: input.property_id,
-            value: unsafe { crate::style_value::rust_style_value_retain(start_keyframe.value) },
+            value: unsafe { crate::css::style_value::rust_style_value_retain(start_keyframe.value) },
             progress,
             start_index,
             end_index,
@@ -6501,7 +6510,7 @@ pub unsafe extern "C" fn rust_evaluate_animations(
     callbacks: *const FfiAnimationCallbacks,
 ) -> usize {
     crate::abort_on_panic(|| {
-        crate::ffi_stats::rust_style_ffi_note_animation_evaluation();
+        crate::css::ffi_stats::rust_style_ffi_note_animation_evaluation();
         let batch = unsafe { &*batch };
         let callbacks = unsafe { &*callbacks };
         let declarations = unsafe { std::slice::from_raw_parts(batch.declarations, batch.declaration_count) };
@@ -6517,7 +6526,7 @@ pub unsafe extern "C" fn rust_evaluate_animations(
         if resolved.properties.is_empty() {
             return 0;
         }
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::AnimationComputeBatchCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::AnimationComputeBatchCallback);
         let computed = unsafe {
             (callbacks.compute_values)(
                 callbacks.context,
@@ -6596,7 +6605,7 @@ mod tests {
 
     #[test]
     fn resolves_keyframe_property_conflicts_as_one_batch() {
-        use crate::property_metadata::property_id;
+        use crate::css::property_metadata::property_id;
         let value = || {
             let pointer = Arc::into_raw(Arc::new(StyleValueData::Number { value: 1.0 }));
             unsafe { RetainedStyleValueData::from_retained_pointer(pointer) }
@@ -6656,8 +6665,8 @@ mod tests {
 
     #[test]
     fn resolves_animation_css_wide_keywords() {
-        use crate::property_metadata::property_id;
-        use crate::style_compute::keyword;
+        use crate::css::property_metadata::property_id;
+        use crate::css::style_compute::keyword;
         let keyword_value = |keyword| StyleValueData::Keyword { keyword };
 
         assert_eq!(
@@ -6694,7 +6703,7 @@ mod tests {
         });
         let declaration = FfiAnimationDeclaration {
             keyframe_index: 0,
-            property_id: crate::property_metadata::property_id::BORDER,
+            property_id: crate::css::property_metadata::property_id::BORDER,
             value: &raw const *pending,
             use_initial: false,
             is_transition: false,
@@ -6720,7 +6729,7 @@ mod tests {
 
     #[test]
     fn reads_important_property_snapshot() {
-        use crate::property_metadata::{FIRST_LONGHAND_PROPERTY_ID, property_id};
+        use crate::css::property_metadata::{FIRST_LONGHAND_PROPERTY_ID, property_id};
         let important_index = usize::from(property_id::COLOR - FIRST_LONGHAND_PROPERTY_ID);
         let mut bitmap = vec![0; important_index / 8 + 1];
         bitmap[important_index / 8] |= 1 << (important_index % 8);
@@ -6759,12 +6768,17 @@ mod tests {
 
     fn calculated_number(value: f64) -> StyleValueData {
         StyleValueData::Calculated {
-            rust_calculation: crate::calc::CalcNodeHandle::from_arc(Arc::new(crate::calc::CalcNode::Numeric(
-                crate::calc::CalcNumericValue::Number { value, number_type: 0 },
-            ))),
+            rust_calculation: crate::css::calc::CalcNodeHandle::from_arc(Arc::new(
+                crate::css::calc::CalcNode::Numeric(crate::css::calc::CalcNumericValue::Number {
+                    value,
+                    number_type: 0,
+                }),
+            )),
             resolve_as_is_number: false,
             resolve_as_base: 0,
-            resolved_type: crate::calc::FfiNumericType::from_calc(Some(crate::calc::CalcNumericType::default())),
+            resolved_type: crate::css::calc::FfiNumericType::from_calc(Some(
+                crate::css::calc::CalcNumericType::default(),
+            )),
             has_percentages_resolve_as: false,
             percentages_resolve_as: 0,
             resolve_numbers_as_integers: false,
@@ -6844,7 +6858,7 @@ mod tests {
             },
         ];
         let input = FfiAnimationValueInput {
-            property_id: crate::property_metadata::property_id::FLEX_GROW,
+            property_id: crate::css::property_metadata::property_id::FLEX_GROW,
             underlying: &raw const underlying,
             initial: &raw const underlying,
             current_key: 75.0,
@@ -6894,7 +6908,7 @@ mod tests {
                 },
             ];
             let input = FfiAnimationValueInput {
-                property_id: crate::property_metadata::property_id::FLEX_GROW,
+                property_id: crate::css::property_metadata::property_id::FLEX_GROW,
                 underlying: Arc::as_ptr(&underlying),
                 initial: Arc::as_ptr(&initial),
                 current_key: 50.0,
@@ -6926,7 +6940,7 @@ mod tests {
     fn evaluates_discrete_animation_values() {
         let from = Arc::new(StyleValueData::Keyword { keyword: 1 });
         let to = Arc::new(StyleValueData::Keyword { keyword: 2 });
-        let property_id = crate::property_metadata::property_id::ALIGN_CONTENT;
+        let property_id = crate::css::property_metadata::property_id::ALIGN_CONTENT;
 
         let result = interpolate_value(Some(&animation_context(true)), property_id, &from, &to, 0.25);
         assert!(result.handled);
@@ -6945,19 +6959,19 @@ mod tests {
 
     #[test]
     fn evaluates_incompatible_by_computed_values_as_discrete() {
-        let property_id = crate::property_metadata::property_id::FLEX_GROW;
+        let property_id = crate::css::property_metadata::property_id::FLEX_GROW;
         let from = Arc::new(StyleValueData::Keyword { keyword: 1 });
         let to = Arc::new(StyleValueData::Keyword { keyword: 2 });
 
         let result = interpolate_value(Some(&animation_context(true)), property_id, &from, &to, 0.25);
         assert!(result.handled);
         assert_eq!(result.value, Arc::as_ptr(&from));
-        unsafe { crate::style_value::rust_style_value_release(result.value) };
+        unsafe { crate::css::style_value::rust_style_value_release(result.value) };
 
         let result = interpolate_value(Some(&animation_context(true)), property_id, &from, &to, 0.75);
         assert!(result.handled);
         assert_eq!(result.value, Arc::as_ptr(&to));
-        unsafe { crate::style_value::rust_style_value_release(result.value) };
+        unsafe { crate::css::style_value::rust_style_value_release(result.value) };
 
         let result = interpolate_value(Some(&animation_context(false)), property_id, &from, &to, 0.75);
         assert!(result.handled);
@@ -6970,7 +6984,7 @@ mod tests {
         let to = Arc::new(StyleValueData::Keyword { keyword: 2 });
         let result = interpolate_value(
             Some(&animation_context(true)),
-            crate::property_metadata::property_id::ANIMATION_DURATION,
+            crate::css::property_metadata::property_id::ANIMATION_DURATION,
             &from,
             &to,
             0.25,
@@ -6984,7 +6998,7 @@ mod tests {
     fn evaluates_declined_custom_animation_values_as_discrete() {
         let from = Arc::new(StyleValueData::Keyword { keyword: 1 });
         let to = Arc::new(StyleValueData::Keyword { keyword: 2 });
-        let property_id = crate::property_metadata::property_id::SCALE;
+        let property_id = crate::css::property_metadata::property_id::SCALE;
 
         let result = interpolate_value(Some(&animation_context(true)), property_id, &from, &to, 0.75);
         assert!(result.handled);
@@ -6998,7 +7012,7 @@ mod tests {
 
     #[test]
     fn normalizes_repeatable_scalar_and_list_values() {
-        let property_id = crate::property_metadata::property_id::OBJECT_POSITION;
+        let property_id = crate::css::property_metadata::property_id::OBJECT_POSITION;
         let from = Arc::new(StyleValueData::Number { value: 10.0 });
         let to = Arc::new(StyleValueData::ValueList {
             values: RetainedStyleValueDataList::from_retained_values(vec![
@@ -7025,7 +7039,7 @@ mod tests {
         let to = Arc::new(StyleValueData::Number { value: 20.0 });
         let result = interpolate_value(
             Some(&animation_context(true)),
-            crate::property_metadata::property_id::OBJECT_POSITION,
+            crate::css::property_metadata::property_id::OBJECT_POSITION,
             &from,
             &to,
             0.5,
@@ -7041,7 +7055,7 @@ mod tests {
         let to = Arc::new(StyleValueData::Percentage { value: 50.0 });
         let result = interpolate_value(
             Some(&animation_context(true)),
-            crate::property_metadata::property_id::WIDTH,
+            crate::css::property_metadata::property_id::WIDTH,
             &from,
             &to,
             0.5,
@@ -7057,7 +7071,7 @@ mod tests {
         let to = Arc::new(StyleValueData::Length { value: 20.0, unit: 1 });
         let result = interpolate_value(
             Some(&animation_context(true)),
-            crate::property_metadata::property_id::WIDTH,
+            crate::css::property_metadata::property_id::WIDTH,
             &from,
             &to,
             0.75,
@@ -7085,8 +7099,14 @@ mod tests {
             retained_number(0.0),
             retained_angle(180.0),
         ]);
-        let result = interpolate_rotate_3d(crate::property_metadata::property_id::TRANSFORM, 0, &from, &to, 0.5)
-            .expect("rotate3d values should interpolate");
+        let result = interpolate_rotate_3d(
+            crate::css::property_metadata::property_id::TRANSFORM,
+            0,
+            &from,
+            &to,
+            0.5,
+        )
+        .expect("rotate3d values should interpolate");
         let StyleValueData::Transformation { values, .. } = result else {
             panic!("expected a transform function");
         };
@@ -7109,7 +7129,7 @@ mod tests {
     #[test]
     fn owns_unsupported_composition_decisions() {
         let underlying = Arc::new(StyleValueData::Keyword {
-            keyword: crate::style_compute::none_keyword(),
+            keyword: crate::css::style_compute::none_keyword(),
         });
         let animated = Arc::new(StyleValueData::Number { value: 4.0 });
         let result = composite_scalar_value(&underlying, &animated, FfiCompositeOperation::Add);
@@ -7123,7 +7143,7 @@ mod tests {
         let to = Arc::new(StyleValueData::Number { value: 4.0 });
         let result = interpolate_value(
             Some(&animation_context(true)),
-            crate::property_metadata::property_id::FLEX_GROW,
+            crate::css::property_metadata::property_id::FLEX_GROW,
             &from,
             &to,
             0.5,
