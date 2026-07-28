@@ -7,6 +7,7 @@
 #include <AK/Array.h>
 #include <AK/Atomic.h>
 #include <AK/Debug.h>
+#include <AK/GenericShorthands.h>
 #include <AK/HashMap.h>
 #include <AK/Math.h>
 #include <AK/NeverDestroyed.h>
@@ -17,6 +18,7 @@
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Path.h>
 #include <LibGfx/TextLayout.h>
+#include <LibUnicode/CharacterTypes.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/Display.h>
 #include <LibWeb/CSS/GridTrackPlacement.h>
@@ -92,10 +94,6 @@ static Atomic<size_t> s_outstanding_grid_name_handles;
 static Atomic<size_t> s_outstanding_anchor_name_handles;
 static Atomic<size_t> s_outstanding_svg_path_handles;
 
-struct TextFactsSnapshotArena {
-    Vector<RustFFI::FfiTextChunk> chunks;
-};
-
 static constexpr size_t style_field_encoding_width(RustFFI::FfiStyleFieldEncoding encoding)
 {
     switch (encoding) {
@@ -129,6 +127,8 @@ static_assert(to_underlying(CSS::StyleGroupIndex::Count) == RustFFI::STYLE_GROUP
     F(TextJustify, CSS::ComputedValues::InheritedTextValues, text_justify, offsetof(CSS::ComputedValues::InheritedTextValues, text_justify), U8)                                              \
     F(WhiteSpaceCollapse, CSS::ComputedValues::InheritedTextValues, white_space_collapse, offsetof(CSS::ComputedValues::InheritedTextValues, white_space_collapse), U8)                       \
     F(TextWrapMode, CSS::ComputedValues::InheritedTextValues, text_wrap_mode, offsetof(CSS::ComputedValues::InheritedTextValues, text_wrap_mode), U8)                                         \
+    F(WordBreak, CSS::ComputedValues::InheritedTextValues, word_break, offsetof(CSS::ComputedValues::InheritedTextValues, word_break), U8)                                                    \
+    F(FontVariantEmoji, CSS::ComputedValues::FontValues, font_variant_emoji, offsetof(CSS::ComputedValues::FontValues, font_variant_emoji), U8)                                               \
     F(LineHeight, CSS::ComputedValues::FontValues, line_height.used_value, offsetof(CSS::ComputedValues::FontValues, line_height) + offsetof(CSS::LineHeightData, used_value), CssPixels)     \
     F(FontSize, CSS::ComputedValues::FontValues, font_size, offsetof(CSS::ComputedValues::FontValues, font_size), CssPixels)                                                                  \
     F(BoxSizing, CSS::ComputedValues::BoxValues, box_sizing, offsetof(CSS::ComputedValues::BoxValues, box_sizing), U8)                                                                        \
@@ -1832,42 +1832,10 @@ RustFFI::FfiLayoutFcCallbacks LayoutRustBridge::formatting_context_callbacks()
                 facts.marker_list_style_position = static_cast<u8>(to_underlying(marker->list_style_position()));
             }
             return facts; },
-        .build_text_facts = [](void*, void* node, bool should_wrap_lines, bool should_respect_linebreaks, bool unidirectional_ltr, RustFFI::FfiTextNodeFacts* out) {
-            VERIFY(out);
+        .text_node_is_empty_editable = [](void*, void* node) {
             auto const* text_node = as_if<TextNode>(*static_cast<Node const*>(node));
-            if (!text_node)
-                return false;
-
-            auto text_direction_mode = unidirectional_ltr
-                ? TextNode::TextDirectionMode::UnidirectionalLeftToRight
-                : TextNode::TextDirectionMode::PerCodePoint;
-            auto const& chunk_list = text_node->chunks_for_layout(should_wrap_lines, should_respect_linebreaks, text_direction_mode);
-            auto arena = make<TextFactsSnapshotArena>();
-            arena->chunks.ensure_capacity(chunk_list.chunks.size());
-            for (auto const& chunk : chunk_list.chunks) {
-                arena->chunks.unchecked_append({
-                    .start = chunk.start,
-                    .length = chunk.length,
-                    .font = chunk.font.ptr(),
-                    .has_breaking_newline = chunk.has_breaking_newline,
-                    .has_breaking_tab = chunk.has_breaking_tab,
-                    .is_all_whitespace = chunk.is_all_whitespace,
-                    .can_break_after = chunk.can_break_after,
-                    .text_type = static_cast<u8>(to_underlying(chunk.text_type)),
-                });
-            }
-
-            auto* owner = arena.leak_ptr();
-            *out = {
-                .chunks = owner->chunks.data(),
-                .chunk_count = owner->chunks.size(),
-                .is_empty_editable = is_empty_editable_text_node(*text_node),
-                .retained = owner,
-            };
-            return true; },
-        .release_text_facts = [](void*, void* retained) {
-            VERIFY(retained);
-            delete static_cast<TextFactsSnapshotArena*>(retained); },
+            VERIFY(text_node);
+            return is_empty_editable_text_node(*text_node); },
         .document_cursor_is_on_node = [](void*, void* node) {
             auto const* dom_node = static_cast<Node const*>(node)->dom_node();
             if (!dom_node)
@@ -2274,4 +2242,37 @@ extern "C" WEB_API void ladybird_layout_release_anchor_name_handle(size_t raw)
     VERIFY(Web::Layout::s_outstanding_anchor_name_handles.load() > 0);
     --Web::Layout::s_outstanding_anchor_name_handles;
     Utf16FlyString::unref_raw(raw);
+}
+
+extern "C" WEB_API u8 ladybird_layout_text_type_for_code_point(u32 code_point)
+{
+    return static_cast<u8>(to_underlying(Web::Layout::text_type_for_code_point(code_point)));
+}
+
+extern "C" WEB_API bool ladybird_layout_code_point_has_break_all_line_break_class(u32 code_point)
+{
+    return first_is_one_of(Unicode::line_break_class(code_point),
+        Unicode::LineBreakClass::Alphabetic,
+        Unicode::LineBreakClass::Numeric,
+        Unicode::LineBreakClass::ComplexContext,
+        Unicode::LineBreakClass::Ideographic);
+}
+
+extern "C" WEB_API bool ladybird_layout_code_point_has_keep_all_line_break_class(u32 code_point)
+{
+    return first_is_one_of(Unicode::line_break_class(code_point),
+        Unicode::LineBreakClass::Alphabetic,
+        Unicode::LineBreakClass::Numeric,
+        Unicode::LineBreakClass::Ambiguous,
+        Unicode::LineBreakClass::Ideographic);
+}
+
+extern "C" WEB_API bool ladybird_layout_code_point_has_combining_mark_line_break_class(u32 code_point)
+{
+    return Unicode::line_break_class(code_point) == Unicode::LineBreakClass::CombiningMark;
+}
+
+extern "C" WEB_API bool ladybird_layout_code_point_has_emoji_property(u32 code_point)
+{
+    return Unicode::code_point_has_emoji_property(code_point);
 }

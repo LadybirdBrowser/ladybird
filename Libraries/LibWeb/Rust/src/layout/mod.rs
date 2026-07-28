@@ -26,6 +26,7 @@ include!("line_box_fragment.rs");
 include!("line_builder.rs");
 include!("inline_formatting_context.rs");
 include!("font.rs");
+include!("text_chunker.rs");
 include!("replaced_with_children_formatting_context.rs");
 include!("table_formatting_context.rs");
 include!("geometry.rs");

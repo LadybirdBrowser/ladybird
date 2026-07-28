@@ -68,7 +68,7 @@ struct ExtraBoxMetrics {
 
 #[derive(Clone, Copy)]
 struct TextNodeContext {
-    facts: FfiTextNodeFacts,
+    chunks: &'static [TextChunk],
     text: &'static [u16],
     next_chunk_index: usize,
     should_collapse_whitespace: bool,
@@ -127,14 +127,6 @@ impl<'iterator, 'context, 'pass> InlineLevelIteratorGenerator<'iterator, 'contex
 
     fn context_mut(&mut self) -> &mut InlineFormattingContext<'context, 'pass> {
         self.context
-    }
-
-    fn chunks(facts: FfiTextNodeFacts) -> &'static [FfiTextChunk] {
-        if facts.chunk_count == 0 {
-            return &[];
-        }
-        // SAFETY: The state-owned text snapshot remains alive for the pass.
-        unsafe { std::slice::from_raw_parts(facts.chunks, facts.chunk_count) }
     }
 
     fn is_out_of_flow(&self, node: Node) -> bool {
@@ -319,19 +311,15 @@ impl<'iterator, 'context, 'pass> InlineLevelIteratorGenerator<'iterator, 'contex
             white_space_collapse::COLLAPSE | white_space_collapse::PRESERVE_BREAKS
         );
         let callbacks = self.context().callbacks;
-        let facts = self
-            .context()
-            .state
-            .text_facts(
-                &callbacks,
-                text_node,
-                should_wrap_lines,
-                should_respect_linebreaks,
-                self.is_unidirectional_left_to_right,
-            )
-            .ffi();
+        let chunks = self.context().state.text_chunks(
+            &callbacks,
+            text_node,
+            should_wrap_lines,
+            should_respect_linebreaks,
+            self.is_unidirectional_left_to_right,
+        );
         self.text_node_context = Some(TextNodeContext {
-            facts,
+            chunks,
             text: &callbacks.text_content(text_node).text,
             next_chunk_index: 0,
             should_collapse_whitespace,
@@ -342,7 +330,7 @@ impl<'iterator, 'context, 'pass> InlineLevelIteratorGenerator<'iterator, 'contex
 
     fn resolve_text_direction_from_context(&self) -> u8 {
         let context = self.text_node_context.unwrap();
-        let next_known_direction = Self::chunks(context.facts)[context.next_chunk_index..]
+        let next_known_direction = context.chunks[context.next_chunk_index..]
             .iter()
             .find_map(|chunk| {
                 matches!(chunk.text_type, GLYPH_TEXT_TYPE_LTR | GLYPH_TEXT_TYPE_RTL).then_some(chunk.text_type)
@@ -402,7 +390,7 @@ impl<'iterator, 'context, 'pass> InlineLevelIteratorGenerator<'iterator, 'contex
             self.enter_text_node(text_node);
         }
         let mut text_context = self.text_node_context.unwrap();
-        let chunks = Self::chunks(text_context.facts);
+        let chunks = text_context.chunks;
         let is_first_chunk = text_context.next_chunk_index == 0;
         let chunk = chunks.get(text_context.next_chunk_index).copied();
         if chunk.is_some() {
@@ -413,13 +401,17 @@ impl<'iterator, 'context, 'pass> InlineLevelIteratorGenerator<'iterator, 'contex
             && is_first_chunk
             && is_last_chunk
             && text_context.text.is_empty()
-            && text_context.facts.is_empty_editable;
+            && {
+                let callbacks = self.context().callbacks;
+                // SAFETY: The host reads the live TextNode synchronously.
+                unsafe { (callbacks.text_node_is_empty_editable)(callbacks.context, callbacks.shell(text_node)) }
+            };
         let chunk = if let Some(chunk) = chunk {
             chunk
         } else if is_empty_editable {
             text_context.next_chunk_index = 1;
             let parent_style = self.context().style(self.context().parent_node(text_node));
-            FfiTextChunk {
+            TextChunk {
                 start: 0,
                 length: 0,
                 font: parent_style.first_available_font(),
@@ -650,28 +642,6 @@ impl InlineLevelIterator {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
-#[repr(C)]
-pub struct FfiTextChunk {
-    pub start: usize,
-    pub length: usize,
-    pub font: *const c_void,
-    pub has_breaking_newline: bool,
-    pub has_breaking_tab: bool,
-    pub is_all_whitespace: bool,
-    pub can_break_after: bool,
-    pub text_type: u8,
-}
-
-#[derive(Clone, Copy, Debug)]
-#[repr(C)]
-pub struct FfiTextNodeFacts {
-    pub chunks: *const FfiTextChunk,
-    pub chunk_count: usize,
-    pub is_empty_editable: bool,
-    pub retained: *mut c_void,
-}
-
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[repr(C)]
 pub struct FfiDrawGlyph {
@@ -681,56 +651,4 @@ pub struct FfiDrawGlyph {
     pub glyph_width: f32,
     pub glyph_id: u32,
     pub should_paint: bool,
-}
-
-pub(crate) struct TextNodeFacts {
-    ffi: FfiTextNodeFacts,
-    release: unsafe extern "C" fn(*mut c_void, *mut c_void),
-}
-
-impl TextNodeFacts {
-    pub(crate) fn build(
-        callbacks: &FfiLayoutFcCallbacks,
-        text_node: Node,
-        should_wrap_lines: bool,
-        should_respect_linebreaks: bool,
-        unidirectional_ltr: bool,
-    ) -> Self {
-        let mut ffi = std::mem::MaybeUninit::<FfiTextNodeFacts>::uninit();
-        // SAFETY: The host synchronously initializes `ffi` on the true path.
-        let built = unsafe {
-            (callbacks.build_text_facts)(
-                callbacks.context,
-                callbacks.shell(text_node),
-                should_wrap_lines,
-                should_respect_linebreaks,
-                unidirectional_ltr,
-                ffi.as_mut_ptr(),
-            )
-        };
-        assert!(built);
-        // SAFETY: `built` is true, so the callback initialized every field.
-        let ffi = unsafe { ffi.assume_init() };
-        assert!(!ffi.retained.is_null());
-        assert!(ffi.chunk_count == 0 || !ffi.chunks.is_null());
-        Self {
-            ffi,
-            release: callbacks.release_text_facts,
-        }
-    }
-
-    pub(crate) fn ffi(&self) -> FfiTextNodeFacts {
-        self.ffi
-    }
-}
-
-impl Drop for TextNodeFacts {
-    fn drop(&mut self) {
-        // The release operation is context-independent by contract: text
-        // snapshots can outlive the bridge instance that populated the state.
-        // SAFETY: `retained` is owned by this snapshot and released once.
-        unsafe {
-            (self.release)(std::ptr::null_mut(), self.ffi.retained);
-        }
-    }
 }

@@ -105,6 +105,29 @@ struct TextContentSlot {
     content: Option<Box<TextContent>>,
 }
 
+#[derive(Clone, Copy, PartialEq)]
+pub(crate) struct TextChunkCacheKey {
+    pub(crate) should_wrap_lines: bool,
+    pub(crate) should_respect_linebreaks: bool,
+    pub(crate) unidirectional_ltr: bool,
+    pub(crate) white_space_collapse: u8,
+    pub(crate) word_break: u8,
+    pub(crate) font_variant_emoji: u8,
+    pub(crate) font_cascade_list: *const c_void,
+}
+
+struct TextChunkCacheEntry {
+    key: TextChunkCacheKey,
+    _retained_font_cascade_list: libgfx_rust::font::RetainedFontCascadeList,
+    chunks: Vec<crate::layout::TextChunk>,
+}
+
+#[derive(Default)]
+struct TextChunkCacheSlot {
+    generation: u8,
+    entry: Option<Box<TextChunkCacheEntry>>,
+}
+
 // NodeData is sized to one cache line; the aligned chunk keeps every densely-strided slot
 // line-aligned, and per-slot bookkeeping lives in a parallel array so it stays that way.
 #[repr(align(64))]
@@ -147,6 +170,7 @@ pub(crate) struct LayoutNodeArena {
     intrinsic_size_caches: RefCell<Vec<IntrinsicSizeCacheSlot>>,
     saved_abspos_layout_inputs: RefCell<Vec<SavedAbsposLayoutInputsSlot>>,
     text_contents: Vec<TextContentSlot>,
+    text_chunk_caches: RefCell<Vec<TextChunkCacheSlot>>,
     owner_thread: thread::ThreadId,
 }
 
@@ -162,6 +186,7 @@ impl LayoutNodeArena {
             intrinsic_size_caches: RefCell::new(Vec::new()),
             saved_abspos_layout_inputs: RefCell::new(Vec::new()),
             text_contents: Vec::new(),
+            text_chunk_caches: RefCell::new(Vec::new()),
             owner_thread: thread::current().id(),
         }
     }
@@ -250,6 +275,9 @@ impl LayoutNodeArena {
         }
         if let Some(slot) = self.text_contents.get_mut(index as usize) {
             *slot = TextContentSlot::default();
+        }
+        if let Some(slot) = self.text_chunk_caches.get_mut().get_mut(index as usize) {
+            *slot = TextChunkCacheSlot::default();
         }
         *self.data_mut(index) = NodeData::default();
 
@@ -529,6 +557,9 @@ impl LayoutNodeArena {
                 may_require_bidi_processing,
             })),
         };
+        if let Some(slot) = self.text_chunk_caches.get_mut().get_mut(index) {
+            *slot = TextChunkCacheSlot::default();
+        }
     }
 
     pub(crate) fn text_content(&self, id: NodeSlotId) -> Option<&TextContent> {
@@ -537,6 +568,53 @@ impl LayoutNodeArena {
             .get(id.slot_index() as usize)
             .filter(|slot| slot.generation == id.generation())
             .and_then(|slot| slot.content.as_deref())
+    }
+
+    pub(crate) fn text_chunks(
+        &self,
+        id: NodeSlotId,
+        key: TextChunkCacheKey,
+        compute: impl FnOnce() -> Vec<crate::layout::TextChunk>,
+    ) -> &'static [crate::layout::TextChunk] {
+        // data() validates that id names a live slot with a matching generation.
+        self.data(id);
+        let index = id.slot_index() as usize;
+
+        // SAFETY (for both laundered returns below): an entry is only replaced
+        // when its key changes or its slot is freed, and every key input is
+        // fixed for a given node within one layout pass while the arena
+        // itself outlives the pass, so a slice handed out during a pass stays
+        // valid for that pass.
+        {
+            let slots = self.text_chunk_caches.borrow();
+            if let Some(slot) = slots.get(index)
+                && slot.generation == id.generation()
+                && let Some(entry) = slot.entry.as_deref()
+                && entry.key == key
+            {
+                return unsafe { std::slice::from_raw_parts(entry.chunks.as_ptr(), entry.chunks.len()) };
+            }
+        }
+
+        let chunks = compute();
+        let mut slots = self.text_chunk_caches.borrow_mut();
+        if slots.len() <= index {
+            slots.resize_with(index + 1, TextChunkCacheSlot::default);
+        }
+        slots[index] = TextChunkCacheSlot {
+            generation: id.generation(),
+            entry: Some(Box::new(TextChunkCacheEntry {
+                key,
+                // SAFETY: The caller derives the key's cascade-list pointer
+                // from a live style snapshot.
+                _retained_font_cascade_list: unsafe {
+                    libgfx_rust::font::RetainedFontCascadeList::retain(key.font_cascade_list)
+                },
+                chunks,
+            })),
+        };
+        let entry = slots[index].entry.as_deref().expect("entry was just stored");
+        unsafe { std::slice::from_raw_parts(entry.chunks.as_ptr(), entry.chunks.len()) }
     }
 
     pub(crate) fn transfer_saved_abspos_layout_inputs(&self, old: NodeSlotId, new: NodeSlotId) {
