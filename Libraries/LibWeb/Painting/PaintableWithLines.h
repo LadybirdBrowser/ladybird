@@ -36,9 +36,9 @@ public:
     Vector<InlineBoxPiece>& inline_box_pieces() { return m_inline_box_pieces; }
     void set_inline_box_pieces(Vector<InlineBoxPiece> pieces) { m_inline_box_pieces = move(pieces); }
 
-    void add_fragment(Layout::LineBoxFragment const& fragment, u32 line_index)
+    void add_fragment(PaintableFragment::Fields fields)
     {
-        m_fragments.empend(*this, fragment, line_index);
+        m_fragments.empend(*this, move(fields));
     }
     void reset_fragment_selection_states()
     {

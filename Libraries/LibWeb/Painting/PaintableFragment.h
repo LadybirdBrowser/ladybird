@@ -23,7 +23,19 @@ class PaintableWithLines;
 
 class WEB_API PaintableFragment {
 public:
-    PaintableFragment(PaintableWithLines const&, Layout::LineBoxFragment const&, u32 line_index);
+    struct Fields {
+        Layout::Node const& layout_node;
+        CSSPixelPoint offset;
+        CSSPixelSize size;
+        u32 line_index;
+        size_t start_offset;
+        size_t length_in_code_units;
+        RefPtr<Gfx::GlyphRun> glyph_run;
+        CSSPixels baseline;
+        CSS::WritingMode writing_mode;
+        bool has_trailing_whitespace;
+    };
+    PaintableFragment(PaintableWithLines const&, Fields);
 
     Layout::Node const& layout_node() const
     {

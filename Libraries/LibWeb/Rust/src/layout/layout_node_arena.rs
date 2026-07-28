@@ -5,11 +5,93 @@
  */
 
 use crate::abort_on_panic;
-use crate::layout::node_data::{MAX_NODE_SLOT_COUNT, NodeData, NodeSlotId};
+use crate::layout::AbsposLayoutInputs;
+use crate::layout::CssPixels;
+use crate::layout::kind_is_box;
+use crate::layout::node_data::{MAX_NODE_SLOT_COUNT, NodeData, NodeFlag, NodeSlotId};
+use std::cell::RefCell;
+use std::collections::HashMap;
 use std::ffi::c_void;
+use std::hash::{Hash, Hasher};
 use std::thread;
 
 pub(crate) const SLOTS_PER_CHUNK: usize = 256;
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct IntrinsicSizeCacheKey {
+    pub(crate) measured_at_inline_size: Option<CssPixels>,
+    pub(crate) percentage_basis_inline_size: Option<CssPixels>,
+    pub(crate) percentage_basis_block_size: Option<CssPixels>,
+    pub(crate) quirks_mode_percentage_basis_block_size: Option<CssPixels>,
+}
+
+impl Hash for IntrinsicSizeCacheKey {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        fn hash_optional<H: Hasher>(value: Option<CssPixels>, state: &mut H) {
+            match value {
+                Some(value) => {
+                    true.hash(state);
+                    value.raw_value().hash(state);
+                }
+                None => false.hash(state),
+            }
+        }
+
+        hash_optional(self.measured_at_inline_size, state);
+        hash_optional(self.percentage_basis_inline_size, state);
+        hash_optional(self.percentage_basis_block_size, state);
+        hash_optional(self.quirks_mode_percentage_basis_block_size, state);
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum IntrinsicSizeCacheKind {
+    MinContentInline,
+    MaxContentInline,
+    MinContentBlock,
+    MaxContentBlock,
+}
+
+#[derive(Default)]
+struct IntrinsicSizeMaps {
+    min_content_inline_size: HashMap<IntrinsicSizeCacheKey, CssPixels>,
+    max_content_inline_size: HashMap<IntrinsicSizeCacheKey, CssPixels>,
+    min_content_block_size: HashMap<IntrinsicSizeCacheKey, CssPixels>,
+    max_content_block_size: HashMap<IntrinsicSizeCacheKey, CssPixels>,
+}
+
+impl IntrinsicSizeMaps {
+    fn values(&self, kind: IntrinsicSizeCacheKind) -> &HashMap<IntrinsicSizeCacheKey, CssPixels> {
+        match kind {
+            IntrinsicSizeCacheKind::MinContentInline => &self.min_content_inline_size,
+            IntrinsicSizeCacheKind::MaxContentInline => &self.max_content_inline_size,
+            IntrinsicSizeCacheKind::MinContentBlock => &self.min_content_block_size,
+            IntrinsicSizeCacheKind::MaxContentBlock => &self.max_content_block_size,
+        }
+    }
+
+    fn values_mut(&mut self, kind: IntrinsicSizeCacheKind) -> &mut HashMap<IntrinsicSizeCacheKey, CssPixels> {
+        match kind {
+            IntrinsicSizeCacheKind::MinContentInline => &mut self.min_content_inline_size,
+            IntrinsicSizeCacheKind::MaxContentInline => &mut self.max_content_inline_size,
+            IntrinsicSizeCacheKind::MinContentBlock => &mut self.min_content_block_size,
+            IntrinsicSizeCacheKind::MaxContentBlock => &mut self.max_content_block_size,
+        }
+    }
+}
+
+#[derive(Default)]
+struct IntrinsicSizeCacheSlot {
+    generation: u8,
+    epoch: u16,
+    sizes: Option<Box<IntrinsicSizeMaps>>,
+}
+
+#[derive(Default)]
+struct SavedAbsposLayoutInputsSlot {
+    generation: u8,
+    inputs: Option<Box<AbsposLayoutInputs>>,
+}
 
 // NodeData is sized to one cache line; the aligned chunk keeps every densely-strided slot
 // line-aligned, and per-slot bookkeeping lives in a parallel array so it stays that way.
@@ -38,7 +120,6 @@ struct SlotMetadata {
 }
 
 #[derive(Clone, Copy)]
-#[allow(dead_code)]
 struct ChunkAddress {
     start: usize,
     chunk_index: usize,
@@ -51,6 +132,8 @@ pub(crate) struct LayoutNodeArena {
     free_list: Vec<u32>,
     next_index: u32,
     live_count: u32,
+    intrinsic_size_caches: RefCell<Vec<IntrinsicSizeCacheSlot>>,
+    saved_abspos_layout_inputs: RefCell<Vec<SavedAbsposLayoutInputsSlot>>,
     owner_thread: thread::ThreadId,
 }
 
@@ -63,6 +146,8 @@ impl LayoutNodeArena {
             free_list: Vec::new(),
             next_index: 0,
             live_count: 0,
+            intrinsic_size_caches: RefCell::new(Vec::new()),
+            saved_abspos_layout_inputs: RefCell::new(Vec::new()),
             owner_thread: thread::current().id(),
         }
     }
@@ -142,6 +227,13 @@ impl LayoutNodeArena {
         );
         metadata.occupied = false;
         let should_reuse = metadata.generation != u8::MAX;
+
+        if let Some(slot) = self.intrinsic_size_caches.get_mut().get_mut(index as usize) {
+            *slot = IntrinsicSizeCacheSlot::default();
+        }
+        if let Some(slot) = self.saved_abspos_layout_inputs.get_mut().get_mut(index as usize) {
+            *slot = SavedAbsposLayoutInputsSlot::default();
+        }
         *self.data_mut(index) = NodeData::default();
 
         self.live_count = self
@@ -172,7 +264,23 @@ impl LayoutNodeArena {
         data
     }
 
-    #[allow(dead_code)]
+    pub(crate) fn set_node_flag(&self, id: NodeSlotId, flag: NodeFlag, value: bool) {
+        self.assert_owner_thread();
+        let data = self.data(id);
+        // SAFETY: data() validated that id names a live slot, and layout
+        // serializes mutation on the arena's owner thread.
+        unsafe {
+            let flags = &raw mut (*data).flags;
+            let mut updated = flags.read();
+            if value {
+                updated |= flag as u32;
+            } else {
+                updated &= !(flag as u32);
+            }
+            flags.write(updated);
+        }
+    }
+
     fn slot_for_data(&self, data: *const NodeData) -> (u32, SlotMetadata) {
         assert!(!data.is_null(), "layout node arena data pointer is null");
         let data_address = data as usize;
@@ -208,12 +316,10 @@ impl LayoutNodeArena {
         (index, metadata)
     }
 
-    #[allow(dead_code)]
     pub(crate) fn slot_index_for_data(&self, data: &NodeData) -> u32 {
         self.slot_for_data(std::ptr::from_ref(data)).0
     }
 
-    #[allow(dead_code)]
     pub(crate) fn is_before(&self, node: &NodeData, other: &NodeData) -> bool {
         let (node_index, node_metadata) = self.slot_for_data(std::ptr::from_ref(node));
         let (other_index, other_metadata) = self.slot_for_data(std::ptr::from_ref(other));
@@ -273,6 +379,151 @@ impl LayoutNodeArena {
         false
     }
 
+    pub(crate) fn intrinsic_size_cache_get(
+        &self,
+        data: &NodeData,
+        kind: IntrinsicSizeCacheKind,
+        key: IntrinsicSizeCacheKey,
+    ) -> Option<CssPixels> {
+        if data.intrinsic_cache_epoch == u16::MAX {
+            return None;
+        }
+
+        let (index, metadata) = self.slot_for_data(std::ptr::from_ref(data));
+        let caches = self.intrinsic_size_caches.borrow();
+        let slot = caches.get(index as usize)?;
+        if slot.generation != metadata.generation || slot.epoch != data.intrinsic_cache_epoch {
+            return None;
+        }
+        slot.sizes.as_ref()?.values(kind).get(&key).copied()
+    }
+
+    pub(crate) fn intrinsic_size_cache_put(
+        &self,
+        data: &NodeData,
+        kind: IntrinsicSizeCacheKind,
+        key: IntrinsicSizeCacheKey,
+        value: CssPixels,
+    ) {
+        if data.intrinsic_cache_epoch == u16::MAX {
+            return;
+        }
+
+        let (index, metadata) = self.slot_for_data(std::ptr::from_ref(data));
+        let mut caches = self.intrinsic_size_caches.borrow_mut();
+        if caches.len() <= index as usize {
+            caches.resize_with(index as usize + 1, IntrinsicSizeCacheSlot::default);
+        }
+        let slot = &mut caches[index as usize];
+        if slot.generation != metadata.generation || slot.epoch != data.intrinsic_cache_epoch {
+            *slot = IntrinsicSizeCacheSlot {
+                generation: metadata.generation,
+                epoch: data.intrinsic_cache_epoch,
+                sizes: Some(Box::default()),
+            };
+        }
+        slot.sizes
+            .get_or_insert_with(Box::default)
+            .values_mut(kind)
+            .insert(key, value);
+    }
+
+    pub(crate) fn saved_abspos_layout_inputs(&self, data: *const NodeData) -> Option<AbsposLayoutInputs> {
+        let (index, metadata) = self.slot_for_data(data);
+        let slots = self.saved_abspos_layout_inputs.borrow();
+        let inputs = slots
+            .get(index as usize)
+            .filter(|slot| slot.generation == metadata.generation)
+            .and_then(|slot| slot.inputs.as_deref().copied());
+
+        // SAFETY: slot_for_data() established that data points to a live slot
+        // in this arena.
+        let flags = unsafe { (&raw const (*data).flags).read() };
+        assert_eq!(
+            flags & NodeFlag::HasSavedAbsposLayoutInputs as u32 != 0,
+            inputs.is_some(),
+            "saved abspos input presence flag disagrees with the arena side table"
+        );
+        assert_eq!(
+            flags & NodeFlag::SavedAbsposCbDerivesFromOwnComputedValues as u32 != 0,
+            inputs.is_some_and(|inputs| inputs.containing_block_info.derives_from_own_computed_values),
+            "saved abspos containing-block flag disagrees with the arena side table"
+        );
+        assert_eq!(
+            flags & NodeFlag::SavedAbsposAlignmentDerivesFromOwnComputedValues as u32 != 0,
+            inputs.is_some_and(|inputs| { inputs.static_position_rect.alignment_derives_from_own_computed_values }),
+            "saved abspos alignment flag disagrees with the arena side table"
+        );
+        inputs
+    }
+
+    pub(crate) fn set_saved_abspos_layout_inputs(&self, data: *mut NodeData, inputs: Option<AbsposLayoutInputs>) {
+        let (index, metadata) = self.slot_for_data(data);
+        let mut slots = self.saved_abspos_layout_inputs.borrow_mut();
+        if slots.len() <= index as usize {
+            slots.resize_with(index as usize + 1, SavedAbsposLayoutInputsSlot::default);
+        }
+        let slot = &mut slots[index as usize];
+        if slot.generation != metadata.generation {
+            *slot = SavedAbsposLayoutInputsSlot {
+                generation: metadata.generation,
+                inputs: inputs.map(Box::new),
+            };
+        } else if let Some(inputs) = inputs {
+            if let Some(saved_inputs) = &mut slot.inputs {
+                **saved_inputs = inputs;
+            } else {
+                slot.inputs = Some(Box::new(inputs));
+            }
+        } else {
+            slot.inputs = None;
+        }
+        drop(slots);
+
+        let saved_abspos_flags = NodeFlag::HasSavedAbsposLayoutInputs as u32
+            | NodeFlag::SavedAbsposCbDerivesFromOwnComputedValues as u32
+            | NodeFlag::SavedAbsposAlignmentDerivesFromOwnComputedValues as u32;
+        // SAFETY: slot_for_data() established that data points to a live slot
+        // in this arena, and layout/tree building serialize mutation on the
+        // arena's owner thread.
+        unsafe {
+            let flags = &raw mut (*data).flags;
+            let mut value = flags.read() & !saved_abspos_flags;
+            if let Some(inputs) = inputs {
+                value |= NodeFlag::HasSavedAbsposLayoutInputs as u32;
+                if inputs.containing_block_info.derives_from_own_computed_values {
+                    value |= NodeFlag::SavedAbsposCbDerivesFromOwnComputedValues as u32;
+                }
+                if inputs.static_position_rect.alignment_derives_from_own_computed_values {
+                    value |= NodeFlag::SavedAbsposAlignmentDerivesFromOwnComputedValues as u32;
+                }
+            }
+            flags.write(value);
+        }
+    }
+
+    pub(crate) fn transfer_saved_abspos_layout_inputs(&self, old: NodeSlotId, new: NodeSlotId) {
+        self.assert_owner_thread();
+        assert_ne!(old, new, "cannot transfer saved abspos inputs to the same arena slot");
+
+        let old_data = self.data(old);
+        let new_data = self.data(new);
+        // SAFETY: data() returns pointers to live slots.
+        if !unsafe { kind_is_box((*old_data).kind) && kind_is_box((*new_data).kind) } {
+            return;
+        }
+        if let Some(inputs) = self.saved_abspos_layout_inputs(old_data) {
+            self.set_saved_abspos_layout_inputs(new_data, Some(inputs));
+        }
+    }
+
+    pub(crate) unsafe fn from_handle<'a>(arena: *mut c_void) -> &'a Self {
+        assert!(!arena.is_null(), "layout node arena handle is null");
+        // SAFETY: Layout passes borrow the document's arena synchronously,
+        // and the document keeps it alive for the duration of the pass.
+        unsafe { &*arena.cast::<Self>() }
+    }
+
     fn data_mut(&mut self, index: u32) -> &mut NodeData {
         let index = index as usize;
         let chunk = self
@@ -282,7 +533,6 @@ impl LayoutNodeArena {
         &mut chunk.slots[index % SLOTS_PER_CHUNK]
     }
 
-    #[allow(dead_code)]
     fn metadata(&self, index: u32) -> &SlotMetadata {
         self.slot_metadata
             .get(index as usize)
@@ -341,9 +591,31 @@ pub unsafe extern "C" fn layout_arena_free(arena: *mut c_void, id: NodeSlotId, g
     });
 }
 
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_transfer_saved_abspos_layout_inputs(
+    arena: *mut c_void,
+    old: NodeSlotId,
+    new: NodeSlotId,
+) {
+    abort_on_panic(|| {
+        assert!(!arena.is_null(), "layout node arena handle is null");
+        // SAFETY: Both slots belong to this live arena for the duration of
+        // the synchronous replacement callback.
+        unsafe { &*arena.cast::<LayoutNodeArena>() }.transfer_saved_abspos_layout_inputs(old, new);
+    });
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::layout::layout_node_arena::{Chunk, LayoutNodeArena, SLOTS_PER_CHUNK};
+    use crate::layout::CssPixels;
+    use crate::layout::layout_node_arena::{
+        Chunk, IntrinsicSizeCacheKey, IntrinsicSizeCacheKind, LayoutNodeArena, SLOTS_PER_CHUNK,
+    };
+    use crate::layout::node_data::{NodeFlag, NodeKind};
+    use crate::layout::{
+        AbsposAlignment, AbsposAxisMode, AbsposContainingBlockInfo, AbsposLayoutInputs, StaticPositionAlignment,
+        StaticPositionRect,
+    };
 
     #[test]
     fn node_data_addresses_remain_stable_when_chunks_are_added() {
@@ -401,5 +673,106 @@ mod tests {
         let stale_read = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| arena.data(first.slot)));
         assert!(stale_read.is_err());
         arena.free(second.slot, second.generation);
+    }
+
+    #[test]
+    fn intrinsic_size_cache_validates_epoch_and_generation() {
+        let mut arena = LayoutNodeArena::new();
+        let first = arena.allocate();
+        let key = IntrinsicSizeCacheKey {
+            measured_at_inline_size: Some(CssPixels::from_raw(64)),
+            ..Default::default()
+        };
+        let value = CssPixels::from_raw(128);
+
+        // SAFETY: The allocation remains live until it is explicitly freed below.
+        let first_data = unsafe { &mut *first.data };
+        arena.intrinsic_size_cache_put(first_data, IntrinsicSizeCacheKind::MinContentBlock, key, value);
+        assert_eq!(
+            arena.intrinsic_size_cache_get(first_data, IntrinsicSizeCacheKind::MinContentBlock, key),
+            Some(value)
+        );
+
+        first_data.intrinsic_cache_epoch += 1;
+        assert_eq!(
+            arena.intrinsic_size_cache_get(first_data, IntrinsicSizeCacheKind::MinContentBlock, key),
+            None
+        );
+        arena.free(first.slot, first.generation);
+
+        let second = arena.allocate();
+        assert_eq!(second.slot.slot_index(), first.slot.slot_index());
+        assert_ne!(second.slot, first.slot);
+        // SAFETY: The second allocation is live and reuses the first allocation's slot.
+        let second_data = unsafe { &*second.data };
+        assert_eq!(
+            arena.intrinsic_size_cache_get(second_data, IntrinsicSizeCacheKind::MinContentBlock, key),
+            None
+        );
+        arena.free(second.slot, second.generation);
+    }
+
+    #[test]
+    fn saved_abspos_inputs_transfer_and_validate_generation() {
+        let mut arena = LayoutNodeArena::new();
+        let old = arena.allocate();
+        let new = arena.allocate();
+        // SAFETY: Both allocations remain live.
+        unsafe {
+            (*old.data).kind = NodeKind::Box;
+            (*new.data).kind = NodeKind::Box;
+        }
+        let inputs = AbsposLayoutInputs {
+            static_position_rect: StaticPositionRect {
+                rect: Default::default(),
+                inline_alignment: StaticPositionAlignment::Center,
+                block_alignment: StaticPositionAlignment::End,
+                alignment_derives_from_own_computed_values: true,
+            },
+            containing_block_info: AbsposContainingBlockInfo {
+                rect: Default::default(),
+                inline_axis_mode: AbsposAxisMode::StaticPosition,
+                block_axis_mode: AbsposAxisMode::InsetFromRect,
+                inline_alignment: Some(AbsposAlignment::Center),
+                block_alignment: None,
+                derives_from_own_computed_values: true,
+            },
+        };
+
+        arena.set_saved_abspos_layout_inputs(old.data, Some(inputs));
+        assert_eq!(arena.saved_abspos_layout_inputs(old.data), Some(inputs));
+        // SAFETY: Both allocations remain live.
+        unsafe {
+            assert_ne!((*old.data).flags & NodeFlag::HasSavedAbsposLayoutInputs as u32, 0);
+            assert_ne!(
+                (*old.data).flags & NodeFlag::SavedAbsposCbDerivesFromOwnComputedValues as u32,
+                0
+            );
+            assert_ne!(
+                (*old.data).flags & NodeFlag::SavedAbsposAlignmentDerivesFromOwnComputedValues as u32,
+                0
+            );
+        }
+
+        arena.transfer_saved_abspos_layout_inputs(old.slot, new.slot);
+        assert_eq!(arena.saved_abspos_layout_inputs(new.data), Some(inputs));
+
+        arena.set_saved_abspos_layout_inputs(old.data, None);
+        assert_eq!(arena.saved_abspos_layout_inputs(old.data), None);
+        // SAFETY: The old allocation remains live.
+        unsafe {
+            let saved_abspos_flags = NodeFlag::HasSavedAbsposLayoutInputs as u32
+                | NodeFlag::SavedAbsposCbDerivesFromOwnComputedValues as u32
+                | NodeFlag::SavedAbsposAlignmentDerivesFromOwnComputedValues as u32;
+            assert_eq!((*old.data).flags & saved_abspos_flags, 0);
+        }
+        arena.free(old.slot, old.generation);
+
+        let reused = arena.allocate();
+        assert_eq!(reused.slot.slot_index(), old.slot.slot_index());
+        assert_ne!(reused.slot, old.slot);
+        assert_eq!(arena.saved_abspos_layout_inputs(reused.data), None);
+        arena.free(reused.slot, reused.generation);
+        arena.free(new.slot, new.generation);
     }
 }

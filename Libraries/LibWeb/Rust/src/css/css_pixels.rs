@@ -140,15 +140,12 @@ impl CssPixels {
     }
 }
 
-#[allow(dead_code)]
 const MAX_DIMENSION_RAW: i32 = 17_895_700 * 64;
 
-#[allow(dead_code)]
 pub(crate) fn max_dimension_value() -> CssPixels {
     CssPixels::from_raw(MAX_DIMENSION_RAW)
 }
 
-#[allow(dead_code)]
 pub(crate) fn clamp_to_max_dimension_value(value: CssPixels) -> CssPixels {
     if matches!(value.raw_value(), i32::MIN | i32::MAX) {
         max_dimension_value()
@@ -157,7 +154,6 @@ pub(crate) fn clamp_to_max_dimension_value(value: CssPixels) -> CssPixels {
     }
 }
 
-#[allow(dead_code)]
 pub(crate) fn css_clamp(value: CssPixels, min: CssPixels, max: CssPixels) -> CssPixels {
     min.max(value.min(max))
 }

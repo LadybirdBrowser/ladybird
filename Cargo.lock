@@ -813,6 +813,7 @@ version = "0.1.0"
 dependencies = [
  "cbindgen",
  "chardetng",
+ "libgfx_rust",
  "libweb_html_tokenizer",
  "serde_json",
 ]

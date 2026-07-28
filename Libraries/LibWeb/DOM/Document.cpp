@@ -187,9 +187,9 @@
 #include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/IntersectionObserver/IntersectionObserver.h>
-#include <LibWeb/Layout/BlockFormattingContext.h>
+#include <LibWeb/Layout/LayoutInput.h>
+#include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Layout/NodeArena.h>
-#include <LibWeb/Layout/SVGFormattingContext.h>
 #include <LibWeb/Layout/SVGSVGBox.h>
 #include <LibWeb/Layout/ScrollableOverflow.h>
 #include <LibWeb/Layout/TextNode.h>
@@ -1796,47 +1796,19 @@ void Document::set_needs_container_query_evaluation_after_layout(Element const& 
     m_query_containers_needing_container_query_evaluation_after_layout.set(const_cast<Element&>(query_container));
 }
 
-static void compute_subtree_layout(Layout::Box& subtree_root, Layout::LayoutState& layout_state, Painting::Paintable const& root_geometry_source)
-{
-    // The boundary's own size and position are frozen at the previous layout's values.
-    layout_state.populate_from_paintable(subtree_root, root_geometry_source);
-
-    // Pre-populate the viewport for position:fixed elements inside the subtree.
-    auto& viewport = subtree_root.root();
-    if (auto paintable = viewport.paintable_box())
-        layout_state.populate_from_paintable(viewport, *paintable);
-
-    auto const& root_state = layout_state.get(subtree_root);
-    auto available_space = Layout::AvailableSpace(
-        Layout::AvailableSize::make_definite(root_state.content_inline_size()),
-        Layout::AvailableSize::make_definite(root_state.content_block_size()));
-
-    auto context = Layout::FormattingContext::create_independent_formatting_context_if_needed(
-        layout_state, Layout::LayoutMode::Normal, subtree_root, nullptr);
-    VERIFY(context);
-
-    // NOTE: containing_block_constraints stays empty: the subtree root has definite sizes in
-    //       both axes, so nothing below it resolves percentages against inherited constraints.
-    context->run(Layout::LayoutInput { available_space });
-
-    // Lay out the subtree root's own absolutely positioned children, like the parent formatting
-    // context would do after dimensioning the root box during a full layout.
-    context->parent_context_did_dimension_child_root_box();
-}
-
 static void relayout_subtree(Layout::Box& subtree_root, Painting::Paintable& old_paintable)
 {
-    Layout::LayoutState layout_state(subtree_root, Layout::LayoutState::Purpose::Commit);
+    Layout::LayoutRustBridge bridge;
     // Absolutely positioned boundaries re-resolve their own size and position by replaying
     // their layout from saved inputs; SVG root boundaries keep the frozen geometry from the
-    // previous layout, taken from the old paintable since a replaced box no longer has one.
-    if (subtree_root.is_absolutely_positioned())
-        Layout::FormattingContext::layout_absolutely_positioned_element_from_saved_inputs(layout_state, subtree_root);
-    else
-        compute_subtree_layout(subtree_root, layout_state, old_paintable);
-    // The commit takes over the old paintable's position in the paint tree, whether the
-    // subtree root reuses it (a surviving box) or replaces it (a rebuilt box).
-    layout_state.commit(subtree_root, old_paintable);
+    // previous layout. Rust reads the old paintable before replacing it in either path.
+    if (subtree_root.is_absolutely_positioned()) {
+        VERIFY(subtree_root.containing_block());
+        VERIFY(subtree_root.has_saved_abspos_layout_inputs());
+        bridge.replay_saved_abspos_layout(subtree_root, old_paintable);
+    } else {
+        bridge.compute_subtree_layout(subtree_root, old_paintable);
+    }
 
     subtree_root.for_each_in_inclusive_subtree([](auto& node) {
         node.reset_needs_layout_update();
@@ -2078,7 +2050,7 @@ Document::PartialRelayoutResult Document::try_partial_relayout(HashTable<WeakPtr
         // A replaced box applies the saved-inputs validity check unconditionally: the change
         // that drove the replacement cannot be classified anymore.
         bool saved_inputs_may_be_style_stale = box.needs_own_geometry_update() || box_was_replaced;
-        if (saved_inputs_may_be_style_stale && box.is_absolutely_positioned() && !Layout::FormattingContext::can_replay_saved_abspos_layout_inputs_after_style_change(box))
+        if (saved_inputs_may_be_style_stale && box.is_absolutely_positioned() && !Layout::can_replay_saved_abspos_layout_inputs_after_style_change(box))
             return false;
 
         partial_relayout_roots.append({
@@ -2226,48 +2198,18 @@ void Document::update_layout(UpdateLayoutReason reason)
         // on, so pending changes that escaped classification are accounted for from here on.
         m_partial_relayout_invalidation.clear_escape(PartialRelayoutEscapeClearReason::FullLayoutPass);
 
-        Layout::LayoutState layout_state;
-        layout_state.set_should_collect_devtools_layout_data(should_collect_devtools_layout_data);
+        Layout::NodeWithStyleAndBoxModelMetrics* document_element_layout_node = nullptr;
+        // NB: Called during layout update.
+        if (document_element && document_element->unsafe_layout_node())
+            document_element_layout_node = &as<Layout::NodeWithStyleAndBoxModelMetrics>(*document_element->unsafe_layout_node());
 
-        {
-            auto& viewport = static_cast<Layout::Viewport&>(*m_layout_root);
-            auto& viewport_state = layout_state.create(
-                viewport,
-                Optional<CSSPixels> { viewport_rect.width() },
-                Optional<CSSPixels> { viewport_rect.height() });
-            viewport_state.set_content_inline_size(viewport_rect.width());
-            viewport_state.set_content_block_size(viewport_rect.height());
-
-            // NB: Called during layout update.
-            if (document_element && document_element->unsafe_layout_node()) {
-                auto percentage_basis = Layout::FormattingContext::constraints_for_child_context(viewport_state, {});
-                auto& icb_state = layout_state.create(
-                    as<Layout::NodeWithStyleAndBoxModelMetrics>(*document_element->unsafe_layout_node()),
-                    percentage_basis.percentage_basis_inline_size,
-                    percentage_basis.percentage_basis_block_size);
-                icb_state.set_content_inline_size(viewport_rect.width());
-            }
-
-            auto available_space = Layout::AvailableSpace(
-                Layout::AvailableSize::make_definite(viewport_rect.width()),
-                Layout::AvailableSize::make_definite(viewport_rect.height()));
-
-            if (m_layout_root->first_child() && m_layout_root->first_child()->is_svg_svg_box()) {
-                // NOTE: If we are laying out a standalone SVG document, we give it some special treatment:
-                //       The root <svg> container gets the same size as the viewport,
-                //       and we call directly into the SVG layout code from here.
-                auto const& svg_root = as<Layout::SVGSVGBox>(*m_layout_root->first_child());
-                auto content_block_size = layout_state.get(*svg_root.containing_block()).content_block_size();
-                layout_state.get_mutable(svg_root).set_content_block_size(content_block_size);
-                Layout::SVGFormattingContext svg_formatting_context(layout_state, Layout::LayoutMode::Normal, svg_root, nullptr);
-                svg_formatting_context.run(Layout::LayoutInput { available_space });
-            } else {
-                Layout::BlockFormattingContext root_formatting_context(layout_state, Layout::LayoutMode::Normal, *m_layout_root, nullptr);
-                root_formatting_context.run(Layout::LayoutInput { available_space });
-            }
-        }
-
-        layout_state.commit(*m_layout_root);
+        Layout::LayoutRustBridge bridge;
+        bridge.run_root_layout(
+            *m_layout_root,
+            document_element_layout_node,
+            viewport_rect.width(),
+            viewport_rect.height(),
+            should_collect_devtools_layout_data);
 
         style_invalidation_counters().relayouts_performed++;
 

@@ -39,17 +39,17 @@ static void for_each_cluster_in_glyph_run(Gfx::GlyphRun const& glyph_run, size_t
     }
 }
 
-PaintableFragment::PaintableFragment(PaintableWithLines const& paintable_with_lines, Layout::LineBoxFragment const& fragment, u32 line_index)
-    : m_layout_node(fragment.layout_node())
+PaintableFragment::PaintableFragment(PaintableWithLines const& paintable_with_lines, Fields fields)
+    : m_layout_node(fields.layout_node)
     , m_paintable_with_lines(paintable_with_lines)
-    , m_offset(fragment.offset())
-    , m_size(fragment.size())
-    , m_line_index(line_index)
-    , m_start_offset(fragment.start())
-    , m_length_in_code_units(fragment.length_in_code_units())
-    , m_glyph_run(fragment.glyph_run())
-    , m_baseline(fragment.baseline())
-    , m_writing_mode(fragment.writing_mode())
+    , m_offset(fields.offset)
+    , m_size(fields.size)
+    , m_line_index(fields.line_index)
+    , m_start_offset(fields.start_offset)
+    , m_length_in_code_units(fields.length_in_code_units)
+    , m_glyph_run(move(fields.glyph_run))
+    , m_baseline(fields.baseline)
+    , m_writing_mode(fields.writing_mode)
 {
     auto const* text_node = as_if<Layout::TextNode>(layout_node());
     if (text_node)
@@ -57,7 +57,7 @@ PaintableFragment::PaintableFragment(PaintableWithLines const& paintable_with_li
     else
         m_dom_start_offset_in_node = m_start_offset;
 
-    if (fragment.has_trailing_whitespace() && text_node) {
+    if (fields.has_trailing_whitespace && text_node) {
         auto text = text_node->text_for_rendering().utf16_view();
         auto position = m_start_offset + m_length_in_code_units;
         while (position + m_trailing_whitespace_length_in_code_units < text.length_in_code_units()) {

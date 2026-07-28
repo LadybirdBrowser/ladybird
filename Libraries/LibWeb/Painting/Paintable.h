@@ -491,7 +491,7 @@ protected:
     Optional<CSSPixelRect> absolute_resizer_rect(ChromeMetrics const& chrome_metrics) const;
 
 private:
-    friend struct Layout::LayoutState;
+    friend class Layout::LayoutRustBridge;
 
     struct CachedPaintData;
     enum class InvalidateDescendantGeometry {
