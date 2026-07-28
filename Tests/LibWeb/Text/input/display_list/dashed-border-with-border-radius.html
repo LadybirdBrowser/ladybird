@@ -8,6 +8,10 @@
         border-radius: 30px;
     }
 
+    .dotted {
+        border-style: dotted;
+    }
+
     .mixed-colors {
         border-right-color: blue;
     }
@@ -19,6 +23,9 @@
 <div></div>
 <div class="mixed-colors"></div>
 <div class="touching-corners"></div>
+<div class="dotted"></div>
+<div class="dotted mixed-colors"></div>
+<div class="dotted touching-corners"></div>
 <script>
     test(() => {
         println(internals.dumpDisplayList());

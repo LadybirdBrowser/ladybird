@@ -84,12 +84,12 @@ static Gfx::FloatPoint compute_midpoint(float horizontal_radius, float vertical_
     };
 }
 
-// Dashes run along the middle of the border, so instead of filling the exact region covered by the edge - which is what
-// the solid border painting below does - this strokes a centerline path: the half of the corner arc leading into the
-// edge, the straight run, and the half of the corner arc leading out of it.
-static void paint_dashed_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect const& rect,
+// Dashes and dots run along the middle of the border, so instead of filling the exact region covered by the edge -
+// which is what the solid border painting below does - this strokes a centerline path: the half of the corner arc
+// leading into the edge, the straight run, and the half of the corner arc leading out of it.
+static void paint_patterned_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect const& rect,
     Gfx::CornerRadius const& radius, Gfx::CornerRadius const& opposite_radius,
-    BordersDataDevicePixels const& borders_data, Color color)
+    BordersDataDevicePixels const& borders_data, Color color, Gfx::LineStyle line_style)
 {
     auto width = static_cast<float>(borders_data.for_edge(edge).width.value());
     auto half_width = width / 2.f;
@@ -193,19 +193,35 @@ static void paint_dashed_border(DisplayListRecorder& painter, BorderEdge edge, D
     if (has_arc(end))
         centerline.elliptical_arc_to(split_point(end, opposite_joined_border_width), end.radii, 0, false, true);
 
-    // Each edge begins and ends with half a dash, so that the two halves meeting at a corner form a single dash centered
-    // on it instead of two dashes sitting flush. That requires the centerline to span a whole number of dash-and-gap
-    // periods, with the pattern offset by half a dash.
     auto length = centerline.length();
-    auto period_count = max(1.f, roundf(length / (4 * width)));
-    auto interval = length / (2 * period_count);
+
+    Gfx::Path::CapStyle cap_style;
+    Vector<float> dash_array;
+    float dash_offset = 0;
+    if (line_style == Gfx::LineStyle::Dotted) {
+        // Dots are zero-length dashes rounded out by the cap. Offsetting them by half an interval keeps every dot clear
+        // of the corners, so that the spacing across a corner matches the spacing along an edge and neither of the two
+        // borders meeting there has to win a dot sitting on the point where they split.
+        cap_style = Gfx::Path::CapStyle::Round;
+        auto interval = length / max(1.f, roundf(length / (2 * width)));
+        dash_array = { 0, interval };
+        dash_offset = interval / 2;
+    } else {
+        // Each edge begins and ends with half a dash, so that the two halves meeting at a corner form a single dash
+        // centered on it instead of two dashes sitting flush. That requires the centerline to span a whole number of
+        // dash-and-gap periods, with the pattern offset by half a dash.
+        cap_style = Gfx::Path::CapStyle::Butt;
+        auto interval = length / (2 * max(1.f, roundf(length / (4 * width))));
+        dash_array = { interval, interval };
+        dash_offset = interval / 2;
+    }
 
     painter.stroke_path({
-        .cap_style = Gfx::Path::CapStyle::Butt,
+        .cap_style = cap_style,
         .join_style = Gfx::Path::JoinStyle::Miter,
         .miter_limit = 4,
-        .dash_array = { interval, interval },
-        .dash_offset = interval / 2,
+        .dash_array = move(dash_array),
+        .dash_offset = dash_offset,
         .path = move(centerline),
         .paint_style_or_color = color,
         .thickness = width,
@@ -360,50 +376,8 @@ void paint_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect
         return;
     }
 
-    struct Points {
-        DevicePixelPoint p1;
-        DevicePixelPoint p2;
-    };
-
-    auto points_for_edge = [](BorderEdge edge, DevicePixelRect const& rect) -> Points {
-        switch (edge) {
-        case BorderEdge::Top:
-            return { rect.top_left(), rect.top_right().moved_left(1) };
-        case BorderEdge::Right:
-            return { rect.top_right().moved_left(1), rect.bottom_right().translated(-1) };
-        case BorderEdge::Bottom:
-            return { rect.bottom_left().moved_up(1), rect.bottom_right().translated(-1) };
-        default: // Edge::Left
-            return { rect.top_left(), rect.bottom_left().moved_up(1) };
-        }
-    };
-
-    if (gfx_line_style == Gfx::LineStyle::Dashed) {
-        paint_dashed_border(painter, edge, rect, radius, opposite_radius, borders_data, color);
-        return;
-    }
-
     if (gfx_line_style != Gfx::LineStyle::Solid) {
-        auto [p1, p2] = points_for_edge(edge, rect);
-        switch (edge) {
-        case BorderEdge::Top:
-            p1.translate_by(border_data.width / 2, border_data.width / 2);
-            p2.translate_by(-border_data.width / 2, border_data.width / 2);
-            break;
-        case BorderEdge::Right:
-            p1.translate_by(-border_data.width / 2, border_data.width / 2);
-            p2.translate_by(-border_data.width / 2, -border_data.width / 2);
-            break;
-        case BorderEdge::Bottom:
-            p1.translate_by(border_data.width / 2, -border_data.width / 2);
-            p2.translate_by(-border_data.width / 2, -border_data.width / 2);
-            break;
-        case BorderEdge::Left:
-            p1.translate_by(border_data.width / 2, border_data.width / 2);
-            p2.translate_by(border_data.width / 2, -border_data.width / 2);
-            break;
-        }
-        painter.draw_line(p1.to_type<int>(), p2.to_type<int>(), color, border_data.width.value(), gfx_line_style);
+        paint_patterned_border(painter, edge, rect, radius, opposite_radius, borders_data, color, gfx_line_style);
         return;
     }
 
@@ -724,7 +698,7 @@ void paint_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect
 // When every edge shares a width, color and style there is nothing to attribute to one edge or the other, so the whole
 // border is stroked as a single closed centerline. Splitting it per edge instead would cut each corner dash in two, and
 // two separately flattened and antialiased strokes never join cleanly.
-static void paint_uniform_dashed_border(DisplayListRecorder& painter, DevicePixelRect const& border_rect, Gfx::CornerRadii const& corner_radii, BordersDataDevicePixels const& borders_data)
+static void paint_uniform_patterned_border(DisplayListRecorder& painter, DevicePixelRect const& border_rect, Gfx::CornerRadii const& corner_radii, BordersDataDevicePixels const& borders_data)
 {
     auto width = static_cast<float>(borders_data.top.width.value());
     auto half_width = width / 2.f;
@@ -792,18 +766,33 @@ static void paint_uniform_dashed_border(DisplayListRecorder& painter, DevicePixe
     centerline.line_to({ start_x, top });
     centerline.close();
 
-    // Tiling the loop with a whole number of dash-and-gap periods keeps the pattern continuous across the seam, and
-    // offsetting it by a dash and a half centers a gap there, so nothing is drawn where the two ends meet at all.
     auto length = centerline.length();
-    auto period_count = max(1.f, roundf(length / (4 * width)));
-    auto interval = length / (2 * period_count);
+
+    Gfx::Path::CapStyle cap_style;
+    Vector<float> dash_array;
+    float dash_offset = 0;
+    if (borders_data.top.line_style == CSS::LineStyle::Dotted) {
+        // Spacing the dots a whole number of times around the loop and offsetting them by half an interval centers a
+        // gap on the seam, leaving the wrap the same distance as every other gap.
+        cap_style = Gfx::Path::CapStyle::Round;
+        auto interval = length / max(1.f, roundf(length / (2 * width)));
+        dash_array = { 0, interval };
+        dash_offset = interval / 2;
+    } else {
+        // Tiling the loop with a whole number of dash-and-gap periods keeps the pattern continuous across the seam, and
+        // offsetting it by a dash and a half centers a gap there, so nothing is drawn where the two ends meet at all.
+        cap_style = Gfx::Path::CapStyle::Butt;
+        auto interval = length / (2 * max(1.f, roundf(length / (4 * width))));
+        dash_array = { interval, interval };
+        dash_offset = interval * 1.5f;
+    }
 
     painter.stroke_path({
-        .cap_style = Gfx::Path::CapStyle::Butt,
+        .cap_style = cap_style,
         .join_style = Gfx::Path::JoinStyle::Miter,
         .miter_limit = 4,
-        .dash_array = { interval, interval },
-        .dash_offset = interval * 1.5f,
+        .dash_array = move(dash_array),
+        .dash_offset = dash_offset,
         .path = move(centerline),
         .paint_style_or_color = borders_data.top.color,
         .thickness = width,
@@ -815,8 +804,9 @@ void paint_all_borders(DisplayListRecorder& painter, DevicePixelRect const& bord
     if (borders_data.top.width <= 0 && borders_data.right.width <= 0 && borders_data.left.width <= 0 && borders_data.bottom.width <= 0)
         return;
 
-    if (borders_data.top.line_style == CSS::LineStyle::Dashed && borders_data.all_are_equal()) {
-        paint_uniform_dashed_border(painter, border_rect, corner_radii, borders_data);
+    auto line_style = borders_data.top.line_style;
+    if ((line_style == CSS::LineStyle::Dashed || line_style == CSS::LineStyle::Dotted) && borders_data.all_are_equal()) {
+        paint_uniform_patterned_border(painter, border_rect, corner_radii, borders_data);
         return;
     }
 
