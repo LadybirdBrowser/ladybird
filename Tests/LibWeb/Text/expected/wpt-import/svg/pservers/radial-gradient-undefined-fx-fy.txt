@@ -2,11 +2,11 @@ Harness status: OK
 
 Found 7 tests
 
-7 Fail
-Fail	radialGradient fx and fy default to 50% when no attributes are set
-Fail	radialGradient fx and fy remain 50% when cx and cy are set to different values
-Fail	radialGradient fx and fy return to 50% when explicitly set then removed
-Fail	radialGradient fx and fy do not follow cx and cy changes
-Fail	radialGradient explicit fx and fy are independent of cx and cy
-Fail	radialGradient fx and fy fall back to 50% with invalid values
-Fail	radialGradient fx and fy are 50% when cx and cy are invalid
+7 Pass
+Pass	radialGradient fx and fy default to 50% when no attributes are set
+Pass	radialGradient fx and fy remain 50% when cx and cy are set to different values
+Pass	radialGradient fx and fy return to 50% when explicitly set then removed
+Pass	radialGradient fx and fy do not follow cx and cy changes
+Pass	radialGradient explicit fx and fy are independent of cx and cy
+Pass	radialGradient fx and fy fall back to 50% with invalid values
+Pass	radialGradient fx and fy are 50% when cx and cy are invalid
