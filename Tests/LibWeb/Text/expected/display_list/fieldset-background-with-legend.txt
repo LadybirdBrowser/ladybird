@@ -13,11 +13,11 @@ SaveLayer@0
     FillRect@1 rect=[10,8 780x50] color=rgb(0, 0, 255)
   Restore@1
   FillPath@1 path_bounding_rect=[789,15 1x43]
-  FillPath@1 path_bounding_rect=[788,14 1x44]
+  FillPath@1 path_bounding_rect=[788,14 1x43]
   FillPath@1 path_bounding_rect=[10,57 780x1]
   FillPath@1 path_bounding_rect=[11,56 778x1]
   FillPath@1 path_bounding_rect=[10,15 1x43]
-  FillPath@1 path_bounding_rect=[11,14 1x44]
+  FillPath@1 path_bounding_rect=[11,14 1x43]
   Save@1
     AddClipRect@1 rect=[10,15 14x2]
     FillPath@1 path_bounding_rect=[10,15 780x1]

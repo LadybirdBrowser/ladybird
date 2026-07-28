@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel="match" href="../expected/double-border-with-border-radius-ref.html" />
+    <meta name="fuzzy" content="maxDifference=0-57;totalPixels=0-342">
+    <style>
+        div {
+            box-sizing: border-box;
+            width: 210px;
+            height: 160px;
+            margin-bottom: 10px;
+            background-color: gainsboro;
+            border: 30px double red;
+        }
+
+        .square { border-radius: 0; }
+        .rounded { border-radius: 20px; }
+        .very-rounded { border-radius: 60px; }
+    </style>
+</head>
+<body>
+
+<div class="square"></div>
+<div class="rounded"></div>
+<div class="very-rounded"></div>
+
+</body>
+</html>

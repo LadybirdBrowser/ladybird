@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        .outer {
+            box-sizing: border-box;
+            width: 210px;
+            height: 160px;
+            margin-bottom: 10px;
+            background-color: gainsboro;
+            border: 10px solid red;
+        }
+
+        .inner {
+            box-sizing: border-box;
+            width: 170px;
+            height: 120px;
+            margin: 10px;
+            border: 10px solid red;
+        }
+
+        .square { border-radius: 0; }
+        .square > .inner { border-radius: 0; }
+        .rounded { border-radius: 20px; }
+        .rounded > .inner { border-radius: 0; }
+        .very-rounded { border-radius: 60px; }
+        .very-rounded > .inner { border-radius: 40px; }
+    </style>
+</head>
+<body>
+
+<div class="outer square"><div class="inner"></div></div>
+<div class="outer rounded"><div class="inner"></div></div>
+<div class="outer very-rounded"><div class="inner"></div></div>
+
+</body>
+</html>
