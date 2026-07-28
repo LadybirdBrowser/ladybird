@@ -1677,13 +1677,10 @@ impl<'pass> TableFormattingContext<'pass> {
             return grid_max;
         }
         if constraint.is_fit_content() {
-            let limit = if constraint.calc.is_null()
-                && constraint.px == CssPixels::default()
-                && !constraint.contains_percentage
-            {
-                basis
-            } else {
+            let limit = if constraint.fit_content_has_argument {
                 constraint.to_px(basis)
+            } else {
+                basis
             };
             return grid_max.min(grid_min.max(limit));
         }

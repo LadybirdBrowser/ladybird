@@ -5181,6 +5181,7 @@ fn fixed_size_value(value: CssPixels) -> FfiSizeValue {
         calc_is_bridge_retained: false,
         contains_percentage: false,
         contains_anchor_function: false,
+        fit_content_has_argument: false,
     }
 }
 

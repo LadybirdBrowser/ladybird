@@ -25,7 +25,8 @@ pub enum FfiSizeKind {
 ///
 /// `kind` is an `FfiSizeKind`. `fraction` is used for Percentage, `px` for Px,
 /// and `calc` for Calc. FitContent uses the matching payload for its optional
-/// inner length-percentage; an all-zero payload is its keyword/zero form.
+/// inner length-percentage, and `fit_content_has_argument` distinguishes the
+/// keyword-only form from an argument that resolves to zero.
 ///
 /// Values decoded in Rust from the node's style group payloads borrow their
 /// calc pointer from those payloads, which outlive the synchronous layout
@@ -44,6 +45,7 @@ pub struct FfiSizeValue {
     pub calc_is_bridge_retained: bool,
     pub contains_percentage: bool,
     pub contains_anchor_function: bool,
+    pub fit_content_has_argument: bool,
 }
 
 pub type FfiReleaseCalcHandleCallback = unsafe extern "C" fn(*const c_void);
@@ -59,6 +61,7 @@ impl FfiSizeValue {
             calc_is_bridge_retained: false,
             contains_percentage: false,
             contains_anchor_function: false,
+            fit_content_has_argument: false,
         }
     }
 
@@ -71,6 +74,7 @@ impl FfiSizeValue {
             calc_is_bridge_retained: false,
             contains_percentage: false,
             contains_anchor_function: false,
+            fit_content_has_argument: false,
         }
     }
 
@@ -84,6 +88,7 @@ impl FfiSizeValue {
             calc_is_bridge_retained: false,
             contains_percentage: false,
             contains_anchor_function: false,
+            fit_content_has_argument: false,
         }
     }
 
@@ -673,6 +678,7 @@ fn decode_length_percentage(handle: &crate::layout::ComputedStyleValueHandle) ->
             calc_is_bridge_retained: false,
             contains_percentage: true,
             contains_anchor_function: false,
+            fit_content_has_argument: false,
         },
         StyleValueData::Calculated { .. } => {
             // SAFETY: The style value outlives the pass; the calc pointer
@@ -689,6 +695,7 @@ fn decode_length_percentage(handle: &crate::layout::ComputedStyleValueHandle) ->
                 calc_is_bridge_retained: false,
                 contains_percentage,
                 contains_anchor_function,
+                fit_content_has_argument: false,
             }
         }
         _ => unreachable!("computed length-percentage holds a non-length-percentage style value"),
@@ -728,6 +735,7 @@ fn decode_computed_size(value: &crate::layout::ComputedSize) -> FfiSizeValue {
             } else {
                 let mut result = decode_length_percentage(&value.value);
                 result.kind = FfiSizeKind::FitContent as u8;
+                result.fit_content_has_argument = true;
                 result
             }
         }
