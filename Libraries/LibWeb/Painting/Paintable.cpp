@@ -16,6 +16,7 @@
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/Invalidation/ContainerQueryInvalidator.h>
+#include <LibWeb/CSS/StyleInvalidation.h>
 #include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/CSS/StyleValues/BorderImageSliceStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorSchemeStyleValue.h>
@@ -1014,6 +1015,26 @@ Optional<Paintable::CachedCommandRange> Paintable::valid_cached_commands(PaintPh
 void Paintable::invalidate_paint_cache() const
 {
     m_cached_paint_data = nullptr;
+}
+
+void Paintable::invalidate_propagated_text_decoration_caches() const
+{
+    for_each_in_subtree([](Paintable const& descendant) {
+        if (descendant.layout_node().is_text_decoration_propagation_boundary())
+            return TraversalDecision::SkipChildrenAndContinue;
+        // Only fragment-painting paintables record propagated decorations.
+        if (descendant.is_paintable_with_lines() || descendant.is_inline_paintable())
+            descendant.invalidate_paint_cache();
+        return TraversalDecision::Continue;
+    });
+}
+
+void Paintable::repaint_after_style_change(CSS::RequiredInvalidationAfterStyleChange const& invalidation)
+{
+    if (invalidation.needs_repaint())
+        set_needs_repaint();
+    if (invalidation.repaint_propagated_text_decorations)
+        invalidate_propagated_text_decoration_caches();
 }
 
 void Paintable::set_cached_commands(PaintPhase phase, u64 display_list_id, DisplayListCommandRange range, VisualContextIndex recorded_context_index, bool captured_under_empty_effective_clip) const

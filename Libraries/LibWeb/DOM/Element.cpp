@@ -1484,8 +1484,8 @@ void Element::apply_computed_style_to_layout_node_if_needed(CSS::RequiredInvalid
     // If we're keeping the layout tree, we can just apply the new style to the existing layout tree.
     VERIFY(has_style());
     unsafe_layout_node()->apply_style(style_record_identity());
-    if (invalidation.needs_repaint())
-        set_needs_repaint();
+    if (auto paintable = unsafe_layout_node()->paintable())
+        paintable->repaint_after_style_change(invalidation);
 
     apply_computed_pseudo_element_styles_to_layout_nodes_if_needed(invalidation);
 }
@@ -1501,8 +1501,8 @@ void Element::apply_computed_pseudo_element_styles_to_layout_nodes_if_needed(CSS
 
         if (auto node_with_style = pseudo_element.unsafe_layout_node()) {
             node_with_style->apply_style(style_record_identity(pseudo_element_type));
-            if (invalidation.needs_repaint() && node_with_style->paintable())
-                node_with_style->paintable()->set_needs_repaint();
+            if (auto paintable = node_with_style->paintable())
+                paintable->repaint_after_style_change(invalidation);
         }
     });
 }

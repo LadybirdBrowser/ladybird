@@ -822,10 +822,11 @@ struct AnimatedPropertyInvalidation {
     bool requires_base_style_recomputation { false };
 };
 
-static AnimatedPropertyInvalidation compute_required_invalidation_for_animated_properties(CSS::AnimatedProperties const* old_properties, CSS::AnimatedProperties const* new_properties)
+static AnimatedPropertyInvalidation compute_required_invalidation_for_animated_properties(CSS::AnimatedProperties const* old_properties, CSS::AnimatedProperties const* new_properties, DOM::AbstractElement const& target)
 {
     AnimatedPropertyInvalidation result;
     auto old_and_new_properties = MUST(Bitmap::create(CSS::number_of_longhand_properties, 0));
+    bool text_decoration_line_animated = false;
     if (old_properties) {
         for (auto const& [property_id, _] : old_properties->values())
             old_and_new_properties.set(to_underlying(property_id) - to_underlying(CSS::first_longhand_property_id), 1);
@@ -861,7 +862,15 @@ static AnimatedPropertyInvalidation compute_required_invalidation_for_animated_p
             else
                 property_invalidation.mark_all_inherited_style_groups_changed();
         }
+        if (property_id == CSS::PropertyID::TextDecorationLine)
+            text_decoration_line_animated = true;
         result.invalidation |= property_invalidation;
+    }
+    // Animated properties other than text-decoration-line cannot make an undecorated box decorated.
+    if (result.invalidation.repaint_propagated_text_decorations && !text_decoration_line_animated) {
+        auto target_style = target.computed_style();
+        if (target_style && target_style->text_decoration_line().is_empty())
+            result.invalidation.repaint_propagated_text_decorations = false;
     }
     return result;
 }
@@ -886,7 +895,7 @@ AnimationUpdateContext::~AnimationUpdateContext()
         if (!effects_to_collect.is_empty())
             target->document().style_computer().collect_animations_into(element, effects_to_collect.span(), *style);
         auto animated_properties_after_update = style->animated_properties_snapshot();
-        auto animated_property_invalidation = compute_required_invalidation_for_animated_properties(it.value.animated_properties_before_update.ptr(), animated_properties_after_update.ptr());
+        auto animated_property_invalidation = compute_required_invalidation_for_animated_properties(it.value.animated_properties_before_update.ptr(), animated_properties_after_update.ptr(), element);
         auto invalidation = animated_property_invalidation.invalidation;
 
         if (invalidation.is_none())
@@ -963,13 +972,12 @@ AnimationUpdateContext::~AnimationUpdateContext()
             }
         }
 
-        if (invalidation.needs_repaint()) {
-            if (element.pseudo_element().has_value()) {
-                if (auto pseudo_element_node = target->pseudo_element_unsafe_layout_node(*element.pseudo_element()); pseudo_element_node && pseudo_element_node->paintable())
-                    pseudo_element_node->paintable()->set_needs_repaint();
-            } else {
-                target->set_needs_repaint();
-            }
+        auto* repaint_layout_node = element.pseudo_element().has_value()
+            ? target->pseudo_element_unsafe_layout_node(*element.pseudo_element())
+            : target->unsafe_layout_node();
+        if (repaint_layout_node) {
+            if (auto paintable = repaint_layout_node->paintable())
+                paintable->repaint_after_style_change(invalidation);
         }
         if (invalidation.needs_stacking_context_tree_rebuild())
             element.document().invalidate_stacking_context_tree();
