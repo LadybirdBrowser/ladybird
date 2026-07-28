@@ -1869,9 +1869,11 @@ fn create_pseudo_element_with_frame(
     if resolved_content.content_is_list && decision != FfiPseudoElementDecision::ContentReplacement {
         state.ancestor_stack.push(layout_node);
         for index in 0..resolved_content.content_item_count {
-            // SAFETY: `index` is below the resolved content item count and the frame retains the returned node.
+            // SAFETY: `index` is below the resolved content item count and the frame retains any returned node.
             let content_item = unsafe { (callbacks.create_content_item)(frame, element, pseudo_element, index) };
-            assert!(!content_item.is_invalid());
+            if content_item.is_invalid() {
+                continue;
+            }
             let layout_host = host.layout();
             let current_parent = state.current_parent();
             let is_inline_outside = node_is_inline_outside(&layout_host, content_item);
