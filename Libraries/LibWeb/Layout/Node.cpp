@@ -209,11 +209,6 @@ RustFFI::NodeSlotId Node::slot_id(Node const* node)
     return node ? node->m_slot : RustFFI::NodeSlotId_INVALID;
 }
 
-size_t Node::node_data_displacement(Node const& node)
-{
-    return reinterpret_cast<u8 const*>(&node.m_data) - reinterpret_cast<u8 const*>(&node);
-}
-
 void Node::set_node_kind(RustFFI::NodeKind kind)
 {
     m_data->kind = kind;

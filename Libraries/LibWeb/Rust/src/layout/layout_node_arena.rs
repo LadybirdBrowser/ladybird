@@ -316,10 +316,6 @@ impl LayoutNodeArena {
         (index, metadata)
     }
 
-    pub(crate) fn slot_index_for_data(&self, data: &NodeData) -> u32 {
-        self.slot_for_data(std::ptr::from_ref(data)).0
-    }
-
     pub(crate) fn is_before(&self, node: &NodeData, other: &NodeData) -> bool {
         let (node_index, node_metadata) = self.slot_for_data(std::ptr::from_ref(node));
         let (other_index, other_metadata) = self.slot_for_data(std::ptr::from_ref(other));

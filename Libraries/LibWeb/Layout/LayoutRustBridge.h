@@ -37,7 +37,7 @@ public:
     void replay_saved_abspos_layout(Box&, Painting::Paintable& paintable_to_replace);
 
 private:
-    [[nodiscard]] RustFFI::FfiLayoutFcCallbacks formatting_context_callbacks(Node const* subtree_root = nullptr);
+    [[nodiscard]] RustFFI::FfiLayoutFcCallbacks formatting_context_callbacks();
     [[nodiscard]] RustFFI::FfiCommitSink commit_sink();
 
     struct LineCommitContext;

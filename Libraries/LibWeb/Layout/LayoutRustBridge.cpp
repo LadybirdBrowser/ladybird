@@ -1184,7 +1184,7 @@ void LayoutRustBridge::compute_subtree_layout(Box& root, Painting::Paintable& pa
     };
 
     root.document().invalidate_stacking_context_tree();
-    auto callbacks = formatting_context_callbacks(&root);
+    auto callbacks = formatting_context_callbacks();
     auto sink = commit_sink();
     RustFFI::rust_layout_compute_subtree_layout(
         Node::slot_id(&root),
@@ -1204,7 +1204,7 @@ void LayoutRustBridge::replay_saved_abspos_layout(Box& box, Painting::Paintable&
     };
 
     box.document().invalidate_stacking_context_tree();
-    auto callbacks = formatting_context_callbacks(&box);
+    auto callbacks = formatting_context_callbacks();
     auto sink = commit_sink();
     RustFFI::rust_layout_replay_saved_abspos_layout(Node::slot_id(&box), &paintable_to_replace, &callbacks, &sink);
     VERIFY(!m_line_commit_context);
@@ -1668,7 +1668,7 @@ static bool can_skip_is_anonymous_text_run(Box& box)
     return false;
 }
 
-RustFFI::FfiLayoutFcCallbacks LayoutRustBridge::formatting_context_callbacks(Node const* subtree_root)
+RustFFI::FfiLayoutFcCallbacks LayoutRustBridge::formatting_context_callbacks()
 {
     static_assert(to_underlying(Painting::Paintable::ConflictingElementKind::Cell) == 0);
     static_assert(to_underlying(Painting::Paintable::ConflictingElementKind::Row) == 1);
@@ -1731,45 +1731,12 @@ RustFFI::FfiLayoutFcCallbacks LayoutRustBridge::formatting_context_callbacks(Nod
     static_assert(offsetof(RustFFI::FfiDrawGlyph, glyph_id) == offsetof(Gfx::DrawGlyph, glyph_id));
     static_assert(offsetof(RustFFI::FfiDrawGlyph, should_paint) == offsetof(Gfx::DrawGlyph, should_paint));
 
-    size_t node_data_displacement = Node::node_data_displacement(*m_commit_root);
-
-    auto verify_node_data_displacement = [&](Node const& node) {
-        auto* data = *reinterpret_cast<RustFFI::NodeData* const*>(reinterpret_cast<u8 const*>(&node) + node_data_displacement);
-        VERIFY(data);
-        VERIFY(data->shell == const_cast<Node*>(&node));
-    };
-    verify_node_data_displacement(*m_commit_root);
-
-    // The displacement is one process-wide constant because every layout node
-    // derives from Node through a single non-virtual inheritance chain. Sample
-    // distinct vtables rather than class_name(), which not every subclass
-    // overrides, to catch that chain ever growing an offset-shifting base.
-    Array<void const*, 4> sampled_vtables {};
-    size_t sampled_vtable_count = 0;
-    m_commit_root->root().for_each_in_inclusive_subtree([&](Node const& node) {
-        auto const* vtable = *reinterpret_cast<void const* const*>(&node);
-        for (size_t index = 0; index < sampled_vtable_count; ++index) {
-            if (sampled_vtables[index] == vtable)
-                return TraversalDecision::Continue;
-        }
-        verify_node_data_displacement(node);
-        sampled_vtables[sampled_vtable_count++] = vtable;
-        if (sampled_vtable_count < sampled_vtables.size())
-            return TraversalDecision::Continue;
-        return TraversalDecision::Break;
-    });
-    if (subtree_root)
-        verify_node_data_displacement(*subtree_root);
-
     return {
         .context = this,
         .arena = m_commit_root->arena_handle(),
-        .node_data_displacement = node_data_displacement,
         .initial_containing_block_inline_size = m_commit_root->document().viewport_rect().width().raw_value(),
         .document_in_quirks_mode = m_commit_root->document().in_quirks_mode(),
-        .static_position_containing_block = [](void*, void* node) -> void* {
-            return const_cast<Box*>(static_cast<Box const*>(node)->static_position_containing_block());
-        },
+        .static_position_containing_block = [](void*, void* node) { return Node::slot_id(static_cast<Box const*>(node)->static_position_containing_block()); },
         .dom_node_is_inclusive_ancestor = [](void*, void* ancestor, void* node) {
             auto const* ancestor_dom_node = static_cast<Node const*>(ancestor)->dom_node();
             auto const* dom_node = static_cast<Node const*>(node)->dom_node();
@@ -1836,7 +1803,7 @@ RustFFI::FfiLayoutFcCallbacks LayoutRustBridge::formatting_context_callbacks(Nod
             RustFFI::FfiListItemFacts facts {};
             auto const& layout_node = *static_cast<Node const*>(node);
             if (auto const* list_item_box = as_if<ListItemBox>(layout_node)) {
-                facts.marker = list_item_box->marker() ? const_cast<ListItemMarkerBox*>(list_item_box->marker()) : nullptr;
+                facts.marker = Node::slot_id(list_item_box->marker());
                 if (auto const* element = as_if<DOM::Element>(layout_node.dom_node())) {
                     if (auto const computed_values = element->computed_values(CSS::PseudoElement::Marker))
                         facts.has_css_marker_content = computed_values->content().has_value();
@@ -2003,16 +1970,14 @@ RustFFI::FfiLayoutFcCallbacks LayoutRustBridge::formatting_context_callbacks(Nod
                 .width = bounding_box.width(),
                 .height = bounding_box.height(),
             }; },
-        .anchor_lookup = [](void*, void* node, size_t anchor_name, void* const* eligible_anchor_boxes, size_t eligible_anchor_box_count, void** out_anchor_box) {
-            VERIFY(out_anchor_box);
-            *out_anchor_box = nullptr;
+        .anchor_lookup = [](void*, void* node, size_t anchor_name, void* const* eligible_anchor_boxes, size_t eligible_anchor_box_count) {
             auto const& box = *static_cast<Box const*>(node);
             auto abstract_element = abstract_element_for_abspos_box(box);
             if (!abstract_element.has_value())
-                return false;
+                return RustFFI::NodeSlotId_INVALID;
             auto const* containing_block = box.containing_block();
             if (!containing_block)
-                return false;
+                return RustFFI::NodeSlotId_INVALID;
             Function<bool(DOM::Element&)> is_acceptable_anchor_element = [&](DOM::Element& candidate) {
                 auto const* anchor_box = as_if<Box>(candidate.unsafe_layout_node());
                 if (!anchor_box || anchor_box == &box)
@@ -2037,12 +2002,11 @@ RustFFI::FfiLayoutFcCallbacks LayoutRustBridge::formatting_context_callbacks(Nod
                 abstract_element->element(),
                 is_acceptable_anchor_element);
             if (!anchor_element)
-                return false;
-            auto* anchor_box = as_if<Box>(anchor_element->unsafe_layout_node());
+                return RustFFI::NodeSlotId_INVALID;
+            auto const* anchor_box = as_if<Box>(anchor_element->unsafe_layout_node());
             if (!anchor_box)
-                return false;
-            *out_anchor_box = anchor_box;
-            return true; },
+                return RustFFI::NodeSlotId_INVALID;
+            return Node::slot_id(anchor_box); },
         .build_anchor_function_facts = [](void*, void const* shell) {
             auto value = CSS::StyleValue::adopt_rust_style_value_data(
                 CSS::StyleValueFFI::rust_style_value_retain(

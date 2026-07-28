@@ -285,10 +285,7 @@ impl<'a, 'pass> AbsposEngine<'a, 'pass> {
     }
 
     fn static_position_containing_block(&self, node: Node) -> Node {
-        let shell = unsafe {
-            (self.callbacks.static_position_containing_block)(self.callbacks.context, self.callbacks.shell(node))
-        };
-        self.callbacks.node_for_shell_or_invalid(shell)
+        unsafe { (self.callbacks.static_position_containing_block)(self.callbacks.context, self.callbacks.shell(node)) }
     }
 
     fn inline_containing_block(&self, node: Node) -> Node {
@@ -657,31 +654,24 @@ struct AnchorCalcCallbackContext<'a, 'pass> {
 
 impl AbsposEngine<'_, '_> {
     fn anchor_lookup(&self, positioned_box: Node, anchor_name: usize) -> Option<Node> {
-        let mut anchor_box = std::ptr::null_mut();
         let eligible_anchor_boxes = self.state.used_value_nodes();
         let eligible_anchor_shells = eligible_anchor_boxes
             .iter()
             .map(|&node| self.callbacks.shell(node))
             .collect::<Vec<_>>();
         // SAFETY: The name handle is retained by either the style snapshot or
-        // the live anchor() shell. The eligible-node slice and out pointer
-        // are borrowed only for this synchronous lookup.
-        let found = unsafe {
+        // the live anchor() shell. The eligible-node slice is borrowed only
+        // for this synchronous lookup.
+        let anchor_box = unsafe {
             (self.callbacks.anchor_lookup)(
                 self.callbacks.context,
                 self.callbacks.shell(positioned_box),
                 anchor_name,
                 eligible_anchor_shells.as_ptr(),
                 eligible_anchor_shells.len(),
-                &raw mut anchor_box,
             )
         };
-        if found {
-            assert!(!anchor_box.is_null());
-            Some(self.callbacks.node_for_shell(anchor_box))
-        } else {
-            None
-        }
+        (!anchor_box.is_invalid()).then_some(anchor_box)
     }
 
     fn nearest_scroll_container_ancestor(&self, node: Node) -> Node {
@@ -4762,10 +4752,9 @@ pub type FfiBuildTableBoxFactsCallback = unsafe extern "C" fn(*mut c_void, *mut 
 pub struct FfiLayoutFcCallbacks {
     pub context: *mut c_void,
     pub arena: *mut c_void,
-    pub node_data_displacement: usize,
     pub initial_containing_block_inline_size: CssPixels,
     pub document_in_quirks_mode: bool,
-    pub static_position_containing_block: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void,
+    pub static_position_containing_block: unsafe extern "C" fn(*mut c_void, *mut c_void) -> NodeSlotId,
     pub dom_node_is_inclusive_ancestor: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void) -> bool,
     pub needs_inset_resolution: unsafe extern "C" fn(*mut c_void, *mut c_void) -> bool,
     pub report_unexpected_fragmented_inline: unsafe extern "C" fn(*mut c_void, *mut c_void),
@@ -4792,8 +4781,7 @@ pub struct FfiLayoutFcCallbacks {
     pub compute_svg_path: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiSvgPathRequest) -> FfiSvgPathResult,
     pub release_svg_path: crate::layout::ReleaseRetainedLayoutHandle,
     pub svg_image_bounding_box: unsafe extern "C" fn(*mut c_void, *mut c_void, CssPixels, CssPixels) -> FfiFloatRect,
-    pub anchor_lookup:
-        unsafe extern "C" fn(*mut c_void, *mut c_void, usize, *const *mut c_void, usize, *mut *mut c_void) -> bool,
+    pub anchor_lookup: unsafe extern "C" fn(*mut c_void, *mut c_void, usize, *const *mut c_void, usize) -> NodeSlotId,
     pub build_anchor_function_facts: unsafe extern "C" fn(*mut c_void, *const c_void) -> FfiAnchorFunctionFacts,
     pub anchor_function_fallback: unsafe extern "C" fn(*mut c_void, *const c_void) -> FfiAnchorFallbackFacts,
     pub set_resolved_anchor_insets: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiResolvedAnchorInsets),
@@ -4806,36 +4794,6 @@ impl FfiLayoutFcCallbacks {
         // SAFETY: C++ borrows the document arena for the synchronous layout
         // pass represented by this callback table.
         unsafe { LayoutNodeArena::from_handle(self.arena) }
-    }
-
-    fn node_data_pointer_for_shell(&self, shell: *mut c_void) -> *mut NodeData {
-        assert!(!shell.is_null());
-        // SAFETY: Every shell passed here comes from the single Layout::Node
-        // inheritance chain and outlives the synchronous layout pass.
-        let data = unsafe {
-            shell
-                .cast::<u8>()
-                .add(self.node_data_displacement)
-                .cast::<*mut NodeData>()
-                .read()
-        };
-        assert!(!data.is_null());
-        data
-    }
-
-    pub(crate) fn node_for_shell(&self, shell: *mut c_void) -> Node {
-        let data = self.node_data_pointer_for_shell(shell);
-        // SAFETY: node_data_pointer_for_shell() returned a live arena slot.
-        let generation = unsafe { (*data).slot_generation };
-        NodeSlotId::new(self.arena().slot_index_for_data(unsafe { &*data }), generation)
-    }
-
-    pub(crate) fn node_for_shell_or_invalid(&self, shell: *mut c_void) -> Node {
-        if shell.is_null() {
-            NodeSlotId::INVALID
-        } else {
-            self.node_for_shell(shell)
-        }
     }
 
     pub(crate) fn node_data(&self, node: Node) -> &NodeData {
