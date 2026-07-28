@@ -114,6 +114,13 @@ pub enum NodeFlag {
     CompensatesForHorizontalScroll = 1 << 10,
     CompensatesForVerticalScroll = 1 << 11,
     IsReplacedElement = 1 << 12,
+    IsHtmlInputElement = 1 << 13,
+    IsHtmlHtmlElement = 1 << 14,
+    IsInUserAgentShadowTree = 1 << 15,
+    UsesButtonLayout = 1 << 16,
+    IsEditingHost = 1 << 17,
+    ReplacedBoxCanHaveChildren = 1 << 18,
+    OwnStyleEstablishesBlockFormattingContext = 1 << 19,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -142,6 +149,7 @@ pub enum NodeDisplayFlag {
     GridInside = 1 << 3,
     Floating = 1 << 4,
     AbsolutelyPositioned = 1 << 5,
+    BlockOutsideBeforeBoxTypeTransformation = 1 << 7,
 }
 
 #[repr(C)]
@@ -191,7 +199,7 @@ impl Default for NodeData {
 
 #[cfg(test)]
 mod tests {
-    use super::{MAX_NODE_SLOT_COUNT, NodeData, NodeKind, NodeSlotId};
+    use crate::layout::node_data::{MAX_NODE_SLOT_COUNT, NodeData, NodeDisplayFlag, NodeFlag, NodeKind, NodeSlotId};
 
     #[test]
     fn node_kind_has_a_stable_default_and_byte_width() {
@@ -213,5 +221,17 @@ mod tests {
         assert_eq!(id.slot_index(), MAX_NODE_SLOT_COUNT - 1);
         assert_eq!(id.generation(), u8::MAX);
         assert_ne!(id, NodeSlotId::INVALID);
+    }
+
+    #[test]
+    fn stamped_fact_flags_use_previously_unassigned_bits() {
+        assert_eq!(NodeFlag::IsHtmlInputElement as u32, 1 << 13);
+        assert_eq!(NodeFlag::IsHtmlHtmlElement as u32, 1 << 14);
+        assert_eq!(NodeFlag::IsInUserAgentShadowTree as u32, 1 << 15);
+        assert_eq!(NodeFlag::UsesButtonLayout as u32, 1 << 16);
+        assert_eq!(NodeFlag::IsEditingHost as u32, 1 << 17);
+        assert_eq!(NodeFlag::ReplacedBoxCanHaveChildren as u32, 1 << 18);
+        assert_eq!(NodeFlag::OwnStyleEstablishesBlockFormattingContext as u32, 1 << 19);
+        assert_eq!(NodeDisplayFlag::BlockOutsideBeforeBoxTypeTransformation as u8, 1 << 7);
     }
 }

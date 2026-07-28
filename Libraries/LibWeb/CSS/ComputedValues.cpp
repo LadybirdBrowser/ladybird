@@ -858,6 +858,61 @@ bool ComputedValues::adopt_identical_group_payloads(ComputedValues const& previo
     return all_shared;
 }
 
+void const* ComputedValues::style_group_payload(StyleGroupIndex group) const
+{
+    switch (group) {
+    case StyleGroupIndex::InheritedTableValues:
+        return &*m_inherited.table;
+    case StyleGroupIndex::InheritedListValues:
+        return &*m_inherited.list;
+    case StyleGroupIndex::InheritedUIValues:
+        return &*m_inherited.ui;
+    case StyleGroupIndex::InheritedSVGValues:
+        return &*m_inherited.svg;
+    case StyleGroupIndex::InheritedTextValues:
+        return &*m_inherited.text;
+    case StyleGroupIndex::InheritedBoxValues:
+        return &*m_inherited.box;
+    case StyleGroupIndex::FontValues:
+        return &*m_inherited.font;
+    case StyleGroupIndex::AnimationValues:
+        return &*m_noninherited.animation;
+    case StyleGroupIndex::SVGResetValues:
+        return &*m_noninherited.svg_reset;
+    case StyleGroupIndex::GridValues:
+        return &*m_noninherited.grid;
+    case StyleGroupIndex::AnchorValues:
+        return &*m_noninherited.anchor;
+    case StyleGroupIndex::EffectsValues:
+        return &*m_noninherited.effects;
+    case StyleGroupIndex::MaskValues:
+        return &*m_noninherited.mask_data;
+    case StyleGroupIndex::TextResetValues:
+        return &*m_noninherited.text_reset;
+    case StyleGroupIndex::ContentValues:
+        return &*m_noninherited.content_data;
+    case StyleGroupIndex::TransformValues:
+        return &*m_noninherited.transform;
+    case StyleGroupIndex::BackgroundValues:
+        return &*m_noninherited.background;
+    case StyleGroupIndex::BorderValues:
+        return &*m_noninherited.border;
+    case StyleGroupIndex::AlignmentValues:
+        return &*m_noninherited.alignment;
+    case StyleGroupIndex::MiscResetValues:
+        return &*m_noninherited.misc;
+    case StyleGroupIndex::SizingValues:
+        return &*m_noninherited.sizing;
+    case StyleGroupIndex::SurroundValues:
+        return &*m_noninherited.surround;
+    case StyleGroupIndex::BoxValues:
+        return &*m_noninherited.box;
+    case StyleGroupIndex::Count:
+        break;
+    }
+    VERIFY_NOT_REACHED();
+}
+
 NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties const& computed_style, DOM::Document const& document, StyleScope const& style_scope, ColorResolutionContext color_resolution_context, ComputedValues const* inherit_parent)
 {
     Builder builder;

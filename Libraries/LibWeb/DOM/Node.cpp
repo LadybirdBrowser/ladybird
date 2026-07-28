@@ -1686,6 +1686,12 @@ void Node::recompute_editable_subtree_flags_and_repaint()
         // display list, so a flip must invalidate the recorded output.
         if (node.recompute_editable_subtree_flag())
             node.set_needs_repaint();
+        // Editing-host status is stamped into layout NodeData at layout node construction;
+        // contenteditable and designMode changes reach here without a layout tree rebuild,
+        // so the stamp must be refreshed. A node's editing-host status can flip even when
+        // its own editable-subtree flag did not, hence unconditionally for every node.
+        if (auto* layout_node = node.unsafe_layout_node())
+            layout_node->set_is_editing_host(node.is_editing_host());
         return TraversalDecision::Continue;
     });
 }

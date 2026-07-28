@@ -981,6 +981,10 @@ public:
     // group ends up sharing its payload with `previous`.
     bool adopt_identical_group_payloads(ComputedValues const& previous) const;
 
+    // Returns the Rust-owned payload for direct read-only layout access. The
+    // pointer is borrowed from this immutable ComputedValues instance.
+    void const* style_group_payload(StyleGroupIndex) const;
+
     // Calls back with (name, shared_with_parent, is_default) for every style value group,
     // for introspecting how well group sharing is working (see internals.styleGroupSharingInfo()).
     template<typename Callback>

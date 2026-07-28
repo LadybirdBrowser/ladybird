@@ -15,6 +15,7 @@
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/Dump.h>
+#include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
@@ -78,7 +79,86 @@ static u8 display_bits(CSS::ComputedValues const& computed_values)
     auto position = computed_values.position();
     set(RustFFI::NodeDisplayFlag::AbsolutelyPositioned,
         position == CSS::Positioning::Absolute || position == CSS::Positioning::Fixed);
+    set(RustFFI::NodeDisplayFlag::BlockOutsideBeforeBoxTypeTransformation,
+        computed_values.display_before_box_type_transformation().is_block_outside());
     return bits;
+}
+
+// https://drafts.csswg.org/css-contain-2/#containment-types
+// Mirrors NodeWithStyle::has_layout_containment() / has_paint_containment() with the
+// is_replaced_box() escape dropped: the stamped flag is only consulted after the Rust
+// side has already excluded replaced boxes from creating a block formatting context.
+static bool containment_applies_to_principal_box(CSS::Display display)
+{
+    if (display.is_internal_table() && !display.is_table_cell())
+        return false;
+    if (display.is_inline_outside() && display.is_flow_inside())
+        return false;
+    return true;
+}
+
+// The computed-style-only half of the block-formatting-context predicate. Terms that
+// need the node kind, the DOM, or the parent (replaced boxes, SVG foreignObject,
+// table/flex/grid insides, the root element, fieldsets, button layout, and flex/grid
+// parents) are evaluated by the Rust side over stamped NodeData instead: the first
+// mirror runs from the NodeWithStyle constructor, before the most-derived class has
+// assigned its node kind.
+static bool own_computed_style_establishes_block_formatting_context(CSS::ComputedValues const& computed_values)
+{
+    auto display = computed_values.display();
+
+    // The float term is deliberately absent: floating only establishes a block
+    // formatting context for non-flex-items, and the IsFlexItem flag is written
+    // during layout, after this stamp. The Rust composite evaluates that term
+    // from the Floating display bit and the live IsFlexItem flag instead.
+
+    // Absolutely positioned elements (elements where position is absolute or fixed).
+    auto position = computed_values.position();
+    if (position == CSS::Positioning::Absolute || position == CSS::Positioning::Fixed)
+        return true;
+
+    // Inline-blocks (elements with display: inline-block).
+    if (display.is_inline_block())
+        return true;
+
+    // Table cells and table captions.
+    if (display.is_table_cell() || display.is_table_caption())
+        return true;
+
+    // Block elements where overflow has a value other than visible and clip.
+    CSS::Overflow overflow_x = computed_values.overflow_x();
+    if (overflow_x != CSS::Overflow::Visible && overflow_x != CSS::Overflow::Clip)
+        return true;
+    CSS::Overflow overflow_y = computed_values.overflow_y();
+    if (overflow_y != CSS::Overflow::Visible && overflow_y != CSS::Overflow::Clip)
+        return true;
+
+    // display: flow-root.
+    if (display.is_flow_root_inside())
+        return true;
+
+    // https://drafts.csswg.org/css-contain-2/#containment-types
+    // 1. The layout containment box establishes an independent formatting context.
+    // 4. The paint containment box establishes an independent formatting context.
+    bool content_visibility_forces_containment = computed_values.content_visibility() == CSS::ContentVisibility::Auto;
+    if ((computed_values.contain().layout_containment || computed_values.contain().paint_containment
+            || content_visibility_forces_containment)
+        && containment_applies_to_principal_box(display))
+        return true;
+
+    // https://drafts.csswg.org/css-conditional-5/#valdef-container-type-size
+    // Applies style containment and size containment to the principal box, and establishes an independent formatting
+    // context.
+    if (computed_values.container_type().is_size_container || computed_values.container_type().is_inline_size_container)
+        return true;
+
+    // https://drafts.csswg.org/css-multicol-2/#the-multi-column-model
+    // An element whose 'column-width', 'column-count', or 'column-height' property is not 'auto' establishes a multi-
+    // column container (or multicol container for short), and therefore acts as a container for multi-column layout.
+    if (!computed_values.column_width().is_auto() || !computed_values.column_count().is_auto())
+        return true;
+
+    return false;
 }
 
 NodeArenaAllocation::NodeArenaAllocation(DOM::Document& document)
@@ -106,6 +186,13 @@ Node::Node(DOM::Document& document, DOM::Node* node, AttachToDOMNode attach_to_d
     // remain replaced elements for CSS box generation and inline layout. (ReplacedBox's
     // constructor sets the flag for actual replaced boxes.)
     set_flag(RustFFI::NodeFlag::IsReplacedElement, node && is<HTML::HTMLInputElement>(*node));
+    set_flag(RustFFI::NodeFlag::IsHtmlInputElement, node && is<HTML::HTMLInputElement>(*node));
+    set_flag(RustFFI::NodeFlag::IsHtmlHtmlElement, node && node->is_html_html_element());
+    set_flag(RustFFI::NodeFlag::IsInUserAgentShadowTree,
+        node && node->containing_shadow_root() && node->containing_shadow_root()->is_user_agent_internal());
+    set_flag(RustFFI::NodeFlag::UsesButtonLayout,
+        node && is<HTML::HTMLElement>(*node) && static_cast<HTML::HTMLElement const&>(*node).uses_button_layout());
+    set_flag(RustFFI::NodeFlag::IsEditingHost, node && node->is_editing_host());
 
     if (node && attach_to_dom_node == AttachToDOMNode::Yes)
         node->set_layout_node({}, *this);
@@ -131,6 +218,7 @@ void Node::set_node_kind(RustFFI::NodeKind kind)
                                                            .is_block_container = is_block_container(),
                                                            .is_text = is_text_node(),
                                                            .is_svg_box = is_svg_box(),
+                                                           .is_replaced_box = is_replaced_box(),
                                                        }));
 #endif
 }
@@ -1016,6 +1104,8 @@ void NodeWithStyle::mirror_computed_values_to_node_data()
     node_data().table_display = table_display(m_computed_values->display());
     node_data().table_display_before = table_display(m_computed_values->display_before_box_type_transformation());
     node_data().display_bits = display_bits(*m_computed_values);
+    set_flag(RustFFI::NodeFlag::OwnStyleEstablishesBlockFormattingContext,
+        own_computed_style_establishes_block_formatting_context(*m_computed_values));
 }
 
 void NodeWithStyle::set_display(CSS::Display display)
