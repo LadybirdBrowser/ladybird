@@ -56,6 +56,9 @@ public:
 
     u8 unit_type() const;
 
+    float value_in_specified_units() const;
+    WebIDL::ExceptionOr<void> set_value_in_specified_units(float value);
+
     Utf16String value_as_string() const;
     WebIDL::ExceptionOr<void> set_value_as_string(Utf16String);
 

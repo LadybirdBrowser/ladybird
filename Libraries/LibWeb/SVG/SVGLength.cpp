@@ -339,6 +339,82 @@ WebIDL::ExceptionOr<void> SVGLength::set_value(float value)
     return {};
 }
 
+// https://w3c.github.io/svgwg/svg2-draft/types.html#__svg__SVGLength__valueInSpecifiedUnits
+float SVGLength::value_in_specified_units() const
+{
+    // On getting valueInSpecifiedUnits, the following steps are run:
+
+    // 1. Let value be the SVGLength's value.
+    auto value = internal_value();
+
+    // 2. If value is a <number>, return that number.
+    if (value->is_number())
+        return value->as_number().number();
+
+    // 3. Otherwise, if value is a <percentage> or any scalar <length> value, return the numeric factor before its unit.
+    if (value->is_percentage())
+        return value->as_percentage().percentage().value();
+
+    if (value->is_length())
+        return value->as_length().length().raw_value();
+
+    // 4. Otherwise, return 0.
+    return 0;
+
+    // NOTE: Thus valueInSpecifiedUnits would return 12 for both '12%' and 12em, but 0 would be returned for non-scalar
+    //       values like calc(12px + 5%).
+}
+
+// https://w3c.github.io/svgwg/svg2-draft/types.html#__svg__SVGLength__valueInSpecifiedUnits
+WebIDL::ExceptionOr<void> SVGLength::set_value_in_specified_units(float value)
+{
+    // On setting valueInSpecifiedUnits, the following steps are run:
+
+    auto existing_value = internal_value();
+
+    RefPtr<CSS::StyleValue const> new_value;
+
+    // 1. If the SVGLength object is read only, then throw a NoModificationAllowedError.
+    if (m_read_only == ReadOnly::Yes)
+        return WebIDL::NoModificationAllowedError::create(realm(), "Cannot modify value of read-only SVGLength"_utf16);
+
+    // 2. Let value be the value being assigned to valueInSpecifiedUnits.
+
+    // 3. If the SVGLength's value is a <number>, then update its value to value.
+    if (existing_value->is_number()) {
+        new_value = CSS::NumberStyleValue::create(value);
+    }
+    // 4. Otherwise, if the SVGLength's value is a <percentage> or a scalar-valued <length>, then update its numeric
+    //    factor to value.
+    else if (existing_value->is_percentage()) {
+        new_value = CSS::PercentageStyleValue::create(CSS::Percentage { value });
+    } else if (existing_value->is_length()) {
+        new_value = CSS::LengthStyleValue::create(CSS::Length { value, existing_value->as_length().length().unit() });
+    }
+    // 5. Otherwise, the SVGLength's value is of some other type. Set it to a <number> whose value is value.
+    else {
+        new_value = CSS::NumberStyleValue::create(value);
+    }
+
+    // NB: Modes other than DetachedSource have their value set implicitly when reserializing the reflected attribute.
+    if (m_source.has<DetachedSource>())
+        m_source.get<DetachedSource>().value = *new_value;
+
+    // 6. If the SVGLength reflects the base value of a reflected attribute or reflects an element of the base value of
+    //    a reflected attribute, then reserialize the reflected attribute.
+
+    // FIXME: Implement this for "reflects an element of the base value of a reflected attribute" when we support it.
+    // FIXME: Should this also happen for "reflects a presentation attribute" as we do with set_value()?
+    if (m_source.has<ReflectedAttributeSource>()) {
+        // NB: All attribute reflecting lengths should have an associated element
+        VERIFY(m_element);
+
+        m_element->set_attribute_value(m_source.get<ReflectedAttributeSource>().name, new_value->to_utf16_string(CSS::SerializationMode::Normal));
+    }
+
+    return {};
+}
+
 // https://w3c.github.io/svgwg/svg2-draft/types.html#__svg__SVGLength__valueAsString
 Utf16String SVGLength::value_as_string() const
 {
