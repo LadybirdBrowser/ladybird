@@ -83,6 +83,8 @@
         host.appendChild(detachedTree);
         println(`detached child initial color: ${detachedChild.computedStyleMap().get("color")}`);
 
+        // A disconnected element has no computed style at all: getComputedStyle refuses one, and the
+        // computed style map answers the same way rather than reporting a style nothing decided.
         detachedTree.remove();
         detachedChild.style.color = "rgb(0, 128, 0)";
         println(`detached child inline color: ${detachedChild.computedStyleMap().get("color")}`);
@@ -90,5 +92,7 @@
         detachedChild.style.color = "";
         detachedTree.className = "detached-blue";
         println(`detached child ancestor class color: ${detachedChild.computedStyleMap().get("color")}`);
+        println(`detached child map size: ${detachedChild.computedStyleMap().size}`);
+        println(`detached child map has color: ${detachedChild.computedStyleMap().has("color")}`);
     });
 </script>
