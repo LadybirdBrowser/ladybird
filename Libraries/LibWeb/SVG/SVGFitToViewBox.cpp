@@ -28,6 +28,7 @@ void SVGFitToViewBox::attribute_changed(DOM::Element& element, Utf16FlyString co
     if (name.equals_ignoring_ascii_case(SVG::AttributeNames::viewBox)) {
         if (!value.has_value()) {
             m_view_box_for_bindings->set_nulled(true);
+            m_view_box = {};
         } else {
             m_view_box = AttributeParser::parse_viewbox(value.value_or({}));
             m_view_box_for_bindings->set_nulled(!m_view_box.has_value());
