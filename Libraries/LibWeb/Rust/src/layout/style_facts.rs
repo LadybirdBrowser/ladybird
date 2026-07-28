@@ -30,8 +30,10 @@ pub enum FfiSizeKind {
 ///
 /// Values decoded in Rust from the node's style group payloads borrow their
 /// calc pointer from those payloads, which outlive the synchronous layout
-/// pass. Only values built by LayoutRustBridge carry a bridge-retained handle
-/// (`calc_is_bridge_retained`), released through the pass callback table.
+/// pass; anchor() inset values borrow theirs from the wrappers the node's
+/// decode cache owns. Only values built by LayoutRustBridge carry a
+/// bridge-retained handle (`calc_is_bridge_retained`), released through the
+/// pass callback table.
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct FfiSizeValue {
@@ -381,15 +383,10 @@ fn style_schema() -> &'static StyleSchema {
 
 /// Every field whose immutable payload still requires C++ interpretation.
 /// One callback populates the whole value on the first residual read for a
-/// node. Anchor inset entries are populated only when the corresponding
-/// Rust-visible anchor handle is non-null.
+/// node.
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiResidualStyleValues {
-    pub anchor_inset_top: FfiSizeValue,
-    pub anchor_inset_right: FfiSizeValue,
-    pub anchor_inset_bottom: FfiSizeValue,
-    pub anchor_inset_left: FfiSizeValue,
     pub position_anchor_has_value: bool,
     /// A transferred Utf16FlyString reference, when non-zero.
     pub position_anchor_retained_name: usize,
@@ -412,10 +409,6 @@ pub struct FfiResidualStyleValues {
 impl Default for FfiResidualStyleValues {
     fn default() -> Self {
         Self {
-            anchor_inset_top: FfiSizeValue::auto_value(),
-            anchor_inset_right: FfiSizeValue::auto_value(),
-            anchor_inset_bottom: FfiSizeValue::auto_value(),
-            anchor_inset_left: FfiSizeValue::auto_value(),
             position_anchor_has_value: false,
             position_anchor_retained_name: 0,
             first_available_font: std::ptr::null(),
@@ -442,10 +435,6 @@ impl FfiResidualStyleValues {
         release_calc_handle: FfiReleaseCalcHandleCallback,
         release_anchor_name_handle: FfiReleaseAnchorNameHandleCallback,
     ) {
-        self.anchor_inset_top.release_bridge_calc_handle(release_calc_handle);
-        self.anchor_inset_right.release_bridge_calc_handle(release_calc_handle);
-        self.anchor_inset_bottom.release_bridge_calc_handle(release_calc_handle);
-        self.anchor_inset_left.release_bridge_calc_handle(release_calc_handle);
         self.column_width.release_bridge_calc_handle(release_calc_handle);
         self.text_indent.release_bridge_calc_handle(release_calc_handle);
         if self.position_anchor_retained_name != 0 {
@@ -552,6 +541,10 @@ pub(crate) struct StyleDecodeCache {
     sizes: [Cell<FfiSizeValue>; SIZE_FIELD_COUNT],
     size_presence: Cell<u32>,
     residual: RefCell<Option<FfiResidualStyleValues>>,
+    /// The in-crate-built calculated wrappers for anchor() insets, owned here
+    /// so the cached size slots can borrow their calc pointers for the cache
+    /// lifetime.
+    anchor_inset_calculated_wrappers: RefCell<Vec<std::sync::Arc<crate::css::style_value::StyleValueData>>>,
     release_calc_handle: FfiReleaseCalcHandleCallback,
     release_anchor_name_handle: FfiReleaseAnchorNameHandleCallback,
 }
@@ -567,6 +560,7 @@ impl StyleDecodeCache {
             sizes: std::array::from_fn(|_| Cell::new(FfiSizeValue::auto_value())),
             size_presence: Cell::new(0),
             residual: RefCell::new(None),
+            anchor_inset_calculated_wrappers: RefCell::new(Vec::new()),
             release_calc_handle,
             release_anchor_name_handle,
         }
@@ -1026,31 +1020,51 @@ impl<'a> StyleValues<'a> {
         }
     }
 
+    fn anchor_inset_size_value(self, field: SizeField) -> FfiSizeValue {
+        let values = self.cache.reader.surround();
+        let handle = match field {
+            SizeField::InsetTop => &values.top_anchor_inset,
+            SizeField::InsetRight => &values.right_anchor_inset,
+            SizeField::InsetBottom => &values.bottom_anchor_inset,
+            SizeField::InsetLeft => &values.left_anchor_inset,
+            _ => unreachable!(),
+        };
+        // SAFETY: The inset_has_anchor guard checked the handle is non-null,
+        // and the node's style group payload keeps the anchor value alive for
+        // the synchronous layout pass.
+        let wrapper = unsafe { crate::css::calc::create_anchor_inset_calculated(handle.pointer.cast()) };
+        let calc = std::sync::Arc::as_ptr(&wrapper).cast();
+        self.cache.anchor_inset_calculated_wrappers.borrow_mut().push(wrapper);
+        FfiSizeValue {
+            kind: FfiSizeKind::Calc as u8,
+            px: CssPixels::default(),
+            fraction: 0.0,
+            calc,
+            calc_is_bridge_retained: false,
+            contains_percentage: false,
+            contains_anchor_function: true,
+            fit_content_has_argument: false,
+        }
+    }
+
     fn size_value(self, field: SizeField) -> FfiSizeValue {
         if let Some(value) = self.cache.cached_size(field) {
             return value;
         }
-        let residual = match field {
+        match field {
             SizeField::InsetTop | SizeField::InsetRight | SizeField::InsetBottom | SizeField::InsetLeft
                 if self.inset_has_anchor(field) =>
             {
-                let values = self.residual();
-                Some(match field {
-                    SizeField::InsetTop => values.anchor_inset_top,
-                    SizeField::InsetRight => values.anchor_inset_right,
-                    SizeField::InsetBottom => values.anchor_inset_bottom,
-                    SizeField::InsetLeft => values.anchor_inset_left,
-                    _ => unreachable!(),
-                })
+                let value = self.anchor_inset_size_value(field);
+                self.cache.cache_size(field, value)
             }
-            SizeField::ColumnWidth => Some(self.residual().column_width),
-            SizeField::TextIndent => Some(self.residual().text_indent),
-            _ => None,
-        };
-        residual.unwrap_or_else(|| {
-            let value = self.direct_size(field);
-            self.cache.cache_size(field, value)
-        })
+            SizeField::ColumnWidth => self.residual().column_width,
+            SizeField::TextIndent => self.residual().text_indent,
+            _ => {
+                let value = self.direct_size(field);
+                self.cache.cache_size(field, value)
+            }
+        }
     }
 
     pub(crate) fn with_vertical_align_keyword(mut self, keyword: u8) -> Self {

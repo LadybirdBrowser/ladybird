@@ -24,10 +24,8 @@
 #include <LibWeb/CSS/GridTrackPlacement.h>
 #include <LibWeb/CSS/GridTrackSize.h>
 #include <LibWeb/CSS/LengthBox.h>
-#include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/Size.h>
 #include <LibWeb/CSS/StyleValues/AnchorStyleValue.h>
-#include <LibWeb/CSS/StyleValues/CalcNodeRef.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FlexStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FunctionStyleValue.h>
@@ -2089,32 +2087,6 @@ static RustFFI::FfiResidualStyleValues decode_residual_style(RustFFI::FfiStylePa
     };
 
     RustFFI::FfiResidualStyleValues result {};
-    auto const& surround = group.operator()<CSS::ComputedValues::SurroundValues>();
-
-    auto decode_anchor_inset = [&](CSS::PropertyID property_id,
-                                   CSS::ComputedValuesFFI::ComputedStyleValueHandle const& anchor_inset_handle) {
-        if (!anchor_inset_handle.pointer)
-            return size_value_with_kind(RustFFI::FfiSizeKind::Auto);
-
-        auto anchor_inset = CSS::StyleValue::adopt_rust_style_value_data(
-            CSS::StyleValueFFI::rust_style_value_retain(
-                static_cast<CSS::StyleValueFFI::StyleValueData const*>(anchor_inset_handle.pointer)));
-        VERIFY(anchor_inset->is_anchor());
-        auto calculation_context = CSS::CalculationContext::for_property(CSS::PropertyNameAndID::from_id(property_id));
-        auto root = CSS::CalcNodeRef::non_math_function(
-            anchor_inset->as_anchor(),
-            CSS::NumericType { CSS::NumericType::BaseType::Length, 1 });
-        auto calculated = CSS::CalculatedStyleValue::create(
-            move(root),
-            CSS::NumericType { CSS::NumericType::BaseType::Length, 1 },
-            calculation_context);
-        return retain_calculated(*calculated, false);
-    };
-
-    result.anchor_inset_top = decode_anchor_inset(CSS::PropertyID::Top, surround.top_anchor_inset);
-    result.anchor_inset_right = decode_anchor_inset(CSS::PropertyID::Right, surround.right_anchor_inset);
-    result.anchor_inset_bottom = decode_anchor_inset(CSS::PropertyID::Bottom, surround.bottom_anchor_inset);
-    result.anchor_inset_left = decode_anchor_inset(CSS::PropertyID::Left, surround.left_anchor_inset);
 
     auto const& anchor = group.operator()<CSS::ComputedValues::AnchorValues>().position_anchor;
     result.position_anchor_has_value = anchor.name.has_value();
