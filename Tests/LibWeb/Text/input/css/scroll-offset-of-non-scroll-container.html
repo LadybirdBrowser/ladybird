@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .scroller {
+        width: 100px;
+        height: 100px;
+    }
+
+    .content {
+        width: 300px;
+        height: 300px;
+    }
+</style>
+<div id="target" class="scroller"><div class="content"></div></div>
+<script>
+    promiseTest(async () => {
+        const target = document.getElementById("target");
+
+        let scrollEvents = 0;
+        let scrollEndEvents = 0;
+        target.addEventListener("scroll", () => scrollEvents++);
+        target.addEventListener("scrollend", () => scrollEndEvents++);
+
+        // #target has overflow: visible, so it is not a scroll container.
+        target.scroll(40, 50);
+        println(`scroll() on a non-scroll-container: scrollLeft=${target.scrollLeft} scrollTop=${target.scrollTop}`);
+
+        target.scrollBy(40, 50);
+        println(`scrollBy() on a non-scroll-container: scrollLeft=${target.scrollLeft} scrollTop=${target.scrollTop}`);
+
+        target.scrollLeft = 40;
+        target.scrollTop = 50;
+        println(`scrollLeft/scrollTop on a non-scroll-container: scrollLeft=${target.scrollLeft} scrollTop=${target.scrollTop}`);
+
+        await animationFrame();
+        println(`scroll events on a non-scroll-container: ${scrollEvents}`);
+        println(`scrollend events on a non-scroll-container: ${scrollEndEvents}`);
+
+        // Becoming a scroll container must not reveal an offset written while the box was not one.
+        target.style.overflow = "hidden";
+        println(`after becoming a scroll container: scrollLeft=${target.scrollLeft} scrollTop=${target.scrollTop}`);
+
+        // An offset established while the box is a scroll container is restored when it becomes one again.
+        target.scroll(40, 50);
+        println(`scroll() on a scroll container: scrollLeft=${target.scrollLeft} scrollTop=${target.scrollTop}`);
+
+        target.style.overflow = "visible";
+        println(`after ceasing to be a scroll container: scrollLeft=${target.scrollLeft} scrollTop=${target.scrollTop}`);
+
+        // Scrolling while the box is not a scroll container must leave the stored offset alone.
+        target.scroll(10, 20);
+        target.scrollBy(10, 20);
+        target.scrollLeft = 10;
+        target.scrollTop = 20;
+        println(`after scrolling while not a scroll container: scrollLeft=${target.scrollLeft} scrollTop=${target.scrollTop}`);
+
+        target.style.overflow = "hidden";
+        println(`after becoming a scroll container again: scrollLeft=${target.scrollLeft} scrollTop=${target.scrollTop}`);
+    });
+</script>

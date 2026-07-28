@@ -1,0 +1,10 @@
+scroll() on a non-scroll-container: scrollLeft=0 scrollTop=0
+scrollBy() on a non-scroll-container: scrollLeft=0 scrollTop=0
+scrollLeft/scrollTop on a non-scroll-container: scrollLeft=0 scrollTop=0
+scroll events on a non-scroll-container: 0
+scrollend events on a non-scroll-container: 0
+after becoming a scroll container: scrollLeft=0 scrollTop=0
+scroll() on a scroll container: scrollLeft=40 scrollTop=50
+after ceasing to be a scroll container: scrollLeft=0 scrollTop=0
+after scrolling while not a scroll container: scrollLeft=0 scrollTop=0
+after becoming a scroll container again: scrollLeft=40 scrollTop=50
