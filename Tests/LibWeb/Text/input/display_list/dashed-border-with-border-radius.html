@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    div {
+        width: 100px;
+        height: 60px;
+        border: 10px dashed red;
+        border-radius: 30px;
+    }
+
+    .mixed-colors {
+        border-right-color: blue;
+    }
+
+    .touching-corners {
+        border-radius: 0 120px 0 0;
+    }
+</style>
+<div></div>
+<div class="mixed-colors"></div>
+<div class="touching-corners"></div>
+<script>
+    test(() => {
+        println(internals.dumpDisplayList());
+    });
+</script>
