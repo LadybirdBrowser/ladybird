@@ -35,7 +35,7 @@ public:
 
     static Origin create_opaque(OpaqueData::Type = OpaqueData::Type::Standard);
 
-    Origin(Optional<String> const& scheme, Host const&, Optional<u16> port, Optional<String> domain = {});
+    Origin(Optional<String> const& scheme, Host const&, Optional<u16> port, Optional<Host> domain = {});
 
     // https://html.spec.whatwg.org/multipage/origin.html#concept-origin-opaque
     bool is_opaque() const { return m_state.has<OpaqueData>(); }
@@ -43,7 +43,7 @@ public:
     Optional<String> const& scheme() const { return m_state.get<Tuple>().scheme; }
     Host const& host() const { return m_state.get<Tuple>().host; }
     Optional<u16> port() const { return m_state.get<Tuple>().port; }
-    Optional<String> domain() const { return m_state.get<Tuple>().domain; }
+    Optional<Host> domain() const { return m_state.get<Tuple>().domain; }
 
     OpaqueData const& opaque_data() const { return m_state.get<OpaqueData>(); }
 
@@ -71,7 +71,7 @@ private:
         Optional<String> scheme;
         Host host;
         Optional<u16> port;
-        Optional<String> domain;
+        Optional<Host> domain;
     };
 
     Variant<Tuple, OpaqueData> m_state;
