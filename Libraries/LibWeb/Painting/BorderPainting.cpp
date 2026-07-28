@@ -55,31 +55,32 @@ Color border_color(BorderEdge edge, BordersDataDevicePixels const& borders_data)
     return border_data.color;
 }
 
+// https://drafts.csswg.org/css-backgrounds-3/#corner-transitions
 // Returns the offset from the center of a corner's ellipse to the point where the two borders meeting at that corner
-// are split. Both components are positive; the caller applies the signs pointing towards its own corner.
-static Gfx::FloatPoint compute_midpoint(BorderEdge edge, float horizontal_radius, float vertical_radius, float joined_border_width)
+// are split. Both components are positive; the caller applies the signs pointing towards its own corner. The spec
+// leaves the point itself undefined, requiring only that it move continuously and monotonically with the ratio of the
+// two border widths, so this takes where the curve is crossed by the line running from the corner of the border box to
+// the corner of the padding box. That degenerates to the whole corner going to whichever border still has a width when
+// the other reaches zero, which is the behavior the spec calls out separately.
+static Gfx::FloatPoint compute_midpoint(float horizontal_radius, float vertical_radius, float horizontal_border_width, float vertical_border_width)
 {
-    if (horizontal_radius == 0 && vertical_radius == 0)
+    // Without a curve in one of the two directions there is no arc to divide between the borders.
+    if (horizontal_radius == 0 || vertical_radius == 0)
+        return { horizontal_radius, vertical_radius };
+
+    if (horizontal_border_width == 0 && vertical_border_width == 0)
         return {};
 
-    if (joined_border_width == 0) {
-        switch (edge) {
-        case BorderEdge::Top:
-        case BorderEdge::Bottom:
-            return { horizontal_radius, 0 };
-        case BorderEdge::Right:
-        case BorderEdge::Left:
-            return { 0, vertical_radius };
-        }
-        ASSERT_NOT_REACHED();
-    }
+    // Substituting that line into the ellipse leaves a quadratic in how far along it the crossing lies, of which the
+    // smaller root is the crossing nearest the corner.
+    auto a = vertical_border_width * vertical_border_width / (horizontal_radius * horizontal_radius)
+        + horizontal_border_width * horizontal_border_width / (vertical_radius * vertical_radius);
+    auto b = vertical_border_width / horizontal_radius + horizontal_border_width / vertical_radius;
+    auto distance = (b - AK::sqrt(2 * vertical_border_width * horizontal_border_width / (horizontal_radius * vertical_radius))) / a;
 
-    // FIXME: this middle point rule seems not exactly the same as main browsers
-    // compute the midpoint based on point whose tangent slope of 1
-    // https://math.stackexchange.com/questions/3325134/find-the-points-on-the-ellipse-where-the-slope-of-the-tangent-line-is-1
     return {
-        (horizontal_radius * horizontal_radius) / AK::sqrt(horizontal_radius * horizontal_radius + vertical_radius * vertical_radius),
-        (vertical_radius * vertical_radius) / AK::sqrt(horizontal_radius * horizontal_radius + vertical_radius * vertical_radius)
+        horizontal_radius - distance * vertical_border_width,
+        vertical_radius - distance * horizontal_border_width
     };
 }
 
@@ -122,8 +123,9 @@ static void paint_dashed_border(DisplayListRecorder& painter, BorderEdge edge, D
         Gfx::FloatPoint direction;
     };
 
+    auto is_horizontal_edge = edge == BorderEdge::Top || edge == BorderEdge::Bottom;
+
     auto centerline_radii = [&](Gfx::CornerRadius const& corner, float joined_width) {
-        auto is_horizontal_edge = edge == BorderEdge::Top || edge == BorderEdge::Bottom;
         auto horizontal_inset = is_horizontal_edge ? joined_width / 2.f : half_width;
         auto vertical_inset = is_horizontal_edge ? half_width : joined_width / 2.f;
         return Gfx::FloatSize(max(0.f, static_cast<float>(corner.horizontal_radius) - horizontal_inset), max(0.f, static_cast<float>(corner.vertical_radius) - vertical_inset));
@@ -171,7 +173,9 @@ static void paint_dashed_border(DisplayListRecorder& painter, BorderEdge edge, D
     }
 
     auto split_point = [&](Corner const& corner, float joined_width) {
-        auto midpoint = compute_midpoint(edge, corner.radii.width(), corner.radii.height(), joined_width);
+        auto midpoint = compute_midpoint(corner.radii.width(), corner.radii.height(),
+            is_horizontal_edge ? width : joined_width,
+            is_horizontal_edge ? joined_width : width);
         return corner.center + Gfx::FloatPoint(corner.direction.x() * midpoint.x(), corner.direction.y() * midpoint.y());
     };
 
@@ -465,12 +469,12 @@ void paint_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect
         Gfx::FloatPoint opposite_joined_border_corner_offset;
 
         {
-            auto midpoint = compute_midpoint(edge, radius.horizontal_radius, radius.vertical_radius, joined_border_width.value());
+            auto midpoint = compute_midpoint(radius.horizontal_radius, radius.vertical_radius, border_data.width.value(), joined_border_width.value());
             joined_corner_endpoint_offset = Gfx::FloatPoint(-midpoint.x(), radius.vertical_radius - midpoint.y());
         }
 
         {
-            auto midpoint = compute_midpoint(edge, opposite_radius.horizontal_radius, opposite_radius.vertical_radius, opposite_joined_border_width.value());
+            auto midpoint = compute_midpoint(opposite_radius.horizontal_radius, opposite_radius.vertical_radius, border_data.width.value(), opposite_joined_border_width.value());
             opposite_joined_border_corner_offset = Gfx::FloatPoint(midpoint.x(), opposite_radius.vertical_radius - midpoint.y());
         }
 
@@ -479,9 +483,10 @@ void paint_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect
         points.append(Gfx::FloatPoint(rect.top_left().to_type<int>()) + joined_corner_endpoint_offset);
 
         if (joined_corner_has_inner_corner) {
-            Gfx::FloatPoint midpoint = compute_midpoint(edge,
+            Gfx::FloatPoint midpoint = compute_midpoint(
                 radius.horizontal_radius - joined_border_width.value(),
                 radius.vertical_radius - border_data.width.value(),
+                border_data.width.value(),
                 joined_border_width.value());
             Gfx::FloatPoint inner_corner_endpoint_offset = Gfx::FloatPoint(
                 -midpoint.x(),
@@ -496,9 +501,10 @@ void paint_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect
         }
 
         if (opposite_joined_corner_has_inner_corner) {
-            Gfx::FloatPoint midpoint = compute_midpoint(edge,
+            Gfx::FloatPoint midpoint = compute_midpoint(
                 opposite_radius.horizontal_radius - opposite_joined_border_width.value(),
                 opposite_radius.vertical_radius - border_data.width.value(),
+                border_data.width.value(),
                 opposite_joined_border_width.value());
             Gfx::FloatPoint inner_corner_endpoint_offset = Gfx::FloatPoint(
                 midpoint.x(),
@@ -534,12 +540,12 @@ void paint_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect
         Gfx::FloatPoint opposite_joined_border_corner_offset;
 
         {
-            auto midpoint = compute_midpoint(edge, radius.horizontal_radius, radius.vertical_radius, joined_border_width.value());
+            auto midpoint = compute_midpoint(radius.horizontal_radius, radius.vertical_radius, joined_border_width.value(), border_data.width.value());
             joined_corner_endpoint_offset = Gfx::FloatPoint(midpoint.x() - radius.horizontal_radius, -midpoint.y());
         }
 
         {
-            auto midpoint = compute_midpoint(edge, opposite_radius.horizontal_radius, opposite_radius.vertical_radius, opposite_joined_border_width.value());
+            auto midpoint = compute_midpoint(opposite_radius.horizontal_radius, opposite_radius.vertical_radius, opposite_joined_border_width.value(), border_data.width.value());
             opposite_joined_border_corner_offset = Gfx::FloatPoint(midpoint.x() - opposite_radius.horizontal_radius, midpoint.y());
         }
 
@@ -548,10 +554,11 @@ void paint_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect
         points.append(Gfx::FloatPoint(rect.top_right().to_type<int>()) + joined_corner_endpoint_offset);
 
         if (joined_corner_has_inner_corner) {
-            auto midpoint = compute_midpoint(edge,
+            auto midpoint = compute_midpoint(
                 radius.horizontal_radius - border_data.width.value(),
                 radius.vertical_radius - joined_border_width.value(),
-                joined_border_width.value());
+                joined_border_width.value(),
+                border_data.width.value());
             Gfx::FloatPoint inner_corner = Gfx::FloatPoint(
                 -(radius.horizontal_radius - midpoint.x() - border_data.width.value()),
                 -midpoint.y());
@@ -563,10 +570,11 @@ void paint_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect
         }
 
         if (opposite_joined_corner_has_inner_corner) {
-            auto midpoint = compute_midpoint(edge,
+            auto midpoint = compute_midpoint(
                 opposite_radius.horizontal_radius - border_data.width.value(),
                 opposite_radius.vertical_radius - opposite_joined_border_width.value(),
-                opposite_joined_border_width.value());
+                opposite_joined_border_width.value(),
+                border_data.width.value());
             Gfx::FloatPoint inner_corner = Gfx::FloatPoint(
                 -(opposite_radius.horizontal_radius - midpoint.x() - border_data.width.value()),
                 midpoint.y());
@@ -596,11 +604,11 @@ void paint_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect
         bool opposite_joined_corner_has_inner_corner = border_data.width < opposite_radius.vertical_radius && opposite_joined_border_width < opposite_radius.horizontal_radius;
 
         Gfx::FloatPoint joined_corner_endpoint_offset = [&] -> Gfx::FloatPoint {
-            auto midpoint = compute_midpoint(edge, radius.horizontal_radius, radius.vertical_radius, joined_border_width.value());
+            auto midpoint = compute_midpoint(radius.horizontal_radius, radius.vertical_radius, border_data.width.value(), joined_border_width.value());
             return { midpoint.x(), midpoint.y() - radius.vertical_radius };
         }();
         Gfx::FloatPoint opposite_joined_border_corner_offset = [&] -> Gfx::FloatPoint {
-            auto midpoint = compute_midpoint(edge, opposite_radius.horizontal_radius, opposite_radius.vertical_radius, opposite_joined_border_width.value());
+            auto midpoint = compute_midpoint(opposite_radius.horizontal_radius, opposite_radius.vertical_radius, border_data.width.value(), opposite_joined_border_width.value());
             return { -midpoint.x(), midpoint.y() - opposite_radius.vertical_radius };
         }();
 
@@ -609,9 +617,10 @@ void paint_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect
         points.append(Gfx::FloatPoint(rect.bottom_right().to_type<int>()) + joined_corner_endpoint_offset);
 
         if (joined_corner_has_inner_corner) {
-            auto midpoint = compute_midpoint(edge,
+            auto midpoint = compute_midpoint(
                 radius.horizontal_radius - joined_border_width.value(),
                 radius.vertical_radius - border_data.width.value(),
+                border_data.width.value(),
                 joined_border_width.value());
             Gfx::FloatPoint inner_corner = Gfx::FloatPoint(midpoint.x(), -(radius.vertical_radius - midpoint.y() - border_data.width.value()));
             points.append(Gfx::FloatPoint(rect.top_right().to_type<int>()) + inner_corner);
@@ -622,9 +631,10 @@ void paint_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect
         }
 
         if (opposite_joined_corner_has_inner_corner) {
-            auto midpoint = compute_midpoint(edge,
+            auto midpoint = compute_midpoint(
                 opposite_radius.horizontal_radius - opposite_joined_border_width.value(),
                 opposite_radius.vertical_radius - border_data.width.value(),
+                border_data.width.value(),
                 opposite_joined_border_width.value());
             Gfx::FloatPoint inner_corner = Gfx::FloatPoint(
                 -midpoint.x(),
@@ -654,11 +664,11 @@ void paint_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect
         bool opposite_joined_corner_has_inner_corner = border_data.width < opposite_radius.horizontal_radius && opposite_joined_border_width < opposite_radius.vertical_radius;
 
         Gfx::FloatPoint joined_corner_endpoint_offset = [&] -> Gfx::FloatPoint {
-            auto midpoint = compute_midpoint(edge, radius.horizontal_radius, radius.vertical_radius, joined_border_width.value());
+            auto midpoint = compute_midpoint(radius.horizontal_radius, radius.vertical_radius, joined_border_width.value(), border_data.width.value());
             return { radius.horizontal_radius - midpoint.x(), midpoint.y() };
         }();
         Gfx::FloatPoint opposite_joined_border_corner_offset = [&] -> Gfx::FloatPoint {
-            auto midpoint = compute_midpoint(edge, opposite_radius.horizontal_radius, opposite_radius.vertical_radius, opposite_joined_border_width.value());
+            auto midpoint = compute_midpoint(opposite_radius.horizontal_radius, opposite_radius.vertical_radius, opposite_joined_border_width.value(), border_data.width.value());
             return { opposite_radius.horizontal_radius - midpoint.x(), -midpoint.y() };
         }();
 
@@ -667,10 +677,11 @@ void paint_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect
         points.append(Gfx::FloatPoint(rect.bottom_left().to_type<int>()) + joined_corner_endpoint_offset);
 
         if (joined_corner_has_inner_corner) {
-            auto midpoint = compute_midpoint(edge,
+            auto midpoint = compute_midpoint(
                 radius.horizontal_radius - border_data.width.value(),
                 radius.vertical_radius - joined_border_width.value(),
-                joined_border_width.value());
+                joined_border_width.value(),
+                border_data.width.value());
             Gfx::FloatPoint inner_corner = { radius.horizontal_radius - border_data.width.value() - midpoint.x(), midpoint.y() };
             points.append(Gfx::FloatPoint(rect.bottom_right().to_type<int>()) + inner_corner);
             points.append(Gfx::FloatPoint(rect.bottom_right().to_type<int>()));
@@ -680,10 +691,11 @@ void paint_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect
         }
 
         if (opposite_joined_corner_has_inner_corner) {
-            auto midpoint = compute_midpoint(edge,
+            auto midpoint = compute_midpoint(
                 opposite_radius.horizontal_radius - border_data.width.value(),
                 opposite_radius.vertical_radius - opposite_joined_border_width.value(),
-                opposite_joined_border_width.value());
+                opposite_joined_border_width.value(),
+                border_data.width.value());
             Gfx::FloatPoint inner_corner = {
                 opposite_radius.horizontal_radius - border_data.width.value() - midpoint.x(),
                 -midpoint.y(),
