@@ -212,6 +212,7 @@ static RustFFI::FfiSizeValue size_value_with_kind(RustFFI::FfiSizeKind kind)
         .calc_is_bridge_retained = false,
         .contains_percentage = false,
         .contains_anchor_function = false,
+        .fit_content_has_argument = false,
     };
 }
 
@@ -233,6 +234,7 @@ static RustFFI::FfiSizeValue retain_calculated(CSS::CalculatedStyleValue const& 
         .calc_is_bridge_retained = true,
         .contains_percentage = contains_percentage,
         .contains_anchor_function = calculated.contains_anchor_function(),
+        .fit_content_has_argument = false,
     };
 }
 
@@ -688,6 +690,7 @@ RustFFI::FfiSizeValue build_style_size_value(CSS::LengthPercentage const& value)
             .calc_is_bridge_retained = false,
             .contains_percentage = false,
             .contains_anchor_function = false,
+            .fit_content_has_argument = false,
         };
     }
     if (value.is_percentage()) {
@@ -699,6 +702,7 @@ RustFFI::FfiSizeValue build_style_size_value(CSS::LengthPercentage const& value)
             .calc_is_bridge_retained = false,
             .contains_percentage = true,
             .contains_anchor_function = false,
+            .fit_content_has_argument = false,
         };
     }
     return retain_calculated(*value.calculated(), value.contains_percentage());
@@ -728,6 +732,7 @@ RustFFI::FfiSizeValue build_style_size_value(CSS::Size const& value)
             .calc_is_bridge_retained = false,
             .contains_percentage = false,
             .contains_anchor_function = false,
+            .fit_content_has_argument = false,
         };
     case CSS::Size::Type::Percentage:
         return {
@@ -738,6 +743,7 @@ RustFFI::FfiSizeValue build_style_size_value(CSS::Size const& value)
             .calc_is_bridge_retained = false,
             .contains_percentage = true,
             .contains_anchor_function = false,
+            .fit_content_has_argument = false,
         };
     case CSS::Size::Type::MinContent:
         return size_value_with_kind(RustFFI::FfiSizeKind::MinContent);
@@ -748,6 +754,7 @@ RustFFI::FfiSizeValue build_style_size_value(CSS::Size const& value)
         if (value.fit_content_available_space().has_value()) {
             result = build_style_size_value(*value.fit_content_available_space());
             result.kind = to_underlying(RustFFI::FfiSizeKind::FitContent);
+            result.fit_content_has_argument = true;
         }
         return result;
     }
