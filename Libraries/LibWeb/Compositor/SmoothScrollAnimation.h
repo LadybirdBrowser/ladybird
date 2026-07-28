@@ -8,6 +8,7 @@
 
 #include <AK/Time.h>
 #include <LibGfx/Point.h>
+#include <LibWeb/Compositor/Types.h>
 #include <LibWeb/Export.h>
 
 namespace Web::Compositor {
@@ -19,7 +20,7 @@ public:
         bool complete { false };
     };
 
-    SmoothScrollAnimation(Gfx::FloatPoint start_offset, Gfx::FloatPoint destination_offset, double pixels_per_css_pixel);
+    SmoothScrollAnimation(Gfx::FloatPoint start_offset, Gfx::FloatPoint destination_offset, double pixels_per_css_pixel, ScrollAnimationKind = ScrollAnimationKind::SmoothScroll);
 
     AK::Duration duration() const { return m_duration; }
     Sample sample(AK::Duration elapsed) const;
@@ -28,6 +29,7 @@ private:
     Gfx::FloatPoint m_start_offset;
     Gfx::FloatPoint m_destination_offset;
     AK::Duration m_duration;
+    ScrollAnimationKind m_kind { ScrollAnimationKind::SmoothScroll };
 };
 
 }

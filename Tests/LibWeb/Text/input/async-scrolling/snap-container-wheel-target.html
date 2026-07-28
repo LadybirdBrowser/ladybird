@@ -37,6 +37,9 @@
 
         println(`discrete step across the snapping axis: ${internals.asyncScrollingStateWheelTargetAt(175, 150, 50, 0)}`);
 
+        println(`momentum delta along the snapping axis: ${internals.asyncScrollingStateWheelTargetAt(175, 150, 0, 50, true, "momentum")}`);
+        println(`momentum delta across the snapping axis: ${internals.asyncScrollingStateWheelTargetAt(175, 150, 50, 0, true, "momentum")}`);
+
         // The inner scroller reaches its scroll extent, so a step over it chains to the snap container around it.
         document.getElementById("inner").scrollTop = 100;
         println(`discrete step chained to the snap container: ${internals.asyncScrollingStateWheelTargetAt(50, 50, 0, 50)}`);

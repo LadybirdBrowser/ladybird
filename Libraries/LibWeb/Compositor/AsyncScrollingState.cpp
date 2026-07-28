@@ -13,11 +13,11 @@
 
 namespace Web::Compositor {
 
-SnapContainerHandling snap_container_handling_for(WheelDeltaPrecision wheel_delta_precision)
+SnapContainerHandling snap_container_handling_for(WheelDeltaPrecision wheel_delta_precision, ScrollGesturePhase scroll_gesture_phase)
 {
-    return wheel_delta_precision == WheelDeltaPrecision::Discrete
-        ? SnapContainerHandling::DeferToMainThread
-        : SnapContainerHandling::ScrollOnCompositor;
+    if (wheel_delta_precision == WheelDeltaPrecision::Discrete || scroll_gesture_phase == ScrollGesturePhase::Momentum)
+        return SnapContainerHandling::DeferToMainThread;
+    return SnapContainerHandling::ScrollOnCompositor;
 }
 
 static AsyncScrollNodeID scroll_node_id_for(UniqueNodeID document_id, Painting::VisualContextIndex scroll_node_index)

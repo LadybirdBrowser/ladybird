@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    #scroller {
+        width: 200px;
+        height: 200px;
+        overflow: scroll;
+        scroll-snap-type: y mandatory;
+    }
+    .item {
+        width: 100%;
+        height: 200px;
+        scroll-snap-align: start;
+    }
+</style>
+<div id="scroller">
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+</div>
+<script>
+    promiseTest(async () => {
+        const scroller = document.getElementById("scroller");
+
+        const flick = async (fingerDeltas, momentumDeltas) => {
+            let furthestOffset = 0;
+            let scrollendEvents = 0;
+            const noteOffset = () => furthestOffset = Math.max(furthestOffset, Math.abs(scroller.scrollTop - startOffset));
+            const countScrollendEvent = () => ++scrollendEvents;
+            const startOffset = scroller.scrollTop;
+            scroller.addEventListener("scroll", noteOffset);
+            scroller.addEventListener("scrollend", countScrollendEvent);
+
+            const scrollend = scrollendEvent(scroller);
+            for (const delta of fingerDeltas)
+                await internals.wheel(50, 50, 0, delta, true, "ongoing");
+            for (const delta of momentumDeltas)
+                await internals.wheel(50, 50, 0, delta, true, "momentum");
+            await internals.wheel(50, 50, 0, 0, true, "ended");
+            await scrollend;
+            await animationFrame();
+            await animationFrame();
+
+            scroller.removeEventListener("scroll", noteOffset);
+            scroller.removeEventListener("scrollend", countScrollendEvent);
+            return { furthestDistance: furthestOffset, distanceSettledAt: Math.abs(scroller.scrollTop - startOffset), scrollendEvents };
+        };
+
+        await animationFrame();
+        await animationFrame();
+
+        // Momentum decays towards zero, keeping a roughly constant share of the delta before it.
+        const forwards = await flick([60, 90], [186, 105, 90, 78, 66, 56, 46, 37, 28, 20, 12, 6]);
+        println(`offset after the flick settled: ${scroller.scrollLeft},${scroller.scrollTop}`);
+        println(`flick traveled beyond the offset it settled at: ${forwards.furthestDistance > forwards.distanceSettledAt}`);
+        println(`scrollend events fired by the flick: ${forwards.scrollendEvents}`);
+
+        scroller.scrollTo({ top: 1200, behavior: "instant" });
+        await animationFrame();
+        await animationFrame();
+
+        const backwards = await flick([-60, -90], [-186, -105, -90, -78, -66, -56, -46, -37, -28, -20, -12, -6]);
+        println(`offset after the flick back settled: ${scroller.scrollLeft},${scroller.scrollTop}`);
+        println(`flick back traveled beyond the offset it settled at: ${backwards.furthestDistance > backwards.distanceSettledAt}`);
+
+        scroller.scrollTo({ top: 0, behavior: "instant" });
+        await animationFrame();
+        await animationFrame();
+
+        // Momentum that keeps gathering pace says nothing about where it is headed, so the gesture snaps where it ends.
+        await flick([60], [40, 60, 80]);
+        println(`offset after the flick that never decayed settled: ${scroller.scrollLeft},${scroller.scrollTop}`);
+    });
+</script>
