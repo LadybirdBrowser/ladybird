@@ -40,6 +40,7 @@ static_assert(offsetof(RustFFI::NodeData, containing_block) == 20);
 static_assert(offsetof(RustFFI::NodeData, inline_containing_block) == 24);
 static_assert(offsetof(RustFFI::NodeData, kind) == 28);
 static_assert(offsetof(RustFFI::NodeData, generated_for) == 29);
+static_assert(offsetof(RustFFI::NodeData, intrinsic_cache_epoch) == 30);
 static_assert(offsetof(RustFFI::NodeData, flags) == 32);
 static_assert(offsetof(RustFFI::NodeData, initial_quote_nesting_level) == 36);
 static_assert(offsetof(RustFFI::NodeData, table_display) == 40);
