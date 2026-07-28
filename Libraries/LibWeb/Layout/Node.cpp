@@ -75,6 +75,7 @@ static u8 display_bits(CSS::ComputedValues const& computed_values)
     set(RustFFI::NodeDisplayFlag::FlowInside, display.is_flow_inside());
     set(RustFFI::NodeDisplayFlag::FlexInside, display.is_flex_inside());
     set(RustFFI::NodeDisplayFlag::GridInside, display.is_grid_inside());
+    set(RustFFI::NodeDisplayFlag::MathInside, display.is_math_inside());
     set(RustFFI::NodeDisplayFlag::Floating, computed_values.float_() != CSS::Float::None);
     auto position = computed_values.position();
     set(RustFFI::NodeDisplayFlag::AbsolutelyPositioned,

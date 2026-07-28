@@ -9,12 +9,12 @@ use crate::layout::node_data::{MAX_NODE_SLOT_COUNT, NodeData, NodeSlotId};
 use std::ffi::c_void;
 use std::thread;
 
-const SLOTS_PER_CHUNK: usize = 256;
+pub(crate) const SLOTS_PER_CHUNK: usize = 256;
 
 // NodeData is sized to one cache line; the aligned chunk keeps every densely-strided slot
 // line-aligned, and per-slot bookkeeping lives in a parallel array so it stays that way.
 #[repr(align(64))]
-struct Chunk {
+pub(crate) struct Chunk {
     slots: [NodeData; SLOTS_PER_CHUNK],
 }
 
@@ -37,8 +37,16 @@ struct SlotMetadata {
     occupied: bool,
 }
 
+#[derive(Clone, Copy)]
+#[allow(dead_code)]
+struct ChunkAddress {
+    start: usize,
+    chunk_index: usize,
+}
+
 pub(crate) struct LayoutNodeArena {
     chunks: Vec<Box<Chunk>>,
+    chunks_by_address: Vec<ChunkAddress>,
     slot_metadata: Vec<SlotMetadata>,
     free_list: Vec<u32>,
     next_index: u32,
@@ -47,9 +55,10 @@ pub(crate) struct LayoutNodeArena {
 }
 
 impl LayoutNodeArena {
-    fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             chunks: Vec::new(),
+            chunks_by_address: Vec::new(),
             slot_metadata: Vec::new(),
             free_list: Vec::new(),
             next_index: 0,
@@ -64,7 +73,7 @@ impl LayoutNodeArena {
 
     // Freshly created chunks are default-initialized and free() resets slots on release, so
     // allocate() always hands out clean NodeData without writing it again.
-    fn allocate(&mut self) -> NodeAllocation {
+    pub(crate) fn allocate(&mut self) -> NodeAllocation {
         self.assert_owner_thread();
 
         let index = if let Some(index) = self.free_list.pop() {
@@ -76,7 +85,13 @@ impl LayoutNodeArena {
                 "layout node arena exhausted its 24-bit slot index space"
             );
             if (index as usize).is_multiple_of(SLOTS_PER_CHUNK) {
-                self.chunks.push(new_chunk());
+                let chunk = new_chunk();
+                let start = (&raw const chunk.slots) as usize;
+                let chunk_index = self.chunks.len();
+                let insertion_index = self.chunks_by_address.partition_point(|address| address.start < start);
+                self.chunks_by_address
+                    .insert(insertion_index, ChunkAddress { start, chunk_index });
+                self.chunks.push(chunk);
             }
             self.slot_metadata.push(SlotMetadata::default());
             self.next_index = self
@@ -108,7 +123,7 @@ impl LayoutNodeArena {
         }
     }
 
-    fn free(&mut self, id: NodeSlotId, generation: u32) {
+    pub(crate) fn free(&mut self, id: NodeSlotId, generation: u32) {
         self.assert_owner_thread();
 
         assert!(!id.is_invalid(), "invalid layout node arena slot ID");
@@ -155,6 +170,107 @@ impl LayoutNodeArena {
             "layout node arena read a stale or unused slot"
         );
         data
+    }
+
+    #[allow(dead_code)]
+    fn slot_for_data(&self, data: *const NodeData) -> (u32, SlotMetadata) {
+        assert!(!data.is_null(), "layout node arena data pointer is null");
+        let data_address = data as usize;
+        let slot_size = size_of::<NodeData>();
+
+        let address_index = self
+            .chunks_by_address
+            .partition_point(|address| address.start <= data_address);
+        assert_ne!(
+            address_index, 0,
+            "layout node data pointer does not belong to this arena"
+        );
+        let address = self.chunks_by_address[address_index - 1];
+        let chunk_end = address.start + size_of::<[NodeData; SLOTS_PER_CHUNK]>();
+        assert!(
+            data_address < chunk_end,
+            "layout node data pointer does not belong to this arena"
+        );
+
+        let offset = data_address - address.start;
+        assert_eq!(offset % slot_size, 0, "unaligned layout node arena data pointer");
+        let index = address.chunk_index * SLOTS_PER_CHUNK + offset / slot_size;
+        let index = u32::try_from(index).expect("layout node arena slot index overflowed");
+        let metadata = *self.metadata(index);
+        assert!(metadata.occupied, "layout node arena access for an unused slot");
+        // SAFETY: The range and alignment checks established that data points
+        // to the indexed NodeData slot.
+        let generation = unsafe { (&raw const (*data).slot_generation).read() };
+        assert_eq!(
+            generation, metadata.generation,
+            "layout node arena access used a stale slot"
+        );
+        (index, metadata)
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn slot_index_for_data(&self, data: &NodeData) -> u32 {
+        self.slot_for_data(std::ptr::from_ref(data)).0
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn is_before(&self, node: &NodeData, other: &NodeData) -> bool {
+        let (node_index, node_metadata) = self.slot_for_data(std::ptr::from_ref(node));
+        let (other_index, other_metadata) = self.slot_for_data(std::ptr::from_ref(other));
+        let mut node = NodeSlotId::new(node_index, node_metadata.generation);
+        let mut other = NodeSlotId::new(other_index, other_metadata.generation);
+        assert_ne!(node, other, "a layout node cannot precede itself");
+
+        let depth = |mut slot: NodeSlotId| {
+            let mut depth = 0usize;
+            while !slot.is_invalid() {
+                depth += 1;
+                // SAFETY: data() validates the live generation, and the
+                // topology links name slots in this arena.
+                slot = unsafe { (*self.data(slot)).parent };
+            }
+            depth
+        };
+        let node_depth = depth(node);
+        let other_depth = depth(other);
+
+        for _ in other_depth..node_depth {
+            // SAFETY: node is a validated live arena slot.
+            node = unsafe { (*self.data(node)).parent };
+        }
+        for _ in node_depth..other_depth {
+            // SAFETY: other is a validated live arena slot.
+            other = unsafe { (*self.data(other)).parent };
+        }
+        if node == other {
+            return node_depth < other_depth;
+        }
+
+        loop {
+            // SAFETY: Both slots are live and have equal depth.
+            let node_parent = unsafe { (*self.data(node)).parent };
+            // SAFETY: Both slots are live and have equal depth.
+            let other_parent = unsafe { (*self.data(other)).parent };
+            assert_eq!(
+                node_parent.is_invalid(),
+                other_parent.is_invalid(),
+                "layout nodes belong to different trees"
+            );
+            if node_parent == other_parent {
+                break;
+            }
+            node = node_parent;
+            other = other_parent;
+        }
+
+        while !other.is_invalid() {
+            if node == other {
+                return true;
+            }
+            // SAFETY: other is a validated live arena slot.
+            other = unsafe { (*self.data(other)).previous_sibling };
+        }
+        false
     }
 
     fn data_mut(&mut self, index: u32) -> &mut NodeData {

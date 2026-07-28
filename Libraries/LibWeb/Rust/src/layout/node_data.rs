@@ -149,6 +149,7 @@ pub enum NodeDisplayFlag {
     GridInside = 1 << 3,
     Floating = 1 << 4,
     AbsolutelyPositioned = 1 << 5,
+    MathInside = 1 << 6,
     BlockOutsideBeforeBoxTypeTransformation = 1 << 7,
 }
 
