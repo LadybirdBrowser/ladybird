@@ -1074,6 +1074,11 @@ void NodeWithStyle::set_computed_values(NonnullRefPtr<CSS::ComputedValues const>
 {
     m_computed_values = move(computed_values);
     mirror_computed_values_to_node_data();
+
+    for (auto* child = first_child_ptr(); child; child = child->next_sibling_ptr()) {
+        if (auto* text_child = as_if<TextNode>(*child))
+            text_child->enroll_for_arena_text_content_sync();
+    }
 }
 
 void NodeWithStyle::mirror_computed_values_to_node_data()

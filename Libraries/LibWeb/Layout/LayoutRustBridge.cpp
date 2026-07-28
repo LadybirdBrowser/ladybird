@@ -17,7 +17,6 @@
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Path.h>
 #include <LibGfx/TextLayout.h>
-#include <LibUnicode/Bidi.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/Display.h>
 #include <LibWeb/CSS/GridTrackPlacement.h>
@@ -59,6 +58,7 @@
 #include <LibWeb/Layout/ListItemBox.h>
 #include <LibWeb/Layout/ListItemMarkerBox.h>
 #include <LibWeb/Layout/Node.h>
+#include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Layout/SVGClipBox.h>
 #include <LibWeb/Layout/SVGGeometryBox.h>
 #include <LibWeb/Layout/SVGImageBox.h>
@@ -93,7 +93,6 @@ static Atomic<size_t> s_outstanding_anchor_name_handles;
 static Atomic<size_t> s_outstanding_svg_path_handles;
 
 struct TextFactsSnapshotArena {
-    Vector<u16> text;
     Vector<RustFFI::FfiTextChunk> chunks;
 };
 
@@ -1162,6 +1161,7 @@ void LayoutRustBridge::run_root_layout(Box& viewport, NodeWithStyleAndBoxModelMe
     };
 
     viewport.document().invalidate_stacking_context_tree();
+    viewport.document().layout_node_arena().sync_enrolled_text_node_content();
     auto callbacks = formatting_context_callbacks();
     auto sink = commit_sink();
     RustFFI::rust_layout_run_root_layout(
@@ -1184,6 +1184,7 @@ void LayoutRustBridge::compute_subtree_layout(Box& root, Painting::Paintable& pa
     };
 
     root.document().invalidate_stacking_context_tree();
+    root.document().layout_node_arena().sync_enrolled_text_node_content();
     auto callbacks = formatting_context_callbacks();
     auto sink = commit_sink();
     RustFFI::rust_layout_compute_subtree_layout(
@@ -1204,6 +1205,7 @@ void LayoutRustBridge::replay_saved_abspos_layout(Box& box, Painting::Paintable&
     };
 
     box.document().invalidate_stacking_context_tree();
+    box.document().layout_node_arena().sync_enrolled_text_node_content();
     auto callbacks = formatting_context_callbacks();
     auto sink = commit_sink();
     RustFFI::rust_layout_replay_saved_abspos_layout(Node::slot_id(&box), &paintable_to_replace, &callbacks, &sink);
@@ -1841,10 +1843,6 @@ RustFFI::FfiLayoutFcCallbacks LayoutRustBridge::formatting_context_callbacks()
                 : TextNode::TextDirectionMode::PerCodePoint;
             auto const& chunk_list = text_node->chunks_for_layout(should_wrap_lines, should_respect_linebreaks, text_direction_mode);
             auto arena = make<TextFactsSnapshotArena>();
-            auto const text = text_node->text_for_rendering().utf16_view();
-            arena->text.ensure_capacity(text.length_in_code_units());
-            for (size_t index = 0; index < text.length_in_code_units(); ++index)
-                arena->text.unchecked_append(text.code_unit_at(index));
             arena->chunks.ensure_capacity(chunk_list.chunks.size());
             for (auto const& chunk : chunk_list.chunks) {
                 arena->chunks.unchecked_append({
@@ -1861,8 +1859,6 @@ RustFFI::FfiLayoutFcCallbacks LayoutRustBridge::formatting_context_callbacks()
 
             auto* owner = arena.leak_ptr();
             *out = {
-                .text_utf16 = owner->text.data(),
-                .text_length_in_code_units = owner->text.size(),
                 .chunks = owner->chunks.data(),
                 .chunk_count = owner->chunks.size(),
                 .is_empty_editable = is_empty_editable_text_node(*text_node),
@@ -1872,10 +1868,6 @@ RustFFI::FfiLayoutFcCallbacks LayoutRustBridge::formatting_context_callbacks()
         .release_text_facts = [](void*, void* retained) {
             VERIFY(retained);
             delete static_cast<TextFactsSnapshotArena*>(retained); },
-        .text_may_require_bidi_processing = [](void*, void* node) {
-            auto const* text_node = as_if<TextNode>(*static_cast<Node const*>(node));
-            VERIFY(text_node);
-            return Unicode::may_require_bidi_processing(text_node->text_for_rendering()); },
         .document_cursor_is_on_node = [](void*, void* node) {
             auto const* dom_node = static_cast<Node const*>(node)->dom_node();
             if (!dom_node)

@@ -4760,7 +4760,6 @@ pub struct FfiLayoutFcCallbacks {
     pub build_text_facts:
         unsafe extern "C" fn(*mut c_void, *mut c_void, bool, bool, bool, *mut FfiTextNodeFacts) -> bool,
     pub release_text_facts: unsafe extern "C" fn(*mut c_void, *mut c_void),
-    pub text_may_require_bidi_processing: unsafe extern "C" fn(*mut c_void, *mut c_void) -> bool,
     pub document_cursor_is_on_node: unsafe extern "C" fn(*mut c_void, *mut c_void) -> bool,
     pub build_table_box_facts: FfiBuildTableBoxFactsCallback,
     pub build_grid_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiGridStyleFacts,
@@ -4793,6 +4792,16 @@ impl FfiLayoutFcCallbacks {
         // SAFETY: Entry points guarantee that the arena remains live, and
         // data() validates the slot generation.
         unsafe { &*self.arena().data(node) }
+    }
+
+    pub(crate) fn text_content(&self, node: Node) -> &'static crate::layout::layout_node_arena::TextContent {
+        let content = self
+            .arena()
+            .text_content(node)
+            .expect("text node content must be synced to the arena before layout");
+        // SAFETY: The document arena outlives the layout pass, and text
+        // content is only mutated between passes.
+        unsafe { &*std::ptr::from_ref(content) }
     }
 
     pub(crate) fn shell(&self, node: Node) -> *mut c_void {

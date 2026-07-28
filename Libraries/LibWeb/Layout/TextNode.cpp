@@ -10,9 +10,11 @@
 #include <AK/CharacterTypes.h>
 #include <AK/UnicodeUtils.h>
 #include <AK/Utf16StringBuilder.h>
+#include <LibUnicode/Bidi.h>
 #include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/Locale.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Painting/InlinePaintable.h>
 #include <LibWeb/Painting/Paintable.h>
@@ -22,16 +24,19 @@ namespace Web::Layout {
 TextNode::TextNode(DOM::Document& document, DOM::Text& text)
     : Node(document, &text)
 {
+    enroll_for_arena_text_content_sync();
 }
 
 TextNode::TextNode(DOM::Document& document, DOM::Text& text, AttachToDOMNode attach_to_dom_node)
     : Node(document, &text, attach_to_dom_node)
 {
+    enroll_for_arena_text_content_sync();
 }
 
 TextNode::TextNode(DOM::Document& document)
     : Node(document, nullptr)
 {
+    enroll_for_arena_text_content_sync();
 }
 
 TextNode::~TextNode() = default;
@@ -360,6 +365,8 @@ TextNode::TextForRenderingCacheKey TextNode::create_text_for_rendering_cache_key
 void TextNode::invalidate_text_for_rendering()
 {
     m_text_dependent_cache = {};
+    m_arena_text_content_in_sync = false;
+    enroll_for_arena_text_content_sync();
 }
 
 Utf16String const& TextNode::text_for_rendering() const
@@ -379,8 +386,35 @@ TextNode::TextDependentCache const& TextNode::ensure_text_dependent_cache() cons
             .line_segmenter = {},
             .chunk_cache = {},
         };
+        m_arena_text_content_in_sync = false;
+        enroll_for_arena_text_content_sync();
     }
     return *m_text_dependent_cache;
+}
+
+void TextNode::enroll_for_arena_text_content_sync() const
+{
+    if (m_enrolled_for_arena_text_content_sync)
+        return;
+    m_enrolled_for_arena_text_content_sync = true;
+    node_arena().enroll_text_node_for_content_sync(*this);
+}
+
+void TextNode::sync_text_content_to_arena() const
+{
+    ensure_text_dependent_cache();
+    m_enrolled_for_arena_text_content_sync = false;
+    if (m_arena_text_content_in_sync)
+        return;
+    auto view = m_text_dependent_cache->text_for_rendering.utf16_view();
+    RustFFI::layout_arena_set_text_content(
+        arena_handle(),
+        slot_id(this),
+        view.has_ascii_storage() ? reinterpret_cast<u8 const*>(view.ascii_span().data()) : nullptr,
+        view.has_ascii_storage() ? nullptr : reinterpret_cast<u16 const*>(view.utf16_span().data()),
+        view.length_in_code_units(),
+        Unicode::may_require_bidi_processing(view));
+    m_arena_text_content_in_sync = true;
 }
 
 Utf16String TextNode::compute_text_for_rendering(TextForRenderingCacheKey const& cache_key) const

@@ -641,10 +641,7 @@ impl<'context, 'pass> InlineFormattingContext<'context, 'pass> {
     }
 
     pub(crate) fn text_may_require_bidi_processing(&self, node: Node) -> bool {
-        // SAFETY: The host reads the live TextNode synchronously.
-        unsafe {
-            (self.callbacks.text_may_require_bidi_processing)(self.callbacks.context, self.callbacks.shell(node))
-        }
+        self.callbacks.text_content(node).may_require_bidi_processing
     }
 
     pub(crate) fn compute_inset(&self, node: Node) {

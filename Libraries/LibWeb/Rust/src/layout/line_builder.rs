@@ -109,22 +109,8 @@ impl<'builder, 'context, 'pass> LineBuilder<'builder, 'context, 'pass> {
         let style = self.context().style(style_source);
         let facts = self.context().facts(node);
         let (text_utf16, text_length) = if facts.is_text_node() {
-            let parent = self.context().parent_node(node);
-            let parent_style = self.context().style(parent);
-            let should_wrap = parent_style.text_wrap_mode == text_wrap_mode::WRAP;
-            let should_respect = matches!(
-                parent_style.white_space_collapse,
-                white_space_collapse::PRESERVE
-                    | white_space_collapse::PRESERVE_BREAKS
-                    | white_space_collapse::BREAK_SPACES
-            );
-            let callbacks = self.context().callbacks;
-            let ffi = self
-                .context()
-                .state
-                .text_facts(&callbacks, node, should_wrap, should_respect, false)
-                .ffi();
-            (ffi.text_utf16, ffi.text_length_in_code_units)
+            let text = &self.context().callbacks.text_content(node).text;
+            (text.as_ptr(), text.len())
         } else {
             (std::ptr::null(), 0)
         };
