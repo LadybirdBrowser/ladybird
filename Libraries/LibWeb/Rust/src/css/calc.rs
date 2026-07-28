@@ -2556,6 +2556,23 @@ pub unsafe extern "C" fn rust_calc_external_resolutions(
     })
 }
 
+/// Returns the borrowed calculation-tree root stored in calculated style value
+/// data.
+///
+/// # Safety
+/// `calculated` must point at live Calculated style value data.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_calc_root_from_calculated(calculated: *const std::ffi::c_void) -> *const CalcNode {
+    crate::abort_on_panic(|| {
+        let crate::css::style_value::StyleValueData::Calculated { rust_calculation, .. } =
+            (unsafe { &*(calculated as *const crate::css::style_value::StyleValueData) })
+        else {
+            unreachable!("rust_calc_root_from_calculated requires calculated value data");
+        };
+        rust_calculation.node()
+    })
+}
+
 /// # Safety
 /// `storage` must be returned by `rust_calc_external_resolutions`. Any output
 /// handles written by C++ must each own one strong reference.
