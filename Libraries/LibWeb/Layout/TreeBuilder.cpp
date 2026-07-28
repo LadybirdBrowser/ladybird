@@ -614,6 +614,11 @@ RustFFI::FfiPseudoTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_pseudo_tr
             VERIFY(index < frame.resolved_content.data.size());
             auto& item = frame.resolved_content.data[index];
             if (auto const* string = item.get_pointer<Utf16String>()) {
+                // An empty generated text node carries the inline fragment of an ordinary inline pseudo-element.
+                // Other pseudo-element boxes exist independently of their contents, so avoid giving them a
+                // zero-length child that would force layout to measure an otherwise empty box.
+                if (string->is_empty() && !(frame.display.is_inline_outside() && frame.display.is_flow_inside()))
+                    return Node::slot_id(nullptr);
                 frame.content_item = make_ref_counted<GeneratedTextNode>(element.document(), *string);
             } else {
                 auto& image = *item.get<NonnullRefPtr<CSS::AbstractImageStyleValue>>();
