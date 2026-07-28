@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<style>
+    * {
+        font: 20px SerenitySans;
+    }
+
+    .inline::before {
+        content: "";
+        padding: 5px;
+        border: 2px solid black;
+    }
+
+    .inline-block::before {
+        content: "";
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+    }
+</style>
+<div class="inline">inline</div>
+<div class="inline-block">inline-block</div>
