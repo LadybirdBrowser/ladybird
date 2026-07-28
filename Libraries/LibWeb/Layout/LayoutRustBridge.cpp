@@ -2216,6 +2216,7 @@ static RustFFI::FfiResidualStyleValues decode_residual_style(RustFFI::FfiStylePa
     auto const& font = font_values.font_list->font_for_code_point(' ');
     auto const& metrics = font.pixel_metrics();
     result.first_available_font = &font;
+    result.font_cascade_list = font_values.font_list.ptr();
     result.font_ascent = metrics.ascent;
     result.font_descent = metrics.descent;
     result.font_x_height = metrics.x_height;
