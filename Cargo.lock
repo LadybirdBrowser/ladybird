@@ -801,14 +801,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "libweb_css_rust"
-version = "0.1.0"
-dependencies = [
- "cbindgen",
- "serde_json",
-]
-
-[[package]]
 name = "libweb_html_tokenizer"
 version = "0.1.0"
 dependencies = [
@@ -829,6 +821,7 @@ dependencies = [
  "cbindgen",
  "chardetng",
  "libweb_html_tokenizer",
+ "serde_json",
 ]
 
 [[package]]

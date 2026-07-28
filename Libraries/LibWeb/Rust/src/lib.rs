@@ -4,10 +4,15 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+// Unconditional in every build flavor: the HTML tokenizer transfers allocation
+// ownership across the FFI boundary, so the crate-global allocator must stay
+// the Ladybird allocator for C++-side frees to stay balanced.
 #[path = "../../../RustAllocator.rs"]
 mod rust_allocator;
 
 mod encoding_detection;
+
+pub mod css;
 
 pub use libweb_html_tokenizer as html_tokenizer;
 

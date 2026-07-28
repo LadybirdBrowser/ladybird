@@ -12,7 +12,7 @@ use std::rc::Rc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::abort_on_panic;
-use crate::ffi_support::{
+use crate::css::ffi_support::{
     DomStringView, FfiCallScope, FfiDomStringView, RetainedCxxPointer, ascii_lowercase, utf16_equals,
     utf16_equals_ignoring_ascii_case,
 };
@@ -1592,20 +1592,20 @@ pub struct FfiElement {
 
 impl FfiElement {
     fn qualified_name(self) -> FfiElementQualifiedName {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element for the duration of matching.
         unsafe { selector_ffi_element_qualified_name(self.pointer) }
     }
 
     fn id(self) -> Option<usize> {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element. A non-null result points at its
         // current pinned `Utf16FlyString` storage for this matching call.
         unsafe { selector_ffi_element_id(self.pointer).as_ref().copied() }
     }
 
     unsafe fn id_value<'a>(self) -> DomStringView<'a> {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element. C++ returns its current ID with
         // backing storage owned by the element for this matching call.
         // SAFETY: C++ guarantees that the returned string view remains valid for matching.
@@ -1613,43 +1613,43 @@ impl FfiElement {
     }
 
     fn id_and_class_names_are_case_insensitive(self) -> bool {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element for the duration of matching.
         unsafe { selector_ffi_element_id_and_class_names_are_case_insensitive(self.pointer) }
     }
 
     fn namespace_is_null(self) -> bool {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element for the duration of matching.
         unsafe { selector_ffi_element_namespace_is_null(self.pointer) }
     }
 
     fn is_html_element_in_html_document(self) -> bool {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element for the duration of matching.
         unsafe { selector_ffi_element_is_html_element_in_html_document(self.pointer) }
     }
 
     fn is_document_root(self) -> bool {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element for the duration of matching.
         unsafe { selector_ffi_element_is_document_root(self.pointer) }
     }
 
     fn is_link(self) -> bool {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element for the duration of matching.
         unsafe { selector_ffi_element_is_link(self.pointer) }
     }
 
     fn is_fullscreen(self) -> bool {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element for the duration of matching.
         unsafe { selector_ffi_element_is_fullscreen(self.pointer) }
     }
 
     fn heading_level(self) -> Option<i64> {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element for the duration of matching.
         match unsafe { selector_ffi_element_heading_level(self.pointer) } {
             0 => None,
@@ -1658,19 +1658,19 @@ impl FfiElement {
     }
 
     fn has_popover_attribute(self) -> bool {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element for the duration of matching.
         unsafe { selector_ffi_element_has_popover_attribute(self.pointer) }
     }
 
     fn popover_is_showing(self) -> bool {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element for the duration of matching.
         unsafe { selector_ffi_element_popover_is_showing(self.pointer) }
     }
 
     fn direction(self) -> Direction {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element for the duration of matching.
         match unsafe { selector_ffi_element_direction(self.pointer) } {
             FfiDirection::LeftToRight => Direction::LeftToRight,
@@ -1680,14 +1680,14 @@ impl FfiElement {
     }
 
     fn has_custom_state(self, state: usize) -> bool {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element and `state` is the copied identity of
         // an interned selector identifier.
         unsafe { selector_ffi_element_has_custom_state(self.pointer, state) }
     }
 
     unsafe fn language<'a>(self) -> Option<DomStringView<'a>> {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element. C++ returns its current language with
         // backing storage owned by the element for this matching call.
         let view = unsafe { selector_ffi_element_language(self.pointer) };
@@ -1695,187 +1695,187 @@ impl FfiElement {
     }
 
     fn is_focused(self) -> bool {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element for the duration of matching.
         unsafe { selector_ffi_element_is_focused(self.pointer) }
     }
 
     fn should_indicate_focus(self) -> bool {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element for the duration of matching.
         unsafe { selector_ffi_element_should_indicate_focus(self.pointer) }
     }
 
     fn has_focus_within(self) -> bool {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element for the duration of matching.
         unsafe { selector_ffi_element_has_focus_within(self.pointer) }
     }
 
     fn is_active(self) -> bool {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element for the duration of matching.
         unsafe { selector_ffi_element_is_active(self.pointer) }
     }
 
     fn is_checked(self) -> bool {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element for the duration of matching.
         unsafe { selector_ffi_element_is_checked(self.pointer) }
     }
 
     fn is_defined(self) -> bool {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element for the duration of matching.
         unsafe { selector_ffi_element_is_defined(self.pointer) }
     }
 
     fn is_disabled(self) -> bool {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element for the duration of matching.
         unsafe { selector_ffi_element_is_disabled(self.pointer) }
     }
 
     fn is_enabled(self) -> bool {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element for the duration of matching.
         unsafe { selector_ffi_element_is_enabled(self.pointer) }
     }
 
     fn is_local_link(self) -> bool {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element for the duration of matching.
         unsafe { selector_ffi_element_is_local_link(self.pointer) }
     }
 
     fn is_placeholder_shown(self) -> bool {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element for the duration of matching.
         unsafe { selector_ffi_element_is_placeholder_shown(self.pointer) }
     }
 
     fn is_target(self) -> bool {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element for the duration of matching.
         unsafe { selector_ffi_element_is_target(self.pointer) }
     }
 
     fn is_unchecked(self) -> bool {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element for the duration of matching.
         unsafe { selector_ffi_element_is_unchecked(self.pointer) }
     }
 
     fn is_media_element(self) -> bool {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element for the duration of matching.
         unsafe { selector_ffi_element_is_media_element(self.pointer) }
     }
 
     fn media_is_blocked(self) -> bool {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element for the duration of matching.
         unsafe { selector_ffi_element_media_is_blocked(self.pointer) }
     }
 
     fn media_is_muted(self) -> bool {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element for the duration of matching.
         unsafe { selector_ffi_element_media_is_muted(self.pointer) }
     }
 
     fn media_is_paused(self) -> bool {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element for the duration of matching.
         unsafe { selector_ffi_element_media_is_paused(self.pointer) }
     }
 
     fn media_is_seeking(self) -> bool {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element for the duration of matching.
         unsafe { selector_ffi_element_media_is_seeking(self.pointer) }
     }
 
     fn media_is_stalled(self) -> bool {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element for the duration of matching.
         unsafe { selector_ffi_element_media_is_stalled(self.pointer) }
     }
 
     fn is_default(self) -> bool {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element for the duration of matching.
         unsafe { selector_ffi_element_is_default(self.pointer) }
     }
 
     fn meter_value_state(self) -> FfiMeterValueState {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element for the duration of matching.
         unsafe { selector_ffi_element_meter_value_state(self.pointer) }
     }
 
     fn meter_value_is_high(self) -> bool {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element for the duration of matching.
         unsafe { selector_ffi_element_meter_value_is_high(self.pointer) }
     }
 
     fn meter_value_is_low(self) -> bool {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element for the duration of matching.
         unsafe { selector_ffi_element_meter_value_is_low(self.pointer) }
     }
 
     fn is_hovered(self) -> bool {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element for the duration of matching.
         unsafe { selector_ffi_element_is_hovered(self.pointer) }
     }
 
     fn is_indeterminate(self) -> bool {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element for the duration of matching.
         unsafe { selector_ffi_element_is_indeterminate(self.pointer) }
     }
 
     fn validity_state(self) -> FfiValidityState {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element for the duration of matching.
         unsafe { selector_ffi_element_validity_state(self.pointer) }
     }
 
     fn is_modal(self) -> bool {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element for the duration of matching.
         unsafe { selector_ffi_element_is_modal(self.pointer) }
     }
 
     fn is_open(self) -> bool {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element for the duration of matching.
         unsafe { selector_ffi_element_is_open(self.pointer) }
     }
 
     fn required_state(self) -> FfiRequiredState {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element for the duration of matching.
         unsafe { selector_ffi_element_required_state(self.pointer) }
     }
 
     fn is_read_write(self) -> bool {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element for the duration of matching.
         unsafe { selector_ffi_element_is_read_write(self.pointer) }
     }
 
     fn user_validity_state(self) -> FfiValidityState {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element for the duration of matching.
         unsafe { selector_ffi_element_user_validity_state(self.pointer) }
     }
 
     unsafe fn local_name<'a>(self) -> DomStringView<'a> {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element. C++ returns a string view borrowed
         // from its current local name for this matching call.
         // SAFETY: C++ guarantees that the returned string view remains valid for matching.
@@ -1883,7 +1883,7 @@ impl FfiElement {
     }
 
     unsafe fn class_name<'a>(self, index: usize) -> DomStringView<'a> {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element and `index` identifies one of its
         // current classes. C++ returns a view borrowed for this matching call.
         // SAFETY: The caller guarantees that `index` is within the current class list.
@@ -1891,13 +1891,13 @@ impl FfiElement {
     }
 
     fn attribute_count(self) -> usize {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element for the duration of matching.
         unsafe { selector_ffi_element_attribute_count(self.pointer) }
     }
 
     unsafe fn attribute<'a>(self, index: usize) -> DomAttribute<'a> {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element and `index` identifies one of its
         // current attributes. C++ returns its facts and a value view borrowed for matching.
         DomAttribute {
@@ -1908,7 +1908,7 @@ impl FfiElement {
     }
 
     unsafe fn classes<'a>(self) -> &'a [usize] {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The handle identifies a live DOM element. C++ returns its current class storage,
         // borrowed for this matching call.
         let classes = unsafe { selector_ffi_element_classes(self.pointer) };
@@ -2550,13 +2550,13 @@ impl<'a> FfiDom<'a> {
     }
 
     fn default_namespace(&self) -> FfiResolvedNamespace {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The matching context remains live for this matching call.
         unsafe { selector_ffi_default_namespace(self.context) }
     }
 
     fn resolve_namespace(&self, prefix: &[u16]) -> FfiResolvedNamespace {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: The matching context remains live, and the prefix view is borrowed for this
         // accessor call only.
         unsafe { selector_ffi_resolve_namespace(self.context, ffi_string_view(prefix)) }
@@ -2805,7 +2805,7 @@ impl<'a> SelectorDom for FfiDom<'a> {
     }
 
     fn parent_element(&mut self, element: FfiNode<'a>, shadow_host: Option<FfiNode<'a>>) -> Option<FfiNode<'a>> {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: `FfiDom` guarantees that the input handles remain valid. The callback returns
         // either null or another live element borrowed for the same lifetime.
         unsafe {
@@ -2817,42 +2817,42 @@ impl<'a> SelectorDom for FfiDom<'a> {
     }
 
     fn parent_element_in_light_tree(&mut self, element: FfiNode<'a>) -> Option<FfiNode<'a>> {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: `FfiDom` guarantees that the input remains valid. The callback returns either
         // null or another live element borrowed for the same lifetime.
         unsafe { self.element(selector_ffi_parent_element_in_light_tree(element.as_element_pointer())) }
     }
 
     fn previous_element_sibling(&mut self, element: FfiNode<'a>) -> Option<FfiNode<'a>> {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: `FfiDom` guarantees that the input remains valid. The callback returns either
         // null or another live element borrowed for the same lifetime.
         unsafe { self.element(selector_ffi_previous_element_sibling(element.as_element_pointer())) }
     }
 
     fn next_element_sibling(&mut self, element: FfiNode<'a>) -> Option<FfiNode<'a>> {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: `FfiDom` guarantees that the input remains valid. The callback returns either
         // null or another live element borrowed for the same lifetime.
         unsafe { self.element(selector_ffi_next_element_sibling(element.as_element_pointer())) }
     }
 
     fn first_element_child(&mut self, element: FfiNode<'a>) -> Option<FfiNode<'a>> {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: `FfiDom` guarantees that the input remains valid. The callback returns either
         // null or another live element borrowed for the same lifetime.
         unsafe { self.element(selector_ffi_first_element_child(element.as_element_pointer())) }
     }
 
     fn first_element_descendant(&mut self, element: FfiNode<'a>) -> Option<FfiNode<'a>> {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: `FfiDom` guarantees that the input remains valid. The callback returns either
         // null or another live element borrowed for the same lifetime.
         unsafe { self.element(selector_ffi_first_element_descendant(element.as_element_pointer())) }
     }
 
     fn next_element_descendant(&mut self, element: FfiNode<'a>, root: FfiNode<'a>) -> Option<FfiNode<'a>> {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: `FfiDom` guarantees that both element handles remain valid for this call. The
         // callback returns either null or another live element borrowed for the same lifetime.
         unsafe {
@@ -2864,12 +2864,12 @@ impl<'a> SelectorDom for FfiDom<'a> {
     }
 
     fn has_no_element_or_nonempty_text_children(&mut self, element: FfiNode<'a>) -> bool {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: `FfiDom` guarantees that the element remains valid for matching.
         if unsafe { selector_ffi_element_has_element_child(element.as_element_pointer()) } {
             return false;
         }
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: `FfiDom` guarantees that the element remains valid for matching.
         !unsafe { selector_ffi_element_has_nonempty_text_child(element.as_element_pointer()) }
     }
@@ -2885,13 +2885,13 @@ impl<'a> SelectorDom for FfiDom<'a> {
     }
 
     fn is_shadow_tree_slot(&mut self, element: FfiNode<'a>) -> bool {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: `FfiDom` guarantees that the element remains valid for matching.
         unsafe { selector_ffi_is_shadow_tree_slot(element.as_element_pointer()) }
     }
 
     fn slotted_parent(&mut self, element: FfiNode<'a>) -> Option<(FfiNode<'a>, Option<FfiNode<'a>>)> {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         // SAFETY: `FfiDom` guarantees that the context and element remain valid. The callback
         // returns null or live elements borrowed for the same lifetime.
         unsafe { self.element_and_shadow_host(selector_ffi_slotted_parent(self.context, element.as_element_pointer())) }
@@ -2904,7 +2904,7 @@ impl<'a> SelectorDom for FfiDom<'a> {
         allow_same_shadow_root_scope: bool,
         shadow_host: Option<FfiNode<'a>>,
     ) -> Option<(FfiNode<'a>, Option<FfiNode<'a>>)> {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorDomReadCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorDomReadCallback);
         let identifiers = identifiers
             .iter()
             .map(|identifier| ffi_string_view(identifier))
@@ -2928,7 +2928,7 @@ impl<'a> SelectorDom for FfiDom<'a> {
         if !self.collects_selector_involvement_metadata {
             return;
         }
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorMetadataCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorMetadataCallback);
         // SAFETY: `FfiDom` guarantees that the context and element remain valid for matching.
         unsafe {
             selector_ffi_note_structural_pseudo_class(self.context, element.as_element_pointer(), pseudo_class as u8);
@@ -2939,7 +2939,7 @@ impl<'a> SelectorDom for FfiDom<'a> {
         if !self.collects_selector_involvement_metadata {
             return;
         }
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorMetadataCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorMetadataCallback);
         // SAFETY: `FfiDom` guarantees that the context and element remain valid for matching.
         unsafe { selector_ffi_note_has_pseudo_class(self.context, element.as_element_pointer()) }
     }
@@ -2953,7 +2953,7 @@ impl<'a> SelectorDom for FfiDom<'a> {
         if !self.collects_selector_involvement_metadata {
             return;
         }
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorMetadataCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorMetadataCallback);
         // SAFETY: `FfiDom` guarantees that the context and element remain valid for matching.
         unsafe {
             selector_ffi_note_sibling_combinator(
@@ -2969,7 +2969,7 @@ impl<'a> SelectorDom for FfiDom<'a> {
         if !self.collects_selector_involvement_metadata {
             return;
         }
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorMetadataCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorMetadataCallback);
         // SAFETY: `FfiDom` guarantees that the context and anchor remain valid for matching.
         unsafe { selector_ffi_note_has_sibling_combinator_anchor(self.context, anchor.as_element_pointer()) }
     }
@@ -2978,7 +2978,7 @@ impl<'a> SelectorDom for FfiDom<'a> {
         if !self.collects_selector_involvement_metadata {
             return;
         }
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorMetadataCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorMetadataCallback);
         // SAFETY: `FfiDom` guarantees that the context and element remain valid for matching.
         unsafe { selector_ffi_note_has_sibling_combinator_element(self.context, element.as_element_pointer()) }
     }
@@ -2987,7 +2987,7 @@ impl<'a> SelectorDom for FfiDom<'a> {
         if !self.collects_selector_involvement_metadata || !self.inside_has_argument {
             return;
         }
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorMetadataCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorMetadataCallback);
         // SAFETY: `FfiDom` guarantees that the context and element remain valid for matching.
         unsafe { selector_ffi_note_has_scope_element(self.context, element.as_element_pointer()) }
     }
@@ -2997,7 +2997,7 @@ impl<'a> SelectorDom for FfiDom<'a> {
     }
 
     fn enter_has_argument_matching(&mut self) -> bool {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorMetadataCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorMetadataCallback);
         let previous_value = self.inside_has_argument;
         self.inside_has_argument = true;
         // SAFETY: `FfiDom` guarantees that the context remains valid for matching.
@@ -3006,14 +3006,14 @@ impl<'a> SelectorDom for FfiDom<'a> {
     }
 
     fn leave_has_argument_matching(&mut self, previous_value: bool) {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorMetadataCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorMetadataCallback);
         self.inside_has_argument = previous_value;
         // SAFETY: `FfiDom` guarantees that the context remains valid for matching.
         unsafe { selector_ffi_set_inside_has_argument(self.context, previous_value) }
     }
 
     fn has_cache_get(&mut self, selector_id: u64, anchor: FfiNode<'a>) -> Option<bool> {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorMetadataCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorMetadataCallback);
         // SAFETY: `FfiDom` guarantees that the context and anchor remain valid for matching.
         match unsafe { selector_ffi_has_cache_get(self.context, selector_id, anchor.as_element_pointer()) } {
             HasCacheResult::NotCached => None,
@@ -3023,13 +3023,13 @@ impl<'a> SelectorDom for FfiDom<'a> {
     }
 
     fn has_cache_set(&mut self, selector_id: u64, anchor: FfiNode<'a>, result: bool) {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorMetadataCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorMetadataCallback);
         // SAFETY: `FfiDom` guarantees that the context and anchor remain valid for matching.
         unsafe { selector_ffi_has_cache_set(self.context, selector_id, anchor.as_element_pointer(), result) }
     }
 
     fn should_reject_has_argument(&mut self, selector: &CompiledSelector, anchor: FfiNode<'a>) -> bool {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorMetadataCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorMetadataCallback);
         // SAFETY: `FfiDom` guarantees that the context, retained selector, and anchor remain valid
         // for matching.
         unsafe {
@@ -3325,7 +3325,7 @@ pub unsafe extern "C" fn rust_selector_matches(
     collects_selector_involvement_metadata: bool,
     inside_has_argument: bool,
 ) -> bool {
-    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorMatchEntry);
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorMatchEntry);
     abort_on_panic(|| {
         assert!(!selector.is_null());
         assert!(!element.pointer.is_null());
@@ -3375,7 +3375,7 @@ pub unsafe extern "C" fn rust_selector_matches_originating_element(
     collects_selector_involvement_metadata: bool,
     inside_has_argument: bool,
 ) -> bool {
-    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::SelectorMatchEntry);
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SelectorMatchEntry);
     abort_on_panic(|| {
         assert!(!selector.is_null());
         assert!(!element.pointer.is_null());

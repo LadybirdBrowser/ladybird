@@ -13,12 +13,12 @@ use std::ffi::c_void;
 use std::rc::Rc;
 
 use crate::abort_on_panic;
-use crate::css_tokenizer::OwnedToken;
-use crate::css_tokenizer::OwnedTokenKind;
-use crate::css_tokenizer::tokenize_owned;
-use crate::style_value::RetainedStyleValueData;
-use crate::style_value::RetainedUtf16FlyString;
-use crate::style_value::StyleValueData;
+use crate::css::css_tokenizer::OwnedToken;
+use crate::css::css_tokenizer::OwnedTokenKind;
+use crate::css::css_tokenizer::tokenize_owned;
+use crate::css::style_value::RetainedStyleValueData;
+use crate::css::style_value::RetainedUtf16FlyString;
+use crate::css::style_value::StyleValueData;
 
 #[repr(C)]
 pub struct FfiCustomPropertyStoreEntry {
@@ -560,7 +560,7 @@ pub unsafe extern "C" fn rust_custom_property_store_create(
     entry_count: usize,
     parent: *const c_void,
 ) -> *const c_void {
-    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CustomPropertyStoreLifecycleEntry);
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CustomPropertyStoreLifecycleEntry);
     abort_on_panic(|| {
         let entries = if entry_count == 0 {
             &[]
@@ -608,7 +608,7 @@ pub unsafe extern "C" fn rust_custom_property_store_create(
 /// not already been released.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_custom_property_store_destroy(store: *const c_void) {
-    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CustomPropertyStoreLifecycleEntry);
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CustomPropertyStoreLifecycleEntry);
     abort_on_panic(|| drop(unsafe { Rc::from_raw(store.cast::<CustomPropertyStore>()) }));
 }
 
@@ -630,7 +630,7 @@ pub unsafe extern "C" fn rust_custom_property_store_get(
     store: *const c_void,
     name_raw: usize,
 ) -> FfiCustomPropertyStoreValue {
-    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CustomPropertyStoreQueryEntry);
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CustomPropertyStoreQueryEntry);
     abort_on_panic(|| {
         let store = unsafe { &*store.cast::<CustomPropertyStore>() };
         let Some(entry) = store.get(name_raw) else {

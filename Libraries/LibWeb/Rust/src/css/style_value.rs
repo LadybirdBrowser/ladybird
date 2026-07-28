@@ -166,7 +166,7 @@ impl RetainedUtf16FlyString {
     /// # Safety
     /// `raw` must be the raw representation of a live fly string.
     pub(crate) unsafe fn from_borrowed_raw(raw: usize) -> Self {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::StringRetainReleaseCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::StringRetainReleaseCallback);
         unsafe { ladybird_utf16_fly_string_ref(raw) };
         Self { raw }
     }
@@ -174,7 +174,7 @@ impl RetainedUtf16FlyString {
 
 impl Drop for RetainedUtf16FlyString {
     fn drop(&mut self) {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::StringRetainReleaseCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::StringRetainReleaseCallback);
         unsafe { ladybird_utf16_fly_string_unref(self.raw) };
     }
 }
@@ -278,7 +278,7 @@ impl PartialEq for RetainedString {
 
 impl Drop for RetainedString {
     fn drop(&mut self) {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::StringRetainReleaseCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::StringRetainReleaseCallback);
         unsafe { ladybird_string_unref(self.raw) };
         if !self.bytes.is_null() {
             drop(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(self.bytes, self.length)) });
@@ -331,7 +331,7 @@ impl PartialEq for RetainedReadableString {
 
 impl Drop for RetainedReadableString {
     fn drop(&mut self) {
-        crate::ffi_stats::bump(crate::ffi_stats::FfiOp::StringRetainReleaseCallback);
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::StringRetainReleaseCallback);
         unsafe { ladybird_string_unref(self.raw) };
         if !self.bytes.is_null() {
             drop(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(self.bytes, self.length)) });
@@ -915,13 +915,13 @@ pub enum StyleValueData {
     /// A calc() or other math function: the retained calculation node tree root, its resolved
     /// numeric type, and the parse-time calculation context.
     Calculated {
-        rust_calculation: crate::calc::CalcNodeHandle,
+        rust_calculation: crate::css::calc::CalcNodeHandle,
         /// The resolve-against target, base-mapped at creation: whether one
         /// exists, whether it is the number type, and otherwise its base type
         /// index in the numeric type order.
         resolve_as_is_number: bool,
         resolve_as_base: u8,
-        resolved_type: crate::calc::FfiNumericType,
+        resolved_type: crate::css::calc::FfiNumericType,
         has_percentages_resolve_as: bool,
         percentages_resolve_as: u8,
         resolve_numbers_as_integers: bool,
@@ -2505,8 +2505,8 @@ pub unsafe extern "C" fn rust_style_value_create_basic_shape(
 /// are copied.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_create_calculated(
-    rust_calculation: *const crate::calc::CalcNode,
-    resolved_type: crate::calc::FfiNumericType,
+    rust_calculation: *const crate::css::calc::CalcNode,
+    resolved_type: crate::css::calc::FfiNumericType,
     has_percentages_resolve_as: bool,
     resolve_as_is_number: bool,
     resolve_as_base: u8,
@@ -2517,7 +2517,7 @@ pub unsafe extern "C" fn rust_style_value_create_calculated(
 ) -> *const StyleValueData {
     abort_on_panic(|| {
         Arc::into_raw(Arc::new(StyleValueData::Calculated {
-            rust_calculation: unsafe { crate::calc::CalcNodeHandle::from_raw(rust_calculation) },
+            rust_calculation: unsafe { crate::css::calc::CalcNodeHandle::from_raw(rust_calculation) },
             resolve_as_is_number,
             resolve_as_base,
             resolved_type,
@@ -2550,7 +2550,7 @@ pub unsafe extern "C" fn rust_style_value_create_image(
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_release(value: *const StyleValueData) {
-    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::StyleValueDestroyEntry);
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::StyleValueDestroyEntry);
     abort_on_panic(|| {
         if value.is_null() {
             return;
@@ -2580,7 +2580,7 @@ pub(crate) fn value_depends_on_current_color(value: &StyleValueData) -> bool {
     let retained_data_depends =
         |retained: &RetainedStyleValueData| -> bool { value_depends_on_current_color(retained.data()) };
     match value {
-        StyleValueData::Keyword { keyword } => *keyword == crate::style_compute::keyword::CURRENTCOLOR,
+        StyleValueData::Keyword { keyword } => *keyword == crate::css::style_compute::keyword::CURRENTCOLOR,
         StyleValueData::ColorFunction { origin_color, .. } => {
             origin_color.optional_data().is_some_and(value_depends_on_current_color)
         }
@@ -2599,6 +2599,6 @@ pub(crate) fn value_depends_on_current_color(value: &StyleValueData) -> bool {
 /// `data` must point at a valid StyleValueData.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_depends_on_current_color(data: *const c_void) -> bool {
-    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::StyleValueQueryEntry);
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::StyleValueQueryEntry);
     crate::abort_on_panic(|| value_depends_on_current_color(unsafe { &*(data as *const StyleValueData) }))
 }

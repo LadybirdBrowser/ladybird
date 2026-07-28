@@ -15,7 +15,7 @@
 
 use std::sync::Arc;
 
-use crate::style_value::RetainedStyleValueData;
+use crate::css::style_value::RetainedStyleValueData;
 
 include!(concat!(env!("OUT_DIR"), "/dimension_units_generated.rs"));
 
@@ -319,7 +319,7 @@ pub(crate) type LengthFallbackResolver<'a> = dyn Fn(f64, u8) -> Option<f64> + 'a
 /// context plus an optional per-element fallback for units it cannot handle.
 #[derive(Clone, Copy, Default)]
 pub(crate) struct LengthResolution<'a> {
-    pub context: Option<&'a crate::style_compute::FfiLengthResolutionContext>,
+    pub context: Option<&'a crate::css::style_compute::FfiLengthResolutionContext>,
     pub fallback: Option<&'a LengthFallbackResolver<'a>>,
 }
 
@@ -339,14 +339,14 @@ impl CalcNumericValue {
             CalcNumericValue::Time { value, unit } => value * TIME_UNIT_CANONICAL_RATIOS[unit as usize],
             CalcNumericValue::Length { value, unit } => {
                 // Absolute lengths resolve without a context.
-                let ratio = crate::style_compute::LENGTH_UNIT_CANONICAL_PX_RATIOS[unit as usize];
+                let ratio = crate::css::style_compute::LENGTH_UNIT_CANONICAL_PX_RATIOS[unit as usize];
                 if ratio.is_finite() {
                     return value * ratio;
                 }
                 let Some(context) = length_resolution.context else {
                     return f64::NAN;
                 };
-                let result = crate::style_compute::absolutize_length_for_calc(value, unit as usize, context);
+                let result = crate::css::style_compute::absolutize_length_for_calc(value, unit as usize, context);
                 if result.handled {
                     return result.px;
                 }
@@ -421,7 +421,7 @@ pub unsafe extern "C" fn rust_numeric_type_operate(
     first: *const FfiNumericType,
     second: *const FfiNumericType,
 ) -> FfiNumericType {
-    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcOperationEntry);
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcOperationEntry);
     crate::abort_on_panic(|| {
         let first = unsafe { &*first }.to_calc();
         let second = unsafe { &*second }.to_calc();
@@ -917,7 +917,7 @@ unsafe fn children_from_raw(children: *const *const CalcNode, count: usize) -> V
 /// order number, angle, flex, frequency, length, percentage, resolution, time.
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_calc_node_create_numeric_dimension(kind: u8, value: f64, unit: u8) -> *const CalcNode {
-    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcNodeBuildEntry);
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcNodeBuildEntry);
     crate::abort_on_panic(|| {
         let numeric = match kind {
             0 => CalcNumericValue::Number {
@@ -939,7 +939,7 @@ pub extern "C" fn rust_calc_node_create_numeric_dimension(kind: u8, value: f64, 
 
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_calc_node_create_channel_keyword(channel: u8) -> *const CalcNode {
-    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcNodeBuildEntry);
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcNodeBuildEntry);
     crate::abort_on_panic(|| handle(CalcNode::ChannelKeyword(channel)))
 }
 
@@ -954,7 +954,7 @@ pub unsafe extern "C" fn rust_calc_node_create_variadic(
     children: *const *const CalcNode,
     count: usize,
 ) -> *const CalcNode {
-    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcNodeBuildEntry);
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcNodeBuildEntry);
     crate::abort_on_panic(|| {
         let children = unsafe { children_from_raw(children, count) };
         let node = match kind {
@@ -977,7 +977,7 @@ pub unsafe extern "C" fn rust_calc_node_create_variadic(
 /// `child` must be a valid transferred handle.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_calc_node_create_unary(kind: u8, child: *const CalcNode) -> *const CalcNode {
-    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcNodeBuildEntry);
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcNodeBuildEntry);
     crate::abort_on_panic(|| {
         let child = unsafe { Arc::from_raw(child) };
         let node = match kind {
@@ -1010,7 +1010,7 @@ pub unsafe extern "C" fn rust_calc_node_create_binary(
     first: *const CalcNode,
     second: *const CalcNode,
 ) -> *const CalcNode {
-    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcNodeBuildEntry);
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcNodeBuildEntry);
     crate::abort_on_panic(|| {
         let first = unsafe { Arc::from_raw(first) };
         let second = unsafe { Arc::from_raw(second) };
@@ -1046,7 +1046,7 @@ pub unsafe extern "C" fn rust_calc_node_create_clamp(
     center: *const CalcNode,
     max: *const CalcNode,
 ) -> *const CalcNode {
-    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcNodeBuildEntry);
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcNodeBuildEntry);
     crate::abort_on_panic(|| {
         handle(CalcNode::Clamp {
             min: unsafe { Arc::from_raw(min) },
@@ -1065,7 +1065,7 @@ pub unsafe extern "C" fn rust_calc_node_create_progress(
     from: *const CalcNode,
     to: *const CalcNode,
 ) -> *const CalcNode {
-    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcNodeBuildEntry);
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcNodeBuildEntry);
     crate::abort_on_panic(|| {
         handle(CalcNode::Progress {
             no_clamp,
@@ -1084,7 +1084,7 @@ pub unsafe extern "C" fn rust_calc_node_create_round(
     value: *const CalcNode,
     interval: *const CalcNode,
 ) -> *const CalcNode {
-    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcNodeBuildEntry);
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcNodeBuildEntry);
     crate::abort_on_panic(|| {
         handle(CalcNode::Round {
             strategy,
@@ -1104,7 +1104,7 @@ pub unsafe extern "C" fn rust_calc_node_create_random(
     step: *const CalcNode,
     sharing: *const std::ffi::c_void,
 ) -> *const CalcNode {
-    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcNodeBuildEntry);
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcNodeBuildEntry);
     crate::abort_on_panic(|| {
         handle(CalcNode::Random {
             min: unsafe { Arc::from_raw(min) },
@@ -1126,7 +1126,7 @@ pub unsafe extern "C" fn rust_calc_node_create_non_math_function(
     value: *const std::ffi::c_void,
     numeric_type: *const FfiNumericType,
 ) -> *const CalcNode {
-    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcNodeBuildEntry);
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcNodeBuildEntry);
     crate::abort_on_panic(|| {
         handle(CalcNode::NonMathFunction {
             value: unsafe { RetainedStyleValueData::from_retained_pointer(value.cast()) },
@@ -1139,7 +1139,7 @@ pub unsafe extern "C" fn rust_calc_node_create_non_math_function(
 /// `node` must be a valid transferred handle; this releases it.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_calc_node_release(node: *const CalcNode) {
-    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcNodeRetainReleaseEntry);
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcNodeRetainReleaseEntry);
     crate::abort_on_panic(|| drop(unsafe { Arc::from_raw(node) }));
 }
 
@@ -1150,7 +1150,7 @@ pub unsafe extern "C" fn rust_calc_node_release(node: *const CalcNode) {
 /// `node` must be a valid calculation node pointer.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_calc_node_retain(node: *const CalcNode) {
-    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcNodeRetainReleaseEntry);
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcNodeRetainReleaseEntry);
     crate::abort_on_panic(|| unsafe { Arc::increment_strong_count(node) });
 }
 
@@ -1168,7 +1168,7 @@ pub unsafe extern "C" fn rust_calc_node_determine_type(
     resolve_as_is_number: bool,
     resolve_as_base: u8,
 ) -> FfiNumericType {
-    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcNodeQueryEntry);
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcNodeQueryEntry);
     crate::abort_on_panic(|| {
         let resolve_as = resolve_as_from_fields(has_percentages_resolve_as, resolve_as_is_number, resolve_as_base);
         let percentage_leaf_type = percentage_leaf_type_for(resolve_as);
@@ -1182,7 +1182,7 @@ pub unsafe extern "C" fn rust_calc_node_determine_type(
 /// `node` must be a valid calculation node pointer.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_calc_node_contains_percentage(node: *const CalcNode) -> bool {
-    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcNodeQueryEntry);
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcNodeQueryEntry);
     crate::abort_on_panic(|| unsafe { &*node }.contains_percentage())
 }
 
@@ -1228,7 +1228,7 @@ fn is_canonical_unit(value: CalcNumericValue) -> bool {
     match value {
         CalcNumericValue::Number { .. } | CalcNumericValue::Percentage(..) => true,
         CalcNumericValue::Length { unit, .. } => {
-            unit == canonical_unit_code(&crate::style_compute::LENGTH_UNIT_CANONICAL_PX_RATIOS)
+            unit == canonical_unit_code(&crate::css::style_compute::LENGTH_UNIT_CANONICAL_PX_RATIOS)
         }
         CalcNumericValue::Angle { unit, .. } => unit == canonical_unit_code(&ANGLE_UNIT_CANONICAL_RATIOS),
         CalcNumericValue::Flex { unit, .. } => unit == canonical_unit_code(&FLEX_UNIT_CANONICAL_RATIOS),
@@ -1239,7 +1239,7 @@ fn is_canonical_unit(value: CalcNumericValue) -> bool {
 }
 
 pub(crate) fn canonical_pixel_unit() -> u8 {
-    canonical_unit_code(&crate::style_compute::LENGTH_UNIT_CANONICAL_PX_RATIOS)
+    canonical_unit_code(&crate::css::style_compute::LENGTH_UNIT_CANONICAL_PX_RATIOS)
 }
 
 impl CalcNode {
@@ -1838,7 +1838,7 @@ fn make_calc_result_node(result: &CalcResult, resolve_as: Option<ResolveAs>) -> 
     } else if numeric_type.matches_dimension(0, resolve_as) {
         CalcNumericValue::Length {
             value,
-            unit: canonical_unit_code(&crate::style_compute::LENGTH_UNIT_CANONICAL_PX_RATIOS),
+            unit: canonical_unit_code(&crate::css::style_compute::LENGTH_UNIT_CANONICAL_PX_RATIOS),
         }
     } else if numeric_type.matches_dimension(4, resolve_as) {
         CalcNumericValue::Resolution {
@@ -1930,8 +1930,8 @@ impl CalcNumericValue {
                 unit: canonical_unit_code(&TIME_UNIT_CANONICAL_RATIOS),
             }),
             CalcNumericValue::Length { value, unit } => {
-                let px = canonical_unit_code(&crate::style_compute::LENGTH_UNIT_CANONICAL_PX_RATIOS);
-                let ratio = crate::style_compute::LENGTH_UNIT_CANONICAL_PX_RATIOS[unit as usize];
+                let px = canonical_unit_code(&crate::css::style_compute::LENGTH_UNIT_CANONICAL_PX_RATIOS);
+                let ratio = crate::css::style_compute::LENGTH_UNIT_CANONICAL_PX_RATIOS[unit as usize];
                 if ratio.is_finite() {
                     return Some(CalcNumericValue::Length {
                         value: value * ratio,
@@ -1939,7 +1939,7 @@ impl CalcNumericValue {
                     });
                 }
                 let context = length_resolution.context?;
-                let result = crate::style_compute::absolutize_length_for_calc(value, unit as usize, context);
+                let result = crate::css::style_compute::absolutize_length_for_calc(value, unit as usize, context);
                 if result.handled {
                     return Some(CalcNumericValue::Length {
                         value: result.px,
@@ -2499,7 +2499,7 @@ fn collect_external_resolutions(node: &CalcNode, resolutions: &mut Vec<FfiCalcEx
             0,
         ),
         CalcNode::Numeric(CalcNumericValue::Length { value, unit })
-            if crate::style_compute::LENGTH_UNIT_NAMES[*unit as usize].starts_with("cq") =>
+            if crate::css::style_compute::LENGTH_UNIT_NAMES[*unit as usize].starts_with("cq") =>
         {
             append(FfiCalcExternalResolutionKind::Length, std::ptr::null(), *value, *unit);
         }
@@ -2520,14 +2520,14 @@ pub unsafe extern "C" fn rust_calc_external_resolutions(
     basis_value: f64,
     basis_unit: u8,
 ) -> FfiCalcExternalResolutions {
-    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcOperationEntry);
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcOperationEntry);
     crate::abort_on_panic(|| {
         let mut resolutions = Vec::new();
         let root = unsafe { &*root };
         collect_external_resolutions(root, &mut resolutions);
         if basis_kind == 3
             && root.contains_percentage()
-            && crate::style_compute::LENGTH_UNIT_NAMES[basis_unit as usize].starts_with("cq")
+            && crate::css::style_compute::LENGTH_UNIT_NAMES[basis_unit as usize].starts_with("cq")
         {
             resolutions.push(FfiCalcExternalResolution {
                 kind: FfiCalcExternalResolutionKind::Length,
@@ -2567,7 +2567,7 @@ pub unsafe extern "C" fn rust_calc_external_resolutions_release(storage: *mut st
             drop(unsafe { Arc::from_raw(resolution.resolved_node) });
         }
         if !resolution.resolved_style_value.is_null() {
-            unsafe { crate::style_value::rust_style_value_release(resolution.resolved_style_value.cast()) };
+            unsafe { crate::css::style_value::rust_style_value_release(resolution.resolved_style_value.cast()) };
         }
     }
 }
@@ -2661,7 +2661,8 @@ fn with_ffi_evaluation<R>(
                 None
             } else {
                 Some(unsafe {
-                    &*(context.length_resolution_context as *const crate::style_compute::FfiLengthResolutionContext)
+                    &*(context.length_resolution_context
+                        as *const crate::css::style_compute::FfiLengthResolutionContext)
                 })
             },
             fallback: Some(&resolve_length_fallback),
@@ -2677,7 +2678,7 @@ fn with_ffi_evaluation<R>(
             })
             .filter(|resolution| !resolution.resolved_style_value.is_null())
             .map(|resolution| unsafe {
-                RetainedStyleValueData::from_retained_pointer(crate::style_value::rust_style_value_retain(
+                RetainedStyleValueData::from_retained_pointer(crate::css::style_value::rust_style_value_retain(
                     resolution.resolved_style_value.cast(),
                 ))
             })
@@ -2729,7 +2730,7 @@ fn resolve_simplified_calculation(
     evaluation_context: &CalcEvaluationContext,
     resolve_as: Option<ResolveAs>,
     resolve_numbers_as_integers: bool,
-    accepted_ranges: &[crate::style_value::RetainedNumericRangeByType],
+    accepted_ranges: &[crate::css::style_value::RetainedNumericRangeByType],
     apply_censoring_and_clamping: bool,
 ) -> Option<(f64, Option<CalcNumericType>)> {
     if !matches!(&**simplified, CalcNode::Numeric(..)) || (simplified.contains_percentage() && resolve_as.is_some()) {
@@ -2789,11 +2790,11 @@ fn resolve_simplified_calculation(
 /// callbacks for non-math functions, relative-color channels, and random()
 /// remain unavailable.
 fn resolve_calculated_with_length_resolution(
-    calculated: &crate::style_value::StyleValueData,
+    calculated: &crate::css::style_value::StyleValueData,
     percentage_basis: Option<CalcNumericValue>,
     length_resolution: LengthResolution,
 ) -> Option<(f64, CalcNumericType, Option<ResolveAs>)> {
-    use crate::style_value::StyleValueData;
+    use crate::css::style_value::StyleValueData;
     let StyleValueData::Calculated {
         rust_calculation,
         has_percentages_resolve_as,
@@ -2834,7 +2835,7 @@ fn resolve_calculated_with_length_resolution(
 }
 
 fn resolve_calculated_without_context(
-    calculated: &crate::style_value::StyleValueData,
+    calculated: &crate::css::style_value::StyleValueData,
     percentage_basis: Option<CalcNumericValue>,
 ) -> Option<(f64, CalcNumericType, Option<ResolveAs>)> {
     resolve_calculated_with_length_resolution(calculated, percentage_basis, LengthResolution::default())
@@ -2843,7 +2844,7 @@ fn resolve_calculated_without_context(
 /// Resolves a calculated value that must produce a number, with no external
 /// context; the equivalent of the C++ resolve_number with an empty context.
 pub(crate) fn resolve_calculated_number_without_context(
-    calculated: &crate::style_value::StyleValueData,
+    calculated: &crate::css::style_value::StyleValueData,
 ) -> Option<f64> {
     let (value, numeric_type, resolve_as) = resolve_calculated_without_context(calculated, None)?;
     numeric_type.matches_number(resolve_as).then_some(value)
@@ -2852,8 +2853,8 @@ pub(crate) fn resolve_calculated_number_without_context(
 /// Resolves a calculated value that must produce a number using the immutable
 /// per-element length metrics supplied to animation evaluation.
 pub(crate) fn resolve_calculated_number_with_context(
-    calculated: &crate::style_value::StyleValueData,
-    context: &crate::style_compute::FfiLengthResolutionContext,
+    calculated: &crate::css::style_value::StyleValueData,
+    context: &crate::css::style_compute::FfiLengthResolutionContext,
 ) -> Option<f64> {
     let (value, numeric_type, resolve_as) = resolve_calculated_with_length_resolution(
         calculated,
@@ -2870,7 +2871,7 @@ pub(crate) fn resolve_calculated_number_with_context(
 /// external context; the equivalent of the C++ resolve_percentage with an
 /// empty context.
 pub(crate) fn resolve_calculated_percentage_without_context(
-    calculated: &crate::style_value::StyleValueData,
+    calculated: &crate::css::style_value::StyleValueData,
 ) -> Option<f64> {
     let (value, numeric_type, ..) = resolve_calculated_without_context(calculated, None)?;
     numeric_type.matches_percentage().then_some(value)
@@ -2878,7 +2879,9 @@ pub(crate) fn resolve_calculated_percentage_without_context(
 
 /// Resolves a calculated value that must produce an angle, with no external
 /// context; the equivalent of the C++ resolve_angle with an empty context.
-pub(crate) fn resolve_calculated_angle_without_context(calculated: &crate::style_value::StyleValueData) -> Option<f64> {
+pub(crate) fn resolve_calculated_angle_without_context(
+    calculated: &crate::css::style_value::StyleValueData,
+) -> Option<f64> {
     let (value, numeric_type, resolve_as) = resolve_calculated_without_context(calculated, None)?;
     numeric_type.matches_dimension(1, resolve_as).then_some(value)
 }
@@ -2886,8 +2889,8 @@ pub(crate) fn resolve_calculated_angle_without_context(calculated: &crate::style
 /// Resolves a calculated value that must produce an angle using the immutable
 /// per-element length metrics supplied to animation evaluation.
 pub(crate) fn resolve_calculated_angle_with_context(
-    calculated: &crate::style_value::StyleValueData,
-    context: &crate::style_compute::FfiLengthResolutionContext,
+    calculated: &crate::css::style_value::StyleValueData,
+    context: &crate::css::style_compute::FfiLengthResolutionContext,
 ) -> Option<f64> {
     let (value, numeric_type, resolve_as) = resolve_calculated_with_length_resolution(
         calculated,
@@ -2904,7 +2907,7 @@ pub(crate) fn resolve_calculated_angle_with_context(
 /// nearest integer (toward +inf on a .5 fraction), with no external context;
 /// the equivalent of the C++ resolve_integer with an empty context.
 pub(crate) fn resolve_calculated_integer_without_context(
-    calculated: &crate::style_value::StyleValueData,
+    calculated: &crate::css::style_value::StyleValueData,
 ) -> Option<i32> {
     let (value, numeric_type, resolve_as) = resolve_calculated_without_context(calculated, None)?;
     if !numeric_type.matches_number(resolve_as) {
@@ -2925,12 +2928,12 @@ pub(crate) fn resolve_calculated_integer_without_context(
 /// basis length; the equivalent of the C++ resolve_length with a percentage
 /// basis and an otherwise empty context. Returns pixels.
 pub(crate) fn resolve_calculated_length_without_context(
-    calculated: &crate::style_value::StyleValueData,
+    calculated: &crate::css::style_value::StyleValueData,
     percentage_basis_px: f64,
 ) -> Option<f64> {
     let basis = CalcNumericValue::Length {
         value: percentage_basis_px,
-        unit: canonical_unit_code(&crate::style_compute::LENGTH_UNIT_CANONICAL_PX_RATIOS),
+        unit: canonical_unit_code(&crate::css::style_compute::LENGTH_UNIT_CANONICAL_PX_RATIOS),
     };
     let (value, numeric_type, resolve_as) = resolve_calculated_without_context(calculated, Some(basis))?;
     (numeric_type.matches_dimension(0, resolve_as) || numeric_type.matches_percentage()).then_some(value)
@@ -2939,8 +2942,8 @@ pub(crate) fn resolve_calculated_length_without_context(
 /// Resolves a calculated value that must produce a length using the immutable
 /// per-element length metrics supplied to animation evaluation.
 pub(crate) fn resolve_calculated_length_with_context(
-    calculated: &crate::style_value::StyleValueData,
-    context: &crate::style_compute::FfiLengthResolutionContext,
+    calculated: &crate::css::style_value::StyleValueData,
+    context: &crate::css::style_compute::FfiLengthResolutionContext,
 ) -> Option<f64> {
     let (value, numeric_type, resolve_as) = resolve_calculated_with_length_resolution(
         calculated,
@@ -2964,12 +2967,12 @@ pub(crate) enum ResolvedLineHeightCalc {
 /// and percentages resolve to pixels, numbers stay multipliers, as in the C++
 /// compute_line_height calc handling.
 pub(crate) fn resolve_calculated_line_height_without_context(
-    calculated: &crate::style_value::StyleValueData,
+    calculated: &crate::css::style_value::StyleValueData,
     computed_font_size_px: f64,
 ) -> Option<ResolvedLineHeightCalc> {
     let basis = CalcNumericValue::Length {
         value: computed_font_size_px,
-        unit: canonical_unit_code(&crate::style_compute::LENGTH_UNIT_CANONICAL_PX_RATIOS),
+        unit: canonical_unit_code(&crate::css::style_compute::LENGTH_UNIT_CANONICAL_PX_RATIOS),
     };
     let (value, numeric_type, resolve_as) = resolve_calculated_without_context(calculated, Some(basis))?;
     if numeric_type.matches_dimension(0, resolve_as) || numeric_type.matches_percentage() {
@@ -2993,8 +2996,8 @@ pub unsafe extern "C" fn rust_calc_resolve(
     context: *const FfiCalcResolutionContext,
     apply_censoring_and_clamping: bool,
 ) -> FfiResolvedCalc {
-    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcOperationEntry);
-    use crate::style_value::StyleValueData;
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcOperationEntry);
+    use crate::css::style_value::StyleValueData;
     crate::abort_on_panic(|| {
         let StyleValueData::Calculated {
             rust_calculation,
@@ -3084,7 +3087,7 @@ impl CalcNumericValue {
             CalcNumericValue::Angle { unit, .. } => ANGLE_UNIT_NAMES[unit as usize],
             CalcNumericValue::Flex { unit, .. } => FLEX_UNIT_NAMES[unit as usize],
             CalcNumericValue::Frequency { unit, .. } => FREQUENCY_UNIT_NAMES[unit as usize],
-            CalcNumericValue::Length { unit, .. } => crate::style_compute::LENGTH_UNIT_NAMES[unit as usize],
+            CalcNumericValue::Length { unit, .. } => crate::css::style_compute::LENGTH_UNIT_NAMES[unit as usize],
             CalcNumericValue::Resolution { unit, .. } => RESOLUTION_UNIT_NAMES[unit as usize],
             CalcNumericValue::Time { unit, .. } => TIME_UNIT_NAMES[unit as usize],
         }
@@ -3095,7 +3098,7 @@ struct CalcSerializer<'a> {
     pieces: Vec<FfiCalcSerializationPiece>,
     resolved_mode: bool,
     resolve_numbers_as_integers: bool,
-    accepted_ranges: &'a [crate::style_value::RetainedNumericRangeByType],
+    accepted_ranges: &'a [crate::css::style_value::RetainedNumericRangeByType],
 }
 
 impl CalcSerializer<'_> {
@@ -3533,8 +3536,8 @@ pub unsafe extern "C" fn rust_calc_serialize(
     calculated: *const std::ffi::c_void,
     resolved_mode: bool,
 ) -> FfiCalcSerialization {
-    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcOperationEntry);
-    use crate::style_value::StyleValueData;
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcOperationEntry);
+    use crate::css::style_value::StyleValueData;
     crate::abort_on_panic(|| {
         let StyleValueData::Calculated {
             rust_calculation,
@@ -3729,7 +3732,7 @@ impl CalcNode {
 
     fn contains_anchor_function(&self) -> bool {
         if let CalcNode::NonMathFunction { value, .. } = self
-            && matches!(value.data(), crate::style_value::StyleValueData::Anchor { .. })
+            && matches!(value.data(), crate::css::style_value::StyleValueData::Anchor { .. })
         {
             return true;
         }
@@ -3746,8 +3749,8 @@ impl CalcNode {
 /// Both pointers must reference Calculated style value data.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_calc_equals(first: *const std::ffi::c_void, second: *const std::ffi::c_void) -> bool {
-    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcOperationEntry);
-    use crate::style_value::StyleValueData;
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcOperationEntry);
+    use crate::css::style_value::StyleValueData;
     crate::abort_on_panic(|| {
         let tree_of = |data: *const std::ffi::c_void| {
             let StyleValueData::Calculated { rust_calculation, .. } = (unsafe { &*(data as *const StyleValueData) })
@@ -3768,10 +3771,10 @@ pub unsafe extern "C" fn rust_calc_equals(first: *const std::ffi::c_void, second
 /// `calculated` must point at Calculated style value data.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_calc_contains_anchor(calculated: *const std::ffi::c_void) -> bool {
-    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcOperationEntry);
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcOperationEntry);
     crate::abort_on_panic(|| {
-        let crate::style_value::StyleValueData::Calculated { rust_calculation, .. } =
-            (unsafe { &*(calculated as *const crate::style_value::StyleValueData) })
+        let crate::css::style_value::StyleValueData::Calculated { rust_calculation, .. } =
+            (unsafe { &*(calculated as *const crate::css::style_value::StyleValueData) })
         else {
             unreachable!("rust_calc_contains_anchor requires calculated value data");
         };
@@ -3899,15 +3902,15 @@ fn append_reification_node(
 /// `calculated` must point at Calculated style value data.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_calc_describe_for_typed_om(calculated: *const std::ffi::c_void) -> FfiCalcReification {
-    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcOperationEntry);
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcOperationEntry);
     crate::abort_on_panic(|| {
-        let crate::style_value::StyleValueData::Calculated {
+        let crate::css::style_value::StyleValueData::Calculated {
             rust_calculation,
             has_percentages_resolve_as,
             resolve_as_is_number,
             resolve_as_base,
             ..
-        } = (unsafe { &*(calculated as *const crate::style_value::StyleValueData) })
+        } = (unsafe { &*(calculated as *const crate::css::style_value::StyleValueData) })
         else {
             unreachable!("rust_calc_describe_for_typed_om requires calculated value data");
         };
@@ -3970,7 +3973,7 @@ pub unsafe extern "C" fn rust_calc_reification_release(storage: *mut std::ffi::c
 /// `node` must be a valid calculation node pointer.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_calc_node_style_value(node: *const CalcNode) -> *const std::ffi::c_void {
-    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcNodeQueryEntry);
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcNodeQueryEntry);
     crate::abort_on_panic(|| match unsafe { &*node } {
         CalcNode::Random { sharing, .. } => sharing.data() as *const _ as *const _,
         CalcNode::NonMathFunction { value, .. } => value.data() as *const _ as *const _,
@@ -3996,7 +3999,7 @@ pub unsafe extern "C" fn rust_calc_simplify_tree(
     resolve_as_is_number: bool,
     resolve_as_base: u8,
 ) -> *const CalcNode {
-    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcOperationEntry);
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcOperationEntry);
     crate::abort_on_panic(|| {
         let context = unsafe { &*context };
         unsafe { Arc::increment_strong_count(root) };
@@ -4030,8 +4033,8 @@ pub unsafe extern "C" fn rust_calc_absolutize(
     calculated: *const std::ffi::c_void,
     context: *const FfiCalcResolutionContext,
 ) -> FfiAbsolutizedCalc {
-    crate::ffi_stats::bump(crate::ffi_stats::FfiOp::CalcOperationEntry);
-    use crate::style_value::StyleValueData;
+    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcOperationEntry);
+    use crate::css::style_value::StyleValueData;
     crate::abort_on_panic(|| {
         let StyleValueData::Calculated {
             rust_calculation,

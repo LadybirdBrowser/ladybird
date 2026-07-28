@@ -9,11 +9,12 @@ crate-type = ["staticlib"]
 # After changing dependencies, regenerate the Flatpak sources:
 #   python3 Meta/CMake/flatpak/generate-cargo-sources.py
 [dependencies]
-libweb_html_tokenizer = { path = "../HTML/Parser/Rust" }
 chardetng = "1.0.0"
+libweb_html_tokenizer = { path = "../HTML/Parser/Rust" }
 
 [build-dependencies]
 cbindgen = "0.29"
+serde_json = { version = "1", features = ["float_roundtrip", "preserve_order"] }
 
 [lints]
 workspace = true
