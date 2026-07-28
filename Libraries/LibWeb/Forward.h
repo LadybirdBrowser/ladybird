@@ -994,8 +994,6 @@ class LayoutTreeBuilderAccess;
 class VideoBox;
 class Viewport;
 
-enum class LayoutMode;
-
 }
 
 namespace Web::MathML {
