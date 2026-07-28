@@ -416,7 +416,7 @@ ContextState::AsyncScrollResult ContextState::async_scroll_by(
     return { .enqueue_result = { true, operation_id }, .frame_to_present = async_scroll_viewport_rect };
 }
 
-ContextState::AsyncScrollResult ContextState::smooth_scroll_to(Web::Compositor::AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint destination_offset, Gfx::FloatPoint main_thread_offset, Gfx::IntRect viewport_rect, double device_pixels_per_css_pixel)
+ContextState::AsyncScrollResult ContextState::smooth_scroll_to(Web::Compositor::AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint destination_offset, Gfx::FloatPoint main_thread_offset, Gfx::IntRect viewport_rect, double device_pixels_per_css_pixel, Web::Compositor::ScrollAnimationKind animation_kind)
 {
     if (!m_has_async_scrolling_state)
         return {};
@@ -437,7 +437,7 @@ ContextState::AsyncScrollResult ContextState::smooth_scroll_to(Web::Compositor::
         start_offset = main_thread_offset;
 
     auto operation_id = ++m_next_async_scroll_operation_id;
-    Web::Compositor::SmoothScrollAnimation animation { start_offset, destination_offset, device_pixels_per_css_pixel };
+    Web::Compositor::SmoothScrollAnimation animation { start_offset, destination_offset, device_pixels_per_css_pixel, animation_kind };
     if (animation.duration().is_zero()) {
         m_completed_async_scroll_operation_ids.append(operation_id);
         request_rendering_update();

@@ -883,4 +883,56 @@ SnapDestination select_resnap_destination(Layout::Node const& snap_container, CS
     return snap_destination;
 }
 
+// The largest share of a momentum delta that the delta after it may keep for the momentum to be considered decaying.
+static constexpr double maximum_momentum_decay_share = 0.96;
+
+// The share a momentum delta keeps of the one before it is treated as no larger than this, so that momentum which
+// barely decays is predicted to travel a hundred times the distance of its latest delta rather than forever.
+static constexpr double maximum_slow_momentum_decay_share = 0.99;
+
+// The number of consecutively smaller momentum deltas after which momentum that decays only slowly is predicted from
+// anyway.
+static constexpr u32 decaying_deltas_before_slow_decay_is_predicted_from = 3;
+
+void MomentumFlingEstimator::reset()
+{
+    m_previous_momentum_delta = {};
+    m_consecutively_decaying_momentum_deltas = 0;
+}
+
+Optional<CSSPixelPoint> MomentumFlingEstimator::estimate_remaining_displacement(CSSPixelPoint momentum_delta)
+{
+    auto previous_momentum_delta = m_previous_momentum_delta;
+    m_previous_momentum_delta = momentum_delta;
+
+    // The share the delta keeps of the one before it is what the momentum decays by, so the first delta of a flick
+    // says nothing about where it is headed.
+    if (!previous_momentum_delta.has_value())
+        return {};
+    auto distance = AK::hypot(momentum_delta.x().to_double(), momentum_delta.y().to_double());
+    auto previous_distance = AK::hypot(previous_momentum_delta->x().to_double(), previous_momentum_delta->y().to_double());
+    if (previous_distance <= 0)
+        return {};
+    auto decay_share = distance / previous_distance;
+
+    if (decay_share < 1) {
+        ++m_consecutively_decaying_momentum_deltas;
+    } else {
+        m_consecutively_decaying_momentum_deltas = 0;
+    }
+
+    auto momentum_is_decaying = decay_share < maximum_momentum_decay_share
+        || (m_consecutively_decaying_momentum_deltas >= decaying_deltas_before_slow_decay_is_predicted_from && decay_share < 1);
+    if (!momentum_is_decaying)
+        return {};
+
+    // Each delta keeps the same share of the one before it, so the deltas still to come sum to the delta given
+    // divided by the share it loses each time.
+    auto remaining_distance_factor = 1 / (1 - min(decay_share, maximum_slow_momentum_decay_share));
+    return CSSPixelPoint {
+        CSSPixels::nearest_value_for(momentum_delta.x().to_double() * remaining_distance_factor),
+        CSSPixels::nearest_value_for(momentum_delta.y().to_double() * remaining_distance_factor),
+    };
+}
+
 }

@@ -154,12 +154,15 @@ enum class WheelRoutingAdmission {
     StaleWheelEventListeners,
 };
 
+// A discrete wheel step and the momentum of a flick both scroll straight to the snap position they select, and only
+// the main thread holds the snap positions to select from, so the compositor declines the deltas of either whose
+// scrolling box snaps along an axis they travel in.
 enum class SnapContainerHandling : u8 {
     ScrollOnCompositor,
     DeferToMainThread,
 };
 
-WEB_API SnapContainerHandling snap_container_handling_for(WheelDeltaPrecision);
+WEB_API SnapContainerHandling snap_container_handling_for(WheelDeltaPrecision, ScrollGesturePhase);
 
 enum class WheelScrollAdmission {
     Accepted,
