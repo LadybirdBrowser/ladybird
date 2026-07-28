@@ -53,6 +53,7 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Internals/InternalGamepad.h>
 #include <LibWeb/Internals/Internals.h>
+#include <LibWeb/Layout/TreeBuilderRustFFI.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Loader/ContentBlocker.h>
 #include <LibWeb/Loader/ResourceLoader.h>
