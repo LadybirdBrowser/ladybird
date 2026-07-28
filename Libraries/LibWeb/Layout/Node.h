@@ -77,17 +77,6 @@ enum class LayoutUpdatePropagation : u8 {
     BoundarySelfOnly,
 };
 
-enum class LayoutMode {
-    // Normal layout. No min-content or max-content constraints applied.
-    Normal,
-
-    // Intrinsic size determination.
-    // Boxes honor min-content and max-content constraints stored in the Rust used-values core
-    // by considering their containing block to be 0-sized or infinitely large in the relevant axis.
-    // https://drafts.csswg.org/css-sizing-3/#intrinsic-sizing
-    IntrinsicSizing,
-};
-
 class NodeArenaAllocation {
 protected:
     explicit NodeArenaAllocation(DOM::Document&);
@@ -230,10 +219,8 @@ public:
     bool fast_is() const = delete;
 
     bool is_flex_item() const { return has_flag(RustFFI::NodeFlag::IsFlexItem); }
-    void set_flex_item(bool value) { set_flag(RustFFI::NodeFlag::IsFlexItem, value); }
 
     bool is_grid_item() const { return has_flag(RustFFI::NodeFlag::IsGridItem); }
-    void set_grid_item(bool value) { set_flag(RustFFI::NodeFlag::IsGridItem, value); }
 
     bool vertical_align_applies() const
     {
