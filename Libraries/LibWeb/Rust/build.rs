@@ -981,7 +981,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Layout tree-builder header - namespace Web::Layout::RustFFI. The node arena and its
     // node records are read directly by the C++ layout tree wrappers.
-    let mut tree_builder_config = base_config;
+    let mut tree_builder_config = base_config.clone();
     tree_builder_config.namespaces = Some(vec!["Web".to_string(), "Layout".to_string(), "RustFFI".to_string()]);
     tree_builder_config.export.include = vec![
         "FfiNodeKindFacts".to_string(),
@@ -1008,6 +1008,64 @@ fn main() -> Result<(), Box<dyn Error>> {
         &out_dir,
         &ffi_out_dir,
         Path::new("Layout/TreeBuilderRustFFI.h"),
+    );
+
+    // Layout engine header - namespace Web::Layout::RustFFI, layered on the tree-builder
+    // header. CssPixels is a single i32 fixed-point value shared with the CSS module; C++
+    // already has the matching CSSPixels class, so expose its raw representation in the
+    // generated ABI rather than generating a second C++ pixel type in the RustFFI namespace.
+    let mut layout_config = base_config;
+    layout_config.namespaces = Some(vec!["Web".to_string(), "Layout".to_string(), "RustFFI".to_string()]);
+    layout_config.export.exclude = vec![
+        "rust_calc_node_create_numeric_dimension".to_string(),
+        "rust_calc_resolve".to_string(),
+        "CssPixels".to_string(),
+        "rust_calc_root_from_calculated".to_string(),
+        "rust_calc_external_resolutions".to_string(),
+        "rust_calc_external_resolutions_release".to_string(),
+    ];
+    layout_config
+        .export
+        .rename
+        .insert("CssPixels".to_string(), "int32_t".to_string());
+    layout_config
+        .includes
+        .push("LibWeb/Layout/TreeBuilderRustFFI.h".to_string());
+    layout_config.export.include = vec![
+        "FfiGridTrackEntryKind".to_string(),
+        "FfiGridTrackBreadthKind".to_string(),
+        "FfiGridPlacementKind".to_string(),
+        "FfiGridTrackType".to_string(),
+        "FfiGridTrackState".to_string(),
+        "FfiFormattingContextType".to_string(),
+        "FfiFlexLayoutClampState".to_string(),
+        "FfiFlexLayoutGrowthState".to_string(),
+        "FfiSizeKind".to_string(),
+    ];
+    generate_ffi_header_strict(
+        layout_config,
+        &[
+            manifest_dir.join("src/layout/used_values.rs"),
+            manifest_dir.join("src/layout/layout_state.rs"),
+            manifest_dir.join("src/layout/geometry.rs"),
+            manifest_dir.join("src/layout/style_facts.rs"),
+            manifest_dir.join("src/layout/node_facts.rs"),
+            manifest_dir.join("src/css/computed_value_types.rs"),
+            manifest_dir.join("src/css/display.rs"),
+            manifest_dir.join("src/layout/formatting_context.rs"),
+            manifest_dir.join("src/layout/flex_formatting_context.rs"),
+            manifest_dir.join("src/layout/grid_formatting_context.rs"),
+            manifest_dir.join("src/layout/svg_formatting_context.rs"),
+            manifest_dir.join("src/layout/table_formatting_context.rs"),
+            manifest_dir.join("src/layout/inline_formatting_context.rs"),
+            manifest_dir.join("src/layout/inline_level_iterator.rs"),
+            manifest_dir.join("src/layout/line_builder.rs"),
+            manifest_dir.join("src/layout/line_box.rs"),
+            manifest_dir.join("src/layout/line_box_fragment.rs"),
+        ],
+        &out_dir,
+        &ffi_out_dir,
+        Path::new("Layout/LayoutRustFFI.h"),
     );
 
     Ok(())
