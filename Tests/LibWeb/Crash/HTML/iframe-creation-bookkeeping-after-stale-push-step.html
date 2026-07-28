@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<!-- A same-document replace jumps the session history traversal queue while frameB's cross-document push is applying
+     its history step, and the nested run's newer generation keeps the outer push run from committing its step — pinning
+     the traversable's current session history step behind frameB's pushed entry's step. Appending an iframe then queues
+     the navigable-creation bookkeeping (a null-navigationType apply-history-step run), which sees frameB's target entry
+     pointing at a document other than the displayed one. It must not populate and swap documents for frameB: that fails
+     the spec step-11 assert that a creation/destruction update never performs a cross-document change. See #10893. -->
+<html class="test-wait">
+<iframe id="frameB" src="../../Assets/blank.html?b1"></iframe>
+<script>
+    window.onload = () => {
+        const frameB = document.getElementById("frameB");
+        const initialHistoryLength = history.length;
+        let storming = true;
+
+        window.onmessage = () => {
+            if (!storming)
+                return;
+            if (history.length > initialHistoryLength) {
+                storming = false;
+                return;
+            }
+            history.replaceState(null, "", "#storm");
+            window.postMessage(0, "*");
+        };
+
+        frameB.onload = () => {
+            storming = false;
+            const f = document.createElement("iframe");
+            document.body.append(f);
+            // Whether the bookkeeping run skips frameB (correct) or populates its target entry (the regression),
+            // nothing observable signals that it has finished; give it ample time.
+            setTimeout(() => {
+                document.documentElement.classList.remove("test-wait");
+            }, 500);
+        };
+
+        window.postMessage(0, "*");
+        frameB.contentWindow.location.href = "../../Assets/blank.html?b2";
+    };
+</script>
+</html>
