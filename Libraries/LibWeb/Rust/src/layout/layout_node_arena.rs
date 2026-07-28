@@ -5,8 +5,8 @@
  */
 
 use crate::abort_on_panic;
-use crate::node_data::NodeData;
-use crate::node_data::NodeSlotId;
+use crate::layout::node_data::NodeData;
+use crate::layout::node_data::NodeSlotId;
 use std::ffi::c_void;
 use std::thread;
 

@@ -800,6 +800,36 @@ fn generate_ffi_header(
     );
 }
 
+/// Strict variant for the layout headers: dormant layout sources are parsed
+/// by cbindgen before they join the module tree, so a syntax error anywhere
+/// must fail the build instead of silently producing a stale header.
+fn generate_ffi_header_strict(
+    config: cbindgen::Config,
+    sources: &[PathBuf],
+    out_dir: &Path,
+    ffi_out_dir: &Path,
+    header: &Path,
+) {
+    let builder = sources
+        .iter()
+        .fold(cbindgen::Builder::new().with_config(config), |builder, source| {
+            builder.with_src(source)
+        });
+    builder.generate().map_or_else(
+        |error| panic!("{error}"),
+        |bindings| {
+            let output_header = out_dir.join(header);
+            std::fs::create_dir_all(output_header.parent().unwrap()).unwrap();
+            bindings.write_to_file(output_header);
+            if ffi_out_dir != out_dir {
+                let ffi_header = ffi_out_dir.join(header);
+                std::fs::create_dir_all(ffi_header.parent().unwrap()).unwrap();
+                bindings.write_to_file(ffi_header);
+            }
+        },
+    );
+}
+
 fn main() -> Result<(), Box<dyn Error>> {
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR")?);
     let out_dir = PathBuf::from(env::var("OUT_DIR")?);
@@ -937,7 +967,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
 
     // Encoding-detection header - namespace Web::HTML::Parser, rust_detect_encoding only.
-    let mut html_config = base_config;
+    let mut html_config = base_config.clone();
     html_config.namespaces = Some(vec!["Web".to_string(), "HTML".to_string(), "Parser".to_string()]);
     html_config.export.include = vec!["rust_detect_encoding".to_string()];
 
@@ -947,6 +977,37 @@ fn main() -> Result<(), Box<dyn Error>> {
         &out_dir,
         &ffi_out_dir,
         Path::new("HTML/Parser/RustFFI.h"),
+    );
+
+    // Layout tree-builder header - namespace Web::Layout::RustFFI. The node arena and its
+    // node records are read directly by the C++ layout tree wrappers.
+    let mut tree_builder_config = base_config;
+    tree_builder_config.namespaces = Some(vec!["Web".to_string(), "Layout".to_string(), "RustFFI".to_string()]);
+    tree_builder_config.export.include = vec![
+        "FfiNodeKindFacts".to_string(),
+        "FfiTableDisplay".to_string(),
+        "NodeAllocation".to_string(),
+        "NodeData".to_string(),
+        "NodeDisplayFlag".to_string(),
+        "NodeFlag".to_string(),
+        "NodeKind".to_string(),
+        "NodeSlotId".to_string(),
+    ];
+    tree_builder_config.export.exclude = vec![
+        "rust_calc_node_create_numeric_dimension".to_string(),
+        "rust_calc_resolve".to_string(),
+    ];
+    generate_ffi_header_strict(
+        tree_builder_config,
+        &[
+            manifest_dir.join("src/layout/layout_node_arena.rs"),
+            manifest_dir.join("src/layout/node_data.rs"),
+            manifest_dir.join("src/layout/tree_builder.rs"),
+            manifest_dir.join("../../RustAllocator.rs"),
+        ],
+        &out_dir,
+        &ffi_out_dir,
+        Path::new("Layout/TreeBuilderRustFFI.h"),
     );
 
     Ok(())

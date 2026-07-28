@@ -5,8 +5,8 @@
  */
 
 use crate::abort_on_panic;
-use crate::layout_node_arena::LayoutNodeArena;
-use crate::node_data::{
+use crate::layout::layout_node_arena::LayoutNodeArena;
+use crate::layout::node_data::{
     FfiTableDisplay, GENERATED_FOR_MARKER, NodeData, NodeDisplayFlag, NodeFlag, NodeKind, NodeSlotId,
 };
 use std::ffi::c_void;
@@ -3146,7 +3146,7 @@ mod tests {
         principal_box_generation_decision, principal_box_placement_decision, principal_node_entry_decision,
         pseudo_element_decision,
     };
-    use crate::node_data::NodeSlotId;
+    use crate::layout::node_data::NodeSlotId;
     use std::ffi::c_void;
 
     unsafe extern "C" fn text_length(context: *mut c_void) -> usize {
