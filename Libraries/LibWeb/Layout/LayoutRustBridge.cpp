@@ -1744,10 +1744,6 @@ RustFFI::FfiLayoutFcCallbacks LayoutRustBridge::formatting_context_callbacks()
         .initial_containing_block_inline_size = m_commit_root->document().viewport_rect().width().raw_value(),
         .document_in_quirks_mode = m_commit_root->document().in_quirks_mode(),
         .static_position_containing_block = [](void*, void* node) { return Node::slot_id(static_cast<Box const*>(node)->static_position_containing_block()); },
-        .dom_node_is_inclusive_ancestor = [](void*, void* ancestor, void* node) {
-            auto const* ancestor_dom_node = static_cast<Node const*>(ancestor)->dom_node();
-            auto const* dom_node = static_cast<Node const*>(node)->dom_node();
-            return ancestor_dom_node && dom_node && ancestor_dom_node->is_inclusive_ancestor_of(*dom_node); },
         .needs_inset_resolution = [](void*, void* node) {
             auto const& styled_node = *static_cast<NodeWithStyleAndBoxModelMetrics const*>(node);
             if (styled_node.computed_values().position() == CSS::Positioning::Relative)
