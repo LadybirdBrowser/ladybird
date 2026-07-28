@@ -39,6 +39,7 @@ mod tree_builder;
 
 include!("used_values.rs");
 
+use crate::layout::layout_node_arena::IntrinsicInlineSizeMeasurement;
 use crate::layout::layout_node_arena::IntrinsicSizeCacheKey;
 use crate::layout::layout_node_arena::IntrinsicSizeCacheKind;
 use crate::layout::layout_node_arena::LayoutNodeArena;

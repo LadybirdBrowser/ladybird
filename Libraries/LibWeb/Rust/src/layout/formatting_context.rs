@@ -3362,7 +3362,7 @@ impl<'pass> SizingContext<'pass> {
             - used.border_bottom.get()
     }
 
-    fn intrinsic_cache_get(
+    fn intrinsic_block_cache_get(
         &self,
         node: Node,
         kind: IntrinsicSizeCacheKind,
@@ -3370,10 +3370,10 @@ impl<'pass> SizingContext<'pass> {
     ) -> Option<CssPixels> {
         self.callbacks
             .arena()
-            .intrinsic_size_cache_get(self.callbacks.node_data(node), kind, key)
+            .intrinsic_block_size_cache_get(self.callbacks.node_data(node), kind, key)
     }
 
-    fn intrinsic_cache_put(
+    fn intrinsic_block_cache_put(
         &self,
         node: Node,
         kind: IntrinsicSizeCacheKind,
@@ -3382,7 +3382,102 @@ impl<'pass> SizingContext<'pass> {
     ) {
         self.callbacks
             .arena()
-            .intrinsic_size_cache_put(self.callbacks.node_data(node), kind, key, value);
+            .intrinsic_block_size_cache_put(self.callbacks.node_data(node), kind, key, value);
+    }
+
+    fn intrinsic_inline_measurement_cache_get(
+        &self,
+        node: Node,
+        kind: IntrinsicSizeCacheKind,
+        key: IntrinsicSizeCacheKey,
+    ) -> Option<IntrinsicInlineSizeMeasurement> {
+        self.callbacks.arena().intrinsic_inline_size_measurement_cache_get(
+            self.callbacks.node_data(node),
+            kind,
+            key,
+        )
+    }
+
+    fn intrinsic_inline_measurement_cache_put(
+        &self,
+        node: Node,
+        kind: IntrinsicSizeCacheKind,
+        key: IntrinsicSizeCacheKey,
+        value: IntrinsicInlineSizeMeasurement,
+    ) {
+        self.callbacks.arena().intrinsic_inline_size_measurement_cache_put(
+            self.callbacks.node_data(node),
+            kind,
+            key,
+            value,
+        );
+    }
+
+    fn cache_intrinsic_inline_measurement(
+        &self,
+        node: Node,
+        kind: IntrinsicSizeCacheKind,
+        key: IntrinsicSizeCacheKey,
+        measurement: &MeasurementState,
+        result: ChildLayoutResult,
+        available_block_size: AvailableSize,
+    ) {
+        let used = measurement.root_used();
+        self.intrinsic_inline_measurement_cache_put(
+            node,
+            kind,
+            key,
+            IntrinsicInlineSizeMeasurement {
+                automatic_content_inline_size: result.automatic_content_inline_size,
+                available_block_size,
+                content_inline_size: used.content_inline_size.get(),
+                content_block_size: used.content_block_size.get(),
+                automatic_content_block_size: result.automatic_content_block_size,
+                uses_collapsing_borders_model: used.uses_collapsing_borders_model.get(),
+                has_first_baseline: used.has_first_baseline.get(),
+                first_baseline: used.first_baseline.get(),
+                has_last_baseline: used.has_last_baseline.get(),
+                last_baseline: used.last_baseline.get(),
+            },
+        );
+    }
+
+    pub(crate) fn apply_cached_intrinsic_inline_measurement(
+        &self,
+        node: Node,
+        available_inline_size: AvailableSize,
+        available_block_size: AvailableSize,
+        constraints: ContainingBlockConstraints,
+    ) -> Option<CssPixels> {
+        // OPTIMIZATION: Calculating an intrinsic inline size already performs a complete measurement layout.
+        // A later equivalent intrinsic line build only consumes the atomic box's measured dimensions and
+        // baselines, so retain that summary instead of formatting the same descendants again. Commit layout
+        // must still create all descendant geometry.
+        if !self.state.is_measurement() {
+            return None;
+        }
+        let kind = match available_inline_size {
+            AvailableSize::MinContent => IntrinsicSizeCacheKind::MinContentInline,
+            AvailableSize::MaxContent => IntrinsicSizeCacheKind::MaxContentInline,
+            AvailableSize::Definite(_) | AvailableSize::Indefinite => return None,
+        };
+        let measurement = self.intrinsic_inline_measurement_cache_get(node, kind, cache_key(None, constraints))?;
+        if measurement.available_block_size != available_block_size {
+            return None;
+        }
+        let used = self.used_mut(node);
+        if used.content_inline_size.get() != measurement.content_inline_size {
+            return None;
+        }
+
+        used.set_content_block_size(measurement.content_block_size);
+        used.uses_collapsing_borders_model
+            .set(measurement.uses_collapsing_borders_model);
+        used.has_first_baseline.set(measurement.has_first_baseline);
+        used.first_baseline.set(measurement.first_baseline);
+        used.has_last_baseline.set(measurement.has_last_baseline);
+        used.last_baseline.set(measurement.last_baseline);
+        Some(measurement.automatic_content_block_size)
     }
 
     fn calculate_transferred_inline_size_for_replaced_element(
@@ -3473,8 +3568,10 @@ impl<'pass> SizingContext<'pass> {
             return CssPixels::default();
         }
         let key = cache_key(None, constraints);
-        if let Some(cached) = self.intrinsic_cache_get(node, IntrinsicSizeCacheKind::MinContentInline, key) {
-            return cached;
+        if let Some(cached) =
+            self.intrinsic_inline_measurement_cache_get(node, IntrinsicSizeCacheKind::MinContentInline, key)
+        {
+            return cached.automatic_content_inline_size;
         }
 
         let measurement = MeasurementState::create(self.callbacks, node, constraints);
@@ -3486,7 +3583,7 @@ impl<'pass> SizingContext<'pass> {
         } else {
             AvailableSize::Indefinite
         };
-        let result = measurement.run(
+        let mut result = measurement.run(
             node,
             LayoutInput {
                 available_space: AvailableSpace {
@@ -3498,8 +3595,16 @@ impl<'pass> SizingContext<'pass> {
                 table_grid_min_border_box_block_size: None,
             },
         );
-        let value = clamp_to_max_dimension_value(result.automatic_content_inline_size);
-        self.intrinsic_cache_put(node, IntrinsicSizeCacheKind::MinContentInline, key, value);
+        result.automatic_content_inline_size = clamp_to_max_dimension_value(result.automatic_content_inline_size);
+        let value = result.automatic_content_inline_size;
+        self.cache_intrinsic_inline_measurement(
+            node,
+            IntrinsicSizeCacheKind::MinContentInline,
+            key,
+            &measurement,
+            result,
+            block_size,
+        );
         value
     }
 
@@ -3663,8 +3768,10 @@ impl<'pass> SizingContext<'pass> {
             return CssPixels::default();
         }
         let key = cache_key(None, constraints);
-        if let Some(cached) = self.intrinsic_cache_get(node, IntrinsicSizeCacheKind::MaxContentInline, key) {
-            return cached;
+        if let Some(cached) =
+            self.intrinsic_inline_measurement_cache_get(node, IntrinsicSizeCacheKind::MaxContentInline, key)
+        {
+            return cached.automatic_content_inline_size;
         }
 
         let measurement = MeasurementState::create(self.callbacks, node, constraints);
@@ -3676,7 +3783,7 @@ impl<'pass> SizingContext<'pass> {
         } else {
             AvailableSize::Indefinite
         };
-        let result = measurement.run(
+        let mut result = measurement.run(
             node,
             LayoutInput {
                 available_space: AvailableSpace {
@@ -3688,8 +3795,16 @@ impl<'pass> SizingContext<'pass> {
                 table_grid_min_border_box_block_size: None,
             },
         );
-        let value = clamp_to_max_dimension_value(result.automatic_content_inline_size);
-        self.intrinsic_cache_put(node, IntrinsicSizeCacheKind::MaxContentInline, key, value);
+        result.automatic_content_inline_size = clamp_to_max_dimension_value(result.automatic_content_inline_size);
+        let value = result.automatic_content_inline_size;
+        self.cache_intrinsic_inline_measurement(
+            node,
+            IntrinsicSizeCacheKind::MaxContentInline,
+            key,
+            &measurement,
+            result,
+            block_size,
+        );
         value
     }
 
@@ -3714,7 +3829,7 @@ impl<'pass> SizingContext<'pass> {
             return CssPixels::default();
         }
         let key = cache_key(Some(inline_size), constraints);
-        if let Some(cached) = self.intrinsic_cache_get(node, IntrinsicSizeCacheKind::MinContentBlock, key) {
+        if let Some(cached) = self.intrinsic_block_cache_get(node, IntrinsicSizeCacheKind::MinContentBlock, key) {
             return cached;
         }
 
@@ -3736,7 +3851,7 @@ impl<'pass> SizingContext<'pass> {
             },
         );
         let value = clamp_to_max_dimension_value(result.automatic_content_block_size);
-        self.intrinsic_cache_put(node, IntrinsicSizeCacheKind::MinContentBlock, key, value);
+        self.intrinsic_block_cache_put(node, IntrinsicSizeCacheKind::MinContentBlock, key, value);
         value
     }
 
@@ -3766,7 +3881,7 @@ impl<'pass> SizingContext<'pass> {
             return CssPixels::default();
         }
         let key = cache_key(Some(inline_size), constraints);
-        if let Some(cached) = self.intrinsic_cache_get(node, IntrinsicSizeCacheKind::MaxContentBlock, key) {
+        if let Some(cached) = self.intrinsic_block_cache_get(node, IntrinsicSizeCacheKind::MaxContentBlock, key) {
             return cached;
         }
 
@@ -3788,7 +3903,7 @@ impl<'pass> SizingContext<'pass> {
             },
         );
         let value = clamp_to_max_dimension_value(result.automatic_content_block_size);
-        self.intrinsic_cache_put(node, IntrinsicSizeCacheKind::MaxContentBlock, key, value);
+        self.intrinsic_block_cache_put(node, IntrinsicSizeCacheKind::MaxContentBlock, key, value);
         value
     }
 

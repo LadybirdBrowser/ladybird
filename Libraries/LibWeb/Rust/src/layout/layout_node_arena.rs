@@ -6,6 +6,7 @@
 
 use crate::abort_on_panic;
 use crate::layout::AbsposLayoutInputs;
+use crate::layout::AvailableSize;
 use crate::layout::CssPixels;
 use crate::layout::kind_is_box;
 use crate::layout::node_data::{MAX_NODE_SLOT_COUNT, NodeData, NodeFlag, NodeSlotId};
@@ -52,30 +53,67 @@ pub(crate) enum IntrinsicSizeCacheKind {
     MaxContentBlock,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct IntrinsicInlineSizeMeasurement {
+    pub(crate) automatic_content_inline_size: CssPixels,
+    pub(crate) available_block_size: AvailableSize,
+    pub(crate) content_inline_size: CssPixels,
+    pub(crate) content_block_size: CssPixels,
+    pub(crate) automatic_content_block_size: CssPixels,
+    pub(crate) uses_collapsing_borders_model: bool,
+    pub(crate) has_first_baseline: bool,
+    pub(crate) first_baseline: CssPixels,
+    pub(crate) has_last_baseline: bool,
+    pub(crate) last_baseline: CssPixels,
+}
+
 #[derive(Default)]
 struct IntrinsicSizeMaps {
-    min_content_inline_size: HashMap<IntrinsicSizeCacheKey, CssPixels>,
-    max_content_inline_size: HashMap<IntrinsicSizeCacheKey, CssPixels>,
+    min_content_inline_size: HashMap<IntrinsicSizeCacheKey, IntrinsicInlineSizeMeasurement>,
+    max_content_inline_size: HashMap<IntrinsicSizeCacheKey, IntrinsicInlineSizeMeasurement>,
     min_content_block_size: HashMap<IntrinsicSizeCacheKey, CssPixels>,
     max_content_block_size: HashMap<IntrinsicSizeCacheKey, CssPixels>,
 }
 
 impl IntrinsicSizeMaps {
-    fn values(&self, kind: IntrinsicSizeCacheKind) -> &HashMap<IntrinsicSizeCacheKey, CssPixels> {
+    fn block_sizes(&self, kind: IntrinsicSizeCacheKind) -> Option<&HashMap<IntrinsicSizeCacheKey, CssPixels>> {
         match kind {
-            IntrinsicSizeCacheKind::MinContentInline => &self.min_content_inline_size,
-            IntrinsicSizeCacheKind::MaxContentInline => &self.max_content_inline_size,
-            IntrinsicSizeCacheKind::MinContentBlock => &self.min_content_block_size,
-            IntrinsicSizeCacheKind::MaxContentBlock => &self.max_content_block_size,
+            IntrinsicSizeCacheKind::MinContentInline | IntrinsicSizeCacheKind::MaxContentInline => None,
+            IntrinsicSizeCacheKind::MinContentBlock => Some(&self.min_content_block_size),
+            IntrinsicSizeCacheKind::MaxContentBlock => Some(&self.max_content_block_size),
         }
     }
 
-    fn values_mut(&mut self, kind: IntrinsicSizeCacheKind) -> &mut HashMap<IntrinsicSizeCacheKey, CssPixels> {
+    fn block_sizes_mut(
+        &mut self,
+        kind: IntrinsicSizeCacheKind,
+    ) -> Option<&mut HashMap<IntrinsicSizeCacheKey, CssPixels>> {
         match kind {
-            IntrinsicSizeCacheKind::MinContentInline => &mut self.min_content_inline_size,
-            IntrinsicSizeCacheKind::MaxContentInline => &mut self.max_content_inline_size,
-            IntrinsicSizeCacheKind::MinContentBlock => &mut self.min_content_block_size,
-            IntrinsicSizeCacheKind::MaxContentBlock => &mut self.max_content_block_size,
+            IntrinsicSizeCacheKind::MinContentInline | IntrinsicSizeCacheKind::MaxContentInline => None,
+            IntrinsicSizeCacheKind::MinContentBlock => Some(&mut self.min_content_block_size),
+            IntrinsicSizeCacheKind::MaxContentBlock => Some(&mut self.max_content_block_size),
+        }
+    }
+
+    fn inline_measurements(
+        &self,
+        kind: IntrinsicSizeCacheKind,
+    ) -> Option<&HashMap<IntrinsicSizeCacheKey, IntrinsicInlineSizeMeasurement>> {
+        match kind {
+            IntrinsicSizeCacheKind::MinContentInline => Some(&self.min_content_inline_size),
+            IntrinsicSizeCacheKind::MaxContentInline => Some(&self.max_content_inline_size),
+            IntrinsicSizeCacheKind::MinContentBlock | IntrinsicSizeCacheKind::MaxContentBlock => None,
+        }
+    }
+
+    fn inline_measurements_mut(
+        &mut self,
+        kind: IntrinsicSizeCacheKind,
+    ) -> Option<&mut HashMap<IntrinsicSizeCacheKey, IntrinsicInlineSizeMeasurement>> {
+        match kind {
+            IntrinsicSizeCacheKind::MinContentInline => Some(&mut self.min_content_inline_size),
+            IntrinsicSizeCacheKind::MaxContentInline => Some(&mut self.max_content_inline_size),
+            IntrinsicSizeCacheKind::MinContentBlock | IntrinsicSizeCacheKind::MaxContentBlock => None,
         }
     }
 }
@@ -420,12 +458,19 @@ impl LayoutNodeArena {
         false
     }
 
-    pub(crate) fn intrinsic_size_cache_get(
+    pub(crate) fn intrinsic_block_size_cache_get(
         &self,
         data: &NodeData,
         kind: IntrinsicSizeCacheKind,
         key: IntrinsicSizeCacheKey,
     ) -> Option<CssPixels> {
+        assert!(
+            matches!(
+                kind,
+                IntrinsicSizeCacheKind::MinContentBlock | IntrinsicSizeCacheKind::MaxContentBlock
+            ),
+            "block size cache kind must use the block axis"
+        );
         if data.intrinsic_cache_epoch == u16::MAX {
             return None;
         }
@@ -436,16 +481,15 @@ impl LayoutNodeArena {
         if slot.generation != metadata.generation || slot.epoch != data.intrinsic_cache_epoch {
             return None;
         }
-        slot.sizes.as_ref()?.values(kind).get(&key).copied()
+        slot.sizes
+            .as_ref()?
+            .block_sizes(kind)
+            .expect("block size cache kind must use the block axis")
+            .get(&key)
+            .copied()
     }
 
-    pub(crate) fn intrinsic_size_cache_put(
-        &self,
-        data: &NodeData,
-        kind: IntrinsicSizeCacheKind,
-        key: IntrinsicSizeCacheKey,
-        value: CssPixels,
-    ) {
+    fn with_intrinsic_size_maps_mut(&self, data: &NodeData, callback: impl FnOnce(&mut IntrinsicSizeMaps)) {
         if data.intrinsic_cache_epoch == u16::MAX {
             return;
         }
@@ -463,10 +507,66 @@ impl LayoutNodeArena {
                 sizes: Some(Box::default()),
             };
         }
+        callback(slot.sizes.get_or_insert_with(Box::default));
+    }
+
+    pub(crate) fn intrinsic_block_size_cache_put(
+        &self,
+        data: &NodeData,
+        kind: IntrinsicSizeCacheKind,
+        key: IntrinsicSizeCacheKey,
+        value: CssPixels,
+    ) {
+        self.with_intrinsic_size_maps_mut(data, |maps| {
+            maps.block_sizes_mut(kind)
+                .expect("block size cache kind must use the block axis")
+                .insert(key, value);
+        });
+    }
+
+    pub(crate) fn intrinsic_inline_size_measurement_cache_get(
+        &self,
+        data: &NodeData,
+        kind: IntrinsicSizeCacheKind,
+        key: IntrinsicSizeCacheKey,
+    ) -> Option<IntrinsicInlineSizeMeasurement> {
+        assert!(
+            matches!(
+                kind,
+                IntrinsicSizeCacheKind::MinContentInline | IntrinsicSizeCacheKind::MaxContentInline
+            ),
+            "inline measurement cache kind must use the inline axis"
+        );
+        if data.intrinsic_cache_epoch == u16::MAX {
+            return None;
+        }
+
+        let (index, metadata) = self.slot_for_data(std::ptr::from_ref(data));
+        let caches = self.intrinsic_size_caches.borrow();
+        let slot = caches.get(index as usize)?;
+        if slot.generation != metadata.generation || slot.epoch != data.intrinsic_cache_epoch {
+            return None;
+        }
         slot.sizes
-            .get_or_insert_with(Box::default)
-            .values_mut(kind)
-            .insert(key, value);
+            .as_ref()?
+            .inline_measurements(kind)
+            .expect("inline measurement cache kind must use the inline axis")
+            .get(&key)
+            .copied()
+    }
+
+    pub(crate) fn intrinsic_inline_size_measurement_cache_put(
+        &self,
+        data: &NodeData,
+        kind: IntrinsicSizeCacheKind,
+        key: IntrinsicSizeCacheKey,
+        value: IntrinsicInlineSizeMeasurement,
+    ) {
+        self.with_intrinsic_size_maps_mut(data, |maps| {
+            maps.inline_measurements_mut(kind)
+                .expect("inline measurement cache kind must use the inline axis")
+                .insert(key, value);
+        });
     }
 
     pub(crate) fn saved_abspos_layout_inputs(&self, data: *const NodeData) -> Option<AbsposLayoutInputs> {
@@ -754,15 +854,16 @@ pub unsafe extern "C" fn layout_arena_transfer_saved_abspos_layout_inputs(
 
 #[cfg(test)]
 mod tests {
-    use crate::layout::CssPixels;
     use crate::layout::layout_node_arena::{
-        Chunk, IntrinsicSizeCacheKey, IntrinsicSizeCacheKind, LayoutNodeArena, SLOTS_PER_CHUNK,
+        Chunk, IntrinsicInlineSizeMeasurement, IntrinsicSizeCacheKey, IntrinsicSizeCacheKind, LayoutNodeArena,
+        SLOTS_PER_CHUNK,
     };
     use crate::layout::node_data::{NodeFlag, NodeKind};
     use crate::layout::{
         AbsposAlignment, AbsposAxisMode, AbsposContainingBlockInfo, AbsposLayoutInputs, StaticPositionAlignment,
         StaticPositionRect,
     };
+    use crate::layout::{AvailableSize, CssPixels};
 
     #[test]
     fn node_data_addresses_remain_stable_when_chunks_are_added() {
@@ -831,18 +932,52 @@ mod tests {
             ..Default::default()
         };
         let value = CssPixels::from_raw(128);
+        let inline_measurement = IntrinsicInlineSizeMeasurement {
+            automatic_content_inline_size: CssPixels::from_raw(192),
+            available_block_size: AvailableSize::MaxContent,
+            content_inline_size: CssPixels::from_raw(192),
+            content_block_size: CssPixels::from_raw(256),
+            automatic_content_block_size: CssPixels::from_raw(320),
+            uses_collapsing_borders_model: true,
+            has_first_baseline: true,
+            first_baseline: CssPixels::from_raw(64),
+            has_last_baseline: true,
+            last_baseline: CssPixels::from_raw(128),
+        };
 
         // SAFETY: The allocation remains live until it is explicitly freed below.
         let first_data = unsafe { &mut *first.data };
-        arena.intrinsic_size_cache_put(first_data, IntrinsicSizeCacheKind::MinContentBlock, key, value);
+        arena.intrinsic_block_size_cache_put(first_data, IntrinsicSizeCacheKind::MinContentBlock, key, value);
+        arena.intrinsic_inline_size_measurement_cache_put(
+            first_data,
+            IntrinsicSizeCacheKind::MaxContentInline,
+            key,
+            inline_measurement,
+        );
         assert_eq!(
-            arena.intrinsic_size_cache_get(first_data, IntrinsicSizeCacheKind::MinContentBlock, key),
+            arena.intrinsic_block_size_cache_get(first_data, IntrinsicSizeCacheKind::MinContentBlock, key),
             Some(value)
+        );
+        assert_eq!(
+            arena.intrinsic_inline_size_measurement_cache_get(
+                first_data,
+                IntrinsicSizeCacheKind::MaxContentInline,
+                key
+            ),
+            Some(inline_measurement)
         );
 
         first_data.intrinsic_cache_epoch += 1;
         assert_eq!(
-            arena.intrinsic_size_cache_get(first_data, IntrinsicSizeCacheKind::MinContentBlock, key),
+            arena.intrinsic_block_size_cache_get(first_data, IntrinsicSizeCacheKind::MinContentBlock, key),
+            None
+        );
+        assert_eq!(
+            arena.intrinsic_inline_size_measurement_cache_get(
+                first_data,
+                IntrinsicSizeCacheKind::MaxContentInline,
+                key
+            ),
             None
         );
         arena.free(first.slot, first.generation);
@@ -853,7 +988,15 @@ mod tests {
         // SAFETY: The second allocation is live and reuses the first allocation's slot.
         let second_data = unsafe { &*second.data };
         assert_eq!(
-            arena.intrinsic_size_cache_get(second_data, IntrinsicSizeCacheKind::MinContentBlock, key),
+            arena.intrinsic_block_size_cache_get(second_data, IntrinsicSizeCacheKind::MinContentBlock, key),
+            None
+        );
+        assert_eq!(
+            arena.intrinsic_inline_size_measurement_cache_get(
+                second_data,
+                IntrinsicSizeCacheKind::MaxContentInline,
+                key
+            ),
             None
         );
         arena.free(second.slot, second.generation);
