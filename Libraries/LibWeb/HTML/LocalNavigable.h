@@ -362,6 +362,7 @@ private:
     void queue_scrollend_event(Compositor::AsyncScrollNodeStableID, ScrollTrigger);
     void queue_scrollend_event(DOM::Document&, GC::Ref<DOM::EventTarget>, ScrollTrigger);
     void queue_scrollend_event_for_finished_scroll(Compositor::AsyncScrollNodeStableID, ScrollTrigger);
+    void queue_scrollend_event_and_promise_resolution_for_finished_scroll(Optional<Compositor::AsyncScrollNodeStableID>, ScrollTrigger, Optional<CSSPixelPoint> scroll_offset_before_scroll, GC::Ref<WebIDL::Promise>);
     bool has_in_flight_user_scroll_operation() const;
     void user_scroll_did_settle();
     void cancel_user_scroll_settlement();
