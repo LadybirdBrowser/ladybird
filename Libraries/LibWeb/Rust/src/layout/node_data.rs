@@ -13,7 +13,7 @@ const NODE_SLOT_INDEX_BITS: u32 = 24;
 const NODE_SLOT_INDEX_MASK: u32 = (1 << NODE_SLOT_INDEX_BITS) - 1;
 pub(crate) const MAX_NODE_SLOT_COUNT: u32 = NODE_SLOT_INDEX_MASK;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[repr(C)]
 pub struct NodeSlotId {
     pub index: u32,
@@ -121,6 +121,9 @@ pub enum NodeFlag {
     IsEditingHost = 1 << 17,
     ReplacedBoxCanHaveChildren = 1 << 18,
     OwnStyleEstablishesBlockFormattingContext = 1 << 19,
+    HasSavedAbsposLayoutInputs = 1 << 20,
+    SavedAbsposCbDerivesFromOwnComputedValues = 1 << 21,
+    SavedAbsposAlignmentDerivesFromOwnComputedValues = 1 << 22,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -164,6 +167,7 @@ pub struct NodeData {
     pub inline_containing_block: NodeSlotId,
     pub kind: NodeKind,
     pub generated_for: u8,
+    pub intrinsic_cache_epoch: u16,
     pub flags: u32,
     pub initial_quote_nesting_level: u32,
     pub table_display: FfiTableDisplay,
@@ -186,6 +190,7 @@ impl Default for NodeData {
             inline_containing_block: NodeSlotId::INVALID,
             kind: NodeKind::Unset,
             generated_for: 0,
+            intrinsic_cache_epoch: 0,
             flags: 0,
             initial_quote_nesting_level: 0,
             table_display: FfiTableDisplay::Other,
@@ -209,8 +214,10 @@ mod tests {
     }
 
     #[test]
-    fn slot_generation_uses_existing_node_data_padding() {
+    fn intrinsic_cache_epoch_uses_existing_node_data_padding() {
         assert_eq!(std::mem::size_of::<NodeData>(), 64);
+        assert_eq!(std::mem::offset_of!(NodeData, intrinsic_cache_epoch), 30);
+        assert_eq!(std::mem::offset_of!(NodeData, flags), 32);
         assert_eq!(std::mem::offset_of!(NodeData, slot_generation), 43);
         assert_eq!(std::mem::offset_of!(NodeData, style), 48);
         assert_eq!(std::mem::offset_of!(NodeData, shell), 56);
@@ -222,6 +229,17 @@ mod tests {
         assert_eq!(id.slot_index(), MAX_NODE_SLOT_COUNT - 1);
         assert_eq!(id.generation(), u8::MAX);
         assert_ne!(id, NodeSlotId::INVALID);
+    }
+
+    #[test]
+    fn saved_abspos_flags_use_previously_unassigned_bits() {
+        assert_eq!(NodeFlag::IsReplacedElement as u32, 1 << 12);
+        assert_eq!(NodeFlag::HasSavedAbsposLayoutInputs as u32, 1 << 20);
+        assert_eq!(NodeFlag::SavedAbsposCbDerivesFromOwnComputedValues as u32, 1 << 21);
+        assert_eq!(
+            NodeFlag::SavedAbsposAlignmentDerivesFromOwnComputedValues as u32,
+            1 << 22
+        );
     }
 
     #[test]
