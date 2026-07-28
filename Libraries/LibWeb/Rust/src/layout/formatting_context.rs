@@ -300,14 +300,8 @@ impl<'a, 'pass> AbsposEngine<'a, 'pass> {
         self.callbacks.is_ancestor(ancestor, node)
     }
 
-    fn dom_node_is_inclusive_ancestor(&self, ancestor: Node, node: Node) -> bool {
-        unsafe {
-            (self.callbacks.dom_node_is_inclusive_ancestor)(
-                self.callbacks.context,
-                self.callbacks.shell(ancestor),
-                self.callbacks.shell(node),
-            )
-        }
+    fn belongs_to_inline_containing_block(&self, inline_node: Node, node: Node) -> bool {
+        !self.facts(node).is_anonymous() && self.node_is_ancestor(inline_node, node)
     }
 
     fn resolve_static_position_relative_to_containing_block(
@@ -432,7 +426,7 @@ impl<'a, 'pass> AbsposEngine<'a, 'pass> {
         empty_bounding_rect: &mut Option<PhysicalRect>,
     ) {
         for fragment in self.line_fragments(node) {
-            if !self.dom_node_is_inclusive_ancestor(inline_node, fragment.layout_node) {
+            if !self.belongs_to_inline_containing_block(inline_node, fragment.layout_node) {
                 continue;
             }
             if fragment.is_atomic_inline {
@@ -466,7 +460,7 @@ impl<'a, 'pass> AbsposEngine<'a, 'pass> {
                 offset
             };
             if facts.is_box() && !facts.is_anonymous() {
-                if !self.dom_node_is_inclusive_ancestor(inline_node, child) {
+                if !self.belongs_to_inline_containing_block(inline_node, child) {
                     child = next;
                     continue;
                 }
@@ -502,7 +496,7 @@ impl<'a, 'pass> AbsposEngine<'a, 'pass> {
         inline_node: Node,
         abspos_containing_block: Node,
     ) -> Option<PhysicalRect> {
-        if !self.dom_node_is_inclusive_ancestor(inline_node, inline_node) {
+        if self.facts(inline_node).is_anonymous() {
             return None;
         }
         let outer_block = self.non_anonymous_containing_block(inline_node);
@@ -4755,7 +4749,6 @@ pub struct FfiLayoutFcCallbacks {
     pub initial_containing_block_inline_size: CssPixels,
     pub document_in_quirks_mode: bool,
     pub static_position_containing_block: unsafe extern "C" fn(*mut c_void, *mut c_void) -> NodeSlotId,
-    pub dom_node_is_inclusive_ancestor: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void) -> bool,
     pub needs_inset_resolution: unsafe extern "C" fn(*mut c_void, *mut c_void) -> bool,
     pub report_unexpected_fragmented_inline: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub decode_residual_style: crate::layout::FfiDecodeResidualStyleCallback,
