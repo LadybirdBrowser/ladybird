@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<style>
+    #color { text-decoration: underline red; }
+
+    #offset {
+        text-decoration: underline;
+        text-decoration-skip-ink: none;
+        text-underline-offset: 12px;
+    }
+
+    #offset-descendant { text-underline-offset: 0; }
+
+    #position {
+        text-decoration: underline;
+        text-decoration-skip-ink: none;
+        text-underline-position: under;
+    }
+
+    #position-descendant { text-underline-position: auto; }
+
+    #currentcolor { color: red; text-decoration: underline; }
+    #currentcolor-descendant { color: black; }
+</style>
+<span id="color"><div>This text must have a red underline.</div></span>
+<span><div>This text must not have an underline.</div></span>
+<span id="offset">before <div id="offset-descendant">nested</div> after</span>
+<span id="position">before <div id="position-descendant">nested</div> after</span>
+<span id="currentcolor"><div id="currentcolor-descendant">This text must have a red underline.</div></span>

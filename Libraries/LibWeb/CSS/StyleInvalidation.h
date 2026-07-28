@@ -62,6 +62,9 @@ struct RequiredInvalidationAfterStyleChange {
     // descendants. Containing block pointers are only recomputed by a full layout pass, so
     // partial relayout boundary qualification cannot be trusted until one runs.
     bool changes_containing_block_establishment : 1 { false };
+    // A property controlling decorations originated by this box changed. Descendant boxes paint
+    // the propagated decorations from these values, so their cached paint commands are stale.
+    bool repaint_propagated_text_decorations : 1 { false };
 
     void operator|=(RequiredInvalidationAfterStyleChange const& other)
     {
@@ -72,6 +75,7 @@ struct RequiredInvalidationAfterStyleChange {
         recompute_descendant_styles |= other.recompute_descendant_styles;
         m_inherited_style_groups_changed |= other.m_inherited_style_groups_changed;
         changes_containing_block_establishment |= other.changes_containing_block_establishment;
+        repaint_propagated_text_decorations |= other.repaint_propagated_text_decorations;
     }
 
     [[nodiscard]] bool is_none() const
@@ -81,7 +85,8 @@ struct RequiredInvalidationAfterStyleChange {
             && !m_needs_scrollable_overflow_recalculation
             && !recompute_descendant_styles
             && !inherited_style_changed()
-            && !changes_containing_block_establishment;
+            && !changes_containing_block_establishment
+            && !repaint_propagated_text_decorations;
     }
 
     static RequiredInvalidationAfterStyleChange full()

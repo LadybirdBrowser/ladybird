@@ -354,6 +354,30 @@ RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::Property
     if (AK::first_is_one_of(property_id, CSS::PropertyID::ContainerName, CSS::PropertyID::ContainerType))
         invalidation.recompute_descendant_styles = true;
 
+    // Text decorations propagate to descendant boxes, which paint them from this element's computed
+    // values, so their cached paint commands must be discarded even though their style is unchanged.
+    // No decoration is painted from a box whose text-decoration-line is empty before and after the
+    // change, so such boxes are skipped.
+    if (property_id == CSS::PropertyID::TextDecorationLine) {
+        invalidation.repaint_propagated_text_decorations = true;
+    } else if (AK::first_is_one_of(property_id, CSS::PropertyID::TextDecorationColor,
+                   CSS::PropertyID::TextDecorationStyle, CSS::PropertyID::TextDecorationThickness,
+                   CSS::PropertyID::TextUnderlineOffset, CSS::PropertyID::TextUnderlinePosition,
+                   CSS::PropertyID::Color)) {
+        if (!old_computed_values || !new_computed_values
+            || !old_computed_values->text_decoration_line().is_empty()
+            || !new_computed_values->text_decoration_line().is_empty()) {
+            if (property_id == CSS::PropertyID::Color) {
+                // A text-decoration-color of currentcolor is stored resolved, so a color change can move
+                // the painted decoration color without any text-decoration property changing.
+                invalidation.repaint_propagated_text_decorations = !old_computed_values || !new_computed_values
+                    || old_computed_values->text_decoration_color() != new_computed_values->text_decoration_color();
+            } else {
+                invalidation.repaint_propagated_text_decorations = true;
+            }
+        }
+    }
+
     // OPTIMIZATION: Special handling for CSS `visibility`:
     if (property_id == CSS::PropertyID::Visibility) {
         // We don't need to relayout if the visibility changes from visible to hidden or vice versa. Only collapse requires relayout.
