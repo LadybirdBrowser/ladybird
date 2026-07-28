@@ -7,7 +7,6 @@
 #pragma once
 
 #include <LibWeb/Layout/Box.h>
-#include <LibWeb/Layout/LineBox.h>
 
 namespace Web::Layout {
 

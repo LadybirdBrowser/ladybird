@@ -20,7 +20,6 @@
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/Layout/BlockContainer.h>
-#include <LibWeb/Layout/FormattingContext.h>
 #include <LibWeb/Layout/ImageBox.h>
 #include <LibWeb/Layout/InlineNode.h>
 #include <LibWeb/Layout/Node.h>
@@ -288,32 +287,10 @@ Node* Node::topmost_layout_node_of_top_layer_placement()
     return direct_viewport_child_candidate;
 }
 
-// https://www.w3.org/TR/css-display-3/#out-of-flow
-bool Node::is_out_of_flow(FormattingContext const& formatting_context) const
-{
-    auto const* node_with_style = as_if<NodeWithStyle>(*this);
-    return node_with_style && node_with_style->is_out_of_flow(formatting_context);
-}
-
 bool Node::is_out_of_flow() const
 {
     auto const* node_with_style = as_if<NodeWithStyle>(*this);
     return node_with_style && node_with_style->is_out_of_flow();
-}
-
-bool NodeWithStyle::is_out_of_flow(FormattingContext const& formatting_context) const
-{
-    // A layout node is out of flow if either:
-
-    // 1. It is floated (which requires that floating is not inhibited).
-    if (!formatting_context.inhibits_floating() && is_floating())
-        return true;
-
-    // 2. It is "absolutely positioned".
-    if (is_absolutely_positioned())
-        return true;
-
-    return false;
 }
 
 // https://drafts.csswg.org/css-position-3/#fixed-positioning-containing-block

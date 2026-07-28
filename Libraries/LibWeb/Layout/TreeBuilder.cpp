@@ -33,7 +33,6 @@
 #include <LibWeb/Dump.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
-#include <LibWeb/Layout/AbsposLayoutInputs.h>
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/FieldSetBox.h>
 #include <LibWeb/Layout/ImageBox.h>
@@ -569,19 +568,12 @@ static bool is_svg_resource_box(Node const& layout_node)
     return is<SVGPatternBox>(layout_node) || is<SVGMaskBox>(layout_node) || is<SVGClipBox>(layout_node);
 }
 
-// The replacement box represents the same element in the same tree position, so layout state
-// saved by the previous layout pass carries over to it: the saved abspos layout inputs, and the
-// flat fragment and inline-box-piece lists held by the containing block of a node that
-// participated in inline layout, which a subtree relayout that skips the containing block never
-// rebuilds.
+// The replacement box represents the same element in the same tree position, so the flat
+// fragment and inline-box-piece lists held by the containing block of a node that participated
+// in inline layout carry over to it; a subtree relayout that skips the containing block never
+// rebuilds them.
 static void transfer_saved_layout_state_to_replacement_box(Layout::Node& old_layout_node, Layout::Node& new_layout_node)
 {
-    if (auto const* old_box = as_if<Box>(old_layout_node)) {
-        if (auto* new_box = as_if<Box>(new_layout_node)) {
-            if (old_box->saved_abspos_layout_inputs())
-                new_box->set_saved_abspos_layout_inputs(*old_box->saved_abspos_layout_inputs());
-        }
-    }
     if (auto* containing_block = old_layout_node.containing_block()) {
         if (auto* paintable_with_lines = as_if<Painting::PaintableWithLines>(containing_block->paintable().ptr())) {
             for (auto& fragment : paintable_with_lines->fragments()) {
@@ -1112,6 +1104,11 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
                 break;
             case RustFFI::FfiPrincipalBoxPlacement::ReplaceExisting:
                 VERIFY(frame.old_layout_node);
+                VERIFY(frame.old_layout_node->arena_handle() == frame.layout_node->arena_handle());
+                RustFFI::layout_arena_transfer_saved_abspos_layout_inputs(
+                    frame.old_layout_node->arena_handle(),
+                    Node::slot_id(frame.old_layout_node.ptr()),
+                    Node::slot_id(frame.layout_node.ptr()));
                 transfer_saved_layout_state_to_replacement_box(*frame.old_layout_node, *frame.layout_node);
                 frame.old_layout_node->prepare_subtree_for_detach_from_layout_tree();
                 frame.old_layout_node->parent()->replace_child(*frame.layout_node, *frame.old_layout_node);

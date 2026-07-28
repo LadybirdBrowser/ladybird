@@ -82,7 +82,7 @@ enum class LayoutMode {
     Normal,
 
     // Intrinsic size determination.
-    // Boxes honor min-content and max-content constraints (set via LayoutState::UsedValues::{width,height}_constraint)
+    // Boxes honor min-content and max-content constraints stored in the Rust used-values core
     // by considering their containing block to be 0-sized or infinitely large in the relevant axis.
     // https://drafts.csswg.org/css-sizing-3/#intrinsic-sizing
     IntrinsicSizing,
@@ -189,8 +189,6 @@ public:
     bool is_fragmented_inline() const;
     NodeWithStyleAndBoxModelMetrics const* nearest_fragmented_inline_ancestor() const;
 
-    bool is_out_of_flow(FormattingContext const&) const;
-
     // An element is called out of flow if it is floated, absolutely positioned, or is the root element.
     // https://www.w3.org/TR/CSS22/visuren.html#positioning-scheme
     bool is_out_of_flow() const;
@@ -259,7 +257,6 @@ public:
     // positioned element, if applicable. This is needed because m_containing_block can only hold
     // a Box*, but CSS allows inline elements (like a <span> with position:relative) to establish
     // containing blocks for their absolutely positioned descendants.
-    // See the large FIXME comment in FormattingContext.cpp for full context.
     [[nodiscard]] InlineNode const* inline_containing_block_if_applicable() const { return m_inline_containing_block_if_applicable; }
 
     void recompute_containing_block(Badge<DOM::Document>);
@@ -403,9 +400,6 @@ public:
     bool is_absolutely_positioned() const;
     bool is_fixed_position() const;
     bool is_sticky_position() const;
-
-    // https://www.w3.org/TR/css-display-3/#out-of-flow
-    bool is_out_of_flow(FormattingContext const&) const;
 
     // An element is called out of flow if it is floated, absolutely positioned, or is the root element.
     // https://www.w3.org/TR/CSS22/visuren.html#positioning-scheme

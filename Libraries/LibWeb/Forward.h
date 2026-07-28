@@ -969,22 +969,17 @@ namespace Web::Layout {
 
 class AudioBox;
 class BlockContainer;
-class BlockFormattingContext;
 class Box;
 class ButtonBox;
 class CheckBox;
 class FieldSetBox;
-class FlexFormattingContext;
-class FormattingContext;
 class ImageBox;
-class InlineFormattingContext;
 class InlineNode;
 class Label;
 class LegendBox;
-class LineBox;
-class LineBoxFragment;
 class ListItemBox;
 class ListItemMarkerBox;
+class LayoutRustBridge;
 class Node;
 class NodeArena;
 class NodeWithStyle;
@@ -1000,8 +995,6 @@ class VideoBox;
 class Viewport;
 
 enum class LayoutMode;
-
-struct LayoutState;
 
 }
 

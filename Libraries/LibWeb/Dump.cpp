@@ -42,8 +42,8 @@
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/Layout/BlockContainer.h>
-#include <LibWeb/Layout/FormattingContext.h>
 #include <LibWeb/Layout/InlineNode.h>
+#include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Layout/NavigableContainerViewport.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/SVGBox.h>
@@ -315,14 +315,14 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
 
         dump_box_model();
 
-        if (auto formatting_context_type = Layout::FormattingContext::formatting_context_type_created_by_box(box); formatting_context_type.has_value()) {
+        if (auto formatting_context_type = Layout::formatting_context_type_created_by_box(box); formatting_context_type.has_value()) {
             switch (formatting_context_type.value()) {
-            case Layout::FormattingContext::Type::Block:
-            case Layout::FormattingContext::Type::Flex:
-            case Layout::FormattingContext::Type::Grid:
-            case Layout::FormattingContext::Type::Table:
-            case Layout::FormattingContext::Type::SVG:
-                builder.appendff(" [{}{}{}]", formatting_context_color_on, Layout::FormattingContext::type_name(formatting_context_type.value()), color_off);
+            case Layout::RustFFI::FfiFormattingContextType::Block:
+            case Layout::RustFFI::FfiFormattingContextType::Flex:
+            case Layout::RustFFI::FfiFormattingContextType::Grid:
+            case Layout::RustFFI::FfiFormattingContextType::Table:
+            case Layout::RustFFI::FfiFormattingContextType::Svg:
+                builder.appendff(" [{}{}{}]", formatting_context_color_on, Layout::formatting_context_type_name(formatting_context_type.value()), color_off);
                 break;
             default:
                 break;

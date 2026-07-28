@@ -6,16 +6,13 @@
 
 #pragma once
 
-#include <AK/HashMap.h>
-#include <AK/OwnPtr.h>
+#include <AK/NumericLimits.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/CSS/Sizing.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Layout/Node.h>
 
 namespace Web::Layout {
-
-struct AbsposLayoutInputs;
 
 enum class RequireExistingPaintable : u8 {
     No,
@@ -25,22 +22,6 @@ enum class RequireExistingPaintable : u8 {
 struct LineBoxFragmentCoordinate {
     size_t line_box_index { 0 };
     size_t fragment_index { 0 };
-};
-
-struct IntrinsicSizeCacheKey {
-    Optional<CSSPixels> measured_at_inline_size;
-    Optional<CSSPixels> percentage_basis_inline_size;
-    Optional<CSSPixels> percentage_basis_block_size;
-    Optional<CSSPixels> quirks_mode_percentage_basis_block_size;
-
-    bool operator==(IntrinsicSizeCacheKey const&) const = default;
-};
-
-struct IntrinsicSizes {
-    HashMap<IntrinsicSizeCacheKey, CSSPixels> min_content_inline_size;
-    HashMap<IntrinsicSizeCacheKey, CSSPixels> max_content_inline_size;
-    HashMap<IntrinsicSizeCacheKey, CSSPixels> min_content_block_size;
-    HashMap<IntrinsicSizeCacheKey, CSSPixels> max_content_block_size;
 };
 
 class WEB_API Box : public NodeWithStyleAndBoxModelMetrics {
@@ -76,12 +57,9 @@ public:
 
     virtual RefPtr<Painting::Paintable> create_paintable() const override;
 
-    // The inputs the absolutely positioned element layout algorithm consumed the last time a
-    // committing layout pass laid this box out; a partial relayout can replay the algorithm
-    // from them without re-running the ancestor formatting context.
-    AbsposLayoutInputs const* saved_abspos_layout_inputs() const { return m_saved_abspos_layout_inputs.ptr(); }
-    void set_saved_abspos_layout_inputs(AbsposLayoutInputs const&);
-    void clear_saved_abspos_layout_inputs();
+    bool has_saved_abspos_layout_inputs() const { return has_flag(RustFFI::NodeFlag::HasSavedAbsposLayoutInputs); }
+    bool saved_abspos_cb_derives_from_own_computed_values() const { return has_flag(RustFFI::NodeFlag::SavedAbsposCbDerivesFromOwnComputedValues); }
+    bool saved_abspos_alignment_derives_from_own_computed_values() const { return has_flag(RustFFI::NodeFlag::SavedAbsposAlignmentDerivesFromOwnComputedValues); }
 
     // Whether an absolutely or fixed positioned descendant of this box has its containing
     // block outside this box's subtree, so the descendant's layout escapes the subtree.
@@ -99,13 +77,12 @@ public:
     bool compensates_for_horizontal_scroll() const { return has_flag(RustFFI::NodeFlag::CompensatesForHorizontalScroll); }
     bool compensates_for_vertical_scroll() const { return has_flag(RustFFI::NodeFlag::CompensatesForVerticalScroll); }
 
-    IntrinsicSizes& cached_intrinsic_sizes() const
+    void reset_cached_intrinsic_sizes()
     {
-        if (!m_cached_intrinsic_sizes)
-            m_cached_intrinsic_sizes = make<IntrinsicSizes>();
-        return *m_cached_intrinsic_sizes;
+        auto& epoch = node_data().intrinsic_cache_epoch;
+        if (epoch != NumericLimits<u16>::max())
+            ++epoch;
     }
-    void reset_cached_intrinsic_sizes() const { m_cached_intrinsic_sizes.clear(); }
 
     Box(DOM::Document&, DOM::Node*, NonnullRefPtr<CSS::ComputedValues const>);
 
@@ -115,33 +92,10 @@ protected:
 private:
     virtual bool is_box() const final { return true; }
 
-    OwnPtr<AbsposLayoutInputs> m_saved_abspos_layout_inputs;
-
     WeakPtr<Node> m_default_scroll_shift_anchor;
-
-    OwnPtr<IntrinsicSizes> mutable m_cached_intrinsic_sizes;
 };
 
 template<>
 inline bool Node::fast_is<Box>() const { return is_box(); }
-
-}
-
-namespace AK {
-
-template<>
-struct Traits<Web::Layout::IntrinsicSizeCacheKey> : public DefaultTraits<Web::Layout::IntrinsicSizeCacheKey> {
-    static unsigned hash(Web::Layout::IntrinsicSizeCacheKey const& key)
-    {
-        auto optional_hash = [](Optional<Web::CSSPixels> const& value) -> unsigned {
-            return value.has_value() ? pair_int_hash(1u, Traits<Web::CSSPixels>::hash(*value)) : 0u;
-        };
-        auto hash = optional_hash(key.measured_at_inline_size);
-        hash = pair_int_hash(hash, optional_hash(key.percentage_basis_inline_size));
-        hash = pair_int_hash(hash, optional_hash(key.percentage_basis_block_size));
-        hash = pair_int_hash(hash, optional_hash(key.quirks_mode_percentage_basis_block_size));
-        return hash;
-    }
-};
 
 }
