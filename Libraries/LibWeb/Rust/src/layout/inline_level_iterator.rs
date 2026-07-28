@@ -322,6 +322,10 @@ impl<'iterator, 'context, 'pass> InlineLevelIteratorGenerator<'iterator, 'contex
             style.white_space_collapse,
             white_space_collapse::PRESERVE | white_space_collapse::PRESERVE_BREAKS | white_space_collapse::BREAK_SPACES
         );
+        let should_collapse_whitespace = matches!(
+            style.white_space_collapse,
+            white_space_collapse::COLLAPSE | white_space_collapse::PRESERVE_BREAKS
+        );
         let callbacks = self.context().callbacks;
         let facts = self
             .context()
@@ -337,7 +341,7 @@ impl<'iterator, 'context, 'pass> InlineLevelIteratorGenerator<'iterator, 'contex
         self.text_node_context = Some(TextNodeContext {
             facts,
             next_chunk_index: 0,
-            should_collapse_whitespace: facts.should_collapse_whitespace,
+            should_collapse_whitespace,
             should_respect_linebreaks,
             last_known_direction: None,
         });
@@ -501,8 +505,8 @@ impl<'iterator, 'context, 'pass> InlineLevelIteratorGenerator<'iterator, 'contex
             style.letter_spacing.to_double() as f32,
         );
         let chunk_inline_size = CssPixels::nearest_value_for_f32(glyphs.width + inline_offset);
-        let generated_empty =
-            is_empty_editable || (text_context.facts.is_generated_for_pseudo_element && chunk.length == 0);
+        let generated_empty = is_empty_editable
+            || (self.context().facts(text_node).is_generated_for_pseudo_element() && chunk.length == 0);
         let mut item = Item::new(ItemType::Text, text_node);
         item.glyphs = Some(glyphs);
         item.offset_in_node = chunk.start;
@@ -707,10 +711,7 @@ pub struct FfiTextNodeFacts {
     pub text_length_in_code_units: usize,
     pub chunks: *const FfiTextChunk,
     pub chunk_count: usize,
-    pub should_collapse_whitespace: bool,
-    pub is_generated_for_pseudo_element: bool,
     pub is_empty_editable: bool,
-    pub has_dom_node: bool,
     pub retained: *mut c_void,
 }
 

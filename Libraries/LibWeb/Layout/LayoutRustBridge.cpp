@@ -1865,10 +1865,7 @@ RustFFI::FfiLayoutFcCallbacks LayoutRustBridge::formatting_context_callbacks()
                 .text_length_in_code_units = owner->text.size(),
                 .chunks = owner->chunks.data(),
                 .chunk_count = owner->chunks.size(),
-                .should_collapse_whitespace = chunk_list.should_collapse_whitespace,
-                .is_generated_for_pseudo_element = text_node->is_generated_for_pseudo_element(),
                 .is_empty_editable = is_empty_editable_text_node(*text_node),
-                .has_dom_node = static_cast<Node const&>(*text_node).dom_node() != nullptr,
                 .retained = owner,
             };
             return true; },
