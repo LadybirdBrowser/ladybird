@@ -46,6 +46,8 @@ flatpak_runtime_libs = [
     "nghttp2",
     "qtbase",
     "qtmultimedia",
+    "qtpositioning",
+    "qtserialport",
     "sqlite3",
     "tiff",
     "vulkan",

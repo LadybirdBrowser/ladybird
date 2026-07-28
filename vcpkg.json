@@ -172,6 +172,11 @@
       ]
     },
     {
+      "name": "qtpositioning",
+      "platform": "windows | freebsd",
+      "default-features": false
+    },
+    {
       "name": "sdl3",
       "default-features": false
     },
@@ -374,6 +379,14 @@
     {
       "name": "qtbase",
       "version": "6.10.0#1"
+    },
+    {
+      "name": "qtpositioning",
+      "version": "6.10.0#0"
+    },
+    {
+      "name": "qtserialport",
+      "version": "6.10.0#0"
     },
     {
       "name": "sdl3",
