@@ -4349,12 +4349,13 @@ GC::Ref<WebIDL::Promise> Element::scroll(Bindings::ScrollToOptions options)
     // 10. If the element does not have any associated box, the element has no associated scrolling box, or the element
     //     has no overflow, return a resolved Promise and abort the remaining steps.
     // FIXME: or the element has no overflow
-    if (!paintable_box())
+    auto paintable_box = this->paintable_box();
+    if (!paintable_box || !paintable_box->layout_node().is_scroll_container())
         return WebIDL::create_resolved_promise(realm(), JS::js_undefined());
 
     // 11. Scroll the element to x,y, with the scroll behavior being the value of the behavior dictionary member of
     //     options. Let scrollPromise be the Promise returned from this step.
-    auto scroll_offset = paintable_box()->scroll_offset();
+    auto scroll_offset = paintable_box->scroll_offset();
     scroll_offset.set_x(CSSPixels::nearest_value_for(x));
     scroll_offset.set_y(CSSPixels::nearest_value_for(y));
     auto navigable = document.navigable();
