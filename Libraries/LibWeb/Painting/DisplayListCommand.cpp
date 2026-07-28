@@ -166,8 +166,13 @@ void FillPath::dump(StringBuilder& builder) const
     builder.appendff(" path_bounding_rect={}", path_bounding_rect);
 }
 
-void StrokePath::dump(StringBuilder&) const
+void StrokePath::dump(StringBuilder& builder) const
 {
+    builder.appendff(" path_bounding_rect={} thickness={}", path_bounding_rect, thickness);
+    if (paint_kind == PathPaintKind::Color)
+        builder.appendff(" color={}", color);
+    if (dash_array.size > 0)
+        builder.appendff(" dash_array_size={} dash_offset={:.2f}", dash_array.size / sizeof(float), dash_offset);
 }
 
 void DrawEllipse::dump(StringBuilder& builder) const
