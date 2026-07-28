@@ -808,13 +808,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "libweb_layout_rust"
-version = "0.1.0"
-dependencies = [
- "cbindgen",
-]
-
-[[package]]
 name = "libweb_rust"
 version = "0.1.0"
 dependencies = [
