@@ -480,7 +480,7 @@ impl<'iterator, 'context, 'pass> InlineLevelIteratorGenerator<'iterator, 'contex
                 tab_inline_size
             };
             let zero_width = font_glyph_width(chunk.font, b'0' as u32);
-            if tab_stop_distance < CssPixels::nearest_value_for_f32(zero_width * 0.5) {
+            if tab_stop_distance.to_double() < f64::from(zero_width) * 0.5 {
                 tab_stop_distance += tab_inline_size;
             }
             let tab_count = full_text[chunk.start..chunk.start + chunk.length]
