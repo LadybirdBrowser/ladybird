@@ -36,6 +36,8 @@ int File::open_mode_to_options(OpenMode mode)
         flags |= O_CLOEXEC;
     if (has_flag(mode, OpenMode::Nonblocking))
         flags |= O_NONBLOCK;
+    if (has_flag(mode, OpenMode::NoFollow))
+        flags |= O_NOFOLLOW;
 
     // Some open modes, like `ReadWrite` imply the ability to create the file if it doesn't exist.
     // Certain applications may not want this privilege, and for compatibility reasons, this is
