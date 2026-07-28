@@ -297,6 +297,8 @@ void paint_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect
         auto& along_end = is_horizontal_edge ? modified_opposite_radius.horizontal_radius : modified_opposite_radius.vertical_radius;
         auto& into_start = is_horizontal_edge ? modified_radius.vertical_radius : modified_radius.horizontal_radius;
         auto& into_end = is_horizontal_edge ? modified_opposite_radius.vertical_radius : modified_opposite_radius.horizontal_radius;
+        auto outer_along_start = along_start;
+        auto outer_along_end = along_end;
         along_start = max(0, along_start - inset_of(frame.joined_edge));
         along_end = max(0, along_end - inset_of(frame.opposite_joined_edge));
         into_start = max(0, into_start - inset_of(edge));
@@ -317,12 +319,16 @@ void paint_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect
             break;
         }
 
-        // FIXME: Figure out the correct shrink amounts. This is only correct for some cases.
-        if (along_start == 0 && along_end == 0) {
-            if (is_horizontal_edge)
-                modified_rect.shrink(0, inset_of(BorderEdge::Right), 0, inset_of(BorderEdge::Left));
-            else
-                modified_rect.shrink(inset_of(BorderEdge::Top), 0, inset_of(BorderEdge::Bottom), 0);
+        // The straight run of an edge starts where its corner curve ends, so the inner border only begins further
+        // along than the outer one where its curve has been reduced past the inset that moved it inwards.
+        auto start_shrink = max(0, inset_of(frame.joined_edge) - outer_along_start);
+        auto end_shrink = max(0, inset_of(frame.opposite_joined_edge) - outer_along_end);
+        if (is_horizontal_edge) {
+            auto rightwards = frame.along.x() > 0;
+            modified_rect.shrink(0, rightwards ? end_shrink : start_shrink, 0, rightwards ? start_shrink : end_shrink);
+        } else {
+            auto downwards = frame.along.y() > 0;
+            modified_rect.shrink(downwards ? start_shrink : end_shrink, 0, downwards ? end_shrink : start_shrink, 0);
         }
 
         modified_borders_data.for_edge(edge).line_style = inner_style;
