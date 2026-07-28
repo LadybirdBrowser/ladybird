@@ -4757,9 +4757,7 @@ pub struct FfiLayoutFcCallbacks {
     pub build_style_snapshot: FfiBuildStyleSnapshotCallback,
     pub build_replaced_content_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> crate::layout::FfiReplacedContentFacts,
     pub build_list_item_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> crate::layout::FfiListItemFacts,
-    pub build_text_facts:
-        unsafe extern "C" fn(*mut c_void, *mut c_void, bool, bool, bool, *mut FfiTextNodeFacts) -> bool,
-    pub release_text_facts: unsafe extern "C" fn(*mut c_void, *mut c_void),
+    pub text_node_is_empty_editable: unsafe extern "C" fn(*mut c_void, *mut c_void) -> bool,
     pub document_cursor_is_on_node: unsafe extern "C" fn(*mut c_void, *mut c_void) -> bool,
     pub build_table_box_facts: FfiBuildTableBoxFactsCallback,
     pub build_grid_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiGridStyleFacts,

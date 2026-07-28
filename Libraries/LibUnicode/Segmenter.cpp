@@ -790,7 +790,9 @@ extern "C" void* unicode_layout_line_segmenter_create(u16 const* text, size_t le
         ascii_storage.ensure_capacity(length_in_code_units);
         for (size_t index = 0; index < length_in_code_units; ++index)
             ascii_storage.unchecked_append(static_cast<char>(text[index]));
-        auto ascii_view = Utf16View { StringView { ascii_storage.data(), ascii_storage.size() } };
+        auto ascii_view = ascii_storage.is_empty()
+            ? Utf16View {}
+            : Utf16View { StringView { ascii_storage.data(), ascii_storage.size() } };
         if (auto segmenter = Unicode::Segmenter::try_create_for_ascii_line(ascii_view)) {
             return new UnicodeLayoutSegmenterHandle {
                 .segmenter = segmenter.release_nonnull(),

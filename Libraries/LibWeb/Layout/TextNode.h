@@ -211,6 +211,11 @@ private:
     WeakPtr<TextSliceNode> m_first_letter_slice;
 };
 
+// Classifies a code point for direction-run splitting during text chunking:
+// strong LTR/RTL, direction-neutral Common, or ContextDependent (resolved
+// from surrounding runs).
+Gfx::GlyphRun::TextType text_type_for_code_point(u32 code_point);
+
 template<>
 inline bool Node::fast_is<TextNode>() const { return is_text_node(); }
 

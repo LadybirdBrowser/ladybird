@@ -222,6 +222,8 @@ pub enum FfiStyleField {
     TextJustify,
     WhiteSpaceCollapse,
     TextWrapMode,
+    WordBreak,
+    FontVariantEmoji,
     LineHeight,
     FontSize,
     BoxSizing,
@@ -776,6 +778,8 @@ pub(crate) struct DecodedStyleScalars {
     pub text_justify: u8,
     pub white_space_collapse: u8,
     pub text_wrap_mode: u8,
+    pub word_break: u8,
+    pub font_variant_emoji: u8,
     pub line_height: CssPixels,
     pub font_size: CssPixels,
     pub box_sizing: u8,
@@ -869,6 +873,8 @@ impl DecodedStyleScalars {
             text_justify: reader.u8(FfiStyleField::TextJustify),
             white_space_collapse: reader.u8(FfiStyleField::WhiteSpaceCollapse),
             text_wrap_mode: reader.u8(FfiStyleField::TextWrapMode),
+            word_break: reader.u8(FfiStyleField::WordBreak),
+            font_variant_emoji: reader.u8(FfiStyleField::FontVariantEmoji),
             line_height: reader.css_pixels(FfiStyleField::LineHeight),
             font_size: reader.css_pixels(FfiStyleField::FontSize),
             box_sizing: reader.u8(FfiStyleField::BoxSizing),
@@ -1081,6 +1087,10 @@ impl<'a> StyleValues<'a> {
 
     pub(crate) fn first_available_font(self) -> *const c_void {
         self.residual().first_available_font
+    }
+
+    pub(crate) fn font_cascade_list(self) -> *const c_void {
+        self.residual().font_cascade_list
     }
 
     pub(crate) fn font_ascent(self) -> f32 {

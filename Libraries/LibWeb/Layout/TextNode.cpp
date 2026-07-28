@@ -605,7 +605,7 @@ TextNode::ChunkIterator::ChunkIterator(TextNode const& text_node, Utf16View cons
     m_should_collapse_whitespace = first_is_one_of(text_node.parent()->computed_values().white_space_collapse(), CSS::WhiteSpaceCollapse::Collapse, CSS::WhiteSpaceCollapse::PreserveBreaks);
 }
 
-static Gfx::GlyphRun::TextType text_type_for_code_point(u32 code_point)
+Gfx::GlyphRun::TextType text_type_for_code_point(u32 code_point)
 {
     // Fast path for ASCII using a lookup table.
     // Each ASCII character has a statically known bidi class.

@@ -848,7 +848,6 @@ pub(crate) struct LayoutState {
     list_item_facts: PagedStore<crate::layout::FfiListItemFacts>,
     table_facts: PagedStore<FfiTableBoxFacts>,
     grid_facts: PagedStore<GridStyleFacts>,
-    text_facts: PagedStore<TextNodeFacts>,
     line_data: PagedStore<RefCell<LineData>>,
     block_rare_data: PagedStore<RefCell<BlockRareData>>,
     used_values_rare_data: PagedStore<RefCell<UsedValuesRareData>>,
@@ -902,7 +901,6 @@ impl LayoutState {
             list_item_facts: PagedStore::default(),
             table_facts: PagedStore::default(),
             grid_facts: PagedStore::default(),
-            text_facts: PagedStore::default(),
             line_data: PagedStore::default(),
             block_rare_data: PagedStore::default(),
             used_values_rare_data: PagedStore::default(),
@@ -1324,28 +1322,37 @@ impl LayoutState {
         self.grid_facts.allocate(slot_index, facts)
     }
 
-    pub(crate) fn text_facts(
+    pub(crate) fn text_chunks(
         &self,
         callbacks: &FfiLayoutFcCallbacks,
         node: Node,
         should_wrap_lines: bool,
         should_respect_linebreaks: bool,
         unidirectional_ltr: bool,
-    ) -> &TextNodeFacts {
-        let slot_index = callbacks.slot_index(node);
-        if let Some(facts) = self.text_facts.get(slot_index) {
-            return facts;
-        }
-        self.text_facts.allocate(
-            slot_index,
-            TextNodeFacts::build(
-                callbacks,
-                node,
+    ) -> &'static [TextChunk] {
+        let parent_style = self.style_facts(callbacks, callbacks.parent(node));
+        let key = crate::layout::layout_node_arena::TextChunkCacheKey {
+            should_wrap_lines,
+            should_respect_linebreaks,
+            unidirectional_ltr,
+            white_space_collapse: parent_style.white_space_collapse,
+            word_break: parent_style.word_break,
+            font_variant_emoji: parent_style.font_variant_emoji,
+            font_cascade_list: parent_style.font_cascade_list(),
+        };
+        let text = &callbacks.text_content(node).text;
+        callbacks.arena().text_chunks(node, key, || {
+            chunk_text(TextChunkInputs {
+                text,
+                font_cascade_list: key.font_cascade_list,
+                white_space_collapse: key.white_space_collapse,
+                word_break: key.word_break,
+                font_variant_emoji: key.font_variant_emoji,
                 should_wrap_lines,
                 should_respect_linebreaks,
                 unidirectional_ltr,
-            ),
-        )
+            })
+        })
     }
 
     pub(crate) fn line_data_cell(&self, slot_index: u32) -> &RefCell<LineData> {
