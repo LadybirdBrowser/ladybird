@@ -29,6 +29,8 @@
 extern "C" {
 float ladybird_gfx_font_glyph_width(void const*, u32);
 u32 ladybird_gfx_font_glyph_id(void const*, u32);
+bool ladybird_gfx_font_contains_glyph(void const*, u32);
+bool ladybird_gfx_font_is_emoji_font(void const*);
 }
 
 namespace Gfx {
@@ -259,4 +261,16 @@ extern "C" u32 ladybird_gfx_font_glyph_id(void const* font, u32 code_point)
 {
     VERIFY(font);
     return static_cast<Gfx::Font const*>(font)->glyph_id_for_code_point(code_point);
+}
+
+extern "C" bool ladybird_gfx_font_contains_glyph(void const* font, u32 code_point)
+{
+    VERIFY(font);
+    return static_cast<Gfx::Font const*>(font)->contains_glyph(code_point);
+}
+
+extern "C" bool ladybird_gfx_font_is_emoji_font(void const* font)
+{
+    VERIFY(font);
+    return static_cast<Gfx::Font const*>(font)->is_emoji_font();
 }

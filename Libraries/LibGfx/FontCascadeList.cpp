@@ -177,3 +177,52 @@ bool FontCascadeList::equals(FontCascadeList const& other) const
 }
 
 }
+
+extern "C" {
+void const* ladybird_gfx_font_cascade_list_font_for_code_point(void const*, u32, bool, bool, bool);
+void const* ladybird_gfx_font_cascade_list_first(void const*);
+void ladybird_gfx_font_cascade_list_ref(void const*);
+void ladybird_gfx_font_cascade_list_unref(void const*);
+u8 ladybird_gfx_emoji_presentation_for_code_point(u32, u32, bool);
+}
+
+extern "C" void const* ladybird_gfx_font_cascade_list_font_for_code_point(void const* list, u32 code_point, bool trigger_pending_loads, bool emoji_presentation, bool forced_presentation)
+{
+    VERIFY(list);
+    auto const& cascade_list = *static_cast<Gfx::FontCascadeList const*>(list);
+    return &cascade_list.font_for_code_point(
+        code_point,
+        trigger_pending_loads ? Gfx::FontCascadeList::TriggerPendingLoads::Yes : Gfx::FontCascadeList::TriggerPendingLoads::No,
+        { emoji_presentation ? Gfx::EmojiPresentation::Emoji : Gfx::EmojiPresentation::Text,
+            forced_presentation ? Gfx::ForcedPresentation::Yes : Gfx::ForcedPresentation::No });
+}
+
+extern "C" void const* ladybird_gfx_font_cascade_list_first(void const* list)
+{
+    VERIFY(list);
+    return &static_cast<Gfx::FontCascadeList const*>(list)->first();
+}
+
+extern "C" void ladybird_gfx_font_cascade_list_ref(void const* list)
+{
+    VERIFY(list);
+    static_cast<Gfx::FontCascadeList const*>(list)->ref();
+}
+
+extern "C" void ladybird_gfx_font_cascade_list_unref(void const* list)
+{
+    VERIFY(list);
+    static_cast<Gfx::FontCascadeList const*>(list)->unref();
+}
+
+extern "C" u8 ladybird_gfx_emoji_presentation_for_code_point(u32 code_point, u32 next_code_point, bool has_next_code_point)
+{
+    auto result = Gfx::emoji_presentation_for_code_point(
+        code_point, has_next_code_point ? Optional<u32> { next_code_point } : Optional<u32> {});
+    u8 encoded = 0;
+    if (result.presentation == Gfx::EmojiPresentation::Emoji)
+        encoded |= 1;
+    if (result.forced == Gfx::ForcedPresentation::Yes)
+        encoded |= 2;
+    return encoded;
+}

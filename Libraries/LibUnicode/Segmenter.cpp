@@ -745,3 +745,77 @@ bool Segmenter::should_continue_beyond_word(Utf16View const& word)
 }
 
 }
+
+struct UnicodeLayoutSegmenterHandle {
+    NonnullOwnPtr<Unicode::Segmenter> segmenter;
+    Vector<char> ascii_storage;
+};
+
+extern "C" {
+void* unicode_layout_grapheme_segmenter_create(u16 const*, size_t);
+void* unicode_layout_line_segmenter_create(u16 const*, size_t);
+i64 unicode_layout_segmenter_next_boundary(void*, size_t, bool);
+void unicode_layout_segmenter_destroy(void*);
+}
+
+static Unicode::Segmenter& unicode_layout_segmenter_prototype(Unicode::SegmenterGranularity granularity)
+{
+    static thread_local Unicode::Segmenter* grapheme_prototype = nullptr;
+    static thread_local Unicode::Segmenter* line_prototype = nullptr;
+    auto& prototype = granularity == Unicode::SegmenterGranularity::Grapheme ? grapheme_prototype : line_prototype;
+    if (!prototype)
+        prototype = Unicode::Segmenter::create(granularity).leak_ptr();
+    return *prototype;
+}
+
+extern "C" void* unicode_layout_grapheme_segmenter_create(u16 const* text, size_t length_in_code_units)
+{
+    auto view = Utf16View { reinterpret_cast<char16_t const*>(text), length_in_code_units };
+    if (view.is_ascii()) {
+        return new UnicodeLayoutSegmenterHandle {
+            .segmenter = Unicode::Segmenter::create_for_ascii_grapheme(length_in_code_units),
+            .ascii_storage = {},
+        };
+    }
+    auto segmenter = unicode_layout_segmenter_prototype(Unicode::SegmenterGranularity::Grapheme).clone();
+    segmenter->set_segmented_text(view);
+    return new UnicodeLayoutSegmenterHandle { .segmenter = move(segmenter), .ascii_storage = {} };
+}
+
+extern "C" void* unicode_layout_line_segmenter_create(u16 const* text, size_t length_in_code_units)
+{
+    auto view = Utf16View { reinterpret_cast<char16_t const*>(text), length_in_code_units };
+    if (view.is_ascii()) {
+        Vector<char> ascii_storage;
+        ascii_storage.ensure_capacity(length_in_code_units);
+        for (size_t index = 0; index < length_in_code_units; ++index)
+            ascii_storage.unchecked_append(static_cast<char>(text[index]));
+        auto ascii_view = Utf16View { StringView { ascii_storage.data(), ascii_storage.size() } };
+        if (auto segmenter = Unicode::Segmenter::try_create_for_ascii_line(ascii_view)) {
+            return new UnicodeLayoutSegmenterHandle {
+                .segmenter = segmenter.release_nonnull(),
+                .ascii_storage = move(ascii_storage),
+            };
+        }
+    }
+    auto segmenter = unicode_layout_segmenter_prototype(Unicode::SegmenterGranularity::Line).clone();
+    segmenter->set_segmented_text(view);
+    return new UnicodeLayoutSegmenterHandle { .segmenter = move(segmenter), .ascii_storage = {} };
+}
+
+extern "C" i64 unicode_layout_segmenter_next_boundary(void* handle, size_t index, bool inclusive)
+{
+    VERIFY(handle);
+    auto& segmenter = *static_cast<UnicodeLayoutSegmenterHandle*>(handle)->segmenter;
+    auto boundary = segmenter.next_boundary(
+        index, inclusive ? Unicode::Segmenter::Inclusive::Yes : Unicode::Segmenter::Inclusive::No);
+    if (!boundary.has_value())
+        return -1;
+    return static_cast<i64>(*boundary);
+}
+
+extern "C" void unicode_layout_segmenter_destroy(void* handle)
+{
+    VERIFY(handle);
+    delete static_cast<UnicodeLayoutSegmenterHandle*>(handle);
+}
