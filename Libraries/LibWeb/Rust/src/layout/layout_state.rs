@@ -575,6 +575,10 @@ impl<'pass> NodeFacts<'pass> {
         !crate::layout::has_flag(self.data(), NodeFlag::Anonymous)
     }
 
+    pub(crate) fn is_generated_for_pseudo_element(&self) -> bool {
+        self.data().generated_for != 0
+    }
+
     pub(crate) fn children_are_inline(&self) -> bool {
         crate::layout::has_flag(self.data(), NodeFlag::ChildrenAreInline)
     }
