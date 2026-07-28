@@ -1,0 +1,3 @@
+underlined: underline=true strikethrough=false
+struck: underline=false strikethrough=true
+plain: underline=false strikethrough=false

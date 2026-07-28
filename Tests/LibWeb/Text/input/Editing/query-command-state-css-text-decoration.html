@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="editor" contenteditable="true"><span style="text-decoration: underline"><b id="underlined">underlined</b></span><span style="text-decoration: line-through"><b id="struck">struck</b></span><b id="plain">plain</b></div>
+<script>
+    test(() => {
+        const report = id => {
+            const range = document.createRange();
+            range.selectNodeContents(document.getElementById(id));
+            const selection = getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            const underline = document.queryCommandState("underline");
+            const strikethrough = document.queryCommandState("strikethrough");
+            println(`${id}: underline=${underline} strikethrough=${strikethrough}`);
+        };
+
+        // The decoration is specified on an ancestor of the selected text, and text-decoration-line does not
+        // inherit, so the state has to be resolved by walking the ancestors.
+        report("underlined");
+        report("struck");
+        report("plain");
+    });
+</script>
