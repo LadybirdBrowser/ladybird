@@ -11,13 +11,13 @@ SaveLayer@0
   CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 100x64]
   CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 69.625x64]
   DrawGlyphRun@1 rect=[8,8 70x16] translation=[8,20.796875] color=rgb(0, 0, 255)
-  DrawLine@1 from=[8,24] to=[78,24] color=rgb(0, 0, 255) thickness=2
+  DrawLine@1 from=[8,24] to=[78,24] color=rgb(0, 0, 255) thickness=2 style=Solid
   DrawGlyphRun@1 rect=[8,24 48x16] translation=[8,36.796875] color=rgb(0, 0, 255)
-  DrawLine@1 from=[8,40] to=[55,40] color=rgb(0, 0, 255) thickness=2
+  DrawLine@1 from=[8,40] to=[55,40] color=rgb(0, 0, 255) thickness=2 style=Solid
   DrawGlyphRun@1 rect=[8,40 60x16] translation=[8,52.796875] color=rgb(0, 0, 255)
-  DrawLine@1 from=[8,56] to=[68,56] color=rgb(0, 0, 255) thickness=2
+  DrawLine@1 from=[8,56] to=[68,56] color=rgb(0, 0, 255) thickness=2 style=Solid
   DrawGlyphRun@1 rect=[8,56 37x16] translation=[8,68.796875] color=rgb(0, 0, 255)
-  DrawLine@1 from=[8,72] to=[44,72] color=rgb(0, 0, 255) thickness=2
+  DrawLine@1 from=[8,72] to=[44,72] color=rgb(0, 0, 255) thickness=2 style=Solid
 Restore@0
 
 After:
@@ -33,12 +33,12 @@ SaveLayer@0
   CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 100x64]
   CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 69.625x64]
   DrawGlyphRun@1 rect=[8,8 70x16] translation=[8,20.796875] color=rgb(255, 0, 0)
-  DrawLine@1 from=[8,24] to=[78,24] color=rgb(255, 0, 0) thickness=2
+  DrawLine@1 from=[8,24] to=[78,24] color=rgb(255, 0, 0) thickness=2 style=Solid
   DrawGlyphRun@1 rect=[8,24 48x16] translation=[8,36.796875] color=rgb(255, 0, 0)
-  DrawLine@1 from=[8,40] to=[55,40] color=rgb(255, 0, 0) thickness=2
+  DrawLine@1 from=[8,40] to=[55,40] color=rgb(255, 0, 0) thickness=2 style=Solid
   DrawGlyphRun@1 rect=[8,40 60x16] translation=[8,52.796875] color=rgb(255, 0, 0)
-  DrawLine@1 from=[8,56] to=[68,56] color=rgb(255, 0, 0) thickness=2
+  DrawLine@1 from=[8,56] to=[68,56] color=rgb(255, 0, 0) thickness=2 style=Solid
   DrawGlyphRun@1 rect=[8,56 37x16] translation=[8,68.796875] color=rgb(255, 0, 0)
-  DrawLine@1 from=[8,72] to=[44,72] color=rgb(255, 0, 0) thickness=2
+  DrawLine@1 from=[8,72] to=[44,72] color=rgb(255, 0, 0) thickness=2 style=Solid
 Restore@0
 

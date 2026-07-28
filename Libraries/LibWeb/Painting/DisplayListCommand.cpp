@@ -8,6 +8,19 @@
 
 namespace Web::Painting {
 
+static StringView line_style_name(Gfx::LineStyle line_style)
+{
+    switch (line_style) {
+    case Gfx::LineStyle::Solid:
+        return "Solid"sv;
+    case Gfx::LineStyle::Dotted:
+        return "Dotted"sv;
+    case Gfx::LineStyle::Dashed:
+        return "Dashed"sv;
+    }
+    VERIFY_NOT_REACHED();
+}
+
 static StringView scaling_mode_name(Gfx::ScalingMode scaling_mode)
 {
     switch (scaling_mode) {
@@ -169,7 +182,9 @@ void FillEllipse::dump(StringBuilder& builder) const
 
 void DrawLine::dump(StringBuilder& builder) const
 {
-    builder.appendff(" from={} to={} color={} thickness={}", from, to, color, thickness);
+    builder.appendff(" from={} to={} color={} thickness={} style={}", from, to, color, thickness, line_style_name(style));
+    if (style != Gfx::LineStyle::Solid)
+        builder.appendff(" alternate_color={}", alternate_color);
 }
 
 void ApplyBackdropFilter::dump(StringBuilder& builder) const
