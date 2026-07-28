@@ -69,14 +69,17 @@ ErrorOr<void> File::open_path(StringView filename, mode_t)
     bool should_truncate = has_flag(m_mode, OpenMode::Truncate);
     if (!has_flag(m_mode, OpenMode::ReadWrite) && has_flag(m_mode, OpenMode::Write) && !has_any_flag(m_mode, OpenMode::Append | OpenMode::MustBeNew))
         should_truncate = true;
+    bool const no_follow = has_flag(m_mode, OpenMode::NoFollow);
 
+    // When NoFollow is requested, defer truncation until after checking whether the
+    // opened handle refers to a reparse point.
     DWORD creation_disposition;
     if (has_flag(m_mode, OpenMode::MustBeNew) && may_create)
         creation_disposition = CREATE_NEW;
     else if (may_create)
-        creation_disposition = should_truncate ? CREATE_ALWAYS : OPEN_ALWAYS;
+        creation_disposition = should_truncate && !no_follow ? CREATE_ALWAYS : OPEN_ALWAYS;
     else
-        creation_disposition = should_truncate ? TRUNCATE_EXISTING : OPEN_EXISTING;
+        creation_disposition = should_truncate && !no_follow ? TRUNCATE_EXISTING : OPEN_EXISTING;
 
     SECURITY_ATTRIBUTES security_attributes = {};
     security_attributes.nLength = sizeof(security_attributes);
@@ -86,18 +89,39 @@ ErrorOr<void> File::open_path(StringView filename, mode_t)
 
     // Share as permissively as POSIX opens do. FILE_FLAG_BACKUP_SEMANTICS allows opening
     // directories, which Core::Directory and the file:// directory listing depend on.
+    DWORD flags_and_attributes = FILE_ATTRIBUTE_NORMAL | FILE_FLAG_BACKUP_SEMANTICS;
+    if (no_follow)
+        flags_and_attributes |= FILE_FLAG_OPEN_REPARSE_POINT;
+
     HANDLE handle = CreateFileW(
         wide_filename.data(),
         desired_access,
         FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
         &security_attributes,
         creation_disposition,
-        FILE_ATTRIBUTE_NORMAL | FILE_FLAG_BACKUP_SEMANTICS,
+        flags_and_attributes,
         nullptr);
     if (handle == INVALID_HANDLE_VALUE)
         return open_error_from_windows_error();
 
     m_fd = to_fd(handle);
+
+    if (no_follow) {
+        BY_HANDLE_FILE_INFORMATION file_information = {};
+        if (!GetFileInformationByHandle(handle, &file_information)) {
+            auto error = Error::from_windows_error();
+            close();
+            return error;
+        }
+        if (file_information.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) {
+            close();
+            return Error::from_string_literal("Core::File: Refusing to follow a symbolic link");
+        }
+
+        if (should_truncate)
+            TRY(truncate(0));
+    }
+
     return {};
 }
 

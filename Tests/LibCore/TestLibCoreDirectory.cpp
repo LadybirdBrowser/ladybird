@@ -47,6 +47,16 @@ TEST_CASE(directory_open_and_stat)
 
         EXPECT(directory.stat("nonexistent-file.txt"sv).is_error());
         EXPECT(directory.open("nonexistent-file.txt"sv, Core::File::OpenMode::Read).is_error());
+
+#ifndef AK_OS_WINDOWS
+        auto link_path = directory.path().append("test-file-link.txt"sv);
+        TRY_OR_FAIL(Core::System::symlink("test-file.txt"sv, link_path.string()));
+        EXPECT(directory.open("test-file-link.txt"sv, Core::File::OpenMode::Write | Core::File::OpenMode::NoFollow).is_error());
+
+        auto file = TRY_OR_FAIL(directory.open("test-file.txt"sv, Core::File::OpenMode::ReadWrite | Core::File::OpenMode::NoFollow));
+        auto contents = TRY_OR_FAIL(file->read_until_eof());
+        EXPECT_EQ(StringView { contents.bytes() }, text);
+#endif
     }
 
     TRY_OR_FAIL(FileSystem::remove(directory_path, FileSystem::RecursionMode::Allowed));
