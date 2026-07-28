@@ -25,9 +25,7 @@ static StringView scaling_mode_name(Gfx::ScalingMode scaling_mode)
 
 Gfx::IntRect PaintOuterBoxShadow::bounding_rect() const
 {
-    auto rect = shadow_rect;
-    rect.inflate(blur_radius * 2, blur_radius * 2, blur_radius * 2, blur_radius * 2);
-    return rect;
+    return shadow_rect.inflated(blur_radius * 2, blur_radius * 2, blur_radius * 2, blur_radius * 2);
 }
 
 Gfx::IntRect PaintInnerBoxShadow::bounding_rect() const
