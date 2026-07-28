@@ -3814,6 +3814,16 @@ static void queue_async_scroll_operation_promise_resolution(GC::Ref<WebIDL::Prom
     }));
 }
 
+void LocalNavigable::queue_scrollend_event_and_promise_resolution_for_finished_scroll(Optional<Compositor::AsyncScrollNodeStableID> stable_node_id, ScrollTrigger trigger, Optional<CSSPixelPoint> scroll_offset_before_scroll, GC::Ref<WebIDL::Promise> promise)
+{
+    if (stable_node_id.has_value() && scroll_offset_before_scroll.has_value()) {
+        auto final_scroll_offset = scroll_offset_for(*stable_node_id);
+        if (final_scroll_offset.has_value() && *final_scroll_offset != *scroll_offset_before_scroll)
+            queue_scrollend_event_for_finished_scroll(*stable_node_id, trigger);
+    }
+    queue_async_scroll_operation_promise_resolution(promise);
+}
+
 void LocalNavigable::wait_for_async_scroll_operation(Compositor::AsyncScrollOperationID operation_id, GC::Ref<WebIDL::Promise> promise)
 {
     if (has_been_destroyed() || !all_local_navigables().contains(*this)) {
@@ -3835,12 +3845,7 @@ void LocalNavigable::resolve_async_scroll_operation(Compositor::AsyncScrollOpera
         if (pending.operation_id != operation_id)
             return false;
 
-        if (pending.stable_node_id.has_value() && pending.initial_scroll_offset.has_value()) {
-            auto final_scroll_offset = scroll_offset_for(*pending.stable_node_id);
-            if (final_scroll_offset.has_value() && *final_scroll_offset != *pending.initial_scroll_offset)
-                queue_scrollend_event_for_finished_scroll(*pending.stable_node_id, pending.trigger);
-        }
-        queue_async_scroll_operation_promise_resolution(pending.promise);
+        queue_scrollend_event_and_promise_resolution_for_finished_scroll(pending.stable_node_id, pending.trigger, pending.initial_scroll_offset, pending.promise);
         return true;
     });
 }
@@ -3849,20 +3854,12 @@ void LocalNavigable::resolve_all_pending_async_scroll_operations()
 {
     while (!m_pending_async_scroll_operations.is_empty()) {
         auto pending = m_pending_async_scroll_operations.take_last();
-        if (pending.stable_node_id.has_value() && pending.initial_scroll_offset.has_value()) {
-            auto final_scroll_offset = scroll_offset_for(*pending.stable_node_id);
-            if (final_scroll_offset.has_value() && *final_scroll_offset != *pending.initial_scroll_offset)
-                queue_scrollend_event_for_finished_scroll(*pending.stable_node_id, pending.trigger);
-        }
-        queue_async_scroll_operation_promise_resolution(pending.promise);
+        queue_scrollend_event_and_promise_resolution_for_finished_scroll(pending.stable_node_id, pending.trigger, pending.initial_scroll_offset, pending.promise);
     }
 
     while (!m_main_thread_smooth_scrolls.is_empty()) {
         auto smooth_scroll = m_main_thread_smooth_scrolls.take_last();
-        auto final_scroll_offset = scroll_offset_for(smooth_scroll.stable_node_id);
-        if (final_scroll_offset.has_value() && *final_scroll_offset != smooth_scroll.initial_scroll_offset)
-            queue_scrollend_event_for_finished_scroll(smooth_scroll.stable_node_id, smooth_scroll.trigger);
-        queue_async_scroll_operation_promise_resolution(smooth_scroll.promise);
+        queue_scrollend_event_and_promise_resolution_for_finished_scroll(smooth_scroll.stable_node_id, smooth_scroll.trigger, smooth_scroll.initial_scroll_offset, smooth_scroll.promise);
     }
 }
 
@@ -4078,12 +4075,7 @@ void LocalNavigable::resolve_pending_smooth_scrolls(Compositor::AsyncScrollNodeS
             ++index;
             continue;
         }
-        if (pending.initial_scroll_offset.has_value()) {
-            auto final_scroll_offset = scroll_offset_for(stable_node_id);
-            if (final_scroll_offset.has_value() && *final_scroll_offset != *pending.initial_scroll_offset)
-                queue_scrollend_event_for_finished_scroll(stable_node_id, pending.trigger);
-        }
-        queue_async_scroll_operation_promise_resolution(pending.promise);
+        queue_scrollend_event_and_promise_resolution_for_finished_scroll(stable_node_id, pending.trigger, pending.initial_scroll_offset, pending.promise);
         m_pending_async_scroll_operations.remove(index);
     }
 
@@ -4093,10 +4085,7 @@ void LocalNavigable::resolve_pending_smooth_scrolls(Compositor::AsyncScrollNodeS
             ++index;
             continue;
         }
-        auto final_scroll_offset = scroll_offset_for(stable_node_id);
-        if (final_scroll_offset.has_value() && *final_scroll_offset != smooth_scroll.initial_scroll_offset)
-            queue_scrollend_event_for_finished_scroll(stable_node_id, smooth_scroll.trigger);
-        queue_async_scroll_operation_promise_resolution(smooth_scroll.promise);
+        queue_scrollend_event_and_promise_resolution_for_finished_scroll(stable_node_id, smooth_scroll.trigger, smooth_scroll.initial_scroll_offset, smooth_scroll.promise);
         m_main_thread_smooth_scrolls.remove(index);
     }
 }
@@ -4119,10 +4108,7 @@ void LocalNavigable::process_main_thread_smooth_scrolls()
         auto sample = smooth_scroll.animation.sample(smooth_scroll.elapsed);
         set_scroll_offset_for(smooth_scroll.stable_node_id, sample.offset.to_type<CSSPixels>());
         if (sample.complete) {
-            auto final_scroll_offset = scroll_offset_for(smooth_scroll.stable_node_id);
-            if (final_scroll_offset.has_value() && *final_scroll_offset != smooth_scroll.initial_scroll_offset)
-                queue_scrollend_event_for_finished_scroll(smooth_scroll.stable_node_id, smooth_scroll.trigger);
-            queue_async_scroll_operation_promise_resolution(smooth_scroll.promise);
+            queue_scrollend_event_and_promise_resolution_for_finished_scroll(smooth_scroll.stable_node_id, smooth_scroll.trigger, smooth_scroll.initial_scroll_offset, smooth_scroll.promise);
             m_main_thread_smooth_scrolls.remove(index);
         } else {
             ++index;
