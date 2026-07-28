@@ -300,7 +300,7 @@ void paint_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect
         along_start = max(0, along_start - inset_of(frame.joined_edge));
         along_end = max(0, along_end - inset_of(frame.opposite_joined_edge));
         into_start = max(0, into_start - inset_of(edge));
-        into_end = into_start;
+        into_end = max(0, into_end - inset_of(edge));
 
         switch (edge) {
         case BorderEdge::Top:

@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    div {
+        width: 160px;
+        height: 110px;
+        border: 20px double;
+        border-color: red blue green orange;
+        border-radius: 40px 10px;
+    }
+</style>
+<div></div>
+<script>
+    test(() => {
+        println(internals.dumpDisplayList());
+    });
+</script>
