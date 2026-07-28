@@ -11,7 +11,10 @@
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
+#include <LibWeb/DOM/Document.h>
+#include <LibWeb/Painting/SVGSVGPaintable.h>
 #include <LibWeb/SVG/SVGElement.h>
+#include <LibWeb/SVG/SVGForeignObjectElement.h>
 #include <LibWeb/SVG/SVGLength.h>
 
 namespace Web::SVG {
@@ -97,9 +100,173 @@ void SVGLength::visit_edges(Cell::Visitor& visitor)
 
 SVGLength::~SVGLength() = default;
 
-float SVGLength::value() const
+static Gfx::Size<double> svg_viewport_size(SVGElement& element)
 {
-    return parsed_value_from_style_value(internal_value()).value;
+    auto viewport_size_from_layout = [](SVGSVGElement& viewport_element) -> Gfx::Size<double> {
+        // NB: A disconnected element may have stale layout objects from before it was removed.
+        if (!viewport_element.is_connected())
+            return {};
+
+        if (auto const* svg_paintable = as_if<Painting::SVGSVGPaintable>(viewport_element.paintable().ptr()))
+            return svg_paintable->svg_viewport_size().to_type<double>();
+
+        return {};
+    };
+
+    // NB: Presentational attributes on SVGSVGElements are resolved irrespective of it's own viewBox (which only affects
+    //     the internal coordinate system)
+    if (auto* svg_element = as_if<SVGSVGElement>(element)) {
+        auto const* parent = svg_element->parent_or_shadow_host_element();
+
+        // https://w3c.github.io/svgwg/svg2-draft/coords.html#InitialViewport
+        if (!parent || !is<SVGElement>(*parent))
+            return viewport_size_from_layout(*svg_element);
+
+        // https://w3c.github.io/svgwg/svg2-draft/coords.html#EstablishingANewSVGViewport
+        if (is<SVGForeignObjectElement>(*parent))
+            return viewport_size_from_layout(*svg_element);
+    }
+
+    auto viewport_element = element.owner_svg_element();
+
+    if (!viewport_element)
+        return {};
+
+    if (auto view_box = viewport_element->active_view_box(); view_box.has_value() && view_box->width > 0 && view_box->height > 0)
+        return { view_box->width, view_box->height };
+
+    return viewport_size_from_layout(*viewport_element);
+}
+
+static double percentage_resolution_basis_for_attribute_reflecting_length(GC::Ptr<SVGElement> element, SVGLength::Directionality directionality)
+{
+    // AD-HOC: This is defined in the algorithms of both SVGLength::value and SVGLength::convertToSpecifiedUnits so we
+    //         factor it out here to avoid duplication.
+
+    // - has no associated element
+    if (!element) {
+        // size is 100
+        return 100.0;
+    }
+
+    // NB: Make sure the SVG layout is up to date so the viewport size is up to date.
+    element->document().update_layout(DOM::UpdateLayoutReason::SVGLengthValue);
+
+    auto viewport = svg_viewport_size(*element);
+
+    switch (directionality) {
+    case SVGLength::Directionality::Horizontal:
+        // - has an associated element and horizontal directionality
+        //     size is the width of the associated element's SVG viewport
+        return viewport.width();
+    case SVGLength::Directionality::Vertical:
+        // - has an associated element and vertical directionality
+        //     size is the height of the associated element's SVG viewport
+        return viewport.height();
+    case SVGLength::Directionality::Unspecified:
+        // - has an associated element and unspecified directionality
+        //     size is the length of the associated element's SVG viewport diagonal (see Units)
+        return AK::sqrt((viewport.width() * viewport.width() + viewport.height() * viewport.height()) / 2.0);
+    }
+
+    VERIFY_NOT_REACHED();
+}
+
+static Optional<CSS::Length::ResolutionContext> length_resolution_context_for_element(GC::Ptr<SVGElement> element)
+{
+    // AD-HOC: This is defined in the algorithms of both SVGLength::value and SVGLength::convertToSpecifiedUnits so we
+    //         factor it out here to avoid duplication.
+
+    // - has no associated element
+    // AD-HOC: Other browsers also do this for disconnected elements
+    // FIXME: Length::ResolutionContext::for_element doesn't support elements without a navigable so we bail on that
+    //        too which is incorrect
+    if (!element || !element->is_connected() || !element->navigable()) {
+        // font size is the absolute length of the initial value of the font-size property
+        // AD-HOC: Browsers disagree on what we should actually do here, WebKit implements the spec, Gecko uses a LRC
+        //         with all zeros, and Blink throws an error. We return an OptionalNone and callers should throw an
+        //         error matching Blink's behavior since that's the easiest to implement.
+        return {};
+    }
+
+    // - has an associated element
+    {
+        // NB: Make sure style updates are applied so the LRC is up to date
+        element->document().update_style_for_element(*element);
+
+        // size is the computed value of the associated element's font-size property
+        return CSS::Length::ResolutionContext::for_element(*element);
+    }
+}
+
+// https://w3c.github.io/svgwg/svg2-draft/types.html#__svg__SVGLength__value
+WebIDL::ExceptionOr<float> SVGLength::value() const
+{
+    // 1. Let value be the SVGLength's value.
+    auto value = internal_value();
+
+    // 2. If value is a <number>, return that number.
+    // AD-HOC: We only return literal numbers here, non-literal values (e.g. math and tree counting functions) are
+    //         returned once they have been absolutized in step 4.
+    if (value->is_number())
+        return value->as_number().number();
+
+    // 3. Let viewport size be a basis to resolve percentages against, based on the SVGLength's associated element
+    //    and directionality:
+    auto viewport_size = percentage_resolution_basis_for_attribute_reflecting_length(m_element, m_directionality);
+
+    // 4. Let font size be a basis to resolve font size values against, based on the SVGLength's associated element:
+    // AD-HOC: We need a full-fledged Length::ResolutionContext here instead of just the font size so we can resolve all
+    //         relative lengths, not just em (e.g. ch, vw, etc).
+    auto length_resolution_context = length_resolution_context_for_element(m_element);
+
+    // 5. Return the result of converting value to an absolute length, using viewport size and font size as percentage
+    //    and font size bases. If the conversion is not possible due to the lack of an associated element, return 0.
+
+    // AD-HOC: Chrome raises an error rather than returning 0 so we do the same here.
+    auto error_value = [&] { return WebIDL::NotSupportedError::create(realm(), ""_utf16); };
+
+    if (!length_resolution_context.has_value()) {
+        if (!value->is_computationally_independent())
+            return error_value();
+
+        // NB: Values which rely on viewport relative lengths are computationally independent but we still can't resolve
+        //    them - we pass a bogus LRC and check if absolutization depends on viewport metrics.
+        CSS::ComputationContext computation_context {
+            .length_resolution_context = { .viewport_rect = { 0, 0, 0, 0 }, .font_metrics = { 0, {}, {} }, .root_font_metrics = { 0, {}, {} } },
+        };
+
+        auto absolutized_value = value->absolutized(computation_context);
+
+        if (computation_context.depends_on_viewport_metrics())
+            return error_value();
+
+        // AD-HOC: We handle literal numbers in step two but calculated values that resolve to numbers haven't been
+        //         handled yet (tree counting functions have been filtered out since they aren't computationally
+        //         independent).
+        if (absolutized_value->is_calculated() && absolutized_value->as_calculated().resolves_to_number())
+            return number_from_style_value(*absolutized_value, {});
+
+        return CSS::Length::from_style_value(absolutized_value, CSS::Length::make_px(viewport_size)).absolute_length_to_px_without_rounding();
+    }
+
+    CSS::ComputationContext computation_context {
+        .length_resolution_context = length_resolution_context.release_value(),
+        .abstract_element = { *m_element },
+    };
+
+    // NB: Update layout so any container query units are resolved correctly.
+    // NB: We can be sure we have an element since we wouldn't have a length resolution context otherwise.
+    m_element->document().update_layout(DOM::UpdateLayoutReason::SVGLengthValue);
+
+    auto absolutized_value = value->absolutized(computation_context);
+
+    // AD-HOC: We handle literal numbers in step two but tree counting functions (which absolutize to NumberStyleValue)
+    //         and calculated values that resolve to numbers haven't been handled yet.
+    if (absolutized_value->is_number() || (absolutized_value->is_calculated() && absolutized_value->as_calculated().resolves_to_number()))
+        return number_from_style_value(*absolutized_value, {});
+
+    return CSS::Length::from_style_value(absolutized_value, CSS::Length::make_px(viewport_size)).absolute_length_to_px_without_rounding();
 }
 
 u8 SVGLength::unit_type() const

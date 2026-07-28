@@ -465,6 +465,12 @@ impl<'pass> SvgFormattingContext<'pass> {
             .computed_svg_transforms = Some(transforms);
     }
 
+    fn set_svg_viewport_size(&self, node: Node, viewport_size: FfiCssPixelSize) {
+        self.state
+            .used_values_rare_data_for_node_mut(&self.callbacks, node)
+            .svg_viewport_size = Some(viewport_size);
+    }
+
     fn place_child(&self, node: Node, x: CssPixels, y: CssPixels) {
         crate::layout::place_child(self.state, &self.callbacks, node, FfiCssPixelPoint { x, y });
     }
@@ -520,6 +526,16 @@ impl<'pass> SvgFormattingContext<'pass> {
         //       I'm not sure if this is good or bad, but our viewport transform logic depends on it.
         used.has_definite_inline_size.set(true);
         used.has_definite_block_size.set(true);
+
+        if self.state.node_facts(&self.callbacks, self.box_).is_svg_svg_box() {
+            self.set_svg_viewport_size(
+                self.box_,
+                FfiCssPixelSize {
+                    width: used.content_inline_size.get(),
+                    height: used.content_block_size.get(),
+                },
+            );
+        }
 
         let mut active_view_box = facts.has_active_view_box.then_some(facts.active_view_box);
         // https://svgwg.org/svg2-draft/coords.html#ViewBoxAttribute
@@ -726,7 +742,6 @@ impl<'pass> SvgFormattingContext<'pass> {
         } else {
             style.height().to_px(self.viewport_height)
         };
-
         if self.state.node_facts(&self.callbacks, viewport).is_svg_svg_box()
             && self.computed_transforms(viewport).is_none()
         {
@@ -795,6 +810,13 @@ impl<'pass> SvgFormattingContext<'pass> {
                 },
                 content_box_position_in_bfc_root: None,
                 table_grid_min_border_box_block_size: None,
+            },
+        );
+        self.set_svg_viewport_size(
+            viewport,
+            FfiCssPixelSize {
+                width: nested_viewport_width,
+                height: nested_viewport_height,
             },
         );
 

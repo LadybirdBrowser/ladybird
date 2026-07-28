@@ -1382,6 +1382,14 @@ RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
                 svg_foreign_object_paintable->set_computed_transforms(converted);
             if (auto* svg_svg_paintable = as_if<Painting::SVGSVGPaintable>(paintable))
                 svg_svg_paintable->set_computed_transforms(converted); },
+        .set_svg_viewport_size = [](void*, void* paintable_pointer, RustFFI::FfiCssPixelSize viewport_size) {
+            auto& paintable = *static_cast<Painting::Paintable*>(paintable_pointer);
+            if (auto* svg_svg_paintable = as_if<Painting::SVGSVGPaintable>(paintable)) {
+                svg_svg_paintable->set_svg_viewport_size({
+                    CSSPixels::from_raw(viewport_size.width),
+                    CSSPixels::from_raw(viewport_size.height),
+                });
+            } },
         .set_computed_svg_path = [](void*, void* paintable_pointer, void* path_pointer) {
             VERIFY(path_pointer);
             auto& paintable = *static_cast<Painting::Paintable*>(paintable_pointer);
@@ -1780,6 +1788,7 @@ RustFFI::FfiLayoutFcCallbacks LayoutRustBridge::formatting_context_callbacks()
                     .x = paintable->offset().x().raw_value(),
                     .y = paintable->offset().y().raw_value(),
                 },
+                .svg_viewport_size = {},
                 .margin_left = box_model.margin.left.raw_value(),
                 .margin_right = box_model.margin.right.raw_value(),
                 .margin_top = box_model.margin.top.raw_value(),
@@ -1797,6 +1806,16 @@ RustFFI::FfiLayoutFcCallbacks LayoutRustBridge::formatting_context_callbacks()
                 .inset_top = box_model.inset.top.raw_value(),
                 .inset_bottom = box_model.inset.bottom.raw_value(),
             };
+
+            // NB: We check the node type rather than the paintable type to mirror the rust-side logic.
+            if (is<SVGSVGBox>(*static_cast<Node const*>(node))) {
+                auto const* svg_svg_paintable = as_if<Painting::SVGSVGPaintable>(paintable);
+                VERIFY(svg_svg_paintable);
+                out->svg_viewport_size = {
+                    .width = svg_svg_paintable->svg_viewport_size().width().raw_value(),
+                    .height = svg_svg_paintable->svg_viewport_size().height().raw_value(),
+                };
+            }
             return true; },
         .read_paintable_svg_transforms = [](void*, void* node, RustFFI::FfiSvgComputedTransforms* out) {
             VERIFY(out);
