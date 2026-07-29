@@ -1883,8 +1883,13 @@ public:
         bool operator==(BackgroundValues const&) const = default;
     };
 
+    // The group's payload lifecycle stays in C++, but the four BorderData
+    // members lead the struct and mirror the Rust BorderLayoutFacts prefix,
+    // pinned by static asserts in ComputedValues.cpp, so layout reads border
+    // widths and line styles as typed fields.
     struct BorderValues {
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::BorderValues);
+        static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::CppWithBorderFacts;
         BorderData border_left;
         BorderData border_top;
         BorderData border_right;

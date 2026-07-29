@@ -43,10 +43,37 @@
 
 namespace Web::CSS {
 
+static constexpr bool style_group_payload_is_rust_native(ComputedValuesFFI::StyleGroupLifecycle lifecycle)
+{
+    switch (lifecycle) {
+    case ComputedValuesFFI::StyleGroupLifecycle::Cpp:
+    case ComputedValuesFFI::StyleGroupLifecycle::CppWithBorderFacts:
+        return false;
+    case ComputedValuesFFI::StyleGroupLifecycle::InheritedTable:
+    case ComputedValuesFFI::StyleGroupLifecycle::InheritedBox:
+    case ComputedValuesFFI::StyleGroupLifecycle::Sizing:
+    case ComputedValuesFFI::StyleGroupLifecycle::Alignment:
+    case ComputedValuesFFI::StyleGroupLifecycle::SVGReset:
+    case ComputedValuesFFI::StyleGroupLifecycle::Surround:
+    case ComputedValuesFFI::StyleGroupLifecycle::Box:
+        return true;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+template<typename T>
+static consteval ComputedValuesFFI::StyleGroupLifecycle style_group_lifecycle_of()
+{
+    if constexpr (requires { T::style_group_lifecycle; })
+        return T::style_group_lifecycle;
+    else
+        return ComputedValuesFFI::StyleGroupLifecycle::Cpp;
+}
+
 template<typename T>
 static consteval ComputedValuesFFI::StyleGroupVTable make_style_group_vtable()
 {
-    if constexpr (requires { T::style_group_lifecycle; }) {
+    if constexpr (style_group_payload_is_rust_native(style_group_lifecycle_of<T>())) {
         return {
             .lifecycle = T::style_group_lifecycle,
             .size = sizeof(T),
@@ -58,7 +85,7 @@ static consteval ComputedValuesFFI::StyleGroupVTable make_style_group_vtable()
         };
     }
     return {
-        .lifecycle = ComputedValuesFFI::StyleGroupLifecycle::Cpp,
+        .lifecycle = style_group_lifecycle_of<T>(),
         .size = sizeof(T),
         .align = alignof(T),
         .default_construct = [](void* payload) {
@@ -673,6 +700,21 @@ static_assert(sizeof(Size) == sizeof(ComputedValuesFFI::ComputedSize));
 static_assert(alignof(Size) == alignof(ComputedValuesFFI::ComputedSize));
 static_assert(sizeof(RustStyleValueHandle) == sizeof(StyleValueFFI::StyleValueData const*));
 static_assert(alignof(RustStyleValueHandle) == alignof(StyleValueFFI::StyleValueData const*));
+
+// The border group keeps its C++ lifecycle, but its four leading BorderData
+// members double as the Rust BorderLayoutFacts prefix that layout reads as
+// typed fields.
+static_assert(sizeof(Gfx::Color) == sizeof(u32));
+static_assert(sizeof(LineStyle) == sizeof(u8));
+static_assert(sizeof(BorderData) == sizeof(ComputedValuesFFI::ComputedBorderSide));
+static_assert(offsetof(BorderData, color) == offsetof(ComputedValuesFFI::ComputedBorderSide, color));
+static_assert(offsetof(BorderData, line_style) == offsetof(ComputedValuesFFI::ComputedBorderSide, line_style));
+static_assert(offsetof(BorderData, width) == offsetof(ComputedValuesFFI::ComputedBorderSide, width));
+static_assert(offsetof(ComputedValues::BorderValues, border_left) == offsetof(ComputedValuesFFI::BorderLayoutFacts, border_left));
+static_assert(offsetof(ComputedValues::BorderValues, border_top) == offsetof(ComputedValuesFFI::BorderLayoutFacts, border_top));
+static_assert(offsetof(ComputedValues::BorderValues, border_right) == offsetof(ComputedValuesFFI::BorderLayoutFacts, border_right));
+static_assert(offsetof(ComputedValues::BorderValues, border_bottom) == offsetof(ComputedValuesFFI::BorderLayoutFacts, border_bottom));
+static_assert(sizeof(ComputedValuesFFI::BorderLayoutFacts) <= offsetof(ComputedValues::BorderValues, border_left_color_style_value));
 
 void const* style_group_default_payload(size_t group_index)
 {
