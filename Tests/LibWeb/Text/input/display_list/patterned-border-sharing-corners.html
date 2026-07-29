@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    div {
+        width: 100px;
+        height: 0;
+        border-top: 20px dashed red;
+        border-left: 20px solid transparent;
+        border-right: 20px solid transparent;
+    }
+
+    .mixed-colors {
+        height: 60px;
+        border: 20px dashed red;
+        border-right-color: blue;
+    }
+
+    .dotted {
+        border-top-style: dotted;
+    }
+
+    .mixed-colors.dotted {
+        border-style: dotted;
+    }
+
+    .no-neighbours {
+        border: none;
+        border-bottom: 20px dashed red;
+    }
+</style>
+<div></div>
+<div class="dotted"></div>
+<div class="mixed-colors"></div>
+<div class="mixed-colors dotted"></div>
+<div class="no-neighbours"></div>
+<script>
+    test(() => {
+        println(internals.dumpDisplayList());
+    });
+</script>

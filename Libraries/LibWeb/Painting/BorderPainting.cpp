@@ -397,57 +397,6 @@ void paint_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect
         return;
     }
 
-    auto width_into = static_cast<float>(border_data.width.value());
-
-    if (gfx_line_style != Gfx::LineStyle::Solid) {
-        auto centerline = patterned_border_centerline(edge, rect, radius, opposite_radius, borders_data);
-        if (is_long_enough_for_pattern(centerline.length(), width_into, gfx_line_style == Gfx::LineStyle::Dotted)) {
-            flush_queued_edges();
-            stroke_patterned_path(painter, move(centerline), gfx_line_style, width_into, color, false);
-            return;
-        }
-    }
-
-    auto draw_border = [&](Vector<Gfx::FloatPoint> const& points, bool joined_corner_has_inner_corner, bool opposite_joined_corner_has_inner_corner, Gfx::FloatSize joined_inner_corner_offset, Gfx::FloatSize opposite_joined_inner_corner_offset, bool ready_to_draw) {
-        int current = 0;
-        path.move_to(points[current++]);
-        path.elliptical_arc_to(
-            points[current++],
-            Gfx::FloatSize(radius.horizontal_radius, radius.vertical_radius),
-            0,
-            false,
-            false);
-        path.line_to(points[current++]);
-        if (joined_corner_has_inner_corner) {
-            path.elliptical_arc_to(
-                points[current++],
-                Gfx::FloatSize(radius.horizontal_radius - joined_inner_corner_offset.width(), radius.vertical_radius - joined_inner_corner_offset.height()),
-                0,
-                false,
-                true);
-        }
-        path.line_to(points[current++]);
-        if (opposite_joined_corner_has_inner_corner) {
-            path.elliptical_arc_to(
-                points[current++],
-                Gfx::FloatSize(opposite_radius.horizontal_radius - opposite_joined_inner_corner_offset.width(), opposite_radius.vertical_radius - opposite_joined_inner_corner_offset.height()),
-                0,
-                false,
-                true);
-        }
-        path.line_to(points[current++]);
-        path.elliptical_arc_to(
-            points[current++],
-            Gfx::FloatSize(opposite_radius.horizontal_radius, opposite_radius.vertical_radius),
-            0,
-            false,
-            false);
-
-        // If joined borders have the same color, combine them to draw together.
-        if (ready_to_draw)
-            flush_queued_edges();
-    };
-
     /**
      *   0 /-------------\ 7
      *    / /-----------\ \
@@ -458,6 +407,7 @@ void paint_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect
      * border width on both sides. If the border radius is smaller than the border width, then the inner corner of the
      * border corner is a right angle.
      */
+    auto width_into = static_cast<float>(border_data.width.value());
     auto radius_along = [&](Gfx::CornerRadius const& corner) { return static_cast<float>(is_horizontal_edge ? corner.horizontal_radius : corner.vertical_radius); };
     auto radius_into = [&](Gfx::CornerRadius const& corner) { return static_cast<float>(is_horizontal_edge ? corner.vertical_radius : corner.horizontal_radius); };
 
@@ -477,6 +427,12 @@ void paint_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect
 
     bool joined_corner_has_inner_corner = width_into < radius_into(radius) && joined_width < radius_along(radius);
     bool opposite_joined_corner_has_inner_corner = width_into < radius_into(opposite_radius) && opposite_joined_width < radius_along(opposite_radius);
+
+    // An edge only gives up part of a corner where it meets a neighbour that has width, or where it follows a curve
+    // into one. Without either it covers exactly its own rect.
+    bool shares_a_corner = joined_width > 0 || opposite_joined_width > 0
+        || radius.horizontal_radius > 0 || radius.vertical_radius > 0
+        || opposite_radius.horizontal_radius > 0 || opposite_radius.vertical_radius > 0;
 
     auto joined_corner_endpoint = midpoint(radius_along(radius), radius_into(radius), joined_width);
     auto opposite_joined_corner_endpoint = midpoint(radius_along(opposite_radius), radius_into(opposite_radius), opposite_joined_width);
@@ -507,14 +463,75 @@ void paint_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect
     auto inner_corner_offset = [&](float width_along) {
         return is_horizontal_edge ? Gfx::FloatSize(width_along, width_into) : Gfx::FloatSize(width_into, width_along);
     };
+    auto joined_inner_corner_offset = inner_corner_offset(joined_width);
+    auto opposite_joined_inner_corner_offset = inner_corner_offset(opposite_joined_width);
 
-    draw_border(
-        points,
-        joined_corner_has_inner_corner,
-        opposite_joined_corner_has_inner_corner,
-        inner_corner_offset(joined_width),
-        inner_corner_offset(opposite_joined_width),
-        last || color != border_color(frame.opposite_joined_edge, borders_data));
+    auto append_edge_region = [&](Gfx::Path& target) {
+        int current = 0;
+        target.move_to(points[current++]);
+        target.elliptical_arc_to(
+            points[current++],
+            Gfx::FloatSize(radius.horizontal_radius, radius.vertical_radius),
+            0,
+            false,
+            false);
+        target.line_to(points[current++]);
+        if (joined_corner_has_inner_corner) {
+            target.elliptical_arc_to(
+                points[current++],
+                Gfx::FloatSize(radius.horizontal_radius - joined_inner_corner_offset.width(), radius.vertical_radius - joined_inner_corner_offset.height()),
+                0,
+                false,
+                true);
+        }
+        target.line_to(points[current++]);
+        if (opposite_joined_corner_has_inner_corner) {
+            target.elliptical_arc_to(
+                points[current++],
+                Gfx::FloatSize(opposite_radius.horizontal_radius - opposite_joined_inner_corner_offset.width(), opposite_radius.vertical_radius - opposite_joined_inner_corner_offset.height()),
+                0,
+                false,
+                true);
+        }
+        target.line_to(points[current++]);
+        target.elliptical_arc_to(
+            points[current++],
+            Gfx::FloatSize(opposite_radius.horizontal_radius, opposite_radius.vertical_radius),
+            0,
+            false,
+            false);
+    };
+
+    // Fails for an edge too short to hold the pattern, which is painted solid instead.
+    auto paint_patterned_edge = [&] {
+        auto centerline = patterned_border_centerline(edge, rect, radius, opposite_radius, borders_data);
+        if (!is_long_enough_for_pattern(centerline.length(), width_into, gfx_line_style == Gfx::LineStyle::Dotted))
+            return false;
+
+        flush_queued_edges();
+
+        // The stroke is as wide as the border, so at a shared corner it would spill across the split into its
+        // neighbour. Clipping it to the region a solid edge would have filled cuts it back there.
+        Optional<DisplayListRecorderStateSaver> clip;
+        if (shares_a_corner) {
+            Gfx::Path edge_region;
+            append_edge_region(edge_region);
+            clip.emplace(painter);
+            painter.add_clip_path(edge_region, Gfx::WindingRule::EvenOdd);
+        }
+
+        stroke_patterned_path(painter, move(centerline), gfx_line_style, width_into, color, false);
+        return true;
+    };
+
+    if (gfx_line_style != Gfx::LineStyle::Solid && paint_patterned_edge())
+        return;
+
+    append_edge_region(path);
+
+    // If joined borders have the same color, combine them to draw together.
+    if (last || color != border_color(frame.opposite_joined_edge, borders_data))
+        flush_queued_edges();
 }
 
 // When every edge shares a width, color and style there is nothing to attribute to one edge or the other, so the whole

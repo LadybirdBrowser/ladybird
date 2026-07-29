@@ -1008,6 +1008,11 @@ void DisplayListPlayerSkia::play_command(PaintConicGradient const& command)
     surface().canvas().drawRect(to_skia_rect(rect), paint);
 }
 
+void DisplayListPlayerSkia::play_command(AddClipPath const& command)
+{
+    add_clip_path(path_from_data(command.path_data), command.winding_rule);
+}
+
 void DisplayListPlayerSkia::play_command(AddRoundedRectClip const& command)
 {
     auto rounded_rect = to_skia_rrect(command.border_rect, command.corner_radii);
