@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSSOM View - Simultaneous scrollIntoViews</title>
+    <link rel="help" href="https://drafts.csswg.org/cssom-view/#dom-element-scrollintoview">
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <script src="../../dom/events/scrolling/scroll_support.js"></script>
+    <script src="../../css/css-scroll-snap/support/common.js"></script>
+    <script src="resources/simultaneousScrollIntoViews.js"></script>
+  </head>
+  <body>
+    <style>
+      .scroller {
+        overflow-y: scroll;
+        background-color: teal;
+        border: solid 1px black;
+        position: relative;
+        resize: both;
+        display: inline-block;
+      }
+      .scroller.outer {
+        height: 400px;
+        width: 400px;
+      }
+      .scroller.inner {
+        height: 200px;
+        width: 200px;
+        position: absolute;
+        top: 150%;
+      }
+      .space {
+        height: 200vh;
+        width: 200vw;
+      }
+      .box {
+        height: 50px;
+        width: 50px;
+        background-color: purple;
+      }
+      .target {
+        position: absolute;
+        top: 150%;
+      }
+    </style>
+    <div id="outerscroller1" class="outer scroller">
+      <div class="space"></div>
+      <div id="innerscroller1" class="inner scroller">
+        <div class="space"></div>
+        <div class="box target" id="target1"></div>
+      </div>
+    </div>
+    <div id="outerscroller2" class="outer scroller">
+      <div class="space"></div>
+      <div id="innerscroller2" class="inner scroller">
+        <div class="space"></div>
+        <div class="box target" id="target2"></div>
+      </div>
+    </div>
+    <script>
+      const outerscroller1 = document.getElementById("outerscroller1");
+      const outerscroller2 = document.getElementById("outerscroller2");
+      const innerscroller1 = document.getElementById("innerscroller1");
+      const innerscroller2 = document.getElementById("innerscroller2");
+      const target1 = document.getElementById("target1");
+      const target2 = document.getElementById("target2");
+
+      const scrollers = [ outerscroller1,
+                          outerscroller2,
+                          innerscroller1,
+                          innerscroller2 ];
+      // Expect the outer scrollers to scroll to the inner scrollers
+      // and the inner scrollers to scroll to their respective targets.
+      const target_offsets = [ innerscroller1.offsetTop,
+                               innerscroller2.offsetTop,
+                               target1.offsetTop,
+                               target2.offsetTop ];
+      promise_test(async (t) => {
+        await simultaneousScrollIntoViewsTest(t,
+          ["smooth", "smooth"], [target1, target2], scrollers, target_offsets);
+      }, "Simultaneous smooth scrollIntoViews run to completion");
+
+      promise_test(async (t) => {
+        await simultaneousScrollIntoViewsTest(t,
+          ["smooth", "instant"], [target1, target2], scrollers, target_offsets);
+      }, "Simultaneous smooth,instant scrollIntoViews run to completion");
+
+      promise_test(async (t) => {
+        await simultaneousScrollIntoViewsTest(t,
+          ["instant", "smooth"], [target1, target2], scrollers, target_offsets);
+      }, "Simultaneous instant,smooth scrollIntoViews run to completion");
+
+      promise_test(async (t) => {
+        await simultaneousScrollIntoViewsTest(t,
+          ["instant", "instant"], [target1, target2], scrollers, target_offsets);
+      }, "Simultaneous instant scrollIntoViews run to completion");
+    </script>
+  </body>
+</html>

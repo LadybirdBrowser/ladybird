@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 4 tests
+
+1 Pass
+3 Fail
+Fail	Simultaneous smooth scrollIntoViews run to completion
+Fail	Simultaneous smooth,instant scrollIntoViews run to completion
+Fail	Simultaneous instant,smooth scrollIntoViews run to completion
+Pass	Simultaneous instant scrollIntoViews run to completion

@@ -3286,7 +3286,7 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Element& target, Bi
         current_scroll_position = document.navigable()->viewport_scroll_offset() + visual_viewport.offset();
     } else if (auto paintable_box = scrolling_box.paintable_box()) {
         current_scroll_position = paintable_box->scroll_offset();
-        scrolling_box_rect = paintable_box->absolute_rect();
+        scrolling_box_rect = paintable_box->transform_rect_to_viewport(paintable_box->absolute_rect(), Painting::AccumulatedVisualContextTree::IncludeVisualViewportTransform::No);
     } else {
         return {};
     }

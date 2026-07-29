@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 4 tests
+
+2 Pass
+2 Fail
+Pass	scroll-margin is respected when overflowing an overflow: visible container
+Pass	scroll-margin is respected when overflowing an overflow: clip container
+Fail	scroll-margin is respected when overflowing an overflow: auto container
+Fail	scroll-margin and scroll-padding are respected when overflowing an overflow: auto container
