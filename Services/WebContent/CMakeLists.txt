@@ -1,5 +1,3 @@
-include(audio)
-
 set(SOURCES
     ConnectionFromClient.cpp
     ConsoleGlobalEnvironmentExtensions.cpp
