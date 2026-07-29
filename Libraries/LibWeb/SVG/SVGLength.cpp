@@ -312,6 +312,57 @@ NonnullRefPtr<CSS::StyleValue const> SVGLength::internal_value() const
         });
 }
 
+struct Number { };
+struct Percentage { };
+struct Length {
+    CSS::LengthUnit unit;
+};
+
+using Unit = Variant<Number, Percentage, Length>;
+
+static WebIDL::ExceptionOr<NonnullRefPtr<CSS::StyleValue const>> convert_px_to_specified_units(JS::Realm& realm, float value, Unit unit, GC::Ptr<SVGElement> element, SVGLength::Directionality directionality)
+{
+    if (unit.has<Number>())
+        return CSS::NumberStyleValue::create(value);
+
+    if (unit.has<Percentage>()) {
+        auto percentage_resolution_basis = percentage_resolution_basis_for_attribute_reflecting_length(element, directionality);
+
+        if (percentage_resolution_basis == 0.0)
+            return CSS::PercentageStyleValue::create(CSS::Percentage { 0.0 });
+
+        return CSS::PercentageStyleValue::create(CSS::Percentage { value / percentage_resolution_basis * 100.0 });
+    }
+
+    auto length_unit = unit.get<Length>().unit;
+
+    auto ratio = TRY([&]() -> WebIDL::ExceptionOr<double> {
+        if (CSS::is_container_relative(length_unit))
+            VERIFY_NOT_REACHED();
+
+        if (CSS::is_absolute(length_unit))
+            return CSS::ratio_between_units(CSS::LengthUnit::Px, length_unit);
+
+        auto length_resolution_context = length_resolution_context_for_element(element);
+
+        if (!length_resolution_context.has_value())
+            return WebIDL::NotSupportedError::create(realm, "Cannot convert to relative length without an associated element"_utf16);
+
+        if (CSS::is_font_relative(length_unit))
+            return 1.0 / CSS::ratio_between_font_relative_unit_and_px(length_unit, length_resolution_context->font_metrics, length_resolution_context->root_font_metrics);
+
+        if (CSS::is_viewport_relative(length_unit))
+            return 1.0 / CSS::ratio_between_viewport_relative_unit_and_px(length_unit, length_resolution_context->viewport_rect);
+
+        VERIFY_NOT_REACHED();
+    }());
+
+    if (!isfinite(ratio))
+        ratio = 0;
+
+    return CSS::LengthStyleValue::create(CSS::Length { value * ratio, length_unit });
+}
+
 // https://svgwg.org/svg2-draft/types.html#__svg__SVGLength__value
 WebIDL::ExceptionOr<void> SVGLength::set_value(float value)
 {
@@ -550,6 +601,70 @@ WebIDL::ExceptionOr<void> SVGLength::new_value_specified_units(u16 unit_type, fl
         m_source.get<DetachedSource>().value = *new_value;
 
     // 4. If the SVGLength reflects the base value of a reflected attribute or reflects an element of the base value of
+    //    a reflected attribute, then reserialize the reflected attribute.
+    // FIXME: Implement this for "reflects an element of the base value of a reflected attribute" when we support it.
+    // FIXME: Should this also happen for "reflects a presentation attribute" as we do with set_value()?
+    if (m_source.has<ReflectedAttributeSource>()) {
+        // NB: All attribute reflecting lengths should have an associated element
+        VERIFY(m_element);
+
+        m_element->set_attribute_value(m_source.get<ReflectedAttributeSource>().name, new_value->to_utf16_string(CSS::SerializationMode::Normal));
+    }
+
+    return {};
+}
+
+// https://w3c.github.io/svgwg/svg2-draft/types.html#__svg__SVGLength__convertToSpecifiedUnits
+WebIDL::ExceptionOr<void> SVGLength::convert_to_specified_units(u16 unit_type)
+{
+    // 1. If the SVGLength object is read only, then throw a NoModificationAllowedError.
+    if (m_read_only == ReadOnly::Yes)
+        return WebIDL::NoModificationAllowedError::create(realm(), "Cannot modify value of read-only SVGLength"_utf16);
+
+    // 2. If unitType is SVG_LENGTHTYPE_UNKNOWN or is a value that does not appear in the length unit type table above,
+    //    then throw a NotSupportedError.
+    if (unit_type == SVG_LENGTHTYPE_UNKNOWN || unit_type > SVG_LENGTHTYPE_PC)
+        return WebIDL::NotSupportedError::create(realm(), "Unsupported SVGLength unit type"_utf16);
+
+    // 3. Let absolute be the value that would be returned from the value member.
+    auto absolute = TRY(value());
+
+    // 4. If unitType is SVG_LENGTHTYPE_NUMBER, then:
+    //    1. Set the SVGLength's value to a <number> whose value is absolute.
+
+    // 5. Otherwise, if unitType is SVG_LENGTHTYPE_PERCENTAGE, then:
+    //    1. Let viewport size be a basis to resolve percentages against, based on the SVGLength's associated element
+    //       and directionality:
+    //    2. Set the SVGLength's value to the result of converting absolute to a <percentage>, using viewport size as
+    //       the percentage basis.
+
+    // 6. Otherwise, if unitType is SVG_LENGTHTYPE_EMS or SVG_LENGTHTYPE_EXS, then:
+    //    1. Let font size be a basis to resolve font size values against, based on the SVGLength's associated element:
+    //    2. Set the SVGLength's value to the result of converting absolute to a <length> with an em or ex unit
+    //       (depending on unitType), using font size as the font-size basis.
+
+    // 7. Otherwise:
+    //    1. Set the SVGLength's value to the result of converting absolute to a <length> with the unit found by
+    //       looking up unitType in the length unit type table above.
+
+    // AD-HOC: We implement this out of line since it's also used in an set_value
+    auto target_unit = [&]() {
+        if (unit_type == SVG_LENGTHTYPE_NUMBER)
+            return Unit { Number {} };
+
+        if (unit_type == SVG_LENGTHTYPE_PERCENTAGE)
+            return Unit { Percentage {} };
+
+        return Unit { Length { svg_length_type_to_css_length_unit(unit_type) } };
+    }();
+
+    auto new_value = TRY(convert_px_to_specified_units(realm(), absolute, target_unit, m_element, m_directionality));
+
+    // NB: Modes other than DetachedSource have their value set implicitly when reserializing the reflected attribute.
+    if (m_source.has<DetachedSource>())
+        m_source.get<DetachedSource>().value = *new_value;
+
+    // 8. If the SVGLength reflects the base value of a reflected attribute or reflects an element of the base value of
     //    a reflected attribute, then reserialize the reflected attribute.
     // FIXME: Implement this for "reflects an element of the base value of a reflected attribute" when we support it.
     // FIXME: Should this also happen for "reflects a presentation attribute" as we do with set_value()?

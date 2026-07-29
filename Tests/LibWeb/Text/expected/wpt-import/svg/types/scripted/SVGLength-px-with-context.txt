@@ -2,16 +2,15 @@ Harness status: OK
 
 Found 11 tests
 
-1 Pass
-10 Fail
-Fail	SVGLength, converting from 'px' to other units (attached), unitless
-Fail	SVGLength, converting from 'px' to other units (attached), percentage
+11 Pass
+Pass	SVGLength, converting from 'px' to other units (attached), unitless
+Pass	SVGLength, converting from 'px' to other units (attached), percentage
 Pass	SVGLength, converting from 'px' to other units (attached), changing percentage basis
-Fail	SVGLength, converting from 'px' to other units (attached), ems
-Fail	SVGLength, converting from 'px' to other units (attached) , exs
-Fail	SVGLength, converting from 'px' to other units (attached), exs (check style flush)
-Fail	SVGLength, converting from 'px' to other units (attached), cm
-Fail	SVGLength, converting from 'px' to other units (attached), mm
-Fail	SVGLength, converting from 'px' to other units (attached), in
-Fail	SVGLength, converting from 'px' to other units (attached), pt
-Fail	SVGLength, converting from 'px' to other units (attached), pc
+Pass	SVGLength, converting from 'px' to other units (attached), ems
+Pass	SVGLength, converting from 'px' to other units (attached) , exs
+Pass	SVGLength, converting from 'px' to other units (attached), exs (check style flush)
+Pass	SVGLength, converting from 'px' to other units (attached), cm
+Pass	SVGLength, converting from 'px' to other units (attached), mm
+Pass	SVGLength, converting from 'px' to other units (attached), in
+Pass	SVGLength, converting from 'px' to other units (attached), pt
+Pass	SVGLength, converting from 'px' to other units (attached), pc
