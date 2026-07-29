@@ -5,7 +5,7 @@ set(CMAKE_AUTOUIC ON)
 find_package(Qt6 6.9 REQUIRED COMPONENTS Core Widgets)
 
 if (NOT APPLE)
-    find_package(Qt6 6.9 OPTIONAL_COMPONENTS Positioning)
+    find_package(Qt6 6.9 REQUIRED COMPONENTS Positioning)
 endif()
 
 if (APPLE OR HAS_DIRECTX)
