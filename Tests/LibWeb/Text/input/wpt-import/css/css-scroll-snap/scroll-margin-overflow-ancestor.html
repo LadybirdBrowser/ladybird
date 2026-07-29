@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-scroll-snap-1/#scroll-margin" />
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+.scroller {
+  overflow: auto;
+  position: relative;
+  height: 200px;
+  width: 100px;
+  border: 1px solid black;
+}
+/* Create scrollable content. */
+.scroller::after {
+  content: "";
+  display: block;
+  height: 2000px;
+}
+/* Outer scroller container is positioned at 1000px */
+.tests > .scroller > * {
+  position: relative;
+  top: 999px; /* content inside container starts at 1000px */
+  height: 150px;
+  width: 90%;
+  margin: 0 auto;
+  border: 1px solid black;
+}
+.visible {
+  overflow: visible;
+}
+.clip {
+  overflow: clip;
+}
+.target {
+  background: green;
+  height: 40px;
+  width: 40px;
+  margin: 0 auto;
+  position: relative;
+}
+.scroll-margin {
+  scroll-margin-top: 40px;
+}
+.scroll-padding {
+  scroll-padding-top: 20px;
+}
+.slightly-down { top: 20px; }
+.far-down { top: 400px; }
+.slightly-up { top: -20px; }
+.tests {
+  display: flex;
+}
+</style>
+<h3>overflow: visible</h3>
+<div id="overflow-visible" class="tests">
+  <div class="scroller">
+    <div class="visible">
+      <div class="scroll-margin target far-down"></div>
+    </div>
+  </div>
+  <div class="scroller">
+    <div class="visible">
+      <div class="scroll-margin target slightly-down"></div>
+    </div>
+  </div>
+  <div class="scroller">
+    <div class="visible">
+      <div class="scroll-margin target at-top"></div>
+    </div>
+  </div>
+  <div class="scroller">
+    <div class="visible">
+      <div class="scroll-margin target slightly-up"></div>
+    </div>
+  </div>
+</div>
+
+<h3>overflow: clip</h3>
+<div id="overflow-clip" class="tests">
+  <div class="scroller">
+    <div class="clip">
+      <div class="scroll-margin target far-down"></div>
+    </div>
+  </div>
+  <div class="scroller">
+    <div class="clip">
+      <div class="scroll-margin target slightly-down"></div>
+    </div>
+  </div>
+  <div class="scroller">
+    <div class="clip">
+      <div class="scroll-margin target at-top"></div>
+    </div>
+  </div>
+  <div class="scroller">
+    <div class="clip">
+      <div class="scroll-margin target slightly-up"></div>
+    </div>
+  </div>
+</div>
+
+<h3>overflow: auto</h3>
+<div id="overflow-auto" class="tests">
+  <div class="scroller">
+    <div class="scroller">
+      <div class="scroll-margin target far-down"></div>
+    </div>
+  </div>
+  <div class="scroller">
+    <div class="scroller">
+      <div class="scroll-margin target slightly-down"></div>
+    </div>
+  </div>
+  <div class="scroller">
+    <div class="scroller">
+      <div class="scroll-margin target at-top"></div>
+    </div>
+  </div>
+  <div class="scroller">
+    <div class="scroller">
+      <div class="scroll-margin target slightly-up"></div>
+    </div>
+  </div>
+</div>
+
+<h3>overflow: auto with scroll padding</h3>
+<div id="overflow-auto-scroll-padding" class="tests">
+  <div class="scroller scroll-padding">
+    <div class="scroller scroll-padding">
+      <div class="scroll-margin target far-down"></div>
+    </div>
+  </div>
+  <div class="scroller scroll-padding">
+    <div class="scroller scroll-padding">
+      <div class="scroll-margin target slightly-down"></div>
+    </div>
+  </div>
+  <div class="scroller scroll-padding">
+    <div class="scroller scroll-padding">
+      <div class="scroll-margin target at-top"></div>
+    </div>
+  </div>
+  <div class="scroller scroll-padding">
+    <div class="scroller scroll-padding">
+      <div class="scroll-margin target slightly-up"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Scroll all target elements into view.
+for (const target of document.querySelectorAll('.target')) {
+  target.scrollIntoView();
+}
+// Scroll main frame to top
+document.scrollingElement.scrollTo(0, 0);
+
+test(() => {
+  const container = document.getElementById('overflow-visible');
+
+  // The element is 400px below container at 1400px,
+  // we should scroll to 1360 to give a 40px scroll margin.
+  const farDownScroller = container.querySelector('.scroller:has(.far-down)');
+  assert_equals(farDownScroller.scrollTop, 1360,
+      'gives 40px margin to element far below visible container');
+
+  // The element is 20px below container at 1020px,
+  // we should scroll to 980 to give a 40px scroll margin.
+  const slightlyDownScroller = container.querySelector('.scroller:has(.slightly-down)');
+  assert_equals(slightlyDownScroller.scrollTop, 980,
+      'gives 40px margin to element slightly below visible container');
+
+  // The element is at top of container at 1000px,
+  // we should scroll to 960 to give a 40px scroll margin.
+  const atTopScroller = container.querySelector('.scroller:has(.at-top)');
+  assert_equals(atTopScroller.scrollTop, 960,
+      'gives 40px margin to element at top of visible container');
+
+  // The element is 20px above container at 980px,
+  // we should scroll to 940 to give a 40px scroll margin.
+  const aboveTopScroller = container.querySelector('.scroller:has(.slightly-up)');
+  assert_equals(aboveTopScroller.scrollTop, 940,
+      'gives 40px margin to element slightly above visible container');
+
+}, "scroll-margin is respected when overflowing an overflow: visible container");
+
+test(() => {
+  const container = document.getElementById('overflow-clip');
+
+  // The element is 400px below container at 1400px,
+  // we should scroll to 1360 to give a 40px scroll margin
+  // even though the element is completely clipped.
+  const farDownScroller = container.querySelector('.scroller:has(.far-down)');
+  assert_equals(farDownScroller.scrollTop, 1360,
+      'gives 40px margin to element far below clip container');
+
+  // The element is 20px below container at 1020px,
+  // we should scroll to 980 to give a 40px scroll margin.
+  const slightlyDownScroller = container.querySelector('.scroller:has(.slightly-down)');
+  assert_equals(slightlyDownScroller.scrollTop, 980,
+      'gives 40px margin to element slightly below clip container');
+
+  // The element is at top of container at 1000px,
+  // we should scroll to 960 to give a 40px scroll margin.
+  const atTopScroller = container.querySelector('.scroller:has(.at-top)');
+  assert_equals(atTopScroller.scrollTop, 960,
+      'gives 40px margin to element at top of clip container');
+
+  // The element is 20px above container at 980px,
+  // we should scroll to 940 to give a 40px scroll margin
+  // even though the top of the element is clipped.
+  const aboveTopScroller = container.querySelector('.scroller:has(.slightly-up)');
+  assert_equals(aboveTopScroller.scrollTop, 940,
+      'gives 40px margin to element slightly above clip container');
+
+}, "scroll-margin is respected when overflowing an overflow: clip container");
+
+test(() => {
+  const container = document.getElementById('overflow-auto');
+
+  // The element is 400px below container at 1400px,
+  // we should scroll inner container to 360 to give 40px margin,
+  // and scroll outer container to 1000px to bring it to the top.
+  const farDownScroller = container.querySelector('.scroller:has(.far-down)');
+  const farDownInnerScroller = farDownScroller.querySelector('.scroller');
+  assert_equals(farDownInnerScroller.scrollTop, 360,
+      'gives 40px margin to element far down in inner scroller');
+  assert_equals(farDownScroller.scrollTop, 1000,
+      'scrolls to top of outer scroller');
+
+  // The element is 20px below container at 1020px,
+  // we can only give it 20px of margin in the inner scroller by scrolling to 0,
+  // so we should give it an additional 20px of margin in the outer scroller.
+  const slightlyDownScroller = container.querySelector('.scroller:has(.slightly-down)');
+  const slightlyDownInnerScroller = slightlyDownScroller.querySelector('.scroller');
+  assert_equals(slightlyDownInnerScroller.scrollTop, 0,
+      'gives all 20px possible for 40px margin in inner scroller');
+  assert_equals(slightlyDownScroller.scrollTop, 980,
+      'gives remaining 20px margin on outer scroller');
+
+  // The element is at top of container at 1000px,
+  // we can't give any margin on the inner scroller,
+  // we should scroll to 960 to give a 40px scroll margin.
+  const atTopScroller = container.querySelector('.scroller:has(.at-top)');
+  const atTopInnerScroller = atTopScroller.querySelector('.scroller');
+  assert_equals(atTopInnerScroller.scrollTop, 0,
+      'scrolls to top of inner scroller');
+  assert_equals(atTopScroller.scrollTop, 960,
+      'gives 40px margin to element in outer scroller');
+
+  // The element is 20px above container at 980px,
+  // we should scroll the inner container to the top,
+  // and since the element is above we still
+  // only need to give 40px above the inner scroller of margin.
+  const aboveTopScroller = container.querySelector('.scroller:has(.slightly-up)');
+  const aboveTopInnerScroller = aboveTopScroller.querySelector('.scroller');
+  assert_equals(aboveTopInnerScroller.scrollTop, 0,
+      'scrolls to top of inner scroller');
+  assert_equals(aboveTopScroller.scrollTop, 960,
+      'gives 40px margin to element slightly above inner scroller');
+
+}, "scroll-margin is respected when overflowing an overflow: auto container");
+
+test(() => {
+  const container = document.getElementById('overflow-auto-scroll-padding');
+
+  // The element is 400px below container at 1400px,
+  // we should scroll inner container to 340 to give 40px margin + 20px padding,
+  // and scroll outer container to 1000px as this will also have
+  // 40px margin + 20px padding from the target box.
+  const farDownScroller = container.querySelector('.scroller:has(.far-down)');
+  const farDownInnerScroller = farDownScroller.querySelector('.scroller');
+  assert_equals(farDownInnerScroller.scrollTop, 340,
+      'gives 40px margin and 20px padding to element far down in inner scroller');
+  assert_equals(farDownScroller.scrollTop, 1000,
+      'scrolls to top of outer scroller');
+
+  // The element is 20px below container at 1020px,
+  // we can only give it 20px of margin in the inner scroller by scrolling to 0,
+  // so we should give it an additional 20px of margin and 20px padding
+  // in the outer scroller plus an additional 20px padding for the outer
+  // scroller's padding. Note we don't duplicate the padding the inner
+  // scroller has already reserved.
+  const slightlyDownScroller = container.querySelector('.scroller:has(.slightly-down)');
+  const slightlyDownInnerScroller = slightlyDownScroller.querySelector('.scroller');
+  assert_equals(slightlyDownInnerScroller.scrollTop, 0,
+      'gives all 20px possible in inner scroller');
+  assert_equals(slightlyDownScroller.scrollTop, 960,
+      'gives remaining 20px margin and 20px padding on outer scroller');
+
+  // The element is at top of container at 1000px,
+  // we can't give any margin or padding on the inner scroller,
+  // we should scroll to 940 to give a 40px scroll margin + 20px padding.
+  const atTopScroller = container.querySelector('.scroller:has(.at-top)');
+  const atTopInnerScroller = atTopScroller.querySelector('.scroller');
+  assert_equals(atTopInnerScroller.scrollTop, 0,
+      'scrolls to top of inner scroller');
+  assert_equals(atTopScroller.scrollTop, 940,
+      'gives 40px margin and 20px padding to element in outer scroller');
+
+  // The element is 20px above container at 980px,
+  // we should scroll the inner container to the top,
+  // and since the element is above we still
+  // only need to give 40px margin + 20px padding above the inner scroller of margin.
+  const aboveTopScroller = container.querySelector('.scroller:has(.slightly-up)');
+  const aboveTopInnerScroller = aboveTopScroller.querySelector('.scroller');
+  assert_equals(aboveTopInnerScroller.scrollTop, 0,
+      'scrolls to top of inner scroller');
+  assert_equals(aboveTopScroller.scrollTop, 940,
+      'gives 40px margin and 20px padding to element slightly above inner scroller');
+
+}, "scroll-margin and scroll-padding are respected when overflowing an overflow: auto container");
+
+</script>
