@@ -442,10 +442,8 @@ public:
     static GridTrackPlacement grid_column_start() { return GridTrackPlacement::make_auto(); }
     static GridTrackPlacement grid_row_end() { return GridTrackPlacement::make_auto(); }
     static GridTrackPlacement grid_row_start() { return GridTrackPlacement::make_auto(); }
-    static ColumnCount column_count() { return ColumnCount::make_auto(); }
     static Variant<LengthPercentage, NormalGap> column_gap() { return NormalGap {}; }
     static ColumnSpan column_span() { return ColumnSpan::None; }
-    static Size column_width() { return Size::make_auto(); }
     static Size column_height() { return Size::make_auto(); }
     static Variant<LengthPercentage, NormalGap> row_gap() { return NormalGap {}; }
     static BorderCollapse border_collapse() { return BorderCollapse::Separate; }
@@ -1018,6 +1016,13 @@ inline ComputedValuesFFI::ComputedVerticalAlign to_ffi_vertical_align(Variant<Ve
     return { .is_keyword = false, .keyword = 0, .value = { retained.leak_data() } };
 }
 
+// The returned raw struct carries the by-value Size's retained reference for
+// a Rust-owned payload to assume ownership of.
+inline ComputedValuesFFI::ComputedSize to_ffi_computed_size(Size size)
+{
+    return { .kind = size.kind, .value = { exchange(size.value.pointer, nullptr) } };
+}
+
 // Each returned raw carries one leaked reference for a Rust-owned fly string
 // list to assume ownership of.
 inline Vector<size_t> to_leaked_fly_string_raws(Vector<Utf16FlyString> const& names)
@@ -1284,10 +1289,15 @@ public:
     GridTrackPlacement const& grid_column_start() const { return m_noninherited.grid->grid_column_start; }
     GridTrackPlacement const& grid_row_end() const { return m_noninherited.grid->grid_row_end; }
     GridTrackPlacement const& grid_row_start() const { return m_noninherited.grid->grid_row_start; }
-    ColumnCount column_count() const { return m_noninherited.misc->column_count; }
+    ColumnCount column_count() const
+    {
+        if (!m_noninherited.box->column_count_has_value)
+            return ColumnCount::make_auto();
+        return ColumnCount::make_integer(m_noninherited.box->column_count);
+    }
     Variant<LengthPercentage, NormalGap> column_gap() const { return gap(m_noninherited.alignment->column_gap); }
     ColumnSpan const& column_span() const { return m_noninherited.misc->column_span; }
-    Size const& column_width() const { return m_noninherited.misc->column_width; }
+    Size const& column_width() const { return Size::view(m_noninherited.box->column_width); }
     Size const& column_height() const { return m_noninherited.misc->column_height; }
     Variant<LengthPercentage, NormalGap> row_gap() const { return gap(m_noninherited.alignment->row_gap); }
     BorderCollapse border_collapse() const { return static_cast<BorderCollapse>(m_inherited.table->border_collapse); }
@@ -1976,8 +1986,6 @@ public:
         Appearance computed_appearance { Appearance::None };
         OutlineStyle outline_style { InitialValues::outline_style() };
         ObjectFit object_fit { InitialValues::object_fit() };
-        ColumnCount column_count { InitialValues::column_count() };
-        Size column_width { InitialValues::column_width() };
         Size column_height { InitialValues::column_height() };
         Color outline_color { InitialValues::outline_color() };
         CSSPixels outline_width { InitialValues::outline_width() };
@@ -3203,23 +3211,11 @@ public:
             return;
         m_values.m_noninherited.grid.access().grid_row_start = move(value);
     }
-    void set_column_count(ColumnCount value)
-    {
-        if (m_values.m_noninherited.misc->column_count == value)
-            return;
-        m_values.m_noninherited.misc.access().column_count = value;
-    }
     void set_column_span(ColumnSpan column_span)
     {
         if (m_values.m_noninherited.misc->column_span == column_span)
             return;
         m_values.m_noninherited.misc.access().column_span = column_span;
-    }
-    void set_column_width(Size column_width)
-    {
-        if (m_values.m_noninherited.misc->column_width == column_width)
-            return;
-        m_values.m_noninherited.misc.access().column_width = column_width;
     }
     void set_column_height(Size column_height)
     {
