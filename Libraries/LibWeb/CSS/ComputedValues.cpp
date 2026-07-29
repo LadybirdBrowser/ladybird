@@ -182,6 +182,7 @@ static constexpr Array misc_reset_group_properties {
     PropertyID::ShapeImageThreshold,
     PropertyID::ShapeMargin,
     PropertyID::ShapeOutside,
+    PropertyID::WillChange,
 };
 
 // overflow-wrap has no generated keyword converter; the mapping matches the
@@ -382,7 +383,6 @@ static constexpr Array box_group_properties {
     PropertyID::Contain,
     PropertyID::ContainerName,
     PropertyID::ContainerType,
-    PropertyID::WillChange,
     PropertyID::Resize,
 };
 
@@ -509,6 +509,7 @@ static void register_style_group_field_descriptors()
     add(misc_reset, PropertyID::ShapeImageThreshold, offsetof(MiscReset, shape_image_threshold), GROUP_FIELD_RESOLVED_F64, 0, nullptr);
     add(misc_reset, PropertyID::ShapeMargin, 0, GROUP_FIELD_REQUIRE_PX, 0, nullptr, 0);
     add(misc_reset, PropertyID::ShapeOutside, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::None), nullptr);
+    add(misc_reset, PropertyID::WillChange, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Auto), nullptr);
 
     using InheritedText = ComputedValues::InheritedTextValues;
     constexpr auto inherited_text = to_underlying(StyleGroupIndex::InheritedTextValues);
@@ -641,7 +642,6 @@ static void register_style_group_field_descriptors()
     add(box, PropertyID::Contain, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::None), nullptr);
     add(box, PropertyID::ContainerName, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::None), nullptr);
     add(box, PropertyID::ContainerType, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Normal), nullptr);
-    add(box, PropertyID::WillChange, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Auto), nullptr);
     add(box, PropertyID::Resize, offsetof(Box, resize), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_resize>());
 
     using Border = ComputedValues::BorderValues;
@@ -2315,9 +2315,8 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
         computed_values.set_container_name(computed_style.container_name());
     if (!box_adopted)
         computed_values.set_container_type(computed_style.container_type());
-    if (!box_adopted)
+    if (!misc_reset_adopted)
         computed_values.set_will_change(computed_style.will_change());
-
     if (!inherited_ui_adopted) {
         auto const& caret_color_value = computed_style.property(CSS::PropertyID::CaretColor);
         CSS::ColorOrAuto caret_color;

@@ -1372,7 +1372,7 @@ public:
     double shape_image_threshold() const { return m_noninherited.misc->shape_image_threshold; }
     LengthPercentage const& shape_margin() const { return m_noninherited.misc->shape_margin; }
     ShapeOutsideData const& shape_outside() const { return m_noninherited.misc->shape_outside; }
-    WillChange const& will_change() const { return m_noninherited.box->will_change; }
+    WillChange const& will_change() const { return m_noninherited.misc->will_change; }
 
 private:
     ComputedValues();
@@ -1823,6 +1823,7 @@ public:
         double shape_image_threshold { InitialValues::shape_image_threshold() };
         LengthPercentage shape_margin { InitialValues::shape_margin() };
         ShapeOutsideData shape_outside { InitialValues::shape_outside() };
+        WillChange will_change { InitialValues::will_change() };
 
         bool operator==(MiscResetValues const&) const = default;
     };
@@ -1887,7 +1888,6 @@ public:
         Containment contain { InitialValues::contain() };
         Vector<Utf16FlyString> container_name { InitialValues::container_name() };
         ContainerType container_type { InitialValues::container_type() };
-        WillChange will_change { InitialValues::will_change() };
         Resize resize { InitialValues::resize() };
 
         bool operator==(BoxValues const&) const = default;
@@ -3413,9 +3413,9 @@ public:
 
     void set_will_change(WillChange value)
     {
-        if (m_values.m_noninherited.box->will_change == value)
+        if (m_values.m_noninherited.misc->will_change == value)
             return;
-        m_values.m_noninherited.box.access().will_change = move(value);
+        m_values.m_noninherited.misc.access().will_change = move(value);
     }
 
 private:
