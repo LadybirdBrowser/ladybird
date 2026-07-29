@@ -484,4 +484,83 @@ WebIDL::ExceptionOr<void> SVGLength::set_value_as_string(Utf16String value)
     return {};
 }
 
+static CSS::LengthUnit svg_length_type_to_css_length_unit(u8 unit_type)
+{
+    switch (unit_type) {
+    case SVGLength::SVG_LENGTHTYPE_EMS:
+        return CSS::LengthUnit::Em;
+    case SVGLength::SVG_LENGTHTYPE_EXS:
+        return CSS::LengthUnit::Ex;
+    case SVGLength::SVG_LENGTHTYPE_PX:
+        return CSS::LengthUnit::Px;
+    case SVGLength::SVG_LENGTHTYPE_CM:
+        return CSS::LengthUnit::Cm;
+    case SVGLength::SVG_LENGTHTYPE_MM:
+        return CSS::LengthUnit::Mm;
+    case SVGLength::SVG_LENGTHTYPE_IN:
+        return CSS::LengthUnit::In;
+    case SVGLength::SVG_LENGTHTYPE_PT:
+        return CSS::LengthUnit::Pt;
+    case SVGLength::SVG_LENGTHTYPE_PC:
+        return CSS::LengthUnit::Pc;
+    default:
+        break;
+    }
+
+    VERIFY_NOT_REACHED();
+}
+
+WebIDL::ExceptionOr<void> SVGLength::new_value_specified_units(u16 unit_type, float value_in_specified_units)
+{
+    // The newValueSpecifiedUnits method is used to set the SVGLength's value in a typed manner. When
+    // newValueSpecifiedUnits(unitType, valueInSpecifiedUnits) is called, the following steps are run:
+    //
+    // 1. If the SVGLength object is read only, then throw a NoModificationAllowedError.
+    if (m_read_only == ReadOnly::Yes)
+        return WebIDL::NoModificationAllowedError::create(realm(), "Cannot modify value of read-only SVGLength"_utf16);
+
+    // 2. If unitType is SVG_LENGTHTYPE_UNKNOWN or is a value that does not appear in the length unit type table above,
+    //    then throw a NotSupportedError.
+    if (unit_type == SVG_LENGTHTYPE_UNKNOWN || unit_type > SVG_LENGTHTYPE_PC)
+        return WebIDL::NotSupportedError::create(realm(), "Unsupported SVGLength unit type"_utf16);
+
+    // 3. Set SVGLength's value depending on the value of unitType:
+    RefPtr<CSS::StyleValue const> new_value;
+    switch (unit_type) {
+    case SVG_LENGTHTYPE_NUMBER:
+        // - SVG_LENGTHTYPE_NUMBER
+        //     a <number> whose value is valueInSpecifiedUnits
+        new_value = CSS::NumberStyleValue::create(value_in_specified_units);
+        break;
+    case SVG_LENGTHTYPE_PERCENTAGE:
+        // - SVG_LENGTHTYPE_PERCENTAGE
+        //     a <percentage> whose numeric factor is valueInSpecifiedUnits
+        new_value = CSS::PercentageStyleValue::create(CSS::Percentage { value_in_specified_units });
+        break;
+    default:
+        // - anything else
+        //     a <length> whose numeric factor is valueInSpecifiedUnits and whose unit is as indicated by the length unit
+        //     type table above
+        new_value = CSS::LengthStyleValue::create(CSS::Length { value_in_specified_units, svg_length_type_to_css_length_unit(unit_type) });
+        break;
+    }
+
+    // NB: Modes other than DetachedSource have their value set implicitly when reserializing the reflected attribute.
+    if (m_source.has<DetachedSource>())
+        m_source.get<DetachedSource>().value = *new_value;
+
+    // 4. If the SVGLength reflects the base value of a reflected attribute or reflects an element of the base value of
+    //    a reflected attribute, then reserialize the reflected attribute.
+    // FIXME: Implement this for "reflects an element of the base value of a reflected attribute" when we support it.
+    // FIXME: Should this also happen for "reflects a presentation attribute" as we do with set_value()?
+    if (m_source.has<ReflectedAttributeSource>()) {
+        // NB: All attribute reflecting lengths should have an associated element
+        VERIFY(m_element);
+
+        m_element->set_attribute_value(m_source.get<ReflectedAttributeSource>().name, new_value->to_utf16_string(CSS::SerializationMode::Normal));
+    }
+
+    return {};
+}
+
 }

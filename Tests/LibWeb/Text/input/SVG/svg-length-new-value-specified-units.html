@@ -1,0 +1,57 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const svgNamespace = "http://www.w3.org/2000/svg";
+        const svg = document.createElementNS(svgNamespace, "svg");
+        const length = svg.createSVGLength();
+        const cases = [
+            [SVGLength.SVG_LENGTHTYPE_NUMBER, ""],
+            [SVGLength.SVG_LENGTHTYPE_PERCENTAGE, "%"],
+            [SVGLength.SVG_LENGTHTYPE_EMS, "em"],
+            [SVGLength.SVG_LENGTHTYPE_EXS, "ex"],
+            [SVGLength.SVG_LENGTHTYPE_PX, "px"],
+            [SVGLength.SVG_LENGTHTYPE_CM, "cm"],
+            [SVGLength.SVG_LENGTHTYPE_MM, "mm"],
+            [SVGLength.SVG_LENGTHTYPE_IN, "in"],
+            [SVGLength.SVG_LENGTHTYPE_PT, "pt"],
+            [SVGLength.SVG_LENGTHTYPE_PC, "pc"],
+        ];
+
+        for (const [unitType, suffix] of cases) {
+            length.newValueSpecifiedUnits(unitType, 12.5);
+            if (
+                length.unitType !== unitType ||
+                length.valueInSpecifiedUnits !== 12.5 ||
+                length.valueAsString !== `12.5${suffix}`
+            )
+                throw new Error(`Detached length was not set using ${suffix || "number"} units`);
+        }
+
+        const rect = document.createElementNS(svgNamespace, "rect");
+        rect.x.baseVal.newValueSpecifiedUnits(SVGLength.SVG_LENGTHTYPE_CM, 2.5);
+        if (rect.getAttribute("x") !== "2.5cm") throw new Error("Reflected length did not update its attribute");
+
+        let exception;
+        try {
+            rect.x.animVal.newValueSpecifiedUnits(SVGLength.SVG_LENGTHTYPE_PX, 10);
+        } catch (error) {
+            exception = error;
+        }
+        if (exception?.name !== "NoModificationAllowedError")
+            throw new Error("Setting a read-only length did not throw NoModificationAllowedError");
+
+        for (const unitType of [SVGLength.SVG_LENGTHTYPE_UNKNOWN, -1, 11]) {
+            exception = undefined;
+            try {
+                length.newValueSpecifiedUnits(unitType, 10);
+            } catch (error) {
+                exception = error;
+            }
+            if (exception?.name !== "NotSupportedError")
+                throw new Error(`Using invalid unit type ${unitType} did not throw NotSupportedError`);
+        }
+
+        println("PASS");
+    });
+</script>
