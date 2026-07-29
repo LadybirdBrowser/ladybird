@@ -1434,6 +1434,24 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::reverse)
     return typed_array;
 }
 
+static bool typed_array_element_types_have_same_bit_encoding(TypedArrayBase const& source, TypedArrayBase const& target)
+{
+    if (source.kind() == target.kind())
+        return true;
+
+    if ((source.kind() == TypedArrayBase::Kind::Uint8Array && target.kind() == TypedArrayBase::Kind::Uint8ClampedArray)
+        || (source.kind() == TypedArrayBase::Kind::Uint8ClampedArray && target.kind() == TypedArrayBase::Kind::Uint8Array))
+        return true;
+
+    if (source.element_size() != target.element_size())
+        return false;
+
+    if (source.is_unclamped_integer_element_type() && target.is_unclamped_integer_element_type())
+        return true;
+
+    return source.is_bigint_element_type() && target.is_bigint_element_type();
+}
+
 // 23.2.3.26.1 SetTypedArrayFromTypedArray ( target, targetOffset, source ), https://tc39.es/ecma262/#sec-settypedarrayfromtypedarray
 static ThrowCompletionOr<void> set_typed_array_from_typed_array(VM& vm, TypedArrayBase& target, double target_offset, TypedArrayBase const& source)
 {
@@ -1537,9 +1555,7 @@ static ThrowCompletionOr<void> set_typed_array_from_typed_array(VM& vm, TypedArr
     auto limit = checked_limit.value();
 
     // 23. If srcType is targetType, then
-    if (source.kind() == target.kind()
-        || (source.kind() == TypedArrayBase::Kind::Uint8Array && target.kind() == TypedArrayBase::Kind::Uint8ClampedArray)
-        || (source.kind() == TypedArrayBase::Kind::Uint8ClampedArray && target.kind() == TypedArrayBase::Kind::Uint8Array)) {
+    if (typed_array_element_types_have_same_bit_encoding(source, target)) {
         // a. NOTE: The transfer must be performed in a manner that preserves the bit-level encoding of the source data.
         // b. Repeat, while targetByteIndex < limit,
         //     i. Let value be GetValueFromBuffer(srcBuffer, srcByteIndex, Uint8, true, Unordered).

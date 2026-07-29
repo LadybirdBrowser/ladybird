@@ -103,6 +103,40 @@ describe("normal behavior", () => {
         BIGINT_TYPED_ARRAYS.forEach(T => argumentTests(T));
     });
 
+    test("set preserves bit encodings between same-width signed and unsigned integer arrays", () => {
+        const pairs = [
+            [Uint8Array, Int8Array, [0, 127, 128, 255], [0, 127, -128, -1]],
+            [Uint16Array, Int16Array, [0, 32767, 32768, 65535], [0, 32767, -32768, -1]],
+            [Uint32Array, Int32Array, [0, 2147483647, 2147483648, 4294967295], [0, 2147483647, -2147483648, -1]],
+            [
+                BigUint64Array,
+                BigInt64Array,
+                [0n, 9223372036854775807n, 9223372036854775808n, 18446744073709551615n],
+                [0n, 9223372036854775807n, -9223372036854775808n, -1n],
+            ],
+        ];
+
+        for (const [UnsignedArray, SignedArray, unsignedValues, signedValues] of pairs) {
+            const signedTarget = new SignedArray(unsignedValues.length);
+            signedTarget.set(new UnsignedArray(unsignedValues));
+            expect(Array.from(signedTarget)).toEqual(signedValues);
+
+            const unsignedTarget = new UnsignedArray(signedValues.length);
+            unsignedTarget.set(new SignedArray(signedValues));
+            expect(Array.from(unsignedTarget)).toEqual(unsignedValues);
+        }
+    });
+
+    test("set snapshots overlapping same-width signed and unsigned integer arrays", () => {
+        const buffer = new ArrayBuffer(4);
+        const source = new Uint8Array(buffer);
+        source.set([1, 2, 3, 4]);
+
+        new Int8Array(buffer, 1).set(source.subarray(0, 3));
+
+        expect(Array.from(source)).toEqual([1, 1, 2, 3]);
+    });
+
     test("set works when source is Array", () => {
         function argumentTests({ array, maxUnsignedInteger }) {
             const firstTypedArray = new array(1);
