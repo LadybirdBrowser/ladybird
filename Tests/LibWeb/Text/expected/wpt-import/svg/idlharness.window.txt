@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1780 tests
 
-1120 Pass
-660 Fail
+1122 Pass
+658 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Document: original interface defined
@@ -129,7 +129,7 @@ Pass	SVGLength interface: attribute unitType
 Pass	SVGLength interface: attribute value
 Pass	SVGLength interface: attribute valueInSpecifiedUnits
 Pass	SVGLength interface: attribute valueAsString
-Fail	SVGLength interface: operation newValueSpecifiedUnits(unsigned short, float)
+Pass	SVGLength interface: operation newValueSpecifiedUnits(unsigned short, float)
 Fail	SVGLength interface: operation convertToSpecifiedUnits(unsigned short)
 Pass	SVGLength must be primary interface of objects.svg.createSVGLength()
 Pass	Stringification of objects.svg.createSVGLength()
@@ -148,7 +148,7 @@ Pass	SVGLength interface: objects.svg.createSVGLength() must inherit property "u
 Pass	SVGLength interface: objects.svg.createSVGLength() must inherit property "value" with the proper type
 Pass	SVGLength interface: objects.svg.createSVGLength() must inherit property "valueInSpecifiedUnits" with the proper type
 Pass	SVGLength interface: objects.svg.createSVGLength() must inherit property "valueAsString" with the proper type
-Fail	SVGLength interface: objects.svg.createSVGLength() must inherit property "newValueSpecifiedUnits(unsigned short, float)" with the proper type
+Pass	SVGLength interface: objects.svg.createSVGLength() must inherit property "newValueSpecifiedUnits(unsigned short, float)" with the proper type
 Pass	SVGLength interface: calling newValueSpecifiedUnits(unsigned short, float) on objects.svg.createSVGLength() with too few arguments must throw TypeError
 Fail	SVGLength interface: objects.svg.createSVGLength() must inherit property "convertToSpecifiedUnits(unsigned short)" with the proper type
 Pass	SVGLength interface: calling convertToSpecifiedUnits(unsigned short) on objects.svg.createSVGLength() with too few arguments must throw TypeError
