@@ -410,6 +410,10 @@ impl Compiler {
 
         let ops = metadata::parse_flap_metadata(unit.source.name, unit.source.contents)
             .map_err(|error| CompileError::from_flap_metadata_error(unit.source, error))?;
+        let specializations = metadata::parse_specializations(unit.source.name, unit.source.contents)
+            .map_err(|error| CompileError::from_flap_metadata_error(unit.source, error))?;
+        bytecode::validate_specializations(&ops, &specializations)
+            .map_err(|message| CompileError::new(CompileStage::Semantic, None, message))?;
         // The interpreter dispatches on a single opcode byte, so a table beyond
         // 256 entries would have unreachable handlers.
         if ops.len() > DISPATCH_TABLE_SIZE {

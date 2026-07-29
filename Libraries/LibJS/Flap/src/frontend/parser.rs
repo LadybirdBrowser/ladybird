@@ -41,7 +41,6 @@ enum TokenKind {
     Caret,
     Bang,
     Tilde,
-    Apostrophe,
     At,
     End,
 }
@@ -152,7 +151,6 @@ impl<'a> Lexer<'a> {
                 '^' => TokenKind::Caret,
                 '!' => TokenKind::Bang,
                 '~' => TokenKind::Tilde,
-                '\'' => TokenKind::Apostrophe,
                 '@' => TokenKind::At,
                 _ => return None,
             };
@@ -2069,6 +2067,13 @@ handler Sub(lhs: i32, rhs: i32) {
         let error = parse("bad.flap", "handler Add(value: Value) { let result: i32 = value }").unwrap_err();
 
         assert_eq!(error.to_string(), "bad.flap:1:53: error: expected ';'");
+    }
+
+    #[test]
+    fn rejects_apostrophes_during_lexing() {
+        let error = parse("bad.flap", "handler Add() { ' }").unwrap_err();
+
+        assert_eq!(error.to_string(), "bad.flap:1:17: error: unexpected character '''");
     }
 
     #[test]
