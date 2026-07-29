@@ -767,7 +767,7 @@ impl<'pass> NodeFacts<'pass> {
         if self.data().style.is_null() {
             return crate::layout::FfiDisplay::block();
         }
-        self.state.style_snapshot(self.callbacks, self.node).display
+        self.state.style_facts(self.callbacks, self.node).display
     }
 
     pub(crate) fn is_svg_box(&self) -> bool {
@@ -843,7 +843,6 @@ pub(crate) struct LayoutState {
     used_values: PagedStore<UsedValues>,
     contained_abspos_children: PagedStore<RefCell<Vec<ContainedAbsposChild>>>,
     style_decode_values: PagedStore<StyleDecodeValues>,
-    style_snapshots: PagedStore<FfiStyleSnapshot>,
     replaced_content_facts: PagedStore<crate::layout::FfiReplacedContentFacts>,
     list_item_facts: PagedStore<crate::layout::FfiListItemFacts>,
     table_facts: PagedStore<FfiTableBoxFacts>,
@@ -896,7 +895,6 @@ impl LayoutState {
             used_values: PagedStore::default(),
             contained_abspos_children: PagedStore::default(),
             style_decode_values: PagedStore::default(),
-            style_snapshots: PagedStore::default(),
             replaced_content_facts: PagedStore::default(),
             list_item_facts: PagedStore::default(),
             table_facts: PagedStore::default(),
@@ -1191,32 +1189,21 @@ impl LayoutState {
         let cache = if let Some(cache) = self.style_decode_values.get(slot_index) {
             cache
         } else {
-            let snapshot = self.style_snapshot(callbacks, node);
+            let data = callbacks.node_data(node);
+            assert!(!data.style.is_null());
+            // SAFETY: NodeData retains the node's immutable ComputedValues for
+            // the synchronous layout pass.
+            let payloads = unsafe { (callbacks.build_style_payloads)(callbacks.context, data.style) };
             self.style_decode_values.allocate(
                 slot_index,
                 StyleDecodeValues::new(
-                    snapshot.payloads,
-                    snapshot.display,
+                    payloads,
                     callbacks.release_calc_handle,
                     callbacks.release_anchor_name_handle,
                 ),
             )
         };
         StyleValues::new(cache, callbacks.context, callbacks.decode_residual_style)
-    }
-
-    fn style_snapshot(&self, callbacks: &FfiLayoutFcCallbacks, node: Node) -> &FfiStyleSnapshot {
-        let data = callbacks.node_data(node);
-        assert!(!data.style.is_null());
-        let slot_index = callbacks.slot_index(node);
-        let snapshot = self.style_snapshots.get(slot_index);
-        if let Some(snapshot) = snapshot {
-            return snapshot;
-        }
-        // SAFETY: NodeData retains the node's immutable ComputedValues for the
-        // synchronous layout pass.
-        let snapshot = unsafe { (callbacks.build_style_snapshot)(callbacks.context, data.style) };
-        self.style_snapshots.allocate(slot_index, snapshot)
     }
 
     pub(crate) fn replace_resolved_anchor_insets(

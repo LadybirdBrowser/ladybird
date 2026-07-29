@@ -297,22 +297,6 @@ pub struct FfiStylePayloads {
     pub groups: [*const c_void; STYLE_GROUP_COUNT],
 }
 
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct FfiStyleSnapshot {
-    pub payloads: FfiStylePayloads,
-    pub display: FfiDisplay,
-}
-
-impl Default for FfiStyleSnapshot {
-    fn default() -> Self {
-        Self {
-            payloads: FfiStylePayloads::default(),
-            display: FfiDisplay::block(),
-        }
-    }
-}
-
 impl Default for FfiStylePayloads {
     fn default() -> Self {
         Self {
@@ -826,13 +810,12 @@ pub(crate) struct StyleDecodeValues {
 impl StyleDecodeValues {
     pub(crate) fn new(
         payloads: FfiStylePayloads,
-        display: FfiDisplay,
         release_calc_handle: FfiReleaseCalcHandleCallback,
         release_anchor_name_handle: FfiReleaseAnchorNameHandleCallback,
     ) -> Self {
         let reader = StyleReader::new(payloads, style_schema());
         Self {
-            scalars: DecodedStyleScalars::decode(&reader, display),
+            scalars: DecodedStyleScalars::decode(&reader),
             cache: StyleDecodeCache::new(reader, release_calc_handle, release_anchor_name_handle),
         }
     }
@@ -858,7 +841,7 @@ pub(crate) struct StyleValues<'a> {
 }
 
 impl DecodedStyleScalars {
-    fn decode(reader: &StyleReader, display: FfiDisplay) -> Self {
+    fn decode(reader: &StyleReader) -> Self {
         let inherited_box = reader.inherited_box();
         let alignment = reader.alignment();
         let inherited_table = reader.inherited_table();
@@ -866,7 +849,7 @@ impl DecodedStyleScalars {
         let (css_preferred_aspect_ratio_numerator, css_preferred_aspect_ratio_denominator) =
             decode_css_preferred_aspect_ratio(&box_values.aspect_ratio);
         Self {
-            display,
+            display: box_values.display,
             border_top_width: reader.css_pixels(FfiStyleField::BorderTopWidth),
             border_right_width: reader.css_pixels(FfiStyleField::BorderRightWidth),
             border_bottom_width: reader.css_pixels(FfiStyleField::BorderBottomWidth),
