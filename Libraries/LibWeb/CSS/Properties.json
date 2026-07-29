@@ -3975,10 +3975,14 @@
     "valid-types": [
       "length [0,∞]",
       "percentage [0,∞]"
-    ]
+    ],
+    "valid-identifiers": [
+      "auto"
+    ],
+    "percentages-resolve-to": "length"
   },
   "scroll-padding-block": {
-    "initial": "0",
+    "initial": "auto",
     "positional-value-list-shorthand": true,
     "longhands": [
       "scroll-padding-block-start",
@@ -3987,7 +3991,11 @@
     "valid-types": [
       "length [0,∞]",
       "percentage [0,∞]"
-    ]
+    ],
+    "valid-identifiers": [
+      "auto"
+    ],
+    "percentages-resolve-to": "length"
   },
   "scroll-padding-block-end": {
     "logical-alias-for": {
@@ -4003,16 +4011,20 @@
   },
   "scroll-padding-bottom": {
     "animation-type": "by-computed-value",
-    "initial": "0",
+    "initial": "auto",
     "inherited": false,
     "requires-computation": "cascaded-value",
     "valid-types": [
       "length [0,∞]",
       "percentage [0,∞]"
-    ]
+    ],
+    "valid-identifiers": [
+      "auto"
+    ],
+    "percentages-resolve-to": "length"
   },
   "scroll-padding-inline": {
-    "initial": "0",
+    "initial": "auto",
     "positional-value-list-shorthand": true,
     "longhands": [
       "scroll-padding-inline-start",
@@ -4021,7 +4033,11 @@
     "valid-types": [
       "length [0,∞]",
       "percentage [0,∞]"
-    ]
+    ],
+    "valid-identifiers": [
+      "auto"
+    ],
+    "percentages-resolve-to": "length"
   },
   "scroll-padding-inline-end": {
     "logical-alias-for": {
@@ -4038,32 +4054,44 @@
   "scroll-padding-left": {
     "animation-type": "by-computed-value",
     "inherited": false,
-    "initial": "0",
+    "initial": "auto",
     "requires-computation": "cascaded-value",
     "valid-types": [
       "length [0,∞]",
       "percentage [0,∞]"
-    ]
+    ],
+    "valid-identifiers": [
+      "auto"
+    ],
+    "percentages-resolve-to": "length"
   },
   "scroll-padding-right": {
     "animation-type": "by-computed-value",
     "inherited": false,
-    "initial": "0",
+    "initial": "auto",
     "requires-computation": "cascaded-value",
     "valid-types": [
       "length [0,∞]",
       "percentage [0,∞]"
-    ]
+    ],
+    "valid-identifiers": [
+      "auto"
+    ],
+    "percentages-resolve-to": "length"
   },
   "scroll-padding-top": {
     "animation-type": "by-computed-value",
     "inherited": false,
-    "initial": "0",
+    "initial": "auto",
     "requires-computation": "cascaded-value",
     "valid-types": [
       "length [0,∞]",
       "percentage [0,∞]"
-    ]
+    ],
+    "valid-identifiers": [
+      "auto"
+    ],
+    "percentages-resolve-to": "length"
   },
   "scroll-timeline": {
     "affects-layout": false,

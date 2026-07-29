@@ -1,0 +1,25 @@
+Harness status: OK
+
+Found 20 tests
+
+20 Pass
+Pass	e.style['scroll-padding'] = "10px" should set scroll-padding-bottom
+Pass	e.style['scroll-padding'] = "10px" should set scroll-padding-left
+Pass	e.style['scroll-padding'] = "10px" should set scroll-padding-right
+Pass	e.style['scroll-padding'] = "10px" should set scroll-padding-top
+Pass	e.style['scroll-padding'] = "10px" should not set unrelated longhands
+Pass	e.style['scroll-padding'] = "auto 20px" should set scroll-padding-bottom
+Pass	e.style['scroll-padding'] = "auto 20px" should set scroll-padding-left
+Pass	e.style['scroll-padding'] = "auto 20px" should set scroll-padding-right
+Pass	e.style['scroll-padding'] = "auto 20px" should set scroll-padding-top
+Pass	e.style['scroll-padding'] = "auto 20px" should not set unrelated longhands
+Pass	e.style['scroll-padding'] = "1px 2px 3px" should set scroll-padding-bottom
+Pass	e.style['scroll-padding'] = "1px 2px 3px" should set scroll-padding-left
+Pass	e.style['scroll-padding'] = "1px 2px 3px" should set scroll-padding-right
+Pass	e.style['scroll-padding'] = "1px 2px 3px" should set scroll-padding-top
+Pass	e.style['scroll-padding'] = "1px 2px 3px" should not set unrelated longhands
+Pass	e.style['scroll-padding'] = "1% 2px 3px 0" should set scroll-padding-bottom
+Pass	e.style['scroll-padding'] = "1% 2px 3px 0" should set scroll-padding-left
+Pass	e.style['scroll-padding'] = "1% 2px 3px 0" should set scroll-padding-right
+Pass	e.style['scroll-padding'] = "1% 2px 3px 0" should set scroll-padding-top
+Pass	e.style['scroll-padding'] = "1% 2px 3px 0" should not set unrelated longhands

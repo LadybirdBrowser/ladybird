@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Scroll Snap Test: scroll-padding-block, scroll-padding-inline with invalid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-scroll-snap-1/#padding-longhands-logical">
+<meta name="assert" content="scroll-padding-block, scroll-padding-inline supports only the grammar '[ auto | <length-percentage> ]{1,2}'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("scroll-padding-block-start", "none");
+test_invalid_value("scroll-padding-block-start", "-10px");
+test_invalid_value("scroll-padding-block-start", "10px 20%");
+test_invalid_value("scroll-padding-block-start", "fit-content");
+
+test_invalid_value("scroll-padding-block-end", "none");
+test_invalid_value("scroll-padding-block-end", "-10px");
+test_invalid_value("scroll-padding-block-end", "10px 20%");
+test_invalid_value("scroll-padding-block-end", "max-content");
+
+test_invalid_value("scroll-padding-inline-start", "none");
+test_invalid_value("scroll-padding-inline-start", "-10px");
+test_invalid_value("scroll-padding-inline-start", "10px 20%");
+test_invalid_value("scroll-padding-inline-start", "min-content");
+
+test_invalid_value("scroll-padding-inline-end", "none");
+test_invalid_value("scroll-padding-inline-end", "-10px");
+test_invalid_value("scroll-padding-inline-end", "10px 20%");
+test_invalid_value("scroll-padding-inline-end", "max-content");
+
+
+test_invalid_value("scroll-padding-block", "none");
+test_invalid_value("scroll-padding-block", "-10px");
+test_invalid_value("scroll-padding-block", "-20%");
+test_invalid_value("scroll-padding-block", "calc(auto)");
+test_invalid_value("scroll-padding-block", "10px 20px 30px 40px 50px");
+test_invalid_value("scroll-padding-block", "fit-content");
+test_invalid_value("scroll-padding-block", "max-content");
+test_invalid_value("scroll-padding-block", "min-content");
+
+test_invalid_value("scroll-padding-inline", "none");
+test_invalid_value("scroll-padding-inline", "-10px");
+test_invalid_value("scroll-padding-inline", "-20%");
+test_invalid_value("scroll-padding-inline", "calc(auto)");
+test_invalid_value("scroll-padding-inline", "10px 20px 30px 40px 50px");
+test_invalid_value("scroll-padding-inline", "fit-content");
+test_invalid_value("scroll-padding-inline", "max-content");
+test_invalid_value("scroll-padding-inline", "min-content");
+</script>
+</body>
+</html>
