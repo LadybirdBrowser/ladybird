@@ -84,15 +84,34 @@ static Gfx::FloatPoint compute_midpoint(float horizontal_radius, float vertical_
     };
 }
 
+// https://drafts.csswg.org/css-backgrounds-3/#border-style
+// There is no control over the spacing of the dots and dashes, nor over the length of the dashes. Implementations are
+// encouraged to choose a spacing that makes the corners symmetrical.
+// NB: The proportions themselves are ours: a dot spans the border width and is followed by a gap of the same size,
+//     while a dash spans twice the border width and is followed by a gap of that same doubled size.
+static float pattern_period(float width, bool dotted)
+{
+    return (dotted ? 2.f : 4.f) * width;
+}
+
+// AD-HOC: Other browsers abandon the pattern and draw a solid line along a side with no room for more than a single
+//         period, which is what keeps a border-only CSS triangle from breaking up into stray marks. They disagree on
+//         a side of exactly one period: Chrome draws it solid, Firefox draws the pattern. We follow Chrome, because
+//         that also settles the dotted case, where a side of exactly one period is what a CSS triangle comes out as
+//         and where Firefox draws nothing at all.
+static bool is_long_enough_for_pattern(float length, float width, bool dotted)
+{
+    return length > pattern_period(width, dotted);
+}
+
 // The pattern is stretched to fit the path a whole number of times, and offset so that it leaves the ends of an open
 // path, and the seam of a closed one, in a gap.
 static void stroke_patterned_path(DisplayListRecorder& painter, Gfx::Path path, Gfx::LineStyle line_style, float width, Color color, bool path_is_closed)
 {
     auto length = path.length();
     auto dotted = line_style == Gfx::LineStyle::Dotted;
-    auto interval = dotted
-        ? length / max(1.f, roundf(length / (2 * width)))
-        : length / (2 * max(1.f, roundf(length / (4 * width))));
+    auto periods = max(1.f, roundf(length / pattern_period(width, dotted)));
+    auto interval = dotted ? length / periods : length / (2 * periods);
 
     painter.stroke_path({
         .cap_style = dotted ? Gfx::Path::CapStyle::Round : Gfx::Path::CapStyle::Butt,
@@ -107,11 +126,11 @@ static void stroke_patterned_path(DisplayListRecorder& painter, Gfx::Path path, 
 }
 
 // Dashes and dots run along the middle of the border, so instead of filling the exact region covered by the edge -
-// which is what the solid border painting below does - this strokes a centerline path: the half of the corner arc
-// leading into the edge, the straight run, and the half of the corner arc leading out of it.
-static void paint_patterned_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect const& rect,
+// which is what the solid border painting below does - they are stroked along a centerline path: the half of the
+// corner arc leading into the edge, the straight run, and the half of the corner arc leading out of it.
+static Gfx::Path patterned_border_centerline(BorderEdge edge, DevicePixelRect const& rect,
     Gfx::CornerRadius const& radius, Gfx::CornerRadius const& opposite_radius,
-    BordersDataDevicePixels const& borders_data, Color color, Gfx::LineStyle line_style)
+    BordersDataDevicePixels const& borders_data)
 {
     auto width = static_cast<float>(borders_data.for_edge(edge).width.value());
     auto half_width = width / 2.f;
@@ -215,7 +234,7 @@ static void paint_patterned_border(DisplayListRecorder& painter, BorderEdge edge
     if (has_arc(end))
         centerline.elliptical_arc_to(split_point(end, opposite_joined_border_width), end.radii, 0, false, true);
 
-    stroke_patterned_path(painter, move(centerline), line_style, width, color, false);
+    return centerline;
 }
 
 void paint_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect const& rect, Gfx::CornerRadius const& radius, Gfx::CornerRadius const& opposite_radius, BordersDataDevicePixels const& borders_data, Gfx::Path& path, bool last)
@@ -378,10 +397,15 @@ void paint_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect
         return;
     }
 
+    auto width_into = static_cast<float>(border_data.width.value());
+
     if (gfx_line_style != Gfx::LineStyle::Solid) {
-        flush_queued_edges();
-        paint_patterned_border(painter, edge, rect, radius, opposite_radius, borders_data, color, gfx_line_style);
-        return;
+        auto centerline = patterned_border_centerline(edge, rect, radius, opposite_radius, borders_data);
+        if (is_long_enough_for_pattern(centerline.length(), width_into, gfx_line_style == Gfx::LineStyle::Dotted)) {
+            flush_queued_edges();
+            stroke_patterned_path(painter, move(centerline), gfx_line_style, width_into, color, false);
+            return;
+        }
     }
 
     auto draw_border = [&](Vector<Gfx::FloatPoint> const& points, bool joined_corner_has_inner_corner, bool opposite_joined_corner_has_inner_corner, Gfx::FloatSize joined_inner_corner_offset, Gfx::FloatSize opposite_joined_inner_corner_offset, bool ready_to_draw) {
@@ -434,7 +458,6 @@ void paint_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect
      * border width on both sides. If the border radius is smaller than the border width, then the inner corner of the
      * border corner is a right angle.
      */
-    auto width_into = static_cast<float>(border_data.width.value());
     auto radius_along = [&](Gfx::CornerRadius const& corner) { return static_cast<float>(is_horizontal_edge ? corner.horizontal_radius : corner.vertical_radius); };
     auto radius_into = [&](Gfx::CornerRadius const& corner) { return static_cast<float>(is_horizontal_edge ? corner.vertical_radius : corner.horizontal_radius); };
 
@@ -545,7 +568,7 @@ static void paint_uniform_patterned_border(DisplayListRecorder& painter, DeviceP
     }
 
     // Starting halfway along the top edge puts the seam on an axis of symmetry, so the pattern laid down in one
-    // direction mirrors the one laid down in the other.
+    // direction mirrors the one laid down in the other, which is the corner symmetry the spec encourages.
     auto start_x = clamp((left + right) / 2, left + top_left.width(), right - top_right.width());
 
     Gfx::Path centerline;
@@ -576,8 +599,15 @@ void paint_all_borders(DisplayListRecorder& painter, DevicePixelRect const& bord
 
     auto line_style = borders_data.top.line_style;
     if ((line_style == CSS::LineStyle::Dashed || line_style == CSS::LineStyle::Dotted) && borders_data.all_are_equal()) {
-        paint_uniform_patterned_border(painter, border_rect, corner_radii, borders_data);
-        return;
+        // A box with a side too short for the pattern has to go through the per-edge painting below, which is where
+        // that side falls back to a solid line.
+        auto width = static_cast<float>(borders_data.top.width.value());
+        auto dotted = line_style == CSS::LineStyle::Dotted;
+        if (is_long_enough_for_pattern(static_cast<float>(border_rect.width().value()), width, dotted)
+            && is_long_enough_for_pattern(static_cast<float>(border_rect.height().value()), width, dotted)) {
+            paint_uniform_patterned_border(painter, border_rect, corner_radii, borders_data);
+            return;
+        }
     }
 
     auto top_left = corner_radii.top_left;

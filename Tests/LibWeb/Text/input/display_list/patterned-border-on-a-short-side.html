@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    span {
+        display: inline-block;
+        width: 0;
+        height: 0;
+        border-top: 20px dashed red;
+        border-left: 20px solid transparent;
+        border-right: 20px solid transparent;
+    }
+
+    div {
+        width: 0;
+        height: 0;
+        border: 20px dashed red;
+    }
+
+    .dotted {
+        border-style: dotted;
+    }
+
+    .dotted-top {
+        border-top-style: dotted;
+    }
+</style>
+<span></span><span class="dotted-top"></span>
+<div></div>
+<div class="dotted"></div>
+<script>
+    test(() => {
+        println(internals.dumpDisplayList());
+    });
+</script>
