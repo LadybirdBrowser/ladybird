@@ -61,7 +61,6 @@ fn run(frame: &mut FcFrame, layout_input: LayoutInput) {
             table_grid_min_border_box_block_size: None,
         },
         None,
-        None,
     );
 
     frame.automatic_content_inline_size = content_inline_size;
@@ -71,5 +70,5 @@ fn run(frame: &mut FcFrame, layout_input: LayoutInput) {
 
     crate::layout::place_child(frame.state, &frame.callbacks, wrapper, FfiCssPixelPoint::default());
 
-    crate::layout::parent_did_dimension(&mut bfc);
+    crate::layout::complete_formatting_context_after_root_box_has_used_size(&mut bfc);
 }

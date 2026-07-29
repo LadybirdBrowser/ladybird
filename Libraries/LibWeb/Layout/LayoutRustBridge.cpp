@@ -1111,8 +1111,6 @@ StringView formatting_context_type_name(RustFFI::FfiFormattingContextType type)
         return "SVG"sv;
     case RustFFI::FfiFormattingContextType::ReplacedWithChildren:
         return "Replaced, with children"sv;
-    case RustFFI::FfiFormattingContextType::AbsposReplay:
-        return "Abspos replay"sv;
     case RustFFI::FfiFormattingContextType::InternalReplaced:
         return "Replaced"sv;
     case RustFFI::FfiFormattingContextType::InternalDummy:

@@ -309,8 +309,6 @@ impl<'pass> BlockFormattingContext<'pass> {
         crate::layout::compute_inset_native(
             self.state,
             self.callbacks,
-            self.layout_mode,
-            self.root,
             node,
             containing_block_size.inline_size,
             containing_block_size.block_size,
@@ -2517,6 +2515,9 @@ impl<'pass> BlockFormattingContext<'pass> {
             None
         };
         let Some(side) = side else {
+            if let Some(child_layout) = child_layout {
+                child_layout.finish();
+            }
             return;
         };
         let mut margin_box_ceiling = if let Some(line_builder) = line_builder.as_deref_mut() {
