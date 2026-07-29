@@ -228,6 +228,15 @@ void paint_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect
     auto color = border_color(edge, borders_data);
     auto border_style = border_data.line_style;
 
+    // Edges sharing a color are collected into one path and only filled once the color changes or the last edge is
+    // reached. Anything that paints in a color of its own has to empty that queue before it does.
+    auto flush_queued_edges = [&] {
+        if (path.is_empty())
+            return;
+        painter.fill_path({ .path = path, .paint_style_or_color = color, .winding_rule = Gfx::WindingRule::EvenOdd });
+        path.clear();
+    };
+
     struct Frame {
         Gfx::FloatPoint along;
         Gfx::FloatPoint into;
@@ -261,6 +270,9 @@ void paint_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect
     auto opposite_joined_border_width = borders_data.for_edge(frame.opposite_joined_edge).width;
 
     auto paint_double_border = [&](float proportional_line_thickness, CSS::LineStyle outer_style, CSS::LineStyle inner_style) {
+        // Each half is painted as a border of its own, deriving its own color from the style it is given.
+        flush_queued_edges();
+
         // AD-HOC: We clamp the individual borders to 1px thick if they're less so that they don't disappear entirely.
         //         This matches other browsers and is allowable per the spec, where the thickness is implementation-defined.
 
@@ -407,10 +419,8 @@ void paint_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect
             false);
 
         // If joined borders have the same color, combine them to draw together.
-        if (ready_to_draw) {
-            painter.fill_path({ .path = path, .paint_style_or_color = color, .winding_rule = Gfx::WindingRule::EvenOdd });
-            path.clear();
-        }
+        if (ready_to_draw)
+            flush_queued_edges();
     };
 
     /**
