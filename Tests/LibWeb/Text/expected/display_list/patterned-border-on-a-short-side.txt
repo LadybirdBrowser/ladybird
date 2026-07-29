@@ -1,0 +1,20 @@
+AccumulatedVisualContext Tree:
+  [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
+    [1] scroll (PaintableWithLines(BlockContainer<PRE>#out))
+
+DisplayList:
+SaveLayer@0
+  CompositorWheelHitTestTarget@0 target_scroll_node_index=0 rect=[0,0 800x600]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[0,0 800x121]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 784x100]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 784x20]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,28 40x40]
+  FillPath@1 path_bounding_rect=[8,28 40x40]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,68 40x40]
+  FillPath@1 path_bounding_rect=[8,68 40x40]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[8,8 40x20]
+  FillPath@1 path_bounding_rect=[8,8 40x20]
+  CompositorWheelHitTestTarget@1 target_scroll_node_index=0 rect=[48,8 40x20]
+  FillPath@1 path_bounding_rect=[48,8 40x20]
+Restore@0
+
