@@ -94,7 +94,9 @@ pub struct ComputedLengthBox {
     pub left: ComputedLengthPercentageOrAuto,
 }
 
-/// Layout of the computed inset, margin, and padding properties.
+/// Layout of the computed inset, margin, and padding properties, plus the
+/// computed position-anchor name the anchor lookup beside the anchor insets
+/// consults; the zero raw means position-anchor has no name.
 #[repr(C)]
 pub struct SurroundValues {
     pub inset: ComputedLengthBox,
@@ -102,6 +104,7 @@ pub struct SurroundValues {
     pub right_anchor_inset: ComputedStyleValueHandle,
     pub bottom_anchor_inset: ComputedStyleValueHandle,
     pub left_anchor_inset: ComputedStyleValueHandle,
+    pub position_anchor_name: crate::css::retained_fly_string::RetainedUtf16FlyString,
     pub margin: ComputedLengthBox,
     pub padding: ComputedLengthBox,
 }

@@ -1201,14 +1201,10 @@ impl LayoutState {
             let payloads = unsafe { (callbacks.build_style_payloads)(callbacks.context, data.style) };
             self.style_decode_values.allocate(
                 slot_index,
-                StyleDecodeValues::new(
-                    payloads,
-                    callbacks.release_calc_handle,
-                    callbacks.release_anchor_name_handle,
-                ),
+                StyleDecodeValues::new(payloads, callbacks.release_calc_handle),
             )
         };
-        StyleValues::new(cache, callbacks.context, callbacks.decode_residual_style)
+        StyleValues::new(cache)
     }
 
     pub(crate) fn replace_resolved_anchor_insets(

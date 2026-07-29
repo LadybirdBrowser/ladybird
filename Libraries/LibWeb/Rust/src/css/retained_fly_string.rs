@@ -33,6 +33,12 @@ impl RetainedUtf16FlyString {
         self.raw
     }
 
+    /// The no-string sentinel; holds no reference. No real fly string uses the
+    /// zero raw representation.
+    pub(crate) fn none() -> Self {
+        Self { raw: 0 }
+    }
+
     /// Assumes ownership of one leaked reference to the underlying string data.
     pub(crate) unsafe fn from_leaked_raw(raw: usize) -> Self {
         Self { raw }
@@ -49,8 +55,21 @@ impl RetainedUtf16FlyString {
     }
 }
 
+impl Clone for RetainedUtf16FlyString {
+    fn clone(&self) -> Self {
+        if self.raw == 0 {
+            return Self::none();
+        }
+        // SAFETY: A non-zero raw is a live fly string this value retains.
+        unsafe { Self::from_borrowed_raw(self.raw) }
+    }
+}
+
 impl Drop for RetainedUtf16FlyString {
     fn drop(&mut self) {
+        if self.raw == 0 {
+            return;
+        }
         crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::StringRetainReleaseCallback);
         unsafe { ladybird_utf16_fly_string_unref(self.raw) };
     }

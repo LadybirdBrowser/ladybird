@@ -100,8 +100,6 @@ static RustFFI::FfiStylePayloads style_payloads(CSS::ComputedValues const& value
     return payloads;
 }
 
-static RustFFI::FfiResidualStyleValues decode_residual_style(RustFFI::FfiStylePayloads const&);
-
 static bool is_empty_editable_text_node(TextNode const& text_node)
 {
     if (!text_node.text_for_rendering().is_empty())
@@ -1657,9 +1655,6 @@ RustFFI::FfiLayoutFcCallbacks LayoutRustBridge::formatting_context_callbacks()
             auto const& box = *static_cast<Box const*>(node);
             dbgln("FIXME: InlineFormattingContext::dimension_box_on_line got unexpected box in inline context:");
             dump_tree(box); },
-        .decode_residual_style = [](void*, RustFFI::FfiStylePayloads const* payloads) {
-            VERIFY(payloads);
-            return decode_residual_style(*payloads); },
         .release_calc_handle = ladybird_layout_release_calc_handle,
         .release_anchor_name_handle = ladybird_layout_release_anchor_name_handle,
         .build_style_payloads = [](void*, void const* style) { return style_payloads(*static_cast<CSS::ComputedValues const*>(style)); },
@@ -1992,26 +1987,6 @@ RustFFI::FfiLayoutFcCallbacks LayoutRustBridge::formatting_context_callbacks()
             }
             box.set_default_scroll_shift(static_cast<Box*>(anchor)->make_weak_ptr(), horizontal, vertical); },
     };
-}
-
-static RustFFI::FfiResidualStyleValues decode_residual_style(RustFFI::FfiStylePayloads const& payloads)
-{
-    auto group = [&]<typename Group>() -> Group const& {
-        auto const* payload = payloads.groups[Group::style_group_index];
-        VERIFY(payload);
-        return *static_cast<Group const*>(payload);
-    };
-
-    RustFFI::FfiResidualStyleValues result {};
-
-    auto const& anchor = group.operator()<CSS::ComputedValues::AnchorValues>().position_anchor;
-    result.position_anchor_has_value = anchor.name.has_value();
-    if (anchor.name.has_value()) {
-        ++s_outstanding_anchor_name_handles;
-        result.position_anchor_retained_name = anchor.name->to_raw_leaked();
-    }
-
-    return result;
 }
 
 static void release_calc_handle(void const* handle)
