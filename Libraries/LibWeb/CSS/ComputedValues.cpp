@@ -2214,30 +2214,8 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     if (!misc_reset_adopted)
         computed_values.set_table_layout(computed_style.table_layout());
 
-    auto const& aspect_ratio = computed_style.property(CSS::PropertyID::AspectRatio);
-    if (box_adopted) {
-        // The constraint left the constructor's auto default standing.
-    } else if (aspect_ratio.is_value_list()) {
-        auto const& values_list = aspect_ratio.as_value_list().values();
-        if (values_list.size() == 2
-            && values_list[0]->is_keyword() && values_list[0]->as_keyword().keyword() == CSS::Keyword::Auto
-            && values_list[1]->is_ratio()) {
-            auto ratio = values_list[1]->as_ratio().resolved();
-            if (ratio.is_degenerate())
-                computed_values.set_aspect_ratio({ true, {}, true, ratio });
-            else
-                computed_values.set_aspect_ratio({ true, ratio, true, ratio });
-        }
-    } else if (aspect_ratio.is_keyword() && aspect_ratio.as_keyword().keyword() == CSS::Keyword::Auto) {
-        computed_values.set_aspect_ratio({ true, {}, true, {} });
-    } else if (aspect_ratio.is_ratio()) {
-        // https://drafts.csswg.org/css-sizing-4/#aspect-ratio
-        // If the <ratio> is degenerate, the property instead behaves as auto.
-        if (aspect_ratio.as_ratio().resolved().is_degenerate())
-            computed_values.set_aspect_ratio({ true, {}, false, aspect_ratio.as_ratio().resolved() });
-        else
-            computed_values.set_aspect_ratio({ false, aspect_ratio.as_ratio().resolved(), false, aspect_ratio.as_ratio().resolved() });
-    }
+    if (!box_adopted)
+        computed_values.set_aspect_ratio(computed_style.aspect_ratio());
 
     if (!misc_reset_adopted)
         computed_values.set_touch_action(computed_style.touch_action());

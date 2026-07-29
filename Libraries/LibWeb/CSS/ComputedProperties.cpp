@@ -3824,6 +3824,35 @@ TouchActionData ComputedProperties::touch_action() const
     return TouchActionData {};
 }
 
+AspectRatio ComputedProperties::aspect_ratio() const
+{
+    auto const& value = property(PropertyID::AspectRatio);
+
+    if (value.is_value_list()) {
+        auto const& values = value.as_value_list().values();
+        if (values.size() == 2
+            && values[0]->is_keyword() && values[0]->as_keyword().keyword() == Keyword::Auto
+            && values[1]->is_ratio()) {
+            auto ratio = values[1]->as_ratio().resolved();
+            if (ratio.is_degenerate())
+                return { true, {}, true, ratio };
+            return { true, ratio, true, ratio };
+        }
+        return InitialValues::aspect_ratio();
+    }
+
+    if (value.is_ratio()) {
+        // https://drafts.csswg.org/css-sizing-4/#aspect-ratio
+        // If the <ratio> is degenerate, the property instead behaves as auto.
+        auto ratio = value.as_ratio().resolved();
+        if (ratio.is_degenerate())
+            return { true, {}, false, ratio };
+        return { false, ratio, false, ratio };
+    }
+
+    return InitialValues::aspect_ratio();
+}
+
 Containment ComputedProperties::contain() const
 {
     Containment containment = {};
