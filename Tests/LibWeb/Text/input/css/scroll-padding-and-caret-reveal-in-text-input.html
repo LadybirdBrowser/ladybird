@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    :root {
+        scroll-padding-top: 100px;
+    }
+
+    body {
+        margin: 0;
+    }
+
+    .spacer {
+        height: 300vh;
+    }
+</style>
+<div class="spacer"></div>
+<input id="target" type="text">
+<div class="spacer"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        target.focus();
+
+        // An input clips its content in the block direction, so revealing the caret must leave the block axis of every
+        // scroll container alone, whatever scroll-padding those containers have.
+        window.scrollTo(0, 500);
+        internals.sendText(target, "a");
+        println(`scrollY after typing: ${window.scrollY}`);
+    });
+</script>
