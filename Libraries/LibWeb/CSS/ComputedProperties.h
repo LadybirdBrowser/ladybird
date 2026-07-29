@@ -274,6 +274,7 @@ public:
     UserSelect user_select() const;
     Isolation isolation() const;
     TouchActionData touch_action() const;
+    AspectRatio aspect_ratio() const;
     Containment contain() const;
     Vector<Utf16FlyString> container_name() const;
     ContainerType container_type() const;
