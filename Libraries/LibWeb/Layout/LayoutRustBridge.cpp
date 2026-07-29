@@ -1076,6 +1076,58 @@ RustFFI::FfiTableBoxFacts build_table_box_facts(NodeWithStyle const& node)
     };
 }
 
+static size_t s_active_layout_pass_count { 0 };
+
+bool layout_pass_currently_running()
+{
+    return s_active_layout_pass_count > 0;
+}
+
+// Resolved anchor() insets recorded by the pass for writeback into computed
+// values. The pass only records; the bridge applies the batch once the
+// outermost pass has returned, so computed values are never replaced while
+// any layout pass can still read style (see NodeWithStyle::set_computed_values).
+static Vector<RustFFI::FfiDeferredResolvedAnchorInsets>& pending_resolved_anchor_insets()
+{
+    static NeverDestroyed<Vector<RustFFI::FfiDeferredResolvedAnchorInsets>> pending;
+    return *pending;
+}
+
+static void apply_pending_resolved_anchor_insets()
+{
+    auto pending = move(pending_resolved_anchor_insets());
+    for (auto const& entry : pending) {
+        auto& box = *static_cast<Box*>(entry.node);
+        auto const& resolved = entry.resolved;
+        auto const& existing = box.computed_values().inset();
+        auto resolve = [](bool resolves, bool is_auto, i32 value, CSS::LengthPercentageOrAuto const& existing_value) {
+            if (!resolves)
+                return existing_value;
+            if (is_auto)
+                return CSS::LengthPercentageOrAuto::make_auto();
+            return CSS::LengthPercentageOrAuto { CSS::LengthPercentage { CSS::Length::make_px(CSSPixels::from_raw(value)) } };
+        };
+        box.modify_computed_values([&](auto& values) {
+            values.set_inset({
+                resolve(resolved.resolves_top, resolved.top_is_auto, resolved.top, existing.top()),
+                resolve(resolved.resolves_right, resolved.right_is_auto, resolved.right, existing.right()),
+                resolve(resolved.resolves_bottom, resolved.bottom_is_auto, resolved.bottom, existing.bottom()),
+                resolve(resolved.resolves_left, resolved.left_is_auto, resolved.left, existing.left()),
+            });
+        });
+    }
+}
+
+class ActiveLayoutPassScope {
+public:
+    ActiveLayoutPassScope() { ++s_active_layout_pass_count; }
+    ~ActiveLayoutPassScope()
+    {
+        if (--s_active_layout_pass_count == 0)
+            apply_pending_resolved_anchor_insets();
+    }
+};
+
 LayoutRustBridge::LayoutRustBridge()
 {
     register_style_schema();
@@ -1095,14 +1147,17 @@ void LayoutRustBridge::run_root_layout(Box& viewport, NodeWithStyleAndBoxModelMe
     viewport.document().layout_node_arena().sync_enrolled_text_node_content();
     auto callbacks = formatting_context_callbacks();
     auto sink = commit_sink();
-    RustFFI::rust_layout_run_root_layout(
-        Node::slot_id(&viewport),
-        Node::slot_id(document_element_layout_node),
-        viewport_inline_size.raw_value(),
-        viewport_block_size.raw_value(),
-        should_collect_devtools_layout_data,
-        &callbacks,
-        &sink);
+    {
+        ActiveLayoutPassScope active_pass;
+        RustFFI::rust_layout_run_root_layout(
+            Node::slot_id(&viewport),
+            Node::slot_id(document_element_layout_node),
+            viewport_inline_size.raw_value(),
+            viewport_block_size.raw_value(),
+            should_collect_devtools_layout_data,
+            &callbacks,
+            &sink);
+    }
     VERIFY(!m_line_commit_context);
 }
 
@@ -1118,12 +1173,15 @@ void LayoutRustBridge::compute_subtree_layout(Box& root, Painting::Paintable& pa
     root.document().layout_node_arena().sync_enrolled_text_node_content();
     auto callbacks = formatting_context_callbacks();
     auto sink = commit_sink();
-    RustFFI::rust_layout_compute_subtree_layout(
-        Node::slot_id(&root),
-        Node::slot_id(&root.root()),
-        &paintable_to_replace,
-        &callbacks,
-        &sink);
+    {
+        ActiveLayoutPassScope active_pass;
+        RustFFI::rust_layout_compute_subtree_layout(
+            Node::slot_id(&root),
+            Node::slot_id(&root.root()),
+            &paintable_to_replace,
+            &callbacks,
+            &sink);
+    }
     VERIFY(!m_line_commit_context);
 }
 
@@ -1139,7 +1197,10 @@ void LayoutRustBridge::replay_saved_abspos_layout(Box& box, Painting::Paintable&
     box.document().layout_node_arena().sync_enrolled_text_node_content();
     auto callbacks = formatting_context_callbacks();
     auto sink = commit_sink();
-    RustFFI::rust_layout_replay_saved_abspos_layout(Node::slot_id(&box), &paintable_to_replace, &callbacks, &sink);
+    {
+        ActiveLayoutPassScope active_pass;
+        RustFFI::rust_layout_replay_saved_abspos_layout(Node::slot_id(&box), &paintable_to_replace, &callbacks, &sink);
+    }
     VERIFY(!m_line_commit_context);
 }
 
@@ -1989,24 +2050,7 @@ RustFFI::FfiLayoutFcCallbacks LayoutRustBridge::formatting_context_callbacks()
                 .fraction = 0,
                 .value = fallback->rust_style_value_data(),
             }; },
-        .set_resolved_anchor_insets = [](void*, void* node, RustFFI::FfiResolvedAnchorInsets resolved) {
-            auto& box = *static_cast<Box*>(node);
-            auto const& existing = box.computed_values().inset();
-            auto resolve = [](bool resolves, bool is_auto, i32 value, CSS::LengthPercentageOrAuto const& existing_value) {
-                if (!resolves)
-                    return existing_value;
-                if (is_auto)
-                    return CSS::LengthPercentageOrAuto::make_auto();
-                return CSS::LengthPercentageOrAuto { CSS::LengthPercentage { CSS::Length::make_px(CSSPixels::from_raw(value)) } };
-            };
-            box.modify_computed_values([&](auto& values) {
-                values.set_inset({
-                    resolve(resolved.resolves_top, resolved.top_is_auto, resolved.top, existing.top()),
-                    resolve(resolved.resolves_right, resolved.right_is_auto, resolved.right, existing.right()),
-                    resolve(resolved.resolves_bottom, resolved.bottom_is_auto, resolved.bottom, existing.bottom()),
-                    resolve(resolved.resolves_left, resolved.left_is_auto, resolved.left, existing.left()),
-                });
-            }); },
+        .record_deferred_resolved_anchor_insets = [](void*, RustFFI::FfiDeferredResolvedAnchorInsets const* entries, size_t count) { pending_resolved_anchor_insets().append(entries, count); },
         .set_default_scroll_shift = [](void*, void* node, void* anchor, bool horizontal, bool vertical) {
             auto& box = *static_cast<Box*>(node);
             if (!anchor) {

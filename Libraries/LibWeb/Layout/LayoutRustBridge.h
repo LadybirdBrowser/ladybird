@@ -58,6 +58,12 @@ private:
 [[nodiscard]] bool box_inset_properties_contain_anchor_functions(Box const&);
 [[nodiscard]] bool can_replay_saved_abspos_layout_inputs_after_style_change(Box const&);
 
+// True while a synchronous Rust layout pass (including its commit) is on the
+// stack. Computed values must never be replaced in that window: the pass
+// caches decoded style and borrows payload pointers that a replacement would
+// invalidate under it.
+[[nodiscard]] WEB_API bool layout_pass_currently_running();
+
 }
 
 // Non-null calc handles returned in FfiSizeValue retain their shared Rust
