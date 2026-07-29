@@ -146,6 +146,8 @@ pub struct BoxValues {
     pub text_overflow: u8,
     pub unicode_bidi: u8,
     pub table_layout: u8,
+    pub grid_auto_flow_row: bool,
+    pub grid_auto_flow_dense: bool,
     pub has_z_index: bool,
     pub z_index: i32,
     pub vertical_align: ComputedVerticalAlign,

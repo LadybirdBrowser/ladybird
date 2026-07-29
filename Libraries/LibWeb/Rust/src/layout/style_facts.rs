@@ -201,19 +201,6 @@ fn resolve_calc(calc: *const c_void, percentage_basis: CssPixels) -> CssPixels {
     CssPixels::nearest_value_for(result.value)
 }
 
-/// Every scalar computed-value field that still lives in a hand-written C++
-/// style group and therefore crosses as a C++-registered byte offset. Fields
-/// in Rust-native groups are read as typed payloads and never appear here.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u8)]
-// NB: Some variants are only constructed by C++ through the FFI.
-#[allow(dead_code)]
-pub enum FfiStyleField {
-    GridAutoFlowRow,
-    GridAutoFlowDense,
-    Count,
-}
-
 /// Every sizing-shaped value the layout engine reads. The Rust-native entries
 /// decode straight from the node's typed group payloads; ColumnWidth comes
 /// from the C++ residual batch.
@@ -248,26 +235,6 @@ pub(crate) enum SizeField {
     VerticalAlign,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u8)]
-pub enum FfiStyleFieldEncoding {
-    U8,
-    Bool,
-    I32,
-    F64,
-    CssPixels,
-}
-
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct FfiStyleFieldSchema {
-    pub field: FfiStyleField,
-    pub group_index: u8,
-    pub offset: u32,
-    pub group_size: u32,
-    pub encoding: FfiStyleFieldEncoding,
-}
-
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiStylePayloads {
@@ -285,16 +252,6 @@ impl Default for FfiStylePayloads {
         }
     }
 }
-
-pub(crate) const STYLE_FIELD_COUNT: usize = FfiStyleField::Count as usize;
-
-struct StyleSchema([FfiStyleFieldSchema; STYLE_FIELD_COUNT]);
-
-// SAFETY: Schema entries contain only immutable integers and enum values.
-unsafe impl Send for StyleSchema {}
-unsafe impl Sync for StyleSchema {}
-
-static STYLE_SCHEMA: OnceLock<StyleSchema> = OnceLock::new();
 
 /// The registered group indices of the Rust-native style groups, resolved
 /// once from the css module's lifecycle registration.
@@ -315,55 +272,21 @@ static NATIVE_GROUP_INDICES: OnceLock<NativeGroupIndices> = OnceLock::new();
 
 fn native_group_indices() -> &'static NativeGroupIndices {
     use crate::css::computed_values::{StyleGroupLifecycle, style_group_index_with_lifecycle};
-    NATIVE_GROUP_INDICES.get_or_init(|| NativeGroupIndices {
-        sizing: style_group_index_with_lifecycle(StyleGroupLifecycle::Sizing),
-        surround: style_group_index_with_lifecycle(StyleGroupLifecycle::Surround),
-        alignment: style_group_index_with_lifecycle(StyleGroupLifecycle::Alignment),
-        svg_reset: style_group_index_with_lifecycle(StyleGroupLifecycle::SVGReset),
-        inherited_box: style_group_index_with_lifecycle(StyleGroupLifecycle::InheritedBox),
-        inherited_table: style_group_index_with_lifecycle(StyleGroupLifecycle::InheritedTable),
-        box_values: style_group_index_with_lifecycle(StyleGroupLifecycle::Box),
-        border_facts: style_group_index_with_lifecycle(StyleGroupLifecycle::CppWithBorderFacts),
-        inherited_text_facts: style_group_index_with_lifecycle(StyleGroupLifecycle::CppWithInheritedTextFacts),
-        font_facts: style_group_index_with_lifecycle(StyleGroupLifecycle::CppWithFontFacts),
-    })
-}
-
-/// # Safety
-///
-/// `entries` must point to `count` valid schema entries for the duration of the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_layout_register_style_schema(entries: *const FfiStyleFieldSchema, count: usize) {
-    abort_on_panic(|| {
-        let entries = unsafe { std::slice::from_raw_parts(entries, count) };
-        assert_eq!(entries.len(), STYLE_FIELD_COUNT);
+    NATIVE_GROUP_INDICES.get_or_init(|| {
         assert_eq!(crate::css::computed_values::registered_style_group_count(), STYLE_GROUP_COUNT);
-        let mut schema = [entries[0]; STYLE_FIELD_COUNT];
-        let mut present = [false; STYLE_FIELD_COUNT];
-        for entry in entries {
-            let index = entry.field as usize;
-            assert!(index < STYLE_FIELD_COUNT);
-            assert!((entry.group_index as usize) < STYLE_GROUP_COUNT);
-            assert!(!present[index], "duplicate style schema field");
-            let width = match entry.encoding {
-                FfiStyleFieldEncoding::U8 | FfiStyleFieldEncoding::Bool => 1,
-                FfiStyleFieldEncoding::I32 | FfiStyleFieldEncoding::CssPixels => 4,
-                FfiStyleFieldEncoding::F64 => 8,
-            };
-            assert!(entry.offset as usize + width <= entry.group_size as usize);
-            schema[index] = *entry;
-            present[index] = true;
+        NativeGroupIndices {
+            sizing: style_group_index_with_lifecycle(StyleGroupLifecycle::Sizing),
+            surround: style_group_index_with_lifecycle(StyleGroupLifecycle::Surround),
+            alignment: style_group_index_with_lifecycle(StyleGroupLifecycle::Alignment),
+            svg_reset: style_group_index_with_lifecycle(StyleGroupLifecycle::SVGReset),
+            inherited_box: style_group_index_with_lifecycle(StyleGroupLifecycle::InheritedBox),
+            inherited_table: style_group_index_with_lifecycle(StyleGroupLifecycle::InheritedTable),
+            box_values: style_group_index_with_lifecycle(StyleGroupLifecycle::Box),
+            border_facts: style_group_index_with_lifecycle(StyleGroupLifecycle::CppWithBorderFacts),
+            inherited_text_facts: style_group_index_with_lifecycle(StyleGroupLifecycle::CppWithInheritedTextFacts),
+            font_facts: style_group_index_with_lifecycle(StyleGroupLifecycle::CppWithFontFacts),
         }
-        assert!(present.iter().all(|present| *present));
-        assert!(
-            STYLE_SCHEMA.set(StyleSchema(schema)).is_ok(),
-            "style schema registered twice"
-        );
-    });
-}
-
-fn style_schema() -> &'static StyleSchema {
-    STYLE_SCHEMA.get().expect("style schema used before registration")
+    })
 }
 
 /// Every field whose immutable payload still requires C++ interpretation.
@@ -415,28 +338,11 @@ pub type FfiDecodeResidualStyleCallback =
 #[derive(Clone, Copy)]
 struct StyleReader {
     payloads: FfiStylePayloads,
-    schema: &'static StyleSchema,
 }
 
 impl StyleReader {
-    fn new(payloads: FfiStylePayloads, schema: &'static StyleSchema) -> Self {
-        Self { payloads, schema }
-    }
-
-    #[inline]
-    fn address(&self, field: FfiStyleField, encoding: FfiStyleFieldEncoding) -> *const u8 {
-        let schema = &self.schema.0[field as usize];
-        debug_assert_eq!(schema.encoding, encoding);
-        let payload = self.payloads.groups[schema.group_index as usize];
-        debug_assert!(!payload.is_null());
-        unsafe { (payload as *const u8).add(schema.offset as usize) }
-    }
-
-    #[inline]
-    fn bool(&self, field: FfiStyleField) -> bool {
-        let value = unsafe { self.address(field, FfiStyleFieldEncoding::Bool).read_unaligned() };
-        debug_assert!(value <= 1);
-        value != 0
+    fn new(payloads: FfiStylePayloads) -> Self {
+        Self { payloads }
     }
 
     #[inline]
@@ -773,7 +679,7 @@ impl StyleDecodeValues {
         release_calc_handle: FfiReleaseCalcHandleCallback,
         release_anchor_name_handle: FfiReleaseAnchorNameHandleCallback,
     ) -> Self {
-        let reader = StyleReader::new(payloads, style_schema());
+        let reader = StyleReader::new(payloads);
         Self {
             scalars: DecodedStyleScalars::decode(&reader),
             cache: StyleDecodeCache::new(reader, release_calc_handle, release_anchor_name_handle),
@@ -858,8 +764,8 @@ impl DecodedStyleScalars {
             letter_spacing: inherited_text.letter_spacing,
             word_spacing: inherited_text.word_spacing,
             unicode_bidi: box_values.unicode_bidi,
-            grid_auto_flow_row: reader.bool(FfiStyleField::GridAutoFlowRow),
-            grid_auto_flow_dense: reader.bool(FfiStyleField::GridAutoFlowDense),
+            grid_auto_flow_row: box_values.grid_auto_flow_row,
+            grid_auto_flow_dense: box_values.grid_auto_flow_dense,
             css_preferred_aspect_ratio_numerator,
             css_preferred_aspect_ratio_denominator,
         }

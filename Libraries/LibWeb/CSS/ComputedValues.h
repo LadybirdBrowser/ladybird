@@ -442,7 +442,6 @@ public:
     static GridTrackPlacement grid_column_start() { return GridTrackPlacement::make_auto(); }
     static GridTrackPlacement grid_row_end() { return GridTrackPlacement::make_auto(); }
     static GridTrackPlacement grid_row_start() { return GridTrackPlacement::make_auto(); }
-    static GridAutoFlow grid_auto_flow() { return GridAutoFlow {}; }
     static ColumnCount column_count() { return ColumnCount::make_auto(); }
     static Variant<LengthPercentage, NormalGap> column_gap() { return NormalGap {}; }
     static ColumnSpan column_span() { return ColumnSpan::None; }
@@ -1275,7 +1274,10 @@ public:
     }
     GridTrackSizeList const& grid_auto_columns() const { return m_noninherited.grid->grid_auto_columns; }
     GridTrackSizeList const& grid_auto_rows() const { return m_noninherited.grid->grid_auto_rows; }
-    GridAutoFlow const& grid_auto_flow() const { return m_noninherited.grid->grid_auto_flow; }
+    GridAutoFlow grid_auto_flow() const
+    {
+        return { .row = m_noninherited.box->grid_auto_flow_row, .dense = m_noninherited.box->grid_auto_flow_dense };
+    }
     GridTrackSizeList const& grid_template_columns() const { return m_noninherited.grid->grid_template_columns; }
     GridTrackSizeList const& grid_template_rows() const { return m_noninherited.grid->grid_template_rows; }
     GridTrackPlacement const& grid_column_end() const { return m_noninherited.grid->grid_column_end; }
@@ -1795,7 +1797,6 @@ public:
         GridTrackSizeList grid_auto_rows;
         GridTrackSizeList grid_template_columns;
         GridTrackSizeList grid_template_rows;
-        GridAutoFlow grid_auto_flow { InitialValues::grid_auto_flow() };
         GridTrackPlacement grid_column_end { InitialValues::grid_column_end() };
         GridTrackPlacement grid_column_start { InitialValues::grid_column_start() };
         GridTrackPlacement grid_row_end { InitialValues::grid_row_end() };
@@ -3243,12 +3244,6 @@ public:
         if (m_values.m_noninherited.grid->grid_template_areas == grid_template_areas)
             return;
         m_values.m_noninherited.grid.access().grid_template_areas = move(grid_template_areas);
-    }
-    void set_grid_auto_flow(GridAutoFlow grid_auto_flow)
-    {
-        if (m_values.m_noninherited.grid->grid_auto_flow == grid_auto_flow)
-            return;
-        m_values.m_noninherited.grid.access().grid_auto_flow = grid_auto_flow;
     }
     void set_quotes(QuotesData value)
     {

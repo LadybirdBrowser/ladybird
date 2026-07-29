@@ -90,48 +90,7 @@ static Atomic<size_t> s_outstanding_grid_name_handles;
 static Atomic<size_t> s_outstanding_anchor_name_handles;
 static Atomic<size_t> s_outstanding_svg_path_handles;
 
-static constexpr size_t style_field_encoding_width(RustFFI::FfiStyleFieldEncoding encoding)
-{
-    switch (encoding) {
-    case RustFFI::FfiStyleFieldEncoding::U8:
-    case RustFFI::FfiStyleFieldEncoding::Bool:
-        return 1;
-    case RustFFI::FfiStyleFieldEncoding::I32:
-    case RustFFI::FfiStyleFieldEncoding::CssPixels:
-        return 4;
-    case RustFFI::FfiStyleFieldEncoding::F64:
-        return 8;
-    }
-    VERIFY_NOT_REACHED();
-}
-
 static_assert(to_underlying(CSS::StyleGroupIndex::Count) == RustFFI::STYLE_GROUP_COUNT);
-
-#define LIBWEB_LAYOUT_DIRECT_STYLE_FIELDS(F)                                                                                                                                    \
-    F(GridAutoFlowRow, CSS::ComputedValues::GridValues, grid_auto_flow.row, offsetof(CSS::ComputedValues::GridValues, grid_auto_flow) + offsetof(CSS::GridAutoFlow, row), Bool) \
-    F(GridAutoFlowDense, CSS::ComputedValues::GridValues, grid_auto_flow.dense, offsetof(CSS::ComputedValues::GridValues, grid_auto_flow) + offsetof(CSS::GridAutoFlow, dense), Bool)
-
-#define LIBWEB_PIN_DIRECT_STYLE_FIELD(field, group, member, offset, encoding)                                                           \
-    static_assert(sizeof(decltype(((group*)nullptr)->member)) == style_field_encoding_width(RustFFI::FfiStyleFieldEncoding::encoding)); \
-    static_assert(offset + sizeof(decltype(((group*)nullptr)->member)) <= sizeof(group));
-LIBWEB_LAYOUT_DIRECT_STYLE_FIELDS(LIBWEB_PIN_DIRECT_STYLE_FIELD)
-#undef LIBWEB_PIN_DIRECT_STYLE_FIELD
-
-static void register_style_schema()
-{
-    static bool const registered = [] {
-        static constexpr RustFFI::FfiStyleFieldSchema schema[] = {
-#define LIBWEB_DIRECT_STYLE_SCHEMA_ENTRY(field, group, member, offset, encoding) \
-    { RustFFI::FfiStyleField::field, group::style_group_index, offset, sizeof(group), RustFFI::FfiStyleFieldEncoding::encoding },
-            LIBWEB_LAYOUT_DIRECT_STYLE_FIELDS(LIBWEB_DIRECT_STYLE_SCHEMA_ENTRY)
-#undef LIBWEB_DIRECT_STYLE_SCHEMA_ENTRY
-        };
-        static_assert(array_size(schema) == to_underlying(RustFFI::FfiStyleField::Count));
-        RustFFI::rust_layout_register_style_schema(schema, array_size(schema));
-        return true;
-    }();
-    (void)registered;
-}
 
 static RustFFI::FfiStylePayloads style_payloads(CSS::ComputedValues const& values)
 {
@@ -1105,10 +1064,7 @@ public:
     }
 };
 
-LayoutRustBridge::LayoutRustBridge()
-{
-    register_style_schema();
-}
+LayoutRustBridge::LayoutRustBridge() = default;
 
 LayoutRustBridge::~LayoutRustBridge() = default;
 
