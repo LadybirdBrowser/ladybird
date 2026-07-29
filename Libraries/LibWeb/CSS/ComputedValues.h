@@ -2042,6 +2042,7 @@ public:
                 && right_anchor_inset.pointer == other.right_anchor_inset.pointer
                 && bottom_anchor_inset.pointer == other.bottom_anchor_inset.pointer
                 && left_anchor_inset.pointer == other.left_anchor_inset.pointer
+                && position_anchor_name.raw == other.position_anchor_name.raw
                 && box_equal(margin, other.margin)
                 && box_equal(padding, other.padding);
         }
@@ -2599,10 +2600,23 @@ public:
             return;
         m_values.m_noninherited.box.access().position = to_underlying(position);
     }
+    // The surround payload carries a synchronized copy of the position-anchor
+    // name for the layout engine's anchor lookup; the zero raw means no name.
     void set_position_anchor(PositionAnchor value)
     {
         if (m_values.m_noninherited.anchor->position_anchor == value)
             return;
+        auto const current_name_raw = m_values.m_noninherited.surround->position_anchor_name.raw;
+        bool const surround_name_already_matches = value.name.has_value()
+            ? current_name_raw != 0 && Utf16FlyString::from_raw(current_name_raw) == *value.name
+            : current_name_raw == 0;
+        if (!surround_name_already_matches) {
+            auto& position_anchor_name = m_values.m_noninherited.surround.access().position_anchor_name;
+            if (position_anchor_name.raw)
+                Utf16FlyString::unref_raw(exchange(position_anchor_name.raw, 0));
+            if (value.name.has_value())
+                position_anchor_name.raw = value.name->to_raw_leaked();
+        }
         m_values.m_noninherited.anchor.access().position_anchor = move(value);
     }
     void set_position_area(PositionAreaData value)

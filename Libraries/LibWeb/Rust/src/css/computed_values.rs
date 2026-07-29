@@ -35,7 +35,7 @@ pub use crate::css::computed_value_types::{
     ComputedLengthBox, ComputedLengthPercentageOrAuto, ComputedSize, ComputedSizeKind, ComputedStyleValueHandle,
     ComputedVerticalAlign, FontLayoutFacts, InheritedTextLayoutFacts, SVGResetValues, SizingValues, SurroundValues,
 };
-use crate::css::retained_fly_string::RetainedUtf16FlyStringList;
+use crate::css::retained_fly_string::{RetainedUtf16FlyString, RetainedUtf16FlyStringList};
 
 /// Reference count value marking an intentionally leaked payload.
 pub const STYLE_GROUP_STATIC_REFCOUNT: usize = usize::MAX;
@@ -180,6 +180,7 @@ impl_computed_payload_clone_and_eq!(SurroundValues {
     right_anchor_inset,
     bottom_anchor_inset,
     left_anchor_inset,
+    position_anchor_name,
     margin,
     padding,
 });
@@ -1234,6 +1235,7 @@ impl SurroundValues {
             right_anchor_inset: ComputedStyleValueHandle::empty(),
             bottom_anchor_inset: ComputedStyleValueHandle::empty(),
             left_anchor_inset: ComputedStyleValueHandle::empty(),
+            position_anchor_name: RetainedUtf16FlyString::none(),
             margin: ComputedLengthBox::zero(),
             padding: ComputedLengthBox::zero(),
         }
@@ -1496,6 +1498,7 @@ pub unsafe extern "C" fn rust_build_surround_group(
     padding_right: *const c_void,
     padding_bottom: *const c_void,
     padding_left: *const c_void,
+    position_anchor_name_leaked_raw: usize,
     parent_payload: *const c_void,
 ) -> *const c_void {
     use crate::css::style_value::StyleValueData;
@@ -1515,6 +1518,10 @@ pub unsafe extern "C" fn rust_build_surround_group(
             right_anchor_inset: anchor(right),
             bottom_anchor_inset: anchor(bottom),
             left_anchor_inset: anchor(left),
+            // SAFETY: The caller transfers one leaked reference (or zero for
+            // no name), which the payload or this local assumes in every
+            // outcome below.
+            position_anchor_name: unsafe { RetainedUtf16FlyString::from_leaked_raw(position_anchor_name_leaked_raw) },
             margin: ComputedLengthBox::from_data(margin_top, margin_right, margin_bottom, margin_left, false),
             padding: ComputedLengthBox::from_data(padding_top, padding_right, padding_bottom, padding_left, false),
         };

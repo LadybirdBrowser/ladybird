@@ -288,33 +288,6 @@ fn native_group_indices() -> &'static NativeGroupIndices {
     })
 }
 
-/// Every field whose immutable payload still requires C++ interpretation.
-/// One callback populates the whole value on the first residual read for a
-/// node.
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct FfiResidualStyleValues {
-    pub position_anchor_has_value: bool,
-    /// A transferred Utf16FlyString reference, when non-zero.
-    pub position_anchor_retained_name: usize,
-}
-
-
-impl FfiResidualStyleValues {
-    fn release_handles(self, release_anchor_name_handle: FfiReleaseAnchorNameHandleCallback) {
-        if self.position_anchor_retained_name != 0 {
-            // SAFETY: The C++ residual decode transferred one raw fly-string
-            // reference for this node's position-anchor name.
-            unsafe {
-                release_anchor_name_handle(self.position_anchor_retained_name);
-            }
-        }
-    }
-}
-
-pub type FfiDecodeResidualStyleCallback =
-    unsafe extern "C" fn(*mut c_void, *const FfiStylePayloads) -> FfiResidualStyleValues;
-
 #[derive(Clone, Copy)]
 struct StyleReader {
     payloads: FfiStylePayloads,
@@ -392,29 +365,21 @@ pub(crate) struct StyleDecodeCache {
     reader: StyleReader,
     sizes: [Cell<FfiSizeValue>; SIZE_FIELD_COUNT],
     size_presence: Cell<u32>,
-    residual: RefCell<Option<FfiResidualStyleValues>>,
     /// The in-crate-built calculated wrappers for anchor() insets, owned here
     /// so the cached size slots can borrow their calc pointers for the cache
     /// lifetime.
     anchor_inset_calculated_wrappers: RefCell<Vec<std::sync::Arc<crate::css::style_value::StyleValueData>>>,
     release_calc_handle: FfiReleaseCalcHandleCallback,
-    release_anchor_name_handle: FfiReleaseAnchorNameHandleCallback,
 }
 
 impl StyleDecodeCache {
-    fn new(
-        reader: StyleReader,
-        release_calc_handle: FfiReleaseCalcHandleCallback,
-        release_anchor_name_handle: FfiReleaseAnchorNameHandleCallback,
-    ) -> Self {
+    fn new(reader: StyleReader, release_calc_handle: FfiReleaseCalcHandleCallback) -> Self {
         Self {
             reader,
             sizes: std::array::from_fn(|_| Cell::new(FfiSizeValue::auto_value())),
             size_presence: Cell::new(0),
-            residual: RefCell::new(None),
             anchor_inset_calculated_wrappers: RefCell::new(Vec::new()),
             release_calc_handle,
-            release_anchor_name_handle,
         }
     }
 
@@ -431,16 +396,6 @@ impl StyleDecodeCache {
         self.sizes[index].set(value);
         self.size_presence.set(self.size_presence.get() | (1 << index));
         value
-    }
-
-    fn cached_residual(&self) -> Option<FfiResidualStyleValues> {
-        *self.residual.borrow()
-    }
-
-    fn cache_residual(&self, value: FfiResidualStyleValues) {
-        let mut residual = self.residual.borrow_mut();
-        assert!(residual.is_none());
-        *residual = Some(value);
     }
 
     pub(crate) fn replace_size(&self, field: SizeField, value: FfiSizeValue) {
@@ -464,9 +419,6 @@ impl Drop for StyleDecodeCache {
             if presence & (1 << index) != 0 {
                 value.get().release_bridge_calc_handle(self.release_calc_handle);
             }
-        }
-        if let Some(residual) = *self.residual.get_mut() {
-            residual.release_handles(self.release_anchor_name_handle);
         }
     }
 }
@@ -654,15 +606,11 @@ pub(crate) struct StyleDecodeValues {
 }
 
 impl StyleDecodeValues {
-    pub(crate) fn new(
-        payloads: FfiStylePayloads,
-        release_calc_handle: FfiReleaseCalcHandleCallback,
-        release_anchor_name_handle: FfiReleaseAnchorNameHandleCallback,
-    ) -> Self {
+    pub(crate) fn new(payloads: FfiStylePayloads, release_calc_handle: FfiReleaseCalcHandleCallback) -> Self {
         let reader = StyleReader::new(payloads);
         Self {
             scalars: DecodedStyleScalars::decode(&reader),
-            cache: StyleDecodeCache::new(reader, release_calc_handle, release_anchor_name_handle),
+            cache: StyleDecodeCache::new(reader, release_calc_handle),
         }
     }
 
@@ -674,15 +622,12 @@ impl StyleDecodeValues {
 /// A thin Rust-only view over a node's immutable computed-value group
 /// payloads.
 ///
-/// Plain fields are decoded once into `DecodedStyleScalars`. Rust-owned
-/// complex payloads are interpreted in-crate; the first read of any genuinely
-/// C++-owned field fetches the one residual batch and caches it for the node.
+/// Plain fields are decoded once into `DecodedStyleScalars`; everything else
+/// is interpreted in-crate from the typed group payloads.
 #[derive(Clone, Copy)]
 pub(crate) struct StyleValues<'a> {
     scalars: &'a DecodedStyleScalars,
     cache: &'a StyleDecodeCache,
-    callback_context: *mut c_void,
-    decode_residual_callback: FfiDecodeResidualStyleCallback,
     vertical_align_override: u16,
 }
 
@@ -754,34 +699,11 @@ impl DecodedStyleScalars {
 
 impl<'a> StyleValues<'a> {
     #[inline]
-    pub(crate) fn new(
-        values: &'a StyleDecodeValues,
-        callback_context: *mut c_void,
-        decode_residual_callback: FfiDecodeResidualStyleCallback,
-    ) -> Self {
+    pub(crate) fn new(values: &'a StyleDecodeValues) -> Self {
         Self {
             scalars: &values.scalars,
             cache: &values.cache,
-            callback_context,
-            decode_residual_callback,
             vertical_align_override: u16::MAX,
-        }
-    }
-
-    fn residual(self) -> FfiResidualStyleValues {
-        if let Some(value) = self.cache.cached_residual() {
-            return value;
-        }
-        // SAFETY: The payload snapshot and bridge callback remain live for
-        // the synchronous layout pass.
-        let value =
-            unsafe { (self.decode_residual_callback)(self.callback_context, &raw const self.cache.reader.payloads) };
-        if let Some(existing) = self.cache.cached_residual() {
-            value.release_handles(self.cache.release_anchor_name_handle);
-            existing
-        } else {
-            self.cache.cache_residual(value);
-            value
         }
     }
 
@@ -945,11 +867,13 @@ impl<'a> StyleValues<'a> {
     }
 
     pub(crate) fn has_position_anchor(self) -> bool {
-        self.residual().position_anchor_has_value
+        self.cache.reader.surround().position_anchor_name.raw() != 0
     }
 
+    /// The raw fly-string representation of the computed position-anchor
+    /// name, borrowed from the surround payload for the duration of the pass.
     pub(crate) fn position_anchor_name(self) -> usize {
-        self.residual().position_anchor_retained_name
+        self.cache.reader.surround().position_anchor_name.raw()
     }
 
     pub(crate) fn first_available_font(self) -> *const c_void {

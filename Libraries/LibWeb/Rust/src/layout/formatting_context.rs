@@ -2848,7 +2848,6 @@ pub struct FfiLayoutFcCallbacks {
     pub static_position_containing_block: unsafe extern "C" fn(*mut c_void, *mut c_void) -> NodeSlotId,
     pub needs_inset_resolution: unsafe extern "C" fn(*mut c_void, *mut c_void) -> bool,
     pub report_unexpected_fragmented_inline: unsafe extern "C" fn(*mut c_void, *mut c_void),
-    pub decode_residual_style: crate::layout::FfiDecodeResidualStyleCallback,
     pub release_calc_handle: crate::layout::FfiReleaseCalcHandleCallback,
     pub release_anchor_name_handle: crate::layout::FfiReleaseAnchorNameHandleCallback,
     pub build_style_payloads: FfiBuildStylePayloadsCallback,

@@ -1003,6 +1003,28 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     if (anchor_adopted)
         computed_values.adopt_anchor_group(const_cast<void*>(anchor_payload));
 
+    // https://drafts.csswg.org/css-anchor-position-1/#position-anchor
+    auto const& position_anchor_value = computed_style.property(PropertyID::PositionAnchor);
+    PositionAnchor position_anchor;
+    if (position_anchor_value.is_custom_ident()) {
+        position_anchor.type = PositionAnchor::Type::Name;
+        position_anchor.name = position_anchor_value.as_custom_ident().custom_ident();
+    } else {
+        switch (position_anchor_value.to_keyword()) {
+        case Keyword::Normal:
+            position_anchor.type = PositionAnchor::Type::Normal;
+            break;
+        case Keyword::None:
+            position_anchor.type = PositionAnchor::Type::None;
+            break;
+        case Keyword::Auto:
+            position_anchor.type = PositionAnchor::Type::Auto;
+            break;
+        default:
+            VERIFY_NOT_REACHED();
+        }
+    }
+
     auto* surround_payload = ComputedValuesFFI::rust_build_surround_group(
         SurroundValues::style_group_index,
         computed_style.property(PropertyID::Top).rust_style_value_data(),
@@ -1017,6 +1039,7 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
         computed_style.property(PropertyID::PaddingRight).rust_style_value_data(),
         computed_style.property(PropertyID::PaddingBottom).rust_style_value_data(),
         computed_style.property(PropertyID::PaddingLeft).rust_style_value_data(),
+        position_anchor.name.has_value() ? position_anchor.name->to_raw_leaked() : 0,
         inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.surround.operator->()) : nullptr);
     VERIFY(surround_payload);
     computed_values.adopt_surround_group(const_cast<void*>(surround_payload));
@@ -1666,27 +1689,6 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     if (!misc_reset_adopted)
         computed_values.set_computed_appearance(keyword_to_appearance(computed_style.property(PropertyID::Appearance).to_keyword()).release_value());
 
-    // https://drafts.csswg.org/css-anchor-position-1/#position-anchor
-    auto const& position_anchor_value = computed_style.property(CSS::PropertyID::PositionAnchor);
-    CSS::PositionAnchor position_anchor;
-    if (position_anchor_value.is_custom_ident()) {
-        position_anchor.type = CSS::PositionAnchor::Type::Name;
-        position_anchor.name = position_anchor_value.as_custom_ident().custom_ident();
-    } else {
-        switch (position_anchor_value.to_keyword()) {
-        case CSS::Keyword::Normal:
-            position_anchor.type = CSS::PositionAnchor::Type::Normal;
-            break;
-        case CSS::Keyword::None:
-            position_anchor.type = CSS::PositionAnchor::Type::None;
-            break;
-        case CSS::Keyword::Auto:
-            position_anchor.type = CSS::PositionAnchor::Type::Auto;
-            break;
-        default:
-            VERIFY_NOT_REACHED();
-        }
-    }
     if (!anchor_adopted)
         computed_values.set_position_anchor(move(position_anchor));
 
