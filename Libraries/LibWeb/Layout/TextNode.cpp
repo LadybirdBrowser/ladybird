@@ -411,6 +411,7 @@ void TextNode::sync_text_content_to_arena() const
         view.has_ascii_storage() ? reinterpret_cast<u8 const*>(view.ascii_span().data()) : nullptr,
         view.has_ascii_storage() ? nullptr : reinterpret_cast<u16 const*>(view.utf16_span().data()),
         view.length_in_code_units(),
+        text().is_ascii_whitespace(),
         Unicode::may_require_bidi_processing(view));
     m_arena_text_content_in_sync = true;
 }

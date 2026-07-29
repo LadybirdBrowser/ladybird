@@ -1858,10 +1858,7 @@ impl<'pass> GridFormattingContext<'pass> {
             let next = self.callbacks.next_sibling(child);
             let box_facts = self.facts(child);
             if box_facts.is_box() && !box_facts.is_absolutely_positioned() {
-                // SAFETY: The callback only inspects this live layout node.
-                let skip = unsafe {
-                    (self.callbacks.can_skip_is_anonymous_text_run)(self.callbacks.context, self.callbacks.shell(child))
-                };
+                let skip = self.callbacks.can_skip_is_anonymous_text_run(child);
                 if !skip {
                     self.state.set_box_is_grid_item(&self.callbacks, child, true);
                     let child_grid = self.grid_facts_copy(child);

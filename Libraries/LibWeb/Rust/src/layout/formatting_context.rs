@@ -4891,7 +4891,6 @@ pub struct FfiLayoutFcCallbacks {
     pub anchor_function_fallback: unsafe extern "C" fn(*mut c_void, *const c_void) -> FfiAnchorFallbackFacts,
     pub set_resolved_anchor_insets: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiResolvedAnchorInsets),
     pub set_default_scroll_shift: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, bool, bool),
-    pub can_skip_is_anonymous_text_run: unsafe extern "C" fn(*mut c_void, *mut c_void) -> bool,
 }
 
 impl FfiLayoutFcCallbacks {
@@ -4915,6 +4914,25 @@ impl FfiLayoutFcCallbacks {
         // SAFETY: The document arena outlives the layout pass, and text
         // content is only mutated between passes.
         unsafe { &*std::ptr::from_ref(content) }
+    }
+
+    pub(crate) fn can_skip_is_anonymous_text_run(&self, node: Node) -> bool {
+        let data = self.node_data(node);
+        if !crate::layout::has_flag(data, NodeFlag::Anonymous) || data.generated_for != 0 {
+            return false;
+        }
+
+        let mut child = data.first_child;
+        while !child.is_invalid() {
+            let data = self.node_data(child);
+            if !crate::layout::kind_is_text(data.kind)
+                || !self.text_content(child).untransformed_text_is_ascii_whitespace
+            {
+                return false;
+            }
+            child = data.next_sibling;
+        }
+        true
     }
 
     pub(crate) fn shell(&self, node: Node) -> *mut c_void {
