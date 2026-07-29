@@ -3265,7 +3265,7 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_text(Utf16View where, Utf16Vi
 }
 
 // https://drafts.csswg.org/cssom-view-1/#determine-the-scroll-into-view-position
-static CSSPixelPoint determine_the_scroll_into_view_position(Element& target, Bindings::ScrollLogicalPosition block, Bindings::ScrollLogicalPosition inline_, Node& scrolling_box)
+static CSSPixelPoint determine_the_scroll_into_view_position(Element& target, CSSPixelRect target_bounding_border_box, Bindings::ScrollLogicalPosition block, Bindings::ScrollLogicalPosition inline_, Node& scrolling_box)
 {
     // To determine the scroll-into-view position of a target, which is an Element, pseudo-element, or Range, with a
     // block flow direction position block, an inline base direction position inline, and a scrolling box scrolling box,
@@ -3296,7 +3296,8 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Element& target, Bi
     // 1. Let target bounding border box be the box represented by the return value of invoking Element’s
     //    getBoundingClientRect(), if target is an Element, or Range’s getBoundingClientRect(),
     //    if target is a Range.
-    auto target_bounding_border_box = target.get_bounding_client_rect();
+    // AD-HOC: The caller performs this step once and passes the result in, moving it outward as each scrolling box is
+    //         scrolled, so that an outer scrolling box sees where the target is going to be.
 
     // AD-HOC: The spec doesn't specify when to do this, but we need to apply scroll-margin and scroll-margin to target
     //         bounding border box (https://drafts.csswg.org/cssom-view-1/#example-51af1565).
@@ -3475,6 +3476,8 @@ static GC::Ref<WebIDL::Promise> scroll_an_element_into_view(Element& target, Bin
         ancestor = ancestor->parent();
     }
 
+    auto target_bounding_border_box = target.get_bounding_client_rect();
+
     for (auto& scrolling_box : scrolling_boxes) {
         // 1. If the Document associated with target is not same origin with the Document associated with the element
         //    or viewport associated with scrolling box, abort any remaining iteration of this loop.
@@ -3484,7 +3487,15 @@ static GC::Ref<WebIDL::Promise> scroll_an_element_into_view(Element& target, Bin
         // 2. Let position be the scroll position resulting from running the steps to determine the scroll-into-view
         //    position of target with behavior as the scroll behavior, block as the block flow position, inline as the
         //    inline base direction position and scrolling box as the scrolling box.
-        auto position = determine_the_scroll_into_view_position(target, block, inline_, scrolling_box);
+        auto position = determine_the_scroll_into_view_position(target, target_bounding_border_box, block, inline_, scrolling_box);
+
+        // AD-HOC: A smooth scroll leaves the scrolling box at its old scroll position while the outer scrolling boxes
+        //         are considered, so move the target to where this scroll is going to leave it. The viewport is always
+        //         the outermost scrolling box, so its own scroll cannot affect a later iteration.
+        if (!scrolling_box.is_document()) {
+            if (auto paintable_box = scrolling_box.paintable_box())
+                target_bounding_border_box.translate_by(paintable_box->scroll_offset() - paintable_box->clamp_scroll_offset(position));
+        }
 
         // 3. If position is not the same as scrolling box’s current scroll position, or scrolling box has an ongoing
         //    smooth scroll,

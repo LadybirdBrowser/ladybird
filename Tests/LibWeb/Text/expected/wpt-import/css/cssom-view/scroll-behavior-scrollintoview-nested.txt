@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Make sure the page is ready for animation.
+Pass	scrollIntoView with nested elements with different scroll-behavior
