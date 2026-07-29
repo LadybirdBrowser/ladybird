@@ -216,6 +216,8 @@ impl_computed_payload_clone_and_eq!(BoxValues {
     text_overflow,
     unicode_bidi,
     table_layout,
+    grid_auto_flow_row,
+    grid_auto_flow_dense,
     has_z_index,
     z_index,
     vertical_align,
@@ -1271,6 +1273,8 @@ impl BoxValues {
             text_overflow: text_overflow::CLIP,
             unicode_bidi: unicode_bidi::NORMAL,
             table_layout: table_layout::AUTO,
+            grid_auto_flow_row: true,
+            grid_auto_flow_dense: false,
             has_z_index: false,
             z_index: 0,
             vertical_align: ComputedVerticalAlign {

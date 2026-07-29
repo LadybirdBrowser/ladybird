@@ -307,7 +307,6 @@ static constexpr Array grid_group_properties {
     PropertyID::GridAutoRows,
     PropertyID::GridTemplateColumns,
     PropertyID::GridTemplateRows,
-    PropertyID::GridAutoFlow,
     PropertyID::GridColumnEnd,
     PropertyID::GridColumnStart,
     PropertyID::GridRowEnd,
@@ -1029,6 +1028,7 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     auto containment = computed_style.contain();
     auto container_type = computed_style.container_type();
     auto z_index = computed_style.z_index();
+    auto const grid_auto_flow = computed_style.grid_auto_flow();
     ComputedValuesFFI::BoxValues box_group_values {
         .display = to_ffi_display(computed_style.display()),
         .display_before_box_type_transformation = to_ffi_display(computed_style.display_before_box_type_transformation()),
@@ -1042,6 +1042,8 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
         .text_overflow = static_cast<u8>(to_underlying(computed_style.text_overflow())),
         .unicode_bidi = static_cast<u8>(to_underlying(computed_style.unicode_bidi())),
         .table_layout = static_cast<u8>(to_underlying(computed_style.table_layout())),
+        .grid_auto_flow_row = grid_auto_flow.row,
+        .grid_auto_flow_dense = grid_auto_flow.dense,
         .has_z_index = z_index.has_value(),
         .z_index = z_index.value_or(0),
         .vertical_align = to_ffi_vertical_align(computed_style.vertical_align()),
@@ -2143,8 +2145,6 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
         computed_values.set_grid_row_start(computed_style.grid_row_start());
     if (!grid_adopted)
         computed_values.set_grid_template_areas(computed_style.grid_template_areas());
-    if (!grid_adopted)
-        computed_values.set_grid_auto_flow(computed_style.grid_auto_flow());
 
     if (!inherited_svg_adopted)
         computed_values.set_fill(computed_style.fill(color_resolution_context));
