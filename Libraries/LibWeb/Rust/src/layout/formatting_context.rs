@@ -4853,7 +4853,7 @@ impl OwnedFlexLayoutData {
     }
 }
 
-pub type FfiBuildStyleSnapshotCallback = unsafe extern "C" fn(*mut c_void, *const c_void) -> crate::layout::FfiStyleSnapshot;
+pub type FfiBuildStylePayloadsCallback = unsafe extern "C" fn(*mut c_void, *const c_void) -> crate::layout::FfiStylePayloads;
 pub type FfiBuildTableBoxFactsCallback = unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiTableBoxFacts;
 
 #[derive(Clone, Copy)]
@@ -4869,7 +4869,7 @@ pub struct FfiLayoutFcCallbacks {
     pub decode_residual_style: crate::layout::FfiDecodeResidualStyleCallback,
     pub release_calc_handle: crate::layout::FfiReleaseCalcHandleCallback,
     pub release_anchor_name_handle: crate::layout::FfiReleaseAnchorNameHandleCallback,
-    pub build_style_snapshot: FfiBuildStyleSnapshotCallback,
+    pub build_style_payloads: FfiBuildStylePayloadsCallback,
     pub build_replaced_content_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> crate::layout::FfiReplacedContentFacts,
     pub build_list_item_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> crate::layout::FfiListItemFacts,
     pub text_node_is_empty_editable: unsafe extern "C" fn(*mut c_void, *mut c_void) -> bool,

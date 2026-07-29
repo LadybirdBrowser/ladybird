@@ -757,44 +757,6 @@ RustFFI::FfiSizeValue build_style_size_value(CSS::Size const& value)
     VERIFY_NOT_REACHED();
 }
 
-static RustFFI::FfiDisplay encode_display(CSS::Display const& display)
-{
-    static_assert(to_underlying(CSS::Display::Type::OutsideAndInside) == 0);
-    static_assert(to_underlying(CSS::Display::Type::Internal) == 1);
-    static_assert(to_underlying(CSS::Display::Type::Box) == 2);
-
-    switch (display.type()) {
-    case CSS::Display::Type::OutsideAndInside:
-        return {
-            .tag = to_underlying(display.type()),
-            .outside = to_underlying(display.outside()),
-            .inside = to_underlying(display.inside()),
-            .list_item = display.is_list_item(),
-            .internal = 0,
-            .box_value = 0,
-        };
-    case CSS::Display::Type::Internal:
-        return {
-            .tag = to_underlying(display.type()),
-            .outside = 0,
-            .inside = 0,
-            .list_item = false,
-            .internal = to_underlying(display.internal()),
-            .box_value = 0,
-        };
-    case CSS::Display::Type::Box:
-        return {
-            .tag = to_underlying(display.type()),
-            .outside = 0,
-            .inside = 0,
-            .list_item = false,
-            .internal = 0,
-            .box_value = display.is_none() ? to_underlying(CSS::DisplayBox::None) : to_underlying(CSS::DisplayBox::Contents),
-        };
-    }
-    VERIFY_NOT_REACHED();
-}
-
 static RustFFI::FfiAffineTransform to_ffi_affine_transform(Gfx::AffineTransform const& transform)
 {
     return {
@@ -1739,12 +1701,7 @@ RustFFI::FfiLayoutFcCallbacks LayoutRustBridge::formatting_context_callbacks()
             return decode_residual_style(*payloads); },
         .release_calc_handle = ladybird_layout_release_calc_handle,
         .release_anchor_name_handle = ladybird_layout_release_anchor_name_handle,
-        .build_style_snapshot = [](void*, void const* style) {
-            auto const& values = *static_cast<CSS::ComputedValues const*>(style);
-            return RustFFI::FfiStyleSnapshot {
-                .payloads = style_payloads(values),
-                .display = encode_display(values.display()),
-            }; },
+        .build_style_payloads = [](void*, void const* style) { return style_payloads(*static_cast<CSS::ComputedValues const*>(style)); },
         .build_replaced_content_facts = [](void*, void* node) {
             RustFFI::FfiReplacedContentFacts facts {};
             auto const* box = as_if<Box>(*static_cast<Node const*>(node));
