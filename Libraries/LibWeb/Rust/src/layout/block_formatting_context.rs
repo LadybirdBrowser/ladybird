@@ -2356,7 +2356,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                     .sizing()
                     .should_treat_block_size_as_auto(caption, available_space, constraints)
                 {
-                    let content_block_size = if self.style(caption).containment_bits() & 1 != 0 {
+                    let content_block_size = if self.style(caption).has_size_containment() {
                         CssPixels::default()
                     } else {
                         child_layout.result().automatic_content_block_size

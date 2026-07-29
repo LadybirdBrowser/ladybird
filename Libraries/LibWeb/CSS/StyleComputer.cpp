@@ -2890,44 +2890,6 @@ static void compute_text_align(ComputedProperties::Builder& builder, DOM::Abstra
     }
 }
 
-static ComputedValuesFFI::FfiDisplay to_ffi_display(Display const& display)
-{
-    // The Rust mirror uses the same tag discriminants as Display::Type.
-    static_assert(to_underlying(Display::Type::OutsideAndInside) == 0);
-    static_assert(to_underlying(Display::Type::Internal) == 1);
-    static_assert(to_underlying(Display::Type::Box) == 2);
-
-    ComputedValuesFFI::FfiDisplay result {};
-    result.tag = to_underlying(display.type());
-    switch (display.type()) {
-    case Display::Type::OutsideAndInside:
-        result.outside = to_underlying(display.outside());
-        result.inside = to_underlying(display.inside());
-        result.list_item = display.is_list_item();
-        break;
-    case Display::Type::Internal:
-        result.internal = to_underlying(display.internal());
-        break;
-    case Display::Type::Box:
-        result.box_value = display.is_none() ? to_underlying(DisplayBox::None) : to_underlying(DisplayBox::Contents);
-        break;
-    }
-    return result;
-}
-
-static Display from_ffi_display(ComputedValuesFFI::FfiDisplay const& display)
-{
-    switch (static_cast<Display::Type>(display.tag)) {
-    case Display::Type::OutsideAndInside:
-        return Display { static_cast<DisplayOutside>(display.outside), static_cast<DisplayInside>(display.inside), display.list_item ? Display::ListItem::Yes : Display::ListItem::No };
-    case Display::Type::Internal:
-        return Display { static_cast<DisplayInternal>(display.internal) };
-    case Display::Type::Box:
-        return Display { static_cast<DisplayBox>(display.box_value) };
-    }
-    VERIFY_NOT_REACHED();
-}
-
 static ComputedValuesFFI::FfiDisplay decode_ffi_display(u32 encoded)
 {
     ComputedValuesFFI::FfiDisplay display {};
@@ -3035,11 +2997,11 @@ static ComputedValuesFFI::FfiBoxTypeTransformationInput make_box_type_transforma
 
 static void apply_box_type_transformation(ComputedProperties::Builder& builder, ComputedValuesFFI::FfiDisplay const& display_before, ComputedValuesFFI::FfiBoxTypeTransformation const& transformation)
 {
-    builder.set_display_before_box_type_transformation(from_ffi_display(display_before));
+    builder.set_display_before_box_type_transformation(display_from_ffi_display(display_before));
     if (transformation.set_float_none)
         builder.set_property(PropertyID::Float, KeywordStyleValue::create(Keyword::None));
     if (transformation.changed_display)
-        builder.set_property(PropertyID::Display, DisplayStyleValue::create(from_ffi_display(transformation.display)));
+        builder.set_property(PropertyID::Display, DisplayStyleValue::create(display_from_ffi_display(transformation.display)));
 }
 
 static ComputedValuesFFI::FfiInputLineHeightMetrics input_line_height_metrics(ComputedProperties::Builder& builder, DOM::AbstractElement abstract_element, bool should_measure)
@@ -3641,7 +3603,7 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
                 builder.set_property_without_modifying_flags(property_id, KeywordStyleValue::create(static_cast<Keyword>(static_cast<u16>(entry.value))));
                 break;
             case ComputedValuesFFI::COMPUTED_KIND_DISPLAY:
-                builder.set_property_without_modifying_flags(property_id, DisplayStyleValue::create(from_ffi_display(decode_ffi_display(static_cast<u32>(entry.value)))));
+                builder.set_property_without_modifying_flags(property_id, DisplayStyleValue::create(display_from_ffi_display(decode_ffi_display(static_cast<u32>(entry.value)))));
                 break;
             case ComputedValuesFFI::COMPUTED_KIND_SUPERELLIPSE: {
                 // NB: The round value is cached since it is the initial value of the corner-*-shape properties.
@@ -3691,7 +3653,7 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
             text_align_before_adjustments = static_cast<Keyword>(request->text_align_before);
             position_before_adjustments = static_cast<Keyword>(request->position_before);
             line_height_before_adjustments = builder.style().property(PropertyID::LineHeight);
-            builder.set_display_before_box_type_transformation(from_ffi_display(request->display_before));
+            builder.set_display_before_box_type_transformation(display_from_ffi_display(request->display_before));
             *request->out_input_line_height_metrics = input_line_height_metrics(builder, abstract_element, request->check_input_line_height);
             break;
         }
@@ -3771,7 +3733,7 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
         VERIFY(text_align_before_adjustments.has_value());
         VERIFY(position_before_adjustments.has_value());
         VERIFY(line_height_before_adjustments);
-        builder.set_property_without_modifying_flags(PropertyID::Display, DisplayStyleValue::create(from_ffi_display(*display_before_adjustments)));
+        builder.set_property_without_modifying_flags(PropertyID::Display, DisplayStyleValue::create(display_from_ffi_display(*display_before_adjustments)));
         builder.set_property_without_modifying_flags(PropertyID::Float, KeywordStyleValue::create(*float_before_adjustments));
         builder.set_property_without_modifying_flags(PropertyID::OverflowX, KeywordStyleValue::create(*overflow_x_before_adjustments));
         builder.set_property_without_modifying_flags(PropertyID::OverflowY, KeywordStyleValue::create(*overflow_y_before_adjustments));

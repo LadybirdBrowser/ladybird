@@ -706,8 +706,8 @@ impl<'pass> NodeFacts<'pass> {
         ) {
             return false;
         }
-        let containment_bits = self.style().containment_bits();
-        containment_bits & 1 != 0 || containment_bits & (1 << 5) != 0
+        let style = self.style();
+        style.has_size_containment() || style.is_size_container()
     }
 
     pub(crate) fn has_preferred_aspect_ratio(&self) -> bool {
@@ -1265,8 +1265,8 @@ impl LayoutState {
         // Size containment gives any box an auto content box size of zero, so
         // size-contained boxes join the replaced kinds in fetching real facts.
         let size_containment_may_apply = crate::layout::kind_is_box(data.kind) && !data.style.is_null() && {
-            let containment_bits = self.style_facts(callbacks, node).containment_bits();
-            containment_bits & 1 != 0 || containment_bits & (1 << 5) != 0
+            let style = self.style_facts(callbacks, node);
+            style.has_size_containment() || style.is_size_container()
         };
         let facts = if crate::layout::node_may_have_replaced_content_facts(data) || size_containment_may_apply {
             // SAFETY: The callback table and node are supplied by the live C++

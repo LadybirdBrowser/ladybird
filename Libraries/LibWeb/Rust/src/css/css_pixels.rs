@@ -138,6 +138,17 @@ impl CssPixels {
     pub fn scaled(self, factor: f64) -> Self {
         Self::nearest_value_for(self.to_double() * factor)
     }
+
+    /// Matches the floating-point `CSSPixelFraction(double, double)`
+    /// constructor: a denominator that rounds to zero CSSPixels is rescued by
+    /// folding it into the numerator before the fixed-point conversion.
+    pub(crate) fn fraction_nearest_values_for(mut numerator: f64, mut denominator: f64) -> (CssPixels, CssPixels) {
+        if Self::nearest_value_for(denominator).raw_value() == 0 {
+            numerator /= denominator;
+            denominator = 1.0;
+        }
+        (Self::nearest_value_for(numerator), Self::nearest_value_for(denominator))
+    }
 }
 
 const MAX_DIMENSION_RAW: i32 = 17_895_700 * 64;

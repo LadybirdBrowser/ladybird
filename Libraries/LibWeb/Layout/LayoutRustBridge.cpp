@@ -120,9 +120,6 @@ static_assert(to_underlying(CSS::StyleGroupIndex::Count) == RustFFI::STYLE_GROUP
     F(BorderRightStyle, CSS::ComputedValues::BorderValues, border_right.line_style, offsetof(CSS::ComputedValues::BorderValues, border_right) + offsetof(CSS::BorderData, line_style), U8)    \
     F(BorderBottomStyle, CSS::ComputedValues::BorderValues, border_bottom.line_style, offsetof(CSS::ComputedValues::BorderValues, border_bottom) + offsetof(CSS::BorderData, line_style), U8) \
     F(BorderLeftStyle, CSS::ComputedValues::BorderValues, border_left.line_style, offsetof(CSS::ComputedValues::BorderValues, border_left) + offsetof(CSS::BorderData, line_style), U8)       \
-    F(Position, CSS::ComputedValues::BoxValues, position, offsetof(CSS::ComputedValues::BoxValues, position), U8)                                                                             \
-    F(Float, CSS::ComputedValues::BoxValues, float_, offsetof(CSS::ComputedValues::BoxValues, float_), U8)                                                                                    \
-    F(Clear, CSS::ComputedValues::BoxValues, clear, offsetof(CSS::ComputedValues::BoxValues, clear), U8)                                                                                      \
     F(TextAlign, CSS::ComputedValues::InheritedTextValues, text_align, offsetof(CSS::ComputedValues::InheritedTextValues, text_align), U8)                                                    \
     F(TextJustify, CSS::ComputedValues::InheritedTextValues, text_justify, offsetof(CSS::ComputedValues::InheritedTextValues, text_justify), U8)                                              \
     F(WhiteSpaceCollapse, CSS::ComputedValues::InheritedTextValues, white_space_collapse, offsetof(CSS::ComputedValues::InheritedTextValues, white_space_collapse), U8)                       \
@@ -131,9 +128,6 @@ static_assert(to_underlying(CSS::StyleGroupIndex::Count) == RustFFI::STYLE_GROUP
     F(FontVariantEmoji, CSS::ComputedValues::FontValues, font_variant_emoji, offsetof(CSS::ComputedValues::FontValues, font_variant_emoji), U8)                                               \
     F(LineHeight, CSS::ComputedValues::FontValues, line_height.used_value, offsetof(CSS::ComputedValues::FontValues, line_height) + offsetof(CSS::LineHeightData, used_value), CssPixels)     \
     F(FontSize, CSS::ComputedValues::FontValues, font_size, offsetof(CSS::ComputedValues::FontValues, font_size), CssPixels)                                                                  \
-    F(BoxSizing, CSS::ComputedValues::BoxValues, box_sizing, offsetof(CSS::ComputedValues::BoxValues, box_sizing), U8)                                                                        \
-    F(OverflowX, CSS::ComputedValues::BoxValues, overflow_x, offsetof(CSS::ComputedValues::BoxValues, overflow_x), U8)                                                                        \
-    F(OverflowY, CSS::ComputedValues::BoxValues, overflow_y, offsetof(CSS::ComputedValues::BoxValues, overflow_y), U8)                                                                        \
     F(TextOverflow, CSS::ComputedValues::TextResetValues, text_overflow, offsetof(CSS::ComputedValues::TextResetValues, text_overflow), U8)                                                   \
     F(TableLayout, CSS::ComputedValues::MiscResetValues, table_layout, offsetof(CSS::ComputedValues::MiscResetValues, table_layout), U8)                                                      \
     F(LetterSpacing, CSS::ComputedValues::InheritedTextValues, letter_spacing, offsetof(CSS::ComputedValues::InheritedTextValues, letter_spacing), CssPixels)                                 \
@@ -761,22 +755,6 @@ RustFFI::FfiSizeValue build_style_size_value(CSS::Size const& value)
         return size_value_with_kind(RustFFI::FfiSizeKind::None_);
     }
     VERIFY_NOT_REACHED();
-}
-
-StyleVerticalAlignFacts build_style_vertical_align_value(Variant<CSS::VerticalAlign, CSS::LengthPercentage> const& value)
-{
-    if (value.has<CSS::VerticalAlign>()) {
-        return {
-            .is_keyword = true,
-            .keyword = to_underlying(value.get<CSS::VerticalAlign>()),
-            .value = size_value_with_kind(RustFFI::FfiSizeKind::Auto),
-        };
-    }
-    return {
-        .is_keyword = false,
-        .keyword = 0,
-        .value = build_style_size_value(value.get<CSS::LengthPercentage>()),
-    };
 }
 
 static RustFFI::FfiDisplay encode_display(CSS::Display const& display)
@@ -2158,33 +2136,6 @@ static RustFFI::FfiResidualStyleValues decode_residual_style(RustFFI::FfiStylePa
         ++s_outstanding_anchor_name_handles;
         result.position_anchor_retained_name = anchor.name->to_raw_leaked();
     }
-
-    auto const& box = group.operator()<CSS::ComputedValues::BoxValues>();
-    auto vertical_align = build_style_vertical_align_value(box.vertical_align);
-    result.vertical_align_is_keyword = vertical_align.is_keyword;
-    result.vertical_align_keyword = vertical_align.keyword;
-    result.vertical_align_value = vertical_align.value;
-    result.box_sizing_for_aspect_ratio = to_underlying(box.aspect_ratio.use_natural_aspect_ratio_if_available
-            ? CSS::BoxSizing::ContentBox
-            : box.box_sizing);
-    result.aspect_ratio_uses_natural_when_available = box.aspect_ratio.use_natural_aspect_ratio_if_available;
-    if (box.aspect_ratio.preferred_ratio.has_value() && !box.aspect_ratio.preferred_ratio->is_degenerate()) {
-        // The floating-point CSSPixelFraction constructor rescues denominators that
-        // round to zero CSSPixels, and the converted fraction can still collapse to
-        // zero even though is_degenerate() (which operates on doubles) passed.
-        auto fraction = CSSPixelFraction(box.aspect_ratio.preferred_ratio->numerator(), box.aspect_ratio.preferred_ratio->denominator());
-        if (fraction != 0) {
-            result.css_preferred_aspect_ratio_numerator = fraction.numerator().raw_value();
-            result.css_preferred_aspect_ratio_denominator = fraction.denominator().raw_value();
-        }
-    }
-    result.containment_bits = static_cast<u8>(static_cast<u8>(box.contain.size_containment)
-        | static_cast<u8>(box.contain.inline_size_containment) << 1
-        | static_cast<u8>(box.contain.layout_containment) << 2
-        | static_cast<u8>(box.contain.style_containment) << 3
-        | static_cast<u8>(box.contain.paint_containment) << 4
-        | static_cast<u8>(box.container_type.is_size_container) << 5
-        | static_cast<u8>(box.container_type.is_inline_size_container) << 6);
 
     auto const& font_values = group.operator()<CSS::ComputedValues::FontValues>();
     VERIFY(font_values.font_list);
