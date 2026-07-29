@@ -460,13 +460,13 @@ void Paintable::scroll_text_offset_into_view(DOM::Text const& text, size_t offse
         for (auto ancestor = fragment.containing_block_paintable(); ancestor; ancestor = ancestor->containing_block()) {
             if (ancestor->has_scrollable_overflow()) {
                 if (scroll_block_direction == ScrollBlockDirection::No) {
-                    auto scrollport = ancestor->absolute_padding_box_rect();
+                    auto snapport = ancestor->scroll_snapport_rect();
                     if (computed_values.writing_mode() == CSS::WritingMode::HorizontalTb) {
-                        cursor_rect.set_y(scrollport.y() + ancestor->scroll_offset().y());
-                        cursor_rect.set_height(scrollport.height());
+                        cursor_rect.set_y(snapport.y() + ancestor->scroll_offset().y());
+                        cursor_rect.set_height(snapport.height());
                     } else {
-                        cursor_rect.set_x(scrollport.x() + ancestor->scroll_offset().x());
-                        cursor_rect.set_width(scrollport.width());
+                        cursor_rect.set_x(snapport.x() + ancestor->scroll_offset().x());
+                        cursor_rect.set_width(snapport.width());
                     }
                 }
                 ancestor->scroll_into_view(cursor_rect);
@@ -1221,22 +1221,50 @@ GC::Ptr<DOM::EventTarget> Paintable::scroll_event_target()
     return dom_node();
 }
 
+CSSPixelRect Paintable::scroll_snapport_rect() const
+{
+    return scroll_snapport_rect(absolute_padding_box_rect());
+}
+
+CSSPixelRect Paintable::scroll_snapport_rect(CSSPixelRect scrollport) const
+{
+    auto const* scroll_padding_source = &computed_values();
+
+    RefPtr<CSS::ComputedValues const> document_element_computed_values;
+    if (is_viewport_paintable()) {
+        auto const* document_element = document().document_element();
+        document_element_computed_values = document_element ? document_element->computed_values() : nullptr;
+        if (!document_element_computed_values)
+            return scrollport;
+        scroll_padding_source = document_element_computed_values.ptr();
+    }
+
+    // Percentages refer to the corresponding dimension of the scroll container’s scrollport.
+    auto const& scroll_padding = scroll_padding_source->scroll_padding();
+    scrollport.shrink(
+        scroll_padding.top().to_px_or_zero(scrollport.height()),
+        scroll_padding.right().to_px_or_zero(scrollport.width()),
+        scroll_padding.bottom().to_px_or_zero(scrollport.height()),
+        scroll_padding.left().to_px_or_zero(scrollport.width()));
+    return scrollport;
+}
+
 void Paintable::scroll_into_view(CSSPixelRect rect)
 {
-    auto scrollport = absolute_padding_box_rect();
+    auto snapport = scroll_snapport_rect();
     auto current_offset = scroll_offset();
 
-    // Both rect and scrollport are in layout coordinate space (not scroll-adjusted).
-    auto content_rect = rect.translated(-scrollport.x(), -scrollport.y());
+    // Both rect and snapport are in layout coordinate space (not scroll-adjusted).
+    auto content_rect = rect.translated(-snapport.x(), -snapport.y());
     auto new_offset = current_offset;
 
-    if (content_rect.right() > current_offset.x() + scrollport.width())
-        new_offset.set_x(content_rect.right() - scrollport.width());
+    if (content_rect.right() > current_offset.x() + snapport.width())
+        new_offset.set_x(content_rect.right() - snapport.width());
     else if (content_rect.left() < current_offset.x())
         new_offset.set_x(content_rect.left());
 
-    if (content_rect.bottom() > current_offset.y() + scrollport.height())
-        new_offset.set_y(content_rect.bottom() - scrollport.height());
+    if (content_rect.bottom() > current_offset.y() + snapport.height())
+        new_offset.set_y(content_rect.bottom() - snapport.height());
     else if (content_rect.top() < current_offset.y())
         new_offset.set_y(content_rect.top());
 

@@ -3283,10 +3283,12 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Element& target, CS
             CSSPixels::nearest_value_for(visual_viewport.height()),
         };
         scrolling_box_rect = { visual_viewport.offset(), visible_size };
+        if (auto paintable_box = document.paintable_box())
+            scrolling_box_rect = paintable_box->scroll_snapport_rect(scrolling_box_rect);
         current_scroll_position = document.navigable()->viewport_scroll_offset() + visual_viewport.offset();
     } else if (auto paintable_box = scrolling_box.paintable_box()) {
         current_scroll_position = paintable_box->scroll_offset();
-        scrolling_box_rect = paintable_box->transform_rect_to_viewport(paintable_box->absolute_rect(), Painting::AccumulatedVisualContextTree::IncludeVisualViewportTransform::No);
+        scrolling_box_rect = paintable_box->transform_rect_to_viewport(paintable_box->scroll_snapport_rect(), Painting::AccumulatedVisualContextTree::IncludeVisualViewportTransform::No);
     } else {
         return {};
     }
@@ -3311,36 +3313,6 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Element& target, CS
     target_bounding_border_box.set_right(target_bounding_border_box.right() + scroll_margin_left + scroll_margin_right);
     target_bounding_border_box.set_bottom(target_bounding_border_box.bottom() + scroll_margin_top + scroll_margin_bottom);
     target_bounding_border_box.set_left(target_bounding_border_box.left() - scroll_margin_left);
-
-    auto scrolling_box_computed_values = [&scrolling_box]() -> RefPtr<CSS::ComputedValues const> {
-        if (scrolling_box.is_document()) {
-            if (auto scrolling_element = scrolling_box.document().scrolling_element())
-                return scrolling_element->computed_values();
-            return nullptr;
-        }
-
-        if (auto const* element = as_if<DOM::Element>(scrolling_box)) {
-            return element->computed_values();
-        }
-
-        return nullptr;
-    }();
-
-    if (scrolling_box_computed_values) {
-        auto const& scroll_padding = scrolling_box_computed_values->scroll_padding();
-        auto scrolling_box_width = scrolling_box_rect.width();
-        auto scrolling_box_height = scrolling_box_rect.height();
-
-        auto scroll_padding_top = scroll_padding.top().to_px_or_zero(scrolling_box_height);
-        auto scroll_padding_right = scroll_padding.right().to_px_or_zero(scrolling_box_width);
-        auto scroll_padding_bottom = scroll_padding.bottom().to_px_or_zero(scrolling_box_height);
-        auto scroll_padding_left = scroll_padding.left().to_px_or_zero(scrolling_box_width);
-
-        target_bounding_border_box.set_top(target_bounding_border_box.top() - scroll_padding_top);
-        target_bounding_border_box.set_right(target_bounding_border_box.right() + scroll_padding_left + scroll_padding_right);
-        target_bounding_border_box.set_bottom(target_bounding_border_box.bottom() + scroll_padding_top + scroll_padding_bottom);
-        target_bounding_border_box.set_left(target_bounding_border_box.left() - scroll_padding_left);
-    }
 
     // 2. Let scrolling box edge A be the beginning edge in the block flow direction of scrolling box, and
     //    let element edge A be target bounding border box’s edge on the same physical side as that of
