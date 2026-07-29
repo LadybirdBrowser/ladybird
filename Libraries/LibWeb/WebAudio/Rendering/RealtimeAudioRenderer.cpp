@@ -139,8 +139,10 @@ ReadonlySpan<float> RealtimeAudioRenderer::fill_output_buffer(Span<float> buffer
         m_playhead += m_playhead_step;
     }
 
-    // Trim fully consumed frames, keeping the frame under the playhead for interpolation continuity.
-    auto consumed_frames = static_cast<size_t>(m_playhead);
+    // Trim rendered frames preceding the playhead. If resampling advances the playhead beyond the rendered frames,
+    // carry the remaining offset into the next callback.
+    auto rendered_frames = m_pending_samples.size() / channel_count;
+    auto consumed_frames = min(static_cast<size_t>(m_playhead), rendered_frames);
     if (consumed_frames > 0) {
         m_pending_samples.remove(0, consumed_frames * channel_count);
         m_playhead -= consumed_frames;
