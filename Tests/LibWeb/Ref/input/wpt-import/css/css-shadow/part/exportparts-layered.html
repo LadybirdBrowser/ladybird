@@ -1,0 +1,28 @@
+<!doctype html>
+<meta charset="utf-8">
+<link rel="author" href="mailto:wpt@keithcirkel.co.uk" title="Keith Cirkel">
+<link rel="help" href="https://drafts.csswg.org/css-shadow/#part">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-shadow/part/exportparts-layered.ref.html">
+<style>
+my-parent::part(base) { font-size: 1px !important; }
+my-child::part(base) { font-size: 1px !important; }
+my-parent::part(child-base) { font-size: 2rem; }
+</style>
+<my-parent>
+  <template shadowrootmode="open">
+    <style>
+      :host::part(base) { background: red !important; }
+      my-child::part(child-base) { background: red !important; }
+      :host::part(child-base) { background: green; }
+    </style>
+    <my-child exportparts="base:child-base">
+      <template shadowrootmode="open">
+        <style>
+        :host::part(base) { background: red; }
+        :host::part(child-base) { background: red !important; }
+        </style>
+        <span part="base">Should be large and green</span>
+      </template>
+    </my-child>
+  </template>
+</my-parent>

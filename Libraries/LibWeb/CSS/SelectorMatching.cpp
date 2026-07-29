@@ -1048,7 +1048,9 @@ extern "C" CSS::SelectorFFI::ElementAndShadowHost selector_ffi_part_parent(void*
         auto const* next_shadow_host = static_cast<DOM::Element const*>(shadow_host);
         bool const is_internal_part = match_context.rule_shadow_root
             && match_context.rule_shadow_root == host.shadow_root();
-        if (!is_internal_part) {
+        if (is_internal_part) {
+            next_shadow_host = &host;
+        } else {
             if (auto containing_shadow_root = host.containing_shadow_root())
                 next_shadow_host = containing_shadow_root->host();
             else
