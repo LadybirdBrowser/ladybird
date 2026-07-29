@@ -209,14 +209,6 @@ fn resolve_calc(calc: *const c_void, percentage_basis: CssPixels) -> CssPixels {
 // NB: Some variants are only constructed by C++ through the FFI.
 #[allow(dead_code)]
 pub enum FfiStyleField {
-    BorderTopWidth,
-    BorderRightWidth,
-    BorderBottomWidth,
-    BorderLeftWidth,
-    BorderTopStyle,
-    BorderRightStyle,
-    BorderBottomStyle,
-    BorderLeftStyle,
     TextAlign,
     TextJustify,
     WhiteSpaceCollapse,
@@ -327,6 +319,7 @@ struct NativeGroupIndices {
     inherited_box: usize,
     inherited_table: usize,
     box_values: usize,
+    border_facts: usize,
 }
 
 static NATIVE_GROUP_INDICES: OnceLock<NativeGroupIndices> = OnceLock::new();
@@ -341,6 +334,7 @@ fn native_group_indices() -> &'static NativeGroupIndices {
         inherited_box: style_group_index_with_lifecycle(StyleGroupLifecycle::InheritedBox),
         inherited_table: style_group_index_with_lifecycle(StyleGroupLifecycle::InheritedTable),
         box_values: style_group_index_with_lifecycle(StyleGroupLifecycle::Box),
+        border_facts: style_group_index_with_lifecycle(StyleGroupLifecycle::CppWithBorderFacts),
     })
 }
 
@@ -531,6 +525,11 @@ impl StyleReader {
     #[inline]
     fn box_values(&self) -> &crate::layout::BoxValues {
         self.native_group(native_group_indices().box_values)
+    }
+
+    #[inline]
+    fn border_facts(&self) -> &crate::layout::BorderLayoutFacts {
+        self.native_group(native_group_indices().border_facts)
     }
 }
 
@@ -840,18 +839,19 @@ impl DecodedStyleScalars {
         let alignment = reader.alignment();
         let inherited_table = reader.inherited_table();
         let box_values = reader.box_values();
+        let border = reader.border_facts();
         let (css_preferred_aspect_ratio_numerator, css_preferred_aspect_ratio_denominator) =
             decode_css_preferred_aspect_ratio(&box_values.aspect_ratio);
         Self {
             display: box_values.display,
-            border_top_width: reader.css_pixels(FfiStyleField::BorderTopWidth),
-            border_right_width: reader.css_pixels(FfiStyleField::BorderRightWidth),
-            border_bottom_width: reader.css_pixels(FfiStyleField::BorderBottomWidth),
-            border_left_width: reader.css_pixels(FfiStyleField::BorderLeftWidth),
-            border_top_style: reader.u8(FfiStyleField::BorderTopStyle),
-            border_right_style: reader.u8(FfiStyleField::BorderRightStyle),
-            border_bottom_style: reader.u8(FfiStyleField::BorderBottomStyle),
-            border_left_style: reader.u8(FfiStyleField::BorderLeftStyle),
+            border_top_width: border.border_top.width,
+            border_right_width: border.border_right.width,
+            border_bottom_width: border.border_bottom.width,
+            border_left_width: border.border_left.width,
+            border_top_style: border.border_top.line_style,
+            border_right_style: border.border_right.line_style,
+            border_bottom_style: border.border_bottom.line_style,
+            border_left_style: border.border_left.line_style,
             position: box_values.position,
             float_: box_values.float_,
             clear: box_values.clear,

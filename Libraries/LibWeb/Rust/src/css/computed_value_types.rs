@@ -158,6 +158,27 @@ pub struct BoxValues {
     pub container_name: crate::css::retained_fly_string::RetainedUtf16FlyStringList,
 }
 
+/// One computed border side, mirroring the C++ BorderData member layout:
+/// color, line style, used width. Layout reads the line style and width;
+/// the color rides along because the mirror covers whole sides.
+#[repr(C)]
+pub struct ComputedBorderSide {
+    pub color: u32,
+    pub line_style: u8,
+    pub width: crate::css::css_pixels::CssPixels,
+}
+
+/// The layout-facing prefix of the C++-owned border style group: its four
+/// BorderData members lead the group in this order, pinned by static
+/// asserts beside the C++ group definition.
+#[repr(C)]
+pub struct BorderLayoutFacts {
+    pub border_left: ComputedBorderSide,
+    pub border_top: ComputedBorderSide,
+    pub border_right: ComputedBorderSide,
+    pub border_bottom: ComputedBorderSide,
+}
+
 /// Layout of the non-inherited SVG geometry and painting properties.
 #[repr(C)]
 pub struct SVGResetValues {

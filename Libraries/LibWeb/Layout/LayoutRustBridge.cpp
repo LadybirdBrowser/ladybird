@@ -107,29 +107,21 @@ static constexpr size_t style_field_encoding_width(RustFFI::FfiStyleFieldEncodin
 
 static_assert(to_underlying(CSS::StyleGroupIndex::Count) == RustFFI::STYLE_GROUP_COUNT);
 
-#define LIBWEB_LAYOUT_DIRECT_STYLE_FIELDS(F)                                                                                                                                                  \
-    F(BorderTopWidth, CSS::ComputedValues::BorderValues, border_top.width, offsetof(CSS::ComputedValues::BorderValues, border_top) + offsetof(CSS::BorderData, width), CssPixels)             \
-    F(BorderRightWidth, CSS::ComputedValues::BorderValues, border_right.width, offsetof(CSS::ComputedValues::BorderValues, border_right) + offsetof(CSS::BorderData, width), CssPixels)       \
-    F(BorderBottomWidth, CSS::ComputedValues::BorderValues, border_bottom.width, offsetof(CSS::ComputedValues::BorderValues, border_bottom) + offsetof(CSS::BorderData, width), CssPixels)    \
-    F(BorderLeftWidth, CSS::ComputedValues::BorderValues, border_left.width, offsetof(CSS::ComputedValues::BorderValues, border_left) + offsetof(CSS::BorderData, width), CssPixels)          \
-    F(BorderTopStyle, CSS::ComputedValues::BorderValues, border_top.line_style, offsetof(CSS::ComputedValues::BorderValues, border_top) + offsetof(CSS::BorderData, line_style), U8)          \
-    F(BorderRightStyle, CSS::ComputedValues::BorderValues, border_right.line_style, offsetof(CSS::ComputedValues::BorderValues, border_right) + offsetof(CSS::BorderData, line_style), U8)    \
-    F(BorderBottomStyle, CSS::ComputedValues::BorderValues, border_bottom.line_style, offsetof(CSS::ComputedValues::BorderValues, border_bottom) + offsetof(CSS::BorderData, line_style), U8) \
-    F(BorderLeftStyle, CSS::ComputedValues::BorderValues, border_left.line_style, offsetof(CSS::ComputedValues::BorderValues, border_left) + offsetof(CSS::BorderData, line_style), U8)       \
-    F(TextAlign, CSS::ComputedValues::InheritedTextValues, text_align, offsetof(CSS::ComputedValues::InheritedTextValues, text_align), U8)                                                    \
-    F(TextJustify, CSS::ComputedValues::InheritedTextValues, text_justify, offsetof(CSS::ComputedValues::InheritedTextValues, text_justify), U8)                                              \
-    F(WhiteSpaceCollapse, CSS::ComputedValues::InheritedTextValues, white_space_collapse, offsetof(CSS::ComputedValues::InheritedTextValues, white_space_collapse), U8)                       \
-    F(TextWrapMode, CSS::ComputedValues::InheritedTextValues, text_wrap_mode, offsetof(CSS::ComputedValues::InheritedTextValues, text_wrap_mode), U8)                                         \
-    F(WordBreak, CSS::ComputedValues::InheritedTextValues, word_break, offsetof(CSS::ComputedValues::InheritedTextValues, word_break), U8)                                                    \
-    F(FontVariantEmoji, CSS::ComputedValues::FontValues, font_variant_emoji, offsetof(CSS::ComputedValues::FontValues, font_variant_emoji), U8)                                               \
-    F(LineHeight, CSS::ComputedValues::FontValues, line_height.used_value, offsetof(CSS::ComputedValues::FontValues, line_height) + offsetof(CSS::LineHeightData, used_value), CssPixels)     \
-    F(FontSize, CSS::ComputedValues::FontValues, font_size, offsetof(CSS::ComputedValues::FontValues, font_size), CssPixels)                                                                  \
-    F(TextOverflow, CSS::ComputedValues::TextResetValues, text_overflow, offsetof(CSS::ComputedValues::TextResetValues, text_overflow), U8)                                                   \
-    F(TableLayout, CSS::ComputedValues::MiscResetValues, table_layout, offsetof(CSS::ComputedValues::MiscResetValues, table_layout), U8)                                                      \
-    F(LetterSpacing, CSS::ComputedValues::InheritedTextValues, letter_spacing, offsetof(CSS::ComputedValues::InheritedTextValues, letter_spacing), CssPixels)                                 \
-    F(WordSpacing, CSS::ComputedValues::InheritedTextValues, word_spacing, offsetof(CSS::ComputedValues::InheritedTextValues, word_spacing), CssPixels)                                       \
-    F(UnicodeBidi, CSS::ComputedValues::TextResetValues, unicode_bidi, offsetof(CSS::ComputedValues::TextResetValues, unicode_bidi), U8)                                                      \
-    F(GridAutoFlowRow, CSS::ComputedValues::GridValues, grid_auto_flow.row, offsetof(CSS::ComputedValues::GridValues, grid_auto_flow) + offsetof(CSS::GridAutoFlow, row), Bool)               \
+#define LIBWEB_LAYOUT_DIRECT_STYLE_FIELDS(F)                                                                                                                                              \
+    F(TextAlign, CSS::ComputedValues::InheritedTextValues, text_align, offsetof(CSS::ComputedValues::InheritedTextValues, text_align), U8)                                                \
+    F(TextJustify, CSS::ComputedValues::InheritedTextValues, text_justify, offsetof(CSS::ComputedValues::InheritedTextValues, text_justify), U8)                                          \
+    F(WhiteSpaceCollapse, CSS::ComputedValues::InheritedTextValues, white_space_collapse, offsetof(CSS::ComputedValues::InheritedTextValues, white_space_collapse), U8)                   \
+    F(TextWrapMode, CSS::ComputedValues::InheritedTextValues, text_wrap_mode, offsetof(CSS::ComputedValues::InheritedTextValues, text_wrap_mode), U8)                                     \
+    F(WordBreak, CSS::ComputedValues::InheritedTextValues, word_break, offsetof(CSS::ComputedValues::InheritedTextValues, word_break), U8)                                                \
+    F(FontVariantEmoji, CSS::ComputedValues::FontValues, font_variant_emoji, offsetof(CSS::ComputedValues::FontValues, font_variant_emoji), U8)                                           \
+    F(LineHeight, CSS::ComputedValues::FontValues, line_height.used_value, offsetof(CSS::ComputedValues::FontValues, line_height) + offsetof(CSS::LineHeightData, used_value), CssPixels) \
+    F(FontSize, CSS::ComputedValues::FontValues, font_size, offsetof(CSS::ComputedValues::FontValues, font_size), CssPixels)                                                              \
+    F(TextOverflow, CSS::ComputedValues::TextResetValues, text_overflow, offsetof(CSS::ComputedValues::TextResetValues, text_overflow), U8)                                               \
+    F(TableLayout, CSS::ComputedValues::MiscResetValues, table_layout, offsetof(CSS::ComputedValues::MiscResetValues, table_layout), U8)                                                  \
+    F(LetterSpacing, CSS::ComputedValues::InheritedTextValues, letter_spacing, offsetof(CSS::ComputedValues::InheritedTextValues, letter_spacing), CssPixels)                             \
+    F(WordSpacing, CSS::ComputedValues::InheritedTextValues, word_spacing, offsetof(CSS::ComputedValues::InheritedTextValues, word_spacing), CssPixels)                                   \
+    F(UnicodeBidi, CSS::ComputedValues::TextResetValues, unicode_bidi, offsetof(CSS::ComputedValues::TextResetValues, unicode_bidi), U8)                                                  \
+    F(GridAutoFlowRow, CSS::ComputedValues::GridValues, grid_auto_flow.row, offsetof(CSS::ComputedValues::GridValues, grid_auto_flow) + offsetof(CSS::GridAutoFlow, row), Bool)           \
     F(GridAutoFlowDense, CSS::ComputedValues::GridValues, grid_auto_flow.dense, offsetof(CSS::ComputedValues::GridValues, grid_auto_flow) + offsetof(CSS::GridAutoFlow, dense), Bool)
 
 #define LIBWEB_PIN_DIRECT_STYLE_FIELD(field, group, member, offset, encoding)                                                           \
