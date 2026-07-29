@@ -372,7 +372,6 @@ public:
     static TextDecorationSkipInk text_decoration_skip_ink() { return TextDecorationSkipInk::Auto; }
     static TextDecorationStyle text_decoration_style() { return TextDecorationStyle::Solid; }
     static TextTransform text_transform() { return TextTransform::None; }
-    static TextOverflow text_overflow() { return TextOverflow::Clip; }
     static TextIndentData text_indent() { return { Length::make_px(0) }; }
     static TextWrapMode text_wrap_mode() { return TextWrapMode::Wrap; }
     static TextWrapStyle text_wrap_style() { return TextWrapStyle::Auto; }
@@ -459,13 +458,11 @@ public:
     static CSSPixels outline_offset() { return 0; }
     static OutlineStyle outline_style() { return OutlineStyle::None; }
     static CSSPixels outline_width() { return 3; }
-    static TableLayout table_layout() { return TableLayout::Auto; }
     static QuotesData quotes() { return QuotesData { .type = QuotesData::Type::Auto }; }
     static TransformBox transform_box() { return TransformBox::ViewBox; }
     static TransformStyle transform_style() { return TransformStyle::Flat; }
     static Direction direction() { return Direction::Ltr; }
     static Optional<BaselineMetric> dominant_baseline() { return {}; }
-    static UnicodeBidi unicode_bidi() { return UnicodeBidi::Normal; }
     static WritingMode writing_mode() { return WritingMode::HorizontalTb; }
     static UserSelect user_select() { return UserSelect::Auto; }
     static Isolation isolation() { return Isolation::Auto; }
@@ -1198,7 +1195,7 @@ public:
     TextDecorationStyle text_decoration_style() const { return m_noninherited.text_reset->text_decoration_style; }
     Color text_decoration_color() const { return m_noninherited.text_reset->text_decoration_color; }
     TextTransform text_transform() const { return m_inherited.text->text_transform; }
-    TextOverflow text_overflow() const { return m_noninherited.text_reset->text_overflow; }
+    TextOverflow text_overflow() const { return static_cast<TextOverflow>(m_noninherited.box->text_overflow); }
     Vector<ShadowData> const& text_shadow() const { return m_inherited.text->text_shadow; }
     Positioning position() const { return static_cast<Positioning>(m_noninherited.box->position); }
     PositionAnchor const& position_anchor_value() const { return m_noninherited.anchor->position_anchor; }
@@ -1298,7 +1295,7 @@ public:
     Position object_position() const { return m_noninherited.misc->object_position; }
     Direction direction() const { return static_cast<Direction>(m_inherited.box->direction); }
     Optional<BaselineMetric> dominant_baseline() const { return m_inherited.svg->dominant_baseline; }
-    UnicodeBidi unicode_bidi() const { return m_noninherited.text_reset->unicode_bidi; }
+    UnicodeBidi unicode_bidi() const { return static_cast<UnicodeBidi>(m_noninherited.box->unicode_bidi); }
     WritingMode writing_mode() const { return static_cast<WritingMode>(m_inherited.box->writing_mode); }
 
     bool inline_axis_is_reverse() const
@@ -1504,7 +1501,7 @@ public:
     OutlineStyle outline_style() const { return m_noninherited.misc->outline_style; }
     CSSPixels outline_width() const { return m_noninherited.misc->outline_width; }
 
-    TableLayout table_layout() const { return m_noninherited.misc->table_layout; }
+    TableLayout table_layout() const { return static_cast<TableLayout>(m_noninherited.box->table_layout); }
 
     QuotesData quotes() const { return m_inherited.list->quotes; }
 
@@ -1862,8 +1859,6 @@ public:
         TextDecorationThickness text_decoration_thickness { TextDecorationThickness::Auto {} };
         TextDecorationStyle text_decoration_style { InitialValues::text_decoration_style() };
         Color text_decoration_color { InitialValues::color() };
-        TextOverflow text_overflow { InitialValues::text_overflow() };
-        UnicodeBidi unicode_bidi { InitialValues::unicode_bidi() };
         WhiteSpaceTrimData white_space_trim;
 
         bool operator==(TextResetValues const&) const = default;
@@ -1986,7 +1981,6 @@ public:
         Color outline_color { InitialValues::outline_color() };
         CSSPixels outline_width { InitialValues::outline_width() };
         CSSPixels outline_offset { InitialValues::outline_offset() };
-        TableLayout table_layout { InitialValues::table_layout() };
         UserSelect user_select { InitialValues::user_select() };
         Position object_position { InitialValues::object_position() };
         Optional<Utf16FlyString> view_transition_name;
@@ -2569,12 +2563,6 @@ public:
         if (m_values.m_inherited.text->text_wrap_style == value)
             return;
         m_values.m_inherited.text.access().text_wrap_style = value;
-    }
-    void set_text_overflow(TextOverflow value)
-    {
-        if (m_values.m_noninherited.text_reset->text_overflow == value)
-            return;
-        m_values.m_noninherited.text_reset.access().text_overflow = value;
     }
     void set_text_underline_offset(TextUnderlineOffset value)
     {
@@ -3262,12 +3250,6 @@ public:
             return;
         m_values.m_noninherited.grid.access().grid_auto_flow = grid_auto_flow;
     }
-    void set_table_layout(TableLayout value)
-    {
-        if (m_values.m_noninherited.misc->table_layout == value)
-            return;
-        m_values.m_noninherited.misc.access().table_layout = value;
-    }
     void set_quotes(QuotesData value)
     {
         if (m_values.m_inherited.list->quotes == value)
@@ -3297,12 +3279,6 @@ public:
         if (m_values.m_inherited.svg->dominant_baseline == value)
             return;
         m_values.m_inherited.svg.access().dominant_baseline = value;
-    }
-    void set_unicode_bidi(UnicodeBidi value)
-    {
-        if (m_values.m_noninherited.text_reset->unicode_bidi == value)
-            return;
-        m_values.m_noninherited.text_reset.access().unicode_bidi = value;
     }
     void set_writing_mode(WritingMode value)
     {
