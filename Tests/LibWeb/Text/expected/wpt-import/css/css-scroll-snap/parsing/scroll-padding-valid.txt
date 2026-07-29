@@ -1,0 +1,40 @@
+Harness status: OK
+
+Found 35 tests
+
+35 Pass
+Pass	e.style['scroll-padding-top'] = "auto" should set the property value
+Pass	e.style['scroll-padding-top'] = "0" should set the property value
+Pass	e.style['scroll-padding-top'] = "10px" should set the property value
+Pass	e.style['scroll-padding-top'] = "20%" should set the property value
+Pass	e.style['scroll-padding-top'] = "calc(2em + 3ex)" should set the property value
+Pass	e.style['scroll-padding-top'] = "calc(50% + 60px)" should set the property value
+Pass	e.style['scroll-padding-right'] = "auto" should set the property value
+Pass	e.style['scroll-padding-right'] = "0" should set the property value
+Pass	e.style['scroll-padding-right'] = "10px" should set the property value
+Pass	e.style['scroll-padding-right'] = "20%" should set the property value
+Pass	e.style['scroll-padding-right'] = "calc(2em + 3ex)" should set the property value
+Pass	e.style['scroll-padding-right'] = "calc(50% + 60px)" should set the property value
+Pass	e.style['scroll-padding-bottom'] = "auto" should set the property value
+Pass	e.style['scroll-padding-bottom'] = "0" should set the property value
+Pass	e.style['scroll-padding-bottom'] = "10px" should set the property value
+Pass	e.style['scroll-padding-bottom'] = "20%" should set the property value
+Pass	e.style['scroll-padding-bottom'] = "calc(2em + 3ex)" should set the property value
+Pass	e.style['scroll-padding-bottom'] = "calc(50% + 60px)" should set the property value
+Pass	e.style['scroll-padding-left'] = "auto" should set the property value
+Pass	e.style['scroll-padding-left'] = "0" should set the property value
+Pass	e.style['scroll-padding-left'] = "10px" should set the property value
+Pass	e.style['scroll-padding-left'] = "20%" should set the property value
+Pass	e.style['scroll-padding-left'] = "calc(2em + 3ex)" should set the property value
+Pass	e.style['scroll-padding-left'] = "calc(50% + 60px)" should set the property value
+Pass	e.style['scroll-padding'] = "auto" should set the property value
+Pass	e.style['scroll-padding'] = "10px" should set the property value
+Pass	e.style['scroll-padding'] = "0" should set the property value
+Pass	e.style['scroll-padding'] = "20%" should set the property value
+Pass	e.style['scroll-padding'] = "calc(2em + 3ex)" should set the property value
+Pass	e.style['scroll-padding'] = "1px 2px" should set the property value
+Pass	e.style['scroll-padding'] = "1px 2px 3%" should set the property value
+Pass	e.style['scroll-padding'] = "1px 2px 3% 4px" should set the property value
+Pass	e.style['scroll-padding'] = "1px auto" should set the property value
+Pass	e.style['scroll-padding'] = "0 0 0 0" should set the property value
+Pass	e.style['scroll-padding'] = "auto auto auto auto" should set the property value

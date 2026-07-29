@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Scroll Snap Test: scroll-padding-block, scroll-padding-inline set longhands</title>
+<link rel="help" href="https://drafts.csswg.org/css-scroll-snap-1/#padding-longhands-logical">
+<meta name="assert" content="scroll-padding-block, scroll-padding-inline support the full grammar '[ auto | <length-percentage> ]{1,2}'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/shorthand-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_shorthand_value('scroll-padding-block', 'auto 10px', {
+  'scroll-padding-block-start': 'auto',
+  'scroll-padding-block-end': '10px'
+});
+
+test_shorthand_value('scroll-padding-block', '20%', {
+  'scroll-padding-block-start': '20%',
+  'scroll-padding-block-end': '20%'
+});
+
+test_shorthand_value('scroll-padding-inline', '10px auto', {
+  'scroll-padding-inline-start': '10px',
+  'scroll-padding-inline-end': 'auto'
+});
+
+test_shorthand_value('scroll-padding-inline', '0%', {
+  'scroll-padding-inline-start': '0%',
+  'scroll-padding-inline-end': '0%'
+});
+</script>
+</body>
+</html>

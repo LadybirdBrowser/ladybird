@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 12 tests
+
+12 Pass
+Pass	e.style['scroll-padding-block'] = "auto 10px" should set scroll-padding-block-end
+Pass	e.style['scroll-padding-block'] = "auto 10px" should set scroll-padding-block-start
+Pass	e.style['scroll-padding-block'] = "auto 10px" should not set unrelated longhands
+Pass	e.style['scroll-padding-block'] = "20%" should set scroll-padding-block-end
+Pass	e.style['scroll-padding-block'] = "20%" should set scroll-padding-block-start
+Pass	e.style['scroll-padding-block'] = "20%" should not set unrelated longhands
+Pass	e.style['scroll-padding-inline'] = "10px auto" should set scroll-padding-inline-end
+Pass	e.style['scroll-padding-inline'] = "10px auto" should set scroll-padding-inline-start
+Pass	e.style['scroll-padding-inline'] = "10px auto" should not set unrelated longhands
+Pass	e.style['scroll-padding-inline'] = "0%" should set scroll-padding-inline-end
+Pass	e.style['scroll-padding-inline'] = "0%" should set scroll-padding-inline-start
+Pass	e.style['scroll-padding-inline'] = "0%" should not set unrelated longhands

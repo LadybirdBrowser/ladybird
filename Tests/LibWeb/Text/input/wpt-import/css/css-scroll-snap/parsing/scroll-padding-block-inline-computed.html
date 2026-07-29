@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Scroll Snap: getComputedStyle().scrollPaddingBlock / scrollPaddingInline</title>
+<link rel="help" href="https://drafts.csswg.org/css-scroll-snap-1/#padding-longhands-logical">
+<meta name="assert" content="scroll-padding-block, scroll-padding-inline computed value is per side, either the keyword auto or a computed <length-percentage> value.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<style>
+  #target {
+    font-size: 40px;
+  }
+</style>
+<script>
+test_computed_value("scroll-padding-block-start", "auto");
+test_computed_value("scroll-padding-block-start", "10px");
+test_computed_value("scroll-padding-block-start", "20%");
+test_computed_value("scroll-padding-block-start", "calc(10px + 0.5em)", "30px");
+test_computed_value("scroll-padding-block-start", "calc(10px - 0.5em)", "0px");
+test_computed_value("scroll-padding-block-start", "calc(50% + 60px)");
+
+test_computed_value("scroll-padding-block-end", "auto");
+test_computed_value("scroll-padding-block-end", "10px");
+test_computed_value("scroll-padding-block-end", "20%");
+test_computed_value("scroll-padding-block-end", "calc(10px + 0.5em)", "30px");
+test_computed_value("scroll-padding-block-end", "calc(10px - 0.5em)", "0px");
+test_computed_value("scroll-padding-block-end", "calc(50% + 60px)");
+
+test_computed_value("scroll-padding-inline-start", "auto");
+test_computed_value("scroll-padding-inline-start", "10px");
+test_computed_value("scroll-padding-inline-start", "20%");
+test_computed_value("scroll-padding-inline-start", "calc(10px + 0.5em)", "30px");
+test_computed_value("scroll-padding-inline-start", "calc(10px - 0.5em)", "0px");
+test_computed_value("scroll-padding-inline-start", "calc(50% + 60px)");
+
+test_computed_value("scroll-padding-inline-end", "auto");
+test_computed_value("scroll-padding-inline-end", "10px");
+test_computed_value("scroll-padding-inline-end", "20%");
+test_computed_value("scroll-padding-inline-end", "calc(10px + 0.5em)", "30px");
+test_computed_value("scroll-padding-inline-end", "calc(10px - 0.5em)", "0px");
+test_computed_value("scroll-padding-inline-end", "calc(50% + 60px)");
+
+
+test_computed_value("scroll-padding-block", "auto");
+test_computed_value("scroll-padding-block", "10px");
+test_computed_value("scroll-padding-block", "20%");
+test_computed_value("scroll-padding-block", "calc(10px + 0.5em)", "30px");
+test_computed_value("scroll-padding-block", "calc(10px - 0.5em)", "0px");
+test_computed_value("scroll-padding-block", "calc(50% + 60px)");
+test_computed_value("scroll-padding-block", "1px 2px");
+test_computed_value("scroll-padding-block", "1px auto");
+test_computed_value("scroll-padding-block", "auto auto", "auto");
+
+test_computed_value("scroll-padding-inline", "auto");
+test_computed_value("scroll-padding-inline", "10px");
+test_computed_value("scroll-padding-inline", "20%");
+test_computed_value("scroll-padding-inline", "calc(10px + 0.5em)", "30px");
+test_computed_value("scroll-padding-inline", "calc(10px - 0.5em)", "0px");
+test_computed_value("scroll-padding-inline", "calc(50% + 60px)");
+test_computed_value("scroll-padding-inline", "1px 2px");
+test_computed_value("scroll-padding-inline", "1px auto");
+test_computed_value("scroll-padding-inline", "auto auto", "auto");
+</script>
+</body>
+</html>

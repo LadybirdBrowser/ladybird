@@ -1,0 +1,33 @@
+Harness status: OK
+
+Found 28 tests
+
+28 Pass
+Pass	e.style['scroll-padding-top'] = "20" should not set the property value
+Pass	e.style['scroll-padding-top'] = "-20px" should not set the property value
+Pass	e.style['scroll-padding-top'] = "none" should not set the property value
+Pass	e.style['scroll-padding-top'] = "10px 20%" should not set the property value
+Pass	e.style['scroll-padding-top'] = "fit-content" should not set the property value
+Pass	e.style['scroll-padding-right'] = "20" should not set the property value
+Pass	e.style['scroll-padding-right'] = "-20px" should not set the property value
+Pass	e.style['scroll-padding-right'] = "none" should not set the property value
+Pass	e.style['scroll-padding-right'] = "10px 20%" should not set the property value
+Pass	e.style['scroll-padding-right'] = "max-content" should not set the property value
+Pass	e.style['scroll-padding-bottom'] = "20" should not set the property value
+Pass	e.style['scroll-padding-bottom'] = "-20px" should not set the property value
+Pass	e.style['scroll-padding-bottom'] = "none" should not set the property value
+Pass	e.style['scroll-padding-bottom'] = "10px 20%" should not set the property value
+Pass	e.style['scroll-padding-bottom'] = "min-content" should not set the property value
+Pass	e.style['scroll-padding-left'] = "20" should not set the property value
+Pass	e.style['scroll-padding-left'] = "-20px" should not set the property value
+Pass	e.style['scroll-padding-left'] = "none" should not set the property value
+Pass	e.style['scroll-padding-left'] = "10px 20%" should not set the property value
+Pass	e.style['scroll-padding-left'] = "fit-content" should not set the property value
+Pass	e.style['scroll-padding'] = "20" should not set the property value
+Pass	e.style['scroll-padding'] = "-20px" should not set the property value
+Pass	e.style['scroll-padding'] = "none" should not set the property value
+Pass	e.style['scroll-padding'] = "calc(auto)" should not set the property value
+Pass	e.style['scroll-padding'] = "10px 20px 30px 40px 50px" should not set the property value
+Pass	e.style['scroll-padding'] = "fit-content" should not set the property value
+Pass	e.style['scroll-padding'] = "max-content" should not set the property value
+Pass	e.style['scroll-padding'] = "min-content" should not set the property value

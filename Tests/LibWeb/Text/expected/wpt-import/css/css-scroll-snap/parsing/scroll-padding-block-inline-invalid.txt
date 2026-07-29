@@ -1,0 +1,37 @@
+Harness status: OK
+
+Found 32 tests
+
+32 Pass
+Pass	e.style['scroll-padding-block-start'] = "none" should not set the property value
+Pass	e.style['scroll-padding-block-start'] = "-10px" should not set the property value
+Pass	e.style['scroll-padding-block-start'] = "10px 20%" should not set the property value
+Pass	e.style['scroll-padding-block-start'] = "fit-content" should not set the property value
+Pass	e.style['scroll-padding-block-end'] = "none" should not set the property value
+Pass	e.style['scroll-padding-block-end'] = "-10px" should not set the property value
+Pass	e.style['scroll-padding-block-end'] = "10px 20%" should not set the property value
+Pass	e.style['scroll-padding-block-end'] = "max-content" should not set the property value
+Pass	e.style['scroll-padding-inline-start'] = "none" should not set the property value
+Pass	e.style['scroll-padding-inline-start'] = "-10px" should not set the property value
+Pass	e.style['scroll-padding-inline-start'] = "10px 20%" should not set the property value
+Pass	e.style['scroll-padding-inline-start'] = "min-content" should not set the property value
+Pass	e.style['scroll-padding-inline-end'] = "none" should not set the property value
+Pass	e.style['scroll-padding-inline-end'] = "-10px" should not set the property value
+Pass	e.style['scroll-padding-inline-end'] = "10px 20%" should not set the property value
+Pass	e.style['scroll-padding-inline-end'] = "max-content" should not set the property value
+Pass	e.style['scroll-padding-block'] = "none" should not set the property value
+Pass	e.style['scroll-padding-block'] = "-10px" should not set the property value
+Pass	e.style['scroll-padding-block'] = "-20%" should not set the property value
+Pass	e.style['scroll-padding-block'] = "calc(auto)" should not set the property value
+Pass	e.style['scroll-padding-block'] = "10px 20px 30px 40px 50px" should not set the property value
+Pass	e.style['scroll-padding-block'] = "fit-content" should not set the property value
+Pass	e.style['scroll-padding-block'] = "max-content" should not set the property value
+Pass	e.style['scroll-padding-block'] = "min-content" should not set the property value
+Pass	e.style['scroll-padding-inline'] = "none" should not set the property value
+Pass	e.style['scroll-padding-inline'] = "-10px" should not set the property value
+Pass	e.style['scroll-padding-inline'] = "-20%" should not set the property value
+Pass	e.style['scroll-padding-inline'] = "calc(auto)" should not set the property value
+Pass	e.style['scroll-padding-inline'] = "10px 20px 30px 40px 50px" should not set the property value
+Pass	e.style['scroll-padding-inline'] = "fit-content" should not set the property value
+Pass	e.style['scroll-padding-inline'] = "max-content" should not set the property value
+Pass	e.style['scroll-padding-inline'] = "min-content" should not set the property value

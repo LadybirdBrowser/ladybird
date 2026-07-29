@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 152 tests
 
-113 Pass
-39 Fail
+117 Pass
+35 Fail
 Pass	Property scale value 'random(1, 11)'
 Fail	Property scale value 'random(--foo element-scoped, 2, 12)'
 Pass	Property scale value 'random(--foo, 3, 13)'
@@ -81,10 +81,10 @@ Pass	Property border-top-left-radius value 'random(10%, 30%)'
 Pass	Property border-top-right-radius value 'random(10%, 30%)'
 Pass	Property border-bottom-left-radius value 'random(10%, 30%)'
 Pass	Property border-bottom-right-radius value 'random(10%, 30%)'
-Fail	Property scroll-padding-top value 'random(10%, 30%)'
-Fail	Property scroll-padding-bottom value 'random(10%, 30%)'
-Fail	Property scroll-padding-left value 'random(10%, 30%)'
-Fail	Property scroll-padding-right value 'random(10%, 30%)'
+Pass	Property scroll-padding-top value 'random(10%, 30%)'
+Pass	Property scroll-padding-bottom value 'random(10%, 30%)'
+Pass	Property scroll-padding-left value 'random(10%, 30%)'
+Pass	Property scroll-padding-right value 'random(10%, 30%)'
 Pass	Property cx value 'random(10%, 30%)'
 Pass	Property cy value 'random(10%, 30%)'
 Pass	Property rx value 'random(10%, 30%)'
