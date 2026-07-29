@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    div {
+        width: 100px;
+        height: 60px;
+        border: 20px groove #300000;
+        border-top-style: solid;
+    }
+</style>
+<div></div>
+<script>
+    test(() => {
+        println(internals.dumpDisplayList());
+    });
+</script>
