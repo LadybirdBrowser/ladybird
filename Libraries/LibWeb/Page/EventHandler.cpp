@@ -475,14 +475,14 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
     RefPtr<Painting::ChromeWidget> chrome_widget;
     GC::Ptr<DOM::Node> node;
     Optional<int> start_index;
-    bool hit_text_node = false;
+    bool hit_text_fragment = false;
 
     if (auto result = target_for_mouse_position(visual_viewport_position); result.has_value()) {
         paintable = result->paintable;
         chrome_widget = result->chrome_widget;
         node = result->dom_node;
         start_index = result->index_in_node;
-        hit_text_node = node && node->is_text();
+        hit_text_fragment = result->is_text_fragment;
     }
 
     ArmedScopeGuard clear_cursor = [&] {
@@ -517,7 +517,7 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
         bool found_parent_element = parent_element_for_event_dispatch(*paintable, node, layout_node);
 
         if (found_parent_element) {
-            update_cursor(*paintable, *node, chrome_widget, hit_text_node);
+            update_cursor(*paintable, *node, chrome_widget, hit_text_fragment);
             clear_cursor.disarm();
 
             auto coordinates = compute_mouse_event_coordinates(visual_viewport_position, viewport_position, *paintable, *layout_node);
@@ -953,12 +953,12 @@ void EventHandler::update_hover_after_scroll(CSSPixelPoint visual_viewport_posit
     RefPtr<Painting::Paintable> paintable;
     RefPtr<Painting::ChromeWidget> chrome_widget;
     GC::Ptr<DOM::Node> node;
-    bool hit_text_node = false;
+    bool hit_text_fragment = false;
     if (auto result = target_for_mouse_position(visual_viewport_position); result.has_value()) {
         paintable = result->paintable;
         chrome_widget = result->chrome_widget;
         node = result->dom_node;
-        hit_text_node = node && node->is_text();
+        hit_text_fragment = result->is_text_fragment;
     }
 
     ArmedScopeGuard clear_hover = [&] {
@@ -987,7 +987,7 @@ void EventHandler::update_hover_after_scroll(CSSPixelPoint visual_viewport_posit
         return;
 
     update_hovered_chrome_widget(chrome_widget);
-    update_cursor(*paintable, *node, chrome_widget, hit_text_node);
+    update_cursor(*paintable, *node, chrome_widget, hit_text_fragment);
 
     auto coordinates = compute_mouse_event_coordinates(visual_viewport_position, viewport_position, *paintable, *layout_node);
     track_the_effective_position_of_the_legacy_mouse_pointer(node, DOM::HoverEventData {
@@ -2073,7 +2073,13 @@ Optional<EventHandler::Target> EventHandler::target_for_mouse_position(CSSPixelP
         return {};
 
     if (auto result = document->hit_test(position, Painting::HitTestType::Exact); result.has_value())
-        return Target { .paintable = result->paintable.ptr(), .chrome_widget = result->chrome_widget, .dom_node = result->dom_node(), .index_in_node = result->index_in_node };
+        return Target {
+            .paintable = result->paintable.ptr(),
+            .chrome_widget = result->chrome_widget,
+            .dom_node = result->dom_node(),
+            .index_in_node = result->index_in_node,
+            .is_text_fragment = result->is_text_fragment,
+        };
     return {};
 }
 
@@ -2119,16 +2125,7 @@ void EventHandler::run_mousedown_default_actions(DOM::Document& document, CSSPix
         if (!hit.has_value())
             return;
 
-        // NB: Generated pseudo-elements don't have a DOM node, so we first have to walk up to find one.
-        GC::Ptr<DOM::Node const> start_node = nullptr;
-        for (RefPtr<Painting::Paintable> paintable = hit->paintable; paintable; paintable = paintable->parent()) {
-            if (paintable->dom_node()) {
-                start_node = paintable->dom_node();
-                break;
-            }
-        }
-
-        for (GC::Ptr<DOM::Node const> node = start_node; node; node = node->parent_or_shadow_host_node()) {
+        for (GC::Ptr<DOM::Node const> node = hit->dom_node(); node; node = node->parent_or_shadow_host_node()) {
             if (node->is_editable_or_editing_host() || is<HTML::FormAssociatedTextControlElement>(*node))
                 return;
             if (auto const* anchor = as_if<HTML::HTMLAnchorElement>(*node); anchor && anchor->has_attribute(HTML::AttributeNames::href))
@@ -3373,7 +3370,7 @@ static Gfx::Cursor resolve_cursor(Layout::NodeWithStyle const& layout_node, Read
 }
 
 void EventHandler::update_cursor(RefPtr<Painting::Paintable> paintable, GC::Ptr<DOM::Node> host_element,
-    RefPtr<Painting::ChromeWidget> chrome_widget, bool hit_text_node)
+    RefPtr<Painting::ChromeWidget> chrome_widget, bool hit_text_fragment)
 {
     // AD-HOC: Update the cursor image based on the CSS rules before the steps terminate if the target hasn't changed.
     auto cursor = [&] -> Gfx::Cursor {
@@ -3385,15 +3382,15 @@ void EventHandler::update_cursor(RefPtr<Painting::Paintable> paintable, GC::Ptr<
         if (paintable) {
             auto* host_layout_node = host_element ? host_element->layout_node() : nullptr;
             auto const* cursor_data = &paintable->computed_values().cursor();
-            if (hit_text_node && host_layout_node)
+            if (hit_text_fragment && host_layout_node)
                 cursor_data = &as<Layout::NodeWithStyle>(*host_layout_node).computed_values().cursor();
 
             auto* host_node_with_style = host_layout_node ? as_if<Layout::NodeWithStyle>(*host_layout_node) : nullptr;
-            auto is_selectable_text_node = hit_text_node
+            auto is_selectable_text_fragment = hit_text_fragment
                 && host_layout_node
                 && host_layout_node->user_select_used_value() != CSS::UserSelect::None;
 
-            if (is_selectable_text_node || host_element->is_editable_or_editing_host()) {
+            if (is_selectable_text_fragment || host_element->is_editable_or_editing_host()) {
                 if (host_node_with_style)
                     return resolve_cursor(*host_node_with_style, *cursor_data, Gfx::StandardCursor::IBeam);
                 return resolve_cursor(*paintable->layout_node().parent(), *cursor_data, Gfx::StandardCursor::IBeam);

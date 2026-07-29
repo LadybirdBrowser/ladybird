@@ -6,7 +6,6 @@
     }
 
     a {
-        display: inline-block;
         margin: 20px;
         padding: 8px;
     }
@@ -36,6 +35,10 @@
         println(`plain link scrollY: ${scrollY}`);
 
         scrollTo(0, 0);
+
+        const generatedRect = generated.getBoundingClientRect();
+        internals.mouseMove(generatedRect.left + generatedRect.width / 2, generatedRect.top + generatedRect.height / 2);
+        println(`generated-content link cursor: ${internals.currentCursor()}`);
 
         await middleDragFrom(generated);
         println(`generated-content link scrollY: ${scrollY}`);

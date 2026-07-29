@@ -1,2 +1,3 @@
 plain link scrollY: 0
+generated-content link cursor: Hand
 generated-content link scrollY: 0
