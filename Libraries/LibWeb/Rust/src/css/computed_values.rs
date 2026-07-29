@@ -31,9 +31,11 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::abort_on_panic;
 pub use crate::css::computed_value_types::{
-    AlignmentValues, ComputedFlexBasis, ComputedGap, ComputedLengthBox, ComputedLengthPercentageOrAuto, ComputedSize,
-    ComputedSizeKind, ComputedStyleValueHandle, SVGResetValues, SizingValues, SurroundValues,
+    AlignmentValues, BoxValues, ComputedAspectRatio, ComputedFlexBasis, ComputedGap, ComputedLengthBox,
+    ComputedLengthPercentageOrAuto, ComputedSize, ComputedSizeKind, ComputedStyleValueHandle, ComputedVerticalAlign,
+    SVGResetValues, SizingValues, SurroundValues,
 };
+use crate::css::retained_fly_string::RetainedUtf16FlyStringList;
 
 /// Reference count value marking an intentionally leaked payload.
 pub const STYLE_GROUP_STATIC_REFCOUNT: usize = usize::MAX;
@@ -196,6 +198,35 @@ impl_computed_payload_clone_and_eq!(SVGResetValues {
     vector_effect,
     shape_rendering,
 });
+impl_computed_payload_clone_and_eq!(ComputedVerticalAlign {
+    is_keyword,
+    keyword,
+    value,
+});
+impl_computed_payload_clone_and_eq!(BoxValues {
+    display,
+    display_before_box_type_transformation,
+    float_,
+    clear,
+    position,
+    overflow_x,
+    overflow_y,
+    box_sizing,
+    resize,
+    has_z_index,
+    z_index,
+    vertical_align,
+    aspect_ratio,
+    size_containment,
+    inline_size_containment,
+    layout_containment,
+    style_containment,
+    paint_containment,
+    is_size_container,
+    is_inline_size_container,
+    is_scroll_state_container,
+    container_name,
+});
 
 /// Selects the language that owns a style group's payload lifecycle.
 #[repr(u8)]
@@ -208,6 +239,7 @@ pub enum StyleGroupLifecycle {
     Alignment,
     SVGReset,
     Surround,
+    Box,
 }
 
 /// Size, alignment and optional C++ lifecycle callbacks for one style value
@@ -277,6 +309,7 @@ fn payload_size(table: &StyleGroupVTable) -> usize {
         StyleGroupLifecycle::Alignment => size_of::<AlignmentValues>(),
         StyleGroupLifecycle::SVGReset => size_of::<SVGResetValues>(),
         StyleGroupLifecycle::Surround => size_of::<SurroundValues>(),
+        StyleGroupLifecycle::Box => size_of::<BoxValues>(),
     }
 }
 
@@ -289,6 +322,7 @@ fn payload_align(table: &StyleGroupVTable) -> usize {
         StyleGroupLifecycle::Alignment => align_of::<AlignmentValues>(),
         StyleGroupLifecycle::SVGReset => align_of::<SVGResetValues>(),
         StyleGroupLifecycle::Surround => align_of::<SurroundValues>(),
+        StyleGroupLifecycle::Box => align_of::<BoxValues>(),
     }
 }
 
@@ -314,6 +348,9 @@ unsafe fn default_construct(table: &StyleGroupVTable, payload: *mut c_void) {
         },
         StyleGroupLifecycle::Surround => unsafe {
             (payload as *mut SurroundValues).write(SurroundValues::initial());
+        },
+        StyleGroupLifecycle::Box => unsafe {
+            (payload as *mut BoxValues).write(BoxValues::initial());
         },
     }
 }
@@ -341,6 +378,9 @@ unsafe fn copy_construct(table: &StyleGroupVTable, payload: *mut c_void, source:
         StyleGroupLifecycle::Surround => unsafe {
             (payload as *mut SurroundValues).write((*(source as *const SurroundValues)).clone());
         },
+        StyleGroupLifecycle::Box => unsafe {
+            (payload as *mut BoxValues).write((*(source as *const BoxValues)).clone());
+        },
     }
 }
 
@@ -353,6 +393,7 @@ unsafe fn destruct(table: &StyleGroupVTable, payload: *mut c_void) {
         StyleGroupLifecycle::Alignment => unsafe { std::ptr::drop_in_place(payload as *mut AlignmentValues) },
         StyleGroupLifecycle::SVGReset => unsafe { std::ptr::drop_in_place(payload as *mut SVGResetValues) },
         StyleGroupLifecycle::Surround => unsafe { std::ptr::drop_in_place(payload as *mut SurroundValues) },
+        StyleGroupLifecycle::Box => unsafe { std::ptr::drop_in_place(payload as *mut BoxValues) },
     }
 }
 
@@ -369,6 +410,7 @@ unsafe fn payloads_equal(table: &StyleGroupVTable, a: *const c_void, b: *const c
         StyleGroupLifecycle::Alignment => unsafe { *(a as *const AlignmentValues) == *(b as *const AlignmentValues) },
         StyleGroupLifecycle::SVGReset => unsafe { *(a as *const SVGResetValues) == *(b as *const SVGResetValues) },
         StyleGroupLifecycle::Surround => unsafe { *(a as *const SurroundValues) == *(b as *const SurroundValues) },
+        StyleGroupLifecycle::Box => unsafe { *(a as *const BoxValues) == *(b as *const BoxValues) },
     }
 }
 
@@ -491,6 +533,21 @@ pub unsafe extern "C" fn rust_style_group_free(group_index: usize, payload: *mut
         let allocation = (payload as *mut u8).sub(header_size(payload_align(table)));
         dealloc(allocation, allocation_layout(table));
     });
+}
+
+/// Compares two payloads of the same style group for value equality, letting
+/// C++ group structs that inherit a Rust-native payload layout reuse the Rust
+/// field-wise equality instead of hand-writing a second one.
+///
+/// # Safety
+/// `a` and `b` must be valid payloads of the given group type.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_group_payloads_equal(
+    group_index: usize,
+    a: *const c_void,
+    b: *const c_void,
+) -> bool {
+    abort_on_panic(|| unsafe { payloads_equal(vtable(group_index), a, b) })
 }
 
 /// One field of a style group the generic builder can populate or check: a
@@ -1133,6 +1190,57 @@ impl SurroundValues {
     }
 }
 
+impl ComputedAspectRatio {
+    fn auto() -> Self {
+        Self {
+            use_natural_aspect_ratio_if_available: true,
+            has_preferred_ratio: false,
+            preferred_ratio_numerator: 0.0,
+            preferred_ratio_denominator: 0.0,
+            computed_use_natural_aspect_ratio_if_available: true,
+            has_computed_ratio: false,
+            computed_ratio_numerator: 0.0,
+            computed_ratio_denominator: 0.0,
+        }
+    }
+}
+
+impl BoxValues {
+    fn initial() -> Self {
+        use crate::css::css_enums::{box_sizing, clear, float, overflow, positioning, resize, vertical_align};
+        use crate::css::display::FfiDisplay;
+
+        Self {
+            display: FfiDisplay::inline(),
+            display_before_box_type_transformation: FfiDisplay::inline(),
+            float_: float::NONE,
+            clear: clear::NONE,
+            position: positioning::STATIC,
+            overflow_x: overflow::VISIBLE,
+            overflow_y: overflow::VISIBLE,
+            box_sizing: box_sizing::CONTENT_BOX,
+            resize: resize::NONE,
+            has_z_index: false,
+            z_index: 0,
+            vertical_align: ComputedVerticalAlign {
+                is_keyword: true,
+                keyword: vertical_align::BASELINE,
+                value: ComputedStyleValueHandle::empty(),
+            },
+            aspect_ratio: ComputedAspectRatio::auto(),
+            size_containment: false,
+            inline_size_containment: false,
+            layout_containment: false,
+            style_containment: false,
+            paint_containment: false,
+            is_size_container: false,
+            is_inline_size_container: false,
+            is_scroll_state_container: false,
+            container_name: RetainedUtf16FlyStringList::from_retained_strings(Vec::new()),
+        }
+    }
+}
+
 impl SVGResetValues {
     fn initial() -> Self {
         use crate::css::css_enums::{shape_rendering, vector_effect};
@@ -1364,6 +1472,61 @@ pub unsafe extern "C" fn rust_build_surround_group(
         Some(payload.cast_const())
     })
     .unwrap_or(std::ptr::null())
+}
+
+/// Builds the box group from a fully materialized payload value. C++ resolves
+/// every field directly into the payload layout (box type transformation,
+/// ratio degeneracy handling and the vertical-align representation live
+/// there), and ownership of the value's retained references transfers here in
+/// every outcome.
+///
+/// The returned payload carries one reference for the caller; fresh payloads
+/// start at one, shared payloads are retained, and default payloads are
+/// intentionally leaked and never counted.
+///
+/// # Safety
+/// `values` must point at a fully initialized box payload whose ownership
+/// transfers to this call, and `parent_payload` must be a valid box payload
+/// or null.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_build_box_group(
+    group_index: usize,
+    values: *const BoxValues,
+    parent_payload: *const c_void,
+) -> *const c_void {
+    abort_on_panic(|| {
+        let built = unsafe { values.read() };
+
+        if !parent_payload.is_null() && built.eq(unsafe { &*parent_payload.cast::<BoxValues>() }) {
+            retain_group_payload(group_index, parent_payload);
+            return parent_payload;
+        }
+        let default_payload = default_group_payload(group_index);
+        if built.eq(unsafe { &*default_payload.cast::<BoxValues>() }) {
+            return default_payload;
+        }
+
+        let payload = allocate_payload(vtable(group_index), 1);
+        unsafe { payload.cast::<BoxValues>().write(built) };
+        payload.cast_const()
+    })
+}
+
+/// Replaces a box group's container-name list, taking ownership of one leaked
+/// reference per raw and releasing the previous entries.
+///
+/// # Safety
+/// `target` must be a valid list slot and `raws` must point at `count` leaked
+/// fly-string raws.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_replace_computed_fly_string_list(
+    target: *mut RetainedUtf16FlyStringList,
+    raws: *const usize,
+    count: usize,
+) {
+    abort_on_panic(|| unsafe {
+        *target = RetainedUtf16FlyStringList::from_raw(raws, count);
+    });
 }
 
 /// Builds the complete sizing group from its six computed values. Accepted
@@ -1661,8 +1824,17 @@ mod tests {
                 destruct: None,
                 equals: None,
             },
+            StyleGroupVTable {
+                lifecycle: StyleGroupLifecycle::Box,
+                size: size_of::<BoxValues>(),
+                align: align_of::<BoxValues>(),
+                default_construct: None,
+                copy_construct: None,
+                destruct: None,
+                equals: None,
+            },
         ];
-        let mut defaults = [std::ptr::null::<c_void>(); 7];
+        let mut defaults = [std::ptr::null::<c_void>(); 8];
         unsafe {
             rust_style_group_registry_register(vtables.as_ptr(), vtables.len(), defaults.as_mut_ptr());
             let default_payload = defaults[0];
@@ -1722,6 +1894,13 @@ mod tests {
             assert!((*(surround_clone as *const SurroundValues)).eq(surround_default));
             refcount_of(surround_clone, align_of::<SurroundValues>()).store(0, Ordering::Relaxed);
             rust_style_group_free(6, surround_clone);
+
+            let box_default = &*(defaults[7] as *const BoxValues);
+            assert!(box_default.eq(&BoxValues::initial()));
+            let box_clone = rust_style_group_clone(7, defaults[7]);
+            assert!((*(box_clone as *const BoxValues)).eq(box_default));
+            refcount_of(box_clone, align_of::<BoxValues>()).store(0, Ordering::Relaxed);
+            rust_style_group_free(7, box_clone);
         }
     }
 }

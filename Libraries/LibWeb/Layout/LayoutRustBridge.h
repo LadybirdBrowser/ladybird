@@ -48,16 +48,9 @@ private:
     RefPtr<Painting::Paintable> m_commit_insert_before_paintable;
 };
 
-struct StyleVerticalAlignFacts {
-    bool is_keyword;
-    u8 keyword;
-    RustFFI::FfiSizeValue value;
-};
-
 [[nodiscard]] RustFFI::FfiSizeValue build_style_size_value(CSS::Size const&);
 [[nodiscard]] RustFFI::FfiSizeValue build_style_size_value(CSS::LengthPercentage const&);
 [[nodiscard]] RustFFI::FfiSizeValue build_style_size_value(CSS::LengthPercentageOrAuto const&);
-[[nodiscard]] StyleVerticalAlignFacts build_style_vertical_align_value(Variant<CSS::VerticalAlign, CSS::LengthPercentage> const&);
 
 [[nodiscard]] RustFFI::FfiTableBoxFacts build_table_box_facts(NodeWithStyle const&);
 [[nodiscard]] Optional<RustFFI::FfiFormattingContextType> formatting_context_type_created_by_box(Box const&);

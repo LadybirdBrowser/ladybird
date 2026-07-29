@@ -215,9 +215,6 @@ pub enum FfiStyleField {
     BorderRightStyle,
     BorderBottomStyle,
     BorderLeftStyle,
-    Position,
-    Float,
-    Clear,
     TextAlign,
     TextJustify,
     WhiteSpaceCollapse,
@@ -226,9 +223,6 @@ pub enum FfiStyleField {
     FontVariantEmoji,
     LineHeight,
     FontSize,
-    BoxSizing,
-    OverflowX,
-    OverflowY,
     TextOverflow,
     TableLayout,
     LetterSpacing,
@@ -270,6 +264,7 @@ pub(crate) enum SizeField {
     TextIndent,
     X,
     Y,
+    VerticalAlign,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -345,6 +340,7 @@ struct NativeGroupIndices {
     svg_reset: usize,
     inherited_box: usize,
     inherited_table: usize,
+    box_values: usize,
 }
 
 static NATIVE_GROUP_INDICES: OnceLock<NativeGroupIndices> = OnceLock::new();
@@ -358,6 +354,7 @@ fn native_group_indices() -> &'static NativeGroupIndices {
         svg_reset: style_group_index_with_lifecycle(StyleGroupLifecycle::SVGReset),
         inherited_box: style_group_index_with_lifecycle(StyleGroupLifecycle::InheritedBox),
         inherited_table: style_group_index_with_lifecycle(StyleGroupLifecycle::InheritedTable),
+        box_values: style_group_index_with_lifecycle(StyleGroupLifecycle::Box),
     })
 }
 
@@ -412,24 +409,14 @@ pub struct FfiResidualStyleValues {
     pub position_anchor_has_value: bool,
     /// A transferred Utf16FlyString reference, when non-zero.
     pub position_anchor_retained_name: usize,
-    pub vertical_align_is_keyword: bool,
-    pub vertical_align_keyword: u8,
-    pub vertical_align_value: FfiSizeValue,
     pub first_available_font: *const c_void,
     pub font_cascade_list: *const c_void,
     pub font_ascent: f32,
     pub font_descent: f32,
     pub font_x_height: f32,
-    pub box_sizing_for_aspect_ratio: u8,
-    /// The computed `aspect-ratio` <ratio> term. A zero denominator means no
-    /// usable ratio (either none was specified or the value was degenerate).
-    pub css_preferred_aspect_ratio_numerator: CssPixels,
-    pub css_preferred_aspect_ratio_denominator: CssPixels,
-    pub aspect_ratio_uses_natural_when_available: bool,
     pub column_width: FfiSizeValue,
     pub column_count_has_value: bool,
     pub column_count: i32,
-    pub containment_bits: u8,
     pub text_indent: FfiSizeValue,
     pub text_indent_each_line: bool,
     pub text_indent_hanging: bool,
@@ -447,22 +434,14 @@ impl Default for FfiResidualStyleValues {
             anchor_inset_left: FfiSizeValue::auto_value(),
             position_anchor_has_value: false,
             position_anchor_retained_name: 0,
-            vertical_align_is_keyword: false,
-            vertical_align_keyword: 0,
-            vertical_align_value: FfiSizeValue::auto_value(),
             first_available_font: std::ptr::null(),
             font_cascade_list: std::ptr::null(),
             font_ascent: 0.0,
             font_descent: 0.0,
             font_x_height: 0.0,
-            box_sizing_for_aspect_ratio: 0,
-            css_preferred_aspect_ratio_numerator: CssPixels::default(),
-            css_preferred_aspect_ratio_denominator: CssPixels::default(),
-            aspect_ratio_uses_natural_when_available: false,
             column_width: FfiSizeValue::auto_value(),
             column_count_has_value: false,
             column_count: 0,
-            containment_bits: 0,
             text_indent: FfiSizeValue::auto_value(),
             text_indent_each_line: false,
             text_indent_hanging: false,
@@ -483,7 +462,6 @@ impl FfiResidualStyleValues {
         self.anchor_inset_right.release_bridge_calc_handle(release_calc_handle);
         self.anchor_inset_bottom.release_bridge_calc_handle(release_calc_handle);
         self.anchor_inset_left.release_bridge_calc_handle(release_calc_handle);
-        self.vertical_align_value.release_bridge_calc_handle(release_calc_handle);
         self.column_width.release_bridge_calc_handle(release_calc_handle);
         self.text_indent.release_bridge_calc_handle(release_calc_handle);
         if self.position_anchor_retained_name != 0 {
@@ -576,9 +554,14 @@ impl StyleReader {
     fn inherited_table(&self) -> &crate::css::computed_values::InheritedTableValues {
         self.native_group(native_group_indices().inherited_table)
     }
+
+    #[inline]
+    fn box_values(&self) -> &crate::layout::BoxValues {
+        self.native_group(native_group_indices().box_values)
+    }
 }
 
-const SIZE_FIELD_COUNT: usize = 25;
+const SIZE_FIELD_COUNT: usize = 26;
 
 pub(crate) struct StyleDecodeCache {
     reader: StyleReader,
@@ -808,6 +791,31 @@ pub(crate) struct DecodedStyleScalars {
     pub unicode_bidi: u8,
     pub grid_auto_flow_row: bool,
     pub grid_auto_flow_dense: bool,
+    pub css_preferred_aspect_ratio_numerator: CssPixels,
+    pub css_preferred_aspect_ratio_denominator: CssPixels,
+}
+
+/// The computed `aspect-ratio` <ratio> term as a CSSPixels fraction. A zero
+/// denominator means no usable ratio (none specified, degenerate, or collapsed
+/// to zero by the fixed-point conversion).
+fn decode_css_preferred_aspect_ratio(
+    ratio: &crate::css::computed_value_types::ComputedAspectRatio,
+) -> (CssPixels, CssPixels) {
+    let no_usable_ratio = (CssPixels::default(), CssPixels::default());
+    if !ratio.has_preferred_ratio {
+        return no_usable_ratio;
+    }
+    let numerator = ratio.preferred_ratio_numerator;
+    let denominator = ratio.preferred_ratio_denominator;
+    let is_degenerate = !numerator.is_finite() || numerator == 0.0 || !denominator.is_finite() || denominator == 0.0;
+    if is_degenerate {
+        return no_usable_ratio;
+    }
+    let (numerator, denominator) = CssPixels::fraction_nearest_values_for(numerator, denominator);
+    if numerator.raw_value() == 0 {
+        return no_usable_ratio;
+    }
+    (numerator, denominator)
 }
 
 pub(crate) struct StyleDecodeValues {
@@ -854,6 +862,9 @@ impl DecodedStyleScalars {
         let inherited_box = reader.inherited_box();
         let alignment = reader.alignment();
         let inherited_table = reader.inherited_table();
+        let box_values = reader.box_values();
+        let (css_preferred_aspect_ratio_numerator, css_preferred_aspect_ratio_denominator) =
+            decode_css_preferred_aspect_ratio(&box_values.aspect_ratio);
         Self {
             display,
             border_top_width: reader.css_pixels(FfiStyleField::BorderTopWidth),
@@ -864,9 +875,9 @@ impl DecodedStyleScalars {
             border_right_style: reader.u8(FfiStyleField::BorderRightStyle),
             border_bottom_style: reader.u8(FfiStyleField::BorderBottomStyle),
             border_left_style: reader.u8(FfiStyleField::BorderLeftStyle),
-            position: reader.u8(FfiStyleField::Position),
-            float_: reader.u8(FfiStyleField::Float),
-            clear: reader.u8(FfiStyleField::Clear),
+            position: box_values.position,
+            float_: box_values.float_,
+            clear: box_values.clear,
             writing_mode: inherited_box.writing_mode,
             direction: inherited_box.direction,
             text_align: reader.u8(FfiStyleField::TextAlign),
@@ -877,9 +888,9 @@ impl DecodedStyleScalars {
             font_variant_emoji: reader.u8(FfiStyleField::FontVariantEmoji),
             line_height: reader.css_pixels(FfiStyleField::LineHeight),
             font_size: reader.css_pixels(FfiStyleField::FontSize),
-            box_sizing: reader.u8(FfiStyleField::BoxSizing),
-            overflow_x: reader.u8(FfiStyleField::OverflowX),
-            overflow_y: reader.u8(FfiStyleField::OverflowY),
+            box_sizing: box_values.box_sizing,
+            overflow_x: box_values.overflow_x,
+            overflow_y: box_values.overflow_y,
             text_overflow: reader.u8(FfiStyleField::TextOverflow),
             flex_direction: alignment.flex_direction,
             flex_wrap: alignment.flex_wrap,
@@ -903,6 +914,8 @@ impl DecodedStyleScalars {
             unicode_bidi: reader.u8(FfiStyleField::UnicodeBidi),
             grid_auto_flow_row: reader.bool(FfiStyleField::GridAutoFlowRow),
             grid_auto_flow_dense: reader.bool(FfiStyleField::GridAutoFlowDense),
+            css_preferred_aspect_ratio_numerator,
+            css_preferred_aspect_ratio_denominator,
         }
     }
 }
@@ -1025,6 +1038,7 @@ impl<'a> StyleValues<'a> {
                 let values = self.cache.reader.svg_reset();
                 decode_length_percentage(if field == SizeField::X { &values.x } else { &values.y })
             }
+            SizeField::VerticalAlign => decode_length_percentage(&self.cache.reader.box_values().vertical_align.value),
             SizeField::ColumnWidth | SizeField::TextIndent => unreachable!(),
         }
     }
@@ -1062,19 +1076,19 @@ impl<'a> StyleValues<'a> {
     }
 
     pub(crate) fn vertical_align_is_keyword(self) -> bool {
-        self.vertical_align_override != u16::MAX || self.residual().vertical_align_is_keyword
+        self.vertical_align_override != u16::MAX || self.cache.reader.box_values().vertical_align.is_keyword
     }
 
     pub(crate) fn vertical_align_keyword(self) -> u8 {
         if self.vertical_align_override != u16::MAX {
             self.vertical_align_override as u8
         } else {
-            self.residual().vertical_align_keyword
+            self.cache.reader.box_values().vertical_align.keyword
         }
     }
 
     pub(crate) fn vertical_align_value(self) -> FfiSizeValue {
-        self.residual().vertical_align_value
+        self.size_value(SizeField::VerticalAlign)
     }
 
     pub(crate) fn has_position_anchor(self) -> bool {
@@ -1106,19 +1120,28 @@ impl<'a> StyleValues<'a> {
     }
 
     pub(crate) fn box_sizing_for_aspect_ratio(self) -> u8 {
-        self.residual().box_sizing_for_aspect_ratio
+        let values = self.cache.reader.box_values();
+        if values.aspect_ratio.use_natural_aspect_ratio_if_available {
+            crate::css::css_enums::box_sizing::CONTENT_BOX
+        } else {
+            values.box_sizing
+        }
     }
 
     pub(crate) fn css_preferred_aspect_ratio_numerator(self) -> CssPixels {
-        self.residual().css_preferred_aspect_ratio_numerator
+        self.scalars.css_preferred_aspect_ratio_numerator
     }
 
     pub(crate) fn css_preferred_aspect_ratio_denominator(self) -> CssPixels {
-        self.residual().css_preferred_aspect_ratio_denominator
+        self.scalars.css_preferred_aspect_ratio_denominator
     }
 
     pub(crate) fn aspect_ratio_uses_natural_when_available(self) -> bool {
-        self.residual().aspect_ratio_uses_natural_when_available
+        self.cache
+            .reader
+            .box_values()
+            .aspect_ratio
+            .use_natural_aspect_ratio_if_available
     }
 
     pub(crate) fn flex_basis_is_content(self) -> bool {
@@ -1137,8 +1160,12 @@ impl<'a> StyleValues<'a> {
         self.residual().column_count
     }
 
-    pub(crate) fn containment_bits(self) -> u8 {
-        self.residual().containment_bits
+    pub(crate) fn has_size_containment(self) -> bool {
+        self.cache.reader.box_values().size_containment
+    }
+
+    pub(crate) fn is_size_container(self) -> bool {
+        self.cache.reader.box_values().is_size_container
     }
 
     pub(crate) fn text_indent_each_line(self) -> bool {

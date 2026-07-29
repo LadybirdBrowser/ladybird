@@ -367,25 +367,6 @@ static constexpr Array anchor_group_properties {
     PropertyID::PositionVisibility,
 };
 
-// The properties feeding the box group's descriptors, in registration
-// order.
-static constexpr Array box_group_properties {
-    PropertyID::AspectRatio,
-    PropertyID::Float,
-    PropertyID::Clear,
-    PropertyID::Position,
-    PropertyID::ZIndex,
-    PropertyID::Display,
-    PropertyID::OverflowX,
-    PropertyID::OverflowY,
-    PropertyID::BoxSizing,
-    PropertyID::VerticalAlign,
-    PropertyID::Contain,
-    PropertyID::ContainerName,
-    PropertyID::ContainerType,
-    PropertyID::Resize,
-};
-
 // The properties feeding the border group's descriptors, in registration
 // order; each side's color feeds both the resolved color and the retained
 // shell.
@@ -625,25 +606,6 @@ static void register_style_group_field_descriptors()
     add(anchor, PropertyID::PositionTryOrder, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Normal), nullptr);
     add(anchor, PropertyID::PositionVisibility, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Always), nullptr);
 
-    using Box = ComputedValues::BoxValues;
-    constexpr auto box = to_underlying(StyleGroupIndex::BoxValues);
-    add(box, PropertyID::AspectRatio, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Auto), nullptr);
-    add(box, PropertyID::Float, offsetof(Box, float_), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_float>());
-    add(box, PropertyID::Clear, offsetof(Box, clear), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_clear>());
-    add(box, PropertyID::Position, offsetof(Box, position), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_positioning>());
-    add(box, PropertyID::ZIndex, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Auto), nullptr);
-    // NB: An untouched display also pins display_before_box_type_transformation to
-    //     its default, since the box type transformation replaces the stored value.
-    add(box, PropertyID::Display, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
-    add(box, PropertyID::OverflowX, offsetof(Box, overflow_x), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_overflow>());
-    add(box, PropertyID::OverflowY, offsetof(Box, overflow_y), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_overflow>());
-    add(box, PropertyID::BoxSizing, offsetof(Box, box_sizing), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_box_sizing>());
-    add(box, PropertyID::VerticalAlign, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Baseline), nullptr);
-    add(box, PropertyID::Contain, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::None), nullptr);
-    add(box, PropertyID::ContainerName, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::None), nullptr);
-    add(box, PropertyID::ContainerType, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Normal), nullptr);
-    add(box, PropertyID::Resize, offsetof(Box, resize), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_resize>());
-
     using Border = ComputedValues::BorderValues;
     constexpr auto border = to_underlying(StyleGroupIndex::BorderValues);
     struct BorderSide {
@@ -705,6 +667,8 @@ static_assert(sizeof(ComputedValues::SVGResetValues) == sizeof(ComputedValuesFFI
 static_assert(alignof(ComputedValues::SVGResetValues) == alignof(ComputedValuesFFI::SVGResetValues));
 static_assert(sizeof(ComputedValues::SurroundValues) == sizeof(ComputedValuesFFI::SurroundValues));
 static_assert(alignof(ComputedValues::SurroundValues) == alignof(ComputedValuesFFI::SurroundValues));
+static_assert(sizeof(ComputedValues::BoxValues) == sizeof(ComputedValuesFFI::BoxValues));
+static_assert(alignof(ComputedValues::BoxValues) == alignof(ComputedValuesFFI::BoxValues));
 static_assert(sizeof(Size) == sizeof(ComputedValuesFFI::ComputedSize));
 static_assert(alignof(Size) == alignof(ComputedValuesFFI::ComputedSize));
 static_assert(sizeof(RustStyleValueHandle) == sizeof(StyleValueFFI::StyleValueData const*));
@@ -991,16 +955,42 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     VERIFY(surround_payload);
     computed_values.adopt_surround_group(const_cast<void*>(surround_payload));
 
-    Array<ComputedValuesFFI::FfiGroupValueEntry, box_group_properties.size()> box_group_values;
-    gather_group_values(box_group_properties, box_group_values);
-    auto* box_payload = ComputedValuesFFI::rust_build_style_group(
+    auto containment = computed_style.contain();
+    auto container_type = computed_style.container_type();
+    auto z_index = computed_style.z_index();
+    ComputedValuesFFI::BoxValues box_group_values {
+        .display = to_ffi_display(computed_style.display()),
+        .display_before_box_type_transformation = to_ffi_display(computed_style.display_before_box_type_transformation()),
+        .float_ = static_cast<u8>(to_underlying(computed_style.float_())),
+        .clear = static_cast<u8>(to_underlying(computed_style.clear())),
+        .position = static_cast<u8>(to_underlying(computed_style.position())),
+        .overflow_x = static_cast<u8>(to_underlying(computed_style.overflow_x())),
+        .overflow_y = static_cast<u8>(to_underlying(computed_style.overflow_y())),
+        .box_sizing = static_cast<u8>(to_underlying(computed_style.box_sizing())),
+        .resize = static_cast<u8>(to_underlying(computed_style.resize())),
+        .has_z_index = z_index.has_value(),
+        .z_index = z_index.value_or(0),
+        .vertical_align = to_ffi_vertical_align(computed_style.vertical_align()),
+        .aspect_ratio = to_ffi_aspect_ratio(computed_style.aspect_ratio()),
+        .size_containment = containment.size_containment,
+        .inline_size_containment = containment.inline_size_containment,
+        .layout_containment = containment.layout_containment,
+        .style_containment = containment.style_containment,
+        .paint_containment = containment.paint_containment,
+        .is_size_container = container_type.is_size_container,
+        .is_inline_size_container = container_type.is_inline_size_container,
+        .is_scroll_state_container = container_type.is_scroll_state_container,
+        .container_name = { .pointer = nullptr, .length = 0 },
+    };
+    auto leaked_container_name_raws = to_leaked_fly_string_raws(computed_style.container_name());
+    ComputedValuesFFI::rust_replace_computed_fly_string_list(
+        &box_group_values.container_name, leaked_container_name_raws.data(), leaked_container_name_raws.size());
+    auto* box_payload = ComputedValuesFFI::rust_build_box_group(
         BoxValues::style_group_index,
-        box_group_values.data(),
-        box_group_values.size(),
+        &box_group_values,
         inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.box.operator->()) : nullptr);
-    bool const box_adopted = box_payload != nullptr;
-    if (box_adopted)
-        computed_values.adopt_box_group(const_cast<void*>(box_payload));
+    VERIFY(box_payload);
+    computed_values.adopt_box_group(const_cast<void*>(box_payload));
 
     auto* alignment_payload = ComputedValuesFFI::rust_build_alignment_group(
         AlignmentValues::style_group_index,
@@ -1486,9 +1476,6 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
         computed_values.set_accent_color(move(accent_color));
     }
 
-    if (!box_adopted)
-        computed_values.set_vertical_align(computed_style.vertical_align());
-
     if (!background_adopted) {
         auto background_layers = computed_style.background_layers();
         computed_values.set_background_layers(move(background_layers));
@@ -1560,9 +1547,6 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     if (!background_adopted)
         computed_values.set_background_color_clip(computed_style.background_color_clip());
 
-    if (!box_adopted)
-        computed_values.set_box_sizing(computed_style.box_sizing());
-
     if (auto maybe_font_language_override = computed_style.font_language_override(); maybe_font_language_override.has_value())
         computed_values.set_font_language_override(maybe_font_language_override.release_value());
     computed_values.set_font_variation_settings(computed_style.font_variation_settings());
@@ -1590,10 +1574,6 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
         computed_values.set_corner_top_left_shape(computed_style.property(CSS::PropertyID::CornerTopLeftShape).as_superellipse().parameter());
     if (!border_adopted)
         computed_values.set_corner_top_right_shape(computed_style.property(CSS::PropertyID::CornerTopRightShape).as_superellipse().parameter());
-    if (!box_adopted)
-        computed_values.set_display(computed_style.display());
-    if (!box_adopted)
-        computed_values.set_display_before_box_type_transformation(computed_style.display_before_box_type_transformation());
 
     if (!effects_adopted)
         computed_values.set_clip(computed_style.clip());
@@ -1607,9 +1587,6 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
         computed_values.set_appearance(computed_style.appearance());
     if (!misc_reset_adopted)
         computed_values.set_computed_appearance(keyword_to_appearance(computed_style.property(PropertyID::Appearance).to_keyword()).release_value());
-
-    if (!box_adopted)
-        computed_values.set_position(computed_style.position());
 
     // https://drafts.csswg.org/css-anchor-position-1/#position-anchor
     auto const& position_anchor_value = computed_style.property(CSS::PropertyID::PositionAnchor);
@@ -1893,9 +1870,6 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     if (!inherited_text_adopted)
         computed_values.set_letter_spacing_style_value(computed_style.property(PropertyID::LetterSpacing));
 
-    if (!box_adopted)
-        computed_values.set_float(computed_style.float_());
-
     if (!inherited_table_adopted) {
         computed_values.set_border_spacing_horizontal(computed_style.border_spacing_horizontal());
         computed_values.set_border_spacing_vertical(computed_style.border_spacing_vertical());
@@ -1903,12 +1877,6 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
 
     if (!inherited_table_adopted)
         computed_values.set_caption_side(computed_style.caption_side());
-    if (!box_adopted)
-        computed_values.set_clear(computed_style.clear());
-    if (!box_adopted)
-        computed_values.set_overflow_x(computed_style.overflow_x());
-    if (!box_adopted)
-        computed_values.set_overflow_y(computed_style.overflow_y());
     if (!inherited_box_adopted)
         computed_values.set_content_visibility(computed_style.content_visibility());
     auto cursor = computed_style.cursor();
@@ -1963,8 +1931,6 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     if (!inherited_text_adopted)
         computed_values.set_text_shadow(computed_style.text_shadow(color_resolution_context));
 
-    if (!box_adopted)
-        computed_values.set_z_index(computed_style.z_index());
     if (!effects_adopted)
         computed_values.set_opacity(computed_style.opacity());
 
@@ -2214,9 +2180,6 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     if (!misc_reset_adopted)
         computed_values.set_table_layout(computed_style.table_layout());
 
-    if (!box_adopted)
-        computed_values.set_aspect_ratio(computed_style.aspect_ratio());
-
     if (!misc_reset_adopted)
         computed_values.set_touch_action(computed_style.touch_action());
 
@@ -2287,12 +2250,6 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
         computed_values.set_mix_blend_mode(computed_style.mix_blend_mode());
     if (!misc_reset_adopted)
         computed_values.set_view_transition_name(computed_style.view_transition_name());
-    if (!box_adopted)
-        computed_values.set_contain(computed_style.contain());
-    if (!box_adopted)
-        computed_values.set_container_name(computed_style.container_name());
-    if (!box_adopted)
-        computed_values.set_container_type(computed_style.container_type());
     if (!misc_reset_adopted)
         computed_values.set_will_change(computed_style.will_change());
     if (!inherited_ui_adopted) {
@@ -2307,9 +2264,6 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
         computed_values.set_color_interpolation(computed_style.color_interpolation());
     if (!inherited_svg_adopted)
         computed_values.set_color_interpolation_filters(computed_style.color_interpolation_filters());
-    if (!box_adopted)
-        computed_values.set_resize(computed_style.resize());
-
     for (auto i = to_underlying(first_longhand_property_id); i <= to_underlying(last_longhand_property_id); ++i) {
         auto property_id = static_cast<PropertyID>(i);
         computed_values.set_property_important(property_id, computed_style.is_property_important(property_id));

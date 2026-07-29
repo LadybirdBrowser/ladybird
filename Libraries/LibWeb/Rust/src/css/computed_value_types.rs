@@ -106,6 +106,58 @@ pub struct SurroundValues {
     pub padding: ComputedLengthBox,
 }
 
+/// A computed vertical-align value: an alignment keyword or a retained
+/// length-percentage offset.
+#[repr(C)]
+pub struct ComputedVerticalAlign {
+    pub is_keyword: bool,
+    pub keyword: u8,
+    pub value: ComputedStyleValueHandle,
+}
+
+/// The computed aspect-ratio value, carrying both the used form and the
+/// as-computed form the serialization path reports. Absent ratios keep both
+/// components at zero so payload equality stays field-wise.
+#[repr(C)]
+#[derive(Clone, Copy, PartialEq)]
+pub struct ComputedAspectRatio {
+    pub use_natural_aspect_ratio_if_available: bool,
+    pub has_preferred_ratio: bool,
+    pub preferred_ratio_numerator: f64,
+    pub preferred_ratio_denominator: f64,
+    pub computed_use_natural_aspect_ratio_if_available: bool,
+    pub has_computed_ratio: bool,
+    pub computed_ratio_numerator: f64,
+    pub computed_ratio_denominator: f64,
+}
+
+/// Layout of the computed box-level properties.
+#[repr(C)]
+pub struct BoxValues {
+    pub display: crate::css::display::FfiDisplay,
+    pub display_before_box_type_transformation: crate::css::display::FfiDisplay,
+    pub float_: u8,
+    pub clear: u8,
+    pub position: u8,
+    pub overflow_x: u8,
+    pub overflow_y: u8,
+    pub box_sizing: u8,
+    pub resize: u8,
+    pub has_z_index: bool,
+    pub z_index: i32,
+    pub vertical_align: ComputedVerticalAlign,
+    pub aspect_ratio: ComputedAspectRatio,
+    pub size_containment: bool,
+    pub inline_size_containment: bool,
+    pub layout_containment: bool,
+    pub style_containment: bool,
+    pub paint_containment: bool,
+    pub is_size_container: bool,
+    pub is_inline_size_container: bool,
+    pub is_scroll_state_container: bool,
+    pub container_name: crate::css::retained_fly_string::RetainedUtf16FlyStringList,
+}
+
 /// Layout of the non-inherited SVG geometry and painting properties.
 #[repr(C)]
 pub struct SVGResetValues {

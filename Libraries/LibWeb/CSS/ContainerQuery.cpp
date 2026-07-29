@@ -795,7 +795,7 @@ bool container_name_matches(DOM::Element const& element, Optional<Utf16FlyString
         return true;
 
     if (auto style = element.computed_values())
-        return style->container_name().contains_slow(*container_name);
+        return style->container_name_contains(*container_name);
 
     return false;
 }
