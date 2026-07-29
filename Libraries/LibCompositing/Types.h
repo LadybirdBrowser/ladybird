@@ -42,6 +42,11 @@ enum class AsyncScrollUpdateFreshness : u8 {
     FromCompositor,
 };
 
+enum class ScrollAnimationKind : u8 {
+    SmoothScroll,
+    Momentum,
+};
+
 // A scroll the compositor started for user input of its own: the main thread registers it as a user scroll in
 // flight. A scroll started for a step of a gesture is owed the scrollend event by that gesture, which continues
 // from the offset its steps have asked for; a scroll started for the end of a gesture settles the gesture. The
@@ -52,8 +57,10 @@ struct StartedUserScroll {
     AsyncScrollOperationID operation_id { 0 };
     Web::CSSPixelPoint initial_scroll_offset;
     Web::CSSPixelPoint unsnapped_scroll_destination;
+    Web::CSSPixelPoint relative_scroll_delta;
     SnapDestination selection;
     bool settles_gesture { false };
+    Optional<ScrollAnimationKind> animation_kind;
 };
 
 // Published with a display list or an incremental scroll-state snapshot. An absent target keeps keyboard default
@@ -87,11 +94,6 @@ struct AsyncScrollEnqueueResult {
 enum class AsyncScrollOperationTracking {
     No,
     Yes,
-};
-
-enum class ScrollAnimationKind : u8 {
-    SmoothScroll,
-    Momentum,
 };
 
 // A later keyboard step continues from the destination of a smooth scroll the user started, rather than from its

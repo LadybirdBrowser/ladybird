@@ -883,6 +883,20 @@ static Layout::Node* scrolling_box_for_scroll_step(Layout::Node& target, CSSPixe
     return scrolling_box;
 }
 
+// Each box is measured from where its user scroll of the given kind in flight is headed, as the step that continues
+// that scroll measures it, so a box already headed for its extent passes the step on to an ancestor.
+static Layout::Node* scrolling_box_for_continued_scroll_step(HTML::LocalNavigable& navigable, Layout::Node& target, CSSPixelPoint delta, Compositing::ScrollAnimationKind animation_kind)
+{
+    for (auto* scrolling_box = &target; scrolling_box; scrolling_box = scrolling_box->containing_block()) {
+        if (!navigable.continued_scroll_step_moves(*scrolling_box, delta, animation_kind))
+            continue;
+        if (scrolling_box->is_viewport() && !visual_viewport_pan_axes_for_scroll_step(target.document(), delta.x().to_double(), delta.y().to_double()).is_empty())
+            return nullptr;
+        return scrolling_box;
+    }
+    return nullptr;
+}
+
 EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers, double wheel_delta_x, double wheel_delta_y, Web::WheelDeltaPrecision wheel_delta_precision, Web::ScrollGesturePhase scroll_gesture_phase, bool async_scroll_performed_default_action, Optional<AsyncScrollOperation>* async_scroll_operation, Optional<RemoteInputEventTarget>* remote_target)
 {
     record_last_known_mouse_position(visual_viewport_position, screen_position, buttons, modifiers);
@@ -1841,7 +1855,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
             target = document->layout_node(read);
         if (!target)
             return false;
-        auto* scrolling_box = scrolling_box_for_scroll_step(*target, delta);
+        auto* scrolling_box = scrolling_box_for_continued_scroll_step(*m_navigable, *target, delta, Compositing::ScrollAnimationKind::SmoothScroll);
         if (!scrolling_box)
             return false;
         return m_navigable->perform_a_scroll_step_for_key_input(*scrolling_box, delta, strategy_type);

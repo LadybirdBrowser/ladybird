@@ -47,6 +47,40 @@ TEST_CASE(samples_an_ease_in_out_curve)
     EXPECT_EQ(end.offset, Gfx::FloatPoint(110, 220));
 }
 
+TEST_CASE(retarget_continues_at_the_speed_the_animation_had)
+{
+    SmoothScrollAnimation animation({ 0, 0 }, { 0, 200 }, 1.0);
+    auto const retarget_time = AK::Duration::from_milliseconds(100);
+    auto const millisecond = AK::Duration::from_milliseconds(1);
+    auto offset_before = animation.sample(retarget_time - millisecond).offset.y();
+    auto offset_at_retarget = animation.sample(retarget_time).offset.y();
+
+    animation.retarget({ 0, 400 }, retarget_time);
+
+    EXPECT_APPROXIMATE(animation.sample(retarget_time).offset.y(), offset_at_retarget);
+    auto offset_after = animation.sample(retarget_time + millisecond).offset.y();
+    EXPECT_APPROXIMATE_WITH_ERROR(offset_after - offset_at_retarget, offset_at_retarget - offset_before, 0.1f);
+
+    auto end = animation.sample(retarget_time + animation.duration());
+    EXPECT(end.complete);
+    EXPECT_EQ(end.offset, Gfx::FloatPoint(0, 400));
+}
+
+TEST_CASE(retarget_to_another_axis_never_moves_backwards)
+{
+    SmoothScrollAnimation animation({ 0, 0 }, { 0, 40 }, 1.0);
+    auto const retarget_time = AK::Duration::from_milliseconds(20);
+    auto offset_at_retarget = animation.sample(retarget_time).offset;
+
+    animation.retarget({ offset_at_retarget.x() - 40, 40 }, retarget_time);
+
+    for (auto elapsed = retarget_time; elapsed < retarget_time + animation.duration(); elapsed = elapsed + AK::Duration::from_milliseconds(1)) {
+        auto offset = animation.sample(elapsed).offset;
+        EXPECT(offset.x() <= offset_at_retarget.x());
+        EXPECT(offset.y() >= offset_at_retarget.y());
+    }
+}
+
 TEST_CASE(duration_is_independent_of_device_scale)
 {
     SmoothScrollAnimation css_pixel_animation({ 0, 0 }, { 60, 80 }, 1.0);

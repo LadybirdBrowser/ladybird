@@ -40,6 +40,7 @@ public:
         Web::AsyncScrollNodeStableID stable_node_id;
         Web::CSSPixelPoint initial_scroll_offset;
         Web::CSSPixelPoint unsnapped_scroll_destination;
+        Web::CSSPixelPoint relative_scroll_delta;
         Compositing::SnapDestination selection;
         Compositing::ScrollAnimationKind animation_kind { Compositing::ScrollAnimationKind::SmoothScroll };
     };
@@ -63,6 +64,7 @@ public:
     void did_start_main_thread_scroll(Web::AsyncScrollNodeStableID);
     void did_start_snap_scroll(Web::AsyncScrollNodeStableID, Compositing::AsyncScrollOperationID, Web::CSSPixelPoint destination);
     void did_end_snap_scroll(Web::AsyncScrollNodeStableID, Compositing::AsyncScrollOperationID, Optional<Web::CSSPixelPoint> scroll_offset);
+    void did_retarget_scroll(Web::AsyncScrollNodeStableID, Compositing::AsyncScrollOperationID);
     bool is_snap_scroll(Web::AsyncScrollNodeStableID, Compositing::AsyncScrollOperationID) const;
     Optional<Web::CSSPixelPoint> unsnapped_destination_for_snap_scroll(Web::AsyncScrollNodeStableID, Compositing::AsyncScrollOperationID) const;
 

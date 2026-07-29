@@ -5120,14 +5120,14 @@ void LocalNavigable::queue_scrollend_event_and_promise_resolution_for_finished_s
         queue_async_scroll_operation_promise_resolution(promise);
 }
 
-LocalNavigable::ScrollPromises* LocalNavigable::promises_of_smooth_scroll_in_flight_toward(Web::AsyncScrollNodeStableID stable_node_id, CSSPixelPoint position, ScrollTrigger trigger)
+LocalNavigable::ScrollPromises* LocalNavigable::promises_of_smooth_scroll_in_flight_toward(Web::AsyncScrollNodeStableID stable_node_id, CSSPixelPoint position, ScrollTrigger trigger, Compositing::ScrollAnimationKind animation_kind)
 {
     for (auto& pending : m_pending_async_scroll_operations) {
-        if (pending.stable_node_id == stable_node_id && pending.destination_scroll_offset == position && pending.trigger == trigger)
+        if (pending.stable_node_id == stable_node_id && pending.destination_scroll_offset == position && pending.trigger == trigger && pending.animation_kind == animation_kind)
             return &pending.promises;
     }
     for (auto& smooth_scroll : m_main_thread_smooth_scrolls) {
-        if (smooth_scroll.stable_node_id == stable_node_id && smooth_scroll.destination_scroll_offset == position && smooth_scroll.trigger == trigger)
+        if (smooth_scroll.stable_node_id == stable_node_id && smooth_scroll.destination_scroll_offset == position && smooth_scroll.trigger == trigger && smooth_scroll.animation.kind() == animation_kind)
             return &smooth_scroll.promises;
     }
     return nullptr;
@@ -5624,18 +5624,18 @@ Optional<LocalNavigable::InFlightScroll> LocalNavigable::in_flight_scroll_for(Op
         return {};
 
     Optional<InFlightScroll> in_flight_scroll;
-    auto consider = [&](ScrollTrigger trigger, Optional<CSSPixelPoint> destination_scroll_offset) {
+    auto consider = [&](ScrollTrigger trigger, Optional<CSSPixelPoint> destination_scroll_offset, Compositing::ScrollAnimationKind animation_kind) {
         if (in_flight_scroll.has_value() && in_flight_scroll->trigger == ScrollTrigger::UserInput)
             return;
-        in_flight_scroll = InFlightScroll { trigger, destination_scroll_offset };
+        in_flight_scroll = InFlightScroll { trigger, destination_scroll_offset, animation_kind };
     };
     for (auto const& pending : m_pending_async_scroll_operations) {
         if (pending.stable_node_id == stable_node_id)
-            consider(pending.trigger, pending.destination_scroll_offset);
+            consider(pending.trigger, pending.destination_scroll_offset, pending.animation_kind);
     }
     for (auto const& smooth_scroll : m_main_thread_smooth_scrolls) {
         if (smooth_scroll.stable_node_id == *stable_node_id)
-            consider(smooth_scroll.trigger, smooth_scroll.destination_scroll_offset);
+            consider(smooth_scroll.trigger, smooth_scroll.destination_scroll_offset, smooth_scroll.animation.kind());
     }
     return in_flight_scroll;
 }
@@ -6003,6 +6003,8 @@ void LocalNavigable::adopt_started_user_scroll(DOM::Document& document, Composit
         pending_operation.initial_scroll_offset = started_user_scroll.initial_scroll_offset;
     pending_operation.destination_scroll_offset = started_user_scroll.selection.position;
     pending_operation.trigger = ScrollTrigger::UserInput;
+    if (started_user_scroll.animation_kind.has_value())
+        pending_operation.animation_kind = *started_user_scroll.animation_kind;
 
     if (replaced_by_programmatic_scroll)
         return;
@@ -6010,7 +6012,7 @@ void LocalNavigable::adopt_started_user_scroll(DOM::Document& document, Composit
     // A key step or a momentum snap scroll goes the way the user scrolled, while the snap a gesture settles with goes
     // wherever the nearest snap position is.
     if (!started_user_scroll.settles_gesture)
-        record_relative_scroll(document, stable_node_id, started_user_scroll.unsnapped_scroll_destination - started_user_scroll.initial_scroll_offset);
+        record_relative_scroll(document, stable_node_id, started_user_scroll.relative_scroll_delta);
 
     auto target = scroll_event_target_for_async_scroll_node(document, stable_node_id);
     if (!target)
@@ -7241,8 +7243,14 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_a_scrolling_box(Web
     }
 
     if (scroll_kind == Painting::ScrollKind::Relative || relative_displacement.has_value()) {
+        // User input that continues a smooth scroll in flight scrolls on from where that scroll is headed.
+        auto relative_scroll_start = initial_scroll_offset;
+        if (trigger == ScrollTrigger::UserInput && behavior == Bindings::ScrollBehavior::Smooth) {
+            if (auto destination = in_flight_user_scroll_destination(stable_node_id, animation_kind); destination.has_value())
+                relative_scroll_start = destination;
+        }
         if (auto* scrolling_box = committed_scrolling_box_for_async_scroll_node(*document, stable_node_id))
-            record_relative_scroll(*document, stable_node_id, initial_scroll_offset, Painting::clamp_scroll_offset(*scrolling_box, position));
+            record_relative_scroll(*document, stable_node_id, relative_scroll_start, Painting::clamp_scroll_offset(*scrolling_box, position));
     }
 
     auto should_scroll_smoothly = behavior == Bindings::ScrollBehavior::Smooth;
@@ -7254,11 +7262,18 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_a_scrolling_box(Web
     // AD-HOC: A smooth scroll requested while a smooth scroll of the same scrolling box toward the same position is in
     //         flight continues that scroll instead of restarting it, matching other engines.
     if (should_scroll_smoothly) {
-        if (auto* promises = promises_of_smooth_scroll_in_flight_toward(stable_node_id, position, trigger)) {
+        if (auto* promises = promises_of_smooth_scroll_in_flight_toward(stable_node_id, position, trigger, animation_kind)) {
             auto scroll_promise = WebIDL::create_promise_for(*document);
             promises->append(scroll_promise);
             return scroll_promise;
         }
+    }
+
+    // AD-HOC: User input that arrives while the box is already scrolling smoothly under user input retargets that
+    //         scroll instead of restarting it.
+    if (should_scroll_smoothly && trigger == ScrollTrigger::UserInput) {
+        if (auto scroll_promise = continue_in_flight_user_smooth_scroll(stable_node_id, position, animation_kind))
+            return *scroll_promise;
     }
 
     // https://drafts.csswg.org/cssom-view-1/#perform-a-scroll
@@ -7286,18 +7301,11 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_a_scrolling_box(Web
         //     with another. All listeners in the current JavaScript task must
         //     observe the same main-thread scroll offset. The compositor starts
         //     the replacement from its own current visual offset.
-        auto device_pixels_per_css_pixel = page().client().device_pixels_per_css_pixel();
-        auto target_offset = Gfx::FloatPoint {
-            static_cast<float>(position.x().to_double() * device_pixels_per_css_pixel),
-            static_cast<float>(position.y().to_double() * device_pixels_per_css_pixel),
-        };
-        auto main_thread_offset = Gfx::FloatPoint {
-            static_cast<float>(initial_scroll_offset->x().to_double() * device_pixels_per_css_pixel),
-            static_cast<float>(initial_scroll_offset->y().to_double() * device_pixels_per_css_pixel),
-        };
+        auto target_offset = device_scroll_offset(position);
+        auto main_thread_offset = device_scroll_offset(*initial_scroll_offset);
         auto viewport_rect = page().css_to_device_rect(this->viewport_rect()).to_type<int>();
         auto initiator = trigger == ScrollTrigger::UserInput ? Compositing::SmoothScrollInitiator::UserInput : Compositing::SmoothScrollInitiator::Programmatic;
-        auto enqueue_result = compositor_context().smooth_scroll_to(stable_node_id, target_offset, main_thread_offset, viewport_rect, animation_kind, initiator);
+        auto enqueue_result = compositor_context().smooth_scroll_to(stable_node_id, target_offset, main_thread_offset, viewport_rect, animation_kind, initiator, {});
         if (enqueue_result.accepted) {
             VERIFY(enqueue_result.operation_id.has_value());
             m_pending_async_scroll_operations.append(PendingAsyncScrollOperation {
@@ -7307,6 +7315,7 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_a_scrolling_box(Web
                 .initial_scroll_offset = *initial_scroll_offset,
                 .destination_scroll_offset = position,
                 .trigger = trigger,
+                .animation_kind = animation_kind,
             });
             return scroll_promise;
         }
@@ -7342,6 +7351,57 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_a_scrolling_box(Web
     return scroll_promise;
 }
 
+Gfx::FloatPoint LocalNavigable::device_scroll_offset(CSSPixelPoint offset) const
+{
+    auto device_pixels_per_css_pixel = page().client().device_pixels_per_css_pixel();
+    return {
+        static_cast<float>(offset.x().to_double() * device_pixels_per_css_pixel),
+        static_cast<float>(offset.y().to_double() * device_pixels_per_css_pixel),
+    };
+}
+
+GC::Ptr<WebIDL::Promise> LocalNavigable::continue_in_flight_user_smooth_scroll(Web::AsyncScrollNodeStableID stable_node_id, CSSPixelPoint position, Compositing::ScrollAnimationKind animation_kind)
+{
+    auto document = active_document();
+    if (!document)
+        return nullptr;
+
+    for (auto& pending : m_pending_async_scroll_operations) {
+        if (pending.stable_node_id != stable_node_id || pending.trigger != ScrollTrigger::UserInput || pending.animation_kind != animation_kind)
+            continue;
+        if (!has_compositor_context())
+            return nullptr;
+
+        auto current_scroll_offset = scroll_offset_for(stable_node_id);
+        if (!current_scroll_offset.has_value())
+            return nullptr;
+
+        auto viewport_rect = page().css_to_device_rect(this->viewport_rect()).to_type<int>();
+        auto enqueue_result = compositor_context().smooth_scroll_to(stable_node_id, device_scroll_offset(position), device_scroll_offset(*current_scroll_offset), viewport_rect, animation_kind, Compositing::SmoothScrollInitiator::UserInput, pending.operation_id);
+        if (!enqueue_result.accepted)
+            return nullptr;
+
+        pending.destination_scroll_offset = position;
+        auto scroll_promise = WebIDL::create_promise_for(*document);
+        pending.promises.append(scroll_promise);
+        return scroll_promise;
+    }
+
+    for (auto& smooth_scroll : m_main_thread_smooth_scrolls) {
+        if (smooth_scroll.stable_node_id != stable_node_id || smooth_scroll.trigger != ScrollTrigger::UserInput || smooth_scroll.animation.kind() != animation_kind)
+            continue;
+
+        smooth_scroll.animation.retarget(position.to_type<float>(), smooth_scroll.elapsed);
+        smooth_scroll.destination_scroll_offset = position;
+        auto scroll_promise = WebIDL::create_promise_for(*document);
+        smooth_scroll.promises.append(scroll_promise);
+        page().client().request_frame();
+        return scroll_promise;
+    }
+
+    return nullptr;
+}
+
 GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_an_element(DOM::Element& element, CSSPixelPoint position, Bindings::ScrollBehavior behavior, Optional<CSSPixelPoint> relative_displacement)
 {
     return perform_a_scroll_of_a_scrolling_box({
@@ -7368,11 +7428,9 @@ bool LocalNavigable::perform_a_scroll_step_for_key_input(Layout::Node& scroll_co
     if (!current_scroll_offset.has_value())
         return false;
 
-    // A key continues the pending user destination, including a snap on the other axis, so a burst of presses travels
-    // the sum of their distances however far the animation has progressed.
-    auto step_start = *current_scroll_offset;
-    if (auto in_flight_scroll = in_flight_scroll_for(stable_node_id); in_flight_scroll.has_value() && in_flight_scroll->trigger == ScrollTrigger::UserInput && in_flight_scroll->destination_scroll_offset.has_value())
-        step_start = *in_flight_scroll->destination_scroll_offset;
+    // A key continues the pending destination of a smooth user scroll, including a snap on the other axis, so a burst
+    // of presses travels the sum of their distances however far the animation has progressed.
+    auto step_start = in_flight_user_scroll_destination(*stable_node_id, Compositing::ScrollAnimationKind::SmoothScroll).value_or(*current_scroll_offset);
     auto destination = Painting::clamp_scroll_offset(scroll_container, step_start + delta);
     if (destination == step_start)
         return true;
@@ -7382,7 +7440,7 @@ bool LocalNavigable::perform_a_scroll_step_for_key_input(Layout::Node& scroll_co
     if (scroll_container.is_viewport()) {
         // NB: The viewport's scroll is expressed relative to the visual viewport's page position, which can be offset
         //     from the layout viewport's scroll offset while pinch-zoomed.
-        scroll_viewport_by_delta(destination - *current_scroll_offset, Bindings::ScrollBehavior::Smooth, Painting::ScrollKind::Relative);
+        scroll_viewport_by_delta(destination - step_start, Bindings::ScrollBehavior::Smooth, Painting::ScrollKind::Relative);
         return true;
     }
     TemporaryExecutionContext temporary_execution_context { HTML::relevant_realm(*document) };
@@ -7484,10 +7542,53 @@ bool LocalNavigable::perform_a_snapped_momentum_scroll(Layout::Node& scroll_cont
     return true;
 }
 
+Optional<CSSPixelPoint> LocalNavigable::in_flight_user_scroll_destination(Web::AsyncScrollNodeStableID stable_node_id, Compositing::ScrollAnimationKind animation_kind) const
+{
+    auto in_flight_scroll = in_flight_scroll_for(stable_node_id);
+    if (!in_flight_scroll.has_value() || in_flight_scroll->trigger != ScrollTrigger::UserInput || in_flight_scroll->animation_kind != animation_kind)
+        return {};
+    return in_flight_scroll->destination_scroll_offset;
+}
+
+bool LocalNavigable::continued_scroll_step_moves(Layout::Node& scrolling_box, CSSPixelPoint delta, Compositing::ScrollAnimationKind animation_kind)
+{
+    auto scrollable_axes = Painting::wheel_scrollable_axes(scrolling_box);
+    if (!scrollable_axes.horizontal)
+        delta.set_x(0);
+    if (!scrollable_axes.vertical)
+        delta.set_y(0);
+    if (delta.is_zero())
+        return false;
+
+    auto step_start = Painting::scroll_offset(scrolling_box);
+    auto document = active_document();
+    auto stable_node_id = Painting::async_scroll_node_stable_id(scrolling_box);
+    if (document && stable_node_id.has_value()) {
+        if (auto destination = in_flight_user_scroll_destination(*stable_node_id, animation_kind); destination.has_value()) {
+            step_start = *destination;
+            // A key travels from the offset its gesture's input deltas have reached while a snap scroll is in flight,
+            // so a box scrolling to a snap position at its extent goes on taking keys until their input reaches it.
+            auto target = scroll_event_target_for_async_scroll_node(*document, *stable_node_id);
+            auto* gesture = target ? latched_user_scroll_gesture_for(*target, stable_node_id) : nullptr;
+            if (animation_kind == Compositing::ScrollAnimationKind::SmoothScroll && gesture && gesture->unsnapped_scroll_destination.has_value())
+                step_start = *gesture->unsnapped_scroll_destination;
+        }
+    }
+    return Painting::clamp_scroll_offset(scrolling_box, step_start + delta) != step_start;
+}
+
 GC::Ref<WebIDL::Promise> LocalNavigable::scroll_viewport_by_delta(CSSPixelPoint delta, Bindings::ScrollBehavior behavior, Painting::ScrollKind scroll_kind)
 {
-    auto vv = active_document()->visual_viewport();
+    auto document = active_document();
+    auto vv = document->visual_viewport();
     CSSPixelPoint page_position { CSSPixels(vv->page_left()), CSSPixels(vv->page_top()) };
+
+    if (behavior == Bindings::ScrollBehavior::Smooth) {
+        Web::AsyncScrollNodeStableID viewport_stable_node_id { .node_id = document->unique_id(), .kind = Web::AsyncScrollNodeKind::Viewport };
+        if (auto destination = in_flight_user_scroll_destination(viewport_stable_node_id, Compositing::ScrollAnimationKind::SmoothScroll); destination.has_value())
+            page_position += *destination - viewport_scroll_offset();
+    }
+
     return perform_a_scroll_of_the_viewport(page_position + delta, behavior, ScrollTrigger::UserInput, {}, scroll_kind);
 }
 

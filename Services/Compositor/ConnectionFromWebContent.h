@@ -74,7 +74,7 @@ private:
     virtual void invalidate_wheel_event_listener_state(Web::CompositorContextId, u64 generation) override;
     virtual void invalidate_keyboard_scroll_state(Web::CompositorContextId, u64 generation) override;
     virtual Messages::CompositorWebContentServer::AsyncScrollByResponse async_scroll_by(Web::CompositorContextId, Web::UniqueNodeID document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect, Web::WheelDeltaPrecision, Web::ScrollGesturePhase, u32 modifiers, Compositing::AsyncScrollOperationTracking) override;
-    virtual Messages::CompositorWebContentServer::SmoothScrollToResponse smooth_scroll_to(Web::CompositorContextId, Web::AsyncScrollNodeStableID, Gfx::FloatPoint offset, Gfx::FloatPoint main_thread_offset, Gfx::IntRect viewport_rect, Compositing::ScrollAnimationKind, Compositing::SmoothScrollInitiator) override;
+    virtual Messages::CompositorWebContentServer::SmoothScrollToResponse smooth_scroll_to(Web::CompositorContextId, Web::AsyncScrollNodeStableID, Gfx::FloatPoint offset, Gfx::FloatPoint main_thread_offset, Gfx::IntRect viewport_rect, Compositing::ScrollAnimationKind, Compositing::SmoothScrollInitiator, Optional<Compositing::AsyncScrollOperationID> operation_to_continue) override;
     virtual void cancel_smooth_scroll(Web::CompositorContextId, Web::AsyncScrollNodeStableID) override;
     virtual Messages::CompositorWebContentServer::TakePendingAsyncScrollUpdatesResponse take_pending_async_scroll_updates(Web::CompositorContextId) override;
     virtual void viewport_size_updated(Web::CompositorContextId, Gfx::IntSize viewport_size, Compositing::WindowResizingInProgress) override;

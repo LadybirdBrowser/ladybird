@@ -1,0 +1,39 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .scroller {
+        width: 200px;
+        height: 100px;
+        overflow-y: scroll;
+        container-type: scroll-state;
+    }
+
+    .target {
+        height: 2000px;
+        --scrolled: none;
+        @container scroll-state(scrolled: top) {
+            --scrolled: top;
+        }
+        @container scroll-state(scrolled: bottom) {
+            --scrolled: bottom;
+        }
+    }
+</style>
+<div class="scroller" id="key-scroller" tabindex="0"><div class="target"></div></div>
+<script>
+    promiseTest(async () => {
+        // A step back while a smooth scroll is still on its way down scrolls up, even though the box has not yet
+        // passed the offset the step goes back to.
+        const report = (label, scroller) => {
+            println(`${label}: offset=${scroller.scrollTop}, scrolled=${getComputedStyle(scroller.firstElementChild).getPropertyValue("--scrolled")}`);
+        };
+
+        const keyScroller = document.getElementById("key-scroller");
+        keyScroller.focus();
+        const settled = scrollendEvent(keyScroller);
+        for (const key of ["Down", "Down", "Down", "Up"])
+            internals.sendKey(keyScroller, key);
+        await settled;
+        report("Keys", keyScroller);
+    });
+</script>

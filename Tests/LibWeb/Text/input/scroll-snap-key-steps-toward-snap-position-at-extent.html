@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        height: 3000px;
+    }
+    #scroller {
+        position: relative;
+        width: 200px;
+        height: 100px;
+        overflow-y: scroll;
+        scroll-snap-type: y mandatory;
+    }
+    .snap-point {
+        position: absolute;
+        width: 10px;
+        height: 10px;
+        scroll-snap-align: start;
+    }
+</style>
+<div id="scroller" tabindex="0">
+    <div style="height: 500px"></div>
+    <div class="snap-point" style="top: 0"></div>
+    <div class="snap-point" style="top: 400px"></div>
+</div>
+<script>
+    promiseTest(async () => {
+        const scroller = document.getElementById("scroller");
+        scroller.focus();
+
+        // The first press scrolls to the snap position at the end of the scroller. The second continues from the offset
+        // the first press reached rather than from that snap position, so it stays with the scroller too.
+        const settled = scrollendEvent(scroller);
+        internals.sendKey(scroller, "Down");
+        internals.sendKey(scroller, "Down");
+        await settled;
+        println(`scroller: ${scroller.scrollTop}, window: ${window.scrollY}`);
+    });
+</script>

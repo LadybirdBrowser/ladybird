@@ -108,8 +108,10 @@ ErrorOr<void> encode(Encoder& encoder, Compositing::StartedUserScroll const& sta
     TRY(encoder.encode(started_user_scroll.operation_id));
     TRY(encoder.encode(started_user_scroll.initial_scroll_offset));
     TRY(encoder.encode(started_user_scroll.unsnapped_scroll_destination));
+    TRY(encoder.encode(started_user_scroll.relative_scroll_delta));
     TRY(encoder.encode(started_user_scroll.selection));
     TRY(encoder.encode(started_user_scroll.settles_gesture));
+    TRY(encoder.encode(started_user_scroll.animation_kind));
     return {};
 }
 
@@ -121,8 +123,10 @@ ErrorOr<Compositing::StartedUserScroll> decode(Decoder& decoder)
         .operation_id = TRY(decoder.decode<Compositing::AsyncScrollOperationID>()),
         .initial_scroll_offset = TRY(decoder.decode<Web::CSSPixelPoint>()),
         .unsnapped_scroll_destination = TRY(decoder.decode<Web::CSSPixelPoint>()),
+        .relative_scroll_delta = TRY(decoder.decode<Web::CSSPixelPoint>()),
         .selection = TRY(decoder.decode<Compositing::SnapDestination>()),
         .settles_gesture = TRY(decoder.decode<bool>()),
+        .animation_kind = TRY(decoder.decode<Optional<Compositing::ScrollAnimationKind>>()),
     };
 }
 
