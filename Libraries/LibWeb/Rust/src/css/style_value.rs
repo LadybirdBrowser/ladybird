@@ -20,10 +20,10 @@ use std::sync::Arc;
 
 use crate::abort_on_panic;
 
+pub(crate) use crate::css::retained_fly_string::{RetainedUtf16FlyString, RetainedUtf16FlyStringList};
+
 unsafe extern "C" {
-    fn ladybird_utf16_fly_string_unref(raw: usize);
     fn ladybird_string_unref(raw: usize);
-    fn ladybird_utf16_fly_string_ref(raw: usize);
 }
 
 /// A strong reference to immutable Rust-owned style value data.
@@ -140,45 +140,6 @@ impl RetainedStyleValueDataList {
     }
 }
 
-/// A retained AK::Utf16FlyString, stored as its one-word raw representation. Owns one reference
-/// to the underlying string data unless it is a short string, which needs none; the C++ bridge
-/// handles both cases.
-#[repr(C)]
-#[derive(PartialEq)]
-pub struct RetainedUtf16FlyString {
-    raw: usize,
-}
-
-impl RetainedUtf16FlyString {
-    /// The raw one-word representation; fly strings are interned, so equal raw
-    /// values mean equal strings.
-    pub(crate) fn raw(&self) -> usize {
-        self.raw
-    }
-
-    /// Assumes ownership of one leaked reference to the underlying string data.
-    pub(crate) unsafe fn from_leaked_raw(raw: usize) -> Self {
-        Self { raw }
-    }
-
-    /// Retains a new reference to the underlying string data.
-    ///
-    /// # Safety
-    /// `raw` must be the raw representation of a live fly string.
-    pub(crate) unsafe fn from_borrowed_raw(raw: usize) -> Self {
-        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::StringRetainReleaseCallback);
-        unsafe { ladybird_utf16_fly_string_ref(raw) };
-        Self { raw }
-    }
-}
-
-impl Drop for RetainedUtf16FlyString {
-    fn drop(&mut self) {
-        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::StringRetainReleaseCallback);
-        unsafe { ladybird_utf16_fly_string_unref(self.raw) };
-    }
-}
-
 /// Implements `Drop` for a `Retained*List` struct: releases the Rust-owned boxed slice,
 /// dropping each element (which releases the element's own retained references).
 macro_rules! retained_list_drop {
@@ -192,6 +153,7 @@ macro_rules! retained_list_drop {
         }
     };
 }
+pub(crate) use retained_list_drop;
 
 retained_list_drop!(RetainedStyleValueDataList);
 
@@ -367,55 +329,6 @@ pub struct RetainedByteList {
 }
 
 retained_list!(RetainedByteList, u8);
-
-/// A Rust-owned array of retained AK::Utf16FlyString values.
-#[repr(C)]
-pub struct RetainedUtf16FlyStringList {
-    pointer: *mut RetainedUtf16FlyString,
-    length: usize,
-}
-
-impl RetainedUtf16FlyStringList {
-    pub(crate) fn from_retained_strings(strings: Vec<RetainedUtf16FlyString>) -> Self {
-        let slice = strings.into_boxed_slice();
-        let length = slice.len();
-        let pointer = Box::into_raw(slice) as *mut RetainedUtf16FlyString;
-        Self { pointer, length }
-    }
-
-    /// Takes ownership of one leaked reference to each string.
-    ///
-    /// # Safety
-    /// `strings` must point to `length` valid leaked string raws.
-    unsafe fn from_raw(strings: *const usize, length: usize) -> Self {
-        let slice: Box<[RetainedUtf16FlyString]> = (0..length)
-            .map(|i| RetainedUtf16FlyString {
-                raw: unsafe { *strings.add(i) },
-            })
-            .collect();
-        let length = slice.len();
-        let pointer = Box::into_raw(slice) as *mut RetainedUtf16FlyString;
-        Self { pointer, length }
-    }
-
-    pub(crate) fn clone_retained(&self) -> Self {
-        Self::from_retained_strings(
-            self.as_slice()
-                .iter()
-                .map(|string| unsafe { RetainedUtf16FlyString::from_borrowed_raw(string.raw()) })
-                .collect(),
-        )
-    }
-
-    pub(crate) fn as_slice(&self) -> &[RetainedUtf16FlyString] {
-        if self.pointer.is_null() {
-            return &[];
-        }
-        unsafe { std::slice::from_raw_parts(self.pointer, self.length) }
-    }
-}
-
-retained_list_drop!(RetainedUtf16FlyStringList);
 
 impl RetainedByteList {
     pub(crate) fn as_slice(&self) -> &[u8] {
@@ -843,12 +756,12 @@ macro_rules! retained_list_partial_eq {
         }
     };
 }
+pub(crate) use retained_list_partial_eq;
 
 retained_list_partial_eq!(RetainedStyleValueDataList, RetainedStyleValueData);
 retained_list_partial_eq!(RetainedPropertyIdList, u16);
 retained_list_partial_eq!(RetainedRequestUrlModifierList, RetainedRequestUrlModifier);
 retained_list_partial_eq!(RetainedByteList, u8);
-retained_list_partial_eq!(RetainedUtf16FlyStringList, RetainedUtf16FlyString);
 retained_list_partial_eq!(RetainedCounterDefinitionList, RetainedCounterDefinition);
 retained_list_partial_eq!(RetainedImageSetOptionList, RetainedImageSetOption);
 retained_list_partial_eq!(RetainedColorStopList, RetainedColorStop);
@@ -1638,7 +1551,7 @@ pub unsafe extern "C" fn rust_style_value_create_border_radius_rect(
 pub extern "C" fn rust_style_value_create_string(string: usize) -> *const StyleValueData {
     abort_on_panic(|| {
         Arc::into_raw(Arc::new(StyleValueData::String {
-            string: RetainedUtf16FlyString { raw: string },
+            string: unsafe { RetainedUtf16FlyString::from_leaked_raw(string) },
         }))
     })
 }
@@ -1648,7 +1561,7 @@ pub extern "C" fn rust_style_value_create_string(string: usize) -> *const StyleV
 pub extern "C" fn rust_style_value_create_custom_ident(custom_ident: usize) -> *const StyleValueData {
     abort_on_panic(|| {
         Arc::into_raw(Arc::new(StyleValueData::CustomIdent {
-            custom_ident: RetainedUtf16FlyString { raw: custom_ident },
+            custom_ident: unsafe { RetainedUtf16FlyString::from_leaked_raw(custom_ident) },
         }))
     })
 }
@@ -1661,7 +1574,7 @@ pub unsafe extern "C" fn rust_style_value_create_function(
 ) -> *const StyleValueData {
     abort_on_panic(|| {
         Arc::into_raw(Arc::new(StyleValueData::Function {
-            name: RetainedUtf16FlyString { raw: name },
+            name: unsafe { RetainedUtf16FlyString::from_leaked_raw(name) },
             value: unsafe { RetainedStyleValueData::from_retained_pointer(value) },
         }))
     })
@@ -1678,7 +1591,7 @@ pub unsafe extern "C" fn rust_style_value_create_open_type_tagged(
     abort_on_panic(|| {
         Arc::into_raw(Arc::new(StyleValueData::OpenTypeTagged {
             mode,
-            tag: RetainedUtf16FlyString { raw: tag },
+            tag: unsafe { RetainedUtf16FlyString::from_leaked_raw(tag) },
             packed_tag,
             value: unsafe { RetainedStyleValueData::from_retained_pointer(value) },
         }))
@@ -1796,7 +1709,7 @@ pub unsafe extern "C" fn rust_style_value_create_anchor_size(
     abort_on_panic(|| {
         Arc::into_raw(Arc::new(StyleValueData::AnchorSize {
             has_anchor_name,
-            anchor_name: RetainedUtf16FlyString { raw: anchor_name },
+            anchor_name: unsafe { RetainedUtf16FlyString::from_leaked_raw(anchor_name) },
             has_anchor_size,
             anchor_size,
             fallback_value: unsafe { RetainedStyleValueData::from_retained_optional_pointer(fallback_value) },
@@ -1816,7 +1729,7 @@ pub unsafe extern "C" fn rust_style_value_create_anchor(
     abort_on_panic(|| {
         Arc::into_raw(Arc::new(StyleValueData::Anchor {
             has_anchor_name,
-            anchor_name: RetainedUtf16FlyString { raw: anchor_name },
+            anchor_name: unsafe { RetainedUtf16FlyString::from_leaked_raw(anchor_name) },
             anchor_side: unsafe { RetainedStyleValueData::from_retained_pointer(anchor_side) },
             fallback_value: unsafe { RetainedStyleValueData::from_retained_optional_pointer(fallback_value) },
         }))
@@ -1888,9 +1801,9 @@ pub unsafe extern "C" fn rust_style_value_create_counter(
     abort_on_panic(|| {
         Arc::into_raw(Arc::new(StyleValueData::Counter {
             function,
-            counter_name: RetainedUtf16FlyString { raw: counter_name },
+            counter_name: unsafe { RetainedUtf16FlyString::from_leaked_raw(counter_name) },
             counter_style: unsafe { RetainedStyleValueData::from_retained_pointer(counter_style) },
-            join_string: RetainedUtf16FlyString { raw: join_string },
+            join_string: unsafe { RetainedUtf16FlyString::from_leaked_raw(join_string) },
         }))
     })
 }
@@ -1932,7 +1845,7 @@ pub unsafe extern "C" fn rust_style_value_create_random_value_sharing(
             fixed_value: unsafe { RetainedStyleValueData::from_retained_optional_pointer(fixed_value) },
             is_auto,
             has_name,
-            name: RetainedUtf16FlyString { raw: name },
+            name: unsafe { RetainedUtf16FlyString::from_leaked_raw(name) },
             element_shared,
         }))
     })
@@ -2097,7 +2010,7 @@ pub unsafe extern "C" fn rust_style_value_create_font_source(
             url_type,
             url_modifiers: unsafe { RetainedRequestUrlModifierList::from_raw(url_modifiers, url_modifier_count) },
             has_format,
-            format: RetainedUtf16FlyString { raw: format },
+            format: unsafe { RetainedUtf16FlyString::from_leaked_raw(format) },
             tech: unsafe { RetainedByteList::from_raw(tech, tech_count) },
         }))
     })
@@ -2189,7 +2102,7 @@ pub unsafe extern "C" fn rust_style_value_create_grid_track_placement(
             kind,
             value: unsafe { RetainedStyleValueData::from_retained_optional_pointer(value) },
             has_name,
-            name: RetainedUtf16FlyString { raw: name },
+            name: unsafe { RetainedUtf16FlyString::from_leaked_raw(name) },
         }))
     })
 }
@@ -2208,7 +2121,7 @@ pub unsafe extern "C" fn rust_style_value_create_counter_style_system(
             kind,
             system,
             first_symbol: unsafe { RetainedStyleValueData::from_retained_optional_pointer(first_symbol) },
-            name: RetainedUtf16FlyString { raw: name },
+            name: unsafe { RetainedUtf16FlyString::from_leaked_raw(name) },
         }))
     })
 }
@@ -2226,7 +2139,7 @@ pub unsafe extern "C" fn rust_style_value_create_counter_style(
     abort_on_panic(|| {
         Arc::into_raw(Arc::new(StyleValueData::CounterStyle {
             is_symbols,
-            name: RetainedUtf16FlyString { raw: name },
+            name: unsafe { RetainedUtf16FlyString::from_leaked_raw(name) },
             symbols_type,
             symbols: unsafe { RetainedUtf16FlyStringList::from_raw(symbols, symbol_count) },
         }))
@@ -2276,7 +2189,7 @@ pub unsafe extern "C" fn rust_style_value_create_color_function(
             channel_2: unsafe { RetainedStyleValueData::from_retained_pointer(channel_2) },
             alpha: unsafe { RetainedStyleValueData::from_retained_optional_pointer(alpha) },
             has_name,
-            name: RetainedUtf16FlyString { raw: name },
+            name: unsafe { RetainedUtf16FlyString::from_leaked_raw(name) },
             origin_color: unsafe { RetainedStyleValueData::from_retained_optional_pointer(origin_color) },
         }))
     })
@@ -2496,7 +2409,7 @@ pub unsafe extern "C" fn rust_style_value_create_basic_shape(
             v4: unsafe { RetainedStyleValueData::from_retained_optional_pointer(v4) },
             fill_rule,
             points: unsafe { RetainedShapePointList::from_raw(points, point_count) },
-            path_string: RetainedUtf16FlyString { raw: path_string },
+            path_string: unsafe { RetainedUtf16FlyString::from_leaked_raw(path_string) },
         }))
     })
 }
