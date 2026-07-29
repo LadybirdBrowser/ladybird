@@ -923,6 +923,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         style_value_config,
         &[
             manifest_dir.join("src/css/style_value.rs"),
+            manifest_dir.join("src/css/retained_fly_string.rs"),
             manifest_dir.join("src/css/color_interpolation.rs"),
             manifest_dir.join("src/css/animation.rs"),
             manifest_dir.join("src/css/transition.rs"),
@@ -957,6 +958,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/css/style_compute.rs"),
             manifest_dir.join("src/css/display.rs"),
             manifest_dir.join("src/css/computed_value_types.rs"),
+            manifest_dir.join("src/css/retained_fly_string.rs"),
             manifest_dir.join("src/css/css_pixels.rs"),
             manifest_dir.join("src/css/cascaded_properties.rs"),
             manifest_dir.join("src/css/custom_properties.rs"),

@@ -19,6 +19,7 @@ pub mod display;
 pub mod ffi_stats;
 pub mod ffi_support;
 pub mod property_metadata;
+pub(crate) mod retained_fly_string;
 pub(crate) mod selector_engine;
 pub mod style_compute;
 pub(crate) mod style_value;
