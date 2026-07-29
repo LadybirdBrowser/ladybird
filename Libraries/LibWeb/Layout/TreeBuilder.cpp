@@ -44,7 +44,6 @@
 #include <LibWeb/Layout/SVGClipBox.h>
 #include <LibWeb/Layout/SVGMaskBox.h>
 #include <LibWeb/Layout/SVGPatternBox.h>
-#include <LibWeb/Layout/TableGrid.h>
 #include <LibWeb/Layout/TableWrapper.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/TreeBuilder.h>
@@ -1345,30 +1344,6 @@ static void ffi_wrap_table_root(void*, void* table_root_pointer, void* nearest_s
     table_box->set_has_been_wrapped_in_table_wrapper(true);
 }
 
-static void* ffi_create_table_grid(void*, void* table_root_pointer)
-{
-    VERIFY(table_root_pointer);
-    auto& table_box = as<Box>(*static_cast<Node*>(table_root_pointer));
-    return new TableGrid(TableGrid::calculate_row_column_grid(table_box));
-}
-
-static void ffi_destroy_table_grid(void*, void* table_grid_pointer)
-{
-    delete static_cast<TableGrid*>(table_grid_pointer);
-}
-
-static size_t ffi_table_grid_column_count(void*, void* table_grid_pointer)
-{
-    VERIFY(table_grid_pointer);
-    return static_cast<TableGrid*>(table_grid_pointer)->column_count();
-}
-
-static bool ffi_table_grid_is_occupied(void*, void* table_grid_pointer, size_t column_index, size_t row_index)
-{
-    VERIFY(table_grid_pointer);
-    return static_cast<TableGrid*>(table_grid_pointer)->occupancy_grid().contains({ column_index, row_index });
-}
-
 static void ffi_append_missing_table_cell(void*, void* row_pointer)
 {
     VERIFY(row_pointer);
@@ -1492,10 +1467,6 @@ RustFFI::FfiTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_tree_builder_ca
         .wrap_in_anonymous = ffi_wrap_in_anonymous_table_box,
         .update_existing_table_wrapper = ffi_update_existing_table_wrapper,
         .wrap_table_root = ffi_wrap_table_root,
-        .create_table_grid = ffi_create_table_grid,
-        .destroy_table_grid = ffi_destroy_table_grid,
-        .table_grid_column_count = ffi_table_grid_column_count,
-        .table_grid_is_occupied = ffi_table_grid_is_occupied,
         .append_missing_table_cell = ffi_append_missing_table_cell,
         .create_and_append_anonymous_wrapper = ffi_create_and_append_anonymous_wrapper,
         .wrap_children_in_anonymous = ffi_wrap_children_in_anonymous,

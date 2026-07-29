@@ -584,18 +584,15 @@ pub(crate) struct TableGrid {
     pub(crate) column_count: usize,
     pub(crate) cells: Vec<TableCell>,
     pub(crate) rows: Vec<Row>,
+    pub(crate) occupancy: HashSet<(usize, usize)>,
 }
 
-fn matching_children<'pass, T: TableTree<'pass>>(
-    tree: &T,
-    parent: Node,
-    predicate: impl Fn(crate::layout::NodeFacts<'_>) -> bool,
-) -> Vec<Node> {
+fn matching_children<T: TableTree>(tree: &T, parent: Node, predicate: impl Fn(&NodeData) -> bool) -> Vec<Node> {
     let mut result = Vec::new();
     let mut child = tree.first_child(parent);
     while !child.is_invalid() {
-        let facts = tree.node_facts(child);
-        if facts.is_box() && predicate(facts) {
+        let data = tree.node_data(child);
+        if kind_is_box(data.kind) && predicate(data) {
             result.push(child);
         }
         child = tree.next_sibling(child);
@@ -603,7 +600,7 @@ fn matching_children<'pass, T: TableTree<'pass>>(
     result
 }
 
-fn count_columns_in_subtree<'pass, T: TableTree<'pass>>(tree: &T, root: Node) -> usize {
+fn count_columns_in_subtree<T: TableTree>(tree: &T, root: Node) -> usize {
     let mut count = 0usize;
     let mut stack = vec![root];
     while let Some(node) = stack.pop() {
@@ -614,9 +611,9 @@ fn count_columns_in_subtree<'pass, T: TableTree<'pass>>(tree: &T, root: Node) ->
             child = tree.next_sibling(child);
         }
         for child in children.into_iter().rev() {
-            let facts = tree.node_facts(child);
-            if facts.is_box() && facts.is_table_column() {
-                count = count.saturating_add(tree.table_facts(child).column_span as usize);
+            let data = tree.node_data(child);
+            if kind_is_box(data.kind) && data.table_display == FfiTableDisplay::TableColumn {
+                count = count.saturating_add(tree.table_column_span(child));
             }
             stack.push(child);
         }
@@ -624,7 +621,7 @@ fn count_columns_in_subtree<'pass, T: TableTree<'pass>>(tree: &T, root: Node) ->
     count
 }
 
-pub(crate) fn calculate<'pass, T: TableTree<'pass>>(tree: &T, table: Node) -> TableGrid {
+pub(crate) fn calculate_table_grid<T: TableTree>(tree: &T, table: Node) -> TableGrid {
     let mut cells = Vec::new();
     let mut rows = Vec::new();
     let mut occupancy = HashSet::new();
@@ -632,7 +629,9 @@ pub(crate) fn calculate<'pass, T: TableTree<'pass>>(tree: &T, table: Node) -> Ta
     let mut row_count = 0usize;
     let mut current_row = 0usize;
 
-    for column_group in matching_children(tree, table, |facts| facts.is_table_column_group()) {
+    for column_group in matching_children(tree, table, |data| {
+        data.table_display == FfiTableDisplay::TableColumnGroup
+    }) {
         column_count = column_count.saturating_add(count_columns_in_subtree(tree, column_group));
     }
 
@@ -649,7 +648,7 @@ pub(crate) fn calculate<'pass, T: TableTree<'pass>>(tree: &T, table: Node) -> Ta
             *row_count += 1;
         }
         let mut current_column = 0usize;
-        for cell_box in matching_children(tree, row, |facts| facts.is_table_cell()) {
+        for cell_box in matching_children(tree, row, |data| data.table_display == FfiTableDisplay::TableCell) {
             while current_column < *column_count && occupancy.contains(&(current_column, *current_row)) {
                 current_column += 1;
             }
@@ -657,12 +656,10 @@ pub(crate) fn calculate<'pass, T: TableTree<'pass>>(tree: &T, table: Node) -> Ta
                 *column_count += 1;
             }
 
-            let table_facts = tree.table_facts(cell_box);
-            let column_span = table_facts.cell_column_span;
-            let mut row_span = table_facts.cell_row_span;
+            let column_span = tree.table_column_span(cell_box);
+            let mut row_span = tree.table_row_span(cell_box);
             if row_span == 0 {
-                // Downward-growing cells remain deliberately unimplemented,
-                // matching TableGrid.cpp.
+                // Downward-growing cells remain deliberately unimplemented.
                 row_span = 1;
             }
             *column_count = (*column_count).max(current_column + column_span);
@@ -687,19 +684,22 @@ pub(crate) fn calculate<'pass, T: TableTree<'pass>>(tree: &T, table: Node) -> Ta
             current_column += column_span;
         }
 
-        // CSS::Visibility::Collapse is pinned to zero in
-        // LayoutRustBridge.cpp.
-        let row_collapsed = tree.style_facts(row).visibility == 0;
-        let group_collapsed = row_group.is_some_and(|group| tree.style_facts(group).visibility == 0);
-        rows.push(Row::new(row, row_collapsed || group_collapsed));
+        rows.push(Row::new(row, tree.row_is_collapsed(row, row_group)));
         *current_row += 1;
     };
 
     let mut child = tree.first_child(table);
     while !child.is_invalid() {
-        let facts = tree.node_facts(child);
-        if facts.is_box() && (facts.is_table_row_group() || facts.is_table_header_group() || facts.is_table_footer_group()) {
-            for row in matching_children(tree, child, |row_facts| row_facts.is_table_row()) {
+        let data = tree.node_data(child);
+        if kind_is_box(data.kind)
+            && matches!(
+                data.table_display,
+                FfiTableDisplay::TableRowGroup | FfiTableDisplay::TableHeaderGroup | FfiTableDisplay::TableFooterGroup
+            )
+        {
+            for row in matching_children(tree, child, |row_data| {
+                row_data.table_display == FfiTableDisplay::TableRow
+            }) {
                 process_row(
                     tree,
                     row,
@@ -712,7 +712,7 @@ pub(crate) fn calculate<'pass, T: TableTree<'pass>>(tree: &T, table: Node) -> Ta
                     &mut current_row,
                 );
             }
-        } else if facts.is_box() && facts.is_table_row() {
+        } else if kind_is_box(data.kind) && data.table_display == FfiTableDisplay::TableRow {
             process_row(
                 tree,
                 child,
@@ -737,6 +737,7 @@ pub(crate) fn calculate<'pass, T: TableTree<'pass>>(tree: &T, table: Node) -> Ta
         column_count,
         cells,
         rows,
+        occupancy,
     }
 }
 
@@ -750,12 +751,22 @@ pub(crate) enum CaptionPhase {
     Bottom,
 }
 
-pub(crate) trait TableTree<'pass> {
+pub(crate) trait TableTree {
     fn first_child(&self, node: Node) -> Node;
     fn next_sibling(&self, node: Node) -> Node;
-    fn node_facts(&self, node: Node) -> NodeFacts<'_>;
-    fn style_facts(&self, node: Node) -> StyleValues<'pass>;
-    fn table_facts(&self, node: Node) -> crate::layout::FfiTableBoxFacts;
+    fn node_data(&self, node: Node) -> &NodeData;
+
+    fn table_column_span(&self, node: Node) -> usize {
+        self.node_data(node).table_column_span as usize
+    }
+
+    fn table_row_span(&self, node: Node) -> usize {
+        self.node_data(node).table_row_span as usize
+    }
+
+    fn row_is_collapsed(&self, _row: Node, _row_group: Option<Node>) -> bool {
+        false
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -783,7 +794,7 @@ struct TableFormattingContext<'pass> {
     rows: Vec<Row>,
 }
 
-impl<'pass> TableTree<'pass> for TableFormattingContext<'pass> {
+impl TableTree for TableFormattingContext<'_> {
     fn first_child(&self, node: Node) -> Node {
         self.callbacks.first_child(node)
     }
@@ -792,6 +803,18 @@ impl<'pass> TableTree<'pass> for TableFormattingContext<'pass> {
         self.callbacks.next_sibling(node)
     }
 
+    fn node_data(&self, node: Node) -> &NodeData {
+        self.callbacks.node_data(node)
+    }
+
+    fn row_is_collapsed(&self, row: Node, row_group: Option<Node>) -> bool {
+        // CSS::Visibility::Collapse is pinned to zero in
+        // LayoutRustBridge.cpp.
+        self.style_facts(row).visibility == 0 || row_group.is_some_and(|group| self.style_facts(group).visibility == 0)
+    }
+}
+
+impl<'pass> TableFormattingContext<'pass> {
     fn node_facts(&self, node: Node) -> NodeFacts<'_> {
         self.state.node_facts(&self.callbacks, node)
     }
@@ -803,9 +826,7 @@ impl<'pass> TableTree<'pass> for TableFormattingContext<'pass> {
     fn table_facts(&self, node: Node) -> crate::layout::FfiTableBoxFacts {
         self.state.table_facts(&self.callbacks, node)
     }
-}
 
-impl<'pass> TableFormattingContext<'pass> {
     fn new(frame: &FcFrame<'pass>, pending_table_offset: Option<crate::layout::LogicalOffset>) -> Self {
         Self {
             state: frame.state,
@@ -986,7 +1007,7 @@ impl<'pass> TableFormattingContext<'pass> {
         let mut column_index = 0usize;
         for column_group in self.matching_children(self.table_box, |facts| facts.is_table_column_group()) {
             for column in self.matching_children(column_group, |facts| facts.is_table_column()) {
-                let span = self.table_facts(column).column_span as usize;
+                let span = self.table_column_span(column);
                 let end = (column_index + span).min(column_count);
                 let borders = self.element_borders(column);
                 while column_index < end {
@@ -1819,7 +1840,7 @@ impl<'pass> TableFormattingContext<'pass> {
     fn run_until_inline_size_calculation(&mut self, input: LayoutInput, skip_row_measurement: bool) {
         self.available_space = input.available_space;
         // Determine the number of rows/columns the table requires.
-        let table_grid = calculate(self, self.table_box);
+        let table_grid = calculate_table_grid(self, self.table_box);
         self.cells = table_grid.cells;
         self.rows = table_grid.rows;
         self.columns = vec![Column::default(); table_grid.column_count];

@@ -18,6 +18,8 @@
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
+#include <LibWeb/HTML/HTMLTableCellElement.h>
+#include <LibWeb/HTML/HTMLTableColElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/ImageBox.h>
@@ -770,6 +772,7 @@ NodeWithStyle::NodeWithStyle(DOM::Document& document, DOM::Node* node, NonnullRe
     set_flag(RustFFI::NodeFlag::HasStyle, true);
     set_flag(RustFFI::NodeFlag::IsBody, node && node == document.body());
     mirror_computed_values_to_node_data();
+    synchronize_table_span_data();
 }
 
 NodeWithStyle::ImageObserver::ImageObserver(NodeWithStyle& owner, NonnullRefPtr<CSS::ImageStyleValue const> image)
@@ -1089,6 +1092,22 @@ void NodeWithStyle::mirror_computed_values_to_node_data()
     node_data().display_bits = display_bits(*m_computed_values);
     set_flag(RustFFI::NodeFlag::OwnStyleEstablishesBlockFormattingContext,
         own_computed_style_establishes_block_formatting_context(*m_computed_values));
+}
+
+void NodeWithStyle::synchronize_table_span_data()
+{
+    u16 column_span = 1;
+    u16 row_span = 1;
+    if (auto const* node = dom_node()) {
+        if (auto const* cell = as_if<HTML::HTMLTableCellElement>(*node)) {
+            column_span = static_cast<u16>(cell->col_span());
+            row_span = static_cast<u16>(cell->row_span());
+        } else if (auto const* column = as_if<HTML::HTMLTableColElement>(*node)) {
+            column_span = static_cast<u16>(column->span());
+        }
+    }
+    node_data().table_column_span = column_span;
+    node_data().table_row_span = row_span;
 }
 
 void NodeWithStyle::set_display(CSS::Display display)
