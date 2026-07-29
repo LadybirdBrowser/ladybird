@@ -33,7 +33,7 @@ use crate::abort_on_panic;
 pub use crate::css::computed_value_types::{
     AlignmentValues, BorderLayoutFacts, BoxValues, ComputedAspectRatio, ComputedFlexBasis, ComputedGap,
     ComputedLengthBox, ComputedLengthPercentageOrAuto, ComputedSize, ComputedSizeKind, ComputedStyleValueHandle,
-    ComputedVerticalAlign, SVGResetValues, SizingValues, SurroundValues,
+    ComputedVerticalAlign, InheritedTextLayoutFacts, SVGResetValues, SizingValues, SurroundValues,
 };
 use crate::css::retained_fly_string::RetainedUtf16FlyStringList;
 
@@ -238,6 +238,7 @@ impl_computed_payload_clone_and_eq!(BoxValues {
 pub enum StyleGroupLifecycle {
     Cpp,
     CppWithBorderFacts,
+    CppWithInheritedTextFacts,
     InheritedTable,
     InheritedBox,
     Sizing,
@@ -249,7 +250,12 @@ pub enum StyleGroupLifecycle {
 
 impl StyleGroupLifecycle {
     pub(crate) fn payload_is_cpp_owned(self) -> bool {
-        matches!(self, StyleGroupLifecycle::Cpp | StyleGroupLifecycle::CppWithBorderFacts)
+        matches!(
+            self,
+            StyleGroupLifecycle::Cpp
+                | StyleGroupLifecycle::CppWithBorderFacts
+                | StyleGroupLifecycle::CppWithInheritedTextFacts
+        )
     }
 }
 
@@ -1781,6 +1787,22 @@ pub unsafe extern "C" fn rust_style_group_as_surround(payload: *const c_void) ->
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_group_as_border_facts(payload: *const c_void) -> *const BorderLayoutFacts {
     payload as *const BorderLayoutFacts
+}
+
+/// Returns the typed prefix view of the C++-owned inherited-text group
+/// payload.
+///
+/// This anchors the prefix layout in the exported ABI so the cbindgen mirror
+/// stays in the generated header for the C++ static asserts that pin the
+/// group's leading members to it.
+///
+/// # Safety
+/// `payload` must be an inherited-text group payload.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_group_as_inherited_text_facts(
+    payload: *const c_void,
+) -> *const InheritedTextLayoutFacts {
+    payload as *const InheritedTextLayoutFacts
 }
 
 #[cfg(test)]

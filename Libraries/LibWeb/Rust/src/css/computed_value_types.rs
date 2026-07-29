@@ -179,6 +179,34 @@ pub struct BorderLayoutFacts {
     pub border_bottom: ComputedBorderSide,
 }
 
+/// A computed text-indent value, mirroring the C++ TextIndentData layout:
+/// a retained length-percentage plus the each-line and hanging flags.
+#[repr(C)]
+pub struct ComputedTextIndent {
+    pub length_percentage: ComputedStyleValueHandle,
+    pub each_line: bool,
+    pub hanging: bool,
+}
+
+/// The layout-facing prefix of the C++-owned inherited-text style group,
+/// pinned by static asserts beside the C++ group definition. The computed
+/// tab-size is stored as an explicit length-or-number triple because the
+/// C++ Variant it replaced has no FFI-stable layout.
+#[repr(C)]
+pub struct InheritedTextLayoutFacts {
+    pub text_align: u8,
+    pub text_justify: u8,
+    pub white_space_collapse: u8,
+    pub text_wrap_mode: u8,
+    pub word_break: u8,
+    pub tab_size_is_number: bool,
+    pub letter_spacing: crate::css::css_pixels::CssPixels,
+    pub word_spacing: crate::css::css_pixels::CssPixels,
+    pub tab_size_length: crate::css::css_pixels::CssPixels,
+    pub tab_size_number: f64,
+    pub text_indent: ComputedTextIndent,
+}
+
 /// Layout of the non-inherited SVG geometry and painting properties.
 #[repr(C)]
 pub struct SVGResetValues {

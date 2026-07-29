@@ -108,18 +108,11 @@ static constexpr size_t style_field_encoding_width(RustFFI::FfiStyleFieldEncodin
 static_assert(to_underlying(CSS::StyleGroupIndex::Count) == RustFFI::STYLE_GROUP_COUNT);
 
 #define LIBWEB_LAYOUT_DIRECT_STYLE_FIELDS(F)                                                                                                                                              \
-    F(TextAlign, CSS::ComputedValues::InheritedTextValues, text_align, offsetof(CSS::ComputedValues::InheritedTextValues, text_align), U8)                                                \
-    F(TextJustify, CSS::ComputedValues::InheritedTextValues, text_justify, offsetof(CSS::ComputedValues::InheritedTextValues, text_justify), U8)                                          \
-    F(WhiteSpaceCollapse, CSS::ComputedValues::InheritedTextValues, white_space_collapse, offsetof(CSS::ComputedValues::InheritedTextValues, white_space_collapse), U8)                   \
-    F(TextWrapMode, CSS::ComputedValues::InheritedTextValues, text_wrap_mode, offsetof(CSS::ComputedValues::InheritedTextValues, text_wrap_mode), U8)                                     \
-    F(WordBreak, CSS::ComputedValues::InheritedTextValues, word_break, offsetof(CSS::ComputedValues::InheritedTextValues, word_break), U8)                                                \
     F(FontVariantEmoji, CSS::ComputedValues::FontValues, font_variant_emoji, offsetof(CSS::ComputedValues::FontValues, font_variant_emoji), U8)                                           \
     F(LineHeight, CSS::ComputedValues::FontValues, line_height.used_value, offsetof(CSS::ComputedValues::FontValues, line_height) + offsetof(CSS::LineHeightData, used_value), CssPixels) \
     F(FontSize, CSS::ComputedValues::FontValues, font_size, offsetof(CSS::ComputedValues::FontValues, font_size), CssPixels)                                                              \
     F(TextOverflow, CSS::ComputedValues::TextResetValues, text_overflow, offsetof(CSS::ComputedValues::TextResetValues, text_overflow), U8)                                               \
     F(TableLayout, CSS::ComputedValues::MiscResetValues, table_layout, offsetof(CSS::ComputedValues::MiscResetValues, table_layout), U8)                                                  \
-    F(LetterSpacing, CSS::ComputedValues::InheritedTextValues, letter_spacing, offsetof(CSS::ComputedValues::InheritedTextValues, letter_spacing), CssPixels)                             \
-    F(WordSpacing, CSS::ComputedValues::InheritedTextValues, word_spacing, offsetof(CSS::ComputedValues::InheritedTextValues, word_spacing), CssPixels)                                   \
     F(UnicodeBidi, CSS::ComputedValues::TextResetValues, unicode_bidi, offsetof(CSS::ComputedValues::TextResetValues, unicode_bidi), U8)                                                  \
     F(GridAutoFlowRow, CSS::ComputedValues::GridValues, grid_auto_flow.row, offsetof(CSS::ComputedValues::GridValues, grid_auto_flow) + offsetof(CSS::GridAutoFlow, row), Bool)           \
     F(GridAutoFlowDense, CSS::ComputedValues::GridValues, grid_auto_flow.dense, offsetof(CSS::ComputedValues::GridValues, grid_auto_flow) + offsetof(CSS::GridAutoFlow, dense), Bool)
@@ -2082,18 +2075,6 @@ static RustFFI::FfiResidualStyleValues decode_residual_style(RustFFI::FfiStylePa
     result.column_width = build_style_size_value(misc.column_width);
     result.column_count_has_value = !misc.column_count.is_auto();
     result.column_count = misc.column_count.is_auto() ? 0 : misc.column_count.value();
-
-    auto const& inherited_text = group.operator()<CSS::ComputedValues::InheritedTextValues>();
-    result.text_indent = build_style_size_value(inherited_text.text_indent.length_percentage);
-    result.text_indent_each_line = inherited_text.text_indent.each_line;
-    result.text_indent_hanging = inherited_text.text_indent.hanging;
-    result.tab_size_is_number = inherited_text.tab_size.has<double>();
-    result.tab_size = inherited_text.tab_size.has<CSSPixels>()
-        ? inherited_text.tab_size.get<CSSPixels>().raw_value()
-        : 0;
-    result.tab_size_number = inherited_text.tab_size.has<double>()
-        ? inherited_text.tab_size.get<double>()
-        : 0;
 
     return result;
 }

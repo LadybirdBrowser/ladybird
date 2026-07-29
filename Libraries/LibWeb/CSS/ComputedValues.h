@@ -359,7 +359,6 @@ public:
     static FontVariantEmoji font_variant_emoji() { return FontVariantEmoji::Normal; }
     static CSSPixels word_spacing() { return 0; }
     static CSSPixels letter_spacing() { return 0; }
-    static Variant<CSSPixels, double> tab_size() { return 8; }
     static TextAlign text_align() { return TextAlign::Start; }
     static TextJustify text_justify() { return TextJustify::Auto; }
     static Positioning position() { return Positioning::Static; }
@@ -1180,7 +1179,12 @@ public:
             return {};
         return m_noninherited.box->z_index;
     }
-    Variant<CSSPixels, double> tab_size() const { return m_inherited.text->tab_size; }
+    Variant<CSSPixels, double> tab_size() const
+    {
+        if (m_inherited.text->tab_size_is_number)
+            return m_inherited.text->tab_size_number;
+        return m_inherited.text->tab_size_length;
+    }
     TextAlign text_align() const { return m_inherited.text->text_align; }
     TextJustify text_justify() const { return m_inherited.text->text_justify; }
     TextIndentData const& text_indent() const { return m_inherited.text->text_indent; }
@@ -1625,29 +1629,37 @@ public:
         bool operator==(InheritedSVGValues const&) const = default;
     };
 
+    // The group's payload lifecycle stays in C++, but the members up to and
+    // including text_indent mirror the Rust InheritedTextLayoutFacts prefix,
+    // pinned by static asserts in ComputedValues.cpp, so layout reads them as
+    // typed fields. The computed tab-size is stored as an explicit
+    // length-or-number triple because a Variant has no FFI-stable layout.
     struct InheritedTextValues {
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::InheritedTextValues);
+        static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::CppWithInheritedTextFacts;
+        TextAlign text_align { InitialValues::text_align() };
+        TextJustify text_justify { InitialValues::text_justify() };
+        WhiteSpaceCollapse white_space_collapse { InitialValues::white_space_collapse() };
+        TextWrapMode text_wrap_mode { InitialValues::text_wrap_mode() };
+        WordBreak word_break { InitialValues::word_break() };
+        bool tab_size_is_number { true };
+        CSSPixels letter_spacing { InitialValues::letter_spacing() };
+        CSSPixels word_spacing { InitialValues::word_spacing() };
+        CSSPixels tab_size_length { 0 };
+        double tab_size_number { 8 };
+        TextIndentData text_indent { InitialValues::text_indent() };
         Color color { InitialValues::color() };
         RustStyleValueHandle color_style_value;
         Color webkit_text_fill_color { InitialValues::color() };
         bool webkit_text_fill_color_is_current_color { true };
         Vector<ShadowData> text_shadow;
-        TextAlign text_align { InitialValues::text_align() };
-        TextJustify text_justify { InitialValues::text_justify() };
         TextTransform text_transform { InitialValues::text_transform() };
-        TextWrapMode text_wrap_mode { InitialValues::text_wrap_mode() };
         TextWrapStyle text_wrap_style { InitialValues::text_wrap_style() };
         TextDecorationSkipInk text_decoration_skip_ink { InitialValues::text_decoration_skip_ink() };
         TextUnderlinePosition text_underline_position { InitialValues::text_underline_position() };
         TextUnderlineOffset text_underline_offset;
-        TextIndentData text_indent { InitialValues::text_indent() };
-        Variant<CSSPixels, double> tab_size { InitialValues::tab_size() };
-        WhiteSpaceCollapse white_space_collapse { InitialValues::white_space_collapse() };
-        WordBreak word_break { InitialValues::word_break() };
         OverflowWrap overflow_wrap { InitialValues::overflow_wrap() };
-        CSSPixels word_spacing { InitialValues::word_spacing() };
         RustStyleValueHandle word_spacing_style_value;
-        CSSPixels letter_spacing { InitialValues::letter_spacing() };
         RustStyleValueHandle letter_spacing_style_value;
         u64 orphans { InitialValues::orphans() };
         u64 widows { InitialValues::widows() };
@@ -2453,9 +2465,16 @@ public:
     }
     void set_tab_size(Variant<CSSPixels, double> value)
     {
-        if (m_values.m_inherited.text->tab_size == value)
+        bool const is_number = value.has<double>();
+        CSSPixels const length = is_number ? CSSPixels(0) : value.get<CSSPixels>();
+        double const number = is_number ? value.get<double>() : 0;
+        auto const& text = *m_values.m_inherited.text;
+        if (text.tab_size_is_number == is_number && text.tab_size_length == length && text.tab_size_number == number)
             return;
-        m_values.m_inherited.text.access().tab_size = move(value);
+        auto& mutable_text = m_values.m_inherited.text.access();
+        mutable_text.tab_size_is_number = is_number;
+        mutable_text.tab_size_length = length;
+        mutable_text.tab_size_number = number;
     }
     void set_text_align(TextAlign text_align)
     {

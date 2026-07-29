@@ -209,18 +209,11 @@ fn resolve_calc(calc: *const c_void, percentage_basis: CssPixels) -> CssPixels {
 // NB: Some variants are only constructed by C++ through the FFI.
 #[allow(dead_code)]
 pub enum FfiStyleField {
-    TextAlign,
-    TextJustify,
-    WhiteSpaceCollapse,
-    TextWrapMode,
-    WordBreak,
     FontVariantEmoji,
     LineHeight,
     FontSize,
     TextOverflow,
     TableLayout,
-    LetterSpacing,
-    WordSpacing,
     UnicodeBidi,
     GridAutoFlowRow,
     GridAutoFlowDense,
@@ -228,8 +221,8 @@ pub enum FfiStyleField {
 }
 
 /// Every sizing-shaped value the layout engine reads. The Rust-native entries
-/// decode straight from the node's typed group payloads; ColumnWidth and
-/// TextIndent come from the C++ residual batch.
+/// decode straight from the node's typed group payloads; ColumnWidth comes
+/// from the C++ residual batch.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub(crate) enum SizeField {
@@ -320,6 +313,7 @@ struct NativeGroupIndices {
     inherited_table: usize,
     box_values: usize,
     border_facts: usize,
+    inherited_text_facts: usize,
 }
 
 static NATIVE_GROUP_INDICES: OnceLock<NativeGroupIndices> = OnceLock::new();
@@ -335,6 +329,7 @@ fn native_group_indices() -> &'static NativeGroupIndices {
         inherited_table: style_group_index_with_lifecycle(StyleGroupLifecycle::InheritedTable),
         box_values: style_group_index_with_lifecycle(StyleGroupLifecycle::Box),
         border_facts: style_group_index_with_lifecycle(StyleGroupLifecycle::CppWithBorderFacts),
+        inherited_text_facts: style_group_index_with_lifecycle(StyleGroupLifecycle::CppWithInheritedTextFacts),
     })
 }
 
@@ -392,12 +387,6 @@ pub struct FfiResidualStyleValues {
     pub column_width: FfiSizeValue,
     pub column_count_has_value: bool,
     pub column_count: i32,
-    pub text_indent: FfiSizeValue,
-    pub text_indent_each_line: bool,
-    pub text_indent_hanging: bool,
-    pub tab_size_is_number: bool,
-    pub tab_size: CssPixels,
-    pub tab_size_number: f64,
 }
 
 impl Default for FfiResidualStyleValues {
@@ -413,12 +402,6 @@ impl Default for FfiResidualStyleValues {
             column_width: FfiSizeValue::auto_value(),
             column_count_has_value: false,
             column_count: 0,
-            text_indent: FfiSizeValue::auto_value(),
-            text_indent_each_line: false,
-            text_indent_hanging: false,
-            tab_size_is_number: false,
-            tab_size: CssPixels::default(),
-            tab_size_number: 0.0,
         }
     }
 }
@@ -430,7 +413,6 @@ impl FfiResidualStyleValues {
         release_anchor_name_handle: FfiReleaseAnchorNameHandleCallback,
     ) {
         self.column_width.release_bridge_calc_handle(release_calc_handle);
-        self.text_indent.release_bridge_calc_handle(release_calc_handle);
         if self.position_anchor_retained_name != 0 {
             // SAFETY: The C++ residual decode transferred one raw fly-string
             // reference for this node's position-anchor name.
@@ -530,6 +512,11 @@ impl StyleReader {
     #[inline]
     fn border_facts(&self) -> &crate::layout::BorderLayoutFacts {
         self.native_group(native_group_indices().border_facts)
+    }
+
+    #[inline]
+    fn inherited_text_facts(&self) -> &crate::layout::InheritedTextLayoutFacts {
+        self.native_group(native_group_indices().inherited_text_facts)
     }
 }
 
@@ -840,6 +827,7 @@ impl DecodedStyleScalars {
         let inherited_table = reader.inherited_table();
         let box_values = reader.box_values();
         let border = reader.border_facts();
+        let inherited_text = reader.inherited_text_facts();
         let (css_preferred_aspect_ratio_numerator, css_preferred_aspect_ratio_denominator) =
             decode_css_preferred_aspect_ratio(&box_values.aspect_ratio);
         Self {
@@ -857,11 +845,11 @@ impl DecodedStyleScalars {
             clear: box_values.clear,
             writing_mode: inherited_box.writing_mode,
             direction: inherited_box.direction,
-            text_align: reader.u8(FfiStyleField::TextAlign),
-            text_justify: reader.u8(FfiStyleField::TextJustify),
-            white_space_collapse: reader.u8(FfiStyleField::WhiteSpaceCollapse),
-            text_wrap_mode: reader.u8(FfiStyleField::TextWrapMode),
-            word_break: reader.u8(FfiStyleField::WordBreak),
+            text_align: inherited_text.text_align,
+            text_justify: inherited_text.text_justify,
+            white_space_collapse: inherited_text.white_space_collapse,
+            text_wrap_mode: inherited_text.text_wrap_mode,
+            word_break: inherited_text.word_break,
             font_variant_emoji: reader.u8(FfiStyleField::FontVariantEmoji),
             line_height: reader.css_pixels(FfiStyleField::LineHeight),
             font_size: reader.css_pixels(FfiStyleField::FontSize),
@@ -886,8 +874,8 @@ impl DecodedStyleScalars {
             caption_side: inherited_table.caption_side,
             table_layout: reader.u8(FfiStyleField::TableLayout),
             visibility: inherited_box.visibility,
-            letter_spacing: reader.css_pixels(FfiStyleField::LetterSpacing),
-            word_spacing: reader.css_pixels(FfiStyleField::WordSpacing),
+            letter_spacing: inherited_text.letter_spacing,
+            word_spacing: inherited_text.word_spacing,
             unicode_bidi: reader.u8(FfiStyleField::UnicodeBidi),
             grid_auto_flow_row: reader.bool(FfiStyleField::GridAutoFlowRow),
             grid_auto_flow_dense: reader.bool(FfiStyleField::GridAutoFlowDense),
@@ -1016,7 +1004,10 @@ impl<'a> StyleValues<'a> {
                 decode_length_percentage(if field == SizeField::X { &values.x } else { &values.y })
             }
             SizeField::VerticalAlign => decode_length_percentage(&self.cache.reader.box_values().vertical_align.value),
-            SizeField::ColumnWidth | SizeField::TextIndent => unreachable!(),
+            SizeField::TextIndent => {
+                decode_length_percentage(&self.cache.reader.inherited_text_facts().text_indent.length_percentage)
+            }
+            SizeField::ColumnWidth => unreachable!(),
         }
     }
 
@@ -1059,7 +1050,6 @@ impl<'a> StyleValues<'a> {
                 self.cache.cache_size(field, value)
             }
             SizeField::ColumnWidth => self.residual().column_width,
-            SizeField::TextIndent => self.residual().text_indent,
             _ => {
                 let value = self.direct_size(field);
                 self.cache.cache_size(field, value)
@@ -1166,23 +1156,23 @@ impl<'a> StyleValues<'a> {
     }
 
     pub(crate) fn text_indent_each_line(self) -> bool {
-        self.residual().text_indent_each_line
+        self.cache.reader.inherited_text_facts().text_indent.each_line
     }
 
     pub(crate) fn text_indent_hanging(self) -> bool {
-        self.residual().text_indent_hanging
+        self.cache.reader.inherited_text_facts().text_indent.hanging
     }
 
     pub(crate) fn tab_size_is_number(self) -> bool {
-        self.residual().tab_size_is_number
+        self.cache.reader.inherited_text_facts().tab_size_is_number
     }
 
     pub(crate) fn tab_size(self) -> CssPixels {
-        self.residual().tab_size
+        self.cache.reader.inherited_text_facts().tab_size_length
     }
 
     pub(crate) fn tab_size_number(self) -> f64 {
-        self.residual().tab_size_number
+        self.cache.reader.inherited_text_facts().tab_size_number
     }
 }
 
