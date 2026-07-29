@@ -790,10 +790,7 @@ impl<'pass> FlexFormattingContext<'pass> {
             let next = self.callbacks.next_sibling(child);
             let facts = self.facts(child);
             if facts.is_box() {
-                // SAFETY: The callback only inspects the live layout subtree.
-                let skip = unsafe {
-                    (self.callbacks.can_skip_is_anonymous_text_run)(self.callbacks.context, self.callbacks.shell(child))
-                };
+                let skip = self.callbacks.can_skip_is_anonymous_text_run(child);
                 // Skip any "out-of-flow" children
                 if !skip && !facts.is_absolutely_positioned() {
                     // Flex inhibits floating, so only absolute positioning is out of flow here.

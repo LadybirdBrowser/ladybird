@@ -1600,23 +1600,6 @@ bool can_replay_saved_abspos_layout_inputs_after_style_change(Box const& box)
     return true;
 }
 
-static bool can_skip_is_anonymous_text_run(Box& box)
-{
-    if (box.is_anonymous() && !box.is_generated_for_pseudo_element() && !box.first_child_of_type<BlockContainer>()) {
-        bool contains_only_white_space = true;
-        box.for_each_in_subtree([&](auto const& node) {
-            if (!is<TextNode>(node) || !static_cast<TextNode const&>(node).text().is_ascii_whitespace()) {
-                contains_only_white_space = false;
-                return TraversalDecision::Break;
-            }
-            return TraversalDecision::Continue;
-        });
-        if (contains_only_white_space)
-            return true;
-    }
-    return false;
-}
-
 RustFFI::FfiLayoutFcCallbacks LayoutRustBridge::formatting_context_callbacks()
 {
     static_assert(to_underlying(Painting::Paintable::ConflictingElementKind::Cell) == 0);
@@ -2047,7 +2030,6 @@ RustFFI::FfiLayoutFcCallbacks LayoutRustBridge::formatting_context_callbacks()
                 return;
             }
             box.set_default_scroll_shift(static_cast<Box*>(anchor)->make_weak_ptr(), horizontal, vertical); },
-        .can_skip_is_anonymous_text_run = [](void*, void* box) { return can_skip_is_anonymous_text_run(*static_cast<Box*>(box)); },
     };
 }
 

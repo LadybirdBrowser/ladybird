@@ -134,6 +134,7 @@ struct SavedAbsposLayoutInputsSlot {
 #[derive(Default)]
 pub(crate) struct TextContent {
     pub(crate) text: Vec<u16>,
+    pub(crate) untransformed_text_is_ascii_whitespace: bool,
     pub(crate) may_require_bidi_processing: bool,
 }
 
@@ -643,7 +644,13 @@ impl LayoutNodeArena {
         }
     }
 
-    pub(crate) fn set_text_content(&mut self, id: NodeSlotId, text: Vec<u16>, may_require_bidi_processing: bool) {
+    pub(crate) fn set_text_content(
+        &mut self,
+        id: NodeSlotId,
+        text: Vec<u16>,
+        untransformed_text_is_ascii_whitespace: bool,
+        may_require_bidi_processing: bool,
+    ) {
         self.assert_owner_thread();
         self.data(id);
         let index = id.slot_index() as usize;
@@ -654,6 +661,7 @@ impl LayoutNodeArena {
             generation: id.generation(),
             content: Some(Box::new(TextContent {
                 text,
+                untransformed_text_is_ascii_whitespace,
                 may_require_bidi_processing,
             })),
         };
@@ -813,6 +821,7 @@ pub unsafe extern "C" fn layout_arena_set_text_content(
     ascii_text: *const u8,
     utf16_text: *const u16,
     length_in_code_units: usize,
+    untransformed_text_is_ascii_whitespace: bool,
     may_require_bidi_processing: bool,
 ) {
     abort_on_panic(|| {
@@ -834,7 +843,12 @@ pub unsafe extern "C" fn layout_arena_set_text_content(
         };
         // SAFETY: The C++ wrapper keeps the arena alive for this call and
         // serializes all access on the document thread.
-        unsafe { &mut *arena.cast::<LayoutNodeArena>() }.set_text_content(id, text, may_require_bidi_processing);
+        unsafe { &mut *arena.cast::<LayoutNodeArena>() }.set_text_content(
+            id,
+            text,
+            untransformed_text_is_ascii_whitespace,
+            may_require_bidi_processing,
+        );
     });
 }
 
