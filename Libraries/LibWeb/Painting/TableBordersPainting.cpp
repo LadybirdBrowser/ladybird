@@ -7,8 +7,8 @@
 #include <AK/HashMap.h>
 #include <AK/QuickSort.h>
 #include <AK/Traits.h>
-#include <LibWeb/Layout/TableGrid.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
+#include <LibWeb/Painting/DisplayListRecordingContext.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/TableBordersPainting.h>
 
@@ -55,6 +55,47 @@ struct DeviceBorderData {
     CSS::LineStyle line_style { CSS::LineStyle::None };
     DevicePixels width { 0 };
 };
+
+static unsigned line_style_score(CSS::LineStyle line_style)
+{
+    switch (line_style) {
+    case CSS::LineStyle::Inset:
+        return 0;
+    case CSS::LineStyle::Groove:
+        return 1;
+    case CSS::LineStyle::Outset:
+        return 2;
+    case CSS::LineStyle::Ridge:
+        return 3;
+    case CSS::LineStyle::Dotted:
+        return 4;
+    case CSS::LineStyle::Dashed:
+        return 5;
+    case CSS::LineStyle::Solid:
+        return 6;
+    case CSS::LineStyle::Double:
+        return 7;
+    default:
+        VERIFY_NOT_REACHED();
+    }
+}
+
+static bool border_is_less_specific(DeviceBorderData const& a, DeviceBorderData const& b)
+{
+    // Implements criteria for steps 1, 2 and 3 of border conflict resolution algorithm, as described in
+    // https://www.w3.org/TR/CSS22/tables.html#border-conflict-resolution.
+    if (a.line_style == CSS::LineStyle::Hidden)
+        return false;
+    if (b.line_style == CSS::LineStyle::Hidden)
+        return true;
+    if (a.line_style == CSS::LineStyle::None)
+        return true;
+    if (b.line_style == CSS::LineStyle::None)
+        return false;
+    if (a.width != b.width)
+        return a.width < b.width;
+    return line_style_score(a.line_style) < line_style_score(b.line_style);
+}
 
 struct DeviceBorderDataWithElementKind {
     DeviceBorderData border_data;
@@ -234,15 +275,6 @@ static BorderEdgePaintingInfo make_last_column_right_cell_edge(DevicePixelRect c
     };
 }
 
-static CSS::BorderData css_border_data_from_device_border_data(DeviceBorderData const& device_border_data)
-{
-    return CSS::BorderData {
-        .color = device_border_data.color,
-        .line_style = device_border_data.line_style,
-        .width = device_border_data.width.value(),
-    };
-}
-
 static void paint_collected_edges(DisplayListRecordingContext& context, Vector<BorderEdgePaintingInfo>& border_edge_painting_info_list)
 {
     // This sorting step isn't part of the specification, but it matches the behavior of other browsers at border intersections, which aren't
@@ -269,9 +301,7 @@ static void paint_collected_edges(DisplayListRecordingContext& context, Vector<B
             }
             return a.row.has_value() ? b.row.value() < a.row.value() : false;
         }
-        return Layout::TableGrid::border_is_less_specific(
-            css_border_data_from_device_border_data(a_border_data),
-            css_border_data_from_device_border_data(b_border_data));
+        return border_is_less_specific(a_border_data, b_border_data);
     });
 
     for (auto const& border_edge_painting_info : border_edge_painting_info_list) {

@@ -1086,6 +1086,10 @@ void Element::run_attribute_change_steps(Utf16FlyString const& local_name, Optio
     attribute_changed(local_name, old_value, value, namespace_);
 
     if (old_value != value) {
+        if (local_name.is_one_of(HTML::AttributeNames::colspan, HTML::AttributeNames::rowspan, HTML::AttributeNames::span)) {
+            if (auto* layout_node = unsafe_layout_node())
+                layout_node->synchronize_table_span_data();
+        }
         if (!document().suppresses_attribute_style_invalidation()) {
             CSS::Invalidation::invalidate_style_after_attribute_change(
                 *this,

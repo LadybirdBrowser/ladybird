@@ -174,6 +174,8 @@ pub struct NodeData {
     pub table_display_before: FfiTableDisplay,
     pub display_bits: u8,
     pub slot_generation: u8,
+    pub table_column_span: u16,
+    pub table_row_span: u16,
     pub style: *const c_void,
     pub shell: *mut c_void,
 }
@@ -197,6 +199,8 @@ impl Default for NodeData {
             table_display_before: FfiTableDisplay::Other,
             display_bits: 0,
             slot_generation: 0,
+            table_column_span: 1,
+            table_row_span: 1,
             style: std::ptr::null(),
             shell: std::ptr::null_mut(),
         }

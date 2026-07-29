@@ -4679,9 +4679,6 @@ pub struct FfiBordersData {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(C)]
 pub struct FfiTableBoxFacts {
-    pub cell_column_span: usize,
-    pub cell_row_span: usize,
-    pub column_span: u32,
     pub raw_column_span: u32,
     pub border_top_color: u32,
     pub border_right_color: u32,

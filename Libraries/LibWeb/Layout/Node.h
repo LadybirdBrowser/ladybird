@@ -47,6 +47,8 @@ static_assert(offsetof(RustFFI::NodeData, table_display) == 40);
 static_assert(offsetof(RustFFI::NodeData, table_display_before) == 41);
 static_assert(offsetof(RustFFI::NodeData, display_bits) == 42);
 static_assert(offsetof(RustFFI::NodeData, slot_generation) == 43);
+static_assert(offsetof(RustFFI::NodeData, table_column_span) == 44);
+static_assert(offsetof(RustFFI::NodeData, table_row_span) == 46);
 static_assert(offsetof(RustFFI::NodeData, style) == 48);
 static_assert(offsetof(RustFFI::NodeData, shell) == 56);
 
@@ -427,6 +429,7 @@ public:
     void clear_image_observers();
     void apply_style(NonnullRefPtr<CSS::ComputedValues const>);
     void attach_style_resources();
+    void synchronize_table_span_data();
 
     Gfx::Font const& first_available_font() const;
     Vector<CSS::BackgroundLayerData> const& background_layers() const { return computed_values().background_layers(); }

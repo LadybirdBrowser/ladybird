@@ -1866,10 +1866,6 @@ pub struct FfiTreeBuilderCallbacks {
         unsafe extern "C" fn(*mut c_void, *const *mut c_void, usize, *mut c_void, FfiAnonymousTableBoxKind),
     pub update_existing_table_wrapper: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void),
     pub wrap_table_root: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void),
-    pub create_table_grid: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void,
-    pub destroy_table_grid: unsafe extern "C" fn(*mut c_void, *mut c_void),
-    pub table_grid_column_count: unsafe extern "C" fn(*mut c_void, *mut c_void) -> usize,
-    pub table_grid_is_occupied: unsafe extern "C" fn(*mut c_void, *mut c_void, usize, usize) -> bool,
     pub append_missing_table_cell: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub create_and_append_anonymous_wrapper: unsafe extern "C" fn(*mut c_void, *mut c_void) -> NodeSlotId,
     pub wrap_children_in_anonymous: unsafe extern "C" fn(*mut c_void, *mut c_void, *const *mut c_void, usize),
@@ -2135,6 +2131,20 @@ impl TreeBuilderHost<'_> {
                 kind,
             );
         };
+    }
+}
+
+impl crate::layout::TableTree for TreeBuilderHost<'_> {
+    fn first_child(&self, node: LayoutNode) -> LayoutNode {
+        TreeBuilderHost::first_child(self, node)
+    }
+
+    fn next_sibling(&self, node: LayoutNode) -> LayoutNode {
+        TreeBuilderHost::next_sibling(self, node)
+    }
+
+    fn node_data(&self, node: LayoutNode) -> &NodeData {
+        self.data(node)
     }
 }
 
@@ -3045,40 +3055,9 @@ fn generate_missing_parents(host: &TreeBuilderHost<'_>, root: LayoutNode) -> Vec
     table_roots_to_wrap
 }
 
-struct TableGrid<'a> {
-    host: &'a TreeBuilderHost<'a>,
-    grid: *mut c_void,
-}
-
-impl TableGrid<'_> {
-    fn column_count(&self) -> usize {
-        // SAFETY: `grid` is live until this wrapper is dropped.
-        unsafe { (self.host.callbacks.table_grid_column_count)(self.host.callbacks.context, self.grid) }
-    }
-
-    fn is_occupied(&self, column_index: usize, row_index: usize) -> bool {
-        // SAFETY: `grid` is live until this wrapper is dropped.
-        unsafe {
-            (self.host.callbacks.table_grid_is_occupied)(
-                self.host.callbacks.context,
-                self.grid,
-                column_index,
-                row_index,
-            )
-        }
-    }
-}
-
-impl Drop for TableGrid<'_> {
-    fn drop(&mut self) {
-        // SAFETY: This wrapper owns the grid returned by `create_table_grid` and drops it exactly once.
-        unsafe { (self.host.callbacks.destroy_table_grid)(self.host.callbacks.context, self.grid) };
-    }
-}
-
-fn fixup_row(host: &TreeBuilderHost<'_>, row: LayoutNode, table_grid: &TableGrid<'_>, row_index: usize) {
-    for column_index in 0..table_grid.column_count() {
-        if table_grid.is_occupied(column_index, row_index) {
+fn fixup_row(host: &TreeBuilderHost<'_>, row: LayoutNode, table_grid: &crate::layout::TableGrid, row_index: usize) {
+    for column_index in 0..table_grid.column_count {
+        if table_grid.occupancy.contains(&(column_index, row_index)) {
             continue;
         }
         // SAFETY: `row` is a live table-row box.
@@ -3092,44 +3071,9 @@ fn missing_cells_fixup(host: &TreeBuilderHost<'_>, table_roots: &[LayoutNode]) {
     // cells to fill all the columns of the table, when taking spans into account. New table-cell anonymous boxes must
     // be appended to its rows content until this condition is met.
     for &table_root in table_roots {
-        // SAFETY: `table_root` is a live table-root box and the callback returns a newly owned grid.
-        let grid = unsafe { (host.callbacks.create_table_grid)(host.callbacks.context, host.shell(table_root)) };
-        assert!(!grid.is_null());
-        let grid = TableGrid { host, grid };
-        let mut row_index = 0;
-
-        let mut child = host.first_child(table_root);
-        while !child.is_invalid() {
-            let child_data = host.data(child);
-            if node_kind_is_box(child_data.kind)
-                && matches!(
-                    child_data.table_display,
-                    FfiTableDisplay::TableRowGroup
-                        | FfiTableDisplay::TableHeaderGroup
-                        | FfiTableDisplay::TableFooterGroup
-                )
-            {
-                let mut row = host.first_child(child);
-                while !row.is_invalid() {
-                    let row_data = host.data(row);
-                    if node_kind_is_box(row_data.kind) && row_data.table_display == FfiTableDisplay::TableRow {
-                        fixup_row(host, row, &grid, row_index);
-                        row_index += 1;
-                    }
-                    row = host.next_sibling(row);
-                }
-            }
-            child = host.next_sibling(child);
-        }
-
-        let mut child = host.first_child(table_root);
-        while !child.is_invalid() {
-            let child_data = host.data(child);
-            if node_kind_is_box(child_data.kind) && child_data.table_display == FfiTableDisplay::TableRow {
-                fixup_row(host, child, &grid, row_index);
-                row_index += 1;
-            }
-            child = host.next_sibling(child);
+        let grid = crate::layout::calculate_table_grid(host, table_root);
+        for (row_index, row) in grid.rows.iter().enumerate() {
+            fixup_row(host, row.box_, &grid, row_index);
         }
     }
 }
