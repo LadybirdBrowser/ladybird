@@ -3878,7 +3878,7 @@
       "scroll-margin-left"
     ],
     "valid-types": [
-      "length [0,∞]"
+      "length [-∞,∞]"
     ]
   },
   "scroll-margin-block": {
@@ -3889,7 +3889,7 @@
       "scroll-margin-block-end"
     ],
     "valid-types": [
-      "length [0,∞]"
+      "length [-∞,∞]"
     ]
   },
   "scroll-margin-block-end": {
@@ -3910,7 +3910,7 @@
     "inherited": false,
     "requires-computation": "cascaded-value",
     "valid-types": [
-      "length [0,∞]"
+      "length [-∞,∞]"
     ]
   },
   "scroll-margin-inline": {
@@ -3921,7 +3921,7 @@
       "scroll-margin-inline-end"
     ],
     "valid-types": [
-      "length [0,∞]"
+      "length [-∞,∞]"
     ]
   },
   "scroll-margin-inline-end": {
@@ -3942,7 +3942,7 @@
     "initial": "0",
     "requires-computation": "cascaded-value",
     "valid-types": [
-      "length [0,∞]"
+      "length [-∞,∞]"
     ]
   },
   "scroll-margin-right": {
@@ -3951,7 +3951,7 @@
     "initial": "0",
     "requires-computation": "cascaded-value",
     "valid-types": [
-      "length [0,∞]"
+      "length [-∞,∞]"
     ]
   },
   "scroll-margin-top": {
@@ -3960,7 +3960,7 @@
     "initial": "0",
     "requires-computation": "cascaded-value",
     "valid-types": [
-      "length [0,∞]"
+      "length [-∞,∞]"
     ]
   },
   "scroll-padding": {

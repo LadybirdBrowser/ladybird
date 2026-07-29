@@ -1,0 +1,25 @@
+Harness status: OK
+
+Found 20 tests
+
+20 Pass
+Pass	e.style['scroll-margin-top'] = "auto" should not set the property value
+Pass	e.style['scroll-margin-top'] = "20%" should not set the property value
+Pass	e.style['scroll-margin-top'] = "-30%" should not set the property value
+Pass	e.style['scroll-margin-top'] = "1px 2px" should not set the property value
+Pass	e.style['scroll-margin-right'] = "auto" should not set the property value
+Pass	e.style['scroll-margin-right'] = "20%" should not set the property value
+Pass	e.style['scroll-margin-right'] = "-30%" should not set the property value
+Pass	e.style['scroll-margin-right'] = "1px 2px" should not set the property value
+Pass	e.style['scroll-margin-bottom'] = "auto" should not set the property value
+Pass	e.style['scroll-margin-bottom'] = "20%" should not set the property value
+Pass	e.style['scroll-margin-bottom'] = "-30%" should not set the property value
+Pass	e.style['scroll-margin-bottom'] = "1px 2px" should not set the property value
+Pass	e.style['scroll-margin-left'] = "auto" should not set the property value
+Pass	e.style['scroll-margin-left'] = "20%" should not set the property value
+Pass	e.style['scroll-margin-left'] = "-30%" should not set the property value
+Pass	e.style['scroll-margin-left'] = "1px 2px" should not set the property value
+Pass	e.style['scroll-margin'] = "auto" should not set the property value
+Pass	e.style['scroll-margin'] = "20%" should not set the property value
+Pass	e.style['scroll-margin'] = "-30%" should not set the property value
+Pass	e.style['scroll-margin'] = "1px 2px 3px 4px 5px" should not set the property value

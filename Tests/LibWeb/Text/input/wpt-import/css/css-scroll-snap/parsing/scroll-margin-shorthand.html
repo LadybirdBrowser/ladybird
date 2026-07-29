@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Scroll Snap Test: scroll-margin sets longhands</title>
+<link rel="help" href="https://drafts.csswg.org/css-scroll-snap-1/#propdef-scroll-margin">
+<meta name="assert" content="scroll-margin supports the full grammar '<length>{1,4}'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/shorthand-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_shorthand_value('scroll-margin', '10px', {
+  'scroll-margin-top': '10px',
+  'scroll-margin-right': '10px',
+  'scroll-margin-bottom': '10px',
+  'scroll-margin-left': '10px'
+});
+
+test_shorthand_value('scroll-margin', '30px 20px', {
+  'scroll-margin-top': '30px',
+  'scroll-margin-right': '20px',
+  'scroll-margin-bottom': '30px',
+  'scroll-margin-left': '20px'
+});
+
+test_shorthand_value('scroll-margin', '1px 2px 3px', {
+  'scroll-margin-top': '1px',
+  'scroll-margin-right': '2px',
+  'scroll-margin-bottom': '3px',
+  'scroll-margin-left': '2px'
+});
+
+test_shorthand_value('scroll-margin', '-1px 2px 3px 0', {
+  'scroll-margin-top': '-1px',
+  'scroll-margin-right': '2px',
+  'scroll-margin-bottom': '3px',
+  'scroll-margin-left': '0px'
+});
+</script>
+</body>
+</html>

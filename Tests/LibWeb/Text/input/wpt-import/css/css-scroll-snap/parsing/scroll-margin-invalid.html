@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Scroll Snap Test: scroll-margin with invalid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-scroll-snap-1/#propdef-scroll-margin">
+<meta name="assert" content="scroll-margin supports only the grammar '<length>{1,4}'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("scroll-margin-top", "auto");
+test_invalid_value("scroll-margin-top", "20%");
+test_invalid_value("scroll-margin-top", "-30%");
+test_invalid_value("scroll-margin-top", "1px 2px");
+
+
+test_invalid_value("scroll-margin-right", "auto");
+test_invalid_value("scroll-margin-right", "20%");
+test_invalid_value("scroll-margin-right", "-30%");
+test_invalid_value("scroll-margin-right", "1px 2px");
+
+
+test_invalid_value("scroll-margin-bottom", "auto");
+test_invalid_value("scroll-margin-bottom", "20%");
+test_invalid_value("scroll-margin-bottom", "-30%");
+test_invalid_value("scroll-margin-bottom", "1px 2px");
+
+
+test_invalid_value("scroll-margin-left", "auto");
+test_invalid_value("scroll-margin-left", "20%");
+test_invalid_value("scroll-margin-left", "-30%");
+test_invalid_value("scroll-margin-left", "1px 2px");
+
+
+test_invalid_value("scroll-margin", "auto");
+test_invalid_value("scroll-margin", "20%");
+test_invalid_value("scroll-margin", "-30%");
+test_invalid_value("scroll-margin", "1px 2px 3px 4px 5px");
+</script>
+</body>
+</html>
