@@ -209,9 +209,6 @@ fn resolve_calc(calc: *const c_void, percentage_basis: CssPixels) -> CssPixels {
 // NB: Some variants are only constructed by C++ through the FFI.
 #[allow(dead_code)]
 pub enum FfiStyleField {
-    TextOverflow,
-    TableLayout,
-    UnicodeBidi,
     GridAutoFlowRow,
     GridAutoFlowDense,
     Count,
@@ -433,11 +430,6 @@ impl StyleReader {
         let payload = self.payloads.groups[schema.group_index as usize];
         debug_assert!(!payload.is_null());
         unsafe { (payload as *const u8).add(schema.offset as usize) }
-    }
-
-    #[inline]
-    fn u8(&self, field: FfiStyleField) -> u8 {
-        unsafe { self.address(field, FfiStyleFieldEncoding::U8).read_unaligned() }
     }
 
     #[inline]
@@ -845,7 +837,7 @@ impl DecodedStyleScalars {
             box_sizing: box_values.box_sizing,
             overflow_x: box_values.overflow_x,
             overflow_y: box_values.overflow_y,
-            text_overflow: reader.u8(FfiStyleField::TextOverflow),
+            text_overflow: box_values.text_overflow,
             flex_direction: alignment.flex_direction,
             flex_wrap: alignment.flex_wrap,
             flex_grow: alignment.flex_grow,
@@ -861,11 +853,11 @@ impl DecodedStyleScalars {
             border_spacing_horizontal: CssPixels::from_raw(inherited_table.border_spacing_horizontal),
             border_spacing_vertical: CssPixels::from_raw(inherited_table.border_spacing_vertical),
             caption_side: inherited_table.caption_side,
-            table_layout: reader.u8(FfiStyleField::TableLayout),
+            table_layout: box_values.table_layout,
             visibility: inherited_box.visibility,
             letter_spacing: inherited_text.letter_spacing,
             word_spacing: inherited_text.word_spacing,
-            unicode_bidi: reader.u8(FfiStyleField::UnicodeBidi),
+            unicode_bidi: box_values.unicode_bidi,
             grid_auto_flow_row: reader.bool(FfiStyleField::GridAutoFlowRow),
             grid_auto_flow_dense: reader.bool(FfiStyleField::GridAutoFlowDense),
             css_preferred_aspect_ratio_numerator,

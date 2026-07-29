@@ -130,8 +130,6 @@ static constexpr Array text_reset_group_properties {
     PropertyID::TextDecorationThickness,
     PropertyID::TextDecorationStyle,
     PropertyID::TextDecorationColor,
-    PropertyID::TextOverflow,
-    PropertyID::UnicodeBidi,
     PropertyID::WhiteSpaceTrim,
 };
 
@@ -200,7 +198,6 @@ static constexpr Array misc_reset_group_properties {
     PropertyID::OutlineColor,
     PropertyID::OutlineOffset,
     PropertyID::OutlineWidth,
-    PropertyID::TableLayout,
     PropertyID::UserSelect,
     PropertyID::ObjectPosition,
     PropertyID::ViewTransitionName,
@@ -475,8 +472,6 @@ static void register_style_group_field_descriptors()
     add(text_reset, PropertyID::TextDecorationThickness, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Auto), nullptr);
     add(text_reset, PropertyID::TextDecorationStyle, offsetof(TextReset, text_decoration_style), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_text_decoration_style>());
     add(text_reset, PropertyID::TextDecorationColor, offsetof(TextReset, text_decoration_color), GROUP_FIELD_COLOR, 0, nullptr);
-    add(text_reset, PropertyID::TextOverflow, offsetof(TextReset, text_overflow), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_text_overflow>());
-    add(text_reset, PropertyID::UnicodeBidi, offsetof(TextReset, unicode_bidi), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_unicode_bidi>());
     add(text_reset, PropertyID::WhiteSpaceTrim, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::None), nullptr);
 
     using Effects = ComputedValues::EffectsValues;
@@ -508,7 +503,6 @@ static void register_style_group_field_descriptors()
     add(misc_reset, PropertyID::OutlineColor, offsetof(MiscReset, outline_color), GROUP_FIELD_COLOR_OR_KEYWORD, to_underlying(Keyword::Auto), nullptr);
     add(misc_reset, PropertyID::OutlineOffset, 0, GROUP_FIELD_REQUIRE_PX, 0, nullptr, 0);
     add(misc_reset, PropertyID::OutlineWidth, offsetof(MiscReset, outline_width), GROUP_FIELD_CSS_PIXELS_NON_NEGATIVE, 0, nullptr);
-    add(misc_reset, PropertyID::TableLayout, offsetof(MiscReset, table_layout), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_table_layout>());
     add(misc_reset, PropertyID::UserSelect, offsetof(MiscReset, user_select), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_user_select>());
     add(misc_reset, PropertyID::ObjectPosition, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
     add(misc_reset, PropertyID::ViewTransitionName, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::None), nullptr);
@@ -1045,6 +1039,9 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
         .overflow_y = static_cast<u8>(to_underlying(computed_style.overflow_y())),
         .box_sizing = static_cast<u8>(to_underlying(computed_style.box_sizing())),
         .resize = static_cast<u8>(to_underlying(computed_style.resize())),
+        .text_overflow = static_cast<u8>(to_underlying(computed_style.text_overflow())),
+        .unicode_bidi = static_cast<u8>(to_underlying(computed_style.unicode_bidi())),
+        .table_layout = static_cast<u8>(to_underlying(computed_style.table_layout())),
         .has_z_index = z_index.has_value(),
         .z_index = z_index.value_or(0),
         .vertical_align = to_ffi_vertical_align(computed_style.vertical_align()),
@@ -1883,7 +1880,6 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
         computed_values.set_text_align(computed_style.text_align());
     if (!inherited_text_adopted)
         computed_values.set_text_justify(computed_style.text_justify());
-    computed_values.set_text_overflow(computed_style.text_overflow());
     auto const& text_underline_offset_value = computed_style.property(CSS::PropertyID::TextUnderlineOffset);
     CSS::TextUnderlineOffset text_underline_offset;
     text_underline_offset.used_value = computed_style.text_underline_offset();
@@ -2255,9 +2251,6 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
         computed_values.set_empty_cells(computed_style.empty_cells());
 
     if (!misc_reset_adopted)
-        computed_values.set_table_layout(computed_style.table_layout());
-
-    if (!misc_reset_adopted)
         computed_values.set_touch_action(computed_style.touch_action());
 
     auto const& math_shift_value = computed_style.property(CSS::PropertyID::MathShift);
@@ -2284,7 +2277,6 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
         computed_values.set_object_position(computed_style.object_position());
     if (!inherited_box_adopted)
         computed_values.set_direction(computed_style.direction());
-    computed_values.set_unicode_bidi(computed_style.unicode_bidi());
     if (!misc_reset_adopted)
         computed_values.set_scroll_behavior(CSS::keyword_to_scroll_behavior(computed_style.property(CSS::PropertyID::ScrollBehavior).to_keyword()).release_value());
     if (!inherited_ui_adopted)
