@@ -636,6 +636,19 @@ void DisplayListRecorder::add_clip_rect(Gfx::IntRect const& rect)
     append_command(AddClipRect { rect });
 }
 
+void DisplayListRecorder::add_clip_path(Gfx::Path const& path, Gfx::WindingRule winding_rule)
+{
+    CommandPayloadBuilder<AddClipPath> payload_builder(m_display_list);
+    auto path_span = append_path_data(payload_builder, path);
+    append_command(
+        AddClipPath {
+            .path_bounding_rect = enclosing_int_rect(path.bounding_box()),
+            .path_data = path_span,
+            .winding_rule = winding_rule,
+        },
+        payload_builder.inline_data());
+}
+
 void DisplayListRecorder::save()
 {
     append_command(Save {});
