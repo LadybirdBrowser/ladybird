@@ -2030,11 +2030,6 @@ static RustFFI::FfiResidualStyleValues decode_residual_style(RustFFI::FfiStylePa
         result.position_anchor_retained_name = anchor.name->to_raw_leaked();
     }
 
-    auto const& misc = group.operator()<CSS::ComputedValues::MiscResetValues>();
-    result.column_width = build_style_size_value(misc.column_width);
-    result.column_count_has_value = !misc.column_count.is_auto();
-    result.column_count = misc.column_count.is_auto() ? 0 : misc.column_count.value();
-
     return result;
 }
 

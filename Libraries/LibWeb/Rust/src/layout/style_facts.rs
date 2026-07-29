@@ -201,9 +201,8 @@ fn resolve_calc(calc: *const c_void, percentage_basis: CssPixels) -> CssPixels {
     CssPixels::nearest_value_for(result.value)
 }
 
-/// Every sizing-shaped value the layout engine reads. The Rust-native entries
-/// decode straight from the node's typed group payloads; ColumnWidth comes
-/// from the C++ residual batch.
+/// Every sizing-shaped value the layout engine reads, each decoding straight
+/// from the node's typed group payloads.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub(crate) enum SizeField {
@@ -298,30 +297,11 @@ pub struct FfiResidualStyleValues {
     pub position_anchor_has_value: bool,
     /// A transferred Utf16FlyString reference, when non-zero.
     pub position_anchor_retained_name: usize,
-    pub column_width: FfiSizeValue,
-    pub column_count_has_value: bool,
-    pub column_count: i32,
 }
 
-impl Default for FfiResidualStyleValues {
-    fn default() -> Self {
-        Self {
-            position_anchor_has_value: false,
-            position_anchor_retained_name: 0,
-            column_width: FfiSizeValue::auto_value(),
-            column_count_has_value: false,
-            column_count: 0,
-        }
-    }
-}
 
 impl FfiResidualStyleValues {
-    fn release_handles(
-        self,
-        release_calc_handle: FfiReleaseCalcHandleCallback,
-        release_anchor_name_handle: FfiReleaseAnchorNameHandleCallback,
-    ) {
-        self.column_width.release_bridge_calc_handle(release_calc_handle);
+    fn release_handles(self, release_anchor_name_handle: FfiReleaseAnchorNameHandleCallback) {
         if self.position_anchor_retained_name != 0 {
             // SAFETY: The C++ residual decode transferred one raw fly-string
             // reference for this node's position-anchor name.
@@ -486,7 +466,7 @@ impl Drop for StyleDecodeCache {
             }
         }
         if let Some(residual) = *self.residual.get_mut() {
-            residual.release_handles(self.release_calc_handle, self.release_anchor_name_handle);
+            residual.release_handles(self.release_anchor_name_handle);
         }
     }
 }
@@ -797,7 +777,7 @@ impl<'a> StyleValues<'a> {
         let value =
             unsafe { (self.decode_residual_callback)(self.callback_context, &raw const self.cache.reader.payloads) };
         if let Some(existing) = self.cache.cached_residual() {
-            value.release_handles(self.cache.release_calc_handle, self.cache.release_anchor_name_handle);
+            value.release_handles(self.cache.release_anchor_name_handle);
             existing
         } else {
             self.cache.cache_residual(value);
@@ -894,7 +874,7 @@ impl<'a> StyleValues<'a> {
             SizeField::TextIndent => {
                 decode_length_percentage(&self.cache.reader.inherited_text_facts().text_indent.length_percentage)
             }
-            SizeField::ColumnWidth => unreachable!(),
+            SizeField::ColumnWidth => decode_computed_size(&self.cache.reader.box_values().column_width),
         }
     }
 
@@ -936,7 +916,6 @@ impl<'a> StyleValues<'a> {
                 let value = self.anchor_inset_size_value(field);
                 self.cache.cache_size(field, value)
             }
-            SizeField::ColumnWidth => self.residual().column_width,
             _ => {
                 let value = self.direct_size(field);
                 self.cache.cache_size(field, value)
@@ -1031,11 +1010,11 @@ impl<'a> StyleValues<'a> {
     }
 
     pub(crate) fn has_column_count(self) -> bool {
-        self.residual().column_count_has_value
+        self.cache.reader.box_values().column_count_has_value
     }
 
     pub(crate) fn column_count(self) -> i32 {
-        self.residual().column_count
+        self.cache.reader.box_values().column_count
     }
 
     pub(crate) fn has_size_containment(self) -> bool {

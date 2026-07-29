@@ -192,8 +192,6 @@ static constexpr Array misc_reset_group_properties {
     PropertyID::Appearance,
     PropertyID::OutlineStyle,
     PropertyID::ObjectFit,
-    PropertyID::ColumnCount,
-    PropertyID::ColumnWidth,
     PropertyID::ColumnHeight,
     PropertyID::OutlineColor,
     PropertyID::OutlineOffset,
@@ -496,8 +494,6 @@ static void register_style_group_field_descriptors()
     add(misc_reset, PropertyID::Appearance, offsetof(MiscReset, computed_appearance), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_appearance>());
     add(misc_reset, PropertyID::OutlineStyle, offsetof(MiscReset, outline_style), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_outline_style>());
     add(misc_reset, PropertyID::ObjectFit, offsetof(MiscReset, object_fit), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_object_fit>());
-    add(misc_reset, PropertyID::ColumnCount, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Auto), nullptr);
-    add(misc_reset, PropertyID::ColumnWidth, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Auto), nullptr);
     add(misc_reset, PropertyID::ColumnHeight, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Auto), nullptr);
     add(misc_reset, PropertyID::OutlineColor, offsetof(MiscReset, outline_color), GROUP_FIELD_COLOR_OR_KEYWORD, to_underlying(Keyword::Auto), nullptr);
     add(misc_reset, PropertyID::OutlineOffset, 0, GROUP_FIELD_REQUIRE_PX, 0, nullptr, 0);
@@ -1028,6 +1024,9 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     auto containment = computed_style.contain();
     auto container_type = computed_style.container_type();
     auto z_index = computed_style.z_index();
+    Optional<int> column_count;
+    if (auto const& column_count_value = computed_style.property(PropertyID::ColumnCount); column_count_value.to_keyword() != Keyword::Auto)
+        column_count = int_from_style_value(NonnullRefPtr<StyleValue const> { column_count_value });
     auto const grid_auto_flow = computed_style.grid_auto_flow();
     ComputedValuesFFI::BoxValues box_group_values {
         .display = to_ffi_display(computed_style.display()),
@@ -1044,6 +1043,9 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
         .table_layout = static_cast<u8>(to_underlying(computed_style.table_layout())),
         .grid_auto_flow_row = grid_auto_flow.row,
         .grid_auto_flow_dense = grid_auto_flow.dense,
+        .column_width = to_ffi_computed_size(computed_style.size_value(PropertyID::ColumnWidth)),
+        .column_count_has_value = column_count.has_value(),
+        .column_count = column_count.value_or(0),
         .has_z_index = z_index.has_value(),
         .z_index = z_index.value_or(0),
         .vertical_align = to_ffi_vertical_align(computed_style.vertical_align()),
@@ -2233,14 +2235,9 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     if (!inherited_svg_adopted)
         computed_values.set_dominant_baseline(computed_style.dominant_baseline());
 
-    if (auto const& column_count = computed_style.property(CSS::PropertyID::ColumnCount); !misc_reset_adopted && column_count.to_keyword() != Keyword::Auto)
-        computed_values.set_column_count(CSS::ColumnCount::make_integer(int_from_style_value(NonnullRefPtr<StyleValue const> { column_count })));
-
     if (!misc_reset_adopted)
         computed_values.set_column_span(computed_style.column_span());
 
-    if (!misc_reset_adopted)
-        computed_values.set_column_width(computed_style.size_value(CSS::PropertyID::ColumnWidth));
     if (!misc_reset_adopted)
         computed_values.set_column_height(computed_style.size_value(CSS::PropertyID::ColumnHeight));
 
