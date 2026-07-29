@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    div {
+        width: 100px;
+        height: 60px;
+        border: 10px solid red;
+    }
+
+    .last-edge-dashed {
+        border-left-style: dashed;
+    }
+
+    .first-edge-dashed {
+        border-top-style: dashed;
+    }
+</style>
+<div class="last-edge-dashed"></div>
+<div class="first-edge-dashed"></div>
+<script>
+    test(() => {
+        println(internals.dumpDisplayList());
+    });
+</script>

@@ -379,6 +379,7 @@ void paint_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect
     }
 
     if (gfx_line_style != Gfx::LineStyle::Solid) {
+        flush_queued_edges();
         paint_patterned_border(painter, edge, rect, radius, opposite_radius, borders_data, color, gfx_line_style);
         return;
     }
