@@ -3493,8 +3493,14 @@ static GC::Ref<WebIDL::Promise> scroll_an_element_into_view(Element& target, Bin
         //         are considered, so move the target to where this scroll is going to leave it. The viewport is always
         //         the outermost scrolling box, so its own scroll cannot affect a later iteration.
         if (!scrolling_box.is_document()) {
-            if (auto paintable_box = scrolling_box.paintable_box())
+            if (auto paintable_box = scrolling_box.paintable_box()) {
                 target_bounding_border_box.translate_by(paintable_box->scroll_offset() - paintable_box->clamp_scroll_offset(position));
+
+                auto scrollport_rect = paintable_box->transform_rect_to_viewport(paintable_box->absolute_padding_box_rect(), Painting::AccumulatedVisualContextTree::IncludeVisualViewportTransform::No);
+                auto visible_rect = target_bounding_border_box.intersected(scrollport_rect);
+                if (!visible_rect.is_empty())
+                    target_bounding_border_box = visible_rect;
+            }
         }
 
         // 3. If position is not the same as scrolling box’s current scroll position, or scrolling box has an ongoing
