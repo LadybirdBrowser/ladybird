@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<div id="scroller" tabindex="0" style="width: 100px; height: 100px; overflow: scroll">
+    <div style="height: 2000px"></div>
+</div>
+<div style="width: 200vw; height: 1000vh"></div>
+<script>
+    promiseTest(async () => {
+        const scroller = document.getElementById("scroller");
+
+        const scrolled = scrollendEvent(document);
+        window.scrollTo(100, 0);
+        await scrolled;
+
+        // A key that jumps fires one scroll event. A key that animates fires one per frame.
+        const scrollEventsUntilScrollend = async (target, key) => {
+            let scrollEventCount = 0;
+            const countScrollEvent = () => ++scrollEventCount;
+            target.addEventListener("scroll", countScrollEvent);
+            const finished = scrollendEvent(target);
+            internals.sendKey(target === document ? document.body : target, key);
+            await finished;
+            target.removeEventListener("scroll", countScrollEvent);
+            return scrollEventCount;
+        };
+
+        const viewportEndEvents = await scrollEventsUntilScrollend(document, "End");
+        const viewportEnd = document.documentElement.scrollHeight - window.innerHeight;
+        println(`End animated the viewport to its end: ${viewportEndEvents > 1 && window.scrollY === viewportEnd}`);
+
+        const viewportHomeEvents = await scrollEventsUntilScrollend(document, "Home");
+        println(`Home animated the viewport to its start: ${viewportHomeEvents > 1 && window.scrollY === 0}`);
+        println(`Home kept the viewport's horizontal offset: ${window.scrollX === 100}`);
+
+        const scrollerEndEvents = await scrollEventsUntilScrollend(scroller, "End");
+        const scrollerEnd = scroller.scrollHeight - scroller.clientHeight;
+        println(`End animated the scroll container to its end: ${scrollerEndEvents > 1 && scroller.scrollTop === scrollerEnd}`);
+    });
+</script>

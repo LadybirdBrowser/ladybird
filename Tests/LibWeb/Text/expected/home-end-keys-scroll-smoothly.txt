@@ -1,0 +1,4 @@
+End animated the viewport to its end: true
+Home animated the viewport to its start: true
+Home kept the viewport's horizontal offset: true
+End animated the scroll container to its end: true

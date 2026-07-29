@@ -43,6 +43,7 @@ public:
         Web::CSSPixelPoint relative_scroll_delta;
         Compositing::SnapDestination selection;
         Compositing::ScrollAnimationKind animation_kind { Compositing::ScrollAnimationKind::SmoothScroll };
+        bool is_absolute_scroll { false };
     };
 
     // A step that selected the snap position the scrolling box already rests at, or is already scrolling to, is

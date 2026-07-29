@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/GenericShorthands.h>
 #include <AK/OwnPtr.h>
 #include <LibGfx/Point.h>
 #include <LibIPC/Forward.h>
@@ -50,12 +51,15 @@ inline bool is_keyboard_scroll_key(Web::UIEvents::KeyCode key, u32 modifiers)
     switch (key) {
     case Web::UIEvents::KeyCode::Key_Space:
         return (modifiers & ~(Web::UIEvents::Mod_Shift | Web::UIEvents::Mod_Keypad)) == Web::UIEvents::Mod_None;
-    case Web::UIEvents::KeyCode::Key_PageUp:
-    case Web::UIEvents::KeyCode::Key_PageDown:
     case Web::UIEvents::KeyCode::Key_Up:
     case Web::UIEvents::KeyCode::Key_Down:
+        return first_is_one_of(modifiers & ~Web::UIEvents::Mod_Keypad, Web::UIEvents::Mod_None, Web::UIEvents::Mod_PlatformCtrl);
+    case Web::UIEvents::KeyCode::Key_PageUp:
+    case Web::UIEvents::KeyCode::Key_PageDown:
     case Web::UIEvents::KeyCode::Key_Left:
     case Web::UIEvents::KeyCode::Key_Right:
+    case Web::UIEvents::KeyCode::Key_Home:
+    case Web::UIEvents::KeyCode::Key_End:
         return (modifiers & ~Web::UIEvents::Mod_Keypad) == Web::UIEvents::Mod_None;
     default:
         return false;

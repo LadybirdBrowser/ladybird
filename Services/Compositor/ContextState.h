@@ -289,7 +289,7 @@ private:
     ContextUpdateResult scroll_for_wheel_event(Web::MouseEvent const&, MonotonicTime now);
     Web::MouseEvent scroll_fling_event(Gfx::FloatPoint delta, Web::ScrollGesturePhase) const;
     void retarget_user_scroll(ActiveSmoothScrollAnimation&, Gfx::FloatPoint destination_offset, MonotonicTime now);
-    void report_started_user_scroll(Compositing::AsyncScrollOperationID, Web::AsyncScrollNodeStableID, Gfx::FloatPoint step_start_offset, Gfx::FloatPoint destination_offset, Compositing::ScrollAnimationKind);
+    void report_started_user_scroll(Compositing::AsyncScrollOperationID, Web::AsyncScrollNodeStableID, Gfx::FloatPoint step_start_offset, Gfx::FloatPoint destination_offset, Compositing::ScrollAnimationKind, bool is_absolute_scroll = false);
     void note_user_scroll_gesture_end_if_drag_ended(bool was_dragging_scrollbar);
     bool user_scroll_gesture_in_progress() const;
     void schedule_end_of_scroll_step_gestures(MonotonicTime now);

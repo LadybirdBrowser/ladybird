@@ -21,6 +21,19 @@
         height: 2000px;
     }
 
+    #snap-scroller {
+        width: 200px;
+        height: 200px;
+        overflow-y: scroll;
+        container-type: scroll-state;
+        scroll-snap-type: y mandatory;
+    }
+
+    .snap-area {
+        height: 200px;
+        scroll-snap-align: start;
+    }
+
     .target {
         --scrolled: none;
         @container scroll-state(scrolled: top) {
@@ -32,6 +45,13 @@
     }
 </style>
 <div id="scroller" tabindex="0"><div id="filler"><div class="target" id="inner"></div></div></div>
+<div id="snap-scroller" tabindex="0">
+    <div class="snap-area"><div class="target" id="snap-inner"></div></div>
+    <div class="snap-area"></div>
+    <div class="snap-area"></div>
+    <div class="snap-area"></div>
+    <div class="snap-area"></div>
+</div>
 <div class="target" id="outer"></div>
 <script>
     promiseTest(async () => {
@@ -61,7 +81,14 @@
         await step("Scroller after Up and End", scroller, scroller, inner, ["Up", "End"]);
         await step("Scroller after Home, Down and Home", scroller, scroller, inner, ["Home", "Down", "Home"]);
 
-        scroller.blur();
+        const snapScroller = document.getElementById("snap-scroller");
+        const snapInner = document.getElementById("snap-inner");
+        snapScroller.focus();
+        await step("Snap scroller after End", snapScroller, snapScroller, snapInner, ["End"]);
+        await step("Snap scroller after Up and End", snapScroller, snapScroller, snapInner, ["Up", "End"]);
+        await step("Snap scroller after Home, Down and Home", snapScroller, snapScroller, snapInner, ["Home", "Down", "Home"]);
+
+        snapScroller.blur();
         const root = document.documentElement;
         await step("Viewport after End", document.body, root, outer, ["End"]);
         await step("Viewport after Up and End", document.body, root, outer, ["Up", "End"]);

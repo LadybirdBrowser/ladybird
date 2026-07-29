@@ -399,16 +399,25 @@ ContextState::ContextUpdateResult ContextState::handle_key_event(Web::KeyEvent c
     if (visual_viewport_scale_for_compositing().value_or(1.0f) != 1.0f)
         return {};
 
-    bool is_arrow = first_is_one_of(event.key, Web::UIEvents::Key_Up, Web::UIEvents::Key_Down, Web::UIEvents::Key_Left, Web::UIEvents::Key_Right);
-    auto distance = is_arrow ? m_keyboard_scroll_state.arrow_scroll_distance : m_keyboard_scroll_state.page_scroll_distance;
-    if (!isfinite(distance) || distance <= 0)
-        return {};
-    if (event.key == Web::UIEvents::KeyCode::Key_PageUp
-        || event.key == Web::UIEvents::KeyCode::Key_Up || event.key == Web::UIEvents::KeyCode::Key_Left
-        || (event.key == Web::UIEvents::KeyCode::Key_Space && (event.modifiers & Web::UIEvents::Mod_Shift)))
-        distance = -distance;
-    bool is_horizontal = first_is_one_of(event.key, Web::UIEvents::Key_Left, Web::UIEvents::Key_Right);
-    auto delta = is_horizontal ? Gfx::FloatPoint { distance, 0 } : Gfx::FloatPoint { 0, distance };
+    auto modifiers_without_keypad = static_cast<u32>(event.modifiers) & ~Web::UIEvents::Mod_Keypad;
+    bool scrolls_to_start = event.key == Web::UIEvents::Key_Home || (event.key == Web::UIEvents::Key_Up && modifiers_without_keypad == Web::UIEvents::Mod_PlatformCtrl);
+    bool scrolls_to_end = event.key == Web::UIEvents::Key_End || (event.key == Web::UIEvents::Key_Down && modifiers_without_keypad == Web::UIEvents::Mod_PlatformCtrl);
+    bool scrolls_to_extent = scrolls_to_start || scrolls_to_end;
+    bool is_arrow = !scrolls_to_extent && first_is_one_of(event.key, Web::UIEvents::Key_Up, Web::UIEvents::Key_Down, Web::UIEvents::Key_Left, Web::UIEvents::Key_Right);
+    Gfx::FloatPoint delta;
+    if (scrolls_to_extent) {
+        delta = m_async_scroll_tree.device_offset_from_css_pixels({ 0, scrolls_to_start ? -Web::CSSPixels::max() : Web::CSSPixels::max() });
+    } else {
+        auto distance = is_arrow ? m_keyboard_scroll_state.arrow_scroll_distance : m_keyboard_scroll_state.page_scroll_distance;
+        if (!isfinite(distance) || distance <= 0)
+            return {};
+        if (event.key == Web::UIEvents::KeyCode::Key_PageUp
+            || event.key == Web::UIEvents::KeyCode::Key_Up || event.key == Web::UIEvents::KeyCode::Key_Left
+            || (event.key == Web::UIEvents::KeyCode::Key_Space && (event.modifiers & Web::UIEvents::Mod_Shift)))
+            distance = -distance;
+        bool is_horizontal = first_is_one_of(event.key, Web::UIEvents::Key_Left, Web::UIEvents::Key_Right);
+        delta = is_horizontal ? Gfx::FloatPoint { distance, 0 } : Gfx::FloatPoint { 0, distance };
+    }
     auto now = MonotonicTime::now();
     auto scroll_state_at_step_starts = scroll_state_snapshot_at_keyboard_step_starts();
     auto target = m_async_scroll_tree.scroll_node_for_keyboard_scroll(*m_keyboard_scroll_state.target, delta, scroll_state_at_step_starts);
@@ -429,10 +438,15 @@ ContextState::ContextUpdateResult ContextState::handle_key_event(Web::KeyEvent c
             scroll_in_flight_destination = running_animation.animation.destination_offset();
     }
     auto css_scroll_in_flight_destination = scroll_in_flight_destination.map([&](auto offset) { return m_async_scroll_tree.css_pixels_from_device_offset(offset); });
-    auto snap_selection_intent = is_arrow ? Compositing::SnapSelectionStrategy::Type::Direction : Compositing::SnapSelectionStrategy::Type::EndPositionAndDirection;
+    auto snap_selection_intent = Compositing::SnapSelectionStrategy::Type::EndPositionAndDirection;
+    if (scrolls_to_extent)
+        snap_selection_intent = Compositing::SnapSelectionStrategy::Type::EndPosition;
+    else if (is_arrow)
+        snap_selection_intent = Compositing::SnapSelectionStrategy::Type::Direction;
     if (auto decision = m_scroll_snap_controller.decide_key_step(m_async_scroll_tree, m_scroll_state_snapshot, *target, m_async_scroll_tree.css_pixels_from_device_offset(delta), snap_selection_intent, css_scroll_in_flight_destination, now); decision.has_value()) {
         schedule_end_of_scroll_step_gestures(now);
         if (auto* snap_scroll = decision->get_pointer<ScrollSnapController::SnapScrollStart>()) {
+            snap_scroll->is_absolute_scroll = scrolls_to_extent;
             start_snap_scroll(*target, move(*snap_scroll), false, now);
             return {
                 .accepted = true,
@@ -440,8 +454,10 @@ ContextState::ContextUpdateResult ContextState::handle_key_event(Web::KeyEvent c
                 .should_request_rendering_update = true,
             };
         }
-        if (auto& updated_scroll = decision->get<ScrollSnapController::StepConsumed>().updated_scroll; updated_scroll.has_value())
+        if (auto& updated_scroll = decision->get<ScrollSnapController::StepConsumed>().updated_scroll; updated_scroll.has_value()) {
+            updated_scroll->is_absolute_scroll = scrolls_to_extent;
             m_started_user_scrolls.append(updated_scroll.release_value());
+        }
         return { .accepted = true, .frame_to_present = {}, .should_request_rendering_update = true };
     }
 
@@ -457,7 +473,7 @@ ContextState::ContextUpdateResult ContextState::handle_key_event(Web::KeyEvent c
         if (animation.stable_node_id != stable_node_id || !animation.is_user_scroll || animation.animation.kind() != Compositing::ScrollAnimationKind::SmoothScroll)
             continue;
         retarget_user_scroll(animation, destination, now);
-        report_started_user_scroll(animation.operation_id, stable_node_id, step_start, destination, Compositing::ScrollAnimationKind::SmoothScroll);
+        report_started_user_scroll(animation.operation_id, stable_node_id, step_start, destination, Compositing::ScrollAnimationKind::SmoothScroll, scrolls_to_extent);
         return {
             .accepted = true,
             .frame_to_present = PendingFrame::repainting_changes(m_async_scrolling_viewport_rect),
@@ -474,7 +490,7 @@ ContextState::ContextUpdateResult ContextState::handle_key_event(Web::KeyEvent c
         .started_at = now,
         .is_user_scroll = true,
     });
-    report_started_user_scroll(operation_id, stable_node_id, step_start, destination, Compositing::ScrollAnimationKind::SmoothScroll);
+    report_started_user_scroll(operation_id, stable_node_id, step_start, destination, Compositing::ScrollAnimationKind::SmoothScroll, scrolls_to_extent);
     return {
         .accepted = true,
         .frame_to_present = PendingFrame::repainting_changes(m_async_scrolling_viewport_rect),
@@ -695,6 +711,7 @@ Compositing::AsyncScrollOperationID ContextState::start_snap_scroll(Compositing:
         .relative_scroll_delta = snap_scroll.relative_scroll_delta,
         .selection = move(snap_scroll.selection),
         .settles_gesture = settles_gesture,
+        .is_absolute_scroll = snap_scroll.is_absolute_scroll,
         .animation_kind = snap_scroll.animation_kind,
     });
     return operation_id;
@@ -1827,7 +1844,7 @@ Optional<Web::AsyncScrollNodeStableID> ContextState::latched_wheel_scroller_for_
     return m_wheel_scroll_latch->stable_node_id;
 }
 
-void ContextState::report_started_user_scroll(Compositing::AsyncScrollOperationID operation_id, Web::AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint step_start_offset, Gfx::FloatPoint destination_offset, Compositing::ScrollAnimationKind animation_kind)
+void ContextState::report_started_user_scroll(Compositing::AsyncScrollOperationID operation_id, Web::AsyncScrollNodeStableID stable_node_id, Gfx::FloatPoint step_start_offset, Gfx::FloatPoint destination_offset, Compositing::ScrollAnimationKind animation_kind, bool is_absolute_scroll)
 {
     auto node_id = m_async_scroll_tree.scroll_node_id_for_stable_id(stable_node_id);
     VERIFY(node_id.has_value());
@@ -1842,6 +1859,7 @@ void ContextState::report_started_user_scroll(Compositing::AsyncScrollOperationI
         .relative_scroll_delta = destination - m_async_scroll_tree.css_pixels_from_device_offset(step_start_offset),
         .selection = { .position = destination },
         .settles_gesture = false,
+        .is_absolute_scroll = is_absolute_scroll,
         .animation_kind = animation_kind,
     });
 }

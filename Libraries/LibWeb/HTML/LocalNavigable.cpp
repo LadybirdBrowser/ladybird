@@ -6011,7 +6011,7 @@ void LocalNavigable::adopt_started_user_scroll(DOM::Document& document, Composit
 
     // A key step or a momentum snap scroll goes the way the user scrolled, while the snap a gesture settles with goes
     // wherever the nearest snap position is.
-    if (!started_user_scroll.settles_gesture)
+    if (!started_user_scroll.settles_gesture && !started_user_scroll.is_absolute_scroll)
         record_relative_scroll(document, stable_node_id, started_user_scroll.relative_scroll_delta);
 
     auto target = scroll_event_target_for_async_scroll_node(document, stable_node_id);
@@ -7448,7 +7448,7 @@ bool LocalNavigable::perform_a_scroll_step_for_key_input(Layout::Node& scroll_co
     return true;
 }
 
-bool LocalNavigable::perform_a_snapped_relative_user_scroll(Layout::Node& scroll_container, CSSPixelPoint delta, Compositing::SnapSelectionStrategy::Type strategy_type, SnapStepAccumulation step_accumulation, Compositing::ScrollAnimationKind animation_kind)
+bool LocalNavigable::perform_a_snapped_relative_user_scroll(Layout::Node& scroll_container, CSSPixelPoint delta, Compositing::SnapSelectionStrategy::Type strategy_type, SnapStepAccumulation step_accumulation, Compositing::ScrollAnimationKind animation_kind, Painting::ScrollKind scroll_kind)
 {
     auto document = active_document();
     if (!document)
@@ -7516,7 +7516,7 @@ bool LocalNavigable::perform_a_snapped_relative_user_scroll(Layout::Node& scroll
         return true;
 
     TemporaryExecutionContext temporary_execution_context { HTML::relevant_realm(*document) };
-    perform_a_scroll_of_a_scrolling_box(*stable_node_id, snap_destination.position, Bindings::ScrollBehavior::Smooth, nullptr, ScrollTrigger::UserInput, {}, DestinationSnapping::SelectSnapPosition, animation_kind, Painting::ScrollKind::Relative);
+    perform_a_scroll_of_a_scrolling_box(*stable_node_id, snap_destination.position, Bindings::ScrollBehavior::Smooth, nullptr, ScrollTrigger::UserInput, {}, DestinationSnapping::SelectSnapPosition, animation_kind, scroll_kind);
     return true;
 }
 
@@ -7575,6 +7575,39 @@ bool LocalNavigable::continued_scroll_step_moves(Layout::Node& scrolling_box, CS
         }
     }
     return Painting::clamp_scroll_offset(scrolling_box, step_start + delta) != step_start;
+}
+
+bool LocalNavigable::scroll_scrolling_box_by_delta(Layout::Node& scrolling_box, CSSPixelPoint delta, Painting::ScrollKind scroll_kind)
+{
+    auto document = active_document();
+    if (!document)
+        return false;
+
+    if (scrolling_box.is_viewport())
+        return false;
+
+    auto scrollable_axes = Painting::wheel_scrollable_axes(scrolling_box);
+    if (!scrollable_axes.horizontal)
+        delta.set_x(0);
+    if (!scrollable_axes.vertical)
+        delta.set_y(0);
+    if (delta.is_zero())
+        return false;
+
+    auto stable_node_id = Painting::async_scroll_node_stable_id(scrolling_box);
+    if (!stable_node_id.has_value())
+        return false;
+
+    auto start_offset = in_flight_user_scroll_destination(*stable_node_id, Compositing::ScrollAnimationKind::SmoothScroll).value_or(Painting::scroll_offset(scrolling_box));
+    auto position = Painting::clamp_scroll_offset(scrolling_box, start_offset + delta);
+    if (position == start_offset) {
+        defer_user_scroll_settlement();
+        return false;
+    }
+
+    TemporaryExecutionContext temporary_execution_context { HTML::relevant_realm(*document) };
+    perform_a_scroll_of_a_scrolling_box(*stable_node_id, position, Bindings::ScrollBehavior::Smooth, {}, ScrollTrigger::UserInput, {}, DestinationSnapping::SelectSnapPosition, Compositing::ScrollAnimationKind::SmoothScroll, scroll_kind);
+    return true;
 }
 
 GC::Ref<WebIDL::Promise> LocalNavigable::scroll_viewport_by_delta(CSSPixelPoint delta, Bindings::ScrollBehavior behavior, Painting::ScrollKind scroll_kind)

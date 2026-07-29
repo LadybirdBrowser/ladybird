@@ -897,6 +897,15 @@ static Layout::Node* scrolling_box_for_continued_scroll_step(HTML::LocalNavigabl
     return nullptr;
 }
 
+static Layout::Node* scroll_containing_block_chain_smoothly(HTML::LocalNavigable& navigable, Layout::Node& node, CSSPixelPoint delta, Painting::ScrollKind scroll_kind)
+{
+    for (auto* scrolling_box = &node; scrolling_box; scrolling_box = scrolling_box->containing_block()) {
+        if (navigable.scroll_scrolling_box_by_delta(*scrolling_box, delta, scroll_kind))
+            return scrolling_box;
+    }
+    return nullptr;
+}
+
 EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers, double wheel_delta_x, double wheel_delta_y, Web::WheelDeltaPrecision wheel_delta_precision, Web::ScrollGesturePhase scroll_gesture_phase, bool async_scroll_performed_default_action, Optional<AsyncScrollOperation>* async_scroll_operation, Optional<RemoteInputEventTarget>* remote_target)
 {
     record_last_known_mouse_position(visual_viewport_position, screen_position, buttons, modifiers);
@@ -1835,18 +1844,16 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
             m_scroll_key_gesture_hold = make<HTML::UserScrollGestureHold>(*m_navigable);
         m_navigable->note_user_scroll_input_intent(intent);
     };
-    auto scroll_container_of_scroll_target_by = [&](double delta_x, double delta_y, Painting::ScrollKind scroll_kind) -> bool {
+    auto scroll_container_of_scroll_target_by = [&](CSSPixelPoint delta, Painting::ScrollKind scroll_kind) -> bool {
         auto scroll_target = scroll_target_for_key_input();
         if (!scroll_target)
             return false;
         Layout::ForcedReadScope read { *document };
         document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleKeyDown);
         auto* scroll_target_layout_node = scroll_target->layout_node(read);
-        return scroll_target_layout_node
-            && Painting::wheel_scroll_along_containing_block_chain(*scroll_target_layout_node, delta_x, delta_y, scroll_kind) != nullptr;
+        return scroll_target_layout_node && scroll_containing_block_chain_smoothly(*m_navigable, *scroll_target_layout_node, delta, scroll_kind);
     };
-    auto perform_scroll_step_for_key_input = [&](CSSPixelPoint delta, Compositing::SnapSelectionStrategy::Type strategy_type) {
-        Layout::ForcedReadScope read { *document };
+    auto scrolling_box_for_key_input = [&](Layout::BegunRead const& read, CSSPixelPoint delta) -> Layout::Node* {
         document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleKeyDown);
         Layout::Node* target = nullptr;
         if (auto scroll_target = scroll_target_for_key_input())
@@ -1854,11 +1861,22 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         if (!target)
             target = document->layout_node(read);
         if (!target)
-            return false;
-        auto* scrolling_box = scrolling_box_for_continued_scroll_step(*m_navigable, *target, delta, Compositing::ScrollAnimationKind::SmoothScroll);
+            return nullptr;
+        return scrolling_box_for_continued_scroll_step(*m_navigable, *target, delta, Compositing::ScrollAnimationKind::SmoothScroll);
+    };
+    auto perform_scroll_step_for_key_input = [&](CSSPixelPoint delta, Compositing::SnapSelectionStrategy::Type strategy_type) {
+        Layout::ForcedReadScope read { *document };
+        auto* scrolling_box = scrolling_box_for_key_input(read, delta);
         if (!scrolling_box)
             return false;
         return m_navigable->perform_a_scroll_step_for_key_input(*scrolling_box, delta, strategy_type);
+    };
+    auto perform_snapped_scroll_to_extent_for_key_input = [&](CSSPixelPoint delta) {
+        Layout::ForcedReadScope read { *document };
+        auto* scrolling_box = scrolling_box_for_key_input(read, delta);
+        if (!scrolling_box)
+            return false;
+        return m_navigable->perform_a_snapped_relative_user_scroll(*scrolling_box, delta, Compositing::SnapSelectionStrategy::Type::EndPosition, HTML::LocalNavigable::SnapStepAccumulation::UntilScrollFinishes, Compositing::ScrollAnimationKind::SmoothScroll, Painting::ScrollKind::Absolute);
     };
     auto scroll_by_for_key_input = [&](CSSPixels delta_x, CSSPixels delta_y, Compositing::SnapSelectionStrategy::Type intent) {
         hold_scroll_gesture_until_key_release(intent);
@@ -1870,15 +1888,19 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         hold_scroll_gesture_until_key_release(Compositing::SnapSelectionStrategy::Type::EndPosition);
         // https://drafts.csswg.org/css-scroll-snap-1/#scroll-types
         // Scrolling to the beginning or end is an absolute scroll.
-        if (scroll_container_of_scroll_target_by(0, -CSSPixels::max().to_double(), Painting::ScrollKind::Absolute))
+        if (perform_snapped_scroll_to_extent_for_key_input({ 0, -CSSPixels::max() }))
             return;
-        m_navigable->perform_a_scroll_of_the_viewport({ 0, 0 }, Bindings::ScrollBehavior::Auto, HTML::LocalNavigable::ScrollTrigger::UserInput);
+        if (scroll_container_of_scroll_target_by({ 0, -CSSPixels::max() }, Painting::ScrollKind::Absolute))
+            return;
+        m_navigable->scroll_viewport_by_delta({ 0, -CSSPixels::max() }, Bindings::ScrollBehavior::Smooth, Painting::ScrollKind::Absolute);
     };
     auto scroll_to_the_end_for_key_input = [&] {
         hold_scroll_gesture_until_key_release(Compositing::SnapSelectionStrategy::Type::EndPosition);
-        if (scroll_container_of_scroll_target_by(0, CSSPixels::max().to_double(), Painting::ScrollKind::Absolute))
+        if (perform_snapped_scroll_to_extent_for_key_input({ 0, CSSPixels::max() }))
             return;
-        m_navigable->scroll_viewport_by_delta({ 0, CSSPixels::max() }, Bindings::ScrollBehavior::Auto, Painting::ScrollKind::Absolute);
+        if (scroll_container_of_scroll_target_by({ 0, CSSPixels::max() }, Painting::ScrollKind::Absolute))
+            return;
+        m_navigable->scroll_viewport_by_delta({ 0, CSSPixels::max() }, Bindings::ScrollBehavior::Smooth, Painting::ScrollKind::Absolute);
     };
     auto const modifiers_without_keypad = modifiers & ~UIEvents::Mod_Keypad;
     switch (key) {

@@ -60,6 +60,7 @@ struct StartedUserScroll {
     Web::CSSPixelPoint relative_scroll_delta;
     SnapDestination selection;
     bool settles_gesture { false };
+    bool is_absolute_scroll { false };
     Optional<ScrollAnimationKind> animation_kind;
 };
 
