@@ -49,6 +49,7 @@ static constexpr bool style_group_payload_is_rust_native(ComputedValuesFFI::Styl
     case ComputedValuesFFI::StyleGroupLifecycle::Cpp:
     case ComputedValuesFFI::StyleGroupLifecycle::CppWithBorderFacts:
     case ComputedValuesFFI::StyleGroupLifecycle::CppWithInheritedTextFacts:
+    case ComputedValuesFFI::StyleGroupLifecycle::CppWithFontFacts:
         return false;
     case ComputedValuesFFI::StyleGroupLifecycle::InheritedTable:
     case ComputedValuesFFI::StyleGroupLifecycle::InheritedBox:
@@ -737,6 +738,19 @@ static_assert(offsetof(ComputedValues::InheritedTextValues, tab_size_number) == 
 static_assert(offsetof(ComputedValues::InheritedTextValues, text_indent) == offsetof(ComputedValuesFFI::InheritedTextLayoutFacts, text_indent));
 static_assert(sizeof(ComputedValuesFFI::InheritedTextLayoutFacts) <= offsetof(ComputedValues::InheritedTextValues, color));
 
+// The font group keeps its C++ lifecycle, but its leading members double as
+// the Rust FontLayoutFacts prefix that layout reads as typed fields.
+static_assert(sizeof(RefPtr<Gfx::FontCascadeList const>) == sizeof(void const*));
+static_assert(offsetof(ComputedValues::FontValues, font_size) == offsetof(ComputedValuesFFI::FontLayoutFacts, font_size));
+static_assert(offsetof(ComputedValues::FontValues, line_height_used) == offsetof(ComputedValuesFFI::FontLayoutFacts, line_height_used));
+static_assert(offsetof(ComputedValues::FontValues, font_variant_emoji) == offsetof(ComputedValuesFFI::FontLayoutFacts, font_variant_emoji));
+static_assert(offsetof(ComputedValues::FontValues, font_ascent) == offsetof(ComputedValuesFFI::FontLayoutFacts, font_ascent));
+static_assert(offsetof(ComputedValues::FontValues, font_descent) == offsetof(ComputedValuesFFI::FontLayoutFacts, font_descent));
+static_assert(offsetof(ComputedValues::FontValues, font_x_height) == offsetof(ComputedValuesFFI::FontLayoutFacts, font_x_height));
+static_assert(offsetof(ComputedValues::FontValues, first_available_font) == offsetof(ComputedValuesFFI::FontLayoutFacts, first_available_font));
+static_assert(offsetof(ComputedValues::FontValues, font_list) == offsetof(ComputedValuesFFI::FontLayoutFacts, font_cascade_list));
+static_assert(sizeof(ComputedValuesFFI::FontLayoutFacts) <= offsetof(ComputedValues::FontValues, font_families));
+
 void const* style_group_default_payload(size_t group_index)
 {
     static auto const default_payloads = [] {
@@ -1206,7 +1220,7 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     computed_values.set_font_style({ font_style.font_style(), move(font_style_angle) });
     computed_values.set_font_optical_sizing(computed_style.font_optical_sizing());
     computed_values.set_font_feature_data(computed_style.font_feature_data());
-    computed_values.set_line_height(computed_style.line_height_data(document.font_computer()));
+    computed_values.set_line_height(computed_style.line_height_data(), computed_style.line_height(document.font_computer()));
     computed_values.set_font_variant_emoji(computed_style.font_variant_emoji());
 
     Array<ComputedValuesFFI::FfiGroupValueEntry, animation_group_properties.size()> animation_group_values;

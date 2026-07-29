@@ -207,6 +207,23 @@ pub struct InheritedTextLayoutFacts {
     pub text_indent: ComputedTextIndent,
 }
 
+/// The layout-facing prefix of the C++-owned font style group, pinned by
+/// static asserts beside the C++ group definition. The metric fields and the
+/// first-available-font pointer are derived from the font cascade list when
+/// it is installed on the group; the pointers borrow objects the same
+/// payload keeps alive.
+#[repr(C)]
+pub struct FontLayoutFacts {
+    pub font_size: crate::css::css_pixels::CssPixels,
+    pub line_height_used: crate::css::css_pixels::CssPixels,
+    pub font_variant_emoji: u8,
+    pub font_ascent: f32,
+    pub font_descent: f32,
+    pub font_x_height: f32,
+    pub first_available_font: *const std::ffi::c_void,
+    pub font_cascade_list: *const std::ffi::c_void,
+}
+
 /// Layout of the non-inherited SVG geometry and painting properties.
 #[repr(C)]
 pub struct SVGResetValues {

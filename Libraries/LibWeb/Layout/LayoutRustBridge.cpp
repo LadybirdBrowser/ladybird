@@ -107,14 +107,11 @@ static constexpr size_t style_field_encoding_width(RustFFI::FfiStyleFieldEncodin
 
 static_assert(to_underlying(CSS::StyleGroupIndex::Count) == RustFFI::STYLE_GROUP_COUNT);
 
-#define LIBWEB_LAYOUT_DIRECT_STYLE_FIELDS(F)                                                                                                                                              \
-    F(FontVariantEmoji, CSS::ComputedValues::FontValues, font_variant_emoji, offsetof(CSS::ComputedValues::FontValues, font_variant_emoji), U8)                                           \
-    F(LineHeight, CSS::ComputedValues::FontValues, line_height.used_value, offsetof(CSS::ComputedValues::FontValues, line_height) + offsetof(CSS::LineHeightData, used_value), CssPixels) \
-    F(FontSize, CSS::ComputedValues::FontValues, font_size, offsetof(CSS::ComputedValues::FontValues, font_size), CssPixels)                                                              \
-    F(TextOverflow, CSS::ComputedValues::TextResetValues, text_overflow, offsetof(CSS::ComputedValues::TextResetValues, text_overflow), U8)                                               \
-    F(TableLayout, CSS::ComputedValues::MiscResetValues, table_layout, offsetof(CSS::ComputedValues::MiscResetValues, table_layout), U8)                                                  \
-    F(UnicodeBidi, CSS::ComputedValues::TextResetValues, unicode_bidi, offsetof(CSS::ComputedValues::TextResetValues, unicode_bidi), U8)                                                  \
-    F(GridAutoFlowRow, CSS::ComputedValues::GridValues, grid_auto_flow.row, offsetof(CSS::ComputedValues::GridValues, grid_auto_flow) + offsetof(CSS::GridAutoFlow, row), Bool)           \
+#define LIBWEB_LAYOUT_DIRECT_STYLE_FIELDS(F)                                                                                                                                    \
+    F(TextOverflow, CSS::ComputedValues::TextResetValues, text_overflow, offsetof(CSS::ComputedValues::TextResetValues, text_overflow), U8)                                     \
+    F(TableLayout, CSS::ComputedValues::MiscResetValues, table_layout, offsetof(CSS::ComputedValues::MiscResetValues, table_layout), U8)                                        \
+    F(UnicodeBidi, CSS::ComputedValues::TextResetValues, unicode_bidi, offsetof(CSS::ComputedValues::TextResetValues, unicode_bidi), U8)                                        \
+    F(GridAutoFlowRow, CSS::ComputedValues::GridValues, grid_auto_flow.row, offsetof(CSS::ComputedValues::GridValues, grid_auto_flow) + offsetof(CSS::GridAutoFlow, row), Bool) \
     F(GridAutoFlowDense, CSS::ComputedValues::GridValues, grid_auto_flow.dense, offsetof(CSS::ComputedValues::GridValues, grid_auto_flow) + offsetof(CSS::GridAutoFlow, dense), Bool)
 
 #define LIBWEB_PIN_DIRECT_STYLE_FIELD(field, group, member, offset, encoding)                                                           \
@@ -2079,16 +2076,6 @@ static RustFFI::FfiResidualStyleValues decode_residual_style(RustFFI::FfiStylePa
         ++s_outstanding_anchor_name_handles;
         result.position_anchor_retained_name = anchor.name->to_raw_leaked();
     }
-
-    auto const& font_values = group.operator()<CSS::ComputedValues::FontValues>();
-    VERIFY(font_values.font_list);
-    auto const& font = font_values.font_list->font_for_code_point(' ');
-    auto const& metrics = font.pixel_metrics();
-    result.first_available_font = &font;
-    result.font_cascade_list = font_values.font_list.ptr();
-    result.font_ascent = metrics.ascent;
-    result.font_descent = metrics.descent;
-    result.font_x_height = metrics.x_height;
 
     auto const& misc = group.operator()<CSS::ComputedValues::MiscResetValues>();
     result.column_width = build_style_size_value(misc.column_width);
