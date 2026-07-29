@@ -322,7 +322,7 @@ public:
     int math_depth() const;
     [[nodiscard]] static CSSPixels normal_line_height(Gfx::FontPixelMetrics const&);
     [[nodiscard]] CSSPixels line_height(FontComputer const&) const;
-    [[nodiscard]] LineHeightData line_height_data(FontComputer const&) const;
+    [[nodiscard]] LineHeightData line_height_data() const;
     [[nodiscard]] CSSPixels font_size() const;
     double font_weight() const;
     Percentage font_width() const;

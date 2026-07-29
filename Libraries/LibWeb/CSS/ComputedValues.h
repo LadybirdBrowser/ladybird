@@ -874,7 +874,6 @@ struct LineHeightData {
     };
 
     Variant<Normal, double, Length> computed_value { Normal {} };
-    CSSPixels used_value { InitialValues::line_height() };
 
     bool operator==(LineHeightData const&) const = default;
 };
@@ -1496,7 +1495,7 @@ public:
     FontFeatureData const& font_feature_data() const { return m_inherited.font->font_feature_data; }
     Optional<Utf16FlyString> font_language_override() const { return m_inherited.font->font_language_override; }
     HashMap<Utf16FlyString, double> font_variation_settings() const { return m_inherited.font->font_variation_settings; }
-    CSSPixels line_height() const { return m_inherited.font->line_height.used_value; }
+    CSSPixels line_height() const { return m_inherited.font->line_height_used; }
     LineHeightData const& line_height_data() const { return m_inherited.font->line_height; }
 
     Color outline_color() const { return m_noninherited.misc->outline_color; }
@@ -1686,9 +1685,23 @@ public:
 
     // NB: FontValues has no defaulted equality operator because HashMap does not
     //     support equality; the setters compare field-by-field instead.
+    //
+    // The group's payload lifecycle stays in C++, but the members up to and
+    // including font_list mirror the Rust FontLayoutFacts prefix, pinned by
+    // static asserts in ComputedValues.cpp, so layout reads them as typed
+    // fields. The metrics and first_available_font are derived copies that
+    // set_font_list keeps in sync with font_list; the derived pointers
+    // borrow objects font_list keeps alive.
     struct FontValues {
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::FontValues);
+        static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::CppWithFontFacts;
         CSSPixels font_size { InitialValues::font_size() };
+        CSSPixels line_height_used { InitialValues::line_height() };
+        FontVariantEmoji font_variant_emoji { InitialValues::font_variant_emoji() };
+        float font_ascent { 0 };
+        float font_descent { 0 };
+        float font_x_height { 0 };
+        Gfx::Font const* first_available_font { nullptr };
         RefPtr<Gfx::FontCascadeList const> font_list {};
         Vector<ComputedFontFamily> font_families { GenericFontFamily::Serif };
         double font_weight { InitialValues::font_weight() };
@@ -1699,7 +1712,6 @@ public:
         Optional<Utf16FlyString> font_language_override;
         HashMap<Utf16FlyString, double> font_variation_settings;
         LineHeightData line_height;
-        FontVariantEmoji font_variant_emoji { InitialValues::font_variant_emoji() };
         MathShift math_shift { InitialValues::math_shift() };
         MathStyle math_style { InitialValues::math_style() };
         int math_depth { InitialValues::math_depth() };
@@ -2230,7 +2242,14 @@ public:
         //     so pointer comparison would defeat sharing of the font group.
         if (m_values.m_inherited.font->font_list && m_values.m_inherited.font->font_list->equals(*font_list))
             return;
-        m_values.m_inherited.font.access().font_list = move(font_list);
+        auto& font = m_values.m_inherited.font.access();
+        auto const& first_available_font = font_list->font_for_code_point(' ');
+        auto const metrics = first_available_font.pixel_metrics();
+        font.first_available_font = &first_available_font;
+        font.font_ascent = metrics.ascent;
+        font.font_descent = metrics.descent;
+        font.font_x_height = metrics.x_height;
+        font.font_list = move(font_list);
     }
     void set_font_families(Vector<ComputedFontFamily> value)
     {
@@ -2297,11 +2316,14 @@ public:
             return;
         m_values.m_inherited.font.access().font_variation_settings = move(value);
     }
-    void set_line_height(LineHeightData line_height)
+    void set_line_height(LineHeightData line_height, CSSPixels used_value)
     {
-        if (m_values.m_inherited.font->line_height == line_height)
+        auto const& font = *m_values.m_inherited.font;
+        if (font.line_height == line_height && font.line_height_used == used_value)
             return;
-        m_values.m_inherited.font.access().line_height = move(line_height);
+        auto& mutable_font = m_values.m_inherited.font.access();
+        mutable_font.line_height_used = used_value;
+        mutable_font.line_height = move(line_height);
     }
     void set_border_spacing_horizontal(CSSPixels border_spacing_horizontal)
     {

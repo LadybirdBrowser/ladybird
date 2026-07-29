@@ -33,7 +33,7 @@ use crate::abort_on_panic;
 pub use crate::css::computed_value_types::{
     AlignmentValues, BorderLayoutFacts, BoxValues, ComputedAspectRatio, ComputedFlexBasis, ComputedGap,
     ComputedLengthBox, ComputedLengthPercentageOrAuto, ComputedSize, ComputedSizeKind, ComputedStyleValueHandle,
-    ComputedVerticalAlign, InheritedTextLayoutFacts, SVGResetValues, SizingValues, SurroundValues,
+    ComputedVerticalAlign, FontLayoutFacts, InheritedTextLayoutFacts, SVGResetValues, SizingValues, SurroundValues,
 };
 use crate::css::retained_fly_string::RetainedUtf16FlyStringList;
 
@@ -239,6 +239,7 @@ pub enum StyleGroupLifecycle {
     Cpp,
     CppWithBorderFacts,
     CppWithInheritedTextFacts,
+    CppWithFontFacts,
     InheritedTable,
     InheritedBox,
     Sizing,
@@ -255,6 +256,7 @@ impl StyleGroupLifecycle {
             StyleGroupLifecycle::Cpp
                 | StyleGroupLifecycle::CppWithBorderFacts
                 | StyleGroupLifecycle::CppWithInheritedTextFacts
+                | StyleGroupLifecycle::CppWithFontFacts
         )
     }
 }
@@ -1803,6 +1805,19 @@ pub unsafe extern "C" fn rust_style_group_as_inherited_text_facts(
     payload: *const c_void,
 ) -> *const InheritedTextLayoutFacts {
     payload as *const InheritedTextLayoutFacts
+}
+
+/// Returns the typed prefix view of the C++-owned font group payload.
+///
+/// This anchors the prefix layout in the exported ABI so the cbindgen mirror
+/// stays in the generated header for the C++ static asserts that pin the
+/// group's leading members to it.
+///
+/// # Safety
+/// `payload` must be a font group payload.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_group_as_font_facts(payload: *const c_void) -> *const FontLayoutFacts {
+    payload as *const FontLayoutFacts
 }
 
 #[cfg(test)]

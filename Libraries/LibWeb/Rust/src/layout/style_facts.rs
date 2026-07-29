@@ -209,9 +209,6 @@ fn resolve_calc(calc: *const c_void, percentage_basis: CssPixels) -> CssPixels {
 // NB: Some variants are only constructed by C++ through the FFI.
 #[allow(dead_code)]
 pub enum FfiStyleField {
-    FontVariantEmoji,
-    LineHeight,
-    FontSize,
     TextOverflow,
     TableLayout,
     UnicodeBidi,
@@ -314,6 +311,7 @@ struct NativeGroupIndices {
     box_values: usize,
     border_facts: usize,
     inherited_text_facts: usize,
+    font_facts: usize,
 }
 
 static NATIVE_GROUP_INDICES: OnceLock<NativeGroupIndices> = OnceLock::new();
@@ -330,6 +328,7 @@ fn native_group_indices() -> &'static NativeGroupIndices {
         box_values: style_group_index_with_lifecycle(StyleGroupLifecycle::Box),
         border_facts: style_group_index_with_lifecycle(StyleGroupLifecycle::CppWithBorderFacts),
         inherited_text_facts: style_group_index_with_lifecycle(StyleGroupLifecycle::CppWithInheritedTextFacts),
+        font_facts: style_group_index_with_lifecycle(StyleGroupLifecycle::CppWithFontFacts),
     })
 }
 
@@ -379,11 +378,6 @@ pub struct FfiResidualStyleValues {
     pub position_anchor_has_value: bool,
     /// A transferred Utf16FlyString reference, when non-zero.
     pub position_anchor_retained_name: usize,
-    pub first_available_font: *const c_void,
-    pub font_cascade_list: *const c_void,
-    pub font_ascent: f32,
-    pub font_descent: f32,
-    pub font_x_height: f32,
     pub column_width: FfiSizeValue,
     pub column_count_has_value: bool,
     pub column_count: i32,
@@ -394,11 +388,6 @@ impl Default for FfiResidualStyleValues {
         Self {
             position_anchor_has_value: false,
             position_anchor_retained_name: 0,
-            first_available_font: std::ptr::null(),
-            font_cascade_list: std::ptr::null(),
-            font_ascent: 0.0,
-            font_descent: 0.0,
-            font_x_height: 0.0,
             column_width: FfiSizeValue::auto_value(),
             column_count_has_value: false,
             column_count: 0,
@@ -459,12 +448,6 @@ impl StyleReader {
     }
 
     #[inline]
-    fn css_pixels(&self, field: FfiStyleField) -> CssPixels {
-        let raw = unsafe { (self.address(field, FfiStyleFieldEncoding::CssPixels) as *const i32).read_unaligned() };
-        CssPixels::from_raw(raw)
-    }
-
-    #[inline]
     fn native_group<T>(&self, group_index: usize) -> &T {
         let payload = self.payloads.groups[group_index];
         debug_assert!(!payload.is_null());
@@ -517,6 +500,11 @@ impl StyleReader {
     #[inline]
     fn inherited_text_facts(&self) -> &crate::layout::InheritedTextLayoutFacts {
         self.native_group(native_group_indices().inherited_text_facts)
+    }
+
+    #[inline]
+    fn font_facts(&self) -> &crate::layout::FontLayoutFacts {
+        self.native_group(native_group_indices().font_facts)
     }
 }
 
@@ -828,6 +816,7 @@ impl DecodedStyleScalars {
         let box_values = reader.box_values();
         let border = reader.border_facts();
         let inherited_text = reader.inherited_text_facts();
+        let font = reader.font_facts();
         let (css_preferred_aspect_ratio_numerator, css_preferred_aspect_ratio_denominator) =
             decode_css_preferred_aspect_ratio(&box_values.aspect_ratio);
         Self {
@@ -850,9 +839,9 @@ impl DecodedStyleScalars {
             white_space_collapse: inherited_text.white_space_collapse,
             text_wrap_mode: inherited_text.text_wrap_mode,
             word_break: inherited_text.word_break,
-            font_variant_emoji: reader.u8(FfiStyleField::FontVariantEmoji),
-            line_height: reader.css_pixels(FfiStyleField::LineHeight),
-            font_size: reader.css_pixels(FfiStyleField::FontSize),
+            font_variant_emoji: font.font_variant_emoji,
+            line_height: font.line_height_used,
+            font_size: font.font_size,
             box_sizing: box_values.box_sizing,
             overflow_x: box_values.overflow_x,
             overflow_y: box_values.overflow_y,
@@ -1087,23 +1076,27 @@ impl<'a> StyleValues<'a> {
     }
 
     pub(crate) fn first_available_font(self) -> *const c_void {
-        self.residual().first_available_font
+        let font = self.cache.reader.font_facts().first_available_font;
+        debug_assert!(!font.is_null(), "layout read a font group that never received a font list");
+        font
     }
 
     pub(crate) fn font_cascade_list(self) -> *const c_void {
-        self.residual().font_cascade_list
+        let list = self.cache.reader.font_facts().font_cascade_list;
+        debug_assert!(!list.is_null(), "layout read a font group that never received a font list");
+        list
     }
 
     pub(crate) fn font_ascent(self) -> f32 {
-        self.residual().font_ascent
+        self.cache.reader.font_facts().font_ascent
     }
 
     pub(crate) fn font_descent(self) -> f32 {
-        self.residual().font_descent
+        self.cache.reader.font_facts().font_descent
     }
 
     pub(crate) fn font_x_height(self) -> f32 {
-        self.residual().font_x_height
+        self.cache.reader.font_facts().font_x_height
     }
 
     pub(crate) fn box_sizing_for_aspect_ratio(self) -> u8 {

@@ -2230,10 +2230,10 @@ CSSPixels ComputedProperties::line_height(FontComputer const& font_computer) con
     VERIFY_NOT_REACHED();
 }
 
-LineHeightData ComputedProperties::line_height_data(FontComputer const& font_computer) const
+LineHeightData ComputedProperties::line_height_data() const
 {
     auto const& value = property(PropertyID::LineHeight);
-    LineHeightData data { .used_value = line_height(font_computer) };
+    LineHeightData data;
 
     if (value.is_keyword() && value.to_keyword() == Keyword::Normal) {
         data.computed_value = LineHeightData::Normal {};
