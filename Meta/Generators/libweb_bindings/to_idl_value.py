@@ -175,12 +175,12 @@ def dictionaries_in_dependency_order(dictionaries: List[Dictionary], context: Ge
     visiting: set[str] = set()
     ordered_dictionaries: List[Dictionary] = []
 
-    def dependency_names_for(dictionary: Dictionary) -> set[str]:
+    def dependency_names_for(dictionary: Dictionary) -> List[str]:
         dependency_names = {dictionary.parent_name} if dictionary.parent_name else set()
         for member in dictionary.members:
             dependency_names.update(context.dictionary_type_names(member.type))
         dependency_names.discard(dictionary.name)
-        return dependency_names
+        return sorted(dependency_names)
 
     def visit(dictionary: Dictionary) -> None:
         if dictionary.name in emitted:
