@@ -6,8 +6,9 @@
 
 //! Prepared bytecode metadata used by reusable handler lowering.
 
-use crate::metadata::InstructionDefinition;
+use crate::metadata::{InstructionDefinition, Specialization, SpecializationConstraint};
 use crate::types::Type;
+use std::collections::{HashMap, HashSet};
 
 /// The identity of a handler parameter that names a bytecode field.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -89,6 +90,58 @@ impl HandlerLayout {
     pub(crate) fn field_offset(&self, field: BytecodeFieldId) -> Option<usize> {
         self.fields[field.index()].offset
     }
+}
+
+pub(crate) fn validate_specializations(
+    ops: &[InstructionDefinition],
+    specializations: &[Specialization],
+) -> Result<(), String> {
+    let ops = ops.iter().map(|op| (op.name.as_str(), op)).collect::<HashMap<_, _>>();
+    let mut names = ops.keys().copied().map(str::to_string).collect::<HashSet<_>>();
+    for specialization in specializations {
+        for (component_index, component) in specialization.components.iter().enumerate() {
+            let op = ops
+                .get(component.bytecode.as_str())
+                .ok_or_else(|| format!("specialization references unknown bytecode '{}'", component.bytecode))?;
+            if component_index + 1 != specialization.components.len() && op.is_terminator {
+                return Err(format!(
+                    "terminating bytecode '{}' may only be the final specialization component",
+                    component.bytecode
+                ));
+            }
+            let mut parameters = HashSet::new();
+            for parameter in &component.parameters {
+                if !parameters.insert(parameter.name.as_str()) {
+                    return Err(format!(
+                        "specialization repeats parameter '{}.{}'",
+                        component.bytecode, parameter.name
+                    ));
+                }
+                let field_name = format!("m_{}", parameter.name);
+                let field = op.fields.iter().find(|field| field.name == field_name).ok_or_else(|| {
+                    format!(
+                        "specialization parameter '{}.{}' does not name a bytecode field",
+                        component.bytecode, parameter.name
+                    )
+                })?;
+                match parameter.constraint {
+                    SpecializationConstraint::Int32 | SpecializationConstraint::Undefined => {
+                        if field.ty != "Operand" || field.is_array {
+                            return Err(format!(
+                                "constant constraint requires an Operand field, but '{}.{}' is {}",
+                                component.bytecode, parameter.name, field.ty
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+        let name = crate::metadata::specialization_name(specialization);
+        if !names.insert(name.clone()) {
+            return Err(format!("duplicate specialization name '{name}'"));
+        }
+    }
+    Ok(())
 }
 
 fn bytecode_field_name(name: &str) -> String {
@@ -231,5 +284,44 @@ mod tests {
         .unwrap_err();
 
         assert_eq!(error, "handler 'Put' has 2 parameter names but 1 parameter types");
+    }
+    #[test]
+    fn validates_pair_specialization_constraints() {
+        let source = r#"
+handler Increment(dst: inout Operand) { dispatch_next; }
+handler JumpLessThan(lhs: Operand, rhs: Operand) @terminator { exit; }
+specialize Increment() + JumpLessThan(rhs: Int32);
+"#;
+        let ops = crate::metadata::parse_flap_metadata("test.flap", source).unwrap();
+        let specializations = crate::metadata::parse_specializations("test.flap", source).unwrap();
+
+        validate_specializations(&ops, &specializations).unwrap();
+    }
+
+    #[test]
+    fn rejects_duplicate_derived_specialization_names() {
+        let source = r#"
+handler Add(rhs: Operand) { dispatch_next; }
+specialize Add(rhs: Int32);
+specialize Add(rhs: Int32);
+"#;
+        let ops = crate::metadata::parse_flap_metadata("test.flap", source).unwrap();
+        let specializations = crate::metadata::parse_specializations("test.flap", source).unwrap();
+        let error = validate_specializations(&ops, &specializations).unwrap_err();
+
+        assert_eq!(error, "duplicate specialization name 'AddRhsInt32'");
+    }
+
+    #[test]
+    fn rejects_specialization_names_that_collide_with_bytecodes() {
+        let source = r#"
+handler Add(rhs: Operand) { dispatch_next; }
+specialize Add(rhs: Int32) as Add;
+"#;
+        let ops = crate::metadata::parse_flap_metadata("test.flap", source).unwrap();
+        let specializations = crate::metadata::parse_specializations("test.flap", source).unwrap();
+        let error = validate_specializations(&ops, &specializations).unwrap_err();
+
+        assert_eq!(error, "duplicate specialization name 'Add'");
     }
 }

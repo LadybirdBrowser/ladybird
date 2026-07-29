@@ -21,6 +21,49 @@ pub struct Field {
     pub is_array: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SpecializationConstraint {
+    Int32,
+    Undefined,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SpecializationParameter {
+    pub name: String,
+    pub constraint: SpecializationConstraint,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SpecializationComponent {
+    pub bytecode: String,
+    pub parameters: Vec<SpecializationParameter>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Specialization {
+    pub components: Vec<SpecializationComponent>,
+    pub name: Option<String>,
+}
+
+pub fn specialization_name(specialization: &Specialization) -> String {
+    if let Some(name) = &specialization.name {
+        return name.clone();
+    }
+    let mut name = String::new();
+    for component in &specialization.components {
+        name.push_str(&component.bytecode);
+        for parameter in &component.parameters {
+            name.push_str(&parameter.name[..1].to_ascii_uppercase());
+            name.push_str(&parameter.name[1..]);
+            match parameter.constraint {
+                SpecializationConstraint::Int32 => name.push_str("Int32"),
+                SpecializationConstraint::Undefined => name.push_str("Undefined"),
+            }
+        }
+    }
+    name
+}
+
 #[derive(Debug, Clone)]
 #[non_exhaustive]
 pub struct InstructionDefinition {
@@ -270,6 +313,165 @@ fn parse_handler_fields(source_name: &str, line: usize, source: &str) -> Result<
     Ok(fields)
 }
 
+pub fn parse_specializations(source_name: &str, content: &str) -> Result<Vec<Specialization>, ParseError> {
+    let mut specializations = Vec::new();
+    let mut declaration = None::<(usize, String)>;
+    for (line_index, raw_line) in content.lines().enumerate() {
+        let line = line_index + 1;
+        let stripped = raw_line.split_once('#').map_or(raw_line, |(source, _)| source).trim();
+        if declaration.is_none() && stripped.starts_with("specialize ") {
+            declaration = Some((line, stripped.to_string()));
+        } else if let Some((_, source)) = declaration.as_mut() {
+            source.push(' ');
+            source.push_str(stripped);
+        } else {
+            continue;
+        }
+        if stripped.ends_with(';') {
+            let (start_line, source) = declaration.take().unwrap();
+            specializations.push(parse_specialization(source_name, start_line, &source)?);
+        }
+    }
+    if let Some((line, _)) = declaration {
+        return Err(ParseError::new(
+            source_name,
+            line,
+            1,
+            "unterminated specialization declaration",
+        ));
+    }
+    Ok(specializations)
+}
+
+fn parse_specialization(source_name: &str, line: usize, source: &str) -> Result<Specialization, ParseError> {
+    let tokens = tokenize_specialization(source_name, line, source)?;
+    let mut parser = SpecializationParser {
+        source_name,
+        line,
+        tokens: &tokens,
+        index: 0,
+    };
+    parser.expect("specialize")?;
+    let mut components = vec![parser.parse_component()?];
+    while parser.consume("+") {
+        components.push(parser.parse_component()?);
+    }
+    let name = if parser.consume("as") {
+        Some(parser.identifier("specialization name")?.to_string())
+    } else {
+        None
+    };
+    parser.expect(";")?;
+    if parser.index != tokens.len() {
+        return Err(parser.error("unexpected token after specialization declaration"));
+    }
+    Ok(Specialization { components, name })
+}
+
+fn tokenize_specialization(source_name: &str, line: usize, source: &str) -> Result<Vec<String>, ParseError> {
+    let mut tokens = Vec::new();
+    let mut current = String::new();
+    for character in source.chars() {
+        if character.is_ascii_alphanumeric() || character == '_' {
+            current.push(character);
+            continue;
+        }
+        if !current.is_empty() {
+            tokens.push(std::mem::take(&mut current));
+        }
+        if character.is_whitespace() {
+            continue;
+        }
+        if matches!(character, '(' | ')' | ',' | ':' | '+' | ';') {
+            tokens.push(character.to_string());
+        } else {
+            return Err(ParseError::new(
+                source_name,
+                line,
+                1,
+                format!("unexpected character '{character}' in specialization"),
+            ));
+        }
+    }
+    if !current.is_empty() {
+        tokens.push(current);
+    }
+    Ok(tokens)
+}
+
+struct SpecializationParser<'a> {
+    source_name: &'a str,
+    line: usize,
+    tokens: &'a [String],
+    index: usize,
+}
+
+impl SpecializationParser<'_> {
+    fn error(&self, message: impl Into<String>) -> ParseError {
+        ParseError::new(self.source_name, self.line, 1, message)
+    }
+
+    fn current(&self) -> Option<&str> {
+        self.tokens.get(self.index).map(String::as_str)
+    }
+
+    fn consume(&mut self, token: &str) -> bool {
+        if self.current() == Some(token) {
+            self.index += 1;
+            true
+        } else {
+            false
+        }
+    }
+
+    fn expect(&mut self, token: &str) -> Result<(), ParseError> {
+        self.consume(token)
+            .then_some(())
+            .ok_or_else(|| self.error(format!("expected '{token}' in specialization")))
+    }
+
+    fn identifier(&mut self, description: &str) -> Result<&str, ParseError> {
+        let Some(token) = self.current() else {
+            return Err(self.error(format!("expected {description}")));
+        };
+        if !is_identifier(token) {
+            return Err(self.error(format!("expected {description}")));
+        }
+        self.index += 1;
+        Ok(&self.tokens[self.index - 1])
+    }
+
+    fn parse_component(&mut self) -> Result<SpecializationComponent, ParseError> {
+        let bytecode = self.identifier("bytecode name")?.to_string();
+        self.expect("(")?;
+        let mut parameters = Vec::new();
+        while !self.consume(")") {
+            let name = self.identifier("parameter name")?.to_string();
+            self.expect(":")?;
+            let constraint = self.parse_constraint()?;
+            parameters.push(SpecializationParameter { name, constraint });
+            if self.consume(")") {
+                break;
+            }
+            self.expect(",")?;
+        }
+        Ok(SpecializationComponent { bytecode, parameters })
+    }
+
+    fn parse_constraint(&mut self) -> Result<SpecializationConstraint, ParseError> {
+        let spelling = self
+            .current()
+            .ok_or_else(|| self.error("expected specialization constraint"))?
+            .to_string();
+        self.index += 1;
+        match spelling.as_str() {
+            "Int32" => Ok(SpecializationConstraint::Int32),
+            "Undefined" => Ok(SpecializationConstraint::Undefined),
+            _ => Err(self.error(format!("unknown specialization constraint '{spelling}'"))),
+        }
+    }
+}
+
 fn try_field_type_info(ty: &str) -> Option<FieldType> {
     Some(
         match ty {
@@ -502,6 +704,59 @@ handler Second() { dispatch_next; }
         .unwrap();
 
         assert!(ops.len() > 100);
+    }
+
+    #[test]
+    fn parses_specializations_of_arbitrary_length() {
+        let specializations = parse_specializations(
+            "test.flap",
+            r#"
+specialize Add(rhs: Int32);
+specialize Increment()
+    + JumpLessThan(rhs: Int32);
+specialize Mov() + Add(rhs: Undefined)
+    + JumpIf(condition: Int32) as HotLoop;
+specialize A() + B() + C() + D();
+"#,
+        )
+        .unwrap();
+
+        assert_eq!(specializations.len(), 4);
+        assert_eq!(specializations[1].components.len(), 2);
+        assert_eq!(
+            specializations[1].components[1].parameters[0].constraint,
+            SpecializationConstraint::Int32
+        );
+        assert_eq!(specializations[2].components.len(), 3);
+        assert_eq!(specializations[2].name.as_deref(), Some("HotLoop"));
+        assert_eq!(specializations[3].components.len(), 4);
+    }
+
+    #[test]
+    fn ignores_comments_in_multiline_specializations() {
+        let specializations = parse_specializations(
+            "test.flap",
+            r#"
+specialize Increment() # Continue with the comparison.
+    + JumpLessThan( # Only the right-hand side is constant.
+        rhs: Int32); # End the declaration.
+"#,
+        )
+        .unwrap();
+
+        assert_eq!(specializations.len(), 1);
+        assert_eq!(specializations[0].components.len(), 2);
+    }
+
+    #[test]
+    fn rejects_invalid_specialization_declarations() {
+        for (source, message) in [
+            ("specialize Add(rhs: Mystery);", "unknown specialization constraint"),
+            ("specialize Add(rhs: Int32)", "unterminated specialization declaration"),
+        ] {
+            let error = parse_specializations("broken.flap", source).unwrap_err();
+            assert!(error.message.contains(message), "expected '{message}', got '{error}'");
+        }
     }
 
     #[test]
