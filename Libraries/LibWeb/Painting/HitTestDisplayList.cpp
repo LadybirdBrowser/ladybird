@@ -632,7 +632,17 @@ DOM::Node const* HitTestDisplayList::item_dom_node(Item const& item) const
 
 DOM::Node const* HitTestDisplayList::event_dispatch_dom_node_for_item(Item const& item) const
 {
-    if (item.kind == ItemKind::TextFragment || item.kind == ItemKind::EmptyLine)
+    if (item.kind == ItemKind::TextFragment) {
+        VERIFY(item.text_fragment);
+        auto const& layout_node = item.text_fragment->layout_node();
+        if (auto const* node = layout_node.dom_node())
+            return node;
+        if (layout_node.is_generated_for_pseudo_element())
+            return layout_node.pseudo_element_generator();
+        return nullptr;
+    }
+
+    if (item.kind == ItemKind::EmptyLine)
         return item_dom_node(item);
 
     for (auto const* current = item.paintable.ptr(); current; current = current->parent()) {
@@ -658,8 +668,9 @@ HitTestResult HitTestDisplayList::hit_test_result_for_item(Item const& item, CSS
         VERIFY(item.text_fragment);
         return HitTestResult {
             .paintable = item.paintable,
-            .dom_node_override = const_cast<DOM::Node*>(item_dom_node(item)),
+            .dom_node_override = const_cast<DOM::Node*>(event_dispatch_dom_node_for_item(item)),
             .index_in_node = item.text_fragment->index_in_node_for_point(local_point),
+            .is_text_fragment = true,
         };
     case ItemKind::EmptyLine:
         // NB: Not reachable through regular hit testing; see item_contains().

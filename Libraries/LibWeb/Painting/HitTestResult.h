@@ -26,6 +26,7 @@ struct HitTestResult {
     RefPtr<ChromeWidget> chrome_widget {};
     GC::Ptr<DOM::Node> dom_node_override {};
     size_t index_in_node { 0 };
+    bool is_text_fragment { false };
     enum InternalPosition {
         None,
         Before,
