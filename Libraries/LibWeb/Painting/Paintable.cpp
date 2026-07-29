@@ -1125,18 +1125,25 @@ Optional<CSSPixelRect> Paintable::absolute_containing_line_box_rect() const
     return lines[*m_containing_line_box_index].rect.translated(containing_block->absolute_position());
 }
 
-Paintable::ScrollHandled Paintable::set_scroll_offset(CSSPixelPoint offset)
+CSSPixelPoint Paintable::clamp_scroll_offset(CSSPixelPoint offset) const
 {
     auto scrollable_overflow_rect = this->scrollable_overflow_rect();
     if (!scrollable_overflow_rect.has_value())
-        return ScrollHandled::No;
+        return offset;
 
     auto padding_rect = absolute_padding_box_rect();
     auto max_x_offset = max(scrollable_overflow_rect->width() - padding_rect.width(), 0);
     auto max_y_offset = max(scrollable_overflow_rect->height() - padding_rect.height(), 0);
 
-    offset.set_x(clamp(offset.x(), 0, max_x_offset));
-    offset.set_y(clamp(offset.y(), 0, max_y_offset));
+    return { clamp(offset.x(), 0, max_x_offset), clamp(offset.y(), 0, max_y_offset) };
+}
+
+Paintable::ScrollHandled Paintable::set_scroll_offset(CSSPixelPoint offset)
+{
+    if (!scrollable_overflow_rect().has_value())
+        return ScrollHandled::No;
+
+    offset = clamp_scroll_offset(offset);
 
     // FIXME: If there is horizontal and vertical scroll ignore only part of the new offset
     if (offset.y() < 0 || scroll_offset() == offset)

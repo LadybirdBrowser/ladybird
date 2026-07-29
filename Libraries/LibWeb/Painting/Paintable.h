@@ -224,6 +224,7 @@ public:
     };
 
     CSSPixelPoint scroll_offset() const;
+    CSSPixelPoint clamp_scroll_offset(CSSPixelPoint) const;
     ScrollHandled set_scroll_offset(CSSPixelPoint);
     ScrollHandled set_scroll_offset_from_user_input(CSSPixelPoint);
     ScrollHandled scroll_by(double delta_x, double delta_y);
