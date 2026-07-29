@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 4 tests
 
-4 Fail
-Fail	convertToSpecifiedUnits: width 120px in 400px viewport = 30%
-Fail	convertToSpecifiedUnits: height 120px in 400px viewport = 30%
-Fail	convertToSpecifiedUnits: width 180px in 600px viewport = 30%
-Fail	convertToSpecifiedUnits: 120px in 700px viewport (irrational %)
+4 Pass
+Pass	convertToSpecifiedUnits: width 120px in 400px viewport = 30%
+Pass	convertToSpecifiedUnits: height 120px in 400px viewport = 30%
+Pass	convertToSpecifiedUnits: width 180px in 600px viewport = 30%
+Pass	convertToSpecifiedUnits: 120px in 700px viewport (irrational %)

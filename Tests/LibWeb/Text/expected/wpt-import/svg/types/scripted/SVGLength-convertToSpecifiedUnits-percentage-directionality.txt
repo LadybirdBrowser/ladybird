@@ -2,11 +2,11 @@ Harness status: OK
 
 Found 7 tests
 
-7 Fail
-Fail	SVGLength, percentage conversion with different directionalities, horizontal (x)
-Fail	SVGLength, percentage conversion with different directionalities, vertical (y)
-Fail	SVGLength, percentage conversion with different directionalities, horizontal (width)
-Fail	SVGLength, percentage conversion with different directionalities, vertical (height)
-Fail	SVGLength, percentage conversion with different directionalities, unspecified directionality (circle r)
-Fail	SVGLength, percentage conversion with different directionalities, horizontal vs vertical produce different percentages
-Fail	SVGLength, percentage conversion with different directionalities, vertical percentage round-trip
+7 Pass
+Pass	SVGLength, percentage conversion with different directionalities, horizontal (x)
+Pass	SVGLength, percentage conversion with different directionalities, vertical (y)
+Pass	SVGLength, percentage conversion with different directionalities, horizontal (width)
+Pass	SVGLength, percentage conversion with different directionalities, vertical (height)
+Pass	SVGLength, percentage conversion with different directionalities, unspecified directionality (circle r)
+Pass	SVGLength, percentage conversion with different directionalities, horizontal vs vertical produce different percentages
+Pass	SVGLength, percentage conversion with different directionalities, vertical percentage round-trip

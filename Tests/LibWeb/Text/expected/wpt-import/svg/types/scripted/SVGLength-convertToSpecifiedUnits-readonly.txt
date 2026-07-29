@@ -2,9 +2,9 @@ Harness status: OK
 
 Found 5 tests
 
-5 Fail
-Fail	SVGLength, convertToSpecifiedUnits on read-only animVal, animVal throws NoModificationAllowedError
-Fail	SVGLength, convertToSpecifiedUnits on read-only animVal, animVal unchanged after failed conversion
-Fail	SVGLength, convertToSpecifiedUnits on read-only animVal, animVal throws for percentage
-Fail	SVGLength, convertToSpecifiedUnits on read-only animVal, animVal throws for ems
-Fail	SVGLength, convertToSpecifiedUnits on read-only animVal, baseVal still accepts conversion
+5 Pass
+Pass	SVGLength, convertToSpecifiedUnits on read-only animVal, animVal throws NoModificationAllowedError
+Pass	SVGLength, convertToSpecifiedUnits on read-only animVal, animVal unchanged after failed conversion
+Pass	SVGLength, convertToSpecifiedUnits on read-only animVal, animVal throws for percentage
+Pass	SVGLength, convertToSpecifiedUnits on read-only animVal, animVal throws for ems
+Pass	SVGLength, convertToSpecifiedUnits on read-only animVal, baseVal still accepts conversion

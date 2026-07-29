@@ -2,11 +2,11 @@ Harness status: OK
 
 Found 7 tests
 
-7 Fail
-Fail	SVGLength, convertToSpecifiedUnits reserialization of reflected attribute, px to cm
-Fail	SVGLength, convertToSpecifiedUnits reserialization of reflected attribute, px to in
-Fail	SVGLength, convertToSpecifiedUnits reserialization of reflected attribute, px to percentage
-Fail	SVGLength, convertToSpecifiedUnits reserialization of reflected attribute, px to unitless
-Fail	SVGLength, convertToSpecifiedUnits reserialization of reflected attribute, px to pt
-Fail	SVGLength, convertToSpecifiedUnits reserialization of reflected attribute, px to mm
-Fail	SVGLength, convertToSpecifiedUnits reserialization of reflected attribute, double conversion reserializes both times
+7 Pass
+Pass	SVGLength, convertToSpecifiedUnits reserialization of reflected attribute, px to cm
+Pass	SVGLength, convertToSpecifiedUnits reserialization of reflected attribute, px to in
+Pass	SVGLength, convertToSpecifiedUnits reserialization of reflected attribute, px to percentage
+Pass	SVGLength, convertToSpecifiedUnits reserialization of reflected attribute, px to unitless
+Pass	SVGLength, convertToSpecifiedUnits reserialization of reflected attribute, px to pt
+Pass	SVGLength, convertToSpecifiedUnits reserialization of reflected attribute, px to mm
+Pass	SVGLength, convertToSpecifiedUnits reserialization of reflected attribute, double conversion reserializes both times

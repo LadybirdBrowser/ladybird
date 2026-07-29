@@ -63,6 +63,7 @@ public:
     WebIDL::ExceptionOr<void> set_value_as_string(Utf16String);
 
     WebIDL::ExceptionOr<void> new_value_specified_units(u16 unit_type, float value_in_specified_units);
+    WebIDL::ExceptionOr<void> convert_to_specified_units(u16 unit_type);
 
     ReadOnly read_only() const { return m_read_only; }
 
