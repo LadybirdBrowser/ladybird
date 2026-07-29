@@ -46,30 +46,14 @@ pub(crate) fn aligned_static_offset(
     offset
 }
 
-pub(crate) struct AbsposEngine<'a, 'pass> {
+pub(crate) struct AbsposEngine<'pass> {
     state: &'pass LayoutState,
     callbacks: FfiLayoutFcCallbacks,
-    layout_mode: LayoutMode,
-    context_box: Node,
-    grid_context: Option<&'a GridFormattingContext<'pass>>,
 }
 
-impl<'a, 'pass> AbsposEngine<'a, 'pass> {
-    fn new(
-        state: &'pass LayoutState,
-        callbacks: FfiLayoutFcCallbacks,
-        layout_mode: LayoutMode,
-        context_box: Node,
-        grid_context: Option<&'a GridFormattingContext<'pass>>,
-    ) -> Self {
-        assert!(!context_box.is_invalid());
-        Self {
-            state,
-            callbacks,
-            layout_mode,
-            context_box,
-            grid_context,
-        }
+impl<'pass> AbsposEngine<'pass> {
+    fn new(state: &'pass LayoutState, callbacks: FfiLayoutFcCallbacks) -> Self {
+        Self { state, callbacks }
     }
 
     fn sizing(&self) -> SizingContext<'_> {
@@ -101,7 +85,7 @@ impl<'a, 'pass> AbsposEngine<'a, 'pass> {
     }
 
     fn static_position_containing_block(&self, node: Node) -> Node {
-        unsafe { (self.callbacks.static_position_containing_block)(self.callbacks.context, self.callbacks.shell(node)) }
+        self.callbacks.static_position_containing_block(node)
     }
 
     fn inline_containing_block(&self, node: Node) -> Node {
@@ -401,19 +385,6 @@ impl<'a, 'pass> AbsposEngine<'a, 'pass> {
         }
     }
 
-    fn containing_block_info(&self, node: Node) -> AbsposContainingBlockInfo {
-        let base = self.base_containing_block_info(node);
-        let Some(grid) = self.grid_context else {
-            return base;
-        };
-        let mut info = grid.abspos_containing_block_info(node);
-        let uses_grid_area_as_static_position = self.static_position_containing_block(node) == self.context_box;
-        if !uses_grid_area_as_static_position {
-            info.inline_axis_mode = base.inline_axis_mode;
-            info.block_axis_mode = base.block_axis_mode;
-        }
-        info
-    }
 }
 
 fn add_fragment_rect(
@@ -452,8 +423,8 @@ struct AnchorValueAxis {
 }
 
 #[derive(Clone, Copy)]
-struct AnchorCalcCallbackContext<'a, 'pass> {
-    engine: *const AbsposEngine<'a, 'pass>,
+struct AnchorCalcCallbackContext<'pass> {
+    engine: *const AbsposEngine<'pass>,
     positioned_box: Node,
     containing_block: Node,
     is_from_end: bool,
@@ -462,7 +433,7 @@ struct AnchorCalcCallbackContext<'a, 'pass> {
     resolution_state: *mut AnchorResolutionState,
 }
 
-impl AbsposEngine<'_, '_> {
+impl AbsposEngine<'_> {
     fn anchor_lookup(&self, positioned_box: Node, anchor_name: usize) -> Option<Node> {
         let eligible_anchor_boxes = self.state.used_value_nodes();
         let eligible_anchor_shells = eligible_anchor_boxes
@@ -772,7 +743,7 @@ impl AbsposEngine<'_, '_> {
 unsafe extern "C" fn resolve_anchor_non_math_function(context: *mut c_void, shell: *const c_void) -> *const c_void {
     // SAFETY: The CSS calc engine calls this only during resolve_anchor_value,
     // whose stack owns this callback context.
-    let context = unsafe { &mut *context.cast::<AnchorCalcCallbackContext<'_, '_>>() };
+    let context = unsafe { &mut *context.cast::<AnchorCalcCallbackContext<'_>>() };
     // SAFETY: The engine pointer is live for the enclosing resolution.
     let engine = unsafe { &*context.engine };
     // SAFETY: `shell` is the live Rust style-value handle supplied by the
@@ -974,7 +945,7 @@ pub(crate) fn solve_replaced_axis(
     }
 }
 
-impl AbsposEngine<'_, '_> {
+impl AbsposEngine<'_> {
     fn static_offset(&self, node: Node, rect: StaticPositionRect) -> LogicalOffset {
         let used = self.used(node);
         let collapsed = used.uses_collapsing_borders_model.get();
@@ -1254,7 +1225,7 @@ enum BlockSizePass {
     AfterInsideLayout,
 }
 
-impl AbsposEngine<'_, '_> {
+impl AbsposEngine<'_> {
     fn apply_min_max_block_size_constraints(
         &self,
         node: Node,
@@ -1654,15 +1625,8 @@ impl AbsposEngine<'_, '_> {
     }
 }
 
-impl<'pass> AbsposEngine<'_, 'pass> {
-    fn layout_element(
-        &self,
-        frame: &mut crate::layout::FcFrame<'pass>,
-        parent_block: Option<&BlockFormattingContext<'pass>>,
-        parent_grid: Option<&GridFormattingContext<'pass>>,
-        node: Node,
-        inputs: AbsposLayoutInputs,
-    ) {
+impl<'pass> AbsposEngine<'pass> {
+    fn layout_element(&self, frame: &mut crate::layout::FcFrame<'pass>, node: Node, inputs: AbsposLayoutInputs) {
         assert!(!self.facts(node).is_svg_box());
         let containing_block_size = LogicalSize {
             inline_size: clamp_to_max_dimension_value(inputs.containing_block_info.rect.size.inline_size),
@@ -1729,15 +1693,15 @@ impl<'pass> AbsposEngine<'_, 'pass> {
         }
 
         self.sizing()
-            .make_button_content_box_definite(node, self.layout_mode, available_space, constraints, None);
+            .make_button_content_box_definite(node, LayoutMode::Normal, available_space, constraints, None);
 
         let inner_available_space = self
             .used(node)
             .available_inner_space_or_constraints_from(available_space);
         let child_layout = match crate::layout::layout_inside_child(
             frame,
-            parent_block,
-            parent_grid,
+            None,
+            None,
             node,
             LayoutMode::Normal,
             LayoutInput {
@@ -1839,7 +1803,7 @@ impl<'pass> AbsposEngine<'_, 'pass> {
         );
 
         let is_measurement = self.state.is_measurement();
-        if self.layout_mode == LayoutMode::Normal && !is_measurement {
+        if !is_measurement {
             self.state
                 .used_values_rare_data_for_node_mut(&self.callbacks, node)
                 .abspos_layout_inputs = Some(inputs);
@@ -1850,20 +1814,9 @@ impl<'pass> AbsposEngine<'_, 'pass> {
         }
     }
 
-    pub(crate) fn layout_children(
-        &self,
-        frame: &mut crate::layout::FcFrame<'pass>,
-        parent_block: Option<&BlockFormattingContext<'pass>>,
-        parent_grid: Option<&GridFormattingContext<'pass>>,
-        box_: Node,
-    ) {
-        if self.layout_mode != LayoutMode::Normal {
-            return;
-        }
-        if self.state.is_measurement() {
-            return;
-        }
-        while let Some(child) = self.state.take_next_contained_abspos_child(box_) {
+    pub(crate) fn layout_children(&self, frame: &mut crate::layout::FcFrame<'pass>) {
+        debug_assert!(!self.state.is_measurement());
+        while let Some(child) = self.state.take_next_contained_abspos_child(frame.box_) {
             let child_box = child.child_box;
             if self.try_used_pointer(child_box).is_none() {
                 self.state
@@ -1873,9 +1826,11 @@ impl<'pass> AbsposEngine<'_, 'pass> {
             let inputs = AbsposLayoutInputs {
                 static_position_rect: self
                     .resolve_static_position_relative_to_containing_block(child_box, child.static_position_rect),
-                containing_block_info: self.containing_block_info(child_box),
+                containing_block_info: child
+                    .containing_block_info_override
+                    .unwrap_or_else(|| self.base_containing_block_info(child_box)),
             };
-            self.layout_element(frame, parent_block, parent_grid, child_box, inputs);
+            self.layout_element(frame, child_box, inputs);
         }
     }
 
@@ -1893,7 +1848,7 @@ impl<'pass> AbsposEngine<'_, 'pass> {
         // exactly once.
         self.state
             .create_used_values(&self.callbacks, node, ContainingBlockConstraints::default());
-        self.layout_element(frame, None, None, node, inputs);
+        self.layout_element(frame, node, inputs);
     }
 
     fn compute_inset(&self, node: Node, containing_block_size: LogicalSize) {
@@ -1967,61 +1922,50 @@ impl<'pass> AbsposEngine<'_, 'pass> {
     }
 }
 
-fn layout_children_for_instance(instance: &mut crate::layout::FormattingContextInstance, box_: Node) {
-    if instance.layout_mode != LayoutMode::Normal {
-        return;
-    }
-    let crate::layout::FormattingContextInstance { frame, implementation } = instance;
-    let (parent_block, parent_grid) = match &*implementation {
-        crate::layout::FcImpl::Block(context) => (Some(context.as_ref()), None),
-        crate::layout::FcImpl::Grid(context) => (None, Some(context.as_ref())),
-        _ => (None, None),
-    };
-    AbsposEngine::new(frame.state, frame.callbacks, frame.layout_mode, frame.box_, parent_grid).layout_children(
-        frame,
-        parent_block,
-        parent_grid,
-        box_,
-    );
+pub(crate) fn layout_contained_abspos_children(frame: &mut crate::layout::FcFrame<'_>) {
+    AbsposEngine::new(frame.state, frame.callbacks).layout_children(frame);
 }
 
-pub(crate) fn layout_children_native<'pass>(
-    state: &'pass LayoutState,
+/// Lays out every registered abspos child once the in-flow run has finished.
+/// Queues are processed in the order their formatting contexts completed, so
+/// deeper containing blocks come first and the root comes last: the layout
+/// order anchor() acceptability assumes for absolutely positioned anchors.
+/// A formatting context completing during the pass belongs to an absolutely
+/// positioned subtree; its children are laid out at that completion point,
+/// before later boxes of the queue that produced it.
+pub(crate) fn run_abspos_layout_pass(
+    state: &LayoutState,
     callbacks: FfiLayoutFcCallbacks,
-    layout_mode: LayoutMode,
-    context_box: Node,
-    frame: &mut crate::layout::FcFrame<'pass>,
-    box_: Node,
+    should_collect_devtools_layout_data: bool,
 ) {
-    AbsposEngine::new(state, callbacks, layout_mode, context_box, None).layout_children(frame, None, None, box_);
+    state.set_abspos_layout_pass_is_active(true);
+    while let Some(root) = state.pop_from_abspos_layout_pass_queue() {
+        if !state.has_contained_abspos_children(root) {
+            continue;
+        }
+        let mut frame =
+            crate::layout::FcFrame::new(state, root, LayoutMode::Normal, callbacks, should_collect_devtools_layout_data);
+        layout_contained_abspos_children(&mut frame);
+    }
+    state.set_abspos_layout_pass_is_active(false);
+    debug_assert!(
+        state.all_registered_contained_abspos_children_are_laid_out(),
+        "registered abspos children were left without layout after the pass"
+    );
 }
 
 pub(crate) fn compute_inset_native(
     state: &LayoutState,
     callbacks: FfiLayoutFcCallbacks,
-    layout_mode: LayoutMode,
-    context_box: Node,
     node: Node,
     inline_size: CssPixels,
     block_size: CssPixels,
 ) {
-    AbsposEngine::new(state, callbacks, layout_mode, context_box, None).compute_inset(
+    AbsposEngine::new(state, callbacks).compute_inset(
         node,
         LogicalSize {
             inline_size,
             block_size,
         },
     );
-}
-
-fn replay_for_instance(instance: &mut crate::layout::FormattingContextInstance, node: Node) {
-    assert!(matches!(instance.implementation, crate::layout::FcImpl::AbsposReplay));
-    AbsposEngine::new(
-        instance.state,
-        instance.callbacks,
-        instance.layout_mode,
-        instance.box_,
-        None,
-    )
-    .replay(&mut instance.frame, node);
 }

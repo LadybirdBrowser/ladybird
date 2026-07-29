@@ -649,8 +649,6 @@ impl<'context, 'pass> InlineFormattingContext<'context, 'pass> {
         crate::layout::compute_inset_native(
             self.state,
             self.callbacks,
-            self.layout_mode,
-            self.containing_block,
             node,
             used.content_inline_size.get(),
             used.content_block_size.get(),

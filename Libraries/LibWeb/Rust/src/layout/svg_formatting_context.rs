@@ -695,9 +695,7 @@ impl<'pass> SvgFormattingContext<'pass> {
             if let Some(clip) = self.first_child_matching(child, |facts| facts.is_clip_box) {
                 self.layout_mask_or_clip(frame, clip);
             }
-            // The old SVG formatter's stack-local BFC dies at the end of this
-            // branch; discard the Rust-owned equivalent at the same point.
-            child_layout.discard();
+            child_layout.finish();
         } else if facts.is_graphics_box {
             self.layout_graphics_element(frame, child, input, parent_svg_transform);
         }

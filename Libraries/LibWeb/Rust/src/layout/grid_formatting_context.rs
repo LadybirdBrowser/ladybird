@@ -3629,8 +3629,6 @@ impl<'pass> GridFormattingContext<'pass> {
             crate::layout::compute_inset_native(
                 self.state,
                 self.callbacks,
-                self.layout_mode,
-                self.grid_container,
                 item.box_,
                 area.size.inline_size,
                 area.size.block_size,
@@ -3919,6 +3917,18 @@ impl<'pass> GridFormattingContext<'pass> {
             }
             child = next;
         }
+        self.state
+            .override_contained_abspos_child_containing_blocks(self.grid_container, |child| {
+                let mut info = self.abspos_containing_block_info(child);
+                let grid_area_is_childs_static_position =
+                    self.callbacks.static_position_containing_block(child) == self.grid_container;
+                if !grid_area_is_childs_static_position {
+                    let (inline_axis_mode, block_axis_mode) = axis_modes(self.style(child));
+                    info.inline_axis_mode = inline_axis_mode;
+                    info.block_axis_mode = block_axis_mode;
+                }
+                info
+            });
     }
 
     // https://www.w3.org/TR/css-grid-2/#abspos-items

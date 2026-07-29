@@ -227,6 +227,7 @@ pub(crate) struct AbsposLayoutInputs {
     pub(crate) containing_block_info: AbsposContainingBlockInfo,
 }
 
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(C)]
 pub struct FfiTableCellCoordinates {
@@ -389,16 +390,11 @@ impl Drop for RetainedLayoutHandle {
     }
 }
 
-#[derive(Clone, Copy)]
-struct ContainedAbsposChild {
-    child_box: Node,
-    static_position_rect: StaticPositionRect,
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct PendingAbsposChild {
     pub(crate) child_box: Node,
     pub(crate) static_position_rect: StaticPositionRect,
+    pub(crate) containing_block_info_override: Option<AbsposContainingBlockInfo>,
 }
 
 /// A pass-scoped lens over one node's facts. Pure classification reads the
@@ -841,7 +837,9 @@ impl<'pass> NodeFacts<'pass> {
 
 pub(crate) struct LayoutState {
     used_values: PagedStore<UsedValues>,
-    contained_abspos_children: PagedStore<RefCell<Vec<ContainedAbsposChild>>>,
+    contained_abspos_children: PagedStore<RefCell<VecDeque<PendingAbsposChild>>>,
+    abspos_layout_pass_queue_in_completion_order: RefCell<VecDeque<Node>>,
+    abspos_layout_pass_is_active: Cell<bool>,
     style_decode_values: PagedStore<StyleDecodeValues>,
     replaced_content_facts: PagedStore<crate::layout::FfiReplacedContentFacts>,
     list_item_facts: PagedStore<crate::layout::FfiListItemFacts>,
@@ -894,6 +892,8 @@ impl LayoutState {
         Self {
             used_values: PagedStore::default(),
             contained_abspos_children: PagedStore::default(),
+            abspos_layout_pass_queue_in_completion_order: RefCell::new(VecDeque::new()),
+            abspos_layout_pass_is_active: Cell::new(false),
             style_decode_values: PagedStore::default(),
             replaced_content_facts: PagedStore::default(),
             list_item_facts: PagedStore::default(),
@@ -1420,38 +1420,82 @@ impl LayoutState {
         let slot_index = target_box.slot_index();
         let children = self.contained_abspos_children.get(slot_index).unwrap_or_else(|| {
             self.contained_abspos_children
-                .allocate(slot_index, RefCell::new(Vec::new()))
+                .allocate(slot_index, RefCell::new(VecDeque::new()))
         });
         let mut children = children.borrow_mut();
-        // Entries are inserted in tree order so consumption follows document order.
-        let mut insertion_index = children.len();
-        for (index, entry) in children.iter().enumerate() {
-            // Every box is laid out at most once per state, so it can only be registered once.
-            assert_ne!(entry.child_box, child_box);
-            if insertion_index == children.len() && callbacks.is_before(child_box, entry.child_box) {
-                insertion_index = index;
+        if cfg!(debug_assertions) {
+            for entry in children.iter() {
+                // Every box is laid out at most once per state, so it can only be registered once.
+                assert_ne!(entry.child_box, child_box);
             }
         }
+        // Entries are kept in tree order so consumption follows document order.
+        let insertion_index = children.partition_point(|entry| callbacks.is_before(entry.child_box, child_box));
         children.insert(
             insertion_index,
-            ContainedAbsposChild {
+            PendingAbsposChild {
                 child_box,
                 static_position_rect,
+                containing_block_info_override: None,
             },
         );
     }
 
-    pub(crate) fn take_next_contained_abspos_child(&self, target_box: Node) -> Option<PendingAbsposChild> {
-        let children = self.contained_abspos_children.get(target_box.slot_index())?;
-        let mut children = children.borrow_mut();
-        if children.is_empty() {
-            return None;
+    pub(crate) fn has_contained_abspos_children(&self, target_box: Node) -> bool {
+        self.contained_abspos_children
+            .get(target_box.slot_index())
+            .is_some_and(|children| !children.borrow().is_empty())
+    }
+
+    pub(crate) fn all_registered_contained_abspos_children_are_laid_out(&self) -> bool {
+        let mut all_laid_out = true;
+        self.contained_abspos_children.for_each(|children| {
+            all_laid_out &= children.borrow().is_empty();
+        });
+        all_laid_out
+    }
+
+    /// Every completed root enqueues even when its queue is still empty:
+    /// fixed-position descendants of abspos subtrees register against the
+    /// viewport only while the pass lays those subtrees out.
+    pub(crate) fn enqueue_for_abspos_layout_pass(&self, target_box: Node) {
+        self.abspos_layout_pass_queue_in_completion_order
+            .borrow_mut()
+            .push_back(target_box);
+    }
+
+    pub(crate) fn pop_from_abspos_layout_pass_queue(&self) -> Option<Node> {
+        self.abspos_layout_pass_queue_in_completion_order.borrow_mut().pop_front()
+    }
+
+    pub(crate) fn abspos_layout_pass_is_active(&self) -> bool {
+        self.abspos_layout_pass_is_active.get()
+    }
+
+    pub(crate) fn set_abspos_layout_pass_is_active(&self, is_active: bool) {
+        self.abspos_layout_pass_is_active.set(is_active);
+    }
+
+    /// By completion time the grid-area geometry is final and every abspos
+    /// child registering against this containing block has done so.
+    pub(crate) fn override_contained_abspos_child_containing_blocks(
+        &self,
+        target_box: Node,
+        containing_block_info_for_child: impl Fn(Node) -> AbsposContainingBlockInfo,
+    ) {
+        let Some(children) = self.contained_abspos_children.get(target_box.slot_index()) else {
+            return;
+        };
+        for entry in children.borrow_mut().iter_mut() {
+            entry.containing_block_info_override = Some(containing_block_info_for_child(entry.child_box));
         }
-        let child = children.remove(0);
-        Some(PendingAbsposChild {
-            child_box: child.child_box,
-            static_position_rect: child.static_position_rect,
-        })
+    }
+
+    pub(crate) fn take_next_contained_abspos_child(&self, target_box: Node) -> Option<PendingAbsposChild> {
+        self.contained_abspos_children
+            .get(target_box.slot_index())?
+            .borrow_mut()
+            .pop_front()
     }
 
     fn line_fragment_lookup(

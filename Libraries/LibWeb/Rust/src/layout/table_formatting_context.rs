@@ -2515,16 +2515,6 @@ impl<'pass> TableFormattingContext<'pass> {
         self.distribute_block_size_to_rows();
         self.position_row_boxes();
         self.position_cell_boxes();
-        for cell in &self.cells {
-            crate::layout::layout_children_native(
-                self.state,
-                self.callbacks,
-                self.layout_mode,
-                self.table_box,
-                frame,
-                cell.box_,
-            );
-        }
         table_used.set_content_block_size(self.table_block_size);
         captions += self.run_caption_layout(frame, parent, CaptionPhase::Bottom, caption_available);
         // Table captions are positioned between the table margins and its borders (outside the grid box borders) as described in

@@ -277,7 +277,8 @@ impl MeasurementState {
             false,
             self.callbacks,
         );
-        crate::layout::run_formatting_context(&mut context, input, None, None);
+        crate::layout::run_formatting_context(&mut context, input, None);
+        complete_formatting_context_after_root_box_has_used_size(&mut context);
         crate::layout::ChildLayoutResult {
             automatic_content_inline_size: context.automatic_content_inline_size,
             automatic_content_block_size: context.automatic_content_block_size,
@@ -2624,7 +2625,6 @@ pub enum FfiFormattingContextType {
     Table,
     Svg,
     ReplacedWithChildren,
-    AbsposReplay,
     InternalReplaced,
     InternalDummy,
 }
@@ -2682,10 +2682,8 @@ impl PendingChildLayout<'_> {
     }
 
     pub(crate) fn finish(mut self) {
-        parent_did_dimension(&mut self.context);
+        complete_formatting_context_after_root_box_has_used_size(&mut self.context);
     }
-
-    pub(crate) fn discard(self) {}
 }
 
 pub(crate) enum ChildLayoutOutcome<'pass> {
@@ -2960,6 +2958,10 @@ impl FfiLayoutFcCallbacks {
         self.node_data(node).inline_containing_block
     }
 
+    pub(crate) fn static_position_containing_block(&self, node: Node) -> Node {
+        unsafe { (self.static_position_containing_block)(self.context, self.shell(node)) }
+    }
+
     pub(crate) fn is_ancestor(&self, ancestor: Node, mut node: Node) -> bool {
         while !node.is_invalid() {
             if node == ancestor {
@@ -2991,6 +2993,26 @@ pub(crate) struct FcFrame<'pass> {
     pub(crate) automatic_content_block_size: CssPixels,
 }
 
+impl<'pass> FcFrame<'pass> {
+    pub(crate) fn new(
+        state: &'pass LayoutState,
+        box_: Node,
+        layout_mode: LayoutMode,
+        callbacks: FfiLayoutFcCallbacks,
+        should_collect_devtools_layout_data: bool,
+    ) -> Self {
+        Self {
+            state,
+            box_,
+            layout_mode,
+            callbacks,
+            should_collect_devtools_layout_data,
+            automatic_content_inline_size: CssPixels::default(),
+            automatic_content_block_size: CssPixels::default(),
+        }
+    }
+}
+
 #[derive(Clone, Copy, Default)]
 struct FcParents<'parent, 'pass> {
     block: Option<&'parent BlockFormattingContext<'pass>>,
@@ -3006,7 +3028,6 @@ enum FcImpl<'pass> {
     ReplacedWithChildren,
     InternalReplaced,
     InternalDummy,
-    AbsposReplay,
 }
 
 pub(crate) struct FormattingContextInstance<'pass> {
@@ -3126,15 +3147,7 @@ fn create_formatting_context<'pass>(
 ) -> Box<FormattingContextInstance<'pass>> {
     assert!(!box_.is_invalid());
 
-    let frame = FcFrame {
-        state,
-        box_,
-        layout_mode,
-        callbacks,
-        should_collect_devtools_layout_data,
-        automatic_content_inline_size: CssPixels::default(),
-        automatic_content_block_size: CssPixels::default(),
-    };
+    let frame = FcFrame::new(state, box_, layout_mode, callbacks, should_collect_devtools_layout_data);
     let implementation = match fc_type {
         FfiFormattingContextType::Block => FcImpl::Block(Box::new(
             BlockFormattingContext::new(state, box_, layout_mode, callbacks),
@@ -3162,7 +3175,6 @@ fn create_formatting_context<'pass>(
         FfiFormattingContextType::ReplacedWithChildren => FcImpl::ReplacedWithChildren,
         FfiFormattingContextType::InternalReplaced => FcImpl::InternalReplaced,
         FfiFormattingContextType::InternalDummy => FcImpl::InternalDummy,
-        FfiFormattingContextType::AbsposReplay => FcImpl::AbsposReplay,
         FfiFormattingContextType::Inline => panic!("no Rust implementation for inline formatting contexts"),
     };
     Box::new(FormattingContextInstance { frame, implementation })
@@ -3197,21 +3209,17 @@ fn register_table_abspos_descendants(frame: &mut FcFrame, parent: Node) {
     }
 }
 
-fn parent_did_dimension(instance: &mut FormattingContextInstance) {
+fn complete_formatting_context_after_root_box_has_used_size(instance: &mut FormattingContextInstance) {
     if let FcImpl::Block(context) = &instance.implementation {
         context.parent_context_did_dimension_child_root_box();
-        // The table formatting context handles cell abspos layout after vertical alignment.
-        if instance.callbacks.node_data(instance.box_).table_display != crate::layout::node_data::FfiTableDisplay::TableCell {
-            let box_ = instance.box_;
-            layout_children_for_instance(instance, box_);
-        }
-        return;
     }
-    if instance.layout_mode != LayoutMode::Normal {
+    let registered_abspos_children_could_never_be_laid_out =
+        instance.layout_mode != LayoutMode::Normal || instance.frame.state.is_measurement();
+    if registered_abspos_children_could_never_be_laid_out {
         return;
     }
     match &instance.implementation {
-        FcImpl::Block(_) => unreachable!("block contexts return before layout-mode dispatch"),
+        FcImpl::Block(_) => {}
         FcImpl::Table(_) => {
             let box_ = instance.frame.box_;
             register_table_abspos_descendants(&mut instance.frame, box_);
@@ -3223,33 +3231,23 @@ fn parent_did_dimension(instance: &mut FormattingContextInstance) {
             context.parent_did_dimension();
         }
         FcImpl::Svg(_) | FcImpl::ReplacedWithChildren => {}
-        FcImpl::InternalReplaced | FcImpl::InternalDummy => {
-            return;
-        }
-        FcImpl::AbsposReplay => panic!("abspos replay has no parent-dimension step"),
+        FcImpl::InternalReplaced | FcImpl::InternalDummy => return,
     }
-    if instance.callbacks.node_data(instance.box_).table_display != crate::layout::node_data::FfiTableDisplay::TableCell {
-        let box_ = instance.box_;
-        layout_children_for_instance(instance, box_);
+    let box_ = instance.box_;
+    if instance.frame.state.abspos_layout_pass_is_active() {
+        layout_contained_abspos_children(&mut instance.frame);
+    } else {
+        instance.frame.state.enqueue_for_abspos_layout_pass(box_);
     }
 }
 
 impl Drop for FormattingContextInstance<'_> {
     fn drop(&mut self) {
-        let FcImpl::Block(context) = &self.implementation else {
-            return;
-        };
-        if context.was_notified_after_parent_dimensioned_root() {
-            return;
-        }
-        // HACK: The parent formatting context never notified us after assigning dimensions to our root box.
-        //       Pretend that it did anyway, to make sure absolutely positioned children get laid out.
-        // FIXME: Get rid of this hack once parent contexts behave properly.
-        context.parent_context_did_dimension_child_root_box();
-        // The table formatting context handles cell abspos layout after vertical alignment.
-        if self.callbacks.node_data(self.box_).table_display != crate::layout::node_data::FfiTableDisplay::TableCell {
-            let box_ = self.box_;
-            layout_children_for_instance(self, box_);
+        if let FcImpl::Block(context) = &self.implementation {
+            debug_assert!(
+                context.was_notified_after_parent_dimensioned_root(),
+                "block formatting context dropped without being completed"
+            );
         }
     }
 }
@@ -3258,7 +3256,6 @@ fn run_formatting_context<'pass>(
     instance: &mut FormattingContextInstance<'pass>,
     input: LayoutInput,
     parent_block: Option<&BlockFormattingContext<'pass>>,
-    _parent_grid: Option<&GridFormattingContext<'pass>>,
 ) {
     let FormattingContextInstance { frame, implementation } = instance;
     match implementation {
@@ -3294,7 +3291,6 @@ fn run_formatting_context<'pass>(
             run(frame, input);
         }
         FcImpl::InternalReplaced | FcImpl::InternalDummy => {}
-        FcImpl::AbsposReplay => panic!("abspos replay is run through its dedicated entry"),
     }
 }
 
@@ -3350,7 +3346,7 @@ pub(crate) fn layout_inside_child<'pass>(
         frame.should_collect_devtools_layout_data,
         frame.callbacks,
     );
-    run_formatting_context(&mut context, input, parent_block, parent_grid);
+    run_formatting_context(&mut context, input, parent_block);
     ChildLayoutOutcome::Created(PendingChildLayout { context })
 }
 
@@ -3445,8 +3441,10 @@ pub unsafe extern "C" fn rust_layout_run_root_layout(
             should_collect_devtools_layout_data,
             callbacks,
         );
-        run_formatting_context(&mut context, input, None, None);
+        run_formatting_context(&mut context, input, None);
+        complete_formatting_context_after_root_box_has_used_size(&mut context);
         drop(context);
+        run_abspos_layout_pass(state_ref, callbacks, should_collect_devtools_layout_data);
         state.commit_replacing(root, std::ptr::null_mut(), &callbacks, sink);
     });
 }
@@ -3504,12 +3502,11 @@ pub unsafe extern "C" fn rust_layout_compute_subtree_layout(
             false,
             callbacks,
         );
-        run_formatting_context(&mut context, input, None, None);
+        run_formatting_context(&mut context, input, None);
 
-        // Lay out the subtree root's own absolutely positioned children, like the parent formatting
-        // context would do after dimensioning the root box during a full layout.
-        parent_did_dimension(&mut context);
+        complete_formatting_context_after_root_box_has_used_size(&mut context);
         drop(context);
+        run_abspos_layout_pass(state_ref, callbacks, false);
         state.commit_replacing(root, paintable_to_replace, &callbacks, sink);
     });
 }
@@ -3537,17 +3534,9 @@ pub unsafe extern "C" fn rust_layout_replay_saved_abspos_layout(
         let state_ref = &state;
         let containing_block = callbacks.containing_block(box_);
         assert!(!containing_block.is_invalid());
-        let mut context = create_formatting_context(
-            state_ref,
-            containing_block,
-            FcParents::default(),
-            FfiFormattingContextType::AbsposReplay,
-            LayoutMode::Normal,
-            false,
-            callbacks,
-        );
-        replay_for_instance(&mut context, box_);
-        drop(context);
+        let mut frame = crate::layout::FcFrame::new(state_ref, containing_block, LayoutMode::Normal, callbacks, false);
+        AbsposEngine::new(state_ref, callbacks).replay(&mut frame, box_);
+        run_abspos_layout_pass(state_ref, callbacks, false);
         state.commit_replacing(box_, paintable_to_replace, &callbacks, sink);
     });
 }
