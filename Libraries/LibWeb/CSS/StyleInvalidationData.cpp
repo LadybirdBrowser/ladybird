@@ -149,7 +149,7 @@ void InvalidationPlan::add_guarded_rule(GuardedInvalidationRule rule)
 
 bool InvalidationPlan::is_empty() const
 {
-    return !invalidate_self && !invalidate_whole_subtree && !invalidate_self_and_structurally_affected_siblings && descendant_rules.is_empty() && sibling_rules.is_empty() && guarded_rules.is_empty();
+    return !invalidate_self && !invalidate_whole_subtree && !invalidate_self_and_structurally_affected_siblings && !invalidate_part_targets && descendant_rules.is_empty() && sibling_rules.is_empty() && guarded_rules.is_empty();
 }
 
 bool InvalidationGuard::operator==(InvalidationGuard const& other) const
@@ -213,6 +213,8 @@ bool InvalidationPlan::operator==(InvalidationPlan const& other) const
         return false;
     if (invalidate_self_and_structurally_affected_siblings != other.invalidate_self_and_structurally_affected_siblings)
         return false;
+    if (invalidate_part_targets != other.invalidate_part_targets)
+        return false;
 
     return rule_lists_are_equal_ignoring_order(descendant_rules, other.descendant_rules)
         && rule_lists_are_equal_ignoring_order(sibling_rules, other.sibling_rules)
@@ -225,15 +227,18 @@ void InvalidationPlan::include_all_from(InvalidationPlan const& other)
     m_hash = {};
     invalidate_self |= other.invalidate_self;
     invalidate_self_and_structurally_affected_siblings |= other.invalidate_self_and_structurally_affected_siblings;
+    invalidate_part_targets |= other.invalidate_part_targets;
 
     if (invalidate_whole_subtree) {
         invalidate_self_and_structurally_affected_siblings = false;
+        invalidate_part_targets = false;
         return;
     }
 
     if (other.invalidate_whole_subtree) {
         invalidate_whole_subtree = true;
         invalidate_self_and_structurally_affected_siblings = false;
+        invalidate_part_targets = false;
         descendant_rules.clear();
         sibling_rules.clear();
         guarded_rules.clear();
@@ -275,6 +280,7 @@ u32 InvalidationPlan::hash() const
 
     u32 hash = pair_int_hash(invalidate_self, invalidate_whole_subtree);
     hash = pair_int_hash(hash, invalidate_self_and_structurally_affected_siblings);
+    hash = pair_int_hash(hash, invalidate_part_targets);
     hash = pair_int_hash(hash, descendant_rules.size() + sibling_rules.size() + guarded_rules.size());
     hash = pair_int_hash(hash, rule_hash_sum);
     hash = pair_int_hash(hash, rule_hash_xor);
@@ -691,11 +697,17 @@ static void add_invalidation_plan_for_properties(StyleInvalidationData& style_in
 struct SelectorRighthand {
     InvalidationSet subject_match_set;
     bool subject_matches_any { false };
+    bool targets_part_pseudo_element { false };
     NonnullRefPtr<InvalidationPlan const> payload;
 };
 
 static NonnullRefPtr<InvalidationPlan const> build_invalidation_for_combinator(Selector::Combinator combinator, SelectorRighthand const& righthand, StyleInvalidationData& style_invalidation_data)
 {
+    if (combinator == Selector::Combinator::PseudoElement && righthand.targets_part_pseudo_element) {
+        auto invalidation = copy_invalidation_plan(*righthand.payload);
+        invalidation->invalidate_part_targets = true;
+        return style_invalidation_data.intern_invalidation_plan(move(invalidation));
+    }
     if (combinator == Selector::Combinator::PseudoElement)
         return righthand.payload;
 
@@ -900,6 +912,10 @@ static InvalidationSet build_invalidation_sets_for_selector_impl(StyleInvalidati
         auto subject_match_set = build_invalidation_set_for_simple_selectors(simple_selectors, ExcludePropertiesNestedInNotPseudoClass::Yes, style_invalidation_data, inside_nth_child_pseudo_class, simple_selector_group_position, root_invalidation_plan, purpose);
         auto subject_guard = build_invalidation_guard_for_simple_selectors(simple_selectors);
         bool subject_matches_any = subject_match_set.is_empty() && simple_selector_group_matches_any(simple_selectors);
+        bool targets_part_pseudo_element = any_of(simple_selectors, [](auto const& simple_selector) {
+            return simple_selector.type == Selector::SimpleSelector::Type::PseudoElement
+                && simple_selector.pseudo_element().type() == PseudoElement::Part;
+        });
 
         if (is_rightmost) {
             // The rightmost selector is handled twice:
@@ -926,6 +942,7 @@ static InvalidationSet build_invalidation_sets_for_selector_impl(StyleInvalidati
             selector_righthand = SelectorRighthand {
                 .subject_match_set = move(subject_match_set),
                 .subject_matches_any = subject_matches_any,
+                .targets_part_pseudo_element = targets_part_pseudo_element,
                 .payload = move(interned_root_plan),
             };
         } else {
@@ -938,6 +955,7 @@ static InvalidationSet build_invalidation_sets_for_selector_impl(StyleInvalidati
             selector_righthand = SelectorRighthand {
                 .subject_match_set = move(subject_match_set),
                 .subject_matches_any = subject_matches_any,
+                .targets_part_pseudo_element = targets_part_pseudo_element,
                 .payload = move(plan),
             };
         }

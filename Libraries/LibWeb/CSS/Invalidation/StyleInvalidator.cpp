@@ -6,6 +6,7 @@
 
 #include <AK/ScopeGuard.h>
 #include <LibWeb/CSS/Invalidation/InvalidationSetMatcher.h>
+#include <LibWeb/CSS/Invalidation/PartInvalidator.h>
 #include <LibWeb/CSS/Invalidation/StructuralMutationInvalidator.h>
 #include <LibWeb/CSS/Invalidation/StyleInvalidator.h>
 #include <LibWeb/DOM/Element.h>
@@ -35,10 +36,12 @@ static NonnullRefPtr<CSS::InvalidationPlan> resolve_guarded_invalidation_plan(DO
     auto resolved_plan = CSS::InvalidationPlan::create();
     resolved_plan->invalidate_self = plan.invalidate_self;
     resolved_plan->invalidate_self_and_structurally_affected_siblings = plan.invalidate_self_and_structurally_affected_siblings;
+    resolved_plan->invalidate_part_targets = plan.invalidate_part_targets;
 
     if (plan.invalidate_whole_subtree) {
         resolved_plan->invalidate_whole_subtree = true;
         resolved_plan->invalidate_self_and_structurally_affected_siblings = false;
+        resolved_plan->invalidate_part_targets = false;
         return resolved_plan;
     }
 
@@ -94,6 +97,9 @@ bool StyleInvalidator::enqueue_invalidation_plan(DOM::Node& node, DOM::StyleInva
     if (plan_to_apply.invalidate_self)
         node.set_needs_style_update(true);
 
+    if (plan_to_apply.invalidate_part_targets && element)
+        invalidate_part_targets(*element);
+
     add_pending_invalidation(node, reason, plan_to_apply);
 
     if (element) {
@@ -146,6 +152,9 @@ void StyleInvalidator::apply_invalidation_plan(DOM::Element& element, DOM::Style
 
     if (plan_to_apply.invalidate_self)
         element.set_needs_style_update(true);
+
+    if (plan_to_apply.invalidate_part_targets)
+        invalidate_part_targets(element);
 
     for (auto const& descendant_rule : plan_to_apply.descendant_rules) {
         PendingDescendantInvalidation pending_invalidation { reason, descendant_rule };

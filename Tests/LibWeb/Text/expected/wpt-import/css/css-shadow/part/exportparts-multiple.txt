@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Forwarding part under multiple names should work
+1 Pass
+Pass	Forwarding part under multiple names should work
