@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<script>
+    const context = new AudioContext({ sampleRate: 763000 });
+
+    function waitForOutput() {
+        if (context.getOutputTimestamp().contextTime === 0) {
+            requestAnimationFrame(waitForOutput);
+            return;
+        }
+        document.documentElement.classList.remove("test-wait");
+    }
+    requestAnimationFrame(waitForOutput);
+</script>
