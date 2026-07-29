@@ -1,0 +1,19 @@
+Harness status: OK
+
+Found 14 tests
+
+14 Pass
+Pass	e.style['scroll-margin-block-start'] = "-10px" should set the property value
+Pass	e.style['scroll-margin-block-start'] = "calc(2em + 3ex)" should set the property value
+Pass	e.style['scroll-margin-block-end'] = "-10px" should set the property value
+Pass	e.style['scroll-margin-block-end'] = "calc(2em + 3ex)" should set the property value
+Pass	e.style['scroll-margin-inline-start'] = "-10px" should set the property value
+Pass	e.style['scroll-margin-inline-start'] = "calc(2em + 3ex)" should set the property value
+Pass	e.style['scroll-margin-inline-end'] = "-10px" should set the property value
+Pass	e.style['scroll-margin-inline-end'] = "calc(2em + 3ex)" should set the property value
+Pass	e.style['scroll-margin-block'] = "-10px" should set the property value
+Pass	e.style['scroll-margin-block'] = "calc(2em + 3ex)" should set the property value
+Pass	e.style['scroll-margin-block'] = "1px 2px" should set the property value
+Pass	e.style['scroll-margin-inline'] = "-10px" should set the property value
+Pass	e.style['scroll-margin-inline'] = "calc(2em + 3ex)" should set the property value
+Pass	e.style['scroll-margin-inline'] = "1px 2px" should set the property value

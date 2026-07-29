@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 12 tests
+
+12 Pass
+Pass	e.style['scroll-margin-block'] = "10px 20px" should set scroll-margin-block-end
+Pass	e.style['scroll-margin-block'] = "10px 20px" should set scroll-margin-block-start
+Pass	e.style['scroll-margin-block'] = "10px 20px" should not set unrelated longhands
+Pass	e.style['scroll-margin-block'] = "30px" should set scroll-margin-block-end
+Pass	e.style['scroll-margin-block'] = "30px" should set scroll-margin-block-start
+Pass	e.style['scroll-margin-block'] = "30px" should not set unrelated longhands
+Pass	e.style['scroll-margin-inline'] = "50px 60px" should set scroll-margin-inline-end
+Pass	e.style['scroll-margin-inline'] = "50px 60px" should set scroll-margin-inline-start
+Pass	e.style['scroll-margin-inline'] = "50px 60px" should not set unrelated longhands
+Pass	e.style['scroll-margin-inline'] = "-40px" should set scroll-margin-inline-end
+Pass	e.style['scroll-margin-inline'] = "-40px" should set scroll-margin-inline-start
+Pass	e.style['scroll-margin-inline'] = "-40px" should not set unrelated longhands

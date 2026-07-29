@@ -1,0 +1,25 @@
+Harness status: OK
+
+Found 20 tests
+
+20 Pass
+Pass	e.style['scroll-margin'] = "10px" should set scroll-margin-bottom
+Pass	e.style['scroll-margin'] = "10px" should set scroll-margin-left
+Pass	e.style['scroll-margin'] = "10px" should set scroll-margin-right
+Pass	e.style['scroll-margin'] = "10px" should set scroll-margin-top
+Pass	e.style['scroll-margin'] = "10px" should not set unrelated longhands
+Pass	e.style['scroll-margin'] = "30px 20px" should set scroll-margin-bottom
+Pass	e.style['scroll-margin'] = "30px 20px" should set scroll-margin-left
+Pass	e.style['scroll-margin'] = "30px 20px" should set scroll-margin-right
+Pass	e.style['scroll-margin'] = "30px 20px" should set scroll-margin-top
+Pass	e.style['scroll-margin'] = "30px 20px" should not set unrelated longhands
+Pass	e.style['scroll-margin'] = "1px 2px 3px" should set scroll-margin-bottom
+Pass	e.style['scroll-margin'] = "1px 2px 3px" should set scroll-margin-left
+Pass	e.style['scroll-margin'] = "1px 2px 3px" should set scroll-margin-right
+Pass	e.style['scroll-margin'] = "1px 2px 3px" should set scroll-margin-top
+Pass	e.style['scroll-margin'] = "1px 2px 3px" should not set unrelated longhands
+Pass	e.style['scroll-margin'] = "-1px 2px 3px 0" should set scroll-margin-bottom
+Pass	e.style['scroll-margin'] = "-1px 2px 3px 0" should set scroll-margin-left
+Pass	e.style['scroll-margin'] = "-1px 2px 3px 0" should set scroll-margin-right
+Pass	e.style['scroll-margin'] = "-1px 2px 3px 0" should set scroll-margin-top
+Pass	e.style['scroll-margin'] = "-1px 2px 3px 0" should not set unrelated longhands

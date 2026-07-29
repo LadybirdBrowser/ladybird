@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Scroll Snap Test: scroll-margin-block, scroll-margin-inline set longhands</title>
+<link rel="help" href="https://drafts.csswg.org/css-scroll-snap-1/#margin-longhands-logical">
+<meta name="assert" content="scroll-margin-block, scroll-margin-inline support the full grammar '<length>{1,2}'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/shorthand-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_shorthand_value('scroll-margin-block', '10px 20px', {
+  'scroll-margin-block-start': '10px',
+  'scroll-margin-block-end': '20px'
+});
+
+test_shorthand_value('scroll-margin-block', '30px', {
+  'scroll-margin-block-start': '30px',
+  'scroll-margin-block-end': '30px'
+});
+
+test_shorthand_value('scroll-margin-inline', '50px 60px', {
+  'scroll-margin-inline-start': '50px',
+  'scroll-margin-inline-end': '60px'
+});
+
+test_shorthand_value('scroll-margin-inline', '-40px', {
+  'scroll-margin-inline-start': '-40px',
+  'scroll-margin-inline-end': '-40px'
+});
+</script>
+</body>
+</html>

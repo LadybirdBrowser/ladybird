@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Scroll Snap: getComputedStyle().scrollMarginBlock / scrollMarginInline</title>
+<link rel="help" href="https://drafts.csswg.org/css-scroll-snap-1/#margin-longhands-logical">
+<meta name="assert" content="scroll-margin-block, scroll-margin-inline computed value is absolute length.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<style>
+  #target {
+    font-size: 40px;
+  }
+</style>
+<script>
+test_computed_value("scroll-margin-block-start", "10px");
+test_computed_value("scroll-margin-block-start", "calc(10px - 0.5em)", "-10px");
+
+test_computed_value("scroll-margin-block-end", "10px");
+test_computed_value("scroll-margin-block-end", "calc(10px - 0.5em)", "-10px");
+
+test_computed_value("scroll-margin-inline-start", "10px");
+test_computed_value("scroll-margin-inline-start", "calc(10px - 0.5em)", "-10px");
+
+test_computed_value("scroll-margin-inline-end", "10px");
+test_computed_value("scroll-margin-inline-end", "calc(10px - 0.5em)", "-10px");
+
+
+test_computed_value("scroll-margin-block", "10px");
+test_computed_value("scroll-margin-block", "calc(10px - 0.5em)", "-10px");
+test_computed_value("scroll-margin-block", "1px 2px");
+
+test_computed_value("scroll-margin-inline", "10px");
+test_computed_value("scroll-margin-inline", "calc(10px - 0.5em)", "-10px");
+test_computed_value("scroll-margin-inline", "1px 2px");
+</script>
+</body>
+</html>

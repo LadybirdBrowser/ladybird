@@ -1,0 +1,19 @@
+Harness status: OK
+
+Found 14 tests
+
+14 Pass
+Pass	Property scroll-margin-block-start value '10px'
+Pass	Property scroll-margin-block-start value 'calc(10px - 0.5em)'
+Pass	Property scroll-margin-block-end value '10px'
+Pass	Property scroll-margin-block-end value 'calc(10px - 0.5em)'
+Pass	Property scroll-margin-inline-start value '10px'
+Pass	Property scroll-margin-inline-start value 'calc(10px - 0.5em)'
+Pass	Property scroll-margin-inline-end value '10px'
+Pass	Property scroll-margin-inline-end value 'calc(10px - 0.5em)'
+Pass	Property scroll-margin-block value '10px'
+Pass	Property scroll-margin-block value 'calc(10px - 0.5em)'
+Pass	Property scroll-margin-block value '1px 2px'
+Pass	Property scroll-margin-inline value '10px'
+Pass	Property scroll-margin-inline value 'calc(10px - 0.5em)'
+Pass	Property scroll-margin-inline value '1px 2px'
