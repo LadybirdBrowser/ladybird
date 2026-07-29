@@ -24,6 +24,7 @@
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/ImageBox.h>
 #include <LibWeb/Layout/InlineNode.h>
+#include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Layout/TableWrapper.h>
@@ -1075,6 +1076,7 @@ NonnullRefPtr<NodeWithStyle> NodeWithStyle::create_anonymous_wrapper() const
 
 void NodeWithStyle::set_computed_values(NonnullRefPtr<CSS::ComputedValues const> computed_values)
 {
+    VERIFY(!layout_pass_currently_running());
     m_computed_values = move(computed_values);
     mirror_computed_values_to_node_data();
 
