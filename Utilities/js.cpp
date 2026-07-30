@@ -19,6 +19,7 @@
 #include <LibJS/Bytecode/Debug.h>
 #include <LibJS/Console.h>
 #include <LibJS/Contrib/Test262/GlobalObject.h>
+#include <LibJS/Debugger.h>
 #include <LibJS/Print.h>
 #include <LibJS/Runtime/ConsoleObject.h>
 #include <LibJS/Runtime/DeclarativeEnvironment.h>
@@ -109,6 +110,64 @@ static String s_history_path = String {};
 [[maybe_unused]] static int s_repl_line_level = 0;
 [[maybe_unused]] static bool s_keep_running_repl = true;
 static int s_exit_code = 0;
+
+static StringView debugger_pause_reason(JS::Debugger::PauseReason reason)
+{
+    switch (reason) {
+    case JS::Debugger::PauseReason::Entry:
+        return "entry"sv;
+    case JS::Debugger::PauseReason::Breakpoint:
+        return "breakpoint"sv;
+    case JS::Debugger::PauseReason::DebuggerStatement:
+        return "debugger statement"sv;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+static void run_debugger_prompt(JS::Debugger::PauseInfo const& pause_info)
+{
+    if (pause_info.source_range.has_value()) {
+        auto const& range = *pause_info.source_range;
+        if (range.start.line > 0)
+            outln("Paused at {}:{}:{} ({})", range.filename(), range.start.line, range.start.column, debugger_pause_reason(pause_info.reason));
+        else
+            outln("Paused in {} ({})", range.filename(), debugger_pause_reason(pause_info.reason));
+    } else {
+        outln("Paused at bytecode offset {} ({})", pause_info.bytecode_offset, debugger_pause_reason(pause_info.reason));
+    }
+
+    for (;;) {
+#if defined(AK_OS_WINDOWS) || defined(AK_OS_ANDROID)
+        out("(debug) ");
+        (void)fflush(stdout);
+
+        Array<char, 4096> buffer;
+        auto* raw_line = fgets(buffer.data(), buffer.size(), stdin);
+        if (!raw_line) {
+            g_vm->debugger()->continue_execution();
+            return;
+        }
+        auto command = StringView { raw_line, strlen(raw_line) }.trim_whitespace();
+#else
+        auto* raw_line = readline("(debug) ");
+        if (!raw_line) {
+            g_vm->debugger()->continue_execution();
+            return;
+        }
+        ArmedScopeGuard free_raw_line = [&] {
+            free(raw_line);
+        };
+        auto command = StringView { raw_line, strlen(raw_line) }.trim_whitespace();
+#endif
+
+        if (command == ".continue"sv) {
+            g_vm->debugger()->continue_execution();
+            return;
+        }
+
+        warnln("Unknown debugger command '{}'. Enter .continue to resume execution.", command);
+    }
+}
 
 static ErrorOr<void> print_inline(JS::Value value, Stream& stream)
 {
@@ -836,6 +895,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     bool disable_debug_printing = false;
     bool use_test262_global = false;
     bool parse_only = false;
+    bool debug = false;
     StringView evaluate_script;
     Vector<StringView> script_paths;
 
@@ -852,6 +912,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(s_raw_strings, "Display strings without quotes or escape sequences", "raw-strings", 'r');
     args_parser.add_option(disable_syntax_highlight, "Disable live syntax highlighting", "no-syntax-highlight", 's');
     args_parser.add_option(disable_debug_printing, "Disable debug output", "disable-debug-output", {});
+    args_parser.add_option(debug, "Run with the JavaScript debugger", "debug", {});
     args_parser.add_option(evaluate_script, "Evaluate argument as a script", "evaluate", 'c', "script");
     args_parser.add_option(use_test262_global, "Use test262 global ($262)", "use-test262-global", {});
     args_parser.add_positional_argument(script_paths, "Path to script files", "scripts", Core::ArgsParser::Required::No);
@@ -868,6 +929,12 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     g_vm_storage.get() = JS::VM::create();
     g_vm = g_vm_storage->ptr();
     g_vm->set_dynamic_imports_allowed(true);
+
+    if (debug) {
+        g_vm->enable_debugging();
+        g_vm->debugger()->set_pause_callback(run_debugger_prompt);
+        g_vm->debugger()->request_pause_on_next_bytecode_execution();
+    }
 
     if (!disable_debug_printing) {
         // NOTE: These will print out both warnings when using something like Promise.reject().catch(...) -
