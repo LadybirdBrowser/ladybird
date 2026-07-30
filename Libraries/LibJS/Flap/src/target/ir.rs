@@ -344,6 +344,7 @@ impl MachineProgram {
             .chain(
                 [
                     VmRunningExecutionContext,
+                    VmBreakpointController,
                     ExecutionContextExecutable,
                     ExecutionContextProgramCounter,
                     ExecutableBytecodeData,

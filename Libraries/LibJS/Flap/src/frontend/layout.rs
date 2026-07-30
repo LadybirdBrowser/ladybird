@@ -63,6 +63,7 @@ define_known_layout_constants! {
     NullValue => "NULL_VALUE";
     ShiftedIsCellPattern => "SHIFTED_IS_CELL_PATTERN";
     VmRunningExecutionContext => "VM_RUNNING_EXECUTION_CONTEXT";
+    VmBreakpointController => "VM_BREAKPOINT_CONTROLLER";
     ExecutionContextExecutable => "EXECUTION_CONTEXT_EXECUTABLE";
     ExecutionContextProgramCounter => "EXECUTION_CONTEXT_PROGRAM_COUNTER";
     ExecutableBytecodeData => "EXECUTABLE_BYTECODE_DATA";

@@ -858,7 +858,14 @@ fn generate_entry_point(out: &mut String, program: &Program, fmt: ObjectFormat) 
     w!(out, "    mov x20, x3              // vm = VM*");
     emit_ldr64(out, "x28", "x3", interp_ctx);
     w!(out, "    // x28 = exec_ctx");
+    let vm_breakpoint_controller = runtime[KnownLayoutConstant::VmBreakpointController];
+    emit_ldr64(out, "x9", "x3", vm_breakpoint_controller);
+    w!(out, "    cbz x9, .Lnormal_dispatch_table");
+    emit_symbol_addr(out, "x19", "asm_debug_dispatch_table", fmt);
+    w!(out, "    b .Ldispatch_table_ready");
+    w!(out, ".Lnormal_dispatch_table:");
     emit_symbol_addr(out, "x19", "asm_dispatch_table", fmt);
+    w!(out, ".Ldispatch_table_ready:");
     w!(out, "    // x19 = dispatch table");
     // Pin canonical NaN bits in d8 (callee-saved FP register).
     // Used by canonicalize_nan to avoid materializing the constant each time.
@@ -884,6 +891,24 @@ fn generate_entry_point(out: &mut String, program: &Program, fmt: ObjectFormat) 
 }
 
 fn generate_fallback_handler(out: &mut String, program: &Program, object_format: ObjectFormat) {
+    emit_handler_alignment(out, object_format);
+    w!(out, "asm_debugger_trampoline:");
+    w!(out, "    mov x0, x20");
+    w!(out, "    sub w1, w21, w26");
+    emit_sync_pc_to_execution_context(out, program);
+    w!(out, "    bl CSYM(asm_debugger_check_breakpoint)");
+    emit_state_reload(out, program);
+    // The reload may have picked up a different bytecode base, which would leave the absolute
+    // instruction pointer in x21 stale, so recompute it from the synced program counter.
+    let program_counter = runtime(program)[KnownLayoutConstant::ExecutionContextProgramCounter];
+    emit_ldr32(out, "w9", "x28", program_counter);
+    w!(out, "    add x21, x26, w9, uxtw");
+    w!(out, "    ldrb w9, [x21]");
+    emit_symbol_addr(out, "x10", "asm_dispatch_table", object_format);
+    w!(out, "    ldr x10, [x10, x9, lsl #3]");
+    w!(out, "    br x10");
+    w!(out);
+
     emit_handler_alignment(out, object_format);
     w!(out, "asm_handler_fallback:");
     // Set up args: x0=vm (x20), w1=pc (ip - pb), x2=instruction (ip)
@@ -988,6 +1013,20 @@ fn emit_ldr64(out: &mut String, dst: &str, base: &str, offset: i64) {
         w!(out, "    ldur {dst}, [{base}, #{offset}]");
     } else {
         // Need to materialize offset in a scratch register
+        emit_mov_imm(out, registers::X9, offset);
+        w!(out, "    ldr {dst}, [{base}, x9]");
+    }
+}
+
+/// Emit an ldr (32-bit) from [base + offset].
+fn emit_ldr32(out: &mut String, dst: &str, base: &str, offset: i64) {
+    if offset == 0 {
+        w!(out, "    ldr {dst}, [{base}]");
+    } else if unsigned_memory_offset_fits(MemoryWidth::Word, offset) {
+        w!(out, "    ldr {dst}, [{base}, #{offset}]");
+    } else if (-256..=255).contains(&offset) {
+        w!(out, "    ldur {dst}, [{base}, #{offset}]");
+    } else {
         emit_mov_imm(out, registers::X9, offset);
         w!(out, "    ldr {dst}, [{base}, x9]");
     }
@@ -1187,6 +1226,7 @@ mod tests {
             runtime: crate::low_ir::RuntimeConstants::from_layout(
                 &crate::frontend::layout::LayoutConstants::from_values([
                     ("VM_RUNNING_EXECUTION_CONTEXT".into(), 8),
+                    ("VM_BREAKPOINT_CONTROLLER".into(), 16),
                     ("CANON_NAN_BITS".into(), 0x7ff8_0000_0000_0000u64 as i64),
                     ("INT32_TAG".into(), 0xfffau64 as i64),
                     ("BOOLEAN_TAG".into(), 0xfffbu64 as i64),
