@@ -119,36 +119,7 @@ CSSPixels Length::font_relative_length_to_px(Length::FontMetrics const& font_met
 
 double Length::font_relative_length_to_px_without_rounding(Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const
 {
-    switch (m_unit) {
-    case LengthUnit::Em:
-        return m_value * font_metrics.font_size.to_double();
-    case LengthUnit::Rem:
-        return m_value * root_font_metrics.font_size.to_double();
-    case LengthUnit::Ex:
-        return m_value * font_metrics.x_height.to_double();
-    case LengthUnit::Rex:
-        return m_value * root_font_metrics.x_height.to_double();
-    case LengthUnit::Cap:
-        return m_value * font_metrics.cap_height.to_double();
-    case LengthUnit::Rcap:
-        return m_value * root_font_metrics.cap_height.to_double();
-    case LengthUnit::Ch:
-        return m_value * font_metrics.zero_advance.to_double();
-    case LengthUnit::Rch:
-        return m_value * root_font_metrics.zero_advance.to_double();
-    case LengthUnit::Ic:
-        // FIXME: Use the "advance measure of the “水” (CJK water ideograph, U+6C34) glyph"
-        return m_value * font_metrics.font_size.to_double();
-    case LengthUnit::Ric:
-        // FIXME: Use the "advance measure of the “水” (CJK water ideograph, U+6C34) glyph"
-        return m_value * root_font_metrics.font_size.to_double();
-    case LengthUnit::Lh:
-        return m_value * font_metrics.line_height.to_double();
-    case LengthUnit::Rlh:
-        return m_value * root_font_metrics.line_height.to_double();
-    default:
-        VERIFY_NOT_REACHED();
-    }
+    return ratio_between_font_relative_unit_and_px(m_unit, font_metrics, root_font_metrics) * m_value;
 }
 
 CSSPixels Length::viewport_relative_length_to_px(CSSPixelRect const& viewport_rect) const
@@ -158,42 +129,7 @@ CSSPixels Length::viewport_relative_length_to_px(CSSPixelRect const& viewport_re
 
 double Length::viewport_relative_length_to_px_without_rounding(CSSPixelRect const& viewport_rect) const
 {
-    switch (m_unit) {
-    case LengthUnit::Vw:
-    case LengthUnit::Svw:
-    case LengthUnit::Lvw:
-    case LengthUnit::Dvw:
-        return viewport_rect.width() * m_value / 100;
-    case LengthUnit::Vh:
-    case LengthUnit::Svh:
-    case LengthUnit::Lvh:
-    case LengthUnit::Dvh:
-        return viewport_rect.height() * m_value / 100;
-    case LengthUnit::Vi:
-    case LengthUnit::Svi:
-    case LengthUnit::Lvi:
-    case LengthUnit::Dvi:
-        // FIXME: Select the width or height based on which is the inline axis.
-        return viewport_rect.width() * m_value / 100;
-    case LengthUnit::Vb:
-    case LengthUnit::Svb:
-    case LengthUnit::Lvb:
-    case LengthUnit::Dvb:
-        // FIXME: Select the width or height based on which is the block axis.
-        return viewport_rect.height() * m_value / 100;
-    case LengthUnit::Vmin:
-    case LengthUnit::Svmin:
-    case LengthUnit::Lvmin:
-    case LengthUnit::Dvmin:
-        return min(viewport_rect.width(), viewport_rect.height()) * m_value / 100;
-    case LengthUnit::Vmax:
-    case LengthUnit::Svmax:
-    case LengthUnit::Lvmax:
-    case LengthUnit::Dvmax:
-        return max(viewport_rect.width(), viewport_rect.height()) * m_value / 100;
-    default:
-        VERIFY_NOT_REACHED();
-    }
+    return ratio_between_viewport_relative_unit_and_px(m_unit, viewport_rect) * m_value;
 }
 
 double Length::container_relative_length_to_px_without_rounding(ResolutionContext const& context) const
@@ -420,6 +356,84 @@ LengthOrAuto LengthOrAuto::from_style_value(NonnullRefPtr<StyleValue const> cons
     if (style_value->has_auto())
         return make_auto();
     return LengthOrAuto { Length::from_style_value(style_value, percentage_basis) };
+}
+
+double ratio_between_font_relative_unit_and_px(LengthUnit font_relative_unit, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics)
+{
+    switch (font_relative_unit) {
+    case LengthUnit::Em:
+        return font_metrics.font_size.to_double();
+    case LengthUnit::Rem:
+        return root_font_metrics.font_size.to_double();
+    case LengthUnit::Ex:
+        return font_metrics.x_height.to_double();
+    case LengthUnit::Rex:
+        return root_font_metrics.x_height.to_double();
+    case LengthUnit::Cap:
+        return font_metrics.cap_height.to_double();
+    case LengthUnit::Rcap:
+        return root_font_metrics.cap_height.to_double();
+    case LengthUnit::Ch:
+        return font_metrics.zero_advance.to_double();
+    case LengthUnit::Rch:
+        return root_font_metrics.zero_advance.to_double();
+    case LengthUnit::Ic:
+        // FIXME: Use the "advance measure of the “水” (CJK water ideograph, U+6C34) glyph"
+        return font_metrics.font_size.to_double();
+    case LengthUnit::Ric:
+        // FIXME: Use the "advance measure of the “水” (CJK water ideograph, U+6C34) glyph"
+        return root_font_metrics.font_size.to_double();
+    case LengthUnit::Lh:
+        return font_metrics.line_height.to_double();
+    case LengthUnit::Rlh:
+        return root_font_metrics.line_height.to_double();
+    default:
+        break;
+    }
+
+    VERIFY_NOT_REACHED();
+}
+
+double ratio_between_viewport_relative_unit_and_px(LengthUnit viewport_relative_unit, CSSPixelRect const& viewport_rect)
+{
+    switch (viewport_relative_unit) {
+    case LengthUnit::Vw:
+    case LengthUnit::Svw:
+    case LengthUnit::Lvw:
+    case LengthUnit::Dvw:
+        return viewport_rect.width().to_double() / 100;
+    case LengthUnit::Vh:
+    case LengthUnit::Svh:
+    case LengthUnit::Lvh:
+    case LengthUnit::Dvh:
+        return viewport_rect.height().to_double() / 100;
+    case LengthUnit::Vi:
+    case LengthUnit::Svi:
+    case LengthUnit::Lvi:
+    case LengthUnit::Dvi:
+        // FIXME: Select the width or height based on which is the inline axis.
+        return viewport_rect.width().to_double() / 100;
+    case LengthUnit::Vb:
+    case LengthUnit::Svb:
+    case LengthUnit::Lvb:
+    case LengthUnit::Dvb:
+        // FIXME: Select the width or height based on which is the block axis.
+        return viewport_rect.height().to_double() / 100;
+    case LengthUnit::Vmin:
+    case LengthUnit::Svmin:
+    case LengthUnit::Lvmin:
+    case LengthUnit::Dvmin:
+        return min(viewport_rect.width(), viewport_rect.height()).to_double() / 100;
+    case LengthUnit::Vmax:
+    case LengthUnit::Svmax:
+    case LengthUnit::Lvmax:
+    case LengthUnit::Dvmax:
+        return max(viewport_rect.width(), viewport_rect.height()).to_double() / 100;
+    default:
+        break;
+    }
+
+    VERIFY_NOT_REACHED();
 }
 
 }

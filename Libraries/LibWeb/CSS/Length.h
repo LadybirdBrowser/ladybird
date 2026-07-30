@@ -267,6 +267,9 @@ private:
     Optional<Length> m_length;
 };
 
+double ratio_between_font_relative_unit_and_px(LengthUnit font_relative_unit, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics);
+double ratio_between_viewport_relative_unit_and_px(LengthUnit viewport_relative_unit, CSSPixelRect const& viewport_rect);
+
 }
 
 template<>
