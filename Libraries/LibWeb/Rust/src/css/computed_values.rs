@@ -240,10 +240,9 @@ impl_computed_payload_clone_and_eq!(BoxValues {
 /// Selects the language that owns a style group's payload lifecycle. The
 /// CppWith*Facts variants keep the C++ callback lifecycle but promise that
 /// the group's leading bytes match the named Rust layout-facts struct, so
-/// the layout engine can locate the group by lifecycle and read the prefix
-/// as typed fields.
+/// the layout engine can read the prefix as typed fields.
 #[repr(u8)]
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy)]
 pub enum StyleGroupLifecycle {
     Cpp,
     CppWithBorderFacts,
@@ -307,25 +306,6 @@ static REGISTRY: OnceLock<Registry> = OnceLock::new();
 fn vtable(group_index: usize) -> &'static StyleGroupVTable {
     let registry = REGISTRY.get().expect("style groups used before registration");
     &registry.vtables[group_index]
-}
-
-/// Resolves the registered group index of a Rust-native style group, letting
-/// the layout engine locate its typed payloads without a C++-supplied schema.
-pub(crate) fn style_group_index_with_lifecycle(lifecycle: StyleGroupLifecycle) -> usize {
-    let registry = REGISTRY.get().expect("style groups used before registration");
-    registry
-        .vtables
-        .iter()
-        .position(|table| table.lifecycle == lifecycle)
-        .expect("style group lifecycle not registered")
-}
-
-pub(crate) fn registered_style_group_count() -> usize {
-    REGISTRY
-        .get()
-        .expect("style groups used before registration")
-        .vtables
-        .len()
 }
 
 fn payload_size(table: &StyleGroupVTable) -> usize {
