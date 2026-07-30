@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Text Fragment focus behavior
+1 Pass
+Pass	Text Fragment focus behavior
