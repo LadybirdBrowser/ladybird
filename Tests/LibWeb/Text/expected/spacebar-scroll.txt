@@ -1,0 +1,8 @@
+viewport offset after space, in pages: 1
+viewport offset after shift+space, in pages: 0
+viewport offset after ctrl+space, in pages: 0
+focused scroll container offset after space, in pages: 1
+viewport offset while the scroll container scrolled, in pages: 0
+focused scroll container offset after shift+space, in pages: 0
+viewport offset after space with a button focused, in pages: 0
+viewport offset after space with a summary element focused, in pages: 0
