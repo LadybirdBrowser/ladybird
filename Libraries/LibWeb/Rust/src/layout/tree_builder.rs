@@ -14,10 +14,26 @@ use std::ffi::c_void;
 
 type LayoutNode = NodeSlotId;
 
-#[derive(Default)]
 pub(crate) struct TreeBuilderState {
     pub(crate) ancestor_stack: Vec<LayoutNode>,
     pub(crate) quote_nesting_level: u32,
+    // Partial-rebuild bookkeeping: boxes replaced in place become rebuild roots, and any tree
+    // restructuring that reaches outside every rebuild root downgrades the update to a full one.
+    current_rebuild_root: LayoutNode,
+    rebuilt_subtree_root_shells: Vec<*mut c_void>,
+    layout_tree_update_escaped_rebuild_roots: bool,
+}
+
+impl Default for TreeBuilderState {
+    fn default() -> Self {
+        Self {
+            ancestor_stack: Vec::new(),
+            quote_nesting_level: 0,
+            current_rebuild_root: NodeSlotId::INVALID,
+            rebuilt_subtree_root_shells: Vec::new(),
+            layout_tree_update_escaped_rebuild_roots: false,
+        }
+    }
 }
 
 #[derive(Default)]
@@ -73,10 +89,10 @@ pub struct FfiDomTreeBuilderCallbacks {
     pub request_top_layer_zone_rebuild: unsafe extern "C" fn(*mut c_void),
     pub push_style_ancestor: unsafe extern "C" fn(*mut c_void),
     pub pop_style_ancestor: unsafe extern "C" fn(*mut c_void),
-    pub push_principal_frame: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void,
+    pub push_principal_frame: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiPrincipalNodeFrame,
     pub pop_principal_frame: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub prepare_principal_element:
-        unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, bool) -> FfiPrincipalDisplayFacts,
+        unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, bool) -> FfiPreparedPrincipalElementFacts,
     pub principal_element_layout_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiElementLayoutFacts,
     pub create_principal_element_layout:
         unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, FfiElementLayoutKind),
@@ -87,19 +103,32 @@ pub struct FfiDomTreeBuilderCallbacks {
     pub principal_layout_node: unsafe extern "C" fn(*mut c_void) -> NodeSlotId,
     pub attach_principal_style_resources: unsafe extern "C" fn(*mut c_void),
     pub apply_replaced_display_adjustment: unsafe extern "C" fn(*mut c_void, FfiReplacedElementDisplayAdjustment),
-    pub principal_placement_facts:
-        unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, bool, bool) -> FfiPrincipalBoxPlacementFacts,
-    pub start_principal_rebuild_root: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void,
-    pub restore_principal_rebuild_root: unsafe extern "C" fn(*mut c_void, *mut c_void),
-    pub mark_update_escaped_rebuild_roots: unsafe extern "C" fn(*mut c_void),
     pub insert_principal_backdrop_before_old: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void),
     pub place_principal_layout: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, FfiPrincipalBoxPlacement),
     pub clear_stale_inclusive_subtree: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub reset_style_ancestor_filter: unsafe extern "C" fn(*mut c_void),
     pub document_layout_node: unsafe extern "C" fn(*mut c_void) -> NodeSlotId,
-    pub layout_root: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
+    pub report_rebuild_outcome: unsafe extern "C" fn(*mut c_void, *const *mut c_void, usize, bool),
     pub layout: FfiTreeBuilderCallbacks,
     pub pseudo: FfiPseudoTreeBuilderCallbacks,
+}
+
+/// The C++ frame that retains a principal node's old and new layout boxes, paired with the old
+/// box's arena slot so Rust can reason about in-place replacement without calling back.
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiPrincipalNodeFrame {
+    pub frame: *mut c_void,
+    pub old_layout_node: NodeSlotId,
+}
+
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiPreparedPrincipalElementFacts {
+    pub display: FfiPrincipalDisplayFacts,
+    // A stale ::backdrop box is a viewport child, so removing it restructures the tree outside
+    // every rebuild root.
+    pub removed_old_backdrop_layout_node: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -428,17 +457,16 @@ fn clear_stale_assigned_slottables(
 }
 
 #[derive(Clone, Copy)]
-#[repr(C)]
-pub struct FfiPrincipalBoxPlacementFacts {
-    pub must_create_subtree: bool,
-    pub should_create_layout_node: bool,
-    pub has_old_layout_node: bool,
-    pub old_layout_node_is_attached: bool,
-    pub old_and_new_layout_nodes_are_same: bool,
-    pub has_current_rebuild_root: bool,
-    pub is_document: bool,
-    pub is_element: bool,
-    pub rendered_in_top_layer: bool,
+pub(crate) struct PrincipalBoxPlacementFacts {
+    pub(crate) must_create_subtree: bool,
+    pub(crate) should_create_layout_node: bool,
+    pub(crate) has_old_layout_node: bool,
+    pub(crate) old_layout_node_is_attached: bool,
+    pub(crate) old_and_new_layout_nodes_are_same: bool,
+    pub(crate) has_current_rebuild_root: bool,
+    pub(crate) is_document: bool,
+    pub(crate) is_element: bool,
+    pub(crate) rendered_in_top_layer: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -462,7 +490,7 @@ pub(crate) struct PrincipalBoxPlacementDecision {
 }
 
 pub(crate) fn principal_box_placement_decision(
-    facts: FfiPrincipalBoxPlacementFacts,
+    facts: PrincipalBoxPlacementFacts,
     layout_node_is_svg_box: bool,
     layout_top_layer: bool,
 ) -> PrincipalBoxPlacementDecision {
@@ -1181,6 +1209,7 @@ struct PrincipalNodeUpdate<'host, 'callbacks, 'state, 'context> {
     host: &'host DomTreeBuilderHost<'callbacks>,
     state: &'state mut TreeBuilderState,
     frame: *mut c_void,
+    old_layout_node: LayoutNode,
     dom_node: *mut c_void,
     context: &'context mut TreeBuilderContext,
     must_create_subtree: bool,
@@ -1198,7 +1227,7 @@ fn construct_principal_layout_node(
     let context = &mut *update.context;
     if entry_facts.is_element {
         // SAFETY: The frame, builder, and DOM element remain live throughout the call.
-        let display = unsafe {
+        let prepared = unsafe {
             (host.callbacks.prepare_principal_element)(
                 host.callbacks.builder,
                 frame,
@@ -1206,10 +1235,13 @@ fn construct_principal_layout_node(
                 should_create_layout_node,
             )
         };
+        if prepared.removed_old_backdrop_layout_node {
+            update.state.layout_tree_update_escaped_rebuild_roots = true;
+        }
         let generation = principal_box_generation_decision(
             true,
-            should_create_layout_node && display.display_is_none,
-            display.display_is_contents,
+            should_create_layout_node && prepared.display.display_is_none,
+            prepared.display.display_is_contents,
         );
         if generation == PrincipalBoxGenerationDecision::Suppress {
             return (false, false);
@@ -1317,29 +1349,36 @@ fn update_principal_node_after_entry(
             unsafe { (host.callbacks.apply_replaced_display_adjustment)(frame, adjustment) };
         }
 
-        // SAFETY: All pointers remain live and the frame owns both old and new layout nodes.
-        let placement_facts = unsafe {
-            (host.callbacks.principal_placement_facts)(
-                host.callbacks.builder,
-                frame,
-                dom_node,
-                update.must_create_subtree,
-                entry_decision.should_create_layout_node,
-            )
+        let old_layout_node = update.old_layout_node;
+        let placement_facts = PrincipalBoxPlacementFacts {
+            must_create_subtree: update.must_create_subtree,
+            should_create_layout_node: entry_decision.should_create_layout_node,
+            has_old_layout_node: !old_layout_node.is_invalid(),
+            old_layout_node_is_attached: !old_layout_node.is_invalid()
+                && !host.layout().parent(old_layout_node).is_invalid(),
+            old_and_new_layout_nodes_are_same: old_layout_node == layout_node,
+            has_current_rebuild_root: !update.state.current_rebuild_root.is_invalid(),
+            is_document: entry_facts.is_document,
+            is_element: entry_facts.is_element,
+            rendered_in_top_layer: entry_facts.rendered_in_top_layer,
         };
         let layout_node_is_svg_box = node_kind_is_svg_box(host.layout().data(layout_node).kind);
         let prior_layout_top_layer = context.layout_top_layer;
         let placement =
             principal_box_placement_decision(placement_facts, layout_node_is_svg_box, prior_layout_top_layer);
 
-        let mut prior_rebuild_root = std::ptr::null_mut();
+        let mut prior_rebuild_root = NodeSlotId::INVALID;
         if placement.start_rebuild_root {
-            // SAFETY: The builder and frame remain live throughout descendant construction.
-            prior_rebuild_root =
-                unsafe { (host.callbacks.start_principal_rebuild_root)(host.callbacks.builder, frame) };
+            prior_rebuild_root = update.state.current_rebuild_root;
+            update.state.current_rebuild_root = layout_node;
+            // The shell pointer is captured now, while the box is known to be live; the reported
+            // list mirrors what the bridge used to append at this exact point.
+            update
+                .state
+                .rebuilt_subtree_root_shells
+                .push(host.layout().shell(layout_node));
         } else if placement.mark_update_escaped_rebuild_roots {
-            // SAFETY: The builder remains live throughout the call.
-            unsafe { (host.callbacks.mark_update_escaped_rebuild_roots)(host.callbacks.builder) };
+            update.state.layout_tree_update_escaped_rebuild_roots = true;
         }
 
         if placement.create_backdrop {
@@ -1353,6 +1392,9 @@ fn update_principal_node_after_entry(
             let backdrop =
                 create_pseudo_element(host, update.state, dom_node, FfiPseudoElement::Backdrop, insertion_mode);
             if placement.may_replace_existing_layout_node && !backdrop.is_invalid() {
+                // The backdrop lands next to the still-attached old box, so this restructures the
+                // old box's parent.
+                note_layout_tree_restructuring_at(&host.layout(), update.state, host.layout().parent(old_layout_node));
                 // SAFETY: The frame retains the attached old layout node and `backdrop` is owned by the element.
                 unsafe {
                     (host.callbacks.insert_principal_backdrop_before_old)(
@@ -1376,11 +1418,13 @@ fn update_principal_node_after_entry(
         };
         if placement.placement == FfiPrincipalBoxPlacement::NormalInsertion {
             let layout_host = host.layout();
+            let is_inline_outside = node_is_inline_outside(layout_host.data(layout_node));
             insert_node_into_inline_or_block_ancestor(
                 &layout_host,
+                update.state,
                 current_parent,
                 layout_node,
-                node_is_inline_outside(layout_host.data(layout_node)),
+                is_inline_outside,
                 FfiInsertionMode::Append,
             );
         } else {
@@ -1410,8 +1454,7 @@ fn update_principal_node_after_entry(
             context.layout_top_layer = prior_layout_top_layer;
         }
         if placement.start_rebuild_root {
-            // SAFETY: Restore the builder's previous rebuild root after descendant construction.
-            unsafe { (host.callbacks.restore_principal_rebuild_root)(host.callbacks.builder, prior_rebuild_root) };
+            update.state.current_rebuild_root = prior_rebuild_root;
         }
     } else if !handled_display_contents {
         // If no layout node was created, remove every stale layout and paint node from the shadow-including subtree.
@@ -1459,12 +1502,13 @@ fn update_layout_tree(
             unsafe { (host.callbacks.push_style_ancestor)(dom_node) };
         }
         // SAFETY: The builder and DOM node remain live, and the callback retains frame-owned C++ objects.
-        let frame = unsafe { (host.callbacks.push_principal_frame)(host.callbacks.builder, dom_node) };
-        assert!(!frame.is_null());
+        let pushed_frame = unsafe { (host.callbacks.push_principal_frame)(host.callbacks.builder, dom_node) };
+        assert!(!pushed_frame.frame.is_null());
         let mut update = PrincipalNodeUpdate {
             host,
             state,
-            frame,
+            frame: pushed_frame.frame,
+            old_layout_node: pushed_frame.old_layout_node,
             dom_node,
             context,
             must_create_subtree,
@@ -1475,7 +1519,7 @@ fn update_layout_tree(
             unsafe { (host.callbacks.pop_style_ancestor)(dom_node) };
         }
         // SAFETY: `frame` is the most recently pushed principal frame and is no longer used by Rust.
-        unsafe { (host.callbacks.pop_principal_frame)(host.callbacks.builder, frame) };
+        unsafe { (host.callbacks.pop_principal_frame)(host.callbacks.builder, pushed_frame.frame) };
     });
 }
 
@@ -1489,7 +1533,7 @@ pub unsafe extern "C" fn rust_build_layout_tree(
     callbacks: *const FfiDomTreeBuilderCallbacks,
     arena: *mut c_void,
     document: *mut c_void,
-) -> *mut c_void {
+) {
     abort_on_panic(|| {
         assert!(!document.is_null());
         // SAFETY: Guaranteed by the entry point's contract.
@@ -1512,9 +1556,16 @@ pub unsafe extern "C" fn rust_build_layout_tree(
             fixup_tables(&host.layout(), document_layout_node);
         }
 
-        // SAFETY: The builder remains live and owns the returned root.
-        unsafe { (host.callbacks.layout_root)(host.callbacks.builder) }
-    })
+        // SAFETY: The builder remains live and copies the reported shell pointers before returning.
+        unsafe {
+            (host.callbacks.report_rebuild_outcome)(
+                host.callbacks.builder,
+                state.rebuilt_subtree_root_shells.as_ptr(),
+                state.rebuilt_subtree_root_shells.len(),
+                state.layout_tree_update_escaped_rebuild_roots,
+            );
+        }
+    });
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1734,11 +1785,14 @@ fn create_pseudo_element_with_frame(
     unsafe { (callbacks.configure_layout_node)(frame, element, pseudo_element, initial_quote_nesting_level) };
     if let Some(insertion_mode) = insertion_mode {
         let layout_host = host.layout();
+        let current_parent = state.current_parent();
+        let is_inline_outside = node_is_inline_outside(layout_host.data(layout_node));
         insert_node_into_inline_or_block_ancestor(
             &layout_host,
-            state.current_parent(),
+            state,
+            current_parent,
             layout_node,
-            node_is_inline_outside(layout_host.data(layout_node)),
+            is_inline_outside,
             insertion_mode,
         );
     }
@@ -1759,11 +1813,14 @@ fn create_pseudo_element_with_frame(
             let content_item = unsafe { (callbacks.create_content_item)(frame, element, pseudo_element, index) };
             assert!(!content_item.is_invalid());
             let layout_host = host.layout();
+            let current_parent = state.current_parent();
+            let is_inline_outside = node_is_inline_outside(layout_host.data(content_item));
             insert_node_into_inline_or_block_ancestor(
                 &layout_host,
-                state.current_parent(),
+                state,
+                current_parent,
                 content_item,
-                node_is_inline_outside(layout_host.data(content_item)),
+                is_inline_outside,
                 FfiInsertionMode::Append,
             );
         }
@@ -1886,7 +1943,6 @@ pub struct FfiTreeBuilderCallbacks {
     pub create_and_append_anonymous_wrapper: unsafe extern "C" fn(*mut c_void, *mut c_void) -> NodeSlotId,
     pub wrap_children_in_anonymous: unsafe extern "C" fn(*mut c_void, *mut c_void, *const *mut c_void, usize),
     pub insert_child: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, FfiInsertionMode),
-    pub note_tree_restructuring: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub text_is_ascii_whitespace: unsafe extern "C" fn(*mut c_void, *mut c_void) -> bool,
     pub prepare_first_letter_text:
         unsafe extern "C" fn(*mut c_void, *mut c_void, *mut FfiFirstLetterTextCallbacks) -> bool,
@@ -2167,6 +2223,28 @@ impl crate::layout::TableTree for TreeBuilderHost<'_> {
     }
 }
 
+fn is_inclusive_layout_ancestor_of(host: &TreeBuilderHost<'_>, ancestor: LayoutNode, node: LayoutNode) -> bool {
+    let mut current = node;
+    while !current.is_invalid() {
+        if current == ancestor {
+            return true;
+        }
+        current = host.parent(current);
+    }
+    false
+}
+
+// Restructuring the tree at a node outside the subtree being rebuilt in place means the update
+// escaped every rebuild root, so partial relayout is no longer sound for this build.
+fn note_layout_tree_restructuring_at(host: &TreeBuilderHost<'_>, state: &mut TreeBuilderState, node: LayoutNode) {
+    if state.current_rebuild_root.is_invalid() {
+        return;
+    }
+    if !is_inclusive_layout_ancestor_of(host, state.current_rebuild_root, node) {
+        state.layout_tree_update_escaped_rebuild_roots = true;
+    }
+}
+
 fn has_inline_or_in_flow_block_children(host: &TreeBuilderHost<'_>, node: LayoutNode) -> bool {
     let mut child = host.first_child(node);
     while !child.is_invalid() {
@@ -2266,6 +2344,7 @@ fn insertion_parent_for_inline_node(host: &TreeBuilderHost<'_>, parent: LayoutNo
 
 fn insertion_parent_for_block_node(
     host: &TreeBuilderHost<'_>,
+    state: &mut TreeBuilderState,
     parent: LayoutNode,
     node: LayoutNode,
     mode: FfiInsertionMode,
@@ -2337,8 +2416,7 @@ fn insertion_parent_for_block_node(
     }
 
     // Parent block has inline-level children (our siblings); wrap these siblings into an anonymous wrapper block.
-    // SAFETY: `new_parent` is live for the duration of this call.
-    unsafe { (host.callbacks.note_tree_restructuring)(host.callbacks.context, host.shell(new_parent)) };
+    note_layout_tree_restructuring_at(host, state, new_parent);
     let mut child_shells = Vec::new();
     let mut child = host.first_child(new_parent);
     while !child.is_invalid() {
@@ -2363,6 +2441,7 @@ fn insertion_parent_for_block_node(
 
 fn insert_node_into_inline_or_block_ancestor(
     host: &TreeBuilderHost<'_>,
+    state: &mut TreeBuilderState,
     nearest_insertion_ancestor: LayoutNode,
     node: LayoutNode,
     is_inline_outside: bool,
@@ -2374,13 +2453,12 @@ fn insert_node_into_inline_or_block_ancestor(
     let insertion_point = if is_inline_outside {
         insertion_parent_for_inline_node(host, nearest_insertion_ancestor)
     } else {
-        insertion_parent_for_block_node(host, nearest_insertion_ancestor, node, mode)
+        insertion_parent_for_block_node(host, state, nearest_insertion_ancestor, node, mode)
     };
 
     // Insertion parents can be above the subtree being rebuilt in place: inline ancestors are
     // skipped, and out-of-flow boxes can join a trailing anonymous sibling.
-    // SAFETY: `insertion_point` is live for the duration of this call.
-    unsafe { (host.callbacks.note_tree_restructuring)(host.callbacks.context, host.shell(insertion_point)) };
+    note_layout_tree_restructuring_at(host, state, insertion_point);
     // SAFETY: The callback retains `node` while inserting it into the live insertion point.
     unsafe {
         (host.callbacks.insert_child)(
@@ -3116,13 +3194,12 @@ mod tests {
     use crate::layout::node_data::NodeSlotId;
     use crate::layout::tree_builder::{
         FfiComputedContentType, FfiElementLayoutFacts, FfiElementLayoutKind, FfiFirstLetterCodePointFacts,
-        FfiFirstLetterTextCallbacks, FfiPrincipalBoxPlacement, FfiPrincipalBoxPlacementFacts,
-        FfiPrincipalNodeEntryFacts, FfiPseudoElement, FfiPseudoElementDecision, FfiPseudoElementFacts,
-        FfiReplacedElementDisplayAdjustment, FirstLetterTextHost, PrincipalBoxGenerationDecision, SvgEntryDecision,
-        TopLayerEntryDecision, TreeBuilderContext, adjusted_table_display_for_replaced_element,
-        display_contents_text_needs_style_wrapper, element_layout_kind, find_first_letter_in_text,
-        principal_box_generation_decision, principal_box_placement_decision, principal_node_entry_decision,
-        pseudo_element_decision,
+        FfiFirstLetterTextCallbacks, FfiPrincipalBoxPlacement, FfiPrincipalNodeEntryFacts, FfiPseudoElement,
+        FfiPseudoElementDecision, FfiPseudoElementFacts, FfiReplacedElementDisplayAdjustment, FirstLetterTextHost,
+        PrincipalBoxGenerationDecision, PrincipalBoxPlacementFacts, SvgEntryDecision, TopLayerEntryDecision,
+        TreeBuilderContext, adjusted_table_display_for_replaced_element, display_contents_text_needs_style_wrapper,
+        element_layout_kind, find_first_letter_in_text, principal_box_generation_decision,
+        principal_box_placement_decision, principal_node_entry_decision, pseudo_element_decision,
     };
     use std::ffi::c_void;
 
@@ -3399,7 +3476,7 @@ mod tests {
             PrincipalBoxGenerationDecision::PrincipalBox
         );
 
-        let mut facts = FfiPrincipalBoxPlacementFacts {
+        let mut facts = PrincipalBoxPlacementFacts {
             must_create_subtree: false,
             should_create_layout_node: true,
             has_old_layout_node: true,
