@@ -22,6 +22,9 @@ NavigationSourceSnapshot create_navigation_source_snapshot(SourceSnapshotParams 
         .allows_downloading = snapshot.allows_downloading,
         .fetch_client = snapshot.fetch_client ? Optional<SerializedEnvironmentSettingsObject> { snapshot.fetch_client->serialize() } : Optional<SerializedEnvironmentSettingsObject> {},
         .source_policy_container = snapshot.source_policy_container->serialize(),
+        .text_directive_user_activation = snapshot.text_directive_user_activation,
+        .browsing_context_group_has_multiple_contexts = snapshot.browsing_context_group_has_multiple_contexts,
+        .browsing_context_group_has_remote_contexts = snapshot.browsing_context_group_has_remote_contexts,
     };
 }
 
@@ -39,7 +42,10 @@ GC::Ref<SourceSnapshotParams> create_source_snapshot_params_from_navigation_sour
         snapshot.sandboxing_flags,
         snapshot.allows_downloading,
         fetch_client,
-        create_a_policy_container_from_serialized_policy_container(snapshot.source_policy_container));
+        create_a_policy_container_from_serialized_policy_container(snapshot.source_policy_container),
+        snapshot.text_directive_user_activation,
+        snapshot.browsing_context_group_has_multiple_contexts,
+        snapshot.browsing_context_group_has_remote_contexts);
 }
 
 }

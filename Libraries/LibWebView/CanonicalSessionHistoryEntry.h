@@ -113,6 +113,8 @@ public:
     Utf16String navigation_api_id;
     Web::HTML::ScrollRestorationMode scroll_restoration_mode { Web::HTML::ScrollRestorationMode::Auto };
     Web::HTML::SessionHistoryEntryScrollPositionData scroll_position_data;
+    Web::HTML::CrossProcessId directive_state_id;
+    Optional<String> directive_state_value;
 
 private:
     explicit CanonicalSessionHistoryEntry(NonnullRefPtr<CanonicalDocumentState>);

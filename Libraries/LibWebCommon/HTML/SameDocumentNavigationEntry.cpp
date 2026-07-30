@@ -31,6 +31,8 @@ ErrorOr<void> IPC::encode(Encoder& encoder, Web::HTML::SameDocumentNavigationEnt
     TRY(encoder.encode(entry.navigation_api_id));
     TRY(encoder.encode(entry.scroll_restoration_mode));
     TRY(encoder.encode(entry.scroll_position_data));
+    TRY(encoder.encode(entry.directive_state_id));
+    TRY(encoder.encode(entry.directive_state_value));
     return {};
 }
 
@@ -46,5 +48,7 @@ ErrorOr<Web::HTML::SameDocumentNavigationEntry> IPC::decode(Decoder& decoder)
         .navigation_api_id = TRY(decoder.decode<Utf16String>()),
         .scroll_restoration_mode = TRY(decoder.decode<Web::HTML::ScrollRestorationMode>()),
         .scroll_position_data = TRY(decoder.decode<Web::HTML::SessionHistoryEntryScrollPositionData>()),
+        .directive_state_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
+        .directive_state_value = TRY(decoder.decode<Optional<String>>()),
     };
 }

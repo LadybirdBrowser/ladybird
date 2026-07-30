@@ -50,6 +50,8 @@ struct NavigationRequestDescriptor {
     ReferrerPolicy::ReferrerPolicy referrer_policy { ReferrerPolicy::DEFAULT_REFERRER_POLICY };
     SerializedPolicyContainer policy_container;
     u8 redirect_count { 0 };
+    bool text_directive_user_activation { false };
+    bool browsing_context_group_has_multiple_contexts { false };
 };
 
 struct NavigationResponseBodyHandle {

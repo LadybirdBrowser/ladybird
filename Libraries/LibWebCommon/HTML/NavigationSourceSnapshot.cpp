@@ -33,6 +33,9 @@ NavigationSourceSnapshot create_navigation_source_snapshot_without_a_source_docu
             .embedder_policy = {},
             .referrer_policy = ReferrerPolicy::DEFAULT_REFERRER_POLICY,
         },
+        .text_directive_user_activation = false,
+        .browsing_context_group_has_multiple_contexts = false,
+        .browsing_context_group_has_remote_contexts = false,
     };
 }
 
@@ -48,6 +51,9 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::NavigationSourceSnapshot const
     TRY(encoder.encode(snapshot.allows_downloading));
     TRY(encoder.encode(snapshot.fetch_client));
     TRY(encoder.encode(snapshot.source_policy_container));
+    TRY(encoder.encode(snapshot.text_directive_user_activation));
+    TRY(encoder.encode(snapshot.browsing_context_group_has_multiple_contexts));
+    TRY(encoder.encode(snapshot.browsing_context_group_has_remote_contexts));
     return {};
 }
 
@@ -60,6 +66,9 @@ ErrorOr<Web::HTML::NavigationSourceSnapshot> decode(Decoder& decoder)
         .allows_downloading = TRY(decoder.decode<bool>()),
         .fetch_client = TRY(decoder.decode<Optional<Web::HTML::SerializedEnvironmentSettingsObject>>()),
         .source_policy_container = TRY(decoder.decode<Web::HTML::SerializedPolicyContainer>()),
+        .text_directive_user_activation = TRY(decoder.decode<bool>()),
+        .browsing_context_group_has_multiple_contexts = TRY(decoder.decode<bool>()),
+        .browsing_context_group_has_remote_contexts = TRY(decoder.decode<bool>()),
     };
 }
 

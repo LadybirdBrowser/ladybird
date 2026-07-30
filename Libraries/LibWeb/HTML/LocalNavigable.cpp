@@ -2537,6 +2537,8 @@ static void create_navigation_params_by_fetching(
     request->set_referrer(request_referrer);
     request->set_referrer_policy(request_referrer_policy);
     request->set_policy_container(source_snapshot_params->source_policy_container);
+    request->set_text_directive_user_activation(source_snapshot_params->text_directive_user_activation);
+    request->set_browsing_context_group_has_multiple_contexts(source_snapshot_params->browsing_context_group_has_multiple_contexts);
 
     // 4. If navigable is a top-level traversable, then set request's top-level navigation initiator origin to entry's
     //    document state's initiator origin.
@@ -3653,7 +3655,7 @@ void LocalNavigable::begin_navigation(PreparedNavigation navigation)
         // 1. Navigate to a fragment given navigable, url, historyHandling, userInvolvement, sourceElement, navigationAPIState, and navigationId.
         // AD-HOC: The spec does not pass apiMethodTracker along here, which would leave a navigation.navigate() to a
         //         fragment without an ongoing API method tracker, so its promises would never settle.
-        navigate_to_a_fragment(url, to_history_handling_behavior(history_handling), user_involvement, source_element, navigation_api_state, navigation_id, api_method_tracker);
+        navigate_to_a_fragment(url, to_history_handling_behavior(history_handling), user_involvement, source_element, navigation_api_state, navigation_id, api_method_tracker, initiator_origin_snapshot);
 
         // 2. Return.
         return;
@@ -3768,6 +3770,10 @@ void LocalNavigable::begin_navigation(PreparedNavigation navigation)
 
     // 23. In parallel, run these steps:
     auto source_snapshot = create_navigation_source_snapshot(source_snapshot_params);
+    source_snapshot.text_directive_user_activation = active_document()->text_directive_user_activation();
+    source_snapshot.browsing_context_group_has_multiple_contexts = active_document()->browsing_context_group_has_multiple_contexts();
+    source_snapshot.browsing_context_group_has_remote_contexts = active_document()->browsing_context_group_has_remote_contexts();
+    active_document()->set_text_directive_user_activation(false);
 
     // Session history entry state is structured-serialized in WebContent, where the JavaScript VM lives. The UI
     // process owns the pending entry and document state created from these initial values.
@@ -3890,7 +3896,7 @@ bool LocalNavigable::resume_navigation_params_creation(Utf16String const& naviga
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate-fragid
-void LocalNavigable::navigate_to_a_fragment(URL::URL const& url, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, GC::Ptr<DOM::Element> source_element, Optional<StorageSerializationRecord> navigation_api_state, Utf16String navigation_id, GC::Ptr<NavigationAPIMethodTracker> api_method_tracker)
+void LocalNavigable::navigate_to_a_fragment(URL::URL const& url, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, GC::Ptr<DOM::Element> source_element, Optional<StorageSerializationRecord> navigation_api_state, Utf16String navigation_id, GC::Ptr<NavigationAPIMethodTracker> api_method_tracker, Optional<URL::Origin> initiator_origin)
 {
     // 1. Let navigation be navigable's active window's navigation API.
     VERIFY(active_window());
@@ -3981,7 +3987,8 @@ void LocalNavigable::navigate_to_a_fragment(URL::URL const& url, HistoryHandling
     active_document()->update_for_history_step_application(*history_entry, true, script_history_length, script_history_index, navigation_type);
 
     // 16. Scroll to the fragment given navigable's active document.
-    active_document()->scroll_to_the_fragment();
+    auto const allow_text_directive_scroll = active_document()->check_if_a_text_directive_can_be_scrolled(initiator_origin, user_involvement);
+    active_document()->scroll_to_the_fragment(allow_text_directive_scroll);
 
     // 17. Let traversable be navigable's traversable navigable.
     // 18. Append the following session history synchronous navigation steps involving navigable to traversable:

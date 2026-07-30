@@ -158,6 +158,7 @@
 #include <LibWeb/HTML/HTMLBodyElement.h>
 #include <LibWeb/HTML/HTMLDialogElement.h>
 #include <LibWeb/HTML/HTMLDocument.h>
+#include <LibWeb/HTML/TextDirective.h>
 #include <LibWeb/HTML/HTMLEmbedElement.h>
 #include <LibWeb/HTML/HTMLFormElement.h>
 #include <LibWeb/HTML/HTMLFrameSetElement.h>
@@ -531,6 +532,13 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
         if (referrer.has<URL::URL>()) {
             document->m_referrer = utf16_string_from_url_ascii(referrer.get<URL::URL>().serialize());
         }
+
+        // https://wicg.github.io/scroll-to-text-fragment/#restricting-the-text-fragment
+        document->m_text_directive_user_activation = navigation_params.user_involvement == HTML::UserNavigationInvolvement::Activation
+            || navigation_params.user_involvement == HTML::UserNavigationInvolvement::BrowserUI
+            || navigation_params.request->text_directive_user_activation();
+        navigation_params.request->set_text_directive_user_activation(false);
+        document->m_browsing_context_group_has_remote_contexts = navigation_params.request->browsing_context_group_has_multiple_contexts();
     }
 
     // NOTE: Step 16 is treated as the else branch of step 15. Otherwise, redirectCount is undefined when the fetch
@@ -4513,7 +4521,7 @@ void Document::dispatch_events_for_animation_if_necessary(GC::Ref<Animations::An
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#scroll-to-the-fragment-identifier
-void Document::scroll_to_the_fragment()
+void Document::scroll_to_the_fragment([[maybe_unused]] bool allow_text_directive_scroll)
 {
     // To scroll to the fragment given a Document document:
 
@@ -4562,7 +4570,7 @@ void Document::scroll_to_the_fragment()
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#try-to-scroll-to-the-fragment
-void Document::try_to_scroll_to_the_fragment()
+void Document::try_to_scroll_to_the_fragment([[maybe_unused]] bool allow_text_directive_scroll)
 {
     // FIXME: According to the spec we should only scroll here if document has no parser or parsing has stopped.
     //        It should be ok to remove this after we implement navigation events and scrolling will happen in
@@ -4578,6 +4586,68 @@ void Document::try_to_scroll_to_the_fragment()
     //      3. If document's indicated part is still null, then try to scroll to the fragment for document.
 
     scroll_to_the_fragment();
+}
+
+// https://wicg.github.io/scroll-to-text-fragment/#check-if-a-text-directive-can-be-scrolled
+bool Document::check_if_a_text_directive_can_be_scrolled(Optional<URL::Origin> const& initiator_origin, Optional<HTML::UserNavigationInvolvement> user_involvement)
+{
+    // 1. If document's pending text directives field is null or empty, return false.
+    if (!m_pending_text_directives.has_value() || m_pending_text_directives->is_empty())
+        return false;
+
+    // 2. Let is user involved be true if document's text directive user activation is true, or user involvement is
+    //    one of "activation" or "browser UI"; false otherwise.
+    auto const is_user_involved = m_text_directive_user_activation
+        || user_involvement == HTML::UserNavigationInvolvement::Activation
+        || user_involvement == HTML::UserNavigationInvolvement::BrowserUI;
+
+    // 3. Set document's text directive user activation to false.
+    m_text_directive_user_activation = false;
+
+    // 4. If document's content type is not a text directive allowing MIME type, return false.
+    if (m_content_type != "text/html"_utf16_fly_string && m_content_type != "text/plain"_utf16_fly_string)
+        return false;
+
+    // 5. If user involvement is "browser UI", return true.
+    if (user_involvement == HTML::UserNavigationInvolvement::BrowserUI)
+        return true;
+
+    // 6. If is user involved is false, return false.
+    if (!is_user_involved)
+        return false;
+
+    // 7. If document's node navigable has a parent, return false.
+    if (!navigable() || navigable()->parent())
+        return false;
+
+    // 8. If initiator origin is non-null and document's origin is same origin with initiator origin, return true.
+    if (initiator_origin.has_value() && origin().is_same_origin(*initiator_origin))
+        return true;
+
+    // 9. If document's browsing context's browsing context group's browsing context set has length 1, return true.
+    if (!browsing_context_group_has_multiple_contexts())
+        return true;
+
+    // 10. Otherwise, return false.
+    return false;
+}
+
+bool Document::browsing_context_group_has_multiple_contexts() const
+{
+    if (m_browsing_context_group_has_remote_contexts)
+        return true;
+    auto local_navigable = navigable();
+    if (!local_navigable)
+        return true;
+    auto group_id = local_navigable->browsing_context_group_id();
+    if (!group_id.has_value())
+        return true;
+    size_t matching_navigable_count = 0;
+    for (auto& candidate : HTML::all_local_navigables()) {
+        if (candidate->browsing_context_group_id() == group_id && ++matching_navigable_count > 1)
+            return true;
+    }
+    return false;
 }
 
 // https://drafts.csswg.org/cssom-view-1/#scroll-to-the-beginning-of-the-document
@@ -7208,7 +7278,7 @@ void Document::restore_the_history_object_state(NonnullRefPtr<HTML::SessionHisto
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#update-document-for-history-step-application
-void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHistoryEntry> entry, bool do_not_reactivate, size_t script_history_length, size_t script_history_index, Optional<HTML::NavigationType> navigation_type, Optional<Vector<NonnullRefPtr<HTML::SessionHistoryEntry>>> entries_for_navigation_api, RefPtr<HTML::SessionHistoryEntry> previous_entry_for_activation, bool previous_entry_for_activation_document_is_initial_about_blank)
+void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHistoryEntry> entry, bool do_not_reactivate, size_t script_history_length, size_t script_history_index, Optional<HTML::NavigationType> navigation_type, Optional<Vector<NonnullRefPtr<HTML::SessionHistoryEntry>>> entries_for_navigation_api, RefPtr<HTML::SessionHistoryEntry> previous_entry_for_activation, bool previous_entry_for_activation_document_is_initial_about_blank, bool allow_text_directive_scroll)
 {
     // 1. Let documentIsNew be true if document's latest entry is null; otherwise false.
     auto document_is_new = !m_latest_entry;
@@ -7369,7 +7439,7 @@ void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHi
         //           status whose id is document's during-loading navigation ID for WebDriver BiDi, status is "committed", and url is document's URL
 
         // 3. Try to scroll to the fragment for document.
-        try_to_scroll_to_the_fragment();
+        try_to_scroll_to_the_fragment(allow_text_directive_scroll);
 
         // 4. At this point scripts may run for the newly-created document document.
         set_ready_to_run_scripts();

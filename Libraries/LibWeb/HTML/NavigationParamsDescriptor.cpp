@@ -51,6 +51,8 @@ static NavigationRequestDescriptor create_navigation_request_descriptor(Fetch::I
         .referrer_policy = request.referrer_policy(),
         .policy_container = serialize_request_policy_container(request),
         .redirect_count = request.redirect_count(),
+        .text_directive_user_activation = request.text_directive_user_activation(),
+        .browsing_context_group_has_multiple_contexts = request.browsing_context_group_has_multiple_contexts(),
     };
 }
 
@@ -237,6 +239,8 @@ static GC::Ptr<Fetch::Infrastructure::Request> create_navigation_request_from_de
     request->set_referrer_policy(descriptor->referrer_policy);
     request->set_policy_container(create_a_policy_container_from_serialized_policy_container(descriptor->policy_container));
     request->set_redirect_count(descriptor->redirect_count);
+    request->set_text_directive_user_activation(descriptor->text_directive_user_activation);
+    request->set_browsing_context_group_has_multiple_contexts(descriptor->browsing_context_group_has_multiple_contexts);
     return request;
 }
 
