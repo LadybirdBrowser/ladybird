@@ -52,6 +52,7 @@
 #include <LibWeb/HTML/PreloadEntry.h>
 #include <LibWeb/HTML/Scripting/ScriptRegistry.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
+#include <LibWeb/HTML/TextDirective.h>
 #include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/InvalidateDisplayList.h>
 #include <LibWeb/Layout/LayoutRustFFI.h>
@@ -72,6 +73,7 @@
 #include <LibWebCommon/HTML/CrossProcessId.h>
 #include <LibWebCommon/HTML/SandboxingFlagSet.h>
 #include <LibWebCommon/HTML/VisibilityState.h>
+#include <LibWebCommon/HTML/UserNavigationInvolvement.h>
 
 namespace Web::Compositor {
 
@@ -767,8 +769,8 @@ public:
     Element const* accessibility_focus_target() const { return m_accessibility_focus_target.ptr(); }
     void set_accessibility_focus_target(GC::Ptr<Element>);
 
-    void try_to_scroll_to_the_fragment();
-    void scroll_to_the_fragment();
+    void try_to_scroll_to_the_fragment(bool allow_text_directive_scroll = false);
+    void scroll_to_the_fragment(bool allow_text_directive_scroll = false);
     void scroll_to_the_beginning_of_the_document();
 
     bool created_for_appropriate_template_contents() const { return m_created_for_appropriate_template_contents; }
@@ -822,6 +824,14 @@ public:
 
     // https://wicg.github.io/scroll-to-text-fragment/#feature-detectability
     GC::Ref<FragmentDirective> fragment_directive();
+    Optional<Vector<HTML::TextDirective>> const& pending_text_directives() const { return m_pending_text_directives; }
+    void set_pending_text_directives(Optional<Vector<HTML::TextDirective>> directives) { m_pending_text_directives = move(directives); }
+    bool check_if_a_text_directive_can_be_scrolled(Optional<URL::Origin> const&, Optional<HTML::UserNavigationInvolvement>);
+    bool text_directive_user_activation() const { return m_text_directive_user_activation; }
+    void set_text_directive_user_activation(bool value) { m_text_directive_user_activation = value; }
+    bool browsing_context_group_has_multiple_contexts() const;
+    bool browsing_context_group_has_remote_contexts() const { return m_browsing_context_group_has_remote_contexts; }
+    void set_browsing_context_group_has_remote_contexts(bool value) { m_browsing_context_group_has_remote_contexts = value; }
 
     GC::Ptr<HTML::HTMLScriptElement> current_script() const { return m_current_script.ptr(); }
     void set_current_script(Badge<HTML::HTMLScriptElement>, GC::Ptr<HTML::HTMLScriptElement> script) { m_current_script = move(script); }
@@ -1134,7 +1144,7 @@ public:
 
     u32 unload_counter() const { return m_unload_counter; }
 
-    void update_for_history_step_application(NonnullRefPtr<HTML::SessionHistoryEntry>, bool do_not_reactivate, size_t script_history_length, size_t script_history_index, Optional<HTML::NavigationType> navigation_type, Optional<Vector<NonnullRefPtr<HTML::SessionHistoryEntry>>> entries_for_navigation_api = {}, RefPtr<HTML::SessionHistoryEntry> previous_entry_for_activation = {}, bool previous_entry_for_activation_document_is_initial_about_blank = false);
+    void update_for_history_step_application(NonnullRefPtr<HTML::SessionHistoryEntry>, bool do_not_reactivate, size_t script_history_length, size_t script_history_index, Optional<HTML::NavigationType> navigation_type, Optional<Vector<NonnullRefPtr<HTML::SessionHistoryEntry>>> entries_for_navigation_api = {}, RefPtr<HTML::SessionHistoryEntry> previous_entry_for_activation = {}, bool previous_entry_for_activation_document_is_initial_about_blank = false, bool allow_text_directive_scroll = false);
 
     HashMap<URL::URL, GC::Ptr<HTML::SharedResourceRequest>>& shared_resource_requests();
     HashMap<URL::URL, GC::Ptr<HTML::SharedResourceRequest>> const& shared_resource_requests() const;
@@ -1869,6 +1879,9 @@ private:
 
     GC::Ptr<DOMImplementation> m_implementation;
     GC::Ptr<FragmentDirective> m_fragment_directive;
+    Optional<Vector<HTML::TextDirective>> m_pending_text_directives;
+    bool m_text_directive_user_activation { false };
+    bool m_browsing_context_group_has_remote_contexts { false };
     GC::Ptr<HTML::HTMLScriptElement> m_current_script;
 
     u32 m_ignore_destructive_writes_counter { 0 };

@@ -23,6 +23,8 @@ struct SameDocumentNavigationEntry {
     Utf16String navigation_api_id;
     ScrollRestorationMode scroll_restoration_mode { ScrollRestorationMode::Auto };
     SessionHistoryEntryScrollPositionData scroll_position_data;
+    CrossProcessId directive_state_id;
+    Optional<String> directive_state_value;
 };
 
 WEBCOMMON_API SessionHistoryEntryIdentity session_history_entry_identity(SameDocumentNavigationEntry const&);

@@ -117,6 +117,8 @@ static void set_entry_fields_from_descriptor(CanonicalSessionHistoryEntry& entry
     entry.navigation_api_id = descriptor.navigation_api_id;
     entry.scroll_restoration_mode = descriptor.scroll_restoration_mode;
     entry.scroll_position_data = descriptor.scroll_position_data;
+    entry.directive_state_id = descriptor.directive_state_id;
+    entry.directive_state_value = descriptor.directive_state_value;
 }
 
 static NonnullRefPtr<CanonicalSessionHistoryEntry> create_entry_from_descriptor(Web::HTML::SessionHistoryEntryDescriptor const& descriptor, CanonicalSessionHistoryEntry::DocumentStates& document_states, CanonicalSessionHistoryEntry::UpdateDocumentState update_document_state)
@@ -203,6 +205,8 @@ Web::HTML::SessionHistoryEntryDescriptor CanonicalSessionHistoryEntry::descripto
         .navigation_api_id = navigation_api_id,
         .scroll_restoration_mode = scroll_restoration_mode,
         .scroll_position_data = scroll_position_data,
+        .directive_state_id = directive_state_id,
+        .directive_state_value = directive_state_value,
     };
 }
 

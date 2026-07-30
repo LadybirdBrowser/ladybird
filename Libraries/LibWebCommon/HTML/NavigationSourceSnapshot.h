@@ -23,6 +23,9 @@ struct NavigationSourceSnapshot {
     bool allows_downloading { true };
     Optional<SerializedEnvironmentSettingsObject> fetch_client;
     SerializedPolicyContainer source_policy_container;
+    bool text_directive_user_activation { false };
+    bool browsing_context_group_has_multiple_contexts { false };
+    bool browsing_context_group_has_remote_contexts { false };
 };
 
 WEBCOMMON_API NavigationSourceSnapshot create_navigation_source_snapshot_without_a_source_document();

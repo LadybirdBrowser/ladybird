@@ -66,6 +66,8 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::NavigationRequestDescriptor co
     TRY(encoder.encode(request.referrer_policy));
     TRY(encoder.encode(request.policy_container));
     TRY(encoder.encode(request.redirect_count));
+    TRY(encoder.encode(request.text_directive_user_activation));
+    TRY(encoder.encode(request.browsing_context_group_has_multiple_contexts));
     return {};
 }
 
@@ -80,6 +82,8 @@ ErrorOr<Web::HTML::NavigationRequestDescriptor> decode(Decoder& decoder)
         .referrer_policy = TRY(decoder.decode<Web::ReferrerPolicy::ReferrerPolicy>()),
         .policy_container = TRY(decoder.decode<Web::HTML::SerializedPolicyContainer>()),
         .redirect_count = TRY(decoder.decode<u8>()),
+        .text_directive_user_activation = TRY(decoder.decode<bool>()),
+        .browsing_context_group_has_multiple_contexts = TRY(decoder.decode<bool>()),
     };
 }
 
