@@ -320,7 +320,8 @@ static void insert_minimal_entry(Database::Database& database, SessionHistorySna
     database.execute_statement(statements.insert_entry, {},
         history_id, entry_ordinal, static_cast<i64>(0), MUST(String::from_utf8("https://x.example/"sv)), static_cast<i64>(1), document_state_id,
         ByteString {}, ByteString {}, String {}, String {},
-        static_cast<i64>(0), absent_scroll, absent_scroll,
+        static_cast<i64>(0), static_cast<i64>(0), static_cast<i64>(0), absent_text,
+        absent_scroll, absent_scroll,
         static_cast<i64>(0), absent_text, absent_text, absent_text, absent_port, absent_text,
         static_cast<i64>(0), absent_text, absent_text, absent_text, absent_port, absent_text,
         static_cast<i64>(0), absent_text, static_cast<i64>(0),
@@ -408,6 +409,7 @@ static Web::HTML::SerializedPolicyContainer make_policy_container()
             .report_only_reporting_endpoint = "coep-report"_utf16,
         },
         .referrer_policy = Web::ReferrerPolicy::ReferrerPolicy::NoReferrer,
+        .force_load_at_top = true,
     };
 }
 
@@ -432,6 +434,7 @@ static void expect_policy_containers_equal(Web::HTML::SerializedPolicyContainer 
     EXPECT_EQ(restored.embedder_policy.reporting_endpoint, original.embedder_policy.reporting_endpoint);
     EXPECT_EQ(restored.embedder_policy.report_only_reporting_endpoint, original.embedder_policy.report_only_reporting_endpoint);
     EXPECT(restored.referrer_policy == original.referrer_policy);
+    EXPECT_EQ(restored.force_load_at_top, original.force_load_at_top);
 }
 
 TEST_CASE(snapshot_round_trips_flat_entries)

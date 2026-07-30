@@ -47,6 +47,7 @@
 #include <LibWeb/HTML/Parser/HTMLToken.h>
 #include <LibWeb/HTML/Parser/ParserScriptingMode.h>
 #include <LibWeb/HTML/Parser/SpeculativeHTMLParser.h>
+#include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/Scripting/SimilarOriginWindowAgent.h>
@@ -773,7 +774,10 @@ void HTMLParserEndState::advance_to_dom_content_loaded_phase()
     // so only do this if there is an actual fragment to avoid resetting the scroll position unexpectedly.
     // Spec bug: https://github.com/whatwg/html/issues/10914
     auto indicated_part = m_document->determine_the_indicated_part();
-    if (indicated_part.has<DOM::Element*>() && indicated_part.get<DOM::Element*>() != nullptr) {
+    // https://wicg.github.io/scroll-to-text-fragment/#restricting-scroll-on-load
+    // If scrollingBlockedInNewDocument is false, try to scroll to the fragment for document.
+    if (!m_document->policy_container()->force_load_at_top
+        && indicated_part.has<DOM::Element*>() && indicated_part.get<DOM::Element*>() != nullptr) {
         m_document->scroll_to_the_fragment();
     }
 

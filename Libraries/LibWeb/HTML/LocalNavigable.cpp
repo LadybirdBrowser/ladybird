@@ -940,14 +940,15 @@ void LocalNavigable::save_persisted_state_to_active_session_history_entry()
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#restore-persisted-user-state
-void LocalNavigable::restore_persisted_state_from_session_history_entry(SessionHistoryEntry const& entry)
+// https://wicg.github.io/scroll-to-text-fragment/#restricting-scroll-on-load
+void LocalNavigable::restore_persisted_state_from_session_history_entry(SessionHistoryEntry const& entry, bool suppress_scrolling)
 {
     m_pending_persisted_state_restoration.clear();
 
-    // 1. If entry's scroll restoration mode is "auto", and entry's document's relevant global object's navigation
-    //    API's suppress normal scroll restoration during ongoing navigation is false, then restore scroll position
-    //    data given entry.
-    if (entry.scroll_restoration_mode() == ScrollRestorationMode::Auto) {
+    // 1. If entry's scroll restoration mode is "auto", suppressScrolling is false, and entry's
+    //    document's relevant global object's navigation API's suppress normal scroll restoration
+    //    during ongoing navigation is false, then restore scroll position data given entry.
+    if (entry.scroll_restoration_mode() == ScrollRestorationMode::Auto && !suppress_scrolling) {
         if (auto window = active_window()) {
             if (!window->navigation()->suppress_normal_scroll_restoration_during_ongoing_navigation()) {
                 restore_scroll_position_data(entry);
@@ -990,7 +991,7 @@ void LocalNavigable::restore_pending_persisted_state_for_completed_document(GC::
     auto document_state = entry->document_state();
     if (!document_state || document_state->cross_process_id() != restoration.document_state_id)
         return;
-    restore_persisted_state_from_session_history_entry(*entry);
+    restore_persisted_state_from_session_history_entry(*entry, false);
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#restore-scroll-position-data

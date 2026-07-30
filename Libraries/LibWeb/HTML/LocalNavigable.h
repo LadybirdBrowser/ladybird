@@ -115,7 +115,7 @@ public:
     ReplicatedNavigableState replicated_state() const;
 
     void save_persisted_state_to_active_session_history_entry();
-    void restore_persisted_state_from_session_history_entry(SessionHistoryEntry const&);
+    void restore_persisted_state_from_session_history_entry(SessionHistoryEntry const&, bool suppress_scrolling);
     void schedule_persisted_state_restoration_retry(SessionHistoryEntry const&);
     void restore_pending_persisted_state_for_completed_document(GC::Ref<DOM::Document>);
     void restore_scroll_position_data(SessionHistoryEntry const&);

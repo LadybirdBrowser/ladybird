@@ -7140,10 +7140,15 @@ void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHi
     // 4. Set document's history object's length to scriptHistoryLength.
     history()->m_length = script_history_length;
 
-    // 5. Let navigation be history's relevant global object's navigation API.
+    // https://wicg.github.io/scroll-to-text-fragment/#restricting-scroll-on-load
+    // 5. Let scrollingBlockedInNewDocument be the result of getting the policy value for
+    //    force-load-at-top for document.
+    auto const scrolling_blocked_in_new_document = policy_container()->force_load_at_top;
+
+    // 6. Let navigation be history's relevant global object's navigation API.
     auto navigation = HTML::relevant_window(*this).navigation();
 
-    // 6. If documentsEntryChanged is true, then:
+    // 7. If documentsEntryChanged is true, then:
     // NOTE: documentsEntryChanged can be false for one of two reasons: either we are restoring from bfcache,
     //      or we are asynchronously finishing up a synchronous navigation which already synchronously set document's latest entry.
     //      The doNotReactivate argument distinguishes between these two cases.
@@ -7204,7 +7209,7 @@ void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHi
 
             // 4. Restore persisted state given entry.
             if (auto navigable = this->navigable())
-                navigable->restore_persisted_state_from_session_history_entry(*entry);
+                navigable->restore_persisted_state_from_session_history_entry(*entry, false);
 
             // 5. If oldURL's fragment is not equal to entry's URL's fragment, then queue a global task on the DOM manipulation task source
             //    given document's relevant global object to fire an event named hashchange at document's relevant global object,
@@ -7229,8 +7234,9 @@ void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHi
 
             // 2. Restore persisted state given entry.
             if (auto navigable = this->navigable()) {
-                navigable->restore_persisted_state_from_session_history_entry(*entry);
-                navigable->schedule_persisted_state_restoration_retry(*entry);
+                navigable->restore_persisted_state_from_session_history_entry(*entry, scrolling_blocked_in_new_document);
+                if (!scrolling_blocked_in_new_document)
+                    navigable->schedule_persisted_state_restoration_retry(*entry);
             }
 
             // 3. Initialize the navigation API entries for a new document given navigation, entriesForNavigationAPI, and entry.
@@ -7240,7 +7246,7 @@ void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHi
         }
     }
 
-    // FIXME: 7. If all the following are true:
+    // FIXME: 8. If all the following are true:
     //    - previousEntryForActivation is given;
     //    - navigationType is non-null; and
     //    - navigationType is "reload" or previousEntryForActivation's document is not document, then:
@@ -7259,20 +7265,21 @@ void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHi
         // FIXME: 6. Set activation's navigation type to navigationType.
     }
 
-    // 8. If documentIsNew is true, then:
+    // 9. If documentIsNew is true, then:
     if (document_is_new) {
         // FIXME: 1. Assert: document's during-loading navigation ID for WebDriver BiDi is not null.
         // FIXME: 2. Invoke WebDriver BiDi navigation committed with navigable and a new WebDriver BiDi navigation
         //           status whose id is document's during-loading navigation ID for WebDriver BiDi, status is "committed", and url is document's URL
 
-        // 3. Try to scroll to the fragment with document and allow text directive scroll.
-        try_to_scroll_to_the_fragment(allow_text_directive_scroll);
+        // 3. If scrollingBlockedInNewDocument is false, try to scroll to the fragment for document.
+        if (!scrolling_blocked_in_new_document)
+            try_to_scroll_to_the_fragment(allow_text_directive_scroll);
 
         // 4. At this point scripts may run for the newly-created document document.
         set_ready_to_run_scripts();
     }
 
-    // 9. Otherwise, if documentsEntryChanged is false and doNotReactivate is false, then:
+    // 10. Otherwise, if documentsEntryChanged is false and doNotReactivate is false, then:
     // NOTE: This is for bfcache restoration
     if (!documents_entry_changed && !do_not_reactivate) {
         // FIXME: 1. Assert: entriesForNavigationAPI is given.
