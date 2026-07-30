@@ -23,9 +23,6 @@ public:
     SVG::SVGTextPositioningElement const& dom_node() const { return static_cast<SVG::SVGTextPositioningElement const&>(SVGGraphicsBox::dom_node()); }
 
     virtual RefPtr<Painting::Paintable> create_paintable() const override;
-
-private:
-    CSSPixelPoint viewbox_origin() const;
 };
 
 }
