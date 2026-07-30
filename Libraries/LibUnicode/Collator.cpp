@@ -4,10 +4,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/OwnPtr.h>
 #include <LibUnicode/Collator.h>
 #include <LibUnicode/ICU.h>
 
 #include <unicode/coll.h>
+#include <unicode/stsearch.h>
 
 namespace Unicode {
 
@@ -161,6 +163,56 @@ static bool ignore_punctuation_for_collator(icu::Collator const& collator)
     return attribute == UCOL_SHIFTED;
 }
 
+class SubstringSearcherImpl final : public Collator::SubstringSearcher {
+public:
+    SubstringSearcherImpl(icu::RuleBasedCollator const& collator, Utf16View const& haystack, Utf16View const& needle)
+    {
+        auto to_unicode_string = [](Utf16View const& string) {
+            if (string.has_ascii_storage()) {
+                auto utf8 = MUST(string.to_utf8());
+                return icu::UnicodeString::fromUTF8(icu_string_piece(utf8.bytes_as_string_view()));
+            }
+            return icu::UnicodeString { string.utf16_span().data(), static_cast<i32>(string.length_in_code_units()) };
+        };
+
+        auto* cloned_collator = dynamic_cast<icu::RuleBasedCollator*>(collator.clone());
+        VERIFY(cloned_collator);
+        m_collator = adopt_own(*cloned_collator);
+        m_pattern = to_unicode_string(needle);
+        m_text = to_unicode_string(haystack);
+
+        UErrorCode status = U_ZERO_ERROR;
+        m_search = make<icu::StringSearch>(m_pattern, m_text, m_collator.ptr(), nullptr, status);
+        verify_icu_success(status);
+    }
+
+    virtual Optional<Collator::Match> find_from(size_t start_offset) override
+    {
+        if (m_pattern.isEmpty() || start_offset > static_cast<size_t>(m_text.length()))
+            return {};
+
+        UErrorCode status = U_ZERO_ERROR;
+        m_search->setOffset(static_cast<i32>(start_offset), status);
+        verify_icu_success(status);
+
+        auto const match_start = m_search->next(status);
+        verify_icu_success(status);
+        if (match_start == USEARCH_DONE)
+            return {};
+
+        return Collator::Match {
+            .start = static_cast<size_t>(match_start),
+            .end = static_cast<size_t>(match_start + m_search->getMatchedLength()),
+        };
+    }
+
+private:
+    OwnPtr<icu::RuleBasedCollator> m_collator;
+    icu::UnicodeString m_pattern;
+    icu::UnicodeString m_text;
+    OwnPtr<icu::StringSearch> m_search;
+};
+
 class CollatorImpl : public Collator {
 public:
     explicit CollatorImpl(NonnullOwnPtr<icu::Collator> collator)
@@ -188,6 +240,13 @@ public:
         }
 
         VERIFY_NOT_REACHED();
+    }
+
+    virtual NonnullOwnPtr<SubstringSearcher> create_substring_searcher(Utf16View const& haystack, Utf16View const& needle) const override
+    {
+        auto* rule_based_collator = dynamic_cast<icu::RuleBasedCollator*>(m_collator.ptr());
+        VERIFY(rule_based_collator);
+        return make<SubstringSearcherImpl>(*rule_based_collator, haystack, needle);
     }
 
     virtual Sensitivity sensitivity() const override
