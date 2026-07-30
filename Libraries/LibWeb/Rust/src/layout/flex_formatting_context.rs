@@ -188,7 +188,7 @@ struct FlexFormattingContext<'pass> {
 impl<'pass> FlexFormattingContext<'pass> {
     fn new(frame: &FcFrame<'pass>) -> Self {
         let flex_container_state = frame.state.used_values(&frame.callbacks, frame.box_);
-        let flex_direction = frame.state.style_facts(&frame.callbacks, frame.box_).flex_direction;
+        let flex_direction = frame.state.style_facts(&frame.callbacks, frame.box_).flex_direction();
         Self {
             state: frame.state,
             flex_container: frame.box_,
@@ -259,7 +259,7 @@ impl<'pass> FlexFormattingContext<'pass> {
 
     // https://www.w3.org/TR/css-flexbox-1/#flex-direction-property
     fn inline_axis_is_horizontal(&self, node: Node) -> bool {
-        self.style(node).writing_mode == writing_mode::HORIZONTAL_TB
+        self.style(node).writing_mode() == writing_mode::HORIZONTAL_TB
     }
 
     fn is_row_layout(&self) -> bool {
@@ -267,7 +267,7 @@ impl<'pass> FlexFormattingContext<'pass> {
     }
 
     fn is_legacy_webkit_box(&self) -> bool {
-        self.style(self.flex_container).display.inside == display_inside::_WEBKIT_BOX
+        self.style(self.flex_container).display().inside == display_inside::_WEBKIT_BOX
     }
 
     fn used_flex_wrap(&self) -> u8 {
@@ -275,7 +275,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         if self.is_legacy_webkit_box() {
             return flex_wrap::NOWRAP;
         }
-        self.style(self.flex_container).flex_wrap
+        self.style(self.flex_container).flex_wrap()
     }
 
     fn flex_shrink_factor(&self, node: Node) -> f64 {
@@ -283,9 +283,9 @@ impl<'pass> FlexFormattingContext<'pass> {
         // AD-HOC: Items in a legacy webkit box resolve their flex shrink factor from `-webkit-box-flex`, which we
         //         implement as an alias for `flex-grow`; `flex-shrink` does not apply, matching other engines.
         if self.is_legacy_webkit_box() {
-            return style.flex_grow;
+            return style.flex_grow();
         }
-        style.flex_shrink
+        style.flex_shrink()
     }
 
     fn is_single_line(&self) -> bool {
@@ -310,19 +310,19 @@ impl<'pass> FlexFormattingContext<'pass> {
 
     fn inline_axis_is_reverse(&self, node: Node) -> bool {
         let style = self.style(node);
-        match style.writing_mode {
+        match style.writing_mode() {
             writing_mode::HORIZONTAL_TB
             | writing_mode::VERTICAL_RL
             | writing_mode::VERTICAL_LR
-            | writing_mode::SIDEWAYS_RL => style.direction == 1,
-            writing_mode::SIDEWAYS_LR => style.direction == 0,
+            | writing_mode::SIDEWAYS_RL => style.direction() == 1,
+            writing_mode::SIDEWAYS_LR => style.direction() == 0,
             _ => unreachable!("invalid writing mode"),
         }
     }
 
     fn block_axis_is_reverse(&self, node: Node) -> bool {
         matches!(
-            self.style(node).writing_mode,
+            self.style(node).writing_mode(),
             writing_mode::VERTICAL_RL | writing_mode::SIDEWAYS_RL
         )
     }
@@ -740,10 +740,10 @@ impl<'pass> FlexFormattingContext<'pass> {
         let main_axis_is_horizontal = self.main_axis_is_horizontal();
         let item = &mut self.flex_items[index];
         if main_axis_is_horizontal {
-            item.borders.main_before = style.border_left_width;
-            item.borders.main_after = style.border_right_width;
-            item.borders.cross_before = style.border_top_width;
-            item.borders.cross_after = style.border_bottom_width;
+            item.borders.main_before = style.border_left_width();
+            item.borders.main_after = style.border_right_width();
+            item.borders.cross_before = style.border_top_width();
+            item.borders.cross_after = style.border_bottom_width();
             item.padding.main_before = padding_left;
             item.padding.main_after = padding_right;
             item.padding.cross_before = padding_top;
@@ -757,10 +757,10 @@ impl<'pass> FlexFormattingContext<'pass> {
             item.margins.cross_before_is_auto = style.margin_top().is_auto();
             item.margins.cross_after_is_auto = style.margin_bottom().is_auto();
         } else {
-            item.borders.main_before = style.border_top_width;
-            item.borders.main_after = style.border_bottom_width;
-            item.borders.cross_before = style.border_left_width;
-            item.borders.cross_after = style.border_right_width;
+            item.borders.main_before = style.border_top_width();
+            item.borders.main_after = style.border_bottom_width();
+            item.borders.cross_before = style.border_left_width();
+            item.borders.cross_after = style.border_right_width();
             item.padding.main_before = padding_top;
             item.padding.main_after = padding_bottom;
             item.padding.cross_before = padding_left;
@@ -797,7 +797,7 @@ impl<'pass> FlexFormattingContext<'pass> {
                     self.state.set_box_is_flex_item(&self.callbacks, child, true);
                     let used = self.create_used_values(child);
                     let item = FlexItem::new(child, used);
-                    buckets.entry(self.style(child).order).or_default().push(item);
+                    buckets.entry(self.style(child).order()).or_default().push(item);
                 }
             }
             child = next;
@@ -1405,7 +1405,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         for item_position in 0..item_count {
             let index = self.flex_lines[line_index].items[item_position];
             self.flex_items[index].flex_factor = if factor == FlexFactor::Grow {
-                self.style(self.flex_items[index].box_).flex_grow
+                self.style(self.flex_items[index].box_).flex_grow()
             } else {
                 self.flex_shrink_factor(self.flex_items[index].box_)
             };
@@ -1611,8 +1611,8 @@ impl<'pass> FlexFormattingContext<'pass> {
     }
 
     fn alignment_for_item(&self, node: Node) -> u8 {
-        match self.style(node).align_self {
-            align_self::AUTO => self.style(self.flex_container).align_items,
+        match self.style(node).align_self() {
+            align_self::AUTO => self.style(self.flex_container).align_items(),
             align_self::END => align_items::END,
             align_self::NORMAL => align_items::NORMAL,
             align_self::SELF_START => align_items::SELF_START,
@@ -1787,7 +1787,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         if !self.has_definite_cross_size_used(self.container_used())
             // align-content is stretch,
             || !matches!(
-                self.style(self.flex_container).align_content,
+                self.style(self.flex_container).align_content(),
                 align_content::STRETCH | align_content::NORMAL
             )
         {
@@ -1934,7 +1934,7 @@ impl<'pass> FlexFormattingContext<'pass> {
             let mut space_between_items = CssPixels::default();
             let mut initial_offset = CssPixels::default();
             let number_of_items = item_count;
-            let justify = self.style(self.flex_container).justify_content;
+            let justify = self.style(self.flex_container).justify_content();
             if auto_margins == 0 && number_of_items > 0 {
                 match justify {
                     justify_content::START | justify_content::LEFT => {}
@@ -2198,7 +2198,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         let mut gap_size = CssPixels::default();
         let mut place_backwards = false;
         let mut iterate_backwards = false;
-        match self.style(self.flex_container).align_content {
+        match self.style(self.flex_container).align_content() {
             align_content::START => {
                 iterate_backwards = reverse_cross_axis;
             }
@@ -2312,7 +2312,7 @@ impl<'pass> FlexFormattingContext<'pass> {
             //        other writing modes would shift them by physically meaningless amounts. Skip them for now.
             let participates = |context: &Self, index: usize| {
                 context.alignment_for_item(context.flex_items[index].box_) == align_items::BASELINE
-                    && context.style(context.flex_items[index].box_).writing_mode == writing_mode::HORIZONTAL_TB
+                    && context.style(context.flex_items[index].box_).writing_mode() == writing_mode::HORIZONTAL_TB
             };
             let mut max_baseline = CssPixels::default();
             for index in self.flex_lines[line_index].items.iter().copied() {
@@ -2340,10 +2340,10 @@ impl<'pass> FlexFormattingContext<'pass> {
                 used.margin_right.set(style.margin_right().to_px(reference));
                 used.margin_top.set(style.margin_top().to_px(reference));
                 used.margin_bottom.set(style.margin_bottom().to_px(reference));
-                used.border_left.set(style.border_left_width);
-                used.border_right.set(style.border_right_width);
-                used.border_top.set(style.border_top_width);
-                used.border_bottom.set(style.border_bottom_width);
+                used.border_left.set(style.border_left_width());
+                used.border_right.set(style.border_right_width());
+                used.border_top.set(style.border_top_width());
+                used.border_bottom.set(style.border_bottom_width());
             }
             self.set_main_size(index, self.flex_items[index].main_size.unwrap());
             self.set_cross_size(index, self.flex_items[index].cross_size.unwrap());
@@ -2433,7 +2433,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         // assuming both the child and the flex container were fixed-size boxes of their used size.
         // (For this purpose, auto margins are treated as zero.
 
-        let main_alignment = match self.style(self.flex_container).justify_content {
+        let main_alignment = match self.style(self.flex_container).justify_content() {
             justify_content::START | justify_content::LEFT => StaticPositionAlignment::Start,
             justify_content::STRETCH
             | justify_content::NORMAL
@@ -2466,7 +2466,7 @@ impl<'pass> FlexFormattingContext<'pass> {
             (cross_size, main_size)
         };
         let (inline_size, block_size) = to_physical(
-            self.style(self.flex_container).writing_mode,
+            self.style(self.flex_container).writing_mode(),
             logical_inline_size,
             logical_block_size,
         );
@@ -2476,7 +2476,7 @@ impl<'pass> FlexFormattingContext<'pass> {
             (cross_alignment, main_alignment)
         };
         let (inline_alignment, block_alignment) = to_physical(
-            self.style(self.flex_container).writing_mode,
+            self.style(self.flex_container).writing_mode(),
             logical_inline_alignment,
             logical_block_alignment,
         );
@@ -2518,7 +2518,7 @@ impl<'pass> FlexFormattingContext<'pass> {
                     } else {
                         (item.cross_offset, item.main_offset, cross_size, main_size)
                     };
-                let writing_mode = self.style(self.flex_container).writing_mode;
+                let writing_mode = self.style(self.flex_container).writing_mode();
                 let (x, y) = to_physical(writing_mode, logical_inline_offset, logical_block_offset);
                 let (width, height) = to_physical(writing_mode, logical_inline_size, logical_block_size);
                 let rect = FfiFlexLayoutItemRect { x, y, width, height };
@@ -2555,7 +2555,7 @@ impl<'pass> FlexFormattingContext<'pass> {
                     } else {
                         FfiFlexLayoutClampState::Unclamped
                     },
-                    flex_grow: self.style(node).flex_grow,
+                    flex_grow: self.style(node).flex_grow(),
                     flex_shrink: self.flex_shrink_factor(node),
                 });
             }
@@ -2575,11 +2575,11 @@ impl<'pass> FlexFormattingContext<'pass> {
         }
         let style = self.style(self.flex_container);
         let data = OwnedFlexLayoutData {
-            align_content: style.align_content,
-            align_items: style.align_items,
-            flex_direction: style.flex_direction,
-            flex_wrap: style.flex_wrap,
-            justify_content: style.justify_content,
+            align_content: style.align_content(),
+            align_items: style.align_items(),
+            flex_direction: style.flex_direction(),
+            flex_wrap: style.flex_wrap(),
+            justify_content: style.justify_content(),
             main_axis_direction: Self::axis_direction(self.main_axis_is_horizontal(), self.is_direction_reverse())
                 as u8,
             cross_axis_direction: Self::axis_direction(self.cross_axis_is_horizontal(), self.cross_axis_is_reverse())
@@ -2775,10 +2775,10 @@ impl<'pass> FlexFormattingContext<'pass> {
             let mut adjusted = result;
             let style = self.style(self.flex_items[index].box_);
             if result > CssPixels::default() {
-                adjusted = if style.flex_grow >= 1.0 {
-                    result.scaled(1.0 / style.flex_grow)
+                adjusted = if style.flex_grow() >= 1.0 {
+                    result.scaled(1.0 / style.flex_grow())
                 } else {
-                    result.scaled(style.flex_grow)
+                    result.scaled(style.flex_grow())
                 };
             } else if result < CssPixels::default() {
                 adjusted = if self.flex_items[index].scaled_flex_shrink_factor == 0.0 {
@@ -2808,7 +2808,7 @@ impl<'pass> FlexFormattingContext<'pass> {
             for index in self.flex_lines[line_index].items.iter().copied() {
                 greatest = greatest.max(self.flex_items[index].desired_flex_fraction as f32);
                 let node = self.flex_items[index].box_;
-                grow_sum += self.style(node).flex_grow as f32;
+                grow_sum += self.style(node).flex_grow() as f32;
                 shrink_sum += self.flex_shrink_factor(node) as f32;
             }
             let mut chosen = greatest;
@@ -2834,7 +2834,7 @@ impl<'pass> FlexFormattingContext<'pass> {
                 let desired = self.flex_items[index].desired_flex_fraction;
                 let style = self.style(self.flex_items[index].box_);
                 let product = if desired > 0.0 {
-                    self.flex_lines[line_index].chosen_flex_fraction * style.flex_grow
+                    self.flex_lines[line_index].chosen_flex_fraction * style.flex_grow()
                 } else if desired < 0.0 {
                     self.flex_lines[line_index].chosen_flex_fraction * self.flex_items[index].scaled_flex_shrink_factor
                 } else {

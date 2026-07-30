@@ -500,60 +500,6 @@ fn decode_length_percentage_or_auto(value: &crate::layout::ComputedLengthPercent
     }
 }
 
-#[derive(Clone, Copy)]
-pub(crate) struct DecodedStyleScalars {
-    pub display: FfiDisplay,
-    pub border_top_width: CssPixels,
-    pub border_right_width: CssPixels,
-    pub border_bottom_width: CssPixels,
-    pub border_left_width: CssPixels,
-    pub border_top_style: u8,
-    pub border_right_style: u8,
-    pub border_bottom_style: u8,
-    pub border_left_style: u8,
-    pub position: u8,
-    pub float_: u8,
-    pub clear: u8,
-    pub writing_mode: u8,
-    pub direction: u8,
-    pub text_align: u8,
-    pub text_justify: u8,
-    pub white_space_collapse: u8,
-    pub text_wrap_mode: u8,
-    pub word_break: u8,
-    pub font_variant_emoji: u8,
-    pub line_height: CssPixels,
-    pub font_size: CssPixels,
-    pub box_sizing: u8,
-    pub overflow_x: u8,
-    pub overflow_y: u8,
-    pub text_overflow: u8,
-    pub flex_direction: u8,
-    pub flex_wrap: u8,
-    pub flex_grow: f64,
-    pub flex_shrink: f64,
-    pub order: i32,
-    pub align_items: u8,
-    pub align_self: u8,
-    pub align_content: u8,
-    pub justify_content: u8,
-    pub justify_items: u8,
-    pub justify_self: u8,
-    pub border_collapse: u8,
-    pub border_spacing_horizontal: CssPixels,
-    pub border_spacing_vertical: CssPixels,
-    pub caption_side: u8,
-    pub table_layout: u8,
-    pub visibility: u8,
-    pub letter_spacing: CssPixels,
-    pub word_spacing: CssPixels,
-    pub unicode_bidi: u8,
-    pub grid_auto_flow_row: bool,
-    pub grid_auto_flow_dense: bool,
-    pub css_preferred_aspect_ratio_numerator: CssPixels,
-    pub css_preferred_aspect_ratio_denominator: CssPixels,
-}
-
 /// The computed `aspect-ratio` <ratio> term as a CSSPixels fraction. A zero
 /// denominator means no usable ratio (none specified, degenerate, or collapsed
 /// to zero by the fixed-point conversion).
@@ -578,16 +524,13 @@ fn decode_css_preferred_aspect_ratio(
 }
 
 pub(crate) struct StyleDecodeValues {
-    scalars: DecodedStyleScalars,
     cache: StyleDecodeCache,
 }
 
 impl StyleDecodeValues {
     pub(crate) fn new(payloads: FfiStylePayloads, release_calc_handle: FfiReleaseCalcHandleCallback) -> Self {
-        let reader = StyleReader::new(payloads);
         Self {
-            scalars: DecodedStyleScalars::decode(&reader),
-            cache: StyleDecodeCache::new(reader, release_calc_handle),
+            cache: StyleDecodeCache::new(StyleReader::new(payloads), release_calc_handle),
         }
     }
 
@@ -597,80 +540,86 @@ impl StyleDecodeValues {
 }
 
 /// A thin Rust-only view over a node's immutable computed-value group
-/// payloads.
-///
-/// Plain fields are decoded once into `DecodedStyleScalars`; everything else
-/// is interpreted in-crate from the typed group payloads.
+/// payloads; every read decodes on demand from the typed group payloads.
 #[derive(Clone, Copy)]
 pub(crate) struct StyleValues<'a> {
-    scalars: &'a DecodedStyleScalars,
     cache: &'a StyleDecodeCache,
     vertical_align_override: u16,
 }
 
-impl DecodedStyleScalars {
-    fn decode(reader: &StyleReader) -> Self {
-        let inherited_box = reader.inherited_box();
-        let alignment = reader.alignment();
-        let inherited_table = reader.inherited_table();
-        let box_values = reader.box_values();
-        let border = reader.border_facts();
-        let inherited_text = reader.inherited_text_facts();
-        let font = reader.font_facts();
-        let (css_preferred_aspect_ratio_numerator, css_preferred_aspect_ratio_denominator) =
-            decode_css_preferred_aspect_ratio(&box_values.aspect_ratio);
-        Self {
-            display: box_values.display,
-            border_top_width: border.border_top.width,
-            border_right_width: border.border_right.width,
-            border_bottom_width: border.border_bottom.width,
-            border_left_width: border.border_left.width,
-            border_top_style: border.border_top.line_style,
-            border_right_style: border.border_right.line_style,
-            border_bottom_style: border.border_bottom.line_style,
-            border_left_style: border.border_left.line_style,
-            position: box_values.position,
-            float_: box_values.float_,
-            clear: box_values.clear,
-            writing_mode: inherited_box.writing_mode,
-            direction: inherited_box.direction,
-            text_align: inherited_text.text_align,
-            text_justify: inherited_text.text_justify,
-            white_space_collapse: inherited_text.white_space_collapse,
-            text_wrap_mode: inherited_text.text_wrap_mode,
-            word_break: inherited_text.word_break,
-            font_variant_emoji: font.font_variant_emoji,
-            line_height: font.line_height_used,
-            font_size: font.font_size,
-            box_sizing: box_values.box_sizing,
-            overflow_x: box_values.overflow_x,
-            overflow_y: box_values.overflow_y,
-            text_overflow: box_values.text_overflow,
-            flex_direction: alignment.flex_direction,
-            flex_wrap: alignment.flex_wrap,
-            flex_grow: alignment.flex_grow,
-            flex_shrink: alignment.flex_shrink,
-            order: alignment.order,
-            align_items: alignment.align_items,
-            align_self: alignment.align_self,
-            align_content: alignment.align_content,
-            justify_content: alignment.justify_content,
-            justify_items: alignment.justify_items,
-            justify_self: alignment.justify_self,
-            border_collapse: inherited_table.border_collapse,
-            border_spacing_horizontal: CssPixels::from_raw(inherited_table.border_spacing_horizontal),
-            border_spacing_vertical: CssPixels::from_raw(inherited_table.border_spacing_vertical),
-            caption_side: inherited_table.caption_side,
-            table_layout: box_values.table_layout,
-            visibility: inherited_box.visibility,
-            letter_spacing: inherited_text.letter_spacing,
-            word_spacing: inherited_text.word_spacing,
-            unicode_bidi: box_values.unicode_bidi,
-            grid_auto_flow_row: box_values.grid_auto_flow_row,
-            grid_auto_flow_dense: box_values.grid_auto_flow_dense,
-            css_preferred_aspect_ratio_numerator,
-            css_preferred_aspect_ratio_denominator,
+macro_rules! scalar_accessors {
+    ($($group:ident: { $($name:ident: $ty:ty => $($field:ident).+,)+ })+) => {
+        impl StyleValues<'_> {
+            $($(
+                #[inline]
+                pub(crate) fn $name(self) -> $ty {
+                    self.cache.reader.$group().$($field).+
+                }
+            )+)+
         }
+    };
+}
+
+scalar_accessors! {
+    box_values: {
+        display: FfiDisplay => display,
+        position: u8 => position,
+        float_: u8 => float_,
+        clear: u8 => clear,
+        box_sizing: u8 => box_sizing,
+        overflow_x: u8 => overflow_x,
+        overflow_y: u8 => overflow_y,
+        text_overflow: u8 => text_overflow,
+        table_layout: u8 => table_layout,
+        unicode_bidi: u8 => unicode_bidi,
+        grid_auto_flow_row: bool => grid_auto_flow_row,
+        grid_auto_flow_dense: bool => grid_auto_flow_dense,
+    }
+    border_facts: {
+        border_top_width: CssPixels => border_top.width,
+        border_right_width: CssPixels => border_right.width,
+        border_bottom_width: CssPixels => border_bottom.width,
+        border_left_width: CssPixels => border_left.width,
+        border_top_style: u8 => border_top.line_style,
+        border_right_style: u8 => border_right.line_style,
+        border_bottom_style: u8 => border_bottom.line_style,
+        border_left_style: u8 => border_left.line_style,
+    }
+    inherited_box: {
+        writing_mode: u8 => writing_mode,
+        direction: u8 => direction,
+        visibility: u8 => visibility,
+    }
+    inherited_table: {
+        border_collapse: u8 => border_collapse,
+        caption_side: u8 => caption_side,
+    }
+    inherited_text_facts: {
+        text_align: u8 => text_align,
+        text_justify: u8 => text_justify,
+        white_space_collapse: u8 => white_space_collapse,
+        text_wrap_mode: u8 => text_wrap_mode,
+        word_break: u8 => word_break,
+        letter_spacing: CssPixels => letter_spacing,
+        word_spacing: CssPixels => word_spacing,
+    }
+    font_facts: {
+        font_variant_emoji: u8 => font_variant_emoji,
+        line_height: CssPixels => line_height_used,
+        font_size: CssPixels => font_size,
+    }
+    alignment: {
+        flex_direction: u8 => flex_direction,
+        flex_wrap: u8 => flex_wrap,
+        flex_grow: f64 => flex_grow,
+        flex_shrink: f64 => flex_shrink,
+        order: i32 => order,
+        align_items: u8 => align_items,
+        align_self: u8 => align_self,
+        align_content: u8 => align_content,
+        justify_content: u8 => justify_content,
+        justify_items: u8 => justify_items,
+        justify_self: u8 => justify_self,
     }
 }
 
@@ -678,7 +627,6 @@ impl<'a> StyleValues<'a> {
     #[inline]
     pub(crate) fn new(values: &'a StyleDecodeValues) -> Self {
         Self {
-            scalars: &values.scalars,
             cache: &values.cache,
             vertical_align_override: u16::MAX,
         }
@@ -887,11 +835,19 @@ impl<'a> StyleValues<'a> {
     }
 
     pub(crate) fn css_preferred_aspect_ratio_numerator(self) -> CssPixels {
-        self.scalars.css_preferred_aspect_ratio_numerator
+        decode_css_preferred_aspect_ratio(&self.cache.reader.box_values().aspect_ratio).0
     }
 
     pub(crate) fn css_preferred_aspect_ratio_denominator(self) -> CssPixels {
-        self.scalars.css_preferred_aspect_ratio_denominator
+        decode_css_preferred_aspect_ratio(&self.cache.reader.box_values().aspect_ratio).1
+    }
+
+    pub(crate) fn border_spacing_horizontal(self) -> CssPixels {
+        CssPixels::from_raw(self.cache.reader.inherited_table().border_spacing_horizontal)
+    }
+
+    pub(crate) fn border_spacing_vertical(self) -> CssPixels {
+        CssPixels::from_raw(self.cache.reader.inherited_table().border_spacing_vertical)
     }
 
     pub(crate) fn aspect_ratio_uses_natural_when_available(self) -> bool {
@@ -944,14 +900,6 @@ impl<'a> StyleValues<'a> {
 
     pub(crate) fn tab_size_number(self) -> f64 {
         self.cache.reader.inherited_text_facts().tab_size_number
-    }
-}
-
-impl Deref for StyleValues<'_> {
-    type Target = DecodedStyleScalars;
-
-    fn deref(&self) -> &Self::Target {
-        self.scalars
     }
 }
 

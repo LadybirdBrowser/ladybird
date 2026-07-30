@@ -559,12 +559,12 @@ impl<'pass> NodeFacts<'pass> {
 
     pub(crate) fn inline_axis_is_reverse(&self) -> bool {
         let style = self.style();
-        match style.writing_mode {
+        match style.writing_mode() {
             writing_mode::HORIZONTAL_TB
             | writing_mode::VERTICAL_RL
             | writing_mode::VERTICAL_LR
-            | writing_mode::SIDEWAYS_RL => style.direction == 1,
-            writing_mode::SIDEWAYS_LR => style.direction == 0,
+            | writing_mode::SIDEWAYS_RL => style.direction() == 1,
+            writing_mode::SIDEWAYS_LR => style.direction() == 0,
             _ => unreachable!("invalid writing mode"),
         }
     }
@@ -757,15 +757,15 @@ impl<'pass> NodeFacts<'pass> {
         let style = self.style();
         let overflow_value_makes_box_a_scroll_container =
             |overflow: u8| matches!(overflow, overflow::AUTO | overflow::HIDDEN | overflow::SCROLL);
-        overflow_value_makes_box_a_scroll_container(style.overflow_x)
-            || overflow_value_makes_box_a_scroll_container(style.overflow_y)
+        overflow_value_makes_box_a_scroll_container(style.overflow_x())
+            || overflow_value_makes_box_a_scroll_container(style.overflow_y())
     }
 
     pub(crate) fn display(&self) -> crate::layout::FfiDisplay {
         if self.data().style.is_null() {
             return crate::layout::FfiDisplay::block();
         }
-        self.state.style_facts(self.callbacks, self.node).display
+        self.state.style_facts(self.callbacks, self.node).display()
     }
 
     pub(crate) fn is_svg_box(&self) -> bool {
@@ -991,7 +991,7 @@ impl LayoutState {
         let adjust_for_box_sizing = |unadjusted: crate::layout::CssPixels, computed_size: crate::layout::FfiSizeValue, axis: Axis| {
             // box-sizing: content-box and automatic sizes need no
             // adjustment.
-            if style.box_sizing == box_sizing::CONTENT_BOX || computed_size.is_auto() {
+            if style.box_sizing() == box_sizing::CONTENT_BOX || computed_size.is_auto() {
                 return unadjusted;
             }
 
@@ -1001,15 +1001,15 @@ impl LayoutState {
             let inline_basis = percentage_basis_inline_size.unwrap_or_default();
             let border_and_padding = match axis {
                 Axis::Inline => {
-                    style.border_left_width
+                    style.border_left_width()
                         + style.padding_left().to_px(inline_basis)
-                        + style.border_right_width
+                        + style.border_right_width()
                         + style.padding_right().to_px(inline_basis)
                 }
                 Axis::Block => {
-                    style.border_top_width
+                    style.border_top_width()
                         + style.padding_top().to_px(inline_basis)
-                        + style.border_bottom_width
+                        + style.border_bottom_width()
                         + style.padding_bottom().to_px(inline_basis)
                 }
             };
@@ -1377,9 +1377,9 @@ impl LayoutState {
             should_wrap_lines,
             should_respect_linebreaks,
             unidirectional_ltr,
-            white_space_collapse: parent_style.white_space_collapse,
-            word_break: parent_style.word_break,
-            font_variant_emoji: parent_style.font_variant_emoji,
+            white_space_collapse: parent_style.white_space_collapse(),
+            word_break: parent_style.word_break(),
+            font_variant_emoji: parent_style.font_variant_emoji(),
             font_cascade_list: parent_style.font_cascade_list(),
         };
         let text = &callbacks.text_content(node).text;

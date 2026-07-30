@@ -1873,7 +1873,7 @@ impl<'pass> GridFormattingContext<'pass> {
                         .then(|| automatic_subgrid_span(source, child_grid.template_rows));
                     inputs.push(PlacementInput {
                         id: nodes.len(),
-                        order: self.style(child).order,
+                        order: self.style(child).order(),
                         row: self.axis_placements(
                             child_grid.row_start,
                             child_grid.row_end,
@@ -1900,12 +1900,12 @@ impl<'pass> GridFormattingContext<'pass> {
             &inputs,
             self.column_lines.len().saturating_sub(1),
             self.row_lines.len().saturating_sub(1),
-            if style.grid_auto_flow_row {
+            if style.grid_auto_flow_row() {
                 AutoFlowAxis::Row
             } else {
                 AutoFlowAxis::Column
             },
-            style.grid_auto_flow_dense,
+            style.grid_auto_flow_dense(),
         );
         let column_track_count = self.column_lines.len().saturating_sub(1);
         let row_track_count = self.row_lines.len().saturating_sub(1);
@@ -2872,9 +2872,9 @@ impl<'pass> GridFormattingContext<'pass> {
             .collect::<Vec<_>>();
         let style = self.style(self.grid_container);
         let distribution_stretches = if axis.is_column() {
-            matches!(style.justify_content, justify_content::NORMAL | justify_content::STRETCH)
+            matches!(style.justify_content(), justify_content::NORMAL | justify_content::STRETCH)
         } else {
-            matches!(style.align_content, align_content::NORMAL | align_content::STRETCH)
+            matches!(style.align_content(), align_content::NORMAL | align_content::STRETCH)
         };
         run_track_sizing(
             &mut tracks,
@@ -2903,8 +2903,8 @@ impl<'pass> GridFormattingContext<'pass> {
                 used.padding_right.set(style.padding_right().to_px(inline_basis));
                 used.margin_left.set(style.margin_left().to_px(inline_basis));
                 used.margin_right.set(style.margin_right().to_px(inline_basis));
-                used.border_left.set(style.border_left_width);
-                used.border_right.set(style.border_right_width);
+                used.border_left.set(style.border_left_width());
+                used.border_right.set(style.border_right_width());
                 if item_start > 0 {
                     used.margin_left.set(used.margin_left.get() + extra_margin);
                 }
@@ -2916,8 +2916,8 @@ impl<'pass> GridFormattingContext<'pass> {
                 used.padding_bottom.set(style.padding_bottom().to_px(inline_basis));
                 used.margin_top.set(style.margin_top().to_px(inline_basis));
                 used.margin_bottom.set(style.margin_bottom().to_px(inline_basis));
-                used.border_top.set(style.border_top_width);
-                used.border_bottom.set(style.border_bottom_width);
+                used.border_top.set(style.border_top_width());
+                used.border_bottom.set(style.border_bottom_width());
                 if item_start > 0 {
                     used.margin_top.set(used.margin_top.get() + extra_margin);
                 }
@@ -2932,9 +2932,9 @@ impl<'pass> GridFormattingContext<'pass> {
         let item_style = self.style(node);
         let container_style = self.style(self.grid_container);
         if axis.is_column() {
-            inline_item_alignment(item_style.justify_self, container_style.justify_items)
+            inline_item_alignment(item_style.justify_self(), container_style.justify_items())
         } else {
-            block_item_alignment(item_style.align_self, container_style.align_items)
+            block_item_alignment(item_style.align_self(), container_style.align_items())
         }
     }
 
@@ -3067,11 +3067,11 @@ impl<'pass> GridFormattingContext<'pass> {
             if !sizing.should_treat_max_inline_size_as_none(table_box, available.inline_size, area_constraints) {
                 if table_style.max_width().is_length_percentage() {
                     let mut table_max = table_style.max_width().to_px(containing_for_wrapper);
-                    if table_style.box_sizing != box_sizing::BORDER_BOX {
-                        table_max += table_style.border_left_width
+                    if table_style.box_sizing() != box_sizing::BORDER_BOX {
+                        table_max += table_style.border_left_width()
                             + table_style.padding_left().to_px(containing_for_wrapper)
                             + table_style.padding_right().to_px(containing_for_wrapper)
-                            + table_style.border_right_width;
+                            + table_style.border_right_width();
                     }
                     stretched = stretched.min(table_max);
                 } else {
@@ -3363,9 +3363,9 @@ impl<'pass> GridFormattingContext<'pass> {
             .iter()
             .fold(CssPixels::default(), |sum, track| sum + track.base_size);
         let alignment = if axis.is_column() {
-            inline_content_alignment(self.style(self.grid_container).justify_content)
+            inline_content_alignment(self.style(self.grid_container).justify_content())
         } else {
-            block_content_alignment(self.style(self.grid_container).align_content)
+            block_content_alignment(self.style(self.grid_container).align_content())
         };
         let minimum = self.resolved_gap(axis, AvailableSize::definite(container));
         let size = distributed_gap_size(alignment, container, track_sum, self.axis_gaps(axis).len(), minimum);
@@ -3458,9 +3458,9 @@ impl<'pass> GridFormattingContext<'pass> {
         let end = start.saturating_add(span.saturating_mul(2) as i32);
         let container = self.grid_container_alignment_size(axis);
         let alignment = if axis.is_column() {
-            inline_content_alignment(self.style(self.grid_container).justify_content)
+            inline_content_alignment(self.style(self.grid_container).justify_content())
         } else {
-            block_content_alignment(self.style(self.grid_container).align_content)
+            block_content_alignment(self.style(self.grid_container).align_content())
         };
         let initial_offset = content_start_offset(alignment, container, self.track_sum(axis));
         let mut start_offset = initial_offset;
@@ -3518,9 +3518,9 @@ impl<'pass> GridFormattingContext<'pass> {
         let explicit_line_position = |line: i32| {
             let tracks = self.interleaved_tracks(axis);
             let alignment = if axis.is_column() {
-                inline_content_alignment(self.style(self.grid_container).justify_content)
+                inline_content_alignment(self.style(self.grid_container).justify_content())
             } else {
-                block_content_alignment(self.style(self.grid_container).align_content)
+                block_content_alignment(self.style(self.grid_container).align_content())
             };
             let mut offset = content_start_offset(
                 alignment,
@@ -3707,9 +3707,9 @@ impl<'pass> GridFormattingContext<'pass> {
                 self.explicit_row_line_count
             };
             let alignment = if axis.is_column() {
-                inline_content_alignment(self.style(self.grid_container).justify_content)
+                inline_content_alignment(self.style(self.grid_container).justify_content())
             } else {
-                block_content_alignment(self.style(self.grid_container).align_content)
+                block_content_alignment(self.style(self.grid_container).align_content())
             };
             let mut start = content_start_offset(
                 alignment,
@@ -3795,8 +3795,8 @@ impl<'pass> GridFormattingContext<'pass> {
         };
         let style = self.style(self.grid_container);
         let data = OwnedGridLayoutData {
-            direction: style.direction,
-            writing_mode: style.writing_mode,
+            direction: style.direction(),
+            writing_mode: style.writing_mode(),
             is_subgrid: self.is_subgridded(Axis::Column, facts) || self.is_subgridded(Axis::Row, facts),
             fragments: vec![fragment],
         };

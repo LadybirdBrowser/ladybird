@@ -237,7 +237,7 @@ fn edge_bits(horizontal: bool, low: bool, high: bool) -> u8 {
 }
 
 pub(crate) fn compute(context: &InlineFormattingContext) -> Vec<InlineBoxPieceData> {
-    let horizontal = context.style(context.containing_block).writing_mode == writing_mode::HORIZONTAL_TB;
+    let horizontal = context.style(context.containing_block).writing_mode() == writing_mode::HORIZONTAL_TB;
     let mut per_nodes = Vec::<PerNode>::new();
     let mut node_to_index = HashMap::<Node, usize>::new();
 
@@ -249,7 +249,7 @@ pub(crate) fn compute(context: &InlineFormattingContext) -> Vec<InlineBoxPieceDa
             }
             let fragment_index = committed_fragment_index;
             committed_fragment_index += 1;
-            let interrupting = context.style(fragment.style_source).display.is_block_outside();
+            let interrupting = context.style(fragment.style_source).display().is_block_outside();
             let position = fragment.offset();
             let size = fragment.size();
             let mut inline_start = if horizontal { position.0 } else { position.1 };
@@ -419,7 +419,7 @@ pub(crate) fn compute(context: &InlineFormattingContext) -> Vec<InlineBoxPieceDa
             let content_block_length = if line.first_direct_fragment_block_start.is_some() {
                 line.max_direct_fragment_block_length
             } else {
-                context.style(node).line_height
+                context.style(node).line_height()
             };
             let border_inline_start = contributions_inline_start
                 - if has_low_edge {
@@ -484,7 +484,7 @@ pub(crate) fn compute(context: &InlineFormattingContext) -> Vec<InlineBoxPieceDa
         if context.try_used_pointer(node).is_none() {
             continue;
         }
-        let line_height = context.style(node).line_height;
+        let line_height = context.style(node).line_height();
         staged.push(StagedPiece {
             piece: InlineBoxPieceData {
                 node,
@@ -628,7 +628,7 @@ impl<'context, 'pass> InlineFormattingContext<'context, 'pass> {
     pub(crate) fn nearest_fragmented_inline_ancestor(&self, node: Node) -> Node {
         let mut ancestor = self.parent_node(node);
         while !ancestor.is_invalid() {
-            let display = self.style(ancestor).display;
+            let display = self.style(ancestor).display();
             if !display.is_inline_outside() || !display.is_flow_inside() {
                 break;
             }
@@ -784,20 +784,20 @@ impl<'context, 'pass> InlineFormattingContext<'context, 'pass> {
         {
             let used = self.used_mut(node);
             used.margin_left.set(style.margin_left().to_px(containing_inline_size));
-            used.border_left.set(style.border_left_width);
+            used.border_left.set(style.border_left_width());
             used.padding_left
                 .set(style.padding_left().to_px(containing_inline_size));
             used.margin_right
                 .set(style.margin_right().to_px(containing_inline_size));
-            used.border_right.set(style.border_right_width);
+            used.border_right.set(style.border_right_width());
             used.padding_right
                 .set(style.padding_right().to_px(containing_inline_size));
             used.margin_top.set(style.margin_top().to_px(containing_inline_size));
-            used.border_top.set(style.border_top_width);
+            used.border_top.set(style.border_top_width());
             used.padding_top.set(style.padding_top().to_px(containing_inline_size));
             used.padding_bottom
                 .set(style.padding_bottom().to_px(containing_inline_size));
-            used.border_bottom.set(style.border_bottom_width);
+            used.border_bottom.set(style.border_bottom_width());
             used.margin_bottom
                 .set(style.margin_bottom().to_px(containing_inline_size));
         }
@@ -807,7 +807,7 @@ impl<'context, 'pass> InlineFormattingContext<'context, 'pass> {
             self.parent.dimension_list_item_marker(node);
             let distance = self.parent.distance_between_marker_and_list_item(node);
             let used = self.used_mut(node);
-            if style.direction == direction::LTR {
+            if style.direction() == direction::LTR {
                 used.margin_right.set(used.margin_right.get() + distance);
             } else {
                 used.margin_left.set(used.margin_left.get() + distance);
@@ -903,7 +903,7 @@ impl<'context, 'pass> InlineFormattingContext<'context, 'pass> {
             block_size: crate::layout::AvailableSize::Indefinite,
         };
         self.parent_resolve_used_block_size(node, false, inline_definite_space, None);
-        if style.display.is_flex_inside() {
+        if style.display().is_flex_inside() {
             self.parent_resolve_used_block_size(node, true, inline_definite_space, None);
         }
         sizing.make_button_content_box_definite(node, self.layout_mode, available_space, constraints, None);
@@ -957,7 +957,7 @@ impl<'context, 'pass> InlineFormattingContext<'context, 'pass> {
             return false;
         }
         let style = self.style(block);
-        style.text_overflow == text_overflow::ELLIPSIS && style.overflow_x != overflow::VISIBLE
+        style.text_overflow() == text_overflow::ELLIPSIS && style.overflow_x() != overflow::VISIBLE
     }
 
     pub(crate) fn generate_line_boxes(&mut self) {
@@ -979,7 +979,7 @@ impl<'context, 'pass> InlineFormattingContext<'context, 'pass> {
                 .last()
                 .is_none_or(|line| line.is_empty_or_ends_in_whitespace() || line.has_block_level_box);
             if item.is_collapsible_whitespace && line_starts_with_whitespace {
-                if self.style(self.style_source(item.node)).text_wrap_mode == text_wrap_mode::WRAP {
+                if self.style(self.style_source(item.node)).text_wrap_mode() == text_wrap_mode::WRAP {
                     let next_inline_size = iterator.next_non_whitespace_sequence_inline_size(self);
                     if next_inline_size > CssPixels::default() {
                         line_builder.prepare_to_append_inline_content();
@@ -1010,7 +1010,7 @@ impl<'context, 'pass> InlineFormattingContext<'context, 'pass> {
                 ItemType::Element => {
                     line_builder.prepare_to_append_inline_content();
                     self.compute_inset(item.node);
-                    if self.style(self.containing_block).text_wrap_mode == text_wrap_mode::WRAP {
+                    if self.style(self.containing_block).text_wrap_mode() == text_wrap_mode::WRAP {
                         let mut minimum = item.border_box_inline_size();
                         if item.margin_start < CssPixels::default() {
                             minimum += item.margin_start;
@@ -1072,7 +1072,7 @@ impl<'context, 'pass> InlineFormattingContext<'context, 'pass> {
                 }
                 ItemType::Text => {
                     line_builder.prepare_to_append_inline_content();
-                    if self.style(self.parent_node(item.node)).text_wrap_mode == text_wrap_mode::WRAP {
+                    if self.style(self.parent_node(item.node)).text_wrap_mode() == text_wrap_mode::WRAP {
                         let is_whitespace =
                             item.is_collapsible_whitespace || iterator.item_is_ascii_whitespace(self, &item);
                         let next_inline_size = if is_whitespace {
@@ -1092,7 +1092,7 @@ impl<'context, 'pass> InlineFormattingContext<'context, 'pass> {
                             line_builder.break_if_needed(item.border_box_inline_size());
                         }
                     }
-                    let line_height = self.style(self.parent_node(item.node)).line_height;
+                    let line_height = self.style(self.parent_node(item.node)).line_height();
                     line_builder.append_text_chunk(
                         item.node,
                         item.offset_in_node,
@@ -1117,11 +1117,11 @@ impl<'context, 'pass> InlineFormattingContext<'context, 'pass> {
             apply(self.line_data_mut().line_boxes.as_mut_slice(), self);
         }
         let containing_style = self.style(self.containing_block);
-        if containing_style.text_align == text_align::JUSTIFY {
+        if containing_style.text_align() == text_align::JUSTIFY {
             let line_count = self.line_data().line_boxes.len();
             for index in 0..line_count {
                 apply_to_fragments(
-                    containing_style.text_justify,
+                    containing_style.text_justify(),
                     &mut self.line_data_mut().line_boxes[index],
                     index + 1 == line_count,
                 );
@@ -1177,7 +1177,7 @@ impl<'context, 'pass> InlineFormattingContext<'context, 'pass> {
                             static_position.rect.offset.inline_offset = x;
                             static_position.rect.offset.block_offset = y;
                         }
-                        if containing_style.direction == direction::RTL {
+                        if containing_style.direction() == direction::RTL {
                             static_position.inline_alignment = StaticPositionAlignment::End;
                         }
                         break 'lines;
