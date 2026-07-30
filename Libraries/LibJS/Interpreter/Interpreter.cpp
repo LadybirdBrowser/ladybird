@@ -11,6 +11,7 @@
 #include <LibJS/Bytecode/Instruction.h>
 #include <LibJS/Bytecode/Label.h>
 #include <LibJS/Bytecode/Op.h>
+#include <LibJS/Debugger.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/ClassConstruction.h>
 #include <LibJS/Runtime/DeclarativeEnvironment.h>
@@ -293,6 +294,9 @@ DeclarativeEnvironment& VM::global_declarative_environment()
 
 ThrowCompletionOr<Value> VM::run_executable(ExecutionContext& context, Executable& executable, u32 entry_point)
 {
+    if (auto* debugger = vm().debugger())
+        debugger->register_executable(executable);
+
     auto const is_outermost_bytecode_execution = m_run_executable_depth == 0;
     TemporaryChange restore_run_executable_depth { m_run_executable_depth, m_run_executable_depth + 1 };
 
