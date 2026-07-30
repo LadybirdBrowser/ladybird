@@ -9,6 +9,7 @@
 #include <AK/Assertions.h>
 #include <AK/ByteString.h>
 #include <AK/CharacterTypes.h>
+#include <AK/Math.h>
 #include <AK/Optional.h>
 #include <AK/StringConversions.h>
 #include <AK/Utf16String.h>
@@ -23,6 +24,18 @@
 namespace Gfx {
 
 namespace {
+
+static auto const g_linearized_srgb_components = [] {
+    Array<double, 256> components;
+    for (size_t i = 0; i < components.size(); ++i) {
+        auto srgb_component = i / 255.0;
+        if (srgb_component <= 0.04045)
+            components[i] = srgb_component / 12.92;
+        else
+            components[i] = AK::pow((srgb_component + 0.055) / 1.055, 2.4);
+    }
+    return components;
+}();
 
 char nth_digit(u32 value, u8 digit)
 {
@@ -103,15 +116,9 @@ double Color::relative_luminance() const
     //   * GsRGB = G8bit/255
     //   * BsRGB = B8bit/255
     // The "^" character is the exponentiation operator. (Formula taken from [SRGB].)
-    auto linearized_srgb_component = [](u8 component) {
-        auto srgb_component = component / 255.0;
-        if (srgb_component <= 0.04045)
-            return srgb_component / 12.92;
-        return AK::pow((srgb_component + 0.055) / 1.055, 2.4);
-    };
-    return 0.2126 * linearized_srgb_component(red())
-        + 0.7152 * linearized_srgb_component(green())
-        + 0.0722 * linearized_srgb_component(blue());
+    return 0.2126 * g_linearized_srgb_components[red()]
+        + 0.7152 * g_linearized_srgb_components[green()]
+        + 0.0722 * g_linearized_srgb_components[blue()];
 }
 
 // https://w3c.github.io/wcag/guidelines/22/#dfn-contrast-ratio
