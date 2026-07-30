@@ -480,25 +480,16 @@ RustFFI::FfiPseudoTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_pseudo_tr
             auto& frame = *static_cast<PseudoElementFrame*>(frame_pointer);
             VERIFY(frame.layout_node);
             frame.layout_node->attach_style_resources(); },
-        .layout_facts = [](void* frame_pointer) -> RustFFI::FfiPrincipalLayoutFacts {
-            VERIFY(frame_pointer);
-            auto& frame = *static_cast<PseudoElementFrame*>(frame_pointer);
-            VERIFY(frame.layout_node);
-            return {
-                .is_replaced_element = frame.layout_node->is_replaced_element(),
-                .display = ffi_principal_display_facts(frame.display),
-            }; },
         .apply_replaced_display_adjustment = [](void* frame_pointer, RustFFI::FfiReplacedElementDisplayAdjustment adjustment) {
             VERIFY(frame_pointer);
             auto& frame = *static_cast<PseudoElementFrame*>(frame_pointer);
             VERIFY(frame.layout_node);
             if (adjustment == RustFFI::FfiReplacedElementDisplayAdjustment::Block)
-                frame.display = CSS::Display::from_short(CSS::Display::Short::Block);
+                frame.layout_node->set_display(CSS::Display::from_short(CSS::Display::Short::Block));
             else if (adjustment == RustFFI::FfiReplacedElementDisplayAdjustment::Inline)
-                frame.display = CSS::Display::from_short(CSS::Display::Short::Inline);
+                frame.layout_node->set_display(CSS::Display::from_short(CSS::Display::Short::Inline));
             else
-                VERIFY_NOT_REACHED();
-            frame.layout_node->set_display(frame.display); },
+                VERIFY_NOT_REACHED(); },
         .create_nested_list_marker = [](void* builder_pointer, void* frame_pointer, void* element_pointer) {
             VERIFY(builder_pointer);
             VERIFY(frame_pointer);
@@ -664,7 +655,6 @@ struct PrincipalNodeFrame {
     RefPtr<Layout::Node> old_layout_node;
     RefPtr<Layout::Node> layout_node;
     RefPtr<CSS::ComputedValues const> computed_values;
-    CSS::Display display;
 };
 
 struct LayoutTreeBuildBridge::PrincipalNodeFrameStorage {
@@ -940,8 +930,7 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
                 update_style_if_needed_for_layout_tree_bypass_path(element);
             }
             frame.computed_values = element.computed_values();
-            frame.display = frame.computed_values->display();
-            return ffi_principal_display_facts(frame.display); },
+            return ffi_principal_display_facts(frame.computed_values->display()); },
         .principal_element_layout_facts = [](void* frame_pointer, void* element_pointer) -> RustFFI::FfiElementLayoutFacts {
             VERIFY(frame_pointer);
             VERIFY(element_pointer);
@@ -988,7 +977,6 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             auto& frame = *static_cast<PrincipalNodeFrame*>(frame_pointer);
             auto& document = *static_cast<DOM::Document*>(document_pointer);
             frame.computed_values = document.style_computer().create_document_style();
-            frame.display = frame.computed_values->display();
             frame.layout_node = make_ref_counted<Layout::Viewport>(document, frame.computed_values.release_nonnull()); },
         .principal_text_layout_facts = [](void* text_pointer) -> RustFFI::FfiTextLayoutFacts {
             VERIFY(text_pointer);
@@ -1005,8 +993,7 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             VERIFY(frame_pointer);
             VERIFY(text_pointer);
             auto& frame = *static_cast<PrincipalNodeFrame*>(frame_pointer);
-            frame.layout_node = create_layout_node_for_text(*static_cast<DOM::Text*>(text_pointer), needs_style_wrapper);
-            frame.display = CSS::Display(CSS::DisplayOutside::Inline, CSS::DisplayInside::Flow); },
+            frame.layout_node = create_layout_node_for_text(*static_cast<DOM::Text*>(text_pointer), needs_style_wrapper); },
         .reuse_principal_layout = [](void* frame_pointer, void* node_pointer) {
             VERIFY(frame_pointer);
             VERIFY(node_pointer);
@@ -1020,25 +1007,16 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             auto& frame = *static_cast<PrincipalNodeFrame*>(frame_pointer);
             VERIFY(frame.layout_node);
             as<NodeWithStyle>(*frame.layout_node).attach_style_resources(); },
-        .principal_layout_facts = [](void* frame_pointer) -> RustFFI::FfiPrincipalLayoutFacts {
-            VERIFY(frame_pointer);
-            auto& frame = *static_cast<PrincipalNodeFrame*>(frame_pointer);
-            VERIFY(frame.layout_node);
-            return {
-                .is_replaced_element = frame.layout_node->is_replaced_element(),
-                .display = ffi_principal_display_facts(frame.display),
-            }; },
         .apply_replaced_display_adjustment = [](void* frame_pointer, RustFFI::FfiReplacedElementDisplayAdjustment adjustment) {
             VERIFY(frame_pointer);
             auto& frame = *static_cast<PrincipalNodeFrame*>(frame_pointer);
             VERIFY(frame.layout_node);
             if (adjustment == RustFFI::FfiReplacedElementDisplayAdjustment::Block)
-                frame.display = CSS::Display::from_short(CSS::Display::Short::Block);
+                as<NodeWithStyle>(*frame.layout_node).set_display(CSS::Display::from_short(CSS::Display::Short::Block));
             else if (adjustment == RustFFI::FfiReplacedElementDisplayAdjustment::Inline)
-                frame.display = CSS::Display::from_short(CSS::Display::Short::Inline);
+                as<NodeWithStyle>(*frame.layout_node).set_display(CSS::Display::from_short(CSS::Display::Short::Inline));
             else
-                VERIFY_NOT_REACHED();
-            as<NodeWithStyle>(*frame.layout_node).set_display(frame.display); },
+                VERIFY_NOT_REACHED(); },
         .principal_placement_facts = [](void* builder_pointer, void* frame_pointer, void* node_pointer, bool must_create_subtree, bool should_create_layout_node) -> RustFFI::FfiPrincipalBoxPlacementFacts {
             VERIFY(builder_pointer);
             VERIFY(frame_pointer);
