@@ -328,7 +328,8 @@ static void insert_minimal_entry(Database::Database& database, SessionHistorySna
     database.execute_statement(statements.insert_entry, {},
         history_id, entry_ordinal, static_cast<i64>(0), MUST(String::from_utf8("https://x.example/"sv)), static_cast<i64>(1), document_state_id,
         ByteString {}, ByteString {}, String {}, String {},
-        static_cast<i64>(0), absent_scroll, absent_scroll,
+        static_cast<i64>(0), static_cast<i64>(0), static_cast<i64>(0), absent_text,
+        absent_scroll, absent_scroll,
         static_cast<i64>(0), absent_text, absent_text, absent_text, absent_port, absent_text,
         static_cast<i64>(0), absent_text, absent_text, absent_text, absent_port, absent_text,
         static_cast<i64>(0), absent_text, static_cast<i64>(0),
@@ -416,6 +417,7 @@ static Web::HTML::SerializedPolicyContainer make_policy_container()
             .report_only_reporting_endpoint = "coep-report"_utf16,
         },
         .referrer_policy = Web::ReferrerPolicy::ReferrerPolicy::NoReferrer,
+        .force_load_at_top = true,
     };
 }
 
@@ -440,6 +442,7 @@ static void expect_policy_containers_equal(Web::HTML::SerializedPolicyContainer 
     EXPECT_EQ(restored.embedder_policy.reporting_endpoint, original.embedder_policy.reporting_endpoint);
     EXPECT_EQ(restored.embedder_policy.report_only_reporting_endpoint, original.embedder_policy.report_only_reporting_endpoint);
     EXPECT(restored.referrer_policy == original.referrer_policy);
+    EXPECT_EQ(restored.force_load_at_top, original.force_load_at_top);
 }
 
 TEST_CASE(snapshot_round_trips_flat_entries)
@@ -530,12 +533,16 @@ TEST_CASE(snapshot_entries_saved_before_the_user_agent_initiated_column_load_as_
 
     // Take the database back to the baseline schema, keeping the entry's row.
     TRY_OR_FAIL(database->execute_raw(R"#(
+        ALTER TABLE SessionPolicyContainers DROP COLUMN force_load_at_top;
+        ALTER TABLE SessionEntries DROP COLUMN directive_state_value;
+        ALTER TABLE SessionEntries DROP COLUMN directive_state_local_id;
+        ALTER TABLE SessionEntries DROP COLUMN directive_state_namespace_id;
         ALTER TABLE SessionEntries DROP COLUMN user_agent_initiated;
         UPDATE SchemaVersions SET version = 1 WHERE store = 'Sessions';
     )#"sv));
 
     auto migrated_statements = prepare_snapshot_tables(*database);
-    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("Sessions"sv)), Optional<u32> { 2u });
+    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("Sessions"sv)), Optional<u32> { 4u });
 
     auto loaded = TRY_OR_FAIL(load_session_history_snapshot(*database, migrated_statements, 42, 0));
     EXPECT_EQ(loaded.entries.size(), 1uz);

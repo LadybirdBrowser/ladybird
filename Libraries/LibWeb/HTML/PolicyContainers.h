@@ -56,6 +56,11 @@ public:
     // A report only integrity policy, which is an integrity policy, initially a new integrity policy.
     IntegrityPolicy report_only_integrity_policy {};
 
+    // https://wicg.github.io/scroll-to-text-fragment/#document-policy-integration
+    // This specification defines a configuration point in Document Policy with name
+    // "force-load-at-top". Its type is boolean with default value false.
+    bool force_load_at_top { false };
+
     [[nodiscard]] GC::Ref<PolicyContainer> clone(GC::Heap&) const;
     [[nodiscard]] SerializedPolicyContainer serialize() const;
 
