@@ -340,6 +340,7 @@ set(SOURCES
     DOM/Event.cpp
     DOM/EventDispatcher.cpp
     DOM/EventTarget.cpp
+    DOM/FragmentDirective.cpp
     DOM/HTMLCollection.cpp
     DOM/IDLEventListener.cpp
     DOM/LiveNodeList.cpp

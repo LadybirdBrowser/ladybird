@@ -176,6 +176,7 @@ FontFaceSet
 FontFaceSetLoadEvent
 FormData
 FormDataEvent
+FragmentDirective
 Function
 GainNode
 Gamepad

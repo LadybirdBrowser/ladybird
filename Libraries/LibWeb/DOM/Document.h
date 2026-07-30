@@ -701,6 +701,9 @@ public:
 
     DOMImplementation* implementation();
 
+    // https://wicg.github.io/scroll-to-text-fragment/#feature-detectability
+    GC::Ref<FragmentDirective> fragment_directive();
+
     GC::Ptr<HTML::HTMLScriptElement> current_script() const { return m_current_script.ptr(); }
     void set_current_script(Badge<HTML::HTMLScriptElement>, GC::Ptr<HTML::HTMLScriptElement> script) { m_current_script = move(script); }
     static constexpr size_t current_script_offset() { return offsetof(Document, m_current_script); }
@@ -1628,6 +1631,7 @@ private:
     bool m_ready_for_post_load_tasks { false };
 
     GC::Ptr<DOMImplementation> m_implementation;
+    GC::Ptr<FragmentDirective> m_fragment_directive;
     GC::Ptr<HTML::HTMLScriptElement> m_current_script;
 
     u32 m_ignore_destructive_writes_counter { 0 };

@@ -102,6 +102,7 @@
 #include <LibWeb/DOM/ElementByIdMap.h>
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/DOM/Event.h>
+#include <LibWeb/DOM/FragmentDirective.h>
 #include <LibWeb/DOM/HTMLCollection.h>
 #include <LibWeb/DOM/InputEventsTarget.h>
 #include <LibWeb/DOM/LiveNodeList.h>
@@ -768,6 +769,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_target_element);
     visitor.visit(m_autofocus_candidates);
     visitor.visit(m_implementation);
+    visitor.visit(m_fragment_directive);
     visitor.visit(m_current_script);
     visitor.visit(m_associated_inert_template_document);
     visitor.visit(m_appropriate_template_contents_owner_document);
@@ -5138,6 +5140,14 @@ DOMImplementation* Document::implementation()
     if (!m_implementation)
         m_implementation = DOMImplementation::create(*this);
     return m_implementation.ptr();
+}
+
+// https://wicg.github.io/scroll-to-text-fragment/#feature-detectability
+GC::Ref<FragmentDirective> Document::fragment_directive()
+{
+    if (!m_fragment_directive)
+        m_fragment_directive = FragmentDirective::create();
+    return *m_fragment_directive;
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-document-hasfocus
