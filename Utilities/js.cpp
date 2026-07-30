@@ -7,8 +7,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/LexicalPath.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/Platform.h>
+#include <AK/QuickSort.h>
 #include <AK/ScopeGuard.h>
 #include <AK/StringBuilder.h>
 #include <AK/Utf16String.h>
@@ -124,6 +126,81 @@ static StringView debugger_pause_reason(JS::Debugger::PauseReason reason)
     VERIFY_NOT_REACHED();
 }
 
+struct BreakpointLocation {
+    Utf16String filename;
+    u32 line { 0 };
+    Optional<u32> column;
+};
+
+static Utf16String breakpoint_filename(StringView filename, Utf16View current_filename)
+{
+    if (!current_filename.is_empty()) {
+        auto canonical_filename = LexicalPath::canonicalized_path(filename);
+        auto canonical_current_filename = LexicalPath::canonicalized_path(current_filename.to_utf8_but_should_be_ported_to_utf16().to_byte_string());
+        if (canonical_filename == canonical_current_filename)
+            return Utf16String::from_utf16(current_filename);
+    }
+    return Utf16String::from_utf8_with_replacement_character(filename);
+}
+
+static Optional<BreakpointLocation> parse_breakpoint_location(StringView input, Utf16View current_filename)
+{
+    input = input.trim_whitespace();
+    if (auto line = input.to_number<u32>(); line.has_value()) {
+        if (*line == 0)
+            return {};
+        return BreakpointLocation { Utf16String::from_utf16(current_filename), *line, {} };
+    }
+
+    auto last_colon = input.find_last(':');
+    if (!last_colon.has_value())
+        return {};
+
+    auto final_component = input.substring_view(*last_colon + 1).to_number<u32>();
+    if (!final_component.has_value())
+        return {};
+
+    auto prefix = input.substring_view(0, *last_colon);
+    if (auto line = prefix.to_number<u32>(); line.has_value()) {
+        if (*line == 0)
+            return {};
+        return BreakpointLocation { Utf16String::from_utf16(current_filename), *line, *final_component };
+    }
+
+    if (auto preceding_colon = prefix.find_last(':'); preceding_colon.has_value()) {
+        if (auto line = prefix.substring_view(*preceding_colon + 1).to_number<u32>(); line.has_value()) {
+            auto filename = prefix.substring_view(0, *preceding_colon);
+            if (filename.is_empty() || *line == 0)
+                return {};
+            return BreakpointLocation { breakpoint_filename(filename, current_filename), *line, *final_component };
+        }
+    }
+
+    if (prefix.is_empty() || *final_component == 0)
+        return {};
+    return BreakpointLocation { breakpoint_filename(prefix, current_filename), *final_component, {} };
+}
+
+static void print_breakpoint(JS::Breakpoint const& breakpoint)
+{
+    auto const* state = g_vm->debugger()->is_breakpoint_resolved(breakpoint.id) ? "resolved" : "pending";
+    if (breakpoint.column.has_value())
+        outln("{}: {}:{}:{} ({})", breakpoint.id, breakpoint.filename, breakpoint.line, *breakpoint.column, state);
+    else
+        outln("{}: {}:{} ({})", breakpoint.id, breakpoint.filename, breakpoint.line, state);
+}
+
+static void print_debugger_help()
+{
+    outln("Debugger commands:");
+    outln("    .break <line>[:column]");
+    outln("    .break <file>:<line>[:column]");
+    outln("    .breakpoints");
+    outln("    .continue");
+    outln("    .delete <id>");
+    outln("    .help");
+}
+
 static void run_debugger_prompt(JS::Debugger::PauseInfo const& pause_info)
 {
     if (pause_info.source_range.has_value()) {
@@ -165,7 +242,65 @@ static void run_debugger_prompt(JS::Debugger::PauseInfo const& pause_info)
             return;
         }
 
-        warnln("Unknown debugger command '{}'. Enter .continue to resume execution.", command);
+        if (command == ".help"sv) {
+            print_debugger_help();
+            continue;
+        }
+
+        if (command == ".breakpoints"sv) {
+            auto breakpoints = g_vm->debugger()->breakpoints();
+            if (breakpoints.is_empty()) {
+                outln("No breakpoints.");
+                continue;
+            }
+            quick_sort(breakpoints, [](auto const& lhs, auto const& rhs) {
+                return lhs.id < rhs.id;
+            });
+            for (auto const& breakpoint : breakpoints)
+                print_breakpoint(breakpoint);
+            continue;
+        }
+
+        if (command.starts_with(".break "sv)) {
+            Utf16String current_filename;
+            if (pause_info.source_range.has_value())
+                current_filename = pause_info.source_range->filename();
+
+            auto location = parse_breakpoint_location(command.substring_view(7), current_filename);
+            if (!location.has_value() || location->filename.is_empty()) {
+                warnln("Usage: .break <line>[:column] or .break <file>:<line>[:column]");
+                continue;
+            }
+
+            auto breakpoint_id = g_vm->debugger()->add_breakpoint(location->filename, location->line, location->column);
+            if (breakpoint_id.is_error()) {
+                warnln("Unable to set breakpoint: {}", breakpoint_id.error());
+                continue;
+            }
+
+            auto breakpoint = g_vm->debugger()->breakpoints().find_if([&](auto const& breakpoint) {
+                return breakpoint.id == breakpoint_id.value();
+            });
+            VERIFY(!breakpoint.is_end());
+            print_breakpoint(*breakpoint);
+            continue;
+        }
+
+        if (command.starts_with(".delete "sv)) {
+            auto breakpoint_id = command.substring_view(8).trim_whitespace().to_number<JS::BreakpointID>();
+            if (!breakpoint_id.has_value()) {
+                warnln("Usage: .delete <id>");
+                continue;
+            }
+            if (!g_vm->debugger()->remove_breakpoint(*breakpoint_id)) {
+                warnln("No breakpoint with id {}.", *breakpoint_id);
+                continue;
+            }
+            outln("Deleted breakpoint {}.", *breakpoint_id);
+            continue;
+        }
+
+        warnln("Unknown debugger command '{}'. Enter .help for a list of commands.", command);
     }
 }
 
