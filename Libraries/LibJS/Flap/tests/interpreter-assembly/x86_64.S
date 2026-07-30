@@ -83,6 +83,7 @@ asm_dispatch_table:
     .quad asm_handler_ThrowIfNullish
     .quad asm_handler_ThrowConstAssignment
     .quad asm_handler_Throw
+    .quad asm_handler_Debugger
     .quad asm_handler_Await
     .quad asm_handler_Yield
     .quad asm_handler_YieldIteratorResult
@@ -227,7 +228,6 @@ asm_dispatch_table:
     .quad asm_handler_JumpStrictlyInequalsRhsInt32
     .quad asm_handler_JumpLooselyEqualsRhsInt32
     .quad asm_handler_JumpLooselyInequalsRhsInt32
-    .quad asm_handler_fallback
     .quad asm_handler_fallback
     .quad asm_handler_fallback
     .quad asm_handler_fallback
@@ -556,6 +556,10 @@ CSYM(js_interpreter_handler_ranges):
     .quad asm_handler_Throw_hot_end
     .quad asm_handler_Throw_cold
     .quad asm_handler_Throw_cold_end
+    .quad asm_handler_Debugger
+    .quad asm_handler_Debugger_hot_end
+    .quad asm_handler_Debugger_cold
+    .quad asm_handler_Debugger_cold_end
     .quad asm_handler_Await
     .quad asm_handler_Await_hot_end
     .quad asm_handler_Await_cold
@@ -1132,10 +1136,6 @@ CSYM(js_interpreter_handler_ranges):
     .quad asm_handler_JumpLooselyInequalsRhsInt32_hot_end
     .quad asm_handler_JumpLooselyInequalsRhsInt32_cold
     .quad asm_handler_JumpLooselyInequalsRhsInt32_cold_end
-    .quad asm_handler_fallback
-    .quad asm_handler_fallback_hot_end
-    .quad asm_handler_fallback_cold
-    .quad asm_handler_fallback_cold_end
     .quad asm_handler_fallback
     .quad asm_handler_fallback_hot_end
     .quad asm_handler_fallback_cold
@@ -8175,6 +8175,27 @@ asm_handler_Throw:
 asm_handler_Throw_hot_end:
 asm_handler_Throw_cold:
 asm_handler_Throw_cold_end:
+
+.p2align 4
+asm_handler_Debugger:
+    mov DWORD PTR [rbx + -64], r13d
+    mov rdi, QWORD PTR [rbp - 48]
+    mov esi, r13d
+    lea rdx, [r14 + r13]
+    call CSYM(asm_slow_path_debugger)
+    test rax, rax
+    js .Lexit
+    mov rcx, QWORD PTR [rbp - 48]
+    mov rbx, QWORD PTR [rcx + 15288]
+    add rbx, 120
+    mov rcx, QWORD PTR [rbx + -40]
+    mov r14, QWORD PTR [rcx + 104]
+    mov r13d, eax
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+asm_handler_Debugger_hot_end:
+asm_handler_Debugger_cold:
+asm_handler_Debugger_cold_end:
 
 .p2align 4
 asm_handler_Await:

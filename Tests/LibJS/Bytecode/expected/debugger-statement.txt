@@ -1,0 +1,22 @@
+$61e80cca debugger-statement.js:6:1
+  Registers: 7
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+
+block0:
+  [   0] GetGlobal dst:reg6, `run`
+  [  10] Call dst:reg5, callee:reg6, this_value:Undefined, run
+  [  30] End value:reg5
+
+
+run$47755fb3 debugger-statement.js:2:5
+  Registers: 5
+  Blocks:    1
+  Constants:
+    [0] = Int32(42)
+
+block0:
+  [   0] Debugger
+  [   8] Return value:Int32(42)
+

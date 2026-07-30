@@ -1780,6 +1780,8 @@ handler Throw(
     src: Operand
 ) @terminator @cold = call_slow_path(throw);
 
+handler Debugger() @cold = call_slow_path(debugger);
+
 handler Await(
     continuation_label: BytecodeOffset,
     argument: Operand

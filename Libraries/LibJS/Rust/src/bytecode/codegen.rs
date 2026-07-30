@@ -1026,7 +1026,10 @@ pub fn generate_statement(
 
     let result = match &statement.inner {
         StatementKind::Empty | StatementKind::Error | StatementKind::ErrorDeclaration => None,
-        StatementKind::Debugger => None,
+        StatementKind::Debugger => {
+            generator.emit(Instruction::Debugger {});
+            None
+        }
 
         // === ExpressionStatement ===
         StatementKind::Expression(expression) => generate_expression(expression, generator, None),
