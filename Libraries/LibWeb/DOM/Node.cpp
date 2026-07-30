@@ -117,7 +117,6 @@ Node::Node(Document& document, NodeType type)
     : EventTarget()
     , m_document(&document)
     , m_type(type)
-    , m_unique_id(allocate_unique_id(*this))
 {
     // A Document is its own shadow-including root, so it is always connected.
     if (type == NodeType::DOCUMENT_NODE)
@@ -162,7 +161,15 @@ CSS::UserSelect Node::user_select_used_value() const
 void Node::finalize()
 {
     Base::finalize();
-    deallocate_unique_id(m_unique_id);
+    if (m_unique_id.has_value())
+        deallocate_unique_id(*m_unique_id);
+}
+
+UniqueNodeID Node::unique_id() const
+{
+    if (!m_unique_id.has_value())
+        m_unique_id = allocate_unique_id(const_cast<Node&>(*this));
+    return *m_unique_id;
 }
 
 void Node::visit_edges(Cell::Visitor& visitor)
