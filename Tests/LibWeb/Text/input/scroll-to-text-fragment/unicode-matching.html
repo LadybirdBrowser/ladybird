@@ -1,0 +1,54 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Unicode text-fragment matching</title>
+<link rel="help" href="https://wicg.github.io/scroll-to-text-fragment/#finding-ranges-in-a-document">
+<link rel="help" href="https://wicg.github.io/scroll-to-text-fragment/#word-boundaries">
+<script src="../wpt-import/resources/testharness.js"></script>
+<script src="../wpt-import/resources/testharnessreport.js"></script>
+<script src="../wpt-import/resources/testdriver.js"></script>
+<script src="../wpt-import/resources/testdriver-vendor.js"></script>
+<script>
+function isInViewport(win, element) {
+    const rect = element.getBoundingClientRect();
+    return rect.top >= 0 && rect.top <= win.innerHeight;
+}
+
+function openPopup(url) {
+    return new Promise(resolve => {
+        test_driver.bless("Open a URL with a Unicode text fragment", () => {
+            const popup = window.open(url, "_blank");
+            popup.onload = () => resolve(popup);
+        });
+    });
+}
+
+promise_test(async t => {
+    const cases = [
+        {
+            fragment: "cafe",
+            target: "accent",
+            description: "primary-strength matching ignores accents",
+        },
+        {
+            fragment: encodeURIComponent("résumé"),
+            target: "canonical",
+            description: "canonically equivalent matches may have different UTF-16 lengths",
+        },
+        {
+            fragment: encodeURIComponent("ようこそ"),
+            target: "cjk",
+            description: "Japanese word boundaries use the document language",
+        },
+    ];
+
+    for (const testCase of cases) {
+        const popup = await openPopup(`../../data/scroll-to-text-fragment-unicode-matching-target.html#:~:text=${testCase.fragment}`);
+        t.add_cleanup(() => popup.close());
+
+        await new Promise(resolve => popup.requestAnimationFrame(() => popup.requestAnimationFrame(resolve)));
+        assert_true(popup.scrollY > 0, testCase.description);
+        assert_true(isInViewport(popup, popup.document.getElementById(testCase.target)), testCase.description);
+        popup.close();
+    }
+}, "Text fragments use locale-aware primary-strength Unicode matching");
+</script>
