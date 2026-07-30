@@ -7,7 +7,10 @@
 #pragma once
 
 #include <AK/Function.h>
-#include <AK/Optional.h>
+#include <AK/Utf16View.h>
+#include <AK/Vector.h>
+#include <LibGC/WeakHashSet.h>
+#include <LibJS/Breakpoint.h>
 #include <LibJS/Export.h>
 #include <LibJS/Forward.h>
 #include <LibJS/SourceRange.h>
@@ -43,8 +46,21 @@ public:
     void continue_execution();
     bool is_paused() const { return m_is_paused; }
 
+    ErrorOr<BreakpointID> add_breakpoint(Utf16View filename, u32 line, Optional<u32> column = {});
+    bool remove_breakpoint(BreakpointID);
+    Vector<Breakpoint> const& breakpoints() const { return m_breakpoints; }
+    bool is_breakpoint_resolved(BreakpointID) const;
+
+    void register_executable(Bytecode::Executable&);
+
 private:
+    void resolve_breakpoint_in_executable(Breakpoint const&, Bytecode::Executable&);
+    void clear_executable_breakpoints();
+
     Function<void(PauseInfo const&)> m_pause_callback;
+    GC::WeakHashSet<Bytecode::Executable> m_executables;
+    Vector<Breakpoint> m_breakpoints;
+    BreakpointID m_next_breakpoint_id { 1 };
     bool m_is_paused { false };
 };
 

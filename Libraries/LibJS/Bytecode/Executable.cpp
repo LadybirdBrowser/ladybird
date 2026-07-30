@@ -621,4 +621,52 @@ SourceRange const& Executable::get_source_range(u32 program_counter)
     });
 }
 
+void Executable::add_debugger_breakpoint(u32 bytecode_offset, BreakpointID breakpoint_id)
+{
+    if (!m_debugger_breakpoint_sites)
+        m_debugger_breakpoint_sites = make<HashMap<u32, DebuggerBreakpointSite>>();
+
+    auto& site = m_debugger_breakpoint_sites->ensure(bytecode_offset);
+    if (!site.breakpoint_ids.contains_slow(breakpoint_id))
+        site.breakpoint_ids.append(breakpoint_id);
+}
+
+void Executable::remove_debugger_breakpoint(BreakpointID breakpoint_id)
+{
+    if (!m_debugger_breakpoint_sites)
+        return;
+
+    m_debugger_breakpoint_sites->remove_all_matching([&](auto&, auto& site) {
+        site.breakpoint_ids.remove_first_matching([&](auto id) {
+            return id == breakpoint_id;
+        });
+        return site.breakpoint_ids.is_empty();
+    });
+
+    if (m_debugger_breakpoint_sites->is_empty())
+        m_debugger_breakpoint_sites = nullptr;
+}
+
+void Executable::clear_debugger_breakpoints()
+{
+    m_debugger_breakpoint_sites = nullptr;
+}
+
+bool Executable::has_debugger_breakpoint_at(u32 bytecode_offset) const
+{
+    return m_debugger_breakpoint_sites && m_debugger_breakpoint_sites->contains(bytecode_offset);
+}
+
+bool Executable::has_debugger_breakpoint(BreakpointID breakpoint_id) const
+{
+    if (!m_debugger_breakpoint_sites)
+        return false;
+
+    for (auto const& entry : *m_debugger_breakpoint_sites) {
+        if (entry.value.breakpoint_ids.contains_slow(breakpoint_id))
+            return true;
+    }
+    return false;
+}
+
 }

@@ -22,6 +22,7 @@
 #include <LibJS/Bytecode/RegexTable.h>
 #include <LibJS/Bytecode/StringTable.h>
 #include <LibJS/Bytecode/Validator.h>
+#include <LibJS/Debugger.h>
 #include <LibJS/Runtime/BigInt.h>
 #include <LibJS/Runtime/Intrinsics.h>
 #include <LibJS/Runtime/NativeJavaScriptBackedFunction.h>
@@ -1461,6 +1462,9 @@ extern "C" void* rust_create_executable(
 #endif
         }
     }
+
+    if (auto* debugger = vm.debugger())
+        debugger->register_executable(*executable);
 
     return executable.ptr();
 }

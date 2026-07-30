@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/HashMap.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Optional.h>
 #include <AK/OwnPtr.h>
@@ -19,6 +20,7 @@
 #include <LibGC/CellAllocator.h>
 #include <LibGC/Ptr.h>
 #include <LibGC/WeakContainer.h>
+#include <LibJS/Breakpoint.h>
 #include <LibJS/Bytecode/ClassBlueprint.h>
 #include <LibJS/Bytecode/IdentifierTable.h>
 #include <LibJS/Bytecode/Label.h>
@@ -353,6 +355,12 @@ public:
 
     [[nodiscard]] SourceRange const& get_source_range(u32 program_counter);
 
+    void add_debugger_breakpoint(u32 bytecode_offset, BreakpointID breakpoint_id);
+    void remove_debugger_breakpoint(BreakpointID breakpoint_id);
+    void clear_debugger_breakpoints();
+    [[nodiscard]] bool has_debugger_breakpoint_at(u32 bytecode_offset) const;
+    [[nodiscard]] bool has_debugger_breakpoint(BreakpointID breakpoint_id) const;
+
     void dump() const;
 
     virtual Cell const& owner_cell(Badge<GC::Heap>) const override { return *this; }
@@ -362,6 +370,10 @@ private:
     virtual void visit_edges(Visitor&) override;
     virtual size_t external_memory_size() const override;
 
+    struct DebuggerBreakpointSite {
+        Vector<BreakpointID> breakpoint_ids;
+    };
+    OwnPtr<HashMap<u32, DebuggerBreakpointSite>> m_debugger_breakpoint_sites;
     HashMap<u32, SourceRange> m_source_range_cache;
 };
 
