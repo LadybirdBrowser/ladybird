@@ -1074,6 +1074,9 @@ public:
     // pointer is borrowed from this immutable ComputedValues instance.
     void const* style_group_payload(StyleGroupIndex) const;
 
+    // Fills one payload pointer per StyleGroupIndex, in enum order.
+    void fill_style_group_payloads(Span<void const*>) const;
+
     // Calls back with (name, shared_with_parent, is_default) for every style value group,
     // for introspecting how well group sharing is working (see internals.styleGroupSharingInfo()).
     template<typename Callback>

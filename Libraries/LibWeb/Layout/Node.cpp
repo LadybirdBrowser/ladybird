@@ -1094,6 +1094,10 @@ void NodeWithStyle::mirror_computed_values_to_node_data()
     node_data().display_bits = display_bits(*m_computed_values);
     set_flag(RustFFI::NodeFlag::OwnStyleEstablishesBlockFormattingContext,
         own_computed_style_establishes_block_formatting_context(*m_computed_values));
+
+    RustFFI::FfiStylePayloads style_payloads {};
+    m_computed_values->fill_style_group_payloads({ style_payloads.groups, array_size(style_payloads.groups) });
+    RustFFI::layout_arena_set_style_payloads(arena_handle(), slot_id(this), &style_payloads);
 }
 
 void NodeWithStyle::synchronize_table_span_data()
