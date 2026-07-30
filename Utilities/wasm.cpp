@@ -7,11 +7,14 @@
 
 #include <AK/GenericLexer.h>
 #include <AK/Hex.h>
+#include <AK/JsonObject.h>
 #include <AK/MemoryStream.h>
+#include <AK/ScopeGuard.h>
 #include <AK/StackInfo.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf16StringBuilder.h>
 #include <LibCore/ArgsParser.h>
+#include <LibCore/ElapsedTimer.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/File.h>
 #include <LibCore/MappedFile.h>
@@ -29,6 +32,7 @@
 #include <LibMain/Main.h>
 #include <LibWasm/AbstractMachine/AbstractMachine.h>
 #include <LibWasm/AbstractMachine/BytecodeInterpreter.h>
+#include <LibWasm/AbstractMachine/Validator.h>
 #include <LibWasm/Printer/Printer.h>
 #include <LibWasm/Types.h>
 #if !defined(AK_OS_WINDOWS)
@@ -42,6 +46,25 @@
 
 static OwnPtr<Stream> g_stdout {};
 static OwnPtr<Wasm::Printer> g_printer {};
+
+struct BenchmarkTimings {
+    JsonArray parse;
+    JsonArray validation;
+    JsonArray native_compilation;
+    JsonArray instantiation;
+    JsonArray execution;
+
+    JsonObject to_json() const
+    {
+        JsonObject json;
+        json.set("parse_time"sv, parse);
+        json.set("validation_time"sv, validation);
+        json.set("native_compilation_time"sv, native_compilation);
+        json.set("instantiation_time"sv, instantiation);
+        json.set("execution_time"sv, execution);
+        return json;
+    }
+};
 static StackInfo g_stack_info;
 static Wasm::BytecodeInterpreter g_interpreter(g_stack_info);
 
@@ -319,6 +342,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     bool dump_native = false;
     bool attempt_instantiate = false;
     bool export_all_imports = false;
+    bool benchmark_timings = false;
     [[maybe_unused]] bool wasi = false;
     Optional<u64> specific_function_address;
     ByteString exported_function_to_execute;
@@ -343,6 +367,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     parser.add_option(attempt_instantiate, "Attempt to instantiate the module", "instantiate", 'i');
     parser.add_option(exported_function_to_execute, "Attempt to execute the named exported function from the module (implies -i)", "execute", 'e', "name");
     parser.add_option(export_all_imports, "Export noop functions corresponding to imports", "export-noop");
+    parser.add_option(benchmark_timings, "Emit machine-readable Wasm phase timings to stderr", "benchmark-timings");
 #if !defined(AK_OS_WINDOWS)
     parser.add_option(wasi, "Enable WASI", "wasi", 'w');
 #endif
@@ -650,10 +675,25 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     parser.add_positional_argument(args_if_wasi, "Arguments to pass to the WASI module", "args", Core::ArgsParser::Required::No);
     parser.parse(arguments);
 
+    BenchmarkTimings timings;
+    ScopeGuard dump_benchmark_timings = [&] {
+        if (!benchmark_timings)
+            return;
+        warnln("wasm-benchmark-timings: {}", timings.to_json().serialized());
+    };
+
     if (!exported_function_to_execute.is_empty())
         attempt_instantiate = true;
 
+    Optional<Core::ElapsedTimer> parse_timer;
+    if (benchmark_timings)
+        parse_timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
+
     auto parse_result = parse(filename);
+
+    if (benchmark_timings)
+        timings.parse.must_append(parse_timer->elapsed_time().to_seconds_f64());
+
     if (parse_result.is_null())
         return 1;
 
@@ -697,16 +737,49 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 #endif
 
         Core::EventLoop::initialize_for_current_thread();
+        auto prepare_module = [&](Wasm::Module& module) -> ErrorOr<void, Wasm::ValidationError> {
+            if (!benchmark_timings)
+                return {};
+
+            auto validation_timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
+            auto validation_result = machine.validate(module, {}, Wasm::CompileToNative::No);
+            timings.validation.must_append(validation_timer.elapsed_time().to_seconds_f64());
+            if (validation_result.is_error())
+                return validation_result.release_error();
+
+            auto compilation_timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
+            Wasm::start_cranelift_compilation(module);
+            timings.native_compilation.must_append(compilation_timer.elapsed_time().to_seconds_f64());
+            return {};
+        };
+
+        if (auto preparation_result = prepare_module(*parse_result); preparation_result.is_error()) {
+            warnln("Validation failed: {}", preparation_result.error());
+            return 1;
+        }
+
         // First, resolve the linked modules
         Vector<NonnullRefPtr<Wasm::ModuleInstance>> linked_instances;
         Vector<NonnullRefPtr<Wasm::Module>> linked_modules;
         for (auto& name : modules_to_link_in) {
-            auto parse_result = parse(name);
-            if (parse_result.is_null()) {
+            Optional<Core::ElapsedTimer> linked_module_parse_timer;
+            if (benchmark_timings)
+                linked_module_parse_timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
+
+            auto linked_module = parse(name);
+
+            if (benchmark_timings)
+                timings.parse.must_append(linked_module_parse_timer->elapsed_time().to_seconds_f64());
+
+            if (linked_module.is_null()) {
                 warnln("Failed to parse linked module '{}'", name);
                 return 1;
             }
-            linked_modules.append(parse_result.release_nonnull());
+            if (auto preparation_result = prepare_module(*linked_module); preparation_result.is_error()) {
+                warnln("Validation of imported module '{}' failed: {}", name, preparation_result.error());
+                return 1;
+            }
+            linked_modules.append(linked_module.release_nonnull());
             Wasm::Linker linker { linked_modules.last() };
             for (auto& instance : linked_instances)
                 linker.link(*instance);
@@ -716,7 +789,15 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
                 print_link_error(link_result.error());
                 return 1;
             }
+            Optional<Core::ElapsedTimer> instantiation_timer;
+            if (benchmark_timings)
+                instantiation_timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
+
             auto instantiation_result = machine.instantiate(linked_modules.last(), link_result.release_value());
+
+            if (benchmark_timings)
+                timings.instantiation.must_append(instantiation_timer->elapsed_time().to_seconds_f64());
+
             if (instantiation_result.is_error()) {
                 warnln("Instantiation of imported module '{}' failed: {}", name, instantiation_result.error().error);
                 return 1;
@@ -829,12 +910,20 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
             return 1;
         }
 
-        auto result = machine.instantiate(*parse_result, link_result.release_value());
-        if (result.is_error()) {
-            warnln("Module instantiation failed: {}", result.error().error);
+        Optional<Core::ElapsedTimer> instantiation_timer;
+        if (benchmark_timings)
+            instantiation_timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
+
+        auto instantiation_result = machine.instantiate(*parse_result, link_result.release_value());
+
+        if (benchmark_timings)
+            timings.instantiation.must_append(instantiation_timer->elapsed_time().to_seconds_f64());
+
+        if (instantiation_result.is_error()) {
+            warnln("Module instantiation failed: {}", instantiation_result.error().error);
             return 1;
         }
-        auto module_instance = result.release_value();
+        auto module_instance = instantiation_result.release_value();
         reentry_instance = module_instance.ptr();
 
         if (print_compiled) {
@@ -1142,18 +1231,26 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
                 outln();
             }
 
-            auto result = machine.invoke(g_interpreter, run_address.value(), move(values));
-            if (result.is_trap()) {
-                auto trap_reason = result.trap().format();
+            Optional<Core::ElapsedTimer> execution_timer;
+            if (benchmark_timings)
+                execution_timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
+
+            auto execution_result = machine.invoke(g_interpreter, run_address.value(), move(values));
+
+            if (benchmark_timings)
+                timings.execution.must_append(execution_timer->elapsed_time().to_seconds_f64());
+
+            if (execution_result.is_trap()) {
+                auto trap_reason = execution_result.trap().format();
                 if (trap_reason.starts_with("exit:"sv))
                     return -trap_reason.substring_view(5).to_number<i32>().value_or(-1);
                 warnln("Execution trapped: {}", trap_reason);
             } else {
-                if (!result.values().is_empty())
+                if (!execution_result.values().is_empty())
                     warnln("Returned:");
                 auto result_type = instance->get<Wasm::WasmFunction>().type().results();
                 size_t index = 0;
-                for (auto& value : result.values()) {
+                for (auto& value : execution_result.values()) {
                     g_stdout->write_until_depleted("  -> "sv.bytes()).release_value_but_fixme_should_propagate_errors();
                     g_printer->print(value, result_type[index]);
                     ++index;
