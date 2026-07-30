@@ -174,6 +174,7 @@ class Completion;
 class Console;
 class ConsoleClient;
 class CyclicModule;
+class Debugger;
 class DeclarativeEnvironment;
 struct DisposeCapability;
 struct DisposableResource;
