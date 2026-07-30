@@ -68,6 +68,18 @@ static DownloadRangeValidator extract_range_validator(HTTP::HeaderList const& re
     return validator;
 }
 
+bool DownloadRangeValidator::matches(DownloadRangeValidator const& fresh) const
+{
+    // Compare by the strongest validator both responses carry.
+    if (etag.has_value() && fresh.etag.has_value())
+        return *etag == *fresh.etag;
+
+    if (last_modified.has_value() && fresh.last_modified.has_value())
+        return *last_modified == *fresh.last_modified;
+
+    return true;
+}
+
 DownloadRangeSupport evaluate_range_support(HTTP::HeaderList const& response_headers, Optional<u32> response_code, Requests::CameFromCache came_from_cache)
 {
     DownloadRangeSupport support;

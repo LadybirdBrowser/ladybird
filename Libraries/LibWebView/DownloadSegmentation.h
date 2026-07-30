@@ -24,6 +24,8 @@ struct WEBVIEW_API DownloadRangeValidator {
     bool is_usable() const { return etag.has_value() || last_modified.has_value(); }
 
     Optional<String> if_range_value() const { return etag.has_value() ? etag : last_modified; }
+
+    bool matches(DownloadRangeValidator const& fresh) const;
 };
 
 struct WEBVIEW_API DownloadRangeSupport {
