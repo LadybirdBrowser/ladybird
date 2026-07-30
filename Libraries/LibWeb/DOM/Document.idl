@@ -39,6 +39,9 @@ interface Document : Node {
     // NodeFilter.SHOW_ALL = 0xFFFFFFFF
     [NewObject] NodeIterator createNodeIterator(Node root, optional unsigned long whatToShow = 0xFFFFFFFF, optional NodeFilter? filter = null);
     [NewObject] TreeWalker createTreeWalker(Node root, optional unsigned long whatToShow = 0xFFFFFFFF, optional NodeFilter? filter = null);
+
+    // https://wicg.github.io/scroll-to-text-fragment/#feature-detectability
+    [SameObject] readonly attribute FragmentDirective fragmentDirective;
 };
 
 // https://dom.spec.whatwg.org/#dictdef-elementcreationoptions
