@@ -1,0 +1,42 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Text fragments honor computed text visibility</title>
+<link rel="help" href="https://wicg.github.io/scroll-to-text-fragment/#finding-ranges-in-a-document">
+<script src="../wpt-import/resources/testharness.js"></script>
+<script src="../wpt-import/resources/testharnessreport.js"></script>
+
+<style>
+    body {
+        height: 4000px;
+        margin: 0;
+    }
+
+    #spacer {
+        height: 3000px;
+    }
+
+    #rendered-hidden-ancestor {
+        display: block;
+        visibility: hidden;
+    }
+
+    #target {
+        visibility: visible;
+    }
+</style>
+
+<div id="spacer"></div>
+<div id="rendered-hidden-ancestor" hidden>
+    <span id="target">searchable visibility target</span>
+</div>
+
+<script>
+promise_test(async () => {
+    location.href = "#:~:text=searchable%20visibility%20target";
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+    const targetRect = target.getBoundingClientRect();
+    assert_true(scrollY > 0, "the text fragment scrolled the document");
+    assert_true(targetRect.top >= 0 && targetRect.top <= innerHeight, "the target is visible in the viewport");
+}, "A rendered hidden element below a visibility-hidden ancestor remains searchable");
+</script>

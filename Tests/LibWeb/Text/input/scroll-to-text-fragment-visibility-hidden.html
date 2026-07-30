@@ -1,0 +1,12 @@
+<!doctype html>
+<link rel="help" href="https://wicg.github.io/scroll-to-text-fragment/#finding-ranges-in-a-document">
+<link rel="help" href="https://wicg.github.io/scroll-to-text-fragment/#invoking-text-directives">
+<script src="include.js"></script>
+<script>
+    asyncTest(async () => {
+        const targetURL = new URL("../data/scroll-to-text-fragment-hidden-content-target.html", location.href);
+        targetURL.searchParams.set("mode", "visibility-hidden");
+        targetURL.hash = "fallback:~:text=invisible%20passage";
+        location.href = targetURL;
+    });
+</script>

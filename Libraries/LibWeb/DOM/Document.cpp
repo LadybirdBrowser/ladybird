@@ -4629,22 +4629,17 @@ void Document::scroll_to_the_fragment(bool allow_text_directive_scroll)
             auto range = scroll_target.get<GC::Ptr<Range>>();
             VERIFY(range);
 
-            // 2. Set target to be the first common ancestor of target's start node and end node.
-            GC::Ptr<Node> target_node = range->common_ancestor_container();
-
-            // 3. While target is non-null and is not an element, set target to target's parent.
-            while (target_node && !is<Element>(*target_node))
-                target_node = target_node->parent();
-            if (target_node)
-                target = static_cast<Element*>(target_node.ptr());
-
             // INTEROP: The first common ancestor can be far larger than the matched passage. Other
             //          engines use the start container's nearest element so that :target, reveal,
             //          and focus effects stay attached to the beginning that is scrolled into view.
             //          https://github.com/WICG/scroll-to-text-fragment/issues/259
-            target_node = range->start_container();
+            //          The draft also does not define how to cross a shadow root when finding that
+            //          element. Follow the shadow host so a range beginning in a direct Text child
+            //          of a ShadowRoot still has a target.
+            //          https://github.com/WICG/scroll-to-text-fragment/issues/190
+            GC::Ptr<Node> target_node = range->start_container();
             while (target_node && !is<Element>(*target_node))
-                target_node = target_node->parent();
+                target_node = target_node->parent_or_shadow_host();
             if (target_node)
                 target = static_cast<Element*>(target_node.ptr());
         }
@@ -4677,7 +4672,7 @@ void Document::scroll_to_the_fragment(bool allow_text_directive_scroll)
             GC::Ptr<Node> ancestor = target;
 
             // 3. While ancestor has a parent node within the flat tree:
-            while (ancestor && ancestor->parent()) {
+            while (ancestor && ancestor->flat_tree_parent()) {
                 // 1. If ancestor has a hidden attribute in the Hidden Until Found state, then
                 //    append (ancestor, "until-found") to ancestorsToReveal.
                 if (auto* element = as_if<Element>(ancestor.ptr())) {
@@ -4691,7 +4686,7 @@ void Document::scroll_to_the_fragment(bool allow_text_directive_scroll)
                 // 2. If ancestor is slotted into the second slot of a details element which
                 //    does not have an open attribute, then append (ancestor's parent node,
                 //    "details") to ancestorsToReveal.
-                auto* parent_element = as_if<Element>(ancestor->parent());
+                auto* parent_element = as_if<Element>(ancestor->flat_tree_parent());
                 if (parent_element
                     && parent_element->namespace_uri() == Namespace::HTML
                     && parent_element->local_name() == HTML::TagNames::details
@@ -4713,7 +4708,7 @@ void Document::scroll_to_the_fragment(bool allow_text_directive_scroll)
                 }
 
                 // 3. Set ancestor to the parent node of ancestor within the flat tree.
-                ancestor = ancestor->parent();
+                ancestor = ancestor->flat_tree_parent();
             }
 
             // 4. For each (ancestorToReveal, revealType) of ancestorsToReveal:

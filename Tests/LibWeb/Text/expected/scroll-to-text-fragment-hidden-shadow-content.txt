@@ -1,0 +1,3 @@
+Hidden ancestor revealed: true
+Details ancestor opened: true
+Outer shadow ancestor scrolled: true
