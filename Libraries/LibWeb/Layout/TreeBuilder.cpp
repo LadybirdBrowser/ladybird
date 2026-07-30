@@ -632,9 +632,6 @@ void LayoutTreeBuildBridge::detach_top_layer_element_layout_subtree(DOM::Element
             VERIFY(element_pointer);
             // NB: Called at DOM mutation processing time, outside layout tree construction.
             return Node::slot_id(static_cast<DOM::Element*>(element_pointer)->unsafe_layout_node()); },
-        .topmost_placement_node = [](void* layout_node_pointer) -> RustFFI::NodeSlotId {
-            VERIFY(layout_node_pointer);
-            return Node::slot_id(static_cast<Layout::Node*>(layout_node_pointer)->topmost_layout_node_of_top_layer_placement()); },
         .prepare_subtree_for_detach = [](void* layout_node_pointer) {
             VERIFY(layout_node_pointer);
             static_cast<Layout::Node*>(layout_node_pointer)->prepare_subtree_for_detach_from_layout_tree(); },
@@ -1391,12 +1388,6 @@ static void ffi_insert_child(void*, void* parent_pointer, void* child_pointer, R
         parent.append_child(*child);
 }
 
-static void ffi_set_children_are_inline(void*, void* node_pointer, bool children_are_inline)
-{
-    VERIFY(node_pointer);
-    static_cast<Node*>(node_pointer)->set_children_are_inline(children_are_inline);
-}
-
 static void ffi_note_tree_restructuring(void* context, void* node_pointer)
 {
     VERIFY(context);
@@ -1417,13 +1408,6 @@ static RustFFI::NodeSlotId ffi_create_button_content_wrapper(void*, void* layout
     flex_wrapper->append_child(*content_box_wrapper);
     parent.append_child(*flex_wrapper);
     return Node::slot_id(content_box_wrapper.ptr());
-}
-
-static RustFFI::NodeSlotId ffi_rendered_legend(void*, void* layout_node_pointer)
-{
-    VERIFY(layout_node_pointer);
-    auto& fieldset_box = as<FieldSetBox>(*static_cast<Node*>(layout_node_pointer));
-    return Node::slot_id(fieldset_box.rendered_legend().ptr());
 }
 
 static RustFFI::NodeSlotId ffi_create_fieldset_content_wrapper(void*, void* layout_node_pointer)
@@ -1471,7 +1455,6 @@ RustFFI::FfiTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_tree_builder_ca
         .create_and_append_anonymous_wrapper = ffi_create_and_append_anonymous_wrapper,
         .wrap_children_in_anonymous = ffi_wrap_children_in_anonymous,
         .insert_child = ffi_insert_child,
-        .set_children_are_inline = ffi_set_children_are_inline,
         .note_tree_restructuring = ffi_note_tree_restructuring,
         .text_is_ascii_whitespace = [](void*, void* node_pointer) {
             VERIFY(node_pointer);
@@ -1498,7 +1481,6 @@ RustFFI::FfiTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_tree_builder_ca
             return first_is_one_of(white_space_collapse,
                 CSS::WhiteSpaceCollapse::Preserve, CSS::WhiteSpaceCollapse::PreserveBreaks, CSS::WhiteSpaceCollapse::BreakSpaces); },
         .create_button_content_wrapper = ffi_create_button_content_wrapper,
-        .rendered_legend = ffi_rendered_legend,
         .create_fieldset_content_wrapper = ffi_create_fieldset_content_wrapper,
         .move_nodes_to_parent = ffi_move_nodes_to_parent,
     };

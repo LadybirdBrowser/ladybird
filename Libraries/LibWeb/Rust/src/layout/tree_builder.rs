@@ -337,7 +337,6 @@ pub unsafe extern "C" fn rust_should_preserve_svg_resource_layout_node(
 #[repr(C)]
 pub struct FfiTopLayerDetachCallbacks {
     pub element_layout_node: unsafe extern "C" fn(*mut c_void) -> NodeSlotId,
-    pub topmost_placement_node: unsafe extern "C" fn(*mut c_void) -> NodeSlotId,
     pub prepare_subtree_for_detach: unsafe extern "C" fn(*mut c_void),
     pub remove_layout_node: unsafe extern "C" fn(*mut c_void),
     pub clear_element_subtree: unsafe extern "C" fn(*mut c_void),
@@ -345,6 +344,30 @@ pub struct FfiTopLayerDetachCallbacks {
     pub assigned_node_count: unsafe extern "C" fn(*mut c_void) -> usize,
     pub assigned_node_at: unsafe extern "C" fn(*mut c_void, usize) -> *mut c_void,
     pub clear_assigned_subtree: unsafe extern "C" fn(*mut c_void),
+}
+
+/// Finds the box to detach for a top-layer element: the element's own box, or the outermost
+/// anonymous wrapper around it that is a direct viewport child. Leaving an empty anonymous
+/// table-fixup wrapper as a viewport child would violate layout invariants.
+fn topmost_layout_node_of_top_layer_placement(arena: *mut LayoutNodeArena, layout_node: NodeSlotId) -> NodeSlotId {
+    let mut direct_viewport_child_candidate = layout_node;
+    loop {
+        // SAFETY: The caller guarantees a live arena, and parent links only name live slots.
+        let parent = unsafe { &*(*arena).data(direct_viewport_child_candidate) }.parent;
+        if parent.is_invalid() {
+            return NodeSlotId::INVALID;
+        }
+        // SAFETY: `parent` is a live layout node.
+        let parent_data = unsafe { &*(*arena).data(parent) };
+        if !node_has_flag(parent_data, NodeFlag::Anonymous) {
+            return if parent_data.kind == NodeKind::Viewport {
+                direct_viewport_child_candidate
+            } else {
+                NodeSlotId::INVALID
+            };
+        }
+        direct_viewport_child_candidate = parent;
+    }
 }
 
 /// Detaches a top-layer element's layout placement and clears every stale projected subtree.
@@ -368,11 +391,7 @@ pub unsafe extern "C" fn rust_detach_top_layer_element_layout_subtree(
         // SAFETY: The element remains live throughout the call.
         let element_layout_node = unsafe { (callbacks.element_layout_node)(element) };
         if !element_layout_node.is_invalid() {
-            // Take along any anonymous table-fixup wrapper around the box. Leaving an empty table wrapper as a
-            // viewport child would violate layout invariants.
-            // SAFETY: The element layout node and its shell remain live throughout detachment.
-            let element_shell = unsafe { (*(*arena).data(element_layout_node)).shell };
-            let topmost = unsafe { (callbacks.topmost_placement_node)(element_shell) };
+            let topmost = topmost_layout_node_of_top_layer_placement(arena, element_layout_node);
             let layout_node_to_detach = if topmost.is_invalid() {
                 element_layout_node
             } else {
@@ -1870,13 +1889,11 @@ pub struct FfiTreeBuilderCallbacks {
     pub create_and_append_anonymous_wrapper: unsafe extern "C" fn(*mut c_void, *mut c_void) -> NodeSlotId,
     pub wrap_children_in_anonymous: unsafe extern "C" fn(*mut c_void, *mut c_void, *const *mut c_void, usize),
     pub insert_child: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, FfiInsertionMode),
-    pub set_children_are_inline: unsafe extern "C" fn(*mut c_void, *mut c_void, bool),
     pub note_tree_restructuring: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub text_is_ascii_whitespace: unsafe extern "C" fn(*mut c_void, *mut c_void) -> bool,
     pub prepare_first_letter_text:
         unsafe extern "C" fn(*mut c_void, *mut c_void, *mut FfiFirstLetterTextCallbacks) -> bool,
     pub create_button_content_wrapper: unsafe extern "C" fn(*mut c_void, *mut c_void) -> NodeSlotId,
-    pub rendered_legend: unsafe extern "C" fn(*mut c_void, *mut c_void) -> NodeSlotId,
     pub create_fieldset_content_wrapper: unsafe extern "C" fn(*mut c_void, *mut c_void) -> NodeSlotId,
     pub move_nodes_to_parent: unsafe extern "C" fn(*mut c_void, *mut c_void, *const *mut c_void, usize),
 }
@@ -2046,6 +2063,11 @@ impl TreeBuilderHost<'_> {
         } else {
             self.shell(node)
         }
+    }
+
+    fn set_children_are_inline(&self, node: LayoutNode, children_are_inline: bool) {
+        // SAFETY: Entry points guarantee that the arena remains live.
+        unsafe { (*self.arena).set_node_flag(node, NodeFlag::ChildrenAreInline, children_are_inline) };
     }
 
     fn shells(&self, nodes: &[LayoutNode]) -> Vec<*mut c_void> {
@@ -2374,18 +2396,14 @@ fn insert_node_into_inline_or_block_ancestor(
 
     if is_inline_outside {
         // After inserting an inline-level box into a parent, mark the parent as having inline children.
-        // SAFETY: `insertion_point` remains live and attached.
-        unsafe { (host.callbacks.set_children_are_inline)(host.callbacks.context, host.shell(insertion_point), true) };
+        host.set_children_are_inline(insertion_point, true);
     } else if !node_is_out_of_flow(host.data(node)) {
         let insertion_point_data = host.data(insertion_point);
         // Inline-flow parents keep their inline children flag; their IFC may contain interrupting blocks.
         if !node_is_inline_outside(insertion_point_data)
             || !node_has_display_flag(insertion_point_data, NodeDisplayFlag::FlowInside)
         {
-            // SAFETY: `insertion_point` remains live and attached.
-            unsafe {
-                (host.callbacks.set_children_are_inline)(host.callbacks.context, host.shell(insertion_point), false);
-            };
+            host.set_children_are_inline(insertion_point, false);
         }
     }
 }
@@ -2623,22 +2641,33 @@ fn wrap_button_contents_if_needed(host: &TreeBuilderHost<'_>, layout_node: Layou
         let content_wrapper =
             unsafe { (host.callbacks.create_button_content_wrapper)(host.callbacks.context, host.shell(layout_node)) };
         assert!(!content_wrapper.is_invalid());
+        host.set_children_are_inline(content_wrapper, children_are_inline);
         // SAFETY: The parent and content wrapper remain live, and the callback retains all nodes while moving them.
         unsafe {
-            (host.callbacks.set_children_are_inline)(
-                host.callbacks.context,
-                host.shell(content_wrapper),
-                children_are_inline,
-            );
             (host.callbacks.move_nodes_to_parent)(
                 host.callbacks.context,
                 host.shell(content_wrapper),
                 child_shells.as_ptr(),
                 child_shells.len(),
             );
-            (host.callbacks.set_children_are_inline)(host.callbacks.context, host.shell(layout_node), false);
         }
+        host.set_children_are_inline(layout_node, false);
     }
+}
+
+// https://html.spec.whatwg.org/multipage/rendering.html#rendered-legend
+// The rendered legend is the first legend child whose used 'float' is 'none' and whose used
+// 'position' is neither 'absolute' nor 'fixed'.
+fn rendered_legend(host: &TreeBuilderHost<'_>, fieldset: LayoutNode) -> LayoutNode {
+    let mut child = host.first_child(fieldset);
+    while !child.is_invalid() {
+        let data = host.data(child);
+        if data.kind == NodeKind::LegendBox && !node_is_out_of_flow(data) {
+            return child;
+        }
+        child = host.next_sibling(child);
+    }
+    NodeSlotId::INVALID
 }
 
 fn wrap_fieldset_contents_if_needed(host: &TreeBuilderHost<'_>, layout_node: LayoutNode) {
@@ -2649,8 +2678,7 @@ fn wrap_fieldset_contents_if_needed(host: &TreeBuilderHost<'_>, layout_node: Lay
     // the content (including the '::before' and '::after' pseudo-elements) of the fieldset element except for the
     // rendered legend, if there is one.
     if host.data(layout_node).kind == NodeKind::FieldSetBox {
-        // SAFETY: `layout_node` is a live FieldSetBox.
-        let legend = unsafe { (host.callbacks.rendered_legend)(host.callbacks.context, host.shell(layout_node)) };
+        let legend = rendered_legend(host, layout_node);
         if legend.is_invalid() {
             return;
         }
