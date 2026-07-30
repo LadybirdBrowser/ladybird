@@ -69,6 +69,7 @@
 #include <LibWeb/DOM/MutationObserver.h>
 #include <LibWeb/DOM/MutationType.h>
 #include <LibWeb/DOM/NamedNodeMap.h>
+#include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/SelectorQuery.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/Text.h>
@@ -3968,7 +3969,7 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_text(Utf16View where, Utf16Vi
 }
 
 // https://drafts.csswg.org/cssom-view-1/#determine-the-scroll-into-view-position
-static CSSPixelPoint determine_the_scroll_into_view_position(Element& target, CSSPixelRect target_bounding_border_box, Element::ScrollLogicalPosition block, Element::ScrollLogicalPosition inline_, Node& scrolling_box)
+static CSSPixelPoint determine_the_scroll_into_view_position(ScrollIntoViewTarget target, CSSPixelRect target_bounding_border_box, Element::ScrollLogicalPosition block, Element::ScrollLogicalPosition inline_, Node& scrolling_box)
 {
     // To determine the scroll-into-view position of a target, which is an Element, pseudo-element, or Range, with a
     // block flow direction position block, an inline base direction position inline, and a scrolling box scrolling box,
@@ -4006,16 +4007,18 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Element& target, CS
 
     // AD-HOC: The spec doesn't specify when to do this, but we need to apply scroll-margin and scroll-margin to target
     //         bounding border box (https://drafts.csswg.org/cssom-view-1/#example-51af1565).
-    auto scroll_margin = target.computed_style()->scroll_margin();
-    auto scroll_margin_top = scroll_margin.top().to_px_or_zero(CSSPixels { 0 });
-    auto scroll_margin_right = scroll_margin.right().to_px_or_zero(CSSPixels { 0 });
-    auto scroll_margin_bottom = scroll_margin.bottom().to_px_or_zero(CSSPixels { 0 });
-    auto scroll_margin_left = scroll_margin.left().to_px_or_zero(CSSPixels { 0 });
+    if (target.has<Element*>()) {
+        auto scroll_margin = target.get<Element*>()->computed_style()->scroll_margin();
+        auto scroll_margin_top = scroll_margin.top().to_px_or_zero(CSSPixels { 0 });
+        auto scroll_margin_right = scroll_margin.right().to_px_or_zero(CSSPixels { 0 });
+        auto scroll_margin_bottom = scroll_margin.bottom().to_px_or_zero(CSSPixels { 0 });
+        auto scroll_margin_left = scroll_margin.left().to_px_or_zero(CSSPixels { 0 });
 
-    target_bounding_border_box.set_top(target_bounding_border_box.top() - scroll_margin_top);
-    target_bounding_border_box.set_right(target_bounding_border_box.right() + scroll_margin_left + scroll_margin_right);
-    target_bounding_border_box.set_bottom(target_bounding_border_box.bottom() + scroll_margin_top + scroll_margin_bottom);
-    target_bounding_border_box.set_left(target_bounding_border_box.left() - scroll_margin_left);
+        target_bounding_border_box.set_top(target_bounding_border_box.top() - scroll_margin_top);
+        target_bounding_border_box.set_right(target_bounding_border_box.right() + scroll_margin_left + scroll_margin_right);
+        target_bounding_border_box.set_bottom(target_bounding_border_box.bottom() + scroll_margin_top + scroll_margin_bottom);
+        target_bounding_border_box.set_left(target_bounding_border_box.left() - scroll_margin_left);
+    }
 
     // 2. Let scrolling box edge A be the beginning edge in the block flow direction of scrolling box, and
     //    let element edge A be target bounding border box’s edge on the same physical side as that of
@@ -4136,34 +4139,55 @@ static CSSPixelPoint determine_the_scroll_into_view_position(Element& target, CS
 }
 
 // https://drafts.csswg.org/cssom-view-1/#scroll-a-target-into-view
-static void scroll_an_element_into_view(Element& target, Element::ScrollBehavior behavior, Element::ScrollLogicalPosition block, Element::ScrollLogicalPosition inline_, GC::Ptr<Element> container, GC::Ptr<WebIDL::Promise> promise)
+void scroll_a_target_into_view(ScrollIntoViewTarget target, Element::ScrollBehavior behavior, Element::ScrollLogicalPosition block, Element::ScrollLogicalPosition inline_, GC::Ptr<Element> container, GC::Ptr<WebIDL::Promise> promise)
 {
+    auto target_document = [](ScrollIntoViewTarget current_target) -> Document& {
+        return current_target.visit(
+            [](Element* element) -> Document& { return element->document(); },
+            [](Range* range) -> Document& { return range->start_container()->document(); });
+    };
+
+    // AD-HOC: This algorithm is also invoked by internal navigation and parser tasks, which do
+    //         not necessarily have a JavaScript execution context. The scrolling algorithms create
+    //         promises even when their caller does not request one, so provide the target Document's
+    //         relevant settings object while those promises are created and resolved.
+    HTML::TemporaryExecutionContext temporary_execution_context { target_document(target).relevant_settings_object() };
+
     // 1. Let ancestorPromises be an empty set of Promises.
     GC::RootVector<GC::Ref<WebIDL::Promise>> ancestor_promises;
 
     // 2. For each ancestor element or viewport that establishes a scrolling box scrolling box, in order of innermost
     //    to outermost scrolling box, run these substeps:
-    auto* ancestor = target.parent();
-    Vector<Node&> scrolling_boxes;
-    while (ancestor) {
-        auto const* ancestor_layout_node = ancestor->layout_node();
-        if (ancestor_layout_node && Painting::has_committed_box(*ancestor_layout_node) && Painting::has_scrollable_overflow(*ancestor_layout_node))
-            scrolling_boxes.append(*ancestor);
-        ancestor = ancestor->parent();
-    }
+    auto current_target = target;
+    bool reached_container = false;
 
-    auto target_bounding_border_box = target.get_bounding_client_rect();
+    auto get_target_bounding_border_box = [](ScrollIntoViewTarget current_target) {
+        return current_target.visit(
+            [](Element* element) {
+                return element->get_bounding_client_rect();
+            },
+            [](Range* range) {
+                auto rect = range->get_bounding_client_rect();
+                return CSSPixelRect {
+                    CSSPixels::nearest_value_for(rect->x()),
+                    CSSPixels::nearest_value_for(rect->y()),
+                    CSSPixels::nearest_value_for(rect->width()),
+                    CSSPixels::nearest_value_for(rect->height()),
+                };
+            });
+    };
+    auto target_bounding_border_box = get_target_bounding_border_box(current_target);
 
-    for (auto& scrolling_box : scrolling_boxes) {
+    auto scroll_scrolling_box = [&](Node& scrolling_box) {
         // 1. If the Document associated with target is not same origin with the Document associated with the element
         //    or viewport associated with scrolling box, abort any remaining iteration of this loop.
-        if (target.document().origin() != scrolling_box.document().origin())
-            break;
+        if (target_document(current_target).origin() != scrolling_box.document().origin())
+            return IterationDecision::Break;
 
         // 2. Let position be the scroll position resulting from running the steps to determine the scroll-into-view
         //    position of target with behavior as the scroll behavior, block as the block flow position, inline as the
         //    inline base direction position and scrolling box as the scrolling box.
-        auto position = determine_the_scroll_into_view_position(target, target_bounding_border_box, block, inline_, scrolling_box);
+        auto position = determine_the_scroll_into_view_position(current_target, target_bounding_border_box, block, inline_, scrolling_box);
 
         // AD-HOC: A smooth scroll leaves the scrolling box at its old scroll position while the outer scrolling boxes
         //         are considered, so move the target to where this scroll is going to leave it. The viewport is always
@@ -4203,8 +4227,40 @@ static void scroll_an_element_into_view(Element& target, Element::ScrollBehavior
         //    or is a viewport whose document is a shadow-including inclusive ancestor of container, abort any
         //    remaining iteration of this loop.
         // NB: Our viewports *are* Documents in the DOM, so both checks are equivalent.
-        if (container != nullptr && scrolling_box.is_shadow_including_inclusive_ancestor_of(*container))
+        if (container != nullptr && scrolling_box.is_shadow_including_inclusive_ancestor_of(*container)) {
+            reached_container = true;
+            return IterationDecision::Break;
+        }
+
+        return IterationDecision::Continue;
+    };
+
+    for (;;) {
+        auto* ancestor = current_target.visit(
+            [](Element* element) -> Node* { return element->flat_tree_parent(); },
+            [](Range* range) -> Node* { return range->common_ancestor_container().ptr(); });
+
+        for (; ancestor && !ancestor->is_document(); ancestor = ancestor->flat_tree_parent()) {
+            auto const* ancestor_layout_node = ancestor->layout_node();
+            if (ancestor_layout_node && Painting::has_committed_box(*ancestor_layout_node) && Painting::has_scrollable_overflow(*ancestor_layout_node)) {
+                if (scroll_scrolling_box(*ancestor) == IterationDecision::Break)
+                    break;
+            }
+        }
+        if (reached_container)
             break;
+
+        auto& document = target_document(current_target);
+        if (scroll_scrolling_box(document) == IterationDecision::Break)
+            break;
+
+        auto navigable = document.navigable();
+        auto container_element = navigable ? navigable->container() : nullptr;
+        if (!container_element || document.origin() != container_element->document().origin())
+            break;
+
+        current_target = ScrollIntoViewTarget { container_element.ptr() };
+        target_bounding_border_box = get_target_bounding_border_box(current_target);
     }
 
     // 4. Return scrollPromise, and run the remaining steps in parallel.
@@ -4252,7 +4308,7 @@ void Element::scroll_into_view(Element::ScrollIntoViewOptions const& options, GC
 
     // 8. Scroll the element into view with behavior, block, inline, and container. Let scrollPromise be the Promise
     //    returned from this step.
-    scroll_an_element_into_view(*this, behavior, block, inline_, container, promise);
+    scroll_a_target_into_view(ScrollIntoViewTarget { this }, behavior, block, inline_, container, promise);
 
     // FIXME: 9. Optionally perform some other action that brings the element to the user’s attention.
 }
