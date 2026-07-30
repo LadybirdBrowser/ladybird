@@ -17,6 +17,7 @@ struct SerializedPolicyContainer {
     Vector<ContentSecurityPolicy::SerializedPolicy> csp_list;
     EmbedderPolicy embedder_policy;
     ReferrerPolicy::ReferrerPolicy referrer_policy;
+    bool force_load_at_top { false };
 };
 
 }
