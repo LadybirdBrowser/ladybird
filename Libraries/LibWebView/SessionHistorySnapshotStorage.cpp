@@ -555,11 +555,11 @@ ErrorOr<SessionHistorySnapshotStatements> prepare_session_history_snapshot_state
             INSERT INTO SessionPolicyContainers (
                 history_id, entry_ordinal, referrer_policy, embedder_policy_value,
                 embedder_policy_report_only_value, embedder_policy_reporting_endpoint,
-                embedder_policy_report_only_reporting_endpoint)
+                embedder_policy_report_only_reporting_endpoint, force_load_at_top)
             VALUES (
                 :history_id, :entry_ordinal, :referrer_policy, :embedder_policy_value,
                 :embedder_policy_report_only_value, :embedder_policy_reporting_endpoint,
-                :embedder_policy_report_only_reporting_endpoint)
+                :embedder_policy_report_only_reporting_endpoint, :force_load_at_top)
             RETURNING id;
         )#"sv)),
         .insert_csp_policy = TRY(database.prepare_statement(R"#(
@@ -607,7 +607,8 @@ ErrorOr<SessionHistorySnapshotStatements> prepare_session_history_snapshot_state
         .select_policy_containers = TRY(database.prepare_statement(R"#(
             SELECT SessionPolicyContainers.id AS id, history_id, entry_ordinal, referrer_policy,
                 embedder_policy_value, embedder_policy_report_only_value,
-                embedder_policy_reporting_endpoint, embedder_policy_report_only_reporting_endpoint
+                embedder_policy_reporting_endpoint, embedder_policy_report_only_reporting_endpoint,
+                force_load_at_top
             FROM SessionPolicyContainers
             INNER JOIN SessionHistories ON SessionPolicyContainers.history_id = SessionHistories.id
             WHERE SessionHistories.tab_id = :tab_id;
@@ -673,6 +674,7 @@ static ErrorOr<void> store_policy_container(Database::Database& database, Sessio
         TRY(bind("embedder_policy_report_only_value"sv, encode_embedder_policy_value(container.embedder_policy.report_only_value)));
         TRY(bind("embedder_policy_reporting_endpoint"sv, container.embedder_policy.reporting_endpoint));
         TRY(bind("embedder_policy_report_only_reporting_endpoint"sv, container.embedder_policy.report_only_reporting_endpoint));
+        TRY(bind("force_load_at_top"sv, container.force_load_at_top));
         return {};
     }));
 
@@ -912,6 +914,7 @@ struct PolicyContainerRow {
     i64 embedder_policy_report_only_value { 0 };
     Utf16String embedder_policy_reporting_endpoint;
     Utf16String embedder_policy_report_only_reporting_endpoint;
+    bool force_load_at_top { false };
 };
 
 struct CspPolicyRow {
@@ -1036,6 +1039,7 @@ static ErrorOr<Web::HTML::SerializedPolicyContainer> build_policy_container(Poli
             .report_only_reporting_endpoint = row.embedder_policy_report_only_reporting_endpoint,
         },
         .referrer_policy = TRY(decode_referrer_policy(row.referrer_policy)),
+        .force_load_at_top = row.force_load_at_top,
     };
 }
 
@@ -1055,6 +1059,7 @@ static ErrorOr<HashMap<i64, HashMap<i64, Web::HTML::SerializedPolicyContainer>>>
             row.embedder_policy_report_only_value = TRY(result_row.read_integer<i64>("embedder_policy_report_only_value"sv));
             row.embedder_policy_reporting_endpoint = TRY(read_snapshot_utf16_text(result_row, "embedder_policy_reporting_endpoint"sv, totals));
             row.embedder_policy_report_only_reporting_endpoint = TRY(read_snapshot_utf16_text(result_row, "embedder_policy_report_only_reporting_endpoint"sv, totals));
+            row.force_load_at_top = TRY(result_row.read_bool("force_load_at_top"sv));
             return row;
         }));
 

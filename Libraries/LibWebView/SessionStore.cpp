@@ -19,6 +19,7 @@ namespace WebView {
 
 static constexpr u32 SESSIONS_SCHEMA_BASELINE_VERSION = 1u;
 static constexpr u32 SESSIONS_SCHEMA_DIRECTIVE_STATE_VERSION = 2u;
+static constexpr u32 SESSIONS_SCHEMA_DOCUMENT_POLICY_VERSION = 3u;
 static constexpr u32 MAX_CLOSED_TABS = 25;
 static constexpr u32 MAX_CLOSED_WINDOWS = 5;
 static constexpr size_t MAX_ACTIVE_URL_BYTES = 8uz * 1024 * 1024;
@@ -198,6 +199,12 @@ ErrorOr<Database::MigrationOutcome> SessionStore::PersistedStorage::migrate_sche
                 ALTER TABLE SessionEntries ADD COLUMN directive_state_namespace_id INTEGER NOT NULL DEFAULT 0;
                 ALTER TABLE SessionEntries ADD COLUMN directive_state_local_id INTEGER NOT NULL DEFAULT 0;
                 ALTER TABLE SessionEntries ADD COLUMN directive_state_value TEXT;
+            )#"sv,
+        },
+        {
+            .version = SESSIONS_SCHEMA_DOCUMENT_POLICY_VERSION,
+            .sql = R"#(
+                ALTER TABLE SessionPolicyContainers ADD COLUMN force_load_at_top INTEGER NOT NULL DEFAULT 0;
             )#"sv,
         },
     });
@@ -1035,7 +1042,8 @@ static bool serialized_policy_containers_match(Web::HTML::SerializedPolicyContai
 {
     return serialized_policies_match(a.csp_list, b.csp_list)
         && embedder_policies_match(a.embedder_policy, b.embedder_policy)
-        && a.referrer_policy == b.referrer_policy;
+        && a.referrer_policy == b.referrer_policy
+        && a.force_load_at_top == b.force_load_at_top;
 }
 
 static bool history_policy_containers_match(Variant<Web::HTML::SerializedPolicyContainer, Web::HTML::DocumentState::Client> const& a, Variant<Web::HTML::SerializedPolicyContainer, Web::HTML::DocumentState::Client> const& b)
