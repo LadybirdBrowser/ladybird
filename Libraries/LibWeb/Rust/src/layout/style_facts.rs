@@ -8,6 +8,19 @@
 // count so the payload snapshot and the registered group indices line up.
 pub const STYLE_GROUP_COUNT: usize = 23;
 
+// Registered indices of the style groups the layout engine reads, pinned to
+// the C++ StyleGroupIndex enum by static_asserts in LayoutRustBridge.cpp.
+pub const STYLE_GROUP_INDEX_INHERITED_TABLE: usize = 0;
+pub const STYLE_GROUP_INDEX_INHERITED_TEXT: usize = 4;
+pub const STYLE_GROUP_INDEX_INHERITED_BOX: usize = 5;
+pub const STYLE_GROUP_INDEX_FONT: usize = 6;
+pub const STYLE_GROUP_INDEX_SVG_RESET: usize = 8;
+pub const STYLE_GROUP_INDEX_BORDER: usize = 17;
+pub const STYLE_GROUP_INDEX_ALIGNMENT: usize = 18;
+pub const STYLE_GROUP_INDEX_SIZING: usize = 20;
+pub const STYLE_GROUP_INDEX_SURROUND: usize = 21;
+pub const STYLE_GROUP_INDEX_BOX: usize = 22;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum FfiSizeKind {
@@ -252,42 +265,6 @@ impl Default for FfiStylePayloads {
     }
 }
 
-/// The registered group indices of the Rust-native style groups, resolved
-/// once from the css module's lifecycle registration.
-struct NativeGroupIndices {
-    sizing: usize,
-    surround: usize,
-    alignment: usize,
-    svg_reset: usize,
-    inherited_box: usize,
-    inherited_table: usize,
-    box_values: usize,
-    border_facts: usize,
-    inherited_text_facts: usize,
-    font_facts: usize,
-}
-
-static NATIVE_GROUP_INDICES: OnceLock<NativeGroupIndices> = OnceLock::new();
-
-fn native_group_indices() -> &'static NativeGroupIndices {
-    use crate::css::computed_values::{StyleGroupLifecycle, style_group_index_with_lifecycle};
-    NATIVE_GROUP_INDICES.get_or_init(|| {
-        assert_eq!(crate::css::computed_values::registered_style_group_count(), STYLE_GROUP_COUNT);
-        NativeGroupIndices {
-            sizing: style_group_index_with_lifecycle(StyleGroupLifecycle::Sizing),
-            surround: style_group_index_with_lifecycle(StyleGroupLifecycle::Surround),
-            alignment: style_group_index_with_lifecycle(StyleGroupLifecycle::Alignment),
-            svg_reset: style_group_index_with_lifecycle(StyleGroupLifecycle::SVGReset),
-            inherited_box: style_group_index_with_lifecycle(StyleGroupLifecycle::InheritedBox),
-            inherited_table: style_group_index_with_lifecycle(StyleGroupLifecycle::InheritedTable),
-            box_values: style_group_index_with_lifecycle(StyleGroupLifecycle::Box),
-            border_facts: style_group_index_with_lifecycle(StyleGroupLifecycle::CppWithBorderFacts),
-            inherited_text_facts: style_group_index_with_lifecycle(StyleGroupLifecycle::CppWithInheritedTextFacts),
-            font_facts: style_group_index_with_lifecycle(StyleGroupLifecycle::CppWithFontFacts),
-        }
-    })
-}
-
 #[derive(Clone, Copy)]
 struct StyleReader {
     payloads: FfiStylePayloads,
@@ -310,52 +287,52 @@ impl StyleReader {
 
     #[inline]
     fn sizing(&self) -> &crate::layout::SizingValues {
-        self.native_group(native_group_indices().sizing)
+        self.native_group(STYLE_GROUP_INDEX_SIZING)
     }
 
     #[inline]
     fn surround(&self) -> &crate::layout::SurroundValues {
-        self.native_group(native_group_indices().surround)
+        self.native_group(STYLE_GROUP_INDEX_SURROUND)
     }
 
     #[inline]
     fn alignment(&self) -> &crate::layout::AlignmentValues {
-        self.native_group(native_group_indices().alignment)
+        self.native_group(STYLE_GROUP_INDEX_ALIGNMENT)
     }
 
     #[inline]
     fn svg_reset(&self) -> &crate::layout::SVGResetValues {
-        self.native_group(native_group_indices().svg_reset)
+        self.native_group(STYLE_GROUP_INDEX_SVG_RESET)
     }
 
     #[inline]
     fn inherited_box(&self) -> &crate::css::computed_values::InheritedBoxValues {
-        self.native_group(native_group_indices().inherited_box)
+        self.native_group(STYLE_GROUP_INDEX_INHERITED_BOX)
     }
 
     #[inline]
     fn inherited_table(&self) -> &crate::css::computed_values::InheritedTableValues {
-        self.native_group(native_group_indices().inherited_table)
+        self.native_group(STYLE_GROUP_INDEX_INHERITED_TABLE)
     }
 
     #[inline]
     fn box_values(&self) -> &crate::layout::BoxValues {
-        self.native_group(native_group_indices().box_values)
+        self.native_group(STYLE_GROUP_INDEX_BOX)
     }
 
     #[inline]
     fn border_facts(&self) -> &crate::layout::BorderLayoutFacts {
-        self.native_group(native_group_indices().border_facts)
+        self.native_group(STYLE_GROUP_INDEX_BORDER)
     }
 
     #[inline]
     fn inherited_text_facts(&self) -> &crate::layout::InheritedTextLayoutFacts {
-        self.native_group(native_group_indices().inherited_text_facts)
+        self.native_group(STYLE_GROUP_INDEX_INHERITED_TEXT)
     }
 
     #[inline]
     fn font_facts(&self) -> &crate::layout::FontLayoutFacts {
-        self.native_group(native_group_indices().font_facts)
+        self.native_group(STYLE_GROUP_INDEX_FONT)
     }
 }
 
