@@ -710,6 +710,7 @@ i64 asm_slow_path_throw(VM*, u32 pc, Op::Throw const*);
 i64 asm_slow_path_throw_if_tdz(VM*, u32 pc, Op::ThrowIfTDZ const*);
 i64 asm_slow_path_throw_if_not_object(VM*, u32 pc, Op::ThrowIfNotObject const*);
 i64 asm_slow_path_throw_if_nullish(VM*, u32 pc, Op::ThrowIfNullish const*);
+i64 asm_slow_path_debugger(VM*, u32 pc, Op::Debugger const*);
 i64 asm_slow_path_yield(VM*, u32 pc, Op::Yield const*);
 i64 asm_slow_path_yield_iterator_result(VM*, u32 pc, Op::YieldIteratorResult const*);
 i64 asm_slow_path_instance_of(VM*, u32 pc, Op::InstanceOf const*);
@@ -2796,6 +2797,11 @@ i64 asm_slow_path_throw_const_assignment(VM* vm, u32 pc, Op::ThrowConstAssignmen
 {
     auto completion = vm->throw_completion<TypeError>(ErrorType::InvalidAssignToConst);
     return handle_asm_exception(*vm, pc, completion.value());
+}
+
+i64 asm_slow_path_debugger(VM*, u32 pc, Op::Debugger const*)
+{
+    return static_cast<i64>(pc + sizeof(Op::Debugger));
 }
 
 i64 asm_slow_path_yield(VM* vm, [[maybe_unused]] u32 pc, Op::Yield const* instruction)

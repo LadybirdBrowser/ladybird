@@ -82,6 +82,7 @@ asm_dispatch_table:
     .quad asm_handler_ThrowIfNullish
     .quad asm_handler_ThrowConstAssignment
     .quad asm_handler_Throw
+    .quad asm_handler_Debugger
     .quad asm_handler_Await
     .quad asm_handler_Yield
     .quad asm_handler_YieldIteratorResult
@@ -226,7 +227,6 @@ asm_dispatch_table:
     .quad asm_handler_JumpStrictlyInequalsRhsInt32
     .quad asm_handler_JumpLooselyEqualsRhsInt32
     .quad asm_handler_JumpLooselyInequalsRhsInt32
-    .quad asm_handler_fallback
     .quad asm_handler_fallback
     .quad asm_handler_fallback
     .quad asm_handler_fallback
@@ -555,6 +555,10 @@ CSYM(js_interpreter_handler_ranges):
     .quad asm_handler_Throw_hot_end
     .quad asm_handler_Throw_cold
     .quad asm_handler_Throw_cold_end
+    .quad asm_handler_Debugger
+    .quad asm_handler_Debugger_hot_end
+    .quad asm_handler_Debugger_cold
+    .quad asm_handler_Debugger_cold_end
     .quad asm_handler_Await
     .quad asm_handler_Await_hot_end
     .quad asm_handler_Await_cold
@@ -1131,10 +1135,6 @@ CSYM(js_interpreter_handler_ranges):
     .quad asm_handler_JumpLooselyInequalsRhsInt32_hot_end
     .quad asm_handler_JumpLooselyInequalsRhsInt32_cold
     .quad asm_handler_JumpLooselyInequalsRhsInt32_cold_end
-    .quad asm_handler_fallback
-    .quad asm_handler_fallback_hot_end
-    .quad asm_handler_fallback_cold
-    .quad asm_handler_fallback_cold_end
     .quad asm_handler_fallback
     .quad asm_handler_fallback_hot_end
     .quad asm_handler_fallback_cold
@@ -8071,6 +8071,26 @@ asm_handler_Throw:
 asm_handler_Throw_hot_end:
 asm_handler_Throw_cold:
 asm_handler_Throw_cold_end:
+
+.p2align 4
+asm_handler_Debugger:
+    mov x0, x20
+    sub w1, w21, w26
+    str w1, [x28, #56]
+    mov x2, x21
+    bl CSYM(asm_slow_path_debugger)
+    tbnz x0, #63, .Lexit_veneer
+    ldr x28, [x20, #15288]
+    ldr x9, [x28, #80]
+    ldr x26, [x9, #104]
+    add x27, x28, #120
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+asm_handler_Debugger_hot_end:
+asm_handler_Debugger_cold:
+asm_handler_Debugger_cold_end:
 
 .p2align 4
 asm_handler_Await:
