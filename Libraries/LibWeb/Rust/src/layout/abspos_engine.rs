@@ -187,7 +187,7 @@ impl<'pass> AbsposEngine<'pass> {
         } else {
             child_used.border_box_block_size(collapsed)
         };
-        let block_axis_line_height = self.style(inline_node).line_height;
+        let block_axis_line_height = self.style(inline_node).line_height();
         let block_axis_start = if fragment.style_block_axis_is_reverse {
             fragment.block_offset + child_used.border_box_right(collapsed) - block_axis_line_height
         } else {
@@ -487,8 +487,8 @@ impl AbsposEngine<'_> {
         is_from_end: bool,
         is_horizontal_axis: bool,
     ) -> Option<CssPixels> {
-        let containing_block_direction = self.style(containing_block).direction;
-        let box_direction = self.style(positioned_box).direction;
+        let containing_block_direction = self.style(containing_block).direction();
+        let box_direction = self.style(positioned_box).direction();
         match facts.side_kind {
             FfiAnchorSideKind::Invalid => None,
             FfiAnchorSideKind::Top => (!is_horizontal_axis).then_some(rect.top()),
@@ -966,8 +966,8 @@ impl AbsposEngine<'_> {
     ) -> (AutoPx, CssPixels, CssPixels, AutoPx, AutoPx) {
         let style = self.style(node);
         let used = self.used(node);
-        let border_left = style.border_left_width;
-        let border_right = style.border_right_width;
+        let border_left = style.border_left_width();
+        let border_right = style.border_right_width();
         let padding_left = used.padding_left.get();
         let padding_right = used.padding_right.get();
         let computed_left = style.inset_left();
@@ -1175,10 +1175,10 @@ impl AbsposEngine<'_> {
         let used = self.used(node);
         let available = containing_block_inline_size
             - inline_size
-            - style.border_left_width
+            - style.border_left_width()
             - used.padding_left.get()
             - used.padding_right.get()
-            - style.border_right_width;
+            - style.border_right_width();
         let solution = solve_replaced_axis(
             available,
             resolve_or_auto(style.inset_left(), containing_block_inline_size),
@@ -1305,11 +1305,11 @@ impl AbsposEngine<'_> {
                 clamp_to_zero,
                 top,
                 margin_top,
-                style.border_top_width,
+                style.border_top_width(),
                 padding_top,
                 block_size,
                 padding_bottom,
-                style.border_bottom_width,
+                style.border_bottom_width(),
                 margin_bottom,
                 bottom,
             )
@@ -1572,10 +1572,10 @@ impl AbsposEngine<'_> {
         let used = self.used(node);
         let available = containing_block_block_size
             - block_size
-            - style.border_top_width
+            - style.border_top_width()
             - used.padding_top.get()
             - used.padding_bottom.get()
-            - style.border_bottom_width;
+            - style.border_bottom_width();
         // Deliberately pass false for `clear_auto_margins_if_start_is_auto`:
         // this matches the C++ condition, which tests only the end inset.
         let solution = solve_replaced_axis(
@@ -1643,10 +1643,10 @@ impl<'pass> AbsposEngine<'pass> {
         let style = self.style(node);
         {
             let used = self.used_mut(node);
-            used.border_left.set(style.border_left_width);
-            used.border_right.set(style.border_right_width);
-            used.border_top.set(style.border_top_width);
-            used.border_bottom.set(style.border_bottom_width);
+            used.border_left.set(style.border_left_width());
+            used.border_right.set(style.border_right_width());
+            used.border_top.set(style.border_top_width());
+            used.border_bottom.set(style.border_bottom_width());
             used.padding_left
                 .set(style.padding_left().to_px(containing_block_size.inline_size));
             used.padding_right
@@ -1869,7 +1869,7 @@ impl<'pass> AbsposEngine<'pass> {
             self.resolve_anchor_insets(node);
         }
         let style = self.style(node);
-        if style.position != positioning::RELATIVE {
+        if style.position() != positioning::RELATIVE {
             return;
         }
 

@@ -136,7 +136,7 @@ impl<'iterator, 'context, 'pass> InlineLevelIteratorGenerator<'iterator, 'contex
 
     fn compute_is_unidirectional_left_to_right(&mut self) -> bool {
         let containing_block = self.context().containing_block;
-        if self.context().style(containing_block).direction == direction::RTL {
+        if self.context().style(containing_block).direction() == direction::RTL {
             return false;
         }
 
@@ -145,7 +145,7 @@ impl<'iterator, 'context, 'pass> InlineLevelIteratorGenerator<'iterator, 'contex
             let facts = self.context().facts(node);
             if !facts.is_text_node() {
                 let style = self.context().style(node);
-                if style.direction == direction::RTL || style.unicode_bidi != unicode_bidi::NORMAL {
+                if style.direction() == direction::RTL || style.unicode_bidi() != unicode_bidi::NORMAL {
                     return false;
                 }
             } else if self.context().text_may_require_bidi_processing(node) {
@@ -197,13 +197,13 @@ impl<'iterator, 'context, 'pass> InlineLevelIteratorGenerator<'iterator, 'contex
         used.margin_top.set(style.margin_top().to_px(basis));
         used.margin_bottom.set(style.margin_bottom().to_px(basis));
         used.margin_left.set(style.margin_left().to_px(basis));
-        used.border_left.set(style.border_left_width);
+        used.border_left.set(style.border_left_width());
         used.padding_left.set(style.padding_left().to_px(basis));
         used.margin_right.set(style.margin_right().to_px(basis));
-        used.border_right.set(style.border_right_width);
+        used.border_right.set(style.border_right_width());
         used.padding_right.set(style.padding_right().to_px(basis));
-        used.border_top.set(style.border_top_width);
-        used.border_bottom.set(style.border_bottom_width);
+        used.border_top.set(style.border_top_width());
+        used.border_bottom.set(style.border_bottom_width());
         used.padding_bottom.set(style.padding_bottom().to_px(basis));
         used.padding_top.set(style.padding_top().to_px(basis));
 
@@ -236,7 +236,7 @@ impl<'iterator, 'context, 'pass> InlineLevelIteratorGenerator<'iterator, 'contex
             if (child_facts.is_inline()
                 || child_facts.is_inline_flow_interrupting_block()
                 || self.is_out_of_flow(first_child))
-                && current_style.display.is_flow_inside()
+                && current_style.display().is_flow_inside()
                 && !current_facts.is_inline_flow_interrupting_block()
                 && !current_facts.is_atomic_inline()
                 && (!current_facts.is_box() || !self.is_out_of_flow(current))
@@ -288,7 +288,7 @@ impl<'iterator, 'context, 'pass> InlineLevelIteratorGenerator<'iterator, 'contex
             let facts = self.context().facts(self.next_node);
             if facts.is_inline()
                 && facts.has_box_model_metrics()
-                && self.context().style(self.next_node).display.is_flow_inside()
+                && self.context().style(self.next_node).display().is_flow_inside()
                 && !self.is_out_of_flow(self.next_node)
                 && !facts.is_atomic_inline()
             {
@@ -301,13 +301,13 @@ impl<'iterator, 'context, 'pass> InlineLevelIteratorGenerator<'iterator, 'contex
 
     fn enter_text_node(&mut self, text_node: Node) {
         let style = self.context().style(self.context().parent_node(text_node));
-        let should_wrap_lines = style.text_wrap_mode == text_wrap_mode::WRAP;
+        let should_wrap_lines = style.text_wrap_mode() == text_wrap_mode::WRAP;
         let should_respect_linebreaks = matches!(
-            style.white_space_collapse,
+            style.white_space_collapse(),
             white_space_collapse::PRESERVE | white_space_collapse::PRESERVE_BREAKS | white_space_collapse::BREAK_SPACES
         );
         let should_collapse_whitespace = matches!(
-            style.white_space_collapse,
+            style.white_space_collapse(),
             white_space_collapse::COLLAPSE | white_space_collapse::PRESERVE_BREAKS
         );
         let callbacks = self.context().callbacks;
@@ -338,7 +338,7 @@ impl<'iterator, 'context, 'pass> InlineLevelIteratorGenerator<'iterator, 'contex
         if let (Some(last), Some(next)) = (context.last_known_direction, next_known_direction)
             && last != next
         {
-            return match self.context().style(self.context().containing_block).direction {
+            return match self.context().style(self.context().containing_block).direction() {
                 direction::LTR => GLYPH_TEXT_TYPE_LTR,
                 direction::RTL => GLYPH_TEXT_TYPE_RTL,
                 _ => unreachable!(),
@@ -456,7 +456,7 @@ impl<'iterator, 'context, 'pass> InlineLevelIteratorGenerator<'iterator, 'contex
                 let space = font_glyph_width(chunk.font, b' ' as u32);
                 CssPixels::nearest_value_for(
                     style.tab_size_number()
-                        * (space + style.word_spacing.to_double() as f32 + style.letter_spacing.to_double() as f32)
+                        * (space + style.word_spacing().to_double() as f32 + style.letter_spacing().to_double() as f32)
                             as f64,
                 )
             } else {
@@ -487,7 +487,7 @@ impl<'iterator, 'context, 'pass> InlineLevelIteratorGenerator<'iterator, 'contex
             chunk.font,
             text_type,
             inline_offset,
-            style.letter_spacing.to_double() as f32,
+            style.letter_spacing().to_double() as f32,
         );
         let chunk_inline_size = CssPixels::nearest_value_for_f32(glyphs.width + inline_offset);
         let generated_empty = is_empty_editable
@@ -612,7 +612,7 @@ impl InlineLevelIterator {
                 break;
             }
             let style = context.style(context.style_source(item.node));
-            if style.text_wrap_mode == text_wrap_mode::WRAP {
+            if style.text_wrap_mode() == text_wrap_mode::WRAP {
                 if item.type_ != ItemType::Text || item.is_collapsible_whitespace {
                     break;
                 }

@@ -345,8 +345,8 @@ impl<'pass> BlockFormattingContext<'pass> {
             .set(style.margin_top().to_px(containing_block_inline_size));
         used.margin_bottom
             .set(style.margin_bottom().to_px(containing_block_inline_size));
-        used.border_top.set(style.border_top_width);
-        used.border_bottom.set(style.border_bottom_width);
+        used.border_top.set(style.border_top_width());
+        used.border_bottom.set(style.border_bottom_width());
         used.padding_top
             .set(style.padding_top().to_px(containing_block_inline_size));
         used.padding_bottom
@@ -448,8 +448,8 @@ impl<'pass> BlockFormattingContext<'pass> {
             let used = self.used_mut(node);
             used.margin_left.set(margin_left);
             used.margin_right.set(margin_right);
-            used.border_left.set(style.border_left_width);
-            used.border_right.set(style.border_right_width);
+            used.border_left.set(style.border_left_width());
+            used.border_right.set(style.border_right_width());
             used.padding_left.set(padding_left);
             used.padding_right.set(padding_right);
         }
@@ -473,8 +473,8 @@ impl<'pass> BlockFormattingContext<'pass> {
             *margin_left_is_auto = style.margin_left().is_auto();
             *margin_right_is_auto = style.margin_right().is_auto();
             let mut inline_size = input;
-            let mut total = style.border_left_width
-                + style.border_right_width
+            let mut total = style.border_left_width()
+                + style.border_right_width()
                 + *margin_left
                 + padding_left
                 + inline_size.unwrap_or_default()
@@ -496,8 +496,8 @@ impl<'pass> BlockFormattingContext<'pass> {
                         *margin_right = CssPixels::default();
                         *margin_right_is_auto = false;
                     }
-                    total = style.border_left_width
-                        + style.border_right_width
+                    total = style.border_left_width()
+                        + style.border_right_width()
                         + *margin_left
                         + padding_left
                         + inline_size.unwrap_or_default()
@@ -645,8 +645,8 @@ impl<'pass> BlockFormattingContext<'pass> {
                 .set(style.padding_right().to_px(containing_block_inline_size));
             used.margin_left.set(margin_left);
             used.margin_right.set(margin_right);
-            used.border_left.set(style.border_left_width);
-            used.border_right.set(style.border_right_width);
+            used.border_left.set(style.border_left_width());
+            used.border_right.set(style.border_right_width());
         }
         let sizing = self.sizing();
         let compute = |input: Option<CssPixels>| -> CssPixels {
@@ -661,10 +661,10 @@ impl<'pass> BlockFormattingContext<'pass> {
                 let used = self.used(node);
                 let available_inline_size = available_space.inline_size.to_px_or_zero()
                     - margin_left
-                    - style.border_left_width
+                    - style.border_left_width()
                     - used.padding_left.get()
                     - used.padding_right.get()
-                    - style.border_right_width
+                    - style.border_right_width()
                     - margin_right;
                 // Then the shrink-to-fit inline size is:
                 // min(max(preferred minimum inline size, available inline size), preferred inline size).
@@ -735,8 +735,8 @@ impl<'pass> BlockFormattingContext<'pass> {
             .set(style.margin_left().to_px(containing_block_inline_size));
         used.margin_right
             .set(style.margin_right().to_px(containing_block_inline_size));
-        used.border_left.set(style.border_left_width);
-        used.border_right.set(style.border_right_width);
+        used.border_left.set(style.border_left_width());
+        used.border_right.set(style.border_right_width());
         used.padding_left
             .set(style.padding_left().to_px(containing_block_inline_size));
         used.padding_right
@@ -1274,7 +1274,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         // - no line boxes, no clearance, no padding and no border separate them (Note that certain zero-height line boxes
         //   (see 9.4.2) are ignored for this purpose.)
         // NB: Border and padding are handled further down.
-        if style.clear != clear::NONE {
+        if style.clear() != clear::NONE {
             return false;
         }
         // - both belong to vertically-adjacent box edges, i.e. form one of the following pairs:
@@ -1360,10 +1360,10 @@ impl<'pass> BlockFormattingContext<'pass> {
         };
 
         // FIXME: Honor writing-mode, direction and text-orientation.
-        if matches!(style.clear, clear::LEFT | clear::BOTH | clear::INLINE_START) {
+        if matches!(style.clear(), clear::LEFT | clear::BOTH | clear::INLINE_START) {
             clear_to(self.lowest_left_margin_edge.get(), &mut result);
         }
-        if matches!(style.clear, clear::RIGHT | clear::BOTH | clear::INLINE_END) {
+        if matches!(style.clear(), clear::RIGHT | clear::BOTH | clear::INLINE_END) {
             clear_to(self.lowest_right_margin_edge.get(), &mut result);
         }
         result
@@ -1396,7 +1396,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         }
 
         let containing_block = self.containing_block(node);
-        let containing_text_align = self.style(containing_block).text_align;
+        let containing_text_align = self.style(containing_block).text_align();
         if containing_text_align == text_align::_LIBWEB_CENTER {
             inline_offset += available_inline_size_within_containing_block / 2 - used.content_inline_size.get() / 2;
         } else if containing_text_align == text_align::_LIBWEB_RIGHT {
@@ -1439,13 +1439,13 @@ impl<'pass> BlockFormattingContext<'pass> {
         let marker_inline_size = marker_used.content_inline_size.get();
         let list_item_style = self.style(list_item);
         let list_item_used = self.used(list_item);
-        let marker_inline_offset = if list_item_style.direction == direction::LTR {
+        let marker_inline_offset = if list_item_style.direction() == direction::LTR {
             inline_space_used_before_list_item_elements_formatted.left - marker_distance - marker_inline_size
         } else {
             list_item_used.content_inline_size.get()
                 - (inline_space_used_before_list_item_elements_formatted.right - marker_distance)
         };
-        let marker_block_offset = ((marker_style.line_height - marker_block_size) / 2).max(CssPixels::default());
+        let marker_block_offset = ((marker_style.line_height() - marker_block_size) / 2).max(CssPixels::default());
 
         if marker_facts.marker_list_style_position() == list_style_position::INSIDE {
             // FIXME: Just adjusting the content inline size for an inside marker is wrong, as it will still position
@@ -1465,9 +1465,9 @@ impl<'pass> BlockFormattingContext<'pass> {
                 },
             );
         }
-        if marker_style.line_height > self.used(list_item).content_block_size.get() {
+        if marker_style.line_height() > self.used(list_item).content_block_size.get() {
             self.used_mut(list_item)
-                .set_content_block_size(marker_style.line_height);
+                .set_content_block_size(marker_style.line_height());
         }
     }
 
@@ -1712,7 +1712,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         if is_list_item_box_without_css_content && !marker.is_invalid() {
             self.dimension_list_item_marker(marker);
             let marker_facts = self.facts(marker);
-            if marker_facts.marker_list_style_position() == list_style_position::INSIDE && style.direction == direction::LTR
+            if marker_facts.marker_list_style_position() == list_style_position::INSIDE && style.direction() == direction::LTR
             {
                 content_inline_offset +=
                     self.used(marker).content_inline_size.get() + self.distance_between_marker_and_list_item(marker);
@@ -1766,7 +1766,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             input.containing_block_constraints,
         );
         // NOTE: Flex containers with an automatic block size are treated as max-content, so resolve it early.
-        if facts.has_auto_content_box_size() || style.display.is_flex_inside() {
+        if facts.has_auto_content_box_size() || style.display().is_flex_inside() {
             self.resolve_used_block_size_if_treated_as_auto(
                 node,
                 available_space_for_block_size_resolution,
@@ -1780,7 +1780,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         // in some cases even causing it to overlap with the non-floating content of the list.
         let mut inline_space_used_before_children_formatted = SpaceUsedByFloats::default();
         if is_list_item_box_without_css_content && !marker.is_invalid() {
-            let marker_block_offset = ((self.style(marker).line_height - self.used(marker).content_block_size.get())
+            let marker_block_offset = ((self.style(marker).line_height() - self.used(marker).content_block_size.get())
                 / 2)
             .max(CssPixels::default());
             let list_item_used = self.used(node);
@@ -1856,7 +1856,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                     y: pending.block_offset,
                 });
             }
-            if container_facts.is_table_wrapper() && style.display.is_table_inside() {
+            if container_facts.is_table_wrapper() && style.display().is_table_inside() {
                 let used = self.used_mut(node);
                 used.margin_left.set(used.margin_left.get().max(CssPixels::default()));
                 used.margin_right.set(used.margin_right.get().max(CssPixels::default()));
@@ -1930,7 +1930,7 @@ impl<'pass> BlockFormattingContext<'pass> {
 
         // Tables already set their block size during the independent formatting context run. With multi-line text cells,
         // using different available space here can produce different line breaks and therefore a different block size.
-        if !style.display.is_table_inside() {
+        if !style.display().is_table_inside() {
             self.resolve_used_block_size_if_treated_as_auto(
                 node,
                 available_space_for_block_size_resolution,
@@ -2185,7 +2185,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             return Some(style.column_count());
         }
         let column_gap = if style.column_gap().is_auto() {
-            style.font_size
+            style.font_size()
         } else {
             style.column_gap().to_px(used_inline_size)
         };
@@ -2213,7 +2213,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         if let Some(column_count) = self.determine_used_value_for_column_count(root_inline_size) {
             let style = self.style(self.root);
             let column_gap = if style.column_gap().is_auto() {
-                style.font_size
+                style.font_size()
             } else {
                 style.column_gap().to_px(root_inline_size)
             };
@@ -2465,7 +2465,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         );
         self.resolve_used_block_size_if_not_treated_as_auto(node, available_space, input.containing_block_constraints);
         let facts = self.facts(node);
-        if facts.has_auto_content_box_size() || self.style(node).display.is_flex_inside() {
+        if facts.has_auto_content_box_size() || self.style(node).display().is_flex_inside() {
             self.resolve_used_block_size_if_treated_as_auto(
                 node,
                 available_space,
@@ -2507,9 +2507,9 @@ impl<'pass> BlockFormattingContext<'pass> {
         // Next, float to the left and/or right
         // FIXME: Honor writing-mode, direction and text-orientation.
         let style = self.style(node);
-        let side = if matches!(style.float_, float::LEFT | float::INLINE_START) {
+        let side = if matches!(style.float_(), float::LEFT | float::INLINE_START) {
             Some(FloatSide::Left)
-        } else if matches!(style.float_, float::RIGHT | float::INLINE_END) {
+        } else if matches!(style.float_(), float::RIGHT | float::INLINE_END) {
             Some(FloatSide::Right)
         } else {
             None
@@ -2525,11 +2525,11 @@ impl<'pass> BlockFormattingContext<'pass> {
         } else {
             block_offset
         };
-        if side == FloatSide::Left && matches!(style.clear, clear::LEFT | clear::BOTH | clear::INLINE_START) {
+        if side == FloatSide::Left && matches!(style.clear(), clear::LEFT | clear::BOTH | clear::INLINE_START) {
             margin_box_ceiling =
                 margin_box_ceiling.max(self.lowest_left_margin_edge.get() - containing_block_rect_now.y);
         }
-        if side == FloatSide::Right && matches!(style.clear, clear::RIGHT | clear::BOTH | clear::INLINE_END) {
+        if side == FloatSide::Right && matches!(style.clear(), clear::RIGHT | clear::BOTH | clear::INLINE_END) {
             margin_box_ceiling =
                 margin_box_ceiling.max(self.lowest_right_margin_edge.get() - containing_block_rect_now.y);
         }
@@ -2682,7 +2682,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         }
         let style = self.style(node);
         let sizing = self.sizing();
-        if style.display.is_flex_inside() {
+        if style.display().is_flex_inside() {
             // https://drafts.csswg.org/css-flexbox-1/#algo-main-container
             // NOTE: The automatic block size of a block-level flex container is its max-content size.
             return sizing.calculate_max_content_block_size(
@@ -2691,7 +2691,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 constraints,
             );
         }
-        if style.display.is_grid_inside() {
+        if style.display().is_grid_inside() {
             // https://www.w3.org/TR/css-grid-2/#intrinsic-sizes
             // In both inline and block formatting contexts, the grid container’s auto block size is its
             // max-content size.
@@ -2701,7 +2701,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 constraints,
             );
         }
-        if style.display.is_table_inside() {
+        if style.display().is_table_inside() {
             return sizing.calculate_max_content_block_size(
                 node,
                 available_space.inline_size.to_px_or_zero(),
@@ -2747,7 +2747,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 //       the marker's line-height determines the list item's block size. This ensures proper stacking of
                 //       list items and alignment with their floated content.
                 if child_facts.is_list_item_marker_box() {
-                    marker_line_block_size = self.style(child).line_height;
+                    marker_line_block_size = self.style(child).line_height();
                     continue;
                 }
                 if self.margins_collapse_through(child) {
@@ -2778,7 +2778,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         //         and usable for text input, even though this is not specified.
         //         See: https://github.com/w3c/editing/issues/70.
         if facts.is_editing_host() {
-            return style.line_height;
+            return style.line_height();
         }
         // 4. zero, otherwise
         CssPixels::default()
@@ -2895,7 +2895,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             stack.reverse();
             while let Some(node) = stack.pop() {
                 let facts = self.facts(node);
-                if facts.is_box() && self.style(node).display.is_table_inside() {
+                if facts.is_box() && self.style(node).display().is_table_inside() {
                     return self.used(node).border_box_inline_size(false);
                 }
                 let mut children = Vec::new();

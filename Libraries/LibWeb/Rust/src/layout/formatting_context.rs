@@ -485,10 +485,10 @@ impl<'pass> SizingContext<'pass> {
             content_inline_size,
             self.facts(node).preferred_aspect_ratio().unwrap(),
             style.box_sizing_for_aspect_ratio() == box_sizing::BORDER_BOX,
-            style.border_left_width + used.padding_left.get(),
-            style.border_right_width + used.padding_right.get(),
-            style.border_top_width + used.padding_top.get(),
-            style.border_bottom_width + used.padding_bottom.get(),
+            style.border_left_width() + used.padding_left.get(),
+            style.border_right_width() + used.padding_right.get(),
+            style.border_top_width() + used.padding_top.get(),
+            style.border_bottom_width() + used.padding_bottom.get(),
         )
     }
 
@@ -499,10 +499,10 @@ impl<'pass> SizingContext<'pass> {
             content_block_size,
             self.facts(node).preferred_aspect_ratio().unwrap(),
             style.box_sizing_for_aspect_ratio() == box_sizing::BORDER_BOX,
-            style.border_left_width + used.padding_left.get(),
-            style.border_right_width + used.padding_right.get(),
-            style.border_top_width + used.padding_top.get(),
-            style.border_bottom_width + used.padding_bottom.get(),
+            style.border_left_width() + used.padding_left.get(),
+            style.border_right_width() + used.padding_right.get(),
+            style.border_top_width() + used.padding_top.get(),
+            style.border_bottom_width() + used.padding_bottom.get(),
         )
     }
 
@@ -1932,7 +1932,7 @@ impl<'pass> SizingContext<'pass> {
         // Flex/grid-inside buttons are their own flex/grid container and get no anonymous content wrapper,
         // so there is nothing to make definite for centering.
         let style = self.style(node);
-        if style.display.is_flex_inside() || style.display.is_grid_inside() {
+        if style.display().is_flex_inside() || style.display().is_grid_inside() {
             return;
         }
         // With auto height and no min-height the content box already exactly wraps the content, so there is
@@ -2048,8 +2048,8 @@ impl<'pass> SizingContext<'pass> {
         let table_constraints = table_wrapper_constraints;
         let table_used = Self::create_measurement_used_values(&measurement, table_box, table_constraints);
         let table_style = self.style(table_box);
-        table_used.border_left.set(table_style.border_left_width);
-        table_used.border_right.set(table_style.border_right_width);
+        table_used.border_left.set(table_style.border_left_width());
+        table_used.border_right.set(table_style.border_right_width());
         table_used
             .padding_left
             .set(table_style.padding_left().to_px(containing_block_inline_size));
@@ -2229,13 +2229,13 @@ impl<'pass> SizingContext<'pass> {
         }
         let value = preferred_size.to_px(basis);
         let style = self.style(node);
-        if style.box_sizing == box_sizing::BORDER_BOX {
+        if style.box_sizing() == box_sizing::BORDER_BOX {
             let used = self.used(node);
             return subtract_border_box_adjustment(
                 value,
-                style.border_left_width,
+                style.border_left_width(),
                 used.padding_left.get(),
-                style.border_right_width,
+                style.border_right_width(),
                 used.padding_right.get(),
             );
         }
@@ -2302,13 +2302,13 @@ impl<'pass> SizingContext<'pass> {
         }
         let value = preferred_size.to_px(basis);
         let style = self.style(node);
-        if style.box_sizing == box_sizing::BORDER_BOX {
+        if style.box_sizing() == box_sizing::BORDER_BOX {
             let used = self.used(node);
             return subtract_border_box_adjustment(
                 value,
-                style.border_top_width,
+                style.border_top_width(),
                 used.padding_top.get(),
-                style.border_bottom_width,
+                style.border_bottom_width(),
                 used.padding_bottom.get(),
             );
         }
@@ -2436,7 +2436,7 @@ pub(crate) fn box_baseline(
             }
             vertical_align::TEXT_TOP => {
                 // TextTop: Align the top of the box with the top of the parent's content area (see 10.6.1).
-                return style.font_size;
+                return style.font_size();
             }
             vertical_align::TEXT_BOTTOM => {
                 // TextBottom: Align the bottom of the box with the bottom of the parent's content area (see 10.6.1).
@@ -2471,7 +2471,7 @@ pub(crate) fn box_baseline(
     // baseline sets always derive from content; so do flex and grid containers, which are not block containers.
     // FIXME: Per CSS Align, a scroll container's content-derived baseline position should be clamped to its border
     //        edge.
-    let has_visible_overflow = style.overflow_x == overflow::VISIBLE && style.overflow_y == overflow::VISIBLE;
+    let has_visible_overflow = style.overflow_x() == overflow::VISIBLE && style.overflow_y() == overflow::VISIBLE;
     let derive_baseline_from_content =
         baseline_set == BaselineSet::First || is_flex_or_grid_container || has_visible_overflow;
 
