@@ -64,6 +64,7 @@ struct NavigationPopulationRequest {
 struct NavigationPopulationResult {
     NavigationParamsVariantDescriptor navigation_params;
     Optional<URL::URL> redirected_url;
+    bool redirect_replaced_fragment { false };
     Optional<StorageSerializationRecord> classic_history_api_state;
     Optional<SessionHistoryDocumentStateDescriptor> replacement_document_state;
     bool resource_cleared { false };

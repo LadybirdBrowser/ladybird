@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<link rel="help" href="https://wicg.github.io/scroll-to-text-fragment/#invoking-text-directives">
+<script src="include.js"></script>
+<script>
+    asyncTest(async () => {
+        // This test deliberately keeps the parser blocked until a timer-driven text-fragment
+        // retry succeeds. Allow for scheduling delays when the full suite runs concurrently.
+        internals.setTestTimeout(120_000);
+
+        const serverURL = new URL(httpTestServer().baseURL);
+        serverURL.hostname = uniqueLocalhostHostname("scroll-to-text-fragment-retry");
+        const server = new HTTPTestServer(serverURL);
+        const token = crypto.randomUUID();
+        const delayedScriptURL = new URL(await server.createEcho("GET", `/scroll-to-text-fragment-retry-delay-${token}.js`, {
+            status: 200,
+            headers: {
+                "Content-Type": "text/javascript",
+                "Cache-Control": "no-store",
+            },
+            body: "window.parserBlockingScriptFinished = true;",
+            wait_for_unblock: token,
+        }));
+        const unblockURL = new URL(`/unblock/${token}`, server.baseURL);
+
+        const targetURL = new URL("../data/scroll-to-text-fragment-retries-during-parsing-target.html", location.href);
+        targetURL.searchParams.set("script", delayedScriptURL);
+        targetURL.searchParams.set("unblock", unblockURL);
+        targetURL.hash = ":~:text=Early%20retry%20target";
+        location.href = targetURL;
+    });
+</script>

@@ -495,6 +495,7 @@ bool HistoryExecutor::run_changing_navigable_history_step_job_impl(ChangingNavig
                 }
                 auto output = heap().allocate<PopulateSessionHistoryEntryDocumentOutput>();
                 output->redirected_url = move(result.redirected_url);
+                output->redirect_replaced_fragment = result.redirect_replaced_fragment;
                 output->classic_history_api_state = move(result.classic_history_api_state);
                 output->resource_cleared = result.resource_cleared;
                 output->inline_content_origin = move(result.inline_content_origin);

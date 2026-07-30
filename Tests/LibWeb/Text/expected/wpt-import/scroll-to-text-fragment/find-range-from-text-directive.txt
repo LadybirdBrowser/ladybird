@@ -2,56 +2,55 @@ Harness status: OK
 
 Found 51 tests
 
-26 Pass
-25 Fail
-Fail	Basic smoke test - full word match.
+51 Pass
+Pass	Basic smoke test - full word match.
 Pass	Prefix must start on a word boundary.
-Fail	Prefix need not end on a word boundary.
+Pass	Prefix need not end on a word boundary.
 Pass	Prefix doesn't exist.
-Fail	Multiple overlapping prefixes.
-Fail	Multiple overlapping one letter prefixes.
+Pass	Multiple overlapping prefixes.
+Pass	Multiple overlapping one letter prefixes.
 Pass	Prefix overlaps match text.
-Fail	Match text after prefix.
-Fail	Search invisible content between prefix and match.
+Pass	Match text after prefix.
+Pass	Search invisible content between prefix and match.
 Pass	Prefix appears at end of document.
 Pass	|end| forces |start| to end on word boundary.
 Pass	no |end| or suffix forces |start| to end on word boundary.
-Fail	suffix means |start| need not end on word boundary.
-Fail	|start| doesn't need to start on word boundary.
+Pass	suffix means |start| need not end on word boundary.
+Pass	|start| doesn't need to start on word boundary.
 Pass	prefix with non-existent exact match.
 Pass	prefix with non-existent range match.
 Pass	match doesn't immediately follow prefix.
-Fail	match doesn't immediately follow first prefix instance.
+Pass	match doesn't immediately follow first prefix instance.
 Pass	no-prefix; |end| forces |start| to end on word boundary.
 Pass	no-prefix; no |end| or suffix forces |start| to end on word boundary.
-Fail	no-prefix; suffix means |start| need not end on word boundary.
+Pass	no-prefix; suffix means |start| need not end on word boundary.
 Pass	|start| must start on a word boundary.
 Pass	non-existent exact match.
 Pass	non-existent range match.
-Fail	overlapping exact matches with suffix.
-Fail	overlapping one letter exact matches with suffix.
-Fail	matching range search.
+Pass	overlapping exact matches with suffix.
+Pass	overlapping one letter exact matches with suffix.
+Pass	matching range search.
 Pass	inverted range search.
 Pass	no suffix forces |end| to be end bounded.
-Fail	suffix means |end| need not be end bounded.
+Pass	suffix means |end| need not be end bounded.
 Pass	|end| must be start bounded.
 Pass	|end| must be start bounded even if full range is word bounded.
 Pass	non-existent |end|.
 Pass	Range with preceeding suffix.
-Fail	Match with no suffix.
+Pass	Match with no suffix.
 Pass	Suffix comes before |end|.
-Fail	Search invisible content between |end| and suffix.
+Pass	Search invisible content between |end| and suffix.
 Pass	Suffix must be end bounded.
-Fail	Suffix need not be start bounded.
+Pass	Suffix need not be start bounded.
 Pass	Non-existent suffix.
 Pass	Content appears between match and suffix.
-Fail	Non-matching suffix in first potential match.
-Fail	Non-matching suffix search continues to prefix match.
-Fail	Range end matches correct suffix.
-Fail	`start` element contains search-invisible text (display: none).
+Pass	Non-matching suffix in first potential match.
+Pass	Non-matching suffix search continues to prefix match.
+Pass	Range end matches correct suffix.
+Pass	`start` element contains search-invisible text (display: none).
 Pass	`start` element contains hidden text, which is a block boundary.
-Fail	`start` element contains hidden text which is not a block boundary.
-Fail	`start` element contains search-invisible text (iframe).
-Fail	`start` element contains search-invisible text (image).
-Fail	|end| can match after an overlapping rejected candidate.
+Pass	`start` element contains hidden text which is not a block boundary.
+Pass	`start` element contains search-invisible text (iframe).
+Pass	`start` element contains search-invisible text (image).
+Pass	|end| can match after an overlapping rejected candidate.
 Pass	Inline node boundary is not a word boundary.

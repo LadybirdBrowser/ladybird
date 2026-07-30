@@ -79,8 +79,13 @@ void apply_navigation_population_result(NavigationPopulationRequest& request, Na
 {
     if (result.replacement_document_state.has_value())
         request.history_entry.document_state = *result.replacement_document_state;
-    if (result.redirected_url.has_value())
-        request.history_entry.url = *result.redirected_url;
+    if (result.redirected_url.has_value()) {
+        auto redirected_url = *result.redirected_url;
+        auto fragment_directive = remove_the_fragment_directive(redirected_url);
+        if (fragment_directive.has_value() || result.redirect_replaced_fragment)
+            request.history_entry.directive_state_value = move(fragment_directive);
+        request.history_entry.url = move(redirected_url);
+    }
     if (result.classic_history_api_state.has_value())
         request.history_entry.classic_history_api_state = *result.classic_history_api_state;
     if (result.resource_cleared)
@@ -182,6 +187,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::NavigationPopulationResult con
 {
     TRY(encoder.encode(result.navigation_params));
     TRY(encoder.encode(result.redirected_url));
+    TRY(encoder.encode(result.redirect_replaced_fragment));
     TRY(encoder.encode(result.classic_history_api_state));
     TRY(encoder.encode(result.replacement_document_state));
     TRY(encoder.encode(result.resource_cleared));
@@ -196,6 +202,7 @@ ErrorOr<Web::HTML::NavigationPopulationResult> decode(Decoder& decoder)
     return Web::HTML::NavigationPopulationResult {
         .navigation_params = TRY(decoder.decode<Web::HTML::NavigationParamsVariantDescriptor>()),
         .redirected_url = TRY(decoder.decode<Optional<URL::URL>>()),
+        .redirect_replaced_fragment = TRY(decoder.decode<bool>()),
         .classic_history_api_state = TRY(decoder.decode<Optional<Web::HTML::StorageSerializationRecord>>()),
         .replacement_document_state = TRY(decoder.decode<Optional<Web::HTML::SessionHistoryDocumentStateDescriptor>>()),
         .resource_cleared = TRY(decoder.decode<bool>()),

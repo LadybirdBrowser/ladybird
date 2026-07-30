@@ -2,13 +2,12 @@ Harness status: OK
 
 Found 8 tests
 
-7 Pass
-1 Fail
+8 Pass
 Pass	force-load-at-top must block scroll on load from text fragment.
 Pass	force-load-at-top must block scroll on load from text fragment with element fallback.
 Pass	force-load-at-top must block scroll on load from element fragment.
 Pass	force-load-at-top must block scroll on load from history scroll restoration.
-Fail	no-force-load-at-top must not block scroll on load from text fragment.
+Pass	no-force-load-at-top must not block scroll on load from text fragment.
 Pass	no-force-load-at-top must not block scroll on load from text fragment with element fallback.
 Pass	no-force-load-at-top must not block scroll on load from element fragment.
 Pass	no-force-load-at-top must not block scroll on load from history scroll restoration.
