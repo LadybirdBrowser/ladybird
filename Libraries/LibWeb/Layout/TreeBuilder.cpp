@@ -60,7 +60,6 @@ public:
 
     LayoutTreeBuildResult build(DOM::Node&);
 
-    void note_tree_restructuring_at(Layout::Node const&);
     static void detach_top_layer_element_layout_subtree(DOM::Element&);
 
     struct FirstLetterTextContext;
@@ -82,7 +81,6 @@ private:
     OwnPtr<PseudoElementFrameStorage> m_pseudo_element_frames;
     OwnPtr<FirstLetterTextContext> m_first_letter_text_context;
 
-    Layout::Node* m_current_rebuild_root { nullptr };
     Vector<Layout::Node*> m_rebuilt_subtree_roots;
     bool m_layout_tree_update_escaped_rebuild_roots { false };
 };
@@ -125,12 +123,6 @@ static void* ffi_assigned_node_at(void* slot_element_pointer, size_t index)
     DOM::Node* node = nullptr;
     assigned_nodes[index].visit([&](auto& assigned_node) { node = assigned_node.ptr(); });
     return node;
-}
-
-void LayoutTreeBuildBridge::note_tree_restructuring_at(Layout::Node const& node)
-{
-    if (m_current_rebuild_root && !m_current_rebuild_root->is_inclusive_ancestor_of(node))
-        m_layout_tree_update_escaped_rebuild_roots = true;
 }
 
 class GeneratedContentImageProvider final
@@ -880,7 +872,7 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             VERIFY(element_pointer);
             auto& element = *static_cast<DOM::Element*>(element_pointer);
             element.document().style_computer().pop_ancestor(element); },
-        .push_principal_frame = [](void* builder_pointer, void* node_pointer) -> void* {
+        .push_principal_frame = [](void* builder_pointer, void* node_pointer) -> RustFFI::FfiPrincipalNodeFrame {
             VERIFY(builder_pointer);
             VERIFY(node_pointer);
             auto& builder = *static_cast<LayoutTreeBuildBridge*>(builder_pointer);
@@ -895,7 +887,10 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             frame.old_layout_node = node.unsafe_layout_node();
             frame.layout_node = nullptr;
             frame.computed_values = nullptr;
-            return &frame; },
+            return {
+                .frame = &frame,
+                .old_layout_node = Node::slot_id(frame.old_layout_node.ptr()),
+            }; },
         .pop_principal_frame = [](void* builder_pointer, void* frame_pointer) {
             VERIFY(builder_pointer);
             VERIFY(frame_pointer);
@@ -909,25 +904,28 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             frame.layout_node = nullptr;
             frame.computed_values = nullptr;
             --storage.active_frame_count; },
-        .prepare_principal_element = [](void* builder_pointer, void* frame_pointer, void* element_pointer, bool should_create_layout_node) -> RustFFI::FfiPrincipalDisplayFacts {
+        .prepare_principal_element = [](void* builder_pointer, void* frame_pointer, void* element_pointer, bool should_create_layout_node) -> RustFFI::FfiPreparedPrincipalElementFacts {
             VERIFY(builder_pointer);
             VERIFY(frame_pointer);
             VERIFY(element_pointer);
-            auto& builder = *static_cast<LayoutTreeBuildBridge*>(builder_pointer);
             auto& frame = *static_cast<PrincipalNodeFrame*>(frame_pointer);
             auto& element = *static_cast<DOM::Element*>(element_pointer);
+            bool removed_old_backdrop_layout_node = false;
             if (should_create_layout_node) {
                 // ::backdrop is a sibling of the element, not a child, so unlike other pseudo-elements, it is not
                 // automatically discarded when the element's layout is recomputed.
                 if (auto old_backdrop_node = element.pseudo_element_unsafe_layout_node(CSS::PseudoElement::Backdrop)) {
-                    builder.m_layout_tree_update_escaped_rebuild_roots = true;
+                    removed_old_backdrop_layout_node = true;
                     old_backdrop_node->remove();
                 }
                 LayoutTreeBuilderAccess::clear_synthetic_pseudo_element_layout_nodes(element);
                 update_style_if_needed_for_layout_tree_bypass_path(element);
             }
             frame.computed_values = element.computed_values();
-            return ffi_principal_display_facts(frame.computed_values->display()); },
+            return {
+                .display = ffi_principal_display_facts(frame.computed_values->display()),
+                .removed_old_backdrop_layout_node = removed_old_backdrop_layout_node,
+            }; },
         .principal_element_layout_facts = [](void* frame_pointer, void* element_pointer) -> RustFFI::FfiElementLayoutFacts {
             VERIFY(frame_pointer);
             VERIFY(element_pointer);
@@ -1014,52 +1012,14 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
                 as<NodeWithStyle>(*frame.layout_node).set_display(CSS::Display::from_short(CSS::Display::Short::Inline));
             else
                 VERIFY_NOT_REACHED(); },
-        .principal_placement_facts = [](void* builder_pointer, void* frame_pointer, void* node_pointer, bool must_create_subtree, bool should_create_layout_node) -> RustFFI::FfiPrincipalBoxPlacementFacts {
-            VERIFY(builder_pointer);
-            VERIFY(frame_pointer);
-            VERIFY(node_pointer);
-            auto& builder = *static_cast<LayoutTreeBuildBridge*>(builder_pointer);
-            auto& frame = *static_cast<PrincipalNodeFrame*>(frame_pointer);
-            auto& node = *static_cast<DOM::Node*>(node_pointer);
-            VERIFY(frame.layout_node);
-            auto* element = as_if<DOM::Element>(node);
-            return {
-                .must_create_subtree = must_create_subtree,
-                .should_create_layout_node = should_create_layout_node,
-                .has_old_layout_node = frame.old_layout_node != nullptr,
-                .old_layout_node_is_attached = frame.old_layout_node && frame.old_layout_node->parent(),
-                .old_and_new_layout_nodes_are_same = frame.old_layout_node == frame.layout_node,
-                .has_current_rebuild_root = builder.m_current_rebuild_root != nullptr,
-                .is_document = node.is_document(),
-                .is_element = element != nullptr,
-                .rendered_in_top_layer = element && element->rendered_in_top_layer(),
-            }; },
-        .start_principal_rebuild_root = [](void* builder_pointer, void* frame_pointer) -> void* {
-            VERIFY(builder_pointer);
-            VERIFY(frame_pointer);
-            auto& builder = *static_cast<LayoutTreeBuildBridge*>(builder_pointer);
-            auto& frame = *static_cast<PrincipalNodeFrame*>(frame_pointer);
-            VERIFY(frame.layout_node);
-            auto* prior_rebuild_root = builder.m_current_rebuild_root;
-            builder.m_current_rebuild_root = frame.layout_node.ptr();
-            builder.m_rebuilt_subtree_roots.append(frame.layout_node.ptr());
-            return prior_rebuild_root; },
-        .restore_principal_rebuild_root = [](void* builder_pointer, void* rebuild_root_pointer) {
-            VERIFY(builder_pointer);
-            static_cast<LayoutTreeBuildBridge*>(builder_pointer)->m_current_rebuild_root = static_cast<Layout::Node*>(rebuild_root_pointer); },
-        .mark_update_escaped_rebuild_roots = [](void* builder_pointer) {
-            VERIFY(builder_pointer);
-            static_cast<LayoutTreeBuildBridge*>(builder_pointer)->m_layout_tree_update_escaped_rebuild_roots = true; },
         .insert_principal_backdrop_before_old = [](void* builder_pointer, void* frame_pointer, void* backdrop_pointer) {
             VERIFY(builder_pointer);
             VERIFY(frame_pointer);
             VERIFY(backdrop_pointer);
-            auto& builder = *static_cast<LayoutTreeBuildBridge*>(builder_pointer);
             auto& frame = *static_cast<PrincipalNodeFrame*>(frame_pointer);
             VERIFY(frame.old_layout_node);
             VERIFY(frame.old_layout_node->parent());
             auto& backdrop = *static_cast<Layout::Node*>(backdrop_pointer);
-            builder.note_tree_restructuring_at(*frame.old_layout_node->parent());
             frame.old_layout_node->parent()->insert_before(backdrop, frame.old_layout_node); },
         .place_principal_layout = [](void* builder_pointer, void* frame_pointer, void* parent_pointer, RustFFI::FfiPrincipalBoxPlacement placement) {
             VERIFY(builder_pointer);
@@ -1105,9 +1065,14 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             VERIFY(document_pointer);
             // NB: Called during layout tree construction.
             return Node::slot_id(static_cast<DOM::Document*>(document_pointer)->unsafe_layout_node()); },
-        .layout_root = [](void* builder_pointer) -> void* {
+        .report_rebuild_outcome = [](void* builder_pointer, void* const* rebuilt_root_pointers, size_t rebuilt_root_count, bool layout_tree_update_escaped_rebuild_roots) {
             VERIFY(builder_pointer);
-            return static_cast<LayoutTreeBuildBridge*>(builder_pointer)->m_layout_root.ptr(); },
+            VERIFY(rebuilt_root_pointers || rebuilt_root_count == 0);
+            auto& builder = *static_cast<LayoutTreeBuildBridge*>(builder_pointer);
+            builder.m_rebuilt_subtree_roots.ensure_capacity(rebuilt_root_count);
+            for (size_t index = 0; index < rebuilt_root_count; ++index)
+                builder.m_rebuilt_subtree_roots.unchecked_append(static_cast<Layout::Node*>(rebuilt_root_pointers[index]));
+            builder.m_layout_tree_update_escaped_rebuild_roots = layout_tree_update_escaped_rebuild_roots; },
         .layout = make_ffi_tree_builder_callbacks(),
         .pseudo = make_ffi_pseudo_tree_builder_callbacks(),
     };
@@ -1170,8 +1135,7 @@ static NonnullRefPtr<NodeWithStyle> create_button_content_box_wrapper(NodeWithSt
 LayoutTreeBuildResult LayoutTreeBuildBridge::build(DOM::Node& dom_node)
 {
     auto callbacks = make_ffi_dom_tree_builder_callbacks();
-    m_layout_root = static_cast<Layout::Node*>(RustFFI::rust_build_layout_tree(
-        &callbacks, dom_node.document().layout_node_arena().handle(), &dom_node));
+    RustFFI::rust_build_layout_tree(&callbacks, dom_node.document().layout_node_arena().handle(), &dom_node);
     return {
         .root = move(m_layout_root),
         .rebuilt_subtree_roots = move(m_rebuilt_subtree_roots),
@@ -1363,13 +1327,6 @@ static void ffi_insert_child(void*, void* parent_pointer, void* child_pointer, R
         parent.append_child(*child);
 }
 
-static void ffi_note_tree_restructuring(void* context, void* node_pointer)
-{
-    VERIFY(context);
-    VERIFY(node_pointer);
-    static_cast<LayoutTreeBuildBridge*>(context)->note_tree_restructuring_at(*static_cast<Node*>(node_pointer));
-}
-
 static RustFFI::NodeSlotId ffi_create_button_content_wrapper(void*, void* layout_node_pointer)
 {
     VERIFY(layout_node_pointer);
@@ -1430,7 +1387,6 @@ RustFFI::FfiTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_tree_builder_ca
         .create_and_append_anonymous_wrapper = ffi_create_and_append_anonymous_wrapper,
         .wrap_children_in_anonymous = ffi_wrap_children_in_anonymous,
         .insert_child = ffi_insert_child,
-        .note_tree_restructuring = ffi_note_tree_restructuring,
         .text_is_ascii_whitespace = [](void*, void* node_pointer) {
             VERIFY(node_pointer);
             return as<TextNode>(*static_cast<Node*>(node_pointer)).text_for_rendering().is_ascii_whitespace(); },
