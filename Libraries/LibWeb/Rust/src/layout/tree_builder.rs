@@ -9,6 +9,7 @@ use crate::layout::layout_node_arena::LayoutNodeArena;
 use crate::layout::node_data::{
     FfiTableDisplay, GENERATED_FOR_MARKER, NodeData, NodeDisplayFlag, NodeFlag, NodeKind, NodeSlotId,
 };
+use crate::layout::{kind_is_replaced_box, node_can_have_children};
 use std::ffi::c_void;
 
 type LayoutNode = NodeSlotId;
@@ -137,12 +138,9 @@ pub struct FfiPrincipalDescendantFacts {
     pub content_visibility_hidden: bool,
     pub should_layout_dom_children: bool,
     pub child_needs_layout_tree_update: bool,
-    pub layout_node_can_have_children: bool,
-    pub layout_node_is_replaced_box_with_children: bool,
     pub is_svg_switch_element: bool,
     pub is_document: bool,
     pub has_style_containment: bool,
-    pub uses_button_layout: bool,
     pub dom_children_parent: *mut c_void,
     pub shadow_root: *mut c_void,
     pub slot_element: *mut c_void,
@@ -929,6 +927,14 @@ unsafe fn update_principal_node_descendants(
                 layout_host.shell(layout_node),
             )
         };
+        let (layout_node_can_have_children, layout_node_is_replaced_box_with_children) = {
+            let layout_node_data = layout_host.data(layout_node);
+            let can_have_children = node_can_have_children(layout_node_data);
+            (
+                can_have_children,
+                kind_is_replaced_box(layout_node_data.kind) && can_have_children,
+            )
+        };
         let prior_quote_nesting_level = state.quote_nesting_level;
 
         if should_create_layout_node {
@@ -939,7 +945,7 @@ unsafe fn update_principal_node_descendants(
             }
 
             // Add the ::before pseudo-element before walking normal children.
-            if facts.is_element && facts.layout_node_can_have_children && !facts.content_visibility_hidden {
+            if facts.is_element && layout_node_can_have_children && !facts.content_visibility_hidden {
                 state.ancestor_stack.push(layout_node);
                 create_pseudo_element(
                     host,
@@ -961,13 +967,13 @@ unsafe fn update_principal_node_descendants(
 
         if (should_create_layout_node || facts.child_needs_layout_tree_update)
             && (!facts.shadow_root.is_null() || facts.should_layout_dom_children)
-            && facts.layout_node_can_have_children
+            && layout_node_can_have_children
             && !facts.content_visibility_hidden
         {
             state.ancestor_stack.push(layout_node);
 
             if !facts.shadow_root.is_null() {
-                if facts.layout_node_is_replaced_box_with_children {
+                if layout_node_is_replaced_box_with_children {
                     // For replaced elements with shadow DOM children, wrap the children in an
                     // anonymous BlockContainer so that a BFC handles their layout.
                     // SAFETY: The callback returns the live first-child wrapper.
@@ -991,7 +997,7 @@ unsafe fn update_principal_node_descendants(
                         should_create_layout_node,
                     );
                 }
-                if facts.layout_node_is_replaced_box_with_children {
+                if layout_node_is_replaced_box_with_children {
                     assert!(state.ancestor_stack.pop().is_some());
                 }
             } else if facts.should_layout_dom_children {
@@ -1119,7 +1125,7 @@ unsafe fn update_principal_node_descendants(
             }
 
             // Add ::marker and ::after once normal and SVG resource children are complete.
-            if facts.is_element && facts.layout_node_can_have_children && !facts.content_visibility_hidden {
+            if facts.is_element && layout_node_can_have_children && !facts.content_visibility_hidden {
                 state.ancestor_stack.push(layout_node);
                 if layout_host.data(layout_node).kind == NodeKind::ListItemBox {
                     create_pseudo_element(
@@ -1155,7 +1161,7 @@ unsafe fn update_principal_node_descendants(
 
             let layout_host = host.layout();
             wrap_fieldset_contents_if_needed(&layout_host, layout_node);
-            wrap_button_contents_if_needed(&layout_host, layout_node, facts.uses_button_layout);
+            wrap_button_contents_if_needed(&layout_host, layout_node);
         }
 
         // https://www.w3.org/TR/css-contain-2/#containment-style
@@ -2606,9 +2612,9 @@ fn find_first_letter_in_block(host: &DomTreeBuilderHost<'_>, block: LayoutNode) 
     FfiFirstLetterTarget::not_found()
 }
 
-fn wrap_button_contents_if_needed(host: &TreeBuilderHost<'_>, layout_node: LayoutNode, uses_button_layout: bool) {
+fn wrap_button_contents_if_needed(host: &TreeBuilderHost<'_>, layout_node: LayoutNode) {
     assert!(!layout_node.is_invalid());
-    if !uses_button_layout {
+    if !node_has_flag(host.data(layout_node), NodeFlag::UsesButtonLayout) {
         return;
     }
 
