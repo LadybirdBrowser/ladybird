@@ -12,6 +12,7 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/SandboxingFlagSet.h>
 #include <LibWeb/HTML/SerializedPolicyContainer.h>
+#include <LibWeb/HTML/UserNavigationInvolvement.h>
 #include <LibWeb/ReferrerPolicy/ReferrerPolicy.h>
 
 namespace Web::HTML {
@@ -34,9 +35,16 @@ struct NavigationSourceSnapshot {
     URL::URL initiator_base_url_snapshot;
 
     // AD-HOC: The referrer that fetch would resolve for the navigation request from the source document's fetch
-    //         client, and the referrer policy the navigate algorithm was invoked with.
+    //         client, the referrer policy the navigate algorithm was invoked with, and the navigation's user
+    //         involvement. These values otherwise cannot be recovered after the source process exits.
     URL::URL referrer;
     ReferrerPolicy::ReferrerPolicy referrer_policy { ReferrerPolicy::ReferrerPolicy::EmptyString };
+    UserNavigationInvolvement user_involvement { UserNavigationInvolvement::None };
+
+    // AD-HOC: These values belong to the source Document and its browsing context group, neither
+    //         of which exists in the receiving WebContent process.
+    bool text_directive_user_activation { false };
+    bool browsing_context_group_has_multiple_contexts { false };
 };
 
 }

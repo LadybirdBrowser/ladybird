@@ -64,12 +64,14 @@ public:
         Optional<CrossProcessId> local_target_navigable_id {};
         RefPtr<SessionHistoryEntry> local_target_entry {};
         Optional<LocalNavigable::NavigationAPIAbortBehavior> navigation_api_abort_behavior {};
+        bool allow_text_directive_scroll { false };
         GC::Ptr<OnHistoryOperationPreSteps> pre_steps {};
         GC::Ptr<OnApplyHistoryStepComplete> on_apply_complete {};
         GC::Ptr<OnApplyHistoryStepComplete> on_complete {};
     };
     void request_history_operation(HistoryOperationParameters);
     void request_history_operation(HistoryOperationParameters, HistoryOperationState);
+    void set_history_operation_allow_text_directive_scroll(u64 initiation_id, bool allow_text_directive_scroll);
     void handle_ui_history_operation_started(u64 operation_id, u64 initiation_id, Optional<SessionHistoryEntryDescriptor> creation_target_entry, GC::Ref<OnHistoryOperationReady>);
     void run_ui_history_step_unload_cancelation_job(u64 operation_id, SessionHistoryEntryDescriptor target_entry, Vector<CrossProcessId> navigables_crossing_documents, UserNavigationInvolvement, GC::Ref<GC::Function<void(HistoryStepResult)>>);
     void run_ui_changing_navigable_history_job(u64 operation_id, CrossProcessId navigable_id, SessionHistoryEntryDescriptor target_entry, UserNavigationInvolvement, Optional<Bindings::NavigationType>, LocalNavigable::NavigationAPIAbortBehavior, Optional<u64> initiation_id, GC::Ref<OnChangingNavigableHistoryStepJobComplete>);
@@ -148,6 +150,7 @@ private:
         Optional<Bindings::NavigationType> navigation_type;
         LocalNavigable::NavigationAPIAbortBehavior navigation_api_abort_behavior;
         UserNavigationInvolvement user_involvement;
+        bool allow_text_directive_scroll { false };
     };
     bool run_changing_navigable_history_step_job_impl(ChangingNavigableHistoryStepJob, GC::Ptr<SourceSnapshotParams>, GC::Ptr<DOM::Document> pending_document, GC::Ref<OnLocalChangingNavigableHistoryStepJobComplete>);
     void apply_changing_navigable_history_step_continuation_impl(GC::Ref<ChangingNavigableContinuationState>, LocalApplyChangingNavigableHistoryStepContinuation, GC::Ref<GC::Function<void(Optional<ReplicatedNavigableState>, Optional<SessionHistoryEntryPersistedState>)>> on_complete);
@@ -164,6 +167,7 @@ private:
         Optional<LocalNavigable::NavigationAPIAbortBehavior> navigation_api_abort_behavior;
         Optional<Bindings::NavigationType> navigation_type;
         Optional<UserNavigationInvolvement> user_involvement;
+        bool allow_text_directive_scroll { false };
         HashTable<CrossProcessId> claimed_navigables_awaiting_continuation;
         HashMap<CrossProcessId, GC::Ref<ChangingNavigableContinuationState>> changing_navigable_continuations;
     };

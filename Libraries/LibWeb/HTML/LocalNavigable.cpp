@@ -1855,6 +1855,7 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
     });
 }
 
+// https://wicg.github.io/scroll-to-text-fragment/#restricting-the-text-fragment
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#create-navigation-params-by-fetching
 static void create_navigation_params_by_fetching(
     URL::URL url,
@@ -1899,6 +1900,7 @@ static void create_navigation_params_by_fetching(
     //    referrer: entry's document state's request referrer
     //    referrer policy: entry's document state's request referrer policy
     //    policy container: sourceSnapshotParams's source policy container
+    //    text directive user activation: navigable's active document's text directive user activation
     auto request = Fetch::Infrastructure::Request::create(vm);
     request->set_url(url);
     request->set_client(source_snapshot_params->fetch_client);
@@ -1911,8 +1913,13 @@ static void create_navigation_params_by_fetching(
     request->set_referrer(request_referrer);
     request->set_referrer_policy(request_referrer_policy);
     request->set_policy_container(source_snapshot_params->source_policy_container);
+    request->set_text_directive_user_activation(active_document.text_directive_user_activation());
+    request->set_browsing_context_group_has_multiple_contexts(active_document.browsing_context_group_has_multiple_contexts());
 
-    // 4. If navigable is a top-level traversable, then set request's top-level navigation initiator origin to entry's
+    // 4. Set navigable's active document's text directive user activation to false.
+    active_document.set_text_directive_user_activation(false);
+
+    // 5. If navigable is a top-level traversable, then set request's top-level navigation initiator origin to entry's
     //    document state's initiator origin.
     if (navigable->is_top_level_traversable())
         request->set_top_level_navigation_initiator_origin(initiator_origin);
@@ -1924,7 +1931,7 @@ static void create_navigation_params_by_fetching(
     if (cross_process_initiator_origin.has_value())
         request->set_origin(*cross_process_initiator_origin);
 
-    // 5. If request's client is null:
+    // 6. If request's client is null:
     if (request->client() == nullptr) {
         // Note: This only occurs in the case of a browser UI-initiated navigation.
 
@@ -1938,7 +1945,7 @@ static void create_navigation_params_by_fetching(
         request->set_referrer(Fetch::Infrastructure::Request::Referrer::NoReferrer);
     }
 
-    // 6. If documentResource is a POST resource:
+    // 7. If documentResource is a POST resource:
     if (auto* post_resource = document_resource.get_pointer<POSTResource>()) {
         // 1. Set request's method to `POST`.
         request->set_method("POST"sv);
@@ -1974,7 +1981,7 @@ static void create_navigation_params_by_fetching(
         request->header_list()->append(move(header));
     }
 
-    // 7. If entry's document state's reload pending is true, then set request's reload-navigation flag.
+    // 8. If entry's document state's reload pending is true, then set request's reload-navigation flag.
     if (reload_pending) {
         request->set_reload_navigation(true);
 
@@ -1987,15 +1994,15 @@ static void create_navigation_params_by_fetching(
         request->set_cache_mode(HTTP::CacheMode::NoCache);
     }
 
-    // 8. Otherwise, if entry's document state's ever populated is true, then set request's history-navigation flag.
+    // 9. Otherwise, if entry's document state's ever populated is true, then set request's history-navigation flag.
     else if (ever_populated)
         request->set_history_navigation(true);
 
-    // 9. If sourceSnapshotParams's has transient activation is true, then set request's user-activation to true.
+    // 10. If sourceSnapshotParams's has transient activation is true, then set request's user-activation to true.
     if (source_snapshot_params->has_transient_activation)
         request->set_user_activation(true);
 
-    // 10. If navigable's container is non-null:
+    // 11. If navigable's container is non-null:
     if (navigable->container() != nullptr) {
         // 1. If the navigable's container has a browsing context scope origin, then set request's origin to that browsing context scope origin.
         // FIXME: From "browsing context scope origin": This definition is broken and needs investigation to see what it was intended to express: see issue #4703.
@@ -2020,11 +2027,11 @@ static void create_navigation_params_by_fetching(
 
     // NOTE: We use a heap-allocated cell to hold all the following state because the callbacks below will use them
     //       after this stack is freed.
-    // 11. Let response be null.
-    // 12. Let responseOrigin be null.
-    // 13. Let fetchController be null.
+    // 12. Let response be null.
+    // 13. Let responseOrigin be null.
+    // 14. Let fetchController be null.
 
-    // 14. Let coopEnforcementResult be a new opener policy enforcement result, with
+    // 15. Let coopEnforcementResult be a new opener policy enforcement result, with
     // - url: navigable's active document's URL
     // - origin: navigable's active document's origin
     // - opener policy: navigable's active document's opener policy
@@ -2037,12 +2044,12 @@ static void create_navigation_params_by_fetching(
         .current_context_is_navigation_source = initiator_origin.has_value() && active_document.origin().is_same_origin(*initiator_origin)
     };
 
-    // 15. Let finalSandboxFlags be an empty sandboxing flag set.
-    // 16. Let responsePolicyContainer be null.
-    // 17. Let responseCOOP be a new opener policy.
-    // 18. Let locationURL be null.
-    // 19. Let currentURL be request's current URL.
-    // 20. Let commitEarlyHints be null.
+    // 16. Let finalSandboxFlags be an empty sandboxing flag set.
+    // 17. Let responsePolicyContainer be null.
+    // 18. Let responseCOOP be a new opener policy.
+    // 19. Let locationURL be null.
+    // 20. Let currentURL be request's current URL.
+    // 21. Let commitEarlyHints be null.
     // AD-HOC: Store required variables on the state holder to keep them alive whilst waiting on the fetch to complete.
     auto state_holder = realm.heap().allocate<NavigationParamsFetchStateHolder>(move(coop_enforcement_result), request->current_url(), request,
         move(initiator_origin), move(history_policy_container), move(about_base_url), source_snapshot_params,
@@ -2059,7 +2066,7 @@ static void create_navigation_params_by_fetching(
         result->replacement_document_state = state_holder->replacement_document_state;
         result->resource_cleared = state_holder->resource_cleared;
 
-        // 22. If locationURL is a URL whose scheme is not a fetch scheme, then return a new non-fetch scheme navigation params, with
+        // 23. If locationURL is a URL whose scheme is not a fetch scheme, then return a new non-fetch scheme navigation params, with
         if (!state_holder->location_url.is_error() && state_holder->location_url.value().has_value() && !Fetch::Infrastructure::is_fetch_scheme(state_holder->location_url.value().value().scheme())) {
             // - id: navigationId
             // - navigable: navigable
@@ -2081,7 +2088,7 @@ static void create_navigation_params_by_fetching(
             return;
         }
 
-        // 23. If any of the following are true:
+        // 24. If any of the following are true:
         //       - response is a network error;
         //       - locationURL is failure; or
         //       - locationURL is a URL whose scheme is a fetch scheme
@@ -2101,25 +2108,25 @@ static void create_navigation_params_by_fetching(
             return;
         }
 
-        // 24. Assert: locationURL is null and response is not a network error.
+        // 25. Assert: locationURL is null and response is not a network error.
         VERIFY(!state_holder->location_url.value().has_value());
         VERIFY(!state_holder->response->is_network_error());
 
-        // 25. Let resultPolicyContainer be the result of determining navigation params policy container given response's URL,
+        // 26. Let resultPolicyContainer be the result of determining navigation params policy container given response's URL,
         //     entry's document state's history policy container, sourceSnapshotParams's source policy container, null, and responsePolicyContainer.
         GC::Ptr<PolicyContainer> history_policy_container = state_holder->history_policy_container.visit(
             [&](SerializedPolicyContainer const& s) -> GC::Ptr<PolicyContainer> { return create_a_policy_container_from_serialized_policy_container(s); },
             [](DocumentState::Client) -> GC::Ptr<PolicyContainer> { return {}; });
         auto result_policy_container = determine_navigation_params_policy_container(*state_holder->response->url(), realm.heap(), history_policy_container, state_holder->source_snapshot_params->source_policy_container, {}, state_holder->response_policy_container);
 
-        // 26. If navigable's container is an iframe, and response's timing allow passed flag is set,
+        // 27. If navigable's container is an iframe, and response's timing allow passed flag is set,
         //     then set navigable's container's pending resource-timing start time to null.
         if (state_holder->navigable->container() && state_holder->response->timing_allow_passed()) {
             if (auto* iframe_element = as_if<HTML::HTMLIFrameElement>(*state_holder->navigable->container()))
                 iframe_element->set_pending_resource_start_time({});
         }
 
-        // 27. Return a new navigation params, with
+        // 28. Return a new navigation params, with
         //     id: navigationId
         //     navigable: navigable
         //     request: request
@@ -2603,6 +2610,8 @@ void LocalNavigable::begin_navigation(NavigateParams params)
         initiator_origin_snapshot = snapshot.initiator_origin_snapshot;
         initiator_base_url_snapshot = snapshot.initiator_base_url_snapshot;
         referrer_policy = snapshot.referrer_policy;
+        active_document.set_text_directive_user_activation(snapshot.text_directive_user_activation);
+        active_document.set_browsing_context_group_has_remote_contexts(snapshot.browsing_context_group_has_multiple_contexts);
     }
 
     // 5. If sourceDocument's node navigable is not allowed by sandboxing to navigate navigable given sourceSnapshotParams, then:
@@ -2660,8 +2669,9 @@ void LocalNavigable::begin_navigation(NavigateParams params)
         && url.equals(active_session_history_entry()->url(), URL::ExcludeFragment::Yes)
         && url.equals(active_document.url(), URL::ExcludeFragment::Yes)
         && url.fragment().has_value()) {
-        // 1. Navigate to a fragment given navigable, url, historyHandling, userInvolvement, sourceElement, navigationAPIState, and navigationId.
-        navigate_to_a_fragment(url, to_history_handling_behavior(history_handling), user_involvement, source_element, navigation_api_state, navigation_id);
+        // 1. Navigate to a fragment given navigable, url, historyHandling, userInvolvement, sourceElement,
+        //    navigationAPIState, navigationId, and initiatorOriginSnapshot.
+        navigate_to_a_fragment(url, to_history_handling_behavior(history_handling), user_involvement, source_element, navigation_api_state, navigation_id, initiator_origin_snapshot);
 
         // 2. Return.
         return;
@@ -2851,7 +2861,11 @@ void LocalNavigable::begin_navigation(NavigateParams params)
                                 ? params.cross_process_source_snapshot->referrer
                                 : params.source_document->url(),
                             .referrer_policy = referrer_policy,
+                            .user_involvement = user_involvement,
+                            .text_directive_user_activation = this->active_document()->text_directive_user_activation(),
+                            .browsing_context_group_has_multiple_contexts = this->active_document()->browsing_context_group_has_multiple_contexts(),
                         };
+                        this->active_document()->set_text_directive_user_activation(false);
                     }
                     if (is_top_level_navigation) {
                         page_client.request_new_process_for_navigation(url, document_resource, history_handling, source_snapshot);
@@ -3044,8 +3058,9 @@ void LocalNavigable::begin_navigation(NavigateParams params)
 }
 
 // https://wicg.github.io/scroll-to-text-fragment/#extracting-the-fragment-directive
+// https://wicg.github.io/scroll-to-text-fragment/#restricting-the-text-fragment
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate-fragid
-void LocalNavigable::navigate_to_a_fragment(URL::URL const& url, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, GC::Ptr<DOM::Element> source_element, Optional<StorageSerializationRecord> navigation_api_state, Utf16String navigation_id)
+void LocalNavigable::navigate_to_a_fragment(URL::URL const& url, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, GC::Ptr<DOM::Element> source_element, Optional<StorageSerializationRecord> navigation_api_state, Utf16String navigation_id, URL::Origin const& initiator_origin)
 {
     // 1. Let directive state be navigable's active session history entry's directive state.
     auto directive_state = active_session_history_entry()->directive_state();
@@ -3129,15 +3144,20 @@ void LocalNavigable::navigate_to_a_fragment(URL::URL const& url, HistoryHandling
     // 14. Update the navigation API entries for a same-document navigation given navigation, historyEntry, and historyHandling.
     navigation->update_the_navigation_api_entries_for_a_same_document_navigation(history_entry, navigation_type);
 
-    // 15. Scroll to the fragment given navigable's active document.
+    // https://wicg.github.io/scroll-to-text-fragment/#restricting-the-text-fragment
+    // 15. Let allow text directive scroll be the result of checking if a text directive can be scrolled, given
+    //     navigable's active document, initiator origin, and user involvement.
+    auto allow_text_directive_scroll = active_document()->check_if_a_text_directive_can_be_scrolled(initiator_origin, user_involvement);
+
+    // 16. Scroll to the fragment given navigable's active document, and allow text directive scroll.
     // FIXME: Specification doesn't say when document url needs to update during fragment navigation
     active_document()->set_url(stripped_url);
-    active_document()->scroll_to_the_fragment();
+    active_document()->scroll_to_the_fragment(allow_text_directive_scroll);
 
-    // 16. Let traversable be navigable's traversable navigable.
+    // 17. Let traversable be navigable's traversable navigable.
     auto traversable = traversable_navigable();
 
-    // 17. Append the following session history synchronous navigation steps involving navigable to traversable:
+    // 18. Append the following session history synchronous navigation steps involving navigable to traversable:
     // 1. Finalize a same-document navigation given traversable, navigable, historyEntry, entryToReplace,
     //    historyHandling, and userInvolvement.
     traversable->finalize_same_document_navigation(*this, history_entry, entry_to_replace, history_handling, user_involvement, move(previous_entry_persisted_state));
@@ -3570,12 +3590,34 @@ void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, His
             .expected_ongoing_navigation_id = expected_ongoing_navigation_id,
             .local_target_navigable_id = navigable->id(),
             .local_target_entry = history_entry,
-            .pre_steps = GC::create_function(navigable->heap(), [navigable, history_entry, pending_document, expected_ongoing_navigation_id = move(expected_ongoing_navigation_id), entry_to_restore = move(entry_to_restore)](u64, Optional<SessionHistoryEntryDescriptor>, GC::Ref<LocalTraversableNavigable::OnHistoryOperationReady> ready) mutable {
+            .pre_steps = GC::create_function(navigable->heap(), [navigable, user_involvement, history_entry, pending_document, expected_ongoing_navigation_id = move(expected_ongoing_navigation_id), entry_to_restore = move(entry_to_restore)](u64 initiation_id, Optional<SessionHistoryEntryDescriptor>, GC::Ref<LocalTraversableNavigable::OnHistoryOperationReady> ready) mutable {
                 auto finalization = finalize_a_cross_document_navigation_at_queued_position(navigable, history_entry, pending_document, expected_ongoing_navigation_id, move(entry_to_restore));
                 if (!finalization.has_value()) {
                     ready->function()(HistoryStepResult::Applied);
                     return;
                 }
+
+                VERIFY(pending_document);
+
+                // https://wicg.github.io/scroll-to-text-fragment/#applying-directives-to-a-document
+                // If document's latest entry's directive state is not entry's directive state then:
+                if (!pending_document->latest_entry() || pending_document->latest_entry()->directive_state().ptr() != history_entry->directive_state().ptr()) {
+                    // Let fragment directive be entry's directive state's value.
+                    auto const& fragment_directive = history_entry->directive_state()->value();
+
+                    // Set document's pending text directives to the result of parsing fragment directive.
+                    pending_document->set_pending_text_directives(fragment_directive.has_value()
+                            ? Optional<Vector<TextDirective>> { parse_the_fragment_directive(*fragment_directive) }
+                            : Optional<Vector<TextDirective>> { Vector<TextDirective> {} });
+                }
+
+                // https://wicg.github.io/scroll-to-text-fragment/#restricting-the-text-fragment
+                // Let allow text directive scroll be the result of checking if a text directive can be scrolled,
+                // given historyEntry's document, historyEntry's document state's initiator origin, and user
+                // involvement.
+                auto allow_text_directive_scroll = pending_document->check_if_a_text_directive_can_be_scrolled(history_entry->document_state()->initiator_origin(), user_involvement);
+                navigable->traversable_navigable()->set_history_operation_allow_text_directive_scroll(initiation_id, allow_text_directive_scroll);
+
                 ready->function()(finalization.release_value());
             }),
             .on_complete = GC::create_function(navigable->heap(), [navigable, on_complete](HistoryStepResult result) {

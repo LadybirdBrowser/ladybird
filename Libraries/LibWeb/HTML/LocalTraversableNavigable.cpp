@@ -941,7 +941,7 @@ void LocalTraversableNavigable::apply_changing_navigable_history_step_continuati
     bool const update_only = continuation->update_only;
     RefPtr<SessionHistoryEntry> const target_entry = continuation->target_entry;
     auto const displayed_document_id = continuation->displayed_document_id;
-    auto after_potential_unload = GC::create_function(heap(), [this, navigable, update_only, target_entry, continuation, population_output, old_origin, displayed_document_id, script_history_length, script_history_index, entries_for_navigation_api = move(command.entries_for_navigation_api), navigation_type = command.navigation_type, navigation_api_abort_behavior = command.navigation_api_abort_behavior, on_complete] {
+    auto after_potential_unload = GC::create_function(heap(), [this, navigable, update_only, target_entry, continuation, population_output, old_origin, displayed_document_id, script_history_length, script_history_index, entries_for_navigation_api = move(command.entries_for_navigation_api), navigation_type = command.navigation_type, navigation_api_abort_behavior = command.navigation_api_abort_behavior, allow_text_directive_scroll = command.allow_text_directive_scroll, on_complete] {
         if (update_only || continuation->resolved_document.ptr() == continuation->displayed_document.ptr()) {
             auto applies_same_document_push_or_replace = is_same_document_push_or_replace(
                 navigation_type, *target_entry, displayed_document_id);
@@ -1018,14 +1018,15 @@ void LocalTraversableNavigable::apply_changing_navigable_history_step_continuati
 
         // 3. Let updateDocument be an algorithm step which performs update document for history step application given
         //    targetEntry's document, targetEntry, changingNavigableContinuation's update-only, scriptHistoryLength,
-        //    scriptHistoryIndex, navigationType, entriesForNavigationAPI, and previousEntry.
-        auto update_document = [script_history_length, script_history_index, entries_for_navigation_api = move(entries_for_navigation_api), target_entry, update_only, navigation_type, previous_entry, resolved_document, navigable] {
+        //    scriptHistoryIndex, navigationType, entriesForNavigationAPI, previousEntry, and allow text directive
+        //    scroll.
+        auto update_document = [script_history_length, script_history_index, entries_for_navigation_api = move(entries_for_navigation_api), target_entry, update_only, navigation_type, previous_entry, resolved_document, navigable, allow_text_directive_scroll] {
             // NB: The specification initializes the navigation API entries for every newly activated document.
             //     Gating this on a non-null navigationType left documents activated by a creation/destruction
             //     update without an initialized navigation API entry list, which crashes the first same-document
             //     update on them (for example a document.open() on a child that finished loading while the
             //     creation update was still queued).
-            resolved_document->update_for_history_step_application(*target_entry, update_only, script_history_length, script_history_index, navigation_type, entries_for_navigation_api, previous_entry, true);
+            resolved_document->update_for_history_step_application(*target_entry, update_only, script_history_length, script_history_index, navigation_type, entries_for_navigation_api, previous_entry, true, allow_text_directive_scroll);
 
             if (update_only)
                 navigable->notify_navigation_observers_navigation_complete();
@@ -1410,6 +1411,13 @@ void LocalTraversableNavigable::request_history_operation(HistoryOperationParame
     page().client().page_did_request_history_operation(initiation_id, move(parameters));
 }
 
+void LocalTraversableNavigable::set_history_operation_allow_text_directive_scroll(u64 initiation_id, bool allow_text_directive_scroll)
+{
+    auto initiation = m_history_operation_states.find(initiation_id);
+    VERIFY(initiation != m_history_operation_states.end());
+    initiation->value.allow_text_directive_scroll = allow_text_directive_scroll;
+}
+
 void LocalTraversableNavigable::handle_ui_history_operation_started(u64 operation_id, u64 initiation_id, Optional<SessionHistoryEntryDescriptor> creation_target_entry, GC::Ref<OnHistoryOperationReady> ready)
 {
     auto& operation = m_ui_history_operations.ensure(operation_id);
@@ -1509,6 +1517,7 @@ void LocalTraversableNavigable::run_ui_changing_navigable_history_job(u64 operat
         if (auto initiation = m_history_operation_states.find(*initiation_id); initiation != m_history_operation_states.end()) {
             source_snapshot_params = initiation->value.source_snapshot_params;
             pending_document = initiation->value.pending_document;
+            operation.allow_text_directive_scroll = initiation->value.allow_text_directive_scroll;
             if (initiation->value.local_target_navigable_id == navigable_id) {
                 VERIFY(initiation->value.local_target_entry);
                 local_target_entry = initiation->value.local_target_entry;
@@ -1645,6 +1654,7 @@ void LocalTraversableNavigable::apply_ui_changing_navigable_continuation(u64 ope
             .navigation_type = operation->value.navigation_type,
             .navigation_api_abort_behavior = operation->value.navigation_api_abort_behavior.value_or(LocalNavigable::NavigationAPIAbortBehavior::Abort),
             .user_involvement = operation->value.user_involvement.value_or(UserNavigationInvolvement::None),
+            .allow_text_directive_scroll = operation->value.allow_text_directive_scroll,
         },
         on_complete);
 }

@@ -649,8 +649,8 @@ public:
     bool autofocus_processed_flag() const { return m_autofocus_processed_flag; }
     void flush_autofocus_candidates();
 
-    void try_to_scroll_to_the_fragment();
-    void scroll_to_the_fragment();
+    void try_to_scroll_to_the_fragment(bool allow_text_directive_scroll = false);
+    void scroll_to_the_fragment(bool allow_text_directive_scroll = false);
     void scroll_to_the_beginning_of_the_document();
 
     bool created_for_appropriate_template_contents() const { return m_created_for_appropriate_template_contents; }
@@ -988,10 +988,16 @@ public:
     // https://wicg.github.io/scroll-to-text-fragment/#applying-directives-to-a-document
     Optional<Vector<HTML::TextDirective>> const& pending_text_directives() const { return m_pending_text_directives; }
     void set_pending_text_directives(Optional<Vector<HTML::TextDirective>> directives) { m_pending_text_directives = move(directives); }
+    bool check_if_a_text_directive_can_be_scrolled(Optional<URL::Origin> const& initiator_origin, Optional<HTML::UserNavigationInvolvement> user_involvement);
+
+    bool text_directive_user_activation() const { return m_text_directive_user_activation; }
+    void set_text_directive_user_activation(bool text_directive_user_activation) { m_text_directive_user_activation = text_directive_user_activation; }
+    bool browsing_context_group_has_multiple_contexts() const;
+    void set_browsing_context_group_has_remote_contexts(bool value) { m_browsing_context_group_has_remote_contexts = value; }
 
     u32 unload_counter() const { return m_unload_counter; }
 
-    void update_for_history_step_application(NonnullRefPtr<HTML::SessionHistoryEntry>, bool do_not_reactivate, size_t script_history_length, size_t script_history_index, Optional<HTML::NavigationType> navigation_type, Optional<Vector<NonnullRefPtr<HTML::SessionHistoryEntry>>> entries_for_navigation_api = {}, RefPtr<HTML::SessionHistoryEntry> previous_entry_for_activation = {}, bool update_navigation_api = true);
+    void update_for_history_step_application(NonnullRefPtr<HTML::SessionHistoryEntry>, bool do_not_reactivate, size_t script_history_length, size_t script_history_index, Optional<HTML::NavigationType> navigation_type, Optional<Vector<NonnullRefPtr<HTML::SessionHistoryEntry>>> entries_for_navigation_api = {}, RefPtr<HTML::SessionHistoryEntry> previous_entry_for_activation = {}, bool update_navigation_api = true, bool allow_text_directive_scroll = false);
 
     HashMap<URL::URL, GC::Ptr<HTML::SharedResourceRequest>>& shared_resource_requests();
     HashMap<URL::URL, GC::Ptr<HTML::SharedResourceRequest>> const& shared_resource_requests() const;
@@ -1642,6 +1648,11 @@ private:
     // Each document has an associated pending text directives which is either null or a list of
     // text directives. It is initially null.
     Optional<Vector<HTML::TextDirective>> m_pending_text_directives;
+
+    // https://wicg.github.io/scroll-to-text-fragment/#restricting-the-text-fragment
+    // Each Document has a text directive user activation, which is a boolean, initially false.
+    bool m_text_directive_user_activation { false };
+    bool m_browsing_context_group_has_remote_contexts { false };
 
     u32 m_ignore_destructive_writes_counter { 0 };
 

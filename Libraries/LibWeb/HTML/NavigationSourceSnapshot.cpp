@@ -21,6 +21,9 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::NavigationSourceSnapshot const
     TRY(encoder.encode(snapshot.initiator_base_url_snapshot));
     TRY(encoder.encode(snapshot.referrer));
     TRY(encoder.encode(snapshot.referrer_policy));
+    TRY(encoder.encode(snapshot.user_involvement));
+    TRY(encoder.encode(snapshot.text_directive_user_activation));
+    TRY(encoder.encode(snapshot.browsing_context_group_has_multiple_contexts));
     return {};
 }
 
@@ -36,6 +39,9 @@ ErrorOr<Web::HTML::NavigationSourceSnapshot> decode(Decoder& decoder)
         .initiator_base_url_snapshot = TRY(decoder.decode<URL::URL>()),
         .referrer = TRY(decoder.decode<URL::URL>()),
         .referrer_policy = TRY(decoder.decode<Web::ReferrerPolicy::ReferrerPolicy>()),
+        .user_involvement = TRY(decoder.decode<Web::HTML::UserNavigationInvolvement>()),
+        .text_directive_user_activation = TRY(decoder.decode<bool>()),
+        .browsing_context_group_has_multiple_contexts = TRY(decoder.decode<bool>()),
     };
 }
 

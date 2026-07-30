@@ -577,13 +577,87 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
 
     // FIXME: 19. Process link headers given document, navigationParams's response, and "pre-media".
 
-    // FIXME: 20. If navigationParams's navigable is a top-level traversable, then process the `Speculation-Rules`
+    // https://wicg.github.io/scroll-to-text-fragment/#restricting-the-text-fragment
+    // 20. Set document's text directive user activation to true if any of the following conditions hold, false
+    //     otherwise:
+    //     * navigationParams's user involvement is "activation";
+    //     * navigationParams's user involvement is "browser UI"; or
+    //     * navigationParams's request's text directive user activation is true.
+    auto request_text_directive_user_activation = navigation_params.request
+        && navigation_params.request->text_directive_user_activation();
+    document->m_text_directive_user_activation = navigation_params.user_involvement == HTML::UserNavigationInvolvement::Activation
+        || navigation_params.user_involvement == HTML::UserNavigationInvolvement::BrowserUI
+        || request_text_directive_user_activation;
+
+    // Both Document's text directive user activation and request's text directive user activation are always set to
+    // false when used, such that a single user activation cannot be reused to activate more than one text fragment.
+    if (request_text_directive_user_activation)
+        navigation_params.request->set_text_directive_user_activation(false);
+
+    document->m_browsing_context_group_has_remote_contexts = navigation_params.request
+        && navigation_params.request->browsing_context_group_has_multiple_contexts();
+
+    // FIXME: 21. If navigationParams's navigable is a top-level traversable, then process the `Speculation-Rules`
     //        header given document and navigationParams's response .
 
-    // FIXME: 21. Potentially free deferred fetch quota for document.
+    // FIXME: 22. Potentially free deferred fetch quota for document.
 
-    // 22. Return document.
+    // 23. Return document.
     return document;
+}
+
+// https://wicg.github.io/scroll-to-text-fragment/#check-if-a-text-directive-can-be-scrolled
+bool Document::check_if_a_text_directive_can_be_scrolled(Optional<URL::Origin> const& initiator_origin, Optional<HTML::UserNavigationInvolvement> user_involvement)
+{
+    // 1. If document's pending text directives field is null or empty, return false.
+    if (!m_pending_text_directives.has_value() || m_pending_text_directives->is_empty())
+        return false;
+
+    // 2. Let is user involved be true if: document's text directive user activation is true, or user involvement is
+    //    one of "activation" or "browser UI"; false otherwise.
+    auto is_user_involved = m_text_directive_user_activation
+        || user_involvement == HTML::UserNavigationInvolvement::Activation
+        || user_involvement == HTML::UserNavigationInvolvement::BrowserUI;
+
+    // 3. Set document's text directive user activation to false.
+    m_text_directive_user_activation = false;
+
+    // 4. If document's content type is not a text directive allowing MIME type, return false.
+    if (m_content_type != "text/html"_utf16_fly_string && m_content_type != "text/plain"_utf16_fly_string)
+        return false;
+
+    // 5. If user involvement is "browser UI", return true.
+    if (user_involvement == HTML::UserNavigationInvolvement::BrowserUI)
+        return true;
+
+    // 6. If is user involved is false, return false.
+    if (!is_user_involved)
+        return false;
+
+    // 7. If document's node navigable has a parent, return false.
+    if (!navigable() || navigable()->parent())
+        return false;
+
+    // 8. If initiator origin is non-null and document's origin is same origin with initiator origin, return true.
+    if (initiator_origin.has_value() && origin().is_same_origin(*initiator_origin))
+        return true;
+
+    // 9. If document's browsing context's browsing context group's browsing context set has length 1, return true.
+    if (!browsing_context_group_has_multiple_contexts())
+        return true;
+
+    // 10. Otherwise, return false.
+    return false;
+}
+
+bool Document::browsing_context_group_has_multiple_contexts() const
+{
+    if (m_browsing_context_group_has_remote_contexts)
+        return true;
+    auto context = browsing_context();
+    if (!context || !context->group())
+        return true;
+    return context->group()->browsing_context_set().size() != 1;
 }
 
 GC::Ref<Document> Document::create(Page& page, GC::Ref<EventTarget> relevant_global_event_target, URL::URL const& url)
@@ -4472,8 +4546,9 @@ void Document::dispatch_events_for_animation_if_necessary(GC::Ref<Animations::An
     effect->set_previous_current_iteration(current_iteration);
 }
 
+// https://wicg.github.io/scroll-to-text-fragment/#restricting-the-text-fragment
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#scroll-to-the-fragment-identifier
-void Document::scroll_to_the_fragment()
+void Document::scroll_to_the_fragment([[maybe_unused]] bool allow_text_directive_scroll)
 {
     // To scroll to the fragment given a Document document:
 
@@ -4521,8 +4596,9 @@ void Document::scroll_to_the_fragment()
     }
 }
 
+// https://wicg.github.io/scroll-to-text-fragment/#restricting-the-text-fragment
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#try-to-scroll-to-the-fragment
-void Document::try_to_scroll_to_the_fragment()
+void Document::try_to_scroll_to_the_fragment(bool allow_text_directive_scroll)
 {
     // FIXME: According to the spec we should only scroll here if document has no parser or parsing has stopped.
     //        It should be ok to remove this after we implement navigation events and scrolling will happen in
@@ -4534,10 +4610,11 @@ void Document::try_to_scroll_to_the_fragment()
     //     object to run these steps:
     //      1. If document has no parser, or its parser has stopped parsing, or the user agent has reason to
     //         believe the user is no longer interested in scrolling to the fragment, then abort these steps.
-    //      2. Scroll to the fragment given document.
-    //      3. If document's indicated part is still null, then try to scroll to the fragment for document.
+    //      2. Scroll to the fragment given document and allow text directive scroll.
+    //      3. If document's indicated part is still null, then try to scroll to the fragment for
+    //         document and allow text directive scroll.
 
-    scroll_to_the_fragment();
+    scroll_to_the_fragment(allow_text_directive_scroll);
 }
 
 // https://drafts.csswg.org/cssom-view-1/#scroll-to-the-beginning-of-the-document
@@ -7047,8 +7124,9 @@ void Document::restore_the_history_object_state(NonnullRefPtr<HTML::SessionHisto
         m_history->set_state(state_or_error.release_value());
 }
 
+// https://wicg.github.io/scroll-to-text-fragment/#restricting-the-text-fragment
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#update-document-for-history-step-application
-void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHistoryEntry> entry, bool do_not_reactivate, size_t script_history_length, size_t script_history_index, Optional<HTML::NavigationType> navigation_type, Optional<Vector<NonnullRefPtr<HTML::SessionHistoryEntry>>> entries_for_navigation_api, RefPtr<HTML::SessionHistoryEntry> previous_entry_for_activation, bool update_navigation_api)
+void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHistoryEntry> entry, bool do_not_reactivate, size_t script_history_length, size_t script_history_index, Optional<HTML::NavigationType> navigation_type, Optional<Vector<NonnullRefPtr<HTML::SessionHistoryEntry>>> entries_for_navigation_api, RefPtr<HTML::SessionHistoryEntry> previous_entry_for_activation, bool update_navigation_api, bool allow_text_directive_scroll)
 {
     // 1. Let documentIsNew be true if document's latest entry is null; otherwise false.
     auto document_is_new = !m_latest_entry;
@@ -7187,8 +7265,8 @@ void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHi
         // FIXME: 2. Invoke WebDriver BiDi navigation committed with navigable and a new WebDriver BiDi navigation
         //           status whose id is document's during-loading navigation ID for WebDriver BiDi, status is "committed", and url is document's URL
 
-        // 3. Try to scroll to the fragment for document.
-        try_to_scroll_to_the_fragment();
+        // 3. Try to scroll to the fragment with document and allow text directive scroll.
+        try_to_scroll_to_the_fragment(allow_text_directive_scroll);
 
         // 4. At this point scripts may run for the newly-created document document.
         set_ready_to_run_scripts();
