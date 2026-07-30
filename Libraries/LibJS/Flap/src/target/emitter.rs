@@ -236,6 +236,12 @@ pub(crate) fn emit_dispatch_tables(out: &mut String, program: &MachineProgram) {
     }
     w!(out);
 
+    w!(out, "asm_debug_dispatch_table:");
+    for _ in 0..DISPATCH_TABLE_SIZE {
+        w!(out, "    .quad asm_debugger_trampoline");
+    }
+    w!(out);
+
     w!(out, ".globl CSYM(js_interpreter_handler_ranges)");
     w!(out, ".p2align 3");
     w!(out, "CSYM(js_interpreter_handler_ranges):");

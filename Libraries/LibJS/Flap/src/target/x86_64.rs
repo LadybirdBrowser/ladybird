@@ -599,12 +599,37 @@ fn generate_entry_point(out: &mut String, program: &Program, abi: X86_64Abi) {
         "    movabs {int32_tag_shifted_register}, {int32_tag_shifted}  # INT32_TAG_SHIFTED"
     );
     w!(out, "    mov QWORD PTR {}, {vm}  # save VM*", vm_slot(abi));
-    w!(out, "    lea r12, [rip + asm_dispatch_table]  # dispatch table");
+    let vm_breakpoint_controller = runtime(program)[KnownLayoutConstant::VmBreakpointController];
+    w!(out, "    cmp QWORD PTR [{vm} + {vm_breakpoint_controller}], 0");
+    w!(out, "    lea r12, [rip + asm_dispatch_table]");
+    w!(out, "    je .Ldispatch_table_ready");
+    w!(out, "    lea r12, [rip + asm_debug_dispatch_table]");
+    w!(out, ".Ldispatch_table_ready:");
+    w!(out, "    # r12 = dispatch table");
     emit_dispatch(out);
     w!(out);
 }
 
 fn generate_fallback_handler(out: &mut String, program: &Program, abi: X86_64Abi) {
+    w!(out, ".p2align 4");
+    w!(out, "asm_debugger_trampoline:");
+    emit_sync_pc_to_execution_context(out, program);
+    emit_vm_pc_args(out, abi);
+    w!(out, "    call CSYM(asm_debugger_check_breakpoint)");
+    emit_state_reload(out, program, abi);
+    // The reload may have picked up a different execution context, so reload its program counter
+    // instead of dispatching from the value that r13 held across the C++ call.
+    let program_counter = runtime(program)[KnownLayoutConstant::ExecutionContextProgramCounter];
+    w!(
+        out,
+        "    mov r13d, DWORD PTR [rbx + {}]",
+        program_counter - values_offset(program)
+    );
+    w!(out, "    movzx eax, BYTE PTR [r14 + r13]");
+    w!(out, "    lea rcx, [rip + asm_dispatch_table]");
+    w!(out, "    jmp [rcx + rax * 8]");
+    w!(out);
+
     // The fallback handler calls into C++ for any unhandled instruction.
     // extern "C" i64 asm_fallback_handler(VM* vm, u32 pc, u8 const* instruction);
     // Returns >= 0: new pc to dispatch to. Returns < 0: exit.

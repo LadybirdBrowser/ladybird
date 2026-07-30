@@ -562,6 +562,7 @@ static i64 finish_binary_slow_path(VM& vm, u32 pc, Operand destination, ThrowCom
 extern "C" {
 
 // Forward declarations for all functions called from assembly.
+void asm_debugger_check_breakpoint(VM*, u32 pc);
 i64 asm_fallback_handler(VM*, u32 pc, u8 const* instruction);
 i64 asm_slow_path_jump_less_than_values(VM*, u32 pc, Value, Value, u32, u32);
 i64 asm_slow_path_jump_greater_than_values(VM*, u32 pc, Value, Value, u32, u32);
@@ -737,6 +738,30 @@ i64 asm_try_put_by_value_typed_array(VM*, u32 pc, Op::PutByValue const*);
 
 // ===== Fallback handler for invalid dispatch table entries =====
 // NB: Every bytecode opcode has a DSL handler, so this should never run.
+void asm_debugger_check_breakpoint(VM* vm, u32 pc)
+{
+    // NB: The dispatch table is chosen when entering the interpreter, so we keep getting called
+    //     for the rest of the frame even if the host detaches its debugger in the meantime.
+    auto* debugger = vm->debugger();
+    if (!debugger)
+        return;
+
+    auto& executable = vm->current_executable();
+    debugger->register_executable(executable);
+    auto reason = [&]() -> Optional<Debugger::PauseReason> {
+        if (debugger->should_pause_on_next_bytecode_execution(executable, pc))
+            return Debugger::PauseReason::Entry;
+        if (executable.has_debugger_breakpoint_at(pc))
+            return Debugger::PauseReason::Breakpoint;
+        return {};
+    }();
+
+    bool did_pause = false;
+    if (reason.has_value())
+        did_pause = debugger->pause_execution(executable, pc, *reason);
+    debugger->set_did_pause_before_current_instruction(did_pause);
+}
+
 i64 asm_fallback_handler(VM*, u32, u8 const*)
 {
     VERIFY_NOT_REACHED();
@@ -2802,7 +2827,8 @@ i64 asm_slow_path_throw_const_assignment(VM* vm, u32 pc, Op::ThrowConstAssignmen
 
 i64 asm_slow_path_debugger(VM* vm, u32 pc, Op::Debugger const*)
 {
-    if (auto* debugger = vm->debugger())
+    // NB: Don't pause twice if the debugger trampoline already paused before this instruction.
+    if (auto* debugger = vm->debugger(); debugger && !debugger->did_pause_before_current_instruction())
         debugger->pause_execution(vm->current_executable(), pc, Debugger::PauseReason::DebuggerStatement);
     return static_cast<i64>(pc + sizeof(Op::Debugger));
 }

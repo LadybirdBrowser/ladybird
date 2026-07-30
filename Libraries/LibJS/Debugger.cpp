@@ -19,16 +19,18 @@ Debugger::~Debugger()
     clear_executable_breakpoints();
 }
 
-void Debugger::pause_execution(Bytecode::Executable& executable, u32 bytecode_offset, PauseReason reason)
+bool Debugger::pause_execution(Bytecode::Executable& executable, u32 bytecode_offset, PauseReason reason)
 {
     // The pause callback is free to evaluate JavaScript, which may pause again. Only the outermost
     // pause is reported; nested ones are ignored so that the callback can't deadlock against itself.
     if (m_is_paused)
-        return;
+        return false;
 
     if (!m_pause_callback)
-        return;
+        return false;
 
+    if (reason == PauseReason::Entry)
+        m_pause_on_next_bytecode_execution = false;
     m_is_paused = true;
     m_pause_callback({
         .executable = executable,
@@ -37,12 +39,29 @@ void Debugger::pause_execution(Bytecode::Executable& executable, u32 bytecode_of
         .reason = reason,
     });
     VERIFY(!m_is_paused);
+    return true;
 }
 
 void Debugger::continue_execution()
 {
     VERIFY(m_is_paused);
     m_is_paused = false;
+}
+
+bool Debugger::should_pause_on_next_bytecode_execution(Bytecode::Executable const& executable, u32 bytecode_offset)
+{
+    if (!m_pause_on_next_bytecode_execution)
+        return false;
+
+    if (auto source_range = executable.source_range_at(bytecode_offset); source_range.has_value() && source_range->start.line > 0)
+        return true;
+
+    for (auto const& entry : executable.source_map) {
+        if (entry.bytecode_offset > bytecode_offset && entry.line > 0)
+            return false;
+    }
+
+    return true;
 }
 
 ErrorOr<BreakpointID> Debugger::add_breakpoint(Utf16View filename, u32 line, Optional<u32> column)
