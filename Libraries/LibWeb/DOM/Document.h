@@ -1000,6 +1000,11 @@ public:
     }
     void clear_pending_text_directives() { m_pending_text_directives.clear(); }
     ReadonlySpan<GC::Ref<Range>> text_fragment_ranges() const { return m_text_fragment_ranges; }
+    void dismiss_text_fragment_indication()
+    {
+        m_text_fragment_ranges.clear();
+        m_pending_text_directives.clear();
+    }
     bool pending_text_directive_scroll_allowed() const { return m_pending_text_directive_scroll_allowed; }
     bool check_if_a_text_directive_can_be_scrolled(Optional<URL::Origin> const& initiator_origin, Optional<HTML::UserNavigationInvolvement> user_involvement);
 

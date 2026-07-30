@@ -905,6 +905,24 @@ pub unsafe extern "C" fn layout_arena_paint_push_selection_shadow(
 ///
 /// `sink` must be the pointer handed to the callback, used synchronously.
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_paint_push_text_fragment_indication_range(
+    sink: *mut c_void,
+    start: usize,
+    end: usize,
+) {
+    abort_on_panic(|| {
+        // SAFETY: `sink` is the Vec pointer handed out by
+        // FfiPaintHostCallbacks::text_fragment_indication_facts.
+        let ranges =
+            unsafe { &mut *sink.cast::<Vec<crate::painting::record::paint::text::TextFragmentIndicationRange>>() };
+        ranges.push(crate::painting::record::paint::text::TextFragmentIndicationRange { start, end });
+    });
+}
+
+/// # Safety
+///
+/// `sink` must be the pointer handed to the callback, used synchronously.
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paint_push_color_stop(
     sink: *mut c_void,
     color: libgfx_rust::Color,

@@ -4231,8 +4231,25 @@ Document::IndicatedPart Document::determine_the_indicated_part()
         // 1. Let ranges be a list that is the result of running the invoke text directives steps
         //    with text directives and the document.
         auto ranges = HTML::invoke_text_directives(*text_directives, *this);
+
+        // Text-fragment indication spans are generated while recording foreground paint commands.
+        // Invalidate both sets of paintables so cached commands cannot retain the old indication or
+        // omit the new one.
+        auto invalidate_text_fragment_range_paint = [](Vector<GC::Ref<Range>> const& ranges) {
+            for (auto const& range : ranges) {
+                range->common_ancestor_container()->for_each_in_inclusive_subtree_of_type<Text>([&](Text& text) {
+                    if (range->intersects_node(text)) {
+                        if (auto* layout_text = as_if<Layout::TextNode>(text.unsafe_layout_node()))
+                            layout_text->set_needs_repaint(InvalidateDisplayList::Yes);
+                    }
+                    return TraversalDecision::Continue;
+                });
+            }
+        };
+        invalidate_text_fragment_range_paint(m_text_fragment_ranges);
         m_text_fragment_ranges.clear();
         m_text_fragment_ranges.extend(ranges);
+        invalidate_text_fragment_range_paint(m_text_fragment_ranges);
 
         // 2. If ranges is non-empty, then:
         if (!ranges.is_empty()) {
