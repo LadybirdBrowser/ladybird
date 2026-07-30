@@ -95,6 +95,9 @@ pub(crate) struct RecordingInputs {
     pub caret: Option<CaretPaint>,
     pub focused_text_control: Option<FocusedTextControlSelection>,
     pub focused_area_outline: Option<FocusedAreaOutline>,
+    pub text_fragment_indications: Box<[crate::painting::host::FfiTextFragmentIndicationRange]>,
+    pub mark_color: Color,
+    pub mark_text_color: Color,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
