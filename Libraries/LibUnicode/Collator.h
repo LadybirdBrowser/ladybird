@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/NonnullOwnPtr.h>
+#include <AK/Optional.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 
@@ -40,6 +41,17 @@ class Collator {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
+    struct Match {
+        size_t start;
+        size_t end;
+    };
+
+    class SubstringSearcher {
+    public:
+        virtual ~SubstringSearcher() = default;
+        virtual Optional<Match> find_from(size_t start_offset) = 0;
+    };
+
     static NonnullOwnPtr<Collator> create(
         Utf16View locale,
         Usage,
@@ -57,6 +69,11 @@ public:
         After,
     };
     virtual Order compare(Utf16View const&, Utf16View const&) const = 0;
+
+    // https://wicg.github.io/scroll-to-text-fragment/#finding-ranges-in-a-document
+    // The string search must be performed using a base character comparison, or the primary
+    // level, as defined in UTS10.
+    virtual NonnullOwnPtr<SubstringSearcher> create_substring_searcher(Utf16View const& haystack, Utf16View const& needle) const = 0;
 
     virtual Sensitivity sensitivity() const = 0;
     virtual bool ignore_punctuation() const = 0;
