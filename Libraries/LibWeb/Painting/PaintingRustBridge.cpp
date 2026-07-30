@@ -24,7 +24,9 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Node.h>
+#include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/ShadowRoot.h>
+#include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLBRElement.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
@@ -518,6 +520,37 @@ Optional<DisplayListRecording> start_rust_display_list_recording(Layout::BegunRe
     auto device_viewport_rect = document.page().css_to_device_rect(document.viewport_rect());
     auto wheel_event_region_state = document.paint_state().collect_root_blocking_wheel_event_regions(document);
     Layout::RustFFI::FfiRecordingInputs inputs {};
+    Vector<Layout::RustFFI::FfiTextFragmentIndicationRange> text_fragment_indications;
+    if (!document.text_fragment_ranges().is_empty()) {
+        document.for_each_shadow_including_inclusive_descendant([&](DOM::Node& node) {
+            auto* text = as_if<DOM::Text>(&node);
+            if (!text)
+                return TraversalDecision::Continue;
+            auto* layout_text = as_if<Layout::TextNode>(text->unsafe_layout_node(read));
+            if (!layout_text)
+                return TraversalDecision::Continue;
+
+            for (auto const& range : document.text_fragment_ranges()) {
+                if (!range->intersects_node(*text))
+                    continue;
+                auto start = range->start_container().ptr() == text ? static_cast<size_t>(range->start_offset()) : 0;
+                auto end = range->end_container().ptr() == text ? static_cast<size_t>(range->end_offset()) : text->length();
+                if (start < end) {
+                    text_fragment_indications.append({
+                        .text_node = committed_row_slot(*layout_text),
+                        .start = start,
+                        .end = end,
+                    });
+                }
+            }
+            return TraversalDecision::Continue;
+        });
+    }
+    inputs.text_fragment_indications = text_fragment_indications.data();
+    inputs.text_fragment_indication_count = text_fragment_indications.size();
+    auto mark_color_scheme = document.page().preferred_color_scheme();
+    inputs.mark_color = CSS::SystemColor::mark(mark_color_scheme);
+    inputs.mark_text_color = CSS::SystemColor::mark_text(mark_color_scheme);
     if (overlay_inputs.highlighted_layout_node) {
         inputs.has_inspector_highlight = true;
         inputs.inspector_highlight_paintable = committed_row_slot(*overlay_inputs.highlighted_layout_node);

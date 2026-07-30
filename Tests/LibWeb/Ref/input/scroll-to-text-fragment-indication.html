@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/scroll-to-text-fragment-indication-ref.html">
+<link rel="help" href="https://wicg.github.io/scroll-to-text-fragment/#indicating-the-text-match">
+<style>
+p {
+    font: 20px sans-serif;
+    line-height: 1.5;
+}
+</style>
+<p>Before Highlighted passage after</p>
+<script>
+if (!location.hash.includes(":~:"))
+    location.replace("#:~:text=Highlighted");
+
+requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+        location.replace("#:~:text=Highlighted%20passage");
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                document.documentElement.classList.remove("reftest-wait");
+            });
+        });
+    });
+});
+</script>
+</html>

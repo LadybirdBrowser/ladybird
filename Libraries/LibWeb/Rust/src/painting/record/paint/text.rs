@@ -60,6 +60,7 @@ pub(crate) struct RenderSpan {
     /// The highlight's color when it has one of its own, which its redraw of the text's original
     /// decorations takes as well.
     pub decoration_color: Option<u32>,
+    pub text_fragment_indication_background_color: Option<u32>,
 }
 
 impl RenderSpan {
@@ -68,6 +69,8 @@ impl RenderSpan {
             .iter()
             .map(|overlay| overlay.highlight)
             .eq(other.highlights.iter().map(|overlay| overlay.highlight))
+            && self.text_fragment_indication_background_color == other.text_fragment_indication_background_color
+            && self.text_color == other.text_color
     }
 }
 
@@ -246,7 +249,22 @@ fn compute_render_spans<O: Observer>(
                 highlights.push((highlight, ranges, answer));
             }
         }
-        if highlights.is_empty() {
+        let indication_offsets: Vec<SelectionOffsets> = recorder
+            .inputs
+            .text_fragment_indications
+            .iter()
+            .filter(|range| range.text_node == fragment.layout_node)
+            .filter_map(|range| {
+                text_fragment::selection_offsets_for_dom_range(
+                    arena,
+                    fragment,
+                    range.start,
+                    range.end,
+                )
+            })
+            .filter(|offsets| offsets.start != offsets.end)
+            .collect();
+        if highlights.is_empty() && indication_offsets.is_empty() {
             spans.push(RenderSpan {
                 fragment_index,
                 start_code_unit: 0,
@@ -255,11 +273,13 @@ fn compute_render_spans<O: Observer>(
                 shadow_layers: base_shadows(),
                 highlights: Vec::new(),
                 decoration_color: None,
+                text_fragment_indication_background_color: None,
             });
             continue;
         }
 
         let mut boundaries = vec![0, fragment.length_in_code_units];
+        boundaries.extend(indication_offsets.iter().flat_map(|offsets| [offsets.start, offsets.end]));
         for (_, ranges, _) in &highlights {
             boundaries.extend(ranges.iter().flat_map(|offsets| [offsets.start, offsets.end]));
         }
@@ -279,7 +299,15 @@ fn compute_render_spans<O: Observer>(
                 shadow_layers: base_shadows(),
                 highlights: Vec::new(),
                 decoration_color: None,
+                text_fragment_indication_background_color: None,
             };
+            if indication_offsets
+                .iter()
+                .any(|offsets| start >= offsets.start && end <= offsets.end)
+            {
+                span.text_color = recorder.inputs.mark_text_color.0;
+                span.text_fragment_indication_background_color = Some(recorder.inputs.mark_color.0);
+            }
             for ((highlight, ranges, answer), next_range) in highlights.iter().zip(&mut next_ranges) {
                 while ranges.get(*next_range).is_some_and(|offsets| offsets.end <= start) {
                     *next_range += 1;
@@ -424,6 +452,16 @@ pub(crate) fn paint_fragments<O: Observer>(recorder: &mut PaintRecorder<'_, O>, 
     // backgrounds using that highlight's own color.
     for span in &spans {
         paint_text_shadow(recorder, block, span, &span.shadow_layers);
+    }
+    for span in spans.iter().filter(|span| span.text_fragment_indication_background_color.is_some()) {
+        let background_color = span.text_fragment_indication_background_color.unwrap();
+        let indication_rect = highlight_rect(recorder, block, span);
+        let converter = recorder.converter;
+        recorder.recorder.fill_rect(
+            converter.rounded_device_rect(indication_rect),
+            Color(background_color),
+            ForceDarkRole::Selection,
+        );
     }
     for span in spans.iter().filter(|span| span.highlights.is_empty()) {
         let sets = crate::painting::record::paint::text_decoration::decoration_sets_for_span(recorder, block, span);

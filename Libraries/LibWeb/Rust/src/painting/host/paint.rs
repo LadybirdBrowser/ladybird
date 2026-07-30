@@ -63,6 +63,18 @@ pub struct FfiRecordingInputs {
     pub focused_area_outline: FfiFocusedAreaOutline,
     pub inspector_highlight_label: FfiInspectorHighlightLabel,
     pub grid_label_fonts: FfiOverlayLabelFonts,
+    pub text_fragment_indications: *const FfiTextFragmentIndicationRange,
+    pub text_fragment_indication_count: usize,
+    pub mark_color: Color,
+    pub mark_text_color: Color,
+}
+
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub struct FfiTextFragmentIndicationRange {
+    pub text_node: crate::layout::node_data::NodeSlotId,
+    pub start: usize,
+    pub end: usize,
 }
 
 impl FfiRecordingInputs {
@@ -83,7 +95,7 @@ impl FfiRecordingInputs {
         use libcompositing_rust::ffi::ffi_slice;
 
         // SAFETY: The caller lends these arrays and buffers for this call.
-        let (grid_overlays, flex_overlays, outline_path) = unsafe {
+        let (grid_overlays, flex_overlays, outline_path, text_fragment_indications) = unsafe {
             (
                 ffi_slice(self.grid_overlays, self.grid_overlay_count),
                 ffi_slice(self.flex_overlays, self.flex_overlay_count),
@@ -91,6 +103,7 @@ impl FfiRecordingInputs {
                     self.focused_area_outline.path_bytes,
                     self.focused_area_outline.path_byte_count,
                 ),
+                ffi_slice(self.text_fragment_indications, self.text_fragment_indication_count),
             )
         };
         let caret = self.caret;
@@ -195,6 +208,9 @@ impl FfiRecordingInputs {
                 image: self.focused_area_outline.image,
                 path_bytes: outline_path.into(),
             }),
+            text_fragment_indications: text_fragment_indications.to_vec().into(),
+            mark_color: self.mark_color,
+            mark_text_color: self.mark_text_color,
         })
     }
 }
