@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+        height: 2000px;
+    }
+
+    #scroller {
+        width: 200px;
+        height: 200px;
+        overflow: scroll;
+    }
+
+    #content {
+        height: 2000px;
+    }
+
+    #button {
+        position: absolute;
+        top: 0;
+        left: 300px;
+    }
+</style>
+<div id="scroller" tabindex="0"><div id="content"></div></div>
+<button id="button">button</button>
+<details><summary id="summary">summary</summary>details content</details>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const pageDistance = window.innerHeight - (window.outerHeight - window.innerHeight);
+        const scroller = document.getElementById("scroller");
+        const button = document.getElementById("button");
+        const summary = document.getElementById("summary");
+
+        // Scroll offsets are reported in page scrolls so that the expectations do not depend on the size of the
+        // window the test runs in.
+        const viewportOffsetInPages = () => window.scrollY / pageDistance;
+        const scrollerOffsetInPages = () => scroller.scrollTop / pageDistance;
+
+        internals.sendKey(document.body, "Space");
+        println(`viewport offset after space, in pages: ${viewportOffsetInPages()}`);
+
+        internals.sendKey(document.body, "Space", internals.MOD_SHIFT);
+        println(`viewport offset after shift+space, in pages: ${viewportOffsetInPages()}`);
+
+        internals.sendKey(document.body, "Space", internals.MOD_CTRL);
+        println(`viewport offset after ctrl+space, in pages: ${viewportOffsetInPages()}`);
+
+        scroller.focus();
+        internals.sendKey(scroller, "Space");
+        println(`focused scroll container offset after space, in pages: ${scrollerOffsetInPages()}`);
+        println(`viewport offset while the scroll container scrolled, in pages: ${viewportOffsetInPages()}`);
+
+        internals.sendKey(scroller, "Space", internals.MOD_SHIFT);
+        println(`focused scroll container offset after shift+space, in pages: ${scrollerOffsetInPages()}`);
+
+        button.focus();
+        internals.sendKey(button, "Space");
+        println(`viewport offset after space with a button focused, in pages: ${viewportOffsetInPages()}`);
+
+        summary.focus();
+        internals.sendKey(summary, "Space");
+        println(`viewport offset after space with a summary element focused, in pages: ${viewportOffsetInPages()}`);
+    });
+</script>

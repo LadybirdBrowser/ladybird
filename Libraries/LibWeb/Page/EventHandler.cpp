@@ -32,12 +32,15 @@
 #include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLAnchorElement.h>
+#include <LibWeb/HTML/HTMLButtonElement.h>
 #include <LibWeb/HTML/HTMLDialogElement.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/HTML/HTMLIFrameElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
+#include <LibWeb/HTML/HTMLSelectElement.h>
+#include <LibWeb/HTML/HTMLSummaryElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
 #include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
@@ -1375,6 +1378,21 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
             break;
         scroll_by_for_key_input(0, key == UIEvents::KeyCode::Key_PageUp ? -page_scroll_distance : page_scroll_distance);
         return EventResult::Handled;
+    case UIEvents::KeyCode::Key_Space: {
+        if ((modifiers_without_keypad & ~UIEvents::KeyModifier::Mod_Shift) != UIEvents::KeyModifier::Mod_None)
+            break;
+        auto const* focused_area = document->focused_area().ptr();
+        // FIXME: These elements must run their activation behavior instead of merely swallowing the key.
+        auto const focused_area_activates_on_space = is<HTML::HTMLButtonElement>(focused_area)
+            || is<HTML::HTMLInputElement>(focused_area)
+            || is<HTML::HTMLSelectElement>(focused_area)
+            || is<HTML::HTMLSummaryElement>(focused_area);
+        if (focused_area_activates_on_space)
+            break;
+        bool scroll_backward = (modifiers_without_keypad & UIEvents::KeyModifier::Mod_Shift) != UIEvents::KeyModifier::Mod_None;
+        scroll_by_for_key_input(0, scroll_backward ? -page_scroll_distance : page_scroll_distance);
+        return EventResult::Handled;
+    }
     case UIEvents::KeyCode::Key_Home:
         scroll_to_the_beginning_for_key_input();
         return EventResult::Handled;
