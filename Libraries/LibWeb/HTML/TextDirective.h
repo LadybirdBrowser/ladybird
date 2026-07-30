@@ -10,8 +10,10 @@
 #include <AK/String.h>
 #include <AK/Utf16String.h>
 #include <AK/Vector.h>
+#include <LibGC/Ptr.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::HTML {
 
@@ -26,5 +28,6 @@ WEB_API Optional<String> remove_the_fragment_directive(URL::URL&);
 WEB_API Optional<Utf16String> percent_decode_a_text_directive_term(Optional<StringView> term);
 WEB_API Optional<TextDirective> parse_a_text_directive(StringView text_directive_value);
 WEB_API Vector<TextDirective> parse_the_fragment_directive(StringView fragment_directive);
+WEB_API Optional<GC::Ref<DOM::Range>> find_a_range_from_a_text_directive(TextDirective const&, DOM::Document&);
 
 }

@@ -1,0 +1,17 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Text fragment with a missing suffix at the end of the document</title>
+<link rel="help" href="https://wicg.github.io/scroll-to-text-fragment/#find-a-range-from-a-text-directive">
+<script src="wpt-import/resources/testharness.js"></script>
+<script src="wpt-import/resources/testharnessreport.js"></script>
+
+<p>alpha beta gamma</p><p>hello</p>
+
+<script>
+promise_test(async () => {
+    await new Promise(resolve => addEventListener("load", resolve, { once: true }));
+
+    location.href = "#:~:text=hello,-world";
+    await new Promise(resolve => requestAnimationFrame(resolve));
+}, "A missing suffix after a match in the final searchable text node does not crash");
+</script>
