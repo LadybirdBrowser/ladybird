@@ -205,6 +205,7 @@ void SVGElement::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     HTMLOrSVGOrMathMLElement::visit_edges(visitor);
     visitor.visit(m_class_name_animated_string);
+    visitor.visit(m_reflected_attribute_cache);
 }
 
 void SVGElement::attribute_changed(Utf16FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
@@ -383,13 +384,17 @@ GC::Ptr<SVGElement> SVGElement::viewport_element()
 
 GC::Ref<SVGAnimatedLength> SVGElement::svg_animated_length_for_attribute(Utf16FlyString const& attribute_name, NonnullRefPtr<CSS::StyleValue const>&& default_value)
 {
+    if (auto cached = m_reflected_attribute_cache.get(attribute_name); cached.has_value())
+        return as<SVGAnimatedLength>(*cached.value());
+
     auto base_length = SVGLength::create_reflected_attribute(realm(), *this, attribute_name, SVGLength::ReflectedAttributeType::BaseValue, default_value, SVGLength::ReadOnly::No);
     // AD-HOC: The spec says this should reflect the base value of the attribute but other browsers reflect the SMIL
     //         animated value instead.
     auto anim_length = SVGLength::create_reflected_attribute(realm(), *this, attribute_name, SVGLength::ReflectedAttributeType::AnimatedValue, default_value, SVGLength::ReadOnly::Yes);
 
-    // FIXME: This should be SameObject
-    return SVGAnimatedLength::create(realm(), base_length, anim_length);
+    auto animated_length = SVGAnimatedLength::create(realm(), base_length, anim_length);
+    m_reflected_attribute_cache.set(attribute_name, animated_length);
+    return animated_length;
 }
 
 }

@@ -70,6 +70,9 @@ private:
 
     GC::Ptr<SVGAnimatedString> m_class_name_animated_string;
 
+    // Many reflecting attributes are marked as SameObject so we cache the objects we create here.
+    HashMap<Utf16FlyString, GC::Ref<JS::Object>> m_reflected_attribute_cache;
+
     // Elements whose layout subtrees contain a <mask>, <clipPath>, or <pattern> resource box built
     // from this element. Their subtrees must be rebuilt when this element is removed, since resource
     // boxes are not attached under this element's own layout position.
