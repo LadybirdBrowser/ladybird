@@ -12,6 +12,7 @@
 #include <LibGC/Ptr.h>
 #include <LibGC/Weak.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/Layout/RenderedText.h>
 
 namespace Web::Layout {
 
@@ -35,11 +36,6 @@ public:
         Searchability searchability { Searchability::Searchable };
         Boundary boundary_before { Boundary::None };
         bool is_inert { false };
-    };
-
-    struct RenderedTextOffset {
-        size_t dom_start_offset { 0 };
-        size_t dom_end_offset { 0 };
     };
 
     struct Block {

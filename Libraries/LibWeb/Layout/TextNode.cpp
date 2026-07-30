@@ -44,6 +44,21 @@ Utf16String TextNode::rendered_text_for_dom(bool collapse_whitespace) const
     return text;
 }
 
+RenderedTextForDOM TextNode::rendered_text_for_dom_with_offset_mapping() const
+{
+    RenderedTextForDOM rendered_text;
+    RustFFI::layout_script_rendered_text_with_dom_offsets(document_host(), slot_id(this), &rendered_text,
+        [](void* context, RustFFI::FfiRenderedTextWithOffsetsView view) {
+            auto& output = *static_cast<RenderedTextForDOM*>(context);
+            output.text = Utf16String::from_utf16({ reinterpret_cast<char16_t const*>(view.text), view.length_in_code_units });
+            for (size_t i = 0; i < view.offset_mapping_length; ++i) {
+                auto const& mapping = view.offset_mapping[i];
+                output.offset_mapping.append({ mapping.dom_start_offset, mapping.dom_end_offset });
+            }
+        });
+    return rendered_text;
+}
+
 RustFFI::FfiTextSourceRange TextNode::word_range_at(size_t dom_offset) const
 {
     return RustFFI::layout_text_word_range(document_host(), slot_id(this), dom_offset);

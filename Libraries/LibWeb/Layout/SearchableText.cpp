@@ -209,7 +209,7 @@ SearchableText SearchableText::collect(Viewport& viewport)
         auto const* parent_inherited_text_values = parent->style_group<CSS::ComputedValues::InheritedTextValues>();
         VERIFY(parent_inherited_text_values);
 
-        auto const append_text = [&](Utf16View text_to_append, size_t dom_start_offset, TextNode const* layout_text_node = nullptr) {
+        auto const append_text = [&](Utf16View text_to_append, size_t dom_start_offset, TextNode const* layout_text_node = nullptr, Vector<RenderedTextOffset> const* offset_mapping = nullptr) {
             auto const white_space_collapse = parent_inherited_text_values->white_space_collapse_value();
             auto const should_collapse = first_is_one_of(
                 white_space_collapse,
@@ -238,11 +238,12 @@ SearchableText SearchableText::collect(Viewport& viewport)
             };
 
             if (layout_text_node) {
-                // The Rust layout tree owns the rendered-to-DOM edit map. Until that mapping is
-                // exposed through this consumer, this path uses the DOM range represented by the
-                // text row and keeps rendered-text collection centralized in TextNode.
-                for (size_t i = 0; i < text_to_append.length_in_code_units(); ++i)
-                    append_rendered_code_unit(text_to_append.code_unit_at(i), dom_start_offset + i, dom_start_offset + i + 1);
+                VERIFY(offset_mapping);
+                VERIFY(offset_mapping->size() == text_to_append.length_in_code_units());
+                for (size_t i = 0; i < text_to_append.length_in_code_units(); ++i) {
+                    auto const& mapping = (*offset_mapping)[i];
+                    append_rendered_code_unit(text_to_append.code_unit_at(i), mapping.dom_start_offset, mapping.dom_end_offset);
+                }
                 return;
             }
 
@@ -252,10 +253,8 @@ SearchableText SearchableText::collect(Viewport& viewport)
 
         if (auto rendered_text = rendered_text_nodes.get(&text); rendered_text.has_value()) {
             for (auto const* text_node : *rendered_text) {
-                append_text(
-                    text_node->rendered_text_for_dom(false).utf16_view(),
-                    0,
-                    text_node);
+                auto rendered_text_for_dom = text_node->rendered_text_for_dom_with_offset_mapping();
+                append_text(rendered_text_for_dom.text.utf16_view(), 0, text_node, &rendered_text_for_dom.offset_mapping);
             }
         } else {
             append_text(text.data().utf16_view(), 0);

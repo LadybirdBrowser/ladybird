@@ -2768,6 +2768,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         "FfiNodeIdentity".to_string(),
         "FfiPseudoElement".to_string(),
         "FfiRenderedTextView".to_string(),
+        "FfiRenderedTextOffset".to_string(),
+        "FfiRenderedTextWithOffsetsView".to_string(),
         "FfiReplacedContentFacts".to_string(),
         "FfiStylePayloads".to_string(),
         "FfiUtf16View".to_string(),

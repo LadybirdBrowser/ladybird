@@ -14,6 +14,7 @@
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/Layout/Box.h>
+#include <LibWeb/Layout/RenderedText.h>
 
 namespace Web::Layout {
 
@@ -36,6 +37,7 @@ public:
     virtual Utf16String const& text() const { return dom_node().data(); }
 
     Utf16String rendered_text_for_dom(bool collapse_whitespace) const;
+    RenderedTextForDOM rendered_text_for_dom_with_offset_mapping() const;
     RustFFI::FfiTextSourceRange word_range_at(size_t dom_offset) const;
 
 private:

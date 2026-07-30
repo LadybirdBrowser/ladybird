@@ -432,6 +432,20 @@ pub struct FfiRenderedTextView {
     pub length_in_code_units: usize,
 }
 
+#[repr(C)]
+pub struct FfiRenderedTextOffset {
+    pub dom_start_offset: usize,
+    pub dom_end_offset: usize,
+}
+
+#[repr(C)]
+pub struct FfiRenderedTextWithOffsetsView {
+    pub text: *const u16,
+    pub length_in_code_units: usize,
+    pub offset_mapping: *const FfiRenderedTextOffset,
+    pub offset_mapping_length: usize,
+}
+
 /// The text the rows of the text node whose primary row is `primary` render, with whitespace collapsed where their
 /// style collapses it if `collapse_whitespace`, handed to `append`.
 ///
@@ -466,6 +480,39 @@ pub unsafe extern "C" fn layout_script_rendered_text(
         length_in_code_units: text.len(),
     };
     // SAFETY: The text outlives the call, which copies it.
+    unsafe { append(context, view) };
+}
+
+/// The rendered text and its rendered-to-DOM UTF-16 offset mapping for a text row.
+///
+/// # Safety
+///
+/// `host` must be a live document host on its document's thread, `primary` must be a live text row, and `append` must
+/// copy both views synchronously.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_script_rendered_text_with_dom_offsets(
+    host: &DocumentHost,
+    primary: NodeSlotId,
+    context: *mut c_void,
+    append: unsafe extern "C" fn(*mut c_void, FfiRenderedTextWithOffsetsView),
+) {
+    let (text, offsets) = read_arena(host, |arena| {
+        crate::layout::text_queries::rendered_text_with_dom_offsets(arena, primary)
+    });
+    let offset_mapping: Vec<_> = offsets
+        .into_iter()
+        .map(|(dom_start_offset, dom_end_offset)| FfiRenderedTextOffset {
+            dom_start_offset,
+            dom_end_offset,
+        })
+        .collect();
+    let view = FfiRenderedTextWithOffsetsView {
+        text: text.as_ptr(),
+        length_in_code_units: text.len(),
+        offset_mapping: offset_mapping.as_ptr(),
+        offset_mapping_length: offset_mapping.len(),
+    };
+    // SAFETY: Both vectors outlive the call, which copies the views.
     unsafe { append(context, view) };
 }
 
