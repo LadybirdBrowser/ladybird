@@ -19,6 +19,7 @@
 #include <LibGC/Heap.h>
 #include <LibGC/PrimitiveStorage.h>
 #include <LibJS/Bytecode/Executable.h>
+#include <LibJS/Debugger.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
@@ -246,6 +247,19 @@ VM::~VM()
 {
     --s_vm_count;
     VERIFY(s_vm_count == 0);
+}
+
+void VM::enable_debugging()
+{
+    if (!m_debugger)
+        m_debugger = make<Debugger>();
+}
+
+void VM::disable_debugging()
+{
+    if (m_debugger)
+        VERIFY(!m_debugger->is_paused());
+    m_debugger = nullptr;
 }
 
 SharedFunctionInstanceData* VM::active_shared_function_data()

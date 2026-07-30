@@ -12,6 +12,7 @@
 #include <LibJS/Bytecode/Op.h>
 #include <LibJS/Bytecode/PropertyAccess.h>
 #include <LibJS/Bytecode/PropertyNameIterator.h>
+#include <LibJS/Debugger.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/AsyncFromSyncIteratorPrototype.h>
@@ -2799,8 +2800,10 @@ i64 asm_slow_path_throw_const_assignment(VM* vm, u32 pc, Op::ThrowConstAssignmen
     return handle_asm_exception(*vm, pc, completion.value());
 }
 
-i64 asm_slow_path_debugger(VM*, u32 pc, Op::Debugger const*)
+i64 asm_slow_path_debugger(VM* vm, u32 pc, Op::Debugger const*)
 {
+    if (auto* debugger = vm->debugger())
+        debugger->pause_execution(vm->current_executable(), pc, Debugger::PauseReason::DebuggerStatement);
     return static_cast<i64>(pc + sizeof(Op::Debugger));
 }
 

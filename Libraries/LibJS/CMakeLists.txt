@@ -24,6 +24,7 @@ set(SOURCES
     Contrib/Test262/GlobalObject.cpp
     Contrib/Test262/IsHTMLDDA.cpp
     CyclicModule.cpp
+    Debugger.cpp
     Heap/Cell.cpp
     Module.cpp
     ParserError.cpp
