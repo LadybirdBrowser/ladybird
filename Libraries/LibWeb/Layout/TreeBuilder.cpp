@@ -816,9 +816,10 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             LayoutTreeBuilderAccess::register_svg_resource_reference(
                 *static_cast<SVG::SVGElement*>(resource_pointer),
                 *static_cast<SVG::SVGGraphicsElement*>(graphics_element_pointer)); },
-        .layout_node_dom_node = [](void* layout_node_pointer) -> void* {
-            VERIFY(layout_node_pointer);
-            return static_cast<Layout::Node*>(layout_node_pointer)->dom_node(); },
+        .element_layout_node = [](void* element_pointer) -> RustFFI::NodeSlotId {
+            VERIFY(element_pointer);
+            // NB: Called during layout tree construction.
+            return Node::slot_id(static_cast<DOM::Element*>(element_pointer)->unsafe_layout_node()); },
         .principal_node_entry_facts = [](void*, void* node_pointer, bool must_create_subtree) -> RustFFI::FfiPrincipalNodeEntryFacts {
             VERIFY(node_pointer);
             auto& node = *static_cast<DOM::Node*>(node_pointer);

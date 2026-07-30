@@ -91,7 +91,7 @@ pub struct FfiDomTreeBuilderCallbacks {
     pub flat_tree_render_facts: unsafe extern "C" fn(*mut c_void) -> FfiFlatTreeRenderFacts,
     pub svg_pattern_content_element: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
     pub register_svg_resource_reference: unsafe extern "C" fn(*mut c_void, *mut c_void),
-    pub layout_node_dom_node: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
+    pub element_layout_node: unsafe extern "C" fn(*mut c_void) -> NodeSlotId,
     pub principal_node_entry_facts: unsafe extern "C" fn(*mut c_void, *mut c_void, bool) -> FfiPrincipalNodeEntryFacts,
     pub request_top_layer_zone_rebuild: unsafe extern "C" fn(*mut c_void),
     pub push_style_ancestor: unsafe extern "C" fn(*mut c_void),
@@ -875,19 +875,16 @@ unsafe fn update_layout_tree_for_display_contents(
     });
 }
 
-fn ancestor_stack_contains_dom_node(
+fn ancestor_stack_contains_element_layout_node(
     host: &DomTreeBuilderHost<'_>,
     state: &TreeBuilderState,
-    dom_node: *mut c_void,
+    element: *mut c_void,
 ) -> bool {
-    for &ancestor in &state.ancestor_stack {
-        assert!(!ancestor.is_invalid());
-        // SAFETY: `ancestor` is a live layout node.
-        if unsafe { (host.callbacks.layout_node_dom_node)(host.layout().shell(ancestor)) } == dom_node {
-            return true;
-        }
-    }
-    false
+    // An element's box registers itself on the element at construction time, before its subtree
+    // is built, so an element under construction anywhere on the ancestor stack is found here.
+    // SAFETY: `element` is a live DOM element.
+    let element_layout_node = unsafe { (host.callbacks.element_layout_node)(element) };
+    !element_layout_node.is_invalid() && state.ancestor_stack.contains(&element_layout_node)
 }
 
 fn update_svg_resource(
@@ -902,7 +899,7 @@ fn update_svg_resource(
     context.layout_svg_mask_or_clip_path = true;
     state.ancestor_stack.push(layout_node);
 
-    if !ancestor_stack_contains_dom_node(host, state, resource) {
+    if !ancestor_stack_contains_element_layout_node(host, state, resource) {
         update_layout_tree(host, state, resource, context, true);
         // SAFETY: Both pointers denote live SVG elements held by the graphics element.
         unsafe { (host.callbacks.register_svg_resource_reference)(resource, graphics_element) };
@@ -927,7 +924,7 @@ fn update_svg_pattern(
     context.layout_svg_pattern = true;
     state.ancestor_stack.push(layout_node);
 
-    if !ancestor_stack_contains_dom_node(host, state, content_element) {
+    if !ancestor_stack_contains_element_layout_node(host, state, content_element) {
         update_layout_tree(host, state, content_element, context, true);
         // The referenced pattern may inherit its content from another pattern via href. Removing either element
         // invalidates the attached resource box, so register the referencer with both.
