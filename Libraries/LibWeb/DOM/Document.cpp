@@ -635,7 +635,7 @@ bool Document::check_if_a_text_directive_can_be_scrolled(Optional<URL::Origin> c
         return false;
 
     // 7. If document's node navigable has a parent, return false.
-    if (!navigable() || navigable()->parent())
+    if (navigable() && navigable()->parent())
         return false;
 
     // 8. If initiator origin is non-null and document's origin is same origin with initiator origin, return true.
@@ -839,11 +839,13 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_active_favicon);
     visitor.visit(m_browsing_context);
     visitor.visit(m_focused_area);
+    visitor.visit(m_sequential_focus_navigation_starting_point);
     visitor.visit(m_active_element);
     visitor.visit(m_target_element);
     visitor.visit(m_autofocus_candidates);
     visitor.visit(m_implementation);
     visitor.visit(m_fragment_directive);
+    visitor.visit(m_text_fragment_ranges);
     visitor.visit(m_current_script);
     visitor.visit(m_associated_inert_template_document);
     visitor.visit(m_appropriate_template_contents_owner_document);
@@ -4057,6 +4059,9 @@ void Document::set_focused_area(GC::Ptr<Node> node, InvalidateFocusPseudoClasses
     if (m_focused_area == node)
         return;
 
+    if (node)
+        m_sequential_focus_navigation_starting_point = nullptr;
+
     GC::Ptr old_focused_area = m_focused_area;
 
     if (auto* old_focused_element = as_if<Element>(old_focused_area.ptr()))
@@ -4213,41 +4218,71 @@ void Document::flush_autofocus_candidates()
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#the-indicated-part-of-the-document
-Document::IndicatedPart Document::determine_the_indicated_part() const
+// https://wicg.github.io/scroll-to-text-fragment/#invoking-text-directives
+Document::IndicatedPart Document::determine_the_indicated_part()
 {
     // For an HTML document document, the following processing model must be followed to determine its indicated part:
 
-    // 1. Let fragment be document's URL's fragment.
+    // 1. Let text directives be the document's pending text directives.
+    auto const& text_directives = m_pending_text_directives;
+
+    // 2. If text directives is non-null then:
+    if (text_directives.has_value() && !text_directives->is_empty()) {
+        // 1. Let ranges be a list that is the result of running the invoke text directives steps
+        //    with text directives and the document.
+        auto ranges = HTML::invoke_text_directives(*text_directives, *this);
+        m_text_fragment_ranges.clear();
+        m_text_fragment_ranges.extend(ranges);
+
+        // 2. If ranges is non-empty, then:
+        if (!ranges.is_empty()) {
+            // 1. Let firstRange be the first item of ranges.
+            auto first_range = ranges.first();
+
+            // 2. Visually indicate each range in ranges in an implementation-defined way. The
+            //    indication must not be observable from author script. See Indicating The Text Match.
+            // NB: The ranges are retained privately and painted in the text-fragment indication pass.
+
+            // 3. Set firstRange as document's indicated part, return.
+            return GC::Ptr<Range> { first_range };
+        }
+
+        // AD-HOC: Do not fall back to an element fragment until parsing has stopped and the final
+        //         text search has completed.
+        return static_cast<Element*>(nullptr);
+    }
+
+    // 3. Let fragment be document's URL's fragment.
     auto fragment = url().fragment();
 
-    // 2. If fragment is the empty string, then return the special value top of the document.
+    // 4. If fragment is the empty string, then return the special value top of the document.
     if (!fragment.has_value() || fragment->is_empty())
         return Document::TopOfTheDocument {};
 
-    // 3. Let potentialIndicatedElement be the result of finding a potential indicated element given document and fragment.
+    // 5. Let potentialIndicatedElement be the result of finding a potential indicated element given document and fragment.
     auto fragment_as_utf16 = utf16_string_from_url_ascii(*fragment);
     auto* potential_indicated_element = find_a_potential_indicated_element(fragment_as_utf16);
 
-    // 4. If potentialIndicatedElement is not null, then return potentialIndicatedElement.
+    // 6. If potentialIndicatedElement is not null, then return potentialIndicatedElement.
     if (potential_indicated_element)
         return potential_indicated_element;
 
-    // 5. Let fragmentBytes be the result of percent-decoding fragment.
-    // 6. Let decodedFragment be the result of running UTF-8 decode without BOM on fragmentBytes.
+    // 7. Let fragmentBytes be the result of percent-decoding fragment.
+    // 8. Let decodedFragment be the result of running UTF-8 decode without BOM on fragmentBytes.
     auto decoded_fragment = Utf16String::from_utf8_with_replacement_character(URL::percent_decode(*fragment), Utf16String::WithBOMHandling::No);
 
-    // 7. Set potentialIndicatedElement to the result of finding a potential indicated element given document and decodedFragment.
+    // 9. Set potentialIndicatedElement to the result of finding a potential indicated element given document and decodedFragment.
     potential_indicated_element = find_a_potential_indicated_element(decoded_fragment);
 
-    // 8. If potentialIndicatedElement is not null, then return potentialIndicatedElement.
+    // 10. If potentialIndicatedElement is not null, then return potentialIndicatedElement.
     if (potential_indicated_element)
         return potential_indicated_element;
 
-    // 9. If decodedFragment is an ASCII case-insensitive match for the string top, then return the top of the document.
+    // 11. If decodedFragment is an ASCII case-insensitive match for the string top, then return the top of the document.
     if (decoded_fragment.utf16_view().equals_ignoring_ascii_case(u"top"sv))
         return Document::TopOfTheDocument {};
 
-    // 10. Return null.
+    // 12. Return null.
     return nullptr;
 }
 
@@ -4548,7 +4583,7 @@ void Document::dispatch_events_for_animation_if_necessary(GC::Ref<Animations::An
 
 // https://wicg.github.io/scroll-to-text-fragment/#restricting-the-text-fragment
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#scroll-to-the-fragment-identifier
-void Document::scroll_to_the_fragment([[maybe_unused]] bool allow_text_directive_scroll)
+void Document::scroll_to_the_fragment(bool allow_text_directive_scroll)
 {
     // To scroll to the fragment given a Document document:
 
@@ -4572,27 +4607,200 @@ void Document::scroll_to_the_fragment([[maybe_unused]] bool allow_text_directive
 
     // 3. Otherwise:
     else {
-        // 1. Assert: document's indicated part is an element.
-        VERIFY(indicated_part.has<Element*>());
+        // 1. Assert: document's indicated part is an element or it is a range.
+        VERIFY(indicated_part.has<Element*>() || indicated_part.has<GC::Ptr<Range>>());
 
-        // 2. Let target be document's indicated part.
-        auto target = indicated_part.get<Element*>();
+        // 2. Let scrollTarget be document's indicated part.
+        auto scroll_target = indicated_part;
 
-        // 3. Set document's target element to target.
+        // 3. Let target be scrollTarget.
+        GC::Ptr<Element> target;
+        if (scroll_target.has<Element*>())
+            target = scroll_target.get<Element*>();
+
+        auto const is_text_directive = scroll_target.has<GC::Ptr<Range>>();
+
+        // 4. If target is a range, then:
+        if (is_text_directive) {
+            // 1. If allow text directive scroll is false, return.
+            if (!allow_text_directive_scroll)
+                return;
+
+            auto range = scroll_target.get<GC::Ptr<Range>>();
+            VERIFY(range);
+
+            // 2. Set target to be the first common ancestor of target's start node and end node.
+            GC::Ptr<Node> target_node = range->common_ancestor_container();
+
+            // 3. While target is non-null and is not an element, set target to target's parent.
+            while (target_node && !is<Element>(*target_node))
+                target_node = target_node->parent();
+            if (target_node)
+                target = static_cast<Element*>(target_node.ptr());
+
+            // INTEROP: The first common ancestor can be far larger than the matched passage. Other
+            //          engines use the start container's nearest element so that :target, reveal,
+            //          and focus effects stay attached to the beginning that is scrolled into view.
+            //          https://github.com/WICG/scroll-to-text-fragment/issues/259
+            target_node = range->start_container();
+            while (target_node && !is<Element>(*target_node))
+                target_node = target_node->parent();
+            if (target_node)
+                target = static_cast<Element*>(target_node.ptr());
+        }
+
+        // 5. Assert: target is an element.
+        if (!target)
+            return;
+
+        // 6. Set document's target element to target.
         set_target_element(target);
 
-        // FIXME: 4. Run the ancestor revealing algorithm on target.
+        // 7. Run the ancestor details revealing algorithm on target.
+        // 8. Run the ancestor hidden-until-found revealing algorithm on target.
+        //
+        // INTEROP: HTML has since combined those two algorithms into the ancestor revealing
+        //          algorithm. Run that current algorithm once so nested details and hidden=until-found
+        //          ancestors are revealed in tree order.
+        // https://html.spec.whatwg.org/multipage/interaction.html#ancestor-revealing-algorithm
+        auto run_the_ancestor_revealing_algorithm = [&] {
+            enum class RevealType {
+                UntilFound,
+                Details,
+            };
 
-        // 5. Scroll target into view, with behavior set to "auto", block set to "start", and inline set to "nearest". [CSSOMVIEW]
-        Element::ScrollIntoViewOptions scroll_options;
-        scroll_options.block = Element::ScrollLogicalPosition::Start;
-        scroll_options.inline_ = Element::ScrollLogicalPosition::Nearest;
-        target->scroll_into_view(scroll_options, nullptr);
+            // 1. Let ancestorsToReveal be « ».
+            GC::RootVector<GC::Ref<Element>> ancestors_to_reveal;
+            Vector<RevealType> reveal_types;
 
-        // 6. Run the focusing steps for target, with the Document's viewport as the fallback target.
-        HTML::run_focusing_steps(target, this);
+            // 2. Let ancestor be target.
+            GC::Ptr<Node> ancestor = target;
 
-        // FIXME: 7. Move the sequential focus navigation starting point to target.
+            // 3. While ancestor has a parent node within the flat tree:
+            while (ancestor && ancestor->parent()) {
+                // 1. If ancestor has a hidden attribute in the Hidden Until Found state, then
+                //    append (ancestor, "until-found") to ancestorsToReveal.
+                if (auto* element = as_if<Element>(ancestor.ptr())) {
+                    auto const& hidden = element->get_attribute(HTML::AttributeNames::hidden);
+                    if (hidden.has_value() && hidden->equals_ignoring_ascii_case(u"until-found"sv)) {
+                        ancestors_to_reveal.append(*element);
+                        reveal_types.append(RevealType::UntilFound);
+                    }
+                }
+
+                // 2. If ancestor is slotted into the second slot of a details element which
+                //    does not have an open attribute, then append (ancestor's parent node,
+                //    "details") to ancestorsToReveal.
+                auto* parent_element = as_if<Element>(ancestor->parent());
+                if (parent_element
+                    && parent_element->namespace_uri() == Namespace::HTML
+                    && parent_element->local_name() == HTML::TagNames::details
+                    && !parent_element->has_attribute(HTML::AttributeNames::open)) {
+                    GC::Ptr<Node> first_summary;
+                    for (auto* child = parent_element->first_child(); child; child = child->next_sibling()) {
+                        auto* child_element = as_if<Element>(child);
+                        if (child_element
+                            && child_element->namespace_uri() == Namespace::HTML
+                            && child_element->local_name() == HTML::TagNames::summary) {
+                            first_summary = child;
+                            break;
+                        }
+                    }
+                    if (ancestor != first_summary) {
+                        ancestors_to_reveal.append(*parent_element);
+                        reveal_types.append(RevealType::Details);
+                    }
+                }
+
+                // 3. Set ancestor to the parent node of ancestor within the flat tree.
+                ancestor = ancestor->parent();
+            }
+
+            // 4. For each (ancestorToReveal, revealType) of ancestorsToReveal:
+            for (size_t i = 0; i < ancestors_to_reveal.size(); ++i) {
+                auto& ancestor_to_reveal = ancestors_to_reveal[i];
+                auto reveal_type = reveal_types[i];
+
+                // 1. If ancestorToReveal is not connected, then return.
+                if (!ancestor_to_reveal->is_connected())
+                    return;
+
+                // 2. If revealType is "until-found":
+                if (reveal_type == RevealType::UntilFound) {
+                    // 1. If ancestorToReveal's hidden attribute is not in the Hidden Until
+                    //    Found state, then return.
+                    auto const& hidden = ancestor_to_reveal->get_attribute(HTML::AttributeNames::hidden);
+                    if (!hidden.has_value() || !hidden->equals_ignoring_ascii_case(u"until-found"sv))
+                        return;
+
+                    // 2. Fire an event named beforematch at ancestorToReveal with the bubbles
+                    //    attribute initialized to true.
+                    ancestor_to_reveal->dispatch_event(Event::create(HTML::relevant_global_object(*ancestor_to_reveal), HTML::EventNames::beforematch, { .bubbles = true }));
+
+                    // 3. If ancestorToReveal is not connected, then return.
+                    if (!ancestor_to_reveal->is_connected())
+                        return;
+
+                    // 4. If ancestorToReveal's hidden attribute is not in the Hidden Until
+                    //    Found state, then return.
+                    auto const& hidden_after_event = ancestor_to_reveal->get_attribute(HTML::AttributeNames::hidden);
+                    if (!hidden_after_event.has_value() || !hidden_after_event->equals_ignoring_ascii_case(u"until-found"sv))
+                        return;
+
+                    // 5. Remove the hidden attribute from ancestorToReveal.
+                    ancestor_to_reveal->remove_attribute(HTML::AttributeNames::hidden);
+                }
+
+                // 3. Otherwise:
+                else {
+                    // 1. Assert: revealType is "details".
+                    VERIFY(reveal_type == RevealType::Details);
+
+                    // 2. If ancestorToReveal has an open attribute, then return.
+                    if (ancestor_to_reveal->has_attribute(HTML::AttributeNames::open))
+                        return;
+
+                    // 3. Set ancestorToReveal's open attribute to the empty string.
+                    ancestor_to_reveal->set_attribute_value(HTML::AttributeNames::open, Utf16String {});
+                }
+            }
+        };
+        run_the_ancestor_revealing_algorithm();
+
+        // AD-HOC: Revealing ancestors changes their layout participation. Refresh layout before
+        //         computing the range geometry used for scrolling.
+        if (is_text_directive)
+            update_layout(UpdateLayoutReason::RangeGetClientRects);
+
+        // 9. Let blockPosition be "center" if scrollTarget is a range, "start" otherwise.
+        auto const block_position = scroll_target.has<GC::Ptr<Range>>()
+            ? Bindings::ScrollLogicalPosition::Center
+            : Bindings::ScrollLogicalPosition::Start;
+
+        // 10. Scroll a target into view, with target set to scrollTarget, behavior set to "auto",
+        //     block set to blockPosition, and inline set to "nearest".
+        if (is_text_directive) {
+            (void)scroll_a_target_into_view(
+                ScrollIntoViewTarget { scroll_target.get<GC::Ptr<Range>>().ptr() },
+                Bindings::ScrollBehavior::Auto,
+                block_position,
+                Bindings::ScrollLogicalPosition::Nearest);
+        } else {
+            Bindings::ScrollIntoViewOptions scroll_options;
+            scroll_options.block = block_position;
+            scroll_options.inline_ = Bindings::ScrollLogicalPosition::Nearest;
+            target->scroll_into_view(scroll_options, nullptr);
+        }
+
+        // 11. Run the focusing steps for target, with the Document's viewport as the fallback
+        //     target.
+        // NB: Text-fragment focus and the sequential focus navigation starting point are handled
+        //     without focusing a matching link in the dedicated text-fragment focus pass.
+        if (!is_text_directive)
+            HTML::run_focusing_steps(target, this);
+
+        // 12. Move the sequential focus navigation starting point to target.
+        move_sequential_focus_navigation_starting_point_to(target);
     }
 }
 
@@ -4600,21 +4808,91 @@ void Document::scroll_to_the_fragment([[maybe_unused]] bool allow_text_directive
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#try-to-scroll-to-the-fragment
 void Document::try_to_scroll_to_the_fragment(bool allow_text_directive_scroll)
 {
-    // FIXME: According to the spec we should only scroll here if document has no parser or parsing has stopped.
-    //        It should be ok to remove this after we implement navigation events and scrolling will happen in
-    //        "process scroll behavior".
-    //  To try to scroll to the fragment for a Document document, perform the following steps in parallel:
-    //  1. Wait for an implementation-defined amount of time. (This is intended to allow the user agent to
-    //     optimize the user experience in the face of performance concerns.)
-    //  2. Queue a global task on the navigation and traversal task source given document's relevant global
-    //     object to run these steps:
-    //      1. If document has no parser, or its parser has stopped parsing, or the user agent has reason to
-    //         believe the user is no longer interested in scrolling to the fragment, then abort these steps.
-    //      2. Scroll to the fragment given document and allow text directive scroll.
-    //      3. If document's indicated part is still null, then try to scroll to the fragment for
-    //         document and allow text directive scroll.
+    m_pending_text_directive_scroll_allowed = allow_text_directive_scroll;
 
-    scroll_to_the_fragment(allow_text_directive_scroll);
+    // AD-HOC: The implementation-defined wait and queued navigation task from this algorithm are
+    //         supplied by the parser-progress, DOMContentLoaded, and load-completion lifecycle callers.
+
+    // 1. If the user agent has reason to believe the user is no longer interested in scrolling to
+    //    the fragment, then:
+    if (!is_fully_active()) {
+        // 1. Set pending text directives to null.
+        clear_pending_text_directives();
+
+        // 2. Abort these steps.
+        return;
+    }
+
+    // AD-HOC: Once a directive has matched, parser-progress retries only need to correct the
+    //         range's position after layout shifts. The DOMContentLoaded and load-completion passes still
+    //         repeat the search so script-driven changes to the matching text are observed.
+    if (!m_text_fragment_ranges.is_empty()) {
+        if (allow_text_directive_scroll) {
+            (void)scroll_a_target_into_view(
+                ScrollIntoViewTarget { m_text_fragment_ranges.first().ptr() },
+                Bindings::ScrollBehavior::Auto,
+                Bindings::ScrollLogicalPosition::Center,
+                Bindings::ScrollLogicalPosition::Nearest);
+        }
+    } else {
+        scroll_to_the_fragment(allow_text_directive_scroll);
+    }
+
+    // AD-HOC: Ordinary element fragments retain Ladybird's existing eager attempt and parser-end
+    //         retry. The additional lifecycle retries are only needed when there is unmatched text to
+    //         find.
+    if (!m_pending_text_directives.has_value() || m_pending_text_directives->is_empty())
+        return;
+    if (!m_text_fragment_ranges.is_empty()) {
+        // AD-HOC: While a document is still loading, retain a successful directive so the parser's
+        //         load-completion pass can correct layout shifts in the absence of CSS scroll anchoring.
+        // https://drafts.csswg.org/css-scroll-anchoring/
+        if (is_completely_loaded()) {
+            clear_pending_text_directives();
+
+            // https://wicg.github.io/scroll-to-text-fragment/#scroll-on-navigation
+            // If a UA chooses not to scroll automatically, it must scroll a fallback element-id
+            // into view, if provided, regardless of whether a text fragment was matched.
+            if (!allow_text_directive_scroll)
+                scroll_to_the_fragment();
+        }
+        return;
+    }
+
+    // A same-document navigation in a completely loaded document has no further parser or load
+    // lifecycle milestones at which to retry. This is therefore its final search.
+    if (!is_completely_loaded())
+        return;
+
+    clear_pending_text_directives();
+
+    // https://wicg.github.io/scroll-to-text-fragment/#scroll-on-navigation
+    // If a UA chooses not to scroll automatically, it must scroll a fallback element-id into
+    // view, if provided, regardless of whether a text fragment was matched.
+    scroll_to_the_fragment();
+}
+
+void Document::schedule_text_fragment_search_after_parser_progress(Badge<HTML::HTMLParser>)
+{
+    // AD-HOC: Retry unmatched text directives when the parser yields after making progress, rather
+    //         than polling on a timer. Coalesce parser runs until the queued task observes the resulting
+    //         DOM, mirroring the lifecycle-driven approach used by other engines.
+    if (m_text_fragment_parser_progress_search_pending
+        || !m_pending_text_directives.has_value()
+        || m_pending_text_directives->is_empty()
+        || policy_container()->force_load_at_top)
+        return;
+
+    m_text_fragment_parser_progress_search_pending = true;
+    HTML::queue_global_task(HTML::Task::Source::NavigationAndTraversal, relevant_global_object(*this), GC::create_function(heap(), [document = GC::Ref { *this }] {
+        document->m_text_fragment_parser_progress_search_pending = false;
+        if (!document->m_pending_text_directives.has_value()
+            || document->m_pending_text_directives->is_empty()
+            || document->policy_container()->force_load_at_top)
+            return;
+
+        document->try_to_scroll_to_the_fragment(document->m_pending_text_directive_scroll_allowed);
+    }));
 }
 
 // https://drafts.csswg.org/cssom-view-1/#scroll-to-the-beginning-of-the-document
@@ -7171,6 +7449,7 @@ void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHi
             auto const& fragment_directive = entry->directive_state()->value();
 
             // 2. Set document's pending text directives to the result of parsing fragment directive.
+            m_text_fragment_ranges.clear();
             m_pending_text_directives = fragment_directive.has_value()
                 ? Optional<Vector<HTML::TextDirective>> { HTML::parse_the_fragment_directive(*fragment_directive) }
                 : Optional<Vector<HTML::TextDirective>> { Vector<HTML::TextDirective> {} };

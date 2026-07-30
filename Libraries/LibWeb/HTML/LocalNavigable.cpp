@@ -166,6 +166,7 @@ struct NavigationParamsFetchStateHolder : public JS::Cell {
 
     // Accumulated redirect output
     Optional<URL::URL> redirected_url;
+    bool redirect_replaced_fragment { false };
     Optional<StorageSerializationRecord> redirect_classic_history_api_state;
     RefPtr<DocumentState> replacement_document_state;
     bool resource_cleared = false;
@@ -204,6 +205,7 @@ public:
 
     // Redirect mutations (only set by fetch path)
     Optional<URL::URL> redirected_url;
+    bool redirect_replaced_fragment { false };
     Optional<StorageSerializationRecord> classic_history_api_state;
     RefPtr<DocumentState> replacement_document_state;
     bool resource_cleared = false;
@@ -585,7 +587,11 @@ void PopulateSessionHistoryEntryDocumentOutput::apply_to(NonnullRefPtr<SessionHi
         entry->set_url(redirected_url.release_value());
 
         // Set entry's directive state's value to fragment directive.
-        entry->directive_state()->set_value(move(fragment_directive));
+        // NOTE: A redirect location without a fragment inherits the request URL's fragment. The
+        //       fragment directive was already removed from that URL and stored in the directive state,
+        //       so leaving the state unchanged performs that inheritance.
+        if (fragment_directive.has_value() || redirect_replaced_fragment)
+            entry->directive_state()->set_value(move(fragment_directive));
     }
     if (classic_history_api_state.has_value())
         entry->set_classic_history_api_state(classic_history_api_state.release_value());
@@ -1802,6 +1808,12 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
         //       This is because we care about the same-originness of the embedded content against the parent context, not the navigation source.
 
         // 14. Set locationURL to response's location URL given currentURL's fragment.
+        auto location_url_without_an_inherited_fragment = state_holder->response->location_url({});
+        if (!location_url_without_an_inherited_fragment.is_error()
+            && location_url_without_an_inherited_fragment.value().has_value()
+            && location_url_without_an_inherited_fragment.value()->fragment().has_value()) {
+            state_holder->redirect_replaced_fragment = true;
+        }
         state_holder->location_url = state_holder->response->location_url(state_holder->current_url.fragment());
 
         // 15. If locationURL is failure or null, then break.
@@ -1856,6 +1868,7 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
     });
 }
 
+// https://wicg.github.io/scroll-to-text-fragment/#extracting-the-fragment-directive
 // https://wicg.github.io/scroll-to-text-fragment/#restricting-the-text-fragment
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#create-navigation-params-by-fetching
 static void create_navigation_params_by_fetching(
@@ -2063,6 +2076,7 @@ static void create_navigation_params_by_fetching(
     perform_navigation_params_fetch(realm, state_holder, completion_steps, GC::create_function(realm.heap(), [&realm, state_holder, user_involvement, completion_steps] {
         auto result = realm.heap().allocate<InternalNavigationResult>();
         result->redirected_url = move(state_holder->redirected_url);
+        result->redirect_replaced_fragment = state_holder->redirect_replaced_fragment;
         result->classic_history_api_state = move(state_holder->redirect_classic_history_api_state);
         result->replacement_document_state = state_holder->replacement_document_state;
         result->resource_cleared = state_holder->resource_cleared;
@@ -2226,6 +2240,7 @@ void LocalNavigable::populate_session_history_entry_document(
             // NB: result's redirect fields are moved into output here; so, all code below must read them from output —
             //     never from the moved-from result.
             output->redirected_url = move(result->redirected_url);
+            output->redirect_replaced_fragment = result->redirect_replaced_fragment;
             output->classic_history_api_state = move(result->classic_history_api_state);
             output->replacement_document_state = result->replacement_document_state;
             output->resource_cleared = result->resource_cleared;
@@ -3153,12 +3168,30 @@ void LocalNavigable::navigate_to_a_fragment(URL::URL const& url, HistoryHandling
     // 16. Scroll to the fragment given navigable's active document, and allow text directive scroll.
     // FIXME: Specification doesn't say when document url needs to update during fragment navigation
     active_document()->set_url(stripped_url);
-    active_document()->scroll_to_the_fragment(allow_text_directive_scroll);
+    if (active_document()->parser() && !active_document()->parser()->stopped()) {
+        // AD-HOC: A same-document navigation can run from a parser-inserted script before the
+        //         directive's target has been parsed. In that case, use the parser-aware retry lifecycle
+        //         also used for a newly-created Document.
+        active_document()->try_to_scroll_to_the_fragment(allow_text_directive_scroll);
+    } else {
+        active_document()->scroll_to_the_fragment(allow_text_directive_scroll);
 
-    // 17. Let traversable be navigable's traversable navigable.
+        // https://wicg.github.io/scroll-to-text-fragment/#invoking-text-directives
+        // 17. Set navigable's active document's pending text directives to null.
+        auto const text_fragment_was_found = !active_document()->text_fragment_ranges().is_empty();
+        active_document()->clear_pending_text_directives();
+
+        // https://wicg.github.io/scroll-to-text-fragment/#scroll-on-navigation
+        // If a UA chooses not to scroll automatically, it must scroll a fallback element-id into
+        // view, if provided, regardless of whether a text fragment was matched.
+        if (!text_fragment_was_found || !allow_text_directive_scroll)
+            active_document()->scroll_to_the_fragment();
+    }
+
+    // 18. Let traversable be navigable's traversable navigable.
     auto traversable = traversable_navigable();
 
-    // 18. Append the following session history synchronous navigation steps involving navigable to traversable:
+    // 19. Append the following session history synchronous navigation steps involving navigable to traversable:
     // 1. Finalize a same-document navigation given traversable, navigable, historyEntry, entryToReplace,
     //    historyHandling, and userInvolvement.
     traversable->finalize_same_document_navigation(*this, history_entry, entry_to_replace, history_handling, user_involvement, move(previous_entry_persisted_state));
@@ -5666,7 +5699,6 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_the_viewport(CSSPix
     // NOTE: Clamp to the scrolling area.
     new_viewport_scroll_offset.set_x(clamp(new_viewport_scroll_offset.x(), minimum_scroll_offset.x(), maximum_scroll_offset.x()));
     new_viewport_scroll_offset.set_y(clamp(new_viewport_scroll_offset.y(), minimum_scroll_offset.y(), maximum_scroll_offset.y()));
-
     auto scroll_promise = perform_a_scroll_of_a_scrolling_box({
                                                                   .node_id = doc->unique_id(),
                                                                   .kind = Compositor::AsyncScrollNodeKind::Viewport,

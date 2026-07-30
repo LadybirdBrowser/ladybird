@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<link rel="help" href="https://wicg.github.io/scroll-to-text-fragment/#invoking-text-directives">
+<script src="include.js"></script>
+<script>
+    asyncTest(async () => {
+        const server = httpTestServer();
+        const imageURL = await server.createEcho("GET", "/scroll-to-text-fragment-load-layout-shift.svg", {
+            status: 200,
+            headers: {
+                "Content-Type": "image/svg+xml",
+                "Cache-Control": "no-store",
+            },
+            body: '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"></svg>',
+            delay_ms: 500,
+        });
+
+        const targetURL = new URL("../data/scroll-to-text-fragment-load-layout-shift-target.html", location.href);
+        targetURL.searchParams.set("image", imageURL);
+        targetURL.hash = ":~:text=Load%20stabilization%20target";
+        location.href = targetURL;
+    });
+</script>

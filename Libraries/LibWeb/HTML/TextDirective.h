@@ -11,6 +11,7 @@
 #include <AK/Utf16String.h>
 #include <AK/Vector.h>
 #include <LibGC/Ptr.h>
+#include <LibGC/RootVector.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
@@ -28,6 +29,7 @@ WEB_API Optional<String> remove_the_fragment_directive(URL::URL&);
 WEB_API Optional<Utf16String> percent_decode_a_text_directive_term(Optional<StringView> term);
 WEB_API Optional<TextDirective> parse_a_text_directive(StringView text_directive_value);
 WEB_API Vector<TextDirective> parse_the_fragment_directive(StringView fragment_directive);
+WEB_API GC::RootVector<GC::Ref<DOM::Range>> invoke_text_directives(Vector<TextDirective> const&, DOM::Document&);
 WEB_API Optional<GC::Ref<DOM::Range>> find_a_range_from_a_text_directive(TextDirective const&, DOM::Document&);
 
 }

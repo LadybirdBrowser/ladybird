@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Navigating to a text fragment directive
+1 Pass
+Pass	Navigating to a text fragment directive

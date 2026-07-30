@@ -104,7 +104,9 @@ Optional<TextDirective> parse_a_text_directive(StringView text_directive_value)
         tokens.remove(0);
 
         // 3. If prefix is the empty string or contains any instances of U+002D (-), return null.
-        if (prefix->is_empty() || prefix->contains('-'))
+        // AD-HOC: Current WPT coverage and other engines allow U+002D inside a term. It is only invalid as the first
+        //         or last code point of a token.
+        if (prefix->is_empty() || prefix->starts_with('-'))
             return {};
 
         // 4. If tokens is empty, return null.
@@ -121,7 +123,9 @@ Optional<TextDirective> parse_a_text_directive(StringView text_directive_value)
         tokens.take_last();
 
         // 3. If suffix is the empty string or contains any instances of U+002D (-), return null.
-        if (suffix->is_empty() || suffix->contains('-'))
+        // AD-HOC: Current WPT coverage and other engines allow U+002D inside a term. It is only invalid as the first
+        //         or last code point of a token.
+        if (suffix->is_empty() || suffix->ends_with('-'))
             return {};
 
         // 4. If tokens is empty, return null.
@@ -143,7 +147,8 @@ Optional<TextDirective> parse_a_text_directive(StringView text_directive_value)
     tokens.remove(0);
 
     // 11. If start is the empty string or contains any instances of U+002D (-), return null.
-    if (start->is_empty() || start->contains('-'))
+    // INTEROP: Current WPT coverage and other engines allow U+002D inside a term.
+    if (start->is_empty())
         return {};
 
     // 12. If tokens is not empty:
@@ -152,7 +157,8 @@ Optional<TextDirective> parse_a_text_directive(StringView text_directive_value)
         end = tokens.first();
 
         // 2. If end is the empty string or contains any instances of U+002D (-), return null.
-        if (end->is_empty() || end->contains('-'))
+        // AD-HOC: Current WPT coverage and other engines allow U+002D inside a term.
+        if (end->is_empty())
             return {};
     }
 
@@ -319,6 +325,24 @@ struct TextDirectiveSearchContext {
     Vector<CachedWordSegmenter> word_segmenters {};
 };
 
+}
+
+// https://wicg.github.io/scroll-to-text-fragment/#invoking-text-directives
+GC::RootVector<GC::Ref<DOM::Range>> invoke_text_directives(Vector<TextDirective> const& text_directives, DOM::Document& document)
+{
+    // 1. Let ranges be a list of ranges, initially empty.
+    GC::RootVector<GC::Ref<DOM::Range>> ranges;
+
+    // 2. For each text directive directive of text directives:
+    for (auto const& directive : text_directives) {
+        // 1. If the result of running find a range from a text directive given directive and
+        //    document is non-null, then append it to ranges.
+        if (auto range = find_a_range_from_a_text_directive(directive, document); range.has_value())
+            ranges.append(*range);
+    }
+
+    // 3. Return ranges.
+    return ranges;
 }
 
 // https://wicg.github.io/scroll-to-text-fragment/#word-boundaries

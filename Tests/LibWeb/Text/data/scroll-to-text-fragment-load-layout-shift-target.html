@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<style>
+    #spacer {
+        height: 200vh;
+    }
+    #tail {
+        height: 200vh;
+    }
+</style>
+<div id="spacer"></div>
+<p id="target">Load stabilization target</p>
+<div id="tail"></div>
+<script>
+    const image = document.createElement("img");
+    image.width = 1;
+    image.height = 1;
+    image.src = new URL(location.href).searchParams.get("image");
+    document.body.appendChild(image);
+
+    const isInViewport = element => {
+        const rect = element.getBoundingClientRect();
+        return rect.top >= 0 && rect.bottom <= innerHeight;
+    };
+    const spacer = document.getElementById("spacer");
+    const target = document.getElementById("target");
+    let targetWasInitiallyInViewport = false;
+    let targetLeftViewport = false;
+
+    document.addEventListener("DOMContentLoaded", () => {
+        targetWasInitiallyInViewport = isInViewport(target);
+        setTimeout(() => {
+            spacer.style.height = "600vh";
+            targetLeftViewport = !isInViewport(target);
+        }, 0);
+    });
+
+    window.addEventListener("load", () => {
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                internals.signalTestIsDone(
+                    `Target initially in viewport: ${targetWasInitiallyInViewport}\n`
+                    + `Target left viewport after layout shift: ${targetLeftViewport}\n`
+                    + `Target returned to viewport after load: ${isInViewport(target)}\n`);
+            });
+        });
+    });
+</script>
