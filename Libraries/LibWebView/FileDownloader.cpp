@@ -407,7 +407,7 @@ bool FileDownloader::validate_range_response(u64 download_id, size_t segment_ind
     }
 
     auto validator = evaluate_range_support(response_headers, response_code, Requests::CameFromCache::No).validator;
-    if (validator.etag.has_value() && active->range_support.validator.etag.has_value() && validator.etag != active->range_support.validator.etag) {
+    if (!active->range_support.validator.matches(validator)) {
         abandon_segmentation(download_id);
         return false;
     }

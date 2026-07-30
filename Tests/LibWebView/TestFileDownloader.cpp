@@ -60,6 +60,7 @@ enum class RangeRequestBehavior {
 enum class Validator {
     Yes,
     No,
+    ChangesBetweenResponses,
 };
 
 enum class StallBehavior {
@@ -240,6 +241,8 @@ private:
         response.appendff("Accept-Ranges: {}\r\n", m_range_support == RangeSupport::Yes ? "bytes"sv : "none"sv);
         if (m_validator == Validator::Yes)
             response.append("ETag: \"test-etag\"\r\n"sv);
+        else if (m_validator == Validator::ChangesBetweenResponses)
+            response.appendff("ETag: \"{}\"\r\n", is_partial ? "changed-etag"sv : "test-etag"sv);
         if (is_partial)
             response.appendff("Content-Range: bytes {}-{}/{}\r\n", start, end, m_body.size());
         response.append("Connection: close\r\n\r\n"sv);
@@ -565,6 +568,17 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         VERIFY(server.refused_count() >= 1);
 
         VERIFY(server.refused_count() <= 4);
+    }
+
+    {
+        TestHttpServer server { body, RangeSupport::Yes, RangeRequestBehavior::Serve, Validator::ChangesBetweenResponses };
+
+        auto path = run_download(server, test_directory, "changed-validator.bin"sv);
+        expect_file_matches(path, body.bytes());
+
+        auto range_requests = server.range_requests();
+        outln("changed validator: {} requests, {} of them ranged", server.request_count(), range_requests.size());
+        VERIFY(range_requests.size() >= 1);
     }
 
     outln("PASS");

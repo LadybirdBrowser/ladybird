@@ -90,6 +90,32 @@ TEST_CASE(range_validators)
     EXPECT_EQ(both.validator.if_range_value(), "\"abc123\""_string);
 }
 
+TEST_CASE(range_validator_matching)
+{
+    auto validator = [](Optional<String> etag, Optional<String> last_modified) {
+        return WebView::DownloadRangeValidator { move(etag), move(last_modified) };
+    };
+
+    auto recorded = validator("\"abc123\""_string, "Wed, 21 Oct 2015 07:28:00 GMT"_string);
+
+    EXPECT(recorded.matches(recorded));
+    EXPECT(!recorded.matches(validator("\"def456\""_string, "Wed, 21 Oct 2015 07:28:00 GMT"_string)));
+
+    // An agreeing ETag outweighs a disagreeing Last-Modified, and vice versa when no ETag is available.
+    EXPECT(recorded.matches(validator("\"abc123\""_string, "Thu, 22 Oct 2015 07:28:00 GMT"_string)));
+    EXPECT(!recorded.matches(validator({}, "Thu, 22 Oct 2015 07:28:00 GMT"_string)));
+    EXPECT(recorded.matches(validator({}, "Wed, 21 Oct 2015 07:28:00 GMT"_string)));
+
+    // A response carrying no validators in common with ours is tolerated.
+    EXPECT(recorded.matches(validator({}, {})));
+    EXPECT(validator({}, {}).matches(recorded));
+
+    auto last_modified_only = validator({}, "Wed, 21 Oct 2015 07:28:00 GMT"_string);
+    EXPECT(last_modified_only.matches(recorded));
+    EXPECT(!last_modified_only.matches(validator({}, "Thu, 22 Oct 2015 07:28:00 GMT"_string)));
+    EXPECT(last_modified_only.matches(validator("\"abc123\""_string, {})));
+}
+
 static void expect_segments_tile(Vector<WebView::DownloadSegmentRange> const& segments, u64 total_size)
 {
     EXPECT(!segments.is_empty());
