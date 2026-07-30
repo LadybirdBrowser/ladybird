@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<style>
+    #spacer {
+        height: 200vh;
+    }
+    #tail {
+        height: 200vh;
+    }
+</style>
+<div id="spacer"></div>
+<p>Early retry target</p>
+<div id="tail"></div>
+<script>
+    const searchParams = new URL(location.href).searchParams;
+    const delayedScriptURL = searchParams.get("script");
+    const unblockURL = searchParams.get("unblock");
+    addEventListener("load", () => {
+        internals.signalTestIsDone(window.parserRetryResult);
+    });
+    const unblockParser = () => {
+        window.unblockImage = new Image();
+        window.unblockImage.src = unblockURL;
+    };
+    let scrollPollingTimer;
+    const scrollObserver = () => {
+        if (pageYOffset === 0)
+            return;
+        const scrolledBeforeParserCompletion = window.parserBlockingScriptFinished !== true;
+        const readyStateWhenScrolled = document.readyState;
+        removeEventListener("scroll", scrollObserver);
+        clearInterval(scrollPollingTimer);
+        window.parserRetryResult =
+            `Scrolled before parser completion: ${scrolledBeforeParserCompletion}\n`
+            + `Ready state: ${readyStateWhenScrolled}\n`;
+        unblockParser();
+    };
+    addEventListener("scroll", scrollObserver);
+    scrollPollingTimer = setInterval(scrollObserver, 50);
+    scrollObserver();
+    document.write(`<script src="${delayedScriptURL}"><\/script>`);
+</script>

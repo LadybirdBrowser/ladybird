@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Same-document text directive navigation before loading the document has finished
+1 Pass
+Pass	Same-document text directive navigation before loading the document has finished

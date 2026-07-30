@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Text directive allowed in text/html with a charset parameter
+1 Pass
+Pass	Text directive allowed in text/html with a charset parameter

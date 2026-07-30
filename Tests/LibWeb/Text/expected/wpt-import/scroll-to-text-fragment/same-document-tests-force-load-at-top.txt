@@ -2,9 +2,8 @@ Harness status: OK
 
 Found 4 tests
 
-3 Pass
-1 Fail
+4 Pass
 Pass	Basic element fragment navigation
-Fail	Basic text directive navigation
+Pass	Basic text directive navigation
 Pass	Basic element id fallback
 Pass	Malformed text directive element id fallback

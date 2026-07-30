@@ -1,0 +1,3 @@
+Target initially in viewport: true
+Target left viewport after layout shift: true
+Target returned to viewport after load: true
