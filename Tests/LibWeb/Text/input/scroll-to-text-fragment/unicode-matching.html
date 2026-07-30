@@ -1,0 +1,47 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Unicode text-fragment matching</title>
+<link rel="help" href="https://wicg.github.io/scroll-to-text-fragment/#finding-ranges-in-a-document">
+<link rel="help" href="https://wicg.github.io/scroll-to-text-fragment/#word-boundaries">
+<script src="../wpt-import/resources/testharness.js"></script>
+<script src="../wpt-import/resources/testharnessreport.js"></script>
+<script src="../wpt-import/resources/testdriver.js"></script>
+<script src="../wpt-import/resources/testdriver-vendor.js"></script>
+<script>
+promise_test(async t => {
+    const cases = [
+        {
+            fragment: "cafe",
+            target: "accent",
+            description: "primary-strength matching ignores accents",
+        },
+        {
+            fragment: encodeURIComponent("résumé"),
+            target: "canonical",
+            description: "canonically equivalent matches may have different UTF-16 lengths",
+        },
+        {
+            fragment: encodeURIComponent("ようこそ"),
+            target: "cjk",
+            description: "Japanese word boundaries use the document language",
+        },
+    ];
+
+    for (const [index, testCase] of cases.entries()) {
+        const resultKey = `unicode-text-fragment-${index}`;
+        localStorage.removeItem(resultKey);
+        t.add_cleanup(() => localStorage.removeItem(resultKey));
+
+        const target = new URL("../../data/scroll-to-text-fragment-unicode-matching-target.html", location.href);
+        target.searchParams.set("resultKey", resultKey);
+        target.searchParams.set("target", testCase.target);
+        target.hash = `:~:text=${testCase.fragment}`;
+        test_driver.bless("Open a URL with a Unicode text fragment", () => {
+            window.open(target, "_blank", "noopener");
+        });
+
+        await t.step_wait(() => localStorage.getItem(resultKey), testCase.description);
+        assert_equals(localStorage.getItem(resultKey), "true", testCase.description);
+    }
+}, "Text fragments use locale-aware primary-strength Unicode matching");
+</script>
