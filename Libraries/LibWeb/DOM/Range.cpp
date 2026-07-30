@@ -1298,9 +1298,9 @@ GC::Ref<Geometry::DOMRectList> Range::get_client_rects()
         return Geometry::DOMRectList::create({});
 
     auto& document = start_container()->document();
-    Layout::ForcedReadScope read { document };
     document.update_layout(DOM::UpdateLayoutReason::RangeGetClientRects);
-
+    document.update_paint_and_hit_testing_properties_if_needed();
+    Layout::ForcedReadScope read { document };
     Vector<GC::Root<Geometry::DOMRect>> rects;
     Optional<Compositing::AccumulatedVisualContextTree> visual_context_tree;
     auto rect_to_viewport_transform = Painting::identity_rect_to_viewport_transform();

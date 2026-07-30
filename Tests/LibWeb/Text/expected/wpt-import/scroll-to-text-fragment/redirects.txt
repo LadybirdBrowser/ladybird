@@ -2,18 +2,18 @@ Harness status: OK
 
 Found 14 tests
 
-14 Fail
-Fail	Text fragment works from HTTP 301 redirect.
-Fail	Text fragment works from HTTP 302 redirect.
-Fail	Text fragment works from HTTP 303 redirect.
-Fail	Text fragment works from HTTP 307 redirect.
-Fail	Text fragment works from HTTP 308 redirect.
-Fail	Text fragment propagated through HTTP 301 redirect.
-Fail	Text fragment propagated through HTTP 302 redirect.
-Fail	Text fragment propagated through HTTP 303 redirect.
-Fail	Text fragment propagated through HTTP 307 redirect.
-Fail	Text fragment propagated through HTTP 308 redirect.
-Fail	Text fragment works on client-side location redirect.
-Fail	Text fragment works on client-side meta redirect.
-Fail	One text fragment per user gesture allowed in client-side location redirect.
-Fail	One text fragment per user gesture allowed in client-side meta redirect.
+14 Pass
+Pass	Text fragment works from HTTP 301 redirect.
+Pass	Text fragment works from HTTP 302 redirect.
+Pass	Text fragment works from HTTP 303 redirect.
+Pass	Text fragment works from HTTP 307 redirect.
+Pass	Text fragment works from HTTP 308 redirect.
+Pass	Text fragment propagated through HTTP 301 redirect.
+Pass	Text fragment propagated through HTTP 302 redirect.
+Pass	Text fragment propagated through HTTP 303 redirect.
+Pass	Text fragment propagated through HTTP 307 redirect.
+Pass	Text fragment propagated through HTTP 308 redirect.
+Pass	Text fragment works on client-side location redirect.
+Pass	Text fragment works on client-side meta redirect.
+Pass	One text fragment per user gesture allowed in client-side location redirect.
+Pass	One text fragment per user gesture allowed in client-side meta redirect.

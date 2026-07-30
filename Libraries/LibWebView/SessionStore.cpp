@@ -19,7 +19,7 @@ namespace WebView {
 
 static constexpr u32 SESSIONS_SCHEMA_BASELINE_VERSION = 1u;
 static constexpr u32 SESSIONS_SCHEMA_USER_AGENT_INITIATED_VERSION = 2u;
-static constexpr u32 SESSIONS_SCHEMA_DIRECTIVE_STATE_VERSION = 2u;
+static constexpr u32 SESSIONS_SCHEMA_DIRECTIVE_STATE_VERSION = 3u;
 static constexpr u32 SESSIONS_SCHEMA_DOCUMENT_POLICY_VERSION = 4u;
 static constexpr u32 MAX_CLOSED_TABS = 25;
 static constexpr u32 MAX_CLOSED_WINDOWS = 5;

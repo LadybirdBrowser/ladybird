@@ -44,6 +44,9 @@
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/ViewportClient.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/Forward.h>
+#include <LibWeb/Fullscreen/FullscreenRequestType.h>
+#include <LibWeb/HTML/CrossOrigin/OpenerPolicy.h>
 #include <LibWeb/HTML/DocumentReadyState.h>
 #include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/GlobalEventHandlers.h>
@@ -753,6 +756,10 @@ public:
     };
     void set_focused_area(GC::Ptr<Node>, InvalidateFocusPseudoClasses = InvalidateFocusPseudoClasses::Yes);
 
+    // https://html.spec.whatwg.org/multipage/interaction.html#sequential-focus-navigation-starting-point
+    GC::Ptr<Node> sequential_focus_navigation_starting_point() { return m_sequential_focus_navigation_starting_point; }
+    void move_sequential_focus_navigation_starting_point_to(GC::Ptr<Node> node) { m_sequential_focus_navigation_starting_point = node; }
+
     HTML::FocusTrigger last_focus_trigger() const { return m_last_focus_trigger; }
     void set_last_focus_trigger(HTML::FocusTrigger trigger) { m_last_focus_trigger = trigger; }
 
@@ -770,6 +777,7 @@ public:
     void set_accessibility_focus_target(GC::Ptr<Element>);
 
     void try_to_scroll_to_the_fragment(bool allow_text_directive_scroll = false);
+    void schedule_text_fragment_search_after_parser_progress(Badge<HTML::HTMLParser>);
     void scroll_to_the_fragment(bool allow_text_directive_scroll = false);
     void scroll_to_the_beginning_of_the_document();
 
@@ -825,7 +833,14 @@ public:
     // https://wicg.github.io/scroll-to-text-fragment/#feature-detectability
     GC::Ref<FragmentDirective> fragment_directive();
     Optional<Vector<HTML::TextDirective>> const& pending_text_directives() const { return m_pending_text_directives; }
-    void set_pending_text_directives(Optional<Vector<HTML::TextDirective>> directives) { m_pending_text_directives = move(directives); }
+    void set_pending_text_directives(Optional<Vector<HTML::TextDirective>> directives)
+    {
+        m_text_fragment_ranges.clear();
+        m_pending_text_directives = move(directives);
+    }
+    void clear_pending_text_directives() { m_pending_text_directives.clear(); }
+    ReadonlySpan<GC::Ref<Range>> text_fragment_ranges() const { return m_text_fragment_ranges; }
+    bool pending_text_directive_scroll_allowed() const { return m_pending_text_directive_scroll_allowed; }
     bool check_if_a_text_directive_can_be_scrolled(Optional<URL::Origin> const&, Optional<HTML::UserNavigationInvolvement>);
     bool text_directive_user_activation() const { return m_text_directive_user_activation; }
     void set_text_directive_user_activation(bool value) { m_text_directive_user_activation = value; }
@@ -1139,8 +1154,8 @@ public:
     void shared_declarative_refresh_steps(Utf16View input, GC::Ptr<HTML::HTMLMetaElement const> meta_element = nullptr);
 
     struct TopOfTheDocument { };
-    using IndicatedPart = Variant<Element*, TopOfTheDocument>;
-    IndicatedPart determine_the_indicated_part() const;
+    using IndicatedPart = Variant<Element*, GC::Ptr<Range>, TopOfTheDocument>;
+    IndicatedPart determine_the_indicated_part();
 
     u32 unload_counter() const { return m_unload_counter; }
 
@@ -1847,6 +1862,9 @@ private:
     // https://html.spec.whatwg.org/multipage/interaction.html#focused-area-of-the-document
     GC::Ptr<Node> m_focused_area;
 
+    // https://html.spec.whatwg.org/multipage/interaction.html#sequential-focus-navigation-starting-point
+    GC::Ptr<Node> m_sequential_focus_navigation_starting_point;
+
     HTML::FocusTrigger m_last_focus_trigger { HTML::FocusTrigger::Other };
 
     GC::Ptr<Element> m_active_element;
@@ -1880,6 +1898,12 @@ private:
     GC::Ptr<DOMImplementation> m_implementation;
     GC::Ptr<FragmentDirective> m_fragment_directive;
     Optional<Vector<HTML::TextDirective>> m_pending_text_directives;
+    Vector<GC::Ref<Range>> m_text_fragment_ranges;
+    bool m_pending_text_directive_scroll_allowed { false };
+    bool m_text_fragment_parser_progress_search_pending { false };
+
+    // https://wicg.github.io/scroll-to-text-fragment/#restricting-the-text-fragment
+    // Each Document has a text directive user activation, which is a boolean, initially false.
     bool m_text_directive_user_activation { false };
     bool m_browsing_context_group_has_remote_contexts { false };
     GC::Ptr<HTML::HTMLScriptElement> m_current_script;
