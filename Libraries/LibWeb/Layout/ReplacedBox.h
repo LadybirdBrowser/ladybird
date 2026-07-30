@@ -25,7 +25,6 @@ public:
 
 private:
     virtual bool is_replaced_box() const final { return true; }
-    virtual bool has_auto_content_box_size() const override { return true; }
 };
 
 template<>

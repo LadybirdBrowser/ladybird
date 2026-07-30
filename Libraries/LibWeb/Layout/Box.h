@@ -45,7 +45,6 @@ public:
     // available) or may be computed from fallback sizing. Don't confuse this with the CSS preferred
     // aspect ratio.
     CSS::SizeWithAspectRatio auto_content_box_size() const;
-    virtual bool has_auto_content_box_size() const { return false; }
 
     // https://www.w3.org/TR/css-sizing-4/#preferred-aspect-ratio
     Optional<CSSPixelFraction> preferred_aspect_ratio() const;
