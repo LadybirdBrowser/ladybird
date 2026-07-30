@@ -329,6 +329,7 @@ static CSS::PseudoElement css_pseudo_element(RustFFI::FfiPseudoElement pseudo_el
     case RustFFI::FfiPseudoElement::Backdrop:
         return CSS::PseudoElement::Backdrop;
     case RustFFI::FfiPseudoElement::Other:
+    case RustFFI::FfiPseudoElement::None:
         VERIFY_NOT_REACHED();
     }
     VERIFY_NOT_REACHED();
@@ -502,10 +503,6 @@ RustFFI::FfiPseudoTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_pseudo_tr
             frame.layout_node->set_generated_for(pseudo_element, element);
             frame.layout_node->set_initial_quote_nesting_level(initial_quote_nesting_level);
             LayoutTreeBuilderAccess::set_synthetic_pseudo_element_node(element, pseudo_element, frame.layout_node); },
-        .resolve_counters = [](void* element_pointer, RustFFI::FfiPseudoElement ffi_pseudo) {
-            VERIFY(element_pointer);
-            DOM::AbstractElement element_reference { *static_cast<DOM::Element*>(element_pointer), css_pseudo_element(ffi_pseudo) };
-            CSS::resolve_counters(element_reference); },
         .resolve_content = [](void* frame_pointer, void* element_pointer, RustFFI::FfiPseudoElement ffi_pseudo, u32 initial_quote_nesting_level) -> RustFFI::FfiResolvedPseudoContentFacts {
             VERIFY(frame_pointer);
             VERIFY(element_pointer);
@@ -621,23 +618,17 @@ void LayoutTreeBuildBridge::detach_top_layer_element_layout_subtree(DOM::Element
         .remove_layout_node = [](void* layout_node_pointer) {
             VERIFY(layout_node_pointer);
             static_cast<Layout::Node*>(layout_node_pointer)->remove(); },
-        .clear_element_subtree = [](void* element_pointer) {
-            VERIFY(element_pointer);
-            auto& element = *static_cast<DOM::Element*>(element_pointer);
-            element.for_each_shadow_including_inclusive_descendant([&](auto& node) {
-                return clear_stale_layout_and_paint_node(node, &element);
+        .clear_stale_subtree = [](void* root_pointer) {
+            VERIFY(root_pointer);
+            auto& root = *static_cast<DOM::Node*>(root_pointer);
+            root.for_each_shadow_including_inclusive_descendant([&](auto& node) {
+                return clear_stale_layout_and_paint_node(node, &root);
             }); },
         .slot_element = [](void* element_pointer) -> void* {
             VERIFY(element_pointer);
             return as_if<HTML::HTMLSlotElement>(*static_cast<DOM::Element*>(element_pointer)); },
         .assigned_node_count = ffi_assigned_node_count,
         .assigned_node_at = ffi_assigned_node_at,
-        .clear_assigned_subtree = [](void* root_pointer) {
-            VERIFY(root_pointer);
-            auto& root = *static_cast<DOM::Node*>(root_pointer);
-            root.for_each_shadow_including_inclusive_descendant([&](auto& node) {
-                return clear_stale_layout_and_paint_node(node, &root);
-            }); },
     };
     RustFFI::rust_detach_top_layer_element_layout_subtree(
         &callbacks, element.document().layout_node_arena().handle(), &element);
@@ -682,11 +673,11 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             VERIFY(node_pointer);
             return static_cast<DOM::Node*>(node_pointer)->next_sibling();
         },
-        .clear_update_flags = [](void* node_pointer) {
+        .clear_dom_update_flags = [](void* node_pointer) {
             VERIFY(node_pointer);
-            auto& node = *static_cast<DOM::ParentNode*>(node_pointer);
-            node.set_child_needs_layout_tree_update(false);
-            node.set_needs_layout_tree_update(false, DOM::SetNeedsLayoutTreeUpdateReason::None); },
+            auto& node = *static_cast<DOM::Node*>(node_pointer);
+            node.set_needs_layout_tree_update(false, DOM::SetNeedsLayoutTreeUpdateReason::None);
+            node.set_child_needs_layout_tree_update(false); },
         .needs_layout_tree_update = [](void* node_pointer) {
             VERIFY(node_pointer);
             return static_cast<DOM::Node*>(node_pointer)->needs_layout_tree_update(); },
@@ -717,24 +708,31 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
         .clear_synthetic_pseudo_element_layout_nodes = [](void*, void* element_pointer) {
             VERIFY(element_pointer);
             LayoutTreeBuilderAccess::clear_synthetic_pseudo_element_layout_nodes(*static_cast<DOM::Element*>(element_pointer)); },
-        .clear_stale_inclusive_descendants = [](void* builder_pointer, void* element_pointer) {
-            VERIFY(builder_pointer);
-            VERIFY(element_pointer);
-            auto& builder = *static_cast<LayoutTreeBuildBridge*>(builder_pointer);
-            static_cast<DOM::Element*>(element_pointer)->for_each_shadow_including_inclusive_descendant([&](auto& node) {
-                return builder.clear_stale_layout_and_paint_node(node);
-            }); },
-        .resolve_counters = [](void* element_pointer) {
-            VERIFY(element_pointer);
-            DOM::AbstractElement element_reference { *static_cast<DOM::Element*>(element_pointer) };
-            CSS::resolve_counters(element_reference); },
-        .clear_stale_assigned_subtree = [](void* builder_pointer, void* root_pointer) {
+        .clear_stale_subtree = [](void* builder_pointer, void* root_pointer, RustFFI::FfiStaleSubtreeClearScope scope) {
             VERIFY(builder_pointer);
             VERIFY(root_pointer);
+            auto& builder = *static_cast<LayoutTreeBuildBridge*>(builder_pointer);
             auto& root = *static_cast<DOM::Node*>(root_pointer);
-            root.for_each_shadow_including_inclusive_descendant([&](auto& node) {
-                return static_cast<LayoutTreeBuildBridge*>(builder_pointer)->clear_stale_layout_and_paint_node(node, &root);
-            }); },
+            auto const* cleared_subtree_root = scope == RustFFI::FfiStaleSubtreeClearScope::Inclusive ? nullptr : &root;
+            if (scope == RustFFI::FfiStaleSubtreeClearScope::DescendantsBoundedToRoot) {
+                root.for_each_shadow_including_descendant([&](auto& node) {
+                    return builder.clear_stale_layout_and_paint_node(node, cleared_subtree_root);
+                });
+            } else {
+                root.for_each_shadow_including_inclusive_descendant([&](auto& node) {
+                    return builder.clear_stale_layout_and_paint_node(node, cleared_subtree_root);
+                });
+            } },
+        .resolve_counters = [](void* element_pointer, RustFFI::FfiPseudoElement ffi_pseudo) {
+            VERIFY(element_pointer);
+            auto& element = *static_cast<DOM::Element*>(element_pointer);
+            if (ffi_pseudo == RustFFI::FfiPseudoElement::None) {
+                DOM::AbstractElement element_reference { element };
+                CSS::resolve_counters(element_reference);
+            } else {
+                DOM::AbstractElement element_reference { element, css_pseudo_element(ffi_pseudo) };
+                CSS::resolve_counters(element_reference);
+            } },
         .principal_descendant_facts = [](void*, void* node_pointer, void* layout_node_pointer) -> RustFFI::FfiPrincipalDescendantFacts {
             VERIFY(node_pointer);
             VERIFY(layout_node_pointer);
@@ -773,14 +771,6 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
         .create_first_letter_wrapper = [](void*, void* element_pointer, RustFFI::FfiFirstLetterTarget target) {
             VERIFY(element_pointer);
             create_first_letter_wrapper(*static_cast<DOM::Element*>(element_pointer), target); },
-        .clear_stale_descendants = [](void* builder_pointer, void* node_pointer) {
-            VERIFY(builder_pointer);
-            VERIFY(node_pointer);
-            auto& builder = *static_cast<LayoutTreeBuildBridge*>(builder_pointer);
-            auto& node = *static_cast<DOM::Node*>(node_pointer);
-            node.for_each_shadow_including_descendant([&](auto& descendant) {
-                return builder.clear_stale_layout_and_paint_node(descendant, &node);
-            }); },
         .ensure_replaced_children_wrapper = [](void* builder_pointer, void* layout_node_pointer, void* parent_pointer) -> RustFFI::NodeSlotId {
             VERIFY(builder_pointer);
             VERIFY(layout_node_pointer);
@@ -817,19 +807,6 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
                 .has_computed_style = computed_values != nullptr,
                 .display_is_none = computed_values && computed_values->display().is_none(),
             }; },
-        .clear_stale_top_layer_subtree = [](void* builder_pointer, void* element_pointer) {
-            VERIFY(builder_pointer);
-            VERIFY(element_pointer);
-            auto& builder = *static_cast<LayoutTreeBuildBridge*>(builder_pointer);
-            auto& element = *static_cast<DOM::Element*>(element_pointer);
-            element.for_each_shadow_including_inclusive_descendant([&](auto& node) {
-                return builder.clear_stale_layout_and_paint_node(node, &element);
-            }); },
-        .clear_dom_update_flags = [](void* node_pointer) {
-            VERIFY(node_pointer);
-            auto& node = *static_cast<DOM::Node*>(node_pointer);
-            node.set_needs_layout_tree_update(false, DOM::SetNeedsLayoutTreeUpdateReason::None);
-            node.set_child_needs_layout_tree_update(false); },
         .svg_pattern_content_element = [](void* pattern_pointer) -> void* {
             VERIFY(pattern_pointer);
             return const_cast<SVG::SVGPatternElement*>(static_cast<SVG::SVGPatternElement*>(pattern_pointer)->pattern_content_element().ptr()); },
@@ -1051,13 +1028,6 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             case RustFFI::FfiPrincipalBoxPlacement::NormalInsertion:
                 VERIFY_NOT_REACHED();
             } },
-        .clear_stale_inclusive_subtree = [](void* builder_pointer, void* node_pointer) {
-            VERIFY(builder_pointer);
-            VERIFY(node_pointer);
-            auto& builder = *static_cast<LayoutTreeBuildBridge*>(builder_pointer);
-            static_cast<DOM::Node*>(node_pointer)->for_each_shadow_including_inclusive_descendant([&](auto& node) {
-                return builder.clear_stale_layout_and_paint_node(node);
-            }); },
         .reset_style_ancestor_filter = [](void* document_pointer) {
             VERIFY(document_pointer);
             static_cast<DOM::Document*>(document_pointer)->style_computer().reset_ancestor_filter(); },

@@ -53,12 +53,23 @@ impl TreeBuilderState {
     }
 }
 
+// How clear_stale_subtree walks the shadow-including subtree. Bounded scopes clear SVG resource
+// boxes whose layout attachment lies inside the cleared root; the unbounded scope always lets
+// them survive the cleanup.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum FfiStaleSubtreeClearScope {
+    Inclusive,
+    InclusiveBoundedToRoot,
+    DescendantsBoundedToRoot,
+}
+
 #[repr(C)]
 pub struct FfiDomTreeBuilderCallbacks {
     pub builder: *mut c_void,
     pub first_child: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
     pub next_sibling: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
-    pub clear_update_flags: unsafe extern "C" fn(*mut c_void),
+    pub clear_dom_update_flags: unsafe extern "C" fn(*mut c_void),
     pub needs_layout_tree_update: unsafe extern "C" fn(*mut c_void) -> bool,
     pub assigned_node_count: unsafe extern "C" fn(*mut c_void) -> usize,
     pub assigned_node_at: unsafe extern "C" fn(*mut c_void, usize) -> *mut c_void,
@@ -66,22 +77,18 @@ pub struct FfiDomTreeBuilderCallbacks {
     pub clear_stale_layout_and_paint_node: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub display_contents_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiDisplayContentsFacts,
     pub clear_synthetic_pseudo_element_layout_nodes: unsafe extern "C" fn(*mut c_void, *mut c_void),
-    pub clear_stale_inclusive_descendants: unsafe extern "C" fn(*mut c_void, *mut c_void),
-    pub resolve_counters: unsafe extern "C" fn(*mut c_void),
-    pub clear_stale_assigned_subtree: unsafe extern "C" fn(*mut c_void, *mut c_void),
+    pub clear_stale_subtree: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiStaleSubtreeClearScope),
+    pub resolve_counters: unsafe extern "C" fn(*mut c_void, FfiPseudoElement),
     pub principal_descendant_facts:
         unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void) -> FfiPrincipalDescendantFacts,
     pub layout_node_has_first_letter_style: unsafe extern "C" fn(*mut c_void) -> bool,
     pub create_first_letter_wrapper: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiFirstLetterTarget),
-    pub clear_stale_descendants: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub ensure_replaced_children_wrapper: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void) -> NodeSlotId,
     pub top_layer_element_count: unsafe extern "C" fn(*mut c_void) -> usize,
     pub copy_top_layer_elements: unsafe extern "C" fn(*mut c_void, *mut *mut c_void, usize),
     pub rendered_in_top_layer: unsafe extern "C" fn(*mut c_void) -> bool,
     pub flat_tree_parent: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
     pub flat_tree_render_facts: unsafe extern "C" fn(*mut c_void) -> FfiFlatTreeRenderFacts,
-    pub clear_stale_top_layer_subtree: unsafe extern "C" fn(*mut c_void, *mut c_void),
-    pub clear_dom_update_flags: unsafe extern "C" fn(*mut c_void),
     pub svg_pattern_content_element: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
     pub register_svg_resource_reference: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub layout_node_dom_node: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
@@ -105,7 +112,6 @@ pub struct FfiDomTreeBuilderCallbacks {
     pub apply_replaced_display_adjustment: unsafe extern "C" fn(*mut c_void, FfiReplacedElementDisplayAdjustment),
     pub insert_principal_backdrop_before_old: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void),
     pub place_principal_layout: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, FfiPrincipalBoxPlacement),
-    pub clear_stale_inclusive_subtree: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub reset_style_ancestor_filter: unsafe extern "C" fn(*mut c_void),
     pub document_layout_node: unsafe extern "C" fn(*mut c_void) -> NodeSlotId,
     pub report_rebuild_outcome: unsafe extern "C" fn(*mut c_void, *const *mut c_void, usize, bool),
@@ -358,11 +364,10 @@ pub struct FfiTopLayerDetachCallbacks {
     pub element_layout_node: unsafe extern "C" fn(*mut c_void) -> NodeSlotId,
     pub prepare_subtree_for_detach: unsafe extern "C" fn(*mut c_void),
     pub remove_layout_node: unsafe extern "C" fn(*mut c_void),
-    pub clear_element_subtree: unsafe extern "C" fn(*mut c_void),
+    pub clear_stale_subtree: unsafe extern "C" fn(*mut c_void),
     pub slot_element: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
     pub assigned_node_count: unsafe extern "C" fn(*mut c_void) -> usize,
     pub assigned_node_at: unsafe extern "C" fn(*mut c_void, usize) -> *mut c_void,
-    pub clear_assigned_subtree: unsafe extern "C" fn(*mut c_void),
 }
 
 /// Finds the box to detach for a top-layer element: the element's own box, or the outermost
@@ -427,7 +432,7 @@ pub unsafe extern "C" fn rust_detach_top_layer_element_layout_subtree(
         }
 
         // SAFETY: The element remains live throughout subtree cleanup.
-        unsafe { (callbacks.clear_element_subtree)(element) };
+        unsafe { (callbacks.clear_stale_subtree)(element) };
         // SAFETY: The callback returns the element's adjusted HTMLSlotElement pointer, if any.
         let slot_element = unsafe { (callbacks.slot_element)(element) };
         if !slot_element.is_null() {
@@ -435,7 +440,7 @@ pub unsafe extern "C" fn rust_detach_top_layer_element_layout_subtree(
                 slot_element,
                 |slot| unsafe { (callbacks.assigned_node_count)(slot) },
                 |slot, index| unsafe { (callbacks.assigned_node_at)(slot, index) },
-                |root| unsafe { (callbacks.clear_assigned_subtree)(root) },
+                |root| unsafe { (callbacks.clear_stale_subtree)(root) },
             );
         }
     });
@@ -660,7 +665,7 @@ unsafe fn update_layout_tree_for_shadow_root_children(
             node = host.next_sibling(node);
         }
         // SAFETY: `shadow_root` remains live throughout the call.
-        unsafe { (host.callbacks.clear_update_flags)(shadow_root) };
+        unsafe { (host.callbacks.clear_dom_update_flags)(shadow_root) };
     });
 }
 
@@ -775,8 +780,12 @@ unsafe fn update_layout_tree_for_display_contents(
         if should_create_layout_node {
             // SAFETY: The builder and element remain live throughout this call.
             unsafe {
-                (host.callbacks.clear_stale_inclusive_descendants)(host.callbacks.builder, element);
-                (host.callbacks.resolve_counters)(element);
+                (host.callbacks.clear_stale_subtree)(
+                    host.callbacks.builder,
+                    element,
+                    FfiStaleSubtreeClearScope::Inclusive,
+                );
+                (host.callbacks.resolve_counters)(element, FfiPseudoElement::None);
             }
         }
 
@@ -835,7 +844,13 @@ unsafe fn update_layout_tree_for_display_contents(
                     facts.slot_element,
                     |slot| unsafe { (host.callbacks.assigned_node_count)(slot) },
                     |slot, index| unsafe { (host.callbacks.assigned_node_at)(slot, index) },
-                    |root| unsafe { (host.callbacks.clear_stale_assigned_subtree)(host.callbacks.builder, root) },
+                    |root| unsafe {
+                        (host.callbacks.clear_stale_subtree)(
+                            host.callbacks.builder,
+                            root,
+                            FfiStaleSubtreeClearScope::InclusiveBoundedToRoot,
+                        );
+                    },
                 );
             }
         }
@@ -852,7 +867,7 @@ unsafe fn update_layout_tree_for_display_contents(
 
         assert!(!facts.dom_children_parent.is_null());
         // SAFETY: The element's ParentNode subobject remains live throughout this call.
-        unsafe { (host.callbacks.clear_update_flags)(facts.dom_children_parent) };
+        unsafe { (host.callbacks.clear_dom_update_flags)(facts.dom_children_parent) };
 
         if clear_layout_top_layer_for_descendants {
             context.layout_top_layer = true;
@@ -969,7 +984,7 @@ unsafe fn update_principal_node_descendants(
             // Resolve counters now that we exist in the layout tree.
             if facts.is_element {
                 // SAFETY: `dom_node` is a live Element when this fact is set.
-                unsafe { (host.callbacks.resolve_counters)(dom_node) };
+                unsafe { (host.callbacks.resolve_counters)(dom_node, FfiPseudoElement::None) };
             }
 
             // Add the ::before pseudo-element before walking normal children.
@@ -989,7 +1004,11 @@ unsafe fn update_principal_node_descendants(
         if facts.content_visibility_hidden {
             // SAFETY: The builder and DOM node remain live throughout the call.
             unsafe {
-                (host.callbacks.clear_stale_descendants)(host.callbacks.builder, dom_node);
+                (host.callbacks.clear_stale_subtree)(
+                    host.callbacks.builder,
+                    dom_node,
+                    FfiStaleSubtreeClearScope::DescendantsBoundedToRoot,
+                );
             }
         }
 
@@ -1077,7 +1096,11 @@ unsafe fn update_principal_node_descendants(
                     if has_unrendered_flat_tree_ancestor(host, element) {
                         // SAFETY: The builder and element remain live throughout cleanup.
                         unsafe {
-                            (host.callbacks.clear_stale_top_layer_subtree)(host.callbacks.builder, element);
+                            (host.callbacks.clear_stale_subtree)(
+                                host.callbacks.builder,
+                                element,
+                                FfiStaleSubtreeClearScope::InclusiveBoundedToRoot,
+                            );
                         }
                         continue;
                     }
@@ -1108,7 +1131,13 @@ unsafe fn update_principal_node_descendants(
                     facts.slot_element,
                     |slot| unsafe { (host.callbacks.assigned_node_count)(slot) },
                     |slot, index| unsafe { (host.callbacks.assigned_node_at)(slot, index) },
-                    |root| unsafe { (host.callbacks.clear_stale_assigned_subtree)(host.callbacks.builder, root) },
+                    |root| unsafe {
+                        (host.callbacks.clear_stale_subtree)(
+                            host.callbacks.builder,
+                            root,
+                            FfiStaleSubtreeClearScope::InclusiveBoundedToRoot,
+                        );
+                    },
                 );
             }
         }
@@ -1459,7 +1488,13 @@ fn update_principal_node_after_entry(
     } else if !handled_display_contents {
         // If no layout node was created, remove every stale layout and paint node from the shadow-including subtree.
         // SAFETY: The builder and DOM node remain live throughout cleanup.
-        unsafe { (host.callbacks.clear_stale_inclusive_subtree)(host.callbacks.builder, dom_node) };
+        unsafe {
+            (host.callbacks.clear_stale_subtree)(
+                host.callbacks.builder,
+                dom_node,
+                FfiStaleSubtreeClearScope::Inclusive,
+            );
+        }
     }
 
     if entry_decision.svg == SvgEntryDecision::EnterSvgRoot {
@@ -1586,6 +1621,8 @@ pub enum FfiPseudoElement {
     Marker,
     Backdrop,
     Other,
+    // Marks counter resolution against the element itself rather than one of its pseudo-elements.
+    None,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1643,7 +1680,6 @@ pub struct FfiPseudoTreeBuilderCallbacks {
     pub apply_replaced_display_adjustment: unsafe extern "C" fn(*mut c_void, FfiReplacedElementDisplayAdjustment),
     pub create_nested_list_marker: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void),
     pub configure_layout_node: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiPseudoElement, u32),
-    pub resolve_counters: unsafe extern "C" fn(*mut c_void, FfiPseudoElement),
     pub resolve_content:
         unsafe extern "C" fn(*mut c_void, *mut c_void, FfiPseudoElement, u32) -> FfiResolvedPseudoContentFacts,
     pub create_content_item: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiPseudoElement, usize) -> NodeSlotId,
@@ -1797,7 +1833,7 @@ fn create_pseudo_element_with_frame(
         );
     }
     // SAFETY: The element remains live and its pseudo-element layout node is attached when requested.
-    unsafe { (callbacks.resolve_counters)(element, pseudo_element) };
+    unsafe { (host.callbacks.resolve_counters)(element, pseudo_element) };
 
     // Resolve content after insertion because counter() and counters() items read the counters established by this
     // pseudo-element's box.
