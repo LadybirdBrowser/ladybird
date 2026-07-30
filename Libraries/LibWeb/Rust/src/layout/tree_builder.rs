@@ -85,7 +85,6 @@ pub struct FfiDomTreeBuilderCallbacks {
     pub reuse_principal_layout: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub principal_layout_node: unsafe extern "C" fn(*mut c_void) -> NodeSlotId,
     pub attach_principal_style_resources: unsafe extern "C" fn(*mut c_void),
-    pub principal_layout_facts: unsafe extern "C" fn(*mut c_void) -> FfiPrincipalLayoutFacts,
     pub apply_replaced_display_adjustment: unsafe extern "C" fn(*mut c_void, FfiReplacedElementDisplayAdjustment),
     pub principal_placement_facts:
         unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, bool, bool) -> FfiPrincipalBoxPlacementFacts,
@@ -179,13 +178,6 @@ pub struct FfiPrincipalDisplayFacts {
     pub display_is_block_outside: bool,
     pub display_is_internal_table: bool,
     pub display_is_table_caption: bool,
-}
-
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct FfiPrincipalLayoutFacts {
-    pub is_replaced_element: bool,
-    pub display: FfiPrincipalDisplayFacts,
 }
 
 #[derive(Clone, Copy)]
@@ -1311,19 +1303,12 @@ fn update_principal_node_after_entry(
             unsafe { (host.callbacks.attach_principal_style_resources)(frame) };
         }
 
-        // SAFETY: The frame owns the live principal layout node and its display.
-        let layout_facts = unsafe { (host.callbacks.principal_layout_facts)(frame) };
-        if layout_facts.is_replaced_element {
-            let adjustment = adjusted_table_display_for_replaced_element(
-                layout_facts.display.display_is_table_inside,
-                layout_facts.display.display_is_block_outside,
-                layout_facts.display.display_is_internal_table,
-                layout_facts.display.display_is_table_caption,
-            );
-            if adjustment != FfiReplacedElementDisplayAdjustment::None {
-                // SAFETY: The frame owns a live NodeWithStyle.
-                unsafe { (host.callbacks.apply_replaced_display_adjustment)(frame, adjustment) };
-            }
+        // SAFETY: `has_layout_node` guarantees that the frame owns a live principal layout node.
+        let layout_node = unsafe { (host.callbacks.principal_layout_node)(frame) };
+        let adjustment = replaced_element_display_adjustment(host.layout().data(layout_node));
+        if adjustment != FfiReplacedElementDisplayAdjustment::None {
+            // SAFETY: The frame owns a live NodeWithStyle.
+            unsafe { (host.callbacks.apply_replaced_display_adjustment)(frame, adjustment) };
         }
 
         // SAFETY: All pointers remain live and the frame owns both old and new layout nodes.
@@ -1336,8 +1321,6 @@ fn update_principal_node_after_entry(
                 entry_decision.should_create_layout_node,
             )
         };
-        // SAFETY: `has_layout_node` guarantees that the frame owns a live principal layout node.
-        let layout_node = unsafe { (host.callbacks.principal_layout_node)(frame) };
         let layout_node_is_svg_box = node_kind_is_svg_box(host.layout().data(layout_node).kind);
         let prior_layout_top_layer = context.layout_top_layer;
         let placement =
@@ -1600,7 +1583,6 @@ pub struct FfiPseudoTreeBuilderCallbacks {
         unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, FfiPseudoElement, FfiPseudoElementDecision),
     pub layout_node: unsafe extern "C" fn(*mut c_void) -> NodeSlotId,
     pub attach_style_resources: unsafe extern "C" fn(*mut c_void),
-    pub layout_facts: unsafe extern "C" fn(*mut c_void) -> FfiPrincipalLayoutFacts,
     pub apply_replaced_display_adjustment: unsafe extern "C" fn(*mut c_void, FfiReplacedElementDisplayAdjustment),
     pub create_nested_list_marker: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void),
     pub configure_layout_node: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiPseudoElement, u32),
@@ -1727,14 +1709,7 @@ fn create_pseudo_element_with_frame(
     // SAFETY: The frame owns a live pseudo-element layout node.
     unsafe { (callbacks.attach_style_resources)(frame) };
     if decision == FfiPseudoElementDecision::ContentReplacement {
-        // SAFETY: The frame owns the live replacement node and its display.
-        let layout_facts = unsafe { (callbacks.layout_facts)(frame) };
-        let adjustment = adjusted_table_display_for_replaced_element(
-            layout_facts.display.display_is_table_inside,
-            layout_facts.display.display_is_block_outside,
-            layout_facts.display.display_is_internal_table,
-            layout_facts.display.display_is_table_caption,
-        );
+        let adjustment = replaced_element_display_adjustment(host.layout().data(layout_node));
         if adjustment != FfiReplacedElementDisplayAdjustment::None {
             // SAFETY: The frame owns a live NodeWithStyle.
             unsafe { (callbacks.apply_replaced_display_adjustment)(frame, adjustment) };
@@ -1790,6 +1765,22 @@ fn create_pseudo_element_with_frame(
     }
 
     layout_node
+}
+
+fn is_internal_table_display(display: FfiTableDisplay) -> bool {
+    is_table_track(display) || is_table_track_group(display) || display == FfiTableDisplay::TableCell
+}
+
+fn replaced_element_display_adjustment(data: &NodeData) -> FfiReplacedElementDisplayAdjustment {
+    if !node_has_flag(data, NodeFlag::IsReplacedElement) {
+        return FfiReplacedElementDisplayAdjustment::None;
+    }
+    adjusted_table_display_for_replaced_element(
+        data.table_display == FfiTableDisplay::TableRoot,
+        !node_has_display_flag(data, NodeDisplayFlag::InlineOutside),
+        is_internal_table_display(data.table_display),
+        data.table_display == FfiTableDisplay::TableCaption,
+    )
 }
 
 pub(crate) fn adjusted_table_display_for_replaced_element(
