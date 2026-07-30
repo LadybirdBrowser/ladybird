@@ -2358,7 +2358,14 @@ RefPtr<StyleValue const> Parser::parse_as_type(ValueType value_type)
 {
     auto component_values = parse_a_list_of_component_values(m_token_stream);
     TokenStream tokens { component_values };
-    return parse_value(value_type, tokens);
+    auto parsed_value = parse_value(value_type, tokens);
+
+    tokens.discard_whitespace();
+
+    if (!parsed_value || !tokens.is_empty())
+        return nullptr;
+
+    return parsed_value;
 }
 
 // https://html.spec.whatwg.org/multipage/images.html#parsing-a-sizes-attribute

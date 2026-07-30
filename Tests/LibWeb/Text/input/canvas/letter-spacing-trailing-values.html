@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d");
+
+        context.letterSpacing = "5px";
+        context.letterSpacing = "10px 20px";
+
+        println(context.letterSpacing);
+    });
+</script>
