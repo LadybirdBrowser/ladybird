@@ -31,7 +31,10 @@ public:
     virtual bool is_open() const override;
     virtual void close() override;
     virtual ErrorOr<void> truncate(size_t) override;
-    virtual ErrorOr<Bytes> read_some(Bytes bytes) override
+    // NOTE: This is inline for performance but the compiler only emits it in the key function's TU;
+    //       Not marking it default visible will make it hidden for all other TUs, which would make devirtualized
+    //       calls hit link errors against the hidden symbol.
+    [[gnu::visibility("default")]] virtual ErrorOr<Bytes> read_some(Bytes bytes) override
     {
         auto read = m_bytes.slice(m_offset).copy_trimmed_to(bytes);
         m_offset += read;
