@@ -264,10 +264,6 @@ public:
     NodeWithStyle* parent();
     NodeWithStyle const* parent() const;
 
-    void inserted_into(Node&) { }
-    void removed_from(Node&) { }
-    void children_changed() { }
-
     bool children_are_inline() const { return has_flag(RustFFI::NodeFlag::ChildrenAreInline); }
     void set_children_are_inline(bool value) { set_flag(RustFFI::NodeFlag::ChildrenAreInline, value); }
 
