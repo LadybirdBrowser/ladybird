@@ -32,6 +32,7 @@ static WebView::DownloadRecord example_download(u64 id = 7)
         .last_modified = {},
         .segments = { { 0, 2047, 1024 }, { 2048, 4095, 2048 } },
         .created_time = UnixDateTime::from_seconds_since_epoch(1000),
+        .can_restart_from_zero = true,
     };
 }
 
@@ -55,6 +56,7 @@ TEST_CASE(downloads_round_trip)
     EXPECT_EQ(download.etag, "\"abc123\""_string);
     EXPECT(!download.last_modified.has_value());
     EXPECT_EQ(download.created_time, UnixDateTime::from_seconds_since_epoch(1000));
+    EXPECT(download.can_restart_from_zero);
 
     EXPECT_EQ(download.segments.size(), 2u);
     EXPECT_EQ(download.segments[0].start_offset, 0u);
@@ -74,12 +76,14 @@ TEST_CASE(saving_a_download_again_replaces_its_segments)
 
     auto updated = example_download();
     updated.segments = { { 0, 4095, 3000 } };
+    updated.can_restart_from_zero = false;
     store->save_download(updated);
 
     auto downloads = store->resumable_downloads();
     EXPECT_EQ(downloads.size(), 1u);
     EXPECT_EQ(downloads.first().segments.size(), 1u);
     EXPECT_EQ(downloads.first().segments[0].next_offset, 3000u);
+    EXPECT(!downloads.first().can_restart_from_zero);
 }
 
 TEST_CASE(downloads_can_be_removed)
@@ -167,6 +171,43 @@ TEST_CASE(a_disabled_store_remembers_nothing)
     EXPECT_EQ(store->maximum_download_id(), 0u);
 
     store->remove_download(7);
+}
+
+TEST_CASE(a_database_left_at_an_older_schema_is_brought_forward)
+{
+    auto database = create_database();
+
+    MUST(database->execute_raw(R"#(
+        CREATE TABLE Downloads (
+            id INTEGER PRIMARY KEY,
+            url TEXT NOT NULL,
+            display_url TEXT NOT NULL,
+            destination TEXT NOT NULL,
+            temporary_destination TEXT NOT NULL,
+            total_size INTEGER NOT NULL,
+            etag TEXT NOT NULL,
+            last_modified TEXT NOT NULL,
+            segments TEXT NOT NULL,
+            created_time INTEGER NOT NULL,
+            updated_time INTEGER NOT NULL
+        );
+        CREATE TABLE SchemaVersions (store TEXT PRIMARY KEY, version INTEGER NOT NULL);
+        INSERT INTO SchemaVersions (store, version) VALUES ('Downloads', 1);
+        INSERT INTO Downloads VALUES (5, 'https://example.com/a', 'https://example.com/a', '/tmp/a', '/tmp/a.download', 4096, '"e"', '', '[{"start":0,"end":4095,"next":100}]', 10, 10);
+    )#"));
+
+    EXPECT_EQ(MUST(WebView::DownloadStore::migrate_schema(database)), Database::MigrationOutcome::Success);
+
+    auto store = MUST(WebView::DownloadStore::create(database));
+
+    auto downloads = store->resumable_downloads();
+    EXPECT_EQ(downloads.size(), 1u);
+    EXPECT_EQ(downloads.first().id, 5u);
+
+    EXPECT(!downloads.first().can_restart_from_zero);
+
+    store->save_download(example_download(6));
+    EXPECT_EQ(store->resumable_downloads().size(), 2u);
 }
 
 TEST_CASE(migrating_an_already_migrated_schema_is_a_no_op)
