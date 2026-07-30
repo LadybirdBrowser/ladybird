@@ -1061,11 +1061,9 @@ impl<'pass> TableFormattingContext<'pass> {
         // specified width of the table root is either a <length-percentage>, min-content or fit-content. When the specified width is not one of
         // those values, or if the computed value of the table-layout property is auto, then the table-root is said to be laid out in auto mode.
         let style = self.style_facts(self.table_box);
+        let width = style.width();
         style.table_layout() == TABLE_LAYOUT_FIXED
-            && (style.width().is_length()
-                || style.width().is_percentage()
-                || style.width().is_min_content()
-                || style.width().is_fit_content())
+            && (width.is_length() || width.is_percentage() || width.is_min_content() || width.is_fit_content())
     }
 
     fn compute_constrainedness(&mut self) {
@@ -1152,14 +1150,16 @@ impl<'pass> TableFormattingContext<'pass> {
                 )
             };
             let inline_offsets = padding_inline_start + padding_inline_end + border_inline_start + border_inline_end;
+            let width = style.width();
+            let max_width = style.max_width();
             let mut min_inline = style.min_width().to_px(inline_basis);
-            let mut inline_size = if style.width().is_length() {
-                style.width().to_px(inline_basis)
+            let mut inline_size = if width.is_length() {
+                width.to_px(inline_basis)
             } else {
                 CssPixels::default()
             };
-            let mut max_inline = if style.max_width().is_length() {
-                style.max_width().to_px(inline_basis)
+            let mut max_inline = if max_width.is_length() {
+                max_width.to_px(inline_basis)
             } else {
                 CssPixels::from_raw(i32::MAX)
             };
@@ -1174,7 +1174,7 @@ impl<'pass> TableFormattingContext<'pass> {
             // of cells is considered zero unless they are directly specified as a length-percentage, in which case they are
             // resolved based on the table width (if it is definite, otherwise use 0).
             let (min_content_inline, max_content_inline) = if fixed {
-                if style.width().is_length_percentage() {
+                if width.is_length_percentage() {
                     (inline_size, inline_size)
                 } else {
                     (CssPixels::default(), CssPixels::default())
@@ -1198,13 +1198,15 @@ impl<'pass> TableFormattingContext<'pass> {
                 // The tables specification isn't explicit on how to use the height and max-height CSS properties in the outer max-content formulas.
                 // However, during this early phase we don't have enough information to resolve percentage sizes yet and the formulas for outer sizes
                 // in the specification give enough clues to pick defaults in a way that makes sense.
-                let block_size = if style.height().is_length() {
-                    style.height().to_px(block_basis)
+                let height = style.height();
+                let max_height = style.max_height();
+                let block_size = if height.is_length() {
+                    height.to_px(block_basis)
                 } else {
                     CssPixels::default()
                 };
-                let max_block = if style.max_height().is_length() {
-                    style.max_height().to_px(block_basis)
+                let max_block = if max_height.is_length() {
+                    max_height.to_px(block_basis)
                 } else {
                     CssPixels::from_raw(i32::MAX)
                 };
@@ -2013,12 +2015,12 @@ impl<'pass> TableFormattingContext<'pass> {
                 self.rows[row_index].base_block_size = CssPixels::default();
                 continue;
             }
-            let style = self.style_facts(self.rows[row_index].box_);
-            if style.height().is_length() {
+            let height = self.style_facts(self.rows[row_index].box_).height();
+            if height.is_length() {
                 // NOTE: A <length> block size resolves without a percentage basis.
                 self.rows[row_index].base_block_size = self.rows[row_index]
                     .base_block_size
-                    .max(style.height().to_px(CssPixels::default()));
+                    .max(height.to_px(CssPixels::default()));
             }
         }
         let inline_basis = self.participant_constraints.inline_basis();
@@ -2043,8 +2045,9 @@ impl<'pass> TableFormattingContext<'pass> {
                 used.border_left.set(style.border_left_width());
                 used.border_right.set(style.border_right_width());
             }
-            if !self.rows[cell.row_index].is_collapsed && style.height().is_length() {
-                let cell_size = style.height().to_px(participant_block_basis);
+            let height = style.height();
+            if !self.rows[cell.row_index].is_collapsed && height.is_length() {
+                let cell_size = height.to_px(participant_block_basis);
                 used.set_content_block_size(
                     cell_size - used.border_box_top(collapsed) - used.border_box_bottom(collapsed),
                 );

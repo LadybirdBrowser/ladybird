@@ -43,10 +43,10 @@ pub enum FfiSizeKind {
 ///
 /// Values decoded in Rust from the node's style group payloads borrow their
 /// calc pointer from those payloads, which outlive the synchronous layout
-/// pass; anchor() inset values borrow theirs from the wrappers the node's
-/// decode cache owns. Only values built by LayoutRustBridge carry a
-/// bridge-retained handle (`calc_is_bridge_retained`), released through the
-/// pass callback table.
+/// pass; anchor() inset values borrow theirs from the wrappers the
+/// LayoutState's anchor-inset store owns. Only values built by
+/// LayoutRustBridge carry a bridge-retained handle
+/// (`calc_is_bridge_retained`), released through the pass callback table.
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct FfiSizeValue {
@@ -266,17 +266,17 @@ impl Default for FfiStylePayloads {
 }
 
 #[derive(Clone, Copy)]
-struct StyleReader {
-    payloads: FfiStylePayloads,
+pub(crate) struct StyleReader<'a> {
+    payloads: &'a FfiStylePayloads,
 }
 
-impl StyleReader {
-    fn new(payloads: FfiStylePayloads) -> Self {
+impl<'a> StyleReader<'a> {
+    fn new(payloads: &'a FfiStylePayloads) -> Self {
         Self { payloads }
     }
 
     #[inline]
-    fn native_group<T>(&self, group_index: usize) -> &T {
+    fn native_group<T>(&self, group_index: usize) -> &'a T {
         let payload = self.payloads.groups[group_index];
         debug_assert!(!payload.is_null());
         // SAFETY: The payload is the Rust-defined group struct itself; C++
@@ -286,117 +286,138 @@ impl StyleReader {
     }
 
     #[inline]
-    fn sizing(&self) -> &crate::layout::SizingValues {
+    fn sizing(&self) -> &'a crate::layout::SizingValues {
         self.native_group(STYLE_GROUP_INDEX_SIZING)
     }
 
     #[inline]
-    fn surround(&self) -> &crate::layout::SurroundValues {
+    fn surround(&self) -> &'a crate::layout::SurroundValues {
         self.native_group(STYLE_GROUP_INDEX_SURROUND)
     }
 
     #[inline]
-    fn alignment(&self) -> &crate::layout::AlignmentValues {
+    fn alignment(&self) -> &'a crate::layout::AlignmentValues {
         self.native_group(STYLE_GROUP_INDEX_ALIGNMENT)
     }
 
     #[inline]
-    fn svg_reset(&self) -> &crate::layout::SVGResetValues {
+    fn svg_reset(&self) -> &'a crate::layout::SVGResetValues {
         self.native_group(STYLE_GROUP_INDEX_SVG_RESET)
     }
 
     #[inline]
-    fn inherited_box(&self) -> &crate::css::computed_values::InheritedBoxValues {
+    fn inherited_box(&self) -> &'a crate::css::computed_values::InheritedBoxValues {
         self.native_group(STYLE_GROUP_INDEX_INHERITED_BOX)
     }
 
     #[inline]
-    fn inherited_table(&self) -> &crate::css::computed_values::InheritedTableValues {
+    fn inherited_table(&self) -> &'a crate::css::computed_values::InheritedTableValues {
         self.native_group(STYLE_GROUP_INDEX_INHERITED_TABLE)
     }
 
     #[inline]
-    fn box_values(&self) -> &crate::layout::BoxValues {
+    fn box_values(&self) -> &'a crate::layout::BoxValues {
         self.native_group(STYLE_GROUP_INDEX_BOX)
     }
 
     #[inline]
-    fn border_facts(&self) -> &crate::layout::BorderLayoutFacts {
+    fn border_facts(&self) -> &'a crate::layout::BorderLayoutFacts {
         self.native_group(STYLE_GROUP_INDEX_BORDER)
     }
 
     #[inline]
-    fn inherited_text_facts(&self) -> &crate::layout::InheritedTextLayoutFacts {
+    fn inherited_text_facts(&self) -> &'a crate::layout::InheritedTextLayoutFacts {
         self.native_group(STYLE_GROUP_INDEX_INHERITED_TEXT)
     }
 
     #[inline]
-    fn font_facts(&self) -> &crate::layout::FontLayoutFacts {
+    fn font_facts(&self) -> &'a crate::layout::FontLayoutFacts {
         self.native_group(STYLE_GROUP_INDEX_FONT)
     }
 }
 
-const SIZE_FIELD_COUNT: usize = 26;
-
-pub(crate) struct StyleDecodeCache {
-    reader: StyleReader,
-    sizes: [Cell<FfiSizeValue>; SIZE_FIELD_COUNT],
-    size_presence: Cell<u32>,
-    /// The in-crate-built calculated wrappers for anchor() insets, owned here
-    /// so the cached size slots can borrow their calc pointers for the cache
-    /// lifetime.
-    anchor_inset_calculated_wrappers: RefCell<Vec<std::sync::Arc<crate::css::style_value::StyleValueData>>>,
-    release_calc_handle: FfiReleaseCalcHandleCallback,
-}
-
-impl StyleDecodeCache {
-    fn new(reader: StyleReader, release_calc_handle: FfiReleaseCalcHandleCallback) -> Self {
-        Self {
-            reader,
-            sizes: std::array::from_fn(|_| Cell::new(FfiSizeValue::auto_value())),
-            size_presence: Cell::new(0),
-            anchor_inset_calculated_wrappers: RefCell::new(Vec::new()),
-            release_calc_handle,
-        }
-    }
-
-    #[inline]
-    fn cached_size(&self, field: SizeField) -> Option<FfiSizeValue> {
-        let index = field as usize;
-        (self.size_presence.get() & (1 << index) != 0).then(|| self.sizes[index].get())
-    }
-
-    #[inline]
-    fn cache_size(&self, field: SizeField, value: FfiSizeValue) -> FfiSizeValue {
-        let index = field as usize;
-        debug_assert_eq!(self.size_presence.get() & (1 << index), 0);
-        self.sizes[index].set(value);
-        self.size_presence.set(self.size_presence.get() | (1 << index));
-        value
-    }
-
-    pub(crate) fn replace_size(&self, field: SizeField, value: FfiSizeValue) {
-        let index = field as usize;
-        let presence = self.size_presence.get();
-        if presence & (1 << index) != 0 {
-            self.sizes[index]
-                .replace(value)
-                .release_bridge_calc_handle(self.release_calc_handle);
-        } else {
-            self.sizes[index].set(value);
-            self.size_presence.set(presence | (1 << index));
-        }
+fn anchor_inset_field_index(field: SizeField) -> usize {
+    match field {
+        SizeField::InsetTop => 0,
+        SizeField::InsetRight => 1,
+        SizeField::InsetBottom => 2,
+        SizeField::InsetLeft => 3,
+        _ => unreachable!(),
     }
 }
 
-impl Drop for StyleDecodeCache {
-    fn drop(&mut self) {
-        let presence = self.size_presence.get();
-        for (index, value) in self.sizes.iter().enumerate() {
-            if presence & (1 << index) != 0 {
-                value.get().release_bridge_calc_handle(self.release_calc_handle);
-            }
+#[derive(Default)]
+struct AnchorInsetField {
+    /// Resolved px/auto value written by replace_resolved_anchor_insets. It
+    /// takes precedence over every style decode and reports
+    /// contains_anchor_function == false; the abspos engine's early-out on
+    /// re-entry depends on both properties. Never carries a calc pointer.
+    resolved_override: Cell<Option<FfiSizeValue>>,
+    /// Memoized in-crate calculated wrapper for a bare anchor() inset: the
+    /// single owner of the Arc whose pointer the returned size values borrow.
+    /// Written at most once and never replaced or dropped before the owning
+    /// LayoutState drops.
+    wrapper: std::cell::OnceCell<std::sync::Arc<crate::css::style_value::StyleValueData>>,
+}
+
+#[derive(Default)]
+struct AnchorInsetSlot {
+    fields: [AnchorInsetField; 4],
+}
+
+/// Per-LayoutState side store for the four inset fields of anchor-positioned
+/// nodes, the only style reads whose results are not a pure function of the
+/// immutable group payloads.
+#[derive(Default)]
+pub(crate) struct AnchorInsetStore {
+    slots: PagedStore<AnchorInsetSlot>,
+    /// False until the first override write, so inset reads on anchor-free
+    /// pages never touch the slots store.
+    any_overrides: Cell<bool>,
+}
+
+impl AnchorInsetStore {
+    fn slot(&self, slot_index: u32) -> &AnchorInsetSlot {
+        self.slots
+            .get(slot_index)
+            .unwrap_or_else(|| self.slots.allocate(slot_index, AnchorInsetSlot::default()))
+    }
+
+    fn override_for(&self, slot_index: u32, field: SizeField) -> Option<FfiSizeValue> {
+        if !self.any_overrides.get() {
+            return None;
         }
+        self.slots.get(slot_index)?.fields[anchor_inset_field_index(field)]
+            .resolved_override
+            .get()
+    }
+
+    fn memoized_anchor_inset_value(
+        &self,
+        slot_index: u32,
+        field: SizeField,
+        build_wrapper: impl FnOnce() -> std::sync::Arc<crate::css::style_value::StyleValueData>,
+    ) -> FfiSizeValue {
+        let field = &self.slot(slot_index).fields[anchor_inset_field_index(field)];
+        let calc = std::sync::Arc::as_ptr(field.wrapper.get_or_init(build_wrapper)).cast();
+        FfiSizeValue {
+            kind: FfiSizeKind::Calc as u8,
+            px: CssPixels::default(),
+            fraction: 0.0,
+            calc,
+            calc_is_bridge_retained: false,
+            contains_percentage: false,
+            contains_anchor_function: true,
+            fit_content_has_argument: false,
+        }
+    }
+
+    pub(crate) fn set_override(&self, slot_index: u32, field: SizeField, value: FfiSizeValue) {
+        debug_assert!(value.calc.is_null());
+        self.slot(slot_index).fields[anchor_inset_field_index(field)]
+            .resolved_override
+            .set(Some(value));
+        self.any_overrides.set(true);
     }
 }
 
@@ -523,27 +544,15 @@ fn decode_css_preferred_aspect_ratio(
     (numerator, denominator)
 }
 
-pub(crate) struct StyleDecodeValues {
-    cache: StyleDecodeCache,
-}
-
-impl StyleDecodeValues {
-    pub(crate) fn new(payloads: FfiStylePayloads, release_calc_handle: FfiReleaseCalcHandleCallback) -> Self {
-        Self {
-            cache: StyleDecodeCache::new(StyleReader::new(payloads), release_calc_handle),
-        }
-    }
-
-    pub(crate) fn replace_size(&self, field: SizeField, value: FfiSizeValue) {
-        self.cache.replace_size(field, value);
-    }
-}
-
 /// A thin Rust-only view over a node's immutable computed-value group
-/// payloads; every read decodes on demand from the typed group payloads.
+/// payloads; every read decodes on demand from the typed group payloads. The
+/// four inset fields additionally consult the per-LayoutState anchor-inset
+/// store, the only style state a pass can change.
 #[derive(Clone, Copy)]
 pub(crate) struct StyleValues<'a> {
-    cache: &'a StyleDecodeCache,
+    reader: StyleReader<'a>,
+    anchor_insets: &'a AnchorInsetStore,
+    slot_index: u32,
     vertical_align_override: u16,
 }
 
@@ -553,7 +562,7 @@ macro_rules! scalar_accessors {
             $($(
                 #[inline]
                 pub(crate) fn $name(self) -> $ty {
-                    self.cache.reader.$group().$($field).+
+                    self.reader.$group().$($field).+
                 }
             )+)+
         }
@@ -625,15 +634,17 @@ scalar_accessors! {
 
 impl<'a> StyleValues<'a> {
     #[inline]
-    pub(crate) fn new(values: &'a StyleDecodeValues) -> Self {
+    pub(crate) fn new(reader: StyleReader<'a>, anchor_insets: &'a AnchorInsetStore, slot_index: u32) -> Self {
         Self {
-            cache: &values.cache,
+            reader,
+            anchor_insets,
+            slot_index,
             vertical_align_override: u16::MAX,
         }
     }
 
-    fn inset_has_anchor(self, field: SizeField) -> bool {
-        let values = self.cache.reader.surround();
+    fn anchor_inset_handle(self, field: SizeField) -> Option<&'a crate::layout::ComputedStyleValueHandle> {
+        let values = self.reader.surround();
         let handle = match field {
             SizeField::InsetTop => &values.top_anchor_inset,
             SizeField::InsetRight => &values.right_anchor_inset,
@@ -641,7 +652,7 @@ impl<'a> StyleValues<'a> {
             SizeField::InsetLeft => &values.left_anchor_inset,
             _ => unreachable!(),
         };
-        !handle.pointer.is_null()
+        (!handle.pointer.is_null()).then_some(handle)
     }
 
     fn direct_size(self, field: SizeField) -> FfiSizeValue {
@@ -652,7 +663,7 @@ impl<'a> StyleValues<'a> {
             | SizeField::MinHeight
             | SizeField::MaxWidth
             | SizeField::MaxHeight => {
-                let values = self.cache.reader.sizing();
+                let values = self.reader.sizing();
                 decode_computed_size(match field {
                     SizeField::Width => &values.width,
                     SizeField::Height => &values.height,
@@ -675,7 +686,7 @@ impl<'a> StyleValues<'a> {
             | SizeField::InsetRight
             | SizeField::InsetBottom
             | SizeField::InsetLeft => {
-                let values = self.cache.reader.surround();
+                let values = self.reader.surround();
                 decode_length_percentage_or_auto(match field {
                     SizeField::MarginTop => &values.margin.top,
                     SizeField::MarginRight => &values.margin.right,
@@ -693,7 +704,7 @@ impl<'a> StyleValues<'a> {
                 })
             }
             SizeField::FlexBasis => {
-                let values = self.cache.reader.alignment();
+                let values = self.reader.alignment();
                 if values.flex_basis.is_content {
                     FfiSizeValue::auto_value()
                 } else {
@@ -701,7 +712,7 @@ impl<'a> StyleValues<'a> {
                 }
             }
             SizeField::RowGap | SizeField::ColumnGap => {
-                let values = self.cache.reader.alignment();
+                let values = self.reader.alignment();
                 let gap = if field == SizeField::RowGap {
                     &values.row_gap
                 } else {
@@ -714,60 +725,41 @@ impl<'a> StyleValues<'a> {
                 }
             }
             SizeField::X | SizeField::Y => {
-                let values = self.cache.reader.svg_reset();
+                let values = self.reader.svg_reset();
                 decode_length_percentage(if field == SizeField::X { &values.x } else { &values.y })
             }
-            SizeField::VerticalAlign => decode_length_percentage(&self.cache.reader.box_values().vertical_align.value),
+            SizeField::VerticalAlign => decode_length_percentage(&self.reader.box_values().vertical_align.value),
             SizeField::TextIndent => {
-                decode_length_percentage(&self.cache.reader.inherited_text_facts().text_indent.length_percentage)
+                decode_length_percentage(&self.reader.inherited_text_facts().text_indent.length_percentage)
             }
-            SizeField::ColumnWidth => decode_computed_size(&self.cache.reader.box_values().column_width),
-        }
-    }
-
-    fn anchor_inset_size_value(self, field: SizeField) -> FfiSizeValue {
-        let values = self.cache.reader.surround();
-        let handle = match field {
-            SizeField::InsetTop => &values.top_anchor_inset,
-            SizeField::InsetRight => &values.right_anchor_inset,
-            SizeField::InsetBottom => &values.bottom_anchor_inset,
-            SizeField::InsetLeft => &values.left_anchor_inset,
-            _ => unreachable!(),
-        };
-        // SAFETY: The inset_has_anchor guard checked the handle is non-null,
-        // and the node's style group payload keeps the anchor value alive for
-        // the synchronous layout pass.
-        let wrapper = unsafe { crate::css::calc::create_anchor_inset_calculated(handle.pointer.cast()) };
-        let calc = std::sync::Arc::as_ptr(&wrapper).cast();
-        self.cache.anchor_inset_calculated_wrappers.borrow_mut().push(wrapper);
-        FfiSizeValue {
-            kind: FfiSizeKind::Calc as u8,
-            px: CssPixels::default(),
-            fraction: 0.0,
-            calc,
-            calc_is_bridge_retained: false,
-            contains_percentage: false,
-            contains_anchor_function: true,
-            fit_content_has_argument: false,
+            SizeField::ColumnWidth => decode_computed_size(&self.reader.box_values().column_width),
         }
     }
 
     fn size_value(self, field: SizeField) -> FfiSizeValue {
-        if let Some(value) = self.cache.cached_size(field) {
-            return value;
-        }
-        match field {
+        if matches!(
+            field,
             SizeField::InsetTop | SizeField::InsetRight | SizeField::InsetBottom | SizeField::InsetLeft
-                if self.inset_has_anchor(field) =>
-            {
-                let value = self.anchor_inset_size_value(field);
-                self.cache.cache_size(field, value)
+        ) {
+            // The resolved override must mask BOTH anchor representations: a
+            // bare anchor() inset carries the surround anchor handle below,
+            // while a calc() containing anchor() has a null handle and
+            // decodes through direct_size with contains_anchor_function set.
+            if let Some(value) = self.anchor_insets.override_for(self.slot_index, field) {
+                return value;
             }
-            _ => {
-                let value = self.direct_size(field);
-                self.cache.cache_size(field, value)
+            if let Some(handle) = self.anchor_inset_handle(field) {
+                return self
+                    .anchor_insets
+                    .memoized_anchor_inset_value(self.slot_index, field, || {
+                        // SAFETY: The handle is non-null, and the node's style
+                        // group payload keeps the anchor value alive for the
+                        // synchronous layout pass.
+                        unsafe { crate::css::calc::create_anchor_inset_calculated(handle.pointer.cast()) }
+                    });
             }
         }
+        self.direct_size(field)
     }
 
     pub(crate) fn with_vertical_align_keyword(mut self, keyword: u8) -> Self {
@@ -776,14 +768,14 @@ impl<'a> StyleValues<'a> {
     }
 
     pub(crate) fn vertical_align_is_keyword(self) -> bool {
-        self.vertical_align_override != u16::MAX || self.cache.reader.box_values().vertical_align.is_keyword
+        self.vertical_align_override != u16::MAX || self.reader.box_values().vertical_align.is_keyword
     }
 
     pub(crate) fn vertical_align_keyword(self) -> u8 {
         if self.vertical_align_override != u16::MAX {
             self.vertical_align_override as u8
         } else {
-            self.cache.reader.box_values().vertical_align.keyword
+            self.reader.box_values().vertical_align.keyword
         }
     }
 
@@ -792,41 +784,41 @@ impl<'a> StyleValues<'a> {
     }
 
     pub(crate) fn has_position_anchor(self) -> bool {
-        self.cache.reader.surround().position_anchor_name.raw() != 0
+        self.reader.surround().position_anchor_name.raw() != 0
     }
 
     /// The raw fly-string representation of the computed position-anchor
     /// name, borrowed from the surround payload for the duration of the pass.
     pub(crate) fn position_anchor_name(self) -> usize {
-        self.cache.reader.surround().position_anchor_name.raw()
+        self.reader.surround().position_anchor_name.raw()
     }
 
     pub(crate) fn first_available_font(self) -> *const c_void {
-        let font = self.cache.reader.font_facts().first_available_font;
+        let font = self.reader.font_facts().first_available_font;
         debug_assert!(!font.is_null(), "layout read a font group that never received a font list");
         font
     }
 
     pub(crate) fn font_cascade_list(self) -> *const c_void {
-        let list = self.cache.reader.font_facts().font_cascade_list;
+        let list = self.reader.font_facts().font_cascade_list;
         debug_assert!(!list.is_null(), "layout read a font group that never received a font list");
         list
     }
 
     pub(crate) fn font_ascent(self) -> f32 {
-        self.cache.reader.font_facts().font_ascent
+        self.reader.font_facts().font_ascent
     }
 
     pub(crate) fn font_descent(self) -> f32 {
-        self.cache.reader.font_facts().font_descent
+        self.reader.font_facts().font_descent
     }
 
     pub(crate) fn font_x_height(self) -> f32 {
-        self.cache.reader.font_facts().font_x_height
+        self.reader.font_facts().font_x_height
     }
 
     pub(crate) fn box_sizing_for_aspect_ratio(self) -> u8 {
-        let values = self.cache.reader.box_values();
+        let values = self.reader.box_values();
         if values.aspect_ratio.use_natural_aspect_ratio_if_available {
             crate::css::css_enums::box_sizing::CONTENT_BOX
         } else {
@@ -834,32 +826,24 @@ impl<'a> StyleValues<'a> {
         }
     }
 
-    pub(crate) fn css_preferred_aspect_ratio_numerator(self) -> CssPixels {
-        decode_css_preferred_aspect_ratio(&self.cache.reader.box_values().aspect_ratio).0
-    }
-
-    pub(crate) fn css_preferred_aspect_ratio_denominator(self) -> CssPixels {
-        decode_css_preferred_aspect_ratio(&self.cache.reader.box_values().aspect_ratio).1
+    pub(crate) fn css_preferred_aspect_ratio(self) -> (CssPixels, CssPixels) {
+        decode_css_preferred_aspect_ratio(&self.reader.box_values().aspect_ratio)
     }
 
     pub(crate) fn border_spacing_horizontal(self) -> CssPixels {
-        CssPixels::from_raw(self.cache.reader.inherited_table().border_spacing_horizontal)
+        CssPixels::from_raw(self.reader.inherited_table().border_spacing_horizontal)
     }
 
     pub(crate) fn border_spacing_vertical(self) -> CssPixels {
-        CssPixels::from_raw(self.cache.reader.inherited_table().border_spacing_vertical)
+        CssPixels::from_raw(self.reader.inherited_table().border_spacing_vertical)
     }
 
     pub(crate) fn aspect_ratio_uses_natural_when_available(self) -> bool {
-        self.cache
-            .reader
-            .box_values()
-            .aspect_ratio
-            .use_natural_aspect_ratio_if_available
+        self.reader.box_values().aspect_ratio.use_natural_aspect_ratio_if_available
     }
 
     pub(crate) fn flex_basis_is_content(self) -> bool {
-        self.cache.reader.alignment().flex_basis.is_content
+        self.reader.alignment().flex_basis.is_content
     }
 
     pub(crate) fn flex_basis(self) -> FfiSizeValue {
@@ -867,39 +851,39 @@ impl<'a> StyleValues<'a> {
     }
 
     pub(crate) fn has_column_count(self) -> bool {
-        self.cache.reader.box_values().column_count_has_value
+        self.reader.box_values().column_count_has_value
     }
 
     pub(crate) fn column_count(self) -> i32 {
-        self.cache.reader.box_values().column_count
+        self.reader.box_values().column_count
     }
 
     pub(crate) fn has_size_containment(self) -> bool {
-        self.cache.reader.box_values().size_containment
+        self.reader.box_values().size_containment
     }
 
     pub(crate) fn is_size_container(self) -> bool {
-        self.cache.reader.box_values().is_size_container
+        self.reader.box_values().is_size_container
     }
 
     pub(crate) fn text_indent_each_line(self) -> bool {
-        self.cache.reader.inherited_text_facts().text_indent.each_line
+        self.reader.inherited_text_facts().text_indent.each_line
     }
 
     pub(crate) fn text_indent_hanging(self) -> bool {
-        self.cache.reader.inherited_text_facts().text_indent.hanging
+        self.reader.inherited_text_facts().text_indent.hanging
     }
 
     pub(crate) fn tab_size_is_number(self) -> bool {
-        self.cache.reader.inherited_text_facts().tab_size_is_number
+        self.reader.inherited_text_facts().tab_size_is_number
     }
 
     pub(crate) fn tab_size(self) -> CssPixels {
-        self.cache.reader.inherited_text_facts().tab_size_length
+        self.reader.inherited_text_facts().tab_size_length
     }
 
     pub(crate) fn tab_size_number(self) -> f64 {
-        self.cache.reader.inherited_text_facts().tab_size_number
+        self.reader.inherited_text_facts().tab_size_number
     }
 }
 
