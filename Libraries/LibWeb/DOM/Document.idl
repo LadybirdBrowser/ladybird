@@ -134,9 +134,12 @@ interface Document : Node {
 
     // https://w3c.github.io/svgwg/svg2-draft/struct.html#InterfaceDocumentExtensions
     readonly attribute SVGSVGElement? rootElement;
-    
+
     // https://w3c.github.io/pointerlock/#extensions-to-the-document-interface
     undefined exitPointerLock();
+
+    // https://wicg.github.io/scroll-to-text-fragment/#feature-detectability
+    [SameObject] readonly attribute FragmentDirective fragmentDirective;
 };
 
 dictionary CaretPositionFromPointOptions {

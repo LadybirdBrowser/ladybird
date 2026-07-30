@@ -1,0 +1,5 @@
+// https://wicg.github.io/scroll-to-text-fragment/#feature-detectability
+
+[Exposed=Window]
+interface FragmentDirective {
+};
