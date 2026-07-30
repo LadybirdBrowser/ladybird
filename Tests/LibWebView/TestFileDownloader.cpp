@@ -51,12 +51,15 @@ enum class RangeSupport {
     No,
 };
 
-enum class RateLimit {
-    None,
+enum class RangeRequestBehavior {
+    Serve,
+    Reject429,
+    Reject403,
+};
 
-    // Answer every range request with a 429, the way a server that does not want four connections from one client
-    // would.
-    RejectRangeRequests,
+enum class Validator {
+    Yes,
+    No,
 };
 
 enum class StallBehavior {
@@ -67,10 +70,13 @@ enum class StallBehavior {
 
 class TestHttpServer {
 public:
-    TestHttpServer(ByteBuffer body, RangeSupport range_support, RateLimit rate_limit = RateLimit::None)
+    TestHttpServer(ByteBuffer body, RangeSupport range_support, RangeRequestBehavior range_request_behavior = RangeRequestBehavior::Serve, Validator validator = Validator::Yes, StallBehavior stall_behavior = StallBehavior::None)
         : m_body(move(body))
         , m_range_support(range_support)
-        , m_rate_limit(rate_limit)
+        , m_range_request_behavior(range_request_behavior)
+        , m_validator(validator)
+        , m_stall_behavior(stall_behavior)
+        , m_stall_pending(stall_behavior != StallBehavior::None)
     {
         m_socket = MUST(Core::System::socket(AF_INET, SOCK_STREAM, 0));
 
@@ -120,10 +126,10 @@ public:
         return m_request_count;
     }
 
-    size_t rate_limited_count()
+    size_t refused_count()
     {
         Sync::MutexLocker locker { m_mutex };
-        return m_rate_limited_count;
+        return m_refused_count;
     }
 
 private:
@@ -180,15 +186,19 @@ private:
                 m_range_requests.append(*range_header);
         }
 
-        if (range_header.has_value() && m_rate_limit == RateLimit::RejectRangeRequests) {
+        if (range_header.has_value() && m_range_request_behavior != RangeRequestBehavior::Serve) {
             {
                 Sync::MutexLocker locker { m_mutex };
-                ++m_rate_limited_count;
+                ++m_refused_count;
             }
 
             StringBuilder rejection;
-            rejection.append("HTTP/1.1 429 Too Many Requests\r\n"sv);
-            rejection.append("Retry-After: 1\r\n"sv);
+            if (m_range_request_behavior == RangeRequestBehavior::Reject429) {
+                rejection.append("HTTP/1.1 429 Too Many Requests\r\n"sv);
+                rejection.append("Retry-After: 1\r\n"sv);
+            } else {
+                rejection.append("HTTP/1.1 403 Forbidden\r\n"sv);
+            }
             rejection.append("Content-Length: 0\r\n"sv);
             rejection.append("Connection: close\r\n\r\n"sv);
 
@@ -228,7 +238,8 @@ private:
         response.append("Content-Type: application/octet-stream\r\n"sv);
         response.appendff("Content-Length: {}\r\n", length);
         response.appendff("Accept-Ranges: {}\r\n", m_range_support == RangeSupport::Yes ? "bytes"sv : "none"sv);
-        response.append("ETag: \"test-etag\"\r\n"sv);
+        if (m_validator == Validator::Yes)
+            response.append("ETag: \"test-etag\"\r\n"sv);
         if (is_partial)
             response.appendff("Content-Range: bytes {}-{}/{}\r\n", start, end, m_body.size());
         response.append("Connection: close\r\n\r\n"sv);
@@ -280,7 +291,8 @@ private:
 
     ByteBuffer m_body;
     RangeSupport m_range_support;
-    RateLimit m_rate_limit { RateLimit::None };
+    RangeRequestBehavior m_range_request_behavior { RangeRequestBehavior::Serve };
+    Validator m_validator { Validator::Yes };
     int m_socket { -1 };
     u16 m_port { 0 };
     RefPtr<Threading::Thread> m_thread;
@@ -292,7 +304,7 @@ private:
     Sync::Mutex m_mutex;
     Vector<ByteString> m_range_requests;
     size_t m_request_count { 0 };
-    size_t m_rate_limited_count { 0 };
+    size_t m_refused_count { 0 };
 };
 
 class DownloadWatcher final : public WebView::FileDownloaderObserver {
@@ -494,15 +506,65 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     }
 
     {
-        TestHttpServer server { body, RangeSupport::Yes, RateLimit::RejectRangeRequests };
+        TestHttpServer server { body, RangeSupport::Yes, RangeRequestBehavior::Serve, Validator::Yes, StallBehavior::StallFirstRangeRequest };
+
+        auto path = run_download(server, test_directory, "stalled.bin"sv);
+        expect_file_matches(path, body.bytes());
+
+        outln("stalled connection: {} requests, {} of them ranged", server.request_count(), server.range_requests().size());
+        VERIFY(server.request_count() >= 5);
+        VERIFY(server.range_requests().size() >= 4);
+    }
+
+    {
+        WebView::Application::settings().set_config_variable(WebView::ConfigVariableID::MaximumConnectionsPerDownload, 2);
+        auto reset_setting = ScopeGuard([] {
+            WebView::Application::settings().set_config_variable(WebView::ConfigVariableID::MaximumConnectionsPerDownload, 4);
+        });
+
+        TestHttpServer server { body, RangeSupport::Yes, RangeRequestBehavior::Serve, Validator::Yes, StallBehavior::TrickleFirstRangeRequest };
+
+        auto path = run_download(server, test_directory, "redistributed.bin"sv);
+        expect_file_matches(path, body.bytes());
+
+        outln("redistributed: {} requests, {} of them ranged", server.request_count(), server.range_requests().size());
+        VERIFY(server.request_count() >= 3);
+        VERIFY(server.range_requests().size() >= 2);
+    }
+
+    {
+        TestHttpServer server { body, RangeSupport::Yes, RangeRequestBehavior::Reject429 };
 
         auto path = run_download(server, test_directory, "rate-limited.bin"sv);
         expect_file_matches(path, body.bytes());
 
-        outln("rate limited: {} requests, {} of them refused", server.request_count(), server.rate_limited_count());
-        VERIFY(server.rate_limited_count() >= 1);
+        outln("rate limited: {} requests, {} of them refused", server.request_count(), server.refused_count());
+        VERIFY(server.refused_count() >= 1);
 
         VERIFY(server.request_count() <= 8);
+    }
+
+    {
+        TestHttpServer server { body, RangeSupport::Yes, RangeRequestBehavior::Serve, Validator::No };
+
+        auto path = run_download(server, test_directory, "no-validator.bin"sv);
+        expect_file_matches(path, body.bytes());
+
+        outln("no validator: {} requests, {} of them ranged", server.request_count(), server.range_requests().size());
+        VERIFY(server.request_count() == 1);
+        VERIFY(server.range_requests().is_empty());
+    }
+
+    {
+        TestHttpServer server { body, RangeSupport::Yes, RangeRequestBehavior::Reject403 };
+
+        auto path = run_download(server, test_directory, "refused.bin"sv);
+        expect_file_matches(path, body.bytes());
+
+        outln("refused ranges: {} requests, {} of them refused", server.request_count(), server.refused_count());
+        VERIFY(server.refused_count() >= 1);
+
+        VERIFY(server.refused_count() <= 4);
     }
 
     outln("PASS");

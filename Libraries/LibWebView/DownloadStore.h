@@ -35,6 +35,8 @@ struct WEBVIEW_API DownloadRecord {
     Optional<String> last_modified;
     Vector<DownloadSegmentRecord> segments;
     UnixDateTime created_time;
+
+    bool can_restart_from_zero { false };
 };
 
 class WEBVIEW_API DownloadStore {

@@ -14,6 +14,7 @@
 namespace WebView {
 
 static constexpr u32 DOWNLOAD_SCHEMA_BASELINE_VERSION = 1u;
+static constexpr u32 DOWNLOAD_SCHEMA_RESTARTABILITY_VERSION = 2u;
 
 static String serialize_segments(Vector<DownloadSegmentRecord> const& segments)
 {
@@ -70,7 +71,7 @@ static Optional<Vector<DownloadSegmentRecord>> deserialize_segments(StringView s
 
 ErrorOr<Database::MigrationOutcome> DownloadStore::migrate_schema(Database::Database& database, Database::MigrationMode mode)
 {
-    Array<Database::Migration, 1> migrations { {
+    Array<Database::Migration, 2> migrations { {
         { .version = DOWNLOAD_SCHEMA_BASELINE_VERSION, .sql = R"#(
             CREATE TABLE IF NOT EXISTS Downloads (
                 id INTEGER PRIMARY KEY,
@@ -85,6 +86,9 @@ ErrorOr<Database::MigrationOutcome> DownloadStore::migrate_schema(Database::Data
                 created_time INTEGER NOT NULL,
                 updated_time INTEGER NOT NULL
             );
+        )#"sv },
+        { .version = DOWNLOAD_SCHEMA_RESTARTABILITY_VERSION, .sql = R"#(
+            ALTER TABLE Downloads ADD COLUMN can_restart_from_zero INTEGER NOT NULL DEFAULT 0;
         )#"sv },
     } };
 
@@ -106,10 +110,11 @@ ErrorOr<NonnullOwnPtr<DownloadStore>> DownloadStore::create(Database::Database& 
             etag,
             last_modified,
             segments,
+            can_restart_from_zero,
             created_time,
             updated_time
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
             url = excluded.url,
             display_url = excluded.display_url,
@@ -119,6 +124,7 @@ ErrorOr<NonnullOwnPtr<DownloadStore>> DownloadStore::create(Database::Database& 
             etag = excluded.etag,
             last_modified = excluded.last_modified,
             segments = excluded.segments,
+            can_restart_from_zero = excluded.can_restart_from_zero,
             updated_time = excluded.updated_time;
     )#"sv));
 
@@ -128,7 +134,7 @@ ErrorOr<NonnullOwnPtr<DownloadStore>> DownloadStore::create(Database::Database& 
     )#"sv));
 
     statements.list_downloads = TRY(database.prepare_statement(R"#(
-        SELECT id, url, display_url, destination, temporary_destination, total_size, etag, last_modified, segments, created_time
+        SELECT id, url, display_url, destination, temporary_destination, total_size, etag, last_modified, segments, can_restart_from_zero, created_time
         FROM Downloads
         ORDER BY id ASC;
     )#"sv));
@@ -171,6 +177,7 @@ void DownloadStore::save_download(DownloadRecord const& download, UnixDateTime u
         download.etag.value_or(String {}),
         download.last_modified.value_or(String {}),
         serialize_segments(download.segments),
+        static_cast<u64>(download.can_restart_from_zero ? 1 : 0),
         download.created_time,
         updated_at);
 }
@@ -210,7 +217,8 @@ Vector<DownloadRecord> DownloadStore::resumable_downloads()
                 .etag = etag.is_empty() ? Optional<String> {} : Optional<String> { move(etag) },
                 .last_modified = last_modified.is_empty() ? Optional<String> {} : Optional<String> { move(last_modified) },
                 .segments = segments.release_value(),
-                .created_time = m_database->result_column<UnixDateTime>(statement_id, 9),
+                .created_time = m_database->result_column<UnixDateTime>(statement_id, 10),
+                .can_restart_from_zero = m_database->result_column<u64>(statement_id, 9) != 0,
             });
         });
 

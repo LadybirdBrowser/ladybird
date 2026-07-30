@@ -92,12 +92,8 @@ struct FileDownloader::ActiveDownload {
     bool stopped { false };
     URL::URL effective_url;
     u32 redirect_count { 0 };
-
-    // We may only follow redirects for downloads whose request we started ourselves. Adopted and renderer-driven
-    // downloads are already past the point where a redirect could be handled here.
-    bool can_follow_redirects { false };
-
-    // What the server told us about fetching byte ranges of this file, once we have seen its first response.
+    bool can_issue_own_requests { false };
+    bool can_restart_from_zero { false };
     DownloadRangeSupport range_support;
     bool segmentation_abandoned { false };
     bool restored_from_disk { false };
@@ -165,7 +161,8 @@ u64 FileDownloader::download_file(IsPrivate is_private, URL::URL const& url, Lex
     if (!active)
         return download_id;
 
-    active->can_follow_redirects = true;
+    active->can_issue_own_requests = true;
+    active->can_restart_from_zero = true;
     start_download_request(download_id, url);
 
     return download_id;
@@ -178,6 +175,7 @@ void FileDownloader::start_download_request(u64 download_id, URL::URL const& url
     if (!download || !active)
         return;
 
+    VERIFY(active->can_issue_own_requests);
     active->effective_url = url;
 
     // FIXME: What other request headers should be set? Perhaps we want to use exactly the same request headers used to
@@ -230,6 +228,9 @@ u64 FileDownloader::adopt_download(IsPrivate is_private, URL::URL const& url, Le
     auto* active = active_download(download_id);
     if (!active)
         return download_id;
+
+    active->effective_url = url;
+    active->can_issue_own_requests = true;
 
     if (!initial_data.is_empty()) {
         append_download_data(download_id, initial_data);
@@ -298,9 +299,7 @@ void FileDownloader::handle_segment_headers(u64 download_id, size_t segment_inde
 
     auto is_ranged = segment.request_is_ranged;
 
-    // Only the very first request of a download may be redirected. Once we have committed to fetching byte ranges of
-    // a particular response, a redirect means the file moved out from under us.
-    if (active->can_follow_redirects && !is_ranged && response_code.has_value() && Web::Fetch::Infrastructure::is_redirect_status(*response_code)) {
+    if (active->can_issue_own_requests && !is_ranged && response_code.has_value() && Web::Fetch::Infrastructure::is_redirect_status(*response_code)) {
         follow_download_redirect(download_id, response_headers);
         return;
     }
@@ -316,8 +315,14 @@ void FileDownloader::handle_segment_headers(u64 download_id, size_t segment_inde
             return;
         }
 
-        if (is_ranged && retry_segment_request(download_id, segment_index))
+        if (is_ranged) {
+            auto is_worth_retrying = *response_code >= 500;
+            if (is_worth_retrying && retry_segment_request(download_id, segment_index))
+                return;
+
+            abandon_segmentation(download_id);
             return;
+        }
 
         fail_download(download_id, status_to_error_string({}, response_code, reason_phrase));
         return;
@@ -337,8 +342,20 @@ void FileDownloader::handle_segment_headers(u64 download_id, size_t segment_inde
     if (auto extracted_length = response_headers.extract_length(); extracted_length.has<u64>())
         download->total_size = extracted_length.get<u64>();
 
+    if (!active->can_issue_own_requests) {
+        segment.response_validated = true;
+        segment.request->resume_body_delivery();
+        notify_download_updated(*download);
+        return;
+    }
+
     auto range_support = evaluate_range_support(response_headers, response_code, came_from_cache);
-    if (range_support.supports_ranges) {
+
+    // Splitting without validators is opt-in; resumption still needs an If-Range validator.
+    auto may_use_range_support = range_support.validator.is_usable()
+        || Application::settings().config_variable_as_bool(ConfigVariableID::SplitDownloadsWithoutValidators);
+
+    if (range_support.supports_ranges && may_use_range_support) {
         active->range_support = move(range_support);
         download->can_resume = active->range_support.can_resume();
 
@@ -429,10 +446,7 @@ void FileDownloader::handle_segment_finished(u64 download_id, size_t segment_ind
         if (retry_segment_request(download_id, segment_index))
             return;
 
-        auto error = network_error.has_value()
-            ? status_to_error_string(network_error, {}, {})
-            : "The connection closed before the file finished downloading"_string;
-        fail_download(download_id, move(error));
+        abandon_segmentation(download_id);
         return;
     }
 
@@ -505,6 +519,8 @@ void FileDownloader::start_segment_request(u64 download_id, size_t segment_index
         return;
     if (segment_index >= active->segments.size())
         return;
+
+    VERIFY(active->can_issue_own_requests);
 
     auto& segment = active->segments[segment_index];
     if (segment.is_complete())
@@ -797,6 +813,11 @@ void FileDownloader::restart_download_from_zero(u64 download_id, String reason_i
     auto* active = active_download(download_id);
     if (!download || !active)
         return;
+
+    if (!active->can_restart_from_zero) {
+        fail_download(download_id, move(reason_if_exhausted));
+        return;
+    }
 
     if (++active->restart_count > maximum_download_restarts) {
         fail_download(download_id, move(reason_if_exhausted));
@@ -1225,6 +1246,7 @@ void FileDownloader::persist_download_snapshot(u64 id, PersistUrgency urgency)
         .last_modified = active->range_support.validator.last_modified,
         .segments = {},
         .created_time = active->created_time,
+        .can_restart_from_zero = active->can_restart_from_zero,
     };
 
     record.segments.ensure_capacity(active->segments.size());
@@ -1316,7 +1338,8 @@ bool FileDownloader::restore_persisted_download(DownloadRecord& record)
 
     auto active = make<ActiveDownload>(move(temporary_destination));
     active->effective_url = effective_url.release_value();
-    active->can_follow_redirects = true;
+    active->can_issue_own_requests = true;
+    active->can_restart_from_zero = record.can_restart_from_zero;
     active->created_time = record.created_time;
     active->restored_from_disk = true;
     active->range_support.supports_ranges = true;
