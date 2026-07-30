@@ -165,6 +165,8 @@ static bool ignore_punctuation_for_collator(icu::Collator const& collator)
 
 class SubstringSearcherImpl final : public Collator::SubstringSearcher {
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     SubstringSearcherImpl(icu::RuleBasedCollator const& collator, Utf16View const& haystack, Utf16View const& needle)
     {
         auto to_unicode_string = [](Utf16View const& string) {
