@@ -151,6 +151,38 @@ pub(crate) fn rendered_text(arena: &mut LayoutNodeArena, primary: NodeSlotId, co
     text
 }
 
+/// The rendered text of a text row, with each UTF-16 code unit mapped back to the DOM offsets that produced it.
+pub(crate) fn rendered_text_with_dom_offsets(
+    arena: &mut LayoutNodeArena,
+    primary: NodeSlotId,
+) -> (Vec<u16>, Vec<(usize, usize)>) {
+    ensure_text_fragments(arena, primary);
+    let mut text = MappedText::default();
+    for &node in arena.text_fragments(primary).as_slice() {
+        let content = arena.text_content(node).expect("fragment was refreshed");
+        text.append(
+            &content.text,
+            TextPosition { node, offset: 0 },
+            TextPosition {
+                node,
+                offset: content.text.len(),
+            },
+        );
+    }
+
+    let mut offsets = Vec::with_capacity(text.text.len());
+    for offset in 0..text.text.len() {
+        let start = text
+            .dom_position(arena, offset, Start)
+            .expect("rendered code unit has a start");
+        let end = text
+            .dom_position(arena, offset + 1, End)
+            .expect("rendered code unit has an end");
+        offsets.push((start.offset, end.offset));
+    }
+    (text.text, offsets)
+}
+
 /// [`rendered_text`] as `rows` carry it, where they carry the rendered text of each of the text node's rows: a text row
 /// carries what [`rendered_text`] answers unless it is among `awaiting_render`, the rows that wait for their text to be
 /// rendered again, by slot index.
