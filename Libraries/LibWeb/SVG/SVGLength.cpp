@@ -371,10 +371,38 @@ WebIDL::ExceptionOr<void> SVGLength::set_value(float value)
         return WebIDL::NoModificationAllowedError::create(realm(), "Cannot modify value of read-only SVGLength"_utf16);
 
     // 2. Let value be the value being assigned to value.
+
+    // AD-HOC: Other browsers set the value to the equivalent value using the existing value's unit (i.e. if the
+    //         existing value is 1em and the value is set to 32, with a font-size of 16px, the new value is 2em) - the
+    //         exception is if the old value is non-scalar (e.g. calc) or is a container unit in which case it is always
+    //         set to a number.
+    auto target_unit = [&]() -> Unit {
+        auto existing_value = internal_value();
+
+        if (existing_value->is_number())
+            return Number {};
+
+        if (existing_value->is_percentage())
+            return Percentage {};
+
+        if (existing_value->is_length()) {
+            auto length_unit = existing_value->as_length().length().unit();
+
+            if (CSS::is_container_relative(length_unit))
+                return Number {};
+
+            return Length { length_unit };
+        }
+
+        return Number {};
+    }();
+
+    auto new_value = TRY(convert_px_to_specified_units(realm(), value, target_unit, m_element, m_directionality));
+
     // 3. Set the SVGLength's value to a <number> whose value is value.
     // NB: Modes other than DetachedSource have their value set implicitly when reserializing the reflected attribute.
     if (m_source.has<DetachedSource>())
-        m_source.get<DetachedSource>().value = CSS::NumberStyleValue::create(value);
+        m_source.get<DetachedSource>().value = *new_value;
 
     // 4. If the SVGLength reflects the base value of a reflected attribute, reflects a presentation attribute, or
     //    reflects an element of the base value of a reflected attribute, then reserialize the reflected attribute.
@@ -384,7 +412,7 @@ WebIDL::ExceptionOr<void> SVGLength::set_value(float value)
         // NB: All attribute reflecting lengths should have an associated element
         VERIFY(m_element);
 
-        m_element->set_attribute_value(m_source.get<ReflectedAttributeSource>().name, Utf16String::number(value));
+        m_element->set_attribute_value(m_source.get<ReflectedAttributeSource>().name, new_value->to_utf16_string(CSS::SerializationMode::Normal));
     }
 
     return {};
