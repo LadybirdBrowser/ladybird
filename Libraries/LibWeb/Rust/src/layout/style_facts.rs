@@ -4,10 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-// The full C++ StyleGroupIndex space; LayoutRustBridge.cpp static-asserts the
-// count so the payload snapshot and the registered group indices line up.
-pub const STYLE_GROUP_COUNT: usize = 23;
-
 // Registered indices of the style groups the layout engine reads, pinned to
 // the C++ StyleGroupIndex enum by static_asserts in LayoutRustBridge.cpp.
 pub const STYLE_GROUP_INDEX_INHERITED_TABLE: usize = 0;
@@ -245,24 +241,6 @@ pub(crate) enum SizeField {
     X,
     Y,
     VerticalAlign,
-}
-
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct FfiStylePayloads {
-    /// Borrowed pointers to every `ComputedValues` group payload. A
-    /// `NodeWithStyle` keeps its immutable `ComputedValues` alive, and style
-    /// replacement cannot run during the synchronous layout pass, so these
-    /// pointers remain valid until the pass returns to C++.
-    pub groups: [*const c_void; STYLE_GROUP_COUNT],
-}
-
-impl Default for FfiStylePayloads {
-    fn default() -> Self {
-        Self {
-            groups: [std::ptr::null(); STYLE_GROUP_COUNT],
-        }
-    }
 }
 
 #[derive(Clone, Copy)]

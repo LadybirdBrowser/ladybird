@@ -943,6 +943,13 @@ void const* ComputedValues::style_group_payload(StyleGroupIndex group) const
     VERIFY_NOT_REACHED();
 }
 
+void ComputedValues::fill_style_group_payloads(Span<void const*> payloads) const
+{
+    VERIFY(payloads.size() == to_underlying(StyleGroupIndex::Count));
+    for (size_t index = 0; index < payloads.size(); ++index)
+        payloads[index] = style_group_payload(static_cast<StyleGroupIndex>(index));
+}
+
 NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties const& computed_style, DOM::Document const& document, StyleScope const& style_scope, ColorResolutionContext color_resolution_context, ComputedValues const* inherit_parent)
 {
     Builder builder;

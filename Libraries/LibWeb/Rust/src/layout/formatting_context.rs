@@ -2835,7 +2835,6 @@ impl OwnedFlexLayoutData {
     }
 }
 
-pub type FfiBuildStylePayloadsCallback = unsafe extern "C" fn(*mut c_void, *const c_void) -> crate::layout::FfiStylePayloads;
 pub type FfiBuildTableBoxFactsCallback = unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiTableBoxFacts;
 
 #[derive(Clone, Copy)]
@@ -2850,7 +2849,6 @@ pub struct FfiLayoutFcCallbacks {
     pub report_unexpected_fragmented_inline: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub release_calc_handle: crate::layout::FfiReleaseCalcHandleCallback,
     pub release_anchor_name_handle: crate::layout::FfiReleaseAnchorNameHandleCallback,
-    pub build_style_payloads: FfiBuildStylePayloadsCallback,
     pub build_replaced_content_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> crate::layout::FfiReplacedContentFacts,
     pub build_list_item_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> crate::layout::FfiListItemFacts,
     pub text_node_is_empty_editable: unsafe extern "C" fn(*mut c_void, *mut c_void) -> bool,
@@ -2896,6 +2894,17 @@ impl FfiLayoutFcCallbacks {
         // SAFETY: The document arena outlives the layout pass, and text
         // content is only mutated between passes.
         unsafe { &*std::ptr::from_ref(content) }
+    }
+
+    pub(crate) fn style_payloads(&self, node: Node) -> &'static crate::layout::FfiStylePayloads {
+        let payloads = self
+            .arena()
+            .style_payloads(node)
+            .expect("styled node payloads must be mirrored to the arena before layout");
+        // SAFETY: The document arena outlives the layout pass, and the mirror
+        // is only rewritten between passes: set_computed_values verifies no
+        // pass is running and no layout node is created mid-pass.
+        unsafe { &*std::ptr::from_ref(payloads) }
     }
 
     pub(crate) fn can_skip_is_anonymous_text_run(&self, node: Node) -> bool {

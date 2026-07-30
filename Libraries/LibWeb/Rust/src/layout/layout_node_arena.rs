@@ -9,7 +9,7 @@ use crate::layout::AbsposLayoutInputs;
 use crate::layout::AvailableSize;
 use crate::layout::CssPixels;
 use crate::layout::kind_is_box;
-use crate::layout::node_data::{MAX_NODE_SLOT_COUNT, NodeData, NodeFlag, NodeSlotId};
+use crate::layout::node_data::{FfiStylePayloads, MAX_NODE_SLOT_COUNT, NodeData, NodeFlag, NodeSlotId};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::c_void;
@@ -144,6 +144,16 @@ struct TextContentSlot {
     content: Option<Box<TextContent>>,
 }
 
+/// Mirror of the node's ComputedValues group payload pointers, rewritten by
+/// C++ on every style application so layout can read style without a per-pass
+/// FFI round trip. Generation 0 never matches a live slot, so a matching
+/// generation alone means the mirror was written for this slot incarnation.
+#[derive(Default)]
+struct StylePayloadsSlot {
+    generation: u8,
+    payloads: FfiStylePayloads,
+}
+
 #[derive(Clone, Copy, PartialEq)]
 pub(crate) struct TextChunkCacheKey {
     pub(crate) should_wrap_lines: bool,
@@ -209,6 +219,7 @@ pub(crate) struct LayoutNodeArena {
     intrinsic_size_caches: RefCell<Vec<IntrinsicSizeCacheSlot>>,
     saved_abspos_layout_inputs: RefCell<Vec<SavedAbsposLayoutInputsSlot>>,
     text_contents: Vec<TextContentSlot>,
+    style_payloads: Vec<StylePayloadsSlot>,
     text_chunk_caches: RefCell<Vec<TextChunkCacheSlot>>,
     owner_thread: thread::ThreadId,
 }
@@ -225,6 +236,7 @@ impl LayoutNodeArena {
             intrinsic_size_caches: RefCell::new(Vec::new()),
             saved_abspos_layout_inputs: RefCell::new(Vec::new()),
             text_contents: Vec::new(),
+            style_payloads: Vec::new(),
             text_chunk_caches: RefCell::new(Vec::new()),
             owner_thread: thread::current().id(),
         }
@@ -314,6 +326,9 @@ impl LayoutNodeArena {
         }
         if let Some(slot) = self.text_contents.get_mut(index as usize) {
             *slot = TextContentSlot::default();
+        }
+        if let Some(slot) = self.style_payloads.get_mut(index as usize) {
+            *slot = StylePayloadsSlot::default();
         }
         if let Some(slot) = self.text_chunk_caches.get_mut().get_mut(index as usize) {
             *slot = TextChunkCacheSlot::default();
@@ -678,6 +693,27 @@ impl LayoutNodeArena {
             .and_then(|slot| slot.content.as_deref())
     }
 
+    pub(crate) fn set_style_payloads(&mut self, id: NodeSlotId, payloads: FfiStylePayloads) {
+        self.assert_owner_thread();
+        self.data(id);
+        let index = id.slot_index() as usize;
+        if self.style_payloads.len() <= index {
+            self.style_payloads.resize_with(index + 1, StylePayloadsSlot::default);
+        }
+        self.style_payloads[index] = StylePayloadsSlot {
+            generation: id.generation(),
+            payloads,
+        };
+    }
+
+    pub(crate) fn style_payloads(&self, id: NodeSlotId) -> Option<&FfiStylePayloads> {
+        assert!(!id.is_invalid(), "invalid layout node arena slot ID");
+        self.style_payloads
+            .get(id.slot_index() as usize)
+            .filter(|slot| slot.generation == id.generation())
+            .map(|slot| &slot.payloads)
+    }
+
     pub(crate) fn text_chunks(
         &self,
         id: NodeSlotId,
@@ -849,6 +885,22 @@ pub unsafe extern "C" fn layout_arena_set_text_content(
             untransformed_text_is_ascii_whitespace,
             may_require_bidi_processing,
         );
+    });
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_set_style_payloads(
+    arena: *mut c_void,
+    id: NodeSlotId,
+    payloads: *const FfiStylePayloads,
+) {
+    abort_on_panic(|| {
+        assert!(!arena.is_null(), "layout node arena handle is null");
+        assert!(!payloads.is_null(), "style payload snapshot pointer is null");
+        // SAFETY: The C++ caller passes a live payload snapshot for the
+        // duration of this synchronous call, and the C++ wrapper keeps the
+        // arena alive while serializing all access on the document thread.
+        unsafe { (&mut *arena.cast::<LayoutNodeArena>()).set_style_payloads(id, *payloads) };
     });
 }
 

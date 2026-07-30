@@ -9,6 +9,29 @@ use std::ffi::c_void;
 pub const INVALID_NODE_SLOT_INDEX: u32 = u32::MAX;
 pub const GENERATED_FOR_MARKER: u8 = 6;
 
+// The full C++ StyleGroupIndex space; LayoutRustBridge.cpp static-asserts the
+// count so the payload mirror and the registered group indices line up.
+pub const STYLE_GROUP_COUNT: usize = 23;
+
+/// Borrowed pointers to every `ComputedValues` group payload, mirrored into
+/// the layout node arena at style application. The node's retained immutable
+/// `ComputedValues` keeps every payload alive, and the mirror is rewritten
+/// whenever that style is replaced, so the pointers stay valid for as long as
+/// the node occupies its arena slot.
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiStylePayloads {
+    pub groups: [*const c_void; STYLE_GROUP_COUNT],
+}
+
+impl Default for FfiStylePayloads {
+    fn default() -> Self {
+        Self {
+            groups: [std::ptr::null(); STYLE_GROUP_COUNT],
+        }
+    }
+}
+
 const NODE_SLOT_INDEX_BITS: u32 = 24;
 const NODE_SLOT_INDEX_MASK: u32 = (1 << NODE_SLOT_INDEX_BITS) - 1;
 pub(crate) const MAX_NODE_SLOT_COUNT: u32 = NODE_SLOT_INDEX_MASK;
