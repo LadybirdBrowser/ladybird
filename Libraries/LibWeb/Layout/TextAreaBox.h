@@ -23,7 +23,6 @@ public:
 
 private:
     virtual CSS::SizeWithAspectRatio compute_auto_content_box_size() const override;
-    virtual bool is_textarea_box() const override { return true; }
 };
 
 }
