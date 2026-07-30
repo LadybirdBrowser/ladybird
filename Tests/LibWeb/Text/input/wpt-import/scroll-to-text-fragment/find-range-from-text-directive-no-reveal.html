@@ -1,0 +1,36 @@
+<!doctype html>
+<title>Finding the text directive range must not reveal other hidden elements</title>
+<meta charset=utf-8>
+<link rel="help" href="https://bugzil.la/1970909">
+<link rel="help" href="https://wicg.github.io/ScrollToTextFragment/">
+<link rel="author" title="Jan-Niklas Jaeschke" href="mailto:jjaschke@mozilla.com">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<body>
+
+<div id="hidden1" hidden="until-found">abc</div>
+<details id="details1">
+  <summary>First Section</summary>
+  <div>abc</div>
+</details>
+<details id="details2">
+  <summary>Second Section</summary>
+  <div>abc def</div>
+</details>
+
+<script>
+// Test that navigating to a text fragment does not open hidden=until-found or
+// closed <details> elements that contain an invalid match for the text fragment.
+promise_test(async t => {
+
+  window.location.hash = ':~:text=abc,-def';
+
+  await new Promise(resolve => details2.addEventListener('toggle', resolve));
+
+  assert_equals(hidden1.hidden, 'until-found', 'hidden=until-found element should remain hidden');
+  assert_false(details1.open, 'closed <details> element should remain closed');
+  assert_true(details2.open, '<details> element containing the match should be opened');
+}, 'Text fragment with suffix should only reveal the matching details element');
+</script>
+</body>
+</html>
