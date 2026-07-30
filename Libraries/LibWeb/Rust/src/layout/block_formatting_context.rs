@@ -444,12 +444,14 @@ impl<'pass> BlockFormattingContext<'pass> {
         let mut margin_right = style.margin_right().to_px(available_inline_size);
         let padding_left = style.padding_left().to_px(available_inline_size);
         let padding_right = style.padding_right().to_px(available_inline_size);
+        let border_left_width = style.border_left_width();
+        let border_right_width = style.border_right_width();
         {
             let used = self.used_mut(node);
             used.margin_left.set(margin_left);
             used.margin_right.set(margin_right);
-            used.border_left.set(style.border_left_width());
-            used.border_right.set(style.border_right_width());
+            used.border_left.set(border_left_width);
+            used.border_right.set(border_right_width);
             used.padding_left.set(padding_left);
             used.padding_right.set(padding_right);
         }
@@ -462,19 +464,21 @@ impl<'pass> BlockFormattingContext<'pass> {
         }
 
         let remaining_inline_size = remaining_available_space.inline_size.to_px_or_zero();
+        let computed_margin_left = style.margin_left();
+        let computed_margin_right = style.margin_right();
         let compute = |input: Option<CssPixels>,
                        margin_left: &mut CssPixels,
                        margin_right: &mut CssPixels,
                        margin_left_is_auto: &mut bool,
                        margin_right_is_auto: &mut bool|
          -> Option<CssPixels> {
-            *margin_left = style.margin_left().to_px(available_inline_size);
-            *margin_right = style.margin_right().to_px(available_inline_size);
-            *margin_left_is_auto = style.margin_left().is_auto();
-            *margin_right_is_auto = style.margin_right().is_auto();
+            *margin_left = computed_margin_left.to_px(available_inline_size);
+            *margin_right = computed_margin_right.to_px(available_inline_size);
+            *margin_left_is_auto = computed_margin_left.is_auto();
+            *margin_right_is_auto = computed_margin_right.is_auto();
             let mut inline_size = input;
-            let mut total = style.border_left_width()
-                + style.border_right_width()
+            let mut total = border_left_width
+                + border_right_width
                 + *margin_left
                 + padding_left
                 + inline_size.unwrap_or_default()
@@ -496,8 +500,8 @@ impl<'pass> BlockFormattingContext<'pass> {
                         *margin_right = CssPixels::default();
                         *margin_right_is_auto = false;
                     }
-                    total = style.border_left_width()
-                        + style.border_right_width()
+                    total = border_left_width
+                        + border_right_width
                         + *margin_left
                         + padding_left
                         + inline_size.unwrap_or_default()
@@ -600,11 +604,12 @@ impl<'pass> BlockFormattingContext<'pass> {
 
         // 3. If the resulting width is smaller than 'min-width', the rules above are applied again,
         //    but this time using the value of 'min-width' as the computed value for 'width'.
-        if !style.min_width().is_auto()
+        let min_width = style.min_width();
+        if !min_width.is_auto()
             && let Some(value) = used_inline_size
         {
             let min_inline_size =
-                sizing.calculate_inner_inline_size(node, available_space.inline_size, style.min_width(), constraints);
+                sizing.calculate_inner_inline_size(node, available_space.inline_size, min_width, constraints);
             if value < min_inline_size {
                 used_inline_size = compute(
                     Some(min_inline_size),

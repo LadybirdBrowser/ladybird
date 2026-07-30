@@ -723,11 +723,8 @@ impl<'pass> NodeFacts<'pass> {
                 });
             }
         }
-        let denominator = style.css_preferred_aspect_ratio_denominator();
-        (denominator != crate::layout::CssPixels::default()).then(|| PixelFraction {
-            numerator: style.css_preferred_aspect_ratio_numerator(),
-            denominator,
-        })
+        let (numerator, denominator) = style.css_preferred_aspect_ratio();
+        (denominator != crate::layout::CssPixels::default()).then_some(PixelFraction { numerator, denominator })
     }
 
     pub(crate) fn has_default_preferred_width(&self) -> bool {
@@ -846,7 +843,8 @@ pub(crate) struct LayoutState {
     /// writeback, one merged entry per node so a node resolved twice keeps
     /// its final values and gets a single writeback.
     deferred_resolved_anchor_insets: RefCell<Vec<crate::layout::FfiDeferredResolvedAnchorInsets>>,
-    style_decode_values: PagedStore<StyleDecodeValues>,
+    style_payloads: PagedStore<FfiStylePayloads>,
+    anchor_inset_store: AnchorInsetStore,
     replaced_content_facts: PagedStore<crate::layout::FfiReplacedContentFacts>,
     list_item_facts: PagedStore<crate::layout::FfiListItemFacts>,
     table_facts: PagedStore<FfiTableBoxFacts>,
@@ -902,7 +900,8 @@ impl LayoutState {
             abspos_layout_pass_queue_in_completion_order: RefCell::new(VecDeque::new()),
             abspos_layout_pass_is_active: Cell::new(false),
             deferred_resolved_anchor_insets: RefCell::new(Vec::new()),
-            style_decode_values: PagedStore::default(),
+            style_payloads: PagedStore::default(),
+            anchor_inset_store: AnchorInsetStore::default(),
             replaced_content_facts: PagedStore::default(),
             list_item_facts: PagedStore::default(),
             table_facts: PagedStore::default(),
@@ -1197,20 +1196,17 @@ impl LayoutState {
         node: Node,
     ) -> StyleValues<'pass> {
         let slot_index = callbacks.slot_index(node);
-        let cache = if let Some(cache) = self.style_decode_values.get(slot_index) {
-            cache
+        let payloads = if let Some(payloads) = self.style_payloads.get(slot_index) {
+            payloads
         } else {
             let data = callbacks.node_data(node);
             assert!(!data.style.is_null());
             // SAFETY: NodeData retains the node's immutable ComputedValues for
             // the synchronous layout pass.
             let payloads = unsafe { (callbacks.build_style_payloads)(callbacks.context, data.style) };
-            self.style_decode_values.allocate(
-                slot_index,
-                StyleDecodeValues::new(payloads, callbacks.release_calc_handle),
-            )
+            self.style_payloads.allocate(slot_index, payloads)
         };
-        StyleValues::new(cache)
+        StyleValues::new(StyleReader::new(payloads), &self.anchor_inset_store, slot_index)
     }
 
     pub(crate) fn replace_resolved_anchor_insets(
@@ -1220,17 +1216,13 @@ impl LayoutState {
         resolved: crate::layout::FfiResolvedAnchorInsets,
     ) {
         let slot_index = callbacks.slot_index(node);
-        let cache = self
-            .style_decode_values
-            .get(slot_index)
-            .expect("missing style decode cache");
         let replace = |field: SizeField, is_auto: bool, value: crate::layout::CssPixels| {
             let value = if is_auto {
                 crate::layout::FfiSizeValue::auto_value()
             } else {
                 crate::layout::FfiSizeValue::px_value(value)
             };
-            cache.replace_size(field, value);
+            self.anchor_inset_store.set_override(slot_index, field, value);
         };
         if resolved.resolves_top {
             replace(SizeField::InsetTop, resolved.top_is_auto, resolved.top);
