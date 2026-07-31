@@ -4014,10 +4014,11 @@ void LocalNavigable::queue_scrollend_event_after_user_scroll(GC::Ref<DOM::EventT
         if (!existing_entry->scroll_offset_at_gesture_start.has_value())
             existing_entry->scroll_offset_at_gesture_start = scroll_offset_before_scroll;
         existing_entry->intent = m_user_scroll_input_intent;
+        existing_entry->travels_under_momentum = m_user_scroll_gesture_travels_under_momentum;
         existing_entry->snap_position_selection = snap_position_selection;
         existing_entry->awaits_layout_for_snapping = false;
     } else {
-        m_pending_user_scrollend_targets.append({ target, stable_node_id, scroll_offset_before_scroll, {}, m_user_scroll_input_intent, snap_position_selection });
+        m_pending_user_scrollend_targets.append({ target, stable_node_id, scroll_offset_before_scroll, {}, m_user_scroll_input_intent, m_user_scroll_gesture_travels_under_momentum, snap_position_selection });
     }
 
     if (!m_user_scroll_settle_timer) {
@@ -4061,6 +4062,7 @@ void LocalNavigable::note_user_scroll_gesture_phase(ScrollGesturePhase phase)
         break;
     }
     case ScrollGesturePhase::Ended:
+        m_user_scroll_gesture_travels_under_momentum = false;
         if (m_wheel_user_scroll_gesture_hold) {
             m_wheel_user_scroll_gesture_hold = nullptr;
             break;
@@ -4242,9 +4244,10 @@ void LocalNavigable::user_scroll_did_settle(UserScrollSettlement settlement)
                 Painting::SnapSelectionStrategy strategy;
                 if (entry.scroll_offset_at_gesture_start.has_value() && entry.snap_position_selection == SnapPositionSelection::AtGestureEnd) {
                     strategy.displacement = *current_scroll_offset - *entry.scroll_offset_at_gesture_start;
-                    if (entry.intent != Painting::SnapSelectionStrategy::Type::EndPosition && !strategy.displacement.is_zero()) {
+                    if (!strategy.displacement.is_zero()) {
                         strategy.type = entry.intent;
-                        strategy.start_offset = *entry.scroll_offset_at_gesture_start;
+                        if (entry.intent != Painting::SnapSelectionStrategy::Type::EndPosition || entry.travels_under_momentum)
+                            strategy.start_offset = *entry.scroll_offset_at_gesture_start;
                     }
                 }
                 auto snapped_offset = Painting::adjust_scroll_destination_for_snapping(*snap_container, *current_scroll_offset, strategy).position;
