@@ -1074,8 +1074,7 @@ public:
     // pointer is borrowed from this immutable ComputedValues instance.
     void const* style_group_payload(StyleGroupIndex) const;
 
-    // Fills one payload pointer per StyleGroupIndex, in enum order.
-    void fill_style_group_payloads(Span<void const*>) const;
+    void const* style_container() const;
 
     // Calls back with (name, shared_with_parent, is_default) for every style value group,
     // for introspecting how well group sharing is working (see internals.styleGroupSharingInfo()).
@@ -2089,6 +2088,7 @@ private:
     };
 
     NonInheritedValues m_noninherited;
+    mutable void const* m_style_container { nullptr };
     AK::FixedBitmap<number_of_longhand_properties> m_property_important { false };
     AK::FixedBitmap<number_of_longhand_properties> m_property_inherited { false };
     HashMap<PropertyID, NonnullRefPtr<StyleValue const>> m_inheritance_dependent_specified_values;

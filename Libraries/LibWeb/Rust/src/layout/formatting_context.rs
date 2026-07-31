@@ -2888,18 +2888,20 @@ impl FfiLayoutFcCallbacks {
         let payloads = self
             .arena()
             .style_payloads(node)
-            .expect("styled node payloads must be mirrored to the arena before layout");
-        // SAFETY: The document arena outlives the layout pass, and the mirror
-        // is only rewritten between passes: set_computed_values verifies no
-        // pass is running and no layout node is created mid-pass.
+            .expect("styled node must publish its style container before layout");
+        // SAFETY: The node's ComputedValues keep the style container alive
+        // for the pass, and the container is only replaced between passes:
+        // set_computed_values verifies no pass is running and no layout node
+        // is created mid-pass.
         unsafe { &*std::ptr::from_ref(payloads) }
     }
 
     pub(crate) fn style_reader_if_styled(&self, node: Node) -> Option<StyleReader<'static>> {
         let payloads = self.arena().style_payloads(node)?;
-        // SAFETY: The document arena outlives the layout pass, and the mirror
-        // is only rewritten between passes: set_computed_values verifies no
-        // pass is running and no layout node is created mid-pass.
+        // SAFETY: The node's ComputedValues keep the style container alive
+        // for the pass, and the container is only replaced between passes:
+        // set_computed_values verifies no pass is running and no layout node
+        // is created mid-pass.
         Some(StyleReader::new(unsafe { &*std::ptr::from_ref(payloads) }))
     }
 

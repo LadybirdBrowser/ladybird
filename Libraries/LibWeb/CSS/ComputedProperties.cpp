@@ -79,6 +79,8 @@ ComputedValues::ComputedValues()
 
 ComputedValues::~ComputedValues()
 {
+    if (m_style_container)
+        ComputedValuesFFI::rust_style_container_unref(m_style_container, to_underlying(StyleGroupIndex::Count));
     --s_statistics.live_instance_count;
 }
 

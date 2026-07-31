@@ -447,7 +447,7 @@ private:
     void reset_table_box_computed_values_used_by_wrapper_to_init_values();
     void propagate_non_inherit_values(CSS::ComputedValues::Builder&) const;
     void propagate_style_to_anonymous_wrappers();
-    void mirror_computed_values_to_node_data();
+    void publish_style_container_to_node_data();
 
     void rebuild_image_observers();
 

@@ -650,7 +650,7 @@ NodeWithStyle::NodeWithStyle(DOM::Document& document, DOM::Node* node, NonnullRe
 {
     set_flag(RustFFI::NodeFlag::HasStyle, true);
     set_flag(RustFFI::NodeFlag::IsBody, node && node == document.body());
-    mirror_computed_values_to_node_data();
+    publish_style_container_to_node_data();
     synchronize_table_span_data();
 }
 
@@ -956,7 +956,7 @@ void NodeWithStyle::set_computed_values(NonnullRefPtr<CSS::ComputedValues const>
 {
     VERIFY(!layout_pass_currently_running());
     m_computed_values = move(computed_values);
-    mirror_computed_values_to_node_data();
+    publish_style_container_to_node_data();
 
     for (auto* child = first_child_ptr(); child; child = child->next_sibling_ptr()) {
         if (auto* text_child = as_if<TextNode>(*child))
@@ -964,13 +964,9 @@ void NodeWithStyle::set_computed_values(NonnullRefPtr<CSS::ComputedValues const>
     }
 }
 
-void NodeWithStyle::mirror_computed_values_to_node_data()
+void NodeWithStyle::publish_style_container_to_node_data()
 {
-    node_data().style = m_computed_values.ptr();
-
-    RustFFI::FfiStylePayloads style_payloads {};
-    m_computed_values->fill_style_group_payloads({ style_payloads.groups, array_size(style_payloads.groups) });
-    RustFFI::layout_arena_set_style_payloads(arena_handle(), slot_id(this), &style_payloads);
+    node_data().style = m_computed_values->style_container();
 }
 
 void NodeWithStyle::synchronize_table_span_data()
