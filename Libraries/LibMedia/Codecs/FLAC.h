@@ -6,7 +6,11 @@
 
 #pragma once
 
+#include <AK/FixedArray.h>
 #include <AK/Optional.h>
+#include <AK/Span.h>
+#include <LibMedia/DecoderError.h>
+#include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
 
 namespace Media::Codecs {
@@ -18,6 +22,7 @@ public:
         u16 block_size;
     };
 
+    static MEDIA_API DecoderErrorOr<FixedArray<u8>> codec_initialization_data_from_isobmff_configuration(ReadonlyBytes);
     static bool is_sync_code(u16);
     static Optional<FrameInfo> parse_frame_header(MediaStreamCursor&, u16 sync_code, u16 fixed_block_size);
 };

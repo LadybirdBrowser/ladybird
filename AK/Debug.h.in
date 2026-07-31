@@ -134,6 +134,14 @@
 #    cmakedefine01 IMAGE_LOADER_DEBUG
 #endif
 
+#ifndef ISOBMFF_DEBUG
+#    cmakedefine01 ISOBMFF_DEBUG
+#endif
+
+#ifndef ISOBMFF_TRACE_DEBUG
+#    cmakedefine01 ISOBMFF_TRACE_DEBUG
+#endif
+
 #ifndef JS_MODULE_DEBUG
 #    cmakedefine01 JS_MODULE_DEBUG
 #endif

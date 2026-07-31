@@ -106,6 +106,7 @@ void TrackBufferDemuxer::remove_coded_frames_and_dependants_in_range(AK::Duratio
             m_read_position--;
 
         m_last_returned_timestamp.clear();
+        m_cursor_jumped = true;
     }
 
     queue_scan_state_change_dispatch_while_locked();
@@ -226,6 +227,16 @@ bool TrackBufferDemuxer::next_frame_is_in_gap_while_locked() const
     return delta > max_gap;
 }
 
+ReadonlyBytes TrackBufferDemuxer::codec_configuration_at_position_while_locked(size_t position) const
+{
+    for (auto i = position + 1; i-- > 0;) {
+        auto configuration = m_coded_frames[i].new_codec_configuration();
+        if (!configuration.is_empty())
+            return configuration;
+    }
+    return m_codec_initialization_data.bytes();
+}
+
 Media::DecoderErrorOr<Media::CodedFrame> TrackBufferDemuxer::get_next_sample_for_track(Media::Track const&)
 {
     Sync::MutexLocker locker { m_mutex };
@@ -255,8 +266,31 @@ Media::DecoderErrorOr<Media::CodedFrame> TrackBufferDemuxer::get_next_sample_for
     if (error.has_value())
         return error.release_value();
 
-    m_last_returned_timestamp = m_coded_frames[m_read_position].presentation_timestamp();
-    return m_coded_frames[m_read_position++];
+    auto const& stored_frame = m_coded_frames[m_read_position];
+    if (m_cursor_jumped) {
+        m_cursor_jumped = false;
+        auto configuration = codec_configuration_at_position_while_locked(m_read_position);
+        if (!configuration.is_empty() && configuration != m_last_delivered_codec_configuration.span()) {
+            m_last_delivered_codec_configuration = MUST(FixedArray<u8>::create(configuration));
+            Media::CodedFrame frame {
+                stored_frame.presentation_timestamp(),
+                stored_frame.decode_timestamp(),
+                stored_frame.duration(),
+                stored_frame.flags(),
+                MUST(FixedArray<u8>::create(stored_frame.data())),
+                MUST(m_last_delivered_codec_configuration.clone()),
+            };
+            m_last_returned_timestamp = frame.presentation_timestamp();
+            m_read_position++;
+            return frame;
+        }
+    } else if (auto configuration = stored_frame.new_codec_configuration(); !configuration.is_empty()) {
+        m_last_delivered_codec_configuration = MUST(FixedArray<u8>::create(configuration));
+    }
+
+    m_last_returned_timestamp = stored_frame.presentation_timestamp();
+    m_read_position++;
+    return stored_frame;
 }
 
 Media::DecoderErrorOr<Media::CodecID> TrackBufferDemuxer::get_codec_id_for_track(Media::Track const&)
@@ -354,6 +388,7 @@ Media::DecoderErrorOr<Media::DemuxerSeekResult> TrackBufferDemuxer::seek_to_most
 
     m_read_position = best_position;
     m_last_returned_timestamp = best_timestamp;
+    m_cursor_jumped = true;
     m_data_changed.broadcast();
     return Media::DemuxerSeekResult::MovedPosition;
 }

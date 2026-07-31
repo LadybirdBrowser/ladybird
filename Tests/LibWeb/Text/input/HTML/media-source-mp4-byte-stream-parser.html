@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const mimeType = 'video/mp4;codecs="av01.0.00M.08,mp4a.40.2"';
+
+        function readU32(bytes, offset) {
+            return new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getUint32(offset);
+        }
+
+        function writeU32(bytes, offset, value) {
+            new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).setUint32(offset, value);
+        }
+
+        function readType(bytes, offset) {
+            return String.fromCharCode(...bytes.subarray(offset + 4, offset + 8));
+        }
+
+        function writeType(bytes, offset, type) {
+            for (let index = 0; index < type.length; ++index)
+                bytes[offset + 4 + index] = type.charCodeAt(index);
+        }
+
+        function parseBoxes(bytes, start = 0, end = bytes.length) {
+            const boxes = [];
+            let position = start;
+            while (position < end) {
+                if (position + 8 > end)
+                    throw new Error("incomplete box header in fixture");
+                const size = readU32(bytes, position);
+                if (size < 8 || position + size > end)
+                    throw new Error(`invalid ${readType(bytes, position)} box size in fixture`);
+                boxes.push({
+                    type: readType(bytes, position),
+                    start: position,
+                    contentStart: position + 8,
+                    end: position + size,
+                });
+                position += size;
+            }
+            return boxes;
+        }
+
+        function findBox(boxes, type, index = 0) {
+            const matches = boxes.filter(box => box.type === type);
+            if (matches.length <= index)
+                throw new Error(`missing ${type} box ${index} in fixture`);
+            return matches[index];
+        }
+
+        function findTrackRuns(bytes, movieFragment) {
+            const trackFragments = parseBoxes(bytes, movieFragment.contentStart, movieFragment.end)
+                .filter(box => box.type === "traf");
+            return trackFragments.flatMap(trackFragment =>
+                parseBoxes(bytes, trackFragment.contentStart, trackFragment.end)
+                    .filter(box => box.type === "trun"));
+        }
+
+        function concatenate(...chunks) {
+            const result = new Uint8Array(chunks.reduce((size, chunk) => size + chunk.length, 0));
+            let position = 0;
+            for (const chunk of chunks) {
+                result.set(chunk, position);
+                position += chunk.length;
+            }
+            return result;
+        }
+
+        function initializationSegmentWithSecondSampleDescription(initializationSegment) {
+            const movie = findBox(parseBoxes(initializationSegment), "moov");
+            const track = findBox(parseBoxes(initializationSegment, movie.contentStart, movie.end), "trak");
+            const trackChildren = parseBoxes(initializationSegment, track.contentStart, track.end);
+            const trackHeader = findBox(trackChildren, "tkhd");
+            if (initializationSegment[trackHeader.contentStart] !== 0)
+                throw new Error("fixture uses an unsupported Track Header version");
+            const trackID = readU32(initializationSegment, trackHeader.contentStart + 12);
+
+            const media = findBox(trackChildren, "mdia");
+            const mediaInformation = findBox(parseBoxes(initializationSegment, media.contentStart, media.end), "minf");
+            const sampleTable = findBox(parseBoxes(initializationSegment, mediaInformation.contentStart, mediaInformation.end), "stbl");
+            const sampleDescription = findBox(parseBoxes(initializationSegment, sampleTable.contentStart, sampleTable.end), "stsd");
+            if (readU32(initializationSegment, sampleDescription.contentStart + 4) !== 1)
+                throw new Error("fixture does not have exactly one sample description");
+            const sampleEntry = findBox(parseBoxes(initializationSegment, sampleDescription.contentStart + 8, sampleDescription.end), "av01");
+            const duplicate = initializationSegment.slice(sampleEntry.start, sampleEntry.end);
+
+            const result = concatenate(
+                initializationSegment.slice(0, sampleDescription.end),
+                duplicate,
+                initializationSegment.slice(sampleDescription.end));
+            for (const box of [movie, track, media, mediaInformation, sampleTable, sampleDescription])
+                writeU32(result, box.start, readU32(result, box.start) + duplicate.length);
+            writeU32(result, sampleDescription.contentStart + 4, 2);
+
+            const updatedMovie = findBox(parseBoxes(result), "moov");
+            const movieExtends = findBox(parseBoxes(result, updatedMovie.contentStart, updatedMovie.end), "mvex");
+            const trackExtends = parseBoxes(result, movieExtends.contentStart, movieExtends.end)
+                .find(box => box.type === "trex" && readU32(result, box.contentStart + 4) === trackID);
+            if (!trackExtends)
+                throw new Error("fixture has no Track Extends box for the selected track");
+            writeU32(result, trackExtends.contentStart + 8, 2);
+            return result;
+        }
+
+        function append(sourceBuffer, bytes) {
+            return new Promise((resolve, reject) => {
+                function cleanup() {
+                    sourceBuffer.removeEventListener("error", onError);
+                    sourceBuffer.removeEventListener("updateend", onUpdateEnd);
+                }
+
+                function onError() {
+                    cleanup();
+                    reject(new Error("unexpected SourceBuffer error event"));
+                }
+
+                function onUpdateEnd() {
+                    cleanup();
+                    resolve();
+                }
+
+                sourceBuffer.addEventListener("error", onError);
+                sourceBuffer.addEventListener("updateend", onUpdateEnd);
+                sourceBuffer.appendBuffer(bytes);
+            });
+        }
+
+        function appendExpectingError(sourceBuffer, bytes) {
+            return new Promise((resolve, reject) => {
+                let sawError = false;
+
+                function cleanup() {
+                    sourceBuffer.removeEventListener("error", onError);
+                    sourceBuffer.removeEventListener("updateend", onUpdateEnd);
+                }
+
+                function onError() {
+                    sawError = true;
+                }
+
+                function onUpdateEnd() {
+                    cleanup();
+                    if (sawError)
+                        resolve();
+                    else
+                        reject(new Error("SourceBuffer accepted malformed data"));
+                }
+
+                sourceBuffer.addEventListener("error", onError);
+                sourceBuffer.addEventListener("updateend", onUpdateEnd);
+                sourceBuffer.appendBuffer(bytes);
+            });
+        }
+
+        async function withSourceBuffer(callback) {
+            const video = document.createElement("video");
+            document.body.append(video);
+            const mediaSource = new MediaSource();
+            const objectURL = URL.createObjectURL(mediaSource);
+            video.src = objectURL;
+            await new Promise(resolve => mediaSource.addEventListener("sourceopen", resolve, { once: true }));
+            const sourceBuffer = mediaSource.addSourceBuffer(mimeType);
+            try {
+                await callback(sourceBuffer);
+            } finally {
+                video.remove();
+                URL.revokeObjectURL(objectURL);
+            }
+        }
+
+        function pass(name) {
+            println(`PASS: ${name}`);
+        }
+
+        try {
+            if (!MediaSource.isTypeSupported(mimeType))
+                throw new Error(`${mimeType} is not supported`);
+
+            const response = await fetch("../../../Assets/av1-aac-fragmented.mp4");
+            if (!response.ok)
+                throw new Error(`fetch returned HTTP ${response.status}`);
+            const bytes = new Uint8Array(await response.arrayBuffer());
+            const topLevelBoxes = parseBoxes(bytes);
+            const fileType = findBox(topLevelBoxes, "ftyp");
+            const movie = findBox(topLevelBoxes, "moov");
+            const movieFragments = topLevelBoxes.filter(box => box.type === "moof");
+            const mediaDataBoxes = topLevelBoxes.filter(box => box.type === "mdat");
+            if (movieFragments.length < 3 || mediaDataBoxes.length < 3)
+                throw new Error("fixture does not contain enough media segments");
+
+            const initializationSegment = bytes.slice(fileType.start, movie.end);
+            const firstMediaSegment = bytes.slice(movieFragments[0].start, mediaDataBoxes[0].end);
+            const thirdMediaSegment = bytes.slice(movieFragments[2].start, mediaDataBoxes[2].end);
+
+            await withSourceBuffer(async sourceBuffer => {
+                await append(sourceBuffer, initializationSegmentWithSecondSampleDescription(initializationSegment));
+                await append(sourceBuffer, firstMediaSegment);
+            });
+            pass("fragment may select a second sample description");
+
+            const eventMessage = new Uint8Array(24);
+            writeU32(eventMessage, 0, eventMessage.length);
+            writeType(eventMessage, 0, "emsg");
+            await withSourceBuffer(async sourceBuffer => {
+                await append(sourceBuffer, initializationSegment);
+                await append(sourceBuffer, concatenate(eventMessage, firstMediaSegment));
+                if (sourceBuffer.buffered.length === 0)
+                    throw new Error("Event Message box kept the media segment from buffering");
+            });
+            pass("Event Message box before a media segment ignored");
+
+            const duplicateFileType = concatenate(
+                bytes.slice(fileType.start, fileType.end),
+                initializationSegment);
+            await withSourceBuffer(sourceBuffer => appendExpectingError(sourceBuffer, duplicateFileType));
+            pass("duplicate File Type box before Movie box rejected");
+
+            const segmentType = bytes.slice(fileType.start, fileType.end);
+            writeType(segmentType, 0, "styp");
+            const segmentBoundaryBeforeMovieFragment = concatenate(
+                segmentType,
+                bytes.slice(fileType.start, fileType.end),
+                firstMediaSegment);
+            await withSourceBuffer(async sourceBuffer => {
+                await append(sourceBuffer, initializationSegment);
+                await appendExpectingError(sourceBuffer, segmentBoundaryBeforeMovieFragment);
+            });
+            pass("segment boundary box between Segment Type and Movie Fragment rejected");
+
+            const emptyMovieFragment = bytes.slice(movieFragments[0].start, movieFragments[0].end);
+            for (const trackRun of findTrackRuns(bytes, movieFragments[0])) {
+                const sampleCountOffset = trackRun.start - movieFragments[0].start + 12;
+                writeU32(emptyMovieFragment, sampleCountOffset, 0);
+            }
+            const emptySegmentWithoutMediaData = concatenate(emptyMovieFragment, firstMediaSegment);
+            await withSourceBuffer(async sourceBuffer => {
+                await append(sourceBuffer, initializationSegment);
+                await appendExpectingError(sourceBuffer, emptySegmentWithoutMediaData);
+            });
+            pass("empty media segment without Media Data box rejected");
+
+            const overlappingSamples = firstMediaSegment.slice();
+            const firstTrackRuns = findTrackRuns(bytes, movieFragments[0]);
+            if (firstTrackRuns.length < 2)
+                throw new Error("fixture does not contain two Track Run boxes");
+            const firstDataOffset = readU32(bytes, firstTrackRuns[0].start + 16);
+            const secondDataOffsetPosition = firstTrackRuns[1].start - movieFragments[0].start + 16;
+            writeU32(overlappingSamples, secondDataOffsetPosition, firstDataOffset);
+            await withSourceBuffer(async sourceBuffer => {
+                await append(sourceBuffer, initializationSegment);
+                await appendExpectingError(sourceBuffer, overlappingSamples);
+            });
+            pass("overlapping sample data ranges rejected");
+
+            await withSourceBuffer(async sourceBuffer => {
+                await append(sourceBuffer, initializationSegment);
+                await append(sourceBuffer, bytes.slice(movieFragments[0].start, mediaDataBoxes[0].contentStart));
+                sourceBuffer.abort();
+                await append(sourceBuffer, thirdMediaSegment);
+                if (sourceBuffer.buffered.length === 0 || sourceBuffer.buffered.start(0) <= 1)
+                    throw new Error("partial media segment state survived abort()");
+            });
+            pass("abort discards partial media segment state");
+            done();
+        } catch (error) {
+            println(`FAIL: ${error}`);
+            done();
+        }
+    });
+</script>

@@ -8,6 +8,7 @@
 
 #include <AK/Atomic.h>
 #include <AK/ByteBuffer.h>
+#include <AK/FixedArray.h>
 #include <AK/Vector.h>
 #include <LibCore/Forward.h>
 #include <LibMedia/CodecID.h>
@@ -16,13 +17,14 @@
 #include <LibMedia/TimeRanges.h>
 #include <LibSync/ConditionVariable.h>
 #include <LibSync/Mutex.h>
+#include <LibWeb/Export.h>
 
 namespace Web::MediaSourceExtensions {
 
 // TrackBufferDemuxer stores coded frames for a single track and implements the Demuxer
 // interface so that it can be used as a media source for PlaybackManager's data providers.
 // It is shared between TrackBuffer (which writes frames) and PlaybackManager (which reads them).
-class TrackBufferDemuxer final : public Media::Demuxer {
+class WEB_API TrackBufferDemuxer final : public Media::Demuxer {
 public:
     TrackBufferDemuxer(Media::Track const&, Media::CodecID, ByteBuffer codec_initialization_data);
     virtual ~TrackBufferDemuxer() override;
@@ -66,6 +68,7 @@ public:
 private:
     AK::Duration maximum_time_range_gap() const;
     bool next_frame_is_in_gap_while_locked() const;
+    ReadonlyBytes codec_configuration_at_position_while_locked(size_t) const;
     bool is_frame_evictable_while_locked(Media::CodedFrame const&, AK::Duration current_time) const;
     void queue_scan_state_change_dispatch_while_locked();
 
@@ -78,9 +81,11 @@ private:
 
     Vector<Media::CodedFrame> m_coded_frames;
     size_t m_read_position { 0 };
+    bool m_cursor_jumped { false };
     bool m_reached_end_of_stream { false };
 
     Optional<AK::Duration> m_last_returned_timestamp;
+    FixedArray<u8> m_last_delivered_codec_configuration;
 
     Media::TimeRanges m_track_buffer_ranges;
     AK::Duration m_last_frame_duration;

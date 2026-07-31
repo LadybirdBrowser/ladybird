@@ -1,0 +1,7 @@
+PASS: fragment may select a second sample description
+PASS: Event Message box before a media segment ignored
+PASS: duplicate File Type box before Movie box rejected
+PASS: segment boundary box between Segment Type and Movie Fragment rejected
+PASS: empty media segment without Media Data box rejected
+PASS: overlapping sample data ranges rejected
+PASS: abort discards partial media segment state

@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AnyOf.h>
+#include <AK/Array.h>
 #include <LibGC/Heap.h>
 #include <LibMedia/PlaybackManager.h>
 #include <LibWeb/DOM/Event.h>
@@ -421,14 +423,23 @@ static bool is_type_supported(Utf16View type)
 
     // 3. If type contains a media type or media subtype that the MediaSource does not support, then
     //    return false.
-    auto type_and_subtype_are_supported = [&] {
-        if (mime_type->type() == "video" && mime_type->subtype() == "webm")
-            return true;
-        if (mime_type->type() == "audio" && mime_type->subtype() == "webm")
-            return true;
+    if (mime_type->type() != "video" && mime_type->type() != "audio")
         return false;
+
+    // FIXME: Parse codec strings into a form that LibMedia can answer capability queries about, so that this,
+    //        HTMLMediaElement's canPlayType() and the Media Capabilities API can all share one answer. Until
+    //        then, the codecs of a byte stream format are matched by their prefixes alone, which accepts codec
+    //        strings that are malformed or name a profile that we cannot decode.
+    static constexpr Array WEBM_CODEC_PREFIXES { "vp9"sv, "vp09"sv, "opus"sv };
+    static constexpr Array MP4_CODEC_PREFIXES { "av01"sv, "avc1"sv, "avc3"sv, "mp4a"sv, "Opus"sv, "fLaC"sv };
+    auto supported_codec_prefixes = [&] -> ReadonlySpan<StringView> {
+        if (mime_type->subtype() == "webm")
+            return WEBM_CODEC_PREFIXES;
+        if (mime_type->subtype() == "mp4")
+            return MP4_CODEC_PREFIXES;
+        return {};
     }();
-    if (!type_and_subtype_are_supported)
+    if (supported_codec_prefixes.is_empty())
         return false;
 
     // 4. If type contains a codec that the MediaSource does not support, then return false.
@@ -440,7 +451,8 @@ static bool is_type_supported(Utf16View type)
     auto codecs = codecs_iter->value.bytes_as_string_view();
     auto had_unsupported_codec = false;
     codecs.for_each_split_view(',', SplitBehavior::Nothing, [&](auto const& codec) {
-        if (!codec.starts_with("vp9"sv) && !codec.starts_with("vp09"sv) && !codec.starts_with("opus"sv)) {
+        auto codec_is_supported = any_of(supported_codec_prefixes, [&](auto prefix) { return codec.starts_with(prefix); });
+        if (!codec_is_supported) {
             had_unsupported_codec = true;
             return IterationDecision::Break;
         }
