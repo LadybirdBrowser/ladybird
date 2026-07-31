@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Test (Transforms): Simple Backface-Visibility, scalez(-1)</title>
+    <link rel="author" title="Aryeh Gregor" href="mailto:ayg@aryeh.name">
+    <link rel="help" href="http://www.w3.org/TR/css-transforms-2/#propdef-backface-visibility">
+    <meta name="assert" content="This is the same as
+    transform3d-backface-visibility-001.html, except it uses scalez(-1) instead
+    of rotatex(180deg).  scalez(-1) has no visible effect when applied by
+    itself to a box, since the box's Z-coordinates are all 0, but it still
+    causes it to be affected by 'backface-visibility'.">
+    <link rel="match" href="../../../../expected/wpt-import/css/css-transforms/transform-lime-square-ref.html">
+    <style>div { height: 100px; width: 100px }</style>
+  </head>
+  <body>
+    <div style="background: lime">
+      <div style="background: red; backface-visibility: hidden;
+        transform: scalez(-1)">
+      </div>
+    </div>
+  </body>
+</html>

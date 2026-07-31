@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1321302">
+<span id="elm" style="filter:blur(1px); backface-visibility:hidden;">x</span>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+  test(()=> {
+    assert_equals(elm, document.elementFromPoint(10, 10));
+  }, "Hit test");
+</script>

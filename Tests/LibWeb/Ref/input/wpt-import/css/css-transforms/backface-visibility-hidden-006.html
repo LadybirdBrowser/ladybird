@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<title>backface visibility: hidden scrolling contents if backface-invisible</title>
+<link rel="author" title="Chris Harrelson" href="mailto:chrishtr@chromium.org">
+<link rel="help" href="http://www.w3.org/TR/css-transforms-1/#transform-property">
+<link rel="help" href="http://www.w3.org/TR/css-transforms-2/#propdef-backface-visibility">
+<link rel="match" href="../../../../expected/wpt-import/css/css-transforms/backface-visibility-hidden-006-ref.html">
+<div style="transform: rotateY(180deg); backface-visibility: hidden; overflow: scroll; height: 300px;">
+  <p style="display: inline-block; height: 300px">
+    This text should be invisible
+  </p>
+</div>

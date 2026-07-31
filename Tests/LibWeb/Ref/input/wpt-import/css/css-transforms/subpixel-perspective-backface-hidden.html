@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<link ref="help" href="https://drafts.csswg.org/css-transforms-2/#perspective-property">
+<link rel="help" href="https://drafts.csswg.org/css-transforms-2/#backface-visibility-property">
+<link rel="match" href="../../../../expected/wpt-import/css/css-transforms/subpixel-perspective-backface-hidden-ref.html">
+<meta name="assert" content="Subpixel-positioned contents should be rendered the same regardless of perspective and backface-visibility:hidden">
+<div style="padding: 0.4px 0.6px">
+  <div style="perspective: 1000px; backface-visibility: hidden">
+    <div style="width: 100px; height: 100px;
+                backface-visibility: hidden;border: 1px solid black">
+    </div>
+  </div>
+</div>

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Test (Transforms): Backface-Visibility With Transformed Parent
+    in Same Rendering Context, Split Transform</title>
+    <link rel="author" title="Aryeh Gregor" href="mailto:ayg@aryeh.name">
+    <link rel="help" href="http://www.w3.org/TR/css-transforms-2/#propdef-backface-visibility">
+    <meta name="assert" content="This tests that if a parent and child are in
+    the same 3D rendering context, and a 60deg rotation on the parent combines
+    with a 60deg rotation on the child to make a 120deg rotation, the child
+    will disappear if 'backface-visibility: hidden' is specified, just like if
+    the 120deg rotation were specified on the child to start with.">
+    <link rel="match" href="../../../../expected/wpt-import/css/css-transforms/transform-lime-square-ref.html">
+  </head>
+  <body>
+    <div style="height:100px;width:100px;background:lime">
+      <div style="transform:rotatex(60deg);transform-style:preserve-3d">
+        <div style="height:100px;width:100px;background:red;
+          transform:rotatex(60deg);backface-visibility:hidden">
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Test (Transforms): Backface-Visibility With Transformed Parent
+    and Child in Different Rendering Contexts</title>
+    <link rel="author" title="Aryeh Gregor" href="mailto:ayg@aryeh.name">
+    <link rel="help" href="http://www.w3.org/TR/css-transforms-2/#propdef-backface-visibility">
+    <meta name="assert" content="This tests that if an element has
+    'backface-visibility: hidden' and is rotated 180deg, so it would normally
+    disappear, it doesn't reappear just because its parent also has a 180deg
+    rotation.  The rotations don't cancel, since the parent doesn't have
+    'transform-style: preserve-3d' and is in a different rendering context.">
+    <link rel="match" href="../../../../expected/wpt-import/css/css-transforms/transform-lime-square-ref.html">
+  </head>
+  <body>
+    <div style="height:100px;width:100px;background:lime;
+      transform:rotatex(180deg)">
+      <div style="height:100px;width:100px;background:red;
+        transform:rotatex(180deg);backface-visibility:hidden">
+      </div>
+    </div>
+  </body>
+</html>

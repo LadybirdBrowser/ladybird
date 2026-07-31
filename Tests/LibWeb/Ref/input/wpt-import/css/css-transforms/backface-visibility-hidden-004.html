@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<title>backface visibility: hidden creates containing block and stacking context when participating in a 3D rendering context</title>
+<link rel="author" title="Matt Woodrow" href="mailto:mattwoodrow@apple.com">
+<link rel="help" href="http://www.w3.org/TR/css-transforms-1/#transform-property">
+<link rel="help" href="http://www.w3.org/TR/css-transforms-2/#propdef-backface-visibility">
+<link rel="match" href="../../../../expected/wpt-import/css/css-transforms/backface-visibility-hidden-003-ref.html">
+
+<p>The test passes if there is a green rectangle and no red.</p>
+<style>
+.outer {
+  transform-style: preserve-3d;
+  transform: rotateX(180deg);
+  width: 100px;
+  height: 100px;
+}
+
+.card {
+  width: 100px;
+  height: 100px;
+  position: absolute;
+  backface-visibility: hidden;
+}
+
+.front {
+  background-color: red;
+}
+
+.back {
+  background-color: green;
+  transform: rotateX(180deg);
+}
+
+.inner {
+  position: fixed;
+  width: 100px;
+  height: 100px;
+  background-color: red;
+}
+
+</style>
+
+<div class="outer">
+  <div class="card back"></div>
+  <div class="card front">
+    <div class="inner"></div>
+  </div>
+</div>

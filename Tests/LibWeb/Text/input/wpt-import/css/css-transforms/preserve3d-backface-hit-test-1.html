@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<title>Hit test back face hidden preserve3d</title>
+<link rel="help" href="https://drafts.csswg.org/css-transforms-2/#backface-visibility-property">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<style>
+  body {
+    margin: 0;
+  }
+
+  .container {
+    position: absolute;
+    top: 50px;
+    left: 50px;
+    perspective: 600px;
+    width: 200px;
+    height: 200px;
+  }
+
+  .rotatetoback {
+    width: 100%;
+    height: 100%;
+    transform-style: preserve-3d;
+    transform: rotateY(-180deg);
+  }
+
+  .hideback {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    backface-visibility: hidden;
+  }
+
+  .rotatetofront {
+    transform: rotateY(180deg);
+  }
+</style>
+
+<body>
+
+<div class="container">
+  <div class="rotatetoback" >
+    <div id="target" class="hideback rotatetofront" style="background: blue">
+    </div>
+    <div class="hideback" style="background: green;">
+    </div>
+  </div>
+</div>
+
+</body>
+
+<script>
+
+  test(t => {
+    const expectedElemId = "target";
+    const expectedElem = document.getElementById(expectedElemId);
+    const x = 150;
+    const y = 150;
+    const hitElem = document.elementFromPoint(x, y);
+    assert_equals(hitElem, expectedElem,
+      `point (${x}, ${y}) is inside element ${expectedElemId}`);
+  }, `${document.title}, hittesting`);
+
+</script>
+
+</html>

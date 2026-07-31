@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AnyOf.h>
 #include <AK/Atomic.h>
 #include <AK/HashTable.h>
 #include <AK/StringBuilder.h>
@@ -384,6 +385,9 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
         NearestScrollNodeIndices normal_nearest_scroll_nodes;
         NearestScrollNodeIndices absolute_position_nearest_scroll_nodes;
         NearestScrollNodeIndices fixed_position_nearest_scroll_nodes;
+        VisualContextIndex normal_plane_root;
+        VisualContextIndex absolute_position_plane_root;
+        VisualContextIndex fixed_position_plane_root;
     };
 
     auto build_paintable_box = [&](Paintable& paintable_box, DescendantVisualContexts inherited_contexts, bool may_be_root_element) -> DescendantVisualContexts {
@@ -499,6 +503,30 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
             paintable_box.set_has_non_invertible_css_transform(false);
         }
 
+        // https://drafts.csswg.org/css-transforms-2/#backface-visibility-property
+        // NB: Whether the element's backface is visible depends on its accumulated 3D transformation matrix, which
+        //     is only known at replay time once scroll offsets have been applied. The node recorded below marks the
+        //     content to skip and stores the plane root from which that matrix is accumulated. The plane root bounds
+        //     the accumulation to the element's 3D rendering context.
+        // AD-HOC: The spec determines visibility from the sign of m33 in the accumulated matrix. That is wrong for
+        //         matrices with a perspective component, so we test the z-component of the transformed plane normal
+        //         instead. See: https://github.com/w3c/csswg-drafts/issues/917.
+        auto inherited_plane_root = [&] {
+            if (paintable_box.is_fixed_position())
+                return inherited_contexts.fixed_position_plane_root;
+            if (paintable_box.is_absolutely_positioned())
+                return inherited_contexts.absolute_position_plane_root;
+            return inherited_contexts.normal_plane_root;
+        }();
+        if (computed_values.backface_visibility() == CSS::BackfaceVisibility::Hidden && layout_node.is_transformable())
+            own_state = append_node(own_state, BackfaceVisibilityData { inherited_plane_root });
+
+        // https://drafts.csswg.org/css-transforms-2/#3d-rendering-contexts
+        // An element whose used value for transform-style is preserve-3d extends its 3D rendering context, so its
+        // descendants accumulate through this element's transform; any other element starts a new plane below its
+        // own transform.
+        auto plane_root_for_descendants = layout_node.establishes_or_extends_a_3d_rendering_context() ? inherited_plane_root : own_state;
+
         if (computed_values.clip().is_rect()) {
             if (auto css_clip = compute_css_clip_data(paintable_box, computed_values, converter); css_clip.has_value())
                 append_to_own_and_positioned_descendant_contexts(css_clip.value());
@@ -589,13 +617,17 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
         paintable_box.set_visual_context_node_range(first_visual_context_node_index, visual_context_tree.nodes().size());
         auto absolute_position_nearest_scroll_nodes = inherited_contexts.absolute_position_nearest_scroll_nodes;
         auto fixed_position_nearest_scroll_nodes = inherited_contexts.fixed_position_nearest_scroll_nodes;
+        auto absolute_position_plane_root = inherited_contexts.absolute_position_plane_root;
+        auto fixed_position_plane_root = inherited_contexts.fixed_position_plane_root;
         if (positioning_containing_blocks.absolute) {
             state_for_absolute_position_descendants = state_for_descendants;
             absolute_position_nearest_scroll_nodes = nearest_scroll_nodes_for_descendants;
+            absolute_position_plane_root = plane_root_for_descendants;
         }
         if (positioning_containing_blocks.fixed) {
             state_for_fixed_position_descendants = state_for_descendants;
             fixed_position_nearest_scroll_nodes = nearest_scroll_nodes_for_descendants;
+            fixed_position_plane_root = plane_root_for_descendants;
         }
 
         return DescendantVisualContexts {
@@ -605,6 +637,9 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
             nearest_scroll_nodes_for_descendants,
             absolute_position_nearest_scroll_nodes,
             fixed_position_nearest_scroll_nodes,
+            plane_root_for_descendants,
+            absolute_position_plane_root,
+            fixed_position_plane_root,
         };
     };
 
@@ -616,6 +651,9 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
         viewport_nearest_scroll_nodes,
         viewport_nearest_scroll_nodes,
         viewport_nearest_scroll_nodes,
+        viewport_state_for_descendants,
+        viewport_state_for_descendants,
+        visual_viewport_context_index,
     };
 
     struct PendingPaintable {
@@ -829,10 +867,48 @@ Optional<Gfx::FloatPoint> AccumulatedVisualContextTree::transform_point_for_hit_
 {
     auto chain = build_ancestor_chain(index);
 
+    // The backface test needs forward matrices, but this walk only applies inverses. When the chain contains
+    // backface markers, we accumulate the forward matrices as we walk, from the root down, so a marker can look up
+    // the matrix at its plane root by depth.
+    bool chain_has_backface_marker = any_of(chain, [&](size_t chain_index) {
+        return m_nodes[chain_index].data.has<BackfaceVisibilityData>();
+    });
+    Vector<Gfx::FloatMatrix4x4, 8> accumulated_matrices;
+    if (chain_has_backface_marker)
+        accumulated_matrices.ensure_capacity(chain.size());
+
     auto point = screen_point;
     for (size_t i = chain.size(); i > 0; --i) {
         auto node_index = VisualContextIndex { chain[i - 1] };
         auto const& node = m_nodes[node_index.value()];
+
+        if (chain_has_backface_marker) {
+            auto local_matrix = node.data.visit(
+                [&](TransformData const& transform) {
+                    return transform.matrix_including_origin();
+                },
+                [&](PerspectiveData const& perspective) {
+                    return perspective.matrix;
+                },
+                [&](ScrollData const&) {
+                    auto offset = scroll_state.device_offset_for_index(node_index);
+                    return Gfx::translation_matrix(Vector3 { offset.x(), offset.y(), 0.f });
+                },
+                [&](ScrollCompensation const& compensation) {
+                    auto offset = scroll_state.device_offset_for_index(compensation.scroll_node_index);
+                    return Gfx::translation_matrix(Vector3 { -offset.x(), -offset.y(), 0.f });
+                },
+                [&](AnchorScrollShift const& shift) {
+                    auto offset = shift.masked_offset(scroll_state);
+                    return Gfx::translation_matrix(Vector3 { offset.x(), offset.y(), 0.f });
+                },
+                [&](BackfaceVisibilityData const&) { return Gfx::FloatMatrix4x4::identity(); },
+                [&](ClipData const&) { return Gfx::FloatMatrix4x4::identity(); },
+                [&](ClipPathData const&) { return Gfx::FloatMatrix4x4::identity(); },
+                [&](EffectsData const&) { return Gfx::FloatMatrix4x4::identity(); },
+                [&](MaskData const&) { return Gfx::FloatMatrix4x4::identity(); });
+            accumulated_matrices.unchecked_append(i == chain.size() ? local_matrix : accumulated_matrices.last() * local_matrix);
+        }
 
         auto result = node.data.visit(
             [&](PerspectiveData const& perspective) -> Optional<Gfx::FloatPoint> {
@@ -841,6 +917,13 @@ Optional<Gfx::FloatPoint> AccumulatedVisualContextTree::transform_point_for_hit_
                 if (!inverse.has_value())
                     return {};
                 point = inverse->map(point);
+                return point;
+            },
+            [&](BackfaceVisibilityData const& backface) -> Optional<Gfx::FloatPoint> {
+                auto plane_root_depth = m_nodes[backface.plane_root_index.value()].depth;
+                VERIFY(chain[chain.size() - 1 - plane_root_depth] == backface.plane_root_index.value());
+                if (should_cull_back_face(accumulated_matrices.last(), accumulated_matrices[plane_root_depth]))
+                    return {};
                 return point;
             },
             [&](ScrollData const&) -> Optional<Gfx::FloatPoint> {
@@ -957,6 +1040,7 @@ Gfx::FloatRect AccumulatedVisualContextTree::transform_rect_to_viewport(VisualCo
                 [&](AnchorScrollShift const& shift) {
                     rect.translate_by(shift.masked_offset(scroll_state));
                 },
+                [&](BackfaceVisibilityData const&) {},
                 [&](ClipData const&) { /* clips don't affect rect coordinates */ },
                 [&](ClipPathData const&) { /* clip paths don't affect rect coordinates */ },
                 [&](EffectsData const&) { /* effects don't affect rect coordinates */ },
@@ -967,6 +1051,21 @@ Gfx::FloatRect AccumulatedVisualContextTree::transform_rect_to_viewport(VisualCo
     }
 
     return rect;
+}
+
+Gfx::FloatMatrix4x4 TransformData::matrix_including_origin() const
+{
+    auto origin_translation = Gfx::translation_matrix(Gfx::Vector3<float> { origin.x(), origin.y(), 0 });
+    auto inverse_origin_translation = Gfx::translation_matrix(Gfx::Vector3<float> { -origin.x(), -origin.y(), 0 });
+    return origin_translation * matrix * inverse_origin_translation;
+}
+
+bool should_cull_back_face(Gfx::FloatMatrix4x4 const& accumulated_matrix, Gfx::FloatMatrix4x4 const& plane_root_matrix)
+{
+    auto inverse_plane_root_matrix = plane_root_matrix.inverse();
+    if (!inverse_plane_root_matrix.has_value())
+        return false;
+    return Gfx::is_back_face_visible(*inverse_plane_root_matrix * accumulated_matrix);
 }
 
 Gfx::FloatPoint AnchorScrollShift::masked_offset(ScrollStateSnapshot const& scroll_state) const
@@ -985,6 +1084,9 @@ void AccumulatedVisualContextTree::dump(VisualContextIndex index, StringBuilder&
     node.data.visit(
         [&](PerspectiveData const&) {
             builder.append("perspective"sv);
+        },
+        [&](BackfaceVisibilityData const& backface) {
+            builder.appendff("backface-hidden plane_root={}", backface.plane_root_index.value());
         },
         [&](ScrollData const& scroll) {
             builder.append("scroll"sv);
@@ -1122,6 +1224,21 @@ ErrorOr<Web::Painting::PerspectiveData> decode(Decoder& decoder)
 {
     return Web::Painting::PerspectiveData {
         .matrix = TRY(decoder.decode<Gfx::FloatMatrix4x4>()),
+    };
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Web::Painting::BackfaceVisibilityData const& data)
+{
+    TRY(encoder.encode(data.plane_root_index));
+    return {};
+}
+
+template<>
+ErrorOr<Web::Painting::BackfaceVisibilityData> decode(Decoder& decoder)
+{
+    return Web::Painting::BackfaceVisibilityData {
+        .plane_root_index = TRY(decoder.decode<Web::Painting::VisualContextIndex>()),
     };
 }
 
