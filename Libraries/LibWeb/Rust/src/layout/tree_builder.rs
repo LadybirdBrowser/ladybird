@@ -7,7 +7,7 @@
 use crate::abort_on_panic;
 use crate::layout::layout_node_arena::LayoutNodeArena;
 use crate::layout::node_data::{GENERATED_FOR_MARKER, NodeData, NodeFlag, NodeKind, NodeSlotId};
-use crate::layout::{FfiTableDisplay, StyleReader, kind_is_replaced_box, node_can_have_children};
+use crate::layout::{FfiDisplay, StyleReader, kind_is_replaced_box, node_can_have_children};
 use std::ffi::c_void;
 
 type LayoutNode = NodeSlotId;
@@ -1861,10 +1861,6 @@ fn create_pseudo_element_with_frame(
     layout_node
 }
 
-fn is_internal_table_display(display: FfiTableDisplay) -> bool {
-    is_table_track(display) || is_table_track_group(display) || display == FfiTableDisplay::TableCell
-}
-
 fn replaced_element_display_adjustment(
     host: &TreeBuilderHost<'_>,
     node: LayoutNode,
@@ -1872,14 +1868,14 @@ fn replaced_element_display_adjustment(
     if !node_has_flag(host.data(node), NodeFlag::IsReplacedElement) {
         return FfiReplacedElementDisplayAdjustment::None;
     }
-    let table_display = host.table_display(node);
+    let display = host.display(node);
     adjusted_table_display_for_replaced_element(
-        table_display == FfiTableDisplay::TableRoot,
+        display.is_table_inside(),
         !host
             .style(node)
             .is_some_and(|style| style.display().is_inline_outside()),
-        is_internal_table_display(table_display),
-        table_display == FfiTableDisplay::TableCaption,
+        display.is_internal_table(),
+        display.is_table_caption(),
     )
 }
 
@@ -2122,9 +2118,10 @@ fn node_is_out_of_flow(host: &TreeBuilderHost<'_>, node: LayoutNode) -> bool {
 
 fn node_has_replaced_element_table_display_adjustment(host: &TreeBuilderHost<'_>, node: LayoutNode) -> bool {
     node_has_flag(host.data(node), NodeFlag::IsReplacedElement)
-        && host
-            .style(node)
-            .is_some_and(|style| style.table_display_before() != FfiTableDisplay::Other)
+        && host.style(node).is_some_and(|style| {
+            let display = style.display_before_box_type_transformation();
+            display.is_table_inside() || display.is_internal_table() || display.is_table_caption()
+        })
 }
 
 fn node_is_fragmented_inline(host: &TreeBuilderHost<'_>, node: LayoutNode) -> bool {
@@ -2152,14 +2149,14 @@ impl TreeBuilderHost<'_> {
         unsafe { (*self.arena).style_payloads(node) }.map(StyleReader::new)
     }
 
-    fn table_display(&self, node: LayoutNode) -> FfiTableDisplay {
-        self.style(node)
-            .map_or(FfiTableDisplay::Other, |style| style.table_display())
+    fn display(&self, node: LayoutNode) -> FfiDisplay {
+        self.style(node).map_or_else(FfiDisplay::block, |style| style.display())
     }
 
-    fn table_display_before(&self, node: LayoutNode) -> FfiTableDisplay {
-        self.style(node)
-            .map_or(FfiTableDisplay::Other, |style| style.table_display_before())
+    fn display_before_box_type_transformation(&self, node: LayoutNode) -> FfiDisplay {
+        self.style(node).map_or_else(FfiDisplay::block, |style| {
+            style.display_before_box_type_transformation()
+        })
     }
 
     fn shell(&self, node: LayoutNode) -> *mut c_void {
@@ -2280,8 +2277,8 @@ impl crate::layout::TableTree for TreeBuilderHost<'_> {
         self.data(node)
     }
 
-    fn table_display(&self, node: LayoutNode) -> FfiTableDisplay {
-        TreeBuilderHost::table_display(self, node)
+    fn display(&self, node: LayoutNode) -> FfiDisplay {
+        TreeBuilderHost::display(self, node)
     }
 }
 
@@ -2338,12 +2335,12 @@ fn is_out_of_flow_table_internal_child_of_table_root(
     child: LayoutNode,
 ) -> bool {
     let child_data = host.data(child);
-    host.table_display(parent) == FfiTableDisplay::TableRoot
+    host.display(parent).is_table_inside()
         && node_has_flag(child_data, NodeFlag::HasStyle)
         && !node_has_flag(child_data, NodeFlag::Anonymous)
         && node_is_out_of_flow(host, child)
         && !node_has_replaced_element_table_display_adjustment(host, child)
-        && is_table_non_root_box_with_display(host.table_display_before(child))
+        && is_table_non_root_box_with_display(host.display_before_box_type_transformation(child))
 }
 
 fn create_anonymous_wrapper(host: &TreeBuilderHost<'_>, parent: LayoutNode) -> LayoutNode {
@@ -2839,23 +2836,20 @@ fn wrap_fieldset_contents_if_needed(host: &TreeBuilderHost<'_>, layout_node: Lay
     }
 }
 
-fn is_table_track(display: FfiTableDisplay) -> bool {
-    matches!(display, FfiTableDisplay::TableRow | FfiTableDisplay::TableColumn)
+fn is_table_track(display: FfiDisplay) -> bool {
+    display.is_table_row() || display.is_table_column()
 }
 
-fn is_table_track_group(display: FfiTableDisplay) -> bool {
+fn is_table_track_group(display: FfiDisplay) -> bool {
     // Unless explicitly mentioned otherwise, mentions of table-row-groups in this spec also encompass the specialized
     // table-header-groups and table-footer-groups.
-    matches!(
-        display,
-        FfiTableDisplay::TableRowGroup
-            | FfiTableDisplay::TableHeaderGroup
-            | FfiTableDisplay::TableFooterGroup
-            | FfiTableDisplay::TableColumnGroup
-    )
+    display.is_table_row_group()
+        || display.is_table_header_group()
+        || display.is_table_footer_group()
+        || display.is_table_column_group()
 }
 
-fn display_for_table_fixup(host: &TreeBuilderHost<'_>, node: LayoutNode) -> FfiTableDisplay {
+fn display_for_table_fixup(host: &TreeBuilderHost<'_>, node: LayoutNode) -> FfiDisplay {
     // https://drafts.csswg.org/css-tables-3/#fixup-algorithm
     // For the purposes of these rules, out-of-flow elements are represented as inline elements of zero width and
     // height. Their containing blocks are chosen accordingly.
@@ -2865,45 +2859,33 @@ fn display_for_table_fixup(host: &TreeBuilderHost<'_>, node: LayoutNode) -> FfiT
     if node_has_replaced_element_table_display_adjustment(host, node)
         || node_has_flag(host.data(node), NodeFlag::Anonymous)
     {
-        host.table_display(node)
+        host.display(node)
     } else {
-        host.table_display_before(node)
+        host.display_before_box_type_transformation(node)
     }
 }
 
 fn is_proper_table_child(host: &TreeBuilderHost<'_>, node: LayoutNode) -> bool {
     let display = display_for_table_fixup(host, node);
-    is_table_track_group(display) || is_table_track(display) || display == FfiTableDisplay::TableCaption
+    is_table_track_group(display) || is_table_track(display) || display.is_table_caption()
 }
 
-fn is_table_non_root_box_with_display(display: FfiTableDisplay) -> bool {
-    matches!(
-        display,
-        FfiTableDisplay::TableRow
-            | FfiTableDisplay::TableColumn
-            | FfiTableDisplay::TableRowGroup
-            | FfiTableDisplay::TableHeaderGroup
-            | FfiTableDisplay::TableFooterGroup
-            | FfiTableDisplay::TableColumnGroup
-            | FfiTableDisplay::TableCell
-            | FfiTableDisplay::TableCaption
-    )
+fn is_table_non_root_box_with_display(display: FfiDisplay) -> bool {
+    display.is_internal_table() || display.is_table_caption()
 }
 
 fn is_table_non_root_box(host: &TreeBuilderHost<'_>, node: LayoutNode) -> bool {
-    is_table_non_root_box_with_display(host.table_display(node))
+    is_table_non_root_box_with_display(host.display(node))
 }
 
 fn is_tabular_container(host: &TreeBuilderHost<'_>, node: LayoutNode) -> bool {
     // https://drafts.csswg.org/css-tables-3/#tabular-container
-    matches!(
-        host.table_display(node),
-        FfiTableDisplay::TableRoot
-            | FfiTableDisplay::TableRow
-            | FfiTableDisplay::TableRowGroup
-            | FfiTableDisplay::TableHeaderGroup
-            | FfiTableDisplay::TableFooterGroup
-    )
+    let display = host.display(node);
+    display.is_table_inside()
+        || display.is_table_row()
+        || display.is_table_row_group()
+        || display.is_table_header_group()
+        || display.is_table_footer_group()
 }
 
 fn is_ignorable_whitespace(host: &TreeBuilderHost<'_>, node: LayoutNode) -> bool {
@@ -2987,7 +2969,7 @@ fn remove_irrelevant_boxes(host: &TreeBuilderHost<'_>, root: LayoutNode) {
         let data = host.data(node);
 
         // 1. Children of a table-column.
-        if node_kind_is_box(data.kind) && host.table_display(node) == FfiTableDisplay::TableColumn {
+        if node_kind_is_box(data.kind) && host.display(node).is_table_column() {
             let mut child = host.first_child(node);
             while !child.is_invalid() {
                 to_remove.push(child);
@@ -2996,10 +2978,10 @@ fn remove_irrelevant_boxes(host: &TreeBuilderHost<'_>, root: LayoutNode) {
         }
 
         // 2. Children of a table-column-group which are not a table-column.
-        if node_kind_is_box(data.kind) && host.table_display(node) == FfiTableDisplay::TableColumnGroup {
+        if node_kind_is_box(data.kind) && host.display(node).is_table_column_group() {
             let mut child = host.first_child(node);
             while !child.is_invalid() {
-                if host.table_display(child) != FfiTableDisplay::TableColumn {
+                if !host.display(child).is_table_column() {
                     to_remove.push(child);
                 }
                 child = host.next_sibling(child);
@@ -3037,50 +3019,40 @@ fn generate_missing_child_wrappers(host: &TreeBuilderHost<'_>, root: LayoutNode)
             return TraversalDecision::Continue;
         }
 
-        match host.table_display(parent) {
-            FfiTableDisplay::TableRoot => {
-                // 1. An anonymous table-row box must be generated around each sequence of consecutive children of a
-                //    table-root box which are not proper table child boxes.
-                for_each_sequence_of_consecutive_children_matching(
-                    host,
-                    parent,
-                    |child| !node_has_flag(host.data(child), NodeFlag::HasStyle) || !is_proper_table_child(host, child),
-                    |sequence, nearest_sibling| {
-                        host.wrap_in_anonymous(sequence, nearest_sibling, FfiAnonymousTableBoxKind::TableRow);
-                    },
-                );
-            }
-            FfiTableDisplay::TableRowGroup | FfiTableDisplay::TableHeaderGroup | FfiTableDisplay::TableFooterGroup => {
-                // 2. An anonymous table-row box must be generated around each sequence of consecutive children of a
-                //    table-row-group box which are not table-row boxes.
-                for_each_sequence_of_consecutive_children_matching(
-                    host,
-                    parent,
-                    |child| {
-                        !node_has_flag(host.data(child), NodeFlag::HasStyle)
-                            || host.table_display(child) != FfiTableDisplay::TableRow
-                    },
-                    |sequence, nearest_sibling| {
-                        host.wrap_in_anonymous(sequence, nearest_sibling, FfiAnonymousTableBoxKind::TableRow);
-                    },
-                );
-            }
-            FfiTableDisplay::TableRow => {
-                // 3. An anonymous table-cell box must be generated around each sequence of consecutive children of a
-                //    table-row box which are not table-cell boxes.
-                for_each_sequence_of_consecutive_children_matching(
-                    host,
-                    parent,
-                    |child| {
-                        !node_has_flag(host.data(child), NodeFlag::HasStyle)
-                            || host.table_display(child) != FfiTableDisplay::TableCell
-                    },
-                    |sequence, nearest_sibling| {
-                        host.wrap_in_anonymous(sequence, nearest_sibling, FfiAnonymousTableBoxKind::TableCell);
-                    },
-                );
-            }
-            _ => {}
+        let display = host.display(parent);
+        if display.is_table_inside() {
+            // 1. An anonymous table-row box must be generated around each sequence of consecutive children of a
+            //    table-root box which are not proper table child boxes.
+            for_each_sequence_of_consecutive_children_matching(
+                host,
+                parent,
+                |child| !node_has_flag(host.data(child), NodeFlag::HasStyle) || !is_proper_table_child(host, child),
+                |sequence, nearest_sibling| {
+                    host.wrap_in_anonymous(sequence, nearest_sibling, FfiAnonymousTableBoxKind::TableRow);
+                },
+            );
+        } else if display.is_table_row_group() || display.is_table_header_group() || display.is_table_footer_group() {
+            // 2. An anonymous table-row box must be generated around each sequence of consecutive children of a
+            //    table-row-group box which are not table-row boxes.
+            for_each_sequence_of_consecutive_children_matching(
+                host,
+                parent,
+                |child| !node_has_flag(host.data(child), NodeFlag::HasStyle) || !host.display(child).is_table_row(),
+                |sequence, nearest_sibling| {
+                    host.wrap_in_anonymous(sequence, nearest_sibling, FfiAnonymousTableBoxKind::TableRow);
+                },
+            );
+        } else if display.is_table_row() {
+            // 3. An anonymous table-cell box must be generated around each sequence of consecutive children of a
+            //    table-row box which are not table-cell boxes.
+            for_each_sequence_of_consecutive_children_matching(
+                host,
+                parent,
+                |child| !node_has_flag(host.data(child), NodeFlag::HasStyle) || !host.display(child).is_table_cell(),
+                |sequence, nearest_sibling| {
+                    host.wrap_in_anonymous(sequence, nearest_sibling, FfiAnonymousTableBoxKind::TableCell);
+                },
+            );
         }
         TraversalDecision::Continue
     });
@@ -3099,7 +3071,7 @@ fn generate_missing_parents(host: &TreeBuilderHost<'_>, root: LayoutNode) -> Vec
                 node_has_flag(data, NodeFlag::HasBeenWrappedInTableWrapper),
             )
         };
-        let current_display = host.table_display(parent);
+        let current_display = host.display(parent);
         let is_inline_outside = node_is_inline_outside(host, parent);
         if !has_style {
             return TraversalDecision::Continue;
@@ -3107,14 +3079,11 @@ fn generate_missing_parents(host: &TreeBuilderHost<'_>, root: LayoutNode) -> Vec
 
         // 1. An anonymous table-row box must be generated around each sequence of consecutive table-cell boxes whose
         //    parent is not a table-row.
-        if current_display != FfiTableDisplay::TableRow {
+        if !current_display.is_table_row() {
             for_each_sequence_of_consecutive_children_matching(
                 host,
                 parent,
-                |child| {
-                    node_has_flag(host.data(child), NodeFlag::HasStyle)
-                        && host.table_display(child) == FfiTableDisplay::TableCell
-                },
+                |child| node_has_flag(host.data(child), NodeFlag::HasStyle) && host.display(child).is_table_cell(),
                 |sequence, nearest_sibling| {
                     host.wrap_in_anonymous(sequence, nearest_sibling, FfiAnonymousTableBoxKind::TableRow);
                 },
@@ -3132,19 +3101,15 @@ fn generate_missing_parents(host: &TreeBuilderHost<'_>, root: LayoutNode) -> Vec
             FfiAnonymousTableBoxKind::Table
         };
 
-        let is_table_row_group = matches!(
-            current_display,
-            FfiTableDisplay::TableRowGroup | FfiTableDisplay::TableHeaderGroup | FfiTableDisplay::TableFooterGroup
-        );
+        let is_table_row_group = current_display.is_table_row_group()
+            || current_display.is_table_header_group()
+            || current_display.is_table_footer_group();
         // A table-row is misparented if its parent is neither a table-row-group nor a table-root box.
-        if !is_table_row_group && current_display != FfiTableDisplay::TableRoot {
+        if !is_table_row_group && !current_display.is_table_inside() {
             for_each_sequence_of_consecutive_children_matching(
                 host,
                 parent,
-                |child| {
-                    node_has_flag(host.data(child), NodeFlag::HasStyle)
-                        && host.table_display(child) == FfiTableDisplay::TableRow
-                },
+                |child| node_has_flag(host.data(child), NodeFlag::HasStyle) && host.display(child).is_table_row(),
                 |sequence, nearest_sibling| {
                     host.wrap_in_anonymous(sequence, nearest_sibling, anonymous_table_kind);
                 },
@@ -3152,14 +3117,11 @@ fn generate_missing_parents(host: &TreeBuilderHost<'_>, root: LayoutNode) -> Vec
         }
 
         // A table-column box is misparented if its parent is neither a table-column-group box nor a table-root box.
-        if current_display != FfiTableDisplay::TableColumnGroup && current_display != FfiTableDisplay::TableRoot {
+        if !current_display.is_table_column_group() && !current_display.is_table_inside() {
             for_each_sequence_of_consecutive_children_matching(
                 host,
                 parent,
-                |child| {
-                    node_has_flag(host.data(child), NodeFlag::HasStyle)
-                        && host.table_display(child) == FfiTableDisplay::TableColumn
-                },
+                |child| node_has_flag(host.data(child), NodeFlag::HasStyle) && host.display(child).is_table_column(),
                 |sequence, nearest_sibling| {
                     host.wrap_in_anonymous(sequence, nearest_sibling, anonymous_table_kind);
                 },
@@ -3168,7 +3130,7 @@ fn generate_missing_parents(host: &TreeBuilderHost<'_>, root: LayoutNode) -> Vec
 
         // A table-row-group, table-column-group, or table-caption box is misparented if its parent is not a table-root
         // box.
-        if current_display != FfiTableDisplay::TableRoot {
+        if !current_display.is_table_inside() {
             for_each_sequence_of_consecutive_children_matching(
                 host,
                 parent,
@@ -3177,7 +3139,7 @@ fn generate_missing_parents(host: &TreeBuilderHost<'_>, root: LayoutNode) -> Vec
                         return false;
                     }
                     let display = display_for_table_fixup(host, child);
-                    is_table_track_group(display) || display == FfiTableDisplay::TableCaption
+                    is_table_track_group(display) || display.is_table_caption()
                 },
                 |sequence, nearest_sibling| {
                     host.wrap_in_anonymous(sequence, nearest_sibling, anonymous_table_kind);
@@ -3186,7 +3148,7 @@ fn generate_missing_parents(host: &TreeBuilderHost<'_>, root: LayoutNode) -> Vec
         }
 
         // 3. An anonymous table-wrapper box must be generated around each table-root.
-        if is_box && current_display == FfiTableDisplay::TableRoot {
+        if is_box && current_display.is_table_inside() {
             if has_been_wrapped_in_table_wrapper {
                 let parent = host.parent(parent);
                 assert!(!parent.is_invalid());

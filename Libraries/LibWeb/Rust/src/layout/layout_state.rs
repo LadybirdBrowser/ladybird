@@ -436,11 +436,6 @@ impl<'pass> NodeFacts<'pass> {
         self.callbacks.style_reader_if_styled(parent)
     }
 
-    fn table_display(&self) -> FfiTableDisplay {
-        self.style_reader_if_styled()
-            .map_or(FfiTableDisplay::Other, |style| style.table_display())
-    }
-
     fn replaced_content(&self) -> crate::layout::FfiReplacedContentFacts {
         self.state.replaced_content_facts(self.callbacks, self.node)
     }
@@ -543,10 +538,11 @@ impl<'pass> NodeFacts<'pass> {
         {
             return false;
         }
-        if self.display().is_contents() {
+        let display = self.display();
+        if display.is_contents() {
             return false;
         }
-        if !matches!(self.table_display(), FfiTableDisplay::Other | FfiTableDisplay::TableRoot) {
+        if display.is_internal_table() || display.is_table_caption() {
             return false;
         }
         if parent.kind == NodeKind::SVGForeignObjectBox {
@@ -623,7 +619,10 @@ impl<'pass> NodeFacts<'pass> {
         crate::layout::has_flag(self.data(), NodeFlag::IsReplacedElement)
             && self
                 .style_reader_if_styled()
-                .is_some_and(|style| style.table_display_before() != FfiTableDisplay::Other)
+                .is_some_and(|style| {
+                    let display = style.display_before_box_type_transformation();
+                    display.is_table_inside() || display.is_internal_table() || display.is_table_caption()
+                })
     }
 
     pub(crate) fn creates_block_formatting_context(&self) -> bool {
@@ -736,10 +735,8 @@ impl<'pass> NodeFacts<'pass> {
     }
 
     fn node_has_size_containment(&self) -> bool {
-        if !matches!(
-            self.table_display(),
-            FfiTableDisplay::Other | FfiTableDisplay::TableCaption
-        ) {
+        let display = self.display();
+        if display.is_table_inside() || display.is_internal_table() {
             return false;
         }
         let style = self.style();
@@ -812,7 +809,7 @@ impl<'pass> NodeFacts<'pass> {
     }
 
     pub(crate) fn is_table_box(&self) -> bool {
-        self.table_display() == FfiTableDisplay::TableRoot
+        self.display().is_table_inside()
     }
 
     pub(crate) fn is_table_wrapper(&self) -> bool {
@@ -820,35 +817,35 @@ impl<'pass> NodeFacts<'pass> {
     }
 
     pub(crate) fn is_table_row_group(&self) -> bool {
-        self.table_display() == FfiTableDisplay::TableRowGroup
+        self.display().is_table_row_group()
     }
 
     pub(crate) fn is_table_header_group(&self) -> bool {
-        self.table_display() == FfiTableDisplay::TableHeaderGroup
+        self.display().is_table_header_group()
     }
 
     pub(crate) fn is_table_footer_group(&self) -> bool {
-        self.table_display() == FfiTableDisplay::TableFooterGroup
+        self.display().is_table_footer_group()
     }
 
     pub(crate) fn is_table_row(&self) -> bool {
-        self.table_display() == FfiTableDisplay::TableRow
+        self.display().is_table_row()
     }
 
     pub(crate) fn is_table_cell(&self) -> bool {
-        self.table_display() == FfiTableDisplay::TableCell
+        self.display().is_table_cell()
     }
 
     pub(crate) fn is_table_column_group(&self) -> bool {
-        self.table_display() == FfiTableDisplay::TableColumnGroup
+        self.display().is_table_column_group()
     }
 
     pub(crate) fn is_table_column(&self) -> bool {
-        self.table_display() == FfiTableDisplay::TableColumn
+        self.display().is_table_column()
     }
 
     pub(crate) fn is_table_caption(&self) -> bool {
-        self.table_display() == FfiTableDisplay::TableCaption
+        self.display().is_table_caption()
     }
 
     pub(crate) fn is_viewport(&self) -> bool {

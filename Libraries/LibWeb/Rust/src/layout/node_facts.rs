@@ -108,8 +108,7 @@ pub(crate) fn node_creates_block_formatting_context(
     }
     if let Some(style) = style {
         let display = style.display();
-        if style.table_display() == FfiTableDisplay::TableRoot || display.is_flex_inside() || display.is_grid_inside()
-        {
+        if display.is_table_inside() || display.is_flex_inside() || display.is_grid_inside() {
             return false;
         }
         if (style.is_floating() && !has_flag(data, NodeFlag::IsFlexItem))
