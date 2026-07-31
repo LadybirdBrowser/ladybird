@@ -828,8 +828,8 @@ impl<'pass> TableFormattingContext<'pass> {
         self.state.style_facts(&self.callbacks, node)
     }
 
-    fn table_facts(&self, node: Node) -> crate::layout::FfiTableBoxFacts {
-        self.state.table_facts(&self.callbacks, node)
+    fn raw_column_span(&self, column: Node) -> usize {
+        self.callbacks.arena().raw_table_column_span(column) as usize
     }
 
     fn new(frame: &FcFrame<'pass>, pending_table_offset: Option<crate::layout::LogicalOffset>) -> Self {
@@ -921,25 +921,24 @@ impl<'pass> TableFormattingContext<'pass> {
 
     fn element_borders(&mut self, node: Node) -> ElementBorders {
         let style = self.style_facts(node);
-        let table = self.table_facts(node);
         ElementBorders {
             top: FfiBorderData {
-                color: table.border_top_color,
+                color: style.border_top_color(),
                 line_style: style.border_top_style(),
                 width: style.border_top_width(),
             },
             right: FfiBorderData {
-                color: table.border_right_color,
+                color: style.border_right_color(),
                 line_style: style.border_right_style(),
                 width: style.border_right_width(),
             },
             bottom: FfiBorderData {
-                color: table.border_bottom_color,
+                color: style.border_bottom_color(),
                 line_style: style.border_bottom_style(),
                 width: style.border_bottom_width(),
             },
             left: FfiBorderData {
-                color: table.border_left_color,
+                color: style.border_left_color(),
                 line_style: style.border_left_style(),
                 width: style.border_left_width(),
             },
@@ -1081,7 +1080,7 @@ impl<'pass> TableFormattingContext<'pass> {
                 if self.style_facts(column).width().is_length() {
                     self.columns[column_index].is_constrained = true;
                 }
-                column_index += self.table_facts(column).raw_column_span as usize;
+                column_index += self.raw_column_span(column);
             }
         }
         for row_index in 0..self.rows.len() {
@@ -1281,7 +1280,7 @@ impl<'pass> TableFormattingContext<'pass> {
                 self.columns[column_index].min_size = min_size.max(size);
                 // The outer max-content inline size of a table-column or table-column-group is max(min-width, min(max-width, width)).
                 self.columns[column_index].max_size = min_size.max(max_size.min(size));
-                column_index += self.table_facts(column).raw_column_span as usize;
+                column_index += self.raw_column_span(column);
             }
         }
         self.initialize_row_content_sizes();
@@ -1410,7 +1409,7 @@ impl<'pass> TableFormattingContext<'pass> {
                     self.columns[column_index].has_intrinsic_percentage =
                         style.max_width().is_percentage() || style.width().is_percentage();
                     self.columns[column_index].intrinsic_percentage = Self::cell_percentage(style, axis);
-                    column_index += self.table_facts(column).raw_column_span as usize;
+                    column_index += self.raw_column_span(column);
                 }
             }
         }

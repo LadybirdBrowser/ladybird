@@ -726,16 +726,6 @@ pub struct FfiBordersData {
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-#[repr(C)]
-pub struct FfiTableBoxFacts {
-    pub raw_column_span: u32,
-    pub border_top_color: u32,
-    pub border_right_color: u32,
-    pub border_bottom_color: u32,
-    pub border_left_color: u32,
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct ChildLayoutResult {
     pub automatic_content_inline_size: CssPixels,
     pub automatic_content_block_size: CssPixels,
@@ -897,8 +887,6 @@ impl OwnedFlexLayoutData {
     }
 }
 
-pub type FfiBuildTableBoxFactsCallback = unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiTableBoxFacts;
-
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiLayoutFcCallbacks {
@@ -915,7 +903,6 @@ pub struct FfiLayoutFcCallbacks {
     pub build_list_item_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> crate::layout::FfiListItemFacts,
     pub text_node_is_empty_editable: unsafe extern "C" fn(*mut c_void, *mut c_void) -> bool,
     pub document_cursor_is_on_node: unsafe extern "C" fn(*mut c_void, *mut c_void) -> bool,
-    pub build_table_box_facts: FfiBuildTableBoxFactsCallback,
     pub build_grid_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiGridStyleFacts,
     pub release_grid_facts_snapshot: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub release_grid_name_handle: unsafe extern "C" fn(usize),

@@ -209,6 +209,7 @@ pub(crate) struct LayoutNodeArena {
     saved_abspos_layout_inputs: RefCell<Vec<SavedAbsposLayoutInputsSlot>>,
     text_contents: Vec<TextContentSlot>,
     text_chunk_caches: RefCell<Vec<TextChunkCacheSlot>>,
+    raw_table_column_spans: HashMap<NodeSlotId, u32>,
     owner_thread: thread::ThreadId,
 }
 
@@ -225,6 +226,7 @@ impl LayoutNodeArena {
             saved_abspos_layout_inputs: RefCell::new(Vec::new()),
             text_contents: Vec::new(),
             text_chunk_caches: RefCell::new(Vec::new()),
+            raw_table_column_spans: HashMap::new(),
             owner_thread: thread::current().id(),
         }
     }
@@ -317,6 +319,7 @@ impl LayoutNodeArena {
         if let Some(slot) = self.text_chunk_caches.get_mut().get_mut(index as usize) {
             *slot = TextChunkCacheSlot::default();
         }
+        self.raw_table_column_spans.remove(&id);
         *self.data_mut(index) = NodeData::default();
 
         self.live_count = self
@@ -669,6 +672,22 @@ impl LayoutNodeArena {
         }
     }
 
+    pub(crate) fn set_raw_table_column_span(&mut self, id: NodeSlotId, value: u32) {
+        self.assert_owner_thread();
+        self.data(id);
+        if value == 1 {
+            self.raw_table_column_spans.remove(&id);
+        } else {
+            self.raw_table_column_spans.insert(id, value);
+        }
+    }
+
+    pub(crate) fn raw_table_column_span(&self, id: NodeSlotId) -> u32 {
+        // data() validates that id names a live slot with a matching generation.
+        self.data(id);
+        self.raw_table_column_spans.get(&id).copied().unwrap_or(1)
+    }
+
     pub(crate) fn text_content(&self, id: NodeSlotId) -> Option<&TextContent> {
         assert!(!id.is_invalid(), "invalid layout node arena slot ID");
         self.text_contents
@@ -847,6 +866,20 @@ pub unsafe extern "C" fn layout_arena_set_text_content(
             untransformed_text_is_ascii_whitespace,
             may_require_bidi_processing,
         );
+    });
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_set_raw_table_column_span(
+    arena: *mut c_void,
+    id: NodeSlotId,
+    raw_column_span: u32,
+) {
+    abort_on_panic(|| {
+        assert!(!arena.is_null(), "layout node arena handle is null");
+        // SAFETY: The C++ wrapper keeps the arena alive for this call and
+        // serializes all access on the document thread.
+        unsafe { &mut *arena.cast::<LayoutNodeArena>() }.set_raw_table_column_span(id, raw_column_span);
     });
 }
 
