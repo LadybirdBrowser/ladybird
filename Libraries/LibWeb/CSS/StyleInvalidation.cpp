@@ -53,6 +53,8 @@ static Optional<bool> typed_value_creates_stacking_context(PropertyID property_i
         return values.perspective().has_value();
     case PropertyID::TransformStyle:
         return values.transform_style() != TransformStyle::Flat;
+    case PropertyID::BackfaceVisibility:
+        return values.backface_visibility() == BackfaceVisibility::Hidden;
     default:
         return {};
     }
@@ -99,6 +101,8 @@ static bool is_stacking_context_creating_value(CSS::PropertyID property_id, Styl
     case CSS::PropertyID::Perspective:
     case CSS::PropertyID::TransformStyle:
         return value->to_keyword() != CSS::Keyword::None && value->to_keyword() != CSS::Keyword::Flat;
+    case CSS::PropertyID::BackfaceVisibility:
+        return value->to_keyword() == CSS::Keyword::Hidden;
     default:
         // For properties we haven't optimized (contain, container-type, will-change, all),
         // assume any value creates stacking context to be safe
@@ -126,6 +130,8 @@ static bool is_containing_block_establishing_value(CSS::PropertyID property_id, 
         return value->to_keyword() != CSS::Keyword::None;
     case CSS::PropertyID::TransformStyle:
         return value->to_keyword() == CSS::Keyword::Preserve3d;
+    case CSS::PropertyID::BackfaceVisibility:
+        return value->to_keyword() == CSS::Keyword::Hidden;
     case CSS::PropertyID::Filter:
     case CSS::PropertyID::BackdropFilter:
         if (value->is_keyword())
@@ -162,8 +168,8 @@ static bool is_containing_block_establishing_value(CSS::PropertyID property_id, 
             return AK::first_is_one_of(*property,
                 CSS::PropertyID::Transform, CSS::PropertyID::Translate, CSS::PropertyID::Rotate,
                 CSS::PropertyID::Scale, CSS::PropertyID::Perspective, CSS::PropertyID::TransformStyle,
-                CSS::PropertyID::Filter, CSS::PropertyID::BackdropFilter, CSS::PropertyID::Contain,
-                CSS::PropertyID::Position);
+                CSS::PropertyID::BackfaceVisibility, CSS::PropertyID::Filter, CSS::PropertyID::BackdropFilter,
+                CSS::PropertyID::Contain, CSS::PropertyID::Position);
         };
         if (value->to_keyword() == CSS::Keyword::Auto)
             return false;

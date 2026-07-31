@@ -445,6 +445,7 @@
     ]
   },
   "backface-visibility": {
+    "affects-stacking-context": true,
     "animation-type": "discrete",
     "inherited": false,
     "initial": "visible",

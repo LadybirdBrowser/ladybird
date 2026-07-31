@@ -241,6 +241,13 @@ static bool computed_values_establish_fixed_positioning_containing_block(NodeWit
     if ((computed_values.transform_style() == CSS::TransformStyle::Preserve3d || will_change_property(CSS::PropertyID::TransformStyle)) && node_is_transformable())
         return true;
 
+    // https://drafts.csswg.org/css-transforms-2/#backface-visibility-property
+    // A computed value of hidden for backface-visibility on a transformable element that participates in a 3D
+    // rendering context establishes both a stacking context and a containing block for all descendants.
+    if ((computed_values.backface_visibility() == CSS::BackfaceVisibility::Hidden || will_change_property(CSS::PropertyID::BackfaceVisibility))
+        && node_is_transformable() && node.participates_in_a_3d_rendering_context())
+        return true;
+
     // https://drafts.csswg.org/css-view-transitions-1/#snapshot-containing-block-concept
     // FIXME: The snapshot containing block is considered to be an absolute positioning containing block and a fixed
     //        positioning containing block for ::view-transition and its descendants.
@@ -591,6 +598,13 @@ bool NodeWithStyle::establishes_stacking_context() const
     if (is_transformable() && (computed_values.transform_style() == CSS::TransformStyle::Preserve3d || will_change_property(CSS::PropertyID::TransformStyle)))
         return true;
 
+    // https://drafts.csswg.org/css-transforms-2/#backface-visibility-property
+    // A computed value of hidden for backface-visibility on a transformable element that participates in a 3D
+    // rendering context establishes both a stacking context and a containing block for all descendants.
+    if ((computed_values.backface_visibility() == CSS::BackfaceVisibility::Hidden || will_change_property(CSS::PropertyID::BackfaceVisibility))
+        && is_transformable() && participates_in_a_3d_rendering_context())
+        return true;
+
     return computed_values.opacity() < 1.0f || will_change_property(CSS::PropertyID::Opacity);
 }
 
@@ -937,6 +951,22 @@ bool NodeWithStyle::is_transformable() const
     }
 
     return false;
+}
+
+bool NodeWithStyle::establishes_or_extends_a_3d_rendering_context() const
+{
+    // FIXME: Use the used value of 'transform-style', which is 'flat' when grouping property values apply.
+    return is_transformable() && computed_values().transform_style() == CSS::TransformStyle::Preserve3d;
+}
+
+// https://drafts.csswg.org/css-transforms-2/#3d-rendering-contexts
+bool NodeWithStyle::participates_in_a_3d_rendering_context() const
+{
+    // An element participates in a 3D rendering context if its parent establishes or extends a 3D rendering context.
+    auto const* ancestor = parent();
+    while (ancestor && ancestor->is_anonymous())
+        ancestor = ancestor->parent();
+    return ancestor && ancestor->establishes_or_extends_a_3d_rendering_context();
 }
 
 NonnullRefPtr<NodeWithStyle> NodeWithStyle::create_anonymous_wrapper() const

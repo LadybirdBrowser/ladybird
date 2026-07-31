@@ -373,6 +373,8 @@ public:
     bool is_inline_table() const;
     bool has_replaced_element_table_display_adjustment() const;
     bool is_transformable() const;
+    bool establishes_or_extends_a_3d_rendering_context() const;
+    bool participates_in_a_3d_rendering_context() const;
 
     bool is_floating() const;
     bool is_positioned() const;
