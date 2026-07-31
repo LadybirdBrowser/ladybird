@@ -1,0 +1,26 @@
+Harness status: OK
+
+Found 20 tests
+
+18 Pass
+2 Fail
+Pass	image with zero width
+Pass	image with zero height
+Pass	image with zero width and height
+Pass	image with no width/height attributes
+Pass	foreignObject with zero width
+Pass	foreignObject with zero height
+Pass	foreignObject with zero width and height
+Pass	foreignObject with no width/height attributes
+Fail	empty nested SVG element
+Pass	empty nested SVG with no attributes
+Pass	empty nested SVG with zero width and height
+Pass	anchor element wrapping zero-dimension rect
+Fail	anchor element with zero-dim and normal child: zero-dim child does not affect bbox
+Pass	zero-dim rect with translate transform
+Pass	rect with negative width and scale(2) (not rendered)
+Pass	zero-dim rect inside rotated group (not rendered)
+Pass	zero-width rect with scale(3) (not rendered)
+Pass	zero-radius circle with translate (not rendered)
+Pass	group with translate transform — bbox in group's local coords
+Pass	rotated group with zero-dim child — bbox is zero
