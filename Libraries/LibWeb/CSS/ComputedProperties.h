@@ -306,6 +306,7 @@ public:
     Vector<Variant<LengthPercentage, float>> stroke_dasharray() const;
     StrokeLinecap stroke_linecap() const;
     StrokeLinejoin stroke_linejoin() const;
+    LengthPercentage stroke_width() const;
     VectorEffect vector_effect() const;
     double stroke_miterlimit() const;
     float stroke_opacity() const;

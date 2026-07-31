@@ -2353,15 +2353,9 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     if (!inherited_svg_adopted)
         computed_values.set_stroke(computed_style.stroke(color_resolution_context));
 
-    auto const& stroke_width = computed_style.property(CSS::PropertyID::StrokeWidth);
-    // FIXME: Converting to pixels isn't really correct - values should be in "user units"
-    //        https://svgwg.org/svg2-draft/coords.html#TermUserUnits
-    if (!inherited_svg_adopted) {
-        if (stroke_width.is_number())
-            computed_values.set_stroke_width(CSS::Length::make_px(CSSPixels::nearest_value_for(stroke_width.as_number().number())));
-        else
-            computed_values.set_stroke_width(CSS::LengthPercentage::from_style_value(stroke_width));
-    }
+    if (!inherited_svg_adopted)
+        computed_values.set_stroke_width(computed_style.stroke_width());
+
     if (!inherited_svg_adopted) {
         computed_values.set_paint_order(computed_style.paint_order());
         auto const& paint_order = computed_style.property(PropertyID::PaintOrder);
