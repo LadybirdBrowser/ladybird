@@ -97,6 +97,7 @@ All properties associated with getComputedStyle(document.body):
     "appearance",
     "aspect-ratio",
     "backdrop-filter",
+    "backface-visibility",
     "background-attachment",
     "background-blend-mode",
     "background-clip",

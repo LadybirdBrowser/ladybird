@@ -215,6 +215,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'aspect-ratio': 'auto'
 'backdropFilter': 'none'
 'backdrop-filter': 'none'
+'backfaceVisibility': 'visible'
+'backface-visibility': 'visible'
 'background': 'none'
 'backgroundAttachment': 'scroll'
 'background-attachment': 'scroll'

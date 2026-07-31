@@ -116,6 +116,10 @@
     "x",
     "y"
   ],
+  "backface-visibility": [
+    "visible",
+    "hidden"
+  ],
   "background-attachment": [
     "fixed",
     "local",

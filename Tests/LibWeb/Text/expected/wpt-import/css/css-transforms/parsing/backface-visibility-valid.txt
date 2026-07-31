@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	e.style['backface-visibility'] = "visible" should set the property value
+Pass	e.style['backface-visibility'] = "hidden" should set the property value
