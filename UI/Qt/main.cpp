@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCore/GeolocationProvider.h>
 #include <LibMain/Main.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BrowserProcess.h>
@@ -62,7 +63,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 #endif
 
 #if defined(LADYBIRD_QT_HAVE_POSITIONING)
-    Ladybird::install_qt_geolocation_provider();
+    // Only fall back to Qt on platforms that have no geolocation provider of their own.
+    if (!Core::GeolocationProvider::is_available())
+        Ladybird::install_qt_geolocation_provider();
 #endif
 
     auto app = TRY(Ladybird::Application::create(arguments));
