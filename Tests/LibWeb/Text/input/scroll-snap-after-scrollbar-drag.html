@@ -17,7 +17,7 @@
 </style>
 <div id="scroller" tabindex="0">
     <div class="area" style="top: 0"></div>
-    <div class="area" style="top: 500px"></div>
+    <div class="area" style="top: 500px; scroll-snap-stop: always"></div>
     <div class="area" style="top: 800px"></div>
     <div class="area" style="top: 1500px"></div>
 </div>
@@ -41,5 +41,25 @@
             internals.mouseUp(rect.right - 5, rect.bottom + 200);
         });
         println(`scroll offset after dragging the scrollbar to the end: ${scroller.scrollLeft},${scroller.scrollTop}`);
+
+        scroller.scrollTo({ top: 0, behavior: "instant" });
+        await animationFrame();
+        await animationFrame();
+
+        // A flick hands the scrolling over to momentum, which travels over the snap positions it passes.
+        await scrollSettled(scroller, async () => {
+            await internals.wheel(50, 50, 0, 20, true, "momentum");
+            await internals.wheel(50, 50, 0, 0, true, "ended");
+        });
+        println(`scroll offset after the momentum gesture ends: ${scroller.scrollLeft},${scroller.scrollTop}`);
+
+        // The next drag reports no gesture phase of its own, so the momentum rules of the gesture before it do not
+        // apply to it.
+        await scrollSettled(scroller, () => {
+            internals.mouseDown(rect.right - 5, rect.bottom - 5);
+            internals.mouseMove(rect.right - 5, rect.bottom + 200);
+            internals.mouseUp(rect.right - 5, rect.bottom + 200);
+        });
+        println(`scroll offset after dragging the scrollbar to the end again: ${scroller.scrollLeft},${scroller.scrollTop}`);
     });
 </script>

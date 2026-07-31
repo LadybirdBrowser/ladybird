@@ -1,0 +1,3 @@
+scroll offset after dragging over three snap positions: 0,600
+scroll offset after flicking over three snap positions: 0,200
+scroll offset after flicking back over three snap positions: 0,600

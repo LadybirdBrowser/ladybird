@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    #scroller {
+        width: 200px;
+        height: 200px;
+        overflow: scroll;
+        scroll-snap-type: y mandatory;
+    }
+    .item {
+        width: 100%;
+        height: 200px;
+        scroll-snap-align: start;
+        scroll-snap-stop: always;
+    }
+</style>
+<div id="scroller">
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+</div>
+<script>
+    promiseTest(async () => {
+        const scroller = document.getElementById("scroller");
+
+        const pan = (fingerDelta, momentumDelta) =>
+            scrollSettled(scroller, async () => {
+                await internals.wheel(50, 50, 0, fingerDelta, true, "ongoing");
+                if (momentumDelta !== 0)
+                    await internals.wheel(50, 50, 0, momentumDelta, true, "momentum");
+                await internals.wheel(50, 50, 0, 0, true, "ended");
+            });
+
+        await animationFrame();
+        await animationFrame();
+
+        // A pan drags the scrolling box to where the user releases it, so it passes over no snap position on the way.
+        await pan(650, 0);
+        println(`scroll offset after dragging over three snap positions: ${scroller.scrollLeft},${scroller.scrollTop}`);
+
+        scroller.scrollTo({ top: 0, behavior: "instant" });
+        await animationFrame();
+        await animationFrame();
+
+        // Momentum travels over the snap positions on its way, so it stops at the first of them.
+        await pan(50, 600);
+        println(`scroll offset after flicking over three snap positions: ${scroller.scrollLeft},${scroller.scrollTop}`);
+
+        scroller.scrollTo({ top: 800, behavior: "instant" });
+        await animationFrame();
+        await animationFrame();
+
+        await pan(-50, -600);
+        println(`scroll offset after flicking back over three snap positions: ${scroller.scrollLeft},${scroller.scrollTop}`);
+    });
+</script>

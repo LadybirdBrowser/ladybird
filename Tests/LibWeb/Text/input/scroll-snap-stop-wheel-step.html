@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    #scroller {
+        width: 200px;
+        height: 200px;
+        overflow: scroll;
+        scroll-snap-type: y mandatory;
+    }
+    .item {
+        width: 100%;
+        height: 200px;
+        scroll-snap-align: start;
+    }
+    .gap {
+        height: 200px;
+    }
+    #stop {
+        scroll-snap-stop: always;
+    }
+</style>
+<div id="scroller">
+    <div class="item"></div>
+    <div class="gap"></div>
+    <div class="item" id="stop"></div>
+    <div class="gap"></div>
+    <div class="item"></div>
+    <div class="gap"></div>
+</div>
+<script>
+    promiseTest(async () => {
+        const scroller = document.getElementById("scroller");
+
+        await animationFrame();
+        await animationFrame();
+
+        await scrollSettled(scroller, () => internals.wheel(50, 50, 0, 450));
+        println(`scroll offset after a step that reaches beyond the stop: ${scroller.scrollLeft},${scroller.scrollTop}`);
+    });
+</script>
