@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<link rel="help" href="http://www.w3.org/TR/css-transforms-2/#backface-visibility-property">
+<link rel="match" href="../../../../expected/wpt-import/css/css-transforms/../reference/ref-filled-green-100px-square.xht">
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="background: green; width: 100px">
+  <div style="transform: rotateY(180deg); backface-visibility: hidden">
+    <div style="background: red; transform: translateX(20px); height: 100px"></div>
+  </div>
+</div>
+

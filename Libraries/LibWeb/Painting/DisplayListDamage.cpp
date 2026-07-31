@@ -129,6 +129,10 @@ static bool visual_context_data_is_equal(VisualContextIndex a_index, VisualConte
             auto const* other = b.get_pointer<PerspectiveData>();
             return other && matrices_are_equal(data.matrix, other->matrix);
         },
+        [&](BackfaceVisibilityData const& data) {
+            auto const* other = b.get_pointer<BackfaceVisibilityData>();
+            return other && data.plane_root_index == other->plane_root_index;
+        },
         [&](ClipPathData const& data) {
             auto const* other = b.get_pointer<ClipPathData>();
             return other

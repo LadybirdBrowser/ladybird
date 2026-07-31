@@ -60,6 +60,15 @@ constexpr static Matrix4x4<T> scale_matrix(Vector3<T> const& s)
 }
 
 template<typename T>
+constexpr static bool is_back_face_visible(Matrix4x4<T> const& m)
+{
+    auto determinant = m.determinant();
+    if (determinant == 0)
+        return false;
+    return m.first_minor(2, 2) / determinant < 0;
+}
+
+template<typename T>
 constexpr static Matrix4x4<T> perspective_matrix(T distance)
 {
     return Matrix4x4<T>(

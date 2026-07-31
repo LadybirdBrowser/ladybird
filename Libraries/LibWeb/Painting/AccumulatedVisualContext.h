@@ -59,11 +59,19 @@ struct ClipData {
 struct TransformData {
     Gfx::FloatMatrix4x4 matrix;
     Gfx::FloatPoint origin;
+
+    Gfx::FloatMatrix4x4 matrix_including_origin() const;
 };
 
 struct PerspectiveData {
     Gfx::FloatMatrix4x4 matrix;
 };
+
+struct BackfaceVisibilityData {
+    VisualContextIndex plane_root_index;
+};
+
+bool should_cull_back_face(Gfx::FloatMatrix4x4 const& accumulated_matrix, Gfx::FloatMatrix4x4 const& plane_root_matrix);
 
 struct ClipPathData {
     Gfx::Path path;
@@ -113,7 +121,7 @@ struct AnchorScrollShift {
     Gfx::FloatPoint masked_offset(ScrollStateSnapshot const&) const;
 };
 
-using VisualContextData = Variant<ScrollData, ClipData, TransformData, PerspectiveData, ClipPathData, EffectsData, ScrollCompensation, AnchorScrollShift, MaskData>;
+using VisualContextData = Variant<ScrollData, ClipData, TransformData, PerspectiveData, BackfaceVisibilityData, ClipPathData, EffectsData, ScrollCompensation, AnchorScrollShift, MaskData>;
 
 Optional<TransformData> compute_transform(Paintable const&, CSS::ComputedValues const&, double pixel_ratio);
 
@@ -217,6 +225,11 @@ template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::Painting::PerspectiveData const&);
 template<>
 WEB_API ErrorOr<Web::Painting::PerspectiveData> decode(Decoder&);
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::Painting::BackfaceVisibilityData const&);
+template<>
+WEB_API ErrorOr<Web::Painting::BackfaceVisibilityData> decode(Decoder&);
 
 template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::Painting::ClipPathData const&);

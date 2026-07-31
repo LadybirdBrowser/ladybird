@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Test (Transforms): Simple Backface-Visibility, rotatex(180deg)</title>
+    <link rel="author" title="Aryeh Gregor" href="mailto:ayg@aryeh.name">
+    <link rel="help" href="http://www.w3.org/TR/css-transforms-2/#propdef-backface-visibility">
+    <meta name="assert" content='This tests that a very simple case of
+    backface-visibility causes the element to disappear: rotateX(180deg) is
+    specified on the same element that has backface-visibility: hidden.'>
+    <link rel="match" href="../../../../expected/wpt-import/css/css-transforms/transform-lime-square-ref.html">
+    <style>div { height: 100px; width: 100px }</style>
+  </head>
+  <body>
+    <div style="background:lime">
+      <div style="background:red;transform:rotatex(180deg);
+        backface-visibility:hidden">
+      </div>
+    </div>
+  </body>
+</html>

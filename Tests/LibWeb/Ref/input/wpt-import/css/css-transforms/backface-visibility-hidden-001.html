@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CSS Transforms Test: transform property with backface visibility = hidden</title>
+    <link rel="author" title="Jian Zhang" href="mailto:jian.andy.zhang@gmail.com">
+    <link rel="help" href="http://www.w3.org/TR/css-transforms-1/#transform-property">
+    <link rel="help" href="http://www.w3.org/TR/css-transforms-2/#propdef-backface-visibility">
+    <link rel="match" href="../../../../expected/wpt-import/css/css-transforms/reference/backface-visibility-hidden-ref.html">
+    <meta name="fuzzy" content="maxDifference=0-100;totalPixels=0-300">
+    <meta name="assert" content="When the value of backface visibility property is 'hidden', the back side of a transformed element is invisible when facing the viewer.">
+    <style type="text/css">
+        .greenSquare {
+            position: absolute;
+            top: 50px;
+            left: 50px;
+            width: 100px;
+            height: 100px;
+            background: green;
+            z-index: 2;
+        }
+
+        .redSquare {
+            position: absolute;
+            top: 50px;
+            left: 50px;
+            width: 100px;
+            height: 100px;
+            background: red;
+            z-index: 1;
+            transform: rotateY(180deg);
+        }
+
+        .face {
+            backface-visibility: hidden;
+        }
+
+        .card {
+            transform-style: preserve-3d;
+        }
+
+        .container {
+            width: 200px;
+            height: 200px;
+            perspective: 1000px;
+            transform: rotateY(45deg);
+        }
+
+    </style>
+</head>
+<body>
+    <p>The test passes if there is a green retangle and no red.</p>
+    <div class="container">
+        <div class="card">
+            <div class="redSquare face"></div>
+            <div class="greenSquare face"></div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<title>backface visibility: hidden creates containing block and stacking context when transformed</title>
+<link rel="author" title="Matt Woodrow" href="mailto:mattwoodrow@apple.com">
+<link rel="help" href="http://www.w3.org/TR/css-transforms-1/#transform-property">
+<link rel="help" href="http://www.w3.org/TR/css-transforms-2/#propdef-backface-visibility">
+<link rel="match" href="../../../../expected/wpt-import/css/css-transforms/backface-visibility-hidden-003-ref.html">
+
+<p>The test passes if there is a green rectangle and no red.</p>
+<style>
+.background {
+  width: 100px;
+  height: 100px;
+  background-color: green;
+}
+
+.flipper {
+  backface-visibility:hidden;
+  transform: rotateY(180deg);
+  width: 100px;
+  top: -100px;
+  margin-top: -100px;
+}
+
+.scroll {
+  overflow-y: scroll;
+  width: 100px;
+  height: 100px;
+}
+
+.inner {
+  height: 900px;
+  background: red;
+}
+
+</style>
+
+<div class="background"></div>
+<div class="flipper">
+  <div class="scroll">
+    <div class="inner">
+    </div>
+  </div>
+</div>

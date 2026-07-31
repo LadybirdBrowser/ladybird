@@ -1,0 +1,44 @@
+<!DOCTYPE HTML>
+<title>backface-visibility test</title>
+<link rel="author" title="L. David Baron" href="https://dbaron.org/">
+<link rel="author" title="Google" href="http://www.google.com/">
+<link rel="help" href="https://drafts.csswg.org/css-transforms-2/#3d-transform-rendering">
+<link rel="match" href="../../../../expected/wpt-import//common/blank.html">
+<meta name="assert" content="The backface-visibility property still works correctly when there is an element outside the 3-D rendering context that is, in tree order, in between the element with backface-visibility and the root of the 3-D Rendering Context">
+
+<style>
+
+div {
+  width: 100px;
+  height: 100px;
+}
+
+#outer {
+  transform-style: preserve-3d;
+  transform: rotateX(120deg);
+  position: relative;
+}
+
+#outer > div {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+#grandchild {
+  transform: translateZ(1px);
+}
+
+#child2 {
+  transform-style: preserve-3d;
+  transform: translateX(0);
+  backface-visibility: hidden;
+  background: red;
+}
+
+</style>
+
+<div id="outer">
+  <div id="child1"><div id="grandchild"></div></div>
+  <div id="child2"></div>
+</div>

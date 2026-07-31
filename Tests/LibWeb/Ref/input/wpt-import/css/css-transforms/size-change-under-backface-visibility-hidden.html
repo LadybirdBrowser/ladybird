@@ -1,0 +1,22 @@
+<!doctype HTML>
+<html class="reftest-wait">
+  <title>CSS Test: Test for re-paint after resizing an element underneath a backface-visibility hidden element</title>
+  <link rel="author" title="Chris Harrelson" href="mailto:chrishtr@chromium.org" />
+  <link rel="help" href="https://drafts.csswg.org/css-transforms-2/#propdef-backface-visibility">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-transforms/size-change-under-backface-visibility-hidden-ref.html">
+  <script src="../../common/reftest-wait.js"></script>
+  Passes if it shows a green 200x200 square.
+  <div style="will-change: transform; width: 300px; height: 0px">
+    <div style="width: 1px; height: 1px; backface-visibility: hidden;">
+      <div id=target style="width: 200px; height: 0px; position: relative; background: green; left: 10px;"></div>
+    </div>
+  </div>
+  <script>
+    onload = function() {
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        target.style.height = '200px';
+        takeScreenshot();
+      }));
+    };
+  </script>
+</html>

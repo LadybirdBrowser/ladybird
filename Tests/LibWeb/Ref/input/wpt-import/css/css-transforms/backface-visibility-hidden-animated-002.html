@@ -1,0 +1,53 @@
+<!doctype html>
+<html class=reftest-wait>
+  <link rel="author" title="Xianzhu Wang" href="mailto:wangxianzhu@chromium.org">
+  <link rel="help" href="https://drafts.csswg.org/css-transforms-2/#propdef-backface-visibility">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-transforms/backface-visibility-hidden-animated-ref.html">
+  <style>
+    @keyframes show-backface {
+      0% { transform: rotateY(60deg); }
+      0.01% { transform: rotateY(180deg); }
+      100% { transform: rotateY(180deg); }
+    }
+
+    .flip {
+      animation: 10s linear 0s infinite forwards show-backface;
+      height: 100px;
+      width: 100px;
+      transform: rotateY(60deg);
+      transform-style: preserve-3d;
+    }
+
+    #back {
+      background: lightblue;
+      transform: rotateY(180deg);
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 200px;
+      height: 200px;
+      backface-visibility: hidden;
+    }
+
+    #posabs {
+      position: absolute;
+      /* This is the only difference from backface-visibility-hidden-animated-001.html. */
+      will-change: transform;
+      bottom: 0;
+      right: 0;
+      background: yellow;
+    }
+  </style>
+  <div id="flip">
+    <div id="back">
+      <i id="posabs">Text</i>
+    </div>
+  </div>
+  <script>
+    onload = () => requestAnimationFrame(() => requestAnimationFrame(() => {
+      flip.classList.add("flip");
+      requestAnimationFrame(() => requestAnimationFrame(() =>
+          document.documentElement.classList.remove("reftest-wait")));
+    }));
+  </script>
+</html>

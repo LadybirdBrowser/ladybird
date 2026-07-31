@@ -87,6 +87,7 @@ private:
         Vector<Gfx::FloatMatrix4x4> to_root_matrices;
         Vector<VisualContextIndex> nearest_spatial_nodes;
         Vector<VisualContextIndex> nearest_frame_nodes;
+        Vector<bool> backface_culled;
     };
     ReplayPaletteStorage m_replay_palette_storage;
 };

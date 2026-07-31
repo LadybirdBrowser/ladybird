@@ -194,6 +194,9 @@ void DisplayListPlayer::execute_impl(
     nearest_spatial_node.ensure_capacity(nodes.size());
     nearest_frame_node.clear_with_capacity();
     nearest_frame_node.ensure_capacity(nodes.size());
+    auto& backface_culled = palette_storage.backface_culled;
+    backface_culled.clear_with_capacity();
+    backface_culled.ensure_capacity(nodes.size());
     auto const replay_base_matrix = canvas_matrix();
     for (size_t i = 0; i < nodes.size(); ++i) {
         auto const& node = nodes[i];
@@ -202,6 +205,7 @@ void DisplayListPlayer::execute_impl(
             transform_palette.unchecked_append(parent_matrix * local_matrix);
             nearest_spatial_node.unchecked_append(VisualContextIndex { i });
             nearest_frame_node.unchecked_append(i == 0 ? VISUAL_VIEWPORT_NODE_INDEX : nearest_frame_node[node.parent_index.value()]);
+            backface_culled.unchecked_append(i == 0 ? false : backface_culled[node.parent_index.value()]);
         };
         auto append_spatial_translation = [&](Gfx::IntPoint offset) {
             // Whole device pixels, so scrolled content never lands on subpixel positions.
@@ -212,16 +216,25 @@ void DisplayListPlayer::execute_impl(
             transform_palette.unchecked_append(transform_palette[node.parent_index.value()]);
             nearest_spatial_node.unchecked_append(nearest_spatial_node[node.parent_index.value()]);
             nearest_frame_node.unchecked_append(VisualContextIndex { i });
+            backface_culled.unchecked_append(backface_culled[node.parent_index.value()]);
         };
         node.data.visit(
             [&](TransformData const& transform) {
-                auto matrix = Gfx::translation_matrix(Vector3<float>(transform.origin.x(), transform.origin.y(), 0));
-                matrix = matrix * transform.matrix;
-                matrix = matrix * Gfx::translation_matrix(Vector3<float>(-transform.origin.x(), -transform.origin.y(), 0));
-                append_spatial(matrix);
+                append_spatial(transform.matrix_including_origin());
             },
             [&](PerspectiveData const& perspective) {
                 append_spatial(perspective.matrix);
+            },
+            [&](BackfaceVisibilityData const& backface) {
+                transform_palette.unchecked_append(transform_palette[node.parent_index.value()]);
+                nearest_spatial_node.unchecked_append(nearest_spatial_node[node.parent_index.value()]);
+                nearest_frame_node.unchecked_append(nearest_frame_node[node.parent_index.value()]);
+                bool culled = backface_culled[node.parent_index.value()];
+                if (!culled) {
+                    auto const& plane_root_matrix = transform_palette[backface.plane_root_index.value()];
+                    culled = should_cull_back_face(transform_palette.last(), plane_root_matrix);
+                }
+                backface_culled.unchecked_append(culled);
             },
             [&](ScrollData const&) {
                 append_spatial_translation(scroll_state.device_offset_for_index(VisualContextIndex { i }).to_type<int>());
@@ -387,6 +400,9 @@ void DisplayListPlayer::execute_impl(
 
     DisplayList::for_each_command_header(commands, [&](DisplayListCommandHeader const& header, ReadonlyBytes payload) {
         if (display_list_command_is_compositor_metadata(header.type))
+            return;
+
+        if (backface_culled[header.context_index.value()])
             return;
 
         auto bounding_rect = header.has_bounding_rect
