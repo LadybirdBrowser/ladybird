@@ -10,6 +10,25 @@
 
 namespace Media::Codecs {
 
+DecoderErrorOr<FixedArray<u8>> FLAC::codec_initialization_data_from_isobmff_configuration(ReadonlyBytes configuration)
+{
+    if (configuration.size() < sizeof(u32))
+        return DecoderError::corrupted("FLAC configuration is too small"sv);
+
+    auto version = configuration[0];
+    if (version == 0) {
+        auto flags = (configuration[1] << 16) | (configuration[2] << 8) | configuration[3];
+        if (flags != 0)
+            return DecoderError::corrupted("FLAC configuration has unsupported flags"sv);
+    } else {
+        return DecoderError::corrupted("FLAC configuration has an unsupported version"sv);
+    }
+
+    auto initialization_data = DECODER_TRY_ALLOC(FixedArray<u8>::create(configuration));
+    "fLaC"sv.bytes().copy_to(initialization_data.span());
+    return initialization_data;
+}
+
 template<Integral T>
 static Optional<T> read_big_endian_value(MediaStreamCursor& cursor)
 {

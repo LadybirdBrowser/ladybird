@@ -34,6 +34,7 @@ set(TEST_SOURCES
     TestStylePropertyMetadataParity.cpp
     TestStyleStructRef.cpp
     TestTextureUpload.cpp
+    TestTrackBufferDemuxer.cpp
     TestWebGLSpanWithStorage.cpp
     TestWebIDLBuffers.cpp
     TestWindowProxyWorld.cpp
