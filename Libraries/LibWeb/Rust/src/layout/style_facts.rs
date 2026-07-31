@@ -243,13 +243,65 @@ pub(crate) enum SizeField {
     VerticalAlign,
 }
 
+/// Classification of a computed display value into the table-structure roles
+/// the tree builder and table layout consult, derived on demand from the box
+/// group payload.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum FfiTableDisplay {
+    Other,
+    TableRoot,
+    TableRowGroup,
+    TableHeaderGroup,
+    TableFooterGroup,
+    TableColumnGroup,
+    TableColumn,
+    TableRow,
+    TableCell,
+    TableCaption,
+}
+
+// https://drafts.csswg.org/css-contain-2/#containment-types
+fn containment_applies_to_principal_box(display: crate::css::display::FfiDisplay) -> bool {
+    if display.is_internal_table() && !display.is_table_cell() {
+        return false;
+    }
+    if display.is_inline_outside() && display.is_flow_inside() {
+        return false;
+    }
+    true
+}
+
+pub(crate) fn table_display_of(display: crate::css::display::FfiDisplay) -> FfiTableDisplay {
+    if display.is_table_inside() {
+        FfiTableDisplay::TableRoot
+    } else if display.is_table_row_group() {
+        FfiTableDisplay::TableRowGroup
+    } else if display.is_table_header_group() {
+        FfiTableDisplay::TableHeaderGroup
+    } else if display.is_table_footer_group() {
+        FfiTableDisplay::TableFooterGroup
+    } else if display.is_table_column_group() {
+        FfiTableDisplay::TableColumnGroup
+    } else if display.is_table_column() {
+        FfiTableDisplay::TableColumn
+    } else if display.is_table_row() {
+        FfiTableDisplay::TableRow
+    } else if display.is_table_cell() {
+        FfiTableDisplay::TableCell
+    } else if display.is_table_caption() {
+        FfiTableDisplay::TableCaption
+    } else {
+        FfiTableDisplay::Other
+    }
+}
+
 #[derive(Clone, Copy)]
 pub(crate) struct StyleReader<'a> {
     payloads: &'a FfiStylePayloads,
 }
 
 impl<'a> StyleReader<'a> {
-    fn new(payloads: &'a FfiStylePayloads) -> Self {
+    pub(crate) fn new(payloads: &'a FfiStylePayloads) -> Self {
         Self { payloads }
     }
 
@@ -311,6 +363,95 @@ impl<'a> StyleReader<'a> {
     #[inline]
     fn font_facts(&self) -> &'a crate::layout::FontLayoutFacts {
         self.native_group(STYLE_GROUP_INDEX_FONT)
+    }
+
+    pub(crate) fn display(&self) -> crate::css::display::FfiDisplay {
+        self.box_values().display
+    }
+
+    pub(crate) fn display_before_box_type_transformation(&self) -> crate::css::display::FfiDisplay {
+        self.box_values().display_before_box_type_transformation
+    }
+
+    pub(crate) fn table_display(&self) -> FfiTableDisplay {
+        table_display_of(self.display())
+    }
+
+    pub(crate) fn table_display_before(&self) -> FfiTableDisplay {
+        table_display_of(self.display_before_box_type_transformation())
+    }
+
+    pub(crate) fn is_floating(&self) -> bool {
+        self.box_values().float_ != crate::css::css_enums::float::NONE
+    }
+
+    pub(crate) fn is_absolutely_positioned(&self) -> bool {
+        matches!(
+            self.box_values().position,
+            crate::css::css_enums::positioning::ABSOLUTE | crate::css::css_enums::positioning::FIXED
+        )
+    }
+
+    // https://developer.mozilla.org/en-US/docs/Web/Guide/CSS/Block_formatting_context
+    // The computed-style-only half of the block-formatting-context predicate;
+    // node_creates_block_formatting_context adds the terms that need the node
+    // kind, stamped DOM identity, the live IsFlexItem flag, or the parent's
+    // display. The float term is deliberately absent for the same reason: only
+    // non-flex-items establish one by floating.
+    pub(crate) fn own_style_establishes_block_formatting_context(&self) -> bool {
+        let box_values = self.box_values();
+        let display = box_values.display;
+
+        if self.is_absolutely_positioned() {
+            return true;
+        }
+
+        if display.is_inline_block() {
+            return true;
+        }
+
+        if display.is_table_cell() || display.is_table_caption() {
+            return true;
+        }
+
+        let overflow_establishes_context = |overflow: u8| {
+            overflow != crate::css::css_enums::overflow::VISIBLE && overflow != crate::css::css_enums::overflow::CLIP
+        };
+        if overflow_establishes_context(box_values.overflow_x) || overflow_establishes_context(box_values.overflow_y) {
+            return true;
+        }
+
+        if display.is_flow_root_inside() {
+            return true;
+        }
+
+        // https://drafts.csswg.org/css-contain-2/#containment-types
+        // 1. The layout containment box establishes an independent formatting context.
+        // 4. The paint containment box establishes an independent formatting context.
+        let content_visibility_forces_containment = self.inherited_box().content_visibility
+            == crate::css::css_enums::content_visibility::AUTO;
+        if (box_values.layout_containment || box_values.paint_containment || content_visibility_forces_containment)
+            && containment_applies_to_principal_box(display)
+        {
+            return true;
+        }
+
+        // https://drafts.csswg.org/css-conditional-5/#valdef-container-type-size
+        // Applies style containment and size containment to the principal box, and establishes an independent
+        // formatting context.
+        if box_values.is_size_container || box_values.is_inline_size_container {
+            return true;
+        }
+
+        // https://drafts.csswg.org/css-multicol-2/#the-multi-column-model
+        // An element whose 'column-width', 'column-count', or 'column-height' property is not 'auto' establishes a
+        // multi-column container (or multicol container for short), and therefore acts as a container for
+        // multi-column layout.
+        if box_values.column_width.kind != crate::layout::ComputedSizeKind::Auto || box_values.column_count_has_value {
+            return true;
+        }
+
+        false
     }
 }
 

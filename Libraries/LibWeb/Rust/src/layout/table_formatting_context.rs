@@ -587,12 +587,15 @@ pub(crate) struct TableGrid {
     pub(crate) occupancy: HashSet<(usize, usize)>,
 }
 
-fn matching_children<T: TableTree>(tree: &T, parent: Node, predicate: impl Fn(&NodeData) -> bool) -> Vec<Node> {
+fn matching_children<T: TableTree>(
+    tree: &T,
+    parent: Node,
+    predicate: impl Fn(FfiTableDisplay) -> bool,
+) -> Vec<Node> {
     let mut result = Vec::new();
     let mut child = tree.first_child(parent);
     while !child.is_invalid() {
-        let data = tree.node_data(child);
-        if kind_is_box(data.kind) && predicate(data) {
+        if kind_is_box(tree.node_data(child).kind) && predicate(tree.table_display(child)) {
             result.push(child);
         }
         child = tree.next_sibling(child);
@@ -611,8 +614,7 @@ fn count_columns_in_subtree<T: TableTree>(tree: &T, root: Node) -> usize {
             child = tree.next_sibling(child);
         }
         for child in children.into_iter().rev() {
-            let data = tree.node_data(child);
-            if kind_is_box(data.kind) && data.table_display == FfiTableDisplay::TableColumn {
+            if kind_is_box(tree.node_data(child).kind) && tree.table_display(child) == FfiTableDisplay::TableColumn {
                 count = count.saturating_add(tree.table_column_span(child));
             }
             stack.push(child);
@@ -629,8 +631,8 @@ pub(crate) fn calculate_table_grid<T: TableTree>(tree: &T, table: Node) -> Table
     let mut row_count = 0usize;
     let mut current_row = 0usize;
 
-    for column_group in matching_children(tree, table, |data| {
-        data.table_display == FfiTableDisplay::TableColumnGroup
+    for column_group in matching_children(tree, table, |table_display| {
+        table_display == FfiTableDisplay::TableColumnGroup
     }) {
         column_count = column_count.saturating_add(count_columns_in_subtree(tree, column_group));
     }
@@ -648,7 +650,7 @@ pub(crate) fn calculate_table_grid<T: TableTree>(tree: &T, table: Node) -> Table
             *row_count += 1;
         }
         let mut current_column = 0usize;
-        for cell_box in matching_children(tree, row, |data| data.table_display == FfiTableDisplay::TableCell) {
+        for cell_box in matching_children(tree, row, |table_display| table_display == FfiTableDisplay::TableCell) {
             while current_column < *column_count && occupancy.contains(&(current_column, *current_row)) {
                 current_column += 1;
             }
@@ -690,15 +692,16 @@ pub(crate) fn calculate_table_grid<T: TableTree>(tree: &T, table: Node) -> Table
 
     let mut child = tree.first_child(table);
     while !child.is_invalid() {
-        let data = tree.node_data(child);
-        if kind_is_box(data.kind)
+        let child_is_box = kind_is_box(tree.node_data(child).kind);
+        let child_table_display = tree.table_display(child);
+        if child_is_box
             && matches!(
-                data.table_display,
+                child_table_display,
                 FfiTableDisplay::TableRowGroup | FfiTableDisplay::TableHeaderGroup | FfiTableDisplay::TableFooterGroup
             )
         {
-            for row in matching_children(tree, child, |row_data| {
-                row_data.table_display == FfiTableDisplay::TableRow
+            for row in matching_children(tree, child, |table_display| {
+                table_display == FfiTableDisplay::TableRow
             }) {
                 process_row(
                     tree,
@@ -712,7 +715,7 @@ pub(crate) fn calculate_table_grid<T: TableTree>(tree: &T, table: Node) -> Table
                     &mut current_row,
                 );
             }
-        } else if kind_is_box(data.kind) && data.table_display == FfiTableDisplay::TableRow {
+        } else if child_is_box && child_table_display == FfiTableDisplay::TableRow {
             process_row(
                 tree,
                 child,
@@ -755,6 +758,7 @@ pub(crate) trait TableTree {
     fn first_child(&self, node: Node) -> Node;
     fn next_sibling(&self, node: Node) -> Node;
     fn node_data(&self, node: Node) -> &NodeData;
+    fn table_display(&self, node: Node) -> FfiTableDisplay;
 
     fn table_column_span(&self, node: Node) -> usize {
         self.node_data(node).table_column_span as usize
@@ -805,6 +809,12 @@ impl TableTree for TableFormattingContext<'_> {
 
     fn node_data(&self, node: Node) -> &NodeData {
         self.callbacks.node_data(node)
+    }
+
+    fn table_display(&self, node: Node) -> FfiTableDisplay {
+        self.callbacks
+            .style_reader_if_styled(node)
+            .map_or(FfiTableDisplay::Other, |style| style.table_display())
     }
 
     fn row_is_collapsed(&self, row: Node, row_group: Option<Node>) -> bool {

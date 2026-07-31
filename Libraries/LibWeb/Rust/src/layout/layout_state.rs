@@ -424,6 +424,23 @@ impl<'pass> NodeFacts<'pass> {
         self.state.style_facts(self.callbacks, self.node)
     }
 
+    fn style_reader_if_styled(&self) -> Option<StyleReader<'pass>> {
+        self.callbacks.style_reader_if_styled(self.node)
+    }
+
+    fn parent_style_reader_if_styled(&self) -> Option<StyleReader<'pass>> {
+        let parent = self.data().parent;
+        if parent.is_invalid() {
+            return None;
+        }
+        self.callbacks.style_reader_if_styled(parent)
+    }
+
+    fn table_display(&self) -> FfiTableDisplay {
+        self.style_reader_if_styled()
+            .map_or(FfiTableDisplay::Other, |style| style.table_display())
+    }
+
     fn replaced_content(&self) -> crate::layout::FfiReplacedContentFacts {
         self.state.replaced_content_facts(self.callbacks, self.node)
     }
@@ -458,24 +475,29 @@ impl<'pass> NodeFacts<'pass> {
     }
 
     pub(crate) fn is_floating(&self) -> bool {
-        crate::layout::has_display_flag(self.data(), NodeDisplayFlag::Floating)
+        self.style_reader_if_styled().is_some_and(|style| style.is_floating())
     }
 
     pub(crate) fn is_absolutely_positioned(&self) -> bool {
-        crate::layout::has_display_flag(self.data(), NodeDisplayFlag::AbsolutelyPositioned)
+        self.style_reader_if_styled()
+            .is_some_and(|style| style.is_absolutely_positioned())
     }
 
     pub(crate) fn is_inline(&self) -> bool {
-        let data = self.data();
-        crate::layout::kind_is_text(data.kind) || crate::layout::has_display_flag(data, NodeDisplayFlag::InlineOutside)
+        crate::layout::kind_is_text(self.data().kind)
+            || self
+                .style_reader_if_styled()
+                .is_some_and(|style| style.display().is_inline_outside())
     }
 
     pub(crate) fn is_atomic_inline(&self) -> bool {
         let data = self.data();
         crate::layout::has_flag(data, NodeFlag::IsReplacedElement)
             || data.kind == NodeKind::ListItemMarkerBox
-            || (crate::layout::has_display_flag(data, NodeDisplayFlag::InlineOutside)
-                && !crate::layout::has_display_flag(data, NodeDisplayFlag::FlowInside))
+            || self.style_reader_if_styled().is_some_and(|style| {
+                let display = style.display();
+                display.is_inline_outside() && !display.is_flow_inside()
+            })
     }
 
     pub(crate) fn has_box_model_metrics(&self) -> bool {
@@ -494,8 +516,10 @@ impl<'pass> NodeFacts<'pass> {
         let data = self.data();
         data.kind == NodeKind::InlineNode
             || (data.kind == NodeKind::ListItemBox
-                && crate::layout::has_display_flag(data, NodeDisplayFlag::InlineOutside)
-                && crate::layout::has_display_flag(data, NodeDisplayFlag::FlowInside))
+                && self.style_reader_if_styled().is_some_and(|style| {
+                    let display = style.display();
+                    display.is_inline_outside() && display.is_flow_inside()
+                }))
     }
 
     pub(crate) fn is_inline_flow_interrupting_block(&self) -> bool {
@@ -506,18 +530,23 @@ impl<'pass> NodeFacts<'pass> {
         let Some(parent) = self.parent_data() else {
             return false;
         };
-        if !crate::layout::has_display_flag(parent, NodeDisplayFlag::InlineOutside)
-            || !crate::layout::has_display_flag(parent, NodeDisplayFlag::FlowInside)
-        {
+        let parent_is_inline_flow = self.parent_style_reader_if_styled().is_some_and(|style| {
+            let display = style.display();
+            display.is_inline_outside() && display.is_flow_inside()
+        });
+        if !parent_is_inline_flow {
             return false;
         }
-        if crate::layout::has_display_flag(data, NodeDisplayFlag::InlineOutside) || crate::layout::node_is_out_of_flow(data) {
+        let style = self.style_reader_if_styled();
+        if style.is_some_and(|style| style.display().is_inline_outside())
+            || crate::layout::node_is_out_of_flow(data, style)
+        {
             return false;
         }
         if self.display().is_contents() {
             return false;
         }
-        if !matches!(data.table_display, FfiTableDisplay::Other | FfiTableDisplay::TableRoot) {
+        if !matches!(self.table_display(), FfiTableDisplay::Other | FfiTableDisplay::TableRoot) {
             return false;
         }
         if parent.kind == NodeKind::SVGForeignObjectBox {
@@ -554,7 +583,8 @@ impl<'pass> NodeFacts<'pass> {
     }
 
     pub(crate) fn display_before_box_type_transformation_is_block_outside(&self) -> bool {
-        crate::layout::has_display_flag(self.data(), NodeDisplayFlag::BlockOutsideBeforeBoxTypeTransformation)
+        self.style_reader_if_styled()
+            .is_some_and(|style| style.display_before_box_type_transformation().is_block_outside())
     }
 
     pub(crate) fn inline_axis_is_reverse(&self) -> bool {
@@ -590,12 +620,18 @@ impl<'pass> NodeFacts<'pass> {
     }
 
     pub(crate) fn has_replaced_element_table_display_adjustment(&self) -> bool {
-        let data = self.data();
-        crate::layout::has_flag(data, NodeFlag::IsReplacedElement) && data.table_display_before != FfiTableDisplay::Other
+        crate::layout::has_flag(self.data(), NodeFlag::IsReplacedElement)
+            && self
+                .style_reader_if_styled()
+                .is_some_and(|style| style.table_display_before() != FfiTableDisplay::Other)
     }
 
     pub(crate) fn creates_block_formatting_context(&self) -> bool {
-        crate::layout::node_creates_block_formatting_context(self.data(), self.parent_data())
+        crate::layout::node_creates_block_formatting_context(
+            self.data(),
+            self.style_reader_if_styled(),
+            self.parent_style_reader_if_styled(),
+        )
     }
 
     pub(crate) fn is_grid_item(&self) -> bool {
@@ -633,7 +669,9 @@ impl<'pass> NodeFacts<'pass> {
         let mut child = data.first_child;
         while !child.is_invalid() {
             let child_data = self.callbacks.node_data(child);
-            if child_data.kind == NodeKind::LegendBox && !crate::layout::node_is_out_of_flow(child_data) {
+            if child_data.kind == NodeKind::LegendBox
+                && !crate::layout::node_is_out_of_flow(child_data, self.callbacks.style_reader_if_styled(child))
+            {
                 return child;
             }
             child = child_data.next_sibling;
@@ -699,7 +737,7 @@ impl<'pass> NodeFacts<'pass> {
 
     fn node_has_size_containment(&self) -> bool {
         if !matches!(
-            self.data().table_display,
+            self.table_display(),
             FfiTableDisplay::Other | FfiTableDisplay::TableCaption
         ) {
             return false;
@@ -774,7 +812,7 @@ impl<'pass> NodeFacts<'pass> {
     }
 
     pub(crate) fn is_table_box(&self) -> bool {
-        self.data().table_display == FfiTableDisplay::TableRoot
+        self.table_display() == FfiTableDisplay::TableRoot
     }
 
     pub(crate) fn is_table_wrapper(&self) -> bool {
@@ -782,35 +820,35 @@ impl<'pass> NodeFacts<'pass> {
     }
 
     pub(crate) fn is_table_row_group(&self) -> bool {
-        self.data().table_display == FfiTableDisplay::TableRowGroup
+        self.table_display() == FfiTableDisplay::TableRowGroup
     }
 
     pub(crate) fn is_table_header_group(&self) -> bool {
-        self.data().table_display == FfiTableDisplay::TableHeaderGroup
+        self.table_display() == FfiTableDisplay::TableHeaderGroup
     }
 
     pub(crate) fn is_table_footer_group(&self) -> bool {
-        self.data().table_display == FfiTableDisplay::TableFooterGroup
+        self.table_display() == FfiTableDisplay::TableFooterGroup
     }
 
     pub(crate) fn is_table_row(&self) -> bool {
-        self.data().table_display == FfiTableDisplay::TableRow
+        self.table_display() == FfiTableDisplay::TableRow
     }
 
     pub(crate) fn is_table_cell(&self) -> bool {
-        self.data().table_display == FfiTableDisplay::TableCell
+        self.table_display() == FfiTableDisplay::TableCell
     }
 
     pub(crate) fn is_table_column_group(&self) -> bool {
-        self.data().table_display == FfiTableDisplay::TableColumnGroup
+        self.table_display() == FfiTableDisplay::TableColumnGroup
     }
 
     pub(crate) fn is_table_column(&self) -> bool {
-        self.data().table_display == FfiTableDisplay::TableColumn
+        self.table_display() == FfiTableDisplay::TableColumn
     }
 
     pub(crate) fn is_table_caption(&self) -> bool {
-        self.data().table_display == FfiTableDisplay::TableCaption
+        self.table_display() == FfiTableDisplay::TableCaption
     }
 
     pub(crate) fn is_viewport(&self) -> bool {

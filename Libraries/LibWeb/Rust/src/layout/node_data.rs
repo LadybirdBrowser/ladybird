@@ -143,40 +143,9 @@ pub enum NodeFlag {
     UsesButtonLayout = 1 << 16,
     IsEditingHost = 1 << 17,
     ReplacedBoxCanHaveChildren = 1 << 18,
-    OwnStyleEstablishesBlockFormattingContext = 1 << 19,
-    HasSavedAbsposLayoutInputs = 1 << 20,
-    SavedAbsposCbDerivesFromOwnComputedValues = 1 << 21,
-    SavedAbsposAlignmentDerivesFromOwnComputedValues = 1 << 22,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u8)]
-// NB: Some variants are only constructed by C++ through the FFI.
-#[allow(dead_code)]
-pub enum FfiTableDisplay {
-    Other,
-    TableRoot,
-    TableRowGroup,
-    TableHeaderGroup,
-    TableFooterGroup,
-    TableColumnGroup,
-    TableColumn,
-    TableRow,
-    TableCell,
-    TableCaption,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[repr(u8)]
-pub enum NodeDisplayFlag {
-    InlineOutside = 1 << 0,
-    FlowInside = 1 << 1,
-    FlexInside = 1 << 2,
-    GridInside = 1 << 3,
-    Floating = 1 << 4,
-    AbsolutelyPositioned = 1 << 5,
-    MathInside = 1 << 6,
-    BlockOutsideBeforeBoxTypeTransformation = 1 << 7,
+    HasSavedAbsposLayoutInputs = 1 << 19,
+    SavedAbsposCbDerivesFromOwnComputedValues = 1 << 20,
+    SavedAbsposAlignmentDerivesFromOwnComputedValues = 1 << 21,
 }
 
 #[repr(C)]
@@ -193,9 +162,6 @@ pub struct NodeData {
     pub intrinsic_cache_epoch: u16,
     pub flags: u32,
     pub initial_quote_nesting_level: u32,
-    pub table_display: FfiTableDisplay,
-    pub table_display_before: FfiTableDisplay,
-    pub display_bits: u8,
     pub slot_generation: u8,
     pub table_column_span: u16,
     pub table_row_span: u16,
@@ -218,9 +184,6 @@ impl Default for NodeData {
             intrinsic_cache_epoch: 0,
             flags: 0,
             initial_quote_nesting_level: 0,
-            table_display: FfiTableDisplay::Other,
-            table_display_before: FfiTableDisplay::Other,
-            display_bits: 0,
             slot_generation: 0,
             table_column_span: 1,
             table_row_span: 1,
@@ -232,7 +195,7 @@ impl Default for NodeData {
 
 #[cfg(test)]
 mod tests {
-    use crate::layout::node_data::{MAX_NODE_SLOT_COUNT, NodeData, NodeDisplayFlag, NodeFlag, NodeKind, NodeSlotId};
+    use crate::layout::node_data::{MAX_NODE_SLOT_COUNT, NodeData, NodeFlag, NodeKind, NodeSlotId};
 
     #[test]
     fn node_kind_has_a_stable_default_and_byte_width() {
@@ -245,7 +208,7 @@ mod tests {
         assert_eq!(std::mem::size_of::<NodeData>(), 64);
         assert_eq!(std::mem::offset_of!(NodeData, intrinsic_cache_epoch), 30);
         assert_eq!(std::mem::offset_of!(NodeData, flags), 32);
-        assert_eq!(std::mem::offset_of!(NodeData, slot_generation), 43);
+        assert_eq!(std::mem::offset_of!(NodeData, slot_generation), 40);
         assert_eq!(std::mem::offset_of!(NodeData, style), 48);
         assert_eq!(std::mem::offset_of!(NodeData, shell), 56);
     }
@@ -261,11 +224,11 @@ mod tests {
     #[test]
     fn saved_abspos_flags_use_previously_unassigned_bits() {
         assert_eq!(NodeFlag::IsReplacedElement as u32, 1 << 12);
-        assert_eq!(NodeFlag::HasSavedAbsposLayoutInputs as u32, 1 << 20);
-        assert_eq!(NodeFlag::SavedAbsposCbDerivesFromOwnComputedValues as u32, 1 << 21);
+        assert_eq!(NodeFlag::HasSavedAbsposLayoutInputs as u32, 1 << 19);
+        assert_eq!(NodeFlag::SavedAbsposCbDerivesFromOwnComputedValues as u32, 1 << 20);
         assert_eq!(
             NodeFlag::SavedAbsposAlignmentDerivesFromOwnComputedValues as u32,
-            1 << 22
+            1 << 21
         );
     }
 
@@ -277,7 +240,5 @@ mod tests {
         assert_eq!(NodeFlag::UsesButtonLayout as u32, 1 << 16);
         assert_eq!(NodeFlag::IsEditingHost as u32, 1 << 17);
         assert_eq!(NodeFlag::ReplacedBoxCanHaveChildren as u32, 1 << 18);
-        assert_eq!(NodeFlag::OwnStyleEstablishesBlockFormattingContext as u32, 1 << 19);
-        assert_eq!(NodeDisplayFlag::BlockOutsideBeforeBoxTypeTransformation as u8, 1 << 7);
     }
 }

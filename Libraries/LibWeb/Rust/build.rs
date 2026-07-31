@@ -988,10 +988,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     tree_builder_config.export.include = vec![
         "FfiNodeKindFacts".to_string(),
         "FfiStylePayloads".to_string(),
-        "FfiTableDisplay".to_string(),
         "NodeAllocation".to_string(),
         "NodeData".to_string(),
-        "NodeDisplayFlag".to_string(),
         "NodeFlag".to_string(),
         "NodeKind".to_string(),
         "NodeSlotId".to_string(),
