@@ -2344,6 +2344,19 @@ Vector<Variant<LengthPercentage, float>> ComputedProperties::stroke_dasharray() 
     return dashes;
 }
 
+LengthPercentage ComputedProperties::stroke_dashoffset() const
+{
+    auto const& value = property(PropertyID::StrokeDashoffset);
+
+    if (value.is_number() || (value.is_calculated() && value.as_calculated().resolves_to_number())) {
+        // FIXME: Converting to pixels isn't really correct - values should be in "user units"
+        //        https://svgwg.org/svg2-draft/coords.html#TermUserUnits
+        return CSS::Length::make_px(CSSPixels::nearest_value_for(number_from_style_value(value, {})));
+    }
+
+    return CSS::LengthPercentage::from_style_value(value);
+}
+
 StrokeLinecap ComputedProperties::stroke_linecap() const
 {
     auto const& value = property(PropertyID::StrokeLinecap);

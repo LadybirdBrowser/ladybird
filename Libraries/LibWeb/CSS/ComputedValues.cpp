@@ -2404,15 +2404,8 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     if (!inherited_svg_adopted)
         computed_values.set_stroke_dasharray(computed_style.stroke_dasharray());
 
-    auto const& stroke_dashoffset = computed_style.property(CSS::PropertyID::StrokeDashoffset);
-    // FIXME: Converting to pixels isn't really correct - values should be in "user units"
-    //        https://svgwg.org/svg2-draft/coords.html#TermUserUnits
-    if (!inherited_svg_adopted) {
-        if (stroke_dashoffset.is_number())
-            computed_values.set_stroke_dashoffset(CSS::Length::make_px(CSSPixels::nearest_value_for(stroke_dashoffset.as_number().number())));
-        else
-            computed_values.set_stroke_dashoffset(CSS::LengthPercentage::from_style_value(stroke_dashoffset));
-    }
+    if (!inherited_svg_adopted)
+        computed_values.set_stroke_dashoffset(computed_style.stroke_dashoffset());
 
     if (!inherited_svg_adopted)
         computed_values.set_stroke_linecap(computed_style.stroke_linecap());
