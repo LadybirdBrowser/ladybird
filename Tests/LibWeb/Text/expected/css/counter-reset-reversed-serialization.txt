@@ -1,0 +1,8 @@
+"reversed(sec)" => specified: "reversed(sec)", computed: "reversed(sec)"
+"reversed(sec) 7" => specified: "reversed(sec) 7", computed: "reversed(sec) 7"
+"reversed(sec) -3 foo 2" => specified: "reversed(sec) -3 foo 2", computed: "reversed(sec) -3 foo 2"
+"foo reversed(bar)" => specified: "foo 0 reversed(bar)", computed: "foo 0 reversed(bar)"
+"reversed(none)" => specified: "", computed: "none"
+"reversed(sec) 1.5" => specified: "", computed: "none"
+counter-increment "reversed(sec)" => ""
+counter-set "reversed(sec)" => ""

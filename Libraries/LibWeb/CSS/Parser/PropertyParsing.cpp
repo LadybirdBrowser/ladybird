@@ -862,9 +862,6 @@ RefPtr<StyleValue const> Parser::parse_counter_definitions_value(TokenStream<Com
     // Otherwise parses:
     //   [ <counter-name> <integer>? ]+
 
-    // FIXME: This disabled parsing of `reversed()` counters. Remove this line once they're supported.
-    allow_reversed = AllowReversed::No;
-
     auto transaction = tokens.begin_transaction();
     tokens.discard_whitespace();
 
@@ -884,14 +881,14 @@ RefPtr<StyleValue const> Parser::parse_counter_definitions_value(TokenStream<Com
             TokenStream function_tokens { token.function().value };
             tokens.discard_a_token();
             function_tokens.discard_whitespace();
-            auto& name_token = function_tokens.consume_a_token();
-            if (!name_token.is(Token::Type::Ident))
+            auto counter_name = parse_custom_ident_value(function_tokens, { { "none"sv } });
+            if (!counter_name)
                 break;
             function_tokens.discard_whitespace();
             if (function_tokens.has_next_token())
                 break;
 
-            definition.name = name_token.token().ident();
+            definition.name = counter_name->custom_ident();
             definition.is_reversed = true;
         } else {
             break;

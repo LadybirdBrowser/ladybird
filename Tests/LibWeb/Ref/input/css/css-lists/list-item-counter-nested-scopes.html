@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<link rel="match" href="../../../expected/css/css-lists/list-item-counter-nested-scopes-ref.html" />
+<style>
+li::after { content: " [" counters(list-item, ".") "]"; }
+</style>
+<ol>
+    <li>a</li>
+    <li>b
+        <ol>
+            <li>b1</li>
+            <li>b2</li>
+        </ol>
+    </li>
+    <li>c</li>
+</ol>
