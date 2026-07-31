@@ -2570,8 +2570,8 @@ BorderImageData ComputedProperties::border_image() const
             return LengthPercentage::from_style_value(value);
         }),
         .outset = expand_sides(property(PropertyID::BorderImageOutset), [](StyleValue const& value) -> BorderImageOutsetValue {
-            if (value.is_number())
-                return value.as_number().number();
+            if (value.is_number() || (value.is_calculated() && value.as_calculated().resolves_to_number()))
+                return number_from_style_value(value, {});
             return Length::from_style_value(value, {});
         }),
         .width_value_count = component_count(property(PropertyID::BorderImageWidth)),
