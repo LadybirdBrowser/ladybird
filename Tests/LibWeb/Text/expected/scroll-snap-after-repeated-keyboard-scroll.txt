@@ -1,0 +1,4 @@
+scroll offset after six down arrow key presses: 0,0
+scroll offset once the presses settle: 0,660
+scroll offset while the up arrow key repeats: 0,660
+scroll offset once the held key is released: 0,0

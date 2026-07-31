@@ -319,10 +319,15 @@ ScrollHandled set_scroll_offset_from_user_input(Layout::Node& node, CSSPixelPoin
     if (!has_committed_box(node))
         return ScrollHandled::No;
 
-    auto stable_node_id = async_scroll_node_stable_id(node);
-    auto scroll_offset_before_scroll = scroll_offset(node);
-    auto scroll_handled = set_scroll_offset(node, offset);
     auto navigable = node.document().navigable();
+    auto stable_node_id = async_scroll_node_stable_id(node);
+
+    auto scroll_offset_before_scroll = scroll_offset(node);
+
+    if (navigable && stable_node_id.has_value())
+        navigable->abort_in_flight_smooth_scrolls_taken_over_by_user_input(*stable_node_id, scroll_offset_before_scroll);
+
+    auto scroll_handled = set_scroll_offset(node, offset);
     if (!navigable)
         return scroll_handled;
 
