@@ -10,14 +10,9 @@ pub const INVALID_NODE_SLOT_INDEX: u32 = u32::MAX;
 pub const GENERATED_FOR_MARKER: u8 = 6;
 
 // The full C++ StyleGroupIndex space; LayoutRustBridge.cpp static-asserts the
-// count so the payload mirror and the registered group indices line up.
+// count so the style container array and the registered group indices line up.
 pub const STYLE_GROUP_COUNT: usize = 23;
 
-/// Borrowed pointers to every `ComputedValues` group payload, mirrored into
-/// the layout node arena at style application. The node's retained immutable
-/// `ComputedValues` keeps every payload alive, and the mirror is rewritten
-/// whenever that style is replaced, so the pointers stay valid for as long as
-/// the node occupies its arena slot.
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiStylePayloads {

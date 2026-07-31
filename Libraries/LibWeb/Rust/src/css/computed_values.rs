@@ -566,6 +566,94 @@ pub unsafe extern "C" fn rust_style_group_free(group_index: usize, payload: *mut
     });
 }
 
+fn release_group_payload(group_index: usize, payload: *const c_void) {
+    let table = vtable(group_index);
+    let refcount = refcount_of(payload, payload_align(table));
+    if refcount.load(Ordering::Relaxed) == STYLE_GROUP_STATIC_REFCOUNT {
+        return;
+    }
+    if refcount.fetch_sub(1, Ordering::AcqRel) == 1 {
+        // SAFETY: The count reached zero, so this reference was the last one.
+        unsafe {
+            destruct(table, payload.cast_mut());
+            let allocation = (payload as *mut u8).sub(header_size(payload_align(table)));
+            dealloc(allocation, allocation_layout(table));
+        }
+    }
+}
+
+fn style_container_header_size() -> usize {
+    header_size(align_of::<*const c_void>())
+}
+
+fn style_container_allocation_layout(group_count: usize) -> Layout {
+    Layout::from_size_align(
+        style_container_header_size() + group_count * size_of::<*const c_void>(),
+        align_of::<usize>(),
+    )
+    .expect("style container layout overflow")
+}
+
+/// Allocates the style container for one built ComputedValues: a Rust-owned
+/// refcounted `[ ArcHeader | group payload pointer array ]` allocation that
+/// retains every group. The returned pointer addresses the pointer array, so
+/// the layout side reads it in place as the node's style payload array.
+///
+/// # Safety
+/// `groups` must point at `group_count` valid group payload pointers, in
+/// style group index order, covering every registered group.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_container_create(
+    groups: *const *const c_void,
+    group_count: usize,
+) -> *const c_void {
+    abort_on_panic(|| unsafe {
+        let registered_count = REGISTRY
+            .get()
+            .expect("style groups used before registration")
+            .vtables
+            .len();
+        assert_eq!(group_count, registered_count, "style container must cover every group");
+        let allocation = alloc(style_container_allocation_layout(group_count));
+        if allocation.is_null() {
+            std::process::abort();
+        }
+        (*(allocation as *mut AtomicUsize)).store(1, Ordering::Relaxed);
+        let array = allocation.add(style_container_header_size()) as *mut *const c_void;
+        for group_index in 0..group_count {
+            let payload = *groups.add(group_index);
+            assert!(!payload.is_null(), "style container group payload is null");
+            retain_group_payload(group_index, payload);
+            array.add(group_index).write(payload);
+        }
+        array as *const c_void
+    })
+}
+
+/// Releases one reference to a style container, releasing its group payloads
+/// and freeing the allocation when the count reaches zero.
+///
+/// # Safety
+/// `container` must be a pointer returned by rust_style_container_create with
+/// an outstanding reference, and `group_count` must match its creation.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_container_unref(container: *const c_void, group_count: usize) {
+    abort_on_panic(|| unsafe {
+        let refcount = &*(container as *const u8)
+            .sub(style_container_header_size())
+            .cast::<AtomicUsize>();
+        if refcount.fetch_sub(1, Ordering::AcqRel) != 1 {
+            return;
+        }
+        let array = container as *const *const c_void;
+        for group_index in 0..group_count {
+            release_group_payload(group_index, *array.add(group_index));
+        }
+        let allocation = (container as *mut u8).sub(style_container_header_size());
+        dealloc(allocation, style_container_allocation_layout(group_count));
+    });
+}
+
 /// Compares two payloads of the same style group for value equality, letting
 /// C++ group structs that inherit a Rust-native payload layout reuse the Rust
 /// field-wise equality instead of hand-writing a second one.

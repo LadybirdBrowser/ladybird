@@ -850,6 +850,7 @@ bool ComputedValues::FontValues::operator==(FontValues const& other) const
 
 bool ComputedValues::adopt_identical_group_payloads(ComputedValues const& previous) const
 {
+    VERIFY(!m_style_container);
     bool all_shared = true;
     auto adopt = [&]<typename T>(StyleStructRef<T> const& mine, StyleStructRef<T> const& theirs) {
         if (mine.ptr_equals(theirs))
@@ -943,11 +944,15 @@ void const* ComputedValues::style_group_payload(StyleGroupIndex group) const
     VERIFY_NOT_REACHED();
 }
 
-void ComputedValues::fill_style_group_payloads(Span<void const*> payloads) const
+void const* ComputedValues::style_container() const
 {
-    VERIFY(payloads.size() == to_underlying(StyleGroupIndex::Count));
-    for (size_t index = 0; index < payloads.size(); ++index)
-        payloads[index] = style_group_payload(static_cast<StyleGroupIndex>(index));
+    if (!m_style_container) {
+        Array<void const*, to_underlying(StyleGroupIndex::Count)> groups;
+        for (size_t index = 0; index < groups.size(); ++index)
+            groups[index] = style_group_payload(static_cast<StyleGroupIndex>(index));
+        m_style_container = ComputedValuesFFI::rust_style_container_create(groups.data(), groups.size());
+    }
+    return m_style_container;
 }
 
 NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties const& computed_style, DOM::Document const& document, StyleScope const& style_scope, ColorResolutionContext color_resolution_context, ComputedValues const* inherit_parent)
