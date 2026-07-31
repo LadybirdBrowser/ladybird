@@ -68,7 +68,7 @@ public:
     GC::Ptr<JS::Object> hit_test_result(double x, double y);
 
     void send_text(HTML::HTMLElement&, Utf16String const&, WebIDL::UnsignedShort modifiers);
-    void send_key(HTML::HTMLElement&, Utf16String const&, WebIDL::UnsignedShort modifiers);
+    void send_key(HTML::HTMLElement&, Utf16String const&, WebIDL::UnsignedShort modifiers, WebIDL::UnsignedLong repeat_count);
     void paste(HTML::HTMLElement& target, Utf16String const& text);
     void paste_from_clipboard();
     void commit_text();

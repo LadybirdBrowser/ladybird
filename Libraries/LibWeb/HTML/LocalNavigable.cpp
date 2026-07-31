@@ -717,9 +717,9 @@ void LocalNavigable::visit_edges(Cell::Visitor& visitor)
     }
 
     for (auto& async_scroll_operation : m_pending_async_scroll_operations)
-        visitor.visit(async_scroll_operation.promise);
+        visitor.visit(async_scroll_operation.promises);
     for (auto& smooth_scroll : m_main_thread_smooth_scrolls)
-        visitor.visit(smooth_scroll.promise);
+        visitor.visit(smooth_scroll.promises);
     for (auto& entry : m_pending_user_scrollend_targets)
         visitor.visit(entry.target);
 }
@@ -3816,14 +3816,28 @@ static void queue_async_scroll_operation_promise_resolution(GC::Ref<WebIDL::Prom
     }));
 }
 
-void LocalNavigable::queue_scrollend_event_and_promise_resolution_for_finished_scroll(Optional<Compositor::AsyncScrollNodeStableID> stable_node_id, ScrollTrigger trigger, Optional<CSSPixelPoint> scroll_offset_before_scroll, GC::Ref<WebIDL::Promise> promise)
+void LocalNavigable::queue_scrollend_event_and_promise_resolution_for_finished_scroll(Optional<Compositor::AsyncScrollNodeStableID> stable_node_id, ScrollTrigger trigger, Optional<CSSPixelPoint> scroll_offset_before_scroll, ScrollPromises const& promises)
 {
     if (stable_node_id.has_value() && scroll_offset_before_scroll.has_value()) {
         auto final_scroll_offset = scroll_offset_for(*stable_node_id);
         if (final_scroll_offset.has_value() && *final_scroll_offset != *scroll_offset_before_scroll)
             queue_scrollend_event_for_finished_scroll(*stable_node_id, trigger, scroll_offset_before_scroll);
     }
-    queue_async_scroll_operation_promise_resolution(promise);
+    for (auto const& promise : promises)
+        queue_async_scroll_operation_promise_resolution(promise);
+}
+
+LocalNavigable::ScrollPromises* LocalNavigable::promises_of_smooth_scroll_in_flight_toward(Compositor::AsyncScrollNodeStableID stable_node_id, CSSPixelPoint position, ScrollTrigger trigger)
+{
+    for (auto& pending : m_pending_async_scroll_operations) {
+        if (pending.stable_node_id == stable_node_id && pending.destination_scroll_offset == position && pending.trigger == trigger)
+            return &pending.promises;
+    }
+    for (auto& smooth_scroll : m_main_thread_smooth_scrolls) {
+        if (smooth_scroll.stable_node_id == stable_node_id && smooth_scroll.destination_scroll_offset == position && smooth_scroll.trigger == trigger)
+            return &smooth_scroll.promises;
+    }
+    return nullptr;
 }
 
 void LocalNavigable::wait_for_async_scroll_operation(Compositor::AsyncScrollOperationID operation_id, GC::Ref<WebIDL::Promise> promise)
@@ -3835,14 +3849,14 @@ void LocalNavigable::wait_for_async_scroll_operation(Compositor::AsyncScrollOper
 
     m_pending_async_scroll_operations.append(PendingAsyncScrollOperation {
         .operation_id = operation_id,
-        .promise = promise,
+        .promises = { promise },
         .stable_node_id = {},
         .initial_scroll_offset = {},
         .destination_scroll_offset = {},
     });
 }
 
-void LocalNavigable::resolve_async_scroll_operation(Compositor::AsyncScrollOperationID operation_id)
+void LocalNavigable::resolve_async_scroll_operation(Compositor::AsyncScrollOperationID operation_id, AsyncScrollCompletion completion)
 {
     // Notifying a scroll's completion can start the next scroll of the same scrolling box, so the finished scroll
     // leaves the list of scrolls in progress before it is reported.
@@ -3856,7 +3870,14 @@ void LocalNavigable::resolve_async_scroll_operation(Compositor::AsyncScrollOpera
     if (!finished.has_value())
         return;
 
-    queue_scrollend_event_and_promise_resolution_for_finished_scroll(finished->stable_node_id, finished->trigger, finished->initial_scroll_offset, finished->promise);
+    // A scroll that user input took over belongs to the gesture that input continues, which reports the end of the
+    // combined scrolling operation; reporting no offset to have scrolled from resolves such a scroll's promise
+    // without queueing an event of its own.
+    auto scroll_offset_the_finished_scroll_reports = completion == AsyncScrollCompletion::Finished
+        ? finished->initial_scroll_offset
+        : Optional<CSSPixelPoint> {};
+
+    queue_scrollend_event_and_promise_resolution_for_finished_scroll(finished->stable_node_id, finished->trigger, scroll_offset_the_finished_scroll_reports, finished->promises);
     settle_user_scroll_gesture_if_input_deadline_passed();
 }
 
@@ -3864,12 +3885,12 @@ void LocalNavigable::resolve_all_pending_async_scroll_operations()
 {
     while (!m_pending_async_scroll_operations.is_empty()) {
         auto pending = m_pending_async_scroll_operations.take_last();
-        queue_scrollend_event_and_promise_resolution_for_finished_scroll(pending.stable_node_id, pending.trigger, pending.initial_scroll_offset, pending.promise);
+        queue_scrollend_event_and_promise_resolution_for_finished_scroll(pending.stable_node_id, pending.trigger, pending.initial_scroll_offset, pending.promises);
     }
 
     while (!m_main_thread_smooth_scrolls.is_empty()) {
         auto smooth_scroll = m_main_thread_smooth_scrolls.take_last();
-        queue_scrollend_event_and_promise_resolution_for_finished_scroll(smooth_scroll.stable_node_id, smooth_scroll.trigger, smooth_scroll.initial_scroll_offset, smooth_scroll.promise);
+        queue_scrollend_event_and_promise_resolution_for_finished_scroll(smooth_scroll.stable_node_id, smooth_scroll.trigger, smooth_scroll.initial_scroll_offset, smooth_scroll.promises);
     }
 
     settle_user_scroll_gesture_if_input_deadline_passed();
@@ -4268,7 +4289,7 @@ void LocalNavigable::user_scroll_did_settle(UserScrollSettlement settlement)
         main_thread_event_loop().queue_task_to_update_the_rendering();
 }
 
-void LocalNavigable::resolve_pending_smooth_scrolls(Compositor::AsyncScrollNodeStableID stable_node_id)
+void LocalNavigable::resolve_pending_smooth_scrolls(Compositor::AsyncScrollNodeStableID stable_node_id, SmoothScrollAbortCause abort_cause)
 {
     Vector<PendingAsyncScrollOperation> finished_async_scroll_operations;
     m_pending_async_scroll_operations.remove_all_matching([&](auto const& pending) {
@@ -4286,10 +4307,18 @@ void LocalNavigable::resolve_pending_smooth_scrolls(Compositor::AsyncScrollNodeS
         return true;
     });
 
+    // A smooth scroll aborted by a new scroll of the same scrolling box hands the reporting of the scrolling
+    // operation's end to its replacement; reporting no offset to have scrolled from resolves such a scroll's promise
+    // without queueing an event of its own.
+    auto scroll_offset_a_finished_scroll_reports = [&](Optional<CSSPixelPoint> initial_scroll_offset) {
+        if (abort_cause == SmoothScrollAbortCause::ReplacedByNewScroll)
+            return Optional<CSSPixelPoint> {};
+        return initial_scroll_offset;
+    };
     for (auto const& finished : finished_async_scroll_operations)
-        queue_scrollend_event_and_promise_resolution_for_finished_scroll(stable_node_id, finished.trigger, finished.initial_scroll_offset, finished.promise);
+        queue_scrollend_event_and_promise_resolution_for_finished_scroll(stable_node_id, finished.trigger, scroll_offset_a_finished_scroll_reports(finished.initial_scroll_offset), finished.promises);
     for (auto const& finished : finished_smooth_scrolls)
-        queue_scrollend_event_and_promise_resolution_for_finished_scroll(stable_node_id, finished.trigger, finished.initial_scroll_offset, finished.promise);
+        queue_scrollend_event_and_promise_resolution_for_finished_scroll(stable_node_id, finished.trigger, scroll_offset_a_finished_scroll_reports(finished.initial_scroll_offset), finished.promises);
 
     settle_user_scroll_gesture_if_input_deadline_passed();
 }
@@ -4302,7 +4331,8 @@ void LocalNavigable::process_main_thread_smooth_scrolls()
     for (size_t index = 0; index < m_main_thread_smooth_scrolls.size();) {
         auto& smooth_scroll = m_main_thread_smooth_scrolls[index];
         if (!scroll_offset_for(smooth_scroll.stable_node_id).has_value()) {
-            queue_async_scroll_operation_promise_resolution(smooth_scroll.promise);
+            for (auto const& promise : smooth_scroll.promises)
+                queue_async_scroll_operation_promise_resolution(promise);
             m_main_thread_smooth_scrolls.remove(index);
             continue;
         }
@@ -4321,7 +4351,7 @@ void LocalNavigable::process_main_thread_smooth_scrolls()
     }
 
     for (auto const& finished : finished_smooth_scrolls)
-        queue_scrollend_event_and_promise_resolution_for_finished_scroll(finished.stable_node_id, finished.trigger, finished.initial_scroll_offset, finished.promise);
+        queue_scrollend_event_and_promise_resolution_for_finished_scroll(finished.stable_node_id, finished.trigger, finished.initial_scroll_offset, finished.promises);
 
     // A scroll whose scrolling box went away is dropped above without being reported, so settlement is retried for
     // every pass rather than only for the scrolls that ran to their destination.
@@ -4386,27 +4416,45 @@ void LocalNavigable::adopt_pending_async_scroll_offsets()
     if (!async_scroll_updates.scroll_offsets.is_empty())
         note_user_scroll_input_intent(Painting::SnapSelectionStrategy::Type::EndPosition);
 
+    // The compositor process merges the progress of a scroll that user input took over and the delta of that input
+    // into one offset per scrolling box, so a box that such input scrolled is recognized from the scroll it ended.
+    auto user_input_took_over_the_scroll_of = [&](Compositor::AsyncScrollNodeStableID stable_node_id) {
+        return any_of(async_scroll_updates.operation_ids_taken_over_by_user_input, [&](auto operation_id) {
+            return any_of(m_pending_async_scroll_operations, [&](auto const& pending_operation) {
+                return pending_operation.operation_id == operation_id && pending_operation.stable_node_id == stable_node_id;
+            });
+        });
+    };
+
     auto device_pixels_per_css_pixel = page().client().device_pixels_per_css_pixel();
     bool adopted_any_scroll_offset = false;
     for (auto const& async_scroll_offset : async_scroll_updates.scroll_offsets) {
         auto css_scroll_delta = async_scroll_offset_to_css_pixels(async_scroll_offset.unadopted_scroll_delta, device_pixels_per_css_pixel);
-        bool is_programmatic_smooth_scroll = false;
+        bool has_in_flight_smooth_scroll = false;
         for (auto const& pending_operation : m_pending_async_scroll_operations) {
             if (pending_operation.stable_node_id == async_scroll_offset.stable_node_id) {
-                is_programmatic_smooth_scroll = true;
+                has_in_flight_smooth_scroll = true;
                 break;
             }
         }
 
-        // NB: A programmatic smooth scroll has an absolute destination. Adopt the
+        // NB: A smooth scroll of this box has an absolute destination. Adopt the
         //     compositor's absolute position so that replacing scroll snapshots
         //     during the animation cannot cause overlapping deltas to accumulate.
-        if (is_programmatic_smooth_scroll) {
+        if (has_in_flight_smooth_scroll) {
+            auto scroll_offset_before_scroll = scroll_offset_for(async_scroll_offset.stable_node_id);
             auto css_scroll_offset = async_scroll_offset_to_css_pixels(async_scroll_offset.compositor_scroll_offset, device_pixels_per_css_pixel);
             if (set_scroll_offset_for(async_scroll_offset.stable_node_id, css_scroll_offset)) {
                 adopted_any_scroll_offset = true;
                 dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Main thread adopting async programmatic scroll offset {},{}",
                     async_scroll_offset.compositor_scroll_offset.x(), async_scroll_offset.compositor_scroll_offset.y());
+            }
+
+            // The gesture of the input that took the scroll over is latched here, so that the scrollend event the
+            // taken-over scroll owes is delivered once that gesture settles rather than in the middle of it.
+            if (user_input_took_over_the_scroll_of(async_scroll_offset.stable_node_id)) {
+                if (auto target = scroll_event_target_for_async_scroll_node(*document, async_scroll_offset.stable_node_id))
+                    queue_scrollend_event_after_user_scroll(*target, async_scroll_offset.stable_node_id, scroll_offset_before_scroll);
             }
             continue;
         }
@@ -4434,8 +4482,12 @@ void LocalNavigable::adopt_pending_async_scroll_offsets()
     if (adopted_any_scroll_offset)
         schedule_hover_update_after_async_scroll();
 
-    for (auto operation_id : async_scroll_updates.completed_operation_ids)
-        resolve_async_scroll_operation(operation_id);
+    for (auto operation_id : async_scroll_updates.completed_operation_ids) {
+        auto completion = async_scroll_updates.operation_ids_taken_over_by_user_input.contains_slow(operation_id)
+            ? AsyncScrollCompletion::TakenOverByUserInput
+            : AsyncScrollCompletion::Finished;
+        resolve_async_scroll_operation(operation_id, completion);
+    }
 }
 
 void LocalNavigable::schedule_hover_update_after_async_scroll()
@@ -5035,6 +5087,30 @@ void LocalNavigable::render_screenshot(Gfx::PaintingSurface& painting_surface, P
     compositor_context().request_screenshot(painting_surface, move(callback));
 }
 
+void LocalNavigable::abort_in_flight_smooth_scrolls(Compositor::AsyncScrollNodeStableID stable_node_id, SmoothScrollAbortCause abort_cause)
+{
+    if (has_compositor_context())
+        compositor_context().cancel_smooth_scroll(stable_node_id);
+    resolve_pending_smooth_scrolls(stable_node_id, abort_cause);
+}
+
+void LocalNavigable::abort_in_flight_smooth_scrolls_taken_over_by_user_input(Compositor::AsyncScrollNodeStableID stable_node_id, CSSPixelPoint scroll_offset_at_gesture_start)
+{
+    auto document = active_document();
+    auto target = document ? scroll_event_target_for_async_scroll_node(*document, stable_node_id) : nullptr;
+
+    // A user scroll that is still running belongs to the gesture this input continues, so that gesture is latched
+    // before the scroll is taken over from it and the scrollend event the scroll owes is delivered once the gesture
+    // settles.
+    auto in_flight_scroll = in_flight_scroll_for(stable_node_id);
+    if (target && in_flight_scroll.has_value() && in_flight_scroll->trigger == ScrollTrigger::UserInput) {
+        if (!latched_user_scroll_gesture_for(*target, stable_node_id))
+            queue_scrollend_event_after_user_scroll(*target, stable_node_id, scroll_offset_at_gesture_start);
+    }
+
+    abort_in_flight_smooth_scrolls(stable_node_id, SmoothScrollAbortCause::TakenOverByUserInput);
+}
+
 GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_a_scrolling_box(Compositor::AsyncScrollNodeStableID stable_node_id, CSSPixelPoint position, Bindings::ScrollBehavior behavior, GC::Ptr<DOM::Element> associated_element, ScrollTrigger trigger, Optional<CSSPixelPoint> relative_displacement)
 {
     auto document = active_document();
@@ -5076,12 +5152,20 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_a_scrolling_box(Com
             should_scroll_smoothly = static_cast<CSS::ScrollBehavior>(values->scroll_behavior) == CSS::ScrollBehavior::Smooth;
     }
 
+    // AD-HOC: A smooth scroll requested while a smooth scroll of the same scrolling box toward the same position is in
+    //         flight continues that scroll instead of restarting it, matching other engines.
+    if (should_scroll_smoothly) {
+        if (auto* promises = promises_of_smooth_scroll_in_flight_toward(stable_node_id, position, trigger)) {
+            auto scroll_promise = WebIDL::create_promise_for(*document);
+            promises->append(scroll_promise);
+            return scroll_promise;
+        }
+    }
+
     // https://drafts.csswg.org/cssom-view-1/#perform-a-scroll
     // 1. Abort any ongoing smooth scroll for box.
-    if (has_compositor_context())
-        compositor_context().cancel_smooth_scroll(stable_node_id);
     // 2. Resolve all pending scroll promises for box.
-    resolve_pending_smooth_scrolls(stable_node_id);
+    abort_in_flight_smooth_scrolls(stable_node_id, SmoothScrollAbortCause::ReplacedByNewScroll);
 
     // 3. Let scrollPromise be a new promise and return it while the remaining
     //    steps run in parallel.
@@ -5118,7 +5202,7 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_a_scrolling_box(Com
             VERIFY(enqueue_result.operation_id.has_value());
             m_pending_async_scroll_operations.append(PendingAsyncScrollOperation {
                 .operation_id = *enqueue_result.operation_id,
-                .promise = scroll_promise,
+                .promises = { scroll_promise },
                 .stable_node_id = stable_node_id,
                 .initial_scroll_offset = *initial_scroll_offset,
                 .destination_scroll_offset = position,
@@ -5152,7 +5236,7 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_a_scrolling_box(Com
         .elapsed = AK::Duration::zero(),
         .initial_scroll_offset = *initial_scroll_offset,
         .destination_scroll_offset = position,
-        .promise = scroll_promise,
+        .promises = { scroll_promise },
         .trigger = trigger,
     });
     main_thread_event_loop().queue_task_to_update_the_rendering();

@@ -407,12 +407,16 @@ void Internals::send_text(HTML::HTMLElement& target, Utf16String const& text, We
     }
 }
 
-void Internals::send_key(HTML::HTMLElement& target, Utf16String const& key_name, WebIDL::UnsignedShort modifiers)
+void Internals::send_key(HTML::HTMLElement& target, Utf16String const& key_name, WebIDL::UnsignedShort modifiers, WebIDL::UnsignedLong repeat_count)
 {
+    if (repeat_count == 0)
+        return;
+
     auto key_code = UIEvents::key_code_from_string(key_name.utf16_view());
     target.focus();
 
-    page().handle_keydown(key_code, modifiers, 0, false, false);
+    for (u32 press = 0; press < repeat_count; ++press)
+        page().handle_keydown(key_code, modifiers, 0, press > 0, false);
     page().handle_keyup(key_code, modifiers, 0, false);
 }
 

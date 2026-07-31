@@ -391,7 +391,7 @@ ContextState::AsyncScrollResult ContextState::async_scroll_by(
     if (scroll_target.node_id->document_id != expected_document_id)
         return {};
 
-    cancel_smooth_scroll_for_node(*scroll_target.node_id);
+    cancel_smooth_scroll_taken_over_by_user_input(*scroll_target.node_id);
 
     Optional<Web::Compositor::AsyncScrollOperationID> operation_id;
     if (operation_tracking == Web::Compositor::AsyncScrollOperationTracking::Yes)
@@ -575,7 +575,7 @@ ContextState::ContextUpdateResult ContextState::async_scroll_by(Gfx::FloatPoint 
         return {};
     }
 
-    cancel_smooth_scroll_for_node(*scroll_target.node_id);
+    cancel_smooth_scroll_taken_over_by_user_input(*scroll_target.node_id);
 
     auto async_scroll_viewport_rect = m_async_scrolling_viewport_rect;
     auto scroll_offsets = m_async_scroll_tree.apply_scroll_delta(*scroll_target.node_id, async_scroll_delta, m_scroll_state_snapshot);
@@ -607,6 +607,7 @@ Web::Compositor::PendingAsyncScrollUpdates ContextState::take_pending_async_scro
     Web::Compositor::PendingAsyncScrollUpdates updates;
     AK::swap(updates.scroll_offsets, m_pending_async_scroll_offsets);
     AK::swap(updates.completed_operation_ids, m_completed_async_scroll_operation_ids);
+    AK::swap(updates.operation_ids_taken_over_by_user_input, m_async_scroll_operation_ids_taken_over_by_user_input);
     updates.user_scroll_gesture_in_progress = m_viewport_scrollbar_controller.has_captured_scrollbar();
     updates.user_scroll_gesture_ended = m_user_scroll_gesture_ended;
     m_user_scroll_gesture_ended = false;
@@ -955,12 +956,13 @@ void ContextState::store_pending_async_scroll_offsets(
         m_completed_async_scroll_operation_ids.append(*operation_id);
 }
 
-void ContextState::cancel_smooth_scroll_for_node(Web::Compositor::AsyncScrollNodeID node_id)
+void ContextState::cancel_smooth_scroll_taken_over_by_user_input(Web::Compositor::AsyncScrollNodeID node_id)
 {
     for (auto const& smooth_scroll_animation : m_smooth_scroll_animations) {
         auto animated_node_id = m_async_scroll_tree.scroll_node_id_for_stable_id(smooth_scroll_animation.stable_node_id);
         if (animated_node_id != node_id)
             continue;
+        m_async_scroll_operation_ids_taken_over_by_user_input.append(smooth_scroll_animation.operation_id);
         cancel_smooth_scroll(smooth_scroll_animation.stable_node_id);
         return;
     }
@@ -978,7 +980,7 @@ Optional<Gfx::IntRect> ContextState::apply_viewport_scrollbar_drag(ViewportScrol
     if (!scroll_delta.has_value())
         return {};
 
-    cancel_smooth_scroll_for_node(scroll_delta->scroll_node_id);
+    cancel_smooth_scroll_taken_over_by_user_input(scroll_delta->scroll_node_id);
     auto scroll_offsets = m_async_scroll_tree.apply_scroll_delta(scroll_delta->scroll_node_id, scroll_delta->delta, m_scroll_state_snapshot);
     if (scroll_offsets.is_empty())
         return {};
