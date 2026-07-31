@@ -1,0 +1,3 @@
+sizes on source: 120.png?candidate, natural size 60x60
+sizes on img: 120.png?candidate, natural size 60x60
+sizes on source and img: 120.png?candidate, natural size 60x60
