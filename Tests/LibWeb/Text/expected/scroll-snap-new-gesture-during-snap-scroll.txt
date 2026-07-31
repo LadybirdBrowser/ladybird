@@ -1,0 +1,4 @@
+snap scroll in flight: true
+scrollend events while the gesture was in progress: 0
+scroll offset after the gesture settled: 0,200
+scrollend events in total: 1
