@@ -243,23 +243,6 @@ pub(crate) enum SizeField {
     VerticalAlign,
 }
 
-/// Classification of a computed display value into the table-structure roles
-/// the tree builder and table layout consult, derived on demand from the box
-/// group payload.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum FfiTableDisplay {
-    Other,
-    TableRoot,
-    TableRowGroup,
-    TableHeaderGroup,
-    TableFooterGroup,
-    TableColumnGroup,
-    TableColumn,
-    TableRow,
-    TableCell,
-    TableCaption,
-}
-
 // https://drafts.csswg.org/css-contain-2/#containment-types
 fn containment_applies_to_principal_box(display: crate::css::display::FfiDisplay) -> bool {
     if display.is_internal_table() && !display.is_table_cell() {
@@ -269,30 +252,6 @@ fn containment_applies_to_principal_box(display: crate::css::display::FfiDisplay
         return false;
     }
     true
-}
-
-pub(crate) fn table_display_of(display: crate::css::display::FfiDisplay) -> FfiTableDisplay {
-    if display.is_table_inside() {
-        FfiTableDisplay::TableRoot
-    } else if display.is_table_row_group() {
-        FfiTableDisplay::TableRowGroup
-    } else if display.is_table_header_group() {
-        FfiTableDisplay::TableHeaderGroup
-    } else if display.is_table_footer_group() {
-        FfiTableDisplay::TableFooterGroup
-    } else if display.is_table_column_group() {
-        FfiTableDisplay::TableColumnGroup
-    } else if display.is_table_column() {
-        FfiTableDisplay::TableColumn
-    } else if display.is_table_row() {
-        FfiTableDisplay::TableRow
-    } else if display.is_table_cell() {
-        FfiTableDisplay::TableCell
-    } else if display.is_table_caption() {
-        FfiTableDisplay::TableCaption
-    } else {
-        FfiTableDisplay::Other
-    }
 }
 
 #[derive(Clone, Copy)]
@@ -371,14 +330,6 @@ impl<'a> StyleReader<'a> {
 
     pub(crate) fn display_before_box_type_transformation(&self) -> crate::css::display::FfiDisplay {
         self.box_values().display_before_box_type_transformation
-    }
-
-    pub(crate) fn table_display(&self) -> FfiTableDisplay {
-        table_display_of(self.display())
-    }
-
-    pub(crate) fn table_display_before(&self) -> FfiTableDisplay {
-        table_display_of(self.display_before_box_type_transformation())
     }
 
     pub(crate) fn is_floating(&self) -> bool {
