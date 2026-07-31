@@ -323,5 +323,6 @@ TEST_CASE(range_at_or_after_at_range_boundary)
     ranges.add_range(ms(0), ms(500));
     ranges.add_range(ms(700), ms(1000));
     EXPECT_EQ(ranges.range_at_or_after(ms(0)), (TimeRanges::Range { ms(0), ms(500) }));
-    EXPECT_EQ(ranges.range_at_or_after(ms(500)), (TimeRanges::Range { ms(700), ms(1000) }));
+    EXPECT_EQ(ranges.range_at_or_after(ms(500)), (TimeRanges::Range { ms(0), ms(500) }));
+    EXPECT_EQ(ranges.range_at_or_after(ms(501)), (TimeRanges::Range { ms(700), ms(1000) }));
 }

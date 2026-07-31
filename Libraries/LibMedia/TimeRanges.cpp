@@ -131,7 +131,7 @@ Optional<TimeRanges::Range> TimeRanges::range_at_or_after(AK::Duration point) co
     });
     if (index >= m_ranges.size())
         return {};
-    if (m_ranges[index].end <= point)
+    if (m_ranges[index].end < point)
         index++;
     if (index >= m_ranges.size())
         return {};
