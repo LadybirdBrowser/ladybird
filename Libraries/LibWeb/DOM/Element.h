@@ -622,10 +622,7 @@ public:
         return affected_by_last_child_pseudo_class() || affected_by_backward_positional_pseudo_class();
     }
 
-    i32 number_of_owned_list_items() const;
-    GC::Ptr<Element> list_owner() const;
-    void maybe_invalidate_ordinals_for_list_owner(Optional<Element*> skip_node = {});
-    i32 ordinal_value();
+    void invalidate_list_item_counters_for_list_owner();
 
     bool captured_in_a_view_transition() const { return m_captured_in_a_view_transition; }
     void set_captured_in_a_view_transition(bool value) { m_captured_in_a_view_transition = value; }
@@ -711,15 +708,6 @@ private:
     Optional<Directionality> auto_directionality() const;
     Optional<Directionality> contained_text_auto_directionality(bool can_exclude_root) const;
     Directionality parent_directionality() const;
-
-    template<typename Callback>
-    void for_each_numbered_item_owned_by_list_owner(Callback callback) const
-    {
-        const_cast<Element*>(this)->for_each_numbered_item_owned_by_list_owner(move(callback));
-    }
-
-    template<typename Callback>
-    void for_each_numbered_item_owned_by_list_owner(Callback callback);
 
     QualifiedName m_qualified_name;
     mutable Optional<Utf16FlyString> m_html_uppercased_qualified_name;
@@ -808,9 +796,6 @@ private:
 
     OwnPtr<CSS::CountersSet> m_counters_set;
 
-    // https://html.spec.whatwg.org/multipage/grouping-content.html#ordinal-value
-    Optional<i32> m_ordinal_value;
-
     mutable Optional<Utf16String> m_lang_value;
 
     // https://w3c.github.io/webappsec-csp/#is-element-nonceable
@@ -828,8 +813,6 @@ private:
 
     // https://drafts.csswg.org/css-view-transitions-1/#captured-in-a-view-transition
     bool m_captured_in_a_view_transition { false };
-
-    bool m_is_contained_in_list_subtree { false };
 
     // https://drafts.csswg.org/css-values-5/#random-caching
     HashMap<CSS::RandomCachingKey, double> m_element_specific_css_random_base_value_cache;

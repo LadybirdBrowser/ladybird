@@ -750,7 +750,7 @@ impl<'context, 'pass> InlineFormattingContext<'context, 'pass> {
     pub(crate) fn dimension_box_on_line(&mut self, node: Node) {
         let available_space = self.input.available_space;
         let facts = self.facts(node);
-        if facts.is_list_item_marker_box() {
+        if facts.is_list_item_marker_box() && facts.marker_is_symbolic() {
             SizingContext::new(self.state, self.callbacks)
                 .resolve_box_model_metrics_against_inline_basis(node, available_space.inline_size.to_px_or_zero());
             self.parent.dimension_list_item_marker(node);

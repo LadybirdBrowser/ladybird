@@ -1646,7 +1646,6 @@ pub enum FfiComputedContentType {
 #[repr(u8)]
 pub enum FfiPseudoElementDecision {
     None,
-    NormalMarker,
     ContentReplacement,
     Contents,
     Box,
@@ -1664,6 +1663,7 @@ pub struct FfiPseudoElementFacts {
     pub has_content_replacement: bool,
     pub originating_layout_node_is_list_item: bool,
     pub normal_marker_has_content: bool,
+    pub marker_position_is_inside: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -1685,7 +1685,7 @@ pub struct FfiPseudoTreeBuilderCallbacks {
     pub layout_node: unsafe extern "C" fn(*mut c_void) -> NodeSlotId,
     pub attach_style_resources: unsafe extern "C" fn(*mut c_void),
     pub apply_replaced_display_adjustment: unsafe extern "C" fn(*mut c_void, FfiReplacedElementDisplayAdjustment),
-    pub create_nested_list_marker: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void),
+    pub create_nested_list_marker: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, FfiPseudoElement),
     pub configure_layout_node: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiPseudoElement, u32),
     pub resolve_content:
         unsafe extern "C" fn(*mut c_void, *mut c_void, FfiPseudoElement, u32) -> FfiResolvedPseudoContentFacts,
@@ -1727,7 +1727,7 @@ pub(crate) fn pseudo_element_decision(facts: FfiPseudoElementFacts) -> FfiPseudo
             // "::marker does not generate a box" when list-style-type is 'none' and there's no marker image. Custom
             // ::marker content is already excluded by the outer condition checking for Type::Normal.
             return if facts.normal_marker_has_content {
-                FfiPseudoElementDecision::NormalMarker
+                FfiPseudoElementDecision::Box
             } else {
                 FfiPseudoElementDecision::None
             };
@@ -1802,7 +1802,7 @@ fn create_pseudo_element_with_frame(
     }
     // SAFETY: The frame remains live throughout the call.
     let layout_node = unsafe { (callbacks.layout_node)(frame) };
-    if layout_node.is_invalid() || decision == FfiPseudoElementDecision::NormalMarker {
+    if layout_node.is_invalid() {
         return layout_node;
     }
 
@@ -1816,17 +1816,16 @@ fn create_pseudo_element_with_frame(
         }
     }
 
-    // FIXME: This code actually computes style for element::marker, and shouldn't for element::pseudo::marker.
-    if host.layout().data(layout_node).kind == NodeKind::ListItemBox {
-        // SAFETY: The builder, frame, and element remain live throughout marker creation.
-        unsafe { (callbacks.create_nested_list_marker)(callbacks.builder, frame, element) };
-        // FIXME: Support counters on element::pseudo::marker.
-    }
-
     let initial_quote_nesting_level = state.quote_nesting_level;
     // SAFETY: The frame and element remain live throughout configuration.
     unsafe { (callbacks.configure_layout_node)(frame, element, pseudo_element, initial_quote_nesting_level) };
-    if let Some(insertion_mode) = insertion_mode {
+    let layout_node_kind = host.layout().data(layout_node).kind;
+    // https://drafts.csswg.org/css-lists-3/#list-style-position-outside
+    // "the marker box is a block container and is placed outside the principal block box"
+    let is_outside_marker = layout_node_kind == NodeKind::ListItemMarkerBox && !facts.marker_position_is_inside;
+    if let Some(insertion_mode) = insertion_mode
+        && !is_outside_marker
+    {
         let layout_host = host.layout();
         let current_parent = state.current_parent();
         let is_inline_outside = node_is_inline_outside(&layout_host, layout_node);
@@ -1841,6 +1840,12 @@ fn create_pseudo_element_with_frame(
     }
     // SAFETY: The element remains live and its pseudo-element layout node is attached when requested.
     unsafe { (host.callbacks.resolve_counters)(element, pseudo_element) };
+
+    // FIXME: This code actually computes style for element::marker, and shouldn't for element::pseudo::marker.
+    if layout_node_kind == NodeKind::ListItemBox {
+        // SAFETY: The builder, frame, and element remain live throughout marker creation.
+        unsafe { (callbacks.create_nested_list_marker)(callbacks.builder, frame, element, pseudo_element) };
+    }
 
     // Resolve content after insertion because counter() and counters() items read the counters established by this
     // pseudo-element's box.
@@ -3367,6 +3372,7 @@ mod tests {
                 has_content_replacement,
                 originating_layout_node_is_list_item,
                 normal_marker_has_content,
+                marker_position_is_inside: false,
             })
         };
 
@@ -3394,7 +3400,7 @@ mod tests {
                 true,
                 true
             ),
-            FfiPseudoElementDecision::NormalMarker
+            FfiPseudoElementDecision::Box
         );
         assert_eq!(
             decide(

@@ -32,7 +32,7 @@ pub struct FfiReplacedContentFacts {
 #[repr(C)]
 pub struct FfiListItemFacts {
     pub marker: NodeSlotId,
-    pub has_css_marker_content: bool,
+    pub marker_is_symbolic: bool,
     pub marker_content_inline_size: CssPixels,
     pub marker_content_block_size: CssPixels,
     pub marker_distance: CssPixels,
@@ -43,7 +43,7 @@ impl Default for FfiListItemFacts {
     fn default() -> Self {
         Self {
             marker: NodeSlotId::INVALID,
-            has_css_marker_content: false,
+            marker_is_symbolic: false,
             marker_content_inline_size: CssPixels::default(),
             marker_content_block_size: CssPixels::default(),
             marker_distance: CssPixels::default(),
@@ -74,7 +74,7 @@ pub(crate) fn node_is_out_of_flow(data: &NodeData, style: Option<ComputedValuesV
 
 pub(crate) fn node_can_have_children(data: &NodeData) -> bool {
     match data.kind {
-        NodeKind::BreakNode | NodeKind::ListItemMarkerBox => false,
+        NodeKind::BreakNode => false,
         NodeKind::AudioBox | NodeKind::VideoBox => has_flag(data, NodeFlag::ReplacedBoxCanHaveChildren),
         NodeKind::SVGSVGBox => true,
         kind if kind_is_replaced_box(kind) => false,
@@ -119,6 +119,9 @@ pub(crate) fn node_creates_block_formatting_context(
     }
     if has_flag(data, NodeFlag::IsHtmlHtmlElement)
         || data.kind == NodeKind::FieldSetBox
+        // https://drafts.csswg.org/css-lists-3/#list-style-position-outside
+        // "If the list item is a block container: the marker box is a block container"
+        || data.kind == NodeKind::ListItemMarkerBox
         || has_flag(data, NodeFlag::UsesButtonLayout)
     {
         return true;
@@ -159,6 +162,7 @@ pub(crate) fn kind_is_block_container(kind: NodeKind) -> bool {
             | NodeKind::FieldSetBox
             | NodeKind::LegendBox
             | NodeKind::ListItemBox
+            | NodeKind::ListItemMarkerBox
             | NodeKind::RangeInputBox
             | NodeKind::SVGForeignObjectBox
             | NodeKind::TableWrapper
@@ -214,7 +218,7 @@ mod node_facts_tests {
     #[test]
     fn child_policy_follows_kind_and_replaced_shadow_root_flag() {
         assert!(!node_can_have_children(&data_with_kind(NodeKind::BreakNode)));
-        assert!(!node_can_have_children(&data_with_kind(NodeKind::ListItemMarkerBox)));
+        assert!(node_can_have_children(&data_with_kind(NodeKind::ListItemMarkerBox)));
         assert!(!node_can_have_children(&data_with_kind(NodeKind::ImageBox)));
         assert!(!node_can_have_children(&data_with_kind(NodeKind::ReplacedBox)));
         assert!(!node_can_have_children(&data_with_kind(NodeKind::NavigableContainerViewport)));

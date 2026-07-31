@@ -463,12 +463,6 @@ impl<'builder, 'context, 'pass> LineBuilder<'builder, 'context, 'pass> {
         CssPixels::nearest_value_for_f32(style.font_ascent()) + (line_height - typographic) / 2
     }
 
-    fn normal_line_height(style: StyleValues) -> CssPixels {
-        let ascent = style.font_ascent().round_ties_even() as i64;
-        let descent = style.font_descent().round_ties_even() as i64;
-        CssPixels::from_integer(ascent.saturating_add(descent))
-    }
-
     fn block_offset_for_alignment(
         &self,
         style: StyleValues,
@@ -705,7 +699,7 @@ impl<'builder, 'context, 'pass> LineBuilder<'builder, 'context, 'pass> {
             if self.context().facts(snapshot.layout_node).is_text_node()
                 && self.writing_mode == writing_mode::HORIZONTAL_TB
             {
-                let font_box_size = Self::normal_line_height(style);
+                let font_box_size = normal_line_height(style);
                 let font_baseline = Self::baseline_for_style(style, font_box_size);
                 let fragment_mut = &mut self.line_mut(line_index).fragments[fragment_index];
                 fragment_mut.block_offset += fragment_mut.baseline - font_baseline;
@@ -777,4 +771,10 @@ impl<'builder, 'context, 'pass> LineBuilder<'builder, 'context, 'pass> {
     pub(crate) fn set_unbreakable_run_inline_size_interrupted_by_float(&mut self, inline_size: CssPixels) {
         self.unbreakable_run_inline_size_interrupted_by_float = inline_size;
     }
+}
+
+pub(crate) fn normal_line_height(style: StyleValues) -> CssPixels {
+    let ascent = style.font_ascent().round_ties_even() as i64;
+    let descent = style.font_descent().round_ties_even() as i64;
+    CssPixels::from_integer(ascent.saturating_add(descent))
 }

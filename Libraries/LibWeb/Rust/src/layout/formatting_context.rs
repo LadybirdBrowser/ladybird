@@ -652,6 +652,9 @@ pub(crate) fn compute_and_store_baselines(
             if child_facts.is_absolutely_positioned() || (!inhibits_floating && child_facts.is_floating()) {
                 continue;
             }
+            if child_facts.is_list_item_marker_box() {
+                continue;
+            }
             let Some(child_state) = state.try_used_values(callbacks, child) else {
                 continue;
             };

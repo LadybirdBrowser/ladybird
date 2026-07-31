@@ -605,8 +605,8 @@ impl<'pass> NodeFacts<'pass> {
         self.list_item().marker
     }
 
-    pub(crate) fn has_css_marker_content(&self) -> bool {
-        self.list_item().has_css_marker_content
+    pub(crate) fn marker_is_symbolic(&self) -> bool {
+        self.list_item().marker_is_symbolic
     }
 
     pub(crate) fn marker_content_inline_size(&self) -> crate::layout::CssPixels {

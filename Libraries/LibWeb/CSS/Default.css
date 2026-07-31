@@ -798,6 +798,16 @@ details > summary:first-of-type {
     list-style: disclosure-closed inside;
 }
 
+/* https://drafts.csswg.org/css-lists-3/#marker-properties
+ * "UAs must add the following rule to their default style sheet:"
+ * FIXME: Also match ::before::marker and ::after::marker once compound pseudo-element selectors are supported. */
+::marker {
+    unicode-bidi: isolate;
+    font-variant-numeric: tabular-nums;
+    white-space: pre;
+    text-transform: none;
+}
+
 details[open] > summary:first-of-type {
     list-style-type: disclosure-open;
 }

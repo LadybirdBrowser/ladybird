@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<style>
+@font-face {
+    font-family: Ahem;
+    src: url("../data/fonts/Ahem.ttf");
+}
+body {
+    margin: 0;
+    font: 20px/20px Ahem;
+}
+div.list {
+    padding-left: 60px;
+}
+div.list > div {
+    text-indent: -2ch;
+    white-space: pre;
+}
+.tall {
+    font-size: 40px;
+    line-height: 40px;
+}
+div.list > div.inside {
+    text-indent: 0;
+}
+</style>
+<div class="list">
+    <div>X X X</div>
+    <div>X <span class="tall">X</span> X</div>
+</div>
+<div class="list">
+    <div class="inside">X X X</div>
+</div>

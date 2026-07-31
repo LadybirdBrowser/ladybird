@@ -2,10 +2,11 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 32 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 16 0+0+8] children: not-inline
       BlockContainer <details> at [8,8] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: not-inline
-        ListItemBox <summary> at [24,8] [0+0+0 768 0+0+0] [0+0+0 16 0+0+0] children: inline
-          frag 0 from TextNode start: 0, length: 13, rect: [24,8 114.625x16] baseline: 12.796875
+        ListItemBox <summary> at [8,8] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
+          frag 0 from ListItemMarkerBox start: 0, length: 0, rect: [8,12 8x8] baseline: 8
+          frag 1 from TextNode start: 0, length: 13, rect: [24,8 114.625x16] baseline: 12.796875
               "I'm a summary"
-          ListItemMarkerBox <(anonymous)> at [8,12] [0+0+0 8 0+0+0] [0+0+0 8 0+0+0] children: not-inline
+          ListItemMarkerBox <(anonymous)> at [8,12] [0+0+0 8 0+0+8] [0+0+0 8 0+0+0] [BFC] children: not-inline
           TextNode <#text> (not painted)
         BlockContainer <slot> at [8,24] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: not-inline
       BlockContainer <(anonymous)> at [8,24] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
@@ -15,7 +16,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x32]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x16]
       PaintableWithLines (BlockContainer<DETAILS>) [8,8 784x16]
-        PaintableWithLines (ListItemBox<SUMMARY>) [24,8 768x16]
+        PaintableWithLines (ListItemBox<SUMMARY>) [8,8 784x16]
           MarkerPaintable (ListItemMarkerBox(anonymous)) [8,12 8x8]
         PaintableWithLines (BlockContainer<SLOT>) [8,24 784x0]
       PaintableWithLines (BlockContainer(anonymous)) [8,24 784x0]

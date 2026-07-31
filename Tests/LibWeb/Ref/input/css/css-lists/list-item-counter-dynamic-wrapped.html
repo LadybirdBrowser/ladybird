@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../../../expected/css/css-lists/list-item-counter-dynamic-wrapped-ref.html" />
+<style>
+li::after { content: " [" counter(list-item) "]"; }
+</style>
+<ol>
+    <div id="wrapper">
+        <li>a</li>
+    </div>
+    <div>
+        <li>b</li>
+    </div>
+</ol>
+<script>
+    // Inserting into the wrapper div renumbers li "b", which lives outside the mutated parent's
+    // subtree — this exercises the list-owner invalidation hook specifically.
+    // Two nested requestAnimationFrame() calls to force code execution _after_ initial paint
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            const li = document.createElement("li");
+            li.textContent = "x";
+            document.getElementById("wrapper").appendChild(li);
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+</script>
+</html>

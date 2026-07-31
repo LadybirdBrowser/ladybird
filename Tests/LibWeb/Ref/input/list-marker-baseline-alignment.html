@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/list-marker-baseline-alignment-ref.html" />
+<style>
+@font-face {
+    font-family: Ahem;
+    src: url("../data/fonts/Ahem.ttf");
+}
+body {
+    margin: 0;
+    font: 20px/20px Ahem;
+}
+ul {
+    margin: 0;
+    padding-left: 60px;
+    list-style-type: "X ";
+}
+.tall {
+    font-size: 40px;
+    line-height: 40px;
+}
+.inside {
+    list-style-position: inside;
+}
+</style>
+<!-- The marker must sit on the first line's baseline like leading inline text would, including when
+     that baseline is lowered by taller inline content. -->
+<ul>
+    <li>X X</li>
+    <li><span class="tall">X</span> X</li>
+</ul>
+<ul class="inside">
+    <li>X X</li>
+</ul>

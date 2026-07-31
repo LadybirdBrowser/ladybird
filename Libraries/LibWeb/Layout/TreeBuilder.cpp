@@ -18,6 +18,8 @@
 #include <LibUnicode/Segmenter.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/ComputedValues.h>
+#include <LibWeb/CSS/CounterStyle.h>
+#include <LibWeb/CSS/CountersSet.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/PseudoElement.h>
 #include <LibWeb/CSS/StyleComputer.h>
@@ -73,7 +75,8 @@ private:
     RustFFI::FfiPseudoTreeBuilderCallbacks make_ffi_pseudo_tree_builder_callbacks();
     RustFFI::FfiTreeBuilderCallbacks make_ffi_tree_builder_callbacks();
 
-    static NonnullRefPtr<ListItemMarkerBox> create_and_attach_list_item_marker(ListItemBox&, DOM::Element&, NonnullRefPtr<CSS::ComputedValues const> marker_style);
+    static NonnullRefPtr<ListItemMarkerBox> create_list_item_marker(ListItemBox&, NonnullRefPtr<CSS::ComputedValues const> marker_style);
+    static NonnullRefPtr<ListItemMarkerBox> create_and_attach_list_item_marker(ListItemBox&, DOM::Element&, CSS::PseudoElement originating_pseudo, NonnullRefPtr<CSS::ComputedValues const> marker_style);
     static void create_first_letter_wrapper(DOM::Element&, RustFFI::FfiFirstLetterTarget);
 
     RefPtr<Layout::Node> m_layout_root;
@@ -302,18 +305,76 @@ void LayoutTreeBuildBridge::create_first_letter_wrapper(DOM::Element& element, R
     parent->remove_child(text_node);
 }
 
-NonnullRefPtr<ListItemMarkerBox> LayoutTreeBuildBridge::create_and_attach_list_item_marker(ListItemBox& list_box, DOM::Element& element, NonnullRefPtr<CSS::ComputedValues const> marker_style)
+NonnullRefPtr<ListItemMarkerBox> LayoutTreeBuildBridge::create_list_item_marker(ListItemBox& list_box, NonnullRefPtr<CSS::ComputedValues const> marker_style)
 {
     auto list_item_marker = make_ref_counted<ListItemMarkerBox>(
         list_box.document(),
         list_box.computed_values().list_style_type(),
         list_box.computed_values().list_style_position(),
-        element,
         move(marker_style));
-    list_item_marker->attach_style_resources();
     list_box.set_marker(list_item_marker);
+    return list_item_marker;
+}
+
+// https://drafts.csswg.org/css-lists-3/#text-markers
+// "<counter-style>: Specifies the element's marker string as the value of the list-item counter
+// represented using the specified <counter-style>. Specifically, the marker string is the result of
+// generating a counter representation of the list-item counter value using the specified
+// <counter-style>, prefixed by the prefix of the <counter-style>, and followed by the suffix of the
+// <counter-style>. If the specified <counter-style> does not exist, decimal is assumed.
+// <string>: The element's marker string is the specified <string>."
+static CSS::ContentData resolve_normal_marker_content(DOM::AbstractElement& element_reference, ListItemMarkerBox const& marker)
+{
+    VERIFY(!marker.is_symbolic());
+
+    auto counter_value = element_reference.ensure_counters_set().counter_value_for_use(CSS::list_item_counter_name(), element_reference);
+
+    CSS::ContentData content;
+    content.type = CSS::ContentData::Type::List;
+
+    auto generate_from_counter_style = [&](RefPtr<CSS::CounterStyle const> const& counter_style) -> Utf16String {
+        auto counter_representation = CSS::generate_a_counter_representation(counter_style, element_reference.style_scope(), counter_value);
+        if (counter_style) {
+            content.counter_style_dependencies.append(counter_style);
+            return Utf16String::formatted("{}{}{}", counter_style->prefix(), counter_representation, counter_style->suffix());
+        }
+        return Utf16String::formatted("{}. ", counter_representation);
+    };
+
+    auto marker_string = marker.list_style_type().visit(
+        [](Empty const&) -> Utf16String { VERIFY_NOT_REACHED(); },
+        [&](RefPtr<CSS::CounterStyle const> const& counter_style) -> Utf16String {
+            return generate_from_counter_style(counter_style);
+        },
+        [](Utf16String const& string) -> Utf16String {
+            return string;
+        },
+        [&](Utf16FlyString const&) -> Utf16String {
+            return generate_from_counter_style(nullptr);
+        },
+        [&](CSS::ListStyleSymbols const& symbols) -> Utf16String {
+            return generate_from_counter_style(symbols.counter_style);
+        });
+    content.data.append(move(marker_string));
+    return content;
+}
+
+NonnullRefPtr<ListItemMarkerBox> LayoutTreeBuildBridge::create_and_attach_list_item_marker(ListItemBox& list_box, DOM::Element& element, CSS::PseudoElement originating_pseudo, NonnullRefPtr<CSS::ComputedValues const> marker_style)
+{
+    auto list_item_marker = create_list_item_marker(list_box, move(marker_style));
+    list_item_marker->attach_style_resources();
+    list_item_marker->set_generated_for(CSS::PseudoElement::Marker, element);
     LayoutTreeBuilderAccess::set_synthetic_pseudo_element_node(element, CSS::PseudoElement::Marker, list_item_marker);
     list_box.prepend_child(*list_item_marker);
+    if (!list_item_marker->is_symbolic()) {
+        DOM::AbstractElement element_reference { element, originating_pseudo };
+        auto content = resolve_normal_marker_content(element_reference, *list_item_marker);
+        auto text_node = make_ref_counted<GeneratedTextNode>(list_box.document(), content.data.first().get<Utf16String>());
+        text_node->set_generated_for(CSS::PseudoElement::Marker, element);
+        list_item_marker->set_content(move(content));
+        list_item_marker->append_child(*text_node);
+        list_item_marker->set_children_are_inline(true);
+    }
     return list_item_marker;
 }
 
@@ -418,12 +479,13 @@ RustFFI::FfiPseudoTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_pseudo_tr
                     .has_content_replacement = false,
                     .originating_layout_node_is_list_item = false,
                     .normal_marker_has_content = false,
+                    .marker_position_is_inside = false,
                 };
             }
             frame.display = frame.computed_values->display();
             auto const computed_content_type = frame.computed_values->computed_content().type;
             frame.replacement_image = content_replacement_image(frame.computed_values->computed_content());
-            if (pseudo_element == CSS::PseudoElement::Marker && computed_content_type == CSS::ComputedContentData::Type::Normal)
+            if (pseudo_element == CSS::PseudoElement::Marker)
                 frame.originating_list_box = as_if<ListItemBox>(*element.unsafe_layout_node());
             auto const normal_marker_has_content = frame.originating_list_box
                 && (!frame.originating_list_box->computed_values().list_style_type().has<Empty>() || frame.originating_list_box->list_style_image());
@@ -437,6 +499,8 @@ RustFFI::FfiPseudoTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_pseudo_tr
                 .has_content_replacement = frame.replacement_image != nullptr,
                 .originating_layout_node_is_list_item = frame.originating_list_box != nullptr,
                 .normal_marker_has_content = normal_marker_has_content,
+                .marker_position_is_inside = frame.originating_list_box
+                    && frame.originating_list_box->computed_values().list_style_position() == CSS::ListStylePosition::Inside,
             }; },
         .create_layout_node = [](void* builder_pointer, void* frame_pointer, void* element_pointer, RustFFI::FfiPseudoElement, RustFFI::FfiPseudoElementDecision decision) {
             VERIFY(builder_pointer);
@@ -449,10 +513,6 @@ RustFFI::FfiPseudoTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_pseudo_tr
             switch (decision) {
             case RustFFI::FfiPseudoElementDecision::None:
                 VERIFY_NOT_REACHED();
-            case RustFFI::FfiPseudoElementDecision::NormalMarker:
-                VERIFY(frame.originating_list_box);
-                frame.layout_node = create_and_attach_list_item_marker(*frame.originating_list_box, element, NonnullRefPtr { *frame.computed_values });
-                break;
             case RustFFI::FfiPseudoElementDecision::ContentReplacement:
                 VERIFY(frame.replacement_image);
                 frame.layout_node = create_content_image_box(document, nullptr, NonnullRefPtr { *frame.computed_values }, const_cast<CSS::AbstractImageStyleValue&>(*frame.replacement_image));
@@ -462,6 +522,16 @@ RustFFI::FfiPseudoTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_pseudo_tr
                 frame.layout_node->set_display(CSS::Display(CSS::DisplayOutside::Inline, CSS::DisplayInside::Flow));
                 break;
             case RustFFI::FfiPseudoElementDecision::Box:
+                if (frame.originating_list_box) {
+                    // https://drafts.csswg.org/css-lists-3/#list-style-position-outside
+                    // "If the list item is a block container: the marker box is a block container
+                    // and is placed outside the principal block box"
+                    auto marker = create_list_item_marker(*frame.originating_list_box, NonnullRefPtr { *frame.computed_values });
+                    if (marker->list_style_position() == CSS::ListStylePosition::Outside)
+                        frame.originating_list_box->prepend_child(*marker);
+                    frame.layout_node = move(marker);
+                    break;
+                }
                 frame.layout_node = DOM::Element::create_layout_node_for_display_type(document, frame.display, NonnullRefPtr { *frame.computed_values }, nullptr);
                 break;
             } },
@@ -483,7 +553,7 @@ RustFFI::FfiPseudoTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_pseudo_tr
                 frame.layout_node->set_display(CSS::Display::from_short(CSS::Display::Short::Inline));
             else
                 VERIFY_NOT_REACHED(); },
-        .create_nested_list_marker = [](void* builder_pointer, void* frame_pointer, void* element_pointer) {
+        .create_nested_list_marker = [](void* builder_pointer, void* frame_pointer, void* element_pointer, RustFFI::FfiPseudoElement originating_pseudo) {
             VERIFY(builder_pointer);
             VERIFY(frame_pointer);
             VERIFY(element_pointer);
@@ -492,7 +562,7 @@ RustFFI::FfiPseudoTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_pseudo_tr
             auto& element = *static_cast<DOM::Element*>(element_pointer);
             VERIFY(frame.layout_node);
             auto marker_style = element.document().style_computer().compute_style({ element, CSS::PseudoElement::Marker });
-            (void)builder.create_and_attach_list_item_marker(as<ListItemBox>(*frame.layout_node), element, move(marker_style)); },
+            (void)builder.create_and_attach_list_item_marker(as<ListItemBox>(*frame.layout_node), element, css_pseudo_element(originating_pseudo), move(marker_style)); },
         .configure_layout_node = [](void* frame_pointer, void* element_pointer, RustFFI::FfiPseudoElement ffi_pseudo, u32 initial_quote_nesting_level) {
             VERIFY(frame_pointer);
             VERIFY(element_pointer);
@@ -510,6 +580,24 @@ RustFFI::FfiPseudoTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_pseudo_tr
             VERIFY(frame.computed_values);
             VERIFY(frame.layout_node);
             DOM::AbstractElement element_reference { *static_cast<DOM::Element*>(element_pointer), css_pseudo_element(ffi_pseudo) };
+            if (auto* marker = as_if<ListItemMarkerBox>(*frame.layout_node);
+                marker && frame.computed_values->computed_content().type == CSS::ComputedContentData::Type::Normal) {
+                if (marker->is_symbolic()) {
+                    frame.resolved_content = {};
+                    return {
+                        .final_quote_nesting_level = initial_quote_nesting_level,
+                        .content_is_list = false,
+                        .content_item_count = 0,
+                    };
+                }
+                frame.resolved_content = resolve_normal_marker_content(element_reference, *marker);
+                frame.layout_node->set_content(frame.resolved_content);
+                return {
+                    .final_quote_nesting_level = initial_quote_nesting_level,
+                    .content_is_list = true,
+                    .content_item_count = frame.resolved_content.data.size(),
+                };
+            }
             auto [content, final_quote_nesting_level] = frame.computed_values->resolved_content(element_reference, initial_quote_nesting_level);
             frame.resolved_content = move(content);
             frame.layout_node->set_content(frame.resolved_content);

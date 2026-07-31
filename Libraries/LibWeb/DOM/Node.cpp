@@ -888,15 +888,13 @@ void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_
         set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeInsertBefore);
     }
 
-    // AD-HOC: invalidate the ordinal of the first list_item of the list_owner of the child node, if any.
-    if (child && child->is_element())
-        static_cast<Element*>(child.ptr())->maybe_invalidate_ordinals_for_list_owner();
-    else if (this->is_element() && !this->is_html_ol_ul_menu_element())
-        static_cast<Element*>(this)->maybe_invalidate_ordinals_for_list_owner();
-    // NOTE: If the child node is null and the parent node is an ol, ul or menu element then:
-    //       the new node will be the first in the list of a potential list owner and it will not have
-    //       an ordinal value (default from constructor).
-    // FIXME: This will not work if the child or the parent is not an element. Is insert_before even possible in this situation?
+    // AD-HOC: An inserted list item renumbers the list-item counter for its list owner's whole list.
+    for (auto& inserted_node : nodes) {
+        if (inserted_node->is_html_li_element()) {
+            static_cast<Element&>(*inserted_node).invalidate_list_item_counters_for_list_owner();
+            break;
+        }
+    }
 
     document().bump_dom_tree_version();
 }
@@ -1015,10 +1013,11 @@ void Node::remove(bool suppress_observers)
     // 6. Let oldNextSibling be node’s next sibling.
     GC::Ptr<Node> old_next_sibling = next_sibling();
 
-    // AD-HOC: invalidate the ordinal of the first list_item of the list_owner of the removed node, if any.
+    // AD-HOC: A removed list item renumbers the list-item counter for its list owner's whole list.
     if (is_element()) {
         auto* this_element = static_cast<Element*>(this);
-        this_element->maybe_invalidate_ordinals_for_list_owner(this_element);
+        if (is_html_li_element() || (this_element->computed_values() && this_element->computed_values()->display().is_list_item()))
+            this_element->invalidate_list_item_counters_for_list_owner();
     }
 
     if (is_connected()) {

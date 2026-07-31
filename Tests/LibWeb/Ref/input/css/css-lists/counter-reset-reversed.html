@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<link rel="match" href="../../../expected/css/css-lists/counter-reset-reversed-ref.html" />
+<style>
+.list { counter-reset: reversed(sec); }
+.valued { counter-reset: reversed(sec) 20; }
+.item { counter-increment: sec -1; }
+.item::before { content: counter(sec) ". "; }
+.pin { counter-set: sec 10; }
+ol.r { counter-reset: reversed(list-item); }
+ol.r > li::after { content: " [" counter(list-item) "]"; }
+</style>
+<div class="list">
+    <div class="item">x</div>
+    <div class="item">y</div>
+    <div class="item">z</div>
+</div>
+<div class="list">
+    <div class="item">a</div>
+    <div class="item">b</div>
+    <div class="item">c</div>
+    <div class="item pin">d</div>
+</div>
+<div class="valued">
+    <div class="item">v</div>
+    <div class="item">w</div>
+</div>
+<ol class="r">
+    <li>r1</li>
+    <li>r2</li>
+    <li>r3</li>
+</ol>
