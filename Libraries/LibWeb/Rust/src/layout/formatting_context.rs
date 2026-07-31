@@ -2907,6 +2907,14 @@ impl FfiLayoutFcCallbacks {
         unsafe { &*std::ptr::from_ref(payloads) }
     }
 
+    pub(crate) fn style_reader_if_styled(&self, node: Node) -> Option<StyleReader<'static>> {
+        let payloads = self.arena().style_payloads(node)?;
+        // SAFETY: The document arena outlives the layout pass, and the mirror
+        // is only rewritten between passes: set_computed_values verifies no
+        // pass is running and no layout node is created mid-pass.
+        Some(StyleReader::new(unsafe { &*std::ptr::from_ref(payloads) }))
+    }
+
     pub(crate) fn can_skip_is_anonymous_text_run(&self, node: Node) -> bool {
         let data = self.node_data(node);
         if !crate::layout::has_flag(data, NodeFlag::Anonymous) || data.generated_for != 0 {
@@ -3070,7 +3078,8 @@ impl std::ops::DerefMut for FormattingContextInstance<'_> {
 
 pub(crate) fn formatting_context_type_created_by_node_data(
     data: &NodeData,
-    parent_data: Option<&NodeData>,
+    style: Option<StyleReader<'_>>,
+    parent_style: Option<StyleReader<'_>>,
 ) -> Option<FfiFormattingContextType> {
     if data.kind == crate::layout::node_data::NodeKind::SVGSVGBox {
         return Some(FfiFormattingContextType::Svg);
@@ -3087,7 +3096,7 @@ pub(crate) fn formatting_context_type_created_by_node_data(
         return None;
     }
     if crate::layout::has_flag(data, NodeFlag::IsReplacedElement)
-        && data.table_display_before != crate::layout::node_data::FfiTableDisplay::Other
+        && style.is_some_and(|style| style.table_display_before() != FfiTableDisplay::Other)
     {
         return Some(if crate::layout::kind_is_block_container(data.kind) {
             FfiFormattingContextType::Block
@@ -3095,41 +3104,47 @@ pub(crate) fn formatting_context_type_created_by_node_data(
             FfiFormattingContextType::InternalReplaced
         });
     }
-    if crate::layout::has_display_flag(data, crate::layout::node_data::NodeDisplayFlag::FlexInside) {
+    let display = style.map(|style| style.display());
+    if display.is_some_and(|display| display.is_flex_inside()) {
         return Some(FfiFormattingContextType::Flex);
     }
-    if data.table_display == crate::layout::node_data::FfiTableDisplay::TableRoot {
+    let table_display = display.map_or(FfiTableDisplay::Other, crate::layout::table_display_of);
+    if table_display == FfiTableDisplay::TableRoot {
         return Some(FfiFormattingContextType::Table);
     }
-    if crate::layout::has_display_flag(data, crate::layout::node_data::NodeDisplayFlag::GridInside) {
+    if display.is_some_and(|display| display.is_grid_inside()) {
         return Some(FfiFormattingContextType::Grid);
     }
-    if crate::layout::has_display_flag(data, crate::layout::node_data::NodeDisplayFlag::MathInside)
-        || crate::layout::node_creates_block_formatting_context(data, parent_data)
+    if display.is_some_and(|display| display.is_math_inside())
+        || crate::layout::node_creates_block_formatting_context(data, style, parent_style)
     {
         return Some(FfiFormattingContextType::Block);
     }
     if crate::layout::has_flag(data, NodeFlag::ChildrenAreInline)
         || matches!(
-            data.table_display,
-            crate::layout::node_data::FfiTableDisplay::TableColumn
-                | crate::layout::node_data::FfiTableDisplay::TableColumnGroup
-                | crate::layout::node_data::FfiTableDisplay::TableRow
-                | crate::layout::node_data::FfiTableDisplay::TableRowGroup
-                | crate::layout::node_data::FfiTableDisplay::TableHeaderGroup
-                | crate::layout::node_data::FfiTableDisplay::TableFooterGroup
+            table_display,
+            FfiTableDisplay::TableColumn
+                | FfiTableDisplay::TableColumnGroup
+                | FfiTableDisplay::TableRow
+                | FfiTableDisplay::TableRowGroup
+                | FfiTableDisplay::TableHeaderGroup
+                | FfiTableDisplay::TableFooterGroup
         )
     {
         return None;
     }
-    if !crate::layout::has_display_flag(data, crate::layout::node_data::NodeDisplayFlag::FlowInside) {
+    if !display.is_some_and(|display| display.is_flow_inside()) {
         return Some(FfiFormattingContextType::InternalDummy);
     }
     None
 }
 
 pub(crate) fn formatting_context_type_created_by_box(facts: NodeFacts<'_>) -> Option<FfiFormattingContextType> {
-    formatting_context_type_created_by_node_data(facts.data(), facts.parent_data())
+    formatting_context_type_created_by_node_data(
+        facts.data(),
+        facts.style_reader_if_styled(),
+        facts.parent_style_reader_if_styled(),
+    )
 }
 
 #[derive(Clone, Copy)]
@@ -3147,9 +3162,12 @@ pub extern "C" fn rust_layout_formatting_context_type_for_box(facts: FfiFormatti
         let arena = unsafe { LayoutNodeArena::from_handle(facts.arena) };
         // SAFETY: The caller supplies the live box's arena slot.
         let data = unsafe { &*arena.data(facts.node) };
-        // SAFETY: Parent links resolve within the same live arena.
-        let parent_data = (!data.parent.is_invalid()).then(|| unsafe { &*arena.data(data.parent) });
-        formatting_context_type_created_by_node_data(data, parent_data)
+        let style = arena.style_payloads(facts.node).map(StyleReader::new);
+        let parent_style = (!data.parent.is_invalid())
+            .then(|| arena.style_payloads(data.parent))
+            .flatten()
+            .map(StyleReader::new);
+        formatting_context_type_created_by_node_data(data, style, parent_style)
             .map(|type_| type_ as u8)
             .unwrap_or(NO_FORMATTING_CONTEXT)
     })

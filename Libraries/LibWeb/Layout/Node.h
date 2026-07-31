@@ -43,19 +43,14 @@ static_assert(offsetof(RustFFI::NodeData, generated_for) == 29);
 static_assert(offsetof(RustFFI::NodeData, intrinsic_cache_epoch) == 30);
 static_assert(offsetof(RustFFI::NodeData, flags) == 32);
 static_assert(offsetof(RustFFI::NodeData, initial_quote_nesting_level) == 36);
-static_assert(offsetof(RustFFI::NodeData, table_display) == 40);
-static_assert(offsetof(RustFFI::NodeData, table_display_before) == 41);
-static_assert(offsetof(RustFFI::NodeData, display_bits) == 42);
-static_assert(offsetof(RustFFI::NodeData, slot_generation) == 43);
-static_assert(offsetof(RustFFI::NodeData, table_column_span) == 44);
-static_assert(offsetof(RustFFI::NodeData, table_row_span) == 46);
+static_assert(offsetof(RustFFI::NodeData, slot_generation) == 40);
+static_assert(offsetof(RustFFI::NodeData, table_column_span) == 42);
+static_assert(offsetof(RustFFI::NodeData, table_row_span) == 44);
 static_assert(offsetof(RustFFI::NodeData, style) == 48);
 static_assert(offsetof(RustFFI::NodeData, shell) == 56);
 
 static_assert(sizeof(RustFFI::NodeKind) == sizeof(u8));
 static_assert(sizeof(RustFFI::NodeFlag) == sizeof(u32));
-static_assert(sizeof(RustFFI::NodeDisplayFlag) == sizeof(u8));
-static_assert(sizeof(RustFFI::FfiTableDisplay) == sizeof(u8));
 
 class NodeKindSetter;
 
