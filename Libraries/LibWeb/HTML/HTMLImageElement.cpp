@@ -1388,7 +1388,7 @@ static void update_the_source_set(DOM::Element& element)
         }
 
         // 7. Parse child's sizes attribute with img, and let source set's source size be the returned value.
-        source_set.m_source_size = parse_a_sizes_attribute(element, child->get_attribute_value_view(HTML::AttributeNames::sizes).value_or({}), img);
+        source_set.m_source_size = parse_a_sizes_attribute(*child, child->get_attribute_value_view(HTML::AttributeNames::sizes).value_or({}), img);
 
         // 8. If child has a type attribute, and its value is an unknown or unsupported MIME type, continue to the next child.
         if (child->has_attribute(HTML::AttributeNames::type)) {

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const srcset = "../../../Assets/120.png?candidate 120w";
+        const fallback = "../../../Assets/120.png?fallback";
+
+        function selectedImage({ sourceSizes, imageSizes }) {
+            return new Promise(resolve => {
+                const picture = document.createElement("picture");
+                const image = document.createElement("img");
+
+                if (sourceSizes === undefined) {
+                    image.srcset = srcset;
+                } else {
+                    const source = document.createElement("source");
+                    source.sizes = sourceSizes;
+                    source.srcset = srcset;
+                    picture.appendChild(source);
+                }
+
+                if (imageSizes !== undefined)
+                    image.sizes = imageSizes;
+
+                image.addEventListener("load", () => {
+                    const url = image.currentSrc;
+                    resolve(`${url.substring(url.lastIndexOf("/") + 1)}, natural size ${image.naturalWidth}x${image.naturalHeight}`);
+                });
+
+                image.src = fallback;
+                picture.appendChild(image);
+                document.body.appendChild(picture);
+            });
+        }
+
+        println(`sizes on source: ${await selectedImage({ sourceSizes: "60px" })}`);
+        println(`sizes on img: ${await selectedImage({ imageSizes: "60px" })}`);
+        println(`sizes on source and img: ${await selectedImage({ sourceSizes: "60px", imageSizes: "240px" })}`);
+    });
+</script>
