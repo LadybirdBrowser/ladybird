@@ -674,6 +674,15 @@ Vector<NonnullRefPtr<SessionHistoryEntry>>* append_nested_history_for_child_navi
         .entries { history_entry },
     };
     parent_doc_state->nested_histories().append(move(nested_history));
+
+    if (auto traversable = parent_navigable.traversable_navigable()) {
+        SessionHistoryNestedHistoryDescriptor nested_history_descriptor {
+            .id = child_navigable.id(),
+            .entries { create_session_history_entry_descriptor(history_entry) },
+        };
+        traversable->page().client().page_did_append_nested_history(parent_navigable.id(), nested_history_descriptor);
+    }
+
     return &parent_doc_state->nested_histories().last().entries;
 }
 

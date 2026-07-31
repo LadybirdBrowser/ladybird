@@ -357,6 +357,34 @@ body {
             )
             return
 
+        if self.path == "/iframe-deferred-fragment-first":
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html")
+            self.end_headers()
+            self.wfile.write(
+                """<!doctype html>
+<title>Deferred Fragment First</title>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    setTimeout(() => {
+        location.hash = "/all";
+    }, 0);
+});
+</script>""".encode()
+            )
+            return
+
+        if self.path == "/iframe-deferred-fragment-second":
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html")
+            self.end_headers()
+            self.wfile.write(
+                """<!doctype html>
+<title>Deferred Fragment Second</title>
+<div id="replacement-ready"></div>""".encode()
+            )
+            return
+
         if self.path == "/b":
             self.send_response(200)
             self.send_header("Content-Type", "text/html")
@@ -2031,6 +2059,70 @@ document.body.append(iframe);
     execute_script(webdriver_port, session_id, "document.querySelector('iframe')?.remove(); return null;")
 
 
+def expect_iframe_replacement_after_deferred_fragment_navigation(
+    webdriver_port, session_id, first_page_url, second_page_url, log
+):
+    result = execute_async_script(
+        webdriver_port,
+        session_id,
+        f"""
+const done = arguments[0];
+const first = document.createElement("iframe");
+first.onload = () => {{
+    const deadline = performance.now() + 5000;
+    const waitForFragmentNavigation = () => {{
+        if (first.contentWindow.location.hash === "#/all") {{
+            requestAnimationFrame(() => {{
+                first.remove();
+                setTimeout(() => {{
+                    const second = document.createElement("iframe");
+                    second.onload = () => {{
+                        done([
+                            second.contentDocument.querySelector("#replacement-ready") !== null,
+                            second.contentWindow.location.href,
+                        ]);
+                    }};
+                    second.src = {json.dumps(second_page_url)};
+                    document.body.append(second);
+                }}, 0);
+            }});
+            return;
+        }}
+        if (performance.now() >= deadline) {{
+            done([false, "timed out waiting for first iframe fragment navigation"]);
+            return;
+        }}
+        setTimeout(waitForFragmentNavigation, 0);
+    }};
+    waitForFragmentNavigation();
+}};
+first.src = {json.dumps(first_page_url)};
+document.body.append(first);
+""",
+    )
+
+    if result != [True, second_page_url]:
+        raise AssertionError(
+            f"Expected replacement iframe to load after deferred fragment navigation, got {result}\n" + "\n".join(log)
+        )
+    log.append("replacement iframe loaded after deferred fragment navigation")
+
+
+def run_iframe_replacement_after_deferred_fragment_navigation_test(
+    webdriver_port, url_a, first_page_url, second_page_url
+):
+    session_id = create_session(webdriver_port)
+    log = [f"iframe replacement after deferred fragment navigation initial: {current_url(webdriver_port, session_id)}"]
+    try:
+        request(webdriver_port, "POST", f"/session/{session_id}/url", {"url": url_a})
+        expect_url(webdriver_port, session_id, "after iframe replacement setup /a", url_a, log)
+        expect_iframe_replacement_after_deferred_fragment_navigation(
+            webdriver_port, session_id, first_page_url, second_page_url, log
+        )
+    finally:
+        request(webdriver_port, "DELETE", f"/session/{session_id}")
+
+
 def expect_beforeunload_cancels_stale_ui_load(
     webdriver_port,
     session_id,
@@ -2632,6 +2724,8 @@ def run_test(webdriver_binary):
         url_forward_blocked = f"http://127.0.0.1:{page_port}/forward-blocked"
         url_frame_a = f"http://localhost:{page_port}/frame-a"
         url_frame_b_blocked = f"http://localhost:{page_port}/frame-b-blocked"
+        url_iframe_deferred_fragment_first = f"http://localhost:{page_port}/iframe-deferred-fragment-first"
+        url_iframe_deferred_fragment_second = f"http://localhost:{page_port}/iframe-deferred-fragment-second"
         url_nested_same_document = f"http://localhost:{page_port}/nested?same-document"
         url_post_form = f"http://localhost:{page_port}/post-form"
         url_post_result = f"http://localhost:{page_port}/post-result"
@@ -2646,6 +2740,13 @@ def run_test(webdriver_binary):
         url_fragment_target = f"http://127.0.0.1:{page_port}/fragment-target"
 
         expect_ladybird_test_hooks_require_capability(webdriver_port)
+
+        run_iframe_replacement_after_deferred_fragment_navigation_test(
+            webdriver_port,
+            url_a,
+            url_iframe_deferred_fragment_first,
+            url_iframe_deferred_fragment_second,
+        )
 
         run_provisional_navigation_browser_ui_back_tests(
             webdriver_port,

@@ -346,6 +346,8 @@ void NavigableContainer::destroy_the_child_navigable()
         // 8. Let traversable be container's node navigable's traversable navigable.
         auto traversable = this->navigable()->traversable_navigable();
 
+        traversable->page().client().page_did_remove_nested_history(this->navigable()->id(), navigable->id());
+
         // 9. Append the following session history traversal steps to traversable:
         traversable->append_session_history_traversal_steps(GC::create_function(heap(), [traversable](NonnullRefPtr<Core::Promise<Empty>> signal) {
             // 1. Update for navigable creation/destruction given traversable.

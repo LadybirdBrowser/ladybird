@@ -334,6 +334,29 @@ bool CanonicalTraversable::set_session_history_entry_document_state_reload_pendi
     return did_update;
 }
 
+bool CanonicalTraversable::append_nested_history(CanonicalNavigable const& parent_navigable, Web::HTML::SessionHistoryNestedHistoryDescriptor nested_history)
+{
+    VERIFY(&parent_navigable.top_level_traversable() == this);
+
+    if (m_pending_web_content_session_history_seed.ignore_updates_until_seed)
+        return false;
+
+    auto child_navigable = find(nested_history.id);
+    if (!child_navigable.has_value() || child_navigable->parent() != &parent_navigable)
+        return false;
+    return m_session_history.append_nested_history(parent_navigable, move(nested_history));
+}
+
+bool CanonicalTraversable::remove_nested_history(CanonicalNavigable const& parent_navigable, Web::HTML::CrossProcessId child_navigable_id)
+{
+    VERIFY(&parent_navigable.top_level_traversable() == this);
+
+    if (m_pending_web_content_session_history_seed.ignore_updates_until_seed)
+        return false;
+
+    return m_session_history.remove_nested_history(parent_navigable, child_navigable_id);
+}
+
 Optional<i32> CanonicalTraversable::navigation_api_traversal_target(CanonicalNavigable const& navigable, Utf16String const& navigation_api_key) const
 {
     VERIFY(&navigable.top_level_traversable() == this);

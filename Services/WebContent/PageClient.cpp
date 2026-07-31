@@ -1220,6 +1220,16 @@ void PageClient::page_did_set_session_history_entry_document_state_reload_pendin
     client().async_did_set_session_history_entry_document_state_reload_pending(m_id, navigable_id, navigation_api_key, reload_pending);
 }
 
+void PageClient::page_did_append_nested_history(Web::HTML::CrossProcessId parent_navigable_id, Web::HTML::SessionHistoryNestedHistoryDescriptor const& nested_history)
+{
+    client().async_did_append_nested_history(m_id, parent_navigable_id, nested_history);
+}
+
+void PageClient::page_did_remove_nested_history(Web::HTML::CrossProcessId parent_navigable_id, Web::HTML::CrossProcessId child_navigable_id)
+{
+    client().async_did_remove_nested_history(m_id, parent_navigable_id, child_navigable_id);
+}
+
 String PageClient::page_did_request_ui_process_session_history_for_testing()
 {
     return client().did_request_ui_process_session_history_for_testing(m_id);

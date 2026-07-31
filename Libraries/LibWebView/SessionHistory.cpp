@@ -592,6 +592,126 @@ bool TraversableSessionHistory::update_document_state(Optional<Web::HTML::CrossP
     return true;
 }
 
+static Vector<TraversableSessionHistory::Entry>* nested_session_history_entries_for_navigable(Vector<TraversableSessionHistory::Entry>& entries, Web::HTML::CrossProcessId navigable_id)
+{
+    for (auto& entry : entries) {
+        for (auto& nested_history : entry.document_state.nested_histories) {
+            if (nested_history.id == navigable_id)
+                return &nested_history.entries;
+            if (auto* nested_entries = nested_session_history_entries_for_navigable(nested_history.entries, navigable_id))
+                return nested_entries;
+        }
+    }
+    return nullptr;
+}
+
+static TraversableSessionHistory::Entry* target_history_entry(Vector<TraversableSessionHistory::Entry>& entries, i32 step)
+{
+    TraversableSessionHistory::Entry* target_entry = nullptr;
+    for (auto& entry : entries) {
+        if (entry.step > step)
+            break;
+        target_entry = &entry;
+    }
+    return target_entry;
+}
+
+template<typename UpdateDocumentState>
+static bool update_session_history_document_state_by_id(Vector<TraversableSessionHistory::Entry>& entries, Web::HTML::CrossProcessId document_state_id, UpdateDocumentState const& update_document_state)
+{
+    auto did_update = false;
+    for (auto& entry : entries) {
+        if (entry.document_state.id == document_state_id) {
+            update_document_state(entry.document_state);
+            did_update = true;
+        }
+        for (auto& nested_history : entry.document_state.nested_histories)
+            did_update |= update_session_history_document_state_by_id(nested_history.entries, document_state_id, update_document_state);
+    }
+    return did_update;
+}
+
+bool TraversableSessionHistory::append_nested_history(CanonicalNavigable const& parent_navigable, Web::HTML::SessionHistoryNestedHistoryDescriptor nested_history)
+{
+    if (!m_current_used_step_index.has_value() || nested_history.entries.is_empty() || !entries_are_valid(nested_history.entries))
+        return false;
+
+    // https://html.spec.whatwg.org/multipage/document-sequences.html#create-a-new-child-navigable
+    // Let parentDocState be parentNavigable's active session history entry's document state.
+    auto current_step = m_used_steps[*m_current_used_step_index];
+    auto* parent_entries = parent_navigable.is_top_level_traversable()
+        ? &m_entries
+        : nested_session_history_entries_for_navigable(m_entries, parent_navigable.id());
+    if (!parent_entries)
+        return false;
+    auto* parent_entry = target_history_entry(*parent_entries, current_step);
+    if (!parent_entry)
+        return false;
+    auto parent_document_state_id = parent_entry->document_state.id;
+
+    // Append nestedHistory to parentDocState's nested histories.
+    auto append_to_parent_document_state = [&](auto& parent_document_state) {
+        auto existing_nested_history = parent_document_state.nested_histories.find_if([&](auto const& existing_nested_history) {
+            return existing_nested_history.id == nested_history.id;
+        });
+        if (existing_nested_history != parent_document_state.nested_histories.end())
+            return;
+        parent_document_state.nested_histories.append(nested_history);
+    };
+    if (!update_session_history_document_state_by_id(m_entries, parent_document_state_id, append_to_parent_document_state))
+        return false;
+    update_session_history_document_state_by_id(m_web_content_known_entries, parent_document_state_id, append_to_parent_document_state);
+
+    m_used_steps = get_all_used_history_steps(m_entries);
+    m_current_used_step_index = m_used_steps.find_first_index(current_step);
+    VERIFY(m_current_used_step_index.has_value());
+    m_web_content_known_used_steps = get_all_used_history_steps(m_web_content_known_entries);
+    return true;
+}
+
+bool TraversableSessionHistory::remove_nested_history(CanonicalNavigable const& parent_navigable, Web::HTML::CrossProcessId child_navigable_id)
+{
+    if (!m_current_used_step_index.has_value())
+        return false;
+
+    // https://html.spec.whatwg.org/multipage/document-sequences.html#destroy-a-child-navigable
+    // Let parentDocState be container's node navigable's active session history entry's document state.
+    auto current_step = m_used_steps[*m_current_used_step_index];
+    auto* parent_entries = parent_navigable.is_top_level_traversable()
+        ? &m_entries
+        : nested_session_history_entries_for_navigable(m_entries, parent_navigable.id());
+    if (!parent_entries)
+        return false;
+    auto* parent_entry = target_history_entry(*parent_entries, current_step);
+    if (!parent_entry)
+        return false;
+    auto parent_document_state_id = parent_entry->document_state.id;
+
+    // Remove the nested history from parentDocState's nested histories whose id equals navigable's id.
+    auto remove_from_parent_document_state = [child_navigable_id](auto& parent_document_state) {
+        parent_document_state.nested_histories.remove_all_matching([child_navigable_id](auto const& nested_history) {
+            return nested_history.id == child_navigable_id;
+        });
+    };
+    if (!update_session_history_document_state_by_id(m_entries, parent_document_state_id, remove_from_parent_document_state))
+        return false;
+    update_session_history_document_state_by_id(m_web_content_known_entries, parent_document_state_id, remove_from_parent_document_state);
+
+    m_used_steps = get_all_used_history_steps(m_entries);
+    auto used_current_step = current_step;
+    if (!m_used_steps.contains_slow(current_step)) {
+        for (auto used_step : m_used_steps) {
+            if (used_step > current_step)
+                break;
+            used_current_step = used_step;
+        }
+    }
+    m_current_used_step_index = m_used_steps.find_first_index(used_current_step);
+    VERIFY(m_current_used_step_index.has_value());
+    m_web_content_known_used_steps = get_all_used_history_steps(m_web_content_known_entries);
+    return true;
+}
+
 Optional<size_t> TraversableSessionHistory::current_top_level_entry_index() const
 {
     if (!m_current_used_step_index.has_value())

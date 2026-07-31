@@ -1940,6 +1940,22 @@ void WebContentClient::did_set_session_history_entry_document_state_reload_pendi
     navigable->top_level_traversable().set_session_history_entry_document_state_reload_pending(*navigable, navigation_api_key, reload_pending);
 }
 
+void WebContentClient::did_append_nested_history(u64 page_id, Web::HTML::CrossProcessId parent_navigable_id, Web::HTML::SessionHistoryNestedHistoryDescriptor nested_history)
+{
+    auto parent_navigable = hosted_navigable_for_page(page_id, parent_navigable_id);
+    if (!parent_navigable.has_value())
+        return;
+    parent_navigable->top_level_traversable().append_nested_history(*parent_navigable, move(nested_history));
+}
+
+void WebContentClient::did_remove_nested_history(u64 page_id, Web::HTML::CrossProcessId parent_navigable_id, Web::HTML::CrossProcessId child_navigable_id)
+{
+    auto parent_navigable = hosted_navigable_for_page(page_id, parent_navigable_id);
+    if (!parent_navigable.has_value())
+        return;
+    parent_navigable->top_level_traversable().remove_nested_history(*parent_navigable, child_navigable_id);
+}
+
 Messages::WebContentClient::DidRequestUiProcessSessionHistoryForTestingResponse WebContentClient::did_request_ui_process_session_history_for_testing(u64 page_id)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())
