@@ -1013,11 +1013,6 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
                 break;
             case RustFFI::FfiPrincipalBoxPlacement::ReplaceExisting:
                 VERIFY(frame.old_layout_node);
-                VERIFY(frame.old_layout_node->arena_handle() == frame.layout_node->arena_handle());
-                RustFFI::layout_arena_transfer_saved_abspos_layout_inputs(
-                    frame.old_layout_node->arena_handle(),
-                    Node::slot_id(frame.old_layout_node.ptr()),
-                    Node::slot_id(frame.layout_node.ptr()));
                 transfer_saved_layout_state_to_replacement_box(*frame.old_layout_node, *frame.layout_node);
                 frame.old_layout_node->prepare_subtree_for_detach_from_layout_tree();
                 frame.old_layout_node->parent()->replace_child(*frame.layout_node, *frame.old_layout_node);

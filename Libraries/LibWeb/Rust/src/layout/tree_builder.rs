@@ -1452,6 +1452,18 @@ fn update_principal_node_after_entry(
                 FfiInsertionMode::Append,
             );
         } else {
+            if placement.placement == FfiPrincipalBoxPlacement::ReplaceExisting {
+                // SAFETY: The tree-builder entry point keeps the arena alive, and both slots name live nodes in it.
+                let arena = unsafe { &*host.arena };
+                let old_data = arena.data(old_layout_node);
+                let new_data = arena.data(layout_node);
+                // SAFETY: data() returned pointers to live slots.
+                if unsafe { node_kind_is_box((*old_data).kind) && node_kind_is_box((*new_data).kind) }
+                    && let Some(inputs) = arena.saved_abspos_layout_inputs(old_data)
+                {
+                    arena.set_saved_abspos_layout_inputs(new_data, Some(inputs));
+                }
+            }
             unsafe {
                 (host.callbacks.place_principal_layout)(
                     host.callbacks.builder,
