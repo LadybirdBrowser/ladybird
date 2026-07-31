@@ -713,7 +713,13 @@ void PlaybackManager::seek(AK::Duration timestamp, SeekMode mode)
     dbgln_if(PLAYBACK_MANAGER_DEBUG, "PlaybackManager({:p}): Seek to {} ({}) from {}", this, timestamp, mode, m_handler->state());
     m_handler->seek(timestamp, mode);
     m_is_in_error_state = false;
-    update_pipeline_state();
+
+    // Defer the pipeline update so that we don't synchronously resolve seeks.
+    Core::deferred_invoke([self = weak()] {
+        if (!self)
+            return;
+        self->update_pipeline_state();
+    });
 }
 
 bool PlaybackManager::is_playing()
