@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Transform Module Level 2: parsing backface-visibility with invalid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-transforms-2/#backface-visibility-property">
+<meta name="assert" content="backface-visibility supports only the grammar 'visible | hidden'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("backface-visibility", "auto");
+test_invalid_value("backface-visibility", "visible hidden");
+</script>
+</body>
+</html>

@@ -449,6 +449,7 @@ public:
     static QuotesData quotes() { return QuotesData { .type = QuotesData::Type::Auto }; }
     static TransformBox transform_box() { return TransformBox::ViewBox; }
     static TransformStyle transform_style() { return TransformStyle::Flat; }
+    static BackfaceVisibility backface_visibility() { return BackfaceVisibility::Visible; }
     static Direction direction() { return Direction::Ltr; }
     static Optional<BaselineMetric> dominant_baseline() { return {}; }
     static WritingMode writing_mode() { return WritingMode::HorizontalTb; }
@@ -1478,6 +1479,7 @@ public:
     TransformBox const& transform_box() const { return m_noninherited.transform->transform_box; }
     TransformOrigin const& transform_origin() const { return m_noninherited.transform->transform_origin; }
     TransformStyle const& transform_style() const { return m_noninherited.transform->transform_style; }
+    BackfaceVisibility const& backface_visibility() const { return m_noninherited.transform->backface_visibility; }
     RefPtr<TransformationStyleValue const> const& rotate() const { return m_noninherited.transform->rotate; }
     RefPtr<TransformationStyleValue const> const& translate() const { return m_noninherited.transform->translate; }
     RefPtr<TransformationStyleValue const> const& scale() const { return m_noninherited.transform->scale; }
@@ -1858,6 +1860,7 @@ public:
         TransformBox transform_box { InitialValues::transform_box() };
         TransformOrigin transform_origin {};
         TransformStyle transform_style { InitialValues::transform_style() };
+        BackfaceVisibility backface_visibility { InitialValues::backface_visibility() };
         RefPtr<TransformationStyleValue const> rotate;
         RefPtr<TransformationStyleValue const> translate;
         RefPtr<TransformationStyleValue const> scale;
@@ -3117,6 +3120,12 @@ public:
         if (m_values.m_noninherited.transform->transform_style == value)
             return;
         m_values.m_noninherited.transform.access().transform_style = value;
+    }
+    void set_backface_visibility(BackfaceVisibility value)
+    {
+        if (m_values.m_noninherited.transform->backface_visibility == value)
+            return;
+        m_values.m_noninherited.transform.access().backface_visibility = value;
     }
     void set_translate(RefPtr<TransformationStyleValue const> value)
     {

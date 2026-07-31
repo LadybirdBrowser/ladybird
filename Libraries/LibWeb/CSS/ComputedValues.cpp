@@ -278,6 +278,7 @@ static constexpr Array transform_group_properties {
     PropertyID::TransformBox,
     PropertyID::TransformOrigin,
     PropertyID::TransformStyle,
+    PropertyID::BackfaceVisibility,
     PropertyID::Rotate,
     PropertyID::Translate,
     PropertyID::Scale,
@@ -558,6 +559,7 @@ static void register_style_group_field_descriptors()
     add(transform, PropertyID::TransformBox, offsetof(Transform, transform_box), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_transform_box>());
     add(transform, PropertyID::TransformOrigin, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
     add(transform, PropertyID::TransformStyle, offsetof(Transform, transform_style), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_transform_style>());
+    add(transform, PropertyID::BackfaceVisibility, offsetof(Transform, backface_visibility), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_backface_visibility>());
     add(transform, PropertyID::Rotate, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::None), nullptr);
     add(transform, PropertyID::Translate, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::None), nullptr);
     add(transform, PropertyID::Scale, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::None), nullptr);
@@ -2273,6 +2275,8 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
         computed_values.set_transform_origin(computed_style.transform_origin());
     if (!transform_adopted)
         computed_values.set_transform_style(computed_style.transform_style());
+    if (!transform_adopted)
+        computed_values.set_backface_visibility(computed_style.backface_visibility());
     if (!transform_adopted)
         computed_values.set_perspective(computed_style.perspective());
     if (!transform_adopted)

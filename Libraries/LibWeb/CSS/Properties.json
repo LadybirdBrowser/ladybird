@@ -444,6 +444,15 @@
       "none"
     ]
   },
+  "backface-visibility": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "visible",
+    "requires-computation": "never",
+    "valid-types": [
+      "backface-visibility"
+    ]
+  },
   "background": {
     "affects-layout": false,
     "initial": "transparent",

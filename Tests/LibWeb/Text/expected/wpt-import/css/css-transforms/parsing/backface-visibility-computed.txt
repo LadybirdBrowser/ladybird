@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Property backface-visibility value 'visible'
+Pass	Property backface-visibility value 'hidden'

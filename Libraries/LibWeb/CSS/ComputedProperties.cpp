@@ -376,6 +376,8 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
             { KeywordStyleValue::create(Keyword::Auto), move(ratio) },
             StyleValueList::Separator::Space);
     }
+    case PropertyID::BackfaceVisibility:
+        return KeywordStyleValue::create(to_keyword(backface_visibility()));
     case PropertyID::BackgroundColor:
         return color_style_value(background_color());
     case PropertyID::BackgroundAttachment: {
@@ -2840,6 +2842,12 @@ TransformStyle ComputedProperties::transform_style() const
 {
     auto const& value = property(PropertyID::TransformStyle);
     return keyword_to_transform_style(value.to_keyword()).release_value();
+}
+
+BackfaceVisibility ComputedProperties::backface_visibility() const
+{
+    auto const& value = property(PropertyID::BackfaceVisibility);
+    return keyword_to_backface_visibility(value.to_keyword()).release_value();
 }
 
 Color ComputedProperties::accent_color(ColorResolutionContext const& color_resolution_context) const

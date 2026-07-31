@@ -292,6 +292,7 @@ public:
     TransformBox transform_box() const;
     TransformOrigin transform_origin() const;
     TransformStyle transform_style() const;
+    BackfaceVisibility backface_visibility() const;
     RefPtr<TransformationStyleValue const> rotate() const;
     RefPtr<TransformationStyleValue const> translate() const;
     RefPtr<TransformationStyleValue const> scale() const;
