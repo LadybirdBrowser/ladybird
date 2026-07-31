@@ -1351,8 +1351,13 @@ impl<'pass> BlockFormattingContext<'pass> {
         self.facts(marker).marker_distance()
     }
 
+    fn marker_centered_block_offset(marker_line_height: CssPixels, marker_block_size: CssPixels) -> CssPixels {
+        ((marker_line_height - marker_block_size) / 2).max(CssPixels::default())
+    }
+
     fn layout_list_item_marker(
         &self,
+        run: &FormattingContextRun<'pass>,
         list_item: Node,
         inline_space_used_before_list_item_elements_formatted: SpaceUsedByFloats,
     ) {
@@ -1361,39 +1366,96 @@ impl<'pass> BlockFormattingContext<'pass> {
             return;
         }
         let marker_facts = self.facts(marker);
-        let marker_style = self.style(marker);
-        let marker_distance = self.distance_between_marker_and_list_item(marker);
-        let marker_used = self.used(marker);
-        let marker_block_size = marker_used.content_block_size.get();
-        let marker_inline_size = marker_used.content_inline_size.get();
-        let list_item_style = self.style(list_item);
-        let list_item_used = self.used(list_item);
-        let marker_inline_offset = if list_item_style.direction() == direction::LTR {
-            inline_space_used_before_list_item_elements_formatted.left - marker_distance - marker_inline_size
-        } else {
-            list_item_used.content_inline_size.get()
-                - (inline_space_used_before_list_item_elements_formatted.right - marker_distance)
-        };
-        let marker_block_offset = ((marker_style.line_height() - marker_block_size) / 2).max(CssPixels::default());
-
+        // https://drafts.csswg.org/css-lists-3/#valdef-list-style-position-inside
+        // "No special effect. (The ::marker is an inline element at the start of the list item's contents.)"
         if marker_facts.marker_list_style_position() == list_style_position::INSIDE {
-            // FIXME: Just adjusting the content inline size for an inside marker is wrong, as it will still position
-            //        the marker outside of the box, instead of treating it more like an inline child on the first line.
-            self.used_mut(list_item).set_content_inline_size(
-                self.used(list_item).content_inline_size.get() - marker_inline_size - marker_distance,
-            );
+            return;
+        }
+        let marker_style = self.style(marker);
+
+        if self.layout_mode != LayoutMode::IntrinsicSizing {
+            let marker_is_symbolic = marker_facts.marker_is_symbolic();
+            if marker_is_symbolic {
+                self.dimension_list_item_marker(marker);
+            } else {
+                // FIXME: The max-content measurement and the inside layout each shape the marker text;
+                //        a single max-content-constrained run could provide both.
+                let marker_constraints = ContainingBlockConstraints {
+                    percentage_basis_inline_size: Some(self.used(list_item).content_inline_size.get()),
+                    ..ContainingBlockConstraints::default()
+                };
+                let max_content_inline_size = self
+                    .sizing()
+                    .calculate_max_content_inline_size(marker, marker_constraints);
+                let marker_used = self.used_mut(marker);
+                marker_used.set_content_inline_size(max_content_inline_size);
+                marker_used.has_definite_inline_size.set(true);
+                let inner_available_space = crate::layout::AvailableSpace {
+                    inline_size: crate::layout::AvailableSize::definite(max_content_inline_size),
+                    block_size: crate::layout::AvailableSize::Indefinite,
+                };
+                match crate::layout::layout_inside_child(
+                    run,
+                    None,
+                    None,
+                    marker,
+                    self.layout_mode,
+                    LayoutInput {
+                        available_space: inner_available_space,
+                        containing_block_constraints: marker_constraints,
+                        content_box_position_in_bfc_root: None,
+                        sizing: RootSizingDirectives {
+                            adopt_automatic_content_block_size: true,
+                            ..RootSizingDirectives::default()
+                        },
+                        participation: ParticipationInParentFormattingContext::Item,
+                    },
+                    true,
+                ) {
+                    crate::layout::ChildLayoutOutcome::Created(child_layout) => {
+                        self.used_mut(marker)
+                            .set_content_block_size(child_layout.automatic_content_block_size);
+                    }
+                    crate::layout::ChildLayoutOutcome::Skipped => {}
+                    crate::layout::ChildLayoutOutcome::ReenterCurrent => {
+                        unreachable!("marker inside layout did not establish a formatting context")
+                    }
+                }
+            }
+
+            let marker_distance = self.distance_between_marker_and_list_item(marker);
+            let marker_used = self.used(marker);
+            let marker_block_size = marker_used.content_block_size.get();
+            let marker_inline_size = marker_used.content_inline_size.get();
+            let list_item_style = self.style(list_item);
+            let list_item_used = self.used(list_item);
+            let marker_inline_offset = if list_item_style.direction() == direction::LTR {
+                inline_space_used_before_list_item_elements_formatted.left - marker_distance - marker_inline_size
+            } else {
+                list_item_used.content_inline_size.get()
+                    - (inline_space_used_before_list_item_elements_formatted.right - marker_distance)
+            };
+            let marker_block_offset = if !marker_is_symbolic
+                && list_item_used.has_first_baseline.get()
+                && marker_used.has_first_baseline.get()
+            {
+                list_item_used.first_baseline.get() - marker_used.first_baseline.get()
+            } else {
+                round_css_pixels(Self::marker_centered_block_offset(marker_style.line_height(), marker_block_size))
+            };
+
+            // Animations can make `float` or `position` apply to ::marker.
+            if !marker_facts.is_floating() && !marker_facts.is_absolutely_positioned() {
+                self.place_child(
+                    marker,
+                    FfiCssPixelPoint {
+                        x: round_css_pixels(marker_inline_offset),
+                        y: marker_block_offset,
+                    },
+                );
+            }
         }
 
-        // Animations can make `float` or `position` apply to ::marker.
-        if !marker_facts.is_floating() && !marker_facts.is_absolutely_positioned() {
-            self.place_child(
-                marker,
-                FfiCssPixelPoint {
-                    x: round_css_pixels(marker_inline_offset),
-                    y: round_css_pixels(marker_block_offset),
-                },
-            );
-        }
         if marker_style.line_height() > self.used(list_item).content_block_size.get() {
             self.used_mut(list_item)
                 .set_content_block_size(marker_style.line_height());
@@ -1610,25 +1672,15 @@ impl<'pass> BlockFormattingContext<'pass> {
         let content_inline_size_now = probe
             .content_inline_size
             .unwrap_or_else(|| self.used(node).content_inline_size.get());
-        let mut content_inline_offset = self.compute_normal_flow_inline_offset(
+        let content_inline_offset = self.compute_normal_flow_inline_offset(
             node,
             available_space,
             content_position_in_root_now(content_block_offset),
             content_inline_size_now,
         );
 
-        // FIXME: We currently do not support ListItemBoxes generated by pseudo-elements. We will need to, eventually.
-        let is_list_item_box_without_css_content = facts.is_list_item_box() && !facts.has_css_marker_content();
+        let is_list_item_box = facts.is_list_item_box();
         let marker = facts.list_item_marker();
-        if is_list_item_box_without_css_content && !marker.is_invalid() {
-            self.dimension_list_item_marker(marker);
-            let marker_facts = self.facts(marker);
-            if marker_facts.marker_list_style_position() == list_style_position::INSIDE && style.direction() == direction::LTR
-            {
-                content_inline_offset +=
-                    self.used(marker).content_inline_size.get() + self.distance_between_marker_and_list_item(marker);
-            }
-        }
 
         let is_table_formatting_context = independent_type == Some(FfiFormattingContextType::Table);
         let mut pending_position = None;
@@ -1675,22 +1727,30 @@ impl<'pass> BlockFormattingContext<'pass> {
         // If we do not do this then left-floating elements inside the list item will push the marker to the right,
         // in some cases even causing it to overlap with the non-floating content of the list.
         let mut inline_space_used_before_children_formatted = SpaceUsedByFloats::default();
-        if is_list_item_box_without_css_content && !marker.is_invalid() {
-            let marker_block_offset = ((self.style(marker).line_height() - self.used(marker).content_block_size.get())
-                / 2)
-            .max(CssPixels::default());
-            let list_item_used = self.used(node);
-            inline_space_used_before_children_formatted = self.intrusion_by_floats_into_rect(
-                BlockCssPixelRect {
-                    x: content_position_in_root_now(content_block_offset).x + content_inline_offset,
-                    y: content_position_in_root_now(content_block_offset).y,
-                    width: content_inline_size_now,
-                    height: list_item_used.content_block_size.get(),
-                }
-                .into(),
-                marker_block_offset,
-                marker_block_offset,
-            );
+        if is_list_item_box && !marker.is_invalid() {
+            let marker_facts = self.facts(marker);
+            if marker_facts.marker_list_style_position() != list_style_position::INSIDE {
+                let marker_style = self.style(marker);
+                let estimated_block_size = if marker_facts.marker_is_symbolic() {
+                    marker_facts.marker_content_block_size()
+                } else {
+                    normal_line_height(marker_style)
+                };
+                let marker_block_offset =
+                    Self::marker_centered_block_offset(marker_style.line_height(), estimated_block_size);
+                let list_item_used = self.used(node);
+                inline_space_used_before_children_formatted = self.intrusion_by_floats_into_rect(
+                    BlockCssPixelRect {
+                        x: content_position_in_root_now(content_block_offset).x + content_inline_offset,
+                        y: content_position_in_root_now(content_block_offset).y,
+                        width: content_inline_size_now,
+                        height: list_item_used.content_block_size.get(),
+                    }
+                    .into(),
+                    marker_block_offset,
+                    marker_block_offset,
+                );
+            }
         }
 
         let child_layout = if has_independent_formatting_context {
@@ -1788,11 +1848,9 @@ impl<'pass> BlockFormattingContext<'pass> {
         }
 
         // Now that our children are formatted we place the ListItemBox with the left space we remembered.
-        if is_list_item_box_without_css_content {
-            // The marker pseudo-element will be created from a ListItemMarkerBox
-            self.layout_list_item_marker(node, inline_space_used_before_children_formatted);
+        if is_list_item_box {
+            self.layout_list_item_marker(run, node, inline_space_used_before_children_formatted);
         }
-        // Otherwise, it will be dealt with as a generic pseudo-element with the content of the ::marker pseudo-element.
 
         if let Some(position) = pending_position {
             self.place_child(node, position);

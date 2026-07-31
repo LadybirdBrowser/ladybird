@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../../../expected/css/css-lists/list-item-counter-dynamic-attributes-ref.html" />
+<style>
+li::after { content: " [" counter(list-item) "]"; }
+</style>
+<ol id="make-reversed">
+    <li>a</li>
+    <li>b</li>
+</ol>
+<ol id="change-start">
+    <li>x</li>
+    <li>y</li>
+</ol>
+<ol>
+    <li>p</li>
+    <li id="change-value">q</li>
+    <li>r</li>
+</ol>
+<script>
+    // Two nested requestAnimationFrame() calls to force code execution _after_ initial paint
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.getElementById("make-reversed").setAttribute("reversed", "");
+            document.getElementById("change-start").setAttribute("start", "40");
+            document.getElementById("change-value").setAttribute("value", "20");
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+</script>
+</html>

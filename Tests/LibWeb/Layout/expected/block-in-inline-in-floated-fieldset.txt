@@ -4,7 +4,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <ul> at [48,16] [0+0+40 744 0+0+0] [16+0+0 0 0+0+16] children: inline
         TextNode <#text> (not painted)
         ListItemBox <li> at [728.265625,16] floating [0+0+0 63.734375 0+0+0] [0+0+0 24 0+0+0] [BFC] children: not-inline
-          ListItemMarkerBox <(anonymous)> at [728.265625,16] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] children: not-inline
+          ListItemMarkerBox <(anonymous)> at [728.265625,16] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: not-inline
           BlockContainer <(anonymous)> at [728.265625,16] [0+0+0 63.734375 0+0+0] [0+0+0 0 0+0+0] children: inline
             TextNode <#text> (not painted)
           BlockContainer <form> at [728.265625,16] [0+0+0 63.734375 0+0+0] [0+0+0 24 0+0+0] children: inline

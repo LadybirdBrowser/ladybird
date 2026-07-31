@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/Checked.h>
 #include <LibWeb/ARIA/Roles.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/WebIDL/Types.h>
@@ -26,15 +25,12 @@ public:
     WebIDL::Long start();
     void set_start(WebIDL::Long start);
 
-    AK::Checked<i32> starting_value() const;
-
     virtual bool is_html_olist_element() const override { return true; }
 
 private:
     HTMLOListElement(DOM::Document&, DOM::QualifiedName);
 
     virtual void initialize(JS::Realm&) override;
-    virtual void attribute_changed(Utf16FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
 
     virtual bool is_presentational_hint(Utf16FlyString const&) const override;
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;

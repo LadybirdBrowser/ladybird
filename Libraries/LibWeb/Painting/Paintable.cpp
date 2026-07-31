@@ -1709,8 +1709,7 @@ void Paintable::record_hit_test_items(DisplayListRecordingContext& context, Pain
     if (phase == PaintPhase::Background) {
         Paintable* target = const_cast<Paintable*>(this);
         if (layout_node().is_anonymous()
-            && !layout_node().is_generated_for_pseudo_element()
-            && !layout_node().is_list_item_marker_box()) {
+            && !layout_node().is_generated_for_pseudo_element()) {
             return;
         }
 

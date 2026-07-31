@@ -1113,35 +1113,26 @@ RustFFI::FfiLayoutFcCallbacks LayoutRustBridge::formatting_context_callbacks()
         .build_list_item_facts = [](void*, void* node) {
             RustFFI::FfiListItemFacts facts {};
             auto const& layout_node = *static_cast<Node const*>(node);
-            if (auto const* list_item_box = as_if<ListItemBox>(layout_node)) {
+            if (auto const* list_item_box = as_if<ListItemBox>(layout_node))
                 facts.marker = Node::slot_id(list_item_box->marker());
-                if (auto const* element = as_if<DOM::Element>(layout_node.dom_node())) {
-                    if (auto const computed_values = element->computed_values(CSS::PseudoElement::Marker))
-                        facts.has_css_marker_content = computed_values->content().has_value();
-                }
-            }
             if (auto const* marker = as_if<ListItemMarkerBox>(layout_node)) {
-                auto marker_text = marker->text();
-                CSSPixels marker_content_inline_size = 0;
-                CSSPixels marker_content_block_size = 0;
-                if (auto const* list_style_image = marker->list_style_image()) {
-                    marker_content_inline_size = list_style_image->natural_width(marker->document()).value_or(0);
-                    marker_content_block_size = list_style_image->natural_height(marker->document()).value_or(0);
-                } else {
-                    auto marker_size = marker->relative_size();
-                    marker_content_block_size = marker_size;
-                    auto const& marker_font = marker->first_available_font();
-                    if (marker_text.has_value()) {
-                        // FIXME: Use per-code-point fonts to measure text.
-                        marker_content_inline_size = CSSPixels::nearest_value_for(marker_font.width(marker_text.value()));
+                facts.marker_is_symbolic = marker->is_symbolic();
+                if (facts.marker_is_symbolic) {
+                    CSSPixels marker_content_inline_size = 0;
+                    CSSPixels marker_content_block_size = 0;
+                    if (auto const* list_style_image = marker->list_style_image()) {
+                        marker_content_inline_size = list_style_image->natural_width(marker->document()).value_or(0);
+                        marker_content_block_size = list_style_image->natural_height(marker->document()).value_or(0);
                     } else {
+                        auto marker_size = marker->relative_size();
                         marker_content_inline_size = marker_size;
+                        marker_content_block_size = marker_size;
                     }
+                    facts.marker_content_inline_size = marker_content_inline_size.raw_value();
+                    facts.marker_content_block_size = marker_content_block_size.raw_value();
+                    if (marker->has_symbolic_counter_style())
+                        facts.marker_distance = CSSPixels::nearest_value_for(.5f * marker->first_available_font().pixel_size()).raw_value();
                 }
-                facts.marker_content_inline_size = marker_content_inline_size.raw_value();
-                facts.marker_content_block_size = marker_content_block_size.raw_value();
-                if (!marker_text.has_value())
-                    facts.marker_distance = CSSPixels::nearest_value_for(.5f * marker->first_available_font().pixel_size()).raw_value();
                 facts.marker_list_style_position = static_cast<u8>(to_underlying(marker->list_style_position()));
             }
             return facts; },

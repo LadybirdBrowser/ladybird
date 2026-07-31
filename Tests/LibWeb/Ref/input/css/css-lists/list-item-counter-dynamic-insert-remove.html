@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../../../expected/css/css-lists/list-item-counter-dynamic-insert-remove-ref.html" />
+<style>
+/* Markers are hidden so this test only observes counter invalidation: the legacy marker painting
+   is off by a pixel after incremental rebuilds, which is not what this test is about. */
+ol { list-style-type: none; }
+li::after { content: " [" counter(list-item) "]"; }
+</style>
+<ol id="insert-target">
+    <li>a</li>
+    <li id="before-me">c</li>
+</ol>
+<ol id="remove-target">
+    <li>x</li>
+    <li id="remove-me">y</li>
+    <li>z</li>
+</ol>
+<ol reversed id="append-target">
+    <li>p</li>
+    <li>q</li>
+</ol>
+<script>
+    // Two nested requestAnimationFrame() calls to force code execution _after_ initial paint
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            const li = document.createElement("li");
+            li.textContent = "b";
+            document.getElementById("insert-target").insertBefore(li, document.getElementById("before-me"));
+
+            document.getElementById("remove-me").remove();
+
+            const appended = document.createElement("li");
+            appended.textContent = "r";
+            document.getElementById("append-target").appendChild(appended);
+
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+</script>
+</html>

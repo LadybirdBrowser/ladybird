@@ -54,13 +54,6 @@ void MarkerPaintable::paint(DisplayListRecordingContext& context, PaintPhase pha
 
     auto color = computed_values().color();
 
-    if (auto text = layout_box().text(); text.has_value()) {
-        // FIXME: This should use proper text layout logic!
-        // This does not line up with the text in the <li> element which looks very sad :(
-        context.display_list_recorder().draw_text(device_rect.to_type<int>(), *text, layout_box().font(context), Gfx::TextAlignment::Center, color);
-        return;
-    }
-
     auto const& counter_style = list_style_type.get<RefPtr<CSS::CounterStyle const>>();
     VERIFY(Layout::ListItemMarkerBox::counter_style_is_rendered_with_custom_image(counter_style));
 

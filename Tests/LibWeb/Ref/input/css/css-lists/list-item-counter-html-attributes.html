@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<link rel="match" href="../../../expected/css/css-lists/list-item-counter-html-attributes-ref.html" />
+<style>
+li::after { content: " [" counter(list-item) "]"; }
+</style>
+<ol start="5">
+    <li>a</li>
+    <li>b</li>
+</ol>
+<ol>
+    <li>x</li>
+    <li value="10">y</li>
+    <li>z</li>
+</ol>
+<ol reversed>
+    <li>p</li>
+    <li>q</li>
+    <li>r</li>
+</ol>
+<ol reversed start="7">
+    <li>m</li>
+    <li>n</li>
+</ol>

@@ -98,9 +98,9 @@ enum class SetNeedsLayoutReason {
     X(ElementSetShadowRoot)                               \
     X(DetailsElementOpenedOrClosed)                       \
     X(HTMLInputElementSrcAttribute)                       \
-    X(HTMLOListElementOrdinalValues)                      \
     X(HTMLObjectElementUpdateLayoutAndChildObjects)       \
     X(KeyframeEffect)                                     \
+    X(ListItemCounters)                                   \
     X(NodeInsertBefore)                                   \
     X(NodeInsertBeforeWithDisplayContents)                \
     X(NodeRemove)                                         \

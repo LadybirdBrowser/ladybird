@@ -5,8 +5,11 @@
  */
 
 #include <LibWeb/Bindings/HTMLLIElement.h>
+#include <LibWeb/CSS/CountersSet.h>
 #include <LibWeb/CSS/PropertyID.h>
+#include <LibWeb/CSS/StyleValues/CounterDefinitionsStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterStyleStyleValue.h>
+#include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/HTML/HTMLLIElement.h>
 #include <LibWeb/HTML/Numbers.h>
@@ -33,12 +36,8 @@ void HTMLLIElement::attribute_changed(Utf16FlyString const& local_name, Optional
 {
     Base::attribute_changed(local_name, old_value, value, namespace_);
 
-    if (local_name == HTML::AttributeNames::value) {
-        if (auto owner = list_owner()) {
-            owner->set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::HTMLOListElementOrdinalValues);
-            maybe_invalidate_ordinals_for_list_owner();
-        }
-    }
+    if (local_name == HTML::AttributeNames::value)
+        invalidate_list_item_counters_for_list_owner();
 }
 
 // https://html.spec.whatwg.org/multipage/grouping-content.html#dom-li-value
@@ -63,7 +62,7 @@ bool HTMLLIElement::is_presentational_hint(Utf16FlyString const& name) const
     if (Base::is_presentational_hint(name))
         return true;
 
-    return name == HTML::AttributeNames::type;
+    return name.is_one_of(HTML::AttributeNames::type, HTML::AttributeNames::value);
 }
 
 void HTMLLIElement::apply_presentational_hints(Vector<CSS::StyleProperty>& properties) const
@@ -71,6 +70,17 @@ void HTMLLIElement::apply_presentational_hints(Vector<CSS::StyleProperty>& prope
     Base::apply_presentational_hints(properties);
 
     // https://html.spec.whatwg.org/multipage/rendering.html#lists
+    // "When an li element has a value attribute, and parsing that attribute's value using the rules
+    // for parsing integers doesn't generate an error, the user agent is expected to use the parsed
+    // value value as a presentational hint for the 'counter-set' property of the form
+    // list-item value."
+    if (auto value = get_attribute(AttributeNames::value); value.has_value()) {
+        if (auto parsed = parse_integer(*value); parsed.has_value()) {
+            CSS::CounterDefinition definition { CSS::list_item_counter_name(), false, CSS::IntegerStyleValue::create(*parsed) };
+            properties.append({ .property_id = CSS::PropertyID::CounterSet, .value = CSS::CounterDefinitionsStyleValue::create({ move(definition) }) });
+        }
+    }
+
     for_each_attribute([&](Utf16FlyString const& name, Utf16View value) {
         if (name == HTML::AttributeNames::type) {
             if (value == u"1"sv) {

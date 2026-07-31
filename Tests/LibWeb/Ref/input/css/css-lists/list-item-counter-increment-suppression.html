@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<link rel="match" href="../../../expected/css/css-lists/list-item-counter-increment-suppression-ref.html" />
+<style>
+li::after { content: " [" counter(list-item) "]"; }
+.zero { counter-increment: list-item 0; }
+.five { counter-increment: list-item 5; }
+.other { counter-increment: unrelated; }
+</style>
+<ol>
+    <li>a</li>
+    <li class="zero">b</li>
+    <li class="five">c</li>
+    <li>d</li>
+    <li class="other">e</li>
+</ol>
