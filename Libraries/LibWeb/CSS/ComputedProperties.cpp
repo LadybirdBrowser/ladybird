@@ -2555,8 +2555,8 @@ BorderImageData ComputedProperties::border_image() const
         .source = source.is_abstract_image() ? RefPtr { source.as_abstract_image() } : nullptr,
         .slice = { convert_slice(slice.top()), convert_slice(slice.right()), convert_slice(slice.bottom()), convert_slice(slice.left()) },
         .width = expand_sides(property(PropertyID::BorderImageWidth), [](StyleValue const& value) -> BorderImageWidthValue {
-            if (value.is_number())
-                return value.as_number().number();
+            if (value.is_number() || (value.is_calculated() && value.as_calculated().resolves_to_number()))
+                return number_from_style_value(value, {});
             if (value.to_keyword() == Keyword::Auto)
                 return BorderImageWidthAuto {};
             return LengthPercentage::from_style_value(value);
