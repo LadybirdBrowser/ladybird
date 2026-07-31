@@ -397,6 +397,7 @@ private:
         Optional<CSSPixelPoint> scroll_offset_at_gesture_start;
         Optional<CSSPixelPoint> unsnapped_scroll_destination;
         Painting::SnapSelectionStrategy::Type intent { Painting::SnapSelectionStrategy::Type::EndPosition };
+        bool travels_under_momentum { false };
         SnapPositionSelection snap_position_selection { SnapPositionSelection::AtGestureEnd };
         bool awaits_layout_for_snapping { false };
     };

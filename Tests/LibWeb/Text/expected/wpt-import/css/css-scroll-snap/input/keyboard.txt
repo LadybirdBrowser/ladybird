@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	Snaps to bottom-left after pressing ArrowDown
+Pass	Snaps to top-left after pressing ArrowUp
+Pass	Snaps to top-right after pressing ArrowRight
+Pass	Snaps to top-left after pressing ArrowLeft
+Pass	If the original intended offset is valid as making a snap area cover thesnapport, and there's no other snap offset in between, use the originalintended offset
+Pass	If the original intended offset is valid as making a snap area cover the snapport, but there's a defined snap offset in between, use the defined snap offset.
+Pass	If there is no valid snap offset on the arrow key's direction other than the current offset, and the scroll-snap-type is mandatory, stay at the current offset.
+Pass	If there is no valid snap offset on the arrow key's direction other than the current offset, and the scroll-snap-type is proximity, go to the original intended offset
