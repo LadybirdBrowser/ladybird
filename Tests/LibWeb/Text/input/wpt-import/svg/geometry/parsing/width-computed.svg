@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:h="http://www.w3.org/1999/xhtml">
+  <title>SVG Geometry Properties: getComputedStyle().width</title>
+  <metadata>
+    <h:link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/geometry.html#Sizing"/>
+    <h:link rel="help" href="https://drafts.csswg.org/cssom/#resolved-values"/>
+  </metadata>
+  <h:script src="../../../resources/testharness.js"/>
+  <h:script src="../../../resources/testharnessreport.js"/>
+  <svg width="200" height="100" id="test-content">
+    <rect/>
+    <rect width="100" height="200"/>
+    <rect height="42" style="width: 40%"/>
+    <rect height="42" style="width: auto"/>
+    <rect height="42" style="width: 20px"/>
+    <rect height="42" style="width: 42%; display: none"/>
+
+    <g><rect width="100" height="100"/></g>
+    <g width="100" height="42px"><rect width="100" height="100"/></g>
+    <g style="width: 10%; height: auto"><rect width="100" height="100"/></g>
+    <g style="width: auto; height: 20px"><rect width="100" height="100"/></g>
+    <g style="width: 20px; height: 10%"><rect width="100" height="100"/></g>
+
+    <image/>
+    <image width="100"/>
+    <image height="42" style="width: 25%"/>
+    <image height="42" style="width: auto"/>
+    <image height="42" style="width: 230px"/>
+    <image height="42" style="width: 25%; display: none"/>
+
+    <foreignObject>Some content</foreignObject>
+    <foreignObject width="100">Some content</foreignObject>
+    <foreignObject style="width: 50%">Some content</foreignObject>
+    <foreignObject style="width: auto">Some content</foreignObject>
+    <foreignObject style="width: 75px">Some content</foreignObject>
+    <foreignObject style="width: auto; display: none">Some content</foreignObject>
+
+    <svg/>
+    <svg width="100"/>
+    <svg style="width: auto"/>
+    <svg style="width: 200px"/>
+    <svg style="width: 50%"/>
+    <svg style="width: auto; display: none"/>
+
+    <text>Text1</text>
+    <text width="100px" height="42">Text2</text>
+    <text style="width: 30%; height: auto">Text3</text>
+    <text style="width: auto; height: 20px">Text3</text>
+    <text style="width: 20px; height: 30%">Text3</text>
+  </svg>
+  <script><![CDATA[
+[
+  // Cases where computed 'width' return the used value.
+  {
+    element: 'rect',
+    expected: [
+      { value: '0px', description: 'initial' },
+      { value: '100px', description: 'presentation attribute' },
+      { value: '80px', description: 'inline style (percentage)' },
+      { value: '0px', description: 'inline style (auto)' },
+      { value: '20px', description: 'inline style (pixels)' },
+      { value: '42%', description: 'inline style but "display: none"' },
+    ]
+  },
+  {
+    element: 'image',
+    expected: [
+      { value: '0px', description: 'initial' },
+      { value: '100px', description: 'presentation attribute' },
+      { value: '50px', description: 'inline style (percentage)' },
+      { value: '0px', description: 'inline style (auto)' },
+      { value: '230px', description: 'inline style (pixels)' },
+      { value: '25%', description: 'inline style but "display: none"' },
+    ]
+  },
+  {
+    element: 'foreignObject',
+    expected: [
+      { value: '0px', description: 'initial' },
+      { value: '100px', description: 'presentation attribute' },
+      { value: '100px', description: 'inline style (percentage)' },
+      { value: '0px', description: 'inline style (auto)' },
+      { value: '75px', description: 'inline style (pixels)' },
+      { value: 'auto', description: 'inline style but "display: none"' },
+    ]
+  },
+  // Negative test for nested <svg>: verify computed 'width' is auto when not specified explicitly.
+  // Nested <svg> don't support width and height as CSS style attributes.
+  //
+  // https://github.com/w3c/svgwg/issues/1057
+  {
+    element: 'svg',
+    expected: [
+      { value: 'auto', description: 'initial' },
+      { value: 'auto', description: 'presentation attribute' },
+      { value: 'auto', description: 'inline style (auto)' },
+      { value: '200px', description: 'inline style (pixels)' },
+      { value: '50%', description: 'inline style (percentage)' },
+      { value: 'auto', description: 'inline style but "display: none"' },
+    ]
+  },
+
+  // Cases where computed 'width' return the computed value.
+  {
+    element: 'g',
+    expected: [
+      { value: 'auto', description: 'initial' },
+      { value: 'auto', description: 'initial (with dummy attribute)' },
+      { value: '10%', description: 'inline style (percentage)' },
+      { value: 'auto', description: 'inline style (auto)' },
+      { value: '20px', description: 'inline style (pixels)' },
+    ]
+  },
+  {
+    element: 'text',
+    expected: [
+      { value: 'auto', description: 'initial' },
+      { value: 'auto', description: 'initial (with dummy attribute)' },
+      { value: '30%', description: 'inline style (percentage)' },
+      { value: 'auto', description: 'inline style (auto)' },
+      { value: '20px', description: 'inline style (pixels)' },
+    ]
+  },
+].forEach(function(entry) {
+  let element_set = document.querySelectorAll('#test-content > ' + entry.element);
+  entry.expected.forEach(function(expected, index) {
+    test(function() {
+      let style = getComputedStyle(element_set[index]);
+      assert_equals(style.width, expected.value, expected.description);
+    }, document.title + ', <' + entry.element + '> ' + expected.description);
+  });
+});
+  ]]></script>
+</svg>

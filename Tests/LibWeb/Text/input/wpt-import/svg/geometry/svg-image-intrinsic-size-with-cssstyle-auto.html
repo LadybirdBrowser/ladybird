@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<title>&lt;svg:image> 'auto' sizing</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/single-page.html#geometry-Sizing"/>
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/single-page.html#embedded-Placement"/>
+<svg height="0">
+  <image width="64" height="64" xlink:href="../../images/green-256x256.png" />
+  <image width="128" height="64" xlink:href="../../images/green-256x256.png" style="width:auto"/>
+  <image width="64" height="128" xlink:href="../../images/green-256x256.png" style="height:auto"/>
+  <image width="128" height="64" xlink:href="../../images/green-256x256.png" style="width:auto; height:auto"/>
+  <image width="50" height="50"
+         xlink:href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'></svg>"/>
+  <image width="50" height="50"
+         xlink:href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='100'></svg>" style='width:auto; height:auto'/>
+  <image width="50" height="50"
+         xlink:href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='100'></svg>" style='width:auto;'/>
+  <image xlink:href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='100'></svg>" style='width:auto;'/>
+  <image height="50"
+         xlink:href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='100'></svg>" style='width:auto;'/>
+  <image width="50"
+         xlink:href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='100'></svg>" style='height:auto;'/>
+  <image width="200" height="200"
+         xlink:href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'></svg>" style='width:auto; height:auto'/>
+  <image height="200"
+         xlink:href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'></svg>" style='width:auto; height:auto'/>
+  <image width="200"
+         xlink:href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'></svg>" style='width:auto; height:auto'/>
+  <image xlink:href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'></svg>"/>
+  <image width="60" height="60" xlink:href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 100'></svg>"/>
+  <image width="60" height="60" xlink:href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 100'></svg>" style='width:auto'/>
+  <image width="60" height="60" xlink:href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 100'></svg>" style='height:auto'/>
+  <image width="60" height="60" xlink:href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 100'></svg>" style='width:auto; height:auto'/>
+  <image width="60" height="60" xlink:href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='200' viewBox='0 0 400 100'></svg>"/>
+  <image width="60" height="60" xlink:href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='200' viewBox='0 0 400 100'></svg>" style='width:auto'/>
+  <image width="60" height="60" xlink:href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='200' viewBox='0 0 400 100'></svg>" style='height:auto'/>
+  <image width="60" height="60" xlink:href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='200' viewBox='0 0 400 100'></svg>" style='width:auto; height:auto'/>
+  <image width="60" height="60" xlink:href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' height='100' viewBox='0 0 400 100'></svg>"/>
+  <image width="60" height="60" xlink:href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' height='100' viewBox='0 0 400 100'></svg>" style='width:auto'/>
+  <image width="60" height="60" xlink:href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' height='100' viewBox='0 0 400 100'></svg>" style='height:auto'/>
+  <image width="60" height="60" xlink:href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' height='100' viewBox='0 0 400 100'></svg>" style='width:auto; height:auto'/>
+  <image width="60" height="60" xlink:href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='100' viewBox='0 0 400 100'></svg>"/>
+  <image width="60" height="60" xlink:href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='100' viewBox='0 0 400 100'></svg>" style='width:auto'/>
+  <image width="60" height="60" xlink:href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='100' viewBox='0 0 400 100'></svg>" style='height:auto'/>
+  <image width="60" height="60" xlink:href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='100' viewBox='0 0 400 100'></svg>" style='width:auto; height:auto'/>
+  <image width="60" height="60" xlink:href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'></svg>" style='height:auto'/>
+  <image width="60" height="60" xlink:href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'></svg>" style='width:auto'/>
+</svg>
+<script>
+const expectedBoxes = [
+  { dimensions: [64, 64], description: "256x256 png image, attributes width='64' height='64'"},
+  { dimensions: [64, 64], description: "256x256 png image, attributes width='128' height='64' and CSS 'width:auto'"},
+  { dimensions: [64, 64], description: "256x256 png image, attributes width='64' height='128' and CSS 'height:auto'"},
+  { dimensions: [256, 256], description: "256x256 png image, attributes width='64' height='64' and CSS 'width:auto; height:auto'"},
+  { dimensions: [50, 50], description: "default sized svg image, attributes width='50' height='50'"},
+  { dimensions: [200, 100], description: "200x100 svg image, attributes width='50' height='50' and CSS 'width:auto; height:auto'"},
+  { dimensions: [100, 50], description: "200x100 svg image, attributes width='50' height='50' and CSS 'width:auto'"},
+  { dimensions: [200, 100], description: "200x100 svg image, without attributes width and height and CSS 'width:auto'"},
+  { dimensions: [100, 50], description: "200x100 svg image, attributes height='50' and 'width:auto'"},
+  { dimensions: [50, 25], description: "200x100 svg image, attributes width='50' and CSS height:auto"},
+  { dimensions: [300, 150], description: "default sized svg image, attributes width='200' height='200' and CSS 'width:auto; height:auto'"},
+  { dimensions: [300, 150], description: "default sized svg image, attributes height='200' and CSS 'width:auto; height:auto'"},
+  { dimensions: [300, 150], description: "default sized svg image, attributes width='200' and CSS 'width:auto; height:auto'"},
+  { dimensions: [300, 150], description: "default sized svg image, without attributes width and height, no css width/height specified"},
+  { dimensions: [60, 60], description: "default sized svg image viewBox='0 0 400 100', attributes width='60' height='60' and no css width/height specified"},
+  { dimensions: [240, 60], description: "default sized svg image viewBox='0 0 400 100', attributes width='60' height='60' and CSS 'width:auto'"},
+  { dimensions: [60, 15], description: "default sized svg image viewBox='0 0 400 100', attributes width='60' height='60' and CSS 'height:auto'"},
+  { dimensions: [300, 75], description: "default sized svg image viewBox='0 0 400 100', attributes width='60' height='60' and CSS 'width:auto; height:auto'"},
+  { dimensions: [60, 60], description: "svg image width='200' viewBox='0 0 400 100', attributes width='60' height='60' and no css width/height specified"},
+  { dimensions: [240, 60], description: "svg image width='200' viewBox='0 0 400 100', attributes width='60' height='60' and CSS 'width:auto'"},
+  { dimensions: [60, 15], description: "svg image width='200' viewBox='0 0 400 100', attributes width='60' height='60' and CSS 'height:auto'"},
+  { dimensions: [200, 50], description: "svg image width='200' viewBox='0 0 400 100', attributes width='60' height='60' and CSS 'width:auto; height:auto'"},
+  { dimensions: [60, 60], description: "svg image height='100' viewBox='0 0 400 100', attributes width='60' height='60' and no css width/height specified"},
+  { dimensions: [240, 60], description: "svg image height='100' viewBox='0 0 400 100', attributes width='60' height='60' and CSS 'width:auto'"},
+  { dimensions: [60, 15], description: "svg image height='100' viewBox='0 0 400 100', attributes width='60' height='60' and CSS 'height:auto'"},
+  { dimensions: [400, 100], description: "svg image height='100' viewBox='0 0 400 100', attributes width='60' height='60' and CSS 'width:auto; height:auto'"},
+  { dimensions: [60, 60], description: "200x100 svg image viewBox='0 0 400 100', attributes width='60' height='60' and no css width/height specified"},
+  { dimensions: [120, 60], description: "200x100 svg image viewBox='0 0 400 100', attributes width='60' height='60' and CSS 'width:auto'"},
+  { dimensions: [60, 30], description: "200x100 svg image viewBox='0 0 400 100', attributes width='60' height='60' and CSS 'height:auto'"},
+  { dimensions: [200, 100], description: "200x100 svg image viewBox='0 0 400 100', attributes width='60' height='60' and CSS 'width:auto; height:auto'"},
+  { dimensions: [60, 150], description: "default sized svg image, attributes width='60' height='60' and CSS 'height:auto'"},
+  { dimensions: [300, 60], description: "default sized svg image, attributes width='60' height='60' and CSS 'width:auto'"},
+];
+
+const images = document.getElementsByTagName('image');
+for (var i = 0, length = images.length; i < length; ++i) {
+  async_test(t => {
+    const image = images[i];
+    const expected = expectedBoxes[i];
+    window.addEventListener('load', t.step_func_done(() => {
+      const [expectedWidth, expectedHeight] = expected.dimensions;
+      const bbox = image.getBBox();
+      assert_equals(bbox.width, expectedWidth, 'width');
+      assert_equals(bbox.height, expectedHeight, 'height');
+    }));
+  }, document.title + ' with ' + expectedBoxes[i].description);
+}
+</script>

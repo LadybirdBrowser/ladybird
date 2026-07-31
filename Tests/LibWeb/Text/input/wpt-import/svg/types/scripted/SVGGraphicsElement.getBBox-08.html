@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<title>SVGGraphicsElement.prototype.getBBox for image, foreignObject, containers, and transforms</title>
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/types.html#__svg__SVGGraphicsElement__getBBox">
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/coords.html#BoundingBoxes">
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/geometry.html#Sizing">
+<link rel="help" href="https://github.com/w3c/svgwg/issues/1018">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<svg width="0" height="0" style="position:absolute">
+
+  <!-- G. image: zero and missing dimensions (no href, so intrinsic size doesn't apply) -->
+  <image id="img_zero_w" x="10" y="20" width="0" height="50"/>
+  <image id="img_zero_h" x="10" y="20" width="50" height="0"/>
+  <image id="img_zero_wh" x="10" y="20" width="0" height="0"/>
+  <image id="img_no_wh" x="10" y="20"/>
+
+  <!-- G. foreignObject: zero and missing dimensions -->
+  <foreignObject id="fo_zero_w" x="10" y="20" width="0" height="50"/>
+  <foreignObject id="fo_zero_h" x="10" y="20" width="50" height="0"/>
+  <foreignObject id="fo_zero_wh" x="10" y="20" width="0" height="0"/>
+  <foreignObject id="fo_no_wh" x="10" y="20"/>
+
+  <!-- E2. Empty nested SVG -->
+  <svg id="nested_svg_empty" x="10" y="20" width="100" height="80"/>
+  <svg id="nested_svg_no_attrs"/>
+  <svg id="nested_svg_zero" x="10" y="20" width="0" height="0"/>
+
+  <!-- E7. Anchor wrapping zero-dim shape -->
+  <a id="a_zero_child">
+    <rect x="10" y="20" width="0" height="0"/>
+  </a>
+  <a id="a_normal_and_zero">
+    <rect x="10" y="20" width="0" height="0"/>
+    <rect id="a_normal_rect" x="30" y="40" width="50" height="60"/>
+  </a>
+
+  <!-- H. Transforms on zero/invalid dimension elements -->
+  <!-- getBBox returns bbox in element's local coordinate system,
+       so transform does not affect the returned values. -->
+  <rect id="h_zero_translate" width="0" height="0" transform="translate(10,20)"/>
+  <rect id="h_neg_scale" width="-5" height="10" transform="scale(2)"/>
+  <g id="h_rotated_group" transform="rotate(45)">
+    <rect id="h_rotated_child" x="10" y="20" width="0" height="0"/>
+  </g>
+  <rect id="h_zero_w_scale" x="10" y="20" width="0" height="50" transform="scale(3)"/>
+  <circle id="h_zero_r_translate" cx="10" cy="20" r="0" transform="translate(100,200)"/>
+
+  <!-- H. Group transform with normal child — getBBox of group is in group's
+       local coordinate system, so child positions are untransformed. -->
+  <g id="h_group_translate" transform="translate(100,200)">
+    <rect id="h_group_child" x="10" y="20" width="30" height="40"/>
+  </g>
+
+</svg>
+<script>
+function assert_bbox(id, expected_x, expected_y, expected_w, expected_h) {
+  var el = document.getElementById(id);
+  var bbox = el.getBBox();
+  assert_equals(bbox.x, expected_x, "x");
+  assert_equals(bbox.y, expected_y, "y");
+  assert_equals(bbox.width, expected_w, "width");
+  assert_equals(bbox.height, expected_h, "height");
+}
+
+function test_bbox(id, expected_x, expected_y, expected_w, expected_h, desc) {
+  test(() => { assert_bbox(id, expected_x, expected_y, expected_w, expected_h); }, desc);
+}
+
+// ========================================================================
+// G. image — zero and missing dimensions (no href)
+// Per resolution (issue #1018): not rendered → getBBox returns (0,0,0,0).
+// Note: negative dimension images are tested in getBBox-03.
+// ========================================================================
+
+test_bbox("img_zero_w", 0, 0, 0, 0,
+  "image with zero width");
+test_bbox("img_zero_h", 0, 0, 0, 0,
+  "image with zero height");
+test_bbox("img_zero_wh", 0, 0, 0, 0,
+  "image with zero width and height");
+test_bbox("img_no_wh", 0, 0, 0, 0,
+  "image with no width/height attributes");
+
+// ========================================================================
+// G. foreignObject — zero and missing dimensions
+// Per resolution (issue #1018): not rendered → getBBox returns (0,0,0,0).
+// Note: negative dimension foreignObjects are tested in getBBox-03.
+// ========================================================================
+
+test_bbox("fo_zero_w", 0, 0, 0, 0,
+  "foreignObject with zero width");
+test_bbox("fo_zero_h", 0, 0, 0, 0,
+  "foreignObject with zero height");
+test_bbox("fo_zero_wh", 0, 0, 0, 0,
+  "foreignObject with zero width and height");
+test_bbox("fo_no_wh", 0, 0, 0, 0,
+  "foreignObject with no width/height attributes");
+
+// ========================================================================
+// E. Containers — nested SVG and anchor elements
+// ========================================================================
+
+// Nested SVG with no children: bbox is (0, 0, 0, 0) since container
+// algorithm unions over rendered children.
+test_bbox("nested_svg_empty", 0, 0, 0, 0,
+  "empty nested SVG element");
+test_bbox("nested_svg_no_attrs", 0, 0, 0, 0,
+  "empty nested SVG with no attributes");
+test_bbox("nested_svg_zero", 0, 0, 0, 0,
+  "empty nested SVG with zero width and height");
+
+// Anchor wrapping zero-dimension shapes (not rendered → zero bbox).
+test_bbox("a_zero_child", 0, 0, 0, 0,
+  "anchor element wrapping zero-dimension rect");
+
+test(function() {
+  var a = document.getElementById("a_normal_and_zero");
+  var bbox = a.getBBox();
+  // Zero-dim child returns (0,0,0,0), so group bbox equals normal child's bbox.
+  assert_equals(bbox.x, 30, "x equals normal child x");
+  assert_equals(bbox.y, 40, "y equals normal child y");
+  assert_equals(bbox.width, 50, "width equals normal child width");
+  assert_equals(bbox.height, 60, "height equals normal child height");
+}, "anchor element with zero-dim and normal child: zero-dim child does not affect bbox");
+
+// ========================================================================
+// H. Transforms on zero/invalid dimension elements
+// getBBox returns the bbox in the element's own coordinate system (user
+// space), so transforms on the element itself do not change the returned
+// values. Transforms on ancestors also do not affect the result since
+// getBBox uses the element's own coordinate system.
+// ========================================================================
+
+test_bbox("h_zero_translate", 0, 0, 0, 0,
+  "zero-dim rect with translate transform");
+test_bbox("h_neg_scale", 0, 0, 0, 0,
+  "rect with negative width and scale(2) (not rendered)");
+test_bbox("h_rotated_child", 0, 0, 0, 0,
+  "zero-dim rect inside rotated group (not rendered)");
+test_bbox("h_zero_w_scale", 0, 0, 0, 0,
+  "zero-width rect with scale(3) (not rendered)");
+test_bbox("h_zero_r_translate", 0, 0, 0, 0,
+  "zero-radius circle with translate (not rendered)");
+
+test(function() {
+  var g = document.getElementById("h_group_translate");
+  var bbox = g.getBBox();
+  // Group bbox is in the group's own coordinate system, so child at (10,20)
+  // with (30,40) is reported directly, unaffected by group's translate.
+  assert_equals(bbox.x, 10, "x");
+  assert_equals(bbox.y, 20, "y");
+  assert_equals(bbox.width, 30, "width");
+  assert_equals(bbox.height, 40, "height");
+}, "group with translate transform — bbox in group's local coords");
+
+test(function() {
+  var g = document.getElementById("h_rotated_group");
+  var bbox = g.getBBox();
+  // Group's only child is zero-dim (not rendered → (0,0,0,0)),
+  // so group bbox is also (0,0,0,0).
+  assert_equals(bbox.x, 0, "x");
+  assert_equals(bbox.y, 0, "y");
+  assert_equals(bbox.width, 0, "width");
+  assert_equals(bbox.height, 0, "height");
+}, "rotated group with zero-dim child — bbox is zero");
+</script>

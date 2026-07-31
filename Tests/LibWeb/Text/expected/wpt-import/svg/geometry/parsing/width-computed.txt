@@ -1,0 +1,40 @@
+Harness status: OK
+
+Found 34 tests
+
+15 Pass
+19 Fail
+Pass	SVG Geometry Properties: getComputedStyle().width, <rect> initial
+Pass	SVG Geometry Properties: getComputedStyle().width, <rect> presentation attribute
+Fail	SVG Geometry Properties: getComputedStyle().width, <rect> inline style (percentage)
+Pass	SVG Geometry Properties: getComputedStyle().width, <rect> inline style (auto)
+Fail	SVG Geometry Properties: getComputedStyle().width, <rect> inline style (pixels)
+Pass	SVG Geometry Properties: getComputedStyle().width, <rect> inline style but "display: none"
+Pass	SVG Geometry Properties: getComputedStyle().width, <image> initial
+Pass	SVG Geometry Properties: getComputedStyle().width, <image> presentation attribute
+Fail	SVG Geometry Properties: getComputedStyle().width, <image> inline style (percentage)
+Pass	SVG Geometry Properties: getComputedStyle().width, <image> inline style (auto)
+Fail	SVG Geometry Properties: getComputedStyle().width, <image> inline style (pixels)
+Pass	SVG Geometry Properties: getComputedStyle().width, <image> inline style but "display: none"
+Pass	SVG Geometry Properties: getComputedStyle().width, <foreignObject> initial
+Pass	SVG Geometry Properties: getComputedStyle().width, <foreignObject> presentation attribute
+Fail	SVG Geometry Properties: getComputedStyle().width, <foreignObject> inline style (percentage)
+Pass	SVG Geometry Properties: getComputedStyle().width, <foreignObject> inline style (auto)
+Pass	SVG Geometry Properties: getComputedStyle().width, <foreignObject> inline style (pixels)
+Pass	SVG Geometry Properties: getComputedStyle().width, <foreignObject> inline style but "display: none"
+Fail	SVG Geometry Properties: getComputedStyle().width, <svg> initial
+Fail	SVG Geometry Properties: getComputedStyle().width, <svg> presentation attribute
+Fail	SVG Geometry Properties: getComputedStyle().width, <svg> inline style (auto)
+Pass	SVG Geometry Properties: getComputedStyle().width, <svg> inline style (pixels)
+Fail	SVG Geometry Properties: getComputedStyle().width, <svg> inline style (percentage)
+Pass	SVG Geometry Properties: getComputedStyle().width, <svg> inline style but "display: none"
+Fail	SVG Geometry Properties: getComputedStyle().width, <g> initial
+Fail	SVG Geometry Properties: getComputedStyle().width, <g> initial (with dummy attribute)
+Fail	SVG Geometry Properties: getComputedStyle().width, <g> inline style (percentage)
+Fail	SVG Geometry Properties: getComputedStyle().width, <g> inline style (auto)
+Fail	SVG Geometry Properties: getComputedStyle().width, <g> inline style (pixels)
+Fail	SVG Geometry Properties: getComputedStyle().width, <text> initial
+Fail	SVG Geometry Properties: getComputedStyle().width, <text> initial (with dummy attribute)
+Fail	SVG Geometry Properties: getComputedStyle().width, <text> inline style (percentage)
+Fail	SVG Geometry Properties: getComputedStyle().width, <text> inline style (auto)
+Fail	SVG Geometry Properties: getComputedStyle().width, <text> inline style (pixels)
