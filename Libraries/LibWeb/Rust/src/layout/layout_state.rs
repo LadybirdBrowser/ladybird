@@ -877,10 +877,6 @@ pub(crate) struct LayoutState {
     contained_abspos_children: PagedStore<RefCell<VecDeque<PendingAbsposChild>>>,
     abspos_layout_pass_queue_in_completion_order: RefCell<VecDeque<Node>>,
     abspos_layout_pass_is_active: Cell<bool>,
-    /// Resolved anchor() insets awaiting the post-commit computed-values
-    /// writeback, one merged entry per node so a node resolved twice keeps
-    /// its final values and gets a single writeback.
-    deferred_resolved_anchor_insets: RefCell<Vec<crate::layout::FfiDeferredResolvedAnchorInsets>>,
     anchor_inset_store: AnchorInsetStore,
     replaced_content_facts: PagedStore<crate::layout::FfiReplacedContentFacts>,
     list_item_facts: PagedStore<crate::layout::FfiListItemFacts>,
@@ -936,7 +932,6 @@ impl LayoutState {
             contained_abspos_children: PagedStore::default(),
             abspos_layout_pass_queue_in_completion_order: RefCell::new(VecDeque::new()),
             abspos_layout_pass_is_active: Cell::new(false),
-            deferred_resolved_anchor_insets: RefCell::new(Vec::new()),
             anchor_inset_store: AnchorInsetStore::default(),
             replaced_content_facts: PagedStore::default(),
             list_item_facts: PagedStore::default(),
@@ -1264,54 +1259,6 @@ impl LayoutState {
         }
         if resolved.resolves_left {
             replace(SizeField::InsetLeft, resolved.left_is_auto, resolved.left);
-        }
-    }
-
-    pub(crate) fn defer_resolved_anchor_insets(
-        &self,
-        callbacks: &FfiLayoutFcCallbacks,
-        node: Node,
-        resolved: crate::layout::FfiResolvedAnchorInsets,
-    ) {
-        let node_shell = callbacks.shell(node);
-        let mut deferred = self.deferred_resolved_anchor_insets.borrow_mut();
-        let Some(entry) = deferred.iter_mut().find(|entry| entry.node == node_shell) else {
-            deferred.push(crate::layout::FfiDeferredResolvedAnchorInsets {
-                node: node_shell,
-                resolved,
-            });
-            return;
-        };
-        let earlier = &mut entry.resolved;
-        if resolved.resolves_top {
-            (earlier.resolves_top, earlier.top_is_auto, earlier.top) = (true, resolved.top_is_auto, resolved.top);
-        }
-        if resolved.resolves_right {
-            (earlier.resolves_right, earlier.right_is_auto, earlier.right) =
-                (true, resolved.right_is_auto, resolved.right);
-        }
-        if resolved.resolves_bottom {
-            (earlier.resolves_bottom, earlier.bottom_is_auto, earlier.bottom) =
-                (true, resolved.bottom_is_auto, resolved.bottom);
-        }
-        if resolved.resolves_left {
-            (earlier.resolves_left, earlier.left_is_auto, earlier.left) = (true, resolved.left_is_auto, resolved.left);
-        }
-    }
-
-    /// Hands the deferred resolved-anchor-inset batch to C++ once the pass
-    /// has committed, so the computed-values writeback runs only after layout
-    /// is done reading style. Passes that never commit drop their deferrals
-    /// with the state, exactly as their writebacks never happened before.
-    fn report_deferred_resolved_anchor_insets(&self, callbacks: &FfiLayoutFcCallbacks) {
-        let deferred = self.deferred_resolved_anchor_insets.borrow();
-        if deferred.is_empty() {
-            return;
-        }
-        // SAFETY: The entries stay alive for this synchronous call, and the
-        // C++ side only records them for application after the pass returns.
-        unsafe {
-            (callbacks.record_deferred_resolved_anchor_insets)(callbacks.context, deferred.as_ptr(), deferred.len());
         }
     }
 
@@ -1806,7 +1753,6 @@ impl LayoutState {
         unsafe {
             (sink.finish_commit)(sink.context);
         }
-        self.report_deferred_resolved_anchor_insets(callbacks);
     }
 }
 
