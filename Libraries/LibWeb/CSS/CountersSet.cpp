@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Math.h>
+#include <AK/NeverDestroyed.h>
 #include <AK/SaturatingMath.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/CountersSet.h>
@@ -85,6 +87,16 @@ void CountersSet::increment_a_counter(Utf16FlyString name, DOM::AbstractElement 
     counter.value = saturating_add(*counter.value, amount);
 }
 
+// https://drafts.csswg.org/css-lists-3/#valdef-counter-set-counter-name-integer
+// "If there is not currently a counter of the given name on the element, the element instantiates
+// a new counter of the given name with a starting value of 0 before setting or incrementing its value."
+CounterValue CountersSet::counter_value_for_use(Utf16FlyString const& name, DOM::AbstractElement const& element)
+{
+    if (auto counter = last_counter_with_name(name); counter.has_value())
+        return counter->value.value_or(0);
+    return *instantiate_a_counter(name, element, false, 0).value;
+}
+
 Optional<Counter&> CountersSet::last_counter_with_name(Utf16FlyString const& name)
 {
     for (auto& counter : m_counters.in_reverse()) {
@@ -106,6 +118,116 @@ void CountersSet::append_copy(Counter const& counter)
     m_counters.append(counter);
 }
 
+Utf16FlyString const& list_item_counter_name()
+{
+    static NeverDestroyed<Utf16FlyString> name = "list-item"_utf16_fly_string;
+    return *name;
+}
+
+// https://drafts.csswg.org/css-lists-3/#list-item-counter
+// "Specifically, unless the counter-increment property explicitly specifies a different increment
+// for the list-item counter, it must be incremented by 1 on every list item, or if the counter is
+// reversed, it must be incremented by -1 on every list item instead, at the same time that counters
+// are normally incremented (exactly as if the list item had list-item 1 or list-item -1 appended to
+// their counter-increment value, including side-effects such as possibly instantiating a new
+// counter, etc)."
+static bool style_has_implicit_list_item_increment(ComputedValues const& style)
+{
+    if (!style.display().is_list_item())
+        return false;
+    for (auto const& counter : style.counter_increment()) {
+        if (counter.name == list_item_counter_name())
+            return false;
+    }
+    return true;
+}
+
+enum class ReversedScopeWalkDecision : u8 {
+    Continue,
+    Stop,
+};
+
+struct ReversedScopeWalkState {
+    Utf16FlyString const& name;
+    bool name_is_list_item { false };
+    i64 num { 0 };
+    i64 last_nonzero_increment_negated { 0 };
+};
+
+static ReversedScopeWalkDecision apply_reversed_counter_contribution(ReversedScopeWalkState& state, ComputedValues const& style)
+{
+    i64 increment = 0;
+    for (auto const& counter : style.counter_increment()) {
+        if (counter.name == state.name)
+            increment += *counter.value;
+    }
+    if (state.name_is_list_item && style_has_implicit_list_item_increment(style))
+        increment = -1;
+
+    auto increment_negated = -increment;
+    if (increment_negated != 0)
+        state.last_nonzero_increment_negated = increment_negated;
+
+    for (auto const& counter : style.counter_set()) {
+        if (counter.name == state.name) {
+            state.num += *counter.value;
+            return ReversedScopeWalkDecision::Stop;
+        }
+    }
+    state.num += increment_negated;
+    return ReversedScopeWalkDecision::Continue;
+}
+
+static ReversedScopeWalkDecision walk_reversed_counter_sibling_run(ReversedScopeWalkState& state, DOM::Element* first)
+{
+    for (auto* element = first; element; element = element->next_element_sibling()) {
+        auto style = element->computed_values();
+        if (!style || style->display().is_none())
+            continue;
+        bool resets_name = false;
+        for (auto const& counter : style->counter_reset()) {
+            if (counter.name == state.name) {
+                resets_name = true;
+                break;
+            }
+        }
+        if (resets_name)
+            break;
+        if (apply_reversed_counter_contribution(state, *style) == ReversedScopeWalkDecision::Stop)
+            return ReversedScopeWalkDecision::Stop;
+        if (walk_reversed_counter_sibling_run(state, element->first_element_child()) == ReversedScopeWalkDecision::Stop)
+            return ReversedScopeWalkDecision::Stop;
+    }
+    return ReversedScopeWalkDecision::Continue;
+}
+
+// https://drafts.csswg.org/css-lists-3/#instantiating-counters
+// "When a counter is instantiated without an initial value, the user agent must dynamically
+// calculate the initial value at layout-time to be the value returned by the following algorithm:
+// 1. Let num be 0.
+// 2. Let lastNonZeroIncrementNegated be 0.
+// 3. For each element or pseudo-element el that increments or sets the same counter in the same scope:
+//    1. Let incrementNegated be el's counter-increment integer value for this counter, multiplied by -1.
+//    2. If incrementNegated is not zero, then set lastNonZeroIncrementNegated to incrementNegated.
+//    3. If el sets this counter with counter-set, then add that integer value to num and break this loop.
+//    4. Add incrementNegated to num.
+// 4. Add lastNonZeroIncrementNegated to num.
+// 5. Return num."
+static CounterValue reversed_counter_start_value(Utf16FlyString const& name, DOM::AbstractElement& originating_element, ComputedValues const& originating_style)
+{
+    ReversedScopeWalkState state { .name = name, .name_is_list_item = name == list_item_counter_name() };
+    auto decision = apply_reversed_counter_contribution(state, originating_style);
+    // FIXME: Counters reset on pseudo-elements don't walk a scope yet; only the pseudo-element's own
+    //        contribution is taken into account.
+    if (decision == ReversedScopeWalkDecision::Continue && !originating_element.pseudo_element().has_value()) {
+        auto& element = originating_element.element();
+        decision = walk_reversed_counter_sibling_run(state, element.first_element_child());
+        if (decision == ReversedScopeWalkDecision::Continue)
+            walk_reversed_counter_sibling_run(state, element.next_element_sibling());
+    }
+    return AK::clamp_to<CounterValue>(state.num + state.last_nonzero_increment_negated);
+}
+
 // https://drafts.csswg.org/css-lists-3/#auto-numbering
 void resolve_counters(DOM::AbstractElement& element_reference)
 {
@@ -123,8 +245,12 @@ void resolve_counters(DOM::AbstractElement& element_reference)
         return;
 
     // 2. New counters are instantiated (counter-reset).
-    for (auto const& counter : style.counter_reset())
-        element_reference.ensure_counters_set().instantiate_a_counter(counter.name, element_reference, counter.is_reversed, counter.value);
+    for (auto const& counter : style.counter_reset()) {
+        auto value = counter.value;
+        if (counter.is_reversed && !value.has_value())
+            value = reversed_counter_start_value(counter.name, element_reference, style);
+        element_reference.ensure_counters_set().instantiate_a_counter(counter.name, element_reference, counter.is_reversed, value);
+    }
 
     // FIXME: Take style containment into account
     // https://drafts.csswg.org/css-contain-2/#containment-style
@@ -135,6 +261,13 @@ void resolve_counters(DOM::AbstractElement& element_reference)
     // 3. Counter values are incremented (counter-increment).
     for (auto const& counter : style.counter_increment())
         element_reference.ensure_counters_set().increment_a_counter(counter.name, element_reference, *counter.value);
+
+    if (style_has_implicit_list_item_increment(style)) {
+        auto& counters = element_reference.ensure_counters_set();
+        auto innermost_list_item_counter = counters.last_counter_with_name(list_item_counter_name());
+        bool reversed = innermost_list_item_counter.has_value() && innermost_list_item_counter->reversed;
+        counters.increment_a_counter(list_item_counter_name(), element_reference, reversed ? -1 : 1);
+    }
 
     // 4. Counter values are explicitly set (counter-set).
     for (auto const& counter : style.counter_set())

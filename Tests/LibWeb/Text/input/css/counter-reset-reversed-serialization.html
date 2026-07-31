@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        for (const value of [
+            "reversed(sec)",
+            "reversed(sec) 7",
+            "reversed(sec) -3 foo 2",
+            "foo reversed(bar)",
+            "reversed(none)",
+            "reversed(sec) 1.5",
+        ]) {
+            target.style.counterReset = "";
+            target.style.counterReset = value;
+            println(`"${value}" => specified: "${target.style.counterReset}", computed: "${getComputedStyle(target).counterReset}"`);
+        }
+        // reversed() is only valid in counter-reset.
+        target.style.counterIncrement = "";
+        target.style.counterIncrement = "reversed(sec)";
+        println(`counter-increment "reversed(sec)" => "${target.style.counterIncrement}"`);
+        target.style.counterSet = "";
+        target.style.counterSet = "reversed(sec)";
+        println(`counter-set "reversed(sec)" => "${target.style.counterSet}"`);
+    });
+</script>

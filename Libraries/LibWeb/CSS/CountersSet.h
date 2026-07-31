@@ -35,6 +35,7 @@ public:
     Counter& instantiate_a_counter(Utf16FlyString name, DOM::AbstractElement const&, bool reversed, Optional<CounterValue>);
     void set_a_counter(Utf16FlyString name, DOM::AbstractElement const&, CounterValue value);
     void increment_a_counter(Utf16FlyString name, DOM::AbstractElement const&, CounterValue amount);
+    CounterValue counter_value_for_use(Utf16FlyString const& name, DOM::AbstractElement const&);
     void append_copy(Counter const&);
 
     Optional<Counter&> last_counter_with_name(Utf16FlyString const& name);
@@ -53,5 +54,7 @@ private:
 
 void resolve_counters(DOM::AbstractElement&);
 void inherit_counters(DOM::AbstractElement&);
+
+Utf16FlyString const& list_item_counter_name();
 
 }

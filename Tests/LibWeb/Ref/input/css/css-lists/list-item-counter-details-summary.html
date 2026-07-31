@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<link rel="match" href="../../../expected/css/css-lists/list-item-counter-details-summary-ref.html" />
+<style>
+summary::after,
+li::after { content: " [" counter(list-item) "]"; }
+</style>
+<details open>
+    <summary>s</summary>
+    body
+</details>
+<ol>
+    <li>a</li>
+    <li>b</li>
+</ol>

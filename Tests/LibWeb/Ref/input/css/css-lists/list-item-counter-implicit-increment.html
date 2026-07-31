@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<link rel="match" href="../../../expected/css/css-lists/list-item-counter-implicit-increment-ref.html" />
+<style>
+li::after,
+.item::after { content: " [" counter(list-item) "]"; }
+.item { display: list-item; }
+</style>
+<ol>
+    <li>a</li>
+    <li>b</li>
+    <li>c</li>
+</ol>
+<ul>
+    <li>d</li>
+    <li>e</li>
+</ul>
+<div style="counter-reset: list-item">
+    <div class="item">f</div>
+    <div class="item">g</div>
+</div>
