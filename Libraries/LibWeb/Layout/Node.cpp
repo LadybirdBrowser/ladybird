@@ -973,6 +973,7 @@ void NodeWithStyle::synchronize_table_span_data()
 {
     u16 column_span = 1;
     u16 row_span = 1;
+    u32 raw_column_span = 1;
     if (auto const* node = dom_node()) {
         if (auto const* cell = as_if<HTML::HTMLTableCellElement>(*node)) {
             column_span = static_cast<u16>(cell->col_span());
@@ -980,9 +981,12 @@ void NodeWithStyle::synchronize_table_span_data()
         } else if (auto const* column = as_if<HTML::HTMLTableColElement>(*node)) {
             column_span = static_cast<u16>(column->span());
         }
+        if (auto const* element = as_if<HTML::HTMLElement>(*node))
+            raw_column_span = element->get_attribute_value(HTML::AttributeNames::span).to_number<u32>().value_or(1);
     }
     node_data().table_column_span = column_span;
     node_data().table_row_span = row_span;
+    RustFFI::layout_arena_set_raw_table_column_span(arena_handle(), slot_id(this), raw_column_span);
 }
 
 void NodeWithStyle::set_display(CSS::Display display)

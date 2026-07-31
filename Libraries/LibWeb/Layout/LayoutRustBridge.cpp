@@ -993,25 +993,6 @@ StringView formatting_context_type_name(RustFFI::FfiFormattingContextType type)
     VERIFY_NOT_REACHED();
 }
 
-RustFFI::FfiTableBoxFacts build_table_box_facts(NodeWithStyle const& node)
-{
-    auto const& values = node.computed_values();
-
-    u32 raw_column_span = 1;
-    if (auto const* dom_node = node.dom_node()) {
-        if (auto const* element = as_if<HTML::HTMLElement>(*dom_node))
-            raw_column_span = element->get_attribute_value(HTML::AttributeNames::span).to_number<u32>().value_or(1);
-    }
-
-    return {
-        .raw_column_span = raw_column_span,
-        .border_top_color = values.border_top().color.value(),
-        .border_right_color = values.border_right().color.value(),
-        .border_bottom_color = values.border_bottom().color.value(),
-        .border_left_color = values.border_left().color.value(),
-    };
-}
-
 static size_t s_active_layout_pass_count { 0 };
 
 bool layout_pass_currently_running()
@@ -1710,10 +1691,6 @@ RustFFI::FfiLayoutFcCallbacks LayoutRustBridge::formatting_context_callbacks()
                 return false;
             auto cursor_position = dom_node->document().cursor_position();
             return cursor_position && cursor_position->node() == dom_node; },
-        .build_table_box_facts = [](void*, void* node) {
-            auto const* node_with_style = as_if<NodeWithStyle>(*static_cast<Node const*>(node));
-            VERIFY(node_with_style);
-            return build_table_box_facts(*node_with_style); },
         .build_grid_facts = [](void*, void* node) {
             auto const* node_with_style = as_if<NodeWithStyle>(*static_cast<Node const*>(node));
             VERIFY(node_with_style);

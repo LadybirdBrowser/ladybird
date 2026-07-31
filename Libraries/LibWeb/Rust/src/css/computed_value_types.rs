@@ -170,8 +170,8 @@ pub struct BoxValues {
 }
 
 /// One computed border side, mirroring the C++ BorderData member layout:
-/// color, line style, used width. Layout reads the line style and width;
-/// the color rides along because the mirror covers whole sides.
+/// color, line style, used width. Layout reads the line style and width
+/// everywhere, and table border conflict resolution also reads the color.
 #[repr(C)]
 pub struct ComputedBorderSide {
     pub color: u32,

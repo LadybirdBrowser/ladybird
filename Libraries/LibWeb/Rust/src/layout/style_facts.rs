@@ -663,6 +663,10 @@ scalar_accessors! {
         border_right_style: u8 => border_right.line_style,
         border_bottom_style: u8 => border_bottom.line_style,
         border_left_style: u8 => border_left.line_style,
+        border_top_color: u32 => border_top.color,
+        border_right_color: u32 => border_right.color,
+        border_bottom_color: u32 => border_bottom.color,
+        border_left_color: u32 => border_left.color,
     }
     inherited_box: {
         writing_mode: u8 => writing_mode,

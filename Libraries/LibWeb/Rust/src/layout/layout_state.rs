@@ -797,7 +797,6 @@ pub(crate) struct LayoutState {
     anchor_inset_store: AnchorInsetStore,
     replaced_content_facts: PagedStore<crate::layout::FfiReplacedContentFacts>,
     list_item_facts: PagedStore<crate::layout::FfiListItemFacts>,
-    table_facts: PagedStore<FfiTableBoxFacts>,
     grid_facts: PagedStore<GridStyleFacts>,
     line_data: PagedStore<RefCell<LineData>>,
     block_rare_data: PagedStore<RefCell<BlockRareData>>,
@@ -852,7 +851,6 @@ impl LayoutState {
             anchor_inset_store: AnchorInsetStore::default(),
             replaced_content_facts: PagedStore::default(),
             list_item_facts: PagedStore::default(),
-            table_facts: PagedStore::default(),
             grid_facts: PagedStore::default(),
             line_data: PagedStore::default(),
             block_rare_data: PagedStore::default(),
@@ -1223,19 +1221,6 @@ impl LayoutState {
             crate::layout::FfiListItemFacts::default()
         };
         self.list_item_facts.allocate(slot_index, facts);
-        facts
-    }
-
-    pub(crate) fn table_facts(&self, callbacks: &FfiLayoutFcCallbacks, node: Node) -> FfiTableBoxFacts {
-        let slot_index = callbacks.slot_index(node);
-        let facts = self.table_facts.get(slot_index);
-        if let Some(facts) = facts {
-            return *facts;
-        }
-        // SAFETY: The callback table and node are supplied by the live C++
-        // formatting-context shim and remain valid for this layout pass.
-        let facts = unsafe { (callbacks.build_table_box_facts)(callbacks.context, callbacks.shell(node)) };
-        self.table_facts.allocate(slot_index, facts);
         facts
     }
 

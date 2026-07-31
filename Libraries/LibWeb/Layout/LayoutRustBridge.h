@@ -52,7 +52,6 @@ private:
 [[nodiscard]] RustFFI::FfiSizeValue build_style_size_value(CSS::LengthPercentage const&);
 [[nodiscard]] RustFFI::FfiSizeValue build_style_size_value(CSS::LengthPercentageOrAuto const&);
 
-[[nodiscard]] RustFFI::FfiTableBoxFacts build_table_box_facts(NodeWithStyle const&);
 [[nodiscard]] Optional<RustFFI::FfiFormattingContextType> formatting_context_type_created_by_box(Box const&);
 [[nodiscard]] StringView formatting_context_type_name(RustFFI::FfiFormattingContextType);
 [[nodiscard]] bool box_inset_properties_contain_anchor_functions(Box const&);
