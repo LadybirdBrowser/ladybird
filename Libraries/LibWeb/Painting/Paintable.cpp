@@ -984,10 +984,15 @@ Paintable::ScrollHandled Paintable::scroll_by(double delta_x, double delta_y)
 
 Paintable::ScrollHandled Paintable::set_scroll_offset_from_user_input(CSSPixelPoint offset)
 {
-    auto stable_node_id = async_scroll_node_stable_id();
-    auto scroll_offset_before_scroll = scroll_offset();
-    auto scroll_handled = set_scroll_offset(offset);
     auto navigable = document().navigable();
+    auto stable_node_id = async_scroll_node_stable_id();
+
+    auto scroll_offset_before_scroll = scroll_offset();
+
+    if (navigable && stable_node_id.has_value())
+        navigable->abort_in_flight_smooth_scrolls_taken_over_by_user_input(*stable_node_id, scroll_offset_before_scroll);
+
+    auto scroll_handled = set_scroll_offset(offset);
     if (!navigable)
         return scroll_handled;
 
