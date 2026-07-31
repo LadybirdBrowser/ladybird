@@ -7,164 +7,84 @@
 const PAGE_BITS: usize = 4;
 const PAGE_SIZE: usize = 1 << PAGE_BITS;
 const PAGE_MASK: usize = PAGE_SIZE - 1;
-const BUMP_ARENA_CHUNK_SIZE: usize = 4 * 1024;
+const PAGE_TABLE_BITS: usize = 10;
+const PAGE_TABLE_FANOUT: usize = 1 << PAGE_TABLE_BITS;
+const PAGE_TABLE_MASK: usize = PAGE_TABLE_FANOUT - 1;
+const ADDRESSABLE_SLOT_INDEX_COUNT: usize = 1 << (2 * PAGE_TABLE_BITS + PAGE_BITS);
 
-struct ArenaChunk<T> {
-    entries: Box<[MaybeUninit<T>]>,
-    initialized: usize,
-}
-
-impl<T> ArenaChunk<T> {
-    fn new() -> Self {
-        let entry_count = (BUMP_ARENA_CHUNK_SIZE / size_of::<T>()).max(1);
-        let entries = std::iter::repeat_with(MaybeUninit::uninit)
-            .take(entry_count)
-            .collect::<Vec<_>>()
-            .into_boxed_slice();
-        Self {
-            entries,
-            initialized: 0,
-        }
-    }
-
-    fn is_full(&self) -> bool {
-        self.initialized == self.entries.len()
-    }
-
-    fn allocate(&mut self, value: T) -> *mut T {
-        assert!(!self.is_full());
-        let entry = &mut self.entries[self.initialized];
-        self.initialized += 1;
-        entry.write(value)
-    }
-}
-
-impl<T> Drop for ArenaChunk<T> {
-    fn drop(&mut self) {
-        for entry in &mut self.entries[..self.initialized] {
-            // SAFETY: The prefix ending at `initialized` is written exactly
-            // once by allocate(), and no entry is moved out of the arena.
-            unsafe {
-                entry.assume_init_drop();
-            }
-        }
-    }
-}
-
-struct BumpArena<T> {
-    chunks: Vec<ArenaChunk<T>>,
-}
-
-impl<T> Default for BumpArena<T> {
-    fn default() -> Self {
-        Self { chunks: Vec::new() }
-    }
-}
-
-impl<T> BumpArena<T> {
-    fn allocate(&mut self, value: T) -> *mut T {
-        if self.chunks.last().is_none_or(ArenaChunk::is_full) {
-            self.chunks.push(ArenaChunk::new());
-        }
-        self.chunks.last_mut().unwrap().allocate(value)
-    }
-}
-
-struct Page<T> {
-    entries: [*mut T; PAGE_SIZE],
-}
-
-impl<T> Default for Page<T> {
-    fn default() -> Self {
-        Self {
-            entries: [null_mut(); PAGE_SIZE],
-        }
-    }
-}
+type Page<T> = [OnceCell<T>; PAGE_SIZE];
+type PageTable<T> = [OnceCell<Box<Page<T>>>; PAGE_TABLE_FANOUT];
+type PageTableDirectory<T> = [OnceCell<Box<PageTable<T>>>; PAGE_TABLE_FANOUT];
 
 pub(crate) struct PagedStore<T> {
-    inner: RefCell<PagedStoreInner<T>>,
-}
-
-struct PagedStoreInner<T> {
-    pages: Vec<Option<Box<Page<T>>>>,
-    arena: BumpArena<T>,
+    page_table_directory: OnceCell<Box<PageTableDirectory<T>>>,
 }
 
 impl<T> Default for PagedStore<T> {
     fn default() -> Self {
         Self {
-            inner: RefCell::new(PagedStoreInner {
-                pages: Vec::new(),
-                arena: BumpArena::default(),
-            }),
+            page_table_directory: OnceCell::new(),
         }
     }
 }
 
 impl<T> PagedStore<T> {
-    fn entry_pointer(inner: &PagedStoreInner<T>, index: u32) -> *mut T {
+    fn empty_level<Entry, const FANOUT: usize>() -> Box<[OnceCell<Entry>; FANOUT]> {
+        Box::new([const { OnceCell::new() }; FANOUT])
+    }
+
+    fn split_index(index: u32) -> (usize, usize, usize) {
         let index = index as usize;
-        let page_index = index >> PAGE_BITS;
-        let Some(Some(page)) = inner.pages.get(page_index) else {
-            return null_mut();
-        };
-        page.entries[index & PAGE_MASK]
+        (
+            index >> (PAGE_TABLE_BITS + PAGE_BITS),
+            (index >> PAGE_BITS) & PAGE_TABLE_MASK,
+            index & PAGE_MASK,
+        )
     }
 
     #[inline]
     pub(crate) fn get(&self, index: u32) -> Option<&T> {
-        let inner = self.inner.borrow();
-        let entry = Self::entry_pointer(&inner, index);
-        if entry.is_null() {
-            return None;
-        }
-        // SAFETY: Arena entries are Box-stable, never moved or freed before
-        // the store, and the returned borrow is tied to the store.
-        Some(unsafe { &*entry })
+        let (directory_index, page_table_index, entry_index) = Self::split_index(index);
+        self.page_table_directory
+            .get()?
+            .get(directory_index)?
+            .get()?[page_table_index]
+            .get()?[entry_index]
+            .get()
     }
 
     pub(crate) fn allocate(&self, index: u32, value: T) -> &T {
-        let index = index as usize;
-        let page_index = index >> PAGE_BITS;
-        let mut inner = self.inner.borrow_mut();
-        if page_index >= inner.pages.len() {
-            inner.pages.resize_with(page_index + 1, || None);
-        }
-        let entry_index = index & PAGE_MASK;
-        assert!(
-            inner.pages[page_index]
-                .as_ref()
-                .is_none_or(|page| page.entries[entry_index].is_null())
-        );
-        let allocated = inner.arena.allocate(value);
-        let page = inner.pages[page_index].get_or_insert_with(|| Box::new(Page::default()));
-        page.entries[entry_index] = allocated;
-        // SAFETY: The allocation is initialized and remains at this address
-        // until the store is dropped.
-        unsafe { &*allocated }
+        assert!((index as usize) < ADDRESSABLE_SLOT_INDEX_COUNT);
+        let (directory_index, page_table_index, entry_index) = Self::split_index(index);
+        let page_table =
+            self.page_table_directory.get_or_init(Self::empty_level)[directory_index].get_or_init(Self::empty_level);
+        let entry = &page_table[page_table_index].get_or_init(Self::empty_level)[entry_index];
+        let entry_was_vacant = entry.set(value).is_ok();
+        assert!(entry_was_vacant, "PagedStore index {index} allocated twice");
+        entry.get().unwrap()
     }
 
     fn for_each_indexed(&self, mut callback: impl FnMut(u32, &T)) {
-        let entries = {
-            let inner = self.inner.borrow();
-            let mut entries = Vec::new();
-            for (page_index, page) in inner.pages.iter().enumerate() {
-                let Some(page) = page else {
+        let Some(directory) = self.page_table_directory.get() else {
+            return;
+        };
+        for (directory_index, page_table) in directory.iter().enumerate() {
+            let Some(page_table) = page_table.get() else {
+                continue;
+            };
+            for (page_index, page) in page_table.iter().enumerate() {
+                let Some(page) = page.get() else {
                     continue;
                 };
-                for (entry_index, entry) in page.entries.iter().copied().enumerate() {
-                    if !entry.is_null() {
-                        entries.push(((page_index * PAGE_SIZE + entry_index) as u32, entry));
+                for (entry_index, entry) in page.iter().enumerate() {
+                    if let Some(entry) = entry.get() {
+                        let index = (directory_index << (PAGE_TABLE_BITS + PAGE_BITS))
+                            | (page_index << PAGE_BITS)
+                            | entry_index;
+                        callback(index as u32, entry);
                     }
                 }
             }
-            entries
-        };
-        for (index, entry) in entries {
-            // SAFETY: Every collected pointer belongs to this append-only
-            // arena and stays live for the whole store lifetime.
-            callback(index, unsafe { &*entry });
         }
     }
 
