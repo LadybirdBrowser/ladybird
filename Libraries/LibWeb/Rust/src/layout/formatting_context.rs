@@ -86,16 +86,6 @@ pub struct FfiResolvedAnchorInsets {
     pub left: CssPixels,
 }
 
-/// One node's resolved anchor() insets, reported to C++ in a batch after the
-/// pass commits so the computed-values writeback never runs while layout can
-/// still read style.
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct FfiDeferredResolvedAnchorInsets {
-    pub node: *mut c_void,
-    pub resolved: FfiResolvedAnchorInsets,
-}
-
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 struct LineFragmentFacts {
     layout_node: Node,
@@ -2868,8 +2858,6 @@ pub struct FfiLayoutFcCallbacks {
     pub anchor_lookup: unsafe extern "C" fn(*mut c_void, *mut c_void, usize, *const *mut c_void, usize) -> NodeSlotId,
     pub build_anchor_function_facts: unsafe extern "C" fn(*mut c_void, *const c_void) -> FfiAnchorFunctionFacts,
     pub anchor_function_fallback: unsafe extern "C" fn(*mut c_void, *const c_void) -> FfiAnchorFallbackFacts,
-    pub record_deferred_resolved_anchor_insets:
-        unsafe extern "C" fn(*mut c_void, *const FfiDeferredResolvedAnchorInsets, usize),
     pub set_default_scroll_shift: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, bool, bool),
 }
 

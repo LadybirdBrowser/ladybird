@@ -716,10 +716,6 @@ impl AbsposEngine<'_> {
             resolved.left = value.unwrap_or_default();
         }
 
-        // The computed-values writeback waits until the pass has committed;
-        // the pass itself reads the resolved insets from the replaced cache
-        // entries below.
-        self.state.defer_resolved_anchor_insets(&self.callbacks, node, resolved);
         self.state
             .replace_resolved_anchor_insets(&self.callbacks, node, resolved);
 
