@@ -96,7 +96,7 @@ public:
 
     static LengthPercentage from_style_value(NonnullRefPtr<StyleValue const> const& style_value)
     {
-        VERIFY(style_value->is_percentage() || style_value->is_length() || style_value->is_calculated());
+        VERIFY(style_value->is_percentage() || style_value->is_length() || (style_value->is_calculated() && style_value->as_calculated().resolves_to_length()));
         return from_retained_data(StyleValueFFI::rust_style_value_retain(style_value->rust_style_value_data()));
     }
 
