@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:h="http://www.w3.org/1999/xhtml" width="100" height="100">
+  <metadata>
+    <h:link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/paths.html#TheDProperty"/>
+    <h:link rel="match" href="../../../../../expected/wpt-import/svg/path/property/priority-ref.svg"/>
+    <h:meta name="assert" content="Property overrides attribute."/>
+  </metadata>
+  <style>
+    path {
+      stroke-width: 3;
+      stroke: blue;
+    }
+    #top {
+      d: path('M 20 10 h 70');
+    }
+  </style>
+  <path id="top" d="M 10 20 h 70" />
+  <path d="M 10 90 h 70" style="d: path('M 20 80 h 70')" />
+</svg>
