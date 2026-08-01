@@ -26,7 +26,7 @@ TEST_CASE(seek_past_eos)
             EXPECT_EQ(sample_result.error().category(), Media::DecoderErrorCategory::EndOfStream);
             break;
         }
-        last_timestamp = sample_result.release_value().timestamp();
+        last_timestamp = sample_result.release_value().presentation_timestamp();
     }
     EXPECT_EQ(last_timestamp, AK::Duration::from_milliseconds(30126));
 

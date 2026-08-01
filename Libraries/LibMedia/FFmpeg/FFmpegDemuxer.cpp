@@ -558,8 +558,14 @@ DecoderErrorOr<CodedFrame> FFmpegDemuxer::get_next_sample_for_track(Track const&
         if (duration.is_zero() && track.type() == TrackType::Video)
             duration = frame_duration_from_frame_rate(av_guess_frame_rate(&format_context, &stream, nullptr));
 
+        auto presentation_timestamp = track_context.timestamp_offset + time_units_to_duration(packet.pts, stream.time_base);
+        auto decode_timestamp = presentation_timestamp;
+        if (packet.dts != AV_NOPTS_VALUE)
+            decode_timestamp = track_context.timestamp_offset + time_units_to_duration(packet.dts, stream.time_base);
+
         auto sample = CodedFrame(
-            track_context.timestamp_offset + time_units_to_duration(packet.pts, stream.time_base),
+            presentation_timestamp,
+            decode_timestamp,
             duration,
             flags,
             move(packet_data),

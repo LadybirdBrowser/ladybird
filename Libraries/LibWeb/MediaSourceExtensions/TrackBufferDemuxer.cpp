@@ -34,21 +34,21 @@ Media::TimeRanges TrackBufferDemuxer::track_buffer_ranges() const
 void TrackBufferDemuxer::add_coded_frame(Media::CodedFrame frame)
 {
     Sync::MutexLocker locker { m_mutex };
-    auto start = frame.timestamp();
-    auto end = frame.timestamp() + frame.duration();
+    auto start = frame.presentation_timestamp();
+    auto end = frame.presentation_timestamp() + frame.duration();
     m_last_frame_duration = frame.duration();
     m_track_buffer_ranges.add_range(start, end);
 
     // Insert in sorted order by presentation timestamp using binary search.
     // Overlapping frames should have been removed by remove_coded_frames_and_dependants_in_range()
     // before this call.
-    auto timestamp = frame.timestamp();
+    auto timestamp = frame.presentation_timestamp();
     size_t insert_index = 0;
     auto* existing_coded_frame = binary_search(m_coded_frames, timestamp, &insert_index, [](AK::Duration needle, Media::CodedFrame const& frame) {
-        return needle <=> frame.timestamp();
+        return needle <=> frame.presentation_timestamp();
     });
     VERIFY(!existing_coded_frame);
-    if (insert_index < m_coded_frames.size() && m_coded_frames[insert_index].timestamp() < timestamp)
+    if (insert_index < m_coded_frames.size() && m_coded_frames[insert_index].presentation_timestamp() < timestamp)
         insert_index++;
 
     m_total_bytes += frame.data().size();
@@ -74,12 +74,12 @@ void TrackBufferDemuxer::remove_coded_frames_and_dependants_in_range(AK::Duratio
 
     // Find the first frame at or after the start of the range.
     size_t remove_start = 0;
-    while (remove_start < m_coded_frames.size() && m_coded_frames[remove_start].timestamp() < start)
+    while (remove_start < m_coded_frames.size() && m_coded_frames[remove_start].presentation_timestamp() < start)
         remove_start++;
 
     // Find all overlapping frames plus subsequent frames up to the next keyframe.
     size_t remove_end = remove_start;
-    while (remove_end < m_coded_frames.size() && m_coded_frames[remove_end].timestamp() < end)
+    while (remove_end < m_coded_frames.size() && m_coded_frames[remove_end].presentation_timestamp() < end)
         remove_end++;
     if (remove_end <= remove_start)
         return;
@@ -88,8 +88,8 @@ void TrackBufferDemuxer::remove_coded_frames_and_dependants_in_range(AK::Duratio
 
     for (size_t i = remove_start; i < remove_end; i++) {
         auto const& removed_frame = m_coded_frames[i];
-        auto removed_start = removed_frame.timestamp();
-        auto removed_end = (removed_frame.timestamp() + removed_frame.duration());
+        auto removed_start = removed_frame.presentation_timestamp();
+        auto removed_end = (removed_frame.presentation_timestamp() + removed_frame.duration());
         m_track_buffer_ranges.remove_range(removed_start, removed_end);
         m_total_bytes -= removed_frame.data().size();
     }
@@ -125,7 +125,7 @@ bool TrackBufferDemuxer::is_frame_evictable_while_locked(Media::CodedFrame const
         time_range_start = min(time_range_start, m_last_returned_timestamp.value());
         time_range_end = max(time_range_end, m_last_returned_timestamp.value());
     }
-    return frame.timestamp() < time_range_start || frame.timestamp() > time_range_end;
+    return frame.presentation_timestamp() < time_range_start || frame.presentation_timestamp() > time_range_end;
 }
 
 Optional<AK::Duration> TrackBufferDemuxer::earliest_evictable_frame_timestamp(AK::Duration current_time) const
@@ -136,7 +136,7 @@ Optional<AK::Duration> TrackBufferDemuxer::earliest_evictable_frame_timestamp(AK
     auto const& frame = m_coded_frames[0];
     if (!is_frame_evictable_while_locked(frame, current_time))
         return {};
-    return frame.timestamp();
+    return frame.presentation_timestamp();
 }
 
 size_t TrackBufferDemuxer::take_earliest_frame()
@@ -144,7 +144,7 @@ size_t TrackBufferDemuxer::take_earliest_frame()
     Sync::MutexLocker locker { m_mutex };
     VERIFY(!m_reached_end_of_stream);
     auto frame = m_coded_frames.take_first();
-    m_track_buffer_ranges.remove_range(frame.timestamp(), frame.timestamp() + frame.duration());
+    m_track_buffer_ranges.remove_range(frame.presentation_timestamp(), frame.presentation_timestamp() + frame.duration());
     auto bytes = frame.data().size();
     m_total_bytes -= bytes;
     if (m_read_position > 0)
@@ -161,7 +161,7 @@ Optional<AK::Duration> TrackBufferDemuxer::latest_evictable_frame_timestamp(AK::
     auto const& frame = m_coded_frames.last();
     if (!is_frame_evictable_while_locked(frame, current_time))
         return {};
-    return frame.timestamp();
+    return frame.presentation_timestamp();
 }
 
 size_t TrackBufferDemuxer::take_latest_frame()
@@ -169,7 +169,7 @@ size_t TrackBufferDemuxer::take_latest_frame()
     Sync::MutexLocker locker { m_mutex };
     VERIFY(!m_reached_end_of_stream);
     auto frame = m_coded_frames.take_last();
-    m_track_buffer_ranges.remove_range(frame.timestamp(), frame.timestamp() + frame.duration());
+    m_track_buffer_ranges.remove_range(frame.presentation_timestamp(), frame.presentation_timestamp() + frame.duration());
     auto bytes = frame.data().size();
     m_total_bytes -= bytes;
     queue_scan_state_change_dispatch_while_locked();
@@ -222,7 +222,7 @@ bool TrackBufferDemuxer::next_frame_is_in_gap_while_locked() const
         return false;
     if (m_read_position >= m_coded_frames.size())
         return false;
-    auto delta = m_coded_frames[m_read_position].timestamp() - m_last_returned_timestamp.value();
+    auto delta = m_coded_frames[m_read_position].presentation_timestamp() - m_last_returned_timestamp.value();
     return delta > max_gap;
 }
 
@@ -255,7 +255,7 @@ Media::DecoderErrorOr<Media::CodedFrame> TrackBufferDemuxer::get_next_sample_for
     if (error.has_value())
         return error.release_value();
 
-    m_last_returned_timestamp = m_coded_frames[m_read_position].timestamp();
+    m_last_returned_timestamp = m_coded_frames[m_read_position].presentation_timestamp();
     return m_coded_frames[m_read_position++];
 }
 
@@ -277,26 +277,26 @@ AK::Duration TrackBufferDemuxer::select_fast_seek_target_for_track(Media::Track 
 
     size_t nearby_index = 0;
     binary_search(m_coded_frames, target, &nearby_index, [](AK::Duration needle, Media::CodedFrame const& frame) {
-        return needle <=> frame.timestamp();
+        return needle <=> frame.presentation_timestamp();
     });
 
     if (mode == Media::SeekMode::FastBefore) {
-        if (m_coded_frames[nearby_index].timestamp() > target)
+        if (m_coded_frames[nearby_index].presentation_timestamp() > target)
             return target;
         for (auto i = nearby_index; i-- > 0;) {
             if (m_coded_frames[i].is_keyframe())
-                return m_coded_frames[i].timestamp();
+                return m_coded_frames[i].presentation_timestamp();
         }
         return target;
     }
 
     VERIFY(mode == Media::SeekMode::FastAfter);
     auto start = nearby_index;
-    if (m_coded_frames[start].timestamp() < target)
+    if (m_coded_frames[start].presentation_timestamp() < target)
         start++;
     for (auto i = start; i < m_coded_frames.size(); i++) {
         if (m_coded_frames[i].is_keyframe())
-            return m_coded_frames[i].timestamp();
+            return m_coded_frames[i].presentation_timestamp();
     }
     return target;
 }
@@ -316,26 +316,26 @@ Media::DecoderErrorOr<Media::DemuxerSeekResult> TrackBufferDemuxer::seek_to_most
 
         for (size_t i = 0; i < m_coded_frames.size(); i++) {
             auto const& frame = m_coded_frames[i];
-            if (frame.timestamp() >= timestamp)
+            if (frame.presentation_timestamp() >= timestamp)
                 break;
             if (frame.is_keyframe()) {
                 best_position = i;
-                best_timestamp = frame.timestamp();
+                best_timestamp = frame.presentation_timestamp();
             }
         }
 
         auto max_gap = maximum_time_range_gap();
         if (timestamp >= best_timestamp) {
             auto has_gap = [&] {
-                auto prior_timestamp = m_coded_frames[best_position].timestamp();
+                auto prior_timestamp = m_coded_frames[best_position].presentation_timestamp();
                 for (size_t i = best_position + 1; i < m_coded_frames.size(); i++) {
                     auto const& frame = m_coded_frames[i];
-                    auto delta = frame.timestamp() - prior_timestamp;
+                    auto delta = frame.presentation_timestamp() - prior_timestamp;
                     if (delta > max_gap)
                         return true;
-                    if (frame.timestamp() >= timestamp)
+                    if (frame.presentation_timestamp() >= timestamp)
                         break;
-                    prior_timestamp = frame.timestamp();
+                    prior_timestamp = frame.presentation_timestamp();
                 }
                 return timestamp - prior_timestamp > max_gap;
             }();
@@ -343,7 +343,7 @@ Media::DecoderErrorOr<Media::DemuxerSeekResult> TrackBufferDemuxer::seek_to_most
                 break;
         } else if (best_position < m_coded_frames.size()) {
             auto& future_frame = m_coded_frames[best_position];
-            if (future_frame.is_keyframe() && future_frame.timestamp() - timestamp <= max_gap) {
+            if (future_frame.is_keyframe() && future_frame.presentation_timestamp() - timestamp <= max_gap) {
                 best_timestamp = timestamp;
                 break;
             }

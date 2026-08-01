@@ -469,7 +469,7 @@ bool DecodedAudioProducer::ThreadData::handle_seek()
                 }
             } else {
                 auto coded_frame = coded_frame_result.release_value();
-                auto decode_result = m_decoder->receive_coded_data(coded_frame.timestamp(), coded_frame.data());
+                auto decode_result = m_decoder->receive_coded_data(coded_frame);
                 if (decode_result.is_error()) {
                     handle_error(decode_result.release_error());
                     return true;
@@ -546,8 +546,8 @@ void DecodedAudioProducer::ThreadData::push_data_and_decode_a_block()
             return;
         }
     } else {
-        auto sample = sample_result.release_value();
-        auto decode_result = m_decoder->receive_coded_data(sample.timestamp(), sample.data());
+        auto coded_frame = sample_result.release_value();
+        auto decode_result = m_decoder->receive_coded_data(coded_frame);
         if (decode_result.is_error()) {
             set_halting_status_and_wait_for_seek(PipelineStatus::Error, decode_result.release_error());
             return;

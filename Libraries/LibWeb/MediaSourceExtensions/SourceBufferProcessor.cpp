@@ -430,10 +430,10 @@ void SourceBufferProcessor::run_coded_frame_processing(Vector<DemuxedCodedFrame>
         //               of the coded frame's presentation timestamp in seconds.
         //            2. Let decode timestamp be a double precision floating point representation
         //               of the coded frame's decode timestamp in seconds.
-        auto presentation_timestamp = frame.timestamp();
+        auto presentation_timestamp = frame.presentation_timestamp();
         // FIXME: For VP9, decode timestamp equals presentation timestamp. This will need to differ when H.264 is
         //        supported by MSE.
-        auto decode_timestamp = frame.timestamp();
+        auto decode_timestamp = frame.presentation_timestamp();
 
         // 2. Let frame duration be a double precision floating point representation of the coded
         //    frame's duration in seconds.

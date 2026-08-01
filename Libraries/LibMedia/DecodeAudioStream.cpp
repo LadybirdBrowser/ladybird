@@ -111,7 +111,7 @@ DecoderErrorOr<DecodedAudioData> decode_entire_audio_stream(NonnullRefPtr<MediaS
             decoder->signal_end_of_stream();
         } else {
             auto sample = sample_result.release_value();
-            TRY(decoder->receive_coded_data(sample.timestamp(), sample.data()));
+            TRY(decoder->receive_coded_data(sample));
         }
 
         while (true) {

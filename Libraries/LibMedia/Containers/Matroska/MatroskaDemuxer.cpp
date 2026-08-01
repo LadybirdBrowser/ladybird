@@ -198,7 +198,7 @@ DecoderErrorOr<CodedFrame> MatroskaDemuxer::get_next_sample_for_track(Track cons
         }
         VERIFY_NOT_REACHED();
     }();
-    return CodedFrame(timestamp, duration, flags, move(status.frames[status.frame_index++]), aux_data);
+    return CodedFrame(timestamp, timestamp, duration, flags, move(status.frames[status.frame_index++]), aux_data);
 }
 
 DecoderErrorOr<AK::Duration> MatroskaDemuxer::total_duration()

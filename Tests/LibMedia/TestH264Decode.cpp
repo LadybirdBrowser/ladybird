@@ -67,7 +67,7 @@ TEST_CASE(avc_in_mp4_with_reordered_frames)
         auto sample = sample_result.release_value();
         EXPECT(!sample.duration().is_zero());
 
-        MUST(decoder->receive_coded_data(sample.timestamp(), sample.duration(), sample.data()));
+        MUST(decoder->receive_coded_data(sample));
         while (true) {
             auto frame_result = take_decoded_frame();
             if (frame_result.is_error()) {
