@@ -9,11 +9,6 @@
 //! resolves on demand from the stored computed representation, so readers
 //! need no intermediate decoded value.
 
-// NB: The layout engine migrates onto these readers property group by
-// property group; the allowance leaves together with the FfiSizeValue
-// decode path once every group reads through them.
-#![allow(dead_code)]
-
 use crate::css::calc;
 use crate::css::computed_value_types::{
     ComputedGap, ComputedLengthPercentageOrAuto, ComputedSize, ComputedSizeKind, ComputedStyleValueHandle,
@@ -63,14 +58,6 @@ pub(crate) struct LengthPercentageRef<'a> {
 }
 
 impl LengthPercentageRef<'_> {
-    pub(crate) fn is_length(self) -> bool {
-        matches!(self.value, StyleValueData::Length { .. })
-    }
-
-    pub(crate) fn is_percentage(self) -> bool {
-        matches!(self.value, StyleValueData::Percentage { .. })
-    }
-
     pub(crate) fn is_calculated(self) -> bool {
         matches!(self.value, StyleValueData::Calculated { .. })
     }
@@ -238,10 +225,6 @@ impl ComputedLengthPercentageOrAuto {
         self.is_auto
     }
 
-    pub(crate) fn is_length_percentage(&self) -> bool {
-        !self.is_auto
-    }
-
     pub(crate) fn length_percentage(&self) -> Option<LengthPercentageRef<'_>> {
         if self.is_auto {
             return None;
@@ -326,7 +309,6 @@ mod tests {
             unit: centimeter,
         };
         let length = handle_for(&value).length_percentage().unwrap();
-        assert!(length.is_length());
         assert!(!length.contains_percentage());
         // 1cm = 96px/2.54 = 37.795..px rounds to 2419 subpixels.
         assert_eq!(length.absolute_length_to_px().raw_value(), 2419);
@@ -337,7 +319,6 @@ mod tests {
     fn percentage_to_px_truncates_where_lengths_round() {
         let value = StyleValueData::Percentage { value: 90.0 };
         let percentage = handle_for(&value).length_percentage().unwrap();
-        assert!(percentage.is_percentage());
         assert!(percentage.contains_percentage());
         assert_eq!(percentage.as_fraction(), 0.9);
         // 90% of 1px is 57.6 subpixels: the percentage path truncates to 57
@@ -416,7 +397,6 @@ mod tests {
             },
         };
         assert!(auto.is_auto());
-        assert!(!auto.is_length_percentage());
         assert!(!auto.contains_percentage());
         assert_eq!(auto.to_px(CssPixels::from_integer(100)), CssPixels::default());
 
