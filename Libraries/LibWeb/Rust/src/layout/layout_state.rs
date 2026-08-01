@@ -1153,25 +1153,21 @@ impl LayoutState {
         resolved: crate::layout::FfiResolvedAnchorInsets,
     ) {
         let slot_index = callbacks.slot_index(node);
-        let replace = |field: SizeField, is_auto: bool, value: crate::layout::CssPixels| {
-            let value = if is_auto {
-                crate::layout::FfiSizeValue::auto_value()
-            } else {
-                crate::layout::FfiSizeValue::px_value(value)
-            };
-            self.anchor_inset_store.set_override(slot_index, field, value);
+        let replace = |field: InsetField, is_auto: bool, px: crate::layout::CssPixels| {
+            self.anchor_inset_store
+                .set_override(slot_index, field, ResolvedInsetOverride { is_auto, px });
         };
         if resolved.resolves_top {
-            replace(SizeField::InsetTop, resolved.top_is_auto, resolved.top);
+            replace(InsetField::Top, resolved.top_is_auto, resolved.top);
         }
         if resolved.resolves_right {
-            replace(SizeField::InsetRight, resolved.right_is_auto, resolved.right);
+            replace(InsetField::Right, resolved.right_is_auto, resolved.right);
         }
         if resolved.resolves_bottom {
-            replace(SizeField::InsetBottom, resolved.bottom_is_auto, resolved.bottom);
+            replace(InsetField::Bottom, resolved.bottom_is_auto, resolved.bottom);
         }
         if resolved.resolves_left {
-            replace(SizeField::InsetLeft, resolved.left_is_auto, resolved.left);
+            replace(InsetField::Left, resolved.left_is_auto, resolved.left);
         }
     }
 

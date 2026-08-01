@@ -139,10 +139,6 @@ impl FfiSizeValue {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub(crate) enum SizeField {
-    InsetTop,
-    InsetRight,
-    InsetBottom,
-    InsetLeft,
     RowGap,
     ColumnGap,
     TextIndent,
@@ -319,25 +315,32 @@ impl<'a> StyleReader<'a> {
     }
 }
 
-fn anchor_inset_field_index(field: SizeField) -> usize {
-    match field {
-        SizeField::InsetTop => 0,
-        SizeField::InsetRight => 1,
-        SizeField::InsetBottom => 2,
-        SizeField::InsetLeft => 3,
-        _ => unreachable!(),
-    }
+/// The four inset properties; the discriminant indexes the anchor-inset
+/// store fields.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum InsetField {
+    Top = 0,
+    Right = 1,
+    Bottom = 2,
+    Left = 3,
+}
+
+/// A resolved px-or-auto inset written back by anchor resolution.
+#[derive(Clone, Copy)]
+pub(crate) struct ResolvedInsetOverride {
+    pub(crate) is_auto: bool,
+    pub(crate) px: CssPixels,
 }
 
 #[derive(Default)]
 struct AnchorInsetField {
-    /// Resolved px/auto value written by replace_resolved_anchor_insets. It
-    /// takes precedence over every style decode and reports
-    /// contains_anchor_function == false; the abspos engine's early-out on
-    /// re-entry depends on both properties. Never carries a calc pointer.
-    resolved_override: Cell<Option<FfiSizeValue>>,
+    /// Resolved value written by replace_resolved_anchor_insets. It takes
+    /// precedence over every style read and reports
+    /// contains_anchor_function() == false; the abspos engine's early-out on
+    /// re-entry depends on both properties.
+    resolved_override: Cell<Option<ResolvedInsetOverride>>,
     /// Memoized in-crate calculated wrapper for a bare anchor() inset: the
-    /// single owner of the Arc whose pointer the returned size values borrow.
+    /// single owner of the Arc that the returned inset values borrow.
     /// Written at most once and never replaced or dropped before the owning
     /// LayoutState drops.
     wrapper: std::cell::OnceCell<std::sync::Arc<crate::css::style_value::StyleValueData>>,
@@ -366,40 +369,90 @@ impl AnchorInsetStore {
             .unwrap_or_else(|| self.slots.allocate(slot_index, AnchorInsetSlot::default()))
     }
 
-    fn override_for(&self, slot_index: u32, field: SizeField) -> Option<FfiSizeValue> {
+    fn override_for(&self, slot_index: u32, field: InsetField) -> Option<ResolvedInsetOverride> {
         if !self.any_overrides.get() {
             return None;
         }
-        self.slots.get(slot_index)?.fields[anchor_inset_field_index(field)]
-            .resolved_override
-            .get()
+        self.slots.get(slot_index)?.fields[field as usize].resolved_override.get()
     }
 
-    fn memoized_anchor_inset_value(
+    fn memoized_bare_anchor_wrapper(
         &self,
         slot_index: u32,
-        field: SizeField,
+        field: InsetField,
         build_wrapper: impl FnOnce() -> std::sync::Arc<crate::css::style_value::StyleValueData>,
-    ) -> FfiSizeValue {
-        let field = &self.slot(slot_index).fields[anchor_inset_field_index(field)];
-        let calc = std::sync::Arc::as_ptr(field.wrapper.get_or_init(build_wrapper)).cast();
-        FfiSizeValue {
-            kind: FfiSizeKind::Calc as u8,
+    ) -> &crate::css::style_value::StyleValueData {
+        self.slot(slot_index).fields[field as usize]
+            .wrapper
+            .get_or_init(build_wrapper)
+    }
+
+    pub(crate) fn set_override(&self, slot_index: u32, field: InsetField, value: ResolvedInsetOverride) {
+        self.slot(slot_index).fields[field as usize].resolved_override.set(Some(value));
+        self.any_overrides.set(true);
+    }
+}
+
+#[derive(Clone, Copy)]
+pub(crate) enum InsetValue<'a> {
+    FromStyle(&'static ComputedLengthPercentageOrAuto),
+    BareAnchor(&'a crate::css::style_value::StyleValueData),
+    Resolved(ResolvedInsetOverride),
+}
+
+impl InsetValue<'_> {
+    pub(crate) fn auto_value() -> Self {
+        Self::Resolved(ResolvedInsetOverride {
+            is_auto: true,
             px: CssPixels::default(),
-            fraction: 0.0,
-            calc,
-            contains_percentage: false,
-            contains_anchor_function: true,
-            fit_content_has_argument: false,
+        })
+    }
+
+    pub(crate) fn is_auto(self) -> bool {
+        match self {
+            Self::FromStyle(value) => value.is_auto(),
+            Self::BareAnchor(_) => false,
+            Self::Resolved(resolved) => resolved.is_auto,
         }
     }
 
-    pub(crate) fn set_override(&self, slot_index: u32, field: SizeField, value: FfiSizeValue) {
-        debug_assert!(value.calc.is_null());
-        self.slot(slot_index).fields[anchor_inset_field_index(field)]
-            .resolved_override
-            .set(Some(value));
-        self.any_overrides.set(true);
+    pub(crate) fn to_px(self, reference: CssPixels) -> CssPixels {
+        match self {
+            Self::FromStyle(value) => value.to_px(reference),
+            Self::BareAnchor(wrapper) => resolve_calc_to_px(std::ptr::from_ref(wrapper).cast(), reference),
+            Self::Resolved(resolved) if resolved.is_auto => CssPixels::default(),
+            Self::Resolved(resolved) => resolved.px,
+        }
+    }
+
+    pub(crate) fn contains_percentage(self) -> bool {
+        match self {
+            Self::FromStyle(value) => value.contains_percentage(),
+            Self::BareAnchor(_) | Self::Resolved(_) => false,
+        }
+    }
+
+    pub(crate) fn contains_anchor_function(self) -> bool {
+        match self {
+            Self::FromStyle(value) => value
+                .length_percentage()
+                .is_some_and(|length_percentage| length_percentage.contains_anchor_function()),
+            Self::BareAnchor(_) => true,
+            Self::Resolved(_) => false,
+        }
+    }
+
+    /// The calculated style value carrying the anchor() function, for the
+    /// abspos engine's anchor-aware resolution.
+    pub(crate) fn anchor_bearing_calculated(self) -> *const c_void {
+        match self {
+            Self::FromStyle(value) => value
+                .length_percentage()
+                .expect("anchor-bearing inset must hold a style value")
+                .calculated_pointer(),
+            Self::BareAnchor(wrapper) => std::ptr::from_ref(wrapper).cast(),
+            Self::Resolved(_) => unreachable!("resolved inset overrides never carry anchor functions"),
+        }
     }
 }
 
@@ -490,14 +543,6 @@ fn decode_computed_size(value: &crate::layout::ComputedSize) -> FfiSizeValue {
             kind: FfiSizeKind::None_ as u8,
             ..FfiSizeValue::auto_value()
         },
-    }
-}
-
-fn decode_length_percentage_or_auto(value: &crate::layout::ComputedLengthPercentageOrAuto) -> FfiSizeValue {
-    if value.is_auto {
-        FfiSizeValue::auto_value()
-    } else {
-        decode_length_percentage(&value.value)
     }
 }
 
@@ -630,30 +675,64 @@ impl<'a> StyleValues<'a> {
         }
     }
 
-    fn anchor_inset_handle(self, field: SizeField) -> Option<&'a crate::layout::ComputedStyleValueHandle> {
+    fn anchor_inset_handle(self, field: InsetField) -> Option<&'a crate::layout::ComputedStyleValueHandle> {
         let values = self.reader.surround();
         let handle = match field {
-            SizeField::InsetTop => &values.top_anchor_inset,
-            SizeField::InsetRight => &values.right_anchor_inset,
-            SizeField::InsetBottom => &values.bottom_anchor_inset,
-            SizeField::InsetLeft => &values.left_anchor_inset,
-            _ => unreachable!(),
+            InsetField::Top => &values.top_anchor_inset,
+            InsetField::Right => &values.right_anchor_inset,
+            InsetField::Bottom => &values.bottom_anchor_inset,
+            InsetField::Left => &values.left_anchor_inset,
         };
         (!handle.pointer.is_null()).then_some(handle)
     }
 
+    fn inset_value(self, field: InsetField) -> InsetValue<'a> {
+        // The resolved override must mask BOTH anchor representations: a
+        // bare anchor() inset carries the surround anchor handle below,
+        // while a calc() containing anchor() has a null handle and reads
+        // from the stored inset value with contains_anchor_function() set.
+        if let Some(resolved) = self.anchor_insets.override_for(self.slot_index, field) {
+            return InsetValue::Resolved(resolved);
+        }
+        if let Some(handle) = self.anchor_inset_handle(field) {
+            return InsetValue::BareAnchor(self.anchor_insets.memoized_bare_anchor_wrapper(
+                self.slot_index,
+                field,
+                || {
+                    // SAFETY: The handle is non-null, and the node's style
+                    // group payload keeps the anchor value alive for the
+                    // synchronous layout pass.
+                    unsafe { crate::css::calc::create_anchor_inset_calculated(handle.pointer.cast()) }
+                },
+            ));
+        }
+        let values = self.reader.surround();
+        InsetValue::FromStyle(match field {
+            InsetField::Top => &values.inset.top,
+            InsetField::Right => &values.inset.right,
+            InsetField::Bottom => &values.inset.bottom,
+            InsetField::Left => &values.inset.left,
+        })
+    }
+
+    pub(crate) fn inset_top(self) -> InsetValue<'a> {
+        self.inset_value(InsetField::Top)
+    }
+
+    pub(crate) fn inset_right(self) -> InsetValue<'a> {
+        self.inset_value(InsetField::Right)
+    }
+
+    pub(crate) fn inset_bottom(self) -> InsetValue<'a> {
+        self.inset_value(InsetField::Bottom)
+    }
+
+    pub(crate) fn inset_left(self) -> InsetValue<'a> {
+        self.inset_value(InsetField::Left)
+    }
+
     fn direct_size(self, field: SizeField) -> FfiSizeValue {
         match field {
-            SizeField::InsetTop | SizeField::InsetRight | SizeField::InsetBottom | SizeField::InsetLeft => {
-                let values = self.reader.surround();
-                decode_length_percentage_or_auto(match field {
-                    SizeField::InsetTop => &values.inset.top,
-                    SizeField::InsetRight => &values.inset.right,
-                    SizeField::InsetBottom => &values.inset.bottom,
-                    SizeField::InsetLeft => &values.inset.left,
-                    _ => unreachable!(),
-                })
-            }
             SizeField::RowGap | SizeField::ColumnGap => {
                 let values = self.reader.alignment();
                 let gap = if field == SizeField::RowGap {
@@ -678,32 +757,6 @@ impl<'a> StyleValues<'a> {
         }
     }
 
-    fn size_value(self, field: SizeField) -> FfiSizeValue {
-        if matches!(
-            field,
-            SizeField::InsetTop | SizeField::InsetRight | SizeField::InsetBottom | SizeField::InsetLeft
-        ) {
-            // The resolved override must mask BOTH anchor representations: a
-            // bare anchor() inset carries the surround anchor handle below,
-            // while a calc() containing anchor() has a null handle and
-            // decodes through direct_size with contains_anchor_function set.
-            if let Some(value) = self.anchor_insets.override_for(self.slot_index, field) {
-                return value;
-            }
-            if let Some(handle) = self.anchor_inset_handle(field) {
-                return self
-                    .anchor_insets
-                    .memoized_anchor_inset_value(self.slot_index, field, || {
-                        // SAFETY: The handle is non-null, and the node's style
-                        // group payload keeps the anchor value alive for the
-                        // synchronous layout pass.
-                        unsafe { crate::css::calc::create_anchor_inset_calculated(handle.pointer.cast()) }
-                    });
-            }
-        }
-        self.direct_size(field)
-    }
-
     pub(crate) fn with_vertical_align_keyword(mut self, keyword: u8) -> Self {
         self.vertical_align_override = keyword as u16;
         self
@@ -722,7 +775,7 @@ impl<'a> StyleValues<'a> {
     }
 
     pub(crate) fn vertical_align_value(self) -> FfiSizeValue {
-        self.size_value(SizeField::VerticalAlign)
+        self.direct_size(SizeField::VerticalAlign)
     }
 
     pub(crate) fn has_position_anchor(self) -> bool {
@@ -898,17 +951,13 @@ macro_rules! size_accessors {
     ($($name:ident => $field:ident,)+) => {
         impl StyleValues<'_> {
             $(pub(crate) fn $name(self) -> FfiSizeValue {
-                self.size_value(SizeField::$field)
+                self.direct_size(SizeField::$field)
             })+
         }
     };
 }
 
 size_accessors! {
-    inset_top => InsetTop,
-    inset_right => InsetRight,
-    inset_bottom => InsetBottom,
-    inset_left => InsetLeft,
     row_gap => RowGap,
     column_gap => ColumnGap,
     text_indent => TextIndent,

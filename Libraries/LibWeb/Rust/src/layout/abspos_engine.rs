@@ -573,14 +573,14 @@ impl AbsposEngine<'_> {
 
     fn resolve_anchor_value(
         &self,
-        value: FfiSizeValue,
+        value: InsetValue,
         positioned_box: Node,
         containing_block: Node,
         axis: AnchorValueAxis,
         resolution_state: &mut AnchorResolutionState,
     ) -> Option<CssPixels> {
-        assert!(value.contains_anchor_function);
-        assert!(!value.calc.is_null());
+        assert!(value.contains_anchor_function());
+        let calculated = value.anchor_bearing_calculated();
         let mut callback_context = AnchorCalcCallbackContext {
             engine: self,
             positioned_box,
@@ -594,7 +594,7 @@ impl AbsposEngine<'_> {
         // all callback state remains live for this synchronous resolution.
         let result = unsafe {
             resolve_calc_with_external_resolutions(
-                value.calc,
+                calculated,
                 axis.containing_block_extent,
                 (&raw mut callback_context).cast(),
                 Some(resolve_anchor_non_math_function),
@@ -617,10 +617,10 @@ impl AbsposEngine<'_> {
         }
 
         let style = self.style(node);
-        let top_contains_anchor = style.inset_top().contains_anchor_function;
-        let right_contains_anchor = style.inset_right().contains_anchor_function;
-        let bottom_contains_anchor = style.inset_bottom().contains_anchor_function;
-        let left_contains_anchor = style.inset_left().contains_anchor_function;
+        let top_contains_anchor = style.inset_top().contains_anchor_function();
+        let right_contains_anchor = style.inset_right().contains_anchor_function();
+        let bottom_contains_anchor = style.inset_bottom().contains_anchor_function();
+        let left_contains_anchor = style.inset_left().contains_anchor_function();
         if !top_contains_anchor && !right_contains_anchor && !bottom_contains_anchor && !left_contains_anchor {
             return;
         }
@@ -827,7 +827,7 @@ unsafe extern "C" fn resolve_anchor_non_math_function(context: *mut c_void, shel
 
 type AutoPx = Option<CssPixels>;
 
-fn resolve_or_auto(value: FfiSizeValue, basis: CssPixels) -> AutoPx {
+fn resolve_or_auto(value: InsetValue, basis: CssPixels) -> AutoPx {
     (!value.is_auto()).then(|| value.to_px(basis))
 }
 
@@ -1861,10 +1861,10 @@ impl<'pass> AbsposEngine<'pass> {
             return;
         }
         let initial_style = self.style(node);
-        if initial_style.inset_top().contains_anchor_function
-            || initial_style.inset_right().contains_anchor_function
-            || initial_style.inset_bottom().contains_anchor_function
-            || initial_style.inset_left().contains_anchor_function
+        if initial_style.inset_top().contains_anchor_function()
+            || initial_style.inset_right().contains_anchor_function()
+            || initial_style.inset_bottom().contains_anchor_function()
+            || initial_style.inset_left().contains_anchor_function()
         {
             self.resolve_anchor_insets(node);
         }
@@ -1873,7 +1873,7 @@ impl<'pass> AbsposEngine<'pass> {
             return;
         }
 
-        let resolve_opposing = |first: FfiSizeValue, second: FfiSizeValue, basis: CssPixels| {
+        let resolve_opposing = |first: InsetValue, second: InsetValue, basis: CssPixels| {
             let resolved_first = first.to_px(basis);
             let resolved_second = second.to_px(basis);
             if first.is_auto() && second.is_auto() {
@@ -1890,8 +1890,8 @@ impl<'pass> AbsposEngine<'pass> {
             containing_block_size.inline_size,
         );
 
-        let treat_percentage_as_auto = |value: FfiSizeValue| {
-            if !value.contains_percentage {
+        let treat_percentage_as_auto = |value: InsetValue<'pass>| -> InsetValue<'pass> {
+            if !value.contains_percentage() {
                 return value;
             }
             let mut containing_block = self.callbacks.containing_block(node);
@@ -1903,7 +1903,7 @@ impl<'pass> AbsposEngine<'pass> {
                 containing_block = self.callbacks.containing_block(containing_block);
             }
             if !containing_block.is_invalid() && !self.used(containing_block).has_definite_block_size() {
-                FfiSizeValue::auto_value()
+                InsetValue::auto_value()
             } else {
                 value
             }
