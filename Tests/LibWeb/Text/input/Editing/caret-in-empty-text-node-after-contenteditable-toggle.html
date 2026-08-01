@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div></div>
+<script>
+test(() => {
+    // An empty text node produces a zero-width line box fragment only while its parent is an
+    // editing host, and that fact is stamped on the layout node. Toggling contenteditable at
+    // runtime must therefore refresh the stamp and relayout, or the caret would have no
+    // fragment to anchor to until some unrelated relayout runs.
+    const host = document.querySelector("div");
+    host.appendChild(document.createTextNode(""));
+    host.getBoundingClientRect();
+
+    host.setAttribute("contenteditable", "");
+    host.focus();
+    getSelection().collapse(host.firstChild, 0);
+    const caret_rect = internals.currentCaretRect();
+    println(`caret rect exists in freshly editable empty text node: ${caret_rect !== null}`);
+    println(`caret has line height: ${caret_rect !== null && caret_rect.height > 0}`);
+
+    const height_while_editable = host.getBoundingClientRect().height;
+    host.removeAttribute("contenteditable");
+    const height_after_removal = host.getBoundingClientRect().height;
+    println(`empty editing host has line height while editable: ${height_while_editable > 0}`);
+    println(`empty div collapses after contenteditable is removed: ${height_after_removal === 0}`);
+});
+</script>

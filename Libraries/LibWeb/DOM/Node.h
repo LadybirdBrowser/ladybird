@@ -67,6 +67,7 @@ enum class ShouldComputeRole {
 
 #define ENUMERATE_SET_NEEDS_LAYOUT_REASONS(X)         \
     X(CharacterDataReplaceData)                       \
+    X(EditableStateChange)                            \
     X(FinalizeACrossDocumentNavigation)               \
     X(GeneratedContentImageFinishedLoading)           \
     X(HTMLCanvasElementWidthOrHeightChange)           \
