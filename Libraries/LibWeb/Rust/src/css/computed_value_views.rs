@@ -364,6 +364,11 @@ scalar_accessors! {
         unicode_bidi: u8 => unicode_bidi,
         grid_auto_flow_row: bool => grid_auto_flow_row,
         grid_auto_flow_dense: bool => grid_auto_flow_dense,
+        has_column_count: bool => column_count_has_value,
+        column_count: i32 => column_count,
+        has_size_containment: bool => size_containment,
+        is_size_container: bool => is_size_container,
+        aspect_ratio_uses_natural_when_available: bool => aspect_ratio.use_natural_aspect_ratio_if_available,
     }
     border_facts: {
         border_top_width: CssPixels => border_top.width,
@@ -396,11 +401,19 @@ scalar_accessors! {
         word_break: u8 => word_break,
         letter_spacing: CssPixels => letter_spacing,
         word_spacing: CssPixels => word_spacing,
+        text_indent_each_line: bool => text_indent.each_line,
+        text_indent_hanging: bool => text_indent.hanging,
+        tab_size_is_number: bool => tab_size_is_number,
+        tab_size: CssPixels => tab_size_length,
+        tab_size_number: f64 => tab_size_number,
     }
     font_facts: {
         font_variant_emoji: u8 => font_variant_emoji,
         line_height: CssPixels => line_height_used,
         font_size: CssPixels => font_size,
+        font_ascent: f32 => font_ascent,
+        font_descent: f32 => font_descent,
+        font_x_height: f32 => font_x_height,
     }
     alignment: {
         flex_direction: u8 => flex_direction,
@@ -414,6 +427,48 @@ scalar_accessors! {
         justify_content: u8 => justify_content,
         justify_items: u8 => justify_items,
         justify_self: u8 => justify_self,
+        flex_basis_is_content: bool => flex_basis.is_content,
+    }
+}
+
+macro_rules! reference_accessors {
+    ($($group:ident: { $($name:ident: $ty:ty => $($field:ident).+,)+ })+) => {
+        impl<'a> ComputedValuesView<'a> {
+            $($(
+                #[inline]
+                pub(crate) fn $name(self) -> &'a $ty {
+                    &self.$group().$($field).+
+                }
+            )+)+
+        }
+    };
+}
+
+reference_accessors! {
+    sizing: {
+        width: ComputedSize => width,
+        height: ComputedSize => height,
+        min_width: ComputedSize => min_width,
+        min_height: ComputedSize => min_height,
+        max_width: ComputedSize => max_width,
+        max_height: ComputedSize => max_height,
+    }
+    box_values: {
+        column_width: ComputedSize => column_width,
+    }
+    surround: {
+        margin_top: ComputedLengthPercentageOrAuto => margin.top,
+        margin_right: ComputedLengthPercentageOrAuto => margin.right,
+        margin_bottom: ComputedLengthPercentageOrAuto => margin.bottom,
+        margin_left: ComputedLengthPercentageOrAuto => margin.left,
+        padding_top: ComputedLengthPercentageOrAuto => padding.top,
+        padding_right: ComputedLengthPercentageOrAuto => padding.right,
+        padding_bottom: ComputedLengthPercentageOrAuto => padding.bottom,
+        padding_left: ComputedLengthPercentageOrAuto => padding.left,
+    }
+    alignment: {
+        row_gap: ComputedGap => row_gap,
+        column_gap: ComputedGap => column_gap,
     }
 }
 
@@ -561,14 +616,6 @@ impl<'a> ComputedValuesView<'a> {
         false
     }
 
-    pub(crate) fn row_gap(self) -> &'a ComputedGap {
-        &self.alignment().row_gap
-    }
-
-    pub(crate) fn column_gap(self) -> &'a ComputedGap {
-        &self.alignment().column_gap
-    }
-
     pub(crate) fn x(self) -> LengthPercentageRef<'a> {
         self.svg_reset()
             .x
@@ -627,18 +674,6 @@ impl<'a> ComputedValuesView<'a> {
         list
     }
 
-    pub(crate) fn font_ascent(self) -> f32 {
-        self.font_facts().font_ascent
-    }
-
-    pub(crate) fn font_descent(self) -> f32 {
-        self.font_facts().font_descent
-    }
-
-    pub(crate) fn font_x_height(self) -> f32 {
-        self.font_facts().font_x_height
-    }
-
     pub(crate) fn box_sizing_for_aspect_ratio(self) -> u8 {
         let values = self.box_values();
         if values.aspect_ratio.use_natural_aspect_ratio_if_available {
@@ -660,14 +695,6 @@ impl<'a> ComputedValuesView<'a> {
         CssPixels::from_raw(self.inherited_table().border_spacing_vertical)
     }
 
-    pub(crate) fn aspect_ratio_uses_natural_when_available(self) -> bool {
-        self.box_values().aspect_ratio.use_natural_aspect_ratio_if_available
-    }
-
-    pub(crate) fn flex_basis_is_content(self) -> bool {
-        self.alignment().flex_basis.is_content
-    }
-
     pub(crate) fn flex_basis(self) -> &'a ComputedSize {
         let flex_basis = &self.alignment().flex_basis;
         if flex_basis.is_content {
@@ -675,101 +702,5 @@ impl<'a> ComputedValuesView<'a> {
         } else {
             &flex_basis.size
         }
-    }
-
-    pub(crate) fn width(self) -> &'a ComputedSize {
-        &self.sizing().width
-    }
-
-    pub(crate) fn height(self) -> &'a ComputedSize {
-        &self.sizing().height
-    }
-
-    pub(crate) fn min_width(self) -> &'a ComputedSize {
-        &self.sizing().min_width
-    }
-
-    pub(crate) fn min_height(self) -> &'a ComputedSize {
-        &self.sizing().min_height
-    }
-
-    pub(crate) fn max_width(self) -> &'a ComputedSize {
-        &self.sizing().max_width
-    }
-
-    pub(crate) fn max_height(self) -> &'a ComputedSize {
-        &self.sizing().max_height
-    }
-
-    pub(crate) fn column_width(self) -> &'a ComputedSize {
-        &self.box_values().column_width
-    }
-
-    pub(crate) fn margin_top(self) -> &'a ComputedLengthPercentageOrAuto {
-        &self.surround().margin.top
-    }
-
-    pub(crate) fn margin_right(self) -> &'a ComputedLengthPercentageOrAuto {
-        &self.surround().margin.right
-    }
-
-    pub(crate) fn margin_bottom(self) -> &'a ComputedLengthPercentageOrAuto {
-        &self.surround().margin.bottom
-    }
-
-    pub(crate) fn margin_left(self) -> &'a ComputedLengthPercentageOrAuto {
-        &self.surround().margin.left
-    }
-
-    pub(crate) fn padding_top(self) -> &'a ComputedLengthPercentageOrAuto {
-        &self.surround().padding.top
-    }
-
-    pub(crate) fn padding_right(self) -> &'a ComputedLengthPercentageOrAuto {
-        &self.surround().padding.right
-    }
-
-    pub(crate) fn padding_bottom(self) -> &'a ComputedLengthPercentageOrAuto {
-        &self.surround().padding.bottom
-    }
-
-    pub(crate) fn padding_left(self) -> &'a ComputedLengthPercentageOrAuto {
-        &self.surround().padding.left
-    }
-
-    pub(crate) fn has_column_count(self) -> bool {
-        self.box_values().column_count_has_value
-    }
-
-    pub(crate) fn column_count(self) -> i32 {
-        self.box_values().column_count
-    }
-
-    pub(crate) fn has_size_containment(self) -> bool {
-        self.box_values().size_containment
-    }
-
-    pub(crate) fn is_size_container(self) -> bool {
-        self.box_values().is_size_container
-    }
-
-    pub(crate) fn text_indent_each_line(self) -> bool {
-        self.inherited_text_facts().text_indent.each_line
-    }
-
-    pub(crate) fn text_indent_hanging(self) -> bool {
-        self.inherited_text_facts().text_indent.hanging
-    }
-
-    pub(crate) fn tab_size_is_number(self) -> bool {
-        self.inherited_text_facts().tab_size_is_number
-    }
-
-    pub(crate) fn tab_size(self) -> CssPixels {
-        self.inherited_text_facts().tab_size_length
-    }
-
-    pub(crate) fn tab_size_number(self) -> f64 {
-        self.inherited_text_facts().tab_size_number
     }
 }
