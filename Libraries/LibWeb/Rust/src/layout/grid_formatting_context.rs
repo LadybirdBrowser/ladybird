@@ -1162,7 +1162,7 @@ impl<'pass> GridFormattingContext<'pass> {
     /// outlives the pass because the node's ComputedValues keep it alive and
     /// style containers are only replaced between passes.
     fn grid_style(&self, node: Node) -> &'static GridValues {
-        StyleValues::from_payloads(self.callbacks.style_payloads(node)).grid_values()
+        ComputedValuesView::new(&self.callbacks.style_payloads(node).groups).grid_values()
     }
 
     fn sizing(&self) -> SizingContext<'_> {
