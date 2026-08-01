@@ -634,7 +634,7 @@ void SourceBufferProcessor::run_coded_frame_eviction(size_t new_data_size, AK::D
         }
         if (!oldest_track_buffer)
             break;
-        bytes_evicted += oldest_track_buffer->demuxer().take_earliest_frame();
+        bytes_evicted += oldest_track_buffer->demuxer().take_earliest_frame_and_dependants();
     }
 
     while (bytes_evicted < bytes_to_evict) {
