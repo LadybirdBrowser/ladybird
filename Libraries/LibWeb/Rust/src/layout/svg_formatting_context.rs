@@ -73,17 +73,6 @@ pub struct FfiSvgElementFacts {
     pub is_document_element: bool,
     pub document_is_decoded_svg: bool,
     pub is_fit_to_view_box: bool,
-    pub is_svg_svg_element: bool,
-    pub is_container_element: bool,
-    pub is_graphics_box: bool,
-    pub is_geometry_box: bool,
-    pub is_text_box: bool,
-    pub is_text_path_box: bool,
-    pub is_image_box: bool,
-    pub is_foreign_object_box: bool,
-    pub is_mask_box: bool,
-    pub is_clip_box: bool,
-    pub is_pattern_box: bool,
     pub has_active_view_box: bool,
     pub active_view_box: FfiSvgViewBox,
     pub has_own_view_box: bool,
@@ -127,6 +116,36 @@ pub(crate) const MEET_OR_SLICE_MEET: u8 = 0;
 pub(crate) const MEET_OR_SLICE_SLICE: u8 = 1;
 const SVG_UNITS_OBJECT_BOUNDING_BOX: u8 = 0;
 const SVG_UNITS_USER_SPACE_ON_USE: u8 = 1;
+
+fn kind_is_svg_graphics_box(kind: NodeKind) -> bool {
+    matches!(
+        kind,
+        NodeKind::SVGGraphicsBox
+            | NodeKind::SVGGeometryBox
+            | NodeKind::SVGImageBox
+            | NodeKind::SVGMaskBox
+            | NodeKind::SVGTextBox
+            | NodeKind::SVGTextPathBox
+    )
+}
+
+fn kind_is_svg_container_element(kind: NodeKind) -> bool {
+    // SVGGraphicsBox is the concrete kind used for <a>, <g>, <switch>,
+    // <symbol>, and <use>.
+    // FIXME: Include clipPath, defs, marker, and pattern once they are
+    // treated as container elements by SVG layout.
+    matches!(
+        kind,
+        NodeKind::SVGGraphicsBox | NodeKind::SVGMaskBox | NodeKind::SVGSVGBox
+    )
+}
+
+fn kind_is_svg_resource_box(kind: NodeKind) -> bool {
+    matches!(
+        kind,
+        NodeKind::SVGMaskBox | NodeKind::SVGClipBox | NodeKind::SVGPatternBox
+    )
+}
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 struct SvgCssPixelRect {
@@ -415,6 +434,10 @@ impl<'pass> SvgFormattingContext<'pass> {
         self.callbacks.node_data(node).parent
     }
 
+    fn node_kind(&self, node: Node) -> NodeKind {
+        self.callbacks.node_data(node).kind
+    }
+
     fn svg_facts(&self, node: Node) -> FfiSvgElementFacts {
         // SAFETY: The callback snapshots plain data from a live node and
         // returns no borrowed storage.
@@ -484,17 +507,10 @@ impl<'pass> SvgFormattingContext<'pass> {
         }
     }
 
-    fn first_child_matching(
-        &self,
-        node: Node,
-        predicate: impl Fn(FfiSvgElementFacts) -> bool,
-    ) -> Option<Node> {
+    fn first_child_of_kind(&self, node: Node, kind: NodeKind) -> Option<Node> {
         let mut result = None;
         self.for_each_child(node, |child| {
-            if result.is_none()
-                && self.state.node_facts(&self.callbacks, child).is_box()
-                && predicate(self.svg_facts(child))
-            {
+            if result.is_none() && self.node_kind(child) == kind {
                 result = Some(child);
             }
         });
@@ -504,6 +520,7 @@ impl<'pass> SvgFormattingContext<'pass> {
     fn run(&mut self, frame: &mut FcFrame, input: LayoutInput) {
         // NOTE: SVG doesn't have a "formatting context" in the spec, but this is the most
         //       obvious way to drive SVG layout in our engine at the moment.
+        let kind = self.node_kind(self.box_);
         let facts = self.svg_facts(self.box_);
         let used_pointer = self.used_values(self.box_);
         let used = used_pointer;
@@ -527,7 +544,7 @@ impl<'pass> SvgFormattingContext<'pass> {
         used.has_definite_inline_size.set(true);
         used.has_definite_block_size.set(true);
 
-        if self.state.node_facts(&self.callbacks, self.box_).is_svg_svg_box() {
+        if kind == NodeKind::SVGSVGBox {
             self.set_svg_viewport_size(
                 self.box_,
                 FfiCssPixelSize {
@@ -549,8 +566,7 @@ impl<'pass> SvgFormattingContext<'pass> {
             }
         }
 
-        if self.state.node_facts(&self.callbacks, self.box_).is_svg_svg_box()
-            && self.computed_transforms(self.box_).is_none()
+        if kind == NodeKind::SVGSVGBox && self.computed_transforms(self.box_).is_none()
             && let Some(mut svg_transform) = self.parent_svg_transform
         {
             svg_transform.multiply(facts.element_transform);
@@ -648,10 +664,11 @@ impl<'pass> SvgFormattingContext<'pass> {
         input: LayoutInput,
         parent_svg_transform: FfiAffineTransform,
     ) {
+        let kind = self.node_kind(child);
         let facts = self.svg_facts(child);
         if facts.is_fit_to_view_box {
             self.layout_nested_viewport(frame, child, parent_svg_transform);
-        } else if facts.is_foreign_object_box && self.state.node_facts(&self.callbacks, child).is_block_container() {
+        } else if kind == NodeKind::SVGForeignObjectBox {
             let child_used_pointer = self.create_used_values(child);
             let style = self.style_facts(child);
             let available_space = self.available_space.unwrap();
@@ -705,14 +722,14 @@ impl<'pass> SvgFormattingContext<'pass> {
 
             // Masks and clips may use this offset for objectBoundingBox units.
             self.place_child(child, transformed_rect.x, transformed_rect.y);
-            if let Some(mask) = self.first_child_matching(child, |facts| facts.is_mask_box) {
+            if let Some(mask) = self.first_child_of_kind(child, NodeKind::SVGMaskBox) {
                 self.layout_mask_or_clip(frame, mask);
             }
-            if let Some(clip) = self.first_child_matching(child, |facts| facts.is_clip_box) {
+            if let Some(clip) = self.first_child_of_kind(child, NodeKind::SVGClipBox) {
                 self.layout_mask_or_clip(frame, clip);
             }
             child_layout.finish();
-        } else if facts.is_graphics_box {
+        } else if kind_is_svg_graphics_box(kind) {
             self.layout_graphics_element(frame, child, input, parent_svg_transform);
         }
     }
@@ -727,6 +744,7 @@ impl<'pass> SvgFormattingContext<'pass> {
         // https://svgwg.org/svg2-draft/coords.html#EstablishingANewSVGViewport.
         let used_pointer = self.create_used_values(viewport);
         let style = self.style_facts(viewport);
+        let kind = self.node_kind(viewport);
         let facts = self.svg_facts(viewport);
         let nested_viewport_x = style.x().to_px(self.viewport_width);
         let nested_viewport_y = style.y().to_px(self.viewport_height);
@@ -742,8 +760,7 @@ impl<'pass> SvgFormattingContext<'pass> {
         } else {
             style.height().to_px(self.viewport_height)
         };
-        if self.state.node_facts(&self.callbacks, viewport).is_svg_svg_box()
-            && self.computed_transforms(viewport).is_none()
+        if kind == NodeKind::SVGSVGBox && self.computed_transforms(viewport).is_none()
         {
             // https://svgwg.org/svg2-draft/coords.html#EstablishingANewSVGViewport
             // Including an svg element inside SVG content creates a new SVG viewport into which all contained graphics are
@@ -766,7 +783,7 @@ impl<'pass> SvgFormattingContext<'pass> {
         let mut content_inline_size = nested_viewport_width;
         let mut content_block_size = nested_viewport_height;
         let mut parent_viewbox_transform = self.current_viewbox_transform;
-        if facts.is_svg_svg_element && facts.has_own_view_box {
+        if kind == NodeKind::SVGSVGBox && facts.has_own_view_box {
             // FIXME: Avoid converting SVG box to floats.
             let mapped_rect = self.current_viewbox_transform.map_rect(FfiFloatRect {
                 x: nested_viewport_x.raw_value() as f32 / 64.0,
@@ -848,6 +865,7 @@ impl<'pass> SvgFormattingContext<'pass> {
         parent_svg_transform: FfiAffineTransform,
     ) {
         self.create_used_values(graphics_box);
+        let kind = self.node_kind(graphics_box);
         let facts = self.svg_facts(graphics_box);
         let mut svg_transform = parent_svg_transform;
         svg_transform.multiply(facts.element_transform);
@@ -863,28 +881,28 @@ impl<'pass> SvgFormattingContext<'pass> {
         // container element
         // An element which can have graphics elements and other container elements as child elements.
         // Specifically: ‘a’, ‘clipPath’, ‘defs’, ‘g’, ‘marker’, ‘mask’, ‘pattern’, ‘svg’, ‘switch’ and ‘symbol’.
-        if facts.is_container_element {
+        if kind_is_svg_container_element(kind) {
             // https://svgwg.org/svg2-draft/struct.html#Groups
             // 5.2. Grouping: the ‘g’ element
             // The ‘g’ element is a container element for grouping together related graphics elements.
             self.layout_container_element(frame, graphics_box, input, svg_transform);
-        } else if facts.is_image_box {
+        } else if kind == NodeKind::SVGImageBox {
             self.layout_image_element(graphics_box);
         } else {
             // Assume this is a path-like element.
             self.layout_path_like_element(frame, graphics_box, input);
         }
 
-        if let Some(mask) = self.first_child_matching(graphics_box, |facts| facts.is_mask_box) {
+        if let Some(mask) = self.first_child_of_kind(graphics_box, NodeKind::SVGMaskBox) {
             self.layout_mask_or_clip(frame, mask);
         }
-        if let Some(clip) = self.first_child_matching(graphics_box, |facts| facts.is_clip_box) {
+        if let Some(clip) = self.first_child_of_kind(graphics_box, NodeKind::SVGClipBox) {
             self.layout_mask_or_clip(frame, clip);
         }
         let mut child = self.first_child(graphics_box);
         while !child.is_invalid() {
             let next = self.next_sibling(child);
-            if self.state.node_facts(&self.callbacks, child).is_box() && self.svg_facts(child).is_pattern_box {
+            if self.node_kind(child) == NodeKind::SVGPatternBox {
                 self.layout_mask_or_clip(frame, child);
             }
             child = next;
@@ -914,17 +932,14 @@ impl<'pass> SvgFormattingContext<'pass> {
         };
         assert!(!result.path_handle.is_null());
 
-        if facts.is_text_box {
+        if self.node_kind(graphics_box) == NodeKind::SVGTextBox {
             self.current_text_position = result.text_position_for_children;
             // <text> and <tspan> elements can contain more text elements.
             let mut child = self.first_child(graphics_box);
             while !child.is_invalid() {
                 let next = self.next_sibling(child);
-                if self.state.node_facts(&self.callbacks, child).is_box() {
-                    let child_facts = self.svg_facts(child);
-                    if child_facts.is_text_box || child_facts.is_text_path_box {
-                        self.layout_graphics_element(frame, child, input, transforms.svg_transform);
-                    }
+                if matches!(self.node_kind(child), NodeKind::SVGTextBox | NodeKind::SVGTextPathBox) {
+                    self.layout_graphics_element(frame, child, input, transforms.svg_transform);
                 }
                 child = next;
             }
@@ -983,13 +998,14 @@ impl<'pass> SvgFormattingContext<'pass> {
     }
 
     fn layout_mask_or_clip(&mut self, frame: &mut FcFrame, resource: Node) {
+        let kind = self.node_kind(resource);
         let facts = self.svg_facts(resource);
-        assert!(facts.is_mask_box || facts.is_clip_box || facts.is_pattern_box);
+        assert!(kind_is_svg_resource_box(kind));
         // FIXME: Somehow limit <clipPath> contents to: shape elements, <text>, and <use>.
         let used_pointer = self.create_used_values(resource);
         let mut parent_viewbox_transform = self.current_viewbox_transform;
 
-        if facts.is_pattern_box && facts.has_active_view_box {
+        if kind == NodeKind::SVGPatternBox && facts.has_active_view_box {
             if facts.pattern_units == SVG_UNITS_USER_SPACE_ON_USE {
                 let width = if facts.pattern_width.is_percentage {
                     facts.pattern_width.value * (self.viewport_width.raw_value() as f32 / 64.0)
@@ -1034,7 +1050,7 @@ impl<'pass> SvgFormattingContext<'pass> {
                 parent_used.content_offset.get().x.raw_value() as f32 / 64.0,
                 parent_used.content_offset.get().y.raw_value() as f32 / 64.0,
             );
-            if facts.is_pattern_box {
+            if kind == NodeKind::SVGPatternBox {
                 parent_viewbox_transform = parent_viewbox_transform.scaled(
                     parent_used.content_inline_size.get().raw_value() as f32 / 64.0,
                     parent_used.content_block_size.get().raw_value() as f32 / 64.0,
@@ -1103,28 +1119,27 @@ impl<'pass> SvgFormattingContext<'pass> {
         while !child.is_invalid() {
             let next = self.next_sibling(child);
             // Masks/clips/patterns do not change the bounding box of their parents.
-            if self.state.node_facts(&self.callbacks, child).is_box() {
-                let facts = self.svg_facts(child);
-                if !facts.is_mask_box && !facts.is_clip_box && !facts.is_pattern_box {
-                    self.layout_svg_element(frame, child, input, container_svg_transform);
-                    let child_used_pointer = self.used_values(child);
-                    let child_used = child_used_pointer;
-                    let left = child_used.content_offset.get().x;
-                    let top = child_used.content_offset.get().y;
-                    let right = left + child_used.content_inline_size.get();
-                    let bottom = top + child_used.content_block_size.get();
-                    if has_points {
-                        min_x = min_x.min(left);
-                        min_y = min_y.min(top);
-                        max_x = max_x.max(right);
-                        max_y = max_y.max(bottom);
-                    } else {
-                        min_x = left;
-                        min_y = top;
-                        max_x = right;
-                        max_y = bottom;
-                        has_points = true;
-                    }
+            if self.state.node_facts(&self.callbacks, child).is_box()
+                && !kind_is_svg_resource_box(self.node_kind(child))
+            {
+                self.layout_svg_element(frame, child, input, container_svg_transform);
+                let child_used_pointer = self.used_values(child);
+                let child_used = child_used_pointer;
+                let left = child_used.content_offset.get().x;
+                let top = child_used.content_offset.get().y;
+                let right = left + child_used.content_inline_size.get();
+                let bottom = top + child_used.content_block_size.get();
+                if has_points {
+                    min_x = min_x.min(left);
+                    min_y = min_y.min(top);
+                    max_x = max_x.max(right);
+                    max_y = max_y.max(bottom);
+                } else {
+                    min_x = left;
+                    min_y = top;
+                    max_x = right;
+                    max_y = bottom;
+                    has_points = true;
                 }
             }
             child = next;
