@@ -1462,6 +1462,12 @@ public:
 
     LengthPercentage const& cx() const { return LengthPercentage::view(m_noninherited.svg_reset->cx); }
     LengthPercentage const& cy() const { return LengthPercentage::view(m_noninherited.svg_reset->cy); }
+    NonnullRefPtr<StyleValue const> d() const
+    {
+        auto const* handle = &m_noninherited.svg_reset->d;
+        static_assert(sizeof(RustStyleValueHandle) == sizeof(*handle));
+        return style_value_from_handle(PropertyID::D, reinterpret_cast<RustStyleValueHandle const&>(*handle)).release_nonnull();
+    }
     LengthPercentage const& r() const { return LengthPercentage::view(m_noninherited.svg_reset->r); }
     LengthPercentageOrAuto rx() const { return m_noninherited.svg_reset->rx.is_auto ? LengthPercentageOrAuto::make_auto() : LengthPercentage::view(m_noninherited.svg_reset->rx.value); }
     LengthPercentageOrAuto ry() const { return m_noninherited.svg_reset->ry.is_auto ? LengthPercentageOrAuto::make_auto() : LengthPercentage::view(m_noninherited.svg_reset->ry.value); }

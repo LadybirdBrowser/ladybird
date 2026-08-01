@@ -357,6 +357,7 @@ pub struct GridValues {
 pub struct SVGResetValues {
     pub cx: ComputedStyleValueHandle,
     pub cy: ComputedStyleValueHandle,
+    pub d: ComputedStyleValueHandle,
     pub r: ComputedStyleValueHandle,
     pub rx: ComputedLengthPercentageOrAuto,
     pub ry: ComputedLengthPercentageOrAuto,

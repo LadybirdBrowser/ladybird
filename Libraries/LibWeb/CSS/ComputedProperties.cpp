@@ -1080,6 +1080,8 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
         return length_percentage_style_value(cx());
     case PropertyID::Cy:
         return length_percentage_style_value(cy());
+    case PropertyID::D:
+        return d();
     case PropertyID::Direction:
         return KeywordStyleValue::create(to_keyword(direction()));
     case PropertyID::EmptyCells:

@@ -1828,6 +1828,12 @@
       "unitless-length"
     ]
   },
+  "d": {
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "none",
+    "requires-computation": "never"
+  },
   "direction": {
     "animation-type": "none",
     "inherited": true,

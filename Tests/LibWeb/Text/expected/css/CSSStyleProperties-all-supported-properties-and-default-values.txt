@@ -446,6 +446,7 @@ All supported properties and their default values exposed from CSSStylePropertie
 'cursor': 'auto'
 'cx': '0px'
 'cy': '0px'
+'d': 'none'
 'direction': 'ltr'
 'display': 'block'
 'dominantBaseline': 'auto'

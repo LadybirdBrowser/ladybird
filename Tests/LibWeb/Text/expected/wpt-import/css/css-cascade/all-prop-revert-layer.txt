@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 307 tests
+Found 308 tests
 
-303 Pass
+304 Pass
 4 Fail
 Pass	accent-color
 Pass	border-collapse
@@ -162,6 +162,7 @@ Pass	counter-reset
 Pass	counter-set
 Pass	cx
 Pass	cy
+Pass	d
 Pass	display
 Pass	filter
 Pass	flex-basis

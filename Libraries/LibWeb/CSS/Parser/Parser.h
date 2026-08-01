@@ -542,6 +542,7 @@ private:
     RefPtr<StyleValue const> parse_counter_reset_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_counter_set_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_cursor_value(TokenStream<ComponentValue>&);
+    RefPtr<StyleValue const> parse_d_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_display_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_flex_shorthand_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_flex_flow_value(TokenStream<ComponentValue>&);
