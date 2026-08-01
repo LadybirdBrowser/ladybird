@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/HashMap.h>
 #include <LibMedia/CodecID.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/VideoDecoder.h>
@@ -32,7 +31,6 @@ private:
     AVCodecContext* m_codec_context;
     AVPacket* m_packet;
     AVFrame* m_frame;
-    HashMap<i64, AK::Duration> m_frame_durations;
     bool m_has_pending_frame { false };
 };
 
