@@ -48,10 +48,6 @@ private:
     RefPtr<Painting::Paintable> m_commit_insert_before_paintable;
 };
 
-[[nodiscard]] RustFFI::FfiSizeValue build_style_size_value(CSS::Size const&);
-[[nodiscard]] RustFFI::FfiSizeValue build_style_size_value(CSS::LengthPercentage const&);
-[[nodiscard]] RustFFI::FfiSizeValue build_style_size_value(CSS::LengthPercentageOrAuto const&);
-
 [[nodiscard]] Optional<RustFFI::FfiFormattingContextType> formatting_context_type_created_by_box(Box const&);
 [[nodiscard]] StringView formatting_context_type_name(RustFFI::FfiFormattingContextType);
 [[nodiscard]] bool box_inset_properties_contain_anchor_functions(Box const&);
@@ -65,11 +61,6 @@ private:
 
 }
 
-// Non-null calc handles returned in FfiSizeValue retain their shared Rust
-// StyleValueData allocation. This is their matching release hook.
-extern "C" WEB_API void ladybird_layout_release_calc_handle(void const*);
-// Releases one name-table reference transferred by FfiGridStyleFacts.
-extern "C" WEB_API void ladybird_layout_release_grid_name_handle(size_t);
 // Releases one position-anchor name reference transferred by a lazy style
 // field decode.
 extern "C" WEB_API void ladybird_layout_release_anchor_name_handle(size_t);

@@ -26,8 +26,6 @@
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/Filter.h>
 #include <LibWeb/CSS/FontFeatureData.h>
-#include <LibWeb/CSS/GridTrackPlacement.h>
-#include <LibWeb/CSS/GridTrackSize.h>
 #include <LibWeb/CSS/LengthBox.h>
 #include <LibWeb/CSS/PercentageOr.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
@@ -436,19 +434,12 @@ public:
     static Size height() { return Size::make_auto(); }
     static Size min_height() { return Size::make_auto(); }
     static Size max_height() { return Size::make_none(); }
-    static GridTrackSizeList grid_template_columns() { return GridTrackSizeList::make_none(); }
-    static GridTrackSizeList grid_template_rows() { return GridTrackSizeList::make_none(); }
-    static GridTrackPlacement grid_column_end() { return GridTrackPlacement::make_auto(); }
-    static GridTrackPlacement grid_column_start() { return GridTrackPlacement::make_auto(); }
-    static GridTrackPlacement grid_row_end() { return GridTrackPlacement::make_auto(); }
-    static GridTrackPlacement grid_row_start() { return GridTrackPlacement::make_auto(); }
     static Variant<LengthPercentage, NormalGap> column_gap() { return NormalGap {}; }
     static ColumnSpan column_span() { return ColumnSpan::None; }
     static Size column_height() { return Size::make_auto(); }
     static Variant<LengthPercentage, NormalGap> row_gap() { return NormalGap {}; }
     static BorderCollapse border_collapse() { return BorderCollapse::Separate; }
     static EmptyCells empty_cells() { return EmptyCells::Show; }
-    static GridTemplateAreas grid_template_areas() { return {}; }
     static ObjectFit object_fit() { return ObjectFit::Fill; }
     static Position object_position() { return {}; }
     static Color outline_color() { return Color::Black; }
@@ -1279,18 +1270,10 @@ public:
             return static_cast<VerticalAlign>(value.keyword);
         return LengthPercentage::view(value.value);
     }
-    GridTrackSizeList const& grid_auto_columns() const { return m_noninherited.grid->grid_auto_columns; }
-    GridTrackSizeList const& grid_auto_rows() const { return m_noninherited.grid->grid_auto_rows; }
     GridAutoFlow grid_auto_flow() const
     {
         return { .row = m_noninherited.box->grid_auto_flow_row, .dense = m_noninherited.box->grid_auto_flow_dense };
     }
-    GridTrackSizeList const& grid_template_columns() const { return m_noninherited.grid->grid_template_columns; }
-    GridTrackSizeList const& grid_template_rows() const { return m_noninherited.grid->grid_template_rows; }
-    GridTrackPlacement const& grid_column_end() const { return m_noninherited.grid->grid_column_end; }
-    GridTrackPlacement const& grid_column_start() const { return m_noninherited.grid->grid_column_start; }
-    GridTrackPlacement const& grid_row_end() const { return m_noninherited.grid->grid_row_end; }
-    GridTrackPlacement const& grid_row_start() const { return m_noninherited.grid->grid_row_start; }
     ColumnCount column_count() const
     {
         if (!m_noninherited.box->column_count_has_value)
@@ -1304,7 +1287,6 @@ public:
     Variant<LengthPercentage, NormalGap> row_gap() const { return gap(m_noninherited.alignment->row_gap); }
     BorderCollapse border_collapse() const { return static_cast<BorderCollapse>(m_inherited.table->border_collapse); }
     EmptyCells empty_cells() const { return static_cast<EmptyCells>(m_inherited.table->empty_cells); }
-    GridTemplateAreas const& grid_template_areas() const { return m_noninherited.grid->grid_template_areas; }
     ObjectFit object_fit() const { return m_noninherited.misc->object_fit; }
     Position object_position() const { return m_noninherited.misc->object_position; }
     Direction direction() const { return static_cast<Direction>(m_inherited.box->direction); }
@@ -1803,21 +1785,14 @@ public:
         }
     };
 
-    struct GridValues {
+    struct GridValues : ComputedValuesFFI::GridValues {
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::GridValues);
-        GridTrackSizeList grid_auto_columns;
-        GridTrackSizeList grid_auto_rows;
-        GridTrackSizeList grid_template_columns;
-        GridTrackSizeList grid_template_rows;
-        GridTrackPlacement grid_column_end { InitialValues::grid_column_end() };
-        GridTrackPlacement grid_column_start { InitialValues::grid_column_start() };
-        GridTrackPlacement grid_row_end { InitialValues::grid_row_end() };
-        GridTrackPlacement grid_row_start { InitialValues::grid_row_start() };
-        GridTemplateAreas grid_template_areas { InitialValues::grid_template_areas() };
+        static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::Grid;
 
-        static GridValues make_default_payload_value();
-
-        bool operator==(GridValues const&) const = default;
+        bool operator==(GridValues const& other) const
+        {
+            return ComputedValuesFFI::rust_style_group_payloads_equal(style_group_index, this, &other);
+        }
     };
 
     struct AnchorValues {
@@ -3180,53 +3155,24 @@ public:
             return;
         m_values.m_inherited.box.access().visibility = to_underlying(value);
     }
-    void set_grid_auto_columns(GridTrackSizeList value)
+    void copy_grid_placements_from(ComputedValues const& source)
     {
-        if (m_values.m_noninherited.grid->grid_auto_columns == value)
-            return;
-        m_values.m_noninherited.grid.access().grid_auto_columns = move(value);
+        ComputedValuesFFI::rust_grid_values_copy_placements(
+            static_cast<ComputedValuesFFI::GridValues const*>(source.m_noninherited.grid.operator->()),
+            &m_values.m_noninherited.grid.access());
     }
-    void set_grid_auto_rows(GridTrackSizeList value)
+    void reset_grid_placements_to_auto()
     {
-        if (m_values.m_noninherited.grid->grid_auto_rows == value)
+        // Every producer writes auto placements in canonical form, so a kind
+        // check alone detects the already-auto case without cloning.
+        auto placement_is_auto = [](ComputedValuesFFI::ComputedGridPlacement const& placement) {
+            return placement.kind == to_underlying(ComputedValuesFFI::ComputedGridPlacementKind::Auto);
+        };
+        auto const& grid = *m_values.m_noninherited.grid;
+        if (placement_is_auto(grid.column_start) && placement_is_auto(grid.column_end)
+            && placement_is_auto(grid.row_start) && placement_is_auto(grid.row_end))
             return;
-        m_values.m_noninherited.grid.access().grid_auto_rows = move(value);
-    }
-    void set_grid_template_columns(GridTrackSizeList value)
-    {
-        if (m_values.m_noninherited.grid->grid_template_columns == value)
-            return;
-        m_values.m_noninherited.grid.access().grid_template_columns = move(value);
-    }
-    void set_grid_template_rows(GridTrackSizeList value)
-    {
-        if (m_values.m_noninherited.grid->grid_template_rows == value)
-            return;
-        m_values.m_noninherited.grid.access().grid_template_rows = move(value);
-    }
-    void set_grid_column_end(GridTrackPlacement value)
-    {
-        if (m_values.m_noninherited.grid->grid_column_end == value)
-            return;
-        m_values.m_noninherited.grid.access().grid_column_end = move(value);
-    }
-    void set_grid_column_start(GridTrackPlacement value)
-    {
-        if (m_values.m_noninherited.grid->grid_column_start == value)
-            return;
-        m_values.m_noninherited.grid.access().grid_column_start = move(value);
-    }
-    void set_grid_row_end(GridTrackPlacement value)
-    {
-        if (m_values.m_noninherited.grid->grid_row_end == value)
-            return;
-        m_values.m_noninherited.grid.access().grid_row_end = move(value);
-    }
-    void set_grid_row_start(GridTrackPlacement value)
-    {
-        if (m_values.m_noninherited.grid->grid_row_start == value)
-            return;
-        m_values.m_noninherited.grid.access().grid_row_start = move(value);
+        ComputedValuesFFI::rust_grid_values_reset_placements_to_auto(&m_values.m_noninherited.grid.access());
     }
     void set_column_span(ColumnSpan column_span)
     {
@@ -3251,12 +3197,6 @@ public:
         if (m_values.m_inherited.table->empty_cells == to_underlying(empty_cells))
             return;
         m_values.m_inherited.table.access().empty_cells = to_underlying(empty_cells);
-    }
-    void set_grid_template_areas(GridTemplateAreas grid_template_areas)
-    {
-        if (m_values.m_noninherited.grid->grid_template_areas == grid_template_areas)
-            return;
-        m_values.m_noninherited.grid.access().grid_template_areas = move(grid_template_areas);
     }
     void set_quotes(QuotesData value)
     {

@@ -158,6 +158,12 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
     auto length_style_value = [](CSSPixels length) {
         return LengthStyleValue::create(Length::make_px(length));
     };
+    auto grid_style_value_or_initial = [&](ComputedValuesFFI::ComputedStyleValueHandle const& handle) -> NonnullRefPtr<StyleValue const> {
+        static_assert(sizeof(RustStyleValueHandle) == sizeof(handle));
+        if (auto value = style_value_from_handle(property_id, reinterpret_cast<RustStyleValueHandle const&>(handle)))
+            return value.release_nonnull();
+        return property_initial_value(property_id);
+    };
     auto border_image_slice_style_value = [](BorderImageSliceValue const& value) -> NonnullRefPtr<StyleValue const> {
         return value.visit(
             [](double number) -> NonnullRefPtr<StyleValue const> { return NumberStyleValue::create(number); },
@@ -1097,27 +1103,27 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
     case PropertyID::Filter:
         return filter_style_value(filter());
     case PropertyID::GridAutoColumns:
-        return GridTrackSizeListStyleValue::create(grid_auto_columns());
+        return grid_style_value_or_initial(m_noninherited.grid->grid_auto_columns_style_value);
     case PropertyID::GridAutoFlow:
         return GridAutoFlowStyleValue::create(
             grid_auto_flow().row ? GridAutoFlowStyleValue::Axis::Row : GridAutoFlowStyleValue::Axis::Column,
             grid_auto_flow().dense ? GridAutoFlowStyleValue::Dense::Yes : GridAutoFlowStyleValue::Dense::No);
     case PropertyID::GridAutoRows:
-        return GridTrackSizeListStyleValue::create(grid_auto_rows());
+        return grid_style_value_or_initial(m_noninherited.grid->grid_auto_rows_style_value);
     case PropertyID::GridColumnEnd:
-        return GridTrackPlacementStyleValue::create(grid_column_end());
+        return grid_style_value_or_initial(m_noninherited.grid->grid_column_end_style_value);
     case PropertyID::GridColumnStart:
-        return GridTrackPlacementStyleValue::create(grid_column_start());
+        return grid_style_value_or_initial(m_noninherited.grid->grid_column_start_style_value);
     case PropertyID::GridRowEnd:
-        return GridTrackPlacementStyleValue::create(grid_row_end());
+        return grid_style_value_or_initial(m_noninherited.grid->grid_row_end_style_value);
     case PropertyID::GridRowStart:
-        return GridTrackPlacementStyleValue::create(grid_row_start());
+        return grid_style_value_or_initial(m_noninherited.grid->grid_row_start_style_value);
     case PropertyID::GridTemplateAreas:
-        return GridTemplateAreaStyleValue::create(grid_template_areas().areas, grid_template_areas().row_count, grid_template_areas().column_count);
+        return grid_style_value_or_initial(m_noninherited.grid->grid_template_areas_style_value);
     case PropertyID::GridTemplateColumns:
-        return GridTrackSizeListStyleValue::create(grid_template_columns());
+        return grid_style_value_or_initial(m_noninherited.grid->grid_template_columns_style_value);
     case PropertyID::GridTemplateRows:
-        return GridTrackSizeListStyleValue::create(grid_template_rows());
+        return grid_style_value_or_initial(m_noninherited.grid->grid_template_rows_style_value);
     case PropertyID::FontVariantEmoji:
         return KeywordStyleValue::create(to_keyword(font_variant_emoji()));
     case PropertyID::ImageRendering:

@@ -120,6 +120,17 @@ impl RetainedUtf16FlyStringList {
         }
         unsafe { std::slice::from_raw_parts(self.pointer, self.length) }
     }
+
+    /// The list viewed as raw fly-string words; fly strings are interned, so
+    /// equal raws mean equal strings.
+    pub(crate) fn raws(&self) -> &[usize] {
+        if self.pointer.is_null() {
+            return &[];
+        }
+        // SAFETY: RetainedUtf16FlyString is a repr(C) struct of one usize, so
+        // a slice of it has the layout of a usize slice.
+        unsafe { std::slice::from_raw_parts(self.pointer.cast::<usize>(), self.length) }
+    }
 }
 
 impl Clone for RetainedUtf16FlyStringList {

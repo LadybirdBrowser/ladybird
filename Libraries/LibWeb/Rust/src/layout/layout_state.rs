@@ -797,7 +797,6 @@ pub(crate) struct LayoutState {
     anchor_inset_store: AnchorInsetStore,
     replaced_content_facts: PagedStore<crate::layout::FfiReplacedContentFacts>,
     list_item_facts: PagedStore<crate::layout::FfiListItemFacts>,
-    grid_facts: PagedStore<GridStyleFacts>,
     line_data: PagedStore<RefCell<LineData>>,
     block_rare_data: PagedStore<RefCell<BlockRareData>>,
     used_values_rare_data: PagedStore<RefCell<UsedValuesRareData>>,
@@ -851,7 +850,6 @@ impl LayoutState {
             anchor_inset_store: AnchorInsetStore::default(),
             replaced_content_facts: PagedStore::default(),
             list_item_facts: PagedStore::default(),
-            grid_facts: PagedStore::default(),
             line_data: PagedStore::default(),
             block_rare_data: PagedStore::default(),
             used_values_rare_data: PagedStore::default(),
@@ -1222,16 +1220,6 @@ impl LayoutState {
         };
         self.list_item_facts.allocate(slot_index, facts);
         facts
-    }
-
-    pub(crate) fn grid_facts(&self, callbacks: &FfiLayoutFcCallbacks, node: Node) -> &GridStyleFacts {
-        let slot_index = callbacks.slot_index(node);
-        let facts = self.grid_facts.get(slot_index);
-        if let Some(facts) = facts {
-            return facts;
-        }
-        let facts = GridStyleFacts::build(callbacks, node);
-        self.grid_facts.allocate(slot_index, facts)
     }
 
     pub(crate) fn text_chunks(
