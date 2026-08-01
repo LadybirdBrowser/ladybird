@@ -70,6 +70,7 @@ static ReadonlySpan<NamedPropertyID> attribute_style_properties()
         NamedPropertyID(CSS::PropertyID::Cursor),
         NamedPropertyID(CSS::PropertyID::Cx, { SVG::TagNames::circle, SVG::TagNames::ellipse }),
         NamedPropertyID(CSS::PropertyID::Cy, { SVG::TagNames::circle, SVG::TagNames::ellipse }),
+        NamedPropertyID(CSS::PropertyID::D, { SVG::TagNames::path }),
         NamedPropertyID(CSS::PropertyID::Direction),
         NamedPropertyID(CSS::PropertyID::Display),
         NamedPropertyID(CSS::PropertyID::DominantBaseline),
@@ -156,7 +157,17 @@ void SVGElement::apply_presentational_hints(Vector<CSS::StyleProperty>& properti
     CSS::Parser::ParsingParams parsing_context { document(), CSS::Parser::ParsingMode::SVGPresentationAttribute };
     for_each_attribute([&](Utf16FlyString const& name, Utf16View const& value) {
         if (auto property_id = property_id_for_presentational_attribute(name, local_name()); property_id.has_value()) {
-            if (auto style_value = parse_css_value(parsing_context, value, property_id.value()))
+            auto style_value = [&] {
+                // NB: <path>'s `d` presentational attribute is a special case - the attribute and the CSS properties
+                //     syntaxes differ with the attribute being a raw path string but the CSS property only accepting a
+                //     path() function. To account for this we wrap the attribute value in a path function before parsing.
+                if (property_id == CSS::PropertyID::D)
+                    return parse_css_value(parsing_context, Utf16String::formatted("path({})", CSS::serialize_a_string(value)), property_id.value());
+
+                return parse_css_value(parsing_context, value, property_id.value());
+            }();
+
+            if (style_value)
                 properties.append({ .property_id = property_id.value(), .value = style_value.release_nonnull() });
         }
     });
