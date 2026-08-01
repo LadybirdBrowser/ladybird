@@ -1,0 +1,3 @@
+input caret advances past first trailing space: true
+input caret advances past second trailing space: true
+editing host caret advances past trailing space: true

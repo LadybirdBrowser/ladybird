@@ -5,7 +5,6 @@
  */
 
 pub(crate) trait LineBoxTextProvider {
-    fn document_cursor_is_on_node(&self, node: Node) -> bool;
     fn font_glyph_width(&self, font: *const c_void, code_point: u32) -> f32;
 }
 
@@ -161,9 +160,6 @@ impl LineBoxData {
             }
             fragment_index -= 1;
             let fragment = &self.fragments[fragment_index];
-            if provider.document_cursor_is_on_node(fragment.layout_node) {
-                return whitespace_inline_size;
-            }
             if !matches!(
                 fragment.white_space_collapse,
                 white_space_collapse::COLLAPSE | white_space_collapse::PRESERVE_BREAKS
