@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<video id="video"></video>
+<script src="../include.js"></script>
+<script>
+    // SourceBuffer.abort() must abort a pending buffer append:
+    // https://w3c.github.io/media-source/#dom-sourcebuffer-abort
+    // Step 4.1 aborts the buffer append algorithm — so the buffer-append task queued by appendBuffer() must have no
+    // effect when it runs afterwards. Otherwise, it reaches the segment parser loop with the input buffer that step 5
+    // just emptied — completing the append, and firing a second update/updateend pair for an aborted append.
+    asyncTest(done => {
+        const video = document.getElementById("video");
+        const mediaSource = new MediaSource();
+        video.src = URL.createObjectURL(mediaSource);
+
+        mediaSource.addEventListener("sourceopen", () => {
+            const sourceBuffer = mediaSource.addSourceBuffer('video/webm; codecs="vp9"');
+
+            for (const eventName of ["updatestart", "update", "abort", "updateend"])
+                sourceBuffer.addEventListener(eventName, () => println(`SourceBuffer ${eventName}`));
+
+            sourceBuffer.appendBuffer(new Uint8Array([0x1a, 0x45, 0xdf, 0xa3]));
+            println(`after appendBuffer(): updating ${sourceBuffer.updating}`);
+
+            sourceBuffer.abort();
+            println(`after abort(): updating ${sourceBuffer.updating}`);
+
+            // Drain the task queue so any surviving buffer-append task gets a chance to run.
+            setTimeout(() => setTimeout(() => {
+                println(`settled: updating ${sourceBuffer.updating}, buffered ${sourceBuffer.buffered.length}`);
+                done();
+            }));
+        }, { once: true });
+    });
+</script>

@@ -1,0 +1,8 @@
+before load(): readyState open, duration 42, sourceBuffers 1, updating true
+after load(): readyState closed, duration NaN, sourceBuffers 0, updating false
+SourceBuffer updatestart
+SourceBuffer abort
+SourceBuffer updateend
+activeSourceBuffers removesourcebuffer
+sourceBuffers removesourcebuffer
+sourceclose: sourceBuffers 0, activeSourceBuffers 0

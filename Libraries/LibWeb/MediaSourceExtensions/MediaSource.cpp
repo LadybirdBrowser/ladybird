@@ -99,8 +99,58 @@ void MediaSource::set_assigned_to_media_element(Badge<HTML::HTMLMediaElement>, H
     m_media_element_assigned_to = media_element;
 }
 
-void MediaSource::unassign_from_media_element(Badge<HTML::HTMLMediaElement>)
+// https://w3c.github.io/media-source/#mediasource-detach
+void MediaSource::detach_from_media_element(Badge<HTML::HTMLMediaElement>)
 {
+    // FIXME: 1. If the MediaSource was constructed in a DedicatedWorkerGlobalScope:
+    //               1. Notify the MediaSource using an internal detach message posted to [[port to worker]].
+    //               2. Set [[port to worker]] null.
+    //               3. Set [[channel with worker]] null.
+    //               4. The implicit message handler for this detach notification runs the remainder of these
+    //                  steps in the DedicatedWorkerGlobalScope MediaSource.
+    //           Otherwise, the MediaSource was constructed in a Window:
+    //               Continue the remainder of these steps on the Window MediaSource.
+    // FIXME: 2. Set [[port to main]] null.
+
+    // 3. Set the readyState attribute to "closed".
+    m_ready_state = ReadyState::Closed;
+
+    // FIXME: 4. If this is a ManagedMediaSource, then set streaming attribute to false.
+
+    // 5. Update duration to NaN.
+    m_duration = NAN;
+
+    // AD-HOC: Abort the buffer-append algorithm of every SourceBuffer removed below. The spec steps (copied in below)
+    //         don't say to do that, but other engines implement them by running the removeSourceBuffer() steps on every
+    //         SourceBuffer — and those steps abort the buffer-append algorithm when the updating attribute is true.
+    //         Without this, a buffer-append task queued before detaching would still run afterwards — against a media
+    //         element that the media element load algorithm has reset.
+    //         https://github.com/w3c/media-source/issues/378
+    for (size_t i = 0; i < m_source_buffers->length(); i++)
+        m_source_buffers->item(i)->abort_if_updating({});
+
+    // 6. Remove all the SourceBuffer objects from activeSourceBuffers.
+    m_active_source_buffers->remove_all_buffers({});
+
+    // 7. Queue a task to fire an event named removesourcebuffer at activeSourceBuffers.
+    queue_a_media_source_task(GC::create_function(heap(), [source_buffers = m_active_source_buffers] {
+        source_buffers->dispatch_event(DOM::Event::create(source_buffers->realm(), EventNames::removesourcebuffer));
+    }));
+
+    // 8. Remove all the SourceBuffer objects from sourceBuffers.
+    m_source_buffers->remove_all_buffers({});
+
+    // 9. Queue a task to fire an event named removesourcebuffer at sourceBuffers.
+    queue_a_media_source_task(GC::create_function(heap(), [source_buffers = m_source_buffers] {
+        source_buffers->dispatch_event(DOM::Event::create(source_buffers->realm(), EventNames::removesourcebuffer));
+    }));
+
+    // 10. Queue a task to fire an event named sourceclose at the MediaSource.
+    queue_a_media_source_task(GC::create_function(heap(), [this] {
+        dispatch_event(DOM::Event::create(realm(), EventNames::sourceclose));
+    }));
+
+    // AD-HOC: Sever the media element assignment that was established when this MediaSource was attached.
     m_media_element_assigned_to = nullptr;
 }
 

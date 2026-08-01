@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<video id="video"></video>
+<script>
+    // Resetting the media element with load() while a SourceBuffer append task is still queued detaches the MediaSource
+    // and removes the element's playback manager. Detaching must abort the queued buffer append algorithm, and any
+    // later appendBuffer() call must throw — instead of crashing. See #10202.
+    const video = document.getElementById("video");
+    const mediaSource = new MediaSource();
+    video.src = URL.createObjectURL(mediaSource);
+
+    // once: the load() below reattaches the MediaSource (which is closed after detaching), firing sourceopen again.
+    mediaSource.addEventListener("sourceopen", async () => {
+        const sourceBuffer = mediaSource.addSourceBuffer('video/webm; codecs="vp9"');
+
+        const response = await fetch("../../Assets/two-video-tracks.webm");
+        const data = new Uint8Array(await response.arrayBuffer());
+
+        sourceBuffer.addEventListener("updateend", () => {
+            // Appending to a SourceBuffer that detaching removed from the parent media source's sourceBuffers
+            // attribute must throw instead of crashing.
+            try {
+                sourceBuffer.appendBuffer(data.slice(0, 632));
+            } catch (e) {
+                // InvalidStateError is expected.
+            }
+            document.documentElement.classList.remove("test-wait");
+        }, { once: true });
+
+        // Append the init segment — which is every byte before the first Cluster element (632 bytes for this file).
+        // This queues a task to run the buffer append algorithm.
+        sourceBuffer.appendBuffer(data.slice(0, 632));
+
+        // Reset the media element while the buffer append algorithm task is still queued.
+        video.load();
+    }, { once: true });
+</script>
+</html>

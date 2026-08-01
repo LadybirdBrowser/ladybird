@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<video id="video"></video>
+<script src="../include.js"></script>
+<script>
+    // Calling load() on a media element with an attached MediaSource must detach the MediaSource:
+    // https://w3c.github.io/media-source/#mediasource-detach
+    // Detaching aborts a pending buffer append, closes the MediaSource, resets its duration, empties both
+    // SourceBuffer lists, and fires removesourcebuffer and sourceclose events.
+    asyncTest(done => {
+        const video = document.getElementById("video");
+        const mediaSource = new MediaSource();
+        video.src = URL.createObjectURL(mediaSource);
+
+        // once: the load() below reattaches the MediaSource (which is closed after detaching), firing sourceopen again.
+        mediaSource.addEventListener("sourceopen", () => {
+            const sourceBuffer = mediaSource.addSourceBuffer('video/webm; codecs="vp9"');
+            mediaSource.duration = 42;
+
+            for (const eventName of ["updatestart", "update", "abort", "updateend"])
+                sourceBuffer.addEventListener(eventName, () => println(`SourceBuffer ${eventName}`));
+            mediaSource.activeSourceBuffers.addEventListener("removesourcebuffer", () =>
+                println("activeSourceBuffers removesourcebuffer"));
+            mediaSource.sourceBuffers.addEventListener("removesourcebuffer", () =>
+                println("sourceBuffers removesourcebuffer"));
+            mediaSource.addEventListener("sourceclose", () => {
+                println(`sourceclose: sourceBuffers ${mediaSource.sourceBuffers.length}, ` +
+                    `activeSourceBuffers ${mediaSource.activeSourceBuffers.length}`);
+                // Drain the task queue before finishing — so that any events fired by a surviving buffer append get
+                // recorded. The aborted append must not complete and fire update/updateend after the detach events.
+                setTimeout(() => setTimeout(done));
+            });
+
+            // The appended bytes are never parsed: the load() below aborts the buffer append algorithm before its
+            // queued task runs.
+            sourceBuffer.appendBuffer(new Uint8Array([0x1a, 0x45, 0xdf, 0xa3]));
+            println(`before load(): readyState ${mediaSource.readyState}, duration ${mediaSource.duration}, ` +
+                `sourceBuffers ${mediaSource.sourceBuffers.length}, updating ${sourceBuffer.updating}`);
+
+            video.load();
+            println(`after load(): readyState ${mediaSource.readyState}, duration ${mediaSource.duration}, ` +
+                `sourceBuffers ${mediaSource.sourceBuffers.length}, updating ${sourceBuffer.updating}`);
+        }, { once: true });
+    });
+</script>

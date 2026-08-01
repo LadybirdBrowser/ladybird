@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<video id="video"></video>
+<script src="../include.js"></script>
+<script>
+    // Appending an initialization segment that has no tracks must fail the append:
+    // https://w3c.github.io/media-source/#sourcebuffer-init-segment-received
+    // Step 2 runs the append-error algorithm — which fires error and updateend, and ends the stream with a decode
+    // error. The segment-parser loop must abort there: The buffer append algorithm must not complete the failed
+    // append and fire an update/updateend pair reporting success after the error/updateend pair reporting failure.
+    asyncTest(done => {
+        const video = document.getElementById("video");
+        const mediaSource = new MediaSource();
+        video.src = URL.createObjectURL(mediaSource);
+
+        // A minimal WebM initialization segment with no tracks: an EBML header, then a Segment element of unknown
+        // size containing a Segment Information element and an empty Tracks element. The parser accepts this — only
+        // a missing Tracks element is a parse error — and reports zero tracks.
+        const tracklessInitSegment = new Uint8Array([
+            0x1a, 0x45, 0xdf, 0xa3, 0x8b, // EBML header, size 11
+            0x42, 0x82, 0x84, 0x77, 0x65, 0x62, 0x6d, // DocType "webm"
+            0x42, 0x87, 0x81, 0x02, // DocTypeVersion 2
+            0x18, 0x53, 0x80, 0x67, 0xff, // Segment, unknown size
+            0x15, 0x49, 0xa9, 0x66, 0x8e, // Info, size 14
+            0x2a, 0xd7, 0xb1, 0x83, 0x0f, 0x42, 0x40, // TimestampScale 1000000
+            0x44, 0x89, 0x84, 0x44, 0xfa, 0x00, 0x00, // Duration 2000.0
+            0x16, 0x54, 0xae, 0x6b, 0x80, // Tracks, size 0
+        ]);
+
+        mediaSource.addEventListener("sourceopen", () => {
+            // Guard against this test silently testing nothing: the appended bytes only reach the WebM parser if
+            // this type is supported.
+            println(`isTypeSupported: ${MediaSource.isTypeSupported('video/webm; codecs="vp9"')}`);
+
+            const sourceBuffer = mediaSource.addSourceBuffer('video/webm; codecs="vp9"');
+
+            for (const eventName of ["updatestart", "update", "error", "abort", "updateend"])
+                sourceBuffer.addEventListener(eventName, () => println(`SourceBuffer ${eventName}`));
+            mediaSource.addEventListener("sourceended", () => println("MediaSource sourceended"));
+
+            sourceBuffer.appendBuffer(tracklessInitSegment);
+            println(`after appendBuffer(): updating ${sourceBuffer.updating}`);
+
+            sourceBuffer.addEventListener("updateend", () => {
+                // Drain the task queue before finishing — so that any update/updateend events get recorded if fired by
+                // a buffer append that wrongly kept running after the append error.
+                setTimeout(() => setTimeout(() => {
+                    // duration 2 proves the init segment parsed far enough to reach the no-tracks check: the duration
+                    // change step that precedes it ran. A segment rejected by the parser would fire the same error/
+                    // updateend events, but the duration would still be NaN.
+                    println(`settled: updating ${sourceBuffer.updating}, readyState ${mediaSource.readyState}, ` +
+                        `duration ${mediaSource.duration}, buffered ${sourceBuffer.buffered.length}`);
+                    done();
+                }));
+            }, { once: true });
+        }, { once: true });
+    });
+</script>

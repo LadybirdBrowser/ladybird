@@ -221,7 +221,12 @@ void SourceBufferProcessor::run_segment_parser_loop()
             }
 
             // 2. Run the initialization segment received algorithm.
-            initialization_segment_received();
+            // AD-HOC: If the initialization-segment-received algorithm ran the append-error algorithm, abort this.
+            //         Otherwise, this loop would complete normally and invoke the append done callback — and the
+            //         buffer-append algorithm would complete the failed append, firing update and updateend events
+            //         after the error and updateend events queued by the append-error algorithm.
+            if (!initialization_segment_received())
+                return;
 
             // 3. Remove the initialization segment bytes from the beginning of the [[input buffer]].
             drop_consumed_bytes_from_input_buffer();
@@ -315,7 +320,8 @@ void SourceBufferProcessor::reset_parser_state()
 }
 
 // https://w3c.github.io/media-source/#sourcebuffer-init-segment-received
-void SourceBufferProcessor::initialization_segment_received()
+// AD-HOC: Returns false if the append-error algorithm was run — so that the segment parser loop can abort.
+bool SourceBufferProcessor::initialization_segment_received()
 {
     // 1. Update the duration attribute if it currently equals NaN:
     // AD-HOC: Pass off the duration to the callback, and allow it to check for NaN.
@@ -336,7 +342,7 @@ void SourceBufferProcessor::initialization_segment_received()
     //    and abort these steps.
     if (m_parser->video_tracks().is_empty() && m_parser->audio_tracks().is_empty() && m_parser->text_tracks().is_empty()) {
         m_append_error_callback();
-        return;
+        return false;
     }
 
     // 3. If the [[first initialization segment received flag]] is true, then run the following steps:
@@ -402,6 +408,8 @@ void SourceBufferProcessor::initialization_segment_received()
     // NB: Steps 8-9 (updating the element's readyState) are handled by the initialization segment callback invoked
     //     above. Since active track flag is only true if the first initialization segment was being received, this
     //     will only need to happen when that callback is invoked, so we don't need separate one.
+
+    return true;
 }
 
 // https://w3c.github.io/media-source/#sourcebuffer-coded-frame-processing

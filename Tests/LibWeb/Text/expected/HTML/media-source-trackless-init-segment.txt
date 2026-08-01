@@ -1,0 +1,7 @@
+isTypeSupported: true
+after appendBuffer(): updating true
+SourceBuffer updatestart
+SourceBuffer error
+SourceBuffer updateend
+MediaSource sourceended
+settled: updating false, readyState ended, duration 2, buffered 0

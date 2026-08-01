@@ -239,6 +239,7 @@ void HTMLMediaElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_source_element_selector);
     visitor.visit(m_pending_play_promises);
     visitor.visit(m_selected_video_track);
+    visitor.visit(m_attached_media_source);
     m_assigned_media_provider_object.visit(
         [](Empty) {},
         [&visitor](GC::Ref<MediaSourceExtensions::MediaSource> media_source) {
@@ -798,22 +799,24 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::load_element()
 {
     m_first_data_load_event_since_load_start = true;
 
-    // 1. Abort any already-running instance of the resource selection algorithm for this element.
+    // FIXME: 1. Set this element's is currently stalled to false.
+
+    // 2. Abort any already-running instance of the resource selection algorithm for this element.
     //    NOTE: All deferred subroutines of the resource selection algorithm will be queued under the media element task
-    //          source, or run as part of the fetch. Step 2 will remove any subroutine from the queue. Step 6.2 will stop
+    //          source, or run as part of the fetch. Step 3 will remove any subroutine from the queue. Step 7.2 will stop
     //          any ongoing fetch operation. Therefore, all resource selection algorithms will be cancelled before a new
     //          one begins.
 
-    // 2. Let pending tasks be a list of all tasks from the media element's media element event task source in one of
+    // 3. Let pending tasks be a list of all tasks from the media element's media element event task source in one of
     //    the task queues.
-    // FIXME: 3. For each task in pending tasks that would resolve pending play promises or reject pending play promises,
+    // FIXME: 4. For each task in pending tasks that would resolve pending play promises or reject pending play promises,
     //    immediately resolve or reject those promises in the order the corresponding tasks were queued.
-    // 4. Remove each task in pending tasks from its task queue
+    // 5. Remove each task in pending tasks from its task queue.
     main_thread_event_loop().task_queue().remove_tasks_matching([&](auto& task) {
         return task.source() == media_element_event_task_source();
     });
 
-    // 5. If the media element's networkState is set to NETWORK_LOADING or NETWORK_IDLE, queue a media element task given the media element to
+    // 6. If the media element's networkState is set to NETWORK_LOADING or NETWORK_IDLE, queue a media element task given the media element to
     //    fire an event named abort at the media element.
     if (m_network_state == NetworkState::Loading || m_network_state == NetworkState::Idle) {
         queue_a_media_element_task([](HTMLMediaElement& self) {
@@ -821,7 +824,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::load_element()
         });
     }
 
-    // 6. If the media element's networkState is not set to NETWORK_EMPTY, then:
+    // 7. If the media element's networkState is not set to NETWORK_EMPTY:
     if (m_network_state != NetworkState::Empty) {
         // 1. Queue a media element task given the media element to fire an event named emptied at the media element.
         queue_a_media_element_task([](HTMLMediaElement& self) {
@@ -831,7 +834,19 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::load_element()
         // 2. If a fetching process is in progress for the media element, the user agent should stop it.
         cancel_the_fetching_process();
 
-        // FIXME: 3. If the media element's assigned media provider object is a MediaSource object, then detach it.
+        // 3. If the media element's assigned media provider object is a MediaSource object, then detach it.
+        // AD-HOC: We detach the attached MediaSource whether or not it's the assigned media provider object — since a
+        //         MediaSource can also be attached through a blob URL. The MSE spec runs its detaching steps "in any
+        //         case where the media element is going to transition to NETWORK_EMPTY and queue a task to fire an
+        //         event named emptied at the media element" — which covers both ways of attaching one.
+        //         https://w3c.github.io/media-source/#mediasource-detach
+        //         This step is also unusable as written: The srcObject setter sets the new value before invoking this.
+        //         So, the assigned media provider object here is already the incoming one — not the one being replaced.
+        //         https://github.com/whatwg/html/issues/12757
+        if (m_attached_media_source) {
+            m_attached_media_source->detach_from_media_element({});
+            m_attached_media_source = nullptr;
+        }
 
         // 4. Forget the media element's media-resource-specific tracks.
         forget_media_resource_specific_tracks();
@@ -840,7 +855,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::load_element()
         if (m_ready_state != ReadyState::HaveNothing)
             set_ready_state(ReadyState::HaveNothing);
 
-        // 6. If the paused attribute is false, then:
+        // 6. If the paused attribute is false:
         if (!paused()) {
             // 1. Set the paused attribute to true.
             set_paused(true);
@@ -875,17 +890,17 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::load_element()
         set_duration(NAN);
     }
 
-    // 7. Set the playbackRate attribute to the value of the defaultPlaybackRate attribute.
+    // 8. Set the playbackRate attribute to the value of the defaultPlaybackRate attribute.
     TRY(set_playback_rate(m_default_playback_rate));
 
-    // 8. Set the error attribute to null and the can autoplay flag to true.
+    // 9. Set the error attribute to null and the can autoplay flag to true.
     m_error = nullptr;
     m_can_autoplay = true;
 
-    // 9. Invoke the media element's resource selection algorithm.
+    // 10. Invoke the media element's resource selection algorithm.
     select_resource();
 
-    // 10. NOTE: Playback of any previously playing media resource for this element stops.
+    // 11. NOTE: Playback of any previously playing media resource for this element stops.
     return {};
 }
 
@@ -1617,6 +1632,7 @@ void HTMLMediaElement::load_local_resource(MediaProviderObject const& media_prov
             //        3. Set [[port to main]] null.
 
             media_source->set_assigned_to_media_element({}, *this);
+            m_attached_media_source = media_source;
             set_up_playback_manager_for_local();
 
             // 4. Set the readyState attribute to "open".
