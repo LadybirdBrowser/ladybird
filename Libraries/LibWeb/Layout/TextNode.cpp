@@ -14,6 +14,8 @@
 #include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/Locale.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/ShadowRoot.h>
+#include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Painting/InlinePaintable.h>
@@ -25,18 +27,39 @@ TextNode::TextNode(DOM::Document& document, DOM::Text& text)
     : Node(document, &text)
 {
     enroll_for_arena_text_content_sync();
+    update_produces_line_box_fragment_when_empty_flag();
 }
 
 TextNode::TextNode(DOM::Document& document, DOM::Text& text, AttachToDOMNode attach_to_dom_node)
     : Node(document, &text, attach_to_dom_node)
 {
     enroll_for_arena_text_content_sync();
+    update_produces_line_box_fragment_when_empty_flag();
 }
 
 TextNode::TextNode(DOM::Document& document)
     : Node(document, nullptr)
 {
     enroll_for_arena_text_content_sync();
+}
+
+void TextNode::update_produces_line_box_fragment_when_empty_flag()
+{
+    // Text controls and editing hosts rely on their text node producing a zero-width fragment even
+    // when it has no text: the fragment keeps the line box alive with real font metrics, giving the
+    // caret an anchor to paint at and the control its baseline. Stamping this as a node flag keeps
+    // layout itself unaware of editing state.
+    auto produces_line_box_fragment_when_empty = [&] {
+        auto const* dom_text = this->dom_text();
+        if (!dom_text)
+            return false;
+        if (auto const* shadow_root = as_if<DOM::ShadowRoot>(dom_text->root())) {
+            if (as_if<HTML::FormAssociatedTextControlElement>(shadow_root->host()))
+                return true;
+        }
+        return dom_text->parent() && dom_text->parent()->is_editing_host();
+    }();
+    set_flag(RustFFI::NodeFlag::ProducesLineBoxFragmentWhenEmpty, produces_line_box_fragment_when_empty);
 }
 
 TextNode::~TextNode() = default;

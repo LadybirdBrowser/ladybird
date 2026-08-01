@@ -561,6 +561,10 @@ impl<'pass> NodeFacts<'pass> {
         crate::layout::has_flag(self.data(), NodeFlag::IsEditingHost)
     }
 
+    pub(crate) fn produces_line_box_fragment_when_empty(&self) -> bool {
+        crate::layout::has_flag(self.data(), NodeFlag::ProducesLineBoxFragmentWhenEmpty)
+    }
+
     pub(crate) fn uses_button_layout(&self) -> bool {
         crate::layout::has_flag(self.data(), NodeFlag::UsesButtonLayout)
     }

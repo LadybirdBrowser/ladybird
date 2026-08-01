@@ -397,18 +397,14 @@ impl<'iterator, 'context, 'pass> InlineLevelIteratorGenerator<'iterator, 'contex
             text_context.next_chunk_index += 1;
         }
         let mut is_last_chunk = text_context.next_chunk_index >= chunks.len();
-        let is_empty_editable = chunk.is_none()
+        let synthesize_zero_length_chunk = chunk.is_none()
             && is_first_chunk
             && is_last_chunk
             && text_context.text.is_empty()
-            && {
-                let callbacks = self.context().callbacks;
-                // SAFETY: The host reads the live TextNode synchronously.
-                unsafe { (callbacks.text_node_is_empty_editable)(callbacks.context, callbacks.shell(text_node)) }
-            };
+            && self.context().facts(text_node).produces_line_box_fragment_when_empty();
         let chunk = if let Some(chunk) = chunk {
             chunk
-        } else if is_empty_editable {
+        } else if synthesize_zero_length_chunk {
             text_context.next_chunk_index = 1;
             let parent_style = self.context().style(self.context().parent_node(text_node));
             TextChunk {
@@ -490,7 +486,7 @@ impl<'iterator, 'context, 'pass> InlineLevelIteratorGenerator<'iterator, 'contex
             style.letter_spacing().to_double() as f32,
         );
         let chunk_inline_size = CssPixels::nearest_value_for_f32(glyphs.width + inline_offset);
-        let generated_empty = is_empty_editable
+        let generated_empty = synthesize_zero_length_chunk
             || (self.context().facts(text_node).is_generated_for_pseudo_element() && chunk.length == 0);
         let mut item = Item::new(ItemType::Text, text_node);
         item.glyphs = Some(glyphs);
