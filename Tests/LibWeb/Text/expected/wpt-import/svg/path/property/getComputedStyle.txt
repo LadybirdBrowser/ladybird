@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Fail
+Fail	d property of g0 should be none.
+Fail	d property of p1 should be none.
+Fail	d property of p2 should be path("M 10 2 H 20").
+Fail	d property of p3 should be path("M 10 3 H 30").
+Fail	d property of p4 should be path("M 10 4 H 40").
+Fail	d property of g5 should be path("M 10 5 H 50").
+Fail	d property of p6 should be path("M 10 5 H 50").
+Fail	d property of p7 should be none.

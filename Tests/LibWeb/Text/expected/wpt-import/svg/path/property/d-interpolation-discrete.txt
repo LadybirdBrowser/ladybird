@@ -1,0 +1,33 @@
+Harness status: OK
+
+Found 28 tests
+
+28 Fail
+Fail	"path("M 0 0 H 1 H 2")" and "path("M 0 0 H 3")" are valid d values
+Fail	Animation between "path("M 0 0 H 1 H 2")" and "path("M 0 0 H 3")" at progress -1
+Fail	Animation between "path("M 0 0 H 1 H 2")" and "path("M 0 0 H 3")" at progress 0
+Fail	Animation between "path("M 0 0 H 1 H 2")" and "path("M 0 0 H 3")" at progress 0.125
+Fail	Animation between "path("M 0 0 H 1 H 2")" and "path("M 0 0 H 3")" at progress 0.875
+Fail	Animation between "path("M 0 0 H 1 H 2")" and "path("M 0 0 H 3")" at progress 1
+Fail	Animation between "path("M 0 0 H 1 H 2")" and "path("M 0 0 H 3")" at progress 2
+Fail	"path("M 1 2 L 3 4 Z")" and "none" are valid d values
+Fail	Animation between "path("M 1 2 L 3 4 Z")" and "none" at progress -1
+Fail	Animation between "path("M 1 2 L 3 4 Z")" and "none" at progress 0
+Fail	Animation between "path("M 1 2 L 3 4 Z")" and "none" at progress 0.125
+Fail	Animation between "path("M 1 2 L 3 4 Z")" and "none" at progress 0.875
+Fail	Animation between "path("M 1 2 L 3 4 Z")" and "none" at progress 1
+Fail	Animation between "path("M 1 2 L 3 4 Z")" and "none" at progress 2
+Fail	"path("M 10 0 H 11")" and "path("M 20 0 V 2")" are valid d values
+Fail	Animation between "path("M 10 0 H 11")" and "path("M 20 0 V 2")" at progress -1
+Fail	Animation between "path("M 10 0 H 11")" and "path("M 20 0 V 2")" at progress 0
+Fail	Animation between "path("M 10 0 H 11")" and "path("M 20 0 V 2")" at progress 0.125
+Fail	Animation between "path("M 10 0 H 11")" and "path("M 20 0 V 2")" at progress 0.875
+Fail	Animation between "path("M 10 0 H 11")" and "path("M 20 0 V 2")" at progress 1
+Fail	Animation between "path("M 10 0 H 11")" and "path("M 20 0 V 2")" at progress 2
+Fail	"path("M 1 2 L 4 6 Z")" and "path("M 1 2 H 4 V 6")" are valid d values
+Fail	Animation between "path("M 1 2 L 4 6 Z")" and "path("M 1 2 H 4 V 6")" at progress -1
+Fail	Animation between "path("M 1 2 L 4 6 Z")" and "path("M 1 2 H 4 V 6")" at progress 0
+Fail	Animation between "path("M 1 2 L 4 6 Z")" and "path("M 1 2 H 4 V 6")" at progress 0.125
+Fail	Animation between "path("M 1 2 L 4 6 Z")" and "path("M 1 2 H 4 V 6")" at progress 0.875
+Fail	Animation between "path("M 1 2 L 4 6 Z")" and "path("M 1 2 H 4 V 6")" at progress 1
+Fail	Animation between "path("M 1 2 L 4 6 Z")" and "path("M 1 2 H 4 V 6")" at progress 2

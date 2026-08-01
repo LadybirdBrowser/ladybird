@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:h="http://www.w3.org/1999/xhtml">
+  <metadata>
+    <h:link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/paths.html#TheDProperty"/>
+    <h:meta name="assert" content="d can interpolate between absolute and relative paths."/>
+  </metadata>
+
+  <g id="container"/>
+
+  <h:script src="../../../resources/testharness.js"/>
+  <h:script src="../../../resources/testharnessreport.js"/>
+  <h:script src="resources/interpolation-test-common.js"/>
+  <script><![CDATA[
+      'use strict';
+
+      // Mix relative and non-relative
+      test_interpolation({
+        property: 'd',
+        from: 'path("M 0 0 L 100 100 M 100 200 L 200 200 Z L 200 100 Z")',
+        to: 'path("M 0 0 L 100 100 m 0 100 l 100 0 z l 300 100 z")'
+      }, [
+        {at: -1, expect: 'path("M 0 0 L 100 100 M 100 200 L 200 200 Z L 0 -100 Z")'},
+        {at: 0, expect: 'path("M 0 0 L 100 100 M 100 200 L 200 200 Z L 200 100 Z")'},
+        {at: 0.125, expect: 'path("M 0 0 L 100 100 M 100 200 L 200 200 Z L 225 125 Z")'},
+        {at: 0.875, expect: 'path("M 0 0 L 100 100 M 100 200 L 200 200 Z L 375 275 Z")'},
+        {at: 1, expect: 'path("M 0 0 L 100 100 M 100 200 L 200 200 Z L 400 300 Z")'},
+        {at: 2, expect: 'path("M 0 0 L 100 100 M 100 200 L 200 200 Z L 600 500 Z")'},
+      ]);
+
+      test_interpolation({
+        property: 'd',
+        from: 'path("M 0 0 L 100 100 M 100 200 L 200 200 Z L 200 100 Z")',
+        to: 'path("M 0 0 L 100 100 m 0 100 l 100 0 z l 100 -100 z")'
+      }, [
+        {at: -1, expect: 'path("M 0 0 L 100 100 M 100 200 L 200 200 Z L 200 100 Z")'},
+        {at: 0, expect: 'path("M 0 0 L 100 100 M 100 200 L 200 200 Z L 200 100 Z")'},
+        {at: 0.125, expect: 'path("M 0 0 L 100 100 M 100 200 L 200 200 Z L 200 100 Z")'},
+        {at: 0.875, expect: 'path("M 0 0 L 100 100 M 100 200 L 200 200 Z L 200 100 Z")'},
+        {at: 1, expect: 'path("M 0 0 L 100 100 M 100 200 L 200 200 Z L 200 100 Z")'},
+        {at: 2, expect: 'path("M 0 0 L 100 100 M 100 200 L 200 200 Z L 200 100 Z")'},
+      ]);
+
+      test_interpolation({
+        property: 'd',
+        from: 'path("m 10 20 l 40 50 z l 40 60 z m 60 70 l 90 60 z t 70 130")',
+        to: 'path("M 210 220 L 170 190 Z L 90 120 Z M 110 130 L 200 230 Z T 220 220")'
+      }, [
+        {at: -1, expect: 'path("M -190 -180 L -70 -50 Z L 10 40 Z M 30 50 L 120 70 Z T 60 220")'},
+        {at: 0, expect: 'path("M 10 20 L 50 70 Z L 50 80 Z M 70 90 L 160 150 Z T 140 220")'},
+        {at: 0.125, expect: 'path("M 35 45 L 65 85 Z L 55 85 Z M 75 95 L 165 160 Z T 150 220")'},
+        {at: 0.875, expect: 'path("M 185 195 L 155 175 Z L 85 115 Z M 105 125 L 195 220 Z T 210 220")'},
+        {at: 1, expect: 'path("M 210 220 L 170 190 Z L 90 120 Z M 110 130 L 200 230 Z T 220 220")'},
+        {at: 2, expect: 'path("M 410 420 L 290 310 Z L 130 160 Z M 150 170 L 240 310 Z T 300 220")'}
+      ]);
+
+      test_interpolation({
+        property: 'd',
+        from: 'path("m 10 20 c 40 50 30 60 80 70 c 120 130 170 140 110 160")',
+        to: 'path("M 130 100 C 130 150 120 160 210 170 C 290 300 340 310 320 330")'
+      }, [
+        {at: -1, expect: 'path("M -110 -60 C -30 -10 -40 0 -30 10 C 130 140 180 150 80 170")'},
+        {at: 0, expect: 'path("M 10 20 C 50 70 40 80 90 90 C 210 220 260 230 200 250")'},
+        {at: 0.125, expect: 'path("M 25 30 C 60 80 50 90 105 100 C 220 230 270 240 215 260")'},
+        {at: 0.875, expect: 'path("M 115 90 C 120 140 110 150 195 160 C 280 290 330 300 305 320")'},
+        {at: 1, expect: 'path("M 130 100 C 130 150 120 160 210 170 C 290 300 340 310 320 330")'},
+        {at: 2, expect: 'path("M 250 180 C 210 230 200 240 330 250 C 370 380 420 390 440 410")'}
+      ]);
+
+      test_interpolation({
+        property: 'd',
+        from: 'path("m 10 20 q 30 60 40 50 q 110 80 90 80")',
+        to: 'path("M 130 100 Q 120 160 130 150 Q 200 150 180 190")'
+      }, [
+        {at: -1, expect: 'path("M -110 -60 Q -40 0 -30 -10 Q 120 150 100 110")'},
+        {at: 0, expect: 'path("M 10 20 Q 40 80 50 70 Q 160 150 140 150")'},
+        {at: 0.125, expect: 'path("M 25 30 Q 50 90 60 80 Q 165 150 145 155")'},
+        {at: 0.875, expect: 'path("M 115 90 Q 110 150 120 140 Q 195 150 175 185")'},
+        {at: 1, expect: 'path("M 130 100 Q 120 160 130 150 Q 200 150 180 190")'},
+        {at: 2, expect: 'path("M 250 180 Q 200 240 210 230 Q 240 150 220 230")'}
+      ]);
+
+      test_interpolation({
+        property: 'd',
+        from: 'path("m 10 20 s 30 60 40 50 s 110 60 90 70")',
+        to: 'path("M 130 140 S 120 160 130 150 S 200 170 140 180")'
+      }, [
+        {at: -1, expect: 'path("M -110 -100 S -40 0 -30 -10 S 120 90 140 100")'},
+        {at: 0, expect: 'path("M 10 20 S 40 80 50 70 S 160 130 140 140")'},
+        {at: 0.125, expect: 'path("M 25 35 S 50 90 60 80 S 165 135 140 145")'},
+        {at: 0.875, expect: 'path("M 115 125 S 110 150 120 140 S 195 165 140 175")'},
+        {at: 1, expect: 'path("M 130 140 S 120 160 130 150 S 200 170 140 180")'},
+        {at: 2, expect: 'path("M 250 260 S 200 240 210 230 S 240 210 140 220")'}
+      ]);
+
+      test_interpolation({
+        property: 'd',
+        from: 'path("m 10 20 h 30 v 60 h 10 v -10 l 110 60 Z")',
+        to: 'path("M 130 140 H 120 V 160 H 130 V 150 L 200 170 Z")'
+      }, [
+        {at: -1, expect: 'path("M -110 -100 H -40 V 0 H -30 V -10 L 120 90 Z")'},
+        {at: 0, expect: 'path("M 10 20 H 40 V 80 H 50 V 70 L 160 130 Z")'},
+        {at: 0.125, expect: 'path("M 25 35 H 50 V 90 H 60 V 80 L 165 135 Z")'},
+        {at: 0.875, expect: 'path("M 115 125 H 110 V 150 H 120 V 140 L 195 165 Z")'},
+        {at: 1, expect: 'path("M 130 140 H 120 V 160 H 130 V 150 L 200 170 Z")'},
+        {at: 2, expect: 'path("M 250 260 H 200 V 240 H 210 V 230 L 240 210 Z")'}
+      ]);
+
+      // At progress 0.125/0.875, arc flags in path() should consider
+      // non-zero interpolated values as one to match <path> behaviour.
+      // https://w3c.github.io/svgwg/specs/paths/#PathElement
+      test_interpolation({
+        property: 'd',
+        from: 'path("m 10 20 a 10 20 30 1 0 40 50 a 110 120 30 1 1 140 50")',
+        to: 'path("M 18 12 A 50 100 70 0 1 90 110 A 150 160 70 0 1 70 80")'
+      }, [
+        {at: -1, expect: 'path("M 2 28 A -30 -60 -10 1 0 10 30 A 70 80 -10 1 1 310 160")'},
+        {at: 0, expect: 'path("M 10 20 A 10 20 30 1 0 50 70 A 110 120 30 1 1 190 120")'},
+        {at: 0.125, expect: 'path("M 11 19 A 15 30 35 1 1 55 75 A 115 125 35 1 1 175 115")'},
+        {at: 0.875, expect: 'path("M 17 13 A 45 90 65 1 1 85 105 A 145 155 65 1 1 85 85")'},
+        {at: 1, expect: 'path("M 18 12 A 50 100 70 0 1 90 110 A 150 160 70 0 1 70 80")'},
+        {at: 2, expect: 'path("M 26 4 A 90 180 110 0 1 130 150 A 190 200 110 0 1 -50 40")'}
+      ]);
+  ]]></script>
+</svg>
