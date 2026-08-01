@@ -19,8 +19,6 @@ class SVGRectElement final : public SVGGeometryElement {
 public:
     virtual ~SVGRectElement() override = default;
 
-    virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
-
     virtual Gfx::Path get_path(CSSPixelSize viewport_size) override;
 
     // AD-HOC: The spec states that the x, y, width, height, rx and ry IDL attributes reflect the respective computed values
@@ -48,14 +46,7 @@ public:
 private:
     SVGRectElement(DOM::Document&, DOM::QualifiedName);
 
-    Gfx::FloatSize calculate_used_corner_radius_values(CSSPixelSize viewport_size) const;
-
-    Optional<NumberPercentage> m_x;
-    Optional<NumberPercentage> m_y;
-    Optional<NumberPercentage> m_width;
-    Optional<NumberPercentage> m_height;
-    Optional<NumberPercentage> m_radius_x;
-    Optional<NumberPercentage> m_radius_y;
+    Gfx::FloatSize calculate_used_corner_radius_values(float used_width, float used_height) const;
 };
 
 }
