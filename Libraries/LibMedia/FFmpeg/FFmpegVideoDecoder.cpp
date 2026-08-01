@@ -110,13 +110,11 @@ DecoderErrorOr<void> FFmpegVideoDecoder::receive_coded_data(CodedFrame const& co
     auto coded_data = coded_frame.data();
     VERIFY(coded_data.size() < NumericLimits<int>::max());
 
-    auto duration = coded_frame.duration();
     m_packet->data = const_cast<u8*>(coded_data.data());
     m_packet->size = static_cast<int>(coded_data.size());
     m_packet->pts = coded_frame.presentation_timestamp().to_microseconds();
     m_packet->dts = coded_frame.decode_timestamp().to_microseconds();
-    m_packet->duration = duration.to_microseconds();
-    auto packet_pts = m_packet->pts;
+    m_packet->duration = coded_frame.duration().to_microseconds();
 
     ScopeGuard clear_packet_side_data { [&] { av_packet_free_side_data(m_packet); } };
     auto new_codec_configuration = coded_frame.new_codec_configuration();
@@ -126,10 +124,6 @@ DecoderErrorOr<void> FFmpegVideoDecoder::receive_coded_data(CodedFrame const& co
     auto result = avcodec_send_packet(m_codec_context, m_packet);
     switch (result) {
     case 0:
-        // Some FFmpeg decoders do not propagate packet duration to decoded frames, so
-        // remember the accepted packet duration by PTS and consume it on output.
-        if (!duration.is_zero())
-            m_frame_durations.set(packet_pts, duration);
         return {};
     case AVERROR(EAGAIN):
         return DecoderError::with_description(DecoderErrorCategory::NeedsMoreInput, "FFmpeg decoder cannot decode any more data until frames have been retrieved"sv);
@@ -163,14 +157,6 @@ DecoderErrorOr<VideoFrameMetadata> FFmpegVideoDecoder::peek_next_output(CodingIn
         switch (result) {
         case 0:
             m_has_pending_frame = true;
-            // Some FFmpeg decoders do not propagate packet duration to decoded frames, so fill the
-            // frame's duration from the map once here, keeping repeated peeks of this frame stable.
-            if (m_frame->duration == 0) {
-                if (auto packet_duration = m_frame_durations.take(m_frame->pts); packet_duration.has_value())
-                    m_frame->duration = packet_duration->to_microseconds();
-            } else {
-                m_frame_durations.remove(m_frame->pts);
-            }
             break;
         case AVERROR(EAGAIN):
             return DecoderError::with_description(DecoderErrorCategory::NeedsMoreInput, "FFmpeg decoder has no frames available, send more input"sv);
@@ -294,7 +280,6 @@ DecoderErrorOr<void> FFmpegVideoDecoder::take_next_output_into(Gfx::YUVData& yuv
 
 void FFmpegVideoDecoder::flush()
 {
-    m_frame_durations.clear();
     avcodec_flush_buffers(m_codec_context);
     m_has_pending_frame = false;
 }
