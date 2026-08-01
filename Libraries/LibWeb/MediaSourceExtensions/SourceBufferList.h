@@ -17,6 +17,7 @@ class SourceBufferList : public DOM::EventTarget {
 
 public:
     void append(GC::Ref<SourceBuffer>);
+    void remove_all_buffers(Badge<MediaSource>);
 
     size_t length() const;
     GC::Ref<SourceBuffer> const& item(u32 index) const;

@@ -105,7 +105,7 @@ private:
     void unset_all_track_buffer_timestamps();
     void set_need_random_access_point_flag_on_all_track_buffers(bool);
 
-    void initialization_segment_received();
+    [[nodiscard]] bool initialization_segment_received();
     void run_coded_frame_processing(Vector<DemuxedCodedFrame>&);
 
     // https://w3c.github.io/media-source/#dom-sourcebuffer-updating

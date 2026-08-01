@@ -1,0 +1,6 @@
+after appendBuffer(): updating true
+after abort(): updating false
+SourceBuffer updatestart
+SourceBuffer abort
+SourceBuffer updateend
+settled: updating false, buffered 0

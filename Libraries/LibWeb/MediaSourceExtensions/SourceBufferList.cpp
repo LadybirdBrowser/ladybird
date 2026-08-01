@@ -49,6 +49,11 @@ void SourceBufferList::append(GC::Ref<SourceBuffer> buffer)
     }));
 }
 
+void SourceBufferList::remove_all_buffers(Badge<MediaSource>)
+{
+    m_buffers.clear();
+}
+
 size_t SourceBufferList::length() const
 {
     return m_buffers.size();

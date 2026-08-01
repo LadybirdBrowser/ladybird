@@ -320,6 +320,11 @@ private:
     // https://html.spec.whatwg.org/multipage/media.html#assigned-media-provider-object
     MediaProviderObject m_assigned_media_provider_object;
 
+    // https://w3c.github.io/media-source/#mediasource-attach
+    // NB: Unlike the assigned media provider object, this is also set when a MediaSource is attached through a blob
+    //     URL — so that the media element load algorithm can detach it.
+    GC::Ptr<MediaSourceExtensions::MediaSource> m_attached_media_source;
+
     // https://html.spec.whatwg.org/multipage/media.html#dom-media-currentsrc
     Utf16String m_current_src;
 

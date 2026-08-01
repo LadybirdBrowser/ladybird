@@ -35,7 +35,10 @@ public:
     static bool can_construct_in_dedicated_worker(JS::VM&) { return false; }
 
     void set_assigned_to_media_element(Badge<HTML::HTMLMediaElement>, HTML::HTMLMediaElement&);
-    void unassign_from_media_element(Badge<HTML::HTMLMediaElement>);
+
+    // https://w3c.github.io/media-source/#mediasource-detach
+    void detach_from_media_element(Badge<HTML::HTMLMediaElement>);
+
     GC::Ptr<HTML::HTMLMediaElement> media_element_assigned_to() { return m_media_element_assigned_to; }
 
     void set_onsourceopen(GC::Ptr<WebIDL::CallbackType>);

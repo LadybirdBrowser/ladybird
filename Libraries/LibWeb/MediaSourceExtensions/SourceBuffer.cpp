@@ -275,16 +275,18 @@ WebIDL::ExceptionOr<void> SourceBuffer::set_mode(Bindings::AppendMode mode)
 }
 
 // https://w3c.github.io/media-source/#sourcebuffer-prepare-append
-WebIDL::ExceptionOr<void> SourceBuffer::prepare_append(size_t new_data_size, AK::Duration current_time)
+WebIDL::ExceptionOr<void> SourceBuffer::prepare_append(size_t new_data_size)
 {
+    // 1. If the SourceBuffer has been removed from the sourceBuffers attribute of the parent media source then throw an
+    //    InvalidStateError exception and abort these steps.
+    // NB: This covers appending to a SourceBuffer whose parent media source has been detached from its media element —
+    //     since detaching removes all SourceBuffer objects from the sourceBuffers attribute.
+    if (!m_media_source->source_buffers()->contains(*this))
+        return WebIDL::InvalidStateError::create(realm(), "SourceBuffer has been removed"_utf16);
+
     // FIXME: Support MediaSourceExtensions in workers.
     if (!m_media_source->media_element_assigned_to())
         return WebIDL::InvalidStateError::create(realm(), "Unsupported in workers"_utf16);
-
-    // 1. If the SourceBuffer has been removed from the sourceBuffers attribute of the parent media source then throw an
-    //    InvalidStateError exception and abort these steps.
-    if (!m_media_source->source_buffers()->contains(*this))
-        return WebIDL::InvalidStateError::create(realm(), "SourceBuffer has been removed"_utf16);
 
     // 2. If the updating attribute equals true, then throw an InvalidStateError exception and abort these steps.
     if (updating())
@@ -318,7 +320,9 @@ WebIDL::ExceptionOr<void> SourceBuffer::prepare_append(size_t new_data_size, AK:
     }
 
     // 6. Run the coded frame eviction algorithm.
-    m_processor->run_coded_frame_eviction(new_data_size, current_time);
+    // NB: The current playback position is read here — not passed in by append_buffer(): As a call argument it would be
+    //     evaluated before step 1 could reject a SourceBuffer whose media element has been reset.
+    m_processor->run_coded_frame_eviction(new_data_size, m_media_source->media_element_assigned_to()->playback_manager().current_time());
 
     // 7. If the [[buffer full flag]] equals true, then throw a QuotaExceededError exception and abort these steps.
     if (m_processor->is_buffer_full())
@@ -331,7 +335,7 @@ WebIDL::ExceptionOr<void> SourceBuffer::prepare_append(size_t new_data_size, AK:
 WebIDL::ExceptionOr<void> SourceBuffer::append_buffer(WebIDL::BufferSource data)
 {
     // 1. Run the prepare append algorithm.
-    TRY(prepare_append(data.byte_length(), m_media_source->media_element_assigned_to()->playback_manager().current_time()));
+    TRY(prepare_append(data.byte_length()));
 
     // 2. Add data to the end of the [[input buffer]].
     if (auto array_buffer = data.viewed_array_buffer(); array_buffer && !array_buffer->is_detached() && !data.is_out_of_bounds()) {
@@ -349,11 +353,47 @@ WebIDL::ExceptionOr<void> SourceBuffer::append_buffer(WebIDL::BufferSource data)
     }));
 
     // 5. Asynchronously run the buffer append algorithm.
-    m_media_source->queue_a_media_source_task(GC::create_function(heap(), [this] {
-        run_buffer_append_algorithm();
+    // NB: The queued task captures the current append generation — so a bump by abort_buffer_append_algorithm() before
+    //     the task runs makes the task do nothing; see run_buffer_append_algorithm().
+    m_media_source->queue_a_media_source_task(GC::create_function(heap(), [this, append_generation = m_append_generation] {
+        run_buffer_append_algorithm(append_generation);
     }));
 
     return {};
+}
+
+// https://w3c.github.io/media-source/#sourcebuffer-buffer-append
+void SourceBuffer::abort_buffer_append_algorithm()
+{
+    // NB: Bumping the append generation aborts the buffer-append algorithm: Any queued or in-progress run of the
+    //     algorithm compares the generation it captured at its start against the current one — and stops once they no
+    //     longer match; see run_buffer_append_algorithm() and finish_buffer_append().
+    ++m_append_generation;
+}
+
+// https://w3c.github.io/media-source/#dom-mediasource-removesourcebuffer
+void SourceBuffer::abort_if_updating(Badge<MediaSource>)
+{
+    // From the removeSourceBuffer() steps:
+    // 2. If the sourceBuffer.updating attribute equals true, then run the following steps:
+    if (!updating())
+        return;
+
+    // 2.1. Abort the buffer append algorithm if it is running.
+    abort_buffer_append_algorithm();
+
+    // 2.2. Set the sourceBuffer.updating attribute to false.
+    m_processor->set_updating(false);
+
+    // 2.3. Queue a task to fire an event named abort at sourceBuffer.
+    m_media_source->queue_a_media_source_task(GC::create_function(heap(), [this] {
+        dispatch_event(DOM::Event::create(realm(), EventNames::abort));
+    }));
+
+    // 2.4. Queue a task to fire an event named updateend at sourceBuffer.
+    m_media_source->queue_a_media_source_task(GC::create_function(heap(), [this] {
+        dispatch_event(DOM::Event::create(realm(), EventNames::updateend));
+    }));
 }
 
 // https://w3c.github.io/media-source/#dom-sourcebuffer-abort
@@ -374,8 +414,7 @@ WebIDL::ExceptionOr<void> SourceBuffer::abort()
     // 4. If the updating attribute equals true, then run the following steps:
     if (updating()) {
         // 4.1. Abort the buffer append algorithm if it is running.
-        // FIXME: The buffer append algorithm cannot be running in parallel with this code. However, when
-        //        it can, this will need additional work.
+        abort_buffer_append_algorithm();
 
         // 4.2. Set the updating attribute to false.
         m_processor->set_updating(false);
@@ -467,10 +506,17 @@ void SourceBuffer::clear_reached_end_of_stream(Badge<MediaSource>)
 }
 
 // https://w3c.github.io/media-source/#sourcebuffer-buffer-append
-void SourceBuffer::run_buffer_append_algorithm()
+void SourceBuffer::run_buffer_append_algorithm(u64 append_generation)
 {
+    // NB: A generation mismatch means abort_buffer_append_algorithm() aborted this run of the algorithm before its
+    //     queued task ran — through abort(), or through detaching the parent media source from its media element.
+    if (append_generation != m_append_generation)
+        return;
+
     // 1. Run the segment parser loop algorithm.
-    // NB: SourceBufferProcessor's append done callback invokes finish_buffer_append for the rest of this algorithm.
+    // 2. If the segment parser loop algorithm in the previous step was aborted, then abort this algorithm.
+    // NB: The segment-parser loop implements step 2 by invoking the append-done callback — which runs
+    //     finish_buffer_append() for the remaining steps — only when it wasn't aborted.
     m_processor->run_segment_parser_loop();
 }
 
@@ -739,6 +785,9 @@ void SourceBuffer::on_first_initialization_segment_processed(InitializationSegme
 // https://w3c.github.io/media-source/#sourcebuffer-buffer-append
 void SourceBuffer::finish_buffer_append()
 {
+    // NB: The segment-parser loop invokes this synchronously, through the append-done callback — so the generation
+    //     check at the start of run_buffer_append_algorithm() still holds here: The loop's callbacks queue tasks
+    //     rather than running script — so, no script can run abort_buffer_append_algorithm() while the loop runs.
     // 3. Set the updating attribute to false.
     m_processor->set_updating(false);
 
