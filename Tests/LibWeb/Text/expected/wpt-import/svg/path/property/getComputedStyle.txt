@@ -2,11 +2,11 @@ Harness status: OK
 
 Found 8 tests
 
-5 Pass
-3 Fail
+6 Pass
+2 Fail
 Pass	d property of g0 should be none.
 Pass	d property of p1 should be none.
-Fail	d property of p2 should be path("M 10 2 H 20").
+Pass	d property of p2 should be path("M 10 2 H 20").
 Pass	d property of p3 should be path("M 10 3 H 30").
 Pass	d property of p4 should be path("M 10 4 H 40").
 Fail	d property of g5 should be path("M 10 5 H 50").
