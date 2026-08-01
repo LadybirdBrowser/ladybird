@@ -71,7 +71,7 @@ protected:
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:
-    WebIDL::ExceptionOr<void> prepare_append(size_t new_data_size, AK::Duration current_time);
+    WebIDL::ExceptionOr<void> prepare_append(size_t new_data_size);
     void run_buffer_append_algorithm();
     void run_append_error_algorithm();
     void on_first_initialization_segment_processed(InitializationSegmentData const&);

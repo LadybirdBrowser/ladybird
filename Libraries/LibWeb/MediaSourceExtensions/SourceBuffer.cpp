@@ -275,11 +275,18 @@ WebIDL::ExceptionOr<void> SourceBuffer::set_mode(Bindings::AppendMode mode)
 }
 
 // https://w3c.github.io/media-source/#sourcebuffer-prepare-append
-WebIDL::ExceptionOr<void> SourceBuffer::prepare_append(size_t new_data_size, AK::Duration current_time)
+WebIDL::ExceptionOr<void> SourceBuffer::prepare_append(size_t new_data_size)
 {
     // FIXME: Support MediaSourceExtensions in workers.
-    if (!m_media_source->media_element_assigned_to())
+    auto media_element = m_media_source->media_element_assigned_to();
+    if (!media_element)
         return WebIDL::InvalidStateError::create(realm(), "Unsupported in workers"_utf16);
+
+    // AD-HOC: Detaching the MediaSource would remove this SourceBuffer from the sourceBuffers attribute — making step 1
+    //         below throw. We don't implement detaching yet — so throw the same exception here. The current time is
+    //         read below rather than passed in: As a call argument, it would dereference a null playback manager.
+    if (!media_element->playback_manager())
+        return WebIDL::InvalidStateError::create(realm(), "Media element has been reset"_utf16);
 
     // 1. If the SourceBuffer has been removed from the sourceBuffers attribute of the parent media source then throw an
     //    InvalidStateError exception and abort these steps.
@@ -318,7 +325,7 @@ WebIDL::ExceptionOr<void> SourceBuffer::prepare_append(size_t new_data_size, AK:
     }
 
     // 6. Run the coded frame eviction algorithm.
-    m_processor->run_coded_frame_eviction(new_data_size, current_time);
+    m_processor->run_coded_frame_eviction(new_data_size, media_element->playback_manager()->current_time());
 
     // 7. If the [[buffer full flag]] equals true, then throw a QuotaExceededError exception and abort these steps.
     if (m_processor->is_buffer_full())
@@ -331,7 +338,7 @@ WebIDL::ExceptionOr<void> SourceBuffer::prepare_append(size_t new_data_size, AK:
 WebIDL::ExceptionOr<void> SourceBuffer::append_buffer(WebIDL::BufferSource data)
 {
     // 1. Run the prepare append algorithm.
-    TRY(prepare_append(data.byte_length(), m_media_source->media_element_assigned_to()->playback_manager().current_time()));
+    TRY(prepare_append(data.byte_length()));
 
     // 2. Add data to the end of the [[input buffer]].
     if (auto array_buffer = data.viewed_array_buffer(); array_buffer && !array_buffer->is_detached() && !data.is_out_of_bounds()) {
@@ -502,6 +509,15 @@ void SourceBuffer::on_first_initialization_segment_processed(InitializationSegme
 {
     auto& realm = this->realm();
 
+    // AD-HOC: Return early instead of touching the reset element. See MediaSource::run_duration_change_algorithm. This
+    //         is the same queued-task case as that. This algorithm can run after the media-element load algorithm reset
+    //         the element — and detaching still wouldn't prevent that.
+    {
+        auto media_element = m_media_source->media_element_assigned_to();
+        if (!media_element || !media_element->playback_manager())
+            return;
+    }
+
     // 4. Let active track flag equal false.
     bool active_track_flag = false;
 
@@ -568,7 +584,7 @@ void SourceBuffer::on_first_initialization_segment_processed(InitializationSegme
             // 8. Add the track description for this track to the track buffer.
             // NB: Track buffers and their demuxers are created by the processor. Here we pass the
             //     demuxer to the PlaybackManager so the decoder thread can read coded frames from it.
-            m_media_source->media_element_assigned_to()->playback_manager().add_media_source(audio_track_info.demuxer);
+            m_media_source->media_element_assigned_to()->playback_manager()->add_media_source(audio_track_info.demuxer);
         }
 
         // 3. For each video track in the initialization segment, run following steps:
@@ -629,7 +645,7 @@ void SourceBuffer::on_first_initialization_segment_processed(InitializationSegme
             // 8. Add the track description for this track to the track buffer.
             // NB: Track buffers and their demuxers are created by the processor. Here we pass the
             //     demuxer to the PlaybackManager so the decoder thread can read coded frames from it.
-            m_media_source->media_element_assigned_to()->playback_manager().add_media_source(video_track_info.demuxer);
+            m_media_source->media_element_assigned_to()->playback_manager()->add_media_source(video_track_info.demuxer);
         }
 
         // 4. For each text track in the initialization segment, run following steps:

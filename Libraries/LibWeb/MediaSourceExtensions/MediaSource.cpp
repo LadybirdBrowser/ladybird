@@ -332,8 +332,15 @@ void MediaSource::run_duration_change_algorithm(double new_duration)
     // FIXME: Mirror to the Window when workers are supported.
     //        Update the media element's duration to new duration.
     //        Run the HTMLMediaElement duration change algorithm.
-    media_element_assigned_to()->set_duration({}, new_duration);
-    media_element_assigned_to()->playback_manager().set_duration(AK::Duration::from_seconds_f64(new_duration));
+    // AD-HOC: Skip duration-mirroring to the reset element. When the media-element load AO resets the element, it
+    //         removes only tasks on the media-element event task source. A buffer-append AO task queued before that
+    //         still runs afterwards — against an element with no playback manager. Detaching the MediaSource wouldn't
+    //         cancel it either: The detach steps close the MediaSource, but don't abort the buffer-append AO.
+    auto media_element = media_element_assigned_to();
+    if (!media_element || !media_element->playback_manager())
+        return;
+    media_element->set_duration({}, new_duration);
+    media_element->playback_manager()->set_duration(AK::Duration::from_seconds_f64(new_duration));
 }
 
 // https://w3c.github.io/media-source/#dom-mediasource-istypesupported

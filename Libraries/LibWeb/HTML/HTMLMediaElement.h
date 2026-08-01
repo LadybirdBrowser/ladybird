@@ -167,11 +167,7 @@ public:
 
     void set_duration(Badge<MediaSourceExtensions::MediaSource>, double duration) { set_duration(duration); }
 
-    Media::PlaybackManager& playback_manager()
-    {
-        VERIFY(m_playback_manager);
-        return *m_playback_manager;
-    }
+    Media::PlaybackManager* playback_manager() { return m_playback_manager.ptr(); }
 
     void create_controls();
     void destroy_controls();
