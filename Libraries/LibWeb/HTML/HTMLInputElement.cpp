@@ -1189,7 +1189,7 @@ void HTMLInputElement::create_text_input_shadow_tree()
                 overflow: auto;
                 scrollbar-width: none;
                 text-overflow: clip;
-                white-space: nowrap;
+                white-space: pre;
             )~~~"sv);
         }
         m_inner_text_element->set_inline_style(*style);
