@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:h="http://www.w3.org/1999/xhtml">
+  <metadata>
+    <h:link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/paths.html#TheDProperty"/>
+    <h:link rel="match" href="../../../../../expected/wpt-import/svg/path/property/d-none-ref.svg"/>
+    <h:meta name="assert" content="Setting 'd: none' overrides the 'd' SVG attribute."/>
+  </metadata>
+  <path d="M 0 0 H 100 V 100 H 0 Z" fill="green" />
+  <path d="M 0 0 H 100 V 100 H 0 Z" fill="red" style="d: none" />
+</svg>

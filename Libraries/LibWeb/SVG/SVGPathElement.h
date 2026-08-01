@@ -18,16 +18,12 @@ class SVGPathElement final : public SVGGeometryElement {
 public:
     virtual ~SVGPathElement() override = default;
 
-    virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
-
     virtual Gfx::Path get_path(CSSPixelSize viewport_size) override;
 
 private:
     SVGPathElement(DOM::Document&, DOM::QualifiedName);
 
     virtual void initialize(JS::Realm&) override;
-
-    Path m_path {};
 };
 
 }
