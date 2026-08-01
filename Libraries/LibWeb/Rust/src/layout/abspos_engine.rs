@@ -831,6 +831,10 @@ fn resolve_or_auto(value: FfiSizeValue, basis: CssPixels) -> AutoPx {
     (!value.is_auto()).then(|| value.to_px(basis))
 }
 
+fn resolve_margin_or_auto(value: &ComputedLengthPercentageOrAuto, basis: CssPixels) -> AutoPx {
+    (!value.is_auto()).then(|| value.to_px(basis))
+}
+
 fn auto_px_value(value: AutoPx) -> CssPixels {
     value.unwrap_or_default()
 }
@@ -970,8 +974,8 @@ impl AbsposEngine<'_> {
         let computed_right = style.inset_right();
         let mut left = style.inset_left().to_px(containing_block_inline_size);
         let mut right = style.inset_right().to_px(containing_block_inline_size);
-        let mut margin_left = resolve_or_auto(style.margin_left(), containing_block_inline_size);
-        let mut margin_right = resolve_or_auto(style.margin_right(), containing_block_inline_size);
+        let mut margin_left = resolve_margin_or_auto(style.margin_left(), containing_block_inline_size);
+        let mut margin_right = resolve_margin_or_auto(style.margin_right(), containing_block_inline_size);
         let mut inline_size = input_inline_size;
 
         let solve_for_left = |inline_size: AutoPx, margin_left: AutoPx, margin_right: AutoPx, right: CssPixels| {
@@ -1179,8 +1183,8 @@ impl AbsposEngine<'_> {
             available,
             resolve_or_auto(style.inset_left(), containing_block_inline_size),
             resolve_or_auto(style.inset_right(), containing_block_inline_size),
-            resolve_or_auto(style.margin_left(), containing_block_inline_size),
-            resolve_or_auto(style.margin_right(), containing_block_inline_size),
+            resolve_margin_or_auto(style.margin_left(), containing_block_inline_size),
+            resolve_margin_or_auto(style.margin_right(), containing_block_inline_size),
             self.static_offset(node, static_position_rect).inline_offset,
             ReplacedAxisBehavior {
                 clear_auto_margins_if_start_is_auto: true,
@@ -1280,8 +1284,8 @@ impl AbsposEngine<'_> {
         let style = self.style(node);
         let containing_block_inline_size = available_space.inline_size.to_px_or_zero();
         let containing_block_block_size = available_space.block_size.to_px_or_zero();
-        let mut margin_top = resolve_or_auto(style.margin_top(), containing_block_inline_size);
-        let mut margin_bottom = resolve_or_auto(style.margin_bottom(), containing_block_inline_size);
+        let mut margin_top = resolve_margin_or_auto(style.margin_top(), containing_block_inline_size);
+        let mut margin_bottom = resolve_margin_or_auto(style.margin_bottom(), containing_block_inline_size);
         let mut top = resolve_or_auto(style.inset_top(), containing_block_block_size);
         let mut bottom = resolve_or_auto(style.inset_bottom(), containing_block_block_size);
         let used = self.used(node);
@@ -1578,8 +1582,8 @@ impl AbsposEngine<'_> {
             available,
             resolve_or_auto(style.inset_top(), containing_block_block_size),
             resolve_or_auto(style.inset_bottom(), containing_block_block_size),
-            resolve_or_auto(style.margin_top(), containing_block_block_size),
-            resolve_or_auto(style.margin_bottom(), containing_block_block_size),
+            resolve_margin_or_auto(style.margin_top(), containing_block_block_size),
+            resolve_margin_or_auto(style.margin_bottom(), containing_block_block_size),
             self.static_offset(node, static_position_rect).block_offset,
             ReplacedAxisBehavior {
                 clear_auto_margins_if_start_is_auto: false,
