@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<video id="video"></video>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        function fail(name, error) {
+            println(`FAIL: ${name}: ${error}`);
+            done();
+        }
+
+        try {
+            const video = document.getElementById("video");
+            const mimeType = 'video/webm;codecs="vp9"';
+            const mediaSource = new MediaSource();
+            video.src = URL.createObjectURL(mediaSource);
+
+            mediaSource.addEventListener("sourceopen", async () => {
+                try {
+                    const sourceBuffer = mediaSource.addSourceBuffer(mimeType);
+
+                    // This file holds two initialization segments, the first declaring a DefaultDuration of
+                    // 10fps and the second of 60fps, so the frames buffered last are far shorter than the
+                    // ones before them.
+                    const response = await fetch("../../../Assets/vp9-frame-rate-change.webm");
+                    if (!response.ok) {
+                        fail("fetch media", `HTTP ${response.status}`);
+                        return;
+                    }
+                    const data = new Uint8Array(await response.arrayBuffer());
+
+                    await new Promise((resolve, reject) => {
+                        sourceBuffer.addEventListener("updateend", resolve, { once: true });
+                        sourceBuffer.addEventListener("error", () =>
+                            reject(new Error("error event on SourceBuffer")), { once: true });
+                        sourceBuffer.appendBuffer(data);
+                    });
+
+                    const buffered = sourceBuffer.buffered;
+                    const ranges = [];
+                    for (let i = 0; i < buffered.length; i++)
+                        ranges.push(`${buffered.start(i)}-${buffered.end(i)}`);
+                    println(`buffered: [${ranges.join(", ")}]`);
+
+                    // The gap threshold must be derived from the longest frame buffered rather than the most
+                    // recent one, or reading the slower frames at the start blocks on a false discontinuity.
+                    await new Promise(resolve => {
+                        video.addEventListener("seeked", resolve, { once: true });
+                        video.currentTime = 0.5;
+                    });
+                    println(`seeked to: ${video.currentTime}`);
+                    done();
+                } catch (e) {
+                    fail("sourceopen handler", e);
+                }
+            });
+        } catch (e) {
+            fail("setup", e);
+        }
+    });
+</script>

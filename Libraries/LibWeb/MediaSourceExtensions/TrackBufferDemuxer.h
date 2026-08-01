@@ -67,6 +67,8 @@ public:
 
 private:
     AK::Duration maximum_time_range_gap() const;
+    void count_frame_duration_while_locked(AK::Duration);
+    void decrement_frames_with_maximum_duration_while_locked(size_t count);
     bool next_frame_is_in_gap_while_locked() const;
     ReadonlyBytes codec_configuration_at_position_while_locked(size_t) const;
     bool is_frame_evictable_while_locked(Media::CodedFrame const&, AK::Duration current_time) const;
@@ -88,7 +90,8 @@ private:
     FixedArray<u8> m_last_delivered_codec_configuration;
 
     Media::TimeRanges m_track_buffer_ranges;
-    AK::Duration m_last_frame_duration;
+    AK::Duration m_maximum_frame_duration;
+    size_t m_frames_at_maximum_duration { 0 };
     size_t m_total_bytes { 0 };
     Atomic<bool> m_aborted { false };
     Media::ReadBlockedChangeHandler m_read_blocked_change_handler;
