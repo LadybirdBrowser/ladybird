@@ -9,6 +9,7 @@
 // make the css-module types they use resolve without per-file imports.
 pub(crate) use crate::abort_on_panic;
 pub(crate) use crate::css::computed_value_types::*;
+pub(crate) use crate::css::computed_value_views::*;
 pub(crate) use crate::css::css_enums::*;
 pub(crate) use crate::css::css_pixels::*;
 pub(crate) use crate::css::display::*;
