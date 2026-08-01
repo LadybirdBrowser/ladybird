@@ -1,0 +1,4 @@
+caret rect exists in freshly editable empty text node: true
+caret has line height: true
+empty editing host has line height while editable: true
+empty div collapses after contenteditable is removed: true

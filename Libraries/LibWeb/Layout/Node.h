@@ -262,6 +262,7 @@ public:
     bool children_are_inline() const { return has_flag(RustFFI::NodeFlag::ChildrenAreInline); }
     void set_children_are_inline(bool value) { set_flag(RustFFI::NodeFlag::ChildrenAreInline, value); }
 
+    bool is_editing_host() const { return has_flag(RustFFI::NodeFlag::IsEditingHost); }
     void set_is_editing_host(bool value) { set_flag(RustFFI::NodeFlag::IsEditingHost, value); }
 
     u32 initial_quote_nesting_level() const { return m_data->initial_quote_nesting_level; }

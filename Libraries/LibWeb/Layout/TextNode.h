@@ -48,7 +48,7 @@ public:
 
     void set_needs_repaint(InvalidateDisplayList = InvalidateDisplayList::Yes) const;
 
-    void update_produces_line_box_fragment_when_empty_flag();
+    bool update_produces_line_box_fragment_when_empty_flag();
 
 protected:
     TextNode(DOM::Document&, DOM::Text&, AttachToDOMNode);

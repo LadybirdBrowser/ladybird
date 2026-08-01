@@ -43,7 +43,7 @@ TextNode::TextNode(DOM::Document& document)
     enroll_for_arena_text_content_sync();
 }
 
-void TextNode::update_produces_line_box_fragment_when_empty_flag()
+bool TextNode::update_produces_line_box_fragment_when_empty_flag()
 {
     // Text controls and editing hosts rely on their text node producing a zero-width fragment even
     // when it has no text: the fragment keeps the line box alive with real font metrics, giving the
@@ -59,7 +59,10 @@ void TextNode::update_produces_line_box_fragment_when_empty_flag()
         }
         return dom_text->parent() && dom_text->parent()->is_editing_host();
     }();
+    if (has_flag(RustFFI::NodeFlag::ProducesLineBoxFragmentWhenEmpty) == produces_line_box_fragment_when_empty)
+        return false;
     set_flag(RustFFI::NodeFlag::ProducesLineBoxFragmentWhenEmpty, produces_line_box_fragment_when_empty);
+    return true;
 }
 
 TextNode::~TextNode() = default;
