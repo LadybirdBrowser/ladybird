@@ -79,12 +79,11 @@
 
 namespace Web::Layout {
 
-static Atomic<size_t> s_outstanding_calc_handles;
-static Atomic<size_t> s_outstanding_grid_name_handles;
 static Atomic<size_t> s_outstanding_anchor_name_handles;
 static Atomic<size_t> s_outstanding_svg_path_handles;
 
 static_assert(to_underlying(CSS::StyleGroupIndex::Count) == RustFFI::STYLE_GROUP_COUNT);
+static_assert(to_underlying(CSS::StyleGroupIndex::GridValues) == RustFFI::STYLE_GROUP_INDEX_GRID);
 static_assert(to_underlying(CSS::StyleGroupIndex::InheritedTableValues) == RustFFI::STYLE_GROUP_INDEX_INHERITED_TABLE);
 static_assert(to_underlying(CSS::StyleGroupIndex::InheritedTextValues) == RustFFI::STYLE_GROUP_INDEX_INHERITED_TEXT);
 static_assert(to_underlying(CSS::StyleGroupIndex::InheritedBoxValues) == RustFFI::STYLE_GROUP_INDEX_INHERITED_BOX);
@@ -111,288 +110,6 @@ static bool is_empty_editable_text_node(TextNode const& text_node)
     }
     is_empty_editable |= dom_text->parent() && dom_text->parent()->is_editing_host();
     return is_empty_editable;
-}
-
-struct RetainedCalcHandle {
-    size_t retain_count;
-};
-
-static HashMap<void const*, RetainedCalcHandle>& retained_calc_handles()
-{
-    static NeverDestroyed<HashMap<void const*, RetainedCalcHandle>> handles;
-    return *handles;
-}
-
-static RustFFI::FfiSizeValue size_value_with_kind(RustFFI::FfiSizeKind kind)
-{
-    return {
-        .kind = to_underlying(kind),
-        .px = 0,
-        .fraction = 0,
-        .calc = nullptr,
-        .calc_is_bridge_retained = false,
-        .contains_percentage = false,
-        .contains_anchor_function = false,
-        .fit_content_has_argument = false,
-    };
-}
-
-static RustFFI::FfiSizeValue retain_calculated(CSS::CalculatedStyleValue const& calculated, bool contains_percentage, RustFFI::FfiSizeKind kind = RustFFI::FfiSizeKind::Calc)
-{
-    auto const* handle = CSS::StyleValueFFI::rust_style_value_retain(calculated.rust_style_value_data());
-    auto& retained = retained_calc_handles().ensure(handle, [&] {
-        return RetainedCalcHandle {
-            .retain_count = 0,
-        };
-    });
-    ++retained.retain_count;
-    ++s_outstanding_calc_handles;
-    return {
-        .kind = to_underlying(kind),
-        .px = 0,
-        .fraction = 0,
-        .calc = handle,
-        .calc_is_bridge_retained = true,
-        .contains_percentage = contains_percentage,
-        .contains_anchor_function = calculated.contains_anchor_function(),
-        .fit_content_has_argument = false,
-    };
-}
-
-static constexpr u32 no_grid_index = static_cast<u32>(-1);
-
-static Utf16FlyString make_grid_implicit_line_name(Utf16View name, StringView suffix)
-{
-    Utf16StringBuilder builder;
-    builder.append(name);
-    builder.append_ascii(suffix);
-    auto line_name = builder.to_string();
-    return Utf16FlyString::from_utf16(line_name.utf16_view());
-}
-
-struct GridFactsSnapshotArena {
-    Vector<size_t> names;
-    Vector<u32> name_indices;
-    Vector<RustFFI::FfiGridTrackEntry> entries;
-    Vector<RustFFI::FfiGridArea> areas;
-    HashMap<Utf16FlyString, u32> indices_by_name;
-
-    u32 intern_name(Utf16FlyString const& name)
-    {
-        if (auto existing = indices_by_name.get(name); existing.has_value())
-            return existing.value();
-
-        VERIFY(names.size() < no_grid_index);
-        auto index = static_cast<u32>(names.size());
-        names.append(name.to_raw_leaked());
-        indices_by_name.set(name, index);
-        ++s_outstanding_grid_name_handles;
-        return index;
-    }
-};
-
-static RustFFI::FfiGridTrackBreadth grid_track_breadth(CSS::GridSize const& grid_size)
-{
-    if (grid_size.is_flexible_length()) {
-        return {
-            .kind = to_underlying(RustFFI::FfiGridTrackBreadthKind::Flex),
-            .value = size_value_with_kind(RustFFI::FfiSizeKind::Auto),
-            .flex_factor = grid_size.flex_factor(),
-        };
-    }
-
-    auto size = grid_size.css_size();
-    auto kind = [&] {
-        switch (size.type()) {
-        case CSS::Size::Type::Auto:
-            return RustFFI::FfiGridTrackBreadthKind::Auto;
-        case CSS::Size::Type::Calculated:
-        case CSS::Size::Type::Length:
-        case CSS::Size::Type::Percentage:
-            return RustFFI::FfiGridTrackBreadthKind::LengthPercentage;
-        case CSS::Size::Type::MinContent:
-            return RustFFI::FfiGridTrackBreadthKind::MinContent;
-        case CSS::Size::Type::MaxContent:
-            return RustFFI::FfiGridTrackBreadthKind::MaxContent;
-        case CSS::Size::Type::FitContent:
-            return RustFFI::FfiGridTrackBreadthKind::FitContent;
-        case CSS::Size::Type::None:
-            VERIFY_NOT_REACHED();
-        }
-        VERIFY_NOT_REACHED();
-    }();
-    return {
-        .kind = to_underlying(kind),
-        .value = build_style_size_value(size),
-        .flex_factor = 0,
-    };
-}
-
-static RustFFI::FfiGridTrackList build_grid_track_list(CSS::GridTrackSizeList const& list, GridFactsSnapshotArena& arena)
-{
-    RustFFI::FfiGridTrackList result {
-        .is_subgrid = list.is_subgrid(),
-        .preserves_line_name_sets = list.preserves_line_name_sets(),
-        .first_entry = no_grid_index,
-    };
-    u32 previous_entry = no_grid_index;
-
-    for (auto const& item : list.list()) {
-        VERIFY(arena.entries.size() < no_grid_index);
-        auto entry_index = static_cast<u32>(arena.entries.size());
-        auto auto_breadth = grid_track_breadth(CSS::GridSize::make_auto());
-        arena.entries.append({
-            .kind = 0,
-            .next_sibling = no_grid_index,
-            .name_index_start = 0,
-            .name_index_count = 0,
-            .size = auto_breadth,
-            .min_size = auto_breadth,
-            .max_size = auto_breadth,
-            .repeat_type = 0,
-            .repeat_count = 0,
-            .repeat_list = {
-                .is_subgrid = false,
-                .preserves_line_name_sets = false,
-                .first_entry = no_grid_index,
-            },
-        });
-
-        if (result.first_entry == no_grid_index)
-            result.first_entry = entry_index;
-        if (previous_entry != no_grid_index)
-            arena.entries[previous_entry].next_sibling = entry_index;
-        previous_entry = entry_index;
-
-        item.visit(
-            [&](CSS::GridLineNames const& line_names) {
-                auto name_index_start = arena.name_indices.size();
-                for (auto const& line_name : line_names.names())
-                    arena.name_indices.append(arena.intern_name(line_name.name));
-                auto& entry = arena.entries[entry_index];
-                entry.kind = to_underlying(RustFFI::FfiGridTrackEntryKind::LineNames);
-                entry.name_index_start = name_index_start;
-                entry.name_index_count = arena.name_indices.size() - name_index_start;
-            },
-            [&](CSS::ExplicitGridTrack const& track) {
-                if (track.is_default()) {
-                    auto& entry = arena.entries[entry_index];
-                    entry.kind = to_underlying(RustFFI::FfiGridTrackEntryKind::TrackSize);
-                    entry.size = grid_track_breadth(track.grid_size());
-                    return;
-                }
-                if (track.is_minmax()) {
-                    auto& entry = arena.entries[entry_index];
-                    entry.kind = to_underlying(RustFFI::FfiGridTrackEntryKind::MinMax);
-                    entry.min_size = grid_track_breadth(track.minmax().min_grid_size());
-                    entry.max_size = grid_track_breadth(track.minmax().max_grid_size());
-                    return;
-                }
-
-                auto const& repeat = track.repeat();
-                auto repeat_list = build_grid_track_list(repeat.grid_track_size_list(), arena);
-                auto& entry = arena.entries[entry_index];
-                entry.kind = to_underlying(RustFFI::FfiGridTrackEntryKind::Repeat);
-                entry.repeat_type = to_underlying(repeat.type());
-                entry.repeat_count = repeat.is_fixed() ? repeat.repeat_count() : 0;
-                entry.repeat_list = repeat_list;
-            });
-    }
-    return result;
-}
-
-static RustFFI::FfiGridPlacement build_grid_placement(CSS::GridTrackPlacement const& placement, GridFactsSnapshotArena& arena)
-{
-    RustFFI::FfiGridPlacement result {
-        .kind = to_underlying(RustFFI::FfiGridPlacementKind::Auto),
-        .has_line_number = false,
-        .line_number = 0,
-        .has_name = false,
-        .name_index = no_grid_index,
-        .implicit_start_name_index = no_grid_index,
-        .implicit_end_name_index = no_grid_index,
-    };
-    if (placement.is_auto())
-        return result;
-
-    if (placement.is_span()) {
-        result.kind = to_underlying(RustFFI::FfiGridPlacementKind::Span);
-        result.has_line_number = true;
-        result.line_number = CSS::int_from_style_value(placement.span());
-        if (placement.span_name().has_value()) {
-            result.has_name = true;
-            result.name_index = arena.intern_name(*placement.span_name());
-        }
-        return result;
-    }
-
-    result.kind = to_underlying(RustFFI::FfiGridPlacementKind::Line);
-    if (placement.has_line_number()) {
-        result.has_line_number = true;
-        result.line_number = CSS::int_from_style_value(placement.line_number());
-    }
-    if (placement.has_identifier()) {
-        result.has_name = true;
-        result.name_index = arena.intern_name(placement.identifier());
-        result.implicit_start_name_index = arena.intern_name(
-            make_grid_implicit_line_name(placement.identifier().view(), "-start"sv));
-        result.implicit_end_name_index = arena.intern_name(
-            make_grid_implicit_line_name(placement.identifier().view(), "-end"sv));
-    }
-    return result;
-}
-
-static RustFFI::FfiGridStyleFacts build_grid_style_facts(NodeWithStyle const& node)
-{
-    auto arena = make<GridFactsSnapshotArena>();
-    auto const& values = node.computed_values();
-
-    auto template_columns = build_grid_track_list(values.grid_template_columns(), *arena);
-    auto template_rows = build_grid_track_list(values.grid_template_rows(), *arena);
-    auto auto_columns = build_grid_track_list(values.grid_auto_columns(), *arena);
-    auto auto_rows = build_grid_track_list(values.grid_auto_rows(), *arena);
-
-    auto const& template_areas = values.grid_template_areas();
-    arena->areas.ensure_capacity(template_areas.areas.size());
-    for (auto const& [name, area] : template_areas.areas) {
-        arena->areas.unchecked_append({
-            .name_index = arena->intern_name(name),
-            .implicit_start_name_index = arena->intern_name(
-                make_grid_implicit_line_name(name.view(), "-start"sv)),
-            .implicit_end_name_index = arena->intern_name(
-                make_grid_implicit_line_name(name.view(), "-end"sv)),
-            .row_start = area.row_start,
-            .row_end = area.row_end,
-            .column_start = area.column_start,
-            .column_end = area.column_end,
-        });
-    }
-
-    auto column_start = build_grid_placement(values.grid_column_start(), *arena);
-    auto column_end = build_grid_placement(values.grid_column_end(), *arena);
-    auto row_start = build_grid_placement(values.grid_row_start(), *arena);
-    auto row_end = build_grid_placement(values.grid_row_end(), *arena);
-
-    auto* owner = arena.leak_ptr();
-    return {
-        .snapshot_owner = owner,
-        .names = owner->names.data(),
-        .name_count = owner->names.size(),
-        .name_indices = owner->name_indices.data(),
-        .name_index_count = owner->name_indices.size(),
-        .entries = owner->entries.data(),
-        .entry_count = owner->entries.size(),
-        .template_columns = template_columns,
-        .template_rows = template_rows,
-        .auto_columns = auto_columns,
-        .auto_rows = auto_rows,
-        .areas = owner->areas.data(),
-        .area_count = owner->areas.size(),
-        .column_start = column_start,
-        .column_end = column_end,
-        .row_start = row_start,
-        .row_end = row_end,
-    };
 }
 
 static CSS::GridTrackSizeList build_used_grid_track_list(RustFFI::FfiUsedGridTrackList const& list)
@@ -597,92 +314,6 @@ static OwnPtr<GridLayoutData> build_grid_layout_data(RustFFI::FfiGridLayoutData 
         data->fragments.unchecked_append(move(fragment));
     }
     return data;
-}
-
-RustFFI::FfiSizeValue build_style_size_value(CSS::LengthPercentage const& value)
-{
-    if (value.is_length()) {
-        VERIFY(value.length().is_absolute());
-        return {
-            .kind = to_underlying(RustFFI::FfiSizeKind::Px),
-            .px = value.length().absolute_length_to_px().raw_value(),
-            .fraction = 0,
-            .calc = nullptr,
-            .calc_is_bridge_retained = false,
-            .contains_percentage = false,
-            .contains_anchor_function = false,
-            .fit_content_has_argument = false,
-        };
-    }
-    if (value.is_percentage()) {
-        return {
-            .kind = to_underlying(RustFFI::FfiSizeKind::Percentage),
-            .px = 0,
-            .fraction = value.percentage().as_fraction(),
-            .calc = nullptr,
-            .calc_is_bridge_retained = false,
-            .contains_percentage = true,
-            .contains_anchor_function = false,
-            .fit_content_has_argument = false,
-        };
-    }
-    return retain_calculated(*value.calculated(), value.contains_percentage());
-}
-
-RustFFI::FfiSizeValue build_style_size_value(CSS::LengthPercentageOrAuto const& value)
-{
-    if (value.is_auto())
-        return size_value_with_kind(RustFFI::FfiSizeKind::Auto);
-    return build_style_size_value(value.length_percentage());
-}
-
-RustFFI::FfiSizeValue build_style_size_value(CSS::Size const& value)
-{
-    switch (value.type()) {
-    case CSS::Size::Type::Auto:
-        return size_value_with_kind(RustFFI::FfiSizeKind::Auto);
-    case CSS::Size::Type::Calculated:
-        return retain_calculated(value.calculated(), value.contains_percentage());
-    case CSS::Size::Type::Length:
-        VERIFY(value.length().is_absolute());
-        return {
-            .kind = to_underlying(RustFFI::FfiSizeKind::Px),
-            .px = value.length().absolute_length_to_px().raw_value(),
-            .fraction = 0,
-            .calc = nullptr,
-            .calc_is_bridge_retained = false,
-            .contains_percentage = false,
-            .contains_anchor_function = false,
-            .fit_content_has_argument = false,
-        };
-    case CSS::Size::Type::Percentage:
-        return {
-            .kind = to_underlying(RustFFI::FfiSizeKind::Percentage),
-            .px = 0,
-            .fraction = value.percentage().as_fraction(),
-            .calc = nullptr,
-            .calc_is_bridge_retained = false,
-            .contains_percentage = true,
-            .contains_anchor_function = false,
-            .fit_content_has_argument = false,
-        };
-    case CSS::Size::Type::MinContent:
-        return size_value_with_kind(RustFFI::FfiSizeKind::MinContent);
-    case CSS::Size::Type::MaxContent:
-        return size_value_with_kind(RustFFI::FfiSizeKind::MaxContent);
-    case CSS::Size::Type::FitContent: {
-        auto result = size_value_with_kind(RustFFI::FfiSizeKind::FitContent);
-        if (value.fit_content_available_space().has_value()) {
-            result = build_style_size_value(*value.fit_content_available_space());
-            result.kind = to_underlying(RustFFI::FfiSizeKind::FitContent);
-            result.fit_content_has_argument = true;
-        }
-        return result;
-    }
-    case CSS::Size::Type::None:
-        return size_value_with_kind(RustFFI::FfiSizeKind::None_);
-    }
-    VERIFY_NOT_REACHED();
 }
 
 static RustFFI::FfiAffineTransform to_ffi_affine_transform(Gfx::AffineTransform const& transform)
@@ -1562,7 +1193,6 @@ RustFFI::FfiLayoutFcCallbacks LayoutRustBridge::formatting_context_callbacks()
             auto const& box = *static_cast<Box const*>(node);
             dbgln("FIXME: InlineFormattingContext::dimension_box_on_line got unexpected box in inline context:");
             dump_tree(box); },
-        .release_calc_handle = ladybird_layout_release_calc_handle,
         .release_anchor_name_handle = ladybird_layout_release_anchor_name_handle,
         .build_replaced_content_facts = [](void*, void* node) {
             RustFFI::FfiReplacedContentFacts facts {};
@@ -1646,12 +1276,6 @@ RustFFI::FfiLayoutFcCallbacks LayoutRustBridge::formatting_context_callbacks()
                 return false;
             auto cursor_position = dom_node->document().cursor_position();
             return cursor_position && cursor_position->node() == dom_node; },
-        .build_grid_facts = [](void*, void* node) {
-            auto const* node_with_style = as_if<NodeWithStyle>(*static_cast<Node const*>(node));
-            VERIFY(node_with_style);
-            return build_grid_style_facts(*node_with_style); },
-        .release_grid_facts_snapshot = [](void*, void* snapshot) { delete static_cast<GridFactsSnapshotArena*>(snapshot); },
-        .release_grid_name_handle = ladybird_layout_release_grid_name_handle,
         .build_svg_facts = [](void*, void* node) {
             auto const* node_with_style = as_if<NodeWithStyle>(*static_cast<Node const*>(node));
             VERIFY(node_with_style);
@@ -1901,32 +1525,6 @@ RustFFI::FfiLayoutFcCallbacks LayoutRustBridge::formatting_context_callbacks()
     };
 }
 
-static void release_calc_handle(void const* handle)
-{
-    if (!handle)
-        return;
-    auto iterator = retained_calc_handles().find(handle);
-    VERIFY(iterator != retained_calc_handles().end());
-    VERIFY(iterator->value.retain_count > 0);
-    if (--iterator->value.retain_count == 0)
-        retained_calc_handles().remove(handle);
-    VERIFY(s_outstanding_calc_handles.load() > 0);
-    --s_outstanding_calc_handles;
-    CSS::StyleValueFFI::rust_style_value_release(static_cast<CSS::StyleValueFFI::StyleValueData const*>(handle));
-}
-
-}
-
-extern "C" WEB_API void ladybird_layout_release_calc_handle(void const* handle)
-{
-    Web::Layout::release_calc_handle(handle);
-}
-
-extern "C" WEB_API void ladybird_layout_release_grid_name_handle(size_t raw)
-{
-    VERIFY(Web::Layout::s_outstanding_grid_name_handles.load() > 0);
-    --Web::Layout::s_outstanding_grid_name_handles;
-    Utf16FlyString::unref_raw(raw);
 }
 
 extern "C" WEB_API void ladybird_layout_release_anchor_name_handle(size_t raw)

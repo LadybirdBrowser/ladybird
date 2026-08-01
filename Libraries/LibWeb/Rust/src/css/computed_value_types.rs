@@ -235,6 +235,121 @@ pub struct FontLayoutFacts {
     pub font_cascade_list: *const std::ffi::c_void,
 }
 
+pub const GRID_NO_INDEX: u32 = u32::MAX;
+
+#[repr(C)]
+pub struct ComputedGridTrackBreadth {
+    pub is_flex: bool,
+    pub flex_factor: f64,
+    pub size: ComputedSize,
+}
+
+#[repr(C)]
+pub struct ComputedGridTrackEntry {
+    pub kind: u8,
+    pub next_sibling: u32,
+    pub name_index_start: usize,
+    pub name_index_count: usize,
+    pub size: ComputedGridTrackBreadth,
+    pub min_size: ComputedGridTrackBreadth,
+    pub max_size: ComputedGridTrackBreadth,
+    pub repeat_type: u8,
+    pub repeat_count: usize,
+    pub repeat_list: ComputedGridTrackList,
+}
+
+#[repr(u8)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ComputedGridTrackEntryKind {
+    LineNames,
+    TrackSize,
+    MinMax,
+    Repeat,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ComputedGridTrackList {
+    pub is_subgrid: bool,
+    pub preserves_line_name_sets: bool,
+    pub first_entry: u32,
+}
+
+#[repr(u8)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ComputedGridPlacementKind {
+    Auto,
+    Line,
+    Span,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ComputedGridPlacement {
+    pub kind: u8,
+    pub has_line_number: bool,
+    pub line_number: i32,
+    pub has_name: bool,
+    pub name_index: u32,
+    pub implicit_start_name_index: u32,
+    pub implicit_end_name_index: u32,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ComputedGridArea {
+    pub name_index: u32,
+    pub implicit_start_name_index: u32,
+    pub implicit_end_name_index: u32,
+    pub row_start: usize,
+    pub row_end: usize,
+    pub column_start: usize,
+    pub column_end: usize,
+}
+
+#[repr(C)]
+pub struct RetainedGridTrackEntryList {
+    pub pointer: *mut ComputedGridTrackEntry,
+    pub length: usize,
+}
+
+#[repr(C)]
+pub struct RetainedGridNameIndexList {
+    pub pointer: *mut u32,
+    pub length: usize,
+}
+
+#[repr(C)]
+pub struct RetainedGridAreaList {
+    pub pointer: *mut ComputedGridArea,
+    pub length: usize,
+}
+
+#[repr(C)]
+pub struct GridValues {
+    pub names: crate::css::retained_fly_string::RetainedUtf16FlyStringList,
+    pub name_indices: RetainedGridNameIndexList,
+    pub entries: RetainedGridTrackEntryList,
+    pub areas: RetainedGridAreaList,
+    pub template_columns: ComputedGridTrackList,
+    pub template_rows: ComputedGridTrackList,
+    pub auto_columns: ComputedGridTrackList,
+    pub auto_rows: ComputedGridTrackList,
+    pub column_start: ComputedGridPlacement,
+    pub column_end: ComputedGridPlacement,
+    pub row_start: ComputedGridPlacement,
+    pub row_end: ComputedGridPlacement,
+    pub grid_template_columns_style_value: ComputedStyleValueHandle,
+    pub grid_template_rows_style_value: ComputedStyleValueHandle,
+    pub grid_auto_columns_style_value: ComputedStyleValueHandle,
+    pub grid_auto_rows_style_value: ComputedStyleValueHandle,
+    pub grid_template_areas_style_value: ComputedStyleValueHandle,
+    pub grid_column_start_style_value: ComputedStyleValueHandle,
+    pub grid_column_end_style_value: ComputedStyleValueHandle,
+    pub grid_row_start_style_value: ComputedStyleValueHandle,
+    pub grid_row_end_style_value: ComputedStyleValueHandle,
+}
+
 /// Layout of the non-inherited SVG geometry and painting properties.
 #[repr(C)]
 pub struct SVGResetValues {

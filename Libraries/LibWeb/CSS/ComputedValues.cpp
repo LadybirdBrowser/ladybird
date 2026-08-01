@@ -6,6 +6,8 @@
 
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/ComputedValues.h>
+#include <LibWeb/CSS/GridTrackPlacement.h>
+#include <LibWeb/CSS/GridTrackSize.h>
 #include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
@@ -58,6 +60,7 @@ static constexpr bool style_group_payload_is_rust_native(ComputedValuesFFI::Styl
     case ComputedValuesFFI::StyleGroupLifecycle::SVGReset:
     case ComputedValuesFFI::StyleGroupLifecycle::Surround:
     case ComputedValuesFFI::StyleGroupLifecycle::Box:
+    case ComputedValuesFFI::StyleGroupLifecycle::Grid:
         return true;
     }
     VERIFY_NOT_REACHED();
@@ -798,20 +801,6 @@ ComputedValues::InheritedSVGValues ComputedValues::InheritedSVGValues::make_defa
     return values;
 }
 
-ComputedValues::GridValues ComputedValues::GridValues::make_default_payload_value()
-{
-    GridValues values;
-    values.grid_auto_columns = property_initial_value(PropertyID::GridAutoColumns)->as_grid_track_size_list().grid_track_size_list();
-    values.grid_auto_rows = property_initial_value(PropertyID::GridAutoRows)->as_grid_track_size_list().grid_track_size_list();
-    values.grid_template_columns = property_initial_value(PropertyID::GridTemplateColumns)->as_grid_track_size_list().grid_track_size_list();
-    values.grid_template_rows = property_initial_value(PropertyID::GridTemplateRows)->as_grid_track_size_list().grid_track_size_list();
-    values.grid_column_start = property_initial_value(PropertyID::GridColumnStart)->as_grid_track_placement().grid_track_placement();
-    values.grid_column_end = property_initial_value(PropertyID::GridColumnEnd)->as_grid_track_placement().grid_track_placement();
-    values.grid_row_start = property_initial_value(PropertyID::GridRowStart)->as_grid_track_placement().grid_track_placement();
-    values.grid_row_end = property_initial_value(PropertyID::GridRowEnd)->as_grid_track_placement().grid_track_placement();
-    return values;
-}
-
 ComputedValues::TransformValues ComputedValues::TransformValues::make_default_payload_value()
 {
     TransformValues values;
@@ -953,6 +942,218 @@ void const* ComputedValues::style_container() const
         m_style_container = ComputedValuesFFI::rust_style_container_create(groups.data(), groups.size());
     }
     return m_style_container;
+}
+
+static Utf16FlyString make_grid_implicit_line_name(Utf16View name, StringView suffix)
+{
+    Utf16StringBuilder builder;
+    builder.append(name);
+    builder.append_ascii(suffix);
+    auto line_name = builder.to_string();
+    return Utf16FlyString::from_utf16(line_name.utf16_view());
+}
+
+struct GridGroupBuilderArena {
+    Vector<size_t> name_raws;
+    Vector<u32> name_indices;
+    Vector<ComputedValuesFFI::ComputedGridTrackEntry> entries;
+    Vector<ComputedValuesFFI::ComputedGridArea> areas;
+    HashMap<Utf16FlyString, u32> indices_by_name;
+
+    u32 intern_name(Utf16FlyString const& name)
+    {
+        if (auto existing = indices_by_name.get(name); existing.has_value())
+            return existing.value();
+
+        VERIFY(name_raws.size() < ComputedValuesFFI::GRID_NO_INDEX);
+        auto index = static_cast<u32>(name_raws.size());
+        name_raws.append(name.to_raw_leaked());
+        indices_by_name.set(name, index);
+        return index;
+    }
+};
+
+static ComputedValuesFFI::ComputedGridTrackBreadth grid_group_track_breadth(GridSize const& grid_size)
+{
+    if (grid_size.is_flexible_length()) {
+        return {
+            .is_flex = true,
+            .flex_factor = grid_size.flex_factor(),
+            .size = to_ffi_computed_size(Size::make_auto()),
+        };
+    }
+    auto size = grid_size.css_size();
+    VERIFY(size.type() != Size::Type::None);
+    return {
+        .is_flex = false,
+        .flex_factor = 0,
+        .size = to_ffi_computed_size(move(size)),
+    };
+}
+
+static ComputedValuesFFI::ComputedGridTrackList build_grid_group_track_list(GridTrackSizeList const& list, GridGroupBuilderArena& arena)
+{
+    ComputedValuesFFI::ComputedGridTrackList result {
+        .is_subgrid = list.is_subgrid(),
+        .preserves_line_name_sets = list.preserves_line_name_sets(),
+        .first_entry = ComputedValuesFFI::GRID_NO_INDEX,
+    };
+    u32 previous_entry = ComputedValuesFFI::GRID_NO_INDEX;
+
+    for (auto const& item : list.list()) {
+        VERIFY(arena.entries.size() < ComputedValuesFFI::GRID_NO_INDEX);
+        auto entry_index = static_cast<u32>(arena.entries.size());
+        arena.entries.append({
+            .kind = to_underlying(ComputedValuesFFI::ComputedGridTrackEntryKind::LineNames),
+            .next_sibling = ComputedValuesFFI::GRID_NO_INDEX,
+            .name_index_start = 0,
+            .name_index_count = 0,
+            .size = grid_group_track_breadth(GridSize::make_auto()),
+            .min_size = grid_group_track_breadth(GridSize::make_auto()),
+            .max_size = grid_group_track_breadth(GridSize::make_auto()),
+            .repeat_type = 0,
+            .repeat_count = 0,
+            .repeat_list = {
+                .is_subgrid = false,
+                .preserves_line_name_sets = false,
+                .first_entry = ComputedValuesFFI::GRID_NO_INDEX,
+            },
+        });
+
+        if (result.first_entry == ComputedValuesFFI::GRID_NO_INDEX)
+            result.first_entry = entry_index;
+        if (previous_entry != ComputedValuesFFI::GRID_NO_INDEX)
+            arena.entries[previous_entry].next_sibling = entry_index;
+        previous_entry = entry_index;
+
+        item.visit(
+            [&](GridLineNames const& line_names) {
+                auto name_index_start = arena.name_indices.size();
+                for (auto const& line_name : line_names.names())
+                    arena.name_indices.append(arena.intern_name(line_name.name));
+                auto& entry = arena.entries[entry_index];
+                entry.kind = to_underlying(ComputedValuesFFI::ComputedGridTrackEntryKind::LineNames);
+                entry.name_index_start = name_index_start;
+                entry.name_index_count = arena.name_indices.size() - name_index_start;
+            },
+            [&](ExplicitGridTrack const& track) {
+                if (track.is_default()) {
+                    auto& entry = arena.entries[entry_index];
+                    entry.kind = to_underlying(ComputedValuesFFI::ComputedGridTrackEntryKind::TrackSize);
+                    entry.size = grid_group_track_breadth(track.grid_size());
+                    return;
+                }
+                if (track.is_minmax()) {
+                    auto& entry = arena.entries[entry_index];
+                    entry.kind = to_underlying(ComputedValuesFFI::ComputedGridTrackEntryKind::MinMax);
+                    entry.min_size = grid_group_track_breadth(track.minmax().min_grid_size());
+                    entry.max_size = grid_group_track_breadth(track.minmax().max_grid_size());
+                    return;
+                }
+
+                auto const& repeat = track.repeat();
+                auto repeat_list = build_grid_group_track_list(repeat.grid_track_size_list(), arena);
+                auto& entry = arena.entries[entry_index];
+                entry.kind = to_underlying(ComputedValuesFFI::ComputedGridTrackEntryKind::Repeat);
+                entry.repeat_type = to_underlying(repeat.type());
+                entry.repeat_count = repeat.is_fixed() ? repeat.repeat_count() : 0;
+                entry.repeat_list = repeat_list;
+            });
+    }
+    return result;
+}
+
+static ComputedValuesFFI::ComputedGridPlacement build_grid_group_placement(GridTrackPlacement const& placement, GridGroupBuilderArena& arena)
+{
+    ComputedValuesFFI::ComputedGridPlacement result {
+        .kind = to_underlying(ComputedValuesFFI::ComputedGridPlacementKind::Auto),
+        .has_line_number = false,
+        .line_number = 0,
+        .has_name = false,
+        .name_index = ComputedValuesFFI::GRID_NO_INDEX,
+        .implicit_start_name_index = ComputedValuesFFI::GRID_NO_INDEX,
+        .implicit_end_name_index = ComputedValuesFFI::GRID_NO_INDEX,
+    };
+    if (placement.is_auto())
+        return result;
+
+    if (placement.is_span()) {
+        result.kind = to_underlying(ComputedValuesFFI::ComputedGridPlacementKind::Span);
+        result.has_line_number = true;
+        result.line_number = int_from_style_value(placement.span());
+        if (placement.span_name().has_value()) {
+            result.has_name = true;
+            result.name_index = arena.intern_name(*placement.span_name());
+        }
+        return result;
+    }
+
+    result.kind = to_underlying(ComputedValuesFFI::ComputedGridPlacementKind::Line);
+    if (placement.has_line_number()) {
+        result.has_line_number = true;
+        result.line_number = int_from_style_value(placement.line_number());
+    }
+    if (placement.has_identifier()) {
+        result.has_name = true;
+        result.name_index = arena.intern_name(placement.identifier());
+        result.implicit_start_name_index = arena.intern_name(
+            make_grid_implicit_line_name(placement.identifier().view(), "-start"sv));
+        result.implicit_end_name_index = arena.intern_name(
+            make_grid_implicit_line_name(placement.identifier().view(), "-end"sv));
+    }
+    return result;
+}
+
+static void* build_grid_group_payload(ComputedProperties const& computed_style)
+{
+    GridGroupBuilderArena arena;
+    ComputedValuesFFI::GridValues values {};
+
+    values.template_columns = build_grid_group_track_list(computed_style.grid_template_columns(), arena);
+    values.template_rows = build_grid_group_track_list(computed_style.grid_template_rows(), arena);
+    values.auto_columns = build_grid_group_track_list(computed_style.grid_auto_columns(), arena);
+    values.auto_rows = build_grid_group_track_list(computed_style.grid_auto_rows(), arena);
+
+    auto const template_areas = computed_style.grid_template_areas();
+    arena.areas.ensure_capacity(template_areas.areas.size());
+    for (auto const& [name, area] : template_areas.areas) {
+        arena.areas.unchecked_append({
+            .name_index = arena.intern_name(name),
+            .implicit_start_name_index = arena.intern_name(make_grid_implicit_line_name(name.view(), "-start"sv)),
+            .implicit_end_name_index = arena.intern_name(make_grid_implicit_line_name(name.view(), "-end"sv)),
+            .row_start = area.row_start,
+            .row_end = area.row_end,
+            .column_start = area.column_start,
+            .column_end = area.column_end,
+        });
+    }
+
+    values.column_start = build_grid_group_placement(computed_style.grid_column_start(), arena);
+    values.column_end = build_grid_group_placement(computed_style.grid_column_end(), arena);
+    values.row_start = build_grid_group_placement(computed_style.grid_row_start(), arena);
+    values.row_end = build_grid_group_placement(computed_style.grid_row_end(), arena);
+
+    auto retained_style_value = [&](PropertyID property_id) {
+        return ComputedValuesFFI::ComputedStyleValueHandle {
+            .pointer = StyleValueFFI::rust_style_value_retain(computed_style.property(property_id).rust_style_value_data()),
+        };
+    };
+    values.grid_template_columns_style_value = retained_style_value(PropertyID::GridTemplateColumns);
+    values.grid_template_rows_style_value = retained_style_value(PropertyID::GridTemplateRows);
+    values.grid_auto_columns_style_value = retained_style_value(PropertyID::GridAutoColumns);
+    values.grid_auto_rows_style_value = retained_style_value(PropertyID::GridAutoRows);
+    values.grid_template_areas_style_value = retained_style_value(PropertyID::GridTemplateAreas);
+    values.grid_column_start_style_value = retained_style_value(PropertyID::GridColumnStart);
+    values.grid_column_end_style_value = retained_style_value(PropertyID::GridColumnEnd);
+    values.grid_row_start_style_value = retained_style_value(PropertyID::GridRowStart);
+    values.grid_row_end_style_value = retained_style_value(PropertyID::GridRowEnd);
+
+    ComputedValuesFFI::rust_replace_computed_fly_string_list(&values.names, arena.name_raws.data(), arena.name_raws.size());
+    ComputedValuesFFI::rust_replace_grid_name_index_list(&values.name_indices, arena.name_indices.data(), arena.name_indices.size());
+    ComputedValuesFFI::rust_replace_grid_track_entry_list(&values.entries, arena.entries.data(), arena.entries.size());
+    ComputedValuesFFI::rust_replace_grid_area_list(&values.areas, arena.areas.data(), arena.areas.size());
+
+    return const_cast<void*>(ComputedValuesFFI::rust_build_grid_group(ComputedValues::GridValues::style_group_index, &values, nullptr));
 }
 
 NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties const& computed_style, DOM::Document const& document, StyleScope const& style_scope, ColorResolutionContext color_resolution_context, ComputedValues const* inherit_parent)
@@ -2144,23 +2345,7 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
         computed_values.set_outline_width(max(CSSPixels { 0 }, computed_style.length(CSS::PropertyID::OutlineWidth).absolute_length_to_px()));
 
     if (!grid_adopted)
-        computed_values.set_grid_auto_columns(computed_style.grid_auto_columns());
-    if (!grid_adopted)
-        computed_values.set_grid_auto_rows(computed_style.grid_auto_rows());
-    if (!grid_adopted)
-        computed_values.set_grid_template_columns(computed_style.grid_template_columns());
-    if (!grid_adopted)
-        computed_values.set_grid_template_rows(computed_style.grid_template_rows());
-    if (!grid_adopted)
-        computed_values.set_grid_column_end(computed_style.grid_column_end());
-    if (!grid_adopted)
-        computed_values.set_grid_column_start(computed_style.grid_column_start());
-    if (!grid_adopted)
-        computed_values.set_grid_row_end(computed_style.grid_row_end());
-    if (!grid_adopted)
-        computed_values.set_grid_row_start(computed_style.grid_row_start());
-    if (!grid_adopted)
-        computed_values.set_grid_template_areas(computed_style.grid_template_areas());
+        computed_values.adopt_grid_group(build_grid_group_payload(computed_style));
 
     if (!inherited_svg_adopted)
         computed_values.set_fill(computed_style.fill(color_resolution_context));

@@ -32,10 +32,14 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use crate::abort_on_panic;
 pub use crate::css::computed_value_types::{
     AlignmentValues, BorderLayoutFacts, BoxValues, ComputedAspectRatio, ComputedFlexBasis, ComputedGap,
-    ComputedLengthBox, ComputedLengthPercentageOrAuto, ComputedSize, ComputedSizeKind, ComputedStyleValueHandle,
-    ComputedVerticalAlign, FontLayoutFacts, InheritedTextLayoutFacts, SVGResetValues, SizingValues, SurroundValues,
+    ComputedGridArea, ComputedGridPlacement, ComputedGridPlacementKind, ComputedGridTrackBreadth,
+    ComputedGridTrackEntry, ComputedGridTrackEntryKind, ComputedGridTrackList, ComputedLengthBox,
+    ComputedLengthPercentageOrAuto, ComputedSize, ComputedSizeKind, ComputedStyleValueHandle, ComputedVerticalAlign,
+    FontLayoutFacts, GRID_NO_INDEX, GridValues, InheritedTextLayoutFacts, RetainedGridAreaList,
+    RetainedGridNameIndexList, RetainedGridTrackEntryList, SVGResetValues, SizingValues, SurroundValues,
 };
 use crate::css::retained_fly_string::{RetainedUtf16FlyString, RetainedUtf16FlyStringList};
+use crate::css::style_value::{retained_list_drop, retained_list_partial_eq};
 
 /// Reference count value marking an intentionally leaked payload.
 pub const STYLE_GROUP_STATIC_REFCOUNT: usize = usize::MAX;
@@ -237,6 +241,181 @@ impl_computed_payload_clone_and_eq!(BoxValues {
     container_name,
 });
 
+impl_computed_payload_clone_and_eq!(ComputedGridTrackBreadth {
+    is_flex,
+    flex_factor,
+    size,
+});
+impl_computed_payload_clone_and_eq!(ComputedGridTrackEntry {
+    kind,
+    next_sibling,
+    name_index_start,
+    name_index_count,
+    size,
+    min_size,
+    max_size,
+    repeat_type,
+    repeat_count,
+    repeat_list,
+});
+impl_computed_payload_clone_and_eq!(GridValues {
+    names,
+    name_indices,
+    entries,
+    areas,
+    template_columns,
+    template_rows,
+    auto_columns,
+    auto_rows,
+    column_start,
+    column_end,
+    row_start,
+    row_end,
+    grid_template_columns_style_value,
+    grid_template_rows_style_value,
+    grid_auto_columns_style_value,
+    grid_auto_rows_style_value,
+    grid_template_areas_style_value,
+    grid_column_start_style_value,
+    grid_column_end_style_value,
+    grid_row_start_style_value,
+    grid_row_end_style_value,
+});
+
+macro_rules! impl_retained_grid_list {
+    ($list:ident, $element:ty) => {
+        impl $list {
+            pub(crate) fn from_vec(values: Vec<$element>) -> Self {
+                let slice = values.into_boxed_slice();
+                let length = slice.len();
+                let pointer = Box::into_raw(slice) as *mut $element;
+                Self { pointer, length }
+            }
+
+            pub(crate) fn as_slice(&self) -> &[$element] {
+                if self.pointer.is_null() {
+                    return &[];
+                }
+                // SAFETY: A non-null pointer/length pair always comes from
+                // from_vec's boxed slice.
+                unsafe { std::slice::from_raw_parts(self.pointer, self.length) }
+            }
+        }
+
+        impl Clone for $list {
+            fn clone(&self) -> Self {
+                Self::from_vec(self.as_slice().to_vec())
+            }
+        }
+
+        retained_list_drop!($list);
+        retained_list_partial_eq!($list, $element);
+    };
+}
+
+impl_retained_grid_list!(RetainedGridTrackEntryList, ComputedGridTrackEntry);
+impl_retained_grid_list!(RetainedGridNameIndexList, u32);
+impl_retained_grid_list!(RetainedGridAreaList, ComputedGridArea);
+
+const EMPTY_GRID_TRACK_LIST: ComputedGridTrackList = ComputedGridTrackList {
+    is_subgrid: false,
+    preserves_line_name_sets: false,
+    first_entry: GRID_NO_INDEX,
+};
+
+const AUTO_GRID_PLACEMENT: ComputedGridPlacement = ComputedGridPlacement {
+    kind: ComputedGridPlacementKind::Auto as u8,
+    has_line_number: false,
+    line_number: 0,
+    has_name: false,
+    name_index: GRID_NO_INDEX,
+    implicit_start_name_index: GRID_NO_INDEX,
+    implicit_end_name_index: GRID_NO_INDEX,
+};
+
+impl GridValues {
+    fn auto_track_breadth() -> ComputedGridTrackBreadth {
+        ComputedGridTrackBreadth {
+            is_flex: false,
+            flex_factor: 0.0,
+            size: ComputedSize {
+                kind: ComputedSizeKind::Auto,
+                value: ComputedStyleValueHandle::empty(),
+            },
+        }
+    }
+
+    fn auto_track_entry() -> ComputedGridTrackEntry {
+        ComputedGridTrackEntry {
+            kind: ComputedGridTrackEntryKind::TrackSize as u8,
+            next_sibling: GRID_NO_INDEX,
+            name_index_start: 0,
+            name_index_count: 0,
+            size: Self::auto_track_breadth(),
+            min_size: Self::auto_track_breadth(),
+            max_size: Self::auto_track_breadth(),
+            repeat_type: 0,
+            repeat_count: 0,
+            repeat_list: EMPTY_GRID_TRACK_LIST,
+        }
+    }
+
+    fn initial() -> Self {
+        Self {
+            names: RetainedUtf16FlyStringList::from_retained_strings(Vec::new()),
+            name_indices: RetainedGridNameIndexList::from_vec(Vec::new()),
+            entries: RetainedGridTrackEntryList::from_vec(vec![Self::auto_track_entry(), Self::auto_track_entry()]),
+            areas: RetainedGridAreaList::from_vec(Vec::new()),
+            template_columns: EMPTY_GRID_TRACK_LIST,
+            template_rows: EMPTY_GRID_TRACK_LIST,
+            auto_columns: ComputedGridTrackList {
+                is_subgrid: false,
+                preserves_line_name_sets: false,
+                first_entry: 0,
+            },
+            auto_rows: ComputedGridTrackList {
+                is_subgrid: false,
+                preserves_line_name_sets: false,
+                first_entry: 1,
+            },
+            column_start: AUTO_GRID_PLACEMENT,
+            column_end: AUTO_GRID_PLACEMENT,
+            row_start: AUTO_GRID_PLACEMENT,
+            row_end: AUTO_GRID_PLACEMENT,
+            grid_template_columns_style_value: ComputedStyleValueHandle::empty(),
+            grid_template_rows_style_value: ComputedStyleValueHandle::empty(),
+            grid_auto_columns_style_value: ComputedStyleValueHandle::empty(),
+            grid_auto_rows_style_value: ComputedStyleValueHandle::empty(),
+            grid_template_areas_style_value: ComputedStyleValueHandle::empty(),
+            grid_column_start_style_value: ComputedStyleValueHandle::empty(),
+            grid_column_end_style_value: ComputedStyleValueHandle::empty(),
+            grid_row_start_style_value: ComputedStyleValueHandle::empty(),
+            grid_row_end_style_value: ComputedStyleValueHandle::empty(),
+        }
+    }
+
+    fn intern_name_raw(&mut self, raw: usize) -> u32 {
+        assert_ne!(raw, 0, "cannot intern the no-name sentinel");
+        if let Some(index) = self.names.as_slice().iter().position(|name| name.raw() == raw) {
+            return index as u32;
+        }
+        let mut names: Vec<RetainedUtf16FlyString> = self
+            .names
+            .as_slice()
+            .iter()
+            // SAFETY: Every listed raw is a live fly string retained by this
+            // group's name table.
+            .map(|name| unsafe { RetainedUtf16FlyString::from_borrowed_raw(name.raw()) })
+            .collect();
+        // SAFETY: The caller passes a raw borrowed from a live source name
+        // table.
+        names.push(unsafe { RetainedUtf16FlyString::from_borrowed_raw(raw) });
+        let index = (names.len() - 1) as u32;
+        self.names = RetainedUtf16FlyStringList::from_retained_strings(names);
+        index
+    }
+}
+
 /// Selects the language that owns a style group's payload lifecycle. The
 /// CppWith*Facts variants keep the C++ callback lifecycle but promise that
 /// the group's leading bytes match the named Rust layout-facts struct, so
@@ -255,6 +434,7 @@ pub enum StyleGroupLifecycle {
     SVGReset,
     Surround,
     Box,
+    Grid,
 }
 
 impl StyleGroupLifecycle {
@@ -320,6 +500,7 @@ fn payload_size(table: &StyleGroupVTable) -> usize {
         StyleGroupLifecycle::SVGReset => size_of::<SVGResetValues>(),
         StyleGroupLifecycle::Surround => size_of::<SurroundValues>(),
         StyleGroupLifecycle::Box => size_of::<BoxValues>(),
+        StyleGroupLifecycle::Grid => size_of::<GridValues>(),
         _ => unreachable!("C++-owned lifecycles are handled above"),
     }
 }
@@ -336,6 +517,7 @@ fn payload_align(table: &StyleGroupVTable) -> usize {
         StyleGroupLifecycle::SVGReset => align_of::<SVGResetValues>(),
         StyleGroupLifecycle::Surround => align_of::<SurroundValues>(),
         StyleGroupLifecycle::Box => align_of::<BoxValues>(),
+        StyleGroupLifecycle::Grid => align_of::<GridValues>(),
         _ => unreachable!("C++-owned lifecycles are handled above"),
     }
 }
@@ -368,6 +550,9 @@ unsafe fn default_construct(table: &StyleGroupVTable, payload: *mut c_void) {
         },
         StyleGroupLifecycle::Box => unsafe {
             (payload as *mut BoxValues).write(BoxValues::initial());
+        },
+        StyleGroupLifecycle::Grid => unsafe {
+            (payload as *mut GridValues).write(GridValues::initial());
         },
         _ => unreachable!("C++-owned lifecycles are handled above"),
     }
@@ -402,6 +587,9 @@ unsafe fn copy_construct(table: &StyleGroupVTable, payload: *mut c_void, source:
         StyleGroupLifecycle::Box => unsafe {
             (payload as *mut BoxValues).write((*(source as *const BoxValues)).clone());
         },
+        StyleGroupLifecycle::Grid => unsafe {
+            (payload as *mut GridValues).write((*(source as *const GridValues)).clone());
+        },
         _ => unreachable!("C++-owned lifecycles are handled above"),
     }
 }
@@ -421,6 +609,7 @@ unsafe fn destruct(table: &StyleGroupVTable, payload: *mut c_void) {
         StyleGroupLifecycle::SVGReset => unsafe { std::ptr::drop_in_place(payload as *mut SVGResetValues) },
         StyleGroupLifecycle::Surround => unsafe { std::ptr::drop_in_place(payload as *mut SurroundValues) },
         StyleGroupLifecycle::Box => unsafe { std::ptr::drop_in_place(payload as *mut BoxValues) },
+        StyleGroupLifecycle::Grid => unsafe { std::ptr::drop_in_place(payload as *mut GridValues) },
         _ => unreachable!("C++-owned lifecycles are handled above"),
     }
 }
@@ -441,6 +630,7 @@ unsafe fn payloads_equal(table: &StyleGroupVTable, a: *const c_void, b: *const c
         StyleGroupLifecycle::SVGReset => unsafe { *(a as *const SVGResetValues) == *(b as *const SVGResetValues) },
         StyleGroupLifecycle::Surround => unsafe { *(a as *const SurroundValues) == *(b as *const SurroundValues) },
         StyleGroupLifecycle::Box => unsafe { *(a as *const BoxValues) == *(b as *const BoxValues) },
+        StyleGroupLifecycle::Grid => unsafe { *(a as *const GridValues) == *(b as *const GridValues) },
         _ => unreachable!("C++-owned lifecycles are handled above"),
     }
 }
@@ -955,6 +1145,21 @@ pub unsafe extern "C" fn rust_build_style_group(
         }
 
         let table = vtable(group_index);
+
+        // A group whose descriptors are all satisfied constraints would
+        // scratch-build an exact copy of the default payload, so skip the
+        // allocation and share directly. Guarded on meaningful payload
+        // equality: groups without a comparable layout keep the scratch path
+        // and its fresh payload.
+        if pokes.is_empty() && (!table.lifecycle.payload_is_cpp_owned() || table.equals.is_some()) {
+            let default_payload = default_group_payload(group_index);
+            if !parent_payload.is_null() && unsafe { payloads_equal(table, parent_payload, default_payload) } {
+                retain_group_payload(group_index, parent_payload);
+                return Some(parent_payload);
+            }
+            return Some(default_payload);
+        }
+
         let scratch = allocate_payload(table, 1);
         // SAFETY: The scratch payload was allocated for this group's layout,
         // and every poke offset comes from offsetof on the C++ side.
@@ -1648,9 +1853,6 @@ pub unsafe extern "C" fn rust_build_box_group(
     })
 }
 
-/// Replaces a box group's container-name list, taking ownership of one leaked
-/// reference per raw and releasing the previous entries.
-///
 /// # Safety
 /// `target` must be a valid list slot and `raws` must point at `count` leaked
 /// fly-string raws.
@@ -1662,6 +1864,155 @@ pub unsafe extern "C" fn rust_replace_computed_fly_string_list(
 ) {
     abort_on_panic(|| unsafe {
         *target = RetainedUtf16FlyStringList::from_raw(raws, count);
+    });
+}
+
+/// # Safety
+/// `target` must be a valid list slot and `entries` must point at `count`
+/// initialized entries whose retained references the caller gives up.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_replace_grid_track_entry_list(
+    target: *mut RetainedGridTrackEntryList,
+    entries: *const ComputedGridTrackEntry,
+    count: usize,
+) {
+    abort_on_panic(|| {
+        let mut owned = Vec::with_capacity(count);
+        for index in 0..count {
+            // SAFETY: Each entry is initialized and its references transfer
+            // to this read exactly once.
+            owned.push(unsafe { entries.add(index).read() });
+        }
+        // SAFETY: The caller passes a valid (possibly zero-initialized
+        // empty) list slot.
+        unsafe { *target = RetainedGridTrackEntryList::from_vec(owned) };
+    });
+}
+
+/// # Safety
+/// `target` must be a valid list slot and `indices` must point at `count`
+/// values.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_replace_grid_name_index_list(
+    target: *mut RetainedGridNameIndexList,
+    indices: *const u32,
+    count: usize,
+) {
+    abort_on_panic(|| {
+        let copied = if count == 0 {
+            Vec::new()
+        } else {
+            // SAFETY: The caller passes `count` valid indices.
+            unsafe { std::slice::from_raw_parts(indices, count) }.to_vec()
+        };
+        // SAFETY: The caller passes a valid list slot.
+        unsafe { *target = RetainedGridNameIndexList::from_vec(copied) };
+    });
+}
+
+/// # Safety
+/// `target` must be a valid list slot and `areas` must point at `count`
+/// values.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_replace_grid_area_list(
+    target: *mut RetainedGridAreaList,
+    areas: *const ComputedGridArea,
+    count: usize,
+) {
+    abort_on_panic(|| {
+        let copied = if count == 0 {
+            Vec::new()
+        } else {
+            // SAFETY: The caller passes `count` valid areas.
+            unsafe { std::slice::from_raw_parts(areas, count) }.to_vec()
+        };
+        // SAFETY: The caller passes a valid list slot.
+        unsafe { *target = RetainedGridAreaList::from_vec(copied) };
+    });
+}
+
+/// # Safety
+/// `values` must point at a fully initialized grid payload whose ownership
+/// transfers to this call, and `parent_payload` must be a valid grid payload
+/// or null.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_build_grid_group(
+    group_index: usize,
+    values: *const GridValues,
+    parent_payload: *const c_void,
+) -> *const c_void {
+    abort_on_panic(|| {
+        let built = unsafe { values.read() };
+
+        if !parent_payload.is_null() && built.eq(unsafe { &*parent_payload.cast::<GridValues>() }) {
+            retain_group_payload(group_index, parent_payload);
+            return parent_payload;
+        }
+        let default_payload = default_group_payload(group_index);
+        if built.eq(unsafe { &*default_payload.cast::<GridValues>() }) {
+            return default_payload;
+        }
+
+        let payload = allocate_payload(vtable(group_index), 1);
+        unsafe { payload.cast::<GridValues>().write(built) };
+        payload.cast_const()
+    })
+}
+
+/// # Safety
+/// `source` must be a valid grid payload and `target` a uniquely owned grid
+/// group value.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_grid_values_copy_placements(source: *const GridValues, target: *mut GridValues) {
+    abort_on_panic(|| {
+        // SAFETY: The caller passes a valid source payload and a uniquely
+        // owned target value.
+        let (source, target) = unsafe { (&*source, &mut *target) };
+        let source_name_raws: Vec<usize> = source.names.as_slice().iter().map(|name| name.raw()).collect();
+        let mut remapped = |placement: ComputedGridPlacement| {
+            let mut remap_index = |index: u32| {
+                if index == GRID_NO_INDEX {
+                    return GRID_NO_INDEX;
+                }
+                target.intern_name_raw(source_name_raws[index as usize])
+            };
+            ComputedGridPlacement {
+                name_index: remap_index(placement.name_index),
+                implicit_start_name_index: remap_index(placement.implicit_start_name_index),
+                implicit_end_name_index: remap_index(placement.implicit_end_name_index),
+                ..placement
+            }
+        };
+        let column_start = remapped(source.column_start);
+        let column_end = remapped(source.column_end);
+        let row_start = remapped(source.row_start);
+        let row_end = remapped(source.row_end);
+        target.column_start = column_start;
+        target.column_end = column_end;
+        target.row_start = row_start;
+        target.row_end = row_end;
+        target.grid_column_start_style_value = source.grid_column_start_style_value.clone();
+        target.grid_column_end_style_value = source.grid_column_end_style_value.clone();
+        target.grid_row_start_style_value = source.grid_row_start_style_value.clone();
+        target.grid_row_end_style_value = source.grid_row_end_style_value.clone();
+    });
+}
+
+/// # Safety
+/// `target` must be a uniquely owned grid group value.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_grid_values_reset_placements_to_auto(target: *mut GridValues) {
+    abort_on_panic(|| {
+        // SAFETY: The caller passes a uniquely owned target value.
+        let target = unsafe { &mut *target };
+        target.column_start = AUTO_GRID_PLACEMENT;
+        target.column_end = AUTO_GRID_PLACEMENT;
+        target.row_start = AUTO_GRID_PLACEMENT;
+        target.row_end = AUTO_GRID_PLACEMENT;
+        target.grid_column_start_style_value = ComputedStyleValueHandle::empty();
+        target.grid_column_end_style_value = ComputedStyleValueHandle::empty();
+        target.grid_row_start_style_value = ComputedStyleValueHandle::empty();
+        target.grid_row_end_style_value = ComputedStyleValueHandle::empty();
     });
 }
 

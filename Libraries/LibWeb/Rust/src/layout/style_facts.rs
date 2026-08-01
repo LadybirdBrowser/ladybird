@@ -7,6 +7,7 @@
 // Registered indices of the style groups the layout engine reads, pinned to
 // the C++ StyleGroupIndex enum by static_asserts in LayoutRustBridge.cpp.
 pub const STYLE_GROUP_INDEX_INHERITED_TABLE: usize = 0;
+pub const STYLE_GROUP_INDEX_GRID: usize = 9;
 pub const STYLE_GROUP_INDEX_INHERITED_TEXT: usize = 4;
 pub const STYLE_GROUP_INDEX_INHERITED_BOX: usize = 5;
 pub const STYLE_GROUP_INDEX_FONT: usize = 6;
@@ -40,9 +41,7 @@ pub enum FfiSizeKind {
 /// Values decoded in Rust from the node's style group payloads borrow their
 /// calc pointer from those payloads, which outlive the synchronous layout
 /// pass; anchor() inset values borrow theirs from the wrappers the
-/// LayoutState's anchor-inset store owns. Only values built by
-/// LayoutRustBridge carry a bridge-retained handle
-/// (`calc_is_bridge_retained`), released through the pass callback table.
+/// LayoutState's anchor-inset store owns.
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct FfiSizeValue {
@@ -50,16 +49,11 @@ pub struct FfiSizeValue {
     pub px: CssPixels,
     pub fraction: f64,
     pub calc: *const c_void,
-    /// True when `calc` is a handle registered by LayoutRustBridge that must
-    /// be released through the pass callbacks; false marks a borrowed pointer
-    /// into the node's style payloads that must not be released.
-    pub calc_is_bridge_retained: bool,
     pub contains_percentage: bool,
     pub contains_anchor_function: bool,
     pub fit_content_has_argument: bool,
 }
 
-pub type FfiReleaseCalcHandleCallback = unsafe extern "C" fn(*const c_void);
 pub type FfiReleaseAnchorNameHandleCallback = unsafe extern "C" fn(usize);
 
 impl FfiSizeValue {
@@ -69,7 +63,6 @@ impl FfiSizeValue {
             px: CssPixels::default(),
             fraction: 0.0,
             calc: std::ptr::null(),
-            calc_is_bridge_retained: false,
             contains_percentage: false,
             contains_anchor_function: false,
             fit_content_has_argument: false,
@@ -82,7 +75,6 @@ impl FfiSizeValue {
             px,
             fraction: 0.0,
             calc: std::ptr::null(),
-            calc_is_bridge_retained: false,
             contains_percentage: false,
             contains_anchor_function: false,
             fit_content_has_argument: false,
@@ -96,7 +88,6 @@ impl FfiSizeValue {
             px: CssPixels::default(),
             fraction: 0.0,
             calc: std::ptr::null(),
-            calc_is_bridge_retained: false,
             contains_percentage: false,
             contains_anchor_function: false,
             fit_content_has_argument: false,
@@ -113,17 +104,6 @@ impl FfiSizeValue {
         Self {
             fraction,
             ..Self::with_kind(FfiSizeKind::Percentage)
-        }
-    }
-
-    pub(crate) fn release_bridge_calc_handle(self, release: FfiReleaseCalcHandleCallback) {
-        if self.calc_is_bridge_retained && !self.calc.is_null() {
-            // SAFETY: Every bridge-retained handle is registered by
-            // LayoutRustBridge and released exactly once when the per-pass
-            // Rust layout state is dropped.
-            unsafe {
-                release(self.calc);
-            }
         }
     }
 
@@ -310,6 +290,11 @@ impl<'a> StyleReader<'a> {
     }
 
     #[inline]
+    pub(crate) fn grid_values(&self) -> &'a crate::layout::GridValues {
+        self.native_group(STYLE_GROUP_INDEX_GRID)
+    }
+
+    #[inline]
     fn border_facts(&self) -> &'a crate::layout::BorderLayoutFacts {
         self.native_group(STYLE_GROUP_INDEX_BORDER)
     }
@@ -475,7 +460,6 @@ impl AnchorInsetStore {
             px: CssPixels::default(),
             fraction: 0.0,
             calc,
-            calc_is_bridge_retained: false,
             contains_percentage: false,
             contains_anchor_function: true,
             fit_content_has_argument: false,
@@ -512,7 +496,6 @@ fn decode_length_percentage(handle: &crate::layout::ComputedStyleValueHandle) ->
             // observable for some f64 inputs.
             fraction: value * 0.01,
             calc: std::ptr::null(),
-            calc_is_bridge_retained: false,
             contains_percentage: true,
             contains_anchor_function: false,
             fit_content_has_argument: false,
@@ -529,7 +512,6 @@ fn decode_length_percentage(handle: &crate::layout::ComputedStyleValueHandle) ->
                 px: CssPixels::default(),
                 fraction: 0.0,
                 calc: pointer,
-                calc_is_bridge_retained: false,
                 contains_percentage,
                 contains_anchor_function,
                 fit_content_has_argument: false,

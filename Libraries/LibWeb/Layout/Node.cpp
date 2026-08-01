@@ -1021,10 +1021,7 @@ void NodeWithStyle::reset_table_box_computed_values_used_by_wrapper_to_init_valu
         values.set_float(CSS::InitialValues::float_());
         values.set_clear(CSS::InitialValues::clear());
         values.set_inset(CSS::InitialValues::inset());
-        values.set_grid_column_end(CSS::InitialValues::grid_column_end());
-        values.set_grid_column_start(CSS::InitialValues::grid_column_start());
-        values.set_grid_row_end(CSS::InitialValues::grid_row_end());
-        values.set_grid_row_start(CSS::InitialValues::grid_row_start());
+        values.reset_grid_placements_to_auto();
         values.set_align_self(CSS::InitialValues::align_self());
         values.set_justify_self(CSS::InitialValues::justify_self());
         values.set_order(CSS::InitialValues::order());
@@ -1054,10 +1051,7 @@ void NodeWithStyle::transfer_table_box_computed_values_to_wrapper_computed_value
     builder->set_clear(computed_values().clear());
     // CSS 2 moves table-root positioning and margins to the wrapper. The wrapper is also the grid item for
     // display:table, so grid placement, self-alignment, and order need to move there as well.
-    builder->set_grid_column_end(computed_values().grid_column_end());
-    builder->set_grid_column_start(computed_values().grid_column_start());
-    builder->set_grid_row_end(computed_values().grid_row_end());
-    builder->set_grid_row_start(computed_values().grid_row_start());
+    builder->copy_grid_placements_from(computed_values());
     builder->set_align_self(computed_values().align_self());
     builder->set_justify_self(computed_values().justify_self());
     builder->set_order(computed_values().order());

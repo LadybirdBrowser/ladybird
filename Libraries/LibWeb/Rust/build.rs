@@ -947,6 +947,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     computed_values_config.export.include = vec![
         "StyleGroupVTable".to_string(),
         "STYLE_GROUP_STATIC_REFCOUNT".to_string(),
+        "GRID_NO_INDEX".to_string(),
+        "ComputedGridTrackEntryKind".to_string(),
+        "ComputedGridPlacementKind".to_string(),
         "CascadeOrigin".to_string(),
     ];
 
@@ -1033,15 +1036,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         .includes
         .push("LibWeb/Layout/TreeBuilderRustFFI.h".to_string());
     layout_config.export.include = vec![
-        "FfiGridTrackEntryKind".to_string(),
-        "FfiGridTrackBreadthKind".to_string(),
-        "FfiGridPlacementKind".to_string(),
         "FfiGridTrackType".to_string(),
         "FfiGridTrackState".to_string(),
         "FfiFormattingContextType".to_string(),
         "FfiFlexLayoutClampState".to_string(),
         "FfiFlexLayoutGrowthState".to_string(),
-        "FfiSizeKind".to_string(),
     ];
     generate_ffi_header_strict(
         layout_config,
