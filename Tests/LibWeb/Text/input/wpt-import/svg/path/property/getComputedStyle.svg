@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:h="http://www.w3.org/1999/xhtml">
+  <metadata>
+    <h:link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/paths.html#TheDProperty"/>
+    <h:meta name="assert" content="d is a property"/>
+  </metadata>
+  <style>
+    .p3 {
+      d: path('M 10 3 H 30');
+    }
+    .g5 {
+      d: path('m 10 5 h 40');
+    }
+    .p6 {
+      d: inherit;
+    }
+  </style>
+  <g id="g0">
+    <path id="p1"></path>
+    <path id="p2" d="M 10 2 H 20"></path>
+    <path id="p3" class="p3"></path>
+    <path id="p4" style="d: path('M 10 4 H 40')"></path>
+  </g>
+  <g id="g5" class="g5">
+    <path id="p6" class="p6"></path>
+    <path id="p7"></path>
+  </g>
+  <h:script src="../../../resources/testharness.js"/>
+  <h:script src="../../../resources/testharnessreport.js"/>
+  <script><![CDATA[
+  function test_computed_value_of_d(id, expected) {
+    test(function() {
+      let target = document.getElementById(id);
+      assert_equals(getComputedStyle(target).d, expected);
+    }, `d property of ${id} should be ${expected}.`);
+  }
+
+  test_computed_value_of_d('g0', 'none');
+  test_computed_value_of_d('p1', 'none');
+  test_computed_value_of_d('p2', 'path("M 10 2 H 20")');
+  test_computed_value_of_d('p3', 'path("M 10 3 H 30")');
+  test_computed_value_of_d('p4', 'path("M 10 4 H 40")');
+  test_computed_value_of_d('g5', 'path("M 10 5 H 50")');
+  test_computed_value_of_d('p6', 'path("M 10 5 H 50")');
+  test_computed_value_of_d('p7', 'none');
+  ]]></script>
+</svg>

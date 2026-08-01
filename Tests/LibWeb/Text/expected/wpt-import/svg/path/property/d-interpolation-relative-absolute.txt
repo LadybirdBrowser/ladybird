@@ -1,0 +1,61 @@
+Harness status: OK
+
+Found 56 tests
+
+56 Fail
+Fail	"path("M 0 0 L 100 100 M 100 200 L 200 200 Z L 200 100 Z")" and "path("M 0 0 L 100 100 m 0 100 l 100 0 z l 300 100 z")" are valid d values
+Fail	Animation between "path("M 0 0 L 100 100 M 100 200 L 200 200 Z L 200 100 Z")" and "path("M 0 0 L 100 100 m 0 100 l 100 0 z l 300 100 z")" at progress -1
+Fail	Animation between "path("M 0 0 L 100 100 M 100 200 L 200 200 Z L 200 100 Z")" and "path("M 0 0 L 100 100 m 0 100 l 100 0 z l 300 100 z")" at progress 0
+Fail	Animation between "path("M 0 0 L 100 100 M 100 200 L 200 200 Z L 200 100 Z")" and "path("M 0 0 L 100 100 m 0 100 l 100 0 z l 300 100 z")" at progress 0.125
+Fail	Animation between "path("M 0 0 L 100 100 M 100 200 L 200 200 Z L 200 100 Z")" and "path("M 0 0 L 100 100 m 0 100 l 100 0 z l 300 100 z")" at progress 0.875
+Fail	Animation between "path("M 0 0 L 100 100 M 100 200 L 200 200 Z L 200 100 Z")" and "path("M 0 0 L 100 100 m 0 100 l 100 0 z l 300 100 z")" at progress 1
+Fail	Animation between "path("M 0 0 L 100 100 M 100 200 L 200 200 Z L 200 100 Z")" and "path("M 0 0 L 100 100 m 0 100 l 100 0 z l 300 100 z")" at progress 2
+Fail	"path("M 0 0 L 100 100 M 100 200 L 200 200 Z L 200 100 Z")" and "path("M 0 0 L 100 100 m 0 100 l 100 0 z l 100 -100 z")" are valid d values
+Fail	Animation between "path("M 0 0 L 100 100 M 100 200 L 200 200 Z L 200 100 Z")" and "path("M 0 0 L 100 100 m 0 100 l 100 0 z l 100 -100 z")" at progress -1
+Fail	Animation between "path("M 0 0 L 100 100 M 100 200 L 200 200 Z L 200 100 Z")" and "path("M 0 0 L 100 100 m 0 100 l 100 0 z l 100 -100 z")" at progress 0
+Fail	Animation between "path("M 0 0 L 100 100 M 100 200 L 200 200 Z L 200 100 Z")" and "path("M 0 0 L 100 100 m 0 100 l 100 0 z l 100 -100 z")" at progress 0.125
+Fail	Animation between "path("M 0 0 L 100 100 M 100 200 L 200 200 Z L 200 100 Z")" and "path("M 0 0 L 100 100 m 0 100 l 100 0 z l 100 -100 z")" at progress 0.875
+Fail	Animation between "path("M 0 0 L 100 100 M 100 200 L 200 200 Z L 200 100 Z")" and "path("M 0 0 L 100 100 m 0 100 l 100 0 z l 100 -100 z")" at progress 1
+Fail	Animation between "path("M 0 0 L 100 100 M 100 200 L 200 200 Z L 200 100 Z")" and "path("M 0 0 L 100 100 m 0 100 l 100 0 z l 100 -100 z")" at progress 2
+Fail	"path("m 10 20 l 40 50 z l 40 60 z m 60 70 l 90 60 z t 70 130")" and "path("M 210 220 L 170 190 Z L 90 120 Z M 110 130 L 200 230 Z T 220 220")" are valid d values
+Fail	Animation between "path("m 10 20 l 40 50 z l 40 60 z m 60 70 l 90 60 z t 70 130")" and "path("M 210 220 L 170 190 Z L 90 120 Z M 110 130 L 200 230 Z T 220 220")" at progress -1
+Fail	Animation between "path("m 10 20 l 40 50 z l 40 60 z m 60 70 l 90 60 z t 70 130")" and "path("M 210 220 L 170 190 Z L 90 120 Z M 110 130 L 200 230 Z T 220 220")" at progress 0
+Fail	Animation between "path("m 10 20 l 40 50 z l 40 60 z m 60 70 l 90 60 z t 70 130")" and "path("M 210 220 L 170 190 Z L 90 120 Z M 110 130 L 200 230 Z T 220 220")" at progress 0.125
+Fail	Animation between "path("m 10 20 l 40 50 z l 40 60 z m 60 70 l 90 60 z t 70 130")" and "path("M 210 220 L 170 190 Z L 90 120 Z M 110 130 L 200 230 Z T 220 220")" at progress 0.875
+Fail	Animation between "path("m 10 20 l 40 50 z l 40 60 z m 60 70 l 90 60 z t 70 130")" and "path("M 210 220 L 170 190 Z L 90 120 Z M 110 130 L 200 230 Z T 220 220")" at progress 1
+Fail	Animation between "path("m 10 20 l 40 50 z l 40 60 z m 60 70 l 90 60 z t 70 130")" and "path("M 210 220 L 170 190 Z L 90 120 Z M 110 130 L 200 230 Z T 220 220")" at progress 2
+Fail	"path("m 10 20 c 40 50 30 60 80 70 c 120 130 170 140 110 160")" and "path("M 130 100 C 130 150 120 160 210 170 C 290 300 340 310 320 330")" are valid d values
+Fail	Animation between "path("m 10 20 c 40 50 30 60 80 70 c 120 130 170 140 110 160")" and "path("M 130 100 C 130 150 120 160 210 170 C 290 300 340 310 320 330")" at progress -1
+Fail	Animation between "path("m 10 20 c 40 50 30 60 80 70 c 120 130 170 140 110 160")" and "path("M 130 100 C 130 150 120 160 210 170 C 290 300 340 310 320 330")" at progress 0
+Fail	Animation between "path("m 10 20 c 40 50 30 60 80 70 c 120 130 170 140 110 160")" and "path("M 130 100 C 130 150 120 160 210 170 C 290 300 340 310 320 330")" at progress 0.125
+Fail	Animation between "path("m 10 20 c 40 50 30 60 80 70 c 120 130 170 140 110 160")" and "path("M 130 100 C 130 150 120 160 210 170 C 290 300 340 310 320 330")" at progress 0.875
+Fail	Animation between "path("m 10 20 c 40 50 30 60 80 70 c 120 130 170 140 110 160")" and "path("M 130 100 C 130 150 120 160 210 170 C 290 300 340 310 320 330")" at progress 1
+Fail	Animation between "path("m 10 20 c 40 50 30 60 80 70 c 120 130 170 140 110 160")" and "path("M 130 100 C 130 150 120 160 210 170 C 290 300 340 310 320 330")" at progress 2
+Fail	"path("m 10 20 q 30 60 40 50 q 110 80 90 80")" and "path("M 130 100 Q 120 160 130 150 Q 200 150 180 190")" are valid d values
+Fail	Animation between "path("m 10 20 q 30 60 40 50 q 110 80 90 80")" and "path("M 130 100 Q 120 160 130 150 Q 200 150 180 190")" at progress -1
+Fail	Animation between "path("m 10 20 q 30 60 40 50 q 110 80 90 80")" and "path("M 130 100 Q 120 160 130 150 Q 200 150 180 190")" at progress 0
+Fail	Animation between "path("m 10 20 q 30 60 40 50 q 110 80 90 80")" and "path("M 130 100 Q 120 160 130 150 Q 200 150 180 190")" at progress 0.125
+Fail	Animation between "path("m 10 20 q 30 60 40 50 q 110 80 90 80")" and "path("M 130 100 Q 120 160 130 150 Q 200 150 180 190")" at progress 0.875
+Fail	Animation between "path("m 10 20 q 30 60 40 50 q 110 80 90 80")" and "path("M 130 100 Q 120 160 130 150 Q 200 150 180 190")" at progress 1
+Fail	Animation between "path("m 10 20 q 30 60 40 50 q 110 80 90 80")" and "path("M 130 100 Q 120 160 130 150 Q 200 150 180 190")" at progress 2
+Fail	"path("m 10 20 s 30 60 40 50 s 110 60 90 70")" and "path("M 130 140 S 120 160 130 150 S 200 170 140 180")" are valid d values
+Fail	Animation between "path("m 10 20 s 30 60 40 50 s 110 60 90 70")" and "path("M 130 140 S 120 160 130 150 S 200 170 140 180")" at progress -1
+Fail	Animation between "path("m 10 20 s 30 60 40 50 s 110 60 90 70")" and "path("M 130 140 S 120 160 130 150 S 200 170 140 180")" at progress 0
+Fail	Animation between "path("m 10 20 s 30 60 40 50 s 110 60 90 70")" and "path("M 130 140 S 120 160 130 150 S 200 170 140 180")" at progress 0.125
+Fail	Animation between "path("m 10 20 s 30 60 40 50 s 110 60 90 70")" and "path("M 130 140 S 120 160 130 150 S 200 170 140 180")" at progress 0.875
+Fail	Animation between "path("m 10 20 s 30 60 40 50 s 110 60 90 70")" and "path("M 130 140 S 120 160 130 150 S 200 170 140 180")" at progress 1
+Fail	Animation between "path("m 10 20 s 30 60 40 50 s 110 60 90 70")" and "path("M 130 140 S 120 160 130 150 S 200 170 140 180")" at progress 2
+Fail	"path("m 10 20 h 30 v 60 h 10 v -10 l 110 60 Z")" and "path("M 130 140 H 120 V 160 H 130 V 150 L 200 170 Z")" are valid d values
+Fail	Animation between "path("m 10 20 h 30 v 60 h 10 v -10 l 110 60 Z")" and "path("M 130 140 H 120 V 160 H 130 V 150 L 200 170 Z")" at progress -1
+Fail	Animation between "path("m 10 20 h 30 v 60 h 10 v -10 l 110 60 Z")" and "path("M 130 140 H 120 V 160 H 130 V 150 L 200 170 Z")" at progress 0
+Fail	Animation between "path("m 10 20 h 30 v 60 h 10 v -10 l 110 60 Z")" and "path("M 130 140 H 120 V 160 H 130 V 150 L 200 170 Z")" at progress 0.125
+Fail	Animation between "path("m 10 20 h 30 v 60 h 10 v -10 l 110 60 Z")" and "path("M 130 140 H 120 V 160 H 130 V 150 L 200 170 Z")" at progress 0.875
+Fail	Animation between "path("m 10 20 h 30 v 60 h 10 v -10 l 110 60 Z")" and "path("M 130 140 H 120 V 160 H 130 V 150 L 200 170 Z")" at progress 1
+Fail	Animation between "path("m 10 20 h 30 v 60 h 10 v -10 l 110 60 Z")" and "path("M 130 140 H 120 V 160 H 130 V 150 L 200 170 Z")" at progress 2
+Fail	"path("m 10 20 a 10 20 30 1 0 40 50 a 110 120 30 1 1 140 50")" and "path("M 18 12 A 50 100 70 0 1 90 110 A 150 160 70 0 1 70 80")" are valid d values
+Fail	Animation between "path("m 10 20 a 10 20 30 1 0 40 50 a 110 120 30 1 1 140 50")" and "path("M 18 12 A 50 100 70 0 1 90 110 A 150 160 70 0 1 70 80")" at progress -1
+Fail	Animation between "path("m 10 20 a 10 20 30 1 0 40 50 a 110 120 30 1 1 140 50")" and "path("M 18 12 A 50 100 70 0 1 90 110 A 150 160 70 0 1 70 80")" at progress 0
+Fail	Animation between "path("m 10 20 a 10 20 30 1 0 40 50 a 110 120 30 1 1 140 50")" and "path("M 18 12 A 50 100 70 0 1 90 110 A 150 160 70 0 1 70 80")" at progress 0.125
+Fail	Animation between "path("m 10 20 a 10 20 30 1 0 40 50 a 110 120 30 1 1 140 50")" and "path("M 18 12 A 50 100 70 0 1 90 110 A 150 160 70 0 1 70 80")" at progress 0.875
+Fail	Animation between "path("m 10 20 a 10 20 30 1 0 40 50 a 110 120 30 1 1 140 50")" and "path("M 18 12 A 50 100 70 0 1 90 110 A 150 160 70 0 1 70 80")" at progress 1
+Fail	Animation between "path("m 10 20 a 10 20 30 1 0 40 50 a 110 120 30 1 1 140 50")" and "path("M 18 12 A 50 100 70 0 1 90 110 A 150 160 70 0 1 70 80")" at progress 2

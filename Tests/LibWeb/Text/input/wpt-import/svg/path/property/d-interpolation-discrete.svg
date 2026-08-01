@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:h="http://www.w3.org/1999/xhtml">
+  <metadata>
+    <h:link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/paths.html#TheDProperty"/>
+    <h:meta name="assert" content="d falls back to step interpolation when no interpolation is possible."/>
+  </metadata>
+
+  <g id="container"/>
+
+  <h:script src="../../../resources/testharness.js"/>
+  <h:script src="../../../resources/testharnessreport.js"/>
+  <h:script src="resources/interpolation-test-common.js"/>
+  <script><![CDATA[
+      'use strict';
+
+      // Distinct number of path segments
+      test_no_interpolation({
+        property: 'd',
+        from: 'path("M 0 0 H 1 H 2")',
+        to: 'path("M 0 0 H 3")'
+      });
+
+      test_no_interpolation({
+        property: 'd',
+        from: 'path("M 1 2 L 3 4 Z")',
+        to: "none"
+      });
+
+      // Distinct segment types
+      test_no_interpolation({
+        property: 'd',
+        from: 'path("M 10 0 H 11")',
+        to: 'path("M 20 0 V 2")'
+      });
+
+      test_no_interpolation({
+        property: 'd',
+        from: 'path("M 1 2 L 4 6 Z")',
+        to: 'path("M 1 2 H 4 V 6")'
+      });
+  ]]></script>
+</svg>
