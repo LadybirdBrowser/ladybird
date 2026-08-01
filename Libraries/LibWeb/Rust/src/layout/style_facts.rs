@@ -117,44 +117,6 @@ impl FfiSizeValue {
         self.kind() == FfiSizeKind::Auto
     }
 
-    pub(crate) fn is_length(self) -> bool {
-        self.kind() == FfiSizeKind::Px
-    }
-
-    pub(crate) fn is_percentage(self) -> bool {
-        self.kind() == FfiSizeKind::Percentage
-    }
-
-    pub(crate) fn is_length_percentage(self) -> bool {
-        matches!(
-            self.kind(),
-            FfiSizeKind::Px | FfiSizeKind::Percentage | FfiSizeKind::Calc
-        )
-    }
-
-    pub(crate) fn is_min_content(self) -> bool {
-        self.kind() == FfiSizeKind::MinContent
-    }
-
-    pub(crate) fn is_max_content(self) -> bool {
-        self.kind() == FfiSizeKind::MaxContent
-    }
-
-    pub(crate) fn is_fit_content(self) -> bool {
-        self.kind() == FfiSizeKind::FitContent
-    }
-
-    pub(crate) fn is_none(self) -> bool {
-        self.kind() == FfiSizeKind::None_
-    }
-
-    pub(crate) fn is_intrinsic_sizing_constraint(self) -> bool {
-        matches!(
-            self.kind(),
-            FfiSizeKind::MinContent | FfiSizeKind::MaxContent | FfiSizeKind::FitContent
-        )
-    }
-
     pub(crate) fn to_px(self, reference: CssPixels) -> CssPixels {
         match self.kind() {
             FfiSizeKind::Px => self.px,
@@ -177,12 +139,6 @@ impl FfiSizeValue {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub(crate) enum SizeField {
-    Width,
-    Height,
-    MinWidth,
-    MinHeight,
-    MaxWidth,
-    MaxHeight,
     MarginTop,
     MarginRight,
     MarginBottom,
@@ -195,10 +151,8 @@ pub(crate) enum SizeField {
     InsetRight,
     InsetBottom,
     InsetLeft,
-    FlexBasis,
     RowGap,
     ColumnGap,
-    ColumnWidth,
     TextIndent,
     X,
     Y,
@@ -582,9 +536,12 @@ fn decode_css_preferred_aspect_ratio(
 /// payloads; every read decodes on demand from the typed group payloads. The
 /// four inset fields additionally consult the per-LayoutState anchor-inset
 /// store, the only style state a pass can change.
+///
+/// The reader is 'static because the payloads stay alive for the pass (see
+/// style_payloads); sizing accessors hand out payload references directly.
 #[derive(Clone, Copy)]
 pub(crate) struct StyleValues<'a> {
-    reader: StyleReader<'a>,
+    reader: StyleReader<'static>,
     anchor_insets: &'a AnchorInsetStore,
     slot_index: u32,
     vertical_align_override: u16,
@@ -672,7 +629,7 @@ scalar_accessors! {
 
 impl<'a> StyleValues<'a> {
     #[inline]
-    pub(crate) fn new(reader: StyleReader<'a>, anchor_insets: &'a AnchorInsetStore, slot_index: u32) -> Self {
+    pub(crate) fn new(reader: StyleReader<'static>, anchor_insets: &'a AnchorInsetStore, slot_index: u32) -> Self {
         Self {
             reader,
             anchor_insets,
@@ -695,23 +652,6 @@ impl<'a> StyleValues<'a> {
 
     fn direct_size(self, field: SizeField) -> FfiSizeValue {
         match field {
-            SizeField::Width
-            | SizeField::Height
-            | SizeField::MinWidth
-            | SizeField::MinHeight
-            | SizeField::MaxWidth
-            | SizeField::MaxHeight => {
-                let values = self.reader.sizing();
-                decode_computed_size(match field {
-                    SizeField::Width => &values.width,
-                    SizeField::Height => &values.height,
-                    SizeField::MinWidth => &values.min_width,
-                    SizeField::MinHeight => &values.min_height,
-                    SizeField::MaxWidth => &values.max_width,
-                    SizeField::MaxHeight => &values.max_height,
-                    _ => unreachable!(),
-                })
-            }
             SizeField::MarginTop
             | SizeField::MarginRight
             | SizeField::MarginBottom
@@ -741,14 +681,6 @@ impl<'a> StyleValues<'a> {
                     _ => unreachable!(),
                 })
             }
-            SizeField::FlexBasis => {
-                let values = self.reader.alignment();
-                if values.flex_basis.is_content {
-                    FfiSizeValue::auto_value()
-                } else {
-                    decode_computed_size(&values.flex_basis.size)
-                }
-            }
             SizeField::RowGap | SizeField::ColumnGap => {
                 let values = self.reader.alignment();
                 let gap = if field == SizeField::RowGap {
@@ -770,7 +702,6 @@ impl<'a> StyleValues<'a> {
             SizeField::TextIndent => {
                 decode_length_percentage(&self.reader.inherited_text_facts().text_indent.length_percentage)
             }
-            SizeField::ColumnWidth => decode_computed_size(&self.reader.box_values().column_width),
         }
     }
 
@@ -884,8 +815,41 @@ impl<'a> StyleValues<'a> {
         self.reader.alignment().flex_basis.is_content
     }
 
-    pub(crate) fn flex_basis(self) -> FfiSizeValue {
-        self.size_value(SizeField::FlexBasis)
+    pub(crate) fn flex_basis(self) -> &'static ComputedSize {
+        let flex_basis = &self.reader.alignment().flex_basis;
+        if flex_basis.is_content {
+            auto_computed_size()
+        } else {
+            &flex_basis.size
+        }
+    }
+
+    pub(crate) fn width(self) -> &'static ComputedSize {
+        &self.reader.sizing().width
+    }
+
+    pub(crate) fn height(self) -> &'static ComputedSize {
+        &self.reader.sizing().height
+    }
+
+    pub(crate) fn min_width(self) -> &'static ComputedSize {
+        &self.reader.sizing().min_width
+    }
+
+    pub(crate) fn min_height(self) -> &'static ComputedSize {
+        &self.reader.sizing().min_height
+    }
+
+    pub(crate) fn max_width(self) -> &'static ComputedSize {
+        &self.reader.sizing().max_width
+    }
+
+    pub(crate) fn max_height(self) -> &'static ComputedSize {
+        &self.reader.sizing().max_height
+    }
+
+    pub(crate) fn column_width(self) -> &'static ComputedSize {
+        &self.reader.box_values().column_width
     }
 
     pub(crate) fn has_column_count(self) -> bool {
@@ -936,12 +900,6 @@ macro_rules! size_accessors {
 }
 
 size_accessors! {
-    width => Width,
-    height => Height,
-    min_width => MinWidth,
-    min_height => MinHeight,
-    max_width => MaxWidth,
-    max_height => MaxHeight,
     margin_top => MarginTop,
     margin_right => MarginRight,
     margin_bottom => MarginBottom,
@@ -956,7 +914,6 @@ size_accessors! {
     inset_left => InsetLeft,
     row_gap => RowGap,
     column_gap => ColumnGap,
-    column_width => ColumnWidth,
     text_indent => TextIndent,
     x => X,
     y => Y,

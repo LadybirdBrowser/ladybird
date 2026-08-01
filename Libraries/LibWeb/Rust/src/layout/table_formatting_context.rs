@@ -1379,12 +1379,12 @@ impl<'pass> TableFormattingContext<'pass> {
             TrackAxis::Column => (style.width(), style.max_width()),
         };
         let maximum = if max_size.is_percentage() {
-            max_size.fraction * 100.0
+            max_size.length_percentage().as_fraction() * 100.0
         } else {
             f64::INFINITY
         };
         let preferred = if size.is_percentage() {
-            size.fraction * 100.0
+            size.length_percentage().as_fraction() * 100.0
         } else {
             0.0
         };
@@ -1677,7 +1677,7 @@ impl<'pass> TableFormattingContext<'pass> {
                     + style.margin_right().to_px(basis)
             };
             let mut contribution = outer(self.calculate_min_content_inline_size(caption));
-            if !style.width().is_auto() && !style.width().contains_percentage {
+            if !style.width().is_auto() && !style.width().contains_percentage() {
                 let preferred = self.sizing().calculate_inner_inline_width(
                     caption,
                     AvailableSize::definite(basis),
@@ -1692,7 +1692,7 @@ impl<'pass> TableFormattingContext<'pass> {
 
     fn resolve_inline_constraint(
         &mut self,
-        constraint: FfiSizeValue,
+        constraint: &ComputedSize,
         grid_min: CssPixels,
         grid_max: CssPixels,
         basis: CssPixels,
@@ -1704,7 +1704,7 @@ impl<'pass> TableFormattingContext<'pass> {
             return grid_max;
         }
         if constraint.is_fit_content() {
-            let limit = if constraint.fit_content_has_argument {
+            let limit = if constraint.fit_content_available_space().is_some() {
                 constraint.to_px(basis)
             } else {
                 basis
@@ -1757,7 +1757,7 @@ impl<'pass> TableFormattingContext<'pass> {
             used_min = used_min.max(self.resolve_inline_constraint(table_style.min_width(), grid_min, grid_max, basis));
         }
         let width_is_auto_or_indefinite_percentage = table_style.width().is_auto()
-            || (table_style.width().contains_percentage
+            || (table_style.width().contains_percentage()
                 && self.table_constraints.percentage_basis_inline_size.is_none());
         let mut used = if width_is_auto_or_indefinite_percentage {
             // If the table-root has 'width: auto', the used inline size is the greater of
@@ -1784,7 +1784,7 @@ impl<'pass> TableFormattingContext<'pass> {
                     let cell_width = self.style_facts(cell.box_).width();
                     if cell_width.is_percentage() {
                         let mut adjusted = spacing;
-                        let percentage = cell_width.fraction * 100.0;
+                        let percentage = cell_width.length_percentage().as_fraction() * 100.0;
                         if percentage != 0.0 {
                             adjusted += CssPixels::nearest_value_for(
                                 (100.0 / percentage * cell.outer_max_inline_size.to_double()).ceil(),

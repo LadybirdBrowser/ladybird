@@ -931,7 +931,7 @@ impl LayoutState {
             Axis::Block => percentage_basis_block_size.is_some(),
         };
 
-        let adjust_for_box_sizing = |unadjusted: crate::layout::CssPixels, computed_size: crate::layout::FfiSizeValue, axis: Axis| {
+        let adjust_for_box_sizing = |unadjusted: crate::layout::CssPixels, computed_size: &ComputedSize, axis: Axis| {
             // box-sizing: content-box and automatic sizes need no
             // adjustment.
             if style.box_sizing() == box_sizing::CONTENT_BOX || computed_size.is_auto() {
@@ -961,7 +961,7 @@ impl LayoutState {
 
         let parent = callbacks.parent(node);
         let parent_facts = (!parent.is_invalid()).then(|| self.node_facts(callbacks, parent));
-        let is_definite_size = |size: crate::layout::FfiSizeValue, axis: Axis| -> Option<crate::layout::CssPixels> {
+        let is_definite_size = |size: &ComputedSize, axis: Axis| -> Option<crate::layout::CssPixels> {
             // A definite size can be determined without performing
             // layout: a length, an initial-containing-block size, or a
             // percentage/formula resolved solely against definite sizes.
@@ -998,10 +998,10 @@ impl LayoutState {
             if !size.is_length_percentage() {
                 return None;
             }
-            if size.contains_percentage && !containing_block_has_definite_size(axis) {
+            if size.contains_percentage() && !containing_block_has_definite_size(axis) {
                 return None;
             }
-            let basis = if size.contains_percentage {
+            let basis = if size.contains_percentage() {
                 containing_block_size_for_axis(axis)
             } else {
                 crate::layout::CssPixels::default()

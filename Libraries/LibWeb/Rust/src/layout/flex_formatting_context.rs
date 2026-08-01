@@ -31,11 +31,11 @@ struct DirectionAgnosticMargins {
     cross_after_is_auto: bool,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 enum UsedFlexBasis {
     Content,
     Size {
-        value: FfiSizeValue,
+        value: &'static ComputedSize,
         property: SizingProperty,
     },
 }
@@ -474,7 +474,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         }
     }
 
-    fn computed_main_size(&self, node: Node) -> (FfiSizeValue, SizingProperty) {
+    fn computed_main_size(&self, node: Node) -> (&'static ComputedSize, SizingProperty) {
         let style = self.style(node);
         if self.main_axis_is_horizontal() {
             (style.width(), SizingProperty::Width)
@@ -483,7 +483,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         }
     }
 
-    fn computed_main_min_size(&self, node: Node) -> (FfiSizeValue, SizingProperty) {
+    fn computed_main_min_size(&self, node: Node) -> (&'static ComputedSize, SizingProperty) {
         let style = self.style(node);
         if self.main_axis_is_horizontal() {
             (style.min_width(), SizingProperty::MinWidth)
@@ -492,7 +492,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         }
     }
 
-    fn computed_main_max_size(&self, node: Node) -> (FfiSizeValue, SizingProperty) {
+    fn computed_main_max_size(&self, node: Node) -> (&'static ComputedSize, SizingProperty) {
         let style = self.style(node);
         if self.main_axis_is_horizontal() {
             (style.max_width(), SizingProperty::MaxWidth)
@@ -501,7 +501,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         }
     }
 
-    fn computed_cross_size(&self, node: Node) -> (FfiSizeValue, SizingProperty) {
+    fn computed_cross_size(&self, node: Node) -> (&'static ComputedSize, SizingProperty) {
         let style = self.style(node);
         if self.cross_axis_is_horizontal() {
             (style.width(), SizingProperty::Width)
@@ -510,7 +510,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         }
     }
 
-    fn computed_cross_min_size(&self, node: Node) -> (FfiSizeValue, SizingProperty) {
+    fn computed_cross_min_size(&self, node: Node) -> (&'static ComputedSize, SizingProperty) {
         let style = self.style(node);
         if self.cross_axis_is_horizontal() {
             (style.min_width(), SizingProperty::MinWidth)
@@ -519,7 +519,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         }
     }
 
-    fn computed_cross_max_size(&self, node: Node) -> (FfiSizeValue, SizingProperty) {
+    fn computed_cross_max_size(&self, node: Node) -> (&'static ComputedSize, SizingProperty) {
         let style = self.style(node);
         if self.cross_axis_is_horizontal() {
             (style.max_width(), SizingProperty::MaxWidth)
@@ -568,7 +568,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         )
     }
 
-    fn resolve_inner_block_size(&self, index: usize, value: FfiSizeValue, property: SizingProperty) -> CssPixels {
+    fn resolve_inner_block_size(&self, index: usize, value: &ComputedSize, property: SizingProperty) -> CssPixels {
         // NOTE: When the main axis is horizontal, after we've determined the main size, we use that as the
         //       available inline size for any intrinsic sizing layout needed to resolve the block size.
         let available_space = if self.main_axis_is_horizontal() && value.is_intrinsic_sizing_constraint() {
@@ -594,7 +594,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         &self,
         index: usize,
         axis_is_horizontal: bool,
-        value: FfiSizeValue,
+        value: &ComputedSize,
         property: SizingProperty,
     ) -> CssPixels {
         if axis_is_horizontal {
@@ -845,8 +845,8 @@ impl<'pass> FlexFormattingContext<'pass> {
         &self,
         node: Node,
         mut main_size: CssPixels,
-        min_cross_size: FfiSizeValue,
-        max_cross_size: FfiSizeValue,
+        min_cross_size: &ComputedSize,
+        max_cross_size: &ComputedSize,
     ) -> CssPixels {
         let ratio = self.facts(node).preferred_aspect_ratio().unwrap();
         let reference = self.inner_cross_size_used(self.container_used());
@@ -865,8 +865,8 @@ impl<'pass> FlexFormattingContext<'pass> {
         &self,
         node: Node,
         mut cross_size: CssPixels,
-        min_main_size: FfiSizeValue,
-        max_main_size: FfiSizeValue,
+        min_main_size: &ComputedSize,
+        max_main_size: &ComputedSize,
     ) -> CssPixels {
         let ratio = self.facts(node).preferred_aspect_ratio().unwrap();
         let reference = self.inner_main_size_used(self.container_used());
@@ -913,7 +913,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         // We can resolve percentage min/max-width if the available inline size is definite.
         let can_resolve_percentages = matches!(self.available_space_for_items.unwrap().space.inline_size, AvailableSize::Definite(_));
         let min_inline_size =
-            if !style.min_width().is_auto() && (!style.min_width().contains_percentage || can_resolve_percentages) {
+            if !style.min_width().is_auto() && (!style.min_width().contains_percentage() || can_resolve_percentages) {
                 self.resolve_inner_inline_size(index, SizingProperty::MinWidth)
             } else {
                 CssPixels::default()
@@ -922,7 +922,7 @@ impl<'pass> FlexFormattingContext<'pass> {
             node,
             SizingAxis::Inline,
             self.available_space_for_items.unwrap().space.inline_size,
-        ) && (!style.max_width().contains_percentage || can_resolve_percentages)
+        ) && (!style.max_width().contains_percentage() || can_resolve_percentages)
         {
             self.resolve_inner_inline_size(index, SizingProperty::MaxWidth)
         } else {
@@ -1027,8 +1027,8 @@ impl<'pass> FlexFormattingContext<'pass> {
                     false
                 } else if value.is_length() {
                     true
-                } else if value.kind() == FfiSizeKind::Calc {
-                    !value.contains_percentage || self.has_definite_main_size_used(self.container_used())
+                } else if value.kind == ComputedSizeKind::Calculated {
+                    !value.contains_percentage() || self.has_definite_main_size_used(self.container_used())
                 } else {
                     debug_assert!(value.is_percentage());
                     self.has_definite_main_size_used(self.container_used())
@@ -1047,7 +1047,7 @@ impl<'pass> FlexFormattingContext<'pass> {
             // https://drafts.csswg.org/css-sizing-3/#cyclic-percentage-contribution
             _ if self.facts(node).is_replaced_box()
                 && self.available_space_for_items.unwrap().main == AvailableSize::MinContent
-                && self.computed_main_size(node).0.contains_percentage =>
+                && self.computed_main_size(node).0.contains_percentage() =>
             {
                 CssPixels::default()
             }
@@ -2647,13 +2647,13 @@ impl<'pass> FlexFormattingContext<'pass> {
         }
         let min = self.computed_cross_min_size(node).0;
         let max = self.computed_cross_max_size(node).0;
-        let clamp_min = if !min.is_auto() && (resolve_percentage_min_max_sizes || !min.contains_percentage) {
+        let clamp_min = if !min.is_auto() && (resolve_percentage_min_max_sizes || !min.contains_percentage()) {
             self.specified_cross_min_size(index)
         } else {
             CssPixels::default()
         };
         let clamp_max = if !self.should_treat_max_size_as_none(node, true)
-            && (resolve_percentage_min_max_sizes || !max.contains_percentage)
+            && (resolve_percentage_min_max_sizes || !max.contains_percentage())
         {
             self.specified_cross_max_size(index)
         } else {
@@ -2672,7 +2672,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         if self.should_treat_max_size_as_none(node, false) {
             return CssPixels::from_raw(i32::MAX);
         }
-        if !max.contains_percentage {
+        if !max.contains_percentage() {
             return self.specified_main_max_size(index);
         }
         if available_size == AvailableSize::MinContent {
@@ -2842,7 +2842,7 @@ impl<'pass> FlexFormattingContext<'pass> {
                 };
                 let result = self.flex_items[index].flex_base_size + CssPixels::nearest_value_for(product);
                 let min = self.computed_main_min_size(self.flex_items[index].box_).0;
-                let clamp_min = if !min.is_auto() && !min.contains_percentage {
+                let clamp_min = if !min.is_auto() && !min.contains_percentage() {
                     self.specified_main_min_size(index)
                 } else {
                     self.automatic_minimum_size(index)
