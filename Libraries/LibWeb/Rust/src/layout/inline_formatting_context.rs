@@ -873,7 +873,7 @@ impl<'context, 'pass> InlineFormattingContext<'context, 'pass> {
             } else {
                 sizing.calculate_max_content_inline_size(node, constraints)
             }
-        } else if style.width().contains_percentage && !matches!(available_space.inline_size, AvailableSize::Definite(_)) {
+        } else if style.width().contains_percentage() && !matches!(available_space.inline_size, AvailableSize::Definite(_)) {
             CssPixels::default()
         } else {
             sizing.calculate_inner_inline_size(node, available_space.inline_size, style.width(), constraints)

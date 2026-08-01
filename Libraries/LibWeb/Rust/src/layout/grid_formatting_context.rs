@@ -2068,7 +2068,7 @@ impl<'pass> GridFormattingContext<'pass> {
         size + self.outer_edges(item, axis)
     }
 
-    fn preferred_size(&self, item: GridItem, axis: Axis) -> FfiSizeValue {
+    fn preferred_size(&self, item: GridItem, axis: Axis) -> &'static ComputedSize {
         let style = self.style(item.box_);
         if axis.is_column() {
             style.width()
@@ -2077,7 +2077,7 @@ impl<'pass> GridFormattingContext<'pass> {
         }
     }
 
-    fn minimum_size(&self, item: GridItem, axis: Axis) -> FfiSizeValue {
+    fn minimum_size(&self, item: GridItem, axis: Axis) -> &'static ComputedSize {
         let style = self.style(item.box_);
         if axis.is_column() {
             style.min_width()
@@ -2086,7 +2086,7 @@ impl<'pass> GridFormattingContext<'pass> {
         }
     }
 
-    fn maximum_size(&self, item: GridItem, axis: Axis) -> FfiSizeValue {
+    fn maximum_size(&self, item: GridItem, axis: Axis) -> &'static ComputedSize {
         let style = self.style(item.box_);
         if axis.is_column() {
             style.max_width()
@@ -2112,7 +2112,7 @@ impl<'pass> GridFormattingContext<'pass> {
         // sizing tracks in the same axis, the percentage is cyclic and behaves as
         // the property's initial value for intrinsic contribution calculations.
         behaves_as_auto
-            || (!self.facts(item.box_).is_replaced_box() && self.preferred_size(item, axis).contains_percentage)
+            || (!self.facts(item.box_).is_replaced_box() && self.preferred_size(item, axis).contains_percentage())
     }
 
     fn min_content_size(&self, item: GridItem, axis: Axis) -> CssPixels {
@@ -2130,7 +2130,7 @@ impl<'pass> GridFormattingContext<'pass> {
 
     fn min_content_contribution(&self, item: GridItem, axis: Axis) -> CssPixels {
         let max = self.maximum_size(item, axis);
-        let maximum = if max.is_length_percentage() && !max.contains_percentage {
+        let maximum = if max.is_length_percentage() && !max.contains_percentage() {
             max.to_px(CssPixels::default())
         } else {
             CssPixels::from_raw(i32::MAX)
@@ -2168,7 +2168,7 @@ impl<'pass> GridFormattingContext<'pass> {
 
     fn max_content_contribution(&self, item: GridItem, axis: Axis) -> CssPixels {
         let max = self.maximum_size(item, axis);
-        let maximum = if max.is_length_percentage() && !max.contains_percentage {
+        let maximum = if max.is_length_percentage() && !max.contains_percentage() {
             max.to_px(CssPixels::default())
         } else {
             CssPixels::from_raw(i32::MAX)
@@ -2225,7 +2225,7 @@ impl<'pass> GridFormattingContext<'pass> {
         // If the item’s preferred size in the relevant axis is definite, then the specified size suggestion is that size.
         // It is otherwise undefined.
         let preferred_size = self.preferred_size(item, axis);
-        if !self.facts(item.box_).is_replaced_box() && preferred_size.contains_percentage {
+        if !self.facts(item.box_).is_replaced_box() && preferred_size.contains_percentage() {
             return None;
         }
 
@@ -2303,7 +2303,7 @@ impl<'pass> GridFormattingContext<'pass> {
 
         // In all cases, the size suggestion is additionally clamped by the maximum size in the affected axis, if it’s definite.
         let maximum_size = self.maximum_size(item, axis);
-        if maximum_size.is_length_percentage() && !maximum_size.contains_percentage {
+        if maximum_size.is_length_percentage() && !maximum_size.contains_percentage() {
             result = result.min(maximum_size.to_px(CssPixels::default()));
         }
 
@@ -2312,10 +2312,7 @@ impl<'pass> GridFormattingContext<'pass> {
         // against zero (and considered definite).
         // FIXME: "compressible replaced element" includes more elements than is_replaced_box().
         let preferred_size = self.preferred_size(item, axis);
-        if self.facts(item.box_).is_replaced_box()
-            && (preferred_size.kind() == crate::layout::FfiSizeKind::Percentage
-                || maximum_size.kind() == crate::layout::FfiSizeKind::Percentage)
-        {
+        if self.facts(item.box_).is_replaced_box() && (preferred_size.is_percentage() || maximum_size.is_percentage()) {
             // NOTE: Implements "for this purpose, any indefinite percentages in these sizes are resolved
             //       against zero (and considered definite)." part.
             result = CssPixels::default();
@@ -2369,7 +2366,7 @@ impl<'pass> GridFormattingContext<'pass> {
             return self.max_content_contribution(item, axis);
         } else {
             let mut available = self.item_available_space(item);
-            if axis.is_column() && self.facts(item.box_).is_table_wrapper() && minimum.contains_percentage {
+            if axis.is_column() && self.facts(item.box_).is_table_wrapper() && minimum.contains_percentage() {
                 // Percentage minimum sizes on a table wrapper resolve against the same non-cyclic
                 // inline size that the wrapper's own inline-size resolution uses.
                 let containing = self.containing_block_size(item, Axis::Column);
@@ -2759,12 +2756,12 @@ impl<'pass> GridFormattingContext<'pass> {
         let table_box = self.sizing().table_box_inside_wrapper(item.box_);
         let table_style = self.style(table_box);
         let wrapper_style = self.style(item.box_);
-        if !wrapper_style.width().contains_percentage
-            && !wrapper_style.min_width().contains_percentage
-            && !wrapper_style.max_width().contains_percentage
-            && !table_style.width().contains_percentage
-            && !table_style.min_width().contains_percentage
-            && !table_style.max_width().contains_percentage
+        if !wrapper_style.width().contains_percentage()
+            && !wrapper_style.min_width().contains_percentage()
+            && !wrapper_style.max_width().contains_percentage()
+            && !table_style.width().contains_percentage()
+            && !table_style.min_width().contains_percentage()
+            && !table_style.max_width().contains_percentage()
         {
             return containing;
         }

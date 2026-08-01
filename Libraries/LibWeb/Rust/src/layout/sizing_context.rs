@@ -186,7 +186,7 @@ impl<'pass> SizingContext<'pass> {
                 } else {
                     self.content_block_size_from_aspect_ratio(node, inline_size)
                 })
-            } else if style.min_width().is_length_percentage() && !style.min_width().contains_percentage {
+            } else if style.min_width().is_length_percentage() && !style.min_width().contains_percentage() {
                 let inline_size = style.min_width().to_px(CssPixels::default());
                 Some(if is_inline_axis {
                     inline_size
@@ -202,7 +202,7 @@ impl<'pass> SizingContext<'pass> {
                 } else {
                     block_size
                 })
-            } else if style.min_height().is_length_percentage() && !style.min_height().contains_percentage {
+            } else if style.min_height().is_length_percentage() && !style.min_height().contains_percentage() {
                 let block_size = style.min_height().to_px(CssPixels::default());
                 Some(if is_inline_axis {
                     self.content_inline_size_from_aspect_ratio(node, block_size)
@@ -239,7 +239,7 @@ impl<'pass> SizingContext<'pass> {
         } else {
             self.style(node).min_height()
         };
-        if min_size.is_length_percentage() && !min_size.contains_percentage {
+        if min_size.is_length_percentage() && !min_size.contains_percentage() {
             return Some(min_size.to_px(CssPixels::default()));
         }
         // Otherwise, use 300px for the width and/or 150px for the height as needed.
@@ -249,7 +249,7 @@ impl<'pass> SizingContext<'pass> {
     fn tentative_inline_size_for_replaced_element(
         &self,
         node: Node,
-        computed_inline_size: FfiSizeValue,
+        computed_inline_size: &'static ComputedSize,
         available_space: AvailableSpace,
         constraints: ContainingBlockConstraints,
     ) -> CssPixels {
@@ -260,7 +260,7 @@ impl<'pass> SizingContext<'pass> {
         }
         let style = self.style(node);
         let computed_block_size = if self.should_treat_block_size_as_auto(node, available_space, constraints) {
-            FfiSizeValue::auto_value()
+            auto_computed_size()
         } else {
             style.height()
         };
@@ -310,7 +310,7 @@ impl<'pass> SizingContext<'pass> {
             }
             match cyclic_percentage_intrinsic_contribution(
                 self.facts(node).is_replaced_box(),
-                style.width().contains_percentage,
+                style.width().contains_percentage(),
                 available_space.inline_size,
                 CyclicPercentageSizeProperty::PreferredOrMaxSize,
             ) {
@@ -339,7 +339,7 @@ impl<'pass> SizingContext<'pass> {
     fn tentative_block_size_for_replaced_element(
         &self,
         node: Node,
-        computed_block_size: FfiSizeValue,
+        computed_block_size: &'static ComputedSize,
         available_space: AvailableSpace,
         constraints: ContainingBlockConstraints,
     ) -> CssPixels {
@@ -489,12 +489,12 @@ impl<'pass> SizingContext<'pass> {
         // 10.3.2 Inline, replaced elements
         let style = self.style(node);
         let computed_inline = if self.should_treat_inline_size_as_auto(node, available_space) {
-            FfiSizeValue::auto_value()
+            auto_computed_size()
         } else {
             style.width()
         };
         let computed_block = if self.should_treat_block_size_as_auto(node, available_space, constraints) {
-            FfiSizeValue::auto_value()
+            auto_computed_size()
         } else {
             style.height()
         };
@@ -551,12 +551,12 @@ impl<'pass> SizingContext<'pass> {
         // 10.6.10 'inline-block' replaced elements in normal flow
         let style = self.style(node);
         let computed_inline = if self.should_treat_inline_size_as_auto(node, available_space) {
-            FfiSizeValue::auto_value()
+            auto_computed_size()
         } else {
             style.width()
         };
         let computed_block = if self.should_treat_block_size_as_auto(node, available_space, constraints) {
-            FfiSizeValue::auto_value()
+            auto_computed_size()
         } else {
             style.height()
         };
@@ -727,7 +727,7 @@ impl<'pass> SizingContext<'pass> {
             return true;
         }
         // https://drafts.csswg.org/css-sizing-3/#cyclic-percentage-contribution
-        if size.contains_percentage {
+        if size.contains_percentage() {
             match cyclic_percentage_intrinsic_contribution(
                 self.facts(node).is_replaced_box(),
                 true,
@@ -773,7 +773,7 @@ impl<'pass> SizingContext<'pass> {
             return true;
         }
         // https://drafts.csswg.org/css-sizing-3/#cyclic-percentage-contribution
-        if size.contains_percentage {
+        if size.contains_percentage() {
             match cyclic_percentage_intrinsic_contribution(
                 facts.is_replaced_box(),
                 true,
@@ -837,7 +837,7 @@ impl<'pass> SizingContext<'pass> {
             return true;
         }
         // https://drafts.csswg.org/css-sizing-3/#cyclic-percentage-contribution
-        if size.contains_percentage {
+        if size.contains_percentage() {
             match cyclic_percentage_intrinsic_contribution(
                 self.facts(node).is_replaced_box(),
                 true,
@@ -871,7 +871,7 @@ impl<'pass> SizingContext<'pass> {
         if size.is_none() {
             return true;
         }
-        if size.contains_percentage {
+        if size.contains_percentage() {
             if available == AvailableSize::MinContent {
                 return false;
             }
@@ -1080,7 +1080,7 @@ impl<'pass> SizingContext<'pass> {
     ) -> CssPixels {
         let facts = self.facts(node);
         let style = self.style(node);
-        if facts.is_replaced_box() && (style.width().contains_percentage || style.max_width().contains_percentage) {
+        if facts.is_replaced_box() && (style.width().contains_percentage() || style.max_width().contains_percentage()) {
             // https://www.w3.org/TR/css-sizing-3/#replaced-percentage-min-contribution
             // NOTE: If the box is replaced, a cyclic percentage in the value of any max size property or
             //       preferred size property (width/max-width/height/max-height), is resolved against zero
@@ -1211,13 +1211,13 @@ impl<'pass> SizingContext<'pass> {
             block_size: AvailableSize::Indefinite,
         };
         let resolve_destination_inline_size =
-            |size: FfiSizeValue, property: CyclicPercentageSizeProperty| -> Option<CssPixels> {
+            |size: &'static ComputedSize, property: CyclicPercentageSizeProperty| -> Option<CssPixels> {
                 if !size.is_length_percentage() {
                     return None;
                 }
                 match cyclic_percentage_intrinsic_contribution(
                     facts.is_replaced_box(),
-                    size.contains_percentage,
+                    size.contains_percentage(),
                     max_content_available,
                     property,
                 ) {
@@ -1228,7 +1228,7 @@ impl<'pass> SizingContext<'pass> {
                         Some(self.calculate_inner_inline_size(node, max_content_available, size, zero_constraints))
                     }
                     CyclicPercentageIntrinsicContribution::NotCyclic => {
-                        if size.contains_percentage && constraints.percentage_basis_inline_size.is_none() {
+                        if size.contains_percentage() && constraints.percentage_basis_inline_size.is_none() {
                             None
                         } else {
                             Some(self.calculate_inner_inline_size(node, max_content_available, size, constraints))
@@ -1236,16 +1236,16 @@ impl<'pass> SizingContext<'pass> {
                     }
                 }
             };
-        let resolve_block_size = |size: FfiSizeValue, property: CyclicPercentageSizeProperty| -> Option<CssPixels> {
+        let resolve_block_size = |size: &'static ComputedSize, property: CyclicPercentageSizeProperty| -> Option<CssPixels> {
             if !size.is_length_percentage() {
                 return None;
             }
-            if !size.contains_percentage || constraints.percentage_basis_block_size.is_some() {
+            if !size.contains_percentage() || constraints.percentage_basis_block_size.is_some() {
                 return Some(self.calculate_inner_block_size(node, intrinsic_available_space, size, constraints));
             }
             match cyclic_percentage_intrinsic_contribution(
                 facts.is_replaced_box(),
-                size.contains_percentage,
+                size.contains_percentage(),
                 max_content_available,
                 property,
             ) {
@@ -1765,11 +1765,11 @@ impl<'pass> SizingContext<'pass> {
         &self,
         node: Node,
         available: AvailableSize,
-        preferred_size: FfiSizeValue,
+        preferred_size: &ComputedSize,
         constraints: ContainingBlockConstraints,
     ) -> CssPixels {
         assert!(!preferred_size.is_auto());
-        let basis = if preferred_size.contains_percentage {
+        let basis = if preferred_size.contains_percentage() {
             if let Some(basis) = constraints.percentage_basis_inline_size {
                 basis
             } else {
@@ -1814,7 +1814,7 @@ impl<'pass> SizingContext<'pass> {
         &self,
         node: Node,
         available_space: AvailableSpace,
-        preferred_size: FfiSizeValue,
+        preferred_size: &ComputedSize,
         constraints: ContainingBlockConstraints,
     ) -> CssPixels {
         if preferred_size.is_auto() && self.facts(node).has_preferred_aspect_ratio() {
@@ -1847,7 +1847,7 @@ impl<'pass> SizingContext<'pass> {
         // NOTE: We only do this when available space height is indefinite. If it's definite,
         //       we trust that the caller has set it up correctly (e.g., grid/flex items get
         //       their cell/area size as available space).
-        if preferred_size.contains_percentage && available_space.block_size == AvailableSize::Indefinite {
+        if preferred_size.contains_percentage() && available_space.block_size == AvailableSize::Indefinite {
             // https://quirks.spec.whatwg.org/#the-percentage-height-calculation-quirk
             // NOTE: Flex/grid items resolve percentage heights against their container, not via quirk.
             let facts = self.facts(node);
