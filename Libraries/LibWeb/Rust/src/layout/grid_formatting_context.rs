@@ -1162,7 +1162,7 @@ impl<'pass> GridFormattingContext<'pass> {
     /// outlives the pass because the node's ComputedValues keep it alive and
     /// style containers are only replaced between passes.
     fn grid_style(&self, node: Node) -> &'static GridValues {
-        StyleReader::new(self.callbacks.style_payloads(node)).grid_values()
+        StyleValues::from_payloads(self.callbacks.style_payloads(node)).grid_values()
     }
 
     fn sizing(&self) -> SizingContext<'_> {
@@ -1219,7 +1219,7 @@ impl<'pass> GridFormattingContext<'pass> {
         }
     }
 
-    fn axis_gap_value(&self, axis: Axis) -> &'static ComputedGap {
+    fn axis_gap_value(&self, axis: Axis) -> &'pass ComputedGap {
         let style = self.style(self.grid_container);
         if axis.is_column() {
             style.column_gap()
@@ -2050,7 +2050,7 @@ impl<'pass> GridFormattingContext<'pass> {
         size + self.outer_edges(item, axis)
     }
 
-    fn preferred_size(&self, item: GridItem, axis: Axis) -> &'static ComputedSize {
+    fn preferred_size(&self, item: GridItem, axis: Axis) -> &'pass ComputedSize {
         let style = self.style(item.box_);
         if axis.is_column() {
             style.width()
@@ -2059,7 +2059,7 @@ impl<'pass> GridFormattingContext<'pass> {
         }
     }
 
-    fn minimum_size(&self, item: GridItem, axis: Axis) -> &'static ComputedSize {
+    fn minimum_size(&self, item: GridItem, axis: Axis) -> &'pass ComputedSize {
         let style = self.style(item.box_);
         if axis.is_column() {
             style.min_width()
@@ -2068,7 +2068,7 @@ impl<'pass> GridFormattingContext<'pass> {
         }
     }
 
-    fn maximum_size(&self, item: GridItem, axis: Axis) -> &'static ComputedSize {
+    fn maximum_size(&self, item: GridItem, axis: Axis) -> &'pass ComputedSize {
         let style = self.style(item.box_);
         if axis.is_column() {
             style.max_width()

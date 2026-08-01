@@ -249,7 +249,7 @@ impl<'pass> SizingContext<'pass> {
     fn tentative_inline_size_for_replaced_element(
         &self,
         node: Node,
-        computed_inline_size: &'static ComputedSize,
+        computed_inline_size: &ComputedSize,
         available_space: AvailableSpace,
         constraints: ContainingBlockConstraints,
     ) -> CssPixels {
@@ -339,7 +339,7 @@ impl<'pass> SizingContext<'pass> {
     fn tentative_block_size_for_replaced_element(
         &self,
         node: Node,
-        computed_block_size: &'static ComputedSize,
+        computed_block_size: &ComputedSize,
         available_space: AvailableSpace,
         constraints: ContainingBlockConstraints,
     ) -> CssPixels {
@@ -1211,7 +1211,7 @@ impl<'pass> SizingContext<'pass> {
             block_size: AvailableSize::Indefinite,
         };
         let resolve_destination_inline_size =
-            |size: &'static ComputedSize, property: CyclicPercentageSizeProperty| -> Option<CssPixels> {
+            |size: &ComputedSize, property: CyclicPercentageSizeProperty| -> Option<CssPixels> {
                 if !size.is_length_percentage() {
                     return None;
                 }
@@ -1236,7 +1236,7 @@ impl<'pass> SizingContext<'pass> {
                     }
                 }
             };
-        let resolve_block_size = |size: &'static ComputedSize, property: CyclicPercentageSizeProperty| -> Option<CssPixels> {
+        let resolve_block_size = |size: &ComputedSize, property: CyclicPercentageSizeProperty| -> Option<CssPixels> {
             if !size.is_length_percentage() {
                 return None;
             }

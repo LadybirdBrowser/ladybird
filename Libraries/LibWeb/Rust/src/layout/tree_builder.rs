@@ -7,7 +7,7 @@
 use crate::abort_on_panic;
 use crate::layout::layout_node_arena::LayoutNodeArena;
 use crate::layout::node_data::{GENERATED_FOR_MARKER, NodeData, NodeFlag, NodeKind, NodeSlotId};
-use crate::layout::{FfiDisplay, StyleReader, kind_is_replaced_box, node_can_have_children};
+use crate::layout::{FfiDisplay, StyleValues, kind_is_replaced_box, node_can_have_children};
 use std::ffi::c_void;
 
 type LayoutNode = NodeSlotId;
@@ -2154,11 +2154,11 @@ impl TreeBuilderHost<'_> {
         unsafe { &*(*self.arena).data(node) }
     }
 
-    fn style(&self, node: LayoutNode) -> Option<StyleReader<'_>> {
+    fn style(&self, node: LayoutNode) -> Option<StyleValues<'_>> {
         assert!(!node.is_invalid());
         // SAFETY: Entry points guarantee that the arena remains live, and callers only retain the reader until the
         // next mutation callback.
-        unsafe { (*self.arena).style_payloads(node) }.map(StyleReader::new)
+        unsafe { (*self.arena).style_payloads(node) }.map(StyleValues::from_payloads)
     }
 
     fn display(&self, node: LayoutNode) -> FfiDisplay {
