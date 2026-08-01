@@ -47,6 +47,7 @@ public:
     bool is_keyframe() const { return has_flag(m_flags, FrameFlags::Keyframe); }
     ReadonlyBytes data() const LIFETIME_BOUND { return m_data.span(); }
     ReadonlyBytes new_codec_configuration() const LIFETIME_BOUND { return m_new_codec_configuration.span(); }
+    void set_new_codec_configuration(FixedArray<u8> new_codec_configuration) { m_new_codec_configuration = move(new_codec_configuration); }
 
 private:
     AK::Duration m_presentation_timestamp;

@@ -434,9 +434,7 @@ void SourceBufferProcessor::run_coded_frame_processing(Vector<DemuxedCodedFrame>
         //            2. Let decode timestamp be a double precision floating point representation
         //               of the coded frame's decode timestamp in seconds.
         auto presentation_timestamp = frame.presentation_timestamp();
-        // FIXME: For VP9, decode timestamp equals presentation timestamp. This will need to differ when H.264 is
-        //        supported by MSE.
-        auto decode_timestamp = frame.presentation_timestamp();
+        auto decode_timestamp = frame.decode_timestamp();
 
         // 2. Let frame duration be a double precision floating point representation of the coded
         //    frame's duration in seconds.
@@ -652,7 +650,8 @@ void SourceBufferProcessor::run_coded_frame_eviction(size_t new_data_size, AK::D
         if (!latest_track_buffer)
             break;
         auto last_decode_timestamp = latest_track_buffer->last_decode_timestamp();
-        bytes_evicted += latest_track_buffer->demuxer().take_latest_frame();
+        auto removed_frame = latest_track_buffer->demuxer().take_latest_frame();
+        bytes_evicted += removed_frame.byte_size;
 
         // https://w3c.github.io/media-source/#dfn-coded-frame-removal
         // AD-HOC: Steps starting from 3.3.1 are implemented here.
@@ -662,7 +661,7 @@ void SourceBufferProcessor::run_coded_frame_eviction(size_t new_data_size, AK::D
         // AD-HOC: The spec doesn't nest steps 2-5 below under step 1's if statement, but clearing the last decode
         //         timestamp upon every removal here would potentially force a RAP unexpectedly.
         //         https://github.com/w3c/media-source/issues/290
-        if (last_decode_timestamp.has_value() && latest_timestamp == last_decode_timestamp.value()) {
+        if (last_decode_timestamp.has_value() && removed_frame.decode_timestamp == last_decode_timestamp.value()) {
             // -> If mode equals "segments":
             if (m_mode == AppendMode::Segments) {
                 // Set [[group end timestamp]] to presentation timestamp.
