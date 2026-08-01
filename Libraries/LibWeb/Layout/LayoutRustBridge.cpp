@@ -73,15 +73,9 @@
 #include <LibWeb/Painting/SVGGraphicsPaintable.h>
 #include <LibWeb/Painting/SVGPathPaintable.h>
 #include <LibWeb/Painting/SVGSVGPaintable.h>
-#include <LibWeb/SVG/SVGAElement.h>
 #include <LibWeb/SVG/SVGClipPathElement.h>
-#include <LibWeb/SVG/SVGForeignObjectElement.h>
-#include <LibWeb/SVG/SVGGElement.h>
 #include <LibWeb/SVG/SVGMaskElement.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
-#include <LibWeb/SVG/SVGSwitchElement.h>
-#include <LibWeb/SVG/SVGSymbolElement.h>
-#include <LibWeb/SVG/SVGUseElement.h>
 
 namespace Web::Layout {
 
@@ -725,34 +719,6 @@ static RustFFI::FfiSvgViewBox to_ffi_svg_view_box(SVG::ViewBox const& view_box)
     };
 }
 
-// https://svgwg.org/svg2-draft/struct.html#GroupsOverview
-static bool is_svg_container_element(Node const& node)
-{
-    auto* dom_node = node.dom_node();
-    if (!dom_node)
-        return false;
-    if (is<SVG::SVGAElement>(dom_node))
-        return true;
-    // FIXME: clipPath
-    // FIXME: defs
-    if (is<SVG::SVGGElement>(dom_node))
-        return true;
-    // FIXME: marker
-    if (is<SVG::SVGMaskElement>(dom_node))
-        return true;
-    // FIXME: pattern
-    if (is<SVG::SVGSVGElement>(dom_node))
-        return true;
-    if (is<SVG::SVGSwitchElement>(dom_node))
-        return true;
-    if (is<SVG::SVGSymbolElement>(dom_node))
-        return true;
-    // AD-HOC: Do we need `use` to be here?
-    if (is<SVG::SVGUseElement>(dom_node))
-        return true;
-    return false;
-}
-
 static RustFFI::FfiSvgElementFacts build_svg_element_facts(NodeWithStyle const& node)
 {
     auto const* dom_node = node.dom_node();
@@ -801,17 +767,6 @@ static RustFFI::FfiSvgElementFacts build_svg_element_facts(NodeWithStyle const& 
         .is_document_element = node.document().document_element() == dom_node,
         .document_is_decoded_svg = node.document().is_decoded_svg(),
         .is_fit_to_view_box = is<SVG::SVGFitToViewBox>(*dom_node),
-        .is_svg_svg_element = is<SVG::SVGSVGElement>(*dom_node),
-        .is_container_element = is_svg_container_element(node),
-        .is_graphics_box = is<SVGGraphicsBox>(node),
-        .is_geometry_box = is<SVGGeometryBox>(node),
-        .is_text_box = is<SVGTextBox>(node),
-        .is_text_path_box = is<SVGTextPathBox>(node),
-        .is_image_box = is<SVGImageBox>(node),
-        .is_foreign_object_box = node.is_svg_foreign_object_box(),
-        .is_mask_box = is<SVGMaskBox>(node),
-        .is_clip_box = is<SVGClipBox>(node),
-        .is_pattern_box = is<SVGPatternBox>(node),
         .has_active_view_box = active_view_box.has_value(),
         .active_view_box = active_view_box.has_value() ? to_ffi_svg_view_box(*active_view_box) : RustFFI::FfiSvgViewBox {},
         .has_own_view_box = has_own_view_box,
