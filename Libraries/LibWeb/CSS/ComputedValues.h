@@ -1782,24 +1782,7 @@ public:
 
         bool operator==(SVGResetValues const& other) const
         {
-            auto length_percentage_or_auto_equal = [](auto const& first, auto const& second) {
-                if (first.is_auto || second.is_auto)
-                    return first.is_auto == second.is_auto;
-                return LengthPercentage::view(first.value) == LengthPercentage::view(second.value);
-            };
-            return LengthPercentage::view(cx) == LengthPercentage::view(other.cx)
-                && LengthPercentage::view(cy) == LengthPercentage::view(other.cy)
-                && LengthPercentage::view(r) == LengthPercentage::view(other.r)
-                && length_percentage_or_auto_equal(rx, other.rx)
-                && length_percentage_or_auto_equal(ry, other.ry)
-                && LengthPercentage::view(x) == LengthPercentage::view(other.x)
-                && LengthPercentage::view(y) == LengthPercentage::view(other.y)
-                && stop_color == other.stop_color
-                && stop_opacity == other.stop_opacity
-                && flood_color == other.flood_color
-                && flood_opacity == other.flood_opacity
-                && vector_effect == other.vector_effect
-                && shape_rendering == other.shape_rendering;
+            return ComputedValuesFFI::rust_style_group_payloads_equal(style_group_index, this, &other);
         }
     };
 
