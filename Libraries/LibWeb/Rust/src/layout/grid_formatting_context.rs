@@ -1237,7 +1237,7 @@ impl<'pass> GridFormattingContext<'pass> {
         }
     }
 
-    fn axis_gap_value(&self, axis: Axis) -> FfiSizeValue {
+    fn axis_gap_value(&self, axis: Axis) -> &'static ComputedGap {
         let style = self.style(self.grid_container);
         if axis.is_column() {
             style.column_gap()
@@ -1289,7 +1289,7 @@ impl<'pass> GridFormattingContext<'pass> {
             return CssPixels::default();
         }
         let gap = self.axis_gap_value(axis);
-        if gap.is_auto() {
+        if gap.is_normal() {
             // https://drafts.csswg.org/css-grid-2/#subgrid-gaps
             // A value of normal indicates that the subgrid has the same size gutters
             // as its parent grid, i.e. the applied difference is zero.

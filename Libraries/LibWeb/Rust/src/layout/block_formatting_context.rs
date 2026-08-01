@@ -2189,7 +2189,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             // (04) N := column-count
             return Some(style.column_count());
         }
-        let column_gap = if style.column_gap().is_auto() {
+        let column_gap = if style.column_gap().is_normal() {
             style.font_size()
         } else {
             style.column_gap().to_px(used_inline_size)
@@ -2217,7 +2217,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         let root_inline_size = self.used(self.root).content_inline_size.get();
         if let Some(column_count) = self.determine_used_value_for_column_count(root_inline_size) {
             let style = self.style(self.root);
-            let column_gap = if style.column_gap().is_auto() {
+            let column_gap = if style.column_gap().is_normal() {
                 style.font_size()
             } else {
                 style.column_gap().to_px(root_inline_size)

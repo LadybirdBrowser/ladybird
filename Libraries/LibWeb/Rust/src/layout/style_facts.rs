@@ -113,10 +113,6 @@ impl FfiSizeValue {
         unsafe { std::mem::transmute(self.kind) }
     }
 
-    pub(crate) fn is_auto(self) -> bool {
-        self.kind() == FfiSizeKind::Auto
-    }
-
     pub(crate) fn to_px(self, reference: CssPixels) -> CssPixels {
         match self.kind() {
             FfiSizeKind::Px => self.px,
@@ -132,19 +128,6 @@ impl FfiSizeValue {
             }
         }
     }
-}
-
-/// Every sizing-shaped value the layout engine reads, each decoding straight
-/// from the node's typed group payloads.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u8)]
-pub(crate) enum SizeField {
-    RowGap,
-    ColumnGap,
-    TextIndent,
-    X,
-    Y,
-    VerticalAlign,
 }
 
 // https://drafts.csswg.org/css-contain-2/#containment-types
@@ -731,30 +714,37 @@ impl<'a> StyleValues<'a> {
         self.inset_value(InsetField::Left)
     }
 
-    fn direct_size(self, field: SizeField) -> FfiSizeValue {
-        match field {
-            SizeField::RowGap | SizeField::ColumnGap => {
-                let values = self.reader.alignment();
-                let gap = if field == SizeField::RowGap {
-                    &values.row_gap
-                } else {
-                    &values.column_gap
-                };
-                if gap.is_normal {
-                    FfiSizeValue::auto_value()
-                } else {
-                    decode_length_percentage(&gap.value)
-                }
-            }
-            SizeField::X | SizeField::Y => {
-                let values = self.reader.svg_reset();
-                decode_length_percentage(if field == SizeField::X { &values.x } else { &values.y })
-            }
-            SizeField::VerticalAlign => decode_length_percentage(&self.reader.box_values().vertical_align.value),
-            SizeField::TextIndent => {
-                decode_length_percentage(&self.reader.inherited_text_facts().text_indent.length_percentage)
-            }
-        }
+    pub(crate) fn row_gap(self) -> &'static ComputedGap {
+        &self.reader.alignment().row_gap
+    }
+
+    pub(crate) fn column_gap(self) -> &'static ComputedGap {
+        &self.reader.alignment().column_gap
+    }
+
+    pub(crate) fn x(self) -> LengthPercentageRef<'static> {
+        self.reader
+            .svg_reset()
+            .x
+            .length_percentage()
+            .expect("computed x lost its style value")
+    }
+
+    pub(crate) fn y(self) -> LengthPercentageRef<'static> {
+        self.reader
+            .svg_reset()
+            .y
+            .length_percentage()
+            .expect("computed y lost its style value")
+    }
+
+    pub(crate) fn text_indent(self) -> LengthPercentageRef<'static> {
+        self.reader
+            .inherited_text_facts()
+            .text_indent
+            .length_percentage
+            .length_percentage()
+            .expect("computed text-indent lost its style value")
     }
 
     pub(crate) fn with_vertical_align_keyword(mut self, keyword: u8) -> Self {
@@ -774,8 +764,13 @@ impl<'a> StyleValues<'a> {
         }
     }
 
-    pub(crate) fn vertical_align_value(self) -> FfiSizeValue {
-        self.direct_size(SizeField::VerticalAlign)
+    pub(crate) fn vertical_align_value(self) -> LengthPercentageRef<'static> {
+        self.reader
+            .box_values()
+            .vertical_align
+            .value
+            .length_percentage()
+            .expect("computed vertical-align lost its style value")
     }
 
     pub(crate) fn has_position_anchor(self) -> bool {
@@ -945,24 +940,6 @@ impl<'a> StyleValues<'a> {
     pub(crate) fn tab_size_number(self) -> f64 {
         self.reader.inherited_text_facts().tab_size_number
     }
-}
-
-macro_rules! size_accessors {
-    ($($name:ident => $field:ident,)+) => {
-        impl StyleValues<'_> {
-            $(pub(crate) fn $name(self) -> FfiSizeValue {
-                self.direct_size(SizeField::$field)
-            })+
-        }
-    };
-}
-
-size_accessors! {
-    row_gap => RowGap,
-    column_gap => ColumnGap,
-    text_indent => TextIndent,
-    x => X,
-    y => Y,
 }
 
 pub(crate) unsafe fn resolve_calc_with_external_resolutions(
