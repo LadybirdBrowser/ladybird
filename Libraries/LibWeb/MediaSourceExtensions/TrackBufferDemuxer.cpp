@@ -138,24 +138,40 @@ Optional<AK::Duration> TrackBufferDemuxer::earliest_evictable_frame_timestamp(AK
     Sync::MutexLocker locker { m_mutex };
     if (m_coded_frames.is_empty())
         return {};
-    auto const& frame = m_coded_frames[0];
-    if (!is_frame_evictable_while_locked(frame, current_time))
-        return {};
-    return frame.presentation_timestamp();
+
+    for (size_t i = 0; i < m_coded_frames.size(); i++) {
+        auto const& frame = m_coded_frames[i];
+        if (i > 0 && frame.is_keyframe())
+            break;
+        if (!is_frame_evictable_while_locked(frame, current_time))
+            return {};
+    }
+    return m_coded_frames[0].presentation_timestamp();
 }
 
-size_t TrackBufferDemuxer::take_earliest_frame()
+size_t TrackBufferDemuxer::take_earliest_frame_and_dependants()
 {
     Sync::MutexLocker locker { m_mutex };
     VERIFY(!m_reached_end_of_stream);
-    auto frame = m_coded_frames.take_first();
-    m_track_buffer_ranges.remove_range(frame.presentation_timestamp(), frame.presentation_timestamp() + frame.duration());
-    auto bytes = frame.data().size();
+    VERIFY(!m_coded_frames.is_empty());
+
+    size_t bytes = 0;
+    size_t frame_count = 0;
+    size_t removed_frames_with_the_maximum_duration = 0;
+    for (auto const& frame : m_coded_frames) {
+        if (frame_count > 0 && frame.is_keyframe())
+            break;
+        m_track_buffer_ranges.remove_range(frame.presentation_timestamp(), frame.presentation_timestamp() + frame.duration());
+        bytes += frame.data().size();
+        if (frame.duration() == m_maximum_frame_duration)
+            removed_frames_with_the_maximum_duration++;
+        frame_count++;
+    }
+
     m_total_bytes -= bytes;
-    if (frame.duration() == m_maximum_frame_duration)
-        decrement_frames_with_maximum_duration_while_locked(1);
-    if (m_read_position > 0)
-        m_read_position--;
+    m_coded_frames.remove(0, frame_count);
+    decrement_frames_with_maximum_duration_while_locked(removed_frames_with_the_maximum_duration);
+    m_read_position -= min(m_read_position, frame_count);
     queue_scan_state_change_dispatch_while_locked();
     return bytes;
 }

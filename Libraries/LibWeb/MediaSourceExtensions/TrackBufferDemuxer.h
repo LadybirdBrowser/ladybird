@@ -39,7 +39,7 @@ public:
     size_t total_bytes() const;
 
     Optional<AK::Duration> earliest_evictable_frame_timestamp(AK::Duration current_time) const;
-    size_t take_earliest_frame();
+    size_t take_earliest_frame_and_dependants();
 
     Optional<AK::Duration> latest_evictable_frame_timestamp(AK::Duration current_time) const;
     size_t take_latest_frame();
