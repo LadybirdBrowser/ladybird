@@ -141,6 +141,7 @@ pub enum NodeFlag {
     HasSavedAbsposLayoutInputs = 1 << 19,
     SavedAbsposCbDerivesFromOwnComputedValues = 1 << 20,
     SavedAbsposAlignmentDerivesFromOwnComputedValues = 1 << 21,
+    ProducesLineBoxFragmentWhenEmpty = 1 << 22,
 }
 
 #[repr(C)]
@@ -235,5 +236,6 @@ mod tests {
         assert_eq!(NodeFlag::UsesButtonLayout as u32, 1 << 16);
         assert_eq!(NodeFlag::IsEditingHost as u32, 1 << 17);
         assert_eq!(NodeFlag::ReplacedBoxCanHaveChildren as u32, 1 << 18);
+        assert_eq!(NodeFlag::ProducesLineBoxFragmentWhenEmpty as u32, 1 << 22);
     }
 }

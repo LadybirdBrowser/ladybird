@@ -38,12 +38,9 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Node.h>
-#include <LibWeb/DOM/Position.h>
-#include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/HTML/AttributeNames.h>
-#include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/Layout/Box.h>
@@ -94,23 +91,6 @@ static_assert(to_underlying(CSS::StyleGroupIndex::AlignmentValues) == RustFFI::S
 static_assert(to_underlying(CSS::StyleGroupIndex::SizingValues) == RustFFI::STYLE_GROUP_INDEX_SIZING);
 static_assert(to_underlying(CSS::StyleGroupIndex::SurroundValues) == RustFFI::STYLE_GROUP_INDEX_SURROUND);
 static_assert(to_underlying(CSS::StyleGroupIndex::BoxValues) == RustFFI::STYLE_GROUP_INDEX_BOX);
-
-static bool is_empty_editable_text_node(TextNode const& text_node)
-{
-    if (!text_node.text_for_rendering().is_empty())
-        return false;
-    auto const* dom_text = text_node.dom_text();
-    if (!dom_text)
-        return false;
-
-    auto is_empty_editable = false;
-    if (auto const* shadow_root = as_if<DOM::ShadowRoot>(dom_text->root())) {
-        if (auto const* form_associated_element = as_if<HTML::FormAssociatedTextControlElement>(shadow_root->host()))
-            is_empty_editable = form_associated_element->text_control_to_html_element().is_mutable();
-    }
-    is_empty_editable |= dom_text->parent() && dom_text->parent()->is_editing_host();
-    return is_empty_editable;
-}
 
 static CSS::GridTrackSizeList build_used_grid_track_list(RustFFI::FfiUsedGridTrackList const& list)
 {
@@ -1266,10 +1246,6 @@ RustFFI::FfiLayoutFcCallbacks LayoutRustBridge::formatting_context_callbacks()
                 facts.marker_list_style_position = static_cast<u8>(to_underlying(marker->list_style_position()));
             }
             return facts; },
-        .text_node_is_empty_editable = [](void*, void* node) {
-            auto const* text_node = as_if<TextNode>(*static_cast<Node const*>(node));
-            VERIFY(text_node);
-            return is_empty_editable_text_node(*text_node); },
         .build_svg_facts = [](void*, void* node) {
             auto const* node_with_style = as_if<NodeWithStyle>(*static_cast<Node const*>(node));
             VERIFY(node_with_style);
