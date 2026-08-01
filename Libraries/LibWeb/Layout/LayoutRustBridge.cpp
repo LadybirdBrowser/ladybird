@@ -1270,12 +1270,6 @@ RustFFI::FfiLayoutFcCallbacks LayoutRustBridge::formatting_context_callbacks()
             auto const* text_node = as_if<TextNode>(*static_cast<Node const*>(node));
             VERIFY(text_node);
             return is_empty_editable_text_node(*text_node); },
-        .document_cursor_is_on_node = [](void*, void* node) {
-            auto const* dom_node = static_cast<Node const*>(node)->dom_node();
-            if (!dom_node)
-                return false;
-            auto cursor_position = dom_node->document().cursor_position();
-            return cursor_position && cursor_position->node() == dom_node; },
         .build_svg_facts = [](void*, void* node) {
             auto const* node_with_style = as_if<NodeWithStyle>(*static_cast<Node const*>(node));
             VERIFY(node_with_style);

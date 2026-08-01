@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<input>
+<div contenteditable></div>
+<script>
+test(() => {
+    // The caret must keep advancing while trailing spaces are typed, even though trailing
+    // whitespace at the end of a line would ordinarily be invisible: text control inner
+    // editors preserve all whitespace via white-space: pre, and typing into an editing host
+    // canonicalizes a would-collapse space into a non-breaking space.
+    const input_element = document.querySelector("input");
+    input_element.focus();
+    internals.sendText(input_element, "hi");
+    const input_caret_x_after_text = internals.currentCaretRect().x;
+    internals.sendText(input_element, " ");
+    const input_caret_x_after_first_trailing_space = internals.currentCaretRect().x;
+    internals.sendText(input_element, " ");
+    const input_caret_x_after_second_trailing_space = internals.currentCaretRect().x;
+    println(`input caret advances past first trailing space: ${input_caret_x_after_first_trailing_space > input_caret_x_after_text}`);
+    println(`input caret advances past second trailing space: ${input_caret_x_after_second_trailing_space > input_caret_x_after_first_trailing_space}`);
+
+    const editing_host = document.querySelector("div[contenteditable]");
+    editing_host.focus();
+    internals.sendText(editing_host, "hi");
+    const editing_host_caret_x_after_text = internals.currentCaretRect().x;
+    internals.sendText(editing_host, " ");
+    const editing_host_caret_x_after_trailing_space = internals.currentCaretRect().x;
+    println(`editing host caret advances past trailing space: ${editing_host_caret_x_after_trailing_space > editing_host_caret_x_after_text}`);
+});
+</script>

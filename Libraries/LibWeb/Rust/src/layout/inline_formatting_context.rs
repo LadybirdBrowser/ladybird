@@ -1225,11 +1225,6 @@ impl<'context, 'pass> InlineFormattingContext<'context, 'pass> {
 }
 
 impl LineBoxTextProvider for InlineFormattingContext<'_, '_> {
-    fn document_cursor_is_on_node(&self, node: Node) -> bool {
-        // SAFETY: The host reads document state synchronously.
-        unsafe { (self.callbacks.document_cursor_is_on_node)(self.callbacks.context, self.callbacks.shell(node)) }
-    }
-
     fn font_glyph_width(&self, font: *const c_void, code_point: u32) -> f32 {
         font_glyph_width(font, code_point)
     }
