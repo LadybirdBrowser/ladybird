@@ -139,14 +139,6 @@ impl FfiSizeValue {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub(crate) enum SizeField {
-    MarginTop,
-    MarginRight,
-    MarginBottom,
-    MarginLeft,
-    PaddingTop,
-    PaddingRight,
-    PaddingBottom,
-    PaddingLeft,
     InsetTop,
     InsetRight,
     InsetBottom,
@@ -652,28 +644,9 @@ impl<'a> StyleValues<'a> {
 
     fn direct_size(self, field: SizeField) -> FfiSizeValue {
         match field {
-            SizeField::MarginTop
-            | SizeField::MarginRight
-            | SizeField::MarginBottom
-            | SizeField::MarginLeft
-            | SizeField::PaddingTop
-            | SizeField::PaddingRight
-            | SizeField::PaddingBottom
-            | SizeField::PaddingLeft
-            | SizeField::InsetTop
-            | SizeField::InsetRight
-            | SizeField::InsetBottom
-            | SizeField::InsetLeft => {
+            SizeField::InsetTop | SizeField::InsetRight | SizeField::InsetBottom | SizeField::InsetLeft => {
                 let values = self.reader.surround();
                 decode_length_percentage_or_auto(match field {
-                    SizeField::MarginTop => &values.margin.top,
-                    SizeField::MarginRight => &values.margin.right,
-                    SizeField::MarginBottom => &values.margin.bottom,
-                    SizeField::MarginLeft => &values.margin.left,
-                    SizeField::PaddingTop => &values.padding.top,
-                    SizeField::PaddingRight => &values.padding.right,
-                    SizeField::PaddingBottom => &values.padding.bottom,
-                    SizeField::PaddingLeft => &values.padding.left,
                     SizeField::InsetTop => &values.inset.top,
                     SizeField::InsetRight => &values.inset.right,
                     SizeField::InsetBottom => &values.inset.bottom,
@@ -852,6 +825,38 @@ impl<'a> StyleValues<'a> {
         &self.reader.box_values().column_width
     }
 
+    pub(crate) fn margin_top(self) -> &'static ComputedLengthPercentageOrAuto {
+        &self.reader.surround().margin.top
+    }
+
+    pub(crate) fn margin_right(self) -> &'static ComputedLengthPercentageOrAuto {
+        &self.reader.surround().margin.right
+    }
+
+    pub(crate) fn margin_bottom(self) -> &'static ComputedLengthPercentageOrAuto {
+        &self.reader.surround().margin.bottom
+    }
+
+    pub(crate) fn margin_left(self) -> &'static ComputedLengthPercentageOrAuto {
+        &self.reader.surround().margin.left
+    }
+
+    pub(crate) fn padding_top(self) -> &'static ComputedLengthPercentageOrAuto {
+        &self.reader.surround().padding.top
+    }
+
+    pub(crate) fn padding_right(self) -> &'static ComputedLengthPercentageOrAuto {
+        &self.reader.surround().padding.right
+    }
+
+    pub(crate) fn padding_bottom(self) -> &'static ComputedLengthPercentageOrAuto {
+        &self.reader.surround().padding.bottom
+    }
+
+    pub(crate) fn padding_left(self) -> &'static ComputedLengthPercentageOrAuto {
+        &self.reader.surround().padding.left
+    }
+
     pub(crate) fn has_column_count(self) -> bool {
         self.reader.box_values().column_count_has_value
     }
@@ -900,14 +905,6 @@ macro_rules! size_accessors {
 }
 
 size_accessors! {
-    margin_top => MarginTop,
-    margin_right => MarginRight,
-    margin_bottom => MarginBottom,
-    margin_left => MarginLeft,
-    padding_top => PaddingTop,
-    padding_right => PaddingRight,
-    padding_bottom => PaddingBottom,
-    padding_left => PaddingLeft,
     inset_top => InsetTop,
     inset_right => InsetRight,
     inset_bottom => InsetBottom,
