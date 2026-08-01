@@ -1,0 +1,2 @@
+buffered: [0-1.999666666]
+seeked to: 0.5
