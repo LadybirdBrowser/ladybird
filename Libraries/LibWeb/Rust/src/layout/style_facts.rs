@@ -31,163 +31,6 @@ fn containment_applies_to_principal_box(display: crate::css::display::FfiDisplay
     true
 }
 
-#[derive(Clone, Copy)]
-pub(crate) struct StyleReader<'a> {
-    payloads: &'a FfiStylePayloads,
-}
-
-impl<'a> StyleReader<'a> {
-    pub(crate) fn new(payloads: &'a FfiStylePayloads) -> Self {
-        Self { payloads }
-    }
-
-    #[inline]
-    fn native_group<T>(&self, group_index: usize) -> &'a T {
-        let payload = self.payloads.groups[group_index];
-        debug_assert!(!payload.is_null());
-        // SAFETY: The payload is the Rust-defined group struct itself; C++
-        // derives its mirror from the cbindgen twin of the same type, and the
-        // node's ComputedValues keep it alive for the synchronous pass.
-        unsafe { &*payload.cast::<T>() }
-    }
-
-    #[inline]
-    fn sizing(&self) -> &'a crate::layout::SizingValues {
-        self.native_group(STYLE_GROUP_INDEX_SIZING)
-    }
-
-    #[inline]
-    fn surround(&self) -> &'a crate::layout::SurroundValues {
-        self.native_group(STYLE_GROUP_INDEX_SURROUND)
-    }
-
-    #[inline]
-    fn alignment(&self) -> &'a crate::layout::AlignmentValues {
-        self.native_group(STYLE_GROUP_INDEX_ALIGNMENT)
-    }
-
-    #[inline]
-    fn svg_reset(&self) -> &'a crate::layout::SVGResetValues {
-        self.native_group(STYLE_GROUP_INDEX_SVG_RESET)
-    }
-
-    #[inline]
-    fn inherited_box(&self) -> &'a crate::css::computed_values::InheritedBoxValues {
-        self.native_group(STYLE_GROUP_INDEX_INHERITED_BOX)
-    }
-
-    #[inline]
-    fn inherited_table(&self) -> &'a crate::css::computed_values::InheritedTableValues {
-        self.native_group(STYLE_GROUP_INDEX_INHERITED_TABLE)
-    }
-
-    #[inline]
-    fn box_values(&self) -> &'a crate::layout::BoxValues {
-        self.native_group(STYLE_GROUP_INDEX_BOX)
-    }
-
-    #[inline]
-    pub(crate) fn grid_values(&self) -> &'a crate::layout::GridValues {
-        self.native_group(STYLE_GROUP_INDEX_GRID)
-    }
-
-    #[inline]
-    fn border_facts(&self) -> &'a crate::layout::BorderLayoutFacts {
-        self.native_group(STYLE_GROUP_INDEX_BORDER)
-    }
-
-    #[inline]
-    fn inherited_text_facts(&self) -> &'a crate::layout::InheritedTextLayoutFacts {
-        self.native_group(STYLE_GROUP_INDEX_INHERITED_TEXT)
-    }
-
-    #[inline]
-    fn font_facts(&self) -> &'a crate::layout::FontLayoutFacts {
-        self.native_group(STYLE_GROUP_INDEX_FONT)
-    }
-
-    pub(crate) fn display(&self) -> crate::css::display::FfiDisplay {
-        self.box_values().display
-    }
-
-    pub(crate) fn display_before_box_type_transformation(&self) -> crate::css::display::FfiDisplay {
-        self.box_values().display_before_box_type_transformation
-    }
-
-    pub(crate) fn is_floating(&self) -> bool {
-        self.box_values().float_ != crate::css::css_enums::float::NONE
-    }
-
-    pub(crate) fn is_absolutely_positioned(&self) -> bool {
-        matches!(
-            self.box_values().position,
-            crate::css::css_enums::positioning::ABSOLUTE | crate::css::css_enums::positioning::FIXED
-        )
-    }
-
-    // https://developer.mozilla.org/en-US/docs/Web/Guide/CSS/Block_formatting_context
-    // The computed-style-only half of the block-formatting-context predicate;
-    // node_creates_block_formatting_context adds the terms that need the node
-    // kind, stamped DOM identity, the live IsFlexItem flag, or the parent's
-    // display. The float term is deliberately absent for the same reason: only
-    // non-flex-items establish one by floating.
-    pub(crate) fn own_style_establishes_block_formatting_context(&self) -> bool {
-        let box_values = self.box_values();
-        let display = box_values.display;
-
-        if self.is_absolutely_positioned() {
-            return true;
-        }
-
-        if display.is_inline_block() {
-            return true;
-        }
-
-        if display.is_table_cell() || display.is_table_caption() {
-            return true;
-        }
-
-        let overflow_establishes_context = |overflow: u8| {
-            overflow != crate::css::css_enums::overflow::VISIBLE && overflow != crate::css::css_enums::overflow::CLIP
-        };
-        if overflow_establishes_context(box_values.overflow_x) || overflow_establishes_context(box_values.overflow_y) {
-            return true;
-        }
-
-        if display.is_flow_root_inside() {
-            return true;
-        }
-
-        // https://drafts.csswg.org/css-contain-2/#containment-types
-        // 1. The layout containment box establishes an independent formatting context.
-        // 4. The paint containment box establishes an independent formatting context.
-        let content_visibility_forces_containment = self.inherited_box().content_visibility
-            == crate::css::css_enums::content_visibility::AUTO;
-        if (box_values.layout_containment || box_values.paint_containment || content_visibility_forces_containment)
-            && containment_applies_to_principal_box(display)
-        {
-            return true;
-        }
-
-        // https://drafts.csswg.org/css-conditional-5/#valdef-container-type-size
-        // Applies style containment and size containment to the principal box, and establishes an independent
-        // formatting context.
-        if box_values.is_size_container || box_values.is_inline_size_container {
-            return true;
-        }
-
-        // https://drafts.csswg.org/css-multicol-2/#the-multi-column-model
-        // An element whose 'column-width', 'column-count', or 'column-height' property is not 'auto' establishes a
-        // multi-column container (or multicol container for short), and therefore acts as a container for
-        // multi-column layout.
-        if box_values.column_width.kind != crate::layout::ComputedSizeKind::Auto || box_values.column_count_has_value {
-            return true;
-        }
-
-        false
-    }
-}
-
 /// The four inset properties; the discriminant indexes the anchor-inset
 /// store fields.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -268,7 +111,7 @@ impl AnchorInsetStore {
 
 #[derive(Clone, Copy)]
 pub(crate) enum InsetValue<'a> {
-    FromStyle(&'static ComputedLengthPercentageOrAuto),
+    FromStyle(&'a ComputedLengthPercentageOrAuto),
     BareAnchor(&'a crate::css::style_value::StyleValueData),
     Resolved(ResolvedInsetOverride),
 }
@@ -353,16 +196,15 @@ fn decode_css_preferred_aspect_ratio(
 }
 
 /// A thin Rust-only view over a node's immutable computed-value group
-/// payloads; every read decodes on demand from the typed group payloads. The
-/// four inset fields additionally consult the per-LayoutState anchor-inset
-/// store, the only style state a pass can change.
-///
-/// The reader is 'static because the payloads stay alive for the pass (see
-/// style_payloads); sizing accessors hand out payload references directly.
+/// payloads; every read hands out payload references or lazy views over the
+/// typed group payloads. During a layout pass the four inset fields
+/// additionally consult the per-LayoutState anchor-inset store, the only
+/// style state a pass can change; outside a pass (tree building, node facts)
+/// the store is absent and the inset accessors must not be used.
 #[derive(Clone, Copy)]
 pub(crate) struct StyleValues<'a> {
-    reader: StyleReader<'static>,
-    anchor_insets: &'a AnchorInsetStore,
+    payloads: &'a FfiStylePayloads,
+    anchor_insets: Option<&'a AnchorInsetStore>,
     slot_index: u32,
     vertical_align_override: u16,
 }
@@ -373,7 +215,7 @@ macro_rules! scalar_accessors {
             $($(
                 #[inline]
                 pub(crate) fn $name(self) -> $ty {
-                    self.reader.$group().$($field).+
+                    self.$group().$($field).+
                 }
             )+)+
         }
@@ -383,6 +225,7 @@ macro_rules! scalar_accessors {
 scalar_accessors! {
     box_values: {
         display: FfiDisplay => display,
+        display_before_box_type_transformation: FfiDisplay => display_before_box_type_transformation,
         position: u8 => position,
         float_: u8 => float_,
         clear: u8 => clear,
@@ -449,17 +292,167 @@ scalar_accessors! {
 
 impl<'a> StyleValues<'a> {
     #[inline]
-    pub(crate) fn new(reader: StyleReader<'static>, anchor_insets: &'a AnchorInsetStore, slot_index: u32) -> Self {
+    pub(crate) fn new(payloads: &'a FfiStylePayloads, anchor_insets: &'a AnchorInsetStore, slot_index: u32) -> Self {
         Self {
-            reader,
-            anchor_insets,
+            payloads,
+            anchor_insets: Some(anchor_insets),
             slot_index,
             vertical_align_override: u16::MAX,
         }
     }
 
+    /// A reader without the layout pass state: payload-backed reads only,
+    /// with the inset accessors unavailable.
+    #[inline]
+    pub(crate) fn from_payloads(payloads: &'a FfiStylePayloads) -> Self {
+        Self {
+            payloads,
+            anchor_insets: None,
+            slot_index: 0,
+            vertical_align_override: u16::MAX,
+        }
+    }
+
+    #[inline]
+    fn native_group<T>(self, group_index: usize) -> &'a T {
+        let payload = self.payloads.groups[group_index];
+        debug_assert!(!payload.is_null());
+        // SAFETY: The payload is the Rust-defined group struct itself; C++
+        // derives its mirror from the cbindgen twin of the same type, and the
+        // node's ComputedValues keep it alive while readers exist.
+        unsafe { &*payload.cast::<T>() }
+    }
+
+    #[inline]
+    fn sizing(self) -> &'a crate::layout::SizingValues {
+        self.native_group(STYLE_GROUP_INDEX_SIZING)
+    }
+
+    #[inline]
+    fn surround(self) -> &'a crate::layout::SurroundValues {
+        self.native_group(STYLE_GROUP_INDEX_SURROUND)
+    }
+
+    #[inline]
+    fn alignment(self) -> &'a crate::layout::AlignmentValues {
+        self.native_group(STYLE_GROUP_INDEX_ALIGNMENT)
+    }
+
+    #[inline]
+    fn svg_reset(self) -> &'a crate::layout::SVGResetValues {
+        self.native_group(STYLE_GROUP_INDEX_SVG_RESET)
+    }
+
+    #[inline]
+    fn inherited_box(self) -> &'a crate::css::computed_values::InheritedBoxValues {
+        self.native_group(STYLE_GROUP_INDEX_INHERITED_BOX)
+    }
+
+    #[inline]
+    fn inherited_table(self) -> &'a crate::css::computed_values::InheritedTableValues {
+        self.native_group(STYLE_GROUP_INDEX_INHERITED_TABLE)
+    }
+
+    #[inline]
+    fn box_values(self) -> &'a crate::layout::BoxValues {
+        self.native_group(STYLE_GROUP_INDEX_BOX)
+    }
+
+    #[inline]
+    pub(crate) fn grid_values(self) -> &'a crate::layout::GridValues {
+        self.native_group(STYLE_GROUP_INDEX_GRID)
+    }
+
+    #[inline]
+    fn border_facts(self) -> &'a crate::layout::BorderLayoutFacts {
+        self.native_group(STYLE_GROUP_INDEX_BORDER)
+    }
+
+    #[inline]
+    fn inherited_text_facts(self) -> &'a crate::layout::InheritedTextLayoutFacts {
+        self.native_group(STYLE_GROUP_INDEX_INHERITED_TEXT)
+    }
+
+    #[inline]
+    fn font_facts(self) -> &'a crate::layout::FontLayoutFacts {
+        self.native_group(STYLE_GROUP_INDEX_FONT)
+    }
+
+    pub(crate) fn is_floating(self) -> bool {
+        self.box_values().float_ != crate::css::css_enums::float::NONE
+    }
+
+    pub(crate) fn is_absolutely_positioned(self) -> bool {
+        matches!(
+            self.box_values().position,
+            crate::css::css_enums::positioning::ABSOLUTE | crate::css::css_enums::positioning::FIXED
+        )
+    }
+
+    // https://developer.mozilla.org/en-US/docs/Web/Guide/CSS/Block_formatting_context
+    // The computed-style-only half of the block-formatting-context predicate;
+    // node_creates_block_formatting_context adds the terms that need the node
+    // kind, stamped DOM identity, the live IsFlexItem flag, or the parent's
+    // display. The float term is deliberately absent for the same reason: only
+    // non-flex-items establish one by floating.
+    pub(crate) fn own_style_establishes_block_formatting_context(self) -> bool {
+        let box_values = self.box_values();
+        let display = box_values.display;
+
+        if self.is_absolutely_positioned() {
+            return true;
+        }
+
+        if display.is_inline_block() {
+            return true;
+        }
+
+        if display.is_table_cell() || display.is_table_caption() {
+            return true;
+        }
+
+        let overflow_establishes_context = |overflow: u8| {
+            overflow != crate::css::css_enums::overflow::VISIBLE && overflow != crate::css::css_enums::overflow::CLIP
+        };
+        if overflow_establishes_context(box_values.overflow_x) || overflow_establishes_context(box_values.overflow_y) {
+            return true;
+        }
+
+        if display.is_flow_root_inside() {
+            return true;
+        }
+
+        // https://drafts.csswg.org/css-contain-2/#containment-types
+        // 1. The layout containment box establishes an independent formatting context.
+        // 4. The paint containment box establishes an independent formatting context.
+        let content_visibility_forces_containment = self.inherited_box().content_visibility
+            == crate::css::css_enums::content_visibility::AUTO;
+        if (box_values.layout_containment || box_values.paint_containment || content_visibility_forces_containment)
+            && containment_applies_to_principal_box(display)
+        {
+            return true;
+        }
+
+        // https://drafts.csswg.org/css-conditional-5/#valdef-container-type-size
+        // Applies style containment and size containment to the principal box, and establishes an independent
+        // formatting context.
+        if box_values.is_size_container || box_values.is_inline_size_container {
+            return true;
+        }
+
+        // https://drafts.csswg.org/css-multicol-2/#the-multi-column-model
+        // An element whose 'column-width', 'column-count', or 'column-height' property is not 'auto' establishes a
+        // multi-column container (or multicol container for short), and therefore acts as a container for
+        // multi-column layout.
+        if box_values.column_width.kind != crate::layout::ComputedSizeKind::Auto || box_values.column_count_has_value {
+            return true;
+        }
+
+        false
+    }
+
     fn anchor_inset_handle(self, field: InsetField) -> Option<&'a crate::layout::ComputedStyleValueHandle> {
-        let values = self.reader.surround();
+        let values = self.surround();
         let handle = match field {
             InsetField::Top => &values.top_anchor_inset,
             InsetField::Right => &values.right_anchor_inset,
@@ -470,15 +463,18 @@ impl<'a> StyleValues<'a> {
     }
 
     fn inset_value(self, field: InsetField) -> InsetValue<'a> {
+        let anchor_insets = self
+            .anchor_insets
+            .expect("inset reads require the layout pass anchor-inset store");
         // The resolved override must mask BOTH anchor representations: a
         // bare anchor() inset carries the surround anchor handle below,
         // while a calc() containing anchor() has a null handle and reads
         // from the stored inset value with contains_anchor_function() set.
-        if let Some(resolved) = self.anchor_insets.override_for(self.slot_index, field) {
+        if let Some(resolved) = anchor_insets.override_for(self.slot_index, field) {
             return InsetValue::Resolved(resolved);
         }
         if let Some(handle) = self.anchor_inset_handle(field) {
-            return InsetValue::BareAnchor(self.anchor_insets.memoized_bare_anchor_wrapper(
+            return InsetValue::BareAnchor(anchor_insets.memoized_bare_anchor_wrapper(
                 self.slot_index,
                 field,
                 || {
@@ -489,7 +485,7 @@ impl<'a> StyleValues<'a> {
                 },
             ));
         }
-        let values = self.reader.surround();
+        let values = self.surround();
         InsetValue::FromStyle(match field {
             InsetField::Top => &values.inset.top,
             InsetField::Right => &values.inset.right,
@@ -514,33 +510,30 @@ impl<'a> StyleValues<'a> {
         self.inset_value(InsetField::Left)
     }
 
-    pub(crate) fn row_gap(self) -> &'static ComputedGap {
-        &self.reader.alignment().row_gap
+    pub(crate) fn row_gap(self) -> &'a ComputedGap {
+        &self.alignment().row_gap
     }
 
-    pub(crate) fn column_gap(self) -> &'static ComputedGap {
-        &self.reader.alignment().column_gap
+    pub(crate) fn column_gap(self) -> &'a ComputedGap {
+        &self.alignment().column_gap
     }
 
-    pub(crate) fn x(self) -> LengthPercentageRef<'static> {
-        self.reader
-            .svg_reset()
+    pub(crate) fn x(self) -> LengthPercentageRef<'a> {
+        self.svg_reset()
             .x
             .length_percentage()
             .expect("computed x lost its style value")
     }
 
-    pub(crate) fn y(self) -> LengthPercentageRef<'static> {
-        self.reader
-            .svg_reset()
+    pub(crate) fn y(self) -> LengthPercentageRef<'a> {
+        self.svg_reset()
             .y
             .length_percentage()
             .expect("computed y lost its style value")
     }
 
-    pub(crate) fn text_indent(self) -> LengthPercentageRef<'static> {
-        self.reader
-            .inherited_text_facts()
+    pub(crate) fn text_indent(self) -> LengthPercentageRef<'a> {
+        self.inherited_text_facts()
             .text_indent
             .length_percentage
             .length_percentage()
@@ -553,20 +546,19 @@ impl<'a> StyleValues<'a> {
     }
 
     pub(crate) fn vertical_align_is_keyword(self) -> bool {
-        self.vertical_align_override != u16::MAX || self.reader.box_values().vertical_align.is_keyword
+        self.vertical_align_override != u16::MAX || self.box_values().vertical_align.is_keyword
     }
 
     pub(crate) fn vertical_align_keyword(self) -> u8 {
         if self.vertical_align_override != u16::MAX {
             self.vertical_align_override as u8
         } else {
-            self.reader.box_values().vertical_align.keyword
+            self.box_values().vertical_align.keyword
         }
     }
 
-    pub(crate) fn vertical_align_value(self) -> LengthPercentageRef<'static> {
-        self.reader
-            .box_values()
+    pub(crate) fn vertical_align_value(self) -> LengthPercentageRef<'a> {
+        self.box_values()
             .vertical_align
             .value
             .length_percentage()
@@ -574,41 +566,41 @@ impl<'a> StyleValues<'a> {
     }
 
     pub(crate) fn has_position_anchor(self) -> bool {
-        self.reader.surround().position_anchor_name.raw() != 0
+        self.surround().position_anchor_name.raw() != 0
     }
 
     /// The raw fly-string representation of the computed position-anchor
     /// name, borrowed from the surround payload for the duration of the pass.
     pub(crate) fn position_anchor_name(self) -> usize {
-        self.reader.surround().position_anchor_name.raw()
+        self.surround().position_anchor_name.raw()
     }
 
     pub(crate) fn first_available_font(self) -> *const c_void {
-        let font = self.reader.font_facts().first_available_font;
+        let font = self.font_facts().first_available_font;
         debug_assert!(!font.is_null(), "layout read a font group that never received a font list");
         font
     }
 
     pub(crate) fn font_cascade_list(self) -> *const c_void {
-        let list = self.reader.font_facts().font_cascade_list;
+        let list = self.font_facts().font_cascade_list;
         debug_assert!(!list.is_null(), "layout read a font group that never received a font list");
         list
     }
 
     pub(crate) fn font_ascent(self) -> f32 {
-        self.reader.font_facts().font_ascent
+        self.font_facts().font_ascent
     }
 
     pub(crate) fn font_descent(self) -> f32 {
-        self.reader.font_facts().font_descent
+        self.font_facts().font_descent
     }
 
     pub(crate) fn font_x_height(self) -> f32 {
-        self.reader.font_facts().font_x_height
+        self.font_facts().font_x_height
     }
 
     pub(crate) fn box_sizing_for_aspect_ratio(self) -> u8 {
-        let values = self.reader.box_values();
+        let values = self.box_values();
         if values.aspect_ratio.use_natural_aspect_ratio_if_available {
             crate::css::css_enums::box_sizing::CONTENT_BOX
         } else {
@@ -617,27 +609,27 @@ impl<'a> StyleValues<'a> {
     }
 
     pub(crate) fn css_preferred_aspect_ratio(self) -> (CssPixels, CssPixels) {
-        decode_css_preferred_aspect_ratio(&self.reader.box_values().aspect_ratio)
+        decode_css_preferred_aspect_ratio(&self.box_values().aspect_ratio)
     }
 
     pub(crate) fn border_spacing_horizontal(self) -> CssPixels {
-        CssPixels::from_raw(self.reader.inherited_table().border_spacing_horizontal)
+        CssPixels::from_raw(self.inherited_table().border_spacing_horizontal)
     }
 
     pub(crate) fn border_spacing_vertical(self) -> CssPixels {
-        CssPixels::from_raw(self.reader.inherited_table().border_spacing_vertical)
+        CssPixels::from_raw(self.inherited_table().border_spacing_vertical)
     }
 
     pub(crate) fn aspect_ratio_uses_natural_when_available(self) -> bool {
-        self.reader.box_values().aspect_ratio.use_natural_aspect_ratio_if_available
+        self.box_values().aspect_ratio.use_natural_aspect_ratio_if_available
     }
 
     pub(crate) fn flex_basis_is_content(self) -> bool {
-        self.reader.alignment().flex_basis.is_content
+        self.alignment().flex_basis.is_content
     }
 
-    pub(crate) fn flex_basis(self) -> &'static ComputedSize {
-        let flex_basis = &self.reader.alignment().flex_basis;
+    pub(crate) fn flex_basis(self) -> &'a ComputedSize {
+        let flex_basis = &self.alignment().flex_basis;
         if flex_basis.is_content {
             auto_computed_size()
         } else {
@@ -645,100 +637,100 @@ impl<'a> StyleValues<'a> {
         }
     }
 
-    pub(crate) fn width(self) -> &'static ComputedSize {
-        &self.reader.sizing().width
+    pub(crate) fn width(self) -> &'a ComputedSize {
+        &self.sizing().width
     }
 
-    pub(crate) fn height(self) -> &'static ComputedSize {
-        &self.reader.sizing().height
+    pub(crate) fn height(self) -> &'a ComputedSize {
+        &self.sizing().height
     }
 
-    pub(crate) fn min_width(self) -> &'static ComputedSize {
-        &self.reader.sizing().min_width
+    pub(crate) fn min_width(self) -> &'a ComputedSize {
+        &self.sizing().min_width
     }
 
-    pub(crate) fn min_height(self) -> &'static ComputedSize {
-        &self.reader.sizing().min_height
+    pub(crate) fn min_height(self) -> &'a ComputedSize {
+        &self.sizing().min_height
     }
 
-    pub(crate) fn max_width(self) -> &'static ComputedSize {
-        &self.reader.sizing().max_width
+    pub(crate) fn max_width(self) -> &'a ComputedSize {
+        &self.sizing().max_width
     }
 
-    pub(crate) fn max_height(self) -> &'static ComputedSize {
-        &self.reader.sizing().max_height
+    pub(crate) fn max_height(self) -> &'a ComputedSize {
+        &self.sizing().max_height
     }
 
-    pub(crate) fn column_width(self) -> &'static ComputedSize {
-        &self.reader.box_values().column_width
+    pub(crate) fn column_width(self) -> &'a ComputedSize {
+        &self.box_values().column_width
     }
 
-    pub(crate) fn margin_top(self) -> &'static ComputedLengthPercentageOrAuto {
-        &self.reader.surround().margin.top
+    pub(crate) fn margin_top(self) -> &'a ComputedLengthPercentageOrAuto {
+        &self.surround().margin.top
     }
 
-    pub(crate) fn margin_right(self) -> &'static ComputedLengthPercentageOrAuto {
-        &self.reader.surround().margin.right
+    pub(crate) fn margin_right(self) -> &'a ComputedLengthPercentageOrAuto {
+        &self.surround().margin.right
     }
 
-    pub(crate) fn margin_bottom(self) -> &'static ComputedLengthPercentageOrAuto {
-        &self.reader.surround().margin.bottom
+    pub(crate) fn margin_bottom(self) -> &'a ComputedLengthPercentageOrAuto {
+        &self.surround().margin.bottom
     }
 
-    pub(crate) fn margin_left(self) -> &'static ComputedLengthPercentageOrAuto {
-        &self.reader.surround().margin.left
+    pub(crate) fn margin_left(self) -> &'a ComputedLengthPercentageOrAuto {
+        &self.surround().margin.left
     }
 
-    pub(crate) fn padding_top(self) -> &'static ComputedLengthPercentageOrAuto {
-        &self.reader.surround().padding.top
+    pub(crate) fn padding_top(self) -> &'a ComputedLengthPercentageOrAuto {
+        &self.surround().padding.top
     }
 
-    pub(crate) fn padding_right(self) -> &'static ComputedLengthPercentageOrAuto {
-        &self.reader.surround().padding.right
+    pub(crate) fn padding_right(self) -> &'a ComputedLengthPercentageOrAuto {
+        &self.surround().padding.right
     }
 
-    pub(crate) fn padding_bottom(self) -> &'static ComputedLengthPercentageOrAuto {
-        &self.reader.surround().padding.bottom
+    pub(crate) fn padding_bottom(self) -> &'a ComputedLengthPercentageOrAuto {
+        &self.surround().padding.bottom
     }
 
-    pub(crate) fn padding_left(self) -> &'static ComputedLengthPercentageOrAuto {
-        &self.reader.surround().padding.left
+    pub(crate) fn padding_left(self) -> &'a ComputedLengthPercentageOrAuto {
+        &self.surround().padding.left
     }
 
     pub(crate) fn has_column_count(self) -> bool {
-        self.reader.box_values().column_count_has_value
+        self.box_values().column_count_has_value
     }
 
     pub(crate) fn column_count(self) -> i32 {
-        self.reader.box_values().column_count
+        self.box_values().column_count
     }
 
     pub(crate) fn has_size_containment(self) -> bool {
-        self.reader.box_values().size_containment
+        self.box_values().size_containment
     }
 
     pub(crate) fn is_size_container(self) -> bool {
-        self.reader.box_values().is_size_container
+        self.box_values().is_size_container
     }
 
     pub(crate) fn text_indent_each_line(self) -> bool {
-        self.reader.inherited_text_facts().text_indent.each_line
+        self.inherited_text_facts().text_indent.each_line
     }
 
     pub(crate) fn text_indent_hanging(self) -> bool {
-        self.reader.inherited_text_facts().text_indent.hanging
+        self.inherited_text_facts().text_indent.hanging
     }
 
     pub(crate) fn tab_size_is_number(self) -> bool {
-        self.reader.inherited_text_facts().tab_size_is_number
+        self.inherited_text_facts().tab_size_is_number
     }
 
     pub(crate) fn tab_size(self) -> CssPixels {
-        self.reader.inherited_text_facts().tab_size_length
+        self.inherited_text_facts().tab_size_length
     }
 
     pub(crate) fn tab_size_number(self) -> f64 {
-        self.reader.inherited_text_facts().tab_size_number
+        self.inherited_text_facts().tab_size_number
     }
 }
 

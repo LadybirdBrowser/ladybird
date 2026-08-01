@@ -32,10 +32,10 @@ struct DirectionAgnosticMargins {
 }
 
 #[derive(Clone, Copy)]
-enum UsedFlexBasis {
+enum UsedFlexBasis<'pass> {
     Content,
     Size {
-        value: &'static ComputedSize,
+        value: &'pass ComputedSize,
         property: SizingProperty,
     },
 }
@@ -43,7 +43,7 @@ enum UsedFlexBasis {
 struct FlexItem<'pass> {
     box_: Node,
     used_values: &'pass UsedValues,
-    used_flex_basis: UsedFlexBasis,
+    used_flex_basis: UsedFlexBasis<'pass>,
     used_flex_basis_is_definite: bool,
     main_size_was_resolved_from_aspect_ratio: bool,
     cross_size_was_resolved_from_aspect_ratio: bool,
@@ -474,7 +474,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         }
     }
 
-    fn computed_main_size(&self, node: Node) -> (&'static ComputedSize, SizingProperty) {
+    fn computed_main_size(&self, node: Node) -> (&'pass ComputedSize, SizingProperty) {
         let style = self.style(node);
         if self.main_axis_is_horizontal() {
             (style.width(), SizingProperty::Width)
@@ -483,7 +483,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         }
     }
 
-    fn computed_main_min_size(&self, node: Node) -> (&'static ComputedSize, SizingProperty) {
+    fn computed_main_min_size(&self, node: Node) -> (&'pass ComputedSize, SizingProperty) {
         let style = self.style(node);
         if self.main_axis_is_horizontal() {
             (style.min_width(), SizingProperty::MinWidth)
@@ -492,7 +492,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         }
     }
 
-    fn computed_main_max_size(&self, node: Node) -> (&'static ComputedSize, SizingProperty) {
+    fn computed_main_max_size(&self, node: Node) -> (&'pass ComputedSize, SizingProperty) {
         let style = self.style(node);
         if self.main_axis_is_horizontal() {
             (style.max_width(), SizingProperty::MaxWidth)
@@ -501,7 +501,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         }
     }
 
-    fn computed_cross_size(&self, node: Node) -> (&'static ComputedSize, SizingProperty) {
+    fn computed_cross_size(&self, node: Node) -> (&'pass ComputedSize, SizingProperty) {
         let style = self.style(node);
         if self.cross_axis_is_horizontal() {
             (style.width(), SizingProperty::Width)
@@ -510,7 +510,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         }
     }
 
-    fn computed_cross_min_size(&self, node: Node) -> (&'static ComputedSize, SizingProperty) {
+    fn computed_cross_min_size(&self, node: Node) -> (&'pass ComputedSize, SizingProperty) {
         let style = self.style(node);
         if self.cross_axis_is_horizontal() {
             (style.min_width(), SizingProperty::MinWidth)
@@ -519,7 +519,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         }
     }
 
-    fn computed_cross_max_size(&self, node: Node) -> (&'static ComputedSize, SizingProperty) {
+    fn computed_cross_max_size(&self, node: Node) -> (&'pass ComputedSize, SizingProperty) {
         let style = self.style(node);
         if self.cross_axis_is_horizontal() {
             (style.max_width(), SizingProperty::MaxWidth)
@@ -813,7 +813,7 @@ impl<'pass> FlexFormattingContext<'pass> {
     }
 
     // https://drafts.csswg.org/css-flexbox-1/#propdef-flex-basis
-    fn used_flex_basis_for_item(&self, index: usize) -> UsedFlexBasis {
+    fn used_flex_basis_for_item(&self, index: usize) -> UsedFlexBasis<'pass> {
         let node = self.flex_items[index].box_;
         let style = self.style(node);
         if style.flex_basis_is_content() {

@@ -808,7 +808,7 @@ impl TableTree for TableFormattingContext<'_> {
 
     fn display(&self, node: Node) -> FfiDisplay {
         self.callbacks
-            .style_reader_if_styled(node)
+            .style_values_if_styled(node)
             .map_or_else(FfiDisplay::block, |style| style.display())
     }
 
