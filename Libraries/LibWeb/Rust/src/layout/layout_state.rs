@@ -344,16 +344,16 @@ impl<'pass> NodeFacts<'pass> {
         self.state.style_facts(self.callbacks, self.node)
     }
 
-    fn style_values_if_styled(&self) -> Option<StyleValues<'pass>> {
-        self.callbacks.style_values_if_styled(self.node)
+    fn computed_values_view_if_styled(&self) -> Option<ComputedValuesView<'pass>> {
+        self.callbacks.computed_values_view_if_styled(self.node)
     }
 
-    fn parent_style_values_if_styled(&self) -> Option<StyleValues<'pass>> {
+    fn parent_computed_values_view_if_styled(&self) -> Option<ComputedValuesView<'pass>> {
         let parent = self.data().parent;
         if parent.is_invalid() {
             return None;
         }
-        self.callbacks.style_values_if_styled(parent)
+        self.callbacks.computed_values_view_if_styled(parent)
     }
 
     fn replaced_content(&self) -> crate::layout::FfiReplacedContentFacts {
@@ -390,18 +390,18 @@ impl<'pass> NodeFacts<'pass> {
     }
 
     pub(crate) fn is_floating(&self) -> bool {
-        self.style_values_if_styled().is_some_and(|style| style.is_floating())
+        self.computed_values_view_if_styled().is_some_and(|style| style.is_floating())
     }
 
     pub(crate) fn is_absolutely_positioned(&self) -> bool {
-        self.style_values_if_styled()
+        self.computed_values_view_if_styled()
             .is_some_and(|style| style.is_absolutely_positioned())
     }
 
     pub(crate) fn is_inline(&self) -> bool {
         crate::layout::kind_is_text(self.data().kind)
             || self
-                .style_values_if_styled()
+                .computed_values_view_if_styled()
                 .is_some_and(|style| style.display().is_inline_outside())
     }
 
@@ -409,7 +409,7 @@ impl<'pass> NodeFacts<'pass> {
         let data = self.data();
         crate::layout::has_flag(data, NodeFlag::IsReplacedElement)
             || data.kind == NodeKind::ListItemMarkerBox
-            || self.style_values_if_styled().is_some_and(|style| {
+            || self.computed_values_view_if_styled().is_some_and(|style| {
                 let display = style.display();
                 display.is_inline_outside() && !display.is_flow_inside()
             })
@@ -431,7 +431,7 @@ impl<'pass> NodeFacts<'pass> {
         let data = self.data();
         data.kind == NodeKind::InlineNode
             || (data.kind == NodeKind::ListItemBox
-                && self.style_values_if_styled().is_some_and(|style| {
+                && self.computed_values_view_if_styled().is_some_and(|style| {
                     let display = style.display();
                     display.is_inline_outside() && display.is_flow_inside()
                 }))
@@ -445,14 +445,14 @@ impl<'pass> NodeFacts<'pass> {
         let Some(parent) = self.parent_data() else {
             return false;
         };
-        let parent_is_inline_flow = self.parent_style_values_if_styled().is_some_and(|style| {
+        let parent_is_inline_flow = self.parent_computed_values_view_if_styled().is_some_and(|style| {
             let display = style.display();
             display.is_inline_outside() && display.is_flow_inside()
         });
         if !parent_is_inline_flow {
             return false;
         }
-        let style = self.style_values_if_styled();
+        let style = self.computed_values_view_if_styled();
         if style.is_some_and(|style| style.display().is_inline_outside())
             || crate::layout::node_is_out_of_flow(data, style)
         {
@@ -499,7 +499,7 @@ impl<'pass> NodeFacts<'pass> {
     }
 
     pub(crate) fn display_before_box_type_transformation_is_block_outside(&self) -> bool {
-        self.style_values_if_styled()
+        self.computed_values_view_if_styled()
             .is_some_and(|style| style.display_before_box_type_transformation().is_block_outside())
     }
 
@@ -538,7 +538,7 @@ impl<'pass> NodeFacts<'pass> {
     pub(crate) fn has_replaced_element_table_display_adjustment(&self) -> bool {
         crate::layout::has_flag(self.data(), NodeFlag::IsReplacedElement)
             && self
-                .style_values_if_styled()
+                .computed_values_view_if_styled()
                 .is_some_and(|style| {
                     let display = style.display_before_box_type_transformation();
                     display.is_table_inside() || display.is_internal_table() || display.is_table_caption()
@@ -548,8 +548,8 @@ impl<'pass> NodeFacts<'pass> {
     pub(crate) fn creates_block_formatting_context(&self) -> bool {
         crate::layout::node_creates_block_formatting_context(
             self.data(),
-            self.style_values_if_styled(),
-            self.parent_style_values_if_styled(),
+            self.computed_values_view_if_styled(),
+            self.parent_computed_values_view_if_styled(),
         )
     }
 
@@ -589,7 +589,7 @@ impl<'pass> NodeFacts<'pass> {
         while !child.is_invalid() {
             let child_data = self.callbacks.node_data(child);
             if child_data.kind == NodeKind::LegendBox
-                && !crate::layout::node_is_out_of_flow(child_data, self.callbacks.style_values_if_styled(child))
+                && !crate::layout::node_is_out_of_flow(child_data, self.callbacks.computed_values_view_if_styled(child))
             {
                 return child;
             }

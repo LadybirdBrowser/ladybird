@@ -65,7 +65,7 @@ pub(crate) fn node_may_have_list_item_facts(data: &NodeData) -> bool {
     matches!(data.kind, NodeKind::ListItemBox | NodeKind::ListItemMarkerBox)
 }
 
-pub(crate) fn node_is_out_of_flow(data: &NodeData, style: Option<StyleValues<'_>>) -> bool {
+pub(crate) fn node_is_out_of_flow(data: &NodeData, style: Option<ComputedValuesView<'_>>) -> bool {
     let Some(style) = style else {
         return false;
     };
@@ -91,14 +91,14 @@ pub(crate) fn node_has_auto_content_box_size(data: &NodeData) -> bool {
 }
 
 // https://developer.mozilla.org/en-US/docs/Web/Guide/CSS/Block_formatting_context
-// StyleValues::own_style_establishes_block_formatting_context covers the
+// ComputedValuesView::own_style_establishes_block_formatting_context covers
 // computed-style-only terms; this composite adds the terms that need the node
 // kind, stamped DOM identity, the live IsFlexItem flag, or the parent's
 // display.
 pub(crate) fn node_creates_block_formatting_context(
     data: &NodeData,
-    style: Option<StyleValues<'_>>,
-    parent_style: Option<StyleValues<'_>>,
+    style: Option<ComputedValuesView<'_>>,
+    parent_style: Option<ComputedValuesView<'_>>,
 ) -> bool {
     if kind_is_replaced_box(data.kind) {
         return false;

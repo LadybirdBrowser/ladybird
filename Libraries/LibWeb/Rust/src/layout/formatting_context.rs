@@ -951,13 +951,14 @@ impl FfiLayoutFcCallbacks {
         unsafe { &*std::ptr::from_ref(payloads) }
     }
 
-    pub(crate) fn style_values_if_styled(&self, node: Node) -> Option<StyleValues<'static>> {
+    pub(crate) fn computed_values_view_if_styled(&self, node: Node) -> Option<ComputedValuesView<'static>> {
         let payloads = self.arena().style_payloads(node)?;
         // SAFETY: The node's ComputedValues keep the style container alive
         // for the pass, and the container is only replaced between passes:
         // set_computed_values verifies no pass is running and no layout node
         // is created mid-pass.
-        Some(StyleValues::from_payloads(unsafe { &*std::ptr::from_ref(payloads) }))
+        let payloads: &'static FfiStylePayloads = unsafe { &*std::ptr::from_ref(payloads) };
+        Some(ComputedValuesView::new(&payloads.groups))
     }
 
     pub(crate) fn can_skip_is_anonymous_text_run(&self, node: Node) -> bool {
@@ -1123,8 +1124,8 @@ impl std::ops::DerefMut for FormattingContextInstance<'_> {
 
 pub(crate) fn formatting_context_type_created_by_node_data(
     data: &NodeData,
-    style: Option<StyleValues<'_>>,
-    parent_style: Option<StyleValues<'_>>,
+    style: Option<ComputedValuesView<'_>>,
+    parent_style: Option<ComputedValuesView<'_>>,
 ) -> Option<FfiFormattingContextType> {
     if data.kind == crate::layout::node_data::NodeKind::SVGSVGBox {
         return Some(FfiFormattingContextType::Svg);
@@ -1188,8 +1189,8 @@ pub(crate) fn formatting_context_type_created_by_node_data(
 pub(crate) fn formatting_context_type_created_by_box(facts: NodeFacts<'_>) -> Option<FfiFormattingContextType> {
     formatting_context_type_created_by_node_data(
         facts.data(),
-        facts.style_values_if_styled(),
-        facts.parent_style_values_if_styled(),
+        facts.computed_values_view_if_styled(),
+        facts.parent_computed_values_view_if_styled(),
     )
 }
 
@@ -1208,11 +1209,11 @@ pub extern "C" fn rust_layout_formatting_context_type_for_box(facts: FfiFormatti
         let arena = unsafe { LayoutNodeArena::from_handle(facts.arena) };
         // SAFETY: The caller supplies the live box's arena slot.
         let data = unsafe { &*arena.data(facts.node) };
-        let style = arena.style_payloads(facts.node).map(StyleValues::from_payloads);
+        let style = arena.style_payloads(facts.node).map(|payloads| ComputedValuesView::new(&payloads.groups));
         let parent_style = (!data.parent.is_invalid())
             .then(|| arena.style_payloads(data.parent))
             .flatten()
-            .map(StyleValues::from_payloads);
+            .map(|payloads| ComputedValuesView::new(&payloads.groups));
         formatting_context_type_created_by_node_data(data, style, parent_style)
             .map(|type_| type_ as u8)
             .unwrap_or(NO_FORMATTING_CONTEXT)
