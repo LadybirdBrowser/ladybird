@@ -10,6 +10,7 @@ pub mod cascaded_properties;
 pub(crate) mod color_conversion;
 pub mod color_interpolation;
 pub mod computed_value_types;
+pub(crate) mod computed_value_views;
 pub mod computed_values;
 pub mod css_enums;
 pub mod css_pixels;

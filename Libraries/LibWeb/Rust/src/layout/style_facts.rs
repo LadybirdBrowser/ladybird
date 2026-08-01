@@ -159,8 +159,8 @@ impl FfiSizeValue {
         match self.kind() {
             FfiSizeKind::Px => self.px,
             FfiSizeKind::Percentage => truncated_css_pixels(reference.to_double() * self.fraction),
-            FfiSizeKind::Calc => resolve_calc(self.calc, reference),
-            FfiSizeKind::FitContent if !self.calc.is_null() => resolve_calc(self.calc, reference),
+            FfiSizeKind::Calc => resolve_calc_to_px(self.calc, reference),
+            FfiSizeKind::FitContent if !self.calc.is_null() => resolve_calc_to_px(self.calc, reference),
             FfiSizeKind::FitContent if self.contains_percentage => {
                 truncated_css_pixels(reference.to_double() * self.fraction)
             }
@@ -170,24 +170,6 @@ impl FfiSizeValue {
             }
         }
     }
-}
-
-fn truncated_css_pixels(value: f64) -> CssPixels {
-    if value.is_nan() {
-        return CssPixels::default();
-    }
-    let raw = (value * 64.0).trunc();
-    CssPixels::from_raw(raw.clamp(i32::MIN as f64, i32::MAX as f64) as i32)
-}
-
-fn resolve_calc(calc: *const c_void, percentage_basis: CssPixels) -> CssPixels {
-    assert!(!calc.is_null());
-    let context = px_calc_resolution_context(percentage_basis);
-    // SAFETY: The style value stays alive for the pass and the context
-    // carries no host callbacks.
-    let result = unsafe { crate::css::calc::rust_calc_resolve(calc, &raw const context, true) };
-    assert!(result.resolved);
-    CssPixels::nearest_value_for(result.value)
 }
 
 /// Every sizing-shaped value the layout engine reads, each decoding straight
@@ -978,17 +960,6 @@ size_accessors! {
     text_indent => TextIndent,
     x => X,
     y => Y,
-}
-
-pub(crate) fn px_calc_resolution_context(percentage_basis: CssPixels) -> crate::css::calc::FfiCalcResolutionContext {
-    crate::css::calc::FfiCalcResolutionContext {
-        basis_kind: 3,
-        basis_value: percentage_basis.to_double(),
-        basis_unit: crate::css::style_compute::px_length_unit(),
-        length_resolution_context: std::ptr::null(),
-        external_resolutions: std::ptr::null(),
-        external_resolution_count: 0,
-    }
 }
 
 pub(crate) unsafe fn resolve_calc_with_external_resolutions(
