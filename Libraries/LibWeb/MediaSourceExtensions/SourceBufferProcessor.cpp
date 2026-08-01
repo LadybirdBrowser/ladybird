@@ -525,12 +525,25 @@ void SourceBufferProcessor::run_coded_frame_processing(Vector<DemuxedCodedFrame>
         // FIXME: 13. If last decode timestamp for track buffer is unset and presentation timestamp falls within
         //            the presentation interval of a coded frame in track buffer, then run the following steps:
 
-        // 14. Remove all coded frames from track buffer that have a presentation timestamp greater than
-        //     or equal to presentation timestamp and less than frame end timestamp.
-        // 15. Remove all possible decoding dependencies on the coded frames removed in the previous step
-        //     by removing all coded frames from track buffer between those frames removed in the previous
-        //     step and the next random access point after those removed frames.
-        demuxer.remove_coded_frames_and_dependants_in_range(presentation_timestamp, frame_end_timestamp);
+        // 14. Remove existing coded frames in track buffer:
+        auto highest_end_timestamp = track_buffer.highest_end_timestamp();
+        // -> If highest end timestamp for track buffer is not set:
+        if (!highest_end_timestamp.has_value()) {
+            //    Remove all coded frames from track buffer that have a presentation timestamp greater than
+            //    or equal to presentation timestamp and less than frame end timestamp.
+            demuxer.remove_coded_frames_and_dependants_in_range(presentation_timestamp, frame_end_timestamp);
+        }
+        // -> If highest end timestamp for track buffer is set and less than or equal to presentation timestamp:
+        else if (highest_end_timestamp.value() <= presentation_timestamp) {
+            //    Remove all coded frames from track buffer that have a presentation timestamp greater than
+            //    or equal to highest end timestamp and less than frame end timestamp.
+            demuxer.remove_coded_frames_and_dependants_in_range(highest_end_timestamp.value(), frame_end_timestamp);
+        }
+
+        // 15. Remove all possible decoding dependencies on the coded frames removed in the previous two
+        //     steps by removing all coded frames from track buffer between those frames removed in the
+        //     previous two steps and the next random access point after those removed frames.
+        // NB: This step is done as part of the removal above.
 
         // 16. If spliced audio frame is set:
         //         Add spliced audio frame to the track buffer.

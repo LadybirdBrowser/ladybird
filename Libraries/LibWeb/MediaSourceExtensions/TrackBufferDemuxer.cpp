@@ -66,11 +66,11 @@ void TrackBufferDemuxer::remove_coded_frames_and_dependants_in_range(AK::Duratio
     Sync::MutexLocker locker { m_mutex };
 
     // https://w3c.github.io/media-source/#sourcebuffer-coded-frame-processing
-    // 1.13. Remove all coded frames from track buffer that have a presentation timestamp greater than
-    //       or equal to presentation timestamp and less than frame end timestamp.
-    // 1.14. Remove all possible decoding dependencies on the coded frames removed in the previous step
-    //       by removing all coded frames from track buffer between those frames removed in the previous
-    //       step and the next random access point after those removed frames.
+    // 14. Remove all coded frames from track buffer that have a presentation timestamp greater than or
+    //     equal to presentation timestamp and less than frame end timestamp.
+    // 15. Remove all possible decoding dependencies on the coded frames removed in the previous two
+    //     steps by removing all coded frames from track buffer between those frames removed in the
+    //     previous two steps and the next random access point after those removed frames.
 
     // Find the first frame at or after the start of the range.
     size_t remove_start = 0;
