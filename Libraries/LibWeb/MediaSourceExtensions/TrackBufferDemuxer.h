@@ -26,6 +26,25 @@ namespace Web::MediaSourceExtensions {
 // It is shared between TrackBuffer (which writes frames) and PlaybackManager (which reads them).
 class WEB_API TrackBufferDemuxer final : public Media::Demuxer {
 public:
+    struct RemovedFrame {
+        size_t byte_size { 0 };
+        AK::Duration decode_timestamp;
+    };
+
+    struct FrameRun {
+        Vector<Media::CodedFrame> frames;
+        AK::Duration presentation_start;
+        AK::Duration presentation_end;
+    };
+
+    // The cursor advances one frame at a time until something displaces it, in which case the codec
+    // configuration to decode from must be resolved rather than carried over from the previous frame.
+    enum class CursorContinuity : u8 {
+        Continuous,
+        Jumped,
+        NeedsReanchoring,
+    };
+
     TrackBufferDemuxer(Media::Track const&, Media::CodecID, ByteBuffer codec_initialization_data);
     virtual ~TrackBufferDemuxer() override;
 
@@ -42,7 +61,7 @@ public:
     size_t take_earliest_frame_and_dependants();
 
     Optional<AK::Duration> latest_evictable_frame_timestamp(AK::Duration current_time) const;
-    size_t take_latest_frame();
+    RemovedFrame take_latest_frame();
 
     void set_reached_end_of_stream();
     void clear_reached_end_of_stream();
@@ -69,10 +88,21 @@ private:
     AK::Duration maximum_time_range_gap() const;
     void count_frame_duration_while_locked(AK::Duration);
     void decrement_frames_with_maximum_duration_while_locked(size_t count);
-    bool next_frame_is_in_gap_while_locked() const;
-    ReadonlyBytes codec_configuration_at_position_while_locked(size_t) const;
+    ReadonlyBytes codec_configuration_at_position_while_locked(size_t run_index, size_t frame_index) const;
     bool is_frame_evictable_while_locked(Media::CodedFrame const&, AK::Duration current_time) const;
     void queue_scan_state_change_dispatch_while_locked();
+
+    bool run_ends_at_last_appended_frame_while_locked(FrameRun const&) const;
+
+    static void extend_run_bounds_for_frame(FrameRun&, Media::CodedFrame const&);
+    static void recalculate_run_bounds(FrameRun&);
+    static ReadonlyBytes codec_configuration_after_frame_prefix_while_locked(FrameRun const&, size_t frame_count);
+    void note_cursor_jumped_while_locked();
+    void verify_runs_are_ordered_around_index_while_locked(size_t run_index) const;
+    void split_run_while_locked(size_t run_index, size_t split_at, FixedArray<u8> codec_configuration_before_tail);
+    size_t erase_frames_and_dependants_while_locked(size_t run_index, size_t first_frame, size_t minimum_frame_count);
+    Optional<size_t> find_run_to_play_from_while_locked(AK::Duration) const;
+    bool move_cursor_to_presentation_time_while_locked(AK::Duration);
 
     Media::Track m_track;
     Media::CodecID m_codec_id;
@@ -81,13 +111,16 @@ private:
     mutable Sync::Mutex m_mutex;
     Sync::ConditionVariable m_data_changed { m_mutex };
 
-    Vector<Media::CodedFrame> m_coded_frames;
-    size_t m_read_position { 0 };
-    bool m_cursor_jumped { false };
+    Vector<FrameRun> m_runs;
+    size_t m_current_run { 0 };
+    size_t m_current_frame { 0 };
+    CursorContinuity m_cursor_continuity { CursorContinuity::Continuous };
     bool m_reached_end_of_stream { false };
 
-    Optional<AK::Duration> m_last_returned_timestamp;
+    Optional<AK::Duration> m_cursor_presentation_timestamp;
+    Optional<AK::Duration> m_last_appended_decode_timestamp;
     FixedArray<u8> m_last_delivered_codec_configuration;
+    FixedArray<u8> m_last_appended_codec_configuration;
 
     Media::TimeRanges m_track_buffer_ranges;
     AK::Duration m_maximum_frame_duration;

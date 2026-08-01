@@ -1,0 +1,6 @@
+buffered: [0.2-2.199]
+PASS: endOfStream succeeded
+PASS: playing
+video size: 160x120
+seeked to: 1.199999999
+buffered after seek: [0.2-2.199]
