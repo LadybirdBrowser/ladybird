@@ -189,6 +189,7 @@ Media::DecoderErrorOr<void> WebMByteStreamParser::parse_initialization_segment(M
     }
 
     m_current_media_segment_data.clear();
+    m_cluster_has_been_read = false;
     restore_position.disarm();
     return {};
 }
