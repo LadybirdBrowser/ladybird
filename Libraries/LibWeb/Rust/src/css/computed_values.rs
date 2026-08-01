@@ -79,6 +79,12 @@ impl ComputedStyleValueHandle {
         }
     }
 
+    fn keyword(value: u16) -> Self {
+        Self {
+            pointer: crate::css::style_value::rust_style_value_create_keyword(value).cast(),
+        }
+    }
+
     fn data(&self) -> Option<&crate::css::style_value::StyleValueData> {
         unsafe { self.pointer.cast::<crate::css::style_value::StyleValueData>().as_ref() }
     }
@@ -187,6 +193,7 @@ impl_computed_payload_clone_and_eq!(SurroundValues {
 impl_computed_payload_clone_and_eq!(SVGResetValues {
     cx,
     cy,
+    d,
     r,
     rx,
     ry,
@@ -1374,7 +1381,7 @@ impl BoxValues {
 
 impl SVGResetValues {
     fn initial() -> Self {
-        use crate::css::css_enums::{shape_rendering, vector_effect};
+        use crate::css::css_enums::{keyword, shape_rendering, vector_effect};
 
         const OPAQUE_BLACK_BGRA: u32 = 0xff00_0000;
 
@@ -1382,6 +1389,7 @@ impl SVGResetValues {
         Self {
             cx: zero.clone(),
             cy: zero.clone(),
+            d: ComputedStyleValueHandle::keyword(keyword::NONE),
             r: zero.clone(),
             rx: ComputedLengthPercentageOrAuto {
                 is_auto: true,
@@ -1488,6 +1496,7 @@ pub unsafe extern "C" fn rust_build_svg_reset_group(
     group_index: usize,
     cx: *const c_void,
     cy: *const c_void,
+    d: *const c_void,
     r: *const c_void,
     rx: *const c_void,
     ry: *const c_void,
@@ -1514,6 +1523,7 @@ pub unsafe extern "C" fn rust_build_svg_reset_group(
         let built = SVGResetValues {
             cx: retained(cx),
             cy: retained(cy),
+            d: retained(d),
             r: retained(r),
             rx: ComputedLengthPercentageOrAuto::from_data(rx),
             ry: ComputedLengthPercentageOrAuto::from_data(ry),

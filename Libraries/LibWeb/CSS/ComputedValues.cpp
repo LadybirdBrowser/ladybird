@@ -1439,6 +1439,7 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
         SVGResetValues::style_group_index,
         computed_style.property(PropertyID::Cx).rust_style_value_data(),
         computed_style.property(PropertyID::Cy).rust_style_value_data(),
+        computed_style.property(PropertyID::D).rust_style_value_data(),
         computed_style.property(PropertyID::R).rust_style_value_data(),
         computed_style.property(PropertyID::Rx).rust_style_value_data(),
         computed_style.property(PropertyID::Ry).rust_style_value_data(),

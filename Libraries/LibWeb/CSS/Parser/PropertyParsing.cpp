@@ -510,6 +510,8 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         return parse_all_as(tokens, [this](auto& tokens) { return parse_counter_set_value(tokens); });
     case PropertyID::Cursor:
         return parse_all_as(tokens, [this](auto& tokens) { return parse_cursor_value(tokens); });
+    case PropertyID::D:
+        return parse_all_as(tokens, [this](auto& tokens) { return parse_d_value(tokens); });
     case PropertyID::Display:
         return parse_all_as(tokens, [this](auto& tokens) { return parse_display_value(tokens); });
     case PropertyID::Flex:
@@ -1938,6 +1940,32 @@ RefPtr<StyleValue const> Parser::parse_single_shadow_value(TokenStream<Component
 
     transaction.commit();
     return ShadowStyleValue::create(shadow_type, color, offset_x.release_nonnull(), offset_y.release_nonnull(), blur_radius, spread_distance, placement.release_value());
+}
+
+// https://w3c.github.io/svgwg/svg2-draft/paths.html#TheDProperty
+RefPtr<StyleValue const> Parser::parse_d_value(TokenStream<ComponentValue>& tokens)
+{
+    // none | string
+    // AD-HOC: All browsers instead implement this as "none | path()" so we do too, see
+    //         https://github.com/w3c/svgwg/issues/939
+    auto transaction = tokens.begin_transaction();
+
+    if (auto none = parse_all_as_single_keyword_value(tokens, Keyword::None)) {
+        transaction.commit();
+        return none;
+    }
+
+    tokens.discard_whitespace();
+
+    if (!tokens.has_next_token() || !tokens.next_token().is_function("path"_utf16))
+        return nullptr;
+
+    auto path = parse_basic_shape_value(tokens);
+    if (!path)
+        return nullptr;
+
+    transaction.commit();
+    return path;
 }
 
 RefPtr<StyleValue const> Parser::parse_shape_outside_value(TokenStream<ComponentValue>& tokens)
