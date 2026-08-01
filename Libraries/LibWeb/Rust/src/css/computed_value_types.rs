@@ -22,11 +22,13 @@ pub enum ComputedSizeKind {
 /// immutable Rust style-value identity. Fit-content retains only its
 /// argument, and keyword-only forms leave the handle empty.
 #[repr(C)]
+#[derive(Debug)]
 pub struct ComputedStyleValueHandle {
     pub pointer: *const std::ffi::c_void,
 }
 
 #[repr(C)]
+#[derive(Debug)]
 pub struct ComputedSize {
     pub kind: ComputedSizeKind,
     pub value: ComputedStyleValueHandle,
