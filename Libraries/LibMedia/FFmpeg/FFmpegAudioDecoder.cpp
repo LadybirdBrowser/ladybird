@@ -6,6 +6,7 @@
 
 #include <LibCore/System.h>
 #include <LibMedia/AudioBlock.h>
+#include <LibMedia/CodedFrame.h>
 #include <LibMedia/FFmpeg/FFmpegHelpers.h>
 
 #include "FFmpegAudioDecoder.h"
@@ -89,14 +90,15 @@ FFmpegAudioDecoder::~FFmpegAudioDecoder()
     avcodec_free_context(&m_codec_context);
 }
 
-DecoderErrorOr<void> FFmpegAudioDecoder::receive_coded_data(AK::Duration timestamp, ReadonlyBytes coded_data)
+DecoderErrorOr<void> FFmpegAudioDecoder::receive_coded_data(CodedFrame const& coded_frame)
 {
+    auto coded_data = coded_frame.data().span();
     VERIFY(coded_data.size() < NumericLimits<int>::max());
 
     m_packet->data = const_cast<u8*>(coded_data.data());
     m_packet->size = static_cast<int>(coded_data.size());
-    m_packet->pts = timestamp.to_microseconds();
-    m_packet->dts = m_packet->pts;
+    m_packet->pts = coded_frame.presentation_timestamp().to_microseconds();
+    m_packet->dts = coded_frame.decode_timestamp().to_microseconds();
 
     auto result = avcodec_send_packet(m_codec_context, m_packet);
     switch (result) {

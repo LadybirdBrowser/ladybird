@@ -463,19 +463,19 @@ TEST_CASE(seek_in_multi_frame_blocks)
     MUST(demuxer->create_context_for_track(track));
 
     auto initial_coded_frame = MUST(demuxer->get_next_sample_for_track(track));
-    EXPECT(initial_coded_frame.timestamp() <= AK::Duration::zero());
+    EXPECT(initial_coded_frame.presentation_timestamp() <= AK::Duration::zero());
 
     auto forward_seek_time = AK::Duration::from_seconds(5);
     MUST(demuxer->seek_to_most_recent_keyframe(track, forward_seek_time, Media::DemuxerSeekOptions::None));
     auto coded_frame_after_forward_seek = MUST(demuxer->get_next_sample_for_track(track));
-    EXPECT(coded_frame_after_forward_seek.timestamp() > AK::Duration::zero());
-    EXPECT(coded_frame_after_forward_seek.timestamp() <= forward_seek_time);
+    EXPECT(coded_frame_after_forward_seek.presentation_timestamp() > AK::Duration::zero());
+    EXPECT(coded_frame_after_forward_seek.presentation_timestamp() <= forward_seek_time);
 
     auto backward_seek_time = AK::Duration::from_seconds(2);
     MUST(demuxer->seek_to_most_recent_keyframe(track, backward_seek_time, Media::DemuxerSeekOptions::None));
     auto coded_frame_after_backward_seek = MUST(demuxer->get_next_sample_for_track(track));
-    EXPECT(coded_frame_after_backward_seek.timestamp() > AK::Duration::zero());
-    EXPECT(coded_frame_after_backward_seek.timestamp() <= backward_seek_time);
+    EXPECT(coded_frame_after_backward_seek.presentation_timestamp() > AK::Duration::zero());
+    EXPECT(coded_frame_after_backward_seek.presentation_timestamp() <= backward_seek_time);
 }
 
 TEST_CASE(block_group)

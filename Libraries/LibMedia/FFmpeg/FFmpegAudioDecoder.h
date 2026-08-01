@@ -19,7 +19,7 @@ public:
     FFmpegAudioDecoder(AVCodecContext* codec_context, AVPacket* packet, AVFrame* frame);
     virtual ~FFmpegAudioDecoder() override;
 
-    virtual DecoderErrorOr<void> receive_coded_data(AK::Duration timestamp, ReadonlyBytes coded_data) override;
+    virtual DecoderErrorOr<void> receive_coded_data(CodedFrame const&) override;
     virtual void signal_end_of_stream() override;
     // Writes buffered audio samples to the provided block, up to its capacity.
     virtual DecoderErrorOr<void> write_next_block(AudioBlock&) override;

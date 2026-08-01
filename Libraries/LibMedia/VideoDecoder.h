@@ -6,9 +6,7 @@
 
 #pragma once
 
-#include <AK/ByteBuffer.h>
 #include <AK/NonnullOwnPtr.h>
-#include <AK/Optional.h>
 #include <AK/Time.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Size.h>
@@ -32,8 +30,7 @@ class VideoDecoder {
 public:
     virtual ~VideoDecoder() { }
 
-    virtual DecoderErrorOr<void> receive_coded_data(AK::Duration timestamp, AK::Duration duration, ReadonlyBytes coded_data, Optional<AK::Duration> decode_timestamp = {}) = 0;
-    DecoderErrorOr<void> receive_coded_data(AK::Duration timestamp, AK::Duration duration, ByteBuffer const& coded_data, Optional<AK::Duration> decode_timestamp = {}) { return receive_coded_data(timestamp, duration, coded_data.span(), decode_timestamp); }
+    virtual DecoderErrorOr<void> receive_coded_data(CodedFrame const&) = 0;
     virtual void signal_end_of_stream() = 0;
 
     virtual DecoderErrorOr<VideoFrameMetadata> peek_next_output(CodingIndependentCodePoints const& container_cicp) = 0;

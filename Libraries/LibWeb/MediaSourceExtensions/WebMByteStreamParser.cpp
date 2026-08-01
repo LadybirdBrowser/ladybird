@@ -279,6 +279,7 @@ Media::DecoderErrorOr<ParseMediaSegmentResult> WebMByteStreamParser::parse_media
                     .track_number = block.track_number(),
                     .coded_frame = Media::CodedFrame(
                         block.timestamp().value(),
+                        block.timestamp().value(),
                         block.duration().value_or(AK::Duration::zero()),
                         block.only_keyframes() ? Media::FrameFlags::Keyframe : Media::FrameFlags::None,
                         move(frame_data),

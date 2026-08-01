@@ -6,6 +6,7 @@
 
 #include <LibCore/System.h>
 #include <LibGfx/YUVData.h>
+#include <LibMedia/CodedFrame.h>
 
 #include "FFmpegHelpers.h"
 #include "FFmpegVideoDecoder.h"
@@ -104,14 +105,16 @@ FFmpegVideoDecoder::~FFmpegVideoDecoder()
     avcodec_free_context(&m_codec_context);
 }
 
-DecoderErrorOr<void> FFmpegVideoDecoder::receive_coded_data(AK::Duration timestamp, AK::Duration duration, ReadonlyBytes coded_data, Optional<AK::Duration> decode_timestamp)
+DecoderErrorOr<void> FFmpegVideoDecoder::receive_coded_data(CodedFrame const& coded_frame)
 {
+    auto coded_data = coded_frame.data().span();
     VERIFY(coded_data.size() < NumericLimits<int>::max());
 
+    auto duration = coded_frame.duration();
     m_packet->data = const_cast<u8*>(coded_data.data());
     m_packet->size = static_cast<int>(coded_data.size());
-    m_packet->pts = timestamp.to_microseconds();
-    m_packet->dts = decode_timestamp.value_or(timestamp).to_microseconds();
+    m_packet->pts = coded_frame.presentation_timestamp().to_microseconds();
+    m_packet->dts = coded_frame.decode_timestamp().to_microseconds();
     m_packet->duration = duration.to_microseconds();
     auto packet_pts = m_packet->pts;
 
