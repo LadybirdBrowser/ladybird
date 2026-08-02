@@ -1530,38 +1530,52 @@ void ApplyHistoryStepState::enter_waiting_for_non_changing_jobs()
 
     // 18. For each navigable of nonchangingNavigablesThatStillNeedUpdates, queue a global task on the navigation and traversal task source given navigable's active window to run the steps:
     for (auto& navigable : m_non_changing_navigables) {
-        // AD-HOC: This check is not in the spec but we should not continue navigation if navigable has been destroyed,
-        //         or if there's no active window.
-        if (navigable->has_been_destroyed() || !navigable->active_window()) {
-            ++m_completed_non_changing_jobs;
-            continue;
-        }
-        // AD-HOC: Queue with null document instead of using queue_global_task.
-        //         Tasks associated with a document are only runnable when fully active.
-        //         In the async state machine, documents can become non-fully-active between
-        //         queue time and execution, causing the task to be permanently stuck.
-        //         A null-document task is always runnable; we check validity inside.
-        queue_a_task(Task::Source::NavigationAndTraversal, nullptr, nullptr, GC::create_function(heap(), [this, navigable, script_history_length, script_history_index] {
-            if (navigable->has_been_destroyed() || !navigable->active_window() || !navigable->active_document()->is_fully_active()) {
+        m_traversable->update_nonchanging_navigable_history_step_state(
+            navigable,
+            {
+                .script_history_length = script_history_length,
+                .script_history_index = script_history_index,
+            },
+            GC::create_function(heap(), [this] {
                 signal_progress();
-                return;
-            }
-
-            // 1. Let document be navigable's active document.
-            auto document = navigable->active_document();
-
-            // 2. Set document's history object's index to scriptHistoryIndex.
-            document->history()->m_index = script_history_index;
-
-            // 3. Set document's history object's length to scriptHistoryLength.
-            document->history()->m_length = script_history_length;
-
-            // 4. Increment completedNonchangingJobs.
-            signal_progress();
-        }));
+            }));
     }
 
     try_advance();
+}
+
+void LocalTraversableNavigable::update_nonchanging_navigable_history_step_state(GC::Ref<LocalNavigable> navigable, HistoryObjectLengthAndIndex history_object_length_and_index, GC::Ref<GC::Function<void()>> on_complete)
+{
+    // AD-HOC: This check is not in the spec but we should not continue navigation if navigable has been destroyed,
+    //         or if there's no active window.
+    if (navigable->has_been_destroyed() || !navigable->active_window()) {
+        on_complete->function()();
+        return;
+    }
+
+    // AD-HOC: Queue with null document instead of using queue_global_task.
+    //         Tasks associated with a document are only runnable when fully active.
+    //         In the async state machine, documents can become non-fully-active between
+    //         queue time and execution, causing the task to be permanently stuck.
+    //         A null-document task is always runnable; we check validity inside.
+    queue_a_task(Task::Source::NavigationAndTraversal, nullptr, nullptr, GC::create_function(heap(), [navigable, history_object_length_and_index, on_complete] {
+        if (navigable->has_been_destroyed() || !navigable->active_window() || !navigable->active_document()->is_fully_active()) {
+            on_complete->function()();
+            return;
+        }
+
+        // 1. Let document be navigable's active document.
+        auto document = navigable->active_document();
+
+        // 2. Set document's history object's index to scriptHistoryIndex.
+        document->history()->m_index = history_object_length_and_index.script_history_index;
+
+        // 3. Set document's history object's length to scriptHistoryLength.
+        document->history()->m_length = history_object_length_and_index.script_history_length;
+
+        // 4. Increment completedNonchangingJobs.
+        on_complete->function()();
+    }));
 }
 
 LocalTraversableNavigable::SessionHistorySnapshot LocalTraversableNavigable::create_session_history_snapshot(SaveActiveEntryPersistedState save_active_entry_persisted_state)
