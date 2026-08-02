@@ -1894,12 +1894,6 @@ void WebContentClient::did_change_screen_wake_lock_state(u64 page_id, Web::Scree
         view->did_change_screen_wake_lock_state({}, wake_lock_state);
 }
 
-void WebContentClient::did_update_session_history(u64 page_id, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, Vector<i32> used_steps, size_t current_used_step_index)
-{
-    if (auto view = view_for_page_id(page_id); view.has_value())
-        view->did_update_session_history({}, move(entries), move(used_steps), current_used_step_index);
-}
-
 void WebContentClient::did_update_session_history_entry_navigation_api_state(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_api_key, Web::HTML::StorageSerializationRecord navigation_api_state)
 {
     auto navigable = hosted_navigable_for_page(page_id, navigable_id);
@@ -1970,6 +1964,18 @@ void WebContentClient::did_finalize_cross_document_navigation(u64 page_id, Web::
     if (!navigable.has_value())
         return;
     navigable->top_level_traversable().finalize_cross_document_navigation(*navigable, move(history_entry), move(entry_to_replace_navigation_api_key));
+}
+
+void WebContentClient::did_set_current_session_history_step(u64 page_id, i32 current_session_history_step)
+{
+    auto* page_host = navigable_for_page(page_id);
+    if (!page_host)
+        return;
+
+    auto view = ViewImplementation::find_view_for_traversable(page_host->top_level_traversable());
+    if (!view.has_value())
+        return;
+    view->did_set_current_session_history_step({}, current_session_history_step);
 }
 
 Messages::WebContentClient::DidRequestUiProcessSessionHistoryForTestingResponse WebContentClient::did_request_ui_process_session_history_for_testing(u64 page_id)

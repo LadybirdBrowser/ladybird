@@ -1235,6 +1235,32 @@ bool TraversableSessionHistory::did_apply_web_content_traversal_to_step(i32 step
     return true;
 }
 
+bool TraversableSessionHistory::did_set_web_content_current_session_history_step(i32 step)
+{
+    if (!m_web_content_known_used_steps.contains_slow(step))
+        return false;
+
+    if (!m_current_used_step_index.has_value())
+        return false;
+
+    auto target = traversal_target_for_step(step);
+    if (!target.has_value())
+        return false;
+
+    if (!m_web_content_uses_ui_step_coordinates) {
+        auto const* web_content_target_top_level_entry = WebView::top_level_entry_for_step(m_web_content_known_entries, step);
+        if (!target->target_top_level_entry || !web_content_target_top_level_entry)
+            return false;
+        if (!Web::HTML::session_history_entry_descriptors_match(*web_content_target_top_level_entry, *target->target_top_level_entry))
+            return false;
+        m_web_content_uses_ui_step_coordinates = true;
+    }
+
+    m_current_used_step_index = target->target_step_index;
+    m_web_content_current_step = step;
+    return true;
+}
+
 bool TraversableSessionHistory::web_content_history_matches_mirror() const
 {
     if (!m_web_content_current_step.has_value() || !m_current_used_step_index.has_value())
