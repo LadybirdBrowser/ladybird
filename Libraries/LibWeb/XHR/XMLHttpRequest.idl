@@ -43,7 +43,7 @@ interface XMLHttpRequest : XMLHttpRequestEventTarget {
     undefined overrideMimeType(Utf16DOMString mime);
     attribute XMLHttpRequestResponseType responseType;
     readonly attribute any response;
-    readonly attribute Utf16DOMString responseText;
+    readonly attribute Utf16USVString responseText;
     [Exposed=Window] readonly attribute Document? responseXML;
 
 };

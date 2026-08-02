@@ -11,8 +11,8 @@ interface Document : Node {
 
     readonly attribute DOMImplementation implementation;
 
-    [ImplementedAs=url_string_for_bindings] readonly attribute Utf16DOMString URL;
-    readonly attribute Utf16DOMString documentURI;
+    [ImplementedAs=url_string_for_bindings] readonly attribute Utf16USVString URL;
+    readonly attribute Utf16USVString documentURI;
 
     readonly attribute Utf16DOMString characterSet;
     readonly attribute Utf16DOMString charset;
@@ -38,7 +38,7 @@ interface Document : Node {
     [CEReactions, LegacyNullToEmptyString] attribute Utf16DOMString alinkColor;
     [CEReactions, LegacyNullToEmptyString] attribute Utf16DOMString bgColor;
 
-    readonly attribute Utf16DOMString referrer;
+    readonly attribute Utf16USVString referrer;
 
 
     Element? getElementById(Utf16DOMString id);
