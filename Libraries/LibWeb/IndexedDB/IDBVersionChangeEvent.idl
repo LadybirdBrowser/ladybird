@@ -7,5 +7,5 @@ interface IDBVersionChangeEvent : Event {
 
 dictionary IDBVersionChangeEventInit : EventInit {
     unsigned long long oldVersion = 0;
-    unsigned long long? newVersion;
+    unsigned long long? newVersion = null;
 };

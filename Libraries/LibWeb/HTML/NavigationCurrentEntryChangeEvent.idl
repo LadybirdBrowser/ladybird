@@ -8,7 +8,6 @@ interface NavigationCurrentEntryChangeEvent : Event {
 };
 
 dictionary NavigationCurrentEntryChangeEventInit : EventInit {
-    // FIXME: Set default value of null when IDL generator supports it
-    NavigationType? navigationType;
+    NavigationType? navigationType = null;
     required NavigationHistoryEntry from;
 };
