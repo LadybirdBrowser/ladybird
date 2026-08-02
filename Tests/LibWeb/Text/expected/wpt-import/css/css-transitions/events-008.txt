@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	transitionrun event has animation property and its value is the corresponding CSSTransition object
+Pass	transitionstart event has animation property and its value is the corresponding CSSTransition object
+Pass	transitionend event has animation property and its value is the corresponding CSSTransition object

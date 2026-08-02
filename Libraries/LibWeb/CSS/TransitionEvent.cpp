@@ -7,6 +7,7 @@
 #include "TransitionEvent.h"
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/TransitionEvent.h>
+#include <LibWeb/CSS/CSSTransition.h>
 
 namespace Web::CSS {
 
@@ -29,6 +30,7 @@ TransitionEvent::TransitionEvent(JS::Realm& realm, Utf16FlyString const& type, B
     , m_property_name(event_init.property_name)
     , m_elapsed_time(event_init.elapsed_time)
     , m_pseudo_element(event_init.pseudo_element)
+    , m_animation(event_init.animation)
 {
 }
 
@@ -38,6 +40,12 @@ void TransitionEvent::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(TransitionEvent);
     Base::initialize(realm);
+}
+
+void TransitionEvent::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_animation);
 }
 
 }

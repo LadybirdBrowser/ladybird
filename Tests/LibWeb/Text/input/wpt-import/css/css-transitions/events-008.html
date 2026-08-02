@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<meta name="timeout" content="long">
+<title>CSS Transitions Test: TransitionEvent and animation property</title>
+<link rel="help" href="https://drafts.csswg.org/css-transitions-2/#interface-transitionevent">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  #test {
+    transition-property: opacity;
+    transition-duration: 1s;
+    opacity: 0;
+  }
+</style>
+<div id="test"></div>
+<script>
+  const testDiv = document.getElementById("test");
+  let anim = null; // transitionrun sets the animation.
+
+  getComputedStyle(testDiv).opacity;
+  requestAnimationFrame(() => {
+    testDiv.style.opacity = "1";
+  });
+
+  async_test(function(t) {
+    testDiv.addEventListener("transitionrun", t.step_func(function(evt) {
+      assert_idl_attribute(evt, "animation", "transitionrun has animation property");
+
+      assert_true(evt.animation instanceof window.CSSTransition, "animation property is an instance of CSSTransition");
+      assert_equals(evt.animation.transitionProperty, 'opacity', "animation property has a correct transition property");
+
+      t.done();
+    }), true);
+  }, "transitionrun event has animation property and its value is the corresponding CSSTransition object");
+
+  async_test(function(t) {
+    testDiv.addEventListener("transitionstart", t.step_func(function(evt) {
+      assert_idl_attribute(evt, "animation", "transitionstart has animation property");
+
+      assert_true(evt.animation instanceof window.CSSTransition, "animation property is an instance of CSSTransition");
+      assert_equals(evt.animation.transitionProperty, 'opacity', "animation property has a correct transition property");
+
+      t.done();
+    }), true);
+  }, "transitionstart event has animation property and its value is the corresponding CSSTransition object");
+
+  async_test(function(t) {
+    testDiv.addEventListener("transitionend", t.step_func(function(evt) {
+      assert_idl_attribute(evt, "animation", "transitionend has animation property");
+
+      assert_true(evt.animation instanceof window.CSSTransition, "animation property is an instance of CSSTransition");
+      assert_equals(evt.animation.transitionProperty, 'opacity', "animation property has a correct transition property");
+
+      t.done();
+    }), true);
+  }, "transitionend event has animation property and its value is the corresponding CSSTransition object");
+</script>

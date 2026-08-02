@@ -5,7 +5,8 @@
 
 <script src="../../resources/testharness.js"></script>
 <script src="../../resources/testharnessreport.js"></script>
-<script src="transitionevent-interface.js"></script>
+
+<div id="test"></div>
 
 <script>
 test(function() {
@@ -226,4 +227,17 @@ test(function() {
   assert_equals(event.propertyName, "sample");
   assert_equals(event.elapsedTime, 0.5);
 }, "TransitionEventInit properties set value");
+
+test(function() {
+  var target = document.getElementById('test');
+  target.style.opacity = '0';
+  getComputedStyle(target).opacity;
+  target.style.transition = 'opacity 1s';
+  target.style.opacity = '1';
+  var anim = target.getAnimations()[0];
+
+  var eventInit = {animation: anim};
+  var event = new TransitionEvent("test", eventInit);
+  assert_equals(event.animation, anim);
+}, "TransitionEventInit animation property sets value");
 </script>

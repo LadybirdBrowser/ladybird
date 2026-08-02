@@ -25,6 +25,9 @@ public:
     Utf16String const& property_name() const { return m_property_name; }
     double elapsed_time() const { return m_elapsed_time; }
     Utf16String const& pseudo_element() const { return m_pseudo_element; }
+    GC::Ptr<CSSTransition> animation() const { return m_animation; }
+
+    virtual void visit_edges(Cell::Visitor&) override;
 
 private:
     TransitionEvent(JS::Realm&, Utf16FlyString const& event_name, Bindings::TransitionEventInit const& event_init);
@@ -34,6 +37,7 @@ private:
     Utf16String m_property_name {};
     double m_elapsed_time {};
     Utf16String m_pseudo_element {};
+    GC::Ptr<CSSTransition> m_animation;
 };
 
 }
