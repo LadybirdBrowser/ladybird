@@ -13,7 +13,7 @@ interface SVGFEGaussianBlurElement : SVGElement {
     readonly attribute SVGAnimatedNumber stdDeviationY;
     readonly attribute SVGAnimatedEnumeration edgeMode;
 
-    [FIXME] void setStdDeviation(float stdDeviationX, float stdDeviationY);
+    [FIXME] undefined setStdDeviation(float stdDeviationX, float stdDeviationY);
 };
 
 SVGFEGaussianBlurElement includes SVGFilterPrimitiveStandardAttributes;
