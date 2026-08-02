@@ -19,16 +19,13 @@ GC_DEFINE_ALLOCATOR(MediaStreamTrack);
 
 Atomic<u64> MediaStreamTrack::s_next_provider_id { 1 };
 
-static constexpr auto audio_track_kind = static_cast<Bindings::MediaStreamTrackKind>(0);
-static constexpr auto video_track_kind = static_cast<Bindings::MediaStreamTrackKind>(1);
-
 MediaStreamTrack::MediaStreamTrack(JS::Realm& realm)
     : DOM::EventTarget(realm)
 {
 }
 
 // https://w3c.github.io/mediacapture-main/#mediastreamtrack
-GC::Ref<MediaStreamTrack> MediaStreamTrack::create(JS::Realm& realm, Bindings::MediaStreamTrackKind kind, Optional<Utf16String> label, bool muted)
+GC::Ref<MediaStreamTrack> MediaStreamTrack::create(JS::Realm& realm, MediaStreamTrackKind kind, Optional<Utf16String> label, bool muted)
 {
     // https://w3c.github.io/mediacapture-main/#dfn-create-a-mediastreamtrack
     // 1. Let track be a new object of type source's MediaStreamTrack source type.
@@ -126,14 +123,21 @@ GC::Ref<MediaStreamTrack> MediaStreamTrack::clone() const
     return track_clone;
 }
 
+// https://w3c.github.io/mediacapture-main/#dom-mediastreamtrack-kind
+Utf16String MediaStreamTrack::kind() const
+{
+    // The kind attribute MUST return the value it was initialized to when the object was created.
+    return m_kind == MediaStreamTrackKind::Audio ? "audio"_utf16 : "video"_utf16;
+}
+
 bool MediaStreamTrack::is_audio() const
 {
-    return m_kind == audio_track_kind;
+    return m_kind == MediaStreamTrackKind::Audio;
 }
 
 bool MediaStreamTrack::is_video() const
 {
-    return m_kind == video_track_kind;
+    return m_kind == MediaStreamTrackKind::Video;
 }
 
 Optional<Utf16String> MediaStreamTrack::device_id() const

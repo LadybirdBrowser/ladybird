@@ -1,11 +1,10 @@
 // https://w3c.github.io/mediacapture-main/#mediastreamtrack
 
 enum MediaStreamTrackState { "live", "ended" };
-enum MediaStreamTrackKind { "audio", "video" };
 
 [Exposed=Window]
 interface MediaStreamTrack : EventTarget {
-    readonly attribute MediaStreamTrackKind kind;
+    readonly attribute Utf16DOMString kind;
     readonly attribute Utf16DOMString id;
     readonly attribute Utf16DOMString label;
     attribute boolean enabled;
