@@ -20,6 +20,7 @@ public:
     [[nodiscard]] static GC::Ref<PopStateEvent> construct_impl(JS::Realm&, Utf16FlyString const& event_name, Bindings::PopStateEventInit const&);
 
     JS::Value const& state() const { return m_state; }
+    bool has_ua_visual_transition() const { return m_has_ua_visual_transition; }
 
 private:
     PopStateEvent(JS::Realm&, Utf16FlyString const& event_name, Bindings::PopStateEventInit const& event_init);
@@ -28,6 +29,7 @@ private:
     virtual void visit_edges(JS::Cell::Visitor& visitor) override;
 
     JS::Value m_state { JS::js_null() };
+    bool m_has_ua_visual_transition { false };
 };
 
 }

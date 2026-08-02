@@ -27,6 +27,7 @@ GC::Ref<PopStateEvent> PopStateEvent::construct_impl(JS::Realm& realm, Utf16FlyS
 PopStateEvent::PopStateEvent(JS::Realm& realm, Utf16FlyString const& event_name, Bindings::PopStateEventInit const& event_init)
     : DOM::Event(realm, event_name, event_init)
     , m_state(event_init.state)
+    , m_has_ua_visual_transition(event_init.has_ua_visual_transition)
 {
 }
 
