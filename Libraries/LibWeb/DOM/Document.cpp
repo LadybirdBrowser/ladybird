@@ -3909,6 +3909,7 @@ void Document::dispatch_events_for_transition(GC::Ref<CSS::CSSTransition> transi
             pseudo_element.has_value()) {
             event_init.pseudo_element = pseudo_element.release_value();
         }
+        event_init.animation = transition;
 
         auto timeline = transition->timeline();
 
