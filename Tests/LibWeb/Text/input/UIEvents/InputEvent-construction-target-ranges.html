@@ -1,0 +1,26 @@
+<!doctype html>
+<script src="../include.js"></script>
+<div id="host">hello</div>
+<script>
+    test(() => {
+        const host = document.getElementById("host");
+        const range = new StaticRange({
+            startContainer: host.firstChild,
+            startOffset: 1,
+            endContainer: host.firstChild,
+            endOffset: 3,
+        });
+
+        const event = new InputEvent("beforeinput", { targetRanges: [range] });
+        const ranges = event.getTargetRanges();
+
+        println(`range count: ${ranges.length}`);
+        println(`start container is the text node: ${ranges[0].startContainer === host.firstChild}`);
+        println(`start offset: ${ranges[0].startOffset}`);
+        println(`end offset: ${ranges[0].endOffset}`);
+        println(`collapsed: ${ranges[0].collapsed}`);
+
+        const withoutRanges = new InputEvent("beforeinput");
+        println(`range count without targetRanges: ${withoutRanges.getTargetRanges().length}`);
+    });
+</script>

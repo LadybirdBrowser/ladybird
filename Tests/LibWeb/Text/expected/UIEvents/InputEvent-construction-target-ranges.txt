@@ -1,0 +1,6 @@
+range count: 1
+start container is the text node: true
+start offset: 1
+end offset: 3
+collapsed: false
+range count without targetRanges: 0
