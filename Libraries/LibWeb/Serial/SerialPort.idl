@@ -18,7 +18,7 @@ interface SerialPort : EventTarget {
 
 // https://wicg.github.io/serial/#serialoptions-dictionary
 dictionary SerialOptions {
-    [EnforceRange] unsigned long baudRate;
+    [EnforceRange] required unsigned long baudRate;
     [EnforceRange] octet dataBits = 8;
     [EnforceRange] octet stopBits = 1;
     ParityType parity = "none";
