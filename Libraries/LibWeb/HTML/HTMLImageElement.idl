@@ -14,7 +14,7 @@ interface HTMLImageElement : HTMLElement {
 
     [CEReactions, Reflect] attribute Utf16DOMString alt;
     [CEReactions, Reflect, URL] attribute Utf16USVString src;
-    [CEReactions, Reflect] attribute Utf16DOMString srcset;
+    [CEReactions, Reflect] attribute Utf16USVString srcset;
     [CEReactions, Reflect] attribute Utf16DOMString sizes;
     [CEReactions, Enumerated=CORSSettingsAttribute, Reflect=crossorigin] attribute Utf16DOMString? crossOrigin;
     [CEReactions, Reflect=usemap] attribute Utf16DOMString useMap;
