@@ -18,17 +18,22 @@
 
 namespace Web::MediaCapture {
 
+enum class MediaStreamTrackKind : u8 {
+    Audio,
+    Video,
+};
+
 // Spec: https://w3c.github.io/mediacapture-main/#mediastreamtrack
 class MediaStreamTrack final : public DOM::EventTarget {
     WEB_PLATFORM_OBJECT(MediaStreamTrack, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(MediaStreamTrack);
 
 public:
-    static GC::Ref<MediaStreamTrack> create(JS::Realm&, Bindings::MediaStreamTrackKind, Optional<Utf16String> label = {}, bool muted = false);
+    static GC::Ref<MediaStreamTrack> create(JS::Realm&, MediaStreamTrackKind, Optional<Utf16String> label = {}, bool muted = false);
 
     virtual ~MediaStreamTrack() override = default;
 
-    Bindings::MediaStreamTrackKind kind() const { return m_kind; }
+    Utf16String kind() const;
     Utf16String const& id() const { return m_id; }
     Utf16String const& label() const { return m_label; }
 
@@ -64,7 +69,7 @@ private:
 
     static Atomic<u64> s_next_provider_id;
 
-    Bindings::MediaStreamTrackKind m_kind { static_cast<Bindings::MediaStreamTrackKind>(0) };
+    MediaStreamTrackKind m_kind { MediaStreamTrackKind::Audio };
     Utf16String m_id;
     Utf16String m_label;
     bool m_enabled { true };

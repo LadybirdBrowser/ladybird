@@ -306,7 +306,7 @@ void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, O
 
         // 11.9.5 Let track be the result of creating a MediaStreamTrack with grantedDevice and mediaDevices. The source of the MediaStreamTrack MUST NOT change.
         GC::Ref<MediaStreamTrack> track = MediaStreamTrack::create(realm,
-            Bindings::MediaStreamTrackKind::Audio,
+            MediaStreamTrackKind::Audio,
             Utf16String::from_utf8_with_replacement_character(granted_device.label.view()));
 
         Bindings::MediaTrackSettings settings = track->get_settings();
