@@ -39,6 +39,8 @@ public:
     bool should_include_in_accessibility_tree() const;
     virtual Optional<ARIA::Role> default_role() const override;
 
+    Gfx::Size<double> viewport_size_for_percentage_resolution();
+
     GC::Ref<SVGAnimatedLength> svg_animated_length_for_attribute(Utf16FlyString const&, SVGLength::Directionality, NonnullRefPtr<CSS::StyleValue const>&& default_value);
 
     virtual bool is_presentational_hint(Utf16FlyString const&) const final override;

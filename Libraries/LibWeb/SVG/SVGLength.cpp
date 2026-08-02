@@ -55,44 +55,6 @@ void SVGLength::visit_edges(Cell::Visitor& visitor)
 
 SVGLength::~SVGLength() = default;
 
-static Gfx::Size<double> svg_viewport_size(SVGElement& element)
-{
-    auto viewport_size_from_layout = [](SVGSVGElement& viewport_element) -> Gfx::Size<double> {
-        // NB: A disconnected element may have stale layout objects from before it was removed.
-        if (!viewport_element.is_connected())
-            return {};
-
-        if (auto const* svg_paintable = as_if<Painting::SVGSVGPaintable>(viewport_element.paintable().ptr()))
-            return svg_paintable->svg_viewport_size().to_type<double>();
-
-        return {};
-    };
-
-    // NB: Presentational attributes on SVGSVGElements are resolved irrespective of it's own viewBox (which only affects
-    //     the internal coordinate system)
-    if (auto* svg_element = as_if<SVGSVGElement>(element)) {
-        auto const* parent = svg_element->parent_or_shadow_host_element();
-
-        // https://w3c.github.io/svgwg/svg2-draft/coords.html#InitialViewport
-        if (!parent || !is<SVGElement>(*parent))
-            return viewport_size_from_layout(*svg_element);
-
-        // https://w3c.github.io/svgwg/svg2-draft/coords.html#EstablishingANewSVGViewport
-        if (is<SVGForeignObjectElement>(*parent))
-            return viewport_size_from_layout(*svg_element);
-    }
-
-    auto viewport_element = element.owner_svg_element();
-
-    if (!viewport_element)
-        return {};
-
-    if (auto view_box = viewport_element->active_view_box(); view_box.has_value() && view_box->width > 0 && view_box->height > 0)
-        return { view_box->width, view_box->height };
-
-    return viewport_size_from_layout(*viewport_element);
-}
-
 static double percentage_resolution_basis_for_attribute_reflecting_length(GC::Ptr<SVGElement> element, SVGLength::Directionality directionality)
 {
     // AD-HOC: This is defined in the algorithms of both SVGLength::value and SVGLength::convertToSpecifiedUnits so we
@@ -107,7 +69,7 @@ static double percentage_resolution_basis_for_attribute_reflecting_length(GC::Pt
     // NB: Make sure the SVG layout is up to date so the viewport size is up to date.
     element->document().update_layout(DOM::UpdateLayoutReason::SVGLengthValue);
 
-    auto viewport = svg_viewport_size(*element);
+    auto viewport = element->viewport_size_for_percentage_resolution();
 
     switch (directionality) {
     case SVGLength::Directionality::Horizontal:
