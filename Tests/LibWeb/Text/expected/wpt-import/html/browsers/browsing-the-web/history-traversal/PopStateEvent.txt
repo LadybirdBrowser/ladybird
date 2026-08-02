@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	PopStateEvent constructor called as normal function
+Pass	initPopStateEvent
+Pass	Initial value of PopStateEvent.state must be null
+Pass	Initial value of PopStateEvent.hasUAVisualTransition must be false
+Pass	Dispatching a synthetic PopStateEvent
