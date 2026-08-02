@@ -2,5 +2,5 @@
 [Exposed=(Window,Worker)]
 interface TrustedScriptURL {
     stringifier;
-    Utf16DOMString toJSON();
+    Utf16USVString toJSON();
 };

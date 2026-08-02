@@ -2,7 +2,7 @@
 [Exposed=Window]
 interface CompositionEvent : UIEvent {
     constructor([Utf16FlyString] Utf16DOMString type, optional CompositionEventInit eventInitDict = {});
-    readonly attribute Utf16DOMString data;
+    readonly attribute Utf16USVString data;
 
     // https://w3c.github.io/uievents/#dom-compositionevent-initcompositionevent
     // FIXME: The spec uses WindowProxy rather than Window (see https://github.com/w3c/uievents/pull/379).
