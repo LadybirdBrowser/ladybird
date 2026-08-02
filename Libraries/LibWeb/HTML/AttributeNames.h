@@ -249,6 +249,10 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(onsuspend, "onsuspend")                                             \
     __ENUMERATE_HTML_ATTRIBUTE(ontimeupdate, "ontimeupdate")                                       \
     __ENUMERATE_HTML_ATTRIBUTE(ontoggle, "ontoggle")                                               \
+    __ENUMERATE_HTML_ATTRIBUTE(ontransitioncancel, "ontransitioncancel")                           \
+    __ENUMERATE_HTML_ATTRIBUTE(ontransitionend, "ontransitionend")                                 \
+    __ENUMERATE_HTML_ATTRIBUTE(ontransitionrun, "ontransitionrun")                                 \
+    __ENUMERATE_HTML_ATTRIBUTE(ontransitionstart, "ontransitionstart")                             \
     __ENUMERATE_HTML_ATTRIBUTE(onunhandledrejection, "onunhandledrejection")                       \
     __ENUMERATE_HTML_ATTRIBUTE(onunload, "onunload")                                               \
     __ENUMERATE_HTML_ATTRIBUTE(onvolumechange, "onvolumechange")                                   \

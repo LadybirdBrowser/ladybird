@@ -99,6 +99,10 @@
     E(onsuspend, HTML::EventNames::suspend)                                   \
     E(ontimeupdate, HTML::EventNames::timeupdate)                             \
     E(ontoggle, HTML::EventNames::toggle)                                     \
+    E(ontransitioncancel, HTML::EventNames::transitioncancel)                 \
+    E(ontransitionend, HTML::EventNames::transitionend)                       \
+    E(ontransitionrun, HTML::EventNames::transitionrun)                       \
+    E(ontransitionstart, HTML::EventNames::transitionstart)                   \
     E(onvolumechange, HTML::EventNames::volumechange)                         \
     E(onwaiting, HTML::EventNames::waiting)                                   \
     E(onwebkitanimationend, HTML::EventNames::webkitAnimationEnd)             \
