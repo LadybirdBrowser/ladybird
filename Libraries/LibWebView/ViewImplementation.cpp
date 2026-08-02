@@ -1712,10 +1712,14 @@ bool ViewImplementation::did_cancel_navigation(URL::URL const& url)
 void ViewImplementation::did_finish_navigation(URL::URL const& url)
 {
     set_loading_state(false);
+
+    auto result = m_top_level_traversable.did_finish_navigation(url);
+    if (result.should_update_webdriver_pending_navigation_url && m_webdriver_pending_navigation_url.has_value())
+        m_webdriver_pending_navigation_url = url;
+
     if (m_webdriver_pending_navigation_url.has_value() && *m_webdriver_pending_navigation_url == url && !m_webdriver_pending_navigation_completes_with_session_history_update)
         complete_webdriver_pending_navigation_if_url_matches(url);
 
-    auto result = m_top_level_traversable.did_finish_navigation(url);
     if (result.should_seed_web_content)
         seed_web_content_session_history_from_ui_process(result.allow_current_entry_reconstruction ? AllowCurrentEntryReconstruction::Yes : AllowCurrentEntryReconstruction::No);
     else if (result.dump_reason.has_value())

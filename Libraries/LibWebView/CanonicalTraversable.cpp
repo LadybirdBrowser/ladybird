@@ -370,6 +370,19 @@ bool CanonicalTraversable::finalize_same_document_navigation(CanonicalNavigable 
     return did_finalize;
 }
 
+bool CanonicalTraversable::finalize_cross_document_navigation(CanonicalNavigable const& navigable, Web::HTML::SessionHistoryEntryDescriptor history_entry, Optional<Utf16String> entry_to_replace_navigation_api_key)
+{
+    VERIFY(&navigable.top_level_traversable() == this);
+
+    if (m_pending_web_content_session_history_seed.ignore_updates_until_seed)
+        return false;
+
+    auto did_finalize = m_session_history.finalize_cross_document_navigation(nested_history_id_for(navigable), move(history_entry), move(entry_to_replace_navigation_api_key));
+    if (did_finalize)
+        m_current_web_content_session_history_matches_mirror = false;
+    return did_finalize;
+}
+
 Optional<i32> CanonicalTraversable::navigation_api_traversal_target(CanonicalNavigable const& navigable, Utf16String const& navigation_api_key) const
 {
     VERIFY(&navigable.top_level_traversable() == this);
@@ -604,23 +617,33 @@ NavigationCancelResult CanonicalTraversable::did_cancel_navigation(URL::URL cons
 
 NavigationFinishResult CanonicalTraversable::did_finish_navigation(URL::URL const& url)
 {
-    if (m_pending_session_history_navigation.has_value() && m_pending_session_history_navigation->url == url)
-        m_pending_session_history_navigation.clear();
+    NavigationFinishResult result;
+    if (m_pending_session_history_navigation.has_value()) {
+        if (m_pending_session_history_navigation->url == url) {
+            m_pending_session_history_navigation.clear();
+        } else if (auto const* current_entry = m_session_history.current_entry(); current_entry && current_entry->url == url) {
+            m_pending_session_history_navigation.clear();
+            result.should_update_webdriver_pending_navigation_url = true;
+        }
+    }
 
     if (!m_pending_web_content_session_history_seed.should_send_entries)
-        return {};
+        return result;
 
     if (auto const* current_entry = m_session_history.current_entry(); current_entry && current_entry->url == url) {
         m_session_history.clear_current_entry_reload_pending();
         auto allow_current_entry_reconstruction = m_pending_web_content_session_history_seed.should_reseed_after_current_history_load;
         m_pending_web_content_session_history_seed.should_reseed_after_current_history_load = false;
-        return { .should_seed_web_content = true, .allow_current_entry_reconstruction = allow_current_entry_reconstruction };
+        result.should_seed_web_content = true;
+        result.allow_current_entry_reconstruction = allow_current_entry_reconstruction;
+        return result;
     }
 
     // NB: The first finish notification from a fresh WebContent process can still report about:blank before the
     //     traversed-to entry is ready. Keep the pending seed state intact so partial snapshots remain ignored
     //     until we can seed the full UI-owned history.
-    return { .dump_reason = "skip-seed-webcontent-session-history"sv };
+    result.dump_reason = "skip-seed-webcontent-session-history"sv;
+    return result;
 }
 
 RestorePendingSessionHistoryNavigationResult CanonicalTraversable::restore_pending_session_history_navigation()

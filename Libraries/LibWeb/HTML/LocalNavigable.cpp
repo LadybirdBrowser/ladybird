@@ -3475,6 +3475,18 @@ TargetSnapshotParams LocalNavigable::snapshot_target_snapshot_params()
     };
 }
 
+static void report_finalized_cross_document_navigation_to_ui_process(LocalTraversableNavigable& traversable, LocalNavigable const& navigable, SessionHistoryEntry const& history_entry, RefPtr<SessionHistoryEntry> const& entry_to_replace)
+{
+    Optional<Utf16String> entry_to_replace_navigation_api_key;
+    if (entry_to_replace)
+        entry_to_replace_navigation_api_key = entry_to_replace->navigation_api_key();
+
+    traversable.page().client().page_did_finalize_cross_document_navigation(
+        navigable.id(),
+        create_session_history_entry_descriptor(history_entry),
+        entry_to_replace_navigation_api_key);
+}
+
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#finalize-a-cross-document-navigation
 void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, NonnullRefPtr<SessionHistoryEntry> history_entry, GC::Ptr<DOM::Document> pending_document, Optional<Utf16String> expected_ongoing_navigation_id, GC::Ref<OnApplyHistoryStepComplete> on_complete)
 {
@@ -3573,6 +3585,7 @@ void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, His
 
         // 4. Append historyEntry to targetEntries.
         target_entries.append(history_entry);
+        report_finalized_cross_document_navigation_to_ui_process(*traversable, navigable, history_entry, nullptr);
     } else {
         // 1. Replace entryToReplace with historyEntry in targetEntries.
         auto entry_to_replace_iterator = target_entries.find(*entry_to_replace);
@@ -3623,6 +3636,7 @@ void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, His
 
         // 4. Set targetStep to traversable's current session history step.
         target_step = traversable->current_session_history_step();
+        report_finalized_cross_document_navigation_to_ui_process(*traversable, navigable, history_entry, entry_to_replace);
     }
 
     // 10. Apply the push/replace history step targetStep to traversable given historyHandling and userInvolvement.
