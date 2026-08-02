@@ -21,7 +21,7 @@ class SpeechRecognitionEvent : public DOM::Event {
     GC_DECLARE_ALLOCATOR(SpeechRecognitionEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<SpeechRecognitionEvent> create(JS::Realm&, Utf16FlyString const& event_name, Bindings::SpeechRecognitionEventInit const& = {});
+    [[nodiscard]] static GC::Ref<SpeechRecognitionEvent> create(JS::Realm&, Utf16FlyString const& event_name, Bindings::SpeechRecognitionEventInit const&);
     static WebIDL::ExceptionOr<GC::Ref<SpeechRecognitionEvent>> construct_impl(JS::Realm&, Utf16FlyString const& event_name, Bindings::SpeechRecognitionEventInit const&);
 
     // https://wicg.github.io/speech-api/#dom-speechrecognitionevent-resultindex
