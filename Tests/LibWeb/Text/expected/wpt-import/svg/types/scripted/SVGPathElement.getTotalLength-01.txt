@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Fail
+Fail	SVGPathElement.getTotalLength: 'display:none', path with d attribute specified on element
+Fail	SVGPathElement.getTotalLength: 'display:none', path with d attribute specified as styles
+Fail	SVGPathElement.getTotalLength: 'display:none', path with d attribute specified on element and as styles

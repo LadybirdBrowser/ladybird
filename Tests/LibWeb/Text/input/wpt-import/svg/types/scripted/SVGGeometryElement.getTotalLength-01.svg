@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:h="http://www.w3.org/1999/xhtml">
+  <title>SVGGeometryElement.prototype.getTotalLength()</title>
+  <h:link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/types.html#__svg__SVGGeometryElement__getTotalLength"/>
+  <h:script src="../../../resources/testharness.js"/>
+  <h:script src="../../../resources/testharnessreport.js"/>
+  <script><![CDATA[
+test(function() {
+    let path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', 'M0,0L100,0L100,100');
+    path.setAttribute('pathLength', '1000');
+    assert_approx_equals(path.getTotalLength(), 200, 1e-5);
+}, document.title+', getTotalLength - path with pathLength');
+
+test(function() {
+    let rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('width', '100');
+    rect.setAttribute('height', '100');
+    assert_equals(rect.getTotalLength(), 400);
+
+    rect.setAttribute('width', '50');
+    rect.setAttribute('height', '50');
+    assert_equals(rect.getTotalLength(), 200);
+}, document.title+', getTotalLength - rect');
+
+test(function() {
+    let rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    document.documentElement.appendChild(rect);
+    try {
+      rect.setAttribute('width', '100');
+      rect.setAttribute('height', '100');
+      assert_equals(rect.getTotalLength(), 400);
+
+      rect.setAttribute('width', '50');
+      rect.setAttribute('height', '50');
+      assert_equals(rect.getTotalLength(), 200);
+    } finally {
+      document.documentElement.removeChild(rect);
+    }
+}, document.title+', getTotalLength - rect in document');
+
+test(function() {
+    let rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    document.documentElement.appendChild(rect);
+    try {
+      document.documentElement.setAttribute("height", "50");
+      rect.setAttribute('width', '50');
+      rect.setAttribute('height', '100%');
+      assert_equals(rect.getTotalLength(), 200);
+    } finally {
+      document.documentElement.removeAttribute("height");
+      document.documentElement.removeChild(rect);
+    }
+}, document.title+', getTotalLength - rect in document with percent units');
+
+test(function() {
+    let g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    document.documentElement.appendChild(g);
+    g.style.display = "none";
+    let rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    g.appendChild(rect);
+    try {
+      rect.setAttribute('width', '100');
+      rect.setAttribute('height', '100');
+      assert_equals(rect.getTotalLength(), 400);
+      rect.setAttribute('width', '50');
+      rect.setAttribute('height', '50');
+      assert_equals(rect.getTotalLength(), 200);
+    } finally {
+      document.documentElement.removeChild(g);
+    }
+}, document.title+', getTotalLength - rect in document with display none');
+
+test(function() {
+    let path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    document.documentElement.appendChild(path);
+    path.setAttribute("d", "M50,100l0,0l0,-50l100,0l86.3325,122.665z");
+    try {
+
+      assert_equals(path.getTotalLength(), 500);
+
+      let pathData = path.getPathData();
+      for (var i = 0; i < 2; i++) {
+        pathData = pathData.slice(0, -1);
+      }
+      path.setPathData(pathData);
+
+      assert_equals(path.getTotalLength(), 150);
+
+    } finally {
+      document.documentElement.removeChild(path);
+    }
+}, document.title+', getTotalLength - path modified with setPathData');
+  ]]></script>
+</svg>

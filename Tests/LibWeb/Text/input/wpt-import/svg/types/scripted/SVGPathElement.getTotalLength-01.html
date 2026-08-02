@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<title>SVGPathElement.getTotalLength: 'display:none'</title>
+<link rel="author" title="Divyansh Mangal" href="mailto:dmangal@microsoft.com">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  #path2, #path3 {
+    d:path("M 0 0 t 0 100");
+  }
+</style>
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200">
+    <path id="path1" d="M 0 0 t 0 100" style="display:none" />
+    <path id="path2" style="display:none;" />
+    <path id="path3" d="M 110,10 l 80,80 v -80 h -40" style="display:none;" />
+</svg>
+<script>
+  test(function() {
+    assert_equals(path1.getTotalLength(), 100);
+  },document.title + ', ' + 'path with d attribute specified on element');
+  test(function() {
+    assert_equals(path2.getTotalLength(), 100);
+  },document.title + ', ' + 'path with d attribute specified as styles');
+  test(function() {
+    assert_equals(path3.getTotalLength(), 100);
+  },document.title + ', ' + 'path with d attribute specified on element and as styles');
+</script>
