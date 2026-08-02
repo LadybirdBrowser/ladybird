@@ -1190,11 +1190,6 @@ void PageClient::send_current_needs_beforeunload_check()
     client().async_did_change_needs_beforeunload_check(m_id, page().needs_beforeunload_check());
 }
 
-void PageClient::page_did_update_session_history(Vector<Web::HTML::SessionHistoryEntryDescriptor> const& entries, Vector<i32> const& used_steps, size_t current_used_step_index)
-{
-    client().async_did_update_session_history(m_id, entries, used_steps, current_used_step_index);
-}
-
 void PageClient::page_did_update_session_history_entry_navigation_api_state(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_api_key, Web::HTML::StorageSerializationRecord const& navigation_api_state)
 {
     client().async_did_update_session_history_entry_navigation_api_state(m_id, navigable_id, navigation_api_key, navigation_api_state);
@@ -1238,6 +1233,11 @@ void PageClient::page_did_finalize_same_document_navigation(Web::HTML::CrossProc
 void PageClient::page_did_finalize_cross_document_navigation(Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor const& history_entry, Optional<Utf16String> const& entry_to_replace_navigation_api_key)
 {
     client().async_did_finalize_cross_document_navigation(m_id, navigable_id, history_entry, entry_to_replace_navigation_api_key);
+}
+
+void PageClient::page_did_set_current_session_history_step(int current_session_history_step)
+{
+    client().async_did_set_current_session_history_step(m_id, current_session_history_step);
 }
 
 String PageClient::page_did_request_ui_process_session_history_for_testing()

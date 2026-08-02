@@ -227,26 +227,6 @@ void CanonicalTraversable::prepare_for_reload()
     m_current_web_content_session_history_matches_mirror = false;
 }
 
-WebContentSessionHistoryUpdateDecision CanonicalTraversable::did_receive_web_content_session_history_update(Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, Vector<i32> used_steps, size_t current_used_step_index, URL::URL const& current_url)
-{
-    if (m_pending_web_content_session_history_seed.waiting_for_ack)
-        return { .ignore_reason = "ignored-session-history-before-ui-seed-ack"sv };
-
-    auto pending_step_after_fallback_load_was_restored = false;
-    if (m_pending_web_content_session_history_seed.step_after_loading_top_level_entry.has_value()) {
-        if (current_used_step_index >= used_steps.size() || used_steps[current_used_step_index] != *m_pending_web_content_session_history_seed.step_after_loading_top_level_entry)
-            return { .ignore_reason = "ignored-partial-session-history-before-fallback-seed"sv };
-        pending_step_after_fallback_load_was_restored = true;
-    }
-
-    if (m_pending_web_content_session_history_seed.ignore_updates_until_seed)
-        return { .ignore_reason = "ignored-session-history-before-ui-seed"sv };
-
-    return {
-        .update = update_session_history_from_web_content(move(entries), move(used_steps), current_used_step_index, pending_step_after_fallback_load_was_restored, true, current_url),
-    };
-}
-
 WebContentSessionHistoryUpdateDecision CanonicalTraversable::did_receive_web_content_session_history_update_for_testing(Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, Vector<i32> used_steps, size_t current_used_step_index, URL::URL const& current_url)
 {
     // NB: dumpUIProcessSessionHistory() first sends WebContent's current snapshot to the UI process, then returns
@@ -381,6 +361,17 @@ bool CanonicalTraversable::finalize_cross_document_navigation(CanonicalNavigable
     if (did_finalize)
         m_current_web_content_session_history_matches_mirror = false;
     return did_finalize;
+}
+
+bool CanonicalTraversable::did_set_current_session_history_step(i32 current_session_history_step)
+{
+    if (m_pending_web_content_session_history_seed.ignore_updates_until_seed)
+        return false;
+
+    if (!m_session_history.did_set_web_content_current_session_history_step(current_session_history_step))
+        return false;
+    m_current_web_content_session_history_matches_mirror = m_session_history.web_content_history_matches_mirror();
+    return true;
 }
 
 Optional<i32> CanonicalTraversable::navigation_api_traversal_target(CanonicalNavigable const& navigable, Utf16String const& navigation_api_key) const

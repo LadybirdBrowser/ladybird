@@ -72,6 +72,7 @@ public:
     void did_seed_web_content_from_ui_process(size_t current_top_level_entry_index);
     [[nodiscard]] bool did_restore_web_content_to_current_step(i32 step);
     [[nodiscard]] bool did_apply_web_content_traversal_to_step(i32 step);
+    [[nodiscard]] bool did_set_web_content_current_session_history_step(i32 step);
     void forget_web_content_state();
     Vector<Entry> entries() const;
     Vector<i32> used_steps() const;
