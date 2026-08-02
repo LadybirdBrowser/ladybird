@@ -13,6 +13,7 @@
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ShadowRoot.h>
+#include <LibWeb/Painting/SVGSVGPaintable.h>
 #include <LibWeb/SVG/SVGAnimatedLength.h>
 #include <LibWeb/SVG/SVGDescElement.h>
 #include <LibWeb/SVG/SVGElement.h>
@@ -391,6 +392,44 @@ GC::Ptr<SVGElement> SVGElement::viewport_element()
         }
     }
     return nullptr;
+}
+
+Gfx::Size<double> SVGElement::viewport_size_for_percentage_resolution()
+{
+    auto viewport_size_from_layout = [&](SVGSVGElement const& viewport_element) -> Gfx::Size<double> {
+        // NB: A disconnected element may have stale layout objects from before it was removed.
+        if (!viewport_element.is_connected())
+            return {};
+
+        if (auto const* svg_paintable = as_if<Painting::SVGSVGPaintable>(viewport_element.paintable().ptr()))
+            return svg_paintable->svg_viewport_size().to_type<double>();
+
+        return {};
+    };
+
+    // NB: Percentages for SVGSVGElements are resolved irrespective of it's own viewBox (which only affects the internal
+    //     coordinate system)
+    if (auto* svg_element = as_if<SVGSVGElement>(*this)) {
+        auto const* parent = svg_element->parent_or_shadow_host_element();
+
+        // https://w3c.github.io/svgwg/svg2-draft/coords.html#InitialViewport
+        if (!parent || !is<SVGElement>(*parent))
+            return viewport_size_from_layout(*svg_element);
+
+        // https://w3c.github.io/svgwg/svg2-draft/coords.html#EstablishingANewSVGViewport
+        if (is<SVGForeignObjectElement>(*parent))
+            return viewport_size_from_layout(*svg_element);
+    }
+
+    auto const& viewport_element = const_cast<SVGElement*>(this)->owner_svg_element().ptr();
+
+    if (!viewport_element)
+        return {};
+
+    if (auto view_box = viewport_element->active_view_box(); view_box.has_value() && view_box->width > 0 && view_box->height > 0)
+        return { view_box->width, view_box->height };
+
+    return viewport_size_from_layout(*viewport_element);
 }
 
 GC::Ref<SVGAnimatedLength> SVGElement::svg_animated_length_for_attribute(Utf16FlyString const& attribute_name, SVGLength::Directionality directionality, NonnullRefPtr<CSS::StyleValue const>&& default_value)
