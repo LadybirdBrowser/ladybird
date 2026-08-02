@@ -26,9 +26,6 @@ public:
     virtual void removed_from(IsSubtreeRoot, Node* old_ancestor, Node& old_root) override;
     virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
 
-    bool disabled();
-    void set_disabled(bool disabled);
-
     virtual bool contributes_a_script_blocking_style_sheet() const final;
 
 private:

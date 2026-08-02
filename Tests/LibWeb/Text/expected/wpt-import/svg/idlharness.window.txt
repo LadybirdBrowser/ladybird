@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1780 tests
 
-1124 Pass
-656 Fail
+1126 Pass
+654 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Document: original interface defined
@@ -670,13 +670,13 @@ Pass	SVGStyleElement interface: existence and properties of interface prototype 
 Pass	SVGStyleElement interface: attribute type
 Pass	SVGStyleElement interface: attribute media
 Pass	SVGStyleElement interface: attribute title
-Fail	SVGStyleElement interface: attribute disabled
+Pass	SVGStyleElement interface: attribute disabled
 Pass	SVGStyleElement must be primary interface of objects.style
 Pass	Stringification of objects.style
 Pass	SVGStyleElement interface: objects.style must inherit property "type" with the proper type
 Pass	SVGStyleElement interface: objects.style must inherit property "media" with the proper type
 Pass	SVGStyleElement interface: objects.style must inherit property "title" with the proper type
-Fail	SVGStyleElement interface: objects.style must inherit property "disabled" with the proper type
+Pass	SVGStyleElement interface: objects.style must inherit property "disabled" with the proper type
 Pass	SVGElement interface: objects.style must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.style must inherit property "ownerSVGElement" with the proper type
 Pass	SVGElement interface: objects.style must inherit property "viewportElement" with the proper type
