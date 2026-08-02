@@ -1,6 +1,6 @@
 // https://dom.spec.whatwg.org/#document
 // https://html.spec.whatwg.org/multipage/dom.html#the-document-object
-[Exposed=Window, LegacyOverrideBuiltins]
+[Exposed=Window, LegacyOverrideBuiltIns]
 interface Document : Node {
     constructor();
 
