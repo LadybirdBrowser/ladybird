@@ -26,7 +26,7 @@ GC::Ref<InputEvent> InputEvent::create_from_platform_event(JS::Realm& realm, Utf
 
 WebIDL::ExceptionOr<GC::Ref<InputEvent>> InputEvent::construct_impl(JS::Realm& realm, Utf16FlyString const& event_name, Bindings::InputEventInit const& event_init)
 {
-    return realm.create<InputEvent>(realm, event_name, event_init);
+    return realm.create<InputEvent>(realm, event_name, event_init, event_init.target_ranges);
 }
 
 InputEvent::InputEvent(JS::Realm& realm, Utf16FlyString const& event_name, Bindings::InputEventInit const& event_init, Vector<GC::Ref<DOM::StaticRange>> const& target_ranges)

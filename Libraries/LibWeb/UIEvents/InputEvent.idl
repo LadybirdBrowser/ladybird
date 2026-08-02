@@ -19,4 +19,5 @@ dictionary InputEventInit : UIEventInit {
 
     // https://w3c.github.io/input-events/#interface-InputEvent
     DataTransfer? dataTransfer = null;
+    sequence<StaticRange> targetRanges = [];
 };
