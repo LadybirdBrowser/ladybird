@@ -1,12 +1,12 @@
 // https://wicg.github.io/speech-api/#speechrecognitionevent
 [Exposed=Window]
 interface SpeechRecognitionEvent : Event {
-    constructor([Utf16FlyString] Utf16DOMString type, optional SpeechRecognitionEventInit eventInitDict = {});
+    constructor([Utf16FlyString] Utf16DOMString type, SpeechRecognitionEventInit eventInitDict);
     readonly attribute unsigned long resultIndex;
     readonly attribute SpeechRecognitionResultList results;
 };
 
 dictionary SpeechRecognitionEventInit : EventInit {
     unsigned long resultIndex = 0;
-    SpeechRecognitionResultList? results = null;
+    required SpeechRecognitionResultList results;
 };

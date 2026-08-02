@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 250 tests
 
-188 Pass
-62 Fail
+189 Pass
+61 Fail
 Fail	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Window: original interface defined
@@ -109,7 +109,7 @@ Pass	SpeechRecognitionResultList interface: existence and properties of interfac
 Pass	SpeechRecognitionResultList interface: attribute length
 Pass	SpeechRecognitionResultList interface: operation item(unsigned long)
 Pass	SpeechRecognitionEvent interface: existence and properties of interface object
-Fail	SpeechRecognitionEvent interface object length
+Pass	SpeechRecognitionEvent interface object length
 Pass	SpeechRecognitionEvent interface object name
 Pass	SpeechRecognitionEvent interface: existence and properties of interface prototype object
 Pass	SpeechRecognitionEvent interface: existence and properties of interface prototype object's "constructor" property
