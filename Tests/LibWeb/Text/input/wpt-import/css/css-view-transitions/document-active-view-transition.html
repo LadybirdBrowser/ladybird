@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>View Transition: document.activeViewTransition attribute</title>
+<link rel="help" href="https://drafts.csswg.org/css-view-transitions-1/#dom-document-activeviewtransition">
+<link rel="author" href="mailto:vmpstr@chromium.org">
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<style>
+#target {
+  width: 100px;
+  height: 100px;
+  view-transition-name: target;
+}
+::view-transition-group(*) {
+  animation-duration: 1ms;
+}
+</style>
+
+<div id=target></div>
+
+<script>
+promise_test(async t => {
+  assert_implements(document.startViewTransition, "View Transitions are not supported");
+
+  assert_equals(document.activeViewTransition, null, "activeViewTransition is null initially");
+
+  const transition = document.startViewTransition(() => {});
+  assert_equals(document.activeViewTransition, transition, "activeViewTransition returns the running transition");
+
+  await transition.finished;
+
+  assert_equals(document.activeViewTransition, null, "activeViewTransition is null after transition finishes");
+
+
+  const transition2 = document.startViewTransition(() => {});
+  assert_equals(document.activeViewTransition, transition2, "activeViewTransition returns the running transition (2)");
+
+  transition2.skipTransition();
+
+  assert_equals(document.activeViewTransition, null, "activeViewTransition is null after transition is skipped");
+
+  let [result] = await Promise.allSettled([transition2.ready]);
+  assert_equals(result.status, "rejected", "ready promise should be rejected due to skipTransition call");
+}, "document.activeViewTransition returns the active transition");
+</script>
