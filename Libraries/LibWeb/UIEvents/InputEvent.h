@@ -30,6 +30,8 @@ public:
     // https://w3c.github.io/uievents/#dom-inputevent-inputtype
     Utf16FlyString input_type() const { return m_input_type; }
 
+    GC::Ptr<HTML::DataTransfer> data_transfer() const { return m_data_transfer; }
+
     ReadonlySpan<GC::Ref<DOM::StaticRange>> get_target_ranges() const;
 
 private:
@@ -41,6 +43,7 @@ private:
     Optional<Utf16String> m_data;
     bool m_is_composing;
     Utf16FlyString m_input_type;
+    GC::Ptr<HTML::DataTransfer> m_data_transfer;
     Vector<GC::Ref<DOM::StaticRange>> m_target_ranges;
 };
 

@@ -6,6 +6,8 @@ interface InputEvent : UIEvent {
     readonly attribute boolean isComposing;
     readonly attribute Utf16DOMString inputType;
 
+    // https://w3c.github.io/input-events/#interface-InputEvent
+    readonly attribute DataTransfer? dataTransfer;
     sequence<StaticRange> getTargetRanges();
 };
 
@@ -14,4 +16,7 @@ dictionary InputEventInit : UIEventInit {
     Utf16DOMString? data = null;
     boolean isComposing = false;
     [Utf16FlyString] Utf16DOMString inputType = "";
+
+    // https://w3c.github.io/input-events/#interface-InputEvent
+    DataTransfer? dataTransfer = null;
 };
