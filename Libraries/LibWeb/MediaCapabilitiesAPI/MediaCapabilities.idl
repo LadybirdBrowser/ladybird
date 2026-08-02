@@ -96,12 +96,12 @@ dictionary MediaCapabilitiesInfo {
 };
 
 dictionary MediaCapabilitiesDecodingInfo : MediaCapabilitiesInfo {
-    [FIXME, required] MediaKeySystemAccess keySystemAccess;
-    MediaDecodingConfiguration configuration;
+    [FIXME] required MediaKeySystemAccess? keySystemAccess;
+    required MediaDecodingConfiguration configuration;
 };
 
 dictionary MediaCapabilitiesEncodingInfo : MediaCapabilitiesInfo {
-    MediaEncodingConfiguration configuration;
+    required MediaEncodingConfiguration configuration;
 };
 
 // https://w3c.github.io/media-capabilities/#mediacapabilities
