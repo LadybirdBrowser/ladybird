@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<title>SVGGeometryElement.getTotalLength: 'display:none'</title>
+<link rel="author" title="Divyansh Mangal" href="mailto:dmangal@microsoft.com">
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/types.html#__svg__SVGGeometryElement__getTotalLength"/>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200">
+  <rect id="rectTest" style="display:none" x="30" y="30" width="10" height="10"></rect>
+  <circle id="circleTest" style="display:none" cx="50" cy="50" r="5" />
+</svg>
+<script>
+  test(function() {
+    let perimeter = (width, height) => 2 * width + 2 * height;
+    assert_equals(rectTest.getTotalLength(), perimeter(rectTest.width.baseVal.value, rectTest.height.baseVal.value));
+    let circumference = (r) => 2 * Math.PI * r;
+    assert_approx_equals(circleTest.getTotalLength(), circumference(circleTest.r.baseVal.value), 1);
+  });
+</script>
