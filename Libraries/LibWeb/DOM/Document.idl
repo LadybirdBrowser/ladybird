@@ -125,8 +125,9 @@ interface Document : Node {
     [LegacyLenientThis] attribute EventHandler onreadystatechange;
     attribute EventHandler onvisibilitychange;
 
-    // https://drafts.csswg.org/css-view-transitions-1/#additions-to-document-api
+    // https://drafts.csswg.org/css-view-transitions-2/#additions-to-document-api
     [Experimental] ViewTransition startViewTransition(optional ViewTransitionUpdateCallback updateCallback);
+    [Experimental] readonly attribute ViewTransition? activeViewTransition;
 
     // https://w3c.github.io/svgwg/svg2-draft/struct.html#InterfaceDocumentExtensions
     readonly attribute SVGSVGElement? rootElement;
