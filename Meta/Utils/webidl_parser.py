@@ -15,6 +15,58 @@ from typing import Tuple
 
 from Utils.lexer import Lexer
 
+ALLOWED_EXTENDED_ATTRIBUTES = frozenset(
+    {
+        "AllowResizable",
+        "AllowShared",
+        "AttributeCallbackName",
+        "CEReactions",
+        "CachedAttribute",
+        "Clamp",
+        "Default",
+        "DefinesAsyncIteratorReturn",
+        "EnforceRange",
+        "Enumerated",
+        "Experimental",
+        "Exposed",
+        "FIXME",
+        "FlyString",
+        "GenerateToValue",
+        "Global",
+        "HTMLConstructor",
+        "ImplementedAs",
+        "InvalidValueDefault",
+        "LegacyFactoryFunction",
+        "LegacyLenientSetter",
+        "LegacyLenientThis",
+        "LegacyNamespace",
+        "LegacyNoInterfaceObject",
+        "LegacyNullToEmptyString",
+        "LegacyOverrideBuiltIns",
+        "LegacyTreatNonObjectAsNull",
+        "LegacyUnenumerableNamedProperties",
+        "LegacyUnforgeable",
+        "LegacyWindowAlias",
+        "MissingValueDefault",
+        "NewObject",
+        "PutForwards",
+        "Reflect",
+        "ReflectRange",
+        "ReflectSetter",
+        "Replaceable",
+        "SameObject",
+        "SecureContext",
+        "Serializable",
+        "Transferable",
+        "URL",
+        "Unscopable",
+        "Utf16FlyString",
+        "WithFinalizer",
+        "WithGCVisitor",
+        "WithInitializer",
+    }
+)
+
 
 @dataclass(frozen=True)
 class IDLType:
@@ -979,6 +1031,9 @@ class Parser:
                 break
 
             name = self.parse_identifier()
+            if name not in ALLOWED_EXTENDED_ATTRIBUTES:
+                self.raise_parse_error(f"unsupported extended attribute '{name}'")
+
             value = ""
             if self.lexer.consume_specific("="):
                 value = self.consume_until_top_level(",", "]").strip()
