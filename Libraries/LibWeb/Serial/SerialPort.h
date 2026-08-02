@@ -44,9 +44,9 @@ class SerialPort : public DOM::EventTarget {
     // https://wicg.github.io/serial/#connected-attribute
     bool connected() const { return m_connected; }
     // https://wicg.github.io/serial/#readable-attribute
-    GC::Ref<Streams::ReadableStream> readable() { return *m_readable; }
+    GC::Ptr<Streams::ReadableStream> readable() { return m_readable; }
     // https://wicg.github.io/serial/#writable-attribute
-    GC::Ref<Streams::WritableStream> writable() { return *m_writable; }
+    GC::Ptr<Streams::WritableStream> writable() { return m_writable; }
 
     // https://wicg.github.io/serial/#onconnect-attribute-0
     void set_onconnect(WebIDL::CallbackType*);
