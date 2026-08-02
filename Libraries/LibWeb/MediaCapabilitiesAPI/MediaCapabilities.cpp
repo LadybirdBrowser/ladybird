@@ -186,7 +186,7 @@ Bindings::MediaCapabilitiesDecodingInfo create_a_media_capabilities_decoding_inf
     info_configuration.video = configuration.video;
     info_configuration.type = configuration.type;
     info_configuration.key_system_configuration = configuration.key_system_configuration;
-    info.configuration.emplace(move(info_configuration));
+    info.configuration = move(info_configuration);
 
     // 3. If configuration.keySystemConfiguration exists:
     if (false) {
