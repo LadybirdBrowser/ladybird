@@ -1,0 +1,24 @@
+<!doctype html>
+<title>css-transitions IDL tests</title>
+<link rel="help" href="https://drafts.csswg.org/css-transitions/">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/WebIDLParser.js"></script>
+<script src="../../resources/idlharness.js"></script>
+<script>
+  "use strict";
+
+  idl_test(
+    ['css-transitions'],
+    ['cssom', 'html', 'dom'],
+    idl_array => {
+      idl_array.add_objects({
+        TransitionEvent: ['new TransitionEvent("transitionend")'],
+        // These include GlobalEventHandlers
+        Document: ['document'],
+        HTMLElement: ['document'],
+        Window: ['window'],
+      })
+    }
+  );
+</script>
