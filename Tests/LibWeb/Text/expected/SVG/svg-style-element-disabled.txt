@@ -1,0 +1,6 @@
+disabled: false
+fill: rgb(0, 128, 0)
+disabled after disabling: true
+fill after disabling: rgb(0, 0, 0)
+disabled after enabling: false
+fill after enabling: rgb(0, 128, 0)

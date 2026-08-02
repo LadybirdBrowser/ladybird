@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg>
+    <style>
+        rect { fill: green; }
+    </style>
+    <rect id="target" width="100" height="100"></rect>
+</svg>
+<script>
+    test(() => {
+        const style = document.querySelector("svg style");
+        const target = document.getElementById("target");
+
+        println(`disabled: ${style.disabled}`);
+        println(`fill: ${getComputedStyle(target).fill}`);
+
+        style.disabled = true;
+        println(`disabled after disabling: ${style.disabled}`);
+        println(`fill after disabling: ${getComputedStyle(target).fill}`);
+
+        style.disabled = false;
+        println(`disabled after enabling: ${style.disabled}`);
+        println(`fill after enabling: ${getComputedStyle(target).fill}`);
+    });
+</script>

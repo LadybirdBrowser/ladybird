@@ -306,6 +306,33 @@ CSS::CSSStyleSheet const* StyleElementBase::sheet() const
     return m_associated_css_style_sheet;
 }
 
+// https://html.spec.whatwg.org/multipage/semantics.html#dom-style-disabled
+bool StyleElementBase::disabled()
+{
+    // 1. If this does not have an associated CSS style sheet, return false.
+    if (!sheet())
+        return false;
+
+    // 2. If this's associated CSS style sheet's disabled flag is set, return true.
+    if (sheet()->disabled())
+        return true;
+
+    // 3. Return false.
+    return false;
+}
+
+// https://html.spec.whatwg.org/multipage/semantics.html#dom-style-disabled
+void StyleElementBase::set_disabled(bool disabled)
+{
+    // 1. If this does not have an associated CSS style sheet, return.
+    if (!sheet())
+        return;
+
+    // 2. If the given value is true, set this's associated CSS style sheet's disabled flag.
+    //    Otherwise, unset this's associated CSS style sheet's disabled flag.
+    sheet()->set_disabled(disabled);
+}
+
 void StyleElementBase::visit_style_element_edges(JS::Cell::Visitor& visitor)
 {
     visitor.visit(m_associated_css_style_sheet);
