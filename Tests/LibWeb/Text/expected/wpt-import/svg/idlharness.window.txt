@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1780 tests
 
-1126 Pass
-654 Fail
+1131 Pass
+649 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Document: original interface defined
@@ -94,9 +94,9 @@ Pass	SVGNumber interface: existence and properties of interface prototype object
 Pass	SVGNumber interface: existence and properties of interface prototype object's "constructor" property
 Pass	SVGNumber interface: existence and properties of interface prototype object's @@unscopables property
 Pass	SVGNumber interface: attribute value
-Fail	SVGNumber must be primary interface of objects.svg.createSVGNumber()
-Fail	Stringification of objects.svg.createSVGNumber()
-Fail	SVGNumber interface: objects.svg.createSVGNumber() must inherit property "value" with the proper type
+Pass	SVGNumber must be primary interface of objects.svg.createSVGNumber()
+Pass	Stringification of objects.svg.createSVGNumber()
+Pass	SVGNumber interface: objects.svg.createSVGNumber() must inherit property "value" with the proper type
 Pass	SVGLength interface: existence and properties of interface object
 Pass	SVGLength interface object length
 Pass	SVGLength interface object name
@@ -417,7 +417,7 @@ Pass	SVGSVGElement interface: operation getEnclosureList(DOMRectReadOnly, SVGEle
 Pass	SVGSVGElement interface: operation checkIntersection(SVGElement, DOMRectReadOnly)
 Pass	SVGSVGElement interface: operation checkEnclosure(SVGElement, DOMRectReadOnly)
 Pass	SVGSVGElement interface: operation deselectAll()
-Fail	SVGSVGElement interface: operation createSVGNumber()
+Pass	SVGSVGElement interface: operation createSVGNumber()
 Pass	SVGSVGElement interface: operation createSVGLength()
 Fail	SVGSVGElement interface: operation createSVGAngle()
 Pass	SVGSVGElement interface: operation createSVGPoint()
@@ -454,7 +454,7 @@ Pass	SVGSVGElement interface: calling checkIntersection(SVGElement, DOMRectReadO
 Pass	SVGSVGElement interface: objects.svg must inherit property "checkEnclosure(SVGElement, DOMRectReadOnly)" with the proper type
 Pass	SVGSVGElement interface: calling checkEnclosure(SVGElement, DOMRectReadOnly) on objects.svg with too few arguments must throw TypeError
 Pass	SVGSVGElement interface: objects.svg must inherit property "deselectAll()" with the proper type
-Fail	SVGSVGElement interface: objects.svg must inherit property "createSVGNumber()" with the proper type
+Pass	SVGSVGElement interface: objects.svg must inherit property "createSVGNumber()" with the proper type
 Pass	SVGSVGElement interface: objects.svg must inherit property "createSVGLength()" with the proper type
 Fail	SVGSVGElement interface: objects.svg must inherit property "createSVGAngle()" with the proper type
 Pass	SVGSVGElement interface: objects.svg must inherit property "createSVGPoint()" with the proper type

@@ -65,6 +65,7 @@ public:
 
     void deselect_all() const;
 
+    GC::Ref<SVGNumber> create_svg_number() const;
     GC::Ref<SVGLength> create_svg_length() const;
     GC::Ref<Geometry::DOMPoint> create_svg_point() const;
     GC::Ref<Geometry::DOMMatrix> create_svg_matrix() const;

@@ -20,6 +20,7 @@
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/FragmentIdentifier.h>
 #include <LibWeb/SVG/SVGAnimatedRect.h>
+#include <LibWeb/SVG/SVGNumber.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
 #include <LibWeb/SVG/SVGViewElement.h>
 #include <LibWeb/Selection/Selection.h>
@@ -223,6 +224,12 @@ void SVGSVGElement::deselect_all() const
     // This is equivalent to calling document.getSelection().removeAllRanges() on the document that this ‘svg’ element is in.
     if (auto selection = document().get_selection())
         selection->remove_all_ranges();
+}
+
+// https://w3c.github.io/svgwg/svg2-draft/struct.html#__svg__SVGSVGElement__createSVGNumber
+GC::Ref<SVGNumber> SVGSVGElement::create_svg_number() const
+{
+    return SVGNumber::create(realm(), 0, SVGNumber::ReadOnly::No);
 }
 
 GC::Ref<SVGLength> SVGSVGElement::create_svg_length() const

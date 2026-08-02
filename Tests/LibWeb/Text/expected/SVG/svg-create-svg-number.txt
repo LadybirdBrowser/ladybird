@@ -1,0 +1,4 @@
+is an SVGNumber: true
+initial value: 0
+value after assignment: 12.5
+returns a new object each call: true
