@@ -1,0 +1,17 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const svgNamespace = "http://www.w3.org/2000/svg";
+        const svg = document.createElementNS(svgNamespace, "svg");
+        const number = svg.createSVGNumber();
+
+        println(`is an SVGNumber: ${number instanceof SVGNumber}`);
+        println(`initial value: ${number.value}`);
+
+        number.value = 12.5;
+        println(`value after assignment: ${number.value}`);
+
+        println(`returns a new object each call: ${svg.createSVGNumber() !== number}`);
+    });
+</script>

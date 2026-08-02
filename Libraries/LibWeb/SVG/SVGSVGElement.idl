@@ -16,7 +16,7 @@ interface SVGSVGElement : SVGGraphicsElement {
 
     undefined deselectAll();
 
-    // FIXME: [NewObject] SVGNumber createSVGNumber();
+    [NewObject] SVGNumber createSVGNumber();
     [NewObject] SVGLength createSVGLength();
     [FIXME, NewObject] SVGAngle createSVGAngle();
     [NewObject] DOMPoint createSVGPoint();
