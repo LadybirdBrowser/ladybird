@@ -118,7 +118,10 @@ pub(crate) struct RootSizingDirectives {
     pub(crate) forced_content_inline_size: Option<CssPixels>,
     pub(crate) forced_content_block_size: Option<CssPixels>,
     pub(crate) forced_min_border_box_block_size: Option<CssPixels>,
-    pub(crate) table_box_content_offset_in_wrapper: Option<LogicalOffset>,
+    // Input-only: the wrapper's BFC tells the table formatting context where the table box's
+    // content box sits in the wrapper, so rows and row groups (whose containing block is the
+    // wrapper) can be placed in wrapper coordinates.
+    pub(crate) table_box_content_block_offset_in_wrapper: Option<CssPixels>,
     pub(crate) adopt_automatic_content_block_size: bool,
     pub(crate) float_avoidance_inline_size: Option<CssPixels>,
 }
