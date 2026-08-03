@@ -791,6 +791,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                     self.used(node)
                         .available_inner_space_or_constraints_from(available_space),
                     constraints,
+                    None,
                 )
             },
         );
@@ -2568,6 +2569,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         node: Node,
         available_space: AvailableSpace,
         constraints: ContainingBlockConstraints,
+        automatic_content_block_size_of_completed_run: Option<CssPixels>,
     ) -> CssPixels {
         let facts = self.facts(node);
         let style = self.style(node);
@@ -2576,7 +2578,14 @@ impl<'pass> BlockFormattingContext<'pass> {
             || style.display().is_grid_inside()
             || style.display().is_table_inside()
         {
-            return independent_root_automatic_block_size(self.state, &self.callbacks, node, available_space, constraints);
+            return independent_root_automatic_block_size(
+                self.state,
+                &self.callbacks,
+                node,
+                available_space,
+                constraints,
+                automatic_content_block_size_of_completed_run,
+            );
         }
 
         // https://www.w3.org/TR/CSS22/visudet.html#normal-block

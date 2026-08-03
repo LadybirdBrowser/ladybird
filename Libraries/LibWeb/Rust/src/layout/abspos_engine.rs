@@ -1239,7 +1239,9 @@ impl AbsposEngine<'_> {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum BlockSizePass {
     BeforeInsideLayout,
-    AfterInsideLayout,
+    AfterInsideLayout {
+        automatic_content_block_size_of_inside_layout: Option<CssPixels>,
+    },
 }
 
 impl AbsposEngine<'_> {
@@ -1276,10 +1278,13 @@ impl AbsposEngine<'_> {
         pass: BlockSizePass,
     ) -> AutoPx {
         if self.facts(node).creates_block_formatting_context() {
-            if pass == BlockSizePass::BeforeInsideLayout {
+            let BlockSizePass::AfterInsideLayout {
+                automatic_content_block_size_of_inside_layout,
+            } = pass
+            else {
                 return None;
-            }
-            return Some(automatic_block_size_for_bfc_root(self.state, self.callbacks, node));
+            };
+            return Some(automatic_content_block_size_of_inside_layout.unwrap_or_default());
         }
         let inner = self
             .used(node)
@@ -1704,7 +1709,12 @@ impl<'pass> AbsposEngine<'pass> {
             .make_button_content_box_definite(node, LayoutMode::Normal, available_space, constraints, None);
     }
 
-    pub(crate) fn finalize_out_of_flow_root_after_inside_layout(&self, node: Node, inputs: AbsposLayoutInputs) {
+    pub(crate) fn finalize_out_of_flow_root_after_inside_layout(
+        &self,
+        node: Node,
+        inputs: AbsposLayoutInputs,
+        automatic_content_block_size_of_inside_layout: Option<CssPixels>,
+    ) {
         let (available_space, constraints) = out_of_flow_root_space(inputs);
         let containing_block_size = LogicalSize {
             inline_size: available_space.inline_size.to_px_or_zero(),
@@ -1717,7 +1727,9 @@ impl<'pass> AbsposEngine<'pass> {
                 available_space,
                 constraints,
                 inputs.static_position_rect,
-                BlockSizePass::AfterInsideLayout,
+                BlockSizePass::AfterInsideLayout {
+                    automatic_content_block_size_of_inside_layout,
+                },
             );
         }
 
