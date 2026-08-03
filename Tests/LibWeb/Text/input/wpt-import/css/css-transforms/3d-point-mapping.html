@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<title>Point mapping through 3D transforms</title>
+<link rel="help" href="https://drafts.csswg.org/cssom-view/#dom-document-elementfrompoint">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<style type="text/css" media="screen">
+  body {
+    margin: 0;
+  }
+
+  .test {
+    position: absolute;
+    height: 200px;
+    width: 200px;
+    border: 1px solid black;
+    margin: 20px;
+  }
+
+  .test.one { top: 1px; left: 1px; }
+  .test.two { top: 1px; left: 247px; }
+  .test.three { top: 247px; left: 1px; }
+  .test.four { top: 247px; left: 247px; }
+
+  #box1, #box5, #box8, #box11 {
+    height: 140px;
+    width: 140px;
+    margin: 20px;
+    background-color: #DDD;
+    border: 1px solid black;
+    box-sizing: border-box;
+    perspective: 400px;
+  }
+
+  #box2, #box6, #box9, #box12 {
+    position: relative;
+    height: 100px;
+    width: 100px;
+    padding: 20px;
+    margin: 20px;
+    background-color: #AAA;
+    box-sizing: border-box;
+    transform: translateZ(100px) rotateY(-40deg);
+    border: 1px solid black;
+  }
+
+  #box7, #box10, #box13, #box14 {
+    height: 100px;
+    width: 100px;
+    background-color: blue;
+    border: 1px solid black;
+    box-sizing: border-box;
+  }
+
+  #box10, #box14 {
+    position: relative;
+  }
+
+  #box13 {
+    padding: 20px;
+    background-color: #C0D69E;
+  }
+
+  [id^="box"]:hover {
+    outline: 3px solid orange;
+  }
+
+</style>
+
+<body>
+
+<div class="test one">
+  <!-- Simple transformed div in perspective -->
+  <div id="box1">
+    <div id="box2">
+    </div>
+  </div>
+</div>
+
+<div class="test two">
+  <!-- Transformed div in perspective with non-layer child -->
+  <div id="box5">
+    <div id="box6">
+      <div id="box7">
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="test three">
+  <!-- Transformed div in perspective with layer child -->
+  <div id="box8">
+    <div id="box9">
+      <div id="box10">
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="test four">
+  <!-- Transformed div in perspective with child having layer child -->
+  <div id="box11">
+    <div id="box12">
+      <div id="box13">
+        <div id="box14">
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+
+<script>
+  class Point {
+    constructor(x, y) {
+      this.x = x;
+      this.y = y;
+    }
+  };
+  // Each test case defines four test points near the corners of an element.
+  // - Point 1: Top-left
+  // - Point 2: Top-right
+  // - Point 3: Bottom-left
+  // - Point 4: Bottom-right
+  const tests = [{
+      expectedElemId: 'box1',
+      points: [
+        new Point(50, 45),
+        new Point(175, 45),
+        new Point(50, 175),
+        new Point(175, 175),
+      ]
+    },
+    {
+      expectedElemId: 'box2',
+      points: [
+        new Point(75, 55),
+        new Point(166, 41),
+        new Point(70, 167),
+        new Point(165, 183),
+      ]
+    },
+    {
+      expectedElemId: 'box5',
+      points: [
+        new Point(292, 45),
+        new Point(422, 46),
+        new Point(294, 175),
+        new Point(323, 176),
+      ]
+    },
+    {
+      expectedElemId: 'box6',
+      points: [
+        new Point(316, 53),
+        new Point(412, 41),
+        new Point(318, 167),
+        new Point(326, 171),
+      ]
+    },
+    {
+      expectedElemId: 'box7',
+      points: [
+        new Point(336, 77),
+        new Point(438, 74),
+        new Point(338, 192),
+        new Point(439, 213),
+      ]
+    },
+    {
+      expectedElemId: 'box8',
+      points: [
+        new Point(47, 291),
+        new Point(177, 295),
+        new Point(49, 421),
+        new Point(80, 424),
+      ]
+    },
+    {
+      expectedElemId: 'box9',
+      points: [
+        new Point(72, 302),
+        new Point(165, 290),
+        new Point(72, 414),
+        new Point(82, 417),
+      ]
+    },
+    {
+      expectedElemId: 'box10',
+      points: [
+        new Point(91, 326),
+        new Point(194, 318),
+        new Point(88, 445),
+        new Point(195, 469),
+      ]
+    },
+    {
+      expectedElemId: 'box11',
+      points: [
+        new Point(294, 292),
+        new Point(422, 292),
+        new Point(293, 424),
+        new Point(327, 425),
+      ]
+    },
+    {
+      expectedElemId: 'box12',
+      points: [
+        new Point(318, 302),
+        new Point(413, 288),
+        new Point(317, 416),
+        new Point(329, 417),
+      ]
+    },
+    {
+      expectedElemId: 'box13',
+      points: [
+        new Point(335, 325),
+        new Point(440, 319),
+        new Point(336, 444),
+        new Point(349, 448),
+      ]
+    },
+    {
+      expectedElemId: 'box14',
+      points: [
+        new Point(355, 351),
+        new Point(468, 354),
+        new Point(356, 475),
+        new Point(473, 506),
+      ]
+    }
+  ];
+
+  tests.forEach(testcase => {
+    test(t => {
+      const expectedElem = document.getElementById(testcase.expectedElemId);
+      for (const point of testcase.points) {
+        const hitElem = document.elementFromPoint(point.x, point.y);
+        assert_equals(hitElem, expectedElem,
+          `point (${point.x}, ${point.y}) is inside element ${testcase.expectedElemId}`);
+      }
+    }, `${document.title}, hittesting ${testcase.expectedElemId})`);
+  });
+</script>
+
+</html>

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<title>Point mapping through 3D transform hierarchies</title>
+<link rel="help" href="https://drafts.csswg.org/cssom-view/#dom-document-elementfrompoint">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<style type="text/css" media="screen">
+  #scene {
+    position: absolute;
+    border: 1px solid black;
+    height: 400px;
+    width: 400px;
+    perspective: 600px;
+    transform-style: preserve-3d;
+  }
+
+  #container {
+    position: absolute;
+    height: 300px;
+    width: 300px;
+    margin: 50px;
+    border: 1px solid blue;
+    transform-style: preserve-3d;
+  }
+
+  #card {
+    position: absolute;
+    top: 50px;
+    left: 50px;
+    height: 200px;
+    width: 200px;
+    background-color: #81AA8A;
+    transform-origin: right top;
+    transform: rotateY(45deg);
+  }
+
+  #card:hover {
+    background-color: orange;
+  }
+</style>
+
+<body>
+  <div id="scene">
+    <div id="container">
+      <div id="card"></div>
+    </div>
+  </div>
+</body>
+
+<script>
+  class Point {
+    constructor(x, y) {
+      this.x = x;
+      this.y = y;
+    }
+  };
+  const tests = [{
+      expectedElemId: 'card',
+      // Points inside the 3D-transformed element
+      insidePoints: [
+        new Point(160, 85),   // Top-left
+        new Point(306, 113),  // Top-right
+        new Point(160, 335),  // Bottom-left
+        new Point(307, 307),  // Bottom-right
+      ],
+      // Points outside the 3D-transformed element
+      outsidePoints: [
+        new Point(115, 115),  // Inside top-left when untransformed
+        new Point(115, 300),  // Inside bottom-left when untransformed
+      ]
+    }
+  ];
+
+  tests.forEach(testcase => {
+    test(t => {
+      const expectedElem = document.getElementById(testcase.expectedElemId);
+      // Test points that should hit the element
+      for (const point of testcase.insidePoints) {
+        const hitElem = document.elementFromPoint(point.x, point.y);
+        assert_equals(hitElem, expectedElem,
+          `point (${point.x}, ${point.y}) should be inside element ${testcase.expectedElemId}`);
+      }
+      // Test points that should NOT hit the element
+      for (const point of testcase.outsidePoints) {
+        const hitElem = document.elementFromPoint(point.x, point.y);
+        assert_not_equals(hitElem, expectedElem,
+          `point (${point.x}, ${point.y}) should be outside element ${testcase.expectedElemId}`);
+      }
+    }, `${document.title}, hittesting ${testcase.expectedElemId})`);
+  });
+</script>
+
+</html>

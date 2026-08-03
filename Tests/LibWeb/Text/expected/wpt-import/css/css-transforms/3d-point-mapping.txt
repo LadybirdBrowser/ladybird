@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 12 tests
+
+12 Pass
+Pass	Point mapping through 3D transforms, hittesting box1)
+Pass	Point mapping through 3D transforms, hittesting box2)
+Pass	Point mapping through 3D transforms, hittesting box5)
+Pass	Point mapping through 3D transforms, hittesting box6)
+Pass	Point mapping through 3D transforms, hittesting box7)
+Pass	Point mapping through 3D transforms, hittesting box8)
+Pass	Point mapping through 3D transforms, hittesting box9)
+Pass	Point mapping through 3D transforms, hittesting box10)
+Pass	Point mapping through 3D transforms, hittesting box11)
+Pass	Point mapping through 3D transforms, hittesting box12)
+Pass	Point mapping through 3D transforms, hittesting box13)
+Pass	Point mapping through 3D transforms, hittesting box14)
