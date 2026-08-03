@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/HashMap.h>
+#include <AK/HashTable.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefCounted.h>
 #include <AK/Utf16FlyString.h>
@@ -41,6 +42,9 @@ public:
     void assign_source_slot(u32 slot, GC::Ptr<CSS::CSSStyleDeclaration const> source, GC::Ptr<DOM::ShadowRoot const> source_shadow_root);
     [[nodiscard]] GC::Ptr<CSS::CSSStyleDeclaration const> source_for_slot(u32 slot) const;
 
+    void set_custom_property_names(HashTable<Utf16FlyString> names) { m_custom_property_names = move(names); }
+    [[nodiscard]] HashTable<Utf16FlyString> const& custom_property_names() const { return m_custom_property_names; }
+
 private:
     CascadedProperties();
 
@@ -51,6 +55,7 @@ private:
 
     ComputedValuesFFI::CascadedPropertyStore* m_store { nullptr };
     Vector<SourcePair> m_source_slots;
+    HashTable<Utf16FlyString> m_custom_property_names;
     mutable HashMap<PropertyID, ValueComparingNonnullRefPtr<StyleValue const>> m_property_cache;
 };
 
