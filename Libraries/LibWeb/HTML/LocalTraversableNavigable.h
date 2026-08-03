@@ -89,7 +89,7 @@ public:
     };
 
     struct ChangingNavigableHistoryStepJob {
-        GC::Ref<LocalNavigable> navigable;
+        CrossProcessId navigable_id;
         NonnullRefPtr<SessionHistoryEntry> target_entry;
         GC::Ptr<SourceSnapshotParams> source_snapshot_params;
         UserNavigationInvolvement user_involvement;
@@ -119,7 +119,7 @@ public:
         UserNavigationInvolvement user_involvement;
     };
     void apply_changing_navigable_history_step_continuation(ApplyChangingNavigableHistoryStepContinuation, GC::Ref<GC::Function<void()>> on_complete);
-    void update_nonchanging_navigable_history_step_state(GC::Ref<LocalNavigable>, HistoryObjectLengthAndIndex, GC::Ref<GC::Function<void()>> on_complete);
+    void update_nonchanging_navigable_history_step_state(CrossProcessId navigable_id, HistoryObjectLengthAndIndex, GC::Ref<GC::Function<void()>> on_complete);
 
     void finalize_same_document_navigation(GC::Ref<LocalNavigable>, NonnullRefPtr<SessionHistoryEntry>, RefPtr<SessionHistoryEntry> entry_to_replace, HistoryHandlingBehavior, UserNavigationInvolvement);
     void did_complete_finalize_same_document_navigation(u64 operation_id, bool committed, int entry_step, int target_step, HistoryObjectLengthAndIndex);
