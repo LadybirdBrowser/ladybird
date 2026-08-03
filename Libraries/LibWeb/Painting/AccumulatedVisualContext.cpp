@@ -982,8 +982,10 @@ Optional<Gfx::FloatPoint> AccumulatedVisualContextTree::transform_point_for_hit_
     bool chain_has_backface_marker = any_of(chain, [&](size_t chain_index) {
         return m_nodes[chain_index].data.has<BackfaceVisibilityData>();
     });
+    bool chain_has_3d_transform = chain_contains_3d_transform(index);
+    bool needs_accumulated_matrices = chain_has_backface_marker || chain_has_3d_transform;
     Vector<Gfx::FloatMatrix4x4, 8> accumulated_matrices;
-    if (chain_has_backface_marker)
+    if (needs_accumulated_matrices)
         accumulated_matrices.ensure_capacity(chain.size());
 
     auto point = screen_point;
@@ -991,7 +993,7 @@ Optional<Gfx::FloatPoint> AccumulatedVisualContextTree::transform_point_for_hit_
         auto node_index = VisualContextIndex { chain[i - 1] };
         auto const& node = m_nodes[node_index.value()];
 
-        if (chain_has_backface_marker) {
+        if (needs_accumulated_matrices) {
             auto local = local_spatial_matrix(node, node_index, scroll_state);
             if (i == chain.size()) {
                 accumulated_matrices.unchecked_append(local.matrix);
@@ -999,6 +1001,19 @@ Optional<Gfx::FloatPoint> AccumulatedVisualContextTree::transform_point_for_hit_
                 auto const& parent_matrix = accumulated_matrices.last();
                 accumulated_matrices.unchecked_append((local.flattens_inherited_transform ? Gfx::flattened(parent_matrix) : parent_matrix) * local.matrix);
             }
+        }
+
+        if (chain_has_3d_transform
+            && (node.data.has<TransformData>() || node.data.has<PerspectiveData>() || node.data.has<ScrollData>()
+                || node.data.has<ScrollCompensation>() || node.data.has<AnchorScrollShift>())) {
+            auto inverse = Gfx::flattened(accumulated_matrices.last()).inverse();
+            if (!inverse.has_value())
+                return {};
+            auto mapped = *inverse * Gfx::FloatVector4 { screen_point.x(), screen_point.y(), 0, 1 };
+            if (mapped.w() < minimum_projection_w)
+                return {};
+            point = { mapped.x() / mapped.w(), mapped.y() / mapped.w() };
+            continue;
         }
 
         auto result = node.data.visit(
