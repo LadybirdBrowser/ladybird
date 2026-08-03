@@ -2574,12 +2574,7 @@ impl<'pass> GridFormattingContext<'pass> {
         if !axis.is_column() && self.used(subgrid).has_definite_inline_size() {
             available.inline_size = AvailableSize::definite(self.used(subgrid).content_inline_size.get());
         }
-        let input = LayoutInput {
-            available_space: available,
-            containing_block_constraints: self.track_sizing_constraints(),
-            content_box_position_in_bfc_root: None,
-            table_grid_min_border_box_block_size: None,
-        };
+        let input = LayoutInput::new(available, self.track_sizing_constraints(), ParticipationInParentFormattingContext::Item);
         context.reset_for_run(input);
         let grid_style = context.grid_style(context.grid_container);
         context.cache_subgrid_axes(grid_style);
@@ -3340,7 +3335,7 @@ impl<'pass> GridFormattingContext<'pass> {
         rect
     }
 
-    fn layout_items(&mut self, frame: &mut FcFrame<'pass>) {
+    fn layout_items(&mut self, run: &FormattingContextRun<'pass>) {
         for item_index in 0..self.items.len() {
             let item = self.items[item_index];
             let area = self.grid_area(item);
@@ -3377,10 +3372,11 @@ impl<'pass> GridFormattingContext<'pass> {
                     constraints
                 },
                 content_box_position_in_bfc_root: None,
-                table_grid_min_border_box_block_size: None,
+                sizing: RootSizingDirectives::default(),
+                participation: ParticipationInParentFormattingContext::Item,
             };
-            let child_layout = match crate::layout::layout_inside_child(
-                frame,
+            match crate::layout::layout_inside_child(
+                run,
                 None,
                 Some(self),
                 item.box_,
@@ -3388,12 +3384,10 @@ impl<'pass> GridFormattingContext<'pass> {
                 input,
                 false,
             ) {
-                crate::layout::ChildLayoutOutcome::Created(child_layout) => Some(child_layout),
+                crate::layout::ChildLayoutOutcome::Created(_) | crate::layout::ChildLayoutOutcome::Skipped => {}
                 crate::layout::ChildLayoutOutcome::ReenterCurrent => {
-                    self.run(frame, input);
-                    None
+                    self.run(run, input);
                 }
-                crate::layout::ChildLayoutOutcome::Skipped => None,
             };
             let offset = FfiCssPixelPoint {
                 x: area.offset.inline_offset + self.item_margin_box_start(item, Axis::Column),
@@ -3407,9 +3401,6 @@ impl<'pass> GridFormattingContext<'pass> {
                 area.size.inline_size,
                 area.size.block_size,
             );
-            if let Some(child_layout) = child_layout {
-                child_layout.finish();
-            }
         }
         crate::layout::compute_and_store_baselines(self.state, &self.callbacks, self.grid_container, false);
     }
@@ -3581,7 +3572,7 @@ impl<'pass> GridFormattingContext<'pass> {
             .grid_layout_data = Some(data);
     }
 
-    pub(crate) fn run(&mut self, frame: &mut FcFrame<'pass>, input: LayoutInput) {
+    pub(crate) fn run(&mut self, run: &FormattingContextRun<'pass>, input: LayoutInput) {
         let available = input.available_space;
         // OPTIMIZATION: If we're in intrinsic sizing layout, but the grid container is not the
         //               box being measured, we can skip everything here.
@@ -3662,7 +3653,7 @@ impl<'pass> GridFormattingContext<'pass> {
             return;
         }
 
-        self.layout_items(frame);
+        self.layout_items(run);
         self.save_used_tracks(grid_style);
         self.save_devtools_data(grid_style);
     }

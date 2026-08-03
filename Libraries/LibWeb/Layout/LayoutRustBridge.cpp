@@ -575,7 +575,7 @@ LayoutRustBridge::LayoutRustBridge() = default;
 
 LayoutRustBridge::~LayoutRustBridge() = default;
 
-void LayoutRustBridge::run_root_layout(Box& viewport, NodeWithStyleAndBoxModelMetrics* document_element_layout_node, CSSPixels viewport_inline_size, CSSPixels viewport_block_size, bool should_collect_devtools_layout_data)
+void LayoutRustBridge::run_root_layout(Box& viewport, CSSPixels viewport_inline_size, CSSPixels viewport_block_size, bool should_collect_devtools_layout_data)
 {
     VERIFY(!m_commit_root);
     m_commit_root = &viewport;
@@ -591,7 +591,6 @@ void LayoutRustBridge::run_root_layout(Box& viewport, NodeWithStyleAndBoxModelMe
         ActiveLayoutPassScope active_pass;
         RustFFI::rust_layout_run_root_layout(
             Node::slot_id(&viewport),
-            Node::slot_id(document_element_layout_node),
             viewport_inline_size.raw_value(),
             viewport_block_size.raw_value(),
             should_collect_devtools_layout_data,
@@ -611,6 +610,7 @@ void LayoutRustBridge::compute_subtree_layout(Box& root, Painting::Paintable& pa
 
     root.document().invalidate_stacking_context_tree();
     root.document().layout_node_arena().sync_enrolled_text_node_content();
+    auto viewport_rect = root.document().viewport_rect();
     auto callbacks = formatting_context_callbacks();
     auto sink = commit_sink();
     {
@@ -619,6 +619,8 @@ void LayoutRustBridge::compute_subtree_layout(Box& root, Painting::Paintable& pa
             Node::slot_id(&root),
             Node::slot_id(&root.root()),
             &paintable_to_replace,
+            viewport_rect.width().raw_value(),
+            viewport_rect.height().raw_value(),
             &callbacks,
             &sink);
     }
@@ -1149,11 +1151,8 @@ RustFFI::FfiLayoutFcCallbacks LayoutRustBridge::formatting_context_callbacks()
             return build_svg_element_facts(*node_with_style); },
         .read_paintable_geometry = [](void*, void* node, void* paintable_pointer, RustFFI::FfiPaintableGeometry* out) {
             VERIFY(out);
-            auto const* paintable = paintable_pointer
-                ? static_cast<Painting::Paintable const*>(paintable_pointer)
-                : static_cast<Node const*>(node)->paintable_ptr();
-            if (!paintable)
-                return false;
+            VERIFY(paintable_pointer);
+            auto const* paintable = static_cast<Painting::Paintable const*>(paintable_pointer);
             auto const& box_model = paintable->box_model();
             *out = {
                 .content_inline_size = paintable->content_width().raw_value(),

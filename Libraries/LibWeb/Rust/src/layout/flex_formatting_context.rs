@@ -186,15 +186,15 @@ struct FlexFormattingContext<'pass> {
 }
 
 impl<'pass> FlexFormattingContext<'pass> {
-    fn new(frame: &FcFrame<'pass>) -> Self {
-        let flex_container_state = frame.state.used_values(&frame.callbacks, frame.box_);
-        let flex_direction = frame.state.style_facts(&frame.callbacks, frame.box_).flex_direction();
+    fn new(run: &FormattingContextRun<'pass>) -> Self {
+        let flex_container_state = run.state.used_values(&run.callbacks, run.box_);
+        let flex_direction = run.state.style_facts(&run.callbacks, run.box_).flex_direction();
         Self {
-            state: frame.state,
-            flex_container: frame.box_,
-            layout_mode: frame.layout_mode,
-            callbacks: frame.callbacks,
-            should_collect_devtools_layout_data: frame.should_collect_devtools_layout_data,
+            state: run.state,
+            flex_container: run.box_,
+            layout_mode: run.layout_mode,
+            callbacks: run.callbacks,
+            should_collect_devtools_layout_data: run.should_collect_devtools_layout_data,
             flex_container_state,
             flex_lines: Vec::new(),
             flex_items: Vec::new(),
@@ -2350,7 +2350,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         }
     }
 
-    fn layout_inside_item(&mut self, frame: &mut FcFrame<'pass>, index: usize) {
+    fn layout_inside_item(&mut self, run: &FormattingContextRun<'pass>, index: usize) {
         let node = self.flex_items[index].box_;
         let mut input = LayoutInput {
             available_space: self
@@ -2358,7 +2358,8 @@ impl<'pass> FlexFormattingContext<'pass> {
                 .available_inner_space_or_constraints_from(self.available_space_for_items.unwrap().space),
             containing_block_constraints: self.item_containing_block_constraints(),
             content_box_position_in_bfc_root: None,
-            table_grid_min_border_box_block_size: None,
+            sizing: RootSizingDirectives::default(),
+            participation: ParticipationInParentFormattingContext::Item,
         };
         // https://drafts.csswg.org/css-flexbox-1/#flex-items
         // In the case of flex items with display: table, the table wrapper box becomes the flex item,
@@ -2381,12 +2382,12 @@ impl<'pass> FlexFormattingContext<'pass> {
             );
             let extra = (self.flex_items[index].cross_size.unwrap() - self.flex_items[index].hypothetical_cross_size)
                 .max(CssPixels::default());
-            input.table_grid_min_border_box_block_size = Some(intrinsic_size + extra);
+            input.sizing.forced_min_border_box_block_size = Some(intrinsic_size + extra);
         }
 
-        match crate::layout::layout_inside_child(frame, None, None, node, LayoutMode::Normal, input, false) {
-            crate::layout::ChildLayoutOutcome::Created(child_layout) => child_layout.finish(),
-            crate::layout::ChildLayoutOutcome::ReenterCurrent => self.run(frame, input),
+        match crate::layout::layout_inside_child(run, None, None, node, LayoutMode::Normal, input, false) {
+            crate::layout::ChildLayoutOutcome::Created(_) => {}
+            crate::layout::ChildLayoutOutcome::ReenterCurrent => self.run(run, input),
             crate::layout::ChildLayoutOutcome::Skipped => {}
         }
 
@@ -2915,7 +2916,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         sum
     }
 
-    fn run(&mut self, frame: &mut FcFrame<'pass>, layout_input: LayoutInput) {
+    fn run(&mut self, run: &FormattingContextRun<'pass>, layout_input: LayoutInput) {
         let available_space = layout_input.available_space;
         // This implements https://www.w3.org/TR/css-flexbox-1/#layout-algorithm
 
@@ -3098,7 +3099,7 @@ impl<'pass> FlexFormattingContext<'pass> {
             // AD-HOC: Finally, layout the inside of all flex items.
             self.copy_dimensions_from_flex_items_to_boxes();
             for index in 0..self.flex_items.len() {
-                self.layout_inside_item(frame, index);
+                self.layout_inside_item(run, index);
             }
             self.resolve_baseline_aligned_items();
             for index in 0..self.flex_items.len() {

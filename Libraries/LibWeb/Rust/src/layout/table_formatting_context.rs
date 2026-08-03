@@ -785,7 +785,6 @@ struct TableFormattingContext<'pass> {
     table_block_size: CssPixels,
     automatic_content_block_size: CssPixels,
     pending_table_offset: crate::layout::LogicalOffset,
-    should_publish_pending_table_offset: bool,
     min_border_box_block_size_from_flex_item: Option<CssPixels>,
     needs_fixed_mode_row_measurement: bool,
     cells: Vec<TableCell>,
@@ -832,19 +831,18 @@ impl<'pass> TableFormattingContext<'pass> {
         self.callbacks.arena().raw_table_column_span(column) as usize
     }
 
-    fn new(frame: &FcFrame<'pass>, pending_table_offset: Option<crate::layout::LogicalOffset>) -> Self {
+    fn new(run: &FormattingContextRun<'pass>) -> Self {
         Self {
-            state: frame.state,
-            table_box: frame.box_,
-            layout_mode: frame.layout_mode,
-            callbacks: frame.callbacks,
+            state: run.state,
+            table_box: run.box_,
+            layout_mode: run.layout_mode,
+            callbacks: run.callbacks,
             table_constraints: ContainingBlockConstraints::default(),
             participant_constraints: ContainingBlockConstraints::default(),
             available_space: AvailableSpace::default(),
             table_block_size: CssPixels::default(),
             automatic_content_block_size: CssPixels::default(),
-            pending_table_offset: pending_table_offset.unwrap_or_default(),
-            should_publish_pending_table_offset: pending_table_offset.is_some(),
+            pending_table_offset: crate::layout::LogicalOffset::default(),
             min_border_box_block_size_from_flex_item: None,
             needs_fixed_mode_row_measurement: false,
             cells: Vec::new(),
@@ -1909,24 +1907,26 @@ impl<'pass> TableFormattingContext<'pass> {
 
     fn layout_inside_cell(
         &mut self,
-        frame: &mut FcFrame<'pass>,
+        run: &FormattingContextRun<'pass>,
         parent: Option<&BlockFormattingContext<'pass>>,
         cell: TableCell,
         input: AvailableSpace,
-    ) -> Option<PendingChildLayout<'pass>> {
+        adopt_automatic_content_block_size: bool,
+    ) {
         let layout_input = LayoutInput {
             available_space: input,
             containing_block_constraints: ContainingBlockConstraints::default(),
             content_box_position_in_bfc_root: None,
-            table_grid_min_border_box_block_size: None,
+            sizing: RootSizingDirectives {
+                adopt_automatic_content_block_size,
+                ..RootSizingDirectives::default()
+            },
+            participation: ParticipationInParentFormattingContext::Item,
         };
-        match crate::layout::layout_inside_child(frame, None, None, cell.box_, self.layout_mode, layout_input, false) {
-            crate::layout::ChildLayoutOutcome::Skipped => None,
-            crate::layout::ChildLayoutOutcome::Created(child_layout) => Some(child_layout),
-            crate::layout::ChildLayoutOutcome::ReenterCurrent => {
-                self.run(frame, parent, layout_input);
-                None
-            }
+        if let crate::layout::ChildLayoutOutcome::ReenterCurrent =
+            crate::layout::layout_inside_child(run, None, None, cell.box_, self.layout_mode, layout_input, false)
+        {
+            self.run(run, parent, layout_input);
         }
     }
 
@@ -1991,12 +1991,7 @@ impl<'pass> TableFormattingContext<'pass> {
         let result = measurement.run_with_layout_mode(
             cell.box_,
             self.layout_mode,
-            LayoutInput {
-                available_space: inner,
-                containing_block_constraints: ContainingBlockConstraints::default(),
-                content_box_position_in_bfc_root: None,
-                table_grid_min_border_box_block_size: None,
-            },
+            LayoutInput::new(inner, ContainingBlockConstraints::default(), ParticipationInParentFormattingContext::Item),
         );
         measurement
             .root_used()
@@ -2012,7 +2007,7 @@ impl<'pass> TableFormattingContext<'pass> {
         })
     }
 
-    fn compute_table_block_size(&mut self, frame: &mut FcFrame<'pass>, parent: Option<&BlockFormattingContext<'pass>>) {
+    fn compute_table_block_size(&mut self, run: &FormattingContextRun<'pass>, parent: Option<&BlockFormattingContext<'pass>>) {
         // First pass of row block-size calculation:
         for row_index in 0..self.rows.len() {
             if self.rows[row_index].is_collapsed {
@@ -2077,9 +2072,8 @@ impl<'pass> TableFormattingContext<'pass> {
                     used.set_content_block_size(measured.content_block_size);
                     measured_baseline = Some(measured.first_baseline);
                 }
-            } else if let Some(child_layout) = self.layout_inside_cell(frame, parent, cell, inner) {
-                used.set_content_block_size(child_layout.result().automatic_content_block_size);
-                child_layout.finish();
+            } else {
+                self.layout_inside_cell(run, parent, cell, inner, true);
             }
             if self.needs_fixed_mode_row_measurement {
                 let min_size = style.min_height().to_px(participant_block_basis);
@@ -2192,9 +2186,7 @@ impl<'pass> TableFormattingContext<'pass> {
             let inner = used.available_inner_space_or_constraints_from(self.available_space);
             // The first pass only measured this cell in a throwaway state; this is its one and
             // only inside layout in the committing state.
-            if let Some(child_layout) = self.layout_inside_cell(frame, parent, cell, inner) {
-                child_layout.finish();
-            }
+            self.layout_inside_cell(run, parent, cell, inner, false);
             let baseline = self.box_baseline(cell.box_);
             self.cells[cell_index].baseline = baseline;
             if !self.rows[cell.row_index].is_collapsed {
@@ -2435,7 +2427,7 @@ impl<'pass> TableFormattingContext<'pass> {
 
     fn run_caption_layout(
         &mut self,
-        frame: &mut FcFrame<'pass>,
+        run: &FormattingContextRun<'pass>,
         parent: Option<&BlockFormattingContext<'pass>>,
         phase: CaptionPhase,
         available: AvailableSpace,
@@ -2451,7 +2443,7 @@ impl<'pass> TableFormattingContext<'pass> {
             // and are rendered as normal block boxes inside the table wrapper box, as described in https://www.w3.org/TR/CSS22/tables.html#model
             let result = if let Some(parent) = parent {
                 parent.layout_table_caption(
-                    frame,
+                    run,
                     self.table_box,
                     caption,
                     phase,
@@ -2464,7 +2456,7 @@ impl<'pass> TableFormattingContext<'pass> {
                 // formatting-context instance.
                 BlockFormattingContext::new(self.state, self.table_box, self.layout_mode, self.callbacks)
                     .layout_table_caption(
-                        frame,
+                        run,
                         self.table_box,
                         caption,
                         phase,
@@ -2484,9 +2476,10 @@ impl<'pass> TableFormattingContext<'pass> {
         crate::layout::compute_and_store_baselines(self.state, &self.callbacks, node, false);
     }
 
-    fn run(&mut self, frame: &mut FcFrame<'pass>, parent: Option<&BlockFormattingContext<'pass>>, input: LayoutInput) {
+    fn run(&mut self, run: &FormattingContextRun<'pass>, parent: Option<&BlockFormattingContext<'pass>>, input: LayoutInput) {
         self.available_space = input.available_space;
-        self.min_border_box_block_size_from_flex_item = input.table_grid_min_border_box_block_size;
+        self.min_border_box_block_size_from_flex_item = input.sizing.forced_min_border_box_block_size;
+        self.pending_table_offset = input.sizing.table_box_content_offset_in_wrapper.unwrap_or_default();
         self.run_until_inline_size_calculation(input, false);
         if matches!(
             self.available_space.inline_size,
@@ -2504,7 +2497,7 @@ impl<'pass> TableFormattingContext<'pass> {
             inline_size: AvailableSize::definite(table_border_inline.min(max_dimension_value())),
             block_size: self.available_space.block_size,
         };
-        let mut captions = self.run_caption_layout(frame, parent, CaptionPhase::Top, caption_available);
+        let mut captions = self.run_caption_layout(run, parent, CaptionPhase::Top, caption_available);
         // The total inline-axis border spacing is defined for each table:
         // - For tables laid out in separated-borders mode containing at least one column, the inline-axis component of the computed value of the border-spacing property times one plus the number of columns in the table
         // - Otherwise, 0
@@ -2518,12 +2511,12 @@ impl<'pass> TableFormattingContext<'pass> {
         let fixed = self.use_fixed_mode_layout();
         // Distribute the inline size of the table among columns.
         distribute_inline_size(&mut self.columns, assignable, fixed);
-        self.compute_table_block_size(frame, parent);
+        self.compute_table_block_size(run, parent);
         self.distribute_block_size_to_rows();
         self.position_row_boxes();
         self.position_cell_boxes();
         table_used.set_content_block_size(self.table_block_size);
-        captions += self.run_caption_layout(frame, parent, CaptionPhase::Bottom, caption_available);
+        captions += self.run_caption_layout(run, parent, CaptionPhase::Bottom, caption_available);
         // Table captions are positioned between the table margins and its borders (outside the grid box borders) as described in
         // https://www.w3.org/TR/css-tables-3/#bounding-box-assignment
         // A visual representation of this model can be found at https://www.w3.org/TR/css-tables-3/images/table_container.png

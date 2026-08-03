@@ -2197,15 +2197,9 @@ void Document::update_layout(UpdateLayoutReason reason)
         // on, so pending changes that escaped classification are accounted for from here on.
         m_partial_relayout_invalidation.clear_escape(PartialRelayoutEscapeClearReason::FullLayoutPass);
 
-        Layout::NodeWithStyleAndBoxModelMetrics* document_element_layout_node = nullptr;
-        // NB: Called during layout update.
-        if (document_element && document_element->unsafe_layout_node())
-            document_element_layout_node = &as<Layout::NodeWithStyleAndBoxModelMetrics>(*document_element->unsafe_layout_node());
-
         Layout::LayoutRustBridge bridge;
         bridge.run_root_layout(
             *m_layout_root,
-            document_element_layout_node,
             viewport_rect.width(),
             viewport_rect.height(),
             should_collect_devtools_layout_data);

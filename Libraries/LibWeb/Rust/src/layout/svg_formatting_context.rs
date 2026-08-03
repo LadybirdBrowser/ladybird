@@ -517,7 +517,7 @@ impl<'pass> SvgFormattingContext<'pass> {
         result
     }
 
-    fn run(&mut self, frame: &mut FcFrame, input: LayoutInput) {
+    fn run(&mut self, run: &FormattingContextRun, input: LayoutInput) {
         // NOTE: SVG doesn't have a "formatting context" in the spec, but this is the most
         //       obvious way to drive SVG layout in our engine at the moment.
         let kind = self.node_kind(self.box_);
@@ -651,7 +651,7 @@ impl<'pass> SvgFormattingContext<'pass> {
         while !child.is_invalid() {
             let next = self.next_sibling(child);
             if self.state.node_facts(&self.callbacks, child).is_box() {
-                self.layout_svg_element(frame, child, input, svg_transform_for_children);
+                self.layout_svg_element(run, child, input, svg_transform_for_children);
             }
             child = next;
         }
@@ -659,7 +659,7 @@ impl<'pass> SvgFormattingContext<'pass> {
 
     fn layout_svg_element(
         &mut self,
-        frame: &mut FcFrame,
+        run: &FormattingContextRun,
         child: Node,
         input: LayoutInput,
         parent_svg_transform: FfiAffineTransform,
@@ -667,7 +667,7 @@ impl<'pass> SvgFormattingContext<'pass> {
         let kind = self.node_kind(child);
         let facts = self.svg_facts(child);
         if facts.is_fit_to_view_box {
-            self.layout_nested_viewport(frame, child, parent_svg_transform);
+            self.layout_nested_viewport(run, child, parent_svg_transform);
         } else if kind == NodeKind::SVGForeignObjectBox {
             let child_used_pointer = self.create_used_values(child);
             let style = self.style_facts(child);
@@ -710,33 +710,32 @@ impl<'pass> SvgFormattingContext<'pass> {
                     ..Default::default()
                 },
                 content_box_position_in_bfc_root: None,
-                table_grid_min_border_box_block_size: None,
+                sizing: RootSizingDirectives::default(),
+                participation: ParticipationInParentFormattingContext::Item,
             };
-            let child_layout =
-                match crate::layout::layout_inside_child(frame, None, None, child, self.layout_mode, child_input, true) {
-                    crate::layout::ChildLayoutOutcome::Created(child_layout) => child_layout,
-                    crate::layout::ChildLayoutOutcome::Skipped | crate::layout::ChildLayoutOutcome::ReenterCurrent => {
-                        panic!("SVG foreign object did not create an independent formatting context")
-                    }
-                };
+            match crate::layout::layout_inside_child(run, None, None, child, self.layout_mode, child_input, true) {
+                crate::layout::ChildLayoutOutcome::Created(_) => {}
+                crate::layout::ChildLayoutOutcome::Skipped | crate::layout::ChildLayoutOutcome::ReenterCurrent => {
+                    panic!("SVG foreign object did not create an independent formatting context")
+                }
+            };
 
             // Masks and clips may use this offset for objectBoundingBox units.
             self.place_child(child, transformed_rect.x, transformed_rect.y);
             if let Some(mask) = self.first_child_of_kind(child, NodeKind::SVGMaskBox) {
-                self.layout_mask_or_clip(frame, mask);
+                self.layout_mask_or_clip(run, mask);
             }
             if let Some(clip) = self.first_child_of_kind(child, NodeKind::SVGClipBox) {
-                self.layout_mask_or_clip(frame, clip);
+                self.layout_mask_or_clip(run, clip);
             }
-            child_layout.finish();
         } else if kind_is_svg_graphics_box(kind) {
-            self.layout_graphics_element(frame, child, input, parent_svg_transform);
+            self.layout_graphics_element(run, child, input, parent_svg_transform);
         }
     }
 
     fn layout_nested_viewport(
         &mut self,
-        frame: &mut FcFrame,
+        run: &FormattingContextRun,
         viewport: Node,
         parent_svg_transform: FfiAffineTransform,
     ) {
@@ -818,7 +817,7 @@ impl<'pass> SvgFormattingContext<'pass> {
             Some(parent_svg_transform),
         );
         nested_context.run(
-            frame,
+            run,
             LayoutInput {
                 available_space: self.available_space.unwrap(),
                 containing_block_constraints: ContainingBlockConstraints {
@@ -826,7 +825,8 @@ impl<'pass> SvgFormattingContext<'pass> {
                     ..Default::default()
                 },
                 content_box_position_in_bfc_root: None,
-                table_grid_min_border_box_block_size: None,
+                sizing: RootSizingDirectives::default(),
+                participation: ParticipationInParentFormattingContext::Item,
             },
         );
         self.set_svg_viewport_size(
@@ -859,7 +859,7 @@ impl<'pass> SvgFormattingContext<'pass> {
 
     fn layout_graphics_element(
         &mut self,
-        frame: &mut FcFrame,
+        run: &FormattingContextRun,
         graphics_box: Node,
         input: LayoutInput,
         parent_svg_transform: FfiAffineTransform,
@@ -885,31 +885,31 @@ impl<'pass> SvgFormattingContext<'pass> {
             // https://svgwg.org/svg2-draft/struct.html#Groups
             // 5.2. Grouping: the ‘g’ element
             // The ‘g’ element is a container element for grouping together related graphics elements.
-            self.layout_container_element(frame, graphics_box, input, svg_transform);
+            self.layout_container_element(run, graphics_box, input, svg_transform);
         } else if kind == NodeKind::SVGImageBox {
             self.layout_image_element(graphics_box);
         } else {
             // Assume this is a path-like element.
-            self.layout_path_like_element(frame, graphics_box, input);
+            self.layout_path_like_element(run, graphics_box, input);
         }
 
         if let Some(mask) = self.first_child_of_kind(graphics_box, NodeKind::SVGMaskBox) {
-            self.layout_mask_or_clip(frame, mask);
+            self.layout_mask_or_clip(run, mask);
         }
         if let Some(clip) = self.first_child_of_kind(graphics_box, NodeKind::SVGClipBox) {
-            self.layout_mask_or_clip(frame, clip);
+            self.layout_mask_or_clip(run, clip);
         }
         let mut child = self.first_child(graphics_box);
         while !child.is_invalid() {
             let next = self.next_sibling(child);
             if self.node_kind(child) == NodeKind::SVGPatternBox {
-                self.layout_mask_or_clip(frame, child);
+                self.layout_mask_or_clip(run, child);
             }
             child = next;
         }
     }
 
-    fn layout_path_like_element(&mut self, frame: &mut FcFrame, graphics_box: Node, input: LayoutInput) {
+    fn layout_path_like_element(&mut self, run: &FormattingContextRun, graphics_box: Node, input: LayoutInput) {
         let transforms = self
             .computed_transforms(graphics_box)
             .expect("SVG graphics box must have computed transforms");
@@ -939,7 +939,7 @@ impl<'pass> SvgFormattingContext<'pass> {
             while !child.is_invalid() {
                 let next = self.next_sibling(child);
                 if matches!(self.node_kind(child), NodeKind::SVGTextBox | NodeKind::SVGTextPathBox) {
-                    self.layout_graphics_element(frame, child, input, transforms.svg_transform);
+                    self.layout_graphics_element(run, child, input, transforms.svg_transform);
                 }
                 child = next;
             }
@@ -997,7 +997,7 @@ impl<'pass> SvgFormattingContext<'pass> {
         used.has_definite_block_size.set(true);
     }
 
-    fn layout_mask_or_clip(&mut self, frame: &mut FcFrame, resource: Node) {
+    fn layout_mask_or_clip(&mut self, run: &FormattingContextRun, resource: Node) {
         let kind = self.node_kind(resource);
         let facts = self.svg_facts(resource);
         assert!(kind_is_svg_resource_box(kind));
@@ -1075,7 +1075,7 @@ impl<'pass> SvgFormattingContext<'pass> {
             Some(FfiAffineTransform::default()),
         );
         nested_context.run(
-            frame,
+            run,
             LayoutInput {
                 available_space: self.available_space.unwrap(),
                 containing_block_constraints: ContainingBlockConstraints {
@@ -1083,7 +1083,8 @@ impl<'pass> SvgFormattingContext<'pass> {
                     ..Default::default()
                 },
                 content_box_position_in_bfc_root: None,
-                table_grid_min_border_box_block_size: None,
+                sizing: RootSizingDirectives::default(),
+                participation: ParticipationInParentFormattingContext::Item,
             },
         );
 
@@ -1105,7 +1106,7 @@ impl<'pass> SvgFormattingContext<'pass> {
 
     fn layout_container_element(
         &mut self,
-        frame: &mut FcFrame,
+        run: &FormattingContextRun,
         container: Node,
         input: LayoutInput,
         container_svg_transform: FfiAffineTransform,
@@ -1122,7 +1123,7 @@ impl<'pass> SvgFormattingContext<'pass> {
             if self.state.node_facts(&self.callbacks, child).is_box()
                 && !kind_is_svg_resource_box(self.node_kind(child))
             {
-                self.layout_svg_element(frame, child, input, container_svg_transform);
+                self.layout_svg_element(run, child, input, container_svg_transform);
                 let child_used_pointer = self.used_values(child);
                 let child_used = child_used_pointer;
                 let left = child_used.content_offset.get().x;
