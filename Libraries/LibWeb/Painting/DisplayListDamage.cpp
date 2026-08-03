@@ -251,6 +251,12 @@ Optional<Gfx::IntRect> compute_display_list_damage(
             return;
         }
         auto transformed_rect = visual_context_tree.transform_rect_to_viewport(command.header.context_index, command.header.bounding_rect.to_type<float>(), scroll_state);
+        // Eye-plane clamping in the projection can produce coordinates beyond integer range, and converting
+        // such a float to int is undefined.
+        constexpr float damage_coordinate_limit = 16777216.0f;
+        transformed_rect.intersect({ -damage_coordinate_limit, -damage_coordinate_limit, 2 * damage_coordinate_limit, 2 * damage_coordinate_limit });
+        if (transformed_rect.is_empty())
+            return;
         auto command_damage = Gfx::enclosing_int_rect(transformed_rect);
         if (damage_rect.has_value())
             damage_rect->unite(command_damage);
