@@ -587,14 +587,12 @@ GC::Ref<DOMMatrix> DOMMatrix::skew_y_self(double sy)
 // https://drafts.fxtf.org/geometry/#dom-dommatrix-invertself
 GC::Ref<DOMMatrix> DOMMatrix::invert_self()
 {
-    bool is_invertible = m_matrix.is_invertible();
-
     // 1. Invert the current matrix.
-    if (is_invertible)
-        m_matrix = m_matrix.inverse();
-
-    // 2. If the current matrix is not invertible set all attributes to NaN and set is 2D to false.
-    if (!is_invertible) {
+    auto inverse = m_matrix.inverse();
+    if (inverse.has_value()) {
+        m_matrix = inverse.release_value();
+    } else {
+        // 2. If the current matrix is not invertible set all attributes to NaN and set is 2D to false.
         for (u8 i = 0; i < 4; i++) {
             for (u8 j = 0; j < 4; j++)
                 m_matrix[j, i] = NAN;
