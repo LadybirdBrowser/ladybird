@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const source = new Blob(["setTimeout(() => postMessage('delivered'), 300);"], { type: "text/javascript" });
+        (() => {
+            const worker = new Worker(URL.createObjectURL(source));
+            worker.onmessage = event => {
+                println(event.data);
+                done();
+            };
+        })();
+        await internals.gcAsync();
+    });
+</script>

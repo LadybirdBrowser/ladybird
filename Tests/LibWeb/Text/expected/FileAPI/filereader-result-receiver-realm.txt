@@ -1,0 +1,7 @@
+text result value: Ladybird
+text result primitive: true
+ArrayBuffer result is iframe realm: false
+ArrayBuffer result is parent realm: true
+ArrayBuffer result bytes: 240,159,166,172
+ArrayBuffer result identity stable: true
+ArrayBuffer result identity via own getter: true

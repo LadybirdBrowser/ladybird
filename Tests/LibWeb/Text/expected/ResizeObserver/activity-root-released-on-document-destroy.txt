@@ -1,0 +1,2 @@
+root before destroy: true
+root after destroy: false
