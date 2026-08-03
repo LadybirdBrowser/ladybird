@@ -1,0 +1,6 @@
+initial length: 1
+initial [0]: 0
+same wrapper: true
+existing index: NoModificationAllowedError: Cannot modify a read-only list
+new index: NoModificationAllowedError: Cannot modify a read-only list
+wrong type: TypeError: Value must be an SVGNumber

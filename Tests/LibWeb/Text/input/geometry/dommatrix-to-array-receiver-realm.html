@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const iframe = document.createElement("iframe");
+        document.body.append(iframe);
+
+        const other = iframe.contentWindow;
+        const matrix = new DOMMatrix([10, 20, 30, 40, 50, 60]);
+
+        // The operation comes from the iframe prototype, but the receiver is
+        // the parent-realm matrix. Returned typed arrays follow the receiver.
+        const float32Array = other.DOMMatrixReadOnly.prototype.toFloat32Array.call(matrix);
+        println(`Float32Array result is iframe realm: ${float32Array instanceof other.Float32Array}`);
+        println(`Float32Array result is parent realm: ${float32Array instanceof Float32Array}`);
+        println(`Float32Array buffer is iframe realm: ${float32Array.buffer instanceof other.ArrayBuffer}`);
+        println(`Float32Array buffer is parent realm: ${float32Array.buffer instanceof ArrayBuffer}`);
+
+        const float64Array = other.DOMMatrixReadOnly.prototype.toFloat64Array.call(matrix);
+        println(`Float64Array result is iframe realm: ${float64Array instanceof other.Float64Array}`);
+        println(`Float64Array result is parent realm: ${float64Array instanceof Float64Array}`);
+        println(`Float64Array buffer is iframe realm: ${float64Array.buffer instanceof other.ArrayBuffer}`);
+        println(`Float64Array buffer is parent realm: ${float64Array.buffer instanceof ArrayBuffer}`);
+    });
+</script>

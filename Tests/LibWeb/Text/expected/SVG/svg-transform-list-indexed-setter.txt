@@ -1,0 +1,5 @@
+baseVal === animVal: false
+initial length: 0
+transform type: 0
+new index: NoModificationAllowedError: Cannot modify a read-only list
+wrong type: TypeError: Value must be an SVGTransform

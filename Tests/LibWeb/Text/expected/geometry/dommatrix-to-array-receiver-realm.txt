@@ -1,0 +1,8 @@
+Float32Array result is iframe realm: false
+Float32Array result is parent realm: true
+Float32Array buffer is iframe realm: false
+Float32Array buffer is parent realm: true
+Float64Array result is iframe realm: false
+Float64Array result is parent realm: true
+Float64Array buffer is iframe realm: false
+Float64Array buffer is parent realm: true

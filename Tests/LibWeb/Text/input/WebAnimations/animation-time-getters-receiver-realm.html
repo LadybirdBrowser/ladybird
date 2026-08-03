@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const iframe = document.createElement("iframe");
+        document.body.append(iframe);
+        const other = iframe.contentWindow;
+
+        const durationGetter = Object.getOwnPropertyDescriptor(other.AnimationTimeline.prototype, "duration").get;
+        const timelineDuration = durationGetter.call(new ScrollTimeline());
+        println(`timeline duration uses iframe CSSUnitValue: ${timelineDuration instanceof other.CSSUnitValue}`);
+        println(`timeline duration uses top CSSUnitValue: ${timelineDuration instanceof CSSUnitValue}`);
+
+        const target = document.createElement("div");
+        document.body.append(target);
+
+        const animation = target.animate({ opacity: [0, 1] }, { duration: 1000, timeline: new ScrollTimeline() });
+
+        const currentTimeGetter = Object.getOwnPropertyDescriptor(other.Animation.prototype, "currentTime").get;
+        animation.currentTime = CSS.percent(25);
+        const currentTime = currentTimeGetter.call(animation);
+        println(`animation currentTime uses iframe CSSUnitValue: ${currentTime instanceof other.CSSUnitValue}`);
+        println(`animation currentTime uses top CSSUnitValue: ${currentTime instanceof CSSUnitValue}`);
+
+        const startTimeGetter = Object.getOwnPropertyDescriptor(other.Animation.prototype, "startTime").get;
+        animation.startTime = CSS.percent(10);
+        const startTime = startTimeGetter.call(animation);
+        println(`animation startTime uses iframe CSSUnitValue: ${startTime instanceof other.CSSUnitValue}`);
+        println(`animation startTime uses top CSSUnitValue: ${startTime instanceof CSSUnitValue}`);
+    });
+</script>
