@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/HashTable.h>
 #include <AK/Vector.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Promise.h>
@@ -16,6 +17,7 @@
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/HTML/CrossProcessId.h>
 
 namespace Web::HTML {
 
@@ -56,7 +58,7 @@ public:
     void append_sync(GC::Ref<SessionHistoryTraversalSteps> steps, GC::Ptr<LocalNavigable> target_navigable);
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#sync-navigations-jump-queue
-    GC::Ptr<SessionHistoryTraversalQueueEntry> first_synchronous_navigation_steps_with_target_navigable_not_contained_in(HashTable<GC::Ref<LocalNavigable>> const&);
+    GC::Ptr<SessionHistoryTraversalQueueEntry> first_synchronous_navigation_steps_with_target_navigable_not_contained_in(HashTable<CrossProcessId> const&);
 
 private:
     virtual void visit_edges(Cell::Visitor&) override;

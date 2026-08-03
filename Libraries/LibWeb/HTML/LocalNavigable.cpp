@@ -625,6 +625,15 @@ HashTable<GC::RawRef<LocalNavigable>>& all_local_navigables()
     return *set;
 }
 
+GC::Ptr<LocalNavigable> local_navigable_with_id(CrossProcessId id)
+{
+    for (auto& navigable : all_local_navigables()) {
+        if (navigable->id() == id)
+            return navigable;
+    }
+    return nullptr;
+}
+
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-session-history-entries
 static Vector<NonnullRefPtr<SessionHistoryEntry>>* get_session_history_entries_if_present(LocalTraversableNavigable& traversable, LocalNavigable const& navigable)
 {

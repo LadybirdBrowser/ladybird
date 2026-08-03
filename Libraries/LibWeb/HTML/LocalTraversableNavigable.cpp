@@ -874,11 +874,7 @@ private:
         visitor.visit(m_expected_ongoing_navigation_navigable);
         visitor.visit(m_on_complete);
         visitor.visit(m_timeout);
-        visitor.visit(m_changing_navigables);
-        visitor.visit(m_non_changing_navigables);
         visitor.visit(m_continuations);
-        for (auto& navigable : m_navigables_that_must_wait_before_handling_sync_navigation)
-            visitor.visit(navigable);
     }
 
     void try_advance()
@@ -930,15 +926,15 @@ private:
     GC::Ptr<OnApplyHistoryStepComplete> m_on_complete;
     GC::Ref<Platform::Timer> m_timeout;
 
-    Vector<GC::Ref<LocalNavigable>> m_changing_navigables;
-    Vector<GC::Ref<LocalNavigable>> m_non_changing_navigables;
+    Vector<CrossProcessId> m_changing_navigables;
+    Vector<CrossProcessId> m_non_changing_navigables;
 
     size_t m_completed_change_jobs { 0 };
     Vector<GC::Ref<ChangingNavigableContinuationState>> m_continuations;
     size_t m_continuation_index { 0 };
 
     RefPtr<Core::Promise<Empty>> m_pending_sync_nav_promise;
-    HashTable<GC::Ref<LocalNavigable>> m_navigables_that_must_wait_before_handling_sync_navigation;
+    HashTable<CrossProcessId> m_navigables_that_must_wait_before_handling_sync_navigation;
 
     size_t m_completed_non_changing_jobs { 0 };
 };
@@ -958,8 +954,8 @@ void ApplyHistoryStepState::start()
 
     // 7. Let nonchangingNavigablesThatStillNeedUpdates be the result of getting all navigables that only need history object length/index update given traversable and targetStep.
     auto non_changing_navigables = m_traversable->get_all_local_navigables_that_only_need_history_object_length_index_update(m_target_step);
-    for (auto& nav : non_changing_navigables)
-        m_non_changing_navigables.append(*nav);
+    for (auto& navigable : non_changing_navigables)
+        m_non_changing_navigables.append(navigable->id());
 
     // 8. For each navigable of changingNavigables:
     auto changing_navigables = m_traversable->get_all_local_navigables_whose_current_session_history_entry_will_change_or_reload(m_target_step);
@@ -1013,16 +1009,18 @@ void ApplyHistoryStepState::start()
         // 3. Set navigable's ongoing navigation to "traversal".
         navigable->set_ongoing_navigation(HTML::LocalNavigable::Traversal::Tag, m_navigation_api_abort_behavior);
 
-        m_changing_navigables.append(*navigable);
+        m_changing_navigables.append(navigable->id());
     }
 
     // 12. For each navigable of changingNavigables, queue a global task on the navigation and traversal task source.
-    for (auto& navigable : m_changing_navigables) {
+    for (auto navigable_id : m_changing_navigables) {
+        auto navigable = local_navigable_with_id(navigable_id);
+        VERIFY(navigable);
         auto target_entry = navigable->current_session_history_entry();
         VERIFY(target_entry);
         m_traversable->run_changing_navigable_history_step_job(
             {
-                .navigable = navigable,
+                .navigable = *navigable,
                 .target_entry = target_entry.release_nonnull(),
                 .source_snapshot_params = m_source_snapshot_params,
                 .user_involvement = m_user_involvement,
@@ -1350,7 +1348,7 @@ void ApplyHistoryStepState::process_continuations()
         auto history_object_length_and_index = m_traversable->get_the_history_object_length_and_index(m_target_step);
 
         // 8. Append navigable to navigablesThatMustWaitBeforeHandlingSyncNavigation.
-        m_navigables_that_must_wait_before_handling_sync_navigation.set(*continuation->navigable);
+        m_navigables_that_must_wait_before_handling_sync_navigation.set(continuation->navigable->id());
 
         // 9. Let entriesForNavigationAPI be the result of getting session history entries for the navigation API given navigable and targetStep.
         auto entries_for_navigation_api = m_traversable->get_session_history_entries_for_the_navigation_api(*continuation->navigable, m_target_step);
@@ -1552,9 +1550,14 @@ void ApplyHistoryStepState::enter_waiting_for_non_changing_jobs()
     auto script_history_index = length_and_index.script_history_index;
 
     // 18. For each navigable of nonchangingNavigablesThatStillNeedUpdates, queue a global task on the navigation and traversal task source given navigable's active window to run the steps:
-    for (auto& navigable : m_non_changing_navigables) {
+    for (auto navigable_id : m_non_changing_navigables) {
+        auto navigable = local_navigable_with_id(navigable_id);
+        if (!navigable) {
+            signal_progress();
+            continue;
+        }
         m_traversable->update_nonchanging_navigable_history_step_state(
-            navigable,
+            *navigable,
             {
                 .script_history_length = script_history_length,
                 .script_history_index = script_history_index,
@@ -1730,8 +1733,8 @@ void ApplyHistoryStepState::clear_ongoing_traversal_for_changing_navigable(GC::P
 
 void ApplyHistoryStepState::clear_ongoing_traversals_for_changing_navigables()
 {
-    for (auto& navigable : m_changing_navigables)
-        clear_ongoing_traversal_for_changing_navigable(navigable);
+    for (auto navigable_id : m_changing_navigables)
+        clear_ongoing_traversal_for_changing_navigable(local_navigable_with_id(navigable_id));
 }
 
 int LocalTraversableNavigable::claim_next_session_history_step()
