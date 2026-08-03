@@ -1156,7 +1156,10 @@ PageClient::NewWebViewResult PageClient::page_did_request_new_web_view(Web::HTML
         Core::Process::terminate_immediately(0);
     }
 
-    auto& new_client = m_owner.create_page(response->new_page_id());
+    if (!response->new_page_id().has_value())
+        return {};
+
+    auto& new_client = m_owner.create_page(*response->new_page_id());
     return { &new_client.page(), response->take_handle() };
 }
 
