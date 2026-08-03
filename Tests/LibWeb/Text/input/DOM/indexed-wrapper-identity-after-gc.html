@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="host"><span></span></div>
+<script>
+    test(() => {
+        let first = host.children[0];
+        first.wrapper_gc_probe = 23;
+        first = null;
+        internals.gc();
+
+        const fromItem = host.children.item(0);
+        const fromIndex = host.children[0];
+        println(fromItem.wrapper_gc_probe);
+        println(fromItem === fromIndex);
+    });
+</script>

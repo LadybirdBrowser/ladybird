@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="owner"></div><span id="target"></span>
+<script>
+    asyncTest(done => {
+        const frame = document.createElement("iframe");
+        frame.onload = () => {
+            owner.setAttribute("aria-labelledby", "target");
+            println(`before=${owner.ariaLabelledByElements.length}`);
+
+            // Invoke the setter from another same-origin realm on the same
+            // receiver. The cache must be invalidated in the receiver world.
+            frame.contentWindow.Function("element", "element.ariaLabelledByElements = [];")(owner);
+            println(`after=${owner.ariaLabelledByElements.length}`);
+            done();
+        };
+        document.body.append(frame);
+    });
+</script>

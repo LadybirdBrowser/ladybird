@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        class TestRange extends Range {
+            #marker = "range-private";
+            marker() { return this.#marker; }
+        }
+
+        getSelection().removeAllRanges();
+        document.body.appendChild(document.createTextNode("range anchor"));
+
+        (() => {
+            const range = new TestRange();
+            range.selectNodeContents(document.body);
+            getSelection().addRange(range);
+        })();
+
+        internals.gc();
+
+        const reacquired = getSelection().getRangeAt(0);
+        println(`instanceof=${reacquired instanceof TestRange}`);
+        println(`prototype=${Object.getPrototypeOf(reacquired) === TestRange.prototype}`);
+        println(`private=${reacquired.marker()}`);
+    });
+</script>

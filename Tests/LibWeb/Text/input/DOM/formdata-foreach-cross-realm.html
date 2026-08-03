@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const formData = new FormData();
+        const file = new File(["payload"], "payload.txt");
+        formData.append("file", file);
+
+        const frame = document.createElement("iframe");
+        frame.onload = () => {
+            frame.contentWindow.FormData.prototype.forEach.call(formData, value => {
+                println(`same=${value === file}`);
+                println(`parent-prototype=${Object.getPrototypeOf(value) === File.prototype}`);
+            });
+            done();
+        };
+        document.body.append(frame);
+    });
+</script>

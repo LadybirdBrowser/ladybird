@@ -1,0 +1,6 @@
+operation TypeError is parent realm: true
+operation TypeError is iframe realm: false
+setter TypeError is parent realm: true
+setter TypeError is iframe realm: false
+nested script TypeError is parent realm: true
+nested script TypeError is iframe realm: false

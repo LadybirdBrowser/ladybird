@@ -1,0 +1,3 @@
+instanceof=true
+prototype=true
+private=range-private
