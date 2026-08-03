@@ -501,6 +501,7 @@ private:
 };
 
 WEB_API HashTable<GC::RawRef<LocalNavigable>>& all_local_navigables();
+WEB_API GC::Ptr<LocalNavigable> local_navigable_with_id(CrossProcessId);
 
 Vector<NonnullRefPtr<SessionHistoryEntry>>* append_nested_history_for_child_navigable(
     LocalNavigable& parent_navigable, LocalNavigable& child_navigable, SessionHistoryEntry& history_entry);

@@ -72,14 +72,14 @@ void SessionHistoryTraversalQueue::schedule_processing()
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#sync-navigations-jump-queue
-GC::Ptr<SessionHistoryTraversalQueueEntry> SessionHistoryTraversalQueue::first_synchronous_navigation_steps_with_target_navigable_not_contained_in(HashTable<GC::Ref<LocalNavigable>> const& set)
+GC::Ptr<SessionHistoryTraversalQueueEntry> SessionHistoryTraversalQueue::first_synchronous_navigation_steps_with_target_navigable_not_contained_in(HashTable<CrossProcessId> const& set)
 {
     auto index = m_queue.find_first_index_if([&set](auto const& entry) -> bool {
         auto target_navigable = entry->target_navigable();
         if (target_navigable == nullptr)
             return false;
 
-        if (set.contains(*target_navigable))
+        if (set.contains(target_navigable->id()))
             return false;
 
         // A newly created child navigable is not yet discoverable through get_session_history_entries()
