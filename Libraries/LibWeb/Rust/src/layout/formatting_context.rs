@@ -1238,10 +1238,11 @@ pub(crate) fn independent_root_automatic_block_size(
     node: Node,
     available_inner_space: AvailableSpace,
     constraints: ContainingBlockConstraints,
+    automatic_content_block_size_of_completed_run: Option<CssPixels>,
 ) -> CssPixels {
     let facts = state.node_facts(callbacks, node);
     if facts.creates_block_formatting_context() {
-        return automatic_block_size_for_bfc_root(state, *callbacks, node);
+        return automatic_content_block_size_of_completed_run.unwrap_or_default();
     }
     let style = state.style_facts(callbacks, node);
     if style.display().is_flex_inside() || style.display().is_grid_inside() || style.display().is_table_inside() {
@@ -1396,7 +1397,7 @@ fn size_skipped_independent_root(
         ParticipationInParentFormattingContext::AbsolutelyPositioned(abspos_inputs) => {
             let engine = AbsposEngine::new(run.state, run.callbacks);
             engine.dimension_out_of_flow_root(child, abspos_inputs);
-            engine.finalize_out_of_flow_root_after_inside_layout(child, abspos_inputs);
+            engine.finalize_out_of_flow_root_after_inside_layout(child, abspos_inputs, None);
         }
         ParticipationInParentFormattingContext::AtomicInline | ParticipationInParentFormattingContext::Item | ParticipationInParentFormattingContext::Root => {}
     }
@@ -1509,11 +1510,23 @@ fn run_formatting_context<'pass>(
             );
         }
         ParticipationInParentFormattingContext::AtomicInline => {
-            finalize_atomic_root_block_size(run, &input, cached_atomic_block_size, parent_block);
+            let automatic_content_block_size_of_completed_body_run = cached_atomic_block_size
+                .is_none()
+                .then_some(result.automatic_content_block_size);
+            finalize_atomic_root_block_size(
+                run,
+                &input,
+                cached_atomic_block_size,
+                automatic_content_block_size_of_completed_body_run,
+                parent_block,
+            );
         }
         ParticipationInParentFormattingContext::AbsolutelyPositioned(abspos_inputs) => {
-            AbsposEngine::new(run.state, run.callbacks)
-                .finalize_out_of_flow_root_after_inside_layout(run.box_, abspos_inputs);
+            AbsposEngine::new(run.state, run.callbacks).finalize_out_of_flow_root_after_inside_layout(
+                run.box_,
+                abspos_inputs,
+                Some(result.automatic_content_block_size),
+            );
         }
         ParticipationInParentFormattingContext::Item => {
             if input.sizing.adopt_automatic_content_block_size {
@@ -1557,7 +1570,8 @@ fn run_formatting_context<'pass>(
 fn finalize_atomic_root_block_size(
     run: &FormattingContextRun,
     input: &LayoutInput,
-    cached_block_size: Option<CssPixels>,
+    cached_intrinsic_measurement_block_size: Option<CssPixels>,
+    automatic_content_block_size_of_completed_body_run: Option<CssPixels>,
     parent_block: Option<&BlockFormattingContext>,
 ) {
     let node = run.box_;
@@ -1568,24 +1582,34 @@ fn finalize_atomic_root_block_size(
         return;
     }
     if sizing.should_treat_block_size_as_auto(node, available_space, constraints) {
-        sizing.resolve_used_block_size_if_treated_as_auto(node, available_space, constraints, cached_block_size, || {
-            let available_inner_space = run
-                .state
-                .used_values(&run.callbacks, node)
-                .available_inner_space_or_constraints_from(available_space);
-            match parent_block {
-                Some(parent) => {
-                    parent.compute_automatic_block_size_for_block_level_element(node, available_inner_space, constraints)
+        sizing.resolve_used_block_size_if_treated_as_auto(
+            node,
+            available_space,
+            constraints,
+            cached_intrinsic_measurement_block_size,
+            || {
+                let available_inner_space = run
+                    .state
+                    .used_values(&run.callbacks, node)
+                    .available_inner_space_or_constraints_from(available_space);
+                match parent_block {
+                    Some(parent) => parent.compute_automatic_block_size_for_block_level_element(
+                        node,
+                        available_inner_space,
+                        constraints,
+                        automatic_content_block_size_of_completed_body_run,
+                    ),
+                    None => independent_root_automatic_block_size(
+                        run.state,
+                        &run.callbacks,
+                        node,
+                        available_inner_space,
+                        constraints,
+                        automatic_content_block_size_of_completed_body_run,
+                    ),
                 }
-                None => independent_root_automatic_block_size(
-                    run.state,
-                    &run.callbacks,
-                    node,
-                    available_inner_space,
-                    constraints,
-                ),
-            }
-        });
+            },
+        );
     } else {
         sizing.resolve_used_block_size_if_not_treated_as_auto(node, available_space, constraints);
     }

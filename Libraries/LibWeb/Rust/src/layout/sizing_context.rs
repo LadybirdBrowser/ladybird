@@ -1148,6 +1148,7 @@ impl<'pass> SizingContext<'pass> {
                     self.used(node)
                         .available_inner_space_or_constraints_from(inline_definite_space),
                     constraints,
+                    None,
                 )
             });
         }
