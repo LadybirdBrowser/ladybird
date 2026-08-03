@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Test (Transforms): Two rotatex(), No Preserve-3D</title>
+    <link rel="author" title="Aryeh Gregor" href="mailto:ayg@aryeh.name">
+    <link rel="help" href="http://www.w3.org/TR/css-transforms-2/#transform-style-property">
+    <meta name="assert" content="rotatex(45deg) or rotatex(-45deg), by itself,
+    should both just scale down the element by a factor of sqrt(2) (and perhaps
+    shift it, depending on 'transform-origin').  Without 'transform-style:
+    preserve-3d', the rotations on parent and child shouldn't cancel, so its
+    height should be halved with no other effect.">
+    <meta name="fuzzy" content="maxDifference=0-55;totalPixels=0-299">
+    <link rel="match" href="../../../../expected/wpt-import/css/css-transforms/transform-lime-square-ref.html">
+  </head>
+  <body>
+    <div style="transform: rotatex(45deg); transform-origin: top">
+      <div style="transform: rotatex(-45deg); transform-origin: top;
+        height: 200px; width: 100px; background: lime">
+    </div></div>
+  </body>
+</html>

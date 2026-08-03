@@ -123,15 +123,18 @@ static bool visual_context_data_is_equal(VisualContextIndex a_index, VisualConte
         },
         [&](TransformData const& data) {
             auto const* other = b.get_pointer<TransformData>();
-            return other && matrices_are_equal(data.matrix, other->matrix) && data.origin == other->origin;
+            return other && matrices_are_equal(data.matrix, other->matrix) && data.origin == other->origin
+                && data.flattens_inherited_transform == other->flattens_inherited_transform;
         },
         [&](PerspectiveData const& data) {
             auto const* other = b.get_pointer<PerspectiveData>();
-            return other && matrices_are_equal(data.matrix, other->matrix);
+            return other && matrices_are_equal(data.matrix, other->matrix)
+                && data.flattens_inherited_transform == other->flattens_inherited_transform;
         },
         [&](BackfaceVisibilityData const& data) {
             auto const* other = b.get_pointer<BackfaceVisibilityData>();
-            return other && data.plane_root_index == other->plane_root_index;
+            return other && data.plane_root_index == other->plane_root_index
+                && data.flattens_inherited_transform == other->flattens_inherited_transform;
         },
         [&](ClipPathData const& data) {
             auto const* other = b.get_pointer<ClipPathData>();

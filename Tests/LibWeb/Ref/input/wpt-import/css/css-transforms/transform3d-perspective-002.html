@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Test (Transforms): Inherited Perspective</title>
+    <link rel="author" title="Aryeh Gregor" href="mailto:ayg@aryeh.name">
+    <link rel="help" href="http://www.w3.org/TR/css-transforms-2/#perspective-property">
+    <meta name="assert" content="This tests that 'perspective: inherit' works
+    the same as specifying that perspective to start with.">
+    <meta name="fuzzy" content="maxDifference=0-2;totalPixels=0-215">
+    <link rel="match" href="../../../../expected/wpt-import/css/css-transforms/transform3d-perspective-001-ref.html">
+    <link rel="mismatch" href="../../../../expected/wpt-import/css/css-transforms/transform-lime-square-ref.html">
+  </head>
+  <body>
+    <div style="perspective: 1000px">
+      <div style="perspective: inherit; perspective-origin: 50px 50px">
+        <div style="height: 100px; width: 100px; background: lime;
+          transform: rotatex(45deg) scaley(1.41421356); transform-origin: top">
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

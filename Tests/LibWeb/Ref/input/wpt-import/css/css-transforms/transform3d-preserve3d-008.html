@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Test (Transforms): Preserve-3D with 'overflow: hidden'</title>
+    <link rel="author" title="Aryeh Gregor" href="mailto:ayg@aryeh.name">
+    <link rel="help" href="http://www.w3.org/TR/css-transforms-2/#transform-style-property">
+    <meta name="assert" content="This is identical to
+    transform3d-preserve3d-006.html, except that it has 'transform-style:
+    preserve-3d; overflow: hidden' specified on the parent element.
+    'transform-style: preserve-3d' would normally make the result different,
+    but 'overflow: hidden' overrides its effect and causes it to work the same
+    as 'transform-style: flat'.">
+    <meta name="fuzzy" content="maxDifference=0-55;totalPixels=0-299">
+    <link rel="match" href="../../../../expected/wpt-import/css/css-transforms/transform-lime-square-ref.html">
+  </head>
+  <body>
+    <div style="transform: rotatex(45deg); transform-origin: top;
+      transform-style: preserve-3d; overflow: hidden">
+      <div style="transform: rotatex(-45deg); transform-origin: top;
+        height: 200px; width: 100px; background: lime">
+    </div></div>
+  </body>
+</html>

@@ -1,0 +1,39 @@
+<!DOCTYPE HTML>
+<title>CSS Test (Transforms): 3D Rendering Context following DOM Tree (inlines)</title>
+<link rel="author" title="L. David Baron" href="https://dbaron.org/">
+<link rel="author" title="Google" href="http://www.google.com/">
+<link rel="help" href="https://drafts.csswg.org/css-transforms-2/#3d-rendering-contexts">
+<meta name="assert" content="Blocks inside of inlines participate in 3D Rendering Contexts based on their parent, not their containing block.">
+<link rel="match" href="../../../../expected/wpt-import/css/css-transforms/transform-blank-ref.html">
+
+<style>
+
+.outer {
+  display: block;
+  width: 100px;
+  height: 100px;
+  transform-style: preserve-3d;
+  transform: rotateX(90deg);
+}
+
+.middle {
+  display: inline;
+}
+
+.inner {
+  display: block;
+  width: 100px;
+  height: 100px;
+  transform: rotateX(-90deg);
+  background: red;
+}
+
+</style>
+
+<p>Nothing should appear except this sentence.</p>
+
+<div class="outer">
+  <div class="middle">
+    <div class="inner"></div>
+  </div>
+</div>

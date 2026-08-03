@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Test (Transforms): 90-Degree Rotations Without Preserve-3D</title>
+    <link rel="author" title="Matt Woodrow" href="mailto:mwoodrow@mozilla.com">
+    <link rel="author" title="Aryeh Gregor" href="mailto:ayg@aryeh.name">
+    <link rel="help" href="http://www.w3.org/TR/css-transforms-2/#transform-style-property">
+    <meta name="assert" content="This tests that two 90-degree rotations with
+    the default 'transform-style: flat' do not add together to form a
+    180-degree rotation.  Instead, the first causes the contents to vanish and
+    the second does not restore them.">
+    <link rel="match" href="../../../../expected/wpt-import/css/css-transforms/transform-blank-ref.html">
+  </head>
+  <body>
+    <p>Nothing should appear except this sentence.</p>
+    <div style="transform: rotatex(90deg);">
+      <div style="transform: rotatex(90deg); width: 100px; height: 100px;">
+        Test Text
+      </div>
+    </div>
+  </body>
+</html>

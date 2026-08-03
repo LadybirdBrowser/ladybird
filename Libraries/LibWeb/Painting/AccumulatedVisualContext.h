@@ -59,16 +59,19 @@ struct ClipData {
 struct TransformData {
     Gfx::FloatMatrix4x4 matrix;
     Gfx::FloatPoint origin;
+    bool flattens_inherited_transform { false };
 
     Gfx::FloatMatrix4x4 matrix_including_origin() const;
 };
 
 struct PerspectiveData {
     Gfx::FloatMatrix4x4 matrix;
+    bool flattens_inherited_transform { false };
 };
 
 struct BackfaceVisibilityData {
     VisualContextIndex plane_root_index;
+    bool flattens_inherited_transform { false };
 };
 
 bool should_cull_back_face(Gfx::FloatMatrix4x4 const& accumulated_matrix, Gfx::FloatMatrix4x4 const& plane_root_matrix);

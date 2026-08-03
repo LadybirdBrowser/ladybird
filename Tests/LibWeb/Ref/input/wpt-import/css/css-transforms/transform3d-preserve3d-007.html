@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Test (Transforms): Two rotatey(), No Preserve-3D</title>
+    <link rel="author" title="Aryeh Gregor" href="mailto:ayg@aryeh.name">
+    <link rel="help" href="http://www.w3.org/TR/css-transforms-2/#transform-style-property">
+    <meta name="assert" content="This is identical to
+    transform3d-preserve3d-006.html, except with rotatey() instead of
+    rotatex().">
+    <meta name="fuzzy" content="maxDifference=0-55; totalPixels=0-200">
+    <link rel="match" href="../../../../expected/wpt-import/css/css-transforms/transform-lime-square-ref.html">
+  </head>
+  <body>
+    <div style="transform: rotatey(45deg); transform-origin: left">
+      <div style="transform: rotatey(-45deg); transform-origin: left;
+        height: 100px; width: 200px; background: lime">
+    </div></div>
+  </body>
+</html>

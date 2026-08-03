@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Reftest Reference</title>
+    <link rel="author" title="Aryeh Gregor" href="mailto:ayg@aryeh.name">
+    <!-- sqrt(2) == 0.70710678; 200/sqrt(2) == 141.421356.
+    'transform' is needed on the outer div so the scrollbars are shrunk
+    appropriately. -->
+  </head>
+  <body>
+    <div style="overflow: scroll; transform: scaley(0.70710678);
+      transform-origin: top">
+      <div style="height: 200px">
+        <div style="height: 141.421356px; width: 100px; background: lime">
+        </div>
+    </div></div>
+  </body>
+</html>
