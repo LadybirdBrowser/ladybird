@@ -431,6 +431,7 @@
     ]
   },
   "backdrop-filter": {
+    "affects-accumulated-visual-contexts": true,
     "affects-layout": false,
     "affects-stacking-context": true,
     "animation-type": "custom",

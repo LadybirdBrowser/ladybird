@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AnyOf.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/GridTrackPlacement.h>
@@ -878,6 +879,57 @@ bool ComputedValues::adopt_identical_group_payloads(ComputedValues const& previo
     LIBWEB_ADOPT_STYLE_GROUP(m_noninherited.svg_reset)
 #undef LIBWEB_ADOPT_STYLE_GROUP
     return all_shared;
+}
+
+// https://drafts.csswg.org/css-transforms-2/#grouping-property-values
+bool ComputedValues::has_transform_style_grouping_property() const
+{
+    // The following CSS property values require the user agent to create a flattened representation of the
+    // descendant elements before they can be applied, and therefore force the element to have a used style of
+    // flat for preserve-3d.
+    // NB: The contain bullet requires layout context and is checked by NodeWithStyle::used_transform_style().
+
+    // overflow: any value other than visible or clip.
+    if (!first_is_one_of(overflow_x(), Overflow::Visible, Overflow::Clip)
+        || !first_is_one_of(overflow_y(), Overflow::Visible, Overflow::Clip))
+        return true;
+
+    // opacity: any value less than 1.
+    if (opacity() < 1)
+        return true;
+
+    // filter: any value other than none.
+    if (filter().has_filters())
+        return true;
+
+    // clip: any value other than auto.
+    if (!clip().is_auto())
+        return true;
+
+    // clip-path: any value other than none.
+    if (clip_path().has_value())
+        return true;
+
+    // isolation: used value of isolate.
+    if (isolation() == Isolation::Isolate)
+        return true;
+
+    // mask-image: any value other than none.
+    if (mask().has_value() || any_of(mask_layers(), [](auto const& layer) { return layer.background_image != nullptr; }))
+        return true;
+
+    // FIXME: mask-border-source: any value other than none.
+
+    // mix-blend-mode: any value other than normal.
+    if (mix_blend_mode() != MixBlendMode::Normal)
+        return true;
+
+    // AD-HOC: backdrop-filter is missing from the specification's list, but it buffers descendants the same way
+    //         filter does, and other engines treat it as a grouping property.
+    if (backdrop_filter().has_filters())
+        return true;
+
+    return false;
 }
 
 void const* ComputedValues::style_group_payload(StyleGroupIndex group) const
