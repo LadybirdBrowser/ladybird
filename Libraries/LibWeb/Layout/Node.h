@@ -373,6 +373,7 @@ public:
     bool is_inline_table() const;
     bool has_replaced_element_table_display_adjustment() const;
     bool is_transformable() const;
+    CSS::TransformStyle used_transform_style() const;
     bool establishes_or_extends_a_3d_rendering_context() const;
     bool participates_in_a_3d_rendering_context() const;
 

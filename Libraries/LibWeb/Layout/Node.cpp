@@ -954,10 +954,27 @@ bool NodeWithStyle::is_transformable() const
     return false;
 }
 
+// https://drafts.csswg.org/css-transforms-2/#grouping-property-values
+CSS::TransformStyle NodeWithStyle::used_transform_style() const
+{
+    auto const& computed_values = this->computed_values();
+    if (computed_values.transform_style() == CSS::TransformStyle::Flat)
+        return CSS::TransformStyle::Flat;
+
+    if (computed_values.has_transform_style_grouping_property())
+        return CSS::TransformStyle::Flat;
+
+    // contain: paint and any other property/value combination that causes paint containment.
+    // FIXME: has_paint_containment() does not cover content-visibility: hidden, which also causes paint containment.
+    if (has_paint_containment())
+        return CSS::TransformStyle::Flat;
+
+    return CSS::TransformStyle::Preserve3d;
+}
+
 bool NodeWithStyle::establishes_or_extends_a_3d_rendering_context() const
 {
-    // FIXME: Use the used value of 'transform-style', which is 'flat' when grouping property values apply.
-    return is_transformable() && computed_values().transform_style() == CSS::TransformStyle::Preserve3d;
+    return is_transformable() && used_transform_style() == CSS::TransformStyle::Preserve3d;
 }
 
 // https://drafts.csswg.org/css-transforms-2/#3d-rendering-contexts

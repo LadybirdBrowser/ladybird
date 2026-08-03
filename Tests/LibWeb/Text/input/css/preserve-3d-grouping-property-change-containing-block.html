@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div style="position: relative; margin-left: 50px; height: 60px">
+    <div id="dynamicGrouper" style="transform-style: preserve-3d">
+        <div style="backface-visibility: hidden; margin-left: 20px; width: 100px; height: 50px">
+            <div id="dynamicAbs" style="position: absolute; left: 0; top: 0; width: 10px; height: 10px"></div>
+        </div>
+    </div>
+</div>
+<div style="position: relative; margin-left: 50px; height: 60px">
+    <div style="transform-style: preserve-3d; opacity: 0.5">
+        <div style="backface-visibility: hidden; margin-left: 20px; width: 100px; height: 50px">
+            <div id="staticAbs" style="position: absolute; left: 0; top: 0; width: 10px; height: 10px"></div>
+        </div>
+    </div>
+</div>
+<script>
+test(() => {
+    const initialX = dynamicAbs.getBoundingClientRect().x;
+    dynamicGrouper.style.opacity = "0.5";
+    const dynamicX = dynamicAbs.getBoundingClientRect().x;
+    const staticX = staticAbs.getBoundingClientRect().x;
+    println(initialX !== dynamicX ? "PASS" : "FAIL");
+    println(dynamicX === staticX ? "PASS" : "FAIL");
+});
+</script>

@@ -273,6 +273,7 @@ static bool accumulated_visual_context_change_requires_repaint(CSS::PropertyID p
         return true;
 
     switch (property_id) {
+    case CSS::PropertyID::BackdropFilter:
     case CSS::PropertyID::BackgroundAttachment:
     case CSS::PropertyID::Clip:
     case CSS::PropertyID::ClipPath:
@@ -398,6 +399,16 @@ RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::Property
 
     if (is_containing_block_establishing_value(property_id, old_value) != is_containing_block_establishing_value(property_id, new_value))
         invalidation.changes_containing_block_establishment = true;
+
+    // A grouping property value forces a used transform-style of flat, which changes whether descendants with
+    // backface-visibility: hidden participate in a 3D rendering context and establish containing blocks.
+    // Containing block pointers are only recomputed by a layout pass.
+    if (old_computed_values && new_computed_values
+        && new_computed_values->transform_style() == CSS::TransformStyle::Preserve3d
+        && old_computed_values->has_transform_style_grouping_property() != new_computed_values->has_transform_style_grouping_property()) {
+        invalidation.changes_containing_block_establishment = true;
+        invalidation.ensure_at_least(InvalidationLevel::Relayout);
+    }
 
     bool needs_repaint = true;
     if (CSS::property_affects_accumulated_visual_contexts(property_id)) {
