@@ -9,6 +9,7 @@
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/HTML/DocumentState.h>
+#include <LibWeb/HTML/SameDocumentNavigationEntry.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 
@@ -90,6 +91,22 @@ SessionHistoryEntryDescriptor create_session_history_entry_descriptor(SessionHis
         .step = static_cast<i32>(*entry_step),
         .url = entry.url(),
         .document_state = move(document_state_descriptor),
+        .classic_history_api_state = entry.classic_history_api_state(),
+        .navigation_api_state = entry.navigation_api_state(),
+        .navigation_api_key = entry.navigation_api_key(),
+        .navigation_api_id = entry.navigation_api_id(),
+        .scroll_restoration_mode = entry.scroll_restoration_mode(),
+        .scroll_position_data = entry.scroll_position_data(),
+    };
+}
+
+SameDocumentNavigationEntry create_same_document_navigation_entry(SessionHistoryEntry const& entry)
+{
+    auto document_state = entry.document_state();
+    VERIFY(document_state);
+    return {
+        .url = entry.url(),
+        .document_state_id = document_state->cross_process_id(),
         .classic_history_api_state = entry.classic_history_api_state(),
         .navigation_api_state = entry.navigation_api_state(),
         .navigation_api_key = entry.navigation_api_key(),
@@ -310,6 +327,35 @@ ErrorOr<Web::HTML::SessionHistoryEntryDescriptor> IPC::decode(Decoder& decoder)
         .navigation_api_id = move(navigation_api_id),
         .scroll_restoration_mode = scroll_restoration_mode,
         .scroll_position_data = move(scroll_position_data),
+    };
+}
+
+template<>
+ErrorOr<void> IPC::encode(Encoder& encoder, Web::HTML::SameDocumentNavigationEntry const& entry)
+{
+    TRY(encoder.encode(entry.url));
+    TRY(encoder.encode(entry.document_state_id));
+    TRY(encoder.encode(entry.classic_history_api_state));
+    TRY(encoder.encode(entry.navigation_api_state));
+    TRY(encoder.encode(entry.navigation_api_key));
+    TRY(encoder.encode(entry.navigation_api_id));
+    TRY(encoder.encode(entry.scroll_restoration_mode));
+    TRY(encoder.encode(entry.scroll_position_data));
+    return {};
+}
+
+template<>
+ErrorOr<Web::HTML::SameDocumentNavigationEntry> IPC::decode(Decoder& decoder)
+{
+    return Web::HTML::SameDocumentNavigationEntry {
+        .url = TRY(decoder.decode<URL::URL>()),
+        .document_state_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
+        .classic_history_api_state = TRY(decoder.decode<Web::HTML::StorageSerializationRecord>()),
+        .navigation_api_state = TRY(decoder.decode<Web::HTML::StorageSerializationRecord>()),
+        .navigation_api_key = TRY(decoder.decode<Utf16String>()),
+        .navigation_api_id = TRY(decoder.decode<Utf16String>()),
+        .scroll_restoration_mode = TRY(decoder.decode<Web::HTML::ScrollRestorationMode>()),
+        .scroll_position_data = TRY(decoder.decode<Web::HTML::SessionHistoryEntryScrollPositionData>()),
     };
 }
 

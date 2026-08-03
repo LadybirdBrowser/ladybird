@@ -343,17 +343,20 @@ bool CanonicalTraversable::remove_nested_history(CanonicalNavigable const& paren
     return m_session_history.remove_nested_history(parent_navigable, child_navigable_id);
 }
 
-bool CanonicalTraversable::finalize_same_document_navigation(CanonicalNavigable const& navigable, Web::HTML::SessionHistoryEntryDescriptor target_entry, Optional<Utf16String> entry_to_replace_navigation_api_key)
+Optional<TraversableSessionHistory::SameDocumentNavigationFinalization> CanonicalTraversable::request_to_finalize_same_document_navigation(CanonicalNavigable const& navigable, Web::HTML::SameDocumentNavigationEntry target_entry, bool replaces_current_entry, Web::HTML::HistoryHandlingBehavior history_handling, Web::HTML::UserNavigationInvolvement user_involvement)
 {
     VERIFY(&navigable.top_level_traversable() == this);
 
     if (m_pending_web_content_session_history_seed.ignore_updates_until_seed)
-        return false;
+        return {};
 
-    auto did_finalize = m_session_history.finalize_same_document_navigation(nested_history_id_for(navigable), move(target_entry), move(entry_to_replace_navigation_api_key));
-    if (did_finalize)
-        m_current_web_content_session_history_matches_mirror = false;
-    return did_finalize;
+    auto finalization = m_session_history.finalize_same_document_navigation(navigable, move(target_entry), replaces_current_entry, history_handling, user_involvement);
+
+    // WebContent has already committed this navigation locally, so a request the canonical history could not apply
+    // leaves the two out of sync until the mirror is reconciled.
+    m_current_web_content_session_history_matches_mirror = finalization.has_value() && m_session_history.web_content_history_matches_mirror();
+
+    return finalization;
 }
 
 bool CanonicalTraversable::finalize_cross_document_navigation(CanonicalNavigable const& navigable, Web::HTML::SessionHistoryEntryDescriptor history_entry, Optional<Utf16String> entry_to_replace_navigation_api_key)
