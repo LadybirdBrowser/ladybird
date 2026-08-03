@@ -1,0 +1,7 @@
+style counters has null prototype: true
+style counters has styleInvalidations: true
+async state has null prototype: true
+async scrollNodes uses iframe Array: false
+async scrollNodes uses top Array: true
+async stickyAreas uses iframe Array: false
+async stickyAreas uses top Array: true

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="gamepad-helper.js"></script>
+<script>
+    asyncTest(async (done) => {
+        const gamepad = internals.connectVirtualGamepad();
+        await handleSDLInputEvents();
+
+        gamepad.setButton(gamepad.buttons[0], true);
+        await handleSDLInputEvents();
+
+        const iframe = document.createElement("iframe");
+        document.body.append(iframe);
+        const other = iframe.contentWindow;
+
+        const actuator = navigator.getGamepads()[0].vibrationActuator;
+        const playEffect = other.GamepadHapticActuator.prototype.playEffect;
+        const invalidEffectPromise = playEffect.call(actuator, "dual-rumble", { duration: 5001 });
+        println(`playEffect promise is iframe realm: ${invalidEffectPromise instanceof other.Promise}`);
+        println(`playEffect promise is parent realm: ${invalidEffectPromise instanceof Promise}`);
+        try {
+            await invalidEffectPromise;
+            println("FAIL: invalid playEffect resolved");
+        } catch (error) {
+            println(`playEffect rejection is iframe realm: ${error instanceof other.TypeError}`);
+            println(`playEffect rejection is parent realm: ${error instanceof TypeError}`);
+            println(`playEffect rejection message: ${error.message}`);
+        }
+
+        const reset = other.GamepadHapticActuator.prototype.reset;
+        const resetPromise = reset.call(actuator);
+        println(`reset promise is iframe realm: ${resetPromise instanceof other.Promise}`);
+        println(`reset promise is parent realm: ${resetPromise instanceof Promise}`);
+
+        gamepad.disconnect();
+        await handleSDLInputEvents();
+        done();
+    });
+</script>
