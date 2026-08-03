@@ -1476,6 +1476,9 @@ Messages::WebContentClient::DidRequestNewWebViewResponse WebContentClient::did_r
             handle = view->on_new_web_view(activate_tab, hints, new_page_id);
     }
 
+    if (!view_for_page_id(new_page_id).has_value())
+        return { {}, move(handle) };
+
     return { new_page_id, move(handle) };
 }
 

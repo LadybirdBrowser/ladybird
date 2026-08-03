@@ -1260,6 +1260,12 @@ LocalNavigable::ChosenNavigable LocalNavigable::choose_a_navigable(Utf16View nam
     //    agent's configuration and abilities — it is determined by the rules given for the first applicable option
     //    from the following list:
     if (!chosen) {
+        auto request_new_web_view = [&] {
+            TokenizedFeature::Map empty_window_features;
+            auto hints = WebViewHints::from_tokenised_features(window_features.has_value() ? *window_features : empty_window_features, traversable_navigable()->page());
+            return traversable_navigable()->page().client().page_did_request_new_web_view(activate_tab, hints, no_opener);
+        };
+
         // --> If currentNavigable's active window does not have transient activation and the user agent has been configured to
         //     not show popups (i.e., the user agent has a "popup blocker" enabled)
         if (active_window() && !active_window()->has_transient_activation() && traversable_navigable()->page().should_block_pop_ups()) {
@@ -1274,7 +1280,7 @@ LocalNavigable::ChosenNavigable LocalNavigable::choose_a_navigable(Utf16View nam
         }
 
         // --> If the user agent has been configured such that in this instance it will create a new top-level traversable
-        else if (true) { // FIXME: When is this the case?
+        else if (auto new_web_view = request_new_web_view(); new_web_view.page) {
             // 1. Consume user activation of currentNavigable's active window.
             active_window()->consume_user_activation();
 
@@ -1308,10 +1314,7 @@ LocalNavigable::ChosenNavigable LocalNavigable::choose_a_navigable(Utf16View nam
             if (!name.equals_ignoring_ascii_case(u"_blank"sv))
                 target_name = Utf16String::from_utf16(name);
 
-            auto create_new_traversable_closure = [this, no_opener, target_name, activate_tab, window_features](GC::Ptr<BrowsingContext> opener) -> GC::Ref<LocalNavigable> {
-                TokenizedFeature::Map empty_window_features;
-                auto hints = WebViewHints::from_tokenised_features(window_features.has_value() ? *window_features : empty_window_features, traversable_navigable()->page());
-                auto [page, window_handle] = traversable_navigable()->page().client().page_did_request_new_web_view(activate_tab, hints, no_opener);
+            auto create_new_traversable_closure = [page = new_web_view.page, window_handle = move(new_web_view.window_handle), target_name](GC::Ptr<BrowsingContext> opener) -> GC::Ref<LocalNavigable> {
                 auto traversable = LocalTraversableNavigable::create_a_new_top_level_traversable(*page, opener, target_name);
                 page->set_top_level_traversable(traversable);
                 traversable->set_window_handle(Utf16String::from_ascii_without_validation(window_handle.bytes()));
