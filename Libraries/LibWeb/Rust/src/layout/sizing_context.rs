@@ -884,6 +884,276 @@ impl<'pass> SizingContext<'pass> {
             || (size.is_min_content() && available == AvailableSize::MinContent)
     }
 
+    // https://quirks.spec.whatwg.org/#the-percentage-height-calculation-quirk
+    // The available space to resolve a block-level box's block size against:
+    // in quirks mode, percentage heights outside table internals and UA
+    // shadow trees resolve against the quirks percentage basis.
+    pub(crate) fn available_space_for_block_size_resolution(
+        &self,
+        node: Node,
+        available_space: AvailableSpace,
+        constraints: ContainingBlockConstraints,
+    ) -> AvailableSpace {
+        let facts = self.facts(node);
+        // The quirks-mode check comes first so standards-mode documents pay a
+        // single flag read here.
+        if !facts.document_in_quirks_mode()
+            || !self.style(node).height().is_percentage()
+            || facts.is_in_user_agent_shadow_tree()
+        {
+            return available_space;
+        }
+        let is_table_box = facts.is_table_row()
+            || facts.is_table_row_group()
+            || facts.is_table_header_group()
+            || facts.is_table_footer_group()
+            || facts.is_table_cell()
+            || facts.is_table_caption();
+        if is_table_box {
+            return available_space;
+        }
+        let mut resolution_space = available_space;
+        resolution_space.block_size =
+            AvailableSize::definite(constraints.quirks_mode_percentage_basis_block_size.unwrap_or_default());
+        resolution_space
+    }
+
+    pub(crate) fn resolve_used_block_size_if_not_treated_as_auto(
+        &self,
+        node: Node,
+        available_space: AvailableSpace,
+        constraints: ContainingBlockConstraints,
+    ) {
+        if self.should_treat_block_size_as_auto(node, available_space, constraints) {
+            return;
+        }
+        let style = self.style(node);
+        let mut block_size = self.calculate_inner_block_size(node, available_space, style.height(), constraints);
+        if !self.should_treat_max_block_size_as_none(node, available_space.block_size, constraints)
+            && !style.max_height().is_auto()
+        {
+            block_size = block_size.min(self.calculate_inner_block_size(
+                node,
+                available_space,
+                style.max_height(),
+                constraints,
+            ));
+        }
+        if !style.min_height().is_auto() {
+            block_size = block_size.max(self.calculate_inner_block_size(
+                node,
+                available_space,
+                style.min_height(),
+                constraints,
+            ));
+        }
+        let used = self.used_mut(node);
+        used.set_content_block_size(block_size);
+        if !style.height().is_intrinsic_sizing_constraint() {
+            used.has_definite_block_size.set(true);
+        }
+    }
+
+    pub(crate) fn resolve_used_block_size_if_treated_as_auto(
+        &self,
+        node: Node,
+        available_space: AvailableSpace,
+        constraints: ContainingBlockConstraints,
+        child_automatic_block_size: Option<CssPixels>,
+        automatic_block_size_fallback: impl FnOnce() -> CssPixels,
+    ) {
+        if !self.should_treat_block_size_as_auto(node, available_space, constraints) {
+            return;
+        }
+        let style = self.style(node);
+        let facts = self.facts(node);
+        let mut block_size = if self.box_is_sized_as_replaced_element(node, available_space, constraints) {
+            self.compute_block_size_for_replaced_element(node, available_space, constraints)
+        } else {
+            child_automatic_block_size.unwrap_or_else(automatic_block_size_fallback)
+        };
+        if !self.should_treat_max_block_size_as_none(node, available_space.block_size, constraints)
+            && !style.max_height().is_auto()
+        {
+            block_size = block_size.min(self.calculate_inner_block_size(
+                node,
+                available_space,
+                style.max_height(),
+                constraints,
+            ));
+        }
+        if !style.min_height().is_auto() {
+            block_size = block_size.max(self.calculate_inner_block_size(
+                node,
+                available_space,
+                style.min_height(),
+                constraints,
+            ));
+        }
+
+        if facts.document_in_quirks_mode() && facts.is_html_html_element() && style.height().is_auto() {
+            // 3.6. The html element fills the viewport quirk
+            // https://quirks.spec.whatwg.org/#the-html-element-fills-the-viewport-quirk
+            // FIXME: Handle vertical writing mode.
+
+            // 1. Let margins be sum of the used values of the margin-left and margin-right properties of element
+            //    if element has a vertical writing mode, otherwise let margins be the sum of the used values of
+            //    the margin-top and margin-bottom properties of element.
+            let used = self.used(node);
+            let margins = used.margin_top.get() + used.margin_bottom.get();
+            // 2. Let size be the size of the initial containing block in the block flow direction minus margins.
+            let size = constraints.block_basis() - margins;
+            // 3. Return the bigger value of size and the normal border box size the element would have
+            //    according to the CSS specification.
+            block_size = block_size.max(size);
+            // NOTE: The block size of the root element when affected by this quirk is considered to be definite.
+            self.used_mut(node).has_definite_block_size.set(true);
+        }
+
+        if facts.document_in_quirks_mode() && facts.is_html_body_element() && style.height().is_auto() {
+            // 3.7. The body element fills the html element quirk
+            // https://quirks.spec.whatwg.org/#the-body-element-fills-the-html-element-quirk
+            // FIXME: Handle vertical writing mode.
+
+            // The element body must additionally meet the following conditions:
+            // - The computed value of the 'position' property of element is neither 'absolute' nor 'fixed'.
+            // - The computed value of the 'float' property of element is 'none'.
+            // - Element is not an inline-level element.
+            // - Element is not a multi-column spanning element.
+            // NON-STANDARD: We don't check column-span since no browser actually excludes it.
+            if !facts.is_absolutely_positioned() && !facts.is_floating() && !facts.is_inline() {
+                // 1. Let margins be sum of the used values of the margin-left and margin-right properties of element
+                //    if element has a vertical writing mode, otherwise let margins be the sum of the used values of
+                //    the margin-top and margin-bottom properties of element.
+                let used = self.used(node);
+                let margins = used.margin_top.get() + used.margin_bottom.get();
+                // 2. Let size be the size of element's parent element's content box in the block flow direction minus margins.
+                let size = constraints.block_basis() - margins;
+                // 3. Return the bigger value of size and the normal border box size the element would have
+                //    according to the CSS specification.
+                block_size = block_size.max(size);
+            }
+        }
+        self.used_mut(node).set_content_block_size(block_size);
+    }
+
+    pub(crate) fn resolve_box_model_metrics_against_inline_basis(&self, node: Node, containing_inline_size: CssPixels) {
+        let style = self.style(node);
+        let used = self.used_mut(node);
+        used.margin_left.set(style.margin_left().to_px(containing_inline_size));
+        used.border_left.set(style.border_left_width());
+        used.padding_left
+            .set(style.padding_left().to_px(containing_inline_size));
+        used.margin_right
+            .set(style.margin_right().to_px(containing_inline_size));
+        used.border_right.set(style.border_right_width());
+        used.padding_right
+            .set(style.padding_right().to_px(containing_inline_size));
+        used.margin_top.set(style.margin_top().to_px(containing_inline_size));
+        used.border_top.set(style.border_top_width());
+        used.padding_top.set(style.padding_top().to_px(containing_inline_size));
+        used.padding_bottom
+            .set(style.padding_bottom().to_px(containing_inline_size));
+        used.border_bottom.set(style.border_bottom_width());
+        used.margin_bottom
+            .set(style.margin_bottom().to_px(containing_inline_size));
+    }
+
+    pub(crate) fn dimension_atomic_root(
+        &self,
+        node: Node,
+        available_space: AvailableSpace,
+        constraints: ContainingBlockConstraints,
+        layout_mode: LayoutMode,
+    ) {
+        let containing_inline_size = available_space.inline_size.to_px_or_zero();
+        let style = self.style(node);
+        self.resolve_box_model_metrics_against_inline_basis(node, containing_inline_size);
+
+        let facts = self.facts(node);
+        if self.box_is_sized_as_replaced_element(node, available_space, constraints) {
+            let inline_size = self.compute_inline_size_for_replaced_element(node, available_space, constraints);
+            self.used_mut(node).set_content_inline_size(inline_size);
+            let block_size = self.compute_block_size_for_replaced_element(node, available_space, constraints);
+            self.used_mut(node).set_content_block_size(block_size);
+            let block_size_is_automatic =
+                style.height().is_auto() || self.should_treat_block_size_as_auto(node, available_space, constraints);
+            if self.used(node).has_definite_inline_size() && facts.has_preferred_aspect_ratio() && block_size_is_automatic
+            {
+                self.used_mut(node).has_definite_block_size.set(true);
+            }
+            return;
+        }
+
+        let unconstrained_inline_size = if self.should_treat_inline_size_as_auto(node, available_space) {
+            if matches!(available_space.inline_size, AvailableSize::Definite(_)) {
+                let used = self.used(node);
+                let available = available_space.inline_size.to_px_or_zero()
+                    - used.margin_left.get()
+                    - used.border_left.get()
+                    - used.padding_left.get()
+                    - used.padding_right.get()
+                    - used.border_right.get()
+                    - used.margin_right.get();
+                let preferred = self.calculate_max_content_inline_size(node, constraints);
+                if preferred <= available {
+                    preferred
+                } else {
+                    self.calculate_min_content_inline_size(node, constraints)
+                        .max(available)
+                        .min(preferred)
+                }
+            } else if available_space.inline_size == AvailableSize::MinContent {
+                self.calculate_min_content_inline_size(node, constraints)
+            } else {
+                self.calculate_max_content_inline_size(node, constraints)
+            }
+        } else if style.width().contains_percentage() && !matches!(available_space.inline_size, AvailableSize::Definite(_)) {
+            CssPixels::default()
+        } else {
+            self.calculate_inner_inline_size(node, available_space.inline_size, style.width(), constraints)
+        };
+
+        let mut inline_size = unconstrained_inline_size;
+        if !self.should_treat_max_inline_size_as_none(node, available_space.inline_size, constraints) {
+            inline_size = inline_size.min(self.calculate_inner_inline_size(
+                node,
+                available_space.inline_size,
+                style.max_width(),
+                constraints,
+            ));
+        }
+        if !style.min_width().is_auto() {
+            inline_size = inline_size.max(self.calculate_inner_inline_size(
+                node,
+                available_space.inline_size,
+                style.min_width(),
+                constraints,
+            ));
+        }
+        self.used_mut(node).set_content_inline_size(inline_size);
+
+        let inline_definite_space = AvailableSpace {
+            inline_size: AvailableSize::definite(inline_size),
+            block_size: AvailableSize::Indefinite,
+        };
+        self.resolve_used_block_size_if_not_treated_as_auto(node, inline_definite_space, constraints);
+        if style.display().is_flex_inside() {
+            // Flex containers with an automatic block size are treated as max-content, so resolve it early.
+            self.resolve_used_block_size_if_treated_as_auto(node, inline_definite_space, constraints, None, || {
+                crate::layout::independent_root_automatic_block_size(
+                    self.state,
+                    &self.callbacks,
+                    node,
+                    self.used(node)
+                        .available_inner_space_or_constraints_from(inline_definite_space),
+                    constraints,
+                )
+            });
+        }
+        self.make_button_content_box_definite(node, layout_mode, available_space, constraints, None);
+    }
+
     fn calculate_stretch_fit_inline_size(&self, node: Node, available: AvailableSize) -> CssPixels {
         // https://drafts.csswg.org/css-sizing-3/#stretch-fit-size
         // The size a box would take if its outer size filled the available space in the given axis;
@@ -1148,7 +1418,8 @@ impl<'pass> SizingContext<'pass> {
                 },
                 containing_block_constraints: constraints,
                 content_box_position_in_bfc_root: None,
-                table_grid_min_border_box_block_size: None,
+                sizing: RootSizingDirectives::default(),
+                participation: ParticipationInParentFormattingContext::Root,
             },
         );
         result.automatic_content_inline_size = clamp_to_max_dimension_value(result.automatic_content_inline_size);
@@ -1348,7 +1619,8 @@ impl<'pass> SizingContext<'pass> {
                 },
                 containing_block_constraints: constraints,
                 content_box_position_in_bfc_root: None,
-                table_grid_min_border_box_block_size: None,
+                sizing: RootSizingDirectives::default(),
+                participation: ParticipationInParentFormattingContext::Root,
             },
         );
         result.automatic_content_inline_size = clamp_to_max_dimension_value(result.automatic_content_inline_size);
@@ -1403,7 +1675,8 @@ impl<'pass> SizingContext<'pass> {
                 },
                 containing_block_constraints: constraints,
                 content_box_position_in_bfc_root: None,
-                table_grid_min_border_box_block_size: None,
+                sizing: RootSizingDirectives::default(),
+                participation: ParticipationInParentFormattingContext::Root,
             },
         );
         let value = clamp_to_max_dimension_value(result.automatic_content_block_size);
@@ -1455,7 +1728,8 @@ impl<'pass> SizingContext<'pass> {
                 },
                 containing_block_constraints: constraints,
                 content_box_position_in_bfc_root: None,
-                table_grid_min_border_box_block_size: None,
+                sizing: RootSizingDirectives::default(),
+                participation: ParticipationInParentFormattingContext::Root,
             },
         );
         let value = clamp_to_max_dimension_value(result.automatic_content_block_size);
@@ -1475,12 +1749,7 @@ impl<'pass> SizingContext<'pass> {
             .run_with_layout_mode(
                 node,
                 layout_mode,
-                LayoutInput {
-                    available_space: inner_available_space,
-                    containing_block_constraints: constraints,
-                    content_box_position_in_bfc_root: None,
-                    table_grid_min_border_box_block_size: None,
-                },
+                LayoutInput::new(inner_available_space, constraints, ParticipationInParentFormattingContext::Root),
             )
             .automatic_content_block_size
     }
@@ -1625,30 +1894,19 @@ impl<'pass> SizingContext<'pass> {
             .padding_right
             .set(table_style.padding_right().to_px(containing_block_inline_size));
 
-        let mut context = crate::layout::create_formatting_context(
+        let table_run = crate::layout::FormattingContextRun::new(
             measurement.rust_state(),
             table_box,
-            crate::layout::FcParents::default(),
-            crate::layout::FfiFormattingContextType::Table,
             LayoutMode::IntrinsicSizing,
-            false,
             *measurement.callbacks(),
+            false,
         );
+        let mut table = TableFormattingContext::new(&table_run);
         let table_available = table_used.available_inner_space_or_constraints_from(available_space);
-        let FormattingContextInstance { frame, implementation } = &mut *context;
-        let FcImpl::Table(table) = implementation else {
-            unreachable!("table measurement created a non-table context");
-        };
         table.run_until_inline_size_calculation(
-            LayoutInput {
-                available_space: table_available,
-                containing_block_constraints: table_constraints,
-                content_box_position_in_bfc_root: None,
-                table_grid_min_border_box_block_size: None,
-            },
+            LayoutInput::new(table_available, table_constraints, ParticipationInParentFormattingContext::Root),
             true,
         );
-        frame.automatic_content_inline_size = table.automatic_content_inline_size();
 
         let table_used_inline_size = table_used.border_box_inline_size(false);
         if table_wrapper_inline_size_mode == TableWrapperInlineSizeMode::UseTableUsedInlineSizeIfNotAuto
@@ -1695,7 +1953,8 @@ impl<'pass> SizingContext<'pass> {
                     .available_inner_space_or_constraints_from(available_space),
                 containing_block_constraints: table_wrapper_constraints,
                 content_box_position_in_bfc_root: None,
-                table_grid_min_border_box_block_size: None,
+                sizing: RootSizingDirectives::default(),
+                participation: ParticipationInParentFormattingContext::Root,
             },
         );
 

@@ -113,10 +113,57 @@ impl ContainingBlockConstraints {
     }
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct RootSizingDirectives {
+    pub(crate) forced_content_inline_size: Option<CssPixels>,
+    pub(crate) forced_content_block_size: Option<CssPixels>,
+    pub(crate) forced_min_border_box_block_size: Option<CssPixels>,
+    pub(crate) table_box_content_offset_in_wrapper: Option<LogicalOffset>,
+    pub(crate) adopt_automatic_content_block_size: bool,
+    pub(crate) float_avoidance_inline_size: Option<CssPixels>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ParticipationInParentFormattingContext {
+    BlockLevel,
+    Float,
+    AtomicInline,
+    AbsolutelyPositioned(AbsposLayoutInputs),
+    Item,
+    Root,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct LayoutInput {
     pub(crate) available_space: AvailableSpace,
     pub(crate) containing_block_constraints: ContainingBlockConstraints,
     pub(crate) content_box_position_in_bfc_root: Option<FfiCssPixelPoint>,
-    pub(crate) table_grid_min_border_box_block_size: Option<CssPixels>,
+    pub(crate) sizing: RootSizingDirectives,
+    pub(crate) participation: ParticipationInParentFormattingContext,
+}
+
+impl LayoutInput {
+    pub(crate) fn new(
+        available_space: AvailableSpace,
+        containing_block_constraints: ContainingBlockConstraints,
+        participation: ParticipationInParentFormattingContext,
+    ) -> Self {
+        Self {
+            available_space,
+            containing_block_constraints,
+            content_box_position_in_bfc_root: None,
+            sizing: RootSizingDirectives::default(),
+            participation,
+        }
+    }
+
+    pub(crate) fn with_forced_sizes(
+        mut self,
+        forced_content_inline_size: CssPixels,
+        forced_content_block_size: CssPixels,
+    ) -> Self {
+        self.sizing.forced_content_inline_size = Some(forced_content_inline_size);
+        self.sizing.forced_content_block_size = Some(forced_content_block_size);
+        self
+    }
 }
