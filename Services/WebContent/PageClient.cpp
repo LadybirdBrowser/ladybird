@@ -1234,9 +1234,17 @@ void PageClient::page_did_remove_nested_history(Web::HTML::CrossProcessId parent
     client().async_did_remove_nested_history(m_id, parent_navigable_id, child_navigable_id);
 }
 
-void PageClient::page_did_finalize_same_document_navigation(Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor const& target_entry, Optional<Utf16String> const& entry_to_replace_navigation_api_key)
+void PageClient::page_did_request_finalize_same_document_navigation(u64 operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SameDocumentNavigationEntry const& target_entry, bool replaces_current_entry, Web::HTML::HistoryHandlingBehavior history_handling, Web::HTML::UserNavigationInvolvement user_involvement)
 {
-    client().async_did_finalize_same_document_navigation(m_id, navigable_id, target_entry, entry_to_replace_navigation_api_key);
+    client().async_did_request_finalize_same_document_navigation(m_id, operation_id, navigable_id, target_entry, replaces_current_entry, history_handling, user_involvement);
+}
+
+void PageClient::did_complete_finalize_same_document_navigation(u64 operation_id, bool committed, int entry_step, int target_step, u64 script_history_length, u64 script_history_index)
+{
+    page().top_level_traversable()->did_complete_finalize_same_document_navigation(operation_id, committed, entry_step, target_step, {
+                                                                                                                                         .script_history_length = script_history_length,
+                                                                                                                                         .script_history_index = script_history_index,
+                                                                                                                                     });
 }
 
 void PageClient::page_did_finalize_cross_document_navigation(Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor const& history_entry, Optional<Utf16String> const& entry_to_replace_navigation_api_key)

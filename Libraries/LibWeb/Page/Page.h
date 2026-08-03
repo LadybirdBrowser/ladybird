@@ -50,13 +50,16 @@
 #include <LibWeb/HTML/ColorPickerUpdateState.h>
 #include <LibWeb/HTML/CrossProcessId.h>
 #include <LibWeb/HTML/FileFilter.h>
+#include <LibWeb/HTML/HistoryHandlingBehavior.h>
 #include <LibWeb/HTML/NavigationSourceSnapshot.h>
 #include <LibWeb/HTML/POSTResource.h>
 #include <LibWeb/HTML/ReplicatedNavigableState.h>
+#include <LibWeb/HTML/SameDocumentNavigationEntry.h>
 #include <LibWeb/HTML/Scripting/ScriptRegistry.h>
 #include <LibWeb/HTML/SelectItem.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/HTML/TokenizedFeatures.h>
+#include <LibWeb/HTML/UserNavigationInvolvement.h>
 #include <LibWeb/HTML/WebViewHints.h>
 #include <LibWeb/HTML/WorkerAgentForward.h>
 #include <LibWeb/IndexedDB/TransactionChanges.h>
@@ -620,7 +623,7 @@ public:
     virtual void page_did_set_session_history_entry_document_state_reload_pending([[maybe_unused]] HTML::CrossProcessId navigable_id, [[maybe_unused]] Utf16String const& navigation_api_key, [[maybe_unused]] bool reload_pending) { }
     virtual void page_did_append_nested_history([[maybe_unused]] HTML::CrossProcessId parent_navigable_id, [[maybe_unused]] HTML::SessionHistoryNestedHistoryDescriptor const& nested_history) { }
     virtual void page_did_remove_nested_history([[maybe_unused]] HTML::CrossProcessId parent_navigable_id, [[maybe_unused]] HTML::CrossProcessId child_navigable_id) { }
-    virtual void page_did_finalize_same_document_navigation([[maybe_unused]] HTML::CrossProcessId navigable_id, [[maybe_unused]] HTML::SessionHistoryEntryDescriptor const& target_entry, [[maybe_unused]] Optional<Utf16String> const& entry_to_replace_navigation_api_key) { }
+    virtual void page_did_request_finalize_same_document_navigation([[maybe_unused]] u64 operation_id, [[maybe_unused]] HTML::CrossProcessId navigable_id, [[maybe_unused]] HTML::SameDocumentNavigationEntry const& target_entry, [[maybe_unused]] bool replaces_current_entry, [[maybe_unused]] HTML::HistoryHandlingBehavior history_handling, [[maybe_unused]] HTML::UserNavigationInvolvement user_involvement) { }
     virtual void page_did_finalize_cross_document_navigation([[maybe_unused]] HTML::CrossProcessId navigable_id, [[maybe_unused]] HTML::SessionHistoryEntryDescriptor const& history_entry, [[maybe_unused]] Optional<Utf16String> const& entry_to_replace_navigation_api_key) { }
     virtual void page_did_set_current_session_history_step([[maybe_unused]] int current_session_history_step) { }
     virtual String page_did_request_ui_process_session_history_for_testing() { return "{}"_string; }

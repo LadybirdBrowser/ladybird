@@ -1367,6 +1367,12 @@ void ViewImplementation::did_create_top_level_traversable(Badge<WebContentClient
     dump_session_history("created-top-level-traversable"sv);
 }
 
+void ViewImplementation::did_finalize_same_document_navigation(Badge<WebContentClient>)
+{
+    update_navigation_action_state();
+    dump_session_history("finalized-same-document-navigation"sv);
+}
+
 void ViewImplementation::did_set_current_session_history_step(Badge<WebContentClient>, i32 current_session_history_step)
 {
     if (!m_top_level_traversable.did_set_current_session_history_step(current_session_history_step))

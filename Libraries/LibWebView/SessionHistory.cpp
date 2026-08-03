@@ -750,19 +750,6 @@ static bool update_session_history_entries_for_navigable(Vector<TraversableSessi
     return update_nested_session_history_entries_for_navigable(entries, *nested_history_id, update_entries);
 }
 
-static Web::HTML::SessionHistoryDocumentStateDescriptor const* find_session_history_document_state(Vector<TraversableSessionHistory::Entry> const& entries, Web::HTML::CrossProcessId document_state_id)
-{
-    for (auto const& entry : entries) {
-        if (entry.document_state.id == document_state_id)
-            return &entry.document_state;
-        for (auto const& nested_history : entry.document_state.nested_histories) {
-            if (auto const* document_state = find_session_history_document_state(nested_history.entries, document_state_id))
-                return document_state;
-        }
-    }
-    return nullptr;
-}
-
 static bool append_or_replace_session_history_entry(Vector<TraversableSessionHistory::Entry>& entries, TraversableSessionHistory::Entry const& entry, Optional<Utf16String> const& entry_to_replace_navigation_api_key)
 {
     if (!entry_to_replace_navigation_api_key.has_value()) {
@@ -782,43 +769,119 @@ static bool append_or_replace_session_history_entry(Vector<TraversableSessionHis
     return true;
 }
 
-bool TraversableSessionHistory::finalize_same_document_navigation(Optional<Web::HTML::CrossProcessId> nested_history_id, Entry target_entry, Optional<Utf16String> entry_to_replace_navigation_api_key)
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#finalize-a-same-document-navigation
+Optional<TraversableSessionHistory::SameDocumentNavigationFinalization> TraversableSessionHistory::finalize_same_document_navigation(CanonicalNavigable const& target_navigable, Web::HTML::SameDocumentNavigationEntry target_entry, bool replaces_current_entry, Web::HTML::HistoryHandlingBehavior history_handling, Web::HTML::UserNavigationInvolvement user_involvement)
 {
+    // 1. Assert: this is running on traversable's session history traversal queue.
+    // NB: WebContent still owns the traversal queue, and only sends this request once the synchronous navigation steps
+    //     are allowed to run.
     if (!m_current_used_step_index.has_value())
-        return false;
+        return {};
 
     auto current_step = m_used_steps[*m_current_used_step_index];
-    auto const* document_state = find_session_history_document_state(m_entries, target_entry.document_state.id);
-    if (!document_state)
-        return false;
+    auto nested_history_id = target_navigable.is_top_level_traversable() ? Optional<Web::HTML::CrossProcessId> {} : target_navigable.id();
 
-    auto canonical_target_entry = target_entry;
-    canonical_target_entry.document_state = *document_state;
+    auto* target_entries = nested_history_id.has_value() ? nested_session_history_entries_for_navigable(m_entries, *nested_history_id) : &m_entries;
+    if (!target_entries)
+        return {};
 
-    // https://html.spec.whatwg.org/multipage/browsing-the-web.html#finalize-a-same-document-navigation
-    if (!entry_to_replace_navigation_api_key.has_value()) {
+    // 2. If targetNavigable's active session history entry is not targetEntry, then return.
+    // NB: WebContent describes the navigation as an intent — append, or replace whichever entry is current here — so the
+    //     canonical current entry stands in for the entry identity check.
+    auto* current_entry = target_history_entry(*target_entries, current_step);
+    if (!current_entry)
+        return {};
+
+    // A same-document navigation only applies to the document it was reported for. Ignore the request if a
+    // cross-document navigation committed before it completed.
+    if (current_entry->document_state.id != target_entry.document_state_id)
+        return {};
+
+    auto canonical_target_entry = Entry {
+        .step = current_entry->step,
+        .url = move(target_entry.url),
+        .document_state = current_entry->document_state,
+        .classic_history_api_state = move(target_entry.classic_history_api_state),
+        .navigation_api_state = move(target_entry.navigation_api_state),
+        .navigation_api_key = move(target_entry.navigation_api_key),
+        .navigation_api_id = move(target_entry.navigation_api_id),
+        .scroll_restoration_mode = target_entry.scroll_restoration_mode,
+        .scroll_position_data = move(target_entry.scroll_position_data),
+    };
+
+    // 3. Let targetStep be null.
+    i32 target_step = 0;
+
+    // 4. Let targetEntries be the result of getting session history entries for targetNavigable.
+    Optional<Utf16String> entry_to_replace_navigation_api_key;
+    auto can_update_web_content_entries = !m_web_content_known_entries.is_empty()
+        && m_web_content_uses_ui_step_coordinates
+        && m_web_content_current_step == current_step;
+    if (!can_update_web_content_entries)
+        forget_web_content_state();
+
+    // 5. If entryToReplace is null:
+    if (!replaces_current_entry) {
+        // 1. Clear the forward session history of traversable.
         clear_forward_session_history_entries(m_entries, current_step);
-        clear_forward_session_history_entries(m_web_content_known_entries, m_web_content_current_step.value_or(current_step));
-        canonical_target_entry.step = current_step + 1;
+        if (can_update_web_content_entries)
+            clear_forward_session_history_entries(m_web_content_known_entries, current_step);
+
+        // 2. Set targetStep to traversable's current session history step + 1.
+        target_step = current_step + 1;
+
+        // 3. Set targetEntry's step to targetStep.
+        canonical_target_entry.step = target_step;
+
+        // 4. Append targetEntry to targetEntries.
+    }
+    // Otherwise:
+    else {
+        // 1. Replace entryToReplace with targetEntry in targetEntries.
+        entry_to_replace_navigation_api_key = current_entry->navigation_api_key;
+
+        // 2. Set targetEntry's step to entryToReplace's step.
+        // NB: Seeded from the current entry above.
+
+        // 3. Set targetStep to traversable's current session history step.
+        target_step = current_step;
     }
 
     auto did_update = update_session_history_entries_for_navigable(m_entries, nested_history_id, [&](auto& entries) {
         return append_or_replace_session_history_entry(entries, canonical_target_entry, entry_to_replace_navigation_api_key);
     });
     if (!did_update)
-        return false;
+        return {};
 
-    if (!m_web_content_known_entries.is_empty()) {
-        update_session_history_entries_for_navigable(m_web_content_known_entries, nested_history_id, [&](auto& entries) {
+    auto did_update_web_content_entries = false;
+    if (can_update_web_content_entries) {
+        did_update_web_content_entries = update_session_history_entries_for_navigable(m_web_content_known_entries, nested_history_id, [&](auto& entries) {
             return append_or_replace_session_history_entry(entries, canonical_target_entry, entry_to_replace_navigation_api_key);
         });
     }
 
     m_used_steps = get_all_used_history_steps(m_entries);
-    m_current_used_step_index = m_used_steps.find_first_index(current_step);
+    m_current_used_step_index = m_used_steps.find_first_index(target_step);
     VERIFY(m_current_used_step_index.has_value());
-    m_web_content_known_used_steps = get_all_used_history_steps(m_web_content_known_entries);
-    return true;
+    if (did_update_web_content_entries) {
+        m_web_content_known_used_steps = get_all_used_history_steps(m_web_content_known_entries);
+        m_web_content_current_step = target_step;
+    } else {
+        forget_web_content_state();
+    }
+
+    // 6. Apply the push/replace history step targetStep to traversable given historyHandling and userInvolvement.
+    // AD-HOC: WebContent still applies history steps, and does so with historyHandling and userInvolvement once it
+    //         receives this result.
+    (void)history_handling;
+    (void)user_involvement;
+
+    return SameDocumentNavigationFinalization {
+        .entry_step = canonical_target_entry.step,
+        .target_step = target_step,
+        .script_history_length = m_used_steps.size(),
+        .script_history_index = *m_current_used_step_index,
+    };
 }
 
 bool TraversableSessionHistory::finalize_cross_document_navigation(Optional<Web::HTML::CrossProcessId> nested_history_id, Entry history_entry, Optional<Utf16String> entry_to_replace_navigation_api_key)

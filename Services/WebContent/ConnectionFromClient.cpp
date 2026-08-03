@@ -344,6 +344,12 @@ void ConnectionFromClient::resolve_session_history_traversal_target(u64 page_id,
         page->did_resolve_session_history_traversal_target(request_id, target_step);
 }
 
+void ConnectionFromClient::complete_finalize_same_document_navigation(u64 page_id, u64 operation_id, bool committed, i32 entry_step, i32 target_step, u64 script_history_length, u64 script_history_index)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->did_complete_finalize_same_document_navigation(operation_id, committed, entry_step, target_step, script_history_length, script_history_index);
+}
+
 void ConnectionFromClient::traverse_the_history_to_step(u64 page_id, i32 step)
 {
     auto page = this->page(page_id);

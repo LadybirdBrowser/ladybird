@@ -1969,12 +1969,30 @@ void WebContentClient::did_remove_nested_history(u64 page_id, Web::HTML::CrossPr
     parent_navigable->top_level_traversable().remove_nested_history(*parent_navigable, child_navigable_id);
 }
 
-void WebContentClient::did_finalize_same_document_navigation(u64 page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor target_entry, Optional<Utf16String> entry_to_replace_navigation_api_key)
+void WebContentClient::did_request_finalize_same_document_navigation(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SameDocumentNavigationEntry target_entry, bool replaces_current_entry, Web::HTML::HistoryHandlingBehavior history_handling, Web::HTML::UserNavigationInvolvement user_involvement)
 {
-    auto navigable = hosted_navigable_for_page(page_id, navigable_id);
-    if (!navigable.has_value())
+    Optional<TraversableSessionHistory::SameDocumentNavigationFinalization> finalization;
+    if (auto navigable = hosted_navigable_for_page(page_id, navigable_id); navigable.has_value()) {
+        finalization = navigable->top_level_traversable().request_to_finalize_same_document_navigation(
+            *navigable, move(target_entry), replaces_current_entry, history_handling, user_involvement);
+    }
+
+    if (!finalization.has_value()) {
+        async_complete_finalize_same_document_navigation(page_id, operation_id, false, 0, 0, 0, 0);
         return;
-    navigable->top_level_traversable().finalize_same_document_navigation(*navigable, move(target_entry), move(entry_to_replace_navigation_api_key));
+    }
+
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        view->did_finalize_same_document_navigation({});
+
+    async_complete_finalize_same_document_navigation(
+        page_id,
+        operation_id,
+        true,
+        finalization->entry_step,
+        finalization->target_step,
+        finalization->script_history_length,
+        finalization->script_history_index);
 }
 
 void WebContentClient::did_finalize_cross_document_navigation(u64 page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor history_entry, Optional<Utf16String> entry_to_replace_navigation_api_key)

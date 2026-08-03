@@ -9,7 +9,10 @@
 #include <AK/Function.h>
 #include <AK/Optional.h>
 #include <AK/Vector.h>
+#include <LibWeb/HTML/HistoryHandlingBehavior.h>
+#include <LibWeb/HTML/SameDocumentNavigationEntry.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
+#include <LibWeb/HTML/UserNavigationInvolvement.h>
 #include <LibWebView/Export.h>
 #include <LibWebView/Forward.h>
 
@@ -31,6 +34,13 @@ public:
         Entry const* target_top_level_entry { nullptr };
         bool target_step_is_top_level_entry { false };
         bool changes_top_level_entry { false };
+    };
+
+    struct SameDocumentNavigationFinalization {
+        i32 entry_step { 0 };
+        i32 target_step { 0 };
+        u64 script_history_length { 0 };
+        u64 script_history_index { 0 };
     };
 
     enum class UpdateResult {
@@ -66,7 +76,7 @@ public:
     bool update_document_state(Optional<Web::HTML::CrossProcessId> nested_history_id, Utf16String const& navigation_api_key, Function<void(Web::HTML::SessionHistoryDocumentStateDescriptor&)> const& update_document_state);
     bool append_nested_history(CanonicalNavigable const& parent_navigable, Web::HTML::SessionHistoryNestedHistoryDescriptor);
     bool remove_nested_history(CanonicalNavigable const& parent_navigable, Web::HTML::CrossProcessId child_navigable_id);
-    bool finalize_same_document_navigation(Optional<Web::HTML::CrossProcessId> nested_history_id, Entry target_entry, Optional<Utf16String> entry_to_replace_navigation_api_key);
+    Optional<SameDocumentNavigationFinalization> finalize_same_document_navigation(CanonicalNavigable const&, Web::HTML::SameDocumentNavigationEntry target_entry, bool replaces_current_entry, Web::HTML::HistoryHandlingBehavior, Web::HTML::UserNavigationInvolvement);
     bool finalize_cross_document_navigation(Optional<Web::HTML::CrossProcessId> nested_history_id, Entry history_entry, Optional<Utf16String> entry_to_replace_navigation_api_key);
     UpdateResult update_from_web_content(Vector<Entry> entries, Vector<i32> used_steps, size_t current_used_step_index);
     [[nodiscard]] bool did_seed_web_content_from_ui_process(Vector<Entry> entries, Vector<i32> used_steps, size_t current_used_step_index);
