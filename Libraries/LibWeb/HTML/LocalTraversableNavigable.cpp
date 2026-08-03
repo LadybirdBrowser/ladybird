@@ -1172,7 +1172,7 @@ void LocalTraversableNavigable::run_changing_navigable_history_step_job(Changing
             && target_entry != navigable->current_session_history_entry()
             && old_origin == navigable->current_session_history_entry()->document_state()->origin()) {
             // 1. Let navigation be navigable's active window's navigation API.
-            auto navigation = active_window()->navigation();
+            auto navigation = navigable->active_window()->navigation();
 
             // 2. Fire a traverse navigate event at navigation given targetEntry and userInvolvement.
             navigation->fire_a_traverse_navigate_event(*target_entry, job.user_involvement);
