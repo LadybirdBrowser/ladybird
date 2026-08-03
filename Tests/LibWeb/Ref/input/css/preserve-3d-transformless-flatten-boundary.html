@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/css/preserve-3d-transformless-flatten-boundary-ref.html" />
+<style>
+.box {
+    width: 100px;
+    height: 100px;
+}
+</style>
+<div class="box" style="transform: rotateY(60deg)">
+    <div class="box" style="transform-style: preserve-3d">
+        <div class="box" style="transform: rotateY(-60deg); background: teal"></div>
+    </div>
+</div>
+<div class="box" style="transform: rotateY(60deg)">
+    <div class="box" style="transform-style: preserve-3d; perspective: 10000px">
+        <div class="box" style="transform: rotateY(-60deg); background: navy"></div>
+    </div>
+</div>

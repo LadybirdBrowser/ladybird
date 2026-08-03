@@ -200,9 +200,9 @@ void DisplayListPlayer::execute_impl(
     auto const replay_base_matrix = canvas_matrix();
     for (size_t i = 0; i < nodes.size(); ++i) {
         auto const& node = nodes[i];
-        auto append_spatial = [&](Gfx::FloatMatrix4x4 const& local_matrix) {
+        auto append_spatial = [&](Gfx::FloatMatrix4x4 const& local_matrix, bool flattens_inherited_transform = false) {
             auto const& parent_matrix = i == 0 ? replay_base_matrix : transform_palette[node.parent_index.value()];
-            transform_palette.unchecked_append(parent_matrix * local_matrix);
+            transform_palette.unchecked_append((flattens_inherited_transform ? Gfx::flattened(parent_matrix) : parent_matrix) * local_matrix);
             nearest_spatial_node.unchecked_append(VisualContextIndex { i });
             nearest_frame_node.unchecked_append(i == 0 ? VISUAL_VIEWPORT_NODE_INDEX : nearest_frame_node[node.parent_index.value()]);
             backface_culled.unchecked_append(i == 0 ? false : backface_culled[node.parent_index.value()]);
@@ -220,13 +220,17 @@ void DisplayListPlayer::execute_impl(
         };
         node.data.visit(
             [&](TransformData const& transform) {
-                append_spatial(transform.matrix_including_origin());
+                append_spatial(transform.matrix_including_origin(), transform.flattens_inherited_transform);
             },
             [&](PerspectiveData const& perspective) {
-                append_spatial(perspective.matrix);
+                append_spatial(perspective.matrix, perspective.flattens_inherited_transform);
             },
             [&](BackfaceVisibilityData const& backface) {
-                transform_palette.unchecked_append(transform_palette[node.parent_index.value()]);
+                // The flattened entry only feeds the backface test and descendant accumulation. Drawing under the
+                // marker keeps using the parent entry via nearest_spatial_node, since the element's own content
+                // belongs to its parent's plane.
+                auto const& parent_matrix = transform_palette[node.parent_index.value()];
+                transform_palette.unchecked_append(backface.flattens_inherited_transform ? Gfx::flattened(parent_matrix) : parent_matrix);
                 nearest_spatial_node.unchecked_append(nearest_spatial_node[node.parent_index.value()]);
                 nearest_frame_node.unchecked_append(nearest_frame_node[node.parent_index.value()]);
                 bool culled = backface_culled[node.parent_index.value()];

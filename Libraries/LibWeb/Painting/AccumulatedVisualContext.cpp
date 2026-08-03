@@ -388,6 +388,7 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
         VisualContextIndex normal_plane_root;
         VisualContextIndex absolute_position_plane_root;
         VisualContextIndex fixed_position_plane_root;
+        bool flattens_inherited_transform { false };
     };
 
     auto build_paintable_box = [&](Paintable& paintable_box, DescendantVisualContexts inherited_contexts, bool may_be_root_element) -> DescendantVisualContexts {
@@ -492,10 +493,15 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
         if (auto effects = compute_effects_data(paintable_box, computed_values, pixel_ratio); effects.has_value())
             append_to_own_and_positioned_descendant_contexts(effects.value());
 
+        auto flattens_inherited_transform = inherited_contexts.flattens_inherited_transform;
+
+        bool appended_transform_node = false;
         if (computed_values_have_transform(computed_values)) {
             if (auto transform_data = compute_transform(paintable_box, computed_values, pixel_ratio); transform_data.has_value()) {
+                transform_data->flattens_inherited_transform = flattens_inherited_transform;
                 paintable_box.set_has_non_invertible_css_transform(!transform_data->matrix.is_invertible());
                 own_state = append_node(own_state, *transform_data);
+                appended_transform_node = true;
             } else {
                 paintable_box.set_has_non_invertible_css_transform(false);
             }
@@ -518,14 +524,26 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
                 return inherited_contexts.absolute_position_plane_root;
             return inherited_contexts.normal_plane_root;
         }();
-        if (computed_values.backface_visibility() == CSS::BackfaceVisibility::Hidden && layout_node.is_transformable())
-            own_state = append_node(own_state, BackfaceVisibilityData { inherited_plane_root });
+        bool appended_backface_marker = false;
+        if (computed_values.backface_visibility() == CSS::BackfaceVisibility::Hidden && layout_node.is_transformable()) {
+            own_state = append_node(own_state, BackfaceVisibilityData { inherited_plane_root, !appended_transform_node && flattens_inherited_transform });
+            appended_backface_marker = true;
+        }
 
         // https://drafts.csswg.org/css-transforms-2/#3d-rendering-contexts
-        // An element whose used value for transform-style is preserve-3d extends its 3D rendering context, so its
-        // descendants accumulate through this element's transform; any other element starts a new plane below its
-        // own transform.
-        auto plane_root_for_descendants = layout_node.establishes_or_extends_a_3d_rendering_context() ? inherited_plane_root : own_state;
+        // An element participates in a 3D rendering context if its parent establishes or extends a 3D rendering
+        // context. The position of each element in that three-dimensional space is determined by accumulating the
+        // transformation matrices up from the given element to the element that establishes the 3D rendering context.
+        // NB: Children of an element that neither establishes nor extends a 3D rendering context start a new plane
+        //     below the element's own transform. Anonymous boxes carry no element style and are invisible to 3D
+        //     rendering contexts, so they pass the inherited plane through unchanged. Pseudo-element boxes carry
+        //     their own style and participate normally. An inherited flatten is only materialized by an appended
+        //     node, so an element that appends none keeps it pending for its descendants.
+        auto establishes_or_extends_3d_rendering_context = layout_node.establishes_or_extends_a_3d_rendering_context();
+        bool invisible_to_3d_rendering_contexts = layout_node.is_anonymous() && !layout_node.is_generated_for_pseudo_element();
+        auto plane_root_for_descendants = establishes_or_extends_3d_rendering_context || invisible_to_3d_rendering_contexts ? inherited_plane_root : own_state;
+        bool inherited_flatten_still_pending = flattens_inherited_transform && !appended_transform_node && !appended_backface_marker;
+        auto descendants_flatten_inherited_transform = invisible_to_3d_rendering_contexts ? flattens_inherited_transform : (!establishes_or_extends_3d_rendering_context || inherited_flatten_still_pending);
 
         if (computed_values.clip().is_rect()) {
             if (auto css_clip = compute_css_clip_data(paintable_box, computed_values, converter); css_clip.has_value())
@@ -591,8 +609,11 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
         VisualContextIndex state_for_descendants = own_state;
 
         if (computed_values.perspective().has_value()) {
-            if (auto perspective_data = compute_perspective_data(paintable_box, computed_values, scale); perspective_data.has_value())
+            if (auto perspective_data = compute_perspective_data(paintable_box, computed_values, scale); perspective_data.has_value()) {
+                perspective_data->flattens_inherited_transform = descendants_flatten_inherited_transform;
+                descendants_flatten_inherited_transform = false;
                 state_for_descendants = append_node(state_for_descendants, *perspective_data);
+            }
         }
 
         auto may_have_clip = computed_values.overflow_x() != CSS::Overflow::Visible
@@ -640,6 +661,7 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
             plane_root_for_descendants,
             absolute_position_plane_root,
             fixed_position_plane_root,
+            descendants_flatten_inherited_transform,
         };
     };
 
@@ -654,6 +676,7 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
         viewport_state_for_descendants,
         viewport_state_for_descendants,
         visual_viewport_context_index,
+        true,
     };
 
     struct PendingPaintable {
@@ -763,6 +786,7 @@ bool update_accumulated_visual_context_values(ViewportPaintable& viewport_painta
         if (auto* transform_data = node.data.get_pointer<TransformData>()) {
             if (!transform.has_value())
                 return false;
+            transform->flattens_inherited_transform = transform_data->flattens_inherited_transform;
             *transform_data = *transform;
             found_transform = true;
         } else if (auto* effects_data = node.data.get_pointer<EffectsData>()) {
@@ -773,6 +797,7 @@ bool update_accumulated_visual_context_values(ViewportPaintable& viewport_painta
         } else if (auto* perspective_data = node.data.get_pointer<PerspectiveData>()) {
             if (!perspective.has_value())
                 return false;
+            perspective->flattens_inherited_transform = perspective_data->flattens_inherited_transform;
             *perspective_data = *perspective;
             found_perspective = true;
         }
@@ -863,6 +888,39 @@ Vector<size_t, 8> AccumulatedVisualContextTree::build_ancestor_chain(VisualConte
     return chain;
 }
 
+struct LocalSpatialMatrix {
+    Gfx::FloatMatrix4x4 matrix;
+    bool flattens_inherited_transform { false };
+};
+
+static LocalSpatialMatrix local_spatial_matrix(AccumulatedVisualContextNode const& node, VisualContextIndex node_index, ScrollStateSnapshot const& scroll_state)
+{
+    return node.data.visit(
+        [&](TransformData const& transform) {
+            return LocalSpatialMatrix { transform.matrix_including_origin(), transform.flattens_inherited_transform };
+        },
+        [&](PerspectiveData const& perspective) {
+            return LocalSpatialMatrix { perspective.matrix, perspective.flattens_inherited_transform };
+        },
+        [&](ScrollData const&) {
+            auto offset = scroll_state.device_offset_for_index(node_index);
+            return LocalSpatialMatrix { Gfx::translation_matrix(Vector3 { offset.x(), offset.y(), 0.f }) };
+        },
+        [&](ScrollCompensation const& compensation) {
+            auto offset = scroll_state.device_offset_for_index(compensation.scroll_node_index);
+            return LocalSpatialMatrix { Gfx::translation_matrix(Vector3 { -offset.x(), -offset.y(), 0.f }) };
+        },
+        [&](AnchorScrollShift const& shift) {
+            auto offset = shift.masked_offset(scroll_state);
+            return LocalSpatialMatrix { Gfx::translation_matrix(Vector3 { offset.x(), offset.y(), 0.f }) };
+        },
+        [&](BackfaceVisibilityData const& backface) { return LocalSpatialMatrix { Gfx::FloatMatrix4x4::identity(), backface.flattens_inherited_transform }; },
+        [&](ClipData const&) { return LocalSpatialMatrix { Gfx::FloatMatrix4x4::identity() }; },
+        [&](ClipPathData const&) { return LocalSpatialMatrix { Gfx::FloatMatrix4x4::identity() }; },
+        [&](EffectsData const&) { return LocalSpatialMatrix { Gfx::FloatMatrix4x4::identity() }; },
+        [&](MaskData const&) { return LocalSpatialMatrix { Gfx::FloatMatrix4x4::identity() }; });
+}
+
 Optional<Gfx::FloatPoint> AccumulatedVisualContextTree::transform_point_for_hit_test(VisualContextIndex index, Gfx::FloatPoint screen_point, ScrollStateSnapshot const& scroll_state, ClipBehavior clip_behavior) const
 {
     auto chain = build_ancestor_chain(index);
@@ -883,31 +941,13 @@ Optional<Gfx::FloatPoint> AccumulatedVisualContextTree::transform_point_for_hit_
         auto const& node = m_nodes[node_index.value()];
 
         if (chain_has_backface_marker) {
-            auto local_matrix = node.data.visit(
-                [&](TransformData const& transform) {
-                    return transform.matrix_including_origin();
-                },
-                [&](PerspectiveData const& perspective) {
-                    return perspective.matrix;
-                },
-                [&](ScrollData const&) {
-                    auto offset = scroll_state.device_offset_for_index(node_index);
-                    return Gfx::translation_matrix(Vector3 { offset.x(), offset.y(), 0.f });
-                },
-                [&](ScrollCompensation const& compensation) {
-                    auto offset = scroll_state.device_offset_for_index(compensation.scroll_node_index);
-                    return Gfx::translation_matrix(Vector3 { -offset.x(), -offset.y(), 0.f });
-                },
-                [&](AnchorScrollShift const& shift) {
-                    auto offset = shift.masked_offset(scroll_state);
-                    return Gfx::translation_matrix(Vector3 { offset.x(), offset.y(), 0.f });
-                },
-                [&](BackfaceVisibilityData const&) { return Gfx::FloatMatrix4x4::identity(); },
-                [&](ClipData const&) { return Gfx::FloatMatrix4x4::identity(); },
-                [&](ClipPathData const&) { return Gfx::FloatMatrix4x4::identity(); },
-                [&](EffectsData const&) { return Gfx::FloatMatrix4x4::identity(); },
-                [&](MaskData const&) { return Gfx::FloatMatrix4x4::identity(); });
-            accumulated_matrices.unchecked_append(i == chain.size() ? local_matrix : accumulated_matrices.last() * local_matrix);
+            auto local = local_spatial_matrix(node, node_index, scroll_state);
+            if (i == chain.size()) {
+                accumulated_matrices.unchecked_append(local.matrix);
+            } else {
+                auto const& parent_matrix = accumulated_matrices.last();
+                accumulated_matrices.unchecked_append((local.flattens_inherited_transform ? Gfx::flattened(parent_matrix) : parent_matrix) * local.matrix);
+            }
         }
 
         auto result = node.data.visit(
@@ -1062,7 +1102,7 @@ Gfx::FloatMatrix4x4 TransformData::matrix_including_origin() const
 
 bool should_cull_back_face(Gfx::FloatMatrix4x4 const& accumulated_matrix, Gfx::FloatMatrix4x4 const& plane_root_matrix)
 {
-    auto inverse_plane_root_matrix = plane_root_matrix.inverse();
+    auto inverse_plane_root_matrix = Gfx::flattened(plane_root_matrix).inverse();
     if (!inverse_plane_root_matrix.has_value())
         return false;
     return Gfx::is_back_face_visible(*inverse_plane_root_matrix * accumulated_matrix);
@@ -1200,6 +1240,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::Painting::TransformData const& data)
 {
     TRY(encoder.encode(data.matrix));
     TRY(encoder.encode(data.origin));
+    TRY(encoder.encode(data.flattens_inherited_transform));
     return {};
 }
 
@@ -1209,6 +1250,7 @@ ErrorOr<Web::Painting::TransformData> decode(Decoder& decoder)
     return Web::Painting::TransformData {
         .matrix = TRY(decoder.decode<Gfx::FloatMatrix4x4>()),
         .origin = TRY(decoder.decode<Gfx::FloatPoint>()),
+        .flattens_inherited_transform = TRY(decoder.decode<bool>()),
     };
 }
 
@@ -1216,6 +1258,7 @@ template<>
 ErrorOr<void> encode(Encoder& encoder, Web::Painting::PerspectiveData const& data)
 {
     TRY(encoder.encode(data.matrix));
+    TRY(encoder.encode(data.flattens_inherited_transform));
     return {};
 }
 
@@ -1224,6 +1267,7 @@ ErrorOr<Web::Painting::PerspectiveData> decode(Decoder& decoder)
 {
     return Web::Painting::PerspectiveData {
         .matrix = TRY(decoder.decode<Gfx::FloatMatrix4x4>()),
+        .flattens_inherited_transform = TRY(decoder.decode<bool>()),
     };
 }
 
@@ -1231,6 +1275,7 @@ template<>
 ErrorOr<void> encode(Encoder& encoder, Web::Painting::BackfaceVisibilityData const& data)
 {
     TRY(encoder.encode(data.plane_root_index));
+    TRY(encoder.encode(data.flattens_inherited_transform));
     return {};
 }
 
@@ -1239,6 +1284,7 @@ ErrorOr<Web::Painting::BackfaceVisibilityData> decode(Decoder& decoder)
 {
     return Web::Painting::BackfaceVisibilityData {
         .plane_root_index = TRY(decoder.decode<Web::Painting::VisualContextIndex>()),
+        .flattens_inherited_transform = TRY(decoder.decode<bool>()),
     };
 }
 

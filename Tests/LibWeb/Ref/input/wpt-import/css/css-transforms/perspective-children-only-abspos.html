@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<meta charset=UTF-8>
+<title>CSS Test (Transforms): perspective applies only to DOM children (position: absolute)</title>
+<link rel="author" title="L. David Baron" href="https://dbaron.org/">
+<link rel="author" title="Google" href="http://www.google.com/">
+<link rel="help" href="https://www.w3.org/TR/css-transforms-2/#perspective">
+<link rel="help" href="https://www.w3.org/TR/css-transforms-2/#propdef-perspective">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/918">
+<meta name="assert" content="The perspective property influences an element's children.">
+<link rel="match" href="../../../../expected/wpt-import/css/css-transforms/reference/green.html">
+<style>
+
+div {
+  width: 100px;
+  height: 100px;
+}
+
+#outer {
+  position: relative;
+  background: red;
+  perspective: 100px;
+}
+
+#middle {
+}
+
+#inner {
+  transform: translateZ(-100px);
+  position: absolute;
+  top: 0;
+  left: 0;
+  background: green;
+}
+
+</style>
+
+<p>Pass if there is NO red below:</p>
+
+<div id="outer">
+  <div id="middle">
+    <div id="inner"></div>
+  </div>
+</div>

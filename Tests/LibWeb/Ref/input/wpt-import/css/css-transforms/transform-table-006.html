@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Test (Transforms): Table Without Preserve-3D 1</title>
+    <link rel="author" title="Aryeh Gregor" href="mailto:ayg@aryeh.name">
+    <link rel="help" href="http://www.w3.org/TR/css-transforms-2/#transform-style-property">
+    <meta name="assert" content="This has preserve-3d applied to the outer
+    wrapper of a table, but not the inner wrapper containing its contents.
+    Therefore, the contents should be rotated 90 degrees and vanish, and the
+    90-degree rotation on the outer wrapper shouldn't restore them.  An
+    implementation that incorrectly propagated preserve-3d to table descendants
+    might cause the text to appear, but mirrored.">
+    <link rel="match" href="../../../../expected/wpt-import/css/css-transforms/transform-blank-ref.html">
+    <style>
+      body > div {
+        transform: rotateX(90deg);
+        transform-style: preserve-3d;
+      }
+      td > div {
+        transform: rotateX(90deg);
+      }
+    </style>
+  </head>
+  <body>
+    <p>Nothing should appear except this sentence.</p>
+    <div>
+      <table>
+        <tr>
+          <td>
+            <div>Some text</div>
+          </td>
+        </tr>
+      </table>
+    </body>
+  </html>

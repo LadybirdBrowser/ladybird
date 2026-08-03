@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Test (Transforms): 'perspective: 1000px' on Grandparent and
+    'perspective: 0px' on Parent</title>
+    <link rel="author" title="Aryeh Gregor" href="mailto:ayg@aryeh.name">
+    <link rel="author" title="L. David Baron" href="https://dbaron.org/">
+    <link rel="author" title="Google" href="http://www.google.com/">
+    <link rel="help" href="http://www.w3.org/TR/css-transforms-2/#perspective-property">
+    <link rel="help" href="https://github.com/w3c/csswg-drafts/issues/413">
+    <meta name="assert" content="This tests that 'perspective: 0px' behaves the
+    same as perspective: 1px.">
+    <link rel="match" href="../../../../expected/wpt-import/css/css-transforms/transform-lime-square-ref.html">
+  </head>
+  <body>
+    <div style="perspective: 1000px">
+      <div style="perspective: 0px; perspective-origin: 50px bottom">
+        <div style="height: 50px; width: 50px; background: lime;
+          transform: translate3d(25px, 25px, 0.5px)">
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

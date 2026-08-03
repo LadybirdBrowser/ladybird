@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/css/transform-behind-eye-plane-not-painted-ref.html" />
+<style>
+#container {
+    perspective: 100px;
+    width: 100px;
+    height: 100px;
+}
+#parent {
+    transform: translateZ(200px);
+    width: 100px;
+    height: 100px;
+    background: blue;
+}
+#child {
+    transform: translateX(1px);
+    width: 100px;
+    height: 100px;
+    background: red;
+}
+</style>
+<div id="container">
+    <div id="parent">
+        <div id="child"></div>
+    </div>
+</div>
