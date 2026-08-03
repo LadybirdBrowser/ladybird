@@ -1,0 +1,4 @@
+listenerless root: false
+root with listener: true
+root after removing listener: false
+root after destroy: false

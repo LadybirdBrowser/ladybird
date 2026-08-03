@@ -1,0 +1,10 @@
+width -1: IndexSizeError
+width 101: IndexSizeError
+regionAnchorX -1: IndexSizeError
+regionAnchorX 101: IndexSizeError
+regionAnchorY -1: IndexSizeError
+regionAnchorY 101: IndexSizeError
+viewportAnchorX -1: IndexSizeError
+viewportAnchorX 101: IndexSizeError
+viewportAnchorY -1: IndexSizeError
+viewportAnchorY 101: IndexSizeError

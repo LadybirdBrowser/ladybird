@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const markDetail = { source: "mark", values: [1, 2, 3] };
+        const mark = performance.mark("detail-mark", { detail: markDetail });
+        markDetail.values.push(4);
+
+        println(`mark.detail.source: ${mark.detail.source}`);
+        println(`mark.detail.values: ${mark.detail.values.join(",")}`);
+        println(`mark.detail identity: ${mark.detail === mark.detail}`);
+
+        const bufferedMark = performance.getEntriesByName("detail-mark", "mark")[0];
+        println(`buffered mark detail source: ${bufferedMark.detail.source}`);
+        println(`buffered mark detail values: ${bufferedMark.detail.values.join(",")}`);
+
+        const measureDetail = { source: "measure", nested: { ok: true } };
+        const measure = performance.measure("detail-measure", { start: "detail-mark", end: performance.now(), detail: measureDetail });
+        measureDetail.nested.ok = false;
+
+        println(`measure.detail.source: ${measure.detail.source}`);
+        println(`measure.detail.nested.ok: ${measure.detail.nested.ok}`);
+        println(`measure.detail identity: ${measure.detail === measure.detail}`);
+
+        const bufferedMeasure = performance.getEntriesByName("detail-measure", "measure")[0];
+        println(`buffered measure detail source: ${bufferedMeasure.detail.source}`);
+        println(`buffered measure detail nested ok: ${bufferedMeasure.detail.nested.ok}`);
+
+        const noDetailMark = performance.mark("no-detail");
+        const noDetailMeasure = performance.measure("no-detail-measure", "no-detail");
+        println(`no detail mark: ${noDetailMark.detail}`);
+        println(`no detail measure: ${noDetailMeasure.detail}`);
+    });
+</script>
