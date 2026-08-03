@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 10 tests
+
+10 Pass
+Pass	Preserve-3d element not flattened
+Pass	Preserve-3d element flattened due to opacity
+Pass	Preserve-3d element flattened due to overflow clip
+Pass	Preserve-3d element flattened due to filter
+Pass	Preserve-3d element flattened due to backdrop-filter
+Pass	Preserve-3d element flattened due to mix-blend-mode
+Pass	Preserve-3d element flattened due to clip CSS
+Pass	Preserve-3d element flattened due to clip-path
+Pass	Preserve-3d element flattened due to isolation
+Pass	Preserve-3d element flattened due to mask

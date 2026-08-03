@@ -5,7 +5,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AllOf.h>
 #include <AK/AnyOf.h>
+#include <AK/Array.h>
 #include <AK/Atomic.h>
 #include <AK/HashTable.h>
 #include <AK/StringBuilder.h>
@@ -921,6 +923,55 @@ static LocalSpatialMatrix local_spatial_matrix(AccumulatedVisualContextNode cons
         [&](MaskData const&) { return LocalSpatialMatrix { Gfx::FloatMatrix4x4::identity() }; });
 }
 
+bool AccumulatedVisualContextTree::chain_contains_3d_transform(VisualContextIndex index) const
+{
+    for (size_t i = index.value();; i = m_nodes[i].parent_index.value()) {
+        auto const& node = m_nodes[i];
+        if (auto const* transform = node.data.get_pointer<TransformData>()) {
+            if (!Gfx::is_2d_affine_transform(transform->matrix))
+                return true;
+        } else if (node.data.has<PerspectiveData>()) {
+            return true;
+        }
+        if (i == VISUAL_VIEWPORT_NODE_INDEX.value())
+            break;
+    }
+    return false;
+}
+
+// Homogeneous coordinates this close to the eye plane have no meaningful projection.
+static constexpr float minimum_projection_w = 0.0001f;
+
+static Gfx::FloatRect map_rect_through_matrix(Gfx::FloatMatrix4x4 const& matrix, Gfx::FloatRect const& rect)
+{
+    auto map_corner = [&](Gfx::FloatPoint point) {
+        return matrix * Gfx::FloatVector4 { point.x(), point.y(), 0, 1 };
+    };
+    Array<Gfx::FloatVector4, 4> mapped_corners {
+        map_corner(rect.top_left()),
+        map_corner(rect.top_right()),
+        map_corner(rect.bottom_left()),
+        map_corner(rect.bottom_right()),
+    };
+    bool all_corners_behind_eye_plane = all_of(mapped_corners, [](auto const& corner) { return corner.w() <= 0; });
+    // A rect entirely behind the eye plane divides through its negative homogeneous coordinates, matching the
+    // geometry other engines report. A rect that crosses the eye plane projects without bound, so the corners
+    // behind it are clamped to keep the result conservatively covering the rendered region.
+    auto project_corner = [&](Gfx::FloatVector4 const& corner) -> Gfx::FloatPoint {
+        auto w = all_corners_behind_eye_plane ? min(corner.w(), -minimum_projection_w) : max(corner.w(), minimum_projection_w);
+        return { corner.x() / w, corner.y() / w };
+    };
+    auto top_left = project_corner(mapped_corners[0]);
+    auto top_right = project_corner(mapped_corners[1]);
+    auto bottom_left = project_corner(mapped_corners[2]);
+    auto bottom_right = project_corner(mapped_corners[3]);
+    auto left = min(min(top_left.x(), top_right.x()), min(bottom_left.x(), bottom_right.x()));
+    auto right = max(max(top_left.x(), top_right.x()), max(bottom_left.x(), bottom_right.x()));
+    auto top = min(min(top_left.y(), top_right.y()), min(bottom_left.y(), bottom_right.y()));
+    auto bottom = max(max(top_left.y(), top_right.y()), max(bottom_left.y(), bottom_right.y()));
+    return { left, top, right - left, bottom - top };
+}
+
 Optional<Gfx::FloatPoint> AccumulatedVisualContextTree::transform_point_for_hit_test(VisualContextIndex index, Gfx::FloatPoint screen_point, ScrollStateSnapshot const& scroll_state, ClipBehavior clip_behavior) const
 {
     auto chain = build_ancestor_chain(index);
@@ -1028,6 +1079,32 @@ Gfx::FloatPoint AccumulatedVisualContextTree::inverse_transform_point(VisualCont
 {
     auto chain = build_ancestor_chain(index);
 
+    // This walk deliberately skips translation-only nodes. Callers resolve offsets and scroll positions
+    // themselves. The per-node inverses below are only exact for chains of 2D transforms, so a chain containing a
+    // 3D transform inverts the flattened accumulated matrix, mapping the screen point onto the plane the content
+    // was rendered into.
+    if (chain_contains_3d_transform(index)) {
+        auto matrix = Gfx::FloatMatrix4x4::identity();
+        for (size_t i = chain.size(); i > 0; --i) {
+            auto const& node = m_nodes[chain[i - 1]];
+            node.data.visit(
+                [&](TransformData const& transform) {
+                    matrix = (transform.flattens_inherited_transform ? Gfx::flattened(matrix) : matrix) * transform.matrix_including_origin();
+                },
+                [&](PerspectiveData const& perspective) {
+                    matrix = (perspective.flattens_inherited_transform ? Gfx::flattened(matrix) : matrix) * perspective.matrix;
+                },
+                [&](auto const&) {});
+        }
+        auto inverse = Gfx::flattened(matrix).inverse();
+        if (!inverse.has_value())
+            return screen_point;
+        auto mapped = *inverse * Gfx::FloatVector4 { screen_point.x(), screen_point.y(), 0, 1 };
+        if (mapped.w() < minimum_projection_w)
+            return screen_point;
+        return { mapped.x() / mapped.w(), mapped.y() / mapped.w() };
+    }
+
     auto point = screen_point;
     for (size_t i = chain.size(); i > 0; --i) {
         auto const& node = m_nodes[chain[i - 1]];
@@ -1056,6 +1133,20 @@ Gfx::FloatPoint AccumulatedVisualContextTree::inverse_transform_point(VisualCont
 
 Gfx::FloatRect AccumulatedVisualContextTree::transform_rect_to_viewport(VisualContextIndex index, Gfx::FloatRect const& source_rect, ScrollStateSnapshot const& scroll_state, IncludeVisualViewportTransform include_visual_viewport_transform) const
 {
+    // A chain with three-dimensional transforms cannot be applied one two-dimensional projection at a time.
+    if (chain_contains_3d_transform(index)) {
+        auto chain = build_ancestor_chain(index);
+        auto matrix = Gfx::FloatMatrix4x4::identity();
+        for (size_t i = chain.size(); i > 0; --i) {
+            auto node_index = VisualContextIndex { chain[i - 1] };
+            if (node_index == VISUAL_VIEWPORT_NODE_INDEX && include_visual_viewport_transform == IncludeVisualViewportTransform::No)
+                continue;
+            auto local = local_spatial_matrix(m_nodes[node_index.value()], node_index, scroll_state);
+            matrix = (local.flattens_inherited_transform ? Gfx::flattened(matrix) : matrix) * local.matrix;
+        }
+        return map_rect_through_matrix(matrix, source_rect);
+    }
+
     auto rect = source_rect;
     for (size_t i = index.value();; i = m_nodes[i].parent_index.value()) {
         auto const& node = m_nodes[i];

@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 12 tests
+
+12 Pass
+Pass	Direct DOM parent is root of rendering context (normal flow)
+Pass	Direct DOM parent is root of rendering context (absolute)
+Pass	Direct DOM parent is root of rendering context (fixed)
+Pass	Intermediate DOM nodes cause rendering context to end (normal flow)
+Pass	Intermediate DOM nodes cause rendering context to end (absolute)
+Pass	Intermediate DOM nodes cause rendering context to end (fixed)
+Pass	Perspective applies to direct DOM normal-flow children
+Pass	Perspective applies to direct DOM abs-pos children
+Pass	Perspective applies to direct DOM fixed-pos children
+Pass	Perspective does not apply to DOM normal-flow grandchildren
+Pass	Perspective does not apply to DOM abs-pos grandchildren
+Pass	Perspective does not apply to DOM fixed-pos grandchildren

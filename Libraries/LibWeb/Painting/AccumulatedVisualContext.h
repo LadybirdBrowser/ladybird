@@ -195,6 +195,7 @@ private:
     }
 
     Vector<size_t, 8> build_ancestor_chain(VisualContextIndex index) const;
+    bool chain_contains_3d_transform(VisualContextIndex index) const;
 
     u64 m_version { 0 };
     Vector<AccumulatedVisualContextNode> m_nodes;

@@ -1,0 +1,121 @@
+<!doctype HTML>
+<link rel="author" title="Chris Harrelson" href="mailto:chrishtr@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-transforms-2/#grouping-property-values">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<style>
+  .testContainer div {
+    /* Note: .testContainer is just here to prevent this rule from squishing
+       the dynamically-generated human-readable divs that show this test's
+       pass/fail results. */
+    width: 200px;
+    height: 200px;
+  }
+  .parent {
+    transform-style: preserve-3d;
+    transform: rotateY(45deg)
+  }
+
+  .child {
+    transform: rotateY(45deg);
+    background: lightblue
+  }
+</style>
+
+<div class=testContainer>
+  <div class=parent>
+    <div id=nonflat class=child></div>
+  </div>
+
+  <div class=parent style="opacity: 0.5">
+    <div id=opacity class=child></div>
+  </div>
+
+  <div class=parent style="overflow: hidden">
+    <div id=overflowClip class=child></div>
+  </div>
+
+  <div class=parent style="filter: invert(0)">
+    <div id=filter class=child></div>
+  </div>
+
+  <div class=parent style="-webkit-backdrop-filter: invert(0); backdrop-filter: invert(0)">
+    <div id=backdropFilter class=child></div>
+  </div>
+
+  <div class=parent style="mix-blend-mode: multiply;">
+    <div id=mixBlendMode class=child></div>
+  </div>
+
+  <div class=parent style="clip: rect(1px, 2px, 3px, 4px); position: absolute">
+    <div id=cssClip class=child></div>
+  </div>
+
+  <div class=parent style="clip-path: circle(40%)">
+    <div id=clipPath class=child></div>
+  </div>
+
+  <div class=parent style="isolation: isolate">
+    <div id=isolation class=child></div>
+  </div>
+
+  <div class=parent style="-webkit-mask:linear-gradient(black,transparent);
+                           mask:linear-gradient(black,transparent)">
+    <div id=mask class=child></div>
+  </div>
+
+  <div id=parentWithGrouping style="transform-style: preserve-3d; overflow: hidden">
+    <div id=absoluteUnderGrouping style="position: absolute">
+    </div>
+  </div>
+
+  <div id=parentWithoutGrouping style="transform-style: preserve-3d">
+    <div id=absoluteNotUnderGrouping style="position: absolute">
+    </div>
+  </div>
+</div>
+
+<script>
+  nonflatWidth = nonflat.getBoundingClientRect().width;
+
+  test(function() {
+    assert_equals(nonflat.getBoundingClientRect().width, nonflatWidth);
+  }, "Preserve-3d element not flattened");
+
+  test(function() {
+    assert_not_equals(opacity.getBoundingClientRect().width, nonflatWidth);
+  }, "Preserve-3d element flattened due to opacity");
+
+  test(function() {
+    assert_not_equals(overflowClip.getBoundingClientRect().width, nonflatWidth);
+  }, "Preserve-3d element flattened due to overflow clip");
+
+  test(function() {
+    assert_not_equals(filter.getBoundingClientRect().width, nonflatWidth);
+  }, "Preserve-3d element flattened due to filter");
+
+  test(function() {
+    assert_not_equals(backdropFilter.getBoundingClientRect().width, nonflatWidth);
+  }, "Preserve-3d element flattened due to backdrop-filter");
+
+  test(function() {
+    assert_not_equals(mixBlendMode.getBoundingClientRect().width), nonflatWidth;
+  }, "Preserve-3d element flattened due to mix-blend-mode");
+
+  test(function() {
+    assert_not_equals(cssClip.getBoundingClientRect().width, nonflatWidth);
+  }, "Preserve-3d element flattened due to clip CSS");
+
+  test(function() {
+    assert_not_equals(clipPath.getBoundingClientRect().width, nonflatWidth);
+  }, "Preserve-3d element flattened due to clip-path");
+
+  test(function() {
+    assert_not_equals(isolation.getBoundingClientRect().width, nonflatWidth);
+  }, "Preserve-3d element flattened due to isolation");
+
+  test(function() {
+    assert_not_equals(mask.getBoundingClientRect().width, nonflatWidth);
+  }, "Preserve-3d element flattened due to mask");
+</script>

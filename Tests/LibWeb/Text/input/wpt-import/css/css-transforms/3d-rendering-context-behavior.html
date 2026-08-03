@@ -1,0 +1,126 @@
+<!doctype HTML>
+<link rel="author" title="Chris Harrelson" href="mailto:chrishtr@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-transforms-2/">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<style>
+  div {
+    width: 200px;
+    height: 200px;
+  }
+
+  .rotate45 {
+    transform: rotateY(45deg)
+  }
+  .rotateNeg45 {
+    transform: rotateY(-45deg)
+  }
+
+  .parent {
+    transform-style: preserve-3d;
+  }
+
+  .perspective {
+    perspective: 200px;
+  }
+</style>
+
+<div class="parent rotateNeg45">
+  <div id=childOfPreserve3D class="child rotate45"></div>
+</div>
+
+<div class="parent rotateNeg45">
+  <div id=absChildOfPreserve3D class="child rotate45" style="position: absolute"></div>
+</div>
+
+<div class="parent rotateNeg45">
+  <div id=fixedChildOfPreserve3D class="child rotate45" style="position: fixed"></div>
+</div>
+
+<div class="parent rotateNeg45">
+  <div>
+    <div id=childWithIntermediate class="child rotate45"></div>
+  </div>
+</div>
+
+<div class="parent rotateNeg45">
+  <div>
+    <div id=absWithIntermediate class="child rotate45" style="position: absolute"></div>
+  </div>
+</div>
+
+<div class="parent rotateNeg45">
+  <div>
+    <div id=fixedWithIntermediate class="child rotate45" style="position: fixed"></div>
+  </div>
+</div>
+
+<div class="perspective">
+  <div id=childWithPerspectiveParent class="child rotate45"></div>
+  <div id=absWithPerspectiveParent class="child rotate45" style="position: absolute"></div>
+  <div id=fixedWithPerspectiveParent class="child rotate45" style="position: fixed"></div>
+</div>
+
+<div class="perspective">
+  <div>
+    <div id=childWithIntermediateAndPerspectiveParent class="child rotate45"></div>
+    <div id=absWithIntermediateAndPerspectiveParent class="child rotate45" style="position: absolute"></div>
+    <div id=fixedWithIntermediateAndPerspectiveParent class="child rotate45" style="position: fixed"></div>
+  </div>
+</div>
+
+<script>
+  test(function() {
+    assert_equals(childOfPreserve3D.getBoundingClientRect().width, 200);
+  }, "Direct DOM parent is root of rendering context (normal flow)");
+  test(function() {
+    assert_equals(absChildOfPreserve3D.getBoundingClientRect().width, 200);
+  }, "Direct DOM parent is root of rendering context (absolute)");
+  test(function() {
+    assert_equals(fixedChildOfPreserve3D.getBoundingClientRect().width, 200);
+  }, "Direct DOM parent is root of rendering context (fixed)");
+
+  test(function() {
+    assert_equals(childWithIntermediate.getBoundingClientRect().width, 100);
+  }, "Intermediate DOM nodes cause rendering context to end (normal flow)");
+  test(function() {
+    assert_equals(absWithIntermediate.getBoundingClientRect().width, 100);
+  }, "Intermediate DOM nodes cause rendering context to end (absolute)");
+  test(function() {
+    assert_equals(fixedWithIntermediate.getBoundingClientRect().width, 100);
+  }, "Intermediate DOM nodes cause rendering context to end (fixed)");
+
+  test(function() {
+    assert_approx_equals(
+        childWithPerspectiveParent.getBoundingClientRect().width, 161, 1);
+  }, "Perspective applies to direct DOM normal-flow children");
+
+  test(function() {
+    assert_approx_equals(
+        absWithPerspectiveParent.getBoundingClientRect().width, 161, 1);
+  }, "Perspective applies to direct DOM abs-pos children");
+
+  test(function() {
+    assert_approx_equals(
+        fixedWithPerspectiveParent.getBoundingClientRect().width, 161, 1);
+  }, "Perspective applies to direct DOM fixed-pos children");
+
+  test(function() {
+    assert_approx_equals(
+        childWithIntermediateAndPerspectiveParent.getBoundingClientRect().width,
+        141, 1);
+  }, "Perspective does not apply to DOM normal-flow grandchildren");
+
+  test(function() {
+    assert_approx_equals(
+        absWithIntermediateAndPerspectiveParent.getBoundingClientRect().width,
+        141, 1);
+  }, "Perspective does not apply to DOM abs-pos grandchildren");
+
+  test(function() {
+    assert_approx_equals(
+      fixedWithIntermediateAndPerspectiveParent.getBoundingClientRect().width,
+      141, 1);
+  }, "Perspective does not apply to DOM fixed-pos grandchildren");
+</script>

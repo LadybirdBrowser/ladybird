@@ -109,6 +109,14 @@ Gfx::AffineTransform extract_2d_affine_transform(Matrix4x4<T> const& m)
 }
 
 template<typename T>
+constexpr static bool is_2d_affine_transform(Matrix4x4<T> const& m)
+{
+    return m[0, 2] == 0 && m[1, 2] == 0
+        && m[2, 0] == 0 && m[2, 1] == 0 && m[2, 2] == 1 && m[2, 3] == 0
+        && m[3, 0] == 0 && m[3, 1] == 0 && m[3, 2] == 0 && m[3, 3] == 1;
+}
+
+template<typename T>
 constexpr static Matrix4x4<T> flattened(Matrix4x4<T> const& m)
 {
     Matrix4x4<T> result = m;
