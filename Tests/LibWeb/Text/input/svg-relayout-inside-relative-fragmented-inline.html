@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #relative_inline {
+        position: relative;
+        top: 20px;
+        left: 30px;
+    }
+    svg { display: block; }
+</style>
+<span id="relative_inline">before
+    <svg id="target" width="120" height="100" viewBox="0 0 120 100">
+        <rect id="r" width="60" height="40" fill="rgb(200, 0, 0)"/>
+    </svg>
+after</span>
+<script>
+    // An in-flow block-level SVG root inside a position:relative fragmented inline is a
+    // partial relayout boundary whose offset is frozen at the previous layout's value.
+    // That frozen offset already includes the inline ancestor chain's relative inset, so
+    // the commit must not accumulate the chain again or the box drifts further on every
+    // subtree relayout.
+    test(() => {
+        document.body.offsetHeight;
+        const before = document.getElementById("target").getBoundingClientRect();
+
+        const partialBefore = internals.partialLayoutCount();
+        const fullBefore = internals.fullLayoutCount();
+
+        document.getElementById("r").setAttribute("width", "80");
+        document.body.offsetHeight;
+        const afterFirstRelayout = document.getElementById("target").getBoundingClientRect();
+
+        document.getElementById("r").setAttribute("width", "100");
+        document.body.offsetHeight;
+        const afterSecondRelayout = document.getElementById("target").getBoundingClientRect();
+
+        const partialDelta = internals.partialLayoutCount() - partialBefore;
+        const fullDelta = internals.fullLayoutCount() - fullBefore;
+
+        println(`stable after first relayout: ${before.x === afterFirstRelayout.x && before.y === afterFirstRelayout.y}`);
+        println(`stable after second relayout: ${before.x === afterSecondRelayout.x && before.y === afterSecondRelayout.y}`);
+        println(`partial-layouts=${partialDelta} full-layouts=${fullDelta}`);
+    });
+</script>

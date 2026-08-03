@@ -1377,6 +1377,22 @@ pub(crate) fn push_line_data(
     let Some(mut data) = state.line_data_mut_if_present(slot_index) else {
         return false;
     };
+    // Fragments and pieces are stored at their static positions; the relative
+    // insets contributed by inline-flow ancestor chains are applied here, at
+    // emission, so the stored line data never depends on ancestor geometry.
+    let mut accumulated_relative_offset_by_chain_start = HashMap::<Node, (CssPixels, CssPixels)>::new();
+    let mut accumulated_relative_offset_from = |first_ancestor: Node| -> (CssPixels, CssPixels) {
+        *accumulated_relative_offset_by_chain_start
+            .entry(first_ancestor)
+            .or_insert_with(|| {
+                let chain = state.accumulated_relative_insets_from_inline_ancestor_chain(
+                    callbacks,
+                    first_ancestor,
+                    NodeSlotId::INVALID,
+                );
+                (chain.offset_x, chain.offset_y)
+            })
+    };
     for line in &mut data.line_boxes {
         let committed_fragment_count = line
             .fragments
@@ -1398,6 +1414,8 @@ pub(crate) fn push_line_data(
                 continue;
             }
             let (x, y) = fragment.offset();
+            let (relative_dx, relative_dy) = accumulated_relative_offset_from(callbacks.parent(fragment.layout_node));
+            let (x, y) = (x + relative_dx, y + relative_dy);
             let (width, height) = fragment.size();
             let glyphs = fragment
                 .glyphs
@@ -1440,6 +1458,9 @@ pub(crate) fn push_line_data(
         }
     }
     for piece in &data.inline_box_pieces {
+        // The chain starts at the piece's own node: a relative inline box
+        // shifts its own pieces.
+        let (relative_dx, relative_dy) = accumulated_relative_offset_from(piece.node);
         // SAFETY: The sink copies the POD piece synchronously.
         unsafe {
             (sink.emit_inline_box_piece)(
@@ -1449,8 +1470,8 @@ pub(crate) fn push_line_data(
                     first_fragment_index: piece.first_fragment_index,
                     fragment_count: piece.fragment_count,
                     border_box_rect: FfiCssPixelRect {
-                        x: piece.border_box_rect.x,
-                        y: piece.border_box_rect.y,
+                        x: piece.border_box_rect.x + relative_dx,
+                        y: piece.border_box_rect.y + relative_dy,
                         width: piece.border_box_rect.width,
                         height: piece.border_box_rect.height,
                     },

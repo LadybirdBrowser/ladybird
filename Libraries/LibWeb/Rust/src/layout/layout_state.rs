@@ -160,6 +160,7 @@ pub struct FfiTableCellCoordinates {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(C)]
 pub struct FfiCommittedBoxMetrics {
+    pub content_offset: crate::layout::FfiCssPixelPoint,
     pub content_inline_size: crate::layout::CssPixels,
     pub content_block_size: crate::layout::CssPixels,
     pub margin_left: crate::layout::CssPixels,
@@ -178,28 +179,23 @@ pub struct FfiCommittedBoxMetrics {
     pub inset_right: crate::layout::CssPixels,
     pub inset_top: crate::layout::CssPixels,
     pub inset_bottom: crate::layout::CssPixels,
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-#[repr(C)]
-pub struct FfiCommittedOffset {
-    pub offset: crate::layout::FfiCssPixelPoint,
-    pub inset_left: crate::layout::CssPixels,
-    pub inset_top: crate::layout::CssPixels,
-    pub materialized_from_paintable: bool,
-    pub has_containing_line_box_fragment: bool,
     pub containing_line_box_index: usize,
-    pub line_fragment_lookup: FfiLineFragmentLookup,
-    pub line_fragment_offset: crate::layout::FfiCssPixelPoint,
+    pub has_containing_line_box_index: bool,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-#[repr(u8)]
-pub enum FfiLineFragmentLookup {
+pub(crate) enum LineFragmentLookup {
     #[default]
-    NotFound = 0,
-    LineOnly = 1,
-    Found = 2,
+    NotFound,
+    LineOnly,
+    Found,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct InlineAncestorChainRelativeOffset {
+    pub(crate) offset_x: crate::layout::CssPixels,
+    pub(crate) offset_y: crate::layout::CssPixels,
+    pub(crate) found_fragmented_inline_node: bool,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -263,10 +259,9 @@ pub struct FfiCommitSink {
     pub set_flex_layout_data: unsafe extern "C" fn(*mut c_void, *mut c_void, *const FfiFlexLayoutData),
     pub set_used_grid_tracks:
         unsafe extern "C" fn(*mut c_void, *mut c_void, *const FfiUsedGridTrackList, *const FfiUsedGridTrackList),
-    pub set_offset: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, FfiCommittedOffset),
     pub finish_node:
         unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, *mut c_void, *mut c_void) -> FfiCommitNodeResult,
-    pub resolve_relative_positions: unsafe extern "C" fn(*mut c_void, *mut c_void),
+    pub assign_inline_box_geometry: unsafe extern "C" fn(*mut c_void, *mut c_void),
 }
 
 pub(crate) type ReleaseRetainedLayoutHandle = unsafe extern "C" fn(*mut c_void, *mut c_void);
@@ -396,6 +391,15 @@ impl<'pass> NodeFacts<'pass> {
     pub(crate) fn is_absolutely_positioned(&self) -> bool {
         self.computed_values_view_if_styled()
             .is_some_and(|style| style.is_absolutely_positioned())
+    }
+
+    pub(crate) fn is_relatively_positioned(&self) -> bool {
+        self.computed_values_view_if_styled()
+            .is_some_and(|style| style.position() == crate::css::css_enums::positioning::RELATIVE)
+    }
+
+    pub(crate) fn is_in_flow(&self) -> bool {
+        !crate::layout::node_is_out_of_flow(self.data(), self.computed_values_view_if_styled())
     }
 
     pub(crate) fn is_inline(&self) -> bool {
@@ -1411,13 +1415,93 @@ impl LayoutState {
             .pop_front()
     }
 
+    /// Accumulates relative-position insets from a chain of inline-flow
+    /// ancestors, starting at first_ancestor and walking up until stop_at or
+    /// the first ancestor that is not inline-flow.
+    pub(crate) fn accumulated_relative_insets_from_inline_ancestor_chain(
+        &self,
+        callbacks: &FfiLayoutFcCallbacks,
+        first_ancestor: Node,
+        stop_at: Node,
+    ) -> InlineAncestorChainRelativeOffset {
+        let mut result = InlineAncestorChainRelativeOffset::default();
+        let mut ancestor = first_ancestor;
+        while !ancestor.is_invalid() && ancestor != stop_at {
+            let facts = self.node_facts(callbacks, ancestor);
+            if !facts.has_box_model_metrics() {
+                break;
+            }
+            let display = facts.display();
+            if !display.is_inline_outside() || !display.is_flow_inside() {
+                break;
+            }
+            result.found_fragmented_inline_node |= facts.is_fragmented_inline();
+            if facts.is_relatively_positioned() {
+                // An inline that never went through inline layout this pass has
+                // no used values; its committed box model is zeroed, so it
+                // contributes no inset.
+                if let Some(used) = self.try_used_values(callbacks, ancestor) {
+                    result.offset_x += used.inset_left.get();
+                    result.offset_y += used.inset_top.get();
+                }
+            }
+            ancestor = callbacks.parent(ancestor);
+        }
+        result
+    }
+
+    /// Composes the offset the paintable receives: the containing line box
+    /// fragment override for atomic inlines, the box's own relative-position
+    /// inset, and the relative insets accumulated from a fragmented inline
+    /// ancestor chain (block-in-inline). Offsets materialized from a previous
+    /// layout's paintable already include all of these. Also returns the line
+    /// box index to record for atomic inlines whose containing line survived
+    /// line post-processing.
+    fn committed_content_offset(
+        &self,
+        callbacks: &FfiLayoutFcCallbacks,
+        node: Node,
+        used: &UsedValues,
+    ) -> (crate::layout::FfiCssPixelPoint, Option<usize>) {
+        let mut offset = used.content_offset.get();
+        let mut containing_line_box_index = None;
+        if !used.materialized_from_paintable.get() {
+            let facts = self.node_facts(callbacks, node);
+            if facts.is_box() && !facts.is_fragmented_inline() {
+                let (lookup, line_fragment_offset) = self.line_fragment_lookup(callbacks, used);
+                if lookup != LineFragmentLookup::NotFound {
+                    containing_line_box_index = Some(used.containing_line_box_fragment.get().line_box_index);
+                }
+                if lookup == LineFragmentLookup::Found {
+                    offset = line_fragment_offset;
+                }
+                if facts.is_relatively_positioned() {
+                    offset.x += used.inset_left.get();
+                    offset.y += used.inset_top.get();
+                }
+                if facts.is_in_flow() && facts.display().is_block_outside() {
+                    let chain = self.accumulated_relative_insets_from_inline_ancestor_chain(
+                        callbacks,
+                        callbacks.parent(node),
+                        callbacks.containing_block(node),
+                    );
+                    if chain.found_fragmented_inline_node {
+                        offset.x += chain.offset_x;
+                        offset.y += chain.offset_y;
+                    }
+                }
+            }
+        }
+        (offset, containing_line_box_index)
+    }
+
     fn line_fragment_lookup(
         &self,
         callbacks: &FfiLayoutFcCallbacks,
         used: &UsedValues,
-    ) -> (FfiLineFragmentLookup, crate::layout::FfiCssPixelPoint) {
+    ) -> (LineFragmentLookup, crate::layout::FfiCssPixelPoint) {
         if !used.has_containing_line_box_fragment.get() {
-            return (FfiLineFragmentLookup::NotFound, crate::layout::FfiCssPixelPoint::default());
+            return (LineFragmentLookup::NotFound, crate::layout::FfiCssPixelPoint::default());
         }
         // SAFETY: Commit traverses the still-live C++ layout tree
         // synchronously with the pass callback table.
@@ -1425,17 +1509,17 @@ impl LayoutState {
         assert!(!containing_block.is_invalid());
         let slot_index = callbacks.slot_index(containing_block);
         let Some(data) = self.line_data(slot_index) else {
-            return (FfiLineFragmentLookup::NotFound, crate::layout::FfiCssPixelPoint::default());
+            return (LineFragmentLookup::NotFound, crate::layout::FfiCssPixelPoint::default());
         };
         let coordinate = used.containing_line_box_fragment.get();
         let Some(line) = data.line_boxes.get(coordinate.line_box_index) else {
-            return (FfiLineFragmentLookup::NotFound, crate::layout::FfiCssPixelPoint::default());
+            return (LineFragmentLookup::NotFound, crate::layout::FfiCssPixelPoint::default());
         };
         let Some(fragment) = line.fragments.get(coordinate.fragment_index) else {
-            return (FfiLineFragmentLookup::LineOnly, crate::layout::FfiCssPixelPoint::default());
+            return (LineFragmentLookup::LineOnly, crate::layout::FfiCssPixelPoint::default());
         };
         let (x, y) = fragment.offset();
-        (FfiLineFragmentLookup::Found, crate::layout::FfiCssPixelPoint { x, y })
+        (LineFragmentLookup::Found, crate::layout::FfiCssPixelPoint { x, y })
     }
 
     fn commit_subtree(
@@ -1459,9 +1543,11 @@ impl LayoutState {
         let node_shell = callbacks.shell(node);
         let paintable = unsafe { (sink.prepare_node)(sink.context, node_shell, used.is_some()) };
 
+        let mut has_pending_inline_box_geometry = false;
         if let Some(used) = used
             && !paintable.is_null()
         {
+            let (content_offset, containing_line_box_index) = self.committed_content_offset(callbacks, node, used);
             // SAFETY: Every callback below copies its plain-data argument or
             // consumes one retained handle synchronously.
             unsafe {
@@ -1469,6 +1555,7 @@ impl LayoutState {
                     sink.context,
                     paintable,
                     FfiCommittedBoxMetrics {
+                        content_offset,
                         content_inline_size: used.content_inline_size.get(),
                         content_block_size: used.content_block_size.get(),
                         margin_left: used.margin_left.get(),
@@ -1487,21 +1574,11 @@ impl LayoutState {
                         inset_right: used.inset_right.get(),
                         inset_top: used.inset_top.get(),
                         inset_bottom: used.inset_bottom.get(),
+                        containing_line_box_index: containing_line_box_index.unwrap_or(0),
+                        has_containing_line_box_index: containing_line_box_index.is_some(),
                     },
                 );
             }
-
-            let (line_fragment_lookup, line_fragment_offset) = self.line_fragment_lookup(callbacks, used);
-            let committed_offset = FfiCommittedOffset {
-                offset: used.content_offset.get(),
-                inset_left: used.inset_left.get(),
-                inset_top: used.inset_top.get(),
-                materialized_from_paintable: used.materialized_from_paintable.get(),
-                has_containing_line_box_fragment: used.has_containing_line_box_fragment.get(),
-                containing_line_box_index: used.containing_line_box_fragment.get().line_box_index,
-                line_fragment_lookup,
-                line_fragment_offset,
-            };
 
             let (override_borders, table_cell_coordinates) =
                 self.used_values_rare_data(slot_index).map_or((None, None), |rare| {
@@ -1532,6 +1609,9 @@ impl LayoutState {
                     unsafe {
                         (sink.finish_line_data)(sink.context);
                     }
+                    has_pending_inline_box_geometry = self
+                        .line_data(slot_index)
+                        .is_some_and(|data| !data.inline_box_pieces.is_empty());
                 }
             }
 
@@ -1578,9 +1658,6 @@ impl LayoutState {
                     });
                 }
             }
-            unsafe {
-                (sink.set_offset)(sink.context, node_shell, paintable, committed_offset);
-            }
         }
 
         // SAFETY: Wiring uses only live layout and paintable pointers for this
@@ -1602,24 +1679,13 @@ impl LayoutState {
             self.commit_subtree(child, result.paintable_for_children, null_mut(), callbacks, sink);
             child = next;
         }
-    }
 
-    pub(crate) fn commit_at(
-        &self,
-        root: Node,
-        parent_paintable: *mut c_void,
-        insert_before_paintable: *mut c_void,
-        callbacks: &FfiLayoutFcCallbacks,
-        sink: &FfiCommitSink,
-    ) {
-        self.commit_subtree(root, parent_paintable, insert_before_paintable, callbacks, sink);
-
-        // Relative inline ancestor offsets require the complete paint tree.
-        // Keep the pass paintable-only on the C++ side, but preserve the used
-        // values store's original page/slot iteration order.
-        self.used_values.for_each(|used| unsafe {
-            (sink.resolve_relative_positions)(sink.context, callbacks.shell(used.node));
-        });
+        if has_pending_inline_box_geometry {
+            // Inline box geometry unites this block's piece rects with the box
+            // models of its descendant inline paintables, which exist only now
+            // that the whole subtree has committed.
+            unsafe { (sink.assign_inline_box_geometry)(sink.context, paintable) };
+        }
     }
 
     pub(crate) fn commit_replacing(
@@ -1633,7 +1699,7 @@ impl LayoutState {
         // returns borrowed insertion pointers that stay live until
         // finish_commit().
         let position = unsafe { (sink.begin_commit)(sink.context, callbacks.shell(root), paintable_to_replace) };
-        self.commit_at(
+        self.commit_subtree(
             root,
             position.parent_paintable,
             position.insert_before_paintable,
