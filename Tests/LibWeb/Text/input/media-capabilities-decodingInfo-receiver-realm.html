@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    asyncTest(async (done) => {
+        const iframe = document.createElement("iframe");
+        document.body.append(iframe);
+        const other = iframe.contentWindow;
+
+        const decodingInfo = other.MediaCapabilities.prototype.decodingInfo;
+        const promise = decodingInfo.call(navigator.mediaCapabilities, {});
+        println(`decodingInfo promise is iframe realm: ${promise instanceof other.Promise}`);
+        println(`decodingInfo promise is parent realm: ${promise instanceof Promise}`);
+
+        try {
+            await promise;
+            println("FAIL: invalid decodingInfo resolved");
+        } catch (error) {
+            println(`decodingInfo rejection is iframe realm: ${error instanceof other.TypeError}`);
+            println(`decodingInfo rejection is parent realm: ${error instanceof TypeError}`);
+            println(`decodingInfo rejection message: ${error.message}`);
+        }
+
+        done();
+    });
+</script>

@@ -41,6 +41,13 @@
         println(`privateKey extractable: ${key.privateKey.extractable}`);
         println(`privateKey usages: ${key.privateKey.usages}`);
 
+        let publicKeyDescriptor = Object.getOwnPropertyDescriptor(key, "publicKey");
+        let privateKeyDescriptor = Object.getOwnPropertyDescriptor(key, "privateKey");
+        println(`keyPair publicKey is data property: ${"value" in publicKeyDescriptor}`);
+        println(`keyPair publicKey writable: ${publicKeyDescriptor.writable}`);
+        println(`keyPair privateKey is data property: ${"value" in privateKeyDescriptor}`);
+        println(`keyPair privateKey writable: ${privateKeyDescriptor.writable}`);
+
         println("invalid usages throw");
         try {
             const key2 = await window.crypto.subtle.generateKey(algorithm, true, [
