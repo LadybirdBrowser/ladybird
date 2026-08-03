@@ -244,6 +244,12 @@ WebContentSessionHistoryUpdateDecision CanonicalTraversable::did_receive_web_con
     };
 }
 
+void CanonicalTraversable::did_create_top_level_traversable(Web::HTML::SessionHistoryEntryDescriptor initial_history_entry)
+{
+    m_session_history.initialize_with_initial_history_entry(move(initial_history_entry));
+    m_current_web_content_session_history_matches_mirror = true;
+}
+
 Optional<Web::HTML::CrossProcessId> CanonicalTraversable::nested_history_id_for(CanonicalNavigable const& navigable) const
 {
     if (&navigable == this)

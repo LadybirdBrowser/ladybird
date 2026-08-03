@@ -1158,8 +1158,9 @@ PageClient::NewWebViewResult PageClient::page_did_request_new_web_view(Web::HTML
 
     if (!response->new_page_id().has_value())
         return {};
+    VERIFY(response->root_navigable_id().has_value());
 
-    auto& new_client = m_owner.create_page(*response->new_page_id());
+    auto& new_client = m_owner.create_page(*response->new_page_id(), *response->root_navigable_id());
     return { &new_client.page(), response->take_handle() };
 }
 
@@ -1181,6 +1182,11 @@ void PageClient::page_did_close_top_level_traversable()
     // NOTE: This only removes the strong reference the PageHost has for this PageClient.
     //       It will be GC'd 'later'.
     m_owner.remove_page({}, m_id);
+}
+
+void PageClient::page_did_create_top_level_traversable(Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor const& initial_history_entry)
+{
+    client().async_did_create_top_level_traversable(m_id, navigable_id, initial_history_entry);
 }
 
 void PageClient::page_did_change_needs_beforeunload_check(bool needs_beforeunload_check)

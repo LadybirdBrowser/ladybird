@@ -55,6 +55,7 @@ public:
     Optional<size_t> current_top_level_entry_index() const;
 
     void clear();
+    void initialize_with_initial_history_entry(Entry initial_history_entry);
     void navigate(URL::URL, Web::HTML::CrossProcessId document_state_id);
     void navigate(URL::URL, Web::HTML::CrossProcessId document_state_id, Web::HTML::DocumentResource);
     void replace_current_entry_url(URL::URL, Web::HTML::CrossProcessId document_state_id);

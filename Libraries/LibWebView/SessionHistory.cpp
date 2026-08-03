@@ -434,6 +434,17 @@ void TraversableSessionHistory::clear()
     forget_web_content_state();
 }
 
+void TraversableSessionHistory::initialize_with_initial_history_entry(Entry initial_history_entry)
+{
+    m_entries.append(move(initial_history_entry));
+    m_used_steps.append(0);
+    m_current_used_step_index = 0;
+    m_web_content_known_entries = m_entries;
+    m_web_content_known_used_steps = m_used_steps;
+    m_web_content_current_step = 0;
+    m_web_content_uses_ui_step_coordinates = true;
+}
+
 void TraversableSessionHistory::replace_current_entry_url(URL::URL url, Web::HTML::CrossProcessId document_state_id)
 {
     if (!m_current_used_step_index.has_value()) {

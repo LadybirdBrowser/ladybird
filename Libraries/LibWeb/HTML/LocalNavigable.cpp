@@ -1318,6 +1318,12 @@ LocalNavigable::ChosenNavigable LocalNavigable::choose_a_navigable(Utf16View nam
                 auto traversable = LocalTraversableNavigable::create_a_new_top_level_traversable(*page, opener, target_name);
                 page->set_top_level_traversable(traversable);
                 traversable->set_window_handle(Utf16String::from_ascii_without_validation(window_handle.bytes()));
+
+                auto initial_history_entry = traversable->active_session_history_entry();
+                VERIFY(initial_history_entry);
+                page->client().page_did_create_top_level_traversable(
+                    traversable->id(),
+                    create_session_history_entry_descriptor(*initial_history_entry));
                 return traversable;
             };
             auto create_new_traversable = GC::create_function(heap(), move(create_new_traversable_closure));
