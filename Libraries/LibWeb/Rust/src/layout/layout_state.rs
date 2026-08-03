@@ -657,7 +657,7 @@ impl<'pass> NodeFacts<'pass> {
         crate::layout::node_has_auto_content_box_size(self.data())
     }
 
-    fn node_has_size_containment(&self) -> bool {
+    pub(crate) fn node_has_size_containment(&self) -> bool {
         let display = self.display();
         if display.is_table_inside() || display.is_internal_table() {
             return false;

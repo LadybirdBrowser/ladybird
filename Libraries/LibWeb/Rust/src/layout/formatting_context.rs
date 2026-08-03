@@ -724,7 +724,6 @@ pub struct FfiBordersData {
 pub(crate) struct ChildLayoutResult {
     pub automatic_content_inline_size: CssPixels,
     pub automatic_content_block_size: CssPixels,
-    pub table_block_offset_in_wrapper: Option<CssPixels>,
 }
 
 pub(crate) enum ChildLayoutOutcome {
@@ -1454,7 +1453,6 @@ fn run_formatting_context<'pass>(
                 let result = ChildLayoutResult {
                     automatic_content_inline_size: context.automatic_content_inline_size(),
                     automatic_content_block_size: context.automatic_content_block_size(),
-                    table_block_offset_in_wrapper: None,
                 };
                 context.place_floats_after_run();
                 result
@@ -1464,7 +1462,6 @@ fn run_formatting_context<'pass>(
                 ChildLayoutResult {
                     automatic_content_inline_size: context.automatic_content_inline_size(),
                     automatic_content_block_size: context.automatic_content_block_size(),
-                    table_block_offset_in_wrapper: None,
                 }
             }
             FormattingContextImplementation::Grid(context) => {
@@ -1472,18 +1469,13 @@ fn run_formatting_context<'pass>(
                 ChildLayoutResult {
                     automatic_content_inline_size: context.automatic_content_inline_size(),
                     automatic_content_block_size: context.automatic_content_block_size(),
-                    table_block_offset_in_wrapper: None,
                 }
             }
             FormattingContextImplementation::Table(context) => {
-                context.run(run, parent_block, body_input);
+                context.run(run, body_input);
                 ChildLayoutResult {
                     automatic_content_inline_size: context.automatic_content_inline_size(),
                     automatic_content_block_size: context.automatic_content_block_size,
-                    table_block_offset_in_wrapper: body_input
-                        .sizing
-                        .table_box_content_offset_in_wrapper
-                        .map(|_| context.pending_table_offset.block_offset),
                 }
             }
             FormattingContextImplementation::Svg(context) => {

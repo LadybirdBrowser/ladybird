@@ -180,12 +180,6 @@ struct FloatPlacement {
     offset_from_edge: CssPixels,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) struct CaptionLayoutResult {
-    pub(crate) margin_box_block_size: CssPixels,
-    pub(crate) pending_table_block_offset: CssPixels,
-}
-
 // https://www.w3.org/TR/css-display/#block-formatting-context
 pub(crate) struct BlockFormattingContext<'pass> {
     state: &'pass LayoutState,
@@ -847,8 +841,8 @@ impl<'pass> BlockFormattingContext<'pass> {
     }
 
     fn intrusions_for_band_into_rect(&self, band: FloatBand, rect_in_root: BlockCssPixelRect) -> SpaceUsedByFloats {
-        // Deliberately read the root inline size at query time. It can still be stale
-        // while intrinsic sizing is in progress.
+        // Deliberately read the root inline size at query time. It can be stale while
+        // intrinsic sizing of this context's own root is in progress.
         let root_content_inline_size = self.used(self.root).content_inline_size.get();
         SpaceUsedByFloats {
             left: if band.left_intrusion == CssPixels::default() {
@@ -1638,17 +1632,11 @@ impl<'pass> BlockFormattingContext<'pass> {
 
         let is_table_formatting_context = independent_type == Some(FfiFormattingContextType::Table);
         let mut pending_position = None;
-        let mut table_box_content_offset_in_wrapper = None;
         if box_is_positioned_by_fieldset_layout {
             self.pending_legend_flow_position.set(Some(LogicalOffset {
                 inline_offset: content_inline_offset,
                 block_offset: content_block_offset,
             }));
-        } else if is_table_formatting_context {
-            table_box_content_offset_in_wrapper = Some(LogicalOffset {
-                inline_offset: content_inline_offset,
-                block_offset: content_block_offset,
-            });
         } else if !box_opens_top_margin_group {
             pending_position = Some(FfiCssPixelPoint {
                 x: content_inline_offset,
@@ -1719,29 +1707,14 @@ impl<'pass> BlockFormattingContext<'pass> {
                     } else {
                         None
                     },
-                    table_box_content_offset_in_wrapper,
+                    table_box_content_block_offset_in_wrapper: is_table_formatting_context
+                        .then_some(content_block_offset),
                     float_avoidance_inline_size,
                     ..RootSizingDirectives::default()
                 },
                 participation: ParticipationInParentFormattingContext::BlockLevel,
             };
-            let child_layout = self.layout_inside(run, node, inside_layout_input, true);
-            if let Some(stashed_offset) = table_box_content_offset_in_wrapper {
-                let block_offset = child_layout
-                    .as_ref()
-                    .and_then(|child_layout| child_layout.table_block_offset_in_wrapper)
-                    .unwrap_or(stashed_offset.block_offset);
-                pending_position = Some(FfiCssPixelPoint {
-                    x: stashed_offset.inline_offset,
-                    y: block_offset,
-                });
-            }
-            if container_facts.is_table_wrapper() && style.display().is_table_inside() {
-                let used = self.used_mut(node);
-                used.margin_left.set(used.margin_left.get().max(CssPixels::default()));
-                used.margin_right.set(used.margin_right.get().max(CssPixels::default()));
-            }
-            child_layout
+            self.layout_inside(run, node, inside_layout_input, true)
         } else {
             // This box participates in the current block container's flow.
             let space_available_for_children = if facts.is_anonymous() {
@@ -1865,18 +1838,12 @@ impl<'pass> BlockFormattingContext<'pass> {
         available_space_for_children: AvailableSpace,
     ) {
         assert!(!self.facts(block_container).children_are_inline());
+        debug_assert!(
+            !self.facts(block_container).is_table_wrapper(),
+            "table wrappers are laid out by layout_table_wrapper_children"
+        );
         let available_space = available_space_for_children;
-        // The table wrapper is invisible to percentage resolution: percentages on the table root
-        // resolve against the wrapper's containing block, so the wrapper's own constraints pass
-        // through to the table box unchanged.
-        let child_input = if self.facts(block_container).is_table_wrapper() {
-            LayoutInput {
-                available_space: available_space_for_children,
-                ..input
-            }
-        } else {
-            self.child_layout_input(block_container, input, available_space_for_children)
-        };
+        let child_input = self.child_layout_input(block_container, input, available_space_for_children);
         let mut bottom_of_lowest_margin_box = CssPixels::default();
         let saved = self
             .block_offset_of_current_block_container
@@ -1891,7 +1858,52 @@ impl<'pass> BlockFormattingContext<'pass> {
             );
         }
         self.block_offset_of_current_block_container.set(saved);
+        self.finish_block_level_children_layout(block_container, input, available_space, bottom_of_lowest_margin_box);
+    }
 
+    // Per https://www.w3.org/TR/CSS22/tables.html#model, caption boxes are block-level boxes laid
+    // out inside the table wrapper box together with the table box itself. Captions remain tree
+    // children of the table box, but they participate in the wrapper's block formatting context:
+    // top captions first, then the table box, then bottom captions, each flowing like any other
+    // block-level child.
+    fn layout_table_wrapper_children(
+        &self,
+        run: &FormattingContextRun<'pass>,
+        input: LayoutInput,
+        available_space_for_children: AvailableSpace,
+    ) {
+        let wrapper = self.root;
+        // The table wrapper is invisible to percentage resolution: percentages on the table root
+        // resolve against the wrapper's containing block, so the wrapper's own constraints pass
+        // through to the table box unchanged.
+        let table_box_input = LayoutInput {
+            available_space: available_space_for_children,
+            ..input
+        };
+        let caption_input = self.child_layout_input(wrapper, input, available_space_for_children);
+        let mut bottom_of_lowest_margin_box = CssPixels::default();
+        let saved = self
+            .block_offset_of_current_block_container
+            .replace(Some(CssPixels::default()));
+        for child in table_wrapper_flow_children(self.state, self.callbacks, wrapper) {
+            let child_input = if self.style(child).display().is_table_inside() {
+                table_box_input
+            } else {
+                caption_input
+            };
+            self.layout_block_level_box(run, child, wrapper, &mut bottom_of_lowest_margin_box, child_input);
+        }
+        self.block_offset_of_current_block_container.set(saved);
+        self.finish_block_level_children_layout(wrapper, input, available_space_for_children, bottom_of_lowest_margin_box);
+    }
+
+    fn finish_block_level_children_layout(
+        &self,
+        block_container: Node,
+        input: LayoutInput,
+        available_space: AvailableSpace,
+        bottom_of_lowest_margin_box: CssPixels,
+    ) {
         if self.layout_mode == LayoutMode::IntrinsicSizing && !self.used(block_container).has_definite_inline_size() {
             let mut inline_size = self.greatest_child_inline_size_including_floats(block_container);
             let style = self.style(block_container);
@@ -2100,7 +2112,9 @@ impl<'pass> BlockFormattingContext<'pass> {
             self.layout_fieldset_with_rendered_legend(run, self.root, root_input);
             return;
         }
-        if root_facts.children_are_inline() {
+        if root_facts.is_table_wrapper() {
+            self.layout_table_wrapper_children(run, root_input, available_space);
+        } else if root_facts.children_are_inline() {
             self.layout_inline_children(run, self.root, root_input, available_space);
         } else {
             self.layout_block_level_children(run, self.root, root_input, available_space);
@@ -2114,7 +2128,12 @@ impl<'pass> BlockFormattingContext<'pass> {
         // Assign collapsed margin left after children layout of formatting context to the last child box
         let collapsed_margin = self.margin_state.borrow().current_collapsed_margin();
         if collapsed_margin != CssPixels::default() {
-            for child in self.children(self.root).into_iter().rev() {
+            let flow_children_bottom_up = if root_facts.is_table_wrapper() {
+                table_wrapper_flow_children(self.state, self.callbacks, self.root)
+            } else {
+                self.children(self.root)
+            };
+            for child in flow_children_bottom_up.into_iter().rev() {
                 let facts = self.facts(child);
                 if facts.is_absolutely_positioned() || facts.is_floating() {
                     continue;
@@ -2158,94 +2177,6 @@ impl<'pass> BlockFormattingContext<'pass> {
                     y: content_block_offset,
                 },
             );
-        }
-    }
-
-    pub(crate) fn layout_table_caption(
-        &self,
-        run: &FormattingContextRun<'pass>,
-        table_box: Node,
-        caption: Node,
-        phase: CaptionPhase,
-        available_space: AvailableSpace,
-        constraints: ContainingBlockConstraints,
-    ) -> CaptionLayoutResult {
-        let mut caption_was_placed = false;
-        if formatting_context_type_created_by_box(self.facts(caption)).is_some() {
-            let mut inner_available_space = available_space;
-            let is_block_context =
-                formatting_context_type_created_by_box(self.facts(caption)) == Some(FfiFormattingContextType::Block);
-            let mut caption_offset = LogicalOffset::default();
-            if is_block_context {
-                let available_inline_size = available_space.inline_size.to_px_or_zero();
-                self.resolve_vertical_box_model_metrics(caption, available_inline_size);
-                self.compute_inline_size(caption, available_space, constraints, FfiCssPixelPoint::default());
-                inner_available_space = self
-                    .used(caption)
-                    .available_inner_space_or_constraints_from(available_space);
-                caption_offset.inline_offset = self.used(caption).border_box_left(false);
-                if phase == CaptionPhase::Bottom {
-                    caption_offset.block_offset = self.used(table_box).margin_box_block_size(false)
-                        + self.used(caption).margin_top.get()
-                        + self.used(caption).border_box_top(false);
-                }
-            }
-
-            let child_layout = self.layout_inside(
-                run,
-                caption,
-                LayoutInput {
-                    available_space: inner_available_space,
-                    containing_block_constraints: constraints,
-                    content_box_position_in_bfc_root: None,
-                    sizing: RootSizingDirectives::default(),
-                    participation: ParticipationInParentFormattingContext::Item,
-                },
-                true,
-            );
-            if is_block_context
-                && let Some(child_layout) = child_layout.as_ref()
-            {
-                if self
-                    .sizing()
-                    .should_treat_block_size_as_auto(caption, available_space, constraints)
-                {
-                    let content_block_size = if self.style(caption).has_size_containment() {
-                        CssPixels::default()
-                    } else {
-                        child_layout.automatic_content_block_size
-                    };
-                    self.used_mut(caption).set_content_block_size(content_block_size);
-                }
-                self.place_child(
-                    caption,
-                    FfiCssPixelPoint {
-                        x: caption_offset.inline_offset,
-                        y: caption_offset.block_offset,
-                    },
-                );
-                caption_was_placed = true;
-            }
-        }
-
-        if phase == CaptionPhase::Bottom && !caption_was_placed {
-            self.place_child(
-                caption,
-                FfiCssPixelPoint {
-                    x: self.used(caption).border_box_left(false),
-                    y: self.used(table_box).margin_box_block_size(false)
-                        + self.used(caption).margin_top.get()
-                        + self.used(caption).border_box_top(false),
-                },
-            );
-        }
-        CaptionLayoutResult {
-            margin_box_block_size: self.used(caption).margin_box_block_size(false),
-            pending_table_block_offset: if phase == CaptionPhase::Top {
-                self.used(caption).content_block_size.get() + self.used(caption).margin_box_bottom(false)
-            } else {
-                CssPixels::default()
-            },
         }
     }
 
@@ -2797,6 +2728,44 @@ impl<'pass> BlockFormattingContext<'pass> {
     }
 }
 
+fn table_box_of_wrapper(state: &LayoutState, callbacks: FfiLayoutFcCallbacks, wrapper: Node) -> Node {
+    let mut child = callbacks.first_child(wrapper);
+    while !child.is_invalid() {
+        if state.node_facts(&callbacks, child).is_box()
+            && state.style_facts(&callbacks, child).display().is_table_inside()
+        {
+            return child;
+        }
+        child = callbacks.next_sibling(child);
+    }
+    unreachable!("a table wrapper contains its table box")
+}
+
+// Flow-ordered children of a table wrapper's block formatting context: top captions in document
+// order, then the table box, then bottom captions in document order. Captions are tree children
+// of the table box; absolutely positioned captions are out of flow and are registered by
+// register_table_abspos_descendants instead.
+pub(crate) fn table_wrapper_flow_children(state: &LayoutState, callbacks: FfiLayoutFcCallbacks, wrapper: Node) -> Vec<Node> {
+    let table_box = table_box_of_wrapper(state, callbacks, wrapper);
+    let mut flow_children = Vec::new();
+    let mut bottom_captions = Vec::new();
+    let mut child = callbacks.first_child(table_box);
+    while !child.is_invalid() {
+        let facts = state.node_facts(&callbacks, child);
+        if facts.is_box() && facts.is_table_caption() && !facts.is_absolutely_positioned() {
+            if state.style_facts(&callbacks, child).caption_side() == caption_side::TOP {
+                flow_children.push(child);
+            } else {
+                bottom_captions.push(child);
+            }
+        }
+        child = callbacks.next_sibling(child);
+    }
+    flow_children.push(table_box);
+    flow_children.extend(bottom_captions);
+    flow_children
+}
+
 // https://www.w3.org/TR/CSS22/visudet.html#root-height
 pub(crate) fn automatic_block_size_for_bfc_root(
     state: &LayoutState,
@@ -2804,6 +2773,11 @@ pub(crate) fn automatic_block_size_for_bfc_root(
     root: Node,
 ) -> CssPixels {
     let facts = state.node_facts(&callbacks, root);
+    // https://drafts.csswg.org/css-contain-2/#containment-size
+    // A size-contained box is sized as if it had no contents.
+    if facts.node_has_size_containment() {
+        return CssPixels::default();
+    }
     let used = state.used_values(&callbacks, root);
     let mut bottom = None;
     if facts.children_are_inline() {
@@ -2823,8 +2797,20 @@ pub(crate) fn automatic_block_size_for_bfc_root(
         // the top margin-edge of the topmost block-level child box
         // and the bottom margin-edge of the bottommost block-level child box.
         // NOTE: The top margin edge of the topmost block-level child box is the same as the top content edge of the root box.
-        let mut child = callbacks.first_child(root);
-        while !child.is_invalid() {
+        let flow_children = if facts.is_table_wrapper() {
+            // Captions flow in the wrapper's formatting context while remaining tree children of
+            // the table box, so the wrapper considers its flow children instead of tree children.
+            table_wrapper_flow_children(state, callbacks, root)
+        } else {
+            let mut children = Vec::new();
+            let mut child = callbacks.first_child(root);
+            while !child.is_invalid() {
+                children.push(child);
+                child = callbacks.next_sibling(child);
+            }
+            children
+        };
+        for child in flow_children {
             let child_facts = state.node_facts(&callbacks, child);
             if child_facts.is_box() && !child_facts.is_absolutely_positioned() && !child_facts.is_floating() {
                 let child_used = state.try_used_values(&callbacks, child);
@@ -2836,7 +2822,6 @@ pub(crate) fn automatic_block_size_for_bfc_root(
                     bottom = Some(bottom.map_or(child_bottom, |value: CssPixels| value.max(child_bottom)));
                 }
             }
-            child = callbacks.next_sibling(child);
         }
     }
     // In addition, if the element has any floating descendants
