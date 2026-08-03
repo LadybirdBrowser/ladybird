@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(`PageSwapEvent is ${typeof PageSwapEvent}`);
+        println(`NavigationActivation is ${typeof NavigationActivation}`);
+
+        let event = new PageSwapEvent("pageswap");
+
+        println(event);
+        println(event instanceof PageSwapEvent);
+        println(event instanceof Event);
+        println(event.type);
+        println(event.bubbles);
+        println(event.cancelable);
+        println(event.activation);
+        println(event.viewTransition);
+    });
+</script>

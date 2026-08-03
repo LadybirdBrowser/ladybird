@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const imageURL = await server.createEcho("GET", "/echo/detached-image-gc.png", {
+            status: 200,
+            headers: { "Content-Type": "image/png", "Cache-Control": "no-store" },
+            body: "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAD0lEQVR4nGNgaGAAIQgFAA4OAgFhGn2EAAAAAElFTkSuQmCC",
+            body_encoding: "base64",
+            delay_ms: 300,
+        });
+
+        (() => {
+            const image = new Image();
+            image.onload = () => {
+                println("loaded");
+                done();
+            };
+            image.onerror = () => {
+                println("failed");
+                done();
+            };
+            image.src = imageURL;
+        })();
+
+        await internals.gcAsync();
+    });
+</script>

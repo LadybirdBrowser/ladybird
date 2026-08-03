@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const audioURL = await server.createEcho("GET", "/echo/detached-audio-gc.webm", {
+            status: 200,
+            headers: { "Content-Type": "audio/webm", "Cache-Control": "no-store" },
+            body: "not a media resource",
+            delay_ms: 300,
+        });
+
+        (() => {
+            const audio = new Audio();
+            audio.src = audioURL;
+            audio.addEventListener("error", () => {
+                println("error event fired");
+                done();
+            });
+        })();
+
+        await internals.gcAsync();
+    });
+</script>

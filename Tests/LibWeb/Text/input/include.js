@@ -52,6 +52,21 @@ function timeout(ms) {
     return promise;
 }
 
+function withCollectedWrapper(makeAndMark, reacquire, verify) {
+    let wasPreserved = false;
+    (() => {
+        const wrapper = makeAndMark();
+        wasPreserved = internals.wrapperIsPreserved(wrapper);
+    })();
+
+    if (!wasPreserved) {
+        throw new Error("Expected wrapper to be preserved before GC");
+    }
+
+    internals.gc();
+    verify(reacquire());
+}
+
 async function waitForImageAnimationState(url, predicate, targetWindow = window) {
     return new Promise(async resolve => {
         while (true) {
