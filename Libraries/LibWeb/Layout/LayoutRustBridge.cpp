@@ -8,7 +8,6 @@
 #include <AK/Atomic.h>
 #include <AK/Debug.h>
 #include <AK/GenericShorthands.h>
-#include <AK/HashMap.h>
 #include <AK/Math.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/NumericLimits.h>
@@ -656,34 +655,7 @@ struct LayoutRustBridge::LineCommitContext {
     Vector<Painting::InlineBoxPiece> pieces;
 };
 
-struct InlineAncestorChainRelativeOffset {
-    CSSPixelPoint offset;
-    bool found_fragmented_inline_node { false };
-};
-
 static CSS::BorderData from_ffi_border_data(RustFFI::FfiBorderData const&);
-
-// Accumulates relative position insets from a chain of inline-flow ancestors, starting at first_ancestor
-// and walking up until stop_at or the first ancestor that is not inline-flow.
-static InlineAncestorChainRelativeOffset accumulated_relative_insets_from_inline_ancestor_chain(Node const* first_ancestor, Node const* stop_at)
-{
-    InlineAncestorChainRelativeOffset result;
-    for (auto const* ancestor = first_ancestor; ancestor && ancestor != stop_at; ancestor = ancestor->parent()) {
-        if (!is<Layout::NodeWithStyleAndBoxModelMetrics>(*ancestor))
-            break;
-        auto const& ancestor_with_style = static_cast<Layout::NodeWithStyleAndBoxModelMetrics const&>(*ancestor);
-        if (!ancestor_with_style.display().is_inline_outside() || !ancestor_with_style.display().is_flow_inside())
-            break;
-        result.found_fragmented_inline_node |= ancestor->is_fragmented_inline();
-        if (ancestor_with_style.computed_values().position() == CSS::Positioning::Relative) {
-            VERIFY(ancestor->paintable());
-            auto const& ancestor_paintable_box = *ancestor->paintable();
-            auto const& inset = ancestor_paintable_box.box_model().inset;
-            result.offset.translate_by(inset.left, inset.top);
-        }
-    }
-    return result;
-}
 
 static Painting::Paintable::BorderDataWithElementKind from_ffi_border_data_with_element_kind(RustFFI::FfiBorderDataWithElementKind const& border)
 {
@@ -777,7 +749,13 @@ RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
             };
             paintable.set_content_size(
                 CSSPixels::from_raw(metrics.content_inline_size),
-                CSSPixels::from_raw(metrics.content_block_size)); },
+                CSSPixels::from_raw(metrics.content_block_size));
+            paintable.set_offset({
+                CSSPixels::from_raw(metrics.content_offset.x),
+                CSSPixels::from_raw(metrics.content_offset.y),
+            });
+            if (metrics.has_containing_line_box_index)
+                paintable.set_containing_line_box_index(metrics.containing_line_box_index); },
         .set_override_borders = [](void*, void* paintable_pointer, RustFFI::FfiBordersData borders) { static_cast<Painting::Paintable*>(paintable_pointer)->set_override_borders_data({
                                                                                                           .top = from_ffi_border_data_with_element_kind(borders.top),
                                                                                                           .right = from_ffi_border_data_with_element_kind(borders.right),
@@ -911,39 +889,6 @@ RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
             auto& paintable = *static_cast<Painting::Paintable*>(paintable_pointer);
             paintable.set_used_values_for_grid_template_columns(CSS::GridTrackSizeListStyleValue::create(build_used_grid_track_list(*columns)));
             paintable.set_used_values_for_grid_template_rows(CSS::GridTrackSizeListStyleValue::create(build_used_grid_track_list(*rows))); },
-        .set_offset = [](void*, void* node_pointer, void* paintable_pointer, RustFFI::FfiCommittedOffset committed) {
-            auto& node = *static_cast<Node*>(node_pointer);
-            auto& paintable = *static_cast<Painting::Paintable*>(paintable_pointer);
-            CSSPixelPoint offset {
-                CSSPixels::from_raw(committed.offset.x),
-                CSSPixels::from_raw(committed.offset.y),
-            };
-            // Used values materialized from a previous layout's paintable keep that paintable's
-            // offset, which already includes any relative position inset. Offsets of fragmented
-            // inlines are not meaningful; their geometry is assigned from pieces once relative
-            // positions are resolved.
-            if (node.is_box() && !node.is_fragmented_inline() && !committed.materialized_from_paintable) {
-                if (committed.has_containing_line_box_fragment) {
-                    // We know that `node` is an atomic inline because `containing_line_box_fragment` refers to the
-                    // line box fragment in the parent block container that contains it. The fragment has the final
-                    // offset for the atomic inline, but line box post-processing may remove fragments after the
-                    // coordinate was recorded, in which case the content offset stands.
-                    if (committed.line_fragment_lookup != RustFFI::FfiLineFragmentLookup::NotFound) {
-                        paintable.set_containing_line_box_index(committed.containing_line_box_index);
-                        if (committed.line_fragment_lookup == RustFFI::FfiLineFragmentLookup::Found) {
-                            offset = {
-                                CSSPixels::from_raw(committed.line_fragment_offset.x),
-                                CSSPixels::from_raw(committed.line_fragment_offset.y),
-                            };
-                        }
-                    }
-                }
-
-                if (is<NodeWithStyleAndBoxModelMetrics>(node)
-                    && static_cast<NodeWithStyleAndBoxModelMetrics const&>(node).computed_values().position() == CSS::Positioning::Relative)
-                    offset.translate_by(CSSPixels::from_raw(committed.inset_left), CSSPixels::from_raw(committed.inset_top));
-            }
-            paintable.set_offset(offset); },
         .finish_node = [](void*, void* node_pointer, void* paintable_pointer, void* parent_paintable_pointer, void* insert_before_paintable_pointer) {
             auto& node = *static_cast<Node*>(node_pointer);
             auto* paintable = static_cast<Painting::Paintable*>(paintable_pointer);
@@ -975,52 +920,7 @@ RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
                 .paintable = paintable,
                 .paintable_for_children = paintable_for_children,
             }; },
-        .resolve_relative_positions = [](void* context, void* node_pointer) {
-            auto& bridge = *static_cast<LayoutRustBridge*>(context);
-            auto& node = *static_cast<NodeWithStyle*>(node_pointer);
-
-            // Nodes outside the committed subtree (materialized containing blocks) keep their
-            // already-resolved offsets.
-            VERIFY(bridge.m_commit_root);
-            if (!bridge.m_commit_root->is_inclusive_ancestor_of(node))
-                return;
-
-            if (auto const* box = as_if<Box>(node); box && box->is_in_flow() && box->display().is_block_outside()) {
-                auto accumulated = accumulated_relative_insets_from_inline_ancestor_chain(box->parent(), box->containing_block());
-                if (accumulated.found_fragmented_inline_node) {
-                    if (auto paintable = node.paintable())
-                        paintable->set_offset(paintable->offset().translated(accumulated.offset));
-                }
-            }
-
-            auto* paintable_with_lines = as_if<Painting::PaintableWithLines>(node.paintable().ptr());
-            if (!paintable_with_lines)
-                return;
-
-            for (auto& fragment : paintable_with_lines->fragments()) {
-                auto accumulated = accumulated_relative_insets_from_inline_ancestor_chain(fragment.layout_node().parent(), nullptr);
-                if (!accumulated.offset.is_zero())
-                    fragment.set_offset(fragment.offset().translated(accumulated.offset));
-            }
-
-            HashMap<Layout::Node const*, CSSPixelPoint> accumulated_offset_per_node;
-            for (auto& piece : paintable_with_lines->inline_box_pieces()) {
-                auto const* piece_node = piece.node.ptr();
-                if (!piece_node)
-                    continue;
-                // The chain starts at the piece's own node: a relative inline box shifts its own pieces.
-                auto offset = accumulated_offset_per_node.ensure(piece_node, [&] {
-                    return accumulated_relative_insets_from_inline_ancestor_chain(piece_node, nullptr).offset;
-                });
-                if (!offset.is_zero())
-                    piece.border_box_rect.translate_by(offset);
-            }
-
-            // Piece rects are final only now that this block's relative positions are resolved;
-            // cross-block writes in this pass only touch box offsets, which piece geometry
-            // assignment never reads.
-            if (!paintable_with_lines->inline_box_pieces().is_empty())
-                paintable_with_lines->assign_inline_box_geometry(); },
+        .assign_inline_box_geometry = [](void*, void* paintable_pointer) { as<Painting::PaintableWithLines>(*static_cast<Painting::Paintable*>(paintable_pointer)).assign_inline_box_geometry(); },
     };
 }
 
@@ -1124,9 +1024,6 @@ RustFFI::FfiLayoutFcCallbacks LayoutRustBridge::formatting_context_callbacks()
     static_assert(to_underlying(SVG::PreserveAspectRatio::MeetOrSlice::Slice) == 1);
     static_assert(to_underlying(SVG::SVGUnits::ObjectBoundingBox) == 0);
     static_assert(to_underlying(SVG::SVGUnits::UserSpaceOnUse) == 1);
-    static_assert(to_underlying(RustFFI::FfiLineFragmentLookup::NotFound) == 0);
-    static_assert(to_underlying(RustFFI::FfiLineFragmentLookup::LineOnly) == 1);
-    static_assert(to_underlying(RustFFI::FfiLineFragmentLookup::Found) == 2);
     static_assert(to_underlying(RustFFI::FfiAnchorSideKind::Invalid) == 0);
     static_assert(to_underlying(RustFFI::FfiAnchorSideKind::Top) == 1);
     static_assert(to_underlying(RustFFI::FfiAnchorSideKind::Right) == 2);
