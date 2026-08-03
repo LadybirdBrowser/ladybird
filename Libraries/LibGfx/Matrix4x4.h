@@ -108,6 +108,32 @@ Gfx::AffineTransform extract_2d_affine_transform(Matrix4x4<T> const& m)
     return Gfx::AffineTransform(m[0, 0], m[1, 0], m[0, 1], m[1, 1], m[0, 3], m[1, 3]);
 }
 
+template<typename T>
+constexpr static Matrix4x4<T> flattened(Matrix4x4<T> const& m)
+{
+    Matrix4x4<T> result = m;
+    result[0, 2] = 0;
+    result[1, 2] = 0;
+    result[3, 2] = 0;
+    result[2, 0] = 0;
+    result[2, 1] = 0;
+    result[2, 2] = 1;
+    result[2, 3] = 0;
+    // Normalizing a uniform positive w scale into the other components makes the result a true two-dimensional
+    // affine matrix. A non-positive m44 is preserved, since it marks content behind the eye plane.
+    if (result[3, 0] == 0 && result[3, 1] == 0 && result[3, 3] != 1 && result[3, 3] > 0) {
+        T scale = 1 / result[3, 3];
+        result[0, 0] *= scale;
+        result[0, 1] *= scale;
+        result[1, 0] *= scale;
+        result[1, 1] *= scale;
+        result[0, 3] *= scale;
+        result[1, 3] *= scale;
+        result[3, 3] = 1;
+    }
+    return result;
+}
+
 typedef Matrix4x4<float> FloatMatrix4x4;
 typedef Matrix4x4<double> DoubleMatrix4x4;
 
