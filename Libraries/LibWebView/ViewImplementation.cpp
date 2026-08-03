@@ -1360,6 +1360,13 @@ void ViewImplementation::apply_web_content_session_history_update(WebContentSess
     update_navigation_action_state();
 }
 
+void ViewImplementation::did_create_top_level_traversable(Badge<WebContentClient>, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry)
+{
+    m_top_level_traversable.did_create_top_level_traversable(move(initial_history_entry));
+    update_navigation_action_state();
+    dump_session_history("created-top-level-traversable"sv);
+}
+
 void ViewImplementation::did_set_current_session_history_step(Badge<WebContentClient>, i32 current_session_history_step)
 {
     if (!m_top_level_traversable.did_set_current_session_history_step(current_session_history_step))
