@@ -98,8 +98,7 @@ StringView ComponentValueToken::bracket_mirror_string() const
 void SimpleBlock::serialize_to(Utf16StringBuilder& builder) const
 {
     builder.append_ascii(token.bracket_string());
-    for (auto& item : value)
-        item.serialize_to(builder);
+    serialize_a_series_of_component_values(builder, value);
     builder.append_ascii(token.bracket_mirror_string());
 }
 
@@ -125,8 +124,7 @@ void Function::serialize_to(Utf16StringBuilder& builder) const
 {
     serialize_an_identifier(builder, name);
     builder.append_ascii('(');
-    for (auto& item : value)
-        item.serialize_to(builder);
+    serialize_a_series_of_component_values(builder, value);
     builder.append_ascii(')');
 }
 

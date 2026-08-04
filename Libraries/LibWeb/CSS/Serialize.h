@@ -56,6 +56,7 @@ void serialize_a_comma_separated_list(StringBuilder& builder, Vector<T> const& i
 Utf16String serialize_a_css_declaration_to_utf16(StringView property, Utf16View value, Important = Important::No);
 Utf16String serialize_a_css_declaration_to_utf16(Utf16View property, Utf16View value, Important = Important::No);
 
+void serialize_a_series_of_component_values(Utf16StringBuilder&, ReadonlySpan<Parser::ComponentValue>);
 Utf16String serialize_a_series_of_component_values(ReadonlySpan<Parser::ComponentValue>);
 String serialize_a_series_of_component_values_preserving_original_source_text(ReadonlySpan<Parser::ComponentValue>);
 String serialize_a_positional_value_list(ReadonlySpan<ValueComparingNonnullRefPtr<StyleValue const>> values, SerializationMode mode);
