@@ -139,6 +139,25 @@ impl Default for UsedValues {
 }
 
 impl UsedValues {
+    pub(crate) fn mirror_box_metrics_and_size_constraints_into(&self, scratch: &UsedValues) {
+        scratch.margin_left.set(self.margin_left.get());
+        scratch.margin_right.set(self.margin_right.get());
+        scratch.margin_top.set(self.margin_top.get());
+        scratch.margin_bottom.set(self.margin_bottom.get());
+        scratch.border_left.set(self.border_left.get());
+        scratch.border_right.set(self.border_right.get());
+        scratch.border_top.set(self.border_top.get());
+        scratch.border_bottom.set(self.border_bottom.get());
+        scratch.padding_left.set(self.padding_left.get());
+        scratch.padding_right.set(self.padding_right.get());
+        scratch.padding_top.set(self.padding_top.get());
+        scratch.padding_bottom.set(self.padding_bottom.get());
+        scratch.content_inline_size.set(self.content_inline_size.get());
+        scratch.content_block_size.set(self.content_block_size.get());
+        scratch.inline_size_constraint.set(self.inline_size_constraint.get());
+        scratch.block_size_constraint.set(self.block_size_constraint.get());
+    }
+
     pub(crate) fn has_definite_inline_size(&self) -> bool {
         self.has_definite_inline_size.get() && self.inline_size_constraint.get() == SizeConstraint::None
     }
