@@ -553,18 +553,39 @@ pub(crate) fn box_baseline(
     used.margin_box_block_size(collapsed)
 }
 
-pub(crate) fn compute_and_store_baselines(
+/// First and last baseline sets derived for one box, relative to its content
+/// box. A formatting context derives its own root box's baselines during its
+/// run and records them on the instance; run_formatting_context, the side
+/// that ran the context, stores them into the root's used values. Interior
+/// boxes keep the derive-and-store shortcut.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct DerivedBaselines {
+    pub(crate) first: Option<CssPixels>,
+    pub(crate) last: Option<CssPixels>,
+}
+
+// NOTE: A box can be baselined more than once (e.g. table cells are laid out
+//       twice), so both presence bits are re-assigned on every store. The
+//       payload cells are left untouched for an absent baseline so that
+//       resetting the presence bits does not perturb payloads observed by the
+//       existing derivation flow.
+pub(crate) fn store_derived_baselines(used: &UsedValues, baselines: DerivedBaselines) {
+    used.has_first_baseline.set(baselines.first.is_some());
+    if let Some(value) = baselines.first {
+        used.first_baseline.set(value);
+    }
+    used.has_last_baseline.set(baselines.last.is_some());
+    if let Some(value) = baselines.last {
+        used.last_baseline.set(value);
+    }
+}
+
+pub(crate) fn derive_baselines(
     state: &LayoutState,
     callbacks: &FfiLayoutFcCallbacks,
     box_: Node,
     inhibits_floating: bool,
-) {
-    let used_pointer = state.used_values(callbacks, box_);
-    // NOTE: This may run more than once for the same UsedValues (e.g. table cells are laid out twice),
-    //       so reset both baselines before deriving them anew.
-    used_pointer.has_first_baseline.set(false);
-    used_pointer.has_last_baseline.set(false);
-
+) -> DerivedBaselines {
     let facts = state.node_facts(callbacks, box_);
     let slot_index = callbacks.slot_index(box_);
     let line_count = state.line_data(slot_index).map_or(0, |data| data.line_boxes.len());
@@ -614,15 +635,14 @@ pub(crate) fn compute_and_store_baselines(
             last_line_index -= 1;
         }
         let last_baseline = baseline_for_line_box(last_line_index, BaselineSet::Last);
-        used_pointer.has_first_baseline.set(true);
-        used_pointer.first_baseline.set(first_baseline);
-        used_pointer.has_last_baseline.set(true);
-        used_pointer.last_baseline.set(last_baseline);
-        return;
+        return DerivedBaselines {
+            first: Some(first_baseline),
+            last: Some(last_baseline),
+        };
     }
 
     if callbacks.first_child(box_).is_invalid() || facts.children_are_inline() {
-        return;
+        return DerivedBaselines::default();
     }
 
     // Derive baselines from the first/last in-flow child that has a baseline set of its own.
@@ -669,15 +689,9 @@ pub(crate) fn compute_and_store_baselines(
         }
         None
     };
-    let first_baseline = baseline_from_children(BaselineSet::First);
-    let last_baseline = baseline_from_children(BaselineSet::Last);
-    if let Some(value) = first_baseline {
-        used_pointer.has_first_baseline.set(true);
-        used_pointer.first_baseline.set(value);
-    }
-    if let Some(value) = last_baseline {
-        used_pointer.has_last_baseline.set(true);
-        used_pointer.last_baseline.set(value);
+    DerivedBaselines {
+        first: baseline_from_children(BaselineSet::First),
+        last: baseline_from_children(BaselineSet::Last),
     }
 }
 
@@ -1457,11 +1471,19 @@ fn run_formatting_context<'pass>(
                     automatic_content_inline_size: context.automatic_content_inline_size(),
                     automatic_content_block_size: context.automatic_content_block_size(),
                 };
+                store_derived_baselines(
+                    run.state.used_values(&run.callbacks, run.box_),
+                    context.derived_baselines_of_root_box(),
+                );
                 context.place_floats_after_run();
                 result
             }
             FormattingContextImplementation::Flex(context) => {
                 context.run(run, body_input);
+                store_derived_baselines(
+                    run.state.used_values(&run.callbacks, run.box_),
+                    context.derived_baselines_of_root_box(),
+                );
                 ChildLayoutResult {
                     automatic_content_inline_size: context.automatic_content_inline_size(),
                     automatic_content_block_size: context.automatic_content_block_size(),
@@ -1469,6 +1491,10 @@ fn run_formatting_context<'pass>(
             }
             FormattingContextImplementation::Grid(context) => {
                 context.run(run, body_input);
+                store_derived_baselines(
+                    run.state.used_values(&run.callbacks, run.box_),
+                    context.derived_baselines_of_root_box(),
+                );
                 ChildLayoutResult {
                     automatic_content_inline_size: context.automatic_content_inline_size(),
                     automatic_content_block_size: context.automatic_content_block_size(),
@@ -1476,6 +1502,10 @@ fn run_formatting_context<'pass>(
             }
             FormattingContextImplementation::Table(context) => {
                 context.run(run, body_input);
+                store_derived_baselines(
+                    run.state.used_values(&run.callbacks, run.box_),
+                    context.derived_baselines_of_root_box(),
+                );
                 ChildLayoutResult {
                     automatic_content_inline_size: context.automatic_content_inline_size(),
                     automatic_content_block_size: context.automatic_content_block_size,
