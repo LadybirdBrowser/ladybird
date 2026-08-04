@@ -3657,7 +3657,7 @@ void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, His
     }
 
     // 10. Apply the push/replace history step targetStep to traversable given historyHandling and userInvolvement.
-    traversable->apply_the_push_or_replace_history_step(target_step, history_handling, user_involvement, LocalTraversableNavigable::SynchronousNavigation::No, pending_document, navigable, move(expected_ongoing_navigation_id),
+    traversable->apply_the_push_or_replace_history_step(target_step, history_handling, user_involvement, SynchronousNavigation::No, pending_document, navigable, move(expected_ongoing_navigation_id),
         GC::create_function(navigable->heap(), [on_complete, navigable](HistoryStepResult result) {
             // AD-HOC: Trigger a relayout in the container document for size negotiation with SVG documents.
             if (auto container = navigable->container())
