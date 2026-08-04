@@ -20,7 +20,7 @@ public:
 
     virtual Gfx::Path get_path(CSSPixelSize viewport_size) = 0;
 
-    float get_total_length();
+    WebIDL::ExceptionOr<float> get_total_length();
     GC::Ref<Geometry::DOMPoint> get_point_at_length(float distance);
 
     GC::Ref<SVGAnimatedNumber> path_length();
