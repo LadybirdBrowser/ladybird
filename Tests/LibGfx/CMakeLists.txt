@@ -1,5 +1,6 @@
 set(TEST_SOURCES
     BenchmarkJPEGLoader.cpp
+    TestBSPTree.cpp
     TestBitmapExport.cpp
     TestColor.cpp
     TestFont.cpp
