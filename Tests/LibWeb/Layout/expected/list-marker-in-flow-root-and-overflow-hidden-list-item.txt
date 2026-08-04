@@ -1,0 +1,38 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 64 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [0,0] [0+0+0 800 0+0+0] [0+0+0 64 0+0+0] children: not-inline
+      BlockContainer <ul> at [100,0] [0+0+100 700 0+0+0] [0+0+0 64 0+0+0] children: not-inline
+        BlockContainer <(anonymous)> at [100,0] [0+0+0 700 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        ListItemBox <li.flow-root> at [100,0] [0+0+0 700 0+0+0] [0+0+0 24 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 19, rect: [100,4 148.484375x16] baseline: 12.796875
+              "flow-root list item"
+          ListItemMarkerBox <(anonymous)> at [86,9] [0+0+0 6 0+0+0] [0+0+0 6 0+0+0] [BFC] children: not-inline
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [100,24] [0+0+0 700 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        ListItemBox <li.clipped> at [100,24] [0+0+0 700 0+0+0] [0+0+0 40 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 25, rect: [100,28 197.609375x16] baseline: 12.796875
+              "overflow hidden list item"
+          ListItemMarkerBox <(anonymous)> at [86,33] [0+0+0 6 0+0+0] [0+0+0 6 0+0+0] [BFC] children: not-inline
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [100,64] [0+0+0 700 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [0,64] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x64]
+    PaintableWithLines (BlockContainer<BODY>) [0,0 800x64]
+      PaintableWithLines (BlockContainer<UL>) [0,0 800x64]
+        PaintableWithLines (BlockContainer(anonymous)) [100,0 700x0]
+        PaintableWithLines (ListItemBox<LI>.flow-root) [100,0 700x24]
+          MarkerPaintable (ListItemMarkerBox(anonymous)) [86,9 6x6]
+        PaintableWithLines (BlockContainer(anonymous)) [100,24 700x0]
+        PaintableWithLines (ListItemBox<LI>.clipped) [100,24 700x40]
+          MarkerPaintable (ListItemMarkerBox(anonymous)) [86,33 6x6]
+        PaintableWithLines (BlockContainer(anonymous)) [100,64 700x0]
+      PaintableWithLines (BlockContainer(anonymous)) [0,64 800x0]
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x64] (z-index: auto)

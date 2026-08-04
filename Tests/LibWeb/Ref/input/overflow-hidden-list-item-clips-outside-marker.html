@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/overflow-hidden-list-item-clips-outside-marker-ref.html">
+<style>
+    body {
+        margin: 0;
+        font: 20px/1.5 monospace;
+    }
+
+    ul {
+        margin: 0;
+        padding-left: 100px;
+    }
+
+    li {
+        overflow: hidden;
+        height: 40px;
+        background: #cfc;
+    }
+
+    li::marker {
+        color: red;
+        font-size: 40px;
+    }
+</style>
+<ul>
+    <li>the marker must not paint</li>
+</ul>

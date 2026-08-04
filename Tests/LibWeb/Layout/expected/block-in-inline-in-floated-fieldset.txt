@@ -4,7 +4,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <ul> at [48,16] [0+0+40 744 0+0+0] [16+0+0 0 0+0+16] children: inline
         TextNode <#text> (not painted)
         ListItemBox <li> at [728.265625,16] floating [0+0+0 63.734375 0+0+0] [0+0+0 24 0+0+0] [BFC] children: not-inline
-          ListItemMarkerBox <(anonymous)> at [728.265625,16] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: not-inline
+          ListItemMarkerBox <(anonymous)> at [714.265625,21] [0+0+0 6 0+0+0] [0+0+0 6 0+0+0] [BFC] children: not-inline
           BlockContainer <(anonymous)> at [728.265625,16] [0+0+0 63.734375 0+0+0] [0+0+0 0 0+0+0] children: inline
             TextNode <#text> (not painted)
           BlockContainer <form> at [728.265625,16] [0+0+0 63.734375 0+0+0] [0+0+0 24 0+0+0] children: inline
@@ -37,7 +37,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
     PaintableWithLines (BlockContainer<BODY>) [8,16 784x0]
       PaintableWithLines (BlockContainer<UL>) [8,16 784x0]
         PaintableWithLines (ListItemBox<LI>) [728.265625,16 63.734375x24]
-          MarkerPaintable (ListItemMarkerBox(anonymous)) [728.265625,16 0x0]
+          MarkerPaintable (ListItemMarkerBox(anonymous)) [714.265625,21 6x6]
           PaintableWithLines (BlockContainer(anonymous)) [728.265625,16 63.734375x0]
           PaintableWithLines (BlockContainer<FORM>) [728.265625,16 63.734375x24]
             FieldSetPaintable (FieldSetBox<FIELDSET>) [728.265625,16 63.734375x24]

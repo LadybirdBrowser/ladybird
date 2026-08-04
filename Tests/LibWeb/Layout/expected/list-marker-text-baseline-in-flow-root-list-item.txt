@@ -1,0 +1,44 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 60 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [0,0] [0+0+0 800 0+0+0] [0+0+0 60 0+0+0] children: not-inline
+      BlockContainer <ol> at [100,0] [0+0+100 700 0+0+0] [0+0+0 60 0+0+0] children: not-inline
+        BlockContainer <(anonymous)> at [100,0] [0+0+0 700 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        ListItemBox <li> at [100,0] [0+0+0 700 0+0+0] [0+0+0 24 0+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 19, rect: [100,4 160.6875x16] baseline: 12.796875
+              "plain numbered item"
+          ListItemMarkerBox <(anonymous)> at [81,0] [0+0+0 18.6875 0+0+0] [0+0+0 24 0+0+0] [BFC] children: inline
+            frag 0 from GeneratedTextNode start: 0, length: 3, rect: [81,4 18.6875x16] baseline: 12.796875
+                "1. "
+            GeneratedTextNode <(anonymous)> (not painted)
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [100,24] [0+0+0 700 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+        ListItemBox <li.flow-root> at [100,24] [0+0+0 700 0+0+0] [0+0+0 36 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 23, rect: [100,30 298.09375x24] baseline: 19.1875
+              "flow-root numbered item"
+          ListItemMarkerBox <(anonymous)> at [68,24] [0+0+0 31.734375 0+0+0] [0+0+0 36 0+0+0] [BFC] children: inline
+            frag 0 from GeneratedTextNode start: 0, length: 3, rect: [68,30 31.734375x24] baseline: 19.1875
+                "2. "
+            GeneratedTextNode <(anonymous)> (not painted)
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [100,60] [0+0+0 700 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [0,60] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x60]
+    PaintableWithLines (BlockContainer<BODY>) [0,0 800x60]
+      PaintableWithLines (BlockContainer<OL>) [0,0 800x60]
+        PaintableWithLines (BlockContainer(anonymous)) [100,0 700x0]
+        PaintableWithLines (ListItemBox<LI>) [100,0 700x24]
+          PaintableWithLines (ListItemMarkerBox(anonymous)) [81,0 18.6875x24]
+        PaintableWithLines (BlockContainer(anonymous)) [100,24 700x0]
+        PaintableWithLines (ListItemBox<LI>.flow-root) [100,24 700x36]
+          PaintableWithLines (ListItemMarkerBox(anonymous)) [68,24 31.734375x36]
+        PaintableWithLines (BlockContainer(anonymous)) [100,60 700x0]
+      PaintableWithLines (BlockContainer(anonymous)) [0,60 800x0]
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x60] (z-index: auto)

@@ -1374,11 +1374,26 @@ impl<'pass> BlockFormattingContext<'pass> {
         ((marker_line_height - marker_block_size) / 2).max(CssPixels::default())
     }
 
+    fn create_marker_used_values(&self, list_item: Node, marker: Node) {
+        let list_item_used = self.used(list_item);
+        let marker_constraints = ContainingBlockConstraints {
+            percentage_basis_inline_size: list_item_used
+                .has_definite_inline_size()
+                .then(|| list_item_used.content_inline_size.get()),
+            percentage_basis_block_size: list_item_used
+                .has_definite_block_size()
+                .then(|| list_item_used.content_block_size.get()),
+            ..ContainingBlockConstraints::default()
+        };
+        self.create_used_values(marker, marker_constraints);
+    }
+
     fn layout_list_item_marker(
         &self,
         run: &FormattingContextRun<'pass>,
         list_item: Node,
         inline_space_used_before_list_item_elements_formatted: SpaceUsedByFloats,
+        list_item_first_baseline: Option<CssPixels>,
     ) {
         let marker = self.facts(list_item).list_item_marker();
         if marker.is_invalid() {
@@ -1390,95 +1405,90 @@ impl<'pass> BlockFormattingContext<'pass> {
         if marker_facts.marker_list_style_position() == list_style_position::INSIDE {
             return;
         }
+        if self.layout_mode == LayoutMode::IntrinsicSizing {
+            return;
+        }
+        // Animations can make `float` or `position` apply to ::marker.
+        if marker_facts.is_floating() || marker_facts.is_absolutely_positioned() {
+            return;
+        }
+        self.create_marker_used_values(list_item, marker);
         let marker_style = self.style(marker);
-
-        if self.layout_mode != LayoutMode::IntrinsicSizing {
-            let marker_is_symbolic = marker_facts.marker_is_symbolic();
-            if marker_is_symbolic {
-                self.dimension_list_item_marker(marker);
-            } else {
-                // FIXME: The max-content measurement and the inside layout each shape the marker text;
-                //        a single max-content-constrained run could provide both.
-                let marker_constraints = ContainingBlockConstraints {
-                    percentage_basis_inline_size: Some(self.used(list_item).content_inline_size.get()),
-                    ..ContainingBlockConstraints::default()
-                };
-                let max_content_inline_size = self
-                    .sizing()
-                    .calculate_max_content_inline_size(marker, marker_constraints);
-                let marker_used = self.used_mut(marker);
-                marker_used.set_content_inline_size(max_content_inline_size);
-                marker_used.has_definite_inline_size.set(true);
-                let inner_available_space = crate::layout::AvailableSpace {
-                    inline_size: crate::layout::AvailableSize::definite(max_content_inline_size),
-                    block_size: crate::layout::AvailableSize::Indefinite,
-                };
-                match crate::layout::layout_inside_child(
-                    run,
-                    None,
-                    None,
-                    marker,
-                    self.layout_mode,
-                    LayoutInput {
-                        available_space: inner_available_space,
-                        containing_block_constraints: marker_constraints,
-                        content_box_position_in_bfc_root: None,
-                        sizing: RootSizingDirectives {
-                            adopt_automatic_content_block_size: true,
-                            ..RootSizingDirectives::default()
-                        },
-                        participation: ParticipationInParentFormattingContext::Item,
+        let marker_is_symbolic = marker_facts.marker_is_symbolic();
+        if marker_is_symbolic {
+            self.dimension_list_item_marker(marker);
+        } else {
+            let marker_constraints = ContainingBlockConstraints {
+                percentage_basis_inline_size: Some(self.used(list_item).content_inline_size.get()),
+                ..ContainingBlockConstraints::default()
+            };
+            let max_content_inline_size = self
+                .sizing()
+                .calculate_max_content_inline_size(marker, marker_constraints);
+            let marker_used = self.used_mut(marker);
+            marker_used.set_content_inline_size(max_content_inline_size);
+            marker_used.has_definite_inline_size.set(true);
+            let inner_available_space = crate::layout::AvailableSpace {
+                inline_size: crate::layout::AvailableSize::definite(max_content_inline_size),
+                block_size: crate::layout::AvailableSize::Indefinite,
+            };
+            match crate::layout::layout_inside_child(
+                run,
+                None,
+                None,
+                marker,
+                self.layout_mode,
+                LayoutInput {
+                    available_space: inner_available_space,
+                    containing_block_constraints: marker_constraints,
+                    content_box_position_in_bfc_root: None,
+                    sizing: RootSizingDirectives {
+                        adopt_automatic_content_block_size: true,
+                        ..RootSizingDirectives::default()
                     },
-                    true,
-                ) {
-                    crate::layout::ChildLayoutOutcome::Created(child_layout) => {
-                        self.used_mut(marker)
-                            .set_content_block_size(child_layout.automatic_content_block_size);
-                    }
-                    crate::layout::ChildLayoutOutcome::Skipped => {}
-                    crate::layout::ChildLayoutOutcome::ReenterCurrent => {
-                        unreachable!("marker inside layout did not establish a formatting context")
-                    }
+                    participation: ParticipationInParentFormattingContext::Item,
+                },
+                true,
+            ) {
+                crate::layout::ChildLayoutOutcome::Created(child_layout) => {
+                    self.used_mut(marker)
+                        .set_content_block_size(child_layout.automatic_content_block_size);
+                }
+                crate::layout::ChildLayoutOutcome::Skipped => {}
+                crate::layout::ChildLayoutOutcome::ReenterCurrent => {
+                    unreachable!("marker inside layout did not establish a formatting context")
                 }
             }
-
-            let marker_distance = self.distance_between_marker_and_list_item(marker);
-            let marker_used = self.used(marker);
-            let marker_block_size = marker_used.content_block_size.get();
-            let marker_inline_size = marker_used.content_inline_size.get();
-            let list_item_style = self.style(list_item);
-            let list_item_used = self.used(list_item);
-            let marker_inline_offset = if list_item_style.direction() == direction::LTR {
-                inline_space_used_before_list_item_elements_formatted.left - marker_distance - marker_inline_size
-            } else {
-                list_item_used.content_inline_size.get()
-                    - (inline_space_used_before_list_item_elements_formatted.right - marker_distance)
-            };
-            let marker_block_offset = if !marker_is_symbolic
-                && list_item_used.has_first_baseline.get()
-                && marker_used.has_first_baseline.get()
-            {
-                list_item_used.first_baseline.get() - marker_used.first_baseline.get()
-            } else {
-                round_css_pixels(Self::marker_centered_block_offset(marker_style.line_height(), marker_block_size))
-            };
-
-            // Animations can make `float` or `position` apply to ::marker.
-            if !marker_facts.is_floating() && !marker_facts.is_absolutely_positioned() {
-                self.place_child(
-                    marker,
-                    FfiCssPixelPoint {
-                        x: round_css_pixels(marker_inline_offset),
-                        y: marker_block_offset,
-                    },
-                );
-            }
         }
 
-        if marker_style.line_height() > self.used(list_item).content_block_size.get() {
-            self.used_mut(list_item)
-                .set_content_block_size(marker_style.line_height());
-        }
+        let marker_distance = self.distance_between_marker_and_list_item(marker);
+        let marker_used = self.used(marker);
+        let marker_block_size = marker_used.content_block_size.get();
+        let marker_inline_size = marker_used.content_inline_size.get();
+        let list_item_style = self.style(list_item);
+        let list_item_used = self.used(list_item);
+        let marker_inline_offset = if list_item_style.direction() == direction::LTR {
+            inline_space_used_before_list_item_elements_formatted.left - marker_distance - marker_inline_size
+        } else {
+            list_item_used.content_inline_size.get()
+                - (inline_space_used_before_list_item_elements_formatted.right - marker_distance)
+        };
+        let marker_block_offset = if !marker_is_symbolic
+            && let Some(list_item_first_baseline) = list_item_first_baseline
+            && marker_used.has_first_baseline.get()
+        {
+            list_item_first_baseline - marker_used.first_baseline.get()
+        } else {
+            round_css_pixels(Self::marker_centered_block_offset(marker_style.line_height(), marker_block_size))
+        };
+
+        self.place_child(
+            marker,
+            FfiCssPixelPoint {
+                x: round_css_pixels(marker_inline_offset),
+                y: marker_block_offset,
+            },
+        );
     }
 
     fn layout_inside(
@@ -1549,9 +1559,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             return;
         }
 
-        // NOTE: ListItemMarkerBoxes are placed by their corresponding ListItemBox, and their used
-        //       values were created together with its own.
-        if facts.is_list_item_marker_box() {
+        if facts.is_list_item_marker_box() && !facts.is_floating() {
             return;
         }
 
@@ -1789,6 +1797,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                     table_box_content_block_offset_in_wrapper: is_table_formatting_context
                         .then_some(content_block_offset),
                     float_avoidance_inline_size,
+                    outer_float_intrusion_before_list_item_children: inline_space_used_before_children_formatted,
                     ..RootSizingDirectives::default()
                 },
                 participation: ParticipationInParentFormattingContext::BlockLevel,
@@ -1867,8 +1876,18 @@ impl<'pass> BlockFormattingContext<'pass> {
         }
 
         // Now that our children are formatted we place the ListItemBox with the left space we remembered.
-        if is_list_item_box {
-            self.layout_list_item_marker(run, node, inline_space_used_before_children_formatted);
+        if is_list_item_box && !has_independent_formatting_context {
+            let list_item_used = self.used(node);
+            let list_item_first_baseline = list_item_used
+                .has_first_baseline
+                .get()
+                .then(|| list_item_used.first_baseline.get());
+            self.layout_list_item_marker(
+                run,
+                node,
+                inline_space_used_before_children_formatted,
+                list_item_first_baseline,
+            );
         }
 
         if let Some(position) = pending_position {
@@ -2225,6 +2244,15 @@ impl<'pass> BlockFormattingContext<'pass> {
             // have been derived from (a scroll container child exports its bottom margin edge), so re-derive them.
             self.compute_and_store_baselines(self.root);
         }
+
+        if root_facts.is_list_item_box() {
+            self.layout_list_item_marker(
+                run,
+                self.root,
+                input.sizing.outer_float_intrusion_before_list_item_children,
+                self.derived_baselines_of_root_box().first,
+            );
+        }
     }
 
     pub(crate) fn place_floats_after_run(&self) {
@@ -2579,6 +2607,27 @@ impl<'pass> BlockFormattingContext<'pass> {
         constraints: ContainingBlockConstraints,
         automatic_content_block_size_of_completed_run: Option<CssPixels>,
     ) -> CssPixels {
+        let automatic_content_block_size = self.automatic_block_size_for_block_level_element_disregarding_marker(
+            node,
+            available_space,
+            constraints,
+            automatic_content_block_size_of_completed_run,
+        );
+        floor_list_item_automatic_block_size_by_marker_line_height(
+            self.state,
+            self.callbacks,
+            node,
+            automatic_content_block_size,
+        )
+    }
+
+    fn automatic_block_size_for_block_level_element_disregarding_marker(
+        &self,
+        node: Node,
+        available_space: AvailableSpace,
+        constraints: ContainingBlockConstraints,
+        automatic_content_block_size_of_completed_run: Option<CssPixels>,
+    ) -> CssPixels {
         let facts = self.facts(node);
         let style = self.style(node);
         if facts.creates_block_formatting_context()
@@ -2624,17 +2673,12 @@ impl<'pass> BlockFormattingContext<'pass> {
         // 2. the bottom edge of the bottom (possibly collapsed) margin of its last in-flow child, if the child's bottom margin does not collapse with the element's bottom margin
         // 3. the bottom border edge of the last in-flow child whose top margin doesn't collapse with the element's bottom margin
         if !facts.children_are_inline() {
-            let mut marker_line_block_size = CssPixels::default();
             for child in self.children(node).into_iter().rev() {
                 let child_facts = self.facts(child);
                 if child_facts.is_absolutely_positioned() || child_facts.is_floating() {
                     continue;
                 }
-                // NOTE: Markers are not in-flow, but for list items that contain only floats (or are otherwise empty),
-                //       the marker's line-height determines the list item's block size. This ensures proper stacking of
-                //       list items and alignment with their floated content.
                 if child_facts.is_list_item_marker_box() {
-                    marker_line_block_size = self.style(child).line_height();
                     continue;
                 }
                 if self.margins_collapse_through(child) {
@@ -2654,10 +2698,6 @@ impl<'pass> BlockFormattingContext<'pass> {
                     + child_used.border_box_bottom(false)
                     + margin_bottom)
                     .max(CssPixels::default());
-            }
-            // If no in-flow children were found but there's a marker, use the marker's line-height.
-            if marker_line_block_size > CssPixels::default() {
-                return marker_line_block_size;
             }
         }
 
@@ -2889,6 +2929,9 @@ pub(crate) fn automatic_block_size_for_bfc_root(
         };
         for child in flow_children {
             let child_facts = state.node_facts(&callbacks, child);
+            if child_facts.is_list_item_marker_box() {
+                continue;
+            }
             if child_facts.is_box() && !child_facts.is_absolutely_positioned() && !child_facts.is_floating() {
                 let child_used = state.try_used_values(&callbacks, child);
                 // Children that have not been laid out yet contribute nothing to the automatic block size.
@@ -2911,5 +2954,27 @@ pub(crate) fn automatic_block_size_for_bfc_root(
         bottom = Some(bottom.map_or(lowest, |value| value.max(lowest)));
     }
     let _ = used;
-    bottom.unwrap_or_default().max(CssPixels::default())
+    floor_list_item_automatic_block_size_by_marker_line_height(
+        state,
+        callbacks,
+        root,
+        bottom.unwrap_or_default().max(CssPixels::default()),
+    )
+}
+
+pub(crate) fn floor_list_item_automatic_block_size_by_marker_line_height(
+    state: &LayoutState,
+    callbacks: FfiLayoutFcCallbacks,
+    node: Node,
+    automatic_content_block_size: CssPixels,
+) -> CssPixels {
+    let facts = state.node_facts(&callbacks, node);
+    if !facts.is_list_item_box() {
+        return automatic_content_block_size;
+    }
+    let marker = facts.list_item_marker();
+    if marker.is_invalid() {
+        return automatic_content_block_size;
+    }
+    automatic_content_block_size.max(state.style_facts(&callbacks, marker).line_height())
 }
