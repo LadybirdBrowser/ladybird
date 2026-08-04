@@ -353,6 +353,13 @@ void VM::gather_roots(HashMap<GC::Cell*, GC::HeapRoot>& roots)
     for (auto const& saved_stack : m_saved_execution_context_stacks)
         gather_roots_from_execution_context_stack(saved_stack.stack, saved_stack.previous_running_contexts, saved_stack.running_execution_context);
 
+    if (m_type_error_realm_override)
+        roots.set(m_type_error_realm_override, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
+    for (auto const& saved_stack : m_saved_execution_context_stacks) {
+        if (saved_stack.type_error_realm_override)
+            roots.set(saved_stack.type_error_realm_override, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
+    }
+
     for (auto& job : m_promise_jobs)
         roots.set(job, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
 }
@@ -573,8 +580,12 @@ void VM::save_execution_context_stack()
         .stack = move(m_execution_context_stack),
         .previous_running_contexts = move(m_execution_context_stack_previous_running_contexts),
         .running_execution_context = m_running_execution_context,
+        .type_error_realm_override = m_type_error_realm_override,
+        .type_error_realm_override_depth = m_type_error_realm_override_depth,
     });
     m_running_execution_context = nullptr;
+    m_type_error_realm_override = nullptr;
+    m_type_error_realm_override_depth = 0;
 }
 
 void VM::clear_execution_context_stack()
@@ -582,6 +593,8 @@ void VM::clear_execution_context_stack()
     m_execution_context_stack.clear_with_capacity();
     m_execution_context_stack_previous_running_contexts.clear_with_capacity();
     m_running_execution_context = nullptr;
+    m_type_error_realm_override = nullptr;
+    m_type_error_realm_override_depth = 0;
 }
 
 void VM::restore_execution_context_stack()
@@ -590,6 +603,8 @@ void VM::restore_execution_context_stack()
     m_execution_context_stack = move(saved_stack.stack);
     m_execution_context_stack_previous_running_contexts = move(saved_stack.previous_running_contexts);
     m_running_execution_context = saved_stack.running_execution_context;
+    m_type_error_realm_override = saved_stack.type_error_realm_override;
+    m_type_error_realm_override_depth = saved_stack.type_error_realm_override_depth;
 }
 
 ExecutionContext* VM::previous_execution_context() const

@@ -360,11 +360,51 @@ public:
     ThrowCompletionOr<Reference> resolve_binding(Utf16FlyString const&, Strict, Environment* = nullptr);
     ThrowCompletionOr<Reference> get_identifier_reference(Environment*, Utf16FlyString, Strict, size_t hops = 0);
 
+    // The override only applies at the execution-context-stack depth the scope was created at, so
+    // callees pushed while the scope is alive are unaffected without any per-call bookkeeping.
+    class TypeErrorRealmScope {
+    public:
+        TypeErrorRealmScope(VM& vm, Realm& realm)
+            : m_vm(vm)
+            , m_previous_realm(vm.m_type_error_realm_override)
+            , m_previous_depth(vm.m_type_error_realm_override_depth)
+        {
+            m_vm.m_type_error_realm_override = &realm;
+            m_vm.m_type_error_realm_override_depth = vm.m_execution_context_stack.size();
+        }
+
+        ~TypeErrorRealmScope()
+        {
+            restore();
+        }
+
+        void restore()
+        {
+            if (!m_active)
+                return;
+            m_vm.m_type_error_realm_override = m_previous_realm;
+            m_vm.m_type_error_realm_override_depth = m_previous_depth;
+            m_active = false;
+        }
+
+    private:
+        VM& m_vm;
+        GC::Ptr<Realm> m_previous_realm;
+        size_t m_previous_depth { 0 };
+        bool m_active { true };
+    };
+
     // 5.2.3.2 Throw an Exception, https://tc39.es/ecma262/#sec-throw-an-exception
     template<typename T, typename... Args>
     COLD Completion throw_completion(Args&&... args)
     {
-        auto& realm = *current_realm();
+        auto& realm = [&]() -> Realm& {
+            if constexpr (IsSame<T, TypeError>) {
+                if (m_type_error_realm_override && m_execution_context_stack.size() == m_type_error_realm_override_depth)
+                    return *m_type_error_realm_override;
+            }
+            return *current_realm();
+        }();
         auto completion = T::create(realm, forward<Args>(args)...);
 
         return JS::throw_completion(completion);
@@ -513,6 +553,8 @@ private:
         Vector<ExecutionContext*> stack;
         Vector<ExecutionContext*> previous_running_contexts;
         ExecutionContext* running_execution_context { nullptr };
+        GC::Ptr<Realm> type_error_realm_override;
+        size_t type_error_realm_override_depth { 0 };
     };
 
     void load_imported_module(ImportedModuleReferrer, ModuleRequest const&, GC::Ptr<GraphLoadingState::HostDefined>, ImportedModulePayload);
@@ -539,6 +581,13 @@ private:
     // walk the full active stack without relying on caller_frame there.
     Vector<ExecutionContext*> m_execution_context_stack_previous_running_contexts;
     ExecutionContext* m_running_execution_context { nullptr };
+    // This override is only active while generated WebIDL conversion code is
+    // running without re-entering ECMAScript. Any execution context push saves
+    // and clears it, so nested author script throws TypeErrors in its own realm
+    // and the pointer never remains active while that nested script can run
+    // arbitrary GC-visible code.
+    GC::Ptr<Realm> m_type_error_realm_override;
+    size_t m_type_error_realm_override_depth { 0 };
 
     Vector<SavedExecutionContextStack> m_saved_execution_context_stacks;
 
