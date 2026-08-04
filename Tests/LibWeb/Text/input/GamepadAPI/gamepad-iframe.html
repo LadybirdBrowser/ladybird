@@ -1,4 +1,16 @@
 <!DOCTYPE html>
+<script>
+    // Install the listener before the iframe element exists, so the child's ready
+    // announcement cannot be missed regardless of when its srcdoc navigation commits.
+    const iframeReady = new Promise((resolve) => {
+        window.addEventListener('message', function listener({ data }) {
+            if (data !== 'iframe-ready')
+                return;
+            window.removeEventListener('message', listener);
+            resolve();
+        });
+    });
+</script>
 <iframe id="test-iframe" srcdoc="
 <script src='gamepad-helper.js'></script>
 <script>
@@ -20,6 +32,7 @@
             break;
         }
     };
+    window.parent.postMessage('iframe-ready', '*');
 </script>
 "></iframe>
 <script src="../include.js"></script>
@@ -39,12 +52,8 @@
             });
         };
 
-        // wait for the iframe to be ready
-        await new Promise((resolve) => {
-            testIframe.addEventListener('load', resolve);
-            if (testIframe.contentDocument.readyState === 'complete')
-                resolve();
-        });
+        // wait for the iframe's message handler to be installed
+        await iframeReady;
 
         const gamepad = internals.connectVirtualGamepad();
         await handleSDLInputEvents();
