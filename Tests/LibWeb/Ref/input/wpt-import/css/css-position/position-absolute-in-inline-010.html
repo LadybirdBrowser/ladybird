@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<title>CSS Positioned Test: Test the nested inline containing block rectangle for a fragmented inline element in multicol and vertical writing mode</title>
+<link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+<link rel="author" title="Mozilla" href="https://www.mozilla.org/">
+<link rel="help" href="https://drafts.csswg.org/css-position-3/#absolute-cb">
+<link rel="match" href="../../../../expected/wpt-import/css/css-position/position-absolute-in-inline-010-ref.html">
+<link rel="stylesheet" href="../../../../data/fonts/ahem.css">
+
+<style>
+:root {
+  writing-mode: vertical-rl;
+}
+.container {
+  font: 20px/1 Ahem;
+  border: 5px solid gold;
+  inline-size: 16em;
+  block-size: 3em;
+  columns: 2;
+  column-fill: auto;
+  column-gap: 0;
+  margin-block-end: 1em;
+}
+.container.rtl {
+  direction: rtl;
+}
+.rel {
+  position: relative;
+}
+.cb-rect {
+  position: absolute;
+  inset: 0;
+  background: green;
+}
+</style>
+
+<div class="container">
+  XX
+  <span>
+    XXXX<br>
+    XX<span class="rel">XXXXXX<br>XXXXX
+    <div class="cb-rect"></div>
+    XXXXXXXX<br>
+    XXXXX<br></span>
+    XXXXX
+  </span>
+</div>
+
+<div class="container rtl">
+  XX
+  <span>
+    XXXX<br>
+    XX<span class="rel">XXXXXX<br>XXXXX
+    <div class="cb-rect"></div>
+    XXXXXXXX<br>
+    XXXXX<br></span>
+    XXXXX
+  </span>
+</div>

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<title>CSS Positioned Reference: Test the inline containing block rectangle for a fragmented inline element in vertical writing mode</title>
+<link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+<link rel="author" title="Mozilla" href="https://www.mozilla.org/">
+<link rel="stylesheet" href="../../../../data/fonts/ahem.css">
+
+<style>
+.container {
+  font: 20px/1 Ahem;
+  border: 5px solid gold;
+  inline-size: 8em;
+  display: inline-block;
+  writing-mode: vertical-rl;
+}
+.container.rtl {
+  direction: rtl;
+}
+.rel {
+  position: relative;
+}
+.cb-rect {
+  color: green;
+}
+</style>
+
+<div class="container">
+  XX
+  <span class="rel">
+    <span class="cb-rect">XX</span>XX<br>
+    XXX<span class="cb-rect">XX</span>XXX<br>
+    XXX<span class="cb-rect">XX</span>
+  </span>
+</div>
+
+<div class="container rtl">
+  XX<span class="rel"><span class="cb-rect">XXXXX</span><br>
+  XXX<span class="cb-rect">XXXXX</span><br>
+  <span class="cb-rect">XXXXX</span>
+  </span>
+</div>

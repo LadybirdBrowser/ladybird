@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<title>CSS Positioned Reference: Test the inline containing block rectangle for a fragmented inline element in multicol balancing</title>
+<link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+<link rel="author" title="Mozilla" href="https://www.mozilla.org/">
+<link rel="stylesheet" href="../../../../data/fonts/ahem.css">
+
+<style>
+.container {
+  font: 20px/1 Ahem;
+  border: 5px solid gold;
+  inline-size: 24em;
+  block-size: 3em;
+  columns: 3;
+  column-gap: 0;
+  margin-block-end: 1em;
+}
+.container.rtl {
+  direction: rtl;
+}
+.cb-rect {
+  color: green;
+}
+</style>
+
+<div class="container">
+  XX <span class="cb-rect">XX</span>XX<br>
+  XXX<span class="cb-rect">XX</span>XXX<br>
+  XXX<span class="cb-rect">XX</span>
+  XXX<span class="cb-rect">XX</span>XXX<br>
+  XXX<span class="cb-rect">XX</span><br>
+  XXX<span class="cb-rect">XX</span>
+</div>
+
+<div class="container rtl">
+  XX<span class="cb-rect">XXXXX</span><br>
+  XXX<span class="cb-rect">XXXXX</span><br>
+  <span class="cb-rect">XXXXX</span>
+  XXX<span class="cb-rect">XXXXX</span><br>
+  <span class="cb-rect">XXXXX</span>
+  <span class="cb-rect">XXXXX</span>
+</div>
