@@ -863,6 +863,7 @@ set(SOURCES
     Painting/BoxModelMetrics.cpp
     Painting/Canvas2DCommandStream.cpp
     Painting/ChromeWidget.cpp
+    Painting/DepthSortedReplayPlan.cpp
     Painting/DisplayList.cpp
     Painting/DisplayListCommand.cpp
     Painting/DisplayListDamage.cpp

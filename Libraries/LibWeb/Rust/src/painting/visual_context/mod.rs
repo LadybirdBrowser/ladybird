@@ -57,8 +57,10 @@ pub enum TransformDataRole {
 pub struct TransformData {
     pub matrix: FloatMatrix4x4,
     pub origin: FloatPoint,
+    pub sorting_context_root_index: Option<usize>,
     pub flattens_inherited_transform: bool,
     pub role: TransformDataRole,
+    pub synthetic_plane: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -289,6 +291,8 @@ pub fn export_node(node: &VisualContextNode) -> crate::painting::host::FfiVisual
         origin: [0.0; 2],
         flattens_inherited_transform: false,
         transform_role: 0,
+        has_sorting_context_root: false,
+        synthetic_plane: false,
         rect: [0; 4],
         corner_radii: [0; 8],
         opacity: 1.0,
@@ -339,6 +343,11 @@ pub fn export_node(node: &VisualContextNode) -> crate::painting::host::FfiVisual
             out.origin = [transform.origin.x, transform.origin.y];
             out.flattens_inherited_transform = transform.flattens_inherited_transform;
             out.transform_role = transform.role as u8;
+            if let Some(root) = transform.sorting_context_root_index {
+                out.has_sorting_context_root = true;
+                out.index_value = root;
+            }
+            out.synthetic_plane = transform.synthetic_plane;
         }
         VisualContextData::Perspective(perspective) => {
             write_matrix(&perspective.matrix, &mut out.matrix);

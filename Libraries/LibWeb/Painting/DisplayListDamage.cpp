@@ -126,7 +126,9 @@ static bool visual_context_data_is_equal(VisualContextIndex a_index, VisualConte
             auto const* other = b.get_pointer<TransformData>();
             return other && matrices_are_equal(data.matrix, other->matrix) && data.origin == other->origin
                 && data.flattens_inherited_transform == other->flattens_inherited_transform
-                && data.role == other->role;
+                && data.sorting_context_root_index == other->sorting_context_root_index
+                && data.role == other->role
+                && data.synthetic_plane == other->synthetic_plane;
         },
         [&](PerspectiveData const& data) {
             auto const* other = b.get_pointer<PerspectiveData>();

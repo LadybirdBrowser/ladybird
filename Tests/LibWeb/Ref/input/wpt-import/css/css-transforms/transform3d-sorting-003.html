@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Test (Transforms): Simple Sorting With No Preserve-3D</title>
+    <link rel="author" title="Aryeh Gregor" href="mailto:ayg@aryeh.name">
+    <link rel="help" href="http://www.w3.org/TR/css-transforms-2/#transform-style-property">
+    <link rel="help" href="http://www.w3.org/TR/css-transforms-2/#3d-transform-rendering">
+    <meta name="assert" content="The red box here is translated to above the
+    lime box, but they aren't in the same 3D rendering context, so they should
+    be drawn in DOM order regardless: lime box on top.">
+    <link rel="match" href="../../../../expected/wpt-import/css/css-transforms/transform-lime-square-ref.html">
+  </head>
+  <body>
+    <div style="width: 100px; height: 100px; background: red;
+      transform: translatez(10px)"></div>
+    <div style="width: 100px; height: 100px; background: lime;
+      transform: translatez(-10px) translatey(-100px)"></div>
+  </body>
+</html>

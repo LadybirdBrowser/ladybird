@@ -39,8 +39,10 @@ pub fn compute_svg_viewport_transform_data(
     TransformData {
         matrix: scale_matrix_for_device_pixels(affine_to_matrix(matrix), pixel_ratio as f32),
         origin: FloatPoint::default(),
+        sorting_context_root_index: None,
         flattens_inherited_transform: false,
         role: TransformDataRole::SvgViewportTransform,
+        synthetic_plane: false,
     }
 }
 
@@ -207,6 +209,7 @@ struct DescendantVisualContexts {
     absolute_position_plane_root: usize,
     fixed_position_plane_root: usize,
     flattens_inherited_transform: bool,
+    sorting_context_root: Option<usize>,
 }
 
 struct Builder<'a> {
@@ -450,6 +453,7 @@ impl Builder<'_> {
         let mut appended_transform_node = false;
         if let Some(mut transform) = transform_data {
             transform.flattens_inherited_transform = flattens_inherited_transform;
+            transform.sorting_context_root_index = inherited.sorting_context_root;
             self.paintables.update_data(slot, |data| {
                 data.set_flag(
                     PaintableFlag::HasNonInvertibleCssTransform,
@@ -517,6 +521,38 @@ impl Builder<'_> {
         } else {
             !establishes_or_extends_3d_rendering_context || inherited_flatten_still_pending
         };
+
+        // https://drafts.csswg.org/css-transforms-2/#3d-rendering-contexts
+        // A 3D rendering context is established by a transformable element whose used value for transform-style
+        // is preserve-3d and which itself is not part of a 3D rendering context. An element that establishes a
+        // 3D rendering context also participates in that context.
+        // NB: Every preserve-3d element renders into its own plane, so one without a transform of its own
+        //     appends an identity transform node to provide that plane. The establishing element's own state
+        //     serves as the context's root; replay sorts the content recorded under it as the context's z=0
+        //     plane alongside the planes of the participants, whose transform nodes reference the root.
+        let mut sorting_context_root_for_descendants = inherited.sorting_context_root;
+        if !invisible_to_3d_rendering_contexts {
+            if !establishes_or_extends_3d_rendering_context {
+                sorting_context_root_for_descendants = None;
+            } else {
+                if !appended_transform_node {
+                    own_state = self.tree.append(
+                        VisualContextData::Transform(TransformData {
+                            matrix: libgfx_rust::FloatMatrix4x4::identity(),
+                            origin: FloatPoint::default(),
+                            sorting_context_root_index: sorting_context_root_for_descendants,
+                            flattens_inherited_transform,
+                            role: TransformDataRole::CssTransform,
+                            synthetic_plane: true,
+                        }),
+                        own_state,
+                    );
+                }
+                if sorting_context_root_for_descendants.is_none() {
+                    sorting_context_root_for_descendants = Some(own_state);
+                }
+            }
+        }
 
         if let Some(css_clip) = facts.css_clip {
             append_to_own_and_positioned_descendant_contexts!(VisualContextData::Clip(css_clip));
@@ -656,6 +692,7 @@ impl Builder<'_> {
             absolute_position_plane_root,
             fixed_position_plane_root,
             flattens_inherited_transform: descendants_flatten_inherited_transform,
+            sorting_context_root: sorting_context_root_for_descendants,
         }
     }
 
@@ -720,6 +757,7 @@ pub(crate) fn build_visual_context_tree(
         absolute_position_plane_root: viewport_state_for_descendants,
         fixed_position_plane_root: VISUAL_VIEWPORT_NODE_INDEX,
         flattens_inherited_transform: true,
+        sorting_context_root: None,
     };
 
     // Anchor-positioned boxes emit AnchorScrollShift nodes by reading the enclosing scroll nodes of
@@ -879,10 +917,19 @@ pub(crate) fn update_visual_context_values(
                     found_svg_viewport_transform = true;
                     continue;
                 }
+                // A synthetic plane node has no computed transform behind it. It stays as-is unless the element
+                // gained a real transform, which changes the structure the node was built for.
+                if transform_data.synthetic_plane {
+                    if transform.is_some() {
+                        return false;
+                    }
+                    continue;
+                }
                 let Some(mut new_data) = transform else {
                     return false;
                 };
                 new_data.flattens_inherited_transform = transform_data.flattens_inherited_transform;
+                new_data.sorting_context_root_index = transform_data.sorting_context_root_index;
                 *transform_data = new_data;
                 found_css_transform = true;
             }

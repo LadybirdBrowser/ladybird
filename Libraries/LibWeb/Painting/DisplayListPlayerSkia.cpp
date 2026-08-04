@@ -1002,7 +1002,7 @@ void DisplayListPlayerSkia::play_command(PaintConicGradient const& command)
 
 void DisplayListPlayerSkia::play_command(AddClipPath const& command)
 {
-    add_clip_path(path_from_data(command.path_data), command.winding_rule);
+    add_clip_path(path_from_data(command.path_data), command.winding_rule, true);
 }
 
 void DisplayListPlayerSkia::play_command(AddRoundedRectClip const& command)
@@ -1203,12 +1203,12 @@ Gfx::FloatMatrix4x4 DisplayListPlayerSkia::canvas_matrix() const
     return to_gfx_matrix4x4(surface().canvas().getLocalToDevice());
 }
 
-void DisplayListPlayerSkia::add_clip_path(Gfx::Path const& path, Gfx::WindingRule winding_rule)
+void DisplayListPlayerSkia::add_clip_path(Gfx::Path const& path, Gfx::WindingRule winding_rule, bool anti_aliased)
 {
     auto& canvas = surface().canvas();
     auto sk_path = to_skia_path(path);
     sk_path.setFillType(to_skia_path_fill_type(winding_rule));
-    canvas.clipPath(sk_path, true);
+    canvas.clipPath(sk_path, anti_aliased);
 }
 
 bool DisplayListPlayerSkia::would_be_fully_clipped_by_painter(Gfx::IntRect rect) const

@@ -1,0 +1,39 @@
+<!DOCTYPE HTML>
+<meta charset="utf-8">
+<title>CSS Test (Transforms): Flattening at the leafward edges of a preserve-3d scene</title>
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1255544">
+<link rel="author" title="L. David Baron" href="https://dbaron.org/">
+<link rel="author" title="Google" href="http://www.google.com/">
+<link rel="help" href="http://www.w3.org/TR/css-transforms-2/#3d-transform-rendering">
+<meta name="assert" content="Elements are drawn in the correct z-order.">
+<link rel="match" href="../../../../expected/wpt-import/css/css-transforms/reference/green.html">
+
+<style>
+div {
+  position: absolute;
+  height: 100px;
+  width: 100px;
+  top: 0;
+  left: 0;
+  background: red;
+}
+.outer {
+  position: relative;
+}
+.outer, .sibling {
+  transform-style: preserve-3d;
+}
+.flattener {
+  transform: translateX(0);
+}
+.child {
+  background: green;
+}
+</style>
+
+<p>Pass if there is NO red below:</p>
+
+<div class="outer">
+  <div class="sibling"></div>
+  <div class="flattener"><div class="child"></div></div>
+</div>

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/singular-transform-in-3d-rendering-context-ref.html" />
+<style>
+    #scene {
+        transform-style: preserve-3d;
+    }
+
+    #outer-plane {
+        transform: scaleZ(1e-30);
+        transform-style: preserve-3d;
+    }
+
+    #inner-plane {
+        transform: scaleZ(1e-30);
+    }
+
+    #content {
+        width: 100px;
+        height: 100px;
+        transform: translate(20px, 20px);
+        background-color: green;
+    }
+</style>
+<div id="scene">
+    <div id="outer-plane">
+        <div id="inner-plane">
+            <div id="content"></div>
+        </div>
+    </div>
+</div>

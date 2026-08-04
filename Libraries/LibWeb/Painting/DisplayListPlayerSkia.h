@@ -49,7 +49,7 @@ private:
     void set_matrix(Gfx::FloatMatrix4x4 const&) override;
     Gfx::FloatMatrix4x4 canvas_matrix() const override;
 
-    void add_clip_path(Gfx::Path const&, Gfx::WindingRule) override;
+    void add_clip_path(Gfx::Path const&, Gfx::WindingRule, bool anti_aliased) override;
 
     bool would_be_fully_clipped_by_painter(Gfx::IntRect) const override;
 

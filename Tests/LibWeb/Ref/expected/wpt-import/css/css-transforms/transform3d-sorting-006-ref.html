@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Reftest Reference</title>
+    <link rel="author" title="Aryeh Gregor" href="mailto:ayg@aryeh.name">
+    <!--
+    In a correct implementation, the bottom borders here will be invisible, because
+    the later divs get painted on top.  This is to catch an incorrect pass in
+    Safari on Windows, which draws the test file and the ref with the same error
+    (painting the back halves on top) and so passes if the back halves are solid
+    red and green.
+    -->
+  </head>
+  <body>
+    <div style="height: 70px; width: 50px; background: red;
+      border-bottom: 30px solid black;
+      transform: rotateX(45deg) rotateY(45deg);
+      transform-origin: right"></div>
+    <div style="height: 70px; width: 50px; background: green;
+      border-bottom: 30px solid black;
+      transform: translate(50px, -100px) rotateX(45deg) rotateY(-45deg);
+      transform-origin: left"></div>
+    <div style="height: 100px; width: 50px; background: red;
+      transform: translate(50px, -200px) rotateX(45deg) rotateY(45deg);
+      transform-origin: left"></div>
+    <div style="height: 100px; width: 50px; background: green;
+      transform: translateY(-300px) rotateX(45deg) rotateY(-45deg);
+      transform-origin: right"></div>
+  </body>
+</html>

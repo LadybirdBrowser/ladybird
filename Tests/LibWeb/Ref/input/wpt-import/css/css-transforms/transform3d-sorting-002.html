@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Test (Transforms): Simple Sorting With Rotation</title>
+    <link rel="author" title="Matt Woodrow" href="mailto:mwoodrow@mozilla.com">
+    <link rel="author" title="Aryeh Gregor" href="mailto:ayg@aryeh.name">
+    <link rel="help" href="http://www.w3.org/TR/css-transforms-2/#transform-style-property">
+    <link rel="help" href="http://www.w3.org/TR/css-transforms-2/#3d-transform-rendering">
+    <meta name="assert" content="The red box here is translated to the same
+    extent as the lime box, so they should render in stacking context order:
+    the lime box is on top, because it's later in the DOM.  But then we apply
+    rotatex(180deg) to the whole thing, so the lime box should wind up on top
+    in the end.">
+    <link rel="match" href="../../../../expected/wpt-import/css/css-transforms/transform-lime-square-ref.html">
+  </head>
+  <body>
+    <div style="transform-style: preserve-3d; transform: rotatex(180deg)">
+      <div style="width: 100px; height: 100px; background: red;
+        transform: translatez(10px) translatey(100px)"></div>
+      <div style="width: 100px; height: 100px; background: lime;
+        transform: translatez(10px)"></div>
+    </div>
+  </body>
+</html>

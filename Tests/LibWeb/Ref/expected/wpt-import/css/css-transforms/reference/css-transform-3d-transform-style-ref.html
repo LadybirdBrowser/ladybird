@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>CSS Transforms Test: rotateY with transform-style on nested elements</title>
+    <link rel="author" title="Intel" href="http://www.intel.com">
+    <style>
+      div {
+        position: absolute;
+      }
+      div.container {
+        height: 100px;
+        top: 60px;
+        width: 400px;
+      }
+      div.blue {
+        background-color: blue;
+        height: 100px;
+        left: 200px;
+        width: 100px;
+      }
+      div.green {
+        background-color: green;
+        height: 100px;
+        left: 100px;
+        width: 100px;
+      }
+    </style>
+  </head>
+  <body>
+    <p>Test passes if there is a <b>green</b> square and a <b>blue</b> square, and no any <b>red</b>.</p>
+    <div class="container">
+      <div class="blue"></div>
+      <div class="green"></div>
+    </div>
+  </body>
+</html>
