@@ -52,6 +52,20 @@ pub fn validate_specializations(
 }
 use types::BlockTemperature;
 
+/// Reads the layout database out of the LibJS C++ headers with libclang.
+pub fn read_layout_from_headers(
+    spec: &str,
+    probe_path: &std::path::Path,
+    clang_arguments: &[String],
+) -> Result<(String, Vec<String>), String> {
+    let extraction = frontend::layout_source::generate(&frontend::layout_source::Request {
+        spec,
+        probe_path,
+        clang_arguments,
+    })?;
+    Ok((extraction.layout, extraction.dependencies))
+}
+
 pub use frontend::diagnostic::{SourceLocation, SourceSpan};
 pub use low_ir::Program as LowProgram;
 pub use ssa::report::{

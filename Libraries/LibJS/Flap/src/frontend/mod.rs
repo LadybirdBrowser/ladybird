@@ -7,7 +7,9 @@
 //! Flap source syntax, diagnostics, parsing, and generated data layouts.
 
 pub(crate) mod ast;
+pub(crate) mod clang;
 pub(crate) mod diagnostic;
 pub(crate) mod layout;
+pub(crate) mod layout_source;
 pub(crate) mod parser;
 pub(crate) mod specialize;

@@ -1,4 +1,7 @@
 include(clang_development)
+
+find_clang_development()
+
 include(AddLLVM)
 
 get_property(CLANG_PLUGINS_COMPILE_OPTIONS_FOR_TESTS GLOBAL PROPERTY CLANG_PLUGINS_COMPILE_OPTIONS_FOR_TESTS)

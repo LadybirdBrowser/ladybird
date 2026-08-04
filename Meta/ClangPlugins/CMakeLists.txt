@@ -1,6 +1,8 @@
 include(clang_development)
 include(utils)
 
+find_clang_development()
+
 function(clang_plugin target_name)
     cmake_parse_arguments(CLANG_PLUGIN "" "" "SOURCES" ${ARGN})
     add_library(${target_name} ${CLANG_PLUGIN_SOURCES})
