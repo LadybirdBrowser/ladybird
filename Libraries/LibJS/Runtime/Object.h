@@ -192,6 +192,18 @@ public:
     [[nodiscard]] bool may_interfere_with_indexed_property_access() const { return m_flags & Flag::MayInterfereWithIndexedPropertyAccess; }
     void set_may_interfere_with_indexed_property_access() { m_flags |= Flag::MayInterfereWithIndexedPropertyAccess; }
 
+    // Objects with this flag must not participate in AddOwnProperty IC caching:
+    // ordinary_set_with_own_descriptor() skips emitting AddOwnProperty metadata,
+    // and AddOwnProperty cache-hit paths check the flag before consuming an
+    // existing cache entry. Both sides are required: a plain object can share a
+    // Shape* with a flagged object, e.g. Object.create(Element.prototype), and
+    // prime a cache entry; the flagged object must still fail the consumption
+    // check. Conversely, only checking consumption would leave permanently-dead
+    // cache entries that evict useful ones.
+    [[nodiscard]] bool requires_slow_add_own_property() const { return m_flags & Flag::RequiresSlowAddOwnProperty; }
+    void set_requires_slow_add_own_property() { m_flags |= Flag::RequiresSlowAddOwnProperty; }
+    void clear_requires_slow_add_own_property() { m_flags &= ~Flag::RequiresSlowAddOwnProperty; }
+
     ThrowCompletionOr<bool> ordinary_set_with_own_descriptor(PropertyKey const&, Value, Value, Optional<PropertyDescriptor>, CacheableSetPropertyMetadata* = nullptr, PropertyLookupPhase = PropertyLookupPhase::OwnProperty);
 
     // 10.4.7 Immutable Prototype Exotic Objects, https://tc39.es/ecma262/#sec-immutable-prototype-exotic-objects
@@ -374,19 +386,19 @@ protected:
 
 private:
     struct Flag {
-        static constexpr u8 IsExtensible = 1 << 0;
-        static constexpr u8 IsRawNativeFunction = 1 << 1;
-        static constexpr u8 HasMagicalLengthProperty = 1 << 2;
-        static constexpr u8 IsTypedArray = 1 << 3;
-        static constexpr u8 MayInterfereWithIndexedPropertyAccess = 1 << 4;
-        static constexpr u8 HasIntrinsicAccessors = 1 << 5;
-        static constexpr u8 IsECMAScriptFunctionObject = 1 << 6;
-        static constexpr u8 IsFunction = 1 << 7;
+        static constexpr u16 IsExtensible = 1 << 0;
+        static constexpr u16 IsRawNativeFunction = 1 << 1;
+        static constexpr u16 HasMagicalLengthProperty = 1 << 2;
+        static constexpr u16 IsTypedArray = 1 << 3;
+        static constexpr u16 MayInterfereWithIndexedPropertyAccess = 1 << 4;
+        static constexpr u16 HasIntrinsicAccessors = 1 << 5;
+        static constexpr u16 IsECMAScriptFunctionObject = 1 << 6;
+        static constexpr u16 IsFunction = 1 << 7;
+        static constexpr u16 RequiresSlowAddOwnProperty = 1 << 8;
     };
 
-    u8 m_flags { Flag::IsExtensible };
+    u16 m_flags { Flag::IsExtensible };
     IndexedStorageKind m_indexed_storage_kind { IndexedStorageKind::None };
-    // 2 bytes padding
     u32 m_indexed_array_like_size { 0 };
     void set_shape(Shape& shape) { m_shape = &shape; }
 
@@ -416,7 +428,7 @@ private:
 };
 
 #if !defined(AK_OS_WINDOWS)
-static_assert(sizeof(Object) <= 64, "Keep the size of JS::Object down!");
+static_assert(sizeof(Object) <= 72, "Keep the size of JS::Object down!");
 #endif
 
 }
