@@ -1008,23 +1008,32 @@ struct GridItem<'pass> {
 }
 
 impl GridItem<'_> {
+    fn placement(self) -> GridItemPlacement {
+        GridItemPlacement {
+            row: self.row,
+            row_span: self.row_span,
+            column: self.column,
+            column_span: self.column_span,
+            extra_margin_top: self.extra_margin_top,
+            extra_margin_right: self.extra_margin_right,
+            extra_margin_bottom: self.extra_margin_bottom,
+            extra_margin_left: self.extra_margin_left,
+        }
+    }
+
     fn position(self, axis: Axis) -> i32 {
-        if axis.is_column() { self.column } else { self.row }
+        self.placement().position(axis)
     }
 
     fn span(self, axis: Axis) -> usize {
-        if axis.is_column() {
-            self.column_span
-        } else {
-            self.row_span
-        }
+        self.placement().span(axis)
     }
 }
 
 pub(crate) struct GridFormattingContext<'pass> {
     state: &'pass LayoutState,
     grid_container: Node,
-    parent_grid: Option<ParentGridData<'pass>>,
+    parent_grid: Option<ParentGridData>,
     layout_mode: LayoutMode,
     callbacks: FfiLayoutFcCallbacks,
     should_collect_devtools_layout_data: bool,
@@ -1049,9 +1058,35 @@ pub(crate) struct GridFormattingContext<'pass> {
     use_row_alignment_container_size: bool,
 }
 
+#[derive(Clone, Copy)]
+struct GridItemPlacement {
+    row: i32,
+    row_span: usize,
+    column: i32,
+    column_span: usize,
+    extra_margin_top: CssPixels,
+    extra_margin_right: CssPixels,
+    extra_margin_bottom: CssPixels,
+    extra_margin_left: CssPixels,
+}
+
+impl GridItemPlacement {
+    fn position(self, axis: Axis) -> i32 {
+        if axis.is_column() { self.column } else { self.row }
+    }
+
+    fn span(self, axis: Axis) -> usize {
+        if axis.is_column() {
+            self.column_span
+        } else {
+            self.row_span
+        }
+    }
+}
+
 #[derive(Clone)]
-struct ParentGridData<'pass> {
-    items: Vec<GridItem<'pass>>,
+struct ParentGridData {
+    placement_of_this_container: Option<GridItemPlacement>,
     column_lines: Vec<Vec<LineName>>,
     row_lines: Vec<Vec<LineName>>,
     columns: Vec<Track>,
@@ -1060,10 +1095,14 @@ struct ParentGridData<'pass> {
     row_gaps: Vec<Track>,
 }
 
-impl<'pass> From<&GridFormattingContext<'pass>> for ParentGridData<'pass> {
-    fn from(parent: &GridFormattingContext<'pass>) -> Self {
+impl ParentGridData {
+    fn for_child_container(parent: &GridFormattingContext<'_>, child_container: Node) -> Self {
         Self {
-            items: parent.items.clone(),
+            placement_of_this_container: parent
+                .items
+                .iter()
+                .find(|item| item.box_ == child_container)
+                .map(|item| item.placement()),
             column_lines: parent.column_lines.clone(),
             row_lines: parent.row_lines.clone(),
             columns: parent.columns.clone(),
@@ -1078,7 +1117,7 @@ impl<'pass> GridFormattingContext<'pass> {
     pub(crate) fn new(
         state: &'pass LayoutState,
         grid_container: Node,
-        parent_grid: Option<&GridFormattingContext<'pass>>,
+        parent_grid: Option<&GridFormattingContext<'_>>,
         layout_mode: LayoutMode,
         callbacks: FfiLayoutFcCallbacks,
         should_collect_devtools_layout_data: bool,
@@ -1087,7 +1126,7 @@ impl<'pass> GridFormattingContext<'pass> {
         Self {
             state,
             grid_container,
-            parent_grid: parent_grid.map(ParentGridData::from),
+            parent_grid: parent_grid.map(|parent| ParentGridData::for_child_container(parent, grid_container)),
             layout_mode,
             callbacks,
             should_collect_devtools_layout_data,
@@ -1169,16 +1208,12 @@ impl<'pass> GridFormattingContext<'pass> {
         SizingContext::new(self.state, self.callbacks)
     }
 
-    fn parent_grid(&self) -> Option<&ParentGridData<'pass>> {
+    fn parent_grid(&self) -> Option<&ParentGridData> {
         self.parent_grid.as_ref()
     }
 
-    fn parent_grid_item(&self) -> Option<GridItem<'pass>> {
-        self.parent_grid()?
-            .items
-            .iter()
-            .copied()
-            .find(|item| item.box_ == self.grid_container)
+    fn parent_grid_placement(&self) -> Option<GridItemPlacement> {
+        self.parent_grid()?.placement_of_this_container
     }
 
     fn is_subgridded(&self, axis: Axis, grid_style: &GridValues) -> bool {
@@ -1194,7 +1229,7 @@ impl<'pass> GridFormattingContext<'pass> {
         } else {
             grid_style.template_rows
         };
-        list.is_subgrid && self.parent_grid_item().is_some()
+        list.is_subgrid && self.parent_grid_placement().is_some()
     }
 
     fn container_is_subgridded(&self, axis: Axis) -> bool {
@@ -1232,7 +1267,7 @@ impl<'pass> GridFormattingContext<'pass> {
         let Some(parent) = self.parent_grid() else {
             return CssPixels::default();
         };
-        let Some(item) = self.parent_grid_item() else {
+        let Some(item) = self.parent_grid_placement() else {
             return CssPixels::default();
         };
         if item.span(axis) <= 1 {
@@ -1314,7 +1349,7 @@ impl<'pass> GridFormattingContext<'pass> {
         let Some(parent) = self.parent_grid() else {
             return;
         };
-        let Some(parent_item) = self.parent_grid_item() else {
+        let Some(parent_item) = self.parent_grid_placement() else {
             return;
         };
         let mut areas = Vec::<Area>::new();
@@ -1499,7 +1534,7 @@ impl<'pass> GridFormattingContext<'pass> {
         };
         let source = TrackListSource::from_grid_style(grid_style);
         if self.is_subgridded(axis, grid_style) {
-            let parent_item = self.parent_grid_item().unwrap();
+            let parent_item = self.parent_grid_placement().unwrap();
             let track_count = parent_item.span(axis);
             let inherited = self
                 .parent_grid()
@@ -1761,7 +1796,7 @@ impl<'pass> GridFormattingContext<'pass> {
             let Some(parent) = self.parent_grid() else {
                 return vec![Track::auto()];
             };
-            let parent_item = self.parent_grid_item().unwrap();
+            let parent_item = self.parent_grid_placement().unwrap();
             let parent_tracks = if axis.is_column() {
                 &parent.columns
             } else {
@@ -1934,6 +1969,14 @@ impl<'pass> GridFormattingContext<'pass> {
             .flat_map(move |(index, track)| std::iter::once(track).chain(gaps.get(index)))
     }
 
+    fn interleaved_index_of_track(track_index: usize) -> usize {
+        track_index * 2
+    }
+
+    fn interleaved_index_of_gap_after_track(track_index: usize) -> usize {
+        track_index * 2 + 1
+    }
+
     fn store_interleaved_tracks(&mut self, axis: Axis, interleaved: &[Track]) {
         let (tracks, gaps) = if axis.is_column() {
             (&mut self.columns, &mut self.column_gaps)
@@ -1941,10 +1984,10 @@ impl<'pass> GridFormattingContext<'pass> {
             (&mut self.rows, &mut self.row_gaps)
         };
         for (index, track) in tracks.iter_mut().enumerate() {
-            *track = interleaved[index * 2];
+            *track = interleaved[Self::interleaved_index_of_track(index)];
         }
         for (index, gap) in gaps.iter_mut().enumerate() {
-            *gap = interleaved[index * 2 + 1];
+            *gap = interleaved[Self::interleaved_index_of_gap_after_track(index)];
         }
     }
 
@@ -1953,9 +1996,9 @@ impl<'pass> GridFormattingContext<'pass> {
         let end = start.saturating_add(item.span(axis)).min(track_count);
         let mut indices = Vec::new();
         for track in start..end {
-            indices.push(track * 2);
+            indices.push(Self::interleaved_index_of_track(track));
             if track + 1 < end {
-                indices.push(track * 2 + 1);
+                indices.push(Self::interleaved_index_of_gap_after_track(track));
             }
         }
         indices
@@ -2525,6 +2568,9 @@ impl<'pass> GridFormattingContext<'pass> {
         if !self.container_is_subgridded(axis) {
             return;
         }
+        let Some(container_as_parent_grid_item) = self.parent_grid_placement() else {
+            return;
+        };
         // https://drafts.csswg.org/css-grid-2/#subgrid-margins
         // In this process, the sum of the subgrid's margin, padding, scrollbar
         // gutter, and border at each edge are applied as an extra layer of
@@ -2547,23 +2593,29 @@ impl<'pass> GridFormattingContext<'pass> {
         };
         if item.position(axis) == 0 {
             if axis.is_column() {
-                item.extra_margin_left += start;
+                item.extra_margin_left += start + container_as_parent_grid_item.extra_margin_left;
             } else {
-                item.extra_margin_top += start;
+                item.extra_margin_top += start + container_as_parent_grid_item.extra_margin_top;
             }
         }
         if item.position(axis) + item.span(axis) as i32 == self.axis_tracks(axis).len() as i32 {
             if axis.is_column() {
-                item.extra_margin_right += end;
+                item.extra_margin_right += end + container_as_parent_grid_item.extra_margin_right;
             } else {
-                item.extra_margin_bottom += end;
+                item.extra_margin_bottom += end + container_as_parent_grid_item.extra_margin_bottom;
             }
         }
     }
 
-    fn subgrid_items_contributing_to_track_sizing(&self, subgrid: GridItem<'pass>, axis: Axis) -> Vec<GridItem<'pass>> {
+    fn subgrid_item_contributions_to_track_sizing(&self, subgrid: GridItem<'pass>, axis: Axis) -> Vec<ItemContribution> {
+        let scratch = MeasurementState::create(self.callbacks, subgrid.box_, ContainingBlockConstraints::default());
+        let live = self.used(subgrid);
+        let scratch_root = scratch.root_used();
+        live.mirror_box_metrics_and_size_constraints_into(scratch_root);
+        scratch_root.has_definite_inline_size.set(live.has_definite_inline_size.get());
+        scratch_root.has_definite_block_size.set(live.has_definite_block_size.get());
         let mut context = GridFormattingContext::new(
-            self.state,
+            scratch.rust_state(),
             subgrid.box_,
             Some(self),
             LayoutMode::IntrinsicSizing,
@@ -2589,19 +2641,23 @@ impl<'pass> GridFormattingContext<'pass> {
         }
         context.resolve_item_metrics(axis);
 
-        let mut result = context.items_contributing_to_track_sizing(axis);
-        for item in &mut result {
+        let mut items = std::mem::take(&mut context.items);
+        for item in &mut items {
             context.apply_subgrid_edge_extra_margins(item, axis);
-            if axis.is_column() {
-                item.column += subgrid.column;
-            } else {
-                item.row += subgrid.row;
+        }
+        context.items = items;
+
+        let mut contributions = context.item_contributions_to_track_sizing(axis);
+        let interleaved_index_offset_in_parent = Self::interleaved_index_of_track(subgrid.position(axis).max(0) as usize);
+        for contribution in &mut contributions {
+            for index in &mut contribution.spanned_tracks {
+                *index += interleaved_index_offset_in_parent;
             }
         }
-        result
+        contributions
     }
 
-    fn items_contributing_to_track_sizing(&self, axis: Axis) -> Vec<GridItem<'pass>> {
+    fn item_contributions_to_track_sizing(&self, axis: Axis) -> Vec<ItemContribution> {
         // https://drafts.csswg.org/css-grid-2/#subgrid-size-contribution
         // The subgrid itself lays out as an ordinary grid item in its parent grid,
         // but acts as if it was completely empty for track sizing purposes
@@ -2621,12 +2677,13 @@ impl<'pass> GridFormattingContext<'pass> {
         // block axis is treated as empty and its grid items (the grandchildren) are
         // treated as direct children of the grid container (their grandparent).
         // This introspection is recursive.
+        let track_count = self.axis_tracks(axis).len();
         let mut result = Vec::new();
         for item in self.items.iter().copied() {
             if self.grid_item_is_subgridded(item, axis) {
-                result.extend(self.subgrid_items_contributing_to_track_sizing(item, axis));
+                result.extend(self.subgrid_item_contributions_to_track_sizing(item, axis));
             } else {
-                result.push(item);
+                result.push(self.item_contribution(item, axis, track_count));
             }
         }
         result
@@ -2634,11 +2691,7 @@ impl<'pass> GridFormattingContext<'pass> {
 
     fn run_track_sizing(&mut self, axis: Axis) {
         let mut tracks = self.interleaved_tracks(axis);
-        let contributions = self
-            .items_contributing_to_track_sizing(axis)
-            .into_iter()
-            .map(|item| self.item_contribution(item, axis, self.axis_tracks(axis).len()))
-            .collect::<Vec<_>>();
+        let contributions = self.item_contributions_to_track_sizing(axis);
         let style = self.style(self.grid_container);
         let distribution_stretches = if axis.is_column() {
             matches!(style.justify_content(), justify_content::NORMAL | justify_content::STRETCH)
