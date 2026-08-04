@@ -6,6 +6,7 @@
 
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/SVGGeometryElement.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/Layout/SVGGeometryBox.h>
 #include <LibWeb/SVG/SVGGeometryElement.h>
 
@@ -33,9 +34,25 @@ RefPtr<Layout::Node> SVGGeometryElement::create_layout_node(NonnullRefPtr<CSS::C
     return make_ref_counted<Layout::SVGGeometryBox>(document(), *this, style);
 }
 
-float SVGGeometryElement::get_total_length()
+// https://w3c.github.io/svgwg/svg2-draft/types.html#__svg__SVGGeometryElement__getTotalLength
+WebIDL::ExceptionOr<float> SVGGeometryElement::get_total_length()
 {
-    return 0;
+    // When getTotalLength() is called, the user agent's computed value for the total length of the path, in user units,
+    // is returned.
+
+    // NB: Update layout so that the viewport size is resolved correctly
+    document().update_layout(DOM::UpdateLayoutReason::SVGPathLength);
+
+    auto viewport_size = viewport_size_for_percentage_resolution();
+
+    // NB: Update style for the element so that the correct computed values are used to generate the path - this is done
+    //     separately from the layout update above since it may have been skipped if the element was display: none or
+    //     disconnected.
+    document().update_style_for_element(*this);
+
+    VERIFY(computed_values());
+
+    return get_path({ viewport_size.width(), viewport_size.height() }).length();
 }
 
 GC::Ref<Geometry::DOMPoint> SVGGeometryElement::get_point_at_length(float distance)
