@@ -2401,6 +2401,8 @@ impl<'pass> FlexFormattingContext<'pass> {
             node,
             container_inline_size,
             container_block_size,
+            self.flex_container,
+            run.treat_block_axis_percentage_insets_as_auto_beyond_root,
         );
     }
 

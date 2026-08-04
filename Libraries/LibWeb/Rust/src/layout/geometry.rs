@@ -128,6 +128,7 @@ pub(crate) struct RootSizingDirectives {
     pub(crate) adopt_automatic_content_block_size: bool,
     pub(crate) float_avoidance_inline_size: Option<CssPixels>,
     pub(crate) outer_float_intrusion_before_list_item_children: SpaceUsedByFloats,
+    pub(crate) treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

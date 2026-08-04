@@ -1691,7 +1691,13 @@ impl<'pass> AbsposEngine<'pass> {
         self.layout_element(run, node, inputs);
     }
 
-    fn compute_inset(&self, node: Node, containing_block_size: LogicalSize) {
+    fn compute_inset(
+        &self,
+        node: Node,
+        containing_block_size: LogicalSize,
+        formatting_context_root: Node,
+        treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
+    ) {
         // Most boxes are neither relatively positioned nor carry anchor()
         // insets. Preserve the old C++ fast path without populating the
         // comprehensive Rust facts caches for those boxes.
@@ -1731,27 +1737,25 @@ impl<'pass> AbsposEngine<'pass> {
             containing_block_size.inline_size,
         );
 
-        let treat_percentage_as_auto = |value: InsetValue<'pass>| -> InsetValue<'pass> {
-            if !value.contains_percentage() {
-                return value;
-            }
-            let mut containing_block = self.callbacks.containing_block(node);
-            while !containing_block.is_invalid() {
-                let facts = self.facts(containing_block);
-                if !facts.is_anonymous() || facts.is_table_cell() {
-                    break;
-                }
-                containing_block = self.callbacks.containing_block(containing_block);
-            }
-            if !containing_block.is_invalid() && !self.used(containing_block).has_definite_block_size() {
+        let treat_block_axis_percentage_insets_as_auto = (style.inset_top().contains_percentage()
+            || style.inset_bottom().contains_percentage())
+            && !crate::layout::resolve_block_axis_percentage_inset_basis_is_definite(
+                self.state,
+                &self.callbacks,
+                self.callbacks.containing_block(node),
+                formatting_context_root,
+                treat_block_axis_percentage_insets_as_auto_beyond_root,
+            );
+        let block_axis_inset_value = |value: InsetValue<'pass>| -> InsetValue<'pass> {
+            if treat_block_axis_percentage_insets_as_auto && value.contains_percentage() {
                 InsetValue::auto_value()
             } else {
                 value
             }
         };
         let (top, bottom) = resolve_opposing(
-            treat_percentage_as_auto(style.inset_top()),
-            treat_percentage_as_auto(style.inset_bottom()),
+            block_axis_inset_value(style.inset_top()),
+            block_axis_inset_value(style.inset_bottom()),
             containing_block_size.block_size,
         );
         let used = self.used_mut(node);
@@ -1784,7 +1788,7 @@ pub(crate) fn run_abspos_layout_pass(
             continue;
         }
         let run =
-            crate::layout::FormattingContextRun::new(state, root, LayoutMode::Normal, callbacks, should_collect_devtools_layout_data);
+            crate::layout::FormattingContextRun::new(state, root, LayoutMode::Normal, callbacks, should_collect_devtools_layout_data, false);
         layout_contained_abspos_children(&run);
     }
     state.set_abspos_layout_pass_is_active(false);
@@ -1800,6 +1804,8 @@ pub(crate) fn compute_inset_native(
     node: Node,
     inline_size: CssPixels,
     block_size: CssPixels,
+    formatting_context_root: Node,
+    treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
 ) {
     AbsposEngine::new(state, callbacks).compute_inset(
         node,
@@ -1807,5 +1813,7 @@ pub(crate) fn compute_inset_native(
             inline_size,
             block_size,
         },
+        formatting_context_root,
+        treat_block_axis_percentage_insets_as_auto_beyond_root,
     );
 }

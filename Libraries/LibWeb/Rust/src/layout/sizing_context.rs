@@ -1901,6 +1901,7 @@ impl<'pass> SizingContext<'pass> {
             LayoutMode::IntrinsicSizing,
             *measurement.callbacks(),
             false,
+            false,
         );
         let mut table = TableFormattingContext::new(&table_run);
         let table_available = table_used.available_inner_space_or_constraints_from(available_space);

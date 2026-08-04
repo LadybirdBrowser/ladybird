@@ -1023,6 +1023,7 @@ pub(crate) struct FormattingContextRun<'pass> {
     pub(crate) layout_mode: LayoutMode,
     pub(crate) callbacks: FfiLayoutFcCallbacks,
     pub(crate) should_collect_devtools_layout_data: bool,
+    pub(crate) treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
 }
 
 impl<'pass> FormattingContextRun<'pass> {
@@ -1032,6 +1033,7 @@ impl<'pass> FormattingContextRun<'pass> {
         layout_mode: LayoutMode,
         callbacks: FfiLayoutFcCallbacks,
         should_collect_devtools_layout_data: bool,
+        treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
     ) -> Self {
         Self {
             state,
@@ -1039,6 +1041,7 @@ impl<'pass> FormattingContextRun<'pass> {
             layout_mode,
             callbacks,
             should_collect_devtools_layout_data,
+            treat_block_axis_percentage_insets_as_auto_beyond_root,
         }
     }
 }
@@ -1410,7 +1413,14 @@ fn run_formatting_context<'pass>(
     parent_block: Option<&BlockFormattingContext<'pass>>,
 ) -> ChildLayoutResult {
     assert!(!box_.is_invalid());
-    let run = FormattingContextRun::new(state, box_, layout_mode, callbacks, should_collect_devtools_layout_data);
+    let run = FormattingContextRun::new(
+        state,
+        box_,
+        layout_mode,
+        callbacks,
+        should_collect_devtools_layout_data,
+        input.sizing.treat_block_axis_percentage_insets_as_auto_beyond_root,
+    );
     let run = &run;
     let body_input = apply_root_sizing_directives(run, &input, parent_block);
 
@@ -1614,7 +1624,7 @@ pub(crate) fn layout_inside_child<'pass>(
     parent_grid: Option<&GridFormattingContext<'pass>>,
     child: Node,
     layout_mode: LayoutMode,
-    input: LayoutInput,
+    mut input: LayoutInput,
     force_independent_context_run: bool,
 ) -> ChildLayoutOutcome {
     let facts = run.state.node_facts(&run.callbacks, child);
@@ -1657,6 +1667,14 @@ pub(crate) fn layout_inside_child<'pass>(
         }
         return ChildLayoutOutcome::ReenterCurrent;
     };
+    input.sizing.treat_block_axis_percentage_insets_as_auto_beyond_root =
+        treat_block_axis_percentage_insets_as_auto_beyond_anonymous_child_root(
+            run.state,
+            &run.callbacks,
+            child,
+            run.box_,
+            run.treat_block_axis_percentage_insets_as_auto_beyond_root,
+        );
     ChildLayoutOutcome::Created(run_formatting_context(
         run.state,
         child,
@@ -1688,6 +1706,47 @@ fn independent_formatting_context_type(
         "FIXME: An independent formatting context was requested from a Box that does not have a formatting context type. A dummy formatting context will be created instead."
     );
     FfiFormattingContextType::InternalDummy
+}
+
+pub(crate) fn resolve_block_axis_percentage_inset_basis_is_definite(
+    state: &LayoutState,
+    callbacks: &FfiLayoutFcCallbacks,
+    containing_block: Node,
+    formatting_context_root: Node,
+    treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
+) -> bool {
+    let mut candidate = containing_block;
+    while !candidate.is_invalid() {
+        let facts = state.node_facts(callbacks, candidate);
+        if !facts.is_anonymous() || facts.is_table_cell() {
+            return state.used_values(callbacks, candidate).has_definite_block_size();
+        }
+        if candidate == formatting_context_root {
+            return !treat_block_axis_percentage_insets_as_auto_beyond_root;
+        }
+        candidate = callbacks.containing_block(candidate);
+    }
+    true
+}
+
+pub(crate) fn treat_block_axis_percentage_insets_as_auto_beyond_anonymous_child_root(
+    state: &LayoutState,
+    callbacks: &FfiLayoutFcCallbacks,
+    child_root: Node,
+    formatting_context_root: Node,
+    treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
+) -> bool {
+    let child_root_facts = state.node_facts(callbacks, child_root);
+    if !child_root_facts.is_anonymous() || child_root_facts.is_table_cell() {
+        return false;
+    }
+    !resolve_block_axis_percentage_inset_basis_is_definite(
+        state,
+        callbacks,
+        callbacks.containing_block(child_root),
+        formatting_context_root,
+        treat_block_axis_percentage_insets_as_auto_beyond_root,
+    )
 }
 
 /// # Safety
@@ -1839,7 +1898,7 @@ pub unsafe extern "C" fn rust_layout_replay_saved_abspos_layout(
         let state_ref = &state;
         let containing_block = callbacks.containing_block(box_);
         assert!(!containing_block.is_invalid());
-        let run = crate::layout::FormattingContextRun::new(state_ref, containing_block, LayoutMode::Normal, callbacks, false);
+        let run = crate::layout::FormattingContextRun::new(state_ref, containing_block, LayoutMode::Normal, callbacks, false, false);
         AbsposEngine::new(state_ref, callbacks).replay(&run, box_);
         run_abspos_layout_pass(state_ref, callbacks, false);
         state.commit_replacing(box_, paintable_to_replace, &callbacks, sink);
