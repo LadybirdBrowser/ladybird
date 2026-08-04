@@ -823,6 +823,8 @@ impl<'context, 'pass> InlineFormattingContext<'context, 'pass> {
             node,
             used.content_inline_size.get(),
             used.content_block_size.get(),
+            self.run.box_,
+            self.run.treat_block_axis_percentage_insets_as_auto_beyond_root,
         );
     }
 

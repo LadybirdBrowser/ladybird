@@ -3455,6 +3455,8 @@ impl<'pass> GridFormattingContext<'pass> {
                 item.box_,
                 area.size.inline_size,
                 area.size.block_size,
+                self.grid_container,
+                run.treat_block_axis_percentage_insets_as_auto_beyond_root,
             );
         }
         self.derived_baselines_of_root_box =

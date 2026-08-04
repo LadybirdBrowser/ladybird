@@ -321,13 +321,15 @@ impl<'pass> BlockFormattingContext<'pass> {
         self.derived_baselines_of_root_box.get()
     }
 
-    fn compute_inset(&self, node: Node, containing_block_size: LogicalSize) {
+    fn compute_inset(&self, run: &FormattingContextRun<'pass>, node: Node, containing_block_size: LogicalSize) {
         crate::layout::compute_inset_native(
             self.state,
             self.callbacks,
             node,
             containing_block_size.inline_size,
             containing_block_size.block_size,
+            self.root,
+            run.treat_block_axis_percentage_insets_as_auto_beyond_root,
         );
     }
 
@@ -1887,6 +1889,7 @@ impl<'pass> BlockFormattingContext<'pass> {
 
         let block_container_used = self.used(block_container);
         self.compute_inset(
+            run,
             node,
             LogicalSize {
                 inline_size: block_container_used.content_inline_size.get(),
@@ -2396,7 +2399,9 @@ impl<'pass> BlockFormattingContext<'pass> {
                 available_space,
                 containing_block_constraints: input.containing_block_constraints,
                 content_box_position_in_bfc_root: input.content_box_position_in_bfc_root,
-                sizing: RootSizingDirectives::default(),
+                sizing: RootSizingDirectives {
+                    ..RootSizingDirectives::default()
+                },
                 participation: ParticipationInParentFormattingContext::Float,
             },
             false,
@@ -2490,6 +2495,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         }
         let block_container_used = self.used(block_container);
         self.compute_inset(
+            run,
             node,
             LogicalSize {
                 inline_size: block_container_used.content_inline_size.get(),
