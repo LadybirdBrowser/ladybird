@@ -30,7 +30,7 @@ StorageShelf::StorageShelf(GC::Ref<Page> page, StorageKey key, StorageType type)
 {
     // 1. Let shelf be a new storage shelf.
     // 2. Set shelf’s bucket map["default"] to the result of running create a storage bucket with type.
-    m_bucket_map.set("default"_string, StorageBucket::create(heap(), page, m_key, type));
+    m_bucket_map.set("default"_string, StorageBucket::create(page, key, type));
     // 3. Return shelf.
 }
 
@@ -62,7 +62,7 @@ GC::Ptr<StorageShelf> obtain_a_local_storage_shelf(HTML::EnvironmentSettingsObje
     // obtain a storage shelf with the user agent’s storage shed, environment, and "local".
 
     // FIXME: This should be implemented in a way that works for Workers.
-    auto& window = as<HTML::Window>(settings.global_object());
+    auto& window = HTML::relevant_window(settings.realm().global_object());
 
     auto key = obtain_a_storage_key(settings);
     if (!key.has_value())
@@ -73,7 +73,7 @@ GC::Ptr<StorageShelf> obtain_a_local_storage_shelf(HTML::EnvironmentSettingsObje
     //         the spec's requirement to obtain one from a shed. It must not come from the traversable navigable's
     //         storage shed. That holds *session* storage. And we have other existing code which expects the shelves for
     //         that to have a populated session-storage bottle — which a local shelf lacks.
-    return StorageShelf::create(window.heap(), window.page(), key.release_value(), StorageType::Local);
+    return StorageShelf::create(window.page(), key.release_value(), StorageType::Local);
 }
 
 }

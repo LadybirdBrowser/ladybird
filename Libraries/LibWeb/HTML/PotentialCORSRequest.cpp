@@ -11,7 +11,7 @@ namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#create-a-potential-cors-request
 GC::Ref<Fetch::Infrastructure::Request>
-create_potential_CORS_request(JS::VM& vm, URL::URL const& url, Optional<Fetch::Infrastructure::Request::Destination> destination, CORSSettingAttribute cors_attribute_state, SameOriginFallbackFlag same_origin_fallback_flag)
+create_potential_CORS_request(URL::URL const& url, Optional<Fetch::Infrastructure::Request::Destination> destination, CORSSettingAttribute cors_attribute_state, SameOriginFallbackFlag same_origin_fallback_flag)
 {
     // 1. Let mode be "no-cors" if corsAttributeState is No CORS, and "cors" otherwise.
     auto mode = cors_attribute_state == CORSSettingAttribute::NoCORS
@@ -31,7 +31,7 @@ create_potential_CORS_request(JS::VM& vm, URL::URL const& url, Optional<Fetch::I
 
     // 5. Return a new request whose URL is url, destination is destination, mode is mode, credentials mode is credentialsMode,
     //    and whose use-URL-credentials flag is set.
-    auto request = Fetch::Infrastructure::Request::create(vm);
+    auto request = Fetch::Infrastructure::Request::create();
     request->set_url(url);
     request->set_destination(destination);
     request->set_mode(mode);

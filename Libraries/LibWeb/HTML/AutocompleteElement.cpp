@@ -222,9 +222,7 @@ AutocompleteElement::AttributeDetails AutocompleteElement::parse_autocomplete_at
         auto const* form = as<FormAssociatedElement const>(autocomplete_element_to_html_element()).form();
 
         // 35. If form is not null and form's autocomplete attribute is in the off state, then set the element's autofill field name to "off".
-        auto form_autocomplete_attribute = form ? form->attribute(AttributeNames::autocomplete) : Optional<Utf16String> {};
-        auto form_autocomplete_attribute_view = form_autocomplete_attribute.has_value() ? form_autocomplete_attribute->utf16_view() : u""sv;
-        if (form && form_autocomplete_attribute_view.equals_ignoring_ascii_case(u"off"sv)) {
+        if (form && form->attribute(AttributeNames::autocomplete) == "off"_utf16) {
             attr_details.field_name = "off"_utf16;
         }
         // Otherwise, set the element's autofill field name to "on".

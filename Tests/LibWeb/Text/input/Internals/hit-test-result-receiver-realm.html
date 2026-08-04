@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<style>
+    #target {
+        position: absolute;
+        left: 10px;
+        top: 10px;
+        width: 50px;
+        height: 50px;
+    }
+</style>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const iframe = document.createElement("iframe");
+        document.body.append(iframe);
+        const other = iframe.contentWindow;
+
+        const result = other.internals.hitTest.call(internals, 20, 20);
+        println(`result has null prototype: ${Object.getPrototypeOf(result) === null}`);
+        println(`result node is target: ${result.node === target}`);
+        println(`result node uses iframe Element: ${result.node instanceof other.Element}`);
+        println(`result node uses top Element: ${result.node instanceof Element}`);
+    });
+</script>

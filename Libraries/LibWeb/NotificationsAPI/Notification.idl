@@ -1,7 +1,7 @@
 // https://notifications.spec.whatwg.org/#notification
 [Exposed=(Window,Worker)]
 interface Notification : EventTarget {
-    constructor(Utf16DOMString title, optional NotificationOptions options = {});
+    constructor(DOMString title, optional NotificationOptions options = {});
 
     // FIXME: static readonly attribute NotificationPermission permission;
     // FIXME: [Exposed=Window] static Promise<NotificationPermission> requestPermission(optional NotificationPermissionCallback deprecatedCallback);
@@ -14,7 +14,7 @@ interface Notification : EventTarget {
     [FIXME] attribute EventHandler onclose;
 
     readonly attribute Utf16DOMString title;
-    readonly attribute NotificationDirection dir;
+    [ImplementedAs=notification_direction] readonly attribute NotificationDirection dir;
     readonly attribute Utf16DOMString lang;
     readonly attribute Utf16DOMString body;
     readonly attribute Utf16USVString navigate;

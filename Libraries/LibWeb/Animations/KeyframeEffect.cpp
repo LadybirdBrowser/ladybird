@@ -7,6 +7,7 @@
 #include <AK/Bitmap.h>
 #include <AK/QuickSort.h>
 #include <AK/Utf16StringBuilder.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/Iterator.h>
 #include <LibWeb/Animations/Animation.h>
 #include <LibWeb/Animations/KeyframeEffect.h>
@@ -19,6 +20,7 @@
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/DOM/AbstractElement.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -225,8 +227,23 @@ static WebIDL::ExceptionOr<KeyframeType<AL>> process_a_keyframe_like_object(JS::
     return keyframe_output;
 }
 
+WebIDL::ExceptionOr<KeyframeEffect::Options> keyframe_effect_options_from_bindings(Bindings::KeyframeEffectOptions const& options)
+{
+    if (options.duration.has<GC::Ref<CSS::CSSNumericValue>>())
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Setting duration as a CSSNumericValue is not supported"_utf16 };
+
+    KeyframeEffect::Options converted_options {
+        .timing = to_optional_effect_timing(options),
+        .composite = options.composite,
+        .pseudo_element = {},
+    };
+    if (options.pseudo_element.has_value())
+        converted_options.pseudo_element = TRY(pseudo_element_parsing(options.pseudo_element));
+    return converted_options;
+}
+
 // https://www.w3.org/TR/web-animations-1/#compute-missing-keyframe-offsets
-static void compute_missing_keyframe_offsets(Vector<BaseKeyframe>& keyframes)
+void compute_missing_keyframe_offsets(Vector<BaseKeyframe>& keyframes)
 {
     // 1. For each keyframe, in keyframes, let the computed keyframe offset of the keyframe be equal to its keyframe
     //    offset value.
@@ -572,6 +589,11 @@ static WebIDL::ExceptionOr<Vector<BaseKeyframe>> process_a_keyframes_argument(JS
     return processed_keyframes;
 }
 
+WebIDL::ExceptionOr<Vector<BaseKeyframe>> process_keyframes(JS::Realm& realm, GC::Ptr<JS::Object> object)
+{
+    return process_a_keyframes_argument(realm, object);
+}
+
 // https://www.w3.org/TR/css-animations-2/#keyframe-processing
 void KeyframeEffect::generate_initial_and_final_frames(RefPtr<KeyFrameSet> keyframe_set, HashTable<CSS::PropertyID> const& animated_properties)
 {
@@ -657,9 +679,30 @@ int KeyframeEffect::composite_order(GC::Ref<KeyframeEffect> a, GC::Ref<KeyframeE
     return a_animation->global_animation_list_order() - b_animation->global_animation_list_order();
 }
 
-GC::Ref<KeyframeEffect> KeyframeEffect::create(JS::Realm& realm)
+GC::Ref<KeyframeEffect> KeyframeEffect::create()
 {
-    return realm.create<KeyframeEffect>(realm);
+    return GC::Heap::the().allocate<KeyframeEffect>();
+}
+
+WebIDL::ExceptionOr<GC::Ref<KeyframeEffect>> KeyframeEffect::create_from_processed_keyframes(
+    GC::Ptr<DOM::Element> target,
+    Vector<BaseKeyframe> keyframes,
+    Variant<double, Options> options)
+{
+    auto effect = create();
+    effect->set_target(target);
+    if (options.has<Options>()) {
+        auto const& effect_options = options.get<Options>();
+        effect->m_target_pseudo_selector = effect_options.pseudo_element;
+        TRY(effect->update_timing(effect_options.timing));
+        effect->set_composite(effect_options.composite);
+    } else {
+        Bindings::OptionalEffectTiming timing;
+        timing.duration = options.get<double>();
+        TRY(effect->update_timing(timing));
+    }
+    effect->set_keyframes(move(keyframes));
+    return effect;
 }
 
 // https://www.w3.org/TR/web-animations-1/#dom-keyframeeffect-keyframeeffect
@@ -667,10 +710,10 @@ WebIDL::ExceptionOr<GC::Ref<KeyframeEffect>> KeyframeEffect::construct_impl(
     JS::Realm& realm,
     GC::Ptr<DOM::Element> target,
     GC::Ptr<JS::Object> keyframes,
-    Variant<double, Bindings::KeyframeEffectOptions> options)
+    Variant<double, Bindings::KeyframeEffectOptions> const& options)
 {
     // 1. Create a new KeyframeEffect object, effect.
-    auto effect = realm.create<KeyframeEffect>(realm);
+    auto effect = create();
 
     // 2. Set the target element of effect to target.
     effect->set_target(target);
@@ -730,16 +773,16 @@ WebIDL::ExceptionOr<GC::Ref<KeyframeEffect>> KeyframeEffect::construct_impl(
 
     // 7. Initialize the set of keyframes by performing the procedure defined for setKeyframes() passing keyframes as
     //    the input.
-    TRY(effect->set_keyframes(keyframes));
+    TRY(effect->set_keyframes_from_js(realm, keyframes));
 
     return effect;
 }
 
 // https://www.w3.org/TR/web-animations-1/#dom-keyframeeffect-keyframeeffect-source
-WebIDL::ExceptionOr<GC::Ref<KeyframeEffect>> KeyframeEffect::construct_impl(JS::Realm& realm, GC::Ref<KeyframeEffect> source)
+WebIDL::ExceptionOr<GC::Ref<KeyframeEffect>> KeyframeEffect::construct_impl(GC::Ref<KeyframeEffect> source)
 {
     // 1. Create a new KeyframeEffect object, effect.
-    auto effect = realm.create<KeyframeEffect>(realm);
+    auto effect = create();
 
     // 2. Set the following properties of effect using the corresponding values of source:
 
@@ -818,7 +861,7 @@ WebIDL::ExceptionOr<void> KeyframeEffect::set_pseudo_element(Optional<Utf16Strin
     // On setting, sets the target pseudo-selector of the animation effect to the result of
     // pseudo-element parsing on the provided value, defined as the following:
     // NOTE: The actual definition is in pseudo_element_parsing().
-    m_target_pseudo_selector = TRY(pseudo_element_parsing(realm(), value));
+    m_target_pseudo_selector = TRY(pseudo_element_parsing(value));
 
     invalidate_effect();
     // FIXME: We don't remove the animated style from the old target element as part of normal animated style update and
@@ -865,36 +908,39 @@ Bindings::CompositeOperation KeyframeEffect::composite_for_bindings() const
 }
 
 // https://www.w3.org/TR/web-animations-1/#dom-keyframeeffect-getkeyframes
-WebIDL::ExceptionOr<GC::RootVector<JS::Object*>> KeyframeEffect::get_keyframes()
+WebIDL::ExceptionOr<GC::RootVector<JS::Object*>> KeyframeEffect::get_keyframes(JS::Object& relevant_global_object)
 {
-    if (m_keyframe_objects_cache.size() != m_keyframes.size()) {
-        auto& vm = this->vm();
-        auto& realm = this->realm();
+    // The getKeyframes() algorithm returns a fresh sequence of fresh objects on
+    // every invocation. Do not expose the previous result as a mutable cache:
+    // callers are allowed to modify the returned dictionaries without changing
+    // the effect.
+    m_keyframe_objects_cache.clear();
 
-        // Recalculate the keyframe objects
-        VERIFY(m_keyframe_objects_cache.size() == 0);
+    {
+        auto& realm = HTML::relevant_realm(relevant_global_object);
+        auto& vm = realm.vm();
 
         for (auto& keyframe : m_keyframes) {
             auto object = JS::Object::create(realm, realm.intrinsics().object_prototype());
-            TRY(object->set(vm.names.offset, keyframe.offset.has_value() ? JS::Value(keyframe.offset.value()) : JS::js_null(), ShouldThrowExceptions::Yes));
-            TRY(object->set(vm.names.computedOffset, JS::Value(keyframe.computed_offset.value()), ShouldThrowExceptions::Yes));
+            TRY(object->set(vm.names.offset, keyframe.offset.has_value() ? JS::Value(keyframe.offset.value()) : JS::js_null(), JS::Object::ShouldThrowExceptions::Yes));
+            TRY(object->set(vm.names.computedOffset, JS::Value(keyframe.computed_offset.value()), JS::Object::ShouldThrowExceptions::Yes));
             auto easing_value = keyframe.easing.get<CSS::EasingFunction>();
-            TRY(object->set(vm.names.easing, JS::PrimitiveString::create(vm, easing_value.to_utf16_string()), ShouldThrowExceptions::Yes));
+            TRY(object->set(vm.names.easing, JS::PrimitiveString::create(vm, easing_value.to_utf16_string()), JS::Object::ShouldThrowExceptions::Yes));
 
             if (keyframe.composite == Bindings::CompositeOperationOrAuto::Replace) {
-                TRY(object->set(vm.names.composite, JS::PrimitiveString::create(vm, "replace"sv), ShouldThrowExceptions::Yes));
+                TRY(object->set(vm.names.composite, JS::PrimitiveString::create(vm, "replace"sv), JS::Object::ShouldThrowExceptions::Yes));
             } else if (keyframe.composite == Bindings::CompositeOperationOrAuto::Add) {
-                TRY(object->set(vm.names.composite, JS::PrimitiveString::create(vm, "add"sv), ShouldThrowExceptions::Yes));
+                TRY(object->set(vm.names.composite, JS::PrimitiveString::create(vm, "add"sv), JS::Object::ShouldThrowExceptions::Yes));
             } else if (keyframe.composite == Bindings::CompositeOperationOrAuto::Accumulate) {
-                TRY(object->set(vm.names.composite, JS::PrimitiveString::create(vm, "accumulate"sv), ShouldThrowExceptions::Yes));
+                TRY(object->set(vm.names.composite, JS::PrimitiveString::create(vm, "accumulate"sv), JS::Object::ShouldThrowExceptions::Yes));
             } else {
-                TRY(object->set(vm.names.composite, JS::PrimitiveString::create(vm, "auto"sv), ShouldThrowExceptions::Yes));
+                TRY(object->set(vm.names.composite, JS::PrimitiveString::create(vm, "auto"sv), JS::Object::ShouldThrowExceptions::Yes));
             }
 
             for (auto const& [id, value] : keyframe.parsed_properties()) {
                 auto key = CSS::camel_case_string_from_property_id(id);
                 auto value_string = JS::PrimitiveString::create(vm, value->to_utf16_string(CSS::SerializationMode::Normal));
-                TRY(object->set(JS::PropertyKey { move(key), JS::PropertyKey::StringMayBeNumber::No }, value_string, ShouldThrowExceptions::Yes));
+                TRY(object->set(JS::PropertyKey { move(key), JS::PropertyKey::StringMayBeNumber::No }, value_string, JS::Object::ShouldThrowExceptions::Yes));
             }
 
             m_keyframe_objects_cache.append(object);
@@ -908,10 +954,17 @@ WebIDL::ExceptionOr<GC::RootVector<JS::Object*>> KeyframeEffect::get_keyframes()
 }
 
 // https://www.w3.org/TR/web-animations-1/#dom-keyframeeffect-setkeyframes
-WebIDL::ExceptionOr<void> KeyframeEffect::set_keyframes(GC::Ptr<JS::Object> keyframe_object)
+WebIDL::ExceptionOr<void> KeyframeEffect::set_keyframes_from_js(JS::Realm& realm, GC::Ptr<JS::Object> keyframe_object)
+{
+    auto keyframes = TRY(process_a_keyframes_argument(realm, keyframe_object));
+    set_keyframes(move(keyframes));
+    return {};
+}
+
+void KeyframeEffect::set_keyframes(Vector<BaseKeyframe> keyframes)
 {
     m_keyframe_objects_cache.clear();
-    m_keyframes = TRY(process_a_keyframes_argument(realm(), keyframe_object));
+    m_keyframes = move(keyframes);
     // FIXME: After processing the keyframe argument, we need to turn the set of keyframes into a set of computed
     //        keyframes using the procedure outlined in the second half of
     //        https://www.w3.org/TR/web-animations-1/#calculating-computed-keyframes. For now, just compute the
@@ -943,14 +996,9 @@ WebIDL::ExceptionOr<void> KeyframeEffect::set_keyframes(GC::Ptr<JS::Object> keyf
     m_key_frame_set = keyframe_set;
 
     invalidate_effect();
-
-    return {};
 }
 
-KeyframeEffect::KeyframeEffect(JS::Realm& realm)
-    : AnimationEffect(realm)
-{
-}
+KeyframeEffect::KeyframeEffect() = default;
 
 void KeyframeEffect::invalidate_effect()
 {
@@ -958,13 +1006,7 @@ void KeyframeEffect::invalidate_effect()
         m_target_element->document().set_needs_animated_style_update();
 }
 
-void KeyframeEffect::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(KeyframeEffect);
-    Base::initialize(realm);
-}
-
-void KeyframeEffect::visit_edges(Cell::Visitor& visitor)
+void KeyframeEffect::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_target_element);
@@ -1025,6 +1067,31 @@ Bindings::CompositeOperationOrAuto css_animation_composition_to_bindings_composi
         return Bindings::CompositeOperationOrAuto::Add;
     case CSS::AnimationComposition::Replace:
         return Bindings::CompositeOperationOrAuto::Replace;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+CompositeOperation css_animation_composition_to_composite_operation(CSS::AnimationComposition composition)
+{
+    return css_animation_composition_to_bindings_composite_operation(composition);
+}
+
+CompositeOperationOrAuto css_animation_composition_to_composite_operation_or_auto(CSS::AnimationComposition composition)
+{
+    return css_animation_composition_to_bindings_composite_operation_or_auto(composition);
+}
+
+StringView composite_operation_or_auto_to_string(CompositeOperationOrAuto operation)
+{
+    switch (operation) {
+    case CompositeOperationOrAuto::Replace:
+        return "replace"sv;
+    case CompositeOperationOrAuto::Add:
+        return "add"sv;
+    case CompositeOperationOrAuto::Accumulate:
+        return "accumulate"sv;
+    case CompositeOperationOrAuto::Auto:
+        return "auto"sv;
     }
     VERIFY_NOT_REACHED();
 }

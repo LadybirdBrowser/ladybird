@@ -59,10 +59,10 @@ namespace Web::HTML {
 static constexpr size_t max_pending_canvas_commands = 64;
 
 Canvas2DContextBase::Canvas2DContextBase(JS::Realm& realm, Gfx::IntSize initial_size, Bindings::CanvasRenderingContext2DSettings context_attributes)
-    : PlatformObject(realm)
-    , CanvasPath(static_cast<Bindings::PlatformObject&>(*this), *this)
+    : CanvasPath(static_cast<CanvasState const&>(*this))
     , m_size(initial_size)
     , m_context_attributes(move(context_attributes))
+    , m_realm(realm)
 {
 }
 
@@ -78,6 +78,7 @@ void Canvas2DContextBase::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     CanvasState::visit_edges(visitor);
+    visitor.visit(m_realm);
 }
 
 size_t Canvas2DContextBase::external_memory_size() const
@@ -344,7 +345,7 @@ void Canvas2DContextBase::notify_backing_storage_lost()
     // When the user agent detects that the backing storage associated with a canvas context has been lost, then it
     // must queue a global task on the DOM manipulation task source given canvas's relevant global object to run
     // these steps:
-    queue_global_task(HTML::Task::Source::DOMManipulation, relevant_global_object(*this), GC::create_function(heap(), [this] {
+    queue_global_task(HTML::Task::Source::DOMManipulation, realm().global_object(), GC::create_function(heap(), [this] {
         // 1. Let canvas be context's canvas element.
         // 2. If context's context lost is true, then abort these steps.
         if (is_context_lost())
@@ -361,9 +362,9 @@ void Canvas2DContextBase::notify_backing_storage_lost()
 
         // 5. Let shouldRestore be the result of firing an event named contextlost at canvas, with the cancelable
         //    attribute initialized to true.
-        Bindings::EventInit context_lost_event_init;
+        DOM::EventInit context_lost_event_init;
         context_lost_event_init.cancelable = true;
-        bool should_restore = context_event_target().dispatch_event(DOM::Event::create(realm(), HTML::EventNames::contextlost, context_lost_event_init));
+        bool should_restore = context_event_target().dispatch_event(DOM::Event::create(realm().global_object(), HTML::EventNames::contextlost, context_lost_event_init));
 
         // 6. If shouldRestore is false, then abort these steps.
         if (!should_restore)
@@ -379,7 +380,7 @@ void Canvas2DContextBase::notify_backing_storage_lost()
         set_context_lost(false);
 
         // 9. Fire an event named contextrestored at canvas.
-        context_event_target().dispatch_event(DOM::Event::create(realm(), HTML::EventNames::contextrestored));
+        context_event_target().dispatch_event(DOM::Event::create(realm().global_object(), HTML::EventNames::contextrestored));
     }));
 }
 
@@ -775,7 +776,7 @@ WebIDL::ExceptionOr<void> Canvas2DContextBase::put_pixels_from_an_image_data_ont
 
     // 2. If IsDetachedBuffer(buffer) is true, then throw an "InvalidStateError" DOMException
     if (buffer->is_detached())
-        return WebIDL::InvalidStateError::create(image_data.realm(), "ImageData's underlying buffer is detached"_utf16);
+        return WebIDL::InvalidStateError::create("ImageData's underlying buffer is detached"_utf16);
 
     // 3. If dirtyWidth is negative, then let dirtyX be dirtyX+dirtyWidth, and let dirtyWidth be equal to the
     //    absolute magnitude of dirtyWidth.
@@ -830,7 +831,7 @@ WebIDL::ExceptionOr<void> Canvas2DContextBase::put_pixels_from_an_image_data_ont
     auto source_rect = Gfx::IntRect { dirty_x, dirty_y, dirty_width, dirty_height };
     auto source_bitmap_or_error = image_data.bitmap();
     if (source_bitmap_or_error.is_error())
-        return WebIDL::InvalidStateError::create(image_data.realm(), "ImageData's underlying buffer is detached or out-of-bounds"_utf16);
+        return WebIDL::InvalidStateError::create("ImageData's underlying buffer is detached or out-of-bounds"_utf16);
     auto source_bitmap = source_bitmap_or_error.release_value();
     auto bitmap_snapshot = MUST(Gfx::Bitmap::create_shareable(source_bitmap->format(), source_bitmap->alpha_type(), source_rect.size()));
     for (int y = 0; y < source_rect.height(); ++y)
@@ -887,7 +888,7 @@ GC::Ref<TextMetrics> Canvas2DContextBase::measure_text(Utf16View text)
     // TextMetrics object with members behaving as described in the following
     // list:
     auto prepared_text = prepare_text(text);
-    auto metrics = TextMetrics::create(realm());
+    auto metrics = TextMetrics::create();
     // FIXME: Use the font that was used to create the glyphs in prepared_text.
     auto const& font = font_cascade_list()->first();
     auto const& font_pixel_metrics = font.pixel_metrics();
@@ -1074,7 +1075,7 @@ WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasI
         [](GC::Ref<HTMLImageElement> image_element) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
             // If image's current request's state is broken, then throw an "InvalidStateError" DOMException.
             if (image_element->current_request().state() == HTML::ImageRequest::State::Broken)
-                return WebIDL::InvalidStateError::create(image_element->realm(), "Image element state is broken"_utf16);
+                return WebIDL::InvalidStateError::create("Image element state is broken"_utf16);
 
             // If image is not fully decodable, or has an intrinsic width or intrinsic height
             // (or both) equal to zero, then return bad.
@@ -1105,14 +1106,14 @@ WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasI
         [](GC::Ref<OffscreenCanvas> offscreen_canvas) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
             // If image has either a horizontal dimension or a vertical dimension equal to zero, then throw an "InvalidStateError" DOMException.
             if (offscreen_canvas->width() == 0 || offscreen_canvas->height() == 0)
-                return WebIDL::InvalidStateError::create(offscreen_canvas->realm(), "OffscreenCanvas width or height is zero"_utf16);
+                return WebIDL::InvalidStateError::create("OffscreenCanvas width or height is zero"_utf16);
             return Optional<CanvasImageSourceUsability> {};
         },
         // HTMLCanvasElement
         [](GC::Ref<HTMLCanvasElement> canvas_element) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
             // If image has either a horizontal dimension or a vertical dimension equal to zero, then throw an "InvalidStateError" DOMException.
             if (canvas_element->width() == 0 || canvas_element->height() == 0)
-                return WebIDL::InvalidStateError::create(canvas_element->realm(), "Canvas width or height is zero"_utf16);
+                return WebIDL::InvalidStateError::create("Canvas width or height is zero"_utf16);
             return Optional<CanvasImageSourceUsability> {};
         },
 
@@ -1120,7 +1121,7 @@ WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasI
         // FIXME: VideoFrame
         [](GC::Ref<ImageBitmap> image_bitmap) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
             if (image_bitmap->is_detached())
-                return WebIDL::InvalidStateError::create(image_bitmap->realm(), "Image bitmap is detached"_utf16);
+                return WebIDL::InvalidStateError::create("Image bitmap is detached"_utf16);
             return Optional<CanvasImageSourceUsability> {};
         }));
     if (usability.has_value())

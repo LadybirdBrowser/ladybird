@@ -1,7 +1,7 @@
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#the-navigateevent-interface
 [Exposed=Window]
 interface NavigateEvent : Event {
-    constructor([Utf16FlyString] Utf16DOMString type, NavigateEventInit eventInitDict);
+    constructor(DOMString type, NavigateEventInit eventInitDict);
 
     readonly attribute NavigationType navigationType;
     readonly attribute NavigationDestination destination;
@@ -10,12 +10,12 @@ interface NavigateEvent : Event {
     readonly attribute boolean hashChange;
     readonly attribute AbortSignal signal;
     readonly attribute FormData? formData;
-    readonly attribute Utf16DOMString? downloadRequest;
+    readonly attribute DOMString? downloadRequest;
     readonly attribute any info;
     readonly attribute boolean hasUAVisualTransition;
     readonly attribute Element? sourceElement;
 
-    undefined intercept(optional NavigationInterceptOptions options = {});
+    [NeedsCallerRealm] undefined intercept(optional NavigationInterceptOptions options = {});
     undefined scroll();
 };
 

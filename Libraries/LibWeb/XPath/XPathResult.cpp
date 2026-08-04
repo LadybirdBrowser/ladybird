@@ -4,10 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/PlatformObject.h>
-#include <LibWeb/Bindings/XPathResult.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/DOM/Node.h>
 
 #include "XPathResult.h"
@@ -16,19 +13,17 @@ namespace Web::XPath {
 
 GC_DEFINE_ALLOCATOR(XPathResult);
 
-XPathResult::XPathResult(JS::Realm& realm)
-    : Web::Bindings::PlatformObject(realm)
+GC::Ref<XPathResult> XPathResult::create()
+{
+    return GC::Heap::the().allocate<XPathResult>();
+}
+
+XPathResult::XPathResult()
 {
     m_node_set_iter = m_node_set.end();
 }
 
-void XPathResult::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(XPathResult);
-    Base::initialize(realm);
-}
-
-void XPathResult::visit_edges(Cell::Visitor& visitor)
+void XPathResult::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_node_set);

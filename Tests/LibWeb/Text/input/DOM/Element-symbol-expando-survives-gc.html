@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="host"></div>
+<script>
+    test(() => {
+        const key = Symbol.for("wrapper-gc-symbol");
+        withCollectedWrapper(
+            () => {
+                const element = host.appendChild(document.createElement("span"));
+                element.id = "symbol-probe";
+                element[key] = 42;
+                return element;
+            },
+            () => document.getElementById("symbol-probe"),
+            element => println(element[key])
+        );
+    });
+</script>

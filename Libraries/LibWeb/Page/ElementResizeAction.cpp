@@ -94,12 +94,12 @@ void ElementResizeAction::handle_pointer_move(CSSPixelPoint pointer_position)
         css_height -= metrics.padding.top + metrics.padding.bottom + computed.border_top().width + computed.border_bottom().width;
     }
 
-    auto style = element->style_for_bindings();
+    auto style = element->style();
     auto width_str = Utf16String::formatted("{:.2f}px", max(0.0, css_width.to_double()));
     auto height_str = Utf16String::formatted("{:.2f}px", max(0.0, css_height.to_double()));
 
-    MUST(style->set_property(CSS::PropertyID::Width, width_str));
-    MUST(style->set_property(CSS::PropertyID::Height, height_str));
+    MUST(style->set_property(CSS::PropertyID::Width, width_str.utf16_view()));
+    MUST(style->set_property(CSS::PropertyID::Height, height_str.utf16_view()));
 }
 
 }

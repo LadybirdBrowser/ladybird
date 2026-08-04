@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SVGAnimatedEnumeration.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/SVG/SVGAnimatedEnumeration.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -13,14 +12,13 @@ namespace Web::SVG {
 
 GC_DEFINE_ALLOCATOR(SVGAnimatedEnumeration);
 
-GC::Ref<SVGAnimatedEnumeration> SVGAnimatedEnumeration::create(JS::Realm& realm, u16 value)
+GC::Ref<SVGAnimatedEnumeration> SVGAnimatedEnumeration::create(u16 value)
 {
-    return realm.create<SVGAnimatedEnumeration>(realm, value);
+    return GC::Heap::the().allocate<SVGAnimatedEnumeration>(value);
 }
 
-SVGAnimatedEnumeration::SVGAnimatedEnumeration(JS::Realm& realm, u16 value)
-    : PlatformObject(realm)
-    , m_value(value)
+SVGAnimatedEnumeration::SVGAnimatedEnumeration(u16 value)
+    : m_value(value)
 {
 }
 
@@ -45,12 +43,6 @@ WebIDL::ExceptionOr<void> SVGAnimatedEnumeration::set_base_val(u16 base_val)
     m_value = value;
 
     return {};
-}
-
-void SVGAnimatedEnumeration::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGAnimatedEnumeration);
-    Base::initialize(realm);
 }
 
 // https://svgwg.org/svg2-draft/types.html#__svg__SVGAnimatedEnumeration__baseVal

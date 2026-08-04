@@ -4,22 +4,25 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
-#include <LibJS/Runtime/VM.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/HTML/TextTrackObserver.h>
 
 namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(TextTrackObserver);
 
-TextTrackObserver::TextTrackObserver(JS::Realm& realm, TextTrack& text_track)
-    : Bindings::PlatformObject(realm)
-    , m_text_track(text_track)
+GC::Ref<TextTrackObserver> TextTrackObserver::create(TextTrack& text_track)
+{
+    return GC::Heap::the().allocate<TextTrackObserver>(text_track);
+}
+
+TextTrackObserver::TextTrackObserver(TextTrack& text_track)
+    : m_text_track(text_track)
 {
     m_text_track->register_observer({}, *this);
 }
 
-void TextTrackObserver::visit_edges(Cell::Visitor& visitor)
+void TextTrackObserver::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_text_track);
@@ -35,7 +38,7 @@ void TextTrackObserver::finalize()
 void TextTrackObserver::set_track_readiness_observer(Function<void(TextTrack::ReadinessState)> callback)
 {
     if (callback)
-        m_track_readiness_observer = GC::create_function(vm().heap(), move(callback));
+        m_track_readiness_observer = GC::create_function(GC::Heap::the(), move(callback));
     else
         m_track_readiness_observer = nullptr;
 }

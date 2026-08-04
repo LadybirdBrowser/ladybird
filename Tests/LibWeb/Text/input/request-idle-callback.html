@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    asyncTest(done => {
+        const handle = requestIdleCallback(deadline => {
+            println(`deadline is IdleDeadline: ${deadline instanceof IdleDeadline}`);
+            println(`timeRemaining is function: ${typeof deadline.timeRemaining}`);
+            done();
+        });
+        println(`handle is number: ${typeof handle}`);
+    });
+</script>

@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/HTMLLIElement.h>
 #include <LibWeb/CSS/CountersSet.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleValues/CounterDefinitionsStyleValue.h>
@@ -25,12 +24,6 @@ HTMLLIElement::HTMLLIElement(DOM::Document& document, DOM::QualifiedName qualifi
 }
 
 HTMLLIElement::~HTMLLIElement() = default;
-
-void HTMLLIElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLLIElement);
-    Base::initialize(realm);
-}
 
 void HTMLLIElement::attribute_changed(Utf16FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
 {

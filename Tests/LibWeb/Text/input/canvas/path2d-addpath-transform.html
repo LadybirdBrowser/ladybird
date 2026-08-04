@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const source = new Path2D();
+        source.rect(0, 0, 10, 10);
+
+        const path = new Path2D();
+        path.addPath(source, { e: 20 });
+
+        const context = document.createElement("canvas").getContext("2d");
+        println(`translated point: ${context.isPointInPath(path, 25, 5)}`);
+        println(`original point: ${context.isPointInPath(path, 5, 5)}`);
+    });
+</script>

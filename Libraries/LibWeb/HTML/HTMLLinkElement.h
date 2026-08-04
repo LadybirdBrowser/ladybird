@@ -22,7 +22,7 @@
 namespace Web::HTML {
 
 class WEB_API HTMLLinkElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLLinkElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLLinkElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLLinkElement);
 
 public:
@@ -141,8 +141,6 @@ private:
     };
 
     HTMLLinkElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void adopted_from(DOM::Document&) override;
 

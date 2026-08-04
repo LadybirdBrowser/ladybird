@@ -6,8 +6,8 @@ interface ServiceWorkerRegistration : EventTarget {
     readonly attribute ServiceWorker? active;
     [FIXME, SameObject] readonly attribute NavigationPreloadManager navigationPreload;
 
-    readonly attribute Utf16USVString scope;
-    readonly attribute ServiceWorkerUpdateViaCache updateViaCache;
+    readonly attribute USVString scope;
+    [ImplementedAs=update_via_cache] readonly attribute ServiceWorkerUpdateViaCache updateViaCache;
 
     [FIXME, NewObject] Promise<undefined> update();
     [FIXME, NewObject] Promise<boolean> unregister();

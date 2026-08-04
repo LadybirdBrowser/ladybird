@@ -6,12 +6,13 @@
 
 #pragma once
 
-#include <AK/Utf16FlyString.h>
+#include <LibJS/Forward.h>
 #include <LibJS/Runtime/PromiseCapability.h>
 #include <LibWeb/Animations/TimeValue.h>
 #include <LibWeb/Bindings/Animation.h>
 #include <LibWeb/DOM/AbstractElement.h>
 #include <LibWeb/DOM/EventTarget.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::Animations {
 
@@ -24,9 +25,12 @@ enum class AnimationClass {
     None,
 };
 
+using AnimationReplaceState = Bindings::AnimationReplaceState;
+using AnimationPlayState = Bindings::AnimationPlayState;
+
 // https://www.w3.org/TR/web-animations-1/#the-animation-interface
 class Animation : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(Animation, DOM::EventTarget);
+    WEB_WRAPPABLE(Animation, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(Animation);
 
 public:
@@ -37,8 +41,7 @@ public:
 
     static constexpr bool OVERRIDES_FINALIZE = true;
 
-    static GC::Ref<Animation> create(JS::Realm&, GC::Ptr<AnimationEffect>, Optional<GC::Ptr<AnimationTimeline>>);
-    static GC::Ref<Animation> construct_impl(JS::Realm&, GC::Ptr<AnimationEffect>, Optional<GC::Ptr<AnimationTimeline>>);
+    static GC::Ref<Animation> create(HTML::EnvironmentSettingsObject&, GC::Ptr<AnimationEffect>, GC::Ptr<AnimationTimeline>);
 
     Utf16FlyString const& id() const { return m_id; }
     void set_id(Utf16FlyString value) { m_id = move(value); }
@@ -53,28 +56,36 @@ public:
     virtual void set_timeline_for_bindings(GC::Ptr<AnimationTimeline> timeline) { set_timeline(timeline); }
 
     // https://drafts.csswg.org/web-animations-2/#dom-animation-starttime
-    NullableCSSNumberish start_time_for_bindings() const;
+    NullableCSSNumberish start_time_for_bindings() const
+    {
+        update_style_if_needed();
+        return NullableCSSNumberish::from_optional_css_numberish_time(start_time());
+    }
     Optional<TimeValue> start_time() const { return m_start_time; }
-    WebIDL::ExceptionOr<void> set_start_time_for_bindings(NullableCSSNumberish const&);
+    virtual WebIDL::ExceptionOr<void> set_start_time_for_bindings(NullableCSSNumberish const&);
 
     void calculate_auto_aligned_start_time();
 
     // https://drafts.csswg.org/web-animations-2/#dom-animation-currenttime
-    NullableCSSNumberish current_time_for_bindings() const;
+    NullableCSSNumberish current_time_for_bindings() const
+    {
+        update_style_if_needed();
+        return NullableCSSNumberish::from_optional_css_numberish_time(current_time());
+    }
     Optional<TimeValue> current_time() const;
-    WebIDL::ExceptionOr<void> set_current_time_for_bindings(NullableCSSNumberish const&);
+    virtual WebIDL::ExceptionOr<void> set_current_time_for_bindings(NullableCSSNumberish const&);
 
     double playback_rate() const { return m_playback_rate; }
-    WebIDL::ExceptionOr<void> set_playback_rate(double value);
+    virtual WebIDL::ExceptionOr<void> set_playback_rate(double value);
 
-    Bindings::AnimationPlayState play_state_for_bindings() const;
-    Bindings::AnimationPlayState play_state() const;
+    AnimationPlayState play_state() const;
+    AnimationPlayState play_state_for_bindings();
 
     bool is_relevant() const;
 
     bool is_replaceable() const;
-    Bindings::AnimationReplaceState replace_state() const { return m_replace_state; }
-    void set_replace_state(Bindings::AnimationReplaceState value);
+    AnimationReplaceState replace_state() const { return m_replace_state; }
+    void set_replace_state(AnimationReplaceState value);
 
     // https://www.w3.org/TR/web-animations-1/#dom-animation-pending
     bool pending_for_bindings() const;
@@ -82,14 +93,18 @@ public:
 
     // https://www.w3.org/TR/web-animations-1/#dom-animation-ready
     GC::Ref<WebIDL::Promise> ready_for_bindings() const;
-    GC::Ref<WebIDL::Promise> ready() const { return current_ready_promise(); }
+    GC::Ref<WebIDL::Promise> ready() const
+    {
+        update_style_if_needed();
+        return current_ready_promise();
+    }
 
     // https://www.w3.org/TR/web-animations-1/#dom-animation-finished
     GC::Ref<WebIDL::Promise> finished_for_bindings() const;
     GC::Ref<WebIDL::Promise> finished() const { return current_finished_promise(); }
     bool is_finished() const { return m_is_finished; }
 
-    bool is_idle() const { return play_state() == Bindings::AnimationPlayState::Idle; }
+    bool is_idle() const { return play_state() == AnimationPlayState::Idle; }
 
     GC::Ptr<WebIDL::CallbackType> onfinish();
     void set_onfinish(GC::Ptr<WebIDL::CallbackType>);
@@ -102,13 +117,13 @@ public:
         Yes,
         No,
     };
-    void cancel(ShouldInvalidate = ShouldInvalidate::Yes);
+    virtual void cancel(ShouldInvalidate = ShouldInvalidate::Yes);
     WebIDL::ExceptionOr<void> finish();
-    WebIDL::ExceptionOr<void> play(ShouldInvalidate = ShouldInvalidate::Yes);
+    virtual WebIDL::ExceptionOr<void> play(ShouldInvalidate = ShouldInvalidate::Yes);
     WebIDL::ExceptionOr<void> play_an_animation(AutoRewind, ShouldInvalidate = ShouldInvalidate::Yes);
-    WebIDL::ExceptionOr<void> pause();
-    WebIDL::ExceptionOr<void> update_playback_rate(double);
-    WebIDL::ExceptionOr<void> reverse();
+    virtual WebIDL::ExceptionOr<void> pause();
+    virtual WebIDL::ExceptionOr<void> update_playback_rate(double);
+    virtual WebIDL::ExceptionOr<void> reverse();
     void persist();
 
     Optional<TimeValue> convert_an_animation_time_to_timeline_time(Optional<TimeValue>) const;
@@ -134,15 +149,18 @@ public:
     auto release_saved_cancel_time() { return move(m_saved_cancel_time); }
 
     TimeValue associated_effect_end() const;
+    JS::Object& relevant_global_object() const;
 
 protected:
-    Animation(JS::Realm&);
+    Animation(HTML::EnvironmentSettingsObject&);
 
-    virtual void initialize(JS::Realm&) override;
+    HTML::EnvironmentSettingsObject& relevant_settings_object() const { return *m_environment; }
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void finalize() override;
 
 private:
+    virtual GC::Ptr<Bindings::Wrappable> relevant_global_impl() const override;
+
     enum class TaskState {
         None,
         Scheduled,
@@ -184,6 +202,8 @@ private:
     // https://www.w3.org/TR/web-animations-1/#global-animation-list
     unsigned int m_global_animation_list_order { 0 };
 
+    GC::Ref<HTML::EnvironmentSettingsObject> m_environment;
+
     // https://www.w3.org/TR/web-animations-1/#dom-animation-effect
     GC::Ptr<AnimationEffect> m_effect;
 
@@ -208,7 +228,7 @@ private:
     Optional<double> m_pending_playback_rate {};
 
     // https://www.w3.org/TR/web-animations-1/#dom-animation-replacestate
-    Bindings::AnimationReplaceState m_replace_state { Bindings::AnimationReplaceState::Active };
+    AnimationReplaceState m_replace_state { AnimationReplaceState::Active };
 
     // Note: The following promises are initialized lazily to avoid constructing them outside of an execution context
     // https://www.w3.org/TR/web-animations-1/#current-ready-promise

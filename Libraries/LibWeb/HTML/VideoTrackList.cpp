@@ -4,10 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
-#include <LibJS/Runtime/VM.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/VideoTrackList.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/VideoTrackList.h>
@@ -16,34 +13,26 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(VideoTrackList);
 
-VideoTrackList::VideoTrackList(JS::Realm& realm, GC::Ptr<HTMLMediaElement> media_element)
-    : DOM::EventTarget(realm, MayInterfereWithIndexedPropertyAccess::Yes)
+VideoTrackList::VideoTrackList(GC::Ptr<HTMLMediaElement> media_element)
+    : DOM::EventTarget()
     , m_media_element(media_element)
 {
 }
 
-void VideoTrackList::initialize(JS::Realm& realm)
+GC::Ref<VideoTrackList> VideoTrackList::create(GC::Ptr<HTMLMediaElement> media_element)
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(VideoTrackList);
-    Base::initialize(realm);
+    return GC::Heap::the().allocate<VideoTrackList>(media_element);
 }
 
-// https://html.spec.whatwg.org/multipage/media.html#dom-tracklist-item
-JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> VideoTrackList::internal_get_own_property(JS::PropertyKey const& property_name) const
+GC::Ptr<VideoTrack> VideoTrackList::item(size_t index) const
 {
     // To determine the value of an indexed property for a given index index in an AudioTrackList or VideoTrackList
     // object list, the user agent must return the AudioTrack or VideoTrack object that represents the indexth track
     // in list.
-    if (property_name.is_number()) {
-        if (auto index = property_name.as_number(); index < m_video_tracks.size()) {
-            JS::PropertyDescriptor descriptor;
-            descriptor.value = m_video_tracks.at(index);
+    if (index >= m_video_tracks.size())
+        return nullptr;
 
-            return descriptor;
-        }
-    }
-
-    return Base::internal_get_own_property(property_name);
+    return m_video_tracks.at(index);
 }
 
 void VideoTrackList::add_track(GC::Ref<VideoTrack> video_track)

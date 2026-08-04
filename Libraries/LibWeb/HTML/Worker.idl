@@ -4,8 +4,8 @@ interface Worker : EventTarget {
     constructor((TrustedScriptURL or Utf16USVString) scriptURL, optional WorkerOptions options = {});
 
     undefined terminate();
-    undefined postMessage(any message, sequence<object> transfer);
-    undefined postMessage(any message, optional StructuredSerializeOptions options = {});
+    [NeedsCallerRealm] undefined postMessage(any message, sequence<object> transfer);
+    [NeedsCallerRealm] undefined postMessage(any message, optional StructuredSerializeOptions options = {});
 
     attribute EventHandler onmessage;
     attribute EventHandler onmessageerror;

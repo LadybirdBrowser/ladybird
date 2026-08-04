@@ -1,0 +1,4 @@
+result has null prototype: true
+result node is target: true
+result node uses iframe Element: false
+result node uses top Element: true

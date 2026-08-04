@@ -8,6 +8,7 @@
 
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/PrototypeObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 
 // Note: Using WEB_PLATFORM_OBJECT() on a class that doesn't inherit from Web::Bindings::PlatformObject
 //       is a compilation error, so that is not tested here.
@@ -32,6 +33,16 @@ class ObjectWithCellMacro : JS::Object {
 class ObjectWithEnvironmentMacro : JS::Object {
     // expected-error@+1 {{Invalid GC-CELL-like macro invocation; expected JS_OBJECT}}
     JS_ENVIRONMENT(ObjectWithEnvironmentMacro, JS::Object);
+};
+
+class WrappableWithCellMacro : Web::Bindings::Wrappable {
+    // expected-error@+1 {{Invalid GC-CELL-like macro invocation; expected WEB_WRAPPABLE}}
+    GC_CELL(WrappableWithCellMacro, Web::Bindings::Wrappable);
+};
+
+class ObjectWithWrappableMacro : JS::Object {
+    // expected-error@+1 {{Invalid GC-CELL-like macro invocation; expected JS_OBJECT}}
+    WEB_NON_IDL_WRAPPABLE(ObjectWithWrappableMacro, JS::Object);
 };
 
 // JS_PROTOTYPE_OBJECT can only be used in the JS namespace

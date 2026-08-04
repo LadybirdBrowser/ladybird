@@ -10,8 +10,9 @@
 #include <LibJS/Runtime/PrimitiveString.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/Value.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/LockManager.h>
+#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/AbortSignal.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Window.h>
@@ -26,20 +27,19 @@ namespace Web::WebLocks {
 
 GC_DEFINE_ALLOCATOR(LockManager);
 
-GC::Ref<LockManager> LockManager::create(JS::Realm& realm)
+GC::Ref<LockManager> LockManager::create(HTML::EnvironmentSettingsObject& environment)
 {
-    return realm.create<LockManager>(realm);
+    return environment.heap().allocate<LockManager>(environment);
 }
 
-LockManager::LockManager(JS::Realm& realm)
-    : PlatformObject(realm)
+GC::Ptr<Bindings::Wrappable> LockManager::relevant_global_impl() const
 {
+    return &m_environment->universal_global_scope().this_impl();
 }
 
-void LockManager::initialize(JS::Realm& realm)
+LockManager::LockManager(GC::Ref<HTML::EnvironmentSettingsObject> environment)
+    : m_environment(environment)
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(LockManager);
-    Base::initialize(realm);
 }
 
 void LockManager::visit_edges(Cell::Visitor& visitor)
@@ -47,6 +47,7 @@ void LockManager::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_lock_request_queue_map);
     visitor.visit(m_held_lock_set);
+    visitor.visit(m_environment);
 }
 
 // https://w3c.github.io/web-locks/#dom-lockmanager-request
@@ -59,16 +60,14 @@ GC::Ref<WebIDL::Promise> LockManager::request(Utf16String const& name, GC::Ref<W
 // https://w3c.github.io/web-locks/#dom-lockmanager-request
 GC::Ref<WebIDL::Promise> LockManager::request(Utf16String const& name, Bindings::LockOptions const& options, GC::Ref<WebIDL::CallbackType> callback)
 {
-    auto& realm = this->realm();
-
     // 2. Let environment be this’s relevant settings object.
-    auto& environment = HTML::relevant_settings_object(*this);
+    auto& environment = *m_environment;
 
     // 3. If environment’s relevant global object’s associated Document is not fully active, then return a promise
     //    rejected with a "InvalidStateError" DOMException.
     if (auto* window = as_if<HTML::Window>(environment.global_object())) {
         if (!window->associated_document().is_fully_active())
-            return WebIDL::create_rejected_promise_from_exception(realm, WebIDL::InvalidStateError::create(realm, "Document is not fully active"_utf16));
+            return WebIDL::create_rejected_promise_for(environment, WebIDL::InvalidStateError::create("Document is not fully active"_utf16));
     }
 
     // 4. Let manager be the result of obtaining a lock manager given environment. If that returned failure, then return
@@ -78,29 +77,29 @@ GC::Ref<WebIDL::Promise> LockManager::request(Utf16String const& name, Bindings:
     // 5. If name starts with U+002D HYPHEN-MINUS (-), then return a promise rejected with a "NotSupportedError"
     //    DOMException.
     if (name.utf16_view().starts_with(u"-"sv))
-        return WebIDL::create_rejected_promise_from_exception(realm, WebIDL::NotSupportedError::create(realm, "Lock names starting with '-' are reserved"_utf16));
+        return WebIDL::create_rejected_promise_for(environment, WebIDL::NotSupportedError::create("Lock names starting with '-' are reserved"_utf16));
 
     // 6. If both options["steal"] and options["ifAvailable"] are true, then return a promise rejected with a
     //    "NotSupportedError" DOMException.
     if (options.steal && options.if_available)
-        return WebIDL::create_rejected_promise_from_exception(realm, WebIDL::NotSupportedError::create(realm, "Lock options 'steal' and 'ifAvailable' cannot both be true"_utf16));
+        return WebIDL::create_rejected_promise_for(environment, WebIDL::NotSupportedError::create("Lock options 'steal' and 'ifAvailable' cannot both be true"_utf16));
 
     // 7. If options["steal"] is true and options["mode"] is not "exclusive", then return a promise rejected with a
     //    "NotSupportedError" DOMException.
     if (options.steal && options.mode != Bindings::LockMode::Exclusive)
-        return WebIDL::create_rejected_promise_from_exception(realm, WebIDL::NotSupportedError::create(realm, "Lock option 'steal' can only be used with exclusive locks"_utf16));
+        return WebIDL::create_rejected_promise_for(environment, WebIDL::NotSupportedError::create("Lock option 'steal' can only be used with exclusive locks"_utf16));
 
     // 8. If options["signal"] exists, and either of options["steal"] or options["ifAvailable"] is true, then return a
     //    promise rejected with a "NotSupportedError" DOMException.
     if (options.signal && (options.steal || options.if_available))
-        return WebIDL::create_rejected_promise_from_exception(realm, WebIDL::NotSupportedError::create(realm, "Lock option 'signal' cannot be combined with 'steal' or 'ifAvailable'"_utf16));
+        return WebIDL::create_rejected_promise_for(environment, WebIDL::NotSupportedError::create("Lock option 'signal' cannot be combined with 'steal' or 'ifAvailable'"_utf16));
 
     // 9. If options["signal"] exists and is aborted, then return a promise rejected with options["signal"]'s abort reason.
     if (options.signal && options.signal->aborted())
-        return WebIDL::create_rejected_promise(realm, options.signal->reason());
+        return WebIDL::create_rejected_promise_for(environment, options.signal->reason());
 
     // 10. Let promise be a new promise.
-    auto promise = WebIDL::create_promise(realm);
+    auto promise = WebIDL::create_promise_for(environment);
 
     // 11. Request a lock with promise, the current agent, environment’s id, manager, callback, name, options["mode"],
     //     options["ifAvailable"], options["steal"], and options["signal"].
@@ -113,16 +112,16 @@ GC::Ref<WebIDL::Promise> LockManager::request(Utf16String const& name, Bindings:
 // https://w3c.github.io/web-locks/#dom-lockmanager-query
 GC::Ref<WebIDL::Promise> LockManager::query()
 {
-    auto& realm = this->realm();
+    auto& realm = m_environment->realm();
 
     // 1. Let environment be this’s relevant settings object.
-    auto& environment = HTML::relevant_settings_object(*this);
+    auto& environment = *m_environment;
 
     // 2. If environment’s relevant global object’s associated Document is not fully active, then return a promise
     //    rejected with a "InvalidStateError" DOMException.
     if (auto* window = as_if<HTML::Window>(environment.global_object())) {
         if (!window->associated_document().is_fully_active())
-            return WebIDL::create_rejected_promise_from_exception(realm, WebIDL::InvalidStateError::create(realm, "Document is not fully active"_utf16));
+            return WebIDL::create_rejected_promise_for(environment, WebIDL::InvalidStateError::create("Document is not fully active"_utf16));
     }
 
     // 3. Let manager be the result of obtaining a lock manager given environment. If that returned failure, then return
@@ -130,7 +129,7 @@ GC::Ref<WebIDL::Promise> LockManager::query()
     auto& manager = obtain_lock_manager(environment);
 
     // 4. Let promise be a new promise.
-    auto promise = WebIDL::create_promise(realm);
+    auto promise = WebIDL::create_promise_for(environment);
 
     // 5. Enqueue the steps to snapshot the lock state for manager with promise to the lock task queue.
     queue_web_locks_task(realm, GC::create_function(heap(), [manager = GC::Ref { manager }, promise]() {
@@ -144,7 +143,7 @@ GC::Ref<WebIDL::Promise> LockManager::query()
 // https://w3c.github.io/web-locks/#request-a-lock
 GC::Ref<LockRequest> LockManager::request_lock(GC::Ref<WebIDL::Promise> promise, GC::Ref<WebIDL::CallbackType> callback, Utf16String name, Bindings::LockMode mode, bool if_available, bool steal, GC::Ptr<DOM::AbortSignal> signal)
 {
-    auto& environment = HTML::relevant_settings_object(*this);
+    auto& environment = *m_environment;
 
     // 1. Let request be a new lock request (agent, clientId, manager, name, mode, callback, promise, signal).
     auto request = heap().allocate<LockRequest>(environment.id, *this, move(name), mode, callback, promise, signal);
@@ -157,9 +156,7 @@ GC::Ref<LockRequest> LockManager::request_lock(GC::Ref<WebIDL::Promise> promise,
     }
 
     // 3. Enqueue the following steps to the lock task queue:
-    queue_web_locks_task(realm(), GC::create_function(heap(), [this, request, if_available, steal]() {
-        auto& realm = this->realm();
-
+    queue_web_locks_task(m_environment->realm(), GC::create_function(heap(), [this, request, if_available, steal]() {
         // 1. Let queueMap be manager’s lock request queue map.
         // 2. Let queue be the result of getting the lock request queue from queueMap for name.
         auto& queue = get_lock_request_queue(m_lock_request_queue_map, request->name());
@@ -177,7 +174,7 @@ GC::Ref<LockRequest> LockManager::request_lock(GC::Ref<WebIDL::Promise> promise,
                     m_held_lock_set.remove(i);
 
                     // 2. Reject lock’s released promise with an "AbortError" DOMException.
-                    WebIDL::reject_promise(realm, lock->released_promise(), WebIDL::AbortError::create(realm, "Lock was stolen"_utf16));
+                    WebIDL::reject_promise(lock->released_promise(), WebIDL::AbortError::create("Lock was stolen"_utf16));
                 } else {
                     ++i;
                 }
@@ -191,14 +188,12 @@ GC::Ref<LockRequest> LockManager::request_lock(GC::Ref<WebIDL::Promise> promise,
             // 1. If ifAvailable is true and request is not grantable, then enqueue the following steps on callback’s
             //    relevant settings object’s responsible event loop:
             if (if_available && !request->is_grantable(queue)) {
-                queue_web_locks_task_on_relevant_event_loop(realm, request->callback(), GC::create_function(heap(), [this, request]() {
-                    auto& realm = this->realm();
-
+                queue_web_locks_task_on_relevant_event_loop(request->callback(), GC::create_function(heap(), [request]() {
                     // 1. Let r be the result of invoking callback with null as the only argument.
                     auto result = WebIDL::invoke_promise_callback(request->callback(), {}, { { JS::js_null() } });
 
                     // 2. Resolve promise with r and abort these steps.
-                    WebIDL::resolve_promise(realm, request->promise(), result->promise());
+                    WebIDL::resolve_promise(request->promise(), result->promise());
                 }));
 
                 // NB: This request has completed with no lock. Continuing here would enqueue it and allow it to be
@@ -221,7 +216,7 @@ GC::Ref<LockRequest> LockManager::request_lock(GC::Ref<WebIDL::Promise> promise,
 // https://w3c.github.io/web-locks/#process-the-lock-request-queue
 void LockManager::process_lock_request_queue(LockRequestQueue& queue)
 {
-    auto& realm = this->realm();
+    auto& realm = m_environment->realm();
 
     // 1. Assert: these steps are running on the lock task queue.
 
@@ -272,8 +267,8 @@ void LockManager::process_lock_request_queue(LockRequestQueue& queue)
         manager.m_held_lock_set.append(lock);
 
         // 14. Enqueue the following steps on callback’s relevant settings object’s responsible event loop:
-        queue_web_locks_task_on_relevant_event_loop(realm, callback, GC::create_function(heap(), [this, request, lock, signal, callback, waiting]() {
-            auto& realm = this->realm();
+        queue_web_locks_task_on_relevant_event_loop(callback, GC::create_function(heap(), [this, request, lock, signal, callback, waiting]() {
+            auto& realm = m_environment->realm();
 
             // 1. If signal is present, then run these steps:
             if (signal) {
@@ -295,25 +290,23 @@ void LockManager::process_lock_request_queue(LockRequestQueue& queue)
             }
 
             // 2. Let r be the result of invoking callback with a new Lock object associated with lock as the only argument.
-            auto result = WebIDL::invoke_promise_callback(callback, {}, { { Lock::create(realm, lock) } });
+            auto result = WebIDL::invoke_promise_callback(callback, {}, { { Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, Lock::create(realm, lock)) } });
 
             // 3. Resolve waiting with r.
-            WebIDL::resolve_promise(realm, waiting, result->promise());
+            WebIDL::resolve_promise(waiting, result->promise());
         }));
 
         // https://w3c.github.io/web-locks/#waiting-promise-settles
         // When lock's waiting promise settles (fulfills or rejects), enqueue the following steps on the lock task queue:
         auto waiting_promise_settled_steps = GC::create_function(heap(), [this, lock](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
-            auto& realm = this->realm();
+            auto& realm = m_environment->realm();
 
-            queue_web_locks_task(realm, GC::create_function(heap(), [this, lock]() {
-                auto& realm = this->realm();
-
+            queue_web_locks_task(realm, GC::create_function(heap(), [lock]() {
                 // 1. Release the lock lock.
                 lock->release_lock();
 
                 // 2. Resolve lock's released promise with lock's waiting promise.
-                WebIDL::resolve_promise(realm, lock->released_promise(), lock->waiting_promise()->promise());
+                WebIDL::resolve_promise(lock->released_promise(), lock->waiting_promise()->promise());
             }));
 
             return JS::js_undefined();
@@ -326,7 +319,7 @@ void LockManager::process_lock_request_queue(LockRequestQueue& queue)
 // https://w3c.github.io/web-locks/#snapshot-the-lock-state
 void LockManager::snapshot_lock_state(GC::Ref<WebIDL::Promise> promise)
 {
-    auto& realm = this->realm();
+    auto& realm = m_environment->realm();
     auto& vm = realm.vm();
 
     static NeverDestroyed<AK::Utf16FlyString> CLIENT_ID = "clientId"_utf16_fly_string;
@@ -372,7 +365,7 @@ void LockManager::snapshot_lock_state(GC::Ref<WebIDL::Promise> promise)
     auto snapshot = JS::Object::create(realm, realm.intrinsics().object_prototype());
     MUST(snapshot->create_data_property_or_throw(*HELD, held));
     MUST(snapshot->create_data_property_or_throw(*PENDING, pending));
-    WebIDL::resolve_promise(realm, promise, snapshot);
+    WebIDL::resolve_promise(promise, snapshot);
 }
 
 }

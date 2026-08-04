@@ -34,7 +34,7 @@ WebIDL::ExceptionOr<GC::Ptr<Element>> ParentNode::query_selector(Utf16View selec
 
     // Scope-match step 2. If s is failure, then throw a "SyntaxError" DOMException.
     if (!query)
-        return WebIDL::SyntaxError::create(realm(), "Failed to parse selector"_utf16);
+        return WebIDL::SyntaxError::create("Failed to parse selector"_utf16);
 
     // Scope-match step 3. Return the result of match a selector against a tree with s and node’s root using scoping root node.
     return query->query_first(*this);
@@ -50,7 +50,7 @@ WebIDL::ExceptionOr<GC::Ref<NodeList>> ParentNode::query_selector_all(Utf16View 
 
     // Scope-match step 2. If s is failure, then throw a "SyntaxError" DOMException.
     if (!query)
-        return WebIDL::SyntaxError::create(realm(), "Failed to parse selector"_utf16);
+        return WebIDL::SyntaxError::create("Failed to parse selector"_utf16);
 
     // Scope-match step 3. Return the result of match a selector against a tree with s and node’s root using scoping root node.
     return query->query_all(*this);
@@ -197,8 +197,8 @@ WebIDL::ExceptionOr<void> ParentNode::replace_children(ReadonlySpan<Variant<GC::
     // 1. Let node be the result of converting nodes into a node given nodes and this’s node document.
     auto node = TRY(convert_nodes_to_single_node(nodes, document()));
 
-    // 2. Ensure pre-insert validity given node, this, null, and this’s children.
-    TRY(ensure_pre_insert_validity(realm(), node, nullptr, ChildrenToExclude::AllChildren));
+    // 2. Ensure pre-insertion validity of node into this before null.
+    TRY(ensure_pre_insertion_validity(node, nullptr, true));
 
     // 3. Replace all with node within this.
     replace_all(*node);

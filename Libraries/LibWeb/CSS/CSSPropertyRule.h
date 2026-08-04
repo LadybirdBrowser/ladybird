@@ -17,11 +17,11 @@ namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-properties-values-api/#the-css-property-rule-interface
 class CSSPropertyRule final : public CSSRule {
-    WEB_PLATFORM_OBJECT(CSSPropertyRule, CSSRule);
+    WEB_WRAPPABLE(CSSPropertyRule, CSSRule);
     GC_DECLARE_ALLOCATOR(CSSPropertyRule);
 
 public:
-    static GC::Ref<CSSPropertyRule> create(JS::Realm&, Utf16FlyString name, Utf16FlyString syntax, NonnullRefPtr<Parser::SyntaxNode> parsed_syntax, bool inherits, RefPtr<StyleValue const> initial_value);
+    static GC::Ref<CSSPropertyRule> create(Utf16FlyString name, Utf16FlyString syntax, NonnullRefPtr<Parser::SyntaxNode> parsed_syntax, bool inherits, RefPtr<StyleValue const> initial_value);
 
     virtual ~CSSPropertyRule();
 
@@ -32,9 +32,8 @@ public:
     CustomPropertyRegistration to_registration() const;
 
 private:
-    CSSPropertyRule(JS::Realm&, Utf16FlyString name, Utf16FlyString syntax, NonnullRefPtr<Parser::SyntaxNode> parsed_syntax, bool inherits, RefPtr<StyleValue const> initial_value);
+    CSSPropertyRule(Utf16FlyString name, Utf16FlyString syntax, NonnullRefPtr<Parser::SyntaxNode> parsed_syntax, bool inherits, RefPtr<StyleValue const> initial_value);
 
-    virtual void initialize(JS::Realm&) override;
     virtual Utf16String serialized() const override;
     virtual void dump(StringBuilder&, int indent_levels) const override;
 

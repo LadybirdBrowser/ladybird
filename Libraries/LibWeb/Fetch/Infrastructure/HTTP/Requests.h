@@ -165,6 +165,7 @@ public:
     using ReservedClientType = GC::Ptr<HTML::Environment>;
     using TraversableForUserPromptsType = Variant<TraversableForUserPrompts, GC::Ptr<HTML::EnvironmentSettingsObject>, GC::Ptr<HTML::LocalTraversableNavigable>>;
 
+    [[nodiscard]] static GC::Ref<Request> create();
     [[nodiscard]] static GC::Ref<Request> create(JS::VM&);
 
     [[nodiscard]] ByteString const& method() const { return m_method; }

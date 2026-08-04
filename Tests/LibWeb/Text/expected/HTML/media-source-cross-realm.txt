@@ -1,0 +1,4 @@
+sourceBuffer uses iframe prototype: true
+sourceBuffer uses top prototype: false
+buffered uses iframe prototype: false
+buffered uses top prototype: true

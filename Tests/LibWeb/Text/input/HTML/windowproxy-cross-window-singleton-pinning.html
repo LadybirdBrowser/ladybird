@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        window.addEventListener("message", () => {
+            println(`parent navigator after iframe-first read: ${navigator instanceof Navigator}`);
+            println(`parent indexedDB after iframe-first read: ${indexedDB instanceof IDBFactory}`);
+            done();
+        }, { once: true });
+
+        const iframe = document.createElement("iframe");
+        iframe.srcdoc = `
+            <!DOCTYPE html>
+            <script>
+                parent.navigator;
+                parent.indexedDB;
+                parent.postMessage("iframe-read-parent-singletons", "*");
+            <\/script>`;
+        document.body.appendChild(iframe);
+    });
+</script>

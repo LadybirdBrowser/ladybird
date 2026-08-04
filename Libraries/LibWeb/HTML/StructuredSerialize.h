@@ -17,11 +17,12 @@
 #include <AK/TypeCasts.h>
 #include <AK/Vector.h>
 #include <LibCrypto/Forward.h>
-#include <LibGC/Ptr.h>
+#include <LibGC/RootVector.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
 #include <LibIPC/Message.h>
 #include <LibJS/Forward.h>
+#include <LibJS/Runtime/Object.h>
 #include <LibWeb/Bindings/IntrinsicDefinitions.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
@@ -53,6 +54,7 @@ public:
 
     void append(IPCSerializationRecord&&);
     void extend(Vector<TransferDataEncoder>);
+    void encode_unsigned_big_integer(::Crypto::UnsignedBigInteger const&);
 
     IPC::MessageBuffer const& buffer() const;
     IPC::MessageBuffer take_buffer() const;
@@ -73,6 +75,9 @@ public:
     {
         return m_decoder.decode<T>();
     }
+
+    WebIDL::ExceptionOr<ByteBuffer> decode_buffer();
+    WebIDL::ExceptionOr<::Crypto::UnsignedBigInteger> decode_unsigned_big_integer();
 
 private:
     IPC::MessageBuffer m_buffer;
@@ -127,6 +132,10 @@ struct SerializedTransferRecord {
     Vector<TransferDataEncoder> transfer_data_holders;
 };
 
+struct StructuredSerializeOptions {
+    GC::RootVector<GC::Ref<JS::Object>> transfer;
+};
+
 struct DeserializedTransferRecord {
     JS::Value deserialized;
     Vector<GC::Root<JS::Object>> transferred_values;
@@ -134,7 +143,7 @@ struct DeserializedTransferRecord {
 
 WEB_API WebIDL::ExceptionOr<IPCSerializationRecord> structured_serialize(JS::VM&, JS::Value);
 WEB_API WebIDL::ExceptionOr<StorageSerializationRecord> structured_serialize_for_storage(JS::VM&, JS::Value);
-WebIDL::ExceptionOr<void> structured_serialize_internal(JS::VM&, StructuredSerializeWriter&, JS::Value, bool for_storage, SerializationMemory&);
+WEB_API WebIDL::ExceptionOr<void> structured_serialize_internal(JS::VM&, StructuredSerializeWriter&, JS::Value, bool for_storage, SerializationMemory&);
 
 WebIDL::ExceptionOr<JS::Value> structured_deserialize(JS::VM&, IPCSerializationRecord const&, JS::Realm&, Optional<DeserializationMemory> = {});
 WebIDL::ExceptionOr<JS::Value> structured_deserialize(JS::VM&, StorageSerializationRecord const&, JS::Realm&, Optional<DeserializationMemory> = {});
@@ -160,11 +169,10 @@ WebIDL::ExceptionOr<T> decode_or_throw_data_clone_error(JS::Realm& realm, Struct
 // Decode stored text to UTF-8 and reject lone surrogates as DataCloneError.
 WEB_API WebIDL::ExceptionOr<String> decode_utf8_text_or_throw_data_clone_error(JS::Realm& realm, StructuredSerializeReader& reader);
 
-// Pairs each serializable interface with its storage identifier and empty-instance factory.
+// Pairs each serializable interface with its storage identifier.
 struct SerializableRegistryEntry {
     Bindings::InterfaceName interface_name;
     StringView identifier;
-    GC::Ref<Bindings::PlatformObject> (*create)(JS::Realm&);
 };
 
 WEB_API ReadonlySpan<SerializableRegistryEntry> serializable_storage_registry();
@@ -197,9 +205,29 @@ WebIDL::ExceptionOr<T> decode_or_throw_data_clone_error(JS::Realm& realm, Transf
     return result.release_value();
 }
 
-WEB_API WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer(JS::VM&, JS::Value, ReadonlySpan<GC::Ref<JS::Object>> transfer_list);
+WEB_API WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer(JS::Realm&, JS::Value, ReadonlySpan<GC::Ref<JS::Object>> transfer_list);
 WebIDL::ExceptionOr<DeserializedTransferRecord> structured_deserialize_with_transfer(SerializedTransferRecord&, JS::Realm&);
 WEB_API WebIDL::ExceptionOr<JS::Value> structured_deserialize_with_transfer_internal(TransferDataDecoder&, JS::Realm&);
+
+}
+
+namespace Web::Bindings {
+
+class PlatformObject;
+class Serializable;
+class Transferable;
+
+struct SerializablePlatformObject {
+    Serializable* serializable { nullptr };
+    InterfaceName interface_name;
+    GC::Ptr<JS::Realm> realm;
+};
+
+WEB_API Transferable* transferable_from_object(JS::Object&);
+WEB_API Optional<SerializablePlatformObject> serializable_from_object(JS::Object&);
+WEB_API bool is_platform_object(JS::Object const&);
+WEB_API GC::Ref<PlatformObject> create_serialized_platform_object(InterfaceName, JS::Realm&);
+WEB_API WebIDL::ExceptionOr<GC::Ref<PlatformObject>> create_transferred_platform_object(HTML::TransferType, JS::Realm&, HTML::TransferDataDecoder&);
 
 }
 

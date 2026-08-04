@@ -32,14 +32,31 @@ TEST_CASE(storage_reader_rejects_unknown_and_reserved_serializable_versions)
     }
 }
 
+TEST_CASE(storage_reader_rejects_valid_payload_with_wrong_version)
+{
+    (void)test_realm();
+
+    // A well-formed DOMPoint payload decodes under the supported version...
+    Vector<u8> point_body;
+    append_little_endian_double(point_body, 1.0);
+    append_little_endian_double(point_body, 2.0);
+    append_little_endian_double(point_body, 3.0);
+    append_little_endian_double(point_body, 4.0);
+    EXPECT(!storage_deserialize(serializable_storage_record("DOMPoint"sv, 1, point_body)).is_error());
+
+    // ...but the same payload under any other version must be a clean version error, not a
+    // misparse of the body under the wrong shape.
+    EXPECT(storage_deserialize(serializable_storage_record("DOMPoint"sv, 0, point_body)).is_error());
+    EXPECT(storage_deserialize(serializable_storage_record("DOMPoint"sv, 2, point_body)).is_error());
+}
+
 TEST_CASE(storage_reader_rejects_wrong_nested_serializable_type)
 {
-    auto& realm = test_realm();
-
-    auto point = Web::Geometry::DOMPoint::create(realm);
+    (void)test_realm();
+    auto point = Web::Geometry::DOMPoint::create();
     auto point_body = serialized_object_body(point);
 
-    auto blob = Web::FileAPI::Blob::create(realm, MUST(ByteBuffer::copy("x"sv.bytes())), "text/plain"_utf16);
+    auto blob = Web::FileAPI::Blob::create(MUST(ByteBuffer::copy("x"sv.bytes())), "text/plain"_utf16);
     auto blob_body = serialized_object_body(blob);
 
     // FileList v1 whose one entry is a DOMPoint, not a File.

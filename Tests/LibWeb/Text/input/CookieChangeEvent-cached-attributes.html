@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const event = new CookieChangeEvent("change", {
+            changed: [{ name: "session", value: "fresh" }],
+            deleted: [{ name: "old-session" }],
+        });
+
+        println(`changed same object: ${event.changed === event.changed}`);
+        println(`deleted same object: ${event.deleted === event.deleted}`);
+        println(`changed frozen: ${Object.isFrozen(event.changed)}`);
+        println(`deleted frozen: ${Object.isFrozen(event.deleted)}`);
+        println(`changed name: ${event.changed[0].name}`);
+        println(`changed value: ${event.changed[0].value}`);
+        println(`deleted name: ${event.deleted[0].name}`);
+        println(`deleted value: ${event.deleted[0].value}`);
+    });
+</script>

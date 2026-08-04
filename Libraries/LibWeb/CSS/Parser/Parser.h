@@ -101,11 +101,9 @@ enum class IsUAStyleSheet {
 struct WEB_API ParsingParams {
     explicit ParsingParams(ParsingMode = ParsingMode::Normal);
     explicit ParsingParams(ValueParsingContext);
-    explicit ParsingParams(JS::Realm&, ParsingMode = ParsingMode::Normal);
-    explicit ParsingParams(JS::Realm&, IsUAStyleSheet);
+    explicit ParsingParams(IsUAStyleSheet);
     explicit ParsingParams(DOM::Document const&, ParsingMode = ParsingMode::Normal);
 
-    GC::Ptr<JS::Realm> realm;
     GC::Ptr<DOM::Document const> document;
     ParsingMode mode { ParsingMode::Normal };
     IsUAStyleSheet is_ua_style_sheet { IsUAStyleSheet::No };
@@ -669,12 +667,10 @@ private:
 
     DOM::Document const* document() const;
     HTML::Window const* window() const;
-    JS::Realm& realm() const;
     bool in_quirks_mode() const;
     bool is_parsing_svg_presentation_attribute() const;
 
     GC::Ptr<DOM::Document const> m_document;
-    GC::Ptr<JS::Realm> m_realm;
     ParsingMode m_parsing_mode { ParsingMode::Normal };
     IsUAStyleSheet m_is_ua_style_sheet { IsUAStyleSheet::No };
 

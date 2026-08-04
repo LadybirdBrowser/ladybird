@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/HTMLSourceElement.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
@@ -22,12 +20,6 @@ HTMLSourceElement::HTMLSourceElement(DOM::Document& document, DOM::QualifiedName
 }
 
 HTMLSourceElement::~HTMLSourceElement() = default;
-
-void HTMLSourceElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLSourceElement);
-    Base::initialize(realm);
-}
 
 static void update_image_children_of_picture(DOM::Node& picture)
 {

@@ -6,18 +6,27 @@
 
 #pragma once
 
-#include <AK/Utf16String.h>
+#include <LibWeb/Compositor/AsyncScrollingState.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Internals/InternalAnimationTimeline.h>
 #include <LibWeb/Internals/InternalsBase.h>
+#include <LibWeb/Painting/Forward.h>
 #include <LibWeb/UIEvents/MouseButton.h>
 #include <LibWeb/WebIDL/Types.h>
+
+namespace JS {
+
+class Object;
+class Realm;
+
+}
 
 namespace Web::Internals {
 
 class WEB_API Internals final : public InternalsBase {
-    WEB_PLATFORM_OBJECT(Internals, InternalsBase);
+    WEB_WRAPPABLE(Internals, InternalsBase);
     GC_DECLARE_ALLOCATOR(Internals);
 
 public:
@@ -45,9 +54,13 @@ public:
     WebIDL::ExceptionOr<Utf16String> set_time_zone(Utf16String const& time_zone);
 
     void gc();
-    GC::Ref<WebIDL::Promise> gc_async();
-    WebIDL::ExceptionOr<void> mark_as_garbage(Utf16FlyString const& variable_name);
-    JS::Object* hit_test(double x, double y);
+    void gc_async(GC::Ref<WebIDL::Promise>);
+    WebIDL::ExceptionOr<void> mark_as_garbage(Utf16String const& variable_name);
+    bool wrapper_is_preserved(JS::Object&);
+    bool has_activity_root(JS::Object&);
+    GC::Ref<XHR::XMLHttpRequest> create_xml_http_request_for_document(DOM::Document&);
+    Optional<Painting::HitTestResult> hit_test(double x, double y);
+    JS::Object* hit_test_result(double x, double y);
 
     void send_text(HTML::HTMLElement&, Utf16String const&, WebIDL::UnsignedShort modifiers);
     void send_key(HTML::HTMLElement&, Utf16String const&, WebIDL::UnsignedShort modifiers);
@@ -63,7 +76,8 @@ public:
     // High-level mouse conveniences
     void click(double x, double y, WebIDL::UnsignedShort click_count, WebIDL::UnsignedShort button, WebIDL::UnsignedShort modifiers);
     void click_and_hold(double x, double y, WebIDL::UnsignedShort click_count, WebIDL::UnsignedShort button, WebIDL::UnsignedShort modifiers);
-    GC::Ref<WebIDL::Promise> wheel(double x, double y, double delta_x, double delta_y);
+    void wheel(GC::Ref<WebIDL::Promise>, double x, double y, double delta_x, double delta_y);
+    void wheel(double x, double y, double delta_x, double delta_y, GC::Ref<WebIDL::Promise>);
     void pinch(double x, double y, double scale_delta, WebIDL::UnsignedShort modifiers);
     void reset_zoom();
 
@@ -143,10 +157,11 @@ public:
     void set_highlighted_node(GC::Ptr<DOM::Node> node);
 
     void clear_element(HTML::HTMLElement&);
-    WebIDL::ExceptionOr<void> set_environments_top_level_url(Utf16String const& url);
+    void set_environments_top_level_url(Utf16String const& url);
     void set_geolocation_emulated_position(double latitude, double longitude, double accuracy);
 
-    JS::Object* get_style_invalidation_counters();
+    DOM::Document::StyleInvalidationCounters const& style_invalidation_counters() const;
+    JS::Object* style_invalidation_counters_object() const;
     void reset_style_invalidation_counters();
     JS::Object* layout_tree_build_stats();
     JS::Object* computed_values_stats();
@@ -163,7 +178,9 @@ public:
     bool media_element_is_fetching(HTML::HTMLMediaElement&);
     bool media_element_is_playing_audio(HTML::HTMLMediaElement&);
     void set_page_muted(bool muted);
-    JS::Object* async_scrolling_state();
+    WebIDL::UnsignedLongLong active_image_style_value_animation_count();
+    Compositor::AsyncScrollingState async_scrolling_state();
+    JS::Object* async_scrolling_state_object();
     bool async_scrolling_state_blocks_wheel_event_at(double x, double y);
     bool async_scrolling_state_can_wheel_scroll_at(double x, double y, double delta_x, double delta_y, bool force_stale_wheel_event_regions);
     Utf16String async_scrolling_state_wheel_routing_admission();
@@ -172,10 +189,9 @@ public:
     String viewport_overflow_x();
 
 private:
-    explicit Internals(JS::Realm&);
+    explicit Internals(HTML::Window&);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     UIEvents::MouseButton button_from_unsigned_short(WebIDL::UnsignedShort button);
 

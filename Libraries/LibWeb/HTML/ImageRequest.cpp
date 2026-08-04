@@ -5,7 +5,9 @@
  */
 
 #include <AK/HashTable.h>
+#include <LibGC/Heap.h>
 #include <LibGfx/Bitmap.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
@@ -16,7 +18,6 @@
 #include <LibWeb/HTML/ImageRequest.h>
 #include <LibWeb/HTML/ListOfAvailableImages.h>
 #include <LibWeb/HTML/SharedResourceRequest.h>
-#include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/ImageCodecPlugin.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
 
@@ -24,15 +25,12 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(ImageRequest);
 
-GC::Ref<ImageRequest> ImageRequest::create(JS::Realm& realm, GC::Ref<Page> page)
+GC::Ref<ImageRequest> ImageRequest::create()
 {
-    return realm.create<ImageRequest>(page);
+    return GC::Heap::the().allocate<ImageRequest>();
 }
 
-ImageRequest::ImageRequest(GC::Ref<Page> page)
-    : m_page(page)
-{
-}
+ImageRequest::ImageRequest() = default;
 
 ImageRequest::~ImageRequest()
 {
@@ -42,7 +40,6 @@ void ImageRequest::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_shared_resource_request);
-    visitor.visit(m_page);
     visitor.visit(m_image_data);
 }
 
@@ -68,16 +65,21 @@ void ImageRequest::set_state(State state)
     m_state = state;
 }
 
-void ImageRequest::set_current_url(JS::Realm& realm, Utf16String url)
+void ImageRequest::set_current_url(DOM::Document& document, String url)
 {
-    m_current_url = move(url);
+    m_current_url = Utf16String::from_utf8(url);
 
     if (auto parsed_url = DOMURL::parse(m_current_url); parsed_url.has_value())
-        m_shared_resource_request = SharedResourceRequest::get_or_create(realm, m_page, parsed_url.release_value());
+        m_shared_resource_request = SharedResourceRequest::get_or_create(document, parsed_url.release_value());
+}
+
+void ImageRequest::set_current_url(DOM::Document& document, Utf16String url)
+{
+    set_current_url(document, url.to_utf8());
 }
 
 // https://html.spec.whatwg.org/multipage/images.html#abort-the-image-request
-void abort_the_image_request(JS::Realm&, ImageRequest* image_request)
+void abort_the_image_request(ImageRequest* image_request)
 {
     // 1. If image request is null, then return.
     if (!image_request)
@@ -118,11 +120,11 @@ void ImageRequest::prepare_for_presentation(HTMLImageElement&)
     // FIXME: 9. Update req's img element's presentation appropriately.
 }
 
-void ImageRequest::fetch_image(JS::Realm& realm, GC::Ref<Fetch::Infrastructure::Request> request)
+void ImageRequest::fetch_image(GC::Ref<Fetch::Infrastructure::Request> request)
 {
     VERIFY(m_shared_resource_request);
     if (m_shared_resource_request->needs_fetching())
-        m_shared_resource_request->fetch_resource(realm, request);
+        m_shared_resource_request->fetch_resource(request);
 }
 
 void ImageRequest::add_callbacks(Function<void()> on_finish, Function<void()> on_fail)

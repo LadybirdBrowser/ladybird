@@ -15,8 +15,9 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(WebGLSync);
 
-GC::Ref<WebGLSync> WebGLSync::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context, GLsyncInternal handle)
+GC::Ref<WebGLSync> WebGLSync::create(GC::Ref<WebGLRenderingContextBase> context, GLsyncInternal handle)
 {
+    auto& realm = context->realm();
     return realm.create<WebGLSync>(realm, context, handle);
 }
 
@@ -27,12 +28,6 @@ WebGLSync::WebGLSync(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> contex
 }
 
 WebGLSync::~WebGLSync() = default;
-
-void WebGLSync::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGLSync);
-    Base::initialize(realm);
-}
 
 ErrorOr<GLsyncInternal> WebGLSync::sync_handle(WebGLRenderingContextBase const* context) const
 {

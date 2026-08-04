@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const iframe = document.createElement("iframe");
+        iframe.onload = () => {
+            const otherWindow = iframe.contentWindow;
+            const clonedObject = otherWindow.structuredClone({ key: "value" });
+            const clonedArray = otherWindow.structuredClone([1, 2, 3]);
+            println(`object uses callee realm: ${clonedObject instanceof otherWindow.Object}`);
+            println(`object uses caller realm: ${clonedObject instanceof Object}`);
+            println(`array uses callee realm: ${clonedArray instanceof otherWindow.Array}`);
+            println(`array uses caller realm: ${clonedArray instanceof Array}`);
+            done();
+        };
+        iframe.srcdoc = "<!DOCTYPE html>";
+        document.body.appendChild(iframe);
+    });
+</script>

@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const target = document.createElement("div");
+        document.body.append(target);
+
+        let observer = new ResizeObserver(() => {});
+        const weak = new WeakRef(observer);
+        observer.observe(target);
+        observer.disconnect();
+        observer = null;
+
+        requestIdleCallback(() => {
+            internals.gc();
+            println(`observer collected after disconnect: ${weak.deref() === undefined}`);
+            done();
+        });
+    });
+</script>

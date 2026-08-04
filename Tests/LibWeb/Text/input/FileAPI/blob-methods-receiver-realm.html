@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async (done) => {
+        const iframe = document.createElement("iframe");
+        document.body.append(iframe);
+        const other = iframe.contentWindow;
+        const blob = new Blob(["🦬"]);
+
+        const textMethod = other.Blob.prototype.text;
+        const textPromise = textMethod.call(blob);
+        println(`text promise is iframe realm: ${textPromise instanceof other.Promise}`);
+        println(`text promise is parent realm: ${textPromise instanceof Promise}`);
+        println(`text result value: ${await textPromise}`);
+
+        const arrayBufferMethod = other.Blob.prototype.arrayBuffer;
+        const arrayBufferPromise = arrayBufferMethod.call(blob);
+        println(`arrayBuffer promise is iframe realm: ${arrayBufferPromise instanceof other.Promise}`);
+        println(`arrayBuffer promise is parent realm: ${arrayBufferPromise instanceof Promise}`);
+        const arrayBuffer = await arrayBufferPromise;
+        println(`ArrayBuffer result is iframe realm: ${arrayBuffer instanceof other.ArrayBuffer}`);
+        println(`ArrayBuffer result is parent realm: ${arrayBuffer instanceof ArrayBuffer}`);
+        println(`ArrayBuffer result bytes: ${Array.from(new Uint8Array(arrayBuffer)).join(",")}`);
+
+        const bytesMethod = other.Blob.prototype.bytes;
+        const bytesPromise = bytesMethod.call(blob);
+        println(`bytes promise is iframe realm: ${bytesPromise instanceof other.Promise}`);
+        println(`bytes promise is parent realm: ${bytesPromise instanceof Promise}`);
+        const bytes = await bytesPromise;
+        println(`bytes result is iframe realm: ${bytes instanceof other.Uint8Array}`);
+        println(`bytes result is parent realm: ${bytes instanceof Uint8Array}`);
+        println(`bytes result values: ${Array.from(bytes).join(",")}`);
+
+        const streamMethod = other.Blob.prototype.stream;
+        const stream = streamMethod.call(blob);
+        println(`stream result is iframe realm: ${stream instanceof other.ReadableStream}`);
+        println(`stream result is parent realm: ${stream instanceof ReadableStream}`);
+        const reader = stream.getReader();
+        const chunk = (await reader.read()).value;
+        println(`stream chunk is iframe realm: ${chunk instanceof other.Uint8Array}`);
+        println(`stream chunk is parent realm: ${chunk instanceof Uint8Array}`);
+        println(`stream chunk values: ${Array.from(chunk).join(",")}`);
+
+        done();
+    });
+</script>

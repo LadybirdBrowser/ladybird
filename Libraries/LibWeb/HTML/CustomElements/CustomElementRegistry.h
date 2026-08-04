@@ -8,26 +8,38 @@
 #pragma once
 
 #include <LibGC/WeakHashSet.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/CustomElementRegistry.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/CustomElements/CustomElementDefinition.h>
 
 namespace Web::HTML {
 
+class CustomElementRegistry;
+
+}
+
+namespace Web::HTML {
+
+using ElementDefinitionOptions = Bindings::ElementDefinitionOptions;
+
 // https://html.spec.whatwg.org/multipage/custom-elements.html#customelementregistry
-class WEB_API CustomElementRegistry : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(CustomElementRegistry, Bindings::PlatformObject);
+class WEB_API CustomElementRegistry : public Bindings::GCAllocatedWrappable {
+    WEB_WRAPPABLE(CustomElementRegistry, Bindings::GCAllocatedWrappable);
     GC_DECLARE_ALLOCATOR(CustomElementRegistry);
 
 public:
-    [[nodiscard]] static GC::Ref<CustomElementRegistry> construct_impl(JS::Realm&);
+    [[nodiscard]] static GC::Ref<CustomElementRegistry> create_scoped();
+    [[nodiscard]] static GC::Ref<CustomElementRegistry> create_global(DOM::Document&);
 
     virtual ~CustomElementRegistry() override;
 
-    JS::ThrowCompletionOr<void> define(Utf16FlyString const& name, WebIDL::CallbackType* constructor, Bindings::ElementDefinitionOptions const&);
+    JS::ThrowCompletionOr<void> define(JS::Realm&, Utf16String const& name, WebIDL::CallbackType* constructor, ElementDefinitionOptions const&);
     Variant<GC::Ref<WebIDL::CallbackType>, Empty> get(Utf16FlyString const& name) const;
     Optional<Utf16String> get_name(GC::Ref<WebIDL::CallbackType> constructor) const;
-    WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> when_defined(Utf16FlyString const& name);
+    GC::Ptr<WebIDL::CallbackType> constructor_for_defined_name(Utf16FlyString const& name) const;
+    GC::Ptr<WebIDL::Promise> when_defined_promise(Utf16FlyString const& name) const;
+    void set_when_defined_promise(Utf16FlyString const& name, GC::Ref<WebIDL::Promise>);
     void upgrade(GC::Ref<DOM::Node> root) const;
     WebIDL::ExceptionOr<void> initialize_for_bindings(GC::Ref<DOM::Node> root);
 
@@ -38,10 +50,12 @@ public:
     GC::Ptr<CustomElementDefinition> get_definition_from_new_target(JS::FunctionObject const& new_target) const;
 
 private:
-    CustomElementRegistry(JS::Realm&);
+    CustomElementRegistry();
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
+    virtual GC::Ptr<Bindings::Wrappable> relevant_global_impl() const override;
+
+    GC::Ptr<DOM::Document> m_global_document;
 
     // https://html.spec.whatwg.org/multipage/custom-elements.html#is-scoped
     // Every CustomElementRegistry has an is scoped, a boolean, initially false.

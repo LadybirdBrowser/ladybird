@@ -15,7 +15,7 @@ namespace Web::SVG {
 class SVGFEFloodElement final
     : public SVGElement
     , public SVGFilterPrimitiveStandardAttributes<SVGFEFloodElement> {
-    WEB_PLATFORM_OBJECT(SVGFEFloodElement, SVGElement);
+    WEB_WRAPPABLE(SVGFEFloodElement, SVGElement);
     GC_DECLARE_ALLOCATOR(SVGFEFloodElement);
 
 public:
@@ -28,8 +28,6 @@ public:
 
 private:
     SVGFEFloodElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 };
 

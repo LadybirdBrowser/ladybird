@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/Supports.h>
 #include <LibWeb/Dump.h>

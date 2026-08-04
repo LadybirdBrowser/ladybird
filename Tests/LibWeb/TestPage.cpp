@@ -6,6 +6,8 @@
 
 #include <LibJS/Runtime/VM.h>
 #include <LibTest/TestCase.h>
+#include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/Page/Page.h>
 
 class TestPageClient final : public Web::PageClient {
@@ -56,7 +58,7 @@ TEST_CASE(browser_traversal_requests_embedder)
 {
     auto vm = JS::VM::create();
     auto client = vm->heap().allocate<TestPageClient>();
-    auto page = Web::Page::create(*vm, client);
+    auto page = Web::Page::create(client);
     client->m_page = page.ptr();
 
     page->traverse_the_history_by_delta(-1);
@@ -66,4 +68,17 @@ TEST_CASE(browser_traversal_requests_embedder)
     EXPECT_EQ(*client->last_traversal_delta, -1);
     VERIFY(client->last_history_traversal_precheck.has_value());
     EXPECT_EQ(*client->last_history_traversal_precheck, Web::HistoryTraversalPrecheck::Needed);
+}
+
+TEST_CASE(headless_page_client_allocates_cross_process_ids)
+{
+    auto realm = Web::Bindings::create_a_principal_javascript_realm();
+
+    // The headless page never talks to a UI process, so it hands out locally unique ids
+    // instead of crashing in the base PageClient.
+    auto& client = Web::Bindings::principal_host_defined_page(*realm).client();
+    auto first = client.allocate_cross_process_id();
+    auto second = client.allocate_cross_process_id();
+    EXPECT_EQ(first.namespace_id, second.namespace_id);
+    EXPECT(first.local_id != second.local_id);
 }

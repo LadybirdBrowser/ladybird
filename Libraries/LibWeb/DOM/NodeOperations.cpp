@@ -23,7 +23,7 @@ WebIDL::ExceptionOr<GC::Ref<Node>> convert_nodes_to_single_node(ReadonlySpan<Var
         if (node.has<GC::Ref<Node>>())
             return node.get<GC::Ref<Node>>();
 
-        return document.realm().create<Text>(document, node.get<Utf16String>());
+        return Text::create(document, node.get<Utf16String>());
     };
 
     // 2. If nodes’s size is 1, then return nodes[0].
@@ -31,7 +31,7 @@ WebIDL::ExceptionOr<GC::Ref<Node>> convert_nodes_to_single_node(ReadonlySpan<Var
         return potentially_convert_string_to_text_node(nodes.first());
 
     // 3. Let fragment be a new DocumentFragment node whose node document is document.
-    auto fragment = document.realm().create<DocumentFragment>(document);
+    auto fragment = DocumentFragment::create(document);
 
     // 4. For each node of nodes: append node to fragment.
     for (auto const& unconverted_node : nodes) {

@@ -30,6 +30,10 @@ enum class SelectionDirection : u8 {
     None,
 };
 
+using SelectionMode = Bindings::SelectionMode;
+
+using ValidityStateFlags = Bindings::ValidityStateFlags;
+
 class WEB_API FormAssociatedElement {
 public:
     // NB: FACE stands for form-associated custom element.
@@ -133,8 +137,8 @@ public:
 
     void update_face_disabled_state();
 
-    Bindings::ValidityStateFlags const& face_validity_flags() const { return m_face_validity_flags; }
-    void set_face_validity_flags(Badge<ElementInternals>, Bindings::ValidityStateFlags const& value);
+    ValidityStateFlags const& face_validity_flags() const { return m_face_validity_flags; }
+    void set_face_validity_flags(Badge<ElementInternals>, ValidityStateFlags const& value);
 
     Utf16String const& face_validation_message() const { return m_face_validation_message; }
     void set_face_validation_message(Badge<ElementInternals>, Utf16View value);
@@ -171,7 +175,7 @@ private:
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#parser-inserted-flag
     bool m_parser_inserted { false };
 
-    Bindings::ValidityStateFlags m_face_validity_flags {};
+    ValidityStateFlags m_face_validity_flags {};
 
     // https://html.spec.whatwg.org/multipage/custom-elements.html#face-validation-message
     // Each form-associated custom element has a validation message string. It is the empty string initially.
@@ -237,6 +241,7 @@ public:
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-setrangetext
     WebIDL::ExceptionOr<void> set_range_text_binding(Utf16View replacement);
     WebIDL::ExceptionOr<void> set_range_text_binding(Utf16View replacement, WebIDL::UnsignedLong start, WebIDL::UnsignedLong end, Bindings::SelectionMode = Bindings::SelectionMode::Preserve);
+    WebIDL::ExceptionOr<void> set_range_text(Utf16String const& replacement);
     WebIDL::ExceptionOr<void> set_range_text(Utf16View replacement, WebIDL::UnsignedLong start, WebIDL::UnsignedLong end, Bindings::SelectionMode = Bindings::SelectionMode::Preserve);
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-setselectionrange

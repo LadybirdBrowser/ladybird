@@ -11,7 +11,7 @@
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <LibGC/Ptr.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/Export.h>
@@ -19,8 +19,8 @@
 
 namespace Web::CSS {
 
-class WEB_API CSSRule : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(CSSRule, Bindings::PlatformObject);
+class WEB_API CSSRule : public Bindings::GCAllocatedWrappable {
+    WEB_WRAPPABLE(CSSRule, Bindings::GCAllocatedWrappable);
 
 public:
     virtual ~CSSRule() = default;
@@ -78,9 +78,9 @@ public:
     MUST_UPCALL virtual void clear_caches();
 
 protected:
-    CSSRule(JS::Realm&, Type);
+    CSSRule(Type);
 
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     [[nodiscard]] Utf16FlyString const& parent_layer_internal_qualified_name() const
     {

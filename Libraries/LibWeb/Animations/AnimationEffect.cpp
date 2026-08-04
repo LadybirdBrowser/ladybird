@@ -10,8 +10,6 @@
 #include <LibWeb/Animations/AnimationEffect.h>
 #include <LibWeb/Animations/AnimationTimeline.h>
 #include <LibWeb/Bindings/AnimationEffect.h>
-#include <LibWeb/Bindings/CSSStyleSheet.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSNumericValue.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Invalidation/SlotInvalidator.h>
@@ -133,7 +131,7 @@ Bindings::ComputedEffectTiming AnimationEffect::get_computed_timing() const
     //       If duration is the string auto, this attribute will return the current calculated value of the intrinsic
     //       iteration duration, which may be a expressed as a double representing the duration in milliseconds or a
     //       percentage when the effect is associated with a progress-based timeline.
-    auto duration = m_iteration_duration.as_css_numberish(realm());
+    auto duration = m_iteration_duration.as_css_numberish();
 
     //     - fill: likewise, while getTiming() may return the string auto, getComputedTiming() must return the specific
     //       FillMode used for timing calculations as defined in the description of the fill member of the EffectTiming
@@ -151,10 +149,10 @@ Bindings::ComputedEffectTiming AnimationEffect::get_computed_timing() const
     computed_timing.duration = duration;
     computed_timing.direction = m_playback_direction;
     computed_timing.easing = m_timing_function.to_utf16_string();
-    computed_timing.active_duration = active_duration().as_css_numberish(realm());
+    computed_timing.active_duration = active_duration().as_css_numberish();
     computed_timing.current_iteration = current_iteration();
-    computed_timing.end_time = end_time().as_css_numberish(realm());
-    computed_timing.local_time = NullableCSSNumberish::from_optional_css_numberish_time(realm(), local_time());
+    computed_timing.end_time = end_time().as_css_numberish();
+    computed_timing.local_time = NullableCSSNumberish::from_optional_css_numberish_time(local_time());
     computed_timing.progress = transformed_progress();
     return computed_timing;
 }
@@ -377,6 +375,13 @@ void AnimationEffect::set_associated_animation(GC::Ptr<Animation> value)
 
     // NB: The normalization of the specified timing depends on the timeline of the associated animation.
     normalize_specified_timing();
+}
+
+GC::Ptr<Bindings::Wrappable> AnimationEffect::relevant_global_impl() const
+{
+    if (m_associated_animation)
+        return static_cast<Bindings::Wrappable&>(*m_associated_animation).relevant_global_impl();
+    return nullptr;
 }
 
 void AnimationEffect::update_style_if_needed() const
@@ -796,18 +801,9 @@ Optional<CSS::EasingFunction> AnimationEffect::parse_easing_string(Utf16View val
     return {};
 }
 
-AnimationEffect::AnimationEffect(JS::Realm& realm)
-    : Bindings::PlatformObject(realm)
-{
-}
+AnimationEffect::AnimationEffect() = default;
 
-void AnimationEffect::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(AnimationEffect);
-    Base::initialize(realm);
-}
-
-void AnimationEffect::visit_edges(JS::Cell::Visitor& visitor)
+void AnimationEffect::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_associated_animation);

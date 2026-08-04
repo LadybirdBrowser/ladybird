@@ -1,0 +1,7 @@
+table: [object WebAssembly.Table]
+length: 2
+get 0: hello
+get 1 value: 42
+previous length: 2
+length after grow: 3
+get 2: tail

@@ -6,10 +6,11 @@
 
 #pragma once
 
+#include <LibURL/Origin.h>
 #include <LibWeb/CredentialManagement/FederatedCredential.h>
 
 namespace Web::CredentialManagement {
 
-WebIDL::ExceptionOr<GC::Ref<FederatedCredential>> create_federated_credential(JS::Realm& realm, Bindings::FederatedCredentialInit const&);
+GC::Ref<FederatedCredential> create_federated_credential(FederatedCredentialInit, URL::Origin);
 
 }

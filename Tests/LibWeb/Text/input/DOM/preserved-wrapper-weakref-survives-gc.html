@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target"></div>
+<script>
+    test(() => {
+        let element = document.getElementById("target");
+        element.marker = 9;
+        const weak = new WeakRef(element);
+        element = null;
+        internals.gc();
+        println(weak.deref().marker);
+    });
+</script>

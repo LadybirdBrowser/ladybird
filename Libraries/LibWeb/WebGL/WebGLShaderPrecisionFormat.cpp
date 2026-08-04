@@ -19,20 +19,13 @@ GC::Ref<WebGLShaderPrecisionFormat> WebGLShaderPrecisionFormat::create(JS::Realm
     return realm.create<WebGLShaderPrecisionFormat>(realm, range_min, range_max, precision);
 }
 
-WebGLShaderPrecisionFormat::WebGLShaderPrecisionFormat(JS::Realm& realm, GLint range_min, GLint range_max, GLint precision)
-    : Bindings::PlatformObject(realm)
-    , m_range_min(range_min)
+WebGLShaderPrecisionFormat::WebGLShaderPrecisionFormat(JS::Realm&, GLint range_min, GLint range_max, GLint precision)
+    : m_range_min(range_min)
     , m_range_max(range_max)
     , m_precision(precision)
 {
 }
 
 WebGLShaderPrecisionFormat::~WebGLShaderPrecisionFormat() = default;
-
-void WebGLShaderPrecisionFormat::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGLShaderPrecisionFormat);
-    Base::initialize(realm);
-}
 
 }

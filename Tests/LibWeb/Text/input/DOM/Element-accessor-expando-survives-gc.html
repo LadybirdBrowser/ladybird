@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="host"></div>
+<script>
+    test(() => {
+        withCollectedWrapper(
+            () => {
+                const element = host.appendChild(document.createElement("span"));
+                element.id = "accessor-probe";
+                Object.defineProperty(element, "value", { get: () => 42, configurable: true });
+                return element;
+            },
+            () => document.getElementById("accessor-probe"),
+            element => println(element.value)
+        );
+    });
+</script>

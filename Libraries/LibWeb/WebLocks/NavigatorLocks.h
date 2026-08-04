@@ -7,7 +7,7 @@
 #pragma once
 
 #include <LibGC/Ptr.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::WebLocks {
@@ -19,7 +19,8 @@ public:
     GC::Ref<LockManager> locks();
 
 protected:
-    virtual Bindings::PlatformObject const& this_navigator_locks_object() const = 0;
+    virtual Bindings::Wrappable const& this_navigator_locks_object() const = 0;
+    virtual HTML::EnvironmentSettingsObject& this_navigator_locks_settings_object() const = 0;
 };
 
 }

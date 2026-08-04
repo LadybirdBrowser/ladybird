@@ -45,7 +45,7 @@ LocalTraversableNavigable::LocalTraversableNavigable(GC::Ref<Page> page)
           page,
           page->client().is_svg_page_client(),
           Compositor::PagePresentationRegistration::Yes)
-    , m_storage_shed(StorageAPI::StorageShed::create(page->heap()))
+    , m_storage_shed(StorageAPI::StorageShed::create())
     , m_session_history_traversal_queue(vm().heap().allocate<SessionHistoryTraversalQueue>())
 {
 }
@@ -1967,7 +1967,7 @@ private:
     {
         // 4. Queue a global task on the navigation and traversal task source given traversable's active window to perform the following steps:
         VERIFY(m_traversable->active_window());
-        queue_global_task(Task::Source::NavigationAndTraversal, *m_traversable->active_window(), GC::create_function(heap(), [this] {
+        queue_global_task(Task::Source::NavigationAndTraversal, relevant_global_object(*m_traversable->active_window()), GC::create_function(GC::Heap::the(), [this] {
             // 1. if needsBeforeunload is true, then:
             if (m_needs_beforeunload) {
                 // 1. Let (unloadPromptShownForThisDocument, unloadPromptCanceledByThisDocument) be the result of running the steps to fire beforeunload given traversable's active document and false.
@@ -2798,8 +2798,7 @@ void LocalTraversableNavigable::set_emulated_position_data(Geolocation::Emulated
 void LocalTraversableNavigable::set_emulated_position_data(Geolocation::CoordinatesData coordinates_data)
 {
     VERIFY(is_top_level_traversable());
-    auto& realm = active_document()->realm();
-    auto coords = realm.create<Geolocation::GeolocationCoordinates>(realm, move(coordinates_data));
+    auto coords = GC::Heap::the().allocate<Geolocation::GeolocationCoordinates>(move(coordinates_data));
     set_emulated_position_data(coords);
 }
 

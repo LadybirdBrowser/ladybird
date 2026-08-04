@@ -5,8 +5,6 @@
  */
 
 #include <AK/SaturatingMath.h>
-#include <LibWeb/Bindings/HTMLOListElement.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CountersSet.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleValues/CounterDefinitionsStyleValue.h>
@@ -28,12 +26,6 @@ HTMLOListElement::HTMLOListElement(DOM::Document& document, DOM::QualifiedName q
 }
 
 HTMLOListElement::~HTMLOListElement() = default;
-
-void HTMLOListElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLOListElement);
-    Base::initialize(realm);
-}
 
 // https://html.spec.whatwg.org/multipage/grouping-content.html#dom-ol-start
 WebIDL::Long HTMLOListElement::start()

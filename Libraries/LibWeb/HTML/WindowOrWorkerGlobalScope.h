@@ -14,8 +14,9 @@
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <AK/Variant.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibJS/Runtime/Value.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/Fetch/FetchMethod.h>
 #include <LibWeb/Fetch/Request.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/ImageBitmap.h>
@@ -40,9 +41,8 @@ public:
     Utf16String origin() const;
     bool is_secure_context() const;
     bool cross_origin_isolated() const;
-    GC::Ref<WebIDL::Promise> create_image_bitmap(ImageBitmapSource image, Optional<Bindings::ImageBitmapOptions> options = {}) const;
-    GC::Ref<WebIDL::Promise> create_image_bitmap(ImageBitmapSource image, WebIDL::Long sx, WebIDL::Long sy, WebIDL::Long sw, WebIDL::Long sh, Optional<Bindings::ImageBitmapOptions> options = {}) const;
-    GC::Ref<WebIDL::Promise> fetch(Fetch::RequestInfo const&, Bindings::RequestInit const&) const;
+    void create_image_bitmap(JS::Realm&, ImageBitmapSource image, ImageBitmapOptions options, GC::Ref<WebIDL::Promise>) const;
+    void create_image_bitmap(JS::Realm&, ImageBitmapSource image, WebIDL::Long sx, WebIDL::Long sy, WebIDL::Long sw, WebIDL::Long sh, ImageBitmapOptions options, GC::Ref<WebIDL::Promise>) const;
 
     i32 set_timeout(TimerHandler, i32 timeout, GC::RootVector<JS::Value> arguments);
     i32 set_interval(TimerHandler, i32 timeout, GC::RootVector<JS::Value> arguments);
@@ -91,8 +91,6 @@ public:
 
     [[nodiscard]] GC::Ref<HighResolutionTime::Performance> performance();
 
-    GC::Ref<JS::Object> supported_entry_types() const;
-
     GC::Ref<IndexedDB::IDBFactory> indexed_db();
 
     void report_error(JS::Value e);
@@ -112,7 +110,7 @@ public:
     Optional<URL::Origin> window_or_worker_global_scope_extract_an_origin() const;
 
 protected:
-    void initialize(JS::Realm&);
+    void initialize();
     void visit_edges(JS::Cell::Visitor&);
     void finalize();
 
@@ -124,7 +122,7 @@ private:
     i32 run_timer_initialization_steps(TimerHandler handler, i32 timeout, GC::RootVector<JS::Value> arguments, Repeat repeat, Optional<i32> previous_id = {});
     void run_steps_after_a_timeout_impl(i32 timeout, Function<void()> completion_step, Optional<i32> timer_key, Repeat repeat = Repeat::No);
 
-    GC::Ref<WebIDL::Promise> create_image_bitmap_impl(ImageBitmapSource& image, Optional<WebIDL::Long> sx, Optional<WebIDL::Long> sy, Optional<WebIDL::Long> sw, Optional<WebIDL::Long> sh, Optional<Bindings::ImageBitmapOptions>& options) const;
+    void create_image_bitmap_impl(JS::Realm&, GC::Ref<WebIDL::Promise>, ImageBitmapSource& image, Optional<WebIDL::Long> sx, Optional<WebIDL::Long> sy, Optional<WebIDL::Long> sw, Optional<WebIDL::Long> sh, ImageBitmapOptions options) const;
 
     size_t resource_timing_buffer_current_size();
     bool can_add_resource_timing_entry();
@@ -155,8 +153,6 @@ private:
     GC::Ptr<HighResolutionTime::Performance> m_performance;
 
     GC::Ptr<IndexedDB::IDBFactory> m_indexed_db;
-
-    mutable GC::Ptr<JS::Object> m_supported_entry_types_array;
 
     GC::Ptr<Crypto::Crypto> m_crypto;
 

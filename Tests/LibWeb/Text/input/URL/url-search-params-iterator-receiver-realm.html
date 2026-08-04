@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const iframe = document.createElement("iframe");
+        document.body.append(iframe);
+
+        const other = iframe.contentWindow;
+
+        const params = new URLSearchParams("a=1&b=2");
+        const parentIteratorPrototype = Object.getPrototypeOf(params.entries());
+        const iframeIteratorPrototype = Object.getPrototypeOf(new other.URLSearchParams("a=1").entries());
+
+        const iterator = other.URLSearchParams.prototype.entries.call(params);
+        println(`iterator prototype is parent realm: ${Object.getPrototypeOf(iterator) === parentIteratorPrototype}`);
+        println(`iterator prototype is iframe realm: ${Object.getPrototypeOf(iterator) === iframeIteratorPrototype}`);
+
+        const result = iframeIteratorPrototype.next.call(iterator);
+        println(`next result object is parent realm: ${Object.getPrototypeOf(result) === Object.prototype}`);
+        println(`next result object is iframe realm: ${Object.getPrototypeOf(result) === other.Object.prototype}`);
+        println(`next value array is parent realm: ${Object.getPrototypeOf(result.value) === Array.prototype}`);
+        println(`next value array is iframe realm: ${Object.getPrototypeOf(result.value) === other.Array.prototype}`);
+    });
+</script>

@@ -5,8 +5,7 @@
  */
 
 #include "StylePropertyMap.h"
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/StylePropertyMap.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/CSSUnparsedValue.h>
@@ -23,13 +22,13 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(StylePropertyMap);
 
-GC::Ref<StylePropertyMap> StylePropertyMap::create(JS::Realm& realm, GC::Ref<CSSStyleDeclaration> declaration)
+GC::Ref<StylePropertyMap> StylePropertyMap::create(GC::Ref<CSSStyleDeclaration> declaration)
 {
-    return realm.create<StylePropertyMap>(realm, declaration);
+    return GC::Heap::the().allocate<StylePropertyMap>(declaration);
 }
 
-StylePropertyMap::StylePropertyMap(JS::Realm& realm, GC::Ref<CSSStyleDeclaration> declaration)
-    : StylePropertyMapReadOnly(realm, declaration)
+StylePropertyMap::StylePropertyMap(GC::Ref<CSSStyleDeclaration> declaration)
+    : StylePropertyMapReadOnly(declaration)
 {
 }
 
@@ -39,12 +38,6 @@ CSSStyleDeclaration& StylePropertyMap::declarations()
 {
     // Writable StylePropertyMaps must be backed by a CSSStyleDeclaration, not an AbstractElement.
     return m_declarations.get<GC::Ref<CSSStyleDeclaration>>();
-}
-
-void StylePropertyMap::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(StylePropertyMap);
-    Base::initialize(realm);
 }
 
 static bool any_have_non_matching_associated_property(Utf16FlyString const& property, ReadonlySpan<Variant<GC::Ref<CSSStyleValue>, Utf16String>> values)
@@ -140,6 +133,11 @@ WebIDL::ExceptionOr<void> StylePropertyMap::set(Utf16FlyString property_name, Re
     // NB: Custom properties should all be single-valued.
     if ((property->is_custom_property() || property_is_single_valued(property->id())) && values.size() > 1)
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::formatted("Property '{}' only accepts a single value", property_name) };
+
+    // FIXME: The spec doesn't say how to handle empty `values`, but other browsers throw a TypeError so let's do that
+    //        too - see https://github.com/w3c/css-houdini-drafts/issues/1176
+    if (values.is_empty())
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::formatted("Property '{}' requires at least one value", property_name) };
 
     // FIXME: The spec doesn't say how to handle empty `values`, but other browsers throw a TypeError so let's do that
     //        too - see https://github.com/w3c/css-houdini-drafts/issues/1176

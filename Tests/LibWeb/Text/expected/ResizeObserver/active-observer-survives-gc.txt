@@ -1,0 +1,1 @@
+callbacks from resize after dropping observer: 1

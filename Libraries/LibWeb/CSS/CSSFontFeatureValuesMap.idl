@@ -1,5 +1,5 @@
 [Exposed=Window]
 interface CSSFontFeatureValuesMap {
     maplike<Utf16CSSOMString, sequence<unsigned long>>;
-    undefined set(Utf16CSSOMString featureValueName, (unsigned long or sequence<unsigned long>) values);
+    [ImplementedInBindings] undefined set(Utf16CSSOMString featureValueName, (unsigned long or sequence<unsigned long>) values);
 };

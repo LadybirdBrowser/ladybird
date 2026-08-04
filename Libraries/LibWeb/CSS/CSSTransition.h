@@ -13,7 +13,7 @@
 namespace Web::CSS {
 
 class CSSTransition : public Animations::Animation {
-    WEB_PLATFORM_OBJECT(CSSTransition, Animations::Animation);
+    WEB_WRAPPABLE(CSSTransition, Animations::Animation);
     GC_DECLARE_ALLOCATOR(CSSTransition);
 
 public:
@@ -55,7 +55,7 @@ public:
 
 private:
     CSSTransition(
-        JS::Realm&,
+        HTML::EnvironmentSettingsObject&,
         DOM::AbstractElement,
         PropertyID,
         size_t transition_generation,
@@ -65,9 +65,8 @@ private:
         NonnullRefPtr<StyleValue const> start_value,
         NonnullRefPtr<StyleValue const> end_value,
         NonnullRefPtr<StyleValue const> reversing_adjusted_start_value,
-        double reversing_shortening_factor);
-
-    virtual void initialize(JS::Realm&) override;
+        double reversing_shortening_factor,
+        GC::Ref<Animations::KeyframeEffect>);
     virtual void visit_edges(Cell::Visitor&) override;
 
     virtual bool is_css_transition() const override { return true; }

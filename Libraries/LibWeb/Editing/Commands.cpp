@@ -27,6 +27,7 @@
 #include <LibWeb/HTML/HTMLLIElement.h>
 #include <LibWeb/HTML/HTMLTableElement.h>
 #include <LibWeb/HTML/Numbers.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Selection/SelectionModifier.h>
@@ -1286,14 +1287,13 @@ bool command_insert_html_action(DOM::Document& document, Utf16View value)
     if (!range->start_container()->is_editable_or_editing_host())
         return true;
 
+    // INTEROP: Blink and WebKit route both inline and block rich paste through their selection-replacement command.
+    //          Keeping fragment parsing, inserted-range tracking, and completion in that command prevents the two
+    //          structural cases from acquiring different whitespace and caret behavior.
     // INTEROP: Chromium preserves a collapsible space immediately before pasted inline content by converting it to a
     //          non-breaking space, just as it does when inserting text at the same boundary.
     canonicalize_whitespace(range->start());
     range = active_range(document);
-
-    // INTEROP: Blink and WebKit route both inline and block rich paste through their selection-replacement command.
-    //          Keeping fragment parsing, inserted-range tracking, and completion in that command prevents the two
-    //          structural cases from acquiring different whitespace and caret behavior.
     replace_selection_with_fragment(document, resulting_value);
     return true;
 }

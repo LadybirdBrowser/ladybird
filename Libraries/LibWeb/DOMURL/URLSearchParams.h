@@ -6,10 +6,10 @@
 
 #pragma once
 
-#include <AK/Utf16String.h>
-#include <AK/Utf16View.h>
+#include <AK/IterationDecision.h>
 #include <AK/Vector.h>
 #include <LibURL/URL.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::DOMURL {
@@ -22,14 +22,15 @@ String url_encode(Vector<QueryParam> const&, StringView encoding = "UTF-8"sv);
 Vector<QueryParam> url_decode(StringView);
 Vector<QueryParam> url_decode(Utf16View);
 
-class URLSearchParams : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(URLSearchParams, Bindings::PlatformObject);
+class URLSearchParams : public Bindings::GCAllocatedWrappable {
+    WEB_WRAPPABLE(URLSearchParams, Bindings::GCAllocatedWrappable);
     GC_DECLARE_ALLOCATOR(URLSearchParams);
 
 public:
-    static GC::Ref<URLSearchParams> create(JS::Realm&, Utf16View);
-    static GC::Ref<URLSearchParams> create(JS::Realm&, Vector<QueryParam> list);
-    static WebIDL::ExceptionOr<GC::Ref<URLSearchParams>> construct_impl(JS::Realm&, Variant<Vector<Vector<Utf16String>>, OrderedHashMap<Utf16String, Utf16String>, Utf16String> const& init);
+    static GC::Ref<URLSearchParams> create(StringView);
+    static GC::Ref<URLSearchParams> create(Utf16View);
+    static GC::Ref<URLSearchParams> create(Vector<QueryParam> list);
+    static WebIDL::ExceptionOr<GC::Ref<URLSearchParams>> create_from_init(Variant<Vector<Vector<Utf16String>>, OrderedHashMap<Utf16String, Utf16String>, Utf16String> const& init);
 
     virtual ~URLSearchParams() override;
 
@@ -46,19 +47,16 @@ public:
     String serialize_to_byte_string() const;
     Utf16String to_string() const;
 
-    using ForEachCallback = Function<JS::ThrowCompletionOr<void>(Utf16String const&, Utf16String const&)>;
-    JS::ThrowCompletionOr<void> for_each(ForEachCallback);
+    using ForEachCallback = Function<IterationDecision(Utf16String const&, Utf16String const&)>;
+    void for_each(ForEachCallback);
 
 private:
     friend class DOMURL;
     friend class URLSearchParamsIterator;
 
-    static GC::Ref<URLSearchParams> create_from_byte_string(JS::Realm&, StringView);
+    explicit URLSearchParams(Vector<QueryParam> list);
 
-    URLSearchParams(JS::Realm&, Vector<QueryParam> list);
-
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     void update();
 

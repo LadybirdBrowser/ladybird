@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        function NewTarget() {}
+
+        let objectPrototypeGetCount = 0;
+        const objectPrototypeNewTarget = new Proxy(NewTarget, {
+            get(target, propertyKey, receiver) {
+                if (propertyKey === "prototype") {
+                    ++objectPrototypeGetCount;
+                    return XMLHttpRequest.prototype;
+                }
+                return Reflect.get(target, propertyKey, receiver);
+            },
+        });
+        Reflect.construct(XMLHttpRequest, [], objectPrototypeNewTarget);
+        println(`object prototype Get count: ${objectPrototypeGetCount}`);
+
+        let fallbackPrototypeGetCount = 0;
+        const fallbackPrototypeNewTarget = new Proxy(NewTarget, {
+            get(target, propertyKey, receiver) {
+                if (propertyKey === "prototype") {
+                    ++fallbackPrototypeGetCount;
+                    return undefined;
+                }
+                return Reflect.get(target, propertyKey, receiver);
+            },
+        });
+        Reflect.construct(XMLHttpRequest, [], fallbackPrototypeNewTarget);
+        println(`fallback prototype Get count: ${fallbackPrototypeGetCount}`);
+    });
+</script>

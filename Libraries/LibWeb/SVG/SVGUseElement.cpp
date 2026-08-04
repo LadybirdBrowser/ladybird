@@ -5,15 +5,15 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibGC/HeapHashTable.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SVGUseElement.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/HTML/PotentialCORSRequest.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/SharedResourceRequest.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/SVGGraphicsBox.h>
@@ -34,21 +34,18 @@ SVGUseElement::SVGUseElement(DOM::Document& document, DOM::QualifiedName qualifi
 {
 }
 
-void SVGUseElement::initialize(JS::Realm& realm)
+void SVGUseElement::initialize_element()
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGUseElement);
-    Base::initialize(realm);
-
     // NOTE: The spec says "The shadow tree is open (inspectable by script), but read-only."
     //       This doesn't actually match other browsers, and there's a spec issue to change it.
     //       Spec bug: https://github.com/w3c/svgwg/issues/875
-    auto shadow_root = realm.create<DOM::ShadowRoot>(document(), *this, Bindings::ShadowRootMode::Closed);
+    auto shadow_root = DOM::ShadowRoot::create(document(), *this, Web::DOM::ShadowRootMode::Closed);
     shadow_root->set_user_agent_internal(true);
 
     // The user agent must create a use-element shadow tree whose host is the ‘use’ element itself
     set_shadow_root(shadow_root);
 
-    m_document_observer = realm.create<DOM::DocumentObserver>(realm, document());
+    m_document_observer = DOM::DocumentObserver::create(document());
     m_document_observer->set_document_completely_loaded([this]() {
         // The href processing path already populated the shadow tree for resolved references,
         // unless the referenced subtree changed while the document was still loading.
@@ -297,7 +294,7 @@ GC::Ptr<DOM::Element> SVGUseElement::referenced_element() const
 void SVGUseElement::fetch_the_document(URL::URL const& url)
 {
     m_load_event_delayer.emplace(document());
-    m_resource_request = HTML::SharedResourceRequest::get_or_create(realm(), document().page(), url);
+    m_resource_request = HTML::SharedResourceRequest::get_or_create(document(), url);
     m_resource_request->add_callbacks(
         [this] {
             clone_element_tree_as_our_shadow_tree(referenced_element());
@@ -308,9 +305,9 @@ void SVGUseElement::fetch_the_document(URL::URL const& url)
         });
 
     if (m_resource_request->needs_fetching()) {
-        auto request = HTML::create_potential_CORS_request(vm(), url, Fetch::Infrastructure::Request::Destination::Image, HTML::CORSSettingAttribute::NoCORS);
+        auto request = HTML::create_potential_CORS_request(url, Fetch::Infrastructure::Request::Destination::Image, HTML::CORSSettingAttribute::NoCORS);
         request->set_client(&document().relevant_settings_object());
-        m_resource_request->fetch_resource(realm(), request);
+        m_resource_request->fetch_resource(request);
     }
 }
 
@@ -362,7 +359,7 @@ bool SVGUseElement::is_valid_reference_element(Element const& reference_element)
 
 bool SVGUseElement::would_create_circular_reference(Element const& target) const
 {
-    auto visited = heap().allocate<GC::HeapHashTable<GC::Ref<Element const>>>();
+    auto visited = GC::Heap::the().allocate<GC::HeapHashTable<GC::Ref<Element const>>>();
     return would_create_circular_reference_impl(target, visited);
 }
 

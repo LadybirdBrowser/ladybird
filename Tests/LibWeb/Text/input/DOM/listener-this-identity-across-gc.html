@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const expected = document.body;
+        document.body.addEventListener("identity", function() {
+            println(this === expected);
+        });
+        internals.gc();
+        document.body.dispatchEvent(new Event("identity"));
+    });
+</script>

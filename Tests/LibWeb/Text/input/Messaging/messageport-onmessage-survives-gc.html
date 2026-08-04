@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const workerSource = new Blob([`
+            let remotePort;
+            onmessage = event => {
+                if (event.ports.length) {
+                    remotePort = event.ports[0];
+                    postMessage("ready");
+                } else {
+                    remotePort.postMessage("delivered");
+                }
+            };
+        `], { type: "text/javascript" });
+        const worker = new Worker(URL.createObjectURL(workerSource));
+        const ready = new Promise(resolve => {
+            worker.onmessage = resolve;
+        });
+
+        (() => {
+            const channel = new MessageChannel();
+            channel.port1.onmessage = event => {
+                println(event.data);
+                worker.terminate();
+                done();
+            };
+            worker.postMessage("transfer", [channel.port2]);
+        })();
+
+        await ready;
+        await internals.gcAsync();
+        worker.postMessage("send");
+    });
+</script>

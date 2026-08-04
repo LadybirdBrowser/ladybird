@@ -5,7 +5,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/StorageAPI/NavigatorStorage.h>
 #include <LibWeb/StorageAPI/StorageManager.h>
@@ -16,7 +15,7 @@ namespace Web::StorageAPI {
 GC::Ref<StorageManager> NavigatorStorage::storage()
 {
     // The storage getter steps are to return this’s relevant settings object’s StorageManager object.
-    return HTML::relevant_settings_object(this_navigator_storage_object()).storage_manager();
+    return navigator_storage_settings_object().storage_manager();
 }
 
 }

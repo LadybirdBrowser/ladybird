@@ -13,6 +13,7 @@
 #include <AK/HashTable.h>
 #include <AK/Utf16String.h>
 #include <LibGfx/Rect.h>
+#include <LibJS/Forward.h>
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
 #include <LibWeb/HTML/AudioPlayState.h>
 #include <LibWeb/HTML/CrossProcessId.h>
@@ -38,7 +39,7 @@ class PageClient final : public Web::PageClient {
     GC_DECLARE_ALLOCATOR(PageClient);
 
 public:
-    static GC::Ref<PageClient> create(JS::VM& vm, PageHost& page_host, u64 id, Optional<Web::HTML::CrossProcessId> pending_root_navigable_id = {});
+    static GC::Ref<PageClient> create(PageHost& page_host, u64 id, Optional<Web::HTML::CrossProcessId> pending_root_navigable_id = {});
 
     virtual ~PageClient() override;
 

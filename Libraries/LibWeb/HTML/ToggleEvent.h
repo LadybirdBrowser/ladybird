@@ -6,21 +6,25 @@
 
 #pragma once
 
+#include <AK/FlyString.h>
 #include <AK/Utf16FlyString.h>
+#include <LibJS/Forward.h>
 #include <LibWeb/Bindings/ToggleEvent.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/Utils.h>
+#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::HTML {
 
+using ToggleEventInit = Bindings::ToggleEventInit;
+
 class ToggleEvent : public DOM::Event {
-    WEB_PLATFORM_OBJECT(ToggleEvent, DOM::Event);
+    WEB_WRAPPABLE(ToggleEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(ToggleEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<ToggleEvent> create(JS::Realm&, Utf16FlyString const& event_name, Bindings::ToggleEventInit const& = {});
-    static WebIDL::ExceptionOr<GC::Ref<ToggleEvent>> construct_impl(JS::Realm&, Utf16FlyString const& event_name, Bindings::ToggleEventInit const&);
+    [[nodiscard]] static GC::Ref<ToggleEvent> create(Utf16FlyString const& event_name, ToggleEventInit const& = {}, HighResolutionTime::DOMHighResTimeStamp = 0);
 
     // https://html.spec.whatwg.org/multipage/interaction.html#dom-toggleevent-oldstate
     Utf16FlyString const& old_state() const { return m_old_state; }
@@ -35,12 +39,10 @@ public:
         return as<DOM::Element>(retarget(m_source, current_target()));
     }
 
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
 private:
-    ToggleEvent(JS::Realm&, Utf16FlyString const& event_name, Bindings::ToggleEventInit const&);
-
-    virtual void initialize(JS::Realm&) override;
+    ToggleEvent(Utf16FlyString const& event_name, ToggleEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 
     Utf16FlyString m_old_state;
     Utf16FlyString m_new_state;

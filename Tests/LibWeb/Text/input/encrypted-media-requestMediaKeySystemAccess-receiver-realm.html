@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    asyncTest(async (done) => {
+        const iframe = document.createElement("iframe");
+        document.body.append(iframe);
+        const other = iframe.contentWindow;
+
+        const requestMediaKeySystemAccess = other.Navigator.prototype.requestMediaKeySystemAccess;
+        println(`requestMediaKeySystemAccess exists: ${typeof requestMediaKeySystemAccess}`);
+
+        const promise = requestMediaKeySystemAccess.call(navigator, "", []);
+        println(`requestMediaKeySystemAccess promise is iframe realm: ${promise instanceof other.Promise}`);
+        println(`requestMediaKeySystemAccess promise is parent realm: ${promise instanceof Promise}`);
+
+        try {
+            await promise;
+            println("FAIL: invalid requestMediaKeySystemAccess resolved");
+        } catch (error) {
+            println(`requestMediaKeySystemAccess rejection is iframe realm: ${error instanceof other.TypeError}`);
+            println(`requestMediaKeySystemAccess rejection is parent realm: ${error instanceof TypeError}`);
+            println(`requestMediaKeySystemAccess rejection message: ${error.message}`);
+        }
+
+        done();
+    });
+</script>

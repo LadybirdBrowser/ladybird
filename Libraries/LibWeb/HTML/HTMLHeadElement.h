@@ -11,7 +11,7 @@
 namespace Web::HTML {
 
 class HTMLHeadElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLHeadElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLHeadElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLHeadElement);
 
 public:
@@ -21,7 +21,6 @@ private:
     HTMLHeadElement(DOM::Document&, DOM::QualifiedName);
 
     virtual bool is_html_head_element() const final { return true; }
-    virtual void initialize(JS::Realm&) override;
 };
 
 }

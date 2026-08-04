@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="host"></div>
+<script>
+    test(() => {
+        withCollectedWrapper(
+            () => {
+                const element = host.appendChild(document.createElement("span"));
+                element.id = "deleted-expando-probe";
+                element.value = 42;
+                delete element.value;
+                // Preservation is append-only by design, so this wrapper may remain
+                // alive even though its expando was deleted. The required behavior is
+                // no crash and no observable stale property value after GC.
+                return element;
+            },
+            () => document.getElementById("deleted-expando-probe"),
+            element => println(`value=${element.value}`)
+        );
+    });
+</script>

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<iframe></iframe>
+<script>
+    asyncTest((done) => {
+        const frame = document.querySelector("iframe").contentWindow;
+        const xhr = new frame.XMLHttpRequest();
+
+        try {
+            XMLHttpRequest.prototype.open.call(xhr, "{", "data:text/plain,Hello");
+            println("invalid open did not throw");
+        } catch (e) {
+            println(`invalid open error is iframe DOMException: ${e instanceof frame.DOMException}`);
+            println(`invalid open error is top DOMException: ${e instanceof DOMException}`);
+        }
+
+        Object.getOwnPropertyDescriptor(XMLHttpRequest.prototype, "responseType").set.call(xhr, "arraybuffer");
+
+        xhr.onload = () => {
+            const responseGetter = Object.getOwnPropertyDescriptor(XMLHttpRequest.prototype, "response").get;
+            const frameResponseGetter = Object.getOwnPropertyDescriptor(frame.XMLHttpRequest.prototype, "response").get;
+            const response = responseGetter.call(xhr);
+
+            println(`response is iframe ArrayBuffer: ${response instanceof frame.ArrayBuffer}`);
+            println(`response is top ArrayBuffer: ${response instanceof ArrayBuffer}`);
+            println(`response getter cache is stable: ${response === frameResponseGetter.call(xhr)}`);
+            done();
+        };
+
+        XMLHttpRequest.prototype.open.call(xhr, "GET", "data:text/plain,Hello", true);
+        XMLHttpRequest.prototype.send.call(xhr);
+    });
+</script>

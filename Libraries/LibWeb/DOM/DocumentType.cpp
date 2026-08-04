@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/DocumentType.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentType.h>
 
@@ -14,18 +14,12 @@ GC_DEFINE_ALLOCATOR(DocumentType);
 
 GC::Ref<DocumentType> DocumentType::create(Document& document)
 {
-    return document.realm().create<DocumentType>(document);
+    return GC::Heap::the().allocate<DocumentType>(document);
 }
 
 DocumentType::DocumentType(Document& document)
     : Node(document, NodeType::DOCUMENT_TYPE_NODE)
 {
-}
-
-void DocumentType::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(DocumentType);
-    Base::initialize(realm);
 }
 
 // https://dom.spec.whatwg.org/#valid-doctype-name

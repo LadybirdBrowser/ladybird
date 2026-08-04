@@ -17,8 +17,9 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(WebGLBuffer);
 
-GC::Ref<WebGLBuffer> WebGLBuffer::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context, GLuint handle)
+GC::Ref<WebGLBuffer> WebGLBuffer::create(GC::Ref<WebGLRenderingContextBase> context, GLuint handle)
 {
+    auto& realm = context->realm();
     return realm.create<WebGLBuffer>(realm, context, handle);
 }
 
@@ -28,12 +29,6 @@ WebGLBuffer::WebGLBuffer(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> co
 }
 
 WebGLBuffer::~WebGLBuffer() = default;
-
-void WebGLBuffer::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGLBuffer);
-    Base::initialize(realm);
-}
 
 bool WebGLBuffer::is_compatible_with(GLenum target)
 {

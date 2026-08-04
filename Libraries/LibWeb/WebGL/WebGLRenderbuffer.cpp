@@ -14,8 +14,9 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(WebGLRenderbuffer);
 
-GC::Ref<WebGLRenderbuffer> WebGLRenderbuffer::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context, GLuint handle)
+GC::Ref<WebGLRenderbuffer> WebGLRenderbuffer::create(GC::Ref<WebGLRenderingContextBase> context, GLuint handle)
 {
+    auto& realm = context->realm();
     return realm.create<WebGLRenderbuffer>(realm, context, handle);
 }
 
@@ -25,11 +26,5 @@ WebGLRenderbuffer::WebGLRenderbuffer(JS::Realm& realm, GC::Ref<WebGLRenderingCon
 }
 
 WebGLRenderbuffer::~WebGLRenderbuffer() = default;
-
-void WebGLRenderbuffer::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGLRenderbuffer);
-    Base::initialize(realm);
-}
 
 }

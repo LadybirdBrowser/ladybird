@@ -1214,7 +1214,7 @@ ThrowCompletionOr<bool> Object::ordinary_set_with_own_descriptor(PropertyKey con
             Optional<u32> new_property_offset;
             auto result = TRY(receiver_object.create_data_property(property_key, value, &new_property_offset));
             auto& receiver_shape = receiver_object.shape();
-            if (cacheable_metadata && new_property_offset.has_value() && !receiver_shape.is_dictionary()) {
+            if (cacheable_metadata && new_property_offset.has_value() && !receiver_shape.is_dictionary() && !receiver_object.requires_slow_add_own_property()) {
                 VERIFY(!property_key.is_number());
                 *cacheable_metadata = CacheableSetPropertyMetadata {
                     .type = CacheableSetPropertyMetadata::Type::AddOwnProperty,

@@ -15,6 +15,10 @@
 #include <LibGfx/Size.h>
 #include <LibWeb/WebGL/GLFunctions.h>
 
+#ifdef AK_OS_MACOS
+#    include <LibGfx/SharedImageBuffer.h>
+#endif
+
 namespace Compositor {
 
 class OpenGLContext : public Web::WebGL::GLFunctions {

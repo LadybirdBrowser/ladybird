@@ -1,0 +1,4 @@
+navigator.xr is iframe realm: false
+navigator.xr is parent realm: true
+navigator.xr same object: true
+navigator.xr has test helper: object

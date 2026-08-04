@@ -8,37 +8,34 @@
 
 #include <AK/Types.h>
 #include <AK/Utf16String.h>
-#include <LibWeb/Bindings/PlatformObject.h>
-
-namespace Web::Bindings {
-
-enum class MediaDeviceKind : u8;
-
-}
+#include <LibJS/Forward.h>
+#include <LibWeb/Bindings/MediaDeviceInfo.h>
+#include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::MediaCapture {
 
+using MediaDeviceKind = Bindings::MediaDeviceKind;
+
 // https://w3c.github.io/mediacapture-main/#device-info
-class MediaDeviceInfo final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(MediaDeviceInfo, Bindings::PlatformObject);
+class MediaDeviceInfo final : public Bindings::GCAllocatedWrappable {
+    WEB_WRAPPABLE(MediaDeviceInfo, Bindings::GCAllocatedWrappable);
     GC_DECLARE_ALLOCATOR(MediaDeviceInfo);
 
 public:
-    [[nodiscard]] static GC::Ref<MediaDeviceInfo> create(JS::Realm&, Utf16String device_id, Bindings::MediaDeviceKind kind, Utf16String label, Utf16String group_id);
+    [[nodiscard]] static GC::Ref<MediaDeviceInfo> create(Utf16String device_id, MediaDeviceKind kind, Utf16String label, Utf16String group_id);
     virtual ~MediaDeviceInfo() override;
 
     Utf16String const& device_id() const { return m_device_id; }
-    Bindings::MediaDeviceKind kind() const { return m_kind; }
+    MediaDeviceKind kind() const { return m_kind; }
     Utf16String const& label() const { return m_label; }
     Utf16String const& group_id() const { return m_group_id; }
+    JS::Object* to_json(JS::VM&) const;
 
 private:
-    MediaDeviceInfo(JS::Realm&, Utf16String device_id, Bindings::MediaDeviceKind kind, Utf16String label, Utf16String group_id);
-
-    virtual void initialize(JS::Realm&) override;
+    MediaDeviceInfo(Utf16String device_id, MediaDeviceKind kind, Utf16String label, Utf16String group_id);
 
     Utf16String m_device_id;
-    Bindings::MediaDeviceKind m_kind;
+    MediaDeviceKind m_kind;
     Utf16String m_label;
     Utf16String m_group_id;
 };

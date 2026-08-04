@@ -13,11 +13,11 @@
 namespace Web::CSS {
 
 class CSSCounterStyleRule : public CSSRule {
-    WEB_PLATFORM_OBJECT(CSSCounterStyleRule, CSSRule);
+    WEB_WRAPPABLE(CSSCounterStyleRule, CSSRule);
     GC_DECLARE_ALLOCATOR(CSSCounterStyleRule);
 
 public:
-    static GC::Ref<CSSCounterStyleRule> create(JS::Realm&, Utf16FlyString name, RefPtr<StyleValue const> system, RefPtr<StyleValue const> negative, RefPtr<StyleValue const> prefix, RefPtr<StyleValue const> suffix, RefPtr<StyleValue const> range, RefPtr<StyleValue const> pad, RefPtr<StyleValue const> fallback, RefPtr<StyleValue const> symbols, RefPtr<StyleValue const> additive_symbols, RefPtr<StyleValue const> speak_as);
+    static GC::Ref<CSSCounterStyleRule> create(Utf16FlyString name, RefPtr<StyleValue const> system, RefPtr<StyleValue const> negative, RefPtr<StyleValue const> prefix, RefPtr<StyleValue const> suffix, RefPtr<StyleValue const> range, RefPtr<StyleValue const> pad, RefPtr<StyleValue const> fallback, RefPtr<StyleValue const> symbols, RefPtr<StyleValue const> additive_symbols, RefPtr<StyleValue const> speak_as);
     virtual ~CSSCounterStyleRule() = default;
 
     virtual Utf16String serialized() const override;
@@ -79,7 +79,7 @@ public:
     virtual void clear_caches() override;
 
 protected:
-    CSSCounterStyleRule(JS::Realm&, Utf16FlyString name, RefPtr<StyleValue const> system, RefPtr<StyleValue const> negative, RefPtr<StyleValue const> prefix, RefPtr<StyleValue const> suffix, RefPtr<StyleValue const> range, RefPtr<StyleValue const> pad, RefPtr<StyleValue const> fallback, RefPtr<StyleValue const> symbols, RefPtr<StyleValue const> additive_symbols, RefPtr<StyleValue const> speak_as);
+    CSSCounterStyleRule(Utf16FlyString name, RefPtr<StyleValue const> system, RefPtr<StyleValue const> negative, RefPtr<StyleValue const> prefix, RefPtr<StyleValue const> suffix, RefPtr<StyleValue const> range, RefPtr<StyleValue const> pad, RefPtr<StyleValue const> fallback, RefPtr<StyleValue const> symbols, RefPtr<StyleValue const> additive_symbols, RefPtr<StyleValue const> speak_as);
 
     Utf16FlyString m_name;
     RefPtr<StyleValue const> m_system;
@@ -92,8 +92,6 @@ protected:
     RefPtr<StyleValue const> m_symbols;
     RefPtr<StyleValue const> m_additive_symbols;
     RefPtr<StyleValue const> m_speak_as;
-
-    virtual void initialize(JS::Realm&) override;
 };
 
 }

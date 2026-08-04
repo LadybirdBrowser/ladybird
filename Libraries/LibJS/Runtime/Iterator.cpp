@@ -379,10 +379,8 @@ Completion iterator_close_all(VM& vm, ReadonlySpan<GC::Ref<IteratorRecord>> iter
 }
 
 // 7.4.15 CreateIteratorResultObject ( value, done ), https://tc39.es/ecma262/#sec-createiterresultobject
-GC::Ref<Object> create_iterator_result_object(VM& vm, Value value, bool done)
+GC::Ref<Object> create_iterator_result_object(Realm& realm, Value value, bool done)
 {
-    auto& realm = *vm.current_realm();
-
     // 1. Let obj be OrdinaryObjectCreate(%Object.prototype%).
     auto object = Object::create_with_premade_shape(realm.intrinsics().iterator_result_object_shape());
 
@@ -394,6 +392,11 @@ GC::Ref<Object> create_iterator_result_object(VM& vm, Value value, bool done)
 
     // 4. Return obj.
     return object;
+}
+
+GC::Ref<Object> create_iterator_result_object(VM& vm, Value value, bool done)
+{
+    return create_iterator_result_object(*vm.current_realm(), value, done);
 }
 
 // 7.4.17 IteratorToList ( iteratorRecord ), https://tc39.es/ecma262/#sec-iteratortolist

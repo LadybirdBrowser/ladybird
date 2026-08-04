@@ -6,8 +6,6 @@
 
 #include <AK/Assertions.h>
 #include <LibWeb/ARIA/Roles.h>
-#include <LibWeb/Bindings/HTMLQuoteElement.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/HTMLQuoteElement.h>
 
 namespace Web::HTML {
@@ -20,12 +18,6 @@ HTMLQuoteElement::HTMLQuoteElement(DOM::Document& document, DOM::QualifiedName q
 }
 
 HTMLQuoteElement::~HTMLQuoteElement() = default;
-
-void HTMLQuoteElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLQuoteElement);
-    Base::initialize(realm);
-}
 
 Optional<ARIA::Role> HTMLQuoteElement::default_role() const
 {

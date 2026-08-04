@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest((done) => {
+        const iframe = document.createElement("iframe");
+        iframe.onload = () => {
+            const xhr = internals.createXMLHttpRequestForDocument(iframe.contentDocument);
+            println(`wrapper uses iframe prototype: ${Object.getPrototypeOf(xhr) === iframe.contentWindow.XMLHttpRequest.prototype}`);
+            done();
+        };
+        document.body.appendChild(iframe);
+    });
+</script>

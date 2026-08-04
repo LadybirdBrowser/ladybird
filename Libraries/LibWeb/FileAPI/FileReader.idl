@@ -18,7 +18,7 @@ interface FileReader : EventTarget {
     readonly attribute unsigned short readyState;
 
     // File or Blob data
-    readonly attribute (Utf16DOMString or ArrayBuffer)? result;
+    [ReturnsJSValue] readonly attribute (DOMString or ArrayBuffer)? result;
 
     readonly attribute DOMException? error;
 

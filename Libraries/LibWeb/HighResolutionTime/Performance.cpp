@@ -5,11 +5,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Performance.h>
+#include <LibJS/Runtime/VM.h>
+#include <LibWeb/Bindings/PerformanceMeasure.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/EventDispatcher.h>
-#include <LibWeb/HTML/StructuredSerialize.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/Performance.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
@@ -23,43 +24,40 @@ namespace Web::HighResolutionTime {
 
 GC_DEFINE_ALLOCATOR(Performance);
 
-Performance::Performance(JS::Realm& realm)
-    : DOM::EventTarget(realm)
+Performance::Performance(GC::Ref<DOM::EventTarget> relevant_global_object)
+    : DOM::EventTarget()
+    , m_global_object(relevant_global_object)
 {
 }
 
 Performance::~Performance() = default;
-
-void Performance::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(Performance);
-    Base::initialize(realm);
-}
 
 void Performance::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_navigation);
     visitor.visit(m_timing);
+    visitor.visit(m_global_object);
 }
 
 GC::Ptr<NavigationTiming::PerformanceTiming> Performance::timing()
 {
-    auto& realm = this->realm();
-    if (!m_timing)
-        m_timing = realm.create<NavigationTiming::PerformanceTiming>(realm);
+    if (!m_timing) {
+        auto* window = HTML::window_from_global_object(relevant_global_object());
+        VERIFY(window);
+        m_timing = NavigationTiming::PerformanceTiming::create(*window);
+    }
     return m_timing;
 }
 
 GC::Ptr<NavigationTiming::PerformanceNavigation> Performance::navigation()
 {
-    auto& realm = this->realm();
     if (!m_navigation) {
         // FIXME: actually determine values for these
         u16 type = 0;
         u16 redirect_count = 0;
 
-        m_navigation = realm.create<NavigationTiming::PerformanceNavigation>(realm, type, redirect_count);
+        m_navigation = NavigationTiming::PerformanceNavigation::create(type, redirect_count);
     }
     return m_navigation;
 }
@@ -68,23 +66,21 @@ GC::Ptr<NavigationTiming::PerformanceNavigation> Performance::navigation()
 double Performance::time_origin() const
 {
     // The timeOrigin attribute MUST return the number of milliseconds in the duration returned by get time origin timestamp for the relevant global object of this.
-    return get_time_origin_timestamp(HTML::relevant_global_object(*this));
+    return get_time_origin_timestamp(relevant_global_object());
 }
 
 // https://w3c.github.io/hr-time/#now-method
 double Performance::now() const
 {
     // The now() method MUST return the number of milliseconds in the current high resolution time given this's relevant global object (a duration).
-    return current_high_resolution_time(HTML::relevant_global_object(*this));
+    return current_high_resolution_time(relevant_global_object());
 }
 
 // https://w3c.github.io/user-timing/#mark-method
 WebIDL::ExceptionOr<GC::Ref<UserTiming::PerformanceMark>> Performance::mark(Utf16String const& mark_name, Bindings::PerformanceMarkOptions const& mark_options)
 {
-    auto& realm = this->realm();
-
     // 1. Run the PerformanceMark constructor and let entry be the newly created object.
-    auto entry = TRY(UserTiming::PerformanceMark::construct_impl(realm, mark_name, mark_options));
+    auto entry = TRY(UserTiming::PerformanceMark::create_for_constructor(relevant_global_object(), mark_name, mark_options));
 
     // 2. Queue entry.
     window_or_worker().queue_performance_entry(entry);
@@ -110,10 +106,10 @@ void Performance::clear_marks(Optional<Utf16String> const& mark_name)
     // 3. Return undefined.
 }
 
-WebIDL::ExceptionOr<HighResolutionTime::DOMHighResTimeStamp> Performance::convert_name_to_timestamp(JS::Realm& realm, Utf16String const& name)
+WebIDL::ExceptionOr<HighResolutionTime::DOMHighResTimeStamp> Performance::convert_name_to_timestamp(Utf16String const& name)
 {
     // 1. If the global object is not a Window object, throw a TypeError.
-    if (!is<HTML::Window>(realm.global_object()))
+    if (!HTML::window_from_global_object(relevant_global_object()))
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::formatted("'{}' is an attribute in the PerformanceTiming interface and thus can only be used in a Window context", name) };
 
     // 2. If name is navigationStart, return 0.
@@ -137,14 +133,14 @@ WebIDL::ExceptionOr<HighResolutionTime::DOMHighResTimeStamp> Performance::conver
 
     // 5. If endTime is 0, throw an InvalidAccessError.
     if (end_time == 0)
-        return WebIDL::InvalidAccessError::create(realm, Utf16String::formatted("The '{}' entry in the PerformanceTiming interface is equal to 0, meaning it hasn't happened yet", name));
+        return WebIDL::InvalidAccessError::create(Utf16String::formatted("The '{}' entry in the PerformanceTiming interface is equal to 0, meaning it hasn't happened yet", name));
 
     // 6. Return result of subtracting startTime from endTime.
     return static_cast<HighResolutionTime::DOMHighResTimeStamp>(end_time - start_time);
 }
 
 // https://w3c.github.io/user-timing/#dfn-convert-a-mark-to-a-timestamp
-WebIDL::ExceptionOr<HighResolutionTime::DOMHighResTimeStamp> Performance::convert_mark_to_timestamp(JS::Realm& realm, Variant<Utf16String, HighResolutionTime::DOMHighResTimeStamp> const& mark)
+WebIDL::ExceptionOr<HighResolutionTime::DOMHighResTimeStamp> Performance::convert_mark_to_timestamp(Variant<Utf16String, HighResolutionTime::DOMHighResTimeStamp> const& mark)
 {
     if (mark.has<Utf16String>()) {
         auto const& mark_string = mark.get<Utf16String>();
@@ -153,7 +149,7 @@ WebIDL::ExceptionOr<HighResolutionTime::DOMHighResTimeStamp> Performance::conver
         //    time be the value returned by running the convert a name to a timestamp algorithm with name set to the value of mark.
 #define __ENUMERATE_NAVIGATION_TIMING_ENTRY_NAME(name, _)                      \
     if (mark_string.utf16_view() == NavigationTiming::EntryNames::name.view()) \
-        return convert_name_to_timestamp(realm, mark_string);
+        return convert_name_to_timestamp(mark_string);
         ENUMERATE_NAVIGATION_TIMING_ENTRY_NAMES
 #undef __ENUMERATE_NAVIGATION_TIMING_ENTRY_NAME
 
@@ -168,7 +164,7 @@ WebIDL::ExceptionOr<HighResolutionTime::DOMHighResTimeStamp> Performance::conver
         });
 
         if (!maybe_entry.has_value())
-            return WebIDL::SyntaxError::create(realm, Utf16String::formatted("No PerformanceMark object with name '{}' found in the performance timeline", mark_string));
+            return WebIDL::SyntaxError::create(Utf16String::formatted("No PerformanceMark object with name '{}' found in the performance timeline", mark_string));
 
         return maybe_entry.value()->start_time();
     }
@@ -187,27 +183,26 @@ WebIDL::ExceptionOr<HighResolutionTime::DOMHighResTimeStamp> Performance::conver
 // https://w3c.github.io/user-timing/#dom-performance-measure
 WebIDL::ExceptionOr<GC::Ref<UserTiming::PerformanceMeasure>> Performance::measure(Utf16String const& measure_name, Variant<Utf16String, Bindings::PerformanceMeasureOptions> const& start_or_measure_options, Optional<Utf16String> end_mark)
 {
-    auto& realm = this->realm();
-    auto& vm = this->vm();
-
+    auto& realm = HTML::relevant_realm(relevant_global_object());
+    auto& vm = realm.vm();
     // 1. If startOrMeasureOptions is a PerformanceMeasureOptions object and at least one of start, end, duration, and detail
     //    are present, run the following checks:
-    auto const* start_or_measure_options_dictionary_object = start_or_measure_options.get_pointer<Bindings::PerformanceMeasureOptions>();
-    if (start_or_measure_options_dictionary_object
-        && (start_or_measure_options_dictionary_object->start.has_value()
-            || start_or_measure_options_dictionary_object->end.has_value()
-            || start_or_measure_options_dictionary_object->duration.has_value()
-            || start_or_measure_options_dictionary_object->detail.has_value())) {
+    auto const* options = start_or_measure_options.get_pointer<Bindings::PerformanceMeasureOptions>();
+    if (options
+        && (options->start.has_value()
+            || options->end.has_value()
+            || options->duration.has_value()
+            || options->detail.has_value())) {
         // 1. If endMark is given, throw a TypeError.
         if (end_mark.has_value())
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot provide PerformanceMeasureOptions and endMark at the same time"_utf16 };
 
         // 2. If startOrMeasureOptions's start and end members are both omitted, throw a TypeError.
-        if (!start_or_measure_options_dictionary_object->start.has_value() && !start_or_measure_options_dictionary_object->end.has_value())
+        if (!options->start.has_value() && !options->end.has_value())
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "PerformanceMeasureOptions must contain one or both of 'start' and 'end'"_utf16 };
 
         // 3. If startOrMeasureOptions's start, duration, and end members are all present, throw a TypeError.
-        if (start_or_measure_options_dictionary_object->start.has_value() && start_or_measure_options_dictionary_object->end.has_value() && start_or_measure_options_dictionary_object->duration.has_value())
+        if (options->start.has_value() && options->end.has_value() && options->duration.has_value())
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "PerformanceMeasureOptions cannot contain 'start', 'duration' and 'end' properties all at once"_utf16 };
     }
 
@@ -217,21 +212,21 @@ WebIDL::ExceptionOr<GC::Ref<UserTiming::PerformanceMeasure>> Performance::measur
     // 1. If endMark is given, let end time be the value returned by running the convert a mark to a timestamp algorithm passing
     //    in endMark.
     if (end_mark.has_value()) {
-        end_time = TRY(convert_mark_to_timestamp(realm, end_mark.value()));
+        end_time = TRY(convert_mark_to_timestamp(end_mark.value()));
     }
     // 2. Otherwise, if startOrMeasureOptions is a PerformanceMeasureOptions object, and if its end member is present, let end
     //    time be the value returned by running the convert a mark to a timestamp algorithm passing in startOrMeasureOptions's end.
-    else if (start_or_measure_options_dictionary_object && start_or_measure_options_dictionary_object->end.has_value()) {
-        end_time = TRY(convert_mark_to_timestamp(realm, start_or_measure_options_dictionary_object->end.value()));
+    else if (options && options->end.has_value()) {
+        end_time = TRY(convert_mark_to_timestamp(options->end.value()));
     }
     // 3. Otherwise, if startOrMeasureOptions is a PerformanceMeasureOptions object, and if its start and duration members are
     //    both present:
-    else if (start_or_measure_options_dictionary_object && start_or_measure_options_dictionary_object->start.has_value() && start_or_measure_options_dictionary_object->duration.has_value()) {
+    else if (options && options->start.has_value() && options->duration.has_value()) {
         // 1. Let start be the value returned by running the convert a mark to a timestamp algorithm passing in start.
-        auto start = TRY(convert_mark_to_timestamp(realm, start_or_measure_options_dictionary_object->start.value()));
+        auto start = TRY(convert_mark_to_timestamp(options->start.value()));
 
         // 2. Let duration be the value returned by running the convert a mark to a timestamp algorithm passing in duration.
-        auto duration = TRY(convert_mark_to_timestamp(realm, start_or_measure_options_dictionary_object->duration.value()));
+        auto duration = TRY(convert_mark_to_timestamp(options->duration.value()));
 
         // 3. Let end time be start plus duration.
         end_time = start + duration;
@@ -246,17 +241,17 @@ WebIDL::ExceptionOr<GC::Ref<UserTiming::PerformanceMeasure>> Performance::measur
 
     // 1. If startOrMeasureOptions is a PerformanceMeasureOptions object, and if its start member is present, let start time be
     //    the value returned by running the convert a mark to a timestamp algorithm passing in startOrMeasureOptions's start.
-    if (start_or_measure_options_dictionary_object && start_or_measure_options_dictionary_object->start.has_value()) {
-        start_time = TRY(convert_mark_to_timestamp(realm, start_or_measure_options_dictionary_object->start.value()));
+    if (options && options->start.has_value()) {
+        start_time = TRY(convert_mark_to_timestamp(options->start.value()));
     }
     // 2. Otherwise, if startOrMeasureOptions is a PerformanceMeasureOptions object, and if its duration and end members are
     //    both present:
-    else if (start_or_measure_options_dictionary_object && start_or_measure_options_dictionary_object->duration.has_value() && start_or_measure_options_dictionary_object->end.has_value()) {
+    else if (options && options->duration.has_value() && options->end.has_value()) {
         // 1. Let duration be the value returned by running the convert a mark to a timestamp algorithm passing in duration.
-        auto duration = TRY(convert_mark_to_timestamp(realm, start_or_measure_options_dictionary_object->duration.value()));
+        auto duration = TRY(convert_mark_to_timestamp(options->duration.value()));
 
         // 2. Let end be the value returned by running the convert a mark to a timestamp algorithm passing in end.
-        auto end = TRY(convert_mark_to_timestamp(realm, start_or_measure_options_dictionary_object->end.value()));
+        auto end = TRY(convert_mark_to_timestamp(options->end.value()));
 
         // 3. Let start time be end minus duration.
         start_time = end - duration;
@@ -264,7 +259,7 @@ WebIDL::ExceptionOr<GC::Ref<UserTiming::PerformanceMeasure>> Performance::measur
     // 3. Otherwise, if startOrMeasureOptions is a DOMString, let start time be the value returned by running the convert a mark
     //    to a timestamp algorithm passing in startOrMeasureOptions.
     else if (start_or_measure_options.has<Utf16String>()) {
-        start_time = TRY(convert_mark_to_timestamp(realm, start_or_measure_options.get<Utf16String>()));
+        start_time = TRY(convert_mark_to_timestamp(start_or_measure_options.get<Utf16String>()));
     }
     // 4. Otherwise, let start time be 0.
     else {
@@ -286,23 +281,13 @@ WebIDL::ExceptionOr<GC::Ref<UserTiming::PerformanceMeasure>> Performance::measur
     // 8. Set entry's duration attribute to the duration from start time to end time. The resulting duration value MAY be negative.
     auto duration = end_time - start_time;
 
-    // 9. Set entry's detail attribute as follows:
-    JS::Value detail { JS::js_null() };
-
-    // 1. If startOrMeasureOptions is a PerformanceMeasureOptions object and startOrMeasureOptions's detail member is present:
-    if (start_or_measure_options_dictionary_object && start_or_measure_options_dictionary_object->detail.has_value()) {
-        // 1. Let record be the result of calling the StructuredSerialize algorithm on startOrMeasureOptions's detail.
-        auto record = TRY(HTML::structured_serialize(vm, *start_or_measure_options_dictionary_object->detail));
-
-        // 2. Set entry's detail to the result of calling the StructuredDeserialize algorithm on record and the current realm.
+    // 4. Create a new PerformanceMeasure object (entry).
+    JS::Value detail = JS::js_null();
+    if (options && options->detail.has_value() && !options->detail->is_null()) {
+        auto record = TRY(HTML::structured_serialize(vm, *options->detail));
         detail = TRY(HTML::structured_deserialize(vm, record, realm));
     }
-
-    // 2. Otherwise, set it to null.
-    // NOTE: Already the default value of `detail`.
-
-    // 4. Create a new PerformanceMeasure object (entry) with this's relevant realm.
-    auto entry = realm.create<UserTiming::PerformanceMeasure>(realm, measure_name, start_time, duration, detail);
+    auto entry = UserTiming::PerformanceMeasure::create(measure_name, start_time, duration, detail);
 
     // 10. Queue entry.
     window_or_worker().queue_performance_entry(entry);
@@ -391,12 +376,19 @@ WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> Per
 
 HTML::WindowOrWorkerGlobalScopeMixin& Performance::window_or_worker()
 {
-    return as<HTML::WindowOrWorkerGlobalScopeMixin>(realm().global_object());
+    auto* global_scope = HTML::window_or_worker_global_scope_from_global_object(relevant_global_object());
+    VERIFY(global_scope);
+    return *global_scope;
 }
 
 HTML::WindowOrWorkerGlobalScopeMixin const& Performance::window_or_worker() const
 {
     return const_cast<Performance*>(this)->window_or_worker();
+}
+
+JS::Object& Performance::relevant_global_object() const
+{
+    return HTML::relevant_global_object(HTML::relevant_window_or_worker_global_scope(*m_global_object));
 }
 
 }

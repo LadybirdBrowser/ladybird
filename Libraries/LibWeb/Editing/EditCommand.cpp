@@ -53,7 +53,7 @@ bool InsertNodeCommand::reapply()
         return false;
     if (m_reference_child && m_reference_child->parent() != m_parent.ptr())
         return false;
-    if (m_parent->ensure_pre_insert_validity(m_parent->realm(), m_node, m_reference_child, DOM::Node::ChildrenToExclude::None).is_error())
+    if (m_parent->ensure_pre_insertion_validity(m_node, m_reference_child).is_error())
         return false;
     m_parent->insert_before(m_node, m_reference_child);
     return true;
@@ -85,7 +85,7 @@ bool RemoveNodeCommand::unapply()
     if (!m_parent || !m_parent->is_editable_or_editing_host())
         return false;
     auto reference_child = m_old_next_sibling && m_old_next_sibling->parent() == m_parent ? m_old_next_sibling : nullptr;
-    if (m_parent->ensure_pre_insert_validity(m_parent->realm(), m_node, reference_child, DOM::Node::ChildrenToExclude::None).is_error())
+    if (m_parent->ensure_pre_insertion_validity(m_node, reference_child).is_error())
         return false;
     m_parent->insert_before(m_node, reference_child);
     return true;
@@ -304,7 +304,7 @@ void insert_node_before(GC::Ref<DOM::Node> node, GC::Ref<DOM::Node> parent, GC::
 
 WebIDL::ExceptionOr<void> append_node(GC::Ref<DOM::Node> node, GC::Ref<DOM::Node> parent)
 {
-    TRY(parent->ensure_pre_insert_validity(parent->realm(), node, nullptr, DOM::Node::ChildrenToExclude::None));
+    TRY(parent->ensure_pre_insertion_validity(node, nullptr));
     insert_node_before(node, parent, nullptr);
     return {};
 }
@@ -408,7 +408,6 @@ WebIDL::ExceptionOr<GC::Ref<DOM::Node>> clone_node_for_editing(GC::Ref<DOM::Node
 //         https://dom.spec.whatwg.org/#concept-range-insert
 WebIDL::ExceptionOr<void> insert_node_into_range(GC::Ref<DOM::Range> range, GC::Ref<DOM::Node> node)
 {
-    auto& realm = node->realm();
     auto start_container = range->start_container();
 
     // 1. If range's start node is a ProcessingInstruction or Comment node, is a Text node whose parent is null, or is
@@ -416,7 +415,7 @@ WebIDL::ExceptionOr<void> insert_node_into_range(GC::Ref<DOM::Range> range, GC::
     if ((is<DOM::ProcessingInstruction>(*start_container) || is<DOM::Comment>(*start_container))
         || (is<DOM::Text>(*start_container) && !start_container->parent_node())
         || start_container.ptr() == node.ptr()) {
-        return WebIDL::HierarchyRequestError::create(realm, "Range has inappropriate start node for insertion"_utf16);
+        return WebIDL::HierarchyRequestError::create("Range has inappropriate start node for insertion"_utf16);
     }
 
     // 2. Let referenceNode be null.
@@ -433,7 +432,7 @@ WebIDL::ExceptionOr<void> insert_node_into_range(GC::Ref<DOM::Range> range, GC::
     GC::Ptr<DOM::Node> parent = !reference_node ? GC::Ptr<DOM::Node> { start_container } : GC::Ptr<DOM::Node> { reference_node->parent() };
 
     // 6. Ensure pre-insert validity given node, parent, referenceNode, and « ».
-    TRY(parent->ensure_pre_insert_validity(realm, node, reference_node, DOM::Node::ChildrenToExclude::None));
+    TRY(parent->ensure_pre_insertion_validity(node, reference_node));
 
     // 7. If range's start node is a Text node, set referenceNode to the result of splitting it with offset range's
     //    start offset.
@@ -455,7 +454,7 @@ WebIDL::ExceptionOr<void> insert_node_into_range(GC::Ref<DOM::Range> range, GC::
     new_offset += is<DOM::DocumentFragment>(*node) ? node->length() : 1;
 
     // 12. Pre-insert node into parent before referenceNode.
-    TRY(parent->ensure_pre_insert_validity(realm, node, reference_node, DOM::Node::ChildrenToExclude::None));
+    TRY(parent->ensure_pre_insertion_validity(node, reference_node));
     Editing::insert_node_before(node, *parent, reference_node);
 
     // 13. If range is collapsed, then set range's end to (parent, newOffset).

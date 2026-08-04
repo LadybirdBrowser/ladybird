@@ -11,8 +11,8 @@ interface Document : Node {
 
     readonly attribute DOMImplementation implementation;
 
-    [ImplementedAs=url_string_for_bindings] readonly attribute Utf16USVString URL;
-    readonly attribute Utf16USVString documentURI;
+    [ImplementedAs=url_string_for_bindings] readonly attribute Utf16DOMString URL;
+    readonly attribute Utf16DOMString documentURI;
 
     readonly attribute Utf16DOMString characterSet;
     readonly attribute Utf16DOMString charset;
@@ -24,10 +24,10 @@ interface Document : Node {
     [CEReactions] Document open(optional Utf16DOMString unused1, optional Utf16DOMString unused2);
     WindowProxy? open(Utf16USVString url, Utf16DOMString name, Utf16DOMString features);
     [CEReactions] undefined close();
-    [CEReactions] undefined write((TrustedHTML or Utf16DOMString)... text);
-    [CEReactions] undefined writeln((TrustedHTML or Utf16DOMString)... text);
+    [CEReactions, ImplementedInBindings] undefined write((TrustedHTML or Utf16DOMString)... text);
+    [CEReactions, ImplementedInBindings] undefined writeln((TrustedHTML or Utf16DOMString)... text);
 
-    static Document parseHTMLUnsafe((TrustedHTML or Utf16DOMString) html);
+    [NeedsCallerRealm, ImplementedInBindings] static Document parseHTMLUnsafe((TrustedHTML or Utf16DOMString) html);
 
     attribute Utf16DOMString cookie;
 
@@ -38,7 +38,7 @@ interface Document : Node {
     [CEReactions, LegacyNullToEmptyString] attribute Utf16DOMString alinkColor;
     [CEReactions, LegacyNullToEmptyString] attribute Utf16DOMString bgColor;
 
-    readonly attribute Utf16USVString referrer;
+    readonly attribute Utf16DOMString referrer;
 
 
     Element? getElementById(Utf16DOMString id);
@@ -58,12 +58,15 @@ interface Document : Node {
 
     readonly attribute HTMLAllCollection all;
 
+    // https://html.spec.whatwg.org/multipage/dom.html#dom-document-nameditem
+    getter object (DOMString name);
+
     undefined clear();
     undefined captureEvents();
     undefined releaseEvents();
 
-    [CEReactions, NewObject] Element createElement([Utf16FlyString] Utf16DOMString tagName, optional ([Utf16FlyString] Utf16DOMString or ElementCreationOptions) options = {});
-    [CEReactions, NewObject] Element createElementNS([Utf16FlyString] Utf16DOMString? namespace, [Utf16FlyString] Utf16DOMString qualifiedName, optional ([Utf16FlyString] Utf16DOMString or ElementCreationOptions) options = {});
+    [CEReactions, NewObject] Element createElement(DOMString tagName, optional (DOMString or ElementCreationOptions) options = {});
+    [CEReactions, NewObject] Element createElementNS([FlyString] DOMString? namespace, DOMString qualifiedName, optional (DOMString or ElementCreationOptions) options = {});
     DocumentFragment createDocumentFragment();
     Text createTextNode(Utf16DOMString data);
     [NewObject] CDATASection createCDATASection(Utf16DOMString data);
@@ -77,7 +80,7 @@ interface Document : Node {
     Event createEvent([Utf16FlyString] Utf16DOMString interface);
 
     [CEReactions, NewObject] Node importNode(Node node, optional (boolean or ImportNodeOptions) options = false);
-    [CEReactions, ImplementedAs=adopt_node_binding] Node adoptNode(Node node);
+    [CEReactions] Node adoptNode(Node node);
 
     readonly attribute [Utf16FlyString] Utf16DOMString compatMode;
     readonly attribute DocumentType? doctype;
@@ -125,8 +128,8 @@ interface Document : Node {
     [LegacyLenientThis] attribute EventHandler onreadystatechange;
     attribute EventHandler onvisibilitychange;
 
-    // https://drafts.csswg.org/css-view-transitions-2/#additions-to-document-api
-    [Experimental] ViewTransition startViewTransition(optional ViewTransitionUpdateCallback updateCallback);
+    // https://drafts.csswg.org/css-view-transitions-1/#additions-to-document-api
+    [Experimental, ImplementedInBindings] ViewTransition startViewTransition(optional ViewTransitionUpdateCallback updateCallback);
     [Experimental] readonly attribute ViewTransition? activeViewTransition;
 
     // https://w3c.github.io/svgwg/svg2-draft/struct.html#InterfaceDocumentExtensions

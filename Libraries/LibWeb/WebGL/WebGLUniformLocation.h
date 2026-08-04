@@ -8,14 +8,14 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/WebGL/Types.h>
 #include <LibWeb/WebGL/WebGLProgram.h>
 
 namespace Web::WebGL {
 
-class WebGLUniformLocation final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(WebGLUniformLocation, Bindings::PlatformObject);
+class WebGLUniformLocation final : public Bindings::GCAllocatedWrappable {
+    WEB_WRAPPABLE(WebGLUniformLocation, Bindings::GCAllocatedWrappable);
     GC_DECLARE_ALLOCATOR(WebGLUniformLocation);
 
 public:
@@ -28,8 +28,8 @@ public:
 protected:
     explicit WebGLUniformLocation(JS::Realm&, GLuint handle, GC::Ptr<WebGLProgram> parent_shader);
 
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(JS::Cell::Visitor&) override;
+    virtual GC::Ptr<Bindings::Wrappable> relevant_global_impl() const override;
 
     GLuint m_handle { 0 };
     GC::Ptr<WebGLProgram> m_parent_shader;

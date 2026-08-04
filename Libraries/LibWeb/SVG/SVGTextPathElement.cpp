@@ -4,7 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/SVGTextPathElement.h>
+#include <LibGC/Heap.h>
+#include <LibURL/URL.h>
 #include <LibWeb/Layout/SVGTextPathBox.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/SVGTextPathElement.h>
@@ -40,12 +41,6 @@ float SVGTextPathElement::start_offset_for_path_length(float path_length) const
     if (!m_start_offset.has_value())
         return 0;
     return m_start_offset->resolve_relative_to(path_length);
-}
-
-void SVGTextPathElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGTextPathElement);
-    Base::initialize(realm);
 }
 
 void SVGTextPathElement::visit_edges(Cell::Visitor& visitor)

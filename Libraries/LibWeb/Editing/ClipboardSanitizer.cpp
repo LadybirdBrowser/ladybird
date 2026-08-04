@@ -60,7 +60,8 @@ WebIDL::ExceptionOr<Utf16String> sanitize_clipboard_html(DOM::Range& range, Utf1
 {
     // INTEROP: Blink and WebKit parse native clipboard markup in a staging document with scripting disabled before
     //          inserting it. Clipboard data is not TrustedHTML, even when it originated in another browser tab.
-    auto fragment = TRY(range.create_contextual_fragment(Utf16String::from_utf16(html), HTML::ParserScriptingMode::Inert));
+    auto markup = Utf16String::from_utf16(html);
+    auto fragment = TRY(range.create_contextual_fragment(markup.to_utf8_but_should_be_ported_to_utf16()));
     GC::RootVector<GC::Ref<DOM::Element>> active_elements;
     fragment->for_each_in_subtree([&](GC::Ref<DOM::Node> node) {
         auto* element = as_if<DOM::Element>(*node);

@@ -11,6 +11,7 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/GlobalEventHandlers.h>
 #include <LibWeb/HTML/HTMLOrSVGOrMathMLElement.h>
+#include <LibWeb/SVG/SVGAnimatedLength.h>
 #include <LibWeb/SVG/SVGAnimatedString.h>
 #include <LibWeb/SVG/SVGLength.h>
 
@@ -26,7 +27,7 @@ class WEB_API SVGElement
     : public DOM::Element
     , public HTML::GlobalEventHandlers
     , public HTML::HTMLOrSVGOrMathMLElement<SVGElement> {
-    WEB_PLATFORM_OBJECT(SVGElement, DOM::Element);
+    WEB_WRAPPABLE(SVGElement, DOM::Element);
     GC_DECLARE_ALLOCATOR(SVGElement);
 
 public:
@@ -50,8 +51,6 @@ public:
 
 protected:
     SVGElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
@@ -72,7 +71,7 @@ private:
     GC::Ptr<SVGAnimatedString> m_class_name_animated_string;
 
     // Many reflecting attributes are marked as SameObject so we cache the objects we create here.
-    HashMap<Utf16FlyString, GC::Ref<JS::Object>> m_reflected_attribute_cache;
+    HashMap<Utf16FlyString, GC::Ref<SVGAnimatedLength>> m_reflected_attribute_cache;
 
     // Elements whose layout subtrees contain a <mask>, <clipPath>, or <pattern> resource box built
     // from this element. Their subtrees must be rebuilt when this element is removed, since resource

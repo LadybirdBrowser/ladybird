@@ -6,8 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/CSSKeyframesRule.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/CSS/CSSKeyframesRule.h>
 #include <LibWeb/CSS/CSSRuleList.h>
 #include <LibWeb/CSS/Parser/Parser.h>
@@ -18,32 +17,24 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSKeyframesRule);
 
-GC::Ref<CSSKeyframesRule> CSSKeyframesRule::create(JS::Realm& realm, Utf16FlyString name, GC::Ref<CSSRuleList> css_rules)
+GC::Ref<CSSKeyframesRule> CSSKeyframesRule::create(Utf16FlyString name, GC::Ref<CSSRuleList> css_rules)
 {
-    return realm.create<CSSKeyframesRule>(realm, move(name), move(css_rules));
+    return GC::Heap::the().allocate<CSSKeyframesRule>(move(name), move(css_rules));
 }
 
-CSSKeyframesRule::CSSKeyframesRule(JS::Realm& realm, Utf16FlyString name, GC::Ref<CSSRuleList> keyframes)
-    : CSSRule(realm, Type::Keyframes)
+CSSKeyframesRule::CSSKeyframesRule(Utf16FlyString name, GC::Ref<CSSRuleList> keyframes)
+    : CSSRule(Type::Keyframes)
     , m_name(move(name))
     , m_rules(move(keyframes))
 {
-    m_legacy_platform_object_flags = LegacyPlatformObjectFlags { .supports_indexed_properties = true };
-
     for (auto& rule : *m_rules)
         rule->set_parent_rule(this);
 }
 
-void CSSKeyframesRule::visit_edges(Visitor& visitor)
+void CSSKeyframesRule::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_rules);
-}
-
-void CSSKeyframesRule::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSKeyframesRule);
-    Base::initialize(realm);
 }
 
 Utf16String CSSKeyframesRule::serialized() const
@@ -74,16 +65,16 @@ WebIDL::UnsignedLong CSSKeyframesRule::length() const
     return m_rules->length();
 }
 
-Optional<JS::Value> CSSKeyframesRule::item_value(size_t index) const
+GC::Ptr<CSSKeyframeRule> CSSKeyframesRule::item(size_t index) const
 {
-    return m_rules->item_value(index);
+    return as_if<CSSKeyframeRule>(m_rules->item(index));
 }
 
 // https://drafts.csswg.org/css-animations/#interface-csskeyframesrule-appendrule
 void CSSKeyframesRule::append_rule(Utf16String const& rule)
 {
     // The appendRule method appends the passed CSSKeyframeRule at the end of the keyframes rule.
-    auto parsed_rule = Parser::parse_keyframe_rule(Parser::ParsingParams { realm() }, rule);
+    auto parsed_rule = Parser::parse_keyframe_rule(Parser::ParsingParams {}, rule);
 
     if (!parsed_rule)
         return;
@@ -104,7 +95,7 @@ void CSSKeyframesRule::delete_rule(Utf16String const& select)
 {
     // The deleteRule method deletes the last declared CSSKeyframeRule matching the specified keyframe selector. If no
     // matching rule exists, the method does nothing.
-    auto selectors = Parser::parse_keyframe_selectors(Parser::ParsingParams { realm() }, select);
+    auto selectors = Parser::parse_keyframe_selectors(Parser::ParsingParams {}, select);
 
     if (selectors.is_empty())
         return;
@@ -128,7 +119,7 @@ GC::Ptr<CSSKeyframeRule> CSSKeyframesRule::find_rule(Utf16String const& select)
 {
     // The findRule returns the last declared CSSKeyframeRule matching the specified keyframe selector. If no matching
     // rule exists, the method does nothing.
-    auto selectors = Parser::parse_keyframe_selectors(Parser::ParsingParams { realm() }, select);
+    auto selectors = Parser::parse_keyframe_selectors(Parser::ParsingParams {}, select);
 
     if (selectors.is_empty())
         return nullptr;

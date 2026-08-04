@@ -15,7 +15,7 @@
 #include <LibWeb/HTML/MessageEvent.h>
 #include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
-#include <LibWeb/HighResolutionTime/TimeOrigin.h>
+#include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/Timer.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
@@ -25,23 +25,12 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(DedicatedWorkerGlobalScope);
 
-DedicatedWorkerGlobalScope::DedicatedWorkerGlobalScope(JS::Realm& realm, GC::Ref<Web::Page> page)
-    : WorkerGlobalScope(realm, page)
+DedicatedWorkerGlobalScope::DedicatedWorkerGlobalScope(GC::Ref<Web::Page> page)
+    : WorkerGlobalScope(page)
 {
-    m_legacy_platform_object_flags = LegacyPlatformObjectFlags { .has_global_interface_extended_attribute = true };
 }
 
 DedicatedWorkerGlobalScope::~DedicatedWorkerGlobalScope() = default;
-
-void DedicatedWorkerGlobalScope::initialize_web_interfaces_impl()
-{
-    auto& realm = this->realm();
-    add_dedicated_worker_exposed_interfaces(*this);
-
-    DedicatedWorkerGlobalScopeGlobalMixin::initialize(realm, *this);
-
-    Base::initialize_web_interfaces_impl();
-}
 
 // https://html.spec.whatwg.org/multipage/workers.html#dom-dedicatedworkerglobalscope-close
 void DedicatedWorkerGlobalScope::close()
@@ -59,8 +48,9 @@ bool DedicatedWorkerGlobalScope::is_supported() const
         // NOTE: provider is this DedicatedWorkerGlobalScope.
 
         // - provider's owner set contains a Document object.
-        if (owner.has<SerializedDocument>())
+        if (owner.has<SerializedDocument>()) {
             return true;
+        }
 
         // - Any of the DedicatedWorkerGlobalScope objects in provider's owner set are supported.
         if (owner.get<SerializedWorkerGlobalScope>().is_supported_animation_frame_provider)
@@ -152,7 +142,7 @@ void DedicatedWorkerGlobalScope::run_rendering_update()
     // its rendering updated at this time:
 
     // 1. Let now be the current high resolution time given the DedicatedWorkerGlobalScope.
-    auto now = HighResolutionTime::current_high_resolution_time(*this);
+    auto now = HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*this));
 
     // 2. Run the animation frame callbacks for that DedicatedWorkerGlobalScope, passing in now
     //    as the timestamp.
@@ -184,21 +174,26 @@ void DedicatedWorkerGlobalScope::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#dom-dedicatedworkerglobalscope-postmessage-options
-WebIDL::ExceptionOr<void> DedicatedWorkerGlobalScope::post_message(JS::Value message, Bindings::StructuredSerializeOptions const& options)
+WebIDL::ExceptionOr<void> DedicatedWorkerGlobalScope::post_message(JS::Realm& realm, JS::Value message, StructuredSerializeOptions const& options)
 {
     // The postMessage(message, transfer) and postMessage(message, options) methods on DedicatedWorkerGlobalScope objects act as if,
     // when invoked, it immediately invoked the respective postMessage(message, transfer) and postMessage(message, options)
     // on the port, with the same arguments, and returned the same return value.
-    return m_internal_port->post_message(message, options);
+    return m_internal_port->post_message(realm, message, options);
+}
+
+WebIDL::ExceptionOr<void> DedicatedWorkerGlobalScope::post_message(JS::Realm& realm, JS::Value message, Bindings::StructuredSerializeOptions const& options)
+{
+    return post_message(realm, message, StructuredSerializeOptions { .transfer = options.transfer });
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#dom-dedicatedworkerglobalscope-postmessage
-WebIDL::ExceptionOr<void> DedicatedWorkerGlobalScope::post_message(JS::Value message, GC::RootVector<GC::Ref<JS::Object>> const& transfer)
+WebIDL::ExceptionOr<void> DedicatedWorkerGlobalScope::post_message(JS::Realm& realm, JS::Value message, GC::RootVector<GC::Ref<JS::Object>> const& transfer)
 {
     // The postMessage(message, transfer) and postMessage(message, options) methods on DedicatedWorkerGlobalScope objects act as if,
     // when invoked, it immediately invoked the respective postMessage(message, transfer) and postMessage(message, options)
     // on the port, with the same arguments, and returned the same return value.
-    return m_internal_port->post_message(message, transfer);
+    return m_internal_port->post_message(realm, message, transfer);
 }
 
 WebIDL::CallbackType* DedicatedWorkerGlobalScope::onmessage()

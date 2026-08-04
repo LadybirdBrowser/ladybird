@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    promiseTest(async () => {
+        try {
+            await screen.orientation.lock("portrait");
+        } catch (e) {
+            println(`lock exception name: ${e.name}`);
+        }
+    });
+</script>

@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Encoding/TextDecoderCommon.h>
+#include <LibWeb/WebIDL/ExceptionOrUtils.h>
 
 namespace Web::Encoding {
 
@@ -45,7 +45,7 @@ TextDecoderCommonMixin::TextDecoderCommonMixin(FlyString encoding, TextCodec::Er
 {
 }
 
-void TextDecoderCommonMixin::set_decoder_to_new_instance_of_encoding_decoder()
+void TextDecoderCommonMixin::set_decoder_to_new_instance_of_encoding_decoder() const
 {
     m_decoder = make<TextCodec::StreamingDecoder>(m_encoding, m_ignore_bom ? TextCodec::IgnoreBOM::Yes : TextCodec::IgnoreBOM::No, m_error_mode);
 }

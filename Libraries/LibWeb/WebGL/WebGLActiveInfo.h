@@ -7,15 +7,15 @@
 #pragma once
 
 #include <AK/Utf16String.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 
 typedef unsigned int GLenum;
 typedef int GLsizei;
 
 namespace Web::WebGL {
 
-class WebGLActiveInfo : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(WebGLActiveInfo, Bindings::PlatformObject);
+class WebGLActiveInfo : public Bindings::GCAllocatedWrappable {
+    WEB_WRAPPABLE(WebGLActiveInfo, Bindings::GCAllocatedWrappable);
     GC_DECLARE_ALLOCATOR(WebGLActiveInfo);
 
 public:
@@ -30,8 +30,6 @@ protected:
     explicit WebGLActiveInfo(JS::Realm&, Utf16String name, GLenum type, GLsizei size);
 
 private:
-    virtual void initialize(JS::Realm&) override;
-
     Utf16String m_name;
     GLenum m_type { 0 };
     GLsizei m_size { 0 };

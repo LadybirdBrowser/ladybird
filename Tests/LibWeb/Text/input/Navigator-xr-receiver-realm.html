@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const iframe = document.createElement("iframe");
+        document.body.append(iframe);
+        const other = iframe.contentWindow;
+
+        const xrGetter = Object.getOwnPropertyDescriptor(other.Navigator.prototype, "xr").get;
+        const xr = xrGetter.call(navigator);
+
+        println(`navigator.xr is iframe realm: ${xr instanceof other.XRSystem}`);
+        println(`navigator.xr is parent realm: ${xr instanceof XRSystem}`);
+        println(`navigator.xr same object: ${xr === navigator.xr}`);
+        println(`navigator.xr has test helper: ${typeof xr.test}`);
+    });
+</script>

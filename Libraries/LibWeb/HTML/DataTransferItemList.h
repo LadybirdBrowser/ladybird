@@ -6,37 +6,34 @@
 
 #pragma once
 
-#include <AK/Utf16View.h>
-#include <LibJS/Forward.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/dnd.html#the-datatransferitemlist-interface
-class DataTransferItemList : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(DataTransferItemList, Bindings::PlatformObject);
+class DataTransferItemList : public Bindings::GCAllocatedWrappable {
+    WEB_WRAPPABLE(DataTransferItemList, Bindings::GCAllocatedWrappable);
     GC_DECLARE_ALLOCATOR(DataTransferItemList);
 
 public:
-    static GC::Ref<DataTransferItemList> create(JS::Realm&, GC::Ref<DataTransfer>);
+    static GC::Ref<DataTransferItemList> create(GC::Ref<DataTransfer>);
     virtual ~DataTransferItemList() override;
 
     WebIDL::UnsignedLong length() const;
+    GC::Ptr<DataTransferItem> item(size_t index) const;
 
-    WebIDL::ExceptionOr<GC::Ptr<DataTransferItem>> add(Utf16View data, Utf16View type);
+    WebIDL::ExceptionOr<GC::Ptr<DataTransferItem>> add(Utf16String const& data, Utf16String const& type);
     GC::Ptr<DataTransferItem> add(GC::Ref<FileAPI::File>);
     WebIDL::ExceptionOr<void> remove(WebIDL::UnsignedLong index);
     void clear();
 
 private:
-    DataTransferItemList(JS::Realm&, GC::Ref<DataTransfer>);
+    explicit DataTransferItemList(GC::Ref<DataTransfer>);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(JS::Cell::Visitor&) override;
-
-    virtual Optional<JS::Value> item_value(size_t index) const override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     GC::Ref<DataTransfer> m_data_transfer;
 };

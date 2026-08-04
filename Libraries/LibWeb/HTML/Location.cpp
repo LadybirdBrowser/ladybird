@@ -10,17 +10,22 @@
 #include <AK/Utf16String.h>
 #include <LibGC/RootVector.h>
 #include <LibJS/Runtime/Completion.h>
+#include <LibJS/Runtime/Object.h>
+#include <LibJS/Runtime/PrimitiveString.h>
 #include <LibJS/Runtime/PropertyDescriptor.h>
 #include <LibJS/Runtime/PropertyKey.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/Bindings/Location.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOMURL/DOMURL.h>
+#include <LibWeb/HTML/BindingsGlue.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/CrossOrigin/AbstractOperations.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/Location.h>
 #include <LibWeb/HTML/Navigation.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/WebIDL/DOMException.h>
@@ -30,30 +35,37 @@ namespace Web::HTML {
 GC_DEFINE_ALLOCATOR(Location);
 
 // https://html.spec.whatwg.org/multipage/history.html#the-location-interface
-Location::Location(JS::Realm& realm)
-    : PlatformObject(realm, MayInterfereWithIndexedPropertyAccess::Yes)
+Location::Location(Window& window)
+    : m_window(window)
 {
+}
+
+GC::Ptr<Bindings::Wrappable> Location::relevant_global_impl() const
+{
+    return m_window;
 }
 
 Location::~Location() = default;
 
-void Location::visit_edges(Cell::Visitor& visitor)
+void Location::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    for (auto const& property : m_default_properties)
-        property.visit_edges(visitor);
-    for (auto& descriptor : m_cross_origin_property_descriptor_map)
-        descriptor.value.visit_edges(visitor);
+    visitor.visit(m_window);
+}
+
+}
+
+namespace Web::Bindings {
+
+JS::Value location_wrapper(JS::Realm& realm, GC::Ref<HTML::Location> location)
+{
+    return wrap(host_defined_wrapper_world(realm), realm, location);
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#the-location-interface
-void Location::initialize(JS::Realm& realm)
+void LocationWrapper::initialize_location_object(JS::Realm& realm)
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(Location);
-    Base::initialize(realm);
-    Bindings::LocationPrototype::define_unforgeable_attributes(realm, *this);
-
-    auto& vm = this->vm();
+    auto& vm = realm.vm();
 
     // 2. Let valueOf be location's relevant realm.[[Intrinsics]].[[%Object.prototype.valueOf%]].
     auto& intrinsics = realm.intrinsics();
@@ -83,9 +95,144 @@ void Location::initialize(JS::Realm& realm)
     MUST(JS::Object::internal_define_own_property(vm.well_known_symbol_to_primitive(), to_primitive_property_descriptor, &no_current_property));
 
     // 5. Set the value of the [[DefaultProperties]] internal slot of location to location.[[OwnPropertyKeys]]().
-    for (auto property : MUST(Object::internal_own_property_keys()))
-        m_default_properties.append(MUST(JS::PropertyKey::from_value(vm, property)));
+    // NOTE: In LibWeb this happens before the ESO is set up, so we must avoid location's custom [[OwnPropertyKeys]].
+    m_default_properties.extend(MUST(JS::Object::internal_own_property_keys()));
 }
+
+// 7.10.5.1 [[GetPrototypeOf]] ( ), https://html.spec.whatwg.org/multipage/history.html#location-getprototypeof
+JS::ThrowCompletionOr<JS::Object*> LocationWrapper::internal_get_prototype_of() const
+{
+    // 1. If IsPlatformObjectSameOrigin(this) is true, then return ! OrdinaryGetPrototypeOf(this).
+    if (HTML::is_platform_object_same_origin(*this))
+        return MUST(JS::Object::internal_get_prototype_of());
+
+    // 2. Return null.
+    return nullptr;
+}
+
+// 7.10.5.2 [[SetPrototypeOf]] ( V ), https://html.spec.whatwg.org/multipage/history.html#location-setprototypeof
+JS::ThrowCompletionOr<bool> LocationWrapper::internal_set_prototype_of(JS::Object* prototype)
+{
+    // 1. Return ! SetImmutablePrototype(this, V).
+    return MUST(set_immutable_prototype(prototype));
+}
+
+// 7.10.5.3 [[IsExtensible]] ( ), https://html.spec.whatwg.org/multipage/history.html#location-isextensible
+JS::ThrowCompletionOr<bool> LocationWrapper::internal_is_extensible() const
+{
+    // 1. Return true.
+    return true;
+}
+
+// 7.10.5.4 [[PreventExtensions]] ( ), https://html.spec.whatwg.org/multipage/history.html#location-preventextensions
+JS::ThrowCompletionOr<bool> LocationWrapper::internal_prevent_extensions()
+{
+    // 1. Return false.
+    return false;
+}
+
+// 7.10.5.5 [[GetOwnProperty]] ( P ), https://html.spec.whatwg.org/multipage/history.html#location-getownproperty
+JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> LocationWrapper::internal_get_own_property(JS::PropertyKey const& property_key) const
+{
+    auto& vm = this->vm();
+
+    // 1. If IsPlatformObjectSameOrigin(this) is true, then:
+    if (HTML::is_platform_object_same_origin(*this)) {
+        // 1. Let desc be OrdinaryGetOwnProperty(this, P).
+        auto descriptor = MUST(JS::Object::internal_get_own_property(property_key));
+
+        // 2. If the value of the [[DefaultProperties]] internal slot of this contains P, then set desc.[[Configurable]] to true.
+        // FIXME: This doesn't align with what the other browsers do. Spec issue: https://github.com/whatwg/html/issues/4157
+        auto property_key_value = property_key.is_symbol()
+            ? JS::Value { property_key.as_symbol() }
+            : JS::PrimitiveString::create(vm, property_key.to_utf16_string());
+        if (m_default_properties.contains_slow(property_key_value))
+            descriptor->configurable = true;
+
+        // 3. Return desc.
+        return descriptor;
+    }
+
+    // 2. Let property be CrossOriginGetOwnPropertyHelper(this, P).
+    auto property = HTML::cross_origin_get_own_property_helper(
+        const_cast<LocationWrapper&>(*this),
+        impl(),
+        const_cast<LocationWrapper&>(*this).cross_origin_property_descriptor_map(),
+        property_key);
+
+    // 3. If property is not undefined, then return property.
+    if (property.has_value())
+        return property;
+
+    // 4. Return ? CrossOriginPropertyFallback(P).
+    return TRY(HTML::cross_origin_property_fallback(vm, property_key));
+}
+
+// 7.10.5.6 [[DefineOwnProperty]] ( P, Desc ), https://html.spec.whatwg.org/multipage/history.html#location-defineownproperty
+JS::ThrowCompletionOr<bool> LocationWrapper::internal_define_own_property(JS::PropertyKey const& property_key, JS::PropertyDescriptor& descriptor, Optional<JS::PropertyDescriptor>* precomputed_get_own_property)
+{
+    // 1. If IsPlatformObjectSameOrigin(this) is true, then:
+    if (HTML::is_platform_object_same_origin(*this)) {
+        // 1. If the value of the [[DefaultProperties]] internal slot of this contains P, then return false.
+        // 2. Return ? OrdinaryDefineOwnProperty(this, P, Desc).
+        return Bindings::ordinary_define_own_property_and_preserve_wrapper_if_needed(*this, property_key, descriptor, precomputed_get_own_property);
+    }
+
+    // 2. Throw a "SecurityError" DOMException.
+    return throw_completion(realm(), WebIDL::SecurityError::create(realm(), Utf16String::formatted("Can't define property '{}' on cross-origin object", property_key)));
+}
+
+// 7.10.5.7 [[Get]] ( P, Receiver ), https://html.spec.whatwg.org/multipage/history.html#location-get
+JS::ThrowCompletionOr<JS::Value> LocationWrapper::internal_get(JS::PropertyKey const& property_key, JS::Value receiver, JS::CacheableGetPropertyMetadata* cacheable_metadata, PropertyLookupPhase phase) const
+{
+    auto& vm = this->vm();
+
+    // 1. If IsPlatformObjectSameOrigin(this) is true, then return ? OrdinaryGet(this, P, Receiver).
+    if (HTML::is_platform_object_same_origin(*this))
+        return JS::Object::internal_get(property_key, receiver, cacheable_metadata, phase);
+
+    // 2. Return ? CrossOriginGet(this, P, Receiver).
+    return HTML::cross_origin_get(vm, static_cast<JS::Object const&>(*this), property_key, receiver);
+}
+
+// 7.10.5.8 [[Set]] ( P, V, Receiver ), https://html.spec.whatwg.org/multipage/history.html#location-set
+JS::ThrowCompletionOr<bool> LocationWrapper::internal_set(JS::PropertyKey const& property_key, JS::Value value, JS::Value receiver, JS::CacheableSetPropertyMetadata* cacheable_metadata, PropertyLookupPhase phase)
+{
+    auto& vm = this->vm();
+
+    // 1. If IsPlatformObjectSameOrigin(this) is true, then return ? OrdinarySet(this, P, V, Receiver).
+    if (HTML::is_platform_object_same_origin(*this))
+        return JS::Object::internal_set(property_key, value, receiver, cacheable_metadata, phase);
+
+    // 2. Return ? CrossOriginSet(this, P, V, Receiver).
+    return HTML::cross_origin_set(vm, static_cast<JS::Object&>(*this), property_key, value, receiver);
+}
+
+// 7.10.5.9 [[Delete]] ( P ), https://html.spec.whatwg.org/multipage/history.html#location-delete
+JS::ThrowCompletionOr<bool> LocationWrapper::internal_delete(JS::PropertyKey const& property_key)
+{
+    // 1. If IsPlatformObjectSameOrigin(this) is true, then return ? OrdinaryDelete(this, P).
+    if (HTML::is_platform_object_same_origin(*this))
+        return JS::Object::internal_delete(property_key);
+
+    // 2. Throw a "SecurityError" DOMException.
+    return throw_completion(realm(), WebIDL::SecurityError::create(realm(), Utf16String::formatted("Can't delete property '{}' on cross-origin object", property_key)));
+}
+
+// 7.10.5.10 [[OwnPropertyKeys]] ( ), https://html.spec.whatwg.org/multipage/history.html#location-ownpropertykeys
+JS::ThrowCompletionOr<GC::RootVector<JS::Value>> LocationWrapper::internal_own_property_keys() const
+{
+    // 1. If IsPlatformObjectSameOrigin(this) is true, then return OrdinaryOwnPropertyKeys(this).
+    if (HTML::is_platform_object_same_origin(*this))
+        return JS::Object::internal_own_property_keys();
+
+    // 2. Return CrossOriginOwnPropertyKeys(this).
+    return HTML::cross_origin_own_property_keys(impl());
+}
+
+}
+
+namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/history.html#relevant-document
 GC::Ptr<DOM::Document> Location::relevant_document() const
@@ -93,22 +240,22 @@ GC::Ptr<DOM::Document> Location::relevant_document() const
     // A Location object has an associated relevant Document, which is this Location object's
     // relevant global object's browsing context's active document, if this Location object's
     // relevant global object's browsing context is non-null, and null otherwise.
-    auto* browsing_context = as<HTML::Window>(HTML::relevant_global_object(*this)).browsing_context();
+    auto* browsing_context = m_window->browsing_context();
     return browsing_context ? browsing_context->active_document() : nullptr;
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#location-object-navigate
-WebIDL::ExceptionOr<void> Location::navigate(URL::URL url, Bindings::NavigationHistoryBehavior history_handling)
+WebIDL::ExceptionOr<void> Location::navigate(URL::URL url, NavigationHistoryBehavior history_handling)
 {
     // 1. Let navigable be location's relevant global object's navigable.
-    auto navigable = as<HTML::Window>(HTML::relevant_global_object(*this)).navigable();
+    auto navigable = m_window->navigable();
 
     // 2. Let sourceDocument be the incumbent global object's associated Document.
-    auto& source_document = as<HTML::Window>(incumbent_global_object()).associated_document();
+    auto& source_document = incumbent_window().associated_document();
 
     // 3. If location's relevant Document is not yet completely loaded, and the incumbent global object does not have transient activation, then set historyHandling to "replace".
-    if (!relevant_document()->is_completely_loaded() && !as<HTML::Window>(incumbent_global_object()).has_transient_activation()) {
-        history_handling = Bindings::NavigationHistoryBehavior::Replace;
+    if (!relevant_document()->is_completely_loaded() && !incumbent_window().has_transient_activation()) {
+        history_handling = NavigationHistoryBehavior::Replace;
     }
 
     // 4. Navigate navigable to url using sourceDocument, with exceptionsEnabled set to true and historyHandling set to historyHandling.
@@ -135,28 +282,26 @@ WebIDL::ExceptionOr<Utf16String> Location::href() const
     // 1. If this's relevant Document is non-null and its origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     auto const relevant_document = this->relevant_document();
     if (relevant_document && !relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
-        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
+        return WebIDL::SecurityError::create("Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
 
     // 2. Return this's url, serialized.
     return utf16_string_from_url_ascii(url().serialize());
 }
 
 // https://html.spec.whatwg.org/multipage/history.html#the-location-interface:dom-location-href-2
-WebIDL::ExceptionOr<void> Location::set_href(Utf16View new_href)
+WebIDL::ExceptionOr<void> Location::set_href(Utf16String const& new_href)
 {
-    auto& realm = this->realm();
-
     // 1. If this's relevant Document is null, then return.
     auto const relevant_document = this->relevant_document();
     if (!relevant_document)
         return {};
 
     // 2. Let url be the result of encoding-parsing a URL given the given value, relative to the entry settings object.
-    auto url = entry_settings_object().encoding_parse_url(new_href);
+    auto url = entry_settings_object().encoding_parse_url(new_href.utf16_view());
 
     // 3. If url is failure, then throw a "SyntaxError" DOMException.
     if (!url.has_value())
-        return WebIDL::SyntaxError::create(realm, Utf16String::formatted("Invalid URL '{}'", new_href));
+        return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid URL '{}'", new_href));
 
     // 4. Location-object navigate this to url.
     TRY(navigate(url.release_value()));
@@ -170,7 +315,7 @@ WebIDL::ExceptionOr<Utf16String> Location::origin() const
     // 1. If this's relevant Document is non-null and its origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     auto const relevant_document = this->relevant_document();
     if (relevant_document && !relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
-        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
+        return WebIDL::SecurityError::create("Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
 
     // 2. Return the serialization of this's url's origin.
     return utf16_string_from_url_ascii(url().origin().serialize());
@@ -182,14 +327,14 @@ WebIDL::ExceptionOr<Utf16String> Location::protocol() const
     // 1. If this's relevant Document is non-null and its origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     auto const relevant_document = this->relevant_document();
     if (relevant_document && !relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
-        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
+        return WebIDL::SecurityError::create("Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
 
     // 2. Return this's url's scheme, followed by ":".
     return Utf16String::formatted("{}:", url().scheme());
 }
 
 // https://html.spec.whatwg.org/multipage/history.html#dom-location-protocol
-WebIDL::ExceptionOr<void> Location::set_protocol(Utf16View value)
+WebIDL::ExceptionOr<void> Location::set_protocol(Utf16String const& value)
 {
     auto relevant_document = this->relevant_document();
 
@@ -199,7 +344,7 @@ WebIDL::ExceptionOr<void> Location::set_protocol(Utf16View value)
 
     // 2. If this's relevant Document's origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     if (!relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
-        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
+        return WebIDL::SecurityError::create("Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
 
     // 3. Let copyURL be a copy of this's url.
     auto copy_url = this->url();
@@ -210,7 +355,7 @@ WebIDL::ExceptionOr<void> Location::set_protocol(Utf16View value)
 
     // 5. If possibleFailure is failure, then throw a "SyntaxError" DOMException.
     if (!possible_failure.has_value())
-        return WebIDL::SyntaxError::create(realm(), Utf16String::formatted("Failed to set protocol. '{}' is an invalid protocol", value));
+        return WebIDL::SyntaxError::create(Utf16String::formatted("Failed to set protocol. '{}' is an invalid protocol", value));
 
     // 6. if copyURL's scheme is not an HTTP(S) scheme, then terminate these steps.
     if (!(copy_url.scheme() == "http"sv || copy_url.scheme() == "https"sv))
@@ -228,7 +373,7 @@ WebIDL::ExceptionOr<Utf16String> Location::host() const
     // 1. If this's relevant Document is non-null and its origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     auto const relevant_document = this->relevant_document();
     if (relevant_document && !relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
-        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
+        return WebIDL::SecurityError::create("Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
 
     // 2. Let url be this's url.
     auto url = this->url();
@@ -242,11 +387,11 @@ WebIDL::ExceptionOr<Utf16String> Location::host() const
         return utf16_string_from_url_ascii(url.serialized_host());
 
     // 5. Return url's host, serialized, followed by ":" and url's port, serialized.
-    return utf16_string_from_url_ascii_host_and_port(url.serialized_host(), *url.port());
+    return Utf16String::formatted("{}:{}", url.serialized_host(), *url.port());
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-location-host
-WebIDL::ExceptionOr<void> Location::set_host(Utf16View value)
+WebIDL::ExceptionOr<void> Location::set_host(Utf16String const& value)
 {
     // 1. If this's relevant Document is null, then return.
     auto const relevant_document = this->relevant_document();
@@ -255,7 +400,7 @@ WebIDL::ExceptionOr<void> Location::set_host(Utf16View value)
 
     // 2. If this's relevant Document's origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     if (!relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
-        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
+        return WebIDL::SecurityError::create("Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
 
     // 3. Let copyURL be a copy of this's url.
     auto copy_url = this->url();
@@ -265,7 +410,7 @@ WebIDL::ExceptionOr<void> Location::set_host(Utf16View value)
         return {};
 
     // 5. Basic URL parse the given value, with copyURL as url and host state as state override.
-    (void)URL::Parser::basic_parse(value, {}, &copy_url, URL::Parser::State::Host);
+    (void)URL::Parser::basic_parse(value.utf16_view(), {}, &copy_url, URL::Parser::State::Host);
 
     // 6. Location-object navigate this to copyURL.
     TRY(navigate(copy_url));
@@ -279,7 +424,7 @@ WebIDL::ExceptionOr<Utf16String> Location::hostname() const
     // 1. If this's relevant Document is non-null and its origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     auto const relevant_document = this->relevant_document();
     if (relevant_document && !relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
-        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
+        return WebIDL::SecurityError::create("Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
 
     auto url = this->url();
 
@@ -292,7 +437,7 @@ WebIDL::ExceptionOr<Utf16String> Location::hostname() const
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-location-hostname
-WebIDL::ExceptionOr<void> Location::set_hostname(Utf16View value)
+WebIDL::ExceptionOr<void> Location::set_hostname(Utf16String const& value)
 {
     // 1. If this's relevant Document is null, then return.
     auto const relevant_document = this->relevant_document();
@@ -301,7 +446,7 @@ WebIDL::ExceptionOr<void> Location::set_hostname(Utf16View value)
 
     // 2. If this's relevant Document's origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     if (!relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
-        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
+        return WebIDL::SecurityError::create("Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
 
     // 3. Let copyURL be a copy of this's url.
     auto copy_url = this->url();
@@ -311,7 +456,7 @@ WebIDL::ExceptionOr<void> Location::set_hostname(Utf16View value)
         return {};
 
     // 5. Basic URL parse the given value, with copyURL as url and hostname state as state override.
-    (void)URL::Parser::basic_parse(value, {}, &copy_url, URL::Parser::State::Hostname);
+    (void)URL::Parser::basic_parse(value.utf16_view(), {}, &copy_url, URL::Parser::State::Hostname);
 
     // 6. Location-object navigate this to copyURL.
     TRY(navigate(copy_url));
@@ -325,7 +470,7 @@ WebIDL::ExceptionOr<Utf16String> Location::port() const
     // 1. If this's relevant Document is non-null and its origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     auto const relevant_document = this->relevant_document();
     if (relevant_document && !relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
-        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
+        return WebIDL::SecurityError::create("Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
 
     auto url = this->url();
 
@@ -338,7 +483,7 @@ WebIDL::ExceptionOr<Utf16String> Location::port() const
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-location-port
-WebIDL::ExceptionOr<void> Location::set_port(Utf16View value)
+WebIDL::ExceptionOr<void> Location::set_port(Utf16String const& value)
 {
     // 1. If this's relevant Document is null, then return.
     auto const relevant_document = this->relevant_document();
@@ -347,7 +492,7 @@ WebIDL::ExceptionOr<void> Location::set_port(Utf16View value)
 
     // 2. If this's relevant Document's origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     if (!relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
-        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
+        return WebIDL::SecurityError::create("Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
 
     // 3. Let copyURL be a copy of this's url.
     auto copy_url = this->url();
@@ -362,7 +507,7 @@ WebIDL::ExceptionOr<void> Location::set_port(Utf16View value)
     }
     // 5. Otherwise, basic URL parse the given value, with copyURL as url and port state as state override.
     else {
-        (void)URL::Parser::basic_parse(value, {}, &copy_url, URL::Parser::State::Port);
+        (void)URL::Parser::basic_parse(value.utf16_view(), {}, &copy_url, URL::Parser::State::Port);
     }
 
     // 6. Location-object navigate this to copyURL.
@@ -377,14 +522,14 @@ WebIDL::ExceptionOr<Utf16String> Location::pathname() const
     // 1. If this's relevant Document is non-null and its origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     auto const relevant_document = this->relevant_document();
     if (relevant_document && !relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
-        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
+        return WebIDL::SecurityError::create("Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
 
     // 2. Return the result of URL path serializing this Location object's url.
     return utf16_string_from_url_ascii(url().serialize_path());
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-location-search
-WebIDL::ExceptionOr<void> Location::set_pathname(Utf16View value)
+WebIDL::ExceptionOr<void> Location::set_pathname(Utf16String const& value)
 {
     // 1. If this's relevant Document is null, then return.
     auto const relevant_document = this->relevant_document();
@@ -393,7 +538,7 @@ WebIDL::ExceptionOr<void> Location::set_pathname(Utf16View value)
 
     // 2. If this's relevant Document's origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     if (!relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
-        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
+        return WebIDL::SecurityError::create("Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
 
     // 3. Let copyURL be a copy of this's url.
     auto copy_url = this->url();
@@ -406,7 +551,7 @@ WebIDL::ExceptionOr<void> Location::set_pathname(Utf16View value)
     copy_url.set_paths({});
 
     // 6. Basic URL parse the given value, with copyURL as url and path start state as state override.
-    (void)URL::Parser::basic_parse(value, {}, &copy_url, URL::Parser::State::PathStart);
+    (void)URL::Parser::basic_parse(value.utf16_view(), {}, &copy_url, URL::Parser::State::PathStart);
 
     // 7. Location-object navigate this to copyURL.
     TRY(navigate(copy_url));
@@ -420,7 +565,7 @@ WebIDL::ExceptionOr<Utf16String> Location::search() const
     // 1. If this's relevant Document is non-null and its origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     auto const relevant_document = this->relevant_document();
     if (relevant_document && !relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
-        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
+        return WebIDL::SecurityError::create("Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
 
     auto url = this->url();
 
@@ -429,11 +574,11 @@ WebIDL::ExceptionOr<Utf16String> Location::search() const
         return Utf16String {};
 
     // 3. Return "?", followed by this's url's query.
-    return utf16_string_from_url_ascii_with_prefix('?', *url.query());
+    return Utf16String::formatted("?{}", url.query());
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-location-search
-WebIDL::ExceptionOr<void> Location::set_search(Utf16View value)
+WebIDL::ExceptionOr<void> Location::set_search(Utf16String const& value)
 {
     // The search setter steps are:
     auto const relevant_document = this->relevant_document();
@@ -444,7 +589,7 @@ WebIDL::ExceptionOr<void> Location::set_search(Utf16View value)
 
     // 2. If this's relevant Document's origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     if (!relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
-        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
+        return WebIDL::SecurityError::create("Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
 
     // 3. Let copyURL be a copy of this's url.
     auto copy_url = this->url();
@@ -477,7 +622,7 @@ WebIDL::ExceptionOr<Utf16String> Location::hash() const
     // 1. If this's relevant Document is non-null and its origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     auto const relevant_document = this->relevant_document();
     if (relevant_document && !relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
-        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
+        return WebIDL::SecurityError::create("Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
 
     auto url = this->url();
 
@@ -486,11 +631,11 @@ WebIDL::ExceptionOr<Utf16String> Location::hash() const
         return Utf16String {};
 
     // 3. Return "#", followed by this's url's fragment.
-    return utf16_string_from_url_ascii_with_prefix('#', *url.fragment());
+    return Utf16String::formatted("#{}", *url.fragment());
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-location-hash
-WebIDL::ExceptionOr<void> Location::set_hash(Utf16View value)
+WebIDL::ExceptionOr<void> Location::set_hash(Utf16String const& value)
 {
     // 1. If this's relevant Document is null, then return.
     auto const relevant_document = this->relevant_document();
@@ -499,7 +644,7 @@ WebIDL::ExceptionOr<void> Location::set_hash(Utf16View value)
 
     // 2. If this's relevant Document's origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     if (!relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
-        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
+        return WebIDL::SecurityError::create("Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
 
     // 3. Let copyURL be a copy of this's url.
     auto copy_url = this->url();
@@ -544,25 +689,25 @@ void Location::reload() const
 }
 
 // https://html.spec.whatwg.org/multipage/history.html#dom-location-replace
-WebIDL::ExceptionOr<void> Location::replace(Utf16View url)
+WebIDL::ExceptionOr<void> Location::replace(Utf16String const& url)
 {
     // 1. If this's relevant Document is null, then return.
     if (!relevant_document())
         return {};
 
     // 2. Parse url relative to the entry settings object. If that failed, throw a "SyntaxError" DOMException.
-    auto replace_url = DOMURL::parse(url, entry_settings_object().api_base_url());
+    auto replace_url = DOMURL::parse(url.utf16_view(), entry_settings_object().api_base_url());
     if (!replace_url.has_value())
-        return WebIDL::SyntaxError::create(realm(), Utf16String::formatted("Invalid URL '{}'", url));
+        return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid URL '{}'", url));
 
     // 3. Location-object navigate this to the resulting URL record given "replace".
-    TRY(navigate(replace_url.release_value(), Bindings::NavigationHistoryBehavior::Replace));
+    TRY(navigate(replace_url.release_value(), NavigationHistoryBehavior::Replace));
 
     return {};
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-location-assign
-WebIDL::ExceptionOr<void> Location::assign(Utf16View url)
+WebIDL::ExceptionOr<void> Location::assign(Utf16String const& url)
 {
     // 1. If this's relevant Document is null, then return.
     auto const relevant_document = this->relevant_document();
@@ -571,141 +716,17 @@ WebIDL::ExceptionOr<void> Location::assign(Utf16View url)
 
     // 2. If this's relevant Document's origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     if (!relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
-        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
+        return WebIDL::SecurityError::create("Location's relevant document is not same origin-domain with the entry settings object's origin"_utf16);
 
     // 3. Parse url relative to the entry settings object. If that failed, throw a "SyntaxError" DOMException.
-    auto assign_url = DOMURL::parse(url, entry_settings_object().api_base_url());
+    auto assign_url = DOMURL::parse(url.utf16_view(), entry_settings_object().api_base_url());
     if (!assign_url.has_value())
-        return WebIDL::SyntaxError::create(realm(), Utf16String::formatted("Invalid URL '{}'", url));
+        return WebIDL::SyntaxError::create(Utf16String::formatted("Invalid URL '{}'", url));
 
     // 4. Location-object navigate this to the resulting URL record.
     TRY(navigate(assign_url.release_value()));
 
     return {};
-}
-
-// 7.10.5.1 [[GetPrototypeOf]] ( ), https://html.spec.whatwg.org/multipage/history.html#location-getprototypeof
-JS::ThrowCompletionOr<JS::Object*> Location::internal_get_prototype_of() const
-{
-    // 1. If IsPlatformObjectSameOrigin(this) is true, then return ! OrdinaryGetPrototypeOf(this).
-    if (HTML::is_platform_object_same_origin(*this))
-        return MUST(JS::Object::internal_get_prototype_of());
-
-    // 2. Return null.
-    return nullptr;
-}
-
-// 7.10.5.2 [[SetPrototypeOf]] ( V ), https://html.spec.whatwg.org/multipage/history.html#location-setprototypeof
-JS::ThrowCompletionOr<bool> Location::internal_set_prototype_of(Object* prototype)
-{
-    // 1. Return ! SetImmutablePrototype(this, V).
-    return MUST(set_immutable_prototype(prototype));
-}
-
-// 7.10.5.3 [[IsExtensible]] ( ), https://html.spec.whatwg.org/multipage/history.html#location-isextensible
-JS::ThrowCompletionOr<bool> Location::internal_is_extensible() const
-{
-    // 1. Return true.
-    return true;
-}
-
-// 7.10.5.4 [[PreventExtensions]] ( ), https://html.spec.whatwg.org/multipage/history.html#location-preventextensions
-JS::ThrowCompletionOr<bool> Location::internal_prevent_extensions()
-{
-    // 1. Return false.
-    return false;
-}
-
-// 7.10.5.5 [[GetOwnProperty]] ( P ), https://html.spec.whatwg.org/multipage/history.html#location-getownproperty
-JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> Location::internal_get_own_property(JS::PropertyKey const& property_key) const
-{
-    auto& vm = this->vm();
-
-    // 1. If IsPlatformObjectSameOrigin(this) is true, then:
-    if (HTML::is_platform_object_same_origin(*this)) {
-        // 1. Let desc be OrdinaryGetOwnProperty(this, P).
-        auto descriptor = MUST(Object::internal_get_own_property(property_key));
-
-        // 2. If the value of the [[DefaultProperties]] internal slot of this contains P, then set desc.[[Configurable]] to true.
-        // FIXME: This doesn't align with what the other browsers do. Spec issue: https://github.com/whatwg/html/issues/4157
-        if (m_default_properties.contains_slow(property_key))
-            descriptor->configurable = true;
-
-        // 3. Return desc.
-        return descriptor;
-    }
-
-    // 2. Let property be CrossOriginGetOwnPropertyHelper(this, P).
-    auto property = HTML::cross_origin_get_own_property_helper(const_cast<Location*>(this), property_key);
-
-    // 3. If property is not undefined, then return property.
-    if (property.has_value())
-        return property;
-
-    // 4. Return ? CrossOriginPropertyFallback(P).
-    return TRY(HTML::cross_origin_property_fallback(vm, property_key));
-}
-
-// 7.10.5.6 [[DefineOwnProperty]] ( P, Desc ), https://html.spec.whatwg.org/multipage/history.html#location-defineownproperty
-JS::ThrowCompletionOr<bool> Location::internal_define_own_property(JS::PropertyKey const& property_key, JS::PropertyDescriptor& descriptor, Optional<JS::PropertyDescriptor>* precomputed_get_own_property)
-{
-    // 1. If IsPlatformObjectSameOrigin(this) is true, then:
-    if (HTML::is_platform_object_same_origin(*this)) {
-        // 1. If the value of the [[DefaultProperties]] internal slot of this contains P, then return false.
-        // 2. Return ? OrdinaryDefineOwnProperty(this, P, Desc).
-        return JS::Object::internal_define_own_property(property_key, descriptor, precomputed_get_own_property);
-    }
-
-    // 2. Throw a "SecurityError" DOMException.
-    return throw_completion(WebIDL::SecurityError::create(realm(), Utf16String::formatted("Can't define property '{}' on cross-origin object", property_key)));
-}
-
-// 7.10.5.7 [[Get]] ( P, Receiver ), https://html.spec.whatwg.org/multipage/history.html#location-get
-JS::ThrowCompletionOr<JS::Value> Location::internal_get(JS::PropertyKey const& property_key, JS::Value receiver, JS::CacheableGetPropertyMetadata* cacheable_metadata, PropertyLookupPhase phase) const
-{
-    auto& vm = this->vm();
-
-    // 1. If IsPlatformObjectSameOrigin(this) is true, then return ? OrdinaryGet(this, P, Receiver).
-    if (HTML::is_platform_object_same_origin(*this))
-        return JS::Object::internal_get(property_key, receiver, cacheable_metadata, phase);
-
-    // 2. Return ? CrossOriginGet(this, P, Receiver).
-    return HTML::cross_origin_get(vm, static_cast<JS::Object const&>(*this), property_key, receiver);
-}
-
-// 7.10.5.8 [[Set]] ( P, V, Receiver ), https://html.spec.whatwg.org/multipage/history.html#location-set
-JS::ThrowCompletionOr<bool> Location::internal_set(JS::PropertyKey const& property_key, JS::Value value, JS::Value receiver, JS::CacheableSetPropertyMetadata* cacheable_metadata, PropertyLookupPhase phase)
-{
-    auto& vm = this->vm();
-
-    // 1. If IsPlatformObjectSameOrigin(this) is true, then return ? OrdinarySet(this, P, V, Receiver).
-    if (HTML::is_platform_object_same_origin(*this))
-        return JS::Object::internal_set(property_key, value, receiver, cacheable_metadata, phase);
-
-    // 2. Return ? CrossOriginSet(this, P, V, Receiver).
-    return HTML::cross_origin_set(vm, static_cast<JS::Object&>(*this), property_key, value, receiver);
-}
-
-// 7.10.5.9 [[Delete]] ( P ), https://html.spec.whatwg.org/multipage/history.html#location-delete
-JS::ThrowCompletionOr<bool> Location::internal_delete(JS::PropertyKey const& property_key)
-{
-    // 1. If IsPlatformObjectSameOrigin(this) is true, then return ? OrdinaryDelete(this, P).
-    if (HTML::is_platform_object_same_origin(*this))
-        return JS::Object::internal_delete(property_key);
-
-    // 2. Throw a "SecurityError" DOMException.
-    return throw_completion(WebIDL::SecurityError::create(realm(), Utf16String::formatted("Can't delete property '{}' on cross-origin object", property_key)));
-}
-
-// 7.10.5.10 [[OwnPropertyKeys]] ( ), https://html.spec.whatwg.org/multipage/history.html#location-ownpropertykeys
-JS::ThrowCompletionOr<GC::RootVector<JS::Value>> Location::internal_own_property_keys() const
-{
-    // 1. If IsPlatformObjectSameOrigin(this) is true, then return OrdinaryOwnPropertyKeys(this).
-    if (HTML::is_platform_object_same_origin(*this))
-        return JS::Object::internal_own_property_keys();
-
-    // 2. Return CrossOriginOwnPropertyKeys(this).
-    return HTML::cross_origin_own_property_keys(this);
 }
 
 }

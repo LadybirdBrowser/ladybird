@@ -16,13 +16,13 @@
 namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSVariableReferenceValue);
-GC::Ref<CSSVariableReferenceValue> CSSVariableReferenceValue::create(JS::Realm& realm, Utf16FlyString variable, GC::Ptr<CSSUnparsedValue> fallback)
+GC::Ref<CSSVariableReferenceValue> CSSVariableReferenceValue::create(Utf16FlyString variable, GC::Ptr<CSSUnparsedValue> fallback)
 {
-    return realm.create<CSSVariableReferenceValue>(realm, move(variable), move(fallback));
+    return GC::Heap::the().allocate<CSSVariableReferenceValue>(move(variable), move(fallback));
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssvariablereferencevalue-cssvariablereferencevalue
-WebIDL::ExceptionOr<GC::Ref<CSSVariableReferenceValue>> CSSVariableReferenceValue::construct_impl(JS::Realm& realm, Utf16String variable, GC::Ptr<CSSUnparsedValue> fallback)
+WebIDL::ExceptionOr<GC::Ref<CSSVariableReferenceValue>> CSSVariableReferenceValue::construct_impl(Utf16String variable, GC::Ptr<CSSUnparsedValue> fallback)
 {
     // The CSSVariableReferenceValue(variable, fallback) constructor must, when called, perform the following steps:
     // 1. If variable is not a custom property name string, throw a TypeError.
@@ -30,11 +30,11 @@ WebIDL::ExceptionOr<GC::Ref<CSSVariableReferenceValue>> CSSVariableReferenceValu
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::formatted("'{}' is not a valid CSS custom property name", variable) };
 
     // 2. Return a new CSSVariableReferenceValue with its variable internal slot set to variable and its fallback internal slot set to fallback.
-    return CSSVariableReferenceValue::create(realm, Utf16FlyString { move(variable) }, move(fallback));
+    return CSSVariableReferenceValue::create(Utf16FlyString { move(variable) }, move(fallback));
 }
 
-CSSVariableReferenceValue::CSSVariableReferenceValue(JS::Realm& realm, Utf16FlyString variable, GC::Ptr<CSSUnparsedValue> fallback)
-    : Bindings::PlatformObject(realm)
+CSSVariableReferenceValue::CSSVariableReferenceValue(Utf16FlyString variable, GC::Ptr<CSSUnparsedValue> fallback)
+    : Bindings::GCAllocatedWrappable()
     , m_variable(move(variable))
     , m_fallback(move(fallback))
 {
@@ -42,13 +42,7 @@ CSSVariableReferenceValue::CSSVariableReferenceValue(JS::Realm& realm, Utf16FlyS
 
 CSSVariableReferenceValue::~CSSVariableReferenceValue() = default;
 
-void CSSVariableReferenceValue::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSVariableReferenceValue);
-    Base::initialize(realm);
-}
-
-void CSSVariableReferenceValue::visit_edges(Visitor& visitor)
+void CSSVariableReferenceValue::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_fallback);

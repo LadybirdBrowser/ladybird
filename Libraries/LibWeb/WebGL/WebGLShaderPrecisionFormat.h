@@ -7,13 +7,13 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/WebGL/Types.h>
 
 namespace Web::WebGL {
 
-class WebGLShaderPrecisionFormat final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(WebGLShaderPrecisionFormat, Bindings::PlatformObject);
+class WebGLShaderPrecisionFormat final : public Bindings::GCAllocatedWrappable {
+    WEB_WRAPPABLE(WebGLShaderPrecisionFormat, Bindings::GCAllocatedWrappable);
     GC_DECLARE_ALLOCATOR(WebGLShaderPrecisionFormat);
 
 public:
@@ -27,8 +27,6 @@ public:
 
 protected:
     explicit WebGLShaderPrecisionFormat(JS::Realm&, GLint range_min, GLint range_max, GLint precision);
-
-    virtual void initialize(JS::Realm&) override;
 
 private:
     GLint m_range_min { 0 };

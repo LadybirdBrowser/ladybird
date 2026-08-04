@@ -15,21 +15,15 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(OESStandardDerivatives);
 
-JS::ThrowCompletionOr<GC::Ref<JS::Object>> OESStandardDerivatives::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
+GC::Ref<Bindings::Wrappable> OESStandardDerivatives::create(GC::Ref<WebGLRenderingContextBase> context)
 {
+    auto& realm = context->realm();
     return realm.create<OESStandardDerivatives>(realm, context);
 }
 
-OESStandardDerivatives::OESStandardDerivatives(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
-    : PlatformObject(realm)
-    , m_context(context)
+OESStandardDerivatives::OESStandardDerivatives(JS::Realm&, GC::Ref<WebGLRenderingContextBase> context)
+    : m_context(context)
 {
-}
-
-void OESStandardDerivatives::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(OESStandardDerivatives);
-    Base::initialize(realm);
 }
 
 void OESStandardDerivatives::visit_edges(Visitor& visitor)

@@ -6,10 +6,12 @@
 
 #pragma once
 
-#include <AK/RefPtr.h>
+#include <AK/ByteBuffer.h>
+#include <AK/Error.h>
 #include <AK/Vector.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/AudioBuffer.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/WebAudio/Rendering/AudioData.h>
 #include <LibWeb/WebIDL/Buffers.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -17,14 +19,16 @@
 
 namespace Web::WebAudio {
 
+using AudioBufferOptions = Bindings::AudioBufferOptions;
+
 // https://webaudio.github.io/web-audio-api/#AudioBuffer
-class AudioBuffer final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(AudioBuffer, Bindings::PlatformObject);
+class AudioBuffer final : public Bindings::GCAllocatedWrappable {
+    WEB_WRAPPABLE(AudioBuffer, Bindings::GCAllocatedWrappable);
     GC_DECLARE_ALLOCATOR(AudioBuffer);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<AudioBuffer>> create(JS::Realm&, WebIDL::UnsignedLong number_of_channels, WebIDL::UnsignedLong length, float sample_rate);
-    static WebIDL::ExceptionOr<GC::Ref<AudioBuffer>> construct_impl(JS::Realm&, Bindings::AudioBufferOptions const&);
+    static WebIDL::ExceptionOr<GC::Ref<AudioBuffer>> create_for_constructor(JS::Object&, AudioBufferOptions const&);
+    static ErrorOr<GC::Ref<AudioBuffer>> create(WebIDL::UnsignedLong number_of_channels, WebIDL::UnsignedLong length, float sample_rate);
 
     virtual ~AudioBuffer() override;
 
@@ -32,20 +36,22 @@ public:
     WebIDL::UnsignedLong length() const;
     double duration() const;
     WebIDL::UnsignedLong number_of_channels() const;
-    WebIDL::ExceptionOr<GC::Ref<JS::Float32Array>> get_channel_data(WebIDL::UnsignedLong channel);
-    WebIDL::ExceptionOr<void> copy_from_channel(GC::Ref<JS::Float32Array>, WebIDL::UnsignedLong channel_number, WebIDL::UnsignedLong buffer_offset = 0);
-    WebIDL::ExceptionOr<void> copy_to_channel(GC::Ref<JS::Float32Array>, WebIDL::UnsignedLong channel_number, WebIDL::UnsignedLong buffer_offset = 0);
+    WebIDL::ExceptionOr<ByteBuffer*> channel_data(WebIDL::UnsignedLong channel);
+    WebIDL::ExceptionOr<GC::Ref<JS::Float32Array>> get_channel_data(JS::Object& relevant_global_object, WebIDL::UnsignedLong channel);
+    WebIDL::ExceptionOr<void> copy_from_channel(GC::Root<JS::Float32Array> const&, WebIDL::UnsignedLong channel_number, WebIDL::UnsignedLong buffer_offset = 0) const;
+    WebIDL::ExceptionOr<void> copy_to_channel(GC::Root<JS::Float32Array> const&, WebIDL::UnsignedLong channel_number, WebIDL::UnsignedLong buffer_offset = 0);
 
     // https://webaudio.github.io/web-audio-api/#acquire-the-content
     RefPtr<Rendering::AudioBufferContents> acquire_contents();
-
-private:
-    explicit AudioBuffer(JS::Realm&, Bindings::AudioBufferOptions const&);
-
     WebIDL::ExceptionOr<void> attach_acquired_channels();
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+private:
+    struct Channel {
+        ByteBuffer data;
+    };
+
+    explicit AudioBuffer(AudioBufferOptions const&);
+
     virtual size_t external_memory_size() const override;
 
     // https://webaudio.github.io/web-audio-api/#dom-audiobuffer-number-of-channels-slot
@@ -53,7 +59,7 @@ private:
     //
     // https://webaudio.github.io/web-audio-api/#dom-audiobuffer-internal-data-slot
     // A data block holding the audio sample data.
-    Vector<GC::Ref<JS::Float32Array>> m_channels; // [[internal data]] / [[number_of_channels]]
+    Vector<Channel> m_channels; // [[internal data]] / [[number_of_channels]]
 
     // https://webaudio.github.io/web-audio-api/#audio-buffer-copying
     RefPtr<Rendering::AudioBufferContents> m_contents;

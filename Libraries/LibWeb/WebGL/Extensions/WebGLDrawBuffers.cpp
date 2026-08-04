@@ -18,14 +18,14 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(WebGLDrawBuffers);
 
-JS::ThrowCompletionOr<GC::Ref<JS::Object>> WebGLDrawBuffers::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
+GC::Ref<Bindings::Wrappable> WebGLDrawBuffers::create(GC::Ref<WebGLRenderingContextBase> context)
 {
+    auto& realm = context->realm();
     return realm.create<WebGLDrawBuffers>(realm, context);
 }
 
-WebGLDrawBuffers::WebGLDrawBuffers(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
-    : PlatformObject(realm)
-    , m_context(context)
+WebGLDrawBuffers::WebGLDrawBuffers(JS::Realm&, GC::Ref<WebGLRenderingContextBase> context)
+    : m_context(context)
 {
 }
 
@@ -33,12 +33,6 @@ void WebGLDrawBuffers::draw_buffers_webgl(Vector<GLenum> buffers)
 {
     m_context->context().make_current();
     m_context->context().draw_buffers_ext(buffers.size(), buffers.data());
-}
-
-void WebGLDrawBuffers::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGLDrawBuffers);
-    Base::initialize(realm);
 }
 
 void WebGLDrawBuffers::visit_edges(Visitor& visitor)

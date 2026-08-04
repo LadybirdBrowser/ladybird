@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../include.js"></script>
+<script>
+    asyncTest((done) => {
+        const workerScript = `
+            self.onmessage = () => {
+                const blob = new Blob(["Ladybird 🦬"]);
+                const buffer = new FileReaderSync().readAsArrayBuffer(blob);
+                self.postMessage(Array.from(new Uint8Array(buffer)));
+            };
+        `;
+        const workerScriptURL = URL.createObjectURL(new Blob([workerScript], { type: "application/javascript" }));
+        const worker = new Worker(workerScriptURL);
+
+        worker.onmessage = (event) => {
+            println(JSON.stringify(event.data));
+            worker.terminate();
+            URL.revokeObjectURL(workerScriptURL);
+            done();
+        };
+
+        worker.postMessage("go");
+    });
+</script>

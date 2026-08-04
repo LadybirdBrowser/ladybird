@@ -15,15 +15,14 @@ namespace Web::CSS {
 // https://drafts.csswg.org/css-fonts-4/#cssfontfacedescriptors
 class CSSFontFaceDescriptors final
     : public CSSDescriptors {
-    WEB_PLATFORM_OBJECT(CSSFontFaceDescriptors, CSSDescriptors);
+    WEB_WRAPPABLE(CSSFontFaceDescriptors, CSSDescriptors);
     GC_DECLARE_ALLOCATOR(CSSFontFaceDescriptors);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSFontFaceDescriptors> create(JS::Realm&, Vector<Descriptor>);
+    [[nodiscard]] static GC::Ref<CSSFontFaceDescriptors> create(Vector<Descriptor>);
 
     virtual ~CSSFontFaceDescriptors() override;
 
-    virtual void initialize(JS::Realm&) override;
     virtual WebIDL::ExceptionOr<void> set_property(Utf16FlyString const& property, Utf16View value, Utf16View priority) override;
 
     WebIDL::ExceptionOr<void> set_ascent_override(Utf16View value);
@@ -69,7 +68,7 @@ public:
     Utf16String unicode_range() const;
 
 private:
-    CSSFontFaceDescriptors(JS::Realm&, Vector<Descriptor>);
+    explicit CSSFontFaceDescriptors(Vector<Descriptor>);
 };
 
 }

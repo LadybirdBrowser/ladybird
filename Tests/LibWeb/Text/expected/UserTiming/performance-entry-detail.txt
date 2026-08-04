@@ -1,0 +1,12 @@
+mark.detail.source: mark
+mark.detail.values: 1,2,3
+mark.detail identity: false
+buffered mark detail source: mark
+buffered mark detail values: 1,2,3
+measure.detail.source: measure
+measure.detail.nested.ok: true
+measure.detail identity: false
+buffered measure detail source: measure
+buffered measure detail nested ok: true
+no detail mark: null
+no detail measure: null

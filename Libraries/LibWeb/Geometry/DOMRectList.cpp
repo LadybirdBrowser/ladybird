@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibGC/Root.h>
-#include <LibWeb/Bindings/DOMRectList.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Geometry/DOMRect.h>
 #include <LibWeb/Geometry/DOMRectList.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -15,30 +15,22 @@ namespace Web::Geometry {
 
 GC_DEFINE_ALLOCATOR(DOMRectList);
 
-GC::Ref<DOMRectList> DOMRectList::create(JS::Realm& realm, Vector<GC::Root<DOMRect>> rect_handles)
+GC::Ref<DOMRectList> DOMRectList::create(Vector<GC::Root<DOMRect>> rect_handles)
 {
     Vector<GC::Ref<DOMRect>> rects;
     for (auto& rect : rect_handles)
         rects.append(*rect);
-    return realm.create<DOMRectList>(realm, move(rects));
+    return GC::Heap::the().allocate<DOMRectList>(move(rects));
 }
 
-DOMRectList::DOMRectList(JS::Realm& realm, Vector<GC::Ref<DOMRect>> rects)
-    : Bindings::PlatformObject(realm)
-    , m_rects(move(rects))
+DOMRectList::DOMRectList(Vector<GC::Ref<DOMRect>> rects)
+    : m_rects(move(rects))
 {
-    m_legacy_platform_object_flags = LegacyPlatformObjectFlags { .supports_indexed_properties = 1 };
 }
 
 DOMRectList::~DOMRectList() = default;
 
-void DOMRectList::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(DOMRectList);
-    Base::initialize(realm);
-}
-
-void DOMRectList::visit_edges(Cell::Visitor& visitor)
+void DOMRectList::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_rects);
@@ -59,14 +51,6 @@ DOMRect const* DOMRectList::item(u32 index) const
     if (index >= m_rects.size())
         return nullptr;
     return m_rects[index];
-}
-
-Optional<JS::Value> DOMRectList::item_value(size_t index) const
-{
-    if (index >= m_rects.size())
-        return {};
-
-    return m_rects[index].ptr();
 }
 
 }

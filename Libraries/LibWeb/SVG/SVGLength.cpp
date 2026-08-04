@@ -32,18 +32,13 @@ GC::Ref<SVGLength> SVGLength::create_reflected_attribute(JS::Realm& realm, GC::R
 }
 
 SVGLength::SVGLength(JS::Realm& realm, GC::Ptr<SVGElement> associated_element, Directionality directionality, Source&& source, ReadOnly read_only)
-    : PlatformObject(realm)
+    : Bindings::GCAllocatedWrappable()
     , m_element(associated_element)
+    , m_realm(realm)
     , m_directionality(directionality)
     , m_source(move(source))
     , m_read_only(read_only)
 {
-}
-
-void SVGLength::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGLength);
-    Base::initialize(realm);
 }
 
 void SVGLength::visit_edges(Cell::Visitor& visitor)
@@ -51,6 +46,7 @@ void SVGLength::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     if (m_source.has<ReflectedAttributeSource>())
         visitor.visit(m_element);
+    visitor.visit(m_realm);
 }
 
 SVGLength::~SVGLength() = default;
@@ -141,7 +137,7 @@ WebIDL::ExceptionOr<float> SVGLength::value() const
     //    and font size bases. If the conversion is not possible due to the lack of an associated element, return 0.
 
     // AD-HOC: Chrome raises an error rather than returning 0 so we do the same here.
-    auto error_value = [&] { return WebIDL::NotSupportedError::create(realm(), ""_utf16); };
+    auto error_value = [&] { return WebIDL::NotSupportedError::create(*m_realm, ""_utf16); };
 
     if (!length_resolution_context.has_value()) {
         if (!value->is_computationally_independent())
@@ -226,7 +222,7 @@ u8 SVGLength::unit_type() const
     return SVG_LENGTHTYPE_UNKNOWN;
 }
 
-static RefPtr<CSS::StyleValue const> parse_css_length_value(JS::Realm& realm, Utf16View const& value)
+static RefPtr<CSS::StyleValue const> parse_css_length_value(Utf16View const& value)
 {
     // https://svgwg.org/svg2-draft/types.html#presentation-attribute-css-value
     // When a presentation attribute defined using the CSS Value Definition Syntax is parsed, this is done as follows:
@@ -239,7 +235,7 @@ static RefPtr<CSS::StyleValue const> parse_css_length_value(JS::Realm& realm, Ut
 
     // FIXME: Respect attribute specific range restrictions (e.g. <circle>/r must be non-negative)
 
-    CSS::Parser::ParsingParams parsing_params { realm, CSS::Parser::ParsingMode::SVGPresentationAttribute };
+    CSS::Parser::ParsingParams parsing_params { CSS::Parser::ParsingMode::SVGPresentationAttribute };
     if (auto parsed_style_value = parse_css_type(parsing_params, value, CSS::ValueType::Number))
         return parsed_style_value.release_nonnull();
 
@@ -264,7 +260,7 @@ NonnullRefPtr<CSS::StyleValue const> SVGLength::internal_value() const
 
             auto attribute_value = maybe_attribute_value.release_value();
 
-            if (auto parsed_style_value = parse_css_length_value(realm(), attribute_value))
+            if (auto parsed_style_value = parse_css_length_value(attribute_value))
                 return parsed_style_value.release_nonnull();
 
             return source.default_value;
@@ -330,7 +326,7 @@ WebIDL::ExceptionOr<void> SVGLength::set_value(float value)
 {
     // 1. If the SVGLength object is read only, then throw a NoModificationAllowedError.
     if (m_read_only == ReadOnly::Yes)
-        return WebIDL::NoModificationAllowedError::create(realm(), "Cannot modify value of read-only SVGLength"_utf16);
+        return WebIDL::NoModificationAllowedError::create("Cannot modify value of read-only SVGLength"_utf16);
 
     // 2. Let value be the value being assigned to value.
 
@@ -359,7 +355,7 @@ WebIDL::ExceptionOr<void> SVGLength::set_value(float value)
         return Number {};
     }();
 
-    auto new_value = TRY(convert_px_to_specified_units(realm(), value, target_unit, m_element, m_directionality));
+    auto new_value = TRY(convert_px_to_specified_units(*m_realm, value, target_unit, m_element, m_directionality));
 
     // 3. Set the SVGLength's value to a <number> whose value is value.
     // NB: Modes other than DetachedSource have their value set implicitly when reserializing the reflected attribute.
@@ -417,7 +413,7 @@ WebIDL::ExceptionOr<void> SVGLength::set_value_in_specified_units(float value)
 
     // 1. If the SVGLength object is read only, then throw a NoModificationAllowedError.
     if (m_read_only == ReadOnly::Yes)
-        return WebIDL::NoModificationAllowedError::create(realm(), "Cannot modify value of read-only SVGLength"_utf16);
+        return WebIDL::NoModificationAllowedError::create(*m_realm, "Cannot modify value of read-only SVGLength"_utf16);
 
     // 2. Let value be the value being assigned to valueInSpecifiedUnits.
 
@@ -495,16 +491,16 @@ WebIDL::ExceptionOr<void> SVGLength::set_value_as_string(Utf16String value)
 
     // 1. If the SVGLength object is read only, then throw a NoModificationAllowedError.
     if (m_read_only == ReadOnly::Yes)
-        return WebIDL::NoModificationAllowedError::create(realm(), "Cannot modify value of read-only SVGLength"_utf16);
+        return WebIDL::NoModificationAllowedError::create(*m_realm, "Cannot modify value of read-only SVGLength"_utf16);
 
     // 2. Let value be the value being assigned to valueAsString.
 
     // 3. Parse value using the CSS syntax [ <number> | <length> | <percentage> ].
-    auto parsed_value = parse_css_length_value(realm(), value);
+    auto parsed_value = parse_css_length_value(value);
 
     // 4. If parsing failed, then throw a SyntaxError.
     if (!parsed_value)
-        return WebIDL::SyntaxError::create(realm(), "Failed to parse value as a <number>, <length> or <percentage>"_utf16);
+        return WebIDL::SyntaxError::create(*m_realm, "Failed to parse value as a <number>, <length> or <percentage>"_utf16);
 
     // 5. Otherwise, parsing succeeded. Set SVGLength's value to the parsed value.
     // NB: Modes other than DetachedSource have their value set implicitly when reserializing the reflected attribute.
@@ -558,12 +554,12 @@ WebIDL::ExceptionOr<void> SVGLength::new_value_specified_units(u16 unit_type, fl
     //
     // 1. If the SVGLength object is read only, then throw a NoModificationAllowedError.
     if (m_read_only == ReadOnly::Yes)
-        return WebIDL::NoModificationAllowedError::create(realm(), "Cannot modify value of read-only SVGLength"_utf16);
+        return WebIDL::NoModificationAllowedError::create(*m_realm, "Cannot modify value of read-only SVGLength"_utf16);
 
     // 2. If unitType is SVG_LENGTHTYPE_UNKNOWN or is a value that does not appear in the length unit type table above,
     //    then throw a NotSupportedError.
     if (unit_type == SVG_LENGTHTYPE_UNKNOWN || unit_type > SVG_LENGTHTYPE_PC)
-        return WebIDL::NotSupportedError::create(realm(), "Unsupported SVGLength unit type"_utf16);
+        return WebIDL::NotSupportedError::create(*m_realm, "Unsupported SVGLength unit type"_utf16);
 
     // 3. Set SVGLength's value depending on the value of unitType:
     RefPtr<CSS::StyleValue const> new_value;
@@ -609,12 +605,12 @@ WebIDL::ExceptionOr<void> SVGLength::convert_to_specified_units(u16 unit_type)
 {
     // 1. If the SVGLength object is read only, then throw a NoModificationAllowedError.
     if (m_read_only == ReadOnly::Yes)
-        return WebIDL::NoModificationAllowedError::create(realm(), "Cannot modify value of read-only SVGLength"_utf16);
+        return WebIDL::NoModificationAllowedError::create(*m_realm, "Cannot modify value of read-only SVGLength"_utf16);
 
     // 2. If unitType is SVG_LENGTHTYPE_UNKNOWN or is a value that does not appear in the length unit type table above,
     //    then throw a NotSupportedError.
     if (unit_type == SVG_LENGTHTYPE_UNKNOWN || unit_type > SVG_LENGTHTYPE_PC)
-        return WebIDL::NotSupportedError::create(realm(), "Unsupported SVGLength unit type"_utf16);
+        return WebIDL::NotSupportedError::create(*m_realm, "Unsupported SVGLength unit type"_utf16);
 
     // 3. Let absolute be the value that would be returned from the value member.
     auto absolute = TRY(value());
@@ -648,7 +644,7 @@ WebIDL::ExceptionOr<void> SVGLength::convert_to_specified_units(u16 unit_type)
         return Unit { Length { svg_length_type_to_css_length_unit(unit_type) } };
     }();
 
-    auto new_value = TRY(convert_px_to_specified_units(realm(), absolute, target_unit, m_element, m_directionality));
+    auto new_value = TRY(convert_px_to_specified_units(*m_realm, absolute, target_unit, m_element, m_directionality));
 
     // NB: Modes other than DetachedSource have their value set implicitly when reserializing the reflected attribute.
     if (m_source.has<DetachedSource>())

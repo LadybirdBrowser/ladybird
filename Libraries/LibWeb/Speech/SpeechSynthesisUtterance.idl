@@ -1,7 +1,7 @@
 // https://wicg.github.io/speech-api/#speechsynthesisutterance
 [Exposed=Window]
 interface SpeechSynthesisUtterance : EventTarget {
-    constructor(optional Utf16DOMString text = "");
+    constructor(optional DOMString text = "");
 
     attribute Utf16DOMString text;
     attribute Utf16DOMString lang;

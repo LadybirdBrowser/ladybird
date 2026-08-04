@@ -4,6 +4,8 @@
 <script src="structural-matrix.js"></script>
 <script>
     test(() => {
+        flushPendingStyleWork();
+
         const partScopes = [
             "part-document",
             "part-shadow-host-document",

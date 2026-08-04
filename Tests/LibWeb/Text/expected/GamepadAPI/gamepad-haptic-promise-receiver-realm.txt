@@ -1,0 +1,7 @@
+playEffect promise is iframe realm: false
+playEffect promise is parent realm: true
+playEffect rejection is iframe realm: false
+playEffect rejection is parent realm: true
+playEffect rejection message: Invalid effect
+reset promise is iframe realm: false
+reset promise is parent realm: true

@@ -16,7 +16,7 @@ class WindowEnvironmentSettingsObject final : public EnvironmentSettingsObject {
     GC_DECLARE_ALLOCATOR(WindowEnvironmentSettingsObject);
 
 public:
-    static void setup(Page&, URL::URL const& creation_url, NonnullOwnPtr<JS::ExecutionContext>, GC::Ptr<Environment>, URL::URL top_level_creation_url, URL::Origin top_level_origin);
+    static WEB_API void setup(Page&, URL::URL const& creation_url, NonnullOwnPtr<JS::ExecutionContext>, GC::Ptr<Environment>, URL::URL top_level_creation_url, URL::Origin top_level_origin);
 
     virtual ~WindowEnvironmentSettingsObject() override;
 

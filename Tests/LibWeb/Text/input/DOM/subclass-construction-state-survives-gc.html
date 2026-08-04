@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        class TestElement extends HTMLElement {
+            #value = 42;
+            value() { return this.#value; }
+        }
+        customElements.define("gc-state-element", TestElement);
+
+        (() => {
+            const element = new TestElement();
+            element.id = "gc-state-probe";
+            document.body.appendChild(element);
+        })();
+
+        internals.gc();
+
+        const reacquired = document.getElementById("gc-state-probe");
+        println(`instanceof=${reacquired instanceof TestElement}`);
+        println(`private=${reacquired.value()}`);
+    });
+</script>

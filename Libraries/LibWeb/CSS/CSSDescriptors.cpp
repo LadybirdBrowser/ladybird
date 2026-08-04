@@ -15,8 +15,8 @@
 
 namespace Web::CSS {
 
-CSSDescriptors::CSSDescriptors(JS::Realm& realm, AtRuleID at_rule_id, Vector<Descriptor> descriptors)
-    : CSSStyleDeclaration(realm, Computed::No, Readonly::No)
+CSSDescriptors::CSSDescriptors(AtRuleID at_rule_id, Vector<Descriptor> descriptors)
+    : CSSStyleDeclaration(Computed::No, Readonly::No)
     , m_at_rule_id(at_rule_id)
     , m_descriptors(move(descriptors))
 {
@@ -74,10 +74,7 @@ WebIDL::ExceptionOr<void> CSSDescriptors::set_property_internal(Utf16FlyString c
 {
     // 1. If the readonly flag is set, then throw a NoModificationAllowedError exception.
     if (is_readonly())
-        return WebIDL::NoModificationAllowedError::create(realm(), "Cannot modify properties of readonly CSSStyleDeclaration"_utf16);
-
-    if (!property.is_ascii())
-        return {};
+        return WebIDL::NoModificationAllowedError::create("Cannot modify properties of readonly CSSStyleDeclaration"_utf16);
 
     // 2. If property is not a custom property, follow these substeps:
     Optional<DescriptorNameAndID> descriptor_name_and_id;
@@ -144,7 +141,7 @@ WebIDL::ExceptionOr<Utf16String> CSSDescriptors::remove_property(Utf16FlyString 
 {
     // 1. If the readonly flag is set, then throw a NoModificationAllowedError exception.
     if (is_readonly())
-        return WebIDL::NoModificationAllowedError::create(realm(), "Cannot modify properties of readonly CSSStyleDeclaration"_utf16);
+        return WebIDL::NoModificationAllowedError::create("Cannot modify properties of readonly CSSStyleDeclaration"_utf16);
 
     if (!property.is_ascii())
         return Utf16String {};
@@ -186,9 +183,6 @@ WebIDL::ExceptionOr<Utf16String> CSSDescriptors::remove_property(Utf16FlyString 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-getpropertyvalue
 Utf16String CSSDescriptors::get_property_value(Utf16FlyString const& property) const
 {
-    if (!property.is_ascii())
-        return {};
-
     // 1. If property is not a custom property, follow these substeps: ...
     // NB: These substeps only apply to shorthands, and descriptors cannot be shorthands.
 
@@ -226,7 +220,6 @@ Utf16String CSSDescriptors::serialized() const
     for (auto const& descriptor : m_descriptors) {
         // 1. Let property be declaration’s property name.
         auto property = descriptor.descriptor_name_and_id.name();
-        auto property_string = property.to_utf16_string();
 
         // 2. If property is in already serialized, continue with the steps labeled declaration loop.
         // AD-HOC: Not needed as we don't have shorthands.
@@ -239,7 +232,7 @@ Utf16String CSSDescriptors::serialized() const
         auto value = descriptor.value->to_utf16_string(SerializationMode::Normal);
 
         // 6. Let serialized declaration be the result of invoking serialize a CSS declaration with property name property, value value, and the important flag set if declaration has its important flag set.
-        auto serialized_declaration = serialize_a_css_declaration_to_utf16(property_string, value, Important::No);
+        auto serialized_declaration = serialize_a_css_declaration_to_utf16(property, value, Important::No);
 
         // 7. Append serialized declaration to list.
         list.append(move(serialized_declaration));
@@ -263,7 +256,7 @@ WebIDL::ExceptionOr<void> CSSDescriptors::set_css_text(Utf16View value)
 {
     // 1. If the readonly flag is set, then throw a NoModificationAllowedError exception.
     if (is_readonly())
-        return WebIDL::NoModificationAllowedError::create(realm(), "Cannot modify properties of readonly CSSStyleDeclaration"_utf16);
+        return WebIDL::NoModificationAllowedError::create("Cannot modify properties of readonly CSSStyleDeclaration"_utf16);
 
     // 2. Empty the declarations.
     m_descriptors.clear();

@@ -6,7 +6,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/HTMLStyleElement.h>
+#include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/HTMLStyleElement.h>
 
 namespace Web::HTML {
@@ -19,12 +20,6 @@ HTMLStyleElement::HTMLStyleElement(DOM::Document& document, DOM::QualifiedName q
 }
 
 HTMLStyleElement::~HTMLStyleElement() = default;
-
-void HTMLStyleElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLStyleElement);
-    Base::initialize(realm);
-}
 
 void HTMLStyleElement::visit_edges(Cell::Visitor& visitor)
 {

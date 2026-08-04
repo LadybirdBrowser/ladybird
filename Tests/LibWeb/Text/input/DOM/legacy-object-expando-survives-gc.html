@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<form id="form"></form>
+<script>
+    test(() => {
+        let forms = document.forms;
+        forms.marker = 7;
+        forms = null;
+        internals.gc();
+        println(document.forms.marker);
+    });
+</script>

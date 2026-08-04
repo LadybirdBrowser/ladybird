@@ -1,0 +1,18 @@
+text promise is iframe realm: false
+text promise is parent realm: true
+text result value: 🦬
+arrayBuffer promise is iframe realm: false
+arrayBuffer promise is parent realm: true
+ArrayBuffer result is iframe realm: false
+ArrayBuffer result is parent realm: true
+ArrayBuffer result bytes: 240,159,166,172
+bytes promise is iframe realm: false
+bytes promise is parent realm: true
+bytes result is iframe realm: false
+bytes result is parent realm: true
+bytes result values: 240,159,166,172
+stream result is iframe realm: false
+stream result is parent realm: true
+stream chunk is iframe realm: false
+stream chunk is parent realm: true
+stream chunk values: 240,159,166,172

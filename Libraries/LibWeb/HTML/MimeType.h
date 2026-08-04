@@ -6,17 +6,20 @@
 
 #pragma once
 
-#include <AK/Utf16FlyString.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <AK/String.h>
+#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/system-state.html#mimetype
-class MimeType : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(MimeType, Bindings::PlatformObject);
+class MimeType : public Bindings::GCAllocatedWrappable {
+    WEB_WRAPPABLE(MimeType, Bindings::GCAllocatedWrappable);
     GC_DECLARE_ALLOCATOR(MimeType);
 
 public:
+    [[nodiscard]] static GC::Ref<MimeType> create(Window&, String type);
+
     virtual ~MimeType() override;
 
     Utf16FlyString const& type() const;
@@ -25,12 +28,14 @@ public:
     GC::Ref<Plugin> enabled_plugin() const;
 
 private:
-    MimeType(JS::Realm&, Utf16FlyString type);
+    MimeType(Window&, Utf16FlyString type);
 
-    virtual void initialize(JS::Realm&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     // https://html.spec.whatwg.org/multipage/system-state.html#concept-mimetype-type
     Utf16FlyString m_type;
+
+    GC::Ref<Window> m_window;
 };
 
 }
