@@ -66,7 +66,6 @@ size_t SourceBufferProcessor::total_buffered_bytes() const
 
 size_t SourceBufferProcessor::capacity_in_bytes() const
 {
-    VERIFY(!m_track_buffers.is_empty());
     size_t total = 0;
     for (auto const& [track_id, track_buffer] : m_track_buffers) {
         switch (track_buffer->demuxer().track().type()) {
