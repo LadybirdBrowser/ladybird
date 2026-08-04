@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+        font: 16px/1.5 monospace;
+    }
+
+    ul {
+        margin: 0;
+        padding-left: 100px;
+    }
+
+    li.flow-root {
+        display: flow-root list-item;
+    }
+
+    li.clipped {
+        overflow: hidden;
+        height: 40px;
+    }
+</style>
+<ul>
+    <li class="flow-root">flow-root list item</li>
+    <li class="clipped">overflow hidden list item</li>
+</ul>

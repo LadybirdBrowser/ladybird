@@ -1031,28 +1031,7 @@ impl LayoutState {
         used.content_inline_size.set(content_inline_size.unwrap_or_default());
         used.content_block_size.set(content_block_size.unwrap_or_default());
 
-        let used = self.used_values.allocate(slot_index, used);
-
-        let list_item_marker = facts.is_list_item_box().then(|| facts.list_item_marker());
-        if let Some(list_item_marker) = list_item_marker.filter(|marker| !marker.is_invalid()) {
-            let marker_slot_index = callbacks.slot_index(list_item_marker);
-            if self.used_values.get(marker_slot_index).is_none() {
-                // List markers inherit only bases that were already definite
-                // when their list item entry was created.
-                let marker_constraints = ContainingBlockConstraints {
-                    percentage_basis_inline_size: used
-                        .has_definite_inline_size()
-                        .then_some(used.content_inline_size.get()),
-                    percentage_basis_block_size: used
-                        .has_definite_block_size()
-                        .then_some(used.content_block_size.get()),
-                    ..ContainingBlockConstraints::default()
-                };
-                self.create_used_values(callbacks, list_item_marker, marker_constraints);
-            }
-        }
-
-        used
+        self.used_values.allocate(slot_index, used)
     }
 
     pub(crate) fn populate_from_paintable(

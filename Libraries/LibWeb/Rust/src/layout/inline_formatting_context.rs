@@ -905,9 +905,7 @@ impl<'context, 'pass> InlineFormattingContext<'context, 'pass> {
                 }
                 ItemType::FloatingElement => {
                     line_builder.commit_pending_margin_before_float();
-                    if !self.facts(item.node).is_list_item_marker_box() {
-                        self.create_used_values(item.node, self.input.containing_block_constraints);
-                    }
+                    self.create_used_values(item.node, self.input.containing_block_constraints);
                     self.clear_floating_boxes(item.node);
                     line_builder.set_unbreakable_run_inline_size_interrupted_by_float(
                         iterator.next_non_whitespace_sequence_inline_size(self),

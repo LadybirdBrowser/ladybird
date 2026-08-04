@@ -185,13 +185,7 @@ impl<'iterator, 'context, 'pass> InlineLevelIteratorGenerator<'iterator, 'contex
             self.visited_fragmented_inlines.push(node);
         }
         let constraints = self.context().input.containing_block_constraints;
-        let used = if self.context().facts(node).is_list_item_marker_box() {
-            self.context()
-                .try_used_pointer(node)
-                .expect("list marker must have precreated used values")
-        } else {
-            self.context().create_used_values(node, constraints)
-        };
+        let used = self.context().create_used_values(node, constraints);
         let style = self.context().style(node);
         let basis = constraints.inline_basis();
         used.margin_top.set(style.margin_top().to_px(basis));
@@ -552,7 +546,7 @@ impl<'iterator, 'context, 'pass> InlineLevelIteratorGenerator<'iterator, 'contex
             return Some(Item::new(ItemType::BlockLevelBox, node));
         }
 
-        let used = if facts.is_list_item_marker_box() || self.box_model_node_stack.last().copied() == Some(node) {
+        let used = if self.box_model_node_stack.last().copied() == Some(node) {
             self.context()
                 .try_used_pointer(node)
                 .expect("inline box must have precreated used values")

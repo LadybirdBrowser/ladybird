@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+        font: 16px/1 monospace;
+    }
+
+    ul {
+        margin: 0;
+        padding-left: 100px;
+    }
+
+    li.h5 {
+        height: 5px;
+    }
+
+    li.mh5 {
+        max-height: 5px;
+    }
+</style>
+<ul>
+    <li class="h5">specified height wins over the marker floor</li>
+    <li class="mh5">max-height clamps below the marker floor</li>
+    <li></li>
+    <li>automatic height item</li>
+</ul>

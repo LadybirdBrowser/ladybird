@@ -124,6 +124,7 @@ pub(crate) struct RootSizingDirectives {
     pub(crate) table_box_content_block_offset_in_wrapper: Option<CssPixels>,
     pub(crate) adopt_automatic_content_block_size: bool,
     pub(crate) float_avoidance_inline_size: Option<CssPixels>,
+    pub(crate) outer_float_intrusion_before_list_item_children: SpaceUsedByFloats,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
