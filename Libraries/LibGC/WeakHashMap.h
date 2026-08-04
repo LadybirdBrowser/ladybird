@@ -146,6 +146,24 @@ public:
         return true;
     }
 
+    template<typename Callback>
+    void for_each_live_value(Callback callback)
+    {
+        maybe_prune();
+        for (auto& entry : m_table) {
+            if constexpr (key_is_cell) {
+                if (!entry.key.ptr())
+                    continue;
+            }
+            if constexpr (value_is_cell) {
+                if (auto value = entry.value.ptr())
+                    callback(*value);
+            } else {
+                callback(entry.value);
+            }
+        }
+    }
+
     void clear() { m_table.clear(); }
 
 private:
