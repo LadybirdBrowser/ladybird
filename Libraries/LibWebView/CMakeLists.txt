@@ -1,5 +1,6 @@
 set(SOURCES
     Application.cpp
+    ApplyHistoryStep.cpp
     Attribute.cpp
     Autocomplete.cpp
     AutocompleteMuxer.cpp
