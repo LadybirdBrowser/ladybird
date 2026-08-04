@@ -1947,32 +1947,13 @@ impl<'pass> TableFormattingContext<'pass> {
 
         let measurement = MeasurementState::create(self.callbacks, cell.box_, ContainingBlockConstraints::default());
         let measured_root = measurement.root_used();
-        measured_root
-            .inline_size_constraint
-            .set(used.inline_size_constraint.get());
-        measured_root
-            .block_size_constraint
-            .set(used.block_size_constraint.get());
-        measured_root.content_inline_size.set(used.content_inline_size.get());
-        measured_root.content_block_size.set(used.content_block_size.get());
+        used.mirror_box_metrics_and_size_constraints_into(measured_root);
         measured_root
             .has_definite_inline_size
             .set(used.has_definite_inline_size());
         measured_root
             .has_definite_block_size
             .set(used.has_definite_block_size());
-        measured_root.margin_left.set(used.margin_left.get());
-        measured_root.margin_right.set(used.margin_right.get());
-        measured_root.margin_top.set(used.margin_top.get());
-        measured_root.margin_bottom.set(used.margin_bottom.get());
-        measured_root.border_left.set(used.border_left.get());
-        measured_root.border_right.set(used.border_right.get());
-        measured_root.border_top.set(used.border_top.get());
-        measured_root.border_bottom.set(used.border_bottom.get());
-        measured_root.padding_left.set(used.padding_left.get());
-        measured_root.padding_right.set(used.padding_right.get());
-        measured_root.padding_top.set(used.padding_top.get());
-        measured_root.padding_bottom.set(used.padding_bottom.get());
         measured_root
             .uses_collapsing_borders_model
             .set(used.uses_collapsing_borders_model.get());
