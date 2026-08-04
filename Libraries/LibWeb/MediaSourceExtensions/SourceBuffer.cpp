@@ -392,7 +392,9 @@ WebIDL::ExceptionOr<void> SourceBuffer::abort()
     if (m_media_source->ready_state() != ReadyState::Open)
         return WebIDL::InvalidStateError::create("MediaSource is not open"_utf16);
 
-    // FIXME: 3. If the range removal algorithm is running, then throw an InvalidStateError exception and abort these steps.
+    // 3. If the range removal algorithm is running, then throw an InvalidStateError exception and abort these steps.
+    if (m_range_removal_running)
+        return WebIDL::InvalidStateError::create("SourceBuffer is removing a range"_utf16);
 
     // 4. If the updating attribute equals true, then run the following steps:
     if (updating()) {
@@ -478,6 +480,45 @@ WebIDL::ExceptionOr<void> SourceBuffer::change_type(Utf16String const& type)
     return {};
 }
 
+// https://w3c.github.io/media-source/#dom-sourcebuffer-remove
+WebIDL::ExceptionOr<void> SourceBuffer::remove(double start, double end)
+{
+    // 1. If this object has been removed from the sourceBuffers attribute of the parent media source then throw an
+    //    InvalidStateError exception and abort these steps.
+    if (!m_media_source->source_buffers()->contains(*this))
+        return WebIDL::InvalidStateError::create("SourceBuffer has been removed"_utf16);
+
+    // 2. If the updating attribute equals true, then throw an InvalidStateError exception and abort these steps.
+    if (updating())
+        return WebIDL::InvalidStateError::create("SourceBuffer is updating"_utf16);
+
+    // 3. If duration equals NaN, then throw a TypeError exception and abort these steps.
+    auto duration = m_media_source->duration();
+    if (isnan(duration))
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "MediaSource duration is NaN"_utf16 };
+
+    // 4. If start is negative or greater than duration, then throw a TypeError exception and abort these steps.
+    if (start < 0 || start > duration)
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Removal range start is outside of the duration"_utf16 };
+
+    // 5. If end is less than or equal to start or end equals NaN, then throw a TypeError exception and abort
+    //    these steps.
+    if (end <= start || isnan(end))
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Removal range end does not follow its start"_utf16 };
+
+    // 6. If the readyState attribute of the parent media source is in the "ended" state then run the following steps:
+    if (m_media_source->ready_state() == Bindings::ReadyState::Ended) {
+        // 1. Set the readyState attribute of the parent media source to "open"
+        // 2. Queue a task to fire an event named sourceopen at the parent media source.
+        m_media_source->set_ready_state_to_open_and_fire_sourceopen_event();
+    }
+
+    // 7. Run the range removal algorithm with start and end as the start and end of the removal range.
+    run_range_removal(AK::Duration::from_seconds_f64(start), AK::Duration::from_seconds_f64(end));
+
+    return {};
+}
+
 void SourceBuffer::set_reached_end_of_stream(Badge<MediaSource>)
 {
     m_processor->set_reached_end_of_stream();
@@ -501,6 +542,59 @@ void SourceBuffer::run_buffer_append_algorithm(u64 append_generation)
     // NB: The segment-parser loop implements step 2 by invoking the append-done callback — which runs
     //     finish_buffer_append() for the remaining steps — only when it wasn't aborted.
     m_processor->run_segment_parser_loop();
+}
+
+// https://w3c.github.io/media-source/#sourcebuffer-range-removal
+void SourceBuffer::run_range_removal(AK::Duration start, AK::Duration end)
+{
+    // 1. Let start equal the starting presentation timestamp for the removal range, in seconds measured from
+    //    presentation start time.
+    // 2. Let end equal the end presentation timestamp for the removal range, in seconds measured from presentation
+    //    start time.
+
+    m_range_removal_running = true;
+
+    // 3. Set the updating attribute to true.
+    m_processor->set_updating(true);
+
+    // 4. Queue a task to fire an event named updatestart at this SourceBuffer object.
+    m_media_source->queue_a_media_source_task(GC::create_function(heap(), [this] {
+        dispatch_event(m_media_source->create_associated_event(EventNames::updatestart));
+    }));
+
+    // 5. Return control to the caller and run the rest of the steps asynchronously.
+    m_media_source->queue_a_media_source_task(GC::create_function(heap(), [this, start, end] {
+        // NB: Removing this SourceBuffer from the parent media source runs the removeSourceBuffer() steps, which abort
+        //     this algorithm and fire the abort and updateend events in place of the ones below.
+        if (!m_media_source->source_buffers()->contains(*this)) {
+            m_range_removal_running = false;
+            return;
+        }
+
+        // 6. Run the coded frame removal algorithm with start and end as the start and end of the removal range.
+        m_processor->run_coded_frame_removal(start, end);
+
+        // NB: Step 3.5 of the coded frame removal algorithm is completed here, once frames have been removed from
+        //     every track buffer.
+        auto media_element = m_media_source->media_element_assigned_to();
+        VERIFY(media_element);
+        media_element->update_ready_state();
+
+        m_range_removal_running = false;
+
+        // 7. Set the updating attribute to false.
+        m_processor->set_updating(false);
+
+        // 8. Queue a task to fire an event named update at this SourceBuffer object.
+        m_media_source->queue_a_media_source_task(GC::create_function(heap(), [this] {
+            dispatch_event(m_media_source->create_associated_event(EventNames::update));
+        }));
+
+        // 9. Queue a task to fire an event named updateend at this SourceBuffer object.
+        m_media_source->queue_a_media_source_task(GC::create_function(heap(), [this] {
+            dispatch_event(m_media_source->create_associated_event(EventNames::updateend));
+        }));
+    }));
 }
 
 // https://w3c.github.io/media-source/#sourcebuffer-append-error

@@ -54,6 +54,7 @@ public:
 
     void add_coded_frame(Media::CodedFrame);
     void remove_coded_frames_and_dependants_in_range(AK::Duration start, AK::Duration end);
+    Optional<AK::Duration> remove_coded_frames_and_dependants_in_range_returning_presentation_timestamp_at(AK::Duration start, AK::Duration end, Optional<AK::Duration> last_decode_timestamp);
 
     size_t total_bytes() const;
 

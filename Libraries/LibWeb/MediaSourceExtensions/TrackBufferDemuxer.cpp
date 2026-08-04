@@ -238,7 +238,14 @@ size_t TrackBufferDemuxer::erase_frames_and_dependants_while_locked(size_t run_i
 
 void TrackBufferDemuxer::remove_coded_frames_and_dependants_in_range(AK::Duration start, AK::Duration end)
 {
+    (void)remove_coded_frames_and_dependants_in_range_returning_presentation_timestamp_at(start, end, {});
+}
+
+Optional<AK::Duration> TrackBufferDemuxer::remove_coded_frames_and_dependants_in_range_returning_presentation_timestamp_at(AK::Duration start, AK::Duration end, Optional<AK::Duration> last_decode_timestamp)
+{
     Sync::MutexLocker locker { m_mutex };
+
+    Optional<AK::Duration> removed_frame_presentation_timestamp;
 
     for (size_t run_index = m_runs.size(); run_index-- > 0;) {
         auto& run = m_runs[run_index];
@@ -259,10 +266,23 @@ void TrackBufferDemuxer::remove_coded_frames_and_dependants_in_range(AK::Duratio
         if (!first_index.has_value())
             continue;
 
+        for (size_t index = first_index.value(); index < run.frames.size(); index++) {
+            auto const& frame = run.frames[index];
+            if (index > last_index && frame.is_keyframe())
+                break;
+            if (last_decode_timestamp == frame.decode_timestamp())
+                removed_frame_presentation_timestamp = frame.presentation_timestamp();
+            if (m_last_appended_decode_timestamp == frame.decode_timestamp())
+                m_last_appended_decode_timestamp.clear();
+        }
+
         erase_frames_and_dependants_while_locked(run_index, first_index.value(), last_index - first_index.value() + 1);
     }
 
+    m_data_changed.broadcast();
     queue_scan_state_change_dispatch_while_locked();
+
+    return removed_frame_presentation_timestamp;
 }
 
 size_t TrackBufferDemuxer::total_bytes() const
