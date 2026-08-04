@@ -1059,7 +1059,15 @@ impl<'context, 'pass> InlineFormattingContext<'context, 'pass> {
         self.automatic_content_inline_size = self
             .parent
             .greatest_child_inline_size_including_floats(self.containing_block);
-        crate::layout::compute_and_store_baselines(self.state, &self.callbacks, self.containing_block, false);
+        let baselines = crate::layout::derive_baselines(self.state, &self.callbacks, self.containing_block, false);
+        if self.containing_block == self.parent.root_box() {
+            self.parent.record_derived_baselines_of_root_box(baselines);
+        } else {
+            crate::layout::store_derived_baselines(
+                self.state.used_values(&self.callbacks, self.containing_block),
+                baselines,
+            );
+        }
     }
 
     fn compute_inline_box_pieces(&mut self) {

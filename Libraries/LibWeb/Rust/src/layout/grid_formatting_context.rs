@@ -1033,6 +1033,7 @@ impl GridItem<'_> {
 pub(crate) struct GridFormattingContext<'pass> {
     state: &'pass LayoutState,
     grid_container: Node,
+    derived_baselines_of_root_box: DerivedBaselines,
     parent_grid: Option<ParentGridData>,
     layout_mode: LayoutMode,
     callbacks: FfiLayoutFcCallbacks,
@@ -1126,6 +1127,7 @@ impl<'pass> GridFormattingContext<'pass> {
         Self {
             state,
             grid_container,
+            derived_baselines_of_root_box: DerivedBaselines::default(),
             parent_grid: parent_grid.map(|parent| ParentGridData::for_child_container(parent, grid_container)),
             layout_mode,
             callbacks,
@@ -3455,7 +3457,8 @@ impl<'pass> GridFormattingContext<'pass> {
                 area.size.block_size,
             );
         }
-        crate::layout::compute_and_store_baselines(self.state, &self.callbacks, self.grid_container, false);
+        self.derived_baselines_of_root_box =
+            crate::layout::derive_baselines(self.state, &self.callbacks, self.grid_container, false);
     }
 
     fn used_track_list_data(&self, axis: Axis, subgrid: bool) -> OwnedUsedGridTrackList {
@@ -3709,6 +3712,10 @@ impl<'pass> GridFormattingContext<'pass> {
         self.layout_items(run);
         self.save_used_tracks(grid_style);
         self.save_devtools_data(grid_style);
+    }
+
+    pub(crate) fn derived_baselines_of_root_box(&self) -> DerivedBaselines {
+        self.derived_baselines_of_root_box
     }
 
     pub(crate) fn automatic_content_inline_size(&self) -> CssPixels {

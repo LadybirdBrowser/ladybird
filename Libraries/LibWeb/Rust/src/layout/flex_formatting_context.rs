@@ -178,6 +178,7 @@ struct FlexFormattingContext<'pass> {
     flex_container_state: &'pass UsedValues,
     flex_lines: Vec<FlexLine>,
     flex_items: Vec<FlexItem<'pass>>,
+    derived_baselines_of_root_box: DerivedBaselines,
     flex_direction: u8,
     available_space_for_items: Option<AxisAgnosticAvailableSpace>,
     available_space: Option<AvailableSpace>,
@@ -198,6 +199,7 @@ impl<'pass> FlexFormattingContext<'pass> {
             flex_container_state,
             flex_lines: Vec::new(),
             flex_items: Vec::new(),
+            derived_baselines_of_root_box: DerivedBaselines::default(),
             flex_direction,
             available_space_for_items: None,
             available_space: None,
@@ -3117,7 +3119,8 @@ impl<'pass> FlexFormattingContext<'pass> {
                 };
                 crate::layout::place_child(self.state, &self.callbacks, item.box_, offset);
             }
-            crate::layout::compute_and_store_baselines(self.state, &self.callbacks, self.flex_container, true);
+            self.derived_baselines_of_root_box =
+                crate::layout::derive_baselines(self.state, &self.callbacks, self.flex_container, true);
         }
 
         if self.should_collect_devtools_layout_data {
@@ -3143,6 +3146,10 @@ impl<'pass> FlexFormattingContext<'pass> {
             }
             child = next;
         }
+    }
+
+    fn derived_baselines_of_root_box(&self) -> DerivedBaselines {
+        self.derived_baselines_of_root_box
     }
 
     fn automatic_content_inline_size(&self) -> CssPixels {

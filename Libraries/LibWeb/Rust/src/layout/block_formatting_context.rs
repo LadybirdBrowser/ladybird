@@ -193,6 +193,7 @@ pub(crate) struct BlockFormattingContext<'pass> {
     bands: RefCell<Vec<FloatBand>>,
     lowest_left_margin_edge: Cell<CssPixels>,
     lowest_right_margin_edge: Cell<CssPixels>,
+    derived_baselines_of_root_box: Cell<DerivedBaselines>,
 }
 
 impl<'pass> BlockFormattingContext<'pass> {
@@ -209,6 +210,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             bands: RefCell::new(vec![FloatBand::default()]),
             lowest_left_margin_edge: Cell::new(CssPixels::default()),
             lowest_right_margin_edge: Cell::new(CssPixels::default()),
+            derived_baselines_of_root_box: Cell::new(DerivedBaselines::default()),
         }
     }
 
@@ -297,7 +299,24 @@ impl<'pass> BlockFormattingContext<'pass> {
     }
 
     fn compute_and_store_baselines(&self, node: Node) {
-        crate::layout::compute_and_store_baselines(self.state, &self.callbacks, node, false);
+        let baselines = crate::layout::derive_baselines(self.state, &self.callbacks, node, false);
+        if node == self.root {
+            self.record_derived_baselines_of_root_box(baselines);
+        } else {
+            crate::layout::store_derived_baselines(self.used(node), baselines);
+        }
+    }
+
+    pub(crate) fn root_box(&self) -> Node {
+        self.root
+    }
+
+    pub(crate) fn record_derived_baselines_of_root_box(&self, baselines: DerivedBaselines) {
+        self.derived_baselines_of_root_box.set(baselines);
+    }
+
+    pub(crate) fn derived_baselines_of_root_box(&self) -> DerivedBaselines {
+        self.derived_baselines_of_root_box.get()
     }
 
     fn compute_inset(&self, node: Node, containing_block_size: LogicalSize) {
