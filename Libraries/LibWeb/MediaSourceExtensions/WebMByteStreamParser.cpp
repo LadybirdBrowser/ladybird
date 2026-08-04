@@ -318,4 +318,9 @@ Media::DecoderErrorOr<ParseMediaSegmentResult> WebMByteStreamParser::parse_media
     return result;
 }
 
+void WebMByteStreamParser::reset_parser_state()
+{
+    m_current_media_segment_data.clear();
+}
+
 }

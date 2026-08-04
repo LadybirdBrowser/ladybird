@@ -296,6 +296,9 @@ void SourceBufferProcessor::reset_parser_state()
         // FIXME: Process any complete coded frames
     }
 
+    if (m_parser)
+        m_parser->reset_parser_state();
+
     // 2. Unset the last decode timestamp on all track buffers.
     // 3. Unset the last frame duration on all track buffers.
     // 4. Unset the highest end timestamp on all track buffers.
