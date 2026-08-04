@@ -530,6 +530,10 @@ impl<'pass> NodeFacts<'pass> {
         crate::layout::has_flag(self.data(), NodeFlag::Anonymous)
     }
 
+    pub(crate) fn has_anchor_names(&self) -> bool {
+        crate::layout::has_flag(self.data(), NodeFlag::HasAnchorNames)
+    }
+
     pub(crate) fn can_have_children(&self) -> bool {
         crate::layout::node_can_have_children(self.data())
     }
@@ -814,6 +818,7 @@ pub(crate) struct LayoutState {
     line_data: PagedStore<RefCell<LineData>>,
     used_values_rare_data: PagedStore<RefCell<UsedValuesRareData>>,
     inline_containing_blocks: RefCell<HashSet<Node>>,
+    anchor_candidate_shells: RefCell<Vec<*mut c_void>>,
     purpose: LayoutStatePurpose,
 }
 
@@ -862,6 +867,7 @@ impl LayoutState {
             line_data: PagedStore::default(),
             used_values_rare_data: PagedStore::default(),
             inline_containing_blocks: RefCell::new(HashSet::new()),
+            anchor_candidate_shells: RefCell::new(Vec::new()),
             purpose,
         }
     }
@@ -1038,7 +1044,9 @@ impl LayoutState {
         used.content_inline_size.set(content_inline_size.unwrap_or_default());
         used.content_block_size.set(content_block_size.unwrap_or_default());
 
-        self.used_values.allocate(slot_index, used)
+        let used = self.used_values.allocate(slot_index, used);
+        self.register_anchor_candidate_if_carries_anchor_names(callbacks, node);
+        used
     }
 
     pub(crate) fn populate_from_paintable(
@@ -1093,7 +1101,9 @@ impl LayoutState {
             self.used_values_rare_data_mut(slot_index).svg_viewport_size = Some(geometry.svg_viewport_size);
         }
 
-        Some(self.used_values.allocate(slot_index, used))
+        let used = self.used_values.allocate(slot_index, used);
+        self.register_anchor_candidate_if_carries_anchor_names(callbacks, node);
+        Some(used)
     }
 
     pub(crate) fn note_inline_containing_block(&self, inline_containing_block: Node) {
@@ -1112,10 +1122,15 @@ impl LayoutState {
         self.used_values_rare_data(slot_index)?.inline_containing_block_first_last_rect
     }
 
-    pub(crate) fn used_value_nodes(&self) -> Vec<Node> {
-        let mut nodes = Vec::new();
-        self.used_values.for_each(|used| nodes.push(used.node));
-        nodes
+    fn register_anchor_candidate_if_carries_anchor_names(&self, callbacks: &FfiLayoutFcCallbacks, node: Node) {
+        if !self.node_facts(callbacks, node).has_anchor_names() {
+            return;
+        }
+        self.anchor_candidate_shells.borrow_mut().push(callbacks.shell(node));
+    }
+
+    pub(crate) fn anchor_candidate_shells(&self) -> Ref<'_, Vec<*mut c_void>> {
+        self.anchor_candidate_shells.borrow()
     }
 
     pub(crate) fn set_box_is_grid_item(&self, callbacks: &FfiLayoutFcCallbacks, node: Node, is_grid_item: bool) {
