@@ -1318,6 +1318,10 @@ bool WebContentView::handle_vulkan_window_event(QEvent* event)
         return true;
     case QEvent::Wheel:
         wheelEvent(static_cast<QWheelEvent*>(event));
+        // An ignored event is reserved for a browser shortcut such as Ctrl+wheel zoom. A native window has no widget
+        // ancestors to propagate it through, so send it to the top-level window directly.
+        if (!event->isAccepted())
+            return QCoreApplication::sendEvent(window(), event);
         return true;
     case QEvent::Leave:
         leaveEvent(event);
