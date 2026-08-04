@@ -90,9 +90,9 @@ int main()
     EMIT_FIELD(OBJECT_INDEXED_ARRAY_LIKE_SIZE, Object, indexed_array_like_size, u32, Object, m_indexed_array_like_size, 4, nullable);
     EMIT_SIZEOF(OBJECT_SIZE, Object);
 
-    // Object flags byte
+    // Object flags
     outln("\n# Object flags");
-    EMIT_FIELD(OBJECT_FLAGS, Object, flags, u8, Object, m_flags, 1, nullable);
+    EMIT_FIELD(OBJECT_FLAGS, Object, flags, u16, Object, m_flags, 2, nullable);
     outln("const OBJECT_FLAG_HAS_MAGICAL_LENGTH = {}", Object::Flag::HasMagicalLengthProperty);
     outln("const OBJECT_FLAG_MAY_INTERFERE = {}", Object::Flag::MayInterfereWithIndexedPropertyAccess);
     outln("const OBJECT_FLAG_IS_TYPED_ARRAY = {}", Object::Flag::IsTypedArray);

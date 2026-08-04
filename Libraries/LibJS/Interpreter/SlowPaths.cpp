@@ -2229,6 +2229,8 @@ i64 asm_try_put_by_id_cache(VM* vm, u32, Op::PutById const* instruction)
         case PropertyLookupCache::Entry::Type::AddOwnProperty: {
             if (entry.from_shape != &object.shape()) [[unlikely]]
                 continue;
+            if (object.requires_slow_add_own_property()) [[unlikely]]
+                continue;
             auto cached_shape = entry.shape.ptr();
             if (!cached_shape) [[unlikely]]
                 continue;

@@ -315,6 +315,8 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
                     //               reuse the resulting shape from the cache.
                     if (cache.from_shape != &object->shape()) [[unlikely]]
                         break;
+                    if (object->requires_slow_add_own_property()) [[unlikely]]
+                        break;
                     auto cached_shape = cache.shape.ptr();
                     if (!cached_shape) [[unlikely]]
                         break;
@@ -409,7 +411,13 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
         if (caches) [[likely]] {
             for (auto& cache : caches->entries()) {
                 if (cache.type == PropertyLookupCache::Entry::Type::AddOwnProperty) {
+                    // PutKind::Own is not currently emitted for platform
+                    // objects, but keep this aligned with the normal PutById
+                    // AddOwnProperty cache hit so a future bytecode path cannot
+                    // bypass subclass hooks for objects that require them.
                     if (cache.from_shape != &object->shape()) [[unlikely]]
+                        continue;
+                    if (object->requires_slow_add_own_property()) [[unlikely]]
                         continue;
                     auto cached_shape = cache.shape.ptr();
                     if (!cached_shape) [[unlikely]]
