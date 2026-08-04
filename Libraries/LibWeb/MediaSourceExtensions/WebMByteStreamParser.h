@@ -25,6 +25,7 @@ public:
     virtual Media::DecoderErrorOr<SegmentType> sniff_segment_type(Media::MediaStreamCursor&) override;
     virtual Media::DecoderErrorOr<void> parse_initialization_segment(Media::MediaStreamCursor&) override;
     virtual Media::DecoderErrorOr<ParseMediaSegmentResult> parse_media_segment(Media::MediaStreamCursor&) override;
+    virtual void reset_parser_state() override;
 
     virtual Optional<AK::Duration> duration() const override
     {

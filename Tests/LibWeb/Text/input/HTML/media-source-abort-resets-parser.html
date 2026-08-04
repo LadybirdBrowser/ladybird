@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<video id="video"></video>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        function fail(name, error) {
+            println(`FAIL: ${name}: ${error}`);
+            done();
+        }
+
+        function formatRanges(buffered) {
+            const ranges = [];
+            for (let index = 0; index < buffered.length; ++index)
+                ranges.push(`${buffered.start(index)}-${buffered.end(index)}`);
+            return `[${ranges.join(", ")}]`;
+        }
+
+        const mediaSource = new MediaSource();
+        video.src = URL.createObjectURL(mediaSource);
+
+        const INITIALIZATION_SEGMENT_END = 530;
+        const PARTIAL_CLUSTER_END = 545;
+        const SECOND_CLUSTER_START = 946885;
+
+        mediaSource.addEventListener("sourceopen", async () => {
+            try {
+                const sourceBuffer = mediaSource.addSourceBuffer('video/webm;codecs="vp9,opus"');
+                const response = await fetch("../../../Assets/test-webm.webm");
+                if (!response.ok) {
+                    fail("fetch", `HTTP ${response.status}`);
+                    return;
+                }
+                const data = await response.arrayBuffer();
+
+                async function appendSlice(start, end) {
+                    await new Promise((resolve, reject) => {
+                        sourceBuffer.addEventListener("updateend", resolve, { once: true });
+                        sourceBuffer.addEventListener("error", () => reject(new Error("error event")), { once: true });
+                        sourceBuffer.appendBuffer(data.slice(start, end));
+                    });
+                }
+
+                await appendSlice(0, INITIALIZATION_SEGMENT_END);
+                await appendSlice(INITIALIZATION_SEGMENT_END, PARTIAL_CLUSTER_END);
+                println(`after partial cluster: ${formatRanges(sourceBuffer.buffered)}`);
+
+                sourceBuffer.abort();
+
+                await appendSlice(INITIALIZATION_SEGMENT_END, SECOND_CLUSTER_START);
+                println(`after complete cluster: ${formatRanges(sourceBuffer.buffered)}`);
+                done();
+            } catch (error) {
+                fail("sourceopen handler", error);
+            }
+        });
+    });
+</script>
