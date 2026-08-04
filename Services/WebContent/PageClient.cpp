@@ -16,13 +16,13 @@
 #include <LibCore/Process.h>
 #include <LibCore/Timer.h>
 #include <LibDevTools/IndexedDBSerialization.h>
+#include <LibGC/Heap.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ShareableBitmap.h>
 #include <LibHTTP/Cookie/ParsedCookie.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibJS/Console.h>
 #include <LibJS/Runtime/ConsoleObject.h>
-#include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/CSS/CSSImportRule.h>
 #include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
@@ -127,14 +127,14 @@ void PageClient::set_async_scrolling_enabled(bool enabled)
     s_async_scrolling_enabled = enabled;
 }
 
-GC::Ref<PageClient> PageClient::create(JS::VM& vm, PageHost& page_host, u64 id, Optional<Web::HTML::CrossProcessId> pending_root_navigable_id)
+GC::Ref<PageClient> PageClient::create(PageHost& page_host, u64 id, Optional<Web::HTML::CrossProcessId> pending_root_navigable_id)
 {
-    return vm.heap().allocate<PageClient>(page_host, id, pending_root_navigable_id);
+    return GC::Heap::the().allocate<PageClient>(page_host, id, pending_root_navigable_id);
 }
 
 PageClient::PageClient(PageHost& owner, u64 id, Optional<Web::HTML::CrossProcessId> pending_root_navigable_id)
     : m_owner(owner)
-    , m_page(Web::Page::create(Web::Bindings::main_thread_vm(), *this))
+    , m_page(Web::Page::create(*this))
     , m_id(id)
     , m_pending_root_navigable_id(pending_root_navigable_id)
 {
@@ -620,7 +620,7 @@ void PageClient::page_did_create_new_document(Web::DOM::Document& document)
 
 void PageClient::page_did_change_active_document_in_top_level_browsing_context(Web::DOM::Document& document)
 {
-    auto& realm = document.realm();
+    auto& realm = document.relevant_settings_object().realm();
 
     clear_pending_dom_mutations();
 
@@ -755,7 +755,7 @@ void PageClient::page_did_set_browser_zoom(double factor)
     traversable->set_pending_set_browser_zoom_request(true);
     client().async_did_set_browser_zoom(m_id, factor);
     auto& event_loop = Web::HTML::main_thread_event_loop();
-    event_loop.spin_until(GC::create_function(event_loop.heap(), [this, traversable]() {
+    event_loop.spin_until(GC::create_function(GC::Heap::the(), [this, traversable]() {
         return !traversable->pending_set_browser_zoom_request() || !is_connection_open();
     }));
 }
@@ -1154,6 +1154,8 @@ PageClient::NewWebViewResult PageClient::page_did_request_new_web_view(Web::HTML
     if (no_opener == Web::HTML::TokenizedFeature::NoOpener::Yes) {
         // FIXME: Create an abstraction to let this WebContent process know about a new process we create?
         // FIXME: For now, just create a new page in the same process anyway
+        // FIXME: Proper agent-cluster separation must also cover same-process
+        // COOP/noopener popups before they receive distinct main-world cells.
     }
 
     auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestNewWebView>(m_id, activate_tab, hints);
@@ -1584,10 +1586,10 @@ void PageClient::initialize_js_console(Web::DOM::Document& document)
     if (document.is_temporary_document_for_fragment_parsing())
         return;
 
-    auto& realm = document.realm();
+    auto& realm = document.relevant_settings_object().realm();
     auto console_object = realm.intrinsics().console_object();
 
-    auto console_client = DevToolsConsoleClient::create(document.realm(), console_object->console(), *this);
+    auto console_client = DevToolsConsoleClient::create(realm, console_object->console(), *this);
     document.set_console_client(console_client);
 }
 

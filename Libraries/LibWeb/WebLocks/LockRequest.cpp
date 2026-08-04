@@ -60,12 +60,12 @@ void LockRequest::abort_request()
 void LockRequest::signal_to_abort_request(GC::Ref<DOM::AbortSignal> signal)
 {
     // 1. Enqueue the steps to abort the request request to the lock task queue.
-    queue_web_locks_task(signal->realm(), GC::create_function(heap(), [this]() {
+    queue_web_locks_task(m_manager->relevant_realm(), GC::create_function(heap(), [this]() {
         abort_request();
     }));
 
     // 2. Reject request’s promise with signal’s abort reason.
-    WebIDL::reject_promise(signal->realm(), m_promise, signal->reason());
+    WebIDL::reject_promise(m_manager->relevant_realm(), m_promise, signal->reason());
 }
 
 // https://w3c.github.io/web-locks/#grantable

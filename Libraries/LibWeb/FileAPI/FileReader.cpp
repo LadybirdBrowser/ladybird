@@ -10,12 +10,11 @@
 #include <AK/Time.h>
 #include <AK/Utf16StringBuilder.h>
 #include <LibGC/Heap.h>
+#include <LibJS/Runtime/ArrayBuffer.h>
+#include <LibJS/Runtime/PrimitiveString.h>
 #include <LibJS/Runtime/Promise.h>
-#include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibTextCodec/Decoder.h>
-#include <LibWeb/Bindings/FileReader.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/FileAPI/Blob.h>
@@ -23,8 +22,10 @@
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/Scripting/Agent.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
-#include <LibWeb/Infra/SerializedURL.h>
+#include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/MimeSniff/MimeType.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Streams/ReadableStream.h>
@@ -65,38 +66,75 @@ GC_DEFINE_ALLOCATOR(FileReader);
 
 FileReader::~FileReader() = default;
 
-FileReader::FileReader(JS::Realm& realm)
-    : DOM::EventTarget(realm)
+FileReader::FileReader(GC::Ref<DOM::EventTarget> relevant_global_object)
+    : DOM::EventTarget()
+    , m_global_object(relevant_global_object)
 {
-}
-
-void FileReader::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(FileReader);
-    Base::initialize(realm);
 }
 
 void FileReader::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_error);
-    m_result.visit(
-        [&](GC::Ref<JS::ArrayBuffer> const& array_buffer) { visitor.visit(array_buffer); },
-        [](auto&) {});
+    visitor.visit(m_global_object);
 }
 
-GC::Ref<FileReader> FileReader::create(JS::Realm& realm)
+GC::Ref<FileReader> FileReader::create(GC::Ref<DOM::EventTarget> relevant_global_object)
 {
-    return realm.create<FileReader>(realm);
+    return GC::Heap::the().allocate<FileReader>(relevant_global_object);
 }
 
-GC::Ref<FileReader> FileReader::construct_impl(JS::Realm& realm)
+WebIDL::ExceptionOr<GC::Ref<FileReader>> FileReader::create_for_constructor(JS::Object& relevant_global_object)
 {
-    return FileReader::create(realm);
+    auto* global_scope = HTML::window_or_worker_global_scope_from_global_object(relevant_global_object);
+    VERIFY(global_scope);
+    return FileReader::create(global_scope->this_impl());
+}
+
+JS::Object& FileReader::relevant_global_object() const
+{
+    return HTML::relevant_global_object(HTML::relevant_window_or_worker_global_scope(*m_global_object));
+}
+
+WebIDL::ExceptionOr<JS::Value> FileReader::result(JS::Object const& relevant_global_object) const
+{
+    auto& target = HTML::relevant_realm(relevant_global_object);
+    auto& vm = target.vm();
+    return m_result.visit(
+        [](Empty const&) -> WebIDL::ExceptionOr<JS::Value> {
+            return JS::js_null();
+        },
+        [&](Utf16String const& string) -> WebIDL::ExceptionOr<JS::Value> {
+            return JS::PrimitiveString::create(vm, string);
+        },
+        [&](ByteBuffer const& bytes) -> WebIDL::ExceptionOr<JS::Value> {
+            // Return the same ArrayBuffer for repeated accesses in this world; the ArrayBuffer
+            // is created in the receiver's realm and its identity must be stable.
+            auto& wrapper_world = Bindings::host_defined_wrapper_world(target);
+            if (auto cached = m_result_array_buffers.get(wrapper_world))
+                return JS::Value(cached.ptr());
+            auto array_buffer = JS::ArrayBuffer::create(target, TRY_OR_THROW_OOM(vm, ByteBuffer::copy(bytes.bytes())));
+            m_result_array_buffers.set(wrapper_world, array_buffer);
+            return array_buffer;
+        });
+}
+
+void FileReader::set_result(Result result)
+{
+    m_result = move(result);
+
+    // Any previously handed-out ArrayBuffers belong to the old result.
+    m_result_array_buffers.clear();
+}
+
+GC::Ref<DOM::Event> FileReader::create_associated_event(Utf16FlyString const& event_name) const
+{
+    return DOM::Event::create(event_name,
+        HighResolutionTime::current_high_resolution_time(relevant_global_object()));
 }
 
 // https://w3c.github.io/FileAPI/#blob-package-data
-WebIDL::ExceptionOr<FileReader::Result> FileReader::blob_package_data(JS::Realm& realm, ByteBuffer bytes, Type type, Optional<Utf16String> const& mime_type, Optional<Utf16String> const& encoding_name)
+WebIDL::ExceptionOr<FileReader::Result> FileReader::blob_package_data(ByteBuffer bytes, Type type, Optional<Utf16String> const& mime_type, Optional<Utf16String> const& encoding_name)
 {
     // A Blob has an associated package data algorithm, given bytes, a type, a optional mimeType, and a optional encodingName, which switches on type and runs the associated steps:
     switch (type) {
@@ -119,8 +157,7 @@ WebIDL::ExceptionOr<FileReader::Result> FileReader::blob_package_data(JS::Realm&
         // 3. If encoding is failure, and mimeType is present:
         if (!encoding.has_value() && mime_type.has_value()) {
             // 1. Let type be the result of parse a MIME type given mimeType.
-            auto mime_type_utf8 = mime_type->to_utf8();
-            auto maybe_type = MimeSniff::MimeType::parse(mime_type_utf8);
+            auto maybe_type = MimeSniff::MimeType::parse(mime_type->utf16_view());
 
             // 2. If type is not failure, set encoding to the result of getting an encoding from type’s parameters["charset"].
             if (maybe_type.has_value()) {
@@ -135,11 +172,13 @@ WebIDL::ExceptionOr<FileReader::Result> FileReader::blob_package_data(JS::Realm&
         // 5. Decode bytes using fallback encoding encoding, and return the result.
         auto decoder = TextCodec::decoder_for(encoding.value_or("UTF-8"sv));
         VERIFY(decoder.has_value());
-        return TRY_OR_THROW_OOM(realm.vm(), convert_input_to_utf16_using_given_decoder_unless_there_is_a_byte_order_mark(decoder.value(), bytes));
+        auto utf8_result = TRY_OR_THROW_OOM(JS::VM::the(), convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(decoder.value(), bytes));
+        return Utf16String::from_utf8(utf8_result);
     }
     case Type::ArrayBuffer:
-        // Return a new ArrayBuffer whose contents are bytes.
-        return JS::ArrayBuffer::create(realm, move(bytes));
+        // Return bytes. The binding wrapper performs the ArrayBuffer allocation
+        // for the caller's realm.
+        return bytes;
     case Type::BinaryString:
         // Return bytes as a binary string, in which every byte is represented by a code unit of equal value [0..255].
         Utf16StringBuilder builder(bytes.size());
@@ -156,8 +195,8 @@ void FileReader::queue_a_task(GC::Ref<GC::Function<void()>> task)
     // task IDs which are pending evaluation. This allows an abort to go through the task queue to
     // remove those pending tasks.
 
-    auto wrapper_task = GC::create_function(heap(), [this, task] {
-        auto& event_loop = *HTML::relevant_agent(*this).event_loop;
+    auto wrapper_task = GC::create_function(GC::Heap::the(), [this, task] {
+        auto& event_loop = *HTML::relevant_agent(relevant_global_object()).event_loop;
         VERIFY(event_loop.currently_running_task());
         auto& current_task = *event_loop.currently_running_task();
 
@@ -166,32 +205,32 @@ void FileReader::queue_a_task(GC::Ref<GC::Function<void()>> task)
         m_pending_tasks.remove(current_task.id());
     });
 
-    auto id = HTML::queue_global_task(HTML::Task::Source::FileReading, realm().global_object(), wrapper_task);
+    auto id = HTML::queue_global_task(HTML::Task::Source::FileReading, relevant_global_object(), wrapper_task);
     m_pending_tasks.set(id);
 }
 
 // https://w3c.github.io/FileAPI/#readOperation
 WebIDL::ExceptionOr<void> FileReader::read_operation(Blob& blob, Type type, Optional<Utf16String> const& encoding_name)
 {
-    auto& realm = this->realm();
+    auto& realm = HTML::relevant_realm(relevant_global_object());
     auto const blobs_type = blob.type();
 
     // 1. If fr’s state is "loading", throw an InvalidStateError DOMException.
     if (m_state == State::Loading)
-        return WebIDL::InvalidStateError::create(realm, "Read already in progress"_utf16);
+        return WebIDL::InvalidStateError::create("Read already in progress"_utf16);
 
     // 2. Set fr’s state to "loading".
     m_state = State::Loading;
     m_is_aborted = false;
 
     // 3. Set fr’s result to null.
-    m_result = {};
+    set_result({});
 
     // 4. Set fr’s error to null.
     m_error = {};
 
     // 5. Let stream be the result of calling get stream on blob.
-    auto stream = blob.get_stream();
+    auto stream = blob.get_stream(realm);
 
     // 6. Let reader be the result of getting a reader from stream.
     auto reader = TRY(stream->get_a_reader());
@@ -206,13 +245,13 @@ WebIDL::ExceptionOr<void> FileReader::read_operation(Blob& blob, Type type, Opti
     bool is_first_chunk = true;
 
     // 10. In parallel, while true:
-    auto state = realm.create<ReadOperationState>(reader, move(bytes), is_first_chunk);
+    auto state = GC::Heap::the().allocate<ReadOperationState>(reader, move(bytes), is_first_chunk);
 
-    state->process_next_chunk = GC::create_function(heap(), [this, state, &realm, type, encoding_name, blobs_type](GC::Ref<WebIDL::Promise> current_chunk_promise) mutable {
+    state->process_next_chunk = GC::create_function(GC::Heap::the(), [this, state, &realm, type, encoding_name, blobs_type](GC::Ref<WebIDL::Promise> current_chunk_promise) mutable {
         // 1. Wait for chunkPromise to be fulfilled or rejected.
         WebIDL::react_to_promise(
             current_chunk_promise,
-            GC::create_function(realm.heap(), [this, state, &realm, type, encoding_name, blobs_type](JS::Value promise_value) mutable -> WebIDL::ExceptionOr<JS::Value> {
+            GC::create_function(GC::Heap::the(), [this, state, &realm, type, encoding_name, blobs_type](JS::Value promise_value) mutable -> WebIDL::ExceptionOr<JS::Value> {
                 HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
                 if (m_is_aborted)
@@ -221,8 +260,8 @@ WebIDL::ExceptionOr<void> FileReader::read_operation(Blob& blob, Type type, Opti
                 // 2. If chunkPromise is fulfilled, and isFirstChunk is true, queue a task to fire a progress event called loadstart at fr.
                 // NOTE: ISSUE 2 We might change loadstart to be dispatched synchronously, to align with XMLHttpRequest behavior. [Issue #119]
                 if (state->is_first_chunk) {
-                    queue_a_task(GC::create_function(heap(), [this, &realm]() {
-                        dispatch_event(DOM::Event::create(realm, HTML::EventNames::loadstart));
+                    queue_a_task(GC::create_function(GC::Heap::the(), [this]() {
+                        dispatch_event(create_associated_event(HTML::EventNames::loadstart));
                     }));
                 }
 
@@ -255,8 +294,8 @@ WebIDL::ExceptionOr<void> FileReader::read_operation(Blob& blob, Type type, Opti
                     // See http://wpt.live/FileAPI/reading-data-section/filereader_events.any.html
                     bool contained_data = byte_sequence.array_length().length() > 0;
                     if (enough_time_passed && contained_data) {
-                        queue_a_task(GC::create_function(heap(), [this, &realm]() {
-                            dispatch_event(DOM::Event::create(realm, HTML::EventNames::progress));
+                        queue_a_task(GC::create_function(GC::Heap::the(), [this]() {
+                            dispatch_event(create_associated_event(HTML::EventNames::progress));
                         }));
                         state->progress_timer = now;
                     }
@@ -267,32 +306,32 @@ WebIDL::ExceptionOr<void> FileReader::read_operation(Blob& blob, Type type, Opti
                 }
                 // 5. Otherwise, if chunkPromise is fulfilled with an object whose done property is true, queue a task to run the following steps and abort this algorithm:
                 else if (done.as_bool()) {
-                    queue_a_task(GC::create_function(heap(), [this, bytes = move(state->bytes), type, &realm, encoding_name, blobs_type]() {
+                    queue_a_task(GC::create_function(GC::Heap::the(), [this, packaged_bytes = move(state->bytes), type, encoding_name, blobs_type]() mutable {
                         // 1. Set fr’s state to "done".
                         m_state = State::Done;
 
                         // 2. Let result be the result of package data given bytes, type, blob’s type, and encodingName.
-                        auto result = blob_package_data(realm, bytes, type, blobs_type, encoding_name);
+                        auto result = blob_package_data(move(packaged_bytes), type, blobs_type, encoding_name);
 
                         // 3. If package data threw an exception error:
                         if (result.is_error()) {
                             // FIXME: 1. Set fr’s error to error.
 
                             // 2. Fire a progress event called error at fr.
-                            dispatch_event(DOM::Event::create(realm, HTML::EventNames::error));
+                            dispatch_event(create_associated_event(HTML::EventNames::error));
                         }
                         // 4. Else:
                         else {
                             // 1. Set fr’s result to result.
-                            m_result = result.release_value();
+                            set_result(result.release_value());
 
                             // 2. Fire a progress event called load at the fr.
-                            dispatch_event(DOM::Event::create(realm, HTML::EventNames::load));
+                            dispatch_event(create_associated_event(HTML::EventNames::load));
                         }
 
                         // 5. If fr’s state is not "loading", fire a progress event called loadend at the fr.
                         if (m_state != State::Loading)
-                            dispatch_event(DOM::Event::create(realm, HTML::EventNames::loadend));
+                            dispatch_event(create_associated_event(HTML::EventNames::loadend));
 
                         // NOTE: Event handler for the load or error events could have started another load, if that happens
                         //       the loadend event for this load is not fired.
@@ -302,23 +341,23 @@ WebIDL::ExceptionOr<void> FileReader::read_operation(Blob& blob, Type type, Opti
                 return JS::js_undefined();
             }),
             // 6. Otherwise, if chunkPromise is rejected with an error error, queue a task to run the following steps and abort this algorithm:
-            GC::create_function(realm.heap(), [this, &realm](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
+            GC::create_function(GC::Heap::the(), [this, &realm](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
                 HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
                 if (m_is_aborted)
                     return JS::js_undefined();
 
-                queue_a_task(GC::create_function(heap(), [this, &realm]() {
+                queue_a_task(GC::create_function(GC::Heap::the(), [this]() {
                     // 1. Set fr’s state to "done".
                     m_state = State::Done;
 
                     // FIXME: 2. Set fr’s error to error.
 
                     // 3. Fire a progress event called error at fr.
-                    dispatch_event(DOM::Event::create(realm, HTML::EventNames::error));
+                    dispatch_event(create_associated_event(HTML::EventNames::error));
 
                     // 4. If fr’s state is not "loading", fire a progress event called loadend at fr.
                     if (m_state != State::Loading)
-                        dispatch_event(DOM::Event::create(realm, HTML::EventNames::loadend));
+                        dispatch_event(create_associated_event(HTML::EventNames::loadend));
 
                     // NOTE: Event handler for the error event could have started another load, if that happens the
                     //       loadend event for this load is not fired.
@@ -328,7 +367,7 @@ WebIDL::ExceptionOr<void> FileReader::read_operation(Blob& blob, Type type, Opti
             }));
     });
 
-    HTML::queue_global_task(HTML::Task::Source::FileReading, realm.global_object(), GC::create_function(heap(), [chunk_promise, state, &realm]() mutable {
+    HTML::queue_global_task(HTML::Task::Source::FileReading, realm.global_object(), GC::create_function(GC::Heap::the(), [chunk_promise, state, &realm]() mutable {
         HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
         state->process_next_chunk->function()(chunk_promise);
     }));
@@ -368,22 +407,20 @@ WebIDL::ExceptionOr<void> FileReader::read_as_binary_string(Blob& blob)
 // https://w3c.github.io/FileAPI/#dfn-abort
 void FileReader::abort()
 {
-    auto& realm = this->realm();
-
     // 1. If this's state is "empty" or if this's state is "done" set this's result to null and terminate this algorithm.
     if (m_state == State::Empty || m_state == State::Done) {
-        m_result = {};
+        set_result({});
         return;
     }
 
     // 2. If this's state is "loading" set this's state to "done" and set this's result to null.
     if (m_state == State::Loading) {
         m_state = State::Done;
-        m_result = {};
+        set_result({});
     }
 
     // 3. If there are any tasks from this on the file reading task source in an affiliated task queue, then remove those tasks from that task queue.
-    auto& event_loop = *HTML::relevant_agent(*this).event_loop;
+    auto& event_loop = *HTML::relevant_agent(relevant_global_object()).event_loop;
     event_loop.task_queue().remove_tasks_matching([&](auto const& task) {
         return m_pending_tasks.contains(task.id());
     });
@@ -393,11 +430,11 @@ void FileReader::abort()
     m_is_aborted = true;
 
     // 5. Fire a progress event called abort at this.
-    dispatch_event(DOM::Event::create(realm, HTML::EventNames::abort));
+    dispatch_event(create_associated_event(HTML::EventNames::abort));
 
     // 6. If this's state is not "loading", fire a progress event called loadend at this.
     if (m_state != State::Loading)
-        dispatch_event(DOM::Event::create(realm, HTML::EventNames::loadend));
+        dispatch_event(create_associated_event(HTML::EventNames::loadend));
 }
 
 void FileReader::set_onloadstart(WebIDL::CallbackType* value)

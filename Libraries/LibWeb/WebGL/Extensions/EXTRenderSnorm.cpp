@@ -15,21 +15,15 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(EXTRenderSnorm);
 
-JS::ThrowCompletionOr<GC::Ref<JS::Object>> EXTRenderSnorm::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
+GC::Ref<Bindings::Wrappable> EXTRenderSnorm::create(GC::Ref<WebGLRenderingContextBase> context)
 {
+    auto& realm = context->realm();
     return realm.create<EXTRenderSnorm>(realm, context);
 }
 
-EXTRenderSnorm::EXTRenderSnorm(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
-    : PlatformObject(realm)
-    , m_context(context)
+EXTRenderSnorm::EXTRenderSnorm(JS::Realm&, GC::Ref<WebGLRenderingContextBase> context)
+    : m_context(context)
 {
-}
-
-void EXTRenderSnorm::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(EXTRenderSnorm);
-    Base::initialize(realm);
 }
 
 void EXTRenderSnorm::visit_edges(Visitor& visitor)

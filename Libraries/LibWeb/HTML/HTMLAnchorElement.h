@@ -15,7 +15,7 @@ namespace Web::HTML {
 class HTMLAnchorElement final
     : public HTMLElement
     , public HTMLHyperlinkElementUtils {
-    WEB_PLATFORM_OBJECT(HTMLAnchorElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLAnchorElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLAnchorElement);
 
 public:
@@ -47,7 +47,7 @@ public:
 private:
     HTMLAnchorElement(DOM::Document&, DOM::QualifiedName);
 
-    virtual void initialize(JS::Realm&) override;
+    bool has_download_preference() const;
     virtual void visit_edges(Cell::Visitor&) override;
 
     // ^DOM::EventTarget

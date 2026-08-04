@@ -7,15 +7,18 @@
 #pragma once
 
 #include <AK/Optional.h>
+#include <LibGC/Function.h>
 #include <LibGfx/Forward.h>
+#include <LibWeb/HTML/Canvas/CanvasSettings.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/Painting/DisplayListResourceIds.h>
+#include <LibWeb/WebGL/WebGLContextAttributes.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::HTML {
 
 class HTMLCanvasElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLCanvasElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLCanvasElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLCanvasElement);
 
 public:
@@ -32,14 +35,16 @@ public:
         No,
         Yes,
     };
-    JS::ThrowCompletionOr<HasOrCreatedContext> create_2d_context(JS::Value options);
+    HasOrCreatedContext create_2d_context(CanvasRenderingContext2DSettings);
+    HasOrCreatedContext create_webgl_context(WebGL::WebGLContextAttributes);
+    HasOrCreatedContext create_webgl2_context(WebGL::WebGLContextAttributes);
+    RenderingContext const& context() const { return m_context; }
 
     WebIDL::UnsignedLong width() const;
     WebIDL::UnsignedLong height() const;
 
     void set_width(WebIDL::UnsignedLong);
     void set_height(WebIDL::UnsignedLong);
-
     virtual void attribute_changed(Utf16FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
 
     WebIDL::ExceptionOr<Utf16String> to_data_url(Utf16View type, Optional<JS::Value> quality);
@@ -72,7 +77,7 @@ public:
 private:
     HTMLCanvasElement(DOM::Document&, DOM::QualifiedName);
 
-    virtual void initialize(JS::Realm&) override;
+    virtual void initialize_element() override;
     virtual void finalize() override;
     virtual void visit_edges(Cell::Visitor&) override;
 
@@ -99,15 +104,5 @@ namespace Web::DOM {
 
 template<>
 inline bool Node::fast_is<HTML::HTMLCanvasElement>() const { return is_html_canvas_element(); }
-
-}
-
-namespace JS {
-
-template<>
-inline bool Object::fast_is<Web::HTML::HTMLCanvasElement>() const
-{
-    return is_dom_node() && static_cast<Web::DOM::Node const&>(*this).is_html_canvas_element();
-}
 
 }

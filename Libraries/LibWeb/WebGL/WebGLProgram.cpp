@@ -16,8 +16,9 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(WebGLProgram);
 
-GC::Ref<WebGLProgram> WebGLProgram::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context, GLuint handle)
+GC::Ref<WebGLProgram> WebGLProgram::create(GC::Ref<WebGLRenderingContextBase> context, GLuint handle)
 {
+    auto& realm = context->realm();
     return realm.create<WebGLProgram>(realm, context, handle);
 }
 
@@ -27,12 +28,6 @@ WebGLProgram::WebGLProgram(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> 
 }
 
 WebGLProgram::~WebGLProgram() = default;
-
-void WebGLProgram::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGLProgram);
-    Base::initialize(realm);
-}
 
 void WebGLProgram::visit_edges(Cell::Visitor& visitor)
 {

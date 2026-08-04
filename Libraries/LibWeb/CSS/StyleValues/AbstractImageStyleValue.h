@@ -41,7 +41,7 @@ public:
 
     virtual Optional<Gfx::Color> color_if_single_pixel_bitmap(DOM::Document const&) const { return {}; }
 
-    GC::Ref<CSSStyleValue> reify(JS::Realm&, Utf16FlyString const& associated_property) const;
+    GC::Ref<CSSStyleValue> reify(Utf16FlyString const& associated_property) const;
 };
 
 // And now, some gradient related things. Maybe these should live somewhere else.

@@ -19,19 +19,13 @@ GC::Ptr<WebGLActiveInfo> WebGLActiveInfo::create(JS::Realm& realm, Utf16String n
 }
 
 WebGLActiveInfo::WebGLActiveInfo(JS::Realm& realm, Utf16String name, GLenum type, GLsizei size)
-    : Bindings::PlatformObject(realm)
-    , m_name(move(name))
+    : m_name(move(name))
     , m_type(type)
     , m_size(size)
 {
+    set_wrapper_realm_hint(realm);
 }
 
 WebGLActiveInfo::~WebGLActiveInfo() = default;
-
-void WebGLActiveInfo::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGLActiveInfo);
-    Base::initialize(realm);
-}
 
 }

@@ -22,7 +22,7 @@ public:
     Optional<PreserveAspectRatio> preserve_aspect_ratio() const { return m_preserve_aspect_ratio; }
 
 protected:
-    void initialize(JS::Realm&);
+    void initialize_fit_to_view_box();
     void visit_edges(JS::Cell::Visitor&);
     void attribute_changed(DOM::Element& element, Utf16FlyString const& name, Optional<Utf16String> const& value);
 

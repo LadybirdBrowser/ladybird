@@ -14,15 +14,13 @@ namespace Web::CSS {
 
 // https://drafts.csswg.org/cssom/#csspagedescriptors
 class CSSPageDescriptors final : public CSSDescriptors {
-    WEB_PLATFORM_OBJECT(CSSPageDescriptors, CSSDescriptors);
+    WEB_WRAPPABLE(CSSPageDescriptors, CSSDescriptors);
     GC_DECLARE_ALLOCATOR(CSSPageDescriptors);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSPageDescriptors> create(JS::Realm&, Vector<Descriptor>);
+    [[nodiscard]] static GC::Ref<CSSPageDescriptors> create(Vector<Descriptor>);
 
     virtual ~CSSPageDescriptors() override;
-
-    virtual void initialize(JS::Realm&) override;
 
     WebIDL::ExceptionOr<void> set_margin(Utf16View value);
     Utf16String margin() const;
@@ -52,7 +50,7 @@ public:
     Utf16String bleed() const;
 
 private:
-    CSSPageDescriptors(JS::Realm&, Vector<Descriptor>);
+    explicit CSSPageDescriptors(Vector<Descriptor>);
 };
 
 }

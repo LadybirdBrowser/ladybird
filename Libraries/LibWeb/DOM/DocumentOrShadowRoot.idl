@@ -6,8 +6,8 @@ interface mixin DocumentOrShadowRoot {
     readonly attribute Element? activeElement;
 
     // https://w3c.github.io/csswg-drafts/cssom/#extensions-to-the-document-or-shadow-root-interface
-    [SameObject, ImplementedAs=style_sheets_for_bindings] readonly attribute StyleSheetList styleSheets;
-    attribute any adoptedStyleSheets;
+    [SameObject, ImplementedInBindings] readonly attribute StyleSheetList styleSheets;
+    [ImplementedInBindings] attribute any adoptedStyleSheets;
 
     // https://drafts.csswg.org/web-animations-1/#extensions-to-the-documentorshadowroot-interface-mixin
     sequence<Animation> getAnimations();

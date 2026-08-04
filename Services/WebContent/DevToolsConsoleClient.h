@@ -26,7 +26,7 @@ public:
     virtual ~DevToolsConsoleClient() override;
 
 private:
-    DevToolsConsoleClient(JS::Realm&, JS::Console&, PageClient&, ConsoleGlobalEnvironmentExtensions&);
+    DevToolsConsoleClient(JS::Console&, PageClient&, ConsoleGlobalEnvironmentExtensions&);
 
     virtual void handle_result(JS::Value) override;
     virtual void report_exception(Utf16View name, Utf16View message, JS::ErrorData const&, bool) override;

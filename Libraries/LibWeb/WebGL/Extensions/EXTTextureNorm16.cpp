@@ -15,21 +15,15 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(EXTTextureNorm16);
 
-JS::ThrowCompletionOr<GC::Ref<JS::Object>> EXTTextureNorm16::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
+GC::Ref<Bindings::Wrappable> EXTTextureNorm16::create(GC::Ref<WebGLRenderingContextBase> context)
 {
+    auto& realm = context->realm();
     return realm.create<EXTTextureNorm16>(realm, context);
 }
 
-EXTTextureNorm16::EXTTextureNorm16(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
-    : PlatformObject(realm)
-    , m_context(context)
+EXTTextureNorm16::EXTTextureNorm16(JS::Realm&, GC::Ref<WebGLRenderingContextBase> context)
+    : m_context(context)
 {
-}
-
-void EXTTextureNorm16::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(EXTTextureNorm16);
-    Base::initialize(realm);
 }
 
 void EXTTextureNorm16::visit_edges(Visitor& visitor)

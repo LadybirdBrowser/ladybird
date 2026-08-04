@@ -74,10 +74,10 @@ def string_to_cpp_enum_name(value: str) -> str:
             if ch.isalnum():
                 word += ch
             elif word:
-                result += word[0].upper() + word[1:].lower()
+                result += word[0].upper() + word[1:]
                 word = ""
         if word:
-            result += word[0].upper() + word[1:].lower()
+            result += word[0].upper() + word[1:]
         return result
 
     name = ""

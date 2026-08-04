@@ -16,7 +16,7 @@ namespace Web::SVG {
 class SVGFEComponentTransferElement final
     : public SVGElement
     , public SVGFilterPrimitiveStandardAttributes<SVGFEComponentTransferElement> {
-    WEB_PLATFORM_OBJECT(SVGFEComponentTransferElement, SVGElement);
+    WEB_WRAPPABLE(SVGFEComponentTransferElement, SVGElement);
     GC_DECLARE_ALLOCATOR(SVGFEComponentTransferElement);
 
 public:
@@ -26,8 +26,6 @@ public:
 
 private:
     SVGFEComponentTransferElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     GC::Ptr<SVGAnimatedString> m_in1;

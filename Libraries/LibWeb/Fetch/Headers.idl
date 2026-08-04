@@ -4,7 +4,7 @@ typedef (sequence<sequence<ByteString>> or record<ByteString, ByteString>) Heade
 // https://fetch.spec.whatwg.org/#headers
 [Exposed=(Window,Worker)]
 interface Headers {
-    constructor(optional HeadersInit init);
+    [ImplementedAs=create_from_init] constructor(optional HeadersInit init);
 
     undefined append(ByteString name, ByteString value);
     undefined delete(ByteString name);

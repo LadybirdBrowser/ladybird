@@ -5,40 +5,32 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SVGTransformList.h>
+#include <LibGC/Heap.h>
+#include <LibWeb/SVG/SVGTransform.h>
 #include <LibWeb/SVG/SVGTransformList.h>
 
 namespace Web::SVG {
 
 GC_DEFINE_ALLOCATOR(SVGTransformList);
 
-GC::Ref<SVGTransformList> SVGTransformList::create(JS::Realm& realm, Vector<GC::Ref<SVGTransform>> items, ReadOnlyList read_only)
+GC::Ref<SVGTransformList> SVGTransformList::create(Vector<GC::Ref<SVGTransform>> items, ReadOnlyList read_only)
 {
-    return realm.create<SVGTransformList>(realm, move(items), read_only);
+    return GC::Heap::the().allocate<SVGTransformList>(move(items), read_only);
 }
 
-GC::Ref<SVGTransformList> SVGTransformList::create(JS::Realm& realm, ReadOnlyList read_only)
+GC::Ref<SVGTransformList> SVGTransformList::create(ReadOnlyList read_only)
 {
-    return realm.create<SVGTransformList>(realm, read_only);
+    return GC::Heap::the().allocate<SVGTransformList>(read_only);
 }
 
-SVGTransformList::SVGTransformList(JS::Realm& realm, Vector<GC::Ref<SVGTransform>> items, ReadOnlyList read_only)
-    : Bindings::PlatformObject(realm)
-    , SVGList(realm, move(items), read_only)
-{
-}
-
-SVGTransformList::SVGTransformList(JS::Realm& realm, ReadOnlyList read_only)
-    : Bindings::PlatformObject(realm)
-    , SVGList(realm, read_only)
+SVGTransformList::SVGTransformList(Vector<GC::Ref<SVGTransform>> items, ReadOnlyList read_only)
+    : SVGList(move(items), read_only)
 {
 }
 
-void SVGTransformList::initialize(JS::Realm& realm)
+SVGTransformList::SVGTransformList(ReadOnlyList read_only)
+    : SVGList(read_only)
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGTransformList);
-    Base::initialize(realm);
 }
 
 void SVGTransformList::visit_edges(Visitor& visitor)

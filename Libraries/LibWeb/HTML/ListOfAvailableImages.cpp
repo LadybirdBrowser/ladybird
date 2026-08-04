@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/HTML/ListOfAvailableImages.h>
 
@@ -15,6 +16,11 @@ static u64 s_next_available_image_cache_touch_serial;
 
 ListOfAvailableImages::ListOfAvailableImages() = default;
 ListOfAvailableImages::~ListOfAvailableImages() = default;
+
+GC::Ref<ListOfAvailableImages> ListOfAvailableImages::create()
+{
+    return GC::Heap::the().allocate<ListOfAvailableImages>();
+}
 
 bool ListOfAvailableImages::Key::operator==(Key const& other) const
 {

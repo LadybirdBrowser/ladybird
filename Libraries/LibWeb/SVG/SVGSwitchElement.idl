@@ -1,4 +1,5 @@
 // https://svgwg.org/svg2-draft/struct.html#InterfaceSVGSwitchElement
+// The implementation is wrapped lazily like other DOM-backed SVG objects.
 [Exposed=Window]
 interface SVGSwitchElement : SVGGraphicsElement {
 };

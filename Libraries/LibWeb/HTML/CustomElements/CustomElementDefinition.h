@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include <AK/Utf16FlyString.h>
-#include <AK/Utf16String.h>
+#include <AK/String.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/WebIDL/CallbackType.h>
 
@@ -21,9 +21,9 @@ class CustomElementDefinition : public JS::Cell {
     GC_CELL(CustomElementDefinition, JS::Cell);
     GC_DECLARE_ALLOCATOR(CustomElementDefinition);
 
-    static GC::Ref<CustomElementDefinition> create(JS::Realm& realm, Utf16FlyString const& name, Utf16FlyString const& local_name, WebIDL::CallbackType& constructor, Vector<Utf16FlyString>&& observed_attributes, OrderedHashMap<Utf16FlyString, GC::Root<WebIDL::CallbackType>> lifecycle_callbacks, bool form_associated, bool disable_internals, bool disable_shadow)
+    static GC::Ref<CustomElementDefinition> create(Utf16FlyString const& name, Utf16FlyString const& local_name, WebIDL::CallbackType& constructor, Vector<Utf16FlyString>&& observed_attributes, OrderedHashMap<Utf16FlyString, GC::Root<WebIDL::CallbackType>> lifecycle_callbacks, bool form_associated, bool disable_internals, bool disable_shadow)
     {
-        return realm.create<CustomElementDefinition>(name, local_name, constructor, move(observed_attributes), move(lifecycle_callbacks), form_associated, disable_internals, disable_shadow);
+        return GC::Heap::the().allocate<CustomElementDefinition>(name, local_name, constructor, move(observed_attributes), move(lifecycle_callbacks), form_associated, disable_internals, disable_shadow);
     }
 
     ~CustomElementDefinition() = default;

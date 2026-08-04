@@ -47,7 +47,6 @@ class GC_API Cell {
     AK_MAKE_NONMOVABLE(Cell);
 
 public:
-    static constexpr bool OVERRIDES_MUST_SURVIVE_GARBAGE_COLLECTION = false;
     static constexpr bool OVERRIDES_FINALIZE = false;
 
     virtual ~Cell() = default;
@@ -185,6 +184,13 @@ public:
         }
 
         template<typename T>
+        void visit(T const& value)
+        requires(!IsBaseOf<Cell, T> && requires(T& visitable) { visitable.visit_edges(*this); })
+        {
+            const_cast<T&>(value).visit_edges(*this);
+        }
+
+        template<typename T>
         void visit(Optional<T> const& optional)
         requires(IsVisitable<T>::value)
         {
@@ -225,11 +231,6 @@ public:
     MUST_UPCALL virtual void finalize() { }
 
     virtual size_t external_memory_size() const { return 0; }
-
-    // This allows cells to survive GC by choice, even if nothing points to them.
-    // It's used to implement special rules in the web platform.
-    // NOTE: Cell types must have OVERRIDES_MUST_SURVIVE_GARBAGE_COLLECTION set for this to be called.
-    virtual bool must_survive_garbage_collection() const { return false; }
 
     ALWAYS_INLINE Heap& heap() const { return HeapBlockBase::from_cell(this)->heap(); }
 

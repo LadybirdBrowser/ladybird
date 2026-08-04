@@ -465,8 +465,7 @@ bool LibJSGCVisitor::VisitCXXRecordDecl(clang::CXXRecordDecl* record)
 
     validate_record_macros(*record);
 
-    // Check that overrides of must_survive_garbage_collection() and finalize() have the
-    // corresponding static constexpr bool flags set
+    // Check that overrides of finalize() have the corresponding static constexpr bool flag set.
     auto check_override_requires_flag = [&](char const* method_name, char const* flag_name) {
         clang::DeclarationName decl_name = &m_context.Idents.get(method_name);
         auto const* method = record->lookup(decl_name).find_first<clang::CXXMethodDecl>();
@@ -499,7 +498,6 @@ bool LibJSGCVisitor::VisitCXXRecordDecl(clang::CXXRecordDecl* record)
         }
     };
 
-    check_override_requires_flag("must_survive_garbage_collection", "OVERRIDES_MUST_SURVIVE_GARBAGE_COLLECTION");
     check_override_requires_flag("finalize", "OVERRIDES_FINALIZE");
 
     // Check that Cell subclasses (and all their base classes) don't have non-trivial destructors.
@@ -775,6 +773,9 @@ static std::optional<CellTypeWithOrigin> find_cell_type_with_origin(clang::CXXRe
             if (base_name == "Web::Bindings::PlatformObject")
                 return CellTypeWithOrigin { *base_record, LibJSCellMacro::Type::WebPlatformObject };
 
+            if (base_name == "Web::Bindings::Wrappable")
+                return CellTypeWithOrigin { *base_record, LibJSCellMacro::Type::WebWrappable };
+
             if (auto origin = find_cell_type_with_origin(*base_record))
                 return CellTypeWithOrigin { *base_record, origin->type };
         }
@@ -929,6 +930,8 @@ char const* LibJSCellMacro::type_name(Type type)
         return "JS_PROTOTYPE_OBJECT";
     case Type::WebPlatformObject:
         return "WEB_PLATFORM_OBJECT";
+    case Type::WebWrappable:
+        return "WEB_WRAPPABLE";
     default:
         __builtin_unreachable();
     }
@@ -955,6 +958,8 @@ void LibJSPPCallbacks::MacroExpands(clang::Token const& name_token, clang::Macro
             { "JS_PROTOTYPE_OBJECT", LibJSCellMacro::Type::JSPrototypeObject },
             { "WEB_PLATFORM_OBJECT", LibJSCellMacro::Type::WebPlatformObject },
             { "WEB_NON_IDL_PLATFORM_OBJECT", LibJSCellMacro::Type::WebPlatformObject },
+            { "WEB_WRAPPABLE", LibJSCellMacro::Type::WebWrappable },
+            { "WEB_NON_IDL_WRAPPABLE", LibJSCellMacro::Type::WebWrappable },
         };
 
         auto name = ident_info->getName();

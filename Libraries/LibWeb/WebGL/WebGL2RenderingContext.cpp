@@ -52,12 +52,6 @@ WebGL2RenderingContext::WebGL2RenderingContext(JS::Realm& realm, HTML::HTMLCanva
 
 WebGL2RenderingContext::~WebGL2RenderingContext() = default;
 
-void WebGL2RenderingContext::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGL2RenderingContext);
-    Base::initialize(realm);
-}
-
 void WebGL2RenderingContext::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);

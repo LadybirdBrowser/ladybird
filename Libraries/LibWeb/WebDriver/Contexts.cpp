@@ -29,7 +29,9 @@ JsonObject window_proxy_reference_object(HTML::WindowProxy const& window)
     // NOTE: We look at the active browsing context's active document's node navigable instead.
     //      Because a Browsing context's top-level traversable is this navigable's top level traversable.
     //      Ref: https://html.spec.whatwg.org/multipage/document-sequences.html#bc-traversable
-    auto navigable = window.associated_browsing_context()->active_document()->navigable();
+    auto browsing_context = window.associated_browsing_context();
+    VERIFY(browsing_context);
+    auto navigable = browsing_context->active_document()->navigable();
 
     auto const& identifier = navigable->is_top_level_traversable()
         ? WEB_WINDOW_IDENTIFIER

@@ -861,7 +861,7 @@ GC::Ptr<FontLoader> FontComputer::load_font_face(ParsedFontFace const& font_face
         return it->value;
     }
 
-    auto loader = heap().allocate<FontLoader>(*this, rule_or_declaration, font_face.font_family(), font_face.unicode_ranges(), move(urls), move(on_load));
+    auto loader = GC::Heap::the().allocate<FontLoader>(*this, rule_or_declaration, font_face.font_family(), font_face.unicode_ranges(), move(urls), move(on_load));
     m_loaders_by_url.set(move(key), loader);
     return loader;
 }
@@ -904,7 +904,7 @@ void FontComputer::load_fonts_from_sheet(CSSStyleSheet& sheet)
             if (!font_face_rule->is_valid())
                 return;
 
-            auto font_face = FontFace::create_css_connected(document().realm(), *font_face_rule);
+            auto font_face = FontFace::create_css_connected(HTML::relevant_realm(document()), *font_face_rule);
             document().fonts()->add_css_connected_font(font_face);
 
             if (font_face->has_non_default_unicode_range()) {

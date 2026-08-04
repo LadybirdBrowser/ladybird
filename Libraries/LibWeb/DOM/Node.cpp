@@ -13,11 +13,10 @@
 #include <AK/NeverDestroyed.h>
 #include <AK/Utf16StringBuilder.h>
 #include <LibGC/DeferGC.h>
+#include <LibGC/Heap.h>
 #include <LibGC/WeakHashMap.h>
 #include <LibJS/Runtime/ExternalMemory.h>
-#include <LibJS/Runtime/FunctionObject.h>
 #include <LibWeb/Animations/Animation.h>
-#include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/Node.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Invalidation/NodeInvalidator.h>
@@ -37,6 +36,7 @@
 #include <LibWeb/DOM/EventDispatcher.h>
 #include <LibWeb/DOM/IDLEventListener.h>
 #include <LibWeb/DOM/LiveNodeList.h>
+#include <LibWeb/DOM/MutationObserver.h>
 #include <LibWeb/DOM/MutationType.h>
 #include <LibWeb/DOM/NamedNodeMap.h>
 #include <LibWeb/DOM/Node.h>
@@ -65,6 +65,7 @@
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/SimilarOriginWindowAgent.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
@@ -112,8 +113,8 @@ Node* Node::from_unique_id(UniqueNodeID unique_id)
     return node_directory().get(unique_id);
 }
 
-Node::Node(JS::Realm& realm, Document& document, NodeType type)
-    : EventTarget(realm)
+Node::Node(Document& document, NodeType type)
+    : EventTarget()
     , m_document(&document)
     , m_type(type)
     , m_unique_id(allocate_unique_id(*this))
@@ -121,11 +122,6 @@ Node::Node(JS::Realm& realm, Document& document, NodeType type)
     // A Document is its own shadow-including root, so it is always connected.
     if (type == NodeType::DOCUMENT_NODE)
         m_is_connected = true;
-}
-
-Node::Node(Document& document, NodeType type)
-    : Node(document.realm(), document, type)
-{
 }
 
 Node::~Node() = default;
@@ -143,44 +139,23 @@ CSS::UserSelect Node::user_select_used_value() const
     if (!element || !element->computed_values())
         return CSS::UserSelect::None;
 
-    // The used value is the same as the computed value, except:
+    // The used value is the same as the computed value, except for editable
+    // elements and the special inheritance rules for `auto`.
     auto computed_value = element->computed_values()->user_select();
 
-    // 1. on editable elements where the used value is always 'contain' regardless of the computed value
-
-    // 2. when the computed value is 'auto', in which case the used value is one of the other values as defined below
-
-    // For the purpose of this specification, an editable element is either an editing host or a mutable form control with
-    // textual content, such as textarea.
     auto* form_control = as_if<HTML::FormAssociatedTextControlElement>(*element);
-    // FIXME: Check if this needs to exclude input elements with types such as color or range, and if so, which ones exactly.
     if (element->is_editing_host() || (form_control && form_control->text_control_to_html_element().is_mutable()))
         return CSS::UserSelect::Contain;
 
     if (computed_value != CSS::UserSelect::Auto)
         return computed_value;
 
-    // The used value of 'auto' is determined as follows:
-
-    // - On the '::before' and '::after' pseudo-elements, the used value is 'none'
-    // NOTE: Pseudo-elements are handled by Layout::Node::user_select_used_value().
-
-    // - If the element is an editable element, the used value is 'contain'
-    // NOTE: We already handled this above.
-
     if (auto parent_element = element->element_to_inherit_style_from({})) {
         auto parent_used_value = parent_element->user_select_used_value();
-
-        // - Otherwise, if the used value of user-select on the parent of this element is 'all', the used value is 'all'
-        if (parent_used_value == CSS::UserSelect::All)
-            return CSS::UserSelect::All;
-
-        // - Otherwise, if the used value of user-select on the parent of this element is 'none', the used value is 'none'
-        if (parent_used_value == CSS::UserSelect::None)
-            return CSS::UserSelect::None;
+        if (parent_used_value == CSS::UserSelect::All || parent_used_value == CSS::UserSelect::None)
+            return parent_used_value;
     }
 
-    // - Otherwise, the used value is 'text'
     return CSS::UserSelect::Text;
 }
 
@@ -570,7 +545,7 @@ bool Node::is_closed_shadow_hidden_from(Node const& b) const
         return false;
 
     // - A’s root is a shadow root whose mode is "closed" or A’s root’s host is closed-shadow-hidden from B.
-    if (a_root.is_shadow_root() && static_cast<ShadowRoot const&>(a_root).mode() == Bindings::ShadowRootMode::Closed)
+    if (a_root.is_shadow_root() && static_cast<ShadowRoot const&>(a_root).mode() == ShadowRootMode::Closed)
         return true;
     if (a_root.is_document_fragment() && static_cast<DocumentFragment const&>(a_root).host()->is_closed_shadow_hidden_from(b))
         return true;
@@ -586,35 +561,36 @@ bool Node::is_browsing_context_connected() const
 }
 
 // https://dom.spec.whatwg.org/#concept-node-ensure-pre-insertion-validity
-WebIDL::ExceptionOr<void> Node::ensure_pre_insert_validity(JS::Realm& realm, GC::Ref<Node> node, GC::Ptr<Node> child, ChildrenToExclude children_to_exclude) const
+WebIDL::ExceptionOr<void> Node::ensure_pre_insertion_validity(GC::Ref<Node> node, GC::Ptr<Node> child, bool exclude_all_children) const
 {
     // 1. If parent is not a Document, DocumentFragment, or Element node, then throw a "HierarchyRequestError" DOMException.
     if (!is<Document>(this) && !is<DocumentFragment>(this) && !is<Element>(this))
-        return WebIDL::HierarchyRequestError::create(realm, "Can only insert into a document, document fragment or element"_utf16);
+        return WebIDL::HierarchyRequestError::create("Can only insert into a document, document fragment or element"_utf16);
 
     // 2. If node is a host-including inclusive ancestor of parent, then throw a "HierarchyRequestError" DOMException.
     if (node->is_host_including_inclusive_ancestor_of(*this))
-        return WebIDL::HierarchyRequestError::create(realm, "New node is an ancestor of this node"_utf16);
+        return WebIDL::HierarchyRequestError::create("New node is an ancestor of this node"_utf16);
 
     // 3. If child is non-null and its parent is not parent, then throw a "NotFoundError" DOMException.
     if (child && child->parent() != this)
-        return WebIDL::NotFoundError::create(realm, "This node is not the parent of the given child"_utf16);
+        return WebIDL::NotFoundError::create("This node is not the parent of the given child"_utf16);
 
     // FIXME: All the following "Invalid node type for insertion" messages could be more descriptive.
     // 4. If node is not a DocumentFragment, DocumentType, Element, or CharacterData node, then throw a "HierarchyRequestError" DOMException.
-    if (!is<DocumentFragment>(*node) && !is<DocumentType>(*node) && !is<Element>(*node) && !is<CharacterData>(*node))
-        return WebIDL::HierarchyRequestError::create(realm, "Invalid node type for insertion"_utf16);
+    if (!is<DocumentFragment>(*node) && !is<DocumentType>(*node) && !is<Element>(*node) && !is<Text>(*node) && !is<Comment>(*node) && !is<ProcessingInstruction>(*node) && !is<CDATASection>(*node))
+        return WebIDL::HierarchyRequestError::create("Invalid node type for insertion"_utf16);
+
+    // 5. If either node is a Text node and parent is a document, or node is a doctype and parent is not a document, then throw a "HierarchyRequestError" DOMException.
+    if ((is<Text>(*node) && is<Document>(this)) || (is<DocumentType>(*node) && !is<Document>(this)))
+        return WebIDL::HierarchyRequestError::create("Invalid node type for insertion"_utf16);
 
     auto children_to_exclude_contains = [&](Node const& candidate) {
-        switch (children_to_exclude) {
-        case ChildrenToExclude::None:
-            return false;
-        case ChildrenToExclude::Child:
-            return child.ptr() == &candidate;
-        case ChildrenToExclude::AllChildren:
-            return candidate.parent() == this;
-        }
-        VERIFY_NOT_REACHED();
+        // replaceChildren() validates against a parent whose existing children
+        // will all be removed. Ordinary insertion (including Range.insertNode)
+        // must still reject a second doctype/element even when the reference
+        // child happens to be that same node.
+        (void)candidate;
+        return exclude_all_children;
     };
 
     auto has_element_child_not_excluded = [&] {
@@ -645,7 +621,7 @@ WebIDL::ExceptionOr<void> Node::ensure_pre_insert_validity(JS::Realm& realm, GC:
     if (!is<Document>(*this)) {
         // 1. If node is a doctype, then throw a "HierarchyRequestError" DOMException.
         if (is<DocumentType>(*node))
-            return WebIDL::HierarchyRequestError::create(realm, "Invalid node type for insertion"_utf16);
+            return WebIDL::HierarchyRequestError::create("Invalid node type for insertion"_utf16);
 
         // 2. Return.
         return {};
@@ -653,7 +629,7 @@ WebIDL::ExceptionOr<void> Node::ensure_pre_insert_validity(JS::Realm& realm, GC:
 
     // 6. If node is a Text node, then throw a "HierarchyRequestError" DOMException.
     if (is<Text>(*node))
-        return WebIDL::HierarchyRequestError::create(realm, "Invalid node type for insertion"_utf16);
+        return WebIDL::HierarchyRequestError::create("Invalid node type for insertion"_utf16);
 
     // 7. If node is a CharacterData node, then return.
     if (is<CharacterData>(*node))
@@ -664,7 +640,7 @@ WebIDL::ExceptionOr<void> Node::ensure_pre_insert_validity(JS::Realm& realm, GC:
         // 1. If node has more than one element child or has a Text node child, then throw a "HierarchyRequestError" DOMException.
         auto node_element_child_count = document_fragment->child_element_count();
         if (node_element_child_count > 1 || node->has_child_of_type<Text>())
-            return WebIDL::HierarchyRequestError::create(realm, "Invalid node type for insertion"_utf16);
+            return WebIDL::HierarchyRequestError::create("Invalid node type for insertion"_utf16);
 
         // 2. If node has no element child, then return.
         if (node_element_child_count == 0)
@@ -681,7 +657,7 @@ WebIDL::ExceptionOr<void> Node::ensure_pre_insert_validity(JS::Realm& realm, GC:
         if (has_element_child_not_excluded()
             || (child && child->has_following_node_of_type_in_tree_order<DocumentType>())
             || (is<DocumentType>(child.ptr()) && !children_to_exclude_contains(*child))) {
-            return WebIDL::HierarchyRequestError::create(realm, "Invalid node type for insertion"_utf16);
+            return WebIDL::HierarchyRequestError::create("Invalid node type for insertion"_utf16);
         }
 
         // 2. Return.
@@ -699,7 +675,7 @@ WebIDL::ExceptionOr<void> Node::ensure_pre_insert_validity(JS::Realm& realm, GC:
     if (has_doctype_child_not_excluded()
         || (child && child->has_preceding_node_of_type_in_tree_order<Element>())
         || (!child && has_element_child_not_excluded())) {
-        return WebIDL::HierarchyRequestError::create(realm, "Invalid node type for insertion"_utf16);
+        return WebIDL::HierarchyRequestError::create("Invalid node type for insertion"_utf16);
     }
 
     return {};
@@ -764,7 +740,7 @@ void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_
     // FIXME: In tree order
     for (auto& node_to_insert : nodes) {
         // 1. Adopt node into parent’s node document.
-        document().adopt_node(*node_to_insert);
+        document().adopt_node_steps(*node_to_insert);
 
         // 2. If child is null, then append node to parent’s children.
         if (!child)
@@ -777,7 +753,7 @@ void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_
         //    assign a slot for node.
         if (auto* element = as_if<DOM::Element>(*this)) {
             auto is_named_shadow_host = element->is_shadow_host()
-                && element->shadow_root()->slot_assignment() == Bindings::SlotAssignmentMode::Named;
+                && element->shadow_root()->slot_assignment() == SlotAssignmentMode::Named;
 
             if (is_named_shadow_host && node_to_insert->is_slottable())
                 assign_a_slot(node_to_insert->as_slottable());
@@ -823,10 +799,8 @@ void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_
 
                 // 2. If inclusiveDescendant is custom, then enqueue a custom element callback reaction with
                 //    inclusiveDescendant, callback name "connectedCallback", and « ».
-                if (element->is_custom()) {
-                    GC::RootVector<JS::Value> empty_arguments;
-                    element->enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::connectedCallback, move(empty_arguments));
-                }
+                if (element->is_custom())
+                    element->enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::connectedCallback);
 
                 // 3. Otherwise, try to upgrade inclusiveDescendant.
                 else {
@@ -902,8 +876,8 @@ void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_
 // https://dom.spec.whatwg.org/#concept-node-pre-insert
 WebIDL::ExceptionOr<GC::Ref<Node>> Node::pre_insert(GC::Ref<Node> node, GC::Ptr<Node> child)
 {
-    // 1. Ensure pre-insert validity given node, parent, child, and « ».
-    TRY(ensure_pre_insert_validity(realm(), node, child, ChildrenToExclude::None));
+    // 1. Ensure pre-insertion validity of node into parent before child.
+    TRY(ensure_pre_insertion_validity(node, child));
 
     // 2. Let referenceChild be child.
     auto reference_child = child;
@@ -931,7 +905,7 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::pre_remove(GC::Ref<Node> child)
 {
     // 1. If child’s parent is not parent, then throw a "NotFoundError" DOMException.
     if (child->parent() != this)
-        return WebIDL::NotFoundError::create(realm(), "Child does not belong to this node"_utf16);
+        return WebIDL::NotFoundError::create("Child does not belong to this node"_utf16);
 
     // 2. Remove child.
     child->remove();
@@ -1080,10 +1054,8 @@ void Node::remove(bool suppress_observers)
     // Spec Note: It is intentional for now that custom elements do not get parent passed.
     //            This might change in the future if there is a need.
     if (auto* element = as_if<DOM::Element>(*this)) {
-        if (element->is_custom() && is_parent_connected) {
-            GC::RootVector<JS::Value> empty_arguments;
-            element->enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::disconnectedCallback, move(empty_arguments));
-        }
+        if (element->is_custom() && is_parent_connected)
+            element->enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::disconnectedCallback);
     }
 
     // 14. For each shadow-including descendant descendant of node, in shadow-including tree order:
@@ -1094,10 +1066,8 @@ void Node::remove(bool suppress_observers)
         // 2. If descendant is custom and isParentConnected is true, then enqueue a custom element callback reaction
         //    with descendant, callback name "disconnectedCallback", and « ».
         if (auto* element = as_if<DOM::Element>(descendant)) {
-            if (element->is_custom() && is_parent_connected) {
-                GC::RootVector<JS::Value> empty_arguments;
-                element->enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::disconnectedCallback, move(empty_arguments));
-            }
+            if (element->is_custom() && is_parent_connected)
+                element->enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::disconnectedCallback);
         }
 
         return TraversalDecision::Continue;
@@ -1134,8 +1104,52 @@ void Node::remove(bool suppress_observers)
 // https://dom.spec.whatwg.org/#concept-node-replace
 WebIDL::ExceptionOr<GC::Ref<Node>> Node::replace_child(GC::Ref<Node> node, GC::Ref<Node> child)
 {
-    // 1. Ensure pre-insert validity given node, parent, child, and « child ».
-    TRY(ensure_pre_insert_validity(realm(), node, child, ChildrenToExclude::Child));
+    // 1. If parent is not a Document, DocumentFragment, or Element node, then throw a "HierarchyRequestError"
+    //    DOMException.
+    if (!is<Document>(this) && !is<DocumentFragment>(this) && !is<Element>(this))
+        return WebIDL::HierarchyRequestError::create("Can only insert into a document, document fragment or element"_utf16);
+
+    // 2. If node is a host-including inclusive ancestor of parent, then throw a "HierarchyRequestError" DOMException.
+    if (node->is_host_including_inclusive_ancestor_of(*this))
+        return WebIDL::HierarchyRequestError::create("New node is an ancestor of this node"_utf16);
+
+    // 3. If child’s parent is not parent, then throw a "NotFoundError" DOMException.
+    if (child->parent() != this)
+        return WebIDL::NotFoundError::create("This node is not the parent of the given child"_utf16);
+
+    // FIXME: All the following "Invalid node type for insertion" messages could be more descriptive.
+
+    // 4. If node is not a DocumentFragment, DocumentType, Element, or CharacterData node, then throw a "HierarchyRequestError" DOMException.
+    if (!is<DocumentFragment>(*node) && !is<DocumentType>(*node) && !is<Element>(*node) && !is<Text>(*node) && !is<Comment>(*node) && !is<ProcessingInstruction>(*node))
+        return WebIDL::HierarchyRequestError::create("Invalid node type for insertion"_utf16);
+
+    // 5. If either node is a Text node and parent is a document, or node is a doctype and parent is not a document, then throw a "HierarchyRequestError" DOMException.
+    if ((is<Text>(*node) && is<Document>(this)) || (is<DocumentType>(*node) && !is<Document>(this)))
+        return WebIDL::HierarchyRequestError::create("Invalid node type for insertion"_utf16);
+
+    // If parent is a document, and any of the statements below, switched on the interface node implements, are true, then throw a "HierarchyRequestError" DOMException.
+    if (is<Document>(this)) {
+        // DocumentFragment
+        if (is<DocumentFragment>(*node)) {
+            // If node has more than one element child or has a Text node child.
+            // Otherwise, if node has one element child and either parent has an element child that is not child or a doctype is following child.
+            auto node_element_child_count = as<DocumentFragment>(*node).child_element_count();
+            if ((node_element_child_count > 1 || node->has_child_of_type<Text>())
+                || (node_element_child_count == 1 && (first_child_of_type<Element>() != child || child->has_following_node_of_type_in_tree_order<DocumentType>()))) {
+                return WebIDL::HierarchyRequestError::create("Invalid node type for insertion"_utf16);
+            }
+        } else if (is<Element>(*node)) {
+            // Element
+            // parent has an element child that is not child or a doctype is following child.
+            if (first_child_of_type<Element>() != child || child->has_following_node_of_type_in_tree_order<DocumentType>())
+                return WebIDL::HierarchyRequestError::create("Invalid node type for insertion"_utf16);
+        } else if (is<DocumentType>(*node)) {
+            // DocumentType
+            // parent has a doctype child that is not child, or an element is preceding child.
+            if (first_child_of_type<DocumentType>() != child || child->has_preceding_node_of_type_in_tree_order<Element>())
+                return WebIDL::HierarchyRequestError::create("Invalid node type for insertion"_utf16);
+        }
+    }
 
     // 7. Let referenceChild be child’s next sibling.
     GC::Ptr<Node> reference_child = child->next_sibling();
@@ -1254,35 +1268,33 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_node(GC::Ptr<Document> document, 
 // https://dom.spec.whatwg.org/#move
 WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
 {
-    auto& realm = new_parent.realm();
-
     // 1. If newParent’s shadow-including root is not the same as node’s shadow-including root, then throw a "HierarchyRequestError" DOMException.
     if (&new_parent.shadow_including_root() != &shadow_including_root())
-        return WebIDL::HierarchyRequestError::create(realm, "New parent is not in the same shadow tree"_utf16);
+        return WebIDL::HierarchyRequestError::create("New parent is not in the same shadow tree"_utf16);
 
     // NOTE: This has the side effect of ensuring that a move is only performed if newParent’s connected is node’s connected.
 
     // 2. If node is a host-including inclusive ancestor of newParent, then throw a "HierarchyRequestError" DOMException.
     if (is_host_including_inclusive_ancestor_of(new_parent))
-        return WebIDL::HierarchyRequestError::create(realm, "New parent is an ancestor of this node"_utf16);
+        return WebIDL::HierarchyRequestError::create("New parent is an ancestor of this node"_utf16);
 
     // 3. If child is non-null and its parent is not newParent, then throw a "NotFoundError" DOMException.
     if (child && child->parent() != &new_parent)
-        return WebIDL::NotFoundError::create(realm, "Child does not belong to the new parent"_utf16);
+        return WebIDL::NotFoundError::create("Child does not belong to the new parent"_utf16);
 
     // 4. If node is not an Element or a CharacterData node, then throw a "HierarchyRequestError" DOMException.
     if (!is<Element>(*this) && !is<CharacterData>(*this))
-        return WebIDL::HierarchyRequestError::create(realm, "Invalid node type for insertion"_utf16);
+        return WebIDL::HierarchyRequestError::create("Invalid node type for insertion"_utf16);
 
     // 5. If node is a Text node and newParent is a document, then throw a "HierarchyRequestError" DOMException.
     if (is<Text>(*this) && is<Document>(new_parent))
-        return WebIDL::HierarchyRequestError::create(realm, "Invalid node type for insertion"_utf16);
+        return WebIDL::HierarchyRequestError::create("Invalid node type for insertion"_utf16);
 
     // 6. If newParent is a document, node is an Element node, and either newParent has an element child, child is a doctype,
     //    or child is non-null and a doctype is following child then throw a "HierarchyRequestError" DOMException.
     if (is<Document>(new_parent) && is<Element>(*this)) {
         if (new_parent.has_child_of_type<Element>() || is<DocumentType>(child) || (child && child->has_following_node_of_type_in_tree_order<DocumentType>()))
-            return WebIDL::HierarchyRequestError::create(realm, "Invalid node type for insertion"_utf16);
+            return WebIDL::HierarchyRequestError::create("Invalid node type for insertion"_utf16);
     }
 
     // 7. Let oldParent be node’s parent.
@@ -1402,7 +1414,7 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
         auto& new_parent_element = static_cast<Element&>(new_parent);
 
         auto is_named_shadow_host = new_parent_element.is_shadow_host()
-            && new_parent_element.shadow_root()->slot_assignment() == Bindings::SlotAssignmentMode::Named;
+            && new_parent_element.shadow_root()->slot_assignment() == SlotAssignmentMode::Named;
 
         if (is_named_shadow_host && this_element.is_slottable())
             assign_a_slot(this_element.as_slottable());
@@ -1440,10 +1452,8 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
         // 3. If inclusiveDescendant is custom and newParent is connected, then enqueue a custom element callback
         //    reaction with inclusiveDescendant, callback name "connectedMoveCallback", and « ».
         if (auto* element = as_if<DOM::Element>(inclusive_descendant)) {
-            if (element->is_custom() && new_parent.is_connected()) {
-                GC::RootVector<JS::Value> empty_arguments;
-                element->enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::connectedMoveCallback, move(empty_arguments));
-            }
+            if (element->is_custom() && new_parent.is_connected())
+                element->enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::connectedMoveCallback);
         }
         return TraversalDecision::Continue;
     });
@@ -1516,11 +1526,11 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_single_node(Document& document, G
             auto document_copy = [&] -> GC::Ref<Document> {
                 switch (document_.document_type()) {
                 case Document::Type::XML:
-                    return XMLDocument::create(realm(), document_.url());
+                    return XMLDocument::create(document.page(), document.relevant_global_event_target(), document_.url());
                 case Document::Type::HTML:
-                    return HTML::HTMLDocument::create(realm(), document_.url());
+                    return HTML::HTMLDocument::create(document.page(), document.relevant_global_event_target(), document_.url());
                 default:
-                    return Document::create(realm(), document_.url());
+                    return Document::create(document.page(), document.relevant_global_event_target(), document_.url());
                 }
             }();
 
@@ -1543,7 +1553,7 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_single_node(Document& document, G
         } else if (is_document_type()) {
             // -> DocumentType
             auto& document_type = as<DocumentType>(*this);
-            auto document_type_copy = realm().create<DocumentType>(document);
+            auto document_type_copy = DocumentType::create(document);
 
             // Set copy’s name, public ID, and system ID to those of node.
             document_type_copy->set_name(document_type.name());
@@ -1563,9 +1573,9 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_single_node(Document& document, G
             copy = [&]() -> GC::Ref<Text> {
                 switch (type()) {
                 case NodeType::TEXT_NODE:
-                    return realm().create<Text>(document, text.data());
+                    return Text::create(document, text.data());
                 case NodeType::CDATA_SECTION_NODE:
-                    return realm().create<CDATASection>(document, text.data());
+                    return CDATASection::create(document, text.data());
                 default:
                     VERIFY_NOT_REACHED();
                 }
@@ -1575,20 +1585,21 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_single_node(Document& document, G
             auto& comment = as<Comment>(*this);
 
             // Set copy’s data to that of node.
-            auto comment_copy = realm().create<Comment>(document, comment.data());
+            auto comment_copy = Comment::create(document, comment.data());
             copy = move(comment_copy);
         } else if (is<ProcessingInstruction>(this)) {
             // -> ProcessingInstruction
             auto& processing_instruction = as<ProcessingInstruction>(*this);
 
             // Set copy’s target and data to those of node.
-            auto processing_instruction_copy = realm().create<ProcessingInstruction>(document, processing_instruction.data(), processing_instruction.target());
+            auto processing_instruction_copy = ProcessingInstruction::create(document, processing_instruction.data(), processing_instruction.target());
             copy = move(processing_instruction_copy);
         }
         // -> Otherwise
         //    Do nothing.
         else if (is<DocumentFragment>(this)) {
-            copy = realm().create<DocumentFragment>(document);
+            auto document_fragment_copy = DocumentFragment::create(document);
+            copy = move(document_fragment_copy);
         } else {
             dbgln("Missing code for cloning a '{}' node. Please add it to Node::clone_single_node()", class_name());
             VERIFY_NOT_REACHED();
@@ -1611,11 +1622,11 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_single_node(Document& document, G
 }
 
 // https://dom.spec.whatwg.org/#dom-node-clonenode
-WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_node_binding(bool subtree)
+WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_node(bool subtree)
 {
     // 1. If this is a shadow root, then throw a "NotSupportedError" DOMException.
     if (is<ShadowRoot>(*this))
-        return WebIDL::NotSupportedError::create(realm(), "Cannot clone shadow root"_utf16);
+        return WebIDL::NotSupportedError::create("Cannot clone shadow root"_utf16);
 
     // 2. Return the result of cloning a node given this with subtree set to subtree.
     return clone_node(nullptr, subtree);
@@ -2086,7 +2097,7 @@ Slottable Node::as_slottable()
 GC::Ref<NodeList> Node::child_nodes()
 {
     if (!m_child_nodes) {
-        m_child_nodes = LiveNodeList::create(realm(), *this, LiveNodeList::Scope::Children, [](auto&) {
+        m_child_nodes = LiveNodeList::create(*this, LiveNodeList::Scope::Children, [](auto&) {
             return true;
         });
     }
@@ -2309,7 +2320,7 @@ void Node::serialize_tree_as_json(JsonObjectSerializer<Utf16StringBuilder>& obje
         MUST(object.add("data"sv, static_cast<DOM::Comment const&>(*this).data().utf16_view()));
     } else if (is_shadow_root()) {
         MUST(object.add("type"sv, "shadow-root"));
-        MUST(object.add("mode"sv, static_cast<DOM::ShadowRoot const&>(*this).mode() == Bindings::ShadowRootMode::Open ? "open"sv : "closed"sv));
+        MUST(object.add("mode"sv, static_cast<DOM::ShadowRoot const&>(*this).mode() == ShadowRootMode::Open ? "open"sv : "closed"sv));
     }
 
     MUST((object.add("visible"sv, !!layout_node())));
@@ -2416,7 +2427,7 @@ void Node::string_replace_all(Utf16View string)
     GC::Ptr<Node> node;
 
     if (!string.is_empty())
-        node = realm().create<Text>(document(), Utf16String::from_utf16(string));
+        node = Text::create(document(), Utf16String::from_utf16(string));
 
     replace_all(node);
 }
@@ -2429,7 +2440,7 @@ void Node::string_replace_all(Utf16String string)
 
     // 2. If string is not the empty string, then set node to a new Text node whose data is string and node document is parent’s node document.
     if (!string.is_empty())
-        node = realm().create<Text>(document(), move(string));
+        node = Text::create(document(), move(string));
 
     // 3. Replace all with node within parent.
     replace_all(node);
@@ -2466,10 +2477,11 @@ WebIDL::ExceptionOr<void> Node::unsafely_set_html(Variant<GC::Ref<Element>, GC::
     // 7. Let fragment be the result of invoking the HTML fragment parsing algorithm given target, html, true, and scriptingMode.
     auto fragment = TRY(HTML::HTMLParser::parse_html_fragment(target, html, HTML::HTMLParser::AllowDeclarativeShadowRoots::Yes));
 
-    // 9. Replace all with fragment within target.
-    target.visit([&](auto node) {
-        node->replace_all(fragment);
-    });
+    // 2. Let fragment be a new DocumentFragment whose node document is contextElement’s node document.
+    // The parser already produced the fragment.
+
+    // Replace all with fragment within target.
+    target.visit([&](auto node) { node->replace_all(fragment); });
 
     return {};
 }
@@ -2854,14 +2866,19 @@ bool Node::in_a_document_tree() const
 }
 
 // https://dom.spec.whatwg.org/#dom-node-getrootnode
-GC::Ref<Node> Node::get_root_node(Bindings::GetRootNodeOptions const& options)
+GC::Ref<Node> Node::get_root_node(RootNodeComposed composed)
 {
     // The getRootNode(options) method steps are to return this’s shadow-including root if options["composed"] is true;
-    if (options.composed)
+    if (composed == RootNodeComposed::Yes)
         return shadow_including_root();
 
     // otherwise this’s root.
     return root();
+}
+
+GC::Ref<Node> Node::get_root_node(Bindings::GetRootNodeOptions const& options)
+{
+    return get_root_node(options.composed ? RootNodeComposed::Yes : RootNodeComposed::No);
 }
 
 Utf16String Node::debug_description() const
@@ -3039,14 +3056,14 @@ void Node::queue_mutation_record(Utf16FlyString const& type, Optional<Utf16FlySt
     if (interested_observers.is_empty() && !page.listen_for_dom_mutations())
         return;
 
-    auto added_nodes_list = StaticNodeList::create(realm(), move(added_nodes));
-    auto removed_nodes_list = StaticNodeList::create(realm(), move(removed_nodes));
+    auto added_nodes_list = StaticNodeList::create(move(added_nodes));
+    auto removed_nodes_list = StaticNodeList::create(move(removed_nodes));
 
     // 4. For each observer → mappedOldValue of interestedObservers:
     for (auto& [observer, mapped_old_value] : interested_observers) {
         // 1. Let record be a new MutationRecord object with its type set to type, target set to target, attributeName set to name, attributeNamespace set to namespace, oldValue set to mappedOldValue,
         //    addedNodes set to addedNodes, removedNodes set to removedNodes, previousSibling set to previousSibling, and nextSibling set to nextSibling.
-        auto record = MutationRecord::create(realm(), type, *this, added_nodes_list, removed_nodes_list, previous_sibling, next_sibling, attribute_name, attribute_namespace, mapped_old_value);
+        auto record = MutationRecord::create(type, *this, added_nodes_list, removed_nodes_list, previous_sibling, next_sibling, attribute_name, attribute_namespace, mapped_old_value);
 
         // 2. Enqueue record to observer’s record queue.
         observer->enqueue_record({}, move(record));
@@ -3056,7 +3073,7 @@ void Node::queue_mutation_record(Utf16FlyString const& type, Optional<Utf16FlySt
     }
 
     // 5. Queue a mutation observer microtask.
-    Bindings::queue_mutation_observer_microtask();
+    queue_mutation_observer_microtask(HTML::relevant_similar_origin_window_agent(*this));
 
     // AD-HOC: Notify the UI if it is interested in DOM mutations (i.e. for DevTools).
     if (page.listen_for_dom_mutations())
@@ -3118,7 +3135,7 @@ void Node::build_accessibility_tree(AccessibilityTreeNode& parent)
             return;
 
         if (element->include_in_accessibility_tree()) {
-            auto current_node = AccessibilityTreeNode::create(&document(), this);
+            auto current_node = AccessibilityTreeNode::create(this);
             parent.append_child(current_node);
             if (has_child_nodes()) {
                 for_each_child([&current_node](DOM::Node& child) {
@@ -3133,7 +3150,7 @@ void Node::build_accessibility_tree(AccessibilityTreeNode& parent)
             });
         }
     } else if (is_text()) {
-        parent.append_child(AccessibilityTreeNode::create(&document(), this));
+        parent.append_child(AccessibilityTreeNode::create(this));
         if (has_child_nodes()) {
             for_each_child([&parent](DOM::Node& child) {
                 child.build_accessibility_tree(parent);

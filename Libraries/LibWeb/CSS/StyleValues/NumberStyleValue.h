@@ -35,7 +35,7 @@ public:
 
     void serialize(StringBuilder&, SerializationMode) const;
     Vector<Parser::ComponentValue> tokenize() const;
-    GC::Ref<CSSStyleValue> reify(JS::Realm&, Utf16FlyString const& associated_property) const;
+    GC::Ref<CSSStyleValue> reify(Utf16FlyString const& associated_property) const;
 
     bool equals(StyleValue const& other) const
     {

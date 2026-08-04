@@ -4,33 +4,68 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/InputEvent.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/HTML/DataTransfer.h>
+#include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/InputEvent.h>
 
 namespace Web::UIEvents {
 
 GC_DEFINE_ALLOCATOR(InputEvent);
 
-GC::Ref<InputEvent> InputEvent::create_from_platform_event(JS::Realm& realm, Utf16FlyString const& event_name, Bindings::InputEventInit const& event_init, Vector<GC::Ref<DOM::StaticRange>> const& target_ranges)
+GC::Ref<InputEvent> InputEvent::create(FlyString const& event_name, InputEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    auto event = realm.create<InputEvent>(realm, event_name, event_init, target_ranges);
+    return create(event_name, event_init, {}, time_stamp);
+}
+
+GC::Ref<InputEvent> InputEvent::create(Utf16String const& event_name, InputEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+{
+    return GC::Heap::the().allocate<InputEvent>(Utf16FlyString::from_utf16(event_name.utf16_view()), event_init, Vector<GC::Ref<DOM::StaticRange>> {}, time_stamp);
+}
+
+GC::Ref<InputEvent> InputEvent::create(FlyString const& event_name, InputEventInit const& event_init, Vector<GC::Ref<DOM::StaticRange>> const& target_ranges, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+{
+    return GC::Heap::the().allocate<InputEvent>(event_name, event_init, target_ranges, time_stamp);
+}
+
+GC::Ref<InputEvent> InputEvent::create_from_platform_event(FlyString const& event_name, InputEventInit const& event_init, Vector<GC::Ref<DOM::StaticRange>> const& target_ranges, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+{
+    auto event = create(event_name, event_init, target_ranges, time_stamp);
     event->set_bubbles(true);
     event->set_composed(true);
-    if (event_name == "beforeinput"_utf16_fly_string) {
+    if (event_name == EventNames::beforeinput) {
         event->set_cancelable(true);
     }
     return event;
 }
 
-WebIDL::ExceptionOr<GC::Ref<InputEvent>> InputEvent::construct_impl(JS::Realm& realm, Utf16FlyString const& event_name, Bindings::InputEventInit const& event_init)
+GC::Ref<InputEvent> InputEvent::create_from_platform_event(Utf16FlyString const& event_name, InputEventInit const& event_init, Vector<GC::Ref<DOM::StaticRange>> const& target_ranges, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    return realm.create<InputEvent>(realm, event_name, event_init, event_init.target_ranges);
+    auto event = GC::Heap::the().allocate<InputEvent>(event_name, event_init, target_ranges, time_stamp);
+    event->set_bubbles(true);
+    event->set_composed(true);
+    if (event_name == EventNames::beforeinput)
+        event->set_cancelable(true);
+    return event;
 }
 
-InputEvent::InputEvent(JS::Realm& realm, Utf16FlyString const& event_name, Bindings::InputEventInit const& event_init, Vector<GC::Ref<DOM::StaticRange>> const& target_ranges)
-    : UIEvent(realm, event_name, event_init)
+GC::Ref<InputEvent> InputEvent::create(Utf16FlyString const& event_name, InputEventInit const& event_init)
+{
+    return GC::Heap::the().allocate<InputEvent>(event_name, event_init, event_init.target_ranges, 0);
+}
+
+InputEvent::InputEvent(FlyString const& event_name, InputEventInit const& event_init, Vector<GC::Ref<DOM::StaticRange>> const& target_ranges, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : UIEvent(event_name, event_init, time_stamp)
+    , m_data(event_init.data)
+    , m_is_composing(event_init.is_composing)
+    , m_input_type(event_init.input_type)
+    , m_data_transfer(event_init.data_transfer)
+    , m_target_ranges(target_ranges)
+{
+}
+
+InputEvent::InputEvent(Utf16FlyString const& event_name, InputEventInit const& event_init, Vector<GC::Ref<DOM::StaticRange>> const& target_ranges, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : UIEvent(event_name, event_init, time_stamp)
     , m_data(event_init.data)
     , m_is_composing(event_init.is_composing)
     , m_input_type(event_init.input_type)
@@ -41,16 +76,10 @@ InputEvent::InputEvent(JS::Realm& realm, Utf16FlyString const& event_name, Bindi
 
 InputEvent::~InputEvent() = default;
 
-void InputEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(InputEvent);
-    Base::initialize(realm);
-}
-
 void InputEvent::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_data_transfer);
+    visitor.visit(static_cast<GC::Cell*>(m_data_transfer.ptr()));
     visitor.visit(m_target_ranges);
 }
 

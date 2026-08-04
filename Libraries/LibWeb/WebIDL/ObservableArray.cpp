@@ -4,7 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
+#include <LibGC/Heap.h>
+#include <LibWeb/WebIDL/ExceptionOrUtils.h>
 #include <LibWeb/WebIDL/ObservableArray.h>
 
 namespace Web::WebIDL {
@@ -32,18 +33,18 @@ void ObservableArray::visit_edges(JS::Cell::Visitor& visitor)
 
 void ObservableArray::set_on_set_an_indexed_value_callback(SetAnIndexedValueCallbackFunction&& callback)
 {
-    m_on_set_an_indexed_value = GC::create_function(heap(), move(callback));
+    m_on_set_an_indexed_value = GC::create_function(GC::Heap::the(), move(callback));
 }
 
 void ObservableArray::set_on_delete_an_indexed_value_callback(DeleteAnIndexedValueCallbackFunction&& callback)
 {
-    m_on_delete_an_indexed_value = GC::create_function(heap(), move(callback));
+    m_on_delete_an_indexed_value = GC::create_function(GC::Heap::the(), move(callback));
 }
 
 JS::ThrowCompletionOr<bool> ObservableArray::internal_set(JS::PropertyKey const& property_key, JS::Value value, JS::Value receiver, JS::CacheableSetPropertyMetadata* metadata, PropertyLookupPhase phase)
 {
     if (property_key.is_number() && m_on_set_an_indexed_value)
-        TRY(Bindings::throw_dom_exception_if_needed(vm(), [&] { return m_on_set_an_indexed_value->function()(value); }));
+        TRY(WebIDL::throw_dom_exception_if_needed(vm(), shape().realm(), [&] { return m_on_set_an_indexed_value->function()(value); }));
     return TRY(Base::internal_set(property_key, value, receiver, metadata, phase));
 }
 
@@ -54,7 +55,7 @@ JS::ThrowCompletionOr<bool> ObservableArray::internal_delete(JS::PropertyKey con
         JS::Value deleted_value;
         if (maybe_value_and_attributes.has_value())
             deleted_value = maybe_value_and_attributes->value;
-        TRY(Bindings::throw_dom_exception_if_needed(vm(), [&] { return m_on_delete_an_indexed_value->function()(deleted_value); }));
+        TRY(WebIDL::throw_dom_exception_if_needed(vm(), shape().realm(), [&] { return m_on_delete_an_indexed_value->function()(deleted_value); }));
     }
     return JS::Array::internal_delete(property_key);
 }
@@ -62,7 +63,7 @@ JS::ThrowCompletionOr<bool> ObservableArray::internal_delete(JS::PropertyKey con
 JS::ThrowCompletionOr<void> ObservableArray::append(JS::Value value)
 {
     if (m_on_set_an_indexed_value)
-        TRY(Bindings::throw_dom_exception_if_needed(vm(), [&] { return m_on_set_an_indexed_value->function()(value); }));
+        TRY(WebIDL::throw_dom_exception_if_needed(vm(), shape().realm(), [&] { return m_on_set_an_indexed_value->function()(value); }));
     indexed_append(value);
     return {};
 }

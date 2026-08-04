@@ -8,21 +8,32 @@
 
 #include <AK/Utf16FlyString.h>
 #include <LibGC/Ptr.h>
+#include <LibJS/Forward.h>
 #include <LibWeb/Bindings/SpeechRecognitionEvent.h>
 #include <LibWeb/DOM/Event.h>
+#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 #include <LibWeb/Speech/SpeechRecognitionResultList.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/Types.h>
 
+namespace Web::HTML {
+
+class Window;
+
+}
+
 namespace Web::Speech {
 
+using SpeechRecognitionEventInit = Bindings::SpeechRecognitionEventInit;
+
 class SpeechRecognitionEvent : public DOM::Event {
-    WEB_PLATFORM_OBJECT(SpeechRecognitionEvent, DOM::Event);
+    WEB_WRAPPABLE(SpeechRecognitionEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(SpeechRecognitionEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<SpeechRecognitionEvent> create(JS::Realm&, Utf16FlyString const& event_name, Bindings::SpeechRecognitionEventInit const&);
-    static WebIDL::ExceptionOr<GC::Ref<SpeechRecognitionEvent>> construct_impl(JS::Realm&, Utf16FlyString const& event_name, Bindings::SpeechRecognitionEventInit const&);
+    static GC::Ref<SpeechRecognitionEvent> create(FlyString const& event_name, SpeechRecognitionEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
+    static GC::Ref<SpeechRecognitionEvent> create(Utf16String const& event_name, SpeechRecognitionEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
+    static GC::Ref<SpeechRecognitionEvent> create(Utf16FlyString const& event_name, SpeechRecognitionEventInit const&);
 
     // https://wicg.github.io/speech-api/#dom-speechrecognitionevent-resultindex
     WebIDL::UnsignedLong result_index() const { return m_result_index; }
@@ -31,10 +42,10 @@ public:
     GC::Ptr<SpeechRecognitionResultList> results() const { return m_results; }
 
 private:
-    SpeechRecognitionEvent(JS::Realm&, Utf16FlyString const& event_name, Bindings::SpeechRecognitionEventInit const&);
+    SpeechRecognitionEvent(FlyString const& event_name, SpeechRecognitionEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
+    SpeechRecognitionEvent(Utf16FlyString const& event_name, SpeechRecognitionEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     WebIDL::UnsignedLong m_result_index { 0 };
     GC::Ptr<SpeechRecognitionResultList> m_results;

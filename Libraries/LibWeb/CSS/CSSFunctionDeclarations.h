@@ -13,20 +13,19 @@ namespace Web::CSS {
 
 // https://drafts.csswg.org/css-mixins-1/#cssfunctiondeclarations
 class CSSFunctionDeclarations final : public CSSRule {
-    WEB_PLATFORM_OBJECT(CSSFunctionDeclarations, CSSRule);
+    WEB_WRAPPABLE(CSSFunctionDeclarations, CSSRule);
     GC_DECLARE_ALLOCATOR(CSSFunctionDeclarations);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSFunctionDeclarations> create(JS::Realm&, Parser::Parser&, Vector<Parser::Declaration> const&);
+    [[nodiscard]] static GC::Ref<CSSFunctionDeclarations> create(Parser::Parser&, Vector<Parser::Declaration> const&);
 
     virtual ~CSSFunctionDeclarations() override = default;
 
     GC::Ref<CSSFunctionDescriptors> style() const { return m_style; }
 
 private:
-    CSSFunctionDeclarations(JS::Realm&, GC::Ref<CSSFunctionDescriptors>);
+    CSSFunctionDeclarations(GC::Ref<CSSFunctionDescriptors>);
 
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
     virtual Utf16String serialized() const override;
     virtual void dump(StringBuilder&, int indent_levels) const override;

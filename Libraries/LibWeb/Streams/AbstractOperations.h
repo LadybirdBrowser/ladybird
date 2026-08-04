@@ -14,14 +14,15 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Streams/Algorithms.h>
+#include <LibWeb/Streams/QueuingStrategy.h>
 #include <LibWeb/WebIDL/Buffers.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::Streams {
 
 // 7.4. Abstract operations, https://streams.spec.whatwg.org/#qs-abstract-ops
-WEB_API WebIDL::ExceptionOr<double> extract_high_water_mark(Bindings::QueuingStrategy const&, double default_hwm);
-WEB_API GC::Ref<SizeAlgorithm> extract_size_algorithm(JS::VM&, Bindings::QueuingStrategy const&);
+WEB_API WebIDL::ExceptionOr<double> extract_high_water_mark(QueuingStrategy const&, double default_hwm);
+WEB_API GC::Ref<SizeAlgorithm> extract_size_algorithm(JS::VM&, QueuingStrategy const&);
 
 // 8.2. Transferable streams, https://streams.spec.whatwg.org/#transferrable-streams
 void cross_realm_transform_send_error(JS::Realm&, HTML::MessagePort&, JS::Value error);

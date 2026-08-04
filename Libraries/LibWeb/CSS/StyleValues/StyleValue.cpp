@@ -586,7 +586,7 @@ Vector<Parser::ComponentValue> StyleValue::tokenize() const
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#reify-as-a-cssstylevalue
-GC::Ref<CSSStyleValue> StyleValue::reify(JS::Realm& realm, Utf16FlyString const& associated_property) const
+GC::Ref<CSSStyleValue> StyleValue::reify(Utf16FlyString const& associated_property) const
 {
     switch (type()) {
     case Type::ConicGradient:
@@ -594,7 +594,7 @@ GC::Ref<CSSStyleValue> StyleValue::reify(JS::Realm& realm, Utf16FlyString const&
     case Type::ImageSet:
     case Type::LinearGradient:
     case Type::RadialGradient:
-        return as_abstract_image().reify(realm, associated_property);
+        return as_abstract_image().reify(associated_property);
     case Type::Angle:
     case Type::Flex:
     case Type::Frequency:
@@ -602,35 +602,35 @@ GC::Ref<CSSStyleValue> StyleValue::reify(JS::Realm& realm, Utf16FlyString const&
     case Type::Percentage:
     case Type::Resolution:
     case Type::Time:
-        return as_dimension().reify(realm, associated_property);
+        return as_dimension().reify(associated_property);
     case Type::Calculated:
-        return as_calculated().reify(realm, associated_property);
+        return as_calculated().reify(associated_property);
     case Type::CustomIdent:
-        return as_custom_ident().reify(realm, associated_property);
+        return as_custom_ident().reify(associated_property);
     case Type::Display:
-        return as_display().reify(realm, associated_property);
+        return as_display().reify(associated_property);
     case Type::Integer:
-        return as_integer().reify(realm, associated_property);
+        return as_integer().reify(associated_property);
     case Type::Keyword:
-        return as_keyword().reify(realm, associated_property);
+        return as_keyword().reify(associated_property);
     case Type::Number:
-        return as_number().reify(realm, associated_property);
+        return as_number().reify(associated_property);
     case Type::OpacityValue:
-        return as_opacity_value().reify(realm, associated_property);
+        return as_opacity_value().reify(associated_property);
     case Type::Unresolved:
-        return as_unresolved().reify(realm, associated_property);
+        return as_unresolved().reify(associated_property);
     case Type::ValueList:
-        return as_value_list().reify(realm, associated_property);
+        return as_value_list().reify(associated_property);
     default:
         break;
     }
-    return default_reify(realm, associated_property);
+    return default_reify(associated_property);
 }
 
-GC::Ref<CSSStyleValue> StyleValue::default_reify(JS::Realm& realm, Utf16FlyString const& associated_property) const
+GC::Ref<CSSStyleValue> StyleValue::default_reify(Utf16FlyString const& associated_property) const
 {
     // 1. Return a new CSSStyleValue object representing value whose [[associatedProperty]] internal slot is set to property.
-    return CSSStyleValue::create(realm, associated_property, *this);
+    return CSSStyleValue::create(associated_property, *this);
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#subdivide-into-iterations

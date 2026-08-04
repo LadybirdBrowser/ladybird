@@ -5,7 +5,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/DOM/MutationObserver.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -28,6 +27,16 @@ SimilarOriginWindowAgent& relevant_similar_origin_window_agent(JS::Object const&
     // The relevant agent for a platform object platformObject is platformObject's relevant Realm's agent.
     // Spec Note: This pointer is not yet defined in the JavaScript specification; see tc39/ecma262#1357.
     return as<SimilarOriginWindowAgent>(*relevant_realm(object).vm().agent());
+}
+
+SimilarOriginWindowAgent& relevant_similar_origin_window_agent(DOM::Node const& node)
+{
+    return as<SimilarOriginWindowAgent>(*relevant_realm(node).vm().agent());
+}
+
+SimilarOriginWindowAgent& relevant_similar_origin_window_agent(Window const& window)
+{
+    return as<SimilarOriginWindowAgent>(*relevant_realm(window).vm().agent());
 }
 
 SimilarOriginWindowAgent::SimilarOriginWindowAgent(CanBlock can_block)

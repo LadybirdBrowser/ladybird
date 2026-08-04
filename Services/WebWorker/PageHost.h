@@ -19,7 +19,7 @@ class PageHost final : public Web::PageClient {
     GC_DECLARE_ALLOCATOR(PageHost);
 
 public:
-    static GC::Ref<PageHost> create(JS::VM& vm, ConnectionFromClient& client);
+    static GC::Ref<PageHost> create(ConnectionFromClient& client);
 
     virtual ~PageHost();
 

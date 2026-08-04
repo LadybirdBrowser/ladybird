@@ -7,25 +7,23 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::RequestIdleCallback {
 
-class IdleDeadline final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(IdleDeadline, Bindings::PlatformObject);
+class IdleDeadline final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(IdleDeadline, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(IdleDeadline);
 
 public:
-    [[nodiscard]] static GC::Ref<IdleDeadline> create(JS::Realm&, bool did_timeout = false);
+    [[nodiscard]] static GC::Ref<IdleDeadline> create(bool did_timeout = false);
     virtual ~IdleDeadline() override;
 
     double time_remaining() const;
     bool did_timeout() const { return m_did_timeout; }
 
 private:
-    IdleDeadline(JS::Realm&, bool did_timeout);
-
-    virtual void initialize(JS::Realm&) override;
+    explicit IdleDeadline(bool did_timeout);
 
     bool m_did_timeout { false };
 };

@@ -13,14 +13,14 @@ namespace Web::WebIDL {
 GC_DEFINE_ALLOCATOR(AsyncIterator);
 
 AsyncIterator::AsyncIterator(JS::Realm& realm, JS::Object::PropertyKind iteration_kind)
-    : PlatformObject(realm)
+    : JS::Object(realm, nullptr)
     , m_kind(iteration_kind)
 {
 }
 
 AsyncIterator::~AsyncIterator() = default;
 
-void AsyncIterator::visit_edges(JS::Cell::Visitor& visitor)
+void AsyncIterator::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_ongoing_promise);
@@ -29,12 +29,12 @@ void AsyncIterator::visit_edges(JS::Cell::Visitor& visitor)
 // https://webidl.spec.whatwg.org/#ref-for-dfn-asynchronous-iterator-prototype-object%E2%91%A2
 JS::ThrowCompletionOr<GC::Ptr<JS::Object>> AsyncIterator::iterator_next_impl()
 {
-    auto& realm = this->realm();
+    auto& realm = this->promise_realm();
     auto& vm = this->vm();
 
     // 8. Let nextSteps be the following steps:
     auto next_steps = [this](JS::VM& vm) {
-        auto& realm = this->realm();
+        auto& realm = this->promise_realm();
 
         // 1. Let nextPromiseCapability be ! NewPromiseCapability(%Promise%).
         auto next_promise_capability = WebIDL::create_promise(realm);
@@ -42,7 +42,7 @@ JS::ThrowCompletionOr<GC::Ptr<JS::Object>> AsyncIterator::iterator_next_impl()
         // 2. If object’s is finished is true, then:
         if (m_is_finished) {
             // 1. Let result be CreateIteratorResultObject(undefined, true).
-            auto result = JS::create_iterator_result_object(vm, JS::js_undefined(), true);
+            auto result = JS::create_iterator_result_object(realm, JS::js_undefined(), true);
 
             // 2. Perform ! Call(nextPromiseCapability.[[Resolve]], undefined, « result »).
             MUST(JS::call(vm, *next_promise_capability->resolve(), JS::js_undefined(), result));
@@ -58,6 +58,7 @@ JS::ThrowCompletionOr<GC::Ptr<JS::Object>> AsyncIterator::iterator_next_impl()
 
         // 5. Let fulfillSteps be the following steps, given next:
         auto fulfill_steps = [this](JS::VM& vm) {
+            auto& realm = this->promise_realm();
             auto next = vm.argument(0);
 
             // 1. Set object’s ongoing promise to null.
@@ -69,7 +70,7 @@ JS::ThrowCompletionOr<GC::Ptr<JS::Object>> AsyncIterator::iterator_next_impl()
                 m_is_finished = true;
 
                 // 2. Return CreateIteratorResultObject(undefined, true).
-                return JS::create_iterator_result_object(vm, JS::js_undefined(), true);
+                return JS::create_iterator_result_object(realm, JS::js_undefined(), true);
             }
             // FIXME: 2. Otherwise, if interface has a pair asynchronously iterable declaration:
             else if (false) {
@@ -83,7 +84,7 @@ JS::ThrowCompletionOr<GC::Ptr<JS::Object>> AsyncIterator::iterator_next_impl()
 
                 // 3. Let value be next, converted to a JavaScript value.
                 // 4. Return CreateIteratorResultObject(value, false).
-                return JS::create_iterator_result_object(vm, next, false);
+                return JS::create_iterator_result_object(realm, next, false);
             }
         };
 
@@ -142,12 +143,12 @@ JS::ThrowCompletionOr<GC::Ptr<JS::Object>> AsyncIterator::iterator_next_impl()
 // https://webidl.spec.whatwg.org/#ref-for-asynchronous-iterator-return
 JS::ThrowCompletionOr<GC::Ptr<JS::Object>> AsyncIterator::iterator_return_impl(GC::Ref<WebIDL::Promise> return_promise_capability, JS::Value value)
 {
-    auto& realm = this->realm();
+    auto& realm = this->promise_realm();
     auto& vm = this->vm();
 
     // 8. Let returnSteps be the following steps:
     auto return_steps = [this, value](JS::VM& vm) {
-        auto& realm = this->realm();
+        auto& realm = this->promise_realm();
 
         // 1. Let returnPromiseCapability be ! NewPromiseCapability(%Promise%).
         auto return_promise_capability = WebIDL::create_promise(realm);
@@ -155,7 +156,7 @@ JS::ThrowCompletionOr<GC::Ptr<JS::Object>> AsyncIterator::iterator_return_impl(G
         // 2. If object’s is finished is true, then:
         if (m_is_finished) {
             // 1. Let result be CreateIteratorResultObject(value, true).
-            auto result = JS::create_iterator_result_object(vm, value, true);
+            auto result = JS::create_iterator_result_object(realm, value, true);
 
             // 2. Perform ! Call(returnPromiseCapability.[[Resolve]], undefined, « result »).
             MUST(JS::call(vm, *return_promise_capability->resolve(), JS::js_undefined(), result));
@@ -193,9 +194,11 @@ JS::ThrowCompletionOr<GC::Ptr<JS::Object>> AsyncIterator::iterator_return_impl(G
     }
 
     // 12. Let fulfillSteps be the following steps:
-    auto fulfill_steps = [value](JS::VM& vm) {
+    auto fulfill_steps = [this, value]([[maybe_unused]] JS::VM& vm) {
+        auto& realm = this->promise_realm();
+
         // 1. Return CreateIteratorResultObject(value, true).
-        return JS::create_iterator_result_object(vm, value, true);
+        return JS::create_iterator_result_object(realm, value, true);
     };
 
     // 13. Let onFulfilled be CreateBuiltinFunction(fulfillSteps, « »).

@@ -5,13 +5,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/VisualViewport.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/CSS/VisualViewport.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/EventDispatcher.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/LocalNavigable.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 
 namespace Web::CSS {
@@ -20,19 +20,14 @@ GC_DEFINE_ALLOCATOR(VisualViewport);
 
 GC::Ref<VisualViewport> VisualViewport::create(DOM::Document& document)
 {
-    return document.realm().create<VisualViewport>(document);
+    return GC::Heap::the().allocate<VisualViewport>(document);
 }
 
 VisualViewport::VisualViewport(DOM::Document& document)
-    : DOM::EventTarget(document.realm())
+    : DOM::EventTarget()
     , m_document(document)
 {
-}
-
-void VisualViewport::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(VisualViewport);
-    Base::initialize(realm);
+    set_wrapper_realm_hint(document);
 }
 
 void VisualViewport::visit_edges(Cell::Visitor& visitor)

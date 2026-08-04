@@ -12,12 +12,12 @@ namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssskewx
 class CSSSkewX final : public CSSTransformComponent {
-    WEB_PLATFORM_OBJECT(CSSSkewX, CSSTransformComponent);
+    WEB_WRAPPABLE(CSSSkewX, CSSTransformComponent);
     GC_DECLARE_ALLOCATOR(CSSSkewX);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSSkewX> create(JS::Realm&, GC::Ref<CSSNumericValue> ax);
-    static WebIDL::ExceptionOr<GC::Ref<CSSSkewX>> construct_impl(JS::Realm&, GC::Ref<CSSNumericValue> ax);
+    [[nodiscard]] static GC::Ref<CSSSkewX> create(GC::Ref<CSSNumericValue> ax);
+    static WebIDL::ExceptionOr<GC::Ref<CSSSkewX>> create_for_constructor(GC::Ref<CSSNumericValue> ax);
 
     virtual ~CSSSkewX() override;
 
@@ -33,10 +33,8 @@ public:
     virtual WebIDL::ExceptionOr<NonnullRefPtr<TransformationStyleValue const>> create_style_value(PropertyNameAndID const&) const override;
 
 private:
-    explicit CSSSkewX(JS::Realm&, GC::Ref<CSSNumericValue> ax);
-
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor&) override;
+    explicit CSSSkewX(GC::Ref<CSSNumericValue> ax);
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     GC::Ref<CSSNumericValue> m_ax;
 };

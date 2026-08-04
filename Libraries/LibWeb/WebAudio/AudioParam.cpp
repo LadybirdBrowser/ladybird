@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/AudioParam.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/WebAudio/AudioParam.h>
 #include <LibWeb/WebAudio/BaseAudioContext.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -14,12 +13,11 @@ namespace Web::WebAudio {
 
 GC_DEFINE_ALLOCATOR(AudioParam);
 
-AudioParam::AudioParam(JS::Realm& realm, GC::Ref<BaseAudioContext> context, GC::Ptr<AudioNode> owner, float default_value, float min_value, float max_value, Bindings::AutomationRate automation_rate, FixedAutomationRate fixed_automation_rate)
-    : Bindings::PlatformObject(realm)
-    , m_context(context)
+AudioParam::AudioParam(GC::Ref<BaseAudioContext> context, GC::Ptr<AudioNode> owner, float default_value, float min_value, float max_value, AutomationRate automation_rate, FixedAutomationRate fixed_automation_rate)
+    : m_context(context)
     , m_owner(owner)
-    , m_timeline(make_ref_counted<AudioParamTimeline>(default_value))
-    , m_render_param(make_ref_counted<Rendering::RenderAudioParam>(m_timeline, min_value, max_value, automation_rate))
+    , m_timeline(adopt_ref(*new AudioParamTimeline(default_value)))
+    , m_render_param(adopt_ref(*new Rendering::RenderAudioParam(m_timeline, min_value, max_value, automation_rate)))
     , m_current_value(default_value)
     , m_default_value(default_value)
     , m_min_value(min_value)
@@ -29,9 +27,9 @@ AudioParam::AudioParam(JS::Realm& realm, GC::Ref<BaseAudioContext> context, GC::
 {
 }
 
-GC::Ref<AudioParam> AudioParam::create(JS::Realm& realm, GC::Ref<BaseAudioContext> context, GC::Ptr<AudioNode> owner, float default_value, float min_value, float max_value, Bindings::AutomationRate automation_rate, FixedAutomationRate fixed_automation_rate)
+GC::Ref<AudioParam> AudioParam::create(GC::Ref<BaseAudioContext> context, GC::Ptr<AudioNode> owner, float default_value, float min_value, float max_value, AutomationRate automation_rate, FixedAutomationRate fixed_automation_rate)
 {
-    return realm.create<AudioParam>(realm, context, owner, default_value, min_value, max_value, automation_rate, fixed_automation_rate);
+    return GC::Heap::the().allocate<AudioParam>(context, owner, default_value, min_value, max_value, automation_rate, fixed_automation_rate);
 }
 
 AudioParam::~AudioParam() = default;
@@ -58,16 +56,16 @@ WebIDL::ExceptionOr<void> AudioParam::set_value(float value)
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audioparam-automationrate
-Bindings::AutomationRate AudioParam::automation_rate() const
+AutomationRate AudioParam::automation_rate() const
 {
     return m_automation_rate;
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audioparam-automationrate
-WebIDL::ExceptionOr<void> AudioParam::set_automation_rate(Bindings::AutomationRate automation_rate)
+WebIDL::ExceptionOr<void> AudioParam::set_automation_rate(AutomationRate automation_rate)
 {
     if (automation_rate != m_automation_rate && m_fixed_automation_rate == FixedAutomationRate::Yes)
-        return WebIDL::InvalidStateError::create(realm(), "Automation rate cannot be changed"_utf16);
+        return WebIDL::InvalidStateError::create("Automation rate cannot be changed"_utf16);
 
     m_automation_rate = automation_rate;
     m_render_param->set_automation_rate(automation_rate);
@@ -80,9 +78,9 @@ WebIDL::ExceptionOr<void> AudioParam::map_insert_result(AudioParamTimeline::Inse
     case AudioParamTimeline::InsertResult::Success:
         return {};
     case AudioParamTimeline::InsertResult::EventContainedInValueCurve:
-        return WebIDL::NotSupportedError::create(realm(), "Cannot schedule an automation event during a value curve"_utf16);
+        return WebIDL::NotSupportedError::create(context()->relevant_settings_object().realm(), "Cannot schedule an automation event during a value curve"_utf16);
     case AudioParamTimeline::InsertResult::ValueCurveOverlapsEvent:
-        return WebIDL::NotSupportedError::create(realm(), "Cannot schedule a value curve containing an automation event"_utf16);
+        return WebIDL::NotSupportedError::create(context()->relevant_settings_object().realm(), "Cannot schedule a value curve containing an automation event"_utf16);
     }
     VERIFY_NOT_REACHED();
 }
@@ -158,7 +156,7 @@ WebIDL::ExceptionOr<GC::Ref<AudioParam>> AudioParam::set_value_curve_at_time(Spa
 {
     // An InvalidStateError exception MUST be thrown if values has a length less than 2.
     if (values.size() < 2)
-        return WebIDL::InvalidStateError::create(realm(), "values must contain at least two elements"_utf16);
+        return WebIDL::InvalidStateError::create(context()->relevant_settings_object().realm(), "values must contain at least two elements"_utf16);
 
     // A RangeError exception MUST be thrown if startTime is negative or is not a finite number.
     if (start_time < 0)
@@ -203,13 +201,7 @@ WebIDL::ExceptionOr<GC::Ref<AudioParam>> AudioParam::cancel_and_hold_at_time(dou
     return GC::Ref { *this };
 }
 
-void AudioParam::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(AudioParam);
-    Base::initialize(realm);
-}
-
-void AudioParam::visit_edges(Cell::Visitor& visitor)
+void AudioParam::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_context);

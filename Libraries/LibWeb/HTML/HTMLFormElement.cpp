@@ -11,8 +11,6 @@
 #include <AK/StringBuilder.h>
 #include <AK/Utf16StringBuilder.h>
 #include <LibTextCodec/Decoder.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/HTMLFormElement.h>
 #include <LibWeb/DOM/DOMTokenList.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
@@ -34,7 +32,9 @@
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/RadioNodeList.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/SubmitEvent.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/Infra/Strings.h>
@@ -47,21 +47,9 @@ GC_DEFINE_ALLOCATOR(HTMLFormElement);
 HTMLFormElement::HTMLFormElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))
 {
-    m_legacy_platform_object_flags = LegacyPlatformObjectFlags {
-        .supports_indexed_properties = true,
-        .supports_named_properties = true,
-        .has_legacy_unenumerable_named_properties_interface_extended_attribute = true,
-        .has_legacy_override_built_ins_interface_extended_attribute = true,
-    };
 }
 
 HTMLFormElement::~HTMLFormElement() = default;
-
-void HTMLFormElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLFormElement);
-    Base::initialize(realm);
-}
 
 void HTMLFormElement::visit_edges(Cell::Visitor& visitor)
 {
@@ -105,7 +93,6 @@ WebIDL::ExceptionOr<void> HTMLFormElement::implicitly_submit_form()
 WebIDL::ExceptionOr<void> HTMLFormElement::submit_form(GC::Ref<HTMLElement> submitter, SubmitFormOptions options)
 {
     auto& vm = this->vm();
-    auto& realm = this->realm();
 
     // 1. If form cannot navigate, then return.
     if (cannot_navigate())
@@ -166,11 +153,11 @@ WebIDL::ExceptionOr<void> HTMLFormElement::submit_form(GC::Ref<HTMLElement> subm
         // 6. Let shouldContinue be the result of firing an event named submit at form using SubmitEvent, with the
         //    submitter attribute initialized to submitterButton, the bubbles attribute initialized to true, and the
         //    cancelable attribute initialized to true.
-        Bindings::SubmitEventInit event_init {};
+        SubmitEventInit event_init {};
         event_init.submitter = submitter_button;
-        auto submit_event = SubmitEvent::create(realm, EventNames::submit, event_init);
-        submit_event->set_bubbles(true);
-        submit_event->set_cancelable(true);
+        event_init.bubbles = true;
+        event_init.cancelable = true;
+        auto submit_event = SubmitEvent::create(EventNames::submit, event_init, HighResolutionTime::current_high_resolution_time(relevant_global_object(*this)));
         bool should_continue = dispatch_event(*submit_event);
 
         // 7. Set form's firing submission events to false.
@@ -190,7 +177,7 @@ WebIDL::ExceptionOr<void> HTMLFormElement::submit_form(GC::Ref<HTMLElement> subm
     auto encoding = TRY_OR_THROW_OOM(vm, pick_an_encoding());
 
     // 7. Let entry list be the result of constructing the entry list with form, submitter, and encoding.
-    auto entry_list_or_null = TRY(construct_entry_list(realm, *this, submitter, encoding));
+    auto entry_list_or_null = TRY(construct_entry_list(relevant_realm(*this), *this, submitter, encoding));
 
     // 8. Assert: entry list is not null.
     VERIFY(entry_list_or_null.has_value());
@@ -291,12 +278,12 @@ WebIDL::ExceptionOr<void> HTMLFormElement::submit_form(GC::Ref<HTMLElement> subm
     }
 
     // 24. Let historyHandling be "auto".
-    auto history_handling = Bindings::NavigationHistoryBehavior::Auto;
+    auto history_handling = NavigationHistoryBehavior::Auto;
 
     // 25. If form document equals targetNavigable's active document, and form document has not yet completely loaded,
     //     then set historyHandling to "replace".
     if (form_document == target_navigable->active_document() && !form_document->is_completely_loaded())
-        history_handling = Bindings::NavigationHistoryBehavior::Replace;
+        history_handling = NavigationHistoryBehavior::Replace;
 
     // 25. Select the appropriate row in the table below based on scheme as given by the first cell of each row.
     //     Then, select the appropriate cell on that row based on method as given in the first cell of each column.
@@ -349,7 +336,9 @@ WebIDL::ExceptionOr<void> HTMLFormElement::submit_form(GC::Ref<HTMLElement> subm
 void HTMLFormElement::reset_form()
 {
     // 1. Let reset be the result of firing an event named reset at form, with the bubbles and cancelable attributes initialized to true.
-    auto reset_event = DOM::Event::create(realm(), HTML::EventNames::reset);
+    auto reset_event = DOM::Event::create(
+        HTML::EventNames::reset,
+        HighResolutionTime::current_high_resolution_time(relevant_global_object(*this)));
     reset_event->set_bubbles(true);
     reset_event->set_cancelable(true);
 
@@ -383,7 +372,7 @@ WebIDL::ExceptionOr<void> HTMLFormElement::request_submit(GC::Ptr<Element> submi
 
         // 2. If submitter's form owner is not this form element, then throw a "NotFoundError" DOMException.
         if (form_associated_element->form() != this)
-            return WebIDL::NotFoundError::create(realm(), "The submitter is not owned by this form element"_utf16);
+            return WebIDL::NotFoundError::create("The submitter is not owned by this form element"_utf16);
     }
     // 2. Otherwise, set submitter to this form element.
     else {
@@ -553,7 +542,7 @@ GC::Ref<HTMLFormControlsCollection> HTMLFormElement::elements() const
 {
     if (!m_elements) {
         auto& root = as<ParentNode>(const_cast<HTMLFormElement*>(this)->root());
-        m_elements = HTMLFormControlsCollection::create(root, DOM::HTMLCollection::Scope::Descendants, [this](Element const& element) {
+        m_elements = HTMLFormControlsCollection::create(root, DOM::HTMLCollection::Scope::Descendants, const_cast<HTMLFormElement&>(*this), [this](Element const& element) {
             return is_form_control(element, *this);
         });
     }
@@ -595,8 +584,10 @@ HTMLFormElement::StaticValidationResult HTMLFormElement::statically_validate_con
     for (auto& field : invalid_controls) {
         // 1. Let notCanceled be the result of firing an event named invalid at field, with the cancelable attribute
         // initialized to true.
-        auto not_canceled = field->dispatch_event(DOM::Event::create(this->realm(),
-            EventNames::invalid, { .cancelable = true }));
+        auto not_canceled = field->dispatch_event(DOM::Event::create(
+            EventNames::invalid,
+            { .cancelable = true },
+            HighResolutionTime::current_high_resolution_time(relevant_global_object(*this))));
         // 2. If notCanceled is true, then add field to unhandled invalid controls.
         if (not_canceled)
             unhandled_invalid_controls.append(field);
@@ -629,11 +620,11 @@ bool HTMLFormElement::interactively_validate_constraints()
     if (first_invalid_control.has_value()) {
         auto control = first_invalid_control.release_value();
         run_focusing_steps(control);
-        Bindings::ScrollIntoViewOptions scroll_options;
-        scroll_options.block = Bindings::ScrollLogicalPosition::Nearest;
-        scroll_options.inline_ = Bindings::ScrollLogicalPosition::Nearest;
-        scroll_options.behavior = Bindings::ScrollBehavior::Instant;
-        (void)control->scroll_into_view(scroll_options);
+        DOM::Element::ScrollIntoViewOptions scroll_options;
+        scroll_options.block = DOM::Element::ScrollLogicalPosition::Nearest;
+        scroll_options.inline_ = DOM::Element::ScrollLogicalPosition::Nearest;
+        scroll_options.behavior = DOM::Element::ScrollBehavior::Instant;
+        control->scroll_into_view(scroll_options, nullptr);
     }
 
     // 4. Return a negative result.
@@ -834,7 +825,7 @@ static ErrorOr<Utf16String> plain_text_encode(Vector<DOMURL::QueryParam> const& 
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#submit-mutate-action
-ErrorOr<void> HTMLFormElement::mutate_action_url(URL::URL parsed_action, GC::ConservativeVector<XHR::FormDataEntry> entry_list, Utf16String encoding, GC::Ref<LocalNavigable> target_navigable, Bindings::NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement)
+ErrorOr<void> HTMLFormElement::mutate_action_url(URL::URL parsed_action, GC::ConservativeVector<XHR::FormDataEntry> entry_list, Utf16String encoding, GC::Ref<Navigable> target_navigable, NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement)
 {
     // 1. Let pairs be the result of converting to a list of name-value pairs with entry list.
     auto pairs = TRY(convert_to_list_of_name_value_pairs(entry_list));
@@ -851,7 +842,7 @@ ErrorOr<void> HTMLFormElement::mutate_action_url(URL::URL parsed_action, GC::Con
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#submit-body
-ErrorOr<void> HTMLFormElement::submit_as_entity_body(URL::URL parsed_action, GC::ConservativeVector<XHR::FormDataEntry> entry_list, EncodingTypeAttributeState encoding_type, Utf16String encoding, GC::Ref<LocalNavigable> target_navigable, Bindings::NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement)
+ErrorOr<void> HTMLFormElement::submit_as_entity_body(URL::URL parsed_action, GC::ConservativeVector<XHR::FormDataEntry> entry_list, EncodingTypeAttributeState encoding_type, [[maybe_unused]] Utf16String encoding, GC::Ref<Navigable> target_navigable, NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement)
 {
     // 1. Assert: method is POST.
 
@@ -915,7 +906,7 @@ ErrorOr<void> HTMLFormElement::submit_as_entity_body(URL::URL parsed_action, GC:
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#submit-get-action
-void HTMLFormElement::get_action_url(URL::URL parsed_action, GC::ConservativeVector<XHR::FormDataEntry> entry_list, GC::Ref<LocalNavigable> target_navigable, Bindings::NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement)
+void HTMLFormElement::get_action_url(URL::URL parsed_action, GC::ConservativeVector<XHR::FormDataEntry> entry_list, GC::Ref<Navigable> target_navigable, NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement)
 {
     // 1. Plan to navigate to parsed action.
     // Spec Note: entry list is discarded.
@@ -923,7 +914,7 @@ void HTMLFormElement::get_action_url(URL::URL parsed_action, GC::ConservativeVec
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#submit-mailto-headers
-ErrorOr<void> HTMLFormElement::mail_with_headers(URL::URL parsed_action, GC::ConservativeVector<XHR::FormDataEntry> entry_list, Utf16String encoding, GC::Ref<LocalNavigable> target_navigable, Bindings::NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement)
+ErrorOr<void> HTMLFormElement::mail_with_headers(URL::URL parsed_action, GC::ConservativeVector<XHR::FormDataEntry> entry_list, [[maybe_unused]] Utf16String encoding, GC::Ref<Navigable> target_navigable, NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement)
 {
     // 1. Let pairs be the result of converting to a list of name-value pairs with entry list.
     auto pairs = TRY(convert_to_list_of_name_value_pairs(entry_list));
@@ -942,7 +933,7 @@ ErrorOr<void> HTMLFormElement::mail_with_headers(URL::URL parsed_action, GC::Con
     return {};
 }
 
-ErrorOr<void> HTMLFormElement::mail_as_body(URL::URL parsed_action, GC::ConservativeVector<XHR::FormDataEntry> entry_list, EncodingTypeAttributeState encoding_type, Utf16String encoding, GC::Ref<LocalNavigable> target_navigable, Bindings::NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement)
+ErrorOr<void> HTMLFormElement::mail_as_body(URL::URL parsed_action, GC::ConservativeVector<XHR::FormDataEntry> entry_list, EncodingTypeAttributeState encoding_type, [[maybe_unused]] Utf16String encoding, GC::Ref<Navigable> target_navigable, NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement)
 {
     // 1. Let pairs be the result of converting to a list of name-value pairs with entry list.
     auto pairs = TRY(convert_to_list_of_name_value_pairs(entry_list));
@@ -995,7 +986,7 @@ ErrorOr<void> HTMLFormElement::mail_as_body(URL::URL parsed_action, GC::Conserva
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#plan-to-navigate
-void HTMLFormElement::plan_to_navigate_to(URL::URL url, DocumentResource post_resource, GC::ConservativeVector<XHR::FormDataEntry> entry_list, GC::Ref<LocalNavigable> target_navigable, Bindings::NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement)
+void HTMLFormElement::plan_to_navigate_to(URL::URL url, DocumentResource post_resource, GC::ConservativeVector<XHR::FormDataEntry> entry_list, GC::Ref<Navigable> target_navigable, NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement)
 {
     // 1. Let referrerPolicy be the empty string.
     ReferrerPolicy::ReferrerPolicy referrer_policy = ReferrerPolicy::ReferrerPolicy::EmptyString;
@@ -1019,15 +1010,7 @@ void HTMLFormElement::plan_to_navigate_to(URL::URL url, DocumentResource post_re
 
         // 2. Navigate targetNavigable to url using the form element's node document, with historyHandling set to historyHandling,
         //    referrerPolicy set to referrerPolicy, documentResource set to postResource, and formDataEntryList set to entry list.
-        MUST(target_navigable->navigate({ .url = url,
-            .source_document = this->document(),
-            .document_resource = post_resource,
-            .response = nullptr,
-            .exceptions_enabled = false,
-            .history_handling = history_handling,
-            .form_data_entry_list = move(entry_list),
-            .referrer_policy = referrer_policy,
-            .user_involvement = user_involvement }));
+        MUST(as<LocalNavigable>(*target_navigable).navigate({ .url = url, .source_document = this->document(), .document_resource = post_resource, .response = nullptr, .exceptions_enabled = false, .history_handling = history_handling, .form_data_entry_list = move(entry_list), .referrer_policy = referrer_policy, .user_involvement = user_involvement }));
     });
 
     // 5. Set the form's planned navigation to the just-queued task.
@@ -1036,13 +1019,11 @@ void HTMLFormElement::plan_to_navigate_to(URL::URL url, DocumentResource post_re
 }
 
 // https://html.spec.whatwg.org/multipage/forms.html#dom-form-item
-Optional<JS::Value> HTMLFormElement::item_value(size_t index) const
+GC::Ptr<DOM::Element> HTMLFormElement::item(size_t index) const
 {
     // To determine the value of an indexed property for a form element, the user agent must return the value returned by
     // the item method on the elements collection, when invoked with the given index as its argument.
-    if (auto value = elements()->item(index))
-        return value;
-    return {};
+    return elements()->item(index);
 }
 
 bool HTMLFormElement::is_supported_property_name(Utf16FlyString const& name) const
@@ -1149,9 +1130,8 @@ Vector<Utf16FlyString> HTMLFormElement::supported_property_names() const
 }
 
 // https://html.spec.whatwg.org/multipage/forms.html#dom-form-nameditem
-JS::Value HTMLFormElement::named_item_value(Utf16FlyString const& name) const
+Variant<Empty, GC::Ref<DOM::Node>, GC::Ref<RadioNodeList>> HTMLFormElement::named_item_or_radio_node_list(Utf16FlyString const& name) const
 {
-    auto& realm = this->realm();
     auto& root = as<ParentNode>(this->root());
 
     // To determine the value of a named property name for a form element, the user agent must run the following steps:
@@ -1159,7 +1139,7 @@ JS::Value HTMLFormElement::named_item_value(Utf16FlyString const& name) const
     // 1. Let candidates be a live RadioNodeList object containing all the listed elements, whose form owner is the form
     //    element, that have either an id attribute or a name attribute equal to name, with the exception of input
     //    elements whose type attribute is in the Image Button state, in tree order.
-    auto candidates = RadioNodeList::create(realm, root, DOM::LiveNodeList::Scope::Descendants, [this, name](auto& node) -> bool {
+    auto candidates = RadioNodeList::create(root, DOM::LiveNodeList::Scope::Descendants, [this, name](auto& node) -> bool {
         if (!is<DOM::Element>(node))
             return false;
         auto const& element = static_cast<DOM::Element const&>(node);
@@ -1176,7 +1156,7 @@ JS::Value HTMLFormElement::named_item_value(Utf16FlyString const& name) const
     //    whose form owner is the form element, that have either an id attribute or a name attribute equal to name,
     //    in tree order.
     if (candidates->length() == 0) {
-        candidates = RadioNodeList::create(realm, root, DOM::LiveNodeList::Scope::Descendants, [this, name](auto& node) -> bool {
+        candidates = RadioNodeList::create(root, DOM::LiveNodeList::Scope::Descendants, [this, name](auto& node) -> bool {
             if (!is<HTMLImageElement>(node))
                 return false;
 
@@ -1194,7 +1174,7 @@ JS::Value HTMLFormElement::named_item_value(Utf16FlyString const& name) const
     if (length == 0) {
         auto it = m_past_names_map.find(name);
         if (it != m_past_names_map.end())
-            return it->value.node;
+            return GC::Ref { const_cast<DOM::Node&>(*it->value.node) };
     }
 
     // 4. If candidates contains more than one node, return candidates.
@@ -1203,11 +1183,13 @@ JS::Value HTMLFormElement::named_item_value(Utf16FlyString const& name) const
 
     // 5. Otherwise, candidates contains exactly one node. Add a mapping from name to the node in candidates in the form
     //    element's past names map, replacing the previous entry with the same name, if any.
-    auto const* node = candidates->item(0);
+    auto* node = candidates->item(0);
+    if (!node)
+        return Empty {};
     m_past_names_map.set(name, HTMLFormElement::PastNameEntry { .node = node, .insertion_time = MonotonicTime::now() });
 
     // 6. Return the node in candidates.
-    return node;
+    return GC::Ref { const_cast<DOM::Node&>(*node) };
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#default-button

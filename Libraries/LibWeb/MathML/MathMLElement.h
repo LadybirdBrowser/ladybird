@@ -15,7 +15,7 @@ namespace Web::MathML {
 class MathMLElement : public DOM::Element
     , public HTML::GlobalEventHandlers
     , public HTML::HTMLOrSVGOrMathMLElement<MathMLElement> {
-    WEB_PLATFORM_OBJECT(MathMLElement, DOM::Element);
+    WEB_WRAPPABLE(MathMLElement, DOM::Element);
     GC_DECLARE_ALLOCATOR(MathMLElement);
 
 public:
@@ -33,8 +33,6 @@ protected:
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;
 
     virtual void visit_edges(Visitor&) override;
-
-    virtual void initialize(JS::Realm&) override;
 };
 
 }

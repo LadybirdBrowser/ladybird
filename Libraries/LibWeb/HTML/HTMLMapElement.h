@@ -12,7 +12,7 @@
 namespace Web::HTML {
 
 class HTMLMapElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLMapElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLMapElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLMapElement);
 
 public:
@@ -22,8 +22,6 @@ public:
 
 private:
     HTMLMapElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     GC::Ptr<DOM::HTMLCollection> m_areas;

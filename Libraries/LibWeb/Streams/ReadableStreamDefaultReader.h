@@ -9,7 +9,7 @@
 #include <AK/Function.h>
 #include <AK/SinglyLinkedList.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Streams/ReadableStreamGenericReader.h>
 
@@ -66,13 +66,13 @@ private:
 
 // https://streams.spec.whatwg.org/#readablestreamdefaultreader
 class ReadableStreamDefaultReader final
-    : public Bindings::PlatformObject
+    : public Bindings::Wrappable
     , public ReadableStreamGenericReaderMixin {
-    WEB_PLATFORM_OBJECT(ReadableStreamDefaultReader, Bindings::PlatformObject);
+    WEB_WRAPPABLE(ReadableStreamDefaultReader, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(ReadableStreamDefaultReader);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<ReadableStreamDefaultReader>> construct_impl(JS::Realm&, GC::Ref<ReadableStream>);
+    static WebIDL::ExceptionOr<GC::Ref<ReadableStreamDefaultReader>> create(JS::Realm&, GC::Ref<ReadableStream>);
 
     virtual ~ReadableStreamDefaultReader() override = default;
 
@@ -89,11 +89,9 @@ public:
     void set_readable_stream_pipe_to_operation(Badge<Detail::ReadableStreamPipeTo>, GC::Ptr<JS::Cell> readable_stream_pipe_to_operation) { m_readable_stream_pipe_to_operation = readable_stream_pipe_to_operation; }
 
 private:
-    explicit ReadableStreamDefaultReader(JS::Realm&);
+    ReadableStreamDefaultReader();
 
-    virtual void initialize(JS::Realm&) override;
-
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     SinglyLinkedList<GC::Ref<ReadRequest>> m_read_requests;
 

@@ -34,14 +34,12 @@ struct FunctionParameter {
 
 // https://drafts.csswg.org/css-mixins-1/#cssfunctionrule
 class CSSFunctionRule : public CSSGroupingRule {
-    WEB_PLATFORM_OBJECT(CSSFunctionRule, CSSGroupingRule);
+    WEB_WRAPPABLE(CSSFunctionRule, CSSGroupingRule);
     GC_DECLARE_ALLOCATOR(CSSFunctionRule);
 
 public:
-    static GC::Ref<CSSFunctionRule> create(JS::Realm&, CSSRuleList&, Utf16FlyString name, Vector<FunctionParameterInternal> parameters, NonnullRefPtr<Parser::SyntaxNode> return_type);
+    static GC::Ref<CSSFunctionRule> create(CSSRuleList&, Utf16FlyString name, Vector<FunctionParameterInternal> parameters, NonnullRefPtr<Parser::SyntaxNode> return_type);
     virtual ~CSSFunctionRule() override = default;
-
-    virtual void initialize(JS::Realm&) override;
 
     Utf16FlyString const& qualified_layer_name() const { return parent_layer_internal_qualified_name(); }
 
@@ -63,7 +61,7 @@ public:
     NonnullRefPtr<StyleValue const> evaluate_a_custom_function(Parser::GuardedSubstitutionContexts&, Vector<Vector<Parser::ComponentValue>> const& arguments, CallingContext const&) const;
 
 private:
-    CSSFunctionRule(JS::Realm&, CSSRuleList&, Utf16FlyString name, Vector<FunctionParameterInternal> parameters, NonnullRefPtr<Parser::SyntaxNode> return_type);
+    CSSFunctionRule(CSSRuleList&, Utf16FlyString name, Vector<FunctionParameterInternal> parameters, NonnullRefPtr<Parser::SyntaxNode> return_type);
 
     HashMap<Utf16FlyString, NonnullRefPtr<StyleValue const>> resolve_function_styles(OrderedHashMap<Utf16FlyString, StyleProperty>&& custom_properties, HashMap<Utf16FlyString, CustomPropertyRegistration> const&, CallingContext const&, Parser::GuardedSubstitutionContexts&) const;
 

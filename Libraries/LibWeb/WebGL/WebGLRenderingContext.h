@@ -18,7 +18,7 @@
 namespace Web::WebGL {
 
 class WebGLRenderingContext final : public WebGLRenderingContextOverloads {
-    WEB_PLATFORM_OBJECT(WebGLRenderingContext, WebGLRenderingContextOverloads);
+    WEB_WRAPPABLE(WebGLRenderingContext, WebGLRenderingContextOverloads);
     GC_DECLARE_ALLOCATOR(WebGLRenderingContext);
 
 public:
@@ -40,8 +40,6 @@ public:
     WebIDL::Long drawing_buffer_height() const;
 
 private:
-    virtual void initialize(JS::Realm&) override;
-
     WebGLRenderingContext(JS::Realm&, HTML::HTMLCanvasElement&, NonnullOwnPtr<WebGLContextProxy> context, WebGLContextAttributes context_creation_parameters, WebGLContextAttributes actual_context_parameters);
 
     virtual void visit_edges(Cell::Visitor&) override;

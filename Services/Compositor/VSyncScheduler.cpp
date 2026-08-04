@@ -45,8 +45,13 @@ public:
         VERIFY(refresh_rate < AK::Infinity<double>);
 
         m_refresh_rate = refresh_rate;
-        if (m_timer->is_active())
+        if (m_timer->is_active()) {
+            // A compositor tick can queue another tick while the timer is
+            // dispatching its callback. Remember that request instead of
+            // dropping it when the one-shot timer is still marked active.
+            m_reschedule_after_fire = true;
             return;
+        }
 
         m_timer->restart(fallback_interval_ms());
     }
@@ -55,6 +60,10 @@ private:
     void fire()
     {
         m_tick_callback();
+        if (m_reschedule_after_fire) {
+            m_reschedule_after_fire = false;
+            m_timer->restart(fallback_interval_ms());
+        }
     }
 
     int fallback_interval_ms() const
@@ -66,6 +75,7 @@ private:
     Function<void()> m_tick_callback;
     double m_refresh_rate { 60.0 };
     RefPtr<Core::Timer> m_timer;
+    bool m_reschedule_after_fire { false };
 };
 
 #if defined(AK_OS_MACOS)

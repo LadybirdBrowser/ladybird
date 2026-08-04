@@ -19,6 +19,8 @@ Timer::Timer()
     m_timer->on_timeout = [this] {
         if (on_timeout)
             on_timeout->function()();
+        if (!is_active())
+            m_activity_root.release();
     };
 }
 
@@ -29,11 +31,6 @@ void Timer::finalize()
     Base::finalize();
     stop();
     on_timeout = nullptr;
-}
-
-bool Timer::must_survive_garbage_collection() const
-{
-    return is_active();
 }
 
 void Timer::visit_edges(JS::Cell::Visitor& visitor)
@@ -68,31 +65,40 @@ GC::Ref<Timer> Timer::create_single_shot(GC::Heap& heap, int interval_ms, GC::Pt
 void Timer::start()
 {
     m_timer->start();
+    m_activity_root.take(*this);
 }
 
 void Timer::start(int interval_ms)
 {
     m_timer->start(interval_ms);
+    m_activity_root.take(*this);
 }
 
 void Timer::restart()
 {
     m_timer->restart();
+    m_activity_root.take(*this);
 }
 
 void Timer::restart(int interval_ms)
 {
     m_timer->restart(interval_ms);
+    m_activity_root.take(*this);
 }
 
 void Timer::stop()
 {
     m_timer->stop();
+    m_activity_root.release();
 }
 
 void Timer::set_active(bool active)
 {
     m_timer->set_active(active);
+    if (active)
+        m_activity_root.take(*this);
+    else
+        m_activity_root.release();
 }
 
 bool Timer::is_active() const

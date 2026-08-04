@@ -13,7 +13,7 @@
 namespace Web::HTML {
 
 class WEB_API HTMLOptGroupElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLOptGroupElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLOptGroupElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLOptGroupElement);
 
 public:
@@ -26,8 +26,6 @@ private:
     HTMLOptGroupElement(DOM::Document&, DOM::QualifiedName);
 
     virtual bool is_html_optgroup_element() const final { return true; }
-
-    virtual void initialize(JS::Realm&) override;
     virtual void removed_from(IsSubtreeRoot, Node* old_ancestor, Node& old_root) override;
     virtual void inserted() override;
 };

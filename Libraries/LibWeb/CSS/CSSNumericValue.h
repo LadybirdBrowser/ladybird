@@ -17,6 +17,12 @@
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/Types.h>
 
+namespace Web::Bindings {
+
+struct CSSNumericType;
+
+}
+
 namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue-sum-value
@@ -28,7 +34,7 @@ using SumValue = Vector<SumValueItem>;
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue
 class CSSNumericValue : public CSSStyleValue {
-    WEB_PLATFORM_OBJECT(CSSNumericValue, CSSStyleValue);
+    WEB_WRAPPABLE(CSSNumericValue, CSSStyleValue);
     GC_DECLARE_ALLOCATOR(CSSNumericValue);
 
 public:
@@ -70,13 +76,11 @@ public:
     virtual WebIDL::ExceptionOr<CalcNodeRef> create_calculation_node(CalculationContext const&) const = 0;
 
 protected:
-    explicit CSSNumericValue(JS::Realm&, NumericType);
-
-    virtual void initialize(JS::Realm&) override;
+    explicit CSSNumericValue(NumericType);
 
     NumericType m_type;
 };
 
-GC::Ref<CSSNumericValue> rectify_a_numberish_value(JS::Realm&, CSSNumberish const&, Optional<Utf16FlyString> unit = {});
+GC::Ref<CSSNumericValue> rectify_a_numberish_value(CSSNumberish const&, Optional<Utf16FlyString> unit = {});
 
 }

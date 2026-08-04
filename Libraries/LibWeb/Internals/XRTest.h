@@ -6,29 +6,33 @@
 
 #pragma once
 
+#include <LibWeb/Bindings/FakeXRDevice.h>
 #include <LibWeb/Internals/FakeXRDevice.h>
 #include <LibWeb/Internals/InternalsBase.h>
+#include <LibWeb/WebIDL/Promise.h>
+#include <LibWeb/WebIDL/Types.h>
 
 namespace Web::Internals {
 
+using FakeXRDeviceInit = Bindings::FakeXRDeviceInit;
+
 // https://github.com/immersive-web/webxr-test-api/blob/main/explainer.md
 class WEB_API XRTest final : public InternalsBase {
-    WEB_PLATFORM_OBJECT(XRTest, InternalsBase);
+    WEB_WRAPPABLE(XRTest, InternalsBase);
     GC_DECLARE_ALLOCATOR(XRTest);
 
 public:
+    static GC::Ref<XRTest> create(HTML::Window&);
+
     virtual ~XRTest() override;
 
-    GC::Ref<WebIDL::Promise> simulate_device_connection(Bindings::FakeXRDeviceInit const&) const;
+    void simulate_device_connection(JS::Realm&, FakeXRDeviceInit const&, GC::Ref<WebIDL::Promise>) const;
+    WebIDL::ExceptionOr<void> simulate_user_activation(WebIDL::CallbackType&) const;
 
-    void simulate_user_activation(GC::Ref<WebIDL::CallbackType>) const;
-
-    GC::Ref<WebIDL::Promise> disconnect_all_devices() const;
+    void disconnect_all_devices(GC::Ref<WebIDL::Promise>) const;
 
 private:
-    explicit XRTest(JS::Realm&);
-
-    virtual void initialize(JS::Realm&) override;
+    explicit XRTest(HTML::Window&);
 };
 
 }

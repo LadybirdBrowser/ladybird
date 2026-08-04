@@ -9,7 +9,7 @@
 
 #include <AK/Optional.h>
 #include <AK/SinglyLinkedList.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Streams/Algorithms.h>
 #include <LibWeb/WebIDL/Buffers.h>
 
@@ -63,7 +63,7 @@ struct PullIntoDescriptor : public GC::Cell {
     ReaderType reader_type;
 
 protected:
-    virtual void visit_edges(Cell::Visitor& visitor) override;
+    virtual void visit_edges(GC::Cell::Visitor& visitor) override;
 
 private:
     PullIntoDescriptor(
@@ -105,15 +105,15 @@ struct ReadableByteStreamQueueEntry {
 };
 
 // https://streams.spec.whatwg.org/#readablebytestreamcontroller
-class ReadableByteStreamController : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(ReadableByteStreamController, Bindings::PlatformObject);
+class ReadableByteStreamController : public Bindings::Wrappable {
+    WEB_WRAPPABLE(ReadableByteStreamController, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(ReadableByteStreamController);
 
 public:
     virtual ~ReadableByteStreamController() override = default;
 
     // IDL getter, returns current [[byobRequest]] (if any), and otherwise the [[byobRequest]] for the next pending pull into request
-    GC::Ptr<ReadableStreamBYOBRequest> byob_request();
+    GC::Ptr<ReadableStreamBYOBRequest> byob_request(JS::Realm&);
 
     void set_byob_request(GC::Ptr<ReadableStreamBYOBRequest> request) { m_byob_request = request; }
 
@@ -122,9 +122,9 @@ public:
     GC::Ptr<ReadableStreamBYOBRequest> raw_byob_request() { return m_byob_request; }
 
     Optional<double> desired_size() const;
-    WebIDL::ExceptionOr<void> close();
+    WebIDL::ExceptionOr<void> close(JS::Realm&);
     void error(Optional<JS::Value> error);
-    WebIDL::ExceptionOr<void> enqueue(WebIDL::ArrayBufferView);
+    WebIDL::ExceptionOr<void> enqueue(JS::Realm&, WebIDL::ArrayBufferViewVariant const&);
 
     Optional<u64> const& auto_allocate_chunk_size() { return m_auto_allocate_chunk_size; }
     void set_auto_allocate_chunk_size(Optional<u64> value) { m_auto_allocate_chunk_size = value; }
@@ -163,15 +163,13 @@ public:
     void set_stream(GC::Ptr<ReadableStream> stream) { m_stream = stream; }
 
     GC::Ref<WebIDL::Promise> cancel_steps(JS::Value reason);
-    void pull_steps(GC::Ref<ReadRequest>);
+    void pull_steps(JS::Realm&, GC::Ref<ReadRequest>);
     void release_steps();
 
 private:
-    explicit ReadableByteStreamController(JS::Realm&);
+    ReadableByteStreamController() = default;
 
-    virtual void visit_edges(Cell::Visitor&) override;
-
-    virtual void initialize(JS::Realm&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     // https://streams.spec.whatwg.org/#readablebytestreamcontroller-autoallocatechunksize
     // A positive integer, when the automatic buffer allocation feature is enabled. In that case, this value specifies the size of buffer to allocate. It is undefined otherwise.

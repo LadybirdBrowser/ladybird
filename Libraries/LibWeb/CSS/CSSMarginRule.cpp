@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/CSSMarginRule.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/CSS/CSSMarginRule.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/Dump.h>
@@ -15,23 +14,17 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSMarginRule);
 
-GC::Ref<CSSMarginRule> CSSMarginRule::create(JS::Realm& realm, Utf16FlyString name, GC::Ref<CSSStyleProperties> style)
+GC::Ref<CSSMarginRule> CSSMarginRule::create(Utf16FlyString name, GC::Ref<CSSStyleProperties> style)
 {
-    return realm.create<CSSMarginRule>(realm, move(name), style);
+    return GC::Heap::the().allocate<CSSMarginRule>(move(name), style);
 }
 
-CSSMarginRule::CSSMarginRule(JS::Realm& realm, Utf16FlyString name, GC::Ref<CSSStyleProperties> style)
-    : CSSRule(realm, Type::Margin)
+CSSMarginRule::CSSMarginRule(Utf16FlyString name, GC::Ref<CSSStyleProperties> style)
+    : CSSRule(Type::Margin)
     , m_name(name.to_ascii_lowercase())
     , m_style(style)
 {
     m_style->set_parent_rule(*this);
-}
-
-void CSSMarginRule::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSMarginRule);
-    Base::initialize(realm);
 }
 
 Utf16String CSSMarginRule::serialized() const
@@ -48,7 +41,7 @@ Utf16String CSSMarginRule::serialized() const
     return builder.to_string();
 }
 
-void CSSMarginRule::visit_edges(Visitor& visitor)
+void CSSMarginRule::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_style);

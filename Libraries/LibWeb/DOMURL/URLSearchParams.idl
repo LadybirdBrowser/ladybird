@@ -2,7 +2,7 @@
 [Exposed=*]
 interface URLSearchParams {
 
-    constructor(optional (sequence<sequence<Utf16USVString>> or record<Utf16USVString, Utf16USVString> or Utf16USVString) init = "");
+    [ImplementedAs=create_from_init] constructor(optional (sequence<sequence<USVString>> or record<USVString, USVString> or USVString) init = "");
 
     readonly attribute unsigned long size;
 

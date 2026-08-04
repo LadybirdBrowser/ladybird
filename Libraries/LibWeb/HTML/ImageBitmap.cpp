@@ -5,9 +5,9 @@
  */
 
 #include <AK/NonnullOwnPtr.h>
+#include <LibGC/Heap.h>
 #include <LibGfx/Bitmap.h>
 #include <LibJS/Runtime/ExternalMemory.h>
-#include <LibWeb/Bindings/ImageBitmap.h>
 #include <LibWeb/HTML/ImageBitmap.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/WebIDL/DOMException.h>
@@ -25,18 +25,18 @@ GC_DEFINE_ALLOCATOR(ImageBitmap);
 }
 
 template<typename T, typename Encoder>
-static WebIDL::ExceptionOr<void> encode_bitmap_value(JS::Realm& realm, Encoder& encoder, T const& value)
+static WebIDL::ExceptionOr<void> encode_bitmap_value(JS::Realm* realm, Encoder& encoder, T const& value)
 {
     if constexpr (IsSame<Encoder, HTML::StructuredSerializeWriter>) {
         encoder.encode(value);
         return {};
     } else {
-        return encode_or_throw_data_clone_error(realm, encoder, value);
+        return encode_or_throw_data_clone_error(*realm, encoder, value);
     }
 }
 
 template<typename Encoder>
-static WebIDL::ExceptionOr<void> serialize_bitmap(JS::Realm& realm, Encoder& encoder, RefPtr<Gfx::Bitmap> const& bitmap)
+static WebIDL::ExceptionOr<void> serialize_bitmap(JS::Realm* realm, Encoder& encoder, RefPtr<Gfx::Bitmap> const& bitmap)
 {
     TRY(encode_bitmap_value(realm, encoder, bitmap != nullptr));
     if (!bitmap)
@@ -59,38 +59,21 @@ template<typename Decoder>
         return nullptr;
     auto const width = TRY(decode_or_throw_data_clone_error<int>(realm, decoder));
     auto const height = TRY(decode_or_throw_data_clone_error<int>(realm, decoder));
-    auto const pitch_u64 = TRY(decode_or_throw_data_clone_error<u64>(realm, decoder));
-    if (!AK::is_within_range<size_t>(pitch_u64))
-        return WebIDL::DataCloneError::create(realm, "ImageBitmap pitch does not fit on this platform"_utf16);
-    auto const pitch = static_cast<size_t>(pitch_u64);
+    auto const pitch = TRY(decode_or_throw_data_clone_error<size_t>(realm, decoder));
     auto const format = TRY(decode_or_throw_data_clone_error<Gfx::BitmapFormat>(realm, decoder));
     auto const alpha_type = TRY(decode_or_throw_data_clone_error<Gfx::AlphaType>(realm, decoder));
     auto data = TRY(decode_or_throw_data_clone_error<ByteBuffer>(realm, decoder));
     return TRY(create_bitmap_from_bitmap_data(realm, format, alpha_type, width, height, pitch, move(data)));
 }
 
-GC::Ref<ImageBitmap> ImageBitmap::create(JS::Realm& realm)
+GC::Ref<ImageBitmap> ImageBitmap::create()
 {
-    return realm.create<ImageBitmap>(realm);
+    return GC::Heap::the().allocate<ImageBitmap>();
 }
 
-ImageBitmap::ImageBitmap(JS::Realm& realm)
-    : Bindings::PlatformObject(realm)
-{
-}
+ImageBitmap::ImageBitmap() = default;
 
 ImageBitmap::~ImageBitmap() = default;
-
-void ImageBitmap::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(ImageBitmap);
-    Base::initialize(realm);
-}
-
-void ImageBitmap::visit_edges(Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-}
 
 size_t ImageBitmap::external_memory_size() const
 {
@@ -106,16 +89,14 @@ WebIDL::ExceptionOr<void> ImageBitmap::serialization_steps(HTML::StructuredSeria
     // FIXME: 1. If value's origin-clean flag is not set, then throw a "DataCloneError" DOMException.
 
     // 2. Set serialized.[[BitmapData]] to a copy of value's bitmap data.
-    TRY(serialize_bitmap(realm(), serialized, m_bitmap));
+    TRY(serialize_bitmap(nullptr, serialized, m_bitmap));
 
     return {};
 }
 
 // https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#the-imagebitmap-interface:deserialization-steps
-WebIDL::ExceptionOr<void> ImageBitmap::deserialization_steps(HTML::StructuredSerializeReader& serialized, HTML::DeserializationMemory&)
+WebIDL::ExceptionOr<void> ImageBitmap::deserialization_steps(JS::Realm& realm, HTML::StructuredSerializeReader& serialized, HTML::DeserializationMemory&)
 {
-    auto& realm = this->realm();
-
     // 1. Set value's bitmap data to serialized.[[BitmapData]].
     set_bitmap(TRY(deserialize_bitmap(realm, serialized)));
 
@@ -123,12 +104,12 @@ WebIDL::ExceptionOr<void> ImageBitmap::deserialization_steps(HTML::StructuredSer
 }
 
 // https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#the-imagebitmap-interface:transfer-steps
-WebIDL::ExceptionOr<void> ImageBitmap::transfer_steps(HTML::TransferDataEncoder& data_holder)
+WebIDL::ExceptionOr<void> ImageBitmap::transfer_steps(JS::Realm& realm, HTML::TransferDataEncoder& data_holder)
 {
     // FIXME: 1. If value's origin-clean flag is not set, then throw a "DataCloneError" DOMException.
 
     // 2. Set dataHolder.[[BitmapData]] to value's bitmap data.
-    TRY(serialize_bitmap(realm(), data_holder, m_bitmap));
+    TRY(serialize_bitmap(&realm, data_holder, m_bitmap));
 
     // 3. Unset value's bitmap data.
     m_bitmap = nullptr;
@@ -137,10 +118,10 @@ WebIDL::ExceptionOr<void> ImageBitmap::transfer_steps(HTML::TransferDataEncoder&
 }
 
 // https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#the-imagebitmap-interface:transfer-receiving-steps
-WebIDL::ExceptionOr<void> ImageBitmap::transfer_receiving_steps(HTML::TransferDataDecoder& data_holder)
+WebIDL::ExceptionOr<void> ImageBitmap::transfer_receiving_steps(JS::Realm& realm, HTML::TransferDataDecoder& data_holder)
 {
     // 1. Set value's bitmap data to dataHolder.[[BitmapData]].
-    set_bitmap(TRY(deserialize_bitmap(this->realm(), data_holder)));
+    set_bitmap(TRY(deserialize_bitmap(realm, data_holder)));
 
     return {};
 }

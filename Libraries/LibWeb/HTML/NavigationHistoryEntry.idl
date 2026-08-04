@@ -7,7 +7,7 @@ interface NavigationHistoryEntry : EventTarget {
     readonly attribute long long index;
     readonly attribute boolean sameDocument;
 
-    any getState();
+    [NeedsCallerRealm] any getState();
 
     attribute EventHandler ondispose;
 };

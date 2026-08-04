@@ -15,12 +15,12 @@ ValueComparingNonnullRefPtr<DisplayStyleValue const> DisplayStyleValue::create(D
     return adopt_ref(*new (nothrow) DisplayStyleValue(display));
 }
 
-GC::Ref<CSSStyleValue> DisplayStyleValue::reify(JS::Realm& realm, Utf16FlyString const& associated_property) const
+GC::Ref<CSSStyleValue> DisplayStyleValue::reify(Utf16FlyString const& associated_property) const
 {
     if (auto keyword = display().to_keyword(); keyword.has_value())
-        return CSSKeywordValue::create(realm, utf16_fly_string_from_keyword(keyword.value()));
+        return CSSKeywordValue::create(utf16_fly_string_from_keyword(keyword.value()));
 
-    return CSSStyleValue::create(realm, associated_property, *this);
+    return CSSStyleValue::create(associated_property, *this);
 }
 
 }

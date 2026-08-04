@@ -15,21 +15,15 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(EXTTextureFilterAnisotropic);
 
-JS::ThrowCompletionOr<GC::Ref<JS::Object>> EXTTextureFilterAnisotropic::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
+GC::Ref<Bindings::Wrappable> EXTTextureFilterAnisotropic::create(GC::Ref<WebGLRenderingContextBase> context)
 {
+    auto& realm = context->realm();
     return realm.create<EXTTextureFilterAnisotropic>(realm, context);
 }
 
-EXTTextureFilterAnisotropic::EXTTextureFilterAnisotropic(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
-    : PlatformObject(realm)
-    , m_context(context)
+EXTTextureFilterAnisotropic::EXTTextureFilterAnisotropic(JS::Realm&, GC::Ref<WebGLRenderingContextBase> context)
+    : m_context(context)
 {
-}
-
-void EXTTextureFilterAnisotropic::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(EXTTextureFilterAnisotropic);
-    Base::initialize(realm);
 }
 
 void EXTTextureFilterAnisotropic::visit_edges(Visitor& visitor)

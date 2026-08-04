@@ -5,8 +5,7 @@
  */
 
 #include "CSSMathClamp.h"
-#include <LibWeb/Bindings/CSSMathClamp.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/CSS/CSSMathNegate.h>
 #include <LibWeb/CSS/CSSNumericArray.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
@@ -17,19 +16,19 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSMathClamp);
 
-GC::Ref<CSSMathClamp> CSSMathClamp::create(JS::Realm& realm, NumericType type, GC::Ref<CSSNumericValue> lower, GC::Ref<CSSNumericValue> value, GC::Ref<CSSNumericValue> upper)
+GC::Ref<CSSMathClamp> CSSMathClamp::create(NumericType type, GC::Ref<CSSNumericValue> lower, GC::Ref<CSSNumericValue> value, GC::Ref<CSSNumericValue> upper)
 {
-    return realm.create<CSSMathClamp>(realm, move(type), move(lower), move(value), move(upper));
+    return GC::Heap::the().allocate<CSSMathClamp>(move(type), move(lower), move(value), move(upper));
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssmathclamp-cssmathclamp
-WebIDL::ExceptionOr<GC::Ref<CSSMathClamp>> CSSMathClamp::construct_impl(JS::Realm& realm, CSSNumberish lower, CSSNumberish value, CSSNumberish upper)
+WebIDL::ExceptionOr<GC::Ref<CSSMathClamp>> CSSMathClamp::create_for_constructor(CSSNumberish lower, CSSNumberish value, CSSNumberish upper)
 {
     // The CSSMathClamp(lower, value, upper) constructor must, when called, perform the following steps:
     // 1. Replace lower, value, and upper with the result of rectifying a numberish value for each.
-    auto lower_rectified = rectify_a_numberish_value(realm, lower);
-    auto value_rectified = rectify_a_numberish_value(realm, value);
-    auto upper_rectified = rectify_a_numberish_value(realm, upper);
+    auto lower_rectified = rectify_a_numberish_value(lower);
+    auto value_rectified = rectify_a_numberish_value(value);
+    auto upper_rectified = rectify_a_numberish_value(upper);
 
     // 2. Let type be the result of adding the types of lower, value, and upper. If type is failure, throw a TypeError.
     auto type = lower_rectified->type()
@@ -40,11 +39,11 @@ WebIDL::ExceptionOr<GC::Ref<CSSMathClamp>> CSSMathClamp::construct_impl(JS::Real
     }
 
     // 3. Return a new CSSMathClamp whose lower, value, and upper internal slots are set to lower, value, and upper, respectively.
-    return CSSMathClamp::create(realm, type->release_value(), move(lower_rectified), move(value_rectified), move(upper_rectified));
+    return CSSMathClamp::create(type->release_value(), move(lower_rectified), move(value_rectified), move(upper_rectified));
 }
 
-CSSMathClamp::CSSMathClamp(JS::Realm& realm, NumericType type, GC::Ref<CSSNumericValue> lower, GC::Ref<CSSNumericValue> value, GC::Ref<CSSNumericValue> upper)
-    : CSSMathValue(realm, Bindings::CSSMathOperator::Clamp, move(type))
+CSSMathClamp::CSSMathClamp(NumericType type, GC::Ref<CSSNumericValue> lower, GC::Ref<CSSNumericValue> value, GC::Ref<CSSNumericValue> upper)
+    : CSSMathValue(CSSMathOperator::Clamp, move(type))
     , m_lower(move(lower))
     , m_value(move(value))
     , m_upper(move(upper))
@@ -53,13 +52,7 @@ CSSMathClamp::CSSMathClamp(JS::Realm& realm, NumericType type, GC::Ref<CSSNumeri
 
 CSSMathClamp::~CSSMathClamp() = default;
 
-void CSSMathClamp::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSMathClamp);
-    Base::initialize(realm);
-}
-
-void CSSMathClamp::visit_edges(Visitor& visitor)
+void CSSMathClamp::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_lower);

@@ -23,7 +23,7 @@ using LockRequestQueueMap = HashMap<Utf16String, LockRequestQueue>;
 
 HTML::ParallelQueue& lock_task_queue();
 void queue_web_locks_task(JS::Realm&, GC::Ref<GC::Function<void()>> steps);
-void queue_web_locks_task_on_relevant_event_loop(JS::Realm&, GC::Ref<WebIDL::CallbackType> callback, GC::Ref<GC::Function<void()>> steps);
+void queue_web_locks_task_on_relevant_event_loop(GC::Ref<WebIDL::CallbackType> callback, GC::Ref<GC::Function<void()>> steps);
 
 LockManager& obtain_lock_manager(HTML::EnvironmentSettingsObject&);
 

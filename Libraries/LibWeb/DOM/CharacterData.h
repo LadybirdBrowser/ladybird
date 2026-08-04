@@ -21,7 +21,7 @@ class WEB_API CharacterData
     : public Node
     , public ChildNode<CharacterData>
     , public NonDocumentTypeChildNode<CharacterData> {
-    WEB_PLATFORM_OBJECT(CharacterData, Node);
+    WEB_WRAPPABLE(CharacterData, Node);
     GC_DECLARE_ALLOCATOR(CharacterData);
 
 public:
@@ -44,8 +44,6 @@ public:
 
 protected:
     CharacterData(Document&, NodeType, Utf16String);
-
-    virtual void initialize(JS::Realm&) override;
 
 private:
     virtual size_t external_memory_size() const override;

@@ -14,6 +14,8 @@
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLOptionElement.h>
 #include <LibWeb/HTML/HTMLSelectElement.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Infra/Strings.h>
 
 namespace Web::HTML {
@@ -30,20 +32,20 @@ static WebIDL::ExceptionOr<XHR::FormDataEntry> create_entry_with_scalar_name(JS:
             // 1. If value is not a File object, then set value to a new File object, representing the same bytes, whose
             //    name attribute value is "blob".
             if (!is<FileAPI::File>(*blob)) {
-                Bindings::FilePropertyBag options {};
+                FileAPI::FilePropertyBag options {};
                 options.type = blob->type();
 
-                blob = TRY(FileAPI::File::create(realm, { { blob } }, "blob"_utf16, move(options)));
+                blob = TRY(FileAPI::File::construct_impl({ { blob } }, "blob"_utf16, move(options)));
             }
 
             // 2. If filename is given, then set value to a new File object, representing the same bytes, whose name
             //    attribute is filename.
             if (filename.has_value()) {
-                Bindings::FilePropertyBag options {};
+                FileAPI::FilePropertyBag options {};
                 options.type = blob->type();
                 options.last_modified = as<FileAPI::File>(*blob).last_modified();
 
-                blob = TRY(FileAPI::File::create(realm, { { blob } }, filename.value(), move(options)));
+                blob = TRY(FileAPI::File::construct_impl({ { blob } }, filename.value(), move(options)));
             }
 
             return GC::Ref { as<FileAPI::File>(*blob) };
@@ -211,7 +213,7 @@ WebIDL::ExceptionOr<Optional<GC::ConservativeVector<XHR::FormDataEntry>>> constr
             if (file_element->files()->length() == 0) {
                 Bindings::FilePropertyBag options {};
                 options.type = "application/octet-stream"_utf16;
-                auto file = TRY(FileAPI::File::create(realm, {}, Utf16String {}, options));
+                auto file = TRY(FileAPI::File::construct_impl({}, Utf16String {}, options));
                 entry_list.append(TRY(create_entry(realm, name.view(), Variant<GC::Ref<FileAPI::Blob>, Utf16String> { GC::Ref<FileAPI::Blob> { file } })));
             }
             // 2. Otherwise, for each file in selected files, create an entry with name and a File object representing the file, and append it to entry list.
@@ -244,16 +246,15 @@ WebIDL::ExceptionOr<Optional<GC::ConservativeVector<XHR::FormDataEntry>>> constr
             Utf16String dir = control->directionality() == DOM::Element::Directionality::Ltr ? "ltr"_utf16 : "rtl"_utf16;
 
             // 3. Create an entry with dirname and dir, and append it to entry list.
-            entry_list.append(TRY(create_entry(realm, dirname, dir)));
+            entry_list.append(TRY(create_entry(realm, dirname.utf16_view(), dir)));
         }
     }
     // 6. Let form data be a new FormData object associated with entry list.
-    auto form_data = TRY(XHR::FormData::construct_impl(realm, move(entry_list)));
+    auto form_data = XHR::FormData::create(move(entry_list));
 
     // 7. Fire an event named formdata at form using FormDataEvent, with the formData attribute initialized to form data and the bubbles attribute initialized to true.
-    Bindings::FormDataEventInit init { Bindings::EventInit {}, form_data };
-    auto form_data_event = TRY(FormDataEvent::construct_impl(realm, HTML::EventNames::formdata, init));
-    form_data_event->set_bubbles(true);
+    FormDataEventInit init { { .bubbles = true }, form_data };
+    auto form_data_event = FormDataEvent::create(HTML::EventNames::formdata, init, HighResolutionTime::current_high_resolution_time(relevant_global_object(form)));
     form.dispatch_event(form_data_event);
 
     // 8. Set form's constructing entry list to false.

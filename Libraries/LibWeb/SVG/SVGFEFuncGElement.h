@@ -13,7 +13,7 @@ namespace Web::SVG {
 
 // https://www.w3.org/TR/filter-effects-1/#InterfaceSVGFEFuncGElement
 class SVGFEFuncGElement final : public SVGComponentTransferFunctionElement {
-    WEB_PLATFORM_OBJECT(SVGFEFuncGElement, SVGComponentTransferFunctionElement);
+    WEB_WRAPPABLE(SVGFEFuncGElement, SVGComponentTransferFunctionElement);
     GC_DECLARE_ALLOCATOR(SVGFEFuncGElement);
 
 public:
@@ -21,8 +21,6 @@ public:
 
 private:
     SVGFEFuncGElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
 };
 
 }

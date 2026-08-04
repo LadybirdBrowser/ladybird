@@ -11,29 +11,29 @@
 
 namespace Web::WebAudio {
 
+using StereoPannerOptions = Bindings::StereoPannerOptions;
+
 // https://webaudio.github.io/web-audio-api/#stereopannernode
 class StereoPannerNode : public AudioNode {
-    WEB_PLATFORM_OBJECT(StereoPannerNode, AudioNode);
+    WEB_WRAPPABLE(StereoPannerNode, AudioNode);
     GC_DECLARE_ALLOCATOR(StereoPannerNode);
 
 public:
     virtual ~StereoPannerNode() override;
 
-    static WebIDL::ExceptionOr<GC::Ref<StereoPannerNode>> create(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::StereoPannerOptions const& = {});
-    static WebIDL::ExceptionOr<GC::Ref<StereoPannerNode>> construct_impl(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::StereoPannerOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<StereoPannerNode>> create(GC::Ref<BaseAudioContext>, StereoPannerOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<StereoPannerNode>> create_for_constructor(GC::Ref<BaseAudioContext>, StereoPannerOptions const& = {});
 
     WebIDL::UnsignedLong number_of_inputs() override { return 1; }
     WebIDL::UnsignedLong number_of_outputs() override { return 1; }
 
-    WebIDL::ExceptionOr<void> set_channel_count_mode(Bindings::ChannelCountMode) override;
+    WebIDL::ExceptionOr<void> set_channel_count_mode(ChannelCountMode) override;
     WebIDL::ExceptionOr<void> set_channel_count(WebIDL::UnsignedLong) override;
 
     GC::Ref<AudioParam const> pan() const { return m_pan; }
 
 protected:
-    StereoPannerNode(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::StereoPannerOptions const& = {});
-
-    virtual void initialize(JS::Realm&) override;
+    StereoPannerNode(GC::Ref<BaseAudioContext>, StereoPannerOptions const& = {});
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:

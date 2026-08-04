@@ -6,21 +6,25 @@
 
 #pragma once
 
-#include <AK/Utf16String.h>
+#include <AK/String.h>
+#include <LibJS/Forward.h>
 #include <LibWeb/Bindings/CommandEvent.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/Utils.h>
+#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::HTML {
 
+using CommandEventInit = Bindings::CommandEventInit;
+
 class CommandEvent : public DOM::Event {
-    WEB_PLATFORM_OBJECT(CommandEvent, DOM::Event);
+    WEB_WRAPPABLE(CommandEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(CommandEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<CommandEvent> create(JS::Realm&, Utf16FlyString const& event_name, Bindings::CommandEventInit const& = {});
-    static WebIDL::ExceptionOr<GC::Ref<CommandEvent>> construct_impl(JS::Realm&, Utf16FlyString const& event_name, Bindings::CommandEventInit const&);
+    [[nodiscard]] static GC::Ref<CommandEvent> create(FlyString const& event_name, CommandEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
+    [[nodiscard]] static GC::Ref<CommandEvent> create(Utf16FlyString const& event_name, CommandEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 
     // https://html.spec.whatwg.org/multipage/interaction.html#dom-commandevent-command
     Utf16String const& command() const { return m_command; }
@@ -31,9 +35,7 @@ public:
 private:
     void visit_edges(Visitor&) override;
 
-    CommandEvent(JS::Realm&, Utf16FlyString const& event_name, Bindings::CommandEventInit const&);
-
-    void initialize(JS::Realm&) override;
+    CommandEvent(FlyString const& event_name, CommandEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 
     GC::Ptr<DOM::Element> m_source;
     Utf16String m_command;

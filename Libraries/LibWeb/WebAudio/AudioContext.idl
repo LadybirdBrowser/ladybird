@@ -8,9 +8,9 @@ interface AudioContext : BaseAudioContext {
     readonly attribute double baseLatency;
     readonly attribute double outputLatency;
     AudioTimestamp getOutputTimestamp ();
-    Promise<undefined> resume ();
-    Promise<undefined> suspend ();
-    Promise<undefined> close ();
+    [CreatesPromise] Promise<undefined> resume ();
+    [CreatesPromise] Promise<undefined> suspend ();
+    [CreatesPromise] Promise<undefined> close ();
     MediaElementAudioSourceNode createMediaElementSource (HTMLMediaElement mediaElement);
     [FIXME] MediaStreamAudioSourceNode createMediaStreamSource (MediaStream mediaStream);
     [FIXME] MediaStreamTrackAudioSourceNode createMediaStreamTrackSource (MediaStreamTrack mediaStreamTrack);

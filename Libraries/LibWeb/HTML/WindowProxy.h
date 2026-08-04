@@ -10,17 +10,18 @@
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/Object.h>
-#include <LibWeb/DOM/EventTarget.h>
+#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::HTML {
 
-class WEB_API WindowProxy final : public DOM::EventTarget {
-    WEB_NON_IDL_PLATFORM_OBJECT(WindowProxy, DOM::EventTarget)
+class WEB_API WindowProxy final : public Bindings::PlatformObject {
+    WEB_NON_IDL_PLATFORM_OBJECT(WindowProxy, Bindings::PlatformObject)
     GC_DECLARE_ALLOCATOR(WindowProxy);
 
 public:
+    static GC::Ref<WindowProxy> create(JS::Realm&);
     virtual ~WindowProxy() override = default;
 
     virtual JS::ThrowCompletionOr<JS::Object*> internal_get_prototype_of() const override;
@@ -37,18 +38,21 @@ public:
     GC::Ptr<Window> window() const { return m_window; }
     void set_window(GC::Ref<Window>);
 
-    GC::Ref<BrowsingContext> associated_browsing_context() const;
+    GC::Ptr<BrowsingContext> associated_browsing_context() const;
 
 private:
     explicit WindowProxy(JS::Realm&);
-
-    virtual bool is_universal_global_scope_mixin() const final { return true; }
+    Bindings::PlatformObject& cross_origin_window_wrapper() const;
 
     virtual bool is_html_window_proxy() const override { return true; }
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
     // [[Window]], https://html.spec.whatwg.org/multipage/window-object.html#concept-windowproxy-window
     GC::Ptr<Window> m_window;
+
+    // Keeps the per-realm Window wrapper alive while cross-origin property descriptors cached on it can be reused
+    // through this WindowProxy.
+    mutable GC::Ptr<Bindings::PlatformObject> m_cross_origin_window_wrapper;
 };
 
 }

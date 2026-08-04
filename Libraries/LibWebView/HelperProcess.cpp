@@ -195,7 +195,7 @@ ErrorOr<NonnullRefPtr<WebView::CompositorClient>> launch_compositor_process()
     return launch_server_process<WebView::CompositorClient>("Compositor"sv, move(arguments));
 }
 
-ErrorOr<NonnullRefPtr<WebWorkerClient>> launch_web_worker_process(Web::Bindings::AgentType type, IsPrivate is_private, Web::HTML::WorkerAgentId agent_id)
+ErrorOr<NonnullRefPtr<WebWorkerClient>> launch_web_worker_process(Web::HTML::AgentType type, IsPrivate is_private, Web::HTML::WorkerAgentId agent_id)
 {
     auto const& browser_options = WebView::Application::browser_options();
     auto const& web_content_options = WebView::Application::web_content_options();
@@ -218,13 +218,13 @@ ErrorOr<NonnullRefPtr<WebWorkerClient>> launch_web_worker_process(Web::Bindings:
 
     arguments.append("--type"sv);
     switch (type) {
-    case Web::Bindings::AgentType::DedicatedWorker:
+    case Web::HTML::AgentType::DedicatedWorker:
         arguments.append("dedicated"sv);
         break;
-    case Web::Bindings::AgentType::SharedWorker:
+    case Web::HTML::AgentType::SharedWorker:
         arguments.append("shared"sv);
         break;
-    case Web::Bindings::AgentType::ServiceWorker:
+    case Web::HTML::AgentType::ServiceWorker:
         arguments.append("service"sv);
         break;
     default:

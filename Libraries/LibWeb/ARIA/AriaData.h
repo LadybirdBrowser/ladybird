@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/NonnullOwnPtr.h>
+#include <AK/Utf16String.h>
 #include <AK/Vector.h>
 #include <LibWeb/ARIA/ARIAMixin.h>
 #include <LibWeb/Forward.h>

@@ -7,27 +7,28 @@
 #pragma once
 
 #include <AK/Utf16FlyString.h>
+#include <LibJS/Forward.h>
 #include <LibWeb/Bindings/PageTransitionEvent.h>
 #include <LibWeb/DOM/Event.h>
+#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::HTML {
 
+using PageTransitionEventInit = Bindings::PageTransitionEventInit;
+
 class PageTransitionEvent final : public DOM::Event {
-    WEB_PLATFORM_OBJECT(PageTransitionEvent, DOM::Event);
+    WEB_WRAPPABLE(PageTransitionEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(PageTransitionEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<PageTransitionEvent> create(JS::Realm&, Utf16FlyString const& event_name, Bindings::PageTransitionEventInit const&);
-    static WebIDL::ExceptionOr<GC::Ref<PageTransitionEvent>> construct_impl(JS::Realm&, Utf16FlyString const& event_name, Bindings::PageTransitionEventInit const&);
-
-    PageTransitionEvent(JS::Realm&, Utf16FlyString const& event_name, Bindings::PageTransitionEventInit const& event_init);
+    [[nodiscard]] static GC::Ref<PageTransitionEvent> create(Utf16FlyString const& event_name, PageTransitionEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual ~PageTransitionEvent() override;
 
     bool persisted() const { return m_persisted; }
 
 private:
-    virtual void initialize(JS::Realm&) override;
+    PageTransitionEvent(Utf16FlyString const& event_name, PageTransitionEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
 
     bool m_persisted { false };
 };

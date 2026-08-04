@@ -47,7 +47,7 @@ public:
 
     bool equals(StyleValue const& other) const;
 
-    GC::Ref<CSSStyleValue> reify(JS::Realm&, Utf16FlyString const& associated_property) const;
+    GC::Ref<CSSStyleValue> reify(Utf16FlyString const& associated_property) const;
 
 private:
     friend class StyleValue;

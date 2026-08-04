@@ -1,7 +1,7 @@
 // https://w3c.github.io/uievents/#mouseevent
 [Exposed=Window]
 interface MouseEvent : UIEvent {
-    constructor([Utf16FlyString] Utf16DOMString type, optional MouseEventInit eventInitDict = {});
+    constructor(DOMString type, optional MouseEventInit eventInitDict = {});
 
     // https://drafts.csswg.org/cssom-view/#extensions-to-the-mouseevent-interface
     readonly attribute double screenX;

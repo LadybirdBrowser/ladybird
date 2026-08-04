@@ -6,19 +6,23 @@
 
 #pragma once
 
+#include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
 #include <LibWeb/Bindings/CompositionEvent.h>
 #include <LibWeb/UIEvents/UIEvent.h>
 
 namespace Web::UIEvents {
 
+using CompositionEventInit = Bindings::CompositionEventInit;
+
 class CompositionEvent final : public UIEvent {
-    WEB_PLATFORM_OBJECT(CompositionEvent, UIEvent);
+    WEB_WRAPPABLE(CompositionEvent, UIEvent);
     GC_DECLARE_ALLOCATOR(CompositionEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<CompositionEvent> create(JS::Realm&, Utf16FlyString const& event_name, Bindings::CompositionEventInit const& = {});
-    static WebIDL::ExceptionOr<GC::Ref<CompositionEvent>> construct_impl(JS::Realm&, Utf16FlyString const& event_name, Bindings::CompositionEventInit const& event_init);
+    [[nodiscard]] static GC::Ref<CompositionEvent> create(FlyString const& event_name, CompositionEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
+    [[nodiscard]] static GC::Ref<CompositionEvent> create(Utf16String const& event_name, CompositionEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
+    [[nodiscard]] static GC::Ref<CompositionEvent> create(Utf16FlyString const& event_name, CompositionEventInit const&);
 
     virtual ~CompositionEvent() override;
 
@@ -28,9 +32,8 @@ public:
     void init_composition_event(Utf16FlyString const& type, bool bubbles, bool cancelable, GC::Ptr<HTML::WindowProxy> view, Utf16String const& data);
 
 private:
-    CompositionEvent(JS::Realm&, Utf16FlyString const& event_name, Bindings::CompositionEventInit const&);
-
-    virtual void initialize(JS::Realm&) override;
+    CompositionEvent(FlyString const& event_name, CompositionEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
+    CompositionEvent(Utf16FlyString const& event_name, CompositionEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 
     Utf16String m_data;
 };

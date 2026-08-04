@@ -13,11 +13,11 @@ namespace Web::CSS {
 
 // https://drafts.csswg.org/cssom/#cssmarginrule
 class CSSMarginRule final : public CSSRule {
-    WEB_PLATFORM_OBJECT(CSSMarginRule, CSSRule);
+    WEB_WRAPPABLE(CSSMarginRule, CSSRule);
     GC_DECLARE_ALLOCATOR(CSSMarginRule);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSMarginRule> create(JS::Realm&, Utf16FlyString name, GC::Ref<CSSStyleProperties>);
+    [[nodiscard]] static GC::Ref<CSSMarginRule> create(Utf16FlyString name, GC::Ref<CSSStyleProperties>);
 
     virtual ~CSSMarginRule() override = default;
 
@@ -26,9 +26,8 @@ public:
     GC::Ref<CSSStyleProperties const> style() const { return m_style; }
 
 private:
-    CSSMarginRule(JS::Realm&, Utf16FlyString name, GC::Ref<CSSStyleProperties>);
+    CSSMarginRule(Utf16FlyString name, GC::Ref<CSSStyleProperties>);
 
-    virtual void initialize(JS::Realm&) override;
     virtual Utf16String serialized() const override;
     virtual void visit_edges(Visitor&) override;
     virtual void dump(StringBuilder&, int indent_levels) const override;

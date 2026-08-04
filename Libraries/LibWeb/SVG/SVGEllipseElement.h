@@ -7,12 +7,13 @@
 #pragma once
 
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
+#include <LibWeb/SVG/AttributeParser.h>
 #include <LibWeb/SVG/SVGGeometryElement.h>
 
 namespace Web::SVG {
 
 class SVGEllipseElement final : public SVGGeometryElement {
-    WEB_PLATFORM_OBJECT(SVGEllipseElement, SVGGeometryElement);
+    WEB_WRAPPABLE(SVGEllipseElement, SVGGeometryElement);
     GC_DECLARE_ALLOCATOR(SVGEllipseElement);
 
 public:
@@ -40,8 +41,6 @@ public:
 
 private:
     SVGEllipseElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
 
     Optional<NumberPercentage> m_center_x;
     Optional<NumberPercentage> m_center_y;

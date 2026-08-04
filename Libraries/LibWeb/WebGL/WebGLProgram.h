@@ -14,11 +14,11 @@
 namespace Web::WebGL {
 
 class WebGLProgram final : public WebGLObject {
-    WEB_PLATFORM_OBJECT(WebGLProgram, WebGLObject);
+    WEB_WRAPPABLE(WebGLProgram, WebGLObject);
     GC_DECLARE_ALLOCATOR(WebGLProgram);
 
 public:
-    static GC::Ref<WebGLProgram> create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase>, GLuint handle);
+    static GC::Ref<WebGLProgram> create(GC::Ref<WebGLRenderingContextBase>, GLuint handle);
 
     virtual ~WebGLProgram();
 
@@ -31,7 +31,6 @@ public:
 protected:
     explicit WebGLProgram(JS::Realm&, GC::Ref<WebGLRenderingContextBase>, GLuint handle);
 
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
 private:

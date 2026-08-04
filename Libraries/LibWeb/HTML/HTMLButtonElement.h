@@ -22,13 +22,11 @@ namespace Web::HTML {
 class HTMLButtonElement final
     : public HTMLElement
     , public PopoverTargetAttributes {
-    WEB_PLATFORM_OBJECT(HTMLButtonElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLButtonElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLButtonElement);
 
 public:
     virtual ~HTMLButtonElement() override;
-
-    virtual void initialize(JS::Realm&) override;
     enum class TypeAttributeState {
 #define __ENUMERATE_HTML_BUTTON_TYPE_ATTRIBUTE(_, state) state,
         ENUMERATE_HTML_BUTTON_TYPE_ATTRIBUTES

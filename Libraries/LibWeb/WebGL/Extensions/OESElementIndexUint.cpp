@@ -15,21 +15,15 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(OESElementIndexUint);
 
-JS::ThrowCompletionOr<GC::Ref<JS::Object>> OESElementIndexUint::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
+GC::Ref<Bindings::Wrappable> OESElementIndexUint::create(GC::Ref<WebGLRenderingContextBase> context)
 {
+    auto& realm = context->realm();
     return realm.create<OESElementIndexUint>(realm, context);
 }
 
-OESElementIndexUint::OESElementIndexUint(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
-    : PlatformObject(realm)
-    , m_context(context)
+OESElementIndexUint::OESElementIndexUint(JS::Realm&, GC::Ref<WebGLRenderingContextBase> context)
+    : m_context(context)
 {
-}
-
-void OESElementIndexUint::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(OESElementIndexUint);
-    Base::initialize(realm);
 }
 
 void OESElementIndexUint::visit_edges(Visitor& visitor)

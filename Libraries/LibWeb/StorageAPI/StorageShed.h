@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/HashMap.h>
+#include <LibGC/Heap.h>
 #include <LibGC/Ptr.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/StorageAPI/StorageKey.h>
@@ -22,7 +23,7 @@ class StorageShed : public GC::Cell {
     GC_DECLARE_ALLOCATOR(StorageShed);
 
 public:
-    static GC::Ref<StorageShed> create(GC::Heap& heap) { return heap.allocate<StorageShed>(); }
+    static GC::Ref<StorageShed> create() { return GC::Heap::the().allocate<StorageShed>(); }
 
     GC::Ptr<StorageShelf> obtain_a_storage_shelf(HTML::EnvironmentSettingsObject&, StorageType);
     void legacy_clone(StorageShed const&, GC::Ref<Page>);

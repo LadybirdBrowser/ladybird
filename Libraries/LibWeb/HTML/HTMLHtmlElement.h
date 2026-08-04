@@ -13,7 +13,7 @@
 namespace Web::HTML {
 
 class WEB_API HTMLHtmlElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLHtmlElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLHtmlElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLHtmlElement);
 
 public:
@@ -26,8 +26,6 @@ public:
 
 private:
     HTMLHtmlElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
     virtual bool is_html_html_element() const override { return true; }
 };
 

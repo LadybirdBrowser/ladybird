@@ -4,22 +4,20 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SVGAnimatedLength.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/SVG/SVGAnimatedLength.h>
 
 namespace Web::SVG {
 
 GC_DEFINE_ALLOCATOR(SVGAnimatedLength);
 
-GC::Ref<SVGAnimatedLength> SVGAnimatedLength::create(JS::Realm& realm, GC::Ref<SVGLength> base_val, GC::Ref<SVGLength> anim_val)
+GC::Ref<SVGAnimatedLength> SVGAnimatedLength::create(GC::Ref<SVGLength> base_val, GC::Ref<SVGLength> anim_val)
 {
-    return realm.create<SVGAnimatedLength>(realm, base_val, anim_val);
+    return GC::Heap::the().allocate<SVGAnimatedLength>(base_val, anim_val);
 }
 
-SVGAnimatedLength::SVGAnimatedLength(JS::Realm& realm, GC::Ref<SVGLength> base_val, GC::Ref<SVGLength> anim_val)
-    : PlatformObject(realm)
-    , m_base_val(base_val)
+SVGAnimatedLength::SVGAnimatedLength(GC::Ref<SVGLength> base_val, GC::Ref<SVGLength> anim_val)
+    : m_base_val(base_val)
     , m_anim_val(anim_val)
 {
     // The object referenced by animVal will always be distinct from the one referenced by baseVal, even when the
@@ -32,12 +30,6 @@ SVGAnimatedLength::SVGAnimatedLength(JS::Realm& realm, GC::Ref<SVGLength> base_v
 }
 
 SVGAnimatedLength::~SVGAnimatedLength() = default;
-
-void SVGAnimatedLength::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGAnimatedLength);
-    Base::initialize(realm);
-}
 
 void SVGAnimatedLength::visit_edges(Visitor& visitor)
 {

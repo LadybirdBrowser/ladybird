@@ -1,4 +1,5 @@
 // https://w3c.github.io/mathml-core/#idl-def-mathmlanchorelement
+// The implementation is wrapped lazily like other DOM-backed MathML objects.
 [Exposed=Window]
 interface MathMLAnchorElement : MathMLElement {
     [ReflectSetter] attribute Utf16USVString href;

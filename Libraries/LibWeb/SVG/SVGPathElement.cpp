@@ -6,7 +6,6 @@
 
 #include <AK/Optional.h>
 #include <LibGfx/Path.h>
-#include <LibWeb/Bindings/SVGPathElement.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/Layout/SVGGeometryBox.h>
@@ -20,12 +19,6 @@ GC_DEFINE_ALLOCATOR(SVGPathElement);
 SVGPathElement::SVGPathElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : SVGGeometryElement(document, move(qualified_name))
 {
-}
-
-void SVGPathElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGPathElement);
-    Base::initialize(realm);
 }
 
 Gfx::Path SVGPathElement::get_path(CSSPixelSize)

@@ -104,13 +104,13 @@ void FunctionParameterInternal::serialize(Utf16StringBuilder& builder) const
     }
 }
 
-GC::Ref<CSSFunctionRule> CSSFunctionRule::create(JS::Realm& realm, CSSRuleList& rules, Utf16FlyString name, Vector<FunctionParameterInternal> parameters, NonnullRefPtr<Parser::SyntaxNode> return_type)
+GC::Ref<CSSFunctionRule> CSSFunctionRule::create(CSSRuleList& rules, Utf16FlyString name, Vector<FunctionParameterInternal> parameters, NonnullRefPtr<Parser::SyntaxNode> return_type)
 {
-    return realm.create<CSSFunctionRule>(realm, rules, move(name), move(parameters), move(return_type));
+    return GC::Heap::the().allocate<CSSFunctionRule>(rules, move(name), move(parameters), move(return_type));
 }
 
-CSSFunctionRule::CSSFunctionRule(JS::Realm& realm, CSSRuleList& rules, Utf16FlyString name, Vector<FunctionParameterInternal> parameters, NonnullRefPtr<Parser::SyntaxNode> return_type)
-    : CSSGroupingRule(realm, rules, Type::Function)
+CSSFunctionRule::CSSFunctionRule(CSSRuleList& rules, Utf16FlyString name, Vector<FunctionParameterInternal> parameters, NonnullRefPtr<Parser::SyntaxNode> return_type)
+    : CSSGroupingRule(rules, Type::Function)
     , m_name(move(name))
     , m_parameters(move(parameters))
     , m_return_type(move(return_type))
@@ -120,12 +120,6 @@ CSSFunctionRule::CSSFunctionRule(JS::Realm& realm, CSSRuleList& rules, Utf16FlyS
 Utf16String CSSFunctionRule::name() const
 {
     return m_name.to_utf16_string();
-}
-
-void CSSFunctionRule::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSFunctionRule);
-    Base::initialize(realm);
 }
 
 // https://drafts.csswg.org/css-mixins-1/#dom-cssfunctionrule-getparameters

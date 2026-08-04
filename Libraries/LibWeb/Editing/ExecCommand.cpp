@@ -6,8 +6,6 @@
 
 #include <AK/ScopeGuard.h>
 #include <AK/TemporaryChange.h>
-#include <LibGC/Root.h>
-#include <LibWeb/Bindings/InputEvent.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/Range.h>
@@ -17,6 +15,8 @@
 #include <LibWeb/Editing/EditingHistory.h>
 #include <LibWeb/Editing/Internal/Algorithms.h>
 #include <LibWeb/HTML/HTMLLIElement.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/UIEvents/InputEvent.h>
 #include <LibWeb/UIEvents/InputTypes.h>
@@ -26,7 +26,7 @@ namespace Web::DOM {
 GC::Ref<Editing::EditingHistory> Document::editing_history()
 {
     if (!m_editing_history)
-        m_editing_history = Editing::EditingHistory::create(realm());
+        m_editing_history = Editing::EditingHistory::create();
     return *m_editing_history;
 }
 
@@ -40,7 +40,7 @@ WebIDL::ExceptionOr<bool> Document::exec_command_internal(Utf16FlyString const& 
 {
     // AD-HOC: This is not directly mentioned in the spec, but all major browsers limit editing API calls to HTML documents
     if (!is_html_document())
-        return WebIDL::InvalidStateError::create(realm(), "execCommand is only supported on HTML documents"_utf16);
+        return WebIDL::InvalidStateError::create("execCommand is only supported on HTML documents"_utf16);
 
     // AD-HOC: All major browsers refuse to recursively execute execCommand() (e.g. inside input event handlers).
     if (m_inside_exec_command)
@@ -209,8 +209,8 @@ WebIDL::ExceptionOr<bool> Document::exec_command_internal(Utf16FlyString const& 
     // 7. If the action modified DOM tree, then fire an event named "input" at affected editing host using InputEvent,
     //    with its isTrusted and bubbles attributes initialized to true, inputType attribute initialized to the mapped
     //    value of command, and its data attribute initialized to null.
-    if (tree_was_modified && affected_editing_host && dispatch_input_event == DispatchInputEvent::Yes) {
-        Bindings::InputEventInit event_init {};
+    if (dispatch_input_event == DispatchInputEvent::Yes && tree_was_modified && affected_editing_host) {
+        UIEvents::InputEventInit event_init {};
         event_init.bubbles = true;
         // INTEROP: When the command runs on behalf of a user cut or paste, the input event carries the user's input
         //          type (deleteByCut or insertFromPaste) rather than the command's mapped value, like other browsers.
@@ -221,7 +221,7 @@ WebIDL::ExceptionOr<bool> Document::exec_command_internal(Utf16FlyString const& 
         if (event_init.input_type == UIEvents::InputTypes::insertText)
             event_init.data = Utf16String::from_utf16(value);
 
-        auto event = UIEvents::InputEvent::create_from_platform_event(realm(), HTML::EventNames::input, event_init);
+        auto event = UIEvents::InputEvent::create_from_platform_event(HTML::EventNames::input, event_init, {}, HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*this)));
         event->set_is_trusted(true);
 
         TemporaryChange preserve_selection_offsets { m_preserve_selection_offsets_during_identical_character_data_replacement, true };
@@ -241,7 +241,7 @@ WebIDL::ExceptionOr<bool> Document::query_command_enabled(Utf16FlyString const& 
 {
     // AD-HOC: This is not directly mentioned in the spec, but all major browsers limit editing API calls to HTML documents
     if (!is_html_document())
-        return WebIDL::InvalidStateError::create(realm(), "queryCommandEnabled is only supported on HTML documents"_utf16);
+        return WebIDL::InvalidStateError::create("queryCommandEnabled is only supported on HTML documents"_utf16);
 
     // 2. Return true if command is both supported and enabled, false otherwise.
     if (!MUST(query_command_supported(command)))
@@ -346,7 +346,7 @@ WebIDL::ExceptionOr<bool> Document::query_command_indeterm(Utf16FlyString const&
 {
     // AD-HOC: This is not directly mentioned in the spec, but all major browsers limit editing API calls to HTML documents
     if (!is_html_document())
-        return WebIDL::InvalidStateError::create(realm(), "queryCommandIndeterm is only supported on HTML documents"_utf16);
+        return WebIDL::InvalidStateError::create("queryCommandIndeterm is only supported on HTML documents"_utf16);
 
     // 1. If command is not supported or has no indeterminacy, return false.
     auto optional_command = Editing::find_command_definition(command);
@@ -394,7 +394,7 @@ WebIDL::ExceptionOr<bool> Document::query_command_state(Utf16FlyString const& co
 {
     // AD-HOC: This is not directly mentioned in the spec, but all major browsers limit editing API calls to HTML documents
     if (!is_html_document())
-        return WebIDL::InvalidStateError::create(realm(), "queryCommandState is only supported on HTML documents"_utf16);
+        return WebIDL::InvalidStateError::create("queryCommandState is only supported on HTML documents"_utf16);
 
     // 1. If command is not supported or has no state, return false.
     auto optional_command = Editing::find_command_definition(command);
@@ -443,7 +443,7 @@ WebIDL::ExceptionOr<bool> Document::query_command_supported(Utf16FlyString const
 {
     // AD-HOC: This is not directly mentioned in the spec, but all major browsers limit editing API calls to HTML documents
     if (!is_html_document())
-        return WebIDL::InvalidStateError::create(realm(), "queryCommandSupported is only supported on HTML documents"_utf16);
+        return WebIDL::InvalidStateError::create("queryCommandSupported is only supported on HTML documents"_utf16);
 
     // When the queryCommandSupported(command) method on the Document interface is invoked, the user agent must return
     // true if command is supported and available within the current script on the current site, and false otherwise.
@@ -457,7 +457,7 @@ WebIDL::ExceptionOr<Utf16String> Document::query_command_value(Utf16FlyString co
 {
     // AD-HOC: This is not directly mentioned in the spec, but all major browsers limit editing API calls to HTML documents
     if (!is_html_document())
-        return WebIDL::InvalidStateError::create(realm(), "queryCommandValue is only supported on HTML documents"_utf16);
+        return WebIDL::InvalidStateError::create("queryCommandValue is only supported on HTML documents"_utf16);
 
     // 1. If command is not supported or has no value, return the empty string.
     auto optional_command = Editing::find_command_definition(command);

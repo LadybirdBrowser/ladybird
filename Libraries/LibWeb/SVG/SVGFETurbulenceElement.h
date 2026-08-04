@@ -18,7 +18,7 @@ namespace Web::SVG {
 class SVGFETurbulenceElement final
     : public SVGElement
     , public SVGFilterPrimitiveStandardAttributes<SVGFETurbulenceElement> {
-    WEB_PLATFORM_OBJECT(SVGFETurbulenceElement, SVGElement);
+    WEB_WRAPPABLE(SVGFETurbulenceElement, SVGElement);
     GC_DECLARE_ALLOCATOR(SVGFETurbulenceElement);
 
 public:
@@ -45,8 +45,6 @@ public:
 
 protected:
     SVGFETurbulenceElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
 
 private:
     virtual void visit_edges(Cell::Visitor&) override;

@@ -20,7 +20,7 @@ class SVGImageElement final
     , public SVGURIReferenceMixin<SupportsXLinkHref::Yes>
     , public Layout::ImageProvider
     , public HTML::DecodedImageData::Client {
-    WEB_PLATFORM_OBJECT(SVGImageElement, SVGGraphicsElement);
+    WEB_WRAPPABLE(SVGImageElement, SVGGraphicsElement);
     GC_DECLARE_ALLOCATOR(SVGImageElement);
 
 public:
@@ -53,8 +53,6 @@ public:
 
 protected:
     SVGImageElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void adopted_from(DOM::Document&) override;
 
@@ -86,15 +84,5 @@ namespace Web::DOM {
 
 template<>
 inline bool Node::fast_is<SVG::SVGImageElement>() const { return is_svg_image_element(); }
-
-}
-
-namespace JS {
-
-template<>
-inline bool Object::fast_is<Web::SVG::SVGImageElement>() const
-{
-    return is_dom_node() && static_cast<Web::DOM::Node const&>(*this).is_svg_image_element();
-}
 
 }

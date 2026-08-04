@@ -5,10 +5,9 @@
  */
 
 #include <AK/Time.h>
-#include <AK/Utf16String.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/Completion.h>
-#include <LibWeb/Bindings/File.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibJS/Runtime/Realm.h>
 #include <LibWeb/FileAPI/File.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/Infra/Strings.h>
@@ -18,42 +17,41 @@ namespace Web::FileAPI {
 
 GC_DEFINE_ALLOCATOR(File);
 
-File::File(JS::Realm& realm, ByteBuffer byte_buffer, Utf16String file_name, Utf16String type, i64 last_modified)
-    : Blob(realm, move(byte_buffer), move(type))
+File::File(ByteBuffer byte_buffer, Utf16String file_name, Utf16String type, i64 last_modified)
+    : Blob(move(byte_buffer), move(type))
     , m_name(move(file_name))
     , m_last_modified(last_modified)
 {
 }
 
-File::File(JS::Realm& realm)
-    : Blob(realm, {})
+File::File()
+    : Blob(ByteBuffer {})
 {
-}
-
-void File::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(File);
-    Base::initialize(realm);
 }
 
 File::~File() = default;
 
-GC::Ref<File> File::create(JS::Realm& realm)
+GC::Ref<File> File::create()
 {
-    return realm.create<File>(realm);
+    return GC::Heap::the().allocate<File>();
 }
 
 // https://w3c.github.io/FileAPI/#ref-for-dom-file-file
-WebIDL::ExceptionOr<GC::Ref<File>> File::create(JS::Realm& realm, BlobParts const& file_bits, Utf16String file_name, Optional<Bindings::FilePropertyBag> const& options)
+ErrorOr<GC::Ref<File>> File::create(BlobParts const& file_bits, Utf16String const& file_name, Optional<FilePropertyBag> const& options)
 {
-    auto& vm = realm.vm();
-
     // 1. Let bytes be the result of processing blob parts given fileBits and options.
-    auto bytes = TRY_OR_THROW_OOM(vm, process_blob_parts(file_bits, options.has_value() ? static_cast<Bindings::BlobPropertyBag const&>(*options) : Optional<Bindings::BlobPropertyBag> {}));
+    Optional<BlobPropertyBag> blob_options;
+    if (options.has_value()) {
+        blob_options = BlobPropertyBag {
+            .endings = options->endings,
+            .type = options->type,
+        };
+    }
+    auto bytes = TRY(process_blob_parts(file_bits, blob_options));
 
     // 2. Let n be the fileName argument to the constructor.
     //    NOTE: Underlying OS filesystems use differing conventions for file name; with constructed files, mandating UTF-16 lessens ambiquity when file names are converted to byte sequences.
-    auto name = move(file_name);
+    auto name = file_name;
 
     auto type = Utf16String {};
     i64 last_modified = 0;
@@ -83,12 +81,12 @@ WebIDL::ExceptionOr<GC::Ref<File>> File::create(JS::Realm& realm, BlobParts cons
     //    4. F.name is set to n.
     //    5. F.type is set to t.
     //    6. F.lastModified is set to d.
-    return realm.create<File>(realm, move(bytes), move(name), move(type), last_modified);
+    return GC::Heap::the().allocate<File>(move(bytes), move(name), move(type), last_modified);
 }
 
-WebIDL::ExceptionOr<GC::Ref<File>> File::construct_impl(JS::Realm& realm, BlobParts const& file_bits, Utf16String file_name, Optional<Bindings::FilePropertyBag> const& options)
+WebIDL::ExceptionOr<GC::Ref<File>> File::construct_impl(BlobParts const& file_bits, Utf16String const& file_name, Optional<FilePropertyBag> const& options)
 {
-    return create(realm, file_bits, move(file_name), options);
+    return TRY_OR_THROW_OOM(JS::VM::the(), create(file_bits, file_name, options));
 }
 
 WebIDL::ExceptionOr<void> File::serialization_steps(HTML::StructuredSerializeWriter& serialized, bool, HTML::SerializationMemory&)
@@ -111,10 +109,8 @@ WebIDL::ExceptionOr<void> File::serialization_steps(HTML::StructuredSerializeWri
     return {};
 }
 
-WebIDL::ExceptionOr<void> File::deserialization_steps(HTML::StructuredSerializeReader& serialized, HTML::DeserializationMemory&)
+WebIDL::ExceptionOr<void> File::deserialization_steps(JS::Realm& realm, HTML::StructuredSerializeReader& serialized, HTML::DeserializationMemory&)
 {
-    auto& realm = this->realm();
-
     // FIXME: 1. Set value’s snapshot state to serialized.[[SnapshotState]].
 
     // NON-STANDARD: FileAPI spec doesn't specify that type should be deserialized, although

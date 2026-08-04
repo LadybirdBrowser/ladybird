@@ -10,28 +10,25 @@
 
 namespace Web::HTML {
 
+class HTMLFormElement;
+
 class HTMLFormControlsCollection : public DOM::HTMLCollection {
-    WEB_PLATFORM_OBJECT(HTMLFormControlsCollection, DOM::HTMLCollection);
+    WEB_WRAPPABLE(HTMLFormControlsCollection, DOM::HTMLCollection);
     GC_DECLARE_ALLOCATOR(HTMLFormControlsCollection);
 
 public:
-    [[nodiscard]] static GC::Ref<HTMLFormControlsCollection> create(DOM::ParentNode& root, Scope, ESCAPING Function<bool(DOM::Element const&)> filter);
+    [[nodiscard]] static GC::Ref<HTMLFormControlsCollection> create(DOM::ParentNode& root, Scope, HTMLFormElement& form, ESCAPING Function<bool(DOM::Element const&)> filter);
 
     virtual ~HTMLFormControlsCollection() override;
 
     Variant<Empty, GC::Ref<DOM::Element>, GC::Ref<RadioNodeList>> named_item_or_radio_node_list(Utf16View name) const;
 
-protected:
-    virtual void initialize(JS::Realm&) override;
-
-    virtual JS::Value named_item_value(Utf16FlyString const& name) const final;
-
 private:
-    HTMLFormControlsCollection(DOM::ParentNode& root, Scope, ESCAPING Function<bool(DOM::Element const&)> filter);
+    HTMLFormControlsCollection(DOM::ParentNode& root, Scope, HTMLFormElement& form, ESCAPING Function<bool(DOM::Element const&)> filter);
 
-    DOM::Element* first_matching_named_element(Utf16View name, bool& multiple_matching) const;
-    GC::Ref<RadioNodeList> create_radio_node_list(Utf16String name) const;
-    GC::Ref<RadioNodeList> create_radio_node_list(Utf16FlyString name) const;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
+
+    GC::Ref<HTMLFormElement> m_form;
 };
 
 }

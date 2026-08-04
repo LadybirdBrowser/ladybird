@@ -7,11 +7,17 @@
  */
 
 #include <AK/ScopeGuard.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/HTML/AnimationFrameCallbackDriver.h>
 
 namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(AnimationFrameCallbackDriver);
+
+GC::Ref<AnimationFrameCallbackDriver> AnimationFrameCallbackDriver::create()
+{
+    return GC::Heap::the().allocate<AnimationFrameCallbackDriver>();
+}
 
 void AnimationFrameCallbackDriver::visit_edges(Cell::Visitor& visitor)
 {

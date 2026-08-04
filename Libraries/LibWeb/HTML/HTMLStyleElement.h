@@ -15,7 +15,7 @@ namespace Web::HTML {
 class HTMLStyleElement final
     : public HTMLElement
     , public DOM::StyleElementBase {
-    WEB_PLATFORM_OBJECT(HTMLStyleElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLStyleElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLStyleElement);
 
 public:
@@ -38,7 +38,6 @@ private:
     virtual Element& as_element() override { return *this; }
     virtual Element const& as_element() const override { return *this; }
 
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void adopted_from(DOM::Document&) override;
 };

@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/MediaKeySystemAccess.h>
 #include <LibWeb/EncryptedMediaExtensions/MediaKeySystemAccess.h>
 
 namespace Web::EncryptedMediaExtensions {
@@ -14,23 +12,16 @@ GC_DEFINE_ALLOCATOR(MediaKeySystemAccess);
 
 MediaKeySystemAccess::~MediaKeySystemAccess() = default;
 
-MediaKeySystemAccess::MediaKeySystemAccess(JS::Realm& realm, Utf16String const& key_system, Bindings::MediaKeySystemConfiguration configuration, NonnullOwnPtr<KeySystem> cdm_implementation)
-    : PlatformObject(realm)
-    , m_key_system(key_system)
+MediaKeySystemAccess::MediaKeySystemAccess(Utf16String const& key_system, MediaKeySystemConfiguration configuration, NonnullOwnPtr<KeySystem> cdm_implementation)
+    : m_key_system(key_system)
     , m_configuration(move(configuration))
     , m_cdm_implementation(move(cdm_implementation))
 {
 }
 
-GC::Ref<MediaKeySystemAccess> MediaKeySystemAccess::create(JS::Realm& realm, Utf16String const& key_system, Bindings::MediaKeySystemConfiguration configuration, NonnullOwnPtr<KeySystem> cdm_implementation)
+GC::Ref<MediaKeySystemAccess> MediaKeySystemAccess::create(Utf16String const& key_system, MediaKeySystemConfiguration configuration, NonnullOwnPtr<KeySystem> cdm_implementation)
 {
-    return realm.create<MediaKeySystemAccess>(realm, key_system, configuration, move(cdm_implementation));
-}
-
-void MediaKeySystemAccess::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(MediaKeySystemAccess);
-    Base::initialize(realm);
+    return GC::Heap::the().allocate<MediaKeySystemAccess>(key_system, move(configuration), move(cdm_implementation));
 }
 
 }

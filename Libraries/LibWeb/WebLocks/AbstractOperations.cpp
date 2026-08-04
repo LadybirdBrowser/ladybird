@@ -31,9 +31,10 @@ void queue_web_locks_task(JS::Realm& realm, GC::Ref<GC::Function<void()>> steps)
     }));
 }
 
-void queue_web_locks_task_on_relevant_event_loop(JS::Realm& realm, GC::Ref<WebIDL::CallbackType> callback, GC::Ref<GC::Function<void()>> steps)
+void queue_web_locks_task_on_relevant_event_loop(GC::Ref<WebIDL::CallbackType> callback, GC::Ref<GC::Function<void()>> steps)
 {
-    HTML::queue_global_task(HTML::Task::Source::WebLocks, callback->callback_context->global_object(), GC::create_function(realm.heap(), [callback, steps]() {
+    auto& callback_context = callback->callback_context;
+    HTML::queue_global_task(HTML::Task::Source::WebLocks, callback_context->global_object(), GC::create_function(callback_context->realm().heap(), [callback, steps]() {
         HTML::TemporaryExecutionContext execution_context { callback->callback_context, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
         steps->function()();
     }));
