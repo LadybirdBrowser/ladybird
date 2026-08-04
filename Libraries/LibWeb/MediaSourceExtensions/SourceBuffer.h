@@ -64,6 +64,9 @@ public:
     // https://w3c.github.io/media-source/#dom-sourcebuffer-changetype
     WebIDL::ExceptionOr<void> change_type(Utf16String const& type);
 
+    // https://w3c.github.io/media-source/#dom-sourcebuffer-remove
+    WebIDL::ExceptionOr<void> remove(double start, double end);
+
     void set_reached_end_of_stream(Badge<MediaSource>);
     void clear_reached_end_of_stream(Badge<MediaSource>);
 
@@ -81,6 +84,7 @@ private:
     WebIDL::ExceptionOr<void> prepare_append(size_t new_data_size);
     void run_buffer_append_algorithm(u64 append_generation);
     void abort_buffer_append_algorithm();
+    void run_range_removal(AK::Duration start, AK::Duration end);
     void run_append_error_algorithm();
     void on_first_initialization_segment_processed(InitializationSegmentData const&);
     void update_ready_state_and_duration_after_coded_frame_processing();
@@ -92,6 +96,9 @@ private:
     // NB: The generation of the current buffer-append run — captured by the run when it starts. Bumped by
     //     abort_buffer_append_algorithm(). A run whose captured generation no longer matches does nothing further.
     u64 m_append_generation { 0 };
+
+    // https://w3c.github.io/media-source/#sourcebuffer-range-removal
+    bool m_range_removal_running { false };
 
     // https://w3c.github.io/media-source/#dom-sourcebuffer-audiotracks
     GC::Ref<HTML::AudioTrackList> m_audio_tracks;

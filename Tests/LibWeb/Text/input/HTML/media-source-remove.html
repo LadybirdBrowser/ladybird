@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<video id="video"></video>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        function check(name, condition) {
+            println(`${condition ? "PASS" : "FAIL"}: ${name}`);
+        }
+
+        function fail(name, error) {
+            println(`FAIL: ${name}: ${error}`);
+            done();
+        }
+
+        function topLevelBoxes(bytes) {
+            const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+            const boxes = [];
+            for (let offset = 0; offset + 8 <= bytes.length;) {
+                const size = view.getUint32(offset);
+                boxes.push({ offset, type: String.fromCharCode(...bytes.subarray(offset + 4, offset + 8)) });
+                offset += size;
+            }
+            return boxes;
+        }
+
+        try {
+            const video = document.getElementById("video");
+            const mimeType = 'video/mp4;codecs="av01.0.00M.08,mp4a.40.2"';
+            if (!MediaSource.isTypeSupported(mimeType)) {
+                fail("isTypeSupported", `${mimeType} not supported`);
+                return;
+            }
+
+            const mediaSource = new MediaSource();
+            video.src = URL.createObjectURL(mediaSource);
+
+            // Removing from the "ended" state reopens the media source, so this must not run a second time.
+            mediaSource.addEventListener("sourceopen", async () => {
+                try {
+                    const sourceBuffer = mediaSource.addSourceBuffer(mimeType);
+
+                    const response = await fetch("../../../Assets/av1-aac-fragmented.mp4");
+                    if (!response.ok) {
+                        fail("fetch media", `HTTP ${response.status}`);
+                        return;
+                    }
+                    const data = new Uint8Array(await response.arrayBuffer());
+
+                    const boxes = topLevelBoxes(data);
+                    const mediaEnd = boxes.find(box => box.type === "mfra")?.offset ?? data.length;
+                    const movieFragments = boxes.filter(box => box.type === "moof").map(box => box.offset);
+
+                    function formatRanges() {
+                        const buffered = sourceBuffer.buffered;
+                        const ranges = [];
+                        for (let i = 0; i < buffered.length; i++)
+                            ranges.push(`${buffered.start(i)}-${buffered.end(i)}`);
+                        return `[${ranges.join(", ")}]`;
+                    }
+
+                    function whileUpdating(action) {
+                        return new Promise((resolve, reject) => {
+                            sourceBuffer.addEventListener("updateend", resolve, { once: true });
+                            sourceBuffer.addEventListener("error", () =>
+                                reject(new Error("error event on SourceBuffer")), { once: true });
+                            action();
+                        });
+                    }
+
+                    function exceptionFrom(action) {
+                        try {
+                            action();
+                        } catch (e) {
+                            return e.name;
+                        }
+                        return "no exception";
+                    }
+
+                    await whileUpdating(() => sourceBuffer.appendBuffer(data.subarray(0, movieFragments[0])));
+                    await whileUpdating(() => sourceBuffer.appendBuffer(data.subarray(movieFragments[0], mediaEnd)));
+                    println(`buffered after appending: ${formatRanges()}`);
+
+                    // The initialization segment reports no duration, so give the media source a finite one to
+                    // measure the removal range against.
+                    const duration = 2.5;
+                    mediaSource.duration = duration;
+
+                    println(`remove(-1, 1): ${exceptionFrom(() => sourceBuffer.remove(-1, 1))}`);
+                    println(`remove(duration + 1, duration + 2): ${exceptionFrom(() =>
+                        sourceBuffer.remove(duration + 1, duration + 2))}`);
+                    println(`remove(1, 1): ${exceptionFrom(() => sourceBuffer.remove(1, 1))}`);
+                    println(`remove(1, NaN): ${exceptionFrom(() => sourceBuffer.remove(1, NaN))}`);
+
+                    // The removal runs asynchronously, so it is still in progress on the next line.
+                    const removal = whileUpdating(() => sourceBuffer.remove(0.6, 0.7));
+                    println(`abort() during range removal: ${exceptionFrom(() => sourceBuffer.abort())}`);
+                    println(`remove() during range removal: ${exceptionFrom(() => sourceBuffer.remove(0, 0.1))}`);
+                    await removal;
+
+                    println(`buffered after remove(0.6, 0.7): ${formatRanges()}`);
+                    check("the removal left a hole", sourceBuffer.buffered.length === 2);
+                    // Coded frames are removed by their starting timestamp, so the frame that 0.6 falls within
+                    // outlives the removal.
+                    check("a frame beginning before the removal start was kept", sourceBuffer.buffered.end(0) > 0.6);
+                    // Removal continues past its end through the frames that decode from those in the range.
+                    check("the removal continued to the next random access point", sourceBuffer.buffered.start(1) > 0.7);
+
+                    await new Promise(resolve => {
+                        mediaSource.addEventListener("sourceended", resolve, { once: true });
+                        mediaSource.endOfStream();
+                    });
+                    println(`readyState after endOfStream(): ${mediaSource.readyState}`);
+
+                    const removalFromEnded = whileUpdating(() => sourceBuffer.remove(0, duration));
+                    println(`readyState after remove(): ${mediaSource.readyState}`);
+                    await removalFromEnded;
+                    println(`buffered after remove(0, duration): ${formatRanges()}`);
+
+                    done();
+                } catch (e) {
+                    fail("sourceopen handler", e);
+                }
+            }, { once: true });
+        } catch (e) {
+            fail("setup", e);
+        }
+    });
+</script>

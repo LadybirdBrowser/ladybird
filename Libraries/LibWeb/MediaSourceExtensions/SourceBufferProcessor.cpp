@@ -578,6 +578,69 @@ void SourceBufferProcessor::run_coded_frame_processing(Vector<DemuxedCodedFrame>
     m_coded_frame_processing_done_callback();
 }
 
+// https://w3c.github.io/media-source/#dfn-coded-frame-removal
+void SourceBufferProcessor::run_coded_frame_removal(AK::Duration start, AK::Duration end)
+{
+    // 1. Let start be the starting presentation timestamp for the removal range.
+    // 2. Let end be the end presentation timestamp for the removal range.
+
+    // 3. For each track buffer in this SourceBuffer, run the following steps:
+    for (auto& [track_id, track_buffer] : m_track_buffers) {
+        // 1. Let remove end timestamp be the current value of duration
+        // 2. If this track buffer has a random access point timestamp that is greater than or equal to end, then
+        //    update remove end timestamp to that random access point timestamp.
+        // NB: The removal below runs on to the next random access point, which is where remove end timestamp
+        //     would land.
+
+        // 3. Remove all media data, from this track buffer, that contain starting timestamps greater than or
+        //    equal to start and less than the remove end timestamp.
+        auto removed_frame_presentation_timestamp = track_buffer->demuxer().remove_coded_frames_and_dependants_in_range_returning_presentation_timestamp_at(start, end, track_buffer->last_decode_timestamp());
+
+        //     1. For each removed frame, if the frame has a decode timestamp equal to the last decode timestamp
+        //        for the frame's track, run the following steps:
+        if (removed_frame_presentation_timestamp.has_value()) {
+            // -> If mode equals "segments":
+            if (m_mode == AppendMode::Segments) {
+                //    Set [[group end timestamp]] to presentation timestamp.
+                m_group_end_timestamp = removed_frame_presentation_timestamp.value();
+            }
+            // -> If mode equals "sequence":
+            else if (m_mode == AppendMode::Sequence) {
+                //    Set [[group start timestamp]] equal to the [[group end timestamp]].
+                m_group_start_timestamp = m_group_end_timestamp;
+            }
+
+            // AD-HOC: The spec doesn't nest the steps below under step 1's if statement, but clearing the last
+            //         decode timestamp upon every removal here would potentially force a RAP unexpectedly.
+            //         https://github.com/w3c/media-source/issues/290
+
+            // 2. Unset the last decode timestamp on all track buffers.
+            // 3. Unset the last frame duration on all track buffers.
+            // 4. Unset the highest end timestamp on all track buffers.
+            unset_all_track_buffer_timestamps();
+            // 5. Set the need random access point flag on all track buffers to true.
+            set_need_random_access_point_flag_on_all_track_buffers(true);
+        }
+
+        // 4. Remove all possible decoding dependencies on the coded frames removed in the previous step by
+        //    removing all coded frames from this track buffer between those frames removed in the previous step
+        //    and the next random access point after those removed frames.
+        // NB: This is taken care of by the TrackBufferDemuxer above.
+
+        // 5. If this object is in activeSourceBuffers, the current playback position is greater than or equal to
+        //    start and less than the remove end timestamp, and HTMLMediaElement's readyState is greater than
+        //    HAVE_METADATA, then set the HTMLMediaElement's readyState attribute to HAVE_METADATA and stall
+        //    playback.
+        // NB: SourceBuffer invokes the unified readyState update method on HTMLMediaElement once this algorithm
+        //     has removed frames from every track buffer.
+    }
+
+    // 4. If the [[buffer full flag]] equals true and this object is ready to accept more bytes, then set the
+    //    [[buffer full flag]] to false.
+    if (total_buffered_bytes() < capacity_in_bytes())
+        m_buffer_full_flag = false;
+}
+
 // https://w3c.github.io/media-source/#sourcebuffer-coded-frame-eviction
 void SourceBufferProcessor::run_coded_frame_eviction(size_t new_data_size, AK::Duration current_time)
 {

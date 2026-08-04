@@ -86,6 +86,7 @@ public:
 
     void run_segment_parser_loop();
     void reset_parser_state();
+    void run_coded_frame_removal(AK::Duration start, AK::Duration end);
     void run_coded_frame_eviction(size_t new_data_size, AK::Duration current_time);
 
     void set_reached_end_of_stream();
