@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-position/#relpos-inlines">
+<link rel="match" href="../../../../expected/wpt-import/css/css-position/../reference/ref-filled-green-100px-square-only.html">
+<meta name="assert" content="Absolutely positioned child of a position:relative inline box nested inside empty spans should not be offset by the nesting depth.">
+<p>Test passes if there is a filled green square.</p>
+<style>
+.parent {
+  position: relative;
+}
+.inline-content {
+  display: inline-block;
+  top: 0;
+  left: 0;
+  width: 100px;
+  height: 100px;
+  position: absolute;
+  background-color: green;
+}
+</style>
+<div>
+  <span>
+    <span>
+      <span>
+        <span>
+          <span>
+            <span>
+              <span>
+                <span class=parent>
+                  <div class=inline-content></div>
+                </span>
+              </span>
+            </span>
+          </span>
+        </span>
+      </span>
+    </span>
+  </span>
+</div>

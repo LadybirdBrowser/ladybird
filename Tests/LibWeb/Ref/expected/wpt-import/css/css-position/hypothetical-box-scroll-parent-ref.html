@@ -1,0 +1,12 @@
+<!doctype html>
+<meta charset=utf-8>
+<!-- Our target div should be placed as if it were a child of the overflowing --
+  -- thing; this is simplest to accomplish by just having the overflowing thing --
+  -- absolutely positioned so the target div is placed as if it were not there -->
+<div style="overflow: auto; height: 100px; width: 200px; position: absolute">
+  <div style="width: 400px; height: 10px"></div>
+</div>
+<div id="target">Modified text</div>
+<script>
+  document.querySelector("div").scrollLeft = 1000;
+</script>

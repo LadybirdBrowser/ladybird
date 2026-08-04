@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<title>CSS Positioned Reference: Test the nested inline containing block rectangle for a fragmented inline element in multicol and vertical writing mode</title>
+<link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+<link rel="author" title="Mozilla" href="https://www.mozilla.org/">
+<link rel="stylesheet" href="../../../../data/fonts/ahem.css">
+
+<style>
+:root {
+  writing-mode: vertical-rl;
+}
+.container {
+  font: 20px/1 Ahem;
+  border: 5px solid gold;
+  inline-size: 16em;
+  block-size: 3em;
+  columns: 2;
+  column-fill: auto;
+  column-gap: 0;
+  margin-block-end: 1em;
+}
+.container.rtl {
+  direction: rtl;
+}
+.cb-rect {
+  color: green;
+}
+</style>
+
+<div class="container">
+  XX XXXX<br>
+  XX<span class="cb-rect">XXX</span>XXX<br>
+  XX<span class="cb-rect">XXX</span><br>
+  XX<span class="cb-rect">XXX</span>XXX<br>
+  XX<span class="cb-rect">XXX</span><br>
+  XXXXX
+</div>
+
+<div class="container rtl">
+  XX XXXX<br>
+  XXX<span class="cb-rect">XXXXX</span><br>
+  <span class="cb-rect">XXXXX</span><br>
+  XXX<span class="cb-rect">XXXXX</span><br>
+  <span class="cb-rect">XXXXX</span><br>
+  XXXXX
+</div>

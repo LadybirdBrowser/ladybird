@@ -1,0 +1,15 @@
+<!doctype html>
+<meta charset=utf-8>
+<title></title>
+<link rel=match href=../../../../expected/wpt-import/css/css-position/hypothetical-box-scroll-viewport-ref.html>
+<link rel="help"
+      href="https://www.w3.org/TR/CSS2/visudet.html#abs-non-replaced-width">
+<div style="position: absolute">Original text</div>
+<div style="width: 200vw; height: 10px"></div>
+<script>
+  // Scroll the viewport.
+  window.scrollTo(window.innerWidth * 2, 0);
+
+  // Now force relayout of the abs pos div.
+  document.querySelector("div").textContent = "Modified text";
+</script>

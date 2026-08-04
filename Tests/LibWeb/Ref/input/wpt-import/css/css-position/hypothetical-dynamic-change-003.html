@@ -1,0 +1,34 @@
+<!doctype html>
+<title>CSS test: movement of relative-position ancestor correctly moves fixed-position descendant depending on the static position</title>
+<link rel="help" href="https://drafts.csswg.org/css-position/#size-and-position-details">
+<link rel="match" href="../../../../expected/wpt-import/css/css-position/hypothetical-dynamic-change-001-ref.html">
+<link rel="author" href="mailto:emilio@crisal.io" title="Emilio Cobos Álvarez">
+<link rel="author" href="https://mozilla.org" title="Mozilla">
+<style>
+  body { margin: 0 }
+  .ancestor, .child {
+    width: 100px;
+    height: 100px;
+    background-color: green;
+  }
+  .child {
+    position: fixed;
+    /* NOTE: child remains auto-positioned */
+  }
+  .ancestor {
+    position: relative;
+    left: 0;
+    top: 0;
+    background-color: red;
+  }
+</style>
+<div class="ancestor">
+  <div class="child"></div>
+</div>
+<script>
+onload = function() {
+  let ancestor = document.querySelector(".ancestor");
+  window.unused = ancestor.getBoundingClientRect();
+  ancestor.style.left = "100px";
+}
+</script>
