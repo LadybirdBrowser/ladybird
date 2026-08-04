@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<!-- Submitted from TestTWF Paris -->
+<head>
+  <title>CSS Transforms Test: 3d transform polygon cycle</title>
+  <link rel="author" title="Leo Ziegler" href="mailto:leo.ziegler@gmail.com">
+  <link rel="help" href="http://www.w3.org/TR/css-transforms-2/#3d-transform-rendering">
+  <!-- See also: http://http://en.wikipedia.org/wiki/Newell's_algorithm -->
+  <link rel="match" href="../../../../expected/wpt-import/css/css-transforms/reference/ttwf-css-3d-polygon-cycle-ref.html">
+  <meta name="fuzzy" content="maxDifference=0-113;totalPixels=0-674">
+  <meta name="flags" content="svg">
+  <meta name="assert"
+    content="The red, green and blue rectangles are forming a cycle, which should be detected and rendered using Newell Algorithm's.">
+  <style type="text/css">
+    #container {
+      position: absolute;
+      top: 100px;
+      left: 100px;
+      transform-style: preserve-3d;
+    }
+    .rect {
+      position: absolute;
+    }
+    #red {
+      background-color: red;
+      width: 200px;
+      height: 50px;
+      transform: rotateY(20deg);
+    }
+    #green {
+      background-color: green;
+      width: 50px;
+      height: 200px;
+      transform: rotateX(20deg);
+    }
+    #blue {
+      background-color: blue;
+      width: 50px;
+      height: 200px;
+      transform: rotate(45deg) translate(50px, -50px) rotateX(-20deg);
+    }
+  </style>
+</head>
+<body>
+  <p>The test passes if there red is over green, green is over blue and blue is over red.</p>
+  <div id="container">
+    <div class="rect" id="red"></div>
+    <div class="rect" id="green"></div>
+    <div class="rect" id="blue"></div>
+  </div>
+</body>
+</html>

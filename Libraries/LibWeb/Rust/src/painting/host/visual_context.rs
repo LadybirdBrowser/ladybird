@@ -113,6 +113,8 @@ pub struct FfiVisualContextNodeExport {
     pub origin: [f32; 2],
     pub flattens_inherited_transform: bool,
     pub transform_role: u8,
+    pub has_sorting_context_root: bool,
+    pub synthetic_plane: bool,
     pub rect: [i32; 4],
     pub corner_radii: [i32; 8],
     pub opacity: f32,

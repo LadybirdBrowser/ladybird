@@ -327,8 +327,10 @@ impl PaintRecorder<'_> {
         let root_transform = TransformData {
             matrix: affine_to_matrix(recorded_to_surface),
             origin: FloatPoint::default(),
+            sorting_context_root_index: None,
             flattens_inherited_transform: false,
             role: TransformDataRole::CssTransform,
+            synthetic_plane: false,
         };
         self.record_nested_svg_display_list(paintable, root_transform, true, is_clip_path)
     }
@@ -351,8 +353,10 @@ impl PaintRecorder<'_> {
         let tree = crate::painting::visual_context::VisualContextTree::create(TransformData {
             matrix: libgfx_rust::FloatMatrix4x4::identity(),
             origin: FloatPoint::default(),
+            sorting_context_root_index: None,
             flattens_inherited_transform: false,
             role: TransformDataRole::CssTransform,
+            synthetic_plane: false,
         });
         let mut session = self.nested_recording_session(DisplayListRecorder::new(vec![false]), None, Some(tree), false);
         // FIXME: Respect `image-rendering` here.

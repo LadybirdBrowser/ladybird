@@ -7,6 +7,8 @@
 #pragma once
 
 #include <AK/DistinctNumeric.h>
+#include <AK/HashMap.h>
+#include <AK/NumericLimits.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
@@ -63,8 +65,10 @@ enum class TransformDataRole : u8 {
 struct TransformData {
     Gfx::FloatMatrix4x4 matrix;
     Gfx::FloatPoint origin;
+    Optional<VisualContextIndex> sorting_context_root_index {};
     bool flattens_inherited_transform { false };
     TransformDataRole role { TransformDataRole::CssTransform };
+    bool synthetic_plane { false };
 
     Gfx::FloatMatrix4x4 matrix_including_origin() const;
 };
@@ -131,6 +135,23 @@ struct AccumulatedVisualContextNode {
     bool has_empty_effective_clip { false };
 };
 
+// Marks a visual context node whose content belongs to no 3D rendering context.
+static constexpr VisualContextIndex NO_SORTING_CONTEXT { NumericLimits<size_t>::max() };
+
+// The plane and 3D rendering context that an established context's own plane renders into.
+struct SortingContextLink {
+    VisualContextIndex parent_context;
+    VisualContextIndex parent_leaf;
+};
+
+// Per-node 3D rendering context membership: the plane each node's content renders into and the context that
+// sorts that plane. A tree without 3D rendering contexts resolves to empty per-node vectors.
+struct SortingContexts {
+    HashMap<size_t, SortingContextLink> links;
+    Vector<VisualContextIndex> leaf_by_node;
+    Vector<VisualContextIndex> context_by_node;
+};
+
 class AccumulatedVisualContextTree {
 public:
     enum class IncludeVisualViewportTransform {
@@ -171,6 +192,7 @@ public:
     ReadonlySpan<AccumulatedVisualContextNode> nodes() const { return m_nodes.span(); }
     bool root_is_visual_viewport() const { return m_root_is_visual_viewport; }
 
+    SortingContexts resolve_sorting_contexts() const;
     Optional<Gfx::FloatPoint> transform_point_for_hit_test(VisualContextIndex, Gfx::FloatPoint, ScrollStateSnapshot const&, ClipBehavior = ClipBehavior::Respect) const;
     Gfx::FloatPoint inverse_transform_point(VisualContextIndex, Gfx::FloatPoint) const;
     Gfx::FloatRect transform_rect_to_viewport(VisualContextIndex, Gfx::FloatRect const&, ScrollStateSnapshot const&, IncludeVisualViewportTransform = IncludeVisualViewportTransform::Yes) const;

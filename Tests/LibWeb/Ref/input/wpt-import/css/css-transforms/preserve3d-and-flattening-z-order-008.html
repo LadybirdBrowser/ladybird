@@ -1,0 +1,56 @@
+<!DOCTYPE HTML>
+<meta charset="utf-8">
+<title>CSS Test (Transforms): Flattening at the leafward edges of a preserve-3d scene</title>
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1255544">
+<link rel="author" title="L. David Baron" href="https://dbaron.org/">
+<link rel="author" title="Google" href="http://www.google.com/">
+<link rel="help" href="http://www.w3.org/TR/css-transforms-2/#3d-transform-rendering">
+<meta name="assert" content="Elements are drawn in the correct z-order.">
+<meta name="fuzzy" content="maxDifference=1; totalPixels=0-3244">
+<link rel="match" href="../../../../expected/wpt-import/css/css-transforms/reference/green.html">
+
+<style>
+div, span {
+  height: 100px;
+  width: 100px;
+  background: red;
+}
+span {
+  display: inline-block;
+  vertical-align: bottom;
+}
+.outer, .sibling {
+  transform-style: preserve-3d;
+}
+.sibling {
+  margin-top: -100px;
+  transform: translateZ(-10px);
+}
+
+.flattener:first-child {
+  background: linear-gradient(to bottom, green 0%, green 25%, red 25%, red 100%);
+}
+.flattener:first-child > .child {
+  background: linear-gradient(to bottom, green 0%, green 50%, red 50%, red 100%);
+  margin-top: 50px;
+  height: 50px;
+}
+.flattener:last-child {
+  background: linear-gradient(to bottom, green 0px, green 25px, red 25px, red 75px);
+  margin-top: -75px;
+  height: 75px;
+}
+.flattener:last-child > .child {
+  background: green;
+  margin-top: 50px;
+  height: 25px;
+}
+</style>
+
+<p>Pass if there is NO red below:</p>
+
+<div class="outer">
+  <div class="flattener"><span class="child"></span></div>
+  <div class="sibling"></div>
+  <div class="flattener"><span class="child"></span></div>
+</div>

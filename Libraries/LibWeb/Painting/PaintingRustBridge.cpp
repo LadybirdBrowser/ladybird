@@ -276,8 +276,10 @@ static TransformData transform_data_from_export(Layout::RustFFI::FfiVisualContex
     return TransformData {
         .matrix = matrix_from_export(node.matrix),
         .origin = { node.origin[0], node.origin[1] },
+        .sorting_context_root_index = node.has_sorting_context_root ? Optional<VisualContextIndex> { VisualContextIndex { node.index_value } } : OptionalNone {},
         .flattens_inherited_transform = node.flattens_inherited_transform,
         .role = static_cast<TransformDataRole>(node.transform_role),
+        .synthetic_plane = node.synthetic_plane,
     };
 }
 

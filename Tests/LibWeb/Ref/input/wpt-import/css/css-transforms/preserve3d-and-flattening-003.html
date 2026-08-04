@@ -1,0 +1,47 @@
+<!DOCTYPE HTML>
+<meta charset="utf-8">
+<title>CSS Test (Transforms): Flattening at the leafward edges of a preserve-3d scene</title>
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1255544">
+<link rel="author" title="L. David Baron" href="https://dbaron.org/">
+<link rel="author" title="Google" href="http://www.google.com/">
+<link rel="help" href="http://www.w3.org/TR/css-transforms-2/#3d-transform-rendering">
+<meta name="assert" content="The element is rendered at the correct position.">
+<link rel="match" href="../../../../expected/wpt-import/css/css-transforms/preserve3d-and-flattening-002-ref.html">
+
+<style>
+body {
+  margin: 0;
+}
+div {
+  position: absolute;
+  height: 100px;
+  width: 100px;
+  top: 0;
+  left: 0;
+}
+.outer, .sibling {
+  transform-style: preserve-3d;
+}
+.outer {
+  background: gray;
+}
+.flattener {
+  background: fuchsia;
+  transform: translateX(0);
+}
+.sibling {
+  background: blue;
+  transform: translate3d(25px, 50px, -20px);
+}
+.child {
+  background: silver;
+  transform: translate3d(50px, 0, 10px);
+}
+</style>
+
+<div class="outer">
+  <div class="flattener">
+    <div class="child"></div>
+  </div>
+  <div class="sibling"></div>
+</div>

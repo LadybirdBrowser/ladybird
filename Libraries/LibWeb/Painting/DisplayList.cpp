@@ -8,8 +8,10 @@
 #include <AK/NumericLimits.h>
 #include <AK/TemporaryChange.h>
 #include <LibGfx/PaintingSurface.h>
+#include <LibGfx/Path.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
+#include <LibWeb/Painting/DepthSortedReplayPlan.h>
 #include <LibWeb/Painting/DisplayList.h>
 
 namespace Web::Painting {
@@ -159,6 +161,7 @@ void DisplayListPlayer::execute_impl(
     backface_culled.clear_with_capacity();
     backface_culled.ensure_capacity(nodes.size());
     auto const replay_base_matrix = canvas_matrix();
+    bool tree_has_sorting_contexts = false;
     for (size_t i = 0; i < nodes.size(); ++i) {
         auto const& node = nodes[i];
         auto append_spatial = [&](Gfx::FloatMatrix4x4 const& local_matrix, bool flattens_inherited_transform = false) {
@@ -181,6 +184,7 @@ void DisplayListPlayer::execute_impl(
         };
         node.data.visit(
             [&](TransformData const& transform) {
+                tree_has_sorting_contexts |= transform.sorting_context_root_index.has_value();
                 append_spatial(transform.matrix_including_origin(), transform.flattens_inherited_transform);
             },
             [&](PerspectiveData const& perspective) {
@@ -249,6 +253,7 @@ void DisplayListPlayer::execute_impl(
 
     size_t applied_mask_frame_count = 0;
     auto restore_to_length = [&](size_t length) {
+        applied_context_index = {};
         while (applied_frames.size() > length) {
             auto frame_node_index = applied_frames.take_last();
             auto const* mask = applied_mask_frame_count > 0
@@ -319,7 +324,6 @@ void DisplayListPlayer::execute_impl(
                     // The canvas is unwound to the shared prefix; clearing the applied index
                     // keeps the fast path from reusing the pre-cull context while the frame
                     // vector still enables prefix reuse on the next switch.
-                    applied_context_index = {};
                     return SwitchResult::CulledByEffect;
                 }
             }
@@ -350,7 +354,7 @@ void DisplayListPlayer::execute_impl(
                         }
                     },
                     [&](ClipPathData const& clip_path) {
-                        add_clip_path(clip_path.path, clip_path.fill_rule);
+                        add_clip_path(clip_path.path, clip_path.fill_rule, true);
                     },
                     [&](MaskData const& mask) {
                         play_command(AddClipRect { .rect = mask.rect.to_type<int>().to_type<float>() });
@@ -367,7 +371,7 @@ void DisplayListPlayer::execute_impl(
         return SwitchResult::Switched;
     };
 
-    DisplayList::for_each_command_header(commands, [&](DisplayListCommandHeader const& header, ReadonlyBytes payload) {
+    auto execute_command = [&](DisplayListCommandHeader const& header, ReadonlyBytes payload) {
         if (display_list_command_is_compositor_metadata(header.command_type))
             return;
 
@@ -418,7 +422,35 @@ void DisplayListPlayer::execute_impl(
             ENUMERATE_DISPLAY_LIST_COMMANDS(DISPATCH_DISPLAY_LIST_COMMAND)
 #undef DISPATCH_DISPLAY_LIST_COMMAND
         }
-    });
+    };
+
+    if (!tree_has_sorting_contexts) {
+        DisplayList::for_each_command_header(commands, execute_command);
+    } else {
+        for (auto const& step : build_depth_sorted_replay_plan(commands, visual_context_tree, transform_palette, nearest_spatial_node, backface_culled)) {
+            step.visit(
+                [&](DisplayListCommandRange const& range) {
+                    DisplayList::for_each_command_header(commands.slice(range.offset, range.size), execute_command);
+                },
+                [&](PushPlaneClip const& clip) {
+                    restore_to_length(0);
+                    play_command(Save {});
+                    set_matrix(Gfx::FloatMatrix4x4::identity());
+                    current_ctm_space = {};
+                    Gfx::Path path;
+                    path.move_to({ clip.vertices[0].x(), clip.vertices[0].y() });
+                    for (size_t i = 1; i < clip.vertices.size(); ++i)
+                        path.line_to({ clip.vertices[i].x(), clip.vertices[i].y() });
+                    path.close();
+                    add_clip_path(path, Gfx::WindingRule::Nonzero, false);
+                },
+                [&](PopPlaneClip const&) {
+                    restore_to_length(0);
+                    play_command(Restore {});
+                    current_ctm_space = {};
+                });
+        }
+    }
 
     restore_to_length(0);
     // Node spaces were entered by setting the canvas matrix absolutely, outside any save, so the

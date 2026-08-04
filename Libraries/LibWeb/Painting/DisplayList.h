@@ -70,7 +70,7 @@ private:
     virtual Gfx::FloatMatrix4x4 canvas_matrix() const = 0;
     virtual bool would_be_fully_clipped_by_painter(Gfx::IntRect) const = 0;
 
-    virtual void add_clip_path(Gfx::Path const&, Gfx::WindingRule) = 0;
+    virtual void add_clip_path(Gfx::Path const&, Gfx::WindingRule, bool anti_aliased) = 0;
 
     DisplayList const* m_active_display_list { nullptr };
     AccumulatedVisualContextTree const* m_active_visual_context_tree { nullptr };

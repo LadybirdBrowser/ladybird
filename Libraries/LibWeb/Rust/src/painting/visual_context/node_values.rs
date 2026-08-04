@@ -39,8 +39,10 @@ pub(crate) fn visual_viewport_transform_data(inputs: &FfiVisualContextTreeInputs
             inputs.device_pixels_per_css_pixel as f32,
         ),
         origin: FloatPoint::default(),
+        sorting_context_root_index: None,
         flattens_inherited_transform: false,
         role: TransformDataRole::CssTransform,
+        synthetic_plane: false,
     }
 }
 
@@ -191,8 +193,10 @@ pub(crate) fn compute_transform(
         TransformData {
             matrix,
             origin: device_origin,
+            sorting_context_root_index: None,
             flattens_inherited_transform: false,
             role: TransformDataRole::CssTransform,
+            synthetic_plane: false,
         },
         is_invertible,
     ))

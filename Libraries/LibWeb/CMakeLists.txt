@@ -865,6 +865,7 @@ set(SOURCES
     Painting/CanvasPaintable.cpp
     Painting/CheckBoxPaintable.cpp
     Painting/ChromeWidget.cpp
+    Painting/DepthSortedReplayPlan.cpp
     Painting/DisplayList.cpp
     Painting/DisplayListCommand.cpp
     Painting/DisplayListDamage.cpp

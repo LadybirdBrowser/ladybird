@@ -274,8 +274,10 @@ fn record_pattern_paint_style(recorder: &mut PaintRecorder<'_>, style: &FfiSvgPa
     let root_transform = crate::painting::visual_context::TransformData {
         matrix: libgfx_rust::FloatMatrix4x4 { elements },
         origin: libgfx_rust::FloatPoint::default(),
+        sorting_context_root_index: None,
         flattens_inherited_transform: false,
         role: crate::painting::visual_context::TransformDataRole::CssTransform,
+        synthetic_plane: false,
     };
     // Pattern tiles exclude the root's own transform: patternTransform reaches the replay-side tile
     // shader instead, so the tiling grid repeats under it rather than the content scaling twice.

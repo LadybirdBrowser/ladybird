@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/scrollbar-on-3d-rendering-context-plane-ref.html" />
+<style>
+    #scene {
+        transform-style: preserve-3d;
+    }
+
+    #scroller {
+        width: 100px;
+        height: 100px;
+        overflow-y: scroll;
+        transform: translateZ(10px);
+    }
+</style>
+<div id="scene">
+    <div id="scroller">
+        <div style="height: 300px"></div>
+    </div>
+</div>

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Test (Transforms): Sorting With Intersection</title>
+    <link rel="author" title="Aryeh Gregor" href="mailto:ayg@aryeh.name">
+    <link rel="help" href="http://www.w3.org/TR/css-transforms-2/#transform-style-property">
+    <link rel="help" href="http://www.w3.org/TR/css-transforms-2/#3d-transform-rendering">
+    <meta name="assert" content="This tests that when two boxes intersect in a
+    simple fashion, they're rendered according to Newell's algorithm.">
+    <link rel="match" href="../../../../expected/wpt-import/css/css-transforms/transform3d-sorting-006-ref.html">
+    <meta name=fuzzy content="0-179;0-920">
+  </head>
+  <body>
+    <div style="transform-style: preserve-3d">
+      <div style="height: 100px; width: 100px; background: red;
+        transform: rotateX(-45deg) rotateY(-45deg)"></div>
+      <div style="height: 100px; width: 100px; background: green;
+        transform: translateY(-100px) rotateX(-45deg) rotateY(45deg)"></div>
+    </div>
+  </body>
+</html>
