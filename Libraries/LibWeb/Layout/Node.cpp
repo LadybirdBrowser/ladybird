@@ -664,6 +664,7 @@ NodeWithStyle::NodeWithStyle(DOM::Document& document, DOM::Node* node, NonnullRe
 {
     set_flag(RustFFI::NodeFlag::HasStyle, true);
     set_flag(RustFFI::NodeFlag::IsBody, node && node == document.body());
+    set_flag(RustFFI::NodeFlag::HasAnchorNames, !m_computed_values->anchor_names().is_empty());
     publish_style_container_to_node_data();
     synchronize_table_span_data();
 }
@@ -986,6 +987,7 @@ void NodeWithStyle::set_computed_values(NonnullRefPtr<CSS::ComputedValues const>
 {
     VERIFY(!layout_pass_currently_running());
     m_computed_values = move(computed_values);
+    set_flag(RustFFI::NodeFlag::HasAnchorNames, !m_computed_values->anchor_names().is_empty());
     publish_style_container_to_node_data();
 
     for (auto* child = first_child_ptr(); child; child = child->next_sibling_ptr()) {

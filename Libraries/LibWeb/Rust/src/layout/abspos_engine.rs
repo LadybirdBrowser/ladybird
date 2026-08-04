@@ -275,14 +275,11 @@ struct AnchorCalcCallbackContext<'pass> {
 
 impl AbsposEngine<'_> {
     fn anchor_lookup(&self, positioned_box: Node, anchor_name: usize) -> Option<Node> {
-        let eligible_anchor_boxes = self.state.used_value_nodes();
-        let eligible_anchor_shells = eligible_anchor_boxes
-            .iter()
-            .map(|&node| self.callbacks.shell(node))
-            .collect::<Vec<_>>();
+        let eligible_anchor_shells = self.state.anchor_candidate_shells();
         // SAFETY: The name handle is retained by either the style snapshot or
-        // the live anchor() shell. The eligible-node slice is borrowed only
-        // for this synchronous lookup.
+        // the live anchor() shell. The registry borrow is held only for this
+        // synchronous lookup, and the callback never re-enters layout code
+        // that could register another candidate.
         let anchor_box = unsafe {
             (self.callbacks.anchor_lookup)(
                 self.callbacks.context,
