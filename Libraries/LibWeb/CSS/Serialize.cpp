@@ -447,10 +447,9 @@ static bool needs_comment_between(Parser::ComponentValue const& first, Parser::C
 }
 
 // https://drafts.csswg.org/css-syntax/#serialization
-Utf16String serialize_a_series_of_component_values(ReadonlySpan<Parser::ComponentValue> component_values)
+void serialize_a_series_of_component_values(Utf16StringBuilder& builder, ReadonlySpan<Parser::ComponentValue> component_values)
 {
     Parser::TokenStream tokens { component_values };
-    Utf16StringBuilder builder;
 
     while (tokens.has_next_token()) {
         auto const& current_token = tokens.consume_a_token();
@@ -459,7 +458,12 @@ Utf16String serialize_a_series_of_component_values(ReadonlySpan<Parser::Componen
         if (needs_comment_between(current_token, next_token))
             builder.append_ascii("/**/"sv);
     }
+}
 
+Utf16String serialize_a_series_of_component_values(ReadonlySpan<Parser::ComponentValue> component_values)
+{
+    Utf16StringBuilder builder;
+    serialize_a_series_of_component_values(builder, component_values);
     return builder.to_string();
 }
 
