@@ -19,7 +19,7 @@ namespace Web::SVG {
 class SVGUseElement final
     : public SVGGraphicsElement
     , public SVGURIReferenceMixin<SupportsXLinkHref::Yes> {
-    WEB_PLATFORM_OBJECT(SVGUseElement, SVGGraphicsElement);
+    WEB_WRAPPABLE(SVGUseElement, SVGGraphicsElement);
     GC_DECLARE_ALLOCATOR(SVGUseElement);
 
 public:
@@ -56,7 +56,7 @@ public:
 private:
     SVGUseElement(DOM::Document&, DOM::QualifiedName);
 
-    virtual void initialize(JS::Realm&) override;
+    virtual void initialize_element() override;
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void finalize() override;
     virtual void adopted_from(DOM::Document&) override;

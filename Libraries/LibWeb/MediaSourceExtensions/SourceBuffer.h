@@ -8,21 +8,26 @@
 #pragma once
 
 #include <AK/NonnullRefPtr.h>
+#include <AK/Types.h>
 #include <LibWeb/Bindings/SourceBuffer.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/WebIDL/Buffers.h>
 
 namespace Web::MediaSourceExtensions {
 
+using AppendMode = Bindings::AppendMode;
+
 class SourceBufferProcessor;
 struct InitializationSegmentData;
 
 // https://w3c.github.io/media-source/#dom-sourcebuffer
 class SourceBuffer : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(SourceBuffer, DOM::EventTarget);
+    WEB_WRAPPABLE(SourceBuffer, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(SourceBuffer);
 
 public:
+    static GC::Ref<SourceBuffer> create(MediaSource&, GC::Ref<HTML::AudioTrackList>, GC::Ref<HTML::VideoTrackList>, GC::Ref<HTML::TextTrackList>);
+
     void set_onupdatestart(GC::Ptr<WebIDL::CallbackType>);
     GC::Ptr<WebIDL::CallbackType> onupdatestart();
 
@@ -39,19 +44,19 @@ public:
     GC::Ptr<WebIDL::CallbackType> onabort();
 
     // https://w3c.github.io/media-source/#dom-sourcebuffer-mode
-    Bindings::AppendMode mode() const;
-    WebIDL::ExceptionOr<void> set_mode(Bindings::AppendMode);
+    AppendMode mode() const;
+    WebIDL::ExceptionOr<void> set_mode(AppendMode);
 
     // https://w3c.github.io/media-source/#dom-sourcebuffer-updating
     bool updating() const;
 
     // https://w3c.github.io/media-source/#dom-sourcebuffer-buffered
-    WebIDL::ExceptionOr<GC::Ref<HTML::TimeRanges>> buffered();
+    GC::Ref<HTML::TimeRanges> buffered();
 
     void set_content_type(Utf16View type);
 
     // https://w3c.github.io/media-source/#addsourcebuffer-method
-    WebIDL::ExceptionOr<void> append_buffer(WebIDL::BufferSource);
+    WebIDL::ExceptionOr<void> append_buffer(WebIDL::BufferSourceVariant const&);
 
     // https://w3c.github.io/media-source/#dom-sourcebuffer-abort
     WebIDL::ExceptionOr<void> abort();
@@ -65,14 +70,14 @@ public:
     void abort_if_updating(Badge<MediaSource>);
 
 protected:
-    SourceBuffer(JS::Realm&, MediaSource&);
+    SourceBuffer(MediaSource&, GC::Ref<HTML::AudioTrackList>, GC::Ref<HTML::VideoTrackList>, GC::Ref<HTML::TextTrackList>);
 
     virtual ~SourceBuffer() override;
-
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:
+    virtual GC::Ptr<Bindings::Wrappable> relevant_global_impl() const override;
+
     WebIDL::ExceptionOr<void> prepare_append(size_t new_data_size);
     void run_buffer_append_algorithm(u64 append_generation);
     void abort_buffer_append_algorithm();

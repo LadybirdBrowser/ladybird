@@ -6,27 +6,30 @@
 
 #pragma once
 
-#include <AK/Utf16String.h>
+#include <LibJS/Forward.h>
+#include <LibJS/Runtime/Value.h>
 #include <LibURL/URL.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/HTML/StructuredSerializeTypes.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#navigationdestination
-class NavigationDestination : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(NavigationDestination, Bindings::PlatformObject);
+class NavigationDestination : public Bindings::GCAllocatedWrappable {
+    WEB_WRAPPABLE(NavigationDestination, Bindings::GCAllocatedWrappable);
     GC_DECLARE_ALLOCATOR(NavigationDestination);
 
 public:
-    [[nodiscard]] static GC::Ref<NavigationDestination> create(JS::Realm&);
+    [[nodiscard]] static GC::Ref<NavigationDestination> create();
 
     Utf16String url() const;
     Utf16String key() const;
     Utf16String id() const;
     i64 index() const;
     bool same_document() const;
-    WebIDL::ExceptionOr<JS::Value> get_state();
+    StorageSerializationRecord const& state() const { return m_state; }
+    WebIDL::ExceptionOr<JS::Value> get_state(JS::Realm&);
 
     // Non-spec'd getter, not exposed to JS
     GC::Ptr<NavigationHistoryEntry> navigation_history_entry() const { return m_entry; }
@@ -42,10 +45,9 @@ public:
     URL::URL const& raw_url() const { return m_url; }
 
 private:
-    NavigationDestination(JS::Realm&);
+    NavigationDestination();
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(JS::Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#concept-navigationdestination-url
     URL::URL m_url;

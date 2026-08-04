@@ -7,12 +7,13 @@
 #include "SVGImageElement.h"
 #include <LibGC/Heap.h>
 #include <LibGfx/DecodedImageFrame.h>
-#include <LibWeb/Bindings/SVGImageElement.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentObserver.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/PotentialCORSRequest.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/SharedResourceRequest.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Layout/SVGImageBox.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Painting/Paintable.h>
@@ -33,12 +34,6 @@ void SVGImageElement::finalize()
 {
     Base::finalize();
     unregister_with_decoded_image_data_if_needed();
-}
-
-void SVGImageElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGImageElement);
-    Base::initialize(realm);
 }
 
 void SVGImageElement::visit_edges(Cell::Visitor& visitor)
@@ -135,7 +130,7 @@ void SVGImageElement::fetch_the_document(URL::URL const& url)
 {
     m_load_event_delayer.emplace(document());
     unregister_with_decoded_image_data_if_needed();
-    m_resource_request = HTML::SharedResourceRequest::get_or_create(realm(), document().page(), url);
+    m_resource_request = HTML::SharedResourceRequest::get_or_create(document(), url);
     m_resource_request->add_callbacks(
         [this, resource_request = GC::Root { m_resource_request }] {
             m_load_event_delayer.clear();
@@ -143,18 +138,20 @@ void SVGImageElement::fetch_the_document(URL::URL const& url)
             set_needs_style_update(true);
             set_needs_layout_update(DOM::SetNeedsLayoutReason::SVGImageElementFetchTheDocument);
 
-            dispatch_event(DOM::Event::create(realm(), HTML::EventNames::load));
+            dispatch_event(DOM::Event::create(HTML::EventNames::load,
+                HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*this))));
         },
         [this] {
             m_load_event_delayer.clear();
 
-            dispatch_event(DOM::Event::create(realm(), HTML::EventNames::error));
+            dispatch_event(DOM::Event::create(HTML::EventNames::error,
+                HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*this))));
         });
 
     if (m_resource_request->needs_fetching()) {
-        auto request = HTML::create_potential_CORS_request(vm(), url, Fetch::Infrastructure::Request::Destination::Image, HTML::CORSSettingAttribute::NoCORS);
+        auto request = HTML::create_potential_CORS_request(url, Fetch::Infrastructure::Request::Destination::Image, HTML::CORSSettingAttribute::NoCORS);
         request->set_client(&document().relevant_settings_object());
-        m_resource_request->fetch_resource(realm(), request);
+        m_resource_request->fetch_resource(request);
     }
 }
 

@@ -6,23 +6,22 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebGL/Types.h>
 
 namespace Web::WebGL {
 
-class WebGLDrawBuffers : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(WebGLDrawBuffers, Bindings::PlatformObject);
+class WebGLDrawBuffers : public Bindings::GCAllocatedWrappable {
+    WEB_WRAPPABLE(WebGLDrawBuffers, Bindings::GCAllocatedWrappable);
     GC_DECLARE_ALLOCATOR(WebGLDrawBuffers);
 
 public:
-    static JS::ThrowCompletionOr<GC::Ref<JS::Object>> create(JS::Realm&, GC::Ref<WebGLRenderingContextBase>);
+    static GC::Ref<Bindings::Wrappable> create(GC::Ref<WebGLRenderingContextBase>);
 
     void draw_buffers_webgl(Vector<GLenum> buffers);
 
 protected:
-    void initialize(JS::Realm&) override;
     void visit_edges(Visitor&) override;
 
 private:

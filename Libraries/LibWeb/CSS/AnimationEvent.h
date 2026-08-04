@@ -8,19 +8,28 @@
 
 #include <AK/Utf16String.h>
 #include <LibWeb/Bindings/AnimationEvent.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/DOM/Event.h>
+#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
+
+namespace Web::HTML {
+
+class Window;
+
+}
 
 namespace Web::CSS {
 
+using AnimationEventInit = Bindings::AnimationEventInit;
+
 // https://www.w3.org/TR/css-animations-1/#animationevent
 class AnimationEvent : public DOM::Event {
-    WEB_PLATFORM_OBJECT(AnimationEvent, DOM::Event);
+    WEB_WRAPPABLE(AnimationEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(AnimationEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<AnimationEvent> create(JS::Realm&, Utf16FlyString const& type, Bindings::AnimationEventInit const& event_init = {});
-    static WebIDL::ExceptionOr<GC::Ref<AnimationEvent>> construct_impl(JS::Realm&, Utf16FlyString const& type, Bindings::AnimationEventInit const& event_init);
+    [[nodiscard]] static GC::Ref<AnimationEvent> create(Utf16FlyString const& type, Bindings::AnimationEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
+    [[nodiscard]] static GC::Ref<AnimationEvent> create(Utf16FlyString const& type, Utf16String animation_name, double elapsed_time, FlyString pseudo_element, HighResolutionTime::DOMHighResTimeStamp);
+    static WebIDL::ExceptionOr<GC::Ref<AnimationEvent>> create_for_constructor(Utf16FlyString const& type, Bindings::AnimationEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual ~AnimationEvent() override = default;
 
@@ -32,9 +41,8 @@ public:
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:
-    AnimationEvent(JS::Realm&, Utf16FlyString const& type, Bindings::AnimationEventInit const& event_init);
-
-    virtual void initialize(JS::Realm&) override;
+    AnimationEvent(Utf16FlyString const& type, Bindings::AnimationEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp);
+    AnimationEvent(Utf16FlyString const& type, Utf16String animation_name, double elapsed_time, FlyString pseudo_element, HighResolutionTime::DOMHighResTimeStamp);
 
     // https://www.w3.org/TR/css-animations-1/#dom-animationevent-animationname
     Utf16String m_animation_name {};

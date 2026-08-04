@@ -33,16 +33,16 @@ FetchParams::FetchParams(FetchParams const& params)
 {
 }
 
-GC::Ref<FetchParams> FetchParams::create(JS::VM& vm, GC::Ref<Request> request, GC::Ref<FetchTimingInfo> timing_info)
+GC::Ref<FetchParams> FetchParams::create(GC::Ref<Request> request, GC::Ref<FetchTimingInfo> timing_info)
 {
-    auto algorithms = Infrastructure::FetchAlgorithms::create(vm, {});
-    auto controller = Infrastructure::FetchController::create(vm);
-    return vm.heap().allocate<FetchParams>(request, algorithms, controller, timing_info);
+    auto algorithms = Infrastructure::FetchAlgorithms::create({});
+    auto controller = Infrastructure::FetchController::create();
+    return GC::Heap::the().allocate<FetchParams>(request, algorithms, controller, timing_info);
 }
 
 GC::Ref<FetchParams> FetchParams::copy(FetchParams const& params)
 {
-    return params.vm().heap().allocate<FetchParams>(params);
+    return GC::Heap::the().allocate<FetchParams>(params);
 }
 
 void FetchParams::visit_edges(JS::Cell::Visitor& visitor)

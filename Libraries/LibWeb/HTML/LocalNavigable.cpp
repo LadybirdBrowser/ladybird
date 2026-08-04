@@ -449,7 +449,7 @@ void LocalNavigable::start_download_for_response(GC::Ref<Fetch::Infrastructure::
         response->release_request_for_transfer();
         return;
     }
-    auto& realm = active_window->realm();
+    auto& realm = active_window->principal_realm();
 
     auto download_id = page().client().page_did_start_download(download_url, suggested_filename, response_content_length(*response->header_list()));
     if (!download_id.has_value()) {
@@ -483,8 +483,7 @@ void LocalNavigable::start_download_for_response(GC::Ref<Fetch::Infrastructure::
     });
 
     // https://fetch.spec.whatwg.org/#body-incrementally-read
-    auto reader = response->body()->incrementally_read(process_body_chunk, process_end_of_body, process_body_error, GC::Ref { realm.global_object() });
-    page().client().page_did_register_download_reader(*download_id, reader);
+    response->body()->incrementally_read(process_body_chunk, process_end_of_body, process_body_error, GC::Ref { realm.global_object() });
     response->resume_body_delivery();
 }
 
@@ -1574,7 +1573,7 @@ static GC::Ref<NavigationParams> create_navigation_params_from_a_srcdoc_resource
 {
     auto& vm = navigable->vm();
     VERIFY(navigable->active_window());
-    auto& realm = navigable->active_window()->realm();
+    auto& realm = navigable->active_window()->principal_realm();
 
     // 1. Let documentResource be entry's document state's resource.
     VERIFY(document_resource.has<Utf16String>());
@@ -1608,7 +1607,7 @@ static GC::Ref<NavigationParams> create_navigation_params_from_a_srcdoc_resource
     // 6. Let policyContainer be the result of determining navigation params policy container given response's URL,
     //    entry's document state's history policy container, null, navigable's container document's policy container, and null.
     GC::Ptr<PolicyContainer> history_policy_container = history_policy_container_variant.visit(
-        [&](SerializedPolicyContainer const& s) -> GC::Ptr<PolicyContainer> { return create_a_policy_container_from_serialized_policy_container(realm.heap(), s); },
+        [&](SerializedPolicyContainer const& s) -> GC::Ptr<PolicyContainer> { return create_a_policy_container_from_serialized_policy_container(s); },
         [](DocumentState::Client) -> GC::Ptr<PolicyContainer> { return {}; });
     GC::Ptr<PolicyContainer> policy_container;
     if (navigable->container()) {
@@ -1763,7 +1762,7 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
     // 7. Wait until either response is non-null, or navigable's ongoing navigation changes to no longer equal navigationId.
     GC::Ptr<NavigationObserver> ongoing_navigation_changed_observer;
     if (state_holder->navigation_id.has_value()) {
-        ongoing_navigation_changed_observer = realm.create<NavigationObserver>(realm, *state_holder->navigable);
+        ongoing_navigation_changed_observer = NavigationObserver::create(*state_holder->navigable);
         ongoing_navigation_changed_observer->set_ongoing_navigation_changed([state_holder] {
             VERIFY(state_holder->continuation_steps);
             state_holder->continuation_steps->function()(NavigationParamsFetchStateHolder::ContinuationReason::OngoingNavigationChanged);
@@ -1794,7 +1793,7 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
         }
 
         // 9. Set responsePolicyContainer to the result of creating a policy container from a fetch response given response and request's reserved client.
-        state_holder->response_policy_container = create_a_policy_container_from_a_fetch_response(realm.heap(), *state_holder->response, state_holder->request->reserved_client());
+        state_holder->response_policy_container = create_a_policy_container_from_a_fetch_response(*state_holder->response, nullptr);
 
         // 10. Set finalSandboxFlags to the union of targetSnapshotParams's sandboxing flags and responsePolicyContainer's CSP list's CSP-derived sandboxing flags.
         state_holder->final_sandbox_flags = state_holder->target_snapshot_params.sandboxing_flags | state_holder->response_policy_container->csp_list->csp_derived_sandboxing_flags();
@@ -1900,7 +1899,7 @@ static void create_navigation_params_by_fetching(
 {
     auto& vm = navigable->vm();
     VERIFY(navigable->active_window());
-    auto& realm = navigable->active_window()->realm();
+    auto& realm = navigable->active_window()->principal_realm();
     auto& active_document = *navigable->active_document();
 
     // FIXME: 1. Assert: this is running in parallel.
@@ -2129,7 +2128,7 @@ static void create_navigation_params_by_fetching(
         // 25. Let resultPolicyContainer be the result of determining navigation params policy container given response's URL,
         //     entry's document state's history policy container, sourceSnapshotParams's source policy container, null, and responsePolicyContainer.
         GC::Ptr<PolicyContainer> history_policy_container = state_holder->history_policy_container.visit(
-            [&](SerializedPolicyContainer const& s) -> GC::Ptr<PolicyContainer> { return create_a_policy_container_from_serialized_policy_container(realm.heap(), s); },
+            [&](SerializedPolicyContainer const& s) -> GC::Ptr<PolicyContainer> { return create_a_policy_container_from_serialized_policy_container(s); },
             [](DocumentState::Client) -> GC::Ptr<PolicyContainer> { return {}; });
         auto result_policy_container = determine_navigation_params_policy_container(*state_holder->response->url(), realm.heap(), history_policy_container, state_holder->source_snapshot_params->source_policy_container, {}, state_holder->response_policy_container);
 
@@ -2224,7 +2223,7 @@ void LocalNavigable::populate_session_history_entry_document(
         }
 
         // 5. Queue a global task on the navigation and traversal task source, given navigable's active window, to run these steps:
-        queue_global_task(Task::Source::NavigationAndTraversal, *active_window(), GC::create_function(heap(), [this, url, result, navigation_id, user_involvement, completion_steps, csp_navigation_type, source_snapshot_params]() mutable {
+        queue_global_task(Task::Source::NavigationAndTraversal, HTML::relevant_global_object(*active_window()), GC::create_function(heap(), [this, url, result, navigation_id, user_involvement, completion_steps, csp_navigation_type, source_snapshot_params]() mutable {
             auto& navigation_params = result->navigation_params;
 
             // 1. If navigable's ongoing navigation no longer equals navigationId, then run completionSteps and abort these steps.
@@ -2487,7 +2486,7 @@ WebIDL::ExceptionOr<void> LocalNavigable::navigate(NavigateParams params)
     auto exceptions_enabled = params.exceptions_enabled;
 
     auto& active_document = *this->active_document();
-    auto& realm = active_document.realm();
+    auto& realm = HTML::relevant_realm(active_document);
 
     // 2. Let sourceSnapshotParams be the result of snapshotting source snapshot params given sourceDocument.
     auto source_snapshot_params = source_document->snapshot_source_snapshot_params();
@@ -2616,7 +2615,7 @@ void LocalNavigable::begin_navigation(NavigateParams params)
             snapshot.sandboxing_flags,
             snapshot.allows_downloading,
             source_snapshot_params->fetch_client,
-            create_a_policy_container_from_serialized_policy_container(heap(), snapshot.source_policy_container));
+            create_a_policy_container_from_serialized_policy_container(snapshot.source_policy_container));
         initiator_origin_snapshot = snapshot.initiator_origin_snapshot;
         initiator_base_url_snapshot = snapshot.initiator_base_url_snapshot;
         referrer_policy = snapshot.referrer_policy;
@@ -2715,7 +2714,7 @@ void LocalNavigable::begin_navigation(NavigateParams params)
     if (url.scheme() == "javascript"sv) {
         // 1. Queue a global task on the navigation and traversal task source given navigable's active window to navigate to a javascript: URL given navigable, url, historyHandling, sourceSnapshotParams, initiatorOriginSnapshot, userInvolvement, cspNavigationType, initialInsertion, and navigationId.
         VERIFY(active_window());
-        queue_global_task(Task::Source::NavigationAndTraversal, *active_window(), GC::create_function(heap(), [this, url, history_handling, source_snapshot_params, initiator_origin_snapshot, user_involvement, csp_navigation_type, initial_insertion, navigation_id] {
+        queue_global_task(Task::Source::NavigationAndTraversal, HTML::relevant_global_object(*active_window()), GC::create_function(heap(), [this, url, history_handling, source_snapshot_params, initiator_origin_snapshot, user_involvement, csp_navigation_type, initial_insertion, navigation_id] {
             navigate_to_a_javascript_url(url, to_history_handling_behavior(history_handling), source_snapshot_params, initiator_origin_snapshot, user_involvement, csp_navigation_type, initial_insertion, navigation_id);
         }));
 
@@ -2887,7 +2886,7 @@ void LocalNavigable::begin_navigation(NavigateParams params)
                 }
 
                 // 3. Queue a global task on the navigation and traversal task source given navigable's active window to abort a document and its descendants given navigable's active document.
-                queue_global_task(Task::Source::NavigationAndTraversal, *active_window(), GC::create_function(heap(), [this] {
+                queue_global_task(Task::Source::NavigationAndTraversal, HTML::relevant_global_object(*active_window()), GC::create_function(heap(), [this] {
                     this->active_document()->abort_a_document_and_its_descendants();
                 }));
 
@@ -3154,7 +3153,7 @@ GC::Ptr<DOM::Document> LocalNavigable::evaluate_javascript_url(URL::URL const& u
 {
     auto& vm = this->vm();
     VERIFY(active_window());
-    auto& realm = active_window()->realm();
+    auto& realm = active_window()->principal_realm();
 
     // 1. Let urlString be the result of running the URL serializer on url.
     auto url_string = url.serialize();
@@ -3720,7 +3719,10 @@ void perform_url_and_history_update_steps(DOM::Document& document, URL::URL new_
     navigable->set_active_session_history_entry(new_entry);
 
     // 11. Update the navigation API entries for a same-document navigation given document's relevant global object's navigation API, newEntry, and historyHandling.
-    auto& relevant_global_object = as<Window>(HTML::relevant_global_object(document));
+    // In the wrapper architecture the relevant global object is a JS wrapper,
+    // not the internal Window itself. Use the document's owning Window directly.
+    VERIFY(document.window());
+    auto& relevant_global_object = *document.window();
     auto navigation_type = history_handling == HistoryHandlingBehavior::Push ? Bindings::NavigationType::Push : Bindings::NavigationType::Replace;
     relevant_global_object.navigation()->update_the_navigation_api_entries_for_a_same_document_navigation(new_entry, navigation_type);
 
@@ -3925,7 +3927,7 @@ static void queue_async_scroll_operation_promise_resolution(GC::Ref<WebIDL::Prom
             realm,
             HTML::TemporaryExecutionContext::CallbacksEnabled::Yes
         };
-        WebIDL::resolve_promise(realm, promise);
+        WebIDL::resolve_promise(promise);
     }));
 }
 
@@ -3936,7 +3938,7 @@ void LocalNavigable::wait_for_async_scroll_operation(Compositor::AsyncScrollOper
         return;
     }
 
-    m_pending_async_scroll_operations.append({
+    m_pending_async_scroll_operations.append(PendingAsyncScrollOperation {
         .operation_id = operation_id,
         .promise = promise,
         .stable_node_id = {},
@@ -4405,7 +4407,7 @@ void LocalNavigable::inform_the_navigation_api_about_aborting_navigation()
     if (!active_window())
         return;
 
-    HTML::TemporaryExecutionContext execution_context { active_window()->realm() };
+    HTML::TemporaryExecutionContext execution_context { active_window()->principal_realm() };
 
     // 2. Let navigation be navigable's active window's navigation API.
     auto navigation = active_window()->navigation();
@@ -4917,7 +4919,7 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_a_scrolling_box(Com
     VERIFY(document);
     auto initial_scroll_offset = scroll_offset_for(stable_node_id);
     if (!initial_scroll_offset.has_value())
-        return WebIDL::create_resolved_promise(document->realm(), JS::js_undefined());
+        return WebIDL::create_resolved_promise_for(*document, JS::js_undefined());
 
     auto should_scroll_smoothly = behavior == Bindings::ScrollBehavior::Smooth;
     if (behavior == Bindings::ScrollBehavior::Auto && associated_element) {
@@ -4934,7 +4936,7 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_a_scrolling_box(Com
 
     // 3. Let scrollPromise be a new promise and return it while the remaining
     //    steps run in parallel.
-    auto scroll_promise = WebIDL::create_promise(document->realm());
+    auto scroll_promise = WebIDL::create_promise_for(*document);
 
     // 4. If the user agent honors the scroll-behavior property and either the
     //    requested behavior or the associated element's computed behavior is
@@ -4943,7 +4945,7 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_a_scrolling_box(Com
         auto did_scroll = set_scroll_offset_for(stable_node_id, position);
         if (did_scroll)
             queue_scrollend_event(stable_node_id, trigger);
-        WebIDL::resolve_promise(document->realm(), scroll_promise);
+        WebIDL::resolve_promise(scroll_promise);
         return scroll_promise;
     }
 
@@ -4961,7 +4963,7 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_a_scrolling_box(Com
         auto enqueue_result = compositor_context().smooth_scroll_to(stable_node_id, target_offset, viewport_rect, device_pixels_per_css_pixel);
         if (enqueue_result.accepted) {
             VERIFY(enqueue_result.operation_id.has_value());
-            m_pending_async_scroll_operations.append({
+            m_pending_async_scroll_operations.append(PendingAsyncScrollOperation {
                 .operation_id = *enqueue_result.operation_id,
                 .promise = scroll_promise,
                 .stable_node_id = stable_node_id,
@@ -4981,15 +4983,15 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_a_scrolling_box(Com
         adopt_pending_async_scroll_offsets();
         initial_scroll_offset = scroll_offset_for(stable_node_id);
         if (!initial_scroll_offset.has_value()) {
-            WebIDL::resolve_promise(document->realm(), scroll_promise);
+            WebIDL::resolve_promise(scroll_promise);
             return scroll_promise;
         }
     }
     if (position == *initial_scroll_offset) {
-        WebIDL::resolve_promise(document->realm(), scroll_promise);
+        WebIDL::resolve_promise(scroll_promise);
         return scroll_promise;
     }
-    m_main_thread_smooth_scrolls.append({
+    m_main_thread_smooth_scrolls.append(MainThreadSmoothScroll {
         .stable_node_id = stable_node_id,
         .animation = Compositor::SmoothScrollAnimation { initial_scroll_offset->to_type<float>(), position.to_type<float>(), 1.0 },
         .last_tick = MonotonicTime::now(),
@@ -5069,7 +5071,7 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_the_viewport(CSSPix
     // 14. Perform a scroll of the viewport’s scrolling box to its current scroll position + (layout dx, layout dy)
     //     with element as the associated element, and behavior as the scroll behavior. Let scrollPromise1 be the
     //     Promise returned from this step.
-    TemporaryExecutionContext temporary_execution_context { doc->realm() };
+    TemporaryExecutionContext temporary_execution_context { HTML::relevant_realm(*doc) };
 
     // 15. Perform a scroll of vv’s scrolling box to its current scroll position + (visual dx, visual dy) with element
     //     as the associated element, and behavior as the scroll behavior. Let scrollPromise2 be the Promise returned

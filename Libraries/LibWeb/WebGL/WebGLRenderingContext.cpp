@@ -39,7 +39,7 @@ bool fire_webgl_context_event(HTML::HTMLCanvasElement& canvas_element, Utf16FlyS
 {
     // To fire a WebGL context event named e means that an event using the WebGLContextEvent interface, with its type attribute [DOM4] initialized to e, its cancelable attribute initialized to true, and its isTrusted attribute [DOM4] initialized to true, is to be dispatched at the given object.
     // FIXME: Consider setting a status message.
-    auto event = WebGLContextEvent::create(canvas_element.realm(), type, Bindings::WebGLContextEventInit {});
+    auto event = WebGLContextEvent::create(type, Bindings::WebGLContextEventInit {}, HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(canvas_element)));
     event->set_is_trusted(true);
     event->set_cancelable(true);
     return canvas_element.dispatch_event(*event);
@@ -139,12 +139,6 @@ WebGLRenderingContext::WebGLRenderingContext(JS::Realm& realm, HTML::HTMLCanvasE
 }
 
 WebGLRenderingContext::~WebGLRenderingContext() = default;
-
-void WebGLRenderingContext::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGLRenderingContext);
-    Base::initialize(realm);
-}
 
 void WebGLRenderingContext::visit_edges(Cell::Visitor& visitor)
 {

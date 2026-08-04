@@ -7,8 +7,6 @@
 
 #pragma once
 
-#include <AK/HashMap.h>
-#include <AK/RefPtr.h>
 #include <LibWeb/Bindings/OfflineAudioContext.h>
 #include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 #include <LibWeb/WebAudio/BaseAudioContext.h>
@@ -17,24 +15,30 @@
 
 namespace Web::WebAudio {
 
+using OfflineAudioContextOptions = Bindings::OfflineAudioContextOptions;
+
 // https://webaudio.github.io/web-audio-api/#OfflineAudioContext
 class OfflineAudioContext final : public BaseAudioContext {
-    WEB_PLATFORM_OBJECT(OfflineAudioContext, BaseAudioContext);
+    WEB_WRAPPABLE(OfflineAudioContext, BaseAudioContext);
     GC_DECLARE_ALLOCATOR(OfflineAudioContext);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<OfflineAudioContext>> construct_impl(JS::Realm&, Bindings::OfflineAudioContextOptions const&);
-    static WebIDL::ExceptionOr<GC::Ref<OfflineAudioContext>> construct_impl(
-        JS::Realm&,
+    static WebIDL::ExceptionOr<GC::Ref<OfflineAudioContext>> create_for_constructor(JS::Object&, OfflineAudioContextOptions const&);
+    static WebIDL::ExceptionOr<GC::Ref<OfflineAudioContext>> create_for_constructor(JS::Object&, WebIDL::UnsignedLong number_of_channels, WebIDL::UnsignedLong length, float sample_rate);
+    static WebIDL::ExceptionOr<GC::Ref<OfflineAudioContext>> create_for_constructor(GC::Ref<DOM::EventTarget> relevant_global_object, OfflineAudioContextOptions const&);
+    static WebIDL::ExceptionOr<GC::Ref<OfflineAudioContext>> create_for_constructor(
+        GC::Ref<DOM::EventTarget> relevant_global_object,
         WebIDL::UnsignedLong number_of_channels,
         WebIDL::UnsignedLong length,
         float sample_rate);
 
     virtual ~OfflineAudioContext() override;
 
-    WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> start_rendering();
-    WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> resume();
-    WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> suspend(double suspend_time);
+    WebIDL::ExceptionOr<void> start_rendering(GC::Ref<WebIDL::Promise>);
+    WebIDL::ExceptionOr<void> resume();
+    WebIDL::ExceptionOr<void> resume(GC::Ref<WebIDL::Promise>);
+    WebIDL::ExceptionOr<void> suspend(double suspend_time);
+    WebIDL::ExceptionOr<void> suspend(double suspend_time, GC::Ref<WebIDL::Promise>);
 
     WebIDL::UnsignedLong length() const;
 
@@ -42,9 +46,7 @@ public:
     void set_oncomplete(GC::Ptr<WebIDL::CallbackType>);
 
 private:
-    OfflineAudioContext(JS::Realm&, WebIDL::UnsignedLong number_of_channels, WebIDL::UnsignedLong length, float sample_rate);
-
-    virtual void initialize(JS::Realm&) override;
+    OfflineAudioContext(GC::Ref<DOM::EventTarget> relevant_global_object, WebIDL::UnsignedLong number_of_channels, WebIDL::UnsignedLong length, float sample_rate);
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void document_became_inactive() override;
 

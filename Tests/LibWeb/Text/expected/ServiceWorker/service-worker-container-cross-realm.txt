@@ -1,0 +1,11 @@
+frame has serviceWorker: true
+ready promise uses iframe Promise: true
+ready promise uses top Promise: false
+ready promise cache is stable: true
+top ready promise uses iframe Promise: false
+top ready promise uses top Promise: true
+top ready promise cache is stable: true
+getRegistration promise uses iframe Promise: true
+getRegistration promise uses top Promise: false
+register promise uses iframe Promise: true
+register promise uses top Promise: false

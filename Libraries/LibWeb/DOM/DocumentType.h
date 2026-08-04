@@ -18,7 +18,7 @@ namespace Web::DOM {
 class WEB_API DocumentType final
     : public Node
     , public ChildNode<DocumentType> {
-    WEB_PLATFORM_OBJECT(DocumentType, Node);
+    WEB_WRAPPABLE(DocumentType, Node);
     GC_DECLARE_ALLOCATOR(DocumentType);
 
 public:
@@ -39,8 +39,6 @@ public:
 
 private:
     explicit DocumentType(Document&);
-
-    virtual void initialize(JS::Realm&) override;
 
     Utf16FlyString m_name;
     Utf16String m_public_id;

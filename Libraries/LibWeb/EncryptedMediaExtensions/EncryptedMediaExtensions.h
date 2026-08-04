@@ -7,17 +7,16 @@
 
 #pragma once
 
-#include <AK/Types.h>
+#include <AK/Optional.h>
+#include <AK/Utf16String.h>
+#include <AK/Vector.h>
 #include <LibWeb/Bindings/MediaKeySystemAccess.h>
 
 namespace Web::EncryptedMediaExtensions {
 
-// https://w3c.github.io/encrypted-media/#dom-mediakeysystemmediacapability
-struct MediaKeySystemMediaCapability {
-    Utf16String content_type;
-    Optional<Utf16String> encryption_scheme;
-    Utf16String robustness;
-};
+using MediaKeysRequirement = Bindings::MediaKeysRequirement;
+using MediaKeySystemConfiguration = Bindings::MediaKeySystemConfiguration;
+using MediaKeySystemMediaCapability = Bindings::MediaKeySystemMediaCapability;
 
 struct MediaKeyRestrictions {
     bool distinctive_identifiers { true };
@@ -37,7 +36,7 @@ enum ConsentStatus {
 
 struct ConsentConfiguration {
     ConsentStatus status { ConsentStatus::ConsentDenied };
-    Optional<Bindings::MediaKeySystemConfiguration> configuration;
+    Optional<MediaKeySystemConfiguration> configuration;
 };
 
 }

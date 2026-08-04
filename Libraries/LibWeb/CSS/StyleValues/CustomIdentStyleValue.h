@@ -25,7 +25,7 @@ public:
 
     void serialize(StringBuilder& builder, SerializationMode) const { builder.append(serialize_an_identifier(custom_ident())); }
     Vector<Parser::ComponentValue> tokenize() const;
-    GC::Ref<CSSStyleValue> reify(JS::Realm& realm, Utf16FlyString const&) const;
+    GC::Ref<CSSStyleValue> reify(Utf16FlyString const&) const;
 
     bool properties_equal(CustomIdentStyleValue const& other) const { return custom_ident() == other.custom_ident(); }
 

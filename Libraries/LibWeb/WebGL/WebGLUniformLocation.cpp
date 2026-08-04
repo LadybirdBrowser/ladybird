@@ -23,20 +23,20 @@ GC::Ref<WebGLUniformLocation> WebGLUniformLocation::create(JS::Realm& realm, GLu
     return realm.create<WebGLUniformLocation>(realm, handle, parent_shader);
 }
 
-WebGLUniformLocation::WebGLUniformLocation(JS::Realm& realm, GLuint handle, GC::Ptr<WebGLProgram> parent_shader)
-    : Bindings::PlatformObject(realm)
-    , m_handle(handle)
+WebGLUniformLocation::WebGLUniformLocation(JS::Realm&, GLuint handle, GC::Ptr<WebGLProgram> parent_shader)
+    : m_handle(handle)
     , m_parent_shader(parent_shader)
 {
 }
 
-WebGLUniformLocation::~WebGLUniformLocation() = default;
-
-void WebGLUniformLocation::initialize(JS::Realm& realm)
+GC::Ptr<Bindings::Wrappable> WebGLUniformLocation::relevant_global_impl() const
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGLUniformLocation);
-    Base::initialize(realm);
+    if (m_parent_shader)
+        return static_cast<Bindings::Wrappable&>(*m_parent_shader).relevant_global_impl();
+    return nullptr;
 }
+
+WebGLUniformLocation::~WebGLUniformLocation() = default;
 
 void WebGLUniformLocation::visit_edges(Cell::Visitor& visitor)
 {

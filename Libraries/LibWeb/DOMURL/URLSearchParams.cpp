@@ -8,12 +8,10 @@
 #include <AK/QuickSort.h>
 #include <AK/StringBuilder.h>
 #include <AK/Utf8View.h>
+#include <LibGC/Heap.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibTextCodec/Encoder.h>
 #include <LibURL/Parser.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/URLSearchParams.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/DOMURL/URLSearchParams.h>
 
@@ -21,21 +19,14 @@ namespace Web::DOMURL {
 
 GC_DEFINE_ALLOCATOR(URLSearchParams);
 
-URLSearchParams::URLSearchParams(JS::Realm& realm, Vector<QueryParam> list)
-    : PlatformObject(realm)
-    , m_list(move(list))
+URLSearchParams::URLSearchParams(Vector<QueryParam> list)
+    : m_list(move(list))
 {
 }
 
 URLSearchParams::~URLSearchParams() = default;
 
-void URLSearchParams::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(URLSearchParams);
-    Base::initialize(realm);
-}
-
-void URLSearchParams::visit_edges(Cell::Visitor& visitor)
+void URLSearchParams::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_url);
@@ -127,32 +118,31 @@ Vector<QueryParam> url_decode(StringView input)
 
 Vector<QueryParam> url_decode(Utf16View input)
 {
-    return url_decode(MUST(input.to_utf8()));
+    auto utf8 = input.to_utf8_but_should_be_ported_to_utf16();
+    return url_decode(utf8);
 }
 
-GC::Ref<URLSearchParams> URLSearchParams::create(JS::Realm& realm, Vector<QueryParam> list)
+GC::Ref<URLSearchParams> URLSearchParams::create(Vector<QueryParam> list)
 {
-    return realm.create<URLSearchParams>(realm, move(list));
+    return GC::Heap::the().allocate<URLSearchParams>(move(list));
 }
 
 // https://url.spec.whatwg.org/#urlsearchparams-initialize
-GC::Ref<URLSearchParams> URLSearchParams::create_from_byte_string(JS::Realm& realm, StringView init)
+GC::Ref<URLSearchParams> URLSearchParams::create(StringView init)
 {
     // NOTE: We skip the other steps since we know it is a string at this point.
     // b. Set query’s list to the result of parsing init.
-    return URLSearchParams::create(realm, url_decode(init));
+    return URLSearchParams::create(url_decode(init));
 }
 
-GC::Ref<URLSearchParams> URLSearchParams::create(JS::Realm& realm, Utf16View init)
+GC::Ref<URLSearchParams> URLSearchParams::create(Utf16View init)
 {
-    // NOTE: We skip the other steps since we know it is a string at this point.
-    // b. Set query’s list to the result of parsing init.
-    return URLSearchParams::create(realm, url_decode(init));
+    return URLSearchParams::create(url_decode(init));
 }
 
 // https://url.spec.whatwg.org/#dom-urlsearchparams-urlsearchparams
 // https://url.spec.whatwg.org/#urlsearchparams-initialize
-WebIDL::ExceptionOr<GC::Ref<URLSearchParams>> URLSearchParams::construct_impl(JS::Realm& realm, Variant<Vector<Vector<Utf16String>>, OrderedHashMap<Utf16String, Utf16String>, Utf16String> const& init)
+WebIDL::ExceptionOr<GC::Ref<URLSearchParams>> URLSearchParams::create_from_init(Variant<Vector<Vector<Utf16String>>, OrderedHashMap<Utf16String, Utf16String>, Utf16String> const& init)
 {
     // 1. If init is a string and starts with U+003F (?), then remove the first code point from init.
     // NOTE: We do this when we know that it's a string on step 3 of initialization.
@@ -171,13 +161,13 @@ WebIDL::ExceptionOr<GC::Ref<URLSearchParams>> URLSearchParams::construct_impl(JS
         for (auto const& pair : init_sequence) {
             // a. If pair does not contain exactly two items, then throw a TypeError.
             if (pair.size() != 2)
-                return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::formatted("Expected only 2 items in pair, got {}", pair.size()) };
+                return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Expected each pair to contain exactly 2 items"_utf16 };
 
             // b. Append a new name-value pair whose name is pair’s first item, and value is pair’s second item, to query’s list.
             list.append(QueryParam { .name = pair[0], .value = pair[1] });
         }
 
-        return URLSearchParams::create(realm, move(list));
+        return URLSearchParams::create(move(list));
     }
 
     // 2. Otherwise, if init is a record, then for each name → value of init, append a new name-value pair whose name is name and value is value, to query’s list.
@@ -190,7 +180,7 @@ WebIDL::ExceptionOr<GC::Ref<URLSearchParams>> URLSearchParams::construct_impl(JS
         for (auto const& pair : init_record)
             list.append(QueryParam { .name = pair.key, .value = pair.value });
 
-        return URLSearchParams::create(realm, move(list));
+        return URLSearchParams::create(move(list));
     }
 
     // 3. Otherwise:
@@ -203,7 +193,7 @@ WebIDL::ExceptionOr<GC::Ref<URLSearchParams>> URLSearchParams::construct_impl(JS
     auto stripped_init = init_string_view.substring_view(init_string_view.starts_with('?'));
 
     // b. Set query’s list to the result of parsing init.
-    return URLSearchParams::create(realm, stripped_init);
+    return URLSearchParams::create(stripped_init);
 }
 
 // https://url.spec.whatwg.org/#dom-urlsearchparams-size
@@ -355,14 +345,13 @@ Utf16String URLSearchParams::to_string() const
     return Utf16String::from_ascii_without_validation(serialized.bytes());
 }
 
-JS::ThrowCompletionOr<void> URLSearchParams::for_each(ForEachCallback callback)
+void URLSearchParams::for_each(ForEachCallback callback)
 {
     for (auto i = 0u; i < m_list.size(); ++i) {
         auto& query_param = m_list[i]; // We are explicitly iterating over the indices here as the callback might delete items from the list
-        TRY(callback(query_param.name, query_param.value));
+        if (callback(query_param.name, query_param.value) == IterationDecision::Break)
+            break;
     }
-
-    return {};
 }
 
 }

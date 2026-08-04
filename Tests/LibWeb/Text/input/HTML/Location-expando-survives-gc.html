@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        withCollectedWrapper(
+            () => {
+                location.testExpando = 42;
+                return location;
+            },
+            () => location,
+            location => println(`expando=${location.testExpando}`)
+        );
+    });
+</script>

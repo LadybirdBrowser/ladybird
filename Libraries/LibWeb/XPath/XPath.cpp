@@ -5,6 +5,7 @@
  */
 
 #include <AK/Format.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/CDATASection.h>
 #include <LibWeb/DOM/Comment.h>
@@ -165,18 +166,18 @@ static void convert_xpath_result(xmlXPathObjectPtr xpath_result, XPath::XPathRes
     }
 }
 
-WebIDL::ExceptionOr<GC::Ref<XPathExpression>> create_expression(JS::Realm& realm, Utf16View expression, GC::Ptr<XPathNSResolver> resolver)
+WebIDL::ExceptionOr<GC::Ref<XPathExpression>> create_expression(Utf16String const& expression, GC::Ptr<XPathNSResolver> resolver)
 {
-    return realm.create<XPathExpression>(realm, expression, resolver);
+    return XPathExpression::create(expression, resolver);
 }
 
-WebIDL::ExceptionOr<GC::Ref<XPathResult>> evaluate(JS::Realm& realm, Utf16View expression, DOM::Node const& context_node, GC::Ptr<XPathNSResolver> /*resolver*/, unsigned short type, GC::Ptr<XPathResult> result)
+EvaluateResult evaluate(Utf16String const& expression, DOM::Node const& context_node, GC::Ptr<XPathNSResolver> /*resolver*/, unsigned short type, GC::Ptr<XPathResult> result)
 {
     // Parse the expression as xpath
-    auto expression_bytes = expression.to_byte_string().release_value_but_fixme_should_propagate_errors();
+    auto expression_bytes = expression.to_utf8().to_byte_string();
     auto* xpath_compiled = xmlXPathCompile(bit_cast<xmlChar const*>(expression_bytes.characters()));
     if (!xpath_compiled)
-        return WebIDL::SyntaxError::create(realm, "Invalid XPath expression"_utf16);
+        return EvaluationError::InvalidExpression;
     ScopeGuard xpath_compiled_cleanup = [&] { xmlXPathFreeCompExpr(xpath_compiled); };
 
     auto* xml_document = xmlNewDoc(nullptr);
@@ -190,7 +191,7 @@ WebIDL::ExceptionOr<GC::Ref<XPathResult>> evaluate(JS::Realm& realm, Utf16View e
 
     auto* xml_node = mirror_node(xml_document, context_node);
     if (!xml_node) {
-        return WebIDL::OperationError::create(realm, "XPath evaluation failed"_utf16);
+        return EvaluationError::EvaluationFailed;
     }
 
     xmlDocSetRootElement(xml_document, xml_node);
@@ -206,12 +207,29 @@ WebIDL::ExceptionOr<GC::Ref<XPathResult>> evaluate(JS::Realm& realm, Utf16View e
     };
 
     if (!result) {
-        result = realm.create<XPathResult>(realm);
+        result = XPathResult::create();
     }
 
     convert_xpath_result(xpath_result, result, type);
 
-    return GC::Ref<XPathResult>(*result);
+    return GC::Ref<XPathResult> { *result };
+}
+
+WebIDL::ExceptionOr<GC::Ref<XPathResult>> throw_evaluation_error_if_needed(EvaluateResult result)
+{
+    return result.visit(
+        [](GC::Ref<XPathResult> result) -> WebIDL::ExceptionOr<GC::Ref<XPathResult>> {
+            return result;
+        },
+        [&](EvaluationError error) -> WebIDL::ExceptionOr<GC::Ref<XPathResult>> {
+            switch (error) {
+            case EvaluationError::InvalidExpression:
+                return WebIDL::SyntaxError::create("Invalid XPath expression"_utf16);
+            case EvaluationError::EvaluationFailed:
+                return WebIDL::OperationError::create("XPath evaluation failed"_utf16);
+            }
+            VERIFY_NOT_REACHED();
+        });
 }
 
 }

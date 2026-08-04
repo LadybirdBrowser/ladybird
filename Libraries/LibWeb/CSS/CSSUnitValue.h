@@ -13,13 +13,13 @@ namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssunitvalue
 class CSSUnitValue final : public CSSNumericValue {
-    WEB_PLATFORM_OBJECT(CSSUnitValue, CSSNumericValue);
+    WEB_WRAPPABLE(CSSUnitValue, CSSNumericValue);
     GC_DECLARE_ALLOCATOR(CSSUnitValue);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSUnitValue> create(JS::Realm&, double value, Utf16FlyString unit);
-    static GC::Ptr<CSSUnitValue> create_from_sum_value_item(JS::Realm&, SumValueItem const&);
-    static WebIDL::ExceptionOr<GC::Ref<CSSUnitValue>> construct_impl(JS::Realm&, double value, Utf16String unit);
+    [[nodiscard]] static GC::Ref<CSSUnitValue> create(double value, Utf16FlyString unit);
+    static GC::Ptr<CSSUnitValue> create_from_sum_value_item(SumValueItem const&);
+    static WebIDL::ExceptionOr<GC::Ref<CSSUnitValue>> construct_impl(double value, Utf16String unit);
 
     virtual ~CSSUnitValue() override = default;
 
@@ -39,9 +39,7 @@ public:
     virtual WebIDL::ExceptionOr<CalcNodeRef> create_calculation_node(CalculationContext const&) const override;
 
 private:
-    explicit CSSUnitValue(JS::Realm&, double value, Utf16FlyString unit, NumericType type);
-
-    virtual void initialize(JS::Realm&) override;
+    explicit CSSUnitValue(double value, Utf16FlyString unit, NumericType type);
 
     double m_value;
     Utf16FlyString m_unit;

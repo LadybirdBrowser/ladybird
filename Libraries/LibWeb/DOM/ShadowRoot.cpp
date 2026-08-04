@@ -4,10 +4,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/ShadowRoot.h>
+#include <LibGC/Heap.h>
+#include <LibJS/Runtime/Iterator.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/StyleSheetList.h>
 #include <LibWeb/DOM/AdoptedStyleSheets.h>
+#include <LibWeb/DOM/BindingsGlue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentOrShadowRoot.h>
 #include <LibWeb/DOM/Event.h>
@@ -28,7 +30,12 @@ namespace Web::DOM {
 
 GC_DEFINE_ALLOCATOR(ShadowRoot);
 
-ShadowRoot::ShadowRoot(Document& document, Element& host, Bindings::ShadowRootMode mode)
+GC::Ref<ShadowRoot> ShadowRoot::create(Document& document, Element& host, ShadowRootMode mode)
+{
+    return GC::Heap::the().allocate<ShadowRoot>(document, host, mode);
+}
+
+ShadowRoot::ShadowRoot(Document& document, Element& host, ShadowRootMode mode)
     : DocumentFragment(document)
     , m_mode(mode)
     , m_style_scope(*this)
@@ -56,7 +63,7 @@ void ShadowRoot::adopted_from(Document& old_document)
 }
 
 // https://fullscreen.spec.whatwg.org/#dom-document-fullscreenelement
-GC::Ptr<Element> ShadowRoot::fullscreen_element_for_bindings() const
+GC::Ptr<Element> ShadowRoot::retargeted_fullscreen_element() const
 {
     // 1. If this is a shadow root and its host is not connected, then return null.
     if (!host() || !host()->is_connected())
@@ -75,12 +82,6 @@ GC::Ptr<Element> ShadowRoot::fullscreen_element_for_bindings() const
 
     // 4. Return null.
     return nullptr;
-}
-
-void ShadowRoot::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(ShadowRoot);
-    Base::initialize(realm);
 }
 
 // https://dom.spec.whatwg.org/#dom-shadowroot-onslotchange
@@ -108,27 +109,26 @@ EventTarget* ShadowRoot::get_parent(Event const& event)
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-shadowroot-innerhtml
-WebIDL::ExceptionOr<TrustedTypes::TrustedHTMLOrString> ShadowRoot::inner_html() const
+WebIDL::ExceptionOr<Utf16String> ShadowRoot::inner_html() const
 {
     return TRY(serialize_fragment(HTML::RequireWellFormed::Yes));
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-shadowroot-innerhtml
-WebIDL::ExceptionOr<void> ShadowRoot::set_inner_html(TrustedTypes::TrustedHTMLOrString const& value)
+WebIDL::ExceptionOr<void> ShadowRoot::set_inner_html(StringView html)
 {
-    // 1. Let compliantString be the result of invoking the Get Trusted Type compliant string algorithm with
-    //    TrustedHTML, this's relevant global object, the given value, "ShadowRoot innerHTML", and "script".
-    auto const compliant_string = TRY(TrustedTypes::get_trusted_type_compliant_string(
-        TrustedTypes::TrustedTypeName::TrustedHTML,
-        HTML::relevant_global_object(*this),
-        value,
-        TrustedTypes::InjectionSink::ShadowRoot_innerHTML,
-        TrustedTypes::Script.view()));
+    // 2. Let context be this's host.
+    auto context = this->host();
+    VERIFY(context);
 
-    // 2. Let fragment be the result of invoking the fragment parsing algorithm steps with this and compliantString.
-    auto fragment = TRY(HTML::HTMLParser::parse_html_fragment(GC::Ref<DocumentFragment> { *this }, compliant_string.utf16_view()));
+    // 3. Let fragment be the result of invoking the fragment parsing algorithm steps with context and compliantString.
+    auto markup = Utf16String::from_utf8(html);
+    // Keep the shadow root as the fragment parsing target so custom element
+    // creation uses this shadow tree's registry. The host is still used as
+    // the parser context by the fragment parsing algorithm.
+    auto fragment = TRY(Element::parse_fragment(Variant<GC::Ref<Element>, GC::Ref<DocumentFragment>> { *this }, markup.utf16_view()));
 
-    // 3. Replace all with fragment within this.
+    // 4. Replace all with fragment within this.
     this->replace_all(fragment);
 
     // NOTE: We don't invalidate style & layout for <template> elements since they don't affect rendering.
@@ -146,7 +146,7 @@ WebIDL::ExceptionOr<void> ShadowRoot::set_inner_html(TrustedTypes::TrustedHTMLOr
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-element-gethtml
-WebIDL::ExceptionOr<Utf16String> ShadowRoot::get_html(Bindings::GetHTMLOptions const& options) const
+WebIDL::ExceptionOr<Utf16String> ShadowRoot::get_html(HTMLSerializationOptions const& options) const
 {
     // ShadowRoot's getHTML(options) method steps are to return the result
     // of HTML fragment serialization algorithm with this,
@@ -158,19 +158,11 @@ WebIDL::ExceptionOr<Utf16String> ShadowRoot::get_html(Bindings::GetHTMLOptions c
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-shadowroot-sethtmlunsafe
-WebIDL::ExceptionOr<void> ShadowRoot::set_html_unsafe(TrustedTypes::TrustedHTMLOrString const& html)
+WebIDL::ExceptionOr<void> ShadowRoot::set_html_unsafe(StringView html)
 {
-    // 1. Let compliantHTML be the result of invoking the Get Trusted Type compliant string algorithm with
-    //    TrustedHTML, this's relevant global object, html, "ShadowRoot setHTMLUnsafe", and "script".
-    auto const compliant_html = TRY(TrustedTypes::get_trusted_type_compliant_string(
-        TrustedTypes::TrustedTypeName::TrustedHTML,
-        HTML::relevant_global_object(*this),
-        html,
-        TrustedTypes::InjectionSink::ShadowRoot_setHTMLUnsafe,
-        TrustedTypes::Script.view()));
-
     // 2. Unsafely set HTML given this, this's shadow host, and compliantHTML.
-    TRY(unsafely_set_html(GC::Ref<DocumentFragment> { *this }, compliant_html.utf16_view()));
+    auto markup = Utf16String::from_utf8(html);
+    TRY(unsafely_set_html(Variant<GC::Ref<Element>, GC::Ref<DocumentFragment>> { *this }, markup.utf16_view()));
 
     return {};
 }
@@ -213,30 +205,13 @@ GC::Ref<WebIDL::ObservableArray> ShadowRoot::adopted_style_sheets() const
     return *m_adopted_style_sheets;
 }
 
-WebIDL::ExceptionOr<void> ShadowRoot::set_adopted_style_sheets(JS::Value new_value)
-{
-    if (!m_adopted_style_sheets)
-        m_adopted_style_sheets = create_adopted_style_sheets_list(*this);
-
-    m_adopted_style_sheets->clear();
-    auto iterator_record = TRY(get_iterator(vm(), new_value, JS::IteratorHint::Sync));
-    while (true) {
-        auto next = TRY(iterator_step_value(vm(), iterator_record));
-        if (!next.has_value())
-            break;
-        TRY(m_adopted_style_sheets->append(*next));
-    }
-
-    return {};
-}
-
 void ShadowRoot::for_each_css_style_sheet(Function<void(CSS::CSSStyleSheet&)>&& callback) const
 {
     for (auto& style_sheet : style_sheets().sheets())
         callback(*style_sheet);
 
     if (m_adopted_style_sheets) {
-        m_adopted_style_sheets->for_each<CSS::CSSStyleSheet>([&](auto& style_sheet) {
+        for_each_adopted_style_sheet(*m_adopted_style_sheets, [&](auto& style_sheet) {
             callback(style_sheet);
         });
     }
@@ -250,7 +225,7 @@ void ShadowRoot::for_each_active_css_style_sheet(Function<void(CSS::CSSStyleShee
     }
 
     if (m_adopted_style_sheets) {
-        m_adopted_style_sheets->for_each<CSS::CSSStyleSheet>([&](auto& style_sheet) {
+        for_each_adopted_style_sheet(*m_adopted_style_sheets, [&](auto& style_sheet) {
             if (!style_sheet.disabled())
                 callback(style_sheet);
         });
@@ -385,6 +360,69 @@ GC::Ptr<HTML::CustomElementRegistry> ShadowRoot::custom_element_registry() const
     // 2. Assert: this is a ShadowRoot node.
     // 3. Return this’s custom element registry.
     return m_custom_element_registry;
+}
+
+}
+
+namespace Web::Bindings {
+
+WebIDL::ExceptionOr<TrustedTypes::TrustedHTMLOrString> inner_html(DOM::ShadowRoot& shadow_root)
+{
+    return TRY(shadow_root.inner_html());
+}
+
+WebIDL::ExceptionOr<void> set_inner_html(DOM::ShadowRoot& shadow_root, TrustedTypes::TrustedHTMLOrString const& value)
+{
+    // 1. Let compliantString be the result of invoking the Get Trusted Type compliant string algorithm with
+    //    TrustedHTML, this's relevant global object, the given value, "ShadowRoot innerHTML", and "script".
+    auto const compliant_string = TRY(TrustedTypes::get_trusted_type_compliant_string(
+        TrustedTypes::TrustedTypeName::TrustedHTML,
+        HTML::relevant_global_object(shadow_root),
+        value,
+        TrustedTypes::InjectionSink::ShadowRoot_innerHTML,
+        "script"_utf16));
+
+    return shadow_root.set_inner_html(compliant_string.to_utf8_but_should_be_ported_to_utf16());
+}
+
+WebIDL::ExceptionOr<void> set_html_unsafe(DOM::ShadowRoot& shadow_root, Variant<GC::Ref<TrustedTypes::TrustedHTML>, Utf16String> const& html)
+{
+    // 1. Let compliantHTML be the result of invoking the Get Trusted Type compliant string algorithm with
+    //    TrustedHTML, this's relevant global object, html, "ShadowRoot setHTMLUnsafe", and "script".
+    auto const compliant_html = TRY(TrustedTypes::get_trusted_type_compliant_string(
+        TrustedTypes::TrustedTypeName::TrustedHTML,
+        HTML::relevant_global_object(shadow_root),
+        html,
+        TrustedTypes::InjectionSink::ShadowRoot_setHTMLUnsafe,
+        "script"_utf16));
+
+    return shadow_root.set_html_unsafe(compliant_html.to_utf8_but_should_be_ported_to_utf16());
+}
+
+GC::Ref<CSS::StyleSheetList> style_sheets(DOM::ShadowRoot& shadow_root)
+{
+    return shadow_root.style_sheets();
+}
+
+JS::Value adopted_style_sheets(DOM::ShadowRoot& shadow_root)
+{
+    return DOM::AdoptedStyleSheetsAccess::adopted_style_sheets(shadow_root).ptr();
+}
+
+WebIDL::ExceptionOr<void> set_adopted_style_sheets(DOM::ShadowRoot& shadow_root, JS::Value new_value)
+{
+    auto adopted_style_sheets = DOM::AdoptedStyleSheetsAccess::adopted_style_sheets(shadow_root);
+    adopted_style_sheets->clear();
+
+    auto iterator_record = TRY(JS::get_iterator(shadow_root.vm(), new_value, JS::IteratorHint::Sync));
+    while (true) {
+        auto next = TRY(JS::iterator_step_value(shadow_root.vm(), iterator_record));
+        if (!next.has_value())
+            break;
+        TRY(adopted_style_sheets->append(*next));
+    }
+
+    return {};
 }
 
 }

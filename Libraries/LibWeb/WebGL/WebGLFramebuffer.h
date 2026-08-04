@@ -13,7 +13,7 @@
 namespace Web::WebGL {
 
 class WebGLFramebuffer final : public WebGLObject {
-    WEB_PLATFORM_OBJECT(WebGLFramebuffer, WebGLObject);
+    WEB_WRAPPABLE(WebGLFramebuffer, WebGLObject);
     GC_DECLARE_ALLOCATOR(WebGLFramebuffer);
 
 public:
@@ -24,7 +24,7 @@ public:
         GLint texture_level { 0 };
     };
 
-    static GC::Ref<WebGLFramebuffer> create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase>, GLuint handle);
+    static GC::Ref<WebGLFramebuffer> create(GC::Ref<WebGLRenderingContextBase>, GLuint handle);
 
     virtual ~WebGLFramebuffer();
 
@@ -35,7 +35,6 @@ public:
 protected:
     explicit WebGLFramebuffer(JS::Realm&, GC::Ref<WebGLRenderingContextBase>, GLuint handle);
 
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Visitor&) override;
 
 private:

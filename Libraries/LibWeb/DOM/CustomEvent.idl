@@ -1,7 +1,7 @@
 // https://dom.spec.whatwg.org/#interface-customevent
 [Exposed=*]
 interface CustomEvent : Event {
-    constructor([Utf16FlyString] Utf16DOMString type, optional CustomEventInit eventInitDict = {});
+    constructor(DOMString type, optional CustomEventInit eventInitDict = {});
 
     readonly attribute any detail;
 

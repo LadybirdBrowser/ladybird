@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style></style>
+<script>
+    asyncTest(done => {
+        const sheet = document.styleSheets[0];
+        sheet.insertRule(`
+            @font-feature-values cache_family {
+                @styleset {
+                    one: 1 2;
+                }
+            }
+        `);
+
+        const styleset = sheet.cssRules[0].styleset;
+        const frame = document.createElement("iframe");
+        frame.onload = () => {
+            const fromFrame = frame.contentWindow.Function("styleset", "return styleset.get('one');")(styleset);
+            println(`parent-array=${Object.getPrototypeOf(fromFrame) === Array.prototype}`);
+            println(`values=${fromFrame.join(",")}`);
+            done();
+        };
+        document.body.append(frame);
+    });
+</script>

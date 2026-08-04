@@ -12,7 +12,7 @@ namespace Web::MediaSourceExtensions {
 
 // https://w3c.github.io/media-source/#dom-sourcebufferlist
 class SourceBufferList : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(SourceBufferList, DOM::EventTarget);
+    WEB_WRAPPABLE(SourceBufferList, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(SourceBufferList);
 
 public:
@@ -31,13 +31,13 @@ public:
     bool contains(SourceBuffer const&) const;
 
 private:
-    SourceBufferList(JS::Realm&);
+    SourceBufferList(MediaSource&);
 
     virtual ~SourceBufferList() override;
-
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
+    virtual GC::Ptr<Bindings::Wrappable> relevant_global_impl() const override;
 
+    GC::Ref<MediaSource> m_media_source;
     Vector<GC::Ref<SourceBuffer>> m_buffers;
 };
 

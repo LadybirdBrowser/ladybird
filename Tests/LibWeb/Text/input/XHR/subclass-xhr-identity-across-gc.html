@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        class MyXHR extends XMLHttpRequest {
+            #tag = "subclass-xhr";
+            get tag() { return this.#tag; }
+        }
+
+        (() => {
+            const xhr = new MyXHR();
+            xhr.onload = function() {
+                println(`instanceof=${this instanceof MyXHR}`);
+                println(`prototype=${Object.getPrototypeOf(this) === MyXHR.prototype}`);
+                println(`private=${this.tag}`);
+                done();
+            };
+            xhr.onerror = () => {
+                println("error");
+                done();
+            };
+            xhr.open("GET", "data:text/plain,wrapper-gc");
+            xhr.send();
+        })();
+
+        internals.gc();
+    });
+</script>

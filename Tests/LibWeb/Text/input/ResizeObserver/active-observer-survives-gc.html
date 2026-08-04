@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<style>
+#target {
+    width: 100px;
+    height: 100px;
+}
+</style>
+<script src="../include.js"></script>
+<div id="target"></div>
+<script>
+    asyncTest(async done => {
+        const target = document.getElementById("target");
+        let callbackCount = 0;
+        let resolveInitialCallback;
+        const initialCallback = new Promise(resolve => {
+            resolveInitialCallback = resolve;
+        });
+        const callback = () => {
+            ++callbackCount;
+            if (callbackCount === 1)
+                resolveInitialCallback();
+        };
+        (() => {
+            const observer = new ResizeObserver(callback);
+            observer.observe(target);
+        })();
+        await initialCallback;
+        await animationFrame();
+        await timeout(0);
+        callbackCount = 0;
+
+        await timeout(100);
+        await internals.gcAsync();
+        target.style.width = "200px";
+        await animationFrame();
+        await timeout(0);
+
+        println(`callbacks from resize after dropping observer: ${callbackCount}`);
+        done();
+    });
+</script>

@@ -12,12 +12,12 @@ namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssskew
 class CSSSkew final : public CSSTransformComponent {
-    WEB_PLATFORM_OBJECT(CSSSkew, CSSTransformComponent);
+    WEB_WRAPPABLE(CSSSkew, CSSTransformComponent);
     GC_DECLARE_ALLOCATOR(CSSSkew);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSSkew> create(JS::Realm&, GC::Ref<CSSNumericValue> ax, GC::Ref<CSSNumericValue> ay);
-    static WebIDL::ExceptionOr<GC::Ref<CSSSkew>> construct_impl(JS::Realm&, GC::Ref<CSSNumericValue> ax, GC::Ref<CSSNumericValue> ay);
+    [[nodiscard]] static GC::Ref<CSSSkew> create(GC::Ref<CSSNumericValue> ax, GC::Ref<CSSNumericValue> ay);
+    static WebIDL::ExceptionOr<GC::Ref<CSSSkew>> create_for_constructor(GC::Ref<CSSNumericValue> ax, GC::Ref<CSSNumericValue> ay);
 
     virtual ~CSSSkew() override;
 
@@ -35,10 +35,8 @@ public:
     virtual WebIDL::ExceptionOr<NonnullRefPtr<TransformationStyleValue const>> create_style_value(PropertyNameAndID const&) const override;
 
 private:
-    explicit CSSSkew(JS::Realm&, GC::Ref<CSSNumericValue> ax, GC::Ref<CSSNumericValue> ay);
-
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor&) override;
+    explicit CSSSkew(GC::Ref<CSSNumericValue> ax, GC::Ref<CSSNumericValue> ay);
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     GC::Ref<CSSNumericValue> m_ax;
     GC::Ref<CSSNumericValue> m_ay;

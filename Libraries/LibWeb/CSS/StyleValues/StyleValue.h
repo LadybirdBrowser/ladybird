@@ -50,7 +50,6 @@ namespace Web::CSS {
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Color, color, ColorStyleValue)                                                            \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(ConicGradient, conic_gradient, ConicGradientStyleValue)                                   \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Content, content, ContentStyleValue)                                                      \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(ContrastColor, contrast_color, ContrastColorStyleValue)                                   \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Counter, counter, CounterStyleValue)                                                      \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(CounterStyle, counter_style, CounterStyleStyleValue)                                      \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(CounterDefinitions, counter_definitions, CounterDefinitionsStyleValue)                    \
@@ -187,9 +186,9 @@ public:
     void serialize(StringBuilder&, SerializationMode) const;
     void serialize(Utf16StringBuilder&, SerializationMode) const;
     Vector<Parser::ComponentValue> tokenize() const;
-    GC::Ref<CSSStyleValue> reify(JS::Realm&, Utf16FlyString const& associated_property) const;
+    GC::Ref<CSSStyleValue> reify(Utf16FlyString const& associated_property) const;
     // The default reification, used by types without a bespoke one and by impls that fall back.
-    GC::Ref<CSSStyleValue> default_reify(JS::Realm&, Utf16FlyString const& associated_property) const;
+    GC::Ref<CSSStyleValue> default_reify(Utf16FlyString const& associated_property) const;
     StyleValueVector subdivide_into_iterations(PropertyNameAndID const&) const;
 
     void set_style_sheet(GC::Ptr<CSSStyleSheet>);

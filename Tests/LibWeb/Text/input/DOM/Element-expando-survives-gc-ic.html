@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="host"></div>
+<script>
+    function add_expando(object, value) {
+        object.wrapper_gc_probe = value;
+    }
+
+    function append_span(id) {
+        const element = document.createElement("span");
+        element.id = id;
+        host.appendChild(element);
+        return element;
+    }
+
+    test(() => {
+        (() => {
+            add_expando(append_span("direct-expando-a"), "direct-a");
+            add_expando(append_span("direct-expando-b"), "direct-b");
+        })();
+
+        internals.gc();
+
+        println(`direct[0]=${document.getElementById("direct-expando-a").wrapper_gc_probe}`);
+        println(`direct[1]=${document.getElementById("direct-expando-b").wrapper_gc_probe}`);
+
+        for (let i = 0; i < 10; ++i) {
+            (() => {
+                add_expando(append_span(`loop-expando-${i}`), i);
+            })();
+        }
+
+        (() => {
+            for (let i = 0; i < 16; ++i)
+                add_expando(Object.create(HTMLSpanElement.prototype), `plain-warmup-${i}`);
+
+            add_expando(append_span("shape-collision-expando"), "platform");
+        })();
+
+        internals.gc();
+
+        for (let i = 0; i < 10; ++i)
+            println(`loop[${i}]=${document.getElementById(`loop-expando-${i}`).wrapper_gc_probe}`);
+        println(`shape-collision=${document.getElementById("shape-collision-expando").wrapper_gc_probe}`);
+
+        const first = Object.create(HTMLSpanElement.prototype);
+        const second = Object.create(HTMLSpanElement.prototype);
+
+        add_expando(first, "plain-first");
+        add_expando(second, "plain-second");
+
+        println(`plain[0]=${first.wrapper_gc_probe}`);
+        println(`plain[1]=${second.wrapper_gc_probe}`);
+    });
+</script>

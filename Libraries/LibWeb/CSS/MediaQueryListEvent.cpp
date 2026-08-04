@@ -4,39 +4,46 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/MediaQueryListEvent.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/CSS/MediaQueryListEvent.h>
 
 namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(MediaQueryListEvent);
 
-GC::Ref<MediaQueryListEvent> MediaQueryListEvent::create(JS::Realm& realm, Utf16FlyString const& event_name, Bindings::MediaQueryListEventInit const& event_init)
+GC::Ref<MediaQueryListEvent> MediaQueryListEvent::create(Utf16FlyString const& event_name, Bindings::MediaQueryListEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    auto event = realm.create<MediaQueryListEvent>(realm, event_name, event_init);
+    return GC::Heap::the().allocate<MediaQueryListEvent>(event_name, event_init, time_stamp);
+}
+
+GC::Ref<MediaQueryListEvent> MediaQueryListEvent::create(
+    Utf16FlyString const& event_name, Utf16String media, bool matches,
+    HighResolutionTime::DOMHighResTimeStamp time_stamp)
+{
+    auto event = GC::Heap::the().allocate<MediaQueryListEvent>(event_name, move(media), matches, time_stamp);
     event->set_is_trusted(true);
     return event;
 }
 
-GC::Ref<MediaQueryListEvent> MediaQueryListEvent::construct_impl(JS::Realm& realm, Utf16FlyString const& event_name, Bindings::MediaQueryListEventInit const& event_init)
+GC::Ref<MediaQueryListEvent> MediaQueryListEvent::create_for_constructor(Utf16FlyString const& event_name, Bindings::MediaQueryListEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    return realm.create<MediaQueryListEvent>(realm, event_name, event_init);
+    return create(event_name, event_init, time_stamp);
 }
 
-MediaQueryListEvent::MediaQueryListEvent(JS::Realm& realm, Utf16FlyString const& event_name, Bindings::MediaQueryListEventInit const& event_init)
-    : DOM::Event(realm, event_name, event_init)
+MediaQueryListEvent::MediaQueryListEvent(Utf16FlyString const& event_name, Bindings::MediaQueryListEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : DOM::Event(FlyString { event_name.to_utf16_string().to_utf8() }, event_init, time_stamp)
     , m_media(event_init.media)
     , m_matches(event_init.matches)
 {
 }
 
-MediaQueryListEvent::~MediaQueryListEvent() = default;
-
-void MediaQueryListEvent::initialize(JS::Realm& realm)
+MediaQueryListEvent::MediaQueryListEvent(Utf16FlyString const& event_name, Utf16String media, bool matches, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : DOM::Event(FlyString { event_name.to_utf16_string().to_utf8() }, time_stamp)
+    , m_media(move(media))
+    , m_matches(matches)
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(MediaQueryListEvent);
-    Base::initialize(realm);
 }
+
+MediaQueryListEvent::~MediaQueryListEvent() = default;
 
 }

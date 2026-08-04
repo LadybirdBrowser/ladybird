@@ -8,30 +8,12 @@
 
 #include <LibGC/Cell.h>
 
-// Class that overrides must_survive_garbage_collection without the flag - ERROR
-class MissingSurviveFlag : public GC::Cell {
-    GC_CELL(MissingSurviveFlag, GC::Cell);
-
-    // expected-error@+1 {{Class MissingSurviveFlag overrides must_survive_garbage_collection but does not set static constexpr bool OVERRIDES_MUST_SURVIVE_GARBAGE_COLLECTION = true}}
-    virtual bool must_survive_garbage_collection() const override { return true; }
-};
-
 // Class that overrides finalize without the flag - ERROR
 class MissingFinalizeFlag : public GC::Cell {
     GC_CELL(MissingFinalizeFlag, GC::Cell);
 
     // expected-error@+1 {{Class MissingFinalizeFlag overrides finalize but does not set static constexpr bool OVERRIDES_FINALIZE = true}}
     virtual void finalize() override { Base::finalize(); }
-};
-
-// Class that correctly sets the survive flag - OK
-class CorrectSurviveFlag : public GC::Cell {
-    GC_CELL(CorrectSurviveFlag, GC::Cell);
-
-public:
-    static constexpr bool OVERRIDES_MUST_SURVIVE_GARBAGE_COLLECTION = true;
-
-    virtual bool must_survive_garbage_collection() const override { return true; }
 };
 
 // Class that correctly sets the finalize flag - OK

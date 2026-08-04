@@ -9,21 +9,19 @@
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssstylevalue
-class CSSStyleValue : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(CSSStyleValue, Bindings::PlatformObject);
+class CSSStyleValue : public Bindings::GCAllocatedWrappable {
+    WEB_WRAPPABLE(CSSStyleValue, Bindings::GCAllocatedWrappable);
     GC_DECLARE_ALLOCATOR(CSSStyleValue);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSStyleValue> create(JS::Realm&, Utf16FlyString associated_property, NonnullRefPtr<StyleValue const>);
+    [[nodiscard]] static GC::Ref<CSSStyleValue> create(Utf16FlyString associated_property, NonnullRefPtr<StyleValue const>);
 
     virtual ~CSSStyleValue() override;
-
-    virtual void initialize(JS::Realm&) override;
 
     Optional<Utf16FlyString> const& associated_property() const { return m_associated_property; }
     RefPtr<StyleValue const> const& source_value() const { return m_source_value; }
@@ -47,11 +45,11 @@ public:
     virtual WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> create_an_internal_representation(PropertyNameAndID const&, PerformTypeCheck) const;
 
 protected:
-    explicit CSSStyleValue(JS::Realm&);
-    explicit CSSStyleValue(JS::Realm&, NonnullRefPtr<StyleValue const> source_value);
+    explicit CSSStyleValue();
+    explicit CSSStyleValue(NonnullRefPtr<StyleValue const> source_value);
 
 private:
-    explicit CSSStyleValue(JS::Realm&, Utf16FlyString associated_property, NonnullRefPtr<StyleValue const> source_value);
+    explicit CSSStyleValue(Utf16FlyString associated_property, NonnullRefPtr<StyleValue const> source_value);
 
     // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssstylevalue-associatedproperty-slot
     Optional<Utf16FlyString> m_associated_property;

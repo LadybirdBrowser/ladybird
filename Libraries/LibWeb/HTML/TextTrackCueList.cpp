@@ -4,9 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/TextTrackCueList.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/TextTrackCueList.h>
 
@@ -14,18 +11,12 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(TextTrackCueList);
 
-TextTrackCueList::TextTrackCueList(JS::Realm& realm)
-    : DOM::EventTarget(realm, MayInterfereWithIndexedPropertyAccess::Yes)
+TextTrackCueList::TextTrackCueList()
+    : DOM::EventTarget()
 {
 }
 
 TextTrackCueList::~TextTrackCueList() = default;
-
-void TextTrackCueList::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(TextTrackCueList);
-    Base::initialize(realm);
-}
 
 void TextTrackCueList::visit_edges(JS::Cell::Visitor& visitor)
 {
@@ -33,21 +24,14 @@ void TextTrackCueList::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_cues);
 }
 
-// https://html.spec.whatwg.org/multipage/media.html#dom-texttrackcuelist-item
-JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> TextTrackCueList::internal_get_own_property(JS::PropertyKey const& property_name) const
+GC::Ptr<TextTrackCue> TextTrackCueList::item(size_t index) const
 {
     // To determine the value of an indexed property for a given index index, the user agent must return the indexth text track cue in the list
     // represented by the TextTrackCueList object.
-    if (property_name.is_number()) {
-        if (auto index = property_name.as_number(); index < m_cues.size()) {
-            JS::PropertyDescriptor descriptor;
-            descriptor.value = m_cues.at(index);
+    if (index >= m_cues.size())
+        return nullptr;
 
-            return descriptor;
-        }
-    }
-
-    return Base::internal_get_own_property(property_name);
+    return m_cues.at(index);
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-texttrackcuelist-length

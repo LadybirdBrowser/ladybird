@@ -6,9 +6,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/IDBOpenDBRequest.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/IndexedDB/IDBOpenDBRequest.h>
 
 namespace Web::IndexedDB {
@@ -18,20 +19,14 @@ GC_DEFINE_ALLOCATOR(IDBOpenDBRequest);
 IDBOpenDBRequest::~IDBOpenDBRequest() = default;
 
 // NOTE: The source of an open request is always null.
-IDBOpenDBRequest::IDBOpenDBRequest(JS::Realm& realm)
-    : IDBRequest(realm, {})
+IDBOpenDBRequest::IDBOpenDBRequest(GC::Ref<DOM::EventTarget> relevant_global_object)
+    : IDBRequest(relevant_global_object, {})
 {
 }
 
-void IDBOpenDBRequest::initialize(JS::Realm& realm)
+GC::Ref<IDBOpenDBRequest> IDBOpenDBRequest::create(GC::Ref<DOM::EventTarget> relevant_global_object)
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(IDBOpenDBRequest);
-    Base::initialize(realm);
-}
-
-GC::Ref<IDBOpenDBRequest> IDBOpenDBRequest::create(JS::Realm& realm)
-{
-    return realm.create<IDBOpenDBRequest>(realm);
+    return GC::Heap::the().allocate<IDBOpenDBRequest>(relevant_global_object);
 }
 
 DOM::EventTarget* IDBOpenDBRequest::get_parent(DOM::Event const&)

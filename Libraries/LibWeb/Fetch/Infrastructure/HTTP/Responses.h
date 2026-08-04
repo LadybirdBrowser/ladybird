@@ -62,16 +62,19 @@ public:
         bool operator==(BodyInfo const&) const = default;
     };
 
+    // RequestServer bookkeeping is transport state, not JS-visible response data.
     struct RequestServerRequest {
         int client_id { -1 };
         u64 request_id { 0 };
         RefPtr<Requests::Request> request;
     };
 
+    [[nodiscard]] static GC::Ref<Response> create();
     [[nodiscard]] static GC::Ref<Response> create(JS::VM&);
-    [[nodiscard]] static GC::Ref<Response> aborted_network_error(JS::VM&);
+    [[nodiscard]] static GC::Ref<Response> aborted_network_error();
+    [[nodiscard]] static GC::Ref<Response> network_error(String message);
     [[nodiscard]] static GC::Ref<Response> network_error(JS::VM&, String message);
-    [[nodiscard]] static GC::Ref<Response> appropriate_network_error(JS::VM&, FetchParams const&);
+    [[nodiscard]] static GC::Ref<Response> appropriate_network_error(FetchParams const&);
 
     virtual ~Response() = default;
 
@@ -295,7 +298,7 @@ class WEB_API BasicFilteredResponse final : public FilteredResponse {
     GC_DECLARE_ALLOCATOR(BasicFilteredResponse);
 
 public:
-    [[nodiscard]] static GC::Ref<BasicFilteredResponse> create(JS::VM&, GC::Ref<Response>);
+    [[nodiscard]] static GC::Ref<BasicFilteredResponse> create(GC::Ref<Response>);
 
     [[nodiscard]] virtual Type type() const override { return Type::Basic; }
     virtual NonnullRefPtr<HTTP::HeaderList> const& header_list() const override { return m_header_list; }
@@ -312,7 +315,7 @@ class WEB_API CORSFilteredResponse final : public FilteredResponse {
     GC_DECLARE_ALLOCATOR(CORSFilteredResponse);
 
 public:
-    [[nodiscard]] static GC::Ref<CORSFilteredResponse> create(JS::VM&, GC::Ref<Response>);
+    [[nodiscard]] static GC::Ref<CORSFilteredResponse> create(GC::Ref<Response>);
 
     [[nodiscard]] virtual Type type() const override { return Type::CORS; }
     virtual NonnullRefPtr<HTTP::HeaderList> const& header_list() const override { return m_header_list; }
@@ -329,7 +332,7 @@ class WEB_API OpaqueFilteredResponse final : public FilteredResponse {
     GC_DECLARE_ALLOCATOR(OpaqueFilteredResponse);
 
 public:
-    [[nodiscard]] static GC::Ref<OpaqueFilteredResponse> create(JS::VM&, GC::Ref<Response>);
+    [[nodiscard]] static GC::Ref<OpaqueFilteredResponse> create(GC::Ref<Response>);
 
     [[nodiscard]] virtual Type type() const override { return Type::Opaque; }
     [[nodiscard]] virtual Vector<URL::URL> const& url_list() const override { return m_url_list; }
@@ -353,7 +356,7 @@ class WEB_API OpaqueRedirectFilteredResponse final : public FilteredResponse {
     GC_DECLARE_ALLOCATOR(OpaqueRedirectFilteredResponse);
 
 public:
-    [[nodiscard]] static GC::Ref<OpaqueRedirectFilteredResponse> create(JS::VM&, GC::Ref<Response>);
+    [[nodiscard]] static GC::Ref<OpaqueRedirectFilteredResponse> create(GC::Ref<Response>);
 
     [[nodiscard]] virtual Type type() const override { return Type::OpaqueRedirect; }
     [[nodiscard]] virtual Status status() const override { return 0; }

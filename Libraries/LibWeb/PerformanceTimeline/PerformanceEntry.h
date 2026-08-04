@@ -6,11 +6,15 @@
 
 #pragma once
 
-#include <AK/Utf16FlyString.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <AK/Optional.h>
+#include <AK/String.h>
+#include <LibWeb/Bindings/PerformanceObserver.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::PerformanceTimeline {
+
+using PerformanceObserverInit = Bindings::PerformanceObserverInit;
 
 enum class AvailableFromTimeline {
     No,
@@ -23,8 +27,8 @@ enum class ShouldAddEntry {
 };
 
 // https://www.w3.org/TR/performance-timeline/#dom-performanceentry
-class PerformanceEntry : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(PerformanceEntry, Bindings::PlatformObject);
+class PerformanceEntry : public Bindings::GCAllocatedWrappable {
+    WEB_WRAPPABLE(PerformanceEntry, Bindings::GCAllocatedWrappable);
 
 public:
     virtual ~PerformanceEntry();
@@ -37,11 +41,11 @@ public:
     HighResolutionTime::DOMHighResTimeStamp duration() const { return m_duration; }
 
     // https://w3c.github.io/timing-entrytypes-registry/#dfn-should-add-entry
-    virtual PerformanceTimeline::ShouldAddEntry should_add_entry(Optional<Bindings::PerformanceObserverInit const&> = {}) const = 0;
+    virtual PerformanceTimeline::ShouldAddEntry should_add_entry(Optional<PerformanceObserverInit const&> = {}) const = 0;
 
 protected:
-    PerformanceEntry(JS::Realm&, Utf16String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration);
-    virtual void initialize(JS::Realm&) override;
+    PerformanceEntry(String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration);
+    PerformanceEntry(Utf16String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration);
 
 private:
     // https://www.w3.org/TR/performance-timeline/#dom-performanceentry-name

@@ -4,8 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/DOM/Event.h>
@@ -97,7 +99,7 @@ BrowsingContext::BrowsingContextAndDocument BrowsingContext::create_a_new_auxili
     VERIFY(group);
 
     // 4. Set browsingContext and document be the result of creating a new browsing context and document with opener's active document, null, and group.
-    auto [browsing_context, document] = create_a_new_browsing_context_and_document(page, opener->active_document(), nullptr, *group);
+    auto [browsing_context, document] = create_a_new_browsing_context_and_document(page, opener->active_document(), nullptr);
 
     // 5. Set browsingContext's is auxiliary to true.
     browsing_context->m_is_auxiliary = true;
@@ -129,12 +131,10 @@ static void populate_with_html_head_body(GC::Ref<DOM::Document> document)
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#creating-a-new-browsing-context
-BrowsingContext::BrowsingContextAndDocument BrowsingContext::create_a_new_browsing_context_and_document(GC::Ref<Page> page, GC::Ptr<DOM::Document> creator, GC::Ptr<DOM::Element> embedder, GC::Ref<BrowsingContextGroup> group)
+BrowsingContext::BrowsingContextAndDocument BrowsingContext::create_a_new_browsing_context_and_document(GC::Ref<Page> page, GC::Ptr<DOM::Document> creator, GC::Ptr<DOM::Element> embedder)
 {
-    auto& vm = group->vm();
-
     // 1. Let browsingContext be a new browsing context.
-    GC::Ref<BrowsingContext> browsing_context = *vm.heap().allocate<BrowsingContext>(page);
+    GC::Ref<BrowsingContext> browsing_context = *GC::Heap::the().allocate<BrowsingContext>(page);
 
     // 2. Let unsafeContextCreationTime be the unsafe shared current time.
     [[maybe_unused]] auto unsafe_context_creation_time = HighResolutionTime::unsafe_shared_current_time();
@@ -174,19 +174,19 @@ BrowsingContext::BrowsingContextAndDocument BrowsingContext::create_a_new_browsi
     auto realm_execution_context = Bindings::create_a_new_javascript_realm(
         Bindings::main_thread_vm(),
         [&](JS::Realm& realm) -> JS::Object* {
-            auto window_proxy = realm.create<WindowProxy>(realm);
+            auto window_proxy = WindowProxy::create(realm);
             browsing_context->set_window_proxy(window_proxy);
 
             // - For the global object, create a new Window object.
-            window = Window::create(realm);
-            return window.ptr();
+            window = Window::create();
+            return Bindings::create_global_object_wrapper(realm, GC::Ref { *window }).ptr();
         },
         [&](JS::Realm&) -> JS::Object* {
             // - For the global this binding, use browsingContext's WindowProxy object.
             return browsing_context->window_proxy();
         });
 
-    auto& realm = window->realm();
+    auto& realm = *realm_execution_context->realm;
 
     // 11. Let topLevelCreationURL be about:blank if embedder is null; otherwise embedder's relevant settings object's top-level creation URL.
     auto top_level_creation_url = !embedder ? URL::about_blank() : relevant_settings_object(*embedder).top_level_creation_url.value();
@@ -211,10 +211,11 @@ BrowsingContext::BrowsingContextAndDocument BrowsingContext::create_a_new_browsi
         as<WindowEnvironmentSettingsObject>(Bindings::principal_host_defined_environment_settings_object(realm)).cross_origin_isolated_capability());
 
     // 15. Let document be a new Document, with:
-    auto document = HTML::HTMLDocument::create(realm);
+    auto document = HTML::HTMLDocument::create(page, *window);
 
     // Non-standard
     window->set_associated_document(*document);
+    document->set_window(*window);
 
     // type: "html"
     document->set_document_type(DOM::Document::Type::HTML);
@@ -251,7 +252,7 @@ BrowsingContext::BrowsingContextAndDocument BrowsingContext::create_a_new_browsi
     document->set_allow_declarative_shadow_roots(HTML::HTMLParser::AllowDeclarativeShadowRoots::Yes);
 
     // custom element registry: A new CustomElementRegistry object.
-    document->set_custom_element_registry(realm.create<CustomElementRegistry>(realm));
+    document->set_custom_element_registry(CustomElementRegistry::create_global(*document));
 
     // 16. Let iframeReferrerPolicy be the result of determining the iframe element referrer policy given embedder.
     auto iframe_referrer_policy = determine_iframe_element_referrer_policy(embedder);
@@ -402,6 +403,34 @@ HTML::WindowProxy* BrowsingContext::window_proxy()
 HTML::WindowProxy const* BrowsingContext::window_proxy() const
 {
     return m_window_proxy.ptr();
+}
+
+HTML::WindowProxy* BrowsingContext::window_proxy_for(Bindings::WrapperWorld& wrapper_world, JS::Realm& realm)
+{
+    if (wrapper_world.is_main_world()) {
+        VERIFY(m_window_proxy);
+        return window_proxy();
+    }
+
+    auto& cache = m_window_proxies.cache_for(wrapper_world);
+    if (auto proxy = cache.get(wrapper_world))
+        return proxy.ptr();
+
+    auto proxy = WindowProxy::create(realm);
+    if (auto window = active_window())
+        proxy->set_window(*window);
+    cache.set(wrapper_world, proxy);
+    return proxy.ptr();
+}
+
+void BrowsingContext::set_active_window(GC::Ref<HTML::Window> window)
+{
+    m_window_proxy->set_window(window);
+    m_window_proxies.for_each([&](auto& cache) {
+        cache.for_each([&](auto& proxy) {
+            proxy.set_window(window);
+        });
+    });
 }
 
 void BrowsingContext::set_window_proxy(GC::Ptr<WindowProxy> window_proxy)

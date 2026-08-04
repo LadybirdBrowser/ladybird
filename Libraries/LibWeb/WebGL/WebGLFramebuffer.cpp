@@ -16,8 +16,9 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(WebGLFramebuffer);
 
-GC::Ref<WebGLFramebuffer> WebGLFramebuffer::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context, GLuint handle)
+GC::Ref<WebGLFramebuffer> WebGLFramebuffer::create(GC::Ref<WebGLRenderingContextBase> context, GLuint handle)
 {
+    auto& realm = context->realm();
     return realm.create<WebGLFramebuffer>(realm, context, handle);
 }
 
@@ -27,12 +28,6 @@ WebGLFramebuffer::WebGLFramebuffer(JS::Realm& realm, GC::Ref<WebGLRenderingConte
 }
 
 WebGLFramebuffer::~WebGLFramebuffer() = default;
-
-void WebGLFramebuffer::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGLFramebuffer);
-    Base::initialize(realm);
-}
 
 void WebGLFramebuffer::visit_edges(Visitor& visitor)
 {

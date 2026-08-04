@@ -7,13 +7,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/SVGGraphicsElement.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/UpdateStyle.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/Geometry/DOMRect.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Painting/PaintStyle.h>
 #include <LibWeb/Painting/Paintable.h>
@@ -38,12 +38,6 @@ namespace Web::SVG {
 SVGGraphicsElement::SVGGraphicsElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : SVGElement(document, move(qualified_name))
 {
-}
-
-void SVGGraphicsElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGGraphicsElement);
-    Base::initialize(realm);
 }
 
 void SVGGraphicsElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
@@ -371,7 +365,7 @@ static Painting::SVGGraphicsPaintable::ComputedTransforms const* computed_svg_tr
 }
 
 // https://svgwg.org/svg2-draft/types.html#__svg__SVGGraphicsElement__getBBox
-WebIDL::ExceptionOr<GC::Ref<Geometry::DOMRect>> SVGGraphicsElement::get_b_box(Optional<Bindings::SVGBoundingBoxOptions> const&)
+WebIDL::ExceptionOr<GC::Ref<Geometry::DOMRect>> SVGGraphicsElement::get_b_box(Bindings::SVGBoundingBoxOptions const&)
 {
     // The getBBox method is used to compute the bounding box of the current element.  When the getBBox(options) method
     // is called, the bounding box algorithm is invoked for the current element, with fill, stroke, markers and clipped
@@ -387,8 +381,8 @@ WebIDL::ExceptionOr<GC::Ref<Geometry::DOMRect>> SVGGraphicsElement::get_b_box(Op
     //        See: https://svgwg.org/svg2-draft/coords.html#BoundingBoxes
     document().update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::SVGGraphicsElementGetBBox);
     if (!layout_node())
-        return Geometry::DOMRect::create(realm());
-
+        return Geometry::DOMRect::create();
+    // Invert the SVG -> screen space transform.
     auto owner_svg_element = this->owner_svg_element();
 
     // The outermost svg element has no ancestor svg element to measure against; per the bounding box
@@ -396,10 +390,10 @@ WebIDL::ExceptionOr<GC::Ref<Geometry::DOMRect>> SVGGraphicsElement::get_b_box(Op
     // coordinate system (i.e. with the viewBox transform undone, but each child's own transforms kept).
     if (!owner_svg_element) {
         if (!is<SVGSVGElement>(*this))
-            return Geometry::DOMRect::create(realm());
+            return Geometry::DOMRect::create();
         auto self_paintable = paintable_box();
         if (!self_paintable)
-            return Geometry::DOMRect::create(realm());
+            return Geometry::DOMRect::create();
         auto viewport_origin = self_paintable->absolute_rect().location().to_type<float>();
         Gfx::FloatRect united_rect;
         self_paintable->for_each_child([&](Painting::Paintable const& child) {
@@ -412,47 +406,56 @@ WebIDL::ExceptionOr<GC::Ref<Geometry::DOMRect>> SVGGraphicsElement::get_b_box(Op
             return IterationDecision::Continue;
         });
         if (united_rect.is_empty())
-            return Geometry::DOMRect::create(realm());
-        return Geometry::DOMRect::create(realm(), united_rect);
+            return Geometry::DOMRect::create();
+        return Geometry::DOMRect::create(united_rect);
     }
 
     // Invert the SVG -> screen space transform.
     auto owner_paintable = owner_svg_element->paintable_box();
     auto self_paintable = paintable_box();
-    if (!owner_paintable || !self_paintable)
-        return Geometry::DOMRect::create(realm());
+    if (!owner_paintable || !self_paintable) {
+        // Throw only for non-rendered *graphics* elements where geometry isn't computable
+        // (e.g. elements inside <marker>, <pattern>, etc.).
+        if (is<SVGSVGElement>(*this))
+            return Geometry::DOMRect::create();
+        return WebIDL::InvalidStateError::create(
+            HTML::relevant_realm(*this),
+            "Element is not rendered and geometry is not computable"_utf16);
+    }
 
     auto svg_rect = owner_paintable->absolute_rect();
     auto rect = self_paintable->absolute_rect().to_type<float>().translated(-svg_rect.location().to_type<float>());
+    // An element with a non-positive geometry dimension is not rendered and
+    // therefore contributes an empty bounding box, regardless of its
+    // positioning rectangle's origin.
+    if (rect.width() <= 0 || rect.height() <= 0)
+        return Geometry::DOMRect::create();
     if (auto const* transforms = computed_svg_transforms_of(*self_paintable)) {
         auto inv = transforms->svg_to_css_pixels_transform().inverse();
         if (inv.has_value())
             rect = inv->map(rect);
     }
-
-    if (rect.is_empty())
-        return Geometry::DOMRect::create(realm());
-    return Geometry::DOMRect::create(realm(), rect);
+    return Geometry::DOMRect::create(rect);
 }
 
 GC::Ref<SVGAnimatedTransformList> SVGGraphicsElement::transform() const
 {
     dbgln("(STUBBED) SVGGraphicsElement::transform(). Called on: {}", debug_description());
-    auto base_val = SVGTransformList::create(realm(), ReadOnlyList::Yes);
-    auto anim_val = SVGTransformList::create(realm(), ReadOnlyList::Yes);
-    return SVGAnimatedTransformList::create(realm(), base_val, anim_val);
+    auto base_val = SVGTransformList::create(ReadOnlyList::Yes);
+    auto anim_val = SVGTransformList::create(ReadOnlyList::Yes);
+    return SVGAnimatedTransformList::create(base_val, anim_val);
 }
 
 GC::Ptr<Geometry::DOMMatrix> SVGGraphicsElement::get_screen_ctm()
 {
     dbgln("(STUBBED) SVGGraphicsElement::get_screen_ctm(). Called on: {}", debug_description());
-    return Geometry::DOMMatrix::create(realm());
+    return Geometry::DOMMatrix::create();
 }
 
 GC::Ptr<Geometry::DOMMatrix> SVGGraphicsElement::get_ctm()
 {
     dbgln("(STUBBED) SVGGraphicsElement::get_ctm(). Called on: {}", debug_description());
-    return Geometry::DOMMatrix::create(realm());
+    return Geometry::DOMMatrix::create();
 }
 
 }

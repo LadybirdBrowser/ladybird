@@ -1,0 +1,6 @@
+iterator prototype is parent realm: true
+iterator prototype is iframe realm: false
+next result object is parent realm: true
+next result object is iframe realm: false
+next value array is parent realm: true
+next value array is iframe realm: false

@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <AK/Badge.h>
 #include <AK/Function.h>
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16View.h>
@@ -22,12 +23,12 @@
 namespace Web::CSS {
 
 // https://www.w3.org/TR/cssom/#the-cssrulelist-interface
-class WEB_API CSSRuleList : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(CSSRuleList, Bindings::PlatformObject);
+class WEB_API CSSRuleList : public Bindings::GCAllocatedWrappable {
+    WEB_WRAPPABLE(CSSRuleList, Bindings::GCAllocatedWrappable);
     GC_DECLARE_ALLOCATOR(CSSRuleList);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSRuleList> create(JS::Realm&, ReadonlySpan<GC::Ref<CSSRule>> = {});
+    [[nodiscard]] static GC::Ref<CSSRuleList> create(ReadonlySpan<GC::Ref<CSSRule>> = {});
 
     ~CSSRuleList() = default;
 
@@ -53,9 +54,8 @@ public:
     auto end() const { return m_rules.end(); }
     auto end() { return m_rules.end(); }
 
-    virtual Optional<JS::Value> item_value(size_t index) const override;
-
     WebIDL::ExceptionOr<void> remove_a_css_rule(u32 index);
+    void remove_a_css_rule_without_validation(Badge<CSSStyleSheet>, u32 index);
     enum class Nested {
         No,
         Yes,
@@ -73,12 +73,12 @@ public:
     Function<void()> on_change;
 
 private:
-    explicit CSSRuleList(JS::Realm&);
+    explicit CSSRuleList();
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual size_t external_memory_size() const override;
 
+    void remove_a_css_rule_without_validation(u32 index);
     Vector<Parser::RuleContext> rule_context() const;
 
     Vector<GC::Ref<CSSRule>> m_rules;

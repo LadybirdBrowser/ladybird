@@ -19,12 +19,12 @@ using CSSPerspectiveValueInternal = Variant<GC::Ref<CSSNumericValue>, GC::Ref<CS
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssperspective
 class CSSPerspective final : public CSSTransformComponent {
-    WEB_PLATFORM_OBJECT(CSSPerspective, CSSTransformComponent);
+    WEB_WRAPPABLE(CSSPerspective, CSSTransformComponent);
     GC_DECLARE_ALLOCATOR(CSSPerspective);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSPerspective> create(JS::Realm&, CSSPerspectiveValueInternal);
-    static WebIDL::ExceptionOr<GC::Ref<CSSPerspective>> construct_impl(JS::Realm&, CSSPerspectiveValue);
+    [[nodiscard]] static GC::Ref<CSSPerspective> create(CSSPerspectiveValueInternal);
+    static WebIDL::ExceptionOr<GC::Ref<CSSPerspective>> create_for_constructor(CSSPerspectiveValue);
 
     virtual ~CSSPerspective() override;
 
@@ -40,10 +40,8 @@ public:
     virtual WebIDL::ExceptionOr<NonnullRefPtr<TransformationStyleValue const>> create_style_value(PropertyNameAndID const&) const override;
 
 private:
-    explicit CSSPerspective(JS::Realm&, CSSPerspectiveValueInternal);
-
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor&) override;
+    explicit CSSPerspective(CSSPerspectiveValueInternal);
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     CSSPerspectiveValueInternal m_length;
 };

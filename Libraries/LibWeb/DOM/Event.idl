@@ -1,12 +1,12 @@
 // https://dom.spec.whatwg.org/#event
 [Exposed=*]
 interface Event {
-    constructor([Utf16FlyString] Utf16DOMString type, optional EventInit eventInitDict = {});
+    constructor(DOMString type, optional EventInit eventInitDict = {});
 
     readonly attribute Utf16DOMString type;
     readonly attribute EventTarget? target;
     readonly attribute EventTarget? srcElement; // legacy
-    [ImplementedAs=current_target_for_bindings] readonly attribute EventTarget? currentTarget;
+    [ImplementedAs=current_target_value, ImplementedInBindings, ReturnsJSValue] readonly attribute EventTarget? currentTarget;
     sequence<EventTarget> composedPath();
 
     const unsigned short NONE = 0;

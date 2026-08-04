@@ -8,7 +8,8 @@
 
 #include <AK/Forward.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibJS/Heap/Cell.h>
+#include <LibJS/Runtime/Value.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/Promise.h>
 
@@ -29,8 +30,10 @@ public:
     GC::Ptr<WebIDL::Promise> closed_promise_capability() { return m_closed_promise; }
     void set_closed_promise_capability(GC::Ptr<WebIDL::Promise> promise) { m_closed_promise = promise; }
 
+    JS::Realm& closed_promise_realm() const;
+
 protected:
-    explicit ReadableStreamGenericReaderMixin(JS::Realm&);
+    ReadableStreamGenericReaderMixin() = default;
 
     void visit_edges(JS::Cell::Visitor&);
 
@@ -41,8 +44,6 @@ protected:
     // https://streams.spec.whatwg.org/#readablestreamgenericreader-stream
     // A ReadableStream instance that owns this reader
     GC::Ptr<ReadableStream> m_stream;
-
-    GC::Ref<JS::Realm> m_realm;
 };
 
 }

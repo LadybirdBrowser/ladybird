@@ -21,6 +21,7 @@ set(TEST_SOURCES
     TestRefCountedTreeNode.cpp
     TestSecureContexts.cpp
     TestSessionHistoryEntry.cpp
+    TestSimpleRealm.cpp
     TestSmoothScrollAnimation.cpp
     TestSourceHighlighter.cpp
     TestStructuredSerializeCorpus.cpp
@@ -28,12 +29,9 @@ set(TEST_SOURCES
     TestStructuredSerializeFormat.cpp
     TestStructuredSerializeHardening.cpp
     TestStrings.cpp
-    TestLengthAbsolutizeParity.cpp
-    TestNumericTypeParity.cpp
-    TestStylePropertyMetadataParity.cpp
-    TestStyleStructRef.cpp
-    TestWebIDLBuffers.cpp
-    TestWebGLSpanWithStorage.cpp
+    TestWrapperWorld.cpp
+    TestWorldCallback.cpp
+    TestWindowProxyWorld.cpp
 )
 
 if (NOT WIN32)
@@ -43,7 +41,11 @@ if (NOT WIN32)
 endif()
 
 foreach(source IN LISTS TEST_SOURCES)
-    ladybird_test("${source}" LibWeb LIBS LibWeb)
+    set(test_libraries LibWeb)
+    if (source STREQUAL "TestSimpleRealm.cpp")
+        list(APPEND test_libraries LibGC LibJS)
+    endif()
+    ladybird_test("${source}" LibWeb LIBS ${test_libraries})
 endforeach()
 
 ladybird_utility(css-tokenizer SOURCES css-tokenizer.cpp LIBS LibFileSystem LibMain LibWeb)
@@ -56,15 +58,24 @@ target_link_libraries(TestFetchURL PRIVATE LibURL)
 target_link_libraries(TestAccumulatedVisualContext PRIVATE LibGfx)
 target_link_libraries(TestImageData PRIVATE LibGC LibJS)
 target_link_libraries(TestPage PRIVATE LibGC LibJS)
+target_link_libraries(TestStructuredSerializeCorpus PRIVATE LibGC LibJS LibCrypto LibGfx LibIPC)
+target_link_libraries(TestStructuredSerializeDurability PRIVATE LibGC LibJS LibCrypto LibGfx LibIPC)
+target_link_libraries(TestStructuredSerializeFormat PRIVATE LibGC LibJS LibCrypto LibGfx LibIPC)
+target_link_libraries(TestStructuredSerializeHardening PRIVATE LibGC LibJS LibCrypto LibGfx LibIPC)
 target_link_libraries(TestSecureContexts PRIVATE LibURL)
 target_link_libraries(TestSessionHistoryEntry PRIVATE LibJS LibURL)
 target_link_libraries(TestSourceHighlighter PRIVATE LibURL LibWebView)
-target_link_libraries(TestStructuredSerializeCorpus PRIVATE LibCrypto LibGC LibIPC LibJS)
-target_link_libraries(TestStructuredSerializeDurability PRIVATE LibCrypto LibGC LibIPC LibJS)
-target_link_libraries(TestStructuredSerializeFormat PRIVATE LibCrypto LibGC LibGfx LibIPC LibJS)
-target_link_libraries(TestStructuredSerializeHardening PRIVATE LibGC LibIPC LibJS)
-target_link_libraries(TestWebIDLBuffers PRIVATE LibGC LibJS)
-target_link_libraries(TestWebGLSpanWithStorage PRIVATE LibGC LibJS)
+target_link_libraries(TestWrapperWorld PRIVATE LibGC LibJS LibURL)
+target_sources(TestWorldCallback PRIVATE
+    ${ladybird_SOURCE_DIR}/Libraries/LibWeb/DOM/IDLEventListener.cpp
+    ${ladybird_SOURCE_DIR}/Libraries/LibWeb/WebIDL/CallbackType.cpp
+)
+target_link_libraries(TestWorldCallback PRIVATE LibGC LibJS LibWeb)
+target_sources(TestWindowProxyWorld PRIVATE
+    ${ladybird_SOURCE_DIR}/Libraries/LibWeb/DOM/IDLEventListener.cpp
+    ${ladybird_SOURCE_DIR}/Libraries/LibWeb/WebIDL/CallbackType.cpp
+)
+target_link_libraries(TestWindowProxyWorld PRIVATE LibGC LibJS LibWeb)
 
 if (NOT WIN32)
     add_custom_target(test-css-tokenizer ALL DEPENDS css-tokenizer "${CMAKE_BINARY_DIR}/bin/test-css-tokenizer")

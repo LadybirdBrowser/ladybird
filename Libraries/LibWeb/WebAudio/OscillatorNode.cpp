@@ -6,8 +6,7 @@
  */
 
 #include <AK/Math.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/OscillatorNode.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/WebAudio/AudioParam.h>
 #include <LibWeb/WebAudio/BaseAudioContext.h>
 #include <LibWeb/WebAudio/OscillatorNode.h>
@@ -20,28 +19,32 @@ GC_DEFINE_ALLOCATOR(OscillatorNode);
 
 OscillatorNode::~OscillatorNode() = default;
 
-WebIDL::ExceptionOr<GC::Ref<OscillatorNode>> OscillatorNode::create(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::OscillatorOptions const& options)
+void OscillatorNode::queue_waveform_update()
 {
-    return construct_impl(realm, context, options);
+    RefPtr<Rendering::PeriodicWaveData> periodic_wave;
+    if (m_periodic_wave)
+        periodic_wave = m_periodic_wave->render_data();
+
+    context()->queue_control_message(NodeMessage { SetOscillatorWaveform {
+        .node_id = node_id(),
+        .type = m_type,
+        .periodic_wave = move(periodic_wave),
+    } });
 }
 
-// https://webaudio.github.io/web-audio-api/#dom-oscillatornode-oscillatornode
-WebIDL::ExceptionOr<GC::Ref<OscillatorNode>> OscillatorNode::construct_impl(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::OscillatorOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<OscillatorNode>> OscillatorNode::create(GC::Ref<BaseAudioContext> context, OscillatorOptions const& options)
 {
-    if (options.type == Bindings::OscillatorType::Custom && !options.periodic_wave)
-        return WebIDL::InvalidStateError::create(realm, "Oscillator node type 'custom' requires PeriodicWave to be provided"_utf16);
+    auto node = GC::Heap::the().allocate<OscillatorNode>(context, options);
 
-    auto node = realm.create<OscillatorNode>(realm, context, options);
-
-    if (options.type == Bindings::OscillatorType::Custom)
+    if (options.type == OscillatorType::Custom)
         node->set_periodic_wave(options.periodic_wave);
 
     // Default options for channel count and interpretation
     // https://webaudio.github.io/web-audio-api/#OscillatorNode
     AudioNodeDefaultOptions default_options;
     default_options.channel_count = 2;
-    default_options.channel_count_mode = Bindings::ChannelCountMode::Max;
-    default_options.channel_interpretation = Bindings::ChannelInterpretation::Speakers;
+    default_options.channel_count_mode = ChannelCountMode::Max;
+    default_options.channel_interpretation = ChannelInterpretation::Speakers;
     // FIXME: Set tail-time to no
 
     TRY(node->initialize_audio_node_options(options, default_options));
@@ -52,33 +55,40 @@ WebIDL::ExceptionOr<GC::Ref<OscillatorNode>> OscillatorNode::construct_impl(JS::
     return node;
 }
 
-void OscillatorNode::queue_waveform_update()
+WebIDL::ExceptionOr<void> OscillatorNode::validate_options(OscillatorOptions const& options)
 {
-    RefPtr<Rendering::PeriodicWaveData> wave_data;
-    if (m_type == Bindings::OscillatorType::Custom && m_periodic_wave)
-        wave_data = m_periodic_wave->render_data();
-    context()->queue_control_message(NodeMessage { SetOscillatorWaveform { node_id(), m_type, move(wave_data) } });
+    if (options.type == OscillatorType::Custom && !options.periodic_wave)
+        return WebIDL::InvalidStateError::create("Oscillator node type 'custom' requires PeriodicWave to be provided"_utf16);
+
+    return {};
 }
 
-OscillatorNode::OscillatorNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, Bindings::OscillatorOptions const& options)
-    : AudioScheduledSourceNode(realm, context)
+// https://webaudio.github.io/web-audio-api/#dom-oscillatornode-oscillatornode
+WebIDL::ExceptionOr<GC::Ref<OscillatorNode>> OscillatorNode::create_for_constructor(GC::Ref<BaseAudioContext> context, OscillatorOptions const& options)
+{
+    TRY(validate_options(options));
+    return create(context, options);
+}
+
+OscillatorNode::OscillatorNode(GC::Ref<BaseAudioContext> context, OscillatorOptions const& options)
+    : AudioScheduledSourceNode(context)
     , m_type(options.type)
-    , m_frequency(AudioParam::create(realm, context, this, options.frequency, -context->nyquist_frequency(), context->nyquist_frequency(), Bindings::AutomationRate::ARate))
-    , m_detune(AudioParam::create(realm, context, this, options.detune, -1200 * AK::log2(NumericLimits<float>::max()), 1200 * AK::log2(NumericLimits<float>::max()), Bindings::AutomationRate::ARate))
+    , m_frequency(AudioParam::create(context, this, options.frequency, -context->nyquist_frequency(), context->nyquist_frequency(), AutomationRate::ARate))
+    , m_detune(AudioParam::create(context, this, options.detune, -1200 * AK::log2(NumericLimits<float>::max()), 1200 * AK::log2(NumericLimits<float>::max()), AutomationRate::ARate))
 {
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-oscillatornode-type
-Bindings::OscillatorType OscillatorNode::type() const
+OscillatorType OscillatorNode::type() const
 {
     return m_type;
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-oscillatornode-type
-WebIDL::ExceptionOr<void> OscillatorNode::set_type(Bindings::OscillatorType type)
+WebIDL::ExceptionOr<void> OscillatorNode::set_type(OscillatorType type)
 {
-    if (type == Bindings::OscillatorType::Custom && m_type != Bindings::OscillatorType::Custom)
-        return WebIDL::InvalidStateError::create(realm(), "Oscillator node type cannot be changed to 'custom'"_utf16);
+    if (type == OscillatorType::Custom && m_type != OscillatorType::Custom)
+        return WebIDL::InvalidStateError::create("Oscillator node type cannot be changed to 'custom'"_utf16);
 
     // FIXME: An appropriate PeriodicWave should be set here based on the given type.
     set_periodic_wave(nullptr);
@@ -92,14 +102,7 @@ WebIDL::ExceptionOr<void> OscillatorNode::set_type(Bindings::OscillatorType type
 void OscillatorNode::set_periodic_wave(GC::Ptr<PeriodicWave> periodic_wave)
 {
     m_periodic_wave = periodic_wave;
-    m_type = Bindings::OscillatorType::Custom;
-    queue_waveform_update();
-}
-
-void OscillatorNode::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(OscillatorNode);
-    Base::initialize(realm);
+    m_type = OscillatorType::Custom;
 }
 
 void OscillatorNode::visit_edges(Cell::Visitor& visitor)

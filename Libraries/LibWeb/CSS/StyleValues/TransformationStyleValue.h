@@ -35,7 +35,7 @@ public:
     FloatMatrix4x4 to_matrix(Optional<Painting::Paintable const&>) const;
 
     void serialize(StringBuilder&, SerializationMode) const;
-    GC::Ptr<CSSTransformComponent> reify_a_transform_function(JS::Realm&) const;
+    GC::Ptr<CSSTransformComponent> reify_a_transform_function() const;
 
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 

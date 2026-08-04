@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/DOMStringList.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/HTML/DOMStringList.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -13,22 +12,14 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(DOMStringList);
 
-GC::Ref<DOMStringList> DOMStringList::create(JS::Realm& realm, Vector<Utf16String> list)
+GC::Ref<DOMStringList> DOMStringList::create(Vector<String> list)
 {
-    return realm.create<DOMStringList>(realm, list);
+    return GC::Heap::the().allocate<DOMStringList>(move(list));
 }
 
-DOMStringList::DOMStringList(JS::Realm& realm, Vector<Utf16String> list)
-    : Bindings::PlatformObject(realm)
-    , m_list(move(list))
+DOMStringList::DOMStringList(Vector<String> list)
+    : m_list(move(list))
 {
-    m_legacy_platform_object_flags = LegacyPlatformObjectFlags { .supports_indexed_properties = true };
-}
-
-void DOMStringList::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(DOMStringList);
-    Base::initialize(realm);
 }
 
 // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#dom-domstringlist-length
@@ -46,22 +37,17 @@ Optional<Utf16String> DOMStringList::item(u32 index) const
     if (index >= m_list.size())
         return {};
 
-    return m_list.at(index);
+    return Utf16String::from_utf8(m_list.at(index));
 }
 
 // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#dom-domstringlist-contains
 bool DOMStringList::contains(Utf16View string)
 {
     // The contains(string) method steps are to return true if this's associated list contains string, and false otherwise.
-    return m_list.contains_slow(string);
-}
-
-Optional<JS::Value> DOMStringList::item_value(size_t index) const
-{
-    if (index >= m_list.size())
-        return {};
-
-    return JS::PrimitiveString::create(vm(), m_list.at(index));
+    return any_of(m_list, [&](auto const& item) {
+        auto item_utf16 = Utf16String::from_utf8(item);
+        return item_utf16.utf16_view() == string;
+    });
 }
 
 }

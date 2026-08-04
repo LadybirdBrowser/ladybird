@@ -360,6 +360,34 @@ void CompositorState::update_video_sinks_for_display(Optional<u64> display_id)
     }
 }
 
+Optional<u64> CompositorState::display_id_for_context(ContextState const& context) const
+{
+    auto current_context = &context;
+    while (current_context) {
+        if (current_context->display_id().has_value())
+            return current_context->display_id();
+        auto parent_context_id = current_context->parent_context_id();
+        if (!parent_context_id.has_value())
+            break;
+        current_context = context_if_present(*parent_context_id);
+    }
+    return {};
+}
+
+double CompositorState::display_refresh_rate_for_context(ContextState const& context) const
+{
+    auto current_context = &context;
+    while (current_context) {
+        if (current_context->display_id().has_value())
+            return current_context->display_refresh_rate();
+        auto parent_context_id = current_context->parent_context_id();
+        if (!parent_context_id.has_value())
+            break;
+        current_context = context_if_present(*parent_context_id);
+    }
+    return context.display_refresh_rate();
+}
+
 void CompositorState::invalidate_wheel_event_listener_state(Web::Compositor::CompositorContextId context_id, u64 generation)
 {
     auto* context = context_if_present(context_id);
@@ -536,6 +564,13 @@ void CompositorState::schedule_pending_present_frame(Web::Compositor::Compositor
 {
     if (!context.presents_to_client()) {
         schedule_containing_context_present(context);
+        // A nested context is presented through its containing context, but its
+        // own async animations still need a vsync source. The containing frame
+        // may already be up to date (and therefore not schedule a new present),
+        // so explicitly keep the effective display's scheduler ticking while
+        // a nested smooth scroll is active.
+        if (context.has_active_smooth_scroll_animations())
+            vsync_scheduler_for_display(display_id_for_context(context)).schedule(display_refresh_rate_for_context(context));
         return;
     }
 
@@ -584,7 +619,7 @@ void CompositorState::present_pending_frames_on_vsync(Optional<u64> display_id)
     for (auto& context_entry : m_contexts) {
         auto context_id = context_entry.key;
         auto& context = *context_entry.value;
-        auto has_active_smooth_scroll_animation_on_display = context.has_active_smooth_scroll_animations() && context.display_id() == display_id;
+        auto has_active_smooth_scroll_animation_on_display = context.has_active_smooth_scroll_animations() && display_id_for_context(context) == display_id;
         if (!context.has_pending_present_frame_scheduled_on(display_id) && !has_active_smooth_scroll_animation_on_display)
             continue;
 
@@ -596,9 +631,9 @@ void CompositorState::present_pending_frames_on_vsync(Optional<u64> display_id)
 
         auto pending_present_frame = context.take_pending_present_frame_if_unblocked();
         if (!pending_present_frame.has_value()) {
-            has_active_smooth_scroll_animation_on_display = context.has_active_smooth_scroll_animations() && context.display_id() == display_id;
+            has_active_smooth_scroll_animation_on_display = context.has_active_smooth_scroll_animations() && display_id_for_context(context) == display_id;
             if (context.has_pending_present_frame_scheduled_on(display_id) || has_active_smooth_scroll_animation_on_display)
-                vsync_scheduler_for_display(display_id).schedule(context.display_refresh_rate());
+                vsync_scheduler_for_display(display_id).schedule(display_refresh_rate_for_context(context));
             continue;
         }
         if (context.has_active_smooth_scroll_animations())

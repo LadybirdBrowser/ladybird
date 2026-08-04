@@ -8,16 +8,15 @@
 
 #include <AK/Badge.h>
 #include <AK/Concepts.h>
+#include <AK/Error.h>
 #include <AK/Optional.h>
-#include <AK/Utf16FlyString.h>
-#include <AK/Utf16StringBuilder.h>
-#include <AK/Utf16View.h>
+#include <AK/Utf16String.h>
+#include <LibGC/RootVector.h>
 #include <LibGfx/DecodedImageFrame.h>
+#include <LibJS/Runtime/Value.h>
 #include <LibWeb/ARIA/ARIAMixin.h>
 #include <LibWeb/Animations/Animatable.h>
 #include <LibWeb/Bindings/Element.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/ShadowRoot.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/StyleProperty.h>
@@ -29,17 +28,16 @@
 #include <LibWeb/DOM/RequestFullscreenError.h>
 #include <LibWeb/DOM/Slottable.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/HTML/EventLoop/Task.h>
 #include <LibWeb/HTML/Parser/ParserScriptingMode.h>
-#include <LibWeb/HTML/ScrollOptions.h>
 #include <LibWeb/HTML/TagNames.h>
 #include <LibWeb/HTML/TokenizedFeatures.h>
 #include <LibWeb/HTML/UserNavigationInvolvement.h>
 #include <LibWeb/TrustedTypes/TrustedHTML.h>
-#include <LibWeb/TrustedTypes/TrustedScript.h>
-#include <LibWeb/TrustedTypes/TrustedScriptURL.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
+#include <LibWeb/WebIDL/Promise.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::Animations {
@@ -51,17 +49,81 @@ class KeyframeEffect;
 
 namespace Web::DOM {
 
+class Element;
+
+}
+
+namespace Web::Bindings {
+
+class PlatformObject;
+class WrapperWorld;
+enum class ScrollBehavior : u8;
+enum class ScrollIntoViewContainer : u8;
+enum class ScrollLogicalPosition : u8;
+struct GetHTMLOptions;
+struct PointerLockOptions;
+WEB_API void set_prototype_from_custom_element_definition_if_needed(DOM::Element&, PlatformObject&);
+WEB_API JS::Value element(JS::Realm&, GC::Ref<DOM::Element>);
+WEB_API DOM::Element* element_from_value(JS::Value);
+WEB_API GC::Ref<Geometry::DOMRect> get_bounding_client_rect(DOM::Element const&);
+WEB_API GC::Ref<Geometry::DOMRectList> get_client_rects(DOM::Element const&);
+WEB_API GC::Ptr<JS::Array> cached_reflected_element_array(DOM::Element&, WrapperWorld const&, FlyString const&);
+WEB_API GC::Ptr<JS::Array> cached_reflected_element_array(DOM::Element&, WrapperWorld const&, Utf16FlyString const&);
+WEB_API void set_cached_reflected_element_array(DOM::Element&, WrapperWorld const&, FlyString const&, GC::Ptr<JS::Array>);
+WEB_API void set_cached_reflected_element_array(DOM::Element&, WrapperWorld const&, Utf16FlyString const&, GC::Ptr<JS::Array>);
+WEB_API bool cached_reflected_element_array_contains_same_elements(GC::Ptr<JS::Array>, Optional<GC::RootVector<GC::Ref<DOM::Element>>> const&);
+WEB_API GC::Ref<WebIDL::Promise> request_pointer_lock(DOM::Element&, Optional<PointerLockOptions> const&);
+WEB_API WebIDL::ExceptionOr<TrustedTypes::TrustedHTMLOrString> inner_html(DOM::Element&);
+WEB_API WebIDL::ExceptionOr<void> set_inner_html(DOM::Element&, TrustedTypes::TrustedHTMLOrString const&);
+WEB_API WebIDL::ExceptionOr<TrustedTypes::TrustedHTMLOrString> outer_html(DOM::Element&);
+WEB_API WebIDL::ExceptionOr<void> set_outer_html(DOM::Element&, TrustedTypes::TrustedHTMLOrString const&);
+WEB_API WebIDL::ExceptionOr<void> set_html_unsafe(DOM::Element&, Variant<GC::Ref<TrustedTypes::TrustedHTML>, Utf16String> const&);
+WEB_API WebIDL::ExceptionOr<void> insert_adjacent_html(DOM::Element&, Utf16String const& position, Variant<GC::Ref<TrustedTypes::TrustedHTML>, Utf16String> const&);
+WEB_API WebIDL::ExceptionOr<void> set_attribute(DOM::Element&, Utf16String const&, Variant<GC::Ref<TrustedTypes::TrustedHTML>, GC::Ref<TrustedTypes::TrustedScript>, GC::Ref<TrustedTypes::TrustedScriptURL>, Utf16String> const&);
+WEB_API WebIDL::ExceptionOr<void> set_attribute_ns(DOM::Element&, Optional<Utf16FlyString> const&, Utf16FlyString const&, Variant<GC::Ref<TrustedTypes::TrustedHTML>, GC::Ref<TrustedTypes::TrustedScript>, GC::Ref<TrustedTypes::TrustedScriptURL>, Utf16String> const&);
+
+}
+
+namespace Web::DOM {
+
 // https://html.spec.whatwg.org/multipage/custom-elements.html#upgrade-reaction
 // An upgrade reaction, which will upgrade the custom element and contains a custom element definition; or
 struct CustomElementUpgradeReaction {
-    GC::Root<HTML::CustomElementDefinition> custom_element_definition;
+    GC::Ref<HTML::CustomElementDefinition> custom_element_definition;
 };
+
+struct CustomElementAdoptedCallbackReactionArguments {
+    GC::Ref<Document> old_document;
+    GC::Ref<Document> new_document;
+};
+
+struct CustomElementAttributeChangedCallbackReactionArguments {
+    Utf16FlyString attribute_name;
+    Optional<Utf16String> old_value;
+    Optional<Utf16String> new_value;
+    Optional<Utf16FlyString> namespace_uri;
+};
+
+struct CustomElementFormAssociatedCallbackReactionArguments {
+    GC::Ptr<HTML::HTMLFormElement> form;
+};
+
+struct CustomElementFormDisabledCallbackReactionArguments {
+    bool is_disabled { false };
+};
+
+using CustomElementCallbackReactionArguments = Variant<Empty, CustomElementAdoptedCallbackReactionArguments, CustomElementAttributeChangedCallbackReactionArguments, CustomElementFormAssociatedCallbackReactionArguments, CustomElementFormDisabledCallbackReactionArguments>;
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#callback-reaction
 // A callback reaction, which will call a lifecycle callback, and contains a callback function as well as a list of arguments.
 struct CustomElementCallbackReaction {
-    GC::Root<WebIDL::CallbackType> callback;
-    GC::RootVector<JS::Value> arguments;
+    GC::Ref<WebIDL::CallbackType> callback;
+    CustomElementCallbackReactionArguments arguments;
+};
+
+struct CustomElementConnectedMoveCallbackReaction {
+    GC::Ptr<WebIDL::CallbackType> disconnected_callback;
+    GC::Ptr<WebIDL::CallbackType> connected_callback;
 };
 
 // https://dom.spec.whatwg.org/#concept-element-custom-element-state
@@ -97,7 +159,7 @@ class WEB_API Element
     , public SlottableMixin
     , public ARIA::ARIAMixin
     , public Animations::Animatable {
-    WEB_PLATFORM_OBJECT(Element, ParentNode);
+    WEB_WRAPPABLE(Element, ParentNode);
     GC_DECLARE_ALLOCATOR(Element);
 
 public:
@@ -150,13 +212,13 @@ public:
     Optional<Utf16View> lang_view() const;
     void invalidate_lang_value();
 
-    WebIDL::ExceptionOr<void> set_attribute_for_bindings(Utf16FlyString qualified_name, Variant<GC::Ref<TrustedTypes::TrustedHTML>, GC::Ref<TrustedTypes::TrustedScript>, GC::Ref<TrustedTypes::TrustedScriptURL>, Utf16String> const& value);
-
-    WebIDL::ExceptionOr<void> set_attribute_ns_for_bindings(Optional<Utf16FlyString> namespace_, Utf16FlyString const& qualified_name, Variant<GC::Ref<TrustedTypes::TrustedHTML>, GC::Ref<TrustedTypes::TrustedScript>, GC::Ref<TrustedTypes::TrustedScriptURL>, Utf16String> const& value);
+    void set_attribute(FlyString qualified_name, Utf16String const& verified_value);
+    void set_attribute_ns(QualifiedName const&, Utf16String const& verified_value);
+    void set_attribute_value(FlyString const& local_name, String const& value, Optional<FlyString> const& prefix = {}, Optional<FlyString> const& namespace_ = {});
     void set_attribute_value(Utf16FlyString const& local_name, Utf16View value, Optional<Utf16FlyString> const& prefix = {}, Optional<Utf16FlyString> const& namespace_ = {});
     void set_attribute_value(Utf16FlyString const& local_name, Utf16String value, Optional<Utf16FlyString> const& prefix = {}, Optional<Utf16FlyString> const& namespace_ = {});
-    WebIDL::ExceptionOr<GC::Ptr<Attr>> set_attribute_node_for_bindings(Attr&);
-    WebIDL::ExceptionOr<GC::Ptr<Attr>> set_attribute_node_ns_for_bindings(Attr&);
+    WebIDL::ExceptionOr<GC::Ptr<Attr>> set_attribute_node(Attr&);
+    WebIDL::ExceptionOr<GC::Ptr<Attr>> set_attribute_node_ns(Attr&);
 
     void append_attribute(Attr&);
     void remove_attribute(Utf16FlyString const& name);
@@ -181,9 +243,11 @@ public:
     GC::Ref<DOMTokenList> part_list();
     ReadonlySpan<Utf16FlyString> part_names() const { return m_parts; }
 
-    WebIDL::ExceptionOr<GC::Ref<ShadowRoot>> attach_shadow(Bindings::ShadowRootInit const&);
-    WebIDL::ExceptionOr<void> attach_a_shadow_root(Bindings::ShadowRootMode mode, bool clonable, bool serializable, bool delegates_focus, Bindings::SlotAssignmentMode slot_assignment, GC::Ptr<HTML::CustomElementRegistry> registry);
-    GC::Ptr<ShadowRoot> shadow_root_for_bindings() const;
+    using ShadowRootOptions = Bindings::ShadowRootInit;
+
+    WebIDL::ExceptionOr<GC::Ref<ShadowRoot>> attach_shadow(ShadowRootOptions const&);
+    WebIDL::ExceptionOr<void> attach_a_shadow_root(ShadowRootMode mode, bool clonable, bool serializable, bool delegates_focus, SlotAssignmentMode slot_assignment, GC::Ptr<HTML::CustomElementRegistry> registry);
+    GC::Ptr<ShadowRoot> open_shadow_root() const;
 
     WebIDL::ExceptionOr<bool> matches(Utf16View selectors) const;
     WebIDL::ExceptionOr<DOM::Element const*> closest(Utf16View selectors) const;
@@ -285,7 +349,7 @@ public:
     GC::Ptr<CSS::CSSStyleProperties const> inline_style() const { return m_inline_style; }
     void set_inline_style(GC::Ptr<CSS::CSSStyleProperties>);
 
-    GC::Ref<CSS::CSSStyleProperties> style_for_bindings();
+    GC::Ref<CSS::CSSStyleProperties> style();
     GC::Ref<CSS::StylePropertyMap> attribute_style_map();
 
     CSS::StyleSheetList& document_or_shadow_root_style_sheets();
@@ -295,20 +359,20 @@ public:
 
     [[nodiscard]] GC::Ptr<Element const> element_to_inherit_style_from(Optional<CSS::PseudoElement>) const;
 
-    WebIDL::ExceptionOr<TrustedTypes::TrustedHTMLOrString> inner_html() const;
-    WebIDL::ExceptionOr<void> set_inner_html(TrustedTypes::TrustedHTMLOrString const&);
+    WebIDL::ExceptionOr<Utf16String> inner_html() const;
+    WebIDL::ExceptionOr<void> set_inner_html(StringView html);
 
-    WebIDL::ExceptionOr<void> set_html_unsafe(TrustedTypes::TrustedHTMLOrString const&);
+    WebIDL::ExceptionOr<void> set_html_unsafe(StringView html);
 
-    WebIDL::ExceptionOr<Utf16String> get_html(Bindings::GetHTMLOptions const&) const;
+    WebIDL::ExceptionOr<Utf16String> get_html(HTMLSerializationOptions const&) const;
 
-    WebIDL::ExceptionOr<void> insert_adjacent_html(Utf16View position, TrustedTypes::TrustedHTMLOrString const&);
+    WebIDL::ExceptionOr<void> insert_adjacent_html(String const& position, StringView html);
 
     enum class FullscreenRequester {
         Bindings,
         WebDriver,
     };
-    GC::Ref<WebIDL::Promise> request_fullscreen(FullscreenRequester = FullscreenRequester::Bindings);
+    void request_fullscreen(GC::Ptr<WebIDL::Promise>, FullscreenRequester = FullscreenRequester::Bindings);
 
     RequestFullscreenError is_element_allowed_to_enter_fullscreen(FullscreenRequester) const;
     bool is_element_ready_for_fullscreen() const;
@@ -322,8 +386,8 @@ public:
     GC::Ptr<WebIDL::CallbackType> onfullscreenerror();
     void set_onfullscreenerror(GC::Ptr<WebIDL::CallbackType>);
 
-    WebIDL::ExceptionOr<TrustedTypes::TrustedHTMLOrString> outer_html() const;
-    WebIDL::ExceptionOr<void> set_outer_html(TrustedTypes::TrustedHTMLOrString const&);
+    WebIDL::ExceptionOr<Utf16String> outer_html() const;
+    WebIDL::ExceptionOr<void> set_outer_html(StringView html);
 
     bool is_focused() const;
     bool is_the_active_element() const;
@@ -376,10 +440,8 @@ public:
     bool serializes_as_void() const;
 
     [[nodiscard]] CSSPixelRect get_bounding_client_rect() const;
-    [[nodiscard]] GC::Ref<Geometry::DOMRect> get_bounding_client_rect_for_bindings() const;
 
     [[nodiscard]] Vector<CSSPixelRect> get_client_rects() const;
-    [[nodiscard]] GC::Ref<Geometry::DOMRectList> get_client_rects_for_bindings() const;
 
     [[nodiscard]] Vector<CSSPixelRect> client_rects_assuming_layout_clean() const;
     [[nodiscard]] CSSPixelRect bounding_client_rect_assuming_layout_clean() const;
@@ -437,8 +499,14 @@ public:
     WebIDL::ExceptionOr<GC::Ptr<Element>> insert_adjacent_element(Utf16View where, GC::Ref<Element> element);
     WebIDL::ExceptionOr<void> insert_adjacent_text(Utf16View where, Utf16View data);
 
+    using ScrollBehavior = Bindings::ScrollBehavior;
+    using ScrollLogicalPosition = Bindings::ScrollLogicalPosition;
+    using ScrollIntoViewContainer = Bindings::ScrollIntoViewContainer;
+    using ScrollIntoViewOptions = Bindings::ScrollIntoViewOptions;
+
     // https://w3c.github.io/csswg-drafts/cssom-view-1/#dom-element-scrollintoview
-    GC::Ref<WebIDL::Promise> scroll_into_view(Optional<Variant<bool, Bindings::ScrollIntoViewOptions>> = {});
+    void scroll_into_view(Variant<bool, ScrollIntoViewOptions> const&, GC::Ptr<WebIDL::Promise>);
+    void scroll_into_view(ScrollIntoViewOptions const&, GC::Ptr<WebIDL::Promise>);
 
     // https://www.w3.org/TR/wai-aria-1.2/#ARIAMixin
 #define __ENUMERATE_ARIA_ATTRIBUTE(name, attribute)      \
@@ -461,9 +529,14 @@ public:
     bool has_referenced_and_hidden_ancestor() const;
 
     void enqueue_a_custom_element_upgrade_reaction(HTML::CustomElementDefinition& custom_element_definition);
-    void enqueue_a_custom_element_callback_reaction(Utf16FlyString const& callback_name, GC::RootVector<JS::Value> arguments);
+    void enqueue_a_custom_element_callback_reaction(Utf16FlyString const& callback_name);
+    void enqueue_an_adopted_callback_reaction(Document& old_document, Document& new_document);
+    void enqueue_an_attribute_changed_callback_reaction(Utf16FlyString const& attribute_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& new_value, Optional<Utf16FlyString> const& namespace_uri);
+    void enqueue_a_form_associated_callback_reaction(GC::Ptr<HTML::HTMLFormElement> form);
+    void enqueue_a_form_disabled_callback_reaction(bool is_disabled);
+    void enqueue_a_custom_element_callback_reaction(Utf16FlyString const& callback_name, CustomElementCallbackReactionArguments arguments);
 
-    using CustomElementReactionQueue = Vector<Variant<CustomElementUpgradeReaction, CustomElementCallbackReaction>>;
+    using CustomElementReactionQueue = Vector<Variant<CustomElementUpgradeReaction, CustomElementCallbackReaction, CustomElementConnectedMoveCallbackReaction>>;
     CustomElementReactionQueue* custom_element_reaction_queue() { return m_custom_element_reaction_queue; }
     CustomElementReactionQueue const* custom_element_reaction_queue() const { return m_custom_element_reaction_queue; }
     CustomElementReactionQueue& ensure_custom_element_reaction_queue();
@@ -471,7 +544,7 @@ public:
     GC::Ptr<HTML::CustomStateSet const> custom_state_set() const { return m_custom_state_set; }
     HTML::CustomStateSet& ensure_custom_state_set();
 
-    JS::ThrowCompletionOr<void> upgrade_element(GC::Ref<HTML::CustomElementDefinition> custom_element_definition);
+    bool can_upgrade_custom_element() const { return m_custom_element_state == CustomElementState::Undefined || m_custom_element_state == CustomElementState::Uncustomized; }
     void try_to_upgrade();
 
     bool is_defined() const;
@@ -481,14 +554,20 @@ public:
     void set_is_value(Optional<Utf16FlyString> const& is) { m_is_value = is; }
 
     void set_custom_element_state(CustomElementState);
+    void set_custom_element_definition(GC::Ptr<HTML::CustomElementDefinition> definition) { m_custom_element_definition = definition; }
+    void clear_custom_element_reaction_queue();
     void setup_custom_element_from_constructor(HTML::CustomElementDefinition& custom_element_definition, Optional<Utf16FlyString> const& is_value);
 
-    GC::Ref<WebIDL::Promise> scroll(Bindings::ScrollToOptions);
-    GC::Ref<WebIDL::Promise> scroll(double x, double y);
-    GC::Ref<WebIDL::Promise> scroll_by(Bindings::ScrollToOptions);
-    GC::Ref<WebIDL::Promise> scroll_by(double x, double y);
+    using ScrollToOptions = Bindings::ScrollToOptions;
 
-    bool check_visibility(Optional<Bindings::CheckVisibilityOptions>);
+    void scroll(ScrollToOptions, GC::Ptr<WebIDL::Promise>);
+    void scroll(double x, double y, GC::Ptr<WebIDL::Promise>);
+    void scroll_by(ScrollToOptions, GC::Ptr<WebIDL::Promise>);
+    void scroll_by(double x, double y, GC::Ptr<WebIDL::Promise>);
+
+    using CheckVisibilityOptions = Bindings::CheckVisibilityOptions;
+
+    bool check_visibility(CheckVisibilityOptions const&);
 
     void register_intersection_observer(Badge<IntersectionObserver::IntersectionObserver>, GC::Ref<IntersectionObserver::IntersectionObserver>);
     void unregister_intersection_observer(Badge<IntersectionObserver::IntersectionObserver>, GC::Ref<IntersectionObserver::IntersectionObserver>);
@@ -659,14 +738,19 @@ public:
 
     double ensure_css_random_base_value(CSS::RandomCachingKey const&);
 
-    GC::Ref<WebIDL::Promise> request_pointer_lock(Optional<Bindings::PointerLockOptions>);
+    struct PointerLockOptions {
+        bool unadjusted_movement { false };
+    };
+
+    WebIDL::ExceptionOr<void> request_pointer_lock(PointerLockOptions const&);
 
     GC::Ptr<HTML::CustomElementRegistry> custom_element_registry() const { return m_custom_element_registry; }
     void set_custom_element_registry(GC::Ptr<HTML::CustomElementRegistry> registry) { m_custom_element_registry = registry; }
 
+    virtual void initialize_element() { }
+
 protected:
     Element(Document&, DOM::QualifiedName);
-    virtual void initialize(JS::Realm&) override;
 
     virtual void inserted() override;
     virtual void removed_from(IsSubtreeRoot, Node* old_ancestor, Node& old_root) override;
@@ -686,6 +770,8 @@ protected:
 
     CustomElementState custom_element_state() const { return m_custom_element_state; }
     GC::Ptr<HTML::CustomElementDefinition> custom_element_definition() const { return m_custom_element_definition; }
+
+    friend void Bindings::set_prototype_from_custom_element_definition_if_needed(Element&, Bindings::PlatformObject&);
 
     void play_or_cancel_animations_after_display_property_change();
     void clear_element_reference_pseudo_elements();
@@ -863,9 +949,18 @@ enum class ValidationContext {
     Attribute,
     Element,
 };
-WebIDL::ExceptionOr<QualifiedName> validate_and_extract(JS::Realm&, Optional<Utf16FlyString> namespace_, Utf16FlyString const& qualified_name, ValidationContext context);
+
+enum class ValidateAndExtractError : u8 {
+    InvalidNamespacePrefix,
+    InvalidAttributeLocalName,
+    InvalidElementLocalName,
+    PrefixWithNullNamespace,
+    XMLPrefixWithNonXMLNamespace,
+    XMLNSPrefixWithNonXMLNSNamespace,
+    XMLNSNamespaceWithoutXMLNSPrefix,
+};
+
+ErrorOr<QualifiedName, ValidateAndExtractError> validate_and_extract(Optional<FlyString> namespace_, FlyString const& qualified_name, ValidationContext context);
+GC::Ref<WebIDL::DOMException> validate_and_extract_error_to_dom_exception(ValidateAndExtractError);
 
 }
-
-template<>
-inline bool JS::Object::fast_is<Web::DOM::Element>() const { return is_dom_element(); }

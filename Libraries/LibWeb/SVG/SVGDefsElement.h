@@ -12,7 +12,7 @@
 namespace Web::SVG {
 
 class SVGDefsElement final : public SVGGraphicsElement {
-    WEB_PLATFORM_OBJECT(SVGDefsElement, SVGGraphicsElement);
+    WEB_WRAPPABLE(SVGDefsElement, SVGGraphicsElement);
     GC_DECLARE_ALLOCATOR(SVGDefsElement);
 
 public:
@@ -25,8 +25,6 @@ public:
 
 private:
     SVGDefsElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
 };
 
 }

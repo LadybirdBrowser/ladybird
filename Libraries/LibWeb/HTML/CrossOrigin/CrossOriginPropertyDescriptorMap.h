@@ -10,7 +10,9 @@
 #include <AK/Optional.h>
 #include <AK/Traits.h>
 #include <AK/Utf16FlyString.h>
+#include <LibGC/Cell.h>
 #include <LibJS/Forward.h>
+#include <LibJS/Runtime/PropertyDescriptor.h>
 #include <LibJS/Runtime/PropertyKey.h>
 
 namespace Web::HTML {
@@ -27,7 +29,18 @@ struct CrossOriginKey {
     JS::PropertyKey property_key;
 };
 
-using CrossOriginPropertyDescriptorMap = HashMap<CrossOriginKey, JS::PropertyDescriptor>;
+struct CrossOriginCachedPropertyDescriptor {
+    explicit CrossOriginCachedPropertyDescriptor(JS::PropertyDescriptor descriptor)
+        : descriptor(move(descriptor))
+    {
+    }
+
+    void visit_edges(GC::Cell::Visitor& visitor) { descriptor.visit_edges(visitor); }
+
+    JS::PropertyDescriptor descriptor;
+};
+
+using CrossOriginPropertyDescriptorMap = HashMap<CrossOriginKey, CrossOriginCachedPropertyDescriptor>;
 
 }
 

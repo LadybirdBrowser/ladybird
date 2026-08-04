@@ -5,8 +5,7 @@
  */
 
 #include "CSSFunctionDeclarations.h"
-#include <LibWeb/Bindings/CSSFunctionDeclarations.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/Dump.h>
 
@@ -14,24 +13,18 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSFunctionDeclarations);
 
-GC::Ref<CSSFunctionDeclarations> CSSFunctionDeclarations::create(JS::Realm& realm, Parser::Parser& parser, Vector<Parser::Declaration> const& declarations)
+GC::Ref<CSSFunctionDeclarations> CSSFunctionDeclarations::create(Parser::Parser& parser, Vector<Parser::Declaration> const& declarations)
 {
-    return realm.create<CSSFunctionDeclarations>(realm, parser.convert_to_descriptors<CSSFunctionDescriptors>(AtRuleID::Function, declarations));
+    return GC::Heap::the().allocate<CSSFunctionDeclarations>(parser.convert_to_descriptors<CSSFunctionDescriptors>(AtRuleID::Function, declarations));
 }
 
-CSSFunctionDeclarations::CSSFunctionDeclarations(JS::Realm& realm, GC::Ref<CSSFunctionDescriptors> style)
-    : CSSRule(realm, Type::FunctionDeclarations)
+CSSFunctionDeclarations::CSSFunctionDeclarations(GC::Ref<CSSFunctionDescriptors> style)
+    : CSSRule(Type::FunctionDeclarations)
     , m_style(style)
 {
 }
 
-void CSSFunctionDeclarations::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSFunctionDeclarations);
-    Base::initialize(realm);
-}
-
-void CSSFunctionDeclarations::visit_edges(Cell::Visitor& visitor)
+void CSSFunctionDeclarations::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_style);

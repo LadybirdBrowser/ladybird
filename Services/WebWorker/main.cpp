@@ -33,14 +33,14 @@
 static ErrorOr<void> connect_to_resource_loader(GC::Heap& heap, IPC::TransportHandle const& handle);
 static ErrorOr<void> connect_to_image_decoder(IPC::TransportHandle const& handle);
 
-static ErrorOr<Web::Bindings::AgentType> agent_type_from_string(StringView type)
+static ErrorOr<Web::HTML::AgentType> agent_type_from_string(StringView type)
 {
     if (type == "dedicated"sv)
-        return Web::Bindings::AgentType::DedicatedWorker;
+        return Web::HTML::AgentType::DedicatedWorker;
     if (type == "shared"sv)
-        return Web::Bindings::AgentType::SharedWorker;
+        return Web::HTML::AgentType::SharedWorker;
     if (type == "service"sv)
-        return Web::Bindings::AgentType::ServiceWorker;
+        return Web::HTML::AgentType::ServiceWorker;
 
     return Error::from_string_literal("Invalid worker type, must be one of: 'dedicated', 'shared', or 'service'");
 }

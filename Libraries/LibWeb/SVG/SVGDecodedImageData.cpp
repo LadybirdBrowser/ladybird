@@ -8,18 +8,23 @@
 #include <AK/NeverDestroyed.h>
 #include <AK/NumericLimits.h>
 #include <AK/ScopeGuard.h>
-#include <LibGC/WeakHashMap.h>
+#include <LibGC/Heap.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibJS/Runtime/ExternalMemory.h>
-#include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/DOM/Document.h>
-#include <LibWeb/DOM/XMLDocument.h>
-#include <LibWeb/HTML/LocalNavigable.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
+#include <LibWeb/HTML/BrowsingContext.h>
+#include <LibWeb/HTML/DocumentState.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
+#include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/NavigationParams.h>
+#include <LibWeb/HTML/Parser/HTMLParser.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
 #include <LibWeb/Painting/DisplayListRecordingContext.h>
@@ -35,26 +40,6 @@ namespace Web::SVG {
 
 GC_DEFINE_ALLOCATOR(SVGDecodedImageData);
 GC_DEFINE_ALLOCATOR(SVGDecodedImageData::SVGPageClient);
-
-static GC::WeakHashMap<Page, SVGDecodedImageData::SVGPageClient>& shared_svg_page_clients()
-{
-    static NeverDestroyed<GC::WeakHashMap<Page, SVGDecodedImageData::SVGPageClient>> page_clients;
-    return *page_clients;
-}
-
-static GC::Ref<SVGDecodedImageData::SVGPageClient> shared_svg_page_client_for_page(GC::Ref<Page> host_page)
-{
-    if (auto* page_client = shared_svg_page_clients().get(host_page))
-        return *page_client;
-
-    auto page_client = SVGDecodedImageData::SVGPageClient::create(Bindings::main_thread_vm(), host_page);
-    auto page = Page::create(Bindings::main_thread_vm(), page_client);
-    page->set_is_scripting_enabled(false);
-    page_client->m_svg_page = page.ptr();
-    page->set_top_level_traversable(HTML::LocalTraversableNavigable::create_a_new_top_level_traversable(page, nullptr, {}));
-    shared_svg_page_clients().set(host_page, page_client);
-    return page_client;
-}
 
 class ScopedSVGImageDocument {
 public:
@@ -100,18 +85,43 @@ private:
     bool m_should_unsuppress_frame_requests { false };
 };
 
-ErrorOr<GC::Ref<SVGDecodedImageData>> SVGDecodedImageData::create(JS::Realm& realm, GC::Ref<Page> host_page, URL::URL const& url, ReadonlyBytes data)
+ErrorOr<GC::Ref<SVGDecodedImageData>> SVGDecodedImageData::create(GC::Ref<Page> host_page, URL::URL const& url, ReadonlyBytes data)
 {
-    auto page_client = shared_svg_page_client_for_page(host_page);
-    auto& page = page_client->page();
+    auto page_client = SVGPageClient::create(*host_page);
+    auto page = Page::create(*page_client);
+    page->set_is_scripting_enabled(false);
+    page_client->m_svg_page = page.ptr();
+    page->set_top_level_traversable(HTML::LocalTraversableNavigable::create_a_new_top_level_traversable(page, nullptr, {}));
+    auto navigable = page->top_level_traversable();
+    auto response = Fetch::Infrastructure::Response::create();
+    response->url_list().append(url);
+    auto origin = URL::Origin::create_opaque();
+    auto& heap = GC::Heap::the();
+    auto navigation_params = heap.allocate<HTML::NavigationParams>(OptionalNone {},
+        navigable,
+        nullptr,
+        response,
+        nullptr,
+        nullptr,
+        HTML::OpenerPolicyEnforcementResult { .url = url, .origin = origin, .opener_policy = HTML::OpenerPolicy {} },
+        nullptr,
+        origin,
+        heap.allocate<HTML::PolicyContainer>(heap),
+        HTML::SandboxingFlagSet {},
+        ReferrerPolicy::ReferrerPolicy::EmptyString,
+        HTML::OpenerPolicy {},
+        OptionalNone {},
+        HTML::UserNavigationInvolvement::None);
 
-    auto& svg_realm = page.top_level_traversable()->active_document()->realm();
-    auto document = DOM::XMLDocument::create(svg_realm);
-    document->set_content_type("image/svg+xml"_utf16_fly_string);
-    document->set_origin(URL::Origin::create_opaque());
-    document->set_url(url);
+    auto document = MUST(DOM::Document::create_and_initialize(DOM::Document::Type::XML, "image/svg+xml"_utf16_fly_string, navigation_params));
+    navigable->set_ongoing_navigation({});
+    if (auto active_document = navigable->active_document())
+        active_document->destroy();
+    navigable->set_active_document(document);
+    auto& window = HTML::relevant_window(document);
+    document->browsing_context()->window_proxy()->set_window(GC::Ref { window });
 
-    ScopedSVGImageDocument scoped_document { page_client, document, ScopedSVGImageDocument::FrameRequests::Suppress };
+    ScopedSVGImageDocument scoped_document { *page_client, *document, ScopedSVGImageDocument::FrameRequests::Suppress };
 
     auto result = [&] {
         document->set_suppresses_attribute_style_invalidation(true);
@@ -136,7 +146,7 @@ ErrorOr<GC::Ref<SVGDecodedImageData>> SVGDecodedImageData::create(JS::Realm& rea
         dbgln("SVGDecodedImageData: Invalid SVG input (no SVGSVGElement found)");
         return Error::from_string_literal("SVGDecodedImageData: Invalid SVG input");
     }
-    auto svg_image_data = realm.create<SVGDecodedImageData>(page, page_client, document, *svg_root);
+    auto svg_image_data = GC::Heap::the().allocate<SVGDecodedImageData>(page, page_client, document, *svg_root);
     page_client->register_svg_image_data(svg_image_data);
     return svg_image_data;
 }

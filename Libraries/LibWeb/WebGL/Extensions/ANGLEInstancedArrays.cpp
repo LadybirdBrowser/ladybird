@@ -18,14 +18,14 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(ANGLEInstancedArrays);
 
-JS::ThrowCompletionOr<GC::Ref<JS::Object>> ANGLEInstancedArrays::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
+GC::Ref<Bindings::Wrappable> ANGLEInstancedArrays::create(GC::Ref<WebGLRenderingContextBase> context)
 {
+    auto& realm = context->realm();
     return realm.create<ANGLEInstancedArrays>(realm, context);
 }
 
-ANGLEInstancedArrays::ANGLEInstancedArrays(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
-    : PlatformObject(realm)
-    , m_context(context)
+ANGLEInstancedArrays::ANGLEInstancedArrays(JS::Realm&, GC::Ref<WebGLRenderingContextBase> context)
+    : m_context(context)
 {
 }
 
@@ -45,12 +45,6 @@ void ANGLEInstancedArrays::draw_elements_instanced_angle(GLenum mode, GLsizei co
 {
     m_context->context().make_current();
     m_context->context().draw_elements_instanced_angle(mode, count, type, reinterpret_cast<void*>(offset), primcount);
-}
-
-void ANGLEInstancedArrays::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(ANGLEInstancedArrays);
-    Base::initialize(realm);
 }
 
 void ANGLEInstancedArrays::visit_edges(Visitor& visitor)

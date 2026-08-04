@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include <AK/Utf16String.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <AK/ByteString.h>
+#include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::EntriesAPI {
 
@@ -16,12 +16,12 @@ enum class EntryType {
     Directory,
 };
 
-class FileSystemEntry final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(FileSystemEntry, Bindings::PlatformObject);
+class FileSystemEntry final : public Bindings::GCAllocatedWrappable {
+    WEB_WRAPPABLE(FileSystemEntry, Bindings::GCAllocatedWrappable);
     GC_DECLARE_ALLOCATOR(FileSystemEntry);
 
 public:
-    static GC::Ref<FileSystemEntry> create(JS::Realm&, EntryType entry_type, Utf16String name);
+    static GC::Ref<FileSystemEntry> create(EntryType entry_type, ByteString name);
     virtual ~FileSystemEntry() override = default;
 
     bool is_file() const;
@@ -29,9 +29,7 @@ public:
     Utf16String const& name() const;
 
 private:
-    FileSystemEntry(JS::Realm&, EntryType entry_type, Utf16String name);
-
-    virtual void initialize(JS::Realm&) override;
+    FileSystemEntry(EntryType entry_type, ByteString name);
 
     EntryType m_entry_type;
     Utf16String m_name;

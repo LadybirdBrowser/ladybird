@@ -8,15 +8,21 @@
 
 #include <AK/Optional.h>
 #include <AK/RedBlackTree.h>
+#include <AK/Types.h>
+#include <LibGC/Ptr.h>
+#include <LibGC/RootVector.h>
+#include <LibJS/Forward.h>
+#include <LibJS/Runtime/Value.h>
 #include <LibWeb/Animations/AnimationEffect.h>
 #include <LibWeb/Bindings/KeyframeEffect.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::Animations {
 
 using EasingValue = Variant<Utf16String, CSS::EasingFunction>;
+using CompositeOperation = Bindings::CompositeOperation;
+using CompositeOperationOrAuto = Bindings::CompositeOperationOrAuto;
 
 Bindings::CompositeOperation css_animation_composition_to_bindings_composite_operation(CSS::AnimationComposition composition);
 Bindings::CompositeOperationOrAuto css_animation_composition_to_bindings_composite_operation_or_auto(CSS::AnimationComposition composition);
@@ -32,6 +38,10 @@ struct BasePropertyIndexedKeyframe {
     HashMap<Utf16FlyString, Vector<Utf16String>> properties {};
 };
 
+CompositeOperation css_animation_composition_to_composite_operation(CSS::AnimationComposition composition);
+CompositeOperationOrAuto css_animation_composition_to_composite_operation_or_auto(CSS::AnimationComposition composition);
+StringView composite_operation_or_auto_to_string(CompositeOperationOrAuto);
+
 // https://www.w3.org/TR/web-animations-1/#dictdef-basekeyframe
 struct BaseKeyframe {
     using UnparsedProperties = HashMap<Utf16FlyString, Utf16String>;
@@ -46,16 +56,26 @@ struct BaseKeyframe {
     Variant<UnparsedProperties, ParsedProperties> properties { UnparsedProperties {} };
 
     UnparsedProperties& unparsed_properties() { return properties.get<UnparsedProperties>(); }
+    UnparsedProperties const& unparsed_properties() const { return properties.get<UnparsedProperties>(); }
     ParsedProperties& parsed_properties() { return properties.get<ParsedProperties>(); }
+    ParsedProperties const& parsed_properties() const { return properties.get<ParsedProperties>(); }
 };
+
+void compute_missing_keyframe_offsets(Vector<BaseKeyframe>&);
 
 // https://www.w3.org/TR/web-animations-1/#the-keyframeeffect-interface
 class KeyframeEffect final : public AnimationEffect {
-    WEB_PLATFORM_OBJECT(KeyframeEffect, AnimationEffect);
+    WEB_WRAPPABLE(KeyframeEffect, AnimationEffect);
     GC_DECLARE_ALLOCATOR(KeyframeEffect);
 
 public:
     constexpr static double AnimationKeyFrameKeyScaleFactor = 1000.0; // 0..100000
+
+    struct Options {
+        OptionalEffectTiming timing {};
+        CompositeOperation composite { CompositeOperation::Replace };
+        Optional<CSS::Selector::PseudoElementSelector> pseudo_element;
+    };
 
     struct KeyFrameSet : public RefCounted<KeyFrameSet> {
         struct UseInitial { };
@@ -63,7 +83,7 @@ public:
             // These StyleValue properties can be unresolved, as they may be generated from a @keyframes rule, well
             // before they are applied to an element
             HashMap<CSS::PropertyID, Variant<UseInitial, NonnullRefPtr<CSS::StyleValue const>>> properties {};
-            Bindings::CompositeOperationOrAuto composite { Bindings::CompositeOperationOrAuto::Auto };
+            CompositeOperationOrAuto composite { CompositeOperationOrAuto::Auto };
             Variant<Empty, CSS::EasingFunction, NonnullRefPtr<CSS::StyleValue const>> easing {};
         };
         RedBlackTree<u64, ResolvedKeyFrame> keyframes_by_key;
@@ -72,15 +92,20 @@ public:
 
     static int composite_order(GC::Ref<KeyframeEffect>, GC::Ref<KeyframeEffect>);
 
-    static GC::Ref<KeyframeEffect> create(JS::Realm&);
+    static GC::Ref<KeyframeEffect> create();
+
+    static WebIDL::ExceptionOr<GC::Ref<KeyframeEffect>> create_from_processed_keyframes(
+        GC::Ptr<DOM::Element> target,
+        Vector<BaseKeyframe> keyframes,
+        Variant<double, Options> options);
 
     static WebIDL::ExceptionOr<GC::Ref<KeyframeEffect>> construct_impl(
         JS::Realm&,
         GC::Ptr<DOM::Element> target,
         GC::Ptr<JS::Object> keyframes,
-        Variant<double, Bindings::KeyframeEffectOptions> options = Bindings::KeyframeEffectOptions {});
-
-    static WebIDL::ExceptionOr<GC::Ref<KeyframeEffect>> construct_impl(JS::Realm&, GC::Ref<KeyframeEffect> source);
+        Variant<double, Bindings::KeyframeEffectOptions> const& options);
+    static WebIDL::ExceptionOr<GC::Ref<KeyframeEffect>> construct_impl(GC::Ref<KeyframeEffect> source);
+    static WebIDL::ExceptionOr<GC::Ref<KeyframeEffect>> create_copy(GC::Ref<KeyframeEffect> source);
 
     DOM::Element* target() const override { return m_target_element; }
     void set_target(DOM::Element* target);
@@ -104,8 +129,10 @@ public:
     Bindings::CompositeOperation composite() const { return m_composite; }
     void set_composite(Bindings::CompositeOperation value);
 
-    WebIDL::ExceptionOr<GC::RootVector<JS::Object*>> get_keyframes();
-    WebIDL::ExceptionOr<void> set_keyframes(GC::Ptr<JS::Object>);
+    Vector<BaseKeyframe> const& keyframes() const { return m_keyframes; }
+    void set_keyframes(Vector<BaseKeyframe>);
+    WebIDL::ExceptionOr<void> set_keyframes_from_js(JS::Realm&, GC::Ptr<JS::Object>);
+    WebIDL::ExceptionOr<GC::RootVector<JS::Object*>> get_keyframes(JS::Object& relevant_global_object);
 
     KeyFrameSet const* key_frame_set() { return m_key_frame_set; }
     void set_key_frame_set(RefPtr<KeyFrameSet const> key_frame_set) { m_key_frame_set = key_frame_set; }
@@ -116,13 +143,12 @@ public:
     void update_computed_properties_for_style(AnimationUpdateContext&, DOM::AbstractElement);
 
 private:
-    KeyframeEffect(JS::Realm&);
+    KeyframeEffect();
     virtual ~KeyframeEffect() override = default;
 
     void invalidate_effect();
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     // https://www.w3.org/TR/web-animations-1/#effect-target-target-element
     GC::Ptr<DOM::Element> m_target_element {};
@@ -131,7 +157,7 @@ private:
     Optional<CSS::Selector::PseudoElementSelector> m_target_pseudo_selector {};
 
     // https://www.w3.org/TR/web-animations-1/#dom-keyframeeffect-composite
-    Bindings::CompositeOperation m_composite { Bindings::CompositeOperation::Replace };
+    CompositeOperation m_composite { CompositeOperation::Replace };
 
     // https://www.w3.org/TR/web-animations-1/#keyframe
     Vector<BaseKeyframe> m_keyframes {};
@@ -141,5 +167,8 @@ private:
 
     RefPtr<KeyFrameSet const> m_key_frame_set {};
 };
+
+WebIDL::ExceptionOr<Vector<BaseKeyframe>> process_keyframes(JS::Realm&, GC::Ptr<JS::Object>);
+WebIDL::ExceptionOr<KeyframeEffect::Options> keyframe_effect_options_from_bindings(Bindings::KeyframeEffectOptions const&);
 
 }

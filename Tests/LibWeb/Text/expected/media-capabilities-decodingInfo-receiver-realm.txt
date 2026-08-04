@@ -1,0 +1,5 @@
+decodingInfo promise is iframe realm: false
+decodingInfo promise is parent realm: true
+decodingInfo rejection is iframe realm: false
+decodingInfo rejection is parent realm: true
+decodingInfo rejection message: Required property type is missing or undefined

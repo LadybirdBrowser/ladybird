@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibWeb/DOM/Document.h>
@@ -24,7 +25,7 @@ namespace Web::WebDriver {
 // https://w3c.github.io/webdriver/#dfn-draw-a-bounding-box-from-the-framebuffer
 ErrorOr<GC::Ref<HTML::HTMLCanvasElement>, WebDriver::Error> draw_bounding_box_from_the_framebuffer(HTML::BrowsingContext& browsing_context, DOM::Element& element, Gfx::IntRect rect)
 {
-    HTML::TemporaryExecutionContext execution_context { element.realm() };
+    HTML::TemporaryExecutionContext execution_context { element.document().relevant_settings_object() };
 
     // 1. If either the initial viewport's width or height is 0 CSS pixels, return error with error code unable to capture screen.
     auto viewport_rect = browsing_context.top_level_traversable()->viewport_rect();
@@ -48,7 +49,10 @@ ErrorOr<GC::Ref<HTML::HTMLCanvasElement>, WebDriver::Error> draw_bounding_box_fr
     canvas.set_height(paint_height);
 
     // FIXME: 5. Let context, a canvas context mode, be the result of invoking the 2D context creation algorithm given canvas as the target.
-    MUST(canvas.create_2d_context({}));
+    canvas.create_2d_context({});
+    canvas.ensure_backing_storage();
+    if (!canvas.canvas_rendering_context_2d())
+        return Error::from_code(ErrorCode::UnableToCaptureScreen, "Failed to create 2D context"sv);
 
     // 6. Complete implementation specific steps equivalent to drawing the region of the framebuffer specified by the following coordinates onto context:
     //    - X coordinate: rectangle x coordinate
@@ -64,11 +68,11 @@ ErrorOr<GC::Ref<HTML::HTMLCanvasElement>, WebDriver::Error> draw_bounding_box_fr
     browsing_context.active_document()->navigable()->render_screenshot(painting_surface, paint_config, [&did_paint] {
         did_paint = true;
     });
-    HTML::main_thread_event_loop().spin_until(GC::create_function(HTML::main_thread_event_loop().heap(), [&] {
+    HTML::main_thread_event_loop().spin_until(GC::create_function(GC::Heap::the(), [&] {
         return did_paint;
     }));
 
-    auto image_bitmap = HTML::ImageBitmap::create(element.realm());
+    auto image_bitmap = HTML::ImageBitmap::create();
     image_bitmap->set_bitmap(bitmap);
     if (canvas.canvas_rendering_context_2d()->draw_image(image_bitmap, 0, 0).is_exception())
         return Error::from_code(ErrorCode::UnableToCaptureScreen, "Failed to draw the screenshot to the canvas"sv);
@@ -90,7 +94,10 @@ Response encode_canvas_element(HTML::HTMLCanvasElement& canvas)
 
     // 3. Let file be a serialization of the canvas element’s bitmap as a file, using "image/png" as an argument.
     // 4. Let data url be a data: URL representing file. [RFC2397]
-    auto data_url = MUST(canvas.to_data_url("image/png"sv, JS::js_undefined()));
+    auto data_url_result = canvas.to_data_url("image/png"sv, {});
+    if (data_url_result.is_exception())
+        return Error::from_code(ErrorCode::UnableToCaptureScreen, "Failed to serialize canvas"sv);
+    auto data_url = data_url_result.release_value();
 
     // 5. Let index be the index of "," in data url.
     auto index = data_url.utf16_view().find_code_unit_offset(',');

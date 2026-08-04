@@ -8,7 +8,6 @@
 
 #include <AK/Forward.h>
 #include <AK/Utf16String.h>
-#include <LibJS/Runtime/Date.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -21,7 +20,7 @@ bool is_valid_date_string(Utf16View const& value);
 bool is_valid_local_date_and_time_string(Utf16View const& value);
 Utf16String normalize_local_date_and_time_string(Utf16View value);
 bool is_valid_time_string(Utf16View const& value);
-WebIDL::ExceptionOr<GC::Ref<JS::Date>> parse_time_string(JS::Realm& realm, Utf16View value);
+WebIDL::ExceptionOr<double> parse_time_string_value(StringView value);
 
 struct YearAndMonth {
     u32 year;

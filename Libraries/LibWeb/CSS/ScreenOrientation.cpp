@@ -4,35 +4,46 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/ScreenOrientation.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/CSS/ScreenOrientation.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/HTML/Window.h>
+#include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(ScreenOrientation);
 
-ScreenOrientation::ScreenOrientation(JS::Realm& realm)
-    : DOM::EventTarget(realm)
+ScreenOrientation::ScreenOrientation(HTML::Window& window)
+    : DOM::EventTarget()
+    , m_window(window)
 {
 }
 
-void ScreenOrientation::initialize(JS::Realm& realm)
+GC::Ref<ScreenOrientation> ScreenOrientation::create(HTML::Window& window)
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(ScreenOrientation);
-    Base::initialize(realm);
+    return GC::Heap::the().allocate<ScreenOrientation>(window);
 }
 
-GC::Ref<ScreenOrientation> ScreenOrientation::create(JS::Realm& realm)
+void ScreenOrientation::visit_edges(Cell::Visitor& visitor)
 {
-    return realm.create<ScreenOrientation>(realm);
+    Base::visit_edges(visitor);
+    visitor.visit(m_window);
 }
 
 // https://w3c.github.io/screen-orientation/#lock-method
-WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> ScreenOrientation::lock(Bindings::OrientationLockType)
+WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> ScreenOrientation::lock(OrientationLockType)
 {
-    return WebIDL::NotSupportedError::create(realm(), "FIXME: ScreenOrientation::lock() is not implemented"_utf16);
+    TRY(lock());
+    auto promise = WebIDL::create_promise_for(m_window);
+    WebIDL::resolve_promise(promise);
+    return promise;
+}
+
+// https://w3c.github.io/screen-orientation/#lock-method
+WebIDL::ExceptionOr<void> ScreenOrientation::lock()
+{
+    return WebIDL::NotSupportedError::create("FIXME: ScreenOrientation::lock() is not implemented"_utf16);
 }
 
 // https://w3c.github.io/screen-orientation/#unlock-method
@@ -42,10 +53,10 @@ void ScreenOrientation::unlock()
 }
 
 // https://w3c.github.io/screen-orientation/#type-attribute
-Bindings::OrientationType ScreenOrientation::type() const
+OrientationType ScreenOrientation::type() const
 {
     dbgln("FIXME: Stubbed ScreenOrientation::type()");
-    return Bindings::OrientationType::LandscapePrimary;
+    return OrientationType::LandscapePrimary;
 }
 
 // https://w3c.github.io/screen-orientation/#angle-attribute

@@ -1,7 +1,7 @@
 // https://w3c.github.io/uievents/#uievent
 [Exposed=Window]
 interface UIEvent : Event {
-    constructor([Utf16FlyString] Utf16DOMString type, optional UIEventInit eventInitDict = {});
+    constructor(DOMString type, optional UIEventInit eventInitDict = {});
     readonly attribute WindowProxy? view;
     readonly attribute long detail;
 

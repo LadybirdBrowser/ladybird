@@ -2,7 +2,7 @@
 [Exposed=Window]
 interface KeyboardEvent : UIEvent {
 
-    constructor([Utf16FlyString] Utf16DOMString type, optional KeyboardEventInit eventInitDict = {});
+    constructor(DOMString type, optional KeyboardEventInit eventInitDict = {});
 
     // KeyLocationCode
     const unsigned long DOM_KEY_LOCATION_STANDARD = 0x00;

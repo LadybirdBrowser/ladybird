@@ -4,56 +4,60 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
+#include <LibJS/Runtime/Error.h>
 #include <LibWeb/CredentialManagement/CredentialsContainer.h>
+#include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::CredentialManagement {
 
 GC_DEFINE_ALLOCATOR(CredentialsContainer);
 
-GC::Ref<CredentialsContainer> CredentialsContainer::create(JS::Realm& realm)
+GC::Ref<CredentialsContainer> CredentialsContainer::create()
 {
-    return realm.create<CredentialsContainer>(realm);
+    return GC::Heap::the().allocate<CredentialsContainer>();
 }
 
 CredentialsContainer::~CredentialsContainer() { }
 
-// https://www.w3.org/TR/credential-management-1/#dom-credentialscontainer-get
-GC::Ref<WebIDL::Promise> CredentialsContainer::get(Bindings::CredentialRequestOptions const&)
+static void reject_not_implemented_promise(GC::Ref<WebIDL::Promise> promise, StringView operation)
 {
-    auto* realm = vm().current_realm();
-    return WebIDL::create_rejected_promise_from_exception(*realm, vm().throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "get"_utf16));
+    auto& realm = WebIDL::promise_realm(promise);
+    auto& vm = realm.vm();
+    auto exception = vm.throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, operation);
+    WebIDL::reject_promise_with_exception(promise, exception);
+}
+
+// https://www.w3.org/TR/credential-management-1/#dom-credentialscontainer-get
+void CredentialsContainer::get(CredentialRequestOptions const&, GC::Ref<WebIDL::Promise> promise)
+{
+    dbgln("FIXME: Unimplemented CredentialsContainer::get()");
+    reject_not_implemented_promise(promise, "get"sv);
 }
 
 // https://www.w3.org/TR/credential-management-1/#dom-credentialscontainer-store
-GC::Ref<WebIDL::Promise> CredentialsContainer::store(Credential const&)
+void CredentialsContainer::store(Credential const&, GC::Ref<WebIDL::Promise> promise)
 {
-    auto* realm = vm().current_realm();
-    return WebIDL::create_rejected_promise_from_exception(*realm, vm().throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "store"_utf16));
+    dbgln("FIXME: Unimplemented CredentialsContainer::store()");
+    reject_not_implemented_promise(promise, "store"sv);
 }
 
 // https://www.w3.org/TR/credential-management-1/#dom-credentialscontainer-create
-GC::Ref<WebIDL::Promise> CredentialsContainer::create(Bindings::CredentialCreationOptions const&)
+void CredentialsContainer::create(CredentialCreationOptions const&, GC::Ref<WebIDL::Promise> promise)
 {
-    auto* realm = vm().current_realm();
-    return WebIDL::create_rejected_promise_from_exception(*realm, vm().throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "create"_utf16));
+    dbgln("FIXME: Unimplemented CredentialsContainer::create()");
+    reject_not_implemented_promise(promise, "create"sv);
 }
 
 // https://www.w3.org/TR/credential-management-1/#dom-credentialscontainer-preventsilentaccess
-GC::Ref<WebIDL::Promise> CredentialsContainer::prevent_silent_access()
+void CredentialsContainer::prevent_silent_access(GC::Ref<WebIDL::Promise> promise)
 {
-    auto* realm = vm().current_realm();
-    return WebIDL::create_rejected_promise_from_exception(*realm, vm().throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "prevent silent access"_utf16));
+    dbgln("FIXME: Unimplemented CredentialsContainer::prevent_silent_access()");
+    reject_not_implemented_promise(promise, "prevent silent access"sv);
 }
 
-CredentialsContainer::CredentialsContainer(JS::Realm& realm)
-    : PlatformObject(realm)
+CredentialsContainer::CredentialsContainer()
 {
-}
-
-void CredentialsContainer::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CredentialsContainer);
-    Base::initialize(realm);
 }
 
 }

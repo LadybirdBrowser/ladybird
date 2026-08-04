@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/SVGStyleElement.h>
 #include <LibWeb/SVG/SVGStyleElement.h>
 
 namespace Web::SVG {
@@ -17,12 +16,6 @@ SVGStyleElement::SVGStyleElement(DOM::Document& document, DOM::QualifiedName qua
 }
 
 SVGStyleElement::~SVGStyleElement() = default;
-
-void SVGStyleElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGStyleElement);
-    Base::initialize(realm);
-}
 
 void SVGStyleElement::visit_edges(Cell::Visitor& visitor)
 {

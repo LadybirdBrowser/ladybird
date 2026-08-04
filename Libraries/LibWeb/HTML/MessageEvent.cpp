@@ -6,45 +6,127 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NeverDestroyed.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/Array.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/MessageEvent.h>
+#include <LibWeb/Bindings/MessagePort.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/HTML/MessageEvent.h>
 #include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/HTML/WindowProxy.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Infra/SerializedURL.h>
 
 namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(MessageEvent);
 
-GC::Ref<MessageEvent> MessageEvent::create(JS::Realm& realm, Utf16FlyString const& event_name, Bindings::MessageEventInit const& event_init)
+static Bindings::WrapperWorldWeakValueCacheMap<MessageEvent, JS::Array>& message_event_ports_caches()
 {
-    return realm.create<MessageEvent>(realm, event_name, event_init);
+    static NeverDestroyed<Bindings::WrapperWorldWeakValueCacheMap<MessageEvent, JS::Array>> caches;
+    return *caches;
 }
 
-GC::Ref<MessageEvent> MessageEvent::create(JS::Realm& realm, Utf16FlyString const& event_name, Bindings::MessageEventInit const& event_init, URL::Origin const& origin)
+static void clear_ports_cache(MessageEvent& event)
 {
-    return realm.create<MessageEvent>(realm, event_name, event_init, origin);
+    message_event_ports_caches().cache_for(event).clear();
 }
 
-WebIDL::ExceptionOr<GC::Ref<MessageEvent>> MessageEvent::construct_impl(JS::Realm& realm, Utf16FlyString const& event_name, Bindings::MessageEventInit const& event_init)
+static Bindings::WrapperWorldWeakValueCache<JS::Array>& ports_cache_for(MessageEvent& event)
 {
-    return create(realm, event_name, event_init);
+    return message_event_ports_caches().cache_for(event);
 }
 
-MessageEvent::MessageEvent(JS::Realm& realm, Utf16FlyString const& event_name, Bindings::MessageEventInit const& event_init)
-    : MessageEvent(realm, event_name, event_init, event_init.origin)
+static MessageEventInit message_event_init_from_bindings(Bindings::MessageEventInit const& event_init)
+{
+    return {
+        {
+            .bubbles = event_init.bubbles,
+            .cancelable = event_init.cancelable,
+            .composed = event_init.composed,
+        },
+        event_init.data,
+        event_init.last_event_id,
+        event_init.origin,
+        event_init.ports,
+        event_init.source,
+    };
+}
+
+WebIDL::ExceptionOr<GC::Ref<MessageEvent>> MessageEvent::create_for_constructor(Utf16String const& event_name, Bindings::MessageEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+{
+    return MessageEvent::create(Utf16FlyString::from_utf16(event_name.utf16_view()), message_event_init_from_bindings(event_init), time_stamp);
+}
+
+GC::Ref<MessageEvent> MessageEvent::create(JS::Object const& relevant_global_object, FlyString const& event_name, MessageEventInit const& event_init)
+{
+    return create(event_name, event_init, HighResolutionTime::current_high_resolution_time(relevant_global_object));
+}
+
+GC::Ref<MessageEvent> MessageEvent::create(JS::Object const& relevant_global_object, FlyString const& event_name, MessageEventInit const& event_init, URL::Origin const& origin)
+{
+    return create(event_name, event_init, origin, HighResolutionTime::current_high_resolution_time(relevant_global_object));
+}
+
+GC::Ref<MessageEvent> MessageEvent::create(JS::Object const& relevant_global_object, Utf16FlyString const& event_name, MessageEventInit const& event_init)
+{
+    return create(event_name, event_init, HighResolutionTime::current_high_resolution_time(relevant_global_object));
+}
+
+GC::Ref<MessageEvent> MessageEvent::create(JS::Object const& relevant_global_object, Utf16FlyString const& event_name, MessageEventInit const& event_init, URL::Origin const& origin)
+{
+    return create(event_name, event_init, origin, HighResolutionTime::current_high_resolution_time(relevant_global_object));
+}
+
+GC::Ref<MessageEvent> MessageEvent::create(FlyString const& event_name, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+{
+    return GC::Heap::the().allocate<MessageEvent>(event_name, time_stamp);
+}
+
+GC::Ref<MessageEvent> MessageEvent::create(FlyString const& event_name, MessageEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+{
+    return GC::Heap::the().allocate<MessageEvent>(event_name, event_init, time_stamp);
+}
+
+GC::Ref<MessageEvent> MessageEvent::create(FlyString const& event_name, MessageEventInit const& event_init, URL::Origin const& origin, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+{
+    return GC::Heap::the().allocate<MessageEvent>(event_name, event_init, origin, time_stamp);
+}
+
+GC::Ref<MessageEvent> MessageEvent::create(Utf16FlyString const& event_name, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+{
+    return GC::Heap::the().allocate<MessageEvent>(event_name, time_stamp);
+}
+
+GC::Ref<MessageEvent> MessageEvent::create(Utf16FlyString const& event_name, MessageEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+{
+    return GC::Heap::the().allocate<MessageEvent>(event_name, event_init, time_stamp);
+}
+
+GC::Ref<MessageEvent> MessageEvent::create(Utf16FlyString const& event_name, MessageEventInit const& event_init, URL::Origin const& origin, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+{
+    return GC::Heap::the().allocate<MessageEvent>(event_name, event_init, origin, time_stamp);
+}
+
+MessageEvent::MessageEvent(FlyString const& event_name, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : DOM::Event(event_name, time_stamp)
+    , m_data(JS::js_null())
+    , m_origin(Utf16String {})
 {
 }
 
-MessageEvent::MessageEvent(JS::Realm& realm, Utf16FlyString const& event_name, Bindings::MessageEventInit const& event_init, URL::Origin const& origin)
-    : MessageEvent(realm, event_name, event_init, Variant<URL::Origin, Utf16String, Empty> { origin })
+MessageEvent::MessageEvent(FlyString const& event_name, MessageEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : MessageEvent(event_name, event_init, Utf16String { event_init.origin }, time_stamp)
 {
 }
 
-MessageEvent::MessageEvent(JS::Realm& realm, Utf16FlyString const& event_name, Bindings::MessageEventInit const& event_init, Variant<URL::Origin, Utf16String, Empty> origin)
-    : DOM::Event(realm, event_name, event_init)
+MessageEvent::MessageEvent(FlyString const& event_name, MessageEventInit const& event_init, URL::Origin const& origin, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : MessageEvent(event_name, event_init, Variant<URL::Origin, Utf16String, Empty> { origin }, time_stamp)
+{
+}
+
+MessageEvent::MessageEvent(FlyString const& event_name, MessageEventInit const& event_init, Variant<URL::Origin, Utf16String, Empty> origin, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : DOM::Event(event_name, event_init, time_stamp)
     , m_data(event_init.data)
     , m_origin(move(origin))
     , m_last_event_id(event_init.last_event_id)
@@ -57,19 +139,41 @@ MessageEvent::MessageEvent(JS::Realm& realm, Utf16FlyString const& event_name, B
     }
 }
 
-MessageEvent::~MessageEvent() = default;
-
-void MessageEvent::initialize(JS::Realm& realm)
+MessageEvent::MessageEvent(Utf16FlyString const& event_name, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : DOM::Event(event_name, time_stamp)
+    , m_data(JS::js_null())
+    , m_origin(Empty {})
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(MessageEvent);
-    Base::initialize(realm);
 }
 
-void MessageEvent::visit_edges(Cell::Visitor& visitor)
+MessageEvent::MessageEvent(Utf16FlyString const& event_name, MessageEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : MessageEvent(event_name, event_init, Variant<URL::Origin, Utf16String, Empty> { event_init.origin }, time_stamp)
+{
+}
+
+MessageEvent::MessageEvent(Utf16FlyString const& event_name, MessageEventInit const& event_init, URL::Origin const& origin, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : MessageEvent(event_name, event_init, Variant<URL::Origin, Utf16String, Empty> { origin }, time_stamp)
+{
+}
+
+MessageEvent::MessageEvent(Utf16FlyString const& event_name, MessageEventInit const& event_init, Variant<URL::Origin, Utf16String, Empty> origin, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : DOM::Event(event_name, event_init, time_stamp)
+    , m_data(event_init.data)
+    , m_origin(move(origin))
+    , m_last_event_id(event_init.last_event_id)
+    , m_source(event_init.source)
+{
+    m_ports.ensure_capacity(event_init.ports.size());
+    for (auto const& port : event_init.ports)
+        m_ports.unchecked_append(port);
+}
+
+MessageEvent::~MessageEvent() = default;
+
+void MessageEvent::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_data);
-    visitor.visit(m_ports_array);
     visitor.visit(m_ports);
     visitor.visit(m_source);
 }
@@ -97,22 +201,31 @@ NullableMessageEventSource MessageEvent::source() const
     return m_source;
 }
 
-GC::Ref<JS::Object> MessageEvent::ports() const
+JS::Value MessageEvent::ports(JS::Realm& realm)
 {
-    if (!m_ports_array) {
-        GC::RootVector<JS::Value> port_vector;
-        for (auto const& port : m_ports)
-            port_vector.append(port);
+    auto& wrapper_world = Bindings::host_defined_wrapper_world(realm);
+    auto& ports_cache = ports_cache_for(*this);
 
-        m_ports_array = JS::Array::create_from(realm(), port_vector);
-        MUST(m_ports_array->set_integrity_level(IntegrityLevel::Frozen));
-    }
-    return *m_ports_array;
+    if (auto ports_array = ports_cache.get(wrapper_world))
+        return JS::Value(ports_array);
+
+    GC::RootVector<JS::Value> port_vector;
+    for (auto const& port : message_ports())
+        port_vector.append(Bindings::wrap(wrapper_world, realm, port));
+
+    auto ports_array = JS::Array::create_from(realm, port_vector);
+    MUST(ports_array->set_integrity_level(JS::Object::IntegrityLevel::Frozen));
+
+    ports_cache.set(wrapper_world, ports_array);
+
+    return JS::Value(ports_array);
 }
 
 // https://html.spec.whatwg.org/multipage/comms.html#dom-messageevent-initmessageevent
 void MessageEvent::init_message_event(Utf16FlyString const& type, bool bubbles, bool cancelable, JS::Value data, Utf16View origin, Utf16View last_event_id, NullableMessageEventSource source, GC::RootVector<GC::Ref<MessagePort>> const& ports)
 {
+    auto was_dispatched = dispatched();
+
     // The initMessageEvent(type, bubbles, cancelable, data, origin, lastEventId, source, ports) method must initialize the event in a
     // manner analogous to the similarly-named initEvent() method.
 
@@ -129,12 +242,14 @@ void MessageEvent::init_message_event(Utf16FlyString const& type, bool bubbles, 
     m_last_event_id = Utf16String::from_utf16(last_event_id);
     m_source = source;
 
-    m_ports_array = nullptr;
     m_ports.clear();
     m_ports.ensure_capacity(ports.size());
     for (auto const& port : ports) {
-        m_ports.unchecked_append(static_cast<JS::Object&>(*port));
+        m_ports.unchecked_append(port);
     }
+
+    if (!was_dispatched)
+        clear_ports_cache(*this);
 }
 
 // https://html.spec.whatwg.org/multipage/comms.html#the-messageevent-interface:extract-an-origin

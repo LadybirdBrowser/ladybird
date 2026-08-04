@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/Lock.h>
 #include <LibWeb/Bindings/LockManager.h>
 #include <LibWeb/WebLocks/Lock.h>
 #include <LibWeb/WebLocks/LockManager.h>
@@ -17,19 +15,13 @@ GC_DEFINE_ALLOCATOR(LockData);
 
 GC::Ref<Lock> Lock::create(JS::Realm& realm, GC::Ref<LockData> lock)
 {
-    return realm.create<Lock>(realm, lock);
+    auto result = realm.create<Lock>(lock);
+    return result;
 }
 
-Lock::Lock(JS::Realm& realm, GC::Ref<LockData> lock)
-    : PlatformObject(realm)
-    , m_lock(lock)
+Lock::Lock(GC::Ref<LockData> lock)
+    : m_lock(lock)
 {
-}
-
-void Lock::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(Lock);
-    Base::initialize(realm);
 }
 
 void Lock::visit_edges(Cell::Visitor& visitor)

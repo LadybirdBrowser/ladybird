@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/AttributeNames.h>
 
@@ -63,9 +64,7 @@ public:
 
     void set_lazy_load_resumption_steps(Function<void()> steps)
     {
-        auto& element = static_cast<T&>(*this);
-
-        m_lazy_load_resumption_steps = GC::create_function(element.vm().heap(), move(steps));
+        m_lazy_load_resumption_steps = GC::create_function(GC::Heap::the(), move(steps));
     }
 
     void visit_lazy_loading_element(JS::Cell::Visitor& visitor)

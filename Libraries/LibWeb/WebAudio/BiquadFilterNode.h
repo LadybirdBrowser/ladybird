@@ -12,9 +12,12 @@
 
 namespace Web::WebAudio {
 
+using BiquadFilterType = Bindings::BiquadFilterType;
+using BiquadFilterOptions = Bindings::BiquadFilterOptions;
+
 // https://webaudio.github.io/web-audio-api/#BiquadFilterNode
 class BiquadFilterNode : public AudioNode {
-    WEB_PLATFORM_OBJECT(BiquadFilterNode, AudioNode);
+    WEB_WRAPPABLE(BiquadFilterNode, AudioNode);
     GC_DECLARE_ALLOCATOR(BiquadFilterNode);
 
 public:
@@ -23,25 +26,23 @@ public:
     WebIDL::UnsignedLong number_of_inputs() override { return 1; }
     WebIDL::UnsignedLong number_of_outputs() override { return 1; }
 
-    void set_type(Bindings::BiquadFilterType);
-    Bindings::BiquadFilterType type() const;
+    void set_type(BiquadFilterType);
+    BiquadFilterType type() const;
     GC::Ref<AudioParam> frequency() const;
     GC::Ref<AudioParam> detune() const;
     GC::Ref<AudioParam> q() const;
     GC::Ref<AudioParam> gain() const;
     WebIDL::ExceptionOr<void> get_frequency_response(GC::Ref<JS::Float32Array>, GC::Ref<JS::Float32Array>, GC::Ref<JS::Float32Array>);
 
-    static WebIDL::ExceptionOr<GC::Ref<BiquadFilterNode>> create(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::BiquadFilterOptions const& = {});
-    static WebIDL::ExceptionOr<GC::Ref<BiquadFilterNode>> construct_impl(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::BiquadFilterOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<BiquadFilterNode>> create(GC::Ref<BaseAudioContext>, BiquadFilterOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<BiquadFilterNode>> create_for_constructor(GC::Ref<BaseAudioContext>, BiquadFilterOptions const& = {});
 
 protected:
-    BiquadFilterNode(JS::Realm&, GC::Ref<BaseAudioContext>, Bindings::BiquadFilterOptions const& = {});
-
-    virtual void initialize(JS::Realm&) override;
+    BiquadFilterNode(GC::Ref<BaseAudioContext>, BiquadFilterOptions const& = {});
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:
-    Bindings::BiquadFilterType m_type { Bindings::BiquadFilterType::Lowpass };
+    BiquadFilterType m_type { BiquadFilterType::Lowpass };
 
     // https://webaudio.github.io/web-audio-api/#dom-biquadfilternode-frequency
     GC::Ref<AudioParam> m_frequency;

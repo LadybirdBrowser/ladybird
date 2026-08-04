@@ -14,7 +14,7 @@
 namespace Web::HTML {
 
 class WEB_API NavigableContainer : public HTMLElement {
-    WEB_NON_IDL_PLATFORM_OBJECT(NavigableContainer, HTMLElement);
+    WEB_NON_IDL_WRAPPABLE(NavigableContainer, HTMLElement);
 
 public:
     static constexpr bool OVERRIDES_FINALIZE = true;
@@ -25,8 +25,8 @@ public:
 
     static HashTable<NavigableContainer*>& all_instances();
 
-    GC::Ptr<Navigable> content_navigable() { return m_content_navigable; }
-    GC::Ptr<Navigable const> content_navigable() const { return m_content_navigable; }
+    GC::Ptr<LocalNavigable> content_navigable() { return m_content_navigable; }
+    GC::Ptr<LocalNavigable const> content_navigable() const { return m_content_navigable; }
 
     DOM::Document const* content_document() const;
     DOM::Document const* content_document_without_origin_check() const;
@@ -58,7 +58,7 @@ protected:
     void create_new_child_navigable();
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#content-navigable
-    GC::Ptr<Navigable> m_content_navigable { nullptr };
+    GC::Ptr<LocalNavigable> m_content_navigable { nullptr };
 
     void set_potentially_delays_the_load_event(bool value);
 

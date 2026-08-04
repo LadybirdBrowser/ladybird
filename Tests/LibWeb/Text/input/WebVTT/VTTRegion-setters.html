@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const region = new VTTRegion();
+
+        for (const property of ["width", "regionAnchorX", "regionAnchorY", "viewportAnchorX", "viewportAnchorY"]) {
+            for (const value of [-1, 101]) {
+                try {
+                    region[property] = value;
+                    println(`${property} accepted ${value}`);
+                } catch (error) {
+                    println(`${property} ${value}: ${error.name}`);
+                }
+            }
+        }
+    });
+</script>

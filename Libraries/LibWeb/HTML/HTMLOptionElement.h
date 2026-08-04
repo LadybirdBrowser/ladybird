@@ -14,7 +14,7 @@
 namespace Web::HTML {
 
 class WEB_API HTMLOptionElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLOptionElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLOptionElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLOptionElement);
 
 public:
@@ -52,14 +52,11 @@ public:
     WebIDL::ExceptionOr<void> clone_into_selectedcontent(GC::Ref<HTMLSelectedContentElement>);
 
 private:
-    friend class Bindings::OptionConstructor;
     friend class HTMLSelectElement;
 
     HTMLOptionElement(DOM::Document&, DOM::QualifiedName);
 
     virtual bool is_html_option_element() const final { return true; }
-
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;

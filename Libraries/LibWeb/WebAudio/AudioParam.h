@@ -6,19 +6,18 @@
 
 #pragma once
 
-#include <AK/NonnullRefPtr.h>
-#include <LibJS/Forward.h>
 #include <LibWeb/Bindings/AudioParam.h>
-#include <LibWeb/Bindings/PlatformObject.h>
-#include <LibWeb/Forward.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/WebAudio/AudioParamTimeline.h>
 #include <LibWeb/WebAudio/Rendering/RenderNode.h>
 
 namespace Web::WebAudio {
 
+using AutomationRate = Bindings::AutomationRate;
+
 // https://webaudio.github.io/web-audio-api/#AudioParam
-class AudioParam final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(AudioParam, Bindings::PlatformObject);
+class AudioParam final : public Bindings::GCAllocatedWrappable {
+    WEB_WRAPPABLE(AudioParam, Bindings::GCAllocatedWrappable);
     GC_DECLARE_ALLOCATOR(AudioParam);
 
 public:
@@ -26,8 +25,8 @@ public:
         No,
         Yes,
     };
-    // The owner is the AudioNode this parameter belongs to, or null for the AudioListener's parameters.
-    static GC::Ref<AudioParam> create(JS::Realm&, GC::Ref<BaseAudioContext>, GC::Ptr<AudioNode> owner, float default_value, float min_value, float max_value, Bindings::AutomationRate, FixedAutomationRate = FixedAutomationRate::No);
+    // The owner is the AudioNode this parameter belongs to, or null for AudioListener parameters.
+    static GC::Ref<AudioParam> create(GC::Ref<BaseAudioContext>, GC::Ptr<AudioNode> owner, float default_value, float min_value, float max_value, AutomationRate, FixedAutomationRate = FixedAutomationRate::No);
 
     virtual ~AudioParam() override;
 
@@ -39,8 +38,8 @@ public:
     // https://webaudio.github.io/web-audio-api/#computedvalue
     float intrinsic_value_at_time(double time) const { return m_timeline->value_at_time(time); }
 
-    Bindings::AutomationRate automation_rate() const;
-    WebIDL::ExceptionOr<void> set_automation_rate(Bindings::AutomationRate);
+    AutomationRate automation_rate() const;
+    WebIDL::ExceptionOr<void> set_automation_rate(AutomationRate);
 
     // https://webaudio.github.io/web-audio-api/#dom-audioparam-defaultvalue
     float default_value() const { return m_default_value; }
@@ -63,9 +62,9 @@ public:
     WebIDL::ExceptionOr<GC::Ref<AudioParam>> cancel_and_hold_at_time(double cancel_time);
 
 private:
-    AudioParam(JS::Realm&, GC::Ref<BaseAudioContext>, GC::Ptr<AudioNode> owner, float default_value, float min_value, float max_value, Bindings::AutomationRate, FixedAutomationRate = FixedAutomationRate::No);
-
     WebIDL::ExceptionOr<void> map_insert_result(AudioParamTimeline::InsertResult);
+
+    AudioParam(GC::Ref<BaseAudioContext>, GC::Ptr<AudioNode> owner, float default_value, float min_value, float max_value, AutomationRate, FixedAutomationRate = FixedAutomationRate::No);
 
     GC::Ref<BaseAudioContext> m_context;
 
@@ -84,12 +83,11 @@ private:
     float m_min_value {};
     float m_max_value {};
 
-    Bindings::AutomationRate m_automation_rate {};
+    AutomationRate m_automation_rate {};
 
     FixedAutomationRate m_fixed_automation_rate { FixedAutomationRate::No };
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 };
 
 }

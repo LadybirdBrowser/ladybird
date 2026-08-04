@@ -13,7 +13,7 @@
 #include <LibGfx/FontCascadeList.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Bindings/FontFace.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/CSS/ParsedFontFace.h>
 #include <LibWeb/CSS/StyleValues/ComputationContext.h>
 #include <LibWeb/WebIDL/Buffers.h>
@@ -21,15 +21,17 @@
 namespace Web::CSS {
 
 class FontLoader;
+using FontFaceLoadStatus = Bindings::FontFaceLoadStatus;
+using FontFaceDescriptors = Bindings::FontFaceDescriptors;
 
-class FontFace final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(FontFace, Bindings::PlatformObject);
+class FontFace final : public Bindings::GCAllocatedWrappable {
+    WEB_WRAPPABLE(FontFace, Bindings::GCAllocatedWrappable);
     GC_DECLARE_ALLOCATOR(FontFace);
 
 public:
     using FontFaceSource = FlattenVariant<Variant<Utf16String>, WebIDL::BufferSourceVariant>;
 
-    [[nodiscard]] static GC::Ref<FontFace> construct_impl(JS::Realm&, Utf16String family, FontFaceSource source, Bindings::FontFaceDescriptors const& descriptors);
+    [[nodiscard]] static GC::Ref<FontFace> create_for_constructor(JS::Object&, Utf16String family, FontFaceSource source, Bindings::FontFaceDescriptors const& descriptors);
     [[nodiscard]] static GC::Ref<FontFace> create_css_connected(JS::Realm&, CSSFontFaceRule&);
     virtual ~FontFace() override;
 
@@ -89,7 +91,7 @@ public:
     FontWeightRange declared_weight_range() const { return m_cached_weight_range; }
     int declared_slope() const { return m_cached_slope; }
     int declared_width() const { return m_cached_width; }
-    bool should_be_registered_with_font_computer() const { return is_css_connected() || status() == Bindings::FontFaceLoadStatus::Loaded; }
+    bool should_be_registered_with_font_computer() const;
 
     RefPtr<Gfx::FontCascadeList const> font_with_point_size(float point_size, Gfx::FontVariationSettings const&, Gfx::ShapeFeatures const&) const;
 
@@ -104,7 +106,7 @@ public:
         return range.min_code_point() != 0 || range.max_code_point() != 0x10FFFF;
     }
 
-    Bindings::FontFaceLoadStatus status() const { return m_status; }
+    FontFaceLoadStatus status() const { return m_status; }
 
     GC::Ref<WebIDL::Promise> load();
     GC::Ref<WebIDL::Promise> loaded() const;
@@ -115,11 +117,11 @@ public:
     void remove_from_set(FontFaceSet&);
 
 private:
-    FontFace(JS::Realm&, GC::Ref<WebIDL::Promise> font_status_promise);
+    FontFace(GC::Ref<HTML::EnvironmentSettingsObject>, GC::Ref<WebIDL::Promise> font_status_promise);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor&) override;
-    void reject_status_promise(JS::Value reason);
+    virtual void visit_edges(GC::Cell::Visitor&) override;
+    JS::Object& task_global_object() const;
+    void reject_status_promise(WebIDL::Exception);
 
     Optional<FontComputer&> font_computer() const;
 
@@ -143,9 +145,10 @@ private:
     int m_cached_slope { 0 };
     int m_cached_width { 100 };
     GC::Ptr<FontLoader> m_font_loader;
+    GC::Ref<HTML::EnvironmentSettingsObject> m_environment;
 
     // https://drafts.csswg.org/css-font-loading/#dom-fontface-status
-    Bindings::FontFaceLoadStatus m_status { Bindings::FontFaceLoadStatus::Unloaded };
+    FontFaceLoadStatus m_status;
 
     GC::Ref<WebIDL::Promise> m_font_status_promise; // [[FontStatusPromise]]
     Vector<ParsedFontFace::Source> m_urls;          // [[Urls]]

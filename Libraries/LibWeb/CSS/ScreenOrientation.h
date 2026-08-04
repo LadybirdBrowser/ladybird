@@ -6,32 +6,38 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/ScreenOrientation.h>
 #include <LibWeb/DOM/EventTarget.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
+#include <LibWeb/WebIDL/Promise.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::CSS {
 
+using OrientationLockType = Bindings::OrientationLockType;
+using OrientationType = Bindings::OrientationType;
+
 class ScreenOrientation final : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(ScreenOrientation, DOM::EventTarget);
+    WEB_WRAPPABLE(ScreenOrientation, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(ScreenOrientation);
 
 public:
-    [[nodiscard]] static GC::Ref<ScreenOrientation> create(JS::Realm&);
+    [[nodiscard]] static GC::Ref<ScreenOrientation> create(HTML::Window&);
 
-    WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> lock(Bindings::OrientationLockType);
+    WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> lock(OrientationLockType);
+    WebIDL::ExceptionOr<void> lock();
     void unlock();
-    Bindings::OrientationType type() const;
+    OrientationType type() const;
     WebIDL::UnsignedShort angle() const;
 
     void set_onchange(GC::Ptr<WebIDL::CallbackType>);
     GC::Ptr<WebIDL::CallbackType> onchange();
 
 private:
-    explicit ScreenOrientation(JS::Realm&);
+    explicit ScreenOrientation(HTML::Window&);
+    virtual void visit_edges(Cell::Visitor&) override;
 
-    virtual void initialize(JS::Realm&) override;
+    GC::Ref<HTML::Window> m_window;
 };
 
 }

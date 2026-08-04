@@ -11,9 +11,13 @@
 #include <AK/ByteBuffer.h>
 #include <AK/RefCounted.h>
 #include <AK/Time.h>
+#include <AK/Vector.h>
 #include <AK/Weakable.h>
+#include <LibGC/ActivityRoot.h>
 #include <LibHTTP/HeaderList.h>
+#include <LibJS/Forward.h>
 #include <LibURL/URL.h>
+#include <LibWeb/Bindings/XMLHttpRequest.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/DOMURL/URLSearchParams.h>
 #include <LibWeb/Fetch/BodyInit.h>
@@ -25,6 +29,18 @@
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/XHR/XMLHttpRequestEventTarget.h>
 
+namespace Web::DOM {
+
+class EventTarget;
+
+}
+
+namespace Web::FileAPI {
+
+class Blob;
+
+}
+
 namespace Web::XHR {
 
 // https://fetch.spec.whatwg.org/#typedefdef-xmlhttprequestbodyinit
@@ -32,12 +48,10 @@ using DocumentOrXMLHttpRequestBodyInit = FlattenVariant<Variant<GC::Ref<Web::DOM
 using NullableDocumentOrXMLHttpRequestBodyInit = FlattenVariant<DocumentOrXMLHttpRequestBodyInit, Variant<Empty>>;
 
 class XMLHttpRequest final : public XMLHttpRequestEventTarget {
-    WEB_PLATFORM_OBJECT(XMLHttpRequest, XMLHttpRequestEventTarget);
+    WEB_WRAPPABLE(XMLHttpRequest, XMLHttpRequestEventTarget);
     GC_DECLARE_ALLOCATOR(XMLHttpRequest);
 
 public:
-    static constexpr bool OVERRIDES_MUST_SURVIVE_GARBAGE_COLLECTION = true;
-
     enum class State : u16 {
         Unsent = 0,
         Opened = 1,
@@ -46,17 +60,20 @@ public:
         Done = 4,
     };
 
-    static WebIDL::ExceptionOr<GC::Ref<XMLHttpRequest>> construct_impl(JS::Realm&);
+    using ResponseType = Bindings::XMLHttpRequestResponseType;
+
+    static GC::Ref<XMLHttpRequest> create(GC::Ref<DOM::EventTarget> relevant_global_object);
+    static WebIDL::ExceptionOr<GC::Ref<XMLHttpRequest>> create_for_constructor(JS::Object&);
 
     virtual ~XMLHttpRequest() override;
 
     State ready_state() const { return m_state; }
     Fetch::Infrastructure::Status status() const;
     WebIDL::ExceptionOr<String> status_text() const;
+    WebIDL::ExceptionOr<JS::Value> response(JS::Realm&);
     WebIDL::ExceptionOr<Utf16String> response_text() const;
     WebIDL::ExceptionOr<GC::Ptr<DOM::Document>> response_xml();
-    WebIDL::ExceptionOr<JS::Value> response();
-    Bindings::XMLHttpRequestResponseType response_type() const { return m_response_type; }
+    ResponseType response_type() const { return m_response_type; }
     Utf16String response_url();
 
     WebIDL::ExceptionOr<void> open(Utf16String const& method, Utf16String const& url);
@@ -64,7 +81,7 @@ public:
     WebIDL::ExceptionOr<void> send(NullableDocumentOrXMLHttpRequestBodyInit body);
 
     WebIDL::ExceptionOr<void> set_request_header(String const& name, String const& value);
-    WebIDL::ExceptionOr<void> set_response_type(Bindings::XMLHttpRequestResponseType);
+    WebIDL::ExceptionOr<void> set_response_type(ResponseType);
 
     Optional<String> get_response_header(String const& name) const;
     String get_all_response_headers() const;
@@ -83,31 +100,47 @@ public:
     void abort();
 
     GC::Ref<XMLHttpRequestUpload> upload() const;
+    Utf16String get_text_response() const;
+    ByteBuffer const& received_bytes() const { return m_received_bytes; }
+    bool response_body_is_null() const;
+    bool response_object_is_failure() const { return m_response_object.has<Failure>(); }
+    GC::Ptr<DOM::Document> response_document() const;
+    GC::Ptr<FileAPI::Blob> response_blob() const;
+    void set_blob_response_object(GC::Ref<FileAPI::Blob>);
+    void set_document_response();
+    MimeSniff::MimeType get_final_mime_type() const;
+    bool has_activity_root() const { return m_activity_root.is_taken(); }
+
+    static void release_activity_roots_for_relevant_global_object(DOM::EventTarget const&);
 
 private:
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
-    virtual bool must_survive_garbage_collection() const override;
+    virtual void event_listener_list_changed() override;
+    virtual GC::Ptr<Bindings::Wrappable> relevant_global_impl() const override;
 
     [[nodiscard]] MimeSniff::MimeType get_response_mime_type() const;
     [[nodiscard]] Optional<StringView> get_final_encoding() const;
-    [[nodiscard]] MimeSniff::MimeType get_final_mime_type() const;
 
-    Utf16String get_text_response() const;
-    void set_document_response();
+    JS::Object& relevant_global_object() const;
+    GC::Ref<DOM::Event> create_associated_event(Utf16FlyString const&) const;
+    HTML::EnvironmentSettingsObject& relevant_settings_object() const;
+    void reset_response_object();
 
     WebIDL::ExceptionOr<void> handle_response_end_of_body();
     WebIDL::ExceptionOr<void> handle_errors();
-    JS::ThrowCompletionOr<void> request_error_steps(Utf16FlyString const& event_name, GC::Ptr<WebIDL::DOMException> exception = nullptr);
+    WebIDL::ExceptionOr<void> request_error_steps(Utf16FlyString const& event_name, GC::Ptr<WebIDL::DOMException> exception = nullptr);
 
     void stop_timeout_timer();
+    bool should_be_kept_alive() const;
+    void update_activity_root();
 
-    XMLHttpRequest(JS::Realm&, XMLHttpRequestUpload&, NonnullRefPtr<HTTP::HeaderList>, Fetch::Infrastructure::Response&, Fetch::Infrastructure::FetchController&);
+    XMLHttpRequest(GC::Ref<DOM::EventTarget> relevant_global_object, XMLHttpRequestUpload&, NonnullRefPtr<HTTP::HeaderList>, Fetch::Infrastructure::Response&, Fetch::Infrastructure::FetchController&);
 
     // https://xhr.spec.whatwg.org/#upload-object
     // upload object
     //     An XMLHttpRequestUpload object.
     GC::Ref<XMLHttpRequestUpload> m_upload_object;
+    GC::Ref<DOM::EventTarget> m_global_object;
 
     // https://xhr.spec.whatwg.org/#concept-xmlhttprequest-state
     // state
@@ -182,7 +215,7 @@ private:
     // https://xhr.spec.whatwg.org/#response-type
     // response type
     //     One of the empty string, "arraybuffer", "blob", "document", "json", and "text"; initially the empty string.
-    Bindings::XMLHttpRequestResponseType m_response_type;
+    ResponseType m_response_type { ResponseType::Empty };
 
     enum class Failure {
         /// ????
@@ -191,8 +224,12 @@ private:
     // https://xhr.spec.whatwg.org/#response-object
     // response object
     //     An object, failure, or null, initially null.
-    //     NOTE: This needs to be a JS::Value as the JSON response might not actually be an object.
-    Variant<GC::Ref<JS::Object>, Failure, Empty> m_response_object;
+    Variant<GC::Ref<DOM::Document>, GC::Ref<FileAPI::Blob>, Failure, Empty> m_response_object;
+    struct CachedResponseObject {
+        GC::Weak<Bindings::PlatformObject> wrapper;
+        GC::Ptr<JS::Object> object;
+    };
+    Vector<CachedResponseObject> m_cached_response_objects;
 
     // https://xhr.spec.whatwg.org/#xmlhttprequest-fetch-controller
     // fetch controller
@@ -212,6 +249,7 @@ private:
     Optional<MonotonicTime> m_last_download_progress_timestamp;
 
     GC::Ptr<Platform::Timer> m_timeout_timer;
+    GC::ActivityRoot m_activity_root;
 };
 
 }

@@ -7,14 +7,15 @@
 #pragma once
 
 #include <AK/Utf16String.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/LockManager.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::WebLocks {
 
 // https://w3c.github.io/web-locks/#lock
-class Lock final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(Lock, Bindings::PlatformObject);
+class Lock final : public Bindings::GCAllocatedWrappable {
+    WEB_WRAPPABLE(Lock, Bindings::GCAllocatedWrappable);
     GC_DECLARE_ALLOCATOR(Lock);
 
 public:
@@ -25,9 +26,8 @@ public:
     Bindings::LockMode mode() const;
 
 private:
-    Lock(JS::Realm&, GC::Ref<LockData>);
+    explicit Lock(GC::Ref<LockData>);
 
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor& visitor) override;
 
     // https://w3c.github.io/web-locks/#ref-for-lock③

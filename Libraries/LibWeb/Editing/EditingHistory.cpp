@@ -5,7 +5,6 @@
  */
 
 #include <AK/TemporaryChange.h>
-#include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/InputEvent.h>
 #include <LibWeb/DOM/CharacterData.h>
 #include <LibWeb/DOM/Document.h>
@@ -177,9 +176,9 @@ void UndoStep::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_ending_selection.text_control);
 }
 
-GC::Ref<EditingHistory> EditingHistory::create(JS::Realm& realm)
+GC::Ref<EditingHistory> EditingHistory::create()
 {
-    return realm.heap().allocate<EditingHistory>();
+    return GC::Heap::the().allocate<EditingHistory>();
 }
 
 static SelectionSnapshot capture_selection(DOM::Node& editing_host)
@@ -227,11 +226,12 @@ static SelectionSnapshot capture_selection(DOM::Node& editing_host)
 //          execCommand() and the keyboard shortcuts.
 static void dispatch_history_input_event(DOM::Document& document, GC::Ref<DOM::Node> editing_host, Utf16FlyString const& input_type)
 {
+    (void)document;
     Bindings::InputEventInit event_init {};
     event_init.bubbles = true;
     event_init.input_type = input_type;
 
-    auto event = UIEvents::InputEvent::create_from_platform_event(document.realm(), HTML::EventNames::input, event_init);
+    auto event = UIEvents::InputEvent::create_from_platform_event(HTML::EventNames::input, event_init);
     event->set_is_trusted(true);
     editing_host->dispatch_event(event);
 }
@@ -472,7 +472,7 @@ EventResult perform_history_action(DOM::Document& document, HistoryAction action
     event_init.bubbles = true;
     event_init.cancelable = true;
     event_init.input_type = input_type;
-    auto event = UIEvents::InputEvent::create_from_platform_event(document.realm(), UIEvents::EventNames::beforeinput, event_init);
+    auto event = UIEvents::InputEvent::create_from_platform_event(UIEvents::EventNames::beforeinput, event_init);
     event->set_is_trusted(true);
     if (!step->editing_host()->dispatch_event(event))
         return EventResult::Handled;

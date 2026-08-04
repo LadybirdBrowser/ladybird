@@ -1,0 +1,6 @@
+hinted object ignores caller realm: true
+hinted object is not in iframe realm: true
+first hint-less wrapper uses iframe realm: true
+reacquired hint-less object exists: true
+hint-less wrapper realm is stable after gc: true
+hint-less wrapper did not move to parent realm: true

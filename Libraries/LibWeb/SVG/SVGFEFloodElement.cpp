@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/SVGFEFloodElement.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/Layout/Node.h>
@@ -18,12 +18,6 @@ GC_DEFINE_ALLOCATOR(SVGFEFloodElement);
 SVGFEFloodElement::SVGFEFloodElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : SVGElement(document, qualified_name)
 {
-}
-
-void SVGFEFloodElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGFEFloodElement);
-    Base::initialize(realm);
 }
 
 void SVGFEFloodElement::visit_edges(Cell::Visitor& visitor)

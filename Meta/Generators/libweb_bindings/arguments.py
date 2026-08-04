@@ -43,12 +43,13 @@ def write_operation_parameter_conversions(
     parameters: list[OperationParameter],
     includes: GeneratedIncludes,
     context: GenerationContext,
+    realm_argument: str = "*vm.current_realm()",
 ) -> None:
-    includes.add("LibWeb/Bindings/ExceptionOrUtils.h")
+    includes.add("LibWeb/WebIDL/ExceptionOrUtils.h")
 
     for index, parameter in enumerate(parameters):
         if parameter.variadic:
-            write_variadic_operation_parameter_conversion(out, parameter, index, includes, context)
+            write_variadic_operation_parameter_conversion(out, parameter, index, includes, context, realm_argument)
             continue
 
         argument_value_name = f"arg{index}"
@@ -60,7 +61,7 @@ def write_operation_parameter_conversions(
             out.write(
                 f"""    {operation_parameter_cpp_type(parameter, context)} {parameter_name} {{}};
     if (!{argument_value_name}.is_undefined())
-        {parameter_name} = TRY(throw_dom_exception_if_needed(vm, [&] {{ return {to_idl_value(parameter, argument_value_name, includes, context)}; }}));
+        {parameter_name} = TRY(WebIDL::throw_dom_exception_if_needed(vm, {realm_argument}, [&] {{ return {to_idl_value(parameter, argument_value_name, includes, context)}; }}));
 
 """
             )
@@ -70,14 +71,14 @@ def write_operation_parameter_conversions(
             out.write(
                 f"""    {cpp_value_type(parameter, context)} {parameter_name} = {cpp_default_value_conversion(parameter, context)};
     if (!{argument_value_name}.is_undefined())
-        {parameter_name} = TRY(throw_dom_exception_if_needed(vm, [&] {{ return {to_idl_value(parameter, argument_value_name, includes, context)}; }}));
+        {parameter_name} = TRY(WebIDL::throw_dom_exception_if_needed(vm, {realm_argument}, [&] {{ return {to_idl_value(parameter, argument_value_name, includes, context)}; }}));
 
 """
             )
             continue
 
         out.write(
-            f"""    auto {parameter_name} = TRY(throw_dom_exception_if_needed(vm, [&] {{ return {to_idl_value(parameter, argument_value_name, includes, context)}; }}));
+            f"""    auto {parameter_name} = TRY(WebIDL::throw_dom_exception_if_needed(vm, {realm_argument}, [&] {{ return {to_idl_value(parameter, argument_value_name, includes, context)}; }}));
 
 """
         )
@@ -89,6 +90,7 @@ def write_variadic_operation_parameter_conversion(
     index: int,
     includes: GeneratedIncludes,
     context: GenerationContext,
+    realm_argument: str,
 ) -> None:
     cpp_type = cpp_type_for_idl_type_details(
         parameter.type,
@@ -105,7 +107,7 @@ def write_variadic_operation_parameter_conversion(
     if (vm.argument_count() > {index}) {{
         {parameter_name}.ensure_capacity(vm.argument_count() - {index});
         for (size_t i = {index}; i < vm.argument_count(); ++i) {{
-            auto argument = TRY(throw_dom_exception_if_needed(vm, [&] {{ return {to_idl_value(parameter, "vm.argument(i)", includes, context)}; }}));
+            auto argument = TRY(WebIDL::throw_dom_exception_if_needed(vm, {realm_argument}, [&] {{ return {to_idl_value(parameter, "vm.argument(i)", includes, context)}; }}));
             {parameter_name}.unchecked_append(move(argument));
         }}
     }}

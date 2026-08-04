@@ -30,19 +30,15 @@ public:
     void set_name(Utf16String name) { m_name = move(name); }
     void set_name(StringView name) { m_name = Utf16String::from_ascii_without_validation(name.bytes()); }
 
-    JS::Realm& realm() const { return m_realm; }
-
 protected:
     KeyAlgorithm(JS::Realm&);
 
     virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor&) override;
 
 private:
     JS_DECLARE_NATIVE_FUNCTION(name_getter);
 
     Utf16String m_name;
-    GC::Ref<JS::Realm> m_realm;
 };
 
 // https://w3c.github.io/webcrypto/#RsaKeyAlgorithm-dictionary

@@ -5,8 +5,6 @@
  */
 
 #include <LibGfx/Path.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SVGLineElement.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/AttributeParser.h>
@@ -19,12 +17,6 @@ GC_DEFINE_ALLOCATOR(SVGLineElement);
 SVGLineElement::SVGLineElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : SVGGeometryElement(document, qualified_name)
 {
-}
-
-void SVGLineElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGLineElement);
-    Base::initialize(realm);
 }
 
 void SVGLineElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)

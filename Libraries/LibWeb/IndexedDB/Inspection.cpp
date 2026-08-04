@@ -8,6 +8,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/IndexedDB/IDBKeyRange.h>
@@ -73,7 +74,7 @@ static String serialize_record_value(JS::Realm& realm, HTML::StorageSerializatio
     if (value.is_exception())
         return "<unserializable>"_string;
 
-    auto serialized = Infra::serialize_javascript_value_to_json_string(realm.vm(), value.release_value());
+    auto serialized = Infra::serialize_javascript_value_to_json_string(realm, value.release_value());
     if (serialized.is_exception())
         return "<unserializable>"_string;
 
@@ -194,7 +195,7 @@ static void append_record_rows(Vector<InspectionObject>& rows, DOM::Document& do
         auto serialized_record_key = serialize_key_for_inspection(*record.key);
         if (path.key.has_value() && serialized_record_key.serialized() != path.key->serialized())
             continue;
-        rows.append(InspectionRecord { serialized_record_key, serialize_record_value(document.realm(), *record.value) });
+        rows.append(InspectionRecord { serialized_record_key, serialize_record_value(HTML::relevant_realm(document), *record.value) });
     }
 }
 
@@ -271,7 +272,7 @@ ErrorOr<void> delete_indexed_database_record_for_inspection(DOM::Document& docum
         if (serialize_key_for_inspection(*record.key).serialized() != key.serialized())
             continue;
 
-        auto range = IDBKeyRange::create(entry->document->realm(), record.key, record.key, IDBKeyRange::LowerOpen::No, IDBKeyRange::UpperOpen::No);
+        auto range = IDBKeyRange::create(record.key, record.key, IDBKeyRange::LowerOpen::No, IDBKeyRange::UpperOpen::No);
         delete_records_from_an_object_store(*object_store, range);
         return {};
     }

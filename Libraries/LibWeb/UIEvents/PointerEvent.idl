@@ -20,7 +20,7 @@ dictionary PointerEventInit : MouseEventInit {
 // https://w3c.github.io/pointerevents/#pointerevent-interface
 [Exposed=Window]
 interface PointerEvent : MouseEvent {
-    constructor([Utf16FlyString] Utf16DOMString type, optional PointerEventInit eventInitDict = {});
+    constructor(DOMString type, optional PointerEventInit eventInitDict = {});
     readonly attribute long pointerId;
     readonly attribute double width;
     readonly attribute double height;

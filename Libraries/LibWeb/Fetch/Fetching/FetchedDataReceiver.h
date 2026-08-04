@@ -32,7 +32,7 @@ public:
         Complete,
         Error,
     };
-    void handle_network_data(Requests::ResponseData, NetworkState);
+    void handle_network_data(JS::Realm&, Requests::ResponseData, NetworkState);
     void set_cached_response_body(Core::ImmutableBytes);
 
 private:
@@ -40,8 +40,8 @@ private:
 
     virtual void visit_edges(Visitor& visitor) override;
 
-    void enqueue_into_stream(ReadonlyBytes);
-    void close_stream();
+    void enqueue_into_stream(JS::Realm&, ReadonlyBytes);
+    void close_stream(JS::Realm&);
 
     GC::Ref<Infrastructure::FetchParams const> m_fetch_params;
     GC::Ptr<Fetch::Infrastructure::Response const> m_response;

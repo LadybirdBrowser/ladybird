@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(`self.navigator instanceof Navigator: ${self.navigator instanceof Navigator}`);
+        println(`navigator instanceof Navigator: ${navigator instanceof Navigator}`);
+        println(`self.performance instanceof Performance: ${self.performance instanceof Performance}`);
+        println(`self.screen instanceof Screen: ${self.screen instanceof Screen}`);
+        println(`self.history instanceof History: ${self.history instanceof History}`);
+        println(`self.crypto instanceof Crypto: ${self.crypto instanceof Crypto}`);
+        println(`self.indexedDB instanceof IDBFactory: ${self.indexedDB instanceof IDBFactory}`);
+        println(`self.caches instanceof CacheStorage: ${self.caches instanceof CacheStorage}`);
+    });
+</script>

@@ -10,7 +10,6 @@
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <LibJS/Runtime/MapIterator.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/CSS/CSSFontFeatureValuesMap.h>
 #include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/CSS/FontFeatureData.h>
@@ -19,11 +18,11 @@
 namespace Web::CSS {
 
 class CSSFontFeatureValuesRule final : public CSSRule {
-    WEB_PLATFORM_OBJECT(CSSFontFeatureValuesRule, CSSRule);
+    WEB_WRAPPABLE(CSSFontFeatureValuesRule, CSSRule);
     GC_DECLARE_ALLOCATOR(CSSFontFeatureValuesRule);
 
 public:
-    static GC::Ref<CSSFontFeatureValuesRule> create(JS::Realm&, Vector<Utf16FlyString> font_families);
+    static GC::Ref<CSSFontFeatureValuesRule> create(Vector<Utf16FlyString> font_families);
 
     static bool is_font_feature_value_type_at_keyword(Utf16View);
 
@@ -47,9 +46,8 @@ public:
 private:
     Utf16String serialized_font_family() const;
 
-    CSSFontFeatureValuesRule(JS::Realm&, Vector<Utf16FlyString> font_families);
+    CSSFontFeatureValuesRule(Vector<Utf16FlyString> font_families);
 
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     Vector<Utf16FlyString> m_font_families;

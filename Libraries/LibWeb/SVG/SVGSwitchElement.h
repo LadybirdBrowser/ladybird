@@ -12,7 +12,7 @@ namespace Web::SVG {
 
 // https://svgwg.org/svg2-draft/struct.html#SwitchElement
 class SVGSwitchElement final : public SVGGraphicsElement {
-    WEB_PLATFORM_OBJECT(SVGSwitchElement, SVGGraphicsElement);
+    WEB_WRAPPABLE(SVGSwitchElement, SVGGraphicsElement);
     GC_DECLARE_ALLOCATOR(SVGSwitchElement);
 
 public:
@@ -22,8 +22,6 @@ public:
 
 private:
     SVGSwitchElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
 
     virtual bool is_svg_switch_element() const override { return true; }
 };

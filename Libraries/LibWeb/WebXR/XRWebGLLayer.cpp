@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/XRWebGLLayer.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/WebGL/WebGL2RenderingContext.h>
 #include <LibWeb/WebGL/WebGLRenderingContext.h>
 #include <LibWeb/WebGL/WebGLRenderingContextBase.h>
@@ -14,35 +14,35 @@ namespace Web::WebXR {
 
 GC_DEFINE_ALLOCATOR(XRWebGLLayer);
 
-XRWebGLLayer::XRWebGLLayer(JS::Realm& realm)
-    : XRLayer(realm)
+XRWebGLLayer::XRWebGLLayer()
+    : XRLayer()
 {
 }
 
-GC::Ref<XRWebGLLayer> XRWebGLLayer::create(JS::Realm& realm)
+GC::Ref<XRWebGLLayer> XRWebGLLayer::create()
 {
-    return realm.create<XRWebGLLayer>(realm);
+    return GC::Heap::the().allocate<XRWebGLLayer>();
 }
 
 // https://immersive-web.github.io/webxr/#dom-xrwebgllayer-xrwebgllayer
-WebIDL::ExceptionOr<GC::Ref<XRWebGLLayer>> XRWebGLLayer::construct_impl(JS::Realm& realm, XRSession const& session, XRWebGLRenderingContext const& context, Bindings::XRWebGLLayerInit const& layer_init)
+WebIDL::ExceptionOr<GC::Ref<XRWebGLLayer>> XRWebGLLayer::create(XRSession const& session, XRWebGLRenderingContext const& context, XRWebGLLayerInit const& layer_init)
 {
     // 1. Let layer be a new XRWebGLLayer in the relevant realm of session.
-    auto layer = create(realm);
+    auto layer = create();
 
     // 2. If session’s ended value is true, throw an InvalidStateError and abort these steps.
     if (session.ended())
-        return WebIDL::InvalidStateError::create(realm, "The XRSession has ended."_utf16);
+        return WebIDL::InvalidStateError::create("The XRSession has ended."_utf16);
 
     // 3. If context is lost, throw an InvalidStateError and abort these steps.
     auto* contextBase = context.visit([](auto p) { return static_cast<WebGL::WebGLRenderingContextBase*>(&*p); });
     if (contextBase->is_context_lost())
-        return WebIDL::InvalidStateError::create(realm, "The context has been lost."_utf16);
+        return WebIDL::InvalidStateError::create("The context has been lost."_utf16);
 
     // 4. If session is an immersive session and context’s XR compatible boolean is false, throw an InvalidStateError
     //    and abort these steps.
     if (session.is_immersive() && !contextBase->xr_compatible())
-        return WebIDL::InvalidStateError::create(realm, "The XRSession is an immersive one, but the context is not XR-compatible."_utf16);
+        return WebIDL::InvalidStateError::create("The XRSession is an immersive one, but the context is not XR-compatible."_utf16);
 
     // FIXME: Implement all of these.
     (void)layer_init;
@@ -72,11 +72,6 @@ WebIDL::ExceptionOr<GC::Ref<XRWebGLLayer>> XRWebGLLayer::construct_impl(JS::Real
     //     2. Initialize layer’s framebuffer to null.
 
     return layer;
-}
-
-void XRWebGLLayer::visit_edges(Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
 }
 
 }

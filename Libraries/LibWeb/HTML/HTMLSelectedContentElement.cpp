@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/HTMLSelectedContentElement.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/HTMLSelectElement.h>
 #include <LibWeb/HTML/HTMLSelectedContentElement.h>
 
@@ -19,12 +17,6 @@ HTMLSelectedContentElement::HTMLSelectedContentElement(DOM::Document& document, 
 }
 
 HTMLSelectedContentElement::~HTMLSelectedContentElement() = default;
-
-void HTMLSelectedContentElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLSelectedContentElement);
-    Base::initialize(realm);
-}
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#clear-a-selectedcontent
 void HTMLSelectedContentElement::clear_selectedcontent()

@@ -9,17 +9,16 @@
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
 #include <LibWeb/DOM/Event.h>
+#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::HTML {
 
 class BeforeUnloadEvent final : public DOM::Event {
-    WEB_PLATFORM_OBJECT(BeforeUnloadEvent, DOM::Event);
+    WEB_WRAPPABLE(BeforeUnloadEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(BeforeUnloadEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<BeforeUnloadEvent> create(JS::Realm&, Utf16FlyString const& event_name, Bindings::EventInit const& = {});
-
-    BeforeUnloadEvent(JS::Realm&, Utf16FlyString const& event_name, Bindings::EventInit const&);
+    [[nodiscard]] static GC::Ref<BeforeUnloadEvent> create(Utf16FlyString const& event_name, DOM::EventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual ~BeforeUnloadEvent() override;
 
@@ -27,7 +26,7 @@ public:
     void set_return_value(Utf16String return_value) { m_return_value = move(return_value); }
 
 private:
-    virtual void initialize(JS::Realm&) override;
+    BeforeUnloadEvent(Utf16FlyString const& event_name, DOM::EventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 
     Utf16String m_return_value;
 };

@@ -102,13 +102,13 @@ GC::Ptr<Element> SelectorQuery::query_first(ParentNode& root) const
     return result;
 }
 
-static GC::Ref<NodeList> create_node_list(JS::Realm& realm, Vector<GC::RawPtr<Element>> const& elements)
+static GC::Ref<NodeList> create_node_list(Vector<GC::RawPtr<Element>> const& elements)
 {
     Vector<GC::Root<Node>> nodes;
     nodes.ensure_capacity(elements.size());
     for (auto const& element : elements)
         nodes.unchecked_append(GC::make_root(static_cast<Node&>(*element)));
-    return StaticNodeList::create(realm, move(nodes));
+    return StaticNodeList::create(move(nodes));
 }
 
 // https://dom.spec.whatwg.org/#scope-match-a-selectors-string
@@ -119,7 +119,7 @@ GC::Ref<NodeList> SelectorQuery::query_all(ParentNode& root) const
 
     if (m_is_result_cacheable) {
         if (auto const* cached_elements = document.query_selector_result_cache().get(document, root, *this))
-            return create_node_list(root.realm(), *cached_elements);
+            return create_node_list(*cached_elements);
     }
 
     Vector<GC::RawPtr<Element>> elements;
@@ -135,7 +135,7 @@ GC::Ref<NodeList> SelectorQuery::query_all(ParentNode& root) const
         return TraversalDecision::Continue;
     });
 
-    auto node_list = create_node_list(root.realm(), elements);
+    auto node_list = create_node_list(elements);
     if (m_is_result_cacheable)
         document.query_selector_result_cache().set(document, root, *this, move(elements));
     return node_list;

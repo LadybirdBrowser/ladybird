@@ -14,7 +14,7 @@
 #include <LibGfx/Forward.h>
 #include <LibGfx/Path.h>
 #include <LibGfx/TextLayout.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Compositor/Types.h>
 #include <LibWeb/HTML/Canvas/CanvasCompositing.h>
 #include <LibWeb/HTML/Canvas/CanvasDrawImage.h>
@@ -36,7 +36,7 @@
 namespace Web::HTML {
 
 class Canvas2DContextBase
-    : public Bindings::PlatformObject
+    : public Bindings::GCAllocatedWrappable
     , public CanvasPath
     , public CanvasState
     , public CanvasTransform
@@ -53,7 +53,7 @@ class Canvas2DContextBase
     , public CanvasSettings
     , public CanvasPathDrawingStyles {
 
-    WEB_NON_IDL_PLATFORM_OBJECT(Canvas2DContextBase, Bindings::PlatformObject);
+    WEB_NON_IDL_WRAPPABLE(Canvas2DContextBase, Bindings::GCAllocatedWrappable);
 
 public:
     static constexpr bool OVERRIDES_FINALIZE = true;
@@ -143,6 +143,7 @@ protected:
 
     [[nodiscard]] Gfx::CanvasCommandList* canvas_command_list() override;
     JS::Realm& my_realm() override { return realm(); }
+    JS::Realm& realm() const { return *m_realm; }
     Gfx::Path& mutable_path() override { return path(); }
 
     struct PreparedText {
@@ -195,6 +196,7 @@ protected:
 
     Gfx::IntSize m_size;
     Bindings::CanvasRenderingContext2DSettings m_context_attributes;
+    GC::Ref<JS::Realm> m_realm;
 };
 
 enum class CanvasImageSourceUsability {

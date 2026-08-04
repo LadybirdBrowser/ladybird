@@ -30,7 +30,7 @@ class HTMLImageElement final
     , public Layout::ImageProvider
     , public DOM::ViewportClient
     , public DecodedImageData::Client {
-    WEB_PLATFORM_OBJECT(HTMLImageElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLImageElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLImageElement);
     LAZY_LOADING_ELEMENT(HTMLImageElement);
 
@@ -73,7 +73,8 @@ public:
     Utf16String current_src() const;
 
     // https://html.spec.whatwg.org/multipage/embedded-content.html#dom-img-decode
-    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> decode() const;
+    GC::Ref<WebIDL::Promise> decode() const;
+    void decode(GC::Ref<WebIDL::Promise>) const;
 
     virtual Optional<ARIA::Role> default_role() const override;
 
@@ -123,7 +124,7 @@ private:
 
     virtual bool is_html_image_element() const override { return true; }
 
-    virtual void initialize(JS::Realm&) override;
+    virtual void initialize_element() override;
     virtual void finalize() override;
 
     virtual void adopted_from(DOM::Document&) override;
@@ -182,15 +183,5 @@ namespace Web::DOM {
 
 template<>
 inline bool Node::fast_is<HTML::HTMLImageElement>() const { return is_html_image_element(); }
-
-}
-
-namespace JS {
-
-template<>
-inline bool Object::fast_is<Web::HTML::HTMLImageElement>() const
-{
-    return is_dom_node() && static_cast<Web::DOM::Node const&>(*this).is_html_image_element();
-}
 
 }

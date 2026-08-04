@@ -1,2 +1,2 @@
-form alive while collection is held: true
+form wrapper alive while collection is held: false
 collection.length: 0

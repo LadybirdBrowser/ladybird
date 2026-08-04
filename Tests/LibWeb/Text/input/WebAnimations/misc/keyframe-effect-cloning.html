@@ -6,7 +6,13 @@
         let copiedEffect = new KeyframeEffect(effect);
         let copiedKeyframes = copiedEffect.getKeyframes();
         println(`anim count: ${copiedKeyframes.length}`);
-        if (copiedKeyframes.length > 0)
+        if (copiedKeyframes.length > 0) {
             println(`keyframe: ${JSON.stringify(copiedKeyframes[0])}`);
+            copiedKeyframes[0].marginLeft = "99px";
+
+            let freshKeyframes = copiedEffect.getKeyframes();
+            println(`fresh keyframe: ${JSON.stringify(freshKeyframes[0])}`);
+            println(`same object: ${copiedKeyframes[0] === freshKeyframes[0]}`);
+        }
     })
 </script>

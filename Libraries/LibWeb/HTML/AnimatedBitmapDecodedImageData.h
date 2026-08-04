@@ -26,7 +26,6 @@ public:
     static constexpr bool OVERRIDES_FINALIZE = true;
 
     static GC::Ref<AnimatedBitmapDecodedImageData> create(
-        JS::Realm&,
         DOM::Document&,
         i64 session_id,
         u32 frame_count,

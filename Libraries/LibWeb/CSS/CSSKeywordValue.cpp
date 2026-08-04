@@ -6,7 +6,6 @@
 
 #include "CSSKeywordValue.h"
 #include <LibWeb/Bindings/CSSKeywordValue.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/Keyword.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/Serialize.h>
@@ -19,32 +18,26 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSKeywordValue);
 
-GC::Ref<CSSKeywordValue> CSSKeywordValue::create(JS::Realm& realm, Utf16FlyString value)
+GC::Ref<CSSKeywordValue> CSSKeywordValue::create(Utf16FlyString value)
 {
-    return realm.create<CSSKeywordValue>(realm, move(value));
+    return GC::Heap::the().allocate<CSSKeywordValue>(move(value));
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-csskeywordvalue-csskeywordvalue
-WebIDL::ExceptionOr<GC::Ref<CSSKeywordValue>> CSSKeywordValue::construct_impl(JS::Realm& realm, Utf16String value)
+WebIDL::ExceptionOr<GC::Ref<CSSKeywordValue>> CSSKeywordValue::construct_impl(Utf16String value)
 {
     // 1. If value is an empty string, throw a TypeError.
     if (value.is_empty())
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot create a CSSKeywordValue with an empty string as the value"_utf16 };
 
     // 2. Otherwise, return a new CSSKeywordValue with its value internal slot set to value.
-    return CSSKeywordValue::create(realm, Utf16FlyString { move(value) });
+    return CSSKeywordValue::create(Utf16FlyString { move(value) });
 }
 
-CSSKeywordValue::CSSKeywordValue(JS::Realm& realm, Utf16FlyString value)
-    : CSSStyleValue(realm)
+CSSKeywordValue::CSSKeywordValue(Utf16FlyString value)
+    : CSSStyleValue()
     , m_value(move(value))
 {
-}
-
-void CSSKeywordValue::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSKeywordValue);
-    Base::initialize(realm);
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-csskeywordvalue-value
@@ -118,7 +111,7 @@ WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSKeywordValue::create_an_
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#rectify-a-keywordish-value
-GC::Ref<CSSKeywordValue> rectify_a_keywordish_value(JS::Realm& realm, CSSKeywordish const& keywordish)
+GC::Ref<CSSKeywordValue> rectify_a_keywordish_value(CSSKeywordish const& keywordish)
 {
     // To rectify a keywordish value val, perform the following steps:
     return keywordish.visit(
@@ -128,8 +121,8 @@ GC::Ref<CSSKeywordValue> rectify_a_keywordish_value(JS::Realm& realm, CSSKeyword
         },
 
         // 2. If val is a DOMString, return a new CSSKeywordValue with its value internal slot set to val.
-        [&realm](Utf16String const& value) -> GC::Ref<CSSKeywordValue> {
-            return CSSKeywordValue::create(realm, Utf16FlyString { value });
+        [](Utf16String const& value) -> GC::Ref<CSSKeywordValue> {
+            return CSSKeywordValue::create(Utf16FlyString { value });
         });
 }
 

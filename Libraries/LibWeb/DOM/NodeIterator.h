@@ -6,20 +6,20 @@
 
 #pragma once
 
-#include <LibJS/Runtime/Object.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/NodeFilter.h>
 
 namespace Web::DOM {
 
 // https://dom.spec.whatwg.org/#nodeiterator
-class NodeIterator final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(NodeIterator, Bindings::PlatformObject);
+class NodeIterator final : public Bindings::GCAllocatedWrappable {
+    WEB_WRAPPABLE(NodeIterator, Bindings::GCAllocatedWrappable);
     GC_DECLARE_ALLOCATOR(NodeIterator);
 
 public:
     static constexpr bool OVERRIDES_FINALIZE = true;
 
-    static GC::Ref<NodeIterator> create(JS::Realm& realm, Node& root, unsigned what_to_show, GC::Ptr<NodeFilter>);
+    static GC::Ref<NodeIterator> create(Node& root, unsigned what_to_show, GC::Ptr<NodeFilter>);
 
     virtual ~NodeIterator() override;
 
@@ -30,25 +30,22 @@ public:
 
     GC::Ptr<NodeFilter> filter() const;
 
-    JS::ThrowCompletionOr<GC::Ptr<Node>> next_node();
-    JS::ThrowCompletionOr<GC::Ptr<Node>> previous_node();
+    TraversalResult next_node(TraversalFilter const&);
+    TraversalResult previous_node(TraversalFilter const&);
 
     void detach();
 
     void run_pre_removing_steps(Node&);
 
 private:
-    // https://dom.spec.whatwg.org/#node-pointer
-    // A node pointer is a tuple consisting of a node (a node) and a pointer before (a boolean).
     struct NodePointer {
         GC::Ref<Node> node;
         bool pointer_before { true };
     };
 
-    explicit NodeIterator(JS::Realm&, GC::Ref<Node> root, NodePointer);
+    explicit NodeIterator(Node& root);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual void finalize() override;
 
     enum class Direction {
@@ -56,9 +53,9 @@ private:
         Previous,
     };
 
-    JS::ThrowCompletionOr<GC::Ptr<Node>> traverse(Direction);
+    TraversalResult traverse(TraversalFilter const&, Direction);
 
-    JS::ThrowCompletionOr<NodeFilter::Result> filter(Node&);
+    TraversalFilterResult filter(TraversalFilter const&, Node&);
 
     // https://dom.spec.whatwg.org/#concept-traversal-root
     GC::Ref<Node> m_root;

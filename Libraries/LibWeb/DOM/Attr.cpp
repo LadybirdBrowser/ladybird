@@ -6,8 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Attr.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
@@ -23,17 +22,17 @@ GC_DEFINE_ALLOCATOR(Attr);
 
 GC::Ref<Attr> Attr::create(Document& document, Utf16FlyString local_name, Utf16String value, Element* owner_element)
 {
-    return document.realm().create<Attr>(document, QualifiedName(move(local_name), OptionalNone {}, OptionalNone {}), move(value), owner_element);
+    return GC::Heap::the().allocate<Attr>(document, QualifiedName(move(local_name), Optional<Utf16FlyString> {}, Optional<Utf16FlyString> {}), move(value), owner_element);
 }
 
 GC::Ref<Attr> Attr::create(Document& document, QualifiedName qualified_name, Utf16String value, Element* owner_element)
 {
-    return document.realm().create<Attr>(document, move(qualified_name), move(value), owner_element);
+    return GC::Heap::the().allocate<Attr>(document, move(qualified_name), move(value), owner_element);
 }
 
 GC::Ref<Attr> Attr::clone(Document& document) const
 {
-    return realm().create<Attr>(document, m_qualified_name, m_value, nullptr);
+    return GC::Heap::the().allocate<Attr>(document, m_qualified_name, m_value, nullptr);
 }
 
 Attr::Attr(Document& document, QualifiedName qualified_name, Utf16String value, Element* owner_element)
@@ -42,12 +41,6 @@ Attr::Attr(Document& document, QualifiedName qualified_name, Utf16String value, 
     , m_value(move(value))
     , m_owner_element(owner_element)
 {
-}
-
-void Attr::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(Attr);
-    Base::initialize(realm);
 }
 
 void Attr::visit_edges(Cell::Visitor& visitor)
@@ -128,17 +121,8 @@ void Attr::handle_attribute_changes(Element& element, Optional<Utf16String> cons
 
     // 2. If element is custom, then enqueue a custom element callback reaction with element, callback name "attributeChangedCallback",
     //    and « attribute’s local name, oldValue, newValue, attribute’s namespace ».
-    if (element.is_custom()) {
-        auto& vm = this->vm();
-
-        GC::RootVector<JS::Value> arguments;
-        arguments.append(JS::PrimitiveString::create(vm, local_name()));
-        arguments.append(!old_value.has_value() ? JS::js_null() : JS::PrimitiveString::create(vm, old_value.value()));
-        arguments.append(!new_value.has_value() ? JS::js_null() : JS::PrimitiveString::create(vm, new_value.value()));
-        arguments.append(!namespace_uri().has_value() ? JS::js_null() : JS::PrimitiveString::create(vm, namespace_uri().value()));
-
-        element.enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::attributeChangedCallback, move(arguments));
-    }
+    if (element.is_custom())
+        element.enqueue_an_attribute_changed_callback_reaction(local_name(), old_value, new_value, namespace_uri());
 
     // 3. Run the attribute change steps with element, attribute’s local name, oldValue, newValue, and attribute’s namespace.
     element.run_attribute_change_steps(local_name(), old_value, new_value, namespace_uri());

@@ -15,21 +15,15 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(EXTColorBufferFloat);
 
-JS::ThrowCompletionOr<GC::Ref<JS::Object>> EXTColorBufferFloat::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
+GC::Ref<Bindings::Wrappable> EXTColorBufferFloat::create(GC::Ref<WebGLRenderingContextBase> context)
 {
+    auto& realm = context->realm();
     return realm.create<EXTColorBufferFloat>(realm, context);
 }
 
-EXTColorBufferFloat::EXTColorBufferFloat(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
-    : PlatformObject(realm)
-    , m_context(context)
+EXTColorBufferFloat::EXTColorBufferFloat(JS::Realm&, GC::Ref<WebGLRenderingContextBase> context)
+    : m_context(context)
 {
-}
-
-void EXTColorBufferFloat::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(EXTColorBufferFloat);
-    Base::initialize(realm);
 }
 
 void EXTColorBufferFloat::visit_edges(Visitor& visitor)

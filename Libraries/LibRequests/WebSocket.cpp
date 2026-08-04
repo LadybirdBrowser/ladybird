@@ -25,7 +25,11 @@ WebSocket::ReadyState WebSocket::ready_state()
 
 void WebSocket::set_ready_state(ReadyState ready_state)
 {
+    if (m_ready_state == ready_state)
+        return;
     m_ready_state = ready_state;
+    if (on_ready_state_change)
+        on_ready_state_change();
 }
 
 ByteString WebSocket::subprotocol_in_use()

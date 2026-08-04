@@ -13,15 +13,15 @@
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <AK/Vector.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::DOM {
 
 // https://dom.spec.whatwg.org/#domtokenlist
-class DOMTokenList final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(DOMTokenList, Bindings::PlatformObject);
+class DOMTokenList final : public Bindings::GCAllocatedWrappable {
+    WEB_WRAPPABLE(DOMTokenList, Bindings::GCAllocatedWrappable);
     GC_DECLARE_ALLOCATOR(DOMTokenList);
 
 public:
@@ -29,8 +29,6 @@ public:
     ~DOMTokenList() = default;
 
     void associated_attribute_changed(Utf16View value);
-
-    virtual Optional<JS::Value> item_value(size_t index) const override;
 
     size_t length() const { return m_token_set.size(); }
     Optional<Utf16String> item(size_t index) const;
@@ -48,8 +46,7 @@ public:
 private:
     DOMTokenList(Element& associated_element, Utf16FlyString associated_attribute);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual size_t external_memory_size() const override;
 
     WebIDL::ExceptionOr<void> validate_token(Utf16View token) const;

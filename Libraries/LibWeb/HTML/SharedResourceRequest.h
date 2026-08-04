@@ -22,7 +22,7 @@ class SharedResourceRequest final : public JS::Cell {
 public:
     static constexpr bool OVERRIDES_FINALIZE = true;
 
-    [[nodiscard]] static GC::Ref<SharedResourceRequest> get_or_create(JS::Realm&, GC::Ref<Page>, URL::URL const&);
+    [[nodiscard]] static GC::Ref<SharedResourceRequest> get_or_create(DOM::Document&, URL::URL const&);
 
     virtual ~SharedResourceRequest() override;
 
@@ -36,7 +36,7 @@ public:
     [[nodiscard]] GC::Ptr<Fetch::Infrastructure::FetchController> fetch_controller();
     void set_fetch_controller(GC::Ptr<Fetch::Infrastructure::FetchController>);
 
-    void fetch_resource(JS::Realm&, GC::Ref<Fetch::Infrastructure::Request>);
+    void fetch_resource(GC::Ref<Fetch::Infrastructure::Request>);
 
     void add_callbacks(Function<void()> on_finish, Function<void()> on_fail);
 

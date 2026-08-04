@@ -8,17 +8,22 @@
  */
 
 #include <AK/Base64.h>
-#include <AK/Utf16StringBuilder.h>
+#include <AK/String.h>
+#include <AK/StringBuilder.h>
+#include <AK/Utf8View.h>
 #include <AK/Vector.h>
 #include <LibGC/Function.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/NativeFunction.h>
+#include <LibTextCodec/Decoder.h>
 #include <LibWeb/Bindings/MessagePort.h>
-#include <LibWeb/Bindings/PromiseRejectionEvent.h>
 #include <LibWeb/HTML/PromiseRejectionEvent.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/UniversalGlobalScope.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -40,14 +45,13 @@ void UniversalGlobalScopeMixin::visit_edges(GC::Cell::Visitor& visitor)
 WebIDL::ExceptionOr<Utf16String> UniversalGlobalScopeMixin::btoa(Utf16View data) const
 {
     auto& vm = this_impl().vm();
-    auto& realm = *vm.current_realm();
 
     // The btoa(data) method must throw an "InvalidCharacterError" DOMException if data contains any character whose code point is greater than U+00FF.
     Vector<u8> byte_string;
     byte_string.ensure_capacity(data.length_in_code_units());
     for (u32 code_point : data) {
         if (code_point > 0xff)
-            return WebIDL::InvalidCharacterError::create(realm, "Data contains characters outside the range U+0000 and U+00FF"_utf16);
+            return WebIDL::InvalidCharacterError::create(*vm.current_realm(), "Data contains characters outside the range U+0000 and U+00FF"_utf16);
         byte_string.append(code_point);
     }
 
@@ -81,29 +85,24 @@ WebIDL::ExceptionOr<Utf16String> UniversalGlobalScopeMixin::atob(Utf16View data)
 // https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#dom-queuemicrotask
 void UniversalGlobalScopeMixin::queue_microtask(WebIDL::CallbackType& callback)
 {
-    auto& vm = this_impl().vm();
-    auto& realm = *vm.current_realm();
-
     GC::Ptr<DOM::Document> document;
     if (is<Window>(this_impl()))
         document = &static_cast<Window&>(this_impl()).associated_document();
 
     // The queueMicrotask(callback) method must queue a microtask to invoke callback with « » and "report".
-    HTML::queue_a_microtask(document, GC::create_function(realm.heap(), [&callback] {
+    HTML::queue_a_microtask(document, GC::create_function(GC::Heap::the(), [&callback] {
         (void)WebIDL::invoke_callback(callback, {}, WebIDL::ExceptionBehavior::Report, {});
     }));
 }
 
 // https://html.spec.whatwg.org/multipage/structured-data.html#dom-structuredclone
-WebIDL::ExceptionOr<JS::Value> UniversalGlobalScopeMixin::structured_clone(JS::Value value, Bindings::StructuredSerializeOptions const& options) const
+WebIDL::ExceptionOr<JS::Value> UniversalGlobalScopeMixin::structured_clone(JS::Realm& realm, JS::Value value, Bindings::StructuredSerializeOptions const& options)
 {
-    auto& realm = HTML::relevant_realm(this_impl());
-
     // 1. Let serialized be ? StructuredSerializeWithTransfer(value, options["transfer"]).
-    auto serialized = TRY(structured_serialize_with_transfer(realm.vm(), value, options.transfer));
+    auto serialized = TRY(HTML::structured_serialize_with_transfer(realm, value, options.transfer));
 
     // 2. Let deserializeRecord be ? StructuredDeserializeWithTransfer(serialized, this's relevant realm).
-    auto deserialized = TRY(structured_deserialize_with_transfer(serialized, realm));
+    auto deserialized = TRY(HTML::structured_deserialize_with_transfer(serialized, realm));
 
     // 3. Return deserializeRecord.[[Deserialized]].
     return deserialized.deserialized;
@@ -112,7 +111,7 @@ WebIDL::ExceptionOr<JS::Value> UniversalGlobalScopeMixin::structured_clone(JS::V
 // https://streams.spec.whatwg.org/#count-queuing-strategy-size-function
 GC::Ref<WebIDL::CallbackType> UniversalGlobalScopeMixin::count_queuing_strategy_size_function()
 {
-    auto& realm = HTML::relevant_realm(this_impl());
+    auto& realm = HTML::relevant_realm(HTML::relevant_window_or_worker_global_scope(this_impl()));
 
     if (!m_count_queuing_strategy_size_function) {
         // 1. Let steps be the following steps:
@@ -126,7 +125,7 @@ GC::Ref<WebIDL::CallbackType> UniversalGlobalScopeMixin::count_queuing_strategy_
 
         // 3. Set globalObject’s count queuing strategy size function to a Function that represents a reference to F, with callback context equal to globalObject’s relevant settings object.
         // FIXME: Update spec comment to pass globalObject's relevant realm once Streams spec is updated for ShadowRealm spec
-        m_count_queuing_strategy_size_function = realm.create<WebIDL::CallbackType>(*function, realm);
+        m_count_queuing_strategy_size_function = GC::Heap::the().allocate<WebIDL::CallbackType>(*function, realm);
     }
 
     return GC::Ref { *m_count_queuing_strategy_size_function };
@@ -135,7 +134,7 @@ GC::Ref<WebIDL::CallbackType> UniversalGlobalScopeMixin::count_queuing_strategy_
 // https://streams.spec.whatwg.org/#byte-length-queuing-strategy-size-function
 GC::Ref<WebIDL::CallbackType> UniversalGlobalScopeMixin::byte_length_queuing_strategy_size_function()
 {
-    auto& realm = HTML::relevant_realm(this_impl());
+    auto& realm = HTML::relevant_realm(HTML::relevant_window_or_worker_global_scope(this_impl()));
 
     if (!m_byte_length_queuing_strategy_size_function) {
         // 1. Let steps be the following steps, given chunk:
@@ -151,7 +150,7 @@ GC::Ref<WebIDL::CallbackType> UniversalGlobalScopeMixin::byte_length_queuing_str
 
         // 3. Set globalObject’s byte length queuing strategy size function to a Function that represents a reference to F, with callback context equal to globalObject’s relevant settings object.
         // FIXME: Update spec comment to pass globalObject's relevant realm once Streams spec is updated for ShadowRealm spec
-        m_byte_length_queuing_strategy_size_function = realm.create<WebIDL::CallbackType>(*function, realm);
+        m_byte_length_queuing_strategy_size_function = GC::Heap::the().allocate<WebIDL::CallbackType>(*function, realm);
     }
 
     return GC::Ref { *m_byte_length_queuing_strategy_size_function };
@@ -172,7 +171,7 @@ bool UniversalGlobalScopeMixin::remove_from_outstanding_rejected_promises_weak_s
 void UniversalGlobalScopeMixin::push_onto_about_to_be_notified_rejected_promises_list(GC::Ref<JS::Promise> promise)
 {
     if (!m_about_to_be_notified_rejected_promises_list)
-        m_about_to_be_notified_rejected_promises_list = JS::VM::the().heap().allocate<GC::HeapVector<GC::Ref<JS::Promise>>>();
+        m_about_to_be_notified_rejected_promises_list = GC::Heap::the().allocate<GC::HeapVector<GC::Ref<JS::Promise>>>();
     m_about_to_be_notified_rejected_promises_list->elements().append(promise);
 }
 
@@ -200,10 +199,11 @@ void UniversalGlobalScopeMixin::notify_about_rejected_promises(Badge<EventLoop>)
 
     // 4. Let global be settings object's global object.
     auto& global = this_impl();
+    auto& global_object = relevant_global_object(relevant_window_or_worker_global_scope(global));
 
     // 5. Queue a global task on the DOM manipulation task source given global to run the following substep:
-    queue_global_task(Task::Source::DOMManipulation, global, GC::create_function(global.heap(), [this, &global, list = move(list)] {
-        auto& realm = global.realm();
+    queue_global_task(Task::Source::DOMManipulation, global_object, GC::create_function(GC::Heap::the(), [this, &global, list = move(list)] {
+        auto& realm = relevant_realm(relevant_window_or_worker_global_scope(global));
 
         // 1. For each promise p in list:
         for (auto const& promise : list->elements()) {
@@ -214,18 +214,18 @@ void UniversalGlobalScopeMixin::notify_about_rejected_promises(Badge<EventLoop>)
 
             // 2. Let notHandled be the result of firing an event named unhandledrejection at global, using PromiseRejectionEvent, with the cancelable attribute initialized to true,
             //    the promise attribute initialized to p, and the reason attribute initialized to the value of p's [[PromiseResult]] internal slot.
-            Bindings::PromiseRejectionEventInit event_init {
+            PromiseRejectionEventInit event_init {
                 {
                     .bubbles = false,
                     .cancelable = true,
                     .composed = false,
                 },
-                // Sadly we can't use .promise and .reason here, as we can't use the designator on the initialization of Bindings::EventInit above.
+                // Sadly we can't use .promise and .reason here, as we can't use the designator on the initialization of EventInit above.
                 /* .promise = */ *promise,
                 /* .reason = */ promise->result(),
             };
 
-            auto promise_rejection_event = PromiseRejectionEvent::create(realm, HTML::EventNames::unhandledrejection, event_init);
+            auto promise_rejection_event = PromiseRejectionEvent::create(realm.global_object(), HTML::EventNames::unhandledrejection, event_init);
 
             bool not_handled = global.dispatch_event(*promise_rejection_event);
 

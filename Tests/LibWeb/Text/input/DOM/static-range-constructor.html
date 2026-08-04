@@ -1,0 +1,27 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const text = document.createTextNode("hello");
+        document.body.append(text);
+
+        const range = new StaticRange({
+            startContainer: text,
+            startOffset: 1,
+            endContainer: text,
+            endOffset: 4,
+        });
+        println(`${range.startContainer === text} ${range.startOffset} ${range.endContainer === text} ${range.endOffset}`);
+
+        try {
+            new StaticRange({
+                startContainer: document.doctype,
+                startOffset: 0,
+                endContainer: text,
+                endOffset: 0,
+            });
+        } catch (e) {
+            println(e.name);
+        }
+    });
+</script>

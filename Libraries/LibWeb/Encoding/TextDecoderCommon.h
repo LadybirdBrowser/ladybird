@@ -8,12 +8,17 @@
 
 #include <AK/FlyString.h>
 #include <AK/OwnPtr.h>
+#include <AK/StringBuilder.h>
 #include <AK/Utf16FlyString.h>
 #include <LibJS/Forward.h>
 #include <LibTextCodec/Decoder.h>
+#include <LibWeb/Bindings/TextDecoder.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::Encoding {
+
+using TextDecoderOptions = Bindings::TextDecoderOptions;
+using TextDecodeOptions = Bindings::TextDecodeOptions;
 
 struct EndOfQueue {
 };
@@ -44,13 +49,13 @@ public:
 protected:
     TextDecoderCommonMixin(FlyString encoding, TextCodec::ErrorMode error_mode, bool ignore_bom);
 
-    void set_decoder_to_new_instance_of_encoding_decoder();
+    void set_decoder_to_new_instance_of_encoding_decoder() const;
     WebIDL::ExceptionOr<void> process_an_item(JS::VM&, ReadonlyBytes item, TextDecoderOutputQueue& output);
     WebIDL::ExceptionOr<void> process_an_item(JS::VM&, EndOfQueue, TextDecoderOutputQueue& output);
     WebIDL::ExceptionOr<Utf16String> serialize_io_queue(JS::VM&, TextDecoderOutputQueue& output);
 
     // https://encoding.spec.whatwg.org/#textdecodercommon-decoder
-    OwnPtr<TextCodec::StreamingDecoder> m_decoder;
+    mutable OwnPtr<TextCodec::StreamingDecoder> m_decoder;
 
     // https://encoding.spec.whatwg.org/#textdecoder-encoding
     FlyString m_encoding;

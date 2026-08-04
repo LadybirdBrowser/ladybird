@@ -1,7 +1,7 @@
 // https://drafts.fxtf.org/geometry/#dommatrix
 [Exposed=(Window,Worker), Serializable, LegacyWindowAlias=(SVGMatrix, WebKitCSSMatrix)]
 interface DOMMatrix : DOMMatrixReadOnly {
-    constructor(optional (Utf16DOMString or sequence<unrestricted double>) init);
+    constructor(optional (DOMString or sequence<unrestricted double>) init);
 
     [NewObject] static DOMMatrix fromMatrix(optional DOMMatrixInit other = {});
     [NewObject] static DOMMatrix fromFloat32Array(Float32Array array32);

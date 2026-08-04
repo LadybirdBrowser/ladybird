@@ -9,39 +9,38 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/CanvasRenderingContext2D.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleValues/FilterStyleValue.h>
 #include <LibWeb/DOM/AbstractElement.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/CanvasRenderingContext2D.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
+#include <LibWeb/HTML/Window.h>
 #include <LibWeb/Painting/Paintable.h>
 
 namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(CanvasRenderingContext2D);
 
-JS::ThrowCompletionOr<GC::Ref<CanvasRenderingContext2D>> CanvasRenderingContext2D::create(JS::Realm& realm, HTMLCanvasElement& element, JS::Value options)
+GC::Ref<CanvasRenderingContext2D> CanvasRenderingContext2D::create(HTMLCanvasElement& element, HTML::CanvasRenderingContext2DSettings context_attributes)
 {
-    auto context_attributes = TRY(Bindings::convert_to_idl_value_for_canvas_rendering_context2d_settings(realm.vm(), options));
-    return realm.create<CanvasRenderingContext2D>(realm, element, context_attributes);
+    auto& realm = HTML::relevant_realm(element);
+    auto context = realm.create<CanvasRenderingContext2D>(realm, element, context_attributes);
+    return context;
 }
 
-CanvasRenderingContext2D::CanvasRenderingContext2D(JS::Realm& realm, HTMLCanvasElement& element, Bindings::CanvasRenderingContext2DSettings context_attributes)
+GC::Ptr<Bindings::Wrappable> CanvasRenderingContext2D::relevant_global_impl() const
+{
+    return m_element->document().window();
+}
+
+CanvasRenderingContext2D::CanvasRenderingContext2D(JS::Realm& realm, HTMLCanvasElement& element, HTML::CanvasRenderingContext2DSettings context_attributes)
     : Canvas2DContextBase(realm, element.bitmap_size_for_canvas(), move(context_attributes))
     , m_element(element)
 {
 }
 
 CanvasRenderingContext2D::~CanvasRenderingContext2D() = default;
-
-void CanvasRenderingContext2D::initialize(JS::Realm& realm)
-{
-    Base::initialize(realm);
-    set_prototype(&Bindings::ensure_web_prototype<Bindings::CanvasRenderingContext2DPrototype>(realm, "CanvasRenderingContext2D"_utf16_fly_string));
-}
 
 void CanvasRenderingContext2D::visit_edges(Cell::Visitor& visitor)
 {

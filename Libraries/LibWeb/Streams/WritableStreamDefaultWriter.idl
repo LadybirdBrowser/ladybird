@@ -1,5 +1,5 @@
 // https://streams.spec.whatwg.org/#writablestreamdefaultwriter
-[Exposed=*]
+    [Exposed=*]
 interface WritableStreamDefaultWriter {
     constructor(WritableStream stream);
 

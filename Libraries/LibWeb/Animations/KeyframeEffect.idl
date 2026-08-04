@@ -10,20 +10,6 @@ dictionary KeyframeEffectOptions : EffectTiming {
     Utf16CSSOMString? pseudoElement = null;
 };
 
-// https://drafts.csswg.org/web-animations-1/#dictdef-basepropertyindexedkeyframe
-dictionary BasePropertyIndexedKeyframe {
-    (double? or sequence<double?>) offset = [];
-    (Utf16DOMString or sequence<Utf16DOMString>) easing = [];
-    (CompositeOperationOrAuto or sequence<CompositeOperationOrAuto>) composite = [];
-};
-
-// https://drafts.csswg.org/web-animations-1/#dictdef-basekeyframe
-dictionary BaseKeyframe {
-    double? offset = null;
-    Utf16DOMString easing = "linear";
-    CompositeOperationOrAuto composite = "auto";
-};
-
 // https://drafts.csswg.org/web-animations-1/#the-keyframeeffect-interface
 [Exposed=Window]
 interface KeyframeEffect : AnimationEffect {
@@ -31,8 +17,8 @@ interface KeyframeEffect : AnimationEffect {
     constructor(KeyframeEffect source);
 
     attribute Element? target;
-    attribute Utf16CSSOMString? pseudoElement;
+    attribute CSSOMString? pseudoElement;
     [ImplementedAs=composite_for_bindings] attribute CompositeOperation composite;
     sequence<object> getKeyframes();
-    undefined setKeyframes(object? keyframes);
+    [ImplementedAs=set_keyframes_from_js, NeedsCallerRealm] undefined setKeyframes(object? keyframes);
 };

@@ -1,0 +1,15 @@
+direct[0]=direct-a
+direct[1]=direct-b
+loop[0]=0
+loop[1]=1
+loop[2]=2
+loop[3]=3
+loop[4]=4
+loop[5]=5
+loop[6]=6
+loop[7]=7
+loop[8]=8
+loop[9]=9
+shape-collision=platform
+plain[0]=plain-first
+plain[1]=plain-second

@@ -18,7 +18,7 @@ class SVGAnimatedString;
 class SVGFEColorMatrixElement final
     : public SVGElement
     , public SVGFilterPrimitiveStandardAttributes<SVGFEColorMatrixElement> {
-    WEB_PLATFORM_OBJECT(SVGFEColorMatrixElement, SVGElement);
+    WEB_WRAPPABLE(SVGFEColorMatrixElement, SVGElement);
     GC_DECLARE_ALLOCATOR(SVGFEColorMatrixElement);
 
 public:
@@ -37,8 +37,6 @@ public:
 
 private:
     SVGFEColorMatrixElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
     GC::Ptr<SVGAnimatedString> m_in1;
     GC::Ptr<SVGAnimatedString> m_values;

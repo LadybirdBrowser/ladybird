@@ -1,0 +1,3 @@
+handle is number: number
+deadline is IdleDeadline: true
+timeRemaining is function: function

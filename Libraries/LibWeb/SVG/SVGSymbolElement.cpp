@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SVGSymbolElement.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/DOM/ShadowRoot.h>
@@ -22,11 +21,9 @@ SVGSymbolElement::SVGSymbolElement(DOM::Document& document, DOM::QualifiedName q
 {
 }
 
-void SVGSymbolElement::initialize(JS::Realm& realm)
+void SVGSymbolElement::initialize_element()
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGSymbolElement);
-    Base::initialize(realm);
-    SVGFitToViewBox::initialize(realm);
+    SVGFitToViewBox::initialize_fit_to_view_box();
 }
 
 void SVGSymbolElement::visit_edges(Cell::Visitor& visitor)

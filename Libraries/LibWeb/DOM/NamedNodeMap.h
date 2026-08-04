@@ -9,8 +9,7 @@
 
 #pragma once
 
-#include <AK/Utf16FlyString.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -18,8 +17,8 @@
 namespace Web::DOM {
 
 // https://dom.spec.whatwg.org/#interface-namednodemap
-class WEB_API NamedNodeMap : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(NamedNodeMap, Bindings::PlatformObject);
+class WEB_API NamedNodeMap : public Bindings::GCAllocatedWrappable {
+    WEB_WRAPPABLE(NamedNodeMap, Bindings::GCAllocatedWrappable);
     GC_DECLARE_ALLOCATOR(NamedNodeMap);
 
 public:
@@ -27,8 +26,6 @@ public:
     ~NamedNodeMap() = default;
 
     virtual Vector<Utf16FlyString> supported_property_names() const override;
-    virtual Optional<JS::Value> item_value(size_t index) const override;
-    virtual JS::Value named_item_value(Utf16FlyString const& name) const override;
 
     size_t length() const { return m_attributes.size(); }
     bool is_empty() const { return m_attributes.is_empty(); }
@@ -61,8 +58,7 @@ public:
 private:
     explicit NamedNodeMap(Element&);
 
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     Element& associated_element() { return *m_element; }
     Element const& associated_element() const { return *m_element; }

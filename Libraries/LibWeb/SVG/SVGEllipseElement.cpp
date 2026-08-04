@@ -5,7 +5,6 @@
  */
 
 #include <LibGfx/Path.h>
-#include <LibWeb/Bindings/SVGEllipseElement.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/AttributeParser.h>
@@ -18,12 +17,6 @@ GC_DEFINE_ALLOCATOR(SVGEllipseElement);
 SVGEllipseElement::SVGEllipseElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : SVGGeometryElement(document, qualified_name)
 {
-}
-
-void SVGEllipseElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGEllipseElement);
-    Base::initialize(realm);
 }
 
 void SVGEllipseElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
@@ -49,7 +42,15 @@ Gfx::Path SVGEllipseElement::get_path(CSSPixelSize viewport_size)
     float cy = m_center_y.value_or(NumberPercentage::create_number(0)).resolve_relative_to(viewport_size.height().to_float());
     Gfx::Path path;
 
-    // A computed value of zero for either dimension, or a computed value of auto for both dimensions, disables rendering of the element.
+    // A negative radius is invalid. If only one radius is invalid, SVG uses
+    // the other valid radius for both axes; if both are invalid, rendering is
+    // disabled. A computed value of zero for either dimension also disables
+    // rendering.
+    if (rx < 0 && ry >= 0)
+        rx = ry;
+    else if (ry < 0 && rx >= 0)
+        ry = rx;
+
     if (rx <= 0 || ry <= 0)
         return path;
 

@@ -17,7 +17,7 @@ namespace Web::SVG {
 class SVGFilterElement final
     : public SVGElement
     , public SVGURIReferenceMixin<SupportsXLinkHref::No> {
-    WEB_PLATFORM_OBJECT(SVGFilterElement, SVGElement);
+    WEB_WRAPPABLE(SVGFilterElement, SVGElement);
     GC_DECLARE_ALLOCATOR(SVGFilterElement);
 
 public:
@@ -44,8 +44,6 @@ public:
 
 private:
     SVGFilterElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     Optional<SVGUnits> m_filter_units {};

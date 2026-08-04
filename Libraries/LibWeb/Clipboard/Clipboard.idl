@@ -3,10 +3,10 @@ typedef sequence<ClipboardItem> ClipboardItems;
 // https://w3c.github.io/clipboard-apis/#clipboard
 [SecureContext, Exposed=Window]
 interface Clipboard : EventTarget {
-    Promise<ClipboardItems> read(optional ClipboardUnsanitizedFormats formats = {});
-    Promise<Utf16DOMString> readText();
-    Promise<undefined> write(ClipboardItems data);
-    Promise<undefined> writeText(Utf16DOMString data);
+    [CreatesPromise] Promise<ClipboardItems> read(optional ClipboardUnsanitizedFormats formats = {});
+    [CreatesPromise] Promise<DOMString> readText();
+    [CreatesPromise] Promise<undefined> write(ClipboardItems data);
+    [CreatesPromise] Promise<undefined> writeText(DOMString data);
 };
 
 dictionary ClipboardUnsanitizedFormats {

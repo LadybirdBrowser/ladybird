@@ -4,39 +4,33 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/FontFaceSetLoadEvent.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/CSS/FontFaceSetLoadEvent.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 
 namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(FontFaceSetLoadEvent);
 
-GC::Ref<FontFaceSetLoadEvent> FontFaceSetLoadEvent::create(JS::Realm& realm, Utf16FlyString const& event_name, Bindings::FontFaceSetLoadEventInit const& event_init)
+GC::Ref<FontFaceSetLoadEvent> FontFaceSetLoadEvent::create(Utf16FlyString const& event_name, Bindings::FontFaceSetLoadEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    return realm.create<FontFaceSetLoadEvent>(realm, event_name, event_init);
+    return GC::Heap::the().allocate<FontFaceSetLoadEvent>(event_name, event_init, time_stamp);
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontfacesetloadevent-fontfacesetloadevent
-WebIDL::ExceptionOr<GC::Ref<FontFaceSetLoadEvent>> FontFaceSetLoadEvent::construct_impl(JS::Realm& realm, Utf16FlyString const& event_name, Bindings::FontFaceSetLoadEventInit const& event_init)
+WebIDL::ExceptionOr<GC::Ref<FontFaceSetLoadEvent>> FontFaceSetLoadEvent::create_for_constructor(Utf16FlyString const& event_name, Bindings::FontFaceSetLoadEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    return create(realm, event_name, event_init);
+    return create(event_name, event_init, time_stamp);
 }
 
-FontFaceSetLoadEvent::FontFaceSetLoadEvent(JS::Realm& realm, Utf16FlyString const& event_name, Bindings::FontFaceSetLoadEventInit const& event_init)
-    : DOM::Event(realm, event_name, event_init)
+FontFaceSetLoadEvent::FontFaceSetLoadEvent(Utf16FlyString const& event_name, Bindings::FontFaceSetLoadEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : DOM::Event(FlyString { event_name.to_utf16_string().to_utf8() }, event_init, time_stamp)
 {
     m_fontfaces.ensure_capacity(event_init.fontfaces.size());
     for (auto const& font_face : event_init.fontfaces) {
         m_fontfaces.unchecked_append(font_face);
     }
-}
-
-void FontFaceSetLoadEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(FontFaceSetLoadEvent);
-    Base::initialize(realm);
 }
 
 void FontFaceSetLoadEvent::visit_edges(Visitor& visitor)

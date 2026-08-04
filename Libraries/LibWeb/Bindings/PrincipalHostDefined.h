@@ -14,13 +14,10 @@
 
 namespace Web::Bindings {
 
-struct PrincipalHostDefined final : public HostDefined {
-    PrincipalHostDefined(GC::Ref<HTML::EnvironmentSettingsObject> eso, GC::Ref<Intrinsics> intrinsics, GC::Ref<Page> page)
-        : HostDefined(intrinsics)
-        , environment_settings_object(eso)
-        , page(page)
-    {
-    }
+[[nodiscard]] OwnPtr<JS::Realm::HostDefined> create_principal_host_defined(GC::Ref<HTML::EnvironmentSettingsObject>, GC::Ref<Intrinsics>, GC::Ref<Page>);
+
+struct WEB_API PrincipalHostDefined final : public HostDefined {
+    PrincipalHostDefined(GC::Ref<HTML::EnvironmentSettingsObject> eso, GC::Ref<Intrinsics> intrinsics, GC::Ref<WrapperWorld> wrapper_world, GC::Ref<Page> page);
     virtual ~PrincipalHostDefined() override = default;
     virtual void visit_edges(JS::Cell::Visitor& visitor) override;
     virtual bool is_principal_host_defined() const override { return true; }
@@ -31,17 +28,32 @@ struct PrincipalHostDefined final : public HostDefined {
 
 [[nodiscard]] inline HTML::EnvironmentSettingsObject& principal_host_defined_environment_settings_object(JS::Realm& realm)
 {
-    return *as<PrincipalHostDefined>(realm.host_defined())->environment_settings_object;
+    if (auto* principal_host_defined = as_if<PrincipalHostDefined>(realm.host_defined()))
+        return *principal_host_defined->environment_settings_object;
+
+    auto* host_defined = as_if<HostDefined>(realm.host_defined());
+    VERIFY(host_defined);
+    return principal_host_defined_environment_settings_object(*host_defined->principal_realm);
 }
 
 [[nodiscard]] inline HTML::EnvironmentSettingsObject const& principal_host_defined_environment_settings_object(JS::Realm const& realm)
 {
-    return *as<PrincipalHostDefined>(realm.host_defined())->environment_settings_object;
+    if (auto const* principal_host_defined = as_if<PrincipalHostDefined>(realm.host_defined()))
+        return *principal_host_defined->environment_settings_object;
+
+    auto const* host_defined = as_if<HostDefined>(realm.host_defined());
+    VERIFY(host_defined);
+    return principal_host_defined_environment_settings_object(*host_defined->principal_realm);
 }
 
 [[nodiscard]] inline Page& principal_host_defined_page(JS::Realm& realm)
 {
-    return *as<PrincipalHostDefined>(realm.host_defined())->page;
+    if (auto* principal_host_defined = as_if<PrincipalHostDefined>(realm.host_defined()))
+        return *principal_host_defined->page;
+
+    auto* host_defined = as_if<HostDefined>(realm.host_defined());
+    VERIFY(host_defined);
+    return principal_host_defined_page(*host_defined->principal_realm);
 }
 
 }

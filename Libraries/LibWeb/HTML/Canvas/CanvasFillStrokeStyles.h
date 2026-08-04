@@ -9,8 +9,6 @@
 
 #pragma once
 
-#include <AK/Utf16FlyString.h>
-#include <AK/Utf16String.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/Canvas/AbstractCanvasMixin.h>
 
@@ -29,8 +27,8 @@ public:
     FillOrStrokeStyleVariant stroke_style() const;
 
     WebIDL::ExceptionOr<GC::Ref<CanvasGradient>> create_radial_gradient(double x0, double y0, double r0, double x1, double y1, double r1);
-    GC::Ref<CanvasGradient> create_linear_gradient(double x0, double y0, double x1, double y1);
-    GC::Ref<CanvasGradient> create_conic_gradient(double start_angle, double x, double y);
+    WebIDL::ExceptionOr<GC::Ref<CanvasGradient>> create_linear_gradient(double x0, double y0, double x1, double y1);
+    WebIDL::ExceptionOr<GC::Ref<CanvasGradient>> create_conic_gradient(double start_angle, double x, double y);
     WebIDL::ExceptionOr<GC::Ptr<CanvasPattern>> create_pattern(CanvasImageSource const& image, Utf16FlyString const& repetition);
 
 protected:

@@ -20,12 +20,6 @@ MathMLAnchorElement::MathMLAnchorElement(DOM::Document& document, DOM::Qualified
 
 MathMLAnchorElement::~MathMLAnchorElement() = default;
 
-void MathMLAnchorElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(MathMLAnchorElement);
-    Base::initialize(realm);
-}
-
 // https://w3c.github.io/mathml-core/#dom-mathmlanchorelement-href
 Utf16String MathMLAnchorElement::href() const
 {

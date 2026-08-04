@@ -6,14 +6,15 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::SVG {
 
 // https://www.w3.org/TR/SVG11/types.html#InterfaceSVGLength
-class SVGLength : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(SVGLength, Bindings::PlatformObject);
+class SVGLength : public Bindings::GCAllocatedWrappable {
+    WEB_WRAPPABLE(SVGLength, Bindings::GCAllocatedWrappable);
     GC_DECLARE_ALLOCATOR(SVGLength);
 
 public:
@@ -71,6 +72,7 @@ private:
     // An SVGLength object can be associated with a particular element, as well as being designated with a
     // directionality: horizontal, vertical or unspecified.
     GC::Ptr<SVGElement> m_element;
+    GC::Ref<JS::Realm> m_realm;
     Directionality m_directionality;
 
     // Every SVGLength object operates in one of four modes. It can:
@@ -99,7 +101,6 @@ private:
 
     SVGLength(JS::Realm&, GC::Ptr<SVGElement> associated_element, Directionality, Source&&, ReadOnly);
 
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     // An SVGLength object maintains an internal <length> or <percentage> or <number> value, which is called its value.

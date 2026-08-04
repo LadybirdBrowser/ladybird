@@ -6,32 +6,28 @@
 
 #pragma once
 
-#include <AK/Utf16String.h>
-#include <AK/Utf16View.h>
+#include <AK/Optional.h>
+#include <AK/String.h>
 #include <AK/Vector.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::HTML {
 
-class DOMStringList final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(DOMStringList, Bindings::PlatformObject);
+class DOMStringList final : public Bindings::GCAllocatedWrappable {
+    WEB_WRAPPABLE(DOMStringList, Bindings::GCAllocatedWrappable);
     GC_DECLARE_ALLOCATOR(DOMStringList);
 
 public:
-    static GC::Ref<DOMStringList> create(JS::Realm&, Vector<Utf16String>);
+    static GC::Ref<DOMStringList> create(Vector<String>);
 
     u32 length() const;
     Optional<Utf16String> item(u32 index) const;
     bool contains(Utf16View string);
 
-    virtual Optional<JS::Value> item_value(size_t index) const override;
-
 private:
-    explicit DOMStringList(JS::Realm&, Vector<Utf16String>);
+    explicit DOMStringList(Vector<String>);
 
-    virtual void initialize(JS::Realm&) override;
-
-    Vector<Utf16String> m_list;
+    Vector<String> m_list;
 };
 
 }

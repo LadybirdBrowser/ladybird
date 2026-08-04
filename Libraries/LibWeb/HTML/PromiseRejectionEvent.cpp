@@ -4,46 +4,59 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/PromiseRejectionEvent.h>
 #include <LibWeb/HTML/PromiseRejectionEvent.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 
 namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(PromiseRejectionEvent);
 
-GC::Ref<PromiseRejectionEvent> PromiseRejectionEvent::create(JS::Realm& realm, Utf16FlyString const& event_name, Bindings::PromiseRejectionEventInit const& event_init)
+static PromiseRejectionEventInit promise_rejection_event_init_from_bindings(Bindings::PromiseRejectionEventInit const& event_init)
 {
-    auto event = realm.create<PromiseRejectionEvent>(realm, event_name, event_init);
+    return {
+        {
+            .bubbles = event_init.bubbles,
+            .cancelable = event_init.cancelable,
+            .composed = event_init.composed,
+        },
+        event_init.promise,
+        event_init.reason.value_or(JS::js_undefined()),
+    };
+}
+
+GC::Ref<PromiseRejectionEvent> PromiseRejectionEvent::create(JS::Object const& relevant_global_object, Utf16FlyString const& event_name, PromiseRejectionEventInit const& event_init)
+{
+    return create(event_name, event_init, HighResolutionTime::current_high_resolution_time(relevant_global_object));
+}
+
+GC::Ref<PromiseRejectionEvent> PromiseRejectionEvent::create(Utf16FlyString const& event_name, PromiseRejectionEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+{
+    auto event = GC::Heap::the().allocate<PromiseRejectionEvent>(event_name, event_init, time_stamp);
     event->set_is_trusted(true);
     return event;
 }
 
-WebIDL::ExceptionOr<GC::Ref<PromiseRejectionEvent>> PromiseRejectionEvent::construct_impl(JS::Realm& realm, Utf16FlyString const& event_name, Bindings::PromiseRejectionEventInit const& event_init)
+WebIDL::ExceptionOr<GC::Ref<PromiseRejectionEvent>> PromiseRejectionEvent::create_for_constructor(Utf16String const& event_name, Bindings::PromiseRejectionEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    return realm.create<PromiseRejectionEvent>(realm, event_name, event_init);
+    return create(Utf16FlyString::from_utf16(event_name.utf16_view()), promise_rejection_event_init_from_bindings(event_init), time_stamp);
 }
 
-PromiseRejectionEvent::PromiseRejectionEvent(JS::Realm& realm, Utf16FlyString const& event_name, Bindings::PromiseRejectionEventInit const& event_init)
-    : DOM::Event(realm, event_name, event_init)
-    , m_promise(*event_init.promise)
-    , m_reason(event_init.reason.value_or(JS::js_undefined()))
+PromiseRejectionEvent::PromiseRejectionEvent(Utf16FlyString const& event_name, PromiseRejectionEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : DOM::Event(event_name, event_init, time_stamp)
+    , m_promise(event_init.promise)
+    , m_reason(event_init.reason)
 {
 }
 
 PromiseRejectionEvent::~PromiseRejectionEvent() = default;
 
-void PromiseRejectionEvent::visit_edges(Cell::Visitor& visitor)
+void PromiseRejectionEvent::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_promise);
     visitor.visit(m_reason);
-}
-
-void PromiseRejectionEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(PromiseRejectionEvent);
-    Base::initialize(realm);
 }
 
 }

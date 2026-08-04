@@ -5,14 +5,15 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/MediaQueryList.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/CSS/MediaQueryList.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/EventDispatcher.h>
 #include <LibWeb/DOM/IDLEventListener.h>
 #include <LibWeb/HTML/EventHandler.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/Window.h>
 
 namespace Web::CSS {
 
@@ -20,21 +21,20 @@ GC_DEFINE_ALLOCATOR(MediaQueryList);
 
 GC::Ref<MediaQueryList> MediaQueryList::create(DOM::Document& document, Vector<NonnullRefPtr<MediaQuery>>&& media)
 {
-    return document.realm().create<MediaQueryList>(document, move(media));
+    return GC::Heap::the().allocate<MediaQueryList>(document, move(media));
 }
 
 MediaQueryList::MediaQueryList(DOM::Document& document, Vector<NonnullRefPtr<MediaQuery>>&& media)
-    : DOM::EventTarget(document.realm())
+    : DOM::EventTarget()
     , m_document(document)
     , m_media(move(media))
 {
     evaluate();
 }
 
-void MediaQueryList::initialize(JS::Realm& realm)
+GC::Ptr<Bindings::Wrappable> MediaQueryList::relevant_global_impl() const
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(MediaQueryList);
-    Base::initialize(realm);
+    return m_document->window();
 }
 
 void MediaQueryList::visit_edges(Cell::Visitor& visitor)

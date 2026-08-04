@@ -5,7 +5,6 @@
  */
 
 #include <AK/NeverDestroyed.h>
-#include <LibWeb/Bindings/SharedWorkerExposedInterfaces.h>
 #include <LibWeb/HTML/SharedWorkerGlobalScope.h>
 #include <LibWeb/Page/Page.h>
 
@@ -19,23 +18,13 @@ HashTable<GC::RawRef<SharedWorkerGlobalScope>>& all_shared_worker_global_scopes(
     return *set;
 }
 
-SharedWorkerGlobalScope::SharedWorkerGlobalScope(JS::Realm& realm, GC::Ref<Web::Page> page)
-    : WorkerGlobalScope(realm, page)
+SharedWorkerGlobalScope::SharedWorkerGlobalScope(GC::Ref<Web::Page> page)
+    : WorkerGlobalScope(page)
 {
     all_shared_worker_global_scopes().set(*this);
 }
 
 SharedWorkerGlobalScope::~SharedWorkerGlobalScope() = default;
-
-void SharedWorkerGlobalScope::initialize_web_interfaces_impl()
-{
-    auto& realm = this->realm();
-
-    Bindings::add_shared_worker_exposed_interfaces(*this);
-
-    SharedWorkerGlobalScopeGlobalMixin::initialize(realm, *this);
-    Base::initialize_web_interfaces_impl();
-}
 
 void SharedWorkerGlobalScope::finalize()
 {

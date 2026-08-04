@@ -4,13 +4,15 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibGC/RootVector.h>
-#include <LibJS/Runtime/Realm.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Names.h>
 #include <LibWeb/ContentSecurityPolicy/PolicyList.h>
 #include <LibWeb/ContentSecurityPolicy/SerializedPolicy.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/PolicyContainers.h>
+#include <LibWeb/HTML/SandboxingFlagSet.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
@@ -37,23 +39,14 @@ GC::Ref<PolicyList> PolicyList::create(GC::Heap& heap, Vector<SerializedPolicy> 
     return policy_list;
 }
 
-// https://w3c.github.io/webappsec-csp/#get-csp-of-object
 GC::Ptr<PolicyList> PolicyList::from_object(JS::Object& object)
 {
-    // 1. If object is a Document return object’s policy container's CSP list.
-    if (is<DOM::Document>(object)) {
-        auto& document = static_cast<DOM::Document&>(object);
-        return document.policy_container()->csp_list;
-    }
+    if (auto* window = Bindings::window_from_global_object(object))
+        return window->associated_document().policy_container()->csp_list;
 
-    // 2. If object is a Window or a WorkerGlobalScope or a WorkletGlobalScope, return environment settings object’s
-    //    policy container's CSP list.
-    if (is<HTML::Window>(object) || is<HTML::WorkerGlobalScope>(object)) {
-        auto& settings = HTML::relevant_settings_object(object);
-        return settings.policy_container()->csp_list;
-    }
+    if (auto* worker = Bindings::worker_global_scope_from_global_object(object))
+        return worker->policy_container()->csp_list;
 
-    // 3. Return null.
     return nullptr;
 }
 

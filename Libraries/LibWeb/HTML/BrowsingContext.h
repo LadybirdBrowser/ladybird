@@ -9,6 +9,7 @@
 #include <AK/Noncopyable.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibURL/Origin.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/HTML/SandboxingFlagSet.h>
@@ -27,7 +28,7 @@ public:
         GC::Ref<DOM::Document> document;
     };
 
-    static BrowsingContextAndDocument create_a_new_browsing_context_and_document(GC::Ref<Page> page, GC::Ptr<DOM::Document> creator, GC::Ptr<DOM::Element> embedder, GC::Ref<BrowsingContextGroup> group);
+    static BrowsingContextAndDocument create_a_new_browsing_context_and_document(GC::Ref<Page> page, GC::Ptr<DOM::Document> creator, GC::Ptr<DOM::Element> embedder);
     static BrowsingContextAndDocument create_a_new_auxiliary_browsing_context_and_document(GC::Ref<Page> page, GC::Ref<HTML::BrowsingContext> opener);
 
     virtual ~BrowsingContext() override;
@@ -46,6 +47,8 @@ public:
 
     HTML::WindowProxy* window_proxy();
     HTML::WindowProxy const* window_proxy() const;
+    HTML::WindowProxy* window_proxy_for(Bindings::WrapperWorld&, JS::Realm&);
+    void set_active_window(GC::Ref<HTML::Window>);
 
     void set_window_proxy(GC::Ptr<WindowProxy>);
 
@@ -93,6 +96,10 @@ private:
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#browsing-context
     GC::Ptr<WindowProxy> m_window_proxy;
+    // Non-main WindowProxy identity is weakly cached per WrapperWorld. A live
+    // world realm roots its global-this WindowProxy; otherwise the proxy may be
+    // collected and rematerialized because it carries no observable state.
+    Bindings::WrapperWorldWeakValueCacheMap<Bindings::WrapperWorld, WindowProxy> m_window_proxies;
 
     GC::Ptr<DOM::Document> m_active_document;
 
