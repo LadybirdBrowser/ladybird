@@ -209,19 +209,67 @@ struct DataBlock {
         GC::Ref<GC::Cell> owner;
     };
 
-    // AD-HOC: Backs a shared, fixed-length Data Block with cross-process shared memory — so that a SharedArrayBuffer
-    //         can be genuinely shared (not copied) across agents in different processes.
+    // AD-HOC: Backs a shared, fixed-length Data Block with cross-process shared memory — so a SharedArrayBuffer can be
+    //         genuinely shared (not copied) across agents in different processes. The shared memory is mapped inside
+    //         the primitive storage cage (like every other backing store). So, an out-of-bounds access through the
+    //         buffer is masked back into the cage — instead of reaching memory outside it. The Core::AnonymousBuffer is
+    //         retained only to own the fd and carry it across IPC. On a platform that can;t host a mapped view inside
+    //         the cage, the handle stays invalid and access falls back to the buffer's own (uncaged) mapping.
     struct SharedBackingStore {
         explicit SharedBackingStore(Core::AnonymousBuffer buffer)
             : buffer(move(buffer))
         {
+            if (this->buffer.is_valid() && this->buffer.size() > 0) {
+                if (auto handle_or_error = GC::PrimitiveStorage::the().try_adopt_shared_fd(this->buffer.fd(), this->buffer.size()); !handle_or_error.is_error())
+                    m_handle = handle_or_error.release_value();
+            }
         }
 
-        u8* data() { return buffer.data<u8>(); }
-        u8 const* data() const { return buffer.data<u8>(); }
+        ~SharedBackingStore()
+        {
+            if (m_handle.is_valid())
+                GC::PrimitiveStorage::the().free(m_handle);
+        }
+
+        SharedBackingStore(SharedBackingStore&& other)
+            : buffer(move(other.buffer))
+            , m_handle(exchange(other.m_handle, {}))
+        {
+        }
+
+        SharedBackingStore& operator=(SharedBackingStore&& other)
+        {
+            if (this != &other) {
+                if (m_handle.is_valid())
+                    GC::PrimitiveStorage::the().free(m_handle);
+                buffer = move(other.buffer);
+                m_handle = exchange(other.m_handle, {});
+            }
+            return *this;
+        }
+
+        SharedBackingStore(SharedBackingStore const&) = delete;
+        SharedBackingStore& operator=(SharedBackingStore const&) = delete;
+
+        bool is_caged() const { return m_handle.is_valid(); }
+
+        u8* data() { return m_handle.is_valid() ? GC::PrimitiveStorage::the().data(m_handle) : buffer.data<u8>(); }
+        u8 const* data() const { return const_cast<SharedBackingStore*>(this)->data(); }
+
+        u8* data_at(size_t byte_offset)
+        {
+            if (m_handle.is_valid())
+                return GC::PrimitiveStorage::the().data(m_handle, byte_offset);
+            return buffer.data<u8>() + byte_offset;
+        }
+
         size_t size() const { return buffer.size(); }
+        size_t offset() const { return m_handle.is_valid() ? GC::PrimitiveStorage::the().offset(m_handle) : GC::PrimitiveStorage::invalid_offset; }
 
         Core::AnonymousBuffer buffer;
+
+    private:
+        GC::PrimitiveStorageHandle m_handle;
     };
 
 private:
@@ -250,7 +298,7 @@ public:
             },
             [byte_offset](UnownedFixedLengthByteBuffer& value) -> u8* { return value.buffer->data() + byte_offset; },
             [byte_offset](ExternalPrimitiveStorage& value) -> u8* { return GC::PrimitiveStorage::the().data(value.handle, byte_offset); },
-            [byte_offset](SharedBackingStore& value) -> u8* { return value.data() + byte_offset; });
+            [byte_offset](SharedBackingStore& value) -> u8* { return value.data_at(byte_offset); });
     }
     u8 const* data_at(size_t byte_offset) const { return const_cast<DataBlock*>(this)->data_at(byte_offset); }
 
@@ -455,7 +503,7 @@ public:
             [](OwnedBackingStore const& buffer) { return buffer.offset(); },
             [](UnownedFixedLengthByteBuffer const&) { return GC::PrimitiveStorage::invalid_offset; },
             [](ExternalPrimitiveStorage const& value) { return value.offset(); },
-            [](SharedBackingStore const&) { return GC::PrimitiveStorage::invalid_offset; });
+            [](SharedBackingStore const& value) { return value.offset(); });
     }
 
     bool is_caged() const
@@ -465,7 +513,7 @@ public:
             [](OwnedBackingStore const& buffer) { return buffer.handle().is_valid() || buffer.size() == 0; },
             [](UnownedFixedLengthByteBuffer const&) { return false; },
             [](ExternalPrimitiveStorage const& value) { return value.handle.is_valid(); },
-            [](SharedBackingStore const&) { return false; });
+            [](SharedBackingStore const& value) { return value.is_caged(); });
     }
 
     size_t external_memory_size() const
@@ -480,6 +528,11 @@ public:
 
     bool is_external() const { return byte_buffer.has<ExternalPrimitiveStorage>(); }
 
+    // True only for a SharedArrayBuffer backed by cross-process shared memory. Such a buffer is caged, but its bytes
+    // may be written concurrently by an agent in another process. So, its typed-array element access must stay on the
+    // atomic slow path — rather than the cached plain-load fast path.
+    bool is_cross_process_shared() const { return byte_buffer.has<SharedBackingStore>(); }
+
     Optional<Core::AnonymousBuffer> shared_anonymous_buffer() const
     {
         if (auto const* shared = byte_buffer.get_pointer<SharedBackingStore>())
@@ -490,6 +543,14 @@ public:
     bool shares_storage_with(DataBlock const& other) const
     {
         if (byte_buffer.has<Empty>() || other.byte_buffer.has<Empty>())
+            return false;
+        // Two cross-process shared backing stores can map the same shared object at different offsets inside the cage.
+        // So compare identity of the shared object itself (via its AnonymousBuffer mapping), not the in-cage addresses.
+        if (auto const* shared = byte_buffer.get_pointer<SharedBackingStore>()) {
+            auto const* other_shared = other.byte_buffer.get_pointer<SharedBackingStore>();
+            return other_shared && shared->buffer.data<u8>() == other_shared->buffer.data<u8>();
+        }
+        if (other.byte_buffer.has<SharedBackingStore>())
             return false;
         return data() == other.data();
     }
@@ -575,7 +636,7 @@ public:
 
     bool can_cache_typed_array_view_data_offset() const
     {
-        return !is_detached() && is_fixed_length() && m_data_block.is_caged();
+        return !is_detached() && is_fixed_length() && m_data_block.is_caged() && !m_data_block.is_cross_process_shared();
     }
 
     // 25.2.2.2 IsSharedArrayBuffer ( obj ), https://tc39.es/ecma262/#sec-issharedarraybuffer
