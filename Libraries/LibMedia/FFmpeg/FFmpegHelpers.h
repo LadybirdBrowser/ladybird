@@ -6,8 +6,10 @@
 
 #pragma once
 
+#include <AK/Span.h>
 #include <LibMedia/Audio/ChannelMap.h>
 #include <LibMedia/CodecID.h>
+#include <LibMedia/DecoderError.h>
 #include <LibMedia/Track.h>
 
 extern "C" {
@@ -160,6 +162,8 @@ static inline TrackType track_type_from_ffmpeg_media_type(AVMediaType media_type
     }
     VERIFY_NOT_REACHED();
 }
+
+DecoderErrorOr<void> add_new_extradata_to_packet(AVPacket&, ReadonlyBytes);
 
 ErrorOr<Audio::ChannelMap> av_channel_layout_to_channel_map(AVChannelLayout const&);
 ErrorOr<AVChannelLayout> channel_map_to_av_channel_layout(Audio::ChannelMap const&);

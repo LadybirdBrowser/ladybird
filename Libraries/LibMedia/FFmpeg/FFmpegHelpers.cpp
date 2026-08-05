@@ -8,6 +8,15 @@
 
 namespace Media::FFmpeg {
 
+DecoderErrorOr<void> add_new_extradata_to_packet(AVPacket& packet, ReadonlyBytes new_extradata)
+{
+    auto* packet_extradata = av_packet_new_side_data(&packet, AV_PKT_DATA_NEW_EXTRADATA, new_extradata.size());
+    if (!packet_extradata)
+        return DecoderError::with_description(DecoderErrorCategory::Memory, "Failed to allocate FFmpeg packet extradata"sv);
+    new_extradata.copy_to({ packet_extradata, new_extradata.size() });
+    return {};
+}
+
 #define ENUMERATE_CHANNEL_POSITIONS(C)                                              \
     C(Audio::Channel::FrontLeft, AVChannel::AV_CHAN_FRONT_LEFT)                     \
     C(Audio::Channel::FrontRight, AVChannel::AV_CHAN_FRONT_RIGHT)                   \
