@@ -224,7 +224,7 @@ bool autocomplete_urls_match(StringView left, StringView right)
     if (!left_url.has_value() || !right_url.has_value())
         return false;
 
-    return left_url->equals(*right_url, URL::ExcludeFragment::Yes);
+    return left_url->equals(*right_url);
 }
 
 bool autocomplete_url_can_complete(StringView query, StringView suggestion)
@@ -240,7 +240,7 @@ bool autocomplete_url_can_complete(StringView query, StringView suggestion)
             && form.starts_with(query, CaseSensitivity::CaseInsensitive);
     };
 
-    auto serialized_suggestion = suggestion_url->serialize(URL::ExcludeFragment::Yes);
+    auto serialized_suggestion = suggestion_url->serialize();
     if (can_complete_form(serialized_suggestion))
         return true;
 

@@ -466,7 +466,8 @@ ErrorOr<NonnullOwnPtr<HistoryStore>> HistoryStore::create(Database::Database& da
     )#"sv));
     statements.delete_omnibox_engagements_for_url = TRY(database.prepare_statement(R"#(
         DELETE FROM OmniboxEngagements
-        WHERE destination_kind = 0 AND destination_key = ?;
+        WHERE destination_kind = 0
+          AND (destination_key = ?1 OR substr(destination_key, 1, length(?1) + 1) = ?1 || '#');
     )#"sv));
     statements.delete_omnibox_engagements_used_since = TRY(database.prepare_statement(R"#(
         DELETE FROM OmniboxEngagements
@@ -969,8 +970,11 @@ void HistoryStore::TransientStorage::remove_entry_for_url(String const& url, Rem
     if (remove_engagements == RemoveHistoryEntryEngagements::No)
         return;
     m_omnibox_engagements.remove_all_matching([&](auto const& engagement) {
-        return engagement.destination_kind == OmniboxDestinationKind::URL
-            && normalize_omnibox_destination(engagement.destination, engagement.destination_kind) == url;
+        if (engagement.destination_kind != OmniboxDestinationKind::URL)
+            return false;
+        auto destination = normalize_omnibox_destination(engagement.destination, engagement.destination_kind);
+        return destination == url
+            || (destination.bytes_as_string_view().starts_with(url) && destination.bytes_as_string_view()[url.bytes_as_string_view().length()] == '#');
     });
 }
 
