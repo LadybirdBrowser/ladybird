@@ -14,8 +14,10 @@
 #include <AK/String.h>
 #include <AK/StringView.h>
 #include <AK/Vector.h>
+#include <AK/Weakable.h>
 #include <LibCore/Forward.h>
 #include <LibRequests/Forward.h>
+#include <LibURL/URL.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/OmniboxEngagement.h>
 #include <LibWebView/PrivateBrowsing.h>
@@ -96,7 +98,7 @@ WEBVIEW_API Vector<AutocompleteSuggestion> web_ui_autocomplete_suggestions(Strin
 WEBVIEW_API bool autocomplete_urls_match(StringView left, StringView right);
 WEBVIEW_API bool autocomplete_url_can_complete(StringView query, StringView suggestion);
 
-class WEBVIEW_API Autocomplete {
+class WEBVIEW_API Autocomplete : public Weakable<Autocomplete> {
 public:
     explicit Autocomplete(IsPrivate);
     ~Autocomplete();
@@ -111,6 +113,7 @@ private:
     static ErrorOr<Vector<String>> received_autocomplete_response(AutocompleteEngine const&, Optional<ByteString const&> content_type, StringView response);
     void start_remote_query(AutocompleteQueryID, AutocompleteEngine, String query);
     void local_query_complete(AutocompleteQueryID, Vector<AutocompleteSuggestion>);
+    void external_url_handler_query_complete(AutocompleteQueryID, RefPtr<ExternalURLHandler>);
     void deliver_current_result();
     void invoke_autocomplete_query_complete(AutocompleteQueryID, Vector<AutocompleteSuggestion> suggestions, AutocompleteResultKind) const;
 
@@ -122,6 +125,9 @@ private:
     size_t m_max_suggestions { default_autocomplete_suggestion_limit };
     bool m_local_query_complete { false };
     bool m_remote_query_complete { false };
+    bool m_external_url_handler_query_complete { true };
+    bool m_external_url_has_handler { false };
+    Optional<URL::URL> m_external_url;
     Vector<AutocompleteSuggestion> m_local_suggestions;
     Vector<String> m_remote_suggestions;
     RefPtr<Core::Timer> m_remote_query_timer;

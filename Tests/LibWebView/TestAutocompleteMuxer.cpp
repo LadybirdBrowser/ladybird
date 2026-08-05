@@ -76,6 +76,48 @@ TEST_CASE(strong_local_navigation_can_replace_an_ambiguous_default)
     EXPECT_EQ(results[1].text, "lady"sv);
 }
 
+TEST_CASE(literal_url_remains_the_default_over_adaptive_results)
+{
+    auto results = WebView::mux_autocomplete_suggestions(
+        "mailto:hello@ladybird.org"sv,
+        suggestion(WebView::AutocompleteSuggestionSource::LiteralURL, "mailto:hello@ladybird.org"sv, 900, true, true),
+        { suggestion(WebView::AutocompleteSuggestionSource::Adaptive, "https://ladybird.org/"sv, 1400, true) },
+        {},
+        8);
+
+    EXPECT_EQ(results.size(), 2u);
+    EXPECT_EQ(results[0].text, "mailto:hello@ladybird.org"sv);
+    EXPECT(results[0].is_verbatim);
+}
+
+TEST_CASE(literal_url_and_search_remain_distinct_actions)
+{
+    auto results = WebView::mux_autocomplete_suggestions(
+        "steam://launch/1536610"sv,
+        suggestion(WebView::AutocompleteSuggestionSource::LiteralURL, "steam://launch/1536610"sv, 900, true, true),
+        {},
+        { search("steam://launch/1536610"sv, 700) },
+        8);
+
+    EXPECT_EQ(results.size(), 2u);
+    EXPECT_EQ(results[0].source, WebView::AutocompleteSuggestionSource::LiteralURL);
+    EXPECT_EQ(results[1].source, WebView::AutocompleteSuggestionSource::Search);
+}
+
+TEST_CASE(literal_external_url_is_not_replaced_by_a_guessed_https_url)
+{
+    auto results = WebView::mux_autocomplete_suggestions(
+        "steam://launch/1536610"sv,
+        suggestion(WebView::AutocompleteSuggestionSource::LiteralURL, "steam://launch/1536610"sv, 900, true, true),
+        { history("https://steam://launch/1536610"sv, 1000) },
+        {},
+        8);
+
+    EXPECT_EQ(results.size(), 2u);
+    EXPECT_EQ(results[0].source, WebView::AutocompleteSuggestionSource::LiteralURL);
+    EXPECT_EQ(results[0].text, "steam://launch/1536610"sv);
+}
+
 TEST_CASE(verbatim_action_remains_visible_when_history_fills_the_list)
 {
     Vector<WebView::AutocompleteSuggestion> history_suggestions;

@@ -92,6 +92,7 @@ public:
 
     // State for the chrome:
     String const& query() const { return m_query; }
+    OmniboxDestinationKind destination_kind_for_last_commit() const { return m_destination_kind_for_last_commit; }
     bool is_editing() const { return m_is_editing; }
     bool is_popup_visible() const { return m_popup_visible; }
     Vector<AutocompleteSuggestion> const& suggestions() const { return m_suggestions; }
@@ -145,7 +146,7 @@ private:
     void display_suggestion(size_t suggestion_index);
     void activate_selected_suggestion();
     void commit_suggestion(size_t suggestion_index, bool record_engagement, bool was_explicit);
-    void commit_suggestion_text(String);
+    void commit_suggestion_text(String, OmniboxDestinationKind);
     void commit_verbatim(String);
     void adopt_display_text_as_query();
     void apply_completion(String suggestion_text, String completion_text);
@@ -156,7 +157,7 @@ private:
     void close_popup();
     void abandon_popup_session();
     void set_selection(Optional<Selection>);
-    void commit(String text);
+    void commit(String text, OmniboxDestinationKind);
     bool selection_is_explicit() const;
     bool completion_is_suppressed() const;
 
@@ -201,6 +202,7 @@ private:
 
     u64 m_next_query_id { 0 };
     Optional<AutocompleteQueryID> m_active_query_id;
+    OmniboxDestinationKind m_destination_kind_for_last_commit { OmniboxDestinationKind::URL };
 };
 
 }

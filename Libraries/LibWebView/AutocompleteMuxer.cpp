@@ -199,6 +199,9 @@ Vector<AutocompleteSuggestion> mux_autocomplete_suggestions(
     if (limit == 0)
         return {};
 
+    auto verbatim_is_literal_url = verbatim_suggestion.has_value()
+        && verbatim_suggestion->source == AutocompleteSuggestionSource::LiteralURL;
+
     Vector<AutocompleteSuggestion> candidates;
     candidates.ensure_capacity(local_suggestions.size() + remote_suggestions.size() + (verbatim_suggestion.has_value() ? 1 : 0));
     if (verbatim_suggestion.has_value())
@@ -247,7 +250,9 @@ Vector<AutocompleteSuggestion> mux_autocomplete_suggestions(
 
     quick_sort(candidates, suggestion_is_better);
 
-    auto default_index = candidates.find_first_index_if([](auto const& suggestion) {
+    auto default_index = candidates.find_first_index_if([verbatim_is_literal_url](auto const& suggestion) {
+        if (verbatim_is_literal_url)
+            return suggestion.is_verbatim;
         return suggestion.can_be_automatically_selected;
     });
     if (default_index.has_value() && *default_index != 0) {

@@ -656,38 +656,42 @@ void Omnibox::activate_selected_suggestion()
 void Omnibox::commit_suggestion(size_t suggestion_index, bool should_record_engagement, bool was_explicit)
 {
     auto suggestion = m_suggestions[suggestion_index];
+    auto destination_kind = suggestion.source == AutocompleteSuggestionSource::Search
+        ? OmniboxDestinationKind::Search
+        : OmniboxDestinationKind::URL;
     if (should_record_engagement) {
         m_provider->record_engagement({
             .input = m_retained_engagement_input.value_or(m_query),
-            .destination_kind = suggestion.source == AutocompleteSuggestionSource::Search
-                ? OmniboxDestinationKind::Search
-                : OmniboxDestinationKind::URL,
+            .destination_kind = destination_kind,
             .destination = suggestion.text,
             .was_explicit = was_explicit,
         });
     }
-    commit_suggestion_text(move(suggestion.text));
+    commit_suggestion_text(move(suggestion.text), destination_kind);
 }
 
-void Omnibox::commit_suggestion_text(String text)
+void Omnibox::commit_suggestion_text(String text, OmniboxDestinationKind destination_kind)
 {
     m_provenance = TextProvenance::UserText;
     m_completion_suggestion = {};
     m_query = text;
     set_display(text, {});
     close_popup();
-    commit(move(text));
+    commit(move(text), destination_kind);
 }
 
 void Omnibox::commit_verbatim(String text)
 {
+    auto destination_kind = classify_user_input(text).classification != UserInputClassification::Search
+        ? OmniboxDestinationKind::URL
+        : OmniboxDestinationKind::Search;
     m_provider->record_engagement({
         .input = m_retained_engagement_input.value_or(text),
-        .destination_kind = location_looks_like_url(text) ? OmniboxDestinationKind::URL : OmniboxDestinationKind::Search,
+        .destination_kind = destination_kind,
         .destination = text,
         .was_explicit = false,
     });
-    commit(move(text));
+    commit(move(text), destination_kind);
 }
 
 void Omnibox::adopt_display_text_as_query()
@@ -772,8 +776,9 @@ void Omnibox::set_selection(Optional<Selection> selection)
         on_selection_change();
 }
 
-void Omnibox::commit(String text)
+void Omnibox::commit(String text, OmniboxDestinationKind destination_kind)
 {
+    m_destination_kind_for_last_commit = destination_kind;
     if (on_commit)
         on_commit(move(text));
 }
