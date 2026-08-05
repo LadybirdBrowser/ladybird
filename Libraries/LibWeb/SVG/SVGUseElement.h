@@ -50,7 +50,6 @@ public:
     REFLECT_ANIMATED_LENGTH_ATTRIBUTE(height, Vertical, CSS::NumberStyleValue::create(0));
 
     GC::Ptr<SVGElement> instance_root() const;
-    GC::Ptr<SVGElement> animated_instance_root() const;
 
     virtual Gfx::AffineTransform element_transform() const override;
 
