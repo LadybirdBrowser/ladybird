@@ -25,6 +25,8 @@ DecoderErrorOr<String> Streamer::read_string()
 {
     auto string_length = TRY(read_variable_size_integer());
     auto string_data = TRY(read_raw_octets(string_length));
+    if (string_data.is_empty())
+        return String {};
     auto const* string_data_raw = reinterpret_cast<char const*>(string_data.data());
     auto string_value = String::from_utf8(ReadonlyBytes(string_data.data(), strnlen(string_data_raw, string_length)));
     if (string_value.is_error())
@@ -119,11 +121,9 @@ DecoderErrorOr<i64> Streamer::read_variable_size_signed_integer()
     return result;
 }
 
-DecoderErrorOr<ByteBuffer> Streamer::read_raw_octets(size_t num_octets)
+DecoderErrorOr<FixedArray<u8>> Streamer::read_raw_octets(size_t num_octets)
 {
-    auto result = MUST(ByteBuffer::create_uninitialized(num_octets));
-    TRY(m_stream_cursor->read_until_filled(result.bytes()));
-    return result;
+    return m_stream_cursor->read_bytes(num_octets);
 }
 
 DecoderErrorOr<u64> Streamer::read_u64()

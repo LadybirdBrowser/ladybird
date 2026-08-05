@@ -85,11 +85,11 @@ DecoderErrorOr<Block> SampleIterator::next_block()
     VERIFY_NOT_REACHED();
 }
 
-DecoderErrorOr<Vector<ByteBuffer>> SampleIterator::get_frames(Block block)
+DecoderErrorOr<SampleIterator::Frames> SampleIterator::get_frames(Block block)
 {
     Streamer streamer { m_stream_cursor };
     TRY(streamer.seek_to_position(block.data_position()));
-    Vector<ByteBuffer> frames;
+    Frames frames;
 
     if (block.lacing() == Block::Lacing::EBML) {
         auto frames_start_position = streamer.position();
@@ -119,7 +119,6 @@ DecoderErrorOr<Vector<ByteBuffer>> SampleIterator::get_frames(Block block)
         frame_sizes.append(block.data_size() - frame_size_sum - (streamer.position() - frames_start_position));
 
         for (int i = 0; i < frame_count; i++) {
-            // FIXME: ReadonlyBytes instead of copying the frame data?
             auto current_frame_size = frame_sizes.at(i);
             frames.append(TRY(streamer.read_raw_octets(current_frame_size)));
         }

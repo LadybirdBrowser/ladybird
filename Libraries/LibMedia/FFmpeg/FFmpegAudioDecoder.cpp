@@ -92,7 +92,7 @@ FFmpegAudioDecoder::~FFmpegAudioDecoder()
 
 DecoderErrorOr<void> FFmpegAudioDecoder::receive_coded_data(CodedFrame const& coded_frame)
 {
-    auto coded_data = coded_frame.data().span();
+    auto coded_data = coded_frame.data();
     VERIFY(coded_data.size() < NumericLimits<int>::max());
 
     m_packet->data = const_cast<u8*>(coded_data.data());

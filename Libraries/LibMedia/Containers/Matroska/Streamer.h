@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/FixedArray.h>
 #include <AK/NonnullRefPtr.h>
 #include <LibMedia/DecoderError.h>
 #include <LibMedia/Export.h>
@@ -36,7 +37,7 @@ public:
 
     DecoderErrorOr<void> read_unknown_element();
 
-    DecoderErrorOr<ByteBuffer> read_raw_octets(size_t num_octets);
+    DecoderErrorOr<FixedArray<u8>> read_raw_octets(size_t num_octets);
 
     size_t position() const;
 

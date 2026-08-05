@@ -61,7 +61,7 @@ private:
     struct TrackStatus {
         SampleIterator iterator;
         Optional<Block> block;
-        Vector<ByteBuffer, 4> frames;
+        SampleIterator::Frames frames;
         size_t frame_index { 0 };
 
         TrackStatus(SampleIterator&& iterator)

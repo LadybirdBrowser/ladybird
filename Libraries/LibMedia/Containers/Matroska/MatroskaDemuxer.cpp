@@ -170,8 +170,6 @@ DecoderErrorOr<DemuxerSeekResult> MatroskaDemuxer::seek_to_most_recent_keyframe(
 
 DecoderErrorOr<CodedFrame> MatroskaDemuxer::get_next_sample_for_track(Track const& track)
 {
-    // FIXME: This makes a copy of the sample, which shouldn't be necessary.
-    //        Matroska should make a RefPtr<ByteBuffer>, probably.
     auto& status = get_track_status(track);
 
     if (!status.block.has_value() || (!status.frames.is_empty() && status.frame_index >= status.frames.size())) {

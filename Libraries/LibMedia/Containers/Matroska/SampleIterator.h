@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/FixedArray.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <LibMedia/DecoderError.h>
@@ -36,8 +37,10 @@ class MEDIA_API SampleIterator {
 public:
     ~SampleIterator();
 
+    using Frames = Vector<FixedArray<u8>, 4>;
+
     DecoderErrorOr<Block> next_block();
-    DecoderErrorOr<Vector<ByteBuffer>> get_frames(Block);
+    DecoderErrorOr<Frames> get_frames(Block);
     Cluster const& current_cluster() const { return *m_current_cluster; }
     Optional<AK::Duration> const& last_timestamp() const { return m_last_timestamp; }
     MediaStreamCursor& cursor() { return m_stream_cursor; }
