@@ -8,7 +8,7 @@
 
 namespace Audio {
 
-NonnullRefPtr<PlaybackStream::CreatePromise> PlaybackStream::create_platform_or_null(OutputState initial_output_state, u32 target_latency_ms, AudioDataRequestCallback platform_data_request_callback, AudioDataRequestCallback fallback_data_request_callback)
+NonnullRefPtr<PlaybackStream::CreatePromise> PlaybackStream::create_platform_or_null(OutputState initial_output_state, u32 target_latency_ms, [[maybe_unused]] AudioDataRequestCallback platform_data_request_callback, AudioDataRequestCallback fallback_data_request_callback)
 {
     auto promise = PlaybackStream::CreatePromise::construct();
 
