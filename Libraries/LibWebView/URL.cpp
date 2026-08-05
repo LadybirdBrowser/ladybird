@@ -18,6 +18,11 @@
 
 namespace WebView {
 
+bool is_url_handled_internally(URL::URL const& url)
+{
+    return url.scheme().is_one_of("about"sv, "blob"sv, "data"sv, "file"sv, "http"sv, "https"sv, "resource"sv);
+}
+
 Optional<URL::URL> sanitize_url(StringView location, Optional<SearchEngine> const& search_engine, AppendTLD append_tld)
 {
     auto search_url_or_error = [&]() -> Optional<URL::URL> {
@@ -48,9 +53,7 @@ Optional<URL::URL> sanitize_url(StringView location, Optional<SearchEngine> cons
         https_scheme_was_guessed = true;
     }
 
-    // FIXME: Add support for other schemes, e.g. "mailto:". Firefox and Chrome open mailto: locations.
-    static constexpr Array SUPPORTED_SCHEMES { "about"sv, "data"sv, "file"sv, "http"sv, "https"sv, "resource"sv };
-    if (!any_of(SUPPORTED_SCHEMES, [&](StringView const& scheme) { return scheme == url->scheme(); }))
+    if (!is_url_handled_internally(*url))
         return search_url_or_error();
 
     if (auto const& host = url->host(); host.has_value() && host->is_domain()) {

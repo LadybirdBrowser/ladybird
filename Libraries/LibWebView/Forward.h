@@ -24,6 +24,7 @@ class CompositorConnection;
 class CompositorHostBase;
 class CookieJar;
 class DownloadStore;
+class ExternalURLHandler;
 class HistoryStore;
 class HSTSStore;
 class Menu;
