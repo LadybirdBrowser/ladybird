@@ -20,6 +20,19 @@
 
 namespace {
 
+class TestExternalURLHandler final : public WebView::ExternalURLHandler {
+public:
+    TestExternalURLHandler()
+        : WebView::ExternalURLHandler("Test application"_string, false)
+    {
+    }
+
+    virtual void launch(URL::URL const&, LaunchCallback callback) const override
+    {
+        callback(true);
+    }
+};
+
 class TestApplication : public WebView::Application {
     WEB_VIEW_APPLICATION(TestApplication)
 
@@ -37,6 +50,35 @@ public:
     }
 
     virtual bool should_coordinate_browser_process() const override { return false; }
+
+    virtual void resolve_external_url_handler(URL::URL const& url, WebView::ExternalURLHandlerCallback callback) const override
+    {
+        m_pending_external_url_handler_queries.append({ url, move(callback) });
+    }
+
+    size_t pending_external_url_handler_query_count() const { return m_pending_external_url_handler_queries.size(); }
+
+    StringView pending_external_url_handler_query_scheme(size_t index) const
+    {
+        return m_pending_external_url_handler_queries[index].url.scheme();
+    }
+
+    void complete_next_external_url_handler_query(bool has_handler)
+    {
+        auto query = m_pending_external_url_handler_queries.take(0);
+        RefPtr<WebView::ExternalURLHandler> handler;
+        if (has_handler)
+            handler = adopt_ref(*new TestExternalURLHandler);
+        query.callback(move(handler));
+    }
+
+private:
+    struct PendingExternalURLHandlerQuery {
+        URL::URL url;
+        WebView::ExternalURLHandlerCallback callback;
+    };
+
+    mutable Vector<PendingExternalURLHandlerQuery> m_pending_external_url_handler_queries;
 };
 
 }
@@ -236,6 +278,135 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         autocomplete.query_autocomplete_engine(100, "about:set"_string);
         Core::EventLoop::current().spin_until([&]() { return about_query_completed; });
     }
+
+    auto expect_internal_url_suggestion = [&](WebView::AutocompleteQueryID query_id, StringView input) {
+        auto query_completed = false;
+        WebView::Autocomplete autocomplete { WebView::IsPrivate::No };
+        autocomplete.on_autocomplete_query_complete = [&](auto, auto const& suggestions, WebView::AutocompleteResultKind kind) {
+            if (kind != WebView::AutocompleteResultKind::Final)
+                return;
+            VERIFY(!suggestions.is_empty());
+            VERIFY(suggestions.first().source == WebView::AutocompleteSuggestionSource::LiteralURL);
+            VERIFY(suggestions.first().text == input);
+            autocomplete.cancel_pending_query();
+            query_completed = true;
+        };
+
+        auto pending_handler_queries = app->pending_external_url_handler_query_count();
+        autocomplete.query_autocomplete_engine(query_id, MUST(String::from_utf8(input)));
+        VERIFY(app->pending_external_url_handler_query_count() == pending_handler_queries);
+        Core::EventLoop::current().spin_until([&]() { return query_completed; });
+    };
+
+    expect_internal_url_suggestion(106, "localhost:8080"sv);
+    expect_internal_url_suggestion(107, "example.com:8080"sv);
+
+    auto telephone_url_query_completed = false;
+    {
+        WebView::Autocomplete autocomplete { WebView::IsPrivate::No };
+        autocomplete.on_autocomplete_query_complete = [&](auto, auto const& suggestions, WebView::AutocompleteResultKind kind) {
+            if (kind != WebView::AutocompleteResultKind::Final)
+                return;
+            VERIFY(!suggestions.is_empty());
+            VERIFY(suggestions.first().source == WebView::AutocompleteSuggestionSource::LiteralURL);
+            VERIFY(suggestions.first().text == "tel:123"sv);
+            autocomplete.cancel_pending_query();
+            telephone_url_query_completed = true;
+        };
+        autocomplete.query_autocomplete_engine(108, "tel:123"_string);
+        VERIFY(app->pending_external_url_handler_query_count() == 1);
+        VERIFY(app->pending_external_url_handler_query_scheme(0) == "tel"sv);
+        app->complete_next_external_url_handler_query(true);
+        Core::EventLoop::current().spin_until([&]() { return telephone_url_query_completed; });
+    }
+
+    auto external_url_local_query_completed = false;
+    auto external_url_query_completed = false;
+    {
+        WebView::Autocomplete autocomplete { WebView::IsPrivate::No };
+        autocomplete.record_engagement({
+            .input = "geo:23.4,12.4"_string,
+            .destination_kind = WebView::OmniboxDestinationKind::URL,
+            .destination = "https://ladybird.org/"_string,
+            .was_explicit = true,
+        });
+        autocomplete.on_autocomplete_query_complete = [&](auto, auto const& suggestions, WebView::AutocompleteResultKind kind) {
+            if (kind == WebView::AutocompleteResultKind::Intermediate
+                && suggestions.contains([](auto const& suggestion) {
+                       return suggestion.source == WebView::AutocompleteSuggestionSource::Adaptive
+                           && suggestion.text == "https://ladybird.org/"sv;
+                   })) {
+                VERIFY(!suggestions.contains([](auto const& suggestion) {
+                    return suggestion.source == WebView::AutocompleteSuggestionSource::LiteralURL;
+                }));
+                external_url_local_query_completed = true;
+                return;
+            }
+            if (kind != WebView::AutocompleteResultKind::Final)
+                return;
+            VERIFY(!suggestions.is_empty());
+            VERIFY(suggestions.first().source == WebView::AutocompleteSuggestionSource::LiteralURL);
+            VERIFY(suggestions.first().text == "geo:23.4,12.4"sv);
+            VERIFY(suggestions.contains([](auto const& suggestion) {
+                return suggestion.source == WebView::AutocompleteSuggestionSource::Search
+                    && suggestion.text == "geo:23.4,12.4"sv;
+            }));
+            autocomplete.cancel_pending_query();
+            external_url_query_completed = true;
+        };
+        autocomplete.query_autocomplete_engine(101, "geo:23.4,12.4"_string);
+        VERIFY(app->pending_external_url_handler_query_count() == 1);
+        VERIFY(app->pending_external_url_handler_query_scheme(0) == "geo"sv);
+        Core::EventLoop::current().spin_until([&]() { return external_url_local_query_completed; });
+        app->complete_next_external_url_handler_query(true);
+        Core::EventLoop::current().spin_until([&]() { return external_url_query_completed; });
+    }
+
+    auto unavailable_external_url_query_completed = false;
+    {
+        WebView::Autocomplete autocomplete { WebView::IsPrivate::No };
+        autocomplete.on_autocomplete_query_complete = [&](auto, auto const& suggestions, WebView::AutocompleteResultKind kind) {
+            if (kind != WebView::AutocompleteResultKind::Final)
+                return;
+            VERIFY(!suggestions.is_empty());
+            VERIFY(suggestions.first().source == WebView::AutocompleteSuggestionSource::Search);
+            VERIFY(suggestions.first().text == "unknown:value"sv);
+            VERIFY(!suggestions.contains([](auto const& suggestion) {
+                return suggestion.source == WebView::AutocompleteSuggestionSource::LiteralURL;
+            }));
+            autocomplete.cancel_pending_query();
+            unavailable_external_url_query_completed = true;
+        };
+        autocomplete.query_autocomplete_engine(102, "unknown:value"_string);
+        VERIFY(app->pending_external_url_handler_query_count() == 1);
+        VERIFY(app->pending_external_url_handler_query_scheme(0) == "unknown"sv);
+        app->complete_next_external_url_handler_query(false);
+        Core::EventLoop::current().spin_until([&]() { return unavailable_external_url_query_completed; });
+    }
+
+    auto replacement_query_completed = false;
+    {
+        WebView::Autocomplete autocomplete { WebView::IsPrivate::No };
+        autocomplete.on_autocomplete_query_complete = [&](auto query_id, auto const&, WebView::AutocompleteResultKind kind) {
+            VERIFY(query_id != 103);
+            if (query_id == 104 && kind == WebView::AutocompleteResultKind::Final) {
+                autocomplete.cancel_pending_query();
+                replacement_query_completed = true;
+            }
+        };
+        autocomplete.query_autocomplete_engine(103, "geo:23.4,12.4"_string);
+        VERIFY(app->pending_external_url_handler_query_count() == 1);
+        autocomplete.query_autocomplete_engine(104, "replacement query"_string);
+        app->complete_next_external_url_handler_query(true);
+        Core::EventLoop::current().spin_until([&]() { return replacement_query_completed; });
+    }
+
+    {
+        WebView::Autocomplete autocomplete { WebView::IsPrivate::No };
+        autocomplete.query_autocomplete_engine(105, "geo:23.4,12.4"_string);
+        VERIFY(app->pending_external_url_handler_query_count() == 1);
+    }
+    app->complete_next_external_url_handler_query(true);
 
     // A closed loopback port makes the request fail fast and deterministically, with no real network.
     // Its on_finish synchronously delivers the final result. A data: URL cannot be used because the request

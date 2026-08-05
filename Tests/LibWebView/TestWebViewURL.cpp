@@ -345,6 +345,7 @@ TEST_CASE(autocomplete_url_matching)
     expect_autocomplete_urls_do_not_match("https://example.com/path"sv, "https://example.com/other"sv);
     expect_autocomplete_urls_do_not_match("https://example.com"sv, "https://example.com:8443"sv);
     expect_autocomplete_urls_do_not_match("hello"sv, "https://hello.example/"sv);
+    expect_autocomplete_urls_do_not_match("steam://launch/1536610"sv, "https://steam://launch/1536610"sv);
 }
 
 TEST_CASE(autocomplete_url_completion)
@@ -367,6 +368,10 @@ TEST_CASE(autocomplete_suggestion_display_text)
     url_suggestion.source = WebView::AutocompleteSuggestionSource::History;
     url_suggestion.text = "https://www.example.com/"_string;
     EXPECT_EQ(WebView::autocomplete_suggestion_display_text(url_suggestion), "example.com"sv);
+
+    url_suggestion.source = WebView::AutocompleteSuggestionSource::LiteralURL;
+    url_suggestion.text = "steam://launch/1536610"_string;
+    EXPECT_EQ(WebView::autocomplete_suggestion_display_text(url_suggestion), "steam://launch/1536610"sv);
 
     WebView::AutocompleteSuggestion search_suggestion;
     search_suggestion.source = WebView::AutocompleteSuggestionSource::Search;
