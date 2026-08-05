@@ -27,6 +27,7 @@
 #include <QWidget>
 
 class QTimer;
+class QMessageBox;
 namespace Ladybird {
 
 class BrowserWindow;
@@ -103,7 +104,6 @@ public:
 
 public slots:
     void focus_location_editor();
-    void location_edit_return_pressed();
 
 signals:
     void title_changed(int id, QString const&);
@@ -111,6 +111,7 @@ signals:
     void audio_play_state_changed(int id, Web::HTML::AudioPlayState);
 
 private:
+    void location_edit_return_pressed(String, Optional<URL::URL>, WebView::OmniboxDestinationKind);
     virtual void resizeEvent(QResizeEvent*) override;
     virtual bool event(QEvent*) override;
 
@@ -187,6 +188,7 @@ private:
     QString m_downloads_button_tooltip;
 
     QPointer<QDialog> m_dialog;
+    QPointer<QMessageBox> m_external_url_confirmation_dialog;
 
     bool m_already_requested_close { false };
 };

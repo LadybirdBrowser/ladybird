@@ -399,7 +399,7 @@ static QAction* create_recent_history_menu_action(QMenu& menu, WebContentView& v
     auto url = URL::Parser::basic_parse(entry.url);
     if (url.has_value()) {
         QObject::connect(action, &QAction::triggered, &view, [&view, url = url.release_value()] {
-            view.load(url);
+            view.load_from_user_input(url);
         });
     } else {
         action->setEnabled(false);

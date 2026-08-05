@@ -16,6 +16,10 @@
 #include <UI/Qt/StringUtils.h>
 #include <UI/Qt/WebContentView.h>
 
+#if defined(AK_OS_LINUX)
+#    include <UI/Qt/ExternalURLHandler.h>
+#endif
+
 #if defined(AK_OS_MACOS)
 #    include <UI/Qt/MacWindow.h>
 #endif
@@ -120,7 +124,7 @@ public:
             auto const& open_event = *static_cast<QFileOpenEvent const*>(event);
             auto const qurl = open_event.url();
             if (!qurl.isEmpty()) {
-                if (auto url = WebView::sanitize_url(ak_byte_string_from_qbytearray(qurl.toEncoded())); url.has_value())
+                if (auto url = ak_url_from_qstring(qurl.toString()); url.has_value())
                     application.on_open_file(url.release_value());
                 break;
             }
@@ -388,6 +392,10 @@ Core::EventLoop& Application::create_platform_event_loop()
     }
 
     auto& event_loop = WebView::Application::create_platform_event_loop();
+
+#if defined(AK_OS_LINUX)
+    Ladybird::initialize_external_url_handler(event_loop);
+#endif
 
     if (!browser_options().headless_mode.has_value())
         static_cast<EventLoopImplementationQt&>(event_loop.impl()).set_main_loop();
@@ -755,6 +763,16 @@ void Application::show_download_in_folder(WebView::FileDownloader::Download cons
     }
 
     QDesktopServices::openUrl(QUrl::fromLocalFile(qstring_from_ak_string(path.release_value())));
+}
+
+void Application::resolve_external_url_handler(URL::URL const& url, WebView::ExternalURLHandlerCallback callback) const
+{
+#if defined(AK_OS_LINUX)
+    Ladybird::resolve_external_url_handler(url, ak_string_from_qstring(QGuiApplication::desktopFileName()), move(callback));
+#else
+    (void)url;
+    callback(nullptr);
+#endif
 }
 
 static QClipboard::Mode clipboard_mode(QClipboard const& clipboard, Application::ClipboardType type)

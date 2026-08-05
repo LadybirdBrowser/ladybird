@@ -8,10 +8,16 @@ if (NOT APPLE)
     find_package(Qt6 6.9 OPTIONAL_COMPONENTS Positioning)
 endif()
 
-if (APPLE OR HAS_DIRECTX)
+if (APPLE OR (LINUX AND NOT ANDROID) OR HAS_DIRECTX)
     # The native presentation paths use platform GPU buffer handles directly instead of copying frames through CPU memory.
+    # Wayland activation also uses Qt platform APIs.
     set(QT_NO_PRIVATE_MODULE_WARNING ON)
     find_package(Qt6 6.9 REQUIRED COMPONENTS GuiPrivate)
+endif()
+
+if (LINUX AND NOT ANDROID)
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(GIO REQUIRED IMPORTED_TARGET gio-2.0 gio-unix-2.0)
 endif()
 
 qt_add_executable(ladybird main.cpp)
@@ -43,6 +49,11 @@ if (TARGET Qt6::Positioning)
     target_sources(ladybird PRIVATE GeolocationProviderQt.cpp GeolocationProviderQt.h)
     target_link_libraries(ladybird PRIVATE Qt::Positioning)
     target_compile_definitions(ladybird PRIVATE LADYBIRD_QT_HAVE_POSITIONING=1)
+endif()
+
+if (LINUX AND NOT ANDROID)
+    target_sources(ladybird PRIVATE ExternalURLActivationToken.cpp ExternalURLHandler.cpp)
+    target_link_libraries(ladybird PRIVATE LibThreading PkgConfig::GIO Qt::GuiPrivate)
 endif()
 
 if (APPLE)
