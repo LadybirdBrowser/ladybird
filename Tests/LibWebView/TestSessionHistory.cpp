@@ -10,6 +10,7 @@
 #include <LibURL/Parser.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
 #include <LibWebView/CanonicalBrowsingContext.h>
+#include <LibWebView/CanonicalSessionHistoryEntry.h>
 #include <LibWebView/CanonicalTraversable.h>
 #include <LibWebView/HistoryDebug.h>
 #include <LibWebView/SessionHistory.h>
@@ -273,26 +274,34 @@ static void run_canonical_history_operation(WebView::CanonicalTraversable& trave
     VERIFY(queue_promise->is_resolved());
 }
 
-TEST_CASE(display_url_includes_fragment_directive_state)
+TEST_CASE(fragment_directive_state_is_separate_from_entry_url)
 {
     auto entry = create_test_entry(0, parse_url("https://example.test/#feature-detectability"sv));
     entry.directive_state_value = "text=For-,feature%20detectability"_string;
-
     EXPECT_EQ(
         WebView::display_url_for_session_history_entry(entry),
         parse_url("https://example.test/#feature-detectability:~:text=For-,feature%20detectability"sv));
+    EXPECT_EQ(
+        WebView::display_url_for_session_history_entry(entry, false),
+        parse_url("https://example.test/#feature-detectability"sv));
 
     entry.directive_state_value.clear();
     EXPECT_EQ(
         WebView::display_url_for_session_history_entry(entry),
         parse_url("https://example.test/#feature-detectability"sv));
+
+    entry.directive_state_value = "text=For-,feature%20detectability"_string;
+    auto canonical_entry = MUST(WebView::CanonicalSessionHistoryEntry::create_from_descriptor(entry));
+    auto descriptor = canonical_entry->descriptor();
+    EXPECT_EQ(descriptor.url, parse_url("https://example.test/#feature-detectability"sv));
+    EXPECT_EQ(descriptor.directive_state_value, "text=For-,feature%20detectability"sv);
 }
 
 TEST_CASE(replace_navigation_updates_every_shared_directive_state_descriptor)
 {
     Core::EventLoop event_loop;
-    WebView::CanonicalTraversable traversable;
-    traversable.set_id({ 9, 1 });
+    WebView::CanonicalTraversable traversable({ 9, 1 }, canonical_entry(entry(0, "https://example.test/initial"sv)));
+    give_active_document(traversable);
     auto shared_directive_state_id = test_document_state_id(3000);
 
     auto first_entry = entry(0, "https://example.test/first"sv);
@@ -320,8 +329,7 @@ TEST_CASE(replace_navigation_updates_every_shared_directive_state_descriptor)
         .history_handling = Web::HTML::HistoryHandlingBehavior::Replace,
         .user_involvement = Web::HTML::UserNavigationInvolvement::None,
     };
-    auto operation_result = run_canonical_history_operation(traversable, move(request));
-    EXPECT_EQ(operation_result.result, Web::HTML::HistoryStepResult::Applied);
+    run_canonical_history_operation(traversable, move(request));
 
     EXPECT_EQ(traversable.session_history().entry_at(0)->directive_state_value, "text=new"sv);
     EXPECT_EQ(traversable.session_history().entry_at(1)->directive_state_value, "text=new"sv);

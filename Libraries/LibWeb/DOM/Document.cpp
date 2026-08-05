@@ -158,7 +158,6 @@
 #include <LibWeb/HTML/HTMLBodyElement.h>
 #include <LibWeb/HTML/HTMLDialogElement.h>
 #include <LibWeb/HTML/HTMLDocument.h>
-#include <LibWeb/HTML/TextDirective.h>
 #include <LibWeb/HTML/HTMLEmbedElement.h>
 #include <LibWeb/HTML/HTMLFormElement.h>
 #include <LibWeb/HTML/HTMLFrameSetElement.h>
@@ -204,6 +203,7 @@
 #include <LibWeb/HTML/Storage.h>
 #include <LibWeb/HTML/StorageEvent.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
+#include <LibWeb/HTML/TextDirective.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/HTML/WindowProxy.h>
@@ -2220,7 +2220,10 @@ void Document::after_layout_commit(Layout::BegunRead const& read, LayoutTreeChan
     bool const collects_boxes_with_auto_content_visibility = layout_tree_changed == LayoutTreeChanged::Yes
         && Layout::RustFFI::render_state_may_have_auto_content_visibility(layout_node_arena().host(), &read);
     Layout::RustFFI::render_state_invalidate_searchable_text(layout_node_arena().host());
-    if (auto* viewport = layout_node(read))
+    // A committed layout may be stale relative to style changes made while its frame was in flight. This callback
+    // reconciles caches against that committed tree, so use the node from the read rather than asking whether it is
+    // the latest tree for the document.
+    if (auto* viewport = unsafe_layout_node(read))
         viewport->invalidate_searchable_text_cache();
 
     set_needs_to_record_display_list();
@@ -4264,6 +4267,57 @@ void Document::set_accessibility_focus_target(GC::Ptr<Element> element)
     set_needs_repaint();
 }
 
+// https://wicg.github.io/scroll-to-text-fragment/#urls-in-ua-features
+void Document::update_text_fragment_indication_visibility(bool visible)
+{
+    auto navigable = this->navigable();
+    if (!navigable || !navigable->is_top_level_traversable() || !is_fully_active())
+        return;
+    page().client().page_did_set_text_fragment_indication_visibility(visible);
+}
+
+static void invalidate_text_fragment_range_paint(Vector<GC::Ref<Range>> const& ranges)
+{
+    // Text-fragment indication spans are generated while recording foreground paint commands.
+    // Invalidate the paintables covered by the ranges so cached commands cannot retain an old
+    // indication or omit a new one.
+    for (auto const& range : ranges) {
+        range->common_ancestor_container()->for_each_in_inclusive_subtree_of_type<Text>([&](Text& text) {
+            if (range->intersects_node(text))
+                text.set_needs_repaint(InvalidateDisplayList::PaintCommands);
+            return TraversalDecision::Continue;
+        });
+    }
+}
+
+// https://wicg.github.io/scroll-to-text-fragment/#applying-directives-to-a-document
+void Document::set_pending_text_directives(Optional<Vector<HTML::TextDirective>> directives)
+{
+    invalidate_text_fragment_range_paint(m_text_fragment_ranges);
+    m_text_fragment_ranges.clear();
+    m_pending_text_directives = move(directives);
+    if (m_pending_text_directives.has_value())
+        update_text_fragment_indication_visibility(!m_pending_text_directives->is_empty());
+}
+
+// https://wicg.github.io/scroll-to-text-fragment/#invoking-text-directives
+void Document::clear_pending_text_directives()
+{
+    // 1. Set pending text directives to null.
+    m_pending_text_directives.clear();
+    if (m_text_fragment_ranges.is_empty())
+        update_text_fragment_indication_visibility(false);
+}
+
+// https://wicg.github.io/scroll-to-text-fragment/#indicating-the-text-match
+void Document::dismiss_text_fragment_indication()
+{
+    invalidate_text_fragment_range_paint(m_text_fragment_ranges);
+    m_text_fragment_ranges.clear();
+    m_pending_text_directives.clear();
+    update_text_fragment_indication_visibility(false);
+}
+
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#the-indicated-part-of-the-document
 // https://wicg.github.io/scroll-to-text-fragment/#invoking-text-directives
 Document::IndicatedPart Document::determine_the_indicated_part()
@@ -4278,21 +4332,6 @@ Document::IndicatedPart Document::determine_the_indicated_part()
         // 1. Let ranges be a list that is the result of running the invoke text directives steps
         //    with text directives and the document.
         auto ranges = HTML::invoke_text_directives(*text_directives, *this);
-
-        // Text-fragment indication spans are generated while recording foreground paint commands.
-        // Invalidate both sets of paintables so cached commands cannot retain the old indication or
-        // omit the new one.
-        auto invalidate_text_fragment_range_paint = [](Vector<GC::Ref<Range>> const& ranges) {
-            for (auto const& range : ranges) {
-                range->common_ancestor_container()->for_each_in_inclusive_subtree_of_type<Text>([&](Text& text) {
-                    if (range->intersects_node(text)) {
-                        if (auto* layout_text = as_if<Layout::TextNode>(text.unsafe_layout_node()))
-                            layout_text->set_needs_repaint(InvalidateDisplayList::Yes);
-                    }
-                    return TraversalDecision::Continue;
-                });
-            }
-        };
         invalidate_text_fragment_range_paint(m_text_fragment_ranges);
         m_text_fragment_ranges.clear();
         m_text_fragment_ranges.extend(ranges);
@@ -4306,6 +4345,7 @@ Document::IndicatedPart Document::determine_the_indicated_part()
             // 2. Visually indicate each range in ranges in an implementation-defined way. The
             //    indication must not be observable from author script. See Indicating The Text Match.
             // NB: The ranges are retained privately and painted in the text-fragment indication pass.
+            update_text_fragment_indication_visibility(true);
 
             // 3. Set firstRange as document's indicated part, return.
             return GC::Ptr<Range> { first_range };
@@ -5790,6 +5830,12 @@ void Document::increment_number_of_things_delaying_the_load_event(Badge<Document
 {
     ++m_number_of_things_delaying_the_load_event;
     page().client().page_did_update_resource_count(m_number_of_things_delaying_the_load_event);
+
+    // A newly added load-event delayer can make this document's container wait again, including when that container
+    // lives in another process. Publish the new state immediately, and wake any same-process ancestor parser checks.
+    if (auto navigable = this->navigable())
+        navigable->report_state_to_remote_container();
+    schedule_html_parser_end_check();
 }
 
 void Document::decrement_number_of_things_delaying_the_load_event(Badge<DocumentLoadEventDelayer>)
@@ -7596,7 +7642,7 @@ void Document::restore_the_history_object_state(NonnullRefPtr<HTML::SessionHisto
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#update-document-for-history-step-application
-void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHistoryEntry> entry, bool do_not_reactivate, size_t script_history_length, size_t script_history_index, Optional<HTML::NavigationType> navigation_type, Optional<Vector<NonnullRefPtr<HTML::SessionHistoryEntry>>> entries_for_navigation_api, RefPtr<HTML::SessionHistoryEntry> previous_entry_for_activation, bool previous_entry_for_activation_document_is_initial_about_blank, bool allow_text_directive_scroll)
+void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHistoryEntry> entry, bool do_not_reactivate, size_t script_history_length, size_t script_history_index, Optional<HTML::NavigationType> navigation_type, Optional<Vector<NonnullRefPtr<HTML::SessionHistoryEntry>>> entries_for_navigation_api, RefPtr<HTML::SessionHistoryEntry> previous_entry_for_activation, bool previous_entry_for_activation_document_is_initial_about_blank, bool allow_text_directive_scroll, Optional<URL::Origin> initiator_origin, Optional<HTML::UserNavigationInvolvement> user_involvement)
 {
     // 1. Let documentIsNew be true if document's latest entry is null; otherwise false.
     auto document_is_new = !m_latest_entry;
@@ -7623,6 +7669,8 @@ void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHi
     //      or we are asynchronously finishing up a synchronous navigation which already synchronously set document's latest entry.
     //      The doNotReactivate argument distinguishes between these two cases.
     if (documents_entry_changed) {
+        bool text_directive_state_changed = false;
+
         // 1. Let oldURL be document's latest entry's URL.
         auto old_url = m_latest_entry ? m_latest_entry->url() : URL::URL {};
 
@@ -7637,6 +7685,7 @@ void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHi
             return nullptr;
         }();
         if (!latest_entry_directive_state || latest_entry_directive_state.ptr() != entry->directive_state().ptr()) {
+            text_directive_state_changed = true;
             // 1. Let fragment directive be entry's directive state's value.
             auto const& fragment_directive = entry->directive_state()->value();
 
@@ -7652,6 +7701,16 @@ void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHi
 
         // 4. Restore the history object state given document and entry.
         restore_the_history_object_state(entry);
+
+        // https://wicg.github.io/scroll-to-text-fragment/#restricting-the-text-fragment
+        // Check permission after applying the entry's directive state so the check sees this entry's pending directives.
+        if (user_involvement.has_value() && text_directive_state_changed)
+            allow_text_directive_scroll = check_if_a_text_directive_can_be_scrolled(initiator_origin, user_involvement);
+
+        // A traversal can reactivate an existing Document with a different directive state. Unlike a newly-created
+        // Document, it will not reach the parser-completion scrolling path, so retry it here.
+        if (!document_is_new && user_involvement.has_value() && text_directive_state_changed)
+            try_to_scroll_to_the_fragment(allow_text_directive_scroll);
 
         // 5. If documentIsNew is false, then:
         if (!document_is_new) {

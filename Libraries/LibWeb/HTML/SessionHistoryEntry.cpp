@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/CharacterTypes.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
 #include <LibJS/Runtime/Value.h>
-#include <AK/CharacterTypes.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/HTML/DocumentState.h>
 #include <LibWeb/HTML/SameDocumentNavigationEntry.h>
@@ -32,11 +32,10 @@ static CrossProcessId generate_directive_state_id()
         if (byte == '-')
             continue;
         auto const nibble = parse_ascii_hex_digit(byte);
-        VERIFY(nibble.has_value());
         if (digit_count < 16)
-            namespace_id = (namespace_id << 4) | *nibble;
+            namespace_id = (namespace_id << 4) | nibble;
         else
-            local_id = (local_id << 4) | *nibble;
+            local_id = (local_id << 4) | nibble;
         ++digit_count;
     }
     VERIFY(digit_count == 32);
@@ -133,8 +132,6 @@ Optional<SessionHistoryEntryPersistedState> create_session_history_entry_persist
     return SessionHistoryEntryPersistedState {
         .entry_identity = session_history_entry_identity(entry),
         .scroll_position_data = entry.scroll_position_data(),
-        .directive_state_id = entry.directive_state()->cross_process_id(),
-        .directive_state_value = entry.directive_state()->value(),
     };
 }
 
@@ -182,6 +179,8 @@ SameDocumentNavigationEntry create_same_document_navigation_entry(SessionHistory
         .navigation_api_id = entry.navigation_api_id(),
         .scroll_restoration_mode = entry.scroll_restoration_mode(),
         .scroll_position_data = entry.scroll_position_data(),
+        .directive_state_id = entry.directive_state()->cross_process_id(),
+        .directive_state_value = entry.directive_state()->value(),
     };
 }
 
@@ -234,14 +233,11 @@ RefPtr<DocumentState> get_or_create_document_state_from_ui_process(SessionHistor
 
 NonnullRefPtr<SessionHistoryEntry> create_session_history_entry_from_ui_process(SessionHistoryEntryDescriptor entry_descriptor, SessionHistoryEntryReconstructionState& reconstruction_state)
 {
-    auto directive_state = reconstruction_state.directive_states.get(entry_descriptor.directive_state_id);
-    if (!directive_state.has_value()) {
-        directive_state = DirectiveState::create(entry_descriptor.directive_state_id, entry_descriptor.directive_state_value);
-        reconstruction_state.directive_states.set(entry_descriptor.directive_state_id, *directive_state);
-    } else {
-        (*directive_state)->set_value(entry_descriptor.directive_state_value);
-    }
-    auto entry = SessionHistoryEntry::create(*directive_state);
+    auto& directive_state = reconstruction_state.directive_states.ensure(entry_descriptor.directive_state_id, [&] {
+        return DirectiveState::create(entry_descriptor.directive_state_id, entry_descriptor.directive_state_value);
+    });
+    directive_state->set_value(entry_descriptor.directive_state_value);
+    auto entry = SessionHistoryEntry::create(directive_state);
     apply_session_history_entry_descriptor_from_ui_process(*entry, entry_descriptor);
 
     auto document_state = get_or_create_document_state_from_ui_process(entry_descriptor.document_state, reconstruction_state);

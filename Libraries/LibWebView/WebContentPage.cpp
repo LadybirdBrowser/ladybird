@@ -855,6 +855,12 @@ void WebContentPage::did_update_editing_history_state(bool can_undo, bool can_re
     view().set_editing_history_state(can_undo, can_redo);
 }
 
+void WebContentPage::did_set_text_fragment_indication_visibility(bool visible)
+{
+    if (displays_tab())
+        view().set_text_fragment_indication_visibility({}, visible);
+}
+
 void WebContentPage::did_request_tooltip_override(Gfx::IntPoint position, ByteString title)
 {
     if (displays_tab()) {

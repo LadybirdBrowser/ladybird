@@ -2566,6 +2566,7 @@ static void create_navigation_params_by_fetching(
     request->set_policy_container(source_snapshot_params->source_policy_container);
     request->set_text_directive_user_activation(source_snapshot_params->text_directive_user_activation);
     request->set_browsing_context_group_has_multiple_contexts(source_snapshot_params->browsing_context_group_has_multiple_contexts);
+    active_document.set_text_directive_user_activation(false);
 
     // 4. If navigable is a top-level traversable, then set request's top-level navigation initiator origin to entry's
     //    document state's initiator origin.
@@ -3800,17 +3801,19 @@ void LocalNavigable::begin_navigation(PreparedNavigation navigation)
 
     // 23. In parallel, run these steps:
     auto source_snapshot = create_navigation_source_snapshot(source_snapshot_params);
-    source_snapshot.text_directive_user_activation = active_document()->text_directive_user_activation();
-    source_snapshot.browsing_context_group_has_multiple_contexts = active_document()->browsing_context_group_has_multiple_contexts();
-    source_snapshot.browsing_context_group_has_remote_contexts = active_document()->browsing_context_group_has_remote_contexts();
-    active_document()->set_text_directive_user_activation(false);
+    source_snapshot.text_directive_user_activation = active_document.text_directive_user_activation();
+    source_snapshot.browsing_context_group_has_multiple_contexts = active_document.browsing_context_group_has_multiple_contexts();
+    source_snapshot.browsing_context_group_has_remote_contexts = active_document.browsing_context_group_has_remote_contexts();
+    active_document.set_text_directive_user_activation(false);
 
     // Session history entry state is structured-serialized in WebContent, where the JavaScript VM lives. The UI
     // process owns the pending entry and document state created from these initial values.
     auto entry_defaults = SessionHistoryEntry::create();
+    auto stripped_url = url;
+    auto directive_state_value = remove_the_fragment_directive(stripped_url);
     auto start_request = NavigationStartRequest {
         .navigable_id = id(),
-        .url = url,
+        .url = stripped_url,
         .document_resource = document_resource,
         .request_referrer = Fetch::Infrastructure::Request::Referrer::Client,
         .request_referrer_policy = referrer_policy,
@@ -3827,11 +3830,13 @@ void LocalNavigable::begin_navigation(PreparedNavigation navigation)
         .navigation_api_state = entry_defaults->navigation_api_state(),
         .navigation_api_key = entry_defaults->navigation_api_key(),
         .navigation_api_id = entry_defaults->navigation_api_id(),
+        .directive_state_id = entry_defaults->directive_state()->cross_process_id(),
+        .directive_state_value = move(directive_state_value),
     };
     park_navigation_for_population(navigation_id, move(navigation));
 
     auto target = is_top_level_traversable() ? NavigationTarget::TopLevel : NavigationTarget::IFrame;
-    active_browsing_context()->page().client().request_navigation_start(*this, target, url, navigation_id, move(start_request));
+    active_browsing_context()->page().client().request_navigation_start(*this, target, stripped_url, navigation_id, move(start_request));
     return;
 }
 
@@ -3932,6 +3937,7 @@ void LocalNavigable::navigate_to_a_fragment(URL::URL const& url, HistoryHandling
     auto directive_state = active_session_history_entry()->directive_state();
     auto stripped_url = url;
     auto fragment_directive = remove_the_fragment_directive(stripped_url);
+    auto const has_fragment_directive = fragment_directive.has_value();
     if (fragment_directive.has_value())
         directive_state = DirectiveState::create(page().client().allocate_cross_process_id(), move(fragment_directive));
 
@@ -3953,6 +3959,12 @@ void LocalNavigable::navigate_to_a_fragment(URL::URL const& url, HistoryHandling
     // 5. If continue is false, then return.
     if (!continue_)
         return;
+
+    if (!has_fragment_directive && source_element) {
+        // AD-HOC: A trusted in-page link dismisses the current indication without changing the
+        //         directive state's identity in session history.
+        active_document()->dismiss_text_fragment_indication();
+    }
 
     save_persisted_state_to_active_session_history_entry();
     auto active_entry = active_session_history_entry();
@@ -4048,10 +4060,7 @@ void LocalNavigable::navigate_to_a_fragment(URL::URL const& url, HistoryHandling
             active_document()->scroll_to_the_fragment();
     }
 
-    // 21. Let traversable be navigable's traversable navigable.
-    auto traversable = traversable_navigable();
-
-    // 22. Append the following session history synchronous navigation steps involving navigable to traversable:
+    // Append the following session history synchronous navigation steps involving navigable to its traversable:
     // 1. Finalize a same-document navigation given traversable, navigable, historyEntry, entryToReplace,
     //    historyHandling, and userInvolvement.
     page().history_executor().finalize_same_document_navigation(*this, history_entry, entry_to_replace, history_handling, user_involvement, move(previous_entry_persisted_state));
@@ -4465,13 +4474,23 @@ void perform_url_and_history_update_steps(DOM::Document& document, URL::URL new_
     navigable->save_persisted_state_to_active_session_history_entry();
     auto previous_entry_persisted_state = create_session_history_entry_persisted_state(*active_entry);
 
+    // https://wicg.github.io/scroll-to-text-fragment/#the-fragment-directive
+    // Keep the directive in session history state while exposing only the stripped URL to the document.
+    auto directive_state = active_entry->directive_state();
+    bool has_fragment_directive = false;
+    if (auto const& fragment = new_url.fragment(); fragment.has_value())
+        has_fragment_directive = fragment->find(":~:"sv).has_value();
+    auto directive_state_value = remove_the_fragment_directive(new_url);
+    if (has_fragment_directive)
+        directive_state = DirectiveState::create(navigable->page().client().allocate_cross_process_id(), move(directive_state_value));
+
     // 3. Let newEntry be a new session history entry, with
     //      URL: newURL
     //      serialized state: if serializedData is not null, serializedData; otherwise activeEntry's classic history API state
     //      document state: activeEntry's document state
     //      scroll restoration mode: activeEntry's scroll restoration mode
     // FIXME: persisted user state: activeEntry's persisted user state
-    auto new_entry = SessionHistoryEntry::create();
+    auto new_entry = SessionHistoryEntry::create(directive_state);
     new_entry->set_url(new_url);
     new_entry->set_classic_history_api_state(serialized_data.value_or(active_entry->classic_history_api_state()));
     new_entry->set_document_state(active_entry->document_state());

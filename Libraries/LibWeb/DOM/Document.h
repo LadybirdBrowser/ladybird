@@ -45,8 +45,6 @@
 #include <LibWeb/DOM/ViewportClient.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/Fullscreen/FullscreenRequestType.h>
-#include <LibWeb/HTML/CrossOrigin/OpenerPolicy.h>
 #include <LibWeb/HTML/DocumentReadyState.h>
 #include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/GlobalEventHandlers.h>
@@ -75,8 +73,8 @@
 #include <LibWebCommon/HTML/CrossOrigin/OpenerPolicy.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
 #include <LibWebCommon/HTML/SandboxingFlagSet.h>
-#include <LibWebCommon/HTML/VisibilityState.h>
 #include <LibWebCommon/HTML/UserNavigationInvolvement.h>
+#include <LibWebCommon/HTML/VisibilityState.h>
 
 namespace Web::Compositor {
 
@@ -833,18 +831,10 @@ public:
     // https://wicg.github.io/scroll-to-text-fragment/#feature-detectability
     GC::Ref<FragmentDirective> fragment_directive();
     Optional<Vector<HTML::TextDirective>> const& pending_text_directives() const { return m_pending_text_directives; }
-    void set_pending_text_directives(Optional<Vector<HTML::TextDirective>> directives)
-    {
-        m_text_fragment_ranges.clear();
-        m_pending_text_directives = move(directives);
-    }
-    void clear_pending_text_directives() { m_pending_text_directives.clear(); }
+    void set_pending_text_directives(Optional<Vector<HTML::TextDirective>> directives);
+    void clear_pending_text_directives();
     ReadonlySpan<GC::Ref<Range>> text_fragment_ranges() const { return m_text_fragment_ranges; }
-    void dismiss_text_fragment_indication()
-    {
-        m_text_fragment_ranges.clear();
-        m_pending_text_directives.clear();
-    }
+    void dismiss_text_fragment_indication();
     bool pending_text_directive_scroll_allowed() const { return m_pending_text_directive_scroll_allowed; }
     bool check_if_a_text_directive_can_be_scrolled(Optional<URL::Origin> const&, Optional<HTML::UserNavigationInvolvement>);
     bool text_directive_user_activation() const { return m_text_directive_user_activation; }
@@ -1161,10 +1151,11 @@ public:
     struct TopOfTheDocument { };
     using IndicatedPart = Variant<Element*, GC::Ptr<Range>, TopOfTheDocument>;
     IndicatedPart determine_the_indicated_part();
+    void update_text_fragment_indication_visibility(bool visible);
 
     u32 unload_counter() const { return m_unload_counter; }
 
-    void update_for_history_step_application(NonnullRefPtr<HTML::SessionHistoryEntry>, bool do_not_reactivate, size_t script_history_length, size_t script_history_index, Optional<HTML::NavigationType> navigation_type, Optional<Vector<NonnullRefPtr<HTML::SessionHistoryEntry>>> entries_for_navigation_api = {}, RefPtr<HTML::SessionHistoryEntry> previous_entry_for_activation = {}, bool previous_entry_for_activation_document_is_initial_about_blank = false, bool allow_text_directive_scroll = false);
+    void update_for_history_step_application(NonnullRefPtr<HTML::SessionHistoryEntry>, bool do_not_reactivate, size_t script_history_length, size_t script_history_index, Optional<HTML::NavigationType> navigation_type, Optional<Vector<NonnullRefPtr<HTML::SessionHistoryEntry>>> entries_for_navigation_api = {}, RefPtr<HTML::SessionHistoryEntry> previous_entry_for_activation = {}, bool previous_entry_for_activation_document_is_initial_about_blank = false, bool allow_text_directive_scroll = false, Optional<URL::Origin> initiator_origin = {}, Optional<HTML::UserNavigationInvolvement> user_involvement = {});
 
     HashMap<URL::URL, GC::Ptr<HTML::SharedResourceRequest>>& shared_resource_requests();
     HashMap<URL::URL, GC::Ptr<HTML::SharedResourceRequest>> const& shared_resource_requests() const;

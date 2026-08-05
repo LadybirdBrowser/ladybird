@@ -32,20 +32,20 @@ Optional<String> remove_the_fragment_directive(URL::URL& url)
     if (raw_fragment.has_value()) {
         // 1. Let position be the string position variable pointing to the first code point of the first instance, if
         //    one exists, of the fragment directive delimiter in raw fragment, or past the end of raw fragment otherwise.
-        auto position = raw_fragment->find_byte_offset(":~:"sv);
+        auto position = raw_fragment->find(":~:"sv);
         if (position.has_value()) {
             // 2. Let new fragment be the code point substring by positions of raw fragment from the start of raw
             //    fragment to position.
-            auto new_fragment = MUST(raw_fragment->substring_from_byte_offset_with_shared_superstring(0, *position));
+            auto new_fragment = raw_fragment->substring_view(0, *position);
 
             // 3. Advance position by the code point length of the fragment directive delimiter.
             *position += 3;
 
             // 4. If position does not point past the end of raw fragment:
-            if (*position < raw_fragment->byte_count()) {
+            if (*position < raw_fragment->length()) {
                 // 1. Set fragment directive to the code point substring to the end of the string raw fragment starting
                 //    from position.
-                fragment_directive = MUST(raw_fragment->substring_from_byte_offset_with_shared_superstring(*position));
+                fragment_directive = MUST(String::from_utf8(raw_fragment->substring_view(*position)));
             }
 
             // 5. Set url's fragment to new fragment.
@@ -676,7 +676,8 @@ static void advance_a_range_start_to_the_next_non_whitespace_position(SearchRang
 Optional<GC::Ref<DOM::Range>> find_a_range_from_a_text_directive(TextDirective const& parsed_values, DOM::Document& document)
 {
     document.update_layout(DOM::UpdateLayoutReason::DocumentFindMatchingText);
-    auto* viewport = document.layout_node();
+    Layout::ForcedReadScope read { document };
+    auto* viewport = document.layout_node(read);
     if (!viewport)
         return {};
 

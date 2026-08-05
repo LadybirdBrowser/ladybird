@@ -254,14 +254,7 @@ fn compute_render_spans<O: Observer>(
             .text_fragment_indications
             .iter()
             .filter(|range| range.text_node == fragment.layout_node)
-            .filter_map(|range| {
-                text_fragment::selection_offsets_for_dom_range(
-                    arena,
-                    fragment,
-                    range.start,
-                    range.end,
-                )
-            })
+            .filter_map(|range| text_fragment::selection_offsets_for_dom_range(arena, fragment, range.start, range.end))
             .filter(|offsets| offsets.start != offsets.end)
             .collect();
         if highlights.is_empty() && indication_offsets.is_empty() {
@@ -279,7 +272,11 @@ fn compute_render_spans<O: Observer>(
         }
 
         let mut boundaries = vec![0, fragment.length_in_code_units];
-        boundaries.extend(indication_offsets.iter().flat_map(|offsets| [offsets.start, offsets.end]));
+        boundaries.extend(
+            indication_offsets
+                .iter()
+                .flat_map(|offsets| [offsets.start, offsets.end]),
+        );
         for (_, ranges, _) in &highlights {
             boundaries.extend(ranges.iter().flat_map(|offsets| [offsets.start, offsets.end]));
         }
@@ -453,7 +450,10 @@ pub(crate) fn paint_fragments<O: Observer>(recorder: &mut PaintRecorder<'_, O>, 
     for span in &spans {
         paint_text_shadow(recorder, block, span, &span.shadow_layers);
     }
-    for span in spans.iter().filter(|span| span.text_fragment_indication_background_color.is_some()) {
+    for span in spans
+        .iter()
+        .filter(|span| span.text_fragment_indication_background_color.is_some())
+    {
         let background_color = span.text_fragment_indication_background_color.unwrap();
         let indication_rect = highlight_rect(recorder, block, span);
         let converter = recorder.converter;

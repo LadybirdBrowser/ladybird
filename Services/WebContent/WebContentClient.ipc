@@ -115,6 +115,7 @@ endpoint WebContentClient routed by Web::PageId page_id
     did_request_cursor_change(Web::PageId page_id, Gfx::Cursor cursor) =|
     did_change_title(Web::PageId page_id, Utf16String title) =|
     did_update_editing_history_state(Web::PageId page_id, bool can_undo, bool can_redo) =|
+    did_set_text_fragment_indication_visibility(Web::PageId page_id, bool visible) =|
     did_request_tooltip_override(Web::PageId page_id, Gfx::IntPoint position, ByteString title) =|
     did_stop_tooltip_override(Web::PageId page_id) =|
     did_enter_tooltip_area(Web::PageId page_id, ByteString title) =|

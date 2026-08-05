@@ -304,6 +304,8 @@ void CanonicalNavigable::begin_navigation(Web::HTML::PreparedNavigationDescripto
         .navigation_api_state = Web::HTML::storage_serialization_record_for_undefined(),
         .navigation_api_key = generate_a_random_uuid(),
         .navigation_api_id = generate_a_random_uuid(),
+        .directive_state_id = {},
+        .directive_state_value = {},
     };
     auto retry = prepare_navigation_to_retry(start_request);
     set_ongoing_navigation({

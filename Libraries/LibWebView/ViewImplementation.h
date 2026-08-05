@@ -117,7 +117,9 @@ public:
     void did_stop_loading(Badge<CanonicalTraversable>, bool stopped_navigation);
 
     void set_url(Badge<WebContentPage>, URL::URL url) { set_url(move(url)); }
+    void set_text_fragment_indication_visibility(Badge<WebContentPage>, bool);
     URL::URL const& url() const { return m_url; }
+    URL::URL const& displayed_url() const { return m_displayed_url; }
 
     void set_title(Badge<WebContentPage>, Utf16String title);
     Utf16String const& title() const { return m_title; }
@@ -584,6 +586,7 @@ protected:
     explicit ViewImplementation(IsPrivate = IsPrivate::No);
 
     void set_url(URL::URL);
+    void update_displayed_url();
     void did_start_navigation();
     void did_finish_navigation();
     void did_end_uncommitted_navigation(StringView reason);
@@ -695,6 +698,8 @@ protected:
     NonnullRefPtr<BrowsingSession> m_session;
 
     URL::URL m_url { URL::about_blank() };
+    URL::URL m_displayed_url { URL::about_blank() };
+    bool m_text_fragment_indication_is_visible { false };
     Utf16String m_title;
     Optional<String> m_favicon_hash;
 
