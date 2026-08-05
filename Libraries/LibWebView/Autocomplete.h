@@ -108,7 +108,7 @@ public:
     void record_engagement(OmniboxEngagement);
 
 private:
-    static ErrorOr<Vector<String>> received_autocomplete_respsonse(AutocompleteEngine const&, Optional<ByteString const&> content_type, StringView response);
+    static ErrorOr<Vector<String>> received_autocomplete_response(AutocompleteEngine const&, Optional<ByteString const&> content_type, StringView response);
     void start_remote_query(AutocompleteQueryID, AutocompleteEngine, String query);
     void local_query_complete(AutocompleteQueryID, Vector<AutocompleteSuggestion>);
     void deliver_current_result();
