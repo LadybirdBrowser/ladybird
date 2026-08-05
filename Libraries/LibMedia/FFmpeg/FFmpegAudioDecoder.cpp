@@ -100,6 +100,11 @@ DecoderErrorOr<void> FFmpegAudioDecoder::receive_coded_data(CodedFrame const& co
     m_packet->pts = coded_frame.presentation_timestamp().to_microseconds();
     m_packet->dts = coded_frame.decode_timestamp().to_microseconds();
 
+    ScopeGuard clear_packet_side_data { [&] { av_packet_free_side_data(m_packet); } };
+    auto new_codec_configuration = coded_frame.new_codec_configuration();
+    if (!new_codec_configuration.is_empty())
+        TRY(add_new_extradata_to_packet(*m_packet, new_codec_configuration));
+
     auto result = avcodec_send_packet(m_codec_context, m_packet);
     switch (result) {
     case 0:
