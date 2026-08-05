@@ -744,3 +744,32 @@ TEST_CASE(authority_state_lots_of_at_symbols)
     auto horror_url = MUST(String::formatted("ws::{}", many_at_symbols));
     EXPECT(!URL::Parser::basic_parse(horror_url).has_value());
 }
+
+TEST_CASE(host_is_loopback_or_localhost)
+{
+    auto host_of = [](StringView input) {
+        auto url = URL::Parser::basic_parse(input);
+        VERIFY(url.has_value());
+        VERIFY(url->host().has_value());
+        return url->host().value();
+    };
+
+    EXPECT(host_of("http://localhost"sv).is_loopback_or_localhost());
+    EXPECT(host_of("http://localhost."sv).is_loopback_or_localhost());
+    EXPECT(host_of("http://foo.localhost"sv).is_loopback_or_localhost());
+    EXPECT(host_of("http://foo.localhost."sv).is_loopback_or_localhost());
+    EXPECT(host_of("http://127.0.0.1"sv).is_loopback_or_localhost());
+    EXPECT(host_of("http://127.255.255.255"sv).is_loopback_or_localhost());
+    EXPECT(host_of("http://[::1]"sv).is_loopback_or_localhost());
+
+    EXPECT(!host_of("http://localhost4"sv).is_loopback_or_localhost());
+    EXPECT(!host_of("http://localhost6"sv).is_loopback_or_localhost());
+    EXPECT(!host_of("http://localhost.example"sv).is_loopback_or_localhost());
+    EXPECT(!host_of("http://126.255.255.255"sv).is_loopback_or_localhost());
+    EXPECT(!host_of("http://128.0.0.1"sv).is_loopback_or_localhost());
+    EXPECT(!host_of("http://[::2]"sv).is_loopback_or_localhost());
+    EXPECT(!host_of("http://[::ffff:127.0.0.1]"sv).is_loopback_or_localhost());
+    EXPECT(!host_of("http://[fe80::1]"sv).is_loopback_or_localhost());
+    EXPECT(!host_of("http://example.com"sv).is_loopback_or_localhost());
+    EXPECT(!host_of("http://0.0.0.0"sv).is_loopback_or_localhost());
+}
