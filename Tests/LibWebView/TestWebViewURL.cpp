@@ -268,6 +268,23 @@ TEST_CASE(location_to_search_or_url)
     expect_url_equals_sanitized_url("http://[::1]:8000/"sv, "[::1]:8000"sv);
     expect_url_equals_sanitized_url("http://0.0.0.0:8000/"sv, "0.0.0.0:8000"sv); // The unspecified address reaches loopback in practice.
 
+    // Private-use and link-local addresses also get the http guess. Like loopback hosts, they can't obtain publicly-
+    // trusted TLS certs.
+    expect_url_equals_sanitized_url("http://192.168.0.42:8000/"sv, "192.168.0.42:8000"sv);
+    expect_url_equals_sanitized_url("http://10.0.0.5:3000/"sv, "10.0.0.5:3000"sv);
+    expect_url_equals_sanitized_url("http://172.16.0.1/"sv, "172.16.0.1"sv);
+    expect_url_equals_sanitized_url("http://172.31.255.254/"sv, "172.31.255.254"sv);
+    expect_url_equals_sanitized_url("http://169.254.1.1/"sv, "169.254.1.1"sv);
+    expect_url_equals_sanitized_url("http://[fe80::1]/"sv, "[fe80::1]"sv);
+    expect_url_equals_sanitized_url("http://[fd00::1]:8080/"sv, "[fd00::1]:8080"sv);
+
+    // Addresses just outside those ranges keep the https guess.
+    expect_url_equals_sanitized_url("https://172.32.0.1/"sv, "172.32.0.1"sv);
+    expect_url_equals_sanitized_url("https://11.0.0.1/"sv, "11.0.0.1"sv);
+    expect_url_equals_sanitized_url("https://100.64.0.1/"sv, "100.64.0.1"sv); // Shared space (CGNAT) is not local.
+    expect_url_equals_sanitized_url("https://8.8.8.8/"sv, "8.8.8.8"sv);
+    expect_url_equals_sanitized_url("https://[2001:db8::1]/"sv, "[2001:db8::1]"sv);
+
     // An explicitly typed scheme is never rewritten.
     expect_url_equals_sanitized_url("https://localhost:8000/"sv, "https://localhost:8000"sv);
     expect_url_equals_sanitized_url("https://127.0.0.1/"sv, "https://127.0.0.1"sv);
