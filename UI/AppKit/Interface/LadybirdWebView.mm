@@ -4,12 +4,16 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Function.h>
+#include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
+#include <AK/RefCounted.h>
 #include <Interface/LadybirdWebViewBridge.h>
 #include <LibURL/URL.h>
 #include <LibWakeLock/DisplaySleepInhibitor.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/URL.h>
 #include <LibWebView/Utilities.h>
 
 #import <Application/ApplicationDelegate.h>
@@ -39,6 +43,25 @@ struct HideCursor {
     {
         [NSCursor unhide];
     }
+};
+
+class ExternalURLConfirmation final : public RefCounted<ExternalURLConfirmation> {
+public:
+    explicit ExternalURLConfirmation(Function<void(bool)> on_complete)
+        : m_on_complete(move(on_complete))
+    {
+    }
+
+    void complete(bool accepted)
+    {
+        if (!m_on_complete)
+            return;
+        auto on_complete = move(m_on_complete);
+        on_complete(accepted);
+    }
+
+private:
+    Function<void(bool)> m_on_complete;
 };
 
 static Optional<u64> display_id_for_screen(NSScreen* screen)
@@ -119,6 +142,7 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
 @property (nonatomic, strong) NSMenu* select_dropdown;
 @property (nonatomic, strong) NSTextField* status_label;
 @property (nonatomic, strong) NSAlert* dialog;
+@property (nonatomic, strong) NSAlert* external_url_confirmation_dialog;
 @property (nonatomic, strong) NSMagnificationGestureRecognizer* pinch_recognizer;
 
 // NSEvent does not provide a way to mark whether it has been handled, nor can we attach user data to the event. So
@@ -228,7 +252,7 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
 
 - (void)loadURL:(URL::URL const&)url
 {
-    m_web_view_bridge->load(url);
+    m_web_view_bridge->load_from_user_input(url);
 }
 
 - (WebView::ViewImplementation&)view
@@ -466,10 +490,13 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
         }
 
         if (auto urls = Ladybird::drag_event_url_list(event); !urls.is_empty()) {
-            [self loadURL:urls[0]];
+            self->m_web_view_bridge->load_from_user_input(urls[0]);
 
             for (size_t i = 1; i < urls.size(); ++i) {
-                [self.observer onCreateNewTab:urls[i] activateTab:Web::HTML::ActivateTab::No];
+                if (WebView::is_url_handled_internally(urls[i]))
+                    [self.observer onCreateNewTab:urls[i] activateTab:Web::HTML::ActivateTab::No];
+                else
+                    self->m_web_view_bridge->open_url_in_new_tab(urls[i], Web::HTML::ActivateTab::No);
             }
         }
     };
@@ -728,6 +755,41 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
 
         auto* input = (NSTextField*)[self.dialog accessoryView];
         [input setStringValue:ns_message];
+    };
+
+    m_web_view_bridge->on_request_external_url_confirmation = [weak_self](auto const& url, auto const& initiator_origin, auto const& handler, auto on_complete) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil || self.dialog != nil || self.external_url_confirmation_dialog != nil) {
+            on_complete(false);
+            return;
+        }
+
+        auto initiator = initiator_origin.is_opaque() ? "This page"_string : initiator_origin.serialize();
+        auto application_name = handler.application_name().is_empty() ? "another application"sv : handler.application_name().bytes_as_string_view();
+        auto title = handler.application_name().is_empty() ? "Open external application?"_string : MUST(String::formatted("Open {}?", application_name));
+        auto message = MUST(String::formatted("{} wants to open a {} link with {}.", initiator, url.scheme(), application_name));
+        auto open_button_text = handler.application_name().is_empty() ? "Open"_string : MUST(String::formatted("Open {}", application_name));
+
+        auto completion = adopt_ref(*new ExternalURLConfirmation(AK::move(on_complete)));
+
+        self.external_url_confirmation_dialog = [[NSAlert alloc] init];
+        [[self.external_url_confirmation_dialog addButtonWithTitle:Ladybird::string_to_ns_string(open_button_text)] setTag:NSModalResponseOK];
+        [[self.external_url_confirmation_dialog addButtonWithTitle:@"Cancel"] setTag:NSModalResponseCancel];
+        [self.external_url_confirmation_dialog setMessageText:Ladybird::string_to_ns_string(title)];
+        [self.external_url_confirmation_dialog setInformativeText:Ladybird::string_to_ns_string(message)];
+
+        auto* window = [self window];
+        if (window == nil) {
+            self.external_url_confirmation_dialog = nil;
+            completion->complete(false);
+            return;
+        }
+
+        [self.external_url_confirmation_dialog beginSheetModalForWindow:window
+                                                      completionHandler:^(NSModalResponse response) {
+                                                          self.external_url_confirmation_dialog = nil;
+                                                          completion->complete(response == NSModalResponseOK);
+                                                      }];
     };
 
     m_web_view_bridge->on_request_accept_dialog = [weak_self]() {

@@ -21,6 +21,7 @@
 #endif
 
 #if defined(AK_OS_MACOS)
+#    include <UI/AppKit/Utilities/ExternalURLHandler.h>
 #    include <UI/Qt/MacWindow.h>
 #endif
 
@@ -769,6 +770,8 @@ void Application::resolve_external_url_handler(URL::URL const& url, WebView::Ext
 {
 #if defined(AK_OS_LINUX)
     Ladybird::resolve_external_url_handler(url, ak_string_from_qstring(QGuiApplication::desktopFileName()), move(callback));
+#elif defined(AK_OS_MACOS)
+    Ladybird::resolve_external_url_handler(url, move(callback));
 #else
     (void)url;
     callback(nullptr);
