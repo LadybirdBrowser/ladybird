@@ -128,11 +128,7 @@ public:
     String codec_id() const { return m_codec_id; }
     void set_codec_id(String const& codec_id) { m_codec_id = codec_id; }
     ReadonlyBytes codec_private_data() const LIFETIME_BOUND { return m_codec_private_data.span(); }
-    ErrorOr<void> set_codec_private_data(ReadonlyBytes codec_private_data)
-    {
-        m_codec_private_data = TRY(FixedArray<u8>::create(codec_private_data));
-        return {};
-    }
+    void set_codec_private_data(FixedArray<u8>&& codec_private_data) { m_codec_private_data = move(codec_private_data); }
     double timestamp_scale() const { return m_timestamp_scale; }
     void set_timestamp_scale(double timestamp_scale) { m_timestamp_scale = timestamp_scale; }
     u64 codec_delay() const { return m_codec_delay; }

@@ -500,7 +500,7 @@ DecoderErrorOr<NonnullRefPtr<TrackEntry>> Reader::parse_track_entry(Streamer& st
             break;
         case TRACK_CODEC_PRIVATE_ID: {
             auto codec_private_data = TRY(streamer.read_raw_octets(TRY(streamer.read_variable_size_integer())));
-            DECODER_TRY_ALLOC(track_entry->set_codec_private_data(codec_private_data));
+            track_entry->set_codec_private_data(move(codec_private_data));
             dbgln_if(MATROSKA_TRACE_DEBUG, "Read Track's CodecPrivateData element");
             break;
         }

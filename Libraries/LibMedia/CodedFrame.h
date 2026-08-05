@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/ByteBuffer.h>
+#include <AK/FixedArray.h>
 #include <AK/Time.h>
 #include <LibMedia/FrameFlags.h>
 
@@ -14,7 +14,7 @@ namespace Media {
 
 class CodedFrame final {
 public:
-    CodedFrame(AK::Duration presentation_timestamp, AK::Duration decode_timestamp, AK::Duration duration, FrameFlags flags, ByteBuffer&& data)
+    CodedFrame(AK::Duration presentation_timestamp, AK::Duration decode_timestamp, AK::Duration duration, FrameFlags flags, FixedArray<u8>&& data)
         : m_presentation_timestamp(presentation_timestamp)
         , m_decode_timestamp(decode_timestamp)
         , m_duration(duration)
@@ -23,19 +23,35 @@ public:
     {
     }
 
+    CodedFrame(CodedFrame const& other)
+        : CodedFrame(other.m_presentation_timestamp, other.m_decode_timestamp, other.m_duration, other.m_flags, MUST(other.m_data.clone()))
+    {
+    }
+
+    CodedFrame(CodedFrame&&) = default;
+
+    CodedFrame& operator=(CodedFrame const& other)
+    {
+        if (this != &other)
+            *this = CodedFrame(other);
+        return *this;
+    }
+
+    CodedFrame& operator=(CodedFrame&&) = default;
+
     AK::Duration presentation_timestamp() const { return m_presentation_timestamp; }
     AK::Duration decode_timestamp() const { return m_decode_timestamp; }
     AK::Duration duration() const { return m_duration; }
     FrameFlags flags() const { return m_flags; }
     bool is_keyframe() const { return has_flag(m_flags, FrameFlags::Keyframe); }
-    ByteBuffer const& data() const { return m_data; }
+    ReadonlyBytes data() const LIFETIME_BOUND { return m_data.span(); }
 
 private:
     AK::Duration m_presentation_timestamp;
     AK::Duration m_decode_timestamp;
     AK::Duration m_duration;
     FrameFlags m_flags;
-    ByteBuffer m_data;
+    FixedArray<u8> m_data;
 };
 
 }

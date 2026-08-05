@@ -534,9 +534,7 @@ DecoderErrorOr<CodedFrame> FFmpegDemuxer::get_next_sample_for_track(Track const&
             continue;
         }
 
-        // Copy the packet data so that we have a permanent reference to it whilst the Sample is alive, which allows us
-        // to wipe the packet afterwards.
-        auto packet_data = DECODER_TRY_ALLOC(ByteBuffer::copy(packet.data, packet.size));
+        auto packet_data = DECODER_TRY_ALLOC(FixedArray<u8>::create(ReadonlyBytes { packet.data, static_cast<size_t>(packet.size) }));
 
         if (track_context.pending_timestamp_offset.has_value() && packet.pts == 0)
             track_context.timestamp_offset = track_context.pending_timestamp_offset.release_value();

@@ -107,7 +107,7 @@ FFmpegVideoDecoder::~FFmpegVideoDecoder()
 
 DecoderErrorOr<void> FFmpegVideoDecoder::receive_coded_data(CodedFrame const& coded_frame)
 {
-    auto coded_data = coded_frame.data().span();
+    auto coded_data = coded_frame.data();
     VERIFY(coded_data.size() < NumericLimits<int>::max());
 
     auto duration = coded_frame.duration();
