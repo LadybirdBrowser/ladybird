@@ -239,7 +239,7 @@ u64 FileDownloader::adopt_download(IsPrivate is_private, URL::URL const& url, Le
             return download_id;
     }
 
-    auto request = Application::request_server_client().adopt_request(request_server_client_id, request_server_request_id);
+    auto request = Application::request_server_client(is_private).adopt_request(request_server_client_id, request_server_request_id);
     if (!request) {
         fail_download(download_id, "Unable to adopt request to download file"_string);
         return download_id;
