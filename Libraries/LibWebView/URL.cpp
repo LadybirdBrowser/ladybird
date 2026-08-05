@@ -58,17 +58,30 @@ static bool has_valid_explicit_port(StringView input)
 // AD-HOC: When guessing the scheme for schemeless input, we prefer "https" — except for hosts that can't generally
 //         obtain publicly-trusted TLS certs, and whose traffic never leaves the machine: loopback addresses and
 //         localhost names (which the Secure Contexts spec treats as "potentially trustworthy", even over plain http),
-//         as well as the unspecified addresses 0.0.0.0 and [::] (which reach loopback in practice). Gecko and Blink
-//         likewise exempt all of those hosts from their HTTPS-upgrade machinery.
+//         as well as the unspecified addresses 0.0.0.0 and [::] (which reach loopback in practice), and private-use and
+//         link-local addresses. Gecko and Blink likewise exempt all of those hosts from their HTTPS-upgrade machinery.
 static bool should_guess_http_scheme_for_host(URL::Host const& host)
 {
     if (host.is_loopback_or_localhost())
         return true;
 
-    if (host.has<IPv4Address>() && host.get<IPv4Address>().to_u32() == 0)
-        return true;
-    if (host.has<IPv6Address>() && host.get<IPv6Address>().is_zero())
-        return true;
+    // NOTE: For hosts produced by the URL parser, to_u32() is the URL spec's IPv4 number — with the first octet in the
+    //       most-significant byte.
+    if (host.has<IPv4Address>()) {
+        u32 const value = host.get<IPv4Address>().to_u32();
+        return (value >> 24) == 0x00    // 0.0.0.0/8: "this network" (RFC 791).
+            || (value >> 24) == 0x0a    // 10.0.0.0/8: private use (RFC 1918).
+            || (value >> 20) == 0xac1   // 172.16.0.0/12: private use (RFC 1918).
+            || (value >> 16) == 0xc0a8  // 192.168.0.0/16: private use (RFC 1918).
+            || (value >> 16) == 0xa9fe; // 169.254.0.0/16: link-local (RFC 3927).
+    }
+
+    if (host.has<IPv6Address>()) {
+        auto const& address = host.get<IPv6Address>();
+        return address.is_zero()                // [::]: the unspecified address.
+            || (address[0] & 0xfe00) == 0xfc00  // fc00::/7: unique local (RFC 4193).
+            || (address[0] & 0xffc0) == 0xfe80; // fe80::/10: link-local (RFC 4291).
+    }
 
     return false;
 }
