@@ -747,9 +747,11 @@ void WebContentClient::did_finish_loading(u64 page_id, Optional<Utf16String> nav
         view->m_loading_navigation_id.clear();
         view->m_loading_url.clear();
         auto client_url = url;
-        // Browser-generated pages can finish with an internal document URL.
-        // Keep exposing the URL accepted at load start for suppressed loads.
-        if (view->m_should_suppress_history_for_current_load)
+        // Browser-generated pages can finish with an internal document URL. Keep exposing the URL accepted at load
+        // start for suppressed loads. Documents created for inline error content finish with about:error; keep the URL
+        // the view already shows, which for a failed navigation is the URL that failed to load, including any redirects
+        // the navigation was taken through. Firefox/Chromium likewise never surface their internal error-document URLs.
+        if (view->m_should_suppress_history_for_current_load || url == URL::about_error())
             client_url = view->url();
         else
             view->set_url({}, url);

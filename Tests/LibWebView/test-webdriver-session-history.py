@@ -150,6 +150,12 @@ class TestPageHandler(http.server.BaseHTTPRequestHandler):
             self.end_headers()
             return
 
+        if self.path == "/redirect-to-tls-failure":
+            self.send_response(302)
+            self.send_header("Location", f"https://127.0.0.1:{server_port}/tls-failure")
+            self.end_headers()
+            return
+
         if self.path == "/redirect-to-navigation-blocked":
             self.send_response(302)
             self.send_header("Location", f"http://localhost:{server_port}/navigation-blocked")
@@ -2234,6 +2240,54 @@ def run_webdriver_fragment_navigation_test(webdriver_port, url):
     request(webdriver_port, "DELETE", f"/session/{session_id}")
 
 
+def run_failed_redirected_navigation_shows_failed_url_test(webdriver_port, page_port, url_a):
+    url_redirect_to_tls_failure = f"http://localhost:{page_port}/redirect-to-tls-failure"
+    url_tls_failure = f"https://127.0.0.1:{page_port}/tls-failure"
+    session_id = create_session(webdriver_port)
+    log = [f"failed redirected navigation initial: {current_url(webdriver_port, session_id)}"]
+    load_url_from_ui(webdriver_port, session_id, url_a)
+    expect_url(webdriver_port, session_id, "after failed redirected navigation setup /a", url_a, log)
+
+    load_url_from_ui(webdriver_port, session_id, url_redirect_to_tls_failure)
+
+    def error_page_history_converged(snapshot):
+        ui = snapshot["ui"]
+        return (
+            history_entry_urls(ui) == [url_a, url_tls_failure]
+            and ui["webContentHistoryMatchesUI"]
+            and not ui["waitingToSeedWebContent"]
+            and not ui["waitingForWebContentSeedAck"]
+            and not ui["ignoringWebContentUpdatesUntilSeed"]
+            and not ui["reseedAfterCurrentHistoryLoad"]
+        )
+
+    snapshot = wait_for_session_history(
+        webdriver_port,
+        session_id,
+        "after failed redirected navigation",
+        error_page_history_converged,
+        log,
+    )
+    ui_current_url = snapshot["ui"]["currentURL"]
+    if ui_current_url != url_tls_failure:
+        raise AssertionError(
+            f"Expected the UI to show the failed URL {url_tls_failure}, got {ui_current_url}\n" + "\n".join(log)
+        )
+
+    web_content_entry_urls = history_entry_urls(snapshot["webContent"])
+    if web_content_entry_urls != [url_a, url_tls_failure]:
+        raise AssertionError(
+            f"Expected WebContent entries [{url_a}, {url_tls_failure}], got {web_content_entry_urls}\n" + "\n".join(log)
+        )
+
+    request(webdriver_port, "DELETE", f"/session/{session_id}")
+
+
+def run_self_contained_navigation_tests(webdriver_port, page_port, url_a):
+    run_webdriver_fragment_navigation_test(webdriver_port, url_a)
+    run_failed_redirected_navigation_shows_failed_url_test(webdriver_port, page_port, url_a)
+
+
 def expect_cross_site_fragment_navigation_from_ui_loads_document(
     webdriver_port,
     session_id,
@@ -2808,7 +2862,7 @@ def run_test(webdriver_binary):
         request(webdriver_port, "DELETE", f"/session/{session_id}")
         session_id = None
 
-        run_webdriver_fragment_navigation_test(webdriver_port, url_a)
+        run_self_contained_navigation_tests(webdriver_port, page_port, url_a)
 
         session_id = create_session(webdriver_port)
         log = [f"duplicate URL crash recovery initial: {current_url(webdriver_port, session_id)}"]
