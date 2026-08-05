@@ -7,6 +7,8 @@
  */
 
 #include <AK/CharacterTypes.h>
+#include <AK/IPv4Address.h>
+#include <AK/IPv6Address.h>
 #include <AK/String.h>
 #include <AK/StringBuilder.h>
 #include <LibFileSystem/FileSystem.h>
@@ -17,6 +19,24 @@
 #include <LibWebView/URL.h>
 
 namespace WebView {
+
+// AD-HOC: When guessing the scheme for schemeless input, we prefer "https" — except for hosts that can't generally
+//         obtain publicly-trusted TLS certs, and whose traffic never leaves the machine: loopback addresses and
+//         localhost names (which the Secure Contexts spec treats as "potentially trustworthy", even over plain http),
+//         as well as the unspecified addresses 0.0.0.0 and [::] (which reach loopback in practice). Gecko and Blink
+//         likewise exempt all of those hosts from their HTTPS-upgrade machinery.
+static bool should_guess_http_scheme_for_host(URL::Host const& host)
+{
+    if (host.is_loopback_or_localhost())
+        return true;
+
+    if (host.has<IPv4Address>() && host.get<IPv4Address>().to_u32() == 0)
+        return true;
+    if (host.has<IPv6Address>() && host.get<IPv6Address>().is_zero())
+        return true;
+
+    return false;
+}
 
 Optional<URL::URL> sanitize_url(StringView location, Optional<SearchEngine> const& search_engine, AppendTLD append_tld)
 {
@@ -37,11 +57,20 @@ Optional<URL::URL> sanitize_url(StringView location, Optional<SearchEngine> cons
     }
 
     bool https_scheme_was_guessed = false;
+    ByteString schemeless_location;
 
     auto url = URL::create_with_url_or_path(location);
 
     if (!url.has_value() || url->scheme() == "localhost"sv) {
-        url = URL::create_with_url_or_path(ByteString::formatted("https://{}", location));
+        schemeless_location = location;
+
+        // AD-HOC: A bare IPv6 address can't be a URL host until it's wrapped in square brackets. Wrap it here, so that
+        //         e.g., "::1" becomes a navigation — instead of falling through to a search. Chromium's omnibox
+        //         likewise classifies bare IPv6 addresses as navigations.
+        if (auto ipv6_address = IPv6Address::from_string(location); ipv6_address.has_value())
+            schemeless_location = ByteString::formatted("[{}]", MUST(ipv6_address->to_string()));
+
+        url = URL::create_with_url_or_path(ByteString::formatted("https://{}", schemeless_location));
         if (!url.has_value())
             return search_url_or_error();
 
@@ -61,17 +90,25 @@ Optional<URL::URL> sanitize_url(StringView location, Optional<SearchEngine> cons
 
         // https://datatracker.ietf.org/doc/html/rfc2606
         static constexpr Array RESERVED_TLDS { ".test"sv, ".example"sv, ".invalid"sv, ".localhost"sv };
-        if (any_of(RESERVED_TLDS, [&](StringView const& tld) { return domain.byte_count() > tld.length() && domain.ends_with_bytes(tld); }))
-            return url;
+        bool has_reserved_tld = any_of(RESERVED_TLDS, [&](StringView const& tld) { return domain.byte_count() > tld.length() && domain.ends_with_bytes(tld); });
 
-        auto public_suffix = URL::PublicSuffixData::find_matching_public_suffix(domain, URL::PublicSuffixData::IncludeStarRule::No);
-        if (!public_suffix.has_value() || *public_suffix == domain) {
-            if (append_tld == AppendTLD::Yes)
-                url->set_host(MUST(String::formatted("{}.com", domain)));
-            else if (https_scheme_was_guessed && domain != "localhost"sv)
-                return search_url_or_error();
+        if (!has_reserved_tld) {
+            auto public_suffix = URL::PublicSuffixData::find_matching_public_suffix(domain, URL::PublicSuffixData::IncludeStarRule::No);
+            if (!public_suffix.has_value() || *public_suffix == domain) {
+                if (append_tld == AppendTLD::Yes)
+                    url->set_host(MUST(String::formatted("{}.com", domain)));
+                else if (https_scheme_was_guessed && !host->is_loopback_or_localhost())
+                    return search_url_or_error();
+            }
         }
     }
+
+    // AD-HOC: We guessed "https" above without knowing the host. Now that the host is known, guess "http" instead where
+    //         https can't reasonably work. Reparsing the input keeps intact a port that's default for one scheme but
+    //         not the other. An AppendTLD::Yes rewrite above never produces a host for which this branch is taken — so,
+    //         the rewrite can't be lost by reparsing.
+    if (https_scheme_was_guessed && url->host().has_value() && should_guess_http_scheme_for_host(*url->host()))
+        url = URL::create_with_url_or_path(ByteString::formatted("http://{}", schemeless_location));
 
     return url;
 }
