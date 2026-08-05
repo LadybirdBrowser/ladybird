@@ -2964,16 +2964,16 @@ void ViewImplementation::initialize_context_menus()
     });
 
     m_open_in_new_tab_action = Action::create("Open in New Tab"sv, ActionID::OpenInNewTab, [this]() {
-        Application::the().open_url_in_new_tab(m_context_menu_url, Web::HTML::ActivateTab::No);
+        open_url_in_new_tab(m_context_menu_url, Web::HTML::ActivateTab::No);
     });
     if (m_is_private == IsPrivate::No) {
         m_open_in_new_window_action = Action::create("Open in New Window"sv, ActionID::OpenInNewWindow, [this]() {
-            Application::the().open_url_in_new_window(m_context_menu_url, IsPrivate::No);
+            open_url_in_new_window(m_context_menu_url, IsPrivate::No);
         });
     }
     if (application.supports_private_browsing_windows()) {
         m_open_in_new_private_window_action = Action::create("Open in New Private Window"sv, ActionID::OpenInNewPrivateWindow, [this]() {
-            Application::the().open_url_in_new_window(m_context_menu_url, IsPrivate::Yes);
+            open_url_in_new_window(m_context_menu_url, IsPrivate::Yes);
         });
     }
     m_download_linked_file_action = Action::create("Download Linked File"sv, ActionID::DownloadLinkedFile, [this]() {
