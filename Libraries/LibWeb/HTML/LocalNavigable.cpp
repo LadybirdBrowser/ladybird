@@ -1978,8 +1978,17 @@ static void create_navigation_params_by_fetching(
     }
 
     // 7. If entry's document state's reload pending is true, then set request's reload-navigation flag.
-    if (reload_pending)
+    if (reload_pending) {
         request->set_reload_navigation(true);
+
+        // AD-HOC: The specs don't define HTTP cache behavior for reloads. But every major engine forces at least re-
+        //         validation of the reloaded document rather than serving it straight from cache. Use the "no-cache"
+        //         cache mode, which per Fetch "creates a conditional request if there is a response in the HTTP cache
+        //         and a normal request otherwise. It then updates the HTTP cache with the response." This matches
+        //         Chromium (FetchCacheMode::kValidateCache) and Firefox (nsIRequest::VALIDATE_ALWAYS); WebKit goes
+        //         further, and bypasses the cache entirely (ReloadIgnoringCacheData).
+        request->set_cache_mode(HTTP::CacheMode::NoCache);
+    }
 
     // 8. Otherwise, if entry's document state's ever populated is true, then set request's history-navigation flag.
     else if (ever_populated)

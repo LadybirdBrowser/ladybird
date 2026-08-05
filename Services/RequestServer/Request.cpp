@@ -534,7 +534,7 @@ void Request::notify_fetch_complete(Badge<ConnectionFromClient>, int result_code
     }
 
     if (is_revalidation_request()) {
-        if (acquire_status_code() == 304) {
+        if (result_code == CURLE_OK && acquire_status_code() == 304) {
             if (m_type == RequestType::BackgroundRevalidation && m_disk_cache->mode() == HTTP::DiskCache::Mode::Testing)
                 m_response_headers->set({ HTTP::TEST_CACHE_REVALIDATION_STATUS_HEADER, "fresh"sv });
 
@@ -546,7 +546,12 @@ void Request::notify_fetch_complete(Badge<ConnectionFromClient>, int result_code
         if (revalidation_failed().is_error())
             return;
 
-        transfer_headers_to_client_if_needed();
+        // Only forward the response to the client if the network request actually produced one. If the request failed
+        // at the transport level (e.g. connection refused), there's no response; fall through so the request completes
+        // with a network error — exactly like a non-revalidation request whose connection failed. Otherwise, the client
+        // would receive an empty response with HTTP status 0 — and then wait forever for a body that will never arrive.
+        if (result_code == CURLE_OK)
+            transfer_headers_to_client_if_needed();
     }
 
     m_curl_result_code = result_code;
