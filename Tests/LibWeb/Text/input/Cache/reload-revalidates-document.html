@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<iframe id="testFrame"></iframe>
+<script>
+    // RequestServer custom headers.
+    const TEST_CACHE_ENABLED_HEADER = "X-Ladybird-Enable-Disk-Cache";
+
+    const server = httpTestServer();
+
+    // The echo path keys both the server-side recording of the most-recent request headers and the disk cache entry.
+    // Give each run its own path, so parallel runner clones of this test don't overwrite each other's recording.
+    const token = crypto.randomUUID();
+
+    // A page served with an explicit freshness lifetime and Last-Modified validator. Reloading this must revalidate it
+    // with the server even though the cached response is still fresh; the reload must not be served straight from cache.
+    const DOCUMENT_PATH = `/reload-revalidates-document-${token}`;
+    const DOCUMENT_BODY =
+        "<!DOCTYPE html><script>window.onmessage = () => { location.reload(); };<\/script>reload test document";
+
+    async function registerDocumentEcho() {
+        await server.createEcho("OPTIONS", DOCUMENT_PATH, {
+            status: 200,
+            headers: {
+                "Access-Control-Allow-Headers": TEST_CACHE_ENABLED_HEADER,
+                "Access-Control-Allow-Methods": "GET",
+                "Access-Control-Allow-Origin": location.origin,
+            },
+        });
+
+        return server.createEcho("GET", DOCUMENT_PATH, {
+            status: 200,
+            headers: {
+                "Access-Control-Allow-Origin": location.origin,
+                "Cache-Control": "max-age=999",
+                "Content-Type": "text/html",
+                "Last-Modified": "Mon, 01 Jan 2024 00:00:00 GMT",
+            },
+            body: DOCUMENT_BODY,
+        });
+    }
+
+    function waitForFrameLoad(frame) {
+        return new Promise(resolve => {
+            frame.addEventListener("load", resolve, { once: true });
+        });
+    }
+
+    async function recordedRequestHeaderNames(url) {
+        const recordedRequestHeadersURL = url.replace("/echo/", "/recorded-request-headers/echo/");
+        const response = await fetch(recordedRequestHeadersURL);
+        const headers = await response.json();
+        return Object.keys(headers).map(name => name.toLowerCase());
+    }
+
+    asyncTest(async done => {
+        const url = await registerDocumentEcho();
+
+        // Prime the disk cache with the document. In test mode, the disk cache only stores responses to requests
+        // carrying the cache-enablement header, and a header cannot be attached to a navigation request. The disk
+        // cache is consulted for navigation requests — regardless of that header.
+        const primingResponse = await fetch(url, {
+            headers: { [TEST_CACHE_ENABLED_HEADER]: "1" },
+            mode: "cors",
+        });
+        await primingResponse.text();
+
+        const frame = document.getElementById("testFrame");
+
+        // Navigate the iframe to the now-cached document.
+        const initialLoad = waitForFrameLoad(frame);
+        frame.src = url;
+        await initialLoad;
+
+        // Reload the iframe from within itself — so this works regardless of whether the test page and the echo server
+        // are same-origin.
+        const reloadLoad = waitForFrameLoad(frame);
+        frame.contentWindow.postMessage("reload", "*");
+        await reloadLoad;
+
+        // The server records the request headers of the most-recent request at the echo path. If the reload never
+        // contacted the server, the request headers are still those of the priming fetch.
+        const headerNames = await recordedRequestHeaderNames(url);
+
+        if (headerNames.includes("if-modified-since")) {
+            println("PASS: the reloaded document was revalidated with the server");
+        } else if (headerNames.includes(TEST_CACHE_ENABLED_HEADER.toLowerCase())) {
+            println("FAIL: the reload was served from cache without contacting the server");
+        } else {
+            println("FAIL: the reload contacted the server without a conditional request");
+        }
+
+        done();
+    });
+</script>

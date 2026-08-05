@@ -506,10 +506,16 @@ CacheLifetimeStatus cache_lifetime_status(HeaderList const& request_headers, Hea
 
         // https://httpwg.org/specs/rfc9111.html#cache-request-directive.max-age
         // The max-age request directive indicates that the client prefers a response whose age is less than or equal to
-        // the specified number of seconds.
+        // the specified number of seconds. Unless the max-stale request directive is also present, the client doesn't
+        // wish to receive a stale response.
+        //
+        // NB: This doesn't preclude validating the stored response: per Section 4, a stored response may also be reused
+        //     if it's "successfully validated (see Section 4.3)". Clients send "Cache-Control: max-age=0" to request
+        //     exactly that. Notably, Fetch attaches it to requests whose cache mode is "no-cache" — which is how a
+        //     browser reload forces revalidation of the document.
         if (auto max_age = extract_cache_control_duration_directive(*request_cache_control, "max-age"sv); max_age.has_value()) {
             if (*max_age <= current_age)
-                return CacheLifetimeStatus::Expired;
+                return revalidation_status(CacheLifetimeStatus::MustRevalidate);
         }
 
         // https://httpwg.org/specs/rfc9111.html#cache-request-directive.min-fresh
