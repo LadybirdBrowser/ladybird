@@ -117,6 +117,7 @@ struct Harness {
         };
         omnibox.on_commit = [this](String text) {
             commits.append(move(text));
+            commit_destination_kinds.append(omnibox.destination_kind_for_last_commit());
         };
 
         // Mirror the popup exactly the way a real chrome does, so the tests exercise the notification
@@ -185,6 +186,7 @@ struct Harness {
     String display_text;
     Optional<size_t> selection_start;
     Vector<String> commits;
+    Vector<WebView::OmniboxDestinationKind> commit_destination_kinds;
 
     size_t popup_repaints { 0 };
     bool visible_popup { false };
@@ -628,6 +630,27 @@ TEST_CASE(verbatim_commit_records_the_unmodified_input)
     EXPECT(!harness.provider->engagements[0].was_explicit);
 }
 
+TEST_CASE(verbatim_url_candidates_use_url_or_search_resolution)
+{
+    static constexpr Array url_candidates {
+        "geo:23.4,12.4"sv,
+        "tel:123"sv,
+        "localhost:8080"sv,
+        "example.com:8080"sv,
+    };
+
+    for (auto input : url_candidates) {
+        Harness harness;
+        harness.begin_editing(input);
+
+        harness.omnibox.return_pressed();
+
+        EXPECT_EQ(harness.commits.size(), 1u);
+        EXPECT_EQ(harness.commits[0], input);
+        EXPECT_EQ(harness.commit_destination_kinds[0], WebView::OmniboxDestinationKind::URL);
+    }
+}
+
 TEST_CASE(a_user_chosen_row_wins_over_edited_text)
 {
     Harness harness;
@@ -775,6 +798,7 @@ TEST_CASE(clicking_a_suggestion_commits_it)
 
     harness.omnibox.suggestion_clicked(1);
     EXPECT_EQ(harness.commits.last(), "t"sv);
+    EXPECT_EQ(harness.commit_destination_kinds.last(), WebView::OmniboxDestinationKind::Search);
     EXPECT(!harness.omnibox.is_popup_visible());
 }
 
@@ -1112,6 +1136,7 @@ TEST_CASE(committing_may_reentrantly_end_editing)
     // The real chrome clears focus while handling a commit, which calls back into end_editing.
     harness.omnibox.on_commit = [&](String text) {
         harness.commits.append(move(text));
+        harness.commit_destination_kinds.append(harness.omnibox.destination_kind_for_last_commit());
         harness.omnibox.end_editing();
     };
 
