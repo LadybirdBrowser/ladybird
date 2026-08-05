@@ -353,6 +353,13 @@ RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::Property
     if (AK::first_is_one_of(property_id, CSS::PropertyID::ContainerName, CSS::PropertyID::ContainerType))
         invalidation.recompute_descendant_styles = true;
 
+    // Text decorations propagate to descendant boxes, which paint them from this element's computed
+    // values, so their cached paint commands must be discarded even though their style is unchanged.
+    if (AK::first_is_one_of(property_id, CSS::PropertyID::TextDecorationLine, CSS::PropertyID::TextDecorationColor,
+            CSS::PropertyID::TextDecorationStyle, CSS::PropertyID::TextDecorationThickness,
+            CSS::PropertyID::TextUnderlineOffset, CSS::PropertyID::TextUnderlinePosition))
+        invalidation.repaint_propagated_text_decorations = true;
+
     // OPTIMIZATION: Special handling for CSS `visibility`:
     if (property_id == CSS::PropertyID::Visibility) {
         // We don't need to relayout if the visibility changes from visible to hidden or vice versa. Only collapse requires relayout.

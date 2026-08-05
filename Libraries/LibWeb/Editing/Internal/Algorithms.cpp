@@ -1202,6 +1202,21 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
     restore_states_and_values(document, overrides);
 }
 
+// AD-HOC: The spec walks every ancestor. Stop at the first one carrying a decoration of its own, which is what
+//         this resolved to while `text-decoration-line` was an inherited property.
+// FIXME: Walk every ancestor as the spec says, once "force the value" can tell an element's own decoration
+//        apart from one propagated to it.
+static bool node_or_ancestor_is_decorated_with(GC::Ref<DOM::Node> node, CSS::Keyword keyword)
+{
+    for (GC::Ptr<DOM::Node> ancestor = node; ancestor; ancestor = ancestor->parent()) {
+        auto text_decoration_line = resolved_value(*ancestor, CSS::PropertyID::TextDecorationLine);
+        if (!text_decoration_line || value_contains_keyword(*text_decoration_line, CSS::Keyword::None))
+            continue;
+        return value_contains_keyword(*text_decoration_line, keyword);
+    }
+    return false;
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#effective-command-value
 Optional<Utf16String> effective_command_value(GC::Ptr<DOM::Node> node, Utf16FlyString const& command)
 {
@@ -1292,28 +1307,16 @@ Optional<Utf16String> effective_command_value(GC::Ptr<DOM::Node> node, Utf16FlyS
     // 6. If command is "strikethrough", and the "text-decoration" property of node or any of its ancestors has resolved
     //    value containing "line-through", return "line-through". Otherwise, return null.
     if (command == CommandNames::strikethrough) {
-        auto inclusive_ancestor = node;
-        do {
-            auto text_decoration_line = resolved_value(*node, CSS::PropertyID::TextDecorationLine);
-            if (text_decoration_line && value_contains_keyword(*text_decoration_line, CSS::Keyword::LineThrough))
-                return "line-through"_utf16;
-            inclusive_ancestor = inclusive_ancestor->parent();
-        } while (inclusive_ancestor);
-
+        if (node_or_ancestor_is_decorated_with(*node, CSS::Keyword::LineThrough))
+            return "line-through"_utf16;
         return {};
     }
 
     // 7. If command is "underline", and the "text-decoration" property of node or any of its ancestors has resolved
     //    value containing "underline", return "underline". Otherwise, return null.
     if (command == CommandNames::underline) {
-        auto inclusive_ancestor = node;
-        do {
-            auto text_decoration_line = resolved_value(*node, CSS::PropertyID::TextDecorationLine);
-            if (text_decoration_line && value_contains_keyword(*text_decoration_line, CSS::Keyword::Underline))
-                return "underline"_utf16;
-            inclusive_ancestor = inclusive_ancestor->parent();
-        } while (inclusive_ancestor);
-
+        if (node_or_ancestor_is_decorated_with(*node, CSS::Keyword::Underline))
+            return "underline"_utf16;
         return {};
     }
 

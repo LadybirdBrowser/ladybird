@@ -1290,8 +1290,13 @@ void Element::apply_computed_style_to_layout_node_if_needed(CSS::RequiredInvalid
     auto element_computed_values = m_computed_values;
     VERIFY(element_computed_values);
     unsafe_layout_node()->apply_style(element_computed_values.release_nonnull());
-    if (invalidation.needs_repaint())
+    if (invalidation.needs_repaint()) {
         set_needs_repaint();
+        if (invalidation.repaint_propagated_text_decorations) {
+            if (auto paintable = unsafe_layout_node()->paintable())
+                paintable->invalidate_propagated_text_decoration_caches();
+        }
+    }
 
     apply_computed_pseudo_element_styles_to_layout_nodes_if_needed(invalidation);
 }
@@ -1308,8 +1313,11 @@ void Element::apply_computed_pseudo_element_styles_to_layout_nodes_if_needed(CSS
 
         if (auto node_with_style = pseudo_element.unsafe_layout_node()) {
             node_with_style->apply_style(pseudo_element_style.release_nonnull());
-            if (invalidation.needs_repaint() && node_with_style->paintable())
-                node_with_style->paintable()->set_needs_repaint();
+            if (auto paintable = node_with_style->paintable(); paintable && invalidation.needs_repaint()) {
+                paintable->set_needs_repaint();
+                if (invalidation.repaint_propagated_text_decorations)
+                    paintable->invalidate_propagated_text_decoration_caches();
+            }
         }
     });
 }

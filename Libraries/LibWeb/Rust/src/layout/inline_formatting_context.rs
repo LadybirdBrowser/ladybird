@@ -133,7 +133,9 @@ pub(crate) struct InlineBoxPieceData {
     pub(crate) node: Node,
     pub(crate) first_fragment_index: u32,
     pub(crate) fragment_count: u32,
+    pub(crate) line_index: u32,
     pub(crate) border_box_rect: InlineCssPixelRect,
+    pub(crate) baseline: CssPixels,
     pub(crate) present_edges: u8,
     pub(crate) is_geometry_only_placeholder: bool,
 }
@@ -141,13 +143,12 @@ pub(crate) struct InlineBoxPieceData {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct StagedPiece {
     pub(crate) piece: InlineBoxPieceData,
-    pub(crate) line_index: u32,
     pub(crate) depth: u32,
     pub(crate) discovery_index: usize,
 }
 
 pub(crate) fn sort_for_emission(pieces: &mut [StagedPiece]) {
-    pieces.sort_by_key(|piece| (piece.line_index, piece.depth, piece.discovery_index));
+    pieces.sort_by_key(|piece| (piece.piece.line_index, piece.depth, piece.discovery_index));
 }
 
 #[derive(Debug)]
@@ -386,6 +387,14 @@ pub(crate) fn compute(context: &InlineFormattingContext) -> Vec<InlineBoxPieceDa
         };
 
         for line in lines {
+            let inline_box_baseline = {
+                let line_data = context.line_data();
+                let line_box = &line_data.line_boxes[line.line_index];
+                let line_box_block_start = line_box.block_end - line_box.block_length;
+                line_box
+                    .inline_box_baseline(node)
+                    .unwrap_or(line_box_block_start + line_box.baseline)
+            };
             let Some((contributions_inline_start, contributions_inline_end)) = line.contributions_inline_range else {
                 if let Some(position) = line.interrupting_block_position {
                     staged.push(StagedPiece {
@@ -393,15 +402,16 @@ pub(crate) fn compute(context: &InlineFormattingContext) -> Vec<InlineBoxPieceDa
                             node,
                             first_fragment_index: line.first_fragment_index.unwrap_or(0),
                             fragment_count: line.fragment_count,
+                            line_index: line.line_index as u32,
                             border_box_rect: InlineCssPixelRect {
                                 x: position.0,
                                 y: position.1,
                                 ..Default::default()
                             },
+                            baseline: inline_box_baseline,
                             present_edges: edge_bits(horizontal, true, true),
                             is_geometry_only_placeholder: true,
                         },
-                        line_index: line.line_index as u32,
                         depth,
                         discovery_index: node_index,
                     });
@@ -455,11 +465,12 @@ pub(crate) fn compute(context: &InlineFormattingContext) -> Vec<InlineBoxPieceDa
                     node,
                     first_fragment_index: line.first_fragment_index.unwrap_or(0),
                     fragment_count: line.fragment_count,
+                    line_index: line.line_index as u32,
                     border_box_rect: rect,
+                    baseline: inline_box_baseline,
                     present_edges: edge_bits(horizontal, has_low_edge, has_high_edge),
                     is_geometry_only_placeholder: false,
                 },
-                line_index: line.line_index as u32,
                 depth,
                 discovery_index: node_index,
             });
@@ -490,6 +501,7 @@ pub(crate) fn compute(context: &InlineFormattingContext) -> Vec<InlineBoxPieceDa
                 node,
                 first_fragment_index: 0,
                 fragment_count: 0,
+                line_index: 0,
                 border_box_rect: if horizontal {
                     InlineCssPixelRect {
                         height: line_height,
@@ -501,10 +513,10 @@ pub(crate) fn compute(context: &InlineFormattingContext) -> Vec<InlineBoxPieceDa
                         ..Default::default()
                     }
                 },
+                baseline: CssPixels::default(),
                 present_edges: edge_bits(horizontal, true, true),
                 is_geometry_only_placeholder: true,
             },
-            line_index: 0,
             depth: nesting_depth(context, node),
             discovery_index: per_nodes.len() + index,
         });
@@ -1115,6 +1127,7 @@ pub(crate) struct SpaceUsedByFloats {
 #[repr(C)]
 pub struct FfiLineRecord {
     pub rect: FfiCssPixelRect,
+    pub baseline: CssPixels,
     pub committed_fragment_count: u32,
 }
 
@@ -1143,7 +1156,9 @@ pub struct FfiInlineBoxPiece {
     pub node: *mut c_void,
     pub first_fragment_index: u32,
     pub fragment_count: u32,
+    pub line_index: u32,
     pub border_box_rect: FfiCssPixelRect,
+    pub baseline: CssPixels,
     pub present_edges: u8,
     pub is_geometry_only_placeholder: bool,
 }
@@ -1261,6 +1276,7 @@ pub(crate) fn push_line_data(
                 sink.context,
                 FfiLineRecord {
                     rect: line_rect(line, content_inline_size),
+                    baseline: line.block_end - line.block_length + line.baseline,
                     committed_fragment_count,
                 },
             );
@@ -1325,12 +1341,14 @@ pub(crate) fn push_line_data(
                     node: callbacks.shell(piece.node),
                     first_fragment_index: piece.first_fragment_index,
                     fragment_count: piece.fragment_count,
+                    line_index: piece.line_index,
                     border_box_rect: FfiCssPixelRect {
                         x: piece.border_box_rect.x + relative_dx,
                         y: piece.border_box_rect.y + relative_dy,
                         width: piece.border_box_rect.width,
                         height: piece.border_box_rect.height,
                     },
+                    baseline: piece.baseline + relative_dy,
                     present_edges: piece.present_edges,
                     is_geometry_only_placeholder: piece.is_geometry_only_placeholder,
                 },

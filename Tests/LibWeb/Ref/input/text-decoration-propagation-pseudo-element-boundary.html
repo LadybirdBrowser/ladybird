@@ -1,0 +1,16 @@
+<!doctype html>
+<link rel="match" href="../expected/text-decoration-propagation-pseudo-element-boundary-ref.html" />
+<style>
+    div { text-decoration: underline; }
+    #float-pseudo::after {
+        content: "floated";
+        float: right;
+    }
+
+    #atomic-pseudo::after {
+        content: "atomic";
+        display: inline-block;
+    }
+</style>
+<div id="float-pseudo">text</div>
+<div id="atomic-pseudo">text</div>

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<title>CSS Test: text-decoration propagation</title>
+<link rel="author" title="Oriol Brufau" href="mailto:obrufau@igalia.com" />
+<link rel="help" href="https://www.w3.org/TR/css-text-decor-3/#line-decoration">
+<link rel="help" href="https://github.com/servo/servo/issues/29654">
+<link rel="match" href="../../../../expected/wpt-import/css/css-text-decor/reference/text-decoration-propagation-04-ref.html">
+<style>
+div { margin: 1em 0 }
+</style>
+<div style="text-decoration: underline">
+  lorem
+  <div style="text-decoration: overline">
+    ipsum
+  </div>
+  dolor
+  <div style="text-decoration: overline">
+    sit
+    <div style="text-decoration: line-through">
+      amet
+    </div>
+    consectetur
+  </div>
+  adipiscing
+</span>

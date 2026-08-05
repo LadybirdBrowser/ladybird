@@ -1,0 +1,10 @@
+<!doctype html>
+<link rel="match" href="../expected/text-decoration-propagation-relative-decorating-box-ref.html" />
+<style>
+    .decorated {
+        text-decoration: underline;
+        position: relative;
+        top: 12px;
+    }
+</style>
+before <span class="decorated">direct <span>nested</span> direct</span> after

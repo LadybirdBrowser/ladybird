@@ -432,6 +432,7 @@ public:
     static constexpr size_t paint_phase_count = to_underlying(PaintPhase::Overlay) + 1;
 
     void invalidate_paint_cache() const;
+    void invalidate_propagated_text_decoration_caches() const;
 
     // Commands recorded under an empty effective clip are dropped at append time, so a cached range is
     // usable only while the emptiness of the phase's effective clip matches what it was at capture time.
