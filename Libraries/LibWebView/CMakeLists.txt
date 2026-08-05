@@ -17,6 +17,7 @@ set(SOURCES
     DictionaryLookup.cpp
     DOMNodeProperties.cpp
     DownloadPresentation.cpp
+    ExternalURLHandler.cpp
     FileDownloader.cpp
     Geolocation.cpp
     HeadlessWebView.cpp

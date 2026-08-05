@@ -2,6 +2,7 @@ set(TEST_SOURCES
     TestAutocompleteMuxer.cpp
     TestAutocompleteRanker.cpp
     TestCookieJar.cpp
+    TestExternalURLHandler.cpp
     TestHistoryStore.cpp
     TestHSTSStore.cpp
     TestOmnibox.cpp
