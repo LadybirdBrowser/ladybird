@@ -13,16 +13,16 @@
 <script>
     const resolvedUseElement = document.getElementById("resolvedUse");
     const forwardUseElement = document.getElementById("forwardUse");
-    const initialResolvedInstanceRoot = resolvedUseElement.instanceRoot;
-    const initialForwardInstanceRoot = forwardUseElement.instanceRoot;
+    const initialResolvedInstanceRoot = internals.getShadowRoot(resolvedUseElement).firstElementChild;
+    const initialForwardInstanceRoot = internals.getShadowRoot(forwardUseElement).firstElementChild;
 
     asyncTest((done) => {
         window.addEventListener("load", () => {
             setTimeout(() => {
                 println(`Had resolved instance root before load: ${!!initialResolvedInstanceRoot}`);
                 println(`Had forward instance root before load: ${!!initialForwardInstanceRoot}`);
-                println(`Kept resolved instance root after load: ${resolvedUseElement.instanceRoot === initialResolvedInstanceRoot}`);
-                println(`Has forward instance root after load: ${!!forwardUseElement.instanceRoot}`);
+                println(`Kept resolved instance root after load: ${internals.getShadowRoot(resolvedUseElement).firstElementChild === initialResolvedInstanceRoot}`);
+                println(`Has forward instance root after load: ${!!internals.getShadowRoot(forwardUseElement).firstElementChild}`);
                 done();
             }, 0);
         }, { once: true });

@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1780 tests
 
-1131 Pass
-649 Fail
+1127 Pass
+653 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Document: original interface defined
@@ -604,8 +604,8 @@ Pass	SVGUseElement interface: attribute x
 Pass	SVGUseElement interface: attribute y
 Pass	SVGUseElement interface: attribute width
 Pass	SVGUseElement interface: attribute height
-Pass	SVGUseElement interface: attribute instanceRoot
-Pass	SVGUseElement interface: attribute animatedInstanceRoot
+Fail	SVGUseElement interface: attribute instanceRoot
+Fail	SVGUseElement interface: attribute animatedInstanceRoot
 Pass	SVGUseElement interface: attribute href
 Pass	SVGUseElement must be primary interface of objects.use
 Pass	Stringification of objects.use
@@ -613,8 +613,8 @@ Pass	SVGUseElement interface: objects.use must inherit property "x" with the pro
 Pass	SVGUseElement interface: objects.use must inherit property "y" with the proper type
 Pass	SVGUseElement interface: objects.use must inherit property "width" with the proper type
 Pass	SVGUseElement interface: objects.use must inherit property "height" with the proper type
-Pass	SVGUseElement interface: objects.use must inherit property "instanceRoot" with the proper type
-Pass	SVGUseElement interface: objects.use must inherit property "animatedInstanceRoot" with the proper type
+Fail	SVGUseElement interface: objects.use must inherit property "instanceRoot" with the proper type
+Fail	SVGUseElement interface: objects.use must inherit property "animatedInstanceRoot" with the proper type
 Pass	SVGUseElement interface: objects.use must inherit property "href" with the proper type
 Pass	SVGGraphicsElement interface: objects.use must inherit property "transform" with the proper type
 Pass	SVGGraphicsElement interface: objects.use must inherit property "getBBox(optional SVGBoundingBoxOptions)" with the proper type

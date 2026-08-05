@@ -31,11 +31,11 @@
                 // two elements has its insertion steps run first.
                 let { svg, use } = makeSubtree("targetBeforeUse", "target-first");
                 document.body.appendChild(svg);
-                println(`Referenced element before use: has instance root: ${!!use.instanceRoot}`);
+                println(`Referenced element before use: has instance root: ${!!internals.getShadowRoot(use).firstElementChild}`);
 
                 ({ svg, use } = makeSubtree("useBeforeTarget", "use-first"));
                 document.body.appendChild(svg);
-                println(`Use before referenced element: has instance root: ${!!use.instanceRoot}`);
+                println(`Use before referenced element: has instance root: ${!!internals.getShadowRoot(use).firstElementChild}`);
 
                 done();
             }, 0);
