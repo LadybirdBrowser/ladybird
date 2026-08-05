@@ -685,7 +685,13 @@ void Application::open_urls_in_new_tabs(ReadonlySpan<URL::URL> urls) const
 
 void Application::open_bookmark_in_new_tab(String const& bookmark_id, Web::HTML::ActivateTab activate_tab) const
 {
-    if (auto bookmark = m_bookmark_store->find_item_by_id(bookmark_id); bookmark.has_value() && bookmark->is_bookmark())
+    auto bookmark = m_bookmark_store->find_item_by_id(bookmark_id);
+    if (!bookmark.has_value() || !bookmark->is_bookmark())
+        return;
+
+    if (auto view = active_web_view(); view.has_value())
+        view->open_url_in_new_tab(bookmark->bookmark().url, activate_tab);
+    else
         open_url_in_new_tab(bookmark->bookmark().url, activate_tab);
 }
 
@@ -711,12 +717,27 @@ void Application::open_bookmark_folder_in_new_tabs(String const& folder_id) cons
     Vector<URL::URL> urls;
     collect_bookmark_urls(folder->folder(), urls);
 
-    open_urls_in_new_tabs(urls);
+    Vector<URL::URL> internal_urls;
+    auto active_view = active_web_view();
+    for (auto const& url : urls) {
+        if (active_view.has_value() && !is_url_handled_internally(url))
+            active_view->open_url_in_new_tab(url, Web::HTML::ActivateTab::No);
+        else
+            internal_urls.append(url);
+    }
+
+    open_urls_in_new_tabs(internal_urls);
 }
 
 void Application::open_bookmark_in_new_window(String const& bookmark_id, IsPrivate is_private)
 {
-    if (auto bookmark = m_bookmark_store->find_item_by_id(bookmark_id); bookmark.has_value() && bookmark->is_bookmark())
+    auto bookmark = m_bookmark_store->find_item_by_id(bookmark_id);
+    if (!bookmark.has_value() || !bookmark->is_bookmark())
+        return;
+
+    if (auto view = active_web_view(); view.has_value())
+        view->open_url_in_new_window(bookmark->bookmark().url, is_private);
+    else
         open_url_in_new_window(bookmark->bookmark().url, is_private);
 }
 
@@ -2181,7 +2202,7 @@ void Application::create_bookmark_menu_items(Optional<MenuData> data)
             [&](BookmarkItem::Bookmark const& bookmark) {
                 auto action = Action::create(bookmark.title.value_or({}), ActionID::BookmarkItem, [this, url = bookmark.url]() {
                     if (auto view = active_web_view(); view.has_value())
-                        view->load(url);
+                        view->load_from_user_input(url);
                     else
                         open_url_in_new_tab(url, Web::HTML::ActivateTab::Yes);
                 });
