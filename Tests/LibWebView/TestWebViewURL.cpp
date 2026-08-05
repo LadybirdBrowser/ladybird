@@ -41,10 +41,10 @@ static void expect_url_equals_sanitized_url(StringView test_url, StringView url,
     EXPECT_EQ(sanitized_url->to_string(), test_url);
 }
 
-static void expect_search_url_equals_sanitized_url(StringView url)
+static void expect_search_url_equals_sanitized_url(StringView url, WebView::AppendTLD append_tld = WebView::AppendTLD::No)
 {
     auto search_url = s_test_engine.format_search_query_for_navigation(url);
-    auto sanitized_url = WebView::sanitize_url(url, s_test_engine);
+    auto sanitized_url = WebView::sanitize_url(url, s_test_engine, append_tld);
 
     EXPECT(sanitized_url.has_value());
     EXPECT_EQ(sanitized_url->to_string(), search_url);
@@ -239,6 +239,7 @@ TEST_CASE(location_to_search_or_url)
     expect_url_equals_sanitized_url("https://example.example/path"sv, "example.example/path"sv);
     expect_url_equals_sanitized_url("https://example.invalid/path"sv, "example.invalid/path"sv);
     expect_url_equals_sanitized_url("http://example.localhost/path"sv, "example.localhost/path"sv); // .localhost names get the http guess below.
+    expect_url_equals_sanitized_url("http://foo.localhost/"sv, "foo.localhost"sv);
 
     expect_search_url_equals_sanitized_url("example.def"sv); // Invalid domain but no scheme: search (Like Firefox or Chrome).
 
@@ -287,6 +288,29 @@ TEST_CASE(location_to_search_or_url)
     // Without brackets, ":8000" parses as part of the IPv6 address, not as a port.
     expect_url_equals_sanitized_url("https://[::1:8000]/"sv, "::1:8000"sv);
 
+    // A dotted hostname:port is also a syntactically-valid scheme. Schemeless host-with-port input gets reinterpreted
+    // as a hostname:port — instead of being treated as a URL with an unknown scheme, and falling through to a search.
+    expect_url_equals_sanitized_url("http://foo.localhost:8000/"sv, "foo.localhost:8000"sv);
+    expect_url_equals_sanitized_url("http://a.b.localhost:8000/"sv, "a.b.localhost:8000"sv);
+    expect_url_equals_sanitized_url("https://example.test:8000/"sv, "example.test:8000"sv);
+    expect_url_equals_sanitized_url("https://example.org:8000/"sv, "example.org:8000"sv);
+    expect_url_equals_sanitized_url("https://example.org:8000/path"sv, "example.org:8000/path"sv);
+    expect_url_equals_sanitized_url("https://example.org:8000/?q=1"sv, "example.org:8000?q=1"sv);
+    expect_url_equals_sanitized_url("https://example.org:8000/#frag"sv, "example.org:8000#frag"sv);
+    expect_url_equals_sanitized_url("https://example.org/"sv, "example.org:443"sv); // 443 is the default port for the https guess.
+
+    // The URL parser rejects the "https://" retry for an out-of-range port, so the input becomes a search.
+    expect_search_url_equals_sanitized_url("example.org:99999"sv);
+    // Only one or more digits (up to the end of the input, or up to '/', '?', or '#') make a port.
+    expect_search_url_equals_sanitized_url("example.org:"sv);
+    expect_search_url_equals_sanitized_url("localhost:"sv); // Searches in Firefox too.
+    expect_search_url_equals_sanitized_url("example.org:blah"sv);
+    expect_search_url_equals_sanitized_url("example.org:8000:9000"sv);
+    // A host with a port still goes through the usual host checks: unrecognized TLDs and single-label hostnames other
+    // than "localhost" search.
+    expect_search_url_equals_sanitized_url("example.def:8000"sv);
+    expect_search_url_equals_sanitized_url("foo:8000"sv);
+
     // Single-label hostnames other than "localhost" still search – like in other browsers — even if the system resolver
     // might know them (e.g., from the hosts file).
     expect_search_url_equals_sanitized_url("localhost4"sv);
@@ -298,9 +322,18 @@ TEST_CASE(location_to_search_or_url)
     expect_url_equals_sanitized_url("https://localhost.com/"sv, "localhost"sv, WebView::AppendTLD::Yes); // localhost.com is a public site.
     expect_url_equals_sanitized_url("http://127.0.0.1/"sv, "127.0.0.1"sv, WebView::AppendTLD::Yes);      // No TLD is appended to an IP address.
     expect_url_equals_sanitized_url("https://example.com/index.html"sv, "example/index.html"sv, WebView::AppendTLD::Yes);
+    expect_url_equals_sanitized_url("https://example.com:8000/"sv, "example:8000"sv, WebView::AppendTLD::Yes);
 
     expect_search_url_equals_sanitized_url("whatever:example.com"sv);     // Invalid scheme.
     expect_search_url_equals_sanitized_url("mailto:hello@example.com"sv); // For now, unsupported scheme.
+    expect_search_url_equals_sanitized_url("javascript:alert(1)"sv);      // Unsupported scheme.
+    expect_search_url_equals_sanitized_url("tel:+15551234567"sv);         // Unsupported scheme.
+    expect_search_url_equals_sanitized_url("foo:bar"sv);                  // Unknown scheme, and no port number after the colon.
+    // Recognized schemes never get reinterpreted as a hostname and port — not even with a digits-only remainder, and
+    // not even when Ctrl+Enter appends a TLD.
+    expect_search_url_equals_sanitized_url("javascript:0"sv);
+    expect_search_url_equals_sanitized_url("tel:911"sv);
+    expect_search_url_equals_sanitized_url("tel:911"sv, WebView::AppendTLD::Yes);
     // FIXME: Add support for opening mailto: scheme (below). Firefox opens mailto: locations
     // expect_url_equals_sanitized_url("mailto:hello@example.com"sv, "mailto:hello@example.com"sv);
 }
@@ -326,6 +359,7 @@ TEST_CASE(context_menu_url_text)
     expect_context_menu_text_url("ladybird.org"sv, "https://ladybird.org/"sv);
     expect_context_menu_text_url("www.ladybird.org/path?x=1"sv, "https://www.ladybird.org/path?x=1"sv);
     expect_context_menu_text_url("localhost:8000"sv, "http://localhost:8000/"sv);
+    expect_context_menu_text_url("example.org:8000"sv, "https://example.org:8000/"sv);
     expect_context_menu_text_url("https://ladybird.org"sv, "https://ladybird.org/"sv);
 
     expect_context_menu_text_not_url("ladybird"sv);

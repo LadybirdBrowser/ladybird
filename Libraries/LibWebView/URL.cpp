@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AllOf.h>
 #include <AK/CharacterTypes.h>
 #include <AK/IPv4Address.h>
 #include <AK/IPv6Address.h>
@@ -51,6 +52,42 @@ static bool should_guess_http_scheme_for_host(URL::Host const& host)
     return false;
 }
 
+// FIXME: Add support for other schemes, e.g. "mailto:". Firefox and Chrome open mailto: locations.
+static constexpr Array SUPPORTED_SCHEMES { "about"sv, "data"sv, "file"sv, "http"sv, "https"sv, "resource"sv };
+
+// Schemes that sanitize_url() recognizes as schemes even though navigating to them is unsupported (input with one of
+// these schemes becomes a search). Recognizing them keeps is_likely_host_with_port() below from reinterpreting input
+// like "tel:911" or "javascript:0" as a hostname followed by a port number.
+static constexpr Array RECOGNIZED_UNSUPPORTED_SCHEMES { "ftp"sv, "javascript"sv, "mailto"sv, "tel"sv, "ws"sv, "wss"sv };
+
+static bool is_recognized_scheme(StringView scheme)
+{
+    return any_of(SUPPORTED_SCHEMES, [&](StringView supported_scheme) { return supported_scheme == scheme; })
+        || any_of(RECOGNIZED_UNSUPPORTED_SCHEMES, [&](StringView unsupported_scheme) { return unsupported_scheme == scheme; });
+}
+
+// AD-HOC: A dotted hostname followed by a port (e.g. "example.org:8000") is also a syntactically valid URL scheme — so
+//         the URL parser accepts it as one, and schemeless host-with-port input would then fall through to a search.
+//         So, when the parsed scheme isn’t a scheme we know — and everything between the first colon and its first '/',
+//         '?', or '#' (or its end) is one or more ASCII digits — treat it as a host with a port instead. Chromium's
+//         url_fixer and Firefox's URIFixup likewise decline to treat an unknown scheme as a scheme when a port-like
+//         number follows the colon. Port range checking is left to the URL parser: For "example.org:99999", etc., the
+//         "https://" retry below fails to parse, and the input becomes a search — just as in Chromium and Firefox.
+static bool is_likely_host_with_port(URL::URL const& url, StringView location)
+{
+    if (is_recognized_scheme(url.scheme()))
+        return false;
+
+    auto first_colon_index = location.find(':');
+    if (!first_colon_index.has_value())
+        return false;
+
+    auto after_colon = location.substring_view(*first_colon_index + 1);
+    auto port_length = after_colon.find_any_of("/?#"sv).value_or(after_colon.length());
+    auto port = after_colon.substring_view(0, port_length);
+    return !port.is_empty() && all_of(port, is_ascii_digit);
+}
+
 Optional<URL::URL> sanitize_url(StringView location, Optional<SearchEngine> const& search_engine, AppendTLD append_tld)
 {
     auto search_url_or_error = [&]() -> Optional<URL::URL> {
@@ -74,7 +111,7 @@ Optional<URL::URL> sanitize_url(StringView location, Optional<SearchEngine> cons
 
     auto url = URL::create_with_url_or_path(location);
 
-    if (!url.has_value() || url->scheme() == "localhost"sv) {
+    if (!url.has_value() || is_likely_host_with_port(*url, location)) {
         schemeless_location = location;
 
         // AD-HOC: A bare IPv6 address can't be a URL host until it's wrapped in square brackets. Wrap it here, so that
@@ -90,8 +127,6 @@ Optional<URL::URL> sanitize_url(StringView location, Optional<SearchEngine> cons
         https_scheme_was_guessed = true;
     }
 
-    // FIXME: Add support for other schemes, e.g. "mailto:". Firefox and Chrome open mailto: locations.
-    static constexpr Array SUPPORTED_SCHEMES { "about"sv, "data"sv, "file"sv, "http"sv, "https"sv, "resource"sv };
     if (!any_of(SUPPORTED_SCHEMES, [&](StringView const& scheme) { return scheme == url->scheme(); }))
         return search_url_or_error();
 
