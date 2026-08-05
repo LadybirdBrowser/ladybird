@@ -714,6 +714,7 @@ static NSInteger ns_index_for_selected_suggestion(Optional<size_t> selected_sugg
 - (BOOL)locationFieldCursorIsAtEnd;
 - (void)applyOmniboxDisplay:(WebView::Omnibox::Display const&)display;
 - (void)locationFieldSelectionDidChange:(NSNotification*)notification;
+- (BOOL)navigateToLocation:(String)location destinationKind:(WebView::OmniboxDestinationKind)destination_kind;
 - (void)downloadAdded:(WebView::FileDownloader::Download const&)download;
 - (void)downloadUpdated:(WebView::FileDownloader::Download const&)download;
 - (void)downloadRemoved:(u64)download_id;
@@ -822,7 +823,7 @@ private:
             if (self == nil)
                 return;
 
-            [self navigateToLocation:move(input)];
+            [self navigateToLocation:move(input) destinationKind:self->m_omnibox->destination_kind_for_last_commit()];
         };
     }
 
@@ -1105,13 +1106,17 @@ private:
     m_omnibox->cursor_moved([self locationFieldCursorIsAtEnd]);
 }
 
-- (BOOL)navigateToLocation:(String)location
+- (BOOL)navigateToLocation:(String)location destinationKind:(WebView::OmniboxDestinationKind)destination_kind
 {
-    if (auto url = WebView::sanitize_url(location, WebView::Application::settings().search_engine()); url.has_value()) {
-        [[[self tab] web_view] view].set_next_history_visit_transition(WebView::HistoryVisitTransition::Omnibox);
-        [self loadURL:*url];
+    auto& view = [[[self tab] web_view] view];
+    view.set_next_history_visit_transition(WebView::HistoryVisitTransition::Omnibox);
+    if (destination_kind == WebView::OmniboxDestinationKind::Search) {
+        if (auto url = WebView::sanitize_url(location, WebView::Application::settings().search_engine()); url.has_value())
+            view.load(*url);
+        else
+            view.load_navigation_error_page(location);
     } else {
-        [[[self tab] web_view] view].load_navigation_error_page(location);
+        view.load_from_user_input(location);
     }
 
     [self focusWebView];

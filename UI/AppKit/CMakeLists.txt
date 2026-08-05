@@ -19,6 +19,7 @@ add_library(ladybird_impl STATIC
     Utilities/ApplicationIcon.mm
     Utilities/Conversions.mm
     Utilities/DictionaryLookup.mm
+    Utilities/ExternalURLHandler.mm
 )
 target_include_directories(ladybird_impl PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
 
