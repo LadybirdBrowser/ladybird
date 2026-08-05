@@ -20,6 +20,7 @@ set(SOURCES
     DownloadPresentation.cpp
     DownloadSegmentation.cpp
     DownloadStore.cpp
+    ExternalURLHandler.cpp
     FileDownloader.cpp
     Geolocation.cpp
     HeadlessWebView.cpp

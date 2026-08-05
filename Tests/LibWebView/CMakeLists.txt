@@ -5,6 +5,7 @@ set(TEST_SOURCES
     TestCookieJar.cpp
     TestDownloadSegmentation.cpp
     TestDownloadStore.cpp
+    TestExternalURLHandler.cpp
     TestHistoryStore.cpp
     TestHSTSStore.cpp
     TestOmnibox.cpp
