@@ -296,6 +296,75 @@ void ViewImplementation::load(URL::URL const& url, Web::Bindings::NavigationHist
     client().async_load_url(page_id(), url, history_handling);
 }
 
+void ViewImplementation::load_from_user_input(URL::URL const& url)
+{
+    if (!is_url_handled_internally(url)) {
+        handle_external_url_from_user_input(url);
+        return;
+    }
+
+    load(url);
+}
+
+void ViewImplementation::load_from_user_input(StringView input)
+{
+    load_from_user_input(input, sanitize_url(input, Application::settings().search_engine()));
+}
+
+void ViewImplementation::load_from_user_input(StringView input, Optional<URL::URL> fallback_url)
+{
+    auto classified_input = classify_user_input(input);
+
+    if (classified_input.classification != UserInputClassification::ExternalURL) {
+        if (fallback_url.has_value())
+            load(*fallback_url);
+        else
+            load_navigation_error_page(input);
+        return;
+    }
+
+    VERIFY(classified_input.url.has_value());
+    auto external_url = classified_input.url.release_value();
+
+    if (fallback_url.has_value() && *fallback_url == external_url) {
+        handle_external_url_from_user_input(external_url);
+        return;
+    }
+
+    auto input_string = MUST(String::from_utf8(input));
+    auto view_id = m_view_id;
+    handle_external_url_from_user_input(external_url, [view_id, input = move(input_string), fallback_url = move(fallback_url)] {
+        auto view = ViewImplementation::find_view_by_id(view_id);
+        if (!view.has_value())
+            return;
+
+        if (fallback_url.has_value())
+            view->load(*fallback_url);
+        else
+            view->load_navigation_error_page(input);
+    });
+}
+
+void ViewImplementation::open_url_in_new_tab(URL::URL const& url, Web::HTML::ActivateTab activate_tab)
+{
+    if (!is_url_handled_internally(url)) {
+        handle_external_url_from_user_input(url);
+        return;
+    }
+
+    Application::the().open_url_in_new_tab(url, activate_tab);
+}
+
+void ViewImplementation::open_url_in_new_window(URL::URL const& url, IsPrivate is_private)
+{
+    if (!is_url_handled_internally(url)) {
+        handle_external_url_from_user_input(url);
+        return;
+    }
+
+    Application::the().open_url_in_new_window(url, is_private);
+}
+
 void ViewImplementation::load_html(StringView html)
 {
     set_loading_state(true);
@@ -521,8 +590,18 @@ void ViewImplementation::reset_zoom()
 
 void ViewImplementation::enqueue_input_event(Web::InputEvent event)
 {
+    auto* key_event = event.get_pointer<Web::KeyEvent>();
     auto* mouse_event = event.get_pointer<Web::MouseEvent>();
     auto* pinch_event = event.get_pointer<Web::PinchEvent>();
+
+    // User input enables a single request for an external URL.
+    if ((key_event && key_event->type == Web::KeyEvent::Type::KeyDown && !key_event->repeat
+            && first_is_one_of(key_event->key, Web::UIEvents::KeyCode::Key_Return, Web::UIEvents::KeyCode::Key_Space))
+        || (mouse_event && mouse_event->type == Web::MouseEvent::Type::MouseDown
+            && first_is_one_of(mouse_event->button, Web::UIEvents::MouseButton::Primary, Web::UIEvents::MouseButton::Middle))) {
+        m_external_url_request_policy.allow_next_request();
+    }
+
     if (mouse_event && mouse_event->type == Web::MouseEvent::Type::MouseWheel) {
         mouse_event->wheel_delta_x /= zoom_level();
         mouse_event->wheel_delta_y /= zoom_level();
@@ -586,6 +665,141 @@ void ViewImplementation::enqueue_input_event(Web::InputEvent event)
         [this](Web::PinchEvent const& event) {
             client().async_pinch_event(m_client_state.page_index, event);
         });
+}
+
+void ViewImplementation::handle_external_url(Badge<WebContentClient>, URL::URL url, URL::Origin initiator_origin, bool has_transient_activation)
+{
+    handle_external_url(move(url), move(initiator_origin), has_transient_activation);
+}
+
+void ViewImplementation::handle_external_url_from_user_input(URL::URL const& url, Function<void()> on_handler_unavailable)
+{
+    // Browser UI actions can submit several URLs at once, for example when opening a bookmark folder. Keep those
+    // requests ordered while a handler lookup or confirmation is in progress.
+    m_pending_external_url_requests.enqueue({ url, m_url.origin(), move(on_handler_unavailable) });
+    process_next_external_url_request();
+}
+
+void ViewImplementation::process_next_external_url_request()
+{
+    while (!m_external_url_confirmation_pending && !m_pending_external_url_requests.is_empty()) {
+        auto request = m_pending_external_url_requests.dequeue();
+        m_external_url_request_policy.allow_request_from_browser_ui(request.url);
+        handle_external_url(move(request.url), move(request.initiator_origin), false, move(request.on_handler_unavailable));
+    }
+}
+
+void ViewImplementation::complete_external_url_request()
+{
+    VERIFY(m_external_url_confirmation_pending);
+    m_external_url_confirmation_pending = false;
+
+    if (m_pending_external_url_requests.is_empty())
+        return;
+
+    auto view_id = m_view_id;
+    Core::deferred_invoke([view_id] {
+        if (auto view = ViewImplementation::find_view_by_id(view_id); view.has_value())
+            view->process_next_external_url_request();
+    });
+}
+
+void ViewImplementation::handle_external_url(URL::URL url, URL::Origin initiator_origin, bool has_transient_activation, Function<void()> on_handler_unavailable)
+{
+    if (m_external_url_confirmation_pending)
+        return;
+
+    auto action = m_external_url_request_policy.decide(url, has_transient_activation);
+    if (action == ExternalURLAction::Block)
+        return;
+
+    if (action == ExternalURLAction::Prompt && !on_request_external_url_confirmation)
+        return;
+
+    // Reserve the allowance while the handler is resolved. Browser UI allowances are specific to one navigation and
+    // are never restored.
+    auto request_source = m_external_url_request_policy.take_request_allowance();
+    if (!request_source.has_value())
+        return;
+
+    m_external_url_confirmation_pending = true;
+    auto view_id = m_view_id;
+    auto url_for_callback = url;
+    Application::the().resolve_external_url_handler(url, [view_id, url = move(url_for_callback), initiator_origin = move(initiator_origin), action, request_source = *request_source, on_handler_unavailable = move(on_handler_unavailable)](RefPtr<ExternalURLHandler> handler) mutable {
+        auto view = ViewImplementation::find_view_by_id(view_id);
+        if (!view.has_value())
+            return;
+
+        if (!handler) {
+            // This is step 4 of this algorithm:
+            // https://html.spec.whatwg.org/multipage/browsing-the-web.html#attempt-to-create-a-non-fetch-scheme-document
+            // As noted in attempt_to_create_a_non_fetch_scheme_document() in LocalNavigable.cpp, it can't happen there
+            // because resolving the external url handler is asynchronous.
+            //
+            // 4. Handle url by displaying some sort of inline content, e.g., an error message because the specified
+            //    scheme is not one of the supported protocols, or an inline prompt to allow the user to select a
+            //    registered handler for the given scheme. Return the result of displaying the inline content given
+            //    navigable, navigationParams's id, navigationParams's navigation timing type, and navigationParams's
+            //    user involvement.
+            // AD-HOC: We can't implement this directly, so show a warning dialog instead.
+            if (on_handler_unavailable) {
+                view->complete_external_url_request();
+                on_handler_unavailable();
+                return;
+            }
+
+            auto error_message = MUST(String::formatted("No application is registered to open {}", url));
+            Application::the().display_error_dialog(error_message);
+            if (auto current_view = ViewImplementation::find_view_by_id(view_id); current_view.has_value())
+                current_view->complete_external_url_request();
+            return;
+        }
+
+        if (handler->is_ladybird()) {
+            view->complete_external_url_request();
+            if (on_handler_unavailable) {
+                on_handler_unavailable();
+                return;
+            }
+
+            if (request_source == ExternalURLRequestSource::Page)
+                view->m_external_url_request_policy.allow_next_request();
+            return;
+        }
+
+        if (action == ExternalURLAction::Launch) {
+            handler->launch(url, [view_id](bool success) {
+                if (!success && ViewImplementation::find_view_by_id(view_id).has_value())
+                    Application::the().display_error_dialog("Unable to open external URL"sv);
+            });
+            if (auto current_view = ViewImplementation::find_view_by_id(view_id); current_view.has_value())
+                current_view->complete_external_url_request();
+            return;
+        }
+
+        if (!view->on_request_external_url_confirmation) {
+            if (request_source == ExternalURLRequestSource::Page)
+                view->m_external_url_request_policy.allow_next_request();
+            view->complete_external_url_request();
+            return;
+        }
+
+        auto on_complete = [view_id, url, handler](bool accepted) {
+            auto view = ViewImplementation::find_view_by_id(view_id);
+            if (!view.has_value())
+                return;
+
+            if (accepted) {
+                handler->launch(url, [view_id](bool success) {
+                    if (!success && ViewImplementation::find_view_by_id(view_id).has_value())
+                        Application::the().display_error_dialog("Unable to open external URL"sv);
+                });
+            }
+            if (auto current_view = ViewImplementation::find_view_by_id(view_id); current_view.has_value())
+                current_view->complete_external_url_request();
+        };
+        view->on_request_external_url_confirmation(url, initiator_origin, *handler, move(on_complete));
+    });
 }
 
 void ViewImplementation::did_finish_handling_input_event(Badge<WebContentClient>, Web::EventResult event_result)
