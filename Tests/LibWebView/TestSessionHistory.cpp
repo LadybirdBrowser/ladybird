@@ -209,6 +209,9 @@ TEST_CASE(display_url_includes_fragment_directive_state)
     EXPECT_EQ(
         WebView::display_url_for_session_history_entry(entry),
         parse_url("https://example.test/#feature-detectability:~:text=For-,feature%20detectability"sv));
+    EXPECT_EQ(
+        WebView::display_url_for_session_history_entry(entry, false),
+        parse_url("https://example.test/#feature-detectability"sv));
 
     entry.directive_state_value.clear();
     EXPECT_EQ(

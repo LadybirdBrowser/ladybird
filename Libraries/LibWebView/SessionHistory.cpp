@@ -12,13 +12,13 @@
 
 namespace WebView {
 
-URL::URL display_url_for_session_history_entry(Web::HTML::SessionHistoryEntryDescriptor const& entry)
+URL::URL display_url_for_session_history_entry(Web::HTML::SessionHistoryEntryDescriptor const& entry, bool include_fragment_directive)
 {
     auto displayed_url = entry.url;
 
     // https://wicg.github.io/scroll-to-text-fragment/#urls-in-location-bar
     // The location bar's URL should include a text fragment while it is visually indicated.
-    if (entry.directive_state_value.has_value()) {
+    if (include_fragment_directive && entry.directive_state_value.has_value()) {
         StringBuilder fragment;
         if (displayed_url.fragment().has_value())
             fragment.append(*displayed_url.fragment());

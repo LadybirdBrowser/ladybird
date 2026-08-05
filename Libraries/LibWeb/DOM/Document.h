@@ -993,18 +993,10 @@ public:
 
     // https://wicg.github.io/scroll-to-text-fragment/#applying-directives-to-a-document
     Optional<Vector<HTML::TextDirective>> const& pending_text_directives() const { return m_pending_text_directives; }
-    void set_pending_text_directives(Optional<Vector<HTML::TextDirective>> directives)
-    {
-        m_text_fragment_ranges.clear();
-        m_pending_text_directives = move(directives);
-    }
-    void clear_pending_text_directives() { m_pending_text_directives.clear(); }
+    void set_pending_text_directives(Optional<Vector<HTML::TextDirective>>);
+    void clear_pending_text_directives();
     ReadonlySpan<GC::Ref<Range>> text_fragment_ranges() const { return m_text_fragment_ranges; }
-    void dismiss_text_fragment_indication()
-    {
-        m_text_fragment_ranges.clear();
-        m_pending_text_directives.clear();
-    }
+    void dismiss_text_fragment_indication();
     bool pending_text_directive_scroll_allowed() const { return m_pending_text_directive_scroll_allowed; }
     bool check_if_a_text_directive_can_be_scrolled(Optional<URL::Origin> const& initiator_origin, Optional<HTML::UserNavigationInvolvement> user_involvement);
 
@@ -1474,6 +1466,7 @@ private:
     GC::Ref<WebIDL::ObservableArray> adopted_style_sheets() const;
 
     void set_needs_repaint(InvalidateDisplayList = InvalidateDisplayList::Yes);
+    void update_text_fragment_indication_visibility(bool);
 
     // ^JS::Object
     virtual bool is_dom_document() const final { return true; }

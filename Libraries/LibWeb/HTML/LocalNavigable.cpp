@@ -3085,6 +3085,7 @@ void LocalNavigable::navigate_to_a_fragment(URL::URL const& url, HistoryHandling
 
     // 2. Let fragment directive be the result of running remove the fragment directive on url.
     auto fragment_directive = remove_the_fragment_directive(stripped_url);
+    auto const has_fragment_directive = fragment_directive.has_value();
 
     // 3. If fragment directive is not null:
     if (fragment_directive.has_value()) {
@@ -3109,6 +3110,13 @@ void LocalNavigable::navigate_to_a_fragment(URL::URL const& url, HistoryHandling
     // 5. If continue is false, then return.
     if (!continue_)
         return;
+
+    if (!has_fragment_directive && source_element) {
+        // AD-HOC: Treat a trusted in-page link navigation as dismissing the current text-fragment
+        //         indication. The shared directive state remains intact for session-history identity, but
+        //         the location bar no longer exposes it once its corresponding indication is gone.
+        active_document()->dismiss_text_fragment_indication();
+    }
 
     save_persisted_state_to_active_session_history_entry();
     auto active_entry = active_session_history_entry();

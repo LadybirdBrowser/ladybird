@@ -155,13 +155,26 @@ static void expect_omnibox_engagements_are_normalized_and_accumulated(WebView::H
         UnixDateTime::from_seconds_since_epoch(30));
 
     auto url_engagements = store.omnibox_engagements("DO"sv);
-    VERIFY(url_engagements.size() == 1);
-    EXPECT_EQ(url_engagements[0].normalized_input, "docs"sv);
-    EXPECT_EQ(url_engagements[0].destination_kind, WebView::OmniboxDestinationKind::URL);
-    EXPECT_EQ(url_engagements[0].destination, "https://example.com/manual"sv);
-    EXPECT_EQ(url_engagements[0].explicit_use_count, 1u);
-    EXPECT_EQ(url_engagements[0].default_use_count, 1u);
-    EXPECT_EQ(url_engagements[0].last_used_time, UnixDateTime::from_seconds_since_epoch(20));
+    VERIFY(url_engagements.size() == 2);
+    auto first_fragment = url_engagements.find_if([](auto const& engagement) {
+        return engagement.destination == "https://example.com/manual#first"sv;
+    });
+    VERIFY(first_fragment != url_engagements.end());
+    EXPECT_EQ(first_fragment->normalized_input, "docs"sv);
+    EXPECT_EQ(first_fragment->destination_kind, WebView::OmniboxDestinationKind::URL);
+    EXPECT_EQ(first_fragment->explicit_use_count, 1u);
+    EXPECT_EQ(first_fragment->default_use_count, 0u);
+    EXPECT_EQ(first_fragment->last_used_time, UnixDateTime::from_seconds_since_epoch(10));
+
+    auto second_fragment = url_engagements.find_if([](auto const& engagement) {
+        return engagement.destination == "https://example.com/manual#second"sv;
+    });
+    VERIFY(second_fragment != url_engagements.end());
+    EXPECT_EQ(second_fragment->normalized_input, "docs"sv);
+    EXPECT_EQ(second_fragment->destination_kind, WebView::OmniboxDestinationKind::URL);
+    EXPECT_EQ(second_fragment->explicit_use_count, 0u);
+    EXPECT_EQ(second_fragment->default_use_count, 1u);
+    EXPECT_EQ(second_fragment->last_used_time, UnixDateTime::from_seconds_since_epoch(20));
 
     auto search_engagements = store.omnibox_engagements("lady"sv);
     VERIFY(search_engagements.size() == 1);
@@ -203,7 +216,7 @@ static void expect_history_entries_can_be_removed(WebView::HistoryStore& store)
     store.record_omnibox_engagement({
         .input = "example"_string,
         .destination_kind = WebView::OmniboxDestinationKind::URL,
-        .destination = example_url.serialize(),
+        .destination = MUST(String::formatted("{}#fragment", example_url.serialize())),
         .was_explicit = true,
     });
     store.record_omnibox_engagement({

@@ -4217,6 +4217,62 @@ void Document::flush_autofocus_candidates()
     }
 }
 
+// https://wicg.github.io/scroll-to-text-fragment/#urls-in-ua-features
+void Document::update_text_fragment_indication_visibility(bool visible)
+{
+    auto navigable = this->navigable();
+    if (!navigable || !navigable->is_top_level_traversable() || !is_fully_active())
+        return;
+    page().client().page_did_set_text_fragment_indication_visibility(visible);
+}
+
+static void invalidate_text_fragment_range_paint(Vector<GC::Ref<Range>> const& ranges)
+{
+    // Text-fragment indication spans are generated while recording foreground paint commands.
+    // Invalidate the paintables covered by the ranges so cached commands cannot retain an old
+    // indication or omit a new one.
+    for (auto const& range : ranges) {
+        range->common_ancestor_container()->for_each_in_inclusive_subtree_of_type<Text>([&](Text& text) {
+            if (range->intersects_node(text)) {
+                if (auto* layout_text = as_if<Layout::TextNode>(text.unsafe_layout_node()))
+                    layout_text->set_needs_repaint(InvalidateDisplayList::Yes);
+            }
+            return TraversalDecision::Continue;
+        });
+    }
+}
+
+// https://wicg.github.io/scroll-to-text-fragment/#applying-directives-to-a-document
+void Document::set_pending_text_directives(Optional<Vector<HTML::TextDirective>> directives)
+{
+    invalidate_text_fragment_range_paint(m_text_fragment_ranges);
+    m_text_fragment_ranges.clear();
+    m_pending_text_directives = move(directives);
+    if (m_pending_text_directives.has_value())
+        update_text_fragment_indication_visibility(!m_pending_text_directives->is_empty());
+}
+
+// https://wicg.github.io/scroll-to-text-fragment/#invoking-text-directives
+void Document::clear_pending_text_directives()
+{
+    // 1. Set pending text directives to null.
+    m_pending_text_directives.clear();
+
+    // AD-HOC: A retained range keeps its indication and reconstructed directive visible after the
+    //         parser retry finishes. If no directive matched, there is no indication for the UI to expose.
+    if (m_text_fragment_ranges.is_empty())
+        update_text_fragment_indication_visibility(false);
+}
+
+// https://wicg.github.io/scroll-to-text-fragment/#indicating-the-text-match
+void Document::dismiss_text_fragment_indication()
+{
+    invalidate_text_fragment_range_paint(m_text_fragment_ranges);
+    m_text_fragment_ranges.clear();
+    m_pending_text_directives.clear();
+    update_text_fragment_indication_visibility(false);
+}
+
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#the-indicated-part-of-the-document
 // https://wicg.github.io/scroll-to-text-fragment/#invoking-text-directives
 Document::IndicatedPart Document::determine_the_indicated_part()
@@ -4232,20 +4288,6 @@ Document::IndicatedPart Document::determine_the_indicated_part()
         //    with text directives and the document.
         auto ranges = HTML::invoke_text_directives(*text_directives, *this);
 
-        // Text-fragment indication spans are generated while recording foreground paint commands.
-        // Invalidate both sets of paintables so cached commands cannot retain the old indication or
-        // omit the new one.
-        auto invalidate_text_fragment_range_paint = [](Vector<GC::Ref<Range>> const& ranges) {
-            for (auto const& range : ranges) {
-                range->common_ancestor_container()->for_each_in_inclusive_subtree_of_type<Text>([&](Text& text) {
-                    if (range->intersects_node(text)) {
-                        if (auto* layout_text = as_if<Layout::TextNode>(text.unsafe_layout_node()))
-                            layout_text->set_needs_repaint(InvalidateDisplayList::Yes);
-                    }
-                    return TraversalDecision::Continue;
-                });
-            }
-        };
         invalidate_text_fragment_range_paint(m_text_fragment_ranges);
         m_text_fragment_ranges.clear();
         m_text_fragment_ranges.extend(ranges);
@@ -4259,6 +4301,7 @@ Document::IndicatedPart Document::determine_the_indicated_part()
             // 2. Visually indicate each range in ranges in an implementation-defined way. The
             //    indication must not be observable from author script. See Indicating The Text Match.
             // NB: The ranges are retained privately and painted in the text-fragment indication pass.
+            update_text_fragment_indication_visibility(true);
 
             // 3. Set firstRange as document's indicated part, return.
             return GC::Ptr<Range> { first_range };
@@ -7461,10 +7504,9 @@ void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHi
             auto const& fragment_directive = entry->directive_state()->value();
 
             // 2. Set document's pending text directives to the result of parsing fragment directive.
-            m_text_fragment_ranges.clear();
-            m_pending_text_directives = fragment_directive.has_value()
-                ? Optional<Vector<HTML::TextDirective>> { HTML::parse_the_fragment_directive(*fragment_directive) }
-                : Optional<Vector<HTML::TextDirective>> { Vector<HTML::TextDirective> {} };
+            set_pending_text_directives(fragment_directive.has_value()
+                    ? Optional<Vector<HTML::TextDirective>> { HTML::parse_the_fragment_directive(*fragment_directive) }
+                    : Optional<Vector<HTML::TextDirective>> { Vector<HTML::TextDirective> {} });
         }
 
         // 3. Set document's latest entry to entry.
