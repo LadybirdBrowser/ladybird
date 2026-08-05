@@ -81,7 +81,6 @@ public:
     Web::WebDriver::Response close_window();
     Web::WebDriver::Response switch_to_window(StringView);
     Web::WebDriver::Response get_window_handles() const;
-    ErrorOr<void, Web::WebDriver::Error> ensure_current_window_handle_is_valid() const;
     ErrorOr<bool, Web::WebDriver::Error> wait_for_current_window_to_have_web_content_connection();
     void mark_current_window_as_awaiting_replacement(WebContentConnection const&);
 
@@ -116,7 +115,17 @@ public:
                 return false;
 
             auto current_window = m_windows.get(m_current_window_handle);
-            return !current_window.has_value() || (current_window->is_awaiting_replacement() && !current_window->web_content_connection);
+            if (!current_window.has_value())
+                return true;
+
+            // A replacement WebContent process can register itself with this session before the event loop dispatches
+            // the closing of the connection this action was sent to. That close matches no window – so, the awaiting-
+            // replacement state this wait watches for is never entered. The current window being connected to another
+            // connection is equally proof that no response will ever arrive from the connection this was sent to.
+            if (current_window->web_content_connection)
+                return current_window->web_content_connection.ptr() != connection.ptr();
+
+            return current_window->is_awaiting_replacement();
         });
 
         if (response.has_value())

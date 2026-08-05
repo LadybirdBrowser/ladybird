@@ -543,18 +543,6 @@ Web::WebDriver::Response Session::get_window_handles() const
     return JsonValue { move(handles) };
 }
 
-ErrorOr<void, Web::WebDriver::Error> Session::ensure_current_window_handle_is_valid() const
-{
-    auto current_window = m_windows.get(m_current_window_handle);
-    if (!current_window.has_value())
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found"sv);
-
-    if (!current_window->web_content_connection)
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnknownError, "Window is waiting for a replacement WebContent process"sv);
-
-    return {};
-}
-
 ErrorOr<bool, Web::WebDriver::Error> Session::wait_for_current_window_to_have_web_content_connection()
 {
     m_event_loop.pump(Core::EventLoop::WaitMode::PollForEvents);
@@ -599,15 +587,30 @@ ErrorOr<bool, Web::WebDriver::Error> Session::wait_for_current_window_to_have_we
     if (timer)
         timer->stop();
 
-    if (timed_out) {
-        if (replacement_was_inferred)
-            return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::Timeout,
-                MUST(String::formatted("WebContent process was not replaced within {} ms", *page_load_timeout)));
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::Timeout, "Timed out waiting for replacement WebContent process"sv);
-    }
+    // Refetch the window — rather than trusting timed_out: If the replacement registered in the same event-loop batch
+    // that fired the timer, its arrival wins over the timeout.
+    current_window = m_windows.get(m_current_window_handle);
+    if (!current_window.has_value())
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found"sv);
+    if (current_window->web_content_connection)
+        return true;
+    VERIFY(timed_out);
 
-    TRY(ensure_current_window_handle_is_valid());
-    return true;
+    // The replacement this window was waiting for never arrived — and nothing else will ever connect a WebContent
+    // process to this window. So, without a transition here, every later command would reach this same wait, and repeat
+    // this same timeout — for the life of the session. This timeout is the sole owner of that failure transition:
+    // Remove the window — converging on the end state an unannounced connection close has. Later commands then observe
+    // an absent window — for which the WebDriver spec prescribes the error in every command's step 1; e.g., from
+    // https://w3c.github.io/webdriver/#get-current-url:
+    // 1. If the current top-level browsing context is no longer open, return error with error code no such window.
+    auto window_handle = m_current_window_handle;
+    remove_window(window_handle);
+
+    if (replacement_was_inferred)
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow,
+            MUST(String::formatted("The window's WebContent process disconnected and was not replaced within {} ms", *page_load_timeout)));
+    return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow,
+        MUST(String::formatted("The window's replacement WebContent process did not connect within {} ms", *page_load_timeout)));
 }
 
 }
