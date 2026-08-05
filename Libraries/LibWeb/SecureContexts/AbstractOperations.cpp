@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/IPv4Address.h>
-#include <AK/IPv6Address.h>
 #include <LibURL/InternalURLs.h>
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
@@ -33,28 +31,13 @@ Trustworthiness is_origin_potentially_trustworthy(URL::Origin const& origin)
         return Trustworthiness::PotentiallyTrustworthy;
 
     // 4. If origin’s host matches one of the CIDR notations 127.0.0.0/8 or ::1/128 [RFC4632], return "Potentially Trustworthy".
-    if (origin.host().has<IPv4Address>()) {
-        if ((origin.host().get<IPv4Address>().to_u32() & 0xff000000) == 0x7f000000)
-            return Trustworthiness::PotentiallyTrustworthy;
-    } else if (origin.host().has<IPv6Address>()) {
-        auto ipv6_address = origin.host().get<IPv6Address>();
-        if (ipv6_address == IPv6Address::loopback())
-            return Trustworthiness::PotentiallyTrustworthy;
-    }
-
     // 5. If the user agent conforms to the name resolution rules in [let-localhost-be-localhost] and one of the following is true:
     // - origin’s host is "localhost" or "localhost."
     // - origin’s host ends with ".localhost" or ".localhost."
     // then return "Potentially Trustworthy".
     // Note: See § 5.2 localhost for details on the requirements here.
-    if (origin.host().has<String>()) {
-        auto const& host = origin.host().get<String>();
-        if (host.is_one_of("localhost"sv, "localhost.")
-            || host.ends_with_bytes(".localhost"sv)
-            || host.ends_with_bytes(".localhost."sv)) {
-            return Trustworthiness::PotentiallyTrustworthy;
-        }
-    }
+    if (origin.host().is_loopback_or_localhost())
+        return Trustworthiness::PotentiallyTrustworthy;
 
     // 6. If origin’s scheme is "file", return "Potentially Trustworthy".
     // AD-HOC: Our resource:// is basically an alias to file://

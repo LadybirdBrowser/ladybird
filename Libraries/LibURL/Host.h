@@ -26,6 +26,7 @@ public:
 
     bool is_domain() const;
     bool is_empty_host() const;
+    bool is_loopback_or_localhost() const;
 
     template<typename T>
     bool has() const { return m_value.template has<T>(); }
