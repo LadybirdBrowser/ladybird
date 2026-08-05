@@ -118,10 +118,6 @@ impl<'pass> AbsposEngine<'pass> {
         self.callbacks.is_ancestor(ancestor, node)
     }
 
-    fn belongs_to_inline_containing_block(&self, inline_node: Node, node: Node) -> bool {
-        !self.facts(node).is_anonymous() && self.node_is_ancestor(inline_node, node)
-    }
-
     fn resolve_static_position_relative_to_containing_block(
         &self,
         node: Node,
@@ -157,158 +153,6 @@ impl<'pass> AbsposEngine<'pass> {
         )
     }
 
-    fn line_fragments(&self, node: Node) -> Vec<LineFragmentFacts> {
-        let mut fragments = Vec::new();
-        let Some(lines) = self.state.line_data(self.callbacks.slot_index(node)) else {
-            return fragments;
-        };
-        for line in &lines.line_boxes {
-            for fragment in &line.fragments {
-                let (x, y) = fragment.offset();
-                let (width, height) = fragment.size();
-                fragments.push(LineFragmentFacts {
-                    layout_node: fragment.layout_node,
-                    is_atomic_inline: fragment.is_atomic_inline,
-                    writing_mode: fragment.writing_mode,
-                    style_block_axis_is_reverse: fragment.style_block_axis_is_reverse,
-                    inline_offset: fragment.inline_offset,
-                    block_offset: fragment.block_offset,
-                    offset: FfiCssPixelPoint { x, y },
-                    size: FfiCssPixelPoint { x: width, y: height },
-                });
-            }
-        }
-        fragments
-    }
-
-    fn add_atomic_inline_fragment_rect(
-        &self,
-        inline_node: Node,
-        fragment: LineFragmentFacts,
-        offset: FfiCssPixelPoint,
-        bounding_rect: &mut Option<PhysicalRect>,
-        empty_bounding_rect: &mut Option<PhysicalRect>,
-    ) {
-        let Some(child_used) = self.try_used_pointer(fragment.layout_node) else {
-            return;
-        };
-        let collapsed = child_used.uses_collapsing_borders_model.get();
-        let is_horizontal = fragment.writing_mode == writing_mode::HORIZONTAL_TB;
-        let inline_axis_border_box_start = fragment.inline_offset
-            - if is_horizontal {
-                child_used.border_box_left(collapsed)
-            } else {
-                child_used.border_box_top(collapsed)
-            };
-        let inline_axis_border_box_extent = if is_horizontal {
-            child_used.border_box_inline_size(collapsed)
-        } else {
-            child_used.border_box_block_size(collapsed)
-        };
-        let block_axis_line_height = self.style(inline_node).line_height();
-        let block_axis_start = if fragment.style_block_axis_is_reverse {
-            fragment.block_offset + child_used.border_box_right(collapsed) - block_axis_line_height
-        } else {
-            fragment.block_offset
-                - if is_horizontal {
-                    child_used.border_box_top(collapsed)
-                } else {
-                    child_used.border_box_left(collapsed)
-                }
-        };
-        let rect = if is_horizontal {
-            PhysicalRect {
-                x: inline_axis_border_box_start,
-                y: block_axis_start,
-                width: inline_axis_border_box_extent,
-                height: block_axis_line_height,
-            }
-        } else {
-            PhysicalRect {
-                x: block_axis_start,
-                y: inline_axis_border_box_start,
-                width: block_axis_line_height,
-                height: inline_axis_border_box_extent,
-            }
-        }
-        .translated(offset);
-        add_fragment_rect(rect, bounding_rect, empty_bounding_rect);
-    }
-
-    fn walk_inline_containing_block(
-        &self,
-        inline_node: Node,
-        node: Node,
-        offset: FfiCssPixelPoint,
-        bounding_rect: &mut Option<PhysicalRect>,
-        empty_bounding_rect: &mut Option<PhysicalRect>,
-    ) {
-        for fragment in self.line_fragments(node) {
-            if !self.belongs_to_inline_containing_block(inline_node, fragment.layout_node) {
-                continue;
-            }
-            if fragment.is_atomic_inline {
-                self.add_atomic_inline_fragment_rect(inline_node, fragment, offset, bounding_rect, empty_bounding_rect);
-                continue;
-            }
-            add_fragment_rect(
-                PhysicalRect {
-                    x: fragment.offset.x + offset.x,
-                    y: fragment.offset.y + offset.y,
-                    width: fragment.size.x,
-                    height: fragment.size.y,
-                },
-                bounding_rect,
-                empty_bounding_rect,
-            );
-        }
-
-        let mut child = self.callbacks.first_child(node);
-        while !child.is_invalid() {
-            let next = self.callbacks.next_sibling(child);
-            let facts = self.facts(child);
-            if facts.is_absolutely_positioned() || facts.is_floating() {
-                child = next;
-                continue;
-            }
-            let child_used_pointer = self.try_used_pointer(child);
-            let child_offset = if let Some(child_used) = child_used_pointer {
-                point_add(offset, child_used.content_offset.get())
-            } else {
-                offset
-            };
-            if facts.is_box() && !facts.is_anonymous() {
-                if !self.belongs_to_inline_containing_block(inline_node, child) {
-                    child = next;
-                    continue;
-                }
-                if facts.is_atomic_inline() {
-                    child = next;
-                    continue;
-                }
-                if let Some(child_used) = child_used_pointer {
-                    let collapsed = child_used.uses_collapsing_borders_model.get();
-                    let border_box_origin = FfiCssPixelPoint {
-                        x: child_offset.x - child_used.border_left_collapsed(collapsed) - child_used.padding_left.get(),
-                        y: child_offset.y - child_used.border_top_collapsed(collapsed) - child_used.padding_top.get(),
-                    };
-                    add_fragment_rect(
-                        PhysicalRect {
-                            x: border_box_origin.x,
-                            y: border_box_origin.y,
-                            width: child_used.border_box_inline_size(collapsed),
-                            height: child_used.border_box_block_size(collapsed),
-                        },
-                        bounding_rect,
-                        empty_bounding_rect,
-                    );
-                }
-            }
-            self.walk_inline_containing_block(inline_node, child, child_offset, bounding_rect, empty_bounding_rect);
-            child = next;
-        }
-    }
-
     fn compute_inline_containing_block_rect(
         &self,
         inline_node: Node,
@@ -322,31 +166,21 @@ impl<'pass> AbsposEngine<'pass> {
             return None;
         }
 
-        let mut outer_offset = FfiCssPixelPoint::default();
-        let mut ancestor = outer_block;
-        while !ancestor.is_invalid() && ancestor != abspos_containing_block {
-            let used = self.try_used_pointer(ancestor);
-            if let Some(used) = used {
-                outer_offset = point_add(outer_offset, used.content_offset.get());
-            }
-            ancestor = self.callbacks.parent(ancestor);
-        }
-
-        let mut bounding_rect = None;
-        let mut empty_bounding_rect = None;
-        self.walk_inline_containing_block(
-            inline_node,
-            outer_block,
-            outer_offset,
-            &mut bounding_rect,
-            &mut empty_bounding_rect,
+        let mut rect = self
+            .state
+            .inline_containing_block_first_last_rect(self.callbacks.slot_index(inline_node))?;
+        debug_assert!(
+            self.node_is_ancestor(abspos_containing_block, inline_node),
+            "an inline containing block must live inside its children's box containing block"
         );
-        let mut rect = bounding_rect.or(empty_bounding_rect)?;
-        if let Some(inline_used) = self.try_used_pointer(inline_node) {
-            rect.x -= inline_used.padding_left.get();
-            rect.y -= inline_used.padding_top.get();
-            rect.width += inline_used.padding_left.get() + inline_used.padding_right.get();
-            rect.height += inline_used.padding_top.get() + inline_used.padding_bottom.get();
+        let mut ancestor = self.callbacks.containing_block(inline_node);
+        while !ancestor.is_invalid() && ancestor != abspos_containing_block {
+            if let Some(used) = self.try_used_pointer(ancestor) {
+                let content_offset = used.content_offset.get();
+                rect.x += content_offset.x;
+                rect.y += content_offset.y;
+            }
+            ancestor = self.callbacks.containing_block(ancestor);
         }
         Some(rect)
     }
@@ -405,18 +239,6 @@ impl<'pass> AbsposEngine<'pass> {
 
 }
 
-fn add_fragment_rect(
-    rect: PhysicalRect,
-    bounding_rect: &mut Option<PhysicalRect>,
-    empty_bounding_rect: &mut Option<PhysicalRect>,
-) {
-    let destination = if rect.is_empty() {
-        empty_bounding_rect
-    } else {
-        bounding_rect
-    };
-    *destination = Some(destination.map_or(rect, |existing| existing.union(rect)));
-}
 
 fn calc_node_create_px_dimension(value: f64) -> *const c_void {
     crate::css::calc::rust_calc_node_create_numeric_dimension(

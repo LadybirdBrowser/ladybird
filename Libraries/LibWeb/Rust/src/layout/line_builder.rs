@@ -122,10 +122,6 @@ impl<'builder, 'context, 'pass> LineBuilder<'builder, 'context, 'pass> {
             first_available_font: style.first_available_font(),
             text_utf16,
             text_length_in_code_units: text_length,
-            style_block_axis_is_reverse: matches!(
-                style.writing_mode(),
-                writing_mode::VERTICAL_RL | writing_mode::SIDEWAYS_RL
-            ),
         }
     }
 

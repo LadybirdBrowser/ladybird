@@ -158,6 +158,7 @@ struct PerLine {
     max_direct_fragment_block_length: CssPixels,
     fallback_block_start_from_contributions: Option<CssPixels>,
     interrupting_block_position: Option<(CssPixels, CssPixels)>,
+    interrupting_block_logical_extent: Option<CandidateLineCorners>,
     first_fragment_index: Option<u32>,
     fragment_count: u32,
 }
@@ -171,6 +172,7 @@ impl PerLine {
             max_direct_fragment_block_length: CssPixels::default(),
             fallback_block_start_from_contributions: None,
             interrupting_block_position: None,
+            interrupting_block_logical_extent: None,
             first_fragment_index: None,
             fragment_count: 0,
         }
@@ -236,8 +238,33 @@ fn edge_bits(horizontal: bool, low: bool, high: bool) -> u8 {
     edges
 }
 
-pub(crate) fn compute(context: &InlineFormattingContext) -> Vec<InlineBoxPieceData> {
+pub(crate) struct InlineContainingBlockRectCandidate {
+    pub(crate) inline_containing_block: Node,
+    pub(crate) rect: PhysicalRect,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct CandidateLineCorners {
+    inline_start: CssPixels,
+    inline_end: CssPixels,
+    block_start: CssPixels,
+    block_end: CssPixels,
+}
+
+#[derive(Default)]
+struct FirstAndLastContentLineCorners {
+    first: Option<CandidateLineCorners>,
+    last: Option<CandidateLineCorners>,
+}
+
+pub(crate) fn compute(
+    context: &InlineFormattingContext,
+) -> (Vec<InlineBoxPieceData>, Vec<InlineContainingBlockRectCandidate>) {
     let horizontal = context.style(context.containing_block).writing_mode() == writing_mode::HORIZONTAL_TB;
+    let collect_inline_containing_block_rects = context.state.has_inline_containing_blocks();
+    let container_inline_axis_is_reverse = collect_inline_containing_block_rects
+        && context.facts(context.containing_block).inline_axis_is_reverse();
+    let mut inline_containing_block_rect_candidates = Vec::<InlineContainingBlockRectCandidate>::new();
     let mut per_nodes = Vec::<PerNode>::new();
     let mut node_to_index = HashMap::<Node, usize>::new();
 
@@ -270,6 +297,38 @@ pub(crate) fn compute(context: &InlineFormattingContext) -> Vec<InlineBoxPieceDa
                 }
             }
 
+            let interrupting_block_logical_extent = if interrupting {
+                context.try_used_pointer(fragment.layout_node).map(|block_used| {
+                    let collapsed = block_used.uses_collapsing_borders_model.get();
+                    let (border_box_inline_low, border_box_block_low, border_box_inline_size, border_box_block_size) =
+                        if horizontal {
+                            (
+                                block_used.border_box_left(collapsed),
+                                block_used.border_box_top(collapsed),
+                                block_used.border_box_inline_size(collapsed),
+                                block_used.border_box_block_size(collapsed),
+                            )
+                        } else {
+                            (
+                                block_used.border_box_top(collapsed),
+                                block_used.border_box_left(collapsed),
+                                block_used.border_box_block_size(collapsed),
+                                block_used.border_box_inline_size(collapsed),
+                            )
+                        };
+                    let extent_inline_start = inline_start - border_box_inline_low;
+                    let extent_block_start = block_start - border_box_block_low;
+                    CandidateLineCorners {
+                        inline_start: extent_inline_start,
+                        inline_end: extent_inline_start + border_box_inline_size,
+                        block_start: extent_block_start,
+                        block_end: extent_block_start + border_box_block_size,
+                    }
+                })
+            } else {
+                None
+            };
+
             let mut direct = true;
             let mut previous: Option<usize> = None;
             let mut ancestor = context.nearest_fragmented_inline_ancestor(fragment.layout_node);
@@ -299,6 +358,9 @@ pub(crate) fn compute(context: &InlineFormattingContext) -> Vec<InlineBoxPieceDa
                 line.fragment_count = fragment_index + 1 - first;
                 if interrupting {
                     line.interrupting_block_position.get_or_insert(position);
+                    if let Some(extent) = interrupting_block_logical_extent {
+                        line.interrupting_block_logical_extent.get_or_insert(extent);
+                    }
                     ancestor = context.nearest_fragmented_inline_ancestor(ancestor);
                     continue;
                 }
@@ -385,9 +447,19 @@ pub(crate) fn compute(context: &InlineFormattingContext) -> Vec<InlineBoxPieceDa
             )
         };
 
+        let node_is_inline_containing_block =
+            collect_inline_containing_block_rects && context.state.is_inline_containing_block(node);
+        let mut corners = FirstAndLastContentLineCorners::default();
+
         for line in lines {
             let Some((contributions_inline_start, contributions_inline_end)) = line.contributions_inline_range else {
                 if let Some(position) = line.interrupting_block_position {
+                    if node_is_inline_containing_block
+                        && let Some(extent) = line.interrupting_block_logical_extent
+                    {
+                        corners.first.get_or_insert(extent);
+                        corners.last = Some(extent);
+                    }
                     staged.push(StagedPiece {
                         piece: InlineBoxPieceData {
                             node,
@@ -463,6 +535,16 @@ pub(crate) fn compute(context: &InlineFormattingContext) -> Vec<InlineBoxPieceDa
                 depth,
                 discovery_index: node_index,
             });
+            if node_is_inline_containing_block {
+                let source = CandidateLineCorners {
+                    inline_start: border_inline_start,
+                    inline_end: border_inline_end,
+                    block_start: border_block_start,
+                    block_end: border_block_start + border_block_length,
+                };
+                corners.first.get_or_insert(source);
+                corners.last = Some(source);
+            }
             if let Some(parent_index) = parent_index {
                 let parent_line = ensure_line(&mut per_nodes[parent_index], line.line_index);
                 note_contribution(
@@ -478,6 +560,21 @@ pub(crate) fn compute(context: &InlineFormattingContext) -> Vec<InlineBoxPieceDa
                 );
             }
         }
+
+        if node_is_inline_containing_block
+            && let Some(rect) = padding_box_rect_spanning_first_and_last_content_lines(
+                &corners,
+                used,
+                horizontal,
+                reversed,
+                container_inline_axis_is_reverse,
+            )
+        {
+            inline_containing_block_rect_candidates.push(InlineContainingBlockRectCandidate {
+                inline_containing_block: node,
+                rect,
+            });
+        }
     }
 
     for (index, node) in without_fragments.into_iter().enumerate() {
@@ -485,22 +582,34 @@ pub(crate) fn compute(context: &InlineFormattingContext) -> Vec<InlineBoxPieceDa
             continue;
         }
         let line_height = context.style(node).line_height();
+        let placeholder_rect = if horizontal {
+            InlineCssPixelRect {
+                height: line_height,
+                ..Default::default()
+            }
+        } else {
+            InlineCssPixelRect {
+                width: line_height,
+                ..Default::default()
+            }
+        };
+        if collect_inline_containing_block_rects && context.state.is_inline_containing_block(node) {
+            inline_containing_block_rect_candidates.push(InlineContainingBlockRectCandidate {
+                inline_containing_block: node,
+                rect: PhysicalRect {
+                    x: placeholder_rect.x,
+                    y: placeholder_rect.y,
+                    width: placeholder_rect.width,
+                    height: placeholder_rect.height,
+                },
+            });
+        }
         staged.push(StagedPiece {
             piece: InlineBoxPieceData {
                 node,
                 first_fragment_index: 0,
                 fragment_count: 0,
-                border_box_rect: if horizontal {
-                    InlineCssPixelRect {
-                        height: line_height,
-                        ..Default::default()
-                    }
-                } else {
-                    InlineCssPixelRect {
-                        width: line_height,
-                        ..Default::default()
-                    }
-                },
+                border_box_rect: placeholder_rect,
                 present_edges: edge_bits(horizontal, true, true),
                 is_geometry_only_placeholder: true,
             },
@@ -510,7 +619,69 @@ pub(crate) fn compute(context: &InlineFormattingContext) -> Vec<InlineBoxPieceDa
         });
     }
     sort_for_emission(&mut staged);
-    staged.into_iter().map(|staged| staged.piece).collect()
+    let pieces = staged.into_iter().map(|staged| staged.piece).collect();
+    (pieces, inline_containing_block_rect_candidates)
+}
+
+fn padding_box_rect_spanning_first_and_last_content_lines(
+    corners: &FirstAndLastContentLineCorners,
+    used: Option<&UsedValues>,
+    horizontal: bool,
+    inline_axis_is_reverse: bool,
+    container_inline_axis_is_reverse: bool,
+) -> Option<PhysicalRect> {
+    let first = corners.first?;
+    let last = corners.last?;
+
+    let (border_inline_low, border_inline_high, border_block_low, border_block_high) = match used {
+        Some(used) if horizontal => (
+            used.border_left.get(),
+            used.border_right.get(),
+            used.border_top.get(),
+            used.border_bottom.get(),
+        ),
+        Some(used) => (
+            used.border_top.get(),
+            used.border_bottom.get(),
+            used.border_left.get(),
+            used.border_right.get(),
+        ),
+        None => Default::default(),
+    };
+    let direction_matches = inline_axis_is_reverse == container_inline_axis_is_reverse;
+    let (contracted_inline_low, contracted_inline_high) = if direction_matches {
+        (border_inline_low, border_inline_high)
+    } else {
+        Default::default()
+    };
+
+    let block_start = first.block_start + border_block_low;
+    let block_size = (last.block_end - border_block_high - block_start).max(CssPixels::default());
+    let (inline_low, inline_size) = if !container_inline_axis_is_reverse {
+        let start = first.inline_start + contracted_inline_low;
+        let end = last.inline_end - contracted_inline_high;
+        (start, (end - start).max(CssPixels::default()))
+    } else {
+        let start = first.inline_end - contracted_inline_high;
+        let end = last.inline_start + contracted_inline_low;
+        let size = (start - end).max(CssPixels::default());
+        (start - size, size)
+    };
+    Some(if horizontal {
+        PhysicalRect {
+            x: inline_low,
+            y: block_start,
+            width: inline_size,
+            height: block_size,
+        }
+    } else {
+        PhysicalRect {
+            x: block_start,
+            y: inline_low,
+            width: block_size,
+            height: inline_size,
+        }
+    })
 }
 pub(crate) struct InlineFormattingContext<'context, 'pass> {
     pub(crate) run: &'context FormattingContextRun<'pass>,
@@ -1075,8 +1246,13 @@ impl<'context, 'pass> InlineFormattingContext<'context, 'pass> {
         if self.state.is_measurement() {
             return;
         }
-        let pieces = compute(self);
+        let (pieces, inline_containing_block_rect_candidates) = compute(self);
         self.line_data_mut().inline_box_pieces = pieces;
+        for candidate in inline_containing_block_rect_candidates {
+            self.state
+                .used_values_rare_data_for_node_mut(&self.callbacks, candidate.inline_containing_block)
+                .inline_containing_block_first_last_rect = Some(candidate.rect);
+        }
     }
 }
 
