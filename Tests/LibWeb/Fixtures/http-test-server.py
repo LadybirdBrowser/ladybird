@@ -145,6 +145,8 @@ class WPTContext:
 
 
 class TestHTTPServer(socketserver.ThreadingTCPServer):
+    request_queue_size = socket.SOMAXCONN
+
     scheme: str
     router: SimpleNamespace
     wpt: WPTContext
