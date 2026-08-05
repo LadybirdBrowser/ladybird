@@ -247,7 +247,7 @@ TEST_CASE(location_to_search_or_url)
     expect_url_equals_sanitized_url("https://example.test/path"sv, "example.test/path"sv); // Reserved TLDs.
     expect_url_equals_sanitized_url("https://example.example/path"sv, "example.example/path"sv);
     expect_url_equals_sanitized_url("https://example.invalid/path"sv, "example.invalid/path"sv);
-    expect_url_equals_sanitized_url("https://example.localhost/path"sv, "example.localhost/path"sv);
+    expect_url_equals_sanitized_url("http://example.localhost/path"sv, "example.localhost/path"sv); // .localhost names get the http guess below.
 
     expect_search_url_equals_sanitized_url("example.def"sv); // Invalid domain but no scheme: search (Like Firefox or Chrome).
 
@@ -255,15 +255,40 @@ TEST_CASE(location_to_search_or_url)
     // Respect the user if the url has a valid scheme but not a public suffix (.def is not a recognized TLD).
     expect_url_equals_sanitized_url("https://example.def/"sv, "https://example.def"sv);
 
-    expect_url_equals_sanitized_url("https://localhost/"sv, "localhost"sv); // Respect localhost.
-    expect_url_equals_sanitized_url("https://localhost:8000/"sv, "localhost:8000"sv);
-    expect_url_equals_sanitized_url("https://localhost/hello"sv, "localhost/hello"sv);
-    expect_url_equals_sanitized_url("https://localhost/hello.world"sv, "localhost/hello.world"sv);
-    expect_url_equals_sanitized_url("https://localhost/hello.world?query=123"sv, "localhost/hello.world?query=123"sv);
+    // Respect localhost, and guess http (not https) for it: loopback and localhost hosts can't generally obtain
+    // publicly-trusted TLS cert — and their traffic never leaves the machine.
+    expect_url_equals_sanitized_url("http://localhost/"sv, "localhost"sv);
+    expect_url_equals_sanitized_url("http://localhost:8000/"sv, "localhost:8000"sv);
+    expect_url_equals_sanitized_url("http://localhost/hello"sv, "localhost/hello"sv);
+    expect_url_equals_sanitized_url("http://localhost/hello.world"sv, "localhost/hello.world"sv);
+    expect_url_equals_sanitized_url("http://localhost/hello.world?query=123"sv, "localhost/hello.world?query=123"sv);
+    expect_url_equals_sanitized_url("http://127.0.0.1/"sv, "127.0.0.1"sv);
+    expect_url_equals_sanitized_url("http://127.0.0.1:8000/"sv, "127.0.0.1:8000"sv);
+    expect_url_equals_sanitized_url("http://[::1]/"sv, "::1"sv); // A bare IPv6 address gets bracketed.
+    expect_url_equals_sanitized_url("http://[::1]:8000/"sv, "[::1]:8000"sv);
+    expect_url_equals_sanitized_url("http://0.0.0.0:8000/"sv, "0.0.0.0:8000"sv); // The unspecified address reaches loopback in practice.
+
+    // An explicitly typed scheme is never rewritten.
+    expect_url_equals_sanitized_url("https://localhost:8000/"sv, "https://localhost:8000"sv);
+    expect_url_equals_sanitized_url("https://127.0.0.1/"sv, "https://127.0.0.1"sv);
+
+    // Reparsing with the http guess keeps a port that's default for https only, and drops a port that's default for http.
+    expect_url_equals_sanitized_url("http://localhost:443/"sv, "localhost:443"sv);
+    expect_url_equals_sanitized_url("http://localhost/"sv, "localhost:80"sv);
+
+    // Without brackets, ":8000" parses as part of the IPv6 address, not as a port.
+    expect_url_equals_sanitized_url("https://[::1:8000]/"sv, "::1:8000"sv);
+
+    // Single-label hostnames other than "localhost" still search – like in other browsers — even if the system resolver
+    // might know them (e.g., from the hosts file).
+    expect_search_url_equals_sanitized_url("localhost4"sv);
+    expect_search_url_equals_sanitized_url("localhost6"sv);
 
     expect_url_equals_sanitized_url("https://example.com/"sv, "example"sv, WebView::AppendTLD::Yes); // User holds down the Ctrl key.
     expect_url_equals_sanitized_url("https://example.def.com/"sv, "example.def"sv, WebView::AppendTLD::Yes);
     expect_url_equals_sanitized_url("https://com.com/"sv, "com"sv, WebView::AppendTLD::Yes);
+    expect_url_equals_sanitized_url("https://localhost.com/"sv, "localhost"sv, WebView::AppendTLD::Yes); // localhost.com is a public site.
+    expect_url_equals_sanitized_url("http://127.0.0.1/"sv, "127.0.0.1"sv, WebView::AppendTLD::Yes);      // No TLD is appended to an IP address.
     expect_url_equals_sanitized_url("https://example.com/index.html"sv, "example/index.html"sv, WebView::AppendTLD::Yes);
 
     expect_search_url_equals_sanitized_url("whatever:example.com"sv);
@@ -280,7 +305,7 @@ TEST_CASE(classify_user_input)
     using enum WebView::UserInputClassification;
 
     expect_user_input_classification("example.org"sv, InternalURL, "https://example.org/"sv);
-    expect_user_input_classification("localhost:8080"sv, InternalURL, "https://localhost:8080/"sv);
+    expect_user_input_classification("localhost:8080"sv, InternalURL, "http://localhost:8080/"sv);
     expect_user_input_classification("example.com:8080"sv, InternalURL, "https://example.com:8080/"sv);
     expect_user_input_classification("host:8080/path?query#fragment"sv, InternalURL, "https://host:8080/path?query#fragment"sv);
     expect_user_input_classification("1.2:45"sv, InternalURL, "https://1.0.0.2:45/"sv);
@@ -306,6 +331,7 @@ TEST_CASE(location_looks_like_url)
     expect_location_looks_like_url("example.org"sv);
     expect_location_looks_like_url("example.com"sv);
     expect_location_looks_like_url("localhost"sv);
+    expect_location_looks_like_url("::1"sv);
     expect_location_looks_like_url("https://example.def"sv);
     expect_location_looks_like_url("site:example.com"sv);
     expect_location_looks_like_url("mailto:hello@example.com"sv);
@@ -325,7 +351,7 @@ TEST_CASE(context_menu_url_text)
 {
     expect_context_menu_text_url("ladybird.org"sv, "https://ladybird.org/"sv);
     expect_context_menu_text_url("www.ladybird.org/path?x=1"sv, "https://www.ladybird.org/path?x=1"sv);
-    expect_context_menu_text_url("localhost:8000"sv, "https://localhost:8000/"sv);
+    expect_context_menu_text_url("localhost:8000"sv, "http://localhost:8000/"sv);
     expect_context_menu_text_url("https://ladybird.org"sv, "https://ladybird.org/"sv);
 
     expect_context_menu_text_not_url("ladybird"sv);
