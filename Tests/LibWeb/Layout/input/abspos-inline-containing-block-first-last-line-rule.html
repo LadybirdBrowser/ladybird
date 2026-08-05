@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<style>
+    * { margin: 0; padding: 0; }
+    .frame { width: 300px; margin: 8px; font: 16px/20px monospace; }
+    .rel { position: relative; }
+    .cb { position: absolute; inset: 0; }
+</style>
+
+<!-- The middle line is the widest; the containing block rect spans only the
+     first and last content lines. -->
+<div class="frame" style="width: 130px;">
+    <span class="rel">aa bb<br>cccccccc dddddd<br>ee<span class="cb"></span></span>
+</div>
+
+<!-- Text before and after an interrupting block: first content line before
+     the block, last content line after it, the block itself excluded. -->
+<div class="frame">
+    <span class="rel">before<div style="height: 40px;">block</div>after<span class="cb"></span></span>
+</div>
+
+<!-- RTL span in an LTR container: direction mismatch skips the inline-axis
+     border contraction. -->
+<div class="frame">
+    aa <span class="rel" dir="rtl" style="border-left: 4px solid; border-right: 8px solid;">bb cc<span class="cb"></span></span> dd
+</div>
+
+<!-- RTL span in an RTL container: matching directions contract the logical
+     inline-start and inline-end borders. -->
+<div class="frame" dir="rtl">
+    aa <span class="rel" style="border-left: 4px solid; border-right: 8px solid;">bb cc<span class="cb"></span></span> dd
+</div>
+
+<!-- An atomic inline taller than the line contributes its real fragment
+     extent instead of a line-height-derived one. -->
+<div class="frame">
+    <span class="rel">x<span style="display: inline-block; width: 30px; height: 60px; vertical-align: bottom;"></span>y<span class="cb"></span></span>
+</div>
+
+<!-- Inline containing block inside a table cell. -->
+<table><tr><td style="width: 200px;"><span class="rel">cell text<span class="cb"></span></span></td></tr></table>
+
+<!-- The absolutely positioned box is registered by the flex formatting
+     context while its containing block is the outer inline: the containing
+     block rect arrives through the standalone hoisted record. -->
+<div class="frame">
+    <span class="rel">t<div style="display: flex; height: 40px;"><div class="cb"></div></div>t</span>
+</div>

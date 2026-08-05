@@ -85,17 +85,6 @@ pub struct FfiResolvedAnchorInsets {
     pub left: CssPixels,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-struct LineFragmentFacts {
-    layout_node: Node,
-    is_atomic_inline: bool,
-    writing_mode: u8,
-    style_block_axis_is_reverse: bool,
-    inline_offset: CssPixels,
-    block_offset: CssPixels,
-    offset: FfiCssPixelPoint,
-    size: FfiCssPixelPoint,
-}
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct PhysicalRect {
@@ -122,30 +111,6 @@ impl PhysicalRect {
         self.y + self.height
     }
 
-    fn is_empty(self) -> bool {
-        self.width <= CssPixels::default() || self.height <= CssPixels::default()
-    }
-
-    fn translated(self, offset: FfiCssPixelPoint) -> Self {
-        Self {
-            x: self.x + offset.x,
-            y: self.y + offset.y,
-            ..self
-        }
-    }
-
-    fn union(self, other: Self) -> Self {
-        let left = self.left().min(other.left());
-        let top = self.top().min(other.top());
-        let right = self.right().max(other.right());
-        let bottom = self.bottom().max(other.bottom());
-        Self {
-            x: left,
-            y: top,
-            width: right - left,
-            height: bottom - top,
-        }
-    }
 }
 
 fn point_add(left: FfiCssPixelPoint, right: FfiCssPixelPoint) -> FfiCssPixelPoint {
@@ -448,6 +413,10 @@ pub(crate) fn register_contained_abspos_child(
     let mut target = callbacks.containing_block(child);
     if target.is_invalid() {
         return;
+    }
+    let inline_containing_block = callbacks.inline_containing_block(child);
+    if !inline_containing_block.is_invalid() {
+        state.note_inline_containing_block(inline_containing_block);
     }
     loop {
         let containing_block = callbacks.containing_block(target);

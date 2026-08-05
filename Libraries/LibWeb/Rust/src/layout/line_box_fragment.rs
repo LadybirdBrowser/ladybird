@@ -48,7 +48,6 @@ pub(crate) struct LineBoxFragmentData {
     pub(crate) first_available_font: *const c_void,
     pub(crate) text_utf16: *const u16,
     pub(crate) text_length_in_code_units: usize,
-    pub(crate) style_block_axis_is_reverse: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -60,7 +59,6 @@ pub(crate) struct FragmentBuildFacts {
     pub(crate) first_available_font: *const c_void,
     pub(crate) text_utf16: *const u16,
     pub(crate) text_length_in_code_units: usize,
-    pub(crate) style_block_axis_is_reverse: bool,
 }
 
 impl LineBoxFragmentData {
@@ -103,7 +101,6 @@ impl LineBoxFragmentData {
             first_available_font: facts.first_available_font,
             text_utf16: facts.text_utf16,
             text_length_in_code_units: facts.text_length_in_code_units,
-            style_block_axis_is_reverse: facts.style_block_axis_is_reverse,
         };
         if let Some(glyphs) = &fragment.glyphs {
             fragment.current_insert_direction = fragment.resolve_glyph_run_direction(glyphs.text_type);

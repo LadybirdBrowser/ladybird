@@ -803,6 +803,7 @@ pub(crate) struct LayoutState {
     line_data: PagedStore<RefCell<LineData>>,
     block_rare_data: PagedStore<RefCell<BlockRareData>>,
     used_values_rare_data: PagedStore<RefCell<UsedValuesRareData>>,
+    inline_containing_blocks: RefCell<HashSet<Node>>,
     purpose: LayoutStatePurpose,
 }
 
@@ -840,6 +841,7 @@ pub(crate) struct UsedValuesRareData {
     pub(crate) used_grid_tracks: Option<OwnedUsedGridTracks>,
     pub(crate) override_borders_data: Option<FfiBordersData>,
     pub(crate) abspos_layout_inputs: Option<AbsposLayoutInputs>,
+    pub(crate) inline_containing_block_first_last_rect: Option<PhysicalRect>,
 }
 
 impl LayoutState {
@@ -855,6 +857,7 @@ impl LayoutState {
             line_data: PagedStore::default(),
             block_rare_data: PagedStore::default(),
             used_values_rare_data: PagedStore::default(),
+            inline_containing_blocks: RefCell::new(HashSet::new()),
             purpose,
         }
     }
@@ -1087,6 +1090,22 @@ impl LayoutState {
         }
 
         Some(self.used_values.allocate(slot_index, used))
+    }
+
+    pub(crate) fn note_inline_containing_block(&self, inline_containing_block: Node) {
+        self.inline_containing_blocks.borrow_mut().insert(inline_containing_block);
+    }
+
+    pub(crate) fn has_inline_containing_blocks(&self) -> bool {
+        !self.inline_containing_blocks.borrow().is_empty()
+    }
+
+    pub(crate) fn is_inline_containing_block(&self, node: Node) -> bool {
+        self.inline_containing_blocks.borrow().contains(&node)
+    }
+
+    pub(crate) fn inline_containing_block_first_last_rect(&self, slot_index: u32) -> Option<PhysicalRect> {
+        self.used_values_rare_data(slot_index)?.inline_containing_block_first_last_rect
     }
 
     pub(crate) fn used_value_nodes(&self) -> Vec<Node> {
