@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script type="worker">
+    // Each postMessage of the same SharedArrayBuffer reaches this worker as its own IPC message, so the worker maps
+    // the one shared object twice. %TypedArray%.prototype.set must still see the two buffers as aliasing: its copy
+    // for shared memory is a forward byte loop, and this target overlaps the source from above, so running it without
+    // the step-19 clone reads back bytes it has already written.
+    const received = [];
+    globalThis.onmessage = (event) => {
+        received.push(event.data);
+        if (received.length < 2)
+            return;
+
+        const target = new Uint8Array(received[0], 2, 4);
+        const source = new Uint8Array(received[1], 0, 4);
+        target.set(source);
+
+        postMessage({
+            distinct: received[0] !== received[1],
+            bytes: Array.from(new Uint8Array(received[0])).join(","),
+        });
+    };
+</script>
+<script src="include.js"></script>
+<script>
+    asyncTest((done) => {
+        const workerSource = document.querySelector('[type=worker]').innerText;
+        const workerBlobURL = URL.createObjectURL(new Blob([workerSource], { type: "text/javascript" }));
+        const worker = new Worker(workerBlobURL);
+
+        const sab = new SharedArrayBuffer(8);
+        const bytes = new Uint8Array(sab);
+        for (let i = 0; i < bytes.length; i++)
+            bytes[i] = i + 1;
+
+        worker.onmessage = (event) => {
+            println("worker got two distinct objects: " + event.data.distinct);
+            println("worker sees after overlapping set: " + event.data.bytes);
+            println("page sees after overlapping set: " + Array.from(new Uint8Array(sab)).join(","));
+            done();
+        };
+
+        worker.postMessage(sab);
+        worker.postMessage(sab);
+    });
+</script>

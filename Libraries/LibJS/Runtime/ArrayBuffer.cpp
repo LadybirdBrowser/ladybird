@@ -5,6 +5,7 @@
  */
 
 #include <AK/NumericLimits.h>
+#include <AK/Random.h>
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
@@ -56,13 +57,13 @@ GC::Ref<ArrayBuffer> ArrayBuffer::create(Realm& realm, DataBlock block)
     return array_buffer;
 }
 
-GC::Ref<ArrayBuffer> ArrayBuffer::create(Realm& realm, Core::AnonymousBuffer anonymous_buffer)
+GC::Ref<ArrayBuffer> ArrayBuffer::create(Realm& realm, Core::AnonymousBuffer anonymous_buffer, u64 shared_object_id)
 {
     // AD-HOC: Reconstruct a shared, fixed-length SharedArrayBuffer over already-mapped cross-process shared memory
     //         (used when deserializing a SharedArrayBuffer whose backing was transferred by file descriptor).
     // NB: create(realm, DataBlock) already accounts for the external memory via set_data_block() — so, unlike the
     //     ByteBuffer overload above (which sets m_data_block through the constructor), we must not did_allocate again.
-    return create(realm, DataBlock { DataBlock::SharedBackingStore { move(anonymous_buffer) }, DataBlock::Shared::Yes });
+    return create(realm, DataBlock { DataBlock::SharedBackingStore { move(anonymous_buffer), shared_object_id }, DataBlock::Shared::Yes });
 }
 
 ArrayBuffer::ArrayBuffer(DataBlock::OwnedBackingStore buffer, DataBlock::Shared is_shared, Object& prototype)
@@ -165,6 +166,17 @@ ThrowCompletionOr<DataBlock> create_byte_data_block(VM& vm, size_t size, Optiona
     return DataBlock { data_block.release_value(), DataBlock::Shared::No };
 }
 
+// A shared object's id must be unique across agents in different processes — which never coordinate to hand them out.
+// So, draw it at random. Zero is reserved to mean "unidentified", so never return it.
+static u64 mint_shared_object_id()
+{
+    for (;;) {
+        auto id = AK::get_random<u64>();
+        if (id != 0)
+            return id;
+    }
+}
+
 // FIXME: The returned DataBlock is not shared in the sense that the standard specifies it.
 // 6.2.9.2 CreateSharedByteDataBlock ( size ), https://tc39.es/ecma262/#sec-createsharedbytedatablock
 static ThrowCompletionOr<DataBlock> create_shared_byte_data_block(VM& vm, size_t size, Optional<size_t> capacity = {})
@@ -188,7 +200,9 @@ static ThrowCompletionOr<DataBlock> create_shared_byte_data_block(VM& vm, size_t
         auto anonymous_buffer = Core::AnonymousBuffer::create_with_size(size, Core::AnonymousBuffer::Sealability::Sealable);
         if (anonymous_buffer.is_error())
             return vm.throw_completion<RangeError>(ErrorType::NotEnoughMemoryToAllocate, size);
-        return DataBlock { DataBlock::SharedBackingStore { anonymous_buffer.release_value() }, DataBlock::Shared::Yes };
+        // Mint the id that will name this object for as long as it exists — in this agent and every agent it reaches.
+        // It's random rather than a counter because it has to stay unique across processes that never coordinate.
+        return DataBlock { DataBlock::SharedBackingStore { anonymous_buffer.release_value(), mint_shared_object_id() }, DataBlock::Shared::Yes };
     }
 
     // 1. Let db be a new Shared Data Block value consisting of size bytes. If it is impossible to create such a Shared Data Block, throw a RangeError exception.
