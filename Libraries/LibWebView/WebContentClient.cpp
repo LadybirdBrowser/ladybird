@@ -567,6 +567,9 @@ void WebContentClient::did_change_top_level_active_document(u64 page_id, Web::HT
         return;
 
     navigable->did_commit_navigation(move(replicated_state));
+
+    if (auto view = owning_view_for_page_id(page_id); view.has_value())
+        view->m_external_url_request_policy.clear_page_request_allowance();
 }
 
 void WebContentClient::did_destroy_child_frame(u64 page_id, Web::HTML::CrossProcessId frame_id)
@@ -919,17 +922,26 @@ void WebContentClient::did_unhover_link(u64 page_id)
 
 void WebContentClient::did_click_link(u64 page_id, URL::URL url, ByteString target, unsigned modifiers)
 {
-    if (modifiers == Web::UIEvents::Mod_PlatformCtrl)
-        Application::the().open_url_in_new_tab(url, Web::HTML::ActivateTab::No);
-    else if (target == "_blank"sv)
-        Application::the().open_url_in_new_tab(url, Web::HTML::ActivateTab::Yes);
-    else if (auto view = view_for_page_id(page_id); view.has_value())
+    auto open_in_background = modifiers == Web::UIEvents::Mod_PlatformCtrl;
+    auto open_in_foreground = modifiers == (Web::UIEvents::Mod_PlatformCtrl | Web::UIEvents::Mod_Shift);
+    if (open_in_background || open_in_foreground || target == "_blank"sv) {
+        if (auto view = owning_view_for_page_id(page_id); view.has_value())
+            view->open_url_in_new_tab(url, open_in_background ? Web::HTML::ActivateTab::No : Web::HTML::ActivateTab::Yes);
+    } else if (auto view = view_for_page_id(page_id); view.has_value()) {
         view->load(url);
+    }
 }
 
-void WebContentClient::did_middle_click_link(u64, URL::URL url, ByteString, unsigned)
+void WebContentClient::did_middle_click_link(u64 page_id, URL::URL url, ByteString, unsigned)
 {
-    Application::the().open_url_in_new_tab(url, Web::HTML::ActivateTab::No);
+    if (auto view = owning_view_for_page_id(page_id); view.has_value())
+        view->open_url_in_new_tab(url, Web::HTML::ActivateTab::No);
+}
+
+void WebContentClient::did_request_external_url(u64 page_id, URL::URL url, URL::Origin initiator_origin, bool has_transient_activation)
+{
+    if (auto view = owning_view_for_page_id(page_id); view.has_value())
+        view->handle_external_url({}, move(url), move(initiator_origin), has_transient_activation);
 }
 
 void WebContentClient::did_request_context_menu(u64 page_id, Gfx::IntPoint content_position, Web::ContextMenuForInputEventsTarget for_input_events_target)
@@ -2072,6 +2084,15 @@ Optional<ViewImplementation&> WebContentClient::view_for_page_id(u64 page_id, So
 
     dbgln("WebContentClient::{}: Did not find a page with ID {}", location.function_name(), page_id);
     return {};
+}
+
+Optional<ViewImplementation&> WebContentClient::owning_view_for_page_id(u64 page_id)
+{
+    auto* navigable = navigable_for_page(page_id);
+    if (!navigable)
+        return {};
+
+    return ViewImplementation::find_view_for_traversable(navigable->top_level_traversable());
 }
 
 }

@@ -594,6 +594,11 @@ void PageClient::page_did_middle_click_link(URL::URL const& url, ByteString cons
     client().async_did_middle_click_link(m_id, url, target, modifiers);
 }
 
+void PageClient::page_did_request_external_url(URL::URL const& url, URL::Origin const& initiator_origin, bool has_transient_activation)
+{
+    client().async_did_request_external_url(m_id, url, initiator_origin, has_transient_activation);
+}
+
 void PageClient::page_did_start_loading(Optional<Utf16String> const& navigation_id, URL::URL const& url, Web::HTML::DocumentResource document_resource, bool is_redirect, Web::Bindings::NavigationHistoryBehavior history_handling)
 {
     if (m_webdriver)

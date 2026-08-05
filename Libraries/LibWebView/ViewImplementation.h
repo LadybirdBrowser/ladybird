@@ -35,6 +35,7 @@
 #include <LibRequests/CameFromCache.h>
 #include <LibRequests/Forward.h>
 #include <LibRequests/NetworkError.h>
+#include <LibURL/Origin.h>
 #include <LibWeb/Bindings/Navigation.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Forward.h>
@@ -53,6 +54,7 @@
 #include <LibWebView/CanonicalTraversable.h>
 #include <LibWebView/DOMNodeProperties.h>
 #include <LibWebView/DictionaryLookup.h>
+#include <LibWebView/ExternalURLHandler.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/HistoryVisitTransition.h>
 #include <LibWebView/PageInfo.h>
@@ -107,6 +109,11 @@ public:
     void set_system_visibility_state(Web::HTML::VisibilityState);
 
     void load(URL::URL const&, Web::Bindings::NavigationHistoryBehavior = Web::Bindings::NavigationHistoryBehavior::Auto);
+    void load_from_user_input(URL::URL const&);
+    void load_from_user_input(StringView);
+    void load_from_user_input(StringView, Optional<URL::URL> fallback_url);
+    void open_url_in_new_tab(URL::URL const&, Web::HTML::ActivateTab);
+    void open_url_in_new_window(URL::URL const&, IsPrivate);
     void set_next_history_visit_transition(HistoryVisitTransition transition) { m_history_visit_transition_for_next_load = transition; }
     void load_html(StringView);
     void load_navigation_error_page(StringView);
@@ -141,6 +148,7 @@ public:
     double maximum_frames_per_second() const { return m_maximum_frames_per_second; }
     void enqueue_input_event(Web::InputEvent);
     void did_finish_handling_input_event(Badge<WebContentClient>, Web::EventResult event_result);
+    void handle_external_url(Badge<WebContentClient>, URL::URL, URL::Origin, bool has_transient_activation);
 
     void set_preferred_color_scheme(Web::CSS::PreferredColorScheme);
     void set_preferred_contrast(Web::CSS::PreferredContrast);
@@ -352,6 +360,7 @@ public:
     Function<void(Utf16String const& message)> on_request_confirm;
     Function<void(Utf16String const& message, Utf16String const& default_)> on_request_prompt;
     Function<void(Utf16String const& message)> on_request_set_prompt_text;
+    Function<void(URL::URL const&, URL::Origin const&, ExternalURLHandler const&, Function<void(bool)>)> on_request_external_url_confirmation;
     Function<void()> on_request_accept_dialog;
     Function<void()> on_request_dismiss_dialog;
     Function<void(JsonObject)> on_received_dom_tree;
@@ -516,6 +525,10 @@ protected:
     void update_bookmark_action();
 
     void initialize_context_menus();
+    void handle_external_url(URL::URL, URL::Origin, bool has_transient_activation, Function<void()> on_handler_unavailable = {});
+    void handle_external_url_from_user_input(URL::URL const&, Function<void()> on_handler_unavailable = {});
+    void complete_external_url_request();
+    void process_next_external_url_request();
     void update_look_up_selected_text_action(Optional<DictionaryLookup> const& lookup, Gfx::IntPoint content_position);
     enum class PromptForPath : u8 {
         No,
@@ -603,6 +616,15 @@ protected:
     RefPtr<Action> m_media_exit_fullscreen_action;
 
     Queue<Web::InputEvent> m_pending_input_events;
+
+    struct PendingExternalURLRequest {
+        URL::URL url;
+        URL::Origin initiator_origin;
+        Function<void()> on_handler_unavailable;
+    };
+    Queue<PendingExternalURLRequest> m_pending_external_url_requests;
+    ExternalURLRequestPolicy m_external_url_request_policy;
+    bool m_external_url_confirmation_pending { false };
 
     RefPtr<Core::Timer> m_backing_store_shrink_timer;
 
