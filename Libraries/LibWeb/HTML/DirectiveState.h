@@ -9,7 +9,7 @@
 #include <AK/Optional.h>
 #include <AK/RefCounted.h>
 #include <AK/String.h>
-#include <LibWeb/HTML/CrossProcessId.h>
+#include <LibWebCommon/HTML/CrossProcessId.h>
 
 namespace Web::HTML {
 

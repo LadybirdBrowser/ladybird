@@ -181,6 +181,7 @@ private:
     virtual void did_request_refresh() override;
     virtual void did_request_cursor_change(Gfx::Cursor cursor) override;
     virtual void did_update_editing_history_state(bool can_undo, bool can_redo) override;
+    virtual void did_set_text_fragment_indication_visibility(bool visible) override;
     virtual void did_request_tooltip_override(Gfx::IntPoint position, ByteString title) override;
     virtual void did_stop_tooltip_override() override;
     virtual void did_enter_tooltip_area(ByteString title) override;

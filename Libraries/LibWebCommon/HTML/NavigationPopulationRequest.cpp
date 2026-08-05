@@ -11,8 +11,55 @@
 
 namespace Web::HTML {
 
+// https://wicg.github.io/scroll-to-text-fragment/#extracting-the-fragment-directive
+static Optional<String> remove_the_fragment_directive(URL::URL& url)
+{
+    // 1. Let raw fragment be equal to url's fragment.
+    auto const& raw_fragment = url.fragment();
+
+    // 2. Let fragment directive be null.
+    Optional<String> fragment_directive;
+
+    // 3. If raw fragment is non-null and contains the fragment directive delimiter as a substring:
+    if (raw_fragment.has_value()) {
+        // 1. Let position be the string position variable pointing to the first code point of the first instance,
+        //    if one exists, of the fragment directive delimiter in raw fragment, or past the end of raw fragment
+        //    otherwise.
+        auto position = raw_fragment->find(":~:"sv);
+        if (position.has_value()) {
+            // 2. Let new fragment be the code point substring by positions of raw fragment from the start of raw
+            //    fragment to position.
+            auto new_fragment = raw_fragment->substring_view(0, *position);
+
+            // 3. Advance position by the code point length of the fragment directive delimiter.
+            *position += 3;
+
+            // 4. If position does not point past the end of raw fragment:
+            if (*position < raw_fragment->length()) {
+                // 1. Set fragment directive to the code point substring to the end of the string raw fragment
+                //    starting from position.
+                fragment_directive = MUST(String::from_utf8(raw_fragment->substring_view(*position)));
+            }
+
+            // 5. Set url's fragment to new fragment.
+            url.set_fragment(new_fragment);
+        }
+    }
+
+    // 4. Return fragment directive.
+    return fragment_directive;
+}
+
 NavigationPopulationRequest create_navigation_population_request(NavigationStartRequest start_request, CrossProcessId document_state_id)
 {
+    auto url = start_request.url;
+    auto directive_state_id = start_request.directive_state_id;
+    auto directive_state_value = start_request.directive_state_value;
+    if (directive_state_id.namespace_id == 0 || directive_state_id.local_id == 0)
+        directive_state_id = document_state_id;
+    if (auto fragment_directive = remove_the_fragment_directive(url); fragment_directive.has_value())
+        directive_state_value = move(fragment_directive);
+
     // 4. Let documentState be a new document state with
     //    request referrer policy: referrerPolicy
     //    initiator origin: initiatorOriginSnapshot
@@ -38,10 +85,10 @@ NavigationPopulationRequest create_navigation_population_request(NavigationStart
 
     // 5. If url matches about:blank or is about:srcdoc, then:
     // FIXME: Is calling url_matches_about_srcdoc() correct? https://github.com/whatwg/html/issues/10900
-    if (url_matches_about_blank(start_request.url) || url_matches_about_srcdoc(start_request.url)) {
+    if (url_matches_about_blank(url) || url_matches_about_srcdoc(url)) {
         // AD-HOC: documentResource cannot be null if url is about:srcdoc since create navigation params from a
         //         srcdoc resource expects it to contain a string.
-        if (url_matches_about_srcdoc(start_request.url) && document_state.resource.has<Empty>())
+        if (url_matches_about_srcdoc(url) && document_state.resource.has<Empty>())
             document_state.resource = Utf16String {};
 
         // 1. Set documentState's origin to initiatorOriginSnapshot.
@@ -53,7 +100,7 @@ NavigationPopulationRequest create_navigation_population_request(NavigationStart
 
     // 6. Let historyEntry be a new session history entry, with its URL set to url and its document state set to documentState.
     PendingSessionHistoryEntryDescriptor history_entry {
-        .url = move(start_request.url),
+        .url = move(url),
         .document_state = move(document_state),
         .classic_history_api_state = move(start_request.classic_history_api_state),
         .navigation_api_state = move(start_request.navigation_api_state),
@@ -61,6 +108,8 @@ NavigationPopulationRequest create_navigation_population_request(NavigationStart
         .navigation_api_id = move(start_request.navigation_api_id),
         .scroll_restoration_mode = ScrollRestorationMode::Auto,
         .scroll_position_data = {},
+        .directive_state_id = directive_state_id,
+        .directive_state_value = move(directive_state_value),
     };
 
     return {
@@ -118,6 +167,8 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::NavigationStartRequest const& 
     TRY(encoder.encode(request.navigation_api_state));
     TRY(encoder.encode(request.navigation_api_key));
     TRY(encoder.encode(request.navigation_api_id));
+    TRY(encoder.encode(request.directive_state_id));
+    TRY(encoder.encode(request.directive_state_value));
     return {};
 }
 
@@ -146,6 +197,8 @@ ErrorOr<Web::HTML::NavigationStartRequest> decode(Decoder& decoder)
         .navigation_api_state = TRY(decoder.decode<Web::HTML::StorageSerializationRecord>()),
         .navigation_api_key = TRY(decoder.decode<Utf16String>()),
         .navigation_api_id = TRY(decoder.decode<Utf16String>()),
+        .directive_state_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
+        .directive_state_value = TRY(decoder.decode<Optional<String>>()),
     };
 }
 

@@ -96,6 +96,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
             .navigation_api_state = {},
             .navigation_api_key = {},
             .navigation_api_id = {},
+            .directive_state_id = {},
+            .directive_state_value = {},
         };
         stub.did_request_navigation_start(page_id, traversable.id(), Web::NavigationTarget::TopLevel, URL::about_blank(), navigation_id, move(request));
         return traversable.navigation_with_id(navigation_id) != nullptr;

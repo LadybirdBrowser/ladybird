@@ -148,16 +148,49 @@ WebContentPage& ViewImplementation::page() const
 
 void ViewImplementation::set_url(URL::URL url)
 {
-    if (m_url == url)
+    if (url.fragment().has_value() && url.fragment()->contains(":~:"sv))
+        m_text_fragment_indication_is_visible = true;
+
+    if (m_url != url) {
+        m_url = move(url);
+        update_bookmark_action();
+        if (auto page = traversable().display_page(); page && page->routed_connection())
+            page->routed_connection()->update_audio_capture_permission();
+    }
+
+    update_displayed_url();
+}
+
+void ViewImplementation::update_displayed_url()
+{
+    auto displayed_url = m_url;
+    auto displayed_url_without_fragment_directive = displayed_url;
+    if (auto const& raw_fragment = displayed_url_without_fragment_directive.fragment(); raw_fragment.has_value()) {
+        if (auto position = raw_fragment->find(":~:"sv); position.has_value())
+            displayed_url_without_fragment_directive.set_fragment(raw_fragment->substring_view(0, *position));
+    }
+    if (!m_text_fragment_indication_is_visible)
+        displayed_url = displayed_url_without_fragment_directive;
+
+    if (m_top_level_traversable) {
+        auto const& current_entry = traversable().session_history().current_entry();
+        if (current_entry.url == displayed_url_without_fragment_directive)
+            displayed_url = display_url_for_session_history_entry(current_entry.descriptor(), m_text_fragment_indication_is_visible);
+    }
+
+    if (m_displayed_url == displayed_url)
         return;
-
-    m_url = move(url);
-    update_bookmark_action();
-    if (auto page = traversable().display_page(); page && page->routed_connection())
-        page->routed_connection()->update_audio_capture_permission();
-
+    m_displayed_url = move(displayed_url);
     if (on_url_change)
-        on_url_change(m_url);
+        on_url_change(m_displayed_url);
+}
+
+void ViewImplementation::set_text_fragment_indication_visibility(Badge<WebContentPage>, bool visible)
+{
+    if (m_text_fragment_indication_is_visible == visible)
+        return;
+    m_text_fragment_indication_is_visible = visible;
+    update_displayed_url();
 }
 
 void ViewImplementation::set_title(Badge<WebContentPage>, Utf16String title)

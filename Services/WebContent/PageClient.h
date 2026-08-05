@@ -226,6 +226,7 @@ private:
     virtual void inject_rendering_opportunity(double frame_time) override;
     virtual void page_did_change_title(Utf16String const&) override;
     virtual void page_did_update_editing_history_state(bool can_undo, bool can_redo) override;
+    virtual void page_did_set_text_fragment_indication_visibility(bool) override;
     virtual void page_did_request_refresh() override;
     virtual void page_did_request_resize_window(Gfx::IntSize, u64 completion_id) override;
     virtual void page_did_request_reposition_window(Gfx::IntPoint, u64 completion_id) override;

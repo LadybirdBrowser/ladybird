@@ -4,9 +4,17 @@ p {
     font: 20px sans-serif;
     line-height: 1.5;
 }
-.indication {
+::selection {
     color: black;
     background: yellow;
 }
 </style>
-<p>Before <span class="indication">Highlighted passage</span> after</p>
+<p>Before Highlighted passage after</p>
+<script>
+const text = document.querySelector("p").firstChild;
+const start = text.textContent.indexOf("Highlighted passage");
+const range = new Range();
+range.setStart(text, start);
+range.setEnd(text, start + "Highlighted passage".length);
+getSelection().addRange(range);
+</script>

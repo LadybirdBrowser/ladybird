@@ -7,10 +7,28 @@
 #include <AK/HashTable.h>
 #include <AK/NumericLimits.h>
 #include <AK/QuickSort.h>
+#include <AK/StringBuilder.h>
+#include <LibURL/Parser.h>
 #include <LibWebView/CanonicalNavigable.h>
 #include <LibWebView/SessionHistory.h>
 
 namespace WebView {
+
+URL::URL display_url_for_session_history_entry(Web::HTML::SessionHistoryEntryDescriptor const& entry, bool include_fragment_directive)
+{
+    auto displayed_url = entry.url;
+    if (!include_fragment_directive || !entry.directive_state_value.has_value())
+        return displayed_url;
+
+    StringBuilder fragment;
+    if (displayed_url.fragment().has_value())
+        fragment.append(*displayed_url.fragment());
+    fragment.append(":~:"sv);
+    fragment.append(*entry.directive_state_value);
+    auto fragment_string = MUST(fragment.to_string());
+    displayed_url.set_fragment(fragment_string.bytes_as_string_view());
+    return displayed_url;
+}
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-all-used-history-steps
 static Vector<i32> get_all_used_history_steps(Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>> const& traversable_session_history_entries)
@@ -349,6 +367,27 @@ bool TraversableSessionHistory::replace_session_history_entry(CanonicalNavigable
     *existing_entry = move(entry);
 
     return true;
+}
+
+void TraversableSessionHistory::update_directive_state_value(Web::HTML::CrossProcessId directive_state_id, Optional<String> directive_state_value)
+{
+    if (directive_state_id.namespace_id == 0 || directive_state_id.local_id == 0)
+        return;
+
+    Vector<Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>>*> entry_lists { &m_entries };
+
+    for (size_t i = 0; i < entry_lists.size(); ++i) {
+        auto* entries = entry_lists[i];
+        for (auto& entry : *entries) {
+            if (entry->directive_state_id == directive_state_id)
+                entry->directive_state_value = directive_state_value;
+
+            for (auto& nested_history : entry->document_state->nested_histories) {
+                if (!entry_lists.contains_slow(&nested_history.entries))
+                    entry_lists.append(&nested_history.entries);
+            }
+        }
+    }
 }
 
 size_t TraversableSessionHistory::current_top_level_entry_index() const

@@ -337,7 +337,7 @@ void PageClient::navigate_to_a_fragment(Web::HTML::CrossProcessId navigable_id, 
     auto* navigable = as_if<Web::HTML::LocalNavigable>(page().navigable_with_id(navigable_id).ptr());
     if (!navigable || navigable->has_been_destroyed() || !navigable->active_window())
         return;
-    navigable->navigate_to_a_fragment(url, history_handling, user_involvement, nullptr, {}, move(navigation_id), nullptr);
+    navigable->navigate_to_a_fragment(url, history_handling, user_involvement, nullptr, {}, move(navigation_id), nullptr, {});
 }
 
 void PageClient::navigate_to_a_javascript_url(Web::HTML::CrossProcessId navigable_id, URL::URL const& url, Web::HTML::HistoryHandlingBehavior history_handling, URL::Origin const& initiator_origin, Web::HTML::NavigationSourceSnapshot const& source_snapshot_params, Web::HTML::UserNavigationInvolvement user_involvement, Web::ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type, Utf16String navigation_id)
@@ -856,6 +856,10 @@ void PageClient::page_did_update_editing_history_state(bool can_undo, bool can_r
     client().async_did_update_editing_history_state(m_id, can_undo, can_redo);
 }
 
+void PageClient::page_did_set_text_fragment_indication_visibility(bool visible)
+{
+    client().async_did_set_text_fragment_indication_visibility(m_id, visible);
+}
 void PageClient::page_did_request_refresh()
 {
     client().async_did_request_refresh(m_id);

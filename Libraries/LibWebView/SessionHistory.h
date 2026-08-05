@@ -56,6 +56,7 @@ public:
     // Replaces entry_to_replace in navigable's session history entries with entry, at its step. Changes nothing if
     // entry_to_replace is not among them.
     bool replace_session_history_entry(CanonicalNavigable const&, CanonicalSessionHistoryEntry const& entry_to_replace, NonnullRefPtr<CanonicalSessionHistoryEntry>);
+    void update_directive_state_value(Web::HTML::CrossProcessId, Optional<String>);
     Vector<Web::HTML::SessionHistoryEntryDescriptor> entries() const;
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-all-used-history-steps
     Vector<i32> used_steps() const;
@@ -99,5 +100,6 @@ struct SessionHistorySnapshot {
 };
 
 WEBVIEW_API ErrorOr<void> validate_snapshot_is_restorable(Vector<Web::HTML::SessionHistoryEntryDescriptor> const& entries, Vector<i32> const& used_steps, size_t current_used_step_index);
+WEBVIEW_API URL::URL display_url_for_session_history_entry(Web::HTML::SessionHistoryEntryDescriptor const&, bool include_fragment_directive = true);
 
 }
