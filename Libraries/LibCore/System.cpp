@@ -207,6 +207,15 @@ ErrorOr<void> decommit_memory(void* address, size_t size, MemoryTag tag)
     return {};
 }
 
+ErrorOr<void> map_shared_memory_fixed(void* address, size_t size, int fd)
+{
+    auto* ptr = ::mmap(address, size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_FIXED, fd, 0);
+    if (ptr == MAP_FAILED)
+        return Error::from_syscall("mmap"sv, errno);
+    VERIFY(ptr == address);
+    return {};
+}
+
 ErrorOr<void> release_address_space(void* address, size_t size)
 {
     if (::munmap(address, size) < 0)

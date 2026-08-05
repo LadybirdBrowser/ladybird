@@ -1,0 +1,3 @@
+worker got two distinct objects: true
+worker sees after overlapping set: 1,2,1,2,3,4,7,8
+page sees after overlapping set: 1,2,1,2,3,4,7,8

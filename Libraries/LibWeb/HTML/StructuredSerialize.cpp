@@ -1239,6 +1239,9 @@ static WebIDL::ExceptionOr<void> serialize_array_buffer(JS::VM& vm, StructuredSe
             data_holder.encode(can_share);
             if (can_share) {
                 data_holder.encode(static_cast<u32>(data_holder.shared_buffers().size()));
+                // Carried beside the index — so the receiving agent can tell this object apart from any other, even
+                // when it maps this same one twice, from two separate messages.
+                data_holder.encode(array_buffer.shared_object_id());
                 data_holder.shared_buffers().append(shared_buffer.release_value());
             } else {
                 data_holder.encode(MUST(array_buffer.copy_to_byte_buffer()));
@@ -1681,7 +1684,7 @@ static Optional<JS::DataBlock> data_block_sharing_storage_with(JS::ArrayBuffer& 
     // AD-HOC: A fixed-length shared block backed by cross-process shared memory is aliased by referencing the same
     //         shared object — so the clone shares its bytes, and can itself be shared with an agent in another process.
     if (auto const* shared = source_block.byte_buffer.get_pointer<JS::DataBlock::SharedBackingStore>())
-        return JS::DataBlock { JS::DataBlock::SharedBackingStore { shared->buffer }, JS::DataBlock::Shared::Yes };
+        return JS::DataBlock { JS::DataBlock::SharedBackingStore { shared->buffer, shared->object_id }, JS::DataBlock::Shared::Yes };
 
     if (auto const* owned = source_block.byte_buffer.get_pointer<JS::DataBlock::OwnedBackingStore>()) {
         // Zero-length buffers have no backing storage to share.
@@ -1833,10 +1836,11 @@ public:
             auto is_shared_backed = TRY(decode<bool>());
             if (is_shared_backed) {
                 auto index = TRY(decode<u32>());
+                auto shared_object_id = TRY(decode<u64>());
                 auto* shared_buffers = m_serialized.shared_buffers();
                 if (!shared_buffers || index >= shared_buffers->size())
                     return data_clone_error_from_serialization_error(realm, AK::Error::from_string_literal("SharedArrayBuffer side-list index out of range"));
-                value = JS::ArrayBuffer::create(realm, shared_buffers->at(index));
+                value = JS::ArrayBuffer::create(realm, shared_buffers->at(index), shared_object_id);
                 break;
             }
 
