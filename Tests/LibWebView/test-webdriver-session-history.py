@@ -9,6 +9,7 @@ import http.client
 import http.server
 import json
 import os
+import signal
 import socket
 import subprocess
 import sys
@@ -73,6 +74,7 @@ class TestPageServer(http.server.ThreadingHTTPServer):
         self.same_site_post_result_document_ran = threading.Event()
         self.same_url_post_result_document_ran = threading.Event()
         self.reload_blocked_document_ran = threading.Event()
+        self.actions_probe_pointer_event_ran = threading.Event()
 
     def handle_error(self, request, client_address):
         if isinstance(sys.exc_info()[1], BrokenPipeError):
@@ -597,6 +599,24 @@ window.initialNavigationCurrentIndex = navigation.currentEntry.index;
 </form>
 <p>Cross-site Post Blocked Form</p>""".encode()
             )
+            return
+
+        if self.path == "/actions-probe":
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html")
+            self.end_headers()
+            self.wfile.write(
+                """<!doctype html>
+<title>Actions Probe</title>
+<script>addEventListener('pointerup', () => fetch('/document-ran?actions-probe'));</script>
+<p>Actions Probe</p>""".encode()
+            )
+            return
+
+        if self.path == "/document-ran?actions-probe":
+            server.actions_probe_pointer_event_ran.set()
+            self.send_response(204)
+            self.end_headers()
             return
 
         if self.path == "/post-result":
@@ -2398,6 +2418,145 @@ def expect_post_crash_recovery_waits_for_load(webdriver_port, session_id, page_s
     expect_current_entry_resource(webdriver_port, session_id, "after POST crash recovery", "post", log)
 
 
+def find_browser_pid_for_session(session_id):
+    for _ in range(50):
+        pgrep = subprocess.run(["pgrep", "-f", session_id], capture_output=True, text=True)
+        pids = [int(pid) for pid in pgrep.stdout.split()]
+        if len(pids) > 1:
+            raise AssertionError(f"Expected one browser process for session {session_id}, found pids: {pids}")
+        if len(pids) == 1:
+            return pids[0]
+        time.sleep(0.1)
+    raise AssertionError(f"Did not find a browser process for session {session_id}")
+
+
+def find_web_content_pid(browser_pid):
+    for _ in range(50):
+        pgrep = subprocess.run(["pgrep", "-P", str(browser_pid), "-f", "WebContent"], capture_output=True, text=True)
+        pids = [int(pid) for pid in pgrep.stdout.split()]
+        if len(pids) > 1:
+            raise AssertionError(f"Expected one WebContent child of browser {browser_pid}, found pids: {pids}")
+        if len(pids) == 1:
+            return pids[0]
+        time.sleep(0.1)
+    raise AssertionError(f"Did not find a WebContent child of browser process {browser_pid}")
+
+
+def pointer_event_then_long_pause_actions_payload():
+    return {
+        "actions": [
+            {
+                "type": "pointer",
+                "id": "death-probe-pointer",
+                "parameters": {"pointerType": "mouse"},
+                "actions": [
+                    {"type": "pointerMove", "origin": "viewport", "x": 5, "y": 5},
+                    {"type": "pointerDown", "button": 0},
+                    {"type": "pointerUp", "button": 0},
+                    {"type": "pause", "duration": 20000},
+                ],
+            }
+        ]
+    }
+
+
+def post_actions_in_thread(webdriver_port, session_id):
+    result = {}
+
+    def post_actions():
+        try:
+            result["response"] = request_raw(
+                webdriver_port,
+                "POST",
+                f"/session/{session_id}/actions",
+                pointer_event_then_long_pause_actions_payload(),
+            )
+        except Exception as error:
+            result["error"] = error
+
+    actions_thread = threading.Thread(target=post_actions, daemon=True)
+    actions_thread.start()
+    return actions_thread, result
+
+
+def run_second_ui_forward_during_pending_forward_test(webdriver_port, page_server, url_a, url_forward_blocked, url_c):
+    session_id = create_session(webdriver_port)
+    expect_second_ui_forward_supersedes_pending_forward(
+        webdriver_port,
+        session_id,
+        page_server,
+        url_a,
+        url_forward_blocked,
+        url_c,
+    )
+    request(webdriver_port, "DELETE", f"/session/{session_id}")
+
+
+def run_unannounced_web_content_death_tests(webdriver_port, page_server, url_actions_probe):
+    run_unannounced_web_content_death_recovery_test(webdriver_port, page_server, url_actions_probe)
+    run_unannounced_web_content_death_without_replacement_test(webdriver_port, page_server, url_actions_probe)
+
+
+def run_unannounced_web_content_death_recovery_test(webdriver_port, page_server, url_actions_probe):
+    session_id = create_session(webdriver_port)
+    log = [f"unannounced WebContent death recovery initial: {current_url(webdriver_port, session_id)}"]
+    request(webdriver_port, "POST", f"/session/{session_id}/url", {"url": url_actions_probe})
+    browser_pid = find_browser_pid_for_session(session_id)
+    web_content_pid = find_web_content_pid(browser_pid)
+
+    page_server.actions_probe_pointer_event_ran.clear()
+    actions_thread, result = post_actions_in_thread(webdriver_port, session_id)
+    wait_for_event(page_server.actions_probe_pointer_event_ran, "pointer event before unannounced WebContent death")
+    os.kill(web_content_pid, signal.SIGKILL)
+    actions_thread.join(timeout=45)
+    if actions_thread.is_alive():
+        raise AssertionError("Perform Actions never returned after its WebContent process was killed")
+    if "error" in result:
+        raise AssertionError(f"Perform Actions failed after its WebContent process was killed: {result['error']}")
+    status, _, response_body = result["response"]
+    if status != 200:
+        raise AssertionError(f"Perform Actions after WebContent death returned HTTP {status}: {response_body}")
+
+    wait_for_url(webdriver_port, session_id, "after unannounced WebContent death recovery", url_actions_probe, log)
+    request(webdriver_port, "DELETE", f"/session/{session_id}")
+
+
+def run_unannounced_web_content_death_without_replacement_test(webdriver_port, page_server, url_actions_probe):
+    session_id = create_session(webdriver_port)
+    request(webdriver_port, "POST", f"/session/{session_id}/url", {"url": url_actions_probe})
+    browser_pid = find_browser_pid_for_session(session_id)
+
+    # WebDriver waits min(pageLoad, 5000) ms for a replacement WebContent process before
+    # failing the in-flight command; no replacement can arrive once the browser is dead,
+    # so a short pageLoad keeps that wait brief.
+    request(webdriver_port, "POST", f"/session/{session_id}/timeouts", {"pageLoad": 1000})
+
+    page_server.actions_probe_pointer_event_ran.clear()
+    actions_thread, result = post_actions_in_thread(webdriver_port, session_id)
+    wait_for_event(page_server.actions_probe_pointer_event_ran, "pointer event before unannounced browser death")
+    os.kill(browser_pid, signal.SIGKILL)
+    actions_thread.join(timeout=45)
+    if actions_thread.is_alive():
+        raise AssertionError("Perform Actions never returned after the browser was killed")
+    if "error" in result:
+        raise AssertionError(f"Perform Actions failed after the browser was killed: {result['error']}")
+    status, payload, response_body = result["response"]
+    value = payload.get("value")
+    error = value.get("error") if isinstance(value, dict) else None
+    if error != "no such window":
+        raise AssertionError(
+            f"Expected 'no such window' after the browser was killed mid-command, got HTTP {status}: {response_body}"
+        )
+
+    status, payload, response_body = request_raw(webdriver_port, "GET", f"/session/{session_id}/url")
+    value = payload.get("value")
+    error = value.get("error") if isinstance(value, dict) else None
+    if error != "invalid session id":
+        raise AssertionError(
+            f"Expected 'invalid session id' after the session's browser died, got HTTP {status}: {response_body}"
+        )
+
+
 def run_test(webdriver_binary):
     page_server = TestPageServer(("0.0.0.0", 0), TestPageHandler)
     page_server_thread = threading.Thread(target=page_server.serve_forever, daemon=True)
@@ -2446,6 +2605,7 @@ def run_test(webdriver_binary):
         url_reload_blocked = f"http://localhost:{page_port}/reload-blocked"
         url_process_swap_back_blocked = f"http://localhost:{page_port}/process-swap-back-blocked"
         url_forward_blocked = f"http://127.0.0.1:{page_port}/forward-blocked"
+        url_actions_probe = f"http://localhost:{page_port}/actions-probe"
         url_frame_a = f"http://localhost:{page_port}/frame-a"
         url_frame_b_blocked = f"http://localhost:{page_port}/frame-b-blocked"
         url_iframe_deferred_fragment_first = f"http://localhost:{page_port}/iframe-deferred-fragment-first"
@@ -2482,17 +2642,11 @@ def run_test(webdriver_binary):
             url_cross_site_navigation_blocked,
         )
 
-        session_id = create_session(webdriver_port)
-        expect_second_ui_forward_supersedes_pending_forward(
-            webdriver_port,
-            session_id,
-            page_server,
-            url_a,
-            url_forward_blocked,
-            url_c,
+        run_second_ui_forward_during_pending_forward_test(
+            webdriver_port, page_server, url_a, url_forward_blocked, url_c
         )
-        request(webdriver_port, "DELETE", f"/session/{session_id}")
-        session_id = None
+
+        run_unannounced_web_content_death_tests(webdriver_port, page_server, url_actions_probe)
 
         session_id = create_session(webdriver_port)
         log = [f"first-entry replace initial: {current_url(webdriver_port, session_id)}"]
