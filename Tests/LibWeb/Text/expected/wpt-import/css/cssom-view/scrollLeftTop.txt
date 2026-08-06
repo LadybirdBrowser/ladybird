@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 6 tests
+
+3 Pass
+3 Fail
+Pass	writing-mode:horizontal-tb; direction:ltr
+Pass	writing-mode:horizontal-tb; direction:rtl
+Pass	writing-mode:vertical-lr; direction:ltr
+Fail	writing-mode:vertical-lr; direction:rtl
+Fail	writing-mode:vertical-rl; direction:ltr
+Fail	writing-mode:vertical-rl; direction:rtl
