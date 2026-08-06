@@ -149,6 +149,7 @@ private:
     virtual void list_devtools_sources(u64 page_id, u64 request_id) override;
     virtual void request_devtools_source(u64 page_id, Web::HTML::ScriptRegistry::Identifier source_id) override;
     virtual void attach_debugger(u64 page_id) override;
+    virtual void configure_debugger(u64 page_id, WebView::DebuggerConfiguration) override;
     virtual void detach_debugger(u64 page_id) override;
     virtual void interrupt_debugger(u64 page_id) override;
     virtual void resume_debugger(u64 page_id) override;

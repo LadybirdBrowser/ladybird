@@ -96,7 +96,7 @@ void WatcherActor::handle_message(Message const& message)
 
     if (message.type == "getThreadConfigurationActor"sv) {
         if (!m_thread_configuration) {
-            m_thread_configuration = devtools().register_actor<ThreadConfigurationActor>();
+            m_thread_configuration = devtools().register_actor<ThreadConfigurationActor>(m_tab);
             add_child_actor(*m_thread_configuration);
         }
 

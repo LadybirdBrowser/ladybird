@@ -11,6 +11,23 @@
 namespace IPC {
 
 template<>
+ErrorOr<void> encode(Encoder& encoder, WebView::DebuggerConfiguration const& configuration)
+{
+    TRY(encoder.encode(configuration.should_pause_on_debugger_statement));
+    TRY(encoder.encode(configuration.skip_breakpoints));
+    return {};
+}
+
+template<>
+ErrorOr<WebView::DebuggerConfiguration> decode(Decoder& decoder)
+{
+    return WebView::DebuggerConfiguration {
+        .should_pause_on_debugger_statement = TRY(decoder.decode<bool>()),
+        .skip_breakpoints = TRY(decoder.decode<bool>()),
+    };
+}
+
+template<>
 ErrorOr<void> encode(Encoder& encoder, WebView::DebuggerLocation const& location)
 {
     TRY(encoder.encode(location.source));

@@ -131,6 +131,7 @@ endpoint WebContentServer
     list_devtools_sources(u64 page_id, u64 request_id) =|
     request_devtools_source(u64 page_id, Web::HTML::ScriptRegistry::Identifier source_id) =|
     attach_debugger(u64 page_id) =|
+    configure_debugger(u64 page_id, WebView::DebuggerConfiguration configuration) =|
     detach_debugger(u64 page_id) =|
     interrupt_debugger(u64 page_id) =|
     resume_debugger(u64 page_id) =|

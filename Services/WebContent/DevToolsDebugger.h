@@ -6,9 +6,11 @@
 
 #pragma once
 
+#include <AK/HashMap.h>
 #include <AK/HashTable.h>
 #include <AK/Weakable.h>
 #include <LibJS/Debugger.h>
+#include <LibWebView/Debugger.h>
 #include <WebContent/Forward.h>
 
 namespace WebContent {
@@ -22,6 +24,7 @@ public:
     ~DevToolsDebugger();
 
     void attach(PageClient&);
+    void configure(PageClient&, WebView::DebuggerConfiguration);
     void detach(PageClient&);
     void interrupt(PageClient&);
     void resume(PageClient&);
@@ -34,6 +37,7 @@ private:
 
     ConnectionFromClient& m_client;
     HashTable<u64> m_attached_page_ids;
+    HashMap<u64, WebView::DebuggerConfiguration> m_configurations;
     Optional<u64> m_paused_page_id;
     bool m_resume_requested { false };
     bool m_is_handling_pause { false };

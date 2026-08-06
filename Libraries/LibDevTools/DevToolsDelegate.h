@@ -170,6 +170,7 @@ public:
 
     using OnDebuggerPaused = Function<void(WebView::DebuggerPause)>;
     virtual void attach_debugger(TabDescription const&, OnDebuggerPaused) const { }
+    virtual void configure_debugger(TabDescription const&, WebView::DebuggerConfiguration) const { }
     virtual void detach_debugger(TabDescription const&) const { }
     virtual void interrupt_debugger(TabDescription const&) const { }
     virtual void resume_debugger(TabDescription const&) const { }

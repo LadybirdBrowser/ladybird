@@ -1493,6 +1493,17 @@ void ConnectionFromClient::attach_debugger(u64 page_id)
     m_devtools_debugger->attach(*page);
 }
 
+void ConnectionFromClient::configure_debugger(u64 page_id, WebView::DebuggerConfiguration configuration)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value())
+        return;
+
+    if (!m_devtools_debugger)
+        m_devtools_debugger = make<DevToolsDebugger>(*this);
+    m_devtools_debugger->configure(*page, configuration);
+}
+
 void ConnectionFromClient::detach_debugger(u64 page_id)
 {
     auto page = this->page(page_id);
