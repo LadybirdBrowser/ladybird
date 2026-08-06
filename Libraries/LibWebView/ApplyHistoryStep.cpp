@@ -22,7 +22,11 @@ ApplyHistoryStep::ApplyHistoryStep(
     Optional<Web::Bindings::NavigationType> navigation_type,
     Web::HTML::SynchronousNavigation synchronous_navigation,
     Optional<Web::HTML::CrossProcessId> navigable_with_finalized_entry,
-    Function<void(Web::HTML::HistoryStepResult)> on_complete)
+    Function<void(Web::HTML::HistoryStepResult)> on_complete,
+    Optional<Web::HTML::SessionHistoryEntryDescriptor> finalized_entry,
+    bool update_canonical_current_step,
+    Optional<i32> current_step,
+    Vector<Web::HTML::CrossProcessId> navigables_to_restore)
     : m_session_history(session_history)
     , m_traversable_navigable(traversable_navigable)
     , m_session_history_traversal_queue(session_history_traversal_queue)
@@ -35,6 +39,10 @@ ApplyHistoryStep::ApplyHistoryStep(
     , m_navigation_type(navigation_type)
     , m_synchronous_navigation(synchronous_navigation)
     , m_navigable_with_finalized_entry(navigable_with_finalized_entry)
+    , m_finalized_entry(move(finalized_entry))
+    , m_update_canonical_current_step(update_canonical_current_step)
+    , m_current_step(current_step)
+    , m_navigables_to_restore(move(navigables_to_restore))
     , m_on_complete(move(on_complete))
     , m_generation(++traversable_state.generation_counter)
 {
@@ -68,7 +76,7 @@ void ApplyHistoryStep::apply_the_history_step()
         // 2. For each navigable of get all navigables whose current session history entry will change or reload:
         //    if initiatorToCheck is not allowed by sandboxing to navigate navigable given sourceSnapshotParams, then
         //    return "initiator-disallowed".
-        auto navigables = m_session_history.get_all_navigables_whose_current_session_history_entry_will_change_or_reload(m_traversable_navigable, m_target_step);
+        auto navigables = m_session_history.get_all_navigables_whose_current_session_history_entry_will_change_or_reload(m_traversable_navigable, m_target_step, m_current_step);
         m_jobs.run_initiator_sandboxing_check_job(*m_initiator_to_check, move(navigables), [this](ApplyHistoryStepJobs::InitiatorSandboxingCheckResult result) {
             if (m_completed)
                 return;
@@ -88,7 +96,7 @@ void ApplyHistoryStep::check_if_unloading_is_canceled()
 {
     // 4. Let navigablesCrossingDocuments be the result of getting all navigables that might experience a
     //    cross-document traversal given traversable and targetStep.
-    auto navigables_crossing_documents = m_session_history.get_all_navigables_that_might_experience_a_cross_document_traversal(m_traversable_navigable, m_target_step);
+    auto navigables_crossing_documents = m_session_history.get_all_navigables_that_might_experience_a_cross_document_traversal(m_traversable_navigable, m_target_step, m_current_step);
 
     // 5. If checkForCancelation is true, and the result of checking if unloading is canceled given
     //    navigablesCrossingDocuments, traversable, targetStep, and userInvolvement is not "continue", then return
@@ -123,11 +131,11 @@ void ApplyHistoryStep::get_changing_and_nonchanging_navigables()
     // NB: Steps 8.2 and 8.3 (claiming the navigable for this traversal) happen inside each dispatched job, because a
     //     claim mutates the navigable, which belongs to the process running the job. The changing set is complete
     //     before the first job is dispatched, so job completions cannot advance the algorithm early.
-    m_changing_navigables = m_session_history.get_all_navigables_whose_current_session_history_entry_will_change_or_reload(m_traversable_navigable, m_target_step);
+    m_changing_navigables = m_session_history.get_all_navigables_whose_current_session_history_entry_will_change_or_reload(m_traversable_navigable, m_target_step, m_current_step);
 
     // 7. Let nonchangingNavigablesThatStillNeedUpdates be the result of getting all navigables that only need
     //    history object length/index update given traversable and targetStep.
-    m_nonchanging_navigables_that_still_need_updates = m_session_history.get_all_navigables_that_only_need_history_object_length_index_update(m_traversable_navigable, m_target_step);
+    m_nonchanging_navigables_that_still_need_updates = m_session_history.get_all_navigables_that_only_need_history_object_length_index_update(m_traversable_navigable, m_target_step, m_current_step);
 
     // AD-HOC: Finalization already installed the finalized navigable's new entry in the canonical session history,
     //         so the computation above cannot see that its displayed document still has to change. See
@@ -140,6 +148,16 @@ void ApplyHistoryStep::get_changing_and_nonchanging_navigables()
         });
     }
 
+    // AD-HOC: These child navigables loaded provisional entries before a replacement process accepted its history
+    //         seed. The canonical target must still be applied when its step matches WebContent's current step.
+    for (auto navigable_id : m_navigables_to_restore) {
+        if (!m_changing_navigables.contains_slow(navigable_id))
+            m_changing_navigables.append(navigable_id);
+        m_nonchanging_navigables_that_still_need_updates.remove_all_matching([&](auto const& nonchanging_navigable_id) {
+            return nonchanging_navigable_id == navigable_id;
+        });
+    }
+
     run_changing_navigable_jobs();
 }
 
@@ -149,6 +167,8 @@ void ApplyHistoryStep::run_changing_navigable_jobs()
     for (auto navigable_id : m_changing_navigables) {
         auto const* navigable = find_navigable(navigable_id);
         auto const* target_entry = navigable ? m_session_history.get_the_target_history_entry(*navigable, m_target_step) : nullptr;
+        if (!target_entry && m_navigable_with_finalized_entry == navigable_id && m_finalized_entry.has_value())
+            target_entry = &*m_finalized_entry;
         if (!target_entry) {
             // AD-HOC: The canonical mirror can briefly disagree with the live navigable tree while a created or
             //         removed child navigable is reconciled; complete the job as skipped instead of dispatching it.
@@ -271,6 +291,8 @@ void ApplyHistoryStep::process_changing_navigable_continuations()
         // 9. Let entriesForNavigationAPI be the result of getting session history entries for the navigation API
         //    given navigable and targetStep.
         auto entries_for_navigation_api = navigable ? m_session_history.get_session_history_entries_for_the_navigation_api(*navigable, m_target_step) : Optional<Vector<TraversableSessionHistory::Entry>> {};
+        if (!entries_for_navigation_api.has_value() && m_navigable_with_finalized_entry == navigable_id && m_finalized_entry.has_value())
+            entries_for_navigation_api = Vector<TraversableSessionHistory::Entry> { *m_finalized_entry };
 
         if (!navigable || !history_object_length_and_index.has_value() || !entries_for_navigation_api.has_value()) {
             // AD-HOC: The navigable is gone, or the canonical mirror is reconciling it. Its continuation cannot be
@@ -339,7 +361,8 @@ void ApplyHistoryStep::set_current_session_history_step()
         // 20. Set traversable's current session history step to targetStep.
         auto used_target_step = m_session_history.get_the_used_step(m_target_step);
         if (used_target_step.has_value()) {
-            m_session_history.set_current_session_history_step(*used_target_step);
+            if (m_update_canonical_current_step)
+                m_session_history.set_current_session_history_step(*used_target_step);
             m_committed_step = *used_target_step;
         }
     }

@@ -64,6 +64,7 @@ struct PendingWebContentSessionHistorySeed {
     bool ignore_updates_until_seed { false };
     bool waiting_for_ack { false };
     bool should_reseed_after_current_history_load { false };
+    Vector<Web::HTML::CrossProcessId> navigables_to_restore {};
     Optional<i32> step_after_loading_top_level_entry;
 
     void clear() { *this = {}; }
@@ -85,6 +86,8 @@ struct PendingSessionHistoryTraversal {
     bool will_replace_web_content_process { false };
     Stage stage { Stage::ApplyingInWebContent };
     Function<void(HistoryTraversalOutcome)> on_cancelation_check_complete;
+    // Observers of a browser traversal only wait for its top-level state; nested jobs may continue afterward.
+    Function<void()> on_top_level_traversal_applied;
 };
 
 // NB: The results below tell ViewImplementation which UI-process side effects to apply. Each
@@ -108,6 +111,8 @@ struct WebContentSessionHistorySeedAckResult {
     StringView dump_reason;
     Optional<URL::URL> current_url {};
     Optional<i32> step_to_traverse {};
+    Optional<i32> current_step {};
+    Vector<Web::HTML::CrossProcessId> navigables_to_restore {};
     bool should_complete_webdriver_pending_navigation { false };
     bool should_update_navigation_action_state { false };
 };
@@ -218,11 +223,27 @@ public:
     // Apply-the-history-step coordination. Operations serialize on the traversable's session history traversal
     // queue; the algorithm runs here and dispatches its per-navigable jobs to the processes hosting the documents.
     using OnHistoryOperationComplete = Function<void(Web::HTML::HistoryStepResult, Optional<i32> committed_step)>;
+
+    struct BrowserHistoryTraversalOperation {
+        i32 target_step { 0 };
+        Optional<i32> current_step {};
+        Vector<Web::HTML::CrossProcessId> navigables_to_restore {};
+    };
+
+    struct HistoryStepCancelationCheckOperation {
+        i32 target_step { 0 };
+        Optional<Web::HTML::CrossProcessId> initiator_to_check {};
+        Web::HTML::UserNavigationInvolvement user_involvement { Web::HTML::UserNavigationInvolvement::BrowserUI };
+    };
+
     void enqueue_history_operation(u64 initiation_id, Web::HistoryOperationParameters, WebContentClient& requesting_client, u64 requesting_page_id, OnHistoryOperationComplete = nullptr);
+    void enqueue_history_operation(BrowserHistoryTraversalOperation, OnHistoryOperationComplete = nullptr);
+    void enqueue_history_operation(HistoryStepCancelationCheckOperation, OnHistoryOperationComplete = nullptr);
     // Appends plain algorithm steps; a requested traversal defers its target resolution to its queued position, the
     // way the specification's queued steps do, and then starts its operation at that position.
     void append_history_queue_steps(SessionHistoryTraversalSteps);
     void run_history_operation_at_queue_position(u64 initiation_id, Web::HistoryOperationParameters, WebContentClient& requesting_client, u64 requesting_page_id, Optional<i32> resolved_step, OnHistoryOperationComplete, NonnullRefPtr<Core::Promise<Empty>>);
+    void run_history_operation_at_queue_position(u64 initiation_id, HistoryStepCancelationCheckOperation, WebContentClient& requesting_client, u64 requesting_page_id, OnHistoryOperationComplete, NonnullRefPtr<Core::Promise<Empty>>);
     void abandon_history_operations();
 
     struct HistoryJobEndpoint {
@@ -283,8 +304,8 @@ public:
     NavigationCancelResult did_cancel_navigation(URL::URL const&, bool has_webdriver_pending_navigation);
     NavigationFinishResult did_finish_navigation(URL::URL const&);
     RestorePendingSessionHistoryNavigationResult restore_pending_session_history_navigation();
-    HistoryTraversalDecision traverse_the_history_by_delta(int delta, CheckForCancelation, URL::URL const& current_url, Function<void(HistoryTraversalOutcome)> on_cancelation_check_complete);
-    HistoryTraversalDecision traverse_the_history_to_step(i32 step, CheckForCancelation, URL::URL const& current_url, Function<void(HistoryTraversalOutcome)> on_cancelation_check_complete);
+    HistoryTraversalDecision traverse_the_history_by_delta(int delta, CheckForCancelation, URL::URL const& current_url, Function<void(HistoryTraversalOutcome)> on_cancelation_check_complete, Function<void()> on_top_level_traversal_applied);
+    HistoryTraversalDecision traverse_the_history_to_step(i32 step, CheckForCancelation, URL::URL const& current_url, Function<void(HistoryTraversalOutcome)> on_cancelation_check_complete, Function<void()> on_top_level_traversal_applied);
     URL::URL prepare_to_load_session_history_traversal_target_from_ui_process(TraversableSessionHistory::TraversalTarget const&, URL::URL const& current_url);
     WebContentHistoryStepResult did_traverse_the_history_to_step(i32 step, bool step_was_available, Web::HTML::HistoryStepResult);
     HistoryStepCancelationCheckResult did_check_if_traverse_history_step_is_canceled(u64 request_id, i32 step, Web::HTML::HistoryStepResult);
@@ -303,13 +324,24 @@ private:
     struct HistoryOperation;
     HistoryOperation* find_history_operation(u64 operation_id);
     ApplyHistoryStepJobs create_apply_history_step_jobs(u64 operation_id);
+    Optional<i32> maximum_claimed_session_history_step() const;
+    Optional<i32> claim_step_for_pending_cross_document_history_operation(Web::HTML::CrossProcessId, i32 claimed_step);
+    void claim_step_for_pending_same_document_history_operation(Web::HTML::CrossProcessId, i32 claimed_step);
+    void record_finalized_entry_for_pending_history_operation(Web::HTML::CrossProcessId, Web::HTML::SessionHistoryEntryDescriptor);
+    void enqueue_ui_history_operation(Variant<BrowserHistoryTraversalOperation, HistoryStepCancelationCheckOperation>, OnHistoryOperationComplete);
+    void run_ui_history_operation_at_queue_position(Variant<BrowserHistoryTraversalOperation, HistoryStepCancelationCheckOperation>, OnHistoryOperationComplete, NonnullRefPtr<Core::Promise<Empty>>);
     void start_history_operation(HistoryOperation&, NonnullRefPtr<Core::Promise<Empty>>);
+    void apply_history_step(HistoryOperation&, i32 step, bool check_for_cancelation, Optional<Web::HTML::CrossProcessId> initiator_to_check, Web::HTML::UserNavigationInvolvement, Optional<Web::Bindings::NavigationType>, Web::HTML::SynchronousNavigation, Optional<Web::HTML::CrossProcessId> navigable_with_finalized_entry);
+    void check_history_step_cancelation(HistoryOperation&, HistoryStepCancelationCheckOperation const&);
     void finish_history_operation(u64 operation_id, Web::HTML::HistoryStepResult, Optional<i32> committed_step);
 
     bool web_content_can_apply_traversal(TraversableSessionHistory::TraversalTarget const&) const;
     Optional<Web::HTML::CrossProcessId> nested_history_id_for(CanonicalNavigable const&) const;
-    HistoryTraversalDecision traverse_the_history(TraversableSessionHistory::TraversalTarget const&, CheckForCancelation, URL::URL const& current_url, Function<void(HistoryTraversalOutcome)> on_cancelation_check_complete);
+    HistoryTraversalDecision traverse_the_history(TraversableSessionHistory::TraversalTarget const&, CheckForCancelation, URL::URL const& current_url, Function<void(HistoryTraversalOutcome)> on_cancelation_check_complete, Function<void()> on_top_level_traversal_applied);
+    bool notify_top_level_traversal_applied();
     void abandon_pending_web_content_session_history_seed();
+    void reconcile_navigable_tree_after_session_history_seed();
+    void reconcile_navigable_subtree_after_session_history_seed(CanonicalNavigable&, Web::HTML::SessionHistoryEntryDescriptor const&, i32 current_step);
     void remove_from_index(CanonicalNavigable&);
     WebContentSessionHistoryUpdateResult update_session_history_from_web_content(Vector<Web::HTML::SessionHistoryEntryDescriptor>, Vector<i32> used_steps, size_t current_used_step_index, bool pending_step_after_fallback_load_was_restored, bool seed_web_content_on_invalid_snapshot, URL::URL const& current_url);
     WebContentSessionHistoryUpdateResult adopt_web_content_session_history_after_rejected_seed(Vector<Web::HTML::SessionHistoryEntryDescriptor>, Vector<i32> used_steps, size_t current_used_step_index, URL::URL const& current_url);

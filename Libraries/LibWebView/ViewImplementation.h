@@ -436,6 +436,7 @@ public:
     virtual Gfx::IntPoint to_widget_position(Gfx::IntPoint content_position) const = 0;
 
 protected:
+    Function<void()> make_top_level_history_traversal_applied_callback() const;
     HistoryTraversalOutcome start_history_traversal(HistoryTraversalDecision);
     void apply_history_traversal_step_result(i32 step, bool step_was_available, Web::HTML::HistoryStepResult);
     void apply_history_step_cancelation_check_result(u64 request_id, i32 step, Web::HTML::HistoryStepResult);

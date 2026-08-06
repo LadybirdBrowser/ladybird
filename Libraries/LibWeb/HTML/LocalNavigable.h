@@ -118,6 +118,9 @@ public:
     void set_current_session_history_entry(RefPtr<SessionHistoryEntry>);
 
     Vector<NonnullRefPtr<SessionHistoryEntry>>& get_session_history_entries() const;
+    // Whether this navigable's session history entry list still exists (a removed child's nested history is pruned
+    // from its parent document state).
+    bool has_session_history_entries() const;
 
     void activate_history_entry(RefPtr<SessionHistoryEntry>, GC::Ref<DOM::Document>);
 

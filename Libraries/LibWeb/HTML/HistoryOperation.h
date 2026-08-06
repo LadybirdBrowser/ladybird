@@ -82,8 +82,14 @@ struct CloseTopLevelTraversableHistoryOperationParameters {
     HTML::CrossProcessId traversable_id;
 };
 
-// A WebContent-initiated operation with value-shaped parameters. The request boundary retains any process-local
-// state under a private initiation ID; the queue and coordinator remain local until the later ownership switch.
+struct ResetSessionHistoryForTestingOperationParameters {
+    HTML::CrossProcessId traversable_id;
+};
+
+struct FlushSessionHistoryTraversalQueueOperationParameters {
+    HTML::CrossProcessId traversable_id;
+};
+
 using HistoryOperationParameters = Variant<
     PushHistoryOperationParameters,
     ReplaceHistoryOperationParameters,
@@ -95,7 +101,9 @@ using HistoryOperationParameters = Variant<
     NavigableCreationHistoryOperationParameters,
     NavigableDestructionHistoryOperationParameters,
     FinalizeSameDocumentNavigationHistoryOperationParameters,
-    CloseTopLevelTraversableHistoryOperationParameters>;
+    CloseTopLevelTraversableHistoryOperationParameters,
+    ResetSessionHistoryForTestingOperationParameters,
+    FlushSessionHistoryTraversalQueueOperationParameters>;
 
 }
 
@@ -155,5 +163,15 @@ template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::CloseTopLevelTraversableHistoryOperationParameters const&);
 template<>
 WEB_API ErrorOr<Web::CloseTopLevelTraversableHistoryOperationParameters> decode(Decoder&);
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::ResetSessionHistoryForTestingOperationParameters const&);
+template<>
+WEB_API ErrorOr<Web::ResetSessionHistoryForTestingOperationParameters> decode(Decoder&);
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::FlushSessionHistoryTraversalQueueOperationParameters const&);
+template<>
+WEB_API ErrorOr<Web::FlushSessionHistoryTraversalQueueOperationParameters> decode(Decoder&);
 
 }

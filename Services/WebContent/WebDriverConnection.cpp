@@ -17,6 +17,7 @@
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
 #include <AK/Vector.h>
+#include <LibCore/EventLoop.h>
 #include <LibCore/File.h>
 #include <LibCore/Process.h>
 #if !defined(AK_OS_MACOS)

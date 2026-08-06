@@ -1930,3 +1930,18 @@ TEST_CASE(replace_current_entry_url_keeps_document_resource)
     EXPECT_EQ(current_entry->url, parse_url("https://b.example/"sv));
     expect_entry_resource(*current_entry, "post"sv);
 }
+
+TEST_CASE(claimed_finalization_completes_matching_provisional_entry)
+{
+    WebView::TraversableSessionHistory history;
+    auto provisional_entry = entry(1, "https://b.example/"sv);
+    provisional_entry.document_state.is_provisional = true;
+    auto update_result = history.update_from_web_content({ entry(0, "https://a.example/"sv), move(provisional_entry) }, { 0, 1 }, 1);
+    EXPECT_EQ(update_result, WebView::TraversableSessionHistory::UpdateResult::CompleteSnapshot);
+
+    EXPECT(history.finalize_cross_document_navigation({}, entry(1, "https://b.example/"sv), {}, 1));
+    EXPECT_EQ(history.size(), 2uz);
+    expect_current_entry(history, 1, "https://b.example/"sv);
+    VERIFY(history.entry_at(1));
+    EXPECT(!history.entry_at(1)->document_state.is_provisional);
+}

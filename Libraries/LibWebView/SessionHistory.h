@@ -83,8 +83,8 @@ public:
     bool update_document_state(Optional<Web::HTML::CrossProcessId> nested_history_id, Utf16String const& navigation_api_key, Function<void(Web::HTML::SessionHistoryDocumentStateDescriptor&)> const& update_document_state);
     bool append_nested_history(CanonicalNavigable const& parent_navigable, Web::HTML::SessionHistoryNestedHistoryDescriptor);
     bool remove_nested_history(CanonicalNavigable const& parent_navigable, Web::HTML::CrossProcessId child_navigable_id);
-    Optional<SameDocumentNavigationFinalization> finalize_same_document_navigation(CanonicalNavigable const&, Web::HTML::SameDocumentNavigationEntry target_entry, bool replaces_current_entry, Web::HTML::HistoryHandlingBehavior, Web::HTML::UserNavigationInvolvement);
-    bool finalize_cross_document_navigation(Optional<Web::HTML::CrossProcessId> nested_history_id, Entry history_entry, Optional<Utf16String> entry_to_replace_navigation_api_key);
+    Optional<SameDocumentNavigationFinalization> finalize_same_document_navigation(CanonicalNavigable const&, Web::HTML::SameDocumentNavigationEntry target_entry, bool replaces_current_entry, Web::HTML::HistoryHandlingBehavior, Web::HTML::UserNavigationInvolvement, Optional<i32> maximum_claimed_step = {});
+    bool finalize_cross_document_navigation(Optional<Web::HTML::CrossProcessId> nested_history_id, Entry history_entry, Optional<Utf16String> entry_to_replace_navigation_api_key, Optional<i32> maximum_claimed_step = {});
     UpdateResult update_from_web_content(Vector<Entry> entries, Vector<i32> used_steps, size_t current_used_step_index);
     [[nodiscard]] bool did_seed_web_content_from_ui_process(Vector<Entry> entries, Vector<i32> used_steps, size_t current_used_step_index);
     void did_seed_web_content_from_ui_process(size_t current_top_level_entry_index);
@@ -113,9 +113,9 @@ public:
     [[nodiscard]] Entry const* get_the_target_history_entry(CanonicalNavigable const&, i32 step) const;
     [[nodiscard]] Optional<Web::HTML::HistoryObjectLengthAndIndex> get_the_history_object_length_and_index(i32 step) const;
     [[nodiscard]] Optional<Vector<Entry>> get_session_history_entries_for_the_navigation_api(CanonicalNavigable const&, i32 target_step) const;
-    [[nodiscard]] Vector<Web::HTML::CrossProcessId> get_all_navigables_whose_current_session_history_entry_will_change_or_reload(CanonicalNavigable const& traversable, i32 target_step) const;
-    [[nodiscard]] Vector<Web::HTML::CrossProcessId> get_all_navigables_that_might_experience_a_cross_document_traversal(CanonicalNavigable const& traversable, i32 target_step) const;
-    [[nodiscard]] Vector<Web::HTML::CrossProcessId> get_all_navigables_that_only_need_history_object_length_index_update(CanonicalNavigable const& traversable, i32 target_step) const;
+    [[nodiscard]] Vector<Web::HTML::CrossProcessId> get_all_navigables_whose_current_session_history_entry_will_change_or_reload(CanonicalNavigable const& traversable, i32 target_step, Optional<i32> current_step = {}) const;
+    [[nodiscard]] Vector<Web::HTML::CrossProcessId> get_all_navigables_that_might_experience_a_cross_document_traversal(CanonicalNavigable const& traversable, i32 target_step, Optional<i32> current_step = {}) const;
+    [[nodiscard]] Vector<Web::HTML::CrossProcessId> get_all_navigables_that_only_need_history_object_length_index_update(CanonicalNavigable const& traversable, i32 target_step, Optional<i32> current_step = {}) const;
     void set_current_session_history_step(i32 step)
     {
         auto index = m_used_steps.find_first_index(step);
