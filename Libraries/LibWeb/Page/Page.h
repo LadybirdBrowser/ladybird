@@ -65,6 +65,7 @@
 #include <LibWeb/IndexedDB/TransactionChanges.h>
 #include <LibWeb/Loader/FileRequest.h>
 #include <LibWeb/Page/EventResult.h>
+#include <LibWeb/HTML/HistoryOperation.h>
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/Page/ScreenWakeLockHandle.h>
 #include <LibWeb/Page/ViewportIsFullscreen.h>
@@ -451,11 +452,6 @@ private:
 enum class ContextMenuForInputEventsTarget : u8 {
     No,
     Yes,
-};
-
-enum class HistoryTraversalPrecheck : u8 {
-    Needed,
-    AlreadyDone,
 };
 
 enum class NavigationTarget : u8 {
