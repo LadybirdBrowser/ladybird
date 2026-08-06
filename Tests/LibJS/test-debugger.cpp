@@ -881,3 +881,106 @@ TEST_CASE(step_state_does_not_survive_its_bytecode_execution)
     EXPECT(!vm->run(*second_script).is_error());
     EXPECT_EQ(pause_count, 1u);
 }
+
+TEST_CASE(pause_on_all_exceptions_reports_caught_exceptions)
+{
+    auto vm = JS::VM::create();
+    auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
+    auto& realm = *root_execution_context->realm;
+
+    vm->enable_debugging();
+    vm->debugger()->set_pause_on_exceptions(JS::Debugger::PauseOnExceptions::All);
+
+    size_t pause_count = 0;
+    vm->debugger()->set_pause_callback([&](JS::Debugger::PauseInfo const& pause_info) {
+        ++pause_count;
+        EXPECT_EQ(pause_info.reason, JS::Debugger::PauseReason::Exception);
+        EXPECT(pause_info.exception.has_value());
+        EXPECT_EQ(pause_info.exception->as_i32(), 42);
+        EXPECT(pause_info.exception_will_be_caught);
+        vm->debugger()->continue_execution();
+    });
+
+    auto script_or_error = JS::Script::parse("try { throw 42; } catch {}"sv, realm, "caught.js"sv);
+    VERIFY(!script_or_error.is_error());
+    auto result = vm->run(*script_or_error.value());
+    EXPECT(!result.is_error());
+    EXPECT_EQ(pause_count, 1u);
+}
+
+TEST_CASE(pause_on_uncaught_exceptions_ignores_caught_exceptions)
+{
+    auto vm = JS::VM::create();
+    auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
+    auto& realm = *root_execution_context->realm;
+
+    vm->enable_debugging();
+    vm->debugger()->set_pause_on_exceptions(JS::Debugger::PauseOnExceptions::Uncaught);
+
+    size_t pause_count = 0;
+    vm->debugger()->set_pause_callback([&](JS::Debugger::PauseInfo const& pause_info) {
+        ++pause_count;
+        EXPECT_EQ(pause_info.reason, JS::Debugger::PauseReason::Exception);
+        EXPECT(pause_info.exception.has_value());
+        EXPECT_EQ(pause_info.exception->as_i32(), 43);
+        EXPECT(!pause_info.exception_will_be_caught);
+        vm->debugger()->continue_execution();
+    });
+
+    auto caught_script_or_error = JS::Script::parse("try { throw 42; } catch {}"sv, realm, "caught.js"sv);
+    VERIFY(!caught_script_or_error.is_error());
+    auto result = vm->run(*caught_script_or_error.value());
+    EXPECT(!result.is_error());
+    EXPECT_EQ(pause_count, 0u);
+
+    auto uncaught_script_or_error = JS::Script::parse("throw 43;"sv, realm, "uncaught.js"sv);
+    VERIFY(!uncaught_script_or_error.is_error());
+    result = vm->run(*uncaught_script_or_error.value());
+    EXPECT(result.is_error());
+    EXPECT_EQ(pause_count, 1u);
+}
+
+TEST_CASE(pause_on_uncaught_exceptions_reports_the_original_throw_through_finally)
+{
+    auto vm = JS::VM::create();
+    auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
+    auto& realm = *root_execution_context->realm;
+
+    Vector<u32> paused_lines;
+    vm->enable_debugging();
+    vm->debugger()->set_pause_on_exceptions(JS::Debugger::PauseOnExceptions::Uncaught);
+    vm->debugger()->set_pause_callback([&](JS::Debugger::PauseInfo const& pause_info) {
+        EXPECT(!pause_info.exception_will_be_caught);
+        VERIFY(pause_info.source_range.has_value());
+        paused_lines.append(pause_info.source_range->start.line);
+        vm->debugger()->continue_execution();
+    });
+
+    auto script = JS::Script::parse("try {\n    throw 42;\n} finally {\n    let cleanup = 1;\n}"sv, realm, "finally.js"sv).release_value();
+    EXPECT(vm->run(*script).is_error());
+    EXPECT_EQ(paused_lines, (Vector<u32> { 2 }));
+}
+
+TEST_CASE(pause_on_uncaught_exceptions_preserves_native_callback_frames)
+{
+    auto vm = JS::VM::create();
+    auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
+    auto& realm = *root_execution_context->realm;
+
+    size_t pause_count = 0;
+    vm->enable_debugging();
+    vm->debugger()->set_pause_on_exceptions(JS::Debugger::PauseOnExceptions::Uncaught);
+    vm->debugger()->set_pause_callback([&](JS::Debugger::PauseInfo const& pause_info) {
+        ++pause_count;
+        EXPECT(!pause_info.exception_will_be_caught);
+        VERIFY(pause_info.source_range.has_value());
+        EXPECT_EQ(pause_info.source_range->start.line, 2u);
+        VERIFY(!pause_info.stack_trace.is_empty());
+        EXPECT(pause_info.stack_trace.first().execution_context->function);
+        vm->debugger()->continue_execution();
+    });
+
+    auto script = JS::Script::parse("[1].map(() => {\n    throw 42;\n});"sv, realm, "native-callback.js"sv).release_value();
+    EXPECT(vm->run(*script).is_error());
+    EXPECT_EQ(pause_count, 1u);
+}

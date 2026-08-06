@@ -261,6 +261,7 @@ ErrorOr<void> encode(Encoder& encoder, WebView::DebuggerPause const& pause)
 {
     TRY(encoder.encode(pause.reason));
     TRY(encoder.encode(pause.reason_message));
+    TRY(encoder.encode(pause.exception));
     TRY(encoder.encode(pause.frames));
     return {};
 }
@@ -271,6 +272,7 @@ ErrorOr<WebView::DebuggerPause> decode(Decoder& decoder)
     return WebView::DebuggerPause {
         .reason = TRY(decoder.decode<WebView::DebuggerPauseReason>()),
         .reason_message = TRY(decoder.decode<Optional<Utf16String>>()),
+        .exception = TRY(decoder.decode<Optional<WebView::DebuggerValue>>()),
         .frames = TRY(decoder.decode<Vector<WebView::DebuggerFrame>>()),
     };
 }

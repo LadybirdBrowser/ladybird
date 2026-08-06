@@ -261,6 +261,8 @@ void ThreadActor::did_pause(WebView::DebuggerPause pause)
             return "debuggerStatement"sv;
         case WebView::DebuggerPauseReason::Entry:
             return "interrupted"sv;
+        case WebView::DebuggerPauseReason::Exception:
+            return "exception"sv;
         case WebView::DebuggerPauseReason::ResumeLimit:
             return "resumeLimit"sv;
         }
@@ -273,6 +275,8 @@ void ThreadActor::did_pause(WebView::DebuggerPause pause)
         why.set("onNext"sv, true);
     if (pause.reason_message.has_value())
         why.set("message"sv, pause.reason_message->to_utf8());
+    if (pause.exception.has_value())
+        why.set("exception"sv, serialize_debugger_value(*pause.exception));
 
     JsonObject resource;
     resource.set("state"sv, "paused"sv);

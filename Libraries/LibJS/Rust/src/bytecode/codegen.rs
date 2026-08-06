@@ -8077,6 +8077,7 @@ fn generate_try_statement(
     let mut handler_block: Option<Label> = None;
     if let Some(catch) = &data.handler {
         let hb = generator.make_block();
+        generator.catch_handler_labels.insert(hb.0);
         handler_block = Some(hb);
         generator.switch_to_basic_block(hb);
 

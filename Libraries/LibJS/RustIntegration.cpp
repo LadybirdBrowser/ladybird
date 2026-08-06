@@ -1425,6 +1425,7 @@ extern "C" void* rust_create_executable(
             data->exception_handlers[i].start_offset,
             data->exception_handlers[i].end_offset,
             data->exception_handlers[i].handler_offset,
+            data->exception_handlers[i].catches_exception,
         });
     }
 
