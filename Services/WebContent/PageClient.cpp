@@ -159,8 +159,6 @@ void PageClient::visit_edges(JS::Cell::Visitor& visitor)
         visitor.visit(controller.value);
     for (auto& reader : m_download_readers)
         visitor.visit(reader.value);
-    for (auto& callback : m_pending_session_history_traversal_target_requests)
-        visitor.visit(callback.value);
     m_pending_dom_mutations.for_each([&](auto& pending_mutation) {
         visitor.visit(pending_mutation.target);
     });
@@ -1265,11 +1263,6 @@ void PageClient::page_did_finalize_cross_document_navigation(Web::HTML::CrossPro
     client().async_did_finalize_cross_document_navigation(m_id, navigable_id, history_entry, entry_to_replace_navigation_api_key);
 }
 
-void PageClient::page_did_set_current_session_history_step(int current_session_history_step)
-{
-    client().async_did_set_current_session_history_step(m_id, current_session_history_step);
-}
-
 String PageClient::page_did_request_ui_process_session_history_for_testing()
 {
     return client().did_request_ui_process_session_history_for_testing(m_id);
@@ -1288,33 +1281,6 @@ String PageClient::page_did_update_session_history_and_request_ui_process_sessio
 void PageClient::page_did_request_traverse_the_history_by_delta(int delta, Web::HistoryTraversalPrecheck history_traversal_precheck)
 {
     client().async_did_request_traverse_the_history_by_delta(m_id, delta, history_traversal_precheck);
-}
-
-void PageClient::page_did_request_history_traversal_target_by_delta(int delta, GC::Ref<GC::Function<void(Optional<int>)>> on_complete)
-{
-    auto request_id = m_next_session_history_traversal_target_request_id++;
-    m_pending_session_history_traversal_target_requests.set(request_id, on_complete);
-    client().async_did_request_history_traversal_target_by_delta(m_id, request_id, delta);
-}
-
-void PageClient::page_did_request_traverse_the_history_to_step(int step, Web::HistoryTraversalPrecheck history_traversal_precheck)
-{
-    client().async_did_request_traverse_the_history_to_step(m_id, step, history_traversal_precheck);
-}
-
-void PageClient::page_did_request_navigation_api_traversal_target(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_api_key, GC::Ref<GC::Function<void(Optional<int>)>> on_complete)
-{
-    auto request_id = m_next_session_history_traversal_target_request_id++;
-    m_pending_session_history_traversal_target_requests.set(request_id, on_complete);
-    client().async_did_request_navigation_api_traversal_target(m_id, request_id, navigable_id, navigation_api_key);
-}
-
-void PageClient::did_resolve_session_history_traversal_target(u64 request_id, Optional<i32> target_step)
-{
-    auto callback = m_pending_session_history_traversal_target_requests.take(request_id);
-    if (!callback.has_value())
-        return;
-    callback.value()->function()(target_step);
 }
 
 void PageClient::request_webdriver_history_traversal(int delta, Function<void(WebDriverHistoryTraversalResult)> on_complete)

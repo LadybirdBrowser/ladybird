@@ -222,9 +222,6 @@ private:
     virtual void did_close_browsing_context(u64 page_id) override;
     virtual void did_change_needs_beforeunload_check(u64 page_id, bool needs_beforeunload_check) override;
     virtual void did_request_traverse_the_history_by_delta(u64 page_id, i32 delta, Web::HistoryTraversalPrecheck) override;
-    virtual void did_request_history_traversal_target_by_delta(u64 page_id, u64 request_id, i32 delta) override;
-    virtual void did_request_traverse_the_history_to_step(u64 page_id, i32 step, Web::HistoryTraversalPrecheck) override;
-    virtual void did_request_navigation_api_traversal_target(u64 page_id, u64 request_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_api_key) override;
     virtual void did_request_webdriver_history_traversal(u64 page_id, u64 request_id, i32 delta) override;
     virtual Messages::WebContentClient::DidRequestWebdriverLoadUrlFromUiResponse did_request_webdriver_load_url_from_ui(u64 page_id, URL::URL url) override;
     virtual Messages::WebContentClient::DidRequestWebdriverTraverseHistoryFromUiResponse did_request_webdriver_traverse_history_from_ui(u64 page_id, i32 delta) override;
@@ -272,13 +269,10 @@ private:
     virtual void did_remove_nested_history(u64 page_id, Web::HTML::CrossProcessId parent_navigable_id, Web::HTML::CrossProcessId child_navigable_id) override;
     virtual void did_request_finalize_same_document_navigation(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SameDocumentNavigationEntry target_entry, bool replaces_current_entry, Web::HTML::HistoryHandlingBehavior history_handling, Web::HTML::UserNavigationInvolvement user_involvement, bool applies_history_step_in_coordinator) override;
     virtual void did_finalize_cross_document_navigation(u64 page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor history_entry, Optional<Utf16String> entry_to_replace_navigation_api_key) override;
-    virtual void did_set_current_session_history_step(u64 page_id, i32 current_session_history_step) override;
     virtual Messages::WebContentClient::DidRequestUiProcessSessionHistoryForTestingResponse did_request_ui_process_session_history_for_testing(u64 page_id) override;
     virtual Messages::WebContentClient::DidRequestSiteIsolationProcessTreeForTestingResponse did_request_site_isolation_process_tree_for_testing(u64 page_id) override;
     virtual Messages::WebContentClient::DidUpdateSessionHistoryAndRequestUiProcessSessionHistoryForTestingResponse did_update_session_history_and_request_ui_process_session_history_for_testing(u64 page_id, Vector<Web::HTML::SessionHistoryEntryDescriptor>, Vector<i32>, size_t current_used_step_index) override;
     virtual void did_set_top_level_session_history(u64 page_id, bool accepted, Vector<Web::HTML::SessionHistoryEntryDescriptor>, Vector<i32> used_steps, size_t current_used_step_index) override;
-    virtual void did_traverse_the_history_to_step(u64 page_id, i32 step, bool step_was_available, Web::HTML::HistoryStepResult) override;
-    virtual void did_check_if_traverse_history_step_is_canceled(u64 page_id, u64 request_id, i32 step, Web::HTML::HistoryStepResult) override;
     virtual void request_history_operation(u64 page_id, u64 initiation_id, Web::HistoryOperationParameters) override;
     virtual void history_operation_ready(u64 page_id, u64 operation_id, bool proceed, Optional<i32> step_override, Web::HTML::HistoryStepResult abandon_result) override;
     virtual void initiator_sandboxing_check_result(u64 page_id, u64 operation_id, bool allowed) override;

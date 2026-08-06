@@ -346,22 +346,6 @@ void ConnectionFromClient::complete_finalize_same_document_navigation(u64 page_i
         page->did_complete_finalize_same_document_navigation(operation_id, committed, entry_step, target_step, script_history_length, script_history_index);
 }
 
-void ConnectionFromClient::resolve_session_history_traversal_target(u64 page_id, u64 request_id, Optional<i32> target_step)
-{
-    if (auto page = this->page(page_id); page.has_value())
-        page->did_resolve_session_history_traversal_target(request_id, target_step);
-}
-
-void ConnectionFromClient::traverse_the_history_to_step(u64 page_id, i32 step)
-{
-    async_did_traverse_the_history_to_step(page_id, step, false, Web::HTML::HistoryStepResult::Applied);
-}
-
-void ConnectionFromClient::check_if_traverse_history_step_is_canceled(u64 page_id, u64 request_id, i32 step)
-{
-    async_did_check_if_traverse_history_step_is_canceled(page_id, request_id, step, Web::HTML::HistoryStepResult::Applied);
-}
-
 void ConnectionFromClient::history_operation_started(u64 page_id, u64 operation_id, Optional<u64> initiation_id)
 {
     auto page = this->page(page_id);
