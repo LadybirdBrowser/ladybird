@@ -59,6 +59,10 @@ struct ResumeTraverseHistoryOperationParameters {
     HTML::UserNavigationInvolvement user_involvement;
 };
 
+struct NavigableCreationHistoryOperationParameters {
+    HTML::CrossProcessId navigable_id;
+};
+
 // A WebContent-initiated operation with value-shaped parameters. The request boundary retains any process-local
 // state under a private initiation ID; the queue and coordinator remain local until the later ownership switch.
 using HistoryOperationParameters = Variant<
@@ -68,7 +72,8 @@ using HistoryOperationParameters = Variant<
     TraverseByDeltaHistoryOperationParameters,
     TraverseToStepHistoryOperationParameters,
     NavigationAPITraverseHistoryOperationParameters,
-    ResumeTraverseHistoryOperationParameters>;
+    ResumeTraverseHistoryOperationParameters,
+    NavigableCreationHistoryOperationParameters>;
 
 }
 
@@ -108,5 +113,10 @@ template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::ResumeTraverseHistoryOperationParameters const&);
 template<>
 WEB_API ErrorOr<Web::ResumeTraverseHistoryOperationParameters> decode(Decoder&);
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::NavigableCreationHistoryOperationParameters const&);
+template<>
+WEB_API ErrorOr<Web::NavigableCreationHistoryOperationParameters> decode(Decoder&);
 
 }
