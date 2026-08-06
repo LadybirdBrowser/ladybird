@@ -2542,6 +2542,10 @@ void LocalTraversableNavigable::request_history_operation(HistoryOperationParame
                 [&](ResumeTraverseHistoryOperationParameters const& parameters) {
                     VERIFY(!step_override.has_value());
                     resume_applying_the_traverse_history_step(parameters.target_step, parameters.user_involvement, on_apply_complete);
+                },
+                [&](NavigableCreationHistoryOperationParameters const&) {
+                    VERIFY(!step_override.has_value());
+                    update_for_navigable_creation_or_destruction(on_apply_complete);
                 });
         });
 
