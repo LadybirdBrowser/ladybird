@@ -1435,11 +1435,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             },
             true,
         ) {
-            crate::layout::ChildLayoutOutcome::Created(child_layout) => {
-                self.used_mut(marker)
-                    .set_content_block_size(child_layout.automatic_content_block_size);
-            }
-            crate::layout::ChildLayoutOutcome::Skipped => {}
+            crate::layout::ChildLayoutOutcome::Created(_) | crate::layout::ChildLayoutOutcome::Skipped => {}
             crate::layout::ChildLayoutOutcome::ReenterCurrent => {
                 unreachable!("marker inside layout did not establish a formatting context")
             }
