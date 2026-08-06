@@ -148,3 +148,17 @@ ErrorOr<Web::NavigableCreationHistoryOperationParameters> IPC::decode(Decoder& d
         .navigable_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
     };
 }
+
+template<>
+ErrorOr<void> IPC::encode(Encoder& encoder, Web::NavigableDestructionHistoryOperationParameters const& parameters)
+{
+    return encoder.encode(parameters.traversable_id);
+}
+
+template<>
+ErrorOr<Web::NavigableDestructionHistoryOperationParameters> IPC::decode(Decoder& decoder)
+{
+    return Web::NavigableDestructionHistoryOperationParameters {
+        .traversable_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
+    };
+}

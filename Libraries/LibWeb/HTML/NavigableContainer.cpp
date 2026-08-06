@@ -358,12 +358,10 @@ void NavigableContainer::destroy_the_child_navigable()
         traversable->page().client().page_did_remove_nested_history(this->navigable()->id(), navigable->id());
 
         // 9. Append the following session history traversal steps to traversable:
-        traversable->append_session_history_traversal_steps(GC::create_function(GC::Heap::the(), [traversable](NonnullRefPtr<Core::Promise<Empty>> signal) {
-            // 1. Update for navigable creation/destruction given traversable.
-            traversable->update_for_navigable_creation_or_destruction(GC::create_function(GC::Heap::the(), [signal](HistoryStepResult) {
-                signal->resolve({});
-            }));
-        }));
+        // 1. Update for navigable creation/destruction given traversable.
+        traversable->request_history_operation(NavigableDestructionHistoryOperationParameters {
+            .traversable_id = traversable->id(),
+        });
     });
 
     // 5. Destroy a document and its descendants given navigable's active document.
