@@ -11,6 +11,7 @@ set(TEST_SOURCES
     TestDisplayListDamage.cpp
     TestDownloadReader.cpp
     TestDump.cpp
+    TestEventLoop.cpp
     TestFetchResponse.cpp
     TestFetchURL.cpp
     TestHTMLTokenizer.cpp
