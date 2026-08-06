@@ -171,6 +171,7 @@ public:
     using OnDebuggerPaused = Function<void(WebView::DebuggerPause)>;
     using OnDebuggerBreakpointOperationComplete = Function<void(ErrorOr<void>)>;
     using OnDebuggerEnvironmentsReceived = Function<void(ErrorOr<Vector<WebView::DebuggerEnvironment>>)>;
+    using OnDebuggerEvaluationComplete = Function<void(ErrorOr<WebView::DebuggerEvaluationResult, String>)>;
     using OnDebuggerObjectPropertiesReceived = Function<void(ErrorOr<WebView::DebuggerObjectProperties, String>)>;
     using OnDebuggerSourcePositionsReceived = Function<void(ErrorOr<Vector<WebView::DebuggerSourcePosition>>)>;
     virtual void attach_debugger(TabDescription const&, OnDebuggerPaused) const { }
@@ -181,6 +182,7 @@ public:
     virtual void set_debugger_breakpoint(TabDescription const&, WebView::DebuggerBreakpointLocation, OnDebuggerBreakpointOperationComplete) const { }
     virtual void remove_debugger_breakpoint(TabDescription const&, WebView::DebuggerBreakpointLocation, OnDebuggerBreakpointOperationComplete) const { }
     virtual void retrieve_debugger_environments(TabDescription const&, u64, OnDebuggerEnvironmentsReceived) const { }
+    virtual void evaluate_javascript_in_debugger_frame(TabDescription const&, u64, String const&, OnDebuggerEvaluationComplete) const { }
     virtual void retrieve_debugger_object_properties(TabDescription const&, u64, OnDebuggerObjectPropertiesReceived) const { }
     virtual void retrieve_debugger_source_positions(TabDescription const&, Web::HTML::ScriptRegistry::Identifier, OnDebuggerSourcePositionsReceived) const { }
 

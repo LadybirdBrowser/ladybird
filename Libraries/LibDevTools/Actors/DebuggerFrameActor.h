@@ -19,6 +19,7 @@ public:
     static NonnullRefPtr<DebuggerFrameActor> create(DevToolsServer&, String name, WeakPtr<ThreadActor>, WebView::DebuggerFrame, String source_actor, bool oldest);
     virtual ~DebuggerFrameActor() override;
 
+    u64 frame_id() const { return m_frame.id; }
     JsonObject serialize_frame() const;
 
 private:
