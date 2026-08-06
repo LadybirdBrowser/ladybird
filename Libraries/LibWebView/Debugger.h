@@ -44,6 +44,11 @@ struct DebuggerBreakpointLocation {
     }
 };
 
+struct DebuggerSourcePosition {
+    u32 line { 0 };
+    u32 column { 0 };
+};
+
 struct DebuggerLocation {
     Web::HTML::ScriptRegistry::Description source;
     u32 line { 0 };
@@ -76,6 +81,12 @@ WEBVIEW_API ErrorOr<void> encode(Encoder&, WebView::DebuggerBreakpointLocation c
 
 template<>
 WEBVIEW_API ErrorOr<WebView::DebuggerBreakpointLocation> decode(Decoder&);
+
+template<>
+WEBVIEW_API ErrorOr<void> encode(Encoder&, WebView::DebuggerSourcePosition const&);
+
+template<>
+WEBVIEW_API ErrorOr<WebView::DebuggerSourcePosition> decode(Decoder&);
 
 template<>
 WEBVIEW_API ErrorOr<void> encode(Encoder&, WebView::DebuggerLocation const&);

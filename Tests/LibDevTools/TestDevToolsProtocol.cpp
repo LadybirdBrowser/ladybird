@@ -1223,6 +1223,18 @@ public:
         on_complete({});
     }
 
+    virtual void retrieve_debugger_source_positions(DevTools::TabDescription const&, Web::HTML::ScriptRegistry::Identifier source_id, OnDebuggerSourcePositionsReceived on_complete) const override
+    {
+        ++retrieve_debugger_source_positions_call_count;
+        last_debugger_source_id = source_id;
+        on_complete(Vector<WebView::DebuggerSourcePosition> {
+            { 1, 0 },
+            { 1, 12 },
+            { 2, 4 },
+            { 5, 1 },
+        });
+    }
+
     virtual void resolve_dom_node_url(DevTools::TabDescription const&, Optional<Web::UniqueNodeID> node_id, String const& url, OnResolvedURLReceived callback) const override
     {
         ++resolve_dom_node_url_call_count;
@@ -1527,9 +1539,11 @@ public:
     mutable size_t resume_debugger_call_count { 0 };
     mutable size_t set_debugger_breakpoint_call_count { 0 };
     mutable size_t remove_debugger_breakpoint_call_count { 0 };
+    mutable size_t retrieve_debugger_source_positions_call_count { 0 };
     mutable DevTools::DevToolsDelegate::OnDebuggerPaused on_debugger_paused;
     mutable WebView::DebuggerConfiguration debugger_configuration;
     mutable Optional<WebView::DebuggerBreakpointLocation> last_debugger_breakpoint_location;
+    mutable Optional<Web::HTML::ScriptRegistry::Identifier> last_debugger_source_id;
     mutable bool fail_debugger_breakpoint_operation { false };
     mutable size_t resolve_dom_node_url_call_count { 0 };
     mutable size_t listen_for_console_messages_call_count { 0 };
@@ -2489,6 +2503,36 @@ TEST_CASE(source_resources)
     EXPECT_EQ(source.get_string("source"sv).value(), "console.log('hello from source');"sv);
     EXPECT_EQ(session->delegate.retrieve_sources_call_count, 2u);
     EXPECT_EQ(session->delegate.retrieve_source_call_count, 1u);
+
+    auto breakable_lines = client.request(source_actor, "getBreakableLines"sv).get_array("lines"sv).release_value();
+    EXPECT_EQ(breakable_lines.size(), 3u);
+    EXPECT_EQ(breakable_lines[0].get_integer<u32>().value(), 1u);
+    EXPECT_EQ(breakable_lines[1].get_integer<u32>().value(), 2u);
+    EXPECT_EQ(breakable_lines[2].get_integer<u32>().value(), 5u);
+    EXPECT_EQ(session->delegate.retrieve_debugger_source_positions_call_count, 1u);
+    VERIFY(session->delegate.last_debugger_source_id.has_value());
+    EXPECT(*session->delegate.last_debugger_source_id == session->delegate.fixture_source.id);
+
+    JsonObject position_request;
+    position_request.set("to"sv, source_actor);
+    position_request.set("type"sv, "getBreakpointPositionsCompressed"sv);
+    JsonObject query;
+    JsonObject start;
+    start.set("line"sv, 1);
+    start.set("column"sv, 10);
+    query.set("start"sv, move(start));
+    JsonObject end;
+    end.set("line"sv, 5);
+    end.set("column"sv, 1);
+    query.set("end"sv, move(end));
+    position_request.set("query"sv, move(query));
+    auto positions = client.request(move(position_request)).get_object("positions"sv).release_value();
+    EXPECT_EQ(positions.get_array("1"sv)->size(), 1u);
+    EXPECT_EQ(positions.get_array("1"sv)->at(0).get_integer<u32>().value(), 12u);
+    EXPECT_EQ(positions.get_array("2"sv)->size(), 1u);
+    EXPECT_EQ(positions.get_array("2"sv)->at(0).get_integer<u32>().value(), 4u);
+    EXPECT(!positions.has("5"sv));
+    EXPECT_EQ(session->delegate.retrieve_debugger_source_positions_call_count, 2u);
     EXPECT_EQ(session->delegate.listen_for_sources_call_count, 1u);
     VERIFY(session->delegate.on_source_available);
 

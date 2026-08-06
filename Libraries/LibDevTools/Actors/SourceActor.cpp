@@ -6,11 +6,28 @@
 
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
+#include <AK/NumericLimits.h>
 #include <LibDevTools/Actors/SourceActor.h>
 #include <LibDevTools/Actors/TabActor.h>
 #include <LibDevTools/DevToolsServer.h>
 
 namespace DevTools {
+
+static bool position_is_within_query(WebView::DebuggerSourcePosition const& position, JsonObject const& query)
+{
+    auto start = query.get_object("start"sv).value_or({});
+    auto end = query.get_object("end"sv).value_or({});
+    auto start_line = start.get_integer<u32>("line"sv).value_or(0);
+    auto start_column = start.get_integer<u32>("column"sv).value_or(0);
+    auto end_line = end.get_integer<u32>("line"sv).value_or(NumericLimits<u32>::max());
+    auto end_column = end.get_integer<u32>("column"sv).value_or(NumericLimits<u32>::max());
+
+    if (position.line < start_line || (position.line == start_line && position.column < start_column))
+        return false;
+    if (position.line > end_line || (position.line == end_line && position.column >= end_column))
+        return false;
+    return true;
+}
 
 NonnullRefPtr<SourceActor> SourceActor::create(DevToolsServer& devtools, String name, WeakPtr<TabActor> tab, Web::HTML::ScriptRegistry::Description source)
 {
@@ -73,21 +90,52 @@ void SourceActor::handle_message(Message const& message)
     }
 
     if (message.type == "getBreakableLines"sv) {
-        // FIXME: Compute real breakable lines from the parsed script source.
-        JsonObject response;
-        JsonArray lines;
-        response.set("lines"sv, move(lines));
-        send_response(message, move(response));
+        auto tab = m_tab.strong_ref();
+        if (!tab) {
+            JsonObject response;
+            response.set("lines"sv, JsonArray {});
+            send_response(message, move(response));
+            return;
+        }
+
+        devtools().delegate().retrieve_debugger_source_positions(tab->description(), m_source.id,
+            async_handler<SourceActor>(message, [](auto&, auto positions, auto& response) {
+                JsonArray lines;
+                Optional<u32> previous_line;
+                for (auto const& position : positions) {
+                    if (previous_line == position.line)
+                        continue;
+                    lines.must_append(position.line);
+                    previous_line = position.line;
+                }
+                response.set("lines"sv, move(lines));
+            }));
         return;
     }
 
     if (message.type == "getBreakpointPositionsCompressed"sv) {
-        // FIXME: Compute breakpoint positions once debugger bytecode/source
-        //        mapping is exposed to DevTools.
-        JsonObject response;
-        JsonObject positions;
-        response.set("positions"sv, move(positions));
-        send_response(message, move(response));
+        auto tab = m_tab.strong_ref();
+        if (!tab) {
+            JsonObject response;
+            response.set("positions"sv, JsonObject {});
+            send_response(message, move(response));
+            return;
+        }
+
+        auto query = message.data.get_object("query"sv).value_or({});
+        devtools().delegate().retrieve_debugger_source_positions(tab->description(), m_source.id,
+            async_handler<SourceActor>(message, [query = move(query)](auto&, auto positions, auto& response) {
+                JsonObject compressed_positions;
+                for (auto const& position : positions) {
+                    if (!position_is_within_query(position, query))
+                        continue;
+                    auto line = MUST(String::formatted("{}", position.line));
+                    auto columns = compressed_positions.get_array(line).value_or({});
+                    columns.must_append(position.column);
+                    compressed_positions.set(move(line), move(columns));
+                }
+                response.set("positions"sv, move(compressed_positions));
+            }));
         return;
     }
 
