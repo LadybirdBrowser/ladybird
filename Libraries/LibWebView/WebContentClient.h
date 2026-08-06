@@ -190,6 +190,7 @@ private:
     virtual void did_add_devtools_source(u64 page_id, Web::HTML::ScriptRegistry::Description source) override;
     virtual void did_pause_debugger(u64 page_id, DebuggerPause) override;
     virtual void did_complete_debugger_breakpoint_operation(u64 page_id, u64 request_id, Optional<String> error) override;
+    virtual void did_get_debugger_environments(u64 page_id, u64 request_id, Optional<String> error, Vector<DebuggerEnvironment>) override;
     virtual void did_get_debugger_source_positions(u64 page_id, u64 request_id, Vector<DebuggerSourcePosition> positions) override;
     virtual void did_resolve_dom_node_url(u64 page_id, u64 request_id, String resolved_url) override;
     virtual void did_take_screenshot(u64 page_id, Gfx::ShareableBitmap screenshot) override;

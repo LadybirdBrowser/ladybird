@@ -28,6 +28,75 @@ ErrorOr<WebView::DebuggerConfiguration> decode(Decoder& decoder)
 }
 
 template<>
+ErrorOr<void> encode(Encoder& encoder, WebView::DebuggerValue const& value)
+{
+    TRY(encoder.encode(value.type));
+    TRY(encoder.encode(value.boolean_value));
+    TRY(encoder.encode(value.number_value));
+    TRY(encoder.encode(value.text));
+    TRY(encoder.encode(value.object_id));
+    TRY(encoder.encode(value.object_class));
+    return {};
+}
+
+template<>
+ErrorOr<WebView::DebuggerValue> decode(Decoder& decoder)
+{
+    return WebView::DebuggerValue {
+        .type = TRY(decoder.decode<WebView::DebuggerValueType>()),
+        .boolean_value = TRY(decoder.decode<bool>()),
+        .number_value = TRY(decoder.decode<double>()),
+        .text = TRY(decoder.decode<Utf16String>()),
+        .object_id = TRY(decoder.decode<u64>()),
+        .object_class = TRY(decoder.decode<String>()),
+    };
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, WebView::DebuggerBinding const& binding)
+{
+    TRY(encoder.encode(binding.name));
+    TRY(encoder.encode(binding.value));
+    TRY(encoder.encode(binding.writable));
+    return {};
+}
+
+template<>
+ErrorOr<WebView::DebuggerBinding> decode(Decoder& decoder)
+{
+    return WebView::DebuggerBinding {
+        .name = TRY(decoder.decode<Utf16String>()),
+        .value = TRY(decoder.decode<WebView::DebuggerValue>()),
+        .writable = TRY(decoder.decode<bool>()),
+    };
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, WebView::DebuggerEnvironment const& environment)
+{
+    TRY(encoder.encode(environment.id));
+    TRY(encoder.encode(environment.type));
+    TRY(encoder.encode(environment.parent_id));
+    TRY(encoder.encode(environment.function_name));
+    TRY(encoder.encode(environment.object));
+    TRY(encoder.encode(environment.bindings));
+    return {};
+}
+
+template<>
+ErrorOr<WebView::DebuggerEnvironment> decode(Decoder& decoder)
+{
+    return WebView::DebuggerEnvironment {
+        .id = TRY(decoder.decode<u64>()),
+        .type = TRY(decoder.decode<WebView::DebuggerEnvironmentType>()),
+        .parent_id = TRY(decoder.decode<Optional<u64>>()),
+        .function_name = TRY(decoder.decode<Optional<Utf16String>>()),
+        .object = TRY(decoder.decode<Optional<WebView::DebuggerValue>>()),
+        .bindings = TRY(decoder.decode<Vector<WebView::DebuggerBinding>>()),
+    };
+}
+
+template<>
 ErrorOr<void> encode(Encoder& encoder, WebView::DebuggerBreakpointLocation const& location)
 {
     TRY(encoder.encode(location.source_id));
@@ -90,6 +159,8 @@ ErrorOr<void> encode(Encoder& encoder, WebView::DebuggerFrame const& frame)
     TRY(encoder.encode(frame.id));
     TRY(encoder.encode(frame.display_name));
     TRY(encoder.encode(frame.location));
+    TRY(encoder.encode(frame.this_value));
+    TRY(encoder.encode(frame.arguments));
     return {};
 }
 
@@ -100,6 +171,8 @@ ErrorOr<WebView::DebuggerFrame> decode(Decoder& decoder)
         .id = TRY(decoder.decode<u64>()),
         .display_name = TRY(decoder.decode<Utf16String>()),
         .location = TRY(decoder.decode<WebView::DebuggerLocation>()),
+        .this_value = TRY(decoder.decode<WebView::DebuggerValue>()),
+        .arguments = TRY(decoder.decode<Vector<WebView::DebuggerValue>>()),
     };
 }
 
