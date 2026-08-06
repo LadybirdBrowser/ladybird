@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<iframe id="root-rtl" width="200" srcdoc="<!DOCTYPE html><html dir=rtl><body style='margin: 0'><div style='width: 500px; height: 10px'></div></body></html>"></iframe>
+<iframe id="body-rtl" width="200" srcdoc="<!DOCTYPE html><body dir=rtl style='margin: 0'><div style='width: 500px; height: 10px'></div></body>"></iframe>
+<script>
+    promiseTest(async () => {
+        if (document.readyState !== "complete")
+            await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
+        for (const id of ["root-rtl", "body-rtl"]) {
+            const contentWindow = document.getElementById(id).contentWindow;
+            contentWindow.scrollTo(100, 0);
+            const maximumScrollX = contentWindow.scrollX;
+            contentWindow.scrollTo(-10000, 0);
+            const minimumScrollX = contentWindow.scrollX;
+            println(`${id}: scroll x range: [${minimumScrollX}, ${maximumScrollX}]`);
+        }
+    });
+</script>
