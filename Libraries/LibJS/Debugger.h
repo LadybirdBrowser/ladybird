@@ -10,6 +10,7 @@
 #include <AK/HashMap.h>
 #include <AK/Utf16View.h>
 #include <AK/Vector.h>
+#include <LibGC/Root.h>
 #include <LibGC/WeakHashSet.h>
 #include <LibJS/Breakpoint.h>
 #include <LibJS/Export.h>
@@ -29,7 +30,14 @@ public:
         Entry,
         Breakpoint,
         DebuggerStatement,
+        Exception,
         Step,
+    };
+
+    enum class PauseOnExceptions : u8 {
+        None,
+        All,
+        Uncaught,
     };
 
     enum class ResumeMode : u8 {
@@ -45,6 +53,8 @@ public:
         Optional<SourceRange> source_range;
         Vector<StackTraceElement> stack_trace;
         Vector<BreakpointID> breakpoint_ids;
+        Optional<Value> exception;
+        bool exception_will_be_caught { false };
         PauseReason reason { PauseReason::Breakpoint };
     };
 
@@ -61,7 +71,7 @@ public:
     // in which case any pause triggered by that evaluation is ignored.
     void set_pause_callback(Function<void(PauseInfo const&)> callback) { m_pause_callback = move(callback); }
 
-    bool pause_execution(Bytecode::Executable&, u32 bytecode_offset, PauseReason);
+    bool pause_execution(Bytecode::Executable&, u32 bytecode_offset, PauseReason, Optional<Value> exception = {}, bool exception_will_be_caught = false);
     void continue_execution(ResumeMode = ResumeMode::Continue);
     // Continue after the host filters out a pause without cancelling an active step operation.
     void continue_execution_preserving_step_state();
@@ -77,7 +87,10 @@ public:
     void request_pause_on_next_bytecode_execution() { m_pause_on_next_bytecode_execution = true; }
     bool should_pause_on_next_bytecode_execution(Bytecode::Executable const&, u32 bytecode_offset);
     bool should_pause_for_step(Bytecode::Executable const&, u32 bytecode_offset) const;
-    void did_finish_bytecode_execution() { m_step_state.clear(); }
+    void did_finish_bytecode_execution();
+    bool pause_on_exception_if_needed(Bytecode::Executable&, u32 bytecode_offset, Value exception, bool exception_will_be_caught);
+    void did_finish_exception_propagation(Value);
+    void set_pause_on_exceptions(PauseOnExceptions mode) { m_pause_on_exceptions = mode; }
 
     ErrorOr<BreakpointID> add_breakpoint(Utf16View filename, u32 line, Optional<u32> column = {});
     ErrorOr<BreakpointID> add_breakpoint(NonnullRefPtr<SourceCode const>, u32 line, Optional<u32> column = {});
@@ -115,6 +128,8 @@ private:
         Optional<SourceRange> source_range;
     };
     Optional<StepState> m_step_state;
+    PauseOnExceptions m_pause_on_exceptions { PauseOnExceptions::None };
+    GC::Root<Value> m_last_paused_exception;
     ExecutionContext* m_paused_execution_context { nullptr };
     Optional<SourceRange> m_paused_source_range;
     bool m_is_paused { false };

@@ -321,6 +321,7 @@ pub struct Generator {
     // --- Unwind context ---
     // When set, newly created basic blocks inherit this handler index.
     pub current_unwind_handler: Option<Label>,
+    pub catch_handler_labels: HashSet<u32>,
 
     // --- AnnexB function names ---
     // Names approved for AnnexB.3.3 hoisting by the scope collector.
@@ -481,6 +482,7 @@ impl Generator {
             class_blueprints: Vec::new(),
             length_identifier: None,
             current_unwind_handler: None,
+            catch_handler_labels: HashSet::new(),
             annexb_function_names: HashSet::new(),
             builtin_abstract_operations_enabled: false,
             vm_ptr: std::ptr::null_mut(),
@@ -2025,6 +2027,7 @@ impl Generator {
                     start_offset: u32_from_usize(block_start),
                     end_offset: u32_from_usize(bytecode.len()),
                     handler_offset: u32_from_usize(block_offsets[handler_label.basic_block_index()]),
+                    catches_exception: self.catch_handler_labels.contains(&handler_label.0),
                 });
             }
         }
@@ -2035,6 +2038,7 @@ impl Generator {
             if let Some(last) = merged_handlers.last_mut()
                 && last.end_offset == handler.start_offset
                 && last.handler_offset == handler.handler_offset
+                && last.catches_exception == handler.catches_exception
             {
                 last.end_offset = handler.end_offset;
                 continue;
@@ -2073,6 +2077,7 @@ pub struct ExceptionHandler {
     pub start_offset: u32,
     pub end_offset: u32,
     pub handler_offset: u32,
+    pub catches_exception: bool,
 }
 
 /// A typed constant value stored in the constant pool.

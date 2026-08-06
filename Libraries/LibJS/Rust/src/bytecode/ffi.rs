@@ -57,6 +57,7 @@ pub struct FFIExceptionHandler {
     pub start_offset: u32,
     pub end_offset: u32,
     pub handler_offset: u32,
+    pub catches_exception: bool,
 }
 
 #[repr(C)]
@@ -830,6 +831,7 @@ pub unsafe fn create_executable_from_slices(
                 start_offset: h.start_offset,
                 end_offset: h.end_offset,
                 handler_offset: h.handler_offset,
+                catches_exception: h.catches_exception,
             })
             .collect();
 

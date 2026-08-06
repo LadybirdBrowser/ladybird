@@ -543,6 +543,10 @@ void DevToolsDebugger::handle_pause(JS::Debugger::PauseInfo const& pause)
         }
     }
 
+    m_paused_frames.clear();
+    m_paused_objects.clear();
+    m_paused_object_ids.clear();
+
     WebView::DebuggerPause debugger_pause {
         .reason = [&] {
             if (condition_error.has_value())
@@ -554,18 +558,17 @@ void DevToolsDebugger::handle_pause(JS::Debugger::PauseInfo const& pause)
                 return WebView::DebuggerPauseReason::DebuggerStatement;
             case JS::Debugger::PauseReason::Entry:
                 return WebView::DebuggerPauseReason::Entry;
+            case JS::Debugger::PauseReason::Exception:
+                return WebView::DebuggerPauseReason::Exception;
             case JS::Debugger::PauseReason::Step:
                 return WebView::DebuggerPauseReason::ResumeLimit;
             }
             VERIFY_NOT_REACHED();
         }(),
         .reason_message = move(condition_error),
+        .exception = pause.exception.map([&](auto value) { return serialize_value(value); }),
         .frames = {},
     };
-
-    m_paused_frames.clear();
-    m_paused_objects.clear();
-    m_paused_object_ids.clear();
 
     for (auto const& stack_frame : pause.stack_trace) {
         auto* executable = stack_frame.execution_context->executable.ptr();

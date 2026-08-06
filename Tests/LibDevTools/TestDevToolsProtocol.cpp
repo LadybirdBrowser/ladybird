@@ -2748,6 +2748,7 @@ TEST_CASE(debugger_pause_and_resume)
     WebView::DebuggerPause pause {
         .reason = WebView::DebuggerPauseReason::DebuggerStatement,
         .reason_message = {},
+        .exception = {},
         .frames = {},
     };
     pause.frames.append({
@@ -2952,6 +2953,7 @@ TEST_CASE(debugger_thread_state_protocol)
     WebView::DebuggerPause pause {
         .reason = WebView::DebuggerPauseReason::Entry,
         .reason_message = {},
+        .exception = {},
         .frames = {},
     };
     pause.frames.append({
@@ -3021,6 +3023,32 @@ TEST_CASE(debugger_thread_state_protocol)
     EXPECT_EQ(client.request(move(resume_from_youngest_frame)).get_string("from"sv).value(), thread_actor);
     EXPECT_EQ(session->delegate.debugger_resume_mode, WebView::DebuggerResumeMode::StepOver);
     (void)read_resource(client, "thread-state"sv, "resources-available-array"sv, target_actor);
+    WebView::DebuggerPause populated_pause {
+        .reason = WebView::DebuggerPauseReason::Breakpoint,
+        .reason_message = {},
+        .exception = {},
+        .frames = {},
+    };
+    populated_pause.frames.append({
+        .id = 3,
+        .display_name = "populatedPause"_utf16,
+        .location = { .source = session->delegate.fixture_source, .line = 12, .column = 6 },
+        .this_value = {},
+        .arguments = {},
+    });
+    session->delegate.on_debugger_paused(move(populated_pause));
+    (void)read_resource(client, "thread-state"sv, "resources-available-array"sv, target_actor);
+
+    WebView::DebuggerPause empty_pause {
+        .reason = WebView::DebuggerPauseReason::Breakpoint,
+        .reason_message = {},
+        .exception = {},
+        .frames = {},
+    };
+    session->delegate.on_debugger_paused(move(empty_pause));
+    auto empty_pause_resumed = read_resource(client, "thread-state"sv, "resources-available-array"sv, target_actor);
+    EXPECT_EQ(empty_pause_resumed.get_string("state"sv).value(), "resumed"sv);
+    EXPECT_EQ(session->delegate.debugger_resume_mode, WebView::DebuggerResumeMode::Continue);
 }
 
 TEST_CASE(debugger_breakpoints)
