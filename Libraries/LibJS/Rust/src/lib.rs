@@ -312,6 +312,8 @@ fn convert_local_variables(scope: &ast::ScopeData) -> Vec<bytecode::generator::L
             name: lv.name.clone(),
             is_lexically_declared: lv.kind == ast::LocalVarKind::LetOrConst,
             is_initialized_during_declaration_instantiation: false,
+            is_mutable: lv.is_mutable,
+            scope_range: lv.scope_range,
         })
         .collect()
 }
@@ -3262,6 +3264,19 @@ fn compile_function_payload_to_bytecode(
     generator.function_table = payload.function_table;
     generator.source_len = source_len;
     generator.enclosing_function_kind = function_data.kind;
+    generator.argument_variable_names = function_data
+        .parameters
+        .iter()
+        .map(|parameter| match parameter.binding {
+            ast::FunctionParameterBinding::Identifier(identifier)
+                if generator.arena.identifiers[identifier].local_type == Some(ast::LocalType::Argument) =>
+            {
+                generator.arena.name_of(identifier).to_owned()
+            }
+            ast::FunctionParameterBinding::BindingPattern(_) => ast::Utf16String::default(),
+            _ => ast::Utf16String::default(),
+        })
+        .collect();
 
     if let Some(scope_id) = body_scope {
         let arena_clone = generator.arena.clone();
