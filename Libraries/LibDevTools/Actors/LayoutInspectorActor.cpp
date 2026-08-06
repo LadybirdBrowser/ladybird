@@ -152,6 +152,7 @@ Optional<FlexItemActor&> FlexboxActor::actor_for_flex_item(JsonObject flex_item)
     }
 
     auto& flex_item_actor = devtools().register_actor<FlexItemActor>(m_walker, *node_id, move(flex_item));
+    add_child_actor(flex_item_actor);
     m_flex_item_actors.set(*node_id, flex_item_actor);
     return flex_item_actor;
 }
@@ -339,6 +340,7 @@ Optional<FlexboxActor&> LayoutInspectorActor::actor_for_flexbox_layout(JsonObjec
     }
 
     auto& flexbox_actor = devtools().register_actor<FlexboxActor>(make_weak_ptr<LayoutInspectorActor>(), m_walker, *container_node_id, move(flexbox_layout));
+    add_child_actor(flexbox_actor);
     m_flexbox_actors.set(*container_node_id, flexbox_actor);
     return flexbox_actor;
 }
@@ -355,6 +357,7 @@ Optional<GridActor&> LayoutInspectorActor::actor_for_grid_layout(JsonObject grid
     }
 
     auto& grid_actor = devtools().register_actor<GridActor>(make_weak_ptr<LayoutInspectorActor>(), m_walker, *container_node_id, move(grid_layout));
+    add_child_actor(grid_actor);
     m_grid_actors.set(*container_node_id, grid_actor);
     return grid_actor;
 }

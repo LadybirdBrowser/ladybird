@@ -41,8 +41,10 @@ void TabActor::handle_message(Message const& message)
     }
 
     if (message.type == "getWatcher"sv) {
-        if (!m_watcher)
+        if (!m_watcher) {
             m_watcher = devtools().register_actor<WatcherActor>(this);
+            add_child_actor(*m_watcher);
+        }
 
         response.set("actor"sv, m_watcher->name());
         response.set("traits"sv, m_watcher->serialize_description());

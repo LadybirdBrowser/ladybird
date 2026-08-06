@@ -2249,6 +2249,7 @@ TEST_CASE(target_bootstrap_and_lifetime)
     EXPECT(target.has_string("styleSheetsActor"sv));
     EXPECT(target.has_string("threadActor"sv));
     EXPECT(target.has_string("accessibilityActor"sv));
+    EXPECT(!target.get_object("traits"sv)->get_bool("watchpoints"sv).value());
     EXPECT_EQ(session->delegate.did_connect_devtools_client_call_count, 1u);
     EXPECT_EQ(session->delegate.listen_for_console_messages_call_count, 1u);
     EXPECT_EQ(session->delegate.listen_for_network_events_call_count, 1u);
@@ -3513,6 +3514,18 @@ TEST_CASE(inspector_walker_navigation_reloads_root)
 
     auto div_actor = query_selector(client, walker_actor, root_node_actor, "div"sv);
 
+    Vector<String> old_target_actors;
+    old_target_actors.append(actor_from(target, "actor"sv));
+    old_target_actors.append(actor_from(target, "accessibilityActor"sv));
+    old_target_actors.append(actor_from(target, "consoleActor"sv));
+    old_target_actors.append(actor_from(target, "cssPropertiesActor"sv));
+    old_target_actors.append(actor_from(target, "inspectorActor"sv));
+    old_target_actors.append(actor_from(target, "styleSheetsActor"sv));
+    old_target_actors.append(actor_from(target, "threadActor"sv));
+    old_target_actors.append(walker_actor);
+    old_target_actors.append(root_node_actor);
+    old_target_actors.append(div_actor);
+
     JsonObject watch_root;
     watch_root.set("to"sv, walker_actor);
     watch_root.set("type"sv, "watchRootNode"sv);
@@ -3530,6 +3543,10 @@ TEST_CASE(inspector_walker_navigation_reloads_root)
     is_in_dom_tree.set("type"sv, "isInDOMTree"sv);
     is_in_dom_tree.set("node"sv, div_actor);
     EXPECT(!client.request(move(is_in_dom_tree)).get_bool("attached"sv).value());
+    spin_until(session->loop, [&] {
+        return !session->server->actor_registry().contains(root_node_actor)
+            && !session->server->actor_registry().contains(div_actor);
+    });
 
     EXPECT_EQ(session->delegate.clear_highlighted_dom_node_call_count, 1u);
     EXPECT_EQ(session->delegate.clear_inspected_dom_node_call_count, 1u);
@@ -3545,13 +3562,7 @@ TEST_CASE(inspector_walker_navigation_reloads_root)
     auto root_available = read_packet_with_type(client, "root-available"sv);
     auto new_root_node = root_available.get_object("node"sv).release_value();
     auto new_root_node_actor = actor_from(new_root_node, "actor"sv);
-    auto main_actor = query_selector(client, walker_actor, new_root_node_actor, "main"sv);
-
-    JsonObject main_is_in_dom_tree;
-    main_is_in_dom_tree.set("to"sv, walker_actor);
-    main_is_in_dom_tree.set("type"sv, "isInDOMTree"sv);
-    main_is_in_dom_tree.set("node"sv, main_actor);
-    EXPECT(client.request(move(main_is_in_dom_tree)).get_bool("attached"sv).value());
+    old_target_actors.append(new_root_node_actor);
 
     EXPECT_EQ(session->delegate.inspect_tab_call_count, 2u);
 
@@ -3569,6 +3580,14 @@ TEST_CASE(inspector_walker_navigation_reloads_root)
     EXPECT_NE(
         new_target.get_integer<u64>("innerWindowId"sv).value(),
         target.get_integer<u64>("innerWindowId"sv).value());
+
+    spin_until(session->loop, [&] {
+        for (auto const& actor : old_target_actors) {
+            if (session->server->actor_registry().contains(actor))
+                return false;
+        }
+        return true;
+    });
 
     EXPECT_EQ(client.request(actor_from(new_target, "actor"sv), "listFrames"sv).get_string("from"sv).value(), actor_from(new_target, "actor"sv));
 

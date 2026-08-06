@@ -19,6 +19,7 @@ public:
 
     static NonnullRefPtr<WatcherActor> create(DevToolsServer&, String name, WeakPtr<TabActor>);
     virtual ~WatcherActor() override;
+    virtual void connection_closed() override;
 
     JsonObject serialize_description() const;
     void send_frame_target_available_message();
@@ -60,6 +61,7 @@ private:
     bool m_is_watching_local_storage_resources { false };
     bool m_is_watching_session_storage_resources { false };
     bool m_is_watching_source_resources { false };
+    bool m_connection_closed { false };
 };
 
 }
