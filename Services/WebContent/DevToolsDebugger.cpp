@@ -490,9 +490,15 @@ void DevToolsDebugger::handle_pause(JS::Debugger::PauseInfo const& pause)
     }
 
     auto configuration = m_configurations.get(page->id()).value_or(WebView::DebuggerConfiguration {});
+    auto continue_after_filtered_pause = [&] {
+        if (pause.reason == JS::Debugger::PauseReason::Breakpoint)
+            Web::Bindings::main_thread_vm().debugger()->continue_execution_preserving_step_state();
+        else
+            Web::Bindings::main_thread_vm().debugger()->continue_execution();
+    };
     if ((pause.reason == JS::Debugger::PauseReason::DebuggerStatement && !configuration.should_pause_on_debugger_statement)
         || (pause.reason == JS::Debugger::PauseReason::Breakpoint && configuration.skip_breakpoints)) {
-        Web::Bindings::main_thread_vm().debugger()->continue_execution();
+        continue_after_filtered_pause();
         return;
     }
 
@@ -527,7 +533,7 @@ void DevToolsDebugger::handle_pause(JS::Debugger::PauseInfo const& pause)
             }
         }
         if (!should_pause) {
-            Web::Bindings::main_thread_vm().debugger()->continue_execution();
+            continue_after_filtered_pause();
             return;
         }
     }
@@ -543,6 +549,8 @@ void DevToolsDebugger::handle_pause(JS::Debugger::PauseInfo const& pause)
                 return WebView::DebuggerPauseReason::DebuggerStatement;
             case JS::Debugger::PauseReason::Entry:
                 return WebView::DebuggerPauseReason::Entry;
+            case JS::Debugger::PauseReason::Step:
+                return WebView::DebuggerPauseReason::ResumeLimit;
             }
             VERIFY_NOT_REACHED();
         }(),

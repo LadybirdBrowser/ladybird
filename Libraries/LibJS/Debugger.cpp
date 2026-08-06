@@ -60,9 +60,25 @@ bool Debugger::pause_execution(Bytecode::Executable& executable, u32 bytecode_of
     return true;
 }
 
-void Debugger::continue_execution()
+void Debugger::continue_execution_preserving_step_state()
 {
     VERIFY(m_is_paused);
+    m_is_paused = false;
+}
+
+void Debugger::continue_execution(ResumeMode mode)
+{
+    VERIFY(m_is_paused);
+    if (mode == ResumeMode::Continue) {
+        m_step_state.clear();
+    } else {
+        VERIFY(m_paused_execution_context);
+        m_step_state = StepState {
+            .mode = mode,
+            .frame_id = m_paused_execution_context->frame_id,
+            .source_range = m_paused_source_range,
+        };
+    }
     m_is_paused = false;
 }
 
@@ -187,6 +203,50 @@ bool Debugger::should_pause_on_next_bytecode_execution(Bytecode::Executable cons
     }
 
     return true;
+}
+
+bool Debugger::should_pause_for_step(Bytecode::Executable const& executable, u32 bytecode_offset) const
+{
+    if (!m_step_state.has_value())
+        return false;
+
+    auto source_range = executable.source_range_at(bytecode_offset);
+    if (!source_range.has_value() || source_range->start.line == 0)
+        return false;
+
+    auto const& state = *m_step_state;
+    auto& vm = executable.vm();
+    auto* current_context = &vm.running_execution_context();
+
+    bool start_context_is_active = false;
+    vm.for_each_execution_context_top_to_bottom([&](ExecutionContext const& context) {
+        if (context.frame_id == state.frame_id) {
+            start_context_is_active = true;
+            return false;
+        }
+        return true;
+    });
+
+    auto has_moved = [&] {
+        if (!state.source_range.has_value())
+            return true;
+        return source_range->code != state.source_range->code
+            || source_range->start.line != state.source_range->start.line;
+    };
+
+    switch (state.mode) {
+    case ResumeMode::Continue:
+        VERIFY_NOT_REACHED();
+    case ResumeMode::StepInto:
+        return current_context->frame_id != state.frame_id || has_moved();
+    case ResumeMode::StepOver:
+        if (current_context->frame_id == state.frame_id)
+            return has_moved();
+        return !start_context_is_active;
+    case ResumeMode::StepOut:
+        return !start_context_is_active;
+    }
+    VERIFY_NOT_REACHED();
 }
 
 ErrorOr<BreakpointID> Debugger::add_breakpoint(Utf16View filename, u32 line, Optional<u32> column)

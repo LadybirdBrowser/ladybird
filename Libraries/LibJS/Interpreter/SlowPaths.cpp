@@ -756,6 +756,8 @@ void asm_debugger_check_breakpoint(VM* vm, u32 pc)
             return Debugger::PauseReason::Entry;
         if (executable.has_debugger_breakpoint_at(pc))
             return Debugger::PauseReason::Breakpoint;
+        if (debugger->should_pause_for_step(executable, pc))
+            return Debugger::PauseReason::Step;
         return {};
     }();
 

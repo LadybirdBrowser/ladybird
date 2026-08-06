@@ -20,6 +20,7 @@ enum class DebuggerPauseReason : u8 {
     BreakpointConditionThrown,
     DebuggerStatement,
     Entry,
+    ResumeLimit,
 };
 
 enum class DebuggerValueType : u8 {
