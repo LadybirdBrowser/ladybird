@@ -67,6 +67,7 @@ void DevToolsDebugger::detach(PageClient& page)
     m_configurations.remove(page.id());
     update_exception_pause_mode();
     remove_breakpoints_for_page(page.id());
+    m_blackboxed_sources.remove(page.id());
     if (m_paused_page_id == page.id()) {
         m_resume_mode = WebView::DebuggerResumeMode::Continue;
         m_resume_requested = true;
@@ -83,6 +84,37 @@ void DevToolsDebugger::interrupt(PageClient& page)
     auto& vm = Web::Bindings::main_thread_vm();
     if (auto* debugger = vm.debugger())
         debugger->request_pause_on_next_bytecode_execution();
+}
+
+void DevToolsDebugger::update_blackboxing(PageClient& page, Utf16String url, Vector<WebView::DebuggerBlackboxRange> ranges, WebView::DebuggerBlackboxingOperation operation)
+{
+    auto page_sources = m_blackboxed_sources.find(page.id());
+    Optional<size_t> source_index;
+    if (page_sources != m_blackboxed_sources.end()) {
+        for (auto const& [index, candidate] : enumerate(page_sources->value)) {
+            if (candidate.url == url) {
+                source_index = index;
+                break;
+            }
+        }
+    }
+
+    if (!source_index.has_value()) {
+        if (operation == WebView::DebuggerBlackboxingOperation::Unblackbox)
+            return;
+        auto& sources = m_blackboxed_sources.ensure(page.id());
+        source_index = sources.size();
+        sources.append({ move(url), {} });
+        page_sources = m_blackboxed_sources.find(page.id());
+    }
+
+    auto& source = page_sources->value[*source_index];
+    source.state.update(ranges, operation);
+    if (source.state.is_empty())
+        page_sources->value.remove(*source_index);
+
+    if (page_sources->value.is_empty())
+        m_blackboxed_sources.remove(page_sources);
 }
 
 ErrorOr<void> DevToolsDebugger::set_breakpoint(PageClient& page, WebView::DebuggerBreakpointLocation location, WebView::DebuggerBreakpointOptions options)
@@ -489,6 +521,63 @@ void DevToolsDebugger::emit_logpoint(PageClient& page, JS::Debugger::PauseInfo c
     });
 }
 
+static Utf16String debugger_source_url(Web::HTML::ScriptRegistry::Description const& source)
+{
+    if (source.url.has_value())
+        return Utf16String::from_utf8(source.url->serialize());
+    return source.display_url;
+}
+
+static bool debugger_position_is_before(WebView::DebuggerSourcePosition const& left, WebView::DebuggerSourcePosition const& right)
+{
+    return left.line < right.line || (left.line == right.line && left.column < right.column);
+}
+
+bool DevToolsDebugger::pause_is_blackboxed(PageClient& page, JS::Debugger::PauseInfo const& pause) const
+{
+    auto page_sources = m_blackboxed_sources.find(page.id());
+    if (page_sources == m_blackboxed_sources.end() || pause.stack_trace.is_empty())
+        return false;
+
+    auto const& stack_frame = pause.stack_trace.first();
+    auto* executable = stack_frame.execution_context->executable.ptr();
+    if (!executable)
+        return false;
+
+    auto source = page.devtools_source_description(*executable->source_code);
+    if (!source.has_value())
+        return false;
+
+    auto source_url = debugger_source_url(*source);
+    auto blackboxed_source = page_sources->value.find_if([&](auto const& candidate) {
+        return candidate.url == source_url;
+    });
+    if (blackboxed_source == page_sources->value.end())
+        return false;
+    WebView::DebuggerSourcePosition position {
+        .line = source->source_start_line,
+        .column = source->source_start_column,
+    };
+    if (stack_frame.source_range.has_value()) {
+        position.line = stack_frame.source_range->start.line;
+        position.column = stack_frame.source_range->start.column > 0
+            ? stack_frame.source_range->start.column - 1
+            : 0;
+    }
+
+    auto position_is_in_ranges = [&](auto const& ranges) {
+        return ranges.find_if([&](auto const& range) {
+            return !debugger_position_is_before(position, range.start)
+                && !debugger_position_is_before(range.end, position);
+        }) != ranges.end();
+    };
+
+    if (blackboxed_source->state.fully_blackboxed)
+        return !position_is_in_ranges(blackboxed_source->state.unblackboxed_ranges);
+
+    return position_is_in_ranges(blackboxed_source->state.blackboxed_ranges);
+}
+
 void DevToolsDebugger::handle_pause(JS::Debugger::PauseInfo const& pause)
 {
     auto* page = paused_page_client();
@@ -504,6 +593,14 @@ void DevToolsDebugger::handle_pause(JS::Debugger::PauseInfo const& pause)
         else
             Web::Bindings::main_thread_vm().debugger()->continue_execution();
     };
+    auto blackboxing_applies = pause.reason == JS::Debugger::PauseReason::DebuggerStatement
+        || pause.reason == JS::Debugger::PauseReason::Exception
+        || pause.reason == JS::Debugger::PauseReason::Step;
+    if (blackboxing_applies && pause_is_blackboxed(*page, pause)) {
+        Web::Bindings::main_thread_vm().debugger()->continue_execution_preserving_step_state();
+        return;
+    }
+
     auto should_filter_pause = [&] {
         switch (pause.reason) {
         case JS::Debugger::PauseReason::Breakpoint:

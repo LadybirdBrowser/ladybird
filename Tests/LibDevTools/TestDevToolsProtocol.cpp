@@ -1202,6 +1202,14 @@ public:
         debugger_resume_mode = mode;
     }
 
+    virtual void update_debugger_blackboxing(DevTools::TabDescription const&, Utf16String url, Vector<WebView::DebuggerBlackboxRange> ranges, WebView::DebuggerBlackboxingOperation operation) const override
+    {
+        ++update_debugger_blackboxing_call_count;
+        last_debugger_blackbox_url = move(url);
+        last_debugger_blackbox_ranges = move(ranges);
+        last_debugger_blackboxing_operation = operation;
+    }
+
     virtual void set_debugger_breakpoint(DevTools::TabDescription const&, WebView::DebuggerBreakpointLocation location, WebView::DebuggerBreakpointOptions options, OnDebuggerBreakpointOperationComplete on_complete) const override
     {
         ++set_debugger_breakpoint_call_count;
@@ -1668,6 +1676,7 @@ public:
     mutable size_t detach_debugger_call_count { 0 };
     mutable size_t interrupt_debugger_call_count { 0 };
     mutable size_t resume_debugger_call_count { 0 };
+    mutable size_t update_debugger_blackboxing_call_count { 0 };
     mutable size_t set_debugger_breakpoint_call_count { 0 };
     mutable size_t remove_debugger_breakpoint_call_count { 0 };
     mutable size_t retrieve_debugger_source_positions_call_count { 0 };
@@ -1678,6 +1687,9 @@ public:
     mutable DevTools::DevToolsDelegate::OnDebuggerPaused on_debugger_paused;
     mutable WebView::DebuggerConfiguration debugger_configuration;
     mutable WebView::DebuggerResumeMode debugger_resume_mode { WebView::DebuggerResumeMode::Continue };
+    mutable Optional<Utf16String> last_debugger_blackbox_url;
+    mutable Vector<WebView::DebuggerBlackboxRange> last_debugger_blackbox_ranges;
+    mutable WebView::DebuggerBlackboxingOperation last_debugger_blackboxing_operation { WebView::DebuggerBlackboxingOperation::Blackbox };
     mutable Optional<WebView::DebuggerBreakpointLocation> last_debugger_breakpoint_location;
     mutable Optional<WebView::DebuggerBreakpointOptions> last_debugger_breakpoint_options;
     mutable Optional<Web::HTML::ScriptRegistry::Identifier> last_debugger_source_id;
@@ -2698,6 +2710,145 @@ TEST_CASE(source_resources)
         return source_actor_count(*session->server) == 1u
             && !session->server->actor_registry().contains(live_source_actor);
     });
+}
+
+TEST_CASE(debugger_source_blackboxing)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    auto tab_actor = actor_from(get_tab(client), "actor"sv);
+    auto watcher_actor = actor_from(client.request(tab_actor, "getWatcher"sv), "actor"sv);
+
+    JsonObject watch_targets;
+    watch_targets.set("to"sv, watcher_actor);
+    watch_targets.set("type"sv, "watchTargets"sv);
+    watch_targets.set("targetType"sv, "frame"sv);
+    EXPECT_EQ(client.request(move(watch_targets)).get_string("from"sv).value(), watcher_actor);
+
+    auto target = read_packet_with_type(client, "target-available-form"sv).get_object("target"sv).release_value();
+    auto thread_actor = actor_from(target, "threadActor"sv);
+    auto sources = client.request(thread_actor, "sources"sv).get_array("sources"sv).release_value();
+    EXPECT_EQ(sources.size(), 1u);
+    auto source_actor = actor_from(sources[0].as_object(), "actor"sv);
+    EXPECT_EQ(sources[0].as_object().get_bool("isBlackBoxed"sv).value(), false);
+
+    auto blackboxing_actor = actor_from(client.request(watcher_actor, "getBlackboxingActor"sv), "blackboxing"sv);
+    EXPECT_EQ(actor_from(client.request(watcher_actor, "getBlackboxingActor"sv), "blackboxing"sv), blackboxing_actor);
+
+    JsonObject reversed_range;
+    JsonObject reversed_start;
+    reversed_start.set("line"sv, 5);
+    reversed_start.set("column"sv, 8);
+    reversed_range.set("start"sv, move(reversed_start));
+    JsonObject reversed_end;
+    reversed_end.set("line"sv, 2);
+    reversed_end.set("column"sv, 4);
+    reversed_range.set("end"sv, move(reversed_end));
+    JsonArray reversed_ranges;
+    reversed_ranges.must_append(move(reversed_range));
+    JsonObject reversed_blackbox;
+    reversed_blackbox.set("to"sv, blackboxing_actor);
+    reversed_blackbox.set("type"sv, "blackbox"sv);
+    reversed_blackbox.set("url"sv, "https://example.test/app.js"sv);
+    reversed_blackbox.set("range"sv, move(reversed_ranges));
+    EXPECT_EQ(client.request(move(reversed_blackbox)).get_string("error"sv).value(), "missingParameter"sv);
+    EXPECT_EQ(session->delegate.update_debugger_blackboxing_call_count, 0u);
+
+    JsonObject blackbox;
+    blackbox.set("to"sv, blackboxing_actor);
+    blackbox.set("type"sv, "blackbox"sv);
+    blackbox.set("url"sv, "https://example.test/app.js"sv);
+    blackbox.set("range"sv, JsonArray {});
+    EXPECT_EQ(client.request(move(blackbox)).get_string("from"sv).value(), blackboxing_actor);
+    EXPECT_EQ(session->delegate.update_debugger_blackboxing_call_count, 1u);
+    EXPECT_EQ(*session->delegate.last_debugger_blackbox_url, "https://example.test/app.js"_utf16);
+    EXPECT(session->delegate.last_debugger_blackbox_ranges.is_empty());
+    EXPECT_EQ(session->delegate.last_debugger_blackboxing_operation, WebView::DebuggerBlackboxingOperation::Blackbox);
+
+    sources = client.request(thread_actor, "sources"sv).get_array("sources"sv).release_value();
+    EXPECT_EQ(sources[0].as_object().get_bool("isBlackBoxed"sv).value(), true);
+
+    JsonObject unblackbox;
+    unblackbox.set("to"sv, source_actor);
+    unblackbox.set("type"sv, "unblackbox"sv);
+    unblackbox.set("range"sv, JsonValue {});
+    EXPECT_EQ(client.request(move(unblackbox)).get_string("from"sv).value(), source_actor);
+    EXPECT_EQ(session->delegate.update_debugger_blackboxing_call_count, 2u);
+    EXPECT_EQ(session->delegate.last_debugger_blackboxing_operation, WebView::DebuggerBlackboxingOperation::Unblackbox);
+
+    JsonObject range;
+    JsonObject start;
+    start.set("line"sv, 2);
+    start.set("column"sv, 4);
+    range.set("start"sv, move(start));
+    JsonObject end;
+    end.set("line"sv, 5);
+    end.set("column"sv, 8);
+    range.set("end"sv, move(end));
+    JsonArray ranges;
+    ranges.must_append(move(range));
+
+    blackbox = {};
+    blackbox.set("to"sv, blackboxing_actor);
+    blackbox.set("type"sv, "blackbox"sv);
+    blackbox.set("url"sv, "https://example.test/app.js"sv);
+    blackbox.set("range"sv, move(ranges));
+    EXPECT_EQ(client.request(move(blackbox)).get_string("from"sv).value(), blackboxing_actor);
+    EXPECT_EQ(session->delegate.update_debugger_blackboxing_call_count, 3u);
+    EXPECT_EQ(session->delegate.last_debugger_blackbox_ranges.size(), 1u);
+    EXPECT_EQ(session->delegate.last_debugger_blackbox_ranges[0].start.line, 2u);
+    EXPECT_EQ(session->delegate.last_debugger_blackbox_ranges[0].start.column, 4u);
+    EXPECT_EQ(session->delegate.last_debugger_blackbox_ranges[0].end.line, 5u);
+    EXPECT_EQ(session->delegate.last_debugger_blackbox_ranges[0].end.column, 8u);
+
+    sources = client.request(thread_actor, "sources"sv).get_array("sources"sv).release_value();
+    EXPECT_EQ(sources[0].as_object().get_bool("isBlackBoxed"sv).value(), false);
+
+    JsonObject legacy_blackbox;
+    legacy_blackbox.set("to"sv, source_actor);
+    legacy_blackbox.set("type"sv, "blackbox"sv);
+    legacy_blackbox.set("range"sv, JsonValue {});
+    auto legacy_response = client.request(move(legacy_blackbox));
+    EXPECT_EQ(legacy_response.get_bool("pausedInSource"sv).value(), false);
+    EXPECT_EQ(session->delegate.update_debugger_blackboxing_call_count, 4u);
+
+    sources = client.request(thread_actor, "sources"sv).get_array("sources"sv).release_value();
+    EXPECT_EQ(sources[0].as_object().get_bool("isBlackBoxed"sv).value(), true);
+
+    JsonObject partial_range;
+    JsonObject partial_start;
+    partial_start.set("line"sv, 2);
+    partial_start.set("column"sv, 4);
+    partial_range.set("start"sv, move(partial_start));
+    JsonObject partial_end;
+    partial_end.set("line"sv, 5);
+    partial_end.set("column"sv, 8);
+    partial_range.set("end"sv, move(partial_end));
+    JsonArray partial_ranges;
+    partial_ranges.must_append(move(partial_range));
+    JsonObject partial_unblackbox;
+    partial_unblackbox.set("to"sv, blackboxing_actor);
+    partial_unblackbox.set("type"sv, "unblackbox"sv);
+    partial_unblackbox.set("url"sv, "https://example.test/app.js"sv);
+    partial_unblackbox.set("range"sv, move(partial_ranges));
+    EXPECT_EQ(client.request(move(partial_unblackbox)).get_string("from"sv).value(), blackboxing_actor);
+    EXPECT_EQ(session->delegate.update_debugger_blackboxing_call_count, 5u);
+    EXPECT_EQ(session->delegate.last_debugger_blackboxing_operation, WebView::DebuggerBlackboxingOperation::Unblackbox);
+    EXPECT_EQ(session->delegate.last_debugger_blackbox_ranges.size(), 1u);
+
+    sources = client.request(thread_actor, "sources"sv).get_array("sources"sv).release_value();
+    EXPECT_EQ(sources[0].as_object().get_bool("isBlackBoxed"sv).value(), false);
+
+    session->delegate.emit_navigation();
+    spin_until(session->loop, [&] {
+        return session->delegate.update_debugger_blackboxing_call_count == 7;
+    });
+    EXPECT_EQ(session->delegate.update_debugger_blackboxing_call_count, 7u);
+    EXPECT_EQ(*session->delegate.last_debugger_blackbox_url, "https://example.test/app.js"_utf16);
+    EXPECT_EQ(session->delegate.last_debugger_blackboxing_operation, WebView::DebuggerBlackboxingOperation::Unblackbox);
+    EXPECT_EQ(session->delegate.last_debugger_blackbox_ranges.size(), 1u);
 }
 
 TEST_CASE(debugger_pause_and_resume)

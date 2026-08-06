@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/HashMap.h>
 #include <AK/NonnullRefPtr.h>
 #include <LibDevTools/Actor.h>
 #include <LibDevTools/DevToolsDelegate.h>
@@ -26,6 +27,9 @@ public:
     void switch_frame_target(FrameActor&, String const& url, String const& title);
     void start_watching_thread_state_resources();
     void send_thread_state_available_message(JsonObject);
+    void update_debugger_blackboxing(String const&, Vector<WebView::DebuggerBlackboxRange>, WebView::DebuggerBlackboxingOperation);
+    bool is_source_fully_blackboxed(StringView) const;
+    bool is_paused_in_source(Web::HTML::ScriptRegistry::Identifier) const;
 
 private:
     WatcherActor(DevToolsServer&, String name, WeakPtr<TabActor>);
@@ -35,6 +39,7 @@ private:
     FrameActor& create_frame_target();
     void send_frame_target_available_message(FrameActor&);
     void send_frame_target_destroyed_message(FrameActor&);
+    BlackboxingActor& blackboxing_actor();
     BreakpointListActor& breakpoint_list_actor();
     CookiesActor& cookies_actor();
     void send_cookies_resource_available_message();
@@ -52,6 +57,7 @@ private:
 
     WeakPtr<TabActor> m_tab;
     WeakPtr<FrameActor> m_target;
+    WeakPtr<BlackboxingActor> m_blackboxing;
     WeakPtr<BreakpointListActor> m_breakpoint_list;
     WeakPtr<CookiesActor> m_cookies;
     WeakPtr<IndexedDBActor> m_indexed_db;
@@ -61,6 +67,7 @@ private:
     WeakPtr<TargetConfigurationActor> m_target_configuration;
     WeakPtr<ThreadConfigurationActor> m_thread_configuration;
     WeakPtr<NetworkParentActor> m_network_parent;
+    HashMap<String, WebView::DebuggerBlackboxState> m_blackboxed_sources;
     bool m_is_watching_frame_targets { false };
     bool m_is_watching_cookie_resources { false };
     bool m_is_watching_indexed_db_resources { false };

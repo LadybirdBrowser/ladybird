@@ -38,6 +38,7 @@ public:
     void get_object_symbols(ObjectActor&, Actor::Message const&);
     void did_pause(WebView::DebuggerPause);
     void release_pause_actor(Actor&);
+    bool is_paused_in_source(Web::HTML::ScriptRegistry::Identifier source_id) const { return m_paused_source_id == source_id; }
 
 private:
     ThreadActor(DevToolsServer&, String name, WeakPtr<TabActor>, WeakPtr<WatcherActor>);
@@ -61,6 +62,7 @@ private:
     HashMap<u64, WeakPtr<ObjectActor>> m_object_actors;
     Vector<WeakPtr<DebuggerFrameActor>> m_frame_actors;
     Vector<WeakPtr<Actor>> m_pause_scoped_actors;
+    Optional<Web::HTML::ScriptRegistry::Identifier> m_paused_source_id;
     bool m_is_paused { false };
     bool m_pause_requested_on_next { false };
 };

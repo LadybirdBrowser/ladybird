@@ -14,6 +14,7 @@ class AccessibilityActor;
 class AccessibilityNodeActor;
 class AccessibilityWalkerActor;
 class Actor;
+class BlackboxingActor;
 class BreakpointListActor;
 class Connection;
 class ConsoleActor;
