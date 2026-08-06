@@ -96,6 +96,8 @@ public:
         GC::Ptr<DOM::Document> pending_document;
         GC::Ptr<LocalNavigable> expected_ongoing_navigation_navigable;
         Optional<Utf16String> expected_ongoing_navigation_id;
+        GC::Ptr<SourceSnapshotParams> source_snapshot_params;
+        GC::Ptr<LocalNavigable> initiator_to_check;
         GC::Ptr<GC::Function<void(GC::Ref<OnHistoryOperationReady>)>> pre_steps;
         GC::Ptr<OnApplyHistoryStepComplete> on_apply_complete;
         GC::Ptr<OnApplyHistoryStepComplete> on_complete;

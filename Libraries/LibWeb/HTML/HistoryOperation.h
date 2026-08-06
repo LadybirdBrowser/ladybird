@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16String.h>
 #include <AK/Variant.h>
 #include <LibIPC/Forward.h>
 #include <LibWeb/Export.h>
@@ -34,9 +35,40 @@ struct ReloadHistoryOperationParameters {
     HTML::UserNavigationInvolvement user_involvement;
 };
 
+struct TraverseByDeltaHistoryOperationParameters {
+    HTML::CrossProcessId traversable_id;
+    i32 delta;
+    HTML::UserNavigationInvolvement user_involvement;
+};
+
+struct TraverseToStepHistoryOperationParameters {
+    HTML::CrossProcessId traversable_id;
+    i32 target_step;
+    HTML::UserNavigationInvolvement user_involvement;
+};
+
+struct NavigationAPITraverseHistoryOperationParameters {
+    HTML::CrossProcessId navigable_id;
+    Utf16String key;
+    HTML::UserNavigationInvolvement user_involvement;
+};
+
+struct ResumeTraverseHistoryOperationParameters {
+    HTML::CrossProcessId navigable_id;
+    i32 target_step;
+    HTML::UserNavigationInvolvement user_involvement;
+};
+
 // A WebContent-initiated operation with value-shaped parameters. The request boundary retains any process-local
 // state under a private initiation ID; the queue and coordinator remain local until the later ownership switch.
-using HistoryOperationParameters = Variant<PushHistoryOperationParameters, ReplaceHistoryOperationParameters, ReloadHistoryOperationParameters>;
+using HistoryOperationParameters = Variant<
+    PushHistoryOperationParameters,
+    ReplaceHistoryOperationParameters,
+    ReloadHistoryOperationParameters,
+    TraverseByDeltaHistoryOperationParameters,
+    TraverseToStepHistoryOperationParameters,
+    NavigationAPITraverseHistoryOperationParameters,
+    ResumeTraverseHistoryOperationParameters>;
 
 }
 
@@ -56,5 +88,25 @@ template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::ReloadHistoryOperationParameters const&);
 template<>
 WEB_API ErrorOr<Web::ReloadHistoryOperationParameters> decode(Decoder&);
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::TraverseByDeltaHistoryOperationParameters const&);
+template<>
+WEB_API ErrorOr<Web::TraverseByDeltaHistoryOperationParameters> decode(Decoder&);
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::TraverseToStepHistoryOperationParameters const&);
+template<>
+WEB_API ErrorOr<Web::TraverseToStepHistoryOperationParameters> decode(Decoder&);
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::NavigationAPITraverseHistoryOperationParameters const&);
+template<>
+WEB_API ErrorOr<Web::NavigationAPITraverseHistoryOperationParameters> decode(Decoder&);
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::ResumeTraverseHistoryOperationParameters const&);
+template<>
+WEB_API ErrorOr<Web::ResumeTraverseHistoryOperationParameters> decode(Decoder&);
 
 }
