@@ -16,7 +16,7 @@ SaveLayer@0
   StrokePath@2 path_bounding_rect=[17,17 82x82] thickness=1 color=rgb(0, 0, 0)
   CompositorWheelHitTestTarget@2 target_scroll_node_index=0 rect=[8,8 100x100]
   CompositorWheelHitTestTarget@3 target_scroll_node_index=5 rect=[8,8 80x80]
-  CompositorScrollNode@3 scroll_node_index=5 parent_scroll_node_index=0 scrollport_rect=[8,8 80x80] max_scroll_offset=[0,220] is_viewport=false
+  CompositorScrollNode@3 scroll_node_index=5 parent_scroll_node_index=0 scrollport_rect=[8,8 80x80] min_scroll_offset=[0,0] max_scroll_offset=[0,220] is_viewport=false
   CompositorWheelHitTestTarget@5 target_scroll_node_index=5 rect=[8,8 80x300]
   FillRect@5 rect=[8,8 80x300] color=rgb(0, 0, 0)
   PaintScrollBar@3

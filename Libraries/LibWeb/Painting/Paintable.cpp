@@ -633,20 +633,6 @@ static bool is_nested_navigable_container(Paintable const& paintable_box)
     return node && node->is_navigable_container() && as<HTML::NavigableContainer const>(*node).content_navigable();
 }
 
-static CSSPixelPoint maximum_scroll_offset_for(Paintable const& paintable_box)
-{
-    CSSPixelPoint max_scroll_offset;
-    auto scrollable_overflow_rect = paintable_box.scrollable_overflow_rect();
-    if (!scrollable_overflow_rect.has_value())
-        return max_scroll_offset;
-
-    auto scrollport_rect = paintable_box.absolute_padding_box_rect();
-
-    max_scroll_offset.set_x(max(CSSPixels(0), scrollable_overflow_rect->width() - scrollport_rect.width()));
-    max_scroll_offset.set_y(max(CSSPixels(0), scrollable_overflow_rect->height() - scrollport_rect.height()));
-    return max_scroll_offset;
-}
-
 static void record_scroll_node(Paintable const& paintable_box, DisplayListRecordingContext& context)
 {
     auto scroll_node_kind = scroll_node_kind_for(paintable_box);
@@ -668,7 +654,8 @@ static void record_scroll_node(Paintable const& paintable_box, DisplayListRecord
         .scroll_node_index = paintable_box.own_scroll_node_index(),
         .parent_scroll_node_index = parent_scroll_node_index,
         .scrollport_rect = scrollport_rect,
-        .max_scroll_offset = css_point_to_device_point(maximum_scroll_offset_for(paintable_box), context.device_pixels_per_css_pixel()),
+        .min_scroll_offset = css_point_to_device_point(paintable_box.minimum_scroll_offset(), context.device_pixels_per_css_pixel()),
+        .max_scroll_offset = css_point_to_device_point(paintable_box.maximum_scroll_offset(), context.device_pixels_per_css_pixel()),
         .scroll_node_kind = *scroll_node_kind,
         .pseudo_element_type = pseudo_element_type_for(paintable_box),
         .is_viewport = paintable_box.is_viewport_paintable(),
@@ -812,7 +799,8 @@ static void record_viewport_scrollbar_state(Paintable const& paintable_box, Disp
         VERIFY(expanded_scrollbar_data.has_value());
 
         auto gutter_rect = context.rounded_device_rect(scrollbar_data->gutter_rect).to_type<int>();
-        auto max_scroll_offset = css_point_to_device_point(maximum_scroll_offset_for(paintable_box), context.device_pixels_per_css_pixel());
+        auto min_scroll_offset = css_point_to_device_point(paintable_box.minimum_scroll_offset(), context.device_pixels_per_css_pixel());
+        auto max_scroll_offset = css_point_to_device_point(paintable_box.maximum_scroll_offset(), context.device_pixels_per_css_pixel());
         auto orientation = direction == Paintable::ScrollDirection::Horizontal ? Gfx::Orientation::Horizontal : Gfx::Orientation::Vertical;
 
         context.display_list_recorder().compositor_viewport_scrollbar({
@@ -824,6 +812,7 @@ static void record_viewport_scrollbar_state(Paintable const& paintable_box, Disp
             .expanded_thumb_rect = context.rounded_device_rect(expanded_scrollbar_data->thumb_rect).to_type<int>(),
             .scroll_size = scrollbar_data->thumb_travel_to_scroll_ratio.to_double(),
             .expanded_scroll_size = expanded_scrollbar_data->thumb_travel_to_scroll_ratio.to_double(),
+            .min_scroll_offset = min_scroll_offset.primary_offset_for_orientation(orientation),
             .max_scroll_offset = max_scroll_offset.primary_offset_for_orientation(orientation),
             .thumb_color = scrollbar_colors.thumb_color,
             .track_color = scrollbar_colors.track_color,

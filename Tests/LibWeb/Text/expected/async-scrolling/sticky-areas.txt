@@ -16,7 +16,7 @@ AccumulatedVisualContext Tree:
 DisplayList:
 SaveLayer@0
   CompositorWheelHitTestTarget@0 target_scroll_node_index=1 rect=[0,0 800x600]
-  CompositorScrollNode@0 scroll_node_index=1 parent_scroll_node_index=0 scrollport_rect=[0,0 800x600] max_scroll_offset=[0,1429] is_viewport=true
+  CompositorScrollNode@0 scroll_node_index=1 parent_scroll_node_index=0 scrollport_rect=[0,0 800x600] min_scroll_offset=[0,0] max_scroll_offset=[0,1429] is_viewport=true
   CompositorWheelHitTestTarget@1 target_scroll_node_index=1 rect=[0,0 800x2029]
   CompositorWheelHitTestTarget@1 target_scroll_node_index=1 rect=[0,0 800x2016]
   CompositorWheelHitTestTarget@1 target_scroll_node_index=1 rect=[0,16 800x2000]
