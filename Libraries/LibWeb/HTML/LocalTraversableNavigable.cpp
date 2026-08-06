@@ -62,6 +62,13 @@ void LocalTraversableNavigable::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_apply_history_step_state);
     visitor.visit(m_paused_apply_history_step_state);
     visitor.visit(m_apply_history_step_operations);
+    for (auto& initiation : m_history_operation_states) {
+        visitor.visit(initiation.value.pending_document);
+        visitor.visit(initiation.value.expected_ongoing_navigation_navigable);
+        visitor.visit(initiation.value.pre_steps);
+        visitor.visit(initiation.value.on_apply_complete);
+        visitor.visit(initiation.value.on_complete);
+    }
     for (auto& pending_navigation : m_pending_same_document_navigations)
         visitor.visit(pending_navigation.value.target_navigable);
 }
@@ -2446,6 +2453,60 @@ bool LocalTraversableNavigable::can_go_forward() const
     auto current_step_index = all_steps.find_first_index(current_session_history_step());
     VERIFY(current_step_index.has_value());
     return *current_step_index + 1 < all_steps.size();
+}
+
+void LocalTraversableNavigable::complete_history_initiation(u64 initiation_id, HistoryStepResult result, NonnullRefPtr<Core::Promise<Empty>> queue_signal)
+{
+    auto initiation = m_history_operation_states.take(initiation_id);
+    VERIFY(initiation.has_value());
+    if (initiation->on_complete)
+        initiation->on_complete->function()(result);
+    queue_signal->resolve({});
+}
+
+void LocalTraversableNavigable::request_history_operation(HistoryOperationParameters parameters, HistoryOperationState state)
+{
+    auto initiation_id = m_next_history_initiation_id++;
+    m_history_operation_states.set(initiation_id, move(state));
+
+    append_session_history_traversal_steps(GC::create_function(heap(), [this, parameters = move(parameters), initiation_id](NonnullRefPtr<Core::Promise<Empty>> queue_signal) mutable {
+        auto ready = GC::create_function(heap(), [this, parameters = move(parameters), initiation_id, queue_signal](bool proceed, Optional<i32> step_override, HistoryStepResult abandon_result) mutable {
+            if (!proceed) {
+                complete_history_initiation(initiation_id, abandon_result, queue_signal);
+                return;
+            }
+
+            auto initiation = m_history_operation_states.find(initiation_id);
+            VERIFY(initiation != m_history_operation_states.end());
+            VERIFY(step_override.has_value());
+
+            auto apply = [&](auto const& parameters, HistoryHandlingBehavior history_handling) {
+                apply_the_push_or_replace_history_step(
+                    *step_override,
+                    history_handling,
+                    parameters.user_involvement,
+                    SynchronousNavigation::No,
+                    initiation->value.pending_document,
+                    initiation->value.expected_ongoing_navigation_navigable,
+                    move(initiation->value.expected_ongoing_navigation_id),
+                    GC::create_function(heap(), [this, initiation_id, queue_signal](HistoryStepResult result) {
+                        auto initiation = m_history_operation_states.find(initiation_id);
+                        VERIFY(initiation != m_history_operation_states.end());
+                        if (initiation->value.on_apply_complete)
+                            initiation->value.on_apply_complete->function()(result);
+                        complete_history_initiation(initiation_id, result, queue_signal);
+                    }));
+            };
+            parameters.visit(
+                [&](PushHistoryOperationParameters const& parameters) { apply(parameters, HistoryHandlingBehavior::Push); },
+                [&](ReplaceHistoryOperationParameters const& parameters) { apply(parameters, HistoryHandlingBehavior::Replace); });
+        });
+
+        auto initiation = m_history_operation_states.find(initiation_id);
+        VERIFY(initiation != m_history_operation_states.end());
+        VERIFY(initiation->value.pre_steps);
+        initiation->value.pre_steps->function()(ready);
+    }));
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#traverse-the-history-by-a-delta

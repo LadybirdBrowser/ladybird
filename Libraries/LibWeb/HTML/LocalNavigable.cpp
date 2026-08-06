@@ -3039,23 +3039,7 @@ void LocalNavigable::begin_navigation(NavigateParams params)
                             output->apply_to(*history_entry);
                         auto pending_document = output ? output->document : GC::Ptr<DOM::Document> {};
                         // 1. Append session history traversal steps to navigable's traversable to finalize a cross-document navigation given navigable, historyHandling, userInvolvement, and historyEntry.
-                        traversable_navigable()->append_session_history_traversal_steps(GC::create_function(heap(), [this, history_entry, history_handling, navigation_id, user_involvement, pending_document](NonnullRefPtr<Core::Promise<Empty>> signal) {
-                            if (this->has_been_destroyed()) {
-                                // AD-HOC: This check is not in the spec but we should not continue navigation if navigable has been destroyed.
-                                set_delaying_load_events(false);
-                                signal->resolve({});
-                                return;
-                            }
-                            if (this->ongoing_navigation() != navigation_id) {
-                                // AD-HOC: This check is not in the spec but we should not continue navigation if ongoing navigation id has changed.
-                                set_delaying_load_events(false);
-                                signal->resolve({});
-                                return;
-                            }
-                            finalize_a_cross_document_navigation(*this, to_history_handling_behavior(history_handling), user_involvement, history_entry, pending_document, navigation_id, GC::create_function(heap(), [signal](HistoryStepResult) {
-                                signal->resolve({});
-                            }));
-                        }));
+                        finalize_a_cross_document_navigation(*this, to_history_handling_behavior(history_handling), user_involvement, history_entry, pending_document, navigation_id, GC::create_function(heap(), [](HistoryStepResult) { }));
                     }));
             }));
     }));
@@ -3352,11 +3336,7 @@ void LocalNavigable::navigate_to_a_javascript_url(URL::URL const& url, HistoryHa
     history_entry->set_document_state(document_state);
 
     // 14. Append session history traversal steps to targetNavigable's traversable to finalize a cross-document navigation with targetNavigable, historyHandling, userInvolvement, and historyEntry.
-    traversable_navigable()->append_session_history_traversal_steps(GC::create_function(heap(), [this, new_document, history_entry, history_handling, user_involvement](NonnullRefPtr<Core::Promise<Empty>> signal) {
-        finalize_a_cross_document_navigation(*this, history_handling, user_involvement, history_entry, new_document, {}, GC::create_function(heap(), [signal](HistoryStepResult) {
-            signal->resolve({});
-        }));
-    }));
+    finalize_a_cross_document_navigation(*this, history_handling, user_involvement, history_entry, new_document, {}, GC::create_function(heap(), [](HistoryStepResult) { }));
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#reload
@@ -3505,12 +3485,18 @@ static void report_finalized_cross_document_navigation_to_ui_process(LocalTraver
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#finalize-a-cross-document-navigation
-void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, NonnullRefPtr<SessionHistoryEntry> history_entry, GC::Ptr<DOM::Document> pending_document, Optional<Utf16String> expected_ongoing_navigation_id, GC::Ref<OnApplyHistoryStepComplete> on_complete)
+static Optional<int> finalize_a_cross_document_navigation_at_queued_position(GC::Ref<LocalNavigable> navigable, HistoryHandlingBehavior history_handling, NonnullRefPtr<SessionHistoryEntry> history_entry, GC::Ptr<DOM::Document> pending_document, Optional<Utf16String> const& expected_ongoing_navigation_id)
 {
     // NOTE: This is not in the spec but we should not navigate destroyed navigable.
     if (navigable->has_been_destroyed()) {
-        on_complete->function()(HistoryStepResult::Applied);
-        return;
+        navigable->set_delaying_load_events(false);
+        return {};
+    }
+
+    // AD-HOC: This check is not in the spec but we should not continue navigation if ongoing navigation id has changed.
+    if (expected_ongoing_navigation_id.has_value() && navigable->ongoing_navigation() != *expected_ongoing_navigation_id) {
+        navigable->set_delaying_load_events(false);
+        return {};
     }
 
     // 1. FIXME: Assert: this is running on navigable's traversable navigable's session history traversal queue.
@@ -3540,8 +3526,7 @@ void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, His
         if (expected_ongoing_navigation_id.has_value() && navigable->ongoing_navigation() == expected_ongoing_navigation_id)
             navigable->set_ongoing_navigation({});
 
-        on_complete->function()(HistoryStepResult::Applied);
-        return;
+        return {};
     }
 
     // 4. If all of the following are true:
@@ -3580,8 +3565,7 @@ void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, His
             target_entries_pointer = recreate_missing_nested_history_for_live_child_navigable(*traversable, *navigable);
             if (!target_entries_pointer) {
                 navigable->clear_navigation_load_event_guard();
-                on_complete->function()(HistoryStepResult::Applied);
-                return;
+                return {};
             }
         }
     }
@@ -3611,8 +3595,7 @@ void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, His
                 // AD-HOC: A non-initial document whose entryToReplace is no longer in targetEntries is the same
                 //         stale child-frame commit case as above.
                 navigable->clear_navigation_load_event_guard();
-                on_complete->function()(HistoryStepResult::Applied);
-                return;
+                return {};
             }
 
             // https://html.spec.whatwg.org/multipage/document-sequences.html#creating-a-new-child-navigable
@@ -3631,8 +3614,7 @@ void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, His
                 entry_to_replace_index = 0;
             if (!entry_to_replace_index.has_value()) {
                 navigable->clear_navigation_load_event_guard();
-                on_complete->function()(HistoryStepResult::Applied);
-                return;
+                return {};
             }
 
             auto replacement_entry = target_entries[*entry_to_replace_index];
@@ -3656,14 +3638,36 @@ void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, His
         report_finalized_cross_document_navigation_to_ui_process(*traversable, navigable, history_entry, entry_to_replace);
     }
 
-    // 10. Apply the push/replace history step targetStep to traversable given historyHandling and userInvolvement.
-    traversable->apply_the_push_or_replace_history_step(target_step, history_handling, user_involvement, SynchronousNavigation::No, pending_document, navigable, move(expected_ongoing_navigation_id),
-        GC::create_function(navigable->heap(), [on_complete, navigable](HistoryStepResult result) {
-            // AD-HOC: Trigger a relayout in the container document for size negotiation with SVG documents.
-            if (auto container = navigable->container())
-                container->set_needs_layout_update(DOM::SetNeedsLayoutReason::FinalizeACrossDocumentNavigation);
-            on_complete->function()(result);
-        }));
+    return target_step;
+}
+
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#finalize-a-cross-document-navigation
+void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, NonnullRefPtr<SessionHistoryEntry> history_entry, GC::Ptr<DOM::Document> pending_document, Optional<Utf16String> expected_ongoing_navigation_id, GC::Ref<OnApplyHistoryStepComplete> on_complete)
+{
+    auto traversable = navigable->traversable_navigable();
+    traversable->request_history_operation(
+        history_handling == HistoryHandlingBehavior::Replace
+            ? HistoryOperationParameters { ReplaceHistoryOperationParameters { .navigable_id = navigable->id(), .user_involvement = user_involvement } }
+            : HistoryOperationParameters { PushHistoryOperationParameters { .navigable_id = navigable->id(), .user_involvement = user_involvement } },
+        {
+            .pending_document = pending_document,
+            .expected_ongoing_navigation_navigable = navigable,
+            .expected_ongoing_navigation_id = expected_ongoing_navigation_id,
+            .pre_steps = GC::create_function(navigable->heap(), [navigable, history_handling, history_entry, pending_document, expected_ongoing_navigation_id = move(expected_ongoing_navigation_id)](GC::Ref<LocalTraversableNavigable::OnHistoryOperationReady> ready) {
+                auto target_step = finalize_a_cross_document_navigation_at_queued_position(navigable, history_handling, history_entry, pending_document, expected_ongoing_navigation_id);
+                if (!target_step.has_value()) {
+                    ready->function()(false, {}, HistoryStepResult::Applied);
+                    return;
+                }
+                ready->function()(true, *target_step, HistoryStepResult::Applied);
+            }),
+            .on_apply_complete = GC::create_function(navigable->heap(), [navigable](HistoryStepResult) {
+                // AD-HOC: Trigger a relayout in the container document for size negotiation with SVG documents.
+                if (auto container = navigable->container())
+                    container->set_needs_layout_update(DOM::SetNeedsLayoutReason::FinalizeACrossDocumentNavigation);
+            }),
+            .on_complete = on_complete,
+        });
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#url-and-history-update-steps
