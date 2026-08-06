@@ -833,8 +833,6 @@ impl<'pass> NodeFacts<'pass> {
 pub(crate) struct LayoutState {
     used_values: PagedStore<UsedValues>,
     contained_abspos_children: PagedStore<RefCell<VecDeque<PendingAbsposChild>>>,
-    abspos_layout_pass_queue_in_completion_order: RefCell<VecDeque<Node>>,
-    abspos_layout_pass_is_active: Cell<bool>,
     anchor_inset_store: AnchorInsetStore,
     replaced_content_facts: PagedStore<crate::layout::FfiReplacedContentFacts>,
     inline_containing_blocks: RefCell<HashSet<Node>>,
@@ -880,8 +878,6 @@ impl LayoutState {
         Self {
             used_values: PagedStore::default(),
             contained_abspos_children: PagedStore::default(),
-            abspos_layout_pass_queue_in_completion_order: RefCell::new(VecDeque::new()),
-            abspos_layout_pass_is_active: Cell::new(false),
             anchor_inset_store: AnchorInsetStore::default(),
             replaced_content_facts: PagedStore::default(),
             inline_containing_blocks: RefCell::new(HashSet::new()),
@@ -1356,27 +1352,6 @@ impl LayoutState {
             all_laid_out &= children.borrow().is_empty();
         });
         all_laid_out
-    }
-
-    /// Every completed root enqueues even when its queue is still empty:
-    /// fixed-position descendants of abspos subtrees register against the
-    /// viewport only while the pass lays those subtrees out.
-    pub(crate) fn enqueue_for_abspos_layout_pass(&self, target_box: Node) {
-        self.abspos_layout_pass_queue_in_completion_order
-            .borrow_mut()
-            .push_back(target_box);
-    }
-
-    pub(crate) fn pop_from_abspos_layout_pass_queue(&self) -> Option<Node> {
-        self.abspos_layout_pass_queue_in_completion_order.borrow_mut().pop_front()
-    }
-
-    pub(crate) fn abspos_layout_pass_is_active(&self) -> bool {
-        self.abspos_layout_pass_is_active.get()
-    }
-
-    pub(crate) fn set_abspos_layout_pass_is_active(&self, is_active: bool) {
-        self.abspos_layout_pass_is_active.set(is_active);
     }
 
     /// By completion time the grid-area geometry is final and every abspos
