@@ -52,12 +52,12 @@ static void set_resources_available_message(JsonObject& message, StringView reso
     message.set("array"sv, move(array));
 }
 
-NonnullRefPtr<FrameActor> FrameActor::create(DevToolsServer& devtools, String name, WeakPtr<TabActor> tab, WeakPtr<WatcherActor> watcher, WeakPtr<CSSPropertiesActor> css_properties, WeakPtr<ConsoleActor> console, WeakPtr<InspectorActor> inspector, WeakPtr<StyleSheetsActor> style_sheets, WeakPtr<ThreadActor> thread, WeakPtr<AccessibilityActor> accessibility)
+NonnullRefPtr<FrameActor> FrameActor::create(DevToolsServer& devtools, String name, WeakPtr<TabActor> tab, WeakPtr<WatcherActor> watcher, CSSPropertiesActor& css_properties, ConsoleActor& console, InspectorActor& inspector, StyleSheetsActor& style_sheets, ThreadActor& thread, AccessibilityActor& accessibility)
 {
-    return adopt_ref(*new FrameActor(devtools, move(name), move(tab), move(watcher), move(css_properties), move(console), move(inspector), move(style_sheets), move(thread), move(accessibility)));
+    return adopt_ref(*new FrameActor(devtools, move(name), move(tab), move(watcher), css_properties, console, inspector, style_sheets, thread, accessibility));
 }
 
-FrameActor::FrameActor(DevToolsServer& devtools, String name, WeakPtr<TabActor> tab, WeakPtr<WatcherActor> watcher, WeakPtr<CSSPropertiesActor> css_properties, WeakPtr<ConsoleActor> console, WeakPtr<InspectorActor> inspector, WeakPtr<StyleSheetsActor> style_sheets, WeakPtr<ThreadActor> thread, WeakPtr<AccessibilityActor> accessibility)
+FrameActor::FrameActor(DevToolsServer& devtools, String name, WeakPtr<TabActor> tab, WeakPtr<WatcherActor> watcher, CSSPropertiesActor& css_properties, ConsoleActor& console, InspectorActor& inspector, StyleSheetsActor& style_sheets, ThreadActor& thread, AccessibilityActor& accessibility)
     : Actor(devtools, move(name))
     , m_tab(move(tab))
     , m_watcher(move(watcher))
@@ -68,6 +68,13 @@ FrameActor::FrameActor(DevToolsServer& devtools, String name, WeakPtr<TabActor> 
     , m_thread(move(thread))
     , m_accessibility(move(accessibility))
 {
+    add_child_actor(css_properties);
+    add_child_actor(console);
+    add_child_actor(inspector);
+    add_child_actor(style_sheets);
+    add_child_actor(thread);
+    add_child_actor(accessibility);
+
     if (auto tab = m_tab.strong_ref()) {
         devtools.delegate().listen_for_console_messages(
             tab->description(),
@@ -235,7 +242,7 @@ JsonObject FrameActor::serialize_target() const
     traits.set("logInPage"sv, false);
     traits.set("navigation"sv, true);
     traits.set("supportsTopLevelTargetFlag"sv, true);
-    traits.set("watchpoints"sv, true);
+    traits.set("watchpoints"sv, false);
 
     JsonObject target;
     target.set("actor"sv, name());
@@ -506,6 +513,7 @@ void FrameActor::on_console_message(WebView::ConsoleOutput console_output)
 void FrameActor::on_network_request_started(DevToolsDelegate::NetworkRequestData data)
 {
     auto& actor = devtools().register_actor<NetworkEventActor>(data.request_id);
+    add_child_actor(actor);
     actor.set_request_info(move(data.url), move(data.method), data.start_time, move(data.request_headers), move(data.request_body), move(data.initiator_type));
     if (auto tab = m_tab.strong_ref())
         actor.set_browsing_context_ids(tab->description().id, tab->inner_window_id());

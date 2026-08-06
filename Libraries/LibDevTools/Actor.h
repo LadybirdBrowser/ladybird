@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Debug.h>
+#include <AK/HashTable.h>
 #include <AK/JsonObject.h>
 #include <AK/Optional.h>
 #include <AK/RefCounted.h>
@@ -33,6 +34,8 @@ public:
 
     String const& name() const { return m_name; }
 
+    virtual void connection_closed() { }
+
     void message_received(StringView type, JsonObject);
 
     // Use send_response when replying directly to a request received from the client.
@@ -47,6 +50,9 @@ public:
 
 protected:
     explicit Actor(DevToolsServer&, String name);
+
+    void add_child_actor(Actor const&);
+    void unregister_child_actor(Actor const&);
 
     virtual void handle_message(Message const&) = 0;
 
@@ -108,6 +114,7 @@ protected:
 private:
     DevToolsServer& m_devtools;
     String m_name;
+    HashTable<String> m_child_actors;
 
     struct PendingResponse {
         Optional<u64> id;
