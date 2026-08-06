@@ -17,9 +17,10 @@
 
 namespace WebView {
 
-struct WEBVIEW_API ConsoleLog {
-    JS::Console::LogLevel level;
-    Vector<JsonValue> arguments;
+enum class ConsoleLogType : u8 {
+    ConsoleAPI,
+    LogPoint,
+    LogPointError,
 };
 
 struct WEBVIEW_API StackFrame {
@@ -27,6 +28,14 @@ struct WEBVIEW_API StackFrame {
     Optional<String> file;
     Optional<size_t> line;
     Optional<size_t> column;
+};
+
+struct WEBVIEW_API ConsoleLog {
+    JS::Console::LogLevel level;
+    Vector<JsonValue> arguments;
+    ConsoleLogType type { ConsoleLogType::ConsoleAPI };
+    Optional<StackFrame> location;
+    Optional<Vector<StackFrame>> stacktrace;
 };
 
 struct WEBVIEW_API ConsoleError {
