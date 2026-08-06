@@ -63,6 +63,10 @@ struct NavigableCreationHistoryOperationParameters {
     HTML::CrossProcessId navigable_id;
 };
 
+struct NavigableDestructionHistoryOperationParameters {
+    HTML::CrossProcessId traversable_id;
+};
+
 // A WebContent-initiated operation with value-shaped parameters. The request boundary retains any process-local
 // state under a private initiation ID; the queue and coordinator remain local until the later ownership switch.
 using HistoryOperationParameters = Variant<
@@ -73,7 +77,8 @@ using HistoryOperationParameters = Variant<
     TraverseToStepHistoryOperationParameters,
     NavigationAPITraverseHistoryOperationParameters,
     ResumeTraverseHistoryOperationParameters,
-    NavigableCreationHistoryOperationParameters>;
+    NavigableCreationHistoryOperationParameters,
+    NavigableDestructionHistoryOperationParameters>;
 
 }
 
@@ -118,5 +123,10 @@ template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::NavigableCreationHistoryOperationParameters const&);
 template<>
 WEB_API ErrorOr<Web::NavigableCreationHistoryOperationParameters> decode(Decoder&);
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::NavigableDestructionHistoryOperationParameters const&);
+template<>
+WEB_API ErrorOr<Web::NavigableDestructionHistoryOperationParameters> decode(Decoder&);
 
 }
