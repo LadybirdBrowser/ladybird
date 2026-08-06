@@ -12,6 +12,7 @@
 #include <LibJS/Runtime/FunctionEnvironment.h>
 #include <LibJS/Runtime/GlobalEnvironment.h>
 #include <LibJS/Runtime/ObjectEnvironment.h>
+#include <LibJS/Runtime/ValueInlines.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/Window.h>
@@ -77,11 +78,13 @@ void DevToolsDebugger::interrupt(PageClient& page)
         debugger->request_pause_on_next_bytecode_execution();
 }
 
-ErrorOr<void> DevToolsDebugger::set_breakpoint(PageClient& page, WebView::DebuggerBreakpointLocation location)
+ErrorOr<void> DevToolsDebugger::set_breakpoint(PageClient& page, WebView::DebuggerBreakpointLocation location, WebView::DebuggerBreakpointOptions options)
 {
     if (auto registrations = m_breakpoints.find(page.id()); registrations != m_breakpoints.end()) {
-        if (registrations->value.find_if([&](auto const& registration) { return registration.location.represents_same_breakpoint_as(location); }) != registrations->value.end())
+        if (auto registration = registrations->value.find_if([&](auto const& registration) { return registration.location.represents_same_breakpoint_as(location); }); registration != registrations->value.end()) {
+            registration->options = move(options);
             return {};
+        }
     }
 
     auto column = location.column;
@@ -104,7 +107,7 @@ ErrorOr<void> DevToolsDebugger::set_breakpoint(PageClient& page, WebView::Debugg
         disable_if_unused();
         return id.release_error();
     }
-    m_breakpoints.ensure(page.id()).append({ move(location), id.release_value() });
+    m_breakpoints.ensure(page.id()).append({ move(location), move(options), id.release_value() });
     return {};
 }
 
@@ -404,8 +407,43 @@ void DevToolsDebugger::handle_pause(JS::Debugger::PauseInfo const& pause)
         return;
     }
 
+    Optional<Utf16String> condition_error;
+    if (pause.reason == JS::Debugger::PauseReason::Breakpoint) {
+        bool should_pause = false;
+        auto registrations = m_breakpoints.find(page->id());
+        if (registrations != m_breakpoints.end()) {
+            for (auto const& registration : registrations->value) {
+                if (!pause.breakpoint_ids.contains_slow(registration.id))
+                    continue;
+                if (!registration.options.condition.has_value()) {
+                    should_pause = true;
+                    break;
+                }
+
+                auto* context = pause.stack_trace.first().execution_context;
+                VERIFY(context);
+                auto result = Web::Bindings::main_thread_vm().debugger()->evaluate_in_frame(*context, *registration.options.condition);
+                if (result.is_throw_completion()) {
+                    should_pause = true;
+                    condition_error = result.throw_completion().value().to_utf16_string_without_side_effects();
+                    break;
+                }
+                if (result.release_value().to_boolean()) {
+                    should_pause = true;
+                    break;
+                }
+            }
+        }
+        if (!should_pause) {
+            Web::Bindings::main_thread_vm().debugger()->continue_execution();
+            return;
+        }
+    }
+
     WebView::DebuggerPause debugger_pause {
         .reason = [&] {
+            if (condition_error.has_value())
+                return WebView::DebuggerPauseReason::BreakpointConditionThrown;
             switch (pause.reason) {
             case JS::Debugger::PauseReason::Breakpoint:
                 return WebView::DebuggerPauseReason::Breakpoint;
@@ -416,6 +454,7 @@ void DevToolsDebugger::handle_pause(JS::Debugger::PauseInfo const& pause)
             }
             VERIFY_NOT_REACHED();
         }(),
+        .reason_message = move(condition_error),
         .frames = {},
     };
 

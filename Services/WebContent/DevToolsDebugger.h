@@ -29,7 +29,7 @@ public:
     void detach(PageClient&);
     void interrupt(PageClient&);
     void resume(PageClient&);
-    ErrorOr<void> set_breakpoint(PageClient&, WebView::DebuggerBreakpointLocation);
+    ErrorOr<void> set_breakpoint(PageClient&, WebView::DebuggerBreakpointLocation, WebView::DebuggerBreakpointOptions);
     ErrorOr<void> remove_breakpoint(PageClient&, WebView::DebuggerBreakpointLocation const&);
     Vector<WebView::DebuggerEnvironment> environments_for_frame(PageClient&, u64 frame_id);
     ErrorOr<WebView::DebuggerEvaluationResult> evaluate_in_frame(PageClient&, u64 frame_id, Utf16View source_text);
@@ -45,6 +45,7 @@ private:
 
     struct BreakpointRegistration {
         WebView::DebuggerBreakpointLocation location;
+        WebView::DebuggerBreakpointOptions options;
         JS::BreakpointID id { 0 };
     };
 

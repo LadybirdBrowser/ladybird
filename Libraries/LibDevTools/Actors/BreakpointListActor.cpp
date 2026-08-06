@@ -40,11 +40,16 @@ void BreakpointListActor::handle_message(Message const& message)
         }
 
         if (message.type == "setBreakpoint"sv) {
-            // FIXME: Apply the condition and logValue options when LibJS supports them.
+            WebView::DebuggerBreakpointOptions options;
+            if (auto options_object = message.data.get_object("options"sv); options_object.has_value()) {
+                if (auto condition = options_object->get_string("condition"sv); condition.has_value())
+                    options.condition = Utf16String::from_utf8(*condition);
+            }
             auto breakpoint_location = location.release_value();
             auto retained_location = breakpoint_location;
-            devtools().delegate().set_debugger_breakpoint(tab->description(), move(breakpoint_location),
-                [weak_self = make_weak_ptr<BreakpointListActor>(), message_id = message.id, breakpoint_location = move(retained_location)](ErrorOr<void> result) mutable {
+            auto retained_options = options;
+            devtools().delegate().set_debugger_breakpoint(tab->description(), move(breakpoint_location), move(options),
+                [weak_self = make_weak_ptr<BreakpointListActor>(), message_id = message.id, breakpoint_location = move(retained_location), options = move(retained_options)](ErrorOr<void> result) mutable {
                     auto self = weak_self.strong_ref();
                     if (!self)
                         return;
@@ -52,13 +57,13 @@ void BreakpointListActor::handle_message(Message const& message)
                         self->send_breakpoint_error({ .id = message_id }, result.error());
                         return;
                     }
-                    self->remember_breakpoint(move(breakpoint_location));
+                    self->remember_breakpoint(move(breakpoint_location), move(options));
                     self->send_response({ .id = message_id }, {});
                 });
         } else {
             auto breakpoint_location = location.release_value();
-            if (auto breakpoint = m_breakpoints.find_if([&](auto const& breakpoint) { return breakpoint.represents_same_breakpoint_as(breakpoint_location); }); breakpoint != m_breakpoints.end())
-                breakpoint_location = *breakpoint;
+            if (auto breakpoint = m_breakpoints.find_if([&](auto const& breakpoint) { return breakpoint.location.represents_same_breakpoint_as(breakpoint_location); }); breakpoint != m_breakpoints.end())
+                breakpoint_location = breakpoint->location;
             auto retained_location = breakpoint_location;
             devtools().delegate().remove_debugger_breakpoint(tab->description(), move(breakpoint_location),
                 [weak_self = make_weak_ptr<BreakpointListActor>(), message_id = message.id, breakpoint_location = move(retained_location)](ErrorOr<void> result) mutable {
@@ -137,16 +142,18 @@ Optional<WebView::DebuggerBreakpointLocation> BreakpointListActor::breakpoint_lo
     return {};
 }
 
-void BreakpointListActor::remember_breakpoint(WebView::DebuggerBreakpointLocation location)
+void BreakpointListActor::remember_breakpoint(WebView::DebuggerBreakpointLocation location, WebView::DebuggerBreakpointOptions options)
 {
-    if (m_breakpoints.find_if([&](auto const& breakpoint) { return breakpoint.represents_same_breakpoint_as(location); }) != m_breakpoints.end())
+    if (auto breakpoint = m_breakpoints.find_if([&](auto const& breakpoint) { return breakpoint.location.represents_same_breakpoint_as(location); }); breakpoint != m_breakpoints.end()) {
+        breakpoint->options = move(options);
         return;
-    m_breakpoints.append(move(location));
+    }
+    m_breakpoints.append({ move(location), move(options) });
 }
 
 void BreakpointListActor::forget_breakpoint(WebView::DebuggerBreakpointLocation const& location)
 {
-    m_breakpoints.remove_first_matching([&](auto const& breakpoint) { return breakpoint.represents_same_breakpoint_as(location); });
+    m_breakpoints.remove_first_matching([&](auto const& breakpoint) { return breakpoint.location.represents_same_breakpoint_as(location); });
 }
 
 void BreakpointListActor::reapply_breakpoints()
@@ -156,8 +163,8 @@ void BreakpointListActor::reapply_breakpoints()
         return;
 
     for (auto const& breakpoint : m_breakpoints) {
-        auto previous_location = breakpoint;
-        devtools().delegate().remove_debugger_breakpoint(tab->description(), breakpoint,
+        auto previous_location = breakpoint.location;
+        devtools().delegate().remove_debugger_breakpoint(tab->description(), breakpoint.location,
             [weak_self = make_weak_ptr<BreakpointListActor>(), previous_location = move(previous_location)](ErrorOr<void> removal_result) mutable {
                 auto self = weak_self.strong_ref();
                 if (!self)
@@ -166,16 +173,16 @@ void BreakpointListActor::reapply_breakpoints()
                 if (removal_result.is_error())
                     dbgln_if(DEVTOOLS_DEBUG, "Unable to remove debugger breakpoint before reapplying it: {}", removal_result.error());
 
-                auto breakpoint = self->m_breakpoints.find_if([&](auto const& breakpoint) { return breakpoint == previous_location; });
+                auto breakpoint = self->m_breakpoints.find_if([&](auto const& breakpoint) { return breakpoint.location == previous_location; });
                 if (breakpoint == self->m_breakpoints.end())
                     return;
 
-                breakpoint->source_id.clear();
+                breakpoint->location.source_id.clear();
                 auto tab = self->m_tab.strong_ref();
                 if (!tab)
                     return;
 
-                self->devtools().delegate().set_debugger_breakpoint(tab->description(), *breakpoint, [](ErrorOr<void> result) {
+                self->devtools().delegate().set_debugger_breakpoint(tab->description(), breakpoint->location, breakpoint->options, [](ErrorOr<void> result) {
                     if (result.is_error())
                         dbgln_if(DEVTOOLS_DEBUG, "Unable to reapply debugger breakpoint: {}", result.error());
                 });

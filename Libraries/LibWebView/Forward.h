@@ -50,6 +50,7 @@ struct BrowserOptions;
 struct ConsoleOutput;
 struct CookieStorageKey;
 struct DebuggerBreakpointLocation;
+struct DebuggerBreakpointOptions;
 struct DebuggerBinding;
 struct DebuggerConfiguration;
 struct DebuggerEnvironment;

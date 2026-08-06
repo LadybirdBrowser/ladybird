@@ -202,6 +202,8 @@ void ThreadActor::did_pause(WebView::DebuggerPause pause)
         switch (pause.reason) {
         case WebView::DebuggerPauseReason::Breakpoint:
             return "breakpoint"sv;
+        case WebView::DebuggerPauseReason::BreakpointConditionThrown:
+            return "breakpointConditionThrown"sv;
         case WebView::DebuggerPauseReason::DebuggerStatement:
             return "debuggerStatement"sv;
         case WebView::DebuggerPauseReason::Entry:
@@ -214,6 +216,8 @@ void ThreadActor::did_pause(WebView::DebuggerPause pause)
     why.set("type"sv, reason);
     if (pause.reason == WebView::DebuggerPauseReason::Entry && pause_was_requested_on_next)
         why.set("onNext"sv, true);
+    if (pause.reason_message.has_value())
+        why.set("message"sv, pause.reason_message->to_utf8());
 
     JsonObject resource;
     resource.set("state"sv, "paused"sv);
