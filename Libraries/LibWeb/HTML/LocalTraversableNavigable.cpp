@@ -2566,6 +2566,11 @@ GC::Ref<SessionHistoryTraversalSteps> LocalTraversableNavigable::create_history_
                 [&](FinalizeSameDocumentNavigationHistoryOperationParameters const& parameters) {
                     VERIFY(step_override.has_value());
                     apply_the_push_or_replace_history_step(*step_override, parameters.history_handling, parameters.user_involvement, SynchronousNavigation::Yes, nullptr, nullptr, {}, on_apply_complete);
+                },
+                [&](CloseTopLevelTraversableHistoryOperationParameters const& parameters) {
+                    VERIFY(!step_override.has_value());
+                    VERIFY(parameters.traversable_id == id());
+                    run_close_top_level_traversable_steps(on_apply_complete);
                 });
         });
 
@@ -3012,17 +3017,22 @@ void LocalTraversableNavigable::definitely_close_top_level_traversable()
             return;
 
         // 3. Append the following session history traversal steps to traversable:
-        append_session_history_traversal_steps(GC::create_function(heap(), [this](NonnullRefPtr<Core::Promise<Empty>> signal) {
-            // 1. Let afterAllUnloads be an algorithm step which destroys traversable.
-            auto after_all_unloads = GC::create_function(heap(), [this] {
-                destroy_top_level_traversable();
-            });
-
-            // 2. Unload a document and its descendants given traversable's active document, null, and afterAllUnloads.
-            active_document()->unload_a_document_and_its_descendants({}, after_all_unloads);
-            signal->resolve({});
-        }));
+        request_history_operation(CloseTopLevelTraversableHistoryOperationParameters {
+            .traversable_id = id(),
+        });
     }));
+}
+
+void LocalTraversableNavigable::run_close_top_level_traversable_steps(GC::Ref<OnApplyHistoryStepComplete> on_complete)
+{
+    // 1. Let afterAllUnloads be an algorithm step which destroys traversable.
+    auto after_all_unloads = GC::create_function(heap(), [this] {
+        destroy_top_level_traversable();
+    });
+
+    // 2. Unload a document and its descendants given traversable's active document, null, and afterAllUnloads.
+    active_document()->unload_a_document_and_its_descendants({}, after_all_unloads);
+    on_complete->function()(HistoryStepResult::Applied);
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#destroy-a-top-level-traversable

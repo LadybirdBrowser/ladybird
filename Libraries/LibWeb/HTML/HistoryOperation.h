@@ -77,6 +77,10 @@ struct FinalizeSameDocumentNavigationHistoryOperationParameters {
     HTML::UserNavigationInvolvement user_involvement;
 };
 
+struct CloseTopLevelTraversableHistoryOperationParameters {
+    HTML::CrossProcessId traversable_id;
+};
+
 // A WebContent-initiated operation with value-shaped parameters. The request boundary retains any process-local
 // state under a private initiation ID; the queue and coordinator remain local until the later ownership switch.
 using HistoryOperationParameters = Variant<
@@ -89,7 +93,8 @@ using HistoryOperationParameters = Variant<
     ResumeTraverseHistoryOperationParameters,
     NavigableCreationHistoryOperationParameters,
     NavigableDestructionHistoryOperationParameters,
-    FinalizeSameDocumentNavigationHistoryOperationParameters>;
+    FinalizeSameDocumentNavigationHistoryOperationParameters,
+    CloseTopLevelTraversableHistoryOperationParameters>;
 
 }
 
@@ -144,5 +149,10 @@ template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::FinalizeSameDocumentNavigationHistoryOperationParameters const&);
 template<>
 WEB_API ErrorOr<Web::FinalizeSameDocumentNavigationHistoryOperationParameters> decode(Decoder&);
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::CloseTopLevelTraversableHistoryOperationParameters const&);
+template<>
+WEB_API ErrorOr<Web::CloseTopLevelTraversableHistoryOperationParameters> decode(Decoder&);
 
 }

@@ -227,6 +227,7 @@ private:
 
     void complete_history_initiation(u64 initiation_id, HistoryStepResult, NonnullRefPtr<Core::Promise<Empty>> queue_signal);
     GC::Ref<SessionHistoryTraversalSteps> create_history_operation_steps(HistoryOperationParameters, HistoryOperationState);
+    void run_close_top_level_traversable_steps(GC::Ref<OnApplyHistoryStepComplete> on_complete);
 
     Vector<NonnullRefPtr<SessionHistoryEntry>> get_session_history_entries_for_the_navigation_api(GC::Ref<LocalNavigable>, int);
     Vector<NonnullRefPtr<SessionHistoryEntry>> get_session_history_entries_for_the_navigation_api(CrossProcessId, int);
