@@ -89,6 +89,7 @@ void AccessibilityActor::handle_message(Message const& message)
 void AccessibilityActor::received_accessibility_tree(JsonObject& response, JsonObject accessibility_tree)
 {
     auto& walker_actor = devtools().register_actor<AccessibilityWalkerActor>(m_tab, move(accessibility_tree));
+    add_child_actor(walker_actor);
     m_walker = walker_actor;
 
     JsonObject walker;

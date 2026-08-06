@@ -110,8 +110,10 @@ void WalkerActor::handle_message(Message const& message)
     }
 
     if (message.type == "getLayoutInspector"sv) {
-        if (!m_layout_inspector)
+        if (!m_layout_inspector) {
             m_layout_inspector = devtools().register_actor<LayoutInspectorActor>(m_tab, make_weak_ptr<WalkerActor>());
+            add_child_actor(*m_layout_inspector);
+        }
 
         JsonObject actor;
         actor.set("actor"sv, m_layout_inspector->name());
@@ -1063,6 +1065,10 @@ void WalkerActor::clear_dom_tree_state()
     m_dom_node_mutations.clear();
     m_has_new_mutations_since_last_mutations_request = false;
     clear_dom_tree_cache();
+    for (auto const& actor : m_node_actors) {
+        if (auto node_actor = actor.value.strong_ref())
+            unregister_child_actor(*node_actor);
+    }
     m_node_actors.clear();
 }
 
@@ -1107,6 +1113,7 @@ NodeActor const& WalkerActor::actor_for_node(JsonObject const& node)
     }
 
     auto& node_actor = devtools().register_actor<NodeActor>(identifier, *this);
+    add_child_actor(node_actor);
     m_node_actors.set(identifier, node_actor);
 
     return node_actor;

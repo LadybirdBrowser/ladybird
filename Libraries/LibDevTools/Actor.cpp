@@ -17,7 +17,22 @@ Actor::Actor(DevToolsServer& devtools, String name)
 {
 }
 
-Actor::~Actor() = default;
+Actor::~Actor()
+{
+    for (auto const& actor : m_child_actors)
+        devtools().unregister_actor(actor);
+}
+
+void Actor::add_child_actor(Actor const& actor)
+{
+    m_child_actors.set(actor.name());
+}
+
+void Actor::unregister_child_actor(Actor const& actor)
+{
+    m_child_actors.remove(actor.name());
+    devtools().unregister_actor(actor.name());
+}
 
 void Actor::message_received(StringView type, JsonObject message)
 {

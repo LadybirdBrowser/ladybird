@@ -219,6 +219,7 @@ AccessibilityNodeActor const& AccessibilityWalkerActor::actor_for_node(JsonObjec
     }
 
     auto& node_actor = devtools().register_actor<AccessibilityNodeActor>(identifier, *this);
+    add_child_actor(node_actor);
     m_node_actors.set(identifier, node_actor);
 
     return node_actor;
