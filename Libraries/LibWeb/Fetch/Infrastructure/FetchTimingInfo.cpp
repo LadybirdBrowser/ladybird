@@ -34,6 +34,17 @@ GC::Ref<FetchTimingInfo> create_opaque_timing_info(JS::VM& vm, FetchTimingInfo c
     auto new_timing_info = FetchTimingInfo::create(vm);
     new_timing_info->set_start_time(timing_info.start_time());
     new_timing_info->set_post_redirect_start_time(timing_info.start_time());
+
+    // FIXME: Spec issue: We invoke this factory due to a failed Timing-Allow-Origin check. In such cases, responseEnd
+    //        is not one the fields listed for protection:
+    //        https://w3c.github.io/resource-timing/#sec-cross-origin-resources
+    //
+    //        If we do not copy the end time here, startTime will be non-zero and responseEnd will be zero, resulting in
+    //        a negative duration. This is an observable difference from other engines.
+    //
+    //        https://github.com/whatwg/fetch/issues/1945
+    new_timing_info->set_end_time(timing_info.end_time());
+
     return new_timing_info;
 }
 

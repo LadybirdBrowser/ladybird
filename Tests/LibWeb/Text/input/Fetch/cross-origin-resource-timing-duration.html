@@ -1,0 +1,42 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const scriptUrl = new URL(
+            await server.createEcho("GET", "/cross-origin-resource-timing-duration.js", {
+                status: 200,
+                headers: {
+                    "Cache-Control": "no-store",
+                    "Content-Type": "text/javascript",
+                },
+                body: "",
+            })
+        );
+        scriptUrl.hostname = uniqueLocalhostHostname("resource-timing-duration");
+
+        const script = document.createElement("script");
+        script.src = scriptUrl.href;
+        await new Promise((resolve, reject) => {
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+        });
+
+        let entry;
+        for (let attempt = 0; attempt < 50; ++attempt) {
+            entry = performance.getEntriesByName(scriptUrl.href, "resource").at(-1);
+            if (entry) break;
+            await timeout(10);
+        }
+
+        println(`Resource is cross-origin: ${scriptUrl.origin !== location.origin}`);
+        println(`Resource timing entry found: ${entry !== undefined}`);
+        if (!entry) return;
+
+        println(`responseEnd follows startTime: ${entry.responseEnd >= entry.startTime}`);
+        println(`duration is non-negative: ${entry.duration >= 0}`);
+        println(`requestStart is masked: ${entry.requestStart === 0}`);
+        println(`responseStart is masked: ${entry.responseStart === 0}`);
+    });
+</script>
