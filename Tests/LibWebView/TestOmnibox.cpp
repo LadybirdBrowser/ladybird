@@ -217,6 +217,12 @@ TEST_CASE(all_web_ui_pages_are_suggested)
     }
 }
 
+TEST_CASE(paste_and_go_treats_external_urls_as_urls)
+{
+    EXPECT_EQ(Omnibox::text_for_paste_and_go_action("mailto:hello@example.com"_string, true), "Paste and Go to mailto:hello@example.com"sv);
+    EXPECT_EQ(Omnibox::text_for_paste_and_go_action("hello world"_string, true), "Paste and Search for 'hello world'"sv);
+}
+
 TEST_CASE(web_ui_pages_are_matched_by_case_insensitive_url_prefix)
 {
     auto suggestions = WebView::web_ui_autocomplete_suggestions("ABOUT:SET"sv);
