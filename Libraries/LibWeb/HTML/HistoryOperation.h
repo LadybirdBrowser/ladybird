@@ -40,6 +40,7 @@ struct ReloadHistoryOperationParameters {
 struct TraverseByDeltaHistoryOperationParameters {
     HTML::CrossProcessId traversable_id;
     i32 delta;
+    Optional<HTML::CrossProcessId> initiator_to_check;
     HTML::UserNavigationInvolvement user_involvement;
 };
 

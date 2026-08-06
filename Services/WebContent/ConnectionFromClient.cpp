@@ -381,6 +381,40 @@ void ConnectionFromClient::check_if_traverse_history_step_is_canceled(u64 page_i
         }));
 }
 
+void ConnectionFromClient::history_operation_started(u64 page_id, u64 operation_id, Optional<u64>)
+{
+    async_history_operation_ready(page_id, operation_id, false, {}, Web::HTML::HistoryStepResult::CanceledByMissingPage);
+}
+
+void ConnectionFromClient::run_initiator_sandboxing_check_job(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId, Vector<Web::HTML::CrossProcessId>, u64)
+{
+    async_initiator_sandboxing_check_result(page_id, operation_id, false);
+}
+
+void ConnectionFromClient::run_history_step_unload_cancelation_job(u64 page_id, u64 operation_id, i32, Vector<Web::HTML::CrossProcessId>, Web::HTML::UserNavigationInvolvement)
+{
+    async_history_step_unload_cancelation_result(page_id, operation_id, Web::HTML::HistoryStepResult::CanceledByMissingPage);
+}
+
+void ConnectionFromClient::run_changing_navigable_history_job(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, i32, Web::HTML::SessionHistoryEntryDescriptor, Web::HTML::UserNavigationInvolvement, Optional<Web::Bindings::NavigationType>, bool, Optional<u64>)
+{
+    async_changing_navigable_history_job_ready(page_id, operation_id, navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition::Stale);
+}
+
+void ConnectionFromClient::apply_changing_navigable_continuation(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, u64, u64, Vector<Web::HTML::SessionHistoryEntryDescriptor>)
+{
+    async_changing_navigable_continuation_applied(page_id, operation_id, navigable_id);
+}
+
+void ConnectionFromClient::update_nonchanging_navigable_history_state(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, u64, u64)
+{
+    async_nonchanging_navigable_history_state_updated(page_id, operation_id, navigable_id);
+}
+
+void ConnectionFromClient::complete_history_operation(u64, u64, Web::HTML::HistoryStepResult, Optional<i32>, Optional<u64>)
+{
+}
+
 void ConnectionFromClient::set_top_level_session_history(u64 page_id, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, size_t current_top_level_entry_index, bool allow_reconstructing_current_entry)
 {
     if (auto page = this->page(page_id); page.has_value()) {

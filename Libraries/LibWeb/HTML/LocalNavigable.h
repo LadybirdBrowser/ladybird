@@ -61,6 +61,9 @@ enum class HistoryStepResult {
     // INTEROP: This is an internal result for browser UI handling and is not one of the results
     //          returned by the HTML Standard's apply the history step algorithm.
     CanceledPendingNavigation,
+    // AD-HOC: An internal result for when the canonical session history has no entry matching the
+    //         requested operation (for example, a navigation API traversal to a pruned entry).
+    NoMatchingEntry,
     Applied,
 };
 using OnApplyHistoryStepComplete = GC::Function<void(HistoryStepResult)>;

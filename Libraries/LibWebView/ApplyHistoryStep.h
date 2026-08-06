@@ -114,12 +114,15 @@ public:
         Web::HTML::UserNavigationInvolvement user_involvement,
         Optional<Web::Bindings::NavigationType> navigation_type,
         Web::HTML::SynchronousNavigation synchronous_navigation,
+        Optional<Web::HTML::CrossProcessId> navigable_with_finalized_entry,
         Function<void(Web::HTML::HistoryStepResult)> on_complete);
     ~ApplyHistoryStep();
 
     void apply_the_history_step();
 
     bool completed() const { return m_completed; }
+    // The step this run committed as the current session history step, if it was the run that committed.
+    Optional<i32> committed_step() const { return m_committed_step; }
 
 private:
     // The algorithm's steps. Asynchronous work resumes the algorithm by entering the next phase (or re-entering the
@@ -152,6 +155,12 @@ private:
     Optional<Web::Bindings::NavigationType> const m_navigation_type;
     // AD-HOC: Marks a run that applies an already-finalized synchronous same-document navigation.
     Web::HTML::SynchronousNavigation const m_synchronous_navigation;
+    // AD-HOC: The navigable whose finalized navigation this push/replace run applies. Finalization already installed
+    //         the new entry in the canonical session history, so the entry-identity comparison behind "get all
+    //         navigables whose current session history entry will change or reload" can no longer see the change;
+    //         the live navigable still displays the old document until this run's job activates the new one. This is
+    //         the same shape as the newer specification's navigableToReload argument.
+    Optional<Web::HTML::CrossProcessId> const m_navigable_with_finalized_entry;
     Function<void(Web::HTML::HistoryStepResult)> m_on_complete;
 
     // The algorithm's variables.
@@ -169,6 +178,7 @@ private:
     // The synchronous navigation steps this run is paused on ("running nested apply history step" is true).
     RefPtr<Core::Promise<Empty>> m_running_synchronous_navigation_steps;
 
+    Optional<i32> m_committed_step;
     bool m_completed { false };
 };
 

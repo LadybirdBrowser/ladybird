@@ -1242,9 +1242,14 @@ void PageClient::page_did_remove_nested_history(Web::HTML::CrossProcessId parent
     client().async_did_remove_nested_history(m_id, parent_navigable_id, child_navigable_id);
 }
 
-void PageClient::page_did_request_finalize_same_document_navigation(u64 operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SameDocumentNavigationEntry const& target_entry, bool replaces_current_entry, Web::HTML::HistoryHandlingBehavior history_handling, Web::HTML::UserNavigationInvolvement user_involvement)
+void PageClient::page_did_request_finalize_same_document_navigation(u64 operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SameDocumentNavigationEntry const& target_entry, bool replaces_current_entry, Web::HTML::HistoryHandlingBehavior history_handling, Web::HTML::UserNavigationInvolvement user_involvement, bool applies_history_step_in_coordinator)
 {
-    client().async_did_request_finalize_same_document_navigation(m_id, operation_id, navigable_id, target_entry, replaces_current_entry, history_handling, user_involvement);
+    client().async_did_request_finalize_same_document_navigation(m_id, operation_id, navigable_id, target_entry, replaces_current_entry, history_handling, user_involvement, applies_history_step_in_coordinator);
+}
+
+void PageClient::page_did_request_history_operation(u64 initiation_id, Web::HistoryOperationParameters parameters)
+{
+    client().async_request_history_operation(m_id, initiation_id, move(parameters));
 }
 
 void PageClient::did_complete_finalize_same_document_navigation(u64 operation_id, bool committed, int entry_step, int target_step, u64 script_history_length, u64 script_history_index)

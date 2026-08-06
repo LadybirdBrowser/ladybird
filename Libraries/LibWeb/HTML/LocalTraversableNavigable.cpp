@@ -2662,6 +2662,7 @@ void LocalTraversableNavigable::traverse_the_history_by_delta(int delta, GC::Ptr
         TraverseByDeltaHistoryOperationParameters {
             .traversable_id = id(),
             .delta = delta,
+            .initiator_to_check = initiator_to_check ? Optional<CrossProcessId> { initiator_to_check->id() } : OptionalNone {},
             .user_involvement = user_involvement,
         },
         {

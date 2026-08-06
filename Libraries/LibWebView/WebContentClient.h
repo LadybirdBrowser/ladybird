@@ -30,6 +30,7 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/ActivateTab.h>
+#include <LibWeb/HTML/ApplyHistoryStep.h>
 #include <LibWeb/HTML/CrossProcessId.h>
 #include <LibWeb/HTML/FileFilter.h>
 #include <LibWeb/HTML/HistoryHandlingBehavior.h>
@@ -269,7 +270,7 @@ private:
     virtual void did_set_session_history_entry_document_state_reload_pending(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_api_key, bool reload_pending) override;
     virtual void did_append_nested_history(u64 page_id, Web::HTML::CrossProcessId parent_navigable_id, Web::HTML::SessionHistoryNestedHistoryDescriptor nested_history) override;
     virtual void did_remove_nested_history(u64 page_id, Web::HTML::CrossProcessId parent_navigable_id, Web::HTML::CrossProcessId child_navigable_id) override;
-    virtual void did_request_finalize_same_document_navigation(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SameDocumentNavigationEntry target_entry, bool replaces_current_entry, Web::HTML::HistoryHandlingBehavior history_handling, Web::HTML::UserNavigationInvolvement user_involvement) override;
+    virtual void did_request_finalize_same_document_navigation(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SameDocumentNavigationEntry target_entry, bool replaces_current_entry, Web::HTML::HistoryHandlingBehavior history_handling, Web::HTML::UserNavigationInvolvement user_involvement, bool applies_history_step_in_coordinator) override;
     virtual void did_finalize_cross_document_navigation(u64 page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor history_entry, Optional<Utf16String> entry_to_replace_navigation_api_key) override;
     virtual void did_set_current_session_history_step(u64 page_id, i32 current_session_history_step) override;
     virtual Messages::WebContentClient::DidRequestUiProcessSessionHistoryForTestingResponse did_request_ui_process_session_history_for_testing(u64 page_id) override;
@@ -277,8 +278,14 @@ private:
     virtual Messages::WebContentClient::DidUpdateSessionHistoryAndRequestUiProcessSessionHistoryForTestingResponse did_update_session_history_and_request_ui_process_session_history_for_testing(u64 page_id, Vector<Web::HTML::SessionHistoryEntryDescriptor>, Vector<i32>, size_t current_used_step_index) override;
     virtual void did_set_top_level_session_history(u64 page_id, bool accepted, Vector<Web::HTML::SessionHistoryEntryDescriptor>, Vector<i32> used_steps, size_t current_used_step_index) override;
     virtual void did_traverse_the_history_to_step(u64 page_id, i32 step, bool step_was_available, Web::HTML::HistoryStepResult) override;
-    virtual void did_check_if_traverse_history_step_is_canceled(
-        u64 page_id, u64 request_id, i32 step, Web::HTML::HistoryStepResult) override;
+    virtual void did_check_if_traverse_history_step_is_canceled(u64 page_id, u64 request_id, i32 step, Web::HTML::HistoryStepResult) override;
+    virtual void request_history_operation(u64 page_id, u64 initiation_id, Web::HistoryOperationParameters) override;
+    virtual void history_operation_ready(u64 page_id, u64 operation_id, bool proceed, Optional<i32> step_override, Web::HTML::HistoryStepResult abandon_result) override;
+    virtual void initiator_sandboxing_check_result(u64 page_id, u64 operation_id, bool allowed) override;
+    virtual void history_step_unload_cancelation_result(u64 page_id, u64 operation_id, Web::HTML::HistoryStepResult result) override;
+    virtual void changing_navigable_history_job_ready(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition) override;
+    virtual void changing_navigable_continuation_applied(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id) override;
+    virtual void nonchanging_navigable_history_state_updated(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id) override;
     virtual void did_reset_session_history_for_testing(u64 page_id) override;
     virtual Messages::WebContentClient::StartWorkerAgentResponse start_worker_agent(u64 page_id, Web::HTML::WorkerAgentStartRequest request) override;
     virtual void close_worker_agent(u64 page_id, Web::HTML::WorkerAgentId agent_id, Web::HTML::WorkerAgentOwnerToken owner_token) override;

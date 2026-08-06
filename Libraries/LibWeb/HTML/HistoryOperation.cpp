@@ -64,6 +64,7 @@ ErrorOr<void> IPC::encode(Encoder& encoder, Web::TraverseByDeltaHistoryOperation
 {
     TRY(encoder.encode(parameters.traversable_id));
     TRY(encoder.encode(parameters.delta));
+    TRY(encoder.encode(parameters.initiator_to_check));
     TRY(encoder.encode(parameters.user_involvement));
     return {};
 }
@@ -74,6 +75,7 @@ ErrorOr<Web::TraverseByDeltaHistoryOperationParameters> IPC::decode(Decoder& dec
     return Web::TraverseByDeltaHistoryOperationParameters {
         .traversable_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
         .delta = TRY(decoder.decode<i32>()),
+        .initiator_to_check = TRY(decoder.decode<Optional<Web::HTML::CrossProcessId>>()),
         .user_involvement = TRY(decoder.decode<Web::HTML::UserNavigationInvolvement>()),
     };
 }
