@@ -134,3 +134,17 @@ ErrorOr<Web::ResumeTraverseHistoryOperationParameters> IPC::decode(Decoder& deco
         .user_involvement = TRY(decoder.decode<Web::HTML::UserNavigationInvolvement>()),
     };
 }
+
+template<>
+ErrorOr<void> IPC::encode(Encoder& encoder, Web::NavigableCreationHistoryOperationParameters const& parameters)
+{
+    return encoder.encode(parameters.navigable_id);
+}
+
+template<>
+ErrorOr<Web::NavigableCreationHistoryOperationParameters> IPC::decode(Decoder& decoder)
+{
+    return Web::NavigableCreationHistoryOperationParameters {
+        .navigable_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
+    };
+}
