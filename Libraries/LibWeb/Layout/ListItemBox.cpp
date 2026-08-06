@@ -6,7 +6,6 @@
  */
 
 #include <LibWeb/Layout/ListItemBox.h>
-#include <LibWeb/Layout/ListItemMarkerBox.h>
 #include <LibWeb/Painting/InlinePaintable.h>
 
 namespace Web::Layout {
@@ -17,11 +16,6 @@ ListItemBox::ListItemBox(DOM::Document& document, DOM::Element* element, Nonnull
 }
 
 ListItemBox::~ListItemBox() = default;
-
-void ListItemBox::set_marker(ListItemMarkerBox* marker)
-{
-    m_marker = marker;
-}
 
 RefPtr<Painting::Paintable> ListItemBox::create_paintable() const
 {

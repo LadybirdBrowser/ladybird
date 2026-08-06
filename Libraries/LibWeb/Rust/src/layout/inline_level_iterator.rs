@@ -527,7 +527,7 @@ impl<'iterator, 'context, 'pass> InlineLevelIteratorGenerator<'iterator, 'contex
             self.skip_to_next();
             return self.generate_next_item();
         }
-        if facts.is_list_item_marker_box() && facts.marker_list_style_position() != list_style_position::INSIDE {
+        if facts.is_list_item_marker_box() && !facts.list_marker_is_inside() {
             let parent = self.context().parent_node(node);
             if parent.is_invalid()
                 || !self.context().facts(parent).is_list_item_box()

@@ -49,8 +49,6 @@
 #include <LibWeb/Layout/GridLayoutData.h>
 #include <LibWeb/Layout/InlineNode.h>
 #include <LibWeb/Layout/LayoutRustBridge.h>
-#include <LibWeb/Layout/ListItemBox.h>
-#include <LibWeb/Layout/ListItemMarkerBox.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Layout/SVGClipBox.h>
@@ -1109,14 +1107,6 @@ RustFFI::FfiLayoutFcCallbacks LayoutRustBridge::formatting_context_callbacks()
                     }
                 }
             }
-            return facts; },
-        .build_list_item_facts = [](void*, void* node) {
-            RustFFI::FfiListItemFacts facts {};
-            auto const& layout_node = *static_cast<Node const*>(node);
-            if (auto const* list_item_box = as_if<ListItemBox>(layout_node))
-                facts.marker = Node::slot_id(list_item_box->marker());
-            if (auto const* marker = as_if<ListItemMarkerBox>(layout_node))
-                facts.marker_list_style_position = static_cast<u8>(to_underlying(marker->list_style_position()));
             return facts; },
         .build_svg_facts = [](void*, void* node) {
             auto const* node_with_style = as_if<NodeWithStyle>(*static_cast<Node const*>(node));

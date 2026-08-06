@@ -142,6 +142,7 @@ pub enum NodeFlag {
     SavedAbsposCbDerivesFromOwnComputedValues = 1 << 20,
     SavedAbsposAlignmentDerivesFromOwnComputedValues = 1 << 21,
     ProducesLineBoxFragmentWhenEmpty = 1 << 22,
+    ListMarkerIsInside = 1 << 23,
 }
 
 #[repr(C)]
@@ -226,6 +227,11 @@ mod tests {
             NodeFlag::SavedAbsposAlignmentDerivesFromOwnComputedValues as u32,
             1 << 21
         );
+    }
+
+    #[test]
+    fn list_marker_position_uses_expected_flag_bit() {
+        assert_eq!(NodeFlag::ListMarkerIsInside as u32, 1 << 23);
     }
 
     #[test]

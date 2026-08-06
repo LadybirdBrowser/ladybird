@@ -24,26 +24,6 @@ pub struct FfiReplacedContentFacts {
     pub default_preferred_height: CssPixels,
 }
 
-/// Marker linkage and positioning, fetched lazily once per pass for list items
-/// and their marker boxes only. The marker slot id is read from the C++ WeakPtr
-/// at fetch time, so a marker detached before the pass reads as INVALID instead
-/// of tripping a stale-slot assertion.
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct FfiListItemFacts {
-    pub marker: NodeSlotId,
-    pub marker_list_style_position: u8,
-}
-
-impl Default for FfiListItemFacts {
-    fn default() -> Self {
-        Self {
-            marker: NodeSlotId::INVALID,
-            marker_list_style_position: 0,
-        }
-    }
-}
-
 pub(crate) fn node_may_have_replaced_content_facts(data: &NodeData) -> bool {
     kind_is_replaced_box(data.kind)
         || matches!(
@@ -51,10 +31,6 @@ pub(crate) fn node_may_have_replaced_content_facts(data: &NodeData) -> bool {
             NodeKind::RangeInputBox | NodeKind::TextAreaBox | NodeKind::TextInputBox
         )
         || has_flag(data, NodeFlag::IsHtmlInputElement)
-}
-
-pub(crate) fn node_may_have_list_item_facts(data: &NodeData) -> bool {
-    matches!(data.kind, NodeKind::ListItemBox | NodeKind::ListItemMarkerBox)
 }
 
 pub(crate) fn node_is_out_of_flow(data: &NodeData, style: Option<ComputedValuesView<'_>>) -> bool {

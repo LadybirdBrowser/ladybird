@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+
+    ul {
+        margin: 0;
+    }
+
+    .inside {
+        list-style-position: inside;
+    }
+
+    .without-marker {
+        list-style-type: none;
+    }
+
+    .nested {
+        display: list-item;
+        list-style: disc outside;
+    }
+</style>
+<ul>
+    <li class="inside"><div>block content</div></li>
+    <li class="without-marker"><div class="nested">nested list item</div></li>
+</ul>

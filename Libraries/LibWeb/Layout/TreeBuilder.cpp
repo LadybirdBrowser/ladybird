@@ -307,13 +307,8 @@ void LayoutTreeBuildBridge::create_first_letter_wrapper(DOM::Element& element, R
 
 NonnullRefPtr<ListItemMarkerBox> LayoutTreeBuildBridge::create_list_item_marker(ListItemBox& list_box, NonnullRefPtr<CSS::ComputedValues const> marker_style)
 {
-    auto list_item_marker = make_ref_counted<ListItemMarkerBox>(
-        list_box.document(),
-        list_box.computed_values().list_style_type(),
-        list_box.computed_values().list_style_position(),
-        move(marker_style));
-    list_box.set_marker(list_item_marker);
-    return list_item_marker;
+    auto is_inside = list_box.computed_values().list_style_position() == CSS::ListStylePosition::Inside;
+    return make_ref_counted<ListItemMarkerBox>(list_box.document(), is_inside, move(marker_style));
 }
 
 // https://drafts.csswg.org/css-lists-3/#text-markers
@@ -323,7 +318,7 @@ NonnullRefPtr<ListItemMarkerBox> LayoutTreeBuildBridge::create_list_item_marker(
 // <counter-style>, prefixed by the prefix of the <counter-style>, and followed by the suffix of the
 // <counter-style>. If the specified <counter-style> does not exist, decimal is assumed.
 // <string>: The element's marker string is the specified <string>."
-static CSS::ContentData resolve_normal_marker_content(DOM::AbstractElement& element_reference, ListItemMarkerBox const& marker)
+static CSS::ContentData resolve_normal_marker_content(DOM::AbstractElement& element_reference, ListItemBox const& list_box, ListItemMarkerBox const& marker)
 {
     CSS::ContentData content;
     content.type = CSS::ContentData::Type::List;
@@ -344,7 +339,7 @@ static CSS::ContentData resolve_normal_marker_content(DOM::AbstractElement& elem
         return Utf16String::formatted("{}. ", counter_representation);
     };
 
-    auto marker_string = marker.list_style_type().visit(
+    auto marker_string = list_box.computed_values().list_style_type().visit(
         [](Empty const&) -> Utf16String { VERIFY_NOT_REACHED(); },
         [&](RefPtr<CSS::CounterStyle const> const& counter_style) -> Utf16String {
             return generate_from_counter_style(counter_style);
@@ -371,7 +366,7 @@ NonnullRefPtr<ListItemMarkerBox> LayoutTreeBuildBridge::create_and_attach_list_i
     list_box.prepend_child(*list_item_marker);
 
     DOM::AbstractElement element_reference { element, originating_pseudo };
-    auto content = resolve_normal_marker_content(element_reference, *list_item_marker);
+    auto content = resolve_normal_marker_content(element_reference, list_box, *list_item_marker);
     if (auto const* text = content.data.first().get_pointer<Utf16String>()) {
         auto text_node = make_ref_counted<GeneratedTextNode>(list_box.document(), *text);
         text_node->set_generated_for(CSS::PseudoElement::Marker, element);
@@ -538,7 +533,7 @@ RustFFI::FfiPseudoTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_pseudo_tr
                     // "If the list item is a block container: the marker box is a block container
                     // and is placed outside the principal block box"
                     auto marker = create_list_item_marker(*frame.originating_list_box, NonnullRefPtr { *frame.computed_values });
-                    if (marker->list_style_position() == CSS::ListStylePosition::Outside)
+                    if (frame.originating_list_box->computed_values().list_style_position() == CSS::ListStylePosition::Outside)
                         frame.originating_list_box->prepend_child(*marker);
                     frame.layout_node = move(marker);
                     break;
@@ -593,7 +588,8 @@ RustFFI::FfiPseudoTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_pseudo_tr
             DOM::AbstractElement element_reference { *static_cast<DOM::Element*>(element_pointer), css_pseudo_element(ffi_pseudo) };
             if (auto* marker = as_if<ListItemMarkerBox>(*frame.layout_node);
                 marker && frame.computed_values->computed_content().type == CSS::ComputedContentData::Type::Normal) {
-                frame.resolved_content = resolve_normal_marker_content(element_reference, *marker);
+                VERIFY(frame.originating_list_box);
+                frame.resolved_content = resolve_normal_marker_content(element_reference, *frame.originating_list_box, *marker);
                 frame.layout_node->set_content(frame.resolved_content);
                 return {
                     .final_quote_nesting_level = initial_quote_nesting_level,
