@@ -103,6 +103,7 @@ public:
         GC::Ptr<OnApplyHistoryStepComplete> on_complete;
     };
     void request_history_operation(HistoryOperationParameters, HistoryOperationState = {});
+    void request_synchronous_navigation_history_operation(GC::Ref<LocalNavigable> target_navigable, HistoryOperationParameters, HistoryOperationState = {});
 
     void finalize_same_document_navigation(GC::Ref<LocalNavigable>, NonnullRefPtr<SessionHistoryEntry>, RefPtr<SessionHistoryEntry> entry_to_replace, HistoryHandlingBehavior, UserNavigationInvolvement);
     void did_complete_finalize_same_document_navigation(u64 operation_id, bool committed, int entry_step, int target_step, HistoryObjectLengthAndIndex);
@@ -225,6 +226,7 @@ private:
     void check_if_unloading_is_canceled(Vector<GC::Root<LocalNavigable>> navigables_that_need_before_unload, GC::Ptr<LocalTraversableNavigable> traversable, Optional<int> target_step, Optional<UserNavigationInvolvement> user_involvement_for_navigate_events, GC::Ref<GC::Function<void(CheckIfUnloadingIsCanceledResult)>> callback);
 
     void complete_history_initiation(u64 initiation_id, HistoryStepResult, NonnullRefPtr<Core::Promise<Empty>> queue_signal);
+    GC::Ref<SessionHistoryTraversalSteps> create_history_operation_steps(HistoryOperationParameters, HistoryOperationState);
 
     Vector<NonnullRefPtr<SessionHistoryEntry>> get_session_history_entries_for_the_navigation_api(GC::Ref<LocalNavigable>, int);
     Vector<NonnullRefPtr<SessionHistoryEntry>> get_session_history_entries_for_the_navigation_api(CrossProcessId, int);
@@ -274,12 +276,10 @@ private:
         GC::Ref<LocalNavigable> target_navigable;
         NonnullRefPtr<SessionHistoryEntry> target_entry;
         RefPtr<SessionHistoryEntry> entry_to_replace;
-        HistoryHandlingBehavior history_handling;
-        UserNavigationInvolvement user_involvement;
         Optional<int> provisional_claimed_step;
-        RefPtr<Core::Promise<Empty>> signal;
+        GC::Ptr<OnHistoryOperationReady> ready;
     };
-    void begin_same_document_navigation_finalization(GC::Ref<LocalNavigable>, NonnullRefPtr<SessionHistoryEntry>, RefPtr<SessionHistoryEntry> entry_to_replace, HistoryHandlingBehavior, UserNavigationInvolvement, RefPtr<Core::Promise<Empty>> signal);
+    void begin_same_document_navigation_finalization(GC::Ref<LocalNavigable>, NonnullRefPtr<SessionHistoryEntry>, RefPtr<SessionHistoryEntry> entry_to_replace, FinalizeSameDocumentNavigationHistoryOperationParameters const&, GC::Ptr<OnHistoryOperationReady> ready);
     void set_history_object_length_and_index(HistoryObjectLengthAndIndex);
     u64 m_next_same_document_navigation_operation_id { 1 };
     HashMap<u64, PendingSameDocumentNavigation> m_pending_same_document_navigations;

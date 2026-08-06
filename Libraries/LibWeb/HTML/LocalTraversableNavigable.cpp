@@ -71,8 +71,10 @@ void LocalTraversableNavigable::visit_edges(Cell::Visitor& visitor)
         visitor.visit(initiation.value.on_apply_complete);
         visitor.visit(initiation.value.on_complete);
     }
-    for (auto& pending_navigation : m_pending_same_document_navigations)
+    for (auto& pending_navigation : m_pending_same_document_navigations) {
         visitor.visit(pending_navigation.value.target_navigable);
+        visitor.visit(pending_navigation.value.ready);
+    }
 }
 
 static OrderedHashTable<LocalTraversableNavigable*>& user_agent_top_level_traversable_set()
@@ -2468,6 +2470,16 @@ void LocalTraversableNavigable::complete_history_initiation(u64 initiation_id, H
 
 void LocalTraversableNavigable::request_history_operation(HistoryOperationParameters parameters, HistoryOperationState state)
 {
+    append_session_history_traversal_steps(create_history_operation_steps(move(parameters), move(state)));
+}
+
+void LocalTraversableNavigable::request_synchronous_navigation_history_operation(GC::Ref<LocalNavigable> target_navigable, HistoryOperationParameters parameters, HistoryOperationState state)
+{
+    append_session_history_synchronous_navigation_steps(target_navigable, create_history_operation_steps(move(parameters), move(state)));
+}
+
+GC::Ref<SessionHistoryTraversalSteps> LocalTraversableNavigable::create_history_operation_steps(HistoryOperationParameters parameters, HistoryOperationState state)
+{
     if (parameters.has<ReloadHistoryOperationParameters>()) {
         VERIFY(!state.on_apply_complete);
         state.on_apply_complete = GC::create_function(heap(), [this](HistoryStepResult result) {
@@ -2487,7 +2499,7 @@ void LocalTraversableNavigable::request_history_operation(HistoryOperationParame
     auto initiation_id = m_next_history_initiation_id++;
     m_history_operation_states.set(initiation_id, move(state));
 
-    append_session_history_traversal_steps(GC::create_function(heap(), [this, parameters = move(parameters), initiation_id](NonnullRefPtr<Core::Promise<Empty>> queue_signal) mutable {
+    return GC::create_function(heap(), [this, parameters = move(parameters), initiation_id](NonnullRefPtr<Core::Promise<Empty>> queue_signal) mutable {
         auto ready = GC::create_function(heap(), [this, parameters = move(parameters), initiation_id, queue_signal](bool proceed, Optional<i32> step_override, HistoryStepResult abandon_result) mutable {
             if (!proceed) {
                 complete_history_initiation(initiation_id, abandon_result, queue_signal);
@@ -2550,6 +2562,10 @@ void LocalTraversableNavigable::request_history_operation(HistoryOperationParame
                 [&](NavigableDestructionHistoryOperationParameters const&) {
                     VERIFY(!step_override.has_value());
                     update_for_navigable_creation_or_destruction(on_apply_complete);
+                },
+                [&](FinalizeSameDocumentNavigationHistoryOperationParameters const& parameters) {
+                    VERIFY(step_override.has_value());
+                    apply_the_push_or_replace_history_step(*step_override, parameters.history_handling, parameters.user_involvement, SynchronousNavigation::Yes, nullptr, nullptr, {}, on_apply_complete);
                 });
         });
 
@@ -2560,7 +2576,7 @@ void LocalTraversableNavigable::request_history_operation(HistoryOperationParame
             return;
         }
         ready->function()(true, {}, HistoryStepResult::Applied);
-    }));
+    });
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#traverse-the-history-by-a-delta
@@ -2782,22 +2798,43 @@ void LocalTraversableNavigable::finalize_same_document_navigation(GC::Ref<LocalN
     if (target_navigable->has_been_destroyed())
         return;
 
+    auto parameters = FinalizeSameDocumentNavigationHistoryOperationParameters {
+        .navigable_id = target_navigable->id(),
+        .target_entry = create_same_document_navigation_entry(target_entry),
+        .replaces_current_entry = entry_to_replace != nullptr,
+        .history_handling = history_handling,
+        .user_involvement = user_involvement,
+    };
+
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#session-history-traversal-parallel-queue-sync-nav-steps
     // AD-HOC: Browser engines commit same-document navigations synchronously when no traversal state is active. Keep
     //         the spec's queued synchronous-navigation steps as the fallback for reentrant traversal work and child
     //         navigables whose nested history is not ready yet.
     if (m_apply_history_step_state || m_paused_apply_history_step_state || !target_navigable->has_session_history_entry_and_ready_for_navigation()) {
-        append_session_history_synchronous_navigation_steps(target_navigable, GC::create_function(heap(), [this, target_navigable, target_entry, entry_to_replace, history_handling, user_involvement](NonnullRefPtr<Core::Promise<Empty>> signal) {
+        auto pre_steps = GC::create_function(heap(), [this, target_navigable, target_entry, entry_to_replace, parameters](GC::Ref<OnHistoryOperationReady> ready) {
             if (target_navigable->has_been_destroyed()) {
-                signal->resolve({});
+                ready->function()(false, {}, HistoryStepResult::Applied);
                 return;
             }
-            begin_same_document_navigation_finalization(target_navigable, target_entry, entry_to_replace, history_handling, user_involvement, signal);
-        }));
+            begin_same_document_navigation_finalization(target_navigable, target_entry, entry_to_replace, parameters, ready);
+        });
+        request_synchronous_navigation_history_operation(
+            target_navigable,
+            move(parameters),
+            {
+                .pending_document = nullptr,
+                .expected_ongoing_navigation_navigable = nullptr,
+                .expected_ongoing_navigation_id = {},
+                .source_snapshot_params = nullptr,
+                .initiator_to_check = nullptr,
+                .pre_steps = pre_steps,
+                .on_apply_complete = nullptr,
+                .on_complete = nullptr,
+            });
         return;
     }
 
-    begin_same_document_navigation_finalization(target_navigable, target_entry, entry_to_replace, history_handling, user_involvement, nullptr);
+    begin_same_document_navigation_finalization(target_navigable, target_entry, entry_to_replace, parameters, nullptr);
 }
 
 void LocalTraversableNavigable::set_history_object_length_and_index(HistoryObjectLengthAndIndex history_object_length_and_index)
@@ -2816,9 +2853,9 @@ void LocalTraversableNavigable::set_history_object_length_and_index(HistoryObjec
     }
 }
 
-void LocalTraversableNavigable::begin_same_document_navigation_finalization(GC::Ref<LocalNavigable> target_navigable, NonnullRefPtr<SessionHistoryEntry> target_entry, RefPtr<SessionHistoryEntry> entry_to_replace, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, RefPtr<Core::Promise<Empty>> signal)
+void LocalTraversableNavigable::begin_same_document_navigation_finalization(GC::Ref<LocalNavigable> target_navigable, NonnullRefPtr<SessionHistoryEntry> target_entry, RefPtr<SessionHistoryEntry> entry_to_replace, FinalizeSameDocumentNavigationHistoryOperationParameters const& parameters, GC::Ptr<OnHistoryOperationReady> ready)
 {
-    auto is_queued = signal != nullptr;
+    auto is_queued = ready != nullptr;
     auto provisional_target_step = current_session_history_step();
     Optional<int> provisional_claimed_step;
     if (!entry_to_replace) {
@@ -2836,10 +2873,8 @@ void LocalTraversableNavigable::begin_same_document_navigation_finalization(GC::
         .target_navigable = target_navigable,
         .target_entry = target_entry,
         .entry_to_replace = entry_to_replace,
-        .history_handling = history_handling,
-        .user_involvement = user_involvement,
         .provisional_claimed_step = provisional_claimed_step,
-        .signal = move(signal),
+        .ready = ready,
     };
 
     if (!is_queued) {
@@ -2876,11 +2911,11 @@ void LocalTraversableNavigable::begin_same_document_navigation_finalization(GC::
 
     page().client().page_did_request_finalize_same_document_navigation(
         operation_id,
-        target_navigable->id(),
-        create_same_document_navigation_entry(target_entry),
-        entry_to_replace != nullptr,
-        history_handling,
-        user_involvement);
+        parameters.navigable_id,
+        parameters.target_entry,
+        parameters.replaces_current_entry,
+        parameters.history_handling,
+        parameters.user_involvement);
 }
 
 void LocalTraversableNavigable::did_complete_finalize_same_document_navigation(u64 operation_id, bool committed, int entry_step, int target_step, HistoryObjectLengthAndIndex history_object_length_and_index)
@@ -2893,8 +2928,8 @@ void LocalTraversableNavigable::did_complete_finalize_same_document_navigation(u
     auto complete = [&] {
         if (pending_navigation->provisional_claimed_step.has_value())
             retire_claimed_session_history_step(*pending_navigation->provisional_claimed_step);
-        if (pending_navigation->signal)
-            pending_navigation->signal->resolve({});
+        if (pending_navigation->ready)
+            pending_navigation->ready->function()(false, {}, HistoryStepResult::Applied);
     };
 
     if (!committed || pending_navigation->target_navigable->has_been_destroyed()) {
@@ -2912,19 +2947,15 @@ void LocalTraversableNavigable::did_complete_finalize_same_document_navigation(u
         return;
     }
 
-    if (pending_navigation->signal) {
+    if (pending_navigation->ready) {
         // The UI process assigns the canonical step, which need not be the step claimed locally. Move the claim onto it
-        // so that applying the history step below retires exactly what is outstanding.
+        // so that the history operation retires exactly what is outstanding when it applies that step.
         if (pending_navigation->provisional_claimed_step.has_value() && *pending_navigation->provisional_claimed_step != target_step) {
             retire_claimed_session_history_step(*pending_navigation->provisional_claimed_step);
             claim_session_history_step(target_step);
         }
 
-        auto signal = pending_navigation->signal;
-        apply_the_push_or_replace_history_step(target_step, pending_navigation->history_handling, pending_navigation->user_involvement, SynchronousNavigation::Yes, nullptr, nullptr, {},
-            GC::create_function(heap(), [signal](HistoryStepResult) {
-                signal->resolve({});
-            }));
+        pending_navigation->ready->function()(true, target_step, HistoryStepResult::Applied);
         return;
     }
 
