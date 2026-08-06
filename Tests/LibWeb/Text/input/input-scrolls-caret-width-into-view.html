@@ -26,6 +26,6 @@ test(() => {
     rtlInput.focus();
     internals.sendText(rtlInput, "x");
     const rtlInnerText = internals.getShadowRoot(rtlInput).querySelector("div > div");
-    println(`RTL scrolls to caret: ${rtlInnerText.scrollLeft > 0}`);
+    println(`RTL caret needs no scroll: ${rtlInnerText.scrollLeft === 0}`);
 });
 </script>

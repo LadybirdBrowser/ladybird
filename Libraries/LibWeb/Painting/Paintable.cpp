@@ -1125,17 +1125,43 @@ Optional<CSSPixelRect> Paintable::absolute_containing_line_box_rect() const
     return lines[*m_containing_line_box_index].rect.translated(containing_block->absolute_position());
 }
 
-CSSPixelPoint Paintable::clamp_scroll_offset(CSSPixelPoint offset) const
+CSSPixelPoint Paintable::minimum_scroll_offset() const
 {
     auto scrollable_overflow_rect = this->scrollable_overflow_rect();
     if (!scrollable_overflow_rect.has_value())
+        return {};
+
+    auto scrollport_rect = absolute_padding_box_rect();
+    return {
+        min(scrollable_overflow_rect->left() - scrollport_rect.left(), CSSPixels(0)),
+        min(scrollable_overflow_rect->top() - scrollport_rect.top(), CSSPixels(0)),
+    };
+}
+
+CSSPixelPoint Paintable::maximum_scroll_offset() const
+{
+    auto scrollable_overflow_rect = this->scrollable_overflow_rect();
+    if (!scrollable_overflow_rect.has_value())
+        return {};
+
+    auto scrollport_rect = absolute_padding_box_rect();
+    return {
+        max(scrollable_overflow_rect->right() - scrollport_rect.right(), CSSPixels(0)),
+        max(scrollable_overflow_rect->bottom() - scrollport_rect.bottom(), CSSPixels(0)),
+    };
+}
+
+CSSPixelPoint Paintable::clamp_scroll_offset(CSSPixelPoint offset) const
+{
+    if (!scrollable_overflow_rect().has_value())
         return offset;
 
-    auto padding_rect = absolute_padding_box_rect();
-    auto max_x_offset = max(scrollable_overflow_rect->width() - padding_rect.width(), 0);
-    auto max_y_offset = max(scrollable_overflow_rect->height() - padding_rect.height(), 0);
-
-    return { clamp(offset.x(), 0, max_x_offset), clamp(offset.y(), 0, max_y_offset) };
+    auto minimum_offset = minimum_scroll_offset();
+    auto maximum_offset = maximum_scroll_offset();
+    return {
+        clamp(offset.x(), minimum_offset.x(), maximum_offset.x()),
+        clamp(offset.y(), minimum_offset.y(), maximum_offset.y()),
+    };
 }
 
 Paintable::ScrollHandled Paintable::set_scroll_offset(CSSPixelPoint offset)
@@ -1145,8 +1171,7 @@ Paintable::ScrollHandled Paintable::set_scroll_offset(CSSPixelPoint offset)
 
     offset = clamp_scroll_offset(offset);
 
-    // FIXME: If there is horizontal and vertical scroll ignore only part of the new offset
-    if (offset.y() < 0 || scroll_offset() == offset)
+    if (scroll_offset() == offset)
         return ScrollHandled::No;
 
     if (is_viewport_paintable()) {
