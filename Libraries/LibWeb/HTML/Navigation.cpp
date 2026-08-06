@@ -715,7 +715,7 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::perform_a_navigation_api_trave
             .expected_ongoing_navigation_id = {},
             .source_snapshot_params = source_snapshot_params,
             .initiator_to_check = navigable,
-            .pre_steps = GC::create_function(heap(), [key, api_method_tracker, navigable, traversable, this](GC::Ref<LocalTraversableNavigable::OnHistoryOperationReady> ready) {
+            .pre_steps = GC::create_function(heap(), [key, api_method_tracker, navigable, traversable, this](u64, GC::Ref<LocalTraversableNavigable::OnHistoryOperationReady> ready) {
                 auto continue_with_target_step = GC::create_function(heap(), [key, api_method_tracker, navigable, ready, this](Optional<int> target_step) {
                     auto reject_finished_promise_with_invalid_state_error = [&] {
                         // 1. Queue a global task on the navigation and traversal task source given navigation's relevant global object
@@ -1354,13 +1354,13 @@ bool Navigation::inner_navigate_event_firing_algorithm(
                     .target_step = target_step,
                     .user_involvement = user_involvement_for_resume,
                 },
-                 {
-                     .pending_document = nullptr,
-                     .expected_ongoing_navigation_navigable = nullptr,
-                     .expected_ongoing_navigation_id = {},
-                     .source_snapshot_params = nullptr,
-                     .initiator_to_check = nullptr,
-                    .pre_steps = GC::create_function(heap(), [this, event](GC::Ref<LocalTraversableNavigable::OnHistoryOperationReady> ready) {
+                {
+                    .pending_document = nullptr,
+                    .expected_ongoing_navigation_navigable = nullptr,
+                    .expected_ongoing_navigation_id = {},
+                    .source_snapshot_params = nullptr,
+                    .initiator_to_check = nullptr,
+                    .pre_steps = GC::create_function(heap(), [this, event](u64, GC::Ref<LocalTraversableNavigable::OnHistoryOperationReady> ready) {
                         // NB: This appended step can run after a later navigation has aborted the intercepted
                         //     traverse. In that case, the aborted traverse must not be resumed.
                         if (event->abort_controller()->signal()->aborted() || event != m_ongoing_navigate_event) {

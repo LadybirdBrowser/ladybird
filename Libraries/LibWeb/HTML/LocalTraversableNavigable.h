@@ -85,20 +85,21 @@ public:
     void apply_the_reload_history_step(u64 history_initiation_id, UserNavigationInvolvement, GC::Ref<GC::Function<void(HistoryStepResult)>> on_complete);
     virtual void start_apply_history_step_operation(u64 operation_id, u64 history_initiation_id, LocalNavigable::NavigationAPIAbortBehavior) override;
     virtual void complete_apply_history_step_operation(u64 operation_id) override;
-    virtual void run_initiator_sandboxing_check_job(GC::Ref<LocalNavigable> initiator_to_check, GC::Ref<SourceSnapshotParams>, Vector<CrossProcessId>, GC::Ref<OnInitiatorSandboxingCheckComplete>) override;
+    virtual void run_initiator_sandboxing_check_job(u64 history_initiation_id, CrossProcessId initiator_to_check, Vector<CrossProcessId>, GC::Ref<OnInitiatorSandboxingCheckComplete>) override;
     virtual void run_history_step_unload_cancelation_job(int target_step, Vector<CrossProcessId>, UserNavigationInvolvement, GC::Ref<OnHistoryStepUnloadCancelationComplete>) override;
     virtual void run_changing_navigable_history_step_job(u64 operation_id, ChangingNavigableHistoryStepJob, GC::Ref<OnChangingNavigableHistoryStepJobComplete>) override;
     virtual void apply_changing_navigable_history_step_continuation(u64 operation_id, ApplyChangingNavigableHistoryStepContinuation, GC::Ref<GC::Function<void()>> on_complete) override;
     virtual void update_nonchanging_navigable_history_step_state(CrossProcessId navigable_id, HistoryObjectLengthAndIndex, GC::Ref<GC::Function<void()>> on_complete) override;
 
     using OnHistoryOperationReady = GC::Function<void(bool proceed, Optional<i32> step_override, HistoryStepResult abandon_result)>;
+    using OnHistoryOperationPreSteps = GC::Function<void(u64 history_initiation_id, GC::Ref<OnHistoryOperationReady>)>;
     struct HistoryOperationState {
         GC::Ptr<DOM::Document> pending_document;
         GC::Ptr<LocalNavigable> expected_ongoing_navigation_navigable;
         Optional<Utf16String> expected_ongoing_navigation_id;
         GC::Ptr<SourceSnapshotParams> source_snapshot_params;
         GC::Ptr<LocalNavigable> initiator_to_check;
-        GC::Ptr<GC::Function<void(GC::Ref<OnHistoryOperationReady>)>> pre_steps;
+        GC::Ptr<OnHistoryOperationPreSteps> pre_steps;
         GC::Ptr<OnApplyHistoryStepComplete> on_apply_complete;
         GC::Ptr<OnApplyHistoryStepComplete> on_complete;
     };
@@ -211,6 +212,7 @@ private:
 
     using OnHistoryStepPrechecksComplete = GC::Function<void(HistoryStepResult, int target_step, LocalNavigable::NavigationAPIAbortBehavior)>;
     void run_the_history_step_prechecks(
+        u64 history_initiation_id,
         int step,
         bool check_for_cancelation,
         GC::Ptr<SourceSnapshotParams>,
@@ -219,6 +221,14 @@ private:
         Optional<Bindings::NavigationType> navigation_type,
         LocalNavigable::NavigationAPIAbortBehavior,
         GC::Ref<OnHistoryStepPrechecksComplete>);
+    void run_history_step_prechecks_after_sandboxing(
+        int target_step,
+        bool check_for_cancelation,
+        UserNavigationInvolvement user_involvement,
+        Optional<Bindings::NavigationType> navigation_type,
+        LocalNavigable::NavigationAPIAbortBehavior,
+        GC::Ref<OnHistoryStepPrechecksComplete>);
+    void run_initiator_sandboxing_check_job_impl(GC::Ref<LocalNavigable> initiator_to_check, GC::Ref<SourceSnapshotParams>, Vector<CrossProcessId>, GC::Ref<OnInitiatorSandboxingCheckComplete>);
 
     void check_if_unloading_is_canceled(Vector<GC::Root<LocalNavigable>> navigables_that_need_before_unload, GC::Ptr<LocalTraversableNavigable> traversable, Optional<int> target_step, Optional<UserNavigationInvolvement> user_involvement_for_navigate_events, GC::Ref<GC::Function<void(CheckIfUnloadingIsCanceledResult)>> callback);
 
