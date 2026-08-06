@@ -123,6 +123,9 @@ void EventLoop::spin_until(GC::Ref<GC::Function<bool()>> goal_condition)
 // https://html.spec.whatwg.org/multipage/webappapis.html#event-loop-processing-model
 void EventLoop::process()
 {
+    if (execution_paused())
+        return;
+
     // 1. Let oldestTask and taskStartTime be null.
     GC::Ptr<Task> oldest_task;
     [[maybe_unused]] double task_start_time = 0;
@@ -869,7 +872,7 @@ EventLoop::PauseHandle::~PauseHandle()
 // https://html.spec.whatwg.org/multipage/webappapis.html#pause
 EventLoop::PauseHandle EventLoop::pause()
 {
-    m_execution_paused = true;
+    ++m_execution_pause_depth;
 
     // 1. Let global be the current global object.
     auto& global = current_global_object();
@@ -891,7 +894,10 @@ EventLoop::PauseHandle EventLoop::pause()
 
 void EventLoop::unpause(Badge<PauseHandle>, JS::Object const& global, HighResolutionTime::DOMHighResTimeStamp time_before_pause)
 {
-    m_execution_paused = false;
+    VERIFY(m_execution_pause_depth > 0);
+    --m_execution_pause_depth;
+    if (m_execution_pause_depth == 0)
+        schedule();
 
     // FIXME: 5. Record pause duration given the duration from timeBeforePause to the current high resolution time given global.
     [[maybe_unused]] auto pause_duration = HighResolutionTime::current_high_resolution_time(global) - time_before_pause;
