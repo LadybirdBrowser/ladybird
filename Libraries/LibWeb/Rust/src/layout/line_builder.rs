@@ -638,6 +638,10 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                 text_align::MATCH_PARENT => unreachable!("match-parent must be resolved"),
                 _ => {}
             }
+        } else if excess < CssPixels::default() && containing_style.direction() == direction::RTL {
+            // An overflowing line ignores text-align and is aligned to the inline start edge.
+            // In a right-to-left container the overflow therefore extends past the line-left edge.
+            inline_offset += excess;
         }
 
         let strut_baseline = Self::baseline_for_style(containing_style, containing_style.line_height());
