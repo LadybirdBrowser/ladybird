@@ -35,6 +35,10 @@ void ThreadConfigurationActor::handle_message(Message const& message)
         if (!configuration.has_value())
             return;
 
+        if (auto value = configuration->get_bool("ignoreCaughtExceptions"sv); value.has_value())
+            m_configuration.ignore_caught_exceptions = *value;
+        if (auto value = configuration->get_bool("pauseOnExceptions"sv); value.has_value())
+            m_configuration.pause_on_exceptions = *value;
         if (auto value = configuration->get_bool("shouldPauseOnDebuggerStatement"sv); value.has_value())
             m_configuration.should_pause_on_debugger_statement = *value;
         if (auto value = configuration->get_bool("skipBreakpoints"sv); value.has_value())

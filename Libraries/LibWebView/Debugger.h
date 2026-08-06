@@ -93,6 +93,8 @@ struct DebuggerEnvironment {
 };
 
 struct DebuggerConfiguration {
+    bool ignore_caught_exceptions { true };
+    bool pause_on_exceptions { false };
     bool should_pause_on_debugger_statement { true };
     bool skip_breakpoints { false };
 };
