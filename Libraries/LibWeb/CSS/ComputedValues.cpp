@@ -455,6 +455,7 @@ static void register_style_group_field_descriptors()
 
     Vector<FfiGroupFieldDescriptor> descriptors;
     auto add = [&](size_t group_index, PropertyID property, u32 offset, u8 kind, u16 keyword, Array<u8, number_of_keywords> const* keyword_table, double required_px = 0) {
+        VERIFY((style_group_dependency_mask(property) & (1u << group_index)) != 0);
         descriptors.append({
             .group_index = static_cast<u32>(group_index),
             .property_id = static_cast<u16>(to_underlying(property)),
@@ -673,6 +674,21 @@ static void register_style_group_field_descriptors()
              PropertyID::BackgroundOrigin, PropertyID::BackgroundPositionX, PropertyID::BackgroundPositionY,
              PropertyID::BackgroundRepeat, PropertyID::BackgroundSize, PropertyID::BackgroundBlendMode })
         add(background, property, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
+
+    u32 generically_built_group_mask = 0;
+    Array<bool, number_of_longhand_properties> longhand_has_descriptor {};
+    for (auto const& descriptor : descriptors) {
+        generically_built_group_mask |= 1u << descriptor.group_index;
+        longhand_has_descriptor[descriptor.property_id - to_underlying(first_longhand_property_id)] = true;
+    }
+
+    for (auto i = to_underlying(first_longhand_property_id); i <= to_underlying(last_longhand_property_id); ++i) {
+        auto property_id = static_cast<PropertyID>(i);
+        if (property_is_logical_alias(property_id))
+            continue;
+        if ((style_group_dependency_mask(property_id) & generically_built_group_mask) != 0)
+            VERIFY(longhand_has_descriptor[i - to_underlying(first_longhand_property_id)]);
+    }
 
     rust_style_group_register_field_descriptors(descriptors.data(), descriptors.size());
 }

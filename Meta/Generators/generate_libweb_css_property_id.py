@@ -26,6 +26,69 @@ def is_legacy_alias(prop: dict) -> bool:
     return "legacy-alias-for" in prop
 
 
+STYLE_GROUP_ENUMERATORS = {
+    "alignment": "AlignmentValues",
+    "anchor": "AnchorValues",
+    "animation": "AnimationValues",
+    "background": "BackgroundValues",
+    "border": "BorderValues",
+    "box": "BoxValues",
+    "content": "ContentValues",
+    "effects": "EffectsValues",
+    "font": "FontValues",
+    "grid": "GridValues",
+    "inherited-box": "InheritedBoxValues",
+    "inherited-list": "InheritedListValues",
+    "inherited-svg": "InheritedSVGValues",
+    "inherited-table": "InheritedTableValues",
+    "inherited-text": "InheritedTextValues",
+    "inherited-ui": "InheritedUIValues",
+    "mask": "MaskValues",
+    "misc-reset": "MiscResetValues",
+    "sizing": "SizingValues",
+    "surround": "SurroundValues",
+    "svg-reset": "SVGResetValues",
+    "text-reset": "TextResetValues",
+    "transform": "TransformValues",
+}
+
+
+def style_groups_of(prop: dict) -> list:
+    groups = prop.get("style-group")
+    if groups is None:
+        return []
+    if isinstance(groups, str):
+        return [groups]
+    return groups
+
+
+def verify_style_groups(properties: dict, logical_property_groups: dict) -> None:
+    for name, value in properties.items():
+        groups = style_groups_of(value)
+        is_physical_longhand = (
+            not is_legacy_alias(value) and "longhands" not in value and "logical-alias-for" not in value
+        )
+        if is_physical_longhand:
+            if not groups:
+                print(f"Longhand property '{name}' is missing its style-group", file=sys.stderr)
+                sys.exit(1)
+            for group in groups:
+                if group not in STYLE_GROUP_ENUMERATORS:
+                    print(f"Property '{name}' has unknown style-group '{group}'", file=sys.stderr)
+                    sys.exit(1)
+        elif groups:
+            print(f"Property '{name}' must not declare a style-group", file=sys.stderr)
+            sys.exit(1)
+
+    # A logical alias inherits the style-group of its group's first physical member, so every
+    # member must agree on it.
+    for group_name, group in logical_property_groups.items():
+        member_groups = {tuple(style_groups_of(properties[member])) for member in group["physical"].values()}
+        if len(member_groups) > 1:
+            print(f"Logical property group '{group_name}' spans multiple style-groups", file=sys.stderr)
+            sys.exit(1)
+
+
 def verify_alphabetical(data: dict, path: str) -> None:
     most_recent_name = ""
     for name in data:
@@ -176,6 +239,7 @@ def write_header_file(out: TextIO, properties: dict, logical_property_groups: di
 #pragma once
 
 #include <AK/NonnullRefPtr.h>
+#include <AK/Span.h>
 #include <AK/Traits.h>
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16View.h>
@@ -187,6 +251,8 @@ def write_header_file(out: TextIO, properties: dict, logical_property_groups: di
 #include <LibWeb/Forward.h>
 
 namespace Web::CSS {{
+
+enum class StyleGroupIndex : size_t;
 
 enum class PropertyID : {property_id_underlying_type} {{
     Custom,
@@ -293,6 +359,8 @@ WEB_API bool property_requires_computation_with_cascaded_value(PropertyID);
 size_t property_maximum_value_count(PropertyID);
 
 bool property_affects_layout(PropertyID);
+u32 style_group_dependency_mask(PropertyID);
+ReadonlySpan<PropertyID> longhands_in_style_group(StyleGroupIndex);
 bool property_affects_stacking_context(PropertyID);
 bool property_affects_accumulated_visual_contexts(PropertyID);
 bool property_affects_scrollable_overflow(PropertyID);
@@ -356,6 +424,7 @@ def write_implementation_file(out: TextIO, properties: dict, logical_property_gr
     out.write("""
 #include <AK/Assertions.h>
 #include <AK/NeverDestroyed.h>
+#include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
@@ -558,6 +627,65 @@ bool property_affects_layout(PropertyID property_id)
         return true;
     default:
         return false;
+    }
+}
+
+u32 style_group_dependency_mask(PropertyID property_id)
+{
+    switch (property_id) {
+""")
+
+    dependency_mask_clusters: dict = {}
+    for name, value in properties.items():
+        if is_legacy_alias(value):
+            continue
+        groups = style_groups_of(value)
+        if not groups:
+            continue
+        if "logical-alias-for" in value and "inherited-box" not in groups:
+            # The mapping context stored in the inherited box group selects the physical
+            # longhand a logical alias follows.
+            groups = groups + ["inherited-box"]
+        expression = " | ".join(
+            f"1u << to_underlying(StyleGroupIndex::{STYLE_GROUP_ENUMERATORS[group]})" for group in groups
+        )
+        dependency_mask_clusters.setdefault(expression, []).append(name)
+
+    for expression, names in dependency_mask_clusters.items():
+        for name in names:
+            out.write(f"    case PropertyID::{title_casify(name)}:\n")
+        out.write(f"        return {expression};\n")
+
+    out.write("""    default:
+        VERIFY_NOT_REACHED();
+    }
+}
+
+ReadonlySpan<PropertyID> longhands_in_style_group(StyleGroupIndex group)
+{
+    switch (group) {
+""")
+
+    style_group_members: dict = {group: [] for group in STYLE_GROUP_ENUMERATORS}
+    for name, value in properties.items():
+        if is_legacy_alias(value) or "logical-alias-for" in value:
+            continue
+        groups = style_groups_of(value)
+        if groups:
+            style_group_members[groups[0]].append(name)
+
+    for group, enumerator in STYLE_GROUP_ENUMERATORS.items():
+        out.write(f"    case StyleGroupIndex::{enumerator}: {{\n")
+        out.write("        static constexpr Array longhands {\n")
+        for name in style_group_members[group]:
+            out.write(f"            PropertyID::{title_casify(name)},\n")
+        out.write("""        };
+        return longhands.span();
+    }
+""")
+
+    out.write("""    default:
+        VERIFY_NOT_REACHED();
     }
 }
 
@@ -1659,6 +1787,7 @@ def main():
     verify_alphabetical(properties, args.properties_json)
     verify_alphabetical(logical_property_groups, args.groups_json)
     verify_alphabetical(enums, args.enums_json)
+    verify_style_groups(properties, logical_property_groups)
 
     enum_names = list(enums.keys())
 
