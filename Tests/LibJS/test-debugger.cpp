@@ -54,6 +54,44 @@ TEST_CASE(debugger_statement_continues_without_pause_callback)
     EXPECT(!result.is_error());
 }
 
+TEST_CASE(debugger_pause_reports_the_active_stack)
+{
+    auto vm = JS::VM::create();
+    auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
+    auto& realm = *root_execution_context->realm;
+
+    auto script_or_error = JS::Script::parse(R"(
+function outer() {
+    inner();
+}
+function inner() {
+    debugger;
+}
+outer();
+)"sv,
+        realm, "stack.js"sv);
+    VERIFY(!script_or_error.is_error());
+
+    vm->enable_debugging();
+    vm->debugger()->set_pause_callback([&](JS::Debugger::PauseInfo const& pause_info) {
+        EXPECT(pause_info.stack_trace.size() >= 3);
+        EXPECT_EQ(pause_info.stack_trace[0].execution_context->executable.ptr(), pause_info.executable.ptr());
+        VERIFY(pause_info.stack_trace[0].source_range.has_value());
+        EXPECT_EQ(pause_info.stack_trace[0].source_range->start.line, 6u);
+
+        size_t script_frame_count = 0;
+        for (auto const& frame : pause_info.stack_trace) {
+            if (frame.execution_context->executable)
+                ++script_frame_count;
+        }
+        EXPECT_EQ(script_frame_count, 3u);
+        vm->debugger()->continue_execution();
+    });
+
+    auto result = vm->run(*script_or_error.value());
+    EXPECT(!result.is_error());
+}
+
 TEST_CASE(breakpoints_resolve_to_source_map_entries)
 {
     auto vm = JS::VM::create();

@@ -13,6 +13,7 @@
 #include <LibJS/Breakpoint.h>
 #include <LibJS/Export.h>
 #include <LibJS/Forward.h>
+#include <LibJS/Runtime/ExecutionContext.h>
 #include <LibJS/SourceRange.h>
 
 namespace JS {
@@ -32,6 +33,7 @@ public:
         GC::Ref<Bytecode::Executable> executable;
         u32 bytecode_offset { 0 };
         Optional<SourceRange> source_range;
+        Vector<StackTraceElement> stack_trace;
         PauseReason reason { PauseReason::Breakpoint };
     };
 

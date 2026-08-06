@@ -111,6 +111,26 @@ void ThreadActor::handle_message(Message const& message)
         return;
     }
 
+    if (message.type == "frames"sv) {
+        auto start = message.data.get_integer<size_t>("start"sv).value_or(0);
+        auto count = message.data.get_integer<size_t>("count"sv);
+        start = min(start, m_pause_actors.size());
+        auto end = count.has_value()
+            ? start + min(*count, m_pause_actors.size() - start)
+            : m_pause_actors.size();
+
+        JsonArray frames;
+        for (auto index = start; index < end; ++index) {
+            if (auto frame = m_pause_actors[index].strong_ref())
+                frames.must_append(frame->serialize_frame());
+        }
+
+        JsonObject response;
+        response.set("frames"sv, move(frames));
+        send_response(message, move(response));
+        return;
+    }
+
     send_unrecognized_packet_type_error(message);
 }
 
@@ -157,11 +177,17 @@ void ThreadActor::did_pause(WebView::DebuggerPause pause)
         return;
     }
 
-    auto frame = pause.frames.take_first();
-    auto& source_actor = source_actor_for(frame.location.source);
-    auto& frame_actor = devtools().register_actor<DebuggerFrameActor>(make_weak_ptr<ThreadActor>(), move(frame), source_actor.name());
-    add_child_actor(frame_actor);
-    m_pause_actors.append(frame_actor);
+    DebuggerFrameActor* youngest_frame_actor = nullptr;
+    for (size_t index = 0; index < pause.frames.size(); ++index) {
+        auto& frame = pause.frames[index];
+        auto& source_actor = source_actor_for(frame.location.source);
+        auto& frame_actor = devtools().register_actor<DebuggerFrameActor>(make_weak_ptr<ThreadActor>(), move(frame), source_actor.name(), index == pause.frames.size() - 1);
+        add_child_actor(frame_actor);
+        m_pause_actors.append(frame_actor);
+        if (!youngest_frame_actor)
+            youngest_frame_actor = &frame_actor;
+    }
+    VERIFY(youngest_frame_actor);
 
     auto reason = [&] {
         switch (pause.reason) {
@@ -183,7 +209,7 @@ void ThreadActor::did_pause(WebView::DebuggerPause pause)
     JsonObject resource;
     resource.set("state"sv, "paused"sv);
     resource.set("why"sv, move(why));
-    resource.set("frame"sv, frame_actor.serialize_frame());
+    resource.set("frame"sv, youngest_frame_actor->serialize_frame());
 
     m_is_paused = true;
     if (auto watcher = m_watcher.strong_ref())

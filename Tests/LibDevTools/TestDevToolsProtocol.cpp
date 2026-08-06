@@ -2615,6 +2615,15 @@ TEST_CASE(debugger_pause_and_resume)
             .column = 2,
         },
     });
+    pause.frames.append({
+        .id = 2,
+        .display_name = "dispatchEvent"_utf16,
+        .location = {
+            .source = session->delegate.fixture_source,
+            .line = 9,
+            .column = 4,
+        },
+    });
     session->delegate.on_debugger_paused(move(pause));
 
     auto paused = read_resource(client, "thread-state"sv, "resources-available-array"sv, target_actor);
@@ -2626,6 +2635,25 @@ TEST_CASE(debugger_pause_and_resume)
     EXPECT_EQ(frame.get_object("where"sv)->get_integer<u32>("line"sv).value(), 4u);
     EXPECT_EQ(frame.get_object("where"sv)->get_integer<u32>("column"sv).value(), 2u);
     auto frame_actor = actor_from(frame, "actor"sv);
+
+    JsonObject frames_request;
+    frames_request.set("to"sv, thread_actor);
+    frames_request.set("type"sv, "frames"sv);
+    frames_request.set("start"sv, 0);
+    frames_request.set("count"sv, 0);
+    auto frames = client.request(move(frames_request)).get_array("frames"sv).release_value();
+    EXPECT(frames.is_empty());
+
+    frames_request = {};
+    frames_request.set("to"sv, thread_actor);
+    frames_request.set("type"sv, "frames"sv);
+    frames_request.set("start"sv, 0);
+    frames = client.request(move(frames_request)).get_array("frames"sv).release_value();
+    EXPECT_EQ(frames.size(), 2u);
+    EXPECT_EQ(frames[0].as_object().get_string("displayName"sv).value(), "handleClick"sv);
+    EXPECT(!frames[0].as_object().get_bool("oldest"sv).value());
+    EXPECT_EQ(frames[1].as_object().get_string("displayName"sv).value(), "dispatchEvent"sv);
+    EXPECT(frames[1].as_object().get_bool("oldest"sv).value());
 
     auto environment = client.request(frame_actor, "getEnvironment"sv);
     EXPECT_EQ(environment.get_string("from"sv).value(), frame_actor);

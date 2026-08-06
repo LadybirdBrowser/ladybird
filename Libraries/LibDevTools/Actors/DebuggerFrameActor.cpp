@@ -8,16 +8,17 @@
 
 namespace DevTools {
 
-NonnullRefPtr<DebuggerFrameActor> DebuggerFrameActor::create(DevToolsServer& devtools, String name, WeakPtr<ThreadActor> thread, WebView::DebuggerFrame frame, String source_actor)
+NonnullRefPtr<DebuggerFrameActor> DebuggerFrameActor::create(DevToolsServer& devtools, String name, WeakPtr<ThreadActor> thread, WebView::DebuggerFrame frame, String source_actor, bool oldest)
 {
-    return adopt_ref(*new DebuggerFrameActor(devtools, move(name), move(thread), move(frame), move(source_actor)));
+    return adopt_ref(*new DebuggerFrameActor(devtools, move(name), move(thread), move(frame), move(source_actor), oldest));
 }
 
-DebuggerFrameActor::DebuggerFrameActor(DevToolsServer& devtools, String name, WeakPtr<ThreadActor> thread, WebView::DebuggerFrame frame, String source_actor)
+DebuggerFrameActor::DebuggerFrameActor(DevToolsServer& devtools, String name, WeakPtr<ThreadActor> thread, WebView::DebuggerFrame frame, String source_actor, bool oldest)
     : Actor(devtools, move(name))
     , m_thread(move(thread))
     , m_frame(move(frame))
     , m_source_actor(move(source_actor))
+    , m_oldest(oldest)
 {
 }
 
@@ -52,7 +53,7 @@ JsonObject DebuggerFrameActor::serialize_frame() const
     frame.set("arguments"sv, JsonArray {});
     frame.set("this"sv, move(this_value));
     frame.set("where"sv, move(location));
-    frame.set("oldest"sv, true);
+    frame.set("oldest"sv, m_oldest);
     return frame;
 }
 
