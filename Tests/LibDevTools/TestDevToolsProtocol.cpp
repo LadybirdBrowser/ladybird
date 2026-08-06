@@ -1196,9 +1196,10 @@ public:
         ++interrupt_debugger_call_count;
     }
 
-    virtual void resume_debugger(DevTools::TabDescription const&) const override
+    virtual void resume_debugger(DevTools::TabDescription const&, WebView::DebuggerResumeMode mode) const override
     {
         ++resume_debugger_call_count;
+        debugger_resume_mode = mode;
     }
 
     virtual void set_debugger_breakpoint(DevTools::TabDescription const&, WebView::DebuggerBreakpointLocation location, WebView::DebuggerBreakpointOptions options, OnDebuggerBreakpointOperationComplete on_complete) const override
@@ -1676,6 +1677,7 @@ public:
     mutable Optional<String> debugger_object_properties_error;
     mutable DevTools::DevToolsDelegate::OnDebuggerPaused on_debugger_paused;
     mutable WebView::DebuggerConfiguration debugger_configuration;
+    mutable WebView::DebuggerResumeMode debugger_resume_mode { WebView::DebuggerResumeMode::Continue };
     mutable Optional<WebView::DebuggerBreakpointLocation> last_debugger_breakpoint_location;
     mutable Optional<WebView::DebuggerBreakpointOptions> last_debugger_breakpoint_options;
     mutable Optional<Web::HTML::ScriptRegistry::Identifier> last_debugger_source_id;
@@ -2894,15 +2896,131 @@ TEST_CASE(debugger_pause_and_resume)
     EXPECT(evaluation.get_bool("hasException"sv).value());
     session->delegate.debugger_evaluation_error.clear();
 
-    auto resume = client.request(thread_actor, "resume"sv);
+    JsonObject resume_request;
+    resume_request.set("to"sv, thread_actor);
+    resume_request.set("type"sv, "resume"sv);
+    JsonObject resume_limit;
+    resume_limit.set("type"sv, "next"sv);
+    resume_request.set("resumeLimit"sv, move(resume_limit));
+    auto resume = client.request(move(resume_request));
     EXPECT_EQ(resume.get_string("from"sv).value(), thread_actor);
     EXPECT_EQ(session->delegate.resume_debugger_call_count, 1u);
+    EXPECT_EQ(session->delegate.debugger_resume_mode, WebView::DebuggerResumeMode::StepOver);
     auto resumed = read_resource(client, "thread-state"sv, "resources-available-array"sv, target_actor);
     EXPECT_EQ(resumed.get_string("state"sv).value(), "resumed"sv);
 
     spin_until(session->loop, [&] {
         return !session->server->actor_registry().contains(frame_actor);
     });
+}
+
+TEST_CASE(debugger_thread_state_protocol)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    auto tab_actor = actor_from(get_tab(client), "actor"sv);
+    auto watcher_actor = actor_from(client.request(tab_actor, "getWatcher"sv), "actor"sv);
+
+    JsonObject watch_resources;
+    watch_resources.set("to"sv, watcher_actor);
+    watch_resources.set("type"sv, "watchResources"sv);
+    JsonArray resource_types;
+    resource_types.must_append("thread-state"sv);
+    watch_resources.set("resourceTypes"sv, move(resource_types));
+    (void)client.request(move(watch_resources));
+
+    auto target = get_frame_target(client, tab_actor);
+    auto target_actor = actor_from(target, "actor"sv);
+    auto thread_actor = actor_from(target, "threadActor"sv);
+
+    EXPECT_EQ(client.request(thread_actor, "resume"sv).get_string("error"sv).value(), "wrongState"sv);
+    EXPECT_EQ(client.request(thread_actor, "frames"sv).get_string("error"sv).value(), "wrongState"sv);
+
+    JsonObject interrupt;
+    interrupt.set("to"sv, thread_actor);
+    interrupt.set("type"sv, "interrupt"sv);
+    interrupt.set("when"sv, "onNext"sv);
+    EXPECT_EQ(client.request(move(interrupt)).get_string("from"sv).value(), thread_actor);
+    EXPECT_EQ(session->delegate.interrupt_debugger_call_count, 1u);
+
+    WebView::DebuggerValue this_value;
+    this_value.type = WebView::DebuggerValueType::Object;
+    this_value.object_id = 20;
+    this_value.object_class = "Object"_string;
+    WebView::DebuggerPause pause {
+        .reason = WebView::DebuggerPauseReason::Entry,
+        .reason_message = {},
+        .frames = {},
+    };
+    pause.frames.append({
+        .id = 1,
+        .display_name = "youngest"_utf16,
+        .location = { .source = session->delegate.fixture_source, .line = 4, .column = 2 },
+        .this_value = move(this_value),
+        .arguments = {},
+    });
+    pause.frames.append({
+        .id = 2,
+        .display_name = "caller"_utf16,
+        .location = { .source = session->delegate.fixture_source, .line = 9, .column = 4 },
+        .this_value = {},
+        .arguments = {},
+    });
+    session->delegate.on_debugger_paused(move(pause));
+
+    auto paused = read_resource(client, "thread-state"sv, "resources-available-array"sv, target_actor);
+    auto why = paused.get_object("why"sv).release_value();
+    EXPECT_EQ(why.get_string("type"sv).value(), "interrupted"sv);
+    EXPECT(why.get_bool("onNext"sv).value());
+
+    auto paused_frame = paused.get_object("frame"sv).release_value();
+    auto object_actor = paused_frame.get_object("this"sv)->get_string("actor"sv).release_value();
+    auto symbols = client.request(object_actor, "enumSymbols"sv).get_object("iterator"sv).release_value();
+    EXPECT_EQ(symbols.get_string("type"sv).value(), "symbolIterator"sv);
+    EXPECT_EQ(symbols.get_integer<size_t>("count"sv).value(), 0u);
+    auto symbol_iterator = actor_from(symbols, "actor"sv);
+    EXPECT(client.request(symbol_iterator, "all"sv).get_array("ownSymbols"sv)->is_empty());
+    EXPECT_EQ(client.request(symbol_iterator, "release"sv).get_string("from"sv).value(), symbol_iterator);
+    spin_until(session->loop, [&] { return !session->server->actor_registry().contains(symbol_iterator); });
+
+    JsonObject frames_request;
+    frames_request.set("to"sv, thread_actor);
+    frames_request.set("type"sv, "frames"sv);
+    auto frames = client.request(move(frames_request)).get_array("frames"sv).release_value();
+    VERIFY(frames.size() == 2u);
+    auto youngest_frame = actor_from(frames[0].as_object(), "actor"sv);
+    auto older_frame = actor_from(frames[1].as_object(), "actor"sv);
+
+    JsonObject resume_from_older_frame;
+    resume_from_older_frame.set("to"sv, thread_actor);
+    resume_from_older_frame.set("type"sv, "resume"sv);
+    JsonObject older_frame_resume_limit;
+    older_frame_resume_limit.set("type"sv, "next"sv);
+    resume_from_older_frame.set("resumeLimit"sv, move(older_frame_resume_limit));
+    resume_from_older_frame.set("frameActorID"sv, older_frame);
+    EXPECT_EQ(client.request(move(resume_from_older_frame)).get_string("error"sv).value(), "unsupported"sv);
+
+    JsonObject resume_from_unknown_frame;
+    resume_from_unknown_frame.set("to"sv, thread_actor);
+    resume_from_unknown_frame.set("type"sv, "resume"sv);
+    JsonObject unknown_frame_resume_limit;
+    unknown_frame_resume_limit.set("type"sv, "next"sv);
+    resume_from_unknown_frame.set("resumeLimit"sv, move(unknown_frame_resume_limit));
+    resume_from_unknown_frame.set("frameActorID"sv, "missing-frame"sv);
+    EXPECT_EQ(client.request(move(resume_from_unknown_frame)).get_string("error"sv).value(), "unknownActor"sv);
+
+    JsonObject resume_from_youngest_frame;
+    resume_from_youngest_frame.set("to"sv, thread_actor);
+    resume_from_youngest_frame.set("type"sv, "resume"sv);
+    JsonObject youngest_frame_resume_limit;
+    youngest_frame_resume_limit.set("type"sv, "next"sv);
+    resume_from_youngest_frame.set("resumeLimit"sv, move(youngest_frame_resume_limit));
+    resume_from_youngest_frame.set("frameActorID"sv, youngest_frame);
+    EXPECT_EQ(client.request(move(resume_from_youngest_frame)).get_string("from"sv).value(), thread_actor);
+    EXPECT_EQ(session->delegate.debugger_resume_mode, WebView::DebuggerResumeMode::StepOver);
+    (void)read_resource(client, "thread-state"sv, "resources-available-array"sv, target_actor);
 }
 
 TEST_CASE(debugger_breakpoints)

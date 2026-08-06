@@ -1520,12 +1520,12 @@ void ConnectionFromClient::interrupt_debugger(u64 page_id)
     m_devtools_debugger->interrupt(*page);
 }
 
-void ConnectionFromClient::resume_debugger(u64 page_id)
+void ConnectionFromClient::resume_debugger(u64 page_id, WebView::DebuggerResumeMode mode)
 {
     auto page = this->page(page_id);
     if (!page.has_value() || !m_devtools_debugger)
         return;
-    m_devtools_debugger->resume(*page);
+    m_devtools_debugger->resume(*page, mode);
 }
 
 static Optional<String> debugger_breakpoint_operation_error(ErrorOr<void> result)

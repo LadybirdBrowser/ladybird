@@ -235,7 +235,7 @@ public:
     void configure_debugger(DebuggerConfiguration);
     void detach_debugger();
     void interrupt_debugger();
-    void resume_debugger();
+    void resume_debugger(DebuggerResumeMode);
     void set_debugger_breakpoint(DebuggerBreakpointLocation, DebuggerBreakpointOptions, DevTools::DevToolsDelegate::OnDebuggerBreakpointOperationComplete);
     void remove_debugger_breakpoint(DebuggerBreakpointLocation, DevTools::DevToolsDelegate::OnDebuggerBreakpointOperationComplete);
     void did_complete_debugger_breakpoint_operation(u64 request_id, Optional<String> error);

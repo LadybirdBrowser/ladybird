@@ -436,7 +436,7 @@ private:
     virtual void configure_debugger(DevTools::TabDescription const&, DebuggerConfiguration) const override;
     virtual void detach_debugger(DevTools::TabDescription const&) const override;
     virtual void interrupt_debugger(DevTools::TabDescription const&) const override;
-    virtual void resume_debugger(DevTools::TabDescription const&) const override;
+    virtual void resume_debugger(DevTools::TabDescription const&, DebuggerResumeMode) const override;
     virtual void set_debugger_breakpoint(DevTools::TabDescription const&, DebuggerBreakpointLocation, DebuggerBreakpointOptions, OnDebuggerBreakpointOperationComplete) const override;
     virtual void remove_debugger_breakpoint(DevTools::TabDescription const&, DebuggerBreakpointLocation, OnDebuggerBreakpointOperationComplete) const override;
     virtual void retrieve_debugger_environments(DevTools::TabDescription const&, u64 frame_id, OnDebuggerEnvironmentsReceived) const override;

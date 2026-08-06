@@ -64,8 +64,10 @@ void DevToolsDebugger::detach(PageClient& page)
     m_attached_page_ids.remove(page.id());
     m_configurations.remove(page.id());
     remove_breakpoints_for_page(page.id());
-    if (m_paused_page_id == page.id())
+    if (m_paused_page_id == page.id()) {
+        m_resume_mode = WebView::DebuggerResumeMode::Continue;
         m_resume_requested = true;
+    }
 
     disable_if_unused();
 }
@@ -370,10 +372,13 @@ ErrorOr<WebView::DebuggerObjectProperties> DevToolsDebugger::properties_for_obje
     return result;
 }
 
-void DevToolsDebugger::resume(PageClient& page)
+void DevToolsDebugger::resume(PageClient& page, WebView::DebuggerResumeMode mode)
 {
-    if (m_paused_page_id == page.id())
-        m_resume_requested = true;
+    if (m_paused_page_id != page.id())
+        return;
+
+    m_resume_mode = mode;
+    m_resume_requested = true;
 }
 
 PageClient* DevToolsDebugger::paused_page_client() const
@@ -605,6 +610,7 @@ void DevToolsDebugger::handle_pause(JS::Debugger::PauseInfo const& pause)
     }
 
     m_paused_page_id = page->id();
+    m_resume_mode = WebView::DebuggerResumeMode::Continue;
     m_resume_requested = false;
     m_is_handling_pause = true;
 
@@ -619,7 +625,20 @@ void DevToolsDebugger::handle_pause(JS::Debugger::PauseInfo const& pause)
     m_paused_frames.clear();
     m_paused_objects.clear();
     m_paused_object_ids.clear();
-    Web::Bindings::main_thread_vm().debugger()->continue_execution();
+    auto resume_mode = [&] {
+        switch (m_resume_mode) {
+        case WebView::DebuggerResumeMode::Continue:
+            return JS::Debugger::ResumeMode::Continue;
+        case WebView::DebuggerResumeMode::StepInto:
+            return JS::Debugger::ResumeMode::StepInto;
+        case WebView::DebuggerResumeMode::StepOut:
+            return JS::Debugger::ResumeMode::StepOut;
+        case WebView::DebuggerResumeMode::StepOver:
+            return JS::Debugger::ResumeMode::StepOver;
+        }
+        VERIFY_NOT_REACHED();
+    }();
+    Web::Bindings::main_thread_vm().debugger()->continue_execution(resume_mode);
     schedule_disable_if_unused();
 }
 
