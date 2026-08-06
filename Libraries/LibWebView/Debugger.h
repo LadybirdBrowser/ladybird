@@ -23,6 +23,13 @@ enum class DebuggerPauseReason : u8 {
     ResumeLimit,
 };
 
+enum class DebuggerResumeMode : u8 {
+    Continue,
+    StepInto,
+    StepOut,
+    StepOver,
+};
+
 enum class DebuggerValueType : u8 {
     Undefined,
     Null,

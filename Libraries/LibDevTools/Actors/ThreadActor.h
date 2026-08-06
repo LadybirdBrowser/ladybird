@@ -52,7 +52,7 @@ private:
     void clear_pause_actors();
     void attach();
     void did_resume();
-    void resume();
+    void resume(WebView::DebuggerResumeMode);
     void send_wrong_state_error(Message const&, StringView message);
 
     WeakPtr<TabActor> m_tab;

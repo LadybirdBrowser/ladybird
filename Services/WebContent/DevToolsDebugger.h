@@ -28,7 +28,7 @@ public:
     void configure(PageClient&, WebView::DebuggerConfiguration);
     void detach(PageClient&);
     void interrupt(PageClient&);
-    void resume(PageClient&);
+    void resume(PageClient&, WebView::DebuggerResumeMode);
     ErrorOr<void> set_breakpoint(PageClient&, WebView::DebuggerBreakpointLocation, WebView::DebuggerBreakpointOptions);
     ErrorOr<void> remove_breakpoint(PageClient&, WebView::DebuggerBreakpointLocation const&);
     Vector<WebView::DebuggerEnvironment> environments_for_frame(PageClient&, u64 frame_id);
@@ -61,6 +61,7 @@ private:
     u64 m_next_frame_id { 1 };
     u64 m_next_object_id { 1 };
     Optional<u64> m_paused_page_id;
+    WebView::DebuggerResumeMode m_resume_mode { WebView::DebuggerResumeMode::Continue };
     bool m_resume_requested { false };
     bool m_is_handling_pause { false };
     bool m_pause_callback_is_installed { false };

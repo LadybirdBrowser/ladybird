@@ -178,7 +178,7 @@ public:
     virtual void configure_debugger(TabDescription const&, WebView::DebuggerConfiguration) const { }
     virtual void detach_debugger(TabDescription const&) const { }
     virtual void interrupt_debugger(TabDescription const&) const { }
-    virtual void resume_debugger(TabDescription const&) const { }
+    virtual void resume_debugger(TabDescription const&, WebView::DebuggerResumeMode) const { }
     virtual void set_debugger_breakpoint(TabDescription const&, WebView::DebuggerBreakpointLocation, WebView::DebuggerBreakpointOptions, OnDebuggerBreakpointOperationComplete) const { }
     virtual void remove_debugger_breakpoint(TabDescription const&, WebView::DebuggerBreakpointLocation, OnDebuggerBreakpointOperationComplete) const { }
     virtual void retrieve_debugger_environments(TabDescription const&, u64, OnDebuggerEnvironmentsReceived) const { }
