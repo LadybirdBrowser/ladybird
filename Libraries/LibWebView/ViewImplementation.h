@@ -236,6 +236,9 @@ public:
     void detach_debugger();
     void interrupt_debugger();
     void resume_debugger();
+    void set_debugger_breakpoint(DebuggerBreakpointLocation, DevTools::DevToolsDelegate::OnDebuggerBreakpointOperationComplete);
+    void remove_debugger_breakpoint(DebuggerBreakpointLocation, DevTools::DevToolsDelegate::OnDebuggerBreakpointOperationComplete);
+    void did_complete_debugger_breakpoint_operation(u64 request_id, Optional<String> error);
     void resolve_dom_node_url(Optional<Web::UniqueNodeID> node_id, String const& url, DevTools::DevToolsDelegate::OnResolvedURLReceived);
     void clear_inspected_dom_node();
 
@@ -760,7 +763,10 @@ protected:
     HashMap<u64, DevTools::DevToolsDelegate::OnStorageChange> m_storage_change_listeners;
     u64 m_next_storage_change_listener_id { 1 };
     u64 m_next_devtools_sources_request_id { 1 };
+    u64 m_next_debugger_breakpoint_request_id { 1 };
     u64 m_next_resolve_dom_node_url_request_id { 1 };
+
+    HashMap<u64, DevTools::DevToolsDelegate::OnDebuggerBreakpointOperationComplete> m_pending_debugger_breakpoint_requests;
 
     HashMap<u64, DevTools::DevToolsDelegate::OnIndexedDBInspectionComplete> m_pending_indexed_database_inspection_requests;
     u64 m_next_indexed_database_inspection_request_id { 1 };

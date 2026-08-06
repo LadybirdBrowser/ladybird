@@ -1683,10 +1683,32 @@ Optional<Web::HTML::ScriptRegistry::Description> PageClient::devtools_source_des
     return find_devtools_source_description(*document, source_code);
 }
 
-Optional<Web::HTML::ScriptRegistry::Content> PageClient::devtools_source_content(Web::HTML::ScriptRegistry::Identifier const& source_id) const
+static Web::DOM::Document const* document_for_devtools_source(PageClient const& page_client, Web::HTML::ScriptRegistry::Identifier const& source_id)
 {
     auto* node = Web::DOM::Node::from_unique_id(source_id.document_id);
     auto* document = as_if<Web::DOM::Document>(node);
+    if (!document)
+        return nullptr;
+
+    auto navigable = document->navigable();
+    if (!navigable || &navigable->page() != &page_client.page())
+        return nullptr;
+
+    return document;
+}
+
+Optional<NonnullRefPtr<JS::SourceCode const>> PageClient::devtools_source_code(Web::HTML::ScriptRegistry::Identifier const& source_id) const
+{
+    auto* document = document_for_devtools_source(*this, source_id);
+    if (!document)
+        return {};
+
+    return document->script_registry().source_code(source_id.script_id);
+}
+
+Optional<Web::HTML::ScriptRegistry::Content> PageClient::devtools_source_content(Web::HTML::ScriptRegistry::Identifier const& source_id) const
+{
+    auto* document = document_for_devtools_source(*this, source_id);
     if (!document)
         return {};
 

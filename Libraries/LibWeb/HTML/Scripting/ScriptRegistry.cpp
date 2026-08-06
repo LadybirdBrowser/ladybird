@@ -61,6 +61,17 @@ Optional<ScriptRegistry::Script const&> ScriptRegistry::script_for_source_code(J
     return {};
 }
 
+Optional<NonnullRefPtr<JS::SourceCode const>> ScriptRegistry::source_code(u64 script_id) const
+{
+    auto script = m_scripts.find(script_id);
+    if (script == m_scripts.end())
+        return {};
+    return script->value.content.visit(
+        [](JavaScriptSource const& javascript_source) -> Optional<NonnullRefPtr<JS::SourceCode const>> {
+            return javascript_source.source_code;
+        });
+}
+
 Optional<ScriptRegistry::Content> ScriptRegistry::script_content(u64 script_id, Utf16View document_source) const
 {
     auto script = m_scripts.find(script_id);

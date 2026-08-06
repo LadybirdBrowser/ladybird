@@ -1503,6 +1503,34 @@ void ViewImplementation::resume_debugger()
     client().async_resume_debugger(page_id());
 }
 
+void ViewImplementation::set_debugger_breakpoint(DebuggerBreakpointLocation location, DevTools::DevToolsDelegate::OnDebuggerBreakpointOperationComplete on_complete)
+{
+    auto request_id = m_next_debugger_breakpoint_request_id++;
+    m_pending_debugger_breakpoint_requests.set(request_id, move(on_complete));
+    client().async_set_debugger_breakpoint(page_id(), request_id, move(location));
+}
+
+void ViewImplementation::remove_debugger_breakpoint(DebuggerBreakpointLocation location, DevTools::DevToolsDelegate::OnDebuggerBreakpointOperationComplete on_complete)
+{
+    auto request_id = m_next_debugger_breakpoint_request_id++;
+    m_pending_debugger_breakpoint_requests.set(request_id, move(on_complete));
+    client().async_remove_debugger_breakpoint(page_id(), request_id, move(location));
+}
+
+void ViewImplementation::did_complete_debugger_breakpoint_operation(u64 request_id, Optional<String> error)
+{
+    auto callback = m_pending_debugger_breakpoint_requests.take(request_id);
+    if (!callback.has_value())
+        return;
+
+    if (error.has_value()) {
+        (*callback)(Error::from_string_literal("Debugger breakpoint operation failed"));
+        return;
+    }
+
+    (*callback)({});
+}
+
 void ViewImplementation::resolve_dom_node_url(Optional<Web::UniqueNodeID> node_id, String const& url, DevTools::DevToolsDelegate::OnResolvedURLReceived on_complete)
 {
     auto request_id = m_next_resolve_dom_node_url_request_id++;

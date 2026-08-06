@@ -3343,6 +3343,26 @@ void Application::resume_debugger(DevTools::TabDescription const& description) c
     view->resume_debugger();
 }
 
+void Application::set_debugger_breakpoint(DevTools::TabDescription const& description, DebuggerBreakpointLocation location, OnDebuggerBreakpointOperationComplete on_complete) const
+{
+    auto view = ViewImplementation::find_view_by_id(description.id);
+    if (!view.has_value()) {
+        on_complete(Error::from_string_literal("Unable to locate tab"));
+        return;
+    }
+    view->set_debugger_breakpoint(move(location), move(on_complete));
+}
+
+void Application::remove_debugger_breakpoint(DevTools::TabDescription const& description, DebuggerBreakpointLocation location, OnDebuggerBreakpointOperationComplete on_complete) const
+{
+    auto view = ViewImplementation::find_view_by_id(description.id);
+    if (!view.has_value()) {
+        on_complete(Error::from_string_literal("Unable to locate tab"));
+        return;
+    }
+    view->remove_debugger_breakpoint(move(location), move(on_complete));
+}
+
 void Application::resolve_dom_node_url(DevTools::TabDescription const& description, Optional<Web::UniqueNodeID> node_id, String const& url, OnResolvedURLReceived on_complete) const
 {
     auto view = ViewImplementation::find_view_by_id(description.id);

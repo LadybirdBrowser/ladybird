@@ -80,6 +80,26 @@ TEST_CASE(breakpoints_resolve_to_source_map_entries)
     EXPECT(!vm->debugger()->remove_breakpoint(breakpoint_id));
 }
 
+TEST_CASE(source_specific_breakpoints_do_not_match_other_sources_with_the_same_filename)
+{
+    auto vm = JS::VM::create();
+    auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
+    auto& realm = *root_execution_context->realm;
+
+    vm->enable_debugging();
+    auto first_script = MUST(JS::Script::parse("let first = 1;\n"sv, realm, "shared.js"sv));
+    auto* first_executable = first_script->cached_executable();
+    VERIFY(first_executable);
+
+    auto breakpoint_id = MUST(vm->debugger()->add_breakpoint(first_executable->source_code, 1));
+    EXPECT(first_executable->has_debugger_breakpoint(breakpoint_id));
+
+    auto second_script = MUST(JS::Script::parse("let second = 2;\n"sv, realm, "shared.js"sv));
+    auto* second_executable = second_script->cached_executable();
+    VERIFY(second_executable);
+    EXPECT(!second_executable->has_debugger_breakpoint(breakpoint_id));
+}
+
 TEST_CASE(breakpoints_resolve_when_an_existing_executable_runs)
 {
     auto vm = JS::VM::create();

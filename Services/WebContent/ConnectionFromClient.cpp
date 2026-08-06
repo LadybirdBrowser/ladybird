@@ -1528,6 +1528,37 @@ void ConnectionFromClient::resume_debugger(u64 page_id)
     m_devtools_debugger->resume(*page);
 }
 
+static Optional<String> debugger_breakpoint_operation_error(ErrorOr<void> result)
+{
+    if (!result.is_error())
+        return {};
+    return String::from_utf8_without_validation(result.error().string_literal().bytes());
+}
+
+void ConnectionFromClient::set_debugger_breakpoint(u64 page_id, u64 request_id, WebView::DebuggerBreakpointLocation location)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value()) {
+        async_did_complete_debugger_breakpoint_operation(page_id, request_id, "Unable to locate page"_string);
+        return;
+    }
+
+    if (!m_devtools_debugger)
+        m_devtools_debugger = make<DevToolsDebugger>(*this);
+    async_did_complete_debugger_breakpoint_operation(page_id, request_id, debugger_breakpoint_operation_error(m_devtools_debugger->set_breakpoint(*page, move(location))));
+}
+
+void ConnectionFromClient::remove_debugger_breakpoint(u64 page_id, u64 request_id, WebView::DebuggerBreakpointLocation location)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value() || !m_devtools_debugger) {
+        async_did_complete_debugger_breakpoint_operation(page_id, request_id, {});
+        return;
+    }
+
+    async_did_complete_debugger_breakpoint_operation(page_id, request_id, debugger_breakpoint_operation_error(m_devtools_debugger->remove_breakpoint(*page, location)));
+}
+
 void ConnectionFromClient::resolve_dom_node_url(u64 page_id, u64 request_id, Optional<Web::UniqueNodeID> node_id, String url)
 {
     auto page = this->page(page_id);

@@ -28,6 +28,27 @@ ErrorOr<WebView::DebuggerConfiguration> decode(Decoder& decoder)
 }
 
 template<>
+ErrorOr<void> encode(Encoder& encoder, WebView::DebuggerBreakpointLocation const& location)
+{
+    TRY(encoder.encode(location.source_id));
+    TRY(encoder.encode(location.filename));
+    TRY(encoder.encode(location.line));
+    TRY(encoder.encode(location.column));
+    return {};
+}
+
+template<>
+ErrorOr<WebView::DebuggerBreakpointLocation> decode(Decoder& decoder)
+{
+    return WebView::DebuggerBreakpointLocation {
+        .source_id = TRY(decoder.decode<Optional<Web::HTML::ScriptRegistry::Identifier>>()),
+        .filename = TRY(decoder.decode<Utf16String>()),
+        .line = TRY(decoder.decode<u32>()),
+        .column = TRY(decoder.decode<Optional<u32>>()),
+    };
+}
+
+template<>
 ErrorOr<void> encode(Encoder& encoder, WebView::DebuggerLocation const& location)
 {
     TRY(encoder.encode(location.source));
