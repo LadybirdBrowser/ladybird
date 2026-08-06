@@ -120,6 +120,7 @@ endpoint WebContentClient
     did_add_devtools_source(u64 page_id, Web::HTML::ScriptRegistry::Description source) =|
     did_pause_debugger(u64 page_id, WebView::DebuggerPause pause) =|
     did_complete_debugger_breakpoint_operation(u64 page_id, u64 request_id, Optional<String> error) =|
+    did_get_debugger_source_positions(u64 page_id, u64 request_id, Vector<WebView::DebuggerSourcePosition> positions) =|
     did_resolve_dom_node_url(u64 page_id, u64 request_id, String resolved_url) =|
 
     did_take_screenshot(u64 page_id, Gfx::ShareableBitmap screenshot) =|

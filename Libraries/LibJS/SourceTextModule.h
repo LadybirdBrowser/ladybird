@@ -40,8 +40,8 @@ class JS_API SourceTextModule final : public CyclicModule {
 public:
     virtual ~SourceTextModule() override;
 
-    static Result<GC::Ref<SourceTextModule>, Vector<ParserError>> parse(Utf16View source_text, Realm&, StringView filename = {}, Utf16View display_filename = {}, Script::HostDefined* host_defined = nullptr);
-    static Result<GC::Ref<SourceTextModule>, Vector<ParserError>> parse(NonnullRefPtr<SourceCode const>, Realm&, StringView filename = {}, Script::HostDefined* host_defined = nullptr);
+    static Result<GC::Ref<SourceTextModule>, Vector<ParserError>> parse(Utf16View source_text, Realm&, StringView filename = {}, Utf16View display_filename = {}, Script::HostDefined* host_defined = nullptr, size_t line_number_offset = 0);
+    static Result<GC::Ref<SourceTextModule>, Vector<ParserError>> parse(NonnullRefPtr<SourceCode const>, Realm&, StringView filename = {}, Script::HostDefined* host_defined = nullptr, size_t line_number_offset = 0);
     static Result<GC::Ref<SourceTextModule>, Vector<ParserError>> parse_from_pre_parsed(FFI::ParsedProgram* parsed, NonnullRefPtr<SourceCode const> source_code, Realm&, StringView filename, Script::HostDefined* host_defined = nullptr);
     static Result<GC::Ref<SourceTextModule>, Vector<ParserError>> parse_from_pre_compiled(FFI::CompiledProgram* compiled, NonnullRefPtr<SourceCode const> source_code, Realm&, StringView filename, Script::HostDefined* host_defined = nullptr);
     static Result<GC::Ref<SourceTextModule>, Vector<ParserError>> parse_from_bytecode_cache(NonnullRefPtr<RustIntegration::DecodedBytecodeCache>, NonnullRefPtr<SourceCode const> source_code, Realm&, StringView filename, Script::HostDefined* host_defined = nullptr);

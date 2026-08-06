@@ -54,6 +54,7 @@ struct DebuggerConfiguration;
 struct DebuggerFrame;
 struct DebuggerLocation;
 struct DebuggerPause;
+struct DebuggerSourcePosition;
 struct DictionaryLookup;
 struct DictionaryLookupTextStyle;
 struct DOMNodeProperties;

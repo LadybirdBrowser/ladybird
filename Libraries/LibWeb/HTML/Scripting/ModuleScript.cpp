@@ -30,7 +30,7 @@ static void register_source(ModuleScript& script, ScriptRegistry::IsInlineSource
         return;
 
     auto const& source_code = (*module_record)->cached_executable()->source_code;
-    register_javascript_source(script, source_code, is_inline_source, source_line_number);
+    register_javascript_source(script, source_code, ScriptRegistry::JavaScriptSource::Type::Module, is_inline_source, source_line_number);
 }
 
 ModuleScript::~ModuleScript() = default;
@@ -66,7 +66,7 @@ WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_javascript_mod
     script->set_error_to_rethrow(JS::js_null());
 
     // 7. Let result be ParseModule(source, realm, script).
-    auto result = JS::SourceTextModule::parse(source, realm, script->filename(), script->display_filename(), script.ptr());
+    auto result = JS::SourceTextModule::parse(source, realm, script->filename(), script->display_filename(), script.ptr(), source_line_number);
 
     // 8. If result is a list of errors, then:
     if (result.is_error()) {

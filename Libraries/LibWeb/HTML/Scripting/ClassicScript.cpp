@@ -24,7 +24,7 @@ static void register_source(ClassicScript& script, ScriptRegistry::IsInlineSourc
         return;
 
     auto const& source_code = script_record->cached_executable()->source_code;
-    register_javascript_source(script, source_code, is_inline_source, source_line_number);
+    register_javascript_source(script, source_code, ScriptRegistry::JavaScriptSource::Type::Script, is_inline_source, source_line_number);
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#creating-a-classic-script

@@ -13,7 +13,7 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(Script);
 
-void register_javascript_source(Script& script, NonnullRefPtr<JS::SourceCode const> source_code, ScriptRegistry::IsInlineSource is_inline_source, size_t source_line_number)
+void register_javascript_source(Script& script, NonnullRefPtr<JS::SourceCode const> source_code, ScriptRegistry::JavaScriptSource::Type type, ScriptRegistry::IsInlineSource is_inline_source, size_t source_line_number)
 {
     auto document = script.settings_object().responsible_document();
     if (!document) {
@@ -27,6 +27,7 @@ void register_javascript_source(Script& script, NonnullRefPtr<JS::SourceCode con
 
     auto const& registered_script = document->script_registry().register_javascript_source(
         move(source_code),
+        type,
         script.filename(),
         script.display_filename(),
         "scriptElement"_utf16,
