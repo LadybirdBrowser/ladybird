@@ -43,9 +43,6 @@ public:
     Optional<Gfx::DecodedImageFrame> default_image_frame(Optional<Gfx::IntSize> size = {}) const;
 
     virtual void layout_node_was_detached() const { }
-
-protected:
-    static void did_update_alt_text(ImageBox&);
 };
 
 }

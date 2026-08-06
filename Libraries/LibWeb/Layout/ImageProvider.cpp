@@ -6,15 +6,9 @@
 
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibWeb/HTML/DecodedImageData.h>
-#include <LibWeb/Layout/ImageBox.h>
 #include <LibWeb/Layout/ImageProvider.h>
 
 namespace Web::Layout {
-
-void ImageProvider::did_update_alt_text(ImageBox& layout_node)
-{
-    layout_node.dom_node_did_update_alt_text({});
-}
 
 Optional<CSSPixels> ImageProvider::intrinsic_width() const
 {

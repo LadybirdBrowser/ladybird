@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<body>
+<script>
+    // An img element's rendering must follow its image request across src changes in both
+    // directions: alt text for a broken or source-less image, blank space while a load is in
+    // flight, and the image itself once data arrives. Each transition changes which kind of
+    // layout node the element gets, so this exercises the invalidation that rebuilds it.
+    asyncTest(async (done) => {
+        const TINY_PNG_BASE64 =
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+
+        const httpServer = httpTestServer();
+        const testID = crypto.randomUUID();
+        const imageURL = await httpServer.createEcho("GET", `/img-swap-image-${testID}`, {
+            status: 200,
+            headers: { "Content-Type": "image/png" },
+            body: TINY_PNG_BASE64,
+            body_encoding: "base64",
+        });
+        const brokenURL = await httpServer.createEcho("GET", `/img-swap-broken-${testID}`, {
+            status: 404,
+            body: "not found",
+        });
+        const secondBrokenURL = await httpServer.createEcho("GET", `/img-swap-broken-2-${testID}`, {
+            status: 404,
+            body: "still not found",
+        });
+
+        const width = (img) => img.getBoundingClientRect().width;
+
+        // A source-less img with alt text renders the alt text.
+        const img = document.createElement("img");
+        img.alt = "some alt text";
+        document.body.appendChild(img);
+        println(`src-less image renders alt text: ${width(img) > 0}`);
+
+        // Giving it a source makes it render as blank space immediately, before the load resolves.
+        const loaded = new Promise((resolve) => (img.onload = resolve));
+        img.src = imageURL;
+        println(`image renders blank right after src is set: ${width(img) === 0}`);
+
+        // Once the image data arrives it renders as the image.
+        await loaded;
+        println(`loaded image renders at its natural width: ${width(img) === img.naturalWidth}`);
+
+        // Swapping a loaded image's src to a URL that fails brings the alt text back.
+        const errored = new Promise((resolve) => (img.onerror = resolve));
+        img.src = brokenURL;
+        await errored;
+        println(`image renders alt text again after failed load: ${width(img) > 0}`);
+
+        // A broken image that gets a working source becomes an image again.
+        const reloaded = new Promise((resolve) => (img.onload = resolve));
+        img.src = `${imageURL}?again=${testID}`;
+        await reloaded;
+        println(`reloaded image renders at its natural width: ${width(img) === img.naturalWidth}`);
+
+        // And a broken source swapped for another broken source keeps rendering alt text.
+        const erroredAgain = new Promise((resolve) => (img.onerror = resolve));
+        img.src = secondBrokenURL;
+        await erroredAgain;
+        println(`image still renders alt text after another failed load: ${width(img) > 0}`);
+
+        done();
+    });
+</script>

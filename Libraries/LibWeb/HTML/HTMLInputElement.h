@@ -315,6 +315,9 @@ private:
     void create_shadow_tree_if_needed();
     void update_shadow_tree();
     void create_button_input_shadow_tree();
+    void create_image_button_alt_text_shadow_tree();
+    void remove_image_button_alt_text_shadow_tree();
+    void update_image_button_alt_text_shadow_tree();
     void create_text_input_shadow_tree();
     void create_color_input_shadow_tree();
     void create_file_input_shadow_tree();
@@ -347,6 +350,7 @@ private:
     void update_text_input_shadow_tree();
     GC::Ptr<DOM::Element> m_inner_text_element;
     GC::Ptr<DOM::Text> m_text_node;
+    GC::Ptr<DOM::Text> m_image_button_alt_text_node;
     bool m_checked { false };
     GC::Ptr<DOM::Element> m_up_button_element;
     GC::Ptr<DOM::Element> m_down_button_element;

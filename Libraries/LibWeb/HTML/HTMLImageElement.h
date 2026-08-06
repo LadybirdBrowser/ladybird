@@ -142,6 +142,11 @@ private:
     void handle_failed_fetch();
     void add_callbacks_to_image_request(GC::Ref<ImageRequest>, bool maybe_omit_events, Utf16View url_string, Utf16View previous_url);
 
+    void create_alt_text_shadow_tree();
+    void remove_alt_text_shadow_tree();
+    void update_alt_text_shadow_tree();
+    void set_needs_layout_update_or_repaint_after_image_data_change(DOM::SetNeedsLayoutReason);
+
     virtual void decoded_image_data_did_update() override { set_needs_repaint(); }
 
     Optional<DOM::DocumentLoadEventDelayer> m_load_event_delayer;
@@ -159,6 +164,8 @@ private:
 
     // https://html.spec.whatwg.org/multipage/images.html#pending-request
     GC::Ptr<ImageRequest> m_pending_request;
+
+    GC::Ptr<DOM::Text> m_alt_text_node;
 
     SourceSet m_source_set;
 

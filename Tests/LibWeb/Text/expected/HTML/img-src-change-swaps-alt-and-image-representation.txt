@@ -1,0 +1,6 @@
+src-less image renders alt text: true
+image renders blank right after src is set: true
+loaded image renders at its natural width: true
+image renders alt text again after failed load: true
+reloaded image renders at its natural width: true
+image still renders alt text after another failed load: true
