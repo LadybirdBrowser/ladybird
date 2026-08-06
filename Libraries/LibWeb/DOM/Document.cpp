@@ -1849,6 +1849,50 @@ static void propagate_scrollbar_width_to_viewport(Element& root_element, Layout:
     });
 }
 
+// https://drafts.csswg.org/css-writing-modes-4/#principal-flow
+static void propagate_principal_writing_mode_to_viewport(Element& root_element, Layout::Viewport& viewport)
+{
+    // The principal writing mode of the document is determined by the used writing-mode, direction, and
+    // text-orientation values of the root element.
+    auto const* root_inherited_box_values = root_element.style_group<CSS::ComputedValues::InheritedBoxValues>();
+    VERIFY(root_inherited_box_values);
+    auto writing_mode = static_cast<CSS::WritingMode>(root_inherited_box_values->writing_mode);
+    auto direction = static_cast<CSS::Direction>(root_inherited_box_values->direction);
+
+    // As a special case for handling HTML documents, if the root element has a body child element [HTML] whose
+    // display value is not none, the used value of the of writing-mode and direction properties on root element
+    // are taken from the computed writing-mode and direction of the first such child element instead of from the
+    // root element's own values.
+    // NOTE: Using containment disables this special handling of the HTML body element.
+    auto* body_element = root_element.first_child_of_type<HTML::HTMLBodyElement>();
+    auto const* root_box_values = root_element.style_group<CSS::ComputedValues::BoxValues>();
+    VERIFY(root_box_values);
+    auto const* body_box_values = body_element ? body_element->style_group<CSS::ComputedValues::BoxValues>() : nullptr;
+    auto const* body_inherited_box_values = body_element ? body_element->style_group<CSS::ComputedValues::InheritedBoxValues>() : nullptr;
+    auto has_containment = [](CSS::ComputedValues::BoxValues const& values) {
+        return values.size_containment || values.inline_size_containment || values.layout_containment || values.style_containment || values.paint_containment;
+    };
+    bool propagation_is_disabled_by_containment = has_containment(*root_box_values)
+        || (body_box_values && has_containment(*body_box_values));
+    if (root_element.is_html_html_element() && !propagation_is_disabled_by_containment
+        && body_box_values && body_inherited_box_values && !CSS::display_from_ffi_display(body_box_values->display).is_none()) {
+        writing_mode = static_cast<CSS::WritingMode>(body_inherited_box_values->writing_mode);
+        direction = static_cast<CSS::Direction>(body_inherited_box_values->direction);
+    }
+    root_element.unsafe_layout_node()->modify_computed_values([&](auto& values) {
+        values.set_writing_mode(writing_mode);
+        values.set_direction(direction);
+    });
+
+    // https://drafts.csswg.org/css-writing-modes-4/#icb
+    // The principal writing mode is propagated to the initial containing block and to the viewport, thereby
+    // affecting the layout of the root element and the scrolling direction of the viewport.
+    viewport.modify_computed_values([&](auto& values) {
+        values.set_writing_mode(writing_mode);
+        values.set_direction(direction);
+    });
+}
+
 // https://drafts.csswg.org/css-overflow-3/#overflow-propagation
 static void propagate_overflow_to_viewport(Element& root_element, Layout::Viewport& viewport)
 {
@@ -2161,6 +2205,7 @@ void Document::update_layout(UpdateLayoutReason reason)
         }
 
         if (document_element && document_element->unsafe_layout_node()) {
+            propagate_principal_writing_mode_to_viewport(*document_element, *m_layout_root);
             propagate_overflow_to_viewport(*document_element, *m_layout_root);
         } else {
             m_layout_root->modify_computed_values([](auto& values) {
