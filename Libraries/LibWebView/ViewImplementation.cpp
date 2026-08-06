@@ -1498,9 +1498,9 @@ void ViewImplementation::interrupt_debugger()
     client().async_interrupt_debugger(page_id());
 }
 
-void ViewImplementation::resume_debugger()
+void ViewImplementation::resume_debugger(DebuggerResumeMode mode)
 {
-    client().async_resume_debugger(page_id());
+    client().async_resume_debugger(page_id(), mode);
 }
 
 void ViewImplementation::set_debugger_breakpoint(DebuggerBreakpointLocation location, DebuggerBreakpointOptions options, DevTools::DevToolsDelegate::OnDebuggerBreakpointOperationComplete on_complete)

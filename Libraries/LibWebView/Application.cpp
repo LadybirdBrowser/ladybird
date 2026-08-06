@@ -3335,12 +3335,12 @@ void Application::interrupt_debugger(DevTools::TabDescription const& description
     view->interrupt_debugger();
 }
 
-void Application::resume_debugger(DevTools::TabDescription const& description) const
+void Application::resume_debugger(DevTools::TabDescription const& description, DebuggerResumeMode mode) const
 {
     auto view = ViewImplementation::find_view_by_id(description.id);
     if (!view.has_value())
         return;
-    view->resume_debugger();
+    view->resume_debugger(mode);
 }
 
 void Application::retrieve_debugger_environments(DevTools::TabDescription const& description, u64 frame_id, OnDebuggerEnvironmentsReceived on_complete) const

@@ -54,7 +54,55 @@ void ThreadActor::handle_message(Message const& message)
     }
 
     if (message.type == "resume"sv) {
-        resume();
+        if (!m_is_paused) {
+            send_wrong_state_error(message, "Cannot resume while the thread is running"sv);
+            return;
+        }
+
+        WebView::DebuggerResumeMode mode = WebView::DebuggerResumeMode::Continue;
+        if (auto resume_limit = message.data.get_object("resumeLimit"sv); resume_limit.has_value()) {
+            auto type = resume_limit->get_string("type"sv);
+            if (!type.has_value()) {
+                send_missing_parameter_error(message, "resumeLimit.type"sv);
+                return;
+            }
+            if (*type == "step"sv)
+                mode = WebView::DebuggerResumeMode::StepInto;
+            else if (*type == "next"sv || *type == "break"sv)
+                mode = WebView::DebuggerResumeMode::StepOver;
+            else if (*type == "finish"sv)
+                mode = WebView::DebuggerResumeMode::StepOut;
+            else {
+                JsonObject response;
+                response.set("error"sv, "badParameterType"sv);
+                response.set("message"sv, "Unknown resumeLimit type"sv);
+                send_response(message, move(response));
+                return;
+            }
+        }
+
+        if (auto frame_actor_id = message.data.get_string("frameActorID"sv); frame_actor_id.has_value()) {
+            auto frame = m_frame_actors.find_if([&](auto const& weak_frame) {
+                auto frame = weak_frame.strong_ref();
+                return frame && frame->name() == *frame_actor_id;
+            });
+            if (frame == m_frame_actors.end()) {
+                send_unknown_actor_error(message, *frame_actor_id);
+                return;
+            }
+
+            auto youngest_frame = m_frame_actors.first().strong_ref();
+            auto selected_frame = frame->strong_ref();
+            if (!youngest_frame || !selected_frame || youngest_frame.ptr() != selected_frame.ptr()) {
+                JsonObject response;
+                response.set("error"sv, "unsupported"sv);
+                response.set("message"sv, "Stepping from a non-youngest frame is not supported"sv);
+                send_response(message, move(response));
+                return;
+            }
+        }
+
+        resume(mode);
         JsonObject response;
         send_response(message, move(response));
         return;
@@ -120,6 +168,11 @@ void ThreadActor::handle_message(Message const& message)
     }
 
     if (message.type == "frames"sv) {
+        if (!m_is_paused) {
+            send_wrong_state_error(message, "Stack frames are only available while the thread is paused"sv);
+            return;
+        }
+
         auto start = message.data.get_integer<size_t>("start"sv).value_or(0);
         auto count = message.data.get_integer<size_t>("count"sv);
         start = min(start, m_frame_actors.size());
@@ -148,13 +201,13 @@ void ThreadActor::attach()
         watcher->start_watching_thread_state_resources();
 }
 
-void ThreadActor::resume()
+void ThreadActor::resume(WebView::DebuggerResumeMode mode)
 {
     if (!m_is_paused)
         return;
 
     if (auto tab = m_tab.strong_ref())
-        devtools().delegate().resume_debugger(tab->description());
+        devtools().delegate().resume_debugger(tab->description(), mode);
 
     did_resume();
 }
@@ -180,7 +233,7 @@ void ThreadActor::did_pause(WebView::DebuggerPause pause)
     clear_pause_actors();
     if (pause.frames.is_empty()) {
         if (auto tab = m_tab.strong_ref())
-            devtools().delegate().resume_debugger(tab->description());
+            devtools().delegate().resume_debugger(tab->description(), WebView::DebuggerResumeMode::Continue);
         did_resume();
         return;
     }

@@ -134,7 +134,7 @@ endpoint WebContentServer
     configure_debugger(u64 page_id, WebView::DebuggerConfiguration configuration) =|
     detach_debugger(u64 page_id) =|
     interrupt_debugger(u64 page_id) =|
-    resume_debugger(u64 page_id) =|
+    resume_debugger(u64 page_id, WebView::DebuggerResumeMode mode) =|
     set_debugger_breakpoint(u64 page_id, u64 request_id, WebView::DebuggerBreakpointLocation location, WebView::DebuggerBreakpointOptions options) =|
     remove_debugger_breakpoint(u64 page_id, u64 request_id, WebView::DebuggerBreakpointLocation location) =|
     get_debugger_environments(u64 page_id, u64 request_id, u64 frame_id) =|
