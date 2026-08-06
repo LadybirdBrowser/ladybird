@@ -812,7 +812,6 @@ pub(crate) struct LayoutState {
     anchor_inset_store: AnchorInsetStore,
     replaced_content_facts: PagedStore<crate::layout::FfiReplacedContentFacts>,
     line_data: PagedStore<RefCell<LineData>>,
-    block_rare_data: PagedStore<RefCell<BlockRareData>>,
     used_values_rare_data: PagedStore<RefCell<UsedValuesRareData>>,
     inline_containing_blocks: RefCell<HashSet<Node>>,
     purpose: LayoutStatePurpose,
@@ -830,10 +829,6 @@ impl Default for LayoutState {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) struct BlockRareData {
-    pub(crate) lowest_floating_descendant_bottom_margin_edge: Option<crate::layout::CssPixels>,
-}
 
 #[derive(Default)]
 pub(crate) struct LineData {
@@ -865,7 +860,6 @@ impl LayoutState {
             anchor_inset_store: AnchorInsetStore::default(),
             replaced_content_facts: PagedStore::default(),
             line_data: PagedStore::default(),
-            block_rare_data: PagedStore::default(),
             used_values_rare_data: PagedStore::default(),
             inline_containing_blocks: RefCell::new(HashSet::new()),
             purpose,
@@ -1241,20 +1235,6 @@ impl LayoutState {
 
     pub(crate) fn line_data_mut_if_present(&self, slot_index: u32) -> Option<RefMut<'_, LineData>> {
         self.line_data.get(slot_index).map(RefCell::borrow_mut)
-    }
-
-    pub(crate) fn block_rare_data(&self, slot_index: u32) -> Option<Ref<'_, BlockRareData>> {
-        self.block_rare_data.get(slot_index).map(RefCell::borrow)
-    }
-
-    pub(crate) fn block_rare_data_mut(&self, slot_index: u32) -> RefMut<'_, BlockRareData> {
-        self.block_rare_data
-            .get(slot_index)
-            .unwrap_or_else(|| {
-                self.block_rare_data
-                    .allocate(slot_index, RefCell::new(BlockRareData::default()))
-            })
-            .borrow_mut()
     }
 
     pub(crate) fn used_values_rare_data(&self, slot_index: u32) -> Option<Ref<'_, UsedValuesRareData>> {
