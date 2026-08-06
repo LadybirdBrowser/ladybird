@@ -91,6 +91,17 @@ public:
     virtual void apply_changing_navigable_history_step_continuation(u64 operation_id, ApplyChangingNavigableHistoryStepContinuation, GC::Ref<GC::Function<void()>> on_complete) override;
     virtual void update_nonchanging_navigable_history_step_state(CrossProcessId navigable_id, HistoryObjectLengthAndIndex, GC::Ref<GC::Function<void()>> on_complete) override;
 
+    using OnHistoryOperationReady = GC::Function<void(bool proceed, Optional<i32> step_override, HistoryStepResult abandon_result)>;
+    struct HistoryOperationState {
+        GC::Ptr<DOM::Document> pending_document;
+        GC::Ptr<LocalNavigable> expected_ongoing_navigation_navigable;
+        Optional<Utf16String> expected_ongoing_navigation_id;
+        GC::Ptr<GC::Function<void(GC::Ref<OnHistoryOperationReady>)>> pre_steps;
+        GC::Ptr<OnApplyHistoryStepComplete> on_apply_complete;
+        GC::Ptr<OnApplyHistoryStepComplete> on_complete;
+    };
+    void request_history_operation(HistoryOperationParameters, HistoryOperationState);
+
     void finalize_same_document_navigation(GC::Ref<LocalNavigable>, NonnullRefPtr<SessionHistoryEntry>, RefPtr<SessionHistoryEntry> entry_to_replace, HistoryHandlingBehavior, UserNavigationInvolvement);
     void did_complete_finalize_same_document_navigation(u64 operation_id, bool committed, int entry_step, int target_step, HistoryObjectLengthAndIndex);
     void apply_the_push_or_replace_history_step(int step, HistoryHandlingBehavior history_handling, UserNavigationInvolvement, SynchronousNavigation, GC::Ptr<DOM::Document> pending_document, GC::Ptr<LocalNavigable> expected_ongoing_navigation_navigable, Optional<Utf16String> expected_ongoing_navigation_id, GC::Ref<OnApplyHistoryStepComplete> on_complete);
@@ -211,6 +222,8 @@ private:
 
     void check_if_unloading_is_canceled(Vector<GC::Root<LocalNavigable>> navigables_that_need_before_unload, GC::Ptr<LocalTraversableNavigable> traversable, Optional<int> target_step, Optional<UserNavigationInvolvement> user_involvement_for_navigate_events, GC::Ref<GC::Function<void(CheckIfUnloadingIsCanceledResult)>> callback);
 
+    void complete_history_initiation(u64 initiation_id, HistoryStepResult, NonnullRefPtr<Core::Promise<Empty>> queue_signal);
+
     Vector<NonnullRefPtr<SessionHistoryEntry>> get_session_history_entries_for_the_navigation_api(GC::Ref<LocalNavigable>, int);
     Vector<NonnullRefPtr<SessionHistoryEntry>> get_session_history_entries_for_the_navigation_api(CrossProcessId, int);
 
@@ -252,6 +265,8 @@ private:
     GC::Ptr<ApplyHistoryStepState> m_paused_apply_history_step_state;
     GC::Ptr<ApplyHistoryStepState> m_apply_history_step_state;
     HashMap<u64, GC::Ref<ApplyHistoryStepOperationState>> m_apply_history_step_operations;
+    u64 m_next_history_initiation_id { 1 };
+    HashMap<u64, HistoryOperationState> m_history_operation_states;
 
     struct PendingSameDocumentNavigation {
         GC::Ref<LocalNavigable> target_navigable;
