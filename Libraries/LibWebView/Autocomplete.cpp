@@ -224,7 +224,7 @@ static Optional<AutocompleteSuggestion> search_for_query_suggestion(StringView q
 
 static Optional<AutocompleteSuggestion> literal_url_suggestion(StringView query)
 {
-    if (query.is_empty() || !location_looks_like_url(query))
+    if (query.is_empty() || classify_user_input(query).classification != UserInputClassification::InternalURL)
         return {};
 
     return AutocompleteSuggestion {
