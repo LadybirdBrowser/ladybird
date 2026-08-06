@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; font: 16px/20px monospace; }
+    .frame { width: 300px; margin: 20px; }
+    .abs { position: absolute; inset: 0; }
+</style>
+<body>
+    <!-- The relative inset of the inline containing block shifts its
+         absolutely positioned children with it, as in Chrome. -->
+    <div class="frame">
+        <span id="plain" style="position: relative;">text<span class="abs" id="unshifted">a</span></span>
+    </div>
+    <div class="frame">
+        <span id="offset" style="position: relative; left: 10px; top: 5px;">text<span class="abs" id="shifted">a</span></span>
+    </div>
+    <!-- A relative inline ancestor of the containing block contributes too. -->
+    <div class="frame">
+        <span style="position: relative; left: 7px;"><span id="nested-offset" style="position: relative; left: 10px;">text<span class="abs" id="chain-shifted">a</span></span></span>
+    </div>
+
+    <script>
+        test(() => {
+            const rect = (id) => document.getElementById(id).getBoundingClientRect();
+            const alignment = (childId, containingBlockId) => {
+                const child = rect(childId);
+                const containingBlock = rect(containingBlockId);
+                return `${child.x - containingBlock.x},${child.y - containingBlock.y}`;
+            };
+            println(`plain alignment: ${alignment("unshifted", "plain")}`);
+            println(`shifted alignment: ${alignment("shifted", "offset")}`);
+            println(`chain alignment: ${alignment("chain-shifted", "nested-offset")}`);
+        });
+    </script>
+</body>
