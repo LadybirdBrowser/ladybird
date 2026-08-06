@@ -2,13 +2,22 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
     Box <body> at [0,0] flex-container(row) [0+0+0 800 0+0+0] [0+0+0 100 0+0+0] [FFC] children: not-inline
       ImageBox <img> at [0,0] flex-item [0+0+0 400 0+0+0] [0+0+0 100 0+0+0] children: not-inline
-      ImageBox <img.padded> at [600,0] flex-item [0+0+200 200 0+0+0] [0+0+0 100 0+0+0] children: not-inline
+      BlockContainer <img.padded> at [600,0] flex-item [0+0+200 200 0+0+0] [0+0+0 100 0+0+0] [BFC] children: inline
+        InlineNode <div> at [600,0] [0+0+0 189.3125 0+0+0] [0+0+0 48 0+0+0]
+          frag 0 from TextNode start: 0, length: 23, rect: [600,0 180.515625x16] baseline: 12.796875
+              "hello this text is here"
+          frag 0 from TextNode start: 24, length: 22, rect: [600,16 189.3125x16] baseline: 12.796875
+              "to make the img have a"
+          frag 0 from TextNode start: 47, length: 19, rect: [600,32 146.203125x16] baseline: 12.796875
+              "wide intrinsic size"
+          TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x100]
     Paintable (Box<BODY>) [0,0 800x100]
       ImagePaintable (ImageBox<IMG>) [0,0 400x100]
-      ImagePaintable (ImageBox<IMG>.padded) [400,0 400x100]
+      PaintableWithLines (BlockContainer<IMG>.padded) [400,0 400x100]
+        InlinePaintable (InlineNode<DIV>) [600,0 189.3125x48]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x100] (z-index: auto)

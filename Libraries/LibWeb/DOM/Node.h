@@ -97,6 +97,7 @@ enum class SetNeedsLayoutReason {
     X(ElementSetInnerHTML)                                \
     X(ElementSetShadowRoot)                               \
     X(DetailsElementOpenedOrClosed)                       \
+    X(HTMLImageElementUpdateTheImageData)                 \
     X(HTMLInputElementSrcAttribute)                       \
     X(HTMLObjectElementUpdateLayoutAndChildObjects)       \
     X(KeyframeEffect)                                     \

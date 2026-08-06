@@ -110,6 +110,7 @@ void HTMLInputElement::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_inner_text_element);
     visitor.visit(m_text_node);
+    visitor.visit(m_image_button_alt_text_node);
     visitor.visit(m_placeholder_element);
     visitor.visit(m_placeholder_text_node);
     visitor.visit(m_up_button_element);
@@ -148,6 +149,8 @@ RefPtr<Layout::Node> HTMLInputElement::create_layout_node(NonnullRefPtr<CSS::Com
     // NOTE: Image inputs are `appearance: none` per the default UA style,
     //       but we still need to create an ImageBox for them, or no image will get loaded.
     if (type_state() == TypeAttributeState::ImageButton) {
+        if (renders_as_alt_text() && !get_attribute_value(HTML::AttributeNames::alt).is_empty())
+            return Element::create_layout_node_for_display_type(document(), style->display(), style, this);
         return make_ref_counted<Layout::ImageBox>(document(), *this, style, *this);
     }
 
@@ -1082,6 +1085,8 @@ void HTMLInputElement::create_shadow_tree_if_needed()
         create_button_input_shadow_tree();
         break;
     case TypeAttributeState::ImageButton:
+        if (renders_as_alt_text() && !get_attribute_value(HTML::AttributeNames::alt).is_empty())
+            create_image_button_alt_text_shadow_tree();
         break;
     case TypeAttributeState::Color:
         create_color_input_shadow_tree();
@@ -1116,6 +1121,9 @@ void HTMLInputElement::update_shadow_tree()
     case TypeAttributeState::SubmitButton:
         update_button_input_shadow_tree();
         break;
+    case TypeAttributeState::ImageButton:
+        update_image_button_alt_text_shadow_tree();
+        break;
     default:
         update_text_input_shadow_tree();
         break;
@@ -1133,6 +1141,48 @@ void HTMLInputElement::create_button_input_shadow_tree()
     m_text_node = realm().create<DOM::Text>(document(), button_label());
     MUST(text_container->append_child(*m_text_node));
     MUST(shadow_root->append_child(*text_container));
+}
+
+void HTMLInputElement::create_image_button_alt_text_shadow_tree()
+{
+    VERIFY(!shadow_root());
+
+    auto shadow_root = realm().create<DOM::ShadowRoot>(document(), *this, Bindings::ShadowRootMode::Closed);
+    shadow_root->set_user_agent_internal(true);
+    set_shadow_root(shadow_root);
+
+    auto wrapper = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
+    // Keep the wrapper from introducing a block or a bidi isolate so the fallback behaves as
+    // ordinary phrasing content.
+    wrapper->set_attribute_value(HTML::AttributeNames::style, "display: inline; unicode-bidi: normal;"_utf16);
+    m_image_button_alt_text_node = realm().create<DOM::Text>(document(), get_attribute_value(HTML::AttributeNames::alt));
+    MUST(wrapper->append_child(*m_image_button_alt_text_node));
+    MUST(shadow_root->append_child(*wrapper));
+}
+
+void HTMLInputElement::remove_image_button_alt_text_shadow_tree()
+{
+    if (!m_image_button_alt_text_node)
+        return;
+
+    set_shadow_root(nullptr);
+    m_image_button_alt_text_node = nullptr;
+}
+
+void HTMLInputElement::update_image_button_alt_text_shadow_tree()
+{
+    auto alt_text = get_attribute_value(HTML::AttributeNames::alt);
+    if (type_state() != TypeAttributeState::ImageButton || !renders_as_alt_text() || alt_text.is_empty()) {
+        remove_image_button_alt_text_shadow_tree();
+        return;
+    }
+
+    if (!m_image_button_alt_text_node) {
+        create_image_button_alt_text_shadow_tree();
+        return;
+    }
+
+    m_image_button_alt_text_node->set_data(alt_text);
 }
 
 void HTMLInputElement::create_text_input_shadow_tree()
@@ -1608,8 +1658,8 @@ void HTMLInputElement::form_associated_element_attribute_changed(Utf16FlyString 
     } else if (name == HTML::AttributeNames::src) {
         handle_src_attribute(value.has_value() ? value->utf16_view() : u""sv).release_value_but_fixme_should_propagate_errors();
     } else if (name == HTML::AttributeNames::alt) {
-        if (unsafe_layout_node() && type_state() == TypeAttributeState::ImageButton)
-            did_update_alt_text(as<Layout::ImageBox>(*unsafe_layout_node()));
+        if (type_state() == TypeAttributeState::ImageButton)
+            update_image_button_alt_text_shadow_tree();
     } else if (name == HTML::AttributeNames::maxlength) {
         handle_maxlength_attribute();
     } else if (name == HTML::AttributeNames::multiple) {
@@ -1677,6 +1727,7 @@ void HTMLInputElement::type_attribute_changed(TypeAttributeState old_state, Type
     m_type = new_state;
     clear_element_reference_pseudo_elements();
     set_shadow_root(nullptr);
+    m_image_button_alt_text_node = nullptr;
     create_shadow_tree_if_needed();
 
     // 5. Signal a type change for the element. (The Radio Button state uses this, in particular.)
@@ -1763,6 +1814,7 @@ WebIDL::ExceptionOr<void> HTMLInputElement::handle_src_attribute(Utf16View value
             });
 
             m_load_event_delayer.clear();
+            update_image_button_alt_text_shadow_tree();
             set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::HTMLInputElementSrcAttribute);
         },
         [this, &realm]() {
@@ -1777,12 +1829,14 @@ WebIDL::ExceptionOr<void> HTMLInputElement::handle_src_attribute(Utf16View value
 
             // NB: The element may have been rendering as blank space while the load was pending;
             //     now that the load failed it renders its alt text instead.
+            update_image_button_alt_text_shadow_tree();
             set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::HTMLInputElementSrcAttribute);
         });
 
     if (m_resource_request->needs_fetching()) {
         m_resource_request->fetch_resource(realm, request);
     }
+    update_image_button_alt_text_shadow_tree();
 
     // Fetching the image must delay the load event of the element's node document until the task that is queued by the
     // networking task source once the resource has been fetched (defined below) has been run.
@@ -2308,7 +2362,8 @@ GC::Ptr<DecodedImageData> HTMLInputElement::image_data() const
 
 bool HTMLInputElement::is_image_pending() const
 {
-    return m_resource_request && m_resource_request->is_fetching();
+    // NB: A freshly created request that has not started fetching yet counts as pending too.
+    return m_resource_request && (m_resource_request->needs_fetching() || m_resource_request->is_fetching());
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-tabindex
