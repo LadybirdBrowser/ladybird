@@ -20,8 +20,6 @@
 
 namespace Web::HTML {
 
-struct ChangingNavigableContinuationState;
-
 enum class SynchronousNavigation : bool {
     Yes,
     No,
@@ -42,6 +40,14 @@ struct HistoryObjectLengthAndIndex {
     u64 script_history_index;
 };
 
+enum class InitiatorSandboxingCheckResult : u8 {
+    Allowed,
+    Disallowed,
+};
+
+using OnInitiatorSandboxingCheckComplete = GC::Function<void(InitiatorSandboxingCheckResult)>;
+using OnHistoryStepUnloadCancelationComplete = GC::Function<void(HistoryStepResult)>;
+
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#apply-the-history-step
 //
 // The per-navigable jobs of apply-the-history-step. The coordinator runs the traversal-wide algorithm and holds its
@@ -51,6 +57,12 @@ struct HistoryObjectLengthAndIndex {
 class WEB_API ApplyHistoryStepJobRunner {
 public:
     virtual ~ApplyHistoryStepJobRunner() = default;
+
+    virtual void start_apply_history_step_operation(u64 operation_id, LocalNavigable::NavigationAPIAbortBehavior) = 0;
+    virtual void complete_apply_history_step_operation(u64 operation_id) = 0;
+
+    virtual void run_initiator_sandboxing_check_job(GC::Ref<LocalNavigable> initiator_to_check, GC::Ref<SourceSnapshotParams>, Vector<CrossProcessId>, GC::Ref<OnInitiatorSandboxingCheckComplete>) = 0;
+    virtual void run_history_step_unload_cancelation_job(int target_step, Vector<CrossProcessId>, UserNavigationInvolvement, GC::Ref<OnHistoryStepUnloadCancelationComplete>) = 0;
 
     // One iteration of "12. For each navigable of changingNavigables, queue a global task ...".
     //
@@ -68,24 +80,20 @@ public:
         LocalNavigable::NavigationAPIAbortBehavior navigation_api_abort_behavior;
         GC::Ptr<DOM::Document> pending_document;
     };
-    struct ChangingNavigableHistoryStepJobResult {
-        ChangingNavigableHistoryStepJobDisposition disposition;
-        GC::Ptr<ChangingNavigableContinuationState> continuation;
-    };
-    using OnChangingNavigableHistoryStepJobComplete = GC::Function<void(ChangingNavigableHistoryStepJobResult)>;
-    virtual void run_changing_navigable_history_step_job(ChangingNavigableHistoryStepJob, GC::Ref<OnChangingNavigableHistoryStepJobComplete>) = 0;
+    using OnChangingNavigableHistoryStepJobComplete = GC::Function<void(ChangingNavigableHistoryStepJobDisposition)>;
+    virtual void run_changing_navigable_history_step_job(u64 operation_id, ChangingNavigableHistoryStepJob, GC::Ref<OnChangingNavigableHistoryStepJobComplete>) = 0;
 
     // The "second part" of a changing navigable's job: "12. In both cases, let afterPotentialUnloads be ...",
     // applied to the continuation the job enqueued.
     struct ApplyChangingNavigableHistoryStepContinuation {
-        GC::Ref<ChangingNavigableContinuationState> continuation;
+        CrossProcessId navigable_id;
         HistoryObjectLengthAndIndex history_object_length_and_index;
         Vector<NonnullRefPtr<SessionHistoryEntry>> entries_for_navigation_api;
         Optional<Bindings::NavigationType> navigation_type;
         LocalNavigable::NavigationAPIAbortBehavior navigation_api_abort_behavior;
         UserNavigationInvolvement user_involvement;
     };
-    virtual void apply_changing_navigable_history_step_continuation(ApplyChangingNavigableHistoryStepContinuation, GC::Ref<GC::Function<void()>> on_complete) = 0;
+    virtual void apply_changing_navigable_history_step_continuation(u64 operation_id, ApplyChangingNavigableHistoryStepContinuation, GC::Ref<GC::Function<void()>> on_complete) = 0;
 
     // One iteration of "18. For each navigable of nonchangingNavigablesThatStillNeedUpdates, queue a global task ...".
     virtual void update_nonchanging_navigable_history_step_state(CrossProcessId navigable_id, HistoryObjectLengthAndIndex, GC::Ref<GC::Function<void()>> on_complete) = 0;
