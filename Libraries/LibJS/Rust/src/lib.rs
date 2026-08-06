@@ -618,11 +618,12 @@ pub unsafe extern "C" fn rust_parse_program(
                 return std::ptr::null_mut();
             };
 
-            let mut parser = if pt == ProgramType::Script {
-                Parser::new_with_line_offset(source_slice, pt, u32_from_usize(initial_line_number))
+            let initial_line_number = if pt == ProgramType::Module && initial_line_number == 0 {
+                1
             } else {
-                Parser::new(source_slice, pt)
+                initial_line_number
             };
+            let mut parser = Parser::new_with_line_offset(source_slice, pt, u32_from_usize(initial_line_number));
 
             let program = parser.parse_program(false);
 
@@ -819,7 +820,86 @@ pub unsafe extern "C" fn rust_compile_parsed_program_fully_off_thread(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_free_compiled_program(compiled: *mut CompiledProgram) {
     unsafe {
-        drop(Box::from_raw(compiled));
+        fn free_generator_regexes(generator: &mut bytecode::generator::Generator) {
+            for regex in generator.compiled_regexes.drain(..) {
+                unsafe { crate::ast::free_compiled_regex(regex) };
+            }
+            for shared_data in &mut generator.shared_function_data {
+                if let Some(precompiled) = &mut shared_data.precompiled_function {
+                    free_generator_regexes(&mut precompiled.generator);
+                }
+            }
+        }
+
+        let mut compiled = Box::from_raw(compiled);
+        match &mut compiled.bytecode {
+            CompiledProgramBytecode::Program(bytecode) | CompiledProgramBytecode::AsyncModule(bytecode) => {
+                free_generator_regexes(&mut bytecode.generator);
+            }
+        }
+        for declaration in &mut compiled.declaration_functions {
+            if let Some(precompiled) = &mut declaration.precompiled_function {
+                free_generator_regexes(&mut precompiled.generator);
+            }
+        }
+    }
+}
+
+/// Collect all source-map positions from a fully compiled program.
+///
+/// # Safety
+/// `compiled` must be a valid pointer returned by
+/// `rust_compile_parsed_program_fully_off_thread`, and `callback` must be valid
+/// for the duration of this call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_collect_compiled_program_breakpoint_positions(
+    compiled: *const CompiledProgram,
+    context: *mut c_void,
+    callback: unsafe extern "C" fn(context: *mut c_void, line: u32, column: u32),
+) {
+    fn collect_precompiled_function(
+        precompiled: &bytecode::generator::PrecompiledFunction,
+        context: *mut c_void,
+        callback: unsafe extern "C" fn(context: *mut c_void, line: u32, column: u32),
+    ) {
+        collect_bytecode(&precompiled.generator, &precompiled.assembled, context, callback);
+    }
+
+    fn collect_bytecode(
+        generator: &bytecode::generator::Generator,
+        assembled: &bytecode::generator::AssembledBytecode,
+        context: *mut c_void,
+        callback: unsafe extern "C" fn(context: *mut c_void, line: u32, column: u32),
+    ) {
+        for entry in &assembled.source_map {
+            if entry.line != 0 {
+                unsafe { callback(context, entry.line, entry.column) };
+            }
+        }
+        for shared_data in &generator.shared_function_data {
+            if let Some(precompiled) = &shared_data.precompiled_function {
+                collect_precompiled_function(precompiled, context, callback);
+            }
+        }
+    }
+
+    unsafe {
+        abort_on_panic(|| {
+            if compiled.is_null() {
+                return;
+            }
+            let compiled = &*compiled;
+            match &compiled.bytecode {
+                CompiledProgramBytecode::Program(bytecode) | CompiledProgramBytecode::AsyncModule(bytecode) => {
+                    collect_bytecode(&bytecode.generator, &bytecode.assembled, context, callback);
+                }
+            }
+            for declaration in &compiled.declaration_functions {
+                if let Some(precompiled) = &declaration.precompiled_function {
+                    collect_precompiled_function(precompiled, context, callback);
+                }
+            }
+        });
     }
 }
 

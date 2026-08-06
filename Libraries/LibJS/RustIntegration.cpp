@@ -8,6 +8,7 @@
 
 #include <AK/BitCast.h>
 #include <AK/NumericLimits.h>
+#include <AK/QuickSort.h>
 #include <AK/TemporaryChange.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
@@ -560,6 +561,42 @@ void free_compiled_program(CompiledProgram* compiled)
     rust_free_compiled_program(compiled);
 }
 
+static void collect_breakpoint_position(void* context, u32 line, u32 column)
+{
+    static_cast<Vector<Position>*>(context)->append({ line, column });
+}
+
+Vector<Position> breakpoint_positions_for_source(SourceCode const& source_code, ProgramType type, size_t line_number_offset)
+{
+    auto* parsed = parse_program(source_code.utf16_data(), source_code.length_in_code_units(), type, line_number_offset);
+    if (!parsed)
+        return {};
+    if (parsed_program_has_errors(parsed)) {
+        free_parsed_program(parsed);
+        return {};
+    }
+
+    auto* compiled = compile_parsed_program_fully_off_thread(parsed, source_code.length_in_code_units());
+    if (!compiled)
+        return {};
+
+    Vector<Position> positions;
+    rust_collect_compiled_program_breakpoint_positions(compiled, &positions, collect_breakpoint_position);
+    free_compiled_program(compiled);
+
+    quick_sort(positions, [](auto const& left, auto const& right) {
+        return left.line < right.line || (left.line == right.line && left.column < right.column);
+    });
+    Vector<Position> unique_positions;
+    unique_positions.ensure_capacity(positions.size());
+    for (auto const& position : positions) {
+        if (!unique_positions.is_empty() && unique_positions.last().line == position.line && unique_positions.last().column == position.column)
+            continue;
+        unique_positions.append(position);
+    }
+    return unique_positions;
+}
+
 ByteBuffer serialize_compiled_program_for_bytecode_cache(CompiledProgram const& compiled, ProgramType type, ReadonlyBytes source_hash)
 {
     auto blob = rust_serialize_compiled_program_for_bytecode_cache(&compiled, static_cast<u8>(type), source_hash.data(), source_hash.size());
@@ -994,20 +1031,20 @@ ModuleBytecodeCacheInstallResult install_generated_bytecode_cache_module(Decoded
     return result.release_value();
 }
 
-Optional<Result<ModuleResult, Vector<ParserError>>> compile_module(Utf16View source_text, Realm& realm, Utf16View display_filename)
+Optional<Result<ModuleResult, Vector<ParserError>>> compile_module(Utf16View source_text, Realm& realm, Utf16View display_filename, size_t line_number_offset)
 {
     auto source_code = SourceCode::create(
         Utf16String::from_utf16(display_filename),
         Utf16String::from_utf16(source_text));
 
-    return compile_module(move(source_code), realm);
+    return compile_module(move(source_code), realm, line_number_offset);
 }
 
-Optional<Result<ModuleResult, Vector<ParserError>>> compile_module(NonnullRefPtr<SourceCode const> source_code, Realm& realm)
+Optional<Result<ModuleResult, Vector<ParserError>>> compile_module(NonnullRefPtr<SourceCode const> source_code, Realm& realm, size_t line_number_offset)
 {
     auto const* source_ptr = source_code->utf16_data();
     auto length = source_code->length_in_code_units();
-    auto* parsed = rust_parse_program(source_ptr, length, static_cast<u8>(ProgramType::Module), 0, g_dump_ast, g_dump_ast_use_color);
+    auto* parsed = rust_parse_program(source_ptr, length, static_cast<u8>(ProgramType::Module), line_number_offset, g_dump_ast, g_dump_ast_use_color);
 
     return compile_parsed_module(parsed, source_code, realm);
 }
