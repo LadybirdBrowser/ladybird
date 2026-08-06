@@ -2849,6 +2849,10 @@ handler Call(
     frame.saved_lexical_environment = empty_tag;
     frame.script_or_module = ecmascript_function.script_or_module;
     frame.program_counter = 0;
+    let frame_id_vm = current_vm();
+    let frame_id = frame_id_vm.interpreter_stack_next_frame_id;
+    frame.frame_id = frame_id;
+    frame_id_vm.interpreter_stack_next_frame_id = frame_id + 1;
     frame.skip_when_determining_incumbent_counter = 0;
     frame.yield_continuation = EXECUTION_CONTEXT_NO_YIELD_CONTINUATION;
     frame.yield_is_await = false;
@@ -2963,6 +2967,10 @@ handler Call(
         # Raw native frames deliberately have no executable.
         native_frame.executable = null;
         native_frame.program_counter = 0;
+        let native_frame_id_vm = current_vm();
+        let native_frame_id = native_frame_id_vm.interpreter_stack_next_frame_id;
+        native_frame.frame_id = native_frame_id;
+        native_frame_id_vm.interpreter_stack_next_frame_id = native_frame_id + 1;
         native_frame.skip_when_determining_incumbent_counter = 0;
         native_frame.yield_continuation = EXECUTION_CONTEXT_NO_YIELD_CONTINUATION;
         native_frame.yield_is_await = false;

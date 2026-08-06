@@ -208,6 +208,8 @@ void ThreadActor::did_pause(WebView::DebuggerPause pause)
             return "debuggerStatement"sv;
         case WebView::DebuggerPauseReason::Entry:
             return "interrupted"sv;
+        case WebView::DebuggerPauseReason::ResumeLimit:
+            return "resumeLimit"sv;
         }
         VERIFY_NOT_REACHED();
     }();

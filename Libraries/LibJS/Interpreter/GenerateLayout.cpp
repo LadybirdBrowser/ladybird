@@ -195,6 +195,7 @@ int main()
     EMIT_PAIRED_FIELD(EXECUTION_CONTEXT_CALLER_RETURN_PC, ExecutionContext, caller_return_pc, u32, ExecutionContext, caller_return_pc, 4, scalar, caller_return);
     EMIT_PAIRED_FIELD(EXECUTION_CONTEXT_CALLER_DST_RAW, ExecutionContext, caller_dst_raw, u32, ExecutionContext, caller_dst_raw, 4, scalar, caller_return);
     EMIT_FIELD(EXECUTION_CONTEXT_PROGRAM_COUNTER, ExecutionContext, program_counter, u32, ExecutionContext, program_counter, 4, nullable, scalar);
+    EMIT_FIELD(EXECUTION_CONTEXT_FRAME_ID, ExecutionContext, frame_id, u64, ExecutionContext, frame_id, 8, nullable, scalar);
     EMIT_PAIRED_FIELD(EXECUTION_CONTEXT_REGISTERS_AND_CONSTANTS_AND_LOCALS_AND_ARGUMENTS_COUNT, ExecutionContext, slot_count, u32, ExecutionContext, registers_and_constants_and_locals_and_arguments_count, 4, scalar, counts);
     EMIT_PAIRED_FIELD(EXECUTION_CONTEXT_ARGUMENT_COUNT, ExecutionContext, argument_count, u32, ExecutionContext, argument_count, 4, scalar, counts);
     EMIT_SIZEOF(SIZEOF_EXECUTION_CONTEXT, ExecutionContext);
@@ -218,6 +219,7 @@ int main()
     outln("\n# InterpreterStack layout");
     EMIT_OFFSET(INTERPRETER_STACK_LIMIT, InterpreterStack, m_limit);
     EMIT_OFFSET(INTERPRETER_STACK_TOP, InterpreterStack, m_top);
+    EMIT_OFFSET(INTERPRETER_STACK_NEXT_FRAME_ID, InterpreterStack, m_next_frame_id);
 
     // Realm layout
     outln("\n# Realm layout");
@@ -240,10 +242,12 @@ int main()
     outln("field VM.native_function_table Sequence<NativeFunctionTableEntry> VM_NATIVE_FUNCTION_TABLE_DATA nonnull scalar");
     outln("const VM_INTERPRETER_STACK_TOP = {}", offsetof(VM, m_interpreter_stack) + offsetof(InterpreterStack, m_top));
     outln("const VM_INTERPRETER_STACK_LIMIT = {}", offsetof(VM, m_interpreter_stack) + offsetof(InterpreterStack, m_limit));
+    outln("const VM_INTERPRETER_STACK_NEXT_FRAME_ID = {}", offsetof(VM, m_interpreter_stack) + offsetof(InterpreterStack, m_next_frame_id));
     outln("const VM_STACK_INFO_BASE = {}", offsetof(VM, m_stack_info) + offsetof(StackInfo, m_base));
     outln("field VM.running_execution_context ExecutionContext VM_RUNNING_EXECUTION_CONTEXT nullable scalar");
     outln("field VM.interpreter_stack_top u64 VM_INTERPRETER_STACK_TOP nonnull scalar interpreter_stack_bounds");
     outln("field VM.interpreter_stack_limit u64 VM_INTERPRETER_STACK_LIMIT nonnull scalar interpreter_stack_bounds");
+    outln("field VM.interpreter_stack_next_frame_id u64 VM_INTERPRETER_STACK_NEXT_FRAME_ID nonnull scalar");
     outln("field VM.stack_base u64 VM_STACK_INFO_BASE nullable scalar");
 #if defined(HAS_ADDRESS_SANITIZER)
     outln("const VM_STACK_SPACE_LIMIT = {}", 96 * KiB);
