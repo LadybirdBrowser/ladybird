@@ -719,7 +719,12 @@ pub unsafe fn create_executable(
             },
         );
         let bp_ptrs = materialize_class_blueprints(generator, vm_ptr, source_code_ptr);
-        create_executable_with_dependencies(generator, assembled, vm_ptr, source_code_ptr, &sfd_ptrs, &bp_ptrs)
+        let executable =
+            create_executable_with_dependencies(generator, assembled, vm_ptr, source_code_ptr, &sfd_ptrs, &bp_ptrs);
+
+        // C++ takes ownership of the compiled regular expressions while constructing the executable.
+        generator.compiled_regexes.clear();
+        executable
     }
 }
 
