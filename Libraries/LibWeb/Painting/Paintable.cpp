@@ -1678,15 +1678,17 @@ Optional<Paintable::ScrollbarData> Paintable::compute_scrollbar_data(ScrollDirec
 
     ScrollbarData scrollbar_data = { .gutter_rect = {}, .thumb_rect = scrollbar_rect.value(), .thumb_travel_to_scroll_ratio = 0 };
 
+    if (scrollable_overflow_length > scrollport_size)
+        scrollbar_data.thumb_travel_to_scroll_ratio = (usable_scrollbar_length - thumb_length) / (scrollable_overflow_length - scrollport_size);
+
     scrollbar_data.thumb_rect.set_primary_size_for_orientation(orientation, thumb_length);
     scrollbar_data.thumb_rect.set_secondary_size_for_orientation(orientation, thumb_thickness);
-    scrollbar_data.thumb_rect.translate_primary_offset_for_orientation(orientation, thumb_margin);
+    auto minimum_offset = minimum_scroll_offset().primary_offset_for_orientation(orientation);
+    scrollbar_data.thumb_rect.translate_primary_offset_for_orientation(orientation, thumb_margin - minimum_offset * scrollbar_data.thumb_travel_to_scroll_ratio);
     if (with_gutter || (!is_horizontal && is_chrome_mirrored()))
         scrollbar_data.thumb_rect.translate_secondary_offset_for_orientation(orientation, thumb_margin);
     if (with_gutter)
         scrollbar_data.gutter_rect = scrollbar_rect.value();
-    if (scrollable_overflow_length > scrollport_size)
-        scrollbar_data.thumb_travel_to_scroll_ratio = (usable_scrollbar_length - thumb_length) / (scrollable_overflow_length - scrollport_size);
 
     if (scroll_state_snapshot) {
         auto own_offset = scroll_state_snapshot->device_offset_for_index(m_own_scroll_node_index);
