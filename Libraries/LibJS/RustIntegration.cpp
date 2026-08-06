@@ -1449,9 +1449,23 @@ extern "C" void* rust_create_executable(
 
     // Set local variable names
     executable->local_variable_names.ensure_capacity(data->local_variable_count);
+    executable->local_variable_metadata.ensure_capacity(data->local_variable_count);
     for (size_t i = 0; i < data->local_variable_count; ++i) {
         executable->local_variable_names.append(utf16_fly_from_ffi(data->local_variable_names[i]));
+        auto const& metadata = data->local_variable_metadata[i];
+        Optional<Bytecode::Executable::LocalVariableScopeRange> scope_range;
+        if (metadata.has_scope_range) {
+            scope_range = Bytecode::Executable::LocalVariableScopeRange {
+                .start = { metadata.scope_start_line, metadata.scope_start_column },
+                .end = { metadata.scope_end_line, metadata.scope_end_column },
+            };
+        }
+        executable->local_variable_metadata.append({ metadata.is_mutable, move(scope_range) });
     }
+
+    executable->argument_variable_names.ensure_capacity(data->argument_variable_count);
+    for (size_t i = 0; i < data->argument_variable_count; ++i)
+        executable->argument_variable_names.append(utf16_fly_from_ffi(data->argument_variable_names[i]));
 
     // Set layout indices
     executable->local_index_base = data->number_of_registers;

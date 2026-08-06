@@ -42,7 +42,7 @@ use crate::bytecode::validator::validate_bytecode;
 use crate::u32_from_usize;
 
 const MAGIC: &[u8; 8] = b"LBJSBC\0\0";
-const FORMAT_VERSION: u32 = 14;
+const FORMAT_VERSION: u32 = 15;
 const SOURCE_HASH_SIZE: usize = 32;
 const BYTECODE_ALIGNMENT: usize = 8;
 const COMPLETION_TYPE_VARIANT_COUNT: u32 = 6;
@@ -1629,6 +1629,22 @@ unsafe fn materialize_executable_for_install(
                 let _ = local_variable.is_initialized_during_declaration_instantiation;
                 &local_variable.name
             }));
+        let local_variable_metadata: Vec<crate::bytecode::ffi::FFILocalVariableMetadata> = local_variables
+            .iter()
+            .map(|variable| crate::bytecode::ffi::FFILocalVariableMetadata {
+                is_mutable: variable.is_mutable,
+                has_scope_range: variable.scope_range.is_some(),
+                scope_start_line: variable.scope_range.map_or(0, |range| range.start.line),
+                scope_start_column: variable.scope_range.map_or(0, |range| range.start.column),
+                scope_end_line: variable.scope_range.map_or(0, |range| range.end.line),
+                scope_end_column: variable.scope_range.map_or(0, |range| range.end.column),
+            })
+            .collect();
+        let Some(argument_variable_names) = executable.argument_variable_names.values() else {
+            return std::ptr::null_mut();
+        };
+        let (_argument_variable_storage, argument_variable_name_slices) =
+            utf16_slice_storage(argument_variable_names.iter());
 
         let Some(shared_functions) = executable.shared_functions.values() else {
             return std::ptr::null_mut();
@@ -1707,6 +1723,8 @@ unsafe fn materialize_executable_for_install(
                 constants_data: constants_bytes.as_slice(),
                 constants_count,
                 local_variable_names: &local_variable_name_slices,
+                local_variable_metadata: &local_variable_metadata,
+                argument_variable_names: &argument_variable_name_slices,
                 compiled_regexes: &[],
             },
             vm_ptr,
@@ -2776,6 +2794,7 @@ impl Encode for ExecutableRecord<'_> {
         ExceptionHandlerTable(self.assembled).encode(encoder);
         SourceMapTable(self.assembled).encode(encoder);
         LocalVariableTable(self.generator).encode(encoder);
+        Utf16Table(&self.generator.argument_variable_names).encode(encoder);
         SharedFunctionTable(self.generator).encode(encoder);
         ClassBlueprintTable(self.generator).encode(encoder);
     }
@@ -2801,6 +2820,7 @@ impl ExecutableRecord<'_> {
             exception_handlers: ExceptionHandlerTable::decode(decoder)?,
             source_map: SourceMapTable::decode(decoder)?,
             local_variables: LocalVariableTable::decode(decoder)?,
+            argument_variable_names: Utf16Table::decode(decoder)?,
             shared_functions: SharedFunctionTable::decode(decoder)?,
             class_blueprints: ClassBlueprintTable::decode(decoder)?,
         })
@@ -2822,6 +2842,7 @@ struct DecodedExecutableRecord {
     exception_handlers: DecodedExceptionHandlerTable,
     source_map: DecodedSourceMapTable,
     local_variables: DecodedLocalVariableTable,
+    argument_variable_names: DecodedUtf16Table,
     shared_functions: DecodedFunctionTable,
     class_blueprints: DecodedClassBlueprintTable,
 }
@@ -2841,6 +2862,7 @@ impl DecodedExecutableRecord {
             + self.exception_handlers.len()
             + self.source_map.len()
             + self.local_variables.len()
+            + self.argument_variable_names.len()
             + self.shared_functions.len()
             + self.class_blueprints.len();
         self.shared_functions.validate();
@@ -3285,6 +3307,14 @@ impl Encode for LocalVariableTable<'_> {
             local_variable
                 .is_initialized_during_declaration_instantiation
                 .encode(encoder);
+            local_variable.is_mutable.encode(encoder);
+            local_variable.scope_range.is_some().encode(encoder);
+            if let Some(range) = local_variable.scope_range {
+                range.start.line.encode(encoder);
+                range.start.column.encode(encoder);
+                range.end.line.encode(encoder);
+                range.end.column.encode(encoder);
+            }
         });
     }
 }
@@ -3314,6 +3344,23 @@ impl DecodedLocalVariableTable {
                 name: DecodedUtf16String::decode(&mut decoder)?,
                 is_lexically_declared: bool::decode(&mut decoder)?,
                 is_initialized_during_declaration_instantiation: bool::decode(&mut decoder)?,
+                is_mutable: bool::decode(&mut decoder)?,
+                scope_range: if bool::decode(&mut decoder)? {
+                    Some(crate::ast::SourceRange {
+                        start: crate::ast::Position {
+                            line: u32::decode(&mut decoder)?,
+                            column: u32::decode(&mut decoder)?,
+                            offset: 0,
+                        },
+                        end: crate::ast::Position {
+                            line: u32::decode(&mut decoder)?,
+                            column: u32::decode(&mut decoder)?,
+                            offset: 0,
+                        },
+                    })
+                } else {
+                    None
+                },
             });
         }
         decoder.is_empty().then_some(values)
@@ -3324,6 +3371,8 @@ struct DecodedLocalVariable {
     name: DecodedUtf16String,
     is_lexically_declared: bool,
     is_initialized_during_declaration_instantiation: bool,
+    is_mutable: bool,
+    scope_range: Option<crate::ast::SourceRange>,
 }
 
 struct SharedFunctionTable<'a>(&'a Generator);

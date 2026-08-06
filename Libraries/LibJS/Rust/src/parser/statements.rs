@@ -106,9 +106,11 @@ impl Parser<'_> {
 
         self.consume_token(TokenType::CurlyClose);
         let scope = self.make_scope(children);
+        let range = self.range_from(start);
+        self.arena.scopes[scope].source_range = Some(range);
         self.scope_collector.set_scope_node(scope);
         self.scope_collector.close_scope();
-        self.statement(start, StatementKind::Block(scope))
+        Statement::new(range, StatementKind::Block(scope))
     }
 
     fn parse_expression_statement(&mut self) -> Statement {

@@ -400,6 +400,16 @@ public:
     Vector<SourceMapEntry> source_map;
 
     Vector<Utf16FlyString> local_variable_names;
+    Vector<Utf16FlyString> argument_variable_names;
+    struct LocalVariableScopeRange {
+        Position start;
+        Position end;
+    };
+    struct LocalVariableMetadata {
+        bool is_mutable { true };
+        Optional<LocalVariableScopeRange> scope_range;
+    };
+    Vector<LocalVariableMetadata> local_variable_metadata;
     u32 local_index_base { 0 };
     u32 argument_index_base { 0 };
 
