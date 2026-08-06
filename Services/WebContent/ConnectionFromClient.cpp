@@ -2255,14 +2255,12 @@ void ConnectionFromClient::paste(u64 page_id, Utf16String text)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->page().focused_navigable().paste(text);
-    update_input_method_state(page_id);
 }
 
 void ConnectionFromClient::paste_from_clipboard(u64 page_id)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->page().focused_navigable().paste_from_clipboard();
-    update_input_method_state(page_id);
 }
 
 void ConnectionFromClient::set_marked_text_from_input_method(u64 page_id, Utf16String text)

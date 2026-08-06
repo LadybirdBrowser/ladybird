@@ -274,6 +274,7 @@ private:
     virtual void page_did_insert_clipboard_item(Web::Clipboard::SystemClipboardItem const&, StringView presentation_style) override;
     virtual void page_did_request_clipboard_entries(u64 request_id) override;
     virtual void page_did_request_primary_paste() override;
+    virtual void page_did_complete_paste_action() override;
     virtual void page_did_update_primary_selection(Utf16String const&) override;
     virtual void page_did_change_audio_play_state(Web::HTML::AudioPlayState) override;
     virtual void page_did_change_screen_wake_lock_state(Web::ScreenWakeLockState) override;

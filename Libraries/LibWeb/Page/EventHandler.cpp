@@ -1736,6 +1736,7 @@ EventResult EventHandler::perform_paste_action(NonnullRefPtr<HTML::DragDataStore
 
     // 3. If the event was not canceled, then: if there is a selection or cursor in an editable context where
     //    pasting is enabled, insert the most suitable content found on the clipboard, if any, into the context.
+    auto result = EventResult::Handled;
     if (event_was_not_canceled) {
         Optional<Utf16View> html;
         Utf16View plain_text;
@@ -1748,10 +1749,16 @@ EventResult EventHandler::perform_paste_action(NonnullRefPtr<HTML::DragDataStore
                 plain_text = item.data;
         }
         if (html.has_value() || !plain_text.is_empty())
-            return insert_pasted_content(plain_text, html);
+            result = insert_pasted_content(plain_text, html);
     }
 
-    return EventResult::Handled;
+    // The trigger starting a paste can finish before the paste action does — so any input-method state pushed to the UI
+    // when the trigger finishes carries the state from before the paste. Notify the client here — where every paste
+    // completes — so it can push fresh state. This also covers a canceled paste event — since the page's paste handler
+    // may itself have edited the document.
+    document->page().client().page_did_complete_paste_action();
+
+    return result;
 }
 
 EventResult EventHandler::insert_pasted_content(Utf16View plain_text, Optional<Utf16View> html)

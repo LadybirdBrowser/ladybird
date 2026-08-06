@@ -1316,6 +1316,11 @@ void PageClient::page_did_request_primary_paste()
     client().async_did_request_primary_paste(m_id);
 }
 
+void PageClient::page_did_complete_paste_action()
+{
+    client().update_input_method_state(m_id);
+}
+
 void PageClient::page_did_update_primary_selection(Utf16String const& text)
 {
     client().async_did_update_primary_selection(m_id, text.to_utf8());
