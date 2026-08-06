@@ -28,6 +28,7 @@ public:
     void send_frame_update_message();
     void send_source_resource_available_message();
     void send_source_resource_available_message(Web::HTML::ScriptRegistry::Description const&);
+    void send_thread_state_resource_available_message(JsonObject);
     void set_pending_navigation_document_events_after_target_switch(String const& url, String const& title);
     void stop_listening();
 

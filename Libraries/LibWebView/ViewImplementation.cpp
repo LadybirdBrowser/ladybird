@@ -1476,6 +1476,28 @@ void ViewImplementation::request_devtools_source(Web::HTML::ScriptRegistry::Iden
     client().async_request_devtools_source(page_id(), source_id);
 }
 
+void ViewImplementation::attach_debugger(DevTools::DevToolsDelegate::OnDebuggerPaused on_paused)
+{
+    on_debugger_paused = move(on_paused);
+    client().async_attach_debugger(page_id());
+}
+
+void ViewImplementation::detach_debugger()
+{
+    on_debugger_paused = nullptr;
+    client().async_detach_debugger(page_id());
+}
+
+void ViewImplementation::interrupt_debugger()
+{
+    client().async_interrupt_debugger(page_id());
+}
+
+void ViewImplementation::resume_debugger()
+{
+    client().async_resume_debugger(page_id());
+}
+
 void ViewImplementation::resolve_dom_node_url(Optional<Web::UniqueNodeID> node_id, String const& url, DevTools::DevToolsDelegate::OnResolvedURLReceived on_complete)
 {
     auto request_id = m_next_resolve_dom_node_url_request_id++;

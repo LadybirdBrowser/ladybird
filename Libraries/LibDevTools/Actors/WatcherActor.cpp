@@ -49,6 +49,7 @@ void WatcherActor::connection_closed()
         return;
 
     stop_watching_source_resources();
+    stop_watching_thread_state_resources();
 
     if (m_is_watching_frame_targets) {
         if (auto tab = m_tab.strong_ref())
@@ -150,12 +151,13 @@ void WatcherActor::handle_message(Message const& message)
             } else if (resource_type.as_string() == "source"sv) {
                 start_watching_source_resources();
                 should_send_source_resources = true;
+            } else if (resource_type.as_string() == "thread-state"sv) {
+                start_watching_thread_state_resources();
             } else if (first_is_one_of(resource_type.as_string(),
                            "document-event"sv,
                            "error-message"sv,
                            "jstracer-state"sv,
-                           "jstracer-trace"sv,
-                           "thread-state"sv)) {
+                           "jstracer-trace"sv)) {
                 // These resource types are part of Firefox's Debugger startup sequence. Ladybird either sends them from
                 // FrameActor when they happen, or does not produce them yet, so watching them only needs to opt out of
                 // Firefox's legacy listeners.
@@ -246,13 +248,14 @@ FrameActor& WatcherActor::create_frame_target()
     auto& console = devtools().register_actor<ConsoleActor>(m_tab);
     auto& style_sheets = devtools().register_actor<StyleSheetsActor>(m_tab);
     auto& inspector = devtools().register_actor<InspectorActor>(m_tab, style_sheets);
-    auto& thread = devtools().register_actor<ThreadActor>(m_tab);
+    auto& thread = devtools().register_actor<ThreadActor>(m_tab, make_weak_ptr<WatcherActor>());
     auto& accessibility = devtools().register_actor<AccessibilityActor>(m_tab);
 
     auto& target = devtools().register_actor<FrameActor>(m_tab, make_weak_ptr<WatcherActor>(), css_properties, console, inspector, style_sheets, thread, accessibility);
     add_child_actor(target);
     m_target = target;
     m_thread = thread;
+    attach_debugger_if_possible();
     return target;
 }
 
@@ -388,6 +391,52 @@ void WatcherActor::send_source_resource_available_message(Web::HTML::ScriptRegis
 {
     if (auto target = m_target.strong_ref())
         target->send_source_resource_available_message(source);
+}
+
+void WatcherActor::start_watching_thread_state_resources()
+{
+    m_is_watching_thread_state_resources = true;
+    attach_debugger_if_possible();
+}
+
+void WatcherActor::attach_debugger_if_possible()
+{
+    if (!m_is_watching_thread_state_resources || m_debugger_is_attached || !m_thread.strong_ref())
+        return;
+
+    auto tab = m_tab.strong_ref();
+    if (!tab)
+        return;
+
+    m_debugger_is_attached = true;
+    devtools().delegate().attach_debugger(tab->description(), [weak_this = make_weak_ptr<WatcherActor>()](auto pause) mutable {
+        auto self = weak_this.strong_ref();
+        if (!self)
+            return;
+        if (auto thread = self->m_thread.strong_ref())
+            thread->did_pause(move(pause));
+    });
+}
+
+void WatcherActor::stop_watching_thread_state_resources()
+{
+    if (!m_is_watching_thread_state_resources)
+        return;
+
+    m_is_watching_thread_state_resources = false;
+    if (m_debugger_is_attached) {
+        m_debugger_is_attached = false;
+        auto tab = m_tab.strong_ref();
+        if (!tab)
+            return;
+        devtools().delegate().detach_debugger(tab->description());
+    }
+}
+
+void WatcherActor::send_thread_state_available_message(JsonObject resource)
+{
+    if (auto target = m_target.strong_ref())
+        target->send_thread_state_resource_available_message(move(resource));
 }
 
 StorageActor& WatcherActor::local_storage_actor()

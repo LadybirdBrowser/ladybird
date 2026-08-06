@@ -3303,6 +3303,38 @@ void Application::stop_listening_for_sources(DevTools::TabDescription const& des
     view->on_devtools_source_available = nullptr;
 }
 
+void Application::attach_debugger(DevTools::TabDescription const& description, OnDebuggerPaused on_paused) const
+{
+    auto view = ViewImplementation::find_view_by_id(description.id);
+    if (!view.has_value())
+        return;
+    view->attach_debugger(move(on_paused));
+}
+
+void Application::detach_debugger(DevTools::TabDescription const& description) const
+{
+    auto view = ViewImplementation::find_view_by_id(description.id);
+    if (!view.has_value())
+        return;
+    view->detach_debugger();
+}
+
+void Application::interrupt_debugger(DevTools::TabDescription const& description) const
+{
+    auto view = ViewImplementation::find_view_by_id(description.id);
+    if (!view.has_value())
+        return;
+    view->interrupt_debugger();
+}
+
+void Application::resume_debugger(DevTools::TabDescription const& description) const
+{
+    auto view = ViewImplementation::find_view_by_id(description.id);
+    if (!view.has_value())
+        return;
+    view->resume_debugger();
+}
+
 void Application::resolve_dom_node_url(DevTools::TabDescription const& description, Optional<Web::UniqueNodeID> node_id, String const& url, OnResolvedURLReceived on_complete) const
 {
     auto view = ViewImplementation::find_view_by_id(description.id);

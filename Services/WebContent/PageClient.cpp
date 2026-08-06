@@ -1660,6 +1660,29 @@ Vector<Web::HTML::ScriptRegistry::Description> PageClient::list_devtools_sources
     return results;
 }
 
+static Optional<Web::HTML::ScriptRegistry::Description> find_devtools_source_description(Web::DOM::Document const& document, JS::SourceCode const& source_code)
+{
+    if (auto script = document.script_registry().script_for_source_code(source_code); script.has_value())
+        return exported_devtools_source_description(document, script->description);
+
+    for (auto const& navigable : document.descendant_navigables()) {
+        auto content_document = navigable->active_document();
+        if (!content_document)
+            continue;
+        if (auto description = find_devtools_source_description(*content_document, source_code); description.has_value())
+            return description;
+    }
+    return {};
+}
+
+Optional<Web::HTML::ScriptRegistry::Description> PageClient::devtools_source_description(JS::SourceCode const& source_code) const
+{
+    auto const* document = page().top_level_browsing_context().active_document();
+    if (!document)
+        return {};
+    return find_devtools_source_description(*document, source_code);
+}
+
 Optional<Web::HTML::ScriptRegistry::Content> PageClient::devtools_source_content(Web::HTML::ScriptRegistry::Identifier const& source_id) const
 {
     auto* node = Web::DOM::Node::from_unique_id(source_id.document_id);

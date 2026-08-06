@@ -29,6 +29,7 @@
 #include <LibWeb/HTML/Scripting/ScriptRegistry.h>
 #include <LibWeb/StorageAPI/StorageEndpoint.h>
 #include <LibWebView/DOMNodeProperties.h>
+#include <LibWebView/Debugger.h>
 #include <LibWebView/Forward.h>
 
 namespace DevTools {
@@ -166,6 +167,12 @@ public:
     virtual void retrieve_source(TabDescription const&, Web::HTML::ScriptRegistry::Identifier, OnSourceReceived) const { }
     virtual void listen_for_sources(TabDescription const&, OnSourceAvailable) const { }
     virtual void stop_listening_for_sources(TabDescription const&) const { }
+
+    using OnDebuggerPaused = Function<void(WebView::DebuggerPause)>;
+    virtual void attach_debugger(TabDescription const&, OnDebuggerPaused) const { }
+    virtual void detach_debugger(TabDescription const&) const { }
+    virtual void interrupt_debugger(TabDescription const&) const { }
+    virtual void resume_debugger(TabDescription const&) const { }
 
     using OnScriptEvaluationComplete = Function<void(ErrorOr<JsonValue>)>;
     virtual void evaluate_javascript(TabDescription const&, String const&, OnScriptEvaluationComplete) const { }

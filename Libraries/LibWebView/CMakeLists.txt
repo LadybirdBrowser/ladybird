@@ -15,6 +15,7 @@ set(SOURCES
     CompositorHostBase.cpp
     ConsoleOutput.cpp
     CookieJar.cpp
+    Debugger.cpp
     DictionaryLookup.cpp
     DOMNodeProperties.cpp
     DownloadPresentation.cpp
