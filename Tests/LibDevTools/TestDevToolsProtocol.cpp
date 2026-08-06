@@ -1173,6 +1173,28 @@ public:
         on_source_available = nullptr;
     }
 
+    virtual void attach_debugger(DevTools::TabDescription const&, OnDebuggerPaused on_paused) const override
+    {
+        ++attach_debugger_call_count;
+        on_debugger_paused = move(on_paused);
+    }
+
+    virtual void detach_debugger(DevTools::TabDescription const&) const override
+    {
+        ++detach_debugger_call_count;
+        on_debugger_paused = nullptr;
+    }
+
+    virtual void interrupt_debugger(DevTools::TabDescription const&) const override
+    {
+        ++interrupt_debugger_call_count;
+    }
+
+    virtual void resume_debugger(DevTools::TabDescription const&) const override
+    {
+        ++resume_debugger_call_count;
+    }
+
     virtual void resolve_dom_node_url(DevTools::TabDescription const&, Optional<Web::UniqueNodeID> node_id, String const& url, OnResolvedURLReceived callback) const override
     {
         ++resolve_dom_node_url_call_count;
@@ -1470,6 +1492,11 @@ public:
     mutable size_t listen_for_sources_call_count { 0 };
     mutable size_t stop_listening_for_sources_call_count { 0 };
     mutable DevTools::DevToolsDelegate::OnSourceAvailable on_source_available;
+    mutable size_t attach_debugger_call_count { 0 };
+    mutable size_t detach_debugger_call_count { 0 };
+    mutable size_t interrupt_debugger_call_count { 0 };
+    mutable size_t resume_debugger_call_count { 0 };
+    mutable DevTools::DevToolsDelegate::OnDebuggerPaused on_debugger_paused;
     mutable size_t resolve_dom_node_url_call_count { 0 };
     mutable size_t listen_for_console_messages_call_count { 0 };
     mutable size_t stop_listening_for_console_messages_call_count { 0 };
@@ -2450,6 +2477,76 @@ TEST_CASE(source_resources)
     spin_until(session->loop, [&] {
         return source_actor_count(*session->server) == 1u
             && !session->server->actor_registry().contains(live_source_actor);
+    });
+}
+
+TEST_CASE(debugger_pause_and_resume)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    auto tab_actor = actor_from(get_tab(client), "actor"sv);
+    auto watcher_actor = actor_from(client.request(tab_actor, "getWatcher"sv), "actor"sv);
+
+    JsonObject watch_resources;
+    watch_resources.set("to"sv, watcher_actor);
+    watch_resources.set("type"sv, "watchResources"sv);
+    JsonArray resource_types;
+    resource_types.must_append("thread-state"sv);
+    watch_resources.set("resourceTypes"sv, move(resource_types));
+    EXPECT_EQ(client.request(move(watch_resources)).get_string("from"sv).value(), watcher_actor);
+    EXPECT_EQ(session->delegate.attach_debugger_call_count, 0u);
+
+    JsonObject watch_targets;
+    watch_targets.set("to"sv, watcher_actor);
+    watch_targets.set("type"sv, "watchTargets"sv);
+    watch_targets.set("targetType"sv, "frame"sv);
+    EXPECT_EQ(client.request(move(watch_targets)).get_string("from"sv).value(), watcher_actor);
+
+    auto target = read_packet_with_type(client, "target-available-form"sv).get_object("target"sv).release_value();
+    auto target_actor = actor_from(target, "actor"sv);
+    auto thread_actor = actor_from(target, "threadActor"sv);
+
+    EXPECT_EQ(session->delegate.attach_debugger_call_count, 1u);
+    VERIFY(session->delegate.on_debugger_paused);
+
+    WebView::DebuggerPause pause {
+        .reason = WebView::DebuggerPauseReason::DebuggerStatement,
+        .frames = {},
+    };
+    pause.frames.append({
+        .id = 1,
+        .display_name = "handleClick"_utf16,
+        .location = {
+            .source = session->delegate.fixture_source,
+            .line = 4,
+            .column = 2,
+        },
+    });
+    session->delegate.on_debugger_paused(move(pause));
+
+    auto paused = read_resource(client, "thread-state"sv, "resources-available-array"sv, target_actor);
+    EXPECT_EQ(paused.get_string("state"sv).value(), "paused"sv);
+    EXPECT_EQ(paused.get_object("why"sv)->get_string("type"sv).value(), "debuggerStatement"sv);
+    auto frame = paused.get_object("frame"sv).release_value();
+    EXPECT_EQ(frame.get_string("displayName"sv).value(), "handleClick"sv);
+    EXPECT_EQ(frame.get_string("state"sv).value(), "on-stack"sv);
+    EXPECT_EQ(frame.get_object("where"sv)->get_integer<u32>("line"sv).value(), 4u);
+    EXPECT_EQ(frame.get_object("where"sv)->get_integer<u32>("column"sv).value(), 2u);
+    auto frame_actor = actor_from(frame, "actor"sv);
+
+    auto environment = client.request(frame_actor, "getEnvironment"sv);
+    EXPECT_EQ(environment.get_string("from"sv).value(), frame_actor);
+
+    auto resume = client.request(thread_actor, "resume"sv);
+    EXPECT_EQ(resume.get_string("from"sv).value(), thread_actor);
+    EXPECT_EQ(session->delegate.resume_debugger_call_count, 1u);
+    auto resumed = read_resource(client, "thread-state"sv, "resources-available-array"sv, target_actor);
+    EXPECT_EQ(resumed.get_string("state"sv).value(), "resumed"sv);
+
+    spin_until(session->loop, [&] {
+        return !session->server->actor_registry().contains(frame_actor);
     });
 }
 
@@ -4199,6 +4296,54 @@ TEST_CASE(devtools_server_teardown_with_pending_actor_cleanup)
     session->server->connection()->on_connection_closed();
     session->server.clear();
     pump(session->loop);
+}
+
+TEST_CASE(devtools_disconnect_detaches_debugger_before_destroying_actors)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    auto tab_actor = actor_from(get_tab(client), "actor"sv);
+    auto watcher_actor = actor_from(client.request(tab_actor, "getWatcher"sv), "actor"sv);
+    (void)get_frame_target(client, tab_actor);
+
+    JsonObject watch_resources;
+    watch_resources.set("to"sv, watcher_actor);
+    watch_resources.set("type"sv, "watchResources"sv);
+    JsonArray resource_types;
+    resource_types.must_append("thread-state"sv);
+    watch_resources.set("resourceTypes"sv, move(resource_types));
+    (void)client.request(move(watch_resources));
+    EXPECT_EQ(session->delegate.attach_debugger_call_count, 1u);
+
+    session->server->connection()->on_connection_closed();
+    session->server->connection()->on_connection_closed();
+    spin_until(session->loop, [&] { return session->delegate.detach_debugger_call_count == 1; });
+    EXPECT_EQ(session->delegate.did_disconnect_devtools_client_call_count, 1u);
+}
+
+TEST_CASE(devtools_server_destruction_detaches_debugger_before_destroying_actors)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    auto tab_actor = actor_from(get_tab(client), "actor"sv);
+    auto watcher_actor = actor_from(client.request(tab_actor, "getWatcher"sv), "actor"sv);
+    (void)get_frame_target(client, tab_actor);
+
+    JsonObject watch_resources;
+    watch_resources.set("to"sv, watcher_actor);
+    watch_resources.set("type"sv, "watchResources"sv);
+    JsonArray resource_types;
+    resource_types.must_append("thread-state"sv);
+    watch_resources.set("resourceTypes"sv, move(resource_types));
+    (void)client.request(move(watch_resources));
+
+    session->server.clear();
+    EXPECT_EQ(session->delegate.detach_debugger_call_count, 1u);
+    EXPECT_EQ(session->delegate.did_disconnect_devtools_client_call_count, 1u);
 }
 
 TEST_CASE(network_event_reports_request_metadata)

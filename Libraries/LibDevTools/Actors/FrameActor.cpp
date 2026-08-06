@@ -379,6 +379,16 @@ void FrameActor::send_source_resource_available_message(Web::HTML::ScriptRegistr
     send_message(move(message));
 }
 
+void FrameActor::send_thread_state_resource_available_message(JsonObject resource)
+{
+    JsonArray resources;
+    resources.must_append(move(resource));
+
+    JsonObject message;
+    set_resources_available_message(message, "thread-state"sv, move(resources));
+    send_message(move(message));
+}
+
 void FrameActor::on_console_message(WebView::ConsoleOutput console_output)
 {
     JsonArray console_messages;

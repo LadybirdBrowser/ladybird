@@ -48,6 +48,19 @@ ScriptRegistry::Script const& ScriptRegistry::register_javascript_source(Nonnull
     return m_scripts.find(id)->value;
 }
 
+Optional<ScriptRegistry::Script const&> ScriptRegistry::script_for_source_code(JS::SourceCode const& source_code) const
+{
+    for (auto const& script : m_scripts) {
+        bool has_matching_source_code = false;
+        script.value.content.visit([&](JavaScriptSource const& javascript_source) {
+            has_matching_source_code = javascript_source.source_code.ptr() == &source_code;
+        });
+        if (has_matching_source_code)
+            return script.value;
+    }
+    return {};
+}
+
 Optional<ScriptRegistry::Content> ScriptRegistry::script_content(u64 script_id, Utf16View document_source) const
 {
     auto script = m_scripts.find(script_id);

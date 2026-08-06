@@ -6,6 +6,7 @@ set(SOURCES
     Actors/ConsoleActor.cpp
     Actors/CookiesActor.cpp
     Actors/CSSPropertiesActor.cpp
+    Actors/DebuggerFrameActor.cpp
     Actors/DeviceActor.cpp
     Actors/FrameActor.cpp
     Actors/HighlighterActor.cpp

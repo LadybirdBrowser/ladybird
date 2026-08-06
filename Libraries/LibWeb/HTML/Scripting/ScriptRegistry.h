@@ -67,6 +67,7 @@ public:
     Script const& register_javascript_source(NonnullRefPtr<JS::SourceCode const>, ByteString const& filename, Utf16String display_url, Utf16String introduction_type, IsInlineSource, size_t source_line_number, size_t source_length);
 
     OrderedHashMap<u64, Script> const& scripts() const { return m_scripts; }
+    Optional<Script const&> script_for_source_code(JS::SourceCode const&) const;
     Optional<Content> script_content(u64 script_id, Utf16View document_source) const;
 
 private:
