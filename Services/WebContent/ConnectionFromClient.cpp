@@ -1535,7 +1535,7 @@ static Optional<String> debugger_breakpoint_operation_error(ErrorOr<void> result
     return String::from_utf8_without_validation(result.error().string_literal().bytes());
 }
 
-void ConnectionFromClient::set_debugger_breakpoint(u64 page_id, u64 request_id, WebView::DebuggerBreakpointLocation location)
+void ConnectionFromClient::set_debugger_breakpoint(u64 page_id, u64 request_id, WebView::DebuggerBreakpointLocation location, WebView::DebuggerBreakpointOptions options)
 {
     auto page = this->page(page_id);
     if (!page.has_value()) {
@@ -1545,7 +1545,7 @@ void ConnectionFromClient::set_debugger_breakpoint(u64 page_id, u64 request_id, 
 
     if (!m_devtools_debugger)
         m_devtools_debugger = make<DevToolsDebugger>(*this);
-    async_did_complete_debugger_breakpoint_operation(page_id, request_id, debugger_breakpoint_operation_error(m_devtools_debugger->set_breakpoint(*page, move(location))));
+    async_did_complete_debugger_breakpoint_operation(page_id, request_id, debugger_breakpoint_operation_error(m_devtools_debugger->set_breakpoint(*page, move(location), move(options))));
 }
 
 void ConnectionFromClient::remove_debugger_breakpoint(u64 page_id, u64 request_id, WebView::DebuggerBreakpointLocation location)

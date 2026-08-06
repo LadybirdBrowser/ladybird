@@ -3373,14 +3373,14 @@ void Application::retrieve_debugger_object_properties(DevTools::TabDescription c
     view->retrieve_debugger_object_properties(object_id, move(on_complete));
 }
 
-void Application::set_debugger_breakpoint(DevTools::TabDescription const& description, DebuggerBreakpointLocation location, OnDebuggerBreakpointOperationComplete on_complete) const
+void Application::set_debugger_breakpoint(DevTools::TabDescription const& description, DebuggerBreakpointLocation location, DebuggerBreakpointOptions options, OnDebuggerBreakpointOperationComplete on_complete) const
 {
     auto view = ViewImplementation::find_view_by_id(description.id);
     if (!view.has_value()) {
         on_complete(Error::from_string_literal("Unable to locate tab"));
         return;
     }
-    view->set_debugger_breakpoint(move(location), move(on_complete));
+    view->set_debugger_breakpoint(move(location), move(options), move(on_complete));
 }
 
 void Application::remove_debugger_breakpoint(DevTools::TabDescription const& description, DebuggerBreakpointLocation location, OnDebuggerBreakpointOperationComplete on_complete) const

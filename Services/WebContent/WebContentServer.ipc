@@ -135,7 +135,7 @@ endpoint WebContentServer
     detach_debugger(u64 page_id) =|
     interrupt_debugger(u64 page_id) =|
     resume_debugger(u64 page_id) =|
-    set_debugger_breakpoint(u64 page_id, u64 request_id, WebView::DebuggerBreakpointLocation location) =|
+    set_debugger_breakpoint(u64 page_id, u64 request_id, WebView::DebuggerBreakpointLocation location, WebView::DebuggerBreakpointOptions options) =|
     remove_debugger_breakpoint(u64 page_id, u64 request_id, WebView::DebuggerBreakpointLocation location) =|
     get_debugger_environments(u64 page_id, u64 request_id, u64 frame_id) =|
     evaluate_javascript_in_debugger_frame(u64 page_id, u64 request_id, u64 frame_id, Utf16String source_text) =|

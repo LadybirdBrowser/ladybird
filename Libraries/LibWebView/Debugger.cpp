@@ -179,6 +179,21 @@ ErrorOr<WebView::DebuggerBreakpointLocation> decode(Decoder& decoder)
 }
 
 template<>
+ErrorOr<void> encode(Encoder& encoder, WebView::DebuggerBreakpointOptions const& options)
+{
+    TRY(encoder.encode(options.condition));
+    return {};
+}
+
+template<>
+ErrorOr<WebView::DebuggerBreakpointOptions> decode(Decoder& decoder)
+{
+    return WebView::DebuggerBreakpointOptions {
+        .condition = TRY(decoder.decode<Optional<Utf16String>>()),
+    };
+}
+
+template<>
 ErrorOr<void> encode(Encoder& encoder, WebView::DebuggerSourcePosition const& position)
 {
     TRY(encoder.encode(position.line));
@@ -241,6 +256,7 @@ template<>
 ErrorOr<void> encode(Encoder& encoder, WebView::DebuggerPause const& pause)
 {
     TRY(encoder.encode(pause.reason));
+    TRY(encoder.encode(pause.reason_message));
     TRY(encoder.encode(pause.frames));
     return {};
 }
@@ -250,6 +266,7 @@ ErrorOr<WebView::DebuggerPause> decode(Decoder& decoder)
 {
     return WebView::DebuggerPause {
         .reason = TRY(decoder.decode<WebView::DebuggerPauseReason>()),
+        .reason_message = TRY(decoder.decode<Optional<Utf16String>>()),
         .frames = TRY(decoder.decode<Vector<WebView::DebuggerFrame>>()),
     };
 }
