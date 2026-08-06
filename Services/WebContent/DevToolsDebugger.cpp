@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Enumerate.h>
 #include <AK/NumericLimits.h>
 #include <LibCore/EventLoop.h>
 #include <LibJS/Bytecode/Executable.h>
@@ -228,6 +229,23 @@ Vector<WebView::DebuggerEnvironment> DevToolsDebugger::environments_for_frame(Pa
         debugger_environment.bindings = move(bindings);
         environments.append(move(debugger_environment));
     };
+
+    if (context->executable) {
+        WebView::DebuggerEnvironment local_environment;
+        local_environment.id = m_next_environment_id++;
+        local_environment.type = WebView::DebuggerEnvironmentType::Function;
+        local_environment.function_name = context->executable->name.to_utf16_string();
+
+        for (auto const& binding : Web::Bindings::main_thread_vm().debugger()->bindings_for_frame(*context)) {
+            local_environment.bindings.append({
+                .name = binding.name.to_utf16_string(),
+                .value = serialize_value(binding.value),
+                .writable = binding.is_mutable,
+            });
+        }
+        if (!local_environment.bindings.is_empty())
+            environments.append(move(local_environment));
+    }
 
     for (auto* environment = context->lexical_environment.ptr(); environment; environment = environment->outer_environment()) {
         if (is<JS::GlobalEnvironment>(*environment)) {
