@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
-<iframe id="frame" srcdoc='<body contenteditable="true" dir="ltr"><div>Give it a try! <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
+<iframe id="frame" srcdoc='<body contenteditable="true" dir="ltr"><div>Give it a try! <img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
 <div><br></div>
 <div><font color="#ff00">Red text and </font><font color="#3399ff">blue text!</font><br></div>
 <div><br></div>
 <ul><li>A simple list<br></li><li>With two items<br></li></ul><div><br></div>
-<div>Just type <strong>:</strong>) and it will be converted into <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
+<div>Just type <strong>:</strong>) and it will be converted into <img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
 '></iframe>
 <script>
     // This selection and its expected replacement were recorded from Chromium using the SCEditor-derived fixture.
@@ -20,19 +20,19 @@
         const failures = [];
         let assertionCount = 0;
 
-        const originalHTML = `<div>Give it a try! <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
+        const originalHTML = `<div>Give it a try! <img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
 <div><br></div>
 <div><font color="#ff00">Red text and </font><font color="#3399ff">blue text!</font><br></div>
 <div><br></div>
 <ul><li>A simple list<br></li><li>With two items<br></li></ul><div><br></div>
-<div>Just type <strong>:</strong>) and it will be converted into <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
+<div>Just type <strong>:</strong>) and it will be converted into <img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
 `;
-        const pastedHTML = `<div>Give it a try! <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
+        const pastedHTML = `<div>Give it a try! <img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
 <div><br></div>
 <div><font color="#ff00">Red text and </font><font color="#3399ff">blue text!</font><br></div>
 <div><br></div>
 <ul><li>A simple list<br></li><li>With two items<br></li></ul><div><br></div>
-<div><img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div><div><br></div><div><span style="color: rgb(255, 0, 0);">Red text and</span>Just type <strong>:</strong>) and it will be converted into <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
+<div><img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div><div><br></div><div><span style="color: rgb(255, 0, 0);">Red text and</span>Just type <strong>:</strong>) and it will be converted into <img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
 `;
 
         function path(node) {
@@ -143,12 +143,12 @@
         expect(host.innerHTML, pastedMatchingLegacyFontHTML, "matching legacy-font redo DOM");
         expect(selectionString(), "host/1/0@4", "matching legacy-font redo selection");
 
-        const pastedWithoutEmptyFormattingHTML = `<div>Give it a try! <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
+        const pastedWithoutEmptyFormattingHTML = `<div>Give it a try! <img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
 <div><br></div>
 <div><font color="#ff00">Red text and </font><font color="#3399ff">blue text!</font><br></div>
 <div><br></div>
 <ul><li>A simple list<br></li><li>With two items<br></li></ul><div><br></div>
-<div>Just type <strong>:</strong>) and it will be converted into <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.<span style="color: rgb(51, 153, 255);">blue text!</span></div><div><br></div><ul><li>A simple lis</li></ul>
+<div>Just type <strong>:</strong>) and it will be converted into <img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.<span style="color: rgb(51, 153, 255);">blue text!</span></div><div><br></div><ul><li>A simple lis</li></ul>
 `;
         host.innerHTML = originalHTML;
         host.focus();
@@ -178,12 +178,12 @@
         expect(host.innerHTML, pastedWithoutEmptyFormattingHTML, "partial-ancestor redo DOM");
         expect(selectionString(), "host/13/0/0@12", "partial-ancestor redo selection");
 
-        const pastedFromEmptyInlineEdgeHTML = `<div>Give it a try! <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
+        const pastedFromEmptyInlineEdgeHTML = `<div>Give it a try! <img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
 <div><br></div>
 <div><font color="#ff00">Red text and </font><font color="#3399ff">blue text!</font><br></div>
 <div><br></div>
 <ul><li>A simple list<br></li><li>With two items<br></li></ul><div><br></div>
-<div>Just type <strong>:</strong>) and it will&nbsp;</div><div><br class="Apple-interchange-newline"><br></div><ul><li>A simple list<br></li><li>With two items<br></li></ul><div><br></div><div>Just type <strong>:</strong>) and it willbe converted into <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
+<div>Just type <strong>:</strong>) and it will&nbsp;</div><div><br class="Apple-interchange-newline"><br></div><ul><li>A simple list<br></li><li>With two items<br></li></ul><div><br></div><div>Just type <strong>:</strong>) and it willbe converted into <img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
 `;
         host.innerHTML = originalHTML;
         host.focus();
@@ -213,12 +213,12 @@
         expect(host.innerHTML, pastedFromEmptyInlineEdgeHTML, "empty-inline-edge redo DOM");
         expect(selectionString(), "host/15/2@13", "empty-inline-edge redo selection");
 
-        const pastedAfterParagraphIntegrationHTML = `<div>Give it a try! <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
+        const pastedAfterParagraphIntegrationHTML = `<div>Give it a try! <img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
 <div><br></div>
-<div><font color="#ff00">Red text and&nbsp;</font><font color="#ff00">xt and </font><font color="#3399ff">blue text!</font></div><div><br></div><ul><li>A simple list<br></li><li>With two items<br></li></ul><div><br></div><div>Just type <strong>:</strong>) and it will be converted into&nbsp;<img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)">&nbsp;as you type.<font color="#3399ff">blue text!</font><br></div>
+<div><font color="#ff00">Red text and&nbsp;</font><font color="#ff00">xt and </font><font color="#3399ff">blue text!</font></div><div><br></div><ul><li>A simple list<br></li><li>With two items<br></li></ul><div><br></div><div>Just type <strong>:</strong>) and it will be converted into&nbsp;<img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)">&nbsp;as you type.<font color="#3399ff">blue text!</font><br></div>
 <div><br></div>
 <ul><li>A simple list<br></li><li>With two items<br></li></ul><div><br></div>
-<div>Just type <strong>:</strong>) and it will be converted into <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
+<div>Just type <strong>:</strong>) and it will be converted into <img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
 `;
         host.innerHTML = originalHTML;
         host.focus();
