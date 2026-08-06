@@ -440,6 +440,7 @@ private:
     virtual void set_debugger_breakpoint(DevTools::TabDescription const&, DebuggerBreakpointLocation, OnDebuggerBreakpointOperationComplete) const override;
     virtual void remove_debugger_breakpoint(DevTools::TabDescription const&, DebuggerBreakpointLocation, OnDebuggerBreakpointOperationComplete) const override;
     virtual void retrieve_debugger_environments(DevTools::TabDescription const&, u64 frame_id, OnDebuggerEnvironmentsReceived) const override;
+    virtual void retrieve_debugger_object_properties(DevTools::TabDescription const&, u64 object_id, OnDebuggerObjectPropertiesReceived) const override;
     virtual void retrieve_debugger_source_positions(DevTools::TabDescription const&, Web::HTML::ScriptRegistry::Identifier, OnDebuggerSourcePositionsReceived) const override;
     virtual void resolve_dom_node_url(DevTools::TabDescription const&, Optional<Web::UniqueNodeID>, String const&, OnResolvedURLReceived) const override;
     virtual void evaluate_javascript(DevTools::TabDescription const&, String const&, OnScriptEvaluationComplete) const override;

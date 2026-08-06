@@ -1583,6 +1583,26 @@ void ConnectionFromClient::get_debugger_environments(u64 page_id, u64 request_id
     async_did_get_debugger_environments(page_id, request_id, {}, m_devtools_debugger->environments_for_frame(*page, frame_id));
 }
 
+void ConnectionFromClient::get_debugger_object_properties(u64 page_id, u64 request_id, u64 object_id)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value()) {
+        async_did_get_debugger_object_properties(page_id, request_id, "Unable to locate page"_string, {});
+        return;
+    }
+    if (!m_devtools_debugger) {
+        async_did_get_debugger_object_properties(page_id, request_id, "No debugger client is attached"_string, {});
+        return;
+    }
+
+    auto properties = m_devtools_debugger->properties_for_object(*page, object_id);
+    if (properties.is_error()) {
+        async_did_get_debugger_object_properties(page_id, request_id, MUST(String::from_utf8(properties.release_error().string_literal())), {});
+        return;
+    }
+    async_did_get_debugger_object_properties(page_id, request_id, {}, properties.release_value());
+}
+
 void ConnectionFromClient::resolve_dom_node_url(u64 page_id, u64 request_id, Optional<Web::UniqueNodeID> node_id, String url)
 {
     auto page = this->page(page_id);

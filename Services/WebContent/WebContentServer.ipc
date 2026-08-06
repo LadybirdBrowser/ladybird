@@ -138,6 +138,7 @@ endpoint WebContentServer
     set_debugger_breakpoint(u64 page_id, u64 request_id, WebView::DebuggerBreakpointLocation location) =|
     remove_debugger_breakpoint(u64 page_id, u64 request_id, WebView::DebuggerBreakpointLocation location) =|
     get_debugger_environments(u64 page_id, u64 request_id, u64 frame_id) =|
+    get_debugger_object_properties(u64 page_id, u64 request_id, u64 object_id) =|
     get_debugger_source_positions(u64 page_id, u64 request_id, Web::HTML::ScriptRegistry::Identifier source_id) =|
     resolve_dom_node_url(u64 page_id, u64 request_id, Optional<Web::UniqueNodeID> node_id, String url) =|
 

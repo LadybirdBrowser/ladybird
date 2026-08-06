@@ -32,6 +32,7 @@ public:
     ErrorOr<void> set_breakpoint(PageClient&, WebView::DebuggerBreakpointLocation);
     ErrorOr<void> remove_breakpoint(PageClient&, WebView::DebuggerBreakpointLocation const&);
     Vector<WebView::DebuggerEnvironment> environments_for_frame(PageClient&, u64 frame_id);
+    ErrorOr<WebView::DebuggerObjectProperties> properties_for_object(PageClient&, u64 object_id);
 
 private:
     void handle_pause(JS::Debugger::PauseInfo const&);
