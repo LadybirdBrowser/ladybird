@@ -23,6 +23,7 @@ class DevToolsConsoleClient final : public WebContentConsoleClient {
 
 public:
     static GC::Ref<DevToolsConsoleClient> create(JS::Realm&, JS::Console&, PageClient&);
+    static JsonValue serialize_value(JS::Realm&, JS::Value);
     virtual ~DevToolsConsoleClient() override;
 
 private:

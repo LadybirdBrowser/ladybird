@@ -8,6 +8,7 @@
 #include <AK/NumericLimits.h>
 #include <LibCore/EventLoop.h>
 #include <LibJS/Bytecode/Executable.h>
+#include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/DeclarativeEnvironment.h>
 #include <LibJS/Runtime/FunctionEnvironment.h>
 #include <LibJS/Runtime/GlobalEnvironment.h>
@@ -19,6 +20,7 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWebView/Debugger.h>
 #include <WebContent/ConnectionFromClient.h>
+#include <WebContent/DevToolsConsoleClient.h>
 #include <WebContent/DevToolsDebugger.h>
 #include <WebContent/PageClient.h>
 #include <WebContent/PageHost.h>
@@ -392,6 +394,93 @@ PageClient* DevToolsDebugger::paused_page_client() const
     return nullptr;
 }
 
+static Optional<WebView::StackFrame> console_stack_frame(PageClient& page, JS::StackTraceElement const& stack_frame)
+{
+    auto* executable = stack_frame.execution_context->executable.ptr();
+    if (!executable)
+        return {};
+
+    auto source = page.devtools_source_description(*executable->source_code);
+    if (!source.has_value())
+        return {};
+
+    auto line = source->source_start_line;
+    auto column = source->source_start_column + 1;
+    if (stack_frame.source_range.has_value()) {
+        line = stack_frame.source_range->start.line;
+        column = stack_frame.source_range->start.column;
+    }
+
+    return WebView::StackFrame {
+        .function = executable->name.to_utf16_string().to_utf8(),
+        .file = source->display_url.to_utf8(),
+        .line = line,
+        .column = column,
+    };
+}
+
+void DevToolsDebugger::emit_logpoint(PageClient& page, JS::Debugger::PauseInfo const& pause, JS::ExecutionContext& context, WebView::DebuggerBreakpointOptions const& options)
+{
+    VERIFY(options.log_value.has_value());
+    auto expression = Utf16String::formatted("[{}]", *options.log_value);
+    auto result = Web::Bindings::main_thread_vm().debugger()->evaluate_in_frame(context, expression);
+
+    WebView::ConsoleLogType type = WebView::ConsoleLogType::LogPoint;
+    Vector<JsonValue> arguments;
+    auto append_error = [&](String message) {
+        type = WebView::ConsoleLogType::LogPointError;
+        arguments.clear();
+        arguments.append(move(message));
+    };
+
+    if (result.is_throw_completion()) {
+        append_error(result.throw_completion().value().to_utf16_string_without_side_effects().to_utf8());
+    } else {
+        auto value = result.release_value();
+        if (!value.is_object()) {
+            append_error("Logpoint expression did not produce an argument list"_string);
+        } else {
+            auto& array = value.as_object();
+            auto length = JS::length_of_array_like(Web::Bindings::main_thread_vm(), array);
+            if (length.is_throw_completion()) {
+                append_error(length.throw_completion().value().to_utf16_string_without_side_effects().to_utf8());
+            } else {
+                static constexpr u64 maximum_logpoint_argument_count = 1000;
+                auto argument_count = min(length.value(), maximum_logpoint_argument_count);
+                arguments.ensure_capacity(argument_count);
+                for (u64 i = 0; i < argument_count; ++i) {
+                    auto argument = array.get(JS::PropertyKey { i });
+                    if (argument.is_throw_completion()) {
+                        append_error(argument.throw_completion().value().to_utf16_string_without_side_effects().to_utf8());
+                        break;
+                    }
+                    arguments.unchecked_append(DevToolsConsoleClient::serialize_value(*context.realm, argument.release_value()));
+                }
+            }
+        }
+    }
+
+    Optional<Vector<WebView::StackFrame>> stacktrace;
+    if (options.show_stacktrace) {
+        stacktrace = Vector<WebView::StackFrame> {};
+        for (auto const& stack_frame : pause.stack_trace) {
+            if (auto frame = console_stack_frame(page, stack_frame); frame.has_value())
+                stacktrace->append(frame.release_value());
+        }
+    }
+
+    page.did_output_js_console_message({
+        .timestamp = UnixDateTime::now(),
+        .output = WebView::ConsoleLog {
+            .level = type == WebView::ConsoleLogType::LogPoint ? JS::Console::LogLevel::Log : JS::Console::LogLevel::Error,
+            .arguments = move(arguments),
+            .type = type,
+            .location = console_stack_frame(page, pause.stack_trace.first()),
+            .stacktrace = move(stacktrace),
+        },
+    });
+}
+
 void DevToolsDebugger::handle_pause(JS::Debugger::PauseInfo const& pause)
 {
     auto* page = paused_page_client();
@@ -415,23 +504,26 @@ void DevToolsDebugger::handle_pause(JS::Debugger::PauseInfo const& pause)
             for (auto const& registration : registrations->value) {
                 if (!pause.breakpoint_ids.contains_slow(registration.id))
                     continue;
-                if (!registration.options.condition.has_value()) {
-                    should_pause = true;
-                    break;
-                }
-
                 auto* context = pause.stack_trace.first().execution_context;
                 VERIFY(context);
-                auto result = Web::Bindings::main_thread_vm().debugger()->evaluate_in_frame(*context, *registration.options.condition);
-                if (result.is_throw_completion()) {
-                    should_pause = true;
-                    condition_error = result.throw_completion().value().to_utf16_string_without_side_effects();
-                    break;
+                Optional<Utf16String> registration_condition_error;
+                if (registration.options.condition.has_value() && !registration.options.condition->is_empty()) {
+                    auto result = Web::Bindings::main_thread_vm().debugger()->evaluate_in_frame(*context, *registration.options.condition);
+                    if (result.is_throw_completion()) {
+                        registration_condition_error = result.throw_completion().value().to_utf16_string_without_side_effects();
+                    } else if (!result.release_value().to_boolean()) {
+                        continue;
+                    }
                 }
-                if (result.release_value().to_boolean()) {
-                    should_pause = true;
-                    break;
+
+                if (registration.options.log_value.has_value() && !registration.options.log_value->is_empty()) {
+                    emit_logpoint(*page, pause, *context, registration.options);
+                    continue;
                 }
+
+                should_pause = true;
+                if (registration_condition_error.has_value())
+                    condition_error = registration_condition_error.release_value();
             }
         }
         if (!should_pause) {

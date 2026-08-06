@@ -108,6 +108,8 @@ struct DebuggerBreakpointLocation {
 
 struct DebuggerBreakpointOptions {
     Optional<Utf16String> condition;
+    Optional<Utf16String> log_value;
+    bool show_stacktrace { false };
 };
 
 struct DebuggerSourcePosition {
