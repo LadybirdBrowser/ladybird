@@ -13,7 +13,7 @@ namespace Media::Codecs {
 template<Integral T>
 static Optional<T> read_big_endian_value(MediaStreamCursor& cursor)
 {
-    auto value = cursor.read_value<T>(AK::Endianness::Big);
+    auto value = cursor.read_value<T>();
     if (value.is_error())
         return {};
     return value.release_value();
