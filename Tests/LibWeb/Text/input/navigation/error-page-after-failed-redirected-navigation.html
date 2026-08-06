@@ -1,0 +1,37 @@
+<!doctype html>
+<script src="../include.js"></script>
+<iframe id="target" style="width: 1600px; height: 400px"></iframe>
+<script>
+    // When a navigation gets redirected and the fetch of the redirect target then fails, the error page must name the
+    // URL that actually failed (the redirect target) — not the URL the navigation started at. See #11014.
+    asyncTest(async done => {
+        const token = crypto.randomUUID().replaceAll("-", "");
+        const server = httpTestServer();
+
+        // The redirect target is an https URL on the echo server's plain-HTTP port, so its TLS handshake always fails —
+        // which fails the navigation after the redirect.
+        const failingURL = `https://127.0.0.1:${internals.getEchoServerPort()}/${token}`;
+        const redirectURL = await server.createEcho("GET", `/redirecttotlsfailure${token}`, {
+            status: 302,
+            headers: { Location: failingURL },
+        });
+
+        document.getElementById("target").src = redirectURL;
+
+        // The error page is cross-origin to this document — so read its rendered text through the layout dump, which
+        // descends into child documents.
+        const dumpContains = text => internals.dumpLayoutTree(document.documentElement).includes(text);
+        // Bound the wait well inside the harness's 30-second per-test timeout — so a missing error page fails with a
+        // diagnosable message, instead of a bare test timeout.
+        const deadline = performance.now() + 15_000;
+        while (!dumpContains("Failed to load")) {
+            if (performance.now() > deadline)
+                throw new Error("Timed out waiting for the error page to appear in the layout dump");
+            await new Promise(resolve => setTimeout(resolve, 50));
+        }
+
+        println(`error page names the redirect target that failed: ${dumpContains(failingURL)}`);
+        println(`error page names the pre-redirect URL: ${dumpContains(redirectURL)}`);
+        done();
+    });
+</script>
