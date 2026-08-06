@@ -3311,6 +3311,14 @@ void Application::attach_debugger(DevTools::TabDescription const& description, O
     view->attach_debugger(move(on_paused));
 }
 
+void Application::configure_debugger(DevTools::TabDescription const& description, DebuggerConfiguration configuration) const
+{
+    auto view = ViewImplementation::find_view_by_id(description.id);
+    if (!view.has_value())
+        return;
+    view->configure_debugger(configuration);
+}
+
 void Application::detach_debugger(DevTools::TabDescription const& description) const
 {
     auto view = ViewImplementation::find_view_by_id(description.id);

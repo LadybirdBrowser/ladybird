@@ -21,6 +21,11 @@ enum class DebuggerPauseReason : u8 {
     Entry,
 };
 
+struct DebuggerConfiguration {
+    bool should_pause_on_debugger_statement { true };
+    bool skip_breakpoints { false };
+};
+
 struct DebuggerLocation {
     Web::HTML::ScriptRegistry::Description source;
     u32 line { 0 };
@@ -41,6 +46,12 @@ struct DebuggerPause {
 }
 
 namespace IPC {
+
+template<>
+WEBVIEW_API ErrorOr<void> encode(Encoder&, WebView::DebuggerConfiguration const&);
+
+template<>
+WEBVIEW_API ErrorOr<WebView::DebuggerConfiguration> decode(Decoder&);
 
 template<>
 WEBVIEW_API ErrorOr<void> encode(Encoder&, WebView::DebuggerLocation const&);

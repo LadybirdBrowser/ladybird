@@ -232,6 +232,7 @@ public:
     void retrieve_devtools_sources(DevTools::DevToolsDelegate::OnSourcesReceived);
     void request_devtools_source(Web::HTML::ScriptRegistry::Identifier const&);
     void attach_debugger(DevTools::DevToolsDelegate::OnDebuggerPaused);
+    void configure_debugger(DebuggerConfiguration);
     void detach_debugger();
     void interrupt_debugger();
     void resume_debugger();

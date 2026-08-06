@@ -433,6 +433,7 @@ private:
     virtual void listen_for_sources(DevTools::TabDescription const&, OnSourceAvailable) const override;
     virtual void stop_listening_for_sources(DevTools::TabDescription const&) const override;
     virtual void attach_debugger(DevTools::TabDescription const&, OnDebuggerPaused) const override;
+    virtual void configure_debugger(DevTools::TabDescription const&, DebuggerConfiguration) const override;
     virtual void detach_debugger(DevTools::TabDescription const&) const override;
     virtual void interrupt_debugger(DevTools::TabDescription const&) const override;
     virtual void resume_debugger(DevTools::TabDescription const&) const override;

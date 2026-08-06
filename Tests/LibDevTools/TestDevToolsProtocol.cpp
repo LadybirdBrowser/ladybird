@@ -1179,6 +1179,12 @@ public:
         on_debugger_paused = move(on_paused);
     }
 
+    virtual void configure_debugger(DevTools::TabDescription const&, WebView::DebuggerConfiguration configuration) const override
+    {
+        ++configure_debugger_call_count;
+        debugger_configuration = configuration;
+    }
+
     virtual void detach_debugger(DevTools::TabDescription const&) const override
     {
         ++detach_debugger_call_count;
@@ -1493,10 +1499,12 @@ public:
     mutable size_t stop_listening_for_sources_call_count { 0 };
     mutable DevTools::DevToolsDelegate::OnSourceAvailable on_source_available;
     mutable size_t attach_debugger_call_count { 0 };
+    mutable size_t configure_debugger_call_count { 0 };
     mutable size_t detach_debugger_call_count { 0 };
     mutable size_t interrupt_debugger_call_count { 0 };
     mutable size_t resume_debugger_call_count { 0 };
     mutable DevTools::DevToolsDelegate::OnDebuggerPaused on_debugger_paused;
+    mutable WebView::DebuggerConfiguration debugger_configuration;
     mutable size_t resolve_dom_node_url_call_count { 0 };
     mutable size_t listen_for_console_messages_call_count { 0 };
     mutable size_t stop_listening_for_console_messages_call_count { 0 };
@@ -2488,6 +2496,19 @@ TEST_CASE(debugger_pause_and_resume)
 
     auto tab_actor = actor_from(get_tab(client), "actor"sv);
     auto watcher_actor = actor_from(client.request(tab_actor, "getWatcher"sv), "actor"sv);
+
+    auto configuration_actor = actor_from(client.request(watcher_actor, "getThreadConfigurationActor"sv).get_object("configuration"sv).release_value(), "actor"sv);
+    JsonObject update_configuration;
+    update_configuration.set("to"sv, configuration_actor);
+    update_configuration.set("type"sv, "updateConfiguration"sv);
+    JsonObject configuration;
+    configuration.set("shouldPauseOnDebuggerStatement"sv, false);
+    configuration.set("skipBreakpoints"sv, true);
+    update_configuration.set("configuration"sv, move(configuration));
+    EXPECT_EQ(client.request(move(update_configuration)).get_string("from"sv).value(), configuration_actor);
+    EXPECT_EQ(session->delegate.configure_debugger_call_count, 1u);
+    EXPECT(!session->delegate.debugger_configuration.should_pause_on_debugger_statement);
+    EXPECT(session->delegate.debugger_configuration.skip_breakpoints);
 
     JsonObject watch_resources;
     watch_resources.set("to"sv, watcher_actor);
