@@ -176,6 +176,7 @@ Optional<PageClient const&> ConnectionFromClient::page(u64 index, SourceLocation
 
 void ConnectionFromClient::close_server()
 {
+    m_page_host->close_webdriver_connections_after_sending_pending_messages();
     shutdown();
 }
 
