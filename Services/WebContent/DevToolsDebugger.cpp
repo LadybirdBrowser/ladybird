@@ -264,6 +264,66 @@ Vector<WebView::DebuggerEnvironment> DevToolsDebugger::environments_for_frame(Pa
     return environments;
 }
 
+ErrorOr<WebView::DebuggerObjectProperties> DevToolsDebugger::properties_for_object(PageClient& page, u64 object_id)
+{
+    if (m_paused_page_id != page.id())
+        return Error::from_string_literal("Debugger is not paused for this page");
+
+    auto object_iterator = m_paused_objects.find(object_id);
+    if (object_iterator == m_paused_objects.end())
+        return Error::from_string_literal("Unable to locate paused object");
+    // serialize_value() may add entries to m_paused_objects, so retain a root
+    // independent of the map's storage.
+    auto object = object_iterator->value;
+
+    WebView::DebuggerObjectProperties result;
+    auto prototype = object->internal_get_prototype_of();
+    if (prototype.is_error())
+        return Error::from_string_literal("Unable to inspect object prototype");
+    if (auto* prototype_object = prototype.release_value()) {
+        result.prototype = serialize_value(prototype_object);
+    } else {
+        WebView::DebuggerValue null_prototype;
+        null_prototype.type = WebView::DebuggerValueType::Null;
+        result.prototype = move(null_prototype);
+    }
+
+    auto own_property_keys = object->internal_own_property_keys();
+    if (own_property_keys.is_error())
+        return Error::from_string_literal("Unable to inspect object properties");
+
+    for (auto const& key_value : own_property_keys.release_value()) {
+        // FIXME: Expose symbol properties through a symbol iterator actor.
+        if (!key_value.is_string())
+            continue;
+
+        auto name = key_value.as_string().utf16_string();
+        auto descriptor = object->internal_get_own_property(JS::PropertyKey { name });
+        if (descriptor.is_error())
+            return Error::from_string_literal("Unable to inspect object property");
+        if (!descriptor.value().has_value())
+            continue;
+
+        auto const& property_descriptor = descriptor.value().value();
+        WebView::DebuggerProperty property;
+        property.name = move(name);
+        property.writable = property_descriptor.writable.value_or(false);
+        property.enumerable = property_descriptor.enumerable.value_or(false);
+        property.configurable = property_descriptor.configurable.value_or(false);
+        if (property_descriptor.value.has_value()) {
+            property.value = serialize_value(*property_descriptor.value);
+        } else {
+            if (property_descriptor.get.has_value())
+                property.getter = serialize_value(property_descriptor.get->ptr() ? JS::Value { property_descriptor.get->ptr() } : JS::js_undefined());
+            if (property_descriptor.set.has_value())
+                property.setter = serialize_value(property_descriptor.set->ptr() ? JS::Value { property_descriptor.set->ptr() } : JS::js_undefined());
+        }
+        result.properties.append(move(property));
+    }
+
+    return result;
+}
+
 void DevToolsDebugger::resume(PageClient& page)
 {
     if (m_paused_page_id == page.id())

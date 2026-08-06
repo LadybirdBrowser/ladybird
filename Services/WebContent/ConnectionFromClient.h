@@ -156,6 +156,7 @@ private:
     virtual void set_debugger_breakpoint(u64 page_id, u64 request_id, WebView::DebuggerBreakpointLocation) override;
     virtual void remove_debugger_breakpoint(u64 page_id, u64 request_id, WebView::DebuggerBreakpointLocation) override;
     virtual void get_debugger_environments(u64 page_id, u64 request_id, u64 frame_id) override;
+    virtual void get_debugger_object_properties(u64 page_id, u64 request_id, u64 object_id) override;
     virtual void get_debugger_source_positions(u64 page_id, u64 request_id, Web::HTML::ScriptRegistry::Identifier) override;
     virtual void resolve_dom_node_url(u64 page_id, u64 request_id, Optional<Web::UniqueNodeID> node_id, String url) override;
 

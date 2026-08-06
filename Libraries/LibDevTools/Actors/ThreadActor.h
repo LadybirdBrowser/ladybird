@@ -17,6 +17,13 @@ namespace DevTools {
 
 class DEVTOOLS_API ThreadActor final : public Actor {
 public:
+    enum class ObjectPropertiesRequest {
+        Iterator,
+        Property,
+        Prototype,
+        PrototypeAndProperties,
+    };
+
     static constexpr auto base_name = "thread"sv;
 
     static NonnullRefPtr<ThreadActor> create(DevToolsServer&, String name, WeakPtr<TabActor>, WeakPtr<WatcherActor>);
@@ -26,7 +33,10 @@ public:
     JsonArray serialize_sources(Vector<Web::HTML::ScriptRegistry::Description> const&);
     JsonValue serialize_debugger_value(WebView::DebuggerValue const&);
     void get_frame_environment(DebuggerFrameActor&, Actor::Message const&, u64 frame_id);
+    void get_object_properties(ObjectActor&, Actor::Message const&, ObjectPropertiesRequest, Optional<String> property_name = {});
+    void get_object_symbols(ObjectActor&, Actor::Message const&);
     void did_pause(WebView::DebuggerPause);
+    void release_pause_actor(Actor&);
 
 private:
     ThreadActor(DevToolsServer&, String name, WeakPtr<TabActor>, WeakPtr<WatcherActor>);
@@ -37,6 +47,7 @@ private:
     SourceActor& source_actor_for(Web::HTML::ScriptRegistry::Description const&);
     ObjectActor& object_actor_for(WebView::DebuggerValue const&);
     JsonObject serialize_environment_chain(Vector<WebView::DebuggerEnvironment>);
+    JsonObject serialize_property_descriptor(WebView::DebuggerProperty const&);
     void clear_pause_actors();
     void attach();
     void did_resume();

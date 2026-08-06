@@ -1494,6 +1494,21 @@ void WebContentClient::did_get_debugger_environments(u64 page_id, u64 request_id
     }
 }
 
+void WebContentClient::did_get_debugger_object_properties(u64 page_id, u64 request_id, Optional<String> error, DebuggerObjectProperties properties)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        auto callback = view->m_pending_debugger_object_properties_requests.take(request_id);
+        if (!callback.has_value()) {
+            report_unexpected_debugger_response();
+            return;
+        }
+        if (error.has_value())
+            (*callback)(error.release_value());
+        else
+            (*callback)(move(properties));
+    }
+}
+
 void WebContentClient::did_get_debugger_source_positions(u64 page_id, u64 request_id, Vector<DebuggerSourcePosition> positions)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {

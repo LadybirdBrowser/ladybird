@@ -4,13 +4,18 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/CharacterTypes.h>
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
 #include <AK/Math.h>
+#include <AK/NumericLimits.h>
+#include <AK/QuickSort.h>
 #include <LibDevTools/Actors/DebuggerFrameActor.h>
 #include <LibDevTools/Actors/EnvironmentActor.h>
 #include <LibDevTools/Actors/ObjectActor.h>
+#include <LibDevTools/Actors/PropertyIteratorActor.h>
 #include <LibDevTools/Actors/SourceActor.h>
+#include <LibDevTools/Actors/SymbolIteratorActor.h>
 #include <LibDevTools/Actors/TabActor.h>
 #include <LibDevTools/Actors/ThreadActor.h>
 #include <LibDevTools/Actors/WatcherActor.h>
@@ -232,6 +237,24 @@ void ThreadActor::clear_pause_actors()
     m_object_actors.clear();
 }
 
+void ThreadActor::release_pause_actor(Actor& actor)
+{
+    auto* actor_ptr = &actor;
+    m_pause_scoped_actors.remove_all_matching([&](auto const& weak_actor) {
+        auto pause_actor = weak_actor.strong_ref();
+        return !pause_actor || pause_actor.ptr() == actor_ptr;
+    });
+    unregister_child_actor(actor);
+}
+
+void ThreadActor::send_wrong_state_error(Message const& message, StringView error_message)
+{
+    JsonObject response;
+    response.set("error"sv, "wrongState"sv);
+    response.set("message"sv, error_message);
+    send_response(message, move(response));
+}
+
 ObjectActor& ThreadActor::object_actor_for(WebView::DebuggerValue const& value)
 {
     VERIFY(value.type == WebView::DebuggerValueType::Object);
@@ -240,7 +263,7 @@ ObjectActor& ThreadActor::object_actor_for(WebView::DebuggerValue const& value)
             return *object_actor;
     }
 
-    auto& actor = devtools().register_actor<ObjectActor>(value.object_id, value.object_class);
+    auto& actor = devtools().register_actor<ObjectActor>(make_weak_ptr<ThreadActor>(), value.object_id, value.object_class);
     add_child_actor(actor);
     m_pause_scoped_actors.append(actor);
     m_object_actors.set(value.object_id, actor);
@@ -375,12 +398,134 @@ void ThreadActor::get_frame_environment(DebuggerFrameActor& frame_actor, Actor::
         });
 }
 
-void ThreadActor::send_wrong_state_error(Message const& message, StringView error_message)
+JsonObject ThreadActor::serialize_property_descriptor(WebView::DebuggerProperty const& property)
 {
+    JsonObject descriptor;
+    descriptor.set("configurable"sv, property.configurable);
+    descriptor.set("enumerable"sv, property.enumerable);
+    if (property.value.has_value()) {
+        descriptor.set("writable"sv, property.writable);
+        descriptor.set("value"sv, serialize_debugger_value(*property.value));
+    } else {
+        if (property.getter.has_value())
+            descriptor.set("get"sv, serialize_debugger_value(*property.getter));
+        if (property.setter.has_value())
+            descriptor.set("set"sv, serialize_debugger_value(*property.setter));
+    }
+    return descriptor;
+}
+
+void ThreadActor::get_object_properties(ObjectActor& object_actor, Actor::Message const& message, ObjectPropertiesRequest request, Optional<String> property_name)
+{
+    auto tab = m_tab.strong_ref();
+    if (!tab) {
+        object_actor.send_unknown_actor_error(message, object_actor.name());
+        return;
+    }
+
+    auto message_id = message.id;
+    auto options = message.data.get_object("options"sv).value_or({});
+    devtools().delegate().retrieve_debugger_object_properties(tab->description(), object_actor.object_id(),
+        [weak_self = make_weak_ptr<ThreadActor>(), weak_object = object_actor.make_weak_ptr<ObjectActor>(), message_id, request, property_name = move(property_name), options = move(options)](auto result) mutable {
+            auto self = weak_self.strong_ref();
+            auto object = weak_object.strong_ref();
+            if (!self || !object)
+                return;
+            if (result.is_error()) {
+                JsonObject response;
+                response.set("error"sv, "unknownActor"sv);
+                response.set("message"sv, result.release_error());
+                object->send_response({ .id = message_id }, move(response));
+                return;
+            }
+
+            auto properties = result.release_value();
+            JsonObject response;
+            if (request == ObjectPropertiesRequest::Prototype) {
+                if (properties.prototype.has_value())
+                    response.set("prototype"sv, self->serialize_debugger_value(*properties.prototype));
+                object->send_response({ .id = message_id }, move(response));
+                return;
+            }
+
+            Vector<PropertyIteratorActor::Property> serialized_properties;
+            for (auto const& property : properties.properties) {
+                auto name = property.name.to_utf8();
+                if (property_name.has_value() && name != *property_name)
+                    continue;
+                serialized_properties.append({ move(name), self->serialize_property_descriptor(property) });
+            }
+
+            if (request == ObjectPropertiesRequest::Property) {
+                if (!serialized_properties.is_empty())
+                    response.set("descriptor"sv, move(serialized_properties.first().descriptor));
+                object->send_response({ .id = message_id }, move(response));
+                return;
+            }
+
+            if (request == ObjectPropertiesRequest::PrototypeAndProperties) {
+                JsonObject own_properties;
+                for (auto& property : serialized_properties)
+                    own_properties.set(property.name, move(property.descriptor));
+                if (properties.prototype.has_value())
+                    response.set("prototype"sv, self->serialize_debugger_value(*properties.prototype));
+                response.set("ownProperties"sv, move(own_properties));
+                // FIXME: Serialize the object's actual symbol-keyed properties.
+                response.set("ownSymbols"sv, JsonArray {});
+                response.set("safeGetterValues"sv, JsonObject {});
+                object->send_response({ .id = message_id }, move(response));
+                return;
+            }
+
+            auto is_indexed_property = [](String const& name) {
+                auto view = name.bytes_as_string_view();
+                if (view.is_empty() || (view.length() > 1 && view[0] == '0'))
+                    return false;
+                for (auto code_unit : view) {
+                    if (!is_ascii_digit(code_unit))
+                        return false;
+                }
+                auto index = view.to_number<u32>(TrimWhitespace::No);
+                return index.has_value() && *index < NumericLimits<u32>::max();
+            };
+            auto ignore_indexed_properties = options.get_bool("ignoreIndexedProperties"sv).value_or(false);
+            auto ignore_non_indexed_properties = options.get_bool("ignoreNonIndexedProperties"sv).value_or(false);
+            if (ignore_indexed_properties || ignore_non_indexed_properties) {
+                serialized_properties.remove_all_matching([&](auto const& property) {
+                    auto is_indexed = is_indexed_property(property.name);
+                    return (ignore_indexed_properties && is_indexed) || (ignore_non_indexed_properties && !is_indexed);
+                });
+            }
+
+            if (options.get_bool("sort"sv).value_or(false)) {
+                quick_sort(serialized_properties, [](auto const& left, auto const& right) {
+                    return left.name < right.name;
+                });
+            }
+
+            if (auto query = options.get_string("query"sv); query.has_value() && !query->is_empty()) {
+                serialized_properties.remove_all_matching([&](auto const& property) {
+                    return !property.name.contains(*query, CaseSensitivity::CaseInsensitive);
+                });
+            }
+
+            auto& iterator = self->devtools().register_actor<PropertyIteratorActor>(self->make_weak_ptr<ThreadActor>(), move(serialized_properties));
+            self->add_child_actor(iterator);
+            self->m_pause_scoped_actors.append(iterator);
+            response.set("iterator"sv, iterator.form());
+            object->send_response({ .id = message_id }, move(response));
+        });
+}
+
+void ThreadActor::get_object_symbols(ObjectActor& object_actor, Actor::Message const& message)
+{
+    auto& iterator = devtools().register_actor<SymbolIteratorActor>(make_weak_ptr<ThreadActor>());
+    add_child_actor(iterator);
+    m_pause_scoped_actors.append(iterator);
+
     JsonObject response;
-    response.set("error"sv, "wrongState"sv);
-    response.set("message"sv, error_message);
-    send_response(message, move(response));
+    response.set("iterator"sv, iterator.form());
+    object_actor.send_response(message, move(response));
 }
 
 JsonObject ThreadActor::serialize_source(Web::HTML::ScriptRegistry::Description const& source)

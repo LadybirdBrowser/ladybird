@@ -72,6 +72,50 @@ ErrorOr<WebView::DebuggerBinding> decode(Decoder& decoder)
 }
 
 template<>
+ErrorOr<void> encode(Encoder& encoder, WebView::DebuggerProperty const& property)
+{
+    TRY(encoder.encode(property.name));
+    TRY(encoder.encode(property.value));
+    TRY(encoder.encode(property.getter));
+    TRY(encoder.encode(property.setter));
+    TRY(encoder.encode(property.writable));
+    TRY(encoder.encode(property.enumerable));
+    TRY(encoder.encode(property.configurable));
+    return {};
+}
+
+template<>
+ErrorOr<WebView::DebuggerProperty> decode(Decoder& decoder)
+{
+    return WebView::DebuggerProperty {
+        .name = TRY(decoder.decode<Utf16String>()),
+        .value = TRY(decoder.decode<Optional<WebView::DebuggerValue>>()),
+        .getter = TRY(decoder.decode<Optional<WebView::DebuggerValue>>()),
+        .setter = TRY(decoder.decode<Optional<WebView::DebuggerValue>>()),
+        .writable = TRY(decoder.decode<bool>()),
+        .enumerable = TRY(decoder.decode<bool>()),
+        .configurable = TRY(decoder.decode<bool>()),
+    };
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, WebView::DebuggerObjectProperties const& properties)
+{
+    TRY(encoder.encode(properties.prototype));
+    TRY(encoder.encode(properties.properties));
+    return {};
+}
+
+template<>
+ErrorOr<WebView::DebuggerObjectProperties> decode(Decoder& decoder)
+{
+    return WebView::DebuggerObjectProperties {
+        .prototype = TRY(decoder.decode<Optional<WebView::DebuggerValue>>()),
+        .properties = TRY(decoder.decode<Vector<WebView::DebuggerProperty>>()),
+    };
+}
+
+template<>
 ErrorOr<void> encode(Encoder& encoder, WebView::DebuggerEnvironment const& environment)
 {
     TRY(encoder.encode(environment.id));
