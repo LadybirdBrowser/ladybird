@@ -599,6 +599,7 @@ struct CompositorScrollNode {
     VisualContextIndex scroll_node_index;
     VisualContextIndex parent_scroll_node_index;
     Gfx::IntRect scrollport_rect;
+    Gfx::FloatPoint min_scroll_offset;
     Gfx::FloatPoint max_scroll_offset;
     CompositorScrollNodeKind scroll_node_kind { CompositorScrollNodeKind::Element };
     u8 pseudo_element_type { 0 };
@@ -683,6 +684,7 @@ struct CompositorViewportScrollbar {
     Gfx::IntRect expanded_thumb_rect;
     double scroll_size { 0 };
     double expanded_scroll_size { 0 };
+    float min_scroll_offset { 0 };
     float max_scroll_offset { 0 };
     Color thumb_color;
     Color track_color;

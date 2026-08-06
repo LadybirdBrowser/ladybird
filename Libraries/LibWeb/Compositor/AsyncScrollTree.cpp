@@ -66,8 +66,8 @@ AsyncStickyArea const* AsyncScrollTree::sticky_area_for_scroll_node_index(Painti
 
 Gfx::FloatPoint AsyncScrollTree::clamp_scroll_offset_to_node(AsyncScrollNode const& node, Gfx::FloatPoint scroll_offset)
 {
-    scroll_offset.set_x(max(0.0f, min(scroll_offset.x(), node.max_scroll_offset.x())));
-    scroll_offset.set_y(max(0.0f, min(scroll_offset.y(), node.max_scroll_offset.y())));
+    scroll_offset.set_x(max(node.min_scroll_offset.x(), min(scroll_offset.x(), node.max_scroll_offset.x())));
+    scroll_offset.set_y(max(node.min_scroll_offset.y(), min(scroll_offset.y(), node.max_scroll_offset.y())));
     return scroll_offset;
 }
 
@@ -80,11 +80,11 @@ Gfx::FloatPoint AsyncScrollTree::scroll_offset_for_node(AsyncScrollNode const& n
 bool AsyncScrollTree::can_scroll_node_by_delta(AsyncScrollNode const& node, Painting::ScrollStateSnapshot const& scroll_state_snapshot, Gfx::FloatPoint delta)
 {
     auto scroll_offset = scroll_offset_for_node(node, scroll_state_snapshot);
-    if (node.can_be_wheel_scrolled_horizontally && delta.x() < 0 && scroll_offset.x() > 0)
+    if (node.can_be_wheel_scrolled_horizontally && delta.x() < 0 && scroll_offset.x() > node.min_scroll_offset.x())
         return true;
     if (node.can_be_wheel_scrolled_horizontally && delta.x() > 0 && scroll_offset.x() < node.max_scroll_offset.x())
         return true;
-    if (node.can_be_wheel_scrolled_vertically && delta.y() < 0 && scroll_offset.y() > 0)
+    if (node.can_be_wheel_scrolled_vertically && delta.y() < 0 && scroll_offset.y() > node.min_scroll_offset.y())
         return true;
     if (node.can_be_wheel_scrolled_vertically && delta.y() > 0 && scroll_offset.y() < node.max_scroll_offset.y())
         return true;
