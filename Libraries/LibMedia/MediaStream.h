@@ -45,7 +45,7 @@ public:
     }
 
     template<Integral T>
-    DecoderErrorOr<T> read_value(AK::Endianness endianness = AK::Endianness::Host)
+    DecoderErrorOr<T> read_value(AK::Endianness endianness = AK::Endianness::Big)
     {
         T value = 0;
         TRY(read_until_filled({ &value, sizeof(value) }));

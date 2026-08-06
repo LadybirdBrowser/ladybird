@@ -92,6 +92,8 @@ TEST_CASE(cursor_read_operations)
     bytes_read = MUST(cursor->read_into(buffer.span().trim(0)));
     EXPECT_EQ(bytes_read, 0u);
     EXPECT_EQ(cursor->position(), 0u);
+
+    EXPECT_EQ(MUST(cursor->read_value<u32>()), 0x00010203u);
 }
 
 TEST_CASE(sequential_reads)
