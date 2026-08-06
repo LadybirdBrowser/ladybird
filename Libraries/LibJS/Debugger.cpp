@@ -10,6 +10,7 @@
 #include <LibGC/WeakInlines.h>
 #include <LibJS/Bytecode/Executable.h>
 #include <LibJS/Debugger.h>
+#include <LibJS/Runtime/VM.h>
 
 namespace JS {
 
@@ -33,10 +34,15 @@ bool Debugger::pause_execution(Bytecode::Executable& executable, u32 bytecode_of
     if (reason == PauseReason::Entry)
         m_pause_on_next_bytecode_execution = false;
     m_is_paused = true;
+
+    auto stack_trace = executable.vm().stack_trace();
+    VERIFY(!stack_trace.is_empty());
+    stack_trace.first().source_range = executable.source_range_at(bytecode_offset);
     m_pause_callback({
         .executable = executable,
         .bytecode_offset = bytecode_offset,
         .source_range = executable.source_range_at(bytecode_offset),
+        .stack_trace = move(stack_trace),
         .reason = reason,
     });
     VERIFY(!m_is_paused);
