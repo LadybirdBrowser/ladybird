@@ -1266,6 +1266,39 @@ public:
         on_complete(move(environments));
     }
 
+    virtual void retrieve_debugger_object_properties(DevTools::TabDescription const&, u64 object_id, OnDebuggerObjectPropertiesReceived on_complete) const override
+    {
+        ++retrieve_debugger_object_properties_call_count;
+        last_debugger_object_id = object_id;
+        if (debugger_object_properties_error.has_value()) {
+            on_complete(*debugger_object_properties_error);
+            return;
+        }
+        WebView::DebuggerObjectProperties properties;
+        WebView::DebuggerValue prototype;
+        prototype.type = WebView::DebuggerValueType::Null;
+        properties.prototype = move(prototype);
+        WebView::DebuggerValue answer;
+        answer.type = WebView::DebuggerValueType::Number;
+        answer.number_value = 42;
+        WebView::DebuggerProperty answer_property;
+        answer_property.name = "answer"_utf16;
+        answer_property.value = move(answer);
+        answer_property.writable = true;
+        answer_property.enumerable = true;
+        answer_property.configurable = true;
+        properties.properties.append(move(answer_property));
+        WebView::DebuggerValue title;
+        title.type = WebView::DebuggerValueType::String;
+        title.text = "Ladybird"_utf16;
+        WebView::DebuggerProperty title_property;
+        title_property.name = "title"_utf16;
+        title_property.value = move(title);
+        title_property.enumerable = true;
+        properties.properties.append(move(title_property));
+        on_complete(move(properties));
+    }
+
     virtual void resolve_dom_node_url(DevTools::TabDescription const&, Optional<Web::UniqueNodeID> node_id, String const& url, OnResolvedURLReceived callback) const override
     {
         ++resolve_dom_node_url_call_count;
@@ -1572,11 +1605,14 @@ public:
     mutable size_t remove_debugger_breakpoint_call_count { 0 };
     mutable size_t retrieve_debugger_source_positions_call_count { 0 };
     mutable size_t retrieve_debugger_environments_call_count { 0 };
+    mutable size_t retrieve_debugger_object_properties_call_count { 0 };
+    mutable Optional<String> debugger_object_properties_error;
     mutable DevTools::DevToolsDelegate::OnDebuggerPaused on_debugger_paused;
     mutable WebView::DebuggerConfiguration debugger_configuration;
     mutable Optional<WebView::DebuggerBreakpointLocation> last_debugger_breakpoint_location;
     mutable Optional<Web::HTML::ScriptRegistry::Identifier> last_debugger_source_id;
     mutable Optional<u64> last_debugger_frame_id;
+    mutable Optional<u64> last_debugger_object_id;
     mutable bool fail_debugger_breakpoint_operation { false };
     mutable size_t resolve_dom_node_url_call_count { 0 };
     mutable size_t listen_for_console_messages_call_count { 0 };
@@ -2704,6 +2740,43 @@ TEST_CASE(debugger_pause_and_resume)
     EXPECT_EQ(session->delegate.retrieve_debugger_environments_call_count, 1u);
     VERIFY(session->delegate.last_debugger_frame_id.has_value());
     EXPECT_EQ(*session->delegate.last_debugger_frame_id, 1u);
+
+    auto object_actor = parent_environment.get_object("object"sv)->get_string("actor"sv).release_value();
+    JsonObject options;
+    options.set("sort"sv, true);
+    JsonObject enum_properties;
+    enum_properties.set("to"sv, object_actor);
+    enum_properties.set("type"sv, "enumProperties"sv);
+    enum_properties.set("options"sv, move(options));
+    auto properties = client.request(move(enum_properties));
+    auto iterator = properties.get_object("iterator"sv).release_value();
+    EXPECT_EQ(iterator.get_integer<size_t>("count"sv).value(), 2u);
+    auto iterator_actor = iterator.get_string("actor"sv).release_value();
+    JsonObject slice;
+    slice.set("to"sv, iterator_actor);
+    slice.set("type"sv, "slice"sv);
+    slice.set("start"sv, 0);
+    slice.set("count"sv, 1);
+    auto property_slice = client.request(move(slice));
+    auto own_properties = property_slice.get_object("ownProperties"sv).release_value();
+    EXPECT_EQ(own_properties.size(), 1u);
+    EXPECT_EQ(own_properties.get_object("answer"sv)->get("value"sv)->get_double_with_precision_loss().value(), 42);
+    auto all_properties = client.request(iterator_actor, "all"sv).get_object("ownProperties"sv).release_value();
+    EXPECT_EQ(all_properties.get_object("title"sv)->get_string("value"sv).value(), "Ladybird"sv);
+    EXPECT_EQ(session->delegate.retrieve_debugger_object_properties_call_count, 1u);
+    VERIFY(session->delegate.last_debugger_object_id.has_value());
+    EXPECT_EQ(*session->delegate.last_debugger_object_id, 10u);
+    EXPECT_EQ(client.request(iterator_actor, "release"sv).get_string("from"sv).value(), iterator_actor);
+    spin_until(session->loop, [&] { return !session->server->actor_registry().contains(iterator_actor); });
+
+    session->delegate.debugger_object_properties_error = "Unable to find paused object"_string;
+    auto property_error = client.request(object_actor, "prototypeAndProperties"sv);
+    EXPECT_EQ(property_error.get_string("error"sv).value(), "unknownActor"sv);
+    EXPECT_EQ(property_error.get_string("message"sv).value(), "Unable to find paused object"sv);
+    session->delegate.debugger_object_properties_error.clear();
+
+    EXPECT_EQ(client.request(object_actor, "release"sv).get_string("from"sv).value(), object_actor);
+    spin_until(session->loop, [&] { return !session->server->actor_registry().contains(object_actor); });
 
     auto resume = client.request(thread_actor, "resume"sv);
     EXPECT_EQ(resume.get_string("from"sv).value(), thread_actor);

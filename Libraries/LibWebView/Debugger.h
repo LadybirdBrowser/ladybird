@@ -47,6 +47,21 @@ struct DebuggerBinding {
     bool writable { false };
 };
 
+struct DebuggerProperty {
+    Utf16String name;
+    Optional<DebuggerValue> value;
+    Optional<DebuggerValue> getter;
+    Optional<DebuggerValue> setter;
+    bool writable { false };
+    bool enumerable { false };
+    bool configurable { false };
+};
+
+struct DebuggerObjectProperties {
+    Optional<DebuggerValue> prototype;
+    Vector<DebuggerProperty> properties;
+};
+
 enum class DebuggerEnvironmentType : u8 {
     Block,
     Function,
@@ -130,6 +145,18 @@ WEBVIEW_API ErrorOr<void> encode(Encoder&, WebView::DebuggerBinding const&);
 
 template<>
 WEBVIEW_API ErrorOr<WebView::DebuggerBinding> decode(Decoder&);
+
+template<>
+WEBVIEW_API ErrorOr<void> encode(Encoder&, WebView::DebuggerProperty const&);
+
+template<>
+WEBVIEW_API ErrorOr<WebView::DebuggerProperty> decode(Decoder&);
+
+template<>
+WEBVIEW_API ErrorOr<void> encode(Encoder&, WebView::DebuggerObjectProperties const&);
+
+template<>
+WEBVIEW_API ErrorOr<WebView::DebuggerObjectProperties> decode(Decoder&);
 
 template<>
 WEBVIEW_API ErrorOr<void> encode(Encoder&, WebView::DebuggerEnvironment const&);

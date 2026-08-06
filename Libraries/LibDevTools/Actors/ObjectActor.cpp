@@ -4,18 +4,20 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/JsonArray.h>
 #include <LibDevTools/Actors/ObjectActor.h>
+#include <LibDevTools/Actors/ThreadActor.h>
+#include <LibDevTools/DevToolsServer.h>
 
 namespace DevTools {
 
-NonnullRefPtr<ObjectActor> ObjectActor::create(DevToolsServer& devtools, String name, u64 object_id, String class_name)
+NonnullRefPtr<ObjectActor> ObjectActor::create(DevToolsServer& devtools, String name, WeakPtr<ThreadActor> thread, u64 object_id, String class_name)
 {
-    return adopt_ref(*new ObjectActor(devtools, move(name), object_id, move(class_name)));
+    return adopt_ref(*new ObjectActor(devtools, move(name), move(thread), object_id, move(class_name)));
 }
 
-ObjectActor::ObjectActor(DevToolsServer& devtools, String name, u64 object_id, String class_name)
+ObjectActor::ObjectActor(DevToolsServer& devtools, String name, WeakPtr<ThreadActor> thread, u64 object_id, String class_name)
     : Actor(devtools, move(name))
+    , m_thread(move(thread))
     , m_object_id(object_id)
     , m_class_name(move(class_name))
 {
@@ -37,13 +39,47 @@ JsonObject ObjectActor::grip() const
 
 void ObjectActor::handle_message(Message const& message)
 {
-    // FIXME: Support enumerating object properties.
+    if (message.type == "release"sv) {
+        send_response(message, {});
+        if (auto thread = m_thread.strong_ref()) {
+            thread->release_pause_actor(*this);
+        } else {
+            devtools().unregister_actor(name());
+        }
+        return;
+    }
+
+    auto thread = m_thread.strong_ref();
+    if (!thread) {
+        send_unknown_actor_error(message, name());
+        return;
+    }
+
+    if (message.type == "enumProperties"sv) {
+        thread->get_object_properties(*this, message, ThreadActor::ObjectPropertiesRequest::Iterator);
+        return;
+    }
+
+    if (message.type == "enumSymbols"sv) {
+        thread->get_object_symbols(*this, message);
+        return;
+    }
+
     if (message.type == "prototypeAndProperties"sv) {
-        JsonObject response;
-        response.set("ownProperties"sv, JsonObject {});
-        response.set("ownSymbols"sv, JsonArray {});
-        response.set("safeGetterValues"sv, JsonObject {});
-        send_response(message, move(response));
+        thread->get_object_properties(*this, message, ThreadActor::ObjectPropertiesRequest::PrototypeAndProperties);
+        return;
+    }
+
+    if (message.type == "prototype"sv) {
+        thread->get_object_properties(*this, message, ThreadActor::ObjectPropertiesRequest::Prototype);
+        return;
+    }
+
+    if (message.type == "property"sv) {
+        auto name = get_required_parameter<String>(message, "name"sv);
+        if (!name.has_value())
+            return;
+        thread->get_object_properties(*this, message, ThreadActor::ObjectPropertiesRequest::Property, name.release_value());
         return;
     }
 
