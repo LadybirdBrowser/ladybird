@@ -44,6 +44,9 @@ void BreakpointListActor::handle_message(Message const& message)
             if (auto options_object = message.data.get_object("options"sv); options_object.has_value()) {
                 if (auto condition = options_object->get_string("condition"sv); condition.has_value())
                     options.condition = Utf16String::from_utf8(*condition);
+                if (auto log_value = options_object->get_string("logValue"sv); log_value.has_value())
+                    options.log_value = Utf16String::from_utf8(*log_value);
+                options.show_stacktrace = options_object->get_bool("showStacktrace"sv).value_or(false);
             }
             auto breakpoint_location = location.release_value();
             auto retained_location = breakpoint_location;

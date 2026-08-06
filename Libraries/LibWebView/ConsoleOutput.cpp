@@ -13,6 +13,9 @@ ErrorOr<void> IPC::encode(Encoder& encoder, WebView::ConsoleLog const& log)
 {
     TRY(encoder.encode(log.level));
     TRY(encoder.encode(log.arguments));
+    TRY(encoder.encode(log.type));
+    TRY(encoder.encode(log.location));
+    TRY(encoder.encode(log.stacktrace));
 
     return {};
 }
@@ -22,8 +25,11 @@ ErrorOr<WebView::ConsoleLog> IPC::decode(Decoder& decoder)
 {
     auto level = TRY(decoder.decode<JS::Console::LogLevel>());
     auto arguments = TRY(decoder.decode<Vector<JsonValue>>());
+    auto type = TRY(decoder.decode<WebView::ConsoleLogType>());
+    auto location = TRY(decoder.decode<Optional<WebView::StackFrame>>());
+    auto stacktrace = TRY(decoder.decode<Optional<Vector<WebView::StackFrame>>>());
 
-    return WebView::ConsoleLog { level, move(arguments) };
+    return WebView::ConsoleLog { level, move(arguments), type, move(location), move(stacktrace) };
 }
 
 template<>

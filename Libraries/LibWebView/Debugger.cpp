@@ -182,6 +182,8 @@ template<>
 ErrorOr<void> encode(Encoder& encoder, WebView::DebuggerBreakpointOptions const& options)
 {
     TRY(encoder.encode(options.condition));
+    TRY(encoder.encode(options.log_value));
+    TRY(encoder.encode(options.show_stacktrace));
     return {};
 }
 
@@ -190,6 +192,8 @@ ErrorOr<WebView::DebuggerBreakpointOptions> decode(Decoder& decoder)
 {
     return WebView::DebuggerBreakpointOptions {
         .condition = TRY(decoder.decode<Optional<Utf16String>>()),
+        .log_value = TRY(decoder.decode<Optional<Utf16String>>()),
+        .show_stacktrace = TRY(decoder.decode<bool>()),
     };
 }
 

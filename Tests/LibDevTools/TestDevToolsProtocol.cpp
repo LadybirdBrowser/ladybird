@@ -1369,7 +1369,54 @@ public:
     void emit_console_log(JS::Console::LogLevel level, Vector<JsonValue> arguments) const
     {
         VERIFY(on_console_message);
-        on_console_message({ UnixDateTime::from_seconds_since_epoch(10), WebView::ConsoleLog { level, move(arguments) } });
+        on_console_message({
+            UnixDateTime::from_seconds_since_epoch(10),
+            WebView::ConsoleLog {
+                .level = level,
+                .arguments = move(arguments),
+                .type = WebView::ConsoleLogType::ConsoleAPI,
+                .location = {},
+                .stacktrace = {},
+            },
+        });
+    }
+
+    void emit_logpoint() const
+    {
+        VERIFY(on_console_message);
+        WebView::StackFrame location {
+            .function = "run"_string,
+            .file = "https://example.test/app.js"_string,
+            .line = 8,
+            .column = 3,
+        };
+        Vector<WebView::StackFrame> stacktrace;
+        stacktrace.append(location);
+        on_console_message({
+            UnixDateTime::from_seconds_since_epoch(10),
+            WebView::ConsoleLog {
+                .level = JS::Console::LogLevel::Log,
+                .arguments = { 42 },
+                .type = WebView::ConsoleLogType::LogPoint,
+                .location = move(location),
+                .stacktrace = move(stacktrace),
+            },
+        });
+    }
+
+    void emit_logpoint_error() const
+    {
+        VERIFY(on_console_message);
+        on_console_message({
+            UnixDateTime::from_seconds_since_epoch(10),
+            WebView::ConsoleLog {
+                .level = JS::Console::LogLevel::Log,
+                .arguments = { "Logpoint expression did not produce an argument list"_string },
+                .type = WebView::ConsoleLogType::LogPointError,
+                .location = {},
+                .stacktrace = {},
+            },
+        });
     }
 
     void emit_console_trace() const
@@ -2877,6 +2924,8 @@ TEST_CASE(debugger_breakpoints)
         if (type == "setBreakpoint"sv) {
             JsonObject options;
             options.set("condition"sv, "enabled"sv);
+            options.set("logValue"sv, "counter"sv);
+            options.set("showStacktrace"sv, true);
             request.set("options"sv, move(options));
         }
         return request;
@@ -2894,6 +2943,8 @@ TEST_CASE(debugger_breakpoints)
     EXPECT_EQ(session->delegate.last_debugger_breakpoint_location->column, 3u);
     VERIFY(session->delegate.last_debugger_breakpoint_options.has_value());
     EXPECT_EQ(session->delegate.last_debugger_breakpoint_options->condition.value(), "enabled"_utf16);
+    EXPECT_EQ(session->delegate.last_debugger_breakpoint_options->log_value.value(), "counter"_utf16);
+    EXPECT(session->delegate.last_debugger_breakpoint_options->show_stacktrace);
 
     location.set("sourceUrl"sv, "https://example.test/app.js"sv);
     location.set("line"sv, 8);
@@ -4865,6 +4916,19 @@ TEST_CASE(console_network_navigation_and_accessibility)
     session->delegate.emit_console_log(JS::Console::LogLevel::Warn, { "careful"_string });
     auto warning = read_resource(client, "console-message"sv);
     EXPECT_EQ(warning.get_string("level"sv).value(), "warn"sv);
+
+    session->delegate.emit_logpoint();
+    auto logpoint = read_resource(client, "console-message"sv);
+    EXPECT_EQ(logpoint.get_string("level"sv).value(), "logPoint"sv);
+    EXPECT_EQ(logpoint.get_string("filename"sv).value(), "https://example.test/app.js"sv);
+    EXPECT_EQ(logpoint.get_integer<u64>("lineNumber"sv).value(), 8u);
+    EXPECT_EQ(logpoint.get_integer<u64>("columnNumber"sv).value(), 3u);
+    EXPECT_EQ(logpoint.get_array("stacktrace"sv)->at(0).as_object().get_string("functionName"sv).value(), "run"sv);
+
+    session->delegate.emit_logpoint_error();
+    auto logpoint_error = read_resource(client, "console-message"sv);
+    EXPECT_EQ(logpoint_error.get_string("level"sv).value(), "logPointError"sv);
+    EXPECT_EQ(logpoint_error.get_array("arguments"sv)->at(0).as_string(), "Logpoint expression did not produce an argument list"sv);
 
     session->delegate.emit_console_trace();
     auto trace = read_resource(client, "console-message"sv);

@@ -389,6 +389,20 @@ void FrameActor::send_thread_state_resource_available_message(JsonObject resourc
     send_message(move(message));
 }
 
+static JsonArray serialize_console_stacktrace(Vector<WebView::StackFrame> const& stack)
+{
+    JsonArray stack_array;
+    for (auto const& frame : stack) {
+        JsonObject frame_object;
+        frame_object.set("functionName"sv, frame.function.value_or("<anonymous>"_string));
+        frame_object.set("filename"sv, frame.file.value_or("unknown"_string));
+        frame_object.set("lineNumber"sv, static_cast<i64>(frame.line.value_or(0)));
+        frame_object.set("columnNumber"sv, static_cast<i64>(frame.column.value_or(0)));
+        stack_array.must_append(move(frame_object));
+    }
+    return stack_array;
+}
+
 void FrameActor::on_console_message(WebView::ConsoleOutput console_output)
 {
     JsonArray console_messages;
@@ -398,30 +412,48 @@ void FrameActor::on_console_message(WebView::ConsoleOutput console_output)
 
     console_output.output.visit(
         [&](WebView::ConsoleLog& log) {
-            switch (log.level) {
-            case JS::Console::LogLevel::Debug:
-                message.set("level"sv, "debug"sv);
+            switch (log.type) {
+            case WebView::ConsoleLogType::ConsoleAPI:
+                switch (log.level) {
+                case JS::Console::LogLevel::Debug:
+                    message.set("level"sv, "debug"sv);
+                    break;
+                case JS::Console::LogLevel::Error:
+                    message.set("level"sv, "error"sv);
+                    break;
+                case JS::Console::LogLevel::Info:
+                    message.set("level"sv, "info"sv);
+                    break;
+                case JS::Console::LogLevel::Log:
+                    message.set("level"sv, "log"sv);
+                    break;
+                case JS::Console::LogLevel::Warn:
+                    message.set("level"sv, "warn"sv);
+                    break;
+                default:
+                    // FIXME: Implement remaining console levels.
+                    return;
+                }
                 break;
-            case JS::Console::LogLevel::Error:
-                message.set("level"sv, "error"sv);
+            case WebView::ConsoleLogType::LogPoint:
+                message.set("level"sv, "logPoint"sv);
                 break;
-            case JS::Console::LogLevel::Info:
-                message.set("level"sv, "info"sv);
+            case WebView::ConsoleLogType::LogPointError:
+                message.set("level"sv, "logPointError"sv);
                 break;
-            case JS::Console::LogLevel::Log:
-                message.set("level"sv, "log"sv);
-                break;
-            case JS::Console::LogLevel::Warn:
-                message.set("level"sv, "warn"sv);
-                break;
-            default:
-                // FIXME: Implement remaining console levels.
-                return;
             }
 
-            message.set("filename"sv, "<eval>"sv);
-            message.set("lineNumber"sv, 1);
-            message.set("columnNumber"sv, 1);
+            if (log.location.has_value()) {
+                message.set("filename"sv, log.location->file.value_or("unknown"_string));
+                message.set("lineNumber"sv, static_cast<i64>(log.location->line.value_or(0)));
+                message.set("columnNumber"sv, static_cast<i64>(log.location->column.value_or(0)));
+            } else {
+                message.set("filename"sv, "<eval>"sv);
+                message.set("lineNumber"sv, 1);
+                message.set("columnNumber"sv, 1);
+            }
+            if (log.stacktrace.has_value())
+                message.set("stacktrace"sv, serialize_console_stacktrace(*log.stacktrace));
             message.set("timeStamp"sv, console_output.timestamp.milliseconds_since_epoch());
             message.set("arguments"sv, JsonArray { move(log.arguments) });
 
@@ -436,16 +468,7 @@ void FrameActor::on_console_message(WebView::ConsoleOutput console_output)
                 arguments.must_append(trace.label);
             message.set("arguments"sv, move(arguments));
 
-            JsonArray stack_array;
-            for (auto const& frame : trace.stack) {
-                JsonObject frame_object;
-                frame_object.set("functionName"sv, frame.function.value_or("<anonymous>"_string));
-                frame_object.set("filename"sv, frame.file.value_or("unknown"_string));
-                frame_object.set("lineNumber"sv, static_cast<i64>(frame.line.value_or(0)));
-                frame_object.set("columnNumber"sv, static_cast<i64>(frame.column.value_or(0)));
-                stack_array.must_append(move(frame_object));
-            }
-            message.set("stacktrace"sv, move(stack_array));
+            message.set("stacktrace"sv, serialize_console_stacktrace(trace.stack));
 
             if (trace.stack.is_empty()) {
                 message.set("filename"sv, "unknown"sv);
