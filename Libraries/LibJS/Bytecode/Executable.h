@@ -437,6 +437,7 @@ public:
     void remove_debugger_breakpoint(BreakpointID breakpoint_id);
     void clear_debugger_breakpoints();
     [[nodiscard]] bool has_debugger_breakpoint_at(u32 bytecode_offset) const;
+    [[nodiscard]] ReadonlySpan<BreakpointID> debugger_breakpoints_at(u32 bytecode_offset) const;
     [[nodiscard]] bool has_debugger_breakpoint(BreakpointID breakpoint_id) const;
 
     void dump() const;
