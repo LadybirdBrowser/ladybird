@@ -38,6 +38,7 @@ public:
 private:
     void handle_pause(JS::Debugger::PauseInfo const&);
     void emit_logpoint(PageClient&, JS::Debugger::PauseInfo const&, JS::ExecutionContext&, WebView::DebuggerBreakpointOptions const&);
+    void update_exception_pause_mode();
     PageClient* paused_page_client() const;
     void disable_if_unused();
     void schedule_disable_if_unused();

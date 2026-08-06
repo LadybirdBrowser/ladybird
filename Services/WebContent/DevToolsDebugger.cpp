@@ -52,17 +52,20 @@ void DevToolsDebugger::attach(PageClient& page)
         });
         m_pause_callback_is_installed = true;
     }
+    update_exception_pause_mode();
 }
 
 void DevToolsDebugger::configure(PageClient& page, WebView::DebuggerConfiguration configuration)
 {
     m_configurations.set(page.id(), configuration);
+    update_exception_pause_mode();
 }
 
 void DevToolsDebugger::detach(PageClient& page)
 {
     m_attached_page_ids.remove(page.id());
     m_configurations.remove(page.id());
+    update_exception_pause_mode();
     remove_breakpoints_for_page(page.id());
     if (m_paused_page_id == page.id()) {
         m_resume_mode = WebView::DebuggerResumeMode::Continue;
@@ -501,8 +504,22 @@ void DevToolsDebugger::handle_pause(JS::Debugger::PauseInfo const& pause)
         else
             Web::Bindings::main_thread_vm().debugger()->continue_execution();
     };
-    if ((pause.reason == JS::Debugger::PauseReason::DebuggerStatement && !configuration.should_pause_on_debugger_statement)
-        || (pause.reason == JS::Debugger::PauseReason::Breakpoint && configuration.skip_breakpoints)) {
+    auto should_filter_pause = [&] {
+        switch (pause.reason) {
+        case JS::Debugger::PauseReason::Breakpoint:
+            return configuration.skip_breakpoints;
+        case JS::Debugger::PauseReason::DebuggerStatement:
+            return !configuration.should_pause_on_debugger_statement;
+        case JS::Debugger::PauseReason::Exception:
+            return configuration.skip_breakpoints || !configuration.pause_on_exceptions
+                || (configuration.ignore_caught_exceptions && pause.exception_will_be_caught);
+        case JS::Debugger::PauseReason::Entry:
+        case JS::Debugger::PauseReason::Step:
+            return false;
+        }
+        VERIFY_NOT_REACHED();
+    }();
+    if (should_filter_pause) {
         continue_after_filtered_pause();
         return;
     }
@@ -643,6 +660,25 @@ void DevToolsDebugger::handle_pause(JS::Debugger::PauseInfo const& pause)
     }();
     Web::Bindings::main_thread_vm().debugger()->continue_execution(resume_mode);
     schedule_disable_if_unused();
+}
+
+void DevToolsDebugger::update_exception_pause_mode()
+{
+    auto& vm = Web::Bindings::main_thread_vm();
+    if (!vm.debugger())
+        return;
+
+    auto mode = JS::Debugger::PauseOnExceptions::None;
+    for (auto const& configuration : m_configurations) {
+        if (!configuration.value.pause_on_exceptions)
+            continue;
+        mode = configuration.value.ignore_caught_exceptions
+            ? JS::Debugger::PauseOnExceptions::Uncaught
+            : JS::Debugger::PauseOnExceptions::All;
+        if (mode == JS::Debugger::PauseOnExceptions::All)
+            break;
+    }
+    vm.debugger()->set_pause_on_exceptions(mode);
 }
 
 void DevToolsDebugger::disable_if_unused()

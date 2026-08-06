@@ -2714,11 +2714,15 @@ TEST_CASE(debugger_pause_and_resume)
     update_configuration.set("to"sv, configuration_actor);
     update_configuration.set("type"sv, "updateConfiguration"sv);
     JsonObject configuration;
+    configuration.set("ignoreCaughtExceptions"sv, false);
+    configuration.set("pauseOnExceptions"sv, true);
     configuration.set("shouldPauseOnDebuggerStatement"sv, false);
     configuration.set("skipBreakpoints"sv, true);
     update_configuration.set("configuration"sv, move(configuration));
     EXPECT_EQ(client.request(move(update_configuration)).get_string("from"sv).value(), configuration_actor);
     EXPECT_EQ(session->delegate.configure_debugger_call_count, 1u);
+    EXPECT(!session->delegate.debugger_configuration.ignore_caught_exceptions);
+    EXPECT(session->delegate.debugger_configuration.pause_on_exceptions);
     EXPECT(!session->delegate.debugger_configuration.should_pause_on_debugger_statement);
     EXPECT(session->delegate.debugger_configuration.skip_breakpoints);
 
@@ -2913,6 +2917,49 @@ TEST_CASE(debugger_pause_and_resume)
     spin_until(session->loop, [&] {
         return !session->server->actor_registry().contains(frame_actor);
     });
+
+    WebView::DebuggerValue exception;
+    exception.type = WebView::DebuggerValueType::Object;
+    exception.object_id = 11;
+    exception.object_class = "Error"_string;
+    WebView::DebuggerPause exception_pause {
+        .reason = WebView::DebuggerPauseReason::Exception,
+        .reason_message = {},
+        .exception = move(exception),
+        .frames = {},
+    };
+    exception_pause.frames.append({
+        .id = 3,
+        .display_name = "throwError"_utf16,
+        .location = {
+            .source = session->delegate.fixture_source,
+            .line = 12,
+            .column = 1,
+        },
+        .this_value = {},
+        .arguments = {},
+    });
+    session->delegate.on_debugger_paused(move(exception_pause));
+
+    paused = read_resource(client, "thread-state"sv, "resources-available-array"sv, target_actor);
+    EXPECT_EQ(paused.get_object("why"sv)->get_string("type"sv).value(), "exception"sv);
+    auto exception_grip = paused.get_object("why"sv)->get_object("exception"sv).release_value();
+    EXPECT_EQ(exception_grip.get_string("class"sv).value(), "Error"sv);
+
+    JsonObject exception_properties_request;
+    exception_properties_request.set("to"sv, actor_from(exception_grip, "actor"sv));
+    exception_properties_request.set("type"sv, "enumProperties"sv);
+    exception_properties_request.set("options"sv, JsonObject {});
+    auto exception_properties = client.request(move(exception_properties_request));
+    auto exception_iterator = actor_from(exception_properties.get_object("iterator"sv).release_value(), "actor"sv);
+    auto exception_own_properties = client.request(exception_iterator, "all"sv).get_object("ownProperties"sv).release_value();
+    EXPECT_EQ(exception_own_properties.get_object("answer"sv)->get("value"sv)->get_double_with_precision_loss().value(), 42);
+    EXPECT_EQ(session->delegate.last_debugger_object_id.value(), 11u);
+
+    EXPECT_EQ(client.request(thread_actor, "resume"sv).get_string("from"sv).value(), thread_actor);
+    EXPECT_EQ(session->delegate.debugger_resume_mode, WebView::DebuggerResumeMode::Continue);
+    resumed = read_resource(client, "thread-state"sv, "resources-available-array"sv, target_actor);
+    EXPECT_EQ(resumed.get_string("state"sv).value(), "resumed"sv);
 }
 
 TEST_CASE(debugger_thread_state_protocol)
@@ -3172,6 +3219,7 @@ TEST_CASE(debugger_state_is_replayed_after_target_switch)
     update_configuration.set("to"sv, configuration_actor);
     update_configuration.set("type"sv, "updateConfiguration"sv);
     JsonObject configuration;
+    configuration.set("pauseOnExceptions"sv, true);
     configuration.set("skipBreakpoints"sv, true);
     update_configuration.set("configuration"sv, move(configuration));
     (void)client.request(move(update_configuration));
@@ -3221,6 +3269,7 @@ TEST_CASE(debugger_state_is_replayed_after_target_switch)
 
     EXPECT_EQ(session->delegate.attach_debugger_call_count, 2u);
     EXPECT_EQ(session->delegate.configure_debugger_call_count, 2u);
+    EXPECT(session->delegate.debugger_configuration.pause_on_exceptions);
     EXPECT(session->delegate.debugger_configuration.skip_breakpoints);
     EXPECT_EQ(session->delegate.remove_debugger_breakpoint_call_count, 2u);
     EXPECT_EQ(session->delegate.set_debugger_breakpoint_call_count, 4u);
