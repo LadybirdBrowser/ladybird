@@ -47,6 +47,7 @@ private:
     HashTable<u64> m_attached_page_ids;
     HashMap<u64, WebView::DebuggerConfiguration> m_configurations;
     HashMap<u64, Vector<BreakpointRegistration>> m_breakpoints;
+    u64 m_next_frame_id { 1 };
     Optional<u64> m_paused_page_id;
     bool m_resume_requested { false };
     bool m_is_handling_pause { false };

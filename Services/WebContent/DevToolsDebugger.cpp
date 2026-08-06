@@ -174,18 +174,6 @@ void DevToolsDebugger::handle_pause(JS::Debugger::PauseInfo const& pause)
         return;
     }
 
-    auto source = page->devtools_source_description(*pause.executable->source_code);
-    if (!source.has_value()) {
-        Web::Bindings::main_thread_vm().debugger()->continue_execution();
-        return;
-    }
-
-    auto line = source->source_start_line;
-    auto column = source->source_start_column;
-    if (pause.source_range.has_value()) {
-        line = pause.source_range->start.line;
-        column = pause.source_range->start.column > 0 ? pause.source_range->start.column - 1 : 0;
-    }
     WebView::DebuggerPause debugger_pause {
         .reason = [&] {
             switch (pause.reason) {
@@ -200,15 +188,38 @@ void DevToolsDebugger::handle_pause(JS::Debugger::PauseInfo const& pause)
         }(),
         .frames = {},
     };
-    debugger_pause.frames.append(WebView::DebuggerFrame {
-        .id = 1,
-        .display_name = pause.executable->name.to_utf16_string(),
-        .location = {
-            .source = source.release_value(),
-            .line = line,
-            .column = column,
-        },
-    });
+
+    for (auto const& stack_frame : pause.stack_trace) {
+        auto* executable = stack_frame.execution_context->executable.ptr();
+        if (!executable)
+            continue;
+
+        auto source = page->devtools_source_description(*executable->source_code);
+        if (!source.has_value())
+            continue;
+
+        auto line = source->source_start_line;
+        auto column = source->source_start_column;
+        if (stack_frame.source_range.has_value()) {
+            line = stack_frame.source_range->start.line;
+            column = stack_frame.source_range->start.column > 0 ? stack_frame.source_range->start.column - 1 : 0;
+        }
+
+        debugger_pause.frames.append(WebView::DebuggerFrame {
+            .id = m_next_frame_id++,
+            .display_name = executable->name.to_utf16_string(),
+            .location = {
+                .source = source.release_value(),
+                .line = line,
+                .column = column,
+            },
+        });
+    }
+
+    if (debugger_pause.frames.is_empty()) {
+        Web::Bindings::main_thread_vm().debugger()->continue_execution();
+        return;
+    }
 
     m_paused_page_id = page->id();
     m_resume_requested = false;
