@@ -1880,6 +1880,42 @@ static void propagate_scrollbar_width_to_viewport(Element& root_element, Layout:
     });
 }
 
+// https://drafts.csswg.org/css-writing-modes-4/#principal-flow
+static void propagate_principal_writing_mode_to_viewport(Element& root_element, Layout::Viewport& viewport)
+{
+    // The principal writing mode of the document is determined by the used writing-mode, direction, and
+    // text-orientation values of the root element.
+    auto const& root_element_computed_values = *root_element.computed_values();
+    auto writing_mode = root_element_computed_values.writing_mode();
+    auto direction = root_element_computed_values.direction();
+
+    // As a special case for handling HTML documents, if the root element has a body child element [HTML] whose
+    // display value is not none, the used value of the of writing-mode and direction properties on root element
+    // are taken from the computed writing-mode and direction of the first such child element instead of from the
+    // root element's own values.
+    // NOTE: Using containment disables this special handling of the HTML body element.
+    auto* body_element = root_element.first_child_of_type<HTML::HTMLBodyElement>();
+    bool propagation_is_disabled_by_containment = !root_element_computed_values.contain().is_empty()
+        || (body_element && !body_element->computed_values()->contain().is_empty());
+    if (root_element.is_html_html_element() && !propagation_is_disabled_by_containment
+        && body_element && !body_element->computed_values()->display().is_none()) {
+        writing_mode = body_element->computed_values()->writing_mode();
+        direction = body_element->computed_values()->direction();
+    }
+    root_element.unsafe_layout_node()->modify_computed_values([&](auto& values) {
+        values.set_writing_mode(writing_mode);
+        values.set_direction(direction);
+    });
+
+    // https://drafts.csswg.org/css-writing-modes-4/#icb
+    // The principal writing mode is propagated to the initial containing block and to the viewport, thereby
+    // affecting the layout of the root element and the scrolling direction of the viewport.
+    viewport.modify_computed_values([&](auto& values) {
+        values.set_writing_mode(writing_mode);
+        values.set_direction(direction);
+    });
+}
+
 // https://drafts.csswg.org/css-overflow-3/#overflow-propagation
 static void propagate_overflow_to_viewport(Element& root_element, Layout::Viewport& viewport)
 {
@@ -2179,6 +2215,7 @@ void Document::update_layout(UpdateLayoutReason reason)
         }
 
         if (document_element && document_element->unsafe_layout_node()) {
+            propagate_principal_writing_mode_to_viewport(*document_element, *m_layout_root);
             propagate_overflow_to_viewport(*document_element, *m_layout_root);
         } else {
             m_layout_root->modify_computed_values([](auto& values) {
