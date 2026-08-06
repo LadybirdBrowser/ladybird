@@ -354,10 +354,6 @@ impl<'pass> NodeFacts<'pass> {
         self.state.replaced_content_facts(self.callbacks, self.node)
     }
 
-    fn list_item(&self) -> crate::layout::FfiListItemFacts {
-        self.state.list_item_facts(self.callbacks, self.node)
-    }
-
     pub(crate) fn is_text_node(&self) -> bool {
         crate::layout::kind_is_text(self.data().kind)
     }
@@ -602,11 +598,43 @@ impl<'pass> NodeFacts<'pass> {
     }
 
     pub(crate) fn list_item_marker(&self) -> Node {
-        self.list_item().marker
+        if !self.is_list_item_box() {
+            return Node::INVALID;
+        }
+        // Outside markers are direct children. Inside markers participate in
+        // an inline run and can therefore move below anonymous block wrappers.
+        // Walk those wrappers, but not nested authored or generated list items.
+        let mut candidate = self.data().first_child;
+        while !candidate.is_invalid() {
+            let data = self.callbacks.node_data(candidate);
+            if data.kind == NodeKind::ListItemMarkerBox {
+                return candidate;
+            }
+            if data.kind == NodeKind::BlockContainer
+                && crate::layout::has_flag(data, NodeFlag::Anonymous)
+                && data.generated_for == 0
+                && !data.first_child.is_invalid()
+            {
+                candidate = data.first_child;
+                continue;
+            }
+            let mut current_data = data;
+            loop {
+                if !current_data.next_sibling.is_invalid() {
+                    candidate = current_data.next_sibling;
+                    break;
+                }
+                if current_data.parent == self.node {
+                    return Node::INVALID;
+                }
+                current_data = self.callbacks.node_data(current_data.parent);
+            }
+        }
+        Node::INVALID
     }
 
-    pub(crate) fn marker_list_style_position(&self) -> u8 {
-        self.list_item().marker_list_style_position
+    pub(crate) fn list_marker_is_inside(&self) -> bool {
+        crate::layout::has_flag(self.data(), NodeFlag::ListMarkerIsInside)
     }
 
     pub(crate) fn has_auto_content_width(&self) -> bool {
@@ -783,7 +811,6 @@ pub(crate) struct LayoutState {
     abspos_layout_pass_is_active: Cell<bool>,
     anchor_inset_store: AnchorInsetStore,
     replaced_content_facts: PagedStore<crate::layout::FfiReplacedContentFacts>,
-    list_item_facts: PagedStore<crate::layout::FfiListItemFacts>,
     line_data: PagedStore<RefCell<LineData>>,
     block_rare_data: PagedStore<RefCell<BlockRareData>>,
     used_values_rare_data: PagedStore<RefCell<UsedValuesRareData>>,
@@ -837,7 +864,6 @@ impl LayoutState {
             abspos_layout_pass_is_active: Cell::new(false),
             anchor_inset_store: AnchorInsetStore::default(),
             replaced_content_facts: PagedStore::default(),
-            list_item_facts: PagedStore::default(),
             line_data: PagedStore::default(),
             block_rare_data: PagedStore::default(),
             used_values_rare_data: PagedStore::default(),
@@ -1167,26 +1193,6 @@ impl LayoutState {
             crate::layout::FfiReplacedContentFacts::default()
         };
         self.replaced_content_facts.allocate(slot_index, facts);
-        facts
-    }
-
-    pub(crate) fn list_item_facts(
-        &self,
-        callbacks: &FfiLayoutFcCallbacks,
-        node: Node,
-    ) -> crate::layout::FfiListItemFacts {
-        let slot_index = callbacks.slot_index(node);
-        if let Some(facts) = self.list_item_facts.get(slot_index) {
-            return *facts;
-        }
-        let facts = if crate::layout::node_may_have_list_item_facts(callbacks.node_data(node)) {
-            // SAFETY: The callback table and node are supplied by the live C++
-            // formatting-context shim and remain valid for this layout pass.
-            unsafe { (callbacks.build_list_item_facts)(callbacks.context, callbacks.shell(node)) }
-        } else {
-            crate::layout::FfiListItemFacts::default()
-        };
-        self.list_item_facts.allocate(slot_index, facts);
         facts
     }
 

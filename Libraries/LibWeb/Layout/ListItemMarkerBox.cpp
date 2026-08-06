@@ -9,11 +9,10 @@
 
 namespace Web::Layout {
 
-ListItemMarkerBox::ListItemMarkerBox(DOM::Document& document, CSS::ListStyleType style_type, CSS::ListStylePosition style_position, NonnullRefPtr<CSS::ComputedValues const> style)
+ListItemMarkerBox::ListItemMarkerBox(DOM::Document& document, bool is_inside, NonnullRefPtr<CSS::ComputedValues const> style)
     : BlockContainer(document, nullptr, style)
-    , m_list_style_type(style_type)
-    , m_list_style_position(style_position)
 {
+    set_flag(RustFFI::NodeFlag::ListMarkerIsInside, is_inside);
 }
 
 ListItemMarkerBox::~ListItemMarkerBox() = default;

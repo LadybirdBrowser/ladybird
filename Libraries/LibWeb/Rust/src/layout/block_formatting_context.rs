@@ -1391,7 +1391,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         let marker_facts = self.facts(marker);
         // https://drafts.csswg.org/css-lists-3/#valdef-list-style-position-inside
         // "No special effect. (The ::marker is an inline element at the start of the list item's contents.)"
-        if marker_facts.marker_list_style_position() == list_style_position::INSIDE {
+        if marker_facts.list_marker_is_inside() {
             return;
         }
         if self.layout_mode == LayoutMode::IntrinsicSizing {
@@ -1737,7 +1737,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         let mut inline_space_used_before_children_formatted = SpaceUsedByFloats::default();
         if is_list_item_box && !marker.is_invalid() {
             let marker_facts = self.facts(marker);
-            if marker_facts.marker_list_style_position() != list_style_position::INSIDE {
+            if !marker_facts.list_marker_is_inside() {
                 let marker_style = self.style(marker);
                 let estimated_block_size = normal_line_height(marker_style);
                 let marker_block_offset =
