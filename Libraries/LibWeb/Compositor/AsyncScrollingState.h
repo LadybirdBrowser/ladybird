@@ -59,6 +59,7 @@ struct AsyncScrollNode {
     AsyncScrollNodeStableID stable_node_id;
     Optional<AsyncScrollNodeID> parent_node_id;
     Gfx::IntRect scrollport_rect;
+    Gfx::FloatPoint min_scroll_offset;
     Gfx::FloatPoint max_scroll_offset;
     bool is_viewport { false };
     bool can_be_wheel_scrolled_horizontally { false };
@@ -111,6 +112,7 @@ struct ViewportScrollbar {
     Gfx::IntRect expanded_thumb_rect;
     double scroll_size { 0 };
     double expanded_scroll_size { 0 };
+    float min_scroll_offset { 0 };
     float max_scroll_offset { 0 };
     Color thumb_color;
     Color track_color;

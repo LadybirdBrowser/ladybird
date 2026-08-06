@@ -12,7 +12,7 @@ SaveLayer@0
   FillRect@0 rect=[20,20 204x154] color=rgb(211, 211, 211)
   FillPath@0 path_bounding_rect=[20,20 204x154]
   CompositorWheelHitTestTarget@0 target_scroll_node_index=3 rect=[32,32 182x102]
-  CompositorScrollNode@0 scroll_node_index=3 parent_scroll_node_index=0 scrollport_rect=[33,33 180x100] max_scroll_offset=[120,100] is_viewport=false
+  CompositorScrollNode@0 scroll_node_index=3 parent_scroll_node_index=0 scrollport_rect=[33,33 180x100] min_scroll_offset=[0,0] max_scroll_offset=[120,100] is_viewport=false
   FillPath@0 path_bounding_rect=[32,32 182x102]
   CompositorWheelHitTestTarget@3 target_scroll_node_index=3 rect=[33,33 300x200]
   FillRect@3 rect=[33,33 300x200] color=rgb(240, 128, 128)
