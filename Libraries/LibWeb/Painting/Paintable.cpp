@@ -1829,7 +1829,7 @@ void Paintable::paint_middle_button_scroll_indicator(DisplayListRecordingContext
     auto device_origin = context.rounded_device_point(handler->origin()).to_type<int>();
 
     Gfx::IntRect circle { device_origin.x() - RADIUS, device_origin.y() - RADIUS, RADIUS * 2, RADIUS * 2 };
-    recorder.fill_ellipse(circle, CIRCLE_COLOR);
+    recorder.fill_rect_with_rounded_corners(circle, CIRCLE_COLOR, RADIUS);
     recorder.draw_ellipse(circle, ARROW_COLOR, 1);
 
     auto paint_arrow = [&](Gfx::FloatPoint p1, Gfx::FloatPoint p2, Gfx::FloatPoint p3) {

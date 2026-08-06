@@ -862,16 +862,6 @@ void DisplayListPlayerSkia::play_command(DrawEllipse const& command)
     canvas.drawOval(to_skia_rect(rect), paint);
 }
 
-void DisplayListPlayerSkia::play_command(FillEllipse const& command)
-{
-    auto const& rect = command.rect;
-    auto& canvas = surface().canvas();
-    SkPaint paint;
-    paint.setAntiAlias(true);
-    paint.setColor(to_skia_color(command.color));
-    canvas.drawOval(to_skia_rect(rect), paint);
-}
-
 void DisplayListPlayerSkia::play_command(DrawLine const& command)
 {
     auto from = to_skia_point(command.from);
