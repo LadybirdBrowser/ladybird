@@ -134,9 +134,7 @@ OwnPtr<IPC::Message> ConnectionBase::wait_for_specific_endpoint_message_impl(u32
     VERIFY(m_owner_thread_id.is_current_thread());
     bool peer_disconnected_during_wait = false;
 
-    for (;;) {
-        // Double check we don't already have the event waiting for us.
-        // Otherwise we might end up blocked for a while for no reason.
+    auto take_matching_message = [&]() -> OwnPtr<IPC::Message> {
         for (size_t i = 0; i < m_unprocessed_messages.size(); ++i) {
             auto& message = m_unprocessed_messages[i];
             if (message->endpoint_magic() != endpoint_magic)
@@ -144,6 +142,14 @@ OwnPtr<IPC::Message> ConnectionBase::wait_for_specific_endpoint_message_impl(u32
             if (message->message_id() == message_id)
                 return m_unprocessed_messages.take(i);
         }
+        return {};
+    };
+
+    for (;;) {
+        // Double check we don't already have the event waiting for us.
+        // Otherwise we might end up blocked for a while for no reason.
+        if (auto message = take_matching_message())
+            return message;
 
         if (!is_open())
             break;
@@ -153,6 +159,14 @@ OwnPtr<IPC::Message> ConnectionBase::wait_for_specific_endpoint_message_impl(u32
             peer_disconnected_during_wait = true;
             break;
         }
+    }
+
+    // The EOF-reporting drain can deliver the awaited response in the same batch. A peer replying then exiting produces
+    // that. Take the response instead of failing; the drain-scheduled deferred handle_messages/shutdown still run after-
+    // wards. So, other messages from that final batch are dispatched in order before the connection close is acted on.
+    if (peer_disconnected_during_wait) {
+        if (auto message = take_matching_message())
+            return message;
     }
 
     dbgln("Failed to receive message_id: {}", message_id);
