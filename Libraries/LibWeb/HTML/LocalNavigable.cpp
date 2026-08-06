@@ -1465,6 +1465,16 @@ Vector<NonnullRefPtr<SessionHistoryEntry>>& LocalNavigable::get_session_history_
     VERIFY_NOT_REACHED();
 }
 
+bool LocalNavigable::has_session_history_entries() const
+{
+    auto traversable = traversable_navigable();
+    if (!traversable)
+        return false;
+    if (this == traversable.ptr())
+        return true;
+    return get_session_history_entries_if_present(*traversable, *this) != nullptr;
+}
+
 // https://html.spec.whatwg.org/multipage/browsers.html#determining-navigation-params-policy-container
 static GC::Ref<PolicyContainer> determine_navigation_params_policy_container(URL::URL const& response_url,
     GC::Heap& heap,
@@ -3483,7 +3493,7 @@ static void report_finalized_cross_document_navigation_to_ui_process(LocalTraver
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#finalize-a-cross-document-navigation
-static Optional<int> finalize_a_cross_document_navigation_at_queued_position(GC::Ref<LocalNavigable> navigable, HistoryHandlingBehavior history_handling, NonnullRefPtr<SessionHistoryEntry> history_entry, GC::Ptr<DOM::Document> pending_document, Optional<Utf16String> const& expected_ongoing_navigation_id)
+static Optional<int> finalize_a_cross_document_navigation_at_queued_position(GC::Ref<LocalNavigable> navigable, HistoryHandlingBehavior history_handling, NonnullRefPtr<SessionHistoryEntry> history_entry, GC::Ptr<DOM::Document> pending_document, Optional<Utf16String> const& expected_ongoing_navigation_id, u64 initiation_id)
 {
     // NOTE: This is not in the spec but we should not navigate destroyed navigable.
     if (navigable->has_been_destroyed()) {
@@ -3576,8 +3586,10 @@ static Optional<int> finalize_a_cross_document_navigation_at_queued_position(GC:
 
         // 2. Set targetStep to traversable's current session history step + 1.
         // AD-HOC: Claim the step instead — so a step claimed by an apply-history-step run still in flight can't be
-        //         handed out twice. See https://github.com/whatwg/html/issues/12576.
+        //         handed out twice. The claim is retired when the coordinated operation completes.
+        //         See https://github.com/whatwg/html/issues/12576.
         target_step = traversable->claim_next_session_history_step();
+        traversable->set_history_operation_claimed_step(initiation_id, target_step);
 
         // 3. Set historyEntry's step to targetStep.
         history_entry->set_step(target_step);
@@ -3651,22 +3663,21 @@ void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, His
             .pending_document = pending_document,
             .expected_ongoing_navigation_navigable = navigable,
             .expected_ongoing_navigation_id = expected_ongoing_navigation_id,
-            .source_snapshot_params = nullptr,
-            .initiator_to_check = nullptr,
-            .pre_steps = GC::create_function(navigable->heap(), [navigable, history_handling, history_entry, pending_document, expected_ongoing_navigation_id = move(expected_ongoing_navigation_id)](u64, GC::Ref<LocalTraversableNavigable::OnHistoryOperationReady> ready) {
-                auto target_step = finalize_a_cross_document_navigation_at_queued_position(navigable, history_handling, history_entry, pending_document, expected_ongoing_navigation_id);
+            .finalized_navigable_id = navigable->id(),
+            .pre_steps = GC::create_function(navigable->heap(), [navigable, history_handling, history_entry, pending_document, expected_ongoing_navigation_id = move(expected_ongoing_navigation_id)](u64 initiation_id, GC::Ref<LocalTraversableNavigable::OnHistoryOperationReady> ready) {
+                auto target_step = finalize_a_cross_document_navigation_at_queued_position(navigable, history_handling, history_entry, pending_document, expected_ongoing_navigation_id, initiation_id);
                 if (!target_step.has_value()) {
                     ready->function()(false, {}, HistoryStepResult::Applied);
                     return;
                 }
                 ready->function()(true, *target_step, HistoryStepResult::Applied);
             }),
-            .on_apply_complete = GC::create_function(navigable->heap(), [navigable](HistoryStepResult) {
+            .on_complete = GC::create_function(navigable->heap(), [navigable, on_complete](HistoryStepResult result) {
                 // AD-HOC: Trigger a relayout in the container document for size negotiation with SVG documents.
                 if (auto container = navigable->container())
                     container->set_needs_layout_update(DOM::SetNeedsLayoutReason::FinalizeACrossDocumentNavigation);
+                on_complete->function()(result);
             }),
-            .on_complete = on_complete,
         });
 }
 

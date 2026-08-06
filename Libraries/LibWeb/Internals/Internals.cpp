@@ -879,11 +879,15 @@ GC::Ref<WebIDL::Promise> Internals::flush_session_history_traversal_queue()
         return promise;
     }
 
-    traversable->append_session_history_traversal_steps(GC::create_function(heap(), [&realm, promise](NonnullRefPtr<Core::Promise<Empty>> signal) {
-        HTML::TemporaryExecutionContext execution_context { realm };
-        WebIDL::resolve_promise(promise);
-        signal->resolve({});
-    }));
+    traversable->request_history_operation(
+        FlushSessionHistoryTraversalQueueOperationParameters { .traversable_id = traversable->id() },
+        {
+            .pre_steps = GC::create_function(heap(), [&realm, promise](u64, GC::Ref<HTML::LocalTraversableNavigable::OnHistoryOperationReady> ready) {
+                HTML::TemporaryExecutionContext execution_context { realm };
+                WebIDL::resolve_promise(promise);
+                ready->function()(false, {}, Web::HTML::HistoryStepResult::Applied);
+            }),
+        });
     return promise;
 }
 
