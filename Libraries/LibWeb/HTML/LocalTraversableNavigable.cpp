@@ -65,6 +65,8 @@ void LocalTraversableNavigable::visit_edges(Cell::Visitor& visitor)
     for (auto& initiation : m_history_operation_states) {
         visitor.visit(initiation.value.pending_document);
         visitor.visit(initiation.value.expected_ongoing_navigation_navigable);
+        visitor.visit(initiation.value.source_snapshot_params);
+        visitor.visit(initiation.value.initiator_to_check);
         visitor.visit(initiation.value.pre_steps);
         visitor.visit(initiation.value.on_apply_complete);
         visitor.visit(initiation.value.on_complete);
@@ -2515,12 +2517,31 @@ void LocalTraversableNavigable::request_history_operation(HistoryOperationParame
                     move(initiation->value.expected_ongoing_navigation_id),
                     on_apply_complete);
             };
+            auto apply_traverse = [&](auto const& parameters, i32 target_step) {
+                apply_the_traverse_history_step(target_step, initiation->value.source_snapshot_params, initiation->value.initiator_to_check, parameters.user_involvement, on_apply_complete);
+            };
             parameters.visit(
                 [&](PushHistoryOperationParameters const& parameters) { apply_push_or_replace(parameters, HistoryHandlingBehavior::Push); },
                 [&](ReplaceHistoryOperationParameters const& parameters) { apply_push_or_replace(parameters, HistoryHandlingBehavior::Replace); },
                 [&](ReloadHistoryOperationParameters const& parameters) {
                     VERIFY(!step_override.has_value());
                     apply_the_reload_history_step(parameters.user_involvement, on_apply_complete);
+                },
+                [&](TraverseByDeltaHistoryOperationParameters const& parameters) {
+                    VERIFY(step_override.has_value());
+                    apply_traverse(parameters, *step_override);
+                },
+                [&](TraverseToStepHistoryOperationParameters const& parameters) {
+                    VERIFY(!step_override.has_value());
+                    apply_traverse(parameters, parameters.target_step);
+                },
+                [&](NavigationAPITraverseHistoryOperationParameters const& parameters) {
+                    VERIFY(step_override.has_value());
+                    apply_traverse(parameters, *step_override);
+                },
+                [&](ResumeTraverseHistoryOperationParameters const& parameters) {
+                    VERIFY(!step_override.has_value());
+                    resume_applying_the_traverse_history_step(parameters.target_step, parameters.user_involvement, on_apply_complete);
                 });
         });
 
@@ -2557,74 +2578,98 @@ void LocalTraversableNavigable::traverse_the_history_by_delta(int delta, GC::Ptr
     }
 
     // 4. Append the following session history traversal steps to traversable:
-    append_session_history_traversal_steps(GC::create_function(heap(), [this, delta, source_snapshot_params, initiator_to_check, user_involvement](NonnullRefPtr<Core::Promise<Empty>> signal) {
-        auto apply_selected_history_step = GC::create_function(heap(), [this, source_snapshot_params, initiator_to_check, user_involvement, signal](Optional<int> target_step) {
-            if (!target_step.has_value()) {
-                signal->resolve({});
-                return;
-            }
+    request_history_operation(
+        TraverseByDeltaHistoryOperationParameters {
+            .traversable_id = id(),
+            .delta = delta,
+            .user_involvement = user_involvement,
+        },
+        {
+            .pending_document = nullptr,
+            .expected_ongoing_navigation_navigable = nullptr,
+            .expected_ongoing_navigation_id = {},
+            .source_snapshot_params = source_snapshot_params,
+            .initiator_to_check = initiator_to_check,
+            .pre_steps = GC::create_function(heap(), [this, delta, source_snapshot_params, initiator_to_check, user_involvement](GC::Ref<OnHistoryOperationReady> ready) {
+                auto apply_selected_history_step = GC::create_function(heap(), [this, source_snapshot_params, initiator_to_check, user_involvement, ready](Optional<int> target_step) {
+                    if (!target_step.has_value()) {
+                        ready->function()(false, {}, HistoryStepResult::Applied);
+                        return;
+                    }
 
-            auto all_steps = get_all_used_history_steps();
-            if (!all_steps.contains_slow(*target_step)) {
-                page().client().page_did_request_traverse_the_history_to_step(*target_step, HistoryTraversalPrecheck::Needed);
-                signal->resolve({});
-                return;
-            }
+                    auto all_steps = get_all_used_history_steps();
+                    if (!all_steps.contains_slow(*target_step)) {
+                        page().client().page_did_request_traverse_the_history_to_step(*target_step, HistoryTraversalPrecheck::Needed);
+                        ready->function()(false, {}, HistoryStepResult::Applied);
+                        return;
+                    }
 
-            if (source_snapshot_params) {
-                RefPtr<SessionHistoryEntry> target_top_level_entry;
-                for (auto const& entry : session_history_entries()) {
-                    auto entry_step = entry->step_value();
-                    if (!entry_step.has_value())
-                        continue;
-                    if (*entry_step > *target_step)
-                        break;
-                    target_top_level_entry = entry;
-                }
+                    if (source_snapshot_params) {
+                        RefPtr<SessionHistoryEntry> target_top_level_entry;
+                        for (auto const& entry : session_history_entries()) {
+                            auto entry_step = entry->step_value();
+                            if (!entry_step.has_value())
+                                continue;
+                            if (*entry_step > *target_step)
+                                break;
+                            target_top_level_entry = entry;
+                        }
 
-                if (target_top_level_entry && current_session_history_entry() && page().client().decide_navigation_process(current_session_history_entry()->url(), target_top_level_entry->url(), NavigationTarget::TopLevel) == NavigationProcessDecision::Remote) {
-                    run_the_history_step_prechecks(*target_step, true, source_snapshot_params, initiator_to_check, user_involvement, Bindings::NavigationType::Traverse, LocalNavigable::NavigationAPIAbortBehavior::Abort,
-                        GC::create_function(heap(), [this, target_step = *target_step, signal](HistoryStepResult result, int, LocalNavigable::NavigationAPIAbortBehavior) {
-                            if (result == HistoryStepResult::Applied)
-                                page().client().page_did_request_traverse_the_history_to_step(target_step, HistoryTraversalPrecheck::AlreadyDone);
-                            signal->resolve({});
-                        }));
-                    return;
-                }
-            }
+                        if (target_top_level_entry && current_session_history_entry() && page().client().decide_navigation_process(current_session_history_entry()->url(), target_top_level_entry->url(), NavigationTarget::TopLevel) == NavigationProcessDecision::Remote) {
+                            run_the_history_step_prechecks(*target_step, true, source_snapshot_params, initiator_to_check, user_involvement, Bindings::NavigationType::Traverse, LocalNavigable::NavigationAPIAbortBehavior::Abort,
+                                GC::create_function(heap(), [this, target_step = *target_step, ready](HistoryStepResult result, int, LocalNavigable::NavigationAPIAbortBehavior) {
+                                    if (result == HistoryStepResult::Applied)
+                                        page().client().page_did_request_traverse_the_history_to_step(target_step, HistoryTraversalPrecheck::AlreadyDone);
+                                    ready->function()(false, {}, result);
+                                }));
+                            return;
+                        }
+                    }
 
-            // 5. Apply the traverse history step allSteps[targetStepIndex] to traversable, given sourceSnapshotParams,
-            //    initiatorToCheck, and userInvolvement.
-            apply_the_traverse_history_step(*target_step, source_snapshot_params, initiator_to_check, user_involvement,
-                GC::create_function(heap(), [signal](HistoryStepResult) {
-                    signal->resolve({});
-                }));
+                    // 5. Apply the traverse history step allSteps[targetStepIndex] to traversable, given sourceSnapshotParams,
+                    //    initiatorToCheck, and userInvolvement.
+                    ready->function()(true, *target_step, HistoryStepResult::Applied);
+                });
+
+                // AD-HOC: The UI process owns the canonical traversable session history. Ask it to perform steps 1-4 so a
+                //         WebContent process cannot select a target from an incomplete local session history slice.
+                page().client().page_did_request_history_traversal_target_by_delta(delta, apply_selected_history_step);
+            }),
+            .on_apply_complete = nullptr,
+            .on_complete = nullptr,
         });
-
-        // AD-HOC: The UI process owns the canonical traversable session history. Ask it to perform steps 1-4 so a
-        //         WebContent process cannot select a target from an incomplete local session history slice.
-        page().client().page_did_request_history_traversal_target_by_delta(delta, apply_selected_history_step);
-    }));
 }
 
 void LocalTraversableNavigable::traverse_the_history_to_step(int step, GC::Ref<GC::Function<void(bool step_was_available, HistoryStepResult)>> on_complete)
 {
     // NB: This is used when the UI process owns the top-level session
     //     history and has already resolved the browser UI delta to a stable step.
-    append_session_history_traversal_steps(GC::create_function(heap(), [this, step, on_complete](NonnullRefPtr<Core::Promise<Empty>> signal) {
-        auto all_steps = get_all_used_history_steps();
-        if (!all_steps.contains_slow(step)) {
-            on_complete->function()(false, HistoryStepResult::Applied);
-            signal->resolve({});
-            return;
-        }
-
-        apply_the_traverse_history_step(step, nullptr, nullptr, UserNavigationInvolvement::BrowserUI,
-            GC::create_function(heap(), [signal, on_complete](HistoryStepResult result) {
+    request_history_operation(
+        TraverseToStepHistoryOperationParameters {
+            .traversable_id = id(),
+            .target_step = step,
+            .user_involvement = UserNavigationInvolvement::BrowserUI,
+        },
+         {
+             .pending_document = nullptr,
+             .expected_ongoing_navigation_navigable = nullptr,
+             .expected_ongoing_navigation_id = {},
+             .source_snapshot_params = nullptr,
+             .initiator_to_check = nullptr,
+             .pre_steps = GC::create_function(heap(), [this, step, on_complete](GC::Ref<OnHistoryOperationReady> ready) {
+                auto all_steps = get_all_used_history_steps();
+                if (!all_steps.contains_slow(step)) {
+                    on_complete->function()(false, HistoryStepResult::Applied);
+                    ready->function()(false, {}, HistoryStepResult::Applied);
+                    return;
+                }
+                ready->function()(true, {}, HistoryStepResult::Applied);
+            }),
+            .on_apply_complete = GC::create_function(heap(), [on_complete](HistoryStepResult result) {
                 on_complete->function()(true, result);
-                signal->resolve({});
-            }));
-    }));
+            }),
+            .on_complete = nullptr,
+        });
 }
 
 void LocalTraversableNavigable::check_if_traverse_history_step_is_canceled(int step, GC::Ref<OnApplyHistoryStepComplete> on_complete)

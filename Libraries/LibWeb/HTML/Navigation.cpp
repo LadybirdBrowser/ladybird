@@ -683,83 +683,96 @@ WebIDL::ExceptionOr<Bindings::NavigationResult> Navigation::perform_a_navigation
     auto source_snapshot_params = document.snapshot_source_snapshot_params();
 
     // 12. Append the following session history traversal steps to traversable:
-    traversable->append_session_history_traversal_steps(GC::create_function(heap(), [key, api_method_tracker, navigable, source_snapshot_params, traversable, this](NonnullRefPtr<Core::Promise<Empty>> signal) {
-        auto continue_with_target_step = GC::create_function(heap(), [key, api_method_tracker, navigable, source_snapshot_params, traversable, signal, this](Optional<int> target_step) {
-            auto reject_finished_promise_with_invalid_state_error = [&] {
-                // 1. Queue a global task on the navigation and traversal task source given navigation's relevant global object
-                //    to reject the finished promise for apiMethodTracker with an "InvalidStateError" DOMException.
-                queue_global_task(HTML::Task::Source::NavigationAndTraversal, relevant_global_object(*this), GC::create_function(heap(), [this, api_method_tracker] {
-                    auto& reject_realm = relevant_realm(*this);
-                    TemporaryExecutionContext execution_context { reject_realm };
-                    WebIDL::reject_promise(reject_realm, api_method_tracker->finished_promise,
-                        WebIDL::InvalidStateError::create(reject_realm, "Cannot traverse with stale session history entry"_utf16));
-                }));
-            };
-
-            if (!target_step.has_value()) {
-                // NOTE: This path is taken if navigation's entry list was outdated compared to navigableSHEs,
-                //       which can occur for brief periods while all the relevant threads and processes are being synchronized in reaction to a history change.
-
-                reject_finished_promise_with_invalid_state_error();
-
-                // 2. Abort these steps.
-                signal->resolve({});
-                return;
-            }
-
-            // 3. If targetSHE is navigable's active session history entry:
-            // AD-HOC: The UI process returns targetSHE's step. Its navigation API key identifies the same entry for
-            //         this comparison without requiring WebContent to find the target in its local entry list.
-            if (auto active_entry = navigable->active_session_history_entry(); active_entry && active_entry->navigation_api_key() == key) {
-                // NOTE: This can occur if a previously queued traversal already took us to this session history entry.
-
-                // 1. Queue a global task on the navigation and traversal task source given navigation's relevant global object
-                //    to reject the finished promise for apiMethodTracker with an "InvalidStateError" DOMException.
-                reject_finished_promise_with_invalid_state_error();
-
-                // 2. Abort these steps.
-                signal->resolve({});
-                return;
-            }
-
-            // 4. Let result be the result of applying the traverse history step given by targetSHE's step to traversable,
-            //    given sourceSnapshotParams, navigable, and "none".
-            traversable->apply_the_traverse_history_step(*target_step, source_snapshot_params, navigable, UserNavigationInvolvement::None,
-                GC::create_function(heap(), [this, signal, api_method_tracker](HistoryStepResult result) {
-                    // NOTE: When result is "canceled-by-beforeunload" or "initiator-disallowed", the navigate event was never fired,
-                    //       aborting the ongoing navigation would not be correct; it would result in a navigateerror event without a
-                    //       preceding navigate event. In the "canceled-by-navigate" case, navigate is fired, but the inner navigate event
-                    //       firing algorithm will take care of aborting the ongoing navigation.
-
-                    // 5. If result is "canceled-by-beforeunload", then queue a global task on the navigation and traversal task source
-                    //    given navigation's relevant global object to reject the finished promise for apiMethodTracker with a
-                    //    new "AbortError" DOMException created in navigation's relevant realm.
-                    auto& realm = relevant_realm(*this);
-                    auto& global = relevant_global_object(*this);
-                    if (result == HistoryStepResult::CanceledByBeforeUnload) {
-                        queue_global_task(Task::Source::NavigationAndTraversal, global, GC::create_function(heap(), [this, api_method_tracker, &realm] {
-                            TemporaryExecutionContext execution_context { realm };
-                            reject_the_finished_promise(api_method_tracker, WebIDL::AbortError::create(realm, "Navigation cancelled by beforeunload"_utf16));
+    traversable->request_history_operation(
+        NavigationAPITraverseHistoryOperationParameters {
+            .navigable_id = navigable->id(),
+            .key = key,
+            .user_involvement = UserNavigationInvolvement::None,
+        },
+        {
+            .pending_document = nullptr,
+            .expected_ongoing_navigation_navigable = nullptr,
+            .expected_ongoing_navigation_id = {},
+            .source_snapshot_params = source_snapshot_params,
+            .initiator_to_check = navigable,
+            .pre_steps = GC::create_function(heap(), [key, api_method_tracker, navigable, traversable, this](GC::Ref<LocalTraversableNavigable::OnHistoryOperationReady> ready) {
+                auto continue_with_target_step = GC::create_function(heap(), [key, api_method_tracker, navigable, ready, this](Optional<int> target_step) {
+                    auto reject_finished_promise_with_invalid_state_error = [&] {
+                        // 1. Queue a global task on the navigation and traversal task source given navigation's relevant global object
+                        //    to reject the finished promise for apiMethodTracker with an "InvalidStateError" DOMException.
+                        queue_global_task(HTML::Task::Source::NavigationAndTraversal, relevant_global_object(*this), GC::create_function(heap(), [this, api_method_tracker] {
+                            auto& reject_realm = relevant_realm(*this);
+                            TemporaryExecutionContext execution_context { reject_realm };
+                            WebIDL::reject_promise(reject_realm, api_method_tracker->finished_promise,
+                                WebIDL::InvalidStateError::create(reject_realm, "Cannot traverse with stale session history entry"_utf16));
                         }));
+                    };
+
+                    if (!target_step.has_value()) {
+                        // NOTE: This path is taken if navigation's entry list was outdated compared to navigableSHEs,
+                        //       which can occur for brief periods while all the relevant threads and processes are being synchronized in reaction to a history change.
+
+                        reject_finished_promise_with_invalid_state_error();
+
+                        // 2. Abort these steps.
+                        ready->function()(false, {}, HistoryStepResult::Applied);
+                        return;
                     }
 
-                    // 6. If result is "initiator-disallowed", then queue a global task on the navigation and traversal task source
-                    //    given navigation's relevant global object to reject the finished promise for apiMethodTracker with a
-                    //    new "SecurityError" DOMException created in navigation's relevant realm.
-                    if (result == HistoryStepResult::InitiatorDisallowed) {
-                        queue_global_task(Task::Source::NavigationAndTraversal, global, GC::create_function(heap(), [this, api_method_tracker, &realm] {
-                            TemporaryExecutionContext execution_context { realm };
-                            reject_the_finished_promise(api_method_tracker, WebIDL::SecurityError::create(realm, "Navigation disallowed from this origin"_utf16));
-                        }));
+                    // 3. If targetSHE is navigable's active session history entry:
+                    // AD-HOC: The UI process returns targetSHE's step. Its navigation API key identifies the same entry for
+                    //         this comparison without requiring WebContent to find the target in its local entry list.
+                    if (auto active_entry = navigable->active_session_history_entry(); active_entry && active_entry->navigation_api_key() == key) {
+                        // NOTE: This can occur if a previously queued traversal already took us to this session history entry.
+
+                        // 1. Queue a global task on the navigation and traversal task source given navigation's relevant global object
+                        //    to reject the finished promise for apiMethodTracker with an "InvalidStateError" DOMException.
+                        reject_finished_promise_with_invalid_state_error();
+
+                        // 2. Abort these steps.
+                        ready->function()(false, {}, HistoryStepResult::Applied);
+                        return;
                     }
-                    signal->resolve({});
-                }));
+
+                    // 4. Let result be the result of applying the traverse history step given by targetSHE's step to traversable,
+                    //    given sourceSnapshotParams, navigable, and "none".
+                    ready->function()(true, *target_step, HistoryStepResult::Applied);
+                });
+
+                // AD-HOC: The UI process owns the canonical traversable session history. Ask it to perform steps 1-2 so a
+                //         WebContent process cannot select a target from an incomplete local session history slice.
+                traversable->page().client().page_did_request_navigation_api_traversal_target(navigable->id(), key, continue_with_target_step);
+            }),
+            .on_apply_complete = GC::create_function(heap(), [this, api_method_tracker](HistoryStepResult result) {
+                // NOTE: When result is "canceled-by-beforeunload" or "initiator-disallowed", the navigate event was never fired,
+                //       aborting the ongoing navigation would not be correct; it would result in a navigateerror event without a
+                //       preceding navigate event. In the "canceled-by-navigate" case, navigate is fired, but the inner navigate event
+                //       firing algorithm will take care of aborting the ongoing navigation.
+
+                // 5. If result is "canceled-by-beforeunload", then queue a global task on the navigation and traversal task source
+                //    given navigation's relevant global object to reject the finished promise for apiMethodTracker with a
+                //    new "AbortError" DOMException created in navigation's relevant realm.
+                auto& realm = relevant_realm(*this);
+                auto& global = relevant_global_object(*this);
+                if (result == HistoryStepResult::CanceledByBeforeUnload) {
+                    queue_global_task(Task::Source::NavigationAndTraversal, global, GC::create_function(heap(), [this, api_method_tracker, &realm] {
+                        TemporaryExecutionContext execution_context { realm };
+                        reject_the_finished_promise(api_method_tracker, WebIDL::AbortError::create(realm, "Navigation cancelled by beforeunload"_utf16));
+                    }));
+                }
+
+                // 6. If result is "initiator-disallowed", then queue a global task on the navigation and traversal task source
+                //    given navigation's relevant global object to reject the finished promise for apiMethodTracker with a
+                //    new "SecurityError" DOMException created in navigation's relevant realm.
+                if (result == HistoryStepResult::InitiatorDisallowed) {
+                    queue_global_task(Task::Source::NavigationAndTraversal, global, GC::create_function(heap(), [this, api_method_tracker, &realm] {
+                        TemporaryExecutionContext execution_context { realm };
+                        reject_the_finished_promise(api_method_tracker, WebIDL::SecurityError::create(realm, "Navigation disallowed from this origin"_utf16));
+                    }));
+                }
+            }),
+            .on_complete = nullptr,
         });
-
-        // AD-HOC: The UI process owns the canonical traversable session history. Ask it to perform steps 1-2 so a
-        //         WebContent process cannot select a target from an incomplete local session history slice.
-        traversable->page().client().page_did_request_navigation_api_traversal_target(navigable->id(), key, continue_with_target_step);
-    }));
 
     // 13. Return a navigation API method tracker-derived result for apiMethodTracker.
     return navigation_api_method_tracker_derived_result(api_method_tracker);
@@ -1299,21 +1312,33 @@ bool Navigation::inner_navigate_event_firing_algorithm(
             VERIFY(destination_entry);
             auto target_step = destination_entry->session_history_entry().step().get<int>();
             auto traversable = navigable->traversable_navigable();
-            traversable->append_session_history_traversal_steps(GC::create_function(heap(), [this, event, traversable, target_step, user_involvement_for_resume](NonnullRefPtr<Core::Promise<Empty>> signal) {
-                // NB: This appended step can run after a later navigation has aborted the intercepted
-                //     traverse. In that case, the aborted traverse must not be resumed.
-                if (event->abort_controller()->signal()->aborted() || event != m_ongoing_navigate_event) {
-                    signal->resolve({});
-                    return;
-                }
+            traversable->request_history_operation(
+                ResumeTraverseHistoryOperationParameters {
+                    .navigable_id = navigable->id(),
+                    .target_step = target_step,
+                    .user_involvement = user_involvement_for_resume,
+                },
+                 {
+                     .pending_document = nullptr,
+                     .expected_ongoing_navigation_navigable = nullptr,
+                     .expected_ongoing_navigation_id = {},
+                     .source_snapshot_params = nullptr,
+                     .initiator_to_check = nullptr,
+                    .pre_steps = GC::create_function(heap(), [this, event](GC::Ref<LocalTraversableNavigable::OnHistoryOperationReady> ready) {
+                        // NB: This appended step can run after a later navigation has aborted the intercepted
+                        //     traverse. In that case, the aborted traverse must not be resumed.
+                        if (event->abort_controller()->signal()->aborted() || event != m_ongoing_navigate_event) {
+                            ready->function()(false, {}, HistoryStepResult::Applied);
+                            return;
+                        }
 
-                // 1. Resume applying the traverse history step given event's destination's entry's session history entry's step,
-                //    navigable's traversable navigable, and userInvolvement.
-                traversable->resume_applying_the_traverse_history_step(target_step, user_involvement_for_resume,
-                    GC::create_function(traversable->heap(), [signal](HistoryStepResult) {
-                        signal->resolve({});
-                    }));
-            }));
+                        // 1. Resume applying the traverse history step given event's destination's entry's session history entry's step,
+                        //    navigable's traversable navigable, and userInvolvement.
+                        ready->function()(true, {}, HistoryStepResult::Applied);
+                    }),
+                    .on_apply_complete = nullptr,
+                    .on_complete = nullptr,
+                });
         }
 
         // 7. If navigationType is "push" or "replace", then run the URL and history update steps given document and

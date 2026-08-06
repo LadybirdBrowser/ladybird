@@ -3652,6 +3652,8 @@ void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, His
             .pending_document = pending_document,
             .expected_ongoing_navigation_navigable = navigable,
             .expected_ongoing_navigation_id = expected_ongoing_navigation_id,
+            .source_snapshot_params = nullptr,
+            .initiator_to_check = nullptr,
             .pre_steps = GC::create_function(navigable->heap(), [navigable, history_handling, history_entry, pending_document, expected_ongoing_navigation_id = move(expected_ongoing_navigation_id)](GC::Ref<LocalTraversableNavigable::OnHistoryOperationReady> ready) {
                 auto target_step = finalize_a_cross_document_navigation_at_queued_position(navigable, history_handling, history_entry, pending_document, expected_ongoing_navigation_id);
                 if (!target_step.has_value()) {

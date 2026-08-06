@@ -58,3 +58,79 @@ ErrorOr<Web::ReloadHistoryOperationParameters> IPC::decode(Decoder& decoder)
         .user_involvement = TRY(decoder.decode<Web::HTML::UserNavigationInvolvement>()),
     };
 }
+
+template<>
+ErrorOr<void> IPC::encode(Encoder& encoder, Web::TraverseByDeltaHistoryOperationParameters const& parameters)
+{
+    TRY(encoder.encode(parameters.traversable_id));
+    TRY(encoder.encode(parameters.delta));
+    TRY(encoder.encode(parameters.user_involvement));
+    return {};
+}
+
+template<>
+ErrorOr<Web::TraverseByDeltaHistoryOperationParameters> IPC::decode(Decoder& decoder)
+{
+    return Web::TraverseByDeltaHistoryOperationParameters {
+        .traversable_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
+        .delta = TRY(decoder.decode<i32>()),
+        .user_involvement = TRY(decoder.decode<Web::HTML::UserNavigationInvolvement>()),
+    };
+}
+
+template<>
+ErrorOr<void> IPC::encode(Encoder& encoder, Web::TraverseToStepHistoryOperationParameters const& parameters)
+{
+    TRY(encoder.encode(parameters.traversable_id));
+    TRY(encoder.encode(parameters.target_step));
+    TRY(encoder.encode(parameters.user_involvement));
+    return {};
+}
+
+template<>
+ErrorOr<Web::TraverseToStepHistoryOperationParameters> IPC::decode(Decoder& decoder)
+{
+    return Web::TraverseToStepHistoryOperationParameters {
+        .traversable_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
+        .target_step = TRY(decoder.decode<i32>()),
+        .user_involvement = TRY(decoder.decode<Web::HTML::UserNavigationInvolvement>()),
+    };
+}
+
+template<>
+ErrorOr<void> IPC::encode(Encoder& encoder, Web::NavigationAPITraverseHistoryOperationParameters const& parameters)
+{
+    TRY(encoder.encode(parameters.navigable_id));
+    TRY(encoder.encode(parameters.key));
+    TRY(encoder.encode(parameters.user_involvement));
+    return {};
+}
+
+template<>
+ErrorOr<Web::NavigationAPITraverseHistoryOperationParameters> IPC::decode(Decoder& decoder)
+{
+    return Web::NavigationAPITraverseHistoryOperationParameters {
+        .navigable_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
+        .key = TRY(decoder.decode<Utf16String>()),
+        .user_involvement = TRY(decoder.decode<Web::HTML::UserNavigationInvolvement>()),
+    };
+}
+
+template<>
+ErrorOr<void> IPC::encode(Encoder& encoder, Web::ResumeTraverseHistoryOperationParameters const& parameters)
+{
+    TRY(encoder.encode(parameters.navigable_id));
+    TRY(encoder.encode(parameters.target_step));
+    TRY(encoder.encode(parameters.user_involvement));
+    return {};
+}
+
+template<>
+ErrorOr<Web::ResumeTraverseHistoryOperationParameters> IPC::decode(Decoder& decoder)
+{
+    return Web::ResumeTraverseHistoryOperationParameters {
+        .navigable_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
+        .target_step = TRY(decoder.decode<i32>()),
+        .user_involvement = TRY(decoder.decode<Web::HTML::UserNavigationInvolvement>()),
+    };
+}
