@@ -3343,6 +3343,16 @@ void Application::resume_debugger(DevTools::TabDescription const& description) c
     view->resume_debugger();
 }
 
+void Application::retrieve_debugger_environments(DevTools::TabDescription const& description, u64 frame_id, OnDebuggerEnvironmentsReceived on_complete) const
+{
+    auto view = ViewImplementation::find_view_by_id(description.id);
+    if (!view.has_value()) {
+        on_complete(Error::from_string_literal("Unable to locate tab"));
+        return;
+    }
+    view->retrieve_debugger_environments(frame_id, move(on_complete));
+}
+
 void Application::set_debugger_breakpoint(DevTools::TabDescription const& description, DebuggerBreakpointLocation location, OnDebuggerBreakpointOperationComplete on_complete) const
 {
     auto view = ViewImplementation::find_view_by_id(description.id);

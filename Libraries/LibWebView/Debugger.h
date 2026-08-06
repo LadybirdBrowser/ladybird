@@ -21,6 +21,47 @@ enum class DebuggerPauseReason : u8 {
     Entry,
 };
 
+enum class DebuggerValueType : u8 {
+    Undefined,
+    Null,
+    Boolean,
+    Number,
+    String,
+    BigInt,
+    Object,
+    Uninitialized,
+};
+
+struct DebuggerValue {
+    DebuggerValueType type { DebuggerValueType::Undefined };
+    bool boolean_value { false };
+    double number_value { 0 };
+    Utf16String text;
+    u64 object_id { 0 };
+    String object_class;
+};
+
+struct DebuggerBinding {
+    Utf16String name;
+    DebuggerValue value;
+    bool writable { false };
+};
+
+enum class DebuggerEnvironmentType : u8 {
+    Block,
+    Function,
+    Object,
+};
+
+struct DebuggerEnvironment {
+    u64 id { 0 };
+    DebuggerEnvironmentType type { DebuggerEnvironmentType::Block };
+    Optional<u64> parent_id;
+    Optional<Utf16String> function_name;
+    Optional<DebuggerValue> object;
+    Vector<DebuggerBinding> bindings;
+};
+
 struct DebuggerConfiguration {
     bool should_pause_on_debugger_statement { true };
     bool skip_breakpoints { false };
@@ -59,6 +100,8 @@ struct DebuggerFrame {
     u64 id { 0 };
     Utf16String display_name;
     DebuggerLocation location;
+    DebuggerValue this_value;
+    Vector<DebuggerValue> arguments;
 };
 
 struct DebuggerPause {
@@ -75,6 +118,24 @@ WEBVIEW_API ErrorOr<void> encode(Encoder&, WebView::DebuggerConfiguration const&
 
 template<>
 WEBVIEW_API ErrorOr<WebView::DebuggerConfiguration> decode(Decoder&);
+
+template<>
+WEBVIEW_API ErrorOr<void> encode(Encoder&, WebView::DebuggerValue const&);
+
+template<>
+WEBVIEW_API ErrorOr<WebView::DebuggerValue> decode(Decoder&);
+
+template<>
+WEBVIEW_API ErrorOr<void> encode(Encoder&, WebView::DebuggerBinding const&);
+
+template<>
+WEBVIEW_API ErrorOr<WebView::DebuggerBinding> decode(Decoder&);
+
+template<>
+WEBVIEW_API ErrorOr<void> encode(Encoder&, WebView::DebuggerEnvironment const&);
+
+template<>
+WEBVIEW_API ErrorOr<WebView::DebuggerEnvironment> decode(Decoder&);
 
 template<>
 WEBVIEW_API ErrorOr<void> encode(Encoder&, WebView::DebuggerBreakpointLocation const&);

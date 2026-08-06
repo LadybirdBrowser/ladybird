@@ -239,6 +239,7 @@ public:
     void set_debugger_breakpoint(DebuggerBreakpointLocation, DevTools::DevToolsDelegate::OnDebuggerBreakpointOperationComplete);
     void remove_debugger_breakpoint(DebuggerBreakpointLocation, DevTools::DevToolsDelegate::OnDebuggerBreakpointOperationComplete);
     void did_complete_debugger_breakpoint_operation(u64 request_id, Optional<String> error);
+    void retrieve_debugger_environments(u64 frame_id, DevTools::DevToolsDelegate::OnDebuggerEnvironmentsReceived);
     void retrieve_debugger_source_positions(Web::HTML::ScriptRegistry::Identifier, DevTools::DevToolsDelegate::OnDebuggerSourcePositionsReceived);
     void resolve_dom_node_url(Optional<Web::UniqueNodeID> node_id, String const& url, DevTools::DevToolsDelegate::OnResolvedURLReceived);
     void clear_inspected_dom_node();
@@ -765,10 +766,12 @@ protected:
     u64 m_next_storage_change_listener_id { 1 };
     u64 m_next_devtools_sources_request_id { 1 };
     u64 m_next_debugger_breakpoint_request_id { 1 };
+    u64 m_next_debugger_environments_request_id { 1 };
     u64 m_next_debugger_source_positions_request_id { 1 };
     u64 m_next_resolve_dom_node_url_request_id { 1 };
 
     HashMap<u64, DevTools::DevToolsDelegate::OnDebuggerBreakpointOperationComplete> m_pending_debugger_breakpoint_requests;
+    HashMap<u64, DevTools::DevToolsDelegate::OnDebuggerEnvironmentsReceived> m_pending_debugger_environments_requests;
     HashMap<u64, DevTools::DevToolsDelegate::OnDebuggerSourcePositionsReceived> m_pending_debugger_source_positions_requests;
 
     HashMap<u64, DevTools::DevToolsDelegate::OnIndexedDBInspectionComplete> m_pending_indexed_database_inspection_requests;

@@ -1479,6 +1479,21 @@ void WebContentClient::did_complete_debugger_breakpoint_operation(u64 page_id, u
         view->did_complete_debugger_breakpoint_operation(request_id, move(error));
 }
 
+void WebContentClient::did_get_debugger_environments(u64 page_id, u64 request_id, Optional<String> error, Vector<DebuggerEnvironment> environments)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        auto callback = view->m_pending_debugger_environments_requests.take(request_id);
+        if (!callback.has_value()) {
+            report_unexpected_debugger_response();
+            return;
+        }
+        if (error.has_value())
+            (*callback)(Error::from_string_view(error->bytes_as_string_view()));
+        else
+            (*callback)(move(environments));
+    }
+}
+
 void WebContentClient::did_get_debugger_source_positions(u64 page_id, u64 request_id, Vector<DebuggerSourcePosition> positions)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {

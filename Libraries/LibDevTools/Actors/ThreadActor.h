@@ -24,6 +24,8 @@ public:
 
     JsonObject serialize_source(Web::HTML::ScriptRegistry::Description const&);
     JsonArray serialize_sources(Vector<Web::HTML::ScriptRegistry::Description> const&);
+    JsonValue serialize_debugger_value(WebView::DebuggerValue const&);
+    void get_frame_environment(DebuggerFrameActor&, Actor::Message const&, u64 frame_id);
     void did_pause(WebView::DebuggerPause);
 
 private:
@@ -33,6 +35,8 @@ private:
 
     void prune_source_actors(Vector<Web::HTML::ScriptRegistry::Description> const&);
     SourceActor& source_actor_for(Web::HTML::ScriptRegistry::Description const&);
+    ObjectActor& object_actor_for(WebView::DebuggerValue const&);
+    JsonObject serialize_environment_chain(Vector<WebView::DebuggerEnvironment>);
     void clear_pause_actors();
     void attach();
     void did_resume();
@@ -42,7 +46,9 @@ private:
     WeakPtr<TabActor> m_tab;
     WeakPtr<WatcherActor> m_watcher;
     HashMap<Web::HTML::ScriptRegistry::Identifier, WeakPtr<SourceActor>> m_source_actors;
-    Vector<WeakPtr<DebuggerFrameActor>> m_pause_actors;
+    HashMap<u64, WeakPtr<ObjectActor>> m_object_actors;
+    Vector<WeakPtr<DebuggerFrameActor>> m_frame_actors;
+    Vector<WeakPtr<Actor>> m_pause_scoped_actors;
     bool m_is_paused { false };
     bool m_pause_requested_on_next { false };
 };
