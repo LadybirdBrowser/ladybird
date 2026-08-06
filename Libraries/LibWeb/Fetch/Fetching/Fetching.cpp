@@ -820,9 +820,10 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
                 return;
 
             // 2. Set timingInfo’s end time to the relative high resolution time given unsafeEndTime and global.
-            // Spec Issue: Using relative time here is incorrect, as end time is converted to relative time by Resource Timing,
-            //             causing it to take a relative time of an already relative time, effectively make it always a negative
-            //             value approximately the value of the time origin.
+            // FIXME: Spec issue: Using relative time here is incorrect, as end time is converted to relative time by
+            //        Resource Timing, causing it to take a relative time of an already relative time, effectively make
+            //        it always a negative value approximately the value of the time origin.
+            //        https://github.com/whatwg/fetch/issues/1812
             timing_info->set_end_time(unsafe_end_time);
 
             // 3. Let cacheState be response’s cache state.
