@@ -116,6 +116,23 @@ ErrorOr<WebView::DebuggerObjectProperties> decode(Decoder& decoder)
 }
 
 template<>
+ErrorOr<void> encode(Encoder& encoder, WebView::DebuggerEvaluationResult const& result)
+{
+    TRY(encoder.encode(result.value));
+    TRY(encoder.encode(result.is_throw));
+    return {};
+}
+
+template<>
+ErrorOr<WebView::DebuggerEvaluationResult> decode(Decoder& decoder)
+{
+    return WebView::DebuggerEvaluationResult {
+        .value = TRY(decoder.decode<WebView::DebuggerValue>()),
+        .is_throw = TRY(decoder.decode<bool>()),
+    };
+}
+
+template<>
 ErrorOr<void> encode(Encoder& encoder, WebView::DebuggerEnvironment const& environment)
 {
     TRY(encoder.encode(environment.id));

@@ -322,6 +322,15 @@ JsonValue ThreadActor::serialize_debugger_value(WebView::DebuggerValue const& va
     VERIFY_NOT_REACHED();
 }
 
+Optional<u64> ThreadActor::frame_id_for_actor(StringView actor_name) const
+{
+    for (auto const& weak_frame : m_frame_actors) {
+        if (auto frame = weak_frame.strong_ref(); frame && frame->name() == actor_name)
+            return frame->frame_id();
+    }
+    return {};
+}
+
 JsonObject ThreadActor::serialize_environment_chain(Vector<WebView::DebuggerEnvironment> environments)
 {
     HashMap<u64, JsonObject> forms;

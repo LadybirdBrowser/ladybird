@@ -262,10 +262,10 @@ JsonObject WatcherActor::serialize_description() const
 FrameActor& WatcherActor::create_frame_target()
 {
     auto& css_properties = devtools().register_actor<CSSPropertiesActor>();
-    auto& console = devtools().register_actor<ConsoleActor>(m_tab);
+    auto& thread = devtools().register_actor<ThreadActor>(m_tab, make_weak_ptr<WatcherActor>());
+    auto& console = devtools().register_actor<ConsoleActor>(m_tab, thread);
     auto& style_sheets = devtools().register_actor<StyleSheetsActor>(m_tab);
     auto& inspector = devtools().register_actor<InspectorActor>(m_tab, style_sheets);
-    auto& thread = devtools().register_actor<ThreadActor>(m_tab, make_weak_ptr<WatcherActor>());
     auto& accessibility = devtools().register_actor<AccessibilityActor>(m_tab);
 
     auto& target = devtools().register_actor<FrameActor>(m_tab, make_weak_ptr<WatcherActor>(), css_properties, console, inspector, style_sheets, thread, accessibility);

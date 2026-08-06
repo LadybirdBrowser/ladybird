@@ -16,15 +16,16 @@ class DEVTOOLS_API ConsoleActor final : public Actor {
 public:
     static constexpr auto base_name = "console"sv;
 
-    static NonnullRefPtr<ConsoleActor> create(DevToolsServer&, String name, WeakPtr<TabActor>);
+    static NonnullRefPtr<ConsoleActor> create(DevToolsServer&, String name, WeakPtr<TabActor>, WeakPtr<ThreadActor>);
     virtual ~ConsoleActor() override;
 
 private:
-    ConsoleActor(DevToolsServer&, String name, WeakPtr<TabActor>);
+    ConsoleActor(DevToolsServer&, String name, WeakPtr<TabActor>, WeakPtr<ThreadActor>);
 
     virtual void handle_message(Message const&) override;
 
     WeakPtr<TabActor> m_tab;
+    WeakPtr<ThreadActor> m_thread;
 
     u64 m_execution_id { 0 };
 };
