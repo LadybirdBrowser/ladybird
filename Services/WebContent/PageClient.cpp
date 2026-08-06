@@ -265,6 +265,12 @@ void PageClient::notify_webdriver_of_window_replacement()
         m_webdriver->page_did_start_window_replacement({}, page().top_level_traversable()->window_handle().to_utf8());
 }
 
+void PageClient::close_webdriver_connection_after_sending_pending_messages()
+{
+    if (m_webdriver)
+        m_webdriver->transport().close_after_sending_all_pending_messages();
+}
+
 void PageClient::request_new_process_for_child_frame_navigation(Web::HTML::CrossProcessId frame_id, URL::URL const& url, Web::HTML::DocumentResource document_resource, Web::Bindings::NavigationHistoryBehavior history_handling, Optional<Web::HTML::NavigationSourceSnapshot> const& source_snapshot)
 {
     client().async_did_request_new_process_for_child_frame_navigation(m_id, frame_id, url, move(document_resource), history_handling, source_snapshot);

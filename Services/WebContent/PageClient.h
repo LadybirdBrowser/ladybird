@@ -55,6 +55,7 @@ public:
 
     ErrorOr<void> connect_to_webdriver(ByteString const& webdriver_endpoint);
     void notify_webdriver_of_window_replacement();
+    void close_webdriver_connection_after_sending_pending_messages();
     ErrorOr<void> connect_to_web_ui(IPC::TransportHandle);
 
     virtual Queue<Web::QueuedInputEvent>& input_event_queue() override;
