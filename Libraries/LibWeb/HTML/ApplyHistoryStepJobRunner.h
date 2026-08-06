@@ -58,7 +58,7 @@ class WEB_API ApplyHistoryStepJobRunner {
 public:
     virtual ~ApplyHistoryStepJobRunner() = default;
 
-    virtual void start_apply_history_step_operation(u64 operation_id, LocalNavigable::NavigationAPIAbortBehavior) = 0;
+    virtual void start_apply_history_step_operation(u64 operation_id, u64 history_initiation_id, LocalNavigable::NavigationAPIAbortBehavior) = 0;
     virtual void complete_apply_history_step_operation(u64 operation_id) = 0;
 
     virtual void run_initiator_sandboxing_check_job(GC::Ref<LocalNavigable> initiator_to_check, GC::Ref<SourceSnapshotParams>, Vector<CrossProcessId>, GC::Ref<OnInitiatorSandboxingCheckComplete>) = 0;
