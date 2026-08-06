@@ -104,6 +104,9 @@ public:
         return { arguments_data(), argument_count };
     }
 
+    Span<Value> local_variables();
+    ReadonlySpan<Value> local_variables() const;
+
     Value* arguments_data()
     {
         return registers_and_constants_and_locals_and_arguments() + (registers_and_constants_and_locals_and_arguments_count - argument_count);

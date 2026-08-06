@@ -574,6 +574,8 @@ size_t Executable::external_memory_size() const
     size = saturating_add_external_memory_size(size, vector_external_memory_size(exception_handlers));
     size = saturating_add_external_memory_size(size, vector_external_memory_size(source_map));
     size = saturating_add_external_memory_size(size, vector_external_memory_size(local_variable_names));
+    size = saturating_add_external_memory_size(size, vector_external_memory_size(argument_variable_names));
+    size = saturating_add_external_memory_size(size, vector_external_memory_size(local_variable_metadata));
     size = saturating_add_external_memory_size(size, hash_map_external_memory_size(m_source_range_cache));
     return size;
 }

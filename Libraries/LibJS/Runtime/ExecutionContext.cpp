@@ -126,6 +126,18 @@ NonnullOwnPtr<ExecutionContext> ExecutionContext::copy() const
     return copy;
 }
 
+Span<Value> ExecutionContext::local_variables()
+{
+    VERIFY(executable);
+    return registers_and_constants_and_locals_and_arguments_span().slice(executable->local_index_base, executable->local_variable_names.size());
+}
+
+ReadonlySpan<Value> ExecutionContext::local_variables() const
+{
+    VERIFY(executable);
+    return { registers_and_constants_and_locals_and_arguments() + executable->local_index_base, executable->local_variable_names.size() };
+}
+
 void ExecutionContext::visit_edges(Cell::Visitor& visitor)
 {
     visitor.visit(function);

@@ -209,6 +209,8 @@ pub struct LocalVariable {
     pub name: Utf16String,
     pub is_lexically_declared: bool,
     pub is_initialized_during_declaration_instantiation: bool,
+    pub is_mutable: bool,
+    pub scope_range: Option<crate::ast::SourceRange>,
 }
 
 /// The bytecode generator.
@@ -280,6 +282,7 @@ pub struct Generator {
     pub this_value_needs_environment_resolution: bool,
     pub enclosing_function_kind: FunctionKind,
     pub local_variables: Vec<LocalVariable>,
+    pub argument_variable_names: Vec<Utf16String>,
     pub initialized_locals: Vec<bool>,
     pub initialized_arguments: Vec<bool>,
 
@@ -444,6 +447,7 @@ impl Generator {
             this_value_needs_environment_resolution: true,
             enclosing_function_kind: FunctionKind::Normal,
             local_variables: Vec::new(),
+            argument_variable_names: Vec::new(),
             initialized_locals: Vec::new(),
             initialized_arguments: Vec::new(),
             pending_lhs_name: None,

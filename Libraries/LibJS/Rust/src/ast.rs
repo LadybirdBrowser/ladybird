@@ -1452,6 +1452,8 @@ pub enum LocalVarKind {
 pub struct LocalVariable {
     pub name: Utf16String,
     pub kind: LocalVarKind,
+    pub is_mutable: bool,
+    pub scope_range: Option<SourceRange>,
 }
 
 /// Data shared by all scope-bearing nodes (Program, BlockStatement,
@@ -1466,6 +1468,7 @@ pub struct LocalVariable {
 #[derive(Clone, Debug, Default)]
 pub struct ScopeData {
     pub children: Vec<Statement>,
+    pub source_range: Option<SourceRange>,
     pub local_variables: Vec<LocalVariable>,
     pub function_scope_data: Option<Box<FunctionScopeData>>,
     pub hoisted_functions: Vec<usize>,
