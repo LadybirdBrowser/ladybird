@@ -51,6 +51,7 @@ public:
     // The WebContent process and page whose document tree contains this frame. When the
     // frame is local, this process also hosts the frame's active document.
     WebContentClient& reporting_client() const;
+    WebContentClient* reporting_client_if_any() const { return m_reporting_client.ptr(); }
     u64 reporting_page_id() const { return m_reporting_page_id; }
 
     CanonicalNavigable* parent() { return m_parent; }

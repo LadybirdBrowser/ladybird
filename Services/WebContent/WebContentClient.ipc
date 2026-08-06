@@ -22,6 +22,7 @@
 #include <LibWeb/HTML/AudioPlayState.h>
 #include <LibWeb/HTML/BroadcastChannelMessage.h>
 #include <LibWeb/HTML/FileFilter.h>
+#include <LibWeb/HTML/ApplyHistoryStep.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/NavigationSourceSnapshot.h>
 #include <LibWeb/HTML/CrossProcessId.h>
@@ -193,7 +194,7 @@ endpoint WebContentClient
     did_set_session_history_entry_document_state_reload_pending(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_api_key, bool reload_pending) =|
     did_append_nested_history(u64 page_id, Web::HTML::CrossProcessId parent_navigable_id, Web::HTML::SessionHistoryNestedHistoryDescriptor nested_history) =|
     did_remove_nested_history(u64 page_id, Web::HTML::CrossProcessId parent_navigable_id, Web::HTML::CrossProcessId child_navigable_id) =|
-    did_request_finalize_same_document_navigation(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SameDocumentNavigationEntry target_entry, bool replaces_current_entry, Web::HTML::HistoryHandlingBehavior history_handling, Web::HTML::UserNavigationInvolvement user_involvement) =|
+    did_request_finalize_same_document_navigation(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SameDocumentNavigationEntry target_entry, bool replaces_current_entry, Web::HTML::HistoryHandlingBehavior history_handling, Web::HTML::UserNavigationInvolvement user_involvement, bool applies_history_step_in_coordinator) =|
     did_finalize_cross_document_navigation(u64 page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor history_entry, Optional<Utf16String> entry_to_replace_navigation_api_key) =|
     did_set_current_session_history_step(u64 page_id, i32 current_session_history_step) =|
     did_request_ui_process_session_history_for_testing(u64 page_id) => (String session_history)
@@ -202,6 +203,13 @@ endpoint WebContentClient
     did_set_top_level_session_history(u64 page_id, bool accepted, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, Vector<i32> used_steps, size_t current_used_step_index) =|
     did_traverse_the_history_to_step(u64 page_id, i32 step, bool step_was_available, Web::HTML::HistoryStepResult result) =|
     did_check_if_traverse_history_step_is_canceled(u64 page_id, u64 request_id, i32 step, Web::HTML::HistoryStepResult result) =|
+    request_history_operation(u64 page_id, u64 initiation_id, Web::HistoryOperationParameters parameters) =|
+    history_operation_ready(u64 page_id, u64 operation_id, bool proceed, Optional<i32> step_override, Web::HTML::HistoryStepResult abandon_result) =|
+    initiator_sandboxing_check_result(u64 page_id, u64 operation_id, bool allowed) =|
+    history_step_unload_cancelation_result(u64 page_id, u64 operation_id, Web::HTML::HistoryStepResult result) =|
+    changing_navigable_history_job_ready(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition) =|
+    changing_navigable_continuation_applied(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id) =|
+    nonchanging_navigable_history_state_updated(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id) =|
     did_reset_session_history_for_testing(u64 page_id) =|
 
     did_change_audio_play_state(u64 page_id, Web::HTML::AudioPlayState play_state) =|

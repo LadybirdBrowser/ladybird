@@ -144,7 +144,7 @@ struct TestTraversable {
     {
         operation = make<WebView::ApplyHistoryStep>(history, traversable, queue, state, runner.jobs(), step,
             check_for_cancelation, initiator_to_check, Web::HTML::UserNavigationInvolvement::BrowserUI,
-            Web::Bindings::NavigationType::Traverse, Web::HTML::SynchronousNavigation::No,
+            Web::Bindings::NavigationType::Traverse, Web::HTML::SynchronousNavigation::No, Optional<Web::HTML::CrossProcessId> {},
             [this](Web::HTML::HistoryStepResult history_step_result) { result = history_step_result; });
         operation->apply_the_history_step();
         return *operation;
@@ -370,7 +370,7 @@ TEST_CASE(an_older_run_does_not_commit_over_a_newer_runs_step)
     Optional<Web::HTML::HistoryStepResult> older_result;
     WebView::ApplyHistoryStep older_operation(test.history, test.traversable, test.queue, test.state, test.runner.jobs(), 0,
         false, {}, Web::HTML::UserNavigationInvolvement::BrowserUI, Web::Bindings::NavigationType::Traverse,
-        Web::HTML::SynchronousNavigation::No, [&](Web::HTML::HistoryStepResult result) { older_result = result; });
+        Web::HTML::SynchronousNavigation::No, {}, [&](Web::HTML::HistoryStepResult result) { older_result = result; });
 
     // A newer run (for example a synchronous navigation that jumped the queue) commits first.
     test.traverse_to_step(2);

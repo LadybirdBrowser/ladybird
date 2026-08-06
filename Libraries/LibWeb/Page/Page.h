@@ -619,7 +619,7 @@ public:
     virtual void page_did_set_session_history_entry_document_state_reload_pending([[maybe_unused]] HTML::CrossProcessId navigable_id, [[maybe_unused]] Utf16String const& navigation_api_key, [[maybe_unused]] bool reload_pending) { }
     virtual void page_did_append_nested_history([[maybe_unused]] HTML::CrossProcessId parent_navigable_id, [[maybe_unused]] HTML::SessionHistoryNestedHistoryDescriptor const& nested_history) { }
     virtual void page_did_remove_nested_history([[maybe_unused]] HTML::CrossProcessId parent_navigable_id, [[maybe_unused]] HTML::CrossProcessId child_navigable_id) { }
-    virtual void page_did_request_finalize_same_document_navigation([[maybe_unused]] u64 operation_id, [[maybe_unused]] HTML::CrossProcessId navigable_id, [[maybe_unused]] HTML::SameDocumentNavigationEntry const& target_entry, [[maybe_unused]] bool replaces_current_entry, [[maybe_unused]] HTML::HistoryHandlingBehavior history_handling, [[maybe_unused]] HTML::UserNavigationInvolvement user_involvement) { }
+    virtual void page_did_request_finalize_same_document_navigation([[maybe_unused]] u64 operation_id, [[maybe_unused]] HTML::CrossProcessId navigable_id, [[maybe_unused]] HTML::SameDocumentNavigationEntry const& target_entry, [[maybe_unused]] bool replaces_current_entry, [[maybe_unused]] HTML::HistoryHandlingBehavior history_handling, [[maybe_unused]] HTML::UserNavigationInvolvement user_involvement, [[maybe_unused]] bool applies_history_step_in_coordinator = false) { }
     virtual void page_did_finalize_cross_document_navigation([[maybe_unused]] HTML::CrossProcessId navigable_id, [[maybe_unused]] HTML::SessionHistoryEntryDescriptor const& history_entry, [[maybe_unused]] Optional<Utf16String> const& entry_to_replace_navigation_api_key) { }
     virtual void page_did_set_current_session_history_step([[maybe_unused]] int current_session_history_step) { }
     virtual String page_did_request_ui_process_session_history_for_testing() { return "{}"_string; }
@@ -628,6 +628,9 @@ public:
     virtual void page_did_request_history_traversal_target_by_delta([[maybe_unused]] int delta, [[maybe_unused]] GC::Ref<GC::Function<void(Optional<int>)>> on_complete) { VERIFY_NOT_REACHED(); }
     virtual void page_did_request_traverse_the_history_to_step([[maybe_unused]] int step, [[maybe_unused]] HistoryTraversalPrecheck history_traversal_precheck) { VERIFY_NOT_REACHED(); }
     virtual void page_did_request_navigation_api_traversal_target([[maybe_unused]] HTML::CrossProcessId navigable_id, [[maybe_unused]] Utf16String const& navigation_api_key, [[maybe_unused]] GC::Ref<GC::Function<void(Optional<int>)>> on_complete) { VERIFY_NOT_REACHED(); }
+    // NB: Pages without a UI-process coordinator (for example SVG image pages) drop the request: navigables on such
+    //     pages never apply queued history work.
+    virtual void page_did_request_history_operation([[maybe_unused]] u64 initiation_id, [[maybe_unused]] HistoryOperationParameters parameters) { }
     virtual void page_did_change_needs_beforeunload_check([[maybe_unused]] bool needs_beforeunload_check) { }
 
     virtual void request_file(FileRequest) = 0;

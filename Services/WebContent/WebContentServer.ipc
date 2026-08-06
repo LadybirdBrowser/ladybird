@@ -16,6 +16,7 @@
 #include <LibWeb/HTML/AutoplayPolicy.h>
 #include <LibWeb/HTML/ColorPickerUpdateState.h>
 #include <LibWeb/HTML/BroadcastChannelMessage.h>
+#include <LibWeb/HTML/ApplyHistoryStep.h>
 #include <LibWeb/HTML/CrossProcessId.h>
 #include <LibWeb/HTML/NavigationSourceSnapshot.h>
 #include <LibWeb/HTML/SelectedFile.h>
@@ -75,6 +76,13 @@ endpoint WebContentServer
     complete_finalize_same_document_navigation(u64 page_id, u64 operation_id, bool committed, i32 entry_step, i32 target_step, u64 script_history_length, u64 script_history_index) =|
     traverse_the_history_to_step(u64 page_id, i32 step) =|
     check_if_traverse_history_step_is_canceled(u64 page_id, u64 request_id, i32 step) =|
+    history_operation_started(u64 page_id, u64 operation_id, Optional<u64> initiation_id) =|
+    run_initiator_sandboxing_check_job(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId initiator_to_check, Vector<Web::HTML::CrossProcessId> navigables, u64 initiation_id) =|
+    run_history_step_unload_cancelation_job(u64 page_id, u64 operation_id, i32 target_step, Vector<Web::HTML::CrossProcessId> navigables_crossing_documents, Web::HTML::UserNavigationInvolvement user_involvement) =|
+    run_changing_navigable_history_job(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, i32 target_step, Web::HTML::SessionHistoryEntryDescriptor target_entry, Web::HTML::UserNavigationInvolvement user_involvement, Optional<Web::Bindings::NavigationType> navigation_type, bool synchronous_navigation, Optional<u64> initiation_id) =|
+    apply_changing_navigable_continuation(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, u64 script_history_length, u64 script_history_index, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries_for_navigation_api) =|
+    update_nonchanging_navigable_history_state(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, u64 script_history_length, u64 script_history_index) =|
+    complete_history_operation(u64 page_id, u64 operation_id, Web::HTML::HistoryStepResult result, Optional<i32> committed_step, Optional<u64> initiation_id) =|
     set_top_level_session_history(u64 page_id, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries,
         size_t current_top_level_entry_index, bool allow_reconstructing_current_entry) =|
     reset_session_history_for_testing(u64 page_id) =|

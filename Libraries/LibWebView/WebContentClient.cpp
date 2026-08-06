@@ -1514,13 +1514,6 @@ void WebContentClient::did_change_needs_beforeunload_check(u64 page_id, bool nee
         view->did_change_needs_beforeunload_check({}, needs_beforeunload_check);
 }
 
-void WebContentClient::did_check_if_traverse_history_step_is_canceled(
-    u64 page_id, u64 request_id, i32 step, Web::HTML::HistoryStepResult result)
-{
-    if (auto view = view_for_page_id(page_id); view.has_value())
-        view->did_check_if_traverse_history_step_is_canceled({}, request_id, step, result);
-}
-
 void WebContentClient::did_request_traverse_the_history_by_delta(u64 page_id, i32 delta, Web::HistoryTraversalPrecheck history_traversal_precheck)
 {
     auto* page_host = navigable_for_page(page_id);
@@ -1969,12 +1962,12 @@ void WebContentClient::did_remove_nested_history(u64 page_id, Web::HTML::CrossPr
     parent_navigable->top_level_traversable().remove_nested_history(*parent_navigable, child_navigable_id);
 }
 
-void WebContentClient::did_request_finalize_same_document_navigation(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SameDocumentNavigationEntry target_entry, bool replaces_current_entry, Web::HTML::HistoryHandlingBehavior history_handling, Web::HTML::UserNavigationInvolvement user_involvement)
+void WebContentClient::did_request_finalize_same_document_navigation(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SameDocumentNavigationEntry target_entry, bool replaces_current_entry, Web::HTML::HistoryHandlingBehavior history_handling, Web::HTML::UserNavigationInvolvement user_involvement, bool applies_history_step_in_coordinator)
 {
     Optional<TraversableSessionHistory::SameDocumentNavigationFinalization> finalization;
     if (auto navigable = hosted_navigable_for_page(page_id, navigable_id); navigable.has_value()) {
         finalization = navigable->top_level_traversable().request_to_finalize_same_document_navigation(
-            *navigable, move(target_entry), replaces_current_entry, history_handling, user_involvement);
+            *navigable, move(target_entry), replaces_current_entry, history_handling, user_involvement, applies_history_step_in_coordinator);
     }
 
     if (!finalization.has_value()) {
@@ -2050,10 +2043,58 @@ void WebContentClient::did_traverse_the_history_to_step(u64 page_id, i32 step, b
         view->did_traverse_the_history_to_step({}, step, step_was_available, result);
 }
 
+void WebContentClient::did_check_if_traverse_history_step_is_canceled(u64 page_id, u64 request_id, i32 step, Web::HTML::HistoryStepResult result)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        view->did_check_if_traverse_history_step_is_canceled({}, request_id, step, result);
+}
+
 void WebContentClient::did_reset_session_history_for_testing(u64 page_id)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())
         view->did_reset_session_history_for_testing({});
+}
+
+void WebContentClient::request_history_operation(u64 page_id, u64 initiation_id, Web::HistoryOperationParameters parameters)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        view->request_history_operation({}, initiation_id, move(parameters));
+}
+
+void WebContentClient::history_operation_ready(u64 page_id, u64 operation_id, bool proceed, Optional<i32> step_override, Web::HTML::HistoryStepResult abandon_result)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        view->did_receive_history_operation_ready({}, operation_id, proceed, step_override, abandon_result);
+}
+
+void WebContentClient::initiator_sandboxing_check_result(u64 page_id, u64 operation_id, bool allowed)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        view->did_receive_initiator_sandboxing_check_result({}, operation_id, allowed);
+}
+
+void WebContentClient::history_step_unload_cancelation_result(u64 page_id, u64 operation_id, Web::HTML::HistoryStepResult result)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        view->did_receive_history_step_unload_cancelation_result({}, operation_id, result);
+}
+
+void WebContentClient::changing_navigable_history_job_ready(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        view->did_receive_changing_navigable_history_job_ready({}, operation_id, navigable_id, disposition);
+}
+
+void WebContentClient::changing_navigable_continuation_applied(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        view->did_receive_changing_navigable_continuation_applied({}, operation_id, navigable_id);
+}
+
+void WebContentClient::nonchanging_navigable_history_state_updated(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        view->did_receive_nonchanging_navigable_history_state_updated({}, operation_id, navigable_id);
 }
 
 void WebContentClient::did_present_backing_stores(u64 page_id, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores)

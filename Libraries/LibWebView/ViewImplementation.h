@@ -69,6 +69,7 @@ class WEBVIEW_API ViewImplementation
     , public BookmarkStoreObserver
     , public Weakable<ViewImplementation> {
     friend class WebContentClient;
+    friend class CanonicalTraversable;
 
 public:
     virtual ~ViewImplementation();
@@ -284,8 +285,14 @@ public:
     void did_update_session_history_for_testing(Badge<WebContentClient>, Vector<Web::HTML::SessionHistoryEntryDescriptor>, Vector<i32>, size_t current_used_step_index);
     void did_set_top_level_session_history(Badge<WebContentClient>, bool accepted, Vector<Web::HTML::SessionHistoryEntryDescriptor>, Vector<i32> used_steps, size_t current_used_step_index);
     void did_traverse_the_history_to_step(Badge<WebContentClient>, i32 step, bool step_was_available, Web::HTML::HistoryStepResult);
-    void did_check_if_traverse_history_step_is_canceled(
-        Badge<WebContentClient>, u64 request_id, i32 step, Web::HTML::HistoryStepResult);
+    void did_check_if_traverse_history_step_is_canceled(Badge<WebContentClient>, u64 request_id, i32 step, Web::HTML::HistoryStepResult);
+    void request_history_operation(Badge<WebContentClient>, u64 initiation_id, Web::HistoryOperationParameters);
+    void did_receive_history_operation_ready(Badge<WebContentClient>, u64 operation_id, bool proceed, Optional<i32> step_override, Web::HTML::HistoryStepResult abandon_result);
+    void did_receive_initiator_sandboxing_check_result(Badge<WebContentClient>, u64 operation_id, bool allowed);
+    void did_receive_history_step_unload_cancelation_result(Badge<WebContentClient>, u64 operation_id, Web::HTML::HistoryStepResult);
+    void did_receive_changing_navigable_history_job_ready(Badge<WebContentClient>, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition);
+    void did_receive_changing_navigable_continuation_applied(Badge<WebContentClient>, u64 operation_id, Web::HTML::CrossProcessId navigable_id);
+    void did_receive_nonchanging_navigable_history_state_updated(Badge<WebContentClient>, u64 operation_id, Web::HTML::CrossProcessId navigable_id);
     void did_reset_session_history_for_testing(Badge<WebContentClient>);
     void mark_web_content_session_history_stale_for_testing(Badge<WebContentClient>);
     void did_start_webdriver_navigation(Badge<WebContentClient>, URL::URL const&);
@@ -430,6 +437,11 @@ public:
 
 protected:
     HistoryTraversalOutcome start_history_traversal(HistoryTraversalDecision);
+    void apply_history_traversal_step_result(i32 step, bool step_was_available, Web::HTML::HistoryStepResult);
+    void apply_history_step_cancelation_check_result(u64 request_id, i32 step, Web::HTML::HistoryStepResult);
+    void start_requested_history_traversal(u64 initiation_id, Web::TraverseByDeltaHistoryOperationParameters, NonnullRefPtr<Core::Promise<Empty>>);
+    void start_requested_history_traversal(u64 initiation_id, Web::NavigationAPITraverseHistoryOperationParameters, NonnullRefPtr<Core::Promise<Empty>>);
+    void start_requested_history_traversal(u64 initiation_id, Web::HistoryOperationParameters, TraversableSessionHistory::TraversalTarget, NonnullRefPtr<Core::Promise<Empty>>);
     virtual void insert_clipboard_item(Web::Clipboard::SystemClipboardItem);
     virtual Vector<Web::Clipboard::SystemClipboardRepresentation> clipboard_entries() const;
 
