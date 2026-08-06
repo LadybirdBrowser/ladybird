@@ -36,6 +36,7 @@ public:
         u32 bytecode_offset { 0 };
         Optional<SourceRange> source_range;
         Vector<StackTraceElement> stack_trace;
+        Vector<BreakpointID> breakpoint_ids;
         PauseReason reason { PauseReason::Breakpoint };
     };
 

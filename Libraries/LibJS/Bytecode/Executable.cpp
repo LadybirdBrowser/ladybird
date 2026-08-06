@@ -743,6 +743,16 @@ bool Executable::has_debugger_breakpoint_at(u32 bytecode_offset) const
     return m_debugger_breakpoint_sites && m_debugger_breakpoint_sites->contains(bytecode_offset);
 }
 
+ReadonlySpan<BreakpointID> Executable::debugger_breakpoints_at(u32 bytecode_offset) const
+{
+    if (!m_debugger_breakpoint_sites)
+        return {};
+    auto site = m_debugger_breakpoint_sites->find(bytecode_offset);
+    if (site == m_debugger_breakpoint_sites->end())
+        return {};
+    return site->value.breakpoint_ids;
+}
+
 bool Executable::has_debugger_breakpoint(BreakpointID breakpoint_id) const
 {
     if (!m_debugger_breakpoint_sites)
