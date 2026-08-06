@@ -11,6 +11,8 @@
 #include <LibIPC/Forward.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/CrossProcessId.h>
+#include <LibWeb/HTML/HistoryHandlingBehavior.h>
+#include <LibWeb/HTML/SameDocumentNavigationEntry.h>
 #include <LibWeb/HTML/UserNavigationInvolvement.h>
 
 namespace Web {
@@ -67,6 +69,14 @@ struct NavigableDestructionHistoryOperationParameters {
     HTML::CrossProcessId traversable_id;
 };
 
+struct FinalizeSameDocumentNavigationHistoryOperationParameters {
+    HTML::CrossProcessId navigable_id;
+    HTML::SameDocumentNavigationEntry target_entry;
+    bool replaces_current_entry;
+    HTML::HistoryHandlingBehavior history_handling;
+    HTML::UserNavigationInvolvement user_involvement;
+};
+
 // A WebContent-initiated operation with value-shaped parameters. The request boundary retains any process-local
 // state under a private initiation ID; the queue and coordinator remain local until the later ownership switch.
 using HistoryOperationParameters = Variant<
@@ -78,7 +88,8 @@ using HistoryOperationParameters = Variant<
     NavigationAPITraverseHistoryOperationParameters,
     ResumeTraverseHistoryOperationParameters,
     NavigableCreationHistoryOperationParameters,
-    NavigableDestructionHistoryOperationParameters>;
+    NavigableDestructionHistoryOperationParameters,
+    FinalizeSameDocumentNavigationHistoryOperationParameters>;
 
 }
 
@@ -128,5 +139,10 @@ template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::NavigableDestructionHistoryOperationParameters const&);
 template<>
 WEB_API ErrorOr<Web::NavigableDestructionHistoryOperationParameters> decode(Decoder&);
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::FinalizeSameDocumentNavigationHistoryOperationParameters const&);
+template<>
+WEB_API ErrorOr<Web::FinalizeSameDocumentNavigationHistoryOperationParameters> decode(Decoder&);
 
 }

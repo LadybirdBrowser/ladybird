@@ -162,3 +162,26 @@ ErrorOr<Web::NavigableDestructionHistoryOperationParameters> IPC::decode(Decoder
         .traversable_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
     };
 }
+
+template<>
+ErrorOr<void> IPC::encode(Encoder& encoder, Web::FinalizeSameDocumentNavigationHistoryOperationParameters const& parameters)
+{
+    TRY(encoder.encode(parameters.navigable_id));
+    TRY(encoder.encode(parameters.target_entry));
+    TRY(encoder.encode(parameters.replaces_current_entry));
+    TRY(encoder.encode(parameters.history_handling));
+    TRY(encoder.encode(parameters.user_involvement));
+    return {};
+}
+
+template<>
+ErrorOr<Web::FinalizeSameDocumentNavigationHistoryOperationParameters> IPC::decode(Decoder& decoder)
+{
+    return Web::FinalizeSameDocumentNavigationHistoryOperationParameters {
+        .navigable_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
+        .target_entry = TRY(decoder.decode<Web::HTML::SameDocumentNavigationEntry>()),
+        .replaces_current_entry = TRY(decoder.decode<bool>()),
+        .history_handling = TRY(decoder.decode<Web::HTML::HistoryHandlingBehavior>()),
+        .user_involvement = TRY(decoder.decode<Web::HTML::UserNavigationInvolvement>()),
+    };
+}
