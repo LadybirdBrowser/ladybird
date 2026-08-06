@@ -29,6 +29,14 @@ public:
         Entry,
         Breakpoint,
         DebuggerStatement,
+        Step,
+    };
+
+    enum class ResumeMode : u8 {
+        Continue,
+        StepInto,
+        StepOut,
+        StepOver,
     };
 
     struct PauseInfo {
@@ -54,7 +62,9 @@ public:
     void set_pause_callback(Function<void(PauseInfo const&)> callback) { m_pause_callback = move(callback); }
 
     bool pause_execution(Bytecode::Executable&, u32 bytecode_offset, PauseReason);
-    void continue_execution();
+    void continue_execution(ResumeMode = ResumeMode::Continue);
+    // Continue after the host filters out a pause without cancelling an active step operation.
+    void continue_execution_preserving_step_state();
     bool is_paused() const { return m_is_paused; }
     Vector<FrameBinding> bindings_for_frame(ExecutionContext const&) const;
     ThrowCompletionOr<Value> evaluate_in_frame(ExecutionContext&, Utf16View source_text);
@@ -66,6 +76,8 @@ public:
 
     void request_pause_on_next_bytecode_execution() { m_pause_on_next_bytecode_execution = true; }
     bool should_pause_on_next_bytecode_execution(Bytecode::Executable const&, u32 bytecode_offset);
+    bool should_pause_for_step(Bytecode::Executable const&, u32 bytecode_offset) const;
+    void did_finish_bytecode_execution() { m_step_state.clear(); }
 
     ErrorOr<BreakpointID> add_breakpoint(Utf16View filename, u32 line, Optional<u32> column = {});
     ErrorOr<BreakpointID> add_breakpoint(NonnullRefPtr<SourceCode const>, u32 line, Optional<u32> column = {});
@@ -97,6 +109,12 @@ private:
     GC::WeakHashSet<Bytecode::Executable> m_executables;
     Vector<Breakpoint> m_breakpoints;
     BreakpointID m_next_breakpoint_id { 1 };
+    struct StepState {
+        ResumeMode mode { ResumeMode::Continue };
+        u64 frame_id { 0 };
+        Optional<SourceRange> source_range;
+    };
+    Optional<StepState> m_step_state;
     ExecutionContext* m_paused_execution_context { nullptr };
     Optional<SourceRange> m_paused_source_range;
     bool m_is_paused { false };

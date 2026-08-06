@@ -5,6 +5,7 @@
  */
 
 #include <LibJS/Debugger.h>
+#include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibJS/RustIntegration.h>
@@ -679,4 +680,204 @@ TEST_CASE(manual_breakpoints_replace_debugger_statement_pauses)
     EXPECT(!result.is_error());
     EXPECT_EQ(pause_reasons.size(), 1u);
     EXPECT_EQ(pause_reasons[0], JS::Debugger::PauseReason::Breakpoint);
+}
+
+TEST_CASE(step_into_pauses_in_a_called_function)
+{
+    auto vm = JS::VM::create();
+    auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
+    auto& realm = *root_execution_context->realm;
+
+    vm->enable_debugging();
+    auto breakpoint_id = MUST(vm->debugger()->add_breakpoint("step-into.js"_utf16, 4));
+
+    Vector<JS::Debugger::PauseInfo> pauses;
+    vm->debugger()->set_pause_callback([&](JS::Debugger::PauseInfo const& pause_info) {
+        pauses.append(pause_info);
+        if (pauses.size() == 1)
+            EXPECT(vm->debugger()->remove_breakpoint(breakpoint_id));
+        vm->debugger()->continue_execution(pauses.size() == 1 ? JS::Debugger::ResumeMode::StepInto : JS::Debugger::ResumeMode::Continue);
+    });
+
+    auto script_or_error = JS::Script::parse(
+        "function callee() {\n"
+        "    let inside = 1;\n"
+        "}\n"
+        "callee();\n"
+        "let after = 2;\n"sv,
+        realm, "step-into.js"sv);
+    VERIFY(!script_or_error.is_error());
+    auto result = vm->run(*script_or_error.value());
+    EXPECT(!result.is_error());
+
+    EXPECT_EQ(pauses.size(), 2u);
+    EXPECT_EQ(pauses[0].reason, JS::Debugger::PauseReason::Breakpoint);
+    EXPECT_EQ(pauses[1].reason, JS::Debugger::PauseReason::Step);
+    EXPECT_EQ(pauses[1].source_range->start.line, 2u);
+}
+
+TEST_CASE(step_over_does_not_pause_in_called_functions)
+{
+    auto vm = JS::VM::create();
+    auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
+    auto& realm = *root_execution_context->realm;
+
+    vm->enable_debugging();
+    auto breakpoint_id = MUST(vm->debugger()->add_breakpoint("step-over.js"_utf16, 4));
+
+    Vector<JS::Debugger::PauseInfo> pauses;
+    vm->debugger()->set_pause_callback([&](JS::Debugger::PauseInfo const& pause_info) {
+        pauses.append(pause_info);
+        if (pauses.size() == 1)
+            EXPECT(vm->debugger()->remove_breakpoint(breakpoint_id));
+        vm->debugger()->continue_execution(pauses.size() == 1 ? JS::Debugger::ResumeMode::StepOver : JS::Debugger::ResumeMode::Continue);
+    });
+
+    auto script_or_error = JS::Script::parse(
+        "function callee() {\n"
+        "    let inside = 1;\n"
+        "}\n"
+        "callee();\n"
+        "let after = 2;\n"sv,
+        realm, "step-over.js"sv);
+    VERIFY(!script_or_error.is_error());
+    auto result = vm->run(*script_or_error.value());
+    EXPECT(!result.is_error());
+
+    EXPECT_EQ(pauses.size(), 2u);
+    EXPECT_EQ(pauses[0].reason, JS::Debugger::PauseReason::Breakpoint);
+    EXPECT_EQ(pauses[1].reason, JS::Debugger::PauseReason::Step);
+    EXPECT_EQ(pauses[1].source_range->start.line, 5u);
+}
+
+TEST_CASE(step_out_pauses_after_the_current_function_returns)
+{
+    auto vm = JS::VM::create();
+    auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
+    auto& realm = *root_execution_context->realm;
+
+    vm->enable_debugging();
+
+    Vector<JS::Debugger::PauseInfo> pauses;
+    vm->debugger()->set_pause_callback([&](JS::Debugger::PauseInfo const& pause_info) {
+        pauses.append(pause_info);
+        vm->debugger()->continue_execution(pauses.size() == 1 ? JS::Debugger::ResumeMode::StepOut : JS::Debugger::ResumeMode::Continue);
+    });
+
+    auto script_or_error = JS::Script::parse(
+        "function callee() {\n"
+        "    debugger;\n"
+        "}\n"
+        "callee();\n"
+        "let after = 2;\n"sv,
+        realm, "step-out.js"sv);
+    VERIFY(!script_or_error.is_error());
+    auto result = vm->run(*script_or_error.value());
+    EXPECT(!result.is_error());
+
+    EXPECT_EQ(pauses.size(), 2u);
+    VERIFY(pauses.size() == 2);
+    EXPECT_EQ(pauses[0].reason, JS::Debugger::PauseReason::DebuggerStatement);
+    EXPECT_EQ(pauses[1].reason, JS::Debugger::PauseReason::Step);
+    EXPECT_EQ(pauses[1].source_range->start.line, 5u);
+}
+
+TEST_CASE(step_out_distinguishes_reused_inline_frames)
+{
+    auto vm = JS::VM::create();
+    auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
+    auto& realm = *root_execution_context->realm;
+
+    vm->enable_debugging();
+
+    realm.global_object().define_native_function(realm, "runBoth"_utf16_fly_string, Function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)> { [](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
+        TRY(JS::call(vm, vm.argument(0), JS::js_undefined()));
+        return JS::call(vm, vm.argument(1), JS::js_undefined());
+    } },
+        2, JS::default_attributes);
+
+    Vector<JS::Debugger::PauseInfo> pauses;
+    vm->debugger()->set_pause_callback([&](JS::Debugger::PauseInfo const& pause_info) {
+        pauses.append(pause_info);
+        vm->debugger()->continue_execution(pauses.size() == 1 ? JS::Debugger::ResumeMode::StepOut : JS::Debugger::ResumeMode::Continue);
+    });
+
+    auto script_or_error = JS::Script::parse(
+        "function first() { debugger; }\n"
+        "function second() { let inside = 1; }\n"
+        "runBoth(first, second);\n"
+        "let after = 2;\n"sv,
+        realm, "step-out-reused-frame.js"sv);
+    VERIFY(!script_or_error.is_error());
+    auto result = vm->run(*script_or_error.value());
+    EXPECT(!result.is_error());
+
+    EXPECT_EQ(pauses.size(), 2u);
+    VERIFY(pauses.size() == 2);
+    EXPECT_EQ(pauses[0].reason, JS::Debugger::PauseReason::DebuggerStatement);
+    EXPECT_EQ(pauses[1].reason, JS::Debugger::PauseReason::Step);
+    EXPECT_EQ(pauses[1].source_range->start.line, 2u);
+}
+
+TEST_CASE(ignored_step_pauses_preserve_the_active_step)
+{
+    auto vm = JS::VM::create();
+    auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
+    auto& realm = *root_execution_context->realm;
+
+    vm->enable_debugging();
+    auto breakpoint_id = MUST(vm->debugger()->add_breakpoint("ignored-step.js"_utf16, 4));
+
+    Vector<JS::Debugger::PauseInfo> pauses;
+    vm->debugger()->set_pause_callback([&](JS::Debugger::PauseInfo const& pause_info) {
+        pauses.append(pause_info);
+        if (pauses.size() == 1) {
+            EXPECT(vm->debugger()->remove_breakpoint(breakpoint_id));
+            vm->debugger()->continue_execution(JS::Debugger::ResumeMode::StepInto);
+        } else if (pauses.size() == 2) {
+            vm->debugger()->continue_execution_preserving_step_state();
+        } else {
+            vm->debugger()->continue_execution();
+        }
+    });
+
+    auto script_or_error = JS::Script::parse(
+        "function callee() {\n"
+        "    let inside = 1;\n"
+        "}\n"
+        "callee();\n"
+        "let after = 2;\n"sv,
+        realm, "ignored-step.js"sv);
+    VERIFY(!script_or_error.is_error());
+    auto result = vm->run(*script_or_error.value());
+    EXPECT(!result.is_error());
+
+    EXPECT_EQ(pauses.size(), 3u);
+    VERIFY(pauses.size() == 3);
+    EXPECT_EQ(pauses[1].reason, JS::Debugger::PauseReason::Step);
+    EXPECT_EQ(pauses[1].source_range->start.line, 2u);
+    EXPECT_EQ(pauses[2].reason, JS::Debugger::PauseReason::Step);
+    EXPECT_EQ(pauses[2].source_range->start.line, 5u);
+}
+
+TEST_CASE(step_state_does_not_survive_its_bytecode_execution)
+{
+    auto vm = JS::VM::create();
+    auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
+    auto& realm = *root_execution_context->realm;
+
+    size_t pause_count = 0;
+    vm->enable_debugging();
+    vm->debugger()->set_pause_callback([&](JS::Debugger::PauseInfo const&) {
+        ++pause_count;
+        vm->debugger()->continue_execution(JS::Debugger::ResumeMode::StepInto);
+    });
+
+    auto first_script = JS::Script::parse("debugger;"sv, realm, "first.js"sv).release_value();
+    EXPECT(!vm->run(*first_script).is_error());
+    EXPECT_EQ(pause_count, 1u);
+
+    auto second_script = JS::Script::parse("let later = 1;"sv, realm, "second.js"sv).release_value();
+    EXPECT(!vm->run(*second_script).is_error());
+    EXPECT_EQ(pause_count, 1u);
 }

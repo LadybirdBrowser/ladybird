@@ -325,6 +325,11 @@ ThrowCompletionOr<Value> VM::run_executable(ExecutionContext& context, Executabl
         js_interpreter(bytecode, entry_point, values, this);
     }
 
+    if (is_outermost_bytecode_execution) {
+        if (auto* debugger = vm().debugger())
+            debugger->did_finish_bytecode_execution();
+    }
+
     if (is_outermost_bytecode_execution && !vm().is_executing_module())
         vm().run_queued_promise_jobs();
     vm().finish_execution_generation();

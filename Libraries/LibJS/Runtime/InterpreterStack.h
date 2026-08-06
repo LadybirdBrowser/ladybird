@@ -38,7 +38,7 @@ public:
         if (new_top > m_limit) [[unlikely]]
             return nullptr;
 
-        auto* result = new (m_top) ExecutionContext(registers_and_locals_count, constants, arguments_count);
+        auto* result = new (m_top) ExecutionContext(registers_and_locals_count, constants, arguments_count, m_next_frame_id++);
         m_top = new_top;
         return result;
     }
@@ -63,6 +63,7 @@ private:
     void* m_base { nullptr };
     void* m_top { nullptr };
     void* m_limit { nullptr };
+    u64 m_next_frame_id { 1 };
 };
 
 }

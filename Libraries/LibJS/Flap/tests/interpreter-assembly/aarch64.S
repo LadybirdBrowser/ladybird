@@ -1588,7 +1588,7 @@ CSYM(js_interpreter):
     mov x20, x3              // vm = VM*
     ldr x28, [x3, #15288]
     // x28 = exec_ctx
-    ldr x9, [x3, #16712]
+    ldr x9, [x3, #16720]
     cbz x9, .Lnormal_dispatch_table
     adrp x19, asm_debug_dispatch_table
     add x19, x19, :lo12:asm_debug_dispatch_table
@@ -1615,13 +1615,13 @@ CSYM(js_interpreter):
 asm_debugger_trampoline:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_debugger_check_breakpoint)
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
-    ldr w9, [x28, #56]
+    add x27, x28, #128
+    ldr w9, [x28, #64]
     add x21, x26, w9, uxtw
     ldrb w9, [x21]
     adrp x10, asm_dispatch_table
@@ -1633,14 +1633,14 @@ asm_debugger_trampoline:
 asm_handler_fallback:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_fallback_handler)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -1744,13 +1744,13 @@ asm_handler_Exp:
     mov x4, x1
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_exp_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -2468,23 +2468,23 @@ asm_handler_Return:
     b.ne .Lasm_Return.ssa_block_3
     movz x1, #0x7ffe, lsl #48
 .Lasm_Return.ssa_block_3:
-    ldr x0, [x28, #88]
+    ldr x0, [x28, #96]
     cbz x0, .Lasm_Return.ssa_block_1
-    ldp w2, w3, [x28, #100]
-    str w2, [x0, #56]
-    add x9, x0, #120
+    ldp w2, w3, [x28, #108]
+    str w2, [x0, #64]
+    add x9, x0, #128
     str x1, [x9, x3, lsl #3]
     mov x1, x20
     str x0, [x1, #15288]
     str x28, [x1, #15368]
-    mov w10, #16648
+    mov w10, #16656
     ldr w9, [x1, x10]
     add w9, w9, #1
     str w9, [x1, x10]
     mov x28, x0
-    ldr x0, [x28, #80]
+    ldr x0, [x28, #88]
     ldr x26, [x0, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     mov w25, w2
     add x21, x26, w25, uxtw
     ldrb w9, [x21]
@@ -2500,23 +2500,23 @@ asm_handler_Return_hot_end:
 asm_handler_End:
     ldr w0, [x21, #4]
     ldr x1, [x27, x0, lsl #3]
-    ldr x0, [x28, #88]
+    ldr x0, [x28, #96]
     cbz x0, .Lasm_End.ssa_block_1
-    ldp w2, w3, [x28, #100]
-    str w2, [x0, #56]
-    add x9, x0, #120
+    ldp w2, w3, [x28, #108]
+    str w2, [x0, #64]
+    add x9, x0, #128
     str x1, [x9, x3, lsl #3]
     mov x1, x20
     str x0, [x1, #15288]
     str x28, [x1, #15368]
-    mov w10, #16648
+    mov w10, #16656
     ldr w9, [x1, x10]
     add w9, w9, #1
     str w9, [x1, x10]
     mov x28, x0
-    ldr x0, [x28, #80]
+    ldr x0, [x28, #88]
     ldr x26, [x0, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     mov w25, w2
     add x21, x26, w25, uxtw
     ldrb w9, [x21]
@@ -2578,7 +2578,7 @@ asm_handler_GetBinding_hot_end:
 
 .p2align 4
 asm_handler_DynamicGetBinding:
-    ldr x0, [x28, #80]
+    ldr x0, [x28, #88]
     ldr x0, [x0, #160]
     ldr w1, [x21, #12]
     add x0, x0, x1, lsl #3
@@ -2638,7 +2638,7 @@ asm_handler_GetInitializedBinding_hot_end:
 
 .p2align 4
 asm_handler_DynamicGetInitializedBinding:
-    ldr x0, [x28, #80]
+    ldr x0, [x28, #88]
     ldr x0, [x0, #160]
     ldr w1, [x21, #12]
     add x0, x0, x1, lsl #3
@@ -2716,7 +2716,7 @@ asm_handler_InitializeVariableBinding_hot_end:
 
 .p2align 4
 asm_handler_DynamicInitializeLexicalBinding:
-    ldr x0, [x28, #80]
+    ldr x0, [x28, #88]
     ldr x0, [x0, #160]
     ldr w1, [x21, #12]
     add x0, x0, x1, lsl #3
@@ -2752,7 +2752,7 @@ asm_handler_DynamicInitializeLexicalBinding_hot_end:
 
 .p2align 4
 asm_handler_DynamicInitializeVariableBinding:
-    ldr x0, [x28, #80]
+    ldr x0, [x28, #88]
     ldr x0, [x0, #160]
     ldr w1, [x21, #12]
     add x0, x0, x1, lsl #3
@@ -2880,7 +2880,7 @@ asm_handler_SetVariableBinding_hot_end:
 
 .p2align 4
 asm_handler_DynamicSetLexicalBinding:
-    ldr x0, [x28, #80]
+    ldr x0, [x28, #88]
     ldr x0, [x0, #160]
     ldr w1, [x21, #12]
     add x0, x0, x1, lsl #3
@@ -2941,7 +2941,7 @@ asm_handler_DynamicSetLexicalBinding_hot_end:
 
 .p2align 4
 asm_handler_DynamicSetVariableBinding:
-    ldr x0, [x28, #80]
+    ldr x0, [x28, #88]
     ldr x0, [x0, #160]
     ldr w1, [x21, #12]
     add x0, x0, x1, lsl #3
@@ -3644,7 +3644,7 @@ asm_handler_GetCalleeAndThisFromEnvironment_hot_end:
 
 .p2align 4
 asm_handler_DynamicGetCalleeAndThisFromEnvironment:
-    ldr x0, [x28, #80]
+    ldr x0, [x28, #88]
     ldr x0, [x0, #160]
     ldr w1, [x21, #16]
     add x0, x0, x1, lsl #3
@@ -3976,7 +3976,7 @@ asm_handler_PutByValue:
     cmn x2, #1
     b.eq .Lasm_PutByValue.ssa_block_3
     mov x1, x20
-    ldr x1, [x1, #16656]
+    ldr x1, [x1, #16664]
     ldr w4, [x3, #100]
     cmp x0, x4
     b.hs .Lasm_PutByValue.ssa_block_1
@@ -4179,7 +4179,7 @@ asm_handler_GetById:
     b.ne .Lasm_GetById.ssa_block_1
     and x2, x2, #0xffffffffffff
     ldr x1, [x2, #24]
-    ldr x0, [x28, #80]
+    ldr x0, [x28, #88]
     ldr x0, [x0, #112]
     ldr w3, [x21, #20]
     ldr x0, [x0, x3, lsl #3]
@@ -4217,14 +4217,14 @@ asm_handler_GetById:
 .Lasm_GetById.ssa_block_4:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_get_by_id_cached_accessor)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -4241,7 +4241,7 @@ asm_handler_PutById:
     b.ne .Lasm_PutById.ssa_block_2
     and x2, x2, #0xffffffffffff
     ldr x1, [x2, #24]
-    ldr x0, [x28, #80]
+    ldr x0, [x28, #88]
     ldr x0, [x0, #112]
     ldr w3, [x21, #20]
     ldr x0, [x0, x3, lsl #3]
@@ -4328,7 +4328,7 @@ asm_handler_GetByValue:
     cmn x2, #1
     b.eq .Lasm_GetByValue.ssa_block_2
     mov x1, x20
-    ldr x1, [x1, #16656]
+    ldr x1, [x1, #16664]
     ldr w4, [x3, #100]
     cmp x0, x4
     b.hs .Lasm_GetByValue.ssa_block_2
@@ -4471,7 +4471,7 @@ asm_handler_GetLength:
     br x10
 .Lasm_GetLength.ssa_block_5:
     ldr x2, [x1, #24]
-    ldr x0, [x28, #80]
+    ldr x0, [x28, #88]
     ldr x0, [x0, #112]
     ldr w3, [x21, #16]
     ldr x0, [x0, x3, lsl #3]
@@ -4503,7 +4503,7 @@ asm_handler_GetLength_hot_end:
 asm_handler_GetGlobal:
     ldr x0, [x28, #8]
     ldp x3, x2, [x0, #24]
-    ldr x0, [x28, #80]
+    ldr x0, [x28, #88]
     ldr x1, [x0, #136]
     ldr w0, [x21, #12]
     lsl x0, x0, #6
@@ -4555,7 +4555,7 @@ asm_handler_GetGlobal_hot_end:
 asm_handler_SetGlobal:
     ldr x0, [x28, #8]
     ldp x3, x1, [x0, #24]
-    ldr x0, [x28, #80]
+    ldr x0, [x28, #88]
     ldr x2, [x0, #136]
     ldr w0, [x21, #12]
     lsl x0, x0, #6
@@ -4684,44 +4684,49 @@ asm_handler_Call:
     ldr x0, [x0, #15368]
     adds x7, x7, x3
     lsl x5, x7, #3
-    add x5, x5, #120
+    add x5, x5, #128
     adds x5, x5, x0
     cmp x5, x8
     b.hi .Lasm_Call.ssa_block_1
     mov x8, x20
     str x5, [x8, #15368]
-    stp w7, w3, [x0, #108]
+    stp w7, w3, [x0, #116]
     ldr w5, [x21, #20]
-    str w5, [x0, #96]
+    str w5, [x0, #104]
     ldr x5, [x1, #24]
     ldr x5, [x5, #16]
     stp x1, x5, [x0, #0]
     ldp x5, x7, [x1, #104]
     stp x5, x5, [x0, #32]
     str x7, [x0, #48]
-    stp x6, x2, [x0, #72]
+    stp x6, x2, [x0, #80]
     movz x2, #0x7ffb, lsl #48
-    stp x2, x2, [x0, #120]
-    str x6, [x0, #136]
-    stp x2, x2, [x0, #144]
+    stp x2, x2, [x0, #128]
+    str x6, [x0, #144]
+    stp x2, x2, [x0, #152]
     add x5, x0, #16
     add x1, x1, #120
     ldp x1, x6, [x1, #0]
     stp x1, x6, [x5, #0]
-    str wzr, [x0, #56]
-    str wzr, [x0, #60]
+    str wzr, [x0, #64]
+    mov x5, x20
+    ldr x1, [x5, #15384]
+    str x1, [x0, #56]
+    add x1, x1, #1
+    str x1, [x5, #15384]
+    str wzr, [x0, #68]
     movn w9, #0
-    str w9, [x0, #64]
-    strb wzr, [x0, #68]
-    strb wzr, [x0, #69]
-    strb wzr, [x0, #70]
-    str x28, [x0, #88]
+    str w9, [x0, #72]
+    strb wzr, [x0, #76]
+    strb wzr, [x0, #77]
+    strb wzr, [x0, #78]
+    str x28, [x0, #96]
     ldp w6, w5, [x21, #4]
     sub w1, w21, w26
     adds x1, x1, x6
-    stp w1, w5, [x0, #100]
+    stp w1, w5, [x0, #108]
     mov w1, #5
-    add x5, x0, #120
+    add x5, x0, #128
 .Lasm_Call.ssa_block_17:
     add x6, x1, #1
     cmp x6, x4
@@ -4735,7 +4740,7 @@ asm_handler_Call:
     b.hs .Lasm_Call.ssa_block_19
     str x2, [x5, x1, lsl #3]
 .Lasm_Call.ssa_block_19:
-    ldr x1, [x0, #80]
+    ldr x1, [x0, #88]
     ldp x6, x7, [x1, #376]
     mov x1, #0
     mov x2, x4
@@ -4751,7 +4756,7 @@ asm_handler_Call:
     ldr w2, [x21, #20]
     mov x1, #0
     adds x4, x4, x6
-    add x6, x28, #120
+    add x6, x28, #128
     add x7, x21, #28
 .Lasm_Call.ssa_block_25:
     cmp x1, x2
@@ -4773,12 +4778,12 @@ asm_handler_Call:
     add x4, x4, #1
     b .Lasm_Call.ssa_block_28
 .Lasm_Call.ssa_block_27:
-    ldr x1, [x0, #80]
+    ldr x1, [x0, #88]
     ldr x26, [x1, #80]
     mov x1, x20
     str x0, [x1, #15288]
     mov x28, x0
-    add x27, x28, #120
+    add x27, x28, #128
     mov w25, #0
     add x21, x26, w25, uxtw
     ldrb w9, [x21]
@@ -4791,7 +4796,7 @@ asm_handler_Call:
     ldr x4, [x0, #15376]
     ldr x0, [x0, #15368]
     lsl x3, x2, #3
-    add x3, x3, #120
+    add x3, x3, #128
     adds x3, x3, x0
     cmp x3, x4
     b.hi .Lasm_Call.ssa_block_1
@@ -4803,8 +4808,8 @@ asm_handler_Call:
     b.hi .Lasm_Call.ssa_block_1
     mov x4, x20
     str x3, [x4, #15368]
-    stp w2, w2, [x0, #108]
-    str w2, [x0, #96]
+    stp w2, w2, [x0, #116]
+    str w2, [x0, #104]
     ldr x3, [x1, #24]
     ldr x3, [x3, #16]
     stp x1, x3, [x0, #0]
@@ -4814,28 +4819,33 @@ asm_handler_Call:
     str x3, [x0, #48]
     ldr w3, [x21, #16]
     ldr x3, [x27, x3, lsl #3]
-    str x3, [x0, #72]
+    str x3, [x0, #80]
     mov x3, #0
     add x4, x0, #16
     stp x3, x3, [x4, #0]
-    str xzr, [x0, #80]
-    str wzr, [x0, #56]
-    str wzr, [x0, #60]
+    str xzr, [x0, #88]
+    str wzr, [x0, #64]
+    mov x4, x20
+    ldr x3, [x4, #15384]
+    str x3, [x0, #56]
+    add x3, x3, #1
+    str x3, [x4, #15384]
+    str wzr, [x0, #68]
     movn w9, #0
-    str w9, [x0, #64]
-    strb wzr, [x0, #68]
-    strb wzr, [x0, #69]
-    strb wzr, [x0, #70]
+    str w9, [x0, #72]
+    strb wzr, [x0, #76]
+    strb wzr, [x0, #77]
+    strb wzr, [x0, #78]
     ldp w3, w5, [x21, #4]
     sub w4, w21, w26
     adds x3, x3, x4
-    str w4, [x28, #56]
-    str x28, [x0, #88]
-    stp w3, w5, [x0, #100]
+    str w4, [x28, #64]
+    str x28, [x0, #96]
+    stp w3, w5, [x0, #108]
     mov x3, #0
-    add x4, x28, #120
+    add x4, x28, #128
     add x5, x21, #28
-    add x6, x0, #120
+    add x6, x0, #128
 .Lasm_Call.ssa_block_31:
     cmp x3, x2
     b.hs .Lasm_Call.ssa_block_30
@@ -4848,9 +4858,9 @@ asm_handler_Call:
     mov x2, x20
     str x0, [x2, #15288]
     mov x28, x0
-    add x27, x28, #120
+    add x27, x28, #128
     ldr w0, [x1, #104]
-    ldr x1, [x2, #16688]
+    ldr x1, [x2, #16696]
     lsl x0, x0, #4
     adds x0, x0, x1
     ldr w1, [x0, #8]
@@ -4860,12 +4870,12 @@ asm_handler_Call:
     blr x9
     and x1, x1, #0xff
     cbnz x1, .Lasm_Call.ssa_block_4
-    ldr x1, [x28, #88]
+    ldr x1, [x28, #96]
     mov x2, x20
     str x1, [x2, #15288]
     str x28, [x2, #15368]
     mov x28, x1
-    add x27, x28, #120
+    add x27, x28, #128
     ldr w9, [x21, #8]
     str x0, [x27, x9, lsl #3]
     ldr w0, [x21, #4]
@@ -4881,8 +4891,8 @@ asm_handler_Call:
     cbnz w0, .Lasm_Call.ssa_block_1
     mov x0, x20
     ldr x28, [x0, #15288]
-    add x27, x28, #120
-    ldr x0, [x28, #80]
+    add x27, x28, #128
+    ldr x0, [x28, #88]
     ldr x26, [x0, #80]
     mov w25, #0
     add x21, x26, w25, uxtw
@@ -5614,13 +5624,13 @@ asm_handler_ExpRhsInt32:
     mov x4, x1
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_exp_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -6773,13 +6783,13 @@ asm_handler_Add_cold:
     mov x4, x0
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_add_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -6862,13 +6872,13 @@ asm_handler_Sub_cold:
     mov x4, x0
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_sub_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -6950,13 +6960,13 @@ asm_handler_Mul_cold:
     mov x4, x0
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_mul_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -6979,14 +6989,14 @@ asm_handler_Exp_cold_end:
 asm_handler_ConcatString:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_concat_string)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -6999,14 +7009,14 @@ asm_handler_ConcatString_cold_end:
 asm_handler_CopyObjectExcludingProperties:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_copy_object_excluding_properties)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -7019,14 +7029,14 @@ asm_handler_CopyObjectExcludingProperties_cold_end:
 asm_handler_ImportCall:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_import_call)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -7039,14 +7049,14 @@ asm_handler_ImportCall_cold_end:
 asm_handler_NewClass:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_new_class)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -7106,13 +7116,13 @@ asm_handler_JumpLessThan_cold:
     mov x3, x0
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_jump_less_than_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -7157,13 +7167,13 @@ asm_handler_JumpGreaterThan_cold:
     mov x3, x0
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_jump_greater_than_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -7208,13 +7218,13 @@ asm_handler_JumpLessThanEquals_cold:
     mov x3, x0
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_jump_less_than_equals_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -7259,13 +7269,13 @@ asm_handler_JumpGreaterThanEquals_cold:
     mov x3, x0
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_jump_greater_than_equals_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -7292,13 +7302,13 @@ asm_handler_JumpLooselyEquals_cold:
     mov x2, x0
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_jump_loosely_equals_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -7325,13 +7335,13 @@ asm_handler_JumpLooselyInequals_cold:
     mov x2, x0
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_jump_loosely_inequals_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -7358,13 +7368,13 @@ asm_handler_JumpStrictlyEquals_cold:
     mov x3, x1
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_jump_strictly_equals_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -7391,13 +7401,13 @@ asm_handler_JumpStrictlyInequals_cold:
     mov x3, x1
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_jump_strictly_inequals_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -7422,14 +7432,14 @@ asm_handler_Increment_cold:
 .Lasm_Increment.ssa_block_2:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_increment)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -7454,14 +7464,14 @@ asm_handler_Decrement_cold:
 .Lasm_Decrement.ssa_block_2:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_decrement)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -7483,14 +7493,14 @@ asm_handler_GetLexicalEnvironment_cold_end:
 asm_handler_GetImportMeta:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_get_import_meta)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -7503,14 +7513,14 @@ asm_handler_GetImportMeta_cold_end:
 asm_handler_GetNewTarget:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_get_new_target)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -7523,14 +7533,14 @@ asm_handler_GetNewTarget_cold_end:
 asm_handler_GetSuperConstructor:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_get_super_constructor)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -7546,14 +7556,14 @@ asm_handler_GetBinding_cold:
 .Lasm_GetBinding.ssa_block_1:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_get_binding)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -7564,14 +7574,14 @@ asm_handler_DynamicGetBinding_cold:
 .Lasm_DynamicGetBinding.ssa_block_1:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_dynamic_get_binding)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -7584,14 +7594,14 @@ asm_handler_DynamicGetInitializedBinding_cold:
 .Lasm_DynamicGetInitializedBinding.ssa_block_1:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_dynamic_get_initialized_binding)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -7606,14 +7616,14 @@ asm_handler_DynamicInitializeLexicalBinding_cold:
 .Lasm_DynamicInitializeLexicalBinding.ssa_block_1:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_dynamic_initialize_lexical_binding)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -7624,14 +7634,14 @@ asm_handler_DynamicInitializeVariableBinding_cold:
 .Lasm_DynamicInitializeVariableBinding.ssa_block_1:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_dynamic_initialize_variable_binding)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -7642,14 +7652,14 @@ asm_handler_SetLexicalBinding_cold:
 .Lasm_SetLexicalBinding.ssa_block_1:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_set_lexical_binding)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -7660,14 +7670,14 @@ asm_handler_SetVariableBinding_cold:
 .Lasm_SetVariableBinding.ssa_block_1:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_set_variable_binding)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -7678,14 +7688,14 @@ asm_handler_DynamicSetLexicalBinding_cold:
 .Lasm_DynamicSetLexicalBinding.ssa_block_1:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_dynamic_set_lexical_binding)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -7696,14 +7706,14 @@ asm_handler_DynamicSetVariableBinding_cold:
 .Lasm_DynamicSetVariableBinding.ssa_block_1:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_dynamic_set_variable_binding)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -7713,14 +7723,14 @@ asm_handler_DynamicSetVariableBinding_cold_end:
 asm_handler_ResolveBinding:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_resolve_binding)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -7733,14 +7743,14 @@ asm_handler_ResolveBinding_cold_end:
 asm_handler_ResolveSuperBase:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_resolve_super_base)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -7753,14 +7763,14 @@ asm_handler_ResolveSuperBase_cold_end:
 asm_handler_SetResolvedBinding:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_set_resolved_binding)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -7773,14 +7783,14 @@ asm_handler_SetResolvedBinding_cold_end:
 asm_handler_TypeofBinding:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_typeof_binding)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -7793,14 +7803,14 @@ asm_handler_TypeofBinding_cold_end:
 asm_handler_DynamicTypeofBinding:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_dynamic_typeof_binding)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -7813,14 +7823,14 @@ asm_handler_DynamicTypeofBinding_cold_end:
 asm_handler_HasPrivateId:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_has_private_id)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -7833,14 +7843,14 @@ asm_handler_HasPrivateId_cold_end:
 asm_handler_SetFunctionName:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_set_function_name)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -7853,14 +7863,14 @@ asm_handler_SetFunctionName_cold_end:
 asm_handler_NewArrayWithLength:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_new_array_with_length)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -7873,14 +7883,14 @@ asm_handler_NewArrayWithLength_cold_end:
 asm_handler_ArrayAppend:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_array_append)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -7893,14 +7903,14 @@ asm_handler_ArrayAppend_cold_end:
 asm_handler_CreateVariable:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_create_variable)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -7913,14 +7923,14 @@ asm_handler_CreateVariable_cold_end:
 asm_handler_EnterObjectEnvironment:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_enter_object_environment)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -7948,14 +7958,14 @@ asm_handler_PostfixIncrement_cold:
 .Lasm_PostfixIncrement.ssa_block_2:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_postfix_increment)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -7969,13 +7979,13 @@ asm_handler_Div_cold:
     mov x4, x0
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_div_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -8020,13 +8030,13 @@ asm_handler_LessThan_cold:
     mov x4, x0
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_less_than_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -8068,13 +8078,13 @@ asm_handler_LessThanEquals_cold:
     mov x4, x0
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_less_than_equals_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -8116,13 +8126,13 @@ asm_handler_GreaterThan_cold:
     mov x4, x0
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_greater_than_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -8164,13 +8174,13 @@ asm_handler_GreaterThanEquals_cold:
     mov x4, x0
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_greater_than_equals_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -8213,13 +8223,13 @@ asm_handler_BitwiseXor_cold:
     mov x4, x0
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_bitwise_xor_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -8244,14 +8254,14 @@ asm_handler_UnaryPlus_cold:
     b.ne .Lasm_UnaryPlus.ssa_block_2
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_unary_plus)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -8269,14 +8279,14 @@ asm_handler_ThrowIfTDZ_cold:
 .Lasm_ThrowIfTDZ.ssa_block_1:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_throw_if_tdz)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -8287,14 +8297,14 @@ asm_handler_ThrowIfNotObject_cold:
 .Lasm_ThrowIfNotObject.ssa_block_1:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_throw_if_not_object)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -8305,14 +8315,14 @@ asm_handler_ThrowIfNullish_cold:
 .Lasm_ThrowIfNullish.ssa_block_1:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_throw_if_nullish)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -8322,14 +8332,14 @@ asm_handler_ThrowIfNullish_cold_end:
 asm_handler_ThrowConstAssignment:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_throw_const_assignment)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -8342,14 +8352,14 @@ asm_handler_ThrowConstAssignment_cold_end:
 asm_handler_Throw:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_throw)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -8362,14 +8372,14 @@ asm_handler_Throw_cold_end:
 asm_handler_Debugger:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_debugger)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -8382,14 +8392,14 @@ asm_handler_Debugger_cold_end:
 asm_handler_Await:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_await)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -8402,14 +8412,14 @@ asm_handler_Await_cold_end:
 asm_handler_Yield:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_yield)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -8422,14 +8432,14 @@ asm_handler_Yield_cold_end:
 asm_handler_YieldIteratorResult:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_yield_iterator_result)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -8442,14 +8452,14 @@ asm_handler_YieldIteratorResult_cold_end:
 asm_handler_ToString:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_to_string)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -8462,14 +8472,14 @@ asm_handler_ToString_cold_end:
 asm_handler_ToPrimitiveWithStringHint:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_to_primitive_with_string_hint)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -8482,14 +8492,14 @@ asm_handler_ToPrimitiveWithStringHint_cold_end:
 asm_handler_ToObject:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_to_object)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -8502,14 +8512,14 @@ asm_handler_ToObject_cold_end:
 asm_handler_ToLength:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_to_length)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -8523,14 +8533,14 @@ asm_handler_BitwiseNot_cold:
 .Lasm_BitwiseNot.ssa_block_2:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_bitwise_not)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -8573,13 +8583,13 @@ asm_handler_BitwiseAnd_cold:
     mov x4, x0
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_bitwise_and_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -8633,13 +8643,13 @@ asm_handler_BitwiseOr_cold:
     mov x4, x0
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_bitwise_or_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -8664,13 +8674,13 @@ asm_handler_LeftShift_cold:
     mov x4, x1
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_left_shift_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -8684,13 +8694,13 @@ asm_handler_RightShift_cold:
     mov x4, x1
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_right_shift_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -8713,13 +8723,13 @@ asm_handler_UnsignedRightShift_cold:
     mov x4, x1
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_unsigned_right_shift_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -8733,13 +8743,13 @@ asm_handler_Mod_cold:
     mov x4, x1
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_mod_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -8763,13 +8773,13 @@ asm_handler_StrictlyEquals_cold:
     mov x4, x1
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_strictly_equals_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -8793,13 +8803,13 @@ asm_handler_StrictlyInequals_cold:
     mov x4, x1
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_strictly_inequals_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -8810,14 +8820,14 @@ asm_handler_GetCalleeAndThisFromEnvironment_cold:
 .Lasm_GetCalleeAndThisFromEnvironment.ssa_block_1:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_get_callee_and_this)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -8828,14 +8838,14 @@ asm_handler_DynamicGetCalleeAndThisFromEnvironment_cold:
 .Lasm_DynamicGetCalleeAndThisFromEnvironment.ssa_block_1:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_dynamic_get_callee_and_this)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -8860,13 +8870,13 @@ asm_handler_LooselyEquals_cold:
     mov x2, x1
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_loosely_equals_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -8891,13 +8901,13 @@ asm_handler_LooselyInequals_cold:
     mov x2, x1
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_loosely_inequals_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -8930,14 +8940,14 @@ asm_handler_UnaryMinus_cold:
 .Lasm_UnaryMinus.ssa_block_5:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_unary_minus)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -8970,14 +8980,14 @@ asm_handler_PostfixDecrement_cold:
 .Lasm_PostfixDecrement.ssa_block_2:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_postfix_decrement)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9002,14 +9012,14 @@ asm_handler_ToInt32_cold:
 .Lasm_ToInt32.ssa_block_1:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_to_int32)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9061,14 +9071,14 @@ asm_handler_PutByValue_cold:
 .Lasm_PutByValue.ssa_block_1:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_put_by_value)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9099,14 +9109,14 @@ asm_handler_GetById_cold:
 .Lasm_GetById.ssa_block_2:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_get_by_id)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9119,8 +9129,8 @@ asm_handler_GetById_cold:
     cbnz w0, .Lasm_GetById.ssa_block_4
     mov x0, x20
     ldr x28, [x0, #15288]
-    add x27, x28, #120
-    ldr x0, [x28, #80]
+    add x27, x28, #128
+    ldr x0, [x28, #88]
     ldr x26, [x0, #80]
     mov w25, #0
     add x21, x26, w25, uxtw
@@ -9132,14 +9142,14 @@ asm_handler_GetById_cold_end:
 asm_handler_GetByIdWithThis:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_get_by_id_with_this)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9163,14 +9173,14 @@ asm_handler_PutById_cold:
 .Lasm_PutById.ssa_block_1:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_put_by_id)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9180,14 +9190,14 @@ asm_handler_PutById_cold_end:
 asm_handler_PutByIdWithThis:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_put_by_id_with_this)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9220,14 +9230,14 @@ asm_handler_GetByValue_cold:
 .Lasm_GetByValue.ssa_block_1:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_get_by_value)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9240,14 +9250,14 @@ asm_handler_GetByValue_cold_end:
 asm_handler_GetByValueWithThis:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_get_by_value_with_this)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9260,14 +9270,14 @@ asm_handler_GetByValueWithThis_cold_end:
 asm_handler_PutByValueWithThis:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_put_by_value_with_this)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9280,14 +9290,14 @@ asm_handler_PutByValueWithThis_cold_end:
 asm_handler_PutBySpread:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_put_by_spread)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9310,14 +9320,14 @@ asm_handler_GetLength_cold:
 .Lasm_GetLength.ssa_block_1:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_get_length)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9327,14 +9337,14 @@ asm_handler_GetLength_cold_end:
 asm_handler_GetLengthWithThis:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_get_length_with_this)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9347,14 +9357,14 @@ asm_handler_GetLengthWithThis_cold_end:
 asm_handler_GetMethod:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_get_method)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9367,14 +9377,14 @@ asm_handler_GetMethod_cold_end:
 asm_handler_GetIterator:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_get_iterator)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9388,14 +9398,14 @@ asm_handler_GetGlobal_cold:
 .Lasm_GetGlobal.ssa_block_2:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_get_global)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9426,14 +9436,14 @@ asm_handler_SetGlobal_cold:
 .Lasm_SetGlobal.ssa_block_2:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_set_global)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9446,10 +9456,10 @@ asm_handler_Call_cold:
     tbnz w0, #31, .Lasm_Call.ssa_block_5
     mov x0, x20
     ldr x28, [x0, #15288]
-    add x27, x28, #120
-    ldr x0, [x28, #80]
+    add x27, x28, #128
+    ldr x0, [x28, #88]
     ldr x26, [x0, #80]
-    ldr w25, [x28, #56]
+    ldr w25, [x28, #64]
     add x21, x26, w25, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9457,14 +9467,14 @@ asm_handler_Call_cold:
 .Lasm_Call.ssa_block_1:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_call)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9488,14 +9498,14 @@ asm_handler_CallBuiltinMathAbs_cold:
 .Lasm_CallBuiltinMathAbs.ssa_block_1:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_call_builtin_math_abs)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9506,14 +9516,14 @@ asm_handler_CallBuiltinMathFloor_cold:
 .Lasm_CallBuiltinMathFloor.ssa_block_1:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_call_builtin_math_floor)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9527,14 +9537,14 @@ asm_handler_CallBuiltinMathCeil_cold:
 .Lasm_CallBuiltinMathCeil.ssa_block_1:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_call_builtin_math_ceil)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9548,14 +9558,14 @@ asm_handler_CallBuiltinMathSqrt_cold:
 .Lasm_CallBuiltinMathSqrt.ssa_block_1:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_call_builtin_math_sqrt)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9569,14 +9579,14 @@ asm_handler_CallBuiltinMathExp_cold:
 .Lasm_CallBuiltinMathExp.ssa_block_1:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_call_builtin_math_exp)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9586,14 +9596,14 @@ asm_handler_CallBuiltinMathExp_cold_end:
 asm_handler_CallBuiltinMathLog:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_call_builtin_math_log)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9606,14 +9616,14 @@ asm_handler_CallBuiltinMathLog_cold_end:
 asm_handler_CallBuiltinMathPow:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_call_builtin_math_pow)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9626,14 +9636,14 @@ asm_handler_CallBuiltinMathPow_cold_end:
 asm_handler_CallBuiltinMathImul:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_call_builtin_math_imul)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9646,14 +9656,14 @@ asm_handler_CallBuiltinMathImul_cold_end:
 asm_handler_CallBuiltinMathRandom:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_call_builtin_math_random)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9666,14 +9676,14 @@ asm_handler_CallBuiltinMathRandom_cold_end:
 asm_handler_CallBuiltinMathRound:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_call_builtin_math_round)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9686,14 +9696,14 @@ asm_handler_CallBuiltinMathRound_cold_end:
 asm_handler_CallBuiltinMathSin:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_call_builtin_math_sin)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9706,14 +9716,14 @@ asm_handler_CallBuiltinMathSin_cold_end:
 asm_handler_CallBuiltinMathCos:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_call_builtin_math_cos)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9726,14 +9736,14 @@ asm_handler_CallBuiltinMathCos_cold_end:
 asm_handler_CallBuiltinMathTan:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_call_builtin_math_tan)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9746,14 +9756,14 @@ asm_handler_CallBuiltinMathTan_cold_end:
 asm_handler_CallBuiltinRegExpPrototypeExec:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_call_builtin_regexp_prototype_exec)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9766,14 +9776,14 @@ asm_handler_CallBuiltinRegExpPrototypeExec_cold_end:
 asm_handler_CallBuiltinRegExpPrototypeReplace:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_call_builtin_regexp_prototype_replace)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9786,14 +9796,14 @@ asm_handler_CallBuiltinRegExpPrototypeReplace_cold_end:
 asm_handler_CallBuiltinRegExpPrototypeSplit:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_call_builtin_regexp_prototype_split)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9806,14 +9816,14 @@ asm_handler_CallBuiltinRegExpPrototypeSplit_cold_end:
 asm_handler_CallBuiltinOrdinaryHasInstance:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_call_builtin_ordinary_has_instance)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9826,14 +9836,14 @@ asm_handler_CallBuiltinOrdinaryHasInstance_cold_end:
 asm_handler_CallBuiltinArrayIteratorPrototypeNext:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_call_builtin_array_iterator_prototype_next)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9846,14 +9856,14 @@ asm_handler_CallBuiltinArrayIteratorPrototypeNext_cold_end:
 asm_handler_CallBuiltinMapIteratorPrototypeNext:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_call_builtin_map_iterator_prototype_next)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9866,14 +9876,14 @@ asm_handler_CallBuiltinMapIteratorPrototypeNext_cold_end:
 asm_handler_CallBuiltinSetIteratorPrototypeNext:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_call_builtin_set_iterator_prototype_next)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9886,14 +9896,14 @@ asm_handler_CallBuiltinSetIteratorPrototypeNext_cold_end:
 asm_handler_CallBuiltinStringIteratorPrototypeNext:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_call_builtin_string_iterator_prototype_next)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9907,14 +9917,14 @@ asm_handler_CallBuiltinStringFromCharCode_cold:
 .Lasm_CallBuiltinStringFromCharCode.ssa_block_1:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_call_builtin_string_from_char_code)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9933,14 +9943,14 @@ asm_handler_CallBuiltinStringPrototypeCharCodeAt_cold:
 .Lasm_CallBuiltinStringPrototypeCharCodeAt.ssa_block_2:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_call_builtin_string_prototype_char_code_at)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9960,14 +9970,14 @@ asm_handler_CallBuiltinStringPrototypeCharAt_cold:
 .Lasm_CallBuiltinStringPrototypeCharAt.ssa_block_1:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_call_builtin_string_prototype_char_at)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9977,14 +9987,14 @@ asm_handler_CallBuiltinStringPrototypeCharAt_cold_end:
 asm_handler_GetObjectPropertyIterator:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_get_object_property_iterator)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -9998,14 +10008,14 @@ asm_handler_ObjectPropertyIteratorNext_cold:
 .Lasm_ObjectPropertyIteratorNext.ssa_block_1:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_object_property_iterator_next)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10015,14 +10025,14 @@ asm_handler_ObjectPropertyIteratorNext_cold_end:
 asm_handler_IteratorClose:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_iterator_close)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10035,14 +10045,14 @@ asm_handler_IteratorClose_cold_end:
 asm_handler_IteratorNext:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_iterator_next)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10055,14 +10065,14 @@ asm_handler_IteratorNext_cold_end:
 asm_handler_IteratorNextUnpack:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_iterator_next_unpack)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10075,14 +10085,14 @@ asm_handler_IteratorNextUnpack_cold_end:
 asm_handler_IteratorToArray:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_iterator_to_array)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10095,14 +10105,14 @@ asm_handler_IteratorToArray_cold_end:
 asm_handler_CallConstruct:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_call_construct)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10115,14 +10125,14 @@ asm_handler_CallConstruct_cold_end:
 asm_handler_CallDirectEval:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_call_direct_eval)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10135,14 +10145,14 @@ asm_handler_CallDirectEval_cold_end:
 asm_handler_CallWithArgumentArray:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_call_with_argument_array)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10155,14 +10165,14 @@ asm_handler_CallWithArgumentArray_cold_end:
 asm_handler_CallDirectEvalWithArgumentArray:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_call_direct_eval_with_argument_array)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10175,14 +10185,14 @@ asm_handler_CallDirectEvalWithArgumentArray_cold_end:
 asm_handler_CallConstructWithArgumentArray:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_call_construct_with_argument_array)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10195,14 +10205,14 @@ asm_handler_CallConstructWithArgumentArray_cold_end:
 asm_handler_SuperCallWithArgumentArray:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_super_call_with_argument_array)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10215,14 +10225,14 @@ asm_handler_SuperCallWithArgumentArray_cold_end:
 asm_handler_NewObject:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_new_object)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10235,14 +10245,14 @@ asm_handler_NewObject_cold_end:
 asm_handler_NewObjectWithNoPrototype:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_new_object_with_no_prototype)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10255,14 +10265,14 @@ asm_handler_NewObjectWithNoPrototype_cold_end:
 asm_handler_CacheObjectShape:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_cache_object_shape)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10275,14 +10285,14 @@ asm_handler_CacheObjectShape_cold_end:
 asm_handler_InitObjectLiteralProperty:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_init_object_literal_property)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10295,14 +10305,14 @@ asm_handler_InitObjectLiteralProperty_cold_end:
 asm_handler_NewArray:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_new_array)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10315,14 +10325,14 @@ asm_handler_NewArray_cold_end:
 asm_handler_NewPrimitiveArray:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_new_primitive_array)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10335,14 +10345,14 @@ asm_handler_NewPrimitiveArray_cold_end:
 asm_handler_NewRegExp:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_new_regexp)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10355,14 +10365,14 @@ asm_handler_NewRegExp_cold_end:
 asm_handler_NewReferenceError:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_new_reference_error)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10375,14 +10385,14 @@ asm_handler_NewReferenceError_cold_end:
 asm_handler_NewTypeError:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_new_type_error)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10395,14 +10405,14 @@ asm_handler_NewTypeError_cold_end:
 asm_handler_InstanceOf:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_instance_of)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10415,14 +10425,14 @@ asm_handler_InstanceOf_cold_end:
 asm_handler_In:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_in)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10437,14 +10447,14 @@ asm_handler_IsCallable_cold_end:
 asm_handler_IsConstructor:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_is_constructor)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10457,14 +10467,14 @@ asm_handler_IsConstructor_cold_end:
 asm_handler_AddPrivateName:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_add_private_name)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10477,14 +10487,14 @@ asm_handler_AddPrivateName_cold_end:
 asm_handler_CreateAsyncFromSyncIterator:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_create_async_from_sync_iterator)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10497,14 +10507,14 @@ asm_handler_CreateAsyncFromSyncIterator_cold_end:
 asm_handler_CreateDataPropertyOrThrow:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_create_data_property_or_throw)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10517,14 +10527,14 @@ asm_handler_CreateDataPropertyOrThrow_cold_end:
 asm_handler_CreateImmutableBinding:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_create_immutable_binding)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10537,14 +10547,14 @@ asm_handler_CreateImmutableBinding_cold_end:
 asm_handler_CreateMutableBinding:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_create_mutable_binding)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10557,14 +10567,14 @@ asm_handler_CreateMutableBinding_cold_end:
 asm_handler_CreateRestParams:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_create_rest_params)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10577,14 +10587,14 @@ asm_handler_CreateRestParams_cold_end:
 asm_handler_CreateArguments:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_create_arguments)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10597,14 +10607,14 @@ asm_handler_CreateArguments_cold_end:
 asm_handler_CreateLexicalEnvironment:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_create_lexical_environment)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10617,14 +10627,14 @@ asm_handler_CreateLexicalEnvironment_cold_end:
 asm_handler_CreatePrivateEnvironment:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_create_private_environment)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10637,14 +10647,14 @@ asm_handler_CreatePrivateEnvironment_cold_end:
 asm_handler_CreateVariableEnvironment:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_create_variable_environment)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10657,14 +10667,14 @@ asm_handler_CreateVariableEnvironment_cold_end:
 asm_handler_DeleteById:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_delete_by_id)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10677,14 +10687,14 @@ asm_handler_DeleteById_cold_end:
 asm_handler_DeleteByValue:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_delete_by_value)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10697,14 +10707,14 @@ asm_handler_DeleteByValue_cold_end:
 asm_handler_DeleteVariable:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_delete_variable)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10717,14 +10727,14 @@ asm_handler_DeleteVariable_cold_end:
 asm_handler_GetCompletionFields:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_get_completion_fields)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10737,14 +10747,14 @@ asm_handler_GetCompletionFields_cold_end:
 asm_handler_SetCompletionType:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_set_completion_type)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10757,14 +10767,14 @@ asm_handler_SetCompletionType_cold_end:
 asm_handler_GetTemplateObject:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_get_template_object)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10777,14 +10787,14 @@ asm_handler_GetTemplateObject_cold_end:
 asm_handler_NewFunction:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_new_function)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10797,14 +10807,14 @@ asm_handler_NewFunction_cold_end:
 asm_handler_Typeof:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_typeof)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10820,14 +10830,14 @@ asm_handler_ResolveThisBinding_cold:
 .Lasm_ResolveThisBinding.ssa_block_1:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_resolve_this_binding)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10837,14 +10847,14 @@ asm_handler_ResolveThisBinding_cold_end:
 asm_handler_GetPrivateById:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_get_private_by_id)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10857,14 +10867,14 @@ asm_handler_GetPrivateById_cold_end:
 asm_handler_PutPrivateById:
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     mov x2, x21
     bl CSYM(asm_slow_path_put_private_by_id)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -10896,13 +10906,13 @@ asm_handler_AddLhsInt32_cold:
     mov x4, x0
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_add_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -11014,13 +11024,13 @@ asm_handler_AddRhsInt32_cold:
     mov x4, x1
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_add_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -11088,13 +11098,13 @@ asm_handler_SubRhsInt32_cold:
     mov x4, x1
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_sub_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -11116,13 +11126,13 @@ asm_handler_MulRhsInt32_cold:
     mov x4, x1
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_mul_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -11195,13 +11205,13 @@ asm_handler_DivRhsInt32_cold:
     mov x4, x1
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_div_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -11250,13 +11260,13 @@ asm_handler_BitwiseXorRhsInt32_cold:
     mov x4, x1
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_bitwise_xor_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -11313,13 +11323,13 @@ asm_handler_BitwiseAndRhsInt32_cold:
     mov x4, x1
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_bitwise_and_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -11376,13 +11386,13 @@ asm_handler_BitwiseOrRhsInt32_cold:
     mov x4, x1
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_bitwise_or_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -11409,13 +11419,13 @@ asm_handler_LeftShiftRhsInt32_cold:
     mov x4, x1
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_left_shift_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -11431,13 +11441,13 @@ asm_handler_RightShiftRhsInt32_cold:
     mov x4, x1
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_right_shift_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -11462,13 +11472,13 @@ asm_handler_UnsignedRightShiftRhsInt32_cold:
     mov x4, x1
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_unsigned_right_shift_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -11484,13 +11494,13 @@ asm_handler_ModRhsInt32_cold:
     mov x4, x1
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_mod_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -11509,13 +11519,13 @@ asm_handler_LessThanRhsInt32_cold:
     mov x4, x1
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_less_than_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -11542,13 +11552,13 @@ asm_handler_LessThanEqualsRhsInt32_cold:
     mov x4, x1
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_less_than_equals_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -11575,13 +11585,13 @@ asm_handler_GreaterThanRhsInt32_cold:
     mov x4, x1
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_greater_than_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -11608,13 +11618,13 @@ asm_handler_GreaterThanEqualsRhsInt32_cold:
     mov x4, x1
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_greater_than_equals_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -11644,13 +11654,13 @@ asm_handler_JumpLessThanRhsInt32_cold:
     mov x3, x1
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_jump_less_than_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -11680,13 +11690,13 @@ asm_handler_JumpLessThanEqualsRhsInt32_cold:
     mov x3, x1
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_jump_less_than_equals_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -11716,13 +11726,13 @@ asm_handler_JumpGreaterThanRhsInt32_cold:
     mov x3, x1
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_jump_greater_than_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -11752,13 +11762,13 @@ asm_handler_JumpGreaterThanEqualsRhsInt32_cold:
     mov x3, x1
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_jump_greater_than_equals_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -11791,13 +11801,13 @@ asm_handler_StrictlyEqualsRhsInt32_cold:
     mov x2, x1
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_strictly_equals_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -11822,13 +11832,13 @@ asm_handler_StrictlyInequalsRhsInt32_cold:
     mov x2, x1
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_strictly_inequals_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -11853,13 +11863,13 @@ asm_handler_LooselyEqualsRhsInt32_cold:
     mov x2, x1
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_loosely_equals_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -11884,13 +11894,13 @@ asm_handler_LooselyInequalsRhsInt32_cold:
     mov x2, x1
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_loosely_inequals_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -11917,13 +11927,13 @@ asm_handler_JumpStrictlyEqualsRhsInt32_cold:
     mov x2, x0
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_jump_strictly_equals_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -11950,13 +11960,13 @@ asm_handler_JumpStrictlyInequalsRhsInt32_cold:
     mov x2, x0
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_jump_strictly_inequals_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -11983,13 +11993,13 @@ asm_handler_JumpLooselyEqualsRhsInt32_cold:
     mov x2, x0
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_jump_loosely_equals_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]
@@ -12016,13 +12026,13 @@ asm_handler_JumpLooselyInequalsRhsInt32_cold:
     mov x2, x0
     mov x0, x20
     sub w1, w21, w26
-    str w1, [x28, #56]
+    str w1, [x28, #64]
     bl CSYM(asm_slow_path_jump_loosely_inequals_values)
     tbnz x0, #63, .Lexit_veneer
     ldr x28, [x20, #15288]
-    ldr x9, [x28, #80]
+    ldr x9, [x28, #88]
     ldr x26, [x9, #80]
-    add x27, x28, #120
+    add x27, x28, #128
     add x21, x26, w0, uxtw
     ldrb w9, [x21]
     ldr x10, [x19, x9, lsl #3]

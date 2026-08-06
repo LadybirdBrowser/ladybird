@@ -112,6 +112,7 @@ NonnullOwnPtr<ExecutionContext> ExecutionContext::copy() const
     copy->variable_environment = variable_environment;
     copy->private_environment = private_environment;
     copy->program_counter = program_counter;
+    copy->frame_id = frame_id;
     copy->yield_continuation = yield_continuation;
     copy->yield_is_await = yield_is_await;
     copy->yield_value_is_iterator_result = yield_value_is_iterator_result;

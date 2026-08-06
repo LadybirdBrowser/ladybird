@@ -1582,7 +1582,7 @@ CSYM(js_interpreter):
     mov rbx, rdx          # values
     movabs r15, 9221683186994511872  # INT32_TAG_SHIFTED
     mov QWORD PTR [rbp - 48], rcx  # save VM*
-    cmp QWORD PTR [rcx + 16712], 0
+    cmp QWORD PTR [rcx + 16720], 0
     lea r12, [rip + asm_dispatch_table]
     je .Ldispatch_table_ready
     lea r12, [rip + asm_debug_dispatch_table]
@@ -1599,7 +1599,7 @@ asm_debugger_trampoline:
     call CSYM(asm_debugger_check_breakpoint)
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, DWORD PTR [rbx + -64]
@@ -1618,7 +1618,7 @@ asm_handler_fallback:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -1735,7 +1735,7 @@ asm_handler_Exp:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -2433,14 +2433,14 @@ asm_handler_Return:
     jz .Lasm_Return.ssa_block_1
     mov edx, DWORD PTR [rbx - 20]
     mov esi, DWORD PTR [rbx - 16]
-    mov DWORD PTR [rax + 56], edx
-    mov QWORD PTR [rax + rsi * 8 + 120], rcx
+    mov DWORD PTR [rax + 64], edx
+    mov QWORD PTR [rax + rsi * 8 + 128], rcx
     mov rcx, QWORD PTR [rbp - 48]
     mov QWORD PTR [rcx + 15288], rax
-    lea r11, [rbx - 120]
+    lea r11, [rbx - 128]
     mov QWORD PTR [rcx + 15368], r11
-    inc DWORD PTR [rcx + 16648]
-    lea rbx, [rax + 120]
+    inc DWORD PTR [rcx + 16656]
+    lea rbx, [rax + 128]
     mov rax, QWORD PTR [rbx - 40]
     mov r14, QWORD PTR [rax + 80]
     mov r13d, edx
@@ -2461,14 +2461,14 @@ asm_handler_End:
     jz .Lasm_End.ssa_block_1
     mov edx, DWORD PTR [rbx - 20]
     mov esi, DWORD PTR [rbx - 16]
-    mov DWORD PTR [rax + 56], edx
-    mov QWORD PTR [rax + rsi * 8 + 120], rcx
+    mov DWORD PTR [rax + 64], edx
+    mov QWORD PTR [rax + rsi * 8 + 128], rcx
     mov rcx, QWORD PTR [rbp - 48]
     mov QWORD PTR [rcx + 15288], rax
-    lea r11, [rbx - 120]
+    lea r11, [rbx - 128]
     mov QWORD PTR [rcx + 15368], r11
-    inc DWORD PTR [rcx + 16648]
-    lea rbx, [rax + 120]
+    inc DWORD PTR [rcx + 16656]
+    lea rbx, [rax + 128]
     mov rax, QWORD PTR [rbx - 40]
     mov r14, QWORD PTR [rax + 80]
     mov r13d, edx
@@ -2481,7 +2481,7 @@ asm_handler_End_hot_end:
 
 .p2align 6
 asm_handler_GetLexicalEnvironment:
-    mov rax, QWORD PTR [rbx - 88]
+    mov rax, QWORD PTR [rbx - 96]
     movabs rcx, -2251799813685248
     or rax, rcx
     mov r11d, DWORD PTR [r14 + r13 + 4]
@@ -2497,7 +2497,7 @@ asm_handler_SetLexicalEnvironment:
     mov rax, QWORD PTR [rbx + rax * 8]
     shl rax, 16
     shr rax, 16
-    mov QWORD PTR [rbx - 88], rax
+    mov QWORD PTR [rbx - 96], rax
     add r13d, 8
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
@@ -2505,7 +2505,7 @@ asm_handler_SetLexicalEnvironment_hot_end:
 
 .p2align 6
 asm_handler_GetBinding:
-    mov rcx, QWORD PTR [rbx - 88]
+    mov rcx, QWORD PTR [rbx - 96]
     lea rax, [r14 + r13 + 12]
     mov edx, DWORD PTR [rax + 4]
     mov eax, DWORD PTR [rax]
@@ -2540,7 +2540,7 @@ asm_handler_DynamicGetBinding:
     mov edx, DWORD PTR [rax + 4]
     cmp ecx, 4294967294
     je .Lasm_DynamicGetBinding.ssa_block_1
-    mov rax, QWORD PTR [rbx - 88]
+    mov rax, QWORD PTR [rbx - 96]
     test ecx, ecx
     jz .Lasm_DynamicGetBinding.ssa_block_5
 .Lasm_DynamicGetBinding.ssa_block_6:
@@ -2574,7 +2574,7 @@ asm_handler_DynamicGetBinding_hot_end:
 
 .p2align 6
 asm_handler_GetInitializedBinding:
-    mov rcx, QWORD PTR [rbx - 88]
+    mov rcx, QWORD PTR [rbx - 96]
     lea rax, [r14 + r13 + 12]
     mov edx, DWORD PTR [rax + 4]
     mov eax, DWORD PTR [rax]
@@ -2605,7 +2605,7 @@ asm_handler_DynamicGetInitializedBinding:
     mov edx, DWORD PTR [rax + 4]
     cmp ecx, 4294967294
     je .Lasm_DynamicGetInitializedBinding.ssa_block_1
-    mov rax, QWORD PTR [rbx - 88]
+    mov rax, QWORD PTR [rbx - 96]
     test ecx, ecx
     jz .Lasm_DynamicGetInitializedBinding.ssa_block_5
 .Lasm_DynamicGetInitializedBinding.ssa_block_6:
@@ -2635,7 +2635,7 @@ asm_handler_DynamicGetInitializedBinding_hot_end:
 
 .p2align 6
 asm_handler_InitializeLexicalBinding:
-    mov rcx, QWORD PTR [rbx - 88]
+    mov rcx, QWORD PTR [rbx - 96]
     lea rax, [r14 + r13 + 12]
     mov edx, DWORD PTR [rax + 4]
     mov eax, DWORD PTR [rax]
@@ -2658,7 +2658,7 @@ asm_handler_InitializeLexicalBinding_hot_end:
 
 .p2align 6
 asm_handler_InitializeVariableBinding:
-    mov rcx, QWORD PTR [rbx - 80]
+    mov rcx, QWORD PTR [rbx - 88]
     lea rax, [r14 + r13 + 12]
     mov edx, DWORD PTR [rax + 4]
     mov eax, DWORD PTR [rax]
@@ -2689,7 +2689,7 @@ asm_handler_DynamicInitializeLexicalBinding:
     mov edx, DWORD PTR [rax + 4]
     cmp ecx, 4294967294
     je .Lasm_DynamicInitializeLexicalBinding.ssa_block_1
-    mov rax, QWORD PTR [rbx - 88]
+    mov rax, QWORD PTR [rbx - 96]
     test ecx, ecx
     jz .Lasm_DynamicInitializeLexicalBinding.ssa_block_5
 .Lasm_DynamicInitializeLexicalBinding.ssa_block_6:
@@ -2727,7 +2727,7 @@ asm_handler_DynamicInitializeVariableBinding:
     mov edx, DWORD PTR [rax + 4]
     cmp ecx, 4294967294
     je .Lasm_DynamicInitializeVariableBinding.ssa_block_1
-    mov rax, QWORD PTR [rbx - 80]
+    mov rax, QWORD PTR [rbx - 88]
     test ecx, ecx
     jz .Lasm_DynamicInitializeVariableBinding.ssa_block_5
 .Lasm_DynamicInitializeVariableBinding.ssa_block_6:
@@ -2757,7 +2757,7 @@ asm_handler_DynamicInitializeVariableBinding_hot_end:
 
 .p2align 6
 asm_handler_SetLexicalBinding:
-    mov rcx, QWORD PTR [rbx - 88]
+    mov rcx, QWORD PTR [rbx - 96]
     lea rax, [r14 + r13 + 12]
     mov edx, DWORD PTR [rax]
     mov eax, DWORD PTR [rax + 4]
@@ -2808,7 +2808,7 @@ asm_handler_SetLexicalBinding_hot_end:
 
 .p2align 6
 asm_handler_SetVariableBinding:
-    mov rcx, QWORD PTR [rbx - 80]
+    mov rcx, QWORD PTR [rbx - 88]
     lea rax, [r14 + r13 + 12]
     mov edx, DWORD PTR [rax]
     mov eax, DWORD PTR [rax + 4]
@@ -2867,7 +2867,7 @@ asm_handler_DynamicSetLexicalBinding:
     mov ecx, DWORD PTR [rax + 4]
     cmp edx, 4294967294
     je .Lasm_DynamicSetLexicalBinding.ssa_block_1
-    mov rax, QWORD PTR [rbx - 88]
+    mov rax, QWORD PTR [rbx - 96]
     test edx, edx
     jz .Lasm_DynamicSetLexicalBinding.ssa_block_5
 .Lasm_DynamicSetLexicalBinding.ssa_block_6:
@@ -2933,7 +2933,7 @@ asm_handler_DynamicSetVariableBinding:
     mov ecx, DWORD PTR [rax + 4]
     cmp edx, 4294967294
     je .Lasm_DynamicSetVariableBinding.ssa_block_1
-    mov rax, QWORD PTR [rbx - 80]
+    mov rax, QWORD PTR [rbx - 88]
     test edx, edx
     jz .Lasm_DynamicSetVariableBinding.ssa_block_5
 .Lasm_DynamicSetVariableBinding.ssa_block_6:
@@ -3624,7 +3624,7 @@ asm_handler_StrictlyInequals_hot_end:
 
 .p2align 6
 asm_handler_GetCalleeAndThisFromEnvironment:
-    mov rcx, QWORD PTR [rbx - 88]
+    mov rcx, QWORD PTR [rbx - 96]
     lea rax, [r14 + r13 + 16]
     mov edx, DWORD PTR [rax + 4]
     mov eax, DWORD PTR [rax]
@@ -3662,7 +3662,7 @@ asm_handler_DynamicGetCalleeAndThisFromEnvironment:
     mov edx, DWORD PTR [rax + 4]
     cmp ecx, 4294967294
     je .Lasm_DynamicGetCalleeAndThisFromEnvironment.ssa_block_1
-    mov rax, QWORD PTR [rbx - 88]
+    mov rax, QWORD PTR [rbx - 96]
     test ecx, ecx
     jz .Lasm_DynamicGetCalleeAndThisFromEnvironment.ssa_block_5
 .Lasm_DynamicGetCalleeAndThisFromEnvironment.ssa_block_6:
@@ -3988,7 +3988,7 @@ asm_handler_PutByValue:
     cmp rsi, -1
     je .Lasm_PutByValue.ssa_block_3
     mov rdx, QWORD PTR [rbp - 48]
-    mov rdx, QWORD PTR [rdx + 16656]
+    mov rdx, QWORD PTR [rdx + 16664]
     mov edi, DWORD PTR [rcx + 100]
     cmp rax, rdi
     jae .Lasm_PutByValue.ssa_block_1
@@ -4251,7 +4251,7 @@ asm_handler_GetById:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -4363,7 +4363,7 @@ asm_handler_GetByValue:
     cmp rdx, -1
     je .Lasm_GetByValue.ssa_block_2
     mov rcx, QWORD PTR [rbp - 48]
-    mov rcx, QWORD PTR [rcx + 16656]
+    mov rcx, QWORD PTR [rcx + 16664]
     mov edi, DWORD PTR [rsi + 100]
     cmp rax, rdi
     jae .Lasm_GetByValue.ssa_block_2
@@ -4549,7 +4549,7 @@ asm_handler_GetLength_hot_end:
 
 .p2align 6
 asm_handler_GetGlobal:
-    mov rax, QWORD PTR [rbx - 112]
+    mov rax, QWORD PTR [rbx - 120]
     mov rsi, QWORD PTR [rax + 24]
     mov rdx, QWORD PTR [rax + 32]
     mov rax, QWORD PTR [rbx - 40]
@@ -4599,7 +4599,7 @@ asm_handler_GetGlobal_hot_end:
 
 .p2align 6
 asm_handler_SetGlobal:
-    mov rax, QWORD PTR [rbx - 112]
+    mov rax, QWORD PTR [rbx - 120]
     mov rsi, QWORD PTR [rax + 24]
     mov rcx, QWORD PTR [rax + 32]
     mov rax, QWORD PTR [rbx - 40]
@@ -4738,16 +4738,16 @@ asm_handler_Call:
     add r10, rsi
     mov r8, r10
     shl r8, 3
-    lea r8, [r8 + 120]
+    lea r8, [r8 + 128]
     add r8, rax
     cmp r8, r11
     ja .Lasm_Call.ssa_block_1
     mov r11, QWORD PTR [rbp - 48]
     mov QWORD PTR [r11 + 15368], r8
-    mov DWORD PTR [rax + 108], r10d
-    mov DWORD PTR [rax + 112], esi
+    mov DWORD PTR [rax + 116], r10d
+    mov DWORD PTR [rax + 120], esi
     mov r8d, DWORD PTR [r14 + r13 + 20]
-    mov DWORD PTR [rax + 96], r8d
+    mov DWORD PTR [rax + 104], r8d
     mov r8, QWORD PTR [rcx + 24]
     mov r8, QWORD PTR [r8 + 16]
     mov QWORD PTR [rax], rcx
@@ -4757,36 +4757,41 @@ asm_handler_Call:
     mov QWORD PTR [rax + 32], r8
     mov QWORD PTR [rax + 40], r8
     mov QWORD PTR [rax + 48], r10
-    mov QWORD PTR [rax + 72], r9
-    mov QWORD PTR [rax + 80], rdx
+    mov QWORD PTR [rax + 80], r9
+    mov QWORD PTR [rax + 88], rdx
     movabs rdx, 9221964661971222528
-    mov QWORD PTR [rax + 120], rdx
     mov QWORD PTR [rax + 128], rdx
-    mov QWORD PTR [rax + 136], r9
-    mov QWORD PTR [rax + 144], rdx
+    mov QWORD PTR [rax + 136], rdx
+    mov QWORD PTR [rax + 144], r9
     mov QWORD PTR [rax + 152], rdx
+    mov QWORD PTR [rax + 160], rdx
     lea r8, [rax + 16]
     lea rcx, [rcx + 120]
     mov r9, QWORD PTR [rcx + 8]
     mov rcx, QWORD PTR [rcx]
     mov QWORD PTR [r8], rcx
     mov QWORD PTR [r8 + 8], r9
-    mov DWORD PTR [rax + 56], 0
-    mov DWORD PTR [rax + 60], 0
-    mov DWORD PTR [rax + 64], 4294967295
-    mov BYTE PTR [rax + 68], 0
-    mov BYTE PTR [rax + 69], 0
-    mov BYTE PTR [rax + 70], 0
-    lea r11, [rbx - 120]
-    mov QWORD PTR [rax + 88], r11
+    mov DWORD PTR [rax + 64], 0
+    mov r8, QWORD PTR [rbp - 48]
+    mov rcx, QWORD PTR [r8 + 15384]
+    mov QWORD PTR [rax + 56], rcx
+    lea rcx, [rcx + 1]
+    mov QWORD PTR [r8 + 15384], rcx
+    mov DWORD PTR [rax + 68], 0
+    mov DWORD PTR [rax + 72], 4294967295
+    mov BYTE PTR [rax + 76], 0
+    mov BYTE PTR [rax + 77], 0
+    mov BYTE PTR [rax + 78], 0
+    lea r11, [rbx - 128]
+    mov QWORD PTR [rax + 96], r11
     mov r9d, DWORD PTR [r14 + r13 + 4]
     mov r8d, DWORD PTR [r14 + r13 + 8]
     mov ecx, r13d
     add rcx, r9
-    mov DWORD PTR [rax + 100], ecx
-    mov DWORD PTR [rax + 104], r8d
+    mov DWORD PTR [rax + 108], ecx
+    mov DWORD PTR [rax + 112], r8d
     mov rcx, 5
-    lea r8, [rax + 120]
+    lea r8, [rax + 128]
 .Lasm_Call.ssa_block_17:
     lea r9, [rcx + 1]
     cmp r9, rdi
@@ -4800,7 +4805,7 @@ asm_handler_Call:
     jae .Lasm_Call.ssa_block_19
     mov QWORD PTR [r8 + rcx * 8], rdx
 .Lasm_Call.ssa_block_19:
-    mov rcx, QWORD PTR [rax + 80]
+    mov rcx, QWORD PTR [rax + 88]
     mov r9, QWORD PTR [rcx + 376]
     mov r10, QWORD PTR [rcx + 384]
     xor rcx, rcx
@@ -4839,11 +4844,11 @@ asm_handler_Call:
     lea rdi, [rdi + 1]
     jmp .Lasm_Call.ssa_block_28
 .Lasm_Call.ssa_block_27:
-    mov rcx, QWORD PTR [rax + 80]
+    mov rcx, QWORD PTR [rax + 88]
     mov r14, QWORD PTR [rcx + 80]
     mov rcx, QWORD PTR [rbp - 48]
     mov QWORD PTR [rcx + 15288], rax
-    lea rbx, [rax + 120]
+    lea rbx, [rax + 128]
     mov r13d, 0
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
@@ -4856,7 +4861,7 @@ asm_handler_Call:
     mov rax, QWORD PTR [rax + 15368]
     mov rsi, rdx
     shl rsi, 3
-    lea rsi, [rsi + 120]
+    lea rsi, [rsi + 128]
     add rsi, rax
     cmp rsi, rdi
     ja .Lasm_Call.ssa_block_1
@@ -4868,46 +4873,51 @@ asm_handler_Call:
     ja .Lasm_Call.ssa_block_1
     mov rdi, QWORD PTR [rbp - 48]
     mov QWORD PTR [rdi + 15368], rsi
-    mov DWORD PTR [rax + 108], edx
-    mov DWORD PTR [rax + 112], edx
-    mov DWORD PTR [rax + 96], edx
+    mov DWORD PTR [rax + 116], edx
+    mov DWORD PTR [rax + 120], edx
+    mov DWORD PTR [rax + 104], edx
     mov rsi, QWORD PTR [rcx + 24]
     mov rsi, QWORD PTR [rsi + 16]
     mov QWORD PTR [rax], rcx
     mov QWORD PTR [rax + 8], rsi
-    mov rsi, QWORD PTR [rbx - 88]
-    mov rdi, QWORD PTR [rbx - 80]
+    mov rsi, QWORD PTR [rbx - 96]
+    mov rdi, QWORD PTR [rbx - 88]
     mov QWORD PTR [rax + 32], rsi
     mov QWORD PTR [rax + 40], rdi
-    mov rsi, QWORD PTR [rbx - 72]
+    mov rsi, QWORD PTR [rbx - 80]
     mov QWORD PTR [rax + 48], rsi
     mov esi, DWORD PTR [r14 + r13 + 16]
     mov rsi, QWORD PTR [rbx + rsi * 8]
-    mov QWORD PTR [rax + 72], rsi
+    mov QWORD PTR [rax + 80], rsi
     xor rsi, rsi
     lea rdi, [rax + 16]
     mov QWORD PTR [rdi], rsi
     mov QWORD PTR [rdi + 8], rsi
-    mov QWORD PTR [rax + 80], 0
-    mov DWORD PTR [rax + 56], 0
-    mov DWORD PTR [rax + 60], 0
-    mov DWORD PTR [rax + 64], 4294967295
-    mov BYTE PTR [rax + 68], 0
-    mov BYTE PTR [rax + 69], 0
-    mov BYTE PTR [rax + 70], 0
+    mov QWORD PTR [rax + 88], 0
+    mov DWORD PTR [rax + 64], 0
+    mov rdi, QWORD PTR [rbp - 48]
+    mov rsi, QWORD PTR [rdi + 15384]
+    mov QWORD PTR [rax + 56], rsi
+    lea rsi, [rsi + 1]
+    mov QWORD PTR [rdi + 15384], rsi
+    mov DWORD PTR [rax + 68], 0
+    mov DWORD PTR [rax + 72], 4294967295
+    mov BYTE PTR [rax + 76], 0
+    mov BYTE PTR [rax + 77], 0
+    mov BYTE PTR [rax + 78], 0
     mov esi, DWORD PTR [r14 + r13 + 4]
     mov r8d, DWORD PTR [r14 + r13 + 8]
     mov edi, r13d
     add rsi, rdi
     mov DWORD PTR [rbx - 64], edi
-    lea r11, [rbx - 120]
-    mov QWORD PTR [rax + 88], r11
-    mov DWORD PTR [rax + 100], esi
-    mov DWORD PTR [rax + 104], r8d
+    lea r11, [rbx - 128]
+    mov QWORD PTR [rax + 96], r11
+    mov DWORD PTR [rax + 108], esi
+    mov DWORD PTR [rax + 112], r8d
     xor rsi, rsi
     lea rdi, [rbx]
     lea r8, [r14 + r13 + 28]
-    lea r9, [rax + 120]
+    lea r9, [rax + 128]
 .Lasm_Call.ssa_block_31:
     cmp rsi, rdx
     jae .Lasm_Call.ssa_block_30
@@ -4919,9 +4929,9 @@ asm_handler_Call:
 .Lasm_Call.ssa_block_30:
     mov rdx, QWORD PTR [rbp - 48]
     mov QWORD PTR [rdx + 15288], rax
-    lea rbx, [rax + 120]
+    lea rbx, [rax + 128]
     mov eax, DWORD PTR [rcx + 104]
-    mov rcx, QWORD PTR [rdx + 16688]
+    mov rcx, QWORD PTR [rdx + 16696]
     shl rax, 4
     add rax, rcx
     mov ecx, DWORD PTR [rax + 8]
@@ -4937,9 +4947,9 @@ asm_handler_Call:
     mov rax, QWORD PTR [rbx - 32]
     mov rcx, QWORD PTR [rbp - 48]
     mov QWORD PTR [rcx + 15288], rax
-    lea r11, [rbx - 120]
+    lea r11, [rbx - 128]
     mov QWORD PTR [rcx + 15368], r11
-    lea rbx, [rax + 120]
+    lea rbx, [rax + 128]
     mov r11d, DWORD PTR [r14 + r13 + 8]
     mov QWORD PTR [rbx + r11 * 8], rdx
     mov ecx, DWORD PTR [r14 + r13 + 4]
@@ -4955,7 +4965,7 @@ asm_handler_Call:
     jnz .Lasm_Call.ssa_block_1
     mov rax, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rax + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rax, QWORD PTR [rbx - 40]
     mov r14, QWORD PTR [rax + 80]
     mov r13d, 0
@@ -5529,9 +5539,9 @@ asm_handler_IsCallable_hot_end:
 
 .p2align 6
 asm_handler_LeavePrivateEnvironment:
-    mov rax, QWORD PTR [rbx - 72]
+    mov rax, QWORD PTR [rbx - 80]
     mov rax, QWORD PTR [rax + 16]
-    mov QWORD PTR [rbx - 72], rax
+    mov QWORD PTR [rbx - 80], rax
     add r13d, 8
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
@@ -5719,7 +5729,7 @@ asm_handler_ExpRhsInt32:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -6840,7 +6850,7 @@ asm_handler_Add_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -6934,7 +6944,7 @@ asm_handler_Sub_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -7027,7 +7037,7 @@ asm_handler_Mul_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -7057,7 +7067,7 @@ asm_handler_ConcatString:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -7078,7 +7088,7 @@ asm_handler_CopyObjectExcludingProperties:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -7099,7 +7109,7 @@ asm_handler_ImportCall:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -7120,7 +7130,7 @@ asm_handler_NewClass:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -7186,7 +7196,7 @@ asm_handler_JumpLessThan_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -7237,7 +7247,7 @@ asm_handler_JumpGreaterThan_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -7288,7 +7298,7 @@ asm_handler_JumpLessThanEquals_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -7339,7 +7349,7 @@ asm_handler_JumpGreaterThanEquals_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -7374,7 +7384,7 @@ asm_handler_JumpLooselyEquals_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -7409,7 +7419,7 @@ asm_handler_JumpLooselyInequals_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -7444,7 +7454,7 @@ asm_handler_JumpStrictlyEquals_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -7479,7 +7489,7 @@ asm_handler_JumpStrictlyInequals_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -7511,7 +7521,7 @@ asm_handler_Increment_cold:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -7543,7 +7553,7 @@ asm_handler_Decrement_cold:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -7573,7 +7583,7 @@ asm_handler_GetImportMeta:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -7594,7 +7604,7 @@ asm_handler_GetNewTarget:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -7615,7 +7625,7 @@ asm_handler_GetSuperConstructor:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -7639,7 +7649,7 @@ asm_handler_GetBinding_cold:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -7658,7 +7668,7 @@ asm_handler_DynamicGetBinding_cold:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -7679,7 +7689,7 @@ asm_handler_DynamicGetInitializedBinding_cold:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -7702,7 +7712,7 @@ asm_handler_DynamicInitializeLexicalBinding_cold:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -7721,7 +7731,7 @@ asm_handler_DynamicInitializeVariableBinding_cold:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -7740,7 +7750,7 @@ asm_handler_SetLexicalBinding_cold:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -7759,7 +7769,7 @@ asm_handler_SetVariableBinding_cold:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -7778,7 +7788,7 @@ asm_handler_DynamicSetLexicalBinding_cold:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -7797,7 +7807,7 @@ asm_handler_DynamicSetVariableBinding_cold:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -7815,7 +7825,7 @@ asm_handler_ResolveBinding:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -7836,7 +7846,7 @@ asm_handler_ResolveSuperBase:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -7857,7 +7867,7 @@ asm_handler_SetResolvedBinding:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -7878,7 +7888,7 @@ asm_handler_TypeofBinding:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -7899,7 +7909,7 @@ asm_handler_DynamicTypeofBinding:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -7920,7 +7930,7 @@ asm_handler_HasPrivateId:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -7941,7 +7951,7 @@ asm_handler_SetFunctionName:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -7962,7 +7972,7 @@ asm_handler_NewArrayWithLength:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -7983,7 +7993,7 @@ asm_handler_ArrayAppend:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -8004,7 +8014,7 @@ asm_handler_CreateVariable:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -8025,7 +8035,7 @@ asm_handler_EnterObjectEnvironment:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -8060,7 +8070,7 @@ asm_handler_PostfixIncrement_cold:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -8082,7 +8092,7 @@ asm_handler_Div_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -8136,7 +8146,7 @@ asm_handler_LessThan_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -8187,7 +8197,7 @@ asm_handler_LessThanEquals_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -8238,7 +8248,7 @@ asm_handler_GreaterThan_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -8289,7 +8299,7 @@ asm_handler_GreaterThanEquals_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -8345,7 +8355,7 @@ asm_handler_BitwiseXor_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -8377,7 +8387,7 @@ asm_handler_UnaryPlus_cold:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -8402,7 +8412,7 @@ asm_handler_ThrowIfTDZ_cold:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -8421,7 +8431,7 @@ asm_handler_ThrowIfNotObject_cold:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -8440,7 +8450,7 @@ asm_handler_ThrowIfNullish_cold:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -8458,7 +8468,7 @@ asm_handler_ThrowConstAssignment:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -8479,7 +8489,7 @@ asm_handler_Throw:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -8500,7 +8510,7 @@ asm_handler_Debugger:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -8521,7 +8531,7 @@ asm_handler_Await:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -8542,7 +8552,7 @@ asm_handler_Yield:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -8563,7 +8573,7 @@ asm_handler_YieldIteratorResult:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -8584,7 +8594,7 @@ asm_handler_ToString:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -8605,7 +8615,7 @@ asm_handler_ToPrimitiveWithStringHint:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -8626,7 +8636,7 @@ asm_handler_ToObject:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -8647,7 +8657,7 @@ asm_handler_ToLength:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -8669,7 +8679,7 @@ asm_handler_BitwiseNot_cold:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -8725,7 +8735,7 @@ asm_handler_BitwiseAnd_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -8791,7 +8801,7 @@ asm_handler_BitwiseOr_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -8823,7 +8833,7 @@ asm_handler_LeftShift_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -8845,7 +8855,7 @@ asm_handler_RightShift_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -8875,7 +8885,7 @@ asm_handler_UnsignedRightShift_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -8895,7 +8905,7 @@ asm_handler_Mod_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -8926,7 +8936,7 @@ asm_handler_StrictlyEquals_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -8957,7 +8967,7 @@ asm_handler_StrictlyInequals_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -8976,7 +8986,7 @@ asm_handler_GetCalleeAndThisFromEnvironment_cold:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -8995,7 +9005,7 @@ asm_handler_DynamicGetCalleeAndThisFromEnvironment_cold:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -9026,7 +9036,7 @@ asm_handler_LooselyEquals_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -9057,7 +9067,7 @@ asm_handler_LooselyInequals_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -9096,7 +9106,7 @@ asm_handler_UnaryMinus_cold:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -9135,7 +9145,7 @@ asm_handler_PostfixDecrement_cold:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -9171,7 +9181,7 @@ asm_handler_ToInt32_cold:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -9233,7 +9243,7 @@ asm_handler_PutByValue_cold:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -9272,7 +9282,7 @@ asm_handler_GetById_cold:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -9287,7 +9297,7 @@ asm_handler_GetById_cold:
     jnz .Lasm_GetById.ssa_block_4
     mov rax, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rax + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rax, QWORD PTR [rbx - 40]
     mov r14, QWORD PTR [rax + 80]
     mov r13d, 0
@@ -9305,7 +9315,7 @@ asm_handler_GetByIdWithThis:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -9337,7 +9347,7 @@ asm_handler_PutById_cold:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -9355,7 +9365,7 @@ asm_handler_PutByIdWithThis:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -9395,7 +9405,7 @@ asm_handler_GetByValue_cold:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -9416,7 +9426,7 @@ asm_handler_GetByValueWithThis:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -9437,7 +9447,7 @@ asm_handler_PutByValueWithThis:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -9458,7 +9468,7 @@ asm_handler_PutBySpread:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -9488,7 +9498,7 @@ asm_handler_GetLength_cold:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -9506,7 +9516,7 @@ asm_handler_GetLengthWithThis:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -9527,7 +9537,7 @@ asm_handler_GetMethod:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -9548,7 +9558,7 @@ asm_handler_GetIterator:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -9570,7 +9580,7 @@ asm_handler_GetGlobal_cold:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -9609,7 +9619,7 @@ asm_handler_SetGlobal_cold:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -9626,7 +9636,7 @@ asm_handler_Call_cold:
     js .Lasm_Call.ssa_block_5
     mov rax, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rax + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rax, QWORD PTR [rbx - 40]
     mov r14, QWORD PTR [rax + 80]
     mov r13d, DWORD PTR [rbx - 64]
@@ -9642,7 +9652,7 @@ asm_handler_Call_cold:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -9673,7 +9683,7 @@ asm_handler_CallBuiltinMathAbs_cold:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -9692,7 +9702,7 @@ asm_handler_CallBuiltinMathFloor_cold:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -9714,7 +9724,7 @@ asm_handler_CallBuiltinMathCeil_cold:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -9736,7 +9746,7 @@ asm_handler_CallBuiltinMathSqrt_cold:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -9758,7 +9768,7 @@ asm_handler_CallBuiltinMathExp_cold:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -9776,7 +9786,7 @@ asm_handler_CallBuiltinMathLog:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -9797,7 +9807,7 @@ asm_handler_CallBuiltinMathPow:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -9818,7 +9828,7 @@ asm_handler_CallBuiltinMathImul:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -9839,7 +9849,7 @@ asm_handler_CallBuiltinMathRandom:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -9860,7 +9870,7 @@ asm_handler_CallBuiltinMathRound:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -9881,7 +9891,7 @@ asm_handler_CallBuiltinMathSin:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -9902,7 +9912,7 @@ asm_handler_CallBuiltinMathCos:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -9923,7 +9933,7 @@ asm_handler_CallBuiltinMathTan:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -9944,7 +9954,7 @@ asm_handler_CallBuiltinRegExpPrototypeExec:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -9965,7 +9975,7 @@ asm_handler_CallBuiltinRegExpPrototypeReplace:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -9986,7 +9996,7 @@ asm_handler_CallBuiltinRegExpPrototypeSplit:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -10007,7 +10017,7 @@ asm_handler_CallBuiltinOrdinaryHasInstance:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -10028,7 +10038,7 @@ asm_handler_CallBuiltinArrayIteratorPrototypeNext:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -10049,7 +10059,7 @@ asm_handler_CallBuiltinMapIteratorPrototypeNext:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -10070,7 +10080,7 @@ asm_handler_CallBuiltinSetIteratorPrototypeNext:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -10091,7 +10101,7 @@ asm_handler_CallBuiltinStringIteratorPrototypeNext:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -10113,7 +10123,7 @@ asm_handler_CallBuiltinStringFromCharCode_cold:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -10139,7 +10149,7 @@ asm_handler_CallBuiltinStringPrototypeCharCodeAt_cold:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -10167,7 +10177,7 @@ asm_handler_CallBuiltinStringPrototypeCharAt_cold:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -10185,7 +10195,7 @@ asm_handler_GetObjectPropertyIterator:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -10207,7 +10217,7 @@ asm_handler_ObjectPropertyIteratorNext_cold:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -10225,7 +10235,7 @@ asm_handler_IteratorClose:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -10246,7 +10256,7 @@ asm_handler_IteratorNext:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -10267,7 +10277,7 @@ asm_handler_IteratorNextUnpack:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -10288,7 +10298,7 @@ asm_handler_IteratorToArray:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -10309,7 +10319,7 @@ asm_handler_CallConstruct:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -10330,7 +10340,7 @@ asm_handler_CallDirectEval:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -10351,7 +10361,7 @@ asm_handler_CallWithArgumentArray:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -10372,7 +10382,7 @@ asm_handler_CallDirectEvalWithArgumentArray:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -10393,7 +10403,7 @@ asm_handler_CallConstructWithArgumentArray:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -10414,7 +10424,7 @@ asm_handler_SuperCallWithArgumentArray:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -10435,7 +10445,7 @@ asm_handler_NewObject:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -10456,7 +10466,7 @@ asm_handler_NewObjectWithNoPrototype:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -10477,7 +10487,7 @@ asm_handler_CacheObjectShape:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -10498,7 +10508,7 @@ asm_handler_InitObjectLiteralProperty:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -10519,7 +10529,7 @@ asm_handler_NewArray:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -10540,7 +10550,7 @@ asm_handler_NewPrimitiveArray:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -10561,7 +10571,7 @@ asm_handler_NewRegExp:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -10582,7 +10592,7 @@ asm_handler_NewReferenceError:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -10603,7 +10613,7 @@ asm_handler_NewTypeError:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -10624,7 +10634,7 @@ asm_handler_InstanceOf:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -10645,7 +10655,7 @@ asm_handler_In:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -10668,7 +10678,7 @@ asm_handler_IsConstructor:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -10689,7 +10699,7 @@ asm_handler_AddPrivateName:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -10710,7 +10720,7 @@ asm_handler_CreateAsyncFromSyncIterator:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -10731,7 +10741,7 @@ asm_handler_CreateDataPropertyOrThrow:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -10752,7 +10762,7 @@ asm_handler_CreateImmutableBinding:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -10773,7 +10783,7 @@ asm_handler_CreateMutableBinding:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -10794,7 +10804,7 @@ asm_handler_CreateRestParams:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -10815,7 +10825,7 @@ asm_handler_CreateArguments:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -10836,7 +10846,7 @@ asm_handler_CreateLexicalEnvironment:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -10857,7 +10867,7 @@ asm_handler_CreatePrivateEnvironment:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -10878,7 +10888,7 @@ asm_handler_CreateVariableEnvironment:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -10899,7 +10909,7 @@ asm_handler_DeleteById:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -10920,7 +10930,7 @@ asm_handler_DeleteByValue:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -10941,7 +10951,7 @@ asm_handler_DeleteVariable:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -10962,7 +10972,7 @@ asm_handler_GetCompletionFields:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -10983,7 +10993,7 @@ asm_handler_SetCompletionType:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -11004,7 +11014,7 @@ asm_handler_GetTemplateObject:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -11025,7 +11035,7 @@ asm_handler_NewFunction:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -11046,7 +11056,7 @@ asm_handler_Typeof:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -11070,7 +11080,7 @@ asm_handler_ResolveThisBinding_cold:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -11088,7 +11098,7 @@ asm_handler_GetPrivateById:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -11109,7 +11119,7 @@ asm_handler_PutPrivateById:
     js .Lexit
     mov rcx, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 120
+    add rbx, 128
     mov rcx, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [rcx + 80]
     mov r13d, eax
@@ -11149,7 +11159,7 @@ asm_handler_AddLhsInt32_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -11271,7 +11281,7 @@ asm_handler_AddRhsInt32_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -11347,7 +11357,7 @@ asm_handler_SubRhsInt32_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -11376,7 +11386,7 @@ asm_handler_MulRhsInt32_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -11457,7 +11467,7 @@ asm_handler_DivRhsInt32_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -11521,7 +11531,7 @@ asm_handler_BitwiseXorRhsInt32_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -11592,7 +11602,7 @@ asm_handler_BitwiseAndRhsInt32_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -11663,7 +11673,7 @@ asm_handler_BitwiseOrRhsInt32_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -11697,7 +11707,7 @@ asm_handler_LeftShiftRhsInt32_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -11721,7 +11731,7 @@ asm_handler_RightShiftRhsInt32_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -11753,7 +11763,7 @@ asm_handler_UnsignedRightShiftRhsInt32_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -11776,7 +11786,7 @@ asm_handler_ModRhsInt32_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -11802,7 +11812,7 @@ asm_handler_LessThanRhsInt32_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -11836,7 +11846,7 @@ asm_handler_LessThanEqualsRhsInt32_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -11870,7 +11880,7 @@ asm_handler_GreaterThanRhsInt32_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -11904,7 +11914,7 @@ asm_handler_GreaterThanEqualsRhsInt32_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -11942,7 +11952,7 @@ asm_handler_JumpLessThanRhsInt32_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -11980,7 +11990,7 @@ asm_handler_JumpLessThanEqualsRhsInt32_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -12018,7 +12028,7 @@ asm_handler_JumpGreaterThanRhsInt32_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -12056,7 +12066,7 @@ asm_handler_JumpGreaterThanEqualsRhsInt32_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -12095,7 +12105,7 @@ asm_handler_StrictlyEqualsRhsInt32_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -12126,7 +12136,7 @@ asm_handler_StrictlyInequalsRhsInt32_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -12157,7 +12167,7 @@ asm_handler_LooselyEqualsRhsInt32_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -12188,7 +12198,7 @@ asm_handler_LooselyInequalsRhsInt32_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -12223,7 +12233,7 @@ asm_handler_JumpStrictlyEqualsRhsInt32_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -12258,7 +12268,7 @@ asm_handler_JumpStrictlyInequalsRhsInt32_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -12293,7 +12303,7 @@ asm_handler_JumpLooselyEqualsRhsInt32_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
@@ -12328,7 +12338,7 @@ asm_handler_JumpLooselyInequalsRhsInt32_cold:
     js .Lexit
     mov r11, QWORD PTR [rbp - 48]
     mov rbx, QWORD PTR [r11 + 15288]
-    add rbx, 120
+    add rbx, 128
     mov r11, QWORD PTR [rbx + -40]
     mov r14, QWORD PTR [r11 + 80]
     mov r13d, eax
