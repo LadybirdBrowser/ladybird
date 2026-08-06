@@ -100,7 +100,7 @@ public:
         GC::Ptr<OnApplyHistoryStepComplete> on_apply_complete;
         GC::Ptr<OnApplyHistoryStepComplete> on_complete;
     };
-    void request_history_operation(HistoryOperationParameters, HistoryOperationState);
+    void request_history_operation(HistoryOperationParameters, HistoryOperationState = {});
 
     void finalize_same_document_navigation(GC::Ref<LocalNavigable>, NonnullRefPtr<SessionHistoryEntry>, RefPtr<SessionHistoryEntry> entry_to_replace, HistoryHandlingBehavior, UserNavigationInvolvement);
     void did_complete_finalize_same_document_navigation(u64 operation_id, bool committed, int entry_step, int target_step, HistoryObjectLengthAndIndex);
