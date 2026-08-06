@@ -4417,6 +4417,13 @@ void LocalNavigable::paste(Utf16View text)
     m_event_handler.perform_paste_action(data_store);
 }
 
+void LocalNavigable::paste_from_clipboard()
+{
+    // Run the whole paste action: It retrieves the system clipboard's contents from the UI process itself, which
+    // preserves every supported clipboard representation — where a bare-text handover would keep only the text.
+    (void)m_event_handler.perform_paste_action();
+}
+
 void LocalNavigable::undo()
 {
     auto document = active_document();

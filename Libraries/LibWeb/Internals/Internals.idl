@@ -34,6 +34,7 @@ interface Internals {
     undefined sendText(HTMLElement target, Utf16DOMString text, optional unsigned short modifiers = 0);
     undefined sendKey(HTMLElement target, Utf16DOMString keyName, optional unsigned short modifiers = 0);
     undefined paste(HTMLElement target, Utf16DOMString text);
+    undefined pasteFromClipboard();
     undefined commitText();
 
     // Low-level mouse primitives

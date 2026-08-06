@@ -223,6 +223,7 @@ private:
     virtual void find_in_page_previous_match(u64 page_id) override;
 
     virtual void paste(u64 page_id, Utf16String text) override;
+    virtual void paste_from_clipboard(u64 page_id) override;
     virtual void set_marked_text_from_input_method(u64 page_id, Utf16String text) override;
     virtual void commit_text_from_input_method(u64 page_id, Utf16String text, i32 replacement_start, i32 replacement_length) override;
     virtual void unmark_text_from_input_method(u64 page_id) override;

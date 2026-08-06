@@ -1834,7 +1834,7 @@ void Application::initialize_actions()
     });
     m_paste_action = Action::create("Paste"sv, ActionID::Paste, [this]() {
         if (auto view = active_web_view(); view.has_value())
-            view->paste_text_from_clipboard();
+            view->paste_from_clipboard();
     });
     m_select_all_action = Action::create("Select All"sv, ActionID::SelectAll, [this]() {
         if (auto view = active_web_view(); view.has_value())

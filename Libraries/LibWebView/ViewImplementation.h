@@ -264,7 +264,7 @@ public:
     void file_picker_closed(Vector<Web::HTML::SelectedFile> selected_files);
     void select_dropdown_closed(Optional<u32> const& selected_item_id);
 
-    void paste_text_from_clipboard();
+    void paste_from_clipboard();
     void retrieved_clipboard_entries(u64 request_id, ReadonlySpan<Web::Clipboard::SystemClipboardItem>);
 
     // Used by platform input methods to drive marked/preedit-text composition, and to query the on-screen caret

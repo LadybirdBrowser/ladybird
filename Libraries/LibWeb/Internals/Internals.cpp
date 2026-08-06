@@ -382,6 +382,11 @@ void Internals::paste(HTML::HTMLElement& target, Utf16String const& text)
     page.focused_navigable().paste(text);
 }
 
+void Internals::paste_from_clipboard()
+{
+    page().focused_navigable().paste_from_clipboard();
+}
+
 void Internals::commit_text()
 {
     page().handle_keydown(UIEvents::Key_Return, 0, 0x0d, false, true);

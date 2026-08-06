@@ -65,6 +65,7 @@ public:
     void send_text(HTML::HTMLElement&, Utf16String const&, WebIDL::UnsignedShort modifiers);
     void send_key(HTML::HTMLElement&, Utf16String const&, WebIDL::UnsignedShort modifiers);
     void paste(HTML::HTMLElement& target, Utf16String const& text);
+    void paste_from_clipboard();
     void commit_text();
 
     // Low-level mouse primitives

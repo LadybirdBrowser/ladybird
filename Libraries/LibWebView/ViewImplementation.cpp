@@ -1529,9 +1529,9 @@ void ViewImplementation::select_dropdown_closed(Optional<u32> const& selected_it
     client().async_select_dropdown_closed(page_id(), selected_item_id);
 }
 
-void ViewImplementation::paste_text_from_clipboard()
+void ViewImplementation::paste_from_clipboard()
 {
-    client().async_paste(page_id(), Application::the().clipboard_text());
+    client().async_paste_from_clipboard(page_id());
 }
 
 void ViewImplementation::set_marked_text_from_input_method(Utf16String const& text)
