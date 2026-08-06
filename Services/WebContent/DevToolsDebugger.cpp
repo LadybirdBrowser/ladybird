@@ -45,11 +45,17 @@ void DevToolsDebugger::attach(PageClient& page)
     }
 }
 
+void DevToolsDebugger::configure(PageClient& page, WebView::DebuggerConfiguration configuration)
+{
+    m_configurations.set(page.id(), configuration);
+}
+
 void DevToolsDebugger::detach(PageClient& page)
 {
     if (!m_attached_page_ids.remove(page.id()))
         return;
 
+    m_configurations.remove(page.id());
     if (m_paused_page_id == page.id())
         m_resume_requested = true;
 
@@ -94,6 +100,13 @@ void DevToolsDebugger::handle_pause(JS::Debugger::PauseInfo const& pause)
 {
     auto* page = paused_page_client();
     if (!page) {
+        Web::Bindings::main_thread_vm().debugger()->continue_execution();
+        return;
+    }
+
+    auto configuration = m_configurations.get(page->id()).value_or(WebView::DebuggerConfiguration {});
+    if ((pause.reason == JS::Debugger::PauseReason::DebuggerStatement && !configuration.should_pause_on_debugger_statement)
+        || (pause.reason == JS::Debugger::PauseReason::Breakpoint && configuration.skip_breakpoints)) {
         Web::Bindings::main_thread_vm().debugger()->continue_execution();
         return;
     }

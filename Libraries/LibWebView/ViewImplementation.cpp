@@ -1356,6 +1356,11 @@ void ViewImplementation::attach_debugger(DevTools::DevToolsDelegate::OnDebuggerP
     client().async_attach_debugger(page_id());
 }
 
+void ViewImplementation::configure_debugger(DebuggerConfiguration configuration)
+{
+    client().async_configure_debugger(page_id(), configuration);
+}
+
 void ViewImplementation::detach_debugger()
 {
     on_debugger_paused = nullptr;
