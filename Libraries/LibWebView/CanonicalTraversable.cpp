@@ -444,17 +444,6 @@ bool CanonicalTraversable::finalize_cross_document_navigation(CanonicalNavigable
     return did_finalize;
 }
 
-bool CanonicalTraversable::did_set_current_session_history_step(i32 current_session_history_step)
-{
-    if (m_pending_web_content_session_history_seed.ignore_updates_until_seed)
-        return false;
-
-    if (!m_session_history.did_set_web_content_current_session_history_step(current_session_history_step))
-        return false;
-    m_current_web_content_session_history_matches_mirror = m_session_history.web_content_history_matches_mirror();
-    return true;
-}
-
 Optional<i32> CanonicalTraversable::navigation_api_traversal_target(CanonicalNavigable const& navigable, Utf16String const& navigation_api_key) const
 {
     VERIFY(&navigable.top_level_traversable() == this);

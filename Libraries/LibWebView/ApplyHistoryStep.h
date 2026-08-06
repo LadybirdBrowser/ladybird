@@ -16,6 +16,7 @@
 #include <LibWeb/Bindings/NavigationType.h>
 #include <LibWeb/HTML/ApplyHistoryStep.h>
 #include <LibWeb/HTML/CrossProcessId.h>
+#include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/UserNavigationInvolvement.h>
 #include <LibWebView/Export.h>
 #include <LibWebView/Forward.h>

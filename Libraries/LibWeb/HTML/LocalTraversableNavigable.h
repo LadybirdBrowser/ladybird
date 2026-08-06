@@ -108,8 +108,6 @@ public:
     void finalize_same_document_navigation(GC::Ref<LocalNavigable>, NonnullRefPtr<SessionHistoryEntry>, RefPtr<SessionHistoryEntry> entry_to_replace, HistoryHandlingBehavior, UserNavigationInvolvement);
     void did_complete_finalize_same_document_navigation(u64 operation_id, bool committed, int entry_step, int target_step, HistoryObjectLengthAndIndex);
     int get_the_used_step(int step) const;
-    Vector<GC::Root<LocalNavigable>> get_all_local_navigables_whose_current_session_history_entry_will_change_or_reload(int) const;
-    Vector<GC::Root<LocalNavigable>> get_all_local_navigables_that_only_need_history_object_length_index_update(int) const;
     Vector<GC::Root<LocalNavigable>> get_all_local_navigables_that_might_experience_a_cross_document_traversal(int) const;
 
     Vector<int> get_all_used_history_steps() const;
@@ -159,6 +157,15 @@ private:
 
     virtual void visit_edges(Cell::Visitor&) override;
 
+    // One iteration of "12. For each navigable of changingNavigables, queue a global task ...".
+    struct ChangingNavigableHistoryStepJob {
+        CrossProcessId navigable_id;
+        int target_step { 0 };
+        UserNavigationInvolvement user_involvement;
+        Optional<Bindings::NavigationType> navigation_type;
+        SynchronousNavigation synchronous_navigation;
+        LocalNavigable::NavigationAPIAbortBehavior navigation_api_abort_behavior;
+    };
     struct LocalChangingNavigableHistoryStepJobResult {
         ChangingNavigableHistoryStepJobDisposition disposition;
         GC::Ptr<ChangingNavigableContinuationState> continuation;

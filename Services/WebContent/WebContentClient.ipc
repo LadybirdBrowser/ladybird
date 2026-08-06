@@ -152,9 +152,6 @@ endpoint WebContentClient
     did_close_browsing_context(u64 page_id) =|
     did_change_needs_beforeunload_check(u64 page_id, bool needs_beforeunload_check) =|
     did_request_traverse_the_history_by_delta(u64 page_id, i32 delta, Web::HistoryTraversalPrecheck history_traversal_precheck) =|
-    did_request_history_traversal_target_by_delta(u64 page_id, u64 request_id, i32 delta) =|
-    did_request_traverse_the_history_to_step(u64 page_id, i32 step, Web::HistoryTraversalPrecheck history_traversal_precheck) =|
-    did_request_navigation_api_traversal_target(u64 page_id, u64 request_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_api_key) =|
     did_request_webdriver_history_traversal(u64 page_id, u64 request_id, i32 delta) =|
     did_request_webdriver_load_url_from_ui(u64 page_id, URL::URL url) => (Web::WebDriver::Response response)
     did_request_webdriver_traverse_history_from_ui(u64 page_id, i32 delta) => (Web::WebDriver::Response response)
@@ -196,13 +193,10 @@ endpoint WebContentClient
     did_remove_nested_history(u64 page_id, Web::HTML::CrossProcessId parent_navigable_id, Web::HTML::CrossProcessId child_navigable_id) =|
     did_request_finalize_same_document_navigation(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SameDocumentNavigationEntry target_entry, bool replaces_current_entry, Web::HTML::HistoryHandlingBehavior history_handling, Web::HTML::UserNavigationInvolvement user_involvement, bool applies_history_step_in_coordinator) =|
     did_finalize_cross_document_navigation(u64 page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor history_entry, Optional<Utf16String> entry_to_replace_navigation_api_key) =|
-    did_set_current_session_history_step(u64 page_id, i32 current_session_history_step) =|
     did_request_ui_process_session_history_for_testing(u64 page_id) => (String session_history)
     did_request_site_isolation_process_tree_for_testing(u64 page_id) => (String process_tree)
     did_update_session_history_and_request_ui_process_session_history_for_testing(u64 page_id, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, Vector<i32> used_steps, size_t current_used_step_index) => (String session_history)
     did_set_top_level_session_history(u64 page_id, bool accepted, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, Vector<i32> used_steps, size_t current_used_step_index) =|
-    did_traverse_the_history_to_step(u64 page_id, i32 step, bool step_was_available, Web::HTML::HistoryStepResult result) =|
-    did_check_if_traverse_history_step_is_canceled(u64 page_id, u64 request_id, i32 step, Web::HTML::HistoryStepResult result) =|
     request_history_operation(u64 page_id, u64 initiation_id, Web::HistoryOperationParameters parameters) =|
     history_operation_ready(u64 page_id, u64 operation_id, bool proceed, Optional<i32> step_override, Web::HTML::HistoryStepResult abandon_result) =|
     initiator_sandboxing_check_result(u64 page_id, u64 operation_id, bool allowed) =|

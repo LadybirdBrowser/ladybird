@@ -281,11 +281,8 @@ public:
 
     void did_create_top_level_traversable(Badge<WebContentClient>, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry);
     void did_finalize_same_document_navigation(Badge<WebContentClient>);
-    void did_set_current_session_history_step(Badge<WebContentClient>, i32 current_session_history_step);
     void did_update_session_history_for_testing(Badge<WebContentClient>, Vector<Web::HTML::SessionHistoryEntryDescriptor>, Vector<i32>, size_t current_used_step_index);
     void did_set_top_level_session_history(Badge<WebContentClient>, bool accepted, Vector<Web::HTML::SessionHistoryEntryDescriptor>, Vector<i32> used_steps, size_t current_used_step_index);
-    void did_traverse_the_history_to_step(Badge<WebContentClient>, i32 step, bool step_was_available, Web::HTML::HistoryStepResult);
-    void did_check_if_traverse_history_step_is_canceled(Badge<WebContentClient>, u64 request_id, i32 step, Web::HTML::HistoryStepResult);
     void request_history_operation(Badge<WebContentClient>, u64 initiation_id, Web::HistoryOperationParameters);
     void did_receive_history_operation_ready(Badge<WebContentClient>, u64 operation_id, bool proceed, Optional<i32> step_override, Web::HTML::HistoryStepResult abandon_result);
     void did_receive_initiator_sandboxing_check_result(Badge<WebContentClient>, u64 operation_id, bool allowed);

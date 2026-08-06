@@ -1405,16 +1405,6 @@ void ViewImplementation::did_finalize_same_document_navigation(Badge<WebContentC
     dump_session_history("finalized-same-document-navigation"sv);
 }
 
-void ViewImplementation::did_set_current_session_history_step(Badge<WebContentClient>, i32 current_session_history_step)
-{
-    if (!m_top_level_traversable.did_set_current_session_history_step(current_session_history_step))
-        return;
-
-    if (auto const* current_entry = m_top_level_traversable.session_history().current_entry())
-        apply_web_content_session_history_update({ .current_url = current_entry->url });
-    dump_session_history("did-set-current-session-history-step"sv);
-}
-
 void ViewImplementation::did_update_session_history_for_testing(Badge<WebContentClient>, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries, Vector<i32> used_steps, size_t current_used_step_index)
 {
     auto update = m_top_level_traversable.did_receive_web_content_session_history_update_for_testing(move(entries), move(used_steps), current_used_step_index, m_url);
@@ -2143,11 +2133,6 @@ void ViewImplementation::apply_history_traversal_step_result(i32 step, bool step
     dump_session_history(step_result.dump_reason);
 }
 
-void ViewImplementation::did_traverse_the_history_to_step(Badge<WebContentClient>, i32 step, bool step_was_available, Web::HTML::HistoryStepResult result)
-{
-    apply_history_traversal_step_result(step, step_was_available, result);
-}
-
 void ViewImplementation::apply_history_step_cancelation_check_result(u64 request_id, i32 step, Web::HTML::HistoryStepResult result)
 {
     auto check_result = m_top_level_traversable.did_check_if_traverse_history_step_is_canceled(request_id, step, result);
@@ -2185,11 +2170,6 @@ void ViewImplementation::apply_history_step_cancelation_check_result(u64 request
     dump_session_history(check_result.dump_reason);
     if (check_result.on_cancelation_check_complete)
         check_result.on_cancelation_check_complete(move(check_result.outcome));
-}
-
-void ViewImplementation::did_check_if_traverse_history_step_is_canceled(Badge<WebContentClient>, u64 request_id, i32 step, Web::HTML::HistoryStepResult result)
-{
-    apply_history_step_cancelation_check_result(request_id, step, result);
 }
 
 void ViewImplementation::request_history_operation(Badge<WebContentClient>, u64 initiation_id, Web::HistoryOperationParameters parameters)

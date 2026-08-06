@@ -100,10 +100,7 @@ private:
     virtual void run_iframe_load_event_steps(u64 page_id, Web::HTML::CrossProcessId frame_id) override;
     virtual void set_page_parent_context(u64 page_id, Optional<Web::Compositor::CompositorContextId>) override;
     virtual void set_remote_child_frame_compositor_context(u64 page_id, Web::HTML::CrossProcessId frame_id, Optional<Web::Compositor::CompositorContextId>) override;
-    virtual void resolve_session_history_traversal_target(u64 page_id, u64 request_id, Optional<i32> target_step) override;
     virtual void complete_finalize_same_document_navigation(u64 page_id, u64 operation_id, bool committed, i32 entry_step, i32 target_step, u64 script_history_length, u64 script_history_index) override;
-    virtual void traverse_the_history_to_step(u64 page_id, i32 step) override;
-    virtual void check_if_traverse_history_step_is_canceled(u64 page_id, u64 request_id, i32 step) override;
     virtual void history_operation_started(u64 page_id, u64 operation_id, Optional<u64> initiation_id) override;
     virtual void run_initiator_sandboxing_check_job(u64 page_id, u64 operation_id, Web::HTML::CrossProcessId initiator_to_check, Vector<Web::HTML::CrossProcessId> navigables, u64 initiation_id) override;
     virtual void run_history_step_unload_cancelation_job(u64 page_id, u64 operation_id, i32 target_step, Vector<Web::HTML::CrossProcessId> navigables_crossing_documents, Web::HTML::UserNavigationInvolvement user_involvement) override;
