@@ -18,6 +18,7 @@ class Connection;
 class ConsoleActor;
 class CookiesActor;
 class CSSPropertiesActor;
+class DebuggerFrameActor;
 class DeviceActor;
 class DevToolsDelegate;
 class DevToolsServer;

@@ -1458,6 +1458,14 @@ void WebContentClient::did_add_devtools_source(u64 page_id, Web::HTML::ScriptReg
     }
 }
 
+void WebContentClient::did_pause_debugger(u64 page_id, DebuggerPause pause)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        if (view->on_debugger_paused)
+            view->on_debugger_paused(move(pause));
+    }
+}
+
 void WebContentClient::did_resolve_dom_node_url(u64 page_id, u64 request_id, String resolved_url)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {

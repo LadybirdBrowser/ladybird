@@ -49,6 +49,7 @@
 #include <LibWeb/Page/ScreenWakeLockHandle.h>
 #include <LibWeb/Page/ViewportIsFullscreen.h>
 #include <LibWeb/StorageAPI/StorageEndpoint.h>
+#include <LibWebView/Debugger.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/PrivateBrowsing.h>
 #include <WebContent/WebContentClientEndpoint.h>
@@ -186,6 +187,7 @@ private:
     virtual void did_list_devtools_sources(u64 page_id, u64 request_id, Vector<Web::HTML::ScriptRegistry::Description> sources) override;
     virtual void did_get_devtools_source(u64 page_id, Web::HTML::ScriptRegistry::Identifier source_id, Optional<Web::HTML::ScriptRegistry::Content> source) override;
     virtual void did_add_devtools_source(u64 page_id, Web::HTML::ScriptRegistry::Description source) override;
+    virtual void did_pause_debugger(u64 page_id, DebuggerPause) override;
     virtual void did_resolve_dom_node_url(u64 page_id, u64 request_id, String resolved_url) override;
     virtual void did_take_screenshot(u64 page_id, Gfx::ShareableBitmap screenshot) override;
     virtual void did_get_internal_page_info(u64 page_id, PageInfoType, Optional<Core::AnonymousBuffer>) override;

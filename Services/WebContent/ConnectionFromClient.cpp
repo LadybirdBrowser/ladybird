@@ -86,6 +86,7 @@
 #include <LibWebView/DictionaryLookup.h>
 #include <LibWebView/ViewImplementation.h>
 #include <WebContent/ConnectionFromClient.h>
+#include <WebContent/DevToolsDebugger.h>
 #include <WebContent/PageClient.h>
 #include <WebContent/PageHost.h>
 #include <WebContent/WebContentClientEndpoint.h>
@@ -1479,6 +1480,41 @@ void ConnectionFromClient::request_devtools_source(u64 page_id, Web::HTML::Scrip
         return;
 
     async_did_get_devtools_source(page_id, source_id, page->devtools_source_content(source_id));
+}
+
+void ConnectionFromClient::attach_debugger(u64 page_id)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value())
+        return;
+
+    if (!m_devtools_debugger)
+        m_devtools_debugger = make<DevToolsDebugger>(*this);
+    m_devtools_debugger->attach(*page);
+}
+
+void ConnectionFromClient::detach_debugger(u64 page_id)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value() || !m_devtools_debugger)
+        return;
+    m_devtools_debugger->detach(*page);
+}
+
+void ConnectionFromClient::interrupt_debugger(u64 page_id)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value() || !m_devtools_debugger)
+        return;
+    m_devtools_debugger->interrupt(*page);
+}
+
+void ConnectionFromClient::resume_debugger(u64 page_id)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value() || !m_devtools_debugger)
+        return;
+    m_devtools_debugger->resume(*page);
 }
 
 void ConnectionFromClient::resolve_dom_node_url(u64 page_id, u64 request_id, Optional<Web::UniqueNodeID> node_id, String url)
