@@ -1237,9 +1237,17 @@ impl<'context, 'pass> InlineFormattingContext<'context, 'pass> {
         let (pieces, inline_containing_block_rect_candidates) = compute(self);
         self.line_data_mut().inline_box_pieces = pieces;
         for candidate in inline_containing_block_rect_candidates {
+            let relative_inset_chain = self.state.accumulated_relative_insets_from_inline_ancestor_chain(
+                &self.callbacks,
+                candidate.inline_containing_block,
+                self.containing_block,
+            );
+            let mut rect = candidate.rect;
+            rect.x += relative_inset_chain.offset_x;
+            rect.y += relative_inset_chain.offset_y;
             self.state
                 .used_values_rare_data_for_node_mut(&self.callbacks, candidate.inline_containing_block)
-                .inline_containing_block_first_last_rect = Some(candidate.rect);
+                .inline_containing_block_first_last_rect = Some(rect);
         }
     }
 }
