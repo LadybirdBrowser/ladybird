@@ -2270,6 +2270,8 @@ void LocalNavigable::populate_session_history_entry_document(
             }
 
             auto output = heap().allocate<PopulateSessionHistoryEntryDocumentOutput>();
+            // NB: result's redirect fields are moved into output here; so, all code below must read them from output —
+            //     never from the moved-from result.
             output->redirected_url = move(result->redirected_url);
             output->classic_history_api_state = move(result->classic_history_api_state);
             output->replacement_document_state = result->replacement_document_state;
@@ -2311,7 +2313,9 @@ void LocalNavigable::populate_session_history_entry_document(
                 auto error_message = navigation_params.has<NullOrError>() ? navigation_params.get<NullOrError>().value_or("Unknown error"_utf16) : "The request was denied."_utf16;
                 auto error_message_utf8 = error_message.to_utf8();
 
-                auto error_url = result->redirected_url.value_or(url);
+                // AD-HOC: Name the URL that actually failed to load: The last URL the navigation was redirected to, if
+                //         any — rather than the URL it started at.
+                auto error_url = output->redirected_url.value_or(url);
                 auto error_html = load_error_page(error_url, error_message_utf8).release_value_but_fixme_should_propagate_errors();
                 output->document = create_document_for_inline_content(this, navigation_id, user_involvement, [this, error_html](auto& document) {
                     auto scripting_mode = document.is_scripting_enabled() ? HTML::ParserScriptingMode::Normal : HTML::ParserScriptingMode::Disabled;
