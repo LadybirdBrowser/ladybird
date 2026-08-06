@@ -32,6 +32,7 @@ public:
     JsonObject serialize_source(Web::HTML::ScriptRegistry::Description const&);
     JsonArray serialize_sources(Vector<Web::HTML::ScriptRegistry::Description> const&);
     JsonValue serialize_debugger_value(WebView::DebuggerValue const&);
+    Optional<u64> frame_id_for_actor(StringView actor) const;
     void get_frame_environment(DebuggerFrameActor&, Actor::Message const&, u64 frame_id);
     void get_object_properties(ObjectActor&, Actor::Message const&, ObjectPropertiesRequest, Optional<String> property_name = {});
     void get_object_symbols(ObjectActor&, Actor::Message const&);

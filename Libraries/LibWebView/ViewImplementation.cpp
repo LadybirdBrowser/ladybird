@@ -1538,6 +1538,13 @@ void ViewImplementation::retrieve_debugger_environments(u64 frame_id, DevTools::
     client().async_get_debugger_environments(page_id(), request_id, frame_id);
 }
 
+void ViewImplementation::evaluate_javascript_in_debugger_frame(u64 frame_id, String const& source_text, DevTools::DevToolsDelegate::OnDebuggerEvaluationComplete on_complete)
+{
+    auto request_id = m_next_debugger_evaluation_request_id++;
+    m_pending_debugger_evaluation_requests.set(request_id, move(on_complete));
+    client().async_evaluate_javascript_in_debugger_frame(page_id(), request_id, frame_id, Utf16String::from_utf8(source_text));
+}
+
 void ViewImplementation::retrieve_debugger_object_properties(u64 object_id, DevTools::DevToolsDelegate::OnDebuggerObjectPropertiesReceived on_complete)
 {
     auto request_id = m_next_debugger_object_properties_request_id++;

@@ -3353,6 +3353,16 @@ void Application::retrieve_debugger_environments(DevTools::TabDescription const&
     view->retrieve_debugger_environments(frame_id, move(on_complete));
 }
 
+void Application::evaluate_javascript_in_debugger_frame(DevTools::TabDescription const& description, u64 frame_id, String const& source_text, OnDebuggerEvaluationComplete on_complete) const
+{
+    auto view = ViewImplementation::find_view_by_id(description.id);
+    if (!view.has_value()) {
+        on_complete("Unable to locate tab"_string);
+        return;
+    }
+    view->evaluate_javascript_in_debugger_frame(frame_id, source_text, move(on_complete));
+}
+
 void Application::retrieve_debugger_object_properties(DevTools::TabDescription const& description, u64 object_id, OnDebuggerObjectPropertiesReceived on_complete) const
 {
     auto view = ViewImplementation::find_view_by_id(description.id);

@@ -62,6 +62,11 @@ struct DebuggerObjectProperties {
     Vector<DebuggerProperty> properties;
 };
 
+struct DebuggerEvaluationResult {
+    DebuggerValue value;
+    bool is_throw { false };
+};
+
 enum class DebuggerEnvironmentType : u8 {
     Block,
     Function,
@@ -157,6 +162,12 @@ WEBVIEW_API ErrorOr<void> encode(Encoder&, WebView::DebuggerObjectProperties con
 
 template<>
 WEBVIEW_API ErrorOr<WebView::DebuggerObjectProperties> decode(Decoder&);
+
+template<>
+WEBVIEW_API ErrorOr<void> encode(Encoder&, WebView::DebuggerEvaluationResult const&);
+
+template<>
+WEBVIEW_API ErrorOr<WebView::DebuggerEvaluationResult> decode(Decoder&);
 
 template<>
 WEBVIEW_API ErrorOr<void> encode(Encoder&, WebView::DebuggerEnvironment const&);

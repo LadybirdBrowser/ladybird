@@ -1583,6 +1583,26 @@ void ConnectionFromClient::get_debugger_environments(u64 page_id, u64 request_id
     async_did_get_debugger_environments(page_id, request_id, {}, m_devtools_debugger->environments_for_frame(*page, frame_id));
 }
 
+void ConnectionFromClient::evaluate_javascript_in_debugger_frame(u64 page_id, u64 request_id, u64 frame_id, Utf16String source_text)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value()) {
+        async_did_evaluate_javascript_in_debugger_frame(page_id, request_id, "Unable to locate page"_string, {});
+        return;
+    }
+    if (!m_devtools_debugger) {
+        async_did_evaluate_javascript_in_debugger_frame(page_id, request_id, "No debugger client is attached"_string, {});
+        return;
+    }
+
+    auto result = m_devtools_debugger->evaluate_in_frame(*page, frame_id, source_text);
+    if (result.is_error()) {
+        async_did_evaluate_javascript_in_debugger_frame(page_id, request_id, MUST(String::from_utf8(result.release_error().string_literal())), {});
+        return;
+    }
+    async_did_evaluate_javascript_in_debugger_frame(page_id, request_id, {}, result.release_value());
+}
+
 void ConnectionFromClient::get_debugger_object_properties(u64 page_id, u64 request_id, u64 object_id)
 {
     auto page = this->page(page_id);

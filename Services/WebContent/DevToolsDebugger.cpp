@@ -264,6 +264,29 @@ Vector<WebView::DebuggerEnvironment> DevToolsDebugger::environments_for_frame(Pa
     return environments;
 }
 
+ErrorOr<WebView::DebuggerEvaluationResult> DevToolsDebugger::evaluate_in_frame(PageClient& page, u64 frame_id, Utf16View source_text)
+{
+    if (m_paused_page_id != page.id())
+        return Error::from_string_literal("Debugger is not paused for this page");
+
+    auto* context = m_paused_frames.get(frame_id).value_or(nullptr);
+    if (!context)
+        return Error::from_string_literal("Unable to locate paused frame");
+
+    auto& vm = Web::Bindings::main_thread_vm();
+    VERIFY(vm.debugger());
+    auto completion = vm.debugger()->evaluate_in_frame(*context, source_text);
+    if (completion.is_throw_completion()) {
+        return WebView::DebuggerEvaluationResult {
+            .value = serialize_value(completion.throw_completion().value()),
+            .is_throw = true,
+        };
+    }
+    return WebView::DebuggerEvaluationResult {
+        .value = serialize_value(completion.release_value()),
+    };
+}
+
 ErrorOr<WebView::DebuggerObjectProperties> DevToolsDebugger::properties_for_object(PageClient& page, u64 object_id)
 {
     if (m_paused_page_id != page.id())
