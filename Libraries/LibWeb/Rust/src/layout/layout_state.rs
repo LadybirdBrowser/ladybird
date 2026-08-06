@@ -605,22 +605,6 @@ impl<'pass> NodeFacts<'pass> {
         self.list_item().marker
     }
 
-    pub(crate) fn marker_is_symbolic(&self) -> bool {
-        self.list_item().marker_is_symbolic
-    }
-
-    pub(crate) fn marker_content_inline_size(&self) -> crate::layout::CssPixels {
-        self.list_item().marker_content_inline_size
-    }
-
-    pub(crate) fn marker_content_block_size(&self) -> crate::layout::CssPixels {
-        self.list_item().marker_content_block_size
-    }
-
-    pub(crate) fn marker_distance(&self) -> crate::layout::CssPixels {
-        self.list_item().marker_distance
-    }
-
     pub(crate) fn marker_list_style_position(&self) -> u8 {
         self.list_item().marker_list_style_position
     }

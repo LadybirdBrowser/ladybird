@@ -6,13 +6,19 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         ListItemBox <li.left> at [100,0] floating [0+0+0 80.828125 0+0+0] [0+0+0 24 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 11, rect: [100,4 80.828125x16] baseline: 12.796875
               "floats left"
-          ListItemMarkerBox <(anonymous)> at [86,9] [0+0+0 6 0+0+0] [0+0+0 6 0+0+0] [BFC] children: not-inline
+          ListItemMarkerBox <(anonymous)> at [86,0] [0+0+0 13.84375 0+0+0] [0+0+0 24 0+0+0] [BFC] children: inline
+            frag 0 from GeneratedTextNode start: 0, length: 2, rect: [86,4 13.84375x16] baseline: 12.796875
+                "• "
+            GeneratedTextNode <(anonymous)> (not painted)
           TextNode <#text> (not painted)
         TextNode <#text> (not painted)
         ListItemBox <li.right> at [708.3125,0] floating [0+0+0 91.6875 0+0+0] [0+0+0 24 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 12, rect: [708.3125,4 91.6875x16] baseline: 12.796875
               "floats right"
-          ListItemMarkerBox <(anonymous)> at [694.3125,9] [0+0+0 6 0+0+0] [0+0+0 6 0+0+0] [BFC] children: not-inline
+          ListItemMarkerBox <(anonymous)> at [694.3125,0] [0+0+0 13.84375 0+0+0] [0+0+0 24 0+0+0] [BFC] children: inline
+            frag 0 from GeneratedTextNode start: 0, length: 2, rect: [694.3125,4 13.84375x16] baseline: 12.796875
+                "• "
+            GeneratedTextNode <(anonymous)> (not painted)
           TextNode <#text> (not painted)
         TextNode <#text> (not painted)
       BlockContainer <(anonymous)> at [0,0] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
@@ -23,9 +29,9 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
     PaintableWithLines (BlockContainer<BODY>) [0,0 800x0]
       PaintableWithLines (BlockContainer<UL>) [0,0 800x0]
         PaintableWithLines (ListItemBox<LI>.left) [100,0 80.828125x24]
-          MarkerPaintable (ListItemMarkerBox(anonymous)) [86,9 6x6]
+          PaintableWithLines (ListItemMarkerBox(anonymous)) [86,0 13.84375x24]
         PaintableWithLines (ListItemBox<LI>.right) [708.3125,0 91.6875x24]
-          MarkerPaintable (ListItemMarkerBox(anonymous)) [694.3125,9 6x6]
+          PaintableWithLines (ListItemMarkerBox(anonymous)) [694.3125,0 13.84375x24]
       PaintableWithLines (BlockContainer(anonymous)) [0,0 800x0]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)

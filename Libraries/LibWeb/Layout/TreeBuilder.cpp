@@ -325,12 +325,15 @@ NonnullRefPtr<ListItemMarkerBox> LayoutTreeBuildBridge::create_list_item_marker(
 // <string>: The element's marker string is the specified <string>."
 static CSS::ContentData resolve_normal_marker_content(DOM::AbstractElement& element_reference, ListItemMarkerBox const& marker)
 {
-    VERIFY(!marker.is_symbolic());
-
-    auto counter_value = element_reference.ensure_counters_set().counter_value_for_use(CSS::list_item_counter_name(), element_reference);
-
     CSS::ContentData content;
     content.type = CSS::ContentData::Type::List;
+
+    if (auto const* list_style_image = marker.list_style_image()) {
+        content.data.append(NonnullRefPtr { const_cast<CSS::AbstractImageStyleValue&>(*list_style_image) });
+        return content;
+    }
+
+    auto counter_value = element_reference.ensure_counters_set().counter_value_for_use(CSS::list_item_counter_name(), element_reference);
 
     auto generate_from_counter_style = [&](RefPtr<CSS::CounterStyle const> const& counter_style) -> Utf16String {
         auto counter_representation = CSS::generate_a_counter_representation(counter_style, element_reference.style_scope(), counter_value);
@@ -366,15 +369,23 @@ NonnullRefPtr<ListItemMarkerBox> LayoutTreeBuildBridge::create_and_attach_list_i
     list_item_marker->set_generated_for(CSS::PseudoElement::Marker, element);
     LayoutTreeBuilderAccess::set_synthetic_pseudo_element_node(element, CSS::PseudoElement::Marker, list_item_marker);
     list_box.prepend_child(*list_item_marker);
-    if (!list_item_marker->is_symbolic()) {
-        DOM::AbstractElement element_reference { element, originating_pseudo };
-        auto content = resolve_normal_marker_content(element_reference, *list_item_marker);
-        auto text_node = make_ref_counted<GeneratedTextNode>(list_box.document(), content.data.first().get<Utf16String>());
+
+    DOM::AbstractElement element_reference { element, originating_pseudo };
+    auto content = resolve_normal_marker_content(element_reference, *list_item_marker);
+    if (auto const* text = content.data.first().get_pointer<Utf16String>()) {
+        auto text_node = make_ref_counted<GeneratedTextNode>(list_box.document(), *text);
         text_node->set_generated_for(CSS::PseudoElement::Marker, element);
-        list_item_marker->set_content(move(content));
         list_item_marker->append_child(*text_node);
-        list_item_marker->set_children_are_inline(true);
+    } else {
+        auto& image = *content.data.first().get<NonnullRefPtr<CSS::AbstractImageStyleValue>>();
+        auto image_box = create_content_image_box(list_box.document(), nullptr, NonnullRefPtr { list_item_marker->computed_values() }, image);
+        image_box->set_display(CSS::Display(CSS::DisplayOutside::Inline, CSS::DisplayInside::Flow));
+        image_box->attach_style_resources();
+        image_box->set_generated_for(CSS::PseudoElement::Marker, element);
+        list_item_marker->append_child(*image_box);
     }
+    list_item_marker->set_content(content);
+    list_item_marker->set_children_are_inline(true);
     return list_item_marker;
 }
 
@@ -582,14 +593,6 @@ RustFFI::FfiPseudoTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_pseudo_tr
             DOM::AbstractElement element_reference { *static_cast<DOM::Element*>(element_pointer), css_pseudo_element(ffi_pseudo) };
             if (auto* marker = as_if<ListItemMarkerBox>(*frame.layout_node);
                 marker && frame.computed_values->computed_content().type == CSS::ComputedContentData::Type::Normal) {
-                if (marker->is_symbolic()) {
-                    frame.resolved_content = {};
-                    return {
-                        .final_quote_nesting_level = initial_quote_nesting_level,
-                        .content_is_list = false,
-                        .content_item_count = 0,
-                    };
-                }
                 frame.resolved_content = resolve_normal_marker_content(element_reference, *marker);
                 frame.layout_node->set_content(frame.resolved_content);
                 return {
