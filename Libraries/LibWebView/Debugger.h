@@ -26,6 +26,24 @@ struct DebuggerConfiguration {
     bool skip_breakpoints { false };
 };
 
+struct DebuggerBreakpointLocation {
+    Optional<Web::HTML::ScriptRegistry::Identifier> source_id;
+    Utf16String filename;
+    u32 line { 0 };
+    Optional<u32> column;
+
+    bool operator==(DebuggerBreakpointLocation const&) const = default;
+
+    bool represents_same_breakpoint_as(DebuggerBreakpointLocation const& other) const
+    {
+        if (line != other.line || column != other.column)
+            return false;
+        if (source_id.has_value() && other.source_id.has_value())
+            return source_id == other.source_id;
+        return filename == other.filename;
+    }
+};
+
 struct DebuggerLocation {
     Web::HTML::ScriptRegistry::Description source;
     u32 line { 0 };
@@ -52,6 +70,12 @@ WEBVIEW_API ErrorOr<void> encode(Encoder&, WebView::DebuggerConfiguration const&
 
 template<>
 WEBVIEW_API ErrorOr<WebView::DebuggerConfiguration> decode(Decoder&);
+
+template<>
+WEBVIEW_API ErrorOr<void> encode(Encoder&, WebView::DebuggerBreakpointLocation const&);
+
+template<>
+WEBVIEW_API ErrorOr<WebView::DebuggerBreakpointLocation> decode(Decoder&);
 
 template<>
 WEBVIEW_API ErrorOr<void> encode(Encoder&, WebView::DebuggerLocation const&);

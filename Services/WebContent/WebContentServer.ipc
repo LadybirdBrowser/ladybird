@@ -135,6 +135,8 @@ endpoint WebContentServer
     detach_debugger(u64 page_id) =|
     interrupt_debugger(u64 page_id) =|
     resume_debugger(u64 page_id) =|
+    set_debugger_breakpoint(u64 page_id, u64 request_id, WebView::DebuggerBreakpointLocation location) =|
+    remove_debugger_breakpoint(u64 page_id, u64 request_id, WebView::DebuggerBreakpointLocation location) =|
     resolve_dom_node_url(u64 page_id, u64 request_id, Optional<Web::UniqueNodeID> node_id, String url) =|
 
     set_listen_for_dom_mutations(u64 page_id, bool listen_for_dom_mutations) =|

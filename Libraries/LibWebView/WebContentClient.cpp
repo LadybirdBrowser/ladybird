@@ -1466,6 +1466,12 @@ void WebContentClient::did_pause_debugger(u64 page_id, DebuggerPause pause)
     }
 }
 
+void WebContentClient::did_complete_debugger_breakpoint_operation(u64 page_id, u64 request_id, Optional<String> error)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        view->did_complete_debugger_breakpoint_operation(request_id, move(error));
+}
+
 void WebContentClient::did_resolve_dom_node_url(u64 page_id, u64 request_id, String resolved_url)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
