@@ -4,12 +4,12 @@
     body { font: 14px/17.5px Verdana, Arial, Helvetica, sans-serif; }
     img { width: 20px; height: 20px; }
 </style>
-<body contenteditable="true" dir="ltr"><div>Give it a try! <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
+<body contenteditable="true" dir="ltr"><div>Give it a try! <img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
 <div><br></div>
 <div><font color="#ff00">Red text and </font><font color="#3399ff">blue text!</font><br></div>
 <div><br></div>
 <ul><li>A simple list<br></li><li>With two items<br></li></ul><div><br></div>
-<div>Just type <strong>:</strong>) and it will be converted into <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
+<div>Just type <strong>:</strong>) and it will be converted into <img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
 '></iframe>
 <script>
     // These selections and replacements were recorded from Chromium using the SCEditor-derived fixture. Chromium's
@@ -24,110 +24,110 @@
         const failures = [];
         let assertionCount = 0;
 
-        const originalHTML = `<div>Give it a try! <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
+        const originalHTML = `<div>Give it a try! <img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
 <div><br></div>
 <div><font color="#ff00">Red text and </font><font color="#3399ff">blue text!</font><br></div>
 <div><br></div>
 <ul><li>A simple list<br></li><li>With two items<br></li></ul><div><br></div>
-<div>Just type <strong>:</strong>) and it will be converted into <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
+<div>Just type <strong>:</strong>) and it will be converted into <img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
 `;
-        const pastedHTML = `<div>Give it a try! <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
+        const pastedHTML = `<div>Give it a try! <img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
 <div><br></div>
 <div><font color="#ff00">Re</font></div><br class="Apple-interchange-newline"><div><span style="color: rgb(255, 0, 0);">Red text and</span><span style="color: rgb(255, 0, 0);"> </span><font color="#ff00">d text and </font><font color="#3399ff">blue text!</font><br></div>
 <div><br></div>
 <ul><li>A simple list<br></li><li>With two items<br></li></ul><div><br></div>
-<div>Just type <strong>:</strong>) and it will be converted into <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
+<div>Just type <strong>:</strong>) and it will be converted into <img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
 `;
-        const pastedTrailingNewlineHTML = `<div>Give it a try! <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
+        const pastedTrailingNewlineHTML = `<div>Give it a try! <img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
 <div><br></div>
 <div><font color="#ff00">Red text and </font><font color="#3399ff">blue text!</font><br></div>
 <div><br></div>
 <ul><li>A simp</li><li>A simple list<br></li><li>With two items<br></li><div><br></div><li>le list<br></li><li>With two items<br></li></ul><div><br></div>
-<div>Just type <strong>:</strong>) and it will be converted into <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
+<div>Just type <strong>:</strong>) and it will be converted into <img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
 `;
-        const pastedListWithBoundaryMarkersHTML = `<div>Give it a try! <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
+        const pastedListWithBoundaryMarkersHTML = `<div>Give it a try! <img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
 <div><br></div>
 <div><font color="#ff00">Red text and </font><font color="#3399ff">blue text!</font><br></div>
 <div><br></div>
 <ul><li>A simple&nbsp;</li><li><br class="Apple-interchange-newline">A simple list<br></li><li>With two items<br></li><div><br></div><li>list<br></li><li>With two items<br></li></ul><div><br></div>
-<div>Just type <strong>:</strong>) and it will be converted into <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
+<div>Just type <strong>:</strong>) and it will be converted into <img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
 `;
-        const pastedTrailingBoundaryIntoListItemHTML = `<div>Give it a try! <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
+        const pastedTrailingBoundaryIntoListItemHTML = `<div>Give it a try! <img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
 <div><br></div>
 <div><font color="#ff00">Red text and </font><font color="#3399ff">blue text!</font><br></div>
 <div><br></div>
-<ul><li><div>e it a try!&nbsp;<img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div><div><br></div>A simple list<br></li><li>With two items<br></li></ul><div><br></div>
-<div>Just type <strong>:</strong>) and it will be converted into <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
+<ul><li><div>e it a try!&nbsp;<img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div><div><br></div>A simple list<br></li><li>With two items<br></li></ul><div><br></div>
+<div>Just type <strong>:</strong>) and it will be converted into <img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
 `;
-        const pastedNestedLeadingBoundaryHTML = `<div>Give it a try! <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
-<div><br></div>
-<div><font color="#ff00">Red text and </font><font color="#3399ff">blue text!</font><br></div>
-<div><br></div>
-<ul><li>A simple list<br></li><li>With two items<br></li></ul><div><br></div>
-<div>Just type <strong>:</strong>) and it wil</div><div><font color="#ff00"><br class="Apple-interchange-newline">Red text and </font><font color="#3399ff">blue text!</font><br></div><div><br></div><ul><li>A simple list<br></li><li>With two items<br></li></ul><div><br></div><div>Just type <strong>:</strong>) and it will be converted into&nbsp;<img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)">&nbsp;as you typel be converted into <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
-`;
-        const pastedFragmentEdgeBoundaryHTML = `<div>Give it a try! <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
+        const pastedNestedLeadingBoundaryHTML = `<div>Give it a try! <img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
 <div><br></div>
 <div><font color="#ff00">Red text and </font><font color="#3399ff">blue text!</font><br></div>
 <div><br></div>
 <ul><li>A simple list<br></li><li>With two items<br></li></ul><div><br></div>
-<div>Just type <strong>:</strong>) and it will be conver</div><div><font color="#ff00"><br class="Apple-interchange-newline">Red text and </font><font color="#3399ff">blue text!</font><br></div><div><br></div><ul><li>A simple list</li></ul><div>ted into <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
+<div>Just type <strong>:</strong>) and it wil</div><div><font color="#ff00"><br class="Apple-interchange-newline">Red text and </font><font color="#3399ff">blue text!</font><br></div><div><br></div><ul><li>A simple list<br></li><li>With two items<br></li></ul><div><br></div><div>Just type <strong>:</strong>) and it will be converted into&nbsp;<img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)">&nbsp;as you typel be converted into <img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
 `;
-        const pastedEmptyParagraphBeforeListHTML = `<div>Give it a try! <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
+        const pastedFragmentEdgeBoundaryHTML = `<div>Give it a try! <img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
 <div><br></div>
 <div><font color="#ff00">Red text and </font><font color="#3399ff">blue text!</font><br></div>
 <div><br></div>
 <ul><li>A simple list<br></li><li>With two items<br></li></ul><div><br></div>
-<div>Just typ</div><div><br class="Apple-interchange-newline"><br></div><ul><li>A simple list<br></li><li>With two items</li></ul><div>e <strong>:</strong>) and it will be converted into <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
+<div>Just type <strong>:</strong>) and it will be conver</div><div><font color="#ff00"><br class="Apple-interchange-newline">Red text and </font><font color="#3399ff">blue text!</font><br></div><div><br></div><ul><li>A simple list</li></ul><div>ted into <img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
 `;
-        const pastedTrailingListItemBoundaryHTML = `<div>Give it a try! <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
+        const pastedEmptyParagraphBeforeListHTML = `<div>Give it a try! <img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
 <div><br></div>
 <div><font color="#ff00">Red text and </font><font color="#3399ff">blue text!</font><br></div>
 <div><br></div>
 <ul><li>A simple list<br></li><li>With two items<br></li></ul><div><br></div>
-<div>Just type <strong>:</strong>) and it<span style="color: rgb(51, 153, 255);">ext!</span></div><div><br></div><ul><li>A simple list<br></li></ul><div>&nbsp;will be converted into <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
+<div>Just typ</div><div><br class="Apple-interchange-newline"><br></div><ul><li>A simple list<br></li><li>With two items</li></ul><div>e <strong>:</strong>) and it will be converted into <img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
 `;
-        const pastedPartialListItemPrefixHTML = `<div>Give it a try! <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
+        const pastedTrailingListItemBoundaryHTML = `<div>Give it a try! <img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
+<div><br></div>
+<div><font color="#ff00">Red text and </font><font color="#3399ff">blue text!</font><br></div>
+<div><br></div>
+<ul><li>A simple list<br></li><li>With two items<br></li></ul><div><br></div>
+<div>Just type <strong>:</strong>) and it<span style="color: rgb(51, 153, 255);">ext!</span></div><div><br></div><ul><li>A simple list<br></li></ul><div>&nbsp;will be converted into <img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
+`;
+        const pastedPartialListItemPrefixHTML = `<div>Give it a try! <img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
 <div><br></div>
 <div><font color="#ff00">Red text and </font><font color="#3399ff">blue text!</font><br></div>
 <div><br></div>
 <ul><li>A simple list<br></li><li>AWith two items<br></li></ul><div><br></div>
-<div>Just type <strong>:</strong>) and it will be converted into <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
+<div>Just type <strong>:</strong>) and it will be converted into <img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
 `;
-        const pastedBoundaryListItemPrefixHTML = `<div>Give it a try! <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
+        const pastedBoundaryListItemPrefixHTML = `<div>Give it a try! <img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
 <div><br></div>
 <div><font color="#ff00">Red text and </font><font color="#3399ff">blue text!</font><br></div>
 <div><br></div>
 <ul><li>A simple list<br></li><li>With&nbsp;<br class="Apple-interchange-newline">A stwo items<br></li></ul><div><br></div>
-<div>Just type <strong>:</strong>) and it will be converted into <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
+<div>Just type <strong>:</strong>) and it will be converted into <img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
 `;
-        const pastedLocalTextSeamHTML = `<div>Give it aJust typ try! <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"></div>
+        const pastedLocalTextSeamHTML = `<div>Give it aJust typ try! <img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"></div>
 <div><br></div>
 <div><font color="#ff00">Red text and </font><font color="#3399ff">blue text!</font><br></div>
 <div><br></div>
 <ul><li>A simple list<br></li><li>With two items<br></li></ul><div><br></div>
-<div>Just type <strong>:</strong>) and it will be converted into <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
+<div>Just type <strong>:</strong>) and it will be converted into <img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
 `;
-        const pastedMovedParagraphWhitespaceHTML = `<div>Give it a try! <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
+        const pastedMovedParagraphWhitespaceHTML = `<div>Give it a try! <img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
 <div><br></div>
 <div><font color="#ff00">Red text and </font><font color="#3399ff">blue text!</font><br></div>
 <div><br></div>
-<ul><li>A simple list<br></li><li>With two itemst a try!&nbsp;<img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><div><br></div><div><font color="#ff00">Red text and </font><font color="#3399ff">blue text!</font><br></div><div><br></div><ul><li>A simple</li></ul></li></ul><div><br></div>
-<div>Just type <strong>:</strong>) and it will be converted into <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
+<ul><li>A simple list<br></li><li>With two itemst a try!&nbsp;<img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><div><br></div><div><font color="#ff00">Red text and </font><font color="#3399ff">blue text!</font><br></div><div><br></div><ul><li>A simple</li></ul></li></ul><div><br></div>
+<div>Just type <strong>:</strong>) and it will be converted into <img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
 `;
-        const pastedAfterStyledRunHTML = `<div>Give it a try! <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
+        const pastedAfterStyledRunHTML = `<div>Give it a try! <img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"><br></div>
 <div><br></div>
-<div><font color="#ff00">Red text and </font><font color="#3399ff">blue text!</font>&nbsp;<img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)">&nbsp;as you type.<br></div>
+<div><font color="#ff00">Red text and </font><font color="#3399ff">blue text!</font>&nbsp;<img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)">&nbsp;as you type.<br></div>
 <div><br></div>
 <ul><li>A simple list<br></li><li>With two items<br></li></ul><div><br></div>
-<div>Just type <strong>:</strong>) and it will be converted into <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
+<div>Just type <strong>:</strong>) and it will be converted into <img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
 `;
-        const pastedCompleteEndTextSeamHTML = `<div>Give it ) and it will be converted into&nbsp;<img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)">&nbsp;aa try! <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"></div>
+        const pastedCompleteEndTextSeamHTML = `<div>Give it ) and it will be converted into&nbsp;<img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)">&nbsp;aa try! <img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"></div>
 <div><br></div>
 <div><font color="#ff00">Red text and </font><font color="#3399ff">blue text!</font><br></div>
 <div><br></div>
 <ul><li>A simple list<br></li><li>With two items<br></li></ul><div><br></div>
-<div>Just type <strong>:</strong>) and it will be converted into <img src="../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
+<div>Just type <strong>:</strong>) and it will be converted into <img src="../../../Screenshot/data/smiley.png" data-sceditor-emoticon=":)" alt=":)" title=":)"> as you type.</div>
 `;
 
         const host = frame.contentDocument.body;
