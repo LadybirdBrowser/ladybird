@@ -575,6 +575,7 @@ impl BlockFormattingContext {
         }
 
         let remaining_inline_size = remaining_available_space.inline_size.to_px_or_zero();
+        let containing_block_direction = self.style(self.containing_block(node)).direction();
         let computed_margin_left = style.margin_left();
         let computed_margin_right = style.margin_right();
         let compute = |input: Option<CssPixels>,
@@ -636,7 +637,11 @@ impl BlockFormattingContext {
                         unreachable!();
                     }
                 } else if !*margin_left_is_auto && !*margin_right_is_auto {
-                    *margin_right += underflow;
+                    if containing_block_direction == direction::RTL {
+                        *margin_left += underflow;
+                    } else {
+                        *margin_right += underflow;
+                    }
                 } else if !*margin_left_is_auto && *margin_right_is_auto {
                     *margin_right = underflow;
                     *margin_right_is_auto = false;

@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<title>CSSOM View - scrollLeft/scrollTop considers writing-mode and css direction</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="author" title="Cathie Chen" href="mailto:cathiechen@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/cssom-view/#scrolling-area-origin">
+<link rel="help" href="https://drafts.csswg.org/cssom-view/#scroll-an-element">
+<meta name="assert" content="This test verifies the assigned and extreme values of the scroll positions of an element.">
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<head>
+  <style>
+    .scroller {
+        overflow: scroll;
+        width: 150px;
+        height: 100px;
+    }
+    .content {
+        width: 300px;
+        height: 400px;
+    }
+    .horizontal-tb {
+      writing-mode: horizontal-tb;
+    }
+    .vertical-lr {
+      writing-mode: vertical-lr;
+    }
+    .vertical-rl {
+      writing-mode: vertical-rl;
+    }
+    .rtl {
+      direction: rtl;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>scrollLeft/scrollTop</h1>
+  <h2>writing-mode: horizontal-tb;</h2>
+  <div id="target_scroller" class="scroller horizontal-tb ltr">
+    <div id="target_content" class="content"></div>
+  </div>
+  <div class="scroller horizontal-tb rtl">
+    <div class="content"></div>
+  </div>
+  <h2>writing-mode: vertical-lr;</h2>
+  <div class="scroller vertical-lr ltr">
+    <div class="content"></div>
+  </div>
+  <div class="scroller vertical-lr rtl">
+    <div class="content"></div>
+  </div>
+  <h2>writing-mode: vertical-rl;</h2>
+  <div class="scroller vertical-rl ltr">
+    <div class="content"></div>
+  </div>
+  <div class="scroller vertical-rl rtl">
+    <div class="content"></div>
+  </div>
+
+  <script>
+  var scroller = document.querySelector("#target_scroller");
+  var content = document.querySelector("#target_content");
+  var scrollbar_width = scroller.offsetWidth - scroller.clientWidth;
+  var scroller_width = scroller.offsetWidth;
+  var scroller_height = scroller.offsetHeight;
+  var content_width = content.offsetWidth;
+  var content_height = content.offsetHeight;
+
+  expectedScrollTop = content_height - scroller_height + scrollbar_width;
+  expectedScrollLeft = content_width - scroller_width + scrollbar_width;
+
+  const epsilon = 0.5;
+  test(() => {
+    var scroller = document.querySelector(".horizontal-tb.ltr");
+    assert_approx_equals(scroller.scrollLeft, 0, epsilon, "initial scrollLeft");
+    assert_approx_equals(scroller.scrollTop, 0, epsilon, "initial scrollTop");
+    scroller.scrollLeft = 2*content_width;
+    scroller.scrollTop = 2*content_height;
+    assert_approx_equals(scroller.scrollLeft, expectedScrollLeft, epsilon, "ending scrollLeft");
+    assert_approx_equals(scroller.scrollTop, expectedScrollTop, epsilon, "ending scrollTop");
+  }, `writing-mode:horizontal-tb; direction:ltr`);
+
+  test(() => {
+    var scroller = document.querySelector(".horizontal-tb.rtl");
+    assert_approx_equals(scroller.scrollLeft, 0, epsilon, "initial scrollLeft");
+    assert_approx_equals(scroller.scrollTop, 0, epsilon, "initial scrollTop");
+    scroller.scrollLeft = -2*content_width;
+    scroller.scrollTop = 2*content_height;
+    assert_approx_equals(scroller.scrollLeft, -expectedScrollLeft, epsilon, "ending scrollLeft");
+    assert_approx_equals(scroller.scrollTop, expectedScrollTop, epsilon, "ending scrollTop");
+  }, `writing-mode:horizontal-tb; direction:rtl`);
+
+  test(() => {
+    var scroller = document.querySelector(".vertical-lr.ltr");
+    assert_approx_equals(scroller.scrollLeft, 0, epsilon, "initial scrollLeft");
+    assert_approx_equals(scroller.scrollTop, 0, epsilon, "initial scrollTop");
+    scroller.scrollLeft = 2*content_width;
+    scroller.scrollTop = 2*content_height;
+    assert_approx_equals(scroller.scrollLeft, expectedScrollLeft, epsilon, "ending scrollLeft");
+    assert_approx_equals(scroller.scrollTop, expectedScrollTop, epsilon, "ending scrollTop");
+  }, `writing-mode:vertical-lr; direction:ltr`);
+
+  test(() => {
+    var scroller = document.querySelector(".vertical-lr.rtl");
+    assert_approx_equals(scroller.scrollLeft, 0, epsilon, "initial scrollLeft");
+    assert_approx_equals(scroller.scrollTop, 0, epsilon, "initial scrollTop");
+    scroller.scrollLeft = 2*content_width;
+    scroller.scrollTop = -2*content_height;
+    assert_approx_equals(scroller.scrollLeft, expectedScrollLeft, epsilon, "ending scrollLeft");
+    assert_approx_equals(scroller.scrollTop, -expectedScrollTop, epsilon, "ending scrollTop");
+  }, `writing-mode:vertical-lr; direction:rtl`);
+
+  test(() => {
+    var scroller = document.querySelector(".vertical-rl.ltr");
+    assert_approx_equals(scroller.scrollLeft, 0, epsilon, "initial scrollLeft");
+    assert_approx_equals(scroller.scrollTop, 0, epsilon, "initial scrollTop");
+    scroller.scrollLeft = -2*content_width;
+    scroller.scrollTop = 2*content_height;
+    assert_approx_equals(scroller.scrollLeft, -expectedScrollLeft, epsilon, "ending scrollLeft");
+    assert_approx_equals(scroller.scrollTop, expectedScrollTop, epsilon, "ending scrollTop");
+  }, `writing-mode:vertical-rl; direction:ltr`);
+
+  test(() => {
+    var scroller = document.querySelector(".vertical-rl.rtl");
+    assert_approx_equals(scroller.scrollLeft, 0, epsilon, "initial scrollLeft");
+    assert_approx_equals(scroller.scrollTop, 0, epsilon, "initial scrollTop");
+    scroller.scrollLeft = -2*content_width;
+    scroller.scrollTop = -2*content_height;
+    assert_approx_equals(scroller.scrollLeft, -expectedScrollLeft, epsilon, "ending scrollLeft");
+    assert_approx_equals(scroller.scrollTop, -expectedScrollTop, epsilon, "ending scrollTop");
+  }, `writing-mode:vertical-rl; direction:rtl`);
+  </script>
+</body>
+</html>
