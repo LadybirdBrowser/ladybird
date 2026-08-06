@@ -20,6 +20,7 @@ enum class DebuggerPauseReason : u8 {
     BreakpointConditionThrown,
     DebuggerStatement,
     Entry,
+    Exception,
     ResumeLimit,
 };
 
@@ -142,6 +143,7 @@ struct DebuggerFrame {
 struct DebuggerPause {
     DebuggerPauseReason reason { DebuggerPauseReason::Breakpoint };
     Optional<Utf16String> reason_message;
+    Optional<DebuggerValue> exception;
     Vector<DebuggerFrame> frames;
 };
 

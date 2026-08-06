@@ -393,6 +393,7 @@ public:
         size_t start_offset;
         size_t end_offset;
         size_t handler_offset;
+        bool catches_exception { false };
     };
 
     Vector<ExceptionHandlers> exception_handlers;

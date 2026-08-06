@@ -26,7 +26,7 @@ Debugger::~Debugger()
     clear_executable_breakpoints();
 }
 
-bool Debugger::pause_execution(Bytecode::Executable& executable, u32 bytecode_offset, PauseReason reason)
+bool Debugger::pause_execution(Bytecode::Executable& executable, u32 bytecode_offset, PauseReason reason, Optional<Value> exception, bool exception_will_be_caught)
 {
     // The pause callback is free to evaluate JavaScript, which may pause again. Only the outermost
     // pause is reported; nested ones are ignored so that the callback can't deadlock against itself.
@@ -52,6 +52,8 @@ bool Debugger::pause_execution(Bytecode::Executable& executable, u32 bytecode_of
         .source_range = move(source_range),
         .stack_trace = move(stack_trace),
         .breakpoint_ids = Vector<BreakpointID> { executable.debugger_breakpoints_at(bytecode_offset) },
+        .exception = exception,
+        .exception_will_be_caught = exception_will_be_caught,
         .reason = reason,
     });
     VERIFY(!m_is_paused);
@@ -247,6 +249,34 @@ bool Debugger::should_pause_for_step(Bytecode::Executable const& executable, u32
         return !start_context_is_active;
     }
     VERIFY_NOT_REACHED();
+}
+
+bool Debugger::pause_on_exception_if_needed(Bytecode::Executable& executable, u32 bytecode_offset, Value exception, bool exception_will_be_caught)
+{
+    if (m_pause_on_exceptions == PauseOnExceptions::None)
+        return false;
+    if (m_pause_on_exceptions == PauseOnExceptions::Uncaught && exception_will_be_caught)
+        return false;
+    if (m_last_paused_exception == exception)
+        return false;
+
+    if (!pause_execution(executable, bytecode_offset, PauseReason::Exception, exception, exception_will_be_caught))
+        return false;
+
+    m_last_paused_exception = GC::make_root(exception);
+    return true;
+}
+
+void Debugger::did_finish_exception_propagation(Value exception)
+{
+    if (m_last_paused_exception == exception)
+        m_last_paused_exception = {};
+}
+
+void Debugger::did_finish_bytecode_execution()
+{
+    m_step_state.clear();
+    m_last_paused_exception = {};
 }
 
 ErrorOr<BreakpointID> Debugger::add_breakpoint(Utf16View filename, u32 line, Optional<u32> column)
