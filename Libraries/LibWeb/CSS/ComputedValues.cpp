@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NeverDestroyed.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/GridTrackPlacement.h>
@@ -126,28 +127,6 @@ static Array<u8, number_of_keywords> const& keyword_code_table()
     return table;
 }
 
-// The properties feeding the text reset group's descriptors, in registration
-// order.
-static constexpr Array text_reset_group_properties {
-    PropertyID::TextDecorationLine,
-    PropertyID::TextDecorationThickness,
-    PropertyID::TextDecorationStyle,
-    PropertyID::TextDecorationColor,
-    PropertyID::WhiteSpaceTrim,
-};
-
-// The properties feeding the effects group's descriptors, in registration
-// order.
-static constexpr Array effects_group_properties {
-    PropertyID::Opacity,
-    PropertyID::Filter,
-    PropertyID::BackdropFilter,
-    PropertyID::MixBlendMode,
-    PropertyID::Isolation,
-    PropertyID::BoxShadow,
-    PropertyID::Clip,
-};
-
 // The appearance keyword mapping with the compatibility keywords excluded:
 // they normalize to auto for the appearance field but stay raw for
 // computed_appearance, so their pages take the C++ population path.
@@ -175,43 +154,6 @@ static Optional<Appearance> appearance_without_compat_from_keyword(Keyword keywo
     }
 }
 
-// The properties feeding the misc reset group's descriptors, in registration
-// order; Appearance appears twice, once per derived field.
-static constexpr Array misc_reset_group_properties {
-    PropertyID::ScrollMarginTop,
-    PropertyID::ScrollMarginRight,
-    PropertyID::ScrollMarginBottom,
-    PropertyID::ScrollMarginLeft,
-    PropertyID::ScrollPaddingTop,
-    PropertyID::ScrollPaddingRight,
-    PropertyID::ScrollPaddingBottom,
-    PropertyID::ScrollPaddingLeft,
-    PropertyID::OverflowClipMarginTop,
-    PropertyID::OverflowClipMarginRight,
-    PropertyID::OverflowClipMarginBottom,
-    PropertyID::OverflowClipMarginLeft,
-    PropertyID::ColumnSpan,
-    PropertyID::Appearance,
-    PropertyID::Appearance,
-    PropertyID::OutlineStyle,
-    PropertyID::ObjectFit,
-    PropertyID::ColumnHeight,
-    PropertyID::OutlineColor,
-    PropertyID::OutlineOffset,
-    PropertyID::OutlineWidth,
-    PropertyID::UserSelect,
-    PropertyID::ObjectPosition,
-    PropertyID::ViewTransitionName,
-    PropertyID::TouchAction,
-    PropertyID::ScrollBehavior,
-    PropertyID::ScrollbarGutter,
-    PropertyID::ScrollbarWidth,
-    PropertyID::ShapeImageThreshold,
-    PropertyID::ShapeMargin,
-    PropertyID::ShapeOutside,
-    PropertyID::WillChange,
-};
-
 // overflow-wrap has no generated keyword converter; the mapping matches the
 // switch in create().
 static Optional<OverflowWrap> overflow_wrap_from_keyword(Keyword keyword)
@@ -228,222 +170,14 @@ static Optional<OverflowWrap> overflow_wrap_from_keyword(Keyword keyword)
     }
 }
 
-// The properties feeding the inherited text group's descriptors, in
-// registration order; the doubled properties feed two fields each.
-static constexpr Array inherited_text_group_properties {
-    PropertyID::Color,
-    PropertyID::Color,
-    PropertyID::WebkitTextFillColor,
-    PropertyID::WebkitTextFillColor,
-    PropertyID::TextShadow,
-    PropertyID::TextAlign,
-    PropertyID::TextJustify,
-    PropertyID::TextTransform,
-    PropertyID::TextWrapMode,
-    PropertyID::TextWrapStyle,
-    PropertyID::TextDecorationSkipInk,
-    PropertyID::TextUnderlinePosition,
-    PropertyID::TextUnderlineOffset,
-    PropertyID::TextIndent,
-    PropertyID::TabSize,
-    PropertyID::WhiteSpaceCollapse,
-    PropertyID::WordBreak,
-    PropertyID::OverflowWrap,
-    PropertyID::WordSpacing,
-    PropertyID::WordSpacing,
-    PropertyID::LetterSpacing,
-    PropertyID::LetterSpacing,
-    PropertyID::Orphans,
-    PropertyID::Widows,
-};
+static NeverDestroyed<Array<Vector<PropertyID>, to_underlying(StyleGroupIndex::Count)>> s_style_group_gather_properties;
+static bool s_style_group_gather_properties_populated { false };
 
-// The properties feeding the inherited UI group's descriptors, in
-// registration order; the doubled properties feed two fields each.
-static constexpr Array inherited_ui_group_properties {
-    PropertyID::CaretColor,
-    PropertyID::CaretColor,
-    PropertyID::AccentColor,
-    PropertyID::AccentColor,
-    PropertyID::Cursor,
-    PropertyID::PointerEvents,
-    PropertyID::ScrollbarColor,
-    PropertyID::ColorScheme,
-    PropertyID::ColorScheme,
-};
-
-// The properties feeding the transform group's descriptors, in registration
-// order.
-static constexpr Array transform_group_properties {
-    PropertyID::Transform,
-    PropertyID::TransformBox,
-    PropertyID::TransformOrigin,
-    PropertyID::TransformStyle,
-    PropertyID::BackfaceVisibility,
-    PropertyID::Rotate,
-    PropertyID::Translate,
-    PropertyID::Scale,
-    PropertyID::Perspective,
-    PropertyID::PerspectiveOrigin,
-};
-
-// The properties feeding the mask group's descriptors, in registration
-// order.
-static constexpr Array mask_group_properties {
-    PropertyID::MaskImage,
-    PropertyID::MaskType,
-    PropertyID::ClipPath,
-    PropertyID::MaskMode,
-    PropertyID::MaskRepeat,
-    PropertyID::MaskPosition,
-    PropertyID::MaskClip,
-    PropertyID::MaskOrigin,
-    PropertyID::MaskSize,
-    PropertyID::MaskComposite,
-};
-
-// The properties feeding the grid group's descriptors, in registration
-// order. Every field registers as an initial-value constraint until the
-// core learns the grid representations.
-static constexpr Array grid_group_properties {
-    PropertyID::GridAutoColumns,
-    PropertyID::GridAutoRows,
-    PropertyID::GridTemplateColumns,
-    PropertyID::GridTemplateRows,
-    PropertyID::GridColumnEnd,
-    PropertyID::GridColumnStart,
-    PropertyID::GridRowEnd,
-    PropertyID::GridRowStart,
-    PropertyID::GridTemplateAreas,
-};
-
-// The properties feeding the animation group's descriptors, in registration
-// order. Every field registers as an initial-value constraint: elements
-// without animations, timelines or transitions adopt a shared payload.
-static constexpr Array animation_group_properties {
-    PropertyID::AnimationName,
-    PropertyID::AnimationComposition,
-    PropertyID::AnimationDelay,
-    PropertyID::AnimationDirection,
-    PropertyID::AnimationDuration,
-    PropertyID::AnimationFillMode,
-    PropertyID::AnimationIterationCount,
-    PropertyID::AnimationPlayState,
-    PropertyID::AnimationTimeline,
-    PropertyID::AnimationTimingFunction,
-    PropertyID::ScrollTimelineName,
-    PropertyID::ScrollTimelineAxis,
-    PropertyID::TimelineScope,
-    PropertyID::ViewTimelineName,
-    PropertyID::ViewTimelineAxis,
-    PropertyID::ViewTimelineInset,
-    PropertyID::TransitionProperty,
-    PropertyID::TransitionDuration,
-    PropertyID::TransitionTimingFunction,
-    PropertyID::TransitionDelay,
-    PropertyID::TransitionBehavior,
-};
-
-// The properties feeding the inherited SVG group's descriptors, in
-// registration order.
-static constexpr Array inherited_svg_group_properties {
-    PropertyID::Fill,
-    PropertyID::Stroke,
-    PropertyID::FillRule,
-    PropertyID::ClipRule,
-    PropertyID::FillOpacity,
-    PropertyID::StrokeOpacity,
-    PropertyID::StrokeLinecap,
-    PropertyID::StrokeLinejoin,
-    PropertyID::StrokeDasharray,
-    PropertyID::StrokeDashoffset,
-    PropertyID::StrokeMiterlimit,
-    PropertyID::StrokeWidth,
-    PropertyID::ColorInterpolation,
-    PropertyID::ColorInterpolationFilters,
-    PropertyID::PaintOrder,
-    PropertyID::TextAnchor,
-    PropertyID::DominantBaseline,
-};
-
-// The properties feeding the inherited list group's descriptors, in
-// registration order.
-static constexpr Array inherited_list_group_properties {
-    PropertyID::ListStyleType,
-    PropertyID::ListStylePosition,
-    PropertyID::ListStyleImage,
-    PropertyID::Quotes,
-};
-
-// The properties feeding the content and anchor groups' descriptors, in
-// registration order. Everything registers as constraints: both groups adopt
-// shared payloads unless their properties are actually used.
-static constexpr Array content_group_properties {
-    PropertyID::Content,
-    PropertyID::CounterIncrement,
-    PropertyID::CounterReset,
-    PropertyID::CounterSet,
-};
-
-static constexpr Array anchor_group_properties {
-    PropertyID::AnchorName,
-    PropertyID::AnchorScope,
-    PropertyID::PositionAnchor,
-    PropertyID::PositionArea,
-    PropertyID::PositionTryFallbacks,
-    PropertyID::PositionTryOrder,
-    PropertyID::PositionVisibility,
-};
-
-// The properties feeding the border group's descriptors, in registration
-// order; each side's color feeds both the resolved color and the retained
-// shell.
-static constexpr Array border_group_properties {
-    PropertyID::BorderLeftColor,
-    PropertyID::BorderLeftColor,
-    PropertyID::BorderLeftStyle,
-    PropertyID::BorderLeftWidth,
-    PropertyID::BorderTopColor,
-    PropertyID::BorderTopColor,
-    PropertyID::BorderTopStyle,
-    PropertyID::BorderTopWidth,
-    PropertyID::BorderRightColor,
-    PropertyID::BorderRightColor,
-    PropertyID::BorderRightStyle,
-    PropertyID::BorderRightWidth,
-    PropertyID::BorderBottomColor,
-    PropertyID::BorderBottomColor,
-    PropertyID::BorderBottomStyle,
-    PropertyID::BorderBottomWidth,
-    PropertyID::BorderBottomLeftRadius,
-    PropertyID::BorderBottomRightRadius,
-    PropertyID::BorderTopLeftRadius,
-    PropertyID::BorderTopRightRadius,
-    PropertyID::CornerBottomLeftShape,
-    PropertyID::CornerBottomRightShape,
-    PropertyID::CornerTopLeftShape,
-    PropertyID::CornerTopRightShape,
-    PropertyID::BorderImageSource,
-    PropertyID::BorderImageOutset,
-    PropertyID::BorderImageRepeat,
-    PropertyID::BorderImageSlice,
-    PropertyID::BorderImageWidth,
-};
-
-// The properties feeding the background group's descriptors, in registration
-// order; the color feeds both the resolved color and the retained shell.
-static constexpr Array background_group_properties {
-    PropertyID::BackgroundColor,
-    PropertyID::BackgroundColor,
-    PropertyID::BackgroundImage,
-    PropertyID::BackgroundClip,
-    PropertyID::BackgroundAttachment,
-    PropertyID::BackgroundOrigin,
-    PropertyID::BackgroundPositionX,
-    PropertyID::BackgroundPositionY,
-    PropertyID::BackgroundRepeat,
-    PropertyID::BackgroundSize,
-    PropertyID::BackgroundBlendMode,
-};
+static ReadonlySpan<PropertyID> style_group_gather_properties(StyleGroupIndex group_index)
+{
+    VERIFY(s_style_group_gather_properties_populated);
+    return (*s_style_group_gather_properties)[to_underlying(group_index)];
+}
 
 static void register_style_group_field_descriptors()
 {
@@ -581,11 +315,11 @@ static void register_style_group_field_descriptors()
     add(mask, PropertyID::MaskComposite, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
 
     constexpr auto grid = to_underlying(StyleGroupIndex::GridValues);
-    for (auto property : grid_group_properties)
+    for (auto property : longhands_in_style_group(StyleGroupIndex::GridValues))
         add(grid, property, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
 
     constexpr auto animation = to_underlying(StyleGroupIndex::AnimationValues);
-    for (auto property : animation_group_properties)
+    for (auto property : longhands_in_style_group(StyleGroupIndex::AnimationValues))
         add(animation, property, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
 
     using InheritedSVG = ComputedValues::InheritedSVGValues;
@@ -669,18 +403,21 @@ static void register_style_group_field_descriptors()
     constexpr auto background = to_underlying(StyleGroupIndex::BackgroundValues);
     add(background, PropertyID::BackgroundColor, offsetof(Background, background_color), GROUP_FIELD_COLOR, 0, nullptr);
     add(background, PropertyID::BackgroundColor, offsetof(Background, background_color_style_value), GROUP_FIELD_RETAINED_DATA, 0, nullptr);
-    for (auto property : { PropertyID::BackgroundImage, PropertyID::BackgroundClip, PropertyID::BackgroundAttachment,
-             PropertyID::BackgroundOrigin, PropertyID::BackgroundPositionX, PropertyID::BackgroundPositionY,
-             PropertyID::BackgroundRepeat, PropertyID::BackgroundSize, PropertyID::BackgroundBlendMode })
+    for (auto property : longhands_in_style_group(StyleGroupIndex::BackgroundValues)) {
+        if (property == PropertyID::BackgroundColor)
+            continue;
         add(background, property, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
+    }
 
     u32 generically_built_group_mask = 0;
     Array<bool, number_of_longhand_properties> longhand_has_descriptor {};
     for (auto const& descriptor : descriptors) {
         generically_built_group_mask |= 1u << descriptor.group_index;
         longhand_has_descriptor[descriptor.property_id - to_underlying(first_longhand_property_id)] = true;
+        (*s_style_group_gather_properties)[descriptor.group_index].append(static_cast<PropertyID>(descriptor.property_id));
     }
 
+    s_style_group_gather_properties_populated = true;
     for (auto i = to_underlying(first_longhand_property_id); i <= to_underlying(last_longhand_property_id); ++i) {
         auto property_id = static_cast<PropertyID>(i);
         if (property_is_logical_alias(property_id))
@@ -1205,15 +942,15 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     if (inherited_table_adopted)
         computed_values.adopt_inherited_table_group(const_cast<void*>(inherited_table_payload));
 
-    auto gather_group_values = [&]<size_t N>(Array<PropertyID, N> const& properties, Array<ComputedValuesFFI::FfiGroupValueEntry, N>& entries) {
-        for (size_t i = 0; i < N; ++i) {
-            auto const& value = computed_style.property(properties[i]);
-            entries[i] = { value.rust_style_value_data(), 0, false, 0, false };
-        }
+    auto gather_group_values = [&](ReadonlySpan<PropertyID> properties) {
+        Vector<ComputedValuesFFI::FfiGroupValueEntry, 40> entries;
+        entries.ensure_capacity(properties.size());
+        for (auto property : properties)
+            entries.unchecked_append({ computed_style.property(property).rust_style_value_data(), 0, false, 0, false });
+        return entries;
     };
 
-    Array<ComputedValuesFFI::FfiGroupValueEntry, content_group_properties.size()> content_group_values;
-    gather_group_values(content_group_properties, content_group_values);
+    auto content_group_values = gather_group_values(style_group_gather_properties(StyleGroupIndex::ContentValues));
     auto* content_payload = ComputedValuesFFI::rust_build_style_group(
         ContentValues::style_group_index,
         content_group_values.data(),
@@ -1223,8 +960,7 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     if (content_adopted)
         computed_values.adopt_content_group(const_cast<void*>(content_payload));
 
-    Array<ComputedValuesFFI::FfiGroupValueEntry, anchor_group_properties.size()> anchor_group_values;
-    gather_group_values(anchor_group_properties, anchor_group_values);
+    auto anchor_group_values = gather_group_values(style_group_gather_properties(StyleGroupIndex::AnchorValues));
     auto* anchor_payload = ComputedValuesFFI::rust_build_style_group(
         AnchorValues::style_group_index,
         anchor_group_values.data(),
@@ -1355,8 +1091,7 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
         inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.sizing.operator->()) : nullptr);
     computed_values.adopt_sizing_group(const_cast<void*>(sizing_payload));
 
-    Array<ComputedValuesFFI::FfiGroupValueEntry, grid_group_properties.size()> grid_group_values;
-    gather_group_values(grid_group_properties, grid_group_values);
+    auto grid_group_values = gather_group_values(style_group_gather_properties(StyleGroupIndex::GridValues));
     auto* grid_payload = ComputedValuesFFI::rust_build_style_group(
         GridValues::style_group_index,
         grid_group_values.data(),
@@ -1366,8 +1101,7 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     if (grid_adopted)
         computed_values.adopt_grid_group(const_cast<void*>(grid_payload));
 
-    Array<ComputedValuesFFI::FfiGroupValueEntry, mask_group_properties.size()> mask_group_values;
-    gather_group_values(mask_group_properties, mask_group_values);
+    auto mask_group_values = gather_group_values(style_group_gather_properties(StyleGroupIndex::MaskValues));
     auto* mask_payload = ComputedValuesFFI::rust_build_style_group(
         MaskValues::style_group_index,
         mask_group_values.data(),
@@ -1377,8 +1111,7 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     if (mask_adopted)
         computed_values.adopt_mask_group(const_cast<void*>(mask_payload));
 
-    Array<ComputedValuesFFI::FfiGroupValueEntry, transform_group_properties.size()> transform_group_values;
-    gather_group_values(transform_group_properties, transform_group_values);
+    auto transform_group_values = gather_group_values(style_group_gather_properties(StyleGroupIndex::TransformValues));
     auto* transform_payload = ComputedValuesFFI::rust_build_style_group(
         TransformValues::style_group_index,
         transform_group_values.data(),
@@ -1388,8 +1121,8 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     if (transform_adopted)
         computed_values.adopt_transform_group(const_cast<void*>(transform_payload));
 
-    Array<ComputedValuesFFI::FfiGroupValueEntry, effects_group_properties.size()> effects_group_values;
-    gather_group_values(effects_group_properties, effects_group_values);
+    auto effects_group_properties = style_group_gather_properties(StyleGroupIndex::EffectsValues);
+    auto effects_group_values = gather_group_values(effects_group_properties);
     for (size_t i = 0; i < effects_group_properties.size(); ++i) {
         if (effects_group_properties[i] == PropertyID::Opacity) {
             effects_group_values[i].resolved_number = computed_style.opacity();
@@ -1478,8 +1211,7 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     computed_values.set_line_height(computed_style.line_height_data(), computed_style.line_height(document.font_computer()));
     computed_values.set_font_variant_emoji(computed_style.font_variant_emoji());
 
-    Array<ComputedValuesFFI::FfiGroupValueEntry, animation_group_properties.size()> animation_group_values;
-    gather_group_values(animation_group_properties, animation_group_values);
+    auto animation_group_values = gather_group_values(style_group_gather_properties(StyleGroupIndex::AnimationValues));
     auto* animation_payload = ComputedValuesFFI::rust_build_style_group(
         AnimationValues::style_group_index,
         animation_group_values.data(),
@@ -1592,8 +1324,8 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     //     own color, which reaches the shared resolution context only further down.
     auto own_color_resolution_context = color_resolution_context;
     own_color_resolution_context.current_color = color;
-    Array<ComputedValuesFFI::FfiGroupValueEntry, inherited_text_group_properties.size()> inherited_text_group_values;
-    gather_group_values(inherited_text_group_properties, inherited_text_group_values);
+    auto inherited_text_group_properties = style_group_gather_properties(StyleGroupIndex::InheritedTextValues);
+    auto inherited_text_group_values = gather_group_values(inherited_text_group_properties);
     for (size_t i = 0; i < inherited_text_group_properties.size(); ++i) {
         auto gather_property_id = inherited_text_group_properties[i];
         if (gather_property_id == PropertyID::Color) {
@@ -1606,8 +1338,8 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
             }
         }
     }
-    Array<ComputedValuesFFI::FfiGroupValueEntry, inherited_ui_group_properties.size()> inherited_ui_group_values;
-    gather_group_values(inherited_ui_group_properties, inherited_ui_group_values);
+    auto inherited_ui_group_properties = style_group_gather_properties(StyleGroupIndex::InheritedUIValues);
+    auto inherited_ui_group_values = gather_group_values(inherited_ui_group_properties);
     for (size_t i = 0; i < inherited_ui_group_properties.size(); ++i) {
         auto ui_property_id = inherited_ui_group_properties[i];
         if (ui_property_id == PropertyID::CaretColor) {
@@ -1622,8 +1354,7 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
         }
     }
 
-    Array<ComputedValuesFFI::FfiGroupValueEntry, inherited_list_group_properties.size()> inherited_list_group_values;
-    gather_group_values(inherited_list_group_properties, inherited_list_group_values);
+    auto inherited_list_group_values = gather_group_values(style_group_gather_properties(StyleGroupIndex::InheritedListValues));
     auto* inherited_list_payload = ComputedValuesFFI::rust_build_style_group(
         InheritedListValues::style_group_index,
         inherited_list_group_values.data(),
@@ -1633,8 +1364,8 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     if (inherited_list_adopted)
         computed_values.adopt_inherited_list_group(const_cast<void*>(inherited_list_payload));
 
-    Array<ComputedValuesFFI::FfiGroupValueEntry, inherited_svg_group_properties.size()> inherited_svg_group_values;
-    gather_group_values(inherited_svg_group_properties, inherited_svg_group_values);
+    auto inherited_svg_group_properties = style_group_gather_properties(StyleGroupIndex::InheritedSVGValues);
+    auto inherited_svg_group_values = gather_group_values(inherited_svg_group_properties);
     for (size_t i = 0; i < inherited_svg_group_properties.size(); ++i) {
         auto svg_property_id = inherited_svg_group_properties[i];
         if (svg_property_id == PropertyID::FillOpacity) {
@@ -1674,8 +1405,8 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     VERIFY(svg_reset_payload);
     computed_values.adopt_svg_reset_group(const_cast<void*>(svg_reset_payload));
 
-    Array<ComputedValuesFFI::FfiGroupValueEntry, border_group_properties.size()> border_group_values;
-    gather_group_values(border_group_properties, border_group_values);
+    auto border_group_properties = style_group_gather_properties(StyleGroupIndex::BorderValues);
+    auto border_group_values = gather_group_values(border_group_properties);
     for (size_t i = 0; i < border_group_properties.size(); ++i) {
         auto border_property_id = border_group_properties[i];
         switch (border_property_id) {
@@ -1697,8 +1428,8 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
             break;
         }
     }
-    Array<ComputedValuesFFI::FfiGroupValueEntry, background_group_properties.size()> background_group_values;
-    gather_group_values(background_group_properties, background_group_values);
+    auto background_group_properties = style_group_gather_properties(StyleGroupIndex::BackgroundValues);
+    auto background_group_values = gather_group_values(background_group_properties);
     for (size_t i = 0; i < background_group_properties.size(); ++i) {
         if (background_group_properties[i] == PropertyID::BackgroundColor) {
             background_group_values[i].resolved_color = computed_style.color(PropertyID::BackgroundColor, own_color_resolution_context).value();
@@ -1759,8 +1490,8 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
 
     // NB: The text reset group builds only after the element's color lands in the
     //     resolution context above, since text-decoration-color may be currentcolor.
-    Array<ComputedValuesFFI::FfiGroupValueEntry, text_reset_group_properties.size()> text_reset_group_values;
-    gather_group_values(text_reset_group_properties, text_reset_group_values);
+    auto text_reset_group_properties = style_group_gather_properties(StyleGroupIndex::TextResetValues);
+    auto text_reset_group_values = gather_group_values(text_reset_group_properties);
     for (size_t i = 0; i < text_reset_group_properties.size(); ++i) {
         if (text_reset_group_properties[i] == PropertyID::TextDecorationColor) {
             text_reset_group_values[i].resolved_color = computed_style.color(PropertyID::TextDecorationColor, color_resolution_context).value();
@@ -1776,8 +1507,8 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     if (text_reset_adopted)
         computed_values.adopt_text_reset_group(const_cast<void*>(text_reset_payload));
 
-    Array<ComputedValuesFFI::FfiGroupValueEntry, misc_reset_group_properties.size()> misc_reset_group_values;
-    gather_group_values(misc_reset_group_properties, misc_reset_group_values);
+    auto misc_reset_group_properties = style_group_gather_properties(StyleGroupIndex::MiscResetValues);
+    auto misc_reset_group_values = gather_group_values(misc_reset_group_properties);
     for (size_t i = 0; i < misc_reset_group_properties.size(); ++i) {
         if (misc_reset_group_properties[i] == PropertyID::OutlineColor) {
             if (auto const& outline_color = computed_style.property(PropertyID::OutlineColor); outline_color.has_color()) {
