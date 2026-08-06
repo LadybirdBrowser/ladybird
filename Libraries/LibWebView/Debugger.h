@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Span.h>
 #include <AK/Types.h>
 #include <AK/Utf16String.h>
 #include <AK/Vector.h>
@@ -29,6 +30,11 @@ enum class DebuggerResumeMode : u8 {
     StepInto,
     StepOut,
     StepOver,
+};
+
+enum class DebuggerBlackboxingOperation : u8 {
+    Blackbox,
+    Unblackbox,
 };
 
 enum class DebuggerValueType : u8 {
@@ -126,6 +132,66 @@ struct DebuggerBreakpointOptions {
 struct DebuggerSourcePosition {
     u32 line { 0 };
     u32 column { 0 };
+
+    bool operator==(DebuggerSourcePosition const&) const = default;
+};
+
+struct DebuggerBlackboxRange {
+    DebuggerSourcePosition start;
+    DebuggerSourcePosition end;
+
+    bool operator==(DebuggerBlackboxRange const&) const = default;
+};
+
+struct DebuggerBlackboxState {
+    void update(ReadonlySpan<DebuggerBlackboxRange> ranges, DebuggerBlackboxingOperation operation)
+    {
+        if (operation == DebuggerBlackboxingOperation::Blackbox) {
+            if (ranges.is_empty()) {
+                fully_blackboxed = true;
+                blackboxed_ranges.clear();
+                unblackboxed_ranges.clear();
+                return;
+            }
+
+            if (fully_blackboxed) {
+                unblackboxed_ranges.remove_all_matching([&](auto const& range) {
+                    return ranges.contains_slow(range);
+                });
+                return;
+            }
+
+            for (auto const& range : ranges) {
+                if (!blackboxed_ranges.contains_slow(range))
+                    blackboxed_ranges.append(range);
+            }
+            return;
+        }
+
+        if (ranges.is_empty()) {
+            fully_blackboxed = false;
+            blackboxed_ranges.clear();
+            unblackboxed_ranges.clear();
+            return;
+        }
+
+        if (fully_blackboxed) {
+            for (auto const& range : ranges) {
+                if (!unblackboxed_ranges.contains_slow(range))
+                    unblackboxed_ranges.append(range);
+            }
+            return;
+        }
+
+        blackboxed_ranges.remove_all_matching([&](auto const& range) {
+            return ranges.contains_slow(range);
+        });
+    }
+    bool is_empty() const { return !fully_blackboxed && blackboxed_ranges.is_empty(); }
+
+    Vector<DebuggerBlackboxRange> blackboxed_ranges;
+    Vector<DebuggerBlackboxRange> unblackboxed_ranges;
+    bool fully_blackboxed { false };
 };
 
 struct DebuggerLocation {
@@ -212,6 +278,12 @@ WEBVIEW_API ErrorOr<void> encode(Encoder&, WebView::DebuggerSourcePosition const
 
 template<>
 WEBVIEW_API ErrorOr<WebView::DebuggerSourcePosition> decode(Decoder&);
+
+template<>
+WEBVIEW_API ErrorOr<void> encode(Encoder&, WebView::DebuggerBlackboxRange const&);
+
+template<>
+WEBVIEW_API ErrorOr<WebView::DebuggerBlackboxRange> decode(Decoder&);
 
 template<>
 WEBVIEW_API ErrorOr<void> encode(Encoder&, WebView::DebuggerLocation const&);

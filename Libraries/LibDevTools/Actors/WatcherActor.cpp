@@ -8,6 +8,7 @@
 #include <AK/JsonObject.h>
 #include <LibCore/EventLoop.h>
 #include <LibDevTools/Actors/AccessibilityActor.h>
+#include <LibDevTools/Actors/BlackboxingActor.h>
 #include <LibDevTools/Actors/BreakpointListActor.h>
 #include <LibDevTools/Actors/CSSPropertiesActor.h>
 #include <LibDevTools/Actors/ConsoleActor.h>
@@ -62,6 +63,12 @@ void WatcherActor::connection_closed()
 void WatcherActor::handle_message(Message const& message)
 {
     JsonObject response;
+
+    if (message.type == "getBlackboxingActor"sv) {
+        response.set("blackboxing"sv, blackboxing_actor().name());
+        send_response(message, move(response));
+        return;
+    }
 
     if (message.type == "getBreakpointListActor"sv) {
         response.set("breakpointList"sv, breakpoint_list_actor().name());
@@ -210,6 +217,16 @@ void WatcherActor::handle_message(Message const& message)
     send_unrecognized_packet_type_error(message);
 }
 
+BlackboxingActor& WatcherActor::blackboxing_actor()
+{
+    if (auto actor = m_blackboxing.strong_ref())
+        return *actor;
+
+    m_blackboxing = devtools().register_actor<BlackboxingActor>(make_weak_ptr<WatcherActor>());
+    add_child_actor(*m_blackboxing);
+    return *m_blackboxing;
+}
+
 BreakpointListActor& WatcherActor::breakpoint_list_actor()
 {
     if (auto actor = m_breakpoint_list.strong_ref())
@@ -311,6 +328,23 @@ void WatcherActor::switch_frame_target(FrameActor& previous_target, String const
         send_storage_resource_available_message(session_storage_actor());
     if (m_is_watching_source_resources)
         send_source_resource_available_message();
+
+    if (auto tab = m_tab.strong_ref()) {
+        for (auto const& source : m_blackboxed_sources) {
+            auto url = Utf16String::from_utf8(source.key);
+            if (source.value.fully_blackboxed) {
+                devtools().delegate().update_debugger_blackboxing(
+                    tab->description(), url, {}, WebView::DebuggerBlackboxingOperation::Blackbox);
+                if (!source.value.unblackboxed_ranges.is_empty()) {
+                    devtools().delegate().update_debugger_blackboxing(
+                        tab->description(), move(url), source.value.unblackboxed_ranges, WebView::DebuggerBlackboxingOperation::Unblackbox);
+                }
+            } else {
+                devtools().delegate().update_debugger_blackboxing(
+                    tab->description(), move(url), source.value.blackboxed_ranges, WebView::DebuggerBlackboxingOperation::Blackbox);
+            }
+        }
+    }
 }
 
 void WatcherActor::send_frame_target_available_message(FrameActor& target)
@@ -459,6 +493,31 @@ void WatcherActor::send_thread_state_available_message(JsonObject resource)
 {
     if (auto target = m_target.strong_ref())
         target->send_thread_state_resource_available_message(move(resource));
+}
+
+void WatcherActor::update_debugger_blackboxing(String const& url, Vector<WebView::DebuggerBlackboxRange> ranges, WebView::DebuggerBlackboxingOperation operation)
+{
+    auto& state = m_blackboxed_sources.ensure(url);
+    state.update(ranges, operation);
+    if (state.is_empty())
+        m_blackboxed_sources.remove(url);
+
+    if (auto tab = m_tab.strong_ref())
+        devtools().delegate().update_debugger_blackboxing(tab->description(), Utf16String::from_utf8(url), move(ranges), operation);
+}
+
+bool WatcherActor::is_source_fully_blackboxed(StringView url) const
+{
+    auto source = m_blackboxed_sources.find(url);
+    return source != m_blackboxed_sources.end()
+        && source->value.fully_blackboxed
+        && source->value.unblackboxed_ranges.is_empty();
+}
+
+bool WatcherActor::is_paused_in_source(Web::HTML::ScriptRegistry::Identifier source_id) const
+{
+    auto thread = m_thread.strong_ref();
+    return thread && thread->is_paused_in_source(source_id);
 }
 
 StorageActor& WatcherActor::local_storage_actor()

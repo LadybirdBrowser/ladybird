@@ -1528,6 +1528,17 @@ void ConnectionFromClient::resume_debugger(u64 page_id, WebView::DebuggerResumeM
     m_devtools_debugger->resume(*page, mode);
 }
 
+void ConnectionFromClient::update_debugger_blackboxing(u64 page_id, Utf16String url, Vector<WebView::DebuggerBlackboxRange> ranges, WebView::DebuggerBlackboxingOperation operation)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value())
+        return;
+
+    if (!m_devtools_debugger)
+        m_devtools_debugger = make<DevToolsDebugger>(*this);
+    m_devtools_debugger->update_blackboxing(*page, move(url), move(ranges), operation);
+}
+
 static Optional<String> debugger_breakpoint_operation_error(ErrorOr<void> result)
 {
     if (!result.is_error())
