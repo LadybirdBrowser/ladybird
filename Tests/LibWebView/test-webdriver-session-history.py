@@ -22,6 +22,8 @@ BLOCKED_RESPONSE_TIMEOUT_SECONDS = 30
 EVENT_TIMEOUT_SECONDS = 30
 WEBDRIVER_REQUEST_TIMEOUT_SECONDS = 60
 
+forensics_root_pid = None
+
 
 class TestPageServer(http.server.ThreadingHTTPServer):
     def __init__(self, server_address, request_handler_class):
@@ -695,9 +697,75 @@ def wait_for_port(port, timeout=EVENT_TIMEOUT_SECONDS):
     raise RuntimeError(f"Timed out waiting for port {port}")
 
 
+def read_proc_file(path):
+    try:
+        with open(path, "rb") as f:
+            return f.read().decode("utf-8", "replace").strip()
+    except OSError:
+        return None
+
+
+def descendant_pids(root_pid):
+    children = {}
+    for entry in os.listdir("/proc"):
+        if not entry.isdigit():
+            continue
+        stat = read_proc_file(f"/proc/{entry}/stat")
+        if stat is None:
+            continue
+        close_paren = stat.rfind(")")
+        fields = stat[close_paren + 2 :].split()
+        if len(fields) < 2:
+            continue
+        children.setdefault(int(fields[1]), []).append(int(entry))
+    pids = []
+    queue = [root_pid]
+    while queue:
+        pid = queue.pop()
+        pids.append(pid)
+        queue.extend(children.get(pid, []))
+    return pids
+
+
+def dump_process_tree_forensics(reason):
+    if forensics_root_pid is None or not os.path.isdir("/proc"):
+        return
+    print(f"=== process forensics: {reason} ===", file=sys.stderr, flush=True)
+    for pid in descendant_pids(forensics_root_pid):
+        comm = read_proc_file(f"/proc/{pid}/comm") or "?"
+        cmdline = (read_proc_file(f"/proc/{pid}/cmdline") or "").replace("\x00", " ").strip()
+        print(f"pid {pid} ({comm}): {cmdline}", file=sys.stderr, flush=True)
+        task_dir = f"/proc/{pid}/task"
+        try:
+            tids = sorted(int(task) for task in os.listdir(task_dir) if task.isdigit())
+        except OSError:
+            continue
+        for tid in tids:
+            thread_comm = read_proc_file(f"{task_dir}/{tid}/comm") or "?"
+            stat = read_proc_file(f"{task_dir}/{tid}/stat") or ""
+            close_paren = stat.rfind(")")
+            state = stat[close_paren + 2 :].split()[0] if close_paren >= 0 else "?"
+            wchan = read_proc_file(f"{task_dir}/{tid}/wchan") or "?"
+            syscall = read_proc_file(f"{task_dir}/{tid}/syscall") or "?"
+            print(
+                f"  tid {tid} ({thread_comm}) state={state} wchan={wchan} syscall={syscall}",
+                file=sys.stderr,
+                flush=True,
+            )
+    print(f"=== end process forensics: {reason} ===", file=sys.stderr, flush=True)
+
+
+def dump_process_tree_forensics_best_effort(reason):
+    try:
+        dump_process_tree_forensics(reason)
+    except Exception as error:
+        print(f"process forensics failed: {error}", file=sys.stderr, flush=True)
+
+
 def wait_for_event(event, label, timeout=EVENT_TIMEOUT_SECONDS):
     if event.wait(timeout=timeout):
         return
+    dump_process_tree_forensics_best_effort(f"timed out waiting for {label}")
     raise RuntimeError(f"Timed out waiting for {label}")
 
 
@@ -724,6 +792,9 @@ def request_raw(webdriver_port, method, path, body=None):
         connection.request(method, path, encoded_body, headers)
         response = connection.getresponse()
         response_body = response.read().decode()
+    except TimeoutError:
+        dump_process_tree_forensics_best_effort(f"{method} {path} timed out")
+        raise
     finally:
         connection.close()
 
@@ -2696,6 +2767,8 @@ def run_test(webdriver_binary):
         text=True,
         env=env,
     )
+    global forensics_root_pid
+    forensics_root_pid = webdriver.pid
 
     session_id = None
     failed = False
