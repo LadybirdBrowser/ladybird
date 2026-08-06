@@ -73,12 +73,10 @@ public:
     struct ChangingNavigableHistoryStepJob {
         CrossProcessId navigable_id;
         int target_step { 0 };
-        GC::Ptr<SourceSnapshotParams> source_snapshot_params;
         UserNavigationInvolvement user_involvement;
         Optional<Bindings::NavigationType> navigation_type;
         SynchronousNavigation synchronous_navigation;
         LocalNavigable::NavigationAPIAbortBehavior navigation_api_abort_behavior;
-        GC::Ptr<DOM::Document> pending_document;
     };
     using OnChangingNavigableHistoryStepJobComplete = GC::Function<void(ChangingNavigableHistoryStepJobDisposition)>;
     virtual void run_changing_navigable_history_step_job(u64 operation_id, ChangingNavigableHistoryStepJob, GC::Ref<OnChangingNavigableHistoryStepJobComplete>) = 0;
