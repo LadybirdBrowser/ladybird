@@ -21,6 +21,7 @@ public:
     virtual ~SourceActor() override;
 
     JsonObject serialize_source() const;
+    Web::HTML::ScriptRegistry::Description const& source() const { return m_source; }
 
 private:
     SourceActor(DevToolsServer&, String name, WeakPtr<TabActor>, Web::HTML::ScriptRegistry::Description);

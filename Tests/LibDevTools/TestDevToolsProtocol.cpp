@@ -1201,6 +1201,28 @@ public:
         ++resume_debugger_call_count;
     }
 
+    virtual void set_debugger_breakpoint(DevTools::TabDescription const&, WebView::DebuggerBreakpointLocation location, OnDebuggerBreakpointOperationComplete on_complete) const override
+    {
+        ++set_debugger_breakpoint_call_count;
+        last_debugger_breakpoint_location = move(location);
+        if (fail_debugger_breakpoint_operation) {
+            on_complete(Error::from_errno(EIO));
+            return;
+        }
+        on_complete({});
+    }
+
+    virtual void remove_debugger_breakpoint(DevTools::TabDescription const&, WebView::DebuggerBreakpointLocation location, OnDebuggerBreakpointOperationComplete on_complete) const override
+    {
+        ++remove_debugger_breakpoint_call_count;
+        last_debugger_breakpoint_location = move(location);
+        if (fail_debugger_breakpoint_operation) {
+            on_complete(Error::from_errno(EIO));
+            return;
+        }
+        on_complete({});
+    }
+
     virtual void resolve_dom_node_url(DevTools::TabDescription const&, Optional<Web::UniqueNodeID> node_id, String const& url, OnResolvedURLReceived callback) const override
     {
         ++resolve_dom_node_url_call_count;
@@ -1503,8 +1525,12 @@ public:
     mutable size_t detach_debugger_call_count { 0 };
     mutable size_t interrupt_debugger_call_count { 0 };
     mutable size_t resume_debugger_call_count { 0 };
+    mutable size_t set_debugger_breakpoint_call_count { 0 };
+    mutable size_t remove_debugger_breakpoint_call_count { 0 };
     mutable DevTools::DevToolsDelegate::OnDebuggerPaused on_debugger_paused;
     mutable WebView::DebuggerConfiguration debugger_configuration;
+    mutable Optional<WebView::DebuggerBreakpointLocation> last_debugger_breakpoint_location;
+    mutable bool fail_debugger_breakpoint_operation { false };
     mutable size_t resolve_dom_node_url_call_count { 0 };
     mutable size_t listen_for_console_messages_call_count { 0 };
     mutable size_t stop_listening_for_console_messages_call_count { 0 };
@@ -2569,6 +2595,174 @@ TEST_CASE(debugger_pause_and_resume)
     spin_until(session->loop, [&] {
         return !session->server->actor_registry().contains(frame_actor);
     });
+}
+
+TEST_CASE(debugger_breakpoints)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    auto tab_actor = actor_from(get_tab(client), "actor"sv);
+    auto watcher_actor = actor_from(client.request(tab_actor, "getWatcher"sv), "actor"sv);
+    auto breakpoint_list_actor = actor_from(client.request(watcher_actor, "getBreakpointListActor"sv), "breakpointList"sv);
+    EXPECT_EQ(actor_from(client.request(watcher_actor, "getBreakpointListActor"sv), "breakpointList"sv), breakpoint_list_actor);
+
+    auto make_breakpoint_request = [&](StringView type, JsonObject location) {
+        JsonObject request;
+        request.set("to"sv, breakpoint_list_actor);
+        request.set("type"sv, type);
+        request.set("location"sv, move(location));
+        if (type == "setBreakpoint"sv)
+            request.set("options"sv, JsonObject {});
+        return request;
+    };
+
+    JsonObject location;
+    location.set("sourceUrl"sv, "https://example.test/app.js"sv);
+    location.set("line"sv, 8);
+    location.set("column"sv, 3);
+    EXPECT_EQ(client.request(make_breakpoint_request("setBreakpoint"sv, move(location))).get_string("from"sv).value(), breakpoint_list_actor);
+    EXPECT_EQ(session->delegate.set_debugger_breakpoint_call_count, 1u);
+    VERIFY(session->delegate.last_debugger_breakpoint_location.has_value());
+    EXPECT_EQ(session->delegate.last_debugger_breakpoint_location->filename, "https://example.test/app.js"_utf16);
+    EXPECT_EQ(session->delegate.last_debugger_breakpoint_location->line, 8u);
+    EXPECT_EQ(session->delegate.last_debugger_breakpoint_location->column, 3u);
+
+    location.set("sourceUrl"sv, "https://example.test/app.js"sv);
+    location.set("line"sv, 8);
+    location.set("column"sv, 3);
+    EXPECT_EQ(client.request(make_breakpoint_request("removeBreakpoint"sv, move(location))).get_string("from"sv).value(), breakpoint_list_actor);
+    EXPECT_EQ(session->delegate.remove_debugger_breakpoint_call_count, 1u);
+
+    JsonObject watch_targets;
+    watch_targets.set("to"sv, watcher_actor);
+    watch_targets.set("type"sv, "watchTargets"sv);
+    watch_targets.set("targetType"sv, "frame"sv);
+    (void)client.request(move(watch_targets));
+    auto target = read_packet_with_type(client, "target-available-form"sv).get_object("target"sv).release_value();
+    auto thread_actor = actor_from(target, "threadActor"sv);
+    auto sources = client.request(thread_actor, "sources"sv).get_array("sources"sv).release_value();
+    auto source_actor = actor_from(sources[0].as_object(), "actor"sv);
+
+    location.set("sourceId"sv, source_actor);
+    location.set("sourceUrl"sv, "https://example.test/wrong.js"sv);
+    location.set("line"sv, 4);
+    location.set("column"sv, JsonValue {});
+    EXPECT_EQ(client.request(make_breakpoint_request("setBreakpoint"sv, move(location))).get_string("from"sv).value(), breakpoint_list_actor);
+    EXPECT_EQ(session->delegate.set_debugger_breakpoint_call_count, 2u);
+    EXPECT_EQ(session->delegate.last_debugger_breakpoint_location->filename, session->delegate.fixture_source.display_url);
+    VERIFY(session->delegate.last_debugger_breakpoint_location->source_id.has_value());
+    EXPECT(session->delegate.last_debugger_breakpoint_location->source_id.value() == session->delegate.fixture_source.id);
+    EXPECT_EQ(session->delegate.last_debugger_breakpoint_location->line, 4u);
+    EXPECT(!session->delegate.last_debugger_breakpoint_location->column.has_value());
+
+    location.set("sourceId"sv, "missing-source"sv);
+    location.set("sourceUrl"sv, "https://example.test/fallback.js"sv);
+    location.set("line"sv, 5);
+    EXPECT_EQ(client.request(make_breakpoint_request("setBreakpoint"sv, move(location))).get_string("from"sv).value(), breakpoint_list_actor);
+    EXPECT_EQ(session->delegate.set_debugger_breakpoint_call_count, 3u);
+    EXPECT(!session->delegate.last_debugger_breakpoint_location->source_id.has_value());
+    EXPECT_EQ(session->delegate.last_debugger_breakpoint_location->filename, "https://example.test/fallback.js"_utf16);
+
+    location.set("sourceUrl"sv, session->delegate.fixture_source.display_url.to_utf8());
+    location.set("line"sv, 4);
+    location.set("column"sv, JsonValue {});
+    EXPECT_EQ(client.request(make_breakpoint_request("removeBreakpoint"sv, move(location))).get_string("from"sv).value(), breakpoint_list_actor);
+    EXPECT_EQ(session->delegate.remove_debugger_breakpoint_call_count, 2u);
+    VERIFY(session->delegate.last_debugger_breakpoint_location->source_id.has_value());
+    EXPECT(session->delegate.last_debugger_breakpoint_location->source_id.value() == session->delegate.fixture_source.id);
+
+    location.set("sourceUrl"sv, "https://example.test/app.js"sv);
+    auto invalid_location = client.request(make_breakpoint_request("setBreakpoint"sv, move(location)));
+    EXPECT_EQ(invalid_location.get_string("error"sv).value(), "missingParameter"sv);
+
+    session->delegate.fail_debugger_breakpoint_operation = true;
+    location.set("sourceUrl"sv, "https://example.test/app.js"sv);
+    location.set("line"sv, 9);
+    auto failed_breakpoint = client.request(make_breakpoint_request("setBreakpoint"sv, move(location)));
+    EXPECT_EQ(failed_breakpoint.get_string("error"sv).value(), "breakpointFailed"sv);
+    EXPECT_EQ(failed_breakpoint.get_string("message"sv).value(), MUST(String::formatted("{}", Error::from_errno(EIO))));
+}
+
+TEST_CASE(debugger_state_is_replayed_after_target_switch)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    auto tab_actor = actor_from(get_tab(client), "actor"sv);
+    auto watcher_actor = actor_from(client.request(tab_actor, "getWatcher"sv), "actor"sv);
+    auto target = get_frame_target(client, tab_actor);
+
+    JsonObject watch_resources;
+    watch_resources.set("to"sv, watcher_actor);
+    watch_resources.set("type"sv, "watchResources"sv);
+    JsonArray resource_types;
+    resource_types.must_append("thread-state"sv);
+    watch_resources.set("resourceTypes"sv, move(resource_types));
+    (void)client.request(move(watch_resources));
+    EXPECT_EQ(session->delegate.attach_debugger_call_count, 1u);
+
+    auto configuration_actor = actor_from(client.request(watcher_actor, "getThreadConfigurationActor"sv).get_object("configuration"sv).release_value(), "actor"sv);
+    JsonObject update_configuration;
+    update_configuration.set("to"sv, configuration_actor);
+    update_configuration.set("type"sv, "updateConfiguration"sv);
+    JsonObject configuration;
+    configuration.set("skipBreakpoints"sv, true);
+    update_configuration.set("configuration"sv, move(configuration));
+    (void)client.request(move(update_configuration));
+    EXPECT_EQ(session->delegate.configure_debugger_call_count, 1u);
+
+    auto breakpoint_list_actor = actor_from(client.request(watcher_actor, "getBreakpointListActor"sv), "breakpointList"sv);
+    auto set_breakpoint = [&](StringView source_url, u32 line, Optional<StringView> source_id = {}) {
+        JsonObject request;
+        request.set("to"sv, breakpoint_list_actor);
+        request.set("type"sv, "setBreakpoint"sv);
+        JsonObject location;
+        location.set("sourceUrl"sv, source_url);
+        if (source_id.has_value())
+            location.set("sourceId"sv, *source_id);
+        location.set("line"sv, line);
+        request.set("location"sv, move(location));
+        request.set("options"sv, JsonObject {});
+        return client.request(move(request));
+    };
+    auto remove_breakpoint = [&](StringView source_url, u32 line) {
+        JsonObject request;
+        request.set("to"sv, breakpoint_list_actor);
+        request.set("type"sv, "removeBreakpoint"sv);
+        JsonObject location;
+        location.set("sourceUrl"sv, source_url);
+        location.set("line"sv, line);
+        request.set("location"sv, move(location));
+        return client.request(move(request));
+    };
+
+    auto thread_actor = actor_from(target, "threadActor"sv);
+    auto sources = client.request(thread_actor, "sources"sv).get_array("sources"sv).release_value();
+    auto source_actor = actor_from(sources[0].as_object(), "actor"sv);
+
+    (void)set_breakpoint(session->delegate.fixture_source.display_url.to_utf8(), 4, source_actor);
+    (void)set_breakpoint("https://example.test/removed.js"sv, 5);
+    (void)remove_breakpoint("https://example.test/removed.js"sv, 5);
+    session->delegate.fail_debugger_breakpoint_operation = true;
+    EXPECT_EQ(set_breakpoint("https://example.test/failed.js"sv, 6).get_string("error"sv).value(), "breakpointFailed"sv);
+    session->delegate.fail_debugger_breakpoint_operation = false;
+    EXPECT_EQ(session->delegate.set_debugger_breakpoint_call_count, 3u);
+
+    session->delegate.emit_navigation();
+    (void)read_packet_with_type(client, "target-destroyed-form"sv);
+    auto new_target = read_packet_with_type(client, "target-available-form"sv).get_object("target"sv).release_value();
+    EXPECT_NE(actor_from(new_target, "actor"sv), actor_from(target, "actor"sv));
+
+    EXPECT_EQ(session->delegate.attach_debugger_call_count, 2u);
+    EXPECT_EQ(session->delegate.configure_debugger_call_count, 2u);
+    EXPECT(session->delegate.debugger_configuration.skip_breakpoints);
+    EXPECT_EQ(session->delegate.remove_debugger_breakpoint_call_count, 2u);
+    EXPECT_EQ(session->delegate.set_debugger_breakpoint_call_count, 4u);
+    EXPECT_EQ(session->delegate.last_debugger_breakpoint_location->filename, session->delegate.fixture_source.display_url);
+    EXPECT(!session->delegate.last_debugger_breakpoint_location->source_id.has_value());
 }
 
 TEST_CASE(storage_web_storage_resources)

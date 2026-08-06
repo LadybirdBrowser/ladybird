@@ -28,16 +28,25 @@ public:
     void detach(PageClient&);
     void interrupt(PageClient&);
     void resume(PageClient&);
+    ErrorOr<void> set_breakpoint(PageClient&, WebView::DebuggerBreakpointLocation);
+    ErrorOr<void> remove_breakpoint(PageClient&, WebView::DebuggerBreakpointLocation const&);
 
 private:
     void handle_pause(JS::Debugger::PauseInfo const&);
     PageClient* paused_page_client() const;
     void disable_if_unused();
     void schedule_disable_if_unused();
+    void remove_breakpoints_for_page(u64 page_id);
+
+    struct BreakpointRegistration {
+        WebView::DebuggerBreakpointLocation location;
+        JS::BreakpointID id { 0 };
+    };
 
     ConnectionFromClient& m_client;
     HashTable<u64> m_attached_page_ids;
     HashMap<u64, WebView::DebuggerConfiguration> m_configurations;
+    HashMap<u64, Vector<BreakpointRegistration>> m_breakpoints;
     Optional<u64> m_paused_page_id;
     bool m_resume_requested { false };
     bool m_is_handling_pause { false };

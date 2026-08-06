@@ -35,6 +35,7 @@ private:
     FrameActor& create_frame_target();
     void send_frame_target_available_message(FrameActor&);
     void send_frame_target_destroyed_message(FrameActor&);
+    BreakpointListActor& breakpoint_list_actor();
     CookiesActor& cookies_actor();
     void send_cookies_resource_available_message();
     void start_watching_source_resources();
@@ -51,6 +52,7 @@ private:
 
     WeakPtr<TabActor> m_tab;
     WeakPtr<FrameActor> m_target;
+    WeakPtr<BreakpointListActor> m_breakpoint_list;
     WeakPtr<CookiesActor> m_cookies;
     WeakPtr<IndexedDBActor> m_indexed_db;
     WeakPtr<StorageActor> m_local_storage;

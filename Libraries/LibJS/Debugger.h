@@ -55,6 +55,7 @@ public:
     bool should_pause_on_next_bytecode_execution(Bytecode::Executable const&, u32 bytecode_offset);
 
     ErrorOr<BreakpointID> add_breakpoint(Utf16View filename, u32 line, Optional<u32> column = {});
+    ErrorOr<BreakpointID> add_breakpoint(NonnullRefPtr<SourceCode const>, u32 line, Optional<u32> column = {});
     bool remove_breakpoint(BreakpointID);
     Vector<Breakpoint> const& breakpoints() const { return m_breakpoints; }
     bool is_breakpoint_resolved(BreakpointID) const;
@@ -62,6 +63,7 @@ public:
     void register_executable(Bytecode::Executable&);
 
 private:
+    ErrorOr<BreakpointID> add_breakpoint(RefPtr<SourceCode const>, Utf16View filename, u32 line, Optional<u32> column);
     void resolve_breakpoint(Breakpoint const&);
     void resolve_breakpoint_in_executable(Breakpoint const&, Bytecode::Executable&);
     void clear_executable_breakpoints();
