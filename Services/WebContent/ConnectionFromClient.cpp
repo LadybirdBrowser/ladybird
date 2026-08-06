@@ -1559,6 +1559,16 @@ void ConnectionFromClient::remove_debugger_breakpoint(u64 page_id, u64 request_i
     async_did_complete_debugger_breakpoint_operation(page_id, request_id, debugger_breakpoint_operation_error(m_devtools_debugger->remove_breakpoint(*page, location)));
 }
 
+void ConnectionFromClient::get_debugger_source_positions(u64 page_id, u64 request_id, Web::HTML::ScriptRegistry::Identifier source_id)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value()) {
+        async_did_get_debugger_source_positions(page_id, request_id, {});
+        return;
+    }
+    async_did_get_debugger_source_positions(page_id, request_id, page->devtools_source_breakpoint_positions(source_id));
+}
+
 void ConnectionFromClient::resolve_dom_node_url(u64 page_id, u64 request_id, Optional<Web::UniqueNodeID> node_id, String url)
 {
     auto page = this->page(page_id);

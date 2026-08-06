@@ -114,6 +114,13 @@ void WebContentClient::die()
     fail_renderer_owned_downloads();
 }
 
+void WebContentClient::report_unexpected_debugger_response()
+{
+    // FIXME: Use IPC::ConnectionToServer::did_misbehave() once it provides the
+    // same peer-reporting API as IPC::ConnectionFromClient.
+    shutdown_with_error(Error::from_string_literal("WebContent sent an unexpected debugger response"));
+}
+
 Web::Compositor::CompositorContextId WebContentClient::compositor_context_id_for_page(u64 page_id)
 {
     auto context_id = Web::Compositor::compositor_context_id_for_page(page_id);
@@ -1470,6 +1477,18 @@ void WebContentClient::did_complete_debugger_breakpoint_operation(u64 page_id, u
 {
     if (auto view = view_for_page_id(page_id); view.has_value())
         view->did_complete_debugger_breakpoint_operation(request_id, move(error));
+}
+
+void WebContentClient::did_get_debugger_source_positions(u64 page_id, u64 request_id, Vector<DebuggerSourcePosition> positions)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        auto callback = view->m_pending_debugger_source_positions_requests.take(request_id);
+        if (!callback.has_value()) {
+            report_unexpected_debugger_response();
+            return;
+        }
+        (*callback)(move(positions));
+    }
 }
 
 void WebContentClient::did_resolve_dom_node_url(u64 page_id, u64 request_id, String resolved_url)

@@ -1531,6 +1531,13 @@ void ViewImplementation::did_complete_debugger_breakpoint_operation(u64 request_
     (*callback)({});
 }
 
+void ViewImplementation::retrieve_debugger_source_positions(Web::HTML::ScriptRegistry::Identifier source_id, DevTools::DevToolsDelegate::OnDebuggerSourcePositionsReceived on_complete)
+{
+    auto request_id = m_next_debugger_source_positions_request_id++;
+    m_pending_debugger_source_positions_requests.set(request_id, move(on_complete));
+    client().async_get_debugger_source_positions(page_id(), request_id, source_id);
+}
+
 void ViewImplementation::resolve_dom_node_url(Optional<Web::UniqueNodeID> node_id, String const& url, DevTools::DevToolsDelegate::OnResolvedURLReceived on_complete)
 {
     auto request_id = m_next_resolve_dom_node_url_request_id++;

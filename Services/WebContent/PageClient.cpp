@@ -54,6 +54,7 @@
 #include <LibWeb/Painting/DocumentPaintState.h>
 #include <LibWeb/Streams/ReadableStreamDefaultReader.h>
 #include <LibWeb/WebIDL/Promise.h>
+#include <LibWebView/Debugger.h>
 #include <LibWebView/ViewImplementation.h>
 #include <WebContent/ConnectionFromClient.h>
 #include <WebContent/DevToolsConsoleClient.h>
@@ -1713,6 +1714,22 @@ Optional<Web::HTML::ScriptRegistry::Content> PageClient::devtools_source_content
         return {};
 
     return document->script_registry().script_content(source_id.script_id, document->source().utf16_view());
+}
+
+Vector<WebView::DebuggerSourcePosition> PageClient::devtools_source_breakpoint_positions(Web::HTML::ScriptRegistry::Identifier const& source_id) const
+{
+    auto* document = document_for_devtools_source(*this, source_id);
+    if (!document)
+        return {};
+
+    Vector<WebView::DebuggerSourcePosition> positions;
+    for (auto const& position : document->script_registry().breakpoint_positions(source_id.script_id)) {
+        positions.append({
+            .line = position.line,
+            .column = position.column > 0 ? position.column - 1 : 0,
+        });
+    }
+    return positions;
 }
 
 void PageClient::page_did_register_javascript_source(Web::DOM::Document& document, Web::HTML::ScriptRegistry::Description const& source)

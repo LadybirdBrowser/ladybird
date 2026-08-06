@@ -3363,6 +3363,16 @@ void Application::remove_debugger_breakpoint(DevTools::TabDescription const& des
     view->remove_debugger_breakpoint(move(location), move(on_complete));
 }
 
+void Application::retrieve_debugger_source_positions(DevTools::TabDescription const& description, Web::HTML::ScriptRegistry::Identifier source_id, OnDebuggerSourcePositionsReceived on_complete) const
+{
+    auto view = ViewImplementation::find_view_by_id(description.id);
+    if (!view.has_value()) {
+        on_complete(Error::from_string_literal("Unable to locate tab"));
+        return;
+    }
+    view->retrieve_debugger_source_positions(source_id, move(on_complete));
+}
+
 void Application::resolve_dom_node_url(DevTools::TabDescription const& description, Optional<Web::UniqueNodeID> node_id, String const& url, OnResolvedURLReceived on_complete) const
 {
     auto view = ViewImplementation::find_view_by_id(description.id);

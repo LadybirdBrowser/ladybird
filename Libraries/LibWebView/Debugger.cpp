@@ -49,6 +49,23 @@ ErrorOr<WebView::DebuggerBreakpointLocation> decode(Decoder& decoder)
 }
 
 template<>
+ErrorOr<void> encode(Encoder& encoder, WebView::DebuggerSourcePosition const& position)
+{
+    TRY(encoder.encode(position.line));
+    TRY(encoder.encode(position.column));
+    return {};
+}
+
+template<>
+ErrorOr<WebView::DebuggerSourcePosition> decode(Decoder& decoder)
+{
+    return WebView::DebuggerSourcePosition {
+        .line = TRY(decoder.decode<u32>()),
+        .column = TRY(decoder.decode<u32>()),
+    };
+}
+
+template<>
 ErrorOr<void> encode(Encoder& encoder, WebView::DebuggerLocation const& location)
 {
     TRY(encoder.encode(location.source));

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NumericLimits.h>
 #include <LibCore/EventLoop.h>
 #include <LibJS/Bytecode/Executable.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
@@ -78,15 +79,21 @@ ErrorOr<void> DevToolsDebugger::set_breakpoint(PageClient& page, WebView::Debugg
             return {};
     }
 
+    auto column = location.column;
+    if (column.has_value() && *column == NumericLimits<u32>::max())
+        return Error::from_string_literal("Breakpoint column is too large");
+    if (column.has_value())
+        ++*column;
+
     auto& vm = Web::Bindings::main_thread_vm();
     vm.enable_debugging();
     ErrorOr<JS::BreakpointID> id = [&]() -> ErrorOr<JS::BreakpointID> {
         if (!location.source_id.has_value())
-            return vm.debugger()->add_breakpoint(location.filename, location.line, location.column);
+            return vm.debugger()->add_breakpoint(location.filename, location.line, column);
         auto source_code = page.devtools_source_code(*location.source_id);
         if (!source_code.has_value())
             return Error::from_string_literal("Unable to locate debugger source");
-        return vm.debugger()->add_breakpoint(source_code.release_value(), location.line, location.column);
+        return vm.debugger()->add_breakpoint(source_code.release_value(), location.line, column);
     }();
     if (id.is_error()) {
         disable_if_unused();
@@ -177,7 +184,7 @@ void DevToolsDebugger::handle_pause(JS::Debugger::PauseInfo const& pause)
     auto column = source->source_start_column;
     if (pause.source_range.has_value()) {
         line = pause.source_range->start.line;
-        column = pause.source_range->start.column;
+        column = pause.source_range->start.column > 0 ? pause.source_range->start.column - 1 : 0;
     }
     WebView::DebuggerPause debugger_pause {
         .reason = [&] {
