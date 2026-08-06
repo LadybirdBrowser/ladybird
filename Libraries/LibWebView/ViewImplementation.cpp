@@ -1503,11 +1503,11 @@ void ViewImplementation::resume_debugger()
     client().async_resume_debugger(page_id());
 }
 
-void ViewImplementation::set_debugger_breakpoint(DebuggerBreakpointLocation location, DevTools::DevToolsDelegate::OnDebuggerBreakpointOperationComplete on_complete)
+void ViewImplementation::set_debugger_breakpoint(DebuggerBreakpointLocation location, DebuggerBreakpointOptions options, DevTools::DevToolsDelegate::OnDebuggerBreakpointOperationComplete on_complete)
 {
     auto request_id = m_next_debugger_breakpoint_request_id++;
     m_pending_debugger_breakpoint_requests.set(request_id, move(on_complete));
-    client().async_set_debugger_breakpoint(page_id(), request_id, move(location));
+    client().async_set_debugger_breakpoint(page_id(), request_id, move(location), move(options));
 }
 
 void ViewImplementation::remove_debugger_breakpoint(DebuggerBreakpointLocation location, DevTools::DevToolsDelegate::OnDebuggerBreakpointOperationComplete on_complete)

@@ -1201,10 +1201,11 @@ public:
         ++resume_debugger_call_count;
     }
 
-    virtual void set_debugger_breakpoint(DevTools::TabDescription const&, WebView::DebuggerBreakpointLocation location, OnDebuggerBreakpointOperationComplete on_complete) const override
+    virtual void set_debugger_breakpoint(DevTools::TabDescription const&, WebView::DebuggerBreakpointLocation location, WebView::DebuggerBreakpointOptions options, OnDebuggerBreakpointOperationComplete on_complete) const override
     {
         ++set_debugger_breakpoint_call_count;
         last_debugger_breakpoint_location = move(location);
+        last_debugger_breakpoint_options = move(options);
         if (fail_debugger_breakpoint_operation) {
             on_complete(Error::from_errno(EIO));
             return;
@@ -1629,6 +1630,7 @@ public:
     mutable DevTools::DevToolsDelegate::OnDebuggerPaused on_debugger_paused;
     mutable WebView::DebuggerConfiguration debugger_configuration;
     mutable Optional<WebView::DebuggerBreakpointLocation> last_debugger_breakpoint_location;
+    mutable Optional<WebView::DebuggerBreakpointOptions> last_debugger_breakpoint_options;
     mutable Optional<Web::HTML::ScriptRegistry::Identifier> last_debugger_source_id;
     mutable Optional<u64> last_debugger_frame_id;
     mutable Optional<String> last_debugger_evaluation_source;
@@ -2696,6 +2698,7 @@ TEST_CASE(debugger_pause_and_resume)
 
     WebView::DebuggerPause pause {
         .reason = WebView::DebuggerPauseReason::DebuggerStatement,
+        .reason_message = {},
         .frames = {},
     };
     pause.frames.append({
@@ -2871,8 +2874,11 @@ TEST_CASE(debugger_breakpoints)
         request.set("to"sv, breakpoint_list_actor);
         request.set("type"sv, type);
         request.set("location"sv, move(location));
-        if (type == "setBreakpoint"sv)
-            request.set("options"sv, JsonObject {});
+        if (type == "setBreakpoint"sv) {
+            JsonObject options;
+            options.set("condition"sv, "enabled"sv);
+            request.set("options"sv, move(options));
+        }
         return request;
     };
 
@@ -2886,6 +2892,8 @@ TEST_CASE(debugger_breakpoints)
     EXPECT_EQ(session->delegate.last_debugger_breakpoint_location->filename, "https://example.test/app.js"_utf16);
     EXPECT_EQ(session->delegate.last_debugger_breakpoint_location->line, 8u);
     EXPECT_EQ(session->delegate.last_debugger_breakpoint_location->column, 3u);
+    VERIFY(session->delegate.last_debugger_breakpoint_options.has_value());
+    EXPECT_EQ(session->delegate.last_debugger_breakpoint_options->condition.value(), "enabled"_utf16);
 
     location.set("sourceUrl"sv, "https://example.test/app.js"sv);
     location.set("line"sv, 8);

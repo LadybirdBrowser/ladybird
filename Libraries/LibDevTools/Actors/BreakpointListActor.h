@@ -24,17 +24,22 @@ public:
     void reapply_breakpoints();
 
 private:
+    struct Breakpoint {
+        WebView::DebuggerBreakpointLocation location;
+        WebView::DebuggerBreakpointOptions options;
+    };
+
     BreakpointListActor(DevToolsServer&, String name, WeakPtr<TabActor>);
 
     virtual void handle_message(Message const&) override;
 
     Optional<WebView::DebuggerBreakpointLocation> breakpoint_location(Message const&);
     void send_breakpoint_error(Message const&, Error const&);
-    void remember_breakpoint(WebView::DebuggerBreakpointLocation);
+    void remember_breakpoint(WebView::DebuggerBreakpointLocation, WebView::DebuggerBreakpointOptions);
     void forget_breakpoint(WebView::DebuggerBreakpointLocation const&);
 
     WeakPtr<TabActor> m_tab;
-    Vector<WebView::DebuggerBreakpointLocation> m_breakpoints;
+    Vector<Breakpoint> m_breakpoints;
 };
 
 }
