@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<input id="plain">
+<div id="otp">
+    <input maxlength="1"><input maxlength="1"><input maxlength="1"><input maxlength="1"><input maxlength="1"><input maxlength="1">
+</div>
+<div id="inert">not editable</div>
+<script>
+    test(() => {
+        // A paste handed over by the UI process (context-menu paste, middle-click primary paste on platforms that have
+        // a primary selection) must fire the paste clipboard event — exactly like a paste initiated with the keyboard
+        // shortcut. internals.paste() enters through the same LocalNavigable::paste() path as the UI process does.
+        const plain = document.getElementById("plain");
+
+        const log = [];
+        plain.addEventListener("paste", e => {
+            log.push(`paste(bubbles=${e.bubbles} cancelable=${e.cancelable} composed=${e.composed} isTrusted=${e.isTrusted} types=${JSON.stringify(e.clipboardData.types)} data=${JSON.stringify(e.clipboardData.getData("text/plain"))})`);
+        });
+        plain.addEventListener("beforeinput", e => {
+            log.push(`beforeinput(inputType=${e.inputType} data=${JSON.stringify(e.data)})`);
+        });
+
+        internals.paste(plain, "pasted text");
+        println(`paste events: ${log.join(" ")}`);
+        println(`value after paste: ${JSON.stringify(plain.value)}`);
+
+        // Canceling the paste event must suppress the insertion.
+        log.length = 0;
+        plain.value = "";
+        plain.addEventListener("paste", e => e.preventDefault(), { once: true });
+        internals.paste(plain, "must not appear");
+        println(`canceled paste events: ${log.join(" ")}`);
+        println(`value after canceled paste: ${JSON.stringify(plain.value)}`);
+
+        // A verification-code form intercepts the paste event and spreads the pasted code across its six single-
+        // character fields.
+        const fields = [...document.querySelectorAll("#otp input")];
+        fields[0].addEventListener("paste", e => {
+            e.preventDefault();
+            const code = e.clipboardData.getData("text/plain");
+            [...code].slice(0, fields.length).forEach((character, i) => fields[i].value = character);
+        });
+        internals.paste(fields[0], "123456");
+        println(`verification code fields: ${fields.map(field => field.value).join(" ")}`);
+
+        // The paste event fires even when nothing is focused and nothing is editable at the paste target; the
+        // insertion is simply skipped then.
+        document.activeElement.blur();
+        getSelection().removeAllRanges();
+        const inertLog = [];
+        document.addEventListener("paste", e => {
+            inertLog.push(`paste(data=${JSON.stringify(e.clipboardData.getData("text/plain"))})`);
+        }, { once: true });
+        internals.paste(document.getElementById("inert"), "nowhere to go");
+        println(`non-editable paste events: ${inertLog.join(" ")}`);
+        println(`values after non-editable paste: ${JSON.stringify(plain.value)} ${JSON.stringify(document.getElementById("inert").textContent)}`);
+    });
+</script>

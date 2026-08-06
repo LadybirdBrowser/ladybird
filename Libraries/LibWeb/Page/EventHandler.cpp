@@ -1693,8 +1693,8 @@ EventResult EventHandler::perform_paste_action()
     if (!document || !document->is_fully_active())
         return EventResult::Dropped;
 
-    // NB: The system clipboard lives in the UI process, so retrieve its contents first and fire the paste event once
-    //     they arrive.
+    // NB: The system clipboard lives in the UI process. So, retrieve its contents first — and run the rest of the paste
+    //     action once the contents arrive.
     document->page().request_clipboard_entries(GC::create_function(document->heap(), [document = GC::Ref { *document }](Vector<Clipboard::SystemClipboardItem> items) {
         auto data_store = HTML::DragDataStore::create();
         if (!items.is_empty()) {
@@ -1717,35 +1717,51 @@ EventResult EventHandler::perform_paste_action()
                 });
             }
         }
-        data_store->set_mode(HTML::DragDataStore::Mode::ReadOnly);
-        auto data_transfer = HTML::DataTransfer::create(data_store);
-
-        // 2. Fire a clipboard event named paste.
-        bool event_was_not_canceled = fire_clipboard_event(*document, HTML::EventNames::paste, data_transfer);
-        data_store->set_mode(HTML::DragDataStore::Mode::Protected);
-
-        // 3. If the event was not canceled, then: if there is a selection or cursor in an editable context where
-        //    pasting is enabled, insert the most suitable content found on the clipboard, if any, into the context.
-        if (event_was_not_canceled) {
-            Optional<Utf16View> html;
-            Utf16View plain_text;
-            for (auto const& item : data_store->item_list()) {
-                if (item.kind != HTML::DragDataStoreItem::Kind::Text)
-                    continue;
-                if (item.type_string == u"text/html"sv)
-                    html = item.data;
-                else if (item.type_string == u"text/plain"sv)
-                    plain_text = item.data;
-            }
-            if (auto navigable = document->navigable(); html.has_value() || !plain_text.is_empty())
-                navigable->event_handler().handle_paste(plain_text, html);
-        }
+        if (auto navigable = document->navigable())
+            navigable->event_handler().perform_paste_action(data_store);
     }));
 
     return EventResult::Handled;
 }
 
-EventResult EventHandler::handle_paste(Utf16View plain_text, Optional<Utf16View> html)
+// https://w3c.github.io/clipboard-apis/#the-paste-action
+// This is the paste action from the point where the content to paste is already in hand, either because async retrieval
+// of the system clipboard's contents above finished, or because the paste arrived through LocalNavigable::paste() —
+// which the UI process hands the content to paste directly.
+EventResult EventHandler::perform_paste_action(NonnullRefPtr<HTML::DragDataStore> const& data_store)
+{
+    auto document = m_navigable->active_document();
+    if (!document || !document->is_fully_active())
+        return EventResult::Dropped;
+
+    data_store->set_mode(HTML::DragDataStore::Mode::ReadOnly);
+    auto data_transfer = HTML::DataTransfer::create(data_store);
+
+    // 2. Fire a clipboard event named paste.
+    bool event_was_not_canceled = fire_clipboard_event(*document, HTML::EventNames::paste, data_transfer);
+    data_store->set_mode(HTML::DragDataStore::Mode::Protected);
+
+    // 3. If the event was not canceled, then: if there is a selection or cursor in an editable context where
+    //    pasting is enabled, insert the most suitable content found on the clipboard, if any, into the context.
+    if (event_was_not_canceled) {
+        Optional<Utf16View> html;
+        Utf16View plain_text;
+        for (auto const& item : data_store->item_list()) {
+            if (item.kind != HTML::DragDataStoreItem::Kind::Text)
+                continue;
+            if (item.type_string == u"text/html"sv)
+                html = item.data;
+            else if (item.type_string == u"text/plain"sv)
+                plain_text = item.data;
+        }
+        if (html.has_value() || !plain_text.is_empty())
+            return insert_pasted_content(plain_text, html);
+    }
+
+    return EventResult::Handled;
+}
+
+EventResult EventHandler::insert_pasted_content(Utf16View plain_text, Optional<Utf16View> html)
 {
     auto active_document = m_navigable->active_document();
     if (!active_document)
