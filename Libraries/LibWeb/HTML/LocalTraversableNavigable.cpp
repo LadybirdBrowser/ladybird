@@ -2466,6 +2466,22 @@ void LocalTraversableNavigable::complete_history_initiation(u64 initiation_id, H
 
 void LocalTraversableNavigable::request_history_operation(HistoryOperationParameters parameters, HistoryOperationState state)
 {
+    if (parameters.has<ReloadHistoryOperationParameters>()) {
+        VERIFY(!state.on_apply_complete);
+        state.on_apply_complete = GC::create_function(heap(), [this](HistoryStepResult result) {
+            if (result == HistoryStepResult::Applied)
+                return;
+
+            // NB: A canceled reload must not keep treating the active
+            //     session history entry as an in-flight reload.
+            if (auto current_entry = current_session_history_entry(); current_entry && current_entry->document_state()->reload_pending()) {
+                current_entry->document_state()->set_reload_pending(false);
+                page().client().page_did_set_session_history_entry_document_state_reload_pending(
+                    id(), current_entry->navigation_api_key(), false);
+            }
+        });
+    }
+
     auto initiation_id = m_next_history_initiation_id++;
     m_history_operation_states.set(initiation_id, move(state));
 
@@ -2478,9 +2494,17 @@ void LocalTraversableNavigable::request_history_operation(HistoryOperationParame
 
             auto initiation = m_history_operation_states.find(initiation_id);
             VERIFY(initiation != m_history_operation_states.end());
-            VERIFY(step_override.has_value());
 
-            auto apply = [&](auto const& parameters, HistoryHandlingBehavior history_handling) {
+            auto on_apply_complete = GC::create_function(heap(), [this, initiation_id, queue_signal](HistoryStepResult result) {
+                auto initiation = m_history_operation_states.find(initiation_id);
+                VERIFY(initiation != m_history_operation_states.end());
+                if (initiation->value.on_apply_complete)
+                    initiation->value.on_apply_complete->function()(result);
+                complete_history_initiation(initiation_id, result, queue_signal);
+            });
+
+            auto apply_push_or_replace = [&](auto const& parameters, HistoryHandlingBehavior history_handling) {
+                VERIFY(step_override.has_value());
                 apply_the_push_or_replace_history_step(
                     *step_override,
                     history_handling,
@@ -2489,23 +2513,24 @@ void LocalTraversableNavigable::request_history_operation(HistoryOperationParame
                     initiation->value.pending_document,
                     initiation->value.expected_ongoing_navigation_navigable,
                     move(initiation->value.expected_ongoing_navigation_id),
-                    GC::create_function(heap(), [this, initiation_id, queue_signal](HistoryStepResult result) {
-                        auto initiation = m_history_operation_states.find(initiation_id);
-                        VERIFY(initiation != m_history_operation_states.end());
-                        if (initiation->value.on_apply_complete)
-                            initiation->value.on_apply_complete->function()(result);
-                        complete_history_initiation(initiation_id, result, queue_signal);
-                    }));
+                    on_apply_complete);
             };
             parameters.visit(
-                [&](PushHistoryOperationParameters const& parameters) { apply(parameters, HistoryHandlingBehavior::Push); },
-                [&](ReplaceHistoryOperationParameters const& parameters) { apply(parameters, HistoryHandlingBehavior::Replace); });
+                [&](PushHistoryOperationParameters const& parameters) { apply_push_or_replace(parameters, HistoryHandlingBehavior::Push); },
+                [&](ReplaceHistoryOperationParameters const& parameters) { apply_push_or_replace(parameters, HistoryHandlingBehavior::Replace); },
+                [&](ReloadHistoryOperationParameters const& parameters) {
+                    VERIFY(!step_override.has_value());
+                    apply_the_reload_history_step(parameters.user_involvement, on_apply_complete);
+                });
         });
 
         auto initiation = m_history_operation_states.find(initiation_id);
         VERIFY(initiation != m_history_operation_states.end());
-        VERIFY(initiation->value.pre_steps);
-        initiation->value.pre_steps->function()(ready);
+        if (initiation->value.pre_steps) {
+            initiation->value.pre_steps->function()(ready);
+            return;
+        }
+        ready->function()(true, {}, HistoryStepResult::Applied);
     }));
 }
 
@@ -2666,19 +2691,7 @@ void LocalTraversableNavigable::apply_the_reload_history_step(UserNavigationInvo
     auto step = current_session_history_step();
 
     // 2. Return the result of applying the history step step to traversable given true, null, null, null, and "reload".
-    apply_the_history_step(step, true, {}, {}, user_involvement, Bindings::NavigationType::Reload, SynchronousNavigation::No, LocalNavigable::NavigationAPIAbortBehavior::Abort, nullptr, nullptr, {},
-        GC::create_function(heap(), [this, on_complete](HistoryStepResult result) {
-            if (result != HistoryStepResult::Applied) {
-                // NB: A canceled reload must not keep treating the active
-                //     session history entry as an in-flight reload.
-                if (auto current_entry = current_session_history_entry(); current_entry && current_entry->document_state()->reload_pending()) {
-                    current_entry->document_state()->set_reload_pending(false);
-                    page().client().page_did_set_session_history_entry_document_state_reload_pending(
-                        id(), current_entry->navigation_api_key(), false);
-                }
-            }
-            on_complete->function()(result);
-        }));
+    apply_the_history_step(step, true, {}, {}, user_involvement, Bindings::NavigationType::Reload, SynchronousNavigation::No, LocalNavigable::NavigationAPIAbortBehavior::Abort, nullptr, nullptr, {}, on_complete);
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#apply-the-push/replace-history-step

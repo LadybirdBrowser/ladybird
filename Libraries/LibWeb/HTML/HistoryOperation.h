@@ -29,9 +29,14 @@ struct ReplaceHistoryOperationParameters {
     HTML::UserNavigationInvolvement user_involvement;
 };
 
+struct ReloadHistoryOperationParameters {
+    HTML::CrossProcessId navigable_id;
+    HTML::UserNavigationInvolvement user_involvement;
+};
+
 // A WebContent-initiated operation with value-shaped parameters. The request boundary retains any process-local
 // state under a private initiation ID; the queue and coordinator remain local until the later ownership switch.
-using HistoryOperationParameters = Variant<PushHistoryOperationParameters, ReplaceHistoryOperationParameters>;
+using HistoryOperationParameters = Variant<PushHistoryOperationParameters, ReplaceHistoryOperationParameters, ReloadHistoryOperationParameters>;
 
 }
 
@@ -46,5 +51,10 @@ template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::ReplaceHistoryOperationParameters const&);
 template<>
 WEB_API ErrorOr<Web::ReplaceHistoryOperationParameters> decode(Decoder&);
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::ReloadHistoryOperationParameters const&);
+template<>
+WEB_API ErrorOr<Web::ReloadHistoryOperationParameters> decode(Decoder&);
 
 }

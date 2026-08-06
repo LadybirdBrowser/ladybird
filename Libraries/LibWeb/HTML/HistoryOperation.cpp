@@ -41,3 +41,20 @@ ErrorOr<Web::ReplaceHistoryOperationParameters> IPC::decode(Decoder& decoder)
         .user_involvement = TRY(decoder.decode<Web::HTML::UserNavigationInvolvement>()),
     };
 }
+
+template<>
+ErrorOr<void> IPC::encode(Encoder& encoder, Web::ReloadHistoryOperationParameters const& parameters)
+{
+    TRY(encoder.encode(parameters.navigable_id));
+    TRY(encoder.encode(parameters.user_involvement));
+    return {};
+}
+
+template<>
+ErrorOr<Web::ReloadHistoryOperationParameters> IPC::decode(Decoder& decoder)
+{
+    return Web::ReloadHistoryOperationParameters {
+        .navigable_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
+        .user_involvement = TRY(decoder.decode<Web::HTML::UserNavigationInvolvement>()),
+    };
+}

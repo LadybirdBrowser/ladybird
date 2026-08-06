@@ -3382,12 +3382,11 @@ void LocalNavigable::reload(Optional<StorageSerializationRecord> navigation_api_
         id(), active_session_history_entry()->navigation_api_key(), true);
 
     // 4. Append the following session history traversal steps to traversable:
-    traversable->append_session_history_traversal_steps(GC::create_function(heap(), [traversable, user_involvement](NonnullRefPtr<Core::Promise<Empty>> signal) {
-        // 1. Apply the reload history step to traversable given userInvolvement.
-        traversable->apply_the_reload_history_step(user_involvement, GC::create_function(traversable->heap(), [signal](HistoryStepResult) {
-            signal->resolve({});
-        }));
-    }));
+    // 1. Apply the reload history step to traversable given userInvolvement.
+    traversable->request_history_operation(ReloadHistoryOperationParameters {
+        .navigable_id = id(),
+        .user_involvement = user_involvement,
+    });
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#the-navigation-must-be-a-replace
