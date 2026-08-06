@@ -1,0 +1,3 @@
+text handover types: ["text/plain"]
+clipboard paste: types=["text/plain","text/html"] html="<b>html flavor</b>"
+editor after clipboard paste: <b>html flavor</b>

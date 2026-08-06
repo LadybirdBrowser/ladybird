@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="editor" contenteditable="true">seed</div>
+<script>
+    asyncTest(async done => {
+        const modCtrl = (1 << 1) | (1 << 3); // Ctrl and Super, to cover the platform clipboard modifier everywhere.
+        const editor = document.getElementById("editor");
+        const withTimeout = (promise, what) => Promise.race([
+            promise,
+            new Promise((_, reject) => setTimeout(
+                () => reject(new Error(`Timed out after 10000 ms awaiting ${what}`)), 10000)),
+        ]);
+
+        // Seed the system clipboard with both a text/plain and a text/html representation – by canceling a copy event:
+        // A canceled copy writes the event's data to the clipboard instead.
+        editor.focus();
+        getSelection().selectAllChildren(editor);
+        editor.addEventListener("copy", e => {
+            e.preventDefault();
+            e.clipboardData.setData("text/plain", "plain flavor");
+            e.clipboardData.setData("text/html", "<b>html flavor</b>");
+        }, { once: true });
+        internals.sendKey(editor, "C", modCtrl);
+
+        // A paste whose content is handed over as bare text (middle-click primary paste) carries only that text.
+        const textPasteTypes = new Promise(resolve => {
+            editor.addEventListener("paste", e => {
+                e.preventDefault();
+                resolve(JSON.stringify(e.clipboardData.types));
+            }, { once: true });
+        });
+        internals.paste(editor, "bare text");
+        println(`text handover types: ${await textPasteTypes}`);
+
+        // A chrome-initiated paste of the system clipboard (context-menu or menu-bar Paste) runs the whole paste
+        // action — which retrieves the clipboard's contents itself, and so preserves every supported representation.
+        const clipboardPaste = withTimeout(new Promise(resolve => {
+            editor.addEventListener("paste", e => {
+                resolve(`types=${JSON.stringify(e.clipboardData.types)} html=${JSON.stringify(e.clipboardData.getData("text/html"))}`);
+            }, { once: true });
+        }), "the paste event after internals.pasteFromClipboard()");
+        internals.pasteFromClipboard();
+        println(`clipboard paste: ${await clipboardPaste}`);
+        const deadline = performance.now() + 10000;
+        while (editor.innerHTML === "seed") {
+            if (performance.now() > deadline)
+                throw new Error("Timed out after 10000 ms awaiting the clipboard paste insertion");
+            await new Promise(resolve => requestAnimationFrame(resolve));
+        }
+        println(`editor after clipboard paste: ${editor.innerHTML}`);
+        done();
+    });
+</script>
