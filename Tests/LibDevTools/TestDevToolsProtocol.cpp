@@ -1235,6 +1235,37 @@ public:
         });
     }
 
+    virtual void retrieve_debugger_environments(DevTools::TabDescription const&, u64 frame_id, OnDebuggerEnvironmentsReceived on_complete) const override
+    {
+        ++retrieve_debugger_environments_call_count;
+        last_debugger_frame_id = frame_id;
+        Vector<WebView::DebuggerEnvironment> environments;
+        WebView::DebuggerEnvironment function_environment;
+        function_environment.id = 1;
+        function_environment.type = WebView::DebuggerEnvironmentType::Function;
+        function_environment.parent_id = 2;
+        function_environment.function_name = "handleClick"_utf16;
+        WebView::DebuggerValue count_value;
+        count_value.type = WebView::DebuggerValueType::Number;
+        count_value.number_value = 42;
+        function_environment.bindings.append({
+            .name = "count"_utf16,
+            .value = move(count_value),
+            .writable = true,
+        });
+        environments.append(move(function_environment));
+        WebView::DebuggerValue window_value;
+        window_value.type = WebView::DebuggerValueType::Object;
+        window_value.object_id = 10;
+        window_value.object_class = "Window"_string;
+        WebView::DebuggerEnvironment global_environment;
+        global_environment.id = 2;
+        global_environment.type = WebView::DebuggerEnvironmentType::Object;
+        global_environment.object = move(window_value);
+        environments.append(move(global_environment));
+        on_complete(move(environments));
+    }
+
     virtual void resolve_dom_node_url(DevTools::TabDescription const&, Optional<Web::UniqueNodeID> node_id, String const& url, OnResolvedURLReceived callback) const override
     {
         ++resolve_dom_node_url_call_count;
@@ -1540,10 +1571,12 @@ public:
     mutable size_t set_debugger_breakpoint_call_count { 0 };
     mutable size_t remove_debugger_breakpoint_call_count { 0 };
     mutable size_t retrieve_debugger_source_positions_call_count { 0 };
+    mutable size_t retrieve_debugger_environments_call_count { 0 };
     mutable DevTools::DevToolsDelegate::OnDebuggerPaused on_debugger_paused;
     mutable WebView::DebuggerConfiguration debugger_configuration;
     mutable Optional<WebView::DebuggerBreakpointLocation> last_debugger_breakpoint_location;
     mutable Optional<Web::HTML::ScriptRegistry::Identifier> last_debugger_source_id;
+    mutable Optional<u64> last_debugger_frame_id;
     mutable bool fail_debugger_breakpoint_operation { false };
     mutable size_t resolve_dom_node_url_call_count { 0 };
     mutable size_t listen_for_console_messages_call_count { 0 };
@@ -2614,6 +2647,8 @@ TEST_CASE(debugger_pause_and_resume)
             .line = 4,
             .column = 2,
         },
+        .this_value = {},
+        .arguments = {},
     });
     pause.frames.append({
         .id = 2,
@@ -2623,6 +2658,8 @@ TEST_CASE(debugger_pause_and_resume)
             .line = 9,
             .column = 4,
         },
+        .this_value = {},
+        .arguments = {},
     });
     session->delegate.on_debugger_paused(move(pause));
 
@@ -2657,6 +2694,16 @@ TEST_CASE(debugger_pause_and_resume)
 
     auto environment = client.request(frame_actor, "getEnvironment"sv);
     EXPECT_EQ(environment.get_string("from"sv).value(), frame_actor);
+    EXPECT_EQ(environment.get_string("type"sv).value(), "function"sv);
+    EXPECT_EQ(environment.get_object("function"sv)->get_string("displayName"sv).value(), "handleClick"sv);
+    auto variables = environment.get_object("bindings"sv)->get_object("variables"sv).release_value();
+    EXPECT_EQ(variables.get_object("count"sv)->get("value"sv)->get_double_with_precision_loss().value(), 42);
+    auto parent_environment = environment.get_object("parent"sv).release_value();
+    EXPECT_EQ(parent_environment.get_string("type"sv).value(), "object"sv);
+    EXPECT_EQ(parent_environment.get_object("object"sv)->get_string("class"sv).value(), "Window"sv);
+    EXPECT_EQ(session->delegate.retrieve_debugger_environments_call_count, 1u);
+    VERIFY(session->delegate.last_debugger_frame_id.has_value());
+    EXPECT_EQ(*session->delegate.last_debugger_frame_id, 1u);
 
     auto resume = client.request(thread_actor, "resume"sv);
     EXPECT_EQ(resume.get_string("from"sv).value(), thread_actor);

@@ -170,6 +170,7 @@ public:
 
     using OnDebuggerPaused = Function<void(WebView::DebuggerPause)>;
     using OnDebuggerBreakpointOperationComplete = Function<void(ErrorOr<void>)>;
+    using OnDebuggerEnvironmentsReceived = Function<void(ErrorOr<Vector<WebView::DebuggerEnvironment>>)>;
     using OnDebuggerSourcePositionsReceived = Function<void(ErrorOr<Vector<WebView::DebuggerSourcePosition>>)>;
     virtual void attach_debugger(TabDescription const&, OnDebuggerPaused) const { }
     virtual void configure_debugger(TabDescription const&, WebView::DebuggerConfiguration) const { }
@@ -178,6 +179,7 @@ public:
     virtual void resume_debugger(TabDescription const&) const { }
     virtual void set_debugger_breakpoint(TabDescription const&, WebView::DebuggerBreakpointLocation, OnDebuggerBreakpointOperationComplete) const { }
     virtual void remove_debugger_breakpoint(TabDescription const&, WebView::DebuggerBreakpointLocation, OnDebuggerBreakpointOperationComplete) const { }
+    virtual void retrieve_debugger_environments(TabDescription const&, u64, OnDebuggerEnvironmentsReceived) const { }
     virtual void retrieve_debugger_source_positions(TabDescription const&, Web::HTML::ScriptRegistry::Identifier, OnDebuggerSourcePositionsReceived) const { }
 
     using OnScriptEvaluationComplete = Function<void(ErrorOr<JsonValue>)>;

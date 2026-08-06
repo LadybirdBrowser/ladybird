@@ -5,6 +5,7 @@
  */
 
 #include <LibDevTools/Actors/DebuggerFrameActor.h>
+#include <LibDevTools/Actors/ThreadActor.h>
 
 namespace DevTools {
 
@@ -27,8 +28,10 @@ DebuggerFrameActor::~DebuggerFrameActor() = default;
 void DebuggerFrameActor::handle_message(Message const& message)
 {
     if (message.type == "getEnvironment"sv) {
-        // FIXME: Return the frame's lexical environment once paused scopes are exposed by LibJS.
-        send_response(message, {});
+        if (auto thread = m_thread.strong_ref())
+            thread->get_frame_environment(*this, message, m_frame.id);
+        else
+            send_response(message, {});
         return;
     }
 
@@ -42,16 +45,22 @@ JsonObject DebuggerFrameActor::serialize_frame() const
     location.set("line"sv, m_frame.location.line);
     location.set("column"sv, m_frame.location.column);
 
-    JsonObject this_value;
-    this_value.set("type"sv, "undefined"sv);
-
     JsonObject frame;
     frame.set("actor"sv, name());
     frame.set("type"sv, "call"sv);
     frame.set("state"sv, "on-stack"sv);
     frame.set("displayName"sv, m_frame.display_name.to_utf8());
-    frame.set("arguments"sv, JsonArray {});
-    frame.set("this"sv, move(this_value));
+    JsonArray arguments;
+    if (auto thread = m_thread.strong_ref()) {
+        for (auto const& argument : m_frame.arguments)
+            arguments.must_append(thread->serialize_debugger_value(argument));
+        frame.set("this"sv, thread->serialize_debugger_value(m_frame.this_value));
+    } else {
+        JsonObject undefined;
+        undefined.set("type"sv, "undefined"sv);
+        frame.set("this"sv, move(undefined));
+    }
+    frame.set("arguments"sv, move(arguments));
     frame.set("where"sv, move(location));
     frame.set("oldest"sv, m_oldest);
     return frame;

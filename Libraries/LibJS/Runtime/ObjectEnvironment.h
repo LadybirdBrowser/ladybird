@@ -45,10 +45,14 @@ public:
 private:
     ObjectEnvironment(Object& binding_object, IsWithEnvironment, GC::Ptr<Environment> outer_environment);
 
+    virtual bool is_object_environment() const override { return true; }
     virtual void visit_edges(Visitor&) override;
 
     GC::Ref<Object> m_binding_object;
     bool m_with_environment { false };
 };
+
+template<>
+inline bool Environment::fast_is<ObjectEnvironment>() const { return is_object_environment(); }
 
 }

@@ -9,6 +9,7 @@ set(SOURCES
     Actors/CSSPropertiesActor.cpp
     Actors/DebuggerFrameActor.cpp
     Actors/DeviceActor.cpp
+    Actors/EnvironmentActor.cpp
     Actors/FrameActor.cpp
     Actors/HighlighterActor.cpp
     Actors/IndexedDBActor.cpp
@@ -17,6 +18,7 @@ set(SOURCES
     Actors/NetworkEventActor.cpp
     Actors/NetworkParentActor.cpp
     Actors/NodeActor.cpp
+    Actors/ObjectActor.cpp
     Actors/PageStyleActor.cpp
     Actors/ParentAccessibilityActor.cpp
     Actors/PreferenceActor.cpp

@@ -7,6 +7,10 @@
 #include <AK/NumericLimits.h>
 #include <LibCore/EventLoop.h>
 #include <LibJS/Bytecode/Executable.h>
+#include <LibJS/Runtime/DeclarativeEnvironment.h>
+#include <LibJS/Runtime/FunctionEnvironment.h>
+#include <LibJS/Runtime/GlobalEnvironment.h>
+#include <LibJS/Runtime/ObjectEnvironment.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/Window.h>
@@ -135,6 +139,131 @@ ErrorOr<void> DevToolsDebugger::remove_breakpoint(PageClient& page, WebView::Deb
     return {};
 }
 
+WebView::DebuggerValue DevToolsDebugger::serialize_value(JS::Value value)
+{
+    WebView::DebuggerValue result;
+    if (value.is_special_empty_value()) {
+        result.type = WebView::DebuggerValueType::Uninitialized;
+        return result;
+    }
+    if (value.is_undefined())
+        return result;
+    if (value.is_null()) {
+        result.type = WebView::DebuggerValueType::Null;
+        return result;
+    }
+    if (value.is_boolean()) {
+        result.type = WebView::DebuggerValueType::Boolean;
+        result.boolean_value = value.as_bool();
+        return result;
+    }
+    if (value.is_number()) {
+        result.type = WebView::DebuggerValueType::Number;
+        result.number_value = value.as_double();
+        return result;
+    }
+    if (value.is_string()) {
+        result.type = WebView::DebuggerValueType::String;
+        result.text = value.as_string().utf16_string();
+        return result;
+    }
+    if (value.is_bigint()) {
+        result.type = WebView::DebuggerValueType::BigInt;
+        result.text = value.as_bigint().to_utf16_string();
+        return result;
+    }
+    if (value.is_symbol()) {
+        // FIXME: Represent symbols with dedicated SymbolActors instead of converting them to strings.
+        result.type = WebView::DebuggerValueType::String;
+        result.text = value.to_utf16_string_without_side_effects();
+        return result;
+    }
+
+    VERIFY(value.is_object());
+    auto& object = value.as_object();
+    Optional<u64> object_id;
+    if (auto existing_id = m_paused_object_ids.get(&object); existing_id.has_value())
+        object_id = *existing_id;
+    if (!object_id.has_value()) {
+        object_id = m_next_object_id++;
+        m_paused_object_ids.set(&object, *object_id);
+        m_paused_objects.set(*object_id, GC::make_root(object));
+    }
+    result.type = WebView::DebuggerValueType::Object;
+    result.object_id = *object_id;
+    result.object_class = object.is_function() ? "Function"_string : MUST(String::from_utf8(object.class_name()));
+    return result;
+}
+
+Vector<WebView::DebuggerEnvironment> DevToolsDebugger::environments_for_frame(PageClient& page, u64 frame_id)
+{
+    if (m_paused_page_id != page.id())
+        return {};
+
+    auto* context = m_paused_frames.get(frame_id).value_or(nullptr);
+    if (!context)
+        return {};
+
+    Vector<WebView::DebuggerEnvironment> environments;
+    auto append_declarative_environment = [&](JS::DeclarativeEnvironment& environment, WebView::DebuggerEnvironmentType type, Optional<Utf16String> function_name = {}) {
+        Vector<WebView::DebuggerBinding> bindings;
+        for (auto const& name : environment.bindings()) {
+            auto value = environment.get_binding_value(Web::Bindings::main_thread_vm(), name, false);
+            auto writable = environment.binding_is_mutable_by_name(name);
+            WebView::DebuggerValue debugger_value;
+            if (!value.is_error())
+                debugger_value = serialize_value(value.release_value());
+            else
+                debugger_value.type = WebView::DebuggerValueType::Uninitialized;
+            bindings.append({
+                .name = name.to_utf16_string(),
+                .value = move(debugger_value),
+                .writable = writable,
+            });
+        }
+        WebView::DebuggerEnvironment debugger_environment;
+        debugger_environment.id = m_next_environment_id++;
+        debugger_environment.type = type;
+        debugger_environment.function_name = move(function_name);
+        debugger_environment.bindings = move(bindings);
+        environments.append(move(debugger_environment));
+    };
+
+    for (auto* environment = context->lexical_environment.ptr(); environment; environment = environment->outer_environment()) {
+        if (is<JS::GlobalEnvironment>(*environment)) {
+            auto& global_environment = static_cast<JS::GlobalEnvironment&>(*environment);
+            append_declarative_environment(global_environment.declarative_record(), WebView::DebuggerEnvironmentType::Block);
+            WebView::DebuggerEnvironment debugger_environment;
+            debugger_environment.id = m_next_environment_id++;
+            debugger_environment.type = WebView::DebuggerEnvironmentType::Object;
+            debugger_environment.object = serialize_value(&global_environment.global_this_value());
+            environments.append(move(debugger_environment));
+            continue;
+        }
+
+        if (is<JS::DeclarativeEnvironment>(*environment)) {
+            auto type = environment->is_function_environment() ? WebView::DebuggerEnvironmentType::Function : WebView::DebuggerEnvironmentType::Block;
+            Optional<Utf16String> function_name;
+            if (environment->is_function_environment())
+                function_name = static_cast<JS::FunctionEnvironment&>(*environment).function_object().name_for_call_stack();
+            append_declarative_environment(static_cast<JS::DeclarativeEnvironment&>(*environment), type, move(function_name));
+            continue;
+        }
+
+        if (is<JS::ObjectEnvironment>(*environment)) {
+            WebView::DebuggerEnvironment debugger_environment;
+            debugger_environment.id = m_next_environment_id++;
+            debugger_environment.type = WebView::DebuggerEnvironmentType::Object;
+            debugger_environment.object = serialize_value(&static_cast<JS::ObjectEnvironment&>(*environment).binding_object());
+            environments.append(move(debugger_environment));
+        }
+    }
+
+    for (size_t index = 0; index + 1 < environments.size(); ++index)
+        environments[index].parent_id = environments[index + 1].id;
+    return environments;
+}
+
 void DevToolsDebugger::resume(PageClient& page)
 {
     if (m_paused_page_id == page.id())
@@ -189,6 +318,10 @@ void DevToolsDebugger::handle_pause(JS::Debugger::PauseInfo const& pause)
         .frames = {},
     };
 
+    m_paused_frames.clear();
+    m_paused_objects.clear();
+    m_paused_object_ids.clear();
+
     for (auto const& stack_frame : pause.stack_trace) {
         auto* executable = stack_frame.execution_context->executable.ptr();
         if (!executable)
@@ -205,18 +338,28 @@ void DevToolsDebugger::handle_pause(JS::Debugger::PauseInfo const& pause)
             column = stack_frame.source_range->start.column > 0 ? stack_frame.source_range->start.column - 1 : 0;
         }
 
+        auto frame_id = m_next_frame_id++;
+        m_paused_frames.set(frame_id, stack_frame.execution_context);
+        Vector<WebView::DebuggerValue> arguments;
+        for (auto argument : stack_frame.execution_context->arguments_span().slice(0, stack_frame.execution_context->passed_argument_count))
+            arguments.append(serialize_value(argument));
         debugger_pause.frames.append(WebView::DebuggerFrame {
-            .id = m_next_frame_id++,
+            .id = frame_id,
             .display_name = executable->name.to_utf16_string(),
             .location = {
                 .source = source.release_value(),
                 .line = line,
                 .column = column,
             },
+            .this_value = serialize_value(stack_frame.execution_context->this_value.value_or(JS::js_undefined())),
+            .arguments = move(arguments),
         });
     }
 
     if (debugger_pause.frames.is_empty()) {
+        m_paused_frames.clear();
+        m_paused_objects.clear();
+        m_paused_object_ids.clear();
         Web::Bindings::main_thread_vm().debugger()->continue_execution();
         return;
     }
@@ -233,6 +376,9 @@ void DevToolsDebugger::handle_pause(JS::Debugger::PauseInfo const& pause)
 
     m_is_handling_pause = false;
     m_paused_page_id = {};
+    m_paused_frames.clear();
+    m_paused_objects.clear();
+    m_paused_object_ids.clear();
     Web::Bindings::main_thread_vm().debugger()->continue_execution();
     schedule_disable_if_unused();
 }

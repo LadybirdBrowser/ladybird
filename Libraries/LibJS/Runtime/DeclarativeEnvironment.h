@@ -74,6 +74,8 @@ public:
         return names;
     }
 
+    bool binding_is_mutable_by_name(Utf16FlyString const&) const;
+
     ThrowCompletionOr<void> initialize_binding_direct(VM&, size_t index, Value, InitializeBindingHint);
     ThrowCompletionOr<void> set_mutable_binding_direct(VM&, size_t index, Value, bool strict);
     ThrowCompletionOr<Value> get_binding_value_direct(VM&, size_t index) const;
@@ -227,6 +229,13 @@ inline ThrowCompletionOr<Value> DeclarativeEnvironment::get_binding_value_direct
         return vm.throw_completion<ReferenceError>(ErrorType::BindingNotInitialized, binding_name(index));
 
     return m_binding_values[index];
+}
+
+inline bool DeclarativeEnvironment::binding_is_mutable_by_name(Utf16FlyString const& name) const
+{
+    auto binding = find_binding_and_index(name);
+    VERIFY(binding.has_value());
+    return binding->binding().mutable_;
 }
 
 inline ThrowCompletionOr<Value> DeclarativeEnvironment::get_binding_value_direct(VM&, Binding const& binding) const
