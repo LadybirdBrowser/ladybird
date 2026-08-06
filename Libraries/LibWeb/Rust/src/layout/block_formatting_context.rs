@@ -193,6 +193,7 @@ pub(crate) struct BlockFormattingContext<'pass> {
     bands: RefCell<Vec<FloatBand>>,
     lowest_left_margin_edge: Cell<CssPixels>,
     lowest_right_margin_edge: Cell<CssPixels>,
+    lowest_floating_descendant_bottom_margin_edge: Cell<Option<CssPixels>>,
     derived_baselines_of_root_box: Cell<DerivedBaselines>,
 }
 
@@ -210,6 +211,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             bands: RefCell::new(vec![FloatBand::default()]),
             lowest_left_margin_edge: Cell::new(CssPixels::default()),
             lowest_right_margin_edge: Cell::new(CssPixels::default()),
+            lowest_floating_descendant_bottom_margin_edge: Cell::new(None),
             derived_baselines_of_root_box: Cell::new(DerivedBaselines::default()),
         }
     }
@@ -1053,10 +1055,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             .iter()
             .map(|floating_box| floating_box.margin_box_rect_in_root_coordinate_space.bottom())
             .max();
-        let root_slot_index = self.callbacks.slot_index(self.root);
-        self.state
-            .block_rare_data_mut(root_slot_index)
-            .lowest_floating_descendant_bottom_margin_edge = lowest;
+        self.lowest_floating_descendant_bottom_margin_edge.set(lowest);
     }
 
     fn translate_floats_in_subtree(&self, ancestor: Node, delta: FfiCssPixelPoint) {
@@ -2481,13 +2480,11 @@ impl<'pass> BlockFormattingContext<'pass> {
         self.add_float_to_bands(floating_box, containing_block_rect);
 
         let bottom_margin_edge = margin_box_rect.bottom();
-        let root_slot_index = self.callbacks.slot_index(self.root);
-        let mut rare = self.state.block_rare_data_mut(root_slot_index);
-        rare.lowest_floating_descendant_bottom_margin_edge = Some(
-            rare.lowest_floating_descendant_bottom_margin_edge
+        self.lowest_floating_descendant_bottom_margin_edge.set(Some(
+            self.lowest_floating_descendant_bottom_margin_edge
+                .get()
                 .map_or(bottom_margin_edge, |lowest| lowest.max(bottom_margin_edge)),
-        );
-        drop(rare);
+        ));
         if let Some(line_builder) = line_builder {
             line_builder.recalculate_available_space();
         }
@@ -2814,7 +2811,12 @@ impl<'pass> BlockFormattingContext<'pass> {
     }
 
     pub(crate) fn automatic_content_block_size(&self) -> CssPixels {
-        automatic_block_size_for_bfc_root(self.state, self.callbacks, self.root)
+        automatic_block_size_for_bfc_root(
+            self.state,
+            self.callbacks,
+            self.root,
+            self.lowest_floating_descendant_bottom_margin_edge.get(),
+        )
     }
 }
 
@@ -2861,6 +2863,7 @@ pub(crate) fn automatic_block_size_for_bfc_root(
     state: &LayoutState,
     callbacks: FfiLayoutFcCallbacks,
     root: Node,
+    lowest_floating_descendant_bottom_margin_edge: Option<CssPixels>,
 ) -> CssPixels {
     let facts = state.node_facts(&callbacks, root);
     // https://drafts.csswg.org/css-contain-2/#containment-size
@@ -2920,10 +2923,7 @@ pub(crate) fn automatic_block_size_for_bfc_root(
     // In addition, if the element has any floating descendants
     // whose bottom margin edge is below the element's bottom content edge,
     // then the block size is increased to include those edges.
-    if let Some(lowest) = state
-        .block_rare_data(callbacks.slot_index(root))
-        .and_then(|rare| rare.lowest_floating_descendant_bottom_margin_edge)
-    {
+    if let Some(lowest) = lowest_floating_descendant_bottom_margin_edge {
         bottom = Some(bottom.map_or(lowest, |value| value.max(lowest)));
     }
     let _ = used;
