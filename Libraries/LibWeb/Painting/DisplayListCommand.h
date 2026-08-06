@@ -59,7 +59,6 @@ class DisplayList;
     V(FillPath, fill_path)                                                             \
     V(StrokePath, stroke_path)                                                         \
     V(DrawEllipse, draw_ellipse)                                                       \
-    V(FillEllipse, fill_ellipse)                                                       \
     V(DrawLine, draw_line)                                                             \
     V(ApplyBackdropFilter, apply_backdrop_filter)                                      \
     V(DrawRect, draw_rect)                                                             \
@@ -487,18 +486,6 @@ struct DrawEllipse {
     Gfx::IntRect rect;
     Color color;
     int thickness;
-
-    [[nodiscard]] Gfx::IntRect bounding_rect() const { return rect; }
-
-    void dump(StringBuilder&) const;
-};
-
-struct FillEllipse {
-    static constexpr StringView command_name = "FillEllipse"sv;
-    static constexpr DisplayListCommandType command_type = DisplayListCommandType::FillEllipse;
-
-    Gfx::IntRect rect;
-    Color color;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return rect; }
 

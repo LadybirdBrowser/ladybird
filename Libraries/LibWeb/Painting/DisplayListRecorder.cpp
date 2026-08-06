@@ -392,13 +392,6 @@ void DisplayListRecorder::draw_ellipse(Gfx::IntRect const& a_rect, Color color, 
     });
 }
 
-void DisplayListRecorder::fill_ellipse(Gfx::IntRect const& a_rect, Color color)
-{
-    if (a_rect.is_empty() || color.alpha() == 0)
-        return;
-    append_command(FillEllipse { a_rect, color });
-}
-
 void DisplayListRecorder::fill_rect_with_linear_gradient(Gfx::IntRect const& gradient_rect, LinearGradientData const& data)
 {
     if (gradient_rect.is_empty())

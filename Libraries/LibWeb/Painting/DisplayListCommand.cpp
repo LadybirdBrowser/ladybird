@@ -185,11 +185,6 @@ void DrawEllipse::dump(StringBuilder& builder) const
     builder.appendff(" rect={} color={} thickness={}", rect, color, thickness);
 }
 
-void FillEllipse::dump(StringBuilder& builder) const
-{
-    builder.appendff(" rect={} color={}", rect, color);
-}
-
 void DrawLine::dump(StringBuilder& builder) const
 {
     builder.appendff(" from={} to={} color={} thickness={} style={}", from, to, color, thickness, line_style_name(style));

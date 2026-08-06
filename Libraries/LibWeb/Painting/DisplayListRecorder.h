@@ -65,8 +65,6 @@ public:
 
     void draw_ellipse(Gfx::IntRect const& a_rect, Color color, int thickness);
 
-    void fill_ellipse(Gfx::IntRect const& a_rect, Color color);
-
     void fill_rect_with_linear_gradient(Gfx::IntRect const& gradient_rect, LinearGradientData const& data);
     void fill_rect_with_conic_gradient(Gfx::IntRect const& rect, ConicGradientData const& data, Gfx::IntPoint const& position);
     void fill_rect_with_radial_gradient(Gfx::IntRect const& rect, RadialGradientData const& data, Gfx::IntPoint center, Gfx::IntSize size);
