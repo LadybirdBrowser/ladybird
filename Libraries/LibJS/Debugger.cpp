@@ -51,6 +51,7 @@ bool Debugger::pause_execution(Bytecode::Executable& executable, u32 bytecode_of
         .bytecode_offset = bytecode_offset,
         .source_range = move(source_range),
         .stack_trace = move(stack_trace),
+        .breakpoint_ids = Vector<BreakpointID> { executable.debugger_breakpoints_at(bytecode_offset) },
         .reason = reason,
     });
     VERIFY(!m_is_paused);

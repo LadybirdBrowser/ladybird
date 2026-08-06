@@ -557,6 +557,8 @@ TEST_CASE(manual_breakpoints_pause_execution)
         EXPECT_EQ(pause_info.reason, JS::Debugger::PauseReason::Breakpoint);
         VERIFY(pause_info.source_range.has_value());
         EXPECT_EQ(pause_info.source_range->start.line, 2u);
+        EXPECT_EQ(pause_info.breakpoint_ids.size(), 1u);
+        EXPECT_EQ(pause_info.breakpoint_ids.first(), breakpoint_id);
         vm->debugger()->continue_execution();
     });
 
