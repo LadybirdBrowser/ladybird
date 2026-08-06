@@ -3343,6 +3343,14 @@ void Application::resume_debugger(DevTools::TabDescription const& description, D
     view->resume_debugger(mode);
 }
 
+void Application::update_debugger_blackboxing(DevTools::TabDescription const& description, Utf16String url, Vector<DebuggerBlackboxRange> ranges, DebuggerBlackboxingOperation operation) const
+{
+    auto view = ViewImplementation::find_view_by_id(description.id);
+    if (!view.has_value())
+        return;
+    view->update_debugger_blackboxing(move(url), move(ranges), operation);
+}
+
 void Application::retrieve_debugger_environments(DevTools::TabDescription const& description, u64 frame_id, OnDebuggerEnvironmentsReceived on_complete) const
 {
     auto view = ViewImplementation::find_view_by_id(description.id);

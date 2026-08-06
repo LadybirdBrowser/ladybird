@@ -29,6 +29,7 @@ public:
     void detach(PageClient&);
     void interrupt(PageClient&);
     void resume(PageClient&, WebView::DebuggerResumeMode);
+    void update_blackboxing(PageClient&, Utf16String, Vector<WebView::DebuggerBlackboxRange>, WebView::DebuggerBlackboxingOperation);
     ErrorOr<void> set_breakpoint(PageClient&, WebView::DebuggerBreakpointLocation, WebView::DebuggerBreakpointOptions);
     ErrorOr<void> remove_breakpoint(PageClient&, WebView::DebuggerBreakpointLocation const&);
     Vector<WebView::DebuggerEnvironment> environments_for_frame(PageClient&, u64 frame_id);
@@ -39,6 +40,7 @@ private:
     void handle_pause(JS::Debugger::PauseInfo const&);
     void emit_logpoint(PageClient&, JS::Debugger::PauseInfo const&, JS::ExecutionContext&, WebView::DebuggerBreakpointOptions const&);
     void update_exception_pause_mode();
+    bool pause_is_blackboxed(PageClient&, JS::Debugger::PauseInfo const&) const;
     PageClient* paused_page_client() const;
     void disable_if_unused();
     void schedule_disable_if_unused();
@@ -51,10 +53,16 @@ private:
         JS::BreakpointID id { 0 };
     };
 
+    struct BlackboxedSource {
+        Utf16String url;
+        WebView::DebuggerBlackboxState state;
+    };
+
     ConnectionFromClient& m_client;
     HashTable<u64> m_attached_page_ids;
     HashMap<u64, WebView::DebuggerConfiguration> m_configurations;
     HashMap<u64, Vector<BreakpointRegistration>> m_breakpoints;
+    HashMap<u64, Vector<BlackboxedSource>> m_blackboxed_sources;
     HashMap<u64, JS::ExecutionContext*> m_paused_frames;
     HashMap<u64, GC::Root<JS::Object>> m_paused_objects;
     HashMap<GC::Ptr<JS::Object>, u64> m_paused_object_ids;

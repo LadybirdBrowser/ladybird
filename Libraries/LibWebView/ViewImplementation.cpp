@@ -1503,6 +1503,11 @@ void ViewImplementation::resume_debugger(DebuggerResumeMode mode)
     client().async_resume_debugger(page_id(), mode);
 }
 
+void ViewImplementation::update_debugger_blackboxing(Utf16String url, Vector<DebuggerBlackboxRange> ranges, DebuggerBlackboxingOperation operation)
+{
+    client().async_update_debugger_blackboxing(page_id(), move(url), move(ranges), operation);
+}
+
 void ViewImplementation::set_debugger_breakpoint(DebuggerBreakpointLocation location, DebuggerBreakpointOptions options, DevTools::DevToolsDelegate::OnDebuggerBreakpointOperationComplete on_complete)
 {
     auto request_id = m_next_debugger_breakpoint_request_id++;

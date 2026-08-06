@@ -153,6 +153,7 @@ private:
     virtual void detach_debugger(u64 page_id) override;
     virtual void interrupt_debugger(u64 page_id) override;
     virtual void resume_debugger(u64 page_id, WebView::DebuggerResumeMode) override;
+    virtual void update_debugger_blackboxing(u64 page_id, Utf16String, Vector<WebView::DebuggerBlackboxRange>, WebView::DebuggerBlackboxingOperation) override;
     virtual void set_debugger_breakpoint(u64 page_id, u64 request_id, WebView::DebuggerBreakpointLocation, WebView::DebuggerBreakpointOptions) override;
     virtual void remove_debugger_breakpoint(u64 page_id, u64 request_id, WebView::DebuggerBreakpointLocation) override;
     virtual void get_debugger_environments(u64 page_id, u64 request_id, u64 frame_id) override;

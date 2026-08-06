@@ -219,6 +219,23 @@ ErrorOr<WebView::DebuggerSourcePosition> decode(Decoder& decoder)
 }
 
 template<>
+ErrorOr<void> encode(Encoder& encoder, WebView::DebuggerBlackboxRange const& range)
+{
+    TRY(encoder.encode(range.start));
+    TRY(encoder.encode(range.end));
+    return {};
+}
+
+template<>
+ErrorOr<WebView::DebuggerBlackboxRange> decode(Decoder& decoder)
+{
+    return WebView::DebuggerBlackboxRange {
+        .start = TRY(decoder.decode<WebView::DebuggerSourcePosition>()),
+        .end = TRY(decoder.decode<WebView::DebuggerSourcePosition>()),
+    };
+}
+
+template<>
 ErrorOr<void> encode(Encoder& encoder, WebView::DebuggerLocation const& location)
 {
     TRY(encoder.encode(location.source));
