@@ -185,3 +185,17 @@ ErrorOr<Web::FinalizeSameDocumentNavigationHistoryOperationParameters> IPC::deco
         .user_involvement = TRY(decoder.decode<Web::HTML::UserNavigationInvolvement>()),
     };
 }
+
+template<>
+ErrorOr<void> IPC::encode(Encoder& encoder, Web::CloseTopLevelTraversableHistoryOperationParameters const& parameters)
+{
+    return encoder.encode(parameters.traversable_id);
+}
+
+template<>
+ErrorOr<Web::CloseTopLevelTraversableHistoryOperationParameters> IPC::decode(Decoder& decoder)
+{
+    return Web::CloseTopLevelTraversableHistoryOperationParameters {
+        .traversable_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
+    };
+}
