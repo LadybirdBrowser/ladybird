@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    .scroller {
+        width: 100px;
+        height: 50px;
+        overflow: auto;
+    }
+
+    #legacy-box {
+        display: -webkit-box;
+        flex-wrap: wrap-reverse;
+    }
+
+    #flex {
+        display: flex;
+        flex-wrap: wrap-reverse;
+    }
+
+    .tall {
+        flex: none;
+        width: 40px;
+        height: 150px;
+    }
+</style>
+<div class="scroller" id="legacy-box"><div class="tall"></div></div>
+<div class="scroller" id="flex"><div class="tall"></div></div>
+<script>
+    test(() => {
+        for (const id of ["legacy-box", "flex"]) {
+            const scroller = document.getElementById(id);
+            scroller.scrollTop = 1000;
+            const maximumScrollTop = scroller.scrollTop;
+            scroller.scrollTop = -1000;
+            const minimumScrollTop = scroller.scrollTop;
+            println(`${id}: scroll height: ${scroller.scrollHeight}, scroll top range: [${minimumScrollTop}, ${maximumScrollTop}]`);
+        }
+    });
+</script>

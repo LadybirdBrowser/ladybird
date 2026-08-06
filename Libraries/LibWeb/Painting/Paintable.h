@@ -220,6 +220,8 @@ public:
     };
 
     CSSPixelPoint scroll_offset() const;
+    CSSPixelPoint minimum_scroll_offset() const;
+    CSSPixelPoint maximum_scroll_offset() const;
     CSSPixelPoint clamp_scroll_offset(CSSPixelPoint) const;
     CSSPixelRect scroll_snapport_rect() const;
     CSSPixelRect scroll_snapport_rect(CSSPixelRect scrollport) const;

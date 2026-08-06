@@ -1,0 +1,2 @@
+legacy-box: scroll height: 150, scroll top range: [0, 100]
+flex: scroll height: 150, scroll top range: [-100, 0]

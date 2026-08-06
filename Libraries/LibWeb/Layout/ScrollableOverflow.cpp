@@ -6,7 +6,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Tuple.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/Layout/Box.h>
@@ -32,11 +31,6 @@ ContainedBoxesMap collect_scrollable_overflow_contained_boxes(Node const& root, 
     return contained_boxes_map;
 }
 
-struct PhysicalOverflowDirections {
-    bool horizontal_axis_is_positive { true };
-    bool vertical_axis_is_positive { true };
-};
-
 struct AxisDirection {
     bool is_horizontal { false };
     bool is_reverse { false };
@@ -56,8 +50,12 @@ static bool node_is_in_focused_text_control(DOM::Node const& node)
         && shadow_root->host()->is_focused();
 }
 
-static PhysicalOverflowDirections physical_overflow_directions(Box const& box)
+// https://drafts.csswg.org/cssom-view/#overflow-directions
+PhysicalOverflowDirections physical_overflow_directions(Box const& box)
 {
+    // A scrolling box of a viewport or element has two overflow directions, which are the block-end and inline-end
+    // directions for that viewport or element.
+
     AxisDirection inline_axis {
         .is_horizontal = inline_axis_is_horizontal(box.writing_mode()),
         .is_reverse = box.inline_axis_is_reverse(),
@@ -67,30 +65,24 @@ static PhysicalOverflowDirections physical_overflow_directions(Box const& box)
         .is_reverse = box.block_axis_is_reverse(),
     };
 
-    auto horizontal_and_vertical_axes = [&]() {
-        if (!box.display().is_flex_inside())
-            return AK::Tuple { inline_axis.is_horizontal ? inline_axis : block_axis, inline_axis.is_horizontal ? block_axis : inline_axis };
-
+    if (box.display().is_flex_inside()) {
         auto is_row_layout = box.flex_direction() == CSS::FlexDirection::Row
             || box.flex_direction() == CSS::FlexDirection::RowReverse;
+        auto& main_axis = is_row_layout ? inline_axis : block_axis;
+        auto& cross_axis = is_row_layout ? block_axis : inline_axis;
 
-        auto main_axis = is_row_layout ? inline_axis : block_axis;
         if (box.flex_direction() == CSS::FlexDirection::RowReverse
             || box.flex_direction() == CSS::FlexDirection::ColumnReverse) {
             main_axis.is_reverse = !main_axis.is_reverse;
         }
 
-        auto cross_axis = is_row_layout ? block_axis : inline_axis;
         // AD-HOC: A legacy webkit box ignores `flex-wrap`, matching other engines.
         if (!box.display().is_webkit_box_inside() && box.flex_wrap() == CSS::FlexWrap::WrapReverse)
             cross_axis.is_reverse = !cross_axis.is_reverse;
+    }
 
-        return AK::Tuple { main_axis.is_horizontal ? main_axis : cross_axis, main_axis.is_horizontal ? cross_axis : main_axis };
-    };
-
-    auto axes = horizontal_and_vertical_axes();
-    auto horizontal_axis = axes.get<0>();
-    auto vertical_axis = axes.get<1>();
+    auto horizontal_axis = inline_axis.is_horizontal ? inline_axis : block_axis;
+    auto vertical_axis = inline_axis.is_horizontal ? block_axis : inline_axis;
     return {
         .horizontal_axis_is_positive = !horizontal_axis.is_reverse,
         .vertical_axis_is_positive = !vertical_axis.is_reverse,

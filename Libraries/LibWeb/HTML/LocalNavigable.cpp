@@ -3869,14 +3869,13 @@ void LocalNavigable::clamp_viewport_scroll_offset()
         return;
     if (!document->paintable_box())
         return;
-    auto scrollable_overflow_rect = document->paintable_box()->scrollable_overflow_rect();
-    if (!scrollable_overflow_rect.has_value())
+    if (!document->paintable_box()->scrollable_overflow_rect().has_value())
         return;
-    auto max_x = scrollable_overflow_rect->width() - m_viewport_size.width();
-    auto max_y = scrollable_overflow_rect->height() - m_viewport_size.height();
+    auto minimum_scroll_offset = document->paintable_box()->minimum_scroll_offset();
+    auto maximum_scroll_offset = document->paintable_box()->maximum_scroll_offset();
     CSSPixelPoint clamped = {
-        max(CSSPixels(0), min(m_viewport_scroll_offset.x(), max_x)),
-        max(CSSPixels(0), min(m_viewport_scroll_offset.y(), max_y)),
+        clamp(m_viewport_scroll_offset.x(), minimum_scroll_offset.x(), maximum_scroll_offset.x()),
+        clamp(m_viewport_scroll_offset.y(), minimum_scroll_offset.y(), maximum_scroll_offset.y()),
     };
     if (clamped != m_viewport_scroll_offset)
         perform_scroll_of_viewport_scrolling_box(clamped);
@@ -5133,11 +5132,12 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_the_viewport(CSSPix
     // NB: Must update layout before accessing paintables.
     doc->update_layout(DOM::UpdateLayoutReason::NavigableViewportScroll);
 
-    auto scrolling_area = doc->paintable_box()->scrollable_overflow_rect()->to_type<float>();
+    auto minimum_scroll_offset = doc->paintable_box()->minimum_scroll_offset().to_type<double>();
+    auto maximum_scroll_offset = doc->paintable_box()->maximum_scroll_offset().to_type<double>();
     auto new_viewport_scroll_offset = m_viewport_scroll_offset.to_type<double>() + Gfx::Point(layout_dx, layout_dy);
     // NOTE: Clamp to the scrolling area.
-    new_viewport_scroll_offset.set_x(max(0.0, min(new_viewport_scroll_offset.x(), scrolling_area.width() - viewport_size().width().to_double())));
-    new_viewport_scroll_offset.set_y(max(0.0, min(new_viewport_scroll_offset.y(), scrolling_area.height() - viewport_size().height().to_double())));
+    new_viewport_scroll_offset.set_x(clamp(new_viewport_scroll_offset.x(), minimum_scroll_offset.x(), maximum_scroll_offset.x()));
+    new_viewport_scroll_offset.set_y(clamp(new_viewport_scroll_offset.y(), minimum_scroll_offset.y(), maximum_scroll_offset.y()));
 
     auto scroll_promise = perform_a_scroll_of_a_scrolling_box({
                                                                   .node_id = doc->unique_id(),
