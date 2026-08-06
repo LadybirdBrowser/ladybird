@@ -200,7 +200,8 @@ private:
     void compute_custom_properties(ComputedProperties&, DOM::AbstractElement) const;
     void start_needed_transitions(ComputedValues const& old_style, ComputedProperties::Builder& new_style, DOM::AbstractElement) const;
     void resolve_effective_overflow_values(ComputedProperties::Builder&) const;
-    void transform_box_type_if_needed(ComputedProperties::Builder&, DOM::AbstractElement) const;
+    void adjust_element_style_if_needed(ComputedProperties::Builder&, DOM::AbstractElement) const;
+    void adjust_animated_element_style_if_needed(ComputedProperties&, DOM::AbstractElement) const;
 
     [[nodiscard]] CSSPixelRect viewport_rect() const { return m_viewport_rect; }
 

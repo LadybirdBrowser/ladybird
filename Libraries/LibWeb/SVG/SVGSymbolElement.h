@@ -19,8 +19,6 @@ class SVGSymbolElement final : public SVGGraphicsElement
 public:
     virtual ~SVGSymbolElement() override = default;
 
-    virtual void adjust_computed_style(CSS::ComputedProperties::Builder&) override;
-
 private:
     virtual bool is_svg_symbol_element() const final { return true; }
 

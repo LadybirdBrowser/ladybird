@@ -33,8 +33,6 @@ class WEB_API HTMLTextAreaElement final
 public:
     virtual ~HTMLTextAreaElement() override;
 
-    virtual void adjust_computed_style(CSS::ComputedProperties::Builder&) override;
-
     Utf16FlyString type() const
     {
         return "textarea"_utf16_fly_string;

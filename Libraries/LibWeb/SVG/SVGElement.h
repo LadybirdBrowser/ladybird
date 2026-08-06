@@ -59,8 +59,6 @@ protected:
     virtual void children_changed(ChildrenChangedMetadata const&) override;
     virtual void inserted() override;
     virtual void removed_from(IsSubtreeRoot, Node* old_ancestor, Node& old_root) override;
-    MUST_UPCALL virtual void adjust_computed_style(CSS::ComputedProperties::Builder&) override;
-
     void update_use_elements_that_reference_this();
     void remove_from_use_element_that_reference_this();
     void mark_resource_box_referencing_elements_for_layout_tree_update();

@@ -170,13 +170,6 @@ void HTMLMeterElement::inserted()
     create_shadow_tree_if_needed();
 }
 
-void HTMLMeterElement::adjust_computed_style(CSS::ComputedProperties::Builder& style)
-{
-    // https://drafts.csswg.org/css-display-3/#unbox
-    if (style.display().is_contents())
-        style.set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::None)));
-}
-
 void HTMLMeterElement::create_shadow_tree_if_needed()
 {
     if (shadow_root())

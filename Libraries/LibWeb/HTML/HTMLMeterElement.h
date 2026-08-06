@@ -36,8 +36,6 @@ public:
     // ^HTMLElement
     virtual void inserted() override;
 
-    virtual void adjust_computed_style(CSS::ComputedProperties::Builder&) override;
-
     // https://html.spec.whatwg.org/multipage/forms.html#category-label
     virtual bool is_labelable() const override { return true; }
 

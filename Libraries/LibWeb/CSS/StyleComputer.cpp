@@ -915,6 +915,7 @@ void StyleComputer::collect_animations_into(DOM::AbstractElement abstract_elemen
 void StyleComputer::collect_animations_into(DOM::AbstractElement abstract_element, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>> effects, ComputedProperties& computed_properties) const
 {
     collect_animation_effects_into(abstract_element, effects, computed_properties, nullptr);
+    adjust_animated_element_style_if_needed(computed_properties, abstract_element);
 }
 
 void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract_element, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>> effects, ComputedProperties& computed_properties, ComputedProperties::Builder* builder) const
@@ -2995,27 +2996,40 @@ static ComputedValuesFFI::FfiBoxTypeTransformationInput make_box_type_transforma
     };
 }
 
-static void apply_box_type_transformation(ComputedProperties::Builder& builder, ComputedValuesFFI::FfiDisplay const& display_before, ComputedValuesFFI::FfiBoxTypeTransformation const& transformation)
-{
-    builder.set_display_before_box_type_transformation(display_from_ffi_display(display_before));
-    if (transformation.set_float_none)
-        builder.set_property(PropertyID::Float, KeywordStyleValue::create(Keyword::None));
-    if (transformation.changed_display)
-        builder.set_property(PropertyID::Display, DisplayStyleValue::create(display_from_ffi_display(transformation.display)));
-}
-
-static ComputedValuesFFI::FfiInputLineHeightMetrics input_line_height_metrics(ComputedProperties::Builder& builder, DOM::AbstractElement abstract_element, bool should_measure)
+template<typename Style>
+static ComputedValuesFFI::FfiInputLineHeightMetrics input_line_height_metrics(Style& style, DOM::AbstractElement abstract_element, bool should_measure)
 {
     ComputedValuesFFI::FfiInputLineHeightMetrics line_height_metrics {};
     if (should_measure) {
-        line_height_metrics.current_line_height = builder.line_height(abstract_element.element().document().font_computer()).to_double();
-        line_height_metrics.minimum_line_height = ComputedProperties::normal_line_height(builder.first_available_computed_font(abstract_element.element().document().font_computer())->pixel_metrics()).to_double();
+        line_height_metrics.current_line_height = style.line_height(abstract_element.element().document().font_computer()).to_double();
+        line_height_metrics.minimum_line_height = ComputedProperties::normal_line_height(style.first_available_computed_font(abstract_element.element().document().font_computer())->pixel_metrics()).to_double();
     }
     return line_height_metrics;
 }
 
+template<typename Style, typename SetProperty>
+static void apply_element_style_adjustments(Style& style, DOM::AbstractElement abstract_element, ComputedValuesFFI::FfiElementStyleAdjustments const& adjustments, SetProperty set_property)
+{
+    if (adjustments.box_type.set_float_none)
+        set_property(PropertyID::Float, KeywordStyleValue::create(Keyword::None));
+    if (adjustments.box_type.changed_display)
+        set_property(PropertyID::Display, DisplayStyleValue::create(display_from_ffi_display(adjustments.box_type.display)));
+
+    auto const& element_style = adjustments.element_style;
+    if (element_style.changed_display)
+        set_property(PropertyID::Display, DisplayStyleValue::create(display_from_ffi_display(element_style.display)));
+    if (element_style.set_position_static)
+        set_property(PropertyID::Position, KeywordStyleValue::create(Keyword::Static));
+    if (element_style.changed_text_align)
+        set_property(PropertyID::TextAlign, KeywordStyleValue::create(static_cast<Keyword>(element_style.text_align)));
+
+    auto line_height_metrics = input_line_height_metrics(style, abstract_element, element_style.check_input_line_height);
+    if (element_style.set_line_height_normal || (element_style.check_input_line_height && line_height_metrics.current_line_height < line_height_metrics.minimum_line_height))
+        set_property(PropertyID::LineHeight, KeywordStyleValue::create(Keyword::Normal));
+}
+
 // https://drafts.csswg.org/css-display/#transformations
-void StyleComputer::transform_box_type_if_needed(ComputedProperties::Builder& builder, DOM::AbstractElement abstract_element) const
+void StyleComputer::adjust_element_style_if_needed(ComputedProperties::Builder& builder, DOM::AbstractElement abstract_element) const
 {
     auto& style = builder.style();
     auto input = make_box_type_transformation_input(
@@ -3023,8 +3037,48 @@ void StyleComputer::transform_box_type_if_needed(ComputedProperties::Builder& bu
         style.display(),
         style.property(PropertyID::Position).to_keyword(),
         style.property(PropertyID::Float).to_keyword());
-    auto transformation = ComputedValuesFFI::rust_transform_box_type(&input);
-    apply_box_type_transformation(builder, input.display, transformation);
+    auto adjustments = ComputedValuesFFI::rust_adjust_element_style(
+        &input, to_underlying(style.property(PropertyID::TextAlign).to_keyword()));
+
+    auto set_adjusted_property = [&](PropertyID property_id, NonnullRefPtr<StyleValue const> value) {
+        // Animated values are stored separately from the builder's base values, so post-compute
+        // adjustments must replace the sampled value as well.
+        if (style.has_animated_property(property_id)) {
+            auto is_result_of_transition = style.is_animated_property_result_of_transition(property_id)
+                ? AnimatedPropertyResultOfTransition::Yes
+                : AnimatedPropertyResultOfTransition::No;
+            auto inherited = style.is_animated_property_inherited(property_id)
+                ? ComputedProperties::Inherited::Yes
+                : ComputedProperties::Inherited::No;
+            style.set_animated_property(Badge<StyleComputer> {}, property_id, value, is_result_of_transition, inherited);
+        }
+        builder.set_property(property_id, move(value));
+    };
+
+    builder.set_display_before_box_type_transformation(display_from_ffi_display(input.display));
+    apply_element_style_adjustments(builder, abstract_element, adjustments, set_adjusted_property);
+}
+
+void StyleComputer::adjust_animated_element_style_if_needed(ComputedProperties& style, DOM::AbstractElement abstract_element) const
+{
+    auto input = make_box_type_transformation_input(
+        abstract_element,
+        style.display(),
+        style.property(PropertyID::Position).to_keyword(),
+        style.property(PropertyID::Float).to_keyword());
+    auto adjustments = ComputedValuesFFI::rust_adjust_element_style(
+        &input, to_underlying(style.property(PropertyID::TextAlign).to_keyword()));
+
+    auto set_adjusted_property = [&](PropertyID property_id, NonnullRefPtr<StyleValue const> value) {
+        auto is_result_of_transition = style.has_animated_property(property_id) && style.is_animated_property_result_of_transition(property_id)
+            ? AnimatedPropertyResultOfTransition::Yes
+            : AnimatedPropertyResultOfTransition::No;
+        auto inherited = style.has_animated_property(property_id) && style.is_animated_property_inherited(property_id)
+            ? ComputedProperties::Inherited::Yes
+            : ComputedProperties::Inherited::No;
+        style.set_animated_property(Badge<StyleComputer> {}, property_id, move(value), is_result_of_transition, inherited);
+    };
+    apply_element_style_adjustments(style, abstract_element, adjustments, set_adjusted_property);
 }
 
 NonnullRefPtr<ComputedValues const> StyleComputer::create_document_style() const
@@ -3215,7 +3269,7 @@ RefPtr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractElemen
         VERIFY(inherited_pseudo_element_style);
         auto builder = ComputedProperties::create_builder_with_base_values_from(*inherited_pseudo_element_style);
 
-        abstract_element.element().adjust_computed_style(builder);
+        adjust_element_style_if_needed(builder, abstract_element);
         return ComputedProperties::create(move(builder));
     }
 
@@ -3780,17 +3834,13 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
 
     // Run automatic box type transformations again after animations have been applied.
     if (animation_values_applied)
-        transform_box_type_if_needed(builder, abstract_element);
+        adjust_element_style_if_needed(builder, abstract_element);
 
     // Apply any property-specific computed value logic
     if (animation_values_applied)
         resolve_effective_overflow_values(builder);
     if (animation_values_applied || parent_text_align_input_is_animated)
         compute_text_align(builder, abstract_element);
-
-    // Let the element adjust computed style
-    if (animation_values_applied && !abstract_element.pseudo_element().has_value())
-        abstract_element.element().adjust_computed_style(builder);
 
     bool parent_style_in_display_none_subtree = false;
     if (auto parent = abstract_element.element_to_inherit_style_from(); parent.has_value()) {
