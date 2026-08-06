@@ -3000,15 +3000,15 @@ pub unsafe extern "C" fn rust_drive_property_computation(
         let float_before = computed_float.expect("float must be computed by the longhand driver");
         box_type_input.float_value = float_before;
         box_type_input.position = computed_position.expect("position must be computed by the longhand driver");
-        let transformation = transform_box_type(&box_type_input);
+        let text_align = computed_text_align.expect("text-align must be computed by the longhand driver");
+        let adjustments = compute_element_style_adjustments(&box_type_input, text_align);
+        let transformation = adjustments.box_type;
+        let element_adjustment = adjustments.element_style;
         let display_after_box_type_transformation = if transformation.changed_display {
             transformation.display
         } else {
             display_before
         };
-        let text_align = computed_text_align.expect("text-align must be computed by the longhand driver");
-        let element_adjustment =
-            adjust_element_style(&box_type_input, display_after_box_type_transformation, text_align);
         if transformation.set_float_none {
             clear_longhand_bit(important_words, prop::FLOAT);
             clear_longhand_bit(inherited_words, prop::FLOAT);
@@ -3290,6 +3290,15 @@ pub struct FfiElementStyleAdjustment {
     pub text_align: u16,
 }
 
+/// The automatic box type transformation and element-specific adjustment,
+/// sequenced as they are in the normal property computation path.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct FfiElementStyleAdjustments {
+    pub box_type: FfiBoxTypeTransformation,
+    pub element_style: FfiElementStyleAdjustment,
+}
+
 #[repr(C)]
 pub struct FfiInputLineHeightMetrics {
     pub current_line_height: f64,
@@ -3361,6 +3370,23 @@ fn adjust_element_style(
         set_position_static: input.force_position_static,
         changed_text_align: new_text_align != text_align,
         text_align: new_text_align,
+    }
+}
+
+fn compute_element_style_adjustments(
+    input: &FfiBoxTypeTransformationInput,
+    text_align: u16,
+) -> FfiElementStyleAdjustments {
+    let box_type = transform_box_type(input);
+    let display = if box_type.changed_display {
+        box_type.display
+    } else {
+        input.display
+    };
+    let element_style = adjust_element_style(input, display, text_align);
+    FfiElementStyleAdjustments {
+        box_type,
+        element_style,
     }
 }
 
@@ -3485,11 +3511,12 @@ fn transform_box_type(input: &FfiBoxTypeTransformationInput) -> FfiBoxTypeTransf
 /// # Safety
 /// `input` must be a valid pointer.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_transform_box_type(
+pub unsafe extern "C" fn rust_adjust_element_style(
     input: *const FfiBoxTypeTransformationInput,
-) -> FfiBoxTypeTransformation {
+    text_align: u16,
+) -> FfiElementStyleAdjustments {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::NestedPropertyComputeEntry);
-    abort_on_panic(|| transform_box_type(unsafe { &*input }))
+    abort_on_panic(|| compute_element_style_adjustments(unsafe { &*input }, text_align))
 }
 
 /// Result of resolving the effective overflow pair: each axis' possibly
@@ -3843,6 +3870,19 @@ mod tests {
                 minimum_line_height: 16.0,
             }
         ));
+    }
+
+    #[test]
+    fn element_style_adjustments_follow_box_type_transformation() {
+        let mut input = element_adjustment_input();
+        input.is_button_element = true;
+        input.position = keyword::ABSOLUTE;
+
+        let adjustments = compute_element_style_adjustments(&input, keyword::LEFT);
+        assert!(adjustments.box_type.changed_display);
+        assert!(adjustments.box_type.display.is_block_outside());
+        assert!(adjustments.element_style.changed_display);
+        assert!(adjustments.element_style.display.is_flow_root_inside());
     }
 
     fn test_context() -> FfiLengthResolutionContext {

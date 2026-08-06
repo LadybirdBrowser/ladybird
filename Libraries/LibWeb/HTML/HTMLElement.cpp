@@ -1199,15 +1199,6 @@ void HTMLElement::set_popover(Optional<Utf16String> value)
         remove_attribute(HTML::AttributeNames::popover);
 }
 
-void HTMLElement::adjust_computed_style(CSS::ComputedProperties::Builder& style)
-{
-    // https://drafts.csswg.org/css-display-3/#unbox
-    if (local_name() == HTML::TagNames::wbr) {
-        if (style.display().is_contents())
-            style.set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::None)));
-    }
-}
-
 // https://html.spec.whatwg.org/multipage/popover.html#check-popover-validity
 // https://whatpr.org/html/9457/popover.html#check-popover-validity
 WebIDL::ExceptionOr<bool> HTMLElement::check_popover_validity(ExpectedToBeShowing expected_to_be_showing, ThrowExceptions throw_exceptions, GC::Ptr<DOM::Document> expected_document, IgnoreDomState ignore_dom_state)

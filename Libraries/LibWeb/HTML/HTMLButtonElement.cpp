@@ -31,23 +31,6 @@ void HTMLButtonElement::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-void HTMLButtonElement::adjust_computed_style(CSS::ComputedProperties::Builder& style)
-{
-    // https://html.spec.whatwg.org/multipage/rendering.html#button-layout
-    // If the computed value of 'display' is 'inline-grid', 'grid', 'inline-flex', 'flex', 'none', or 'contents', then behave as the computed value.
-    auto display = style.display();
-    if (display.is_flex_inside() || display.is_grid_inside() || display.is_none() || display.is_contents()) {
-        // No-op
-    } else if (display.is_inline_outside()) {
-        // Otherwise, if the computed value of 'display' is a value such that the outer display type is 'inline', then behave as 'inline-block'.
-        // AD-HOC: See https://github.com/whatwg/html/issues/11857
-        style.set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::InlineBlock)));
-    } else {
-        // Otherwise, behave as 'flow-root'.
-        style.set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::FlowRoot)));
-    }
-}
-
 HTMLButtonElement::TypeAttributeState HTMLButtonElement::type_state() const
 {
     auto value = get_attribute_value_view(HTML::AttributeNames::type);

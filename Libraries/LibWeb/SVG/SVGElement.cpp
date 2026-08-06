@@ -337,29 +337,6 @@ void SVGElement::remove_from_use_element_that_reference_this()
     }
 }
 
-void SVGElement::adjust_computed_style(CSS::ComputedProperties::Builder& computed_properties)
-{
-    Base::adjust_computed_style(computed_properties);
-
-    // An <svg> element that is not in SVG layout participates in CSS box layout
-    // and may be positioned. That includes the outermost <svg>, and <svg>
-    // elements in HTML content inside <foreignObject>.
-    if (is<SVGSVGElement>(*this)) {
-        for (auto ancestor = parent_element(); ancestor; ancestor = ancestor->parent_element()) {
-            if (is<SVGForeignObjectElement>(*ancestor))
-                return;
-            if (is<SVGSVGElement>(*ancestor))
-                break;
-        }
-        if (!owner_svg_element())
-            return;
-    }
-
-    // SVG elements in SVG layout use SVG's coordinate system and must be forced
-    // to position: static.
-    computed_properties.set_property(CSS::PropertyID::Position, CSS::KeywordStyleValue::create(CSS::Keyword::Static));
-}
-
 // https://svgwg.org/svg2-draft/types.html#__svg__SVGElement__classNames
 GC::Ref<SVGAnimatedString> SVGElement::class_name()
 {

@@ -66,7 +66,6 @@ public:
     virtual ~HTMLInputElement() override;
 
     virtual RefPtr<Layout::Node> create_layout_node(NonnullRefPtr<CSS::ComputedValues const>) override;
-    virtual void adjust_computed_style(CSS::ComputedProperties::Builder&) override;
     virtual void set_being_activated(bool) override;
 
     enum class TypeAttributeState {

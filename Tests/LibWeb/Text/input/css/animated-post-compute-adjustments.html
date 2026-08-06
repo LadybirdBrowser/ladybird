@@ -11,6 +11,16 @@
 <div id="inherited-position-parent" style="position: static">
     <div id="inherited-position-child" style="display: inline; position: inherit"></div>
 </div>
+<input id="adjusted-input" style="line-height: 1px">
+<select id="adjusted-select" style="line-height: 1px"></select>
+<svg><g id="adjusted-svg" style="position: absolute"></g></svg>
+<table id="adjusted-table" align="center"></table>
+<input id="file-input" type="file">
+<style>
+    #file-input::file-selector-button {
+        display: inline;
+    }
+</style>
 <script>
     promiseTest(async () => {
         const overflowAnimation = overflow.animate(
@@ -74,5 +84,44 @@
         const inheritedPositionStyle = getComputedStyle(inheritedPositionChild);
         println(`inherited display: ${inheritedPositionStyle.display}`);
         println(`inherited position: ${inheritedPositionStyle.position}`);
+
+        const adjustedInput = document.getElementById("adjusted-input");
+        const inputAnimation = adjustedInput.animate(
+            [{ lineHeight: "1px" }, { lineHeight: "1px" }],
+            { duration: 1000, fill: "forwards" });
+        inputAnimation.pause();
+        inputAnimation.currentTime = 500;
+        await inputAnimation.ready;
+        println(`input line-height: ${getComputedStyle(adjustedInput).lineHeight}`);
+
+        const adjustedSelect = document.getElementById("adjusted-select");
+        const selectAnimation = adjustedSelect.animate(
+            [{ lineHeight: "1px" }, { lineHeight: "1px" }],
+            { duration: 1000, fill: "forwards" });
+        selectAnimation.pause();
+        selectAnimation.currentTime = 500;
+        await selectAnimation.ready;
+        println(`select line-height: ${getComputedStyle(adjustedSelect).lineHeight}`);
+
+        const adjustedSvg = document.getElementById("adjusted-svg");
+        const svgAnimation = adjustedSvg.animate(
+            [{ position: "absolute" }, { position: "absolute" }],
+            { duration: 1000, fill: "forwards" });
+        svgAnimation.pause();
+        svgAnimation.currentTime = 500;
+        await svgAnimation.ready;
+        println(`svg position: ${getComputedStyle(adjustedSvg).position}`);
+
+        const adjustedTable = document.getElementById("adjusted-table");
+        const tableAnimation = adjustedTable.animate(
+            [{ opacity: "1" }, { opacity: "1" }],
+            { duration: 1000, fill: "forwards" });
+        tableAnimation.pause();
+        tableAnimation.currentTime = 500;
+        await tableAnimation.ready;
+        println(`table text-align: ${getComputedStyle(adjustedTable).textAlign}`);
+
+        const fileInput = document.getElementById("file-input");
+        println(`file selector display: ${getComputedStyle(fileInput, "::file-selector-button").display}`);
     });
 </script>

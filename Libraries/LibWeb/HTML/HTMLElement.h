@@ -202,8 +202,6 @@ protected:
 
     [[nodiscard]] Utf16String get_the_text_steps();
 
-    virtual void adjust_computed_style(CSS::ComputedProperties::Builder&) override;
-
 private:
     virtual bool is_html_element() const final { return true; }
 

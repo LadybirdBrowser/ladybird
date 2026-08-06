@@ -82,8 +82,6 @@ private:
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;
 
     virtual RefPtr<Layout::Node> create_layout_node(NonnullRefPtr<CSS::ComputedValues const>) override;
-    virtual void adjust_computed_style(CSS::ComputedProperties::Builder&) override;
-
     template<typename ContextType>
     JS::ThrowCompletionOr<HasOrCreatedContext> create_webgl_context(JS::Value options);
     WebGL::WebGLRenderingContextBase* webgl_context() const;

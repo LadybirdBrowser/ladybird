@@ -222,13 +222,6 @@ RefPtr<Layout::Node> HTMLObjectElement::create_layout_node(NonnullRefPtr<CSS::Co
     return nullptr;
 }
 
-void HTMLObjectElement::adjust_computed_style(CSS::ComputedProperties::Builder& style)
-{
-    // https://drafts.csswg.org/css-display-3/#unbox
-    if (style.display().is_contents())
-        style.set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::None)));
-}
-
 bool HTMLObjectElement::has_ancestor_media_element_or_object_element_not_showing_fallback_content() const
 {
     for (auto const* ancestor = parent(); ancestor; ancestor = ancestor->parent()) {
