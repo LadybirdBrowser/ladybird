@@ -1241,6 +1241,14 @@ unsafe extern "C" {
     fn rust_free_compiled_regex(ptr: *mut c_void);
 }
 
+/// # Safety
+///
+/// `ptr` must identify a compiled regular expression whose ownership has not
+/// been transferred to C++ or released previously.
+pub unsafe fn free_compiled_regex(ptr: *mut c_void) {
+    unsafe { rust_free_compiled_regex(ptr) };
+}
+
 /// Handle to a compiled regex from C++.
 ///
 /// Wrapped in `Arc` in `RegExpLiteralData` so that AST clones (e.g. for

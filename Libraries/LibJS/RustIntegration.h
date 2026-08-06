@@ -108,6 +108,10 @@ JS_API void free_parsed_program(FFI::ParsedProgram*);
 // Free a compiled program without materializing it.
 JS_API void free_compiled_program(FFI::CompiledProgram*);
 
+// Reparse and fully compile a source without materializing its bytecode so that
+// positions in lazy functions are included.
+JS_API Vector<Position> breakpoint_positions_for_source(SourceCode const&, ProgramType, size_t line_number_offset);
+
 // Serialize a fully compiled program into a versioned bytecode cache blob.
 JS_API ByteBuffer serialize_compiled_program_for_bytecode_cache(FFI::CompiledProgram const&, ProgramType, ReadonlyBytes source_hash);
 
@@ -177,8 +181,8 @@ Optional<Result<ModuleResult, Vector<ParserError>>> compile_parsed_module(FFI::P
 Optional<Result<ModuleResult, Vector<ParserError>>> materialize_compiled_module(FFI::CompiledProgram* compiled, NonnullRefPtr<SourceCode const> source_code, Realm& realm);
 
 // Compile a module. Returns nullopt if Rust is not available.
-Optional<Result<ModuleResult, Vector<ParserError>>> compile_module(Utf16View source_text, Realm& realm, Utf16View display_filename);
-Optional<Result<ModuleResult, Vector<ParserError>>> compile_module(NonnullRefPtr<SourceCode const>, Realm& realm);
+Optional<Result<ModuleResult, Vector<ParserError>>> compile_module(Utf16View source_text, Realm& realm, Utf16View display_filename, size_t line_number_offset = 0);
+Optional<Result<ModuleResult, Vector<ParserError>>> compile_module(NonnullRefPtr<SourceCode const>, Realm& realm, size_t line_number_offset = 0);
 
 // Compile a dynamic function (new Function()).
 // On success, returns a SharedFunctionInstanceData with source_text set.
