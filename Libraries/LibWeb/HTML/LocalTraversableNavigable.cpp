@@ -1498,13 +1498,17 @@ void ApplyHistoryStepState::process_continuations()
 
         // 9. Let entriesForNavigationAPI be the result of getting session history entries for the navigation API given navigable and targetStep.
         auto entries_for_navigation_api = m_traversable->get_session_history_entries_for_the_navigation_api(*navigable, m_target_step);
+        Vector<SessionHistoryEntryDescriptor> entry_descriptors_for_navigation_api;
+        entry_descriptors_for_navigation_api.ensure_capacity(entries_for_navigation_api.size());
+        for (auto const& entry : entries_for_navigation_api)
+            entry_descriptors_for_navigation_api.unchecked_append(create_session_history_entry_descriptor(entry));
 
         m_job_runner.apply_changing_navigable_history_step_continuation(
             m_generation,
             {
                 .navigable_id = navigable_id,
                 .history_object_length_and_index = history_object_length_and_index,
-                .entries_for_navigation_api = move(entries_for_navigation_api),
+                .entries_for_navigation_api = move(entry_descriptors_for_navigation_api),
                 .navigation_type = m_navigation_type,
                 .navigation_api_abort_behavior = m_navigation_api_abort_behavior,
                 .user_involvement = m_user_involvement,
@@ -1546,6 +1550,29 @@ static void clear_ongoing_history_traversal(GC::Ptr<LocalNavigable> navigable, L
     navigable->set_ongoing_navigation({}, navigation_api_abort_behavior);
 }
 
+static Vector<NonnullRefPtr<SessionHistoryEntry>> resolve_navigation_api_entry_descriptors(LocalNavigable const& navigable, Vector<SessionHistoryEntryDescriptor> const& descriptors)
+{
+    Vector<NonnullRefPtr<SessionHistoryEntry>> entries;
+    entries.ensure_capacity(descriptors.size());
+
+    auto const& local_entries = navigable.get_session_history_entries();
+    for (auto const& descriptor : descriptors) {
+        RefPtr<SessionHistoryEntry> matching_entry;
+        for (auto const& entry : local_entries) {
+            if (entry->navigation_api_key() != descriptor.navigation_api_key)
+                continue;
+            VERIFY(!matching_entry);
+            matching_entry = entry;
+        }
+
+        VERIFY(matching_entry);
+        VERIFY(session_history_entry_matches_descriptor_ignoring_document_state_id(*matching_entry, descriptor));
+        entries.unchecked_append(matching_entry.release_nonnull());
+    }
+
+    return entries;
+}
+
 void LocalTraversableNavigable::apply_changing_navigable_history_step_continuation(u64 operation_id, ApplyChangingNavigableHistoryStepContinuation command, GC::Ref<GC::Function<void()>> on_complete)
 {
     auto operation = m_apply_history_step_operations.find(operation_id);
@@ -1557,6 +1584,7 @@ void LocalTraversableNavigable::apply_changing_navigable_history_step_continuati
 
 void LocalTraversableNavigable::apply_changing_navigable_history_step_continuation_impl(GC::Ref<ChangingNavigableContinuationState> continuation, ApplyChangingNavigableHistoryStepContinuation command, GC::Ref<GC::Function<void()>> on_complete)
 {
+    auto entries_for_navigation_api = resolve_navigation_api_entry_descriptors(*continuation->navigable, command.entries_for_navigation_api);
 
     // 4. Let displayedDocument be changingNavigableContinuation's displayed document.
     auto displayed_document = continuation->displayed_document;
@@ -1591,7 +1619,7 @@ void LocalTraversableNavigable::apply_changing_navigable_history_step_continuati
     bool const update_only = continuation->update_only;
     RefPtr<SessionHistoryEntry> const target_entry = continuation->target_entry;
     auto const displayed_document_id = continuation->displayed_document_id;
-    auto after_potential_unload = GC::create_function(heap(), [this, navigable, update_only, target_entry, continuation, population_output, old_origin, displayed_document_id, script_history_length, script_history_index, entries_for_navigation_api = move(command.entries_for_navigation_api), navigation_type = command.navigation_type, navigation_api_abort_behavior = command.navigation_api_abort_behavior, on_complete] {
+    auto after_potential_unload = GC::create_function(heap(), [this, navigable, update_only, target_entry, continuation, population_output, old_origin, displayed_document_id, script_history_length, script_history_index, entries_for_navigation_api = move(entries_for_navigation_api), navigation_type = command.navigation_type, navigation_api_abort_behavior = command.navigation_api_abort_behavior, on_complete] {
         if (update_only || continuation->resolved_document.ptr() == continuation->displayed_document.ptr()) {
             // AD-HOC: Child navigable same-document/update-only tasks are queued without an associated Document so
             //         they can survive the old active Document being deactivated. That also lets them run after the
