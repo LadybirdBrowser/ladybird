@@ -6,32 +6,50 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         ListItemBox <li> at [48,16] [0+0+0 744 0+0+0] [0+0+0 16 0+0+0] children: inline
           frag 0 from TextNode start: 0, length: 1, rect: [328,16 9.34375x16] baseline: 12.796875
               "a"
-          ListItemMarkerBox <(anonymous)> at [314,21] [0+0+0 6 0+0+0] [0+0+0 6 0+0+0] [BFC] children: not-inline
+          ListItemMarkerBox <(anonymous)> at [314,16] [0+0+0 13.84375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+            frag 0 from GeneratedTextNode start: 0, length: 2, rect: [314,16 13.84375x16] baseline: 12.796875
+                "• "
+            GeneratedTextNode <(anonymous)> (not painted)
           TextNode <#text> (not painted)
         ListItemBox <li> at [48,32] [0+0+0 744 0+0+0] [0+0+0 16 0+0+0] children: inline
           frag 0 from TextNode start: 0, length: 1, rect: [328,32 9.34375x16] baseline: 12.796875
               "a"
-          ListItemMarkerBox <(anonymous)> at [314,37] [0+0+0 6 0+0+0] [0+0+0 6 0+0+0] [BFC] children: not-inline
+          ListItemMarkerBox <(anonymous)> at [314,32] [0+0+0 13.84375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+            frag 0 from GeneratedTextNode start: 0, length: 2, rect: [314,32 13.84375x16] baseline: 12.796875
+                "• "
+            GeneratedTextNode <(anonymous)> (not painted)
           TextNode <#text> (not painted)
         ListItemBox <li> at [48,48] [0+0+0 744 0+0+0] [0+0+0 16 0+0+0] children: inline
           frag 0 from TextNode start: 0, length: 1, rect: [328,48 9.34375x16] baseline: 12.796875
               "a"
-          ListItemMarkerBox <(anonymous)> at [314,53] [0+0+0 6 0+0+0] [0+0+0 6 0+0+0] [BFC] children: not-inline
+          ListItemMarkerBox <(anonymous)> at [314,48] [0+0+0 13.84375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+            frag 0 from GeneratedTextNode start: 0, length: 2, rect: [314,48 13.84375x16] baseline: 12.796875
+                "• "
+            GeneratedTextNode <(anonymous)> (not painted)
           TextNode <#text> (not painted)
         ListItemBox <li> at [48,64] [0+0+0 744 0+0+0] [0+0+0 16 0+0+0] children: inline
           frag 0 from TextNode start: 0, length: 1, rect: [328,64 9.34375x16] baseline: 12.796875
               "a"
-          ListItemMarkerBox <(anonymous)> at [314,69] [0+0+0 6 0+0+0] [0+0+0 6 0+0+0] [BFC] children: not-inline
+          ListItemMarkerBox <(anonymous)> at [314,64] [0+0+0 13.84375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+            frag 0 from GeneratedTextNode start: 0, length: 2, rect: [314,64 13.84375x16] baseline: 12.796875
+                "• "
+            GeneratedTextNode <(anonymous)> (not painted)
           TextNode <#text> (not painted)
         ListItemBox <li> at [48,80] [0+0+0 744 0+0+0] [0+0+0 16 0+0+0] children: inline
           frag 0 from TextNode start: 0, length: 1, rect: [328,80 9.34375x16] baseline: 12.796875
               "a"
-          ListItemMarkerBox <(anonymous)> at [314,85] [0+0+0 6 0+0+0] [0+0+0 6 0+0+0] [BFC] children: not-inline
+          ListItemMarkerBox <(anonymous)> at [314,80] [0+0+0 13.84375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+            frag 0 from GeneratedTextNode start: 0, length: 2, rect: [314,80 13.84375x16] baseline: 12.796875
+                "• "
+            GeneratedTextNode <(anonymous)> (not painted)
           TextNode <#text> (not painted)
         ListItemBox <li> at [48,96] [0+0+0 744 0+0+0] [0+0+0 16 0+0+0] children: inline
           frag 0 from TextNode start: 0, length: 1, rect: [328,96 9.34375x16] baseline: 12.796875
               "a"
-          ListItemMarkerBox <(anonymous)> at [314,101] [0+0+0 6 0+0+0] [0+0+0 6 0+0+0] [BFC] children: not-inline
+          ListItemMarkerBox <(anonymous)> at [314,96] [0+0+0 13.84375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+            frag 0 from GeneratedTextNode start: 0, length: 2, rect: [314,96 13.84375x16] baseline: 12.796875
+                "• "
+            GeneratedTextNode <(anonymous)> (not painted)
           TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
@@ -40,17 +58,17 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
       PaintableWithLines (BlockContainer<DIV>.box) [8,16 220x120]
       PaintableWithLines (BlockContainer<UL>) [8,16 784x96]
         PaintableWithLines (ListItemBox<LI>) [48,16 744x16]
-          MarkerPaintable (ListItemMarkerBox(anonymous)) [314,21 6x6]
+          PaintableWithLines (ListItemMarkerBox(anonymous)) [314,16 13.84375x16]
         PaintableWithLines (ListItemBox<LI>) [48,32 744x16]
-          MarkerPaintable (ListItemMarkerBox(anonymous)) [314,37 6x6]
+          PaintableWithLines (ListItemMarkerBox(anonymous)) [314,32 13.84375x16]
         PaintableWithLines (ListItemBox<LI>) [48,48 744x16]
-          MarkerPaintable (ListItemMarkerBox(anonymous)) [314,53 6x6]
+          PaintableWithLines (ListItemMarkerBox(anonymous)) [314,48 13.84375x16]
         PaintableWithLines (ListItemBox<LI>) [48,64 744x16]
-          MarkerPaintable (ListItemMarkerBox(anonymous)) [314,69 6x6]
+          PaintableWithLines (ListItemMarkerBox(anonymous)) [314,64 13.84375x16]
         PaintableWithLines (ListItemBox<LI>) [48,80 744x16]
-          MarkerPaintable (ListItemMarkerBox(anonymous)) [314,85 6x6]
+          PaintableWithLines (ListItemMarkerBox(anonymous)) [314,80 13.84375x16]
         PaintableWithLines (ListItemBox<LI>) [48,96 744x16]
-          MarkerPaintable (ListItemMarkerBox(anonymous)) [314,101 6x6]
+          PaintableWithLines (ListItemMarkerBox(anonymous)) [314,96 13.84375x16]
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x136] (z-index: auto)

@@ -911,7 +911,6 @@ set(SOURCES
     Painting/HitTestDisplayList.cpp
     Painting/ImagePaintable.cpp
     Painting/InlinePaintable.cpp
-    Painting/MarkerPaintable.cpp
     Painting/NavigableContainerViewportPaintable.cpp
     Painting/Paintable.cpp
     Painting/PaintStyle.cpp

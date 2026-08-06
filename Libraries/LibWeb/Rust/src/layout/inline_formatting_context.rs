@@ -921,20 +921,6 @@ impl<'context, 'pass> InlineFormattingContext<'context, 'pass> {
     pub(crate) fn dimension_box_on_line(&mut self, node: Node) {
         let available_space = self.input.available_space;
         let facts = self.facts(node);
-        if facts.is_list_item_marker_box() && facts.marker_is_symbolic() {
-            SizingContext::new(self.state, self.callbacks)
-                .resolve_box_model_metrics_against_inline_basis(node, available_space.inline_size.to_px_or_zero());
-            self.parent.dimension_list_item_marker(node);
-            let distance = self.parent.distance_between_marker_and_list_item(node);
-            let used = self.used_mut(node);
-            if self.style(node).direction() == direction::LTR {
-                used.margin_right.set(used.margin_right.get() + distance);
-            } else {
-                used.margin_left.set(used.margin_left.get() + distance);
-            }
-            return;
-        }
-
         // Any fragmented inline box should have generated line box fragments already.
         if facts.is_fragmented_inline() {
             // SAFETY: The callback table and layout node remain live for this

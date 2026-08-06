@@ -16,20 +16,11 @@ class ListItemMarkerBox final : public BlockContainer {
     LAYOUT_NODE(ListItemMarkerBox, BlockContainer);
 
 public:
-    static bool counter_style_is_rendered_with_custom_image(RefPtr<CSS::CounterStyle const> const& counter_style);
-
     explicit ListItemMarkerBox(DOM::Document&, CSS::ListStyleType, CSS::ListStylePosition, NonnullRefPtr<CSS::ComputedValues const>);
     virtual ~ListItemMarkerBox() override;
 
-    bool is_symbolic() const;
-    bool has_symbolic_counter_style() const;
-
-    virtual RefPtr<Painting::Paintable> create_paintable() const override;
-
     CSS::ListStyleType const& list_style_type() const { return m_list_style_type; }
     CSS::ListStylePosition list_style_position() const { return m_list_style_position; }
-
-    CSSPixels relative_size() const;
 
 private:
     virtual bool is_list_item_marker_box() const final { return true; }

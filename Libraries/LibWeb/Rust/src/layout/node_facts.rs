@@ -24,18 +24,14 @@ pub struct FfiReplacedContentFacts {
     pub default_preferred_height: CssPixels,
 }
 
-/// Marker linkage and font-measured marker metrics, fetched lazily once per
-/// pass for list items and their marker boxes only. The marker slot id is
-/// read from the C++ WeakPtr at fetch time, so a marker detached before the
-/// pass reads as INVALID instead of tripping a stale-slot assertion.
+/// Marker linkage and positioning, fetched lazily once per pass for list items
+/// and their marker boxes only. The marker slot id is read from the C++ WeakPtr
+/// at fetch time, so a marker detached before the pass reads as INVALID instead
+/// of tripping a stale-slot assertion.
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiListItemFacts {
     pub marker: NodeSlotId,
-    pub marker_is_symbolic: bool,
-    pub marker_content_inline_size: CssPixels,
-    pub marker_content_block_size: CssPixels,
-    pub marker_distance: CssPixels,
     pub marker_list_style_position: u8,
 }
 
@@ -43,10 +39,6 @@ impl Default for FfiListItemFacts {
     fn default() -> Self {
         Self {
             marker: NodeSlotId::INVALID,
-            marker_is_symbolic: false,
-            marker_content_inline_size: CssPixels::default(),
-            marker_content_block_size: CssPixels::default(),
-            marker_distance: CssPixels::default(),
             marker_list_style_position: 0,
         }
     }
