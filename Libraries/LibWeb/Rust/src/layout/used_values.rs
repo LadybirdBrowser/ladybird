@@ -48,6 +48,37 @@ pub(crate) struct SealableCell<T> {
     sealed: Cell<bool>,
 }
 
+/// Lazily owns interior-mutable data without reserving space for `T` in every
+/// `UsedValues` entry.
+pub(crate) struct LazyRefCell<T> {
+    value: OnceCell<Box<RefCell<T>>>,
+}
+
+impl<T> LazyRefCell<T> {
+    pub(crate) const fn new() -> Self {
+        Self { value: OnceCell::new() }
+    }
+
+    pub(crate) fn get(&self) -> Option<&RefCell<T>> {
+        self.value.get().map(Box::as_ref)
+    }
+
+    pub(crate) fn get_or_init(&self, initialize: impl FnOnce() -> T) -> &RefCell<T> {
+        self.value
+            .get_or_init(|| Box::new(RefCell::new(initialize())))
+            .as_ref()
+    }
+}
+
+impl<T> std::fmt::Debug for LazyRefCell<T> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("LazyRefCell")
+            .field("initialized", &self.value.get().is_some())
+            .finish()
+    }
+}
+
 impl<T: Copy + std::fmt::Debug> std::fmt::Debug for SealableCell<T> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.value.get().fmt(formatter)
@@ -134,6 +165,9 @@ pub(crate) struct UsedValues {
     // false, so this cannot be represented as Cell<Option<_>>.
     pub has_containing_line_box_fragment: SealableCell<bool>,
     pub containing_line_box_fragment: SealableCell<LineBoxFragmentCoordinate>,
+
+    pub(crate) line_data: LazyRefCell<LineData>,
+    pub(crate) rare_data: LazyRefCell<UsedValuesRareData>,
 }
 
 impl Default for UsedValues {
@@ -173,6 +207,8 @@ impl Default for UsedValues {
             last_baseline: Cell::new(zero),
             has_containing_line_box_fragment: SealableCell::new(false),
             containing_line_box_fragment: SealableCell::new(LineBoxFragmentCoordinate::default()),
+            line_data: LazyRefCell::new(),
+            rare_data: LazyRefCell::new(),
         }
     }
 }
