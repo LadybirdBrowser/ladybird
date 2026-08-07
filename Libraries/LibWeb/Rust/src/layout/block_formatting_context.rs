@@ -2232,36 +2232,6 @@ impl<'pass> BlockFormattingContext<'pass> {
         }
     }
 
-    pub(crate) fn place_floats_after_run(&self) {
-        let floats = self.floats.borrow();
-        for &floating_box in floats.iter() {
-            // SAFETY: Float records retain stable state-owned used-values pointers.
-            let used = floating_box.used_values;
-            let content_block_offset =
-                floating_box.top_margin_edge + used.margin_top.get() + used.border_box_top(false);
-            let inline_offset = if floating_box.side == FloatSide::Left {
-                // Left-side floats: offset_from_edge is from left edge (0) to left content edge of floating_box.
-                floating_box.offset_from_edge
-            } else {
-                // Right-side floats: offset_from_edge is from right edge (float_containing_block_inline_size) to the left content edge of floating_box.
-                let float_containing_block_inline_size = match used.inline_size_constraint.get() {
-                    SizeConstraint::MinContent => CssPixels::default(),
-                    // Preserve the MaxContent saturation quirk from the C++ fixed-point subtraction.
-                    SizeConstraint::MaxContent => CssPixels::from_raw(i32::MAX),
-                    SizeConstraint::None => floating_box.percentage_basis_inline_size.unwrap_or_default(),
-                };
-                float_containing_block_inline_size - floating_box.offset_from_edge
-            };
-            self.place_child(
-                floating_box.box_,
-                FfiCssPixelPoint {
-                    x: inline_offset,
-                    y: content_block_offset,
-                },
-            );
-        }
-    }
-
     pub(crate) fn layout_interrupting_block_inside_inline_context(
         &self,
         run: &FormattingContextRun<'pass>,
@@ -2514,6 +2484,25 @@ impl<'pass> BlockFormattingContext<'pass> {
             LogicalSize {
                 inline_size: block_container_used.content_inline_size.get(),
                 block_size: block_container_used.content_block_size.get(),
+            },
+        );
+
+        let inline_offset = if side == FloatSide::Left {
+            floating_box.offset_from_edge
+        } else {
+            let float_containing_block_inline_size = match self.used(node).inline_size_constraint.get() {
+                SizeConstraint::MinContent => CssPixels::default(),
+                // Preserve the MaxContent saturation quirk from the C++ fixed-point subtraction.
+                SizeConstraint::MaxContent => CssPixels::from_raw(i32::MAX),
+                SizeConstraint::None => floating_box.percentage_basis_inline_size.unwrap_or_default(),
+            };
+            float_containing_block_inline_size - floating_box.offset_from_edge
+        };
+        self.place_child(
+            node,
+            FfiCssPixelPoint {
+                x: inline_offset,
+                y: content_block_offset,
             },
         );
     }
