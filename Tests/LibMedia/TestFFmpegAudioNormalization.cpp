@@ -137,8 +137,3 @@ TEST_CASE(signed_32bit_pcm_to_float)
 {
     decode_and_expect<i32>();
 }
-
-TEST_CASE(signed_64bit_pcm_to_float)
-{
-    decode_and_expect<i64>();
-}

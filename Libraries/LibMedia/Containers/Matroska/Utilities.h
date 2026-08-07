@@ -17,10 +17,6 @@ static constexpr CodecID codec_id_from_matroska_id_string(String const& codec_id
         return CodecID::VP8;
     if (codec_id == "V_VP9")
         return CodecID::VP9;
-    if (codec_id == "V_MPEG1")
-        return CodecID::MPEG1;
-    if (codec_id == "V_MPEG2")
-        return CodecID::H262;
     if (codec_id == "V_MPEG4/ISO/AVC")
         return CodecID::H264;
     if (codec_id == "V_MPEGH/ISO/HEVC")

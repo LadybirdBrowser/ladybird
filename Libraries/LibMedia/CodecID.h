@@ -17,10 +17,6 @@ enum class CodecID : u8 {
     VP8,
     VP9,
     // MPEG
-    H261,
-    MPEG1,
-    H262,
-    H263,
     H264,
     H265,
     MP3,
@@ -37,9 +33,7 @@ enum class CodecID : u8 {
     S16LE,
     S24LE,
     S32LE,
-    S64LE,
     F32LE,
-    F64LE,
     ALaw,
     MuLaw,
 };
@@ -49,10 +43,6 @@ inline TrackType track_type_from_codec_id(CodecID codec)
     switch (codec) {
     case CodecID::VP8:
     case CodecID::VP9:
-    case CodecID::H261:
-    case CodecID::MPEG1:
-    case CodecID::H262:
-    case CodecID::H263:
     case CodecID::H264:
     case CodecID::H265:
     case CodecID::Theora:
@@ -67,9 +57,7 @@ inline TrackType track_type_from_codec_id(CodecID codec)
     case CodecID::S16LE:
     case CodecID::S24LE:
     case CodecID::S32LE:
-    case CodecID::S64LE:
     case CodecID::F32LE:
-    case CodecID::F64LE:
     case CodecID::ALaw:
     case CodecID::MuLaw:
         return TrackType::Audio;
@@ -88,12 +76,6 @@ constexpr StringView codec_id_to_string(CodecID codec)
         return "VP8"sv;
     case Media::CodecID::VP9:
         return "VP9"sv;
-    case Media::CodecID::H261:
-        return "H.261"sv;
-    case Media::CodecID::H262:
-        return "H.262"sv;
-    case Media::CodecID::H263:
-        return "H.263"sv;
     case Media::CodecID::H264:
         return "H.264"sv;
     case Media::CodecID::H265:
@@ -102,8 +84,6 @@ constexpr StringView codec_id_to_string(CodecID codec)
         return "MP3"sv;
     case Media::CodecID::AAC:
         return "AAC"sv;
-    case Media::CodecID::MPEG1:
-        return "MPEG1"sv;
     case Media::CodecID::AV1:
         return "AV1"sv;
     case Media::CodecID::Theora:
@@ -122,12 +102,8 @@ constexpr StringView codec_id_to_string(CodecID codec)
         return "signed 24-bit PCM"sv;
     case CodecID::S32LE:
         return "signed 32-bit PCM"sv;
-    case CodecID::S64LE:
-        return "signed 64-bit PCM"sv;
     case CodecID::F32LE:
         return "32-bit float PCM"sv;
-    case CodecID::F64LE:
-        return "64-bit float PCM"sv;
     case CodecID::ALaw:
         return "A-law PCM"sv;
     case CodecID::MuLaw:
