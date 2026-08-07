@@ -1484,6 +1484,8 @@ void WebContentClient::did_get_debugger_environments(u64 page_id, u64 request_id
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         auto callback = view->m_pending_debugger_environments_requests.take(request_id);
         if (!callback.has_value()) {
+            if (view->m_cancelled_debugger_environments_requests.remove(request_id))
+                return;
             report_unexpected_debugger_response();
             return;
         }
@@ -1499,6 +1501,8 @@ void WebContentClient::did_evaluate_javascript_in_debugger_frame(u64 page_id, u6
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         auto callback = view->m_pending_debugger_evaluation_requests.take(request_id);
         if (!callback.has_value()) {
+            if (view->m_cancelled_debugger_evaluation_requests.remove(request_id))
+                return;
             report_unexpected_debugger_response();
             return;
         }
@@ -1514,6 +1518,8 @@ void WebContentClient::did_get_debugger_object_properties(u64 page_id, u64 reque
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         auto callback = view->m_pending_debugger_object_properties_requests.take(request_id);
         if (!callback.has_value()) {
+            if (view->m_cancelled_debugger_object_properties_requests.remove(request_id))
+                return;
             report_unexpected_debugger_response();
             return;
         }
@@ -1529,6 +1535,8 @@ void WebContentClient::did_get_debugger_source_positions(u64 page_id, u64 reques
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         auto callback = view->m_pending_debugger_source_positions_requests.take(request_id);
         if (!callback.has_value()) {
+            if (view->m_cancelled_debugger_source_positions_requests.remove(request_id))
+                return;
             report_unexpected_debugger_response();
             return;
         }

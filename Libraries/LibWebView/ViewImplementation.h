@@ -538,6 +538,7 @@ protected:
     void apply_zoom_for_current_host();
 
     void handle_resize();
+    void fail_pending_debugger_requests();
     void set_page_background_color_to_system_canvas(bool dark);
     void set_page_background_color(Gfx::Color);
     Gfx::Color preferred_canvas_background_color() const;
@@ -682,6 +683,7 @@ protected:
     RefPtr<Action> m_media_exit_fullscreen_action;
 
     Queue<Web::InputEvent> m_pending_input_events;
+    bool m_debugger_is_attached { false };
 
     struct PendingExternalURLRequest {
         URL::URL url;
@@ -780,6 +782,10 @@ protected:
     HashMap<u64, DevTools::DevToolsDelegate::OnDebuggerEvaluationComplete> m_pending_debugger_evaluation_requests;
     HashMap<u64, DevTools::DevToolsDelegate::OnDebuggerObjectPropertiesReceived> m_pending_debugger_object_properties_requests;
     HashMap<u64, DevTools::DevToolsDelegate::OnDebuggerSourcePositionsReceived> m_pending_debugger_source_positions_requests;
+    HashTable<u64> m_cancelled_debugger_environments_requests;
+    HashTable<u64> m_cancelled_debugger_evaluation_requests;
+    HashTable<u64> m_cancelled_debugger_object_properties_requests;
+    HashTable<u64> m_cancelled_debugger_source_positions_requests;
 
     HashMap<u64, DevTools::DevToolsDelegate::OnIndexedDBInspectionComplete> m_pending_indexed_database_inspection_requests;
     u64 m_next_indexed_database_inspection_request_id { 1 };
