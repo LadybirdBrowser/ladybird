@@ -2,7 +2,7 @@ AccumulatedVisualContext Tree:
   [0] transform=[1,0,0,1,0,0] origin=(0,0) (ViewportPaintable(Viewport<#document>))
     [1] scroll (PaintableWithLines(BlockContainer<PRE>#out))
       [2] clip=[8,8 100x100]
-        [3] mask=[-2,-2 119x119] kind=luminance origin=svg-mask (SVGForeignObjectPaintable(SVGForeignObjectBox<foreignObject>#fo))
+        [3] mask=[-1,-2 120x120] kind=luminance origin=svg-mask (SVGForeignObjectPaintable(SVGForeignObjectBox<foreignObject>#fo))
           [4] clip=[9,8 100x100] (PaintableWithLines(BlockContainer(anonymous)))
 
 DisplayList:
