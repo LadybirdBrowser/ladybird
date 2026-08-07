@@ -1618,17 +1618,6 @@ impl<'pass> GridFormattingContext<'pass> {
         }
     }
 
-    fn create_item_used_values(&self, node: Node) -> &'pass UsedValues {
-        // Intrinsic subgrid contribution contexts revisit descendants that
-        // already have pass-local used values instead of allocating the same
-        // state entry twice.
-        let existing = self.state.try_used_values(&self.callbacks, node);
-        if let Some(existing) = existing {
-            return existing;
-        }
-        self.state
-            .create_used_values(&self.callbacks, node, ContainingBlockConstraints::default())
-    }
 
     fn clamp_area_to_subgrid(start: &mut i32, span: &mut usize, track_count: usize) {
         if track_count == 0 {
@@ -1703,7 +1692,10 @@ impl<'pass> GridFormattingContext<'pass> {
                             child_grid_style.names.raws(),
                         ),
                     });
-                    nodes.push((child, self.create_item_used_values(child)));
+                    let item_used_values =
+                        self.state
+                            .create_used_values(&self.callbacks, child, ContainingBlockConstraints::default());
+                    nodes.push((child, item_used_values));
                 }
             }
             child = next;

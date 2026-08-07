@@ -35,6 +35,19 @@ fn line_style_score(line_style: u8) -> u8 {
     }
 }
 
+pub(crate) fn child_participates_in_table_run(container_display: FfiDisplay, child_facts: &NodeFacts<'_>) -> bool {
+    if container_display.is_table_inside() {
+        let child_display = child_facts.display();
+        child_display.is_table_row() || child_display.is_table_row_group_kind()
+    } else if container_display.is_table_row_group_kind() {
+        child_facts.display().is_table_row()
+    } else if container_display.is_table_row() {
+        child_facts.display().is_table_cell()
+    } else {
+        true
+    }
+}
+
 pub(crate) fn border_is_less_specific(incumbent: FfiBorderData, candidate: FfiBorderData) -> bool {
     // Implements criteria for steps 1, 2 and 3 of border conflict resolution algorithm, as described in
     // https://www.w3.org/TR/CSS22/tables.html#border-conflict-resolution.
@@ -1042,9 +1055,7 @@ impl<'pass> TableFormattingContext<'pass> {
     }
 
     fn seed_table_participant_used_values(&mut self) {
-        for group in self.matching_children(self.table_box, |facts| {
-            facts.is_table_row_group() || facts.is_table_header_group() || facts.is_table_footer_group()
-        }) {
+        for group in self.matching_children(self.table_box, |display| display.is_table_row_group_kind()) {
             self.create_used_values(group, self.participant_constraints);
         }
         for row in &self.rows {
@@ -2279,9 +2290,7 @@ impl<'pass> TableFormattingContext<'pass> {
         }
 
         let mut group_block_offset = self.table_box_content_block_offset_in_wrapper + block_spacing;
-        for group in self.matching_children(self.table_box, |facts| {
-            facts.is_table_row_group() || facts.is_table_header_group() || facts.is_table_footer_group()
-        }) {
+        for group in self.matching_children(self.table_box, |display| display.is_table_row_group_kind()) {
             let group_rows = self.matching_children(group, |facts| facts.is_table_row());
             let mut block_size = CssPixels::default();
             let mut inline_size = CssPixels::default();
@@ -2504,9 +2513,7 @@ impl<'pass> TableFormattingContext<'pass> {
         for row in &self.rows {
             self.compute_and_store_baselines(row.box_);
         }
-        for group in self.matching_children(self.table_box, |facts| {
-            facts.is_table_row_group() || facts.is_table_header_group() || facts.is_table_footer_group()
-        }) {
+        for group in self.matching_children(self.table_box, |display| display.is_table_row_group_kind()) {
             self.compute_and_store_baselines(group);
         }
         self.compute_and_store_baselines(self.table_box);

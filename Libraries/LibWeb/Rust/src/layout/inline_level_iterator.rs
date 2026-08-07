@@ -130,8 +130,7 @@ impl<'iterator, 'context, 'pass> InlineLevelIteratorGenerator<'iterator, 'contex
     }
 
     fn is_out_of_flow(&self, node: Node) -> bool {
-        let facts = self.context().facts(node);
-        facts.is_floating() || facts.is_absolutely_positioned()
+        self.context().facts(node).is_floating_or_absolutely_positioned()
     }
 
     fn compute_is_unidirectional_left_to_right(&mut self) -> bool {
@@ -547,9 +546,7 @@ impl<'iterator, 'context, 'pass> InlineLevelIteratorGenerator<'iterator, 'contex
         }
 
         let used = if self.box_model_node_stack.last().copied() == Some(node) {
-            self.context()
-                .try_used_pointer(node)
-                .expect("inline box must have precreated used values")
+            self.context().used(node)
         } else {
             self.context()
                 .create_used_values(node, self.context().input.containing_block_constraints)

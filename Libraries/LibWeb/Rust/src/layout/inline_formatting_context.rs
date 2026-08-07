@@ -157,8 +157,7 @@ struct PerLine {
     first_direct_fragment_block_start: Option<CssPixels>,
     max_direct_fragment_block_length: CssPixels,
     fallback_block_start_from_contributions: Option<CssPixels>,
-    interrupting_block_position: Option<(CssPixels, CssPixels)>,
-    interrupting_block_logical_extent: Option<CandidateLineCorners>,
+    interrupting_block: Option<((CssPixels, CssPixels), CandidateLineCorners)>,
     first_fragment_index: Option<u32>,
     fragment_count: u32,
 }
@@ -171,8 +170,7 @@ impl PerLine {
             first_direct_fragment_block_start: None,
             max_direct_fragment_block_length: CssPixels::default(),
             fallback_block_start_from_contributions: None,
-            interrupting_block_position: None,
-            interrupting_block_logical_extent: None,
+            interrupting_block: None,
             first_fragment_index: None,
             fragment_count: 0,
         }
@@ -276,7 +274,11 @@ pub(crate) fn compute(
             }
             let fragment_index = committed_fragment_index;
             committed_fragment_index += 1;
-            let interrupting = context.style(fragment.style_source).display().is_block_outside();
+            let interrupting = line.has_block_level_box;
+            debug_assert!(
+                !interrupting || context.style(fragment.style_source).display().is_block_outside(),
+                "an interrupting line's fragment must be a block-level box"
+            );
             let position = fragment.offset();
             let size = fragment.size();
             let mut inline_start = if horizontal { position.0 } else { position.1 };
@@ -284,10 +286,8 @@ pub(crate) fn compute(
             let block_start = if horizontal { position.1 } else { position.0 };
             let block_length = if horizontal { size.1 } else { size.0 };
 
-            if !interrupting
-                && fragment.is_atomic_inline
-                && let Some(used) = context.try_used_pointer(fragment.layout_node)
-            {
+            if !interrupting && fragment.is_atomic_inline {
+                let used = context.used(fragment.layout_node);
                 if horizontal {
                     inline_start -= used.margin_left.get() + used.border_box_left(false);
                     inline_end += used.margin_right.get() + used.border_box_right(false);
@@ -297,34 +297,36 @@ pub(crate) fn compute(
                 }
             }
 
-            let interrupting_block_logical_extent = if interrupting {
-                context.try_used_pointer(fragment.layout_node).map(|block_used| {
-                    let collapsed = block_used.uses_collapsing_borders_model.get();
-                    let (border_box_inline_low, border_box_block_low, border_box_inline_size, border_box_block_size) =
-                        if horizontal {
-                            (
-                                block_used.border_box_left(collapsed),
-                                block_used.border_box_top(collapsed),
-                                block_used.border_box_inline_size(collapsed),
-                                block_used.border_box_block_size(collapsed),
-                            )
-                        } else {
-                            (
-                                block_used.border_box_top(collapsed),
-                                block_used.border_box_left(collapsed),
-                                block_used.border_box_block_size(collapsed),
-                                block_used.border_box_inline_size(collapsed),
-                            )
-                        };
-                    let extent_inline_start = inline_start - border_box_inline_low;
-                    let extent_block_start = block_start - border_box_block_low;
+            let interrupting_block = if interrupting {
+                let block_used = context.used(fragment.layout_node);
+                let collapsed = block_used.uses_collapsing_borders_model.get();
+                let (border_box_inline_low, border_box_block_low, border_box_inline_size, border_box_block_size) =
+                    if horizontal {
+                        (
+                            block_used.border_box_left(collapsed),
+                            block_used.border_box_top(collapsed),
+                            block_used.border_box_inline_size(collapsed),
+                            block_used.border_box_block_size(collapsed),
+                        )
+                    } else {
+                        (
+                            block_used.border_box_top(collapsed),
+                            block_used.border_box_left(collapsed),
+                            block_used.border_box_block_size(collapsed),
+                            block_used.border_box_inline_size(collapsed),
+                        )
+                    };
+                let extent_inline_start = inline_start - border_box_inline_low;
+                let extent_block_start = block_start - border_box_block_low;
+                Some((
+                    position,
                     CandidateLineCorners {
                         inline_start: extent_inline_start,
                         inline_end: extent_inline_start + border_box_inline_size,
                         block_start: extent_block_start,
                         block_end: extent_block_start + border_box_block_size,
-                    }
-                })
+                    },
+                ))
             } else {
                 None
             };
@@ -356,11 +358,8 @@ pub(crate) fn compute(
                 let line = ensure_line(per_node, line_index);
                 let first = *line.first_fragment_index.get_or_insert(fragment_index);
                 line.fragment_count = fragment_index + 1 - first;
-                if interrupting {
-                    line.interrupting_block_position.get_or_insert(position);
-                    if let Some(extent) = interrupting_block_logical_extent {
-                        line.interrupting_block_logical_extent.get_or_insert(extent);
-                    }
+                if let Some(interrupting_block) = interrupting_block {
+                    line.interrupting_block.get_or_insert(interrupting_block);
                     ancestor = context.nearest_fragmented_inline_ancestor(ancestor);
                     continue;
                 }
@@ -407,7 +406,7 @@ pub(crate) fn compute(
                 std::mem::take(&mut per_node.lines),
             )
         };
-        let used = context.try_used_pointer(node);
+        let used = context.used(node);
         let reversed = context.facts(node).inline_axis_is_reverse();
         let (
             border_padding_low,
@@ -416,34 +415,23 @@ pub(crate) fn compute(
             border_padding_block_high,
             margin_low,
             margin_high,
-        ) = if let Some(used) = used {
-            if horizontal {
-                (
-                    used.border_box_left(false),
-                    used.border_box_right(false),
-                    used.border_box_top(false),
-                    used.border_box_bottom(false),
-                    used.margin_left.get(),
-                    used.margin_right.get(),
-                )
-            } else {
-                (
-                    used.border_box_top(false),
-                    used.border_box_bottom(false),
-                    used.border_box_left(false),
-                    used.border_box_right(false),
-                    used.margin_top.get(),
-                    used.margin_bottom.get(),
-                )
-            }
+        ) = if horizontal {
+            (
+                used.border_box_left(false),
+                used.border_box_right(false),
+                used.border_box_top(false),
+                used.border_box_bottom(false),
+                used.margin_left.get(),
+                used.margin_right.get(),
+            )
         } else {
             (
-                CssPixels::default(),
-                CssPixels::default(),
-                CssPixels::default(),
-                CssPixels::default(),
-                CssPixels::default(),
-                CssPixels::default(),
+                used.border_box_top(false),
+                used.border_box_bottom(false),
+                used.border_box_left(false),
+                used.border_box_right(false),
+                used.margin_top.get(),
+                used.margin_bottom.get(),
             )
         };
 
@@ -453,10 +441,8 @@ pub(crate) fn compute(
 
         for line in lines {
             let Some((contributions_inline_start, contributions_inline_end)) = line.contributions_inline_range else {
-                if let Some(position) = line.interrupting_block_position {
-                    if node_is_inline_containing_block
-                        && let Some(extent) = line.interrupting_block_logical_extent
-                    {
+                if let Some((position, extent)) = line.interrupting_block {
+                    if node_is_inline_containing_block {
                         corners.first.get_or_insert(extent);
                         corners.last = Some(extent);
                     }
@@ -578,9 +564,7 @@ pub(crate) fn compute(
     }
 
     for (index, node) in without_fragments.into_iter().enumerate() {
-        if context.try_used_pointer(node).is_none() {
-            continue;
-        }
+        context.used(node);
         let line_height = context.style(node).line_height();
         let placeholder_rect = if horizontal {
             InlineCssPixelRect {
@@ -625,7 +609,7 @@ pub(crate) fn compute(
 
 fn padding_box_rect_spanning_first_and_last_content_lines(
     corners: &FirstAndLastContentLineCorners,
-    used: Option<&UsedValues>,
+    used: &UsedValues,
     horizontal: bool,
     inline_axis_is_reverse: bool,
     container_inline_axis_is_reverse: bool,
@@ -633,20 +617,20 @@ fn padding_box_rect_spanning_first_and_last_content_lines(
     let first = corners.first?;
     let last = corners.last?;
 
-    let (border_inline_low, border_inline_high, border_block_low, border_block_high) = match used {
-        Some(used) if horizontal => (
+    let (border_inline_low, border_inline_high, border_block_low, border_block_high) = if horizontal {
+        (
             used.border_left.get(),
             used.border_right.get(),
             used.border_top.get(),
             used.border_bottom.get(),
-        ),
-        Some(used) => (
+        )
+    } else {
+        (
             used.border_top.get(),
             used.border_bottom.get(),
             used.border_left.get(),
             used.border_right.get(),
-        ),
-        None => Default::default(),
+        )
     };
     let direction_matches = inline_axis_is_reverse == container_inline_axis_is_reverse;
     let (contracted_inline_low, contracted_inline_high) = if direction_matches {
@@ -772,10 +756,6 @@ impl<'context, 'pass> InlineFormattingContext<'context, 'pass> {
         self.state.used_values(&self.callbacks, node)
     }
 
-    pub(crate) fn try_used_pointer(&self, node: Node) -> Option<&'pass UsedValues> {
-        self.state.try_used_values(&self.callbacks, node)
-    }
-
     pub(crate) fn create_used_values(
         &self,
         node: Node,
@@ -803,7 +783,8 @@ impl<'context, 'pass> InlineFormattingContext<'context, 'pass> {
             if !display.is_inline_outside() || !display.is_flow_inside() {
                 break;
             }
-            if self.facts(ancestor).is_fragmented_inline() {
+            let facts = self.facts(ancestor);
+            if facts.is_fragmented_inline() && !facts.is_floating_or_absolutely_positioned() {
                 return ancestor;
             }
             ancestor = self.parent_node(ancestor);
@@ -1396,12 +1377,10 @@ fn line_rect(line: &LineBoxData, content_inline_size: CssPixels) -> FfiCssPixelR
 pub(crate) fn push_line_data(
     state: &crate::layout::LayoutState,
     slot_index: u32,
+    content_inline_size: CssPixels,
     callbacks: &FfiLayoutFcCallbacks,
     sink: FfiLineSinkCallbacks,
 ) -> bool {
-    let content_inline_size = state
-        .used_values_by_slot(slot_index)
-        .map_or(CssPixels::default(), |used| used.content_inline_size.get());
     let Some(mut data) = state.line_data_mut_if_present(slot_index) else {
         return false;
     };

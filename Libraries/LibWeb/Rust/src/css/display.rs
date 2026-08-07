@@ -232,6 +232,13 @@ impl FfiDisplay {
         self.is_internal() && self.internal == DISPLAY_INTERNAL_TABLE_FOOTER_GROUP
     }
 
+    // https://drafts.csswg.org/css-tables-3/#terminology
+    // Mentions of table-row-groups in the tables spec also encompass the
+    // specialized table-header-groups and table-footer-groups.
+    pub fn is_table_row_group_kind(&self) -> bool {
+        self.is_table_row_group() || self.is_table_header_group() || self.is_table_footer_group()
+    }
+
     pub fn is_table_caption(&self) -> bool {
         self.is_internal() && self.internal == DISPLAY_INTERNAL_TABLE_CAPTION
     }
