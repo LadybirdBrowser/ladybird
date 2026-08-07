@@ -20,6 +20,7 @@
 #include "Document.h"
 #include "SampleIterator.h"
 #include "Streamer.h"
+#include "TrackBlockContext.h"
 
 namespace Media::Matroska {
 

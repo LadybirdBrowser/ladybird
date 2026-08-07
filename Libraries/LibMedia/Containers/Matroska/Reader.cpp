@@ -553,7 +553,7 @@ DecoderErrorOr<NonnullRefPtr<TrackEntry>> Reader::parse_track_entry(Streamer& st
     if (track_entry->track_type() == TrackEntry::TrackType::Complex) {
         // A mix of different other TrackType. The codec needs to define how the Matroska Player
         // should interpret such data.
-        auto codec_track_type = track_type_from_codec_id(codec_id_from_matroska_id_string(track_entry->codec_id()));
+        auto codec_track_type = track_type_from_codec_id(codec_id_from_matroska_track_entry(*track_entry));
         switch (codec_track_type) {
         case TrackType::Video:
             track_entry->set_track_type(TrackEntry::TrackType::Video);
@@ -650,7 +650,7 @@ void Reader::fix_ffmpeg_webm_quirk()
         for (auto& [id, track] : m_tracks) {
             auto delay = track->codec_delay();
 
-            if (codec_id_from_matroska_id_string(track->codec_id()) == CodecID::Opus && track->audio_track().has_value()) {
+            if (codec_id_from_matroska_track_entry(track) == CodecID::Opus && track->audio_track().has_value()) {
                 auto sampling_frequency = AK::clamp_to<u64>(track->audio_track()->sampling_frequency);
                 if (sampling_frequency == 0)
                     return;
@@ -770,7 +770,7 @@ static DecoderErrorOr<void> maybe_parse_opus_frame_duration(Streamer& streamer, 
 {
     if (block.lacing() != Block::Lacing::None)
         return {};
-    if (codec_id_from_matroska_id_string(context.codec_id) != CodecID::Opus)
+    if (context.codec_id != CodecID::Opus)
         return {};
 
     block.set_duration(TRY(Codecs::Opus::parse_frame_duration(streamer.cursor(), block.data_size())));

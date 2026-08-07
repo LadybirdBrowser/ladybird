@@ -118,8 +118,8 @@ MatroskaDemuxer::TrackStatus& MatroskaDemuxer::get_track_status(Track const& tra
 
 DecoderErrorOr<CodecID> MatroskaDemuxer::get_codec_id_for_track(Track const& track)
 {
-    auto codec_id = TRY(m_reader.track_for_track_number(track.identifier()))->codec_id();
-    return codec_id_from_matroska_id_string(codec_id);
+    auto track_entry = TRY(m_reader.track_for_track_number(track.identifier()));
+    return codec_id_from_matroska_track_entry(track_entry);
 }
 
 DecoderErrorOr<ReadonlyBytes> MatroskaDemuxer::get_codec_initialization_data_for_track(Track const& track)

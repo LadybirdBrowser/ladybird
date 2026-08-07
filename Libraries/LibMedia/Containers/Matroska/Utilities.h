@@ -6,13 +6,14 @@
 
 #pragma once
 
-#include <AK/String.h>
 #include <LibMedia/CodecID.h>
+#include <LibMedia/Containers/Matroska/Document.h>
 
 namespace Media::Matroska {
 
-static constexpr CodecID codec_id_from_matroska_id_string(String const& codec_id)
+inline CodecID codec_id_from_matroska_track_entry(TrackEntry const& track)
 {
+    auto codec_id = track.codec_id();
     if (codec_id == "V_VP8")
         return CodecID::VP8;
     if (codec_id == "V_VP9")
@@ -37,6 +38,33 @@ static constexpr CodecID codec_id_from_matroska_id_string(String const& codec_id
         return CodecID::Opus;
     if (codec_id == "A_FLAC")
         return CodecID::FLAC;
+
+    auto audio_track = track.audio_track();
+    if (!audio_track.has_value())
+        return CodecID::Unknown;
+
+    auto bit_depth = audio_track->bit_depth;
+    if (codec_id == "A_PCM/FLOAT/IEEE")
+        return bit_depth == 32 ? CodecID::F32LE : CodecID::Unknown;
+
+    if (codec_id == "A_PCM/INT/BIG")
+        return bit_depth == 8 ? CodecID::U8 : CodecID::Unknown;
+
+    if (codec_id == "A_PCM/INT/LIT") {
+        switch (bit_depth) {
+        case 8:
+            return CodecID::U8;
+        case 16:
+            return CodecID::S16LE;
+        case 24:
+            return CodecID::S24LE;
+        case 32:
+            return CodecID::S32LE;
+        default:
+            return CodecID::Unknown;
+        }
+    }
+
     return CodecID::Unknown;
 }
 
