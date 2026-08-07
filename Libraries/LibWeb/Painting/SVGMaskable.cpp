@@ -56,12 +56,8 @@ Optional<CSSPixelRect> SVGMaskable::get_svg_mask_area() const
     Gfx::FloatSize viewport_size {};
     auto user_space_to_css_pixels = Gfx::AffineTransform {};
     if (auto const* svg_box = mask_box->first_ancestor_of_type<Layout::SVGSVGBox>(); svg_box && svg_box->paintable_box()) {
-        auto const& svg_paintable = *svg_box->paintable_box();
-        if (auto view_box = svg_box->dom_node().view_box(); view_box.has_value())
-            viewport_size = { static_cast<float>(view_box->width), static_cast<float>(view_box->height) };
-        else
-            viewport_size = svg_paintable.absolute_rect().size().to_type<float>();
-        user_space_to_css_pixels.translate(svg_paintable.absolute_rect().location().to_type<float>());
+        viewport_size = svg_box->view_box_or_viewport_rect().size();
+        user_space_to_css_pixels.translate(svg_box->paintable_box()->absolute_position().to_type<float>());
     }
     user_space_to_css_pixels.multiply(target_svg_to_css_pixels_transform());
 

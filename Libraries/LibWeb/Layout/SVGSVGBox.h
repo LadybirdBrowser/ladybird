@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibGfx/Rect.h>
 #include <LibWeb/Layout/ReplacedBox.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
 
@@ -22,6 +23,8 @@ public:
     SVG::SVGSVGElement const& dom_node() const { return as<SVG::SVGSVGElement>(*ReplacedBox::dom_node()); }
 
     virtual bool can_have_children() const override { return true; }
+
+    Gfx::FloatRect view_box_or_viewport_rect() const;
 
     virtual RefPtr<Painting::Paintable> create_paintable() const override;
 
