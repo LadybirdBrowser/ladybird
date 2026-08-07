@@ -8,9 +8,15 @@ set(SOURCES
     Audio/WSOLAAlgorithm.cpp
     Audio/WSOLAInternals.cpp
     Audio/WSOLATimeStretcher.cpp
+    CodecParameters.cpp
+    Codecs/AV1.cpp
     Codecs/FLAC.cpp
+    Codecs/H264.cpp
+    Codecs/H265.cpp
+    Codecs/MPEG4Audio.cpp
     Codecs/Opus.cpp
     Codecs/Vorbis.cpp
+    Codecs/VP9.cpp
     Containers/ConstantBitrateContainerNavigator.cpp
     Containers/FLACNavigator.cpp
     Containers/IndexedContainerNavigator.cpp

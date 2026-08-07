@@ -183,6 +183,16 @@ public:
     constexpr VideoFullRangeFlag video_full_range_flag() const { return m_video_full_range_flag; }
     constexpr void set_video_full_range_flag(VideoFullRangeFlag value) { m_video_full_range_flag = value; }
 
+    constexpr bool operator==(CodingIndependentCodePoints const&) const = default;
+
+    constexpr bool is_valid_or_unspecified() const
+    {
+        return (color_primaries_valid(m_color_primaries) || m_color_primaries == ColorPrimaries::Unspecified)
+            && (transfer_characteristics_valid(m_transfer_characteristics) || m_transfer_characteristics == TransferCharacteristics::Unspecified)
+            && (matrix_coefficients_valid(m_matrix_coefficients) || m_matrix_coefficients == MatrixCoefficients::Unspecified)
+            && (video_full_range_flag_valid(m_video_full_range_flag) || m_video_full_range_flag == VideoFullRangeFlag::Unspecified);
+    }
+
     constexpr void adopt_specified_values(CodingIndependentCodePoints cicp)
     {
         if (color_primaries_valid(cicp.color_primaries()))
