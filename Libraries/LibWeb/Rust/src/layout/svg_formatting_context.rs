@@ -99,7 +99,7 @@ pub struct FfiSvgPathRequest {
 pub struct FfiSvgPathResult {
     pub path_handle: *mut c_void,
     pub bounding_box: FfiFloatRect,
-    pub text_position_for_children: FfiFloatPoint,
+    pub text_position_after: FfiFloatPoint,
 }
 
 pub(crate) const PRESERVE_ASPECT_RATIO_NONE: u8 = 0;
@@ -933,7 +933,8 @@ impl<'pass> SvgFormattingContext<'pass> {
         assert!(!result.path_handle.is_null());
 
         if self.node_kind(graphics_box) == NodeKind::SVGTextBox {
-            self.current_text_position = result.text_position_for_children;
+            // Descendant and following text elements continue from the text position after this element's own text run.
+            self.current_text_position = result.text_position_after;
             // <text> and <tspan> elements can contain more text elements.
             let mut child = self.first_child(graphics_box);
             while !child.is_invalid() {
@@ -945,10 +946,6 @@ impl<'pass> SvgFormattingContext<'pass> {
             }
         }
 
-        self.current_text_position = FfiFloatPoint {
-            x: result.bounding_box.x + result.bounding_box.width,
-            y: result.bounding_box.y + result.bounding_box.height,
-        };
         let mut transformed_bounding_box =
             float_rect_to_css_pixels(to_css_pixels_transform.map_rect(result.bounding_box));
         // Stroke increases the path's size by stroke_width/2 per side.
