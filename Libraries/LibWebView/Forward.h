@@ -23,6 +23,7 @@ class CompositorClient;
 class CompositorConnection;
 class CompositorHostBase;
 class CookieJar;
+class ExternalURLHandler;
 class HistoryStore;
 class HSTSStore;
 class Menu;

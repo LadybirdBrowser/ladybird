@@ -19,8 +19,22 @@ enum class AppendTLD {
     No,
     Yes,
 };
+
+enum class UserInputClassification : u8 {
+    Search,
+    InternalURL,
+    ExternalURL,
+};
+
+struct ClassifiedUserInput {
+    UserInputClassification classification { UserInputClassification::Search };
+    Optional<URL::URL> url;
+};
+
+WEBVIEW_API ClassifiedUserInput classify_user_input(StringView, AppendTLD = AppendTLD::No);
 WEBVIEW_API Optional<URL::URL> sanitize_url(StringView, Optional<SearchEngine> const& search_engine = {}, AppendTLD = AppendTLD::No);
 WEBVIEW_API bool location_looks_like_url(StringView, AppendTLD = AppendTLD::No);
+WEBVIEW_API bool is_url_handled_internally(URL::URL const&);
 WEBVIEW_API Optional<URL::URL> url_from_text(StringView);
 WEBVIEW_API Vector<URL::URL> sanitize_urls(ReadonlySpan<ByteString> raw_urls);
 WEBVIEW_API String url_for_display(URL::URL const&);

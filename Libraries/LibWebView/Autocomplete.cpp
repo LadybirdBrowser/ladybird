@@ -88,6 +88,9 @@ void Autocomplete::cancel_pending_query()
     m_trimmed_query = {};
     m_local_suggestions.clear();
     m_remote_suggestions.clear();
+    m_external_url.clear();
+    m_external_url_handler_query_complete = true;
+    m_external_url_has_handler = false;
 }
 
 void Autocomplete::record_engagement(OmniboxEngagement engagement)
@@ -104,7 +107,9 @@ String autocomplete_suggestion_display_text(AutocompleteSuggestion const& sugges
     if (suggestion.source == AutocompleteSuggestionSource::Search)
         return suggestion.text;
 
-    auto url = URL::create_with_url_or_path(suggestion.text.to_byte_string());
+    auto url = classify_user_input(suggestion.text).url;
+    if (!url.has_value())
+        url = URL::create_with_url_or_path(suggestion.text.to_byte_string());
     if (!url.has_value())
         return suggestion.text;
     return url_for_display(*url);
@@ -197,7 +202,7 @@ Vector<AutocompleteSuggestion> web_ui_autocomplete_suggestions(StringView input)
 
 static Optional<AutocompleteSuggestion> search_for_query_suggestion(StringView query)
 {
-    if (query.is_empty() || location_looks_like_url(query))
+    if (query.is_empty())
         return {};
 
     auto const& search_engine = Application::settings().search_engine();
@@ -222,12 +227,9 @@ static Optional<AutocompleteSuggestion> search_for_query_suggestion(StringView q
     };
 }
 
-static Optional<AutocompleteSuggestion> literal_url_suggestion(StringView query)
+static AutocompleteSuggestion make_literal_url_suggestion(StringView query)
 {
-    if (query.is_empty() || !location_looks_like_url(query))
-        return {};
-
-    return AutocompleteSuggestion {
+    return {
         .source = AutocompleteSuggestionSource::LiteralURL,
         .text = MUST(String::from_utf8(query)),
         .title = {},
@@ -239,6 +241,14 @@ static Optional<AutocompleteSuggestion> literal_url_suggestion(StringView query)
         .can_be_automatically_selected = true,
         .can_be_inline_completed = false,
     };
+}
+
+static Optional<AutocompleteSuggestion> literal_url_suggestion(StringView query)
+{
+    if (query.is_empty() || !location_looks_like_url(query))
+        return {};
+
+    return make_literal_url_suggestion(query);
 }
 
 static Vector<AutocompleteSuggestion> make_remote_suggestions(Vector<String> remote_suggestions)
@@ -288,12 +298,27 @@ void Autocomplete::query_autocomplete_engine(AutocompleteQueryID query_id, Strin
     m_query = move(query);
     m_local_query_complete = false;
     m_remote_query_complete = false;
+    auto classified_input = classify_user_input(m_trimmed_query);
+    m_external_url = classified_input.classification == UserInputClassification::ExternalURL
+        ? move(classified_input.url)
+        : Optional<URL::URL> {};
+    m_external_url_handler_query_complete = !m_external_url.has_value();
+    m_external_url_has_handler = false;
     m_local_suggestions.clear();
 
     dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Autocomplete query='{}' trimmed='{}'", m_query, m_trimmed_query);
 
     // Private windows may read normal-profile history but never write through this worker connection.
     Application::autocomplete_service().query(m_service_client_id, query_id, m_trimmed_query, m_max_suggestions);
+
+    if (m_external_url.has_value()) {
+        auto weak_this = make_weak_ptr();
+        Application::the().resolve_external_url_handler(*m_external_url, [weak_this, query_id](RefPtr<ExternalURLHandler> handler) mutable {
+            if (!weak_this)
+                return;
+            weak_this->external_url_handler_query_complete(query_id, move(handler));
+        });
+    }
 
     if (m_trimmed_query.is_empty()) {
         m_remote_suggestions.clear();
@@ -398,25 +423,44 @@ void Autocomplete::local_query_complete(AutocompleteQueryID query_id, Vector<Aut
     deliver_current_result();
 }
 
+void Autocomplete::external_url_handler_query_complete(AutocompleteQueryID query_id, RefPtr<ExternalURLHandler> handler)
+{
+    if (m_query_id != query_id)
+        return;
+
+    m_external_url_handler_query_complete = true;
+    m_external_url_has_handler = handler && !handler->is_ladybird();
+    deliver_current_result();
+}
+
 void Autocomplete::deliver_current_result()
 {
     if (!m_query_id.has_value())
         return;
 
-    auto web_ui_suggestions = web_ui_autocomplete_suggestions(m_trimmed_query);
-    auto verbatim_suggestion = web_ui_suggestions.is_empty() ? literal_url_suggestion(m_query) : Optional<AutocompleteSuggestion> {};
-    if (web_ui_suggestions.is_empty() && !verbatim_suggestion.has_value())
-        verbatim_suggestion = search_for_query_suggestion(m_query);
-    web_ui_suggestions.extend(m_local_suggestions);
+    auto additional_suggestions = web_ui_autocomplete_suggestions(m_trimmed_query);
+    Optional<AutocompleteSuggestion> verbatim_suggestion;
+    if (additional_suggestions.is_empty() && m_external_url_handler_query_complete) {
+        if (m_external_url_has_handler) {
+            verbatim_suggestion = make_literal_url_suggestion(m_query);
+            if (auto search_suggestion = search_for_query_suggestion(m_query); search_suggestion.has_value())
+                additional_suggestions.append(search_suggestion.release_value());
+        } else if (auto url_suggestion = literal_url_suggestion(m_query); url_suggestion.has_value()) {
+            verbatim_suggestion = url_suggestion.release_value();
+        } else {
+            verbatim_suggestion = search_for_query_suggestion(m_query);
+        }
+    }
+    additional_suggestions.extend(m_local_suggestions);
     auto merged_suggestions = mux_autocomplete_suggestions(
         m_trimmed_query,
         move(verbatim_suggestion),
-        move(web_ui_suggestions),
+        move(additional_suggestions),
         make_remote_suggestions(m_remote_suggestions),
         m_max_suggestions);
     for (auto& suggestion : merged_suggestions)
         suggestion.highlight_input = m_trimmed_query;
-    auto result_kind = m_local_query_complete && m_remote_query_complete
+    auto result_kind = m_local_query_complete && m_remote_query_complete && m_external_url_handler_query_complete
         ? AutocompleteResultKind::Final
         : AutocompleteResultKind::Intermediate;
 

@@ -60,6 +60,15 @@ static void expect_location_does_not_look_like_url(StringView location, WebView:
     EXPECT(!WebView::location_looks_like_url(location, append_tld));
 }
 
+static void expect_user_input_classification(StringView input, WebView::UserInputClassification expected_classification, Optional<StringView> expected_url = {})
+{
+    auto classified_input = WebView::classify_user_input(input);
+    EXPECT_EQ(classified_input.classification, expected_classification);
+    EXPECT_EQ(classified_input.url.has_value(), expected_url.has_value());
+    if (expected_url.has_value())
+        EXPECT_EQ(classified_input.url->to_string(), *expected_url);
+}
+
 static void expect_context_menu_text_url(StringView text, StringView expected_url)
 {
     auto url = WebView::url_from_text(text);
@@ -225,7 +234,7 @@ TEST_CASE(location_to_search_or_url)
     expect_search_url_equals_sanitized_url("\"http://example.org\""sv);
     expect_search_url_equals_sanitized_url("example.org hello"sv);
     expect_search_url_equals_sanitized_url("http://example.org and example sites"sv);
-    expect_search_url_equals_sanitized_url("ftp://example.org"sv); // ftp:// is not in SUPPORTED_SCHEMES
+    expect_search_url_equals_sanitized_url("ftp://example.org"sv);
     expect_search_url_equals_sanitized_url("https://exa\"mple.com/what"sv);
 
     // If it can feed create_with_url_or_path -- it is a url.
@@ -257,10 +266,39 @@ TEST_CASE(location_to_search_or_url)
     expect_url_equals_sanitized_url("https://com.com/"sv, "com"sv, WebView::AppendTLD::Yes);
     expect_url_equals_sanitized_url("https://example.com/index.html"sv, "example/index.html"sv, WebView::AppendTLD::Yes);
 
-    expect_search_url_equals_sanitized_url("whatever:example.com"sv);     // Invalid scheme.
-    expect_search_url_equals_sanitized_url("mailto:hello@example.com"sv); // For now, unsupported scheme.
-    // FIXME: Add support for opening mailto: scheme (below). Firefox opens mailto: locations
-    // expect_url_equals_sanitized_url("mailto:hello@example.com"sv, "mailto:hello@example.com"sv);
+    expect_search_url_equals_sanitized_url("whatever:example.com"sv);
+    expect_search_url_equals_sanitized_url("site:example.com"sv);
+    expect_url_equals_sanitized_url("https://host:8080/"sv, "host:8080"sv);
+    expect_search_url_equals_sanitized_url("steam://launch/1536610"sv);
+    expect_search_url_equals_sanitized_url("mailto:hello@example.com"sv);
+    expect_search_url_equals_sanitized_url("geo:23.4,12.4"sv);
+    expect_search_url_equals_sanitized_url("javascript:alert(1)"sv);
+}
+
+TEST_CASE(classify_user_input)
+{
+    using enum WebView::UserInputClassification;
+
+    expect_user_input_classification("example.org"sv, InternalURL, "https://example.org/"sv);
+    expect_user_input_classification("localhost:8080"sv, InternalURL, "https://localhost:8080/"sv);
+    expect_user_input_classification("example.com:8080"sv, InternalURL, "https://example.com:8080/"sv);
+    expect_user_input_classification("host:8080/path?query#fragment"sv, InternalURL, "https://host:8080/path?query#fragment"sv);
+    expect_user_input_classification("1.2:45"sv, InternalURL, "https://1.0.0.2:45/"sv);
+    expect_user_input_classification("host:0"sv, InternalURL, "https://host:0/"sv);
+    expect_user_input_classification("host:65535"sv, InternalURL, "https://host:65535/"sv);
+
+    expect_user_input_classification("tel:123"sv, ExternalURL, "tel:123"sv);
+    expect_user_input_classification("sms:123"sv, ExternalURL, "sms:123"sv);
+    expect_user_input_classification("mailto:123"sv, ExternalURL, "mailto:123"sv);
+    expect_user_input_classification("mailto:hello@example.com"sv, ExternalURL, "mailto:hello@example.com"sv);
+    expect_user_input_classification("geo:23.4,12.4"sv, ExternalURL, "geo:23.4,12.4"sv);
+    expect_user_input_classification("steam://launch/1536610"sv, ExternalURL, "steam://launch/1536610"sv);
+    expect_user_input_classification("site:example.com"sv, ExternalURL, "site:example.com"sv);
+    expect_user_input_classification("host:65536"sv, ExternalURL, "host:65536"sv);
+
+    expect_user_input_classification("hello"sv, Search);
+    expect_user_input_classification("hello world"sv, Search);
+    expect_user_input_classification("javascript:alert(1)"sv, Search);
 }
 
 TEST_CASE(location_looks_like_url)
@@ -274,6 +312,11 @@ TEST_CASE(location_looks_like_url)
     expect_location_does_not_look_like_url("hello world"sv);
     expect_location_does_not_look_like_url("example.org hello"sv);
     expect_location_does_not_look_like_url("example.def"sv);
+    expect_location_does_not_look_like_url("site:example.com"sv);
+    expect_location_does_not_look_like_url("mailto:hello@example.com"sv);
+    expect_location_does_not_look_like_url("steam://launch/1536610"sv);
+    expect_location_does_not_look_like_url("geo:23.4,12.4"sv);
+    expect_location_does_not_look_like_url("javascript://alert"sv);
 
     expect_location_looks_like_url("example"sv, WebView::AppendTLD::Yes);
 }
@@ -302,6 +345,7 @@ TEST_CASE(autocomplete_url_matching)
     expect_autocomplete_urls_do_not_match("https://example.com/path"sv, "https://example.com/other"sv);
     expect_autocomplete_urls_do_not_match("https://example.com"sv, "https://example.com:8443"sv);
     expect_autocomplete_urls_do_not_match("hello"sv, "https://hello.example/"sv);
+    expect_autocomplete_urls_do_not_match("steam://launch/1536610"sv, "https://steam://launch/1536610"sv);
 }
 
 TEST_CASE(autocomplete_url_completion)
@@ -324,6 +368,10 @@ TEST_CASE(autocomplete_suggestion_display_text)
     url_suggestion.source = WebView::AutocompleteSuggestionSource::History;
     url_suggestion.text = "https://www.example.com/"_string;
     EXPECT_EQ(WebView::autocomplete_suggestion_display_text(url_suggestion), "example.com"sv);
+
+    url_suggestion.source = WebView::AutocompleteSuggestionSource::LiteralURL;
+    url_suggestion.text = "steam://launch/1536610"_string;
+    EXPECT_EQ(WebView::autocomplete_suggestion_display_text(url_suggestion), "steam://launch/1536610"sv);
 
     WebView::AutocompleteSuggestion search_suggestion;
     search_suggestion.source = WebView::AutocompleteSuggestionSource::Search;

@@ -15,6 +15,7 @@
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/Size.h>
+#include <LibURL/URL.h>
 
 #import <Cocoa/Cocoa.h>
 
@@ -49,5 +50,7 @@ NSColor* gfx_color_to_ns_color(Gfx::Color);
 Gfx::IntPoint compute_origin_relative_to_window(NSWindow*, Gfx::IntPoint);
 
 NSImage* gfx_bitmap_to_ns_image(Gfx::Bitmap const&);
+
+NSURL* url_to_ns_url(URL::URL const&);
 
 }

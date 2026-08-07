@@ -181,6 +181,7 @@ LocationEdit::LocationEdit(QWidget* parent, WebView::IsPrivate is_private)
     };
 
     m_omnibox.on_commit = [this](String const& input) {
+        auto destination_kind = m_omnibox.destination_kind_for_last_commit();
         auto input_text = qstring_from_ak_string(input);
         if (text() != input_text)
             setText(input_text);
@@ -191,9 +192,13 @@ LocationEdit::LocationEdit(QWidget* parent, WebView::IsPrivate is_private)
         auto append_tld = ctrl_held ? WebView::AppendTLD::Yes : WebView::AppendTLD::No;
 
         auto url = WebView::sanitize_url(input, WebView::Application::settings().search_engine(), append_tld);
-        set_url(AK::move(url));
+        auto classified_input = WebView::classify_user_input(input, append_tld);
+        if (destination_kind == WebView::OmniboxDestinationKind::Search
+            || classified_input.classification != WebView::UserInputClassification::ExternalURL)
+            set_url(url);
 
-        emit returnPressed();
+        if (on_navigation)
+            on_navigation(input, AK::move(url), destination_kind);
     };
 
     connect(m_autocomplete, &Autocomplete::suggestion_clicked, this, [this](int suggestion_index) {

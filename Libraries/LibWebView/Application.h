@@ -34,6 +34,7 @@
 #include <LibWeb/HTML/CrossProcessId.h>
 #include <LibWebView/BookmarkStore.h>
 #include <LibWebView/BrowserProcess.h>
+#include <LibWebView/ExternalURLHandler.h>
 #include <LibWebView/FileDownloader.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/Options.h>
@@ -168,6 +169,8 @@ public:
     virtual void open_url_in_new_tab(URL::URL const&, Web::HTML::ActivateTab) const;
     virtual void open_urls_in_new_tabs(ReadonlySpan<URL::URL>) const;
     virtual void open_url_in_new_window(URL::URL const&, IsPrivate) { }
+
+    virtual void resolve_external_url_handler(URL::URL const&, ExternalURLHandlerCallback callback) const { callback(nullptr); }
 
     void open_bookmark_in_new_tab(String const& bookmark_id, Web::HTML::ActivateTab) const;
     void open_bookmark_folder_in_new_tabs(String const& folder_id) const;
