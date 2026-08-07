@@ -397,6 +397,11 @@ impl<'pass> NodeFacts<'pass> {
         !crate::layout::node_is_out_of_flow(self.data(), self.computed_values_view_if_styled())
     }
 
+    pub(crate) fn is_floating_or_absolutely_positioned(&self) -> bool {
+        self.computed_values_view_if_styled()
+            .is_some_and(|style| style.is_floating() || style.is_absolutely_positioned())
+    }
+
     pub(crate) fn is_inline(&self) -> bool {
         crate::layout::kind_is_text(self.data().kind)
             || self
@@ -495,6 +500,14 @@ impl<'pass> NodeFacts<'pass> {
 
     pub(crate) fn is_svg_clip_box(&self) -> bool {
         self.data().kind == NodeKind::SVGClipBox
+    }
+
+    pub(crate) fn is_flow_layout_participant(&self) -> bool {
+        self.is_box()
+            && !self.is_absolutely_positioned()
+            && !self.is_list_item_marker_box()
+            && !self.is_svg_mask_box()
+            && !self.is_svg_clip_box()
     }
 
     pub(crate) fn display_before_box_type_transformation_is_block_outside(&self) -> bool {
@@ -765,6 +778,10 @@ impl<'pass> NodeFacts<'pass> {
 
     pub(crate) fn is_table_footer_group(&self) -> bool {
         self.display().is_table_footer_group()
+    }
+
+    pub(crate) fn is_table_row_group_kind(&self) -> bool {
+        self.display().is_table_row_group_kind()
     }
 
     pub(crate) fn is_table_row(&self) -> bool {
@@ -1281,7 +1298,7 @@ impl LayoutState {
         self.used_values_rare_data_mut(callbacks.slot_index(node))
     }
 
-    pub(crate) fn used_values_by_slot(&self, slot_index: u32) -> Option<&UsedValues> {
+    fn used_values_by_slot(&self, slot_index: u32) -> Option<&UsedValues> {
         self.used_values.get(slot_index)
     }
 
@@ -1289,14 +1306,6 @@ impl LayoutState {
         self.used_values
             .get(callbacks.slot_index(node))
             .expect("missing used values")
-    }
-
-    pub(crate) fn try_used_values(
-        &self,
-        callbacks: &FfiLayoutFcCallbacks,
-        node: Node,
-    ) -> Option<&UsedValues> {
-        self.used_values.get(callbacks.slot_index(node))
     }
 
     pub(crate) fn register_contained_abspos_child(
@@ -1409,13 +1418,13 @@ impl LayoutState {
             }
             result.found_fragmented_inline_node |= facts.is_fragmented_inline();
             if facts.is_relatively_positioned() {
-                // An inline that never went through inline layout this pass has
-                // no used values; its committed box model is zeroed, so it
-                // contributes no inset.
-                if let Some(used) = self.try_used_values(callbacks, ancestor) {
-                    result.offset_x += used.inset_left.get();
-                    result.offset_y += used.inset_top.get();
-                }
+                // A relatively positioned inline-flow ancestor reachable from a
+                // committed fragment or piece was entered by its inline
+                // formatting context this pass, which created its used values
+                // and resolved its insets.
+                let used = self.used_values(callbacks, ancestor);
+                result.offset_x += used.inset_left.get();
+                result.offset_y += used.inset_top.get();
             }
             ancestor = callbacks.parent(ancestor);
         }
@@ -1577,7 +1586,13 @@ impl LayoutState {
                         emit_fragment: sink.emit_fragment,
                         emit_inline_box_piece: sink.emit_inline_box_piece,
                     };
-                    assert!(push_line_data(self, slot_index, callbacks, line_sink));
+                    assert!(push_line_data(
+                        self,
+                        slot_index,
+                        used.content_inline_size.get(),
+                        callbacks,
+                        line_sink
+                    ));
                     unsafe {
                         (sink.finish_line_data)(sink.context);
                     }

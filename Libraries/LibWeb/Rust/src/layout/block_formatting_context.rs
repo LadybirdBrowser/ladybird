@@ -226,20 +226,12 @@ impl<'pass> BlockFormattingContext<'pass> {
         self.state.style_facts(&self.callbacks, node)
     }
 
-    fn used_pointer(&self, node: Node) -> &'pass UsedValues {
+    fn used(&self, node: Node) -> &'pass UsedValues {
         self.state.used_values(&self.callbacks, node)
     }
 
-    fn try_used_pointer(&self, node: Node) -> Option<&'pass UsedValues> {
-        self.state.try_used_values(&self.callbacks, node)
-    }
-
-    fn used(&self, node: Node) -> &'pass UsedValues {
-        self.used_pointer(node)
-    }
-
     fn used_mut(&self, node: Node) -> &'pass UsedValues {
-        self.used_pointer(node)
+        self.used(node)
     }
 
     fn create_used_values(&self, node: Node, constraints: ContainingBlockConstraints) -> &'pass UsedValues {
@@ -2487,7 +2479,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             .translated(containing_block_rect.x, containing_block_rect.y);
         let floating_box = FloatingBox {
             box_: node,
-            used_values: self.used_pointer(node),
+            used_values: self.used(node),
             side,
             offset_from_edge: placement.offset_from_edge,
             top_margin_edge: content_block_offset
@@ -2794,12 +2786,10 @@ impl<'pass> BlockFormattingContext<'pass> {
         } else {
             drop(floats);
             for child in self.children(node) {
-                if self.facts(child).is_absolutely_positioned() {
+                if !self.facts(child).is_flow_layout_participant() {
                     continue;
                 }
-                if let Some(child_used) = self.try_used_pointer(child) {
-                    max_inline_size = max_inline_size.max(child_used.margin_box_inline_size(false));
-                }
+                max_inline_size = max_inline_size.max(self.used(child).margin_box_inline_size(false));
             }
         }
         max_inline_size
@@ -2901,7 +2891,6 @@ pub(crate) fn automatic_block_size_for_bfc_root(
     if facts.node_has_size_containment() {
         return CssPixels::default();
     }
-    let used = state.used_values(&callbacks, root);
     let mut bottom = None;
     if facts.children_are_inline() {
         // If it only has inline-level children, the block size is the distance between
@@ -2935,27 +2924,22 @@ pub(crate) fn automatic_block_size_for_bfc_root(
         };
         for child in flow_children {
             let child_facts = state.node_facts(&callbacks, child);
-            if child_facts.is_list_item_marker_box() {
+            if !child_facts.is_flow_layout_participant() || child_facts.is_floating() {
                 continue;
             }
-            if child_facts.is_box() && !child_facts.is_absolutely_positioned() && !child_facts.is_floating() {
-                let child_used = state.try_used_values(&callbacks, child);
-                // Children that have not been laid out yet contribute nothing to the automatic block size.
-                if let Some(child_used) = child_used {
-                    // Margins cannot collapse out of a BFC root: below the last real in-flow
-                    // child, the run's trailing collapsed margin (which folds in any trailing
-                    // collapse-through siblings) replaces that child's own bottom margin.
-                    let margin_bottom = match trailing_collapsed_margin {
-                        Some((last_real_child, aggregate)) if last_real_child == child => aggregate,
-                        _ => child_used.margin_bottom.get(),
-                    };
-                    let child_bottom = child_used.content_offset.get().y
-                        + child_used.content_block_size.get()
-                        + child_used.border_box_bottom(false)
-                        + margin_bottom;
-                    bottom = Some(bottom.map_or(child_bottom, |value: CssPixels| value.max(child_bottom)));
-                }
-            }
+            let child_used = state.used_values(&callbacks, child);
+            // Margins cannot collapse out of a BFC root: below the last real in-flow
+            // child, the run's trailing collapsed margin (which folds in any trailing
+            // collapse-through siblings) replaces that child's own bottom margin.
+            let margin_bottom = match trailing_collapsed_margin {
+                Some((last_real_child, aggregate)) if last_real_child == child => aggregate,
+                _ => child_used.margin_bottom.get(),
+            };
+            let child_bottom = child_used.content_offset.get().y
+                + child_used.content_block_size.get()
+                + child_used.border_box_bottom(false)
+                + margin_bottom;
+            bottom = Some(bottom.map_or(child_bottom, |value: CssPixels| value.max(child_bottom)));
         }
     }
     // In addition, if the element has any floating descendants
@@ -2964,7 +2948,6 @@ pub(crate) fn automatic_block_size_for_bfc_root(
     if let Some(lowest) = lowest_floating_descendant_bottom_margin_edge {
         bottom = Some(bottom.map_or(lowest, |value| value.max(lowest)));
     }
-    let _ = used;
     floor_list_item_automatic_block_size_by_marker_line_height(
         state,
         callbacks,

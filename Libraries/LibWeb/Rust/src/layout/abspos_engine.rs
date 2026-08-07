@@ -86,20 +86,12 @@ impl<'pass> AbsposEngine<'pass> {
         self.state.node_facts(&self.callbacks, node)
     }
 
-    fn used_pointer(&self, node: Node) -> &'pass UsedValues {
+    fn used(&self, node: Node) -> &'pass UsedValues {
         self.state.used_values(&self.callbacks, node)
     }
 
-    fn try_used_pointer(&self, node: Node) -> Option<&'pass UsedValues> {
-        self.state.try_used_values(&self.callbacks, node)
-    }
-
-    fn used(&self, node: Node) -> &'pass UsedValues {
-        self.used_pointer(node)
-    }
-
     fn used_mut(&self, node: Node) -> &'pass UsedValues {
-        self.used_pointer(node)
+        self.used(node)
     }
 
     fn static_position_containing_block(&self, node: Node) -> Node {
@@ -175,11 +167,9 @@ impl<'pass> AbsposEngine<'pass> {
         );
         let mut ancestor = self.callbacks.containing_block(inline_node);
         while !ancestor.is_invalid() && ancestor != abspos_containing_block {
-            if let Some(used) = self.try_used_pointer(ancestor) {
-                let content_offset = used.content_offset.get();
-                rect.x += content_offset.x;
-                rect.y += content_offset.y;
-            }
+            let content_offset = self.used(ancestor).content_offset.get();
+            rect.x += content_offset.x;
+            rect.y += content_offset.y;
             ancestor = self.callbacks.containing_block(ancestor);
         }
         Some(rect)
@@ -1655,10 +1645,8 @@ impl<'pass> AbsposEngine<'pass> {
         debug_assert!(!self.state.is_measurement());
         while let Some(child) = self.state.take_next_contained_abspos_child(run.box_) {
             let child_box = child.child_box;
-            if self.try_used_pointer(child_box).is_none() {
-                self.state
-                    .create_used_values(&self.callbacks, child_box, ContainingBlockConstraints::default());
-            }
+            self.state
+                .create_used_values(&self.callbacks, child_box, ContainingBlockConstraints::default());
             self.resolve_anchor_insets(child_box);
             let inputs = AbsposLayoutInputs {
                 static_position_rect: self

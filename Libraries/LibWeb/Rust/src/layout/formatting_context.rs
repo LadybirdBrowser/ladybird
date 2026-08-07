@@ -624,6 +624,9 @@ pub(crate) fn derive_baselines(
     // (last) grid item in row-major grid order.
     // FIXME: This does not yet select the spec-defined startmost/endmost flex item, or the first/last grid item in
     //        row-major grid order.
+    let container_display = facts.display();
+    let container_skips_anonymous_whitespace_runs =
+        container_display.is_flex_inside() || container_display.is_grid_inside();
     let baseline_from_children = |baseline_set: BaselineSet| -> Option<CssPixels> {
         let mut children = Vec::new();
         let mut child = callbacks.first_child(box_);
@@ -636,18 +639,16 @@ pub(crate) fn derive_baselines(
         }
         for child in children {
             let child_facts = state.node_facts(callbacks, child);
-            if !child_facts.is_box() {
+            if !child_facts.is_flow_layout_participant() || (!inhibits_floating && child_facts.is_floating()) {
                 continue;
             }
-            if child_facts.is_absolutely_positioned() || (!inhibits_floating && child_facts.is_floating()) {
+            if !child_participates_in_table_run(container_display, &child_facts) {
                 continue;
             }
-            if child_facts.is_list_item_marker_box() {
+            if container_skips_anonymous_whitespace_runs && callbacks.can_skip_is_anonymous_text_run(child) {
                 continue;
             }
-            let Some(child_state) = state.try_used_values(callbacks, child) else {
-                continue;
-            };
+            let child_state = state.used_values(callbacks, child);
             match baseline_set {
                 BaselineSet::First if child_state.has_first_baseline.get() => {}
                 BaselineSet::Last if child_state.has_last_baseline.get() => {}
@@ -1275,9 +1276,8 @@ fn apply_root_sizing_directives(
         }
         ParticipationInParentFormattingContext::Item => {
             if cfg!(debug_assertions) && run.layout_mode == LayoutMode::Normal && !run.state.is_measurement() {
-                let used = run.state.try_used_values(&run.callbacks, run.box_);
                 debug_assert!(
-                    used.is_some_and(|used| used.has_definite_inline_size.get()),
+                    run.state.used_values(&run.callbacks, run.box_).has_definite_inline_size.get(),
                     "container-internal run root must arrive with a container-assigned inline size"
                 );
             }
@@ -1629,23 +1629,20 @@ pub(crate) fn layout_inside_child<'pass>(
     force_independent_context_run: bool,
 ) -> ChildLayoutOutcome {
     let facts = run.state.node_facts(&run.callbacks, child);
+    let used = run.state.used_values(&run.callbacks, child);
     if let Some((padding_top, padding_bottom)) = input.sizing.table_cell_intrinsic_block_padding {
         debug_assert!(facts.is_table_cell());
         debug_assert!(matches!(input.participation, ParticipationInParentFormattingContext::Item));
-        let used = run.state.used_values(&run.callbacks, child);
         used.padding_top.set(used.padding_top.get() + padding_top);
         used.padding_bottom.set(used.padding_bottom.get() + padding_bottom);
     }
-    let used = run.state.try_used_values(&run.callbacks, child);
     if !force_independent_context_run
         && layout_mode == LayoutMode::IntrinsicSizing
         && !facts.is_inline()
-        && used.is_some_and(|used| {
-            used.inline_size_constraint.get() == SizeConstraint::None
-                && used.block_size_constraint.get() == SizeConstraint::None
-                && used.has_definite_inline_size()
-                && used.has_definite_block_size()
-        })
+        && used.inline_size_constraint.get() == SizeConstraint::None
+        && used.block_size_constraint.get() == SizeConstraint::None
+        && used.has_definite_inline_size()
+        && used.has_definite_block_size()
     {
         size_skipped_independent_root(run, parent_block, child, &input);
         return ChildLayoutOutcome::Skipped;
