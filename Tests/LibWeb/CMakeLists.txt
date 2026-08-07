@@ -73,7 +73,7 @@ target_link_libraries(TestStructuredSerializeDurability PRIVATE LibGC LibJS LibC
 target_link_libraries(TestStructuredSerializeFormat PRIVATE LibGC LibJS LibCrypto LibGfx LibIPC)
 target_link_libraries(TestStructuredSerializeHardening PRIVATE LibGC LibJS LibCrypto LibGfx LibIPC)
 target_link_libraries(TestSecureContexts PRIVATE LibURL)
-target_link_libraries(TestSessionHistoryEntry PRIVATE LibJS LibURL)
+target_link_libraries(TestSessionHistoryEntry PRIVATE LibIPC LibJS LibURL)
 target_link_libraries(TestSourceHighlighter PRIVATE LibURL LibWebView)
 target_link_libraries(TestWrapperWorld PRIVATE LibGC LibJS LibURL)
 target_sources(TestWorldCallback PRIVATE

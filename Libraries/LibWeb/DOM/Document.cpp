@@ -7050,8 +7050,6 @@ void Document::restore_the_history_object_state(NonnullRefPtr<HTML::SessionHisto
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#update-document-for-history-step-application
 void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHistoryEntry> entry, bool do_not_reactivate, size_t script_history_length, size_t script_history_index, Optional<HTML::NavigationType> navigation_type, Optional<Vector<NonnullRefPtr<HTML::SessionHistoryEntry>>> entries_for_navigation_api, RefPtr<HTML::SessionHistoryEntry> previous_entry_for_activation, bool update_navigation_api)
 {
-    (void)previous_entry_for_activation;
-
     // 1. Let documentIsNew be true if document's latest entry is null; otherwise false.
     auto document_is_new = !m_latest_entry;
 
@@ -7075,13 +7073,33 @@ void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHi
         // 1. Let oldURL be document's latest entry's URL.
         auto old_url = m_latest_entry ? m_latest_entry->url() : URL::URL {};
 
-        // 2. Set document's latest entry to entry.
+        // https://wicg.github.io/scroll-to-text-fragment/#applying-directives-to-a-document
+        // 2. If document's latest entry's directive state is not entry's directive state then:
+        auto latest_entry_directive_state = [&] -> RefPtr<HTML::DirectiveState> {
+            if (m_latest_entry)
+                return m_latest_entry->directive_state();
+            if (previous_entry_for_activation)
+                return previous_entry_for_activation->directive_state();
+
+            return nullptr;
+        }();
+        if (!latest_entry_directive_state || latest_entry_directive_state.ptr() != entry->directive_state().ptr()) {
+            // 1. Let fragment directive be entry's directive state's value.
+            auto const& fragment_directive = entry->directive_state()->value();
+
+            // 2. Set document's pending text directives to the result of parsing fragment directive.
+            m_pending_text_directives = fragment_directive.has_value()
+                ? Optional<Vector<HTML::TextDirective>> { HTML::parse_the_fragment_directive(*fragment_directive) }
+                : Optional<Vector<HTML::TextDirective>> { Vector<HTML::TextDirective> {} };
+        }
+
+        // 3. Set document's latest entry to entry.
         m_latest_entry = entry;
 
-        // 3. Restore the history object state given document and entry.
+        // 4. Restore the history object state given document and entry.
         restore_the_history_object_state(entry);
 
-        // 4. If documentIsNew is false, then:
+        // 5. If documentIsNew is false, then:
         if (!document_is_new) {
             // NOTE: Not in the spec, but otherwise document's url won't be updated in case of a same-document back/forward navigation.
             set_url(entry->url());
@@ -7126,7 +7144,7 @@ void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHi
             }
         }
 
-        // 5. Otherwise:
+        // 6. Otherwise:
         else {
             // 1. Assert: entriesForNavigationAPI is given.
             VERIFY(!update_navigation_api || entries_for_navigation_api.has_value());

@@ -203,6 +203,7 @@ bool LocalTraversableNavigable::is_top_level_traversable() const
 
 struct SessionHistoryEntryReconstructionState {
     HashMap<CrossProcessId, RefPtr<DocumentState>> document_states;
+    HashMap<CrossProcessId, NonnullRefPtr<DirectiveState>> directive_states;
 };
 
 static Vector<NonnullRefPtr<SessionHistoryEntry>> retained_session_history_entries(LocalNavigable& navigable)
@@ -262,7 +263,19 @@ static void prepare_child_navigable_history_reconstruction(LocalNavigable& navig
     navigable.set_child_navigable_history_reconstruction_ids(move(child_navigable_ids));
 }
 
-static void apply_session_history_entry_descriptor_from_ui_process(SessionHistoryEntry& entry, SessionHistoryEntryDescriptor& entry_descriptor)
+static NonnullRefPtr<DirectiveState> get_or_create_directive_state_from_ui_process(SessionHistoryEntryDescriptor const& entry_descriptor, SessionHistoryEntryReconstructionState& reconstruction_state)
+{
+    if (auto directive_state = reconstruction_state.directive_states.get(entry_descriptor.directive_state_id); directive_state.has_value()) {
+        (*directive_state)->set_value(entry_descriptor.directive_state_value);
+        return **directive_state;
+    }
+
+    auto directive_state = DirectiveState::create(entry_descriptor.directive_state_id, entry_descriptor.directive_state_value);
+    reconstruction_state.directive_states.set(entry_descriptor.directive_state_id, directive_state);
+    return directive_state;
+}
+
+static void apply_session_history_entry_descriptor_from_ui_process(SessionHistoryEntry& entry, SessionHistoryEntryDescriptor& entry_descriptor, SessionHistoryEntryReconstructionState& reconstruction_state)
 {
     entry.set_url(move(entry_descriptor.url));
     entry.set_step(static_cast<int>(entry_descriptor.step));
@@ -272,6 +285,7 @@ static void apply_session_history_entry_descriptor_from_ui_process(SessionHistor
     entry.set_navigation_api_id(move(entry_descriptor.navigation_api_id));
     entry.set_scroll_restoration_mode(entry_descriptor.scroll_restoration_mode);
     entry.set_scroll_position_data(move(entry_descriptor.scroll_position_data));
+    entry.set_directive_state(get_or_create_directive_state_from_ui_process(entry_descriptor, reconstruction_state));
 }
 
 static void apply_session_history_document_state_descriptor_from_ui_process(DocumentState& document_state, SessionHistoryDocumentStateDescriptor const& document_state_descriptor)
@@ -306,8 +320,8 @@ static RefPtr<DocumentState> get_or_create_document_state_from_ui_process(Sessio
 
 static NonnullRefPtr<SessionHistoryEntry> create_session_history_entry_from_ui_process(SessionHistoryEntryDescriptor entry_descriptor, SessionHistoryEntryReconstructionState& reconstruction_state)
 {
-    auto entry = SessionHistoryEntry::create();
-    apply_session_history_entry_descriptor_from_ui_process(*entry, entry_descriptor);
+    auto entry = SessionHistoryEntry::create(get_or_create_directive_state_from_ui_process(entry_descriptor, reconstruction_state));
+    apply_session_history_entry_descriptor_from_ui_process(*entry, entry_descriptor, reconstruction_state);
 
     auto document_state = get_or_create_document_state_from_ui_process(entry_descriptor.document_state, reconstruction_state);
     VERIFY(document_state);
@@ -323,23 +337,24 @@ enum class PrepareChildHistoryReconstruction {
 static NonnullRefPtr<SessionHistoryEntry> resolve_local_session_history_entry(LocalNavigable& navigable, SessionHistoryEntryDescriptor entry_descriptor, PrepareChildHistoryReconstruction prepare_child_history_reconstruction)
 {
     auto retained_entries = retained_session_history_entries(navigable);
+    SessionHistoryEntryReconstructionState reconstruction_state;
+    for (auto const& retained_entry : retained_entries) {
+        auto document_state = retained_entry->document_state();
+        if (document_state)
+            reconstruction_state.document_states.set(document_state->cross_process_id(), document_state);
+        reconstruction_state.directive_states.set(retained_entry->directive_state()->cross_process_id(), retained_entry->directive_state());
+    }
+
     auto target_identity = session_history_entry_identity(entry_descriptor);
     for (auto& retained_entry : retained_entries) {
         if (session_history_entry_identity(*retained_entry) == target_identity) {
-            apply_session_history_entry_descriptor_from_ui_process(*retained_entry, entry_descriptor);
+            apply_session_history_entry_descriptor_from_ui_process(*retained_entry, entry_descriptor, reconstruction_state);
             apply_session_history_document_state_descriptor_from_ui_process(*retained_entry->document_state(), entry_descriptor.document_state);
             if (prepare_child_history_reconstruction == PrepareChildHistoryReconstruction::Yes) {
                 prepare_child_navigable_history_reconstruction(navigable, entry_descriptor.document_state);
             }
             return retained_entry;
         }
-    }
-
-    SessionHistoryEntryReconstructionState reconstruction_state;
-    for (auto const& retained_entry : retained_entries) {
-        auto document_state = retained_entry->document_state();
-        if (document_state)
-            reconstruction_state.document_states.set(document_state->cross_process_id(), document_state);
     }
 
     if (prepare_child_history_reconstruction == PrepareChildHistoryReconstruction::Yes) {
@@ -373,6 +388,9 @@ static bool expected_ongoing_navigation_was_superseded(Optional<CrossProcessId> 
 void LocalTraversableNavigable::restore_session_history_entry_from_ui_process(LocalNavigable& navigable, SessionHistoryEntry& entry, SessionHistoryEntryDescriptor entry_descriptor)
 {
     auto retained_entries = retained_session_history_entries(navigable);
+    SessionHistoryEntryReconstructionState reconstruction_state;
+    for (auto const& retained_entry : retained_entries)
+        reconstruction_state.directive_states.set(retained_entry->directive_state()->cross_process_id(), retained_entry->directive_state());
     auto was_pending = !entry.step_value().has_value();
     auto document_state = entry.document_state();
     VERIFY(document_state);
@@ -384,7 +402,7 @@ void LocalTraversableNavigable::restore_session_history_entry_from_ui_process(Lo
         entry.set_document_state(reconstructed_document_state);
         document_state = move(reconstructed_document_state);
     }
-    apply_session_history_entry_descriptor_from_ui_process(entry, entry_descriptor);
+    apply_session_history_entry_descriptor_from_ui_process(entry, entry_descriptor, reconstruction_state);
     if (was_pending)
         entry.set_step(SessionHistoryEntry::Pending::Tag);
     apply_session_history_document_state_descriptor_from_ui_process(*document_state, entry_descriptor.document_state);
@@ -1517,7 +1535,10 @@ void LocalTraversableNavigable::run_ui_changing_navigable_history_job(u64 operat
             return;
         }
 
-        apply_session_history_entry_descriptor_from_ui_process(*local_target_entry, target_entry);
+        SessionHistoryEntryReconstructionState reconstruction_state;
+        for (auto const& retained_entry : retained_session_history_entries(*navigable))
+            reconstruction_state.directive_states.set(retained_entry->directive_state()->cross_process_id(), retained_entry->directive_state());
+        apply_session_history_entry_descriptor_from_ui_process(*local_target_entry, target_entry, reconstruction_state);
         apply_session_history_document_state_descriptor_from_ui_process(*document_state, target_entry.document_state);
         prepare_child_navigable_history_reconstruction(*navigable, target_entry.document_state);
     } else {
@@ -1566,6 +1587,7 @@ static Vector<NonnullRefPtr<SessionHistoryEntry>> session_history_entries_for_na
         auto document_state = retained_entry->document_state();
         if (document_state)
             reconstruction_state.document_states.set(document_state->cross_process_id(), document_state);
+        reconstruction_state.directive_states.set(retained_entry->directive_state()->cross_process_id(), retained_entry->directive_state());
     }
 
     Vector<NonnullRefPtr<SessionHistoryEntry>> entries;
@@ -1582,14 +1604,14 @@ static Vector<NonnullRefPtr<SessionHistoryEntry>> session_history_entries_for_na
         }
 
         if (local_entry) {
-            apply_session_history_entry_descriptor_from_ui_process(*local_entry, entry_descriptor);
+            apply_session_history_entry_descriptor_from_ui_process(*local_entry, entry_descriptor, reconstruction_state);
             apply_session_history_document_state_descriptor_from_ui_process(*local_entry->document_state(), entry_descriptor.document_state);
             entries.append(local_entry.release_nonnull());
             continue;
         }
 
-        auto entry = SessionHistoryEntry::create();
-        apply_session_history_entry_descriptor_from_ui_process(*entry, entry_descriptor);
+        auto entry = SessionHistoryEntry::create(get_or_create_directive_state_from_ui_process(entry_descriptor, reconstruction_state));
+        apply_session_history_entry_descriptor_from_ui_process(*entry, entry_descriptor, reconstruction_state);
         entry->set_document_state(get_or_create_document_state_from_ui_process(entry_descriptor.document_state, reconstruction_state));
         entries.append(move(entry));
     }

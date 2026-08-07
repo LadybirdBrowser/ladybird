@@ -12,6 +12,24 @@
 
 namespace WebView {
 
+URL::URL display_url_for_session_history_entry(Web::HTML::SessionHistoryEntryDescriptor const& entry)
+{
+    auto displayed_url = entry.url;
+
+    // https://wicg.github.io/scroll-to-text-fragment/#urls-in-location-bar
+    // The location bar's URL should include a text fragment while it is visually indicated.
+    if (entry.directive_state_value.has_value()) {
+        StringBuilder fragment;
+        if (displayed_url.fragment().has_value())
+            fragment.append(*displayed_url.fragment());
+        fragment.append(":~:"sv);
+        fragment.append(*entry.directive_state_value);
+        displayed_url.set_fragment(MUST(fragment.to_string()));
+    }
+
+    return displayed_url;
+}
+
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-all-used-history-steps
 static Vector<i32> get_all_used_history_steps(Vector<TraversableSessionHistory::Entry> const& traversable_session_history_entries)
 {
@@ -214,6 +232,10 @@ static void assign_fresh_ids_to_restored_entries(Vector<TraversableSessionHistor
 {
     for (auto& entry : entries) {
         entry.document_state.id = assigned_ids.ensure(entry.document_state.id, [&] { return allocate_cross_process_id(); });
+        if (entry.directive_state_id == Web::HTML::CrossProcessId {})
+            entry.directive_state_id = allocate_cross_process_id();
+        else
+            entry.directive_state_id = assigned_ids.ensure(entry.directive_state_id, [&] { return allocate_cross_process_id(); });
         for (auto& nested_history : entry.document_state.nested_histories) {
             nested_history.id = assigned_ids.ensure(nested_history.id, [&] { return allocate_cross_process_id(); });
             assign_fresh_ids_to_restored_entries(nested_history.entries, allocate_cross_process_id, assigned_ids);
@@ -532,11 +554,26 @@ Optional<i32> TraversableSessionHistory::finalize_same_document_navigation(Canon
         .navigation_api_id = move(target_entry.navigation_api_id),
         .scroll_restoration_mode = target_entry.scroll_restoration_mode,
         .scroll_position_data = move(target_entry.scroll_position_data),
+        .directive_state_id = target_entry.directive_state_id,
+        .directive_state_value = move(target_entry.directive_state_value),
     };
 
     // Mutate a copy so the spec's clear-then-append sequence is atomic in the UI-process mirror. A stale nested
     // navigable can disappear from the canonical entry tree when forward history is cleared.
     auto updated_entries = m_entries;
+
+    // Directive states are shared by identity. A replace-mode URL update mutates the shared
+    // state, so update every UI-process descriptor that mirrors that identity before any of them
+    // can be sent back to WebContent for reconstruction.
+    auto update_shared_directive_state = [&](auto& self, Vector<Entry>& entries) -> void {
+        for (auto& entry : entries) {
+            if (entry.directive_state_id == canonical_target_entry.directive_state_id)
+                entry.directive_state_value = canonical_target_entry.directive_state_value;
+            for (auto& nested_history : entry.document_state.nested_histories)
+                self(self, nested_history.entries);
+        }
+    };
+    update_shared_directive_state(update_shared_directive_state, updated_entries);
 
     // 5. If entryToReplace is null:
     bool did_update = false;

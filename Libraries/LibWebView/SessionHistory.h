@@ -22,6 +22,8 @@ namespace WebView {
 
 inline constexpr size_t MAX_NESTED_HISTORY_DEPTH = 16;
 
+WEBVIEW_API URL::URL display_url_for_session_history_entry(Web::HTML::SessionHistoryEntryDescriptor const&);
+
 // AD-HOC: The HTML Standard stores a traversable navigable's session history entries on the traversable. Ladybird
 //         keeps an IPC-serializable mirror in the UI process so browser history survives WebContent process swaps
 //         and crash recovery. The mirror still uses the spec's session history entry and all used history steps model.

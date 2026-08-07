@@ -144,18 +144,26 @@ u64 ViewImplementation::page_id() const
 
 void ViewImplementation::set_url(URL::URL url)
 {
-    if (m_url == url)
+    if (m_url != url) {
+        auto previous_host = current_host();
+        m_url = move(url);
+        update_bookmark_action();
+
+        if (current_host() != previous_host)
+            apply_zoom_for_current_host();
+    }
+
+    auto displayed_url = m_url;
+    if (auto const* entry = m_top_level_traversable.session_history().current_entry(); entry && entry->url == m_url)
+        displayed_url = display_url_for_session_history_entry(*entry);
+
+    if (m_displayed_url == displayed_url)
         return;
 
-    auto previous_host = current_host();
-    m_url = move(url);
-    update_bookmark_action();
-
-    if (current_host() != previous_host)
-        apply_zoom_for_current_host();
+    m_displayed_url = move(displayed_url);
 
     if (on_url_change)
-        on_url_change(m_url);
+        on_url_change(m_displayed_url);
 }
 
 void ViewImplementation::set_title(Badge<WebContentClient>, Utf16String title)

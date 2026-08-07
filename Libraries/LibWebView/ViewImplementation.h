@@ -595,6 +595,7 @@ protected:
     IsPrivate m_is_private { IsPrivate::No };
 
     URL::URL m_url;
+    URL::URL m_displayed_url;
     Utf16String m_title;
     Optional<String> m_favicon_hash;
     bool m_is_showing_crash_page { false };
