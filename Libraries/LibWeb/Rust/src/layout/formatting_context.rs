@@ -1572,6 +1572,7 @@ fn run_formatting_context<'pass>(
         FormattingContextImplementation::InternalReplaced | FormattingContextImplementation::InternalDummy => return result,
     }
     layout_contained_abspos_children(run);
+    run.state.used_values(&run.callbacks, run.box_).seal_own_metrics();
     result
 }
 

@@ -101,10 +101,7 @@ impl<T: Copy> SealableCell<T> {
     #[track_caller]
     #[inline]
     pub(crate) fn set(&self, value: T) {
-        assert!(
-            !self.sealed.get(),
-            "write to a sealed committed box metric after placement"
-        );
+        assert!(!self.sealed.get(), "write to a sealed committed box metric");
         self.value.set(value);
     }
 
@@ -251,6 +248,23 @@ impl UsedValues {
         self.committed_offset_delta.seal();
         self.has_containing_line_box_fragment.seal();
         self.containing_line_box_fragment.seal();
+    }
+
+    pub(crate) fn seal_own_metrics(&self) {
+        self.content_inline_size.seal();
+        self.content_block_size.seal();
+        self.margin_left.seal();
+        self.margin_right.seal();
+        self.margin_top.seal();
+        self.margin_bottom.seal();
+        self.border_left.seal();
+        self.border_right.seal();
+        self.border_top.seal();
+        self.border_bottom.seal();
+        self.padding_left.seal();
+        self.padding_right.seal();
+        self.padding_top.seal();
+        self.padding_bottom.seal();
     }
 }
 
