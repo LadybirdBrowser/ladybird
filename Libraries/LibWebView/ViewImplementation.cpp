@@ -225,8 +225,10 @@ bool ViewImplementation::create_new_process_for_cross_site_navigation(Utf16Strin
         m_backup_bitmap_size = m_client_state.front_bitmap.last_painted_size;
     }
 
-    if (m_client_state.client)
+    if (m_client_state.client) {
+        fail_pending_debugger_requests();
         m_client_state.client->unregister_view(m_client_state.page_index);
+    }
 
     reset_page_media_state();
 
@@ -1479,6 +1481,7 @@ void ViewImplementation::request_devtools_source(Web::HTML::ScriptRegistry::Iden
 void ViewImplementation::attach_debugger(DevTools::DevToolsDelegate::OnDebuggerPaused on_paused)
 {
     on_debugger_paused = move(on_paused);
+    m_debugger_is_attached = true;
     client().async_attach_debugger(page_id());
 }
 
@@ -1489,6 +1492,8 @@ void ViewImplementation::configure_debugger(DebuggerConfiguration configuration)
 
 void ViewImplementation::detach_debugger()
 {
+    fail_pending_debugger_requests();
+    m_debugger_is_attached = false;
     on_debugger_paused = nullptr;
     client().async_detach_debugger(page_id());
 }
@@ -1501,6 +1506,29 @@ void ViewImplementation::interrupt_debugger()
 void ViewImplementation::resume_debugger(DebuggerResumeMode mode)
 {
     client().async_resume_debugger(page_id(), mode);
+}
+
+template<typename Callback, typename ErrorFactory>
+static void fail_pending_debugger_request_map(HashMap<u64, Callback>& requests, HashTable<u64>* cancelled_requests, ErrorFactory make_error)
+{
+    auto requests_to_fail = move(requests);
+    requests = {};
+
+    for (auto& request : requests_to_fail) {
+        if (cancelled_requests)
+            cancelled_requests->set(request.key);
+        request.value(make_error());
+    }
+}
+
+void ViewImplementation::fail_pending_debugger_requests()
+{
+    auto make_error = [] { return Error::from_string_literal("WebContent process was replaced"); };
+    fail_pending_debugger_request_map(m_pending_debugger_breakpoint_requests, nullptr, make_error);
+    fail_pending_debugger_request_map(m_pending_debugger_environments_requests, &m_cancelled_debugger_environments_requests, make_error);
+    fail_pending_debugger_request_map(m_pending_debugger_evaluation_requests, &m_cancelled_debugger_evaluation_requests, [] { return "WebContent process was replaced"_string; });
+    fail_pending_debugger_request_map(m_pending_debugger_object_properties_requests, &m_cancelled_debugger_object_properties_requests, [] { return "WebContent process was replaced"_string; });
+    fail_pending_debugger_request_map(m_pending_debugger_source_positions_requests, &m_cancelled_debugger_source_positions_requests, make_error);
 }
 
 void ViewImplementation::update_debugger_blackboxing(Utf16String url, Vector<DebuggerBlackboxRange> ranges, DebuggerBlackboxingOperation operation)
@@ -1975,6 +2003,8 @@ void ViewImplementation::handle_resize()
 
 void ViewImplementation::initialize_client(CreateNewClient create_new_client, Optional<Web::HTML::CrossProcessId> initial_document_state_id)
 {
+    if (create_new_client == CreateNewClient::Yes)
+        fail_pending_debugger_requests();
     m_needs_beforeunload_check = true;
 
     if (create_new_client == CreateNewClient::Yes) {
@@ -2022,6 +2052,9 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client, Op
     Application::the().update_compositor_viewport(compositor_context_id, viewport_size().to_type<int>());
     Application::the().update_compositor_context_visibility(compositor_context_id, m_top_level_traversable.system_visibility_state());
     client().async_set_document_cookie_version_buffer(m_client_state.page_index, m_document_cookie_version_buffer);
+
+    if (m_debugger_is_attached)
+        client().async_attach_debugger(m_client_state.page_index);
 
     client().async_set_page_mute_state(m_client_state.page_index, m_mute_state);
 

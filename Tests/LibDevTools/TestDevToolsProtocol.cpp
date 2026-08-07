@@ -3111,6 +3111,36 @@ TEST_CASE(debugger_pause_and_resume)
     EXPECT_EQ(session->delegate.debugger_resume_mode, WebView::DebuggerResumeMode::Continue);
     resumed = read_resource(client, "thread-state"sv, "resources-available-array"sv, target_actor);
     EXPECT_EQ(resumed.get_string("state"sv).value(), "resumed"sv);
+
+    WebView::DebuggerPause navigation_pause {
+        .reason = WebView::DebuggerPauseReason::DebuggerStatement,
+        .reason_message = {},
+        .exception = {},
+        .frames = {},
+    };
+    navigation_pause.frames.append({
+        .id = 4,
+        .display_name = "beforeReload"_utf16,
+        .location = {
+            .source = session->delegate.fixture_source,
+            .line = 18,
+            .column = 1,
+        },
+        .this_value = {},
+        .arguments = {},
+    });
+    session->delegate.on_debugger_paused(move(navigation_pause));
+    paused = read_resource(client, "thread-state"sv, "resources-available-array"sv, target_actor);
+    EXPECT_EQ(paused.get_string("state"sv).value(), "paused"sv);
+
+    session->delegate.emit_navigation_start();
+    spin_until(session->loop, [&] {
+        return session->delegate.resume_debugger_call_count == 3;
+    });
+    EXPECT_EQ(session->delegate.resume_debugger_call_count, 3u);
+    EXPECT_EQ(session->delegate.debugger_resume_mode, WebView::DebuggerResumeMode::Continue);
+    resumed = read_resource(client, "thread-state"sv, "resources-available-array"sv, target_actor);
+    EXPECT_EQ(resumed.get_string("state"sv).value(), "resumed"sv);
 }
 
 TEST_CASE(debugger_thread_state_protocol)
