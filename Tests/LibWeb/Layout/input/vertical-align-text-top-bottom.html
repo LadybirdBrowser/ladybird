@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<style>
+@font-face {
+    font-family: Ahem;
+    src: url("../../Ref/data/fonts/Ahem.ttf");
+}
+body {
+    margin: 0;
+}
+.line {
+    font: 20px/40px Ahem;
+}
+.box {
+    display: inline-block;
+    height: 10px;
+    width: 20px;
+}
+.text-top {
+    vertical-align: text-top;
+}
+.text-bottom {
+    vertical-align: text-bottom;
+}
+.parent {
+    font-size: 40px;
+}
+</style>
+
+<div class="line">A<span class="box text-top"></span><span class="box text-bottom"></span></div>
+<div class="line">A<span class="parent">B<span class="box text-top"></span><span class="box text-bottom"></span></span></div>
