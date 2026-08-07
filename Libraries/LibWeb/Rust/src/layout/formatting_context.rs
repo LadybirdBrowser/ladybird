@@ -402,6 +402,7 @@ pub(crate) fn place_child(
     assert!(!used.has_content_offset.get());
     used.has_content_offset.set(true);
     used.content_offset.set(offset);
+    used.seal_committed_box_metrics();
 }
 
 pub(crate) fn register_contained_abspos_child(
