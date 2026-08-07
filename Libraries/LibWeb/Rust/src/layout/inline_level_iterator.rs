@@ -281,6 +281,7 @@ impl<'iterator, 'context, 'pass> InlineLevelIteratorGenerator<'iterator, 'contex
             let facts = self.context().facts(self.next_node);
             if facts.is_inline()
                 && facts.has_box_model_metrics()
+                && !facts.is_break_node()
                 && self.context().style(self.next_node).display().is_flow_inside()
                 && !self.is_out_of_flow(self.next_node)
                 && !facts.is_atomic_inline()
