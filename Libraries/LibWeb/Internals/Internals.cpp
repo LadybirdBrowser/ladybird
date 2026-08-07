@@ -22,6 +22,7 @@
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/Reference.h>
 #include <LibJS/Runtime/VM.h>
+#include <LibRequests/Request.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/ARIA/AriaData.h>
 #include <LibWeb/ARIA/StateAndProperties.h>
@@ -830,6 +831,11 @@ WebIDL::ExceptionOr<void> Internals::send_bad_ipc_message_for_testing(Utf16Strin
 
     page().client().send_bad_ipc_message_for_testing(kind_utf8, window().associated_document().url());
     return {};
+}
+
+WebIDL::UnsignedLongLong Internals::open_response_pipe_count()
+{
+    return Requests::ReadStream::live_count();
 }
 
 WebIDL::ExceptionOr<void> Internals::set_content_blockers(Utf16String const& patterns_source)

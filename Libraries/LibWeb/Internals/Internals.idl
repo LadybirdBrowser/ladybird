@@ -117,6 +117,7 @@ interface Internals {
     undefined simulateRequestServerConnectionLoss();
     undefined simulateWorkerRequestServerConnectionLoss();
     undefined sendBadIpcMessageForTesting(DOMString kind);
+    unsigned long long openResponsePipeCount();
     undefined setContentBlockers(DOMString patterns);
     undefined setSiteCompatibilityData(DOMString source);
     undefined setExperimentalInterfacesExposed(boolean exposed);

@@ -131,6 +131,7 @@ public:
     void simulate_request_server_connection_loss();
     void simulate_worker_request_server_connection_loss();
     WebIDL::ExceptionOr<void> send_bad_ipc_message_for_testing(Utf16String const& kind);
+    WebIDL::UnsignedLongLong open_response_pipe_count();
     WebIDL::ExceptionOr<void> set_content_blockers(Utf16String const& patterns);
     WebIDL::ExceptionOr<void> set_site_compatibility_data(Utf16String const& source);
     void set_experimental_interfaces_exposed(bool exposed);
