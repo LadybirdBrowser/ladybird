@@ -3448,7 +3448,8 @@ impl<'pass> GridFormattingContext<'pass> {
                 x: area.offset.inline_offset + self.item_margin_box_start(item, Axis::Column),
                 y: area.offset.block_offset + self.item_margin_box_start(item, Axis::Row),
             };
-            crate::layout::place_child(self.state, &self.callbacks, item.box_, offset);
+            // Resolve relative-position insets before placement seals the
+            // item's committed metrics.
             crate::layout::compute_inset_native(
                 self.state,
                 self.callbacks,
@@ -3458,6 +3459,7 @@ impl<'pass> GridFormattingContext<'pass> {
                 self.grid_container,
                 run.treat_block_axis_percentage_insets_as_auto_beyond_root,
             );
+            crate::layout::place_child(self.state, &self.callbacks, item.box_, offset);
         }
         self.derived_baselines_of_root_box =
             crate::layout::derive_baselines(self.state, &self.callbacks, self.grid_container, false);
