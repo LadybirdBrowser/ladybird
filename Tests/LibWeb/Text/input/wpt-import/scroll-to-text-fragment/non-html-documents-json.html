@@ -1,0 +1,52 @@
+<!doctype html>
+<title>Allow text fragments in HTML documents only</title>
+<meta charset=utf-8>
+<link rel="help" href="https://wicg.github.io/ScrollToTextFragment/">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+<script src="../common/utils.js"></script>
+<script src="stash.js"></script>
+
+<script>
+// This test originates from non-html-documents.html and was moved into its own
+// file because JSON does not emit `onload` in Gecko and this test would timeout
+// See https://bugzil.la/1907901
+
+function rAF(win) {
+  return new Promise((resolve) => {
+    win.requestAnimationFrame(resolve);
+  });
+}
+
+function openPopup(url) {
+  return new Promise((resolve) => {
+    test_driver.bless('Open a URL with a text fragment directive', () => {
+      const popup = window.open(url, '_blank', 'width=300,height=300');
+      popup.onload = () => resolve(popup);
+    });
+  });
+}
+const filename = 'application-json.json'
+const expected = 'blocked';
+const mediaType = filename.split('.')[0].replace('-', '/');
+
+promise_test(async function (t) {
+  const popup = await openPopup(`resources/${filename}#:~:text=target`);
+
+  // The WPT server should provide the correct content-type header from the
+  // file extension.
+  assert_equals(popup.document.contentType, mediaType);
+
+  // rAF twice in case there is any asynchronicity in scrolling to the target.
+  await rAF(popup);
+  await rAF(popup);
+
+  const did_scroll = popup.scrollY > 0;
+  const expected_scroll = expected == 'allowed';
+  assert_equals(did_scroll, expected_scroll, 'scrolled to fragment');
+
+  popup.close();
+}, `Text directive ${expected} in ${mediaType}`);
+</script>

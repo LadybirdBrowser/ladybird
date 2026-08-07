@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Fail
+Fail	Test drag and drop selection over a text directive

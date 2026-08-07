@@ -1,0 +1,343 @@
+<!doctype html>
+<title>Tests find-a-range-from-a-text-directive algorithm</title>
+<meta charset=utf-8>
+<link rel="help" href="https://wicg.github.io/scroll-to-text-fragment/#find-a-range-from-a-text-directive">
+<meta name="timeout" content="long">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+<script src="../common/utils.js"></script>
+<script src="stash.js"></script>
+<!--
+  This test suite performs scroll to text navigations to
+  find-range-from-text-directive-target.html and then checks the results, which are
+  communicated back from the target page via the WPT Stash server (see stash.py).
+  This structure is necessary because scroll to text security restrictions
+  specifically restrict the navigator from being able to observe the result of
+  the navigation, e.g. the target page cannot have a window opener.
+-->
+<script>
+// This test suite specifically exercises the "find a range from a text
+// directive" algorithm in the spec.
+
+let test_cases = [
+  {
+    fragment: '#:~:text=jumped',
+    expect_to_scroll: true,
+    description: 'Basic smoke test - full word match'
+  },
+  {
+    // Step 2.2.1
+    fragment: '#:~:text=u-,mped',
+    expect_to_scroll: false,
+    description: 'Prefix must start on a word boundary'
+  },
+  {
+    // Step 2.2.1
+    fragment: '#:~:text=ju-,mped',
+    expect_to_scroll: true,
+    description: 'Prefix need not end on a word boundary'
+  },
+  {
+    // Step 2.2.2
+    fragment: '#:~:text=null-,The%20quick',
+    expect_to_scroll: false,
+    description: 'Prefix doesn\'t exist'
+  },
+  {
+    // Step 2.2.3
+    fragment: '#:~:text=foo%20foo-,bar',
+    expect_to_scroll: true,
+    description: 'Multiple overlapping prefixes'
+  },
+  {
+    // Step 2.2.3
+    fragment: '#:~:text=a%20a-,b',
+    expect_to_scroll: true,
+    description: 'Multiple overlapping one letter prefixes'
+  },
+  {
+    // Step 2.2.4
+    fragment: '#:~:text=quick%20brown-,brown%20fox',
+    expect_to_scroll: false,
+    description: 'Prefix overlaps match text'
+  },
+  {
+    // Step 2.2.4
+    fragment: '#:~:text=quick%20brown-,fox',
+    expect_to_scroll: true,
+    description: 'Match text after prefix'
+  },
+  {
+    // Step 2.2.5
+    fragment: '#:~:text=Lorem-,Ipsum',
+    expect_to_scroll: true,
+    description: 'Search invisible content between prefix and match'
+  },
+  {
+    // Step 2.2.6
+    fragment: '#:~:text=end%20of%20the%20document-,test',
+    expect_to_scroll: false,
+    description: 'Prefix appears at end of document'
+  },
+  {
+    // Step 2.2.8
+    fragment: '#:~:text=fox-,jum,over',
+    expect_to_scroll: false,
+    description: '|end| forces |start| to end on word boundary'
+  },
+  {
+    // Step 2.2.8
+    fragment: '#:~:text=fox-,jum',
+    expect_to_scroll: false,
+    description: 'no |end| or suffix forces |start| to end on word boundary'
+  },
+  {
+    // Step 2.2.8
+    fragment: '#:~:text=fox-,jum,-ped',
+    expect_to_scroll: true,
+    description: 'suffix means |start| need not end on word boundary'
+  },
+  {
+    // Step 2.2.9
+    fragment: '#:~:text=jum-,ped',
+    expect_to_scroll: true,
+    description: '|start| doesn\'t need to start on word boundary'
+  },
+  {
+    // Step 2.2.10
+    fragment: '#:~:text=jumped-,null',
+    expect_to_scroll: false,
+    description: 'prefix with non-existent exact match'
+  },
+  {
+    // Step 2.2.10
+    fragment: '#:~:text=jumped-,null,lazy',
+    expect_to_scroll: false,
+    description: 'prefix with non-existent range match'
+  },
+  {
+    // Step 2.2.11
+    fragment: '#:~:text=brown-,jumped',
+    expect_to_scroll: false,
+    description: 'match doesn\'t immediately follow prefix'
+  },
+  {
+    // Step 2.2.11
+    fragment: '#:~:text=foo-,bar',
+    expect_to_scroll: true,
+    description: 'match doesn\'t immediately follow first prefix instance'
+  },
+  {
+    // Step 2.3.1
+    fragment: '#:~:text=jum,over',
+    expect_to_scroll: false,
+    description: 'no-prefix; |end| forces |start| to end on word boundary'
+  },
+  {
+    // Step 2.3.1
+    fragment: '#:~:text=jum',
+    expect_to_scroll: false,
+    description: 'no-prefix; no |end| or suffix forces |start| to end on word boundary'
+  },
+  {
+    // Step 2.3.1
+    fragment: '#:~:text=jum,-ped',
+    expect_to_scroll: true,
+    description: 'no-prefix; suffix means |start| need not end on word boundary'
+  },
+  {
+    // Step 2.3.2
+    fragment: '#:~:text=umped',
+    expect_to_scroll: false,
+    description: '|start| must start on a word boundary'
+  },
+  {
+    // Step 2.3.3
+    fragment: '#:~:text=null',
+    expect_to_scroll: false,
+    description: 'non-existent exact match'
+  },
+  {
+    // Step 2.3.3
+    fragment: '#:~:text=null,lazy',
+    expect_to_scroll: false,
+    description: 'non-existent range match'
+  },
+  {
+    // Step 2.3.4
+    fragment: '#:~:text=b%20b,-c',
+    expect_to_scroll: true,
+    description: 'overlapping exact matches with suffix'
+  },
+  {
+    // Step 2.3.4
+    fragment: '#:~:text=foo%20foo,-bar',
+    expect_to_scroll: true,
+    description: 'overlapping one letter exact matches with suffix'
+  },
+  {
+    // Step 2.5.1
+    fragment: '#:~:text=brown,fox',
+    expect_to_scroll: true,
+    description: 'matching range search'
+  },
+  {
+    // Step 2.4
+    fragment: '#:~:text=brown,quick',
+    expect_to_scroll: false,
+    description: 'inverted range search'
+  },
+  {
+    // Step 2.5.1.1
+    fragment: '#:~:text=quick,bro',
+    expect_to_scroll: false,
+    description: 'no suffix forces |end| to be end bounded'
+  },
+  {
+    // Step 2.5.1.1
+    fragment: '#:~:text=quick,bro,-wn',
+    expect_to_scroll: true,
+    description: 'suffix means |end| need not be end bounded'
+  },
+  {
+    // Step 2.5.1.2
+    fragment: '#:~:text=quick,ro,-wn',
+    expect_to_scroll: false,
+    description: '|end| must be start bounded'
+  },
+  {
+    // Step 2.5.1.2
+    fragment: '#:~:text=bro,wn',
+    expect_to_scroll: false,
+    description: '|end| must be start bounded even if full range is word bounded'
+  },
+  {
+    // Step 2.5.1.3
+    fragment: '#:~:text=quick,null',
+    expect_to_scroll: false,
+    description: 'non-existent |end|'
+  },
+  {
+    // Step 2.5.1.4
+    fragment: '#:~:text=quick,jumped,-fox',
+    expect_to_scroll: false,
+    description: 'Range with preceeding suffix'
+  },
+  {
+    // Step 2.5.3
+    fragment: '#:~:text=The-,quick,brown',
+    expect_to_scroll: true,
+    description: 'Match with no suffix'
+  },
+  {
+    // Step 2.5.4
+    fragment: '#:~:text=The-,quick,fox,-brown',
+    expect_to_scroll: false,
+    description: 'Suffix comes before |end|'
+  },
+  {
+    // Step 2.5.5
+    fragment: '#:~:text=Lorem-,Ipsum,Whitespace,-Dipsum',
+    expect_to_scroll: true,
+    description: 'Search invisible content between |end| and suffix'
+  },
+  {
+    // Step 2.5.6
+    fragment: '#:~:text=quick,-bro',
+    expect_to_scroll: false,
+    description: 'Suffix must be end bounded'
+  },
+  {
+    // Step 2.5.6
+    fragment: '#:~:text=qu,-ick',
+    expect_to_scroll: true,
+    description: 'Suffix need not be start bounded'
+  },
+  {
+    // Step 2.5.7
+    fragment: '#:~:text=quick,-null',
+    expect_to_scroll: false,
+    description: 'Non-existent suffix'
+  },
+  {
+    // Step 2.5.8
+    fragment: '#:~:text=quick,-fox',
+    expect_to_scroll: false,
+    description: 'Content appears between match and suffix'
+  },
+  {
+    // Step 2.5.9
+    fragment: '#:~:text=match,-suffix2',
+    expect_to_scroll: true,
+    description: 'Non-matching suffix in first potential match'
+  },
+  {
+    // Step 2.5.9
+    fragment: '#:~:text=prefix-,match,-suffix3',
+    expect_to_scroll: true,
+    description: 'Non-matching suffix search continues to prefix match'
+  },
+  {
+    // Step 2.5.10
+    fragment: '#:~:text=prefix-,match,matchEnd,-suffix5',
+    expect_to_scroll: true,
+    description: 'Range end matches correct suffix'
+  },
+  {
+    fragment: '#:~:text=Text%20with%20display:%20none',
+    expect_to_scroll: true,
+    description: '`start` element contains search-invisible text (display: none)'
+  },
+  {
+    fragment: '#:~:text=Text%20with%20visibility:%20hidden%20as%20block%20boundary',
+    expect_to_scroll: false,
+    description: '`start` element contains hidden text, which is a block boundary'
+  },
+  {
+    fragment: '#:~:text=Text%20with%20visibility:%20hidden%20as%20inline',
+    expect_to_scroll: true,
+    description: '`start` element contains hidden text which is not a block boundary'
+  },
+  {
+    fragment: '#:~:text=Text%20with%20Iframe',
+    expect_to_scroll: true,
+    description: '`start` element contains search-invisible text (iframe)'
+  },
+  {
+    fragment: '#:~:text=Text%20with%20image',
+    expect_to_scroll: true,
+    description: '`start` element contains search-invisible text (image)'
+  },
+  {
+    fragment: '#:~:text=caught,and%20a',
+    expect_to_scroll: true,
+    // "and a" first matches "h[and a]nd a net" but is rejected because of word boundary.
+    // The next match is the "hand [and a]" which should succeed despite overlapping the
+    // initial, rejected, match.
+    description: '|end| can match after an overlapping rejected candidate'
+  },
+  {
+    fragment: '#:~:text=z',
+    expect_to_scroll: false,
+    description: 'Inline node boundary is not a word boundary'
+  }
+];
+
+for (const test_case of test_cases) {
+  promise_test(t => new Promise((resolve, reject) => {
+    let key = token();
+
+    test_driver.bless('Open a URL with a text fragment directive', () => {
+      window.open(`find-range-from-text-directive-target.html?key=${key}${test_case.fragment}`, '_blank', 'noopener');
+    });
+
+    fetchResults(key, resolve, reject);
+  }).then(data => {
+    const expectation_string = test_case.expect_to_scroll ? 'to scroll' : 'not to scroll';
+    assert_equals(data.didScroll, test_case.expect_to_scroll,
+                  `Expected ${expectation_string}`);
+  }), `${test_case.description}.`);
+}
+</script>

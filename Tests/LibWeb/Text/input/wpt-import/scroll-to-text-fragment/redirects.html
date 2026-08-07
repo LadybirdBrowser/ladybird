@@ -1,0 +1,127 @@
+<!doctype html>
+<title>TextFragment invoked on redirects</title>
+<meta charset=utf-8>
+<meta name="timeout" content="long">
+<link rel="help" href="https://wicg.github.io/ScrollToTextFragment/">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+<script src="../common/get-host-info.sub.js"></script>
+<script src="../common/utils.js"></script>
+<script src="stash.js"></script>
+
+<!--See comment in scroll-to-text-fragment.html for why these tests have the
+structure they do. -->
+<script>
+// This test ensure correct operation of text-fragments through both HTTP and
+// client side redirects in various scenarios.
+
+// Constructs a URL to either redirect.py or the local client-redirect.html;
+// which will cause an HTTP or client based redirect, respectively, to
+// |to_url|. |type| provides a numeric 30x code to specify an HTTP redirect,
+// "location" for a write to window.location, or "meta" for a <meta> refresh.
+function buildRedirectUrl(to_url, type) {
+  let dest = "";
+  to_url = encodeURIComponent(to_url);
+
+  if (typeof type == "number") {
+    // If the type is a number, it's an HTTP response code, use redirect.py to
+    // respond with an HTTP redirect.
+    const code = type;
+    dest = `${get_host_info().ORIGIN}/common/redirect.py?status=${code}&location=${to_url}`;
+  } else if (type == 'meta' || type == 'location') {
+    // Otherwise we're requesting a client-side redirect, either a <meta> tag
+    // or window.location. Use the client-redirect file to bounce to the
+    // destination.
+    dest = `client-redirect.html?${type}&${to_url}`;
+  }
+  return dest;
+}
+
+// Turns |path| from a relative-to-this-file path into a full URL.
+function relativePathToFull(path) {
+  const pathname = window.location.toString();
+  const base_path = pathname.substring(0, pathname.lastIndexOf('/') + 1);
+  return base_path + path;
+}
+
+const status_codes = [301, 302, 303, 307, 308];
+
+// Test that an HTTP redirect to a URL with a text fragment invokes the
+// fragment.
+for (let code of status_codes) {
+  promise_test(t => new Promise((resolve, reject) => {
+    let key = token();
+
+    const abs_url = relativePathToFull(`redirects-target.html?key=${key}#:~:text=target`);
+    const url = buildRedirectUrl(abs_url, code);
+
+    test_driver.bless('Open a URL with a text fragment directive', () => {
+      window.open(url, '_blank', 'noopener');
+    });
+
+    fetchResults(key, resolve, reject);
+  }).then(data => {
+    assert_equals(data.scrolled, true);
+  }), `Text fragment works from HTTP ${code} redirect.`);
+}
+
+// Test that a URL with a text fragment that causes an HTTP redirect preserves
+// the fragment and invokes it on the destination page.
+for (let code of status_codes) {
+  promise_test(t => new Promise((resolve, reject) => {
+    let key = token();
+
+    const abs_url = relativePathToFull(`redirects-target.html?key=${key}`);
+    const url = buildRedirectUrl(abs_url, code) + "#:~:text=target";
+
+    test_driver.bless('Open a URL with a text fragment directive', () => {
+      window.open(url, '_blank', 'noopener');
+    });
+
+    fetchResults(key, resolve, reject);
+  }).then(data => {
+    assert_equals(data.scrolled, true);
+  }), `Text fragment propagated through HTTP ${code} redirect.`);
+}
+
+// Test that client-side redirects (using script) to a URL with a text fragment
+// cause the text fragment to be invoked.
+for (let type of ['location', 'meta']) {
+  promise_test(t => new Promise((resolve, reject) => {
+    let key = token();
+
+    const to_url = `redirects-target.html?key=${key}#:~:text=target`
+    const url = buildRedirectUrl(to_url, type);
+
+    test_driver.bless('Open a URL with a text fragment directive', () => {
+      window.open(url, '_blank', 'noopener');
+    });
+
+    fetchResults(key, resolve, reject);
+  }).then(data => {
+    assert_equals(data.scrolled, true);
+  }), `Text fragment works on client-side ${type} redirect.`);
+}
+
+// Test that client-side redirects (using script) to a URL with a text fragment
+// cause the text fragment to be invoked only the first time. A further
+// redirect without a user gesture is blocked.
+for (let type of ['location', 'meta']) {
+  promise_test(t => new Promise((resolve, reject) => {
+    let key = token();
+
+    const to_url = `redirects-target.html?twice&key=${key}#:~:text=target`
+    const url = buildRedirectUrl(to_url, type);
+
+    test_driver.bless('Open a URL with a text fragment directive', () => {
+      window.open(url, '_blank', 'noopener');
+    });
+
+    fetchResults(key, resolve, reject);
+  }).then(data => {
+    assert_equals(data.scrolled, false);
+  }), `One text fragment per user gesture allowed in client-side ${type} redirect.`);
+}
+</script>

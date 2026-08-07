@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Text fragment should not scroll if opened with window.open and a simultaneous navigation

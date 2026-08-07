@@ -1,0 +1,49 @@
+<!doctype html>
+<title>Multi-directive URLs scroll to the first matched directive</title>
+<meta charset=utf-8>
+<link rel="help" href="https://wicg.github.io/scroll-to-text-fragment/#invoke-text-directives">
+<meta name="timeout" content="long">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+<script src="../common/utils.js"></script>
+<script src="stash.js"></script>
+<!--
+  Tests that when multiple text directives match, the scroll position is
+  determined by the first directive in URL order, not the last.
+  See https://wicg.github.io/scroll-to-text-fragment/#invoke-text-directives
+-->
+<script>
+promise_test(t => new Promise((resolve, reject) => {
+  let key = token();
+
+  test_driver.bless('Open a URL with multiple text fragment directives', () => {
+    window.open(`multi-directive-scroll-target.html?key=${key}#:~:text=quick%20brown&text=sold%20sea`, '_blank', 'noopener');
+  });
+
+  fetchResults(key, resolve, reject);
+}).then(data => {
+  assert_true(data.scrollY > 0, 'Page should have scrolled');
+  assert_true(data.firstInView,
+    'First directive match should be in the viewport');
+  assert_false(data.secondInView,
+    'Second directive match should NOT be in the viewport');
+}), 'Multi-directive URL scrolls to the first matched directive, not the last.');
+
+promise_test(t => new Promise((resolve, reject) => {
+  let key = token();
+
+  test_driver.bless('Open a URL with reversed text fragment directives', () => {
+    window.open(`multi-directive-scroll-target.html?key=${key}#:~:text=sold%20sea&text=quick%20brown`, '_blank', 'noopener');
+  });
+
+  fetchResults(key, resolve, reject);
+}).then(data => {
+  assert_true(data.scrollY > 0, 'Page should have scrolled');
+  assert_true(data.secondInView,
+    'First directive match (second in DOM order) should be in the viewport');
+  assert_false(data.firstInView,
+    'Second directive match (first in DOM order) should NOT be in the viewport');
+}), 'Multi-directive URL with reversed DOM order scrolls to the first directive in URL order.');
+</script>
