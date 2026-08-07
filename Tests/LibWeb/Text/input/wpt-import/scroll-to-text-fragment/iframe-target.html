@@ -1,0 +1,49 @@
+<!doctype html>
+<title>Inner document for use in iframes.sub.html test</title>
+<script>
+  function isInView(element) {
+    let rect = element.getBoundingClientRect();
+    return rect.top >= 0 && rect.top <= window.innerHeight
+        && rect.left >= 0 && rect.left <= window.innerWidth;
+  }
+
+  function postResult() {
+    let position = 'unknown';
+    if (window.scrollY == 0)
+      position = 'top';
+    else if (isInView(document.getElementById('target')))
+      position = 'target';
+    else if (isInView(document.getElementById('elementid')))
+      position = 'elementid';
+
+    let results = {
+      scrollPosition: position,
+      href: window.location.href,
+    };
+
+    window.top.postMessage(results, "*");
+  }
+
+  window.addEventListener('message', (e) => {
+    if (e.data == 'getResult') {
+      // Use a timeout to get results - in the elementId fallback case, the
+      // browser may retry the text fragment search a few times before giving
+      // up and trying the elementid.
+      setTimeout(postResult, 2000);
+    } else if (e.data == 'reset') {
+      window.location.hash = '';
+      window.scrollTo(0, 0);
+      window.top.postMessage('', "*");
+    }
+  });
+</script>
+<style>
+  p {
+    margin-top: 400vh;
+    margin-bottom: 400vh;
+  }
+</style>
+<body>
+  <p id="target">Target Text</p>
+  <div id="elementid">DIV</div>
+</body>

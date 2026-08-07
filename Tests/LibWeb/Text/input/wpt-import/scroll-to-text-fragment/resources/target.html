@@ -1,0 +1,30 @@
+<!doctype html>
+<title>Target on B.com</title>
+<script src="../stash.js"></script>
+
+<style>
+  .spacer {
+    height: 2000px;
+  }
+</style>
+
+<body>
+  <div class="spacer"></div>
+  <div id="target">target text</div>
+
+  <script>
+    function checkScroll() {
+      const did_scroll = window.scrollY > 0;
+      const urlParams = new URLSearchParams(window.location.search);
+      const key = urlParams.get("key");
+
+      stashResultsThenClose(key, { did_scroll: did_scroll });
+    }
+
+    window.onload = () => {
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        requestAnimationFrame(() => requestAnimationFrame(checkScroll))
+      }));
+    };
+  </script>
+</body>

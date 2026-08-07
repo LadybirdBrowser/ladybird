@@ -1,0 +1,25 @@
+<!doctype html>
+<title>Navigating to a text fragment directive</title>
+<meta charset=utf-8>
+<link rel="help" href="https://wicg.github.io/ScrollToTextFragment/">
+<meta name="timeout" content="long">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+<script src="../common/utils.js"></script>
+<script src="stash.js"></script>
+
+<script>
+    promise_test(t => new Promise((resolve, reject) => {
+        let key = token();
+        test_driver.bless('Open a URL with a text fragment directive', () => {
+            window.open(`scroll-to-text-fragment-scroll-to-center-target.html?key=${key}#:~:text=Scroll`, "_blank", "noopener");
+
+            fetchResults(key, resolve, reject);
+        })
+    }).then(data => {
+            assert_false(data.hasScrolled, "Expected text directive to be scrolled to.");
+        })
+    );
+</script>

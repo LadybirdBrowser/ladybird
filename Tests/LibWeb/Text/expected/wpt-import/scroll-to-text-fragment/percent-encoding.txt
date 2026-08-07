@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Fail
+Fail	Test navigation with fragment: Percent-encoded "%" char..
+Fail	Test navigation with fragment: Percent char without hex digits is invalid..
+Fail	Test navigation with fragment: Percent char followed by percent char is invalid..
+Fail	Test navigation with fragment: Single digit percent-encoding is invalid..
+Fail	Test navigation with fragment: Percent-encoding limited to two digits..
+Fail	Test navigation with fragment: Percent-encoded "%%F".
+Fail	Test navigation with fragment: Percent-encoding multibyte codepoint (CHECKMARK)..

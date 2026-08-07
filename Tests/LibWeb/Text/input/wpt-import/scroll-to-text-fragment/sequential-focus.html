@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Text Fragments Test</title>
+    <script src="../resources/testharness.js"></script>
+    <script src="../resources/testharnessreport.js"></script>
+    <script src="../resources/testdriver.js"></script>
+    <script src="../resources/testdriver-vendor.js"></script>
+</head>
+<body>
+    <!--
+    The document performs a same-document navigation, which contains the text fragment 'foo'.
+    'foo' is inside of a <a> element. If it were focused, hitting `Enter` would
+    directly navigate to its href, which is not intended.
+    Instead, it should only have the sequential focus, ie. pressing `Tab` would focus the next
+    focusable element.
+    -->
+    <a href="#" id="link">foo</a>
+    <button id="next-button">Next Focusable Element</button>
+    <script>
+        // Define the test for text fragment focus behavior
+        promise_test(async t => {
+            const link = document.getElementById('link');
+            const nextButton = document.getElementById('next-button');
+
+            const hashChange = new Promise(r => window.addEventListener('hashchange', r, { once: true }));
+
+            // Simulate a same-document load to the text fragment
+            location.hash = '#some-hash-to-trigger-hashchange:~:text=foo';
+
+            await hashChange;
+
+            // Assert that the link element does not have focus initially
+            assert_not_equals(document.activeElement, link, 'Link element should not have focus initially');
+
+            // Simulate pressing TAB to shift focus to the next element
+            await test_driver.send_keys(document.body, '\uE004'); // '\uE004' is the WebDriver key code for TAB
+
+            // Assert that the next focusable element (button) has focus
+            assert_equals(document.activeElement, nextButton, 'Next focusable element should have focus after pressing TAB');
+        }, 'Text Fragment focus behavior');
+    </script>
+</body>
+</html>

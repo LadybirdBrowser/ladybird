@@ -1,0 +1,61 @@
+<!doctype html>
+<title>ForceLoadAtTop blocks scroll on load</title>
+<meta charset=utf-8>
+<meta name="timeout" content="long">
+<link rel="help" href="https://wicg.github.io/ScrollToTextFragment/">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+<script src="../common/utils.js"></script>
+<script src="stash.js"></script>
+
+<!--See comment in scroll-to-text-fragment.html for why this test has the
+structure it has -->
+<script>
+
+let test_cases = [
+  {
+    fragment: '#:~:text=target',
+    type: 'text fragment'
+  },
+  {
+    fragment: '#target:~:text=target',
+    type: 'text fragment with element fallback'
+  },
+  {
+    fragment: '#target',
+    type: 'element fragment'
+  },
+  {
+    fragment: '#history',
+    type: 'history scroll restoration'
+  },
+];
+
+let document_policy_value = [
+  'force-load-at-top',
+  'no-force-load-at-top'
+];
+
+for (const value of document_policy_value) {
+  // If no-force-load-at-top is specified we expect to allow scrolling,
+  // otherwise scroll on load should be blocked.
+  const scroll_expected = value == 'no-force-load-at-top';
+  const block_verb = scroll_expected ? "must not" : "must";
+
+  for (const test_case of test_cases) {
+    promise_test(t => new Promise((resolve, reject) => {
+      let key = token();
+
+      test_driver.bless('Open a URL with a text fragment directive', () => {
+        window.open(`${value}-target.html?key=${key}${test_case.fragment}`, '_blank', 'noopener');
+      });
+
+      fetchResults(key, resolve, reject);
+    }).then(data => {
+      assert_equals(data.scrolled, scroll_expected);
+    }), `${value} ${block_verb} block scroll on load from ${test_case.type}.`);
+  }
+}
+</script>
