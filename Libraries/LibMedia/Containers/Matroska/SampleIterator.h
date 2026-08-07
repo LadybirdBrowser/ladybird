@@ -15,6 +15,7 @@
 #include <LibMedia/Forward.h>
 
 #include "Document.h"
+#include "TrackBlockContext.h"
 
 namespace Media::Matroska {
 

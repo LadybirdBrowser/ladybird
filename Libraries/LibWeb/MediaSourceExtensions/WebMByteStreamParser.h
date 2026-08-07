@@ -9,6 +9,7 @@
 #include <AK/OwnPtr.h>
 #include <AK/Vector.h>
 #include <LibMedia/Containers/Matroska/Document.h>
+#include <LibMedia/Containers/Matroska/TrackBlockContext.h>
 #include <LibMedia/Containers/Matroska/Utilities.h>
 #include <LibMedia/Track.h>
 #include <LibWeb/MediaSourceExtensions/ByteStreamParser.h>
@@ -42,7 +43,7 @@ public:
         auto entry = m_track_entries.get(track_number);
         if (!entry.has_value())
             return Media::CodecID::Unknown;
-        return Media::Matroska::codec_id_from_matroska_id_string((*entry)->codec_id());
+        return Media::Matroska::codec_id_from_matroska_track_entry(*entry.value());
     }
 
     virtual ReadonlyBytes codec_initialization_data_for_track(u64 track_number) const override

@@ -165,29 +165,6 @@ private:
     Optional<AudioTrack> m_audio_track;
 };
 
-struct TrackBlockContext {
-    String codec_id;
-    double timestamp_scale { 1 };
-    u64 codec_delay { 0 };
-    u64 seek_pre_roll { 0 };
-    i64 timestamp_offset { 0 };
-    u64 default_duration { 0 };
-
-    static TrackBlockContext from_track_entry(TrackEntry const& entry)
-    {
-        return {
-            .codec_id = entry.codec_id(),
-            .timestamp_scale = entry.timestamp_scale(),
-            .codec_delay = entry.codec_delay(),
-            .seek_pre_roll = entry.seek_pre_roll(),
-            .timestamp_offset = entry.timestamp_offset(),
-            .default_duration = entry.default_duration(),
-        };
-    }
-};
-
-using TrackBlockContexts = HashMap<u64, TrackBlockContext>;
-
 inline TrackType track_type_from_matroska_track_type(TrackEntry::TrackType type)
 {
     switch (type) {

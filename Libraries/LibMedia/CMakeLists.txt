@@ -21,6 +21,7 @@ set(SOURCES
     Containers/Matroska/Reader.cpp
     Containers/Matroska/SampleIterator.cpp
     Containers/Matroska/Streamer.cpp
+    Containers/Matroska/TrackBlockContext.cpp
     Containers/MP3Navigator.cpp
     Containers/OggNavigator.cpp
     DecodeAudioStream.cpp
