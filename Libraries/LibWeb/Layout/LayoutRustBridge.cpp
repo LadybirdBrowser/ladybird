@@ -70,6 +70,7 @@
 #include <LibWeb/SVG/SVGClipPathElement.h>
 #include <LibWeb/SVG/SVGMaskElement.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
+#include <LibWeb/SVG/SVGTextElement.h>
 
 namespace Web::Layout {
 
@@ -408,28 +409,77 @@ static Utf16String rendered_svg_text_contents(SVG::SVGTextContentElement const& 
     return builder.to_string().trim_ascii_whitespace();
 }
 
+// The advance of the text run rendered by the given box; that is, of its direct child text content.
+static float svg_text_run_advance(SVGTextBox const& text_box)
+{
+    // FIXME: Use per-code-point fonts.
+    return text_box.first_available_font().width(text_box.dom_node().text_contents());
+}
+
+// https://svgwg.org/svg2-draft/text.html#TermTextChunk
+// Each new absolute positioning adjustment (due to an 'x' or 'y' attribute, or forced line break) creates a new text chunk.
+// https://svgwg.org/svg2-draft/text.html#TextElementXAttribute
+// NB: The initial value of 'x' and 'y' is "0 for 'text'; (none) for 'tspan'". So, a <text> element always positions its
+//     first character absolutely, and so always starts a chunk.
+static bool svg_text_box_starts_text_chunk(SVGTextBox const& text_box)
+{
+    if (is<SVG::SVGTextElement>(text_box.dom_node()))
+        return true;
+    auto text_positioning = text_box.dom_node().text_positioning();
+    return !text_positioning.x.is_empty() || !text_positioning.y.is_empty();
+}
+
+struct SvgTextChunkMeasurement {
+    float advance { 0 };
+    CSS::TextAnchor anchor { CSS::TextAnchor::Start };
+};
+
+// Measures the total advance of the text chunk that starts at the given box, and determines the 'text-anchor' value
+// that applies to the chunk. The chunk extends in document order through the subtree of the containing <text> element
+// until the next box that starts a chunk of its own.
+static SvgTextChunkMeasurement measure_svg_text_chunk(SVGTextBox const& chunk_start_box)
+{
+    auto const* subtree_root = &chunk_start_box;
+    for (auto const* ancestor = chunk_start_box.parent(); ancestor && is<SVGTextBox>(*ancestor); ancestor = ancestor->parent())
+        subtree_root = static_cast<SVGTextBox const*>(ancestor);
+
+    SvgTextChunkMeasurement measurement;
+    bool found_chunk_start = false;
+    bool found_first_rendered_text = false;
+    subtree_root->for_each_in_inclusive_subtree([&](Node const& node) {
+        // AD-HOC: Text on a path is laid out independently; see compute_path_for_svg_text_path().
+        if (is<SVGTextPathBox>(node))
+            return TraversalDecision::SkipChildrenAndContinue;
+        auto const* text_box = as_if<SVGTextBox>(node);
+        if (!text_box)
+            return TraversalDecision::Continue;
+        if (text_box == &chunk_start_box)
+            found_chunk_start = true;
+        else if (found_chunk_start && svg_text_box_starts_text_chunk(*text_box))
+            return TraversalDecision::Break;
+        if (found_chunk_start && !text_box->dom_node().text_contents().is_empty()) {
+            if (!found_first_rendered_text) {
+                // https://svgwg.org/svg2-draft/text.html#TextLayoutAlgorithm
+                // Adjust shift based on the value of 'text-anchor' and 'direction' of the element the character at index i.
+                // FIXME: Take text direction into account.
+                measurement.anchor = text_box->computed_values().text_anchor();
+                found_first_rendered_text = true;
+            }
+            measurement.advance += svg_text_run_advance(*text_box);
+        }
+        return TraversalDecision::Continue;
+    });
+    return measurement;
+}
+
 static Gfx::Path compute_path_for_svg_text(SVGTextBox const& text_box, Gfx::FloatPoint current_text_position)
 {
     auto& text_element = text_box.dom_node();
     // FIXME: Use per-code-point fonts.
     auto& font = text_box.first_available_font();
     auto text_contents = text_element.text_contents();
-    auto text_width = font.width(text_contents);
+
     auto text_offset = current_text_position;
-
-    switch (text_element.text_anchor().value_or(SVG::TextAnchor::Start)) {
-    case SVG::TextAnchor::Start:
-        break;
-    case SVG::TextAnchor::Middle:
-        text_offset.translate_by(-text_width / 2, 0);
-        break;
-    case SVG::TextAnchor::End:
-        text_offset.translate_by(-text_width, 0);
-        break;
-    default:
-        VERIFY_NOT_REACHED();
-    }
-
     auto baseline_metric = resolve_dominant_baseline_metric(text_box.computed_values());
     text_offset.translate_by(0, dominant_baseline_offset(baseline_metric, font.pixel_metrics()));
 
@@ -487,9 +537,48 @@ static RustFFI::FfiSvgPathResult compute_svg_path(NodeWithStyle const& node, Rus
     if (auto const* geometry_box = as_if<SVGGeometryBox>(graphics_box)) {
         path = const_cast<SVGGeometryBox&>(*geometry_box).dom_node().get_path(viewport_size);
     } else if (auto const* text_box = as_if<SVGTextBox>(graphics_box)) {
-        auto text_positioning = text_box->dom_node().text_positioning();
-        text_positioning.apply_to_text_position(viewport_size, text_position, 0u);
+        auto const& text_element = text_box->dom_node();
+        // https://svgwg.org/svg2-draft/text.html#TextElementXAttribute
+        // the starting X (Y) coordinate for rendering the glyphs corresponding to the given character is the X (Y) coordinate
+        // of the resulting current text position from the most recently rendered glyph for the current 'text' element.
+        // NB: The initial value of 'x' and 'y' is "0 for 'text'; (none) for 'tspan'": a <text> element starts at (0, 0)
+        //     regardless of the current text position, while a <tspan> without 'x'/'y' continues at the current text position.
+        if (is<SVG::SVGTextElement>(text_element))
+            text_position = {};
+        text_element.text_positioning().apply_to_text_position(viewport_size, text_position, 0u);
+        if (svg_text_box_starts_text_chunk(*text_box)) {
+            // https://svgwg.org/svg2-draft/text.html#TextAnchoringProperties
+            // The 'text-anchor' property is applied to each individual text chunk within a given 'text' element.
+            // AD-HOC: The spec applies 'text-anchor' as a shift of the chunk's rendered glyphs after layout; shifting
+            //         the chunk's starting position up front by the chunk's total advance is equivalent for horizontal
+            //         text — since every run in the chunk is laid out sequentially from this position.
+            auto chunk = measure_svg_text_chunk(*text_box);
+            switch (chunk.anchor) {
+            case CSS::TextAnchor::Start:
+                // The rendered characters are aligned such that the start of the resulting rendered text is at the
+                // initial current text position."
+                break;
+            case CSS::TextAnchor::Middle:
+                // The rendered characters are shifted such that the geometric middle of the resulting rendered text
+                // (determined from the initial and final current text position before applying the 'text-anchor'
+                // property) is at the initial current text position.
+                text_position.translate_by(-chunk.advance / 2, 0);
+                break;
+            case CSS::TextAnchor::End:
+                // The rendered characters are shifted such that the end of the resulting rendered text (final current
+                // text position before applying the 'text-anchor' property) is at the initial current text position."
+                text_position.translate_by(-chunk.advance, 0);
+                break;
+            default:
+                VERIFY_NOT_REACHED();
+            }
+        }
         path = compute_path_for_svg_text(*text_box, text_position);
+        // https://svgwg.org/svg2-draft/text.html#TextLayoutIntroduction
+        // After each glyph is placed, the current text position is advanced by the glyph's advance value (typically the
+        // width for horizontal text or height for vertical text).
+        // FIXME: Take writing mode and text direction into account.
+        text_position.translate_by(svg_text_run_advance(*text_box), 0);
     } else if (auto const* text_path_box = as_if<SVGTextPathBox>(graphics_box)) {
         path = compute_path_for_svg_text_path(*text_path_box, viewport_size);
     }
@@ -505,7 +594,7 @@ static RustFFI::FfiSvgPathResult compute_svg_path(NodeWithStyle const& node, Rus
             .width = bounding_box.width(),
             .height = bounding_box.height(),
         },
-        .text_position_for_children = {
+        .text_position_after = {
             .x = text_position.x(),
             .y = text_position.y(),
         },

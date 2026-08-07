@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/svg-tspan-current-text-position-ref.html">
+<style>
+@font-face {
+    font-family: Ahem;
+    src: url("../data/fonts/Ahem.ttf");
+}
+</style>
+<svg width="400" height="300" viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg" font-family="Ahem" font-size="20">
+    <!-- A tspan without x/y continues at the current text position. -->
+    <text x="20" y="30"><tspan>X</tspan><tspan>X</tspan><tspan>X</tspan><tspan>X</tspan></text>
+    <!-- text-anchor applies to the whole text chunk, not to each tspan. -->
+    <text x="200" y="70" text-anchor="middle"><tspan>X</tspan><tspan>X</tspan><tspan>X</tspan><tspan>X</tspan></text>
+    <text x="200" y="110" text-anchor="end"><tspan>X</tspan><tspan>X</tspan><tspan>X</tspan><tspan>X</tspan></text>
+    <!-- dx/dy shift the current text position without starting a new chunk. -->
+    <text x="20" y="150"><tspan>X</tspan><tspan dx="20">X</tspan><tspan dy="10">X</tspan></text>
+    <!-- A tspan with an absolute position starts a new, separately anchored chunk. -->
+    <text x="200" y="190" text-anchor="middle"><tspan>XX</tspan><tspan x="200" y="220">XX</tspan></text>
+    <!-- Each run contributes the advance of its own font. -->
+    <text x="20" y="270"><tspan>X</tspan><tspan font-size="40">X</tspan><tspan>X</tspan></text>
+    <!-- Direct child text of the text element advances the position for tspans. -->
+    <text x="200" y="270">XX<tspan>XX</tspan></text>
+</svg>
