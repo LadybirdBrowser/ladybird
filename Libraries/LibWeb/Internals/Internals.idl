@@ -91,6 +91,7 @@ interface Internals {
     boolean setHttpMemoryCacheEnabled(boolean enabled);
     undefined simulateRequestServerConnectionLoss();
     undefined simulateWorkerRequestServerConnectionLoss();
+    unsigned long long openResponsePipeCount();
     undefined setContentBlockers(Utf16DOMString patterns);
     undefined setContentBlockingEnabled(boolean enabled);
     unsigned long long partialLayoutCount();
