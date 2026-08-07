@@ -730,12 +730,15 @@ void DevToolsDebugger::handle_pause(JS::Debugger::PauseInfo const& pause)
     m_resume_mode = WebView::DebuggerResumeMode::Continue;
     m_resume_requested = false;
     m_is_handling_pause = true;
+    auto paused_page_id = page->id();
 
     auto event_loop_pause = Web::HTML::main_thread_event_loop().pause();
     m_client.async_did_pause_debugger(page->id(), move(debugger_pause));
     Core::EventLoop::current().spin_until([this] {
         return m_resume_requested;
     });
+
+    m_client.async_did_resume_debugger(paused_page_id);
 
     m_is_handling_pause = false;
     m_paused_page_id = {};

@@ -62,6 +62,7 @@
 #include <LibWebView/Forward.h>
 #include <LibWebView/HistoryVisitTransition.h>
 #include <LibWebView/PageInfo.h>
+#include <LibWebView/PausedDebuggerOverlay.h>
 #include <LibWebView/PrivateBrowsing.h>
 #include <LibWebView/SessionHistory.h>
 #include <LibWebView/SessionStore.h>
@@ -164,6 +165,7 @@ public:
     void enqueue_input_event(Web::InputEvent);
     void did_finish_handling_input_event(Badge<WebContentClient>, Web::EventResult event_result);
     void handle_external_url(Badge<WebContentClient>, URL::URL, URL::Origin, bool has_transient_activation);
+    void did_request_cursor_change(Badge<WebContentClient>, Gfx::Cursor);
 
     void set_preferred_color_scheme(Web::CSS::PreferredColorScheme);
     void set_preferred_contrast(Web::CSS::PreferredContrast);
@@ -231,11 +233,13 @@ public:
     void inspect_current_flexbox(Web::UniqueNodeID node_id, bool only_look_at_parents);
     void retrieve_devtools_sources(DevTools::DevToolsDelegate::OnSourcesReceived);
     void request_devtools_source(Web::HTML::ScriptRegistry::Identifier const&);
-    void attach_debugger(DevTools::DevToolsDelegate::OnDebuggerPaused);
+    void attach_debugger(DevTools::DevToolsDelegate::OnDebuggerPaused, DevTools::DevToolsDelegate::OnDebuggerResumed);
     void configure_debugger(DebuggerConfiguration);
     void detach_debugger();
     void interrupt_debugger();
     void resume_debugger(DebuggerResumeMode);
+    void did_pause_debugger(Badge<WebContentClient>);
+    void did_resume_debugger(Badge<WebContentClient>);
     void update_debugger_blackboxing(Utf16String, Vector<DebuggerBlackboxRange>, DebuggerBlackboxingOperation);
     void set_debugger_breakpoint(DebuggerBreakpointLocation, DebuggerBreakpointOptions, DevTools::DevToolsDelegate::OnDebuggerBreakpointOperationComplete);
     void remove_debugger_breakpoint(DebuggerBreakpointLocation, DevTools::DevToolsDelegate::OnDebuggerBreakpointOperationComplete);
@@ -420,6 +424,7 @@ public:
     HashMap<u64, DevTools::DevToolsDelegate::OnResolvedURLReceived> on_resolved_dom_node_url;
     Function<void(Web::HTML::ScriptRegistry::Description)> on_devtools_source_available;
     DevTools::DevToolsDelegate::OnDebuggerPaused on_debugger_paused;
+    DevTools::DevToolsDelegate::OnDebuggerResumed on_debugger_resumed;
     Function<void(JsonValue)> on_received_js_console_result;
     Function<void(ConsoleOutput)> on_console_message;
     Function<void(u64 request_id, URL::URL const&, ByteString const&, Vector<HTTP::Header> const&, ByteBuffer, Optional<String>, String, bool, Web::Fetch::Infrastructure::Request::Priority)> on_network_request_started;
@@ -539,6 +544,9 @@ protected:
 
     void handle_resize();
     void fail_pending_debugger_requests();
+    void set_debugger_paused(bool);
+    void set_debugger_overlay_hovered_action(Optional<PausedDebuggerOverlayAction>);
+    void update_paused_debugger_overlay();
     void set_page_background_color_to_system_canvas(bool dark);
     void set_page_background_color(Gfx::Color);
     Gfx::Color preferred_canvas_background_color() const;
@@ -684,6 +692,10 @@ protected:
 
     Queue<Web::InputEvent> m_pending_input_events;
     bool m_debugger_is_attached { false };
+    bool m_debugger_paused { false };
+    PausedDebuggerOverlayPointerState m_debugger_overlay_pointer_state;
+    Optional<PausedDebuggerOverlayAction> m_debugger_overlay_hovered_action;
+    Gfx::Cursor m_page_cursor { Gfx::StandardCursor::Arrow };
 
     struct PendingExternalURLRequest {
         URL::URL url;

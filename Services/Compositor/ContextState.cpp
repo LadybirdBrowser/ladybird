@@ -8,6 +8,7 @@
 #include <AK/StdLibExtras.h>
 #include <Compositor/CompositorState.h>
 #include <Compositor/ContextState.h>
+#include <Compositor/PausedDebuggerOverlay.h>
 #include <LibCore/Timer.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/PaintingSurface.h>
@@ -623,6 +624,34 @@ void ContextState::viewport_size_updated(Gfx::IntSize viewport_size, Web::Compos
         : Web::Compositor::WindowResizingInProgress::No;
 }
 
+bool ContextState::set_paused_debugger_overlay(bool visible, double device_pixel_ratio, Optional<String> font_family, Optional<WebView::PausedDebuggerOverlayAction> hovered_action)
+{
+    VERIFY(device_pixel_ratio > 0);
+    if (m_paused_debugger_overlay_visible == visible
+        && m_paused_debugger_overlay_device_pixel_ratio == device_pixel_ratio
+        && m_paused_debugger_overlay_font_family == font_family
+        && m_paused_debugger_overlay_hovered_action == hovered_action)
+        return false;
+
+    m_paused_debugger_overlay_visible = visible;
+    m_paused_debugger_overlay_device_pixel_ratio = device_pixel_ratio;
+    m_paused_debugger_overlay_font_family = move(font_family);
+    m_paused_debugger_overlay_hovered_action = hovered_action;
+    return true;
+}
+
+Optional<Gfx::IntRect> ContextState::viewport_rect_for_ui_overlay() const
+{
+    if (m_viewport_size.is_empty())
+        return {};
+
+    auto viewport_rect = m_pending_present_frame.has_value()
+        ? m_pending_present_frame->viewport_rect
+        : m_presented_frame.value_or(Gfx::IntRect {});
+    viewport_rect.set_size(m_viewport_size);
+    return viewport_rect;
+}
+
 bool ContextState::should_shrink_backing_stores_after_resize() const
 {
     return m_window_resize_in_progress == Web::Compositor::WindowResizingInProgress::Yes;
@@ -828,7 +857,7 @@ void ContextState::paint_screenshot(Web::Painting::DisplayListPlayerSkia& displa
     VERIFY(can_paint_screenshot(target_bitmap));
 
     auto target_surface = Gfx::PaintingSurface::wrap_bitmap(*target_bitmap.bitmap());
-    paint_current_display_list(display_list_player, *target_surface, composited_context_resolver);
+    paint_current_display_list(display_list_player, *target_surface, composited_context_resolver, {}, PaintUIOverlay::No);
     display_list_player.flush(*target_surface);
 }
 
@@ -1027,7 +1056,7 @@ Web::Painting::AccumulatedVisualContextTree const& ContextState::visual_context_
     return *m_visual_context_tree_for_compositing;
 }
 
-void ContextState::paint_current_display_list(Web::Painting::DisplayListPlayerSkia& display_list_player, Gfx::PaintingSurface& surface, CompositedContextResolver const* composited_context_resolver, Optional<Gfx::IntRect> damage_rect)
+void ContextState::paint_current_display_list(Web::Painting::DisplayListPlayerSkia& display_list_player, Gfx::PaintingSurface& surface, CompositedContextResolver const* composited_context_resolver, Optional<Gfx::IntRect> damage_rect, PaintUIOverlay paint_ui_overlay)
 {
     VERIFY(m_display_list);
     auto surface_clear_color = Gfx::to_skia_color(m_display_list->surface_clear_color().value_or(Gfx::Color::Transparent));
@@ -1041,6 +1070,8 @@ void ContextState::paint_current_display_list(Web::Painting::DisplayListPlayerSk
             &m_canvas_surface_registry,
             composited_context_resolver);
         m_viewport_scrollbar_controller.paint(target_surface, display_list_player, m_scroll_state_snapshot);
+        if (paint_ui_overlay == PaintUIOverlay::Yes && m_paused_debugger_overlay_visible)
+            paint_paused_debugger_overlay(target_surface, m_viewport_size, m_paused_debugger_overlay_device_pixel_ratio, m_paused_debugger_overlay_font_family, m_paused_debugger_overlay_hovered_action);
     };
 
     if (damage_rect.has_value() && !damage_rect->is_empty() && presents_to_client() && damage_rect->size() != surface.size() && surface.skia_backend_context()) {

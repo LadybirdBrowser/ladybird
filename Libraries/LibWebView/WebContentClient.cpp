@@ -381,13 +381,14 @@ void WebContentClient::replay_compositor_view_state_after_reconnect(Badge<Applic
     if (!is_open())
         return;
 
-    for (auto const& [page_id, view] : m_views) {
+    for (auto& [page_id, view] : m_views) {
         auto context_id = Web::Compositor::compositor_context_id_for_page(page_id);
         if (!m_compositor_contexts.contains(context_id))
             continue;
         Application::the().update_compositor_viewport(context_id, view->viewport_size().to_type<int>());
         Application::the().update_compositor_display_metadata(context_id, view->display_id(), view->maximum_frames_per_second());
         Application::the().update_compositor_context_visibility(context_id, view->traversable().system_visibility_state());
+        view->update_paused_debugger_overlay();
     }
 }
 
@@ -1105,10 +1106,8 @@ void WebContentClient::did_request_refresh(u64 page_id)
 
 void WebContentClient::did_request_cursor_change(u64 page_id, Gfx::Cursor cursor)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (view->on_cursor_change)
-            view->on_cursor_change(cursor);
-    }
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        view->did_request_cursor_change({}, move(cursor));
 }
 
 void WebContentClient::did_update_editing_history_state(u64 page_id, bool can_undo, bool can_redo)
@@ -1468,9 +1467,16 @@ void WebContentClient::did_add_devtools_source(u64 page_id, Web::HTML::ScriptReg
 void WebContentClient::did_pause_debugger(u64 page_id, DebuggerPause pause)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
+        view->did_pause_debugger({});
         if (view->on_debugger_paused)
             view->on_debugger_paused(move(pause));
     }
+}
+
+void WebContentClient::did_resume_debugger(u64 page_id)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        view->did_resume_debugger({});
 }
 
 void WebContentClient::did_complete_debugger_breakpoint_operation(u64 page_id, u64 request_id, Optional<String> error)

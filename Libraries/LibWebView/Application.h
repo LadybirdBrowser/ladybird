@@ -95,6 +95,7 @@ public:
     void set_cpu_profiler_process(Core::Process);
 
     virtual Optional<String> system_font_family() const { return {}; }
+    virtual Optional<String> ui_font_family() const { return {}; }
 
     static Requests::RequestClient& request_server_client(IsPrivate = IsPrivate::No);
     static ImageDecoderClient::Client& image_decoder_client() { return *the().m_image_decoder_client; }
@@ -177,6 +178,7 @@ public:
     void register_compositor_context(WebContentClient&, Web::Compositor::CompositorContextId, Optional<u64> page_id);
     ErrorOr<void> try_register_compositor_context(WebContentClient&, Web::Compositor::CompositorContextId, Optional<u64> page_id);
     void update_compositor_viewport(Web::Compositor::CompositorContextId, Gfx::IntSize viewport_size, Web::Compositor::WindowResizingInProgress = Web::Compositor::WindowResizingInProgress::No);
+    void update_compositor_paused_debugger_overlay(Web::Compositor::CompositorContextId, bool visible, double device_pixel_ratio, Optional<String> font_family, Optional<u8> hovered_action);
     void update_compositor_display_metadata(Web::Compositor::CompositorContextId, Optional<u64> display_id, double refresh_rate);
     void update_compositor_context_visibility(Web::Compositor::CompositorContextId, Web::HTML::VisibilityState);
     bool send_async_scroll_to_compositor(Web::Compositor::CompositorContextId, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels, Web::Compositor::SnapContainerHandling);
@@ -432,7 +434,7 @@ private:
     virtual void retrieve_source(DevTools::TabDescription const&, Web::HTML::ScriptRegistry::Identifier, OnSourceReceived) const override;
     virtual void listen_for_sources(DevTools::TabDescription const&, OnSourceAvailable) const override;
     virtual void stop_listening_for_sources(DevTools::TabDescription const&) const override;
-    virtual void attach_debugger(DevTools::TabDescription const&, OnDebuggerPaused) const override;
+    virtual void attach_debugger(DevTools::TabDescription const&, OnDebuggerPaused, OnDebuggerResumed) const override;
     virtual void configure_debugger(DevTools::TabDescription const&, DebuggerConfiguration) const override;
     virtual void detach_debugger(DevTools::TabDescription const&) const override;
     virtual void interrupt_debugger(DevTools::TabDescription const&) const override;
