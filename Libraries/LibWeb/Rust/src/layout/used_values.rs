@@ -43,33 +43,72 @@ pub(crate) struct LineBoxFragmentCoordinate {
     pub fragment_index: usize,
 }
 
+pub(crate) struct SealableCell<T> {
+    value: Cell<T>,
+    sealed: Cell<bool>,
+}
+
+impl<T: Copy + std::fmt::Debug> std::fmt::Debug for SealableCell<T> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.value.get().fmt(formatter)
+    }
+}
+
+impl<T: Copy> SealableCell<T> {
+    pub(crate) fn new(value: T) -> Self {
+        Self {
+            value: Cell::new(value),
+            sealed: Cell::new(false),
+        }
+    }
+
+    #[inline]
+    pub(crate) fn get(&self) -> T {
+        self.value.get()
+    }
+
+    #[track_caller]
+    #[inline]
+    pub(crate) fn set(&self, value: T) {
+        assert!(
+            !self.sealed.get(),
+            "write to a sealed committed box metric after placement"
+        );
+        self.value.set(value);
+    }
+
+    pub(crate) fn seal(&self) {
+        self.sealed.set(true);
+    }
+}
+
 /// The per-box geometry stored in a Rust-owned layout pass.
 #[derive(Debug)]
 pub(crate) struct UsedValues {
     pub node: crate::layout::node_data::NodeSlotId,
 
-    pub content_inline_size: Cell<CssPixels>,
-    pub content_block_size: Cell<CssPixels>,
+    pub content_inline_size: SealableCell<CssPixels>,
+    pub content_block_size: SealableCell<CssPixels>,
 
-    pub margin_left: Cell<CssPixels>,
-    pub margin_right: Cell<CssPixels>,
-    pub margin_top: Cell<CssPixels>,
-    pub margin_bottom: Cell<CssPixels>,
+    pub margin_left: SealableCell<CssPixels>,
+    pub margin_right: SealableCell<CssPixels>,
+    pub margin_top: SealableCell<CssPixels>,
+    pub margin_bottom: SealableCell<CssPixels>,
 
-    pub border_left: Cell<CssPixels>,
-    pub border_right: Cell<CssPixels>,
-    pub border_top: Cell<CssPixels>,
-    pub border_bottom: Cell<CssPixels>,
+    pub border_left: SealableCell<CssPixels>,
+    pub border_right: SealableCell<CssPixels>,
+    pub border_top: SealableCell<CssPixels>,
+    pub border_bottom: SealableCell<CssPixels>,
 
-    pub padding_left: Cell<CssPixels>,
-    pub padding_right: Cell<CssPixels>,
-    pub padding_top: Cell<CssPixels>,
-    pub padding_bottom: Cell<CssPixels>,
+    pub padding_left: SealableCell<CssPixels>,
+    pub padding_right: SealableCell<CssPixels>,
+    pub padding_top: SealableCell<CssPixels>,
+    pub padding_bottom: SealableCell<CssPixels>,
 
-    pub inset_left: Cell<CssPixels>,
-    pub inset_right: Cell<CssPixels>,
-    pub inset_top: Cell<CssPixels>,
-    pub inset_bottom: Cell<CssPixels>,
+    pub inset_left: SealableCell<CssPixels>,
+    pub inset_right: SealableCell<CssPixels>,
+    pub inset_top: SealableCell<CssPixels>,
+    pub inset_bottom: SealableCell<CssPixels>,
 
     pub has_definite_inline_size: Cell<bool>,
     pub has_definite_block_size: Cell<bool>,
@@ -81,8 +120,8 @@ pub(crate) struct UsedValues {
 
     // Keep these as separate cells: content_offset is read by placement code
     // even where has_content_offset is false.
-    pub has_content_offset: Cell<bool>,
-    pub content_offset: Cell<FfiCssPixelPoint>,
+    pub has_content_offset: SealableCell<bool>,
+    pub content_offset: SealableCell<FfiCssPixelPoint>,
 
     // Keep baseline payloads separate so resetting the presence bits does not
     // perturb the payloads observed by the existing derivation flow.
@@ -93,8 +132,8 @@ pub(crate) struct UsedValues {
 
     // Commit copies the coordinate payload even when the presence bit is
     // false, so this cannot be represented as Cell<Option<_>>.
-    pub has_containing_line_box_fragment: Cell<bool>,
-    pub containing_line_box_fragment: Cell<LineBoxFragmentCoordinate>,
+    pub has_containing_line_box_fragment: SealableCell<bool>,
+    pub containing_line_box_fragment: SealableCell<LineBoxFragmentCoordinate>,
 }
 
 impl Default for UsedValues {
@@ -102,39 +141,69 @@ impl Default for UsedValues {
         let zero = CssPixels::from_raw(0);
         Self {
             node: crate::layout::node_data::NodeSlotId::INVALID,
-            content_inline_size: Cell::new(zero),
-            content_block_size: Cell::new(zero),
-            margin_left: Cell::new(zero),
-            margin_right: Cell::new(zero),
-            margin_top: Cell::new(zero),
-            margin_bottom: Cell::new(zero),
-            border_left: Cell::new(zero),
-            border_right: Cell::new(zero),
-            border_top: Cell::new(zero),
-            border_bottom: Cell::new(zero),
-            padding_left: Cell::new(zero),
-            padding_right: Cell::new(zero),
-            padding_top: Cell::new(zero),
-            padding_bottom: Cell::new(zero),
-            inset_left: Cell::new(zero),
-            inset_right: Cell::new(zero),
-            inset_top: Cell::new(zero),
-            inset_bottom: Cell::new(zero),
+            content_inline_size: SealableCell::new(zero),
+            content_block_size: SealableCell::new(zero),
+            margin_left: SealableCell::new(zero),
+            margin_right: SealableCell::new(zero),
+            margin_top: SealableCell::new(zero),
+            margin_bottom: SealableCell::new(zero),
+            border_left: SealableCell::new(zero),
+            border_right: SealableCell::new(zero),
+            border_top: SealableCell::new(zero),
+            border_bottom: SealableCell::new(zero),
+            padding_left: SealableCell::new(zero),
+            padding_right: SealableCell::new(zero),
+            padding_top: SealableCell::new(zero),
+            padding_bottom: SealableCell::new(zero),
+            inset_left: SealableCell::new(zero),
+            inset_right: SealableCell::new(zero),
+            inset_top: SealableCell::new(zero),
+            inset_bottom: SealableCell::new(zero),
             has_definite_inline_size: Cell::new(false),
             has_definite_block_size: Cell::new(false),
             materialized_from_paintable: Cell::new(false),
             uses_collapsing_borders_model: Cell::new(false),
             inline_size_constraint: Cell::new(SizeConstraint::None),
             block_size_constraint: Cell::new(SizeConstraint::None),
-            has_content_offset: Cell::new(false),
-            content_offset: Cell::new(FfiCssPixelPoint::default()),
+            has_content_offset: SealableCell::new(false),
+            content_offset: SealableCell::new(FfiCssPixelPoint::default()),
             has_first_baseline: Cell::new(false),
             first_baseline: Cell::new(zero),
             has_last_baseline: Cell::new(false),
             last_baseline: Cell::new(zero),
-            has_containing_line_box_fragment: Cell::new(false),
-            containing_line_box_fragment: Cell::new(LineBoxFragmentCoordinate::default()),
+            has_containing_line_box_fragment: SealableCell::new(false),
+            containing_line_box_fragment: SealableCell::new(LineBoxFragmentCoordinate::default()),
         }
+    }
+}
+
+impl UsedValues {
+    /// Seals every field that commit emits as part of FfiCommittedBoxMetrics.
+    /// Called when the box is placed: after placement, none of these may
+    /// change again.
+    pub(crate) fn seal_committed_box_metrics(&self) {
+        self.content_inline_size.seal();
+        self.content_block_size.seal();
+        self.margin_left.seal();
+        self.margin_right.seal();
+        self.margin_top.seal();
+        self.margin_bottom.seal();
+        self.border_left.seal();
+        self.border_right.seal();
+        self.border_top.seal();
+        self.border_bottom.seal();
+        self.padding_left.seal();
+        self.padding_right.seal();
+        self.padding_top.seal();
+        self.padding_bottom.seal();
+        self.inset_left.seal();
+        self.inset_right.seal();
+        self.inset_top.seal();
+        self.inset_bottom.seal();
+        self.has_content_offset.seal();
+        self.content_offset.seal();
+        self.has_containing_line_box_fragment.seal();
+        self.containing_line_box_fragment.seal();
     }
 }
 

@@ -1079,7 +1079,6 @@ impl LayoutState {
         used.set_content_block_size(geometry.content_block_size);
         used.has_definite_inline_size.set(true);
         used.has_definite_block_size.set(true);
-        used.has_content_offset.set(true);
         used.content_offset.set(geometry.content_offset);
         used.margin_left.set(geometry.margin_left);
         used.margin_right.set(geometry.margin_right);
@@ -1100,6 +1099,11 @@ impl LayoutState {
         if self.node_facts(callbacks, node).is_svg_svg_box() {
             self.used_values_rare_data_mut(slot_index).svg_viewport_size = Some(geometry.svg_viewport_size);
         }
+
+        // Materialization is this box's placement: the previous paintable's
+        // committed geometry is final from the moment it is adopted.
+        used.has_content_offset.set(true);
+        used.seal_committed_box_metrics();
 
         let used = self.used_values.allocate(slot_index, used);
         self.register_anchor_candidate_if_carries_anchor_names(callbacks, node);
