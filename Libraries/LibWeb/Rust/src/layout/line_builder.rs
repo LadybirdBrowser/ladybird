@@ -468,9 +468,25 @@ impl<'builder, 'context, 'pass> LineBuilder<'builder, 'context, 'pass> {
         CssPixels::nearest_value_for_f32(style.font_ascent()) + (line_height - typographic) / 2
     }
 
+    // The style of the box that an inline-level box is aligned against, which is its parent inline box, or the block
+    // container for a box the containing block holds directly.
+    fn parent_style(&self, node: Node) -> StyleValues<'_> {
+        let parent = if node == self.context().containing_block {
+            NodeSlotId::INVALID
+        } else {
+            self.context().parent_node(node)
+        };
+        if parent.is_invalid() {
+            self.containing_style()
+        } else {
+            self.context().style(parent)
+        }
+    }
+
     fn block_offset_for_alignment(
         &self,
         style: StyleValues,
+        parent_style: StyleValues,
         metrics: VerticalAlignMetrics,
         line_box_baseline: CssPixels,
     ) -> CssPixels {
@@ -479,6 +495,8 @@ impl<'builder, 'context, 'pass> LineBuilder<'builder, 'context, 'pass> {
         if !style.vertical_align_is_keyword() {
             return alphabetic - style.vertical_align_value().to_px(metrics.line_height);
         }
+        // FIXME: middle, sub and super are defined against the parent inline box's font metrics too, but we use the
+        //        block container's instead.
         match style.vertical_align_keyword() {
             vertical_align::BASELINE => alphabetic,
             vertical_align::TOP => self.current_block_offset + metrics.effective_box_block_start_offset,
@@ -494,7 +512,19 @@ impl<'builder, 'context, 'pass> LineBuilder<'builder, 'context, 'pass> {
             }
             vertical_align::SUB => alphabetic + self.containing_style().font_size() / 5,
             vertical_align::SUPER => alphabetic - self.containing_style().font_size() / 3,
-            vertical_align::BOTTOM | vertical_align::TEXT_BOTTOM | vertical_align::TEXT_TOP => alphabetic,
+            vertical_align::BOTTOM => alphabetic,
+            vertical_align::TEXT_TOP => {
+                self.current_block_offset + line_box_baseline
+                    - CssPixels::nearest_value_for_f32(parent_style.font_ascent())
+                    + metrics.effective_box_block_start_offset
+            }
+            vertical_align::TEXT_BOTTOM => {
+                self.current_block_offset
+                    + line_box_baseline
+                    + CssPixels::nearest_value_for_f32(parent_style.font_descent())
+                    - metrics.block_size
+                    - metrics.effective_box_block_end_offset
+            }
             _ => unreachable!("invalid vertical-align keyword"),
         }
     }
@@ -639,7 +669,8 @@ impl<'builder, 'context, 'pass> LineBuilder<'builder, 'context, 'pass> {
                 metrics.effective_box_block_end_offset = used.margin_bottom.get() + used.border_box_bottom(false);
             }
             let new_inline_offset = inline_offset + snapshot.inline_offset;
-            let mut new_block_offset = self.block_offset_for_alignment(style, metrics, line_box_baseline);
+            let parent_style = self.parent_style(snapshot.style_source);
+            let mut new_block_offset = self.block_offset_for_alignment(style, parent_style, metrics, line_box_baseline);
             let own_alignment_is_line_relative = style.vertical_align_is_keyword()
                 && matches!(
                     style.vertical_align_keyword(),
@@ -670,10 +701,16 @@ impl<'builder, 'context, 'pass> LineBuilder<'builder, 'context, 'pass> {
                     }
                 }
                 let ancestor_metrics = self.inline_box_alignment_metrics(ancestor);
+                let ancestor_parent_style = self.parent_style(ancestor);
                 let baseline_style = ancestor_style.with_vertical_align_keyword(vertical_align::BASELINE);
                 new_block_offset +=
-                    self.block_offset_for_alignment(ancestor_style, ancestor_metrics, line_box_baseline)
-                        - self.block_offset_for_alignment(baseline_style, ancestor_metrics, line_box_baseline);
+                    self.block_offset_for_alignment(ancestor_style, ancestor_parent_style, ancestor_metrics, line_box_baseline)
+                        - self.block_offset_for_alignment(
+                            baseline_style,
+                            ancestor_parent_style,
+                            ancestor_metrics,
+                            line_box_baseline,
+                        );
                 ancestor = self.context().parent_node(ancestor);
             }
             {
