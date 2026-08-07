@@ -504,8 +504,24 @@ void CompositorState::viewport_size_updated(Web::Compositor::CompositorContextId
 
     context->viewport_size_updated(viewport_size, window_resize_in_progress);
     resize_backing_stores_if_needed(context_id, *context);
+    if (context->paused_debugger_overlay_visible()) {
+        if (auto viewport_rect = context->viewport_rect_for_ui_overlay(); viewport_rect.has_value())
+            schedule_present_frame(context_id, *context, *viewport_rect);
+    }
     if (context->should_shrink_backing_stores_after_resize())
         schedule_backing_store_shrink(context_id, *context);
+}
+
+void CompositorState::set_paused_debugger_overlay(Web::Compositor::CompositorContextId context_id, bool visible, double device_pixel_ratio, Optional<String> font_family, Optional<WebView::PausedDebuggerOverlayAction> hovered_action)
+{
+    auto* context = context_if_present(context_id);
+    if (!context)
+        return;
+    if (!context->set_paused_debugger_overlay(visible, device_pixel_ratio, move(font_family), hovered_action))
+        return;
+
+    if (auto viewport_rect = context->viewport_rect_for_ui_overlay(); viewport_rect.has_value())
+        schedule_present_frame(context_id, *context, *viewport_rect);
 }
 
 void CompositorState::set_display_metadata(Web::Compositor::CompositorContextId context_id, Optional<u64> display_id, double refresh_rate)

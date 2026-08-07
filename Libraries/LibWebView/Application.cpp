@@ -1070,6 +1070,15 @@ void Application::update_compositor_viewport(Web::Compositor::CompositorContextI
     m_compositor_client->async_viewport_size_updated(context_id, viewport_size, window_resize_in_progress);
 }
 
+void Application::update_compositor_paused_debugger_overlay(Web::Compositor::CompositorContextId context_id, bool visible, double device_pixel_ratio, Optional<String> font_family, Optional<u8> hovered_action)
+{
+    if (!can_send_compositor_process_ipc(m_compositor_client))
+        return;
+    VERIFY(m_compositor_client);
+
+    m_compositor_client->async_set_paused_debugger_overlay(context_id, visible, device_pixel_ratio, move(font_family), hovered_action);
+}
+
 void Application::update_compositor_display_metadata(Web::Compositor::CompositorContextId context_id, Optional<u64> display_id, double refresh_rate)
 {
     if (!can_send_compositor_process_ipc(m_compositor_client))
@@ -3303,12 +3312,12 @@ void Application::stop_listening_for_sources(DevTools::TabDescription const& des
     view->on_devtools_source_available = nullptr;
 }
 
-void Application::attach_debugger(DevTools::TabDescription const& description, OnDebuggerPaused on_paused) const
+void Application::attach_debugger(DevTools::TabDescription const& description, OnDebuggerPaused on_paused, OnDebuggerResumed on_resumed) const
 {
     auto view = ViewImplementation::find_view_by_id(description.id);
     if (!view.has_value())
         return;
-    view->attach_debugger(move(on_paused));
+    view->attach_debugger(move(on_paused), move(on_resumed));
 }
 
 void Application::configure_debugger(DevTools::TabDescription const& description, DebuggerConfiguration configuration) const

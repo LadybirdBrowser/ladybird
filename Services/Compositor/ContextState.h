@@ -29,6 +29,7 @@
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
 #include <LibWeb/Painting/ScrollState.h>
+#include <LibWebView/Forward.h>
 
 namespace Gfx {
 
@@ -126,6 +127,9 @@ public:
     Web::Compositor::PendingAsyncScrollUpdates take_pending_async_scroll_updates();
 
     void viewport_size_updated(Gfx::IntSize, Web::Compositor::WindowResizingInProgress);
+    bool set_paused_debugger_overlay(bool visible, double device_pixel_ratio, Optional<String> font_family, Optional<WebView::PausedDebuggerOverlayAction> hovered_action);
+    bool paused_debugger_overlay_visible() const { return m_paused_debugger_overlay_visible; }
+    Optional<Gfx::IntRect> viewport_rect_for_ui_overlay() const;
     bool should_shrink_backing_stores_after_resize() const;
     void schedule_backing_store_shrink(Function<void()>);
     void finish_window_resize();
@@ -183,7 +187,11 @@ private:
     bool is_present_blocked() const;
     bool can_render_frame() const;
     Web::Painting::AccumulatedVisualContextTree const& visual_context_tree_for_compositing() const;
-    void paint_current_display_list(Web::Painting::DisplayListPlayerSkia&, Gfx::PaintingSurface&, CompositedContextResolver const*, Optional<Gfx::IntRect> damage_rect = {});
+    enum class PaintUIOverlay : u8 {
+        No,
+        Yes,
+    };
+    void paint_current_display_list(Web::Painting::DisplayListPlayerSkia&, Gfx::PaintingSurface&, CompositedContextResolver const*, Optional<Gfx::IntRect> damage_rect = {}, PaintUIOverlay = PaintUIOverlay::Yes);
 
     CompositorStateWebContentClient& m_web_content_client;
     Web::Painting::CanvasSurfaceRegistry const& m_canvas_surface_registry;
@@ -220,6 +228,10 @@ private:
     Optional<Web::Painting::TransformData> m_async_visual_viewport_transform;
 
     Gfx::IntSize m_viewport_size;
+    bool m_paused_debugger_overlay_visible { false };
+    double m_paused_debugger_overlay_device_pixel_ratio { 1.0 };
+    Optional<String> m_paused_debugger_overlay_font_family;
+    Optional<WebView::PausedDebuggerOverlayAction> m_paused_debugger_overlay_hovered_action;
     Web::Compositor::WindowResizingInProgress m_window_resize_in_progress { Web::Compositor::WindowResizingInProgress::No };
     RefPtr<Core::Timer> m_backing_store_shrink_timer;
     Optional<u64> m_display_id;

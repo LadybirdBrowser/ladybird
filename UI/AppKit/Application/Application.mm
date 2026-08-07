@@ -41,6 +41,11 @@ Core::EventLoop& Application::create_platform_event_loop()
     return WebView::Application::create_platform_event_loop();
 }
 
+Optional<String> Application::ui_font_family() const
+{
+    return ns_string_to_string([[NSFont systemFontOfSize:[NSFont systemFontSize]] familyName]);
+}
+
 Optional<WebView::ViewImplementation&> Application::active_web_view() const
 {
     ApplicationDelegate* delegate = [NSApp delegate];

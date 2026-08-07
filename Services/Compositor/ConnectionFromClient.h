@@ -39,6 +39,7 @@ private:
     virtual Messages::CompositorControlServer::ConnectWebContentResponse connect_web_content() override;
     virtual void create_context(Web::Compositor::CompositorContextId, Optional<u64> page_id, i32 web_content_connection_id) override;
     virtual void viewport_size_updated(Web::Compositor::CompositorContextId, Gfx::IntSize, Web::Compositor::WindowResizingInProgress) override;
+    virtual void set_paused_debugger_overlay(Web::Compositor::CompositorContextId, bool visible, double device_pixel_ratio, Optional<String> font_family, Optional<u8> hovered_action) override;
     virtual void set_display_metadata(Web::Compositor::CompositorContextId, Optional<u64>, double) override;
     virtual void set_context_visibility(Web::Compositor::CompositorContextId, Web::Compositor::ContextVisibility) override;
     virtual Messages::CompositorControlServer::HandleMouseEventResponse handle_mouse_event(Web::Compositor::CompositorContextId, Web::MouseEvent) override;
