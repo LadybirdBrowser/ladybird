@@ -719,6 +719,9 @@ void FrameActor::send_document_event(StringView name, String const& url, Optiona
 
 void FrameActor::on_navigation_started(String url)
 {
+    if (auto thread = m_thread.strong_ref())
+        thread->resume(WebView::DebuggerResumeMode::Continue);
+
     if (auto inspector = m_inspector.strong_ref())
         inspector->on_navigation_started();
 
