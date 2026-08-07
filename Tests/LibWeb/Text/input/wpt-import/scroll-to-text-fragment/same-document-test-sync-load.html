@@ -1,0 +1,27 @@
+<!doctype html>
+<title>Same document navigation to text fragment directives before loading the document has finished</title>
+<meta charset=utf-8>
+<link rel="help" href="https://wicg.github.io/ScrollToTextFragment/">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="resources/util.js"></script>
+<script>
+// Ensure that a same-document text directive navigation works correctly
+// if the navigation is triggered before the page finishes loading.
+promise_test(async t => {
+  assert_implements(document.fragmentDirective, 'Text directive not implemented');
+
+  location.hash = ':~:text=line%20of%20text';
+  await t.step_wait(() => window.scrollY > 0, "Wait for scroll");
+  assert_true(isInViewport(document.getElementById('text')), 'Scrolled to text');
+}, 'Same-document text directive navigation before loading the document has finished');
+</script>
+<style>
+  div {
+    margin: 200vh 0 200vh 0;
+  }
+</style>
+
+<div id="text">
+  This is a line of text.
+</div>

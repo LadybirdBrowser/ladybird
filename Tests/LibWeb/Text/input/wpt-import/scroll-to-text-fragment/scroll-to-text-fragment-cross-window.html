@@ -1,0 +1,24 @@
+<!doctype html>
+<title>Text fragment anchor should not scroll if has other related pages</title>
+<meta charset=utf-8>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+<script src="../common/utils.js"></script>
+<script src="stash.js"></script>
+
+<script>
+async_test(t => {
+  const key = token();
+
+  test_driver.bless("Open a popup on A.com", () => {
+    window.open(`resources/popup1.sub.html?key=${key}`, "_blank", "width=300,height=300");
+  });
+
+  fetchResults(key, t.step_func(data => {
+    assert_equals(data.did_scroll, false, "scrolled to fragment");
+    t.done();
+  }), t.unreached_func("Stash fetch failed"));
+}, "Text fragment should not scroll if opened with window.open and a simultaneous navigation");
+</script>

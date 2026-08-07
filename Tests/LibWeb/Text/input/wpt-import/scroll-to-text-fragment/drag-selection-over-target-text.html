@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Drag Selection over a text directive</title>
+    <meta charset="utf-8">
+    <script src="../resources/testharness.js"></script>
+    <script src="../resources/testharnessreport.js"></script>
+    <script src="../resources/testdriver.js"></script>
+    <script src="../resources/testdriver-actions.js"></script>
+    <script src="../resources/testdriver-vendor.js"></script>
+
+</head>
+<body>
+<p>This is a sample text.</p>
+<script>
+async function rAF() {
+    return new Promise((resolve) => {
+        window.requestAnimationFrame(resolve);
+    });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+
+    const textElement = document.querySelector('p');
+
+    const rect = textElement.getBoundingClientRect();
+    const startX = rect.left + 5;
+    const startY = rect.top + 5;
+    const endX = rect.right - 5;
+    const endY = rect.top + 5;
+
+    promise_test(async t => {
+        const hashChange = new Promise(r => window.addEventListener('hashchange', r, { once: true }));
+
+        location.hash = ':~:text=This is a sample text';
+        await hashChange;
+
+        await new test_driver.Actions()
+            .pointerMove(startX, startY, { origin: 'viewport' })
+            .pointerDown({ button: 0 })
+            .pointerMove(endX, endY, { origin: 'viewport' })
+            .pointerUp({ button: 0 })
+            .send();
+
+        await rAF();
+
+        const selection = window.getSelection().toString();
+        assert_true(selection.endsWith("sample text."), "A Selection should be created.");
+    }, "Test drag and drop selection over a text directive");
+});
+</script>
+</body>
+</html>

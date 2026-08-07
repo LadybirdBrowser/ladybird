@@ -1,0 +1,45 @@
+<!doctype html>
+<title>Allow text fragments when the MIME type has a parameter</title>
+<meta charset=utf-8>
+<link rel="help" href="https://wicg.github.io/scroll-to-text-fragment/#text-directive-allowing-mime-type">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+<script src="../common/utils.js"></script>
+<script src="stash.js"></script>
+
+<script>
+// A "text directive allowing MIME type" is one whose essence is "text/html" or
+// "text/plain". The essence must be compared after stripping any MIME type
+// parameter, so a document served as e.g. "text/html; charset=utf-8" must still
+// process text directives.
+
+function rAF(win) {
+  return new Promise((resolve) => {
+    win.requestAnimationFrame(resolve);
+  });
+}
+
+function openPopup(url) {
+  return new Promise((resolve) => {
+    test_driver.bless('Open a URL with a text fragment directive', () => {
+      const popup = window.open(url, '_blank', 'width=300,height=300');
+      popup.onload = () => resolve(popup);
+    });
+  });
+}
+
+promise_test(async function (t) {
+  // resources/text-html-with-charset.html is served as "text/html; charset=utf-8".
+  const popup = await openPopup(`resources/text-html-with-charset.html#:~:text=target`);
+
+  // rAF twice in case there is any asynchronicity in scrolling to the target.
+  await rAF(popup);
+  await rAF(popup);
+
+  assert_true(popup.scrollY > 0, 'scrolled to fragment');
+
+  popup.close();
+}, 'Text directive allowed in text/html with a charset parameter');
+</script>

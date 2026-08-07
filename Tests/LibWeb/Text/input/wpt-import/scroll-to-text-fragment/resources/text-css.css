@@ -1,0 +1,132 @@
+
+      :root {
+        font-family: system-ui;
+      }
+      .valueFlex {
+        width: 100%;
+        box-sizing: border-box;
+        height: 40px;
+        border: 1px solid grey;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 10px;
+        background-color: lightgrey;
+
+      }
+      .valueFlex div {
+        height: 100%;
+        flex-grow: 1;
+      }
+      .valueFlex .value {
+        flex-grow: 4;
+        text-align: center;
+      }
+
+      .valueFlex div div {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .valueFlex .value.disabled {
+        background-color: tomato;
+      }
+      .valueFlex .value.disabled div:before {
+        content: "Disabled";
+      }
+
+      .valueFlex .value.enabled {
+        background-color: chartreuse;
+      }
+      .valueFlex .value.enabled div:before {
+        content: "Enabled";
+      }
+
+      .valueGrid {
+        border: 1px solid grey;
+        display: grid;
+        grid-template-columns: 1fr 3fr;
+      }
+
+      .valueGrid>div {
+        padding: 5px;
+        background-color: lightgrey;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .valueGrid>div>div {
+        overflow-wrap: anywhere;
+      }
+
+      .valueGrid div.value {
+        background-color: thistle;
+      }
+
+      .generator {
+        width: 100%;
+        box-sizing: border-box;
+        height: 40px;
+        border: 1px solid grey;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 10px;
+        background-color: lightgrey;
+      }
+
+      .items {
+        display: grid;
+        grid-template-columns: 1fr 4fr;
+        gap: 4px;
+      }
+
+      .box {
+        border: 1px solid black;
+      }
+
+      .box.label {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .box.listing {
+        padding: 10px;
+        display: grid;
+        grid-template-columns: 1fr 4fr;
+        row-gap: 2px;
+      }
+
+      .box.listing div {
+        background-color: lightgrey;
+      }
+      .box.listing .value {
+        font-style: italic;
+        overflow-wrap: anywhere;
+      }
+
+      .content {
+      }
+
+      hr {
+        margin-top: 40px;
+        margin-bottom: 40px;
+      }
+
+      #iframesContainer {
+        display:flex;
+        width: 100%;
+        border: 1px solid blue;
+      }
+
+      #iframesContainer div {
+        flex: 1;
+      }
+
+      #target {
+        width: 100px;
+      }
+

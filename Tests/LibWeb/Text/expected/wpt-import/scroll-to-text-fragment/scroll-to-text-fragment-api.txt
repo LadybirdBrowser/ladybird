@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Fail
+Fail	Scroll to text is feature detectable via document.fragmentDirective
+Fail	Setting document.fragmentDirective has no effect

@@ -1,0 +1,32 @@
+<!doctype html>
+<title>Fragment directive API</title>
+<meta charset=utf-8>
+<link rel="help" href="https://wicg.github.io/ScrollToTextFragment/">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+<script>
+test(t => {
+  assert_equals(typeof(document.fragmentDirective), 'object', 'document.fragmentDirective is defined');
+}, 'Scroll to text is feature detectable via document.fragmentDirective');
+
+test(t =>{
+  document.fragmentDirective = 'text=test';
+  assert_equals(window.scrollY, 0, 'Setting document.fragmentDirective did not have an effect on scroll position');
+  assert_equals(typeof(document.fragmentDirective), 'object', 'document.fragmentDirective is still an object type');
+  assert_equals(Object.keys(document.fragmentDirective).length, 0, 'document.fragmentDirective has no properties');
+}, 'Setting document.fragmentDirective has no effect');
+</script>
+<style>
+  body {
+    height: 3200px;
+  }
+  #text {
+    position: absolute;
+    top: 3000px;
+  }
+</style>
+<body>
+  <p id="text">This is a test page</p>
+</body>

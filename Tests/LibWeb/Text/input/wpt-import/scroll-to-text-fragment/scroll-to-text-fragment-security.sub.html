@@ -1,0 +1,80 @@
+<!doctype html>
+<title>Navigating to a text fragment directive</title>
+<meta charset=utf-8>
+<link rel="help" href="https://wicg.github.io/ScrollToTextFragment/">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+<script src="../common/utils.js"></script>
+<script src="stash.js"></script>
+<script>
+// Test security restriction for user activation
+for (let user_activation of [true, false]) {
+  promise_test(t => new Promise((resolve, reject) => {
+    let key = token();
+
+    if (user_activation) {
+      test_driver.bless('Open a URL with a text fragment directive', () => {
+        window.open(`scroll-to-text-fragment-target.html?key=${key}#:~:text=test`, '_blank', 'noopener');
+      });
+    } else {
+      window.open(`scroll-to-text-fragment-target.html?key=${key}#:~:text=test`, '_blank', 'noopener');
+    }
+
+    fetchResults(key, resolve, reject);
+  }).then(data => {
+    assert_equals(data.href.indexOf(':~:'), -1, 'Expected fragment directive to be stripped from the URL.');
+
+    if (user_activation) {
+      assert_equals(data.scrollPosition, 'text', 'Expected window.open() with a user activation to scroll to text.');
+    } else {
+      assert_equals(data.scrollPosition, 'top', 'Expected window.open() with no user activation to not activate text fragment directive.');
+    }
+  }), `Test that a text fragment directive requires a user activation (user_activation=${user_activation}).`);
+}
+
+const crossOriginTarget = "http://www.not-wpt.live:80/scroll-to-text-fragment/scroll-to-text-fragment-target.html";
+
+// Test security restriction for no window opener
+for (let noopener of [true, false]) {
+  promise_test(t => new Promise((resolve, reject) => {
+    let key = token();
+
+    test_driver.bless('Open a URL with a text fragment directive', () => {
+      if (noopener) {
+        window.open(`${crossOriginTarget}?key=${key}#:~:text=test`, '_blank', 'noopener');
+      } else {
+        window.open(`${crossOriginTarget}?key=${key}#:~:text=test`, '_blank');
+      }
+    });
+
+    fetchResults(key, resolve, reject);
+  }).then(data => {
+    assert_equals(data.href.indexOf(':~:'), -1, 'Expected fragment directive to be stripped from the URL.');
+
+    if (noopener) {
+      assert_equals(data.scrollPosition, 'text', 'Expected window.open() with noopener to scroll to text.');
+    } else {
+      assert_equals(data.scrollPosition, 'top', 'Expected window.open() with opener to not activate text fragment directive.');
+    }
+  }), `Test that a text fragment directive is not activated when there is a window opener (noopener=${noopener}).`);
+}
+
+// Test security restriction for no activation in an iframe
+promise_test(t => new Promise((resolve, reject) => {
+  let key = token();
+
+  let frame = document.createElement('iframe');
+  document.body.appendChild(frame);
+
+  test_driver.bless('Navigate the iframe with a text fragment directive', () => {
+    frame.src = `${crossOriginTarget}?key=${key}#:~:text=test`;
+  });
+
+  fetchResults(key, resolve, reject);
+}).then(data => {
+  assert_equals(data.href.indexOf(':~:'), -1, 'Expected fragment directive to be stripped from the URL.');
+  assert_equals(data.scrollPosition, 'top', 'Expected iframe navigation to not activate text fragment directive.');
+}), 'Test that a text fragment directive is not activated within an iframe.');
+</script>
