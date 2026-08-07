@@ -1488,7 +1488,6 @@ fn run_formatting_context<'pass>(
                     run.state.used_values(&run.callbacks, run.box_),
                     context.derived_baselines_of_root_box(),
                 );
-                context.place_floats_after_run();
                 result
             }
             FormattingContextImplementation::Flex(context) => {
