@@ -2,14 +2,14 @@ Harness status: OK
 
 Found 44 tests
 
-1 Pass
-43 Fail
+16 Pass
+28 Fail
 Pass	Test navigation with fragment: Empty hash should scroll to top.
-Fail	Test navigation with fragment: Text directive with invalid syntax (context terms without "-") should not parse as a text directive.
-Fail	Test navigation with fragment: Text directive with invalid syntax (only prefix, no start text) should not parse as a text directive.
-Fail	Test navigation with fragment: Text directive with invalid syntax (only suffix, no start text) should not parse as a text directive.
-Fail	Test navigation with fragment: Generic fragment directive with existing element fragment should scroll to element.
-Fail	Test navigation with fragment: Uppercase TEXT directive should not parse as a text directive.
+Pass	Test navigation with fragment: Text directive with invalid syntax (context terms without "-") should not parse as a text directive.
+Pass	Test navigation with fragment: Text directive with invalid syntax (only prefix, no start text) should not parse as a text directive.
+Pass	Test navigation with fragment: Text directive with invalid syntax (only suffix, no start text) should not parse as a text directive.
+Pass	Test navigation with fragment: Generic fragment directive with existing element fragment should scroll to element.
+Pass	Test navigation with fragment: Uppercase TEXT directive should not parse as a text directive.
 Fail	Test navigation with fragment: Exact text with no context should match text.
 Fail	Test navigation with fragment: Case-insensitive search with no context should match text.
 Fail	Test navigation with fragment: Exact text with prefix should match text.
@@ -20,31 +20,31 @@ Fail	Test navigation with fragment: Text range with no context should match text
 Fail	Test navigation with fragment: Text range with prefix should match text.
 Fail	Test navigation with fragment: Text range with suffix should match text.
 Fail	Test navigation with fragment: Text range with prefix and suffix should match text.
-Fail	Test navigation with fragment: Text range with non-matching endText should not match.
-Fail	Test navigation with fragment: Text range with non-matching startText should not match.
-Fail	Test navigation with fragment: Text range with prefix and nonmatching suffix should not match.
-Fail	Test navigation with fragment: Text range with nonmatching prefix and matching suffix should not match.
+Pass	Test navigation with fragment: Text range with non-matching endText should not match.
+Pass	Test navigation with fragment: Text range with non-matching startText should not match.
+Pass	Test navigation with fragment: Text range with prefix and nonmatching suffix should not match.
+Pass	Test navigation with fragment: Text range with nonmatching prefix and matching suffix should not match.
 Fail	Test navigation with fragment: Exact text with percent encoded spaces should match text.
-Fail	Test navigation with fragment: Non-whole-word exact text with spaces should not match.
+Pass	Test navigation with fragment: Non-whole-word exact text with spaces should not match.
 Fail	Test navigation with fragment: Fragment directive with percent encoded syntactical characters "&,-" should match text.
 Fail	Test navigation with fragment: Fragment directive with percent encoded non-ASCII unicode character should match text.
 Fail	Test navigation with fragment: Fragment directive with all TextMatchChars should match text.
 Fail	Test navigation with fragment: Multiple matching exact texts should match text.
-Fail	Test navigation with fragment: Multiple non-whole-word exact texts should not match.
+Pass	Test navigation with fragment: Multiple non-whole-word exact texts should not match.
 Fail	Test navigation with fragment: A non-matching text directive followed by a matching text directive should match and scroll into view the second text directive.
 Fail	Test navigation with fragment: Text directive followed by non-text directive should match text.
 Fail	Test navigation with fragment: Multiple text directives and a non-text directive should match text.
 Fail	Test navigation with fragment: Text directive with existing element fragment should match and scroll into view text.
 Fail	Test navigation with fragment: Text directive with nonexistent element fragment should match and scroll into view text.
-Fail	Test navigation with fragment: Non-matching text directive with existing element fragment should scroll to element.
-Fail	Test navigation with fragment: Non-matching text directive with nonexistent element fragment should not match and not scroll.
+Pass	Test navigation with fragment: Non-matching text directive with existing element fragment should scroll to element.
+Pass	Test navigation with fragment: Non-matching text directive with nonexistent element fragment should not match and not scroll.
 Fail	Test navigation with fragment: Multiple match text directive disambiguated by prefix should match the prefixed text.
 Fail	Test navigation with fragment: Multiple match text directive disambiguated by suffix should match the suffixed text.
 Fail	Test navigation with fragment: Multiple match text directive disambiguated by prefix and suffix should match the text with the given context.
 Fail	Test navigation with fragment: Text directive should match when context terms are separated by node boundaries.
 Fail	Test navigation with fragment: Text directive should match text within shadow DOM.
-Fail	Test navigation with fragment: Text directive should not scroll to hidden text.
-Fail	Test navigation with fragment: Text directive should not scroll to display none text.
+Pass	Test navigation with fragment: Text directive should not scroll to hidden text.
+Pass	Test navigation with fragment: Text directive should not scroll to display none text.
 Fail	Test navigation with fragment: Text directive should horizontally scroll into view.
 Fail	Test navigation with fragment: Text directive should horizontally scroll into view within a wide line.
 Fail	Test navigation with fragment: Text directive that spans a range larger than the viewport should scroll the start into view.

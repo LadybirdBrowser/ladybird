@@ -52,6 +52,7 @@
 #include <LibWeb/HTML/SandboxingFlagSet.h>
 #include <LibWeb/HTML/Scripting/ScriptRegistry.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
+#include <LibWeb/HTML/TextDirective.h>
 #include <LibWeb/HTML/VisibilityState.h>
 #include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/InvalidateDisplayList.h>
@@ -969,6 +970,10 @@ public:
     using IndicatedPart = Variant<Element*, TopOfTheDocument>;
     IndicatedPart determine_the_indicated_part() const;
 
+    // https://wicg.github.io/scroll-to-text-fragment/#applying-directives-to-a-document
+    Optional<Vector<HTML::TextDirective>> const& pending_text_directives() const { return m_pending_text_directives; }
+    void set_pending_text_directives(Optional<Vector<HTML::TextDirective>> directives) { m_pending_text_directives = move(directives); }
+
     u32 unload_counter() const { return m_unload_counter; }
 
     GC::Ref<HTML::SourceSnapshotParams> snapshot_source_snapshot_params() const;
@@ -1603,6 +1608,10 @@ private:
     GC::Ptr<DOMImplementation> m_implementation;
     GC::Ptr<FragmentDirective> m_fragment_directive;
     GC::Ptr<HTML::HTMLScriptElement> m_current_script;
+
+    // Each document has an associated pending text directives which is either null or a list of
+    // text directives. It is initially null.
+    Optional<Vector<HTML::TextDirective>> m_pending_text_directives;
 
     u32 m_ignore_destructive_writes_counter { 0 };
 

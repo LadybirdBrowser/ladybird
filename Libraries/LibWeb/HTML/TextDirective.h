@@ -11,6 +11,7 @@
 #include <AK/Utf16String.h>
 #include <AK/Vector.h>
 #include <LibURL/URL.h>
+#include <LibWeb/Export.h>
 
 namespace Web::HTML {
 
@@ -21,9 +22,9 @@ struct TextDirective {
     Optional<Utf16String> suffix;
 };
 
-Optional<String> remove_the_fragment_directive(URL::URL&);
-Optional<Utf16String> percent_decode_a_text_directive_term(Optional<StringView> term);
-Optional<TextDirective> parse_a_text_directive(StringView text_directive_value);
-Vector<TextDirective> parse_the_fragment_directive(StringView fragment_directive);
+WEB_API Optional<String> remove_the_fragment_directive(URL::URL&);
+WEB_API Optional<Utf16String> percent_decode_a_text_directive_term(Optional<StringView> term);
+WEB_API Optional<TextDirective> parse_a_text_directive(StringView text_directive_value);
+WEB_API Vector<TextDirective> parse_the_fragment_directive(StringView fragment_directive);
 
 }

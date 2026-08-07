@@ -18,6 +18,7 @@
 namespace WebView {
 
 static constexpr u32 SESSIONS_SCHEMA_BASELINE_VERSION = 1u;
+static constexpr u32 SESSIONS_SCHEMA_DIRECTIVE_STATE_VERSION = 2u;
 static constexpr u32 MAX_CLOSED_TABS = 25;
 static constexpr u32 MAX_CLOSED_WINDOWS = 5;
 static constexpr size_t MAX_ACTIVE_URL_BYTES = 8uz * 1024 * 1024;
@@ -189,6 +190,14 @@ ErrorOr<Database::MigrationOutcome> SessionStore::PersistedStorage::migrate_sche
 
                 CREATE UNIQUE INDEX IF NOT EXISTS SessionCspDirectiveValuesByDirectiveIndex
                 ON SessionCspDirectiveValues(directive_id, value_ordinal);
+            )#"sv,
+        },
+        {
+            .version = SESSIONS_SCHEMA_DIRECTIVE_STATE_VERSION,
+            .sql = R"#(
+                ALTER TABLE SessionEntries ADD COLUMN directive_state_namespace_id INTEGER NOT NULL DEFAULT 0;
+                ALTER TABLE SessionEntries ADD COLUMN directive_state_local_id INTEGER NOT NULL DEFAULT 0;
+                ALTER TABLE SessionEntries ADD COLUMN directive_state_value TEXT;
             )#"sv,
         },
     });
@@ -1065,7 +1074,9 @@ static bool session_history_entry_descriptors_match(Web::HTML::SessionHistoryEnt
         && a.navigation_api_key == b.navigation_api_key
         && a.navigation_api_id == b.navigation_api_id
         && a.scroll_restoration_mode == b.scroll_restoration_mode
-        && a.scroll_position_data.viewport_scroll_position == b.scroll_position_data.viewport_scroll_position;
+        && a.scroll_position_data.viewport_scroll_position == b.scroll_position_data.viewport_scroll_position
+        && a.directive_state_id == b.directive_state_id
+        && a.directive_state_value == b.directive_state_value;
 }
 
 static bool session_history_entry_descriptors_match(Vector<Web::HTML::SessionHistoryEntryDescriptor> const& a, Vector<Web::HTML::SessionHistoryEntryDescriptor> const& b)
