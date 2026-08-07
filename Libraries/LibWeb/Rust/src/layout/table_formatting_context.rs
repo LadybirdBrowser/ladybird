@@ -781,6 +781,9 @@ struct TableFormattingContext<'pass> {
     min_border_box_block_size_from_flex_item: Option<CssPixels>,
     needs_fixed_mode_row_measurement: bool,
     cells: Vec<TableCell>,
+    cell_inside_layout_inputs: Vec<AvailableSpace>,
+    cell_pre_layout_content_block_sizes: Vec<CssPixels>,
+    deferred_cell_inside_layouts: Vec<bool>,
     columns: Vec<Column>,
     rows: Vec<Row>,
     derived_baselines_of_root_box: Cell<DerivedBaselines>,
@@ -840,6 +843,9 @@ impl<'pass> TableFormattingContext<'pass> {
             min_border_box_block_size_from_flex_item: None,
             needs_fixed_mode_row_measurement: false,
             cells: Vec::new(),
+            cell_inside_layout_inputs: Vec::new(),
+            cell_pre_layout_content_block_sizes: Vec::new(),
+            deferred_cell_inside_layouts: Vec::new(),
             columns: Vec::new(),
             rows: Vec::new(),
             derived_baselines_of_root_box: Cell::new(DerivedBaselines::default()),
@@ -1838,6 +1844,9 @@ impl<'pass> TableFormattingContext<'pass> {
         // Determine the number of rows/columns the table requires.
         let table_grid = calculate_table_grid(self, self.table_box);
         self.cells = table_grid.cells;
+        self.cell_inside_layout_inputs = vec![AvailableSpace::default(); self.cells.len()];
+        self.cell_pre_layout_content_block_sizes = vec![CssPixels::default(); self.cells.len()];
+        self.deferred_cell_inside_layouts = vec![false; self.cells.len()];
         self.rows = table_grid.rows;
         self.columns = vec![Column::default(); table_grid.column_count];
         for cell in &self.cells {
@@ -1930,6 +1939,7 @@ impl<'pass> TableFormattingContext<'pass> {
         cell: TableCell,
         used: &UsedValues,
         inner: AvailableSpace,
+        adopt_automatic_content_block_size: bool,
     ) -> Option<MeasuredCellContent> {
         // The table formatting context owns the cell's outer geometry. Seed the inputs
         // needed to lay out its contents without copying placement or layout outputs.
@@ -1963,11 +1973,17 @@ impl<'pass> TableFormattingContext<'pass> {
         let result = measurement.run_with_layout_mode(
             cell.box_,
             self.layout_mode,
-            LayoutInput::new(inner, ContainingBlockConstraints::default(), ParticipationInParentFormattingContext::Item),
+            LayoutInput {
+                available_space: inner,
+                containing_block_constraints: ContainingBlockConstraints::default(),
+                content_box_position_in_bfc_root: None,
+                sizing: RootSizingDirectives {
+                    adopt_automatic_content_block_size,
+                    ..RootSizingDirectives::default()
+                },
+                participation: ParticipationInParentFormattingContext::Item,
+            },
         );
-        measurement
-            .root_used()
-            .set_content_block_size(result.automatic_content_block_size);
         Some(MeasuredCellContent {
             content_block_size: result.automatic_content_block_size,
             first_baseline: crate::layout::box_baseline(
@@ -2036,11 +2052,17 @@ impl<'pass> TableFormattingContext<'pass> {
 
             let outer_space = self.available_space;
             let inner = used.available_inner_space_or_constraints_from(outer_space);
+            self.cell_inside_layout_inputs[cell_index] = inner;
+            self.cell_pre_layout_content_block_sizes[cell_index] = used.content_block_size.get();
+            let defer_inside_layout = style.height().is_percentage()
+                || style.vertical_align_is_keyword()
+                || self.anonymous_cell_wraps_flex_or_grid(cell);
+            self.deferred_cell_inside_layouts[cell_index] = defer_inside_layout;
             let mut measured_baseline = None;
-            if style.height().is_percentage() {
-                // This cell's final inside layout happens in the second pass below; measure its
+            if defer_inside_layout {
+                // This cell's final inside layout happens once row heights are final; measure its
                 // content in a throwaway state instead of laying out the committing state twice.
-                if let Some(measured) = self.measure_cell(cell, used, inner) {
+                if let Some(measured) = self.measure_cell(cell, used, inner, true) {
                     used.set_content_block_size(measured.content_block_size);
                     measured_baseline = Some(measured.first_baseline);
                 }
@@ -2144,6 +2166,7 @@ impl<'pass> TableFormattingContext<'pass> {
             let cell_size = style.height().to_px(self.table_block_size);
             let used = self.used_values(cell.box_);
             used.set_content_block_size(cell_size - used.border_box_top(collapsed) - used.border_box_bottom(collapsed));
+            self.cell_pre_layout_content_block_sizes[cell_index] = used.content_block_size.get();
             if !self.rows[cell.row_index].is_collapsed {
                 self.rows[cell.row_index].reference_block_size =
                     self.rows[cell.row_index].reference_block_size.max(cell_size);
@@ -2156,10 +2179,12 @@ impl<'pass> TableFormattingContext<'pass> {
                     + inline_spacing * (cell.column_span - 1),
             );
             let inner = used.available_inner_space_or_constraints_from(self.available_space);
-            // The first pass only measured this cell in a throwaway state; this is its one and
-            // only inside layout in the committing state.
-            self.layout_inside_cell(run, cell, inner, false);
-            let baseline = self.box_baseline(cell.box_);
+            self.cell_inside_layout_inputs[cell_index] = inner;
+            // The first pass measured this cell at its automatic block size; measure it again at
+            // the percentage-resolved size to preserve the baseline its final inside layout will use.
+            let baseline = self
+                .measure_cell(cell, used, inner, false)
+                .map_or_else(|| self.box_baseline(cell.box_), |measured| measured.first_baseline);
             self.cells[cell_index].baseline = baseline;
             if !self.rows[cell.row_index].is_collapsed {
                 let border_size = used.border_box_block_size(collapsed);
@@ -2283,6 +2308,33 @@ impl<'pass> TableFormattingContext<'pass> {
         self.table_block_size = self.table_block_size.max(total);
     }
 
+    fn layout_deferred_cells_inside(&mut self, run: &FormattingContextRun<'pass>) {
+        // Deferred cells get their one and only committing inside layout here, once row
+        // block sizes are final.
+        for cell_index in 0..self.cells.len() {
+            if !self.deferred_cell_inside_layouts[cell_index] {
+                continue;
+            }
+            let cell = self.cells[cell_index];
+            let adopt_automatic_content_block_size = !self.style_facts(cell.box_).height().is_percentage();
+            let used = self.used_values(cell.box_);
+            let measured_content_block_size = used.content_block_size.get();
+            // The first pass adopted the measured automatic block size so row sizing could read
+            // it; restore the pre-layout size so the cell's children resolve percentages against
+            // the same basis the measurement saw.
+            used.set_content_block_size(self.cell_pre_layout_content_block_sizes[cell_index]);
+            let inner = self.cell_inside_layout_inputs[cell_index];
+            self.layout_inside_cell(run, cell, inner, adopt_automatic_content_block_size);
+            if adopt_automatic_content_block_size {
+                debug_assert_eq!(
+                    used.content_block_size.get(),
+                    measured_content_block_size,
+                    "measured and committed automatic block sizes diverged"
+                );
+            }
+        }
+    }
+
     fn compute_row_content_block_size(&mut self, cell: TableCell) -> CssPixels {
         // The block size of a cell is the sum of all spanned rows, as described in
         // https://www.w3.org/TR/css-tables-3/#bounding-box-assignment
@@ -2313,7 +2365,7 @@ impl<'pass> TableFormattingContext<'pass> {
         span + self.border_spacing_block() * (cell.row_span - 1)
     }
 
-    fn anonymous_cell_wraps_flex_or_grid(&mut self, cell: TableCell) -> bool {
+    fn anonymous_cell_wraps_flex_or_grid(&self, cell: TableCell) -> bool {
         if !self.node_facts(cell.box_).is_anonymous() {
             return false;
         }
@@ -2440,6 +2492,7 @@ impl<'pass> TableFormattingContext<'pass> {
         self.compute_table_block_size(run);
         self.distribute_block_size_to_rows();
         self.position_row_boxes();
+        self.layout_deferred_cells_inside(run);
         self.position_cell_boxes();
         table_used.set_content_block_size(self.table_block_size);
         // Derive baselines for the table internals bottom-up (rows, then row groups, then the table box)
