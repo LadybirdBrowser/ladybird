@@ -134,6 +134,7 @@ pub(crate) struct InlineBoxPieceData {
     pub(crate) first_fragment_index: u32,
     pub(crate) fragment_count: u32,
     pub(crate) border_box_rect: InlineCssPixelRect,
+    pub(crate) relpos_delta: FfiCssPixelPoint,
     pub(crate) present_edges: u8,
     pub(crate) is_geometry_only_placeholder: bool,
 }
@@ -456,6 +457,7 @@ pub(crate) fn compute(
                                 y: position.1,
                                 ..Default::default()
                             },
+                            relpos_delta: FfiCssPixelPoint::default(),
                             present_edges: edge_bits(horizontal, true, true),
                             is_geometry_only_placeholder: true,
                         },
@@ -514,6 +516,7 @@ pub(crate) fn compute(
                     first_fragment_index: line.first_fragment_index.unwrap_or(0),
                     fragment_count: line.fragment_count,
                     border_box_rect: rect,
+                    relpos_delta: FfiCssPixelPoint::default(),
                     present_edges: edge_bits(horizontal, has_low_edge, has_high_edge),
                     is_geometry_only_placeholder: false,
                 },
@@ -594,6 +597,7 @@ pub(crate) fn compute(
                 first_fragment_index: 0,
                 fragment_count: 0,
                 border_box_rect: placeholder_rect,
+                relpos_delta: FfiCssPixelPoint::default(),
                 present_edges: edge_bits(horizontal, true, true),
                 is_geometry_only_placeholder: true,
             },
@@ -1180,7 +1184,10 @@ impl<'context, 'pass> InlineFormattingContext<'context, 'pass> {
     pub(crate) fn run(&mut self) {
         assert!(self.facts(self.containing_block).children_are_inline());
         self.generate_line_boxes();
-        self.compute_inline_box_pieces();
+        if self.layout_mode == LayoutMode::Normal && !self.state.is_measurement() {
+            self.compute_inline_box_pieces();
+            self.fold_inline_ancestor_relative_insets_into_line_data();
+        }
         self.automatic_content_block_size = {
             let data = self.line_data();
             let lines = &data.line_boxes;
@@ -1209,12 +1216,6 @@ impl<'context, 'pass> InlineFormattingContext<'context, 'pass> {
     }
 
     fn compute_inline_box_pieces(&mut self) {
-        if self.layout_mode != LayoutMode::Normal {
-            return;
-        }
-        if self.state.is_measurement() {
-            return;
-        }
         let (pieces, inline_containing_block_rect_candidates) = compute(self);
         self.line_data_mut().inline_box_pieces = pieces;
         for candidate in inline_containing_block_rect_candidates {
@@ -1229,6 +1230,44 @@ impl<'context, 'pass> InlineFormattingContext<'context, 'pass> {
             self.state
                 .used_values_rare_data_for_node_mut(&self.callbacks, candidate.inline_containing_block)
                 .inline_containing_block_first_last_rect = Some(rect);
+        }
+    }
+
+    /// Runs after all line post-processing and after atomic-inline placement,
+    /// so everything that reads static offsets has already read them.
+    fn fold_inline_ancestor_relative_insets_into_line_data(&self) {
+        let mut data = self.line_data_mut();
+        // Every inline box that parents fragments gets a piece, so no pieces
+        // means no fragment has an inline ancestor and every chain is empty.
+        if data.inline_box_pieces.is_empty() {
+            return;
+        }
+        let mut accumulated_relative_offset_by_chain_start = HashMap::<Node, FfiCssPixelPoint>::new();
+        let mut accumulated_relative_offset_from = |first_ancestor: Node| -> FfiCssPixelPoint {
+            *accumulated_relative_offset_by_chain_start
+                .entry(first_ancestor)
+                .or_insert_with(|| {
+                    let chain = self.state.accumulated_relative_insets_from_inline_ancestor_chain(
+                        &self.callbacks,
+                        first_ancestor,
+                        NodeSlotId::INVALID,
+                    );
+                    FfiCssPixelPoint {
+                        x: chain.offset_x,
+                        y: chain.offset_y,
+                    }
+                })
+        };
+        for line in &mut data.line_boxes {
+            for fragment in &mut line.fragments {
+                if fragment.is_fully_truncated {
+                    continue;
+                }
+                fragment.relpos_delta = accumulated_relative_offset_from(self.callbacks.parent(fragment.layout_node));
+            }
+        }
+        for piece in &mut data.inline_box_pieces {
+            piece.relpos_delta = accumulated_relative_offset_from(piece.node);
         }
     }
 }
@@ -1384,22 +1423,6 @@ pub(crate) fn push_line_data(
     let Some(mut data) = state.line_data_mut_if_present(slot_index) else {
         return false;
     };
-    // Fragments and pieces are stored at their static positions; the relative
-    // insets contributed by inline-flow ancestor chains are applied here, at
-    // emission, so the stored line data never depends on ancestor geometry.
-    let mut accumulated_relative_offset_by_chain_start = HashMap::<Node, (CssPixels, CssPixels)>::new();
-    let mut accumulated_relative_offset_from = |first_ancestor: Node| -> (CssPixels, CssPixels) {
-        *accumulated_relative_offset_by_chain_start
-            .entry(first_ancestor)
-            .or_insert_with(|| {
-                let chain = state.accumulated_relative_insets_from_inline_ancestor_chain(
-                    callbacks,
-                    first_ancestor,
-                    NodeSlotId::INVALID,
-                );
-                (chain.offset_x, chain.offset_y)
-            })
-    };
     for line in &mut data.line_boxes {
         let committed_fragment_count = line
             .fragments
@@ -1421,8 +1444,7 @@ pub(crate) fn push_line_data(
                 continue;
             }
             let (x, y) = fragment.offset();
-            let (relative_dx, relative_dy) = accumulated_relative_offset_from(callbacks.parent(fragment.layout_node));
-            let (x, y) = (x + relative_dx, y + relative_dy);
+            let (x, y) = (x + fragment.relpos_delta.x, y + fragment.relpos_delta.y);
             let (width, height) = fragment.size();
             let glyphs = fragment
                 .glyphs
@@ -1465,9 +1487,6 @@ pub(crate) fn push_line_data(
         }
     }
     for piece in &data.inline_box_pieces {
-        // The chain starts at the piece's own node: a relative inline box
-        // shifts its own pieces.
-        let (relative_dx, relative_dy) = accumulated_relative_offset_from(piece.node);
         // SAFETY: The sink copies the POD piece synchronously.
         unsafe {
             (sink.emit_inline_box_piece)(
@@ -1477,8 +1496,8 @@ pub(crate) fn push_line_data(
                     first_fragment_index: piece.first_fragment_index,
                     fragment_count: piece.fragment_count,
                     border_box_rect: FfiCssPixelRect {
-                        x: piece.border_box_rect.x + relative_dx,
-                        y: piece.border_box_rect.y + relative_dy,
+                        x: piece.border_box_rect.x + piece.relpos_delta.x,
+                        y: piece.border_box_rect.y + piece.relpos_delta.y,
                         width: piece.border_box_rect.width,
                         height: piece.border_box_rect.height,
                     },

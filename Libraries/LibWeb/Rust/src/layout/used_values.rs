@@ -154,6 +154,8 @@ pub(crate) struct UsedValues {
     pub has_content_offset: SealableCell<bool>,
     pub content_offset: SealableCell<FfiCssPixelPoint>,
 
+    pub committed_offset_delta: SealableCell<FfiCssPixelPoint>,
+
     // Keep baseline payloads separate so resetting the presence bits does not
     // perturb the payloads observed by the existing derivation flow.
     pub has_first_baseline: Cell<bool>,
@@ -201,6 +203,7 @@ impl Default for UsedValues {
             block_size_constraint: Cell::new(SizeConstraint::None),
             has_content_offset: SealableCell::new(false),
             content_offset: SealableCell::new(FfiCssPixelPoint::default()),
+            committed_offset_delta: SealableCell::new(FfiCssPixelPoint::default()),
             has_first_baseline: Cell::new(false),
             first_baseline: Cell::new(zero),
             has_last_baseline: Cell::new(false),
@@ -238,6 +241,7 @@ impl UsedValues {
         self.inset_bottom.seal();
         self.has_content_offset.seal();
         self.content_offset.seal();
+        self.committed_offset_delta.seal();
         self.has_containing_line_box_fragment.seal();
         self.containing_line_box_fragment.seal();
     }
