@@ -1864,6 +1864,16 @@ impl<'pass> BlockFormattingContext<'pass> {
             );
         }
 
+        let block_container_used = self.used(block_container);
+        self.compute_inset(
+            run,
+            node,
+            LogicalSize {
+                inline_size: block_container_used.content_inline_size.get(),
+                block_size: block_container_used.content_block_size.get(),
+            },
+        );
+
         if let Some(position) = pending_position {
             self.place_child(node, position);
         }
@@ -1887,15 +1897,6 @@ impl<'pass> BlockFormattingContext<'pass> {
             .add_margin(self.used(node).margin_bottom.get());
         self.margin_state.borrow_mut().update_open_top_margin_group();
 
-        let block_container_used = self.used(block_container);
-        self.compute_inset(
-            run,
-            node,
-            LogicalSize {
-                inline_size: block_container_used.content_inline_size.get(),
-                block_size: block_container_used.content_block_size.get(),
-            },
-        );
         let used = self.used(node);
         *bottom_of_lowest_margin_box = (*bottom_of_lowest_margin_box)
             .max(used.content_offset.get().y + used.content_block_size.get() + used.margin_box_bottom(false));
