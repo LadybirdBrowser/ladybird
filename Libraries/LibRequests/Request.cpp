@@ -35,6 +35,25 @@ static Optional<Core::ImmutableBytes> map_body_file(int fd, u64 offset, u64 size
     return payload.release_value();
 }
 
+static size_t s_live_read_stream_count = 0;
+
+size_t ReadStream::live_count()
+{
+    return s_live_read_stream_count;
+}
+
+ReadStream::ReadStream(NonnullOwnPtr<Stream> stream, NonnullRefPtr<Core::Notifier> notifier)
+    : m_stream(move(stream))
+    , m_notifier(move(notifier))
+{
+    ++s_live_read_stream_count;
+}
+
+ReadStream::~ReadStream()
+{
+    --s_live_read_stream_count;
+}
+
 ErrorOr<NonnullOwnPtr<ReadStream>> ReadStream::create(int reader_fd)
 {
 #if defined(AK_OS_WINDOWS)
@@ -326,6 +345,7 @@ void Request::set_up_internal_stream_data(DataReceived on_data_available)
         auto has_received_all_reported_bytes = m_internal_stream_data->request_done && m_internal_stream_data->delivered_size >= m_internal_stream_data->total_size;
         if (!m_internal_stream_data->user_finish_called && (!m_internal_stream_data->read_stream || m_internal_stream_data->read_stream->is_eof() || has_received_all_reported_bytes)) {
             m_internal_stream_data->user_finish_called = true;
+            defer_teardown();
             user_on_finish(m_internal_stream_data->total_size, m_internal_stream_data->timing_info, m_internal_stream_data->network_error);
         }
     };
