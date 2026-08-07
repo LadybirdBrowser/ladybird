@@ -24,6 +24,8 @@ public:
 
     Subsampling() = default;
 
+    bool operator==(Subsampling const&) const = default;
+
     bool x() const { return m_x; }
     bool y() const { return m_y; }
 

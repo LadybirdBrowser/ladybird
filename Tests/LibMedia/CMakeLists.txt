@@ -5,6 +5,7 @@ set(TEST_SOURCES
     TestBufferedRanges.cpp
     TestCICP.cpp
     TestCodecConfigurations.cpp
+    TestCodecParameters.cpp
     TestDecodedAudioProducer.cpp
     TestDisplayingVideoSink.cpp
     TestFFmpegAudioNormalization.cpp
