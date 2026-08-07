@@ -38,6 +38,7 @@ struct TabSettings {
 struct BrowsingBehavior {
     bool enable_autoscroll { true };
     bool enable_primary_paste { true };
+    bool restore_previous_session { false };
 };
 
 struct SiteSetting {

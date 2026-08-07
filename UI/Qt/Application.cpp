@@ -7,6 +7,7 @@
 #include <LibCore/ArgsParser.h>
 #include <LibURL/InternalURLs.h>
 #include <LibWebView/HistoryStore.h>
+#include <LibWebView/SessionStore.h>
 #include <LibWebView/URL.h>
 #include <UI/Qt/Application.h>
 #include <UI/Qt/ChromeStyle.h>
@@ -457,6 +458,83 @@ BrowserWindow* Application::non_private_window_if_any() const
     return nullptr;
 }
 
+static bool is_restorable_window(BrowserWindow const& window)
+{
+    return window.isVisible()
+        && window.is_private() == WebView::IsPrivate::No
+        && !window.is_popup_window();
+}
+
+static WebView::SessionWindow session_window_from_browser_window(BrowserWindow const& window)
+{
+    WebView::SessionWindow session_window;
+    session_window.tabs.ensure_capacity(window.tab_count());
+
+    auto* current_tab = window.current_tab();
+    window.for_each_tab([&](Tab const& tab) {
+        auto const& url = tab.view().url();
+        if (url.scheme().is_empty())
+            return;
+        if (&tab == current_tab)
+            session_window.active_tab_index = session_window.tabs.size();
+        session_window.tabs.append({ .url = url });
+    });
+
+    session_window.x = window.pos().x();
+    session_window.y = window.pos().y();
+    session_window.width = window.width();
+    session_window.height = window.height();
+    session_window.maximized = window.isMaximized();
+
+    return session_window;
+}
+
+static WebView::Session collect_session(BrowserWindow const* closing_window = nullptr)
+{
+    WebView::Session session;
+
+    auto append_window = [&](BrowserWindow const& window) {
+        if (!is_restorable_window(window))
+            return;
+
+        auto session_window = session_window_from_browser_window(window);
+        if (session_window.tabs.is_empty())
+            return;
+
+        if (&window == Application::the().active_window_if_any())
+            session.active_window_index = session.windows.size();
+
+        session.windows.append(move(session_window));
+    };
+
+    if (closing_window)
+        append_window(*closing_window);
+
+    for (auto* widget : QApplication::topLevelWidgets()) {
+        auto* window = as_if<BrowserWindow>(widget);
+        if (!window || window == closing_window)
+            continue;
+        append_window(*window);
+    }
+
+    if (session.active_window_index >= session.windows.size())
+        session.active_window_index = 0;
+
+    return session;
+}
+
+static bool has_other_restorable_window(BrowserWindow const& closing_window)
+{
+    for (auto* widget : QApplication::topLevelWidgets()) {
+        auto* window = as_if<BrowserWindow>(widget);
+        if (!window || window == &closing_window)
+            continue;
+        if (is_restorable_window(*window))
+            return true;
+    }
+    return false;
+}
+
 WindowConfiguration Application::configuration_for_new_window() const
 {
     if (auto* previous_active_window = active_window_if_any(); previous_active_window && previous_active_window->isVisible()) {
@@ -558,14 +636,90 @@ void Application::quit()
     if (!confirm_cancel_active_downloads(active_window_if_any()))
         return;
 
+    if (WebView::Application::settings().browsing_behavior().restore_previous_session) {
+        auto session = collect_session();
+        if (auto result = WebView::save_session(profile(), session); result.is_error())
+            warnln("Unable to save session: {}", result.error());
+    }
+
+    m_is_quitting = true;
     QApplication::closeAllWindows();
 
     for (auto* widget : QApplication::topLevelWidgets()) {
-        if (as_if<BrowserWindow>(widget) && widget->isVisible())
+        if (as_if<BrowserWindow>(widget) && widget->isVisible()) {
+            m_is_quitting = false;
             return;
+        }
     }
 
     QApplication::quit();
+}
+
+bool Application::restore_previous_session()
+{
+    if (!WebView::Application::settings().browsing_behavior().restore_previous_session)
+        return false;
+
+    auto session = WebView::load_session(profile());
+    if (session.is_error()) {
+        warnln("Unable to load session: {}", session.error());
+        return false;
+    }
+    if (!session.value().has_value())
+        return false;
+
+    auto const& session_value = *session.value();
+    BrowserWindow* restored_active_window = nullptr;
+    for (size_t window_index = 0; window_index < session_value.windows.size(); ++window_index) {
+        auto const& session_window = session_value.windows[window_index];
+        Vector<URL::URL> urls;
+        urls.ensure_capacity(session_window.tabs.size());
+        for (auto const& tab : session_window.tabs)
+            urls.append(tab.url);
+
+        auto configuration = configuration_for_new_window();
+        if (session_window.x.has_value())
+            configuration.x = Web::DevicePixels { *session_window.x };
+        if (session_window.y.has_value())
+            configuration.y = Web::DevicePixels { *session_window.y };
+        if (session_window.width.has_value())
+            configuration.width = Web::DevicePixels { *session_window.width };
+        if (session_window.height.has_value())
+            configuration.height = Web::DevicePixels { *session_window.height };
+        configuration.maximized = session_window.maximized;
+
+        auto& window = new_window(urls, configuration);
+        window.activate_tab(static_cast<int>(session_window.active_tab_index));
+        if (window_index == session_value.active_window_index)
+            restored_active_window = &window;
+    }
+
+    if (restored_active_window) {
+        set_active_window(*restored_active_window);
+        restored_active_window->activateWindow();
+        restored_active_window->raise();
+    }
+
+    return true;
+}
+
+void Application::save_session_before_last_window_closes(BrowserWindow const& closing_window)
+{
+    if (m_is_quitting)
+        return;
+    if (!WebView::Application::settings().browsing_behavior().restore_previous_session)
+        return;
+    if (!is_restorable_window(closing_window))
+        return;
+    if (has_other_restorable_window(closing_window))
+        return;
+
+    auto session = collect_session(&closing_window);
+    if (session.is_empty())
+        return;
+
+    if (auto result = WebView::save_session(profile(), session); result.is_error())
+        warnln("Unable to save session: {}", result.error());
 }
 
 bool Application::confirm_cancel_active_downloads(QWidget* parent)

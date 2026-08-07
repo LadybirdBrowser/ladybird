@@ -127,8 +127,9 @@ public:
 
     WebContentView& view() const { return m_current_tab->view(); }
     WebView::IsPrivate is_private() const { return m_is_private; }
+    bool is_popup_window() const { return m_is_popup_window == IsPopupWindow::Yes; }
 
-    int tab_count() { return m_tabs_container->count(); }
+    int tab_count() const { return m_tabs_container->count(); }
     int tab_index(Tab*);
 
     Tab& create_new_tab(Web::HTML::ActivateTab activate_tab, TabLocation);
@@ -147,6 +148,13 @@ public:
     {
         for (int i = 0; i < m_tabs_container->count(); ++i)
             callback(*m_tabs_container->tab(i));
+    }
+
+    template<typename Callback>
+    void for_each_tab(Callback&& callback) const
+    {
+        for (int i = 0; i < m_tabs_container->count(); ++i)
+            callback(const_cast<Tab const&>(*m_tabs_container->tab(i)));
     }
 
     void update_tabs_display();

@@ -128,8 +128,10 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
             configuration.x = last_position->x();
             configuration.y = last_position->y();
         }
-        auto& window = app->new_window(browser_options.urls, configuration);
-        window.setWindowTitle("Ladybird");
+        if (!browser_options.raw_urls.is_empty() || !app->restore_previous_session()) {
+            auto& window = app->new_window(browser_options.urls, configuration);
+            window.setWindowTitle("Ladybird");
+        }
     }
 
     return app->execute();

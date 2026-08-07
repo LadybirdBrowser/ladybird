@@ -1593,6 +1593,8 @@ void BrowserWindow::closeEvent(QCloseEvent* event)
     size_t recently_closed_window_active_tab_index { 0 };
 
     if (m_is_private == WebView::IsPrivate::No) {
+        Application::the().save_session_before_last_window_closes(*this);
+
         if (m_should_record_closed_window_on_close && m_tabs_container->count() > 0) {
             recently_closed_window_urls = recently_closed_urls_for_window(*m_tabs_container);
             recently_closed_window_active_tab_index = static_cast<size_t>(m_tabs_container->current_index());

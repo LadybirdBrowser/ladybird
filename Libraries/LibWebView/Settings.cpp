@@ -49,6 +49,7 @@ static auto DEFAULT_LANGUAGE = "en"_string;
 static constexpr auto BROWSING_BEHAVIOR_KEY = "browsingBehavior"sv;
 static constexpr auto ENABLE_AUTOSCROLL_KEY = "enableAutoscroll"sv;
 static constexpr auto ENABLE_PRIMARY_PASTE_KEY = "enablePrimaryPaste"sv;
+static constexpr auto RESTORE_PREVIOUS_SESSION_KEY = "restorePreviousSession"sv;
 
 static constexpr auto SEARCH_ENGINE_KEY = "searchEngine"sv;
 static constexpr auto SEARCH_ENGINE_CUSTOM_KEY = "custom"sv;
@@ -351,6 +352,7 @@ JsonValue Settings::serialize_json() const
     JsonObject browsing_behavior;
     browsing_behavior.set(ENABLE_AUTOSCROLL_KEY, m_browsing_behavior.enable_autoscroll);
     browsing_behavior.set(ENABLE_PRIMARY_PASTE_KEY, m_browsing_behavior.enable_primary_paste);
+    browsing_behavior.set(RESTORE_PREVIOUS_SESSION_KEY, m_browsing_behavior.restore_previous_session);
     settings.set(BROWSING_BEHAVIOR_KEY, move(browsing_behavior));
 
     JsonArray custom_search_engines;
@@ -574,6 +576,8 @@ BrowsingBehavior Settings::parse_browsing_behavior(JsonValue const& settings)
         browsing_behavior.enable_autoscroll = *enable_autoscroll;
     if (auto enable_primary_paste = settings.as_object().get_bool(ENABLE_PRIMARY_PASTE_KEY); enable_primary_paste.has_value())
         browsing_behavior.enable_primary_paste = *enable_primary_paste;
+    if (auto restore_previous_session = settings.as_object().get_bool(RESTORE_PREVIOUS_SESSION_KEY); restore_previous_session.has_value())
+        browsing_behavior.restore_previous_session = *restore_previous_session;
 
     return browsing_behavior;
 }
@@ -913,6 +917,7 @@ ErrorOr<void> encode(Encoder& encoder, WebView::BrowsingBehavior const& browsing
 {
     TRY(encoder.encode(browsing_behavior.enable_autoscroll));
     TRY(encoder.encode(browsing_behavior.enable_primary_paste));
+    TRY(encoder.encode(browsing_behavior.restore_previous_session));
 
     return {};
 }
@@ -922,8 +927,9 @@ ErrorOr<WebView::BrowsingBehavior> decode(Decoder& decoder)
 {
     auto enable_autoscroll = TRY(decoder.decode<bool>());
     auto enable_primary_paste = TRY(decoder.decode<bool>());
+    auto restore_previous_session = TRY(decoder.decode<bool>());
 
-    return WebView::BrowsingBehavior { enable_autoscroll, enable_primary_paste };
+    return WebView::BrowsingBehavior { enable_autoscroll, enable_primary_paste, restore_previous_session };
 }
 
 }
