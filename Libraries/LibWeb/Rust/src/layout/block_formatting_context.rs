@@ -516,6 +516,25 @@ impl<'pass> BlockFormattingContext<'pass> {
             return None;
         }
 
+        // https://html.spec.whatwg.org/multipage/rendering.html#the-fieldset-and-legend-elements
+        // A rendered legend with a computed inline size of auto uses the
+        // fit-content size, resolved here so the legend's children are laid
+        // out against the used size rather than a provisional stretch size.
+        if style.width().is_auto() {
+            let container = self.containing_block(node);
+            if !container.is_invalid()
+                && self.facts(container).is_fieldset_box()
+                && self.facts(container).rendered_legend() == node
+            {
+                return Some(sizing.calculate_fit_content_size(
+                    node,
+                    SizingAxis::Inline,
+                    remaining_available_space,
+                    constraints,
+                ));
+            }
+        }
+
         let remaining_inline_size = remaining_available_space.inline_size.to_px_or_zero();
         let computed_margin_left = style.margin_left();
         let computed_margin_right = style.margin_right();
@@ -2030,17 +2049,6 @@ impl<'pass> BlockFormattingContext<'pass> {
             let mut dummy_bottom = CssPixels::default();
             self.layout_block_level_box(run, legend, fieldset, &mut dummy_bottom, child_input, None);
             self.block_offset_of_current_block_container.set(saved);
-        }
-
-        // If the computed value of 'inline-size' is 'auto', then the used value is the fit-content inline size.
-        if self.style(legend).width().is_auto() {
-            let inline_size = self.sizing().calculate_fit_content_size(
-                legend,
-                SizingAxis::Inline,
-                available_space,
-                child_input.containing_block_constraints,
-            );
-            self.used_mut(legend).set_content_inline_size(inline_size);
         }
 
         // The space allocated for the element's border on the block-start side is expected to be the element's
