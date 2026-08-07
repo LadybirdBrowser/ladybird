@@ -198,6 +198,7 @@ pub struct FfiPrincipalNodeEntryFacts {
     pub layout_node_is_attached: bool,
     pub is_svg_container: bool,
     pub requires_svg_container: bool,
+    pub is_svg_foreign_object: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -263,6 +264,7 @@ pub(crate) enum TopLayerEntryDecision {
 pub(crate) enum SvgEntryDecision {
     Continue,
     EnterSvgRoot,
+    EnterForeignContent,
     Skip,
 }
 
@@ -556,6 +558,8 @@ pub(crate) fn principal_node_entry_decision(
             SvgEntryDecision::EnterSvgRoot
         } else if facts.requires_svg_container && !context.has_svg_root {
             SvgEntryDecision::Skip
+        } else if facts.is_svg_foreign_object {
+            SvgEntryDecision::EnterForeignContent
         } else {
             SvgEntryDecision::Continue
         };
@@ -895,6 +899,8 @@ fn update_svg_resource(
     prior_context_value: bool,
 ) {
     context.layout_svg_mask_or_clip_path = true;
+    let prior_has_svg_root = context.has_svg_root;
+    context.has_svg_root = true;
     state.ancestor_stack.push(layout_node);
 
     if !ancestor_stack_contains_element_layout_node(host, state, resource) {
@@ -906,6 +912,7 @@ fn update_svg_resource(
     }
 
     assert!(state.ancestor_stack.pop().is_some());
+    context.has_svg_root = prior_has_svg_root;
     context.layout_svg_mask_or_clip_path = prior_context_value;
 }
 
@@ -1348,8 +1355,10 @@ fn update_principal_node_after_entry(
     let dom_node = update.dom_node;
 
     let prior_has_svg_root = update.context.has_svg_root;
-    if entry_decision.svg == SvgEntryDecision::EnterSvgRoot {
-        update.context.has_svg_root = true;
+    match entry_decision.svg {
+        SvgEntryDecision::EnterSvgRoot => update.context.has_svg_root = true,
+        SvgEntryDecision::EnterForeignContent => update.context.has_svg_root = false,
+        SvgEntryDecision::Continue | SvgEntryDecision::Skip => {}
     }
 
     let (has_layout_node, handled_display_contents) = if entry_decision.svg == SvgEntryDecision::Skip {
@@ -1504,7 +1513,10 @@ fn update_principal_node_after_entry(
         }
     }
 
-    if entry_decision.svg == SvgEntryDecision::EnterSvgRoot {
+    if matches!(
+        entry_decision.svg,
+        SvgEntryDecision::EnterSvgRoot | SvgEntryDecision::EnterForeignContent
+    ) {
         context.has_svg_root = prior_has_svg_root;
     }
 }
@@ -3457,6 +3469,7 @@ mod tests {
             layout_node_is_attached: true,
             is_svg_container: false,
             requires_svg_container: false,
+            is_svg_foreign_object: false,
         };
         let mut context = TreeBuilderContext::default();
         let decision = principal_node_entry_decision(facts, &context);
@@ -3480,6 +3493,15 @@ mod tests {
         let decision = principal_node_entry_decision(facts, &context);
         assert!(decision.should_create_layout_node);
         assert_eq!(decision.svg, SvgEntryDecision::EnterSvgRoot);
+
+        facts.is_svg_container = false;
+        facts.is_svg_foreign_object = true;
+        context.has_svg_root = true;
+        let decision = principal_node_entry_decision(facts, &context);
+        assert_eq!(decision.svg, SvgEntryDecision::EnterForeignContent);
+        context.has_svg_root = false;
+        let decision = principal_node_entry_decision(facts, &context);
+        assert_eq!(decision.svg, SvgEntryDecision::Skip);
     }
 
     #[test]
