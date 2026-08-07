@@ -1518,6 +1518,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         block_container: Node,
         bottom_of_lowest_margin_box: &mut CssPixels,
         input: LayoutInput,
+        containing_line_box_fragment: Option<LineBoxFragmentCoordinate>,
     ) {
         let available_space = input.available_space;
         let facts = self.facts(node);
@@ -1875,6 +1876,11 @@ impl<'pass> BlockFormattingContext<'pass> {
         );
 
         if let Some(position) = pending_position {
+            if let Some(coordinate) = containing_line_box_fragment {
+                let used = self.used_mut(node);
+                used.has_containing_line_box_fragment.set(true);
+                used.containing_line_box_fragment.set(coordinate);
+            }
             self.place_child(node, position);
         }
 
@@ -1927,6 +1933,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 block_container,
                 &mut bottom_of_lowest_margin_box,
                 child_input,
+                None,
             );
         }
         self.block_offset_of_current_block_container.set(saved);
@@ -1963,7 +1970,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             } else {
                 caption_input
             };
-            self.layout_block_level_box(run, child, wrapper, &mut bottom_of_lowest_margin_box, child_input);
+            self.layout_block_level_box(run, child, wrapper, &mut bottom_of_lowest_margin_box, child_input, None);
         }
         self.block_offset_of_current_block_container.set(saved);
         self.finish_block_level_children_layout(wrapper, input, available_space_for_children, bottom_of_lowest_margin_box);
@@ -2027,7 +2034,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 .block_offset_of_current_block_container
                 .replace(Some(CssPixels::default()));
             let mut dummy_bottom = CssPixels::default();
-            self.layout_block_level_box(run, legend, fieldset, &mut dummy_bottom, child_input);
+            self.layout_block_level_box(run, legend, fieldset, &mut dummy_bottom, child_input, None);
             self.block_offset_of_current_block_container.set(saved);
         }
 
@@ -2059,7 +2066,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             let saved = self.block_offset_of_current_block_container.replace(Some(extra_top));
             for child in self.children(fieldset) {
                 if child != legend {
-                    self.layout_block_level_box(run, child, fieldset, &mut bottom_of_lowest_margin_box, child_input);
+                    self.layout_block_level_box(run, child, fieldset, &mut bottom_of_lowest_margin_box, child_input, None);
                 }
             }
             self.block_offset_of_current_block_container.set(saved);
@@ -2269,12 +2276,23 @@ impl<'pass> BlockFormattingContext<'pass> {
         input: LayoutInput,
         line_builder: &mut LineBuilder<'_, '_, '_>,
     ) {
+        let line_index = line_builder.line_index_for_block_level_box();
         let current_block_offset = line_builder.current_block_offset();
         let saved = self
             .block_offset_of_current_block_container
             .replace(Some(current_block_offset));
         let mut dummy_bottom = CssPixels::default();
-        self.layout_block_level_box(run, node, containing_block, &mut dummy_bottom, input);
+        self.layout_block_level_box(
+            run,
+            node,
+            containing_block,
+            &mut dummy_bottom,
+            input,
+            Some(LineBoxFragmentCoordinate {
+                line_box_index: line_index,
+                fragment_index: 0,
+            }),
+        );
         // SAFETY: The builder remains live and no reference escaped.
         let block_bottom = self
             .block_offset_of_current_block_container
@@ -2283,6 +2301,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         self.block_offset_of_current_block_container.set(saved);
         line_builder.append_block_level_box(
             node,
+            line_index,
             block_bottom,
             self.margin_state.borrow().current_collapsed_margin(),
         );
