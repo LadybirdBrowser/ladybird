@@ -339,7 +339,19 @@ impl<'builder, 'context, 'pass> LineBuilder<'builder, 'context, 'pass> {
         self.begin_new_line(true, true, ForcedBreak::No);
     }
 
-    pub(crate) fn append_block_level_box(&mut self, node: Node, block_end: CssPixels, block_end_margin: CssPixels) {
+    pub(crate) fn line_index_for_block_level_box(&mut self) -> usize {
+        let line_index = self.ensure_last_line_index();
+        assert!(self.line(line_index).fragments.is_empty());
+        line_index
+    }
+
+    pub(crate) fn append_block_level_box(
+        &mut self,
+        node: Node,
+        line_index: usize,
+        block_end: CssPixels,
+        block_end_margin: CssPixels,
+    ) {
         let used = self.context().used(node);
         assert!(used.has_content_offset.get());
         let (inline_offset, block_offset) = to_logical(
@@ -359,7 +371,8 @@ impl<'builder, 'context, 'pass> LineBuilder<'builder, 'context, 'pass> {
             used.margin_box_block_size(false),
         )
         .0;
-        let line_index = self.ensure_last_line_index();
+        let ensured_line_index = self.ensure_last_line_index();
+        assert_eq!(line_index, ensured_line_index);
         assert!(self.line(line_index).fragments.is_empty());
         let fragment = LineBoxFragmentData::new(
             node,
@@ -391,12 +404,6 @@ impl<'builder, 'context, 'pass> LineBuilder<'builder, 'context, 'pass> {
                 marker.block_offset += current_block_offset;
             }
         }
-        let used = self.context().used_mut(node);
-        used.has_containing_line_box_fragment.set(true);
-        used.containing_line_box_fragment.set(LineBoxFragmentCoordinate {
-            line_box_index: line_index,
-            fragment_index: 0,
-        });
         self.pending_margin_follows_block_level_box = true;
         self.current_block_offset = block_end;
         self.max_block_size_on_current_line = CssPixels::default();
