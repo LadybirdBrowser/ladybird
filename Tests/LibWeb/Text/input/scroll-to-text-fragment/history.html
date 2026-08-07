@@ -1,0 +1,36 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Fragment directive session history</title>
+<link rel="help" href="https://wicg.github.io/scroll-to-text-fragment/#the-fragment-directive">
+<script src="../wpt-import/resources/testharness.js"></script>
+<script src="../wpt-import/resources/testharnessreport.js"></script>
+<script>
+promise_test(async t => {
+    history.replaceState(null, "", "#base");
+
+    let hashchangeCount = 0;
+    window.addEventListener("hashchange", () => ++hashchangeCount);
+
+    location.hash = "#base:~:text=first";
+    await new Promise(resolve => t.step_timeout(resolve, 0));
+    assert_equals(location.hash, "#base", "a directive-only navigation exposes the stripped fragment");
+    assert_equals(hashchangeCount, 0, "a directive-only navigation does not fire hashchange");
+
+    const changedHash = new Promise(resolve => window.addEventListener("hashchange", resolve, { once: true }));
+    location.hash = "#other:~:";
+    await changedHash;
+    assert_equals(location.hash, "#other", "a trailing-empty directive is stripped");
+    assert_equals(hashchangeCount, 1, "changing the stripped fragment fires hashchange");
+
+    history.pushState({ entry: "push" }, "", "#push:~:text=second");
+    assert_equals(location.hash, "#push", "pushState stores a stripped URL");
+
+    history.replaceState({ entry: "replace" }, "", "#replace:~:");
+    assert_equals(location.hash, "#replace", "replaceState stores a stripped trailing-empty URL");
+
+    const traversed = new Promise(resolve => window.addEventListener("popstate", resolve, { once: true }));
+    history.back();
+    await traversed;
+    assert_equals(location.hash, "#other", "traversal exposes the stripped history URL");
+}, "Fragment directives remain hidden across same-document history operations");
+</script>

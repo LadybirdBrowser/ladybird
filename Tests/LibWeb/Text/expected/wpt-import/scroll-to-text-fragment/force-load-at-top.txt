@@ -5,10 +5,10 @@ Found 8 tests
 4 Pass
 4 Fail
 Pass	force-load-at-top must block scroll on load from text fragment.
-Pass	force-load-at-top must block scroll on load from text fragment with element fallback.
+Fail	force-load-at-top must block scroll on load from text fragment with element fallback.
 Fail	force-load-at-top must block scroll on load from element fragment.
 Fail	force-load-at-top must block scroll on load from history scroll restoration.
 Fail	no-force-load-at-top must not block scroll on load from text fragment.
-Fail	no-force-load-at-top must not block scroll on load from text fragment with element fallback.
+Pass	no-force-load-at-top must not block scroll on load from text fragment with element fallback.
 Pass	no-force-load-at-top must not block scroll on load from element fragment.
 Pass	no-force-load-at-top must not block scroll on load from history scroll restoration.

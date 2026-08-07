@@ -100,6 +100,8 @@ static Web::HTML::SessionHistoryEntryDescriptor entry(i32 step, StringView url)
         .navigation_api_id = Utf16String::from_utf8(url),
         .scroll_restoration_mode = Web::HTML::ScrollRestorationMode::Auto,
         .scroll_position_data = {},
+        .directive_state_id = { 3, 2000 + static_cast<u64>(step) },
+        .directive_state_value = {},
     };
 }
 

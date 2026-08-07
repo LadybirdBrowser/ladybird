@@ -100,6 +100,8 @@ static Web::HTML::SessionHistoryEntryDescriptor create_test_entry(i32 step, URL:
         .navigation_api_id = {},
         .scroll_restoration_mode = Web::HTML::ScrollRestorationMode::Auto,
         .scroll_position_data = {},
+        .directive_state_id = test_document_state_id(2000 + static_cast<u64>(step)),
+        .directive_state_value = {},
     };
 }
 
@@ -119,6 +121,8 @@ static Web::HTML::PendingSessionHistoryEntryDescriptor pending_entry(Web::HTML::
         .navigation_api_id = move(entry.navigation_api_id),
         .scroll_restoration_mode = entry.scroll_restoration_mode,
         .scroll_position_data = move(entry.scroll_position_data),
+        .directive_state_id = entry.directive_state_id,
+        .directive_state_value = move(entry.directive_state_value),
     };
 }
 
@@ -134,6 +138,8 @@ static Web::HTML::SessionHistoryEntryDescriptor entry_with_step(Web::HTML::Pendi
         .navigation_api_id = move(entry.navigation_api_id),
         .scroll_restoration_mode = entry.scroll_restoration_mode,
         .scroll_position_data = move(entry.scroll_position_data),
+        .directive_state_id = entry.directive_state_id,
+        .directive_state_value = move(entry.directive_state_value),
     };
 }
 
@@ -230,6 +236,8 @@ static Web::HTML::PendingSessionHistoryEntryDescriptor pending_entry(StringView 
         .navigation_api_id = move(descriptor.navigation_api_id),
         .scroll_restoration_mode = descriptor.scroll_restoration_mode,
         .scroll_position_data = move(descriptor.scroll_position_data),
+        .directive_state_id = descriptor.directive_state_id,
+        .directive_state_value = move(descriptor.directive_state_value),
     };
 }
 
@@ -244,6 +252,8 @@ static Web::HTML::SameDocumentNavigationEntry same_document_entry(Web::HTML::Ses
         .navigation_api_id = move(entry.navigation_api_id),
         .scroll_restoration_mode = entry.scroll_restoration_mode,
         .scroll_position_data = move(entry.scroll_position_data),
+        .directive_state_id = entry.directive_state_id,
+        .directive_state_value = move(entry.directive_state_value),
     };
 }
 
@@ -261,6 +271,60 @@ static void run_canonical_history_operation(WebView::CanonicalTraversable& trave
     auto queue_promise = Core::Promise<Empty>::construct();
     traversable.run_history_operation_at_queue_position(operation_id, move(request), {}, {}, move(target_entry), queue_promise);
     VERIFY(queue_promise->is_resolved());
+}
+
+TEST_CASE(display_url_includes_fragment_directive_state)
+{
+    auto entry = create_test_entry(0, parse_url("https://example.test/#feature-detectability"sv));
+    entry.directive_state_value = "text=For-,feature%20detectability"_string;
+
+    EXPECT_EQ(
+        WebView::display_url_for_session_history_entry(entry),
+        parse_url("https://example.test/#feature-detectability:~:text=For-,feature%20detectability"sv));
+
+    entry.directive_state_value.clear();
+    EXPECT_EQ(
+        WebView::display_url_for_session_history_entry(entry),
+        parse_url("https://example.test/#feature-detectability"sv));
+}
+
+TEST_CASE(replace_navigation_updates_every_shared_directive_state_descriptor)
+{
+    Core::EventLoop event_loop;
+    WebView::CanonicalTraversable traversable;
+    traversable.set_id({ 9, 1 });
+    auto shared_directive_state_id = test_document_state_id(3000);
+
+    auto first_entry = entry(0, "https://example.test/first"sv);
+    first_entry.navigation_api_key = "first-key"_utf16;
+    first_entry.directive_state_id = shared_directive_state_id;
+    first_entry.directive_state_value = "text=old"_string;
+
+    auto second_entry = entry(1, "https://example.test/second"sv);
+    second_entry.navigation_api_key = "second-key"_utf16;
+    second_entry.directive_state_id = shared_directive_state_id;
+    second_entry.directive_state_value = "text=old"_string;
+
+    EXPECT(traversable.initialize_session_history_for_testing({ first_entry, second_entry }, { 0, 1 }, 1));
+
+    auto target_entry = second_entry;
+    target_entry.directive_state_value = "text=new"_string;
+    auto request = Web::FinalizeSameDocumentNavigationHistoryOperationParameters {
+        .navigable_id = traversable.id(),
+        .target_entry = same_document_entry(move(target_entry)),
+        .entry_to_replace = Web::HTML::SessionHistoryEntryIdentity {
+            .document_state_id = second_entry.document_state.id,
+            .navigation_api_id = second_entry.navigation_api_id,
+        },
+        .previous_entry_persisted_state = {},
+        .history_handling = Web::HTML::HistoryHandlingBehavior::Replace,
+        .user_involvement = Web::HTML::UserNavigationInvolvement::None,
+    };
+    auto operation_result = run_canonical_history_operation(traversable, move(request));
+    EXPECT_EQ(operation_result.result, Web::HTML::HistoryStepResult::Applied);
+
+    EXPECT_EQ(traversable.session_history().entry_at(0)->directive_state_value, "text=new"sv);
+    EXPECT_EQ(traversable.session_history().entry_at(1)->directive_state_value, "text=new"sv);
 }
 
 static void expect_entry(WebView::TraversableSessionHistory const& history, size_t index, i32 expected_step, StringView expected_url)
