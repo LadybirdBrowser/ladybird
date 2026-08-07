@@ -118,6 +118,9 @@ pub(crate) struct RootSizingDirectives {
     pub(crate) forced_content_inline_size: Option<CssPixels>,
     pub(crate) forced_content_block_size: Option<CssPixels>,
     pub(crate) forced_min_border_box_block_size: Option<CssPixels>,
+    // Input-only: the table formatting context supplies the cell's intrinsic block padding
+    // (the vertical-alignment stretch) before laying out the cell's contents.
+    pub(crate) table_cell_intrinsic_block_padding: Option<(CssPixels, CssPixels)>,
     // Input-only: the wrapper's BFC tells the table formatting context where the table box's
     // content box sits in the wrapper, so rows and row groups (whose containing block is the
     // wrapper) can be placed in wrapper coordinates.

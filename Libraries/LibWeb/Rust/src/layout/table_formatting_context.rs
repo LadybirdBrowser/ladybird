@@ -1912,6 +1912,7 @@ impl<'pass> TableFormattingContext<'pass> {
         cell: TableCell,
         input: AvailableSpace,
         adopt_automatic_content_block_size: bool,
+        intrinsic_block_padding: Option<(CssPixels, CssPixels)>,
     ) {
         let layout_input = LayoutInput {
             available_space: input,
@@ -1919,6 +1920,7 @@ impl<'pass> TableFormattingContext<'pass> {
             content_box_position_in_bfc_root: None,
             sizing: RootSizingDirectives {
                 adopt_automatic_content_block_size,
+                table_cell_intrinsic_block_padding: intrinsic_block_padding,
                 ..RootSizingDirectives::default()
             },
             participation: ParticipationInParentFormattingContext::Item,
@@ -2067,7 +2069,7 @@ impl<'pass> TableFormattingContext<'pass> {
                     measured_baseline = Some(measured.first_baseline);
                 }
             } else {
-                self.layout_inside_cell(run, cell, inner, true);
+                self.layout_inside_cell(run, cell, inner, true, None);
             }
             if self.needs_fixed_mode_row_measurement {
                 let min_size = style.min_height().to_px(participant_block_basis);
@@ -2311,12 +2313,14 @@ impl<'pass> TableFormattingContext<'pass> {
     fn layout_deferred_cells_inside(&mut self, run: &FormattingContextRun<'pass>) {
         // Deferred cells get their one and only committing inside layout here, once row
         // block sizes are final.
+        let collapsed = self.style_facts(self.table_box).border_collapse() != BORDER_COLLAPSE_SEPARATE;
         for cell_index in 0..self.cells.len() {
             if !self.deferred_cell_inside_layouts[cell_index] {
                 continue;
             }
             let cell = self.cells[cell_index];
             let adopt_automatic_content_block_size = !self.style_facts(cell.box_).height().is_percentage();
+            let intrinsic_block_padding = self.cell_intrinsic_block_padding(cell, collapsed);
             let used = self.used_values(cell.box_);
             let measured_content_block_size = used.content_block_size.get();
             // The first pass adopted the measured automatic block size so row sizing could read
@@ -2324,7 +2328,7 @@ impl<'pass> TableFormattingContext<'pass> {
             // the same basis the measurement saw.
             used.set_content_block_size(self.cell_pre_layout_content_block_sizes[cell_index]);
             let inner = self.cell_inside_layout_inputs[cell_index];
-            self.layout_inside_cell(run, cell, inner, adopt_automatic_content_block_size);
+            self.layout_inside_cell(run, cell, inner, adopt_automatic_content_block_size, intrinsic_block_padding);
             if adopt_automatic_content_block_size {
                 debug_assert_eq!(
                     used.content_block_size.get(),
@@ -2332,6 +2336,52 @@ impl<'pass> TableFormattingContext<'pass> {
                     "measured and committed automatic block sizes diverged"
                 );
             }
+        }
+    }
+
+    fn cell_intrinsic_block_padding(&mut self, cell: TableCell, collapsed: bool) -> Option<(CssPixels, CssPixels)> {
+        let row_size = self.compute_row_content_block_size(cell);
+        let used = self.used_values(cell.box_);
+        let style = self.style_facts(cell.box_);
+        // When a table cell is an anonymous wrapper around a flex or grid container (e.g., a <td> with display:flex is
+        // wrapped in an anonymous table-cell box per CSS Tables 3), the cell should be aligned to the top. This allows
+        // the flex/grid container to fill the cell and handle alignment of its children via its own properties.
+        if self.anonymous_cell_wraps_flex_or_grid(cell) {
+            return Some((CssPixels::default(), row_size - used.border_box_block_size(collapsed)));
+        }
+        if !style.vertical_align_is_keyword() {
+            return None;
+        }
+        // The following image shows various alignment lines of a row:
+        // https://www.w3.org/TR/css-tables-3/images/cell-align-explainer.png
+        // https://drafts.csswg.org/css2/#height-layout
+        // In the context of tables, values for vertical-align have the following meanings:
+        match style.vertical_align_keyword() {
+            vertical_align::MIDDLE => {
+                // The center of the cell is aligned with the center of the rows it spans.
+                let difference = row_size - used.border_box_block_size(collapsed);
+                Some((difference / 2, difference / 2))
+            }
+            vertical_align::TOP => {
+                // The top of the cell box is aligned with the top of the first row it spans.
+                Some((CssPixels::default(), row_size - used.border_box_block_size(collapsed)))
+            }
+            vertical_align::BOTTOM => {
+                // The bottom of the cell box is aligned with the bottom of the last row it spans.
+                Some((row_size - used.border_box_block_size(collapsed), CssPixels::default()))
+            }
+            vertical_align::SUB
+            | vertical_align::SUPER
+            | vertical_align::TEXT_BOTTOM
+            | vertical_align::TEXT_TOP
+            | vertical_align::BASELINE => {
+                // These values do not apply to cells; the cell is aligned at the baseline instead.
+
+                // The baseline of the cell is put at the same height as the baseline of the first of the rows it spans.
+                let padding_top = self.rows[cell.row_index].baseline - cell.baseline;
+                Some((padding_top, row_size - (used.border_box_block_size(collapsed) + padding_top)))
+            }
+            _ => panic!("invalid vertical-align keyword"),
         }
     }
 
@@ -2389,53 +2439,6 @@ impl<'pass> TableFormattingContext<'pass> {
             let cell = self.cells[cell_index];
             let used = self.used_values(cell.box_);
             let row_used = self.used_values(self.rows[cell.row_index].box_);
-            let row_size = self.compute_row_content_block_size(cell);
-            let style = self.style_facts(cell.box_);
-            // When a table cell is an anonymous wrapper around a flex or grid container (e.g., a <td> with display:flex is
-            // wrapped in an anonymous table-cell box per CSS Tables 3), the cell should be aligned to the top. This allows
-            // the flex/grid container to fill the cell and handle alignment of its children via its own properties.
-            let anonymous_wrapper = self.anonymous_cell_wraps_flex_or_grid(cell);
-            if anonymous_wrapper {
-                used.padding_bottom
-                    .set(used.padding_bottom.get() + row_size - used.border_box_block_size(collapsed));
-            } else if style.vertical_align_is_keyword() {
-                // The following image shows various alignment lines of a row:
-                // https://www.w3.org/TR/css-tables-3/images/cell-align-explainer.png
-                // https://drafts.csswg.org/css2/#height-layout
-                // In the context of tables, values for vertical-align have the following meanings:
-                match style.vertical_align_keyword() {
-                    vertical_align::MIDDLE => {
-                        // The center of the cell is aligned with the center of the rows it spans.
-                        let difference = row_size - used.border_box_block_size(collapsed);
-                        used.padding_top.set(used.padding_top.get() + difference / 2);
-                        used.padding_bottom.set(used.padding_bottom.get() + difference / 2);
-                    }
-                    vertical_align::TOP => {
-                        // The top of the cell box is aligned with the top of the first row it spans.
-                        used.padding_bottom
-                            .set(used.padding_bottom.get() + row_size - used.border_box_block_size(collapsed));
-                    }
-                    vertical_align::BOTTOM => {
-                        // The bottom of the cell box is aligned with the bottom of the last row it spans.
-                        used.padding_top
-                            .set(used.padding_top.get() + row_size - used.border_box_block_size(collapsed));
-                    }
-                    vertical_align::SUB
-                    | vertical_align::SUPER
-                    | vertical_align::TEXT_BOTTOM
-                    | vertical_align::TEXT_TOP
-                    | vertical_align::BASELINE => {
-                        // These values do not apply to cells; the cell is aligned at the baseline instead.
-
-                        // The baseline of the cell is put at the same height as the baseline of the first of the rows it spans.
-                        used.padding_top
-                            .set(used.padding_top.get() + self.rows[cell.row_index].baseline - cell.baseline);
-                        used.padding_bottom
-                            .set(used.padding_bottom.get() + row_size - used.border_box_block_size(collapsed));
-                    }
-                    _ => panic!("invalid vertical-align keyword"),
-                }
-            }
             // Compute cell position as specified by https://www.w3.org/TR/css-tables-3/#bounding-box-assignment:
             // left/top location is the sum of:
             // - for top: the height reserved for top captions (including margins), if any
