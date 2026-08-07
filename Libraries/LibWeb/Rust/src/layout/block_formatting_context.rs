@@ -195,6 +195,7 @@ pub(crate) struct BlockFormattingContext<'pass> {
     lowest_right_margin_edge: Cell<CssPixels>,
     lowest_floating_descendant_bottom_margin_edge: Cell<Option<CssPixels>>,
     derived_baselines_of_root_box: Cell<DerivedBaselines>,
+    trailing_collapsed_margin: Cell<Option<(Node, CssPixels)>>,
 }
 
 impl<'pass> BlockFormattingContext<'pass> {
@@ -213,6 +214,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             lowest_right_margin_edge: Cell::new(CssPixels::default()),
             lowest_floating_descendant_bottom_margin_edge: Cell::new(None),
             derived_baselines_of_root_box: Cell::new(DerivedBaselines::default()),
+            trailing_collapsed_margin: Cell::new(None),
         }
     }
 
@@ -2204,7 +2206,10 @@ impl<'pass> BlockFormattingContext<'pass> {
             return;
         }
 
-        // Assign collapsed margin left after children layout of formatting context to the last child box
+        // The run's trailing collapsed margin hangs below the last real in-flow child, but it
+        // aggregates margins of trailing collapse-through siblings laid out after that child was
+        // placed. It is run output, not a property of that child: the child keeps its own placed
+        // margin_bottom, and only the root's automatic block size consumes the aggregate.
         let collapsed_margin = self.margin_state.borrow().current_collapsed_margin();
         if collapsed_margin != CssPixels::default() {
             let flow_children_bottom_up = if root_facts.is_table_wrapper() {
@@ -2220,12 +2225,9 @@ impl<'pass> BlockFormattingContext<'pass> {
                 if self.margins_collapse_through(child) {
                     continue;
                 }
-                self.used_mut(child).margin_bottom.set(collapsed_margin);
+                self.trailing_collapsed_margin.set(Some((child, collapsed_margin)));
                 break;
             }
-            // The margin reassignment above changed a child's margin box, which the root's baselines may
-            // have been derived from (a scroll container child exports its bottom margin edge), so re-derive them.
-            self.compute_and_store_baselines(self.root);
         }
 
         if root_facts.is_list_item_box() {
@@ -2842,6 +2844,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             self.callbacks,
             self.root,
             self.lowest_floating_descendant_bottom_margin_edge.get(),
+            self.trailing_collapsed_margin.get(),
         )
     }
 }
@@ -2890,6 +2893,7 @@ pub(crate) fn automatic_block_size_for_bfc_root(
     callbacks: FfiLayoutFcCallbacks,
     root: Node,
     lowest_floating_descendant_bottom_margin_edge: Option<CssPixels>,
+    trailing_collapsed_margin: Option<(Node, CssPixels)>,
 ) -> CssPixels {
     let facts = state.node_facts(&callbacks, root);
     // https://drafts.csswg.org/css-contain-2/#containment-size
@@ -2938,9 +2942,17 @@ pub(crate) fn automatic_block_size_for_bfc_root(
                 let child_used = state.try_used_values(&callbacks, child);
                 // Children that have not been laid out yet contribute nothing to the automatic block size.
                 if let Some(child_used) = child_used {
+                    // Margins cannot collapse out of a BFC root: below the last real in-flow
+                    // child, the run's trailing collapsed margin (which folds in any trailing
+                    // collapse-through siblings) replaces that child's own bottom margin.
+                    let margin_bottom = match trailing_collapsed_margin {
+                        Some((last_real_child, aggregate)) if last_real_child == child => aggregate,
+                        _ => child_used.margin_bottom.get(),
+                    };
                     let child_bottom = child_used.content_offset.get().y
                         + child_used.content_block_size.get()
-                        + child_used.margin_box_bottom(false);
+                        + child_used.border_box_bottom(false)
+                        + margin_bottom;
                     bottom = Some(bottom.map_or(child_bottom, |value: CssPixels| value.max(child_bottom)));
                 }
             }

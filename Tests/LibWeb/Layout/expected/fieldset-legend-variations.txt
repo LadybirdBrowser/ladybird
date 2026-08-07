@@ -1,6 +1,6 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 761 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 737 0+0+16] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 737 0+0+8] children: not-inline
       FieldSetBox <fieldset> at [10,10] [0+2+0 780 0+2+0] [0+2+0 30 0+2+16] [BFC] children: not-inline
         LegendBox <legend> at [10,8] [0+0+0 56.5 0+0+0] [0+0+0 16 0+0+0] children: inline
           frag 0 from TextNode start: 0, length: 7, rect: [10,8 56.5x16] baseline: 12.796875

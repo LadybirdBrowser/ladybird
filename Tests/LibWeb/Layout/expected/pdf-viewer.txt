@@ -345,7 +345,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             BlockContainer <div#viewerContainer> at [0,32] positioned [0+0+0 800 0+0+0] [0+0+0 568 0+0+0] [BFC] children: not-inline
               BlockContainer <(anonymous)> at [0,32] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
                 TextNode <#text> (not painted)
-              BlockContainer <div#viewer.pdfViewer> at [0,33] [0+0+0 800 0+0+0] [0+0+0 151 0+0+-8] children: not-inline
+              BlockContainer <div#viewer.pdfViewer> at [0,33] [0+0+0 800 0+0+0] [0+0+0 151 0+0+0] children: not-inline
                 BlockContainer <div.page> at [233.5,42] positioned [224.5+9+0 333 0+9+224.5] [1+9+0 133 0+9+-8] children: not-inline
                   BlockContainer <div.canvasWrapper> at [233.5,42] [0+0+0 333 0+0+0] [0+0+0 133 0+0+0] [BFC] children: not-inline
                     CanvasBox <canvas> at [233.5,42] positioned [0+0+0 333 0+0+0] [0+0+0 133 0+0+0] children: not-inline

@@ -1,6 +1,6 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 74.875 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,21.4375] [8+0+0 784 0+0+8] [8+0+0 32 0+0+21.4375] children: inline
+    BlockContainer <body> at [8,21.4375] [8+0+0 784 0+0+8] [8+0+0 32 0+0+8] children: inline
       InlineNode <a> at [8,21.4375] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0]
         frag 0 from BlockContainer start: 0, length: 0, rect: [8,21.4375 784x32] baseline: 0
         InlineNode <span#foo> at [8,21.4375] [0+0+0 0 0+0+0] [0+0+0 16 0+0+0]

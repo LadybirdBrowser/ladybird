@@ -1,6 +1,6 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 48 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,16] [8+0+0 784 0+0+8] [8+0+0 16 0+0+16] children: not-inline
+    BlockContainer <body> at [8,16] [8+0+0 784 0+0+8] [8+0+0 16 0+0+8] children: not-inline
       BlockContainer <p> at [8,16] [0+0+0 784 0+0+0] [16+0+0 16 0+0+16] children: inline
         frag 0 from TextNode start: 0, length: 35, rect: [8,16 118.40625x16] baseline: 12.796875
             "𝑊𝑒𝑙𝑙, ℎ𝑒𝑙𝑙𝑜 𝑓𝑟𝑖𝑒𝑛𝑑𝑠!"
