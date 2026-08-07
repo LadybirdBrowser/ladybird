@@ -28,6 +28,8 @@ static Web::HTML::SessionHistoryEntryDescriptor make_entry(i32 step, StringView 
     entry.document_state.history_policy_container = Web::HTML::DocumentStateClient::Tag;
     entry.classic_history_api_state = Web::HTML::StorageSerializationRecord { MUST(ByteBuffer::copy({ &state_byte, 1 })) };
     entry.navigation_api_state = Web::HTML::StorageSerializationRecord { MUST(ByteBuffer::copy({ &state_byte, 1 })) };
+    entry.directive_state_id = { 2, document_state_id };
+    entry.directive_state_value = "text=target"_string;
     return entry;
 }
 
