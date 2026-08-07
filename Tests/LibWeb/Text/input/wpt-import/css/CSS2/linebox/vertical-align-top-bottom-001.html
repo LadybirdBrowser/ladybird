@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css2/visudet.html#propdef-vertical-align" />
+<link rel="author" href="mailto:kojii@chromium.org">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<style>
+section.test {
+  display: inline-block;
+  font-size: 20px;
+  line-height: 1.5;
+  font-family: Arial;
+  font-family: Ahem;
+}
+section.test > div {
+  background: blue;
+  margin-bottom: 1em;
+}
+.filler {
+  display: inline-block;
+  background: cyan;
+  height: 3em;
+  width: 1em;
+}
+.target {
+  display: inline-block;
+  background: orange;
+  width: 1em;
+  height: 1em;
+}
+div.top, section.top .target { vertical-align: top; }
+div.text-top, section.text-top .target { vertical-align: text-top; }
+div.text-bottom, section.text-bottom .target { vertical-align: text-bottom; }
+div.bottom, section.bottom .target { vertical-align: bottom; }
+.test .fail {
+  outline: red solid 5px;
+}
+</style>
+<body>
+<section class="test top">
+  <div><div class="filler"></div><div class="target" data-y="0"></div></div>
+  <div><div class="filler top"></div><div class="target" data-y="0"></div></div>
+  <div><div class="filler text-top"></div><div class="target" data-y="0"></div></div>
+  <div><div class="filler bottom"></div><div class="target" data-y="0"></div></div>
+  <div><div class="filler text-bottom"></div><div class="target" data-y="0"></div></div>
+</section>
+<section class="test text-top">
+  <div><div class="filler"></div><div class="target" data-y="44"></div></div>
+  <div><div class="filler top"></div><div class="target" data-y="5"></div></div>
+  <div><div class="filler text-top"></div><div class="target" data-y="5"></div></div>
+  <div><div class="filler bottom"></div><div class="target" data-y="35"></div></div>
+  <div><div class="filler text-bottom"></div><div class="target" data-y="40"></div></div>
+</section>
+<section class="test text-bottom">
+  <div><div class="filler"></div><div class="target" data-y="44"></div></div>
+  <div><div class="filler top"></div><div class="target" data-y="5"></div></div>
+  <div><div class="filler text-top"></div><div class="target" data-y="5"></div></div>
+  <div><div class="filler bottom"></div><div class="target" data-y="35"></div></div>
+  <div><div class="filler text-bottom"></div><div class="target" data-y="40"></div></div>
+</section>
+<section class="test bottom">
+  <div><div class="filler"></div><div class="target" data-y="49"></div></div>
+  <div><div class="filler top"></div><div class="target" data-y="40"></div></div>
+  <div><div class="filler text-top"></div><div class="target" data-y="45"></div></div>
+  <div><div class="filler bottom"></div><div class="target" data-y="40"></div></div>
+  <div><div class="filler text-bottom"></div><div class="target" data-y="45"></div></div>
+</section>
+<script>
+setup({explicit_done: true});
+document.fonts.ready.then(()=> {
+  for (let target of document.getElementsByClassName('target')) {
+    let container = target.parentElement;
+    let filler = container.firstElementChild;
+    let section = container.parentElement;
+    let pass = false;
+    test(() => {
+        let y = target.offsetTop - container.offsetTop;
+        assert_approx_equals(y, target.dataset.y, 0);
+        pass = true;
+    }, `${section.className.substr(5)}+${filler.className.substr(7)}`);
+    if (!pass)
+      container.classList.add('fail');
+  }
+  done();
+});
+</script>
+</body>

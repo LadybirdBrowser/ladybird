@@ -1,0 +1,25 @@
+Harness status: OK
+
+Found 20 tests
+
+20 Pass
+Pass	top+
+Pass	top+top
+Pass	top+text-top
+Pass	top+bottom
+Pass	top+text-bottom
+Pass	text-top+
+Pass	text-top+top
+Pass	text-top+text-top
+Pass	text-top+bottom
+Pass	text-top+text-bottom
+Pass	text-bottom+
+Pass	text-bottom+top
+Pass	text-bottom+text-top
+Pass	text-bottom+bottom
+Pass	text-bottom+text-bottom
+Pass	bottom+
+Pass	bottom+top
+Pass	bottom+text-top
+Pass	bottom+bottom
+Pass	bottom+text-bottom

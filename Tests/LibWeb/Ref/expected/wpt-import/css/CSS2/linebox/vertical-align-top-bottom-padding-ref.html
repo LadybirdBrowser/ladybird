@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<style>
+div {
+  margin-top: 50px;
+  font-size: 10px;
+  line-height: 1;
+}
+
+.inline-block {
+  display: inline-block;
+  height: 30px;
+  width: 30px;
+  background: blue;
+}
+
+.top .inline-block {
+  vertical-align: top;
+}
+
+.bottom .inline-block {
+  vertical-align: bottom;
+}
+
+</style>
+<body>
+  <div class="top">
+    <span>
+      Next
+      <span class="inline-block"></span>
+    </span>
+  </div>
+  <div class="bottom">
+    <span>
+      Next
+      <span class="inline-block"></span>
+    </span>
+  </div>
+</body>
