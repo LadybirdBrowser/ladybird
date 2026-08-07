@@ -35,6 +35,7 @@ Each property will have some set of these fields on it:
 | `positional-value-list-shorthand`   | No       | `false`    | Boolean. Whether this property is a "positional value list shorthand". See below.                           | `bool property_is_positional_value_list_shorthand(PropertyID)`                                                                                                                                                                                              |
 | `quirks`                            | No       | `[]`       | Array of strings. Some properties have special behavior in "quirks mode", which are listed here. See below. | `bool property_has_quirk(PropertyID, Quirk)`                                                                                                                                                                                                                |
 | `requires-computation`              | Yes      |            | String. When a property's value needs to be run through the computation process. See below.                 | `bool property_requires_computation_with_inherited_value(PropertyID)`<br/>`bool property_requires_computation_with_initial_value(PropertyID)`<br/>`bool property_requires_computation_with_cascaded_value(PropertyID)`                                      |
+| `style-group`                       | Yes      |            | String or array of strings. Which style group stores the longhand's computed value. See below.              | `u32 style_group_dependency_mask(PropertyID)`<br/>`ReadonlySpan<PropertyID> longhands_in_style_group(StyleGroupIndex)`                                                                                                                                      |
 | `valid-identifiers`                 | No       | `[]`       | Array of strings. Which keywords the property accepts. See below.                                           | `bool property_accepts_keyword(PropertyID, Keyword)`<br/>`Optional<Keyword> resolve_legacy_value_alias(PropertyID, Keyword)`                                                                                                                                |
 | `valid-types`                       | No       | `[]`       | Array of strings. Which value types the property accepts. See below.                                        | `bool property_accepts_type(PropertyID, ValueType)`                                                                                                                                                                                                         |
 | `needs-layout-for-getcomputedstyle` | No       | `false`    | Boolean. Whether this property requires up-to-date layout before it could be queried by getComputedStyle()  | `bool property_needs_layout_for_getcomputedstyle(PropertyID)`                                                                                                                                                                                               |
@@ -120,6 +121,16 @@ required.
 | `non-inherited-value` | Only run the computation process if the specified value was determined based on the initial or cascaded value |
 | `cascaded-value`      | Only run the computation process if the specified value was determined based on a cascaded value              |
 | `never`               | Always skip the computation process                                                                           |
+
+### `style-group`
+
+`ComputedValues` stores computed values in groups of related properties, which elements share with each other wherever
+possible. When two styles use the same group payload, every property in that group is known to be equal, which saves 
+memory and allows style diffing to skip work.
+
+Each longhand names the group that stores its value, Shorthands and aliases take their values from their longhands, so 
+they must not declare a group. If producing a property's computed style value also reads from other groups, you should 
+list all of the relevant groups.
 
 ### `valid-identifiers`
 
