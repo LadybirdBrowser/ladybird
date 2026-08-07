@@ -1816,6 +1816,7 @@ pub unsafe extern "C" fn rust_layout_run_root_layout(
         if !first_child.is_invalid() && state.node_facts(&callbacks, first_child).is_svg_svg_box() {
             viewport_used.set_content_inline_size(viewport_inline_size);
             viewport_used.set_content_block_size(viewport_block_size);
+            place_child(&state, &callbacks, root, FfiCssPixelPoint::default());
             state.create_used_values(&callbacks, first_child, root_constraints);
             root_for_layout = first_child;
         }
@@ -1841,6 +1842,7 @@ pub unsafe extern "C" fn rust_layout_run_root_layout(
             input,
             None,
         );
+        place_child(&state, &callbacks, root_for_layout, FfiCssPixelPoint::default());
         run_abspos_layout_pass(state_ref, callbacks, should_collect_devtools_layout_data);
         state.commit_replacing(root, std::ptr::null_mut(), &callbacks, sink);
     });
@@ -1884,6 +1886,7 @@ pub unsafe extern "C" fn rust_layout_compute_subtree_layout(
             let viewport_used = state.create_used_values(&callbacks, viewport, viewport_constraints);
             viewport_used.set_content_inline_size(viewport_inline_size);
             viewport_used.set_content_block_size(viewport_block_size);
+            place_child(&state, &callbacks, viewport, FfiCssPixelPoint::default());
         }
         let input = LayoutInput::new(
             AvailableSpace {
