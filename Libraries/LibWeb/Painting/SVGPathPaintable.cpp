@@ -76,20 +76,11 @@ void SVGPathPaintable::paint(DisplayListRecordingContext& context, PaintPhase ph
     auto& graphics_element = dom_node();
 
     auto const* svg_node = layout_box().first_ancestor_of_type<Layout::SVGSVGBox>();
-    auto svg_element_rect = svg_node->paintable_box()->absolute_rect();
-
-    auto offset = context.rounded_device_point(svg_element_rect.location()).to_type<int>().to_type<float>();
-    auto maybe_view_box = svg_node->dom_node().view_box();
+    auto offset = context.rounded_device_point(svg_node->paintable_box()->absolute_position()).to_type<int>().to_type<float>();
 
     auto paint_transform = computed_transforms().svg_to_device_pixels_transform(context);
     auto path = computed_path()->copy_transformed(paint_transform);
     path.offset(offset);
-
-    auto svg_viewport = [&] {
-        if (maybe_view_box.has_value())
-            return Gfx::FloatRect { maybe_view_box->min_x, maybe_view_box->min_y, maybe_view_box->width, maybe_view_box->height };
-        return Gfx::FloatRect { {}, svg_element_rect.size().to_type<float>() };
-    }();
 
     if (context.draw_svg_geometry_for_clip_path()) {
         // https://drafts.fxtf.org/css-masking/#ClipPathElement:
@@ -106,7 +97,7 @@ void SVGPathPaintable::paint(DisplayListRecordingContext& context, PaintPhase ph
     }
 
     SVG::SVGPaintContext paint_context {
-        .viewport = svg_viewport,
+        .viewport = svg_node->view_box_or_viewport_rect(),
         .path_bounding_box = computed_path()->bounding_box(),
         .paint_transform = paint_transform,
     };

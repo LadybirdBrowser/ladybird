@@ -30,4 +30,13 @@ CSS::SizeWithAspectRatio SVGSVGBox::natural_size() const
     return { metrics.width, metrics.height, metrics.aspect_ratio };
 }
 
+Gfx::FloatRect SVGSVGBox::view_box_or_viewport_rect() const
+{
+    if (auto view_box = dom_node().view_box(); view_box.has_value())
+        return { view_box->min_x, view_box->min_y, view_box->width, view_box->height };
+    if (auto paintable = paintable_box())
+        return { {}, paintable->absolute_rect().size().to_type<float>() };
+    return {};
+}
+
 }
