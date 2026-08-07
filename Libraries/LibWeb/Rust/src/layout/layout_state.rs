@@ -182,12 +182,11 @@ pub struct FfiCommittedBoxMetrics {
     pub has_containing_line_box_index: bool,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug)]
 pub(crate) enum LineFragmentLookup {
-    #[default]
     NotFound,
     LineOnly,
-    Found,
+    Found(crate::layout::FfiCssPixelPoint),
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -439,6 +438,12 @@ impl<'pass> NodeFacts<'pass> {
                     let display = style.display();
                     display.is_inline_outside() && display.is_flow_inside()
                 }))
+    }
+
+    /// A box whose committed geometry is its own single box record; a
+    /// fragmented inline's committed geometry is its line pieces instead.
+    pub(crate) fn is_non_fragmented_box(&self) -> bool {
+        self.is_box() && !self.is_fragmented_inline()
     }
 
     pub(crate) fn is_inline_flow_interrupting_block(&self) -> bool {
@@ -1431,58 +1436,39 @@ impl LayoutState {
         result
     }
 
-    /// Composes the offset the paintable receives: the containing line box
-    /// fragment override for atomic inlines, the box's own relative-position
-    /// inset, and the relative insets accumulated from a fragmented inline
-    /// ancestor chain (block-in-inline). Offsets materialized from a previous
-    /// layout's paintable already include all of these. Also returns the line
-    /// box index to record for atomic inlines whose containing line survived
-    /// line post-processing.
-    fn committed_content_offset(
+    /// The line box index to record for atomic inlines whose containing line
+    /// survived line post-processing.
+    fn containing_line_box_index(
         &self,
         callbacks: &FfiLayoutFcCallbacks,
         node: Node,
         used: &UsedValues,
-    ) -> (crate::layout::FfiCssPixelPoint, Option<usize>) {
-        let mut offset = used.content_offset.get();
-        let mut containing_line_box_index = None;
-        if !used.materialized_from_paintable.get() {
-            let facts = self.node_facts(callbacks, node);
-            if facts.is_box() && !facts.is_fragmented_inline() {
-                let (lookup, line_fragment_offset) = self.line_fragment_lookup(callbacks, used);
-                if lookup != LineFragmentLookup::NotFound {
-                    containing_line_box_index = Some(used.containing_line_box_fragment.get().line_box_index);
-                }
-                if lookup == LineFragmentLookup::Found {
-                    offset = line_fragment_offset;
-                }
-                if facts.is_relatively_positioned() {
-                    offset.x += used.inset_left.get();
-                    offset.y += used.inset_top.get();
-                }
-                if facts.is_in_flow() && facts.display().is_block_outside() {
-                    let chain = self.accumulated_relative_insets_from_inline_ancestor_chain(
-                        callbacks,
-                        callbacks.parent(node),
-                        callbacks.containing_block(node),
-                    );
-                    if chain.found_fragmented_inline_node {
-                        offset.x += chain.offset_x;
-                        offset.y += chain.offset_y;
-                    }
-                }
+    ) -> Option<usize> {
+        if used.materialized_from_paintable.get() {
+            return None;
+        }
+        let facts = self.node_facts(callbacks, node);
+        if !facts.is_non_fragmented_box() {
+            return None;
+        }
+        match self.line_fragment_lookup(callbacks, used) {
+            LineFragmentLookup::NotFound => None,
+            LineFragmentLookup::LineOnly => Some(used.containing_line_box_fragment.get().line_box_index),
+            LineFragmentLookup::Found(line_fragment_offset) => {
+                debug_assert_eq!(
+                    line_fragment_offset,
+                    used.content_offset.get(),
+                    "stored line fragment offset diverged from the placed offset (is_block_outside={})",
+                    facts.display().is_block_outside()
+                );
+                Some(used.containing_line_box_fragment.get().line_box_index)
             }
         }
-        (offset, containing_line_box_index)
     }
 
-    fn line_fragment_lookup(
-        &self,
-        callbacks: &FfiLayoutFcCallbacks,
-        used: &UsedValues,
-    ) -> (LineFragmentLookup, crate::layout::FfiCssPixelPoint) {
+    fn line_fragment_lookup(&self, callbacks: &FfiLayoutFcCallbacks, used: &UsedValues) -> LineFragmentLookup {
         if !used.has_containing_line_box_fragment.get() {
-            return (LineFragmentLookup::NotFound, crate::layout::FfiCssPixelPoint::default());
+            return LineFragmentLookup::NotFound;
         }
         // SAFETY: Commit traverses the still-live C++ layout tree
         // synchronously with the pass callback table.
@@ -1490,17 +1476,17 @@ impl LayoutState {
         assert!(!containing_block.is_invalid());
         let slot_index = callbacks.slot_index(containing_block);
         let Some(data) = self.line_data(slot_index) else {
-            return (LineFragmentLookup::NotFound, crate::layout::FfiCssPixelPoint::default());
+            return LineFragmentLookup::NotFound;
         };
         let coordinate = used.containing_line_box_fragment.get();
         let Some(line) = data.line_boxes.get(coordinate.line_box_index) else {
-            return (LineFragmentLookup::NotFound, crate::layout::FfiCssPixelPoint::default());
+            return LineFragmentLookup::NotFound;
         };
         let Some(fragment) = line.fragments.get(coordinate.fragment_index) else {
-            return (LineFragmentLookup::LineOnly, crate::layout::FfiCssPixelPoint::default());
+            return LineFragmentLookup::LineOnly;
         };
         let (x, y) = fragment.offset();
-        (LineFragmentLookup::Found, crate::layout::FfiCssPixelPoint { x, y })
+        LineFragmentLookup::Found(crate::layout::FfiCssPixelPoint { x, y })
     }
 
     fn commit_subtree(
@@ -1528,7 +1514,8 @@ impl LayoutState {
         if let Some(used) = used
             && !paintable.is_null()
         {
-            let (content_offset, containing_line_box_index) = self.committed_content_offset(callbacks, node, used);
+            let content_offset = point_add(used.content_offset.get(), used.committed_offset_delta.get());
+            let containing_line_box_index = self.containing_line_box_index(callbacks, node, used);
             // SAFETY: Every callback below copies its plain-data argument or
             // consumes one retained handle synchronously.
             unsafe {

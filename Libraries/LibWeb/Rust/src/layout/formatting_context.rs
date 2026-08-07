@@ -402,7 +402,41 @@ pub(crate) fn place_child(
     assert!(!used.has_content_offset.get());
     used.has_content_offset.set(true);
     used.content_offset.set(offset);
+    used.committed_offset_delta
+        .set(committed_offset_delta_at_placement(state, callbacks, node, used));
     used.seal_committed_box_metrics();
+}
+
+fn committed_offset_delta_at_placement(
+    state: &LayoutState,
+    callbacks: &FfiLayoutFcCallbacks,
+    node: Node,
+    used: &UsedValues,
+) -> FfiCssPixelPoint {
+    let mut delta = FfiCssPixelPoint::default();
+    if state.is_measurement() {
+        return delta;
+    }
+    let facts = state.node_facts(callbacks, node);
+    if !facts.is_non_fragmented_box() {
+        return delta;
+    }
+    if facts.is_relatively_positioned() {
+        delta.x += used.inset_left.get();
+        delta.y += used.inset_top.get();
+    }
+    if facts.is_in_flow() && facts.display().is_block_outside() {
+        let chain = state.accumulated_relative_insets_from_inline_ancestor_chain(
+            callbacks,
+            callbacks.parent(node),
+            callbacks.containing_block(node),
+        );
+        if chain.found_fragmented_inline_node {
+            delta.x += chain.offset_x;
+            delta.y += chain.offset_y;
+        }
+    }
+    delta
 }
 
 pub(crate) fn register_contained_abspos_child(
