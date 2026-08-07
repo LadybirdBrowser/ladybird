@@ -55,11 +55,11 @@ inline TrackType track_type_from_codec_id(CodecID codec)
     case CodecID::H263:
     case CodecID::H264:
     case CodecID::H265:
+    case CodecID::Theora:
     case CodecID::AV1:
         return TrackType::Video;
     case CodecID::MP3:
     case CodecID::AAC:
-    case CodecID::Theora:
     case CodecID::Vorbis:
     case CodecID::Opus:
     case CodecID::FLAC:
