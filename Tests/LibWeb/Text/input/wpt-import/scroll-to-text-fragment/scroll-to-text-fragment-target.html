@@ -1,0 +1,105 @@
+<!doctype html>
+<title>Navigating to a text fragment anchor</title>
+<script src="stash.js"></script>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<script>
+function isInView(element) {
+  let rect = element.getBoundingClientRect();
+  return rect.top >= 0 && rect.top <= window.innerHeight
+      && rect.left >= 0 && rect.left <= window.innerWidth;
+}
+
+function checkScroll() {
+  let position = 'unknown';
+  if (window.scrollY == 0)
+    position = 'top';
+  else if (isInView(document.getElementById('element')))
+    position = 'element';
+  else if (isInView(document.getElementById('text')))
+    position = 'text';
+  else if (isInView(document.getElementById('more-text')))
+    position = 'more-text';
+  else if (isInView(document.getElementById('cross-node-context')))
+    position = 'cross-node-context';
+  else if (isInView(document.getElementById('text-directive-parameters')))
+    position = 'text-directive-parameters';
+  else if (isInView(document.getElementById('shadow-parent')))
+    position = 'shadow-parent';
+  else if (isInView(document.getElementById('hidden')))
+    position = 'hidden';
+  else if (isInView(document.getElementById('horizontal-scroll')) && window.scrollX > 0)
+    position = 'horizontal-scroll';
+  else if (isInView(document.getElementById('inline-horizontal-scroll')) && window.scrollX > window.innerWidth)
+    position = 'inline-horizontal-scroll';
+
+  let target = document.querySelector(":target");
+
+  if (!target && position == 'shadow-parent') {
+    let shadow = document.getElementById("shadow-parent").shadowRoot.firstElementChild;
+    if (shadow.matches(":target")) {
+      target = shadow;
+      position = 'shadow';
+    }
+  }
+
+  let results = {
+    scrollPosition: position,
+    href: window.location.href,
+    performanceNavigationEntries: performance.getEntriesByType("navigation").map(e => e.name),
+    performanceResourcesEntries: performance.getEntriesByType("resource").map(e => e.name),
+    target: target ? target.id : 'undefined'
+  };
+
+  let key = (new URL(document.location)).searchParams.get("key");
+  stashResultsThenClose(key, results);
+}
+
+// Ensure two animation frames on load to test the fallback to element anchor,
+// which gets queued for the next frame if the text fragment is not found.
+window.onload = function() {
+  window.requestAnimationFrame(function() {
+    window.requestAnimationFrame(checkScroll);
+  })
+}
+</script>
+<style>
+  .scroll-section {
+    /* 100vh margin on top and bottom so only one section can be in view. */
+    margin: 100vh 0px;
+  }
+  #hidden {
+    visibility: hidden;
+  }
+  #horizontal-scroll {
+    margin-left: 2000px;
+  }
+  #display-none {
+    display: none;
+  }
+</style>
+<body>
+  <div id="element" class="scroll-section">Element</div>
+  <p id="text" class="scroll-section">
+    This is a test page !$'()*+./:;=?@_~ &,- &#x30cd;&#x30b3;
+    <br>
+    foo foo foo bar bar bar
+  </p>
+  <p id="more-text" class="scroll-section">More test page text</p>
+  <div class="scroll-section">
+    <div>
+      <p>prefix</p>
+      <p id="cross-node-context">test page</p>
+    </div>
+    <div><p>suffix</p></div>
+  </div>
+  <p id="text-directive-parameters" class="scroll-section">this,is,test,page</p>
+  <div id="shadow-parent" class="scroll-section"></div>
+  <script>
+    let shadow = document.getElementById("shadow-parent").attachShadow({mode: 'open'});
+    shadow.innerHTML = '<p id="shadow">shadow text</p>';
+  </script>
+  <p id="hidden" class="scroll-section">hidden text</p>
+  <p id="horizontal-scroll" class="scroll-section">horizontally scrolled text</p>
+  <p class="scroll-section" style="white-space:nowrap; word-spacing:50vw">filler filler filler filler <span id="inline-horizontal-scroll">inline-horizontal-target</span></p>
+  <p id="display-none" class="scroll-section">display none</p>
+</body>

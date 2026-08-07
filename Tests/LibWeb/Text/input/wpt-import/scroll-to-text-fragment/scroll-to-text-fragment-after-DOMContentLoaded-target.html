@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<title>
+  Navigating to a text fragment which is only available after `DOMContentLoaded`
+</title>
+<script src="stash.js"></script>
+<script>
+function checkScroll() {
+  const results = {hasScrolled: window.scrollY != 0};
+  let key = (new URL(document.location)).searchParams.get("key");
+  stashResultsThenClose(key, results);
+};
+window.onload = () => {
+  window.requestAnimationFrame(function() {
+    window.requestAnimationFrame(checkScroll);
+  })
+}
+</script>
+<body>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  document.body.innerHTML = `<div style="margin-top: 200vh">After DOMContentLoaded</div>`;
+});
+
+</script>
+</body>

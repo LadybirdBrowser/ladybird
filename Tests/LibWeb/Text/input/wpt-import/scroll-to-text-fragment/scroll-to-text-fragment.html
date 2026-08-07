@@ -1,0 +1,279 @@
+<!doctype html>
+<title>Navigating to a text fragment directive</title>
+<meta charset=utf-8>
+<link rel="help" href="https://wicg.github.io/ScrollToTextFragment/">
+<meta name="timeout" content="long">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+<script src="../common/utils.js"></script>
+<script src="stash.js"></script>
+<!--
+  This test suite performs scroll to text navigations to
+  scroll-to-text-fragment-target.html and then checks the results, which are
+  communicated back from the target page via the WPT Stash server (see stash.py).
+  This structure is necessary because scroll to text security restrictions
+  specifically restrict the navigator from being able to observe the result of
+  the navigation, e.g. the target page cannot have a window opener.
+-->
+<script>
+let test_cases = [
+  // Test non-text fragment directives
+  {
+    fragment: '#',
+    expect_position: 'top',
+    description: 'Empty hash should scroll to top'
+  },
+  {
+    fragment: '#:~:text=this,is,test,page',
+    expect_position: 'top',
+    description: 'Text directive with invalid syntax (context terms without "-") should not parse as a text directive'
+  },
+  {
+    fragment: '#:~:text=foo-',
+    expect_position: 'top',
+    description: 'Text directive with invalid syntax (only prefix, no start text) should not parse as a text directive'
+  },
+  {
+    fragment: '#:~:text=-foo',
+    expect_position: 'top',
+    description: 'Text directive with invalid syntax (only suffix, no start text) should not parse as a text directive'
+  },
+  {
+    fragment: '#element:~:directive',
+    expect_position: 'element',
+    description: 'Generic fragment directive with existing element fragment should scroll to element'
+  },
+  {
+    fragment: '#:~:TEXT=test',
+    expect_position: 'top',
+    description: 'Uppercase TEXT directive should not parse as a text directive'
+  },
+  // Test exact text matching, with all combinations of context terms
+  {
+    fragment: '#:~:text=test',
+    expect_position: 'text',
+    description:  'Exact text with no context should match text'
+  },
+  {
+    fragment: '#:~:text=TEST',
+    expect_position: 'text',
+    description:  'Case-insensitive search with no context should match text'
+  },
+  {
+    fragment: '#:~:text=this is a-,test',
+    expect_position: 'text',
+    description: 'Exact text with prefix should match text'
+  },
+  {
+    fragment: '#:~:text=test,-page',
+    expect_position: 'text',
+    description: 'Exact text with suffix should match text'
+  },
+  {
+    fragment: '#:~:text=this is a-,test,-page',
+    expect_position: 'text',
+    description: 'Exact text with prefix and suffix should match text'
+  },
+  // Test tricky edge case where prefix and query are equal
+  {
+    fragment: '#:~:text=foo-,foo,-bar',
+    expect_position: 'text',
+    description: 'Exact text with prefix and suffix and query equals prefix.'
+  },
+  // Test text range matching, with all combinations of context terms
+  {
+    fragment: '#:~:text=this,page',
+    expect_position: 'text',
+    description: 'Text range with no context should match text'
+  },
+  {
+    fragment: '#:~:text=this-,is,test',
+    expect_position: 'text',
+    description: 'Text range with prefix should match text'
+  },
+  {
+    fragment: '#:~:text=this,test,-page',
+    expect_position: 'text',
+    description: 'Text range with suffix should match text'
+  },
+  {
+    fragment: '#:~:text=this-,is,test,-page',
+    expect_position: 'text',
+    description: 'Text range with prefix and suffix should match text'
+  },
+  // Test partially non-matching text ranges
+  {
+    fragment: '#:~:text=this,none',
+    expect_position: 'top',
+    description: 'Text range with non-matching endText should not match'
+  },
+  {
+    fragment: '#:~:text=none,page',
+    expect_position: 'top',
+    description: 'Text range with non-matching startText should not match'
+  },
+  // Test non-matching context terms
+  {
+    fragment: '#:~:text=this-,is,page,-none',
+    expect_position: 'top',
+    description: 'Text range with prefix and nonmatching suffix should not match'
+  },
+  {
+    fragment: '#:~:text=none-,this,test,-page',
+    expect_position: 'top',
+    description: 'Text range with nonmatching prefix and matching suffix should not match'
+  },
+  // Test percent encoded characters
+  {
+    fragment: '#:~:text=this%20is%20a%20test%20page',
+    expect_position: 'text',
+    description: 'Exact text with percent encoded spaces should match text'
+  },
+  {
+    fragment: '#:~:text=test%20pag',
+    expect_position: 'top',
+    description: 'Non-whole-word exact text with spaces should not match'
+  },
+  {
+    fragment: '#:~:text=%26%2C%2D',
+    expect_position: 'text',
+    description: 'Fragment directive with percent encoded syntactical characters "&,-" should match text'
+  },
+  {
+    fragment: '#:~:text=%E3%83%8D%E3%82%B3',
+    expect_position: 'text',
+    description: 'Fragment directive with percent encoded non-ASCII unicode character should match text'
+  },
+  {
+    fragment: '#:~:text=!$\'()*+./:;=?@_~',
+    expect_position: 'text',
+    description: 'Fragment directive with all TextMatchChars should match text'
+  },
+  // Test multiple text directives
+  {
+    fragment: '#:~:text=this&text=test,page',
+    expect_position: 'text',
+    description: 'Multiple matching exact texts should match text'
+  },
+  {
+    fragment: '#:~:text=tes&text=age',
+    expect_position: 'top',
+    description: 'Multiple non-whole-word exact texts should not match'
+  },
+  {
+    fragment: '#:~:text=none&text=test%20page',
+    expect_position: 'text',
+    description: 'A non-matching text directive followed by a matching text directive should match and scroll into view the second text directive'
+  },
+  {
+    fragment: '#:~:text=test%20page&directive',
+    expect_position: 'text',
+    description: 'Text directive followed by non-text directive should match text'
+  },
+  {
+    fragment: '#:~:text=test&directive&text=page',
+    expect_position: 'text',
+    description: 'Multiple text directives and a non-text directive should match text'
+  },
+  // Test text directive behavior when there's an element fragment identifier
+  {
+    fragment: '#element:~:text=test',
+    expect_position: 'text',
+    description: 'Text directive with existing element fragment should match and scroll into view text'
+  },
+  {
+    fragment: '#pagestate:~:text=test',
+    expect_position: 'text',
+    description: 'Text directive with nonexistent element fragment should match and scroll into view text'
+  },
+  {
+    fragment: '#element:~:text=nomatch',
+    expect_position: 'element',
+    description: 'Non-matching text directive with existing element fragment should scroll to element'
+  },
+  {
+    fragment: '#pagestate:~:text=nomatch',
+    expect_position: 'top',
+    description: 'Non-matching text directive with nonexistent element fragment should not match and not scroll'
+  },
+  // Test ambiguous text matches disambiguated by context terms
+  {
+    fragment: '#:~:text=more-,test%20page',
+    expect_position: 'more-text',
+    description: 'Multiple match text directive disambiguated by prefix should match the prefixed text'
+  },
+  {
+    fragment: '#:~:text=test%20page,-text',
+    expect_position: 'more-text',
+    description: 'Multiple match text directive disambiguated by suffix should match the suffixed text'
+  },
+  {
+    fragment: '#:~:text=more-,test%20page,-text',
+    expect_position: 'more-text',
+    description: 'Multiple match text directive disambiguated by prefix and suffix should match the text with the given context'
+  },
+  // Test context terms separated by node boundaries
+  {
+    fragment: '#:~:text=prefix-,test%20page,-suffix',
+    expect_position: 'cross-node-context',
+    description: 'Text directive should match when context terms are separated by node boundaries'
+  },
+  // Test text directive within shadow DOM
+  {
+    fragment: '#:~:text=shadow%20text',
+    expect_position: 'shadow',
+    description: 'Text directive should match text within shadow DOM'
+  },
+  // Test text directive within hidden and display none elements. These cases should not scroll into
+  // view, but still "match" in that they should be highlighted or otherwise visibly indicated
+  // if they were to become visible.
+  {
+    fragment: '#:~:text=hidden%20text',
+    expect_position: 'top',
+    description: 'Text directive should not scroll to hidden text'
+  },
+  {
+    fragment: '#:~:text=display%20none',
+    expect_position: 'top',
+    description: 'Text directive should not scroll to display none text'
+  },
+  // Test horizontal scroll into view
+  {
+    fragment: '#:~:text=horizontally%20scrolled%20text',
+    expect_position: 'horizontal-scroll',
+    description: 'Text directive should horizontally scroll into view'
+  },
+  {
+    fragment: '#:~:text=inline-horizontal-target',
+    expect_position: 'inline-horizontal-scroll',
+    description: 'Text directive should horizontally scroll into view within a wide line'
+  },
+  {
+    fragment: '#:~:text=Element,This',
+    expect_position: 'element',
+    description: 'Text directive that spans a range larger than the viewport should scroll the start into view'
+  }
+];
+
+for (const test_case of test_cases) {
+  promise_test(t => new Promise((resolve, reject) => {
+    let key = token();
+
+    test_driver.bless('Open a URL with a text fragment directive', () => {
+      window.open(`scroll-to-text-fragment-target.html?key=${key}${test_case.fragment}`, '_blank', 'noopener');
+    });
+
+    fetchResults(key, resolve, reject);
+  }).then(data => {
+    // If the position is not 'top', the :target element should be the positioned element.
+    assert_true(data.scrollPosition == 'top' || data.target == data.scrollPosition);
+    assert_equals(data.href.indexOf(':~:'), -1, 'Expected fragment directive to be stripped from the URL.');
+    assert_true(data.performanceNavigationEntries.every(entry => entry.indexOf(':~:') === -1), 'Expected fragment directive to be stripped from the URL in navigation performance metrics.')
+    assert_true(data.performanceResourcesEntries.every(entry => entry.indexOf(':~:') === -1), 'Expected fragment directive to be stripped from the URL in resource performance metrics.')
+    assert_equals(data.scrollPosition, test_case.expect_position,
+                  `Expected ${test_case.fragment} (${test_case.description}) to scroll to ${test_case.expect_position}.`);
+  }), `Test navigation with fragment: ${test_case.description}.`);
+}
+</script>

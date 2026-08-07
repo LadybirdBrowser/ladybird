@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<title>Percent-encoding in a text directive</title>
+<meta charset=utf-8>
+<link rel="help" href="https://wicg.github.io/ScrollToTextFragment/">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+<script src="resources/util.js"></script>
+<style>
+  .target {
+    margin-top: 2000px;
+    margin-bottom: 2000px;
+  }
+</style>
+<script>
+
+function determineResult() {
+  if (window.scrollY == 0)
+    return 'noscroll';
+
+  for (let target of document.querySelectorAll('.target')) {
+    if (isInViewport(target)) {
+      return target.id;
+    }
+  }
+  return 'UNEXPECTED';
+}
+
+let test_cases = [
+  {
+    fragment: '#:~:text=%25',
+    expect: 'singlepercent',
+    description: 'Percent-encoded "%" char.'
+  },
+  {
+    fragment: '#:~:text=%',
+    expect: 'singlepercent',
+    description: 'Percent char without hex digits is invalid.'
+  },
+  {
+    fragment: '#:~:text=%%',
+    expect: 'doublepercent',
+    description: 'Percent char followed by percent char is invalid.'
+  },
+  {
+    fragment: '#:~:text=%F',
+    expect: 'percentf',
+    description: 'Single digit percent-encoding is invalid.'
+  },
+  {
+    fragment: '#:~:text=%25F',
+    expect: 'percentf',
+    description: 'Percent-encoding limited to two digits.'
+  },
+  {
+    fragment: '#:~:text=%25%25F',
+    expect: 'doublepercentf',
+    description: 'Percent-encoded "%%F"'
+  },
+  {
+    fragment: '#:~:text=%E2%9C%85',
+    expect: 'checkmark',
+    description: 'Percent-encoding multibyte codepoint (CHECKMARK).'
+  },
+];
+
+function runTests()  {
+  for (const test_case of test_cases) {
+    promise_test(t => new Promise(resolve => {
+      // Clear the fragment and reset the scroll offset to prepare for the next
+      // test case.
+      location = `${location.pathname}#`;
+      scrollTo(0, 0);
+
+      location = `${location.pathname}${test_case.fragment}`;
+      requestAnimationFrame( () => requestAnimationFrame(resolve) );
+    }).then(() => {
+      assert_equals(determineResult(), test_case.expect);
+    }), `Test navigation with fragment: ${test_case.description}.`);
+  }
+}
+</script>
+<body onload="runTests()">
+<p class="target" id="singlepercent">
+  %
+</p>
+<p class="target" id="doublepercent">
+  %%
+</p>
+<p class="target" id="percentf">
+  %F
+</p>
+<p class="target" id="doublepercentf">
+  %%f
+</p>
+<p class="target" id="checkmark">
+  <!-- U+2705 WHITE HEAVY CHECK MARK - UTF-8 percent encoding: %E2%9C%85 -->
+  &#x2705;
+</p>
+<p class="target" id="helloworld">
+  Hello world
+</p>
+
+</body>
