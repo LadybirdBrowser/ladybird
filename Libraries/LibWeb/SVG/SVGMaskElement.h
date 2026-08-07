@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibGfx/Forward.h>
 #include <LibWeb/SVG/AttributeParser.h>
 #include <LibWeb/SVG/SVGGraphicsElement.h>
 
@@ -34,16 +35,24 @@ public:
 
     virtual RefPtr<Layout::Node> create_layout_node(NonnullRefPtr<CSS::ComputedValues const>) override;
 
-    CSSPixelRect resolve_masking_area(CSSPixelRect const& mask_target) const;
+    CSSPixelRect resolve_masking_area(CSSPixelRect const& target_border_box, Gfx::FloatSize const& viewport_size, Gfx::AffineTransform const& user_space_to_css_pixels) const;
 
     MaskContentUnits mask_content_units() const;
     MaskUnits mask_units() const;
+    NumberPercentage mask_x() const;
+    NumberPercentage mask_y() const;
+    NumberPercentage mask_width() const;
+    NumberPercentage mask_height() const;
 
 private:
     SVGMaskElement(DOM::Document&, DOM::QualifiedName);
 
     Optional<MaskContentUnits> m_mask_content_units = {};
     Optional<MaskUnits> m_mask_units = {};
+    Optional<NumberPercentage> m_x = {};
+    Optional<NumberPercentage> m_y = {};
+    Optional<NumberPercentage> m_width = {};
+    Optional<NumberPercentage> m_height = {};
 };
 
 }

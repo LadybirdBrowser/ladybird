@@ -7,11 +7,13 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Layout/SVGClipBox.h>
 #include <LibWeb/Layout/SVGMaskBox.h>
+#include <LibWeb/Layout/SVGSVGBox.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/Blending.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/ResolvedCSSFilter.h>
 #include <LibWeb/Painting/SVGClipPaintable.h>
+#include <LibWeb/Painting/SVGForeignObjectPaintable.h>
 #include <LibWeb/Painting/SVGGraphicsPaintable.h>
 #include <LibWeb/Painting/SVGPaintable.h>
 #include <LibWeb/Painting/StackingContext.h>
@@ -41,9 +43,29 @@ static auto get_clip_box(SVG::SVGGraphicsElement const& graphics_element)
 Optional<CSSPixelRect> SVGMaskable::get_svg_mask_area() const
 {
     auto const& graphics_element = as<SVG::SVGGraphicsElement const>(*dom_node_of_svg());
-    if (auto* mask_box = get_mask_box(graphics_element))
-        return mask_box->dom_node().resolve_masking_area(mask_box->paintable_box()->absolute_border_box_rect());
-    return {};
+    auto* mask_box = get_mask_box(graphics_element);
+    if (!mask_box)
+        return {};
+
+    auto target_paintable = as<Layout::Box>(*graphics_element.unsafe_layout_node()).paintable_box();
+    if (!target_paintable)
+        return {};
+
+    // Percentages in a userSpaceOnUse masking area resolve against the SVG viewport — and the resulting user-space
+    // rectangle maps to CSS pixels relative to the containing svg box.
+    Gfx::FloatSize viewport_size {};
+    auto user_space_to_css_pixels = Gfx::AffineTransform {};
+    if (auto const* svg_box = mask_box->first_ancestor_of_type<Layout::SVGSVGBox>(); svg_box && svg_box->paintable_box()) {
+        auto const& svg_paintable = *svg_box->paintable_box();
+        if (auto view_box = svg_box->dom_node().view_box(); view_box.has_value())
+            viewport_size = { static_cast<float>(view_box->width), static_cast<float>(view_box->height) };
+        else
+            viewport_size = svg_paintable.absolute_rect().size().to_type<float>();
+        user_space_to_css_pixels.translate(svg_paintable.absolute_rect().location().to_type<float>());
+    }
+    user_space_to_css_pixels.multiply(target_svg_to_css_pixels_transform());
+
+    return mask_box->dom_node().resolve_masking_area(target_paintable->absolute_border_box_rect(), viewport_size, user_space_to_css_pixels);
 }
 
 Optional<CSSPixelRect> SVGMaskable::get_svg_clip_area() const
@@ -150,6 +172,17 @@ Gfx::AffineTransform SVGMaskable::target_svg_transform() const
     // Only SVGGraphicsPaintable carries an SVG transform; other targets (e.g. foreign objects) use identity.
     if (auto const* svg_graphics_paintable = as_if<SVGGraphicsPaintable>(*this))
         return svg_graphics_paintable->computed_transforms().svg_transform();
+    return {};
+}
+
+Gfx::AffineTransform SVGMaskable::target_svg_to_css_pixels_transform() const
+{
+    if (auto const* svg_graphics_paintable = as_if<SVGGraphicsPaintable>(*this))
+        return svg_graphics_paintable->computed_transforms().svg_to_css_pixels_transform();
+    // The contents of a mask applied to a foreign object are painted without the foreign object's SVG transform (see
+    // target_svg_transform above) — so the masking area likewise maps through the viewbox transform alone.
+    if (auto const* foreign_object_paintable = as_if<SVGForeignObjectPaintable>(*this))
+        return foreign_object_paintable->computed_transforms().svg_to_viewbox_transform();
     return {};
 }
 
