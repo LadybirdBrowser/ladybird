@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<style>
+@font-face {
+    font-family: Ahem;
+    src: url("../../Ref/data/fonts/Ahem.ttf");
+}
+body {
+    margin: 0;
+}
+.line {
+    font: 20px/20px Ahem;
+}
+.subtree {
+    vertical-align: top;
+}
+.sub-atomic {
+    display: inline-block;
+    height: 40px;
+    width: 20px;
+}
+.tall {
+    display: inline-block;
+    height: 60px;
+    width: 20px;
+}
+.bottom {
+    display: inline-block;
+    height: 25px;
+    vertical-align: bottom;
+    width: 20px;
+}
+.vertical {
+    font: 20px/20px Ahem;
+    height: 200px;
+    writing-mode: vertical-rl;
+}
+.middle {
+    vertical-align: middle;
+}
+.vertical-top {
+    display: inline-block;
+    height: 40px;
+    vertical-align: top;
+    width: 10px;
+}
+</style>
+
+<div class="line">A<span class="subtree">B<span class="sub-atomic"></span>C</span>D</div>
+
+<div class="line"><span class="tall"></span><span class="bottom"></span></div>
+
+<div class="line subtree">A<span class="tall"></span></div>
+
+<div class="vertical"><span class="middle">x<span class="vertical-top"></span></span></div>

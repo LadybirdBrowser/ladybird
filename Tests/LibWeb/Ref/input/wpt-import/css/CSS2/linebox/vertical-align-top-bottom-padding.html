@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/linebox/vertical-align-top-bottom-padding-ref.html">
+<link rel="help" href="https://drafts.csswg.org/css2/visudet.html#propdef-vertical-align" />
+<link rel="author" href="kojii@chromium.org">
+<style>
+div {
+  margin-top: 50px;
+  font-size: 10px;
+  line-height: 1;
+}
+
+.inline-block {
+  display: inline-block;
+  height: 30px;
+  width: 30px;
+  background: blue;
+}
+
+.top .padding {
+  padding-top: 20px;
+}
+
+.top .inline-block {
+  vertical-align: top;
+}
+
+.bottom .padding {
+  padding-bottom: 20px;
+}
+
+.bottom .inline-block {
+  vertical-align: bottom;
+}
+
+</style>
+<body>
+  <div class="top">
+    <span class="padding">
+      Next
+      <span class="inline-block"></span>
+    </span>
+  </div>
+  <div class="bottom">
+    <span class="padding">
+      Next
+      <span class="inline-block"></span>
+    </span>
+  </div>
+</body>

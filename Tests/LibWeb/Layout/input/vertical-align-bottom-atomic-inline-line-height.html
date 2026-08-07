@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<style>
+@font-face {
+    font-family: Ahem;
+    src: url("../../Ref/data/fonts/Ahem.ttf");
+}
+.line {
+    font: 20px/20px Ahem;
+}
+.box {
+    height: 23px;
+    vertical-align: bottom;
+    width: 20px;
+}
+.block {
+    display: inline-block;
+    overflow: hidden;
+}
+.flex {
+    align-items: center;
+    display: inline-flex;
+}
+</style>
+<div class="line">A<span class="box block"></span>B</div>
+<div class="line">A<span class="box flex"></span>B</div>
