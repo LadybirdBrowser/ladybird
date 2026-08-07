@@ -465,13 +465,22 @@ void WatcherActor::attach_debugger_if_possible()
         return;
 
     m_debugger_is_attached = true;
-    devtools().delegate().attach_debugger(tab->description(), [weak_this = make_weak_ptr<WatcherActor>()](auto pause) mutable {
-        auto self = weak_this.strong_ref();
-        if (!self)
-            return;
-        if (auto thread = self->m_thread.strong_ref())
-            thread->did_pause(move(pause));
-    });
+    devtools().delegate().attach_debugger(
+        tab->description(),
+        [weak_this = make_weak_ptr<WatcherActor>()](auto pause) mutable {
+            auto self = weak_this.strong_ref();
+            if (!self)
+                return;
+            if (auto thread = self->m_thread.strong_ref())
+                thread->did_pause(move(pause));
+        },
+        [weak_this = make_weak_ptr<WatcherActor>()] {
+            auto self = weak_this.strong_ref();
+            if (!self)
+                return;
+            if (auto thread = self->m_thread.strong_ref())
+                thread->did_resume();
+        });
 }
 
 void WatcherActor::stop_watching_thread_state_resources()

@@ -7,6 +7,7 @@ set(SOURCES
     ConnectionFromWebContent.cpp
     HostWebGLContext.cpp
     OpenGLContext.cpp
+    PausedDebuggerOverlay.cpp
     VSyncScheduler.cpp
     ViewportScrollbarController.cpp
     WebGLObjectMap.cpp

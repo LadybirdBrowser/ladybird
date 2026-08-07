@@ -371,13 +371,18 @@ void Application::create_platform_options(WebView::BrowserOptions&, WebView::Req
     web_content_options.config_path = Settings::the()->directory();
 }
 
-#if !defined(AK_OS_MACOS)
-// On macOS, WebContent resolves system-ui with CoreText, so the system font family is not sent there.
-Optional<String> Application::system_font_family() const
+Optional<String> Application::ui_font_family() const
 {
     if (!m_application)
         return {};
     return ak_string_from_qstring(QGuiApplication::font().family());
+}
+
+#if !defined(AK_OS_MACOS)
+// On macOS, WebContent resolves system-ui with CoreText, so the system font family is not sent there.
+Optional<String> Application::system_font_family() const
+{
+    return ui_font_family();
 }
 #endif
 

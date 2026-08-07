@@ -1173,10 +1173,11 @@ public:
         on_source_available = nullptr;
     }
 
-    virtual void attach_debugger(DevTools::TabDescription const&, OnDebuggerPaused on_paused) const override
+    virtual void attach_debugger(DevTools::TabDescription const&, OnDebuggerPaused on_paused, OnDebuggerResumed on_resumed) const override
     {
         ++attach_debugger_call_count;
         on_debugger_paused = move(on_paused);
+        on_debugger_resumed = move(on_resumed);
     }
 
     virtual void configure_debugger(DevTools::TabDescription const&, WebView::DebuggerConfiguration configuration) const override
@@ -1189,6 +1190,7 @@ public:
     {
         ++detach_debugger_call_count;
         on_debugger_paused = nullptr;
+        on_debugger_resumed = nullptr;
     }
 
     virtual void interrupt_debugger(DevTools::TabDescription const&) const override
@@ -1685,6 +1687,7 @@ public:
     mutable size_t retrieve_debugger_object_properties_call_count { 0 };
     mutable Optional<String> debugger_object_properties_error;
     mutable DevTools::DevToolsDelegate::OnDebuggerPaused on_debugger_paused;
+    mutable DevTools::DevToolsDelegate::OnDebuggerResumed on_debugger_resumed;
     mutable WebView::DebuggerConfiguration debugger_configuration;
     mutable WebView::DebuggerResumeMode debugger_resume_mode { WebView::DebuggerResumeMode::Continue };
     mutable Optional<Utf16String> last_debugger_blackbox_url;
@@ -3277,6 +3280,27 @@ TEST_CASE(debugger_thread_state_protocol)
     auto empty_pause_resumed = read_resource(client, "thread-state"sv, "resources-available-array"sv, target_actor);
     EXPECT_EQ(empty_pause_resumed.get_string("state"sv).value(), "resumed"sv);
     EXPECT_EQ(session->delegate.debugger_resume_mode, WebView::DebuggerResumeMode::Continue);
+
+    WebView::DebuggerPause overlay_pause {
+        .reason = WebView::DebuggerPauseReason::Breakpoint,
+        .reason_message = {},
+        .exception = {},
+        .frames = {},
+    };
+    overlay_pause.frames.append({
+        .id = 3,
+        .display_name = "overlayPause"_utf16,
+        .location = { .source = session->delegate.fixture_source, .line = 12, .column = 6 },
+        .this_value = {},
+        .arguments = {},
+    });
+    session->delegate.on_debugger_paused(move(overlay_pause));
+    (void)read_resource(client, "thread-state"sv, "resources-available-array"sv, target_actor);
+
+    VERIFY(session->delegate.on_debugger_resumed);
+    session->delegate.on_debugger_resumed();
+    auto overlay_resumed = read_resource(client, "thread-state"sv, "resources-available-array"sv, target_actor);
+    EXPECT_EQ(overlay_resumed.get_string("state"sv).value(), "resumed"sv);
 }
 
 TEST_CASE(debugger_breakpoints)

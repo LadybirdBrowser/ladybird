@@ -37,6 +37,7 @@ public:
     void get_object_properties(ObjectActor&, Actor::Message const&, ObjectPropertiesRequest, Optional<String> property_name = {});
     void get_object_symbols(ObjectActor&, Actor::Message const&);
     void did_pause(WebView::DebuggerPause);
+    void did_resume();
     void release_pause_actor(Actor&);
     void resume(WebView::DebuggerResumeMode);
     bool is_paused_in_source(Web::HTML::ScriptRegistry::Identifier source_id) const { return m_paused_source_id == source_id; }
@@ -53,7 +54,6 @@ private:
     JsonObject serialize_property_descriptor(WebView::DebuggerProperty const&);
     void clear_pause_actors();
     void attach();
-    void did_resume();
     void send_wrong_state_error(Message const&, StringView message);
 
     WeakPtr<TabActor> m_tab;

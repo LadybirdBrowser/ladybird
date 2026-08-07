@@ -169,12 +169,13 @@ public:
     virtual void stop_listening_for_sources(TabDescription const&) const { }
 
     using OnDebuggerPaused = Function<void(WebView::DebuggerPause)>;
+    using OnDebuggerResumed = Function<void()>;
     using OnDebuggerBreakpointOperationComplete = Function<void(ErrorOr<void>)>;
     using OnDebuggerEnvironmentsReceived = Function<void(ErrorOr<Vector<WebView::DebuggerEnvironment>>)>;
     using OnDebuggerEvaluationComplete = Function<void(ErrorOr<WebView::DebuggerEvaluationResult, String>)>;
     using OnDebuggerObjectPropertiesReceived = Function<void(ErrorOr<WebView::DebuggerObjectProperties, String>)>;
     using OnDebuggerSourcePositionsReceived = Function<void(ErrorOr<Vector<WebView::DebuggerSourcePosition>>)>;
-    virtual void attach_debugger(TabDescription const&, OnDebuggerPaused) const { }
+    virtual void attach_debugger(TabDescription const&, OnDebuggerPaused, OnDebuggerResumed) const { }
     virtual void configure_debugger(TabDescription const&, WebView::DebuggerConfiguration) const { }
     virtual void detach_debugger(TabDescription const&) const { }
     virtual void interrupt_debugger(TabDescription const&) const { }
