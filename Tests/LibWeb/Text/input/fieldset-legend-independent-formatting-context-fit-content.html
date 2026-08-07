@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    fieldset { margin: 0; border: 2px solid black; padding: 10px; width: 300px; }
+    legend { padding: 0; }
+    .box { width: 40px; height: 16px; background: papayawhip; }
+</style>
+<fieldset id="f1">
+    <legend id="l1" style="display: flex"><div class="box"></div><div class="box"></div></legend>
+    <div>flex legend</div>
+</fieldset>
+<fieldset id="f2">
+    <legend id="l2" style="overflow: hidden"><div class="box"></div></legend>
+    <div>overflow legend</div>
+</fieldset>
+<fieldset id="f3">
+    <legend id="l3"><div class="box"></div></legend>
+    <div>plain legend</div>
+</fieldset>
+<script>
+    // A rendered legend with width: auto gets the fit-content inline size. A
+    // legend that establishes its own formatting context (flex, or a BFC via
+    // overflow) must reach the same fit-content size as a plain same-BFC
+    // legend, and its children must be laid out against that size rather
+    // than a provisional one.
+    test(() => {
+        for (const id of ["l1", "l2", "l3"]) {
+            const r = document.getElementById(id).getBoundingClientRect();
+            println(`${id}: ${r.width}x${r.height} at ${r.left},${r.top}`);
+        }
+    });
+</script>
