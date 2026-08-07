@@ -925,6 +925,7 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
                 .layout_node_is_attached = existing_layout_node && existing_layout_node->parent(),
                 .is_svg_container = node.is_svg_container(),
                 .requires_svg_container = node.requires_svg_container(),
+                .is_svg_foreign_object = node.is_svg_foreign_object_element(),
             }; },
         .request_top_layer_zone_rebuild = [](void* node_pointer) {
             VERIFY(node_pointer);

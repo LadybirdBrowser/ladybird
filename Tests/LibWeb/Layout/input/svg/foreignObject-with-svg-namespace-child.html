@@ -1,0 +1,31 @@
+<!DOCTYPE html><body><script>
+// SVG graphics elements inside foreignObject content have no SVG rendering
+// context and must not get layout boxes; a nested <svg> re-enters one. The
+// shape is only expressible via createElementNS (HTML parsing treats
+// foreignObject as an integration point).
+const SVG = "http://www.w3.org/2000/svg";
+const svg = document.createElementNS(SVG, "svg");
+svg.setAttribute("width", "100");
+svg.setAttribute("height", "100");
+const foreign = document.createElementNS(SVG, "foreignObject");
+foreign.setAttribute("width", "80");
+foreign.setAttribute("height", "80");
+const div = document.createElement("div");
+const orphanGroup = document.createElementNS(SVG, "g");
+const orphanRect = document.createElementNS(SVG, "rect");
+orphanRect.setAttribute("width", "10");
+orphanRect.setAttribute("height", "10");
+orphanGroup.appendChild(orphanRect);
+const nestedSvg = document.createElementNS(SVG, "svg");
+nestedSvg.setAttribute("width", "20");
+nestedSvg.setAttribute("height", "20");
+const nestedRect = document.createElementNS(SVG, "rect");
+nestedRect.setAttribute("width", "20");
+nestedRect.setAttribute("height", "20");
+nestedSvg.appendChild(nestedRect);
+foreign.appendChild(div);
+foreign.appendChild(orphanGroup);
+foreign.appendChild(nestedSvg);
+svg.appendChild(foreign);
+document.body.appendChild(svg);
+</script>
