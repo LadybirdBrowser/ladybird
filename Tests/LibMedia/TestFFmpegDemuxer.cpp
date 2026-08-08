@@ -12,6 +12,14 @@
 #include <LibTest/TestCase.h>
 #include <LibThreading/Thread.h>
 
+TEST_CASE(rejects_formats_handled_by_other_demuxers)
+{
+    auto file = MUST(Core::File::open("./vfr.mkv"sv, Core::File::OpenMode::Read));
+    auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(MUST(file->read_until_eof()));
+
+    EXPECT(Media::FFmpeg::FFmpegDemuxer::from_stream(stream).is_error());
+}
+
 TEST_CASE(read_after_aborted_blocking_read)
 {
     // This is a regression test for an issue that would occur when aborting a blocking read in the AVIOContext

@@ -6,9 +6,8 @@
 
 #include <AK/HashMap.h>
 #include <AK/NeverDestroyed.h>
-#include <LibMedia/Containers/Matroska/MatroskaDemuxer.h>
 #include <LibMedia/Demuxer.h>
-#include <LibMedia/FFmpeg/FFmpegDemuxer.h>
+#include <LibMedia/DemuxerRegistry.h>
 #include <LibMedia/MonotonicMediaClock.h>
 #include <LibMedia/PlaybackStates/StartingStateHandler.h>
 #include <LibMedia/Processors/AudioMixer.h>
@@ -35,13 +34,6 @@ HashMap<VideoSinkHandle, PlaybackManager*>& video_sink_registrations()
     return *registrations;
 }
 
-}
-
-DecoderErrorOr<NonnullRefPtr<Demuxer>> PlaybackManager::create_demuxer_for_stream(NonnullRefPtr<MediaStream> const& stream)
-{
-    if (Matroska::Reader::is_matroska_or_webm(stream->create_cursor()))
-        return Matroska::MatroskaDemuxer::from_stream(stream);
-    return FFmpeg::FFmpegDemuxer::from_stream(stream);
 }
 
 DecoderErrorOr<void> PlaybackManager::prepare_playback_from_demuxer(WeakPlaybackManager const& self, NonnullRefPtr<Demuxer> const& demuxer, Core::EventLoop& main_thread_event_loop)
@@ -215,7 +207,7 @@ void PlaybackManager::add_media_source(NonnullRefPtr<MediaStream> const& stream)
     auto& main_thread_event_loop = Core::EventLoop::current();
 
     Threading::ThreadPool::the().submit([self = move(self), stream, &main_thread_event_loop] mutable {
-        auto demuxer_or_error = create_demuxer_for_stream(stream);
+        auto demuxer_or_error = create_demuxer(stream);
         if (demuxer_or_error.is_error()) {
             handle_media_init_error(move(self), main_thread_event_loop, demuxer_or_error.release_error());
             return;

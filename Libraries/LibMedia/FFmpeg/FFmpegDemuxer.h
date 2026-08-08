@@ -13,6 +13,7 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/OwnPtr.h>
 #include <LibMedia/CodecID.h>
+#include <LibMedia/ContainerID.h>
 #include <LibMedia/Containers/ContainerNavigator.h>
 #include <LibMedia/Demuxer.h>
 #include <LibMedia/DemuxerScanThread.h>
@@ -25,7 +26,10 @@ namespace Media::FFmpeg {
 
 class MEDIA_API FFmpegDemuxer : public Demuxer {
 public:
-    static DecoderErrorOr<NonnullRefPtr<FFmpegDemuxer>> from_stream(NonnullRefPtr<MediaStream> const&);
+    static bool should_attempt(NonnullRefPtr<MediaStream> const&);
+    static DecoderErrorOr<NonnullRefPtr<Demuxer>> from_stream(NonnullRefPtr<MediaStream> const&);
+    static bool supports_container_mime_type(ContainerMimeType);
+    static bool supports_codec_in_container(ContainerID, CodecID);
 
     virtual ~FFmpegDemuxer() override;
 

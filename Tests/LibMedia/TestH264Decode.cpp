@@ -6,6 +6,8 @@
 
 #include <AK/FixedArray.h>
 #include <LibGfx/YUVData.h>
+#include <LibMedia/Demuxer.h>
+#include <LibMedia/DemuxerRegistry.h>
 #include <LibMedia/FFmpeg/FFmpegDemuxer.h>
 #include <LibMedia/FFmpeg/FFmpegVideoDecoder.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
@@ -23,7 +25,7 @@ TEST_CASE(avc_in_matroska)
 }
 
 struct DemuxerAndVideoTrack {
-    NonnullRefPtr<Media::FFmpeg::FFmpegDemuxer> demuxer;
+    NonnullRefPtr<Media::Demuxer> demuxer;
     Media::Track track;
 };
 
@@ -31,7 +33,7 @@ static DemuxerAndVideoTrack create_demuxer_and_video_track(StringView path)
 {
     auto file = MUST(Core::File::open(path, Core::File::OpenMode::Read));
     auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(MUST(file->read_until_eof()));
-    auto demuxer = MUST(Media::FFmpeg::FFmpegDemuxer::from_stream(stream));
+    auto demuxer = MUST(Media::create_demuxer(stream));
     auto track = MUST(demuxer->get_preferred_track_for_type(Media::TrackType::Video));
     VERIFY(track.has_value());
     MUST(demuxer->create_context_for_track(*track));

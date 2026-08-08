@@ -7,6 +7,7 @@
 
 #include <AK/AnyOf.h>
 #include <AK/Array.h>
+#include <AK/GenericShorthands.h>
 #include <AK/Math.h>
 #include <AK/MemoryStream.h>
 #include <AK/NeverDestroyed.h>
@@ -29,6 +30,47 @@ extern "C" {
 }
 
 namespace Media::FFmpeg {
+
+bool FFmpegDemuxer::supports_container_mime_type(ContainerMimeType mime_type)
+{
+    switch (mime_type.container_id) {
+    case ContainerID::Ogg:
+        return true;
+    case ContainerID::ISOBMFF:
+        return mime_type.media_type != ContainerMediaType::Application;
+    case ContainerID::MPEGAudio:
+    case ContainerID::ADTS:
+    case ContainerID::FLAC:
+    case ContainerID::WAV:
+        return mime_type.media_type == ContainerMediaType::Audio;
+    case ContainerID::Matroska:
+    case ContainerID::WebM:
+        return false;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+bool FFmpegDemuxer::supports_codec_in_container(ContainerID container_id, CodecID codec_id)
+{
+    switch (container_id) {
+    case ContainerID::ISOBMFF:
+        return first_is_one_of(codec_id, CodecID::VP8, CodecID::VP9, CodecID::H264, CodecID::H265, CodecID::MP3, CodecID::AAC, CodecID::AV1, CodecID::Opus, CodecID::FLAC);
+    case ContainerID::Ogg:
+        return first_is_one_of(codec_id, CodecID::Theora, CodecID::Vorbis, CodecID::Opus, CodecID::FLAC);
+    case ContainerID::MPEGAudio:
+        return codec_id == CodecID::MP3;
+    case ContainerID::ADTS:
+        return codec_id == CodecID::AAC;
+    case ContainerID::FLAC:
+        return codec_id == CodecID::FLAC;
+    case ContainerID::WAV:
+        return first_is_one_of(codec_id, CodecID::U8, CodecID::S16LE, CodecID::S24LE, CodecID::S32LE, CodecID::F32LE, CodecID::ALaw, CodecID::MuLaw);
+    case ContainerID::Matroska:
+    case ContainerID::WebM:
+        return false;
+    }
+    VERIFY_NOT_REACHED();
+}
 
 static ByteString create_codec_whitelist()
 {
@@ -198,7 +240,13 @@ static DecoderErrorOr<Track> create_track_from_stream(AVStream const& stream, St
     return track;
 }
 
-DecoderErrorOr<NonnullRefPtr<FFmpegDemuxer>> FFmpegDemuxer::from_stream(NonnullRefPtr<MediaStream> const& stream)
+bool FFmpegDemuxer::should_attempt(NonnullRefPtr<MediaStream> const&)
+{
+    // FIXME: Sniff the stream so that a format we cannot demux is rejected before a demuxer is created.
+    return true;
+}
+
+DecoderErrorOr<NonnullRefPtr<Demuxer>> FFmpegDemuxer::from_stream(NonnullRefPtr<MediaStream> const& stream)
 {
     auto io_context = DECODER_TRY_ALLOC(Media::FFmpeg::FFmpegIOContext::create(stream->create_cursor()));
 
