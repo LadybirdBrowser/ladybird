@@ -31,6 +31,7 @@ set(SOURCES
     Containers/MP3Navigator.cpp
     Containers/OggNavigator.cpp
     DecodeAudioStream.cpp
+    DecoderRegistry.cpp
     IncrementallyPopulatedStream.cpp
     MediaTime.cpp
     MonotonicMediaClock.cpp

@@ -7,9 +7,9 @@
 #include <AK/Checked.h>
 #include <LibMedia/AudioBlock.h>
 #include <LibMedia/DecodeAudioStream.h>
+#include <LibMedia/DecoderRegistry.h>
 #include <LibMedia/Demuxer.h>
 #include <LibMedia/FFmpeg/FFmpegAudioConverter.h>
-#include <LibMedia/FFmpeg/FFmpegAudioDecoder.h>
 #include <LibMedia/PlaybackManager.h>
 #include <LibMedia/Track.h>
 
@@ -61,7 +61,7 @@ DecoderErrorOr<DecodedAudioData> decode_entire_audio_stream(NonnullRefPtr<MediaS
 
     auto codec_id = TRY(demuxer->get_codec_id_for_track(*track));
     auto codec_initialization_data = TRY(demuxer->get_codec_initialization_data_for_track(*track));
-    auto decoder = TRY(FFmpeg::FFmpegAudioDecoder::try_create(codec_id, track->audio_data().sample_specification, codec_initialization_data));
+    auto decoder = TRY(create_audio_decoder(codec_id, track->audio_data().sample_specification, codec_initialization_data));
     auto converter = DECODER_TRY_ALLOC(FFmpeg::FFmpegAudioConverter::try_create());
 
     DecodedAudioData data;

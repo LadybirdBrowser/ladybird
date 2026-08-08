@@ -7,6 +7,8 @@
 #pragma once
 
 #include <LibMedia/CodecID.h>
+#include <LibMedia/CodecParameters.h>
+#include <LibMedia/DecoderCapabilities.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/VideoDecoder.h>
 
@@ -16,6 +18,7 @@ namespace Media::FFmpeg {
 
 class MEDIA_API FFmpegVideoDecoder final : public VideoDecoder {
 public:
+    static Optional<DecoderCapabilities> capabilities(ParsedCodec const&);
     static DecoderErrorOr<NonnullOwnPtr<FFmpegVideoDecoder>> try_create(CodecID, ReadonlyBytes codec_initialization_data);
     FFmpegVideoDecoder(AVCodecContext* codec_context, AVPacket* packet, AVFrame* frame);
     virtual ~FFmpegVideoDecoder() override;

@@ -7,8 +7,8 @@
 #include <AK/Checked.h>
 #include <LibCore/EventLoop.h>
 #include <LibGfx/YUVData.h>
+#include <LibMedia/DecoderRegistry.h>
 #include <LibMedia/Demuxer.h>
-#include <LibMedia/FFmpeg/FFmpegVideoDecoder.h>
 #include <LibMedia/Sinks/VideoSink.h>
 #include <LibMedia/VideoDecoder.h>
 #include <LibMedia/VideoFrame.h>
@@ -189,7 +189,7 @@ DecoderErrorOr<void> DecodedVideoProducer::ThreadData::create_decoder()
 {
     auto codec_id = TRY(m_demuxer->get_codec_id_for_track(m_track));
     auto codec_initialization_data = TRY(m_demuxer->get_codec_initialization_data_for_track(m_track));
-    m_decoder = TRY(FFmpeg::FFmpegVideoDecoder::try_create(codec_id, codec_initialization_data));
+    m_decoder = TRY(create_video_decoder(codec_id, codec_initialization_data));
     return {};
 }
 

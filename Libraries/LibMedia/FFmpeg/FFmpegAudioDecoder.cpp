@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/GenericShorthands.h>
 #include <LibCore/System.h>
 #include <LibMedia/AudioBlock.h>
 #include <LibMedia/CodedFrame.h>
@@ -12,6 +13,26 @@
 #include "FFmpegAudioDecoder.h"
 
 namespace Media::FFmpeg {
+
+static bool aac_audio_object_type_is_supported(ParsedCodec const& codec)
+{
+    auto parameters = codec.aac_parameters();
+    if (!parameters.has_value() || !parameters->audio_object_type.has_value())
+        return true;
+    // We can't ask FFmpeg which variants of AAC are supported, so we use a set here that is likely supported instead.
+    return first_is_one_of(*parameters->audio_object_type, 2u, 5u, 29u);
+}
+
+Optional<DecoderCapabilities> FFmpegAudioDecoder::capabilities(ParsedCodec const& codec)
+{
+    if (track_type_from_codec_id(codec.codec_id()) != TrackType::Audio)
+        return {};
+    if (codec.codec_id() == CodecID::AAC && !aac_audio_object_type_is_supported(codec))
+        return {};
+    if (!avcodec_find_decoder(ffmpeg_codec_id_from_media_codec_id(codec.codec_id())))
+        return {};
+    return DecoderCapabilities { .smooth = true, .power_efficient = false };
+}
 
 DecoderErrorOr<NonnullOwnPtr<FFmpegAudioDecoder>> FFmpegAudioDecoder::try_create(CodecID codec_id, Audio::SampleSpecification const& sample_specification, ReadonlyBytes codec_initialization_data)
 {
