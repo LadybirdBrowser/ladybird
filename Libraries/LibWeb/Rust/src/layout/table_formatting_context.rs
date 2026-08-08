@@ -782,6 +782,7 @@ enum TrackAxis {
 
 struct TableFormattingContext<'pass> {
     state: &'pass LayoutState,
+    records: std::rc::Rc<RunRecords>,
     table_box: Node,
     layout_mode: LayoutMode,
     callbacks: FfiLayoutFcCallbacks,
@@ -847,6 +848,7 @@ impl<'pass> TableFormattingContext<'pass> {
     fn new(run: &FormattingContextRun<'pass>) -> Self {
         Self {
             state: run.state,
+            records: run.records.clone(),
             table_box: run.box_,
             layout_mode: run.layout_mode,
             callbacks: run.callbacks,
@@ -871,13 +873,14 @@ impl<'pass> TableFormattingContext<'pass> {
         }
     }
 
-    fn sizing(&self) -> SizingContext<'_> {
-        SizingContext::new(self.state, self.callbacks)
+    fn sizing(&self) -> SizingContext<'pass> {
+        SizingContext::new(self.state, self.records.clone(), self.callbacks)
     }
 
     fn formatting_context_run(&self) -> FormattingContextRun<'pass> {
         FormattingContextRun {
             state: self.state,
+            records: self.records.clone(),
             box_: self.table_box,
             layout_mode: self.layout_mode,
             callbacks: self.callbacks,
@@ -904,17 +907,18 @@ impl<'pass> TableFormattingContext<'pass> {
         children
     }
 
-    fn used_values(&self, node: Node) -> &'pass UsedValues {
-        self.state.used_values(&self.callbacks, node)
+    #[track_caller]
+    fn used_values(&self, node: Node) -> std::rc::Rc<UsedValues> {
+        self.records.used_values(node)
     }
 
-    fn create_used_values(&self, node: Node, constraints: ContainingBlockConstraints) -> &'pass UsedValues {
-        self.state.create_used_values(&self.callbacks, node, constraints)
+    fn create_used_values(&self, node: Node, constraints: ContainingBlockConstraints) -> std::rc::Rc<UsedValues> {
+        self.records.create_used_values(self.state, &self.callbacks, node, constraints)
     }
 
     fn set_cell_coordinates(&self, cell: TableCell) {
-        self.state
-            .used_values_rare_data_for_node_mut(&self.callbacks, cell.box_)
+        self.used_values(cell.box_)
+            .rare_data_mut()
             .table_cell_coordinates = Some(crate::layout::FfiTableCellCoordinates {
             row_index: cell.row_index,
             column_index: cell.column_index,
@@ -1066,8 +1070,8 @@ impl<'pass> TableFormattingContext<'pass> {
             used.border_bottom.set(resolved.bottom.border_data.width);
             used.border_left.set(resolved.left.border_data.width);
             used.uses_collapsing_borders_model.set(true);
-            self.state
-                .used_values_rare_data_for_node_mut(&self.callbacks, cell.box_)
+            self.used_values(cell.box_)
+                .rare_data_mut()
                 .override_borders_data = Some(resolved);
         }
     }
@@ -1972,7 +1976,7 @@ impl<'pass> TableFormattingContext<'pass> {
             self.state,
             &self.callbacks,
             cell_box,
-            self.used_values(cell_box),
+            &self.used_values(cell_box),
             crate::layout::BaselineSet::First,
             content_baselines,
         )
@@ -1983,7 +1987,7 @@ impl<'pass> TableFormattingContext<'pass> {
             self.state,
             &self.callbacks,
             node,
-            self.used_values(node),
+            &self.used_values(node),
             crate::layout::BaselineSet::First,
         )
     }
@@ -2011,9 +2015,9 @@ impl<'pass> TableFormattingContext<'pass> {
             return None;
         }
 
-        let measurement = MeasurementState::create(self.callbacks, cell.box_, ContainingBlockConstraints::default());
-        let measured_root = measurement.root_used();
-        used.mirror_box_metrics_and_size_constraints_into(measured_root);
+        let measurement = MeasurementState::create(self.callbacks);
+        let measured_root = measurement.create_used_values(cell.box_, ContainingBlockConstraints::default());
+        used.mirror_box_metrics_and_size_constraints_into(&measured_root);
         measured_root
             .has_definite_inline_size
             .set(used.has_definite_inline_size());
@@ -2026,6 +2030,7 @@ impl<'pass> TableFormattingContext<'pass> {
 
         let result = measurement.run_with_layout_mode(
             cell.box_,
+            measured_root.clone(),
             self.layout_mode,
             LayoutInput {
                 available_space: inner,
@@ -2037,15 +2042,16 @@ impl<'pass> TableFormattingContext<'pass> {
                 },
                 participation: ParticipationInParentFormattingContext::Item,
             },
-        );
-        let measured_cell_used = measurement.layout_state().used_values(measurement.callbacks(), cell.box_);
+        )
+        .result;
+        let measured_cell_used = measured_root;
         Some(MeasuredCellContent {
             content_block_size: result.automatic_content_block_size,
             first_baseline: crate::layout::box_baseline_with_content_baselines(
                 measurement.layout_state(),
                 measurement.callbacks(),
                 cell.box_,
-                measured_cell_used,
+                &measured_cell_used,
                 crate::layout::BaselineSet::First,
                 result.baselines,
             ),
@@ -2120,7 +2126,7 @@ impl<'pass> TableFormattingContext<'pass> {
             if defer_inside_layout {
                 // This cell's final inside layout happens once row heights are final; measure its
                 // content in a throwaway state instead of laying out the committing state twice.
-                if let Some(measured) = self.measure_cell(cell, used, inner, true) {
+                if let Some(measured) = self.measure_cell(cell, &used, inner, true) {
                     used.set_content_block_size(measured.content_block_size);
                     measured_baseline = Some(measured.first_baseline);
                 }
@@ -2242,7 +2248,7 @@ impl<'pass> TableFormattingContext<'pass> {
             // The first pass measured this cell at its automatic block size; measure it again at
             // the percentage-resolved size to preserve the baseline its final inside layout will use.
             let baseline = self
-                .measure_cell(cell, used, inner, false)
+                .measure_cell(cell, &used, inner, false)
                 .map_or_else(|| self.box_baseline(cell.box_), |measured| measured.first_baseline);
             self.cells[cell_index].baseline = baseline;
             if !self.rows[cell.row_index].is_collapsed {
@@ -2509,11 +2515,11 @@ impl<'pass> TableFormattingContext<'pass> {
     }
 
     fn compute_and_store_baselines(&self, node: Node) {
-        let baselines = crate::layout::derive_baselines(self.state, &self.callbacks, node, false);
+        let baselines = crate::layout::derive_baselines(self.state, &self.records, &self.callbacks, node, false);
         if node == self.table_box {
             self.derived_baselines_of_root_box.set(baselines);
         } else {
-            crate::layout::store_derived_baselines(self.used_values(node), baselines);
+            crate::layout::store_derived_baselines(&self.used_values(node), baselines);
         }
     }
 

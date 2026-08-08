@@ -1044,6 +1044,7 @@ impl GridItem {
 
 pub(crate) struct GridFormattingContext<'pass> {
     state: &'pass LayoutState,
+    records: std::rc::Rc<RunRecords>,
     grid_container: Node,
     derived_baselines_of_root_box: DerivedBaselines,
     parent_grid: Option<ParentGridData>,
@@ -1128,6 +1129,7 @@ impl<'pass> GridFormattingContext<'pass> {
         let grid_container = run.box_;
         Self {
             state: run.state,
+            records: run.records.clone(),
             grid_container,
             derived_baselines_of_root_box: DerivedBaselines::default(),
             parent_grid: parent_grid.map(|parent| ParentGridData::for_child_container(parent, grid_container)),
@@ -1157,10 +1159,10 @@ impl<'pass> GridFormattingContext<'pass> {
         }
     }
 
-
     fn formatting_context_run(&self) -> FormattingContextRun<'pass> {
         FormattingContextRun {
             state: self.state,
+            records: self.records.clone(),
             box_: self.grid_container,
             layout_mode: self.layout_mode,
             callbacks: self.callbacks,
@@ -1191,14 +1193,13 @@ impl<'pass> GridFormattingContext<'pass> {
         self.use_row_alignment_container_size = false;
     }
 
-    fn container_used(&self) -> &'pass UsedValues {
-        self.state.used_values(&self.callbacks, self.grid_container)
+    fn container_used(&self) -> std::rc::Rc<UsedValues> {
+        self.records.used_values(self.grid_container)
     }
 
-    fn used(&self, item: GridItem) -> &'pass UsedValues {
-        self.state.used_values(&self.callbacks, item.box_)
+    fn used(&self, item: GridItem) -> std::rc::Rc<UsedValues> {
+        self.records.used_values(item.box_)
     }
-
     fn style(&self, node: Node) -> StyleValues<'pass> {
         self.state.style_facts(&self.callbacks, node)
     }
@@ -1214,8 +1215,8 @@ impl<'pass> GridFormattingContext<'pass> {
         ComputedValuesView::new(&self.callbacks.style_payloads(node).groups).grid_values()
     }
 
-    fn sizing(&self) -> SizingContext<'_> {
-        SizingContext::new(self.state, self.callbacks)
+    fn sizing(&self) -> SizingContext<'pass> {
+        SizingContext::new(self.state, self.records.clone(), self.callbacks)
     }
 
     fn parent_grid(&self) -> Option<&ParentGridData> {
@@ -1643,8 +1644,8 @@ impl<'pass> GridFormattingContext<'pass> {
                             child_grid_style.names.raws(),
                         ),
                     });
-                    self.state
-                        .create_used_values(&self.callbacks, child, ContainingBlockConstraints::default());
+                    self.records
+                        .create_used_values(self.state, &self.callbacks, child, ContainingBlockConstraints::default());
                     nodes.push(child);
                 }
             }
@@ -2479,14 +2480,15 @@ impl<'pass> GridFormattingContext<'pass> {
     }
 
     fn subgrid_item_contributions_to_track_sizing(&self, subgrid: GridItem, axis: Axis) -> Vec<ItemContribution> {
-        let scratch = MeasurementState::create(self.callbacks, subgrid.box_, ContainingBlockConstraints::default());
+        let scratch = MeasurementState::create(self.callbacks);
         let live = self.used(subgrid);
-        let scratch_root = scratch.root_used();
-        live.mirror_box_metrics_and_size_constraints_into(scratch_root);
+        let scratch_root = scratch.create_used_values(subgrid.box_, ContainingBlockConstraints::default());
+        live.mirror_box_metrics_and_size_constraints_into(&scratch_root);
         scratch_root.has_definite_inline_size.set(live.has_definite_inline_size.get());
         scratch_root.has_definite_block_size.set(live.has_definite_block_size.get());
         let scratch_run = FormattingContextRun {
             state: scratch.layout_state(),
+            records: std::rc::Rc::new(RunRecords::new(subgrid.box_, scratch_root)),
             box_: subgrid.box_,
             layout_mode: LayoutMode::IntrinsicSizing,
             callbacks: self.callbacks,
@@ -3240,20 +3242,11 @@ impl<'pass> GridFormattingContext<'pass> {
             };
             // Resolve relative-position insets before placement seals the
             // item's committed metrics.
-            crate::layout::compute_inset_native(
-                self.state,
-                self.callbacks,
-                self.fragments.clone(),
-                item.box_,
-                area.size.inline_size,
-                area.size.block_size,
-                self.grid_container,
-                run.treat_block_axis_percentage_insets_as_auto_beyond_root,
-            );
+            crate::layout::compute_inset_native(run, item.box_, area.size.inline_size, area.size.block_size);
             crate::layout::place_child(&self.formatting_context_run(), item.box_, offset, None);
         }
         self.derived_baselines_of_root_box =
-            crate::layout::derive_baselines(self.state, &self.callbacks, self.grid_container, false);
+            crate::layout::derive_baselines(self.state, &self.records, &self.callbacks, self.grid_container, false);
     }
 
     fn used_track_list_data(&self, axis: Axis, subgrid: bool) -> OwnedUsedGridTrackList {
@@ -3291,8 +3284,8 @@ impl<'pass> GridFormattingContext<'pass> {
             columns: self.used_track_list_data(Axis::Column, self.is_subgridded(Axis::Column, grid_style)),
             rows: self.used_track_list_data(Axis::Row, self.is_subgridded(Axis::Row, grid_style)),
         };
-        self.state
-            .used_values_rare_data_for_node_mut(&self.callbacks, self.grid_container)
+        self.container_used()
+            .rare_data_mut()
             .used_grid_tracks = Some(tracks);
     }
 
@@ -3398,8 +3391,8 @@ impl<'pass> GridFormattingContext<'pass> {
             is_subgrid: self.is_subgridded(Axis::Column, grid_style) || self.is_subgridded(Axis::Row, grid_style),
             fragments: vec![fragment],
         };
-        self.state
-            .used_values_rare_data_for_node_mut(&self.callbacks, self.grid_container)
+        self.container_used()
+            .rare_data_mut()
             .grid_layout_data = Some(data);
     }
 

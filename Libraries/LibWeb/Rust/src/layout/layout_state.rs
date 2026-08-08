@@ -63,8 +63,6 @@ impl<T> PagedStore<T> {
         assert!(entry_was_vacant, "PagedStore index {index} allocated twice");
         entry.get().unwrap()
     }
-
-
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -103,39 +101,6 @@ pub(crate) enum AbsposAlignment {
     Start,
     Stretch,
     Unsafe,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct ContainingBlockGeometry {
-    pub(crate) content_origin_in_entry_space: FfiCssPixelPoint,
-    pub(crate) padding_left: CssPixels,
-    pub(crate) padding_right: CssPixels,
-    pub(crate) padding_top: CssPixels,
-    pub(crate) padding_bottom: CssPixels,
-    pub(crate) content_inline_size: CssPixels,
-    pub(crate) content_block_size: CssPixels,
-}
-
-impl ContainingBlockGeometry {
-    pub(crate) fn from_used_values(used: &UsedValues, content_origin_in_entry_space: FfiCssPixelPoint) -> Self {
-        Self {
-            content_origin_in_entry_space,
-            padding_left: used.padding_left.get(),
-            padding_right: used.padding_right.get(),
-            padding_top: used.padding_top.get(),
-            padding_bottom: used.padding_bottom.get(),
-            content_inline_size: used.content_inline_size.get(),
-            content_block_size: used.content_block_size.get(),
-        }
-    }
-
-    pub(crate) fn padding_box_inline_size(&self) -> CssPixels {
-        self.content_inline_size + self.padding_left + self.padding_right
-    }
-
-    pub(crate) fn padding_box_block_size(&self) -> CssPixels {
-        self.content_block_size + self.padding_top + self.padding_bottom
-    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -263,6 +228,39 @@ pub struct FfiCommitSink {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct ContainingBlockGeometry {
+    pub(crate) content_origin_in_entry_space: FfiCssPixelPoint,
+    pub(crate) padding_left: CssPixels,
+    pub(crate) padding_right: CssPixels,
+    pub(crate) padding_top: CssPixels,
+    pub(crate) padding_bottom: CssPixels,
+    pub(crate) content_inline_size: CssPixels,
+    pub(crate) content_block_size: CssPixels,
+}
+
+impl ContainingBlockGeometry {
+    pub(crate) fn from_used_values(used: &UsedValues, content_origin_in_entry_space: FfiCssPixelPoint) -> Self {
+        Self {
+            content_origin_in_entry_space,
+            padding_left: used.padding_left.get(),
+            padding_right: used.padding_right.get(),
+            padding_top: used.padding_top.get(),
+            padding_bottom: used.padding_bottom.get(),
+            content_inline_size: used.content_inline_size.get(),
+            content_block_size: used.content_block_size.get(),
+        }
+    }
+
+    pub(crate) fn padding_box_inline_size(&self) -> CssPixels {
+        self.content_inline_size + self.padding_left + self.padding_right
+    }
+
+    pub(crate) fn padding_box_block_size(&self) -> CssPixels {
+        self.content_block_size + self.padding_top + self.padding_bottom
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct PendingAbsposChild {
     pub(crate) child_box: Node,
     pub(crate) coordinate_space_box: Node,
@@ -272,9 +270,66 @@ pub(crate) struct PendingAbsposChild {
     pub(crate) inline_containing_block_rect: Option<PhysicalRect>,
 }
 pub(crate) struct LayoutState {
-    used_values: PagedStore<UsedValues>,
     anchor_inset_store: AnchorInsetStore,
     purpose: LayoutStatePurpose,
+}
+
+pub(crate) struct RunRecords {
+    root: Node,
+    map: RefCell<HashMap<u32, std::rc::Rc<UsedValues>>>,
+}
+
+impl RunRecords {
+    pub(crate) fn new(root: Node, root_used: std::rc::Rc<UsedValues>) -> Self {
+        let records = Self::new_unrooted(root);
+        records.register(root, root_used);
+        records
+    }
+
+    pub(crate) fn new_unrooted(root: Node) -> Self {
+        Self {
+            root,
+            map: RefCell::new(HashMap::new()),
+        }
+    }
+
+    pub(crate) fn register(&self, node: Node, used: std::rc::Rc<UsedValues>) {
+        let previous = self.map.borrow_mut().insert(node.slot_index(), used);
+        assert!(
+            previous.is_none(),
+            "slot {} registered twice in the run rooted at slot {}",
+            node.slot_index(),
+            self.root.slot_index()
+        );
+    }
+
+    pub(crate) fn create_used_values(
+        &self,
+        state: &LayoutState,
+        callbacks: &FfiLayoutFcCallbacks,
+        node: Node,
+        constraints: ContainingBlockConstraints,
+    ) -> std::rc::Rc<UsedValues> {
+        let used = state.create_used_values(callbacks, node, constraints);
+        self.register(node, used.clone());
+        used
+    }
+
+    #[track_caller]
+    pub(crate) fn used_values(&self, node: Node) -> std::rc::Rc<UsedValues> {
+        let caller = std::panic::Location::caller();
+        self.used_values_if_owned(node).unwrap_or_else(|| {
+            panic!(
+                "the run rooted at slot {} does not own the record for slot {} (read at {caller})",
+                self.root.slot_index(),
+                node.slot_index(),
+            )
+        })
+    }
+
+    pub(crate) fn used_values_if_owned(&self, node: Node) -> Option<std::rc::Rc<UsedValues>> {
+        self.map.borrow().get(&node.slot_index()).cloned()
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -288,7 +343,6 @@ impl Default for LayoutState {
         Self::new(LayoutStatePurpose::Commit)
     }
 }
-
 
 #[derive(Default)]
 pub(crate) struct LineData {
@@ -312,7 +366,6 @@ pub(crate) struct UsedValuesRareData {
 impl LayoutState {
     pub(crate) fn new(purpose: LayoutStatePurpose) -> Self {
         Self {
-            used_values: PagedStore::default(),
             anchor_inset_store: AnchorInsetStore::default(),
             purpose,
         }
@@ -340,11 +393,9 @@ impl LayoutState {
         callbacks: &FfiLayoutFcCallbacks,
         node: Node,
         constraints: ContainingBlockConstraints,
-    ) -> &UsedValues {
+    ) -> std::rc::Rc<UsedValues> {
         assert!(!node.is_invalid());
         let facts = self.node_facts(callbacks, node);
-        let slot_index = callbacks.slot_index(node);
-        assert!(self.used_values.get(slot_index).is_none());
 
         let style = self.style_facts(callbacks, node);
         let percentage_basis_inline_size = constraints.percentage_basis_inline_size;
@@ -487,7 +538,7 @@ impl LayoutState {
         used.content_inline_size.set(content_inline_size.unwrap_or_default());
         used.content_block_size.set(content_block_size.unwrap_or_default());
 
-        self.used_values.allocate(slot_index, used)
+        std::rc::Rc::new(used)
     }
 
     pub(crate) fn populate_from_paintable(
@@ -495,10 +546,7 @@ impl LayoutState {
         callbacks: &FfiLayoutFcCallbacks,
         node: Node,
         paintable: *mut c_void,
-    ) -> Option<&UsedValues> {
-        let slot_index = callbacks.slot_index(node);
-        assert!(self.used_values.get(slot_index).is_none());
-
+    ) -> Option<std::rc::Rc<UsedValues>> {
         let mut geometry = FfiPaintableGeometry::default();
         let found =
             unsafe {
@@ -538,18 +586,11 @@ impl LayoutState {
         used.has_content_offset.set(true);
         used.seal_committed_box_metrics();
 
-        let used = self.used_values.allocate(slot_index, used);
         if self.node_facts(callbacks, node).is_svg_svg_box() {
-            self.used_values_rare_data_mut(slot_index).svg_viewport_size = Some(geometry.svg_viewport_size);
+            used.rare_data_mut().svg_viewport_size = Some(geometry.svg_viewport_size);
         }
-        Some(used)
+        Some(std::rc::Rc::new(used))
     }
-
-
-
-
-
-
 
     pub(crate) fn set_box_is_grid_item(&self, callbacks: &FfiLayoutFcCallbacks, node: Node, is_grid_item: bool) {
         callbacks.arena().set_node_flag(node, NodeFlag::IsGridItem, is_grid_item);
@@ -629,58 +670,12 @@ impl LayoutState {
         })
     }
 
-    pub(crate) fn line_data_cell(&self, slot_index: u32) -> &RefCell<LineData> {
-        self.used_values_by_slot(slot_index)
-            .expect("missing used values")
-            .line_data
-            .get_or_init(LineData::default)
-    }
-
-    pub(crate) fn line_data(&self, slot_index: u32) -> Option<Ref<'_, LineData>> {
-        self.used_values_by_slot(slot_index)?
-            .line_data
-            .get()
-            .map(RefCell::borrow)
-    }
-
-    pub(crate) fn used_values_rare_data(&self, slot_index: u32) -> Option<Ref<'_, UsedValuesRareData>> {
-        self.used_values_by_slot(slot_index)?
-            .rare_data
-            .get()
-            .map(RefCell::borrow)
-    }
-
-    pub(crate) fn used_values_rare_data_mut(&self, slot_index: u32) -> RefMut<'_, UsedValuesRareData> {
-        self.used_values_by_slot(slot_index)
-            .expect("missing used values")
-            .rare_data
-            .get_or_init(UsedValuesRareData::default)
-            .borrow_mut()
-    }
-
-    pub(crate) fn used_values_rare_data_for_node_mut(
-        &self,
-        callbacks: &FfiLayoutFcCallbacks,
-        node: Node,
-    ) -> RefMut<'_, UsedValuesRareData> {
-        self.used_values_rare_data_mut(callbacks.slot_index(node))
-    }
-
-    fn used_values_by_slot(&self, slot_index: u32) -> Option<&UsedValues> {
-        self.used_values.get(slot_index)
-    }
-
-    pub(crate) fn used_values(&self, callbacks: &FfiLayoutFcCallbacks, node: Node) -> &UsedValues {
-        self.used_values
-            .get(callbacks.slot_index(node))
-            .expect("missing used values")
-    }
-
     /// Accumulates relative-position insets from a chain of inline-flow
     /// ancestors, starting at first_ancestor and walking up until stop_at or
     /// the first ancestor that is not inline-flow.
     pub(crate) fn accumulated_relative_insets_from_inline_ancestor_chain(
         &self,
+        records: &RunRecords,
         callbacks: &FfiLayoutFcCallbacks,
         first_ancestor: Node,
         stop_at: Node,
@@ -702,7 +697,7 @@ impl LayoutState {
                 // committed fragment or piece was entered by its inline
                 // formatting context this pass, which created its used values
                 // and resolved its insets.
-                let used = self.used_values(callbacks, ancestor);
+                let used = records.used_values(ancestor);
                 result.offset_x += used.inset_left.get();
                 result.offset_y += used.inset_top.get();
             }
@@ -715,8 +710,10 @@ impl LayoutState {
     /// survived line post-processing.
     fn resolve_containing_line_box_index(
         &self,
+        records: &RunRecords,
         callbacks: &FfiLayoutFcCallbacks,
         node: Node,
+        containing_block: Node,
         coordinate: Option<LineBoxFragmentCoordinate>,
         placed_offset: FfiCssPixelPoint,
     ) -> Option<usize> {
@@ -725,9 +722,9 @@ impl LayoutState {
         if !facts.is_non_fragmented_box() {
             return None;
         }
-        let containing_block = callbacks.containing_block(node);
         assert!(!containing_block.is_invalid());
-        let data = self.line_data(callbacks.slot_index(containing_block))?;
+        let containing_block_used = records.used_values(containing_block);
+        let data = containing_block_used.line_data_ref()?;
         let line = data.line_boxes.get(coordinate.line_box_index)?;
         if let Some(fragment) = line.fragments.get(coordinate.fragment_index) {
             let (x, y) = fragment.offset();
@@ -752,11 +749,6 @@ impl LayoutState {
     ) {
         let slot_index = callbacks.slot_index(node);
         let entry = scopes.link_for_slot(slot_index);
-        let used = self.used_values_by_slot(slot_index);
-        debug_assert!(
-            entry.is_some() == used.is_some(),
-            "every record has exactly one fragment and every fragment a record"
-        );
         if let Some(link) = entry {
             callbacks.set_saved_abspos_layout_inputs(node, link.abspos_layout_inputs);
         }
