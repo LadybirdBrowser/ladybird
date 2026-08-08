@@ -18,6 +18,7 @@
 #include <LibJS/Runtime/Error.h>
 #include <LibJS/Runtime/Reference.h>
 #include <LibJS/Runtime/VM.h>
+#include <LibRequests/Request.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/ARIA/AriaData.h>
 #include <LibWeb/ARIA/StateAndProperties.h>
@@ -577,6 +578,11 @@ void Internals::simulate_request_server_connection_loss()
     // Synchronously obtain a replacement connection from the UI process, so that this process is not left unable to
     // load resources.
     page().client().page_did_lose_request_server_connection();
+}
+
+WebIDL::UnsignedLongLong Internals::open_response_pipe_count()
+{
+    return Requests::ReadStream::live_count();
 }
 
 WebIDL::ExceptionOr<void> Internals::set_content_blockers(Utf16String const& patterns_source)
