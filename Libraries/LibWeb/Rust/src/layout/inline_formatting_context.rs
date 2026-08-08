@@ -1139,12 +1139,7 @@ impl<'context, 'pass> InlineFormattingContext<'context, 'pass> {
                     continue;
                 }
                 let (x, y) = fragment.offset();
-                crate::layout::place_child(
-                    self.state,
-                    &self.callbacks,
-                    fragment.layout_node,
-                    FfiCssPixelPoint { x, y },
-                );
+                crate::layout::place_child(self.run, fragment.layout_node, FfiCssPixelPoint { x, y });
             }
         }
 

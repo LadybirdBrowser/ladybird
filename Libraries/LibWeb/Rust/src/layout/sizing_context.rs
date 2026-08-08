@@ -1842,14 +1842,15 @@ impl<'pass> SizingContext<'pass> {
             .padding_right
             .set(table_style.padding_right().to_px(containing_block_inline_size));
 
-        let table_run = crate::layout::FormattingContextRun::new(
-            measurement.layout_state(),
-            table_box,
-            LayoutMode::IntrinsicSizing,
-            *measurement.callbacks(),
-            false,
-            false,
-        );
+        let table_run = crate::layout::FormattingContextRun {
+            state: measurement.layout_state(),
+            box_: table_box,
+            layout_mode: LayoutMode::IntrinsicSizing,
+            callbacks: *measurement.callbacks(),
+            should_collect_devtools_layout_data: false,
+            treat_block_axis_percentage_insets_as_auto_beyond_root: false,
+            fragments: None,
+        };
         let mut table = TableFormattingContext::new(&table_run);
         let table_available = table_used.available_inner_space_or_constraints_from(available_space);
         table.run_until_inline_size_calculation(

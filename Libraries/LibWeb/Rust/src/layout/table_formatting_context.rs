@@ -785,6 +785,9 @@ struct TableFormattingContext<'pass> {
     table_box: Node,
     layout_mode: LayoutMode,
     callbacks: FfiLayoutFcCallbacks,
+    fragments: Option<std::rc::Rc<RunFragmentBuilder>>,
+    should_collect_devtools_layout_data: bool,
+    treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
     table_constraints: ContainingBlockConstraints,
     participant_constraints: ContainingBlockConstraints,
     available_space: AvailableSpace,
@@ -847,6 +850,9 @@ impl<'pass> TableFormattingContext<'pass> {
             table_box: run.box_,
             layout_mode: run.layout_mode,
             callbacks: run.callbacks,
+            fragments: run.fragments.clone(),
+            should_collect_devtools_layout_data: run.should_collect_devtools_layout_data,
+            treat_block_axis_percentage_insets_as_auto_beyond_root: run.treat_block_axis_percentage_insets_as_auto_beyond_root,
             table_constraints: ContainingBlockConstraints::default(),
             participant_constraints: ContainingBlockConstraints::default(),
             available_space: AvailableSpace::default(),
@@ -867,6 +873,18 @@ impl<'pass> TableFormattingContext<'pass> {
 
     fn sizing(&self) -> SizingContext<'_> {
         SizingContext::new(self.state, self.callbacks)
+    }
+
+    fn formatting_context_run(&self) -> FormattingContextRun<'pass> {
+        FormattingContextRun {
+            state: self.state,
+            box_: self.table_box,
+            layout_mode: self.layout_mode,
+            callbacks: self.callbacks,
+            should_collect_devtools_layout_data: self.should_collect_devtools_layout_data,
+            treat_block_axis_percentage_insets_as_auto_beyond_root: self.treat_block_axis_percentage_insets_as_auto_beyond_root,
+            fragments: self.fragments.clone(),
+        }
     }
 
     fn parent(&self, node: Node) -> Node {
@@ -906,7 +924,7 @@ impl<'pass> TableFormattingContext<'pass> {
     }
 
     fn place_child(&self, node: Node, x: CssPixels, y: CssPixels) {
-        crate::layout::place_child(self.state, &self.callbacks, node, FfiCssPixelPoint { x, y });
+        crate::layout::place_child(&self.formatting_context_run(), node, FfiCssPixelPoint { x, y });
     }
 
     fn border_spacing_inline(&mut self) -> CssPixels {

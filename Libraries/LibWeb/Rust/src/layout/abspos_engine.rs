@@ -1580,8 +1580,7 @@ impl<'pass> AbsposEngine<'pass> {
         used_offset.inline_offset += used.margin_left.get() + used.border_box_left(collapsed);
         used_offset.block_offset += used.margin_top.get() + used.border_box_top(collapsed);
         crate::layout::place_child(
-            self.state,
-            &self.callbacks,
+            run,
             node,
             FfiCssPixelPoint {
                 x: used_offset.inline_offset,
@@ -1717,14 +1716,22 @@ pub(crate) fn drain_remaining_abspos_targets(
     callbacks: FfiLayoutFcCallbacks,
     should_collect_devtools_layout_data: bool,
     targets: &[Node],
+    entry_fragments: &std::rc::Rc<crate::layout::RunFragmentBuilder>,
 ) {
     while let Some(target) = targets
         .iter()
         .copied()
         .find(|target| !target.is_invalid() && state.has_contained_abspos_children(*target))
     {
-        let run =
-            crate::layout::FormattingContextRun::new(state, target, LayoutMode::Normal, callbacks, should_collect_devtools_layout_data, false);
+        let run = crate::layout::FormattingContextRun {
+            state,
+            box_: target,
+            layout_mode: LayoutMode::Normal,
+            callbacks,
+            should_collect_devtools_layout_data,
+            treat_block_axis_percentage_insets_as_auto_beyond_root: false,
+            fragments: Some(entry_fragments.clone()),
+        };
         layout_contained_abspos_children(&run);
     }
     debug_assert!(

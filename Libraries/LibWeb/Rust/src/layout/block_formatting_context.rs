@@ -196,15 +196,19 @@ pub(crate) struct BlockFormattingContext<'pass> {
     derived_baselines_of_root_box: Cell<DerivedBaselines>,
     trailing_collapsed_margin: Cell<Option<(Node, CssPixels)>>,
     table_box_in_wrapper_border_box_block_size: Cell<Option<CssPixels>>,
+    fragments: Option<std::rc::Rc<RunFragmentBuilder>>,
+    should_collect_devtools_layout_data: bool,
+    treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
 }
 
 impl<'pass> BlockFormattingContext<'pass> {
-    pub(crate) fn new(state: &'pass LayoutState, root: Node, layout_mode: LayoutMode, callbacks: FfiLayoutFcCallbacks) -> Self {
+    pub(crate) fn new(run: &FormattingContextRun<'pass>) -> Self {
         Self {
-            state,
-            root,
-            layout_mode,
-            callbacks,
+            state: run.state,
+            root: run.box_,
+            layout_mode: run.layout_mode,
+            callbacks: run.callbacks,
+            fragments: run.fragments.clone(),
             block_offset_of_current_block_container: Cell::new(None),
             pending_legend_flow_position: Cell::new(None),
             margin_state: RefCell::new(BlockMarginState::default()),
@@ -216,6 +220,20 @@ impl<'pass> BlockFormattingContext<'pass> {
             derived_baselines_of_root_box: Cell::new(DerivedBaselines::default()),
             trailing_collapsed_margin: Cell::new(None),
             table_box_in_wrapper_border_box_block_size: Cell::new(None),
+            should_collect_devtools_layout_data: run.should_collect_devtools_layout_data,
+            treat_block_axis_percentage_insets_as_auto_beyond_root: run.treat_block_axis_percentage_insets_as_auto_beyond_root,
+        }
+    }
+
+    fn formatting_context_run(&self) -> FormattingContextRun<'pass> {
+        FormattingContextRun {
+            state: self.state,
+            box_: self.root,
+            layout_mode: self.layout_mode,
+            callbacks: self.callbacks,
+            should_collect_devtools_layout_data: self.should_collect_devtools_layout_data,
+            treat_block_axis_percentage_insets_as_auto_beyond_root: self.treat_block_axis_percentage_insets_as_auto_beyond_root,
+            fragments: self.fragments.clone(),
         }
     }
 
@@ -276,7 +294,7 @@ impl<'pass> BlockFormattingContext<'pass> {
     }
 
     fn place_child(&self, node: Node, offset: FfiCssPixelPoint) {
-        crate::layout::place_child(self.state, &self.callbacks, node, offset);
+        crate::layout::place_child(&self.formatting_context_run(), node, offset);
     }
 
     fn register_contained_abspos_child(&self, node: Node, block_offset: CssPixels) {
