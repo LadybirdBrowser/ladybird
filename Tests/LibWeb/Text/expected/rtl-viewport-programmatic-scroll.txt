@@ -1,0 +1,2 @@
+root-rtl: scroll x range: [-300, 0]
+body-rtl: scroll x range: [-300, 0]

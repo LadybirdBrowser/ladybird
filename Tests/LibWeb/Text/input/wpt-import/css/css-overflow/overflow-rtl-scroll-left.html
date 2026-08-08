@@ -1,0 +1,49 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>overflow: rtl scroll left should return 0 when overflow size is empty</title>
+<link rel="author" href="mailto:perryuwang@gmail.com">
+<link rel="help" href="https://issues.chromium.org/issues/40064904">
+<script src="../../css/css-transitions/support/helper.js"></script>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  #rtl-parent {
+    direction: rtl;
+    overflow: auto;
+    width: 300px;
+    height: 200px;
+  }
+  #rtl-child {
+    width: 500px;
+    height: 200px;
+  }
+</style>
+
+<div id="rtl-parent">
+  <div id="rtl-child"></div>
+</div>
+
+<script>
+promise_test(async () => {
+  const parent = document.getElementById('rtl-parent');
+  const child = document.getElementById('rtl-child');
+
+  await waitForAnimationFrames(5);
+  assert_equals(parent.offsetWidth, 300);
+  assert_equals(parent.offsetHeight, 200);
+  assert_equals(child.offsetWidth, 500);
+  assert_equals(child.offsetHeight, 200);
+
+  assert_equals(parent.scrollWidth, 500);
+  assert_equals(parent.scrollHeight, 200);
+  assert_equals(parent.scrollLeft, 0);
+
+  child.style.height = '0px';
+  parent.style.height = '0px';
+
+  await waitForAnimationFrames(5);
+  assert_equals(parent.offsetHeight, 0);
+  assert_equals(parent.scrollHeight, 0);
+  assert_equals(parent.scrollLeft, 0);
+}, 'rtl scroll left should be 0 when overflow size is empty');
+</script>

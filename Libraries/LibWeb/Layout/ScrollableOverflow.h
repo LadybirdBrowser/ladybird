@@ -19,6 +19,13 @@ namespace Web::Layout {
 // Map from each containing block to the boxes it contains.
 using ContainedBoxesMap = HashMap<Box const*, Vector<Box const*>>;
 
+struct PhysicalOverflowDirections {
+    bool horizontal_axis_is_positive { true };
+    bool vertical_axis_is_positive { true };
+};
+
+[[nodiscard]] PhysicalOverflowDirections physical_overflow_directions(Box const&);
+
 [[nodiscard]] ContainedBoxesMap collect_scrollable_overflow_contained_boxes(Node const& root, Function<void(Box const&)> box_visitor = {});
 
 // https://drafts.csswg.org/css-overflow-3/#scrollable-overflow-region

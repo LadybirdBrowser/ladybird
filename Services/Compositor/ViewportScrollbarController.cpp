@@ -200,10 +200,11 @@ Optional<ViewportScrollbarController::ScrollDelta> ViewportScrollbarController::
 
     auto orientation = orientation_for_scrollbar(scrollbar);
     auto thumb_rect = expanded ? scrollbar.expanded_thumb_rect : scrollbar.thumb_rect;
-    auto min_thumb_position = static_cast<float>(thumb_rect.primary_offset_for_orientation(orientation));
-    auto max_thumb_position = min_thumb_position + scrollbar.max_scroll_offset * static_cast<float>(scroll_size);
+    auto zero_offset_thumb_position = static_cast<float>(thumb_rect.primary_offset_for_orientation(orientation));
+    auto min_thumb_position = zero_offset_thumb_position + scrollbar.min_scroll_offset * static_cast<float>(scroll_size);
+    auto max_thumb_position = zero_offset_thumb_position + scrollbar.max_scroll_offset * static_cast<float>(scroll_size);
     auto target_thumb_position = AK::clamp(drag.primary_position - drag.thumb_grab_position, min_thumb_position, max_thumb_position);
-    auto target_scroll_offset = (target_thumb_position - min_thumb_position) / static_cast<float>(scroll_size);
+    auto target_scroll_offset = (target_thumb_position - zero_offset_thumb_position) / static_cast<float>(scroll_size);
 
     Gfx::FloatPoint delta;
     delta.set_primary_offset_for_orientation(orientation, target_scroll_offset - current_scroll_offset->primary_offset_for_orientation(orientation));
