@@ -12,6 +12,7 @@
 #include <LibCore/System.h>
 #include <LibCrypto/Hash/SHA2.h>
 #include <LibFileSystem/FileSystem.h>
+#include <LibJS/Bytecode/Executable.h>
 #include <LibJS/Bytecode/Instruction.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/GlobalObject.h>
@@ -1029,4 +1030,13 @@ TEST_CASE(bytecode_cache_preserves_re_exported_import_names)
     EXPECT(resolution.is_valid());
     EXPECT_EQ(resolution.module.ptr(), source_module.ptr());
     EXPECT_EQ(resolution.export_name, "pass"sv);
+}
+
+TEST_CASE(in_memory_instruction_stream_accounts_only_for_its_range)
+{
+    Array<u8, 16> bytecode {};
+    auto immutable_bytecode = TRY_OR_FAIL(Core::ImmutableBytes::copy(bytecode.span()));
+    JS::Bytecode::InstructionStream instruction_stream { move(immutable_bytecode), 4, 3 };
+
+    EXPECT_EQ(instruction_stream.external_memory_size(), 3u);
 }
