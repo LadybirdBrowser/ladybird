@@ -294,7 +294,16 @@ impl<'pass> BlockFormattingContext<'pass> {
     }
 
     fn place_child(&self, node: Node, offset: FfiCssPixelPoint) {
-        crate::layout::place_child(&self.formatting_context_run(), node, offset);
+        self.place_child_on_line(node, offset, None);
+    }
+
+    fn place_child_on_line(
+        &self,
+        node: Node,
+        offset: FfiCssPixelPoint,
+        containing_line_box_fragment: Option<LineBoxFragmentCoordinate>,
+    ) {
+        crate::layout::place_child(&self.formatting_context_run(), node, offset, containing_line_box_fragment);
     }
 
     fn register_contained_abspos_child(&self, node: Node, block_offset: CssPixels, coordinate_space_box: Node) {
@@ -1908,12 +1917,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         );
 
         if let Some(position) = pending_position {
-            if let Some(coordinate) = containing_line_box_fragment {
-                let used = self.used(node);
-                used.has_containing_line_box_fragment.set(true);
-                used.containing_line_box_fragment.set(coordinate);
-            }
-            self.place_child(node, position);
+            self.place_child_on_line(node, position, containing_line_box_fragment);
         }
 
         if has_independent_formatting_context || !self.margins_collapse_through(node) {

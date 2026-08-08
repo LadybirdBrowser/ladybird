@@ -1627,6 +1627,12 @@ impl<'pass> AbsposEngine<'pass> {
         };
         used_offset.inline_offset += used.margin_left.get() + used.border_box_left(collapsed);
         used_offset.block_offset += used.margin_top.get() + used.border_box_top(collapsed);
+        let is_measurement = self.state.is_measurement();
+        if !is_measurement {
+            self.state
+                .used_values_rare_data_for_node_mut(&self.callbacks, node)
+                .abspos_layout_inputs = Some(inputs);
+        }
         crate::layout::place_child(
             run,
             node,
@@ -1634,15 +1640,8 @@ impl<'pass> AbsposEngine<'pass> {
                 x: used_offset.inline_offset,
                 y: used_offset.block_offset,
             },
+            None,
         );
-
-        let is_measurement = self.state.is_measurement();
-        if !is_measurement {
-            self.state
-                .used_values_rare_data_for_node_mut(&self.callbacks, node)
-                .abspos_layout_inputs = Some(inputs);
-        }
-
     }
 
     pub(crate) fn layout_pending_child(&self, run: &crate::layout::FormattingContextRun<'pass>, mut child: PendingAbsposChild) {

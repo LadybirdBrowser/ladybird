@@ -924,7 +924,7 @@ impl<'pass> TableFormattingContext<'pass> {
     }
 
     fn place_child(&self, node: Node, x: CssPixels, y: CssPixels) {
-        crate::layout::place_child(&self.formatting_context_run(), node, FfiCssPixelPoint { x, y });
+        crate::layout::place_child(&self.formatting_context_run(), node, FfiCssPixelPoint { x, y }, None);
     }
 
     fn border_spacing_inline(&mut self) -> CssPixels {

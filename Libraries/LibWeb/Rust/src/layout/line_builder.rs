@@ -256,15 +256,6 @@ impl<'builder, 'context, 'pass> LineBuilder<'builder, 'context, 'pass> {
         );
         self.line_mut(line_index).fragments[fragment_index].content_baselines = Some(content_baselines);
         self.max_block_size_on_current_line = self.max_block_size_on_current_line.max(margin_block_size);
-        let used = self.context().used(node);
-        used.has_containing_line_box_fragment.set(false);
-        if self.context().facts(node).is_atomic_inline() {
-            used.has_containing_line_box_fragment.set(true);
-            used.containing_line_box_fragment.set(LineBoxFragmentCoordinate {
-                line_box_index: line_index,
-                fragment_index,
-            });
-        }
     }
 
     #[allow(clippy::too_many_arguments)]

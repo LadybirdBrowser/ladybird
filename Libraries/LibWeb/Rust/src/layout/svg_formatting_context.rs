@@ -524,7 +524,7 @@ impl<'pass> SvgFormattingContext<'pass> {
     }
 
     fn place_child(&self, node: Node, x: CssPixels, y: CssPixels) {
-        crate::layout::place_child(&self.formatting_context_run(), node, FfiCssPixelPoint { x, y });
+        crate::layout::place_child(&self.formatting_context_run(), node, FfiCssPixelPoint { x, y }, None);
     }
 
     fn for_each_child(&self, node: Node, mut callback: impl FnMut(Node)) {

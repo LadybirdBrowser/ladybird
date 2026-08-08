@@ -325,15 +325,18 @@ pub(crate) enum BaselineSet {
     Last,
 }
 
-pub(crate) fn place_child(run: &FormattingContextRun, node: Node, offset: FfiCssPixelPoint) {
+pub(crate) fn place_child(
+    run: &FormattingContextRun,
+    node: Node,
+    offset: FfiCssPixelPoint,
+    containing_line_box_fragment: Option<LineBoxFragmentCoordinate>,
+) {
     let state = run.state;
     let callbacks = &run.callbacks;
     let used = state.used_values(callbacks, node);
     assert!(!used.has_content_offset.get());
     used.has_content_offset.set(true);
     used.content_offset.set(offset);
-    used.committed_offset_delta
-        .set(committed_offset_delta_at_placement(state, callbacks, node, used));
     used.seal_committed_box_metrics();
     if let Some(fragments) = run.fragments.as_deref() {
         fragments.normalize_arrivals_for_placement(node);
@@ -369,7 +372,8 @@ pub(crate) fn place_child(run: &FormattingContextRun, node: Node, offset: FfiCss
             (!containing_block.is_invalid()).then_some(containing_block),
             used,
             containing_block_is_sealed,
-            state.containing_line_box_index(callbacks, node, used),
+            state.resolve_containing_line_box_index(callbacks, node, containing_line_box_fragment, offset),
+            point_add(offset, committed_offset_delta_at_placement(state, callbacks, node, used)),
             own_anchor_candidate_border_box_rect,
         );
     }
@@ -1827,7 +1831,7 @@ pub unsafe extern "C" fn rust_layout_run_root_layout(
         if !first_child.is_invalid() && state.node_facts(&callbacks, first_child).is_svg_svg_box() {
             viewport_used.set_content_inline_size(viewport_inline_size);
             viewport_used.set_content_block_size(viewport_block_size);
-            place_child(&entry_run, root, FfiCssPixelPoint::default());
+            place_child(&entry_run, root, FfiCssPixelPoint::default(), None);
             state.create_used_values(&callbacks, first_child, root_constraints);
             root_for_layout = first_child;
         }
@@ -1857,7 +1861,7 @@ pub unsafe extern "C" fn rust_layout_run_root_layout(
             debug_assert!(unplaced_root.node == root_for_layout, "the entry run returned a root for a different box");
             entry_fragments.hold_unplaced_root(unplaced_root);
         }
-        place_child(&entry_run, root_for_layout, FfiCssPixelPoint::default());
+        place_child(&entry_run, root_for_layout, FfiCssPixelPoint::default(), None);
         drain_and_commit_entry_pass(
             &state,
             &entry_fragments,
@@ -1918,7 +1922,7 @@ pub unsafe extern "C" fn rust_layout_compute_subtree_layout(
             let viewport_used = state.create_used_values(&callbacks, viewport, viewport_constraints);
             viewport_used.set_content_inline_size(viewport_inline_size);
             viewport_used.set_content_block_size(viewport_block_size);
-            place_child(&entry_run, viewport, FfiCssPixelPoint::default());
+            place_child(&entry_run, viewport, FfiCssPixelPoint::default(), None);
         }
         let input = LayoutInput::new(
             AvailableSpace {
@@ -1941,7 +1945,16 @@ pub unsafe extern "C" fn rust_layout_compute_subtree_layout(
             entry_fragments.hold_unplaced_root(unplaced_root);
         }
         entry_fragments.normalize_arrivals_for_placement(root);
-        entry_fragments.build_fragment_for_placed_box(&callbacks, root, None, root_used, false, None, None);
+        entry_fragments.build_fragment_for_placed_box(
+            &callbacks,
+            root,
+            None,
+            root_used,
+            false,
+            None,
+            root_used.content_offset.get(),
+            None,
+        );
         drain_and_commit_entry_pass(
             &state,
             &entry_fragments,
