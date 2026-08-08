@@ -48,7 +48,7 @@ public:
         return Media::Matroska::codec_id_from_matroska_track_entry(*entry.value());
     }
 
-    virtual ReadonlyBytes codec_initialization_data_for_track(u64 track_number) const override
+    ReadonlyBytes codec_initialization_data_for_track(u64 track_number) const
     {
         auto entry = m_track_entries.get(track_number);
         if (!entry.has_value())
@@ -63,6 +63,7 @@ public:
 private:
     Optional<Media::Matroska::SegmentInformation> m_segment_information;
     OrderedHashMap<u64, NonnullRefPtr<Media::Matroska::TrackEntry>> m_track_entries;
+    HashTable<u64> m_tracks_needing_codec_configuration;
     Media::Matroska::TrackBlockContexts m_track_block_contexts;
 
     Vector<Media::Track> m_video_tracks;

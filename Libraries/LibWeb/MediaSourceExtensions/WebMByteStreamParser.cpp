@@ -191,6 +191,7 @@ Media::DecoderErrorOr<void> WebMByteStreamParser::parse_initialization_segment(M
         auto& tracks_for_type = *maybe_tracks_for_type;
         tracks_for_type.append(track_from_track_entry(track_entry, tracks_for_type.is_empty()));
         m_track_block_contexts.set(track_number, TrackBlockContext::from_track_entry(track_entry));
+        m_tracks_needing_codec_configuration.set(track_number);
     }
 
     m_current_media_segment_data.clear();
@@ -273,14 +274,22 @@ Media::DecoderErrorOr<ParseMediaSegmentResult> WebMByteStreamParser::parse_media
                 auto frame_data = TRY(streamer.read_raw_octets(data_size));
                 TRY(cursor.seek(current_position, SeekMode::SetPosition));
 
+                // Every decode sequence begins with the track's configuration, so that a decoder can be created
+                // for the frame that starts it.
+                Optional<FixedArray<u8>> codec_configuration;
+                if (m_tracks_needing_codec_configuration.remove(block.track_number()))
+                    codec_configuration = MUST(FixedArray<u8>::create(codec_initialization_data_for_track(block.track_number())));
+
                 result.coded_frames.append({
                     .track_number = block.track_number(),
                     .coded_frame = Media::CodedFrame(
+                        codec_id_for_track(block.track_number()),
                         block.timestamp().value(),
                         block.timestamp().value(),
                         block.duration().value_or(AK::Duration::zero()),
                         block.only_keyframes() ? Media::FrameFlags::Keyframe : Media::FrameFlags::None,
-                        move(frame_data)),
+                        move(frame_data),
+                        move(codec_configuration)),
                 });
                 return IterationDecision::Continue;
             }

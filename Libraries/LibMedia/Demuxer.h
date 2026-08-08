@@ -27,6 +27,7 @@ namespace Media {
 enum class DemuxerSeekOptions : u8 {
     None = 0,
     Force = 1 << 0,
+    NeedCodecConfiguration = 1 << 1,
 };
 
 AK_ENUM_BITWISE_OPERATORS(DemuxerSeekOptions);
@@ -86,10 +87,6 @@ public:
     virtual DecoderErrorOr<Optional<Track>> get_preferred_track_for_type(TrackType) = 0;
 
     virtual DecoderErrorOr<CodedFrame> get_next_sample_for_track(Track const&) = 0;
-
-    virtual DecoderErrorOr<CodecID> get_codec_id_for_track(Track const&) = 0;
-
-    virtual DecoderErrorOr<ReadonlyBytes> get_codec_initialization_data_for_track(Track const&) = 0;
 
     virtual AK::Duration select_fast_seek_target_for_track(Track const&, AK::Duration target, SeekMode) = 0;
     virtual DecoderErrorOr<DemuxerSeekResult> seek_to_most_recent_keyframe(Track const&, AK::Duration timestamp, DemuxerSeekOptions = DemuxerSeekOptions::None) = 0;

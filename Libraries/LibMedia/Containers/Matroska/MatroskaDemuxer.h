@@ -43,10 +43,6 @@ public:
     virtual DemuxerScanState const& scan_state() const LIFETIME_BOUND override;
     virtual void set_scan_state_change_handler(Function<void()>) override;
 
-    virtual DecoderErrorOr<CodecID> get_codec_id_for_track(Track const&) override;
-
-    virtual DecoderErrorOr<ReadonlyBytes> get_codec_initialization_data_for_track(Track const&) override;
-
     virtual DecoderErrorOr<CodedFrame> get_next_sample_for_track(Track const&) override;
 
     virtual void set_blocking_reads_aborted_for_track(Track const&) override;
@@ -67,6 +63,7 @@ private:
         Optional<Block> block;
         SampleIterator::Frames frames;
         size_t frame_index { 0 };
+        bool needs_codec_configuration { true };
 
         TrackStatus(SampleIterator&& iterator)
             : iterator(iterator)

@@ -7,7 +7,6 @@
 #pragma once
 
 #include <AK/Atomic.h>
-#include <AK/ByteBuffer.h>
 #include <AK/FixedArray.h>
 #include <AK/Vector.h>
 #include <LibCore/Forward.h>
@@ -45,7 +44,7 @@ public:
         NeedsReanchoring,
     };
 
-    TrackBufferDemuxer(Media::Track const&, Media::CodecID, ByteBuffer codec_initialization_data);
+    explicit TrackBufferDemuxer(Media::Track const&);
     virtual ~TrackBufferDemuxer() override;
 
     Media::Track const& track() const { return m_track; }
@@ -71,8 +70,6 @@ public:
     virtual Media::DecoderErrorOr<Vector<Media::Track>> get_tracks_for_type(Media::TrackType) override;
     virtual Media::DecoderErrorOr<Optional<Media::Track>> get_preferred_track_for_type(Media::TrackType) override;
     virtual Media::DecoderErrorOr<Media::CodedFrame> get_next_sample_for_track(Media::Track const&) override;
-    virtual Media::DecoderErrorOr<Media::CodecID> get_codec_id_for_track(Media::Track const&) override;
-    virtual Media::DecoderErrorOr<ReadonlyBytes> get_codec_initialization_data_for_track(Media::Track const&) override;
     virtual AK::Duration select_fast_seek_target_for_track(Media::Track const&, AK::Duration target, Media::SeekMode) override;
     virtual Media::DecoderErrorOr<Media::DemuxerSeekResult> seek_to_most_recent_keyframe(Media::Track const&, AK::Duration, Media::DemuxerSeekOptions) override;
     virtual Media::DecoderErrorOr<AK::Duration> duration_of_track(Media::Track const&) override;
@@ -89,7 +86,7 @@ private:
     AK::Duration maximum_time_range_gap() const;
     void count_frame_duration_while_locked(AK::Duration);
     void decrement_frames_with_maximum_duration_while_locked(size_t count);
-    ReadonlyBytes codec_configuration_at_position_while_locked(size_t run_index, size_t frame_index) const;
+    Optional<ReadonlyBytes> codec_configuration_at_position_while_locked(size_t run_index, size_t frame_index) const;
     bool is_frame_evictable_while_locked(Media::CodedFrame const&, AK::Duration current_time) const;
     void queue_scan_state_change_dispatch_while_locked();
 
@@ -97,7 +94,7 @@ private:
 
     static void extend_run_bounds_for_frame(FrameRun&, Media::CodedFrame const&);
     static void recalculate_run_bounds(FrameRun&);
-    static ReadonlyBytes codec_configuration_after_frame_prefix_while_locked(FrameRun const&, size_t frame_count);
+    static Optional<ReadonlyBytes> codec_configuration_after_frame_prefix_while_locked(FrameRun const&, size_t frame_count);
     void note_cursor_jumped_while_locked();
     void verify_runs_are_ordered_around_index_while_locked(size_t run_index) const;
     void split_run_while_locked(size_t run_index, size_t split_at, FixedArray<u8> codec_configuration_before_tail);
@@ -106,8 +103,6 @@ private:
     bool move_cursor_to_presentation_time_while_locked(AK::Duration);
 
     Media::Track m_track;
-    Media::CodecID m_codec_id;
-    ByteBuffer m_codec_initialization_data;
 
     mutable Sync::Mutex m_mutex;
     Sync::ConditionVariable m_data_changed { m_mutex };
@@ -120,8 +115,8 @@ private:
 
     Optional<AK::Duration> m_cursor_presentation_timestamp;
     Optional<AK::Duration> m_last_appended_decode_timestamp;
-    FixedArray<u8> m_last_delivered_codec_configuration;
-    FixedArray<u8> m_last_appended_codec_configuration;
+    Optional<FixedArray<u8>> m_last_delivered_codec_configuration;
+    Optional<FixedArray<u8>> m_last_appended_codec_configuration;
 
     Media::TimeRanges m_track_buffer_ranges;
     AK::Duration m_maximum_frame_duration;

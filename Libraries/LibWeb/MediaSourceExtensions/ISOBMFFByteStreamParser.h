@@ -48,15 +48,6 @@ public:
         return sample_entry.has_value() ? sample_entry->codec_id : Media::CodecID::Unknown;
     }
 
-    virtual ReadonlyBytes codec_initialization_data_for_track(u64 track_id) const override
-    {
-        auto entry = m_track_entries.get(static_cast<u32>(track_id));
-        if (!entry.has_value())
-            return {};
-        auto sample_entry = (*entry)->default_sample_entry();
-        return sample_entry.has_value() ? sample_entry->codec_initialization_data.span() : ReadonlyBytes {};
-    }
-
     virtual Vector<Media::Track> const& video_tracks() const override { return m_video_tracks; }
     virtual Vector<Media::Track> const& audio_tracks() const override { return m_audio_tracks; }
     virtual Vector<Media::Track> const& text_tracks() const override { return m_text_tracks; }

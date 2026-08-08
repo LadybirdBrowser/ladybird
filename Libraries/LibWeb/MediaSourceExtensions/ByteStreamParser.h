@@ -48,7 +48,6 @@ public:
 
     virtual Optional<AK::Duration> duration() const = 0;
     virtual Media::CodecID codec_id_for_track(u64 track_number) const = 0;
-    virtual ReadonlyBytes codec_initialization_data_for_track(u64 track_number) const = 0;
 
     virtual Vector<Media::Track> const& video_tracks() const = 0;
     virtual Vector<Media::Track> const& audio_tracks() const = 0;

@@ -17,6 +17,7 @@
 #include <LibMedia/CodedFrame.h>
 #include <LibMedia/Containers/Matroska/MatroskaDemuxer.h>
 #include <LibMedia/Containers/Matroska/Reader.h>
+#include <LibMedia/Containers/Matroska/Utilities.h>
 #include <LibMedia/Demuxer.h>
 #include <LibMedia/FFmpeg/FFmpegDemuxer.h>
 #include <LibMedia/PipelineStatus.h>
@@ -45,6 +46,7 @@ static inline void decode_video(StringView path, size_t expected_frame_count, T 
     }));
     EXPECT(video_track_entry);
 
+    auto codec_id = Media::Matroska::codec_id_from_matroska_track_entry(*video_track_entry);
     auto iterator = MUST(matroska_reader.create_sample_iterator(stream->create_cursor(), video_track_entry->track_number()));
     size_t frame_count = 0;
     NonnullOwnPtr<Media::VideoDecoder> decoder = create_decoder(*video_track_entry);
@@ -63,7 +65,7 @@ static inline void decode_video(StringView path, size_t expected_frame_count, T 
         auto frames = MUST(iterator.get_frames(block));
         for (auto& frame : frames) {
             auto timestamp = block.timestamp().value();
-            Media::CodedFrame coded_frame { timestamp, timestamp, block.duration().value_or(AK::Duration::zero()),
+            Media::CodedFrame coded_frame { codec_id, timestamp, timestamp, block.duration().value_or(AK::Duration::zero()),
                 block.only_keyframes() ? Media::FrameFlags::Keyframe : Media::FrameFlags::None,
                 move(frame) };
             MUST(decoder->receive_coded_data(coded_frame));

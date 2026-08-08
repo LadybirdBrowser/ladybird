@@ -133,17 +133,6 @@ MatroskaDemuxer::TrackStatus& MatroskaDemuxer::get_track_status(Track const& tra
     return track_status.release_value();
 }
 
-DecoderErrorOr<CodecID> MatroskaDemuxer::get_codec_id_for_track(Track const& track)
-{
-    auto track_entry = TRY(m_reader.track_for_track_number(track.identifier()));
-    return codec_id_from_matroska_track_entry(track_entry);
-}
-
-DecoderErrorOr<ReadonlyBytes> MatroskaDemuxer::get_codec_initialization_data_for_track(Track const& track)
-{
-    return TRY(m_reader.track_for_track_number(track.identifier()))->codec_private_data();
-}
-
 AK::Duration MatroskaDemuxer::select_fast_seek_target_for_track(Track const& track, AK::Duration target, SeekMode mode)
 {
     auto cue_points = m_reader.cue_points_for_track(track.identifier());
@@ -182,6 +171,8 @@ DecoderErrorOr<DemuxerSeekResult> MatroskaDemuxer::seek_to_most_recent_keyframe(
     track_status.block = {};
     track_status.frames = {};
     track_status.frame_index = 0;
+    if (has_flag(options, DemuxerSeekOptions::NeedCodecConfiguration))
+        track_status.needs_codec_configuration = true;
     return DemuxerSeekResult::MovedPosition;
 }
 
@@ -201,10 +192,20 @@ DecoderErrorOr<CodedFrame> MatroskaDemuxer::get_next_sample_for_track(Track cons
 
     VERIFY(status.block.has_value());
 
+    auto track_entry = TRY(m_reader.track_for_track_number(track.identifier()));
+    auto codec_id = codec_id_from_matroska_track_entry(track_entry);
+    Optional<FixedArray<u8>> codec_configuration;
+    if (status.needs_codec_configuration) {
+        status.needs_codec_configuration = false;
+        codec_configuration = DECODER_TRY_ALLOC(FixedArray<u8>::create(track_entry->codec_private_data()));
+    }
+
     auto timestamp = status.block->timestamp().value();
     auto duration = status.block->duration().value_or(AK::Duration::zero());
     auto flags = status.block->only_keyframes() ? FrameFlags::Keyframe : FrameFlags::None;
-    return CodedFrame(timestamp, timestamp, duration, flags, move(status.frames[status.frame_index++]));
+
+    return CodedFrame(codec_id, timestamp, timestamp, duration, flags,
+        move(status.frames[status.frame_index++]), move(codec_configuration));
 }
 
 DecoderErrorOr<AK::Duration> MatroskaDemuxer::total_duration()
