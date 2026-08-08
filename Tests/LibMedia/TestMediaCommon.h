@@ -65,7 +65,7 @@ static inline void decode_video(StringView path, size_t expected_frame_count, T 
             auto timestamp = block.timestamp().value();
             Media::CodedFrame coded_frame { timestamp, timestamp, block.duration().value_or(AK::Duration::zero()),
                 block.only_keyframes() ? Media::FrameFlags::Keyframe : Media::FrameFlags::None,
-                move(frame), Media::CodedVideoFrameData {} };
+                move(frame) };
             MUST(decoder->receive_coded_data(coded_frame));
             while (true) {
                 auto metadata_result = decoder->peek_next_output({});

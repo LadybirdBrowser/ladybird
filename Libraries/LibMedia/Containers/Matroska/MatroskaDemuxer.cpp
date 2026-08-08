@@ -189,16 +189,7 @@ DecoderErrorOr<CodedFrame> MatroskaDemuxer::get_next_sample_for_track(Track cons
     auto timestamp = status.block->timestamp().value();
     auto duration = status.block->duration().value_or(AK::Duration::zero());
     auto flags = status.block->only_keyframes() ? FrameFlags::Keyframe : FrameFlags::None;
-    auto aux_data = [&] -> CodedFrame::AuxiliaryData {
-        if (track.type() == TrackType::Video) {
-            return CodedVideoFrameData();
-        }
-        if (track.type() == TrackType::Audio) {
-            return CodedAudioFrameData();
-        }
-        VERIFY_NOT_REACHED();
-    }();
-    return CodedFrame(timestamp, timestamp, duration, flags, move(status.frames[status.frame_index++]), aux_data);
+    return CodedFrame(timestamp, timestamp, duration, flags, move(status.frames[status.frame_index++]));
 }
 
 DecoderErrorOr<AK::Duration> MatroskaDemuxer::total_duration()

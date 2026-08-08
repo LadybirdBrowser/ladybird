@@ -8,23 +8,18 @@
 
 #include <AK/ByteBuffer.h>
 #include <AK/Time.h>
-#include <LibMedia/CodedAudioFrameData.h>
-#include <LibMedia/CodedVideoFrameData.h>
 #include <LibMedia/FrameFlags.h>
 
 namespace Media {
 
 class CodedFrame final {
 public:
-    using AuxiliaryData = Variant<CodedVideoFrameData, CodedAudioFrameData>;
-
-    CodedFrame(AK::Duration presentation_timestamp, AK::Duration decode_timestamp, AK::Duration duration, FrameFlags flags, ByteBuffer&& data, AuxiliaryData auxiliary_data)
+    CodedFrame(AK::Duration presentation_timestamp, AK::Duration decode_timestamp, AK::Duration duration, FrameFlags flags, ByteBuffer&& data)
         : m_presentation_timestamp(presentation_timestamp)
         , m_decode_timestamp(decode_timestamp)
         , m_duration(duration)
         , m_flags(flags)
         , m_data(move(data))
-        , m_auxiliary_data(auxiliary_data)
     {
     }
 
@@ -34,7 +29,6 @@ public:
     FrameFlags flags() const { return m_flags; }
     bool is_keyframe() const { return has_flag(m_flags, FrameFlags::Keyframe); }
     ByteBuffer const& data() const { return m_data; }
-    AuxiliaryData const& auxiliary_data() const { return m_auxiliary_data; }
 
 private:
     AK::Duration m_presentation_timestamp;
@@ -42,7 +36,6 @@ private:
     AK::Duration m_duration;
     FrameFlags m_flags;
     ByteBuffer m_data;
-    AuxiliaryData m_auxiliary_data;
 };
 
 }
