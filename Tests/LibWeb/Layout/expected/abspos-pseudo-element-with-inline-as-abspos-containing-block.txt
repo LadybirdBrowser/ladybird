@@ -5,8 +5,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         frag 0 from TextNode start: 0, length: 8, rect: [8,8 74.125x16] baseline: 12.796875
             "Features"
         TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [85.625,15.1875] positioned [0+0+0 8 0+0+0] [0+0+0 5 0+0+0] [BFC] children: inline
-        GeneratedTextNode <(anonymous)> (not painted)
+      BlockContainer <(anonymous)> at [85.625,15.1875] positioned [0+0+0 8 0+0+0] [0+0+0 5 0+0+0] [BFC] children: not-inline
       TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]

@@ -436,7 +436,7 @@ public:
     bool is_shadow_including_ancestor_of(Node const&) const;
     bool is_shadow_including_inclusive_ancestor_of(Node const&) const;
 
-    [[nodiscard]] UniqueNodeID unique_id() const { return m_unique_id; }
+    [[nodiscard]] UniqueNodeID unique_id() const;
     static Node* from_unique_id(UniqueNodeID);
 
     WebIDL::ExceptionOr<Utf16String> serialize_fragment(HTML::RequireWellFormed, FragmentSerializationMode = FragmentSerializationMode::Inner) const;
@@ -554,7 +554,7 @@ protected:
     bool m_is_connected { false };
     bool m_inside_blocking_wheel_event_handler { false };
 
-    UniqueNodeID m_unique_id;
+    mutable Optional<UniqueNodeID> m_unique_id;
 
     // https://dom.spec.whatwg.org/#registered-observer-list
     // "Nodes have a strong reference to registered observers in their registered observer list." https://dom.spec.whatwg.org/#garbage-collection

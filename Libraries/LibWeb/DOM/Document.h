@@ -1029,6 +1029,8 @@ public:
         u64 registered_properties_cache_rebuilds { 0 };
         u64 style_sheet_invalidation_set_builds { 0 };
         u64 scope_rule_cache_builds { 0 };
+        u64 size_query_container_scan_visits { 0 };
+        u64 style_query_container_scans { 0 };
         u64 relayouts_performed { 0 };
         u64 scrollable_overflow_recalculations { 0 };
     };

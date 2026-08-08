@@ -8,6 +8,7 @@
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/SVGSVGPaintable.h>
+#include <LibWeb/Painting/StackingContext.h>
 
 namespace Web::Painting {
 
@@ -81,6 +82,18 @@ void SVGSVGPaintable::paint_descendants(DisplayListRecordingContext& context, Pa
         return;
 
     paintable.for_each_child_of_type<Paintable>([&](Paintable& child) {
+        // A child that establishes a stacking context is painted by that context, in the order the
+        // painting algorithm gives it, and painting it here as well would draw it twice.
+        if (child.has_stacking_context()) {
+            // If this SVG root does not establish a stacking context of its own, the child context belongs to the
+            // enclosing CSS stacking context and will be painted there in the appropriate stack level.
+            if (paintable.has_stacking_context()) {
+                auto stacking_context = child.stacking_context();
+                VERIFY(stacking_context);
+                StackingContext::paint_child(context, *stacking_context);
+            }
+            return IterationDecision::Continue;
+        }
         paint_svg_box(context, child, phase);
         return IterationDecision::Continue;
     });

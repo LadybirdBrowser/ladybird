@@ -31,6 +31,7 @@
 #include <LibWeb/CSS/CountersSet.h>
 #include <LibWeb/CSS/CustomPropertyData.h>
 #include <LibWeb/CSS/Invalidation/AttributeInvalidator.h>
+#include <LibWeb/CSS/Invalidation/ContainerQueryInvalidator.h>
 #include <LibWeb/CSS/Invalidation/CustomElementInvalidator.h>
 #include <LibWeb/CSS/Invalidation/ElementStateInvalidator.h>
 #include <LibWeb/CSS/Invalidation/LanguageInvalidator.h>
@@ -1465,12 +1466,7 @@ void Element::mark_descendants_with_stale_styles_for_style_update()
 
 void Element::invalidate_descendant_styles_depending_on_style_container_query()
 {
-    for_each_shadow_including_descendant([](auto& node) {
-        auto* element = as_if<Element>(node);
-        if (element && element->style_depends_on_style_container_query())
-            element->set_needs_style_update(true);
-        return TraversalDecision::Continue;
-    });
+    CSS::Invalidation::invalidate_descendant_styles_depending_on_style_container_query(*this);
 }
 
 CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style(ScheduleAnimationUpdate schedule_animation_update)

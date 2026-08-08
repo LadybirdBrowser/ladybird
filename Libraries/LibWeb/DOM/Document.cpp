@@ -58,6 +58,7 @@
 #include <LibWeb/CSS/CustomPropertyRegistration.h>
 #include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/FontFaceSet.h>
+#include <LibWeb/CSS/Invalidation/ContainerQueryInvalidator.h>
 #include <LibWeb/CSS/Invalidation/MediaQueryInvalidator.h>
 #include <LibWeb/CSS/Invalidation/PseudoClassInvalidator.h>
 #include <LibWeb/CSS/Invalidation/StyleInvalidator.h>
@@ -2227,12 +2228,7 @@ void Document::update_layout(UpdateLayoutReason reason)
                 if (!query_container->is_connected())
                     continue;
 
-                query_container->for_each_shadow_including_descendant([](Node& node) {
-                    if (auto* element = as_if<Element>(node); element && element->style_depends_on_size_container_query())
-                        element->set_needs_style_update(true);
-
-                    return TraversalDecision::Continue;
-                });
+                CSS::Invalidation::invalidate_descendant_styles_depending_on_size_container_query(query_container);
             }
         }
 

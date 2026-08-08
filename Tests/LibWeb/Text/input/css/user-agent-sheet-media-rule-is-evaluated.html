@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<noscript id="noscript">hidden while scripting is enabled</noscript>
+<iframe id="frame" sandbox="allow-same-origin" srcdoc="<noscript id=inner>visible in here</noscript>"></iframe>
+<script>
+asyncTest(done => {
+    const noscript = document.getElementById("noscript");
+    println("before: " + getComputedStyle(noscript).display);
+
+    document.getElementById("frame").onload = () => {
+        const frameDocument = document.getElementById("frame").contentDocument;
+        const inner = frameDocument.getElementById("inner");
+        println("in the frame: " + frameDocument.defaultView.getComputedStyle(inner).display);
+
+        document.head.appendChild(document.createElement("style"));
+        println("after: " + getComputedStyle(noscript).display);
+        done();
+    };
+});
+</script>

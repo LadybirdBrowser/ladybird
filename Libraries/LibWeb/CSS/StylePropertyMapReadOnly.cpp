@@ -48,6 +48,14 @@ void StylePropertyMapReadOnly::visit_edges(Cell::Visitor& visitor)
         [&visitor](GC::Ref<CSSStyleDeclaration>& declaration) { visitor.visit(declaration); });
 }
 
+// A computed style map describes an element's computed style, and a disconnected element has none.
+// `getComputedStyle` refuses one outright rather than reporting a style nothing decided, and the map
+// answers the same way: empty, with every property absent.
+static bool has_computed_style(DOM::AbstractElement const& abstract_element)
+{
+    return abstract_element.element().is_connected();
+}
+
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymapreadonly-get
 WebIDL::ExceptionOr<Variant<GC::Ref<CSSStyleValue>, Empty>> StylePropertyMapReadOnly::get(Utf16FlyString property_name)
 {
@@ -117,6 +125,8 @@ WebIDL::ExceptionOr<bool> StylePropertyMapReadOnly::has(Utf16FlyString property_
     // 4. If props[property] exists, return true. Otherwise, return false.
     return props.visit(
         [&property](DOM::AbstractElement& element) {
+            if (!has_computed_style(element))
+                return false;
             // From https://drafts.css-houdini.org/css-typed-om-1/#dom-element-computedstylemap we need to include:
             // "the name and computed value of every longhand CSS property supported by the User Agent, every
             // registered custom property, and every non-registered custom property which is not set to its initial
@@ -143,6 +153,8 @@ WebIDL::UnsignedLong StylePropertyMapReadOnly::size() const
     // 1. Return the size of the value of this’s [[declarations]] internal slot.
     return m_declarations.visit(
         [](DOM::AbstractElement const& element) {
+            if (!has_computed_style(element))
+                return size_t { 0 };
             // From https://drafts.css-houdini.org/css-typed-om-1/#dom-element-computedstylemap we need to include:
             // "the name and computed value of every longhand CSS property supported by the User Agent, every
             // registered custom property, and every non-registered custom property which is not set to its initial
@@ -170,6 +182,8 @@ RefPtr<StyleValue const> StylePropertyMapReadOnly::get_style_value(Source& sourc
 {
     return source.visit(
         [&property](DOM::AbstractElement& element) -> RefPtr<StyleValue const> {
+            if (!has_computed_style(element))
+                return nullptr;
             // From https://drafts.css-houdini.org/css-typed-om-1/#dom-element-computedstylemap we need to include:
             // "the name and computed value of every longhand CSS property supported by the User Agent, every
             // registered custom property, and every non-registered custom property which is not set to its initial
