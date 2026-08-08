@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="host"></div>
+<script>
+    test(() => {
+        const prototype = { marker: "preserved" };
+
+        (() => {
+            const element = host.appendChild(document.createElement("span"));
+            element.id = "prototype-probe";
+            Object.setPrototypeOf(element, prototype);
+        })();
+
+        internals.gc();
+
+        const reacquired = document.getElementById("prototype-probe");
+        println(`marker=${reacquired.marker}`);
+        println(`prototype=${Object.getPrototypeOf(reacquired) === prototype}`);
+    });
+</script>

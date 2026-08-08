@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="host"></div>
+<script>
+    test(() => {
+        (() => {
+            const element = host.appendChild(document.createElement("span"));
+            element.id = "freeze-probe";
+            element.marker = 42;
+            Object.freeze(element);
+
+            const elementWithoutExpando = host.appendChild(document.createElement("span"));
+            elementWithoutExpando.id = "freeze-no-expando-probe";
+            Object.freeze(elementWithoutExpando);
+        })();
+
+        internals.gc();
+
+        const reacquired = document.getElementById("freeze-probe");
+        const descriptor = Object.getOwnPropertyDescriptor(reacquired, "marker");
+        println(`frozen=${Object.isFrozen(reacquired)}`);
+        println(`descriptor=${descriptor.writable}/${descriptor.configurable}/${descriptor.value}`);
+
+        const reacquiredWithoutExpando = document.getElementById("freeze-no-expando-probe");
+        println(`frozen-without-expando=${Object.isFrozen(reacquiredWithoutExpando)}`);
+    });
+</script>

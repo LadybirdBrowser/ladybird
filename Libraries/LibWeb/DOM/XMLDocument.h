@@ -11,17 +11,15 @@
 namespace Web::DOM {
 
 class XMLDocument final : public Document {
-    WEB_PLATFORM_OBJECT(XMLDocument, Document);
+    WEB_WRAPPABLE(XMLDocument, Document);
     GC_DECLARE_ALLOCATOR(XMLDocument);
 
 public:
-    static GC::Ref<XMLDocument> create(JS::Realm&, URL::URL const& url = URL::about_blank());
+    static GC::Ref<XMLDocument> create(Page&, GC::Ref<EventTarget> relevant_global_event_target, URL::URL const& url = URL::about_blank());
     virtual ~XMLDocument() override = default;
 
 private:
-    XMLDocument(JS::Realm& realm, URL::URL const& url);
-
-    virtual void initialize(JS::Realm&) override;
+    XMLDocument(Page&, GC::Ref<EventTarget> relevant_global_event_target, URL::URL const& url);
 };
 
 }

@@ -2,13 +2,13 @@ Harness status: OK
 
 Found 12 tests
 
-8 Pass
-4 Fail
+11 Pass
+1 Fail
 Pass	rect1
-Fail	rect2
+Pass	rect2
 Pass	circle
-Fail	ellipse1
-Fail	ellipse2
+Pass	ellipse1
+Pass	ellipse2
 Pass	ellipse3
 Pass	ellipse4
 Pass	image3

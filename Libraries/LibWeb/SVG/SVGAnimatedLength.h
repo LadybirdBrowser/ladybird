@@ -6,27 +6,26 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/SVG/SVGLength.h>
 
 namespace Web::SVG {
 
 // https://www.w3.org/TR/SVG11/types.html#InterfaceSVGAnimatedLength
-class SVGAnimatedLength final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(SVGAnimatedLength, Bindings::PlatformObject);
+class SVGAnimatedLength final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(SVGAnimatedLength, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(SVGAnimatedLength);
 
 public:
-    [[nodiscard]] static GC::Ref<SVGAnimatedLength> create(JS::Realm&, GC::Ref<SVGLength> base_val, GC::Ref<SVGLength> anim_val);
+    [[nodiscard]] static GC::Ref<SVGAnimatedLength> create(GC::Ref<SVGLength> base_val, GC::Ref<SVGLength> anim_val);
     virtual ~SVGAnimatedLength() override;
 
     GC::Ref<SVGLength> base_val() const { return m_base_val; }
     GC::Ref<SVGLength> anim_val() const { return m_anim_val; }
 
 private:
-    SVGAnimatedLength(JS::Realm&, GC::Ref<SVGLength> base_val, GC::Ref<SVGLength> anim_val);
+    SVGAnimatedLength(GC::Ref<SVGLength> base_val, GC::Ref<SVGLength> anim_val);
 
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     GC::Ref<SVGLength> m_base_val;

@@ -10,6 +10,7 @@
 
 #include <AK/GenericLexer.h>
 #include <AK/Time.h>
+#include <LibJS/Runtime/Date.h>
 #include <LibWeb/HTML/Dates.h>
 
 namespace Web::HTML {
@@ -496,7 +497,7 @@ static Optional<HourMinuteSecond> parse_a_time_component(Utf16GenericLexer& inpu
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#parse-a-time-string
-WebIDL::ExceptionOr<GC::Ref<JS::Date>> parse_time_string(JS::Realm& realm, Utf16View value)
+WebIDL::ExceptionOr<double> parse_time_string_value(StringView value)
 {
     // 1. Let input be the string being parsed.
     // 2. Let position be a pointer into input, initially pointing at the start of the string.
@@ -513,7 +514,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Date>> parse_time_string(JS::Realm& realm, Utf16
 
     // 5. Let time be the time with hour hour, minute minute, and second second.
     // 6. Return time.
-    return JS::Date::create(realm, JS::make_time(hour_minute_second->hour, hour_minute_second->minute, hour_minute_second->second, static_cast<i32>(hour_minute_second->second * 1000) % 1000));
+    return JS::make_time(hour_minute_second->hour, hour_minute_second->minute, hour_minute_second->second, static_cast<i32>(hour_minute_second->second * 1000) % 1000);
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#parse-a-local-date-and-time-string

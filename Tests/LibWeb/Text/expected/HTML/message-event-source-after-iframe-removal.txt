@@ -1,0 +1,1 @@
+source survives iframe removal: true

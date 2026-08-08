@@ -7,9 +7,6 @@
 
 #include <AK/Utf16StringBuilder.h>
 #include <LibGC/Heap.h>
-#include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/CSSNamespaceRule.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSNamespaceRule.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/Dump.h>
@@ -19,22 +16,16 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSNamespaceRule);
 
-CSSNamespaceRule::CSSNamespaceRule(JS::Realm& realm, Optional<Utf16FlyString> prefix, Utf16FlyString namespace_uri)
-    : CSSRule(realm, Type::Namespace)
+CSSNamespaceRule::CSSNamespaceRule(Optional<Utf16FlyString> prefix, Utf16FlyString namespace_uri)
+    : CSSRule(Type::Namespace)
     , m_namespace_uri(move(namespace_uri))
     , m_prefix(prefix.value_or(""_utf16_fly_string))
 {
 }
 
-GC::Ref<CSSNamespaceRule> CSSNamespaceRule::create(JS::Realm& realm, Optional<Utf16FlyString> prefix, Utf16FlyString namespace_uri)
+GC::Ref<CSSNamespaceRule> CSSNamespaceRule::create(Optional<Utf16FlyString> prefix, Utf16FlyString namespace_uri)
 {
-    return realm.create<CSSNamespaceRule>(realm, move(prefix), move(namespace_uri));
-}
-
-void CSSNamespaceRule::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSNamespaceRule);
-    Base::initialize(realm);
+    return GC::Heap::the().allocate<CSSNamespaceRule>(move(prefix), move(namespace_uri));
 }
 
 // https://www.w3.org/TR/cssom/#serialize-a-css-rule

@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="host"><span></span></div>
+<script>
+    asyncTest(done => {
+        const frame = document.createElement("iframe");
+        frame.onload = () => {
+            const collection = host.children;
+            const fromItem = frame.contentWindow.Function("collection", "return collection.item(0);")(collection);
+            const indexed = collection[0];
+            println(`parent-prototype=${Object.getPrototypeOf(fromItem) === HTMLSpanElement.prototype}`);
+            println(`same=${fromItem === indexed}`);
+            done();
+        };
+        document.body.append(frame);
+    });
+</script>

@@ -12,11 +12,11 @@ namespace Web::CSS {
 
 // https://drafts.csswg.org/css-cascade-5/#the-csslayerblockrule-interface
 class CSSLayerBlockRule final : public CSSGroupingRule {
-    WEB_PLATFORM_OBJECT(CSSLayerBlockRule, CSSGroupingRule);
+    WEB_WRAPPABLE(CSSLayerBlockRule, CSSGroupingRule);
     GC_DECLARE_ALLOCATOR(CSSLayerBlockRule);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSLayerBlockRule> create(JS::Realm&, Utf16FlyString name, CSSRuleList&);
+    [[nodiscard]] static GC::Ref<CSSLayerBlockRule> create(Utf16FlyString name, CSSRuleList&);
 
     static Utf16FlyString next_unique_anonymous_layer_name();
 
@@ -27,9 +27,8 @@ public:
     Utf16FlyString internal_qualified_name(Badge<StyleScope>) const;
 
 private:
-    CSSLayerBlockRule(JS::Realm&, Utf16FlyString name, CSSRuleList&);
+    CSSLayerBlockRule(Utf16FlyString name, CSSRuleList&);
 
-    virtual void initialize(JS::Realm&) override;
     virtual Utf16String serialized() const override;
     virtual void dump(StringBuilder&, int indent_levels) const override;
 

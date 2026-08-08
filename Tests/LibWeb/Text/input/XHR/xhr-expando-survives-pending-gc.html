@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        let xhr = new XMLHttpRequest();
+        xhr.wrapper_gc_probe = 37;
+        xhr.onload = function() {
+            println(this.wrapper_gc_probe);
+            done();
+        };
+        xhr.onerror = () => {
+            println("error");
+            done();
+        };
+        xhr.open("GET", "data:text/plain,wrapper-gc");
+        xhr.send();
+        xhr = null;
+        internals.gc();
+    });
+</script>

@@ -6,30 +6,33 @@
 
 #pragma once
 
-#include <LibGC/Ptr.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/TrustedTypes/TrustedHTML.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
+namespace Web::Bindings {
+
+enum class DOMParserSupportedType : u8;
+
+}
+
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#domparser
-class DOMParser final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(DOMParser, Bindings::PlatformObject);
+class DOMParser final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(DOMParser, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(DOMParser);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<DOMParser>> construct_impl(JS::Realm&);
+    static GC::Ref<DOMParser> create();
 
     virtual ~DOMParser() override;
 
-    WebIDL::ExceptionOr<GC::Ref<DOM::Document>> parse_from_string(TrustedTypes::TrustedHTMLOrString, Bindings::DOMParserSupportedType type);
+    WebIDL::ExceptionOr<GC::Root<DOM::Document>> parse_from_string(JS::Realm&, TrustedTypes::TrustedHTMLOrString, Bindings::DOMParserSupportedType);
 
 private:
-    explicit DOMParser(JS::Realm&);
-
-    virtual void initialize(JS::Realm&) override;
+    DOMParser() = default;
 };
 
 }

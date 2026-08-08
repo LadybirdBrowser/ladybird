@@ -10,6 +10,13 @@
                     println("PASS");
                 else
                     println("FAIL");
+                if (xhr.response === xhr.response)
+                    println("PASS");
+                else
+                    println("FAIL");
+                xhr.response.extra = "survives GC";
+                internals.gc();
+                println(xhr.response.extra);
                 done();
             }
         };

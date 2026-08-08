@@ -10,18 +10,23 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/Geometry/DOMPointReadOnly.h>
 
+namespace Web::Bindings {
+
+struct DOMPointInit;
+
+}
+
 namespace Web::Geometry {
 
 // https://drafts.fxtf.org/geometry/#DOMPoint
 class WEB_API DOMPoint final : public DOMPointReadOnly {
-    WEB_PLATFORM_OBJECT(DOMPoint, DOMPointReadOnly);
+    WEB_WRAPPABLE(DOMPoint, DOMPointReadOnly);
     GC_DECLARE_ALLOCATOR(DOMPoint);
 
 public:
-    static GC::Ref<DOMPoint> construct_impl(JS::Realm&, double x = 0, double y = 0, double z = 0, double w = 1);
-    static GC::Ref<DOMPoint> create(JS::Realm&);
-
-    static GC::Ref<DOMPoint> from_point(JS::VM&, Bindings::DOMPointInit const&);
+    static GC::Ref<DOMPoint> create(double x, double y, double z, double w);
+    static GC::Ref<DOMPoint> create();
+    static GC::Ref<DOMPoint> dom_point_from_point(Bindings::DOMPointInit const&);
 
     virtual ~DOMPoint() override;
 
@@ -36,10 +41,8 @@ public:
     void set_w(double w) { m_w = w; }
 
 private:
-    DOMPoint(JS::Realm&, double x, double y, double z, double w);
-    DOMPoint(JS::Realm&);
-
-    virtual void initialize(JS::Realm&) override;
+    DOMPoint(double x, double y, double z, double w);
+    DOMPoint();
 };
 
 }

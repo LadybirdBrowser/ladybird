@@ -14,21 +14,15 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(WebGLDebugRendererInfo);
 
-JS::ThrowCompletionOr<GC::Ref<JS::Object>> WebGLDebugRendererInfo::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
+GC::Ref<Bindings::Wrappable> WebGLDebugRendererInfo::create(GC::Ref<WebGLRenderingContextBase> context)
 {
+    auto& realm = context->realm();
     return realm.create<WebGLDebugRendererInfo>(realm, context);
 }
 
-WebGLDebugRendererInfo::WebGLDebugRendererInfo(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context)
-    : PlatformObject(realm)
-    , m_context(context)
+WebGLDebugRendererInfo::WebGLDebugRendererInfo(JS::Realm&, GC::Ref<WebGLRenderingContextBase> context)
+    : m_context(context)
 {
-}
-
-void WebGLDebugRendererInfo::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGLDebugRendererInfo);
-    Base::initialize(realm);
 }
 
 void WebGLDebugRendererInfo::visit_edges(Visitor& visitor)

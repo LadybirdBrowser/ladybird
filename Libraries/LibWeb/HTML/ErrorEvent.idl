@@ -1,7 +1,7 @@
 // https://html.spec.whatwg.org/multipage/webappapis.html#errorevent
 [Exposed=(Window,Worker)]
 interface ErrorEvent : Event {
-    constructor([Utf16FlyString] Utf16DOMString type, optional ErrorEventInit eventInitDict = {});
+    constructor(DOMString type, optional ErrorEventInit eventInitDict = {});
 
     readonly attribute Utf16DOMString message;
     readonly attribute Utf16USVString filename;

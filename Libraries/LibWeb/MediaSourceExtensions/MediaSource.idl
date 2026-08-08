@@ -29,9 +29,9 @@ interface MediaSource : EventTarget {
 
     static readonly attribute boolean canConstructInDedicatedWorker;
 
-    SourceBuffer addSourceBuffer(Utf16DOMString type);
+    SourceBuffer addSourceBuffer(DOMString type);
     [FIXME] undefined removeSourceBuffer(SourceBuffer sourceBuffer);
-    undefined endOfStream(optional EndOfStreamError error);
+    [ImplementedAs=end_of_stream] undefined endOfStream(optional EndOfStreamError error);
     [FIXME] undefined setLiveSeekableRange(double start, double end);
     [FIXME] undefined clearLiveSeekableRange();
     static boolean isTypeSupported(Utf16DOMString type);

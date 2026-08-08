@@ -9,12 +9,13 @@
 #include <AK/Forward.h>
 #include <LibWeb/CSS/MediaQuery.h>
 #include <LibWeb/DOM/EventTarget.h>
+#include <LibWeb/Export.h>
 
 namespace Web::CSS {
 
 // 4.2. The MediaQueryList Interface, https://drafts.csswg.org/cssom-view/#the-mediaquerylist-interface
 class MediaQueryList final : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(MediaQueryList, DOM::EventTarget);
+    WEB_WRAPPABLE(MediaQueryList, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(MediaQueryList);
 
 public:
@@ -37,8 +38,6 @@ public:
 
 private:
     MediaQueryList(DOM::Document&, Vector<NonnullRefPtr<MediaQuery>>&&);
-
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     GC::Ref<DOM::Document> m_document;

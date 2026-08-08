@@ -1,7 +1,7 @@
 // https://websockets.spec.whatwg.org/#the-closeevent-interface
 [Exposed=*]
 interface CloseEvent : Event {
-    constructor([Utf16FlyString] Utf16DOMString type, optional CloseEventInit eventInitDict = {});
+    constructor(DOMString type, optional CloseEventInit eventInitDict = {});
 
     readonly attribute boolean wasClean;
     readonly attribute unsigned short code;

@@ -11,17 +11,20 @@
 #include <AK/ByteBuffer.h>
 #include <AK/GenericShorthands.h>
 #include <AK/NumericLimits.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/DataViewConstructor.h>
 #include <LibJS/Runtime/Intrinsics.h>
 #include <LibJS/Runtime/Iterator.h>
 #include <LibJS/Runtime/TypedArray.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/UnderlyingSource.h>
+#include <LibWeb/Bindings/ReadableByteStreamController.h>
+#include <LibWeb/Bindings/ReadableStreamDefaultController.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/AbortSignal.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/Streams/AbstractOperations.h>
+#include <LibWeb/Streams/BindingsGlue.h>
 #include <LibWeb/Streams/ReadableByteStreamController.h>
 #include <LibWeb/Streams/ReadableStreamBYOBReader.h>
 #include <LibWeb/Streams/ReadableStreamBYOBRequest.h>
@@ -36,35 +39,65 @@
 #include <LibWeb/Streams/WritableStreamOperations.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/Buffers.h>
+#include <LibWeb/WebIDL/CallbackType.h>
+#include <LibWeb/WebIDL/ExceptionOrUtils.h>
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::Streams {
 
 // https://streams.spec.whatwg.org/#acquire-readable-stream-byob-reader
-WebIDL::ExceptionOr<GC::Ref<ReadableStreamBYOBReader>> acquire_readable_stream_byob_reader(ReadableStream& stream)
+WebIDL::ExceptionOr<GC::Ref<ReadableStreamBYOBReader>> acquire_readable_stream_byob_reader(JS::Realm& realm, ReadableStream& stream)
 {
-    auto& realm = stream.realm();
-
     // 1. Let reader be a new ReadableStreamBYOBReader.
-    auto reader = realm.create<ReadableStreamBYOBReader>(realm);
+    auto reader = GC::Heap::the().allocate<ReadableStreamBYOBReader>();
 
     // 2. Perform ? SetUpReadableStreamBYOBReader(reader, stream).
-    TRY(set_up_readable_stream_byob_reader(reader, stream));
+    TRY(set_up_readable_stream_byob_reader(realm, reader, stream));
 
     // 3. Return reader.
     return reader;
 }
 
-// https://streams.spec.whatwg.org/#acquire-readable-stream-reader
-WebIDL::ExceptionOr<GC::Ref<ReadableStreamDefaultReader>> acquire_readable_stream_default_reader(ReadableStream& stream)
-{
-    auto& realm = stream.realm();
+}
 
+namespace Web::Bindings {
+
+WebIDL::ExceptionOr<JS::Value> invoke_readable_byte_stream_start_algorithm_callback(JS::Realm& realm, WebIDL::CallbackType& callback, JS::Value underlying_source, GC::Ref<Streams::ReadableByteStreamController> controller)
+{
+    JS::Value wrapped_controller = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, controller);
+    return TRY(WebIDL::invoke_callback(callback, underlying_source, { { wrapped_controller } }));
+}
+
+GC::Ref<WebIDL::Promise> invoke_readable_byte_stream_pull_algorithm_callback(JS::Realm& realm, WebIDL::CallbackType& callback, JS::Value underlying_source, GC::Ref<Streams::ReadableByteStreamController> controller)
+{
+    JS::Value wrapped_controller = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, controller);
+    return WebIDL::invoke_promise_callback(callback, underlying_source, { { wrapped_controller } });
+}
+
+WebIDL::ExceptionOr<JS::Value> invoke_readable_stream_start_algorithm_callback(JS::Realm& realm, WebIDL::CallbackType& callback, JS::Value underlying_source, GC::Ref<Streams::ReadableStreamDefaultController> controller)
+{
+    JS::Value wrapped_controller = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, controller);
+    return TRY(WebIDL::invoke_callback(callback, underlying_source, { { wrapped_controller } }));
+}
+
+GC::Ref<WebIDL::Promise> invoke_readable_stream_pull_algorithm_callback(JS::Realm& realm, WebIDL::CallbackType& callback, JS::Value underlying_source, GC::Ref<Streams::ReadableStreamDefaultController> controller)
+{
+    JS::Value wrapped_controller = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, controller);
+    return WebIDL::invoke_promise_callback(callback, underlying_source, { { wrapped_controller } });
+}
+
+}
+
+namespace Web::Streams {
+
+// https://streams.spec.whatwg.org/#acquire-readable-stream-reader
+WebIDL::ExceptionOr<GC::Ref<ReadableStreamDefaultReader>> acquire_readable_stream_default_reader(JS::Realm& realm, ReadableStream& stream)
+{
     // 1. Let reader be a new ReadableStreamDefaultReader.
-    auto reader = realm.create<ReadableStreamDefaultReader>(realm);
+    auto reader = GC::Heap::the().allocate<ReadableStreamDefaultReader>();
 
     // 2. Perform ? SetUpReadableStreamDefaultReader(reader, stream).
-    TRY(set_up_readable_stream_default_reader(reader, stream));
+    TRY(set_up_readable_stream_default_reader(realm, reader, stream));
 
     // 3. Return reader.
     return reader;
@@ -83,22 +116,23 @@ static WebIDL::ExceptionOr<void> create_readable_stream_with_existing_stream(JS:
 
     // 2. If sizeAlgorithm was not passed, set it to an algorithm that returns 1.
     if (!size_algorithm)
-        size_algorithm = GC::create_function(realm.heap(), [](JS::Value) { return JS::normal_completion(JS::Value(1)); });
+        size_algorithm = GC::create_function(GC::Heap::the(), [](JS::Value) { return JS::normal_completion(JS::Value(1)); });
 
     // 3. Assert: ! IsNonNegativeNumber(highWaterMark) is true.
     VERIFY(is_non_negative_number(JS::Value { *high_water_mark }));
 
     // 4. Let stream be a new ReadableStream.
     //    NOTE: The ReadableStream is allocated outside the scope of this method.
+    stream.set_realm(realm);
 
     // 5. Perform ! InitializeReadableStream(stream).
     initialize_readable_stream(stream);
 
     // 6. Let controller be a new ReadableStreamDefaultController.
-    auto controller = realm.create<ReadableStreamDefaultController>(realm);
+    auto controller = GC::Heap::the().allocate<ReadableStreamDefaultController>();
 
     // 7. Perform ? SetUpReadableStreamDefaultController(stream, controller, startAlgorithm, pullAlgorithm, cancelAlgorithm, highWaterMark, sizeAlgorithm).
-    TRY(set_up_readable_stream_default_controller(stream, controller, start_algorithm, pull_algorithm, cancel_algorithm, *high_water_mark, *size_algorithm));
+    TRY(set_up_readable_stream_default_controller(realm, stream, controller, start_algorithm, pull_algorithm, cancel_algorithm, *high_water_mark, *size_algorithm));
 
     return {};
 }
@@ -106,7 +140,7 @@ static WebIDL::ExceptionOr<void> create_readable_stream_with_existing_stream(JS:
 // https://streams.spec.whatwg.org/#create-readable-stream
 WebIDL::ExceptionOr<GC::Ref<ReadableStream>> create_readable_stream(JS::Realm& realm, GC::Ref<StartAlgorithm> start_algorithm, GC::Ref<PullAlgorithm> pull_algorithm, GC::Ref<CancelAlgorithm> cancel_algorithm, Optional<double> high_water_mark, GC::Ptr<SizeAlgorithm> size_algorithm)
 {
-    auto stream = realm.create<ReadableStream>(realm);
+    auto stream = GC::Heap::the().allocate<ReadableStream>();
     TRY(create_readable_stream_with_existing_stream(realm, stream, start_algorithm, pull_algorithm, cancel_algorithm, high_water_mark, size_algorithm));
 
     return stream;
@@ -116,16 +150,17 @@ WebIDL::ExceptionOr<GC::Ref<ReadableStream>> create_readable_stream(JS::Realm& r
 WebIDL::ExceptionOr<GC::Ref<ReadableStream>> create_readable_byte_stream(JS::Realm& realm, GC::Ref<StartAlgorithm> start_algorithm, GC::Ref<PullAlgorithm> pull_algorithm, GC::Ref<CancelAlgorithm> cancel_algorithm)
 {
     // 1. Let stream be a new ReadableStream.
-    auto stream = realm.create<ReadableStream>(realm);
+    auto stream = GC::Heap::the().allocate<ReadableStream>();
+    stream->set_realm(realm);
 
     // 2. Perform ! InitializeReadableStream(stream).
     initialize_readable_stream(stream);
 
     // 3. Let controller be a new ReadableByteStreamController.
-    auto controller = realm.create<ReadableByteStreamController>(realm);
+    auto controller = GC::Heap::the().allocate<ReadableByteStreamController>();
 
     // 4. Perform ? SetUpReadableByteStreamController(stream, controller, startAlgorithm, pullAlgorithm, cancelAlgorithm, 0, undefined).
-    TRY(set_up_readable_byte_stream_controller(stream, controller, start_algorithm, pull_algorithm, cancel_algorithm, 0, JS::js_undefined()));
+    TRY(set_up_readable_byte_stream_controller(realm, stream, controller, start_algorithm, pull_algorithm, cancel_algorithm, 0, JS::js_undefined()));
 
     // 5. Return stream.
     return stream;
@@ -157,24 +192,25 @@ bool is_readable_stream_locked(ReadableStream const& stream)
 }
 
 // https://streams.spec.whatwg.org/#readable-stream-from-iterable
-WebIDL::ExceptionOr<GC::Ref<ReadableStream>> readable_stream_from_iterable(JS::VM& vm, JS::Value async_iterable)
+WebIDL::ExceptionOr<GC::Ref<ReadableStream>> readable_stream_from_iterable(JS::Realm& realm, JS::Value async_iterable)
 {
-    auto& realm = *vm.current_realm();
+    auto& vm = realm.vm();
 
     // 1. Let stream be undefined.
     // AD-HOC: We capture 'stream' in a lambda later, so it needs to be allocated now.
-    auto stream = realm.create<ReadableStream>(realm);
+    auto stream = GC::Heap::the().allocate<ReadableStream>();
+    stream->set_realm(realm);
 
     // 2. Let iteratorRecord be ? GetIterator(asyncIterable, async).
     auto iterator_record = TRY(JS::get_iterator(vm, async_iterable, JS::IteratorHint::Async));
 
     // 3. Let startAlgorithm be an algorithm that returns undefined.
-    auto start_algorithm = GC::create_function(realm.heap(), []() -> WebIDL::ExceptionOr<JS::Value> {
+    auto start_algorithm = GC::create_function(GC::Heap::the(), []() -> WebIDL::ExceptionOr<JS::Value> {
         return JS::js_undefined();
     });
 
     // 4. Let pullAlgorithm be the following steps:
-    auto pull_algorithm = GC::create_function(realm.heap(), [&vm, &realm, stream, iterator_record]() mutable {
+    auto pull_algorithm = GC::create_function(GC::Heap::the(), [&vm, &realm, stream, iterator_record]() mutable {
         // 1.  Let nextResult be IteratorNext(iteratorRecord).
         auto next_result = JS::iterator_next(vm, iterator_record);
 
@@ -187,7 +223,7 @@ WebIDL::ExceptionOr<GC::Ref<ReadableStream>> readable_stream_from_iterable(JS::V
 
         // 4. Return the result of reacting to nextPromise with the following fulfillment steps, given iterResult:
         return WebIDL::upon_fulfillment(next_promise,
-            GC::create_function(realm.heap(), [&vm, stream](JS::Value iter_result) -> WebIDL::ExceptionOr<JS::Value> {
+            GC::create_function(GC::Heap::the(), [&vm, &realm, stream](JS::Value iter_result) -> WebIDL::ExceptionOr<JS::Value> {
                 // 1. If iterResult is not an Object, throw a TypeError.
                 if (!iter_result.is_object())
                     return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "iterResult is not an Object"_utf16 };
@@ -206,7 +242,7 @@ WebIDL::ExceptionOr<GC::Ref<ReadableStream>> readable_stream_from_iterable(JS::V
                     auto value = TRY(JS::iterator_value(vm, iter_result.as_object()));
 
                     // 2. Perform ! ReadableStreamDefaultControllerEnqueue(stream.[[controller]], value).
-                    MUST(readable_stream_default_controller_enqueue(stream->controller()->get<GC::Ref<ReadableStreamDefaultController>>(), value));
+                    MUST(readable_stream_default_controller_enqueue(realm, stream->controller()->get<GC::Ref<ReadableStreamDefaultController>>(), value));
                 }
 
                 return JS::js_undefined();
@@ -214,7 +250,7 @@ WebIDL::ExceptionOr<GC::Ref<ReadableStream>> readable_stream_from_iterable(JS::V
     });
 
     // 5. Let cancelAlgorithm be the following steps, given reason:
-    auto cancel_algorithm = GC::create_function(realm.heap(), [&vm, &realm, iterator_record](JS::Value reason) {
+    auto cancel_algorithm = GC::create_function(GC::Heap::the(), [&vm, &realm, iterator_record](JS::Value reason) {
         // 1. Let iterator be iteratorRecord.[[Iterator]].
         auto iterator = iterator_record->iterator;
 
@@ -241,7 +277,7 @@ WebIDL::ExceptionOr<GC::Ref<ReadableStream>> readable_stream_from_iterable(JS::V
 
         // 8. Return the result of reacting to returnPromise with the following fulfillment steps, given iterResult:
         return WebIDL::upon_fulfillment(return_promise,
-            GC::create_function(realm.heap(), [](JS::Value iter_result) -> WebIDL::ExceptionOr<JS::Value> {
+            GC::create_function(GC::Heap::the(), [](JS::Value iter_result) -> WebIDL::ExceptionOr<JS::Value> {
                 // 1. If iterResult is not an Object, throw a TypeError.
                 if (!iter_result.is_object())
                     return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "iterResult is not an Object"_utf16 };
@@ -259,10 +295,8 @@ WebIDL::ExceptionOr<GC::Ref<ReadableStream>> readable_stream_from_iterable(JS::V
 }
 
 // https://streams.spec.whatwg.org/#readable-stream-pipe-to
-GC::Ref<WebIDL::Promise> readable_stream_pipe_to(ReadableStream& source, WritableStream& dest, bool prevent_close, bool prevent_abort, bool prevent_cancel, GC::Ptr<DOM::AbortSignal> signal)
+GC::Ref<WebIDL::Promise> readable_stream_pipe_to(JS::Realm& realm, ReadableStream& source, WritableStream& dest, bool prevent_close, bool prevent_abort, bool prevent_cancel, GC::Ptr<DOM::AbortSignal> signal)
 {
-    auto& realm = source.realm();
-
     // 1. Assert: source implements ReadableStream.
     // 2. Assert: dest implements WritableStream.
     // 3. Assert: preventClose, preventAbort, and preventCancel are all booleans.
@@ -279,12 +313,12 @@ GC::Ref<WebIDL::Promise> readable_stream_pipe_to(ReadableStream& source, Writabl
     // 8. If source.[[controller]] implements ReadableByteStreamController, let reader be either ! AcquireReadableStreamBYOBReader(source)
     //    or ! AcquireReadableStreamDefaultReader(source), at the user agent’s discretion.
     // 9. Otherwise, let reader be ! AcquireReadableStreamDefaultReader(source).
-    auto reader = MUST(source.controller()->visit([](auto const& controller) {
-        return acquire_readable_stream_default_reader(*controller->stream());
+    auto reader = MUST(source.controller()->visit([&realm](auto const& controller) {
+        return acquire_readable_stream_default_reader(realm, *controller->stream());
     }));
 
     // 10. Let writer be ! AcquireWritableStreamDefaultWriter(dest).
-    auto writer = MUST(acquire_writable_stream_default_writer(dest));
+    auto writer = MUST(acquire_writable_stream_default_writer(realm, dest));
 
     // 11. Set source.[[disturbed]] to true.
     source.set_disturbed(true);
@@ -295,7 +329,7 @@ GC::Ref<WebIDL::Promise> readable_stream_pipe_to(ReadableStream& source, Writabl
     // 13. Let promise be a new promise.
     auto promise = WebIDL::create_promise(realm);
 
-    auto operation = realm.heap().allocate<Detail::ReadableStreamPipeTo>(realm, promise, source, dest, reader, writer, prevent_close, prevent_abort, prevent_cancel);
+    auto operation = GC::Heap::the().allocate<Detail::ReadableStreamPipeTo>(promise, source, dest, reader, writer, prevent_close, prevent_abort, prevent_cancel);
 
     // 14. If signal is not undefined,
     if (signal) {
@@ -312,10 +346,10 @@ GC::Ref<WebIDL::Promise> readable_stream_pipe_to(ReadableStream& source, Writabl
 
             // 3. If preventAbort is false, append the following action to actions:
             if (!prevent_abort) {
-                abort_destination = GC::create_function(realm.heap(), [&realm, dest, error]() {
+                abort_destination = GC::create_function(GC::Heap::the(), [&realm, dest, error]() {
                     // 1. If dest.[[state]] is "writable", return ! WritableStreamAbort(dest, error).
                     if (dest->state() == WritableStream::State::Writable)
-                        return writable_stream_abort(dest, error);
+                        return writable_stream_abort(realm, dest, error);
 
                     // 2. Otherwise, return a promise resolved with undefined.
                     return WebIDL::create_resolved_promise(realm, JS::js_undefined());
@@ -324,10 +358,10 @@ GC::Ref<WebIDL::Promise> readable_stream_pipe_to(ReadableStream& source, Writabl
 
             // 4. If preventCancel is false, append the following action action to actions:
             if (!prevent_cancel) {
-                cancel_source = GC::create_function(realm.heap(), [&realm, source, error]() {
+                cancel_source = GC::create_function(GC::Heap::the(), [&realm, source, error]() {
                     // 1. If source.[[state]] is "readable", return ! ReadableStreamCancel(source, error).
                     if (source->state() == ReadableStream::State::Readable)
-                        return readable_stream_cancel(source, error);
+                        return readable_stream_cancel(realm, source, error);
 
                     // 2. Otherwise, return a promise resolved with undefined.
                     return WebIDL::create_resolved_promise(realm, JS::js_undefined());
@@ -335,7 +369,7 @@ GC::Ref<WebIDL::Promise> readable_stream_pipe_to(ReadableStream& source, Writabl
             }
 
             // 5. Shutdown with an action consisting of getting a promise to wait for all of the actions in actions, and with error.
-            auto action = GC::create_function(realm.heap(), [&realm, abort_destination, cancel_source]() {
+            auto action = GC::create_function(GC::Heap::the(), [&realm, abort_destination, cancel_source]() {
                 GC::RootVector<GC::Ref<WebIDL::Promise>> actions {};
 
                 if (abort_destination)
@@ -390,7 +424,7 @@ WebIDL::ExceptionOr<ReadableStreamPair> readable_stream_default_tee(JS::Realm& r
     // 2. Assert: cloneForBranch2 is a boolean.
 
     // 3. Let reader be ? AcquireReadableStreamDefaultReader(stream).
-    auto reader = TRY(acquire_readable_stream_default_reader(stream));
+    auto reader = TRY(acquire_readable_stream_default_reader(realm, stream));
 
     // 4. Let reading be false.
     // 5. Let readAgain be false.
@@ -400,13 +434,13 @@ WebIDL::ExceptionOr<ReadableStreamPair> readable_stream_default_tee(JS::Realm& r
     // 9. Let reason2 be undefined.
     // 10. Let branch1 be undefined.
     // 11. Let branch2 be undefined.
-    auto params = realm.create<Detail::ReadableStreamTeeParams>();
+    auto params = GC::Heap::the().allocate<Detail::ReadableStreamTeeParams>();
 
     // 12. Let cancelPromise be a new promise.
     auto cancel_promise = WebIDL::create_promise(realm);
 
     // 13. Let pullAlgorithm be the following steps:
-    auto pull_algorithm = GC::create_function(realm.heap(), [&realm, &stream, reader, params, cancel_promise, clone_for_branch2]() {
+    auto pull_algorithm = GC::create_function(GC::Heap::the(), [&realm, &stream, reader, params, cancel_promise, clone_for_branch2]() {
         // 1. If reading is true,
         if (params->reading) {
             // 1. Set readAgain to true.
@@ -420,7 +454,7 @@ WebIDL::ExceptionOr<ReadableStreamPair> readable_stream_default_tee(JS::Realm& r
         params->reading = true;
 
         // 3. Let readRequest be a read request with the following items:
-        auto read_request = realm.heap().allocate<Detail::ReadableStreamTeeReadRequest>(realm, stream, params, cancel_promise, clone_for_branch2);
+        auto read_request = GC::Heap::the().allocate<Detail::ReadableStreamTeeReadRequest>(stream, params, cancel_promise, clone_for_branch2);
 
         // 4. Perform ! ReadableStreamDefaultReaderRead(reader, readRequest).
         readable_stream_default_reader_read(reader, read_request);
@@ -433,7 +467,7 @@ WebIDL::ExceptionOr<ReadableStreamPair> readable_stream_default_tee(JS::Realm& r
     params->pull_algorithm = pull_algorithm;
 
     // 14. Let cancel1Algorithm be the following steps, taking a reason argument:
-    auto cancel1_algorithm = GC::create_function(realm.heap(), [&realm, &stream, params, cancel_promise](JS::Value reason) {
+    auto cancel1_algorithm = GC::create_function(GC::Heap::the(), [&realm, &stream, params, cancel_promise](JS::Value reason) {
         // 1. Set canceled1 to true.
         params->canceled1 = true;
 
@@ -446,10 +480,10 @@ WebIDL::ExceptionOr<ReadableStreamPair> readable_stream_default_tee(JS::Realm& r
             auto composite_reason = JS::Array::create_from(realm, AK::Array { params->reason1, params->reason2 });
 
             // 2. Let cancelResult be ! ReadableStreamCancel(stream, compositeReason).
-            auto cancel_result = readable_stream_cancel(stream, composite_reason);
+            auto cancel_result = readable_stream_cancel(realm, stream, composite_reason);
 
             // 3. Resolve cancelPromise with cancelResult.
-            WebIDL::resolve_promise(realm, cancel_promise, cancel_result->promise());
+            WebIDL::resolve_promise(cancel_promise, cancel_result->promise());
         }
 
         // 4. Return cancelPromise.
@@ -457,7 +491,7 @@ WebIDL::ExceptionOr<ReadableStreamPair> readable_stream_default_tee(JS::Realm& r
     });
 
     // 15. Let cancel2Algorithm be the following steps, taking a reason argument:
-    auto cancel2_algorithm = GC::create_function(realm.heap(), [&realm, &stream, params, cancel_promise](JS::Value reason) {
+    auto cancel2_algorithm = GC::create_function(GC::Heap::the(), [&realm, &stream, params, cancel_promise](JS::Value reason) {
         // 1. Set canceled2 to true.
         params->canceled2 = true;
 
@@ -470,10 +504,10 @@ WebIDL::ExceptionOr<ReadableStreamPair> readable_stream_default_tee(JS::Realm& r
             auto composite_reason = JS::Array::create_from(realm, AK::Array { params->reason1, params->reason2 });
 
             // 2. Let cancelResult be ! ReadableStreamCancel(stream, compositeReason).
-            auto cancel_result = readable_stream_cancel(stream, composite_reason);
+            auto cancel_result = readable_stream_cancel(realm, stream, composite_reason);
 
             // 3. Resolve cancelPromise with cancelResult.
-            WebIDL::resolve_promise(realm, cancel_promise, cancel_result->promise());
+            WebIDL::resolve_promise(cancel_promise, cancel_result->promise());
         }
 
         // 4. Return cancelPromise.
@@ -481,7 +515,7 @@ WebIDL::ExceptionOr<ReadableStreamPair> readable_stream_default_tee(JS::Realm& r
     });
 
     // 16. Let startAlgorithm be an algorithm that returns undefined.
-    auto start_algorithm = GC::create_function(realm.heap(), []() -> WebIDL::ExceptionOr<JS::Value> {
+    auto start_algorithm = GC::create_function(GC::Heap::the(), []() -> WebIDL::ExceptionOr<JS::Value> {
         return JS::js_undefined();
     });
 
@@ -492,7 +526,7 @@ WebIDL::ExceptionOr<ReadableStreamPair> readable_stream_default_tee(JS::Realm& r
     params->branch2 = MUST(create_readable_stream(realm, start_algorithm, pull_algorithm, cancel2_algorithm));
 
     // 19. Upon rejection of reader.[[closedPromise]] with reason r,
-    WebIDL::upon_rejection(*reader->closed_promise_capability(), GC::create_function(realm.heap(), [&realm, params, cancel_promise](JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
+    WebIDL::upon_rejection(*reader->closed_promise_capability(), GC::create_function(GC::Heap::the(), [params, cancel_promise](JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
         auto controller1 = params->branch1->controller()->get<GC::Ref<ReadableStreamDefaultController>>();
         auto controller2 = params->branch2->controller()->get<GC::Ref<ReadableStreamDefaultController>>();
 
@@ -504,7 +538,7 @@ WebIDL::ExceptionOr<ReadableStreamPair> readable_stream_default_tee(JS::Realm& r
 
         // 3. If canceled1 is false or canceled2 is false, resolve cancelPromise with undefined.
         if (!params->canceled1 || !params->canceled2) {
-            WebIDL::resolve_promise(realm, cancel_promise, JS::js_undefined());
+            WebIDL::resolve_promise(cancel_promise);
         }
 
         return JS::js_undefined();
@@ -522,7 +556,7 @@ WebIDL::ExceptionOr<ReadableStreamPair> readable_byte_stream_tee(JS::Realm& real
     VERIFY(stream.controller().has_value() && stream.controller()->has<GC::Ref<ReadableByteStreamController>>());
 
     // 3. Let reader be ? AcquireReadableStreamDefaultReader(stream).
-    auto reader = TRY(acquire_readable_stream_default_reader(stream));
+    auto reader = TRY(acquire_readable_stream_default_reader(realm, stream));
 
     // 4. Let reading be false.
     // 5. Let readAgainForBranch1 be false.
@@ -533,17 +567,17 @@ WebIDL::ExceptionOr<ReadableStreamPair> readable_byte_stream_tee(JS::Realm& real
     // 10. Let reason2 be undefined.
     // 11. Let branch1 be undefined.
     // 12. Let branch2 be undefined.
-    auto params = realm.create<Detail::ReadableByteStreamTeeParams>(reader);
+    auto params = GC::Heap::the().allocate<Detail::ReadableByteStreamTeeParams>(reader);
 
     // 13. Let cancelPromise be a new promise.
     auto cancel_promise = WebIDL::create_promise(realm);
 
     // 14. Let forwardReaderError be the following steps, taking a thisReader argument:
-    auto forward_reader_error = GC::create_function(realm.heap(), [&realm, params, cancel_promise](ReadableStreamReader const& this_reader) {
+    auto forward_reader_error = GC::create_function(GC::Heap::the(), [params, cancel_promise](ReadableStreamReader const& this_reader) {
         // 1. Upon rejection of thisReader.[[closedPromise]] with reason r,
         auto closed_promise = this_reader.visit([](auto underlying_reader) { return underlying_reader->closed_promise_capability(); });
 
-        WebIDL::upon_rejection(*closed_promise, GC::create_function(realm.heap(), [&realm, this_reader, params, cancel_promise](JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
+        WebIDL::upon_rejection(*closed_promise, GC::create_function(GC::Heap::the(), [this_reader, params, cancel_promise](JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
             auto controller1 = params->branch1->controller()->get<GC::Ref<ReadableByteStreamController>>();
             auto controller2 = params->branch2->controller()->get<GC::Ref<ReadableByteStreamController>>();
 
@@ -560,7 +594,7 @@ WebIDL::ExceptionOr<ReadableStreamPair> readable_byte_stream_tee(JS::Realm& real
 
             // 4. If canceled1 is false or canceled2 is false, resolve cancelPromise with undefined.
             if (!params->canceled1 || !params->canceled2) {
-                WebIDL::resolve_promise(realm, cancel_promise, JS::js_undefined());
+                WebIDL::resolve_promise(cancel_promise);
             }
 
             return JS::js_undefined();
@@ -568,7 +602,7 @@ WebIDL::ExceptionOr<ReadableStreamPair> readable_byte_stream_tee(JS::Realm& real
     });
 
     // 15. Let pullWithDefaultReader be the following steps:
-    auto pull_with_default_reader = GC::create_function(realm.heap(), [&realm, &stream, params, cancel_promise, forward_reader_error]() mutable {
+    auto pull_with_default_reader = GC::create_function(GC::Heap::the(), [&realm, &stream, params, cancel_promise, forward_reader_error]() mutable {
         // 1. If reader implements ReadableStreamBYOBReader,
         if (auto const* byob_reader = params->reader.get_pointer<GC::Ref<ReadableStreamBYOBReader>>()) {
             // 1. Assert: reader.[[readIntoRequests]] is empty.
@@ -578,21 +612,21 @@ WebIDL::ExceptionOr<ReadableStreamPair> readable_byte_stream_tee(JS::Realm& real
             readable_stream_byob_reader_release(*byob_reader);
 
             // 3. Set reader to ! AcquireReadableStreamDefaultReader(stream).
-            params->reader = MUST(acquire_readable_stream_default_reader(stream));
+            params->reader = MUST(acquire_readable_stream_default_reader(realm, stream));
 
             // 4. Perform forwardReaderError, given reader.
             forward_reader_error->function()(params->reader);
         }
 
         // 2. Let readRequest be a read request with the following items:
-        auto read_request = realm.heap().allocate<Detail::ReadableByteStreamTeeDefaultReadRequest>(realm, stream, params, cancel_promise);
+        auto read_request = GC::Heap::the().allocate<Detail::ReadableByteStreamTeeDefaultReadRequest>(stream, params, cancel_promise);
 
         // 3. Perform ! ReadableStreamDefaultReaderRead(reader, readRequest).
         readable_stream_default_reader_read(params->reader.get<GC::Ref<ReadableStreamDefaultReader>>(), read_request);
     });
 
     // 16. Let pullWithBYOBReader be the following steps, given view and forBranch2:
-    auto pull_with_byob_reader = GC::create_function(realm.heap(), [&realm, &stream, params, cancel_promise, forward_reader_error](WebIDL::ArrayBufferView view, bool for_branch2) mutable {
+    auto pull_with_byob_reader = GC::create_function(GC::Heap::the(), [&realm, &stream, params, cancel_promise, forward_reader_error](WebIDL::ArrayBufferView view, bool for_branch2) mutable {
         // 1. If reader implements ReadableStreamDefaultReader,
         if (auto const* default_reader = params->reader.get_pointer<GC::Ref<ReadableStreamDefaultReader>>()) {
             // 2. Assert: reader.[[readRequests]] is empty.
@@ -602,7 +636,7 @@ WebIDL::ExceptionOr<ReadableStreamPair> readable_byte_stream_tee(JS::Realm& real
             readable_stream_default_reader_release(*default_reader);
 
             // 4. Set reader to ! AcquireReadableStreamBYOBReader(stream).
-            params->reader = MUST(acquire_readable_stream_byob_reader(stream));
+            params->reader = MUST(acquire_readable_stream_byob_reader(realm, stream));
 
             // 5. Perform forwardReaderError, given reader.
             forward_reader_error->function()(params->reader);
@@ -615,14 +649,14 @@ WebIDL::ExceptionOr<ReadableStreamPair> readable_byte_stream_tee(JS::Realm& real
         auto other_branch = !for_branch2 ? params->branch2 : params->branch1;
 
         // 4. Let readIntoRequest be a read-into request with the following items:
-        auto read_into_request = realm.heap().allocate<Detail::ReadableByteStreamTeeBYOBReadRequest>(realm, stream, params, cancel_promise, *byob_branch, *other_branch, for_branch2);
+        auto read_into_request = GC::Heap::the().allocate<Detail::ReadableByteStreamTeeBYOBReadRequest>(stream, params, cancel_promise, *byob_branch, *other_branch, for_branch2);
 
         // 5. Perform ! ReadableStreamBYOBReaderRead(reader, view, 1, readIntoRequest).
         readable_stream_byob_reader_read(params->reader.get<GC::Ref<ReadableStreamBYOBReader>>(), view, 1, read_into_request);
     });
 
     // 17. Let pull1Algorithm be the following steps:
-    auto pull1_algorithm = GC::create_function(realm.heap(), [&realm, params, pull_with_default_reader, pull_with_byob_reader]() {
+    auto pull1_algorithm = GC::create_function(GC::Heap::the(), [&realm, params, pull_with_default_reader, pull_with_byob_reader]() {
         auto controller1 = params->branch1->controller()->get<GC::Ref<ReadableByteStreamController>>();
 
         // 1. If reading is true,
@@ -638,7 +672,7 @@ WebIDL::ExceptionOr<ReadableStreamPair> readable_byte_stream_tee(JS::Realm& real
         params->reading = true;
 
         // 3. Let byobRequest be ! ReadableByteStreamControllerGetBYOBRequest(branch1.[[controller]]).
-        auto byob_request = readable_byte_stream_controller_get_byob_request(controller1);
+        auto byob_request = readable_byte_stream_controller_get_byob_request(realm, controller1);
 
         // 4. If byobRequest is null, perform pullWithDefaultReader.
         if (!byob_request) {
@@ -646,7 +680,9 @@ WebIDL::ExceptionOr<ReadableStreamPair> readable_byte_stream_tee(JS::Realm& real
         }
         // 5. Otherwise, perform pullWithBYOBReader, given byobRequest.[[view]] and false.
         else {
-            pull_with_byob_reader->function()(byob_request->view().downcast<WebIDL::ArrayBufferViewVariant>(), false);
+            auto view = byob_request->view();
+            VERIFY(!view.has<Empty>());
+            pull_with_byob_reader->function()(view.downcast<WebIDL::ArrayBufferViewVariant>(), false);
         }
 
         // 6. Return a promise resolved with undefined.
@@ -654,7 +690,7 @@ WebIDL::ExceptionOr<ReadableStreamPair> readable_byte_stream_tee(JS::Realm& real
     });
 
     // 18. Let pull2Algorithm be the following steps:
-    auto pull2_algorithm = GC::create_function(realm.heap(), [&realm, params, pull_with_default_reader, pull_with_byob_reader]() {
+    auto pull2_algorithm = GC::create_function(GC::Heap::the(), [&realm, params, pull_with_default_reader, pull_with_byob_reader]() {
         auto controller2 = params->branch2->controller()->get<GC::Ref<ReadableByteStreamController>>();
 
         // 1. If reading is true,
@@ -670,7 +706,7 @@ WebIDL::ExceptionOr<ReadableStreamPair> readable_byte_stream_tee(JS::Realm& real
         params->reading = true;
 
         // 3. Let byobRequest be ! ReadableByteStreamControllerGetBYOBRequest(branch2.[[controller]]).
-        auto byob_request = readable_byte_stream_controller_get_byob_request(controller2);
+        auto byob_request = readable_byte_stream_controller_get_byob_request(realm, controller2);
 
         // 4. If byobRequest is null, perform pullWithDefaultReader.
         if (!byob_request) {
@@ -678,7 +714,9 @@ WebIDL::ExceptionOr<ReadableStreamPair> readable_byte_stream_tee(JS::Realm& real
         }
         // 5. Otherwise, perform pullWithBYOBReader, given byobRequest.[[view]] and true.
         else {
-            pull_with_byob_reader->function()(byob_request->view().downcast<WebIDL::ArrayBufferViewVariant>(), true);
+            auto view = byob_request->view();
+            VERIFY(!view.has<Empty>());
+            pull_with_byob_reader->function()(view.downcast<WebIDL::ArrayBufferViewVariant>(), true);
         }
 
         // 6. Return a promise resolved with undefined.
@@ -690,7 +728,7 @@ WebIDL::ExceptionOr<ReadableStreamPair> readable_byte_stream_tee(JS::Realm& real
     params->pull2_algorithm = pull2_algorithm;
 
     // 19. Let cancel1Algorithm be the following steps, taking a reason argument:
-    auto cancel1_algorithm = GC::create_function(realm.heap(), [&realm, &stream, params, cancel_promise](JS::Value reason) {
+    auto cancel1_algorithm = GC::create_function(GC::Heap::the(), [&realm, &stream, params, cancel_promise](JS::Value reason) {
         // 1. Set canceled1 to true.
         params->canceled1 = true;
 
@@ -703,10 +741,10 @@ WebIDL::ExceptionOr<ReadableStreamPair> readable_byte_stream_tee(JS::Realm& real
             auto composite_reason = JS::Array::create_from(realm, AK::Array { params->reason1, params->reason2 });
 
             // 2. Let cancelResult be ! ReadableStreamCancel(stream, compositeReason).
-            auto cancel_result = readable_stream_cancel(stream, composite_reason);
+            auto cancel_result = readable_stream_cancel(realm, stream, composite_reason);
 
             // 3. Resolve cancelPromise with cancelResult.
-            WebIDL::resolve_promise(realm, cancel_promise, cancel_result->promise());
+            WebIDL::resolve_promise(cancel_promise, cancel_result->promise());
         }
 
         // 4. Return cancelPromise.
@@ -714,7 +752,7 @@ WebIDL::ExceptionOr<ReadableStreamPair> readable_byte_stream_tee(JS::Realm& real
     });
 
     // 20. Let cancel2Algorithm be the following steps, taking a reason argument:
-    auto cancel2_algorithm = GC::create_function(realm.heap(), [&realm, &stream, params, cancel_promise](JS::Value reason) {
+    auto cancel2_algorithm = GC::create_function(GC::Heap::the(), [&realm, &stream, params, cancel_promise](JS::Value reason) {
         // 1. Set canceled2 to true.
         params->canceled2 = true;
 
@@ -727,10 +765,10 @@ WebIDL::ExceptionOr<ReadableStreamPair> readable_byte_stream_tee(JS::Realm& real
             auto composite_reason = JS::Array::create_from(realm, AK::Array { params->reason1, params->reason2 });
 
             // 2. Let cancelResult be ! ReadableStreamCancel(stream, compositeReason).
-            auto cancel_result = readable_stream_cancel(stream, composite_reason);
+            auto cancel_result = readable_stream_cancel(realm, stream, composite_reason);
 
             // 3. Resolve cancelPromise with cancelResult.
-            WebIDL::resolve_promise(realm, cancel_promise, cancel_result->promise());
+            WebIDL::resolve_promise(cancel_promise, cancel_result->promise());
         }
 
         // 4. Return cancelPromise.
@@ -738,7 +776,7 @@ WebIDL::ExceptionOr<ReadableStreamPair> readable_byte_stream_tee(JS::Realm& real
     });
 
     // 21. Let startAlgorithm be an algorithm that returns undefined.
-    auto start_algorithm = GC::create_function(realm.heap(), []() -> WebIDL::ExceptionOr<JS::Value> {
+    auto start_algorithm = GC::create_function(GC::Heap::the(), []() -> WebIDL::ExceptionOr<JS::Value> {
         return JS::js_undefined();
     });
 
@@ -786,10 +824,8 @@ void readable_stream_add_read_request(ReadableStream& stream, GC::Ref<ReadReques
 }
 
 // https://streams.spec.whatwg.org/#readable-stream-cancel
-GC::Ref<WebIDL::Promise> readable_stream_cancel(ReadableStream& stream, JS::Value reason)
+GC::Ref<WebIDL::Promise> readable_stream_cancel(JS::Realm& realm, ReadableStream& stream, JS::Value reason)
 {
-    auto& realm = stream.realm();
-
     // 1. Set stream.[[disturbed]] to true.
     stream.set_disturbed(true);
 
@@ -829,7 +865,7 @@ GC::Ref<WebIDL::Promise> readable_stream_cancel(ReadableStream& stream, JS::Valu
 
     // 8. Return the result of reacting to sourceCancelPromise with a fulfillment step that returns undefined.
     return WebIDL::upon_fulfillment(source_cancel_promise,
-        GC::create_function(stream.heap(), [](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
+        GC::create_function(GC::Heap::the(), [](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
             return JS::js_undefined();
         }));
 }
@@ -837,8 +873,6 @@ GC::Ref<WebIDL::Promise> readable_stream_cancel(ReadableStream& stream, JS::Valu
 // https://streams.spec.whatwg.org/#readable-stream-close
 void readable_stream_close(ReadableStream& stream)
 {
-    auto& realm = stream.realm();
-
     // 1. Assert: stream.[[state]] is "readable".
     VERIFY(stream.state() == ReadableStream::State::Readable);
 
@@ -853,9 +887,8 @@ void readable_stream_close(ReadableStream& stream)
         return;
 
     // 5. Resolve reader.[[closedPromise]] with undefined.
-    WebIDL::resolve_promise(realm, *reader->visit([](auto reader) {
-        return reader->closed_promise_capability();
-    }));
+    auto closed_promise_capability = reader->visit([](auto reader) { return reader->closed_promise_capability(); });
+    WebIDL::resolve_promise(*closed_promise_capability);
 
     // 6. If reader implements ReadableStreamDefaultReader,
     if (auto* default_reader = reader->get_pointer<GC::Ref<ReadableStreamDefaultReader>>()) {
@@ -874,8 +907,6 @@ void readable_stream_close(ReadableStream& stream)
 // https://streams.spec.whatwg.org/#readable-stream-error
 void readable_stream_error(ReadableStream& stream, JS::Value error)
 {
-    auto& realm = stream.realm();
-
     // 1. Assert: stream.[[state]] is "readable".
     VERIFY(stream.state() == ReadableStream::State::Readable);
 
@@ -892,10 +923,9 @@ void readable_stream_error(ReadableStream& stream, JS::Value error)
     if (!reader.has_value())
         return;
 
-    auto closed_promise_capability = reader->visit([](auto reader) { return reader->closed_promise_capability(); });
-
     // 6. Reject reader.[[closedPromise]] with e.
-    WebIDL::reject_promise(realm, *closed_promise_capability, error);
+    auto closed_promise_capability = reader->visit([](auto reader) { return reader->closed_promise_capability(); });
+    WebIDL::reject_promise(*closed_promise_capability, error);
 
     // 7. Set reader.[[closedPromise]].[[PromiseIsHandled]] to true.
     WebIDL::mark_promise_as_handled(*closed_promise_capability);
@@ -1032,17 +1062,13 @@ GC::Ref<WebIDL::Promise> readable_stream_reader_generic_cancel(ReadableStreamGen
     VERIFY(stream);
 
     // 3. Return ! ReadableStreamCancel(stream, reason)
-    return readable_stream_cancel(*stream, reason);
+    return readable_stream_cancel(reader.closed_promise_realm(), *stream, reason);
 }
 
 // https://streams.spec.whatwg.org/#readable-stream-reader-generic-initialize
-void readable_stream_reader_generic_initialize(ReadableStreamReader const& reader, ReadableStream& stream)
+void readable_stream_reader_generic_initialize(JS::Realm& realm, ReadableStreamReader const& reader, ReadableStream& stream)
 {
     auto& mixin = reader.visit([&](auto reader) -> ReadableStreamGenericReaderMixin& { return *reader; });
-
-    // FIXME: Exactly when we should effectively be using the relevant realm of `this` is to be clarified by the spec.
-    //        For now, we do so as needed by WPT tests. See: https://github.com/whatwg/streams/issues/1213
-    auto& realm = HTML::relevant_realm(reader.visit([](auto reader) -> JS::Object& { return reader; }));
 
     // 1. Set reader.[[stream]] to stream.
     mixin.set_stream(stream);
@@ -1085,12 +1111,12 @@ void readable_stream_reader_generic_release(ReadableStreamGenericReaderMixin& re
     // 3. Assert: stream.[[reader]] is reader.
     VERIFY(stream->reader()->visit([](auto& reader) -> ReadableStreamGenericReaderMixin* { return reader.ptr(); }) == &reader);
 
-    auto& realm = stream->realm();
-    auto exception = JS::TypeError::create(realm, "Reader has been released"_utf16);
+    auto& realm = reader.closed_promise_realm();
+    auto exception = JS::TypeError::create(realm, "Reader has been released"sv);
 
     // 4. If stream.[[state]] is "readable", reject reader.[[closedPromise]] with a TypeError exception.
     if (stream->state() == ReadableStream::State::Readable) {
-        WebIDL::reject_promise(realm, *reader.closed_promise_capability(), exception);
+        WebIDL::reject_promise(*reader.closed_promise_capability(), exception);
     }
     // 5. Otherwise, set reader.[[closedPromise]] to a promise rejected with a TypeError exception.
     else {
@@ -1127,6 +1153,8 @@ void readable_stream_byob_reader_error_read_into_requests(ReadableStreamBYOBRead
 // https://streams.spec.whatwg.org/#readable-stream-byob-reader-read
 void readable_stream_byob_reader_read(ReadableStreamBYOBReader& reader, WebIDL::ArrayBufferView& view, u64 min, ReadIntoRequest& read_into_request)
 {
+    auto& realm = reader.closed_promise_realm();
+
     // 1. Let stream be reader.[[stream]].
     auto stream = reader.stream();
 
@@ -1142,14 +1170,14 @@ void readable_stream_byob_reader_read(ReadableStreamBYOBReader& reader, WebIDL::
     }
     // 5. Otherwise, perform ! ReadableByteStreamControllerPullInto(stream.[[controller]], view, min, readIntoRequest).
     else {
-        readable_byte_stream_controller_pull_into(stream->controller()->get<GC::Ref<ReadableByteStreamController>>(), view, min, read_into_request);
+        readable_byte_stream_controller_pull_into(realm, stream->controller()->get<GC::Ref<ReadableByteStreamController>>(), view, min, read_into_request);
     }
 }
 
 // https://streams.spec.whatwg.org/#abstract-opdef-readablestreambyobreaderrelease
 void readable_stream_byob_reader_release(ReadableStreamBYOBReader& reader)
 {
-    auto& realm = reader.realm();
+    auto& realm = reader.closed_promise_realm();
 
     // 1. Perform ! ReadableStreamReaderGenericRelease(reader).
     readable_stream_reader_generic_release(reader);
@@ -1201,16 +1229,20 @@ void readable_stream_default_reader_read(ReadableStreamDefaultReader& reader, Re
         VERIFY(state == ReadableStream::State::Readable);
 
         // 2. Perform ! stream.[[controller]].[[PullSteps]](readRequest).
-        stream->controller()->visit([&](auto const& controller) {
-            return controller->pull_steps(read_request);
-        });
+        stream->controller()->visit(
+            [&](GC::Ref<ReadableStreamDefaultController> controller) {
+                controller->pull_steps(read_request);
+            },
+            [&](GC::Ref<ReadableByteStreamController> controller) {
+                controller->pull_steps(reader.closed_promise_realm(), read_request);
+            });
     }
 }
 
 // https://streams.spec.whatwg.org/#abstract-opdef-readablestreamdefaultreaderrelease
 void readable_stream_default_reader_release(ReadableStreamDefaultReader& reader)
 {
-    auto& realm = reader.realm();
+    auto& realm = reader.closed_promise_realm();
 
     // 1. Perform ! ReadableStreamReaderGenericRelease(reader).
     readable_stream_reader_generic_release(reader);
@@ -1223,7 +1255,7 @@ void readable_stream_default_reader_release(ReadableStreamDefaultReader& reader)
 }
 
 // https://streams.spec.whatwg.org/#set-up-readable-stream-byob-reader
-WebIDL::ExceptionOr<void> set_up_readable_stream_byob_reader(ReadableStreamBYOBReader& reader, ReadableStream& stream)
+WebIDL::ExceptionOr<void> set_up_readable_stream_byob_reader(JS::Realm& realm, ReadableStreamBYOBReader& reader, ReadableStream& stream)
 {
     // 1. If ! IsReadableStreamLocked(stream) is true, throw a TypeError exception.
     if (is_readable_stream_locked(stream))
@@ -1234,7 +1266,7 @@ WebIDL::ExceptionOr<void> set_up_readable_stream_byob_reader(ReadableStreamBYOBR
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "BYOB reader cannot set up reader from non-byte stream"_utf16 };
 
     // 3. Perform ! ReadableStreamReaderGenericInitialize(reader, stream).
-    readable_stream_reader_generic_initialize({ reader }, stream);
+    readable_stream_reader_generic_initialize(realm, { reader }, stream);
 
     // 4. Set reader.[[readIntoRequests]] to a new empty list.
     reader.read_into_requests().clear();
@@ -1243,14 +1275,14 @@ WebIDL::ExceptionOr<void> set_up_readable_stream_byob_reader(ReadableStreamBYOBR
 }
 
 // https://streams.spec.whatwg.org/#set-up-readable-stream-default-reader
-WebIDL::ExceptionOr<void> set_up_readable_stream_default_reader(ReadableStreamDefaultReader& reader, ReadableStream& stream)
+WebIDL::ExceptionOr<void> set_up_readable_stream_default_reader(JS::Realm& realm, ReadableStreamDefaultReader& reader, ReadableStream& stream)
 {
     // 1. If ! IsReadableStreamLocked(stream) is true, throw a TypeError exception.
     if (is_readable_stream_locked(stream))
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot create stream reader for a locked stream"_utf16 };
 
     // 2. Perform ! ReadableStreamReaderGenericInitialize(reader, stream).
-    readable_stream_reader_generic_initialize({ reader }, stream);
+    readable_stream_reader_generic_initialize(realm, { reader }, stream);
 
     // 3. Set reader.[[readRequests]] to a new empty list.
     reader.read_requests().clear();
@@ -1288,7 +1320,7 @@ void readable_stream_default_controller_call_pull_if_needed(ReadableStreamDefaul
 
     WebIDL::react_to_promise(pull_promise,
         // 7. Upon fulfillment of pullPromise,
-        GC::create_function(controller.heap(), [&controller](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
+        GC::create_function(GC::Heap::the(), [&controller](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
             // 1. Set controller.[[pulling]] to false.
             controller.set_pulling(false);
 
@@ -1305,7 +1337,7 @@ void readable_stream_default_controller_call_pull_if_needed(ReadableStreamDefaul
         }),
 
         // 8. Upon rejection of pullPromise with reason e,
-        GC::create_function(controller.heap(), [&controller](JS::Value error) -> WebIDL::ExceptionOr<JS::Value> {
+        GC::create_function(GC::Heap::the(), [&controller](JS::Value error) -> WebIDL::ExceptionOr<JS::Value> {
             // 1. Perform ! ReadableStreamDefaultControllerError(controller, e).
             readable_stream_default_controller_error(controller, error);
 
@@ -1382,9 +1414,9 @@ void readable_stream_default_controller_close(ReadableStreamDefaultController& c
 }
 
 // https://streams.spec.whatwg.org/#readable-stream-default-controller-enqueue
-WebIDL::ExceptionOr<void> readable_stream_default_controller_enqueue(ReadableStreamDefaultController& controller, JS::Value chunk)
+WebIDL::ExceptionOr<void> readable_stream_default_controller_enqueue(JS::Realm& realm, ReadableStreamDefaultController& controller, JS::Value chunk)
 {
-    auto& vm = controller.vm();
+    auto& vm = realm.vm();
 
     // 1. If ! ReadableStreamDefaultControllerCanCloseOrEnqueue(controller) is false, return.
     if (!readable_stream_default_controller_can_close_or_enqueue(controller))
@@ -1419,7 +1451,7 @@ WebIDL::ExceptionOr<void> readable_stream_default_controller_enqueue(ReadableStr
 
         // 5. If enqueueResult is an abrupt completion,
         if (enqueue_result.is_error()) {
-            auto throw_completion = Bindings::throw_dom_exception_if_needed(vm, [&] { return enqueue_result; }).throw_completion();
+            auto throw_completion = WebIDL::exception_to_throw_completion(vm, realm, enqueue_result.exception());
 
             // 1. Perform ! ReadableStreamDefaultControllerError(controller, enqueueResult.[[Value]]).
             readable_stream_default_controller_error(controller, throw_completion.value());
@@ -1499,10 +1531,8 @@ bool readable_stream_default_controller_can_close_or_enqueue(ReadableStreamDefau
 }
 
 // https://streams.spec.whatwg.org/#set-up-readable-stream-default-controller
-WebIDL::ExceptionOr<void> set_up_readable_stream_default_controller(ReadableStream& stream, ReadableStreamDefaultController& controller, GC::Ref<StartAlgorithm> start_algorithm, GC::Ref<PullAlgorithm> pull_algorithm, GC::Ref<CancelAlgorithm> cancel_algorithm, double high_water_mark, GC::Ref<SizeAlgorithm> size_algorithm)
+WebIDL::ExceptionOr<void> set_up_readable_stream_default_controller(JS::Realm& realm, ReadableStream& stream, ReadableStreamDefaultController& controller, GC::Ref<StartAlgorithm> start_algorithm, GC::Ref<PullAlgorithm> pull_algorithm, GC::Ref<CancelAlgorithm> cancel_algorithm, double high_water_mark, GC::Ref<SizeAlgorithm> size_algorithm)
 {
-    auto& realm = stream.realm();
-
     // 1. Assert: stream.[[controller]] is undefined.
     VERIFY(!stream.controller().has_value());
 
@@ -1539,7 +1569,7 @@ WebIDL::ExceptionOr<void> set_up_readable_stream_default_controller(ReadableStre
 
     WebIDL::react_to_promise(start_promise,
         // 11. Upon fulfillment of startPromise,
-        GC::create_function(controller.heap(), [&controller](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
+        GC::create_function(GC::Heap::the(), [&controller](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
             // 1. Set controller.[[started]] to true.
             controller.set_started(true);
 
@@ -1556,7 +1586,7 @@ WebIDL::ExceptionOr<void> set_up_readable_stream_default_controller(ReadableStre
         }),
 
         // 12. Upon rejection of startPromise with reason r,
-        GC::create_function(controller.heap(), [&controller](JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
+        GC::create_function(GC::Heap::the(), [&controller](JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
             // 1. Perform ! ReadableStreamDefaultControllerError(controller, r).
             readable_stream_default_controller_error(controller, reason);
 
@@ -1567,41 +1597,39 @@ WebIDL::ExceptionOr<void> set_up_readable_stream_default_controller(ReadableStre
 }
 
 // https://streams.spec.whatwg.org/#set-up-readable-stream-default-controller-from-underlying-source
-WebIDL::ExceptionOr<void> set_up_readable_stream_default_controller_from_underlying_source(ReadableStream& stream, JS::Value underlying_source_value, Bindings::UnderlyingSource underlying_source, double high_water_mark, GC::Ref<SizeAlgorithm> size_algorithm)
+WebIDL::ExceptionOr<void> set_up_readable_stream_default_controller_from_underlying_source(JS::Realm& realm, ReadableStream& stream, JS::Value underlying_source_value, UnderlyingSource underlying_source, double high_water_mark, GC::Ref<SizeAlgorithm> size_algorithm)
 {
-    auto& realm = stream.realm();
-
     // 1. Let controller be a new ReadableStreamDefaultController.
-    auto controller = realm.create<ReadableStreamDefaultController>(realm);
+    auto controller = GC::Heap::the().allocate<ReadableStreamDefaultController>();
 
     // 2. Let startAlgorithm be an algorithm that returns undefined.
-    auto start_algorithm = GC::create_function(realm.heap(), []() -> WebIDL::ExceptionOr<JS::Value> {
+    auto start_algorithm = GC::create_function(GC::Heap::the(), []() -> WebIDL::ExceptionOr<JS::Value> {
         return JS::js_undefined();
     });
 
     // 3. Let pullAlgorithm be an algorithm that returns a promise resolved with undefined.
-    auto pull_algorithm = GC::create_function(realm.heap(), [&realm]() {
+    auto pull_algorithm = GC::create_function(GC::Heap::the(), [&realm]() {
         return WebIDL::create_resolved_promise(realm, JS::js_undefined());
     });
 
     // 4. Let cancelAlgorithm be an algorithm that returns a promise resolved with undefined.
-    auto cancel_algorithm = GC::create_function(realm.heap(), [&realm](JS::Value) {
+    auto cancel_algorithm = GC::create_function(GC::Heap::the(), [&realm](JS::Value) {
         return WebIDL::create_resolved_promise(realm, JS::js_undefined());
     });
 
     // 5. If underlyingSourceDict["start"] exists, then set startAlgorithm to an algorithm which returns the result of
     //    invoking underlyingSourceDict["start"] with argument list « controller » and callback this value underlyingSource.
     if (underlying_source.start) {
-        start_algorithm = GC::create_function(realm.heap(), [controller, underlying_source_value, callback = underlying_source.start]() -> WebIDL::ExceptionOr<JS::Value> {
-            return TRY(WebIDL::invoke_callback(*callback, underlying_source_value, { { controller } }));
+        start_algorithm = GC::create_function(GC::Heap::the(), [controller, underlying_source_value, callback = underlying_source.start, realm = GC::Ref(realm)]() -> WebIDL::ExceptionOr<JS::Value> {
+            return Bindings::invoke_readable_stream_start_algorithm_callback(realm, *callback, underlying_source_value, controller);
         });
     }
 
     // 6. If underlyingSourceDict["pull"] exists, then set pullAlgorithm to an algorithm which returns the result of
     //    invoking underlyingSourceDict["pull"] with argument list « controller » and callback this value underlyingSource.
     if (underlying_source.pull) {
-        pull_algorithm = GC::create_function(realm.heap(), [controller, underlying_source_value, callback = underlying_source.pull]() {
-            return WebIDL::invoke_promise_callback(*callback, underlying_source_value, { { controller } });
+        pull_algorithm = GC::create_function(GC::Heap::the(), [controller, underlying_source_value, callback = underlying_source.pull, realm = GC::Ref(realm)]() {
+            return Bindings::invoke_readable_stream_pull_algorithm_callback(realm, *callback, underlying_source_value, controller);
         });
     }
 
@@ -1609,13 +1637,13 @@ WebIDL::ExceptionOr<void> set_up_readable_stream_default_controller_from_underly
     //    reason and returns the result of invoking underlyingSourceDict["cancel"] with argument list « reason » and
     //    callback this value underlyingSource.
     if (underlying_source.cancel) {
-        cancel_algorithm = GC::create_function(realm.heap(), [underlying_source_value, callback = underlying_source.cancel](JS::Value reason) {
+        cancel_algorithm = GC::create_function(GC::Heap::the(), [underlying_source_value, callback = underlying_source.cancel](JS::Value reason) {
             return WebIDL::invoke_promise_callback(*callback, underlying_source_value, { { reason } });
         });
     }
 
     // 8. Perform ? SetUpReadableStreamDefaultController(stream, controller, startAlgorithm, pullAlgorithm, cancelAlgorithm, highWaterMark, sizeAlgorithm).
-    return set_up_readable_stream_default_controller(stream, controller, start_algorithm, pull_algorithm, cancel_algorithm, high_water_mark, size_algorithm);
+    return set_up_readable_stream_default_controller(realm, stream, controller, start_algorithm, pull_algorithm, cancel_algorithm, high_water_mark, size_algorithm);
 }
 
 // https://streams.spec.whatwg.org/#readable-byte-stream-controller-call-pull-if-needed
@@ -1648,7 +1676,7 @@ void readable_byte_stream_controller_call_pull_if_needed(ReadableByteStreamContr
 
     WebIDL::react_to_promise(pull_promise,
         // 7. Upon fulfillment of pullPromise,
-        GC::create_function(controller.heap(), [&controller](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
+        GC::create_function(GC::Heap::the(), [&controller](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
             // 1. Set controller.[[pulling]] to false.
             controller.set_pulling(false);
 
@@ -1665,7 +1693,7 @@ void readable_byte_stream_controller_call_pull_if_needed(ReadableByteStreamContr
         }),
 
         // 8. Upon rejection of pullPromise with reason e,
-        GC::create_function(controller.heap(), [&controller](JS::Value error) -> WebIDL::ExceptionOr<JS::Value> {
+        GC::create_function(GC::Heap::the(), [&controller](JS::Value error) -> WebIDL::ExceptionOr<JS::Value> {
             // 1. Perform ! ReadableByteStreamControllerError(controller, e).
             readable_byte_stream_controller_error(controller, error);
 
@@ -1694,10 +1722,8 @@ void readable_byte_stream_controller_clear_pending_pull_intos(ReadableByteStream
 }
 
 // https://streams.spec.whatwg.org/#readable-byte-stream-controller-close
-WebIDL::ExceptionOr<void> readable_byte_stream_controller_close(ReadableByteStreamController& controller)
+WebIDL::ExceptionOr<void> readable_byte_stream_controller_close(JS::Realm& realm, ReadableByteStreamController& controller)
 {
-    auto& realm = controller.realm();
-
     // 1. Let stream be controller.[[stream]].
     auto stream = controller.stream();
 
@@ -1742,7 +1768,7 @@ WebIDL::ExceptionOr<void> readable_byte_stream_controller_close(ReadableByteStre
 }
 
 // https://streams.spec.whatwg.org/#readable-byte-stream-controller-commit-pull-into-descriptor
-void readable_byte_stream_controller_commit_pull_into_descriptor(ReadableStream& stream, PullIntoDescriptor const& pull_into_descriptor)
+void readable_byte_stream_controller_commit_pull_into_descriptor(JS::Realm& realm, ReadableStream& stream, PullIntoDescriptor const& pull_into_descriptor)
 {
     // 1. Assert: stream.[[state]] is not "errored".
     VERIFY(stream.state() != ReadableStream::State::Errored);
@@ -1763,7 +1789,7 @@ void readable_byte_stream_controller_commit_pull_into_descriptor(ReadableStream&
     }
 
     // 5. Let filledView be ! ReadableByteStreamControllerConvertPullIntoDescriptor(pullIntoDescriptor).
-    auto filled_view = readable_byte_stream_controller_convert_pull_into_descriptor(stream.realm(), pull_into_descriptor);
+    auto filled_view = readable_byte_stream_controller_convert_pull_into_descriptor(realm, pull_into_descriptor);
 
     // 6. If pullIntoDescriptor’s reader type is "default",
     if (pull_into_descriptor.reader_type == ReaderType::Default) {
@@ -1804,9 +1830,8 @@ JS::Value readable_byte_stream_controller_convert_pull_into_descriptor(JS::Realm
     return MUST(JS::construct(vm, *pull_into_descriptor.view_constructor, buffer, JS::Value(pull_into_descriptor.byte_offset), JS::Value(bytes_filled / element_size)));
 }
 
-static WebIDL::ExceptionOr<void> readable_byte_stream_controller_enqueue_transferred_buffer(ReadableByteStreamController& controller, GC::Ref<JS::ArrayBuffer> transferred_buffer, u32 byte_offset, u32 byte_length)
+static WebIDL::ExceptionOr<void> readable_byte_stream_controller_enqueue_transferred_buffer(JS::Realm& realm, ReadableByteStreamController& controller, GC::Ref<JS::ArrayBuffer> transferred_buffer, u32 byte_offset, u32 byte_length)
 {
-    auto& realm = controller.realm();
     auto& vm = realm.vm();
     auto stream = controller.stream();
 
@@ -1827,13 +1852,13 @@ static WebIDL::ExceptionOr<void> readable_byte_stream_controller_enqueue_transfe
 
         // 5. If firstPendingPullInto’s reader type is "none", perform ? ReadableByteStreamControllerEnqueueDetachedPullIntoToQueue(controller, firstPendingPullInto).
         if (first_pending_pull_into->reader_type == ReaderType::None)
-            TRY(readable_byte_stream_controller_enqueue_detached_pull_into_to_queue(controller, first_pending_pull_into));
+            TRY(readable_byte_stream_controller_enqueue_detached_pull_into_to_queue(realm, controller, first_pending_pull_into));
     }
 
     // 9. If ! ReadableStreamHasDefaultReader(stream) is true,
     if (readable_stream_has_default_reader(*stream)) {
         // 1. Perform ! ReadableByteStreamControllerProcessReadRequestsUsingQueue(controller).
-        readable_byte_stream_controller_process_read_requests_using_queue(controller);
+        readable_byte_stream_controller_process_read_requests_using_queue(realm, controller);
 
         // 2. If ! ReadableStreamGetNumReadRequests(stream) is 0,
         if (readable_stream_get_num_read_requests(*stream) == 0) {
@@ -1875,7 +1900,7 @@ static WebIDL::ExceptionOr<void> readable_byte_stream_controller_enqueue_transfe
         // 3. For each filledPullInto of filledPullIntos,
         for (auto& filled_pull_into : filled_pull_intos) {
             // 1. Perform ! ReadableByteStreamControllerCommitPullIntoDescriptor(stream, filledPullInto).
-            readable_byte_stream_controller_commit_pull_into_descriptor(*stream, *filled_pull_into);
+            readable_byte_stream_controller_commit_pull_into_descriptor(realm, *stream, *filled_pull_into);
         }
     }
     // 11. Otherwise,
@@ -1894,9 +1919,8 @@ static WebIDL::ExceptionOr<void> readable_byte_stream_controller_enqueue_transfe
 }
 
 // https://streams.spec.whatwg.org/#readable-byte-stream-controller-enqueue
-WebIDL::ExceptionOr<void> readable_byte_stream_controller_enqueue(ReadableByteStreamController& controller, JS::Value chunk)
+WebIDL::ExceptionOr<void> readable_byte_stream_controller_enqueue(JS::Realm& realm, ReadableByteStreamController& controller, JS::Value chunk)
 {
-    auto& realm = controller.realm();
     auto& vm = realm.vm();
 
     // 1. Let stream be controller.[[stream]].
@@ -1928,13 +1952,11 @@ WebIDL::ExceptionOr<void> readable_byte_stream_controller_enqueue(ReadableByteSt
     // 7. Let transferredBuffer be ? TransferArrayBuffer(buffer).
     auto transferred_buffer = TRY(transfer_array_buffer(realm, *buffer));
 
-    return readable_byte_stream_controller_enqueue_transferred_buffer(controller, transferred_buffer, byte_offset, byte_length);
+    return readable_byte_stream_controller_enqueue_transferred_buffer(realm, controller, transferred_buffer, byte_offset, byte_length);
 }
 
-WebIDL::ExceptionOr<void> readable_byte_stream_controller_enqueue_native_bytes(ReadableByteStreamController& controller, ByteBuffer bytes)
+WebIDL::ExceptionOr<void> readable_byte_stream_controller_enqueue_native_bytes(JS::Realm& realm, ReadableByteStreamController& controller, ByteBuffer bytes)
 {
-    auto& realm = controller.realm();
-
     auto stream = controller.stream();
     if (controller.close_requested() || stream->state() != ReadableStream::State::Readable)
         return {};
@@ -1945,7 +1967,7 @@ WebIDL::ExceptionOr<void> readable_byte_stream_controller_enqueue_native_bytes(R
     // OPTIMIZATION: Native byte producers have no observable chunk object to detach, so enter the enqueue algorithm after
     // the TransferArrayBuffer step with an already-owned ArrayBuffer.
     auto transferred_buffer = JS::ArrayBuffer::create(realm, move(bytes));
-    return readable_byte_stream_controller_enqueue_transferred_buffer(controller, transferred_buffer, 0, byte_length);
+    return readable_byte_stream_controller_enqueue_transferred_buffer(realm, controller, transferred_buffer, 0, byte_length);
 }
 
 // https://streams.spec.whatwg.org/#readable-byte-stream-controller-enqueue-chunk-to-queue
@@ -1963,16 +1985,16 @@ void readable_byte_stream_controller_enqueue_chunk_to_queue(ReadableByteStreamCo
 }
 
 // https://streams.spec.whatwg.org/#abstract-opdef-readablebytestreamcontrollerenqueueclonedchunktoqueue
-WebIDL::ExceptionOr<void> readable_byte_stream_controller_enqueue_cloned_chunk_to_queue(ReadableByteStreamController& controller, JS::ArrayBuffer& buffer, u64 byte_offset, u64 byte_length)
+WebIDL::ExceptionOr<void> readable_byte_stream_controller_enqueue_cloned_chunk_to_queue(JS::Realm& realm, ReadableByteStreamController& controller, JS::ArrayBuffer& buffer, u64 byte_offset, u64 byte_length)
 {
-    auto& vm = controller.vm();
+    auto& vm = realm.vm();
 
     // 1. Let cloneResult be CloneArrayBuffer(buffer, byteOffset, byteLength, %ArrayBuffer%).
     auto clone_result = JS::clone_array_buffer(vm, buffer, byte_offset, byte_length);
 
     // 2. If cloneResult is an abrupt completion,
     if (clone_result.is_throw_completion()) {
-        auto throw_completion = Bindings::throw_dom_exception_if_needed(vm, [&] { return clone_result; }).throw_completion();
+        auto throw_completion = clone_result.throw_completion();
 
         // 1. Perform ! ReadableByteStreamControllerError(controller, cloneResult.[[Value]]).
         readable_byte_stream_controller_error(controller, throw_completion.value());
@@ -1988,14 +2010,14 @@ WebIDL::ExceptionOr<void> readable_byte_stream_controller_enqueue_cloned_chunk_t
 }
 
 // https://streams.spec.whatwg.org/#abstract-opdef-readablebytestreamcontrollerenqueuedetachedpullintotoqueue
-WebIDL::ExceptionOr<void> readable_byte_stream_controller_enqueue_detached_pull_into_to_queue(ReadableByteStreamController& controller, PullIntoDescriptor& pull_into_descriptor)
+WebIDL::ExceptionOr<void> readable_byte_stream_controller_enqueue_detached_pull_into_to_queue(JS::Realm& realm, ReadableByteStreamController& controller, PullIntoDescriptor& pull_into_descriptor)
 {
     // 1. Assert: pullIntoDescriptor’s reader type is "none".
     VERIFY(pull_into_descriptor.reader_type == ReaderType::None);
 
     // 2. If pullIntoDescriptor’s bytes filled > 0, perform ? ReadableByteStreamControllerEnqueueClonedChunkToQueue(controller, pullIntoDescriptor’s buffer, pullIntoDescriptor’s byte offset, pullIntoDescriptor’s bytes filled).
     if (pull_into_descriptor.bytes_filled > 0)
-        TRY(readable_byte_stream_controller_enqueue_cloned_chunk_to_queue(controller, pull_into_descriptor.buffer, pull_into_descriptor.byte_offset, pull_into_descriptor.bytes_filled));
+        TRY(readable_byte_stream_controller_enqueue_cloned_chunk_to_queue(realm, controller, pull_into_descriptor.buffer, pull_into_descriptor.byte_offset, pull_into_descriptor.bytes_filled));
 
     // 3. Perform ! ReadableByteStreamControllerShiftPendingPullInto(controller).
     readable_byte_stream_controller_shift_pending_pull_into(controller);
@@ -2148,9 +2170,8 @@ bool readable_byte_stream_controller_fill_pull_into_descriptor_from_queue(Readab
 }
 
 // https://streams.spec.whatwg.org/#abstract-opdef-readablebytestreamcontrollerfillreadrequestfromqueue
-void readable_byte_stream_controller_fill_read_request_from_queue(ReadableByteStreamController& controller, ReadRequest& read_request)
+void readable_byte_stream_controller_fill_read_request_from_queue(JS::Realm& realm, ReadableByteStreamController& controller, ReadRequest& read_request)
 {
-    auto& realm = controller.realm();
     auto& vm = realm.vm();
 
     // 1. Assert: controller.[[queueTotalSize]] > 0.
@@ -2174,9 +2195,8 @@ void readable_byte_stream_controller_fill_read_request_from_queue(ReadableByteSt
 }
 
 // https://streams.spec.whatwg.org/#abstract-opdef-readablebytestreamcontrollergetbyobrequest
-GC::Ptr<ReadableStreamBYOBRequest> readable_byte_stream_controller_get_byob_request(ReadableByteStreamController& controller)
+GC::Ptr<ReadableStreamBYOBRequest> readable_byte_stream_controller_get_byob_request(JS::Realm& realm, ReadableByteStreamController& controller)
 {
-    auto& realm = controller.realm();
     auto& vm = realm.vm();
 
     // 1. If controller.[[byobRequest]] is null and controller.[[pendingPullIntos]] is not empty,
@@ -2188,13 +2208,13 @@ GC::Ptr<ReadableStreamBYOBRequest> readable_byte_stream_controller_get_byob_requ
         auto view = MUST(JS::construct(vm, *realm.intrinsics().uint8_array_constructor(), first_descriptor->buffer, JS::Value(first_descriptor->byte_offset + first_descriptor->bytes_filled), JS::Value(first_descriptor->byte_length - first_descriptor->bytes_filled)));
 
         // 3. Let byobRequest be a new ReadableStreamBYOBRequest.
-        auto byob_request = realm.create<ReadableStreamBYOBRequest>(realm);
+        auto byob_request = GC::Heap::the().allocate<ReadableStreamBYOBRequest>();
 
         // 4. Set byobRequest.[[controller]] to controller.
         byob_request->set_controller(controller);
 
         // 5. Set byobRequest.[[view]] to view.
-        byob_request->set_view(WebIDL::ArrayBufferView::from_object(view));
+        byob_request->set_view(WebIDL::ArrayBufferView { WebIDL::ArrayBufferView::from_object(view) });
 
         // 6. Set controller.[[byobRequest]] to byobRequest.
         controller.set_byob_request(byob_request);
@@ -2249,14 +2269,14 @@ void readable_byte_stream_controller_handle_queue_drain(ReadableByteStreamContro
 void readable_byte_stream_controller_invalidate_byob_request(ReadableByteStreamController& controller)
 {
     // 1. If controller.[[byobRequest]] is null, return.
-    if (!controller.byob_request())
+    if (!controller.raw_byob_request())
         return;
 
     // 2. Set controller.[[byobRequest]].[[controller]] to undefined.
-    controller.byob_request()->set_controller({});
+    controller.raw_byob_request()->set_controller({});
 
     // 3. Set controller.[[byobRequest]].[[view]] to null.
-    controller.byob_request()->set_view({});
+    controller.raw_byob_request()->set_view({});
 
     // 4. Set controller.[[byobRequest]] to null.
     controller.set_byob_request({});
@@ -2295,7 +2315,7 @@ SinglyLinkedList<GC::Root<PullIntoDescriptor>> readable_byte_stream_controller_p
 }
 
 // https://streams.spec.whatwg.org/#abstract-opdef-readablebytestreamcontrollerprocessreadrequestsusingqueue
-void readable_byte_stream_controller_process_read_requests_using_queue(ReadableByteStreamController& controller)
+void readable_byte_stream_controller_process_read_requests_using_queue(JS::Realm& realm, ReadableByteStreamController& controller)
 {
     // 1. Let reader be controller.[[stream]].[[reader]].
     // 2. Assert: reader implements ReadableStreamDefaultReader.
@@ -2312,14 +2332,13 @@ void readable_byte_stream_controller_process_read_requests_using_queue(ReadableB
         auto read_request = reader->read_requests().take_first();
 
         // 4. Perform ! ReadableByteStreamControllerFillReadRequestFromQueue(controller, readRequest).
-        readable_byte_stream_controller_fill_read_request_from_queue(controller, read_request);
+        readable_byte_stream_controller_fill_read_request_from_queue(realm, controller, read_request);
     }
 }
 
 // https://streams.spec.whatwg.org/#readable-byte-stream-controller-pull-into
-void readable_byte_stream_controller_pull_into(ReadableByteStreamController& controller, WebIDL::ArrayBufferView view, u64 min, ReadIntoRequest& read_into_request)
+void readable_byte_stream_controller_pull_into(JS::Realm& realm, ReadableByteStreamController& controller, WebIDL::ArrayBufferView& view, u64 min, ReadIntoRequest& read_into_request)
 {
-    auto& realm = controller.realm();
     auto& vm = realm.vm();
 
     // 1. Let stream be controller.[[stream]].
@@ -2368,7 +2387,7 @@ void readable_byte_stream_controller_pull_into(ReadableByteStreamController& con
     // 8. If bufferResult is an abrupt completion,
     if (buffer_result.is_exception()) {
         // 1. Perform readIntoRequest’s error steps, given bufferResult.[[Value]].
-        auto throw_completion = Bindings::exception_to_throw_completion(vm, buffer_result.exception());
+        auto throw_completion = WebIDL::exception_to_throw_completion(vm, realm, buffer_result.exception());
         read_into_request.on_error(throw_completion.release_value());
 
         // 2. Return.
@@ -2389,7 +2408,7 @@ void readable_byte_stream_controller_pull_into(ReadableByteStreamController& con
     //     element size             elementSize
     //     view constructor         ctor
     //     reader type              "byob"
-    auto pull_into_descriptor = vm.heap().allocate<PullIntoDescriptor>(
+    auto pull_into_descriptor = GC::Heap::the().allocate<PullIntoDescriptor>(
         buffer,
         buffer->byte_length(),
         byte_offset,
@@ -2468,10 +2487,8 @@ void readable_byte_stream_controller_pull_into(ReadableByteStreamController& con
 }
 
 // https://streams.spec.whatwg.org/#readable-byte-stream-controller-respond
-WebIDL::ExceptionOr<void> readable_byte_stream_controller_respond(ReadableByteStreamController& controller, u64 bytes_written)
+WebIDL::ExceptionOr<void> readable_byte_stream_controller_respond(JS::Realm& realm, ReadableByteStreamController& controller, u64 bytes_written)
 {
-    auto& realm = controller.realm();
-
     // 1. Assert: controller.[[pendingPullIntos]] is not empty.
     VERIFY(!controller.pending_pull_intos().is_empty());
 
@@ -2505,11 +2522,11 @@ WebIDL::ExceptionOr<void> readable_byte_stream_controller_respond(ReadableByteSt
     first_descriptor->buffer = MUST(transfer_array_buffer(realm, *first_descriptor->buffer));
 
     // 7. Perform ? ReadableByteStreamControllerRespondInternal(controller, bytesWritten).
-    return readable_byte_stream_controller_respond_internal(controller, bytes_written);
+    return readable_byte_stream_controller_respond_internal(realm, controller, bytes_written);
 }
 
 // https://streams.spec.whatwg.org/#readable-byte-stream-controller-respond-in-closed-state
-void readable_byte_stream_controller_respond_in_closed_state(ReadableByteStreamController& controller, PullIntoDescriptor& first_descriptor)
+void readable_byte_stream_controller_respond_in_closed_state(JS::Realm& realm, ReadableByteStreamController& controller, PullIntoDescriptor& first_descriptor)
 {
     // 1. Assert: the remainder after dividing firstDescriptor’s bytes filled by firstDescriptor’s element size is 0.
     VERIFY(first_descriptor.bytes_filled % first_descriptor.element_size == 0);
@@ -2538,13 +2555,13 @@ void readable_byte_stream_controller_respond_in_closed_state(ReadableByteStreamC
         // 3. For each filledPullInto of filledPullIntos,
         for (auto& filled_pull_into : filled_pull_intos) {
             // 1. Perform ! ReadableByteStreamControllerCommitPullIntoDescriptor(stream, filledPullInto).
-            readable_byte_stream_controller_commit_pull_into_descriptor(*stream, *filled_pull_into);
+            readable_byte_stream_controller_commit_pull_into_descriptor(realm, *stream, *filled_pull_into);
         }
     }
 }
 
 // https://streams.spec.whatwg.org/#readable-byte-stream-controller-respond-in-readable-state
-WebIDL::ExceptionOr<void> readable_byte_stream_controller_respond_in_readable_state(ReadableByteStreamController& controller, u64 bytes_written, PullIntoDescriptor& pull_into_descriptor)
+WebIDL::ExceptionOr<void> readable_byte_stream_controller_respond_in_readable_state(JS::Realm& realm, ReadableByteStreamController& controller, u64 bytes_written, PullIntoDescriptor& pull_into_descriptor)
 {
     // 1. Assert: pullIntoDescriptor’s bytes filled + bytesWritten ≤ pullIntoDescriptor’s byte length.
     VERIFY(pull_into_descriptor.bytes_filled + bytes_written <= pull_into_descriptor.byte_length);
@@ -2555,7 +2572,7 @@ WebIDL::ExceptionOr<void> readable_byte_stream_controller_respond_in_readable_st
     // 3. If pullIntoDescriptor’s reader type is "none",
     if (pull_into_descriptor.reader_type == ReaderType::None) {
         // 1. Perform ? ReadableByteStreamControllerEnqueueDetachedPullIntoToQueue(controller, pullIntoDescriptor).
-        TRY(readable_byte_stream_controller_enqueue_detached_pull_into_to_queue(controller, pull_into_descriptor));
+        TRY(readable_byte_stream_controller_enqueue_detached_pull_into_to_queue(realm, controller, pull_into_descriptor));
 
         // 2. Let filledPullIntos be the result of performing ! ReadableByteStreamControllerProcessPullIntoDescriptorsUsingQueue(controller).
         auto filled_pulled_intos = readable_byte_stream_controller_process_pull_into_descriptors_using_queue(controller);
@@ -2563,7 +2580,7 @@ WebIDL::ExceptionOr<void> readable_byte_stream_controller_respond_in_readable_st
         // 3. For each filledPullInto of filledPullIntos,
         for (auto& filled_pull_into : filled_pulled_intos) {
             // 1. Perform ! ReadableByteStreamControllerCommitPullIntoDescriptor(controller.[[stream]], filledPullInto).
-            readable_byte_stream_controller_commit_pull_into_descriptor(*controller.stream(), *filled_pull_into);
+            readable_byte_stream_controller_commit_pull_into_descriptor(realm, *controller.stream(), *filled_pull_into);
         }
 
         // 4. Return.
@@ -2589,7 +2606,7 @@ WebIDL::ExceptionOr<void> readable_byte_stream_controller_respond_in_readable_st
         auto end = pull_into_descriptor.byte_offset + pull_into_descriptor.bytes_filled;
 
         // 2. Perform ? ReadableByteStreamControllerEnqueueClonedChunkToQueue(controller, pullIntoDescriptor’s buffer, end − remainderSize, remainderSize).
-        TRY(readable_byte_stream_controller_enqueue_cloned_chunk_to_queue(controller, *pull_into_descriptor.buffer, end - remainder_size, remainder_size));
+        TRY(readable_byte_stream_controller_enqueue_cloned_chunk_to_queue(realm, controller, *pull_into_descriptor.buffer, end - remainder_size, remainder_size));
     }
 
     // 8. Set pullIntoDescriptor’s bytes filled to pullIntoDescriptor’s bytes filled − remainderSize.
@@ -2599,19 +2616,19 @@ WebIDL::ExceptionOr<void> readable_byte_stream_controller_respond_in_readable_st
     auto filled_pulled_intos = readable_byte_stream_controller_process_pull_into_descriptors_using_queue(controller);
 
     // 10. Perform ! ReadableByteStreamControllerCommitPullIntoDescriptor(controller.[[stream]], pullIntoDescriptor).
-    readable_byte_stream_controller_commit_pull_into_descriptor(*controller.stream(), pull_into_descriptor);
+    readable_byte_stream_controller_commit_pull_into_descriptor(realm, *controller.stream(), pull_into_descriptor);
 
     // 11. For each filledPullInto of filledPullIntos,
     for (auto& filled_pull_into : filled_pulled_intos) {
         // 1. Perform ! ReadableByteStreamControllerCommitPullIntoDescriptor(controller.[[stream]], filledPullInto).
-        readable_byte_stream_controller_commit_pull_into_descriptor(*controller.stream(), *filled_pull_into);
+        readable_byte_stream_controller_commit_pull_into_descriptor(realm, *controller.stream(), *filled_pull_into);
     }
 
     return {};
 }
 
 // https://streams.spec.whatwg.org/#readable-byte-stream-controller-respond-internal
-WebIDL::ExceptionOr<void> readable_byte_stream_controller_respond_internal(ReadableByteStreamController& controller, u64 bytes_written)
+WebIDL::ExceptionOr<void> readable_byte_stream_controller_respond_internal(JS::Realm& realm, ReadableByteStreamController& controller, u64 bytes_written)
 {
     // 1. Let firstDescriptor be controller.[[pendingPullIntos]][0].
     auto first_descriptor = controller.pending_pull_intos().first();
@@ -2631,7 +2648,7 @@ WebIDL::ExceptionOr<void> readable_byte_stream_controller_respond_internal(Reada
         VERIFY(bytes_written == 0);
 
         // 2. Perform ! ReadableByteStreamControllerRespondInClosedState(controller, firstDescriptor).
-        readable_byte_stream_controller_respond_in_closed_state(controller, first_descriptor);
+        readable_byte_stream_controller_respond_in_closed_state(realm, controller, first_descriptor);
     }
     // 6. Otherwise,
     else {
@@ -2642,7 +2659,7 @@ WebIDL::ExceptionOr<void> readable_byte_stream_controller_respond_internal(Reada
         VERIFY(bytes_written > 0);
 
         // 3. Perform ? ReadableByteStreamControllerRespondInReadableState(controller, bytesWritten, firstDescriptor).
-        TRY(readable_byte_stream_controller_respond_in_readable_state(controller, bytes_written, first_descriptor));
+        TRY(readable_byte_stream_controller_respond_in_readable_state(realm, controller, bytes_written, first_descriptor));
     }
 
     // 7. Perform ! ReadableByteStreamControllerCallPullIfNeeded(controller).
@@ -2701,7 +2718,7 @@ WebIDL::ExceptionOr<void> readable_byte_stream_controller_respond_with_new_view(
     first_descriptor->buffer = TRY(transfer_array_buffer(realm, *view.viewed_array_buffer()));
 
     // 12. Perform ? ReadableByteStreamControllerRespondInternal(controller, viewByteLength).
-    TRY(readable_byte_stream_controller_respond_internal(controller, view_byte_length));
+    TRY(readable_byte_stream_controller_respond_internal(realm, controller, view_byte_length));
 
     return {};
 }
@@ -2761,10 +2778,8 @@ bool readable_byte_stream_controller_should_call_pull(ReadableByteStreamControll
 }
 
 // https://streams.spec.whatwg.org/#set-up-readable-byte-stream-controller
-WebIDL::ExceptionOr<void> set_up_readable_byte_stream_controller(ReadableStream& stream, ReadableByteStreamController& controller, GC::Ref<StartAlgorithm> start_algorithm, GC::Ref<PullAlgorithm> pull_algorithm, GC::Ref<CancelAlgorithm> cancel_algorithm, double high_water_mark, JS::Value auto_allocate_chunk_size)
+WebIDL::ExceptionOr<void> set_up_readable_byte_stream_controller(JS::Realm& realm, ReadableStream& stream, ReadableByteStreamController& controller, GC::Ref<StartAlgorithm> start_algorithm, GC::Ref<PullAlgorithm> pull_algorithm, GC::Ref<CancelAlgorithm> cancel_algorithm, double high_water_mark, JS::Value auto_allocate_chunk_size)
 {
-    auto& realm = stream.realm();
-
     // 1. Assert: stream.[[controller]] is undefined.
     VERIFY(!stream.controller().has_value());
 
@@ -2821,7 +2836,7 @@ WebIDL::ExceptionOr<void> set_up_readable_byte_stream_controller(ReadableStream&
 
     WebIDL::react_to_promise(start_promise,
         // 16. Upon fulfillment of startPromise,
-        GC::create_function(controller.heap(), [&controller](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
+        GC::create_function(GC::Heap::the(), [&controller](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
             // 1. Set controller.[[started]] to true.
             controller.set_started(true);
 
@@ -2838,7 +2853,7 @@ WebIDL::ExceptionOr<void> set_up_readable_byte_stream_controller(ReadableStream&
         }),
 
         // 17. Upon rejection of startPromise with reason r,
-        GC::create_function(controller.heap(), [&controller](JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
+        GC::create_function(GC::Heap::the(), [&controller](JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
             // 1. Perform ! ReadableByteStreamControllerError(controller, r).
             readable_byte_stream_controller_error(controller, reason);
 
@@ -2849,41 +2864,39 @@ WebIDL::ExceptionOr<void> set_up_readable_byte_stream_controller(ReadableStream&
 }
 
 // https://streams.spec.whatwg.org/#set-up-readable-byte-stream-controller-from-underlying-source
-WebIDL::ExceptionOr<void> set_up_readable_byte_stream_controller_from_underlying_source(ReadableStream& stream, JS::Value underlying_source, Bindings::UnderlyingSource const& underlying_source_dict, double high_water_mark)
+WebIDL::ExceptionOr<void> set_up_readable_byte_stream_controller_from_underlying_source(JS::Realm& realm, ReadableStream& stream, JS::Value underlying_source, UnderlyingSource const& underlying_source_dict, double high_water_mark)
 {
-    auto& realm = stream.realm();
-
     // 1. Let controller be a new ReadableByteStreamController.
-    auto controller = realm.create<ReadableByteStreamController>(realm);
+    auto controller = GC::Heap::the().allocate<ReadableByteStreamController>();
 
     // 2. Let startAlgorithm be an algorithm that returns undefined.
-    auto start_algorithm = GC::create_function(realm.heap(), []() -> WebIDL::ExceptionOr<JS::Value> {
+    auto start_algorithm = GC::create_function(GC::Heap::the(), []() -> WebIDL::ExceptionOr<JS::Value> {
         return JS::js_undefined();
     });
 
     // 3. Let pullAlgorithm be an algorithm that returns a promise resolved with undefined.
-    auto pull_algorithm = GC::create_function(realm.heap(), [&realm]() {
+    auto pull_algorithm = GC::create_function(GC::Heap::the(), [&realm]() {
         return WebIDL::create_resolved_promise(realm, JS::js_undefined());
     });
 
     // 4. Let cancelAlgorithm be an algorithm that returns a promise resolved with undefined.
-    auto cancel_algorithm = GC::create_function(realm.heap(), [&realm](JS::Value) {
+    auto cancel_algorithm = GC::create_function(GC::Heap::the(), [&realm](JS::Value) {
         return WebIDL::create_resolved_promise(realm, JS::js_undefined());
     });
 
     // 5. If underlyingSourceDict["start"] exists, then set startAlgorithm to an algorithm which returns the result of
     //    invoking underlyingSourceDict["start"] with argument list « controller » and callback this value underlyingSource.
     if (underlying_source_dict.start) {
-        start_algorithm = GC::create_function(realm.heap(), [controller, underlying_source, callback = underlying_source_dict.start]() -> WebIDL::ExceptionOr<JS::Value> {
-            return TRY(WebIDL::invoke_callback(*callback, underlying_source, { { controller } }));
+        start_algorithm = GC::create_function(GC::Heap::the(), [&realm, controller, underlying_source, callback = underlying_source_dict.start]() -> WebIDL::ExceptionOr<JS::Value> {
+            return Bindings::invoke_readable_byte_stream_start_algorithm_callback(realm, *callback, underlying_source, controller);
         });
     }
 
     // 6. If underlyingSourceDict["pull"] exists, then set pullAlgorithm to an algorithm which returns the result of
     //    invoking underlyingSourceDict["pull"] with argument list « controller » and callback this value underlyingSource.
     if (underlying_source_dict.pull) {
-        pull_algorithm = GC::create_function(realm.heap(), [controller, underlying_source, callback = underlying_source_dict.pull]() {
-            return WebIDL::invoke_promise_callback(*callback, underlying_source, { { controller } });
+        pull_algorithm = GC::create_function(GC::Heap::the(), [&realm, controller, underlying_source, callback = underlying_source_dict.pull]() {
+            return Bindings::invoke_readable_byte_stream_pull_algorithm_callback(realm, *callback, underlying_source, controller);
         });
     }
 
@@ -2891,7 +2904,7 @@ WebIDL::ExceptionOr<void> set_up_readable_byte_stream_controller_from_underlying
     //    reason and returns the result of invoking underlyingSourceDict["cancel"] with argument list « reason » and
     //    callback this value underlyingSource.
     if (underlying_source_dict.cancel) {
-        cancel_algorithm = GC::create_function(realm.heap(), [underlying_source, callback = underlying_source_dict.cancel](JS::Value reason) {
+        cancel_algorithm = GC::create_function(GC::Heap::the(), [underlying_source, callback = underlying_source_dict.cancel](JS::Value reason) {
             return WebIDL::invoke_promise_callback(*callback, underlying_source, { { reason } });
         });
     }
@@ -2906,7 +2919,7 @@ WebIDL::ExceptionOr<void> set_up_readable_byte_stream_controller_from_underlying
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Cannot use an auto allocate chunk size of 0"_utf16 };
 
     // 10. Perform ? SetUpReadableByteStreamController(stream, controller, startAlgorithm, pullAlgorithm, cancelAlgorithm, highWaterMark, autoAllocateChunkSize).
-    return set_up_readable_byte_stream_controller(stream, controller, start_algorithm, pull_algorithm, cancel_algorithm, high_water_mark, auto_allocate_chunk_size);
+    return set_up_readable_byte_stream_controller(realm, stream, controller, start_algorithm, pull_algorithm, cancel_algorithm, high_water_mark, auto_allocate_chunk_size);
 }
 
 }

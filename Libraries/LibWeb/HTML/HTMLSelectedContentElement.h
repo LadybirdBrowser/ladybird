@@ -13,7 +13,7 @@ namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#the-selectedcontent-element
 class HTMLSelectedContentElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLSelectedContentElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLSelectedContentElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLSelectedContentElement);
 
 public:
@@ -30,8 +30,6 @@ public:
 
 private:
     HTMLSelectedContentElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
 
     virtual void post_connection() override;
     virtual void removed_from(IsSubtreeRoot, DOM::Node* old_ancestor, DOM::Node& old_root) override;

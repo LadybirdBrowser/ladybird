@@ -13,7 +13,8 @@
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibJS/Runtime/DataView.h>
 #include <LibJS/Runtime/TypedArray.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebGL/Types.h>
 #include <LibWeb/WebIDL/Buffers.h>
@@ -41,8 +42,8 @@ static constexpr int MAX_CLIENT_WAIT_TIMEOUT_WEBGL = 0x9247;
 // NOTE: This is the Variant created by the IDL wrapper generator, and needs to be updated accordingly.
 using TexImageSource = Variant<GC::Ref<HTML::ImageBitmap>, GC::Ref<HTML::ImageData>, GC::Ref<HTML::HTMLImageElement>, GC::Ref<HTML::HTMLCanvasElement>, GC::Ref<HTML::OffscreenCanvas>, GC::Ref<HTML::HTMLVideoElement>>;
 
-class WebGLRenderingContextBase : public Bindings::PlatformObject {
-    WEB_NON_IDL_PLATFORM_OBJECT(WebGLRenderingContextBase, Bindings::PlatformObject);
+class WebGLRenderingContextBase : public Bindings::Wrappable {
+    WEB_NON_IDL_WRAPPABLE(WebGLRenderingContextBase, Bindings::Wrappable);
 
 public:
     using Float32List = Variant<GC::Ref<JS::Float32Array>, Vector<float>>;
@@ -53,6 +54,7 @@ public:
     virtual GC::Ref<HTML::HTMLCanvasElement> canvas_for_binding() const = 0;
 
     u64 context_generation() const { return m_context_generation; }
+    JS::Realm& realm() const { return *m_realm; }
 
     bool is_context_lost() const;
 
@@ -73,7 +75,7 @@ public:
     GC::Ref<WebIDL::Promise> make_xr_compatible();
 
     Optional<Vector<Utf16String>> get_supported_extensions();
-    JS::Object* get_extension(Utf16String const& name);
+    JS::Object* get_extension(JS::Realm&, Utf16String const& name);
 
     void enable_compressed_texture_format(WebIDL::UnsignedLong format);
 
@@ -331,10 +333,12 @@ private:
     u64 m_context_generation { 0 };
 
     Vector<WebIDL::UnsignedLong> m_enabled_compressed_texture_formats;
+    GC::Ref<JS::Realm> m_realm;
 
     // Extensions
     // "Multiple calls to getExtension with the same extension string, taking into account case-insensitive comparison, must return the same object as long as the extension is enabled."
-    HashMap<String, GC::Ref<JS::Object>, AK::ASCIICaseInsensitiveStringTraits> m_enabled_extensions;
+    HashMap<String, GC::Ref<Bindings::Wrappable>, AK::ASCIICaseInsensitiveStringTraits> m_enabled_extensions;
+    HashMap<String, OwnPtr<Bindings::WrapperWorldWeakValueCache<JS::Object>>, AK::ASCIICaseInsensitiveStringTraits> m_enabled_empty_extensions;
 };
 
 }

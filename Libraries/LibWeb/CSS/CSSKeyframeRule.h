@@ -19,11 +19,11 @@ namespace Web::CSS {
 
 // https://drafts.csswg.org/css-animations/#interface-csskeyframerule
 class CSSKeyframeRule final : public CSSRule {
-    WEB_PLATFORM_OBJECT(CSSKeyframeRule, CSSRule);
+    WEB_WRAPPABLE(CSSKeyframeRule, CSSRule);
     GC_DECLARE_ALLOCATOR(CSSKeyframeRule);
 
 public:
-    static GC::Ref<CSSKeyframeRule> create(JS::Realm&, Vector<CSS::Percentage>&& keys, CSSStyleProperties&);
+    static GC::Ref<CSSKeyframeRule> create(Vector<CSS::Percentage>&& keys, CSSStyleProperties&);
 
     virtual ~CSSKeyframeRule() = default;
 
@@ -48,10 +48,9 @@ public:
     }
 
 private:
-    CSSKeyframeRule(JS::Realm&, Vector<CSS::Percentage>&&, CSSStyleProperties&);
+    CSSKeyframeRule(Vector<CSS::Percentage>&&, CSSStyleProperties&);
 
     virtual void visit_edges(Visitor&) override;
-    virtual void initialize(JS::Realm&) override;
     virtual Utf16String serialized() const override;
     virtual void dump(StringBuilder&, int indent_levels) const override;
 

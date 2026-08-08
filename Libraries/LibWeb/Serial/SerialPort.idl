@@ -9,11 +9,11 @@ interface SerialPort : EventTarget {
 
     SerialPortInfo getInfo();
 
-    Promise<undefined> open(SerialOptions options);
-    Promise<undefined> setSignals(optional SerialOutputSignals signals = {});
-    Promise<SerialInputSignals> getSignals();
-    Promise<undefined> close();
-    Promise<undefined> forget();
+    [CreatesPromise] Promise<undefined> open(SerialOptions options);
+    [CreatesPromise] Promise<undefined> setSignals(optional SerialOutputSignals signals = {});
+    [CreatesPromise] Promise<SerialInputSignals> getSignals();
+    [CreatesPromise] Promise<undefined> close();
+    [CreatesPromise] Promise<undefined> forget();
 };
 
 // https://wicg.github.io/serial/#serialoptions-dictionary

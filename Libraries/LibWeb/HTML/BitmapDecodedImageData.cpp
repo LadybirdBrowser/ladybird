@@ -7,7 +7,6 @@
 #include <LibGC/Heap.h>
 #include <LibGfx/Bitmap.h>
 #include <LibJS/Runtime/ExternalMemory.h>
-#include <LibJS/Runtime/Realm.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/HTML/BitmapDecodedImageData.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
@@ -17,9 +16,13 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(BitmapDecodedImageData);
 
-GC::Ref<BitmapDecodedImageData> BitmapDecodedImageData::create(JS::Realm& realm, Gfx::DecodedImageFrame&& frame)
+ErrorOr<GC::Ref<BitmapDecodedImageData>> BitmapDecodedImageData::create(Vector<Frame>&& frames, size_t loop_count, bool animated)
 {
-    return realm.create<BitmapDecodedImageData>(move(frame));
+    (void)loop_count;
+    (void)animated;
+    if (frames.is_empty())
+        return Error::from_string_literal("Bitmap image has no frames");
+    return GC::Heap::the().allocate<BitmapDecodedImageData>(move(frames[0].frame));
 }
 
 BitmapDecodedImageData::BitmapDecodedImageData(Gfx::DecodedImageFrame&& frame)

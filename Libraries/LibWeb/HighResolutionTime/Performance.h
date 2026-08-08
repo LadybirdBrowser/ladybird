@@ -9,6 +9,8 @@
 
 #include <AK/Utf16FlyString.h>
 #include <LibCore/ElapsedTimer.h>
+#include <LibJS/Forward.h>
+#include <LibWeb/Bindings/PerformanceMark.h>
 #include <LibWeb/Bindings/PerformanceMeasure.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
@@ -18,7 +20,7 @@
 namespace Web::HighResolutionTime {
 
 class Performance final : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(Performance, DOM::EventTarget);
+    WEB_WRAPPABLE(Performance, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(Performance);
 
 public:
@@ -45,19 +47,19 @@ public:
     GC::Ptr<NavigationTiming::PerformanceNavigation> navigation();
 
 private:
-    explicit Performance(JS::Realm&);
+    explicit Performance(GC::Ref<DOM::EventTarget> relevant_global_object);
 
     HTML::WindowOrWorkerGlobalScopeMixin& window_or_worker();
     HTML::WindowOrWorkerGlobalScopeMixin const& window_or_worker() const;
-
-    virtual void initialize(JS::Realm&) override;
+    JS::Object& relevant_global_object() const;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    WebIDL::ExceptionOr<HighResolutionTime::DOMHighResTimeStamp> convert_name_to_timestamp(JS::Realm& realm, Utf16String const& name);
-    WebIDL::ExceptionOr<HighResolutionTime::DOMHighResTimeStamp> convert_mark_to_timestamp(JS::Realm& realm, Variant<Utf16String, HighResolutionTime::DOMHighResTimeStamp> const& mark);
+    WebIDL::ExceptionOr<HighResolutionTime::DOMHighResTimeStamp> convert_name_to_timestamp(Utf16String const& name);
+    WebIDL::ExceptionOr<HighResolutionTime::DOMHighResTimeStamp> convert_mark_to_timestamp(Variant<Utf16String, HighResolutionTime::DOMHighResTimeStamp> const& mark);
 
     GC::Ptr<NavigationTiming::PerformanceNavigation> m_navigation;
     GC::Ptr<NavigationTiming::PerformanceTiming> m_timing;
+    GC::Ref<DOM::EventTarget> m_global_object;
 };
 
 }

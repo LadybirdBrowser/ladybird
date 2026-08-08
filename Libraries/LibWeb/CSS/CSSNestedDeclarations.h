@@ -13,12 +13,12 @@
 namespace Web::CSS {
 
 class CSSNestedDeclarations final : public CSSRule {
-    WEB_PLATFORM_OBJECT(CSSNestedDeclarations, CSSRule);
+    WEB_WRAPPABLE(CSSNestedDeclarations, CSSRule);
     GC_DECLARE_ALLOCATOR(CSSNestedDeclarations);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSNestedDeclarations> create(JS::Realm&, Parser::Parser&, Vector<Parser::Declaration> const&);
-    [[nodiscard]] static GC::Ref<CSSNestedDeclarations> create(JS::Realm&, CSSStyleProperties&);
+    [[nodiscard]] static GC::Ref<CSSNestedDeclarations> create(Parser::Parser&, Vector<Parser::Declaration> const&);
+    [[nodiscard]] static GC::Ref<CSSNestedDeclarations> create(CSSStyleProperties&);
 
     virtual ~CSSNestedDeclarations() override = default;
 
@@ -31,9 +31,8 @@ public:
     CSSStyleRule const& parent_style_rule() const;
 
 private:
-    CSSNestedDeclarations(JS::Realm&, CSSStyleProperties&);
+    CSSNestedDeclarations(CSSStyleProperties&);
 
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
     virtual Utf16String serialized() const override;
     virtual void clear_caches() override;

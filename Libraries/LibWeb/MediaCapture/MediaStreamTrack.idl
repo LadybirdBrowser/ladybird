@@ -1,17 +1,18 @@
 // https://w3c.github.io/mediacapture-main/#mediastreamtrack
 
 enum MediaStreamTrackState { "live", "ended" };
+enum MediaStreamTrackKind { "audio", "video" };
 
 [Exposed=Window]
 interface MediaStreamTrack : EventTarget {
-    readonly attribute Utf16DOMString kind;
-    readonly attribute Utf16DOMString id;
-    readonly attribute Utf16DOMString label;
+    [ImplementedAs=track_kind] readonly attribute MediaStreamTrackKind kind;
+    readonly attribute DOMString id;
+    readonly attribute DOMString label;
     attribute boolean enabled;
     readonly attribute boolean muted;
-    readonly attribute MediaStreamTrackState readyState;
+    [ImplementedAs=track_ready_state] readonly attribute MediaStreamTrackState readyState;
     undefined stop();
-    MediaTrackCapabilities getCapabilities();
+    [ImplementedAs=get_capabilities] MediaTrackCapabilities getCapabilities();
     MediaTrackConstraints getConstraints();
     MediaTrackSettings getSettings();
     Promise<undefined> applyConstraints(optional MediaTrackConstraints constraints = {});

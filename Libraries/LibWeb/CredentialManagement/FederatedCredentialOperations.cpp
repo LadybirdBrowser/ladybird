@@ -4,30 +4,15 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibURL/Parser.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/CredentialManagement/FederatedCredentialOperations.h>
 
 namespace Web::CredentialManagement {
 
 // https://www.w3.org/TR/credential-management-1/#abstract-opdef-create-a-federatedcredential-from-federatedcredentialinit
-WebIDL::ExceptionOr<GC::Ref<FederatedCredential>> create_federated_credential(JS::Realm& realm, Bindings::FederatedCredentialInit const& init)
+GC::Ref<FederatedCredential> create_federated_credential(FederatedCredentialInit init, URL::Origin origin)
 {
     // 1. Let c be a new FederatedCredential object.
-    // 2. If any of the following are the empty string, throw a TypeError exception:
-    //    - init.id's value
-    //    - init.provider's value
-    if (init.id.is_empty())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "'id' must not be empty."_utf16 };
-    if (init.provider.is_empty())
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "'provider' must not be empty."_utf16 };
-
-    // AD-HOC: Aligning with how Chromium retrieves the origin by parsing the URL from init.provider.
-    auto provider_url = init.provider.to_utf8();
-    auto url = URL::Parser::basic_parse(provider_url);
-    if (!url.has_value())
-        WebIDL::SyntaxError::create(realm, "'provider' is not a valid url."_utf16);
-    auto origin = url.value().origin();
-
     // 3. Set c’s properties as follows:
     //    - id
     //      - init.id's value
@@ -41,7 +26,7 @@ WebIDL::ExceptionOr<GC::Ref<FederatedCredential>> create_federated_credential(JS
     //      - init.origin's value.
     //      NOTE: origin is retrieved by parsing the URL from init.provider.
     // 4. Return c.
-    return realm.create<FederatedCredential>(realm, init, move(origin));
+    return GC::Heap::the().allocate<FederatedCredential>(move(init), move(origin));
 }
 
 }

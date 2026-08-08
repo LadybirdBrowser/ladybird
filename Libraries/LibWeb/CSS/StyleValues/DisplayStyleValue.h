@@ -22,7 +22,7 @@ public:
     Display display() const { return bit_cast<Display>(m_value->display.raw); }
 
     bool properties_equal(DisplayStyleValue const& other) const { return display() == other.display(); }
-    GC::Ref<CSSStyleValue> reify(JS::Realm&, Utf16FlyString const& associated_property) const;
+    GC::Ref<CSSStyleValue> reify(Utf16FlyString const& associated_property) const;
 
 private:
     friend class StyleValue;

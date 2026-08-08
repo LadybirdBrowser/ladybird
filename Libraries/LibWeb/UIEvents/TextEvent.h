@@ -12,11 +12,11 @@
 namespace Web::UIEvents {
 
 class TextEvent final : public UIEvent {
-    WEB_PLATFORM_OBJECT(TextEvent, UIEvent);
+    WEB_WRAPPABLE(TextEvent, UIEvent);
     GC_DECLARE_ALLOCATOR(TextEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<TextEvent> create(JS::Realm&, Utf16FlyString const& event_name);
+    [[nodiscard]] static GC::Ref<TextEvent> create(Utf16FlyString const& event_name, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual ~TextEvent() override;
 
@@ -26,9 +26,7 @@ public:
     void init_text_event(Utf16FlyString const& type, bool bubbles, bool cancelable, GC::Ptr<HTML::WindowProxy> view, Utf16String const& data);
 
 private:
-    TextEvent(JS::Realm&, Utf16FlyString const& event_name);
-
-    virtual void initialize(JS::Realm&) override;
+    TextEvent(Utf16FlyString const& event_name, HighResolutionTime::DOMHighResTimeStamp);
 
     Utf16String m_data;
 };

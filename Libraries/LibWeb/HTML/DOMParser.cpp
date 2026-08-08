@@ -4,8 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/DOMParser.h>
-#include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/XMLDocument.h>
 #include <LibWeb/HTML/DOMParser.h>
 #include <LibWeb/HTML/HTMLDocument.h>
@@ -21,68 +22,43 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(DOMParser);
 
-WebIDL::ExceptionOr<GC::Ref<DOMParser>> DOMParser::construct_impl(JS::Realm& realm)
+GC::Ref<DOMParser> DOMParser::create()
 {
-    return realm.create<DOMParser>(realm);
-}
-
-DOMParser::DOMParser(JS::Realm& realm)
-    : PlatformObject(realm)
-{
+    return GC::Heap::the().allocate<DOMParser>();
 }
 
 DOMParser::~DOMParser() = default;
 
-void DOMParser::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(DOMParser);
-    Base::initialize(realm);
-}
-
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-domparser-parsefromstring
-WebIDL::ExceptionOr<GC::Ref<DOM::Document>> DOMParser::parse_from_string(TrustedTypes::TrustedHTMLOrString string, Bindings::DOMParserSupportedType type)
+WebIDL::ExceptionOr<GC::Root<DOM::Document>> DOMParser::parse_from_string(JS::Realm& realm, TrustedTypes::TrustedHTMLOrString string, Bindings::DOMParserSupportedType type)
 {
     // 1. Let compliantString to the result of invoking the Get Trusted Type compliant string algorithm with
     //    TrustedHTML, this's relevant global object, string, "DOMParser parseFromString", and "script".
     auto const compliant_string = TRY(TrustedTypes::get_trusted_type_compliant_string(
         TrustedTypes::TrustedTypeName::TrustedHTML,
-        relevant_global_object(*this),
+        realm.global_object(),
         move(string),
         TrustedTypes::InjectionSink::DOMParser_parseFromString,
         TrustedTypes::Script.view()));
 
     // 2. Let document be a new Document, whose content type is type and url is this's relevant global object's associated Document's URL.
     GC::Ptr<DOM::Document> document;
-    auto& associated_document = as<HTML::Window>(relevant_global_object(*this)).associated_document();
+    auto& associated_document = HTML::relevant_window(realm.global_object()).associated_document();
 
     // 3. Switch on type:
     if (type == Bindings::DOMParserSupportedType::Text_Html) {
         // -> "text/html"
-        document = HTML::HTMLDocument::create(realm(), associated_document.url());
-        document->set_content_type("text/html"_utf16_fly_string);
+        document = HTML::HTMLDocument::create(associated_document.page(), associated_document.relevant_global_event_target(), associated_document.url());
+        document->set_content_type(Bindings::idl_enum_to_string(type));
         document->set_document_type(DOM::Document::Type::HTML);
 
         // 1. Parse HTML from a string given document and compliantString.
+        [[maybe_unused]] auto wrapper = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref { *document });
         document->parse_html_from_a_string(compliant_string.utf16_view());
     } else {
         // -> Otherwise
-        document = DOM::Document::create(realm(), associated_document.url());
-        switch (type) {
-        case Bindings::DOMParserSupportedType::Text_Xml:
-            document->set_content_type("text/xml"_utf16_fly_string);
-            break;
-        case Bindings::DOMParserSupportedType::Application_Xml:
-            document->set_content_type("application/xml"_utf16_fly_string);
-            break;
-        case Bindings::DOMParserSupportedType::Application_XhtmlXml:
-            document->set_content_type("application/xhtml+xml"_utf16_fly_string);
-            break;
-        case Bindings::DOMParserSupportedType::Image_SvgXml:
-            document->set_content_type("image/svg+xml"_utf16_fly_string);
-            break;
-        case Bindings::DOMParserSupportedType::Text_Html:
-            VERIFY_NOT_REACHED();
-        }
+        document = DOM::Document::create(associated_document.page(), associated_document.relevant_global_event_target(), associated_document.url());
+        document->set_content_type(Bindings::idl_enum_to_string(type));
         document->set_document_type(DOM::Document::Type::XML);
 
         // 1. Create an XML parser parse, associated with document, and with XML scripting support disabled.
@@ -110,7 +86,7 @@ WebIDL::ExceptionOr<GC::Ref<DOM::Document>> DOMParser::parse_from_string(Trusted
     document->set_origin(associated_document.origin());
 
     // 3. Return document.
-    return GC::Ref { *document };
+    return document;
 }
 
 }

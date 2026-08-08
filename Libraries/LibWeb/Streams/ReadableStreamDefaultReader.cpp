@@ -12,9 +12,6 @@
 #include <LibJS/Runtime/PromiseCapability.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/TypedArray.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/ReadableStreamDefaultReader.h>
 #include <LibWeb/Fetch/Infrastructure/IncrementalReadLoopReadRequest.h>
 #include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/Streams/ReadableStreamDefaultReader.h>
@@ -28,29 +25,21 @@ GC_DEFINE_ALLOCATOR(ReadableStreamDefaultReader);
 GC_DEFINE_ALLOCATOR(ReadLoopReadRequest);
 
 // https://streams.spec.whatwg.org/#default-reader-constructor
-WebIDL::ExceptionOr<GC::Ref<ReadableStreamDefaultReader>> ReadableStreamDefaultReader::construct_impl(JS::Realm& realm, GC::Ref<ReadableStream> stream)
+WebIDL::ExceptionOr<GC::Ref<ReadableStreamDefaultReader>> ReadableStreamDefaultReader::create(JS::Realm& realm, GC::Ref<ReadableStream> stream)
 {
-    auto reader = realm.create<ReadableStreamDefaultReader>(realm);
+    auto reader = GC::Heap::the().allocate<ReadableStreamDefaultReader>();
 
     // 1. Perform ? SetUpReadableStreamDefaultReader(this, stream);
-    TRY(set_up_readable_stream_default_reader(reader, *stream));
+    TRY(set_up_readable_stream_default_reader(realm, reader, *stream));
 
     return reader;
 }
 
-ReadableStreamDefaultReader::ReadableStreamDefaultReader(JS::Realm& realm)
-    : Bindings::PlatformObject(realm)
-    , ReadableStreamGenericReaderMixin(realm)
+ReadableStreamDefaultReader::ReadableStreamDefaultReader()
 {
 }
 
-void ReadableStreamDefaultReader::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(ReadableStreamDefaultReader);
-    Base::initialize(realm);
-}
-
-void ReadableStreamDefaultReader::visit_edges(Cell::Visitor& visitor)
+void ReadableStreamDefaultReader::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     ReadableStreamGenericReaderMixin::visit_edges(visitor);
@@ -82,18 +71,17 @@ void ReadLoopReadRequest::on_chunk(JS::Value chunk)
 {
     // 1. If chunk is not a Uint8Array object, call failureSteps with a TypeError and abort these steps.
     if (!chunk.is_object() || !is<JS::Uint8Array>(chunk.as_object())) {
-        m_failure_steps->function()(JS::TypeError::create(m_realm, "Chunk data is not Uint8Array"_utf16));
+        m_failure_steps->function()(JS::TypeError::create(m_realm, "Chunk data is not Uint8Array"sv));
         return;
     }
 
     auto const& array = static_cast<JS::Uint8Array const&>(chunk.as_object());
 
     // 2. Append the bytes represented by chunk to bytes.
-    auto record = JS::make_typed_array_with_buffer_witness_record(array, JS::ArrayBuffer::Order::SeqCst);
-    if (!JS::is_typed_array_out_of_bounds(record)) {
-        auto bytes = MUST(array.viewed_array_buffer()->copy_to_byte_buffer(array.byte_offset(), JS::typed_array_byte_length(record)));
-        m_bytes.append(bytes);
-    }
+    auto record = JS::make_typed_array_with_buffer_witness_record(array, JS::ArrayBuffer::Order::Unordered);
+    auto byte_length = JS::typed_array_byte_length(record);
+    if (byte_length > 0)
+        m_bytes.append(ReadonlyBytes { array.viewed_array_buffer()->data_at(array.byte_offset()), byte_length });
 
     // FIXME: As the spec suggests, implement this non-recursively - instead of directly. It is not too big of a deal currently
     //        as we enqueue the entire blob buffer in one go, meaning that we only recurse a single time. Once we begin queuing
@@ -122,37 +110,53 @@ class DefaultReaderReadRequest final : public ReadRequest {
     GC_DECLARE_ALLOCATOR(DefaultReaderReadRequest);
 
 public:
-    DefaultReaderReadRequest(JS::Realm& realm, WebIDL::Promise& promise)
-        : m_realm(realm)
-        , m_promise(promise)
+    DefaultReaderReadRequest(WebIDL::Promise& promise, GC::Ptr<JS::Realm> result_realm)
+        : m_promise(promise)
+        , m_result_realm(result_realm)
     {
     }
 
     virtual void on_chunk(JS::Value chunk) override
     {
-        WebIDL::resolve_promise(m_realm, m_promise, JS::create_iterator_result_object(m_realm->vm(), chunk, false));
+        if (m_result_realm) {
+            auto result = JS::Object::create_with_premade_shape(m_result_realm->intrinsics().iterator_result_object_shape());
+            result->put_direct(m_result_realm->intrinsics().iterator_result_object_value_offset(), chunk);
+            result->put_direct(m_result_realm->intrinsics().iterator_result_object_done_offset(), JS::Value(false));
+            WebIDL::resolve_promise(m_promise, result);
+        } else {
+            auto& realm = WebIDL::promise_realm(m_promise);
+            WebIDL::resolve_promise(m_promise, JS::create_iterator_result_object(realm.vm(), chunk, false));
+        }
     }
 
     virtual void on_close() override
     {
-        WebIDL::resolve_promise(m_realm, m_promise, JS::create_iterator_result_object(m_realm->vm(), JS::js_undefined(), true));
+        if (m_result_realm) {
+            auto result = JS::Object::create_with_premade_shape(m_result_realm->intrinsics().iterator_result_object_shape());
+            result->put_direct(m_result_realm->intrinsics().iterator_result_object_value_offset(), JS::js_undefined());
+            result->put_direct(m_result_realm->intrinsics().iterator_result_object_done_offset(), JS::Value(true));
+            WebIDL::resolve_promise(m_promise, result);
+        } else {
+            auto& realm = WebIDL::promise_realm(m_promise);
+            WebIDL::resolve_promise(m_promise, JS::create_iterator_result_object(realm.vm(), JS::js_undefined(), true));
+        }
     }
 
     virtual void on_error(JS::Value error) override
     {
-        WebIDL::reject_promise(m_realm, m_promise, error);
+        WebIDL::reject_promise(m_promise, error);
     }
 
 private:
     virtual void visit_edges(Visitor& visitor) override
     {
         Base::visit_edges(visitor);
-        visitor.visit(m_realm);
         visitor.visit(m_promise);
+        visitor.visit(m_result_realm);
     }
 
-    GC::Ref<JS::Realm> m_realm;
     GC::Ref<WebIDL::Promise> m_promise;
+    GC::Ptr<JS::Realm> m_result_realm;
 };
 
 GC_DEFINE_ALLOCATOR(DefaultReaderReadRequest);
@@ -160,7 +164,7 @@ GC_DEFINE_ALLOCATOR(DefaultReaderReadRequest);
 // https://streams.spec.whatwg.org/#default-reader-read
 GC::Ref<WebIDL::Promise> ReadableStreamDefaultReader::read()
 {
-    auto& realm = this->realm();
+    auto& realm = closed_promise_realm();
 
     // 1. If this.[[stream]] is undefined, return a promise rejected with a TypeError exception.
     if (!m_stream) {
@@ -178,7 +182,7 @@ GC::Ref<WebIDL::Promise> ReadableStreamDefaultReader::read()
     //        Resolve promise with «[ "value" → undefined, "done" → true ]».
     //    error steps, given e
     //        Reject promise with e.
-    auto read_request = heap().allocate<DefaultReaderReadRequest>(realm, promise_capability);
+    auto read_request = GC::Heap::the().allocate<DefaultReaderReadRequest>(promise_capability, m_stream->result_realm());
 
     // 4. Perform ! ReadableStreamDefaultReaderRead(this, readRequest).
     readable_stream_default_reader_read(*this, read_request);
@@ -197,11 +201,11 @@ void ReadableStreamDefaultReader::read_a_chunk(Fetch::Infrastructure::Incrementa
 // https://streams.spec.whatwg.org/#readablestreamdefaultreader-read-all-bytes
 void ReadableStreamDefaultReader::read_all_bytes(GC::Ref<ReadLoopReadRequest::SuccessSteps> success_steps, GC::Ref<ReadLoopReadRequest::FailureSteps> failure_steps)
 {
-    auto& realm = this->realm();
+    auto& realm = closed_promise_realm();
 
     // 1. Let readRequest be a new read request with the following items:
     //    NOTE: items and steps in ReadLoopReadRequest.
-    auto read_request = heap().allocate<ReadLoopReadRequest>(realm, *this, success_steps, failure_steps);
+    auto read_request = GC::Heap::the().allocate<ReadLoopReadRequest>(realm, *this, success_steps, failure_steps);
 
     // 2. Perform ! ReadableStreamDefaultReaderRead(this, readRequest).
     readable_stream_default_reader_read(*this, read_request);
@@ -212,17 +216,17 @@ void ReadableStreamDefaultReader::read_all_bytes(GC::Ref<ReadLoopReadRequest::Su
 //        FileAPI blob specification has not been updated to match, see: https://github.com/w3c/FileAPI/issues/187.
 GC::Ref<WebIDL::Promise> ReadableStreamDefaultReader::read_all_bytes_deprecated()
 {
-    auto& realm = this->realm();
+    auto& realm = closed_promise_realm();
 
     auto promise = WebIDL::create_promise(realm);
 
-    auto success_steps = GC::create_function(realm.heap(), [promise, &realm](ByteBuffer bytes) {
+    auto success_steps = GC::create_function(GC::Heap::the(), [promise, &realm](ByteBuffer bytes) {
         auto buffer = JS::ArrayBuffer::create(realm, move(bytes));
-        WebIDL::resolve_promise(realm, promise, buffer);
+        WebIDL::resolve_promise(promise, buffer);
     });
 
-    auto failure_steps = GC::create_function(realm.heap(), [promise, &realm](JS::Value error) {
-        WebIDL::reject_promise(realm, promise, error);
+    auto failure_steps = GC::create_function(GC::Heap::the(), [promise](JS::Value error) {
+        WebIDL::reject_promise(promise, error);
     });
 
     read_all_bytes(success_steps, failure_steps);

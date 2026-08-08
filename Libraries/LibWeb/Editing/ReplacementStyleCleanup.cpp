@@ -79,7 +79,7 @@ void remove_redundant_styles_from_inserted_content(InsertedContent& inserted_con
         if (retained_properties.size() == inline_style->properties().size())
             continue;
 
-        auto retained_style = CSS::CSSStyleProperties::create(element->realm(), move(retained_properties), inline_style->custom_properties());
+        auto retained_style = CSS::CSSStyleProperties::create(move(retained_properties), inline_style->custom_properties());
         auto serialized_style = retained_style->serialized();
         if (!serialized_style.is_empty()) {
             set_attribute_value(element, HTML::AttributeNames::style, serialized_style);

@@ -5,8 +5,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/StorageManager.h>
+#include <LibGC/Heap.h>
+#include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
@@ -17,75 +17,51 @@ namespace Web::StorageAPI {
 
 GC_DEFINE_ALLOCATOR(StorageManager);
 
-WebIDL::ExceptionOr<GC::Ref<StorageManager>> StorageManager::create(JS::Realm& realm)
+GC::Ref<StorageManager> StorageManager::create(GC::Ref<HTML::EnvironmentSettingsObject> environment)
 {
-    return realm.create<StorageManager>(realm);
+    return GC::Heap::the().allocate<StorageManager>(environment);
 }
 
-StorageManager::StorageManager(JS::Realm& realm)
-    : PlatformObject(realm)
+StorageManager::StorageManager(GC::Ref<HTML::EnvironmentSettingsObject> environment)
+    : m_environment(environment)
 {
 }
 
-void StorageManager::initialize(JS::Realm& realm)
+void StorageManager::visit_edges(GC::Cell::Visitor& visitor)
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(StorageManager);
-    Base::initialize(realm);
+    Base::visit_edges(visitor);
+    visitor.visit(m_environment);
 }
 
-// https://storage.spec.whatwg.org/#queue-a-storage-task
-void StorageManager::queue_a_storage_task(JS::Realm& realm, JS::Object& global, Function<void()> steps)
+void StorageManager::queue_a_storage_task(JS::Object& global, Function<void()> steps)
 {
-    HTML::queue_global_task(HTML::Task::Source::Storage, global, GC::create_function(realm.heap(), move(steps)));
+    HTML::queue_global_task(HTML::Task::Source::Storage, global, GC::create_function(GC::Heap::the(), move(steps)));
 }
 
-// https://storage.spec.whatwg.org/#dom-storagemanager-estimate
 GC::Ref<WebIDL::Promise> StorageManager::estimate() const
 {
-    // 1. Let promise be a new promise.
-    auto& realm = this->realm();
-    auto promise = WebIDL::create_promise(realm);
+    auto& realm = m_environment->realm();
+    auto promise = WebIDL::create_promise_for(m_environment->global_object());
+    auto& global = m_environment->global_object();
+    auto shelf = obtain_a_local_storage_shelf(*m_environment);
 
-    // 2. Let global be this’s relevant global object.
-    auto& global = HTML::relevant_global_object(*this);
-
-    // 3. Let shelf be the result of running obtain a local storage shelf with this’s relevant settings object.
-    auto& settings = HTML::relevant_settings_object(*this);
-    auto shelf = obtain_a_local_storage_shelf(settings);
-
-    // 4. If shelf is failure, then reject promise with a TypeError.
     if (!shelf) {
-        WebIDL::reject_promise(realm, promise, JS::TypeError::create(realm, "Failed to obtain local storage shelf."_utf16));
-    }
-    // 5. Otherwise, run these steps in parallel:
-    else {
+        WebIDL::reject_promise(promise, JS::TypeError::create(realm, "Failed to obtain local storage shelf."_utf16));
+    } else {
         Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, &global, shelf = GC::Ref { *shelf }, promise] {
-            // 1. Let usage be storage usage for shelf.
             auto usage = shelf->storage_usage();
-
-            // 2. Let quota be storage quota for shelf.
             auto quota = shelf->storage_quota();
-
-            // 3. Let dictionary be a new StorageEstimate dictionary whose usage member is usage and quota member is
-            //    quota.
             auto dictionary_object = JS::Object::create(realm, realm.intrinsics().object_prototype());
             dictionary_object->define_direct_property("usage"_utf16_fly_string, JS::Value(usage), JS::default_attributes);
             dictionary_object->define_direct_property("quota"_utf16_fly_string, JS::Value(quota), JS::default_attributes);
             auto dictionary_value = JS::Value { dictionary_object };
-
-            // 4. If there was an internal error while obtaining usage and quota, then queue a storage task with global
-            //    to reject promise with a TypeError.
-            // There are no circumstances where an internal error can occur in our implementation, so we do nothing here.
-
-            // 5. Otherwise, queue a storage task with global to resolve promise with dictionary.
-            queue_a_storage_task(realm, global, [&realm, promise, dictionary_value] {
+            queue_a_storage_task(global, [&realm, promise, dictionary_value] {
                 HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-                WebIDL::resolve_promise(realm, *promise, dictionary_value);
+                WebIDL::resolve_promise(*promise, dictionary_value);
             });
         }));
     }
 
-    // 6. Return promise.
     return promise;
 }
 

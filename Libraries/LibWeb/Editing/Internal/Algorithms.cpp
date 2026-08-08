@@ -7,7 +7,6 @@
 #include <AK/Utf16StringBuilder.h>
 #include <LibGC/RootVector.h>
 #include <LibGfx/Color.h>
-#include <LibWeb/Bindings/Document.h>
 #include <LibWeb/CSS/CascadedProperties.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
@@ -1642,7 +1641,7 @@ void force_the_value(GC::Ref<DOM::Node> node, Utf16FlyString const& command, Opt
     if (!values_are_loosely_equivalent(command, optional_utf16_view(effective_command_value(new_parent, command)), new_value)) {
         auto const& command_definition = find_command_definition(command);
         if (command_definition->relevant_css_property.has_value()) {
-            auto inline_style = new_parent->style_for_bindings();
+            auto inline_style = new_parent->style();
             MUST(inline_style->set_property(command_definition->relevant_css_property.value(), new_value.value()));
         }
     }
@@ -1652,16 +1651,16 @@ void force_the_value(GC::Ref<DOM::Node> node, Utf16FlyString const& command, Opt
     //     "line-through".
     if (command == CommandNames::strikethrough && new_value == "line-through"sv
         && effective_command_value(new_parent, command) != "line-through"sv) {
-        auto inline_style = new_parent->style_for_bindings();
-        MUST(inline_style->set_property(CSS::PropertyID::TextDecoration, u"line-through"sv));
+        auto inline_style = new_parent->style();
+        MUST(inline_style->set_property(CSS::PropertyID::TextDecoration, "line-through"sv));
     }
 
     // 19. If command is "underline", and new value is "underline", and the effective command value of "underline" for
     //     new parent is not "underline", set the "text-decoration" property of new parent to "underline".
     if (command == CommandNames::underline && new_value == "underline"sv
         && effective_command_value(new_parent, command) != "underline"sv) {
-        auto inline_style = new_parent->style_for_bindings();
-        MUST(inline_style->set_property(CSS::PropertyID::TextDecoration, u"underline"sv));
+        auto inline_style = new_parent->style();
+        MUST(inline_style->set_property(CSS::PropertyID::TextDecoration, "underline"sv));
     }
 
     // 20. Append node to new parent as its last child, preserving ranges.
@@ -2760,7 +2759,7 @@ void justify_the_selection(DOM::Document& document, JustifyAlignment alignment)
             remove_attribute_ns(*element, Namespace::HTML, HTML::AttributeNames::align);
 
         // 2. Unset the CSS property "text-align" on element, if it's set by a style attribute.
-        auto inline_style = element->style_for_bindings();
+        auto inline_style = element->style();
         auto removed_text_align = MUST(inline_style->remove_property(CSS::PropertyID::TextAlign));
         (void)removed_text_align;
 
@@ -2849,8 +2848,8 @@ void justify_the_selection(DOM::Document& document, JustifyAlignment alignment)
             },
             [&] {
                 auto div = MUST(DOM::create_element(document, HTML::TagNames::div, Namespace::HTML));
-                auto inline_style = div->style_for_bindings();
-                MUST(inline_style->set_property(CSS::PropertyID::TextAlign, alignment_keyword_string));
+                auto inline_style = div->style();
+                MUST(inline_style->set_property(CSS::PropertyID::TextAlign, alignment_keyword));
                 return div;
             });
     }
@@ -3940,7 +3939,8 @@ GC::Ref<DOM::Element> set_the_tag_name(GC::Ref<DOM::Element> element, Utf16FlySt
         return element;
 
     // 3. Let replacement element be the result of calling createElement(new name) on the ownerDocument of element.
-    auto replacement_element = MUST(element->owner_document()->create_element(new_name, Bindings::ElementCreationOptions {}));
+    auto replacement_name = Utf16String::from_utf16(new_name.view());
+    auto replacement_element = MUST(element->owner_document()->create_element(replacement_name, DOM::Document::ElementCreationOptions {}));
 
     // 4. Insert replacement element into element's parent immediately before element.
     insert_node_before(replacement_element, *element->parent(), element);
@@ -4932,7 +4932,7 @@ RefPtr<CSS::StyleValue const> resolved_value(GC::Ref<DOM::Node> node, CSS::Prope
         return {};
 
     // Retrieve resolved style value
-    auto resolved_css_style_declaration = CSS::CSSStyleProperties::create_resolved_style(element->realm(), DOM::AbstractElement { static_cast<DOM::Element&>(*element) });
+    auto resolved_css_style_declaration = CSS::CSSStyleProperties::create_resolved_style(DOM::AbstractElement { static_cast<DOM::Element&>(*element) });
     auto optional_style_property = resolved_css_style_declaration->get_property(property_id);
     if (!optional_style_property.has_value())
         return {};

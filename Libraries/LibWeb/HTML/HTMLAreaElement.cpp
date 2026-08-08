@@ -5,7 +5,6 @@
  */
 
 #include <LibWeb/ARIA/Roles.h>
-#include <LibWeb/Bindings/HTMLAreaElement.h>
 #include <LibWeb/DOM/DOMTokenList.h>
 #include <LibWeb/HTML/HTMLAreaElement.h>
 #include <LibWeb/HTML/Window.h>
@@ -20,12 +19,6 @@ HTMLAreaElement::HTMLAreaElement(DOM::Document& document, DOM::QualifiedName qua
 }
 
 HTMLAreaElement::~HTMLAreaElement() = default;
-
-void HTMLAreaElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLAreaElement);
-    Base::initialize(realm);
-}
 
 void HTMLAreaElement::visit_edges(Cell::Visitor& visitor)
 {

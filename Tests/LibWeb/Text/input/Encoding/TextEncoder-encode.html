@@ -31,5 +31,32 @@
             const result = new TextEncoder().encodeInto('Well Hello Friends 😀!', buffer);
             return result.written;
         });
+
+        // 5. TextEncoder encode uses receiver realm for returned Uint8Array
+        testPart(() => {
+            const iframe = document.createElement("iframe");
+            document.body.appendChild(iframe);
+            const iframeWindow = iframe.contentWindow;
+            const iframeEncoder = new iframeWindow.TextEncoder();
+            const result = TextEncoder.prototype.encode.call(iframeEncoder, "x");
+            iframe.remove();
+            return [
+                result instanceof Uint8Array,
+                result instanceof iframeWindow.Uint8Array,
+            ];
+        });
+
+        // 6. TextEncoder encode is not tied to the prototype's realm
+        testPart(() => {
+            const iframe = document.createElement("iframe");
+            document.body.appendChild(iframe);
+            const iframeWindow = iframe.contentWindow;
+            const result = iframeWindow.TextEncoder.prototype.encode.call(new TextEncoder(), "x");
+            iframe.remove();
+            return [
+                result instanceof Uint8Array,
+                result instanceof iframeWindow.Uint8Array,
+            ];
+        });
     });
 </script>

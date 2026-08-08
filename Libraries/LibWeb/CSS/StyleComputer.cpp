@@ -23,6 +23,7 @@
 #include <AK/NonnullRawPtr.h>
 #include <AK/QuickSort.h>
 #include <AK/Utf8View.h>
+#include <LibGC/Heap.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibWeb/Animations/AnimationEffect.h>
 #include <LibWeb/Animations/DocumentTimeline.h>
@@ -1495,11 +1496,11 @@ void StyleComputer::process_animation_definitions(ComputedProperties const& comp
 
         // An animation applies to an element if its name appears as one of the identifiers in the computed value of the
         // animation-name property and the animation uses a valid @keyframes rule
-        auto animation = CSSAnimation::create(document.realm());
+        auto animation = CSSAnimation::create(document.relevant_settings_object());
         animation->set_animation_name(animation_properties.name);
         animation->set_owning_element(abstract_element);
 
-        auto effect = Animations::KeyframeEffect::create(document.realm());
+        auto effect = Animations::KeyframeEffect::create();
         animation->set_effect(effect);
 
         animation->apply_css_properties(animation_properties);
@@ -1584,14 +1585,15 @@ static void compute_transitioned_properties(ComputedProperties const& style, DOM
 }
 
 // https://drafts.csswg.org/css-transitions/#starting
-void StyleComputer::start_needed_transitions(ComputedValues const& previous_style, ComputedProperties::Builder& new_style_builder, DOM::AbstractElement abstract_element) const
+Vector<GC::Ref<Animations::KeyframeEffect>> StyleComputer::start_needed_transitions(ComputedValues const& previous_style, ComputedProperties::Builder& new_style_builder, DOM::AbstractElement abstract_element) const
 {
     auto& new_style = new_style_builder.style();
+    auto had_pending_animated_style_update = m_document->needs_animated_style_update();
 
     // NB: We know that a DocumentTimeline's current time is always in milliseconds
     auto current_time = m_document->timeline()->current_time();
     if (!current_time.has_value())
-        return;
+        return {};
     VERIFY(current_time->type == Animations::TimeValue::Type::Milliseconds);
     auto style_change_event_time = current_time->value;
 
@@ -1800,7 +1802,11 @@ void StyleComputer::start_needed_transitions(ComputedValues const& previous_styl
         // NB: Construction does not invalidate animated style because the effects were just evaluated. Request the
         //     first animation frame directly so timeline updates can schedule subsequent animated style updates.
         m_document->page().client().request_frame();
+        if (!had_pending_animated_style_update)
+            m_document->clear_needs_animated_style_update();
     }
+
+    return newly_started_transition_effects;
 }
 
 StyleComputer::MatchingRuleSet StyleComputer::build_matching_rule_set(DOM::AbstractElement abstract_element, bool& did_match_any_pseudo_element_rules, ComputeStyleMode mode) const
@@ -3572,6 +3578,7 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
     }
 
     bool animation_values_applied = false;
+    Vector<GC::Ref<Animations::KeyframeEffect>> newly_started_transition_effects;
 
     // Copies the parent's animated value when a longhand inherits, as its store is
     // applied, so later properties' computation contexts observe the animated value.
@@ -3800,7 +3807,7 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
 
     auto animations = abstract_element.element().get_animations_internal(
         Animations::Animatable::GetAnimationsSorted::Yes,
-        Bindings::GetAnimationsOptions { .subtree = false });
+        Animations::Animatable::GetAnimationsOptions { .subtree = false, .pseudo_element = {} });
     if (animations.is_exception()) {
         dbgln("Error getting animations for element {}", abstract_element.debug_description());
     } else {
@@ -3808,7 +3815,8 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
         for (auto& animation : animations.value()) {
             if (auto effect = animation->effect(); effect && effect->is_keyframe_effect()) {
                 auto& keyframe_effect = *static_cast<Animations::KeyframeEffect*>(effect.ptr());
-                if (keyframe_effect.pseudo_element_type() == abstract_element.pseudo_element())
+                auto was_just_started = newly_started_transition_effects.contains_slow(GC::Ref { keyframe_effect });
+                if (!was_just_started && keyframe_effect.pseudo_element_type() == abstract_element.pseudo_element())
                     effects.append(keyframe_effect);
             }
         }
@@ -3860,8 +3868,13 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
         //        is used instead of the before-change style to compare with the after-change style to start
         //        transitions.
         if (!previous_style->in_display_none_subtree() && !parent_style_in_display_none_subtree)
-            start_needed_transitions(*previous_style, builder, abstract_element);
+            newly_started_transition_effects = start_needed_transitions(*previous_style, builder, abstract_element);
     }
+
+    // Newly-created transitions were evaluated while they were started. Keep them
+    // out of the general animation pass below so that a style change crosses the
+    // Rust animation boundary only once per effect.
+    animation_values_applied |= !newly_started_transition_effects.is_empty();
 
     if (parent_style_in_display_none_subtree || builder.display().is_none())
         builder.set_in_display_none_subtree();

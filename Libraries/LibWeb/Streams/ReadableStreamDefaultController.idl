@@ -1,5 +1,5 @@
 // https://streams.spec.whatwg.org/#readablestreamdefaultcontroller
-[Exposed=*]
+    [Exposed=*]
 interface ReadableStreamDefaultController {
     readonly attribute unrestricted double? desiredSize;
 

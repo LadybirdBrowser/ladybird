@@ -7,8 +7,6 @@
 #include <AK/Function.h>
 #include <AK/HashMap.h>
 #include <AK/QuickSort.h>
-#include <AK/Utf16StringBuilder.h>
-#include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/SourceSet.h>

@@ -9,23 +9,33 @@
 
 #include <AK/Utf16String.h>
 #include <LibJS/Runtime/Set.h>
-#include <LibJS/Runtime/SetIterator.h>
+#include <LibJS/Runtime/Value.h>
 #include <LibWeb/Bindings/FontFaceSet.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/DOM/EventTarget.h>
+#include <LibWeb/Forward.h>
+
+namespace Web::Bindings {
+
+enum class FontFaceSetLoadStatus : u8;
+
+}
 
 namespace Web::CSS {
 
+using FontFaceSetLoadStatus = Bindings::FontFaceSetLoadStatus;
+
 class FontFaceSet final : public DOM::EventTarget {
-    WEB_PLATFORM_OBJECT(FontFaceSet, DOM::EventTarget);
+    WEB_WRAPPABLE(FontFaceSet, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(FontFaceSet);
 
 public:
-    [[nodiscard]] static GC::Ref<FontFaceSet> create(JS::Realm&);
+    [[nodiscard]] static GC::Ref<FontFaceSet> create(HTML::EnvironmentSettingsObject&);
     virtual ~FontFaceSet() override = default;
 
-    GC::Ref<JS::Set> set_entries() const { return m_set_entries; }
+    size_t set_size() const { return m_font_faces.size(); }
+    Vector<GC::Ref<FontFace>> const& font_faces() const { return m_font_faces; }
 
     WebIDL::ExceptionOr<GC::Ref<FontFaceSet>> add(GC::Ref<FontFace>);
     bool delete_(GC::Ref<FontFace>);
@@ -48,9 +58,8 @@ public:
     Vector<GC::Ref<FontFace>>& failed_fonts() { return m_failed_fonts; }
 
     GC::Ref<WebIDL::Promise> ready() const;
-    Bindings::FontFaceSetLoadStatus status() const { return m_status; }
-
-    void on_set_modified_from_js(Badge<Bindings::FontFaceSetPrototype>) { }
+    HTML::EnvironmentSettingsObject& relevant_settings_object() const { return *m_environment; }
+    FontFaceSetLoadStatus status() const { return m_status; }
 
     void fire_a_font_load_event(Utf16FlyString name, Vector<GC::Ref<FontFace>> = {});
     void set_is_pending_on_the_environment(bool);
@@ -59,19 +68,18 @@ public:
     void switch_to_loaded();
 
 private:
-    explicit FontFaceSet(JS::Realm&);
-
-    virtual void initialize(JS::Realm&) override;
+    explicit FontFaceSet(HTML::EnvironmentSettingsObject&);
     virtual void visit_edges(Cell::Visitor&) override;
 
-    GC::Ref<JS::Set> m_set_entries;
+    Vector<GC::Ref<FontFace>> m_font_faces;
+    GC::Ref<HTML::EnvironmentSettingsObject> m_environment;
     GC::Ref<WebIDL::Promise> m_ready_promise; // [[ReadyPromise]]
 
     Vector<GC::Ref<FontFace>> m_loading_fonts {}; // [[LoadingFonts]]
     Vector<GC::Ref<FontFace>> m_loaded_fonts {};  // [[LoadedFonts]]
     Vector<GC::Ref<FontFace>> m_failed_fonts {};  // [[FailedFonts]]
 
-    Bindings::FontFaceSetLoadStatus m_status { Bindings::FontFaceSetLoadStatus::Loaded };
+    FontFaceSetLoadStatus m_status;
 
     bool m_is_pending_on_the_environment { true };
 

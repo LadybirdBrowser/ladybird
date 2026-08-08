@@ -5,8 +5,7 @@
  */
 
 #include "CSSMathProduct.h"
-#include <LibWeb/Bindings/CSSMathProduct.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/CSS/CSSMathInvert.h>
 #include <LibWeb/CSS/CSSNumericArray.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
@@ -17,12 +16,12 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSMathProduct);
 
-GC::Ref<CSSMathProduct> CSSMathProduct::create(JS::Realm& realm, NumericType type, GC::Ref<CSSNumericArray> values)
+GC::Ref<CSSMathProduct> CSSMathProduct::create(NumericType type, GC::Ref<CSSNumericArray> values)
 {
-    return realm.create<CSSMathProduct>(realm, move(type), move(values));
+    return GC::Heap::the().allocate<CSSMathProduct>(move(type), move(values));
 }
 
-WebIDL::ExceptionOr<GC::Ref<CSSMathProduct>> CSSMathProduct::multiply_all_types_into_math_product(JS::Realm& realm, GC::RootVector<GC::Ref<CSSNumericValue>> const& values)
+WebIDL::ExceptionOr<GC::Ref<CSSMathProduct>> CSSMathProduct::multiply_all_types_into_math_product(GC::RootVector<GC::Ref<CSSNumericValue>> const& values)
 {
     auto type = values.first()->type();
     bool first = true;
@@ -38,12 +37,12 @@ WebIDL::ExceptionOr<GC::Ref<CSSMathProduct>> CSSMathProduct::multiply_all_types_
         }
     }
 
-    auto values_array = CSSNumericArray::create(realm, { values });
-    return CSSMathProduct::create(realm, type, values_array);
+    auto values_array = CSSNumericArray::create({ values });
+    return CSSMathProduct::create(type, values_array);
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssmathproduct-cssmathproduct
-WebIDL::ExceptionOr<GC::Ref<CSSMathProduct>> CSSMathProduct::construct_impl(JS::Realm& realm, ReadonlySpan<CSSNumberish> values)
+WebIDL::ExceptionOr<GC::Ref<CSSMathProduct>> CSSMathProduct::create_for_constructor(ReadonlySpan<CSSNumberish> values)
 {
     // The CSSMathProduct(...args) constructor is defined identically to the above, except that in step 3 it multiplies
     // the types instead of adding, and in the last step it returns a CSSMathProduct.
@@ -53,33 +52,27 @@ WebIDL::ExceptionOr<GC::Ref<CSSMathProduct>> CSSMathProduct::construct_impl(JS::
     GC::RootVector<GC::Ref<CSSNumericValue>> converted_values;
     converted_values.ensure_capacity(values.size());
     for (auto const& value : values) {
-        converted_values.append(rectify_a_numberish_value(realm, value));
+        converted_values.append(rectify_a_numberish_value(value));
     }
 
     // 2. If args is empty, throw a SyntaxError.
     if (converted_values.is_empty())
-        return WebIDL::SyntaxError::create(realm, "Cannot create an empty CSSMathProduct"_utf16);
+        return WebIDL::SyntaxError::create("Cannot create an empty CSSMathProduct"_utf16);
 
     // 3. Let type be the result of multiplying the types of all the items of args. If type is failure, throw a TypeError.
     // 4. Return a new CSSMathProduct whose values internal slot is set to args.
-    return multiply_all_types_into_math_product(realm, converted_values);
+    return multiply_all_types_into_math_product(converted_values);
 }
 
-CSSMathProduct::CSSMathProduct(JS::Realm& realm, NumericType type, GC::Ref<CSSNumericArray> values)
-    : CSSMathValue(realm, Bindings::CSSMathOperator::Product, move(type))
+CSSMathProduct::CSSMathProduct(NumericType type, GC::Ref<CSSNumericArray> values)
+    : CSSMathValue(CSSMathOperator::Product, move(type))
     , m_values(move(values))
 {
 }
 
 CSSMathProduct::~CSSMathProduct() = default;
 
-void CSSMathProduct::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSMathProduct);
-    Base::initialize(realm);
-}
-
-void CSSMathProduct::visit_edges(Visitor& visitor)
+void CSSMathProduct::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_values);

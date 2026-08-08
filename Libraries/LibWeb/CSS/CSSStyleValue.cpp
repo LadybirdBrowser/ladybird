@@ -5,8 +5,7 @@
  */
 
 #include "CSSStyleValue.h"
-#include <LibWeb/Bindings/CSSStyleValue.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
@@ -17,33 +16,24 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSStyleValue);
 
-GC::Ref<CSSStyleValue> CSSStyleValue::create(JS::Realm& realm, Utf16FlyString associated_property, NonnullRefPtr<StyleValue const> source_value)
+GC::Ref<CSSStyleValue> CSSStyleValue::create(Utf16FlyString associated_property, NonnullRefPtr<StyleValue const> source_value)
 {
-    return realm.create<CSSStyleValue>(realm, move(associated_property), move(source_value));
+    return GC::Heap::the().allocate<CSSStyleValue>(move(associated_property), move(source_value));
 }
 
-CSSStyleValue::CSSStyleValue(JS::Realm& realm)
-    : PlatformObject(realm)
+CSSStyleValue::CSSStyleValue()
 {
 }
 
-CSSStyleValue::CSSStyleValue(JS::Realm& realm, NonnullRefPtr<StyleValue const> source_value)
-    : PlatformObject(realm)
+CSSStyleValue::CSSStyleValue(NonnullRefPtr<StyleValue const> source_value)
+    : m_source_value(move(source_value))
+{
+}
+
+CSSStyleValue::CSSStyleValue(Utf16FlyString associated_property, NonnullRefPtr<StyleValue const> source_value)
+    : m_associated_property(move(associated_property))
     , m_source_value(move(source_value))
 {
-}
-
-CSSStyleValue::CSSStyleValue(JS::Realm& realm, Utf16FlyString associated_property, NonnullRefPtr<StyleValue const> source_value)
-    : PlatformObject(realm)
-    , m_associated_property(move(associated_property))
-    , m_source_value(move(source_value))
-{
-}
-
-void CSSStyleValue::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSStyleValue);
-    Base::initialize(realm);
 }
 
 CSSStyleValue::~CSSStyleValue() = default;
@@ -73,6 +63,7 @@ WebIDL::ExceptionOr<GC::RootVector<GC::Ref<CSSStyleValue>>> CSSStyleValue::parse
 // https://drafts.css-houdini.org/css-typed-om-1/#parse-a-cssstylevalue
 WebIDL::ExceptionOr<Variant<GC::Ref<CSSStyleValue>, GC::RootVector<GC::Ref<CSSStyleValue>>>> CSSStyleValue::parse_a_css_style_value(JS::VM& vm, Utf16FlyString property_name, Utf16View css_text, ParseMultiple parse_multiple)
 {
+    (void)vm;
     // 1. If property is not a custom property name string, set property to property ASCII lowercased.
     // 2. If property is not a valid CSS property, throw a TypeError.
     auto property = PropertyNameAndID::from_name(property_name);
@@ -92,7 +83,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CSSStyleValue>, GC::RootVector<GC::Ref<CSSSt
     // 5. For each value in values, replace it with the result of reifying value for property.
     GC::RootVector<GC::Ref<CSSStyleValue>> reified_values;
     for (auto const& value : values) {
-        reified_values.append(value->reify(*vm.current_realm(), property->name()));
+        reified_values.append(value->reify(property->name()));
     }
 
     // 6. If parseMultiple is false, return values[0]. Otherwise, return values.

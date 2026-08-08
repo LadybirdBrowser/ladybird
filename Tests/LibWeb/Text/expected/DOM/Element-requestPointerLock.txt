@@ -1,0 +1,3 @@
+requestPointerLock promise is iframe realm: true
+requestPointerLock promise is parent realm: false
+requestPointerLock rejection name: NotSupportedError

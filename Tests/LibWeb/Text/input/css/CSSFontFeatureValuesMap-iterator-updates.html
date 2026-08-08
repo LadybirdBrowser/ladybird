@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style></style>
+<script>
+    test(() => {
+        const sheet = document.styleSheets[0];
+        sheet.insertRule(`
+            @font-feature-values cache_family {
+                @styleset {
+                    one: 1;
+                    two: 2;
+                    three: 3;
+                }
+            }
+        `);
+
+        const styleset = sheet.cssRules[0].styleset;
+        const iterator = styleset.entries();
+
+        println("-- CSSFontFeatureValuesMap iterator updates --");
+        let item = iterator.next();
+        println(`${item.value[0]}: ${item.value[1].join(",")}`);
+
+        styleset.set("two", [20, 21]);
+        styleset.set("four", 4);
+
+        item = iterator.next();
+        println(`${item.value[0]}: ${item.value[1].join(",")}`);
+        item = iterator.next();
+        println(`${item.value[0]}: ${item.value[1].join(",")}`);
+        item = iterator.next();
+        println(`${item.value[0]}: ${item.value[1].join(",")}`);
+        println(`done: ${iterator.next().done}`);
+    });
+</script>

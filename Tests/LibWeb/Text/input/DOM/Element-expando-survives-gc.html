@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="host"></div>
+<script>
+    test(() => {
+        withCollectedWrapper(
+            () => {
+                let element = host.appendChild(document.createElement("span"));
+                element.id = "probe";
+                element.x = 42;
+                return element;
+            },
+            () => document.getElementById("probe"),
+            element => println(`x=${element.x}`)
+        );
+    });
+</script>

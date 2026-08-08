@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>body { color: rgb(0, 0, 0); }</style>
+<script>
+    asyncTest(done => {
+        const frame = document.createElement("iframe");
+        frame.onload = () => {
+            const styleSheets = document.styleSheets;
+            const fromFrame = frame.contentWindow.Function("styleSheets", "return styleSheets.item(0);")(styleSheets);
+            const fromParent = styleSheets.item(0);
+            println(`parent-prototype=${Object.getPrototypeOf(fromFrame) === CSSStyleSheet.prototype}`);
+            println(`same=${fromFrame === fromParent}`);
+            done();
+        };
+        document.body.append(frame);
+    });
+</script>

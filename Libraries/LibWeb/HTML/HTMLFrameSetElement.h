@@ -15,7 +15,7 @@ namespace Web::HTML {
 class HTMLFrameSetElement final
     : public HTMLElement
     , public WindowEventHandlers {
-    WEB_PLATFORM_OBJECT(HTMLFrameSetElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLFrameSetElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLFrameSetElement);
 
 public:
@@ -26,7 +26,6 @@ private:
 
     virtual bool is_html_frameset_element() const override { return true; }
 
-    virtual void initialize(JS::Realm&) override;
     virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
 
     // ^HTML::GlobalEventHandlers

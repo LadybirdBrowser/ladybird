@@ -1,0 +1,8 @@
+changed same object: true
+deleted same object: true
+changed frozen: true
+deleted frozen: true
+changed name: session
+changed value: fresh
+deleted name: old-session
+deleted value: undefined

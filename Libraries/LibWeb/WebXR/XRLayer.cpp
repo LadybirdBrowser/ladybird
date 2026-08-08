@@ -4,15 +4,14 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/XRLayer.h>
 #include <LibWeb/WebXR/XRLayer.h>
 
 namespace Web::WebXR {
 
 GC_DEFINE_ALLOCATOR(XRLayer);
 
-XRLayer::XRLayer(JS::Realm& realm)
-    : DOM::EventTarget(realm)
+XRLayer::XRLayer()
+    : DOM::EventTarget()
 {
 }
 

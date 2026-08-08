@@ -6,19 +6,24 @@
 
 #pragma once
 
+#include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
+#include <LibJS/Forward.h>
 #include <LibWeb/Bindings/SecurityPolicyViolationEvent.h>
+#include <LibWeb/ContentSecurityPolicy/Policy.h>
 #include <LibWeb/DOM/Event.h>
+#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::ContentSecurityPolicy {
 
+using SecurityPolicyViolationEventInit = Bindings::SecurityPolicyViolationEventInit;
+
 class SecurityPolicyViolationEvent final : public DOM::Event {
-    WEB_PLATFORM_OBJECT(SecurityPolicyViolationEvent, DOM::Event);
+    WEB_WRAPPABLE(SecurityPolicyViolationEvent, DOM::Event);
     GC_DECLARE_ALLOCATOR(SecurityPolicyViolationEvent);
 
 public:
-    [[nodiscard]] static GC::Ref<SecurityPolicyViolationEvent> create(JS::Realm&, Utf16FlyString const& event_name, Bindings::SecurityPolicyViolationEventInit const& = {});
-    static WebIDL::ExceptionOr<GC::Ref<SecurityPolicyViolationEvent>> construct_impl(JS::Realm&, Utf16FlyString const& event_name, Bindings::SecurityPolicyViolationEventInit const& event_init);
+    [[nodiscard]] static GC::Ref<SecurityPolicyViolationEvent> create(Utf16FlyString const& event_name, SecurityPolicyViolationEventInit const& = {}, HighResolutionTime::DOMHighResTimeStamp = 0);
 
     virtual ~SecurityPolicyViolationEvent() override;
 
@@ -30,15 +35,13 @@ public:
     Utf16String const& original_policy() const { return m_original_policy; }
     Utf16String const& source_file() const { return m_source_file; }
     Utf16String const& sample() const { return m_sample; }
-    Bindings::SecurityPolicyViolationEventDisposition disposition() const { return m_disposition; }
+    Policy::Disposition disposition() const { return m_disposition; }
     u16 status_code() const { return m_status_code; }
     u32 line_number() const { return m_line_number; }
     u32 column_number() const { return m_column_number; }
 
 private:
-    SecurityPolicyViolationEvent(JS::Realm&, Utf16FlyString const& event_name, Bindings::SecurityPolicyViolationEventInit const&);
-
-    virtual void initialize(JS::Realm&) override;
+    SecurityPolicyViolationEvent(Utf16FlyString const& event_name, SecurityPolicyViolationEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 
     Utf16String m_document_uri;
     Utf16String m_referrer;
@@ -48,7 +51,7 @@ private:
     Utf16String m_original_policy;
     Utf16String m_source_file;
     Utf16String m_sample;
-    Bindings::SecurityPolicyViolationEventDisposition m_disposition { Bindings::SecurityPolicyViolationEventDisposition::Enforce };
+    Policy::Disposition m_disposition { Policy::Disposition::Enforce };
     u16 m_status_code { 0 };
     u32 m_line_number { 0 };
     u32 m_column_number { 0 };

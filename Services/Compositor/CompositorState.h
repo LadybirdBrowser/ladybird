@@ -130,6 +130,8 @@ private:
 
     ContextState* context_if_present(Web::Compositor::CompositorContextId);
     ContextState const* context_if_present(Web::Compositor::CompositorContextId) const;
+    Optional<u64> display_id_for_context(ContextState const&) const;
+    double display_refresh_rate_for_context(ContextState const&) const;
     void clear_parent_context(ContextState&);
     CompositedContextResolver resolver_for(Web::Compositor::CompositorContextId parent_context_id);
     RefPtr<Gfx::PaintingSurface> resolve_composited_context(Web::Compositor::CompositorContextId parent_context_id, Web::Compositor::CompositorContextId child_context_id);

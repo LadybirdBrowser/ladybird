@@ -14,7 +14,7 @@ namespace Web::WebLocks {
 GC::Ref<LockManager> NavigatorLocks::locks()
 {
     // The locks getter’s steps are to return this’s relevant settings object’s LockManager object.
-    return HTML::relevant_settings_object(this_navigator_locks_object()).lock_manager();
+    return this_navigator_locks_settings_object().lock_manager();
 }
 
 }

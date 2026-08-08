@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const iframe = document.createElement("iframe");
+        document.body.append(iframe);
+        const other = iframe.contentWindow;
+
+        const counters = other.internals.getStyleInvalidationCounters.call(internals);
+        println(`style counters has null prototype: ${Object.getPrototypeOf(counters) === null}`);
+        println(`style counters has styleInvalidations: ${"styleInvalidations" in counters}`);
+
+        const asyncState = other.internals.asyncScrollingState.call(internals);
+        println(`async state has null prototype: ${Object.getPrototypeOf(asyncState) === null}`);
+        println(`async scrollNodes uses iframe Array: ${asyncState.scrollNodes instanceof other.Array}`);
+        println(`async scrollNodes uses top Array: ${asyncState.scrollNodes instanceof Array}`);
+        println(`async stickyAreas uses iframe Array: ${asyncState.stickyAreas instanceof other.Array}`);
+        println(`async stickyAreas uses top Array: ${asyncState.stickyAreas instanceof Array}`);
+    });
+</script>

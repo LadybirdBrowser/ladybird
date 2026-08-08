@@ -12,6 +12,8 @@
 #include <LibWeb/ContentSecurityPolicy/Violation.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
+#include <LibWeb/HTML/PolicyContainers.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/TrustedTypes/TrustedScript.h>
 #include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
 
@@ -21,6 +23,22 @@ namespace Web::TrustedTypes {
     Utf16FlyString const& name = *new Utf16FlyString(value##_utf16_fly_string);
 ENUMERATE_REQUIRE_KEYWORD_TRUSTED_TYPES_FOR
 #undef __ENUMERATE_REQUIRE_KEYWORD_TRUSTED_TYPES_FOR
+
+static bool sink_group_matches(Utf16String const& directive_value, Utf16View sink_group)
+{
+    auto strip_quotes = [](Utf16View value) {
+        if (value.length_in_code_units() >= 2) {
+            auto first = value.code_unit_at(0);
+            auto last = value.code_unit_at(value.length_in_code_units() - 1);
+            if ((first == u'\'' && last == u'\'') || (first == u'"' && last == u'"'))
+                return value.substring_view(1, value.length_in_code_units() - 2);
+        }
+        return value;
+    };
+    auto value = strip_quotes(directive_value.utf16_view());
+    sink_group = strip_quotes(sink_group);
+    return value.equals_ignoring_ascii_case(sink_group);
+}
 
 GC_DEFINE_ALLOCATOR(RequireTrustedTypesForDirective);
 
@@ -85,7 +103,10 @@ ContentSecurityPolicy::Directives::Directive::Result RequireTrustedTypesForDirec
 bool does_sink_require_trusted_types(JS::Object& global, Utf16View sink_group, IncludeReportOnlyPolicies include_report_only_policies)
 {
     // 1. For each policy in global’s CSP list:
-    for (auto const policy : ContentSecurityPolicy::PolicyList::from_object(global)->policies()) {
+    auto csp_list = ContentSecurityPolicy::PolicyList::from_object(global);
+    if (!csp_list)
+        return false;
+    for (auto const policy : csp_list->policies()) {
         // 1. If policy’s directive set does not contain a directive whose name is "require-trusted-types-for", skip to the next policy.
         if (!policy->contains_directive_with_name(ContentSecurityPolicy::Directives::Names::RequireTrustedTypesFor))
             continue;
@@ -95,7 +116,7 @@ bool does_sink_require_trusted_types(JS::Object& global, Utf16View sink_group, I
 
         // 3. If directive’s value does not contain a trusted-types-sink-group which is a match for sinkGroup, skip to the next policy.
         auto const maybe_sink_group = directive->value().find_if([sink_group](auto const& directive_value) {
-            return directive_value.equals_ignoring_ascii_case(sink_group);
+            return sink_group_matches(directive_value, sink_group);
         });
         if (maybe_sink_group.is_end())
             continue;
@@ -151,7 +172,10 @@ ContentSecurityPolicy::Directives::Directive::Result should_sink_type_mismatch_v
     }
 
     // 4. For each policy in global’s CSP list:
-    for (auto const policy : ContentSecurityPolicy::PolicyList::from_object(global)->policies()) {
+    auto csp_list = ContentSecurityPolicy::PolicyList::from_object(global);
+    if (!csp_list)
+        return result;
+    for (auto const policy : csp_list->policies()) {
         // 1. If policy’s directive set does not contain a directive whose name is "require-trusted-types-for", skip to the next policy.
         if (!policy->contains_directive_with_name(ContentSecurityPolicy::Directives::Names::RequireTrustedTypesFor))
             continue;
@@ -161,13 +185,13 @@ ContentSecurityPolicy::Directives::Directive::Result should_sink_type_mismatch_v
 
         // 3. If directive’s value does not contain a trusted-types-sink-group which is a match for sinkGroup, skip to the next policy.
         auto const maybe_sink_group = directive->value().find_if([sink_group](auto const& directive_value) {
-            return directive_value.equals_ignoring_ascii_case(sink_group);
+            return sink_group_matches(directive_value, sink_group);
         });
         if (maybe_sink_group.is_end())
             continue;
 
         // 4. Let violation be the result of executing Create a violation object for global, policy, and directive on global, policy and "require-trusted-types-for"
-        auto violation = ContentSecurityPolicy::Violation::create_a_violation_object_for_global_policy_and_directive(realm, global, policy, ContentSecurityPolicy::Directives::Names::RequireTrustedTypesFor);
+        auto violation = ContentSecurityPolicy::Violation::create_a_violation_object_for_global_policy_and_directive(global, policy, ContentSecurityPolicy::Directives::Names::RequireTrustedTypesFor.view().to_utf8_but_should_be_ported_to_utf16());
 
         // 5. Set violation’s resource to "trusted-types-sink".
         violation->set_resource(ContentSecurityPolicy::Violation::Resource::TrustedTypesSink);

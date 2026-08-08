@@ -13,7 +13,7 @@
 namespace Web::HTML {
 
 class HTMLOListElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLOListElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLOListElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLOListElement);
 
 public:
@@ -29,8 +29,6 @@ public:
 
 private:
     HTMLOListElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
 
     virtual bool is_presentational_hint(Utf16FlyString const&) const override;
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;

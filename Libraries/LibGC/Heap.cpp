@@ -92,7 +92,6 @@ struct PhaseTimings {
     i64 sweep_dead_cells_us { 0 };
 
     // gather_roots() subphases.
-    i64 gather_must_survive_roots_us { 0 };
     i64 gather_embedder_roots_us { 0 };
     i64 gather_conservative_roots_us { 0 };
     i64 gather_explicit_roots_us { 0 };
@@ -176,7 +175,6 @@ void print_gc_report(i64 total_us, size_t live_block_count)
     dbgln("");
     dbgln("Phase breakdown (us, % of total):");
     dbgln("  gather_roots                  {:>10} us ({:>5.1f}%)", t.gather_roots_us, pct(t.gather_roots_us));
-    dbgln("    must-survive scan           {:>10} us ({:>5.1f}%)", t.gather_must_survive_roots_us, pct(t.gather_must_survive_roots_us));
     dbgln("    embedder roots              {:>10} us ({:>5.1f}%)", t.gather_embedder_roots_us, pct(t.gather_embedder_roots_us));
     dbgln("    conservative roots          {:>10} us ({:>5.1f}%)", t.gather_conservative_roots_us, pct(t.gather_conservative_roots_us));
     dbgln("      register scan             {:>10} us ({:>5.1f}%)", t.conservative_register_scan_us, pct(t.conservative_register_scan_us));
@@ -288,7 +286,7 @@ void Heap::set_default_heap_for_testing(Heap& heap)
 CellAllocator& Heap::cell_allocator_for(Badge<CellAllocatorDescriptorBase>, CellAllocatorDescriptorBase& descriptor)
 {
     return *m_cell_allocators_by_type.ensure(&descriptor, [&] {
-        return make<CellAllocator>(descriptor.cell_size(), descriptor.class_name(), descriptor.overrides_must_survive_garbage_collection(), descriptor.overrides_finalize());
+        return make<CellAllocator>(descriptor.cell_size(), descriptor.class_name(), descriptor.overrides_finalize());
     });
 }
 
@@ -520,9 +518,6 @@ public:
                 case HeapRoot::Type::HeapFunctionCapturedPointer:
                     node.set("root"sv, "HeapFunctionCapturedPointer"sv);
                     break;
-                case HeapRoot::Type::MustSurviveGC:
-                    node.set("root"sv, "MustSurviveGC"sv);
-                    break;
                 case HeapRoot::Type::Root:
                     node.set("root"sv, MUST(String::formatted("Root {} {}:{}", location->function_name(), location->filename(), location->line_number())));
                     break;
@@ -647,6 +642,7 @@ void Heap::collect_garbage(CollectionType collection_type, bool print_report)
 
     {
         TemporaryChange change(m_collecting_garbage, true);
+        TemporaryChange collection_type_change(m_current_collection_type, collection_type);
 
         // The caller can force level 1 by passing print_report=true; LIBGC_LOG_LEVEL=N
         // raises the floor for every collection.
@@ -810,21 +806,6 @@ void Heap::gather_roots(HashMap<Cell*, HeapRoot>& roots, Vector<StackFrameInfo>*
             if (auto* cell = member->cell_base())
                 roots.set(cell, HeapRoot { .type = HeapRoot::Type::CrossHeapMember });
         }
-    }
-
-    {
-        ScopedPhaseTimer timer { g_recording_phase_timings, g_phase_timings.gather_must_survive_roots_us };
-        for_each_block([&](auto& block) {
-            if (block.overrides_must_survive_garbage_collection()) {
-                block.template for_each_cell_in_state<Cell::State::Live>([&](Cell* cell) {
-                    if (cell->must_survive_garbage_collection()) {
-                        roots.set(cell, HeapRoot { .type = HeapRoot::Type::MustSurviveGC });
-                    }
-                });
-            }
-
-            return IterationDecision::Continue;
-        });
     }
 
     {

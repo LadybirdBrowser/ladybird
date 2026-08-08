@@ -8,8 +8,9 @@
 
 #include <AK/OwnPtr.h>
 #include <LibGC/Ptr.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibJS/Runtime/Value.h>
+#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Export.h>
 #include <LibWeb/HTML/StructuredSerializeTypes.h>
 #include <LibWeb/IndexedDB/Internal/Key.h>
 
@@ -45,22 +46,21 @@ struct IndexRecord {
 
 // https://pr-preview.s3.amazonaws.com/w3c/IndexedDB/pull/461.html#record-snapshot
 // https://pr-preview.s3.amazonaws.com/w3c/IndexedDB/461/95f98c0...43e154b.html#record-interface
-class IDBRecord : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(IDBRecord, Bindings::PlatformObject);
+class IDBRecord : public Bindings::Wrappable {
+    WEB_WRAPPABLE(IDBRecord, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(IDBRecord);
 
 public:
-    [[nodiscard]] static GC::Ref<IDBRecord> create(JS::Realm& realm, GC::Ref<Key> key, JS::Value value, GC::Ref<Key> primary_key);
+    [[nodiscard]] static GC::Ref<IDBRecord> create(GC::Ref<Key> key, JS::Value value, GC::Ref<Key> primary_key);
     virtual ~IDBRecord();
 
-    JS::Value value() const { return m_value; }
-    WebIDL::ExceptionOr<JS::Value> key() const;
-    WebIDL::ExceptionOr<JS::Value> primary_key() const;
+    JS::Value key(JS::Realm&) const;
+    JS::Value primary_key(JS::Realm&) const;
+    JS::Value const& value() const { return m_value; }
 
 protected:
-    explicit IDBRecord(JS::Realm&, GC::Ref<Key> key, JS::Value value, GC::Ref<Key> primary_key);
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor& visitor) override;
+    explicit IDBRecord(GC::Ref<Key> key, JS::Value value, GC::Ref<Key> primary_key);
+    virtual void visit_edges(GC::Cell::Visitor& visitor) override;
 
 private:
     GC::Ref<Key> m_key;

@@ -20,7 +20,7 @@ static OrderedHashMap<RegistrationKey, Registration>& registration_map()
     return *registrations;
 }
 
-Registration::Registration(StorageAPI::StorageKey storage_key, URL::URL scope, Bindings::ServiceWorkerUpdateViaCache update_via_cache)
+Registration::Registration(StorageAPI::StorageKey storage_key, URL::URL scope, ServiceWorkerUpdateViaCache update_via_cache)
     : m_storage_key(move(storage_key))
     , m_scope_url(move(scope))
     , m_update_via_cache_mode(update_via_cache)
@@ -69,7 +69,7 @@ Optional<Registration&> Registration::get(StorageAPI::StorageKey const& key, Opt
 }
 
 // https://w3c.github.io/ServiceWorker/#set-registration-algorithm
-Registration& Registration::set(StorageAPI::StorageKey const& storage_key, URL::URL const& scope, Bindings::ServiceWorkerUpdateViaCache update_via_cache)
+Registration& Registration::set(StorageAPI::StorageKey const& storage_key, URL::URL const& scope, ServiceWorkerUpdateViaCache update_via_cache)
 {
     // FIXME: 1. Run the following steps atomically.
 

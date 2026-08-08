@@ -13,7 +13,7 @@ namespace Web::SVG {
 
 // https://svgwg.org/svg2-draft/embedded.html#InterfaceSVGForeignObjectElement
 class SVGForeignObjectElement final : public SVGGraphicsElement {
-    WEB_PLATFORM_OBJECT(SVGForeignObjectElement, SVGGraphicsElement);
+    WEB_WRAPPABLE(SVGForeignObjectElement, SVGGraphicsElement);
     GC_DECLARE_ALLOCATOR(SVGForeignObjectElement);
 
 public:
@@ -42,7 +42,13 @@ private:
 
     virtual bool is_svg_foreign_object_element() const override { return true; }
 
-    virtual void initialize(JS::Realm&) override;
+    virtual void initialize_element() override;
+    virtual void visit_edges(Cell::Visitor&) override;
+
+    GC::Ptr<SVG::SVGAnimatedLength> m_x;
+    GC::Ptr<SVG::SVGAnimatedLength> m_y;
+    GC::Ptr<SVG::SVGAnimatedLength> m_width;
+    GC::Ptr<SVG::SVGAnimatedLength> m_height;
 };
 
 }

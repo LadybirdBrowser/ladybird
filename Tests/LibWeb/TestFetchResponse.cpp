@@ -52,7 +52,7 @@ TEST_CASE(javascript_bytecode_cache_memory_cache_request_headers_are_cloned)
     auto request_headers = HTTP::HeaderList::create({
         { "User-Agent"sv, "Ladybird"sv },
     });
-    auto response = Web::Fetch::Infrastructure::Response::create(*vm);
+    auto response = Web::Fetch::Infrastructure::Response::create();
     response->set_javascript_bytecode_cache_memory_cache_request_headers(request_headers);
 
     auto cloned_response = response->clone(realm);
@@ -76,7 +76,7 @@ TEST_CASE(http_redirect_fetch_releases_intermediate_response_for_transfer)
     request->set_url_list({ request_url.release_value() });
     request->set_redirect_count(20);
 
-    auto fetch_params = Web::Fetch::Infrastructure::FetchParams::create(*vm, request, Web::Fetch::Infrastructure::FetchTimingInfo::create(*vm));
+    auto fetch_params = Web::Fetch::Infrastructure::FetchParams::create(request, Web::Fetch::Infrastructure::FetchTimingInfo::create());
     auto response = TransferTrackingResponse::create(*vm);
     response->set_status(302);
     response->set_header_list(HTTP::HeaderList::create({ { "Location"sv, "/redirected"sv } }));

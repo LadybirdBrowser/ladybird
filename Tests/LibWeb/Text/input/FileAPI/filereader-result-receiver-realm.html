@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest((done) => {
+        const iframe = document.createElement("iframe");
+        document.body.append(iframe);
+        const other = iframe.contentWindow;
+        const resultGetter = Object.getOwnPropertyDescriptor(other.FileReader.prototype, "result").get;
+
+        // The getter comes from the iframe prototype, but the receiver is a
+        // parent-realm FileReader. Returned ArrayBuffers follow the receiver.
+        const textReader = new FileReader();
+        textReader.onload = () => {
+            const text = resultGetter.call(textReader);
+            println(`text result value: ${text}`);
+            println(`text result primitive: ${typeof text === "string"}`);
+
+            const arrayBufferReader = new FileReader();
+            arrayBufferReader.onload = () => {
+                const arrayBuffer = resultGetter.call(arrayBufferReader);
+                println(`ArrayBuffer result is iframe realm: ${arrayBuffer instanceof other.ArrayBuffer}`);
+                println(`ArrayBuffer result is parent realm: ${arrayBuffer instanceof ArrayBuffer}`);
+                println(`ArrayBuffer result bytes: ${Array.from(new other.Uint8Array(arrayBuffer)).join(",")}`);
+
+                // The result ArrayBuffer must keep a stable identity across accesses.
+                println(`ArrayBuffer result identity stable: ${arrayBuffer === resultGetter.call(arrayBufferReader)}`);
+                println(`ArrayBuffer result identity via own getter: ${arrayBuffer === arrayBufferReader.result}`);
+                done();
+            };
+            arrayBufferReader.readAsArrayBuffer(new Blob(["🦬"]));
+        };
+        textReader.readAsText(new Blob(["Ladybird"]));
+    });
+</script>

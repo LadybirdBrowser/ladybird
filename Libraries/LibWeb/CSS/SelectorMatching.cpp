@@ -583,8 +583,10 @@ extern "C" bool selector_ffi_element_has_custom_state(void const* element, uintp
     auto const& target = ffi_element(element);
     if (!target.is_custom())
         return false;
-    if (auto custom_state_set = target.custom_state_set())
-        return custom_state_set->has_state(*reinterpret_cast<Utf16FlyString const*>(&state));
+    if (auto custom_state_set = target.custom_state_set()) {
+        auto const& utf16_state = *reinterpret_cast<Utf16FlyString const*>(&state);
+        return custom_state_set->has_state(utf16_state);
+    }
     return false;
 }
 

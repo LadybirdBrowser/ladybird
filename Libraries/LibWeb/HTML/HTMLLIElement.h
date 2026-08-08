@@ -15,7 +15,7 @@
 namespace Web::HTML {
 
 class HTMLLIElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLLIElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLLIElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLLIElement);
 
 public:
@@ -42,8 +42,6 @@ public:
 
 private:
     HTMLLIElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
     virtual void attribute_changed(Utf16FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
 
     virtual bool is_presentational_hint(Utf16FlyString const&) const override;

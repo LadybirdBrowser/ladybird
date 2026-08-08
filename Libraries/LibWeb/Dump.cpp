@@ -177,11 +177,13 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
         StringBuilder identifier_builder;
         if (element.id().has_value() && !element.id()->is_empty()) {
             identifier_builder.append('#');
-            identifier_builder.append(*element.id());
+            for (auto code_point : element.id()->view())
+                identifier_builder.append_code_point(code_point);
         }
         for (auto& class_name : element.class_names()) {
             identifier_builder.append('.');
-            identifier_builder.append(class_name);
+            for (auto code_point : class_name.view())
+                identifier_builder.append_code_point(code_point);
         }
         identifier = MUST(identifier_builder.to_string());
     }

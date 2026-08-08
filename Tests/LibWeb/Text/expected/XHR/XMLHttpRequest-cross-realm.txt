@@ -1,0 +1,5 @@
+invalid open error is iframe DOMException: true
+invalid open error is top DOMException: false
+response is iframe ArrayBuffer: true
+response is top ArrayBuffer: false
+response getter cache is stable: true

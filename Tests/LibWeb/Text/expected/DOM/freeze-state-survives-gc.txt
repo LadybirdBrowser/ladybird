@@ -1,0 +1,3 @@
+frozen=true
+descriptor=false/false/42
+frozen-without-expando=true

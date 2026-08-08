@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const iframe = document.createElement("iframe");
+        document.body.append(iframe);
+
+        const other = iframe.contentWindow;
+
+        const element = document.createElement("div");
+        try {
+            other.Element.prototype.setAttribute.call(element, Symbol("name"), "value");
+        } catch (e) {
+            println(`operation TypeError is parent realm: ${e instanceof TypeError}`);
+            println(`operation TypeError is iframe realm: ${e instanceof other.TypeError}`);
+        }
+
+        const input = document.createElement("input");
+        const valueAsNumberSetter = Object.getOwnPropertyDescriptor(other.HTMLInputElement.prototype, "valueAsNumber").set;
+        try {
+            valueAsNumberSetter.call(input, Symbol("number"));
+        } catch (e) {
+            println(`setter TypeError is parent realm: ${e instanceof TypeError}`);
+            println(`setter TypeError is iframe realm: ${e instanceof other.TypeError}`);
+        }
+
+        const parentObjectWithThrowingToString = {
+            toString() {
+                const notCallable = null;
+                notCallable();
+            },
+        };
+        try {
+            other.document.createElement(parentObjectWithThrowingToString);
+        } catch (e) {
+            println(`nested script TypeError is parent realm: ${e instanceof TypeError}`);
+            println(`nested script TypeError is iframe realm: ${e instanceof other.TypeError}`);
+        }
+    });
+</script>

@@ -17,11 +17,11 @@
 namespace Web::CSS {
 
 class CSSStyleRule final : public CSSGroupingRule {
-    WEB_PLATFORM_OBJECT(CSSStyleRule, CSSGroupingRule);
+    WEB_WRAPPABLE(CSSStyleRule, CSSGroupingRule);
     GC_DECLARE_ALLOCATOR(CSSStyleRule);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSStyleRule> create(JS::Realm&, SelectorList&&, CSSStyleProperties&, CSSRuleList&);
+    [[nodiscard]] static GC::Ref<CSSStyleRule> create(SelectorList&&, CSSStyleProperties&, CSSRuleList&);
 
     virtual ~CSSStyleRule() override = default;
 
@@ -38,10 +38,8 @@ public:
     [[nodiscard]] Utf16FlyString const& qualified_layer_name() const { return parent_layer_internal_qualified_name(); }
 
 private:
-    CSSStyleRule(JS::Realm&, SelectorList&&, CSSStyleProperties&, CSSRuleList&);
-
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
+    CSSStyleRule(SelectorList&&, CSSStyleProperties&, CSSRuleList&);
+    virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual void clear_caches() override;
     virtual Utf16String serialized() const override;
     virtual void dump(StringBuilder&, int indent_levels) const override;

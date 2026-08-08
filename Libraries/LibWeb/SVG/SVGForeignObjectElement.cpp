@@ -4,9 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SVGForeignObjectElement.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/SVGForeignObjectBox.h>
@@ -26,15 +24,22 @@ SVGForeignObjectElement::SVGForeignObjectElement(DOM::Document& document, DOM::Q
 
 SVGForeignObjectElement::~SVGForeignObjectElement() = default;
 
-void SVGForeignObjectElement::initialize(JS::Realm& realm)
+void SVGForeignObjectElement::initialize_element()
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGForeignObjectElement);
-    Base::initialize(realm);
 }
 
 RefPtr<Layout::Node> SVGForeignObjectElement::create_layout_node(NonnullRefPtr<CSS::ComputedValues const> style)
 {
     return make_ref_counted<Layout::SVGForeignObjectBox>(document(), *this, style);
+}
+
+void SVGForeignObjectElement::visit_edges(GC::Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_x);
+    visitor.visit(m_y);
+    visitor.visit(m_width);
+    visitor.visit(m_height);
 }
 
 }

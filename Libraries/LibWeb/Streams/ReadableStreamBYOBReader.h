@@ -10,14 +10,16 @@
 #include <AK/Forward.h>
 #include <AK/Function.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/ReadableStreamBYOBReader.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Streams/ReadableStreamGenericReader.h>
 #include <LibWeb/WebIDL/Buffers.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::Streams {
+
+using ReadableStreamBYOBReaderReadOptions = Bindings::ReadableStreamBYOBReaderReadOptions;
 
 // https://streams.spec.whatwg.org/#read-into-request
 class ReadIntoRequest : public JS::Cell {
@@ -38,28 +40,26 @@ public:
 
 // https://streams.spec.whatwg.org/#readablestreambyobreader
 class ReadableStreamBYOBReader final
-    : public Bindings::PlatformObject
+    : public Bindings::Wrappable
     , public ReadableStreamGenericReaderMixin {
-    WEB_PLATFORM_OBJECT(ReadableStreamBYOBReader, Bindings::PlatformObject);
+    WEB_WRAPPABLE(ReadableStreamBYOBReader, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(ReadableStreamBYOBReader);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<ReadableStreamBYOBReader>> construct_impl(JS::Realm&, GC::Ref<ReadableStream>);
+    static WebIDL::ExceptionOr<GC::Ref<ReadableStreamBYOBReader>> create(JS::Realm&, GC::Ref<ReadableStream>);
 
     virtual ~ReadableStreamBYOBReader() override = default;
 
-    GC::Ref<WebIDL::Promise> read(WebIDL::ArrayBufferView, Bindings::ReadableStreamBYOBReaderReadOptions options = {});
+    GC::Ref<WebIDL::Promise> read(WebIDL::ArrayBufferView, ReadableStreamBYOBReaderReadOptions options = {});
 
     void release_lock();
 
     Vector<GC::Ref<ReadIntoRequest>>& read_into_requests() { return m_read_into_requests; }
 
 private:
-    explicit ReadableStreamBYOBReader(JS::Realm&);
+    ReadableStreamBYOBReader();
 
-    virtual void initialize(JS::Realm&) override;
-
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     // https://streams.spec.whatwg.org/#readablestreambyobreader-readintorequests
     // A list of read-into requests, used when a consumer requests chunks sooner than they are available

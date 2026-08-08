@@ -17,7 +17,7 @@ namespace Web::DOM {
 
 // https://dom.spec.whatwg.org/#attr
 class WEB_API Attr final : public Node {
-    WEB_PLATFORM_OBJECT(Attr, Node);
+    WEB_WRAPPABLE(Attr, Node);
     GC_DECLARE_ALLOCATOR(Attr);
 
 public:
@@ -51,8 +51,6 @@ public:
 
 private:
     Attr(Document&, QualifiedName, Utf16String value, Element*);
-
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     QualifiedName m_qualified_name;

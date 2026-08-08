@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/IDBDatabase.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/EventNames.h>
@@ -23,8 +22,8 @@ GC_DEFINE_ALLOCATOR(IDBTransaction);
 
 IDBTransaction::~IDBTransaction() = default;
 
-IDBTransaction::IDBTransaction(JS::Realm& realm, GC::Ref<IDBDatabase> connection, Bindings::IDBTransactionMode mode, Bindings::IDBTransactionDurability durability, Vector<GC::Ref<ObjectStore>> scopes)
-    : EventTarget(realm)
+IDBTransaction::IDBTransaction(GC::Ref<IDBDatabase> connection, TransactionMode mode, TransactionDurability durability, Vector<GC::Ref<ObjectStore>> scopes)
+    : EventTarget()
     , m_connection(connection)
     , m_mode(mode)
     , m_durability(durability)
@@ -34,15 +33,9 @@ IDBTransaction::IDBTransaction(JS::Realm& realm, GC::Ref<IDBDatabase> connection
     connection->add_transaction(*this);
 }
 
-GC::Ref<IDBTransaction> IDBTransaction::create(JS::Realm& realm, GC::Ref<IDBDatabase> connection, Bindings::IDBTransactionMode mode, Bindings::IDBTransactionDurability durability = Bindings::IDBTransactionDurability::Default, Vector<GC::Ref<ObjectStore>> scopes = {})
+GC::Ref<IDBTransaction> IDBTransaction::create(GC::Ref<IDBDatabase> connection, TransactionMode mode, TransactionDurability durability, Vector<GC::Ref<ObjectStore>> scopes)
 {
-    return realm.create<IDBTransaction>(realm, connection, mode, durability, move(scopes));
-}
-
-void IDBTransaction::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(IDBTransaction);
-    Base::initialize(realm);
+    return GC::Heap::the().allocate<IDBTransaction>(connection, mode, durability, move(scopes));
 }
 
 void IDBTransaction::visit_edges(Visitor& visitor)
@@ -62,6 +55,16 @@ void IDBTransaction::visit_edges(Visitor& visitor)
         visitor.visit(entry.store);
         visitor.visit(entry.log);
     }
+}
+
+JS::Object& IDBTransaction::relevant_global_object() const
+{
+    return m_connection->relevant_global_object();
+}
+
+HTML::WindowOrWorkerGlobalScopeMixin& IDBTransaction::relevant_global_scope() const
+{
+    return m_connection->relevant_global_scope();
 }
 
 DOM::EventTarget* IDBTransaction::get_parent(DOM::Event const&)
@@ -106,7 +109,7 @@ WebIDL::ExceptionOr<void> IDBTransaction::abort()
 {
     // 1. If this's state is committing or finished, then throw an "InvalidStateError" DOMException.
     if (m_state == TransactionState::Committing || m_state == TransactionState::Finished)
-        return WebIDL::InvalidStateError::create(realm(), "Transaction is ending"_utf16);
+        return WebIDL::InvalidStateError::create("Transaction is ending"_utf16);
 
     // 2. Run abort a transaction with this and null.
     abort_a_transaction(*this, nullptr);
@@ -122,17 +125,17 @@ GC::Ref<HTML::DOMStringList> IDBTransaction::object_store_names()
         names.append(object_store->name());
 
     // 2. Return the result (a DOMStringList) of creating a sorted name list with names.
-    return create_a_sorted_name_list(realm(), move(names));
+    return create_a_sorted_name_list(names);
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbtransaction-commit
 WebIDL::ExceptionOr<void> IDBTransaction::commit()
 {
-    auto& realm = this->realm();
+    auto& realm = HTML::relevant_realm(relevant_global_object());
 
     // 1. If this's state is not active, then throw an "InvalidStateError" DOMException.
     if (m_state != TransactionState::Active)
-        return WebIDL::InvalidStateError::create(realm, "Transaction is not active while committing"_utf16);
+        return WebIDL::InvalidStateError::create("Transaction is not active while committing"_utf16);
 
     // 2. Run commit a transaction with this.
     commit_a_transaction(realm, *this);
@@ -153,16 +156,14 @@ GC::Ptr<ObjectStore> IDBTransaction::object_store_named(Utf16String const& name)
 // https://w3c.github.io/IndexedDB/#dom-idbtransaction-objectstore
 WebIDL::ExceptionOr<GC::Ref<IDBObjectStore>> IDBTransaction::object_store(Utf16String const& name)
 {
-    auto& realm = this->realm();
-
     // 1. If this's state is finished, then throw an "InvalidStateError" DOMException.
     if (m_state == TransactionState::Finished)
-        return WebIDL::InvalidStateError::create(realm, "Transaction is finished"_utf16);
+        return WebIDL::InvalidStateError::create("Transaction is finished"_utf16);
 
     // 2. Let store be the object store named name in this's scope, or throw a "NotFoundError" DOMException if none.
     auto store = object_store_named(name);
     if (!store)
-        return WebIDL::NotFoundError::create(realm, "Object store not found in transactions scope"_utf16);
+        return WebIDL::NotFoundError::create("Object store not found in transactions scope"_utf16);
 
     // 3. Return an object store handle associated with store and this.
 
@@ -180,7 +181,7 @@ GC::Ref<IDBObjectStore> IDBTransaction::get_or_create_object_store_handle(GC::Re
     if (auto handle = m_object_store_handles.get(store); handle.has_value())
         return handle.value();
 
-    auto handle = IDBObjectStore::create(realm(), store, *this);
+    auto handle = IDBObjectStore::create(store, *this);
     m_object_store_handles.set(store, handle);
     return handle;
 }
@@ -208,7 +209,7 @@ void IDBTransaction::set_up_mutation_logs()
     m_original_version = m_connection->associated_database()->version();
 
     for (auto& store : m_scope) {
-        auto log = MutationLog::create(realm());
+        auto log = MutationLog::create();
         store->set_mutation_log(log);
         m_store_mutation_logs.append({ store, log });
     }
@@ -216,7 +217,7 @@ void IDBTransaction::set_up_mutation_logs()
 
 void IDBTransaction::set_up_mutation_log_for_new_store(GC::Ref<ObjectStore> store)
 {
-    auto log = MutationLog::create(realm());
+    auto log = MutationLog::create();
     store->set_mutation_log(log);
     m_store_mutation_logs.append({ store, log });
     log->note_object_store_created();
@@ -243,7 +244,7 @@ void IDBTransaction::discard_mutation_logs()
 
 void IDBTransaction::notify_devtools_of_committed_changes()
 {
-    auto document = HTML::relevant_settings_object(*this).responsible_document();
+    auto document = HTML::relevant_settings_object(relevant_global_object()).responsible_document();
     if (!document)
         return;
 

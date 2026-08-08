@@ -7,13 +7,16 @@
 #pragma once
 
 #include <LibGfx/Forward.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibJS/Forward.h>
 #include <LibWeb/Bindings/Transferable.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/HTML/Canvas/CanvasSettings.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::HTML {
+
+class WindowOrWorkerGlobalScopeMixin;
 
 // https://html.spec.whatwg.org/multipage/canvas.html#offscreenrenderingcontext
 // NOTE: This is the Variant created by the IDL wrapper generator, and needs to be updated accordingly.
@@ -22,22 +25,22 @@ using OffscreenRenderingContext = Variant<GC::Ref<OffscreenCanvasRenderingContex
 // https://html.spec.whatwg.org/multipage/canvas.html#offscreencanvas
 class OffscreenCanvas : public DOM::EventTarget
     , public Web::Bindings::Transferable {
-    WEB_PLATFORM_OBJECT(OffscreenCanvas, DOM::EventTarget);
+    WEB_WRAPPABLE(OffscreenCanvas, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(OffscreenCanvas);
 
 public:
-    static GC::Ref<OffscreenCanvas> create(JS::Realm&, WebIDL::UnsignedLong width, WebIDL::UnsignedLong height);
-
-    static WebIDL::ExceptionOr<GC::Ref<OffscreenCanvas>> construct_impl(
-        JS::Realm&,
+    static WebIDL::ExceptionOr<GC::Ref<OffscreenCanvas>> create(
+        DOM::EventTarget& relevant_global_object,
         WebIDL::UnsignedLong width,
         WebIDL::UnsignedLong height);
 
     virtual ~OffscreenCanvas() override;
 
+    JS::Object& relevant_global_object() const;
+
     // ^Web::Bindings::Transferable
-    virtual WebIDL::ExceptionOr<void> transfer_steps(HTML::TransferDataEncoder&) override;
-    virtual WebIDL::ExceptionOr<void> transfer_receiving_steps(HTML::TransferDataDecoder&) override;
+    virtual WebIDL::ExceptionOr<void> transfer_steps(JS::Realm&, HTML::TransferDataEncoder&) override;
+    virtual WebIDL::ExceptionOr<void> transfer_receiving_steps(JS::Realm&, HTML::TransferDataDecoder&) override;
     virtual HTML::TransferType primary_interface() const override;
 
     WebIDL::UnsignedLong width() const;
@@ -50,11 +53,7 @@ public:
 
     Gfx::IntSize bitmap_size_for_canvas() const;
 
-    JS::ThrowCompletionOr<OffscreenRenderingContext> get_context(Bindings::OffscreenRenderingContextId contextId, JS::Value options);
-
     WebIDL::ExceptionOr<GC::Ref<ImageBitmap>> transfer_to_image_bitmap();
-
-    GC::Ref<WebIDL::Promise> convert_to_blob(Optional<Bindings::ImageEncodeOptions> options);
 
     void set_oncontextlost(GC::Ptr<WebIDL::CallbackType>);
     GC::Ptr<WebIDL::CallbackType> oncontextlost();
@@ -63,17 +62,17 @@ public:
 
     CSS::ComputationContext canvas_font_computation_context() const;
 
-private:
-    OffscreenCanvas(JS::Realm&, RefPtr<Gfx::Bitmap> bitmap);
-
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
-
     enum class HasOrCreatedContext {
         No,
         Yes,
     };
-    JS::ThrowCompletionOr<HasOrCreatedContext> create_2d_context(JS::Value options);
+    HasOrCreatedContext create_2d_context(CanvasRenderingContext2DSettings);
+    OffscreenRenderingContext const& context() const { return m_context; }
+
+private:
+    OffscreenCanvas(GC::Ref<DOM::EventTarget> relevant_global_object, RefPtr<Gfx::Bitmap> bitmap);
+
+    virtual void visit_edges(Cell::Visitor&) override;
 
     void reset_context_to_default_state();
     WebIDL::ExceptionOr<void> set_new_bitmap_size(Gfx::IntSize new_size);
@@ -81,6 +80,7 @@ private:
     Variant<GC::Ref<HTML::OffscreenCanvasRenderingContext2D>, GC::Ref<WebGL::WebGLRenderingContext>, GC::Ref<WebGL::WebGL2RenderingContext>, Empty> m_context;
 
     RefPtr<Gfx::Bitmap> m_bitmap;
+    GC::Ref<DOM::EventTarget> m_global_object;
 };
 
 }

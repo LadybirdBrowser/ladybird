@@ -5,7 +5,7 @@
  */
 
 #include <AK/Utf16StringBuilder.h>
-#include <LibWeb/Bindings/XMLSerializer.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/CDATASection.h>
 #include <LibWeb/DOM/Comment.h>
@@ -30,23 +30,16 @@ GC_DEFINE_ALLOCATOR(XMLSerializer);
 using NamespacePrefixMap = HashMap<Optional<Utf16FlyString>, Vector<Optional<Utf16FlyString>>>;
 using LocalPrefixesMap = HashMap<Utf16FlyString, Optional<Utf16FlyString>>;
 
-WebIDL::ExceptionOr<GC::Ref<XMLSerializer>> XMLSerializer::construct_impl(JS::Realm& realm)
+GC::Ref<XMLSerializer> XMLSerializer::create()
 {
-    return realm.create<XMLSerializer>(realm);
+    return GC::Heap::the().allocate<XMLSerializer>();
 }
 
-XMLSerializer::XMLSerializer(JS::Realm& realm)
-    : PlatformObject(realm)
+XMLSerializer::XMLSerializer()
 {
 }
 
 XMLSerializer::~XMLSerializer() = default;
-
-void XMLSerializer::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(XMLSerializer);
-    Base::initialize(realm);
-}
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-xmlserializer-serializetostring
 WebIDL::ExceptionOr<Utf16String> XMLSerializer::serialize_to_string(GC::Ref<DOM::Node const> root)
@@ -354,8 +347,6 @@ struct LocalNameSetEntry {
 // https://w3c.github.io/DOM-Parsing/#dfn-xml-serialization-of-the-attributes
 static WebIDL::ExceptionOr<Utf16String> serialize_element_attributes(DOM::Element const& element, NamespacePrefixMap& namespace_prefix_map, u64& prefix_index, LocalPrefixesMap const& local_prefixes_map, bool ignore_namespace_definition_attribute, RequireWellFormed require_well_formed)
 {
-    auto& realm = element.realm();
-
     // 1. Let result be the empty string.
     Utf16StringBuilder result;
 
@@ -377,7 +368,7 @@ static WebIDL::ExceptionOr<Utf16String> serialize_element_attributes(DOM::Elemen
             });
 
             if (local_name_set_iterator != local_name_set.end())
-                return WebIDL::InvalidStateError::create(realm, "Element contains two attributes with identical namespaces and local names"_utf16);
+                return WebIDL::InvalidStateError::create("Element contains two attributes with identical namespaces and local names"_utf16);
         }
 
         // 2. Create a new tuple consisting of attr's namespaceURI attribute and localName attribute, and add it to the localname set.
@@ -432,13 +423,13 @@ static WebIDL::ExceptionOr<Utf16String> serialize_element_attributes(DOM::Elemen
 
                 // 2. If the require well-formed flag is set (its value is true), and the value of attr's value attribute matches the XMLNS namespace,
                 //    then throw an exception; the serialization of this attribute would produce invalid XML because the XMLNS namespace is reserved and cannot be applied as an element's namespace via XML parsing.
-                if (require_well_formed == RequireWellFormed::Yes && attribute_value_namespace == namespace_uri_as_utf16(Namespace::XMLNS))
-                    return WebIDL::InvalidStateError::create(realm, "The XMLNS namespace cannot be used as an element's namespace"_utf16);
+                if (require_well_formed == RequireWellFormed::Yes && attribute->value() == Namespace::XMLNS)
+                    return WebIDL::InvalidStateError::create("The XMLNS namespace cannot be used as an element's namespace"_utf16);
 
                 // 3. If the require well-formed flag is set (its value is true), and the value of attr's value attribute is the empty string,
                 //    then throw an exception; namespace prefix declarations cannot be used to undeclare a namespace (use a default namespace declaration instead).
                 if (require_well_formed == RequireWellFormed::Yes && attribute->value().is_empty())
-                    return WebIDL::InvalidStateError::create(realm, "Attribute's value is empty"_utf16);
+                    return WebIDL::InvalidStateError::create("Attribute's value is empty"_utf16);
 
                 // 4. [If] the attr's prefix matches the string "xmlns", then let candidate prefix be the string "xmlns".
                 if (attribute->prefix() == u"xmlns"sv)
@@ -480,13 +471,13 @@ static WebIDL::ExceptionOr<Utf16String> serialize_element_attributes(DOM::Elemen
         // 8. If the require well-formed flag is set (its value is true), and this attr's localName attribute contains the character ":" (U+003A COLON)
         //    or does not match the XML Name production or equals "xmlns" and attribute namespace is null, then throw an exception; the serialization of this attr would not be a well-formed attribute.
         if (require_well_formed == RequireWellFormed::Yes) {
-            if (attribute->local_name().view().contains(':'))
-                return WebIDL::InvalidStateError::create(realm, "Attribute's local name contains a colon"_utf16);
+            if (attribute->local_name().view().contains(u':'))
+                return WebIDL::InvalidStateError::create("Attribute's local name contains a colon"_utf16);
 
             // FIXME: Check attribute's local name against the XML Name production.
 
-            if (attribute->local_name() == u"xmlns"sv && !attribute->namespace_uri().has_value())
-                return WebIDL::InvalidStateError::create(realm, "Attribute's local name is 'xmlns' and the attribute has no namespace"_utf16);
+            if (attribute->local_name() == "xmlns"sv && !attribute->namespace_uri().has_value())
+                return WebIDL::InvalidStateError::create("Attribute's local name is 'xmlns' and the attribute has no namespace"_utf16);
         }
 
         // 9. Append the following strings to result, in the order listed:
@@ -510,13 +501,11 @@ static WebIDL::ExceptionOr<Utf16String> serialize_element_attributes(DOM::Elemen
 // https://w3c.github.io/DOM-Parsing/#xml-serializing-an-element-node
 static WebIDL::ExceptionOr<Utf16String> serialize_element(DOM::Element const& element, Optional<Utf16FlyString>& namespace_, NamespacePrefixMap& namespace_prefix_map, u64& prefix_index, RequireWellFormed require_well_formed)
 {
-    auto& realm = element.realm();
-
     // 1. If the require well-formed flag is set (its value is true), and this node's localName attribute contains the character ":" (U+003A COLON) or does not match the XML Name production,
     //    then throw an exception; the serialization of this node would not be a well-formed element.
     if (require_well_formed == RequireWellFormed::Yes) {
-        if (element.local_name().view().contains(':'))
-            return WebIDL::InvalidStateError::create(realm, "Element's local name contains a colon"_utf16);
+        if (element.local_name().view().contains(u':'))
+            return WebIDL::InvalidStateError::create("Element's local name contains a colon"_utf16);
 
         // FIXME: Check element's local name against the XML Char production.
     }
@@ -588,7 +577,7 @@ static WebIDL::ExceptionOr<Utf16String> serialize_element(DOM::Element const& el
         if (prefix == u"xmlns"sv) {
             // 1. If the require well-formed flag is set, then throw an error. An Element with prefix "xmlns" will not legally round-trip in a conforming XML parser.
             if (require_well_formed == RequireWellFormed::Yes)
-                return WebIDL::InvalidStateError::create(realm, "Elements prefix is 'xmlns'"_utf16);
+                return WebIDL::InvalidStateError::create("Elements prefix is 'xmlns'"_utf16);
 
             // 2. Let candidate prefix be the value of prefix.
             candidate_prefix = prefix;
@@ -755,7 +744,7 @@ static WebIDL::ExceptionOr<Utf16String> serialize_document(DOM::Document const& 
     // If the require well-formed flag is set (its value is true), and this node has no documentElement (the documentElement attribute's value is null),
     // then throw an exception; the serialization of this node would not be a well-formed document.
     if (require_well_formed == RequireWellFormed::Yes && !document.document_element())
-        return WebIDL::InvalidStateError::create(document.realm(), "Document has no document element"_utf16);
+        return WebIDL::InvalidStateError::create("Document has no document element"_utf16);
 
     // Otherwise, run the following steps:
     // 1. Let serialized document be an empty string.
@@ -778,11 +767,11 @@ static WebIDL::ExceptionOr<Utf16String> serialize_comment(DOM::Comment const& co
     if (require_well_formed == RequireWellFormed::Yes) {
         // FIXME: Check comment's data against the XML Char production.
 
-        if (comment.data().contains(u"--"sv))
-            return WebIDL::InvalidStateError::create(comment.realm(), "Comment data contains two adjacent hyphens"_utf16);
+        if (comment.data().contains("--"sv))
+            return WebIDL::InvalidStateError::create("Comment data contains two adjacent hyphens"_utf16);
 
-        if (comment.data().ends_with(u"-"sv))
-            return WebIDL::InvalidStateError::create(comment.realm(), "Comment data ends with a hyphen"_utf16);
+        if (comment.data().ends_with("-"sv))
+            return WebIDL::InvalidStateError::create("Comment data ends with a hyphen"_utf16);
     }
 
     // Otherwise, return the concatenation of "<!--", node's data, and "-->".
@@ -809,7 +798,7 @@ static WebIDL::ExceptionOr<Utf16String> serialize_text(DOM::Text const& text, Re
     if (require_well_formed == RequireWellFormed::Yes) {
         for (u32 code_point : text.data()) {
             if (!is_valid_xml_char(code_point))
-                return WebIDL::InvalidStateError::create(text.realm(), "Text contains characters not allowed in XML"_utf16);
+                return WebIDL::InvalidStateError::create("Text contains characters not allowed in XML"_utf16);
         }
     }
 
@@ -859,7 +848,7 @@ static WebIDL::ExceptionOr<Utf16String> serialize_document_type(DOM::DocumentTyp
         //    both a """ (U+0022 QUOTATION MARK) and a "'" (U+0027 APOSTROPHE), then throw an exception; the serialization of this node would not be a well-formed document type declaration.
         // FIXME: Check systemId against the XML Char production.
         if (document_type.system_id().contains('"') && document_type.system_id().contains('\''))
-            return WebIDL::InvalidStateError::create(document_type.realm(), "Document type system ID contains both a quotation mark and an apostrophe"_utf16);
+            return WebIDL::InvalidStateError::create("Document type system ID contains both a quotation mark and an apostrophe"_utf16);
     }
 
     // 3. Let markup be an empty string.
@@ -920,17 +909,17 @@ static WebIDL::ExceptionOr<Utf16String> serialize_processing_instruction(DOM::Pr
     if (require_well_formed == RequireWellFormed::Yes) {
         // 1. If the require well-formed flag is set (its value is true), and node's target contains a ":" (U+003A COLON) character
         //    or is an ASCII case-insensitive match for the string "xml", then throw an exception; the serialization of this node's target would not be well-formed.
-        if (processing_instruction.target().view().contains(':'))
-            return WebIDL::InvalidStateError::create(processing_instruction.realm(), "Processing instruction target contains a colon"_utf16);
+        if (processing_instruction.target().view().contains(u':'))
+            return WebIDL::InvalidStateError::create("Processing instruction target contains a colon"_utf16);
 
-        if (processing_instruction.target().view().equals_ignoring_ascii_case(u"xml"sv))
-            return WebIDL::InvalidStateError::create(processing_instruction.realm(), "Processing instruction target is equal to 'xml'"_utf16);
+        if (processing_instruction.target().equals_ignoring_ascii_case("xml"sv))
+            return WebIDL::InvalidStateError::create("Processing instruction target is equal to 'xml'"_utf16);
 
         // 2. If the require well-formed flag is set (its value is true), and node's data contains characters that are not matched by the XML Char production or contains
         //    the string "?>" (U+003F QUESTION MARK, U+003E GREATER-THAN SIGN), then throw an exception; the serialization of this node's data would not be well-formed.
         // FIXME: Check data against the XML Char production.
-        if (processing_instruction.data().contains(u"?>"sv))
-            return WebIDL::InvalidStateError::create(processing_instruction.realm(), "Processing instruction data contains a terminator"_utf16);
+        if (processing_instruction.data().contains("?>"sv))
+            return WebIDL::InvalidStateError::create("Processing instruction data contains a terminator"_utf16);
     }
 
     // 3. Let markup be the concatenation of the following, in the order listed:
@@ -958,8 +947,8 @@ static WebIDL::ExceptionOr<Utf16String> serialize_processing_instruction(DOM::Pr
 // FIXME: This is ad-hoc
 static WebIDL::ExceptionOr<Utf16String> serialize_cdata_section(DOM::CDATASection const& cdata_section, RequireWellFormed require_well_formed)
 {
-    if (require_well_formed == RequireWellFormed::Yes && cdata_section.data().contains(u"]]>"sv))
-        return WebIDL::InvalidStateError::create(cdata_section.realm(), "CDATA section data contains a CDATA section end delimiter"_utf16);
+    if (require_well_formed == RequireWellFormed::Yes && cdata_section.data().contains("]]>"sv))
+        return WebIDL::InvalidStateError::create("CDATA section data contains a CDATA section end delimiter"_utf16);
 
     Utf16StringBuilder markup;
     markup.append_ascii("<![CDATA["sv);

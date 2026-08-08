@@ -118,14 +118,29 @@ def is_numeric_type(type_name: str) -> bool:
 
 
 def is_string_type(type_name: str) -> bool:
-    return type_name in ("DOMString", "USVString", "ByteString", "Utf16DOMString", "Utf16USVString")
+    return type_name in (
+        "CSSOMString",
+        "DOMString",
+        "USVString",
+        "ByteString",
+        "Utf16CSSOMString",
+        "Utf16DOMString",
+        "Utf16USVString",
+    )
 
 
 def cpp_type_name_for_string(type_name: str, extended_attributes: Optional[dict[str, str]] = None) -> str:
     is_fly_string = extended_attributes is not None and (
         "FlyString" in extended_attributes or "Utf16FlyString" in extended_attributes
     )
-    if type_name in ("DOMString", "USVString", "Utf16DOMString", "Utf16USVString"):
+    if type_name in (
+        "CSSOMString",
+        "DOMString",
+        "USVString",
+        "Utf16CSSOMString",
+        "Utf16DOMString",
+        "Utf16USVString",
+    ):
         return "Utf16FlyString" if is_fly_string else "Utf16String"
     return "FlyString" if is_fly_string else "String"
 
@@ -564,6 +579,9 @@ def add_binding_include_for_type(idl_type: IDLType, includes: GeneratedIncludes,
 
     dictionary = context.dictionary(idl_type)
     if dictionary is not None:
+        if dictionary.name == "StructuredSerializeOptions":
+            includes.add("LibWeb/Bindings/MessagePort.h")
+            return
         includes.add_binding(dictionary.path.stem)
         return
 

@@ -6,8 +6,6 @@
 
 #include <LibWeb/SVG/SVGAnimationElement.h>
 
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SVGAnimationElement.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/Layout/Node.h>
 
@@ -18,12 +16,6 @@ GC_DEFINE_ALLOCATOR(SVGAnimationElement);
 SVGAnimationElement::SVGAnimationElement(DOM::Document& document, DOM::QualifiedName name)
     : SVGElement(document, name)
 {
-}
-
-void SVGAnimationElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGAnimationElement);
-    Base::initialize(realm);
 }
 
 // https://svgwg.org/specs/animations/#__svg__SVGAnimationElement__onbegin

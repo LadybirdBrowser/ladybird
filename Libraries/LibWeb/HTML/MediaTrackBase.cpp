@@ -10,9 +10,8 @@
 
 namespace Web::HTML {
 
-MediaTrackBase::MediaTrackBase(JS::Realm& realm, GC::Ref<HTMLMediaElement> media_element, Media::Track const& track)
-    : PlatformObject(realm)
-    , m_media_element(media_element)
+MediaTrackBase::MediaTrackBase(GC::Ref<HTMLMediaElement> media_element, Media::Track const& track)
+    : m_media_element(media_element)
     , m_track_in_playback_manager(track)
     , m_id(Utf16String::number(track.identifier()))
     , m_kind(track.kind())
@@ -49,7 +48,7 @@ MediaTrackBase::MediaTrackBase(JS::Realm& realm, GC::Ref<HTMLMediaElement> media
 
 MediaTrackBase::~MediaTrackBase() = default;
 
-void MediaTrackBase::visit_edges(Cell::Visitor& visitor)
+void MediaTrackBase::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_media_element);

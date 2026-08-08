@@ -7,7 +7,6 @@
 #include "CSSLayerBlockRule.h"
 #include <AK/Utf16StringBuilder.h>
 #include <LibWeb/Bindings/CSSLayerBlockRule.h>
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/Dump.h>
 
@@ -15,9 +14,9 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSLayerBlockRule);
 
-GC::Ref<CSSLayerBlockRule> CSSLayerBlockRule::create(JS::Realm& realm, Utf16FlyString name, CSSRuleList& rules)
+GC::Ref<CSSLayerBlockRule> CSSLayerBlockRule::create(Utf16FlyString name, CSSRuleList& rules)
 {
-    return realm.create<CSSLayerBlockRule>(realm, move(name), rules);
+    return GC::Heap::the().allocate<CSSLayerBlockRule>(move(name), rules);
 }
 
 Utf16FlyString CSSLayerBlockRule::next_unique_anonymous_layer_name()
@@ -29,8 +28,8 @@ Utf16FlyString CSSLayerBlockRule::next_unique_anonymous_layer_name()
     return Utf16FlyString::from_utf16(name.utf16_view());
 }
 
-CSSLayerBlockRule::CSSLayerBlockRule(JS::Realm& realm, Utf16FlyString name, CSSRuleList& rules)
-    : CSSGroupingRule(realm, rules, Type::LayerBlock)
+CSSLayerBlockRule::CSSLayerBlockRule(Utf16FlyString name, CSSRuleList& rules)
+    : CSSGroupingRule(rules, Type::LayerBlock)
     , m_name(move(name))
 {
     if (m_name.is_empty()) {
@@ -38,12 +37,6 @@ CSSLayerBlockRule::CSSLayerBlockRule(JS::Realm& realm, Utf16FlyString name, CSSR
     } else {
         m_name_internal = m_name;
     }
-}
-
-void CSSLayerBlockRule::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSLayerBlockRule);
-    Base::initialize(realm);
 }
 
 Utf16String CSSLayerBlockRule::serialized() const

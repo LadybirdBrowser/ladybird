@@ -6,11 +6,14 @@
 
 #include <AK/Base64.h>
 #include <AK/Checked.h>
+#include <LibGC/Heap.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/CanvasCommandList.h>
 #include <LibGfx/SharedImage.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/HTMLCanvasElement.h>
+#include <LibWeb/Bindings/CanvasRenderingContext2DSettings.h>
+#include <LibWeb/Bindings/WebGLRenderingContextBase.h>
+#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
@@ -19,11 +22,13 @@
 #include <LibWeb/CSS/StyleValues/RatioStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/HTML/Canvas/SerializeBitmap.h>
 #include <LibWeb/HTML/CanvasRenderingContext2D.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/Numbers.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/Layout/CanvasBox.h>
@@ -35,6 +40,7 @@
 #include <LibWeb/WebGL/WebGLRenderingContext.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/DOMException.h>
+#include <LibWeb/WebIDL/ExceptionOrUtils.h>
 
 namespace Web::HTML {
 
@@ -55,10 +61,8 @@ HTMLCanvasElement::HTMLCanvasElement(DOM::Document& document, DOM::QualifiedName
 
 HTMLCanvasElement::~HTMLCanvasElement() = default;
 
-void HTMLCanvasElement::initialize(JS::Realm& realm)
+void HTMLCanvasElement::initialize_element()
 {
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLCanvasElement);
-    Base::initialize(realm);
     document().page().register_canvas_element({}, unique_id());
 }
 
@@ -249,12 +253,12 @@ RefPtr<Layout::Node> HTMLCanvasElement::create_layout_node(NonnullRefPtr<CSS::Co
     return make_ref_counted<Layout::CanvasBox>(document(), *this, style);
 }
 
-JS::ThrowCompletionOr<HTMLCanvasElement::HasOrCreatedContext> HTMLCanvasElement::create_2d_context(JS::Value options)
+HTMLCanvasElement::HasOrCreatedContext HTMLCanvasElement::create_2d_context(CanvasRenderingContext2DSettings context_attributes)
 {
     if (!m_context.has<Empty>())
         return m_context.has<GC::Ref<CanvasRenderingContext2D>>() ? HasOrCreatedContext::Yes : HasOrCreatedContext::No;
 
-    m_context = TRY(CanvasRenderingContext2D::create(realm(), *this, options));
+    m_context = CanvasRenderingContext2D::create(*this, context_attributes);
     return HasOrCreatedContext::Yes;
 }
 
@@ -264,7 +268,7 @@ JS::ThrowCompletionOr<HTMLCanvasElement::HasOrCreatedContext> HTMLCanvasElement:
     if (!m_context.has<Empty>())
         return m_context.has<GC::Ref<ContextType>>() ? HasOrCreatedContext::Yes : HasOrCreatedContext::No;
 
-    auto maybe_context = TRY(ContextType::create(realm(), *this, options));
+    auto maybe_context = TRY(ContextType::create(HTML::relevant_realm(*this), *this, options));
     if (!maybe_context)
         return HasOrCreatedContext::No;
 
@@ -275,17 +279,12 @@ JS::ThrowCompletionOr<HTMLCanvasElement::HasOrCreatedContext> HTMLCanvasElement:
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-canvas-getcontext
 JS::ThrowCompletionOr<HTMLCanvasElement::RenderingContext> HTMLCanvasElement::get_context(Utf16View type, JS::Value options)
 {
-    // 1. If options is not an object, then set options to null.
     if (!options.is_object())
         options = JS::js_null();
 
-    // 2. Set options to the result of converting options to a JavaScript value.
-    // NOTE: No-op.
-
-    // 3. Run the steps in the cell of the following table whose column header matches this canvas element's canvas context mode and whose row header matches contextId:
-    // NOTE: See the spec for the full table.
     if (type == u"2d"sv) {
-        if (TRY(create_2d_context(options)) == HasOrCreatedContext::Yes)
+        auto context_attributes = TRY(Bindings::convert_to_idl_value_for_canvas_rendering_context2d_settings(vm(), options));
+        if (create_2d_context(context_attributes) == HasOrCreatedContext::Yes)
             return m_context.get<GC::Ref<HTML::CanvasRenderingContext2D>>();
 
         return Empty {};
@@ -342,7 +341,7 @@ WebIDL::ExceptionOr<Utf16String> HTMLCanvasElement::to_data_url(Utf16View type, 
 {
     // 1. If this canvas element's bitmap's origin-clean flag is set to false, then throw a "SecurityError" DOMException.
     if (!is_origin_clean())
-        return WebIDL::SecurityError::create(realm(), "Canvas is not origin-clean"_utf16);
+        return WebIDL::SecurityError::create(HTML::relevant_realm(*this), "Canvas is not origin-clean"_utf16);
 
     // 2. If this canvas element's bitmap has no pixels (i.e. either its horizontal dimension or its vertical dimension is zero),
     //    then return the string "data:,". (This is the shortest data: URL; it represents the empty string in a text/plain resource.)
@@ -374,17 +373,16 @@ WebIDL::ExceptionOr<void> HTMLCanvasElement::to_blob(GC::Ref<WebIDL::CallbackTyp
 {
     // 1. If this canvas element's bitmap's origin-clean flag is set to false, then throw a "SecurityError" DOMException.
     if (!is_origin_clean())
-        return WebIDL::SecurityError::create(realm(), "Canvas is not origin-clean"_utf16);
+        return WebIDL::SecurityError::create(HTML::relevant_realm(*this), "Canvas is not origin-clean"_utf16);
 
     // 2. Let result be null.
     // 3. If this canvas element's bitmap has pixels (i.e., neither its horizontal dimension nor its vertical dimension is zero),
     //    then set result to a copy of this canvas element's bitmap.
     auto bitmap_result = get_bitmap_from_surface();
 
-    Optional<double> quality = js_quality.has_value() && js_quality->is_number() ? js_quality->as_double() : Optional<double>();
-
     // 4. Run these steps in parallel:
     auto type_string = Utf16String::from_utf16(type);
+    Optional<double> quality = js_quality.has_value() && js_quality->is_number() ? js_quality->as_double() : Optional<double>();
     Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [this, callback, bitmap_result, type = move(type_string), quality] {
         // 1. If result is non-null, then set result to a serialization of result as a file with type and quality if given.
         Optional<SerializeBitmapResult> file_result;
@@ -395,18 +393,20 @@ WebIDL::ExceptionOr<void> HTMLCanvasElement::to_blob(GC::Ref<WebIDL::CallbackTyp
 
         // 2. Queue an element task on the canvas blob serialization task source given the canvas element to run these steps:
         queue_an_element_task(Task::Source::CanvasBlobSerializationTask, [this, callback, file_result = move(file_result)] {
-            auto maybe_error = Bindings::throw_dom_exception_if_needed(vm(), [&]() -> WebIDL::ExceptionOr<void> {
+            auto& realm = HTML::relevant_realm(*this);
+            auto maybe_error = WebIDL::throw_dom_exception_if_needed(vm(), realm, [&]() -> WebIDL::ExceptionOr<void> {
                 // 1. If result is non-null, then set result to a new Blob object, created in the relevant realm of this canvas element, representing result. [FILEAPI]
                 GC::Ptr<FileAPI::Blob> blob_result;
                 if (file_result.has_value())
-                    blob_result = FileAPI::Blob::create(realm(), file_result->buffer, serialized_bitmap_mime_type_to_utf16_view(file_result->mime_type));
+                    blob_result = FileAPI::Blob::create(file_result->buffer, Utf16String::from_utf16(serialized_bitmap_mime_type_to_utf16_view(file_result->mime_type)));
 
                 // 2. Invoke callback with « result » and "report".
-                TRY(WebIDL::invoke_callback(*callback, {}, WebIDL::ExceptionBehavior::Report, { { blob_result } }));
+                auto callback_argument = blob_result ? JS::Value { Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref { *blob_result }) } : JS::js_null();
+                TRY(WebIDL::invoke_callback(*callback, {}, WebIDL::ExceptionBehavior::Report, { { callback_argument } }));
                 return {};
             });
             if (maybe_error.is_throw_completion())
-                report_exception(maybe_error.throw_completion(), realm());
+                report_exception(maybe_error.throw_completion(), HTML::relevant_realm(*this));
         });
     }));
     return {};

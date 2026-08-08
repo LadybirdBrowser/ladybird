@@ -258,7 +258,11 @@ def sync_signature(function: dict, payload_used: bool, objects_used: bool) -> st
     objects = "WebGLObjectMap& objects" if objects_used else "WebGLObjectMap&"
     payload = "ReadonlyBytes payload" if payload_used else "ReadonlyBytes"
     return (
-        f"static ByteBuffer handle_one(OpenGLContext& gl, {objects}, SyncCalls::{name}::Request {request}, {payload})"
+        # The dispatcher invokes these through a templated callback. Some compilers do not
+        # count that dependent call as a reference for -Wunused-function, even though the
+        # overload is required at runtime for its sync-call type. Keep the generated local
+        # handlers and make that intent explicit.
+        f"[[maybe_unused]] static ByteBuffer handle_one(OpenGLContext& gl, {objects}, SyncCalls::{name}::Request {request}, {payload})"
     )
 
 

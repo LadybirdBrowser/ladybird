@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const frame = document.createElement("iframe");
+        frame.onload = () => {
+            const channel = new MessageChannel();
+            const event = new MessageEvent("message", { ports: [channel.port1] });
+            const parentPorts = event.ports;
+            const framePorts = frame.contentWindow.Function("event", "return event.ports;")(event);
+            println(`ports-same=${parentPorts === framePorts}`);
+            println(`ports-parent-array=${Object.getPrototypeOf(framePorts) === Array.prototype}`);
+
+            const dataTransfer = new DataTransfer();
+            dataTransfer.setData("text/plain", "payload");
+            const parentTypes = dataTransfer.types;
+            const frameTypes = frame.contentWindow.Function("dataTransfer", "return dataTransfer.types;")(dataTransfer);
+            println(`types-same=${parentTypes === frameTypes}`);
+            println(`types-parent-array=${Object.getPrototypeOf(frameTypes) === Array.prototype}`);
+
+            done();
+        };
+        document.body.append(frame);
+    });
+</script>

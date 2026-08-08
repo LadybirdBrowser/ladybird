@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const frame = document.createElement("iframe");
+        const loaded = new Promise(resolve => frame.addEventListener("load", resolve, { once: true }));
+        document.body.appendChild(frame);
+        await loaded;
+
+        const frameWindow = frame.contentWindow;
+
+        const mediaQueryList = frameWindow.Function("return parent.matchMedia('(min-width: 1px)');")();
+        println(`hinted object ignores caller realm: ${Object.getPrototypeOf(mediaQueryList) === MediaQueryList.prototype}`);
+        println(`hinted object is not in iframe realm: ${Object.getPrototypeOf(mediaQueryList) !== frameWindow.MediaQueryList.prototype}`);
+
+        const markName = "wrapper-realm-stable-across-gc";
+        frameWindow.Function("markName", `
+            (() => {
+                const mark = performance.mark(markName);
+                parent.println(\`first hint-less wrapper uses iframe realm: \${Object.getPrototypeOf(mark) === PerformanceMark.prototype}\`);
+            })();
+        `)(markName);
+
+        internals.gc();
+
+        const reacquired = frameWindow.performance.getEntriesByName(markName)[0];
+        println(`reacquired hint-less object exists: ${!!reacquired}`);
+        println(`hint-less wrapper realm is stable after gc: ${Object.getPrototypeOf(reacquired) === frameWindow.PerformanceMark.prototype}`);
+        println(`hint-less wrapper did not move to parent realm: ${Object.getPrototypeOf(reacquired) !== PerformanceMark.prototype}`);
+
+        done();
+    });
+</script>

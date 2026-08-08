@@ -39,7 +39,7 @@ inline Painting::GradientPaintStyle::SpreadMethod to_painting_spread_method(Spre
 class SVGGradientElement
     : public SVGElement
     , public SVGURIReferenceMixin<SupportsXLinkHref::Yes> {
-    WEB_PLATFORM_OBJECT(SVGGradientElement, SVGElement);
+    WEB_WRAPPABLE(SVGGradientElement, SVGElement);
 
 public:
     virtual ~SVGGradientElement() override = default;
@@ -58,8 +58,6 @@ public:
 
 protected:
     SVGGradientElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     GC::Ptr<SVGGradientElement const> linked_gradient(GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const;

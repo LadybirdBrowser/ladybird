@@ -6,16 +6,17 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Export.h>
 
 namespace Web::WebXR {
 
 // https://immersive-web.github.io/webxr/#xrrenderstate
-class XRRenderState : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(XRRenderState, Bindings::PlatformObject);
+class XRRenderState : public Bindings::Wrappable {
+    WEB_WRAPPABLE(XRRenderState, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(XRRenderState);
 
-    XRRenderState(JS::Realm&);
+    XRRenderState();
 };
 
 }

@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibWeb/Forward.h>
 #include <LibWeb/HTML/ImageData.h>
 
 namespace Web::HTML {
@@ -17,8 +18,8 @@ public:
 
     virtual bool image_smoothing_enabled() const = 0;
     virtual void set_image_smoothing_enabled(bool) = 0;
-    virtual Bindings::ImageSmoothingQuality image_smoothing_quality() const = 0;
-    virtual void set_image_smoothing_quality(Bindings::ImageSmoothingQuality) = 0;
+    virtual ImageSmoothingQuality image_smoothing_quality() const = 0;
+    virtual void set_image_smoothing_quality(ImageSmoothingQuality) = 0;
 
 protected:
     CanvasImageSmoothing() = default;

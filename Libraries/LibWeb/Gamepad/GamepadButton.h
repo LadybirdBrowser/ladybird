@@ -6,15 +6,20 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <AK/Badge.h>
+#include <LibWeb/Bindings/Wrappable.h>
 
 namespace Web::Gamepad {
 
-class GamepadButton final : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(GamepadButton, Bindings::PlatformObject);
+class Gamepad;
+
+class GamepadButton final : public Bindings::Wrappable {
+    WEB_WRAPPABLE(GamepadButton, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(GamepadButton);
 
 public:
+    static GC::Ref<GamepadButton> create();
+
     virtual ~GamepadButton() override;
 
     bool pressed() const { return m_pressed; }
@@ -26,9 +31,7 @@ public:
     void set_value(Badge<Gamepad>, double);
 
 private:
-    GamepadButton(JS::Realm&);
-
-    virtual void initialize(JS::Realm&) override;
+    GamepadButton();
 
     // https://w3c.github.io/gamepad/#dfn-pressed
     // A flag indicating that the button is pressed

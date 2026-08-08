@@ -6,7 +6,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/SVGTextPositioningElement.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
@@ -28,12 +27,6 @@ namespace Web::SVG {
 SVGTextPositioningElement::SVGTextPositioningElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : SVGTextContentElement(document, move(qualified_name))
 {
-}
-
-void SVGTextPositioningElement::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGTextPositioningElement);
-    Base::initialize(realm);
 }
 
 void SVGTextPositioningElement::visit_edges(Visitor& visitor)
@@ -113,9 +106,9 @@ GC::Ref<SVGAnimatedLengthList> SVGTextPositioningElement::ensure_length_list(GC:
         if (maybe_number_percentage.has_value())
             value = maybe_number_percentage.release_value().value();
 
-        auto length = SVGLength::create_detached(realm(), CSS::NumberStyleValue::create(value), SVGLength::ReadOnly::Yes);
-        auto length_list = SVGLengthList::create(realm(), { length }, ReadOnlyList::Yes);
-        list = SVGAnimatedLengthList::create(realm(), length_list);
+        auto length = SVGLength::create_detached(document().relevant_settings_object().realm(), CSS::NumberStyleValue::create(value), SVGLength::ReadOnly::Yes);
+        auto length_list = SVGLengthList::create(Vector<GC::Ref<SVGLength>> { length }, ReadOnlyList::Yes);
+        list = SVGAnimatedLengthList::create(length_list);
     }
     return *list;
 }
@@ -154,9 +147,9 @@ GC::Ref<SVGAnimatedNumberList> SVGTextPositioningElement::rotate()
         if (maybe_number_percentage.has_value() && !maybe_number_percentage.value().is_percentage())
             value = maybe_number_percentage.release_value().value();
 
-        auto number = SVGNumber::create(realm(), value, SVGNumber::ReadOnly::Yes);
-        auto number_list = SVGNumberList::create(realm(), { number }, ReadOnlyList::Yes);
-        m_rotate = SVGAnimatedNumberList::create(realm(), number_list);
+        auto number = SVGNumber::create(value, SVGNumber::ReadOnly::Yes);
+        auto number_list = SVGNumberList::create({ number }, ReadOnlyList::Yes);
+        m_rotate = SVGAnimatedNumberList::create(number_list);
     }
     return *m_rotate;
 }

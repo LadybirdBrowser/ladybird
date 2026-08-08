@@ -19,7 +19,6 @@ struct GC_API HeapRoot {
         ConservativeVector,
         CrossHeapMember,
         HeapFunctionCapturedPointer,
-        MustSurviveGC,
         RegisterPointer,
         Root,
         RootHashMap,

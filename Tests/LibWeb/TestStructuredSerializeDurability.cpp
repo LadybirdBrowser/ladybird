@@ -40,17 +40,16 @@ using Web::Crypto::KeyAlgorithmTag;
 
 TEST_CASE(serializable_objects_round_trip_through_storage)
 {
-    auto& realm = test_realm();
-
+    (void)test_realm();
     {
-        auto point = Web::Geometry::DOMPoint::create(realm);
+        auto point = Web::Geometry::DOMPoint::create();
         point->set_x(1.5);
         point->set_y(-2.5);
         point->set_z(3.25);
         point->set_w(4.75);
 
         auto value = MUST(storage_deserialize(storage_serialize(point)));
-        auto& decoded = as<Web::Geometry::DOMPoint>(value.as_object());
+        auto& decoded = unwrap_wrappable<Web::Geometry::DOMPoint>(value);
         EXPECT_EQ(decoded.x(), 1.5);
         EXPECT_EQ(decoded.y(), -2.5);
         EXPECT_EQ(decoded.z(), 3.25);
@@ -58,10 +57,10 @@ TEST_CASE(serializable_objects_round_trip_through_storage)
     }
 
     {
-        auto blob = Web::FileAPI::Blob::create(realm, MUST(ByteBuffer::copy("hello"sv.bytes())), "text/plain"_utf16);
+        auto blob = Web::FileAPI::Blob::create(MUST(ByteBuffer::copy("hello"sv.bytes())), "text/plain"_utf16);
 
         auto value = MUST(storage_deserialize(storage_serialize(blob)));
-        auto& decoded = as<Web::FileAPI::Blob>(value.as_object());
+        auto& decoded = unwrap_wrappable<Web::FileAPI::Blob>(value);
         EXPECT_EQ(decoded.type(), "text/plain"_utf16);
         EXPECT_EQ(decoded.raw_bytes(), "hello"sv.bytes());
     }
@@ -69,10 +68,9 @@ TEST_CASE(serializable_objects_round_trip_through_storage)
 
 TEST_CASE(storage_round_trips_serializable_with_nested_sub_value_before_more_fields)
 {
-    auto& realm = test_realm();
-
+    (void)test_realm();
     // Nested sub-values must not trigger the outer full-consumption check.
-    auto point = Web::Geometry::DOMPoint::create(realm);
+    auto point = Web::Geometry::DOMPoint::create();
     point->set_x(7.0);
     auto point_body = serialized_object_body(point);
 
@@ -93,12 +91,12 @@ TEST_CASE(crypto_key_storage_record_round_trips)
     ReadonlyBytes handle { handle_bytes.data(), handle_bytes.size() };
 
     auto value = MUST(crypto_storage_deserialize(crypto_key_secret_record(handle, handle.size())));
-    auto& key = as<Web::Crypto::CryptoKey>(value.as_object());
-    EXPECT_EQ(key.type(), Web::Bindings::KeyType::Secret);
+    auto& key = unwrap_wrappable<Web::Crypto::CryptoKey>(value);
+    EXPECT_EQ(key.type(), Web::Crypto::KeyType::Secret);
     EXPECT_EQ(key.extractable(), false);
     EXPECT_EQ(key.algorithm_name(), "HKDF"_string);
     EXPECT_EQ(key.internal_usages().size(), 1u);
-    EXPECT_EQ(key.internal_usages()[0], Web::Bindings::KeyUsage::Derivekey);
+    EXPECT_EQ(key.internal_usages()[0], Web::Bindings::KeyUsage::DeriveKey);
     EXPECT(key.handle().has<ByteBuffer>());
     EXPECT_EQ(key.handle().get<ByteBuffer>().span(), handle);
 }
@@ -387,14 +385,14 @@ TEST_CASE(geometry_serializables_round_trip)
     append_little_endian_double(point_body, -4.5);
 
     {
-        auto& point = as<Web::Geometry::DOMPointReadOnly>(MUST(storage_deserialize(serializable_storage_record("DOMPointReadOnly"sv, 1, point_body))).as_object());
+        auto& point = unwrap_wrappable<Web::Geometry::DOMPointReadOnly>(MUST(storage_deserialize(serializable_storage_record("DOMPointReadOnly"sv, 1, point_body))));
         EXPECT_EQ(point.x(), 1.5);
         EXPECT_EQ(point.y(), -2.5);
         EXPECT_EQ(point.z(), 3.5);
         EXPECT_EQ(point.w(), -4.5);
     }
     {
-        auto& point = as<Web::Geometry::DOMPoint>(MUST(storage_deserialize(serializable_storage_record("DOMPoint"sv, 1, point_body))).as_object());
+        auto& point = unwrap_wrappable<Web::Geometry::DOMPoint>(MUST(storage_deserialize(serializable_storage_record("DOMPoint"sv, 1, point_body))));
         EXPECT_EQ(point.x(), 1.5);
         EXPECT_EQ(point.w(), -4.5);
     }
@@ -406,14 +404,14 @@ TEST_CASE(geometry_serializables_round_trip)
     append_little_endian_double(rect_body, 40.0);
 
     {
-        auto& rect = as<Web::Geometry::DOMRectReadOnly>(MUST(storage_deserialize(serializable_storage_record("DOMRectReadOnly"sv, 1, rect_body))).as_object());
+        auto& rect = unwrap_wrappable<Web::Geometry::DOMRectReadOnly>(MUST(storage_deserialize(serializable_storage_record("DOMRectReadOnly"sv, 1, rect_body))));
         EXPECT_EQ(rect.x(), 10.0);
         EXPECT_EQ(rect.y(), 20.0);
         EXPECT_EQ(rect.width(), 30.0);
         EXPECT_EQ(rect.height(), 40.0);
     }
     {
-        auto& rect = as<Web::Geometry::DOMRect>(MUST(storage_deserialize(serializable_storage_record("DOMRect"sv, 1, rect_body))).as_object());
+        auto& rect = unwrap_wrappable<Web::Geometry::DOMRect>(MUST(storage_deserialize(serializable_storage_record("DOMRect"sv, 1, rect_body))));
         EXPECT_EQ(rect.width(), 30.0);
         EXPECT_EQ(rect.height(), 40.0);
     }
@@ -423,7 +421,7 @@ TEST_CASE(geometry_serializables_round_trip)
         body.append(1);
         for (double element : { 1.0, 2.0, 3.0, 4.0, 5.0, 6.0 })
             append_little_endian_double(body, element);
-        auto& matrix = as<Web::Geometry::DOMMatrixReadOnly>(MUST(storage_deserialize(serializable_storage_record("DOMMatrixReadOnly"sv, 1, body))).as_object());
+        auto& matrix = unwrap_wrappable<Web::Geometry::DOMMatrixReadOnly>(MUST(storage_deserialize(serializable_storage_record("DOMMatrixReadOnly"sv, 1, body))));
         EXPECT(matrix.is2d());
         EXPECT_EQ(matrix.m11(), 1.0);
         EXPECT_EQ(matrix.m22(), 4.0);
@@ -434,7 +432,7 @@ TEST_CASE(geometry_serializables_round_trip)
         body.append(0);
         for (int i = 1; i <= 16; ++i)
             append_little_endian_double(body, static_cast<double>(i));
-        auto& matrix = as<Web::Geometry::DOMMatrix>(MUST(storage_deserialize(serializable_storage_record("DOMMatrix"sv, 1, body))).as_object());
+        auto& matrix = unwrap_wrappable<Web::Geometry::DOMMatrix>(MUST(storage_deserialize(serializable_storage_record("DOMMatrix"sv, 1, body))));
         EXPECT(!matrix.is2d());
         EXPECT_EQ(matrix.m11(), 1.0);
         EXPECT_EQ(matrix.m22(), 6.0);
@@ -450,7 +448,7 @@ TEST_CASE(geometry_serializables_round_trip)
             append_little_endian_double(nested_point, (k * 4) + 4.0);
             frozen_serializable_value(body, "DOMPoint"sv, 1, nested_point);
         }
-        auto& quad = as<Web::Geometry::DOMQuad>(MUST(storage_deserialize(serializable_storage_record("DOMQuad"sv, 1, body))).as_object());
+        auto& quad = unwrap_wrappable<Web::Geometry::DOMQuad>(MUST(storage_deserialize(serializable_storage_record("DOMQuad"sv, 1, body))));
         EXPECT_EQ(quad.p1()->x(), 1.0);
         EXPECT_EQ(quad.p2()->x(), 5.0);
         EXPECT_EQ(quad.p4()->w(), 16.0);
@@ -463,7 +461,7 @@ TEST_CASE(file_api_serializables_round_trip)
         Vector<u8> body;
         append_storage_string(body, "text/plain"sv);
         append_storage_bytes(body, "hello"sv.bytes()); // ByteBuffer body
-        auto& blob = as<Web::FileAPI::Blob>(MUST(storage_deserialize(serializable_storage_record("Blob"sv, 1, body))).as_object());
+        auto& blob = unwrap_wrappable<Web::FileAPI::Blob>(MUST(storage_deserialize(serializable_storage_record("Blob"sv, 1, body))));
         EXPECT_EQ(blob.type(), "text/plain"_string);
         EXPECT_EQ(blob.raw_bytes(), "hello"sv.bytes());
     }
@@ -475,7 +473,7 @@ TEST_CASE(file_api_serializables_round_trip)
     append_storage_signed_leb128(file_body, 1234); // i64 last modified
 
     {
-        auto& file = as<Web::FileAPI::File>(MUST(storage_deserialize(serializable_storage_record("File"sv, 1, file_body))).as_object());
+        auto& file = unwrap_wrappable<Web::FileAPI::File>(MUST(storage_deserialize(serializable_storage_record("File"sv, 1, file_body))));
         EXPECT_EQ(file.name(), "f.txt"_string);
         EXPECT_EQ(file.last_modified(), 1234);
         EXPECT_EQ(file.type(), "text/plain"_string);
@@ -486,7 +484,7 @@ TEST_CASE(file_api_serializables_round_trip)
         Vector<u8> body;
         append_storage_leb128(body, 1);
         frozen_serializable_value(body, "File"sv, 1, file_body);
-        auto& list = as<Web::FileAPI::FileList>(MUST(storage_deserialize(serializable_storage_record("FileList"sv, 1, body))).as_object());
+        auto& list = unwrap_wrappable<Web::FileAPI::FileList>(MUST(storage_deserialize(serializable_storage_record("FileList"sv, 1, body))));
         EXPECT_EQ(list.length(), 1u);
         EXPECT_EQ(list.item(0)->name(), "f.txt"_string);
     }
@@ -498,7 +496,7 @@ TEST_CASE(webidl_serializables_round_trip)
         Vector<u8> body;
         append_storage_string(body, "AbortError"sv);
         append_storage_ascii_utf16(body, "stop"sv);
-        auto& exception = as<Web::WebIDL::DOMException>(MUST(storage_deserialize(serializable_storage_record("DOMException"sv, 1, body))).as_object());
+        auto& exception = unwrap_wrappable<Web::WebIDL::DOMException>(MUST(storage_deserialize(serializable_storage_record("DOMException"sv, 1, body))));
         EXPECT(exception.name() == "AbortError"sv);
         EXPECT(exception.message() == "stop"sv);
     }
@@ -511,7 +509,7 @@ TEST_CASE(webidl_serializables_round_trip)
         append_little_endian_double(body, 100.0);
         body.append(1); // requested present
         append_little_endian_double(body, 200.0);
-        auto& error = as<Web::WebIDL::QuotaExceededError>(MUST(storage_deserialize(serializable_storage_record("QuotaExceededError"sv, 1, body))).as_object());
+        auto& error = unwrap_wrappable<Web::WebIDL::QuotaExceededError>(MUST(storage_deserialize(serializable_storage_record("QuotaExceededError"sv, 1, body))));
         EXPECT(error.name() == "QuotaExceededError"sv);
         EXPECT(error.message() == "over"sv);
         EXPECT(error.quota().has_value());
@@ -525,7 +523,7 @@ TEST_CASE(image_serializables_round_trip)
 {
     {
         Array<u8, 4> pixels { 1, 2, 3, 4 };
-        auto& image = as<Web::HTML::ImageData>(MUST(storage_deserialize(frozen_image_data_record({ pixels.data(), pixels.size() }, 1, 1, "srgb"sv))).as_object());
+        auto& image = unwrap_wrappable<Web::HTML::ImageData>(MUST(storage_deserialize(frozen_image_data_record({ pixels.data(), pixels.size() }, 1, 1, "srgb"sv))));
         EXPECT_EQ(image.width(), 1u);
         EXPECT_EQ(image.height(), 1u);
         EXPECT(image.data() != nullptr);
@@ -533,7 +531,7 @@ TEST_CASE(image_serializables_round_trip)
 
     {
         Array<u8, 16> pixels {};
-        auto& bitmap = as<Web::HTML::ImageBitmap>(MUST(storage_deserialize(image_bitmap_record(2, 2, 8, "BGRA8888"sv, "premultiplied"sv, { pixels.data(), pixels.size() }))).as_object());
+        auto& bitmap = unwrap_wrappable<Web::HTML::ImageBitmap>(MUST(storage_deserialize(image_bitmap_record(2, 2, 8, "BGRA8888"sv, "premultiplied"sv, { pixels.data(), pixels.size() }))));
         EXPECT_EQ(bitmap.width(), 2u);
         EXPECT_EQ(bitmap.height(), 2u);
     }
@@ -544,10 +542,11 @@ TEST_CASE(crypto_key_algorithm_variants_decode_from_frozen_bytes)
     for (auto const& golden : crypto_algorithm_goldens()) {
         auto record = crypto_key_full_record(golden.type, golden.usage, golden.algorithm, golden.handle);
         auto value = MUST(crypto_storage_deserialize(record));
-        auto& key = as<Web::Crypto::CryptoKey>(value.as_object());
+        auto& key = unwrap_wrappable<Web::Crypto::CryptoKey>(value);
 
         if (golden.tag == KeyAlgorithmTag::EcKeyAlgorithm) {
-            auto& algorithm = as<Web::Crypto::EcKeyAlgorithm>(*key.algorithm());
+            auto const& algorithm = key.ec_algorithm();
+            expect_utf16_equals(algorithm.name(), "ECDSA"_utf16);
             expect_utf16_equals(algorithm.named_curve(), "P-256"_utf16);
         }
     }
@@ -558,7 +557,7 @@ TEST_CASE(crypto_key_handle_variants_decode_from_frozen_bytes)
     for (auto const& golden : crypto_handle_goldens()) {
         auto record = crypto_key_full_record(golden.type, golden.usage, golden.algorithm, golden.handle);
         auto value = MUST(crypto_storage_deserialize(record));
-        auto& key = as<Web::Crypto::CryptoKey>(value.as_object());
+        auto& key = unwrap_wrappable<Web::Crypto::CryptoKey>(value);
 
         switch (golden.tag) {
         case HandleTag::ByteBuffer:
@@ -696,7 +695,7 @@ TEST_CASE(file_name_non_ascii_text_field_round_trips)
     append_storage_string(body, "café.txt"sv);    // non-ASCII name via the folded little-endian-UTF-16 path
     append_storage_signed_leb128(body, 0);        // last modified
 
-    auto& file = as<Web::FileAPI::File>(MUST(storage_deserialize(serializable_storage_record("File"sv, 1, body))).as_object());
+    auto& file = unwrap_wrappable<Web::FileAPI::File>(MUST(storage_deserialize(serializable_storage_record("File"sv, 1, body))));
     EXPECT_EQ(file.name(), "café.txt"_utf16);
 }
 
@@ -710,7 +709,7 @@ TEST_CASE(file_name_with_lone_surrogate_round_trips)
     append_storage_utf16(body, name_units);
     append_storage_signed_leb128(body, 0);
 
-    auto& file = as<Web::FileAPI::File>(MUST(storage_deserialize(serializable_storage_record("File"sv, 1, body))).as_object());
+    auto& file = unwrap_wrappable<Web::FileAPI::File>(MUST(storage_deserialize(serializable_storage_record("File"sv, 1, body))));
     Array<char16_t, 4> expected_name_units { 'f', 'i', 'l', 0xD800 };
     EXPECT_EQ(file.name(), Utf16String::from_utf16({ expected_name_units.data(), expected_name_units.size() }));
 }

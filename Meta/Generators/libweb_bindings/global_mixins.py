@@ -24,6 +24,18 @@ from Generators.libweb_bindings.operations import write_stringifier
 from Utils.webidl_parser import Interface
 
 
+def global_mixin_header_is_provided_by_bindings(interface: Interface) -> bool:
+    return interface.name in ("DedicatedWorkerGlobalScope", "SharedWorkerGlobalScope", "Window")
+
+
+def global_mixin_member_interfaces(interface: Interface, context: GenerationContext) -> list[Interface]:
+    return [
+        interface_in_chain
+        for interface_in_chain in reversed(context.inheritance_stack(interface))
+        if interface_in_chain.name != "EventTarget"
+    ]
+
+
 def write_global_mixin_declaration(out: TextIO, context: GenerationContext, interface: Interface) -> None:
     out.write(
         f"""class {interface.name}GlobalMixin {{
@@ -69,6 +81,13 @@ private:
 
 """
     )
+
+
+def write_global_mixin_header(
+    out: TextIO, context: GenerationContext, includes: GeneratedIncludes, interface: Interface
+) -> None:
+    includes.add("LibJS/Runtime/Object.h")
+    write_global_mixin_declaration(out, context, interface)
 
 
 def write_global_mixin_implementation(

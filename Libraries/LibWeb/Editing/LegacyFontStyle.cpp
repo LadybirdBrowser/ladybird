@@ -86,7 +86,7 @@ static void materialize_single_run_legacy_font_style(DOM::Node& node, HTML::HTML
             // NB: The span is detached staging content. Its eventual insertion is recorded as a whole, so construction
             //     of its inline style must not be diagnosed as an unrecorded mutation of the edited document.
             EditingHistory::ProxyMutationScope mutation_scope { span };
-            MUST(span.style_for_bindings()->set_property(CSS::PropertyID::Color, materialized_color));
+            MUST(span.style()->set_property(CSS::PropertyID::Color, materialized_color));
         }
         insert_node_before(span, node, font);
         move_node_preserving_ranges(*font.first_child(), span, 0);

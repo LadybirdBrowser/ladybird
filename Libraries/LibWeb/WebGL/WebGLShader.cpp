@@ -15,8 +15,9 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(WebGLShader);
 
-GC::Ref<WebGLShader> WebGLShader::create(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context, GLuint handle, GLenum type)
+GC::Ref<WebGLShader> WebGLShader::create(GC::Ref<WebGLRenderingContextBase> context, GLuint handle, GLenum type)
 {
+    auto& realm = context->realm();
     return realm.create<WebGLShader>(realm, context, handle, type);
 }
 
@@ -27,11 +28,5 @@ WebGLShader::WebGLShader(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> co
 }
 
 WebGLShader::~WebGLShader() = default;
-
-void WebGLShader::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGLShader);
-    Base::initialize(realm);
-}
 
 }

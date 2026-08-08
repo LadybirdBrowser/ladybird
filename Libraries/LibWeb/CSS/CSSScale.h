@@ -13,12 +13,12 @@ namespace Web::CSS {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssscale
 class CSSScale final : public CSSTransformComponent {
-    WEB_PLATFORM_OBJECT(CSSScale, CSSTransformComponent);
+    WEB_WRAPPABLE(CSSScale, CSSTransformComponent);
     GC_DECLARE_ALLOCATOR(CSSScale);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSScale> create(JS::Realm&, Is2D, GC::Ref<CSSNumericValue> x, GC::Ref<CSSNumericValue> y, GC::Ref<CSSNumericValue> z);
-    static WebIDL::ExceptionOr<GC::Ref<CSSScale>> construct_impl(JS::Realm&, CSSNumberish x, CSSNumberish y, Optional<CSSNumberish> z = {});
+    [[nodiscard]] static GC::Ref<CSSScale> create(Is2D, GC::Ref<CSSNumericValue> x, GC::Ref<CSSNumericValue> y, GC::Ref<CSSNumericValue> z);
+    static WebIDL::ExceptionOr<GC::Ref<CSSScale>> create_for_constructor(CSSNumberish x, CSSNumberish y, Optional<CSSNumberish> z = {});
 
     virtual ~CSSScale() override;
 
@@ -36,10 +36,8 @@ public:
     virtual WebIDL::ExceptionOr<NonnullRefPtr<TransformationStyleValue const>> create_style_value(PropertyNameAndID const&) const override;
 
 private:
-    explicit CSSScale(JS::Realm&, Is2D, GC::Ref<CSSNumericValue> x, GC::Ref<CSSNumericValue> y, GC::Ref<CSSNumericValue> z);
-
-    virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Visitor&) override;
+    explicit CSSScale(Is2D, GC::Ref<CSSNumericValue> x, GC::Ref<CSSNumericValue> y, GC::Ref<CSSNumericValue> z);
+    virtual void visit_edges(GC::Cell::Visitor&) override;
 
     GC::Ref<CSSNumericValue> m_x;
     GC::Ref<CSSNumericValue> m_y;

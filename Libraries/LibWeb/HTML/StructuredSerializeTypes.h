@@ -107,6 +107,11 @@ enum class ValueTag : u8 {
 // The on-disk version of the LBSC storage format. Bumping this is a deliberate wire change.
 static constexpr u64 storage_format_version = 1;
 
+// The per-interface payload version encoded after every SerializableObject's interface name in
+// storage records. The decoder requires an exact match, so a bump orphans stored records of every
+// type unless migration support is added alongside it.
+static constexpr u64 serializable_payload_version = 1;
+
 // A storage-golden expectation, not a deserializer rule.
 enum class Expectation : u8 {
     PositiveGolden,

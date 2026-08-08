@@ -4,34 +4,25 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/HTMLDocument.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/HTML/HTMLDocument.h>
 
 namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(HTMLDocument);
 
-HTMLDocument::HTMLDocument(JS::Realm& realm, URL::URL const& url)
-    : Document(realm, url)
+HTMLDocument::HTMLDocument(Page& page, GC::Ref<DOM::EventTarget> relevant_global_event_target, URL::URL const& url)
+    : Document(page, relevant_global_event_target, url)
 {
 }
 
 HTMLDocument::~HTMLDocument() = default;
 
-WebIDL::ExceptionOr<GC::Ref<HTMLDocument>> HTMLDocument::construct_impl(JS::Realm& realm)
+GC::Ref<HTMLDocument> HTMLDocument::create(Page& page, GC::Ref<DOM::EventTarget> relevant_global_event_target, URL::URL const& url)
 {
-    return HTMLDocument::create(realm);
-}
-
-GC::Ref<HTMLDocument> HTMLDocument::create(JS::Realm& realm, URL::URL const& url)
-{
-    return realm.create<HTMLDocument>(realm, url);
-}
-
-void HTMLDocument::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLDocument);
-    Base::initialize(realm);
+    auto document = GC::Heap::the().allocate<HTMLDocument>(page, relevant_global_event_target, url);
+    document->initialize_document();
+    return document;
 }
 
 }

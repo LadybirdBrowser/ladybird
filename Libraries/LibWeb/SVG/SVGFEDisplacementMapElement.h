@@ -15,7 +15,7 @@ namespace Web::SVG {
 class SVGFEDisplacementMapElement final
     : public SVGElement
     , public SVGFilterPrimitiveStandardAttributes<SVGFEDisplacementMapElement> {
-    WEB_PLATFORM_OBJECT(SVGFEDisplacementMapElement, SVGElement);
+    WEB_WRAPPABLE(SVGFEDisplacementMapElement, SVGElement);
     GC_DECLARE_ALLOCATOR(SVGFEDisplacementMapElement);
 
 public:
@@ -37,8 +37,6 @@ public:
 
 private:
     SVGFEDisplacementMapElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     GC::Ptr<SVGAnimatedString> m_in1;

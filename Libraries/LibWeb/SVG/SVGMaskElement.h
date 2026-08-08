@@ -13,7 +13,7 @@ namespace Web::SVG {
 
 class SVGMaskElement final : public SVGGraphicsElement {
 
-    WEB_PLATFORM_OBJECT(SVGMaskElement, SVGGraphicsElement);
+    WEB_WRAPPABLE(SVGMaskElement, SVGGraphicsElement);
     GC_DECLARE_ALLOCATOR(SVGMaskElement);
 
 public:
@@ -41,7 +41,6 @@ public:
 
 private:
     SVGMaskElement(DOM::Document&, DOM::QualifiedName);
-    virtual void initialize(JS::Realm&) override;
 
     Optional<MaskContentUnits> m_mask_content_units = {};
     Optional<MaskUnits> m_mask_units = {};

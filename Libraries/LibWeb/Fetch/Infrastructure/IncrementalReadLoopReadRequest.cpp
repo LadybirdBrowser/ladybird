@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Fetch/Infrastructure/IncrementalReadLoopReadRequest.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
@@ -14,7 +15,7 @@ GC_DEFINE_ALLOCATOR(IncrementalReadLoopReadRequest);
 
 void IncrementalReadLoopReadRequest::on_chunk(JS::Value chunk)
 {
-    auto& realm = m_reader->realm();
+    auto& realm = m_reader->closed_promise_realm();
     // 1. Let continueAlgorithm be null.
     GC::Ptr<GC::Function<void()>> continue_algorithm;
 
@@ -22,8 +23,8 @@ void IncrementalReadLoopReadRequest::on_chunk(JS::Value chunk)
     auto uint8_array = chunk.as_if<JS::Uint8Array>();
 
     if (!uint8_array) {
-        continue_algorithm = GC::create_function(realm.heap(), [&realm, process_body_error = m_process_body_error] {
-            process_body_error->function()(JS::TypeError::create(realm, "Chunk data is not Uint8Array"_utf16));
+        continue_algorithm = GC::create_function(GC::Heap::the(), [&realm, process_body_error = m_process_body_error] {
+            process_body_error->function()(JS::TypeError::create(realm, "Chunk data is not Uint8Array"sv));
         });
     }
     // 3. Otherwise:
@@ -35,8 +36,8 @@ void IncrementalReadLoopReadRequest::on_chunk(JS::Value chunk)
             ? ByteBuffer {}
             : MUST(uint8_array->viewed_array_buffer()->copy_to_byte_buffer(uint8_array->byte_offset(), JS::typed_array_byte_length(record)));
         // 2. Set continueAlgorithm to these steps:
-        continue_algorithm = GC::create_function(realm.heap(), [bytes = move(bytes), body = m_body, reader = m_reader, task_destination = m_task_destination, process_body_chunk = m_process_body_chunk, process_end_of_body = m_process_end_of_body, process_body_error = m_process_body_error] {
-            HTML::TemporaryExecutionContext execution_context { reader->realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+        continue_algorithm = GC::create_function(GC::Heap::the(), [bytes = move(bytes), body = m_body, reader = m_reader, task_destination = m_task_destination, process_body_chunk = m_process_body_chunk, process_end_of_body = m_process_end_of_body, process_body_error = m_process_body_error] {
+            HTML::TemporaryExecutionContext execution_context { reader->closed_promise_realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
             // 1. Run processBodyChunk given bytes.
             process_body_chunk->function()(move(bytes));
 
@@ -52,7 +53,7 @@ void IncrementalReadLoopReadRequest::on_chunk(JS::Value chunk)
 void IncrementalReadLoopReadRequest::on_close()
 {
     // 1. Queue a fetch task given processEndOfBody and taskDestination.
-    Fetch::Infrastructure::queue_fetch_task(m_task_destination, GC::create_function(m_reader->heap(), [this] {
+    Fetch::Infrastructure::queue_fetch_task(m_task_destination, GC::create_function(GC::Heap::the(), [this] {
         m_process_end_of_body->function()();
     }));
 }
@@ -60,7 +61,7 @@ void IncrementalReadLoopReadRequest::on_close()
 void IncrementalReadLoopReadRequest::on_error(JS::Value error)
 {
     // 1. Queue a fetch task to run processBodyError given e, with taskDestination.
-    Fetch::Infrastructure::queue_fetch_task(m_task_destination, GC::create_function(m_reader->heap(), [this, error = move(error)] {
+    Fetch::Infrastructure::queue_fetch_task(m_task_destination, GC::create_function(GC::Heap::the(), [this, error = move(error)] {
         m_process_body_error->function()(error);
     }));
 }

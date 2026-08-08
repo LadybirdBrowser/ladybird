@@ -31,6 +31,8 @@
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/PredefinedColorSpace.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
+#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/Crypto/CryptoKey.h>
 #include <LibWeb/Crypto/CryptoKeySerializationTags.h>
 #include <LibWeb/Crypto/KeyAlgorithms.h>
@@ -197,9 +199,37 @@ inline JS::Realm& test_realm()
     return *realm;
 }
 
+template<typename T>
+requires(IsBaseOf<Web::Bindings::Wrappable, T>)
+inline T& unwrap_wrappable(JS::Value value)
+{
+    VERIFY(value.is_object());
+    auto* object = Web::Bindings::impl_from<T>(&value.as_object());
+    VERIFY(object);
+    return *object;
+}
+
 inline Web::HTML::StorageSerializationRecord storage_serialize(GC::Ref<JS::Object> object)
 {
     return MUST(Web::HTML::structured_serialize_for_storage(test_realm().vm(), object));
+}
+
+template<typename T>
+requires(IsConvertible<T*, Web::Bindings::Wrappable*>)
+inline Web::HTML::StorageSerializationRecord storage_serialize(GC::Ref<T> object)
+{
+    auto& realm = test_realm();
+    auto wrapper = Web::Bindings::wrap(Web::Bindings::host_defined_wrapper_world(realm), realm, GC::Ref<Web::Bindings::Wrappable> { object });
+    return MUST(Web::HTML::structured_serialize_for_storage(realm.vm(), JS::Value(wrapper.ptr())));
+}
+
+template<typename T>
+requires(IsConvertible<T*, Web::Bindings::Wrappable*>)
+inline Web::HTML::IPCSerializationRecord structured_serialize(JS::VM& vm, GC::Ref<T> object)
+{
+    auto& realm = test_realm();
+    auto wrapper = Web::Bindings::wrap(Web::Bindings::host_defined_wrapper_world(realm), realm, GC::Ref<Web::Bindings::Wrappable> { object });
+    return MUST(Web::HTML::structured_serialize(vm, JS::Value(wrapper.ptr())));
 }
 
 inline Web::WebIDL::ExceptionOr<JS::Value> storage_deserialize(Web::HTML::StorageSerializationRecord const& record)
@@ -277,6 +307,15 @@ inline ByteBuffer serialized_object_body(GC::Ref<JS::Object> object)
     append_storage_record_header(header);
     auto record = storage_serialize(object);
     return MUST(ByteBuffer::copy(record.data.bytes().slice(header.size())));
+}
+
+template<typename T>
+requires(IsConvertible<T*, Web::Bindings::Wrappable*>)
+inline ByteBuffer serialized_object_body(GC::Ref<T> object)
+{
+    auto header_size = 6uz;
+    auto record = storage_serialize(object);
+    return MUST(ByteBuffer::copy(record.data.bytes().slice(header_size)));
 }
 
 inline void append_byte_length(Vector<u8>& bytes, Optional<u32> length)
@@ -640,25 +679,23 @@ inline Vector<CryptoHandleGolden> crypto_handle_goldens()
 inline GC::Ref<Web::Crypto::CryptoKey> build_live_crypto_key(StringView type, StringView usage, Vector<u8> const& algorithm, Vector<u8> const& handle)
 {
     auto value = MUST(crypto_storage_deserialize(crypto_key_full_record(type, usage, algorithm, handle)));
-    return as<Web::Crypto::CryptoKey>(value.as_object());
+    return unwrap_wrappable<Web::Crypto::CryptoKey>(value);
 }
 
 // Fabricate RsaKeyAlgorithm directly to pin the encode-only tag-1 branch.
 inline GC::Ref<Web::Crypto::CryptoKey> build_live_crypto_key_with_rsa_key_algorithm(StringView type, StringView usage, StringView name, u32 modulus_length, ReadonlyBytes public_exponent, ReadonlyBytes modulus)
 {
-    auto& realm = test_realm();
     auto exponent = ::Crypto::UnsignedBigInteger::import_data(public_exponent);
     auto modulus_value = ::Crypto::UnsignedBigInteger::import_data(modulus);
 
-    auto key = Web::Crypto::CryptoKey::create(realm, ::Crypto::PK::RSAPublicKey { modulus_value, exponent });
-    key->set_type(type == "public"sv ? Web::Bindings::KeyType::Public : (type == "private"sv ? Web::Bindings::KeyType::Private : Web::Bindings::KeyType::Secret));
+    auto key = Web::Crypto::CryptoKey::create(::Crypto::PK::RSAPublicKey { modulus_value, exponent });
+    key->set_type(type == "public"sv ? Web::Crypto::KeyType::Public : (type == "private"sv ? Web::Crypto::KeyType::Private : Web::Crypto::KeyType::Secret));
     key->set_extractable(false);
     key->set_usages({ usage == "verify"sv ? Web::Bindings::KeyUsage::Verify : Web::Bindings::KeyUsage::Sign });
-
-    auto algorithm = Web::Crypto::RsaKeyAlgorithm::create(realm);
-    algorithm->set_name(MUST(String::from_utf8(name)));
-    algorithm->set_modulus_length(modulus_length);
-    MUST(algorithm->set_public_exponent(exponent));
-    key->set_algorithm(algorithm);
+    key->set_algorithm(Web::Crypto::CryptoKey::RsaKeyAlgorithmData {
+        Utf16String::from_utf8(name),
+        modulus_length,
+        MUST(ByteBuffer::copy(public_exponent)),
+    });
     return key;
 }

@@ -19,11 +19,10 @@ BlockAllocator& CellAllocator::shared_block_allocator()
     return *allocator;
 }
 
-CellAllocator::CellAllocator(size_t cell_size, Optional<StringView> class_name, bool overrides_must_survive_garbage_collection, bool overrides_finalize)
+CellAllocator::CellAllocator(size_t cell_size, Optional<StringView> class_name, bool overrides_finalize)
     : m_class_name(class_name)
     , m_cell_size(cell_size)
     , m_block_allocator(shared_block_allocator())
-    , m_overrides_must_survive_garbage_collection(overrides_must_survive_garbage_collection)
     , m_overrides_finalize(overrides_finalize)
 {
 }
@@ -68,7 +67,7 @@ Cell* CellAllocator::allocate_cell(Heap& heap)
     }
 
     if (m_usable_blocks.is_empty()) {
-        auto block = HeapBlock::create_with_cell_size(heap, *this, m_cell_size, m_overrides_must_survive_garbage_collection, m_overrides_finalize);
+        auto block = HeapBlock::create_with_cell_size(heap, *this, m_cell_size, m_overrides_finalize);
         auto block_ptr = reinterpret_cast<FlatPtr>(block.ptr());
         if (m_min_block_address > block_ptr)
             m_min_block_address = block_ptr;

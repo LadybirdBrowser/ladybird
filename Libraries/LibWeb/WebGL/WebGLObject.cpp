@@ -15,20 +15,14 @@
 namespace Web::WebGL {
 
 WebGLObject::WebGLObject(JS::Realm& realm, GC::Ref<WebGLRenderingContextBase> context, GLuint handle)
-    : Bindings::PlatformObject(realm)
-    , m_context(context)
+    : m_context(context)
     , m_handle(handle)
     , m_context_generation(context->context_generation())
 {
+    set_wrapper_realm_hint(realm);
 }
 
 WebGLObject::~WebGLObject() = default;
-
-void WebGLObject::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGLObject);
-    Base::initialize(realm);
-}
 
 void WebGLObject::visit_edges(Visitor& visitor)
 {

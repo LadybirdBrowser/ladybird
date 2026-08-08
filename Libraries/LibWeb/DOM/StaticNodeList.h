@@ -11,11 +11,11 @@
 namespace Web::DOM {
 
 class StaticNodeList final : public NodeList {
-    WEB_NON_IDL_PLATFORM_OBJECT(StaticNodeList, NodeList);
+    WEB_NON_IDL_WRAPPABLE(StaticNodeList, NodeList);
     GC_DECLARE_ALLOCATOR(StaticNodeList);
 
 public:
-    [[nodiscard]] static GC::Ref<NodeList> create(JS::Realm&, Vector<GC::Root<Node>>);
+    [[nodiscard]] static GC::Ref<NodeList> create(Vector<GC::Root<Node>>);
 
     virtual ~StaticNodeList() override;
 
@@ -23,9 +23,9 @@ public:
     virtual Node const* item(u32 index) const override;
 
 private:
-    StaticNodeList(JS::Realm&, Vector<GC::Root<Node>>);
+    StaticNodeList(Vector<GC::Root<Node>>);
 
-    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual size_t external_memory_size() const override;
 
     Vector<GC::Ref<Node>> m_static_nodes;

@@ -48,12 +48,12 @@ Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(WebWorkerClien
 Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(Owner owner, Web::HTML::WorkerAgentStartRequest request, IsPrivate is_private)
 {
     // 11.1. Let workerGlobalScope be null.
-    if (request.agent_type == Web::Bindings::AgentType::SharedWorker) {
+    if (request.agent_type == Web::HTML::AgentType::SharedWorker) {
         SharedWorkerKey key {
             .is_private = is_private,
             .storage_key = request.storage_key,
             .url = request.url,
-            .name = request.name,
+            .name = Utf16String::from_utf8(request.name),
         };
 
         // 11.2. For each scope in the list of all SharedWorkerGlobalScope objects: if workerStorageKey
@@ -143,18 +143,18 @@ Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(Owner owner, W
         .owners = move(owners),
     };
 
-    if (request.agent_type == Web::Bindings::AgentType::SharedWorker) {
+    if (request.agent_type == Web::HTML::AgentType::SharedWorker) {
         agent.shared_worker_key = SharedWorkerKey {
             .is_private = is_private,
             .storage_key = request.storage_key,
             .url = request.url,
-            .name = request.name,
+            .name = Utf16String::from_utf8(request.name),
         };
         m_shared_workers.set(*agent.shared_worker_key, agent_id);
     }
 
     m_agents.set(agent_id, move(agent));
-    client->async_start_worker(request.url, request.type, request.credentials, request.name, move(request.outside_port), request.outside_settings, request.agent_type, request.maximum_frames_per_second);
+    client->async_start_worker(request.url, request.type, request.credentials, request.name, move(request.outside_port), request.outside_settings, request.agent_type);
 
     return agent_id;
 }
@@ -422,7 +422,7 @@ void WorkerProcessManager::remove_owner(Web::HTML::WorkerAgentId agent_id, Owner
     if (!agent_owned_by_specified_owner)
         return;
 
-    if (agent.agent_type == Web::Bindings::AgentType::DedicatedWorker || agent.owners.is_empty())
+    if (agent.agent_type == Web::HTML::AgentType::DedicatedWorker || agent.owners.is_empty())
         remove_agent(agent_id);
 }
 

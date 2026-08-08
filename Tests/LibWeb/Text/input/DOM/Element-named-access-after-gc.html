@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="host"></div>
+<script>
+    test(() => {
+        host.appendChild(document.createElement("span")).id = "named-probe";
+
+        (() => {
+            const first = host.children[0];
+            first.wrapper_gc_probe = 42;
+        })();
+
+        internals.gc();
+
+        const fromItem = host.children.item(0);
+        const fromIndex = host.children[0];
+        const fromNamedItem = host.children.namedItem("named-probe");
+        const fromNamedProperty = host.children["named-probe"];
+
+        println(`item=${fromItem.wrapper_gc_probe}`);
+        println(`index=${fromIndex.wrapper_gc_probe}`);
+        println(`namedItem=${fromNamedItem.wrapper_gc_probe}`);
+        println(`namedProperty=${fromNamedProperty.wrapper_gc_probe}`);
+        println(`same=${fromItem === fromIndex && fromItem === fromNamedItem && fromItem === fromNamedProperty}`);
+    });
+</script>

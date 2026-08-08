@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const iframe = document.createElement("iframe");
+        document.body.append(iframe);
+
+        const other = iframe.contentWindow;
+        const element = other.document.createElement("div");
+
+        const options = {
+            get left() {
+                throw new TypeError("parent options getter TypeError");
+            },
+        };
+        const rejectedPromise = element.scroll(options);
+
+        println(`rejected scroll promise is iframe realm: ${rejectedPromise instanceof other.Promise}`);
+        println(`rejected scroll promise is parent realm: ${rejectedPromise instanceof Promise}`);
+
+        try {
+            await rejectedPromise;
+        } catch (e) {
+            println(`rejected scroll reason is parent realm: ${e instanceof TypeError}`);
+            println(`rejected scroll reason is iframe realm: ${e instanceof other.TypeError}`);
+        }
+    });
+</script>

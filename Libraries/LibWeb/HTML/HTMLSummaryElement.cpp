@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/HTMLDetailsElement.h>
 #include <LibWeb/HTML/HTMLSummaryElement.h>
 
@@ -73,10 +72,5 @@ bool HTMLSummaryElement::is_focusable() const
 }
 
 HTMLSummaryElement::~HTMLSummaryElement() = default;
-
-void HTMLSummaryElement::initialize(JS::Realm& realm)
-{
-    Base::initialize(realm);
-}
 
 }

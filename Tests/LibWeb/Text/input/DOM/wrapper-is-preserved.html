@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="host"></div>
+<script>
+    test(() => {
+        const element = host.appendChild(document.createElement("span"));
+        println(`plain=${internals.wrapperIsPreserved(element)}`);
+
+        element.marker = 42;
+        println(`expando=${internals.wrapperIsPreserved(element)}`);
+
+        const object = {};
+        println(`plain-object=${internals.wrapperIsPreserved(object)}`);
+    });
+</script>

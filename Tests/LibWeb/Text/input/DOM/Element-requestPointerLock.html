@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const iframe = document.createElement("iframe");
+        document.body.append(iframe);
+
+        const other = iframe.contentWindow;
+        const element = other.document.createElement("div");
+        const promise = element.requestPointerLock({ unadjustedMovement: true });
+
+        println(`requestPointerLock promise is iframe realm: ${promise instanceof other.Promise}`);
+        println(`requestPointerLock promise is parent realm: ${promise instanceof Promise}`);
+
+        try {
+            await promise;
+        } catch (e) {
+            println(`requestPointerLock rejection name: ${e.name}`);
+        }
+    });
+</script>

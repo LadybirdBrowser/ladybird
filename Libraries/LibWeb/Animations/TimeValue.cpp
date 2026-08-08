@@ -62,13 +62,13 @@ TimeValue TimeValue::create_zero(GC::Ptr<AnimationTimeline> const& timeline)
     return TimeValue { Type::Milliseconds, 0.0 };
 }
 
-CSS::CSSNumberish TimeValue::as_css_numberish(JS::Realm& realm) const
+CSS::CSSNumberish TimeValue::as_css_numberish() const
 {
     switch (type) {
     case Type::Milliseconds:
         return value;
     case Type::Percentage:
-        GC::Ref<CSS::CSSNumericValue> numeric_value = CSS::CSSUnitValue::create(realm, value, "percent"_utf16_fly_string);
+        GC::Ref<CSS::CSSNumericValue> numeric_value = CSS::CSSUnitValue::create(value, "percent"_utf16_fly_string);
         return numeric_value;
     }
 

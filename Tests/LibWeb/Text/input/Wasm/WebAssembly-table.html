@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const table = new WebAssembly.Table({ element: "externref", initial: 2 }, "hello");
+
+        println(`table: ${table}`);
+        println(`length: ${table.length}`);
+        println(`get 0: ${table.get(0)}`);
+
+        table.set(1, { value: 42 });
+        println(`get 1 value: ${table.get(1).value}`);
+
+        println(`previous length: ${table.grow(1, "tail")}`);
+        println(`length after grow: ${table.length}`);
+        println(`get 2: ${table.get(2)}`);
+    });
+</script>

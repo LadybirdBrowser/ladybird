@@ -21,9 +21,9 @@ class Position final : public JS::Cell {
     GC_DECLARE_ALLOCATOR(Position);
 
 public:
-    [[nodiscard]] static GC::Ref<Position> create(JS::Realm& realm, GC::Ref<Node> node, unsigned offset, TextAffinity affinity = TextAffinity::Downstream)
+    [[nodiscard]] static GC::Ref<Position> create(GC::Ref<Node> node, unsigned offset)
     {
-        return realm.create<Position>(node, offset, affinity);
+        return GC::Heap::the().allocate<Position>(node, offset, TextAffinity::Downstream);
     }
 
     GC::Ref<Node> node() { return m_node; }

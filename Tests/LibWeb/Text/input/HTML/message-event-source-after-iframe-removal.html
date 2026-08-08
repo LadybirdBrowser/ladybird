@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const iframe = document.createElement("iframe");
+        window.addEventListener("message", async event => {
+            const source = iframe.contentWindow;
+            iframe.remove();
+            await new Promise(resolve => setTimeout(resolve, 0));
+            await internals.gcAsync();
+            println(`source survives iframe removal: ${event.source === source}`);
+            done();
+        }, { once: true });
+        iframe.srcdoc = `<script>parent.postMessage("ready", "*");<\/script>`;
+        document.body.appendChild(iframe);
+    });
+</script>

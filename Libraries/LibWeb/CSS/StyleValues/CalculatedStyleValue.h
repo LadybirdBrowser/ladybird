@@ -83,7 +83,7 @@ public:
     bool contains_percentage() const;
     bool is_fully_simplified() const;
 
-    GC::Ref<CSSStyleValue> reify(JS::Realm&, Utf16FlyString const& associated_property) const;
+    GC::Ref<CSSStyleValue> reify(Utf16FlyString const& associated_property) const;
 
     // Whether any node of the calculation is an anchor() function, which layout must
     // resolve with the anchor context of the box being positioned.

@@ -405,7 +405,7 @@ static CSSStyleSheet& default_stylesheet()
     static auto& sheet = *new GC::Root<CSSStyleSheet>;
     if (!sheet.cell()) {
         extern String const& default_stylesheet_source;
-        sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingParams(internal_css_realm(), Parser::IsUAStyleSheet::Yes), default_stylesheet_source));
+        sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingParams(Parser::IsUAStyleSheet::Yes), default_stylesheet_source));
     }
     return *sheet;
 }
@@ -415,7 +415,7 @@ static CSSStyleSheet& quirks_mode_stylesheet()
     static auto& sheet = *new GC::Root<CSSStyleSheet>;
     if (!sheet.cell()) {
         extern String const& quirks_mode_stylesheet_source;
-        sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingParams(internal_css_realm(), Parser::IsUAStyleSheet::Yes), quirks_mode_stylesheet_source));
+        sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingParams(Parser::IsUAStyleSheet::Yes), quirks_mode_stylesheet_source));
     }
     return *sheet;
 }
@@ -425,7 +425,7 @@ static CSSStyleSheet& mathml_stylesheet()
     static auto& sheet = *new GC::Root<CSSStyleSheet>;
     if (!sheet.cell()) {
         extern String const& mathml_stylesheet_source;
-        sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingParams(internal_css_realm(), Parser::IsUAStyleSheet::Yes), mathml_stylesheet_source));
+        sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingParams(Parser::IsUAStyleSheet::Yes), mathml_stylesheet_source));
     }
     return *sheet;
 }
@@ -435,7 +435,7 @@ static CSSStyleSheet& svg_stylesheet()
     static auto& sheet = *new GC::Root<CSSStyleSheet>;
     if (!sheet.cell()) {
         extern String const& svg_stylesheet_source;
-        sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingParams(internal_css_realm(), Parser::IsUAStyleSheet::Yes), svg_stylesheet_source));
+        sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingParams(Parser::IsUAStyleSheet::Yes), svg_stylesheet_source));
     }
     return *sheet;
 }
@@ -735,7 +735,7 @@ void StyleScope::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_origin
                             composition = AnimationComposition::Add;
                         else if (composition_str == "accumulate"sv)
                             composition = AnimationComposition::Accumulate;
-                        resolved_keyframe.composite = Animations::css_animation_composition_to_bindings_composite_operation_or_auto(composition);
+                        resolved_keyframe.composite = Animations::css_animation_composition_to_composite_operation_or_auto(composition);
                         continue;
                     }
                     if (!is_animatable_property(it.property_id))

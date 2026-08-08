@@ -25,6 +25,13 @@
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/Types.h>
 
+namespace JS {
+
+class Object;
+class Realm;
+
+}
+
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/input.html#attr-input-type
@@ -58,7 +65,7 @@ class WEB_API HTMLInputElement final
     , public Layout::ImageProvider
     , public PopoverTargetAttributes
     , public AutocompleteElement {
-    WEB_PLATFORM_OBJECT(HTMLInputElement, HTMLElement);
+    WEB_WRAPPABLE(HTMLInputElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLInputElement);
     AUTOCOMPLETE_ELEMENT(HTMLElement, HTMLInputElement);
 
@@ -150,8 +157,10 @@ public:
     };
     SelectedCoordinate selected_coordinate() const { return m_selected_coordinate; }
 
-    JS::Object* value_as_date() const;
-    WebIDL::ExceptionOr<void> set_value_as_date(GC::Ptr<JS::Object>);
+    Optional<double> value_as_date() const;
+    WebIDL::ExceptionOr<void> set_value_as_date(Optional<double>);
+    GC::Ptr<JS::Object> value_as_date_object(JS::Object& relevant_global_object) const;
+    WebIDL::ExceptionOr<void> set_value_as_date_object(GC::Ptr<JS::Object>);
 
     double value_as_number() const;
     WebIDL::ExceptionOr<void> set_value_as_number(double value);
@@ -232,7 +241,16 @@ public:
 
     static bool selection_or_range_applies_for_type_state(TypeAttributeState);
 
-    Optional<Utf16FlyString> selection_direction_binding() { return selection_direction(); }
+    WebIDL::ExceptionOr<void> set_range_text(Utf16String const& replacement);
+    WebIDL::ExceptionOr<void> set_range_text(Utf16String const& replacement, WebIDL::UnsignedLong start, WebIDL::UnsignedLong end, SelectionMode = SelectionMode::Preserve);
+
+    Optional<String> selection_direction_binding()
+    {
+        auto direction = selection_direction();
+        if (!direction.has_value())
+            return {};
+        return direction->to_utf16_string().to_utf8();
+    }
 
     // ^FormAssociatedTextControlElement
     virtual HTMLElement& text_control_to_html_element() override { return *this; }
@@ -287,8 +305,6 @@ private:
     // ^Layout::ImageProvider
     virtual bool is_image_pending() const override;
     virtual GC::Ptr<HTML::DecodedImageData> decoded_image_data() const override { return image_data(); }
-
-    virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void adopted_from(DOM::Document&) override;
 
@@ -296,8 +312,9 @@ private:
     Optional<double> convert_string_to_number(Utf16View input) const;
     Utf16String convert_number_to_string(double input) const;
 
-    WebIDL::ExceptionOr<GC::Ptr<JS::Date>> convert_string_to_date(Utf16View input) const;
-    Utf16String convert_date_to_string(GC::Ref<JS::Date> input) const;
+    WebIDL::ExceptionOr<Optional<double>> convert_string_to_date(StringView input) const;
+    WebIDL::ExceptionOr<Optional<double>> convert_string_to_date(Utf16String const& input) const;
+    Utf16String convert_date_to_string(double input) const;
 
     Optional<double> min() const;
     Optional<double> max() const;
@@ -419,15 +436,5 @@ namespace Web::DOM {
 
 template<>
 inline bool Node::fast_is<HTML::HTMLInputElement>() const { return is_html_input_element(); }
-
-}
-
-namespace JS {
-
-template<>
-inline bool Object::fast_is<Web::HTML::HTMLInputElement>() const
-{
-    return is_dom_node() && static_cast<Web::DOM::Node const&>(*this).is_html_input_element();
-}
 
 }

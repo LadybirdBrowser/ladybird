@@ -487,7 +487,7 @@ bool CalculatedStyleValue::is_fully_simplified() const
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#reify-a-math-expression
-static GC::Ptr<CSSNumericValue> reify_rust_calculation(JS::Realm& realm, void const* calculated_data)
+static GC::Ptr<CSSNumericValue> reify_rust_calculation(void const* calculated_data)
 {
     struct Reification {
         StyleValueFFI::FfiCalcReification description;
@@ -516,63 +516,63 @@ static GC::Ptr<CSSNumericValue> reify_rust_calculation(JS::Realm& realm, void co
                 VERIFY(index < reified_nodes.size());
                 result.append(reified_nodes[index]);
             }
-            return CSSNumericArray::create(realm, move(result));
+            return CSSNumericArray::create(move(result));
         };
 
         switch (node.kind) {
         case 0:
             switch (node.numeric_kind) {
             case 0:
-                reified_nodes.append(CSSUnitValue::create(realm, node.value, "number"_utf16_fly_string));
+                reified_nodes.append(CSSUnitValue::create(node.value, "number"_utf16_fly_string));
                 break;
             case 1:
-                reified_nodes.append(CSSUnitValue::create(realm, node.value, Angle { node.value, static_cast<AngleUnit>(node.unit) }.unit_name()));
+                reified_nodes.append(CSSUnitValue::create(node.value, Angle { node.value, static_cast<AngleUnit>(node.unit) }.unit_name()));
                 break;
             case 2:
-                reified_nodes.append(CSSUnitValue::create(realm, node.value, Flex { node.value, static_cast<FlexUnit>(node.unit) }.unit_name()));
+                reified_nodes.append(CSSUnitValue::create(node.value, Flex { node.value, static_cast<FlexUnit>(node.unit) }.unit_name()));
                 break;
             case 3:
-                reified_nodes.append(CSSUnitValue::create(realm, node.value, Frequency { node.value, static_cast<FrequencyUnit>(node.unit) }.unit_name()));
+                reified_nodes.append(CSSUnitValue::create(node.value, Frequency { node.value, static_cast<FrequencyUnit>(node.unit) }.unit_name()));
                 break;
             case 4:
-                reified_nodes.append(CSSUnitValue::create(realm, node.value, Length { node.value, static_cast<LengthUnit>(node.unit) }.unit_name()));
+                reified_nodes.append(CSSUnitValue::create(node.value, Length { node.value, static_cast<LengthUnit>(node.unit) }.unit_name()));
                 break;
             case 5:
-                reified_nodes.append(CSSUnitValue::create(realm, node.value, "percent"_utf16_fly_string));
+                reified_nodes.append(CSSUnitValue::create(node.value, "percent"_utf16_fly_string));
                 break;
             case 6:
-                reified_nodes.append(CSSUnitValue::create(realm, node.value, Resolution { node.value, static_cast<ResolutionUnit>(node.unit) }.unit_name()));
+                reified_nodes.append(CSSUnitValue::create(node.value, Resolution { node.value, static_cast<ResolutionUnit>(node.unit) }.unit_name()));
                 break;
             case 7:
-                reified_nodes.append(CSSUnitValue::create(realm, node.value, Time { node.value, static_cast<TimeUnit>(node.unit) }.unit_name()));
+                reified_nodes.append(CSSUnitValue::create(node.value, Time { node.value, static_cast<TimeUnit>(node.unit) }.unit_name()));
                 break;
             default:
                 VERIFY_NOT_REACHED();
             }
             break;
         case 2:
-            reified_nodes.append(CSSMathSum::create(realm, move(numeric_type), reify_children()));
+            reified_nodes.append(CSSMathSum::create(move(numeric_type), reify_children()));
             break;
         case 3:
-            reified_nodes.append(CSSMathProduct::create(realm, move(numeric_type), reify_children()));
+            reified_nodes.append(CSSMathProduct::create(move(numeric_type), reify_children()));
             break;
         case 4:
             VERIFY(children.size() == 1);
-            reified_nodes.append(CSSMathNegate::create(realm, move(numeric_type), child(0)));
+            reified_nodes.append(CSSMathNegate::create(move(numeric_type), child(0)));
             break;
         case 5:
             VERIFY(children.size() == 1);
-            reified_nodes.append(CSSMathInvert::create(realm, move(numeric_type), child(0)));
+            reified_nodes.append(CSSMathInvert::create(move(numeric_type), child(0)));
             break;
         case 6:
-            reified_nodes.append(CSSMathMin::create(realm, move(numeric_type), reify_children()));
+            reified_nodes.append(CSSMathMin::create(move(numeric_type), reify_children()));
             break;
         case 7:
-            reified_nodes.append(CSSMathMax::create(realm, move(numeric_type), reify_children()));
+            reified_nodes.append(CSSMathMax::create(move(numeric_type), reify_children()));
             break;
         case 8:
             VERIFY(children.size() == 3);
-            reified_nodes.append(CSSMathClamp::create(realm, move(numeric_type), child(0), child(1), child(2)));
+            reified_nodes.append(CSSMathClamp::create(move(numeric_type), child(0), child(1), child(2)));
             break;
         default:
             VERIFY_NOT_REACHED();
@@ -586,15 +586,15 @@ bool CalculatedStyleValue::contains_anchor_function() const
     return StyleValueFFI::rust_calc_contains_anchor(m_value.operator->());
 }
 
-GC::Ref<CSSStyleValue> CalculatedStyleValue::reify(JS::Realm& realm, Utf16FlyString const& associated_property) const
+GC::Ref<CSSStyleValue> CalculatedStyleValue::reify(Utf16FlyString const& associated_property) const
 {
     // NB: This spec algorithm is incomplete and assumes we do not already have a calculation tree.
     //     Rust describes the existing tree in one batch instead.
-    if (auto reified = reify_rust_calculation(realm, m_value.operator->()))
+    if (auto reified = reify_rust_calculation(m_value.operator->()))
         return *reified;
     // Some math functions are not reifiable yet. If we contain one, we have to fall back to CSSStyleValue.
     // https://github.com/w3c/css-houdini-drafts/issues/1090
-    return default_reify(realm, associated_property);
+    return default_reify(associated_property);
 }
 
 CalcNodeRef CalcNodeRef::numeric(NumericValue const& value)

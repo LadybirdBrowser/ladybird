@@ -5,8 +5,7 @@
  */
 
 #include "CSSMathNegate.h"
-#include <LibWeb/Bindings/CSSMathNegate.h>
-#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -14,37 +13,31 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSMathNegate);
 
-GC::Ref<CSSMathNegate> CSSMathNegate::create(JS::Realm& realm, NumericType type, GC::Ref<CSSNumericValue> values)
+GC::Ref<CSSMathNegate> CSSMathNegate::create(NumericType type, GC::Ref<CSSNumericValue> values)
 {
-    return realm.create<CSSMathNegate>(realm, move(type), move(values));
+    return GC::Heap::the().allocate<CSSMathNegate>(move(type), move(values));
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssmathnegate-cssmathnegate
-GC::Ref<CSSMathNegate> CSSMathNegate::construct_impl(JS::Realm& realm, CSSNumberish value)
+GC::Ref<CSSMathNegate> CSSMathNegate::create_from_numberish(CSSNumberish value)
 {
     // The CSSMathNegate(arg) constructor must, when called, perform the following steps:
     // 1. Replace arg with the result of rectifying a numberish value for arg.
-    auto converted_value = rectify_a_numberish_value(realm, value);
+    auto converted_value = rectify_a_numberish_value(value);
 
     // 2. Return a new CSSMathNegate whose value internal slot is set to arg.
-    return CSSMathNegate::create(realm, converted_value->type(), converted_value);
+    return CSSMathNegate::create(converted_value->type(), converted_value);
 }
 
-CSSMathNegate::CSSMathNegate(JS::Realm& realm, NumericType type, GC::Ref<CSSNumericValue> values)
-    : CSSMathValue(realm, Bindings::CSSMathOperator::Negate, move(type))
+CSSMathNegate::CSSMathNegate(NumericType type, GC::Ref<CSSNumericValue> values)
+    : CSSMathValue(CSSMathOperator::Negate, move(type))
     , m_value(move(values))
 {
 }
 
 CSSMathNegate::~CSSMathNegate() = default;
 
-void CSSMathNegate::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSMathNegate);
-    Base::initialize(realm);
-}
-
-void CSSMathNegate::visit_edges(Visitor& visitor)
+void CSSMathNegate::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_value);

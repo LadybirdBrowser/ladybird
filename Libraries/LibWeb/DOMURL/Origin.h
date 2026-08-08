@@ -6,20 +6,24 @@
 
 #pragma once
 
+#include <AK/Optional.h>
+#include <LibJS/Forward.h>
 #include <LibURL/URL.h>
-#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::DOMURL {
 
 // https://html.spec.whatwg.org/multipage/browsers.html#dom-origin-interface
-class Origin : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(Origin, Bindings::PlatformObject);
+class Origin : public Bindings::Wrappable {
+    WEB_WRAPPABLE(Origin, Bindings::Wrappable);
     GC_DECLARE_ALLOCATOR(Origin);
 
 public:
-    static GC::Ref<Origin> construct_impl(JS::Realm&);
-    static WebIDL::ExceptionOr<GC::Ref<Origin>> from(JS::VM&, JS::Value);
+    static GC::Ref<Origin> create(URL::Origin);
+    static GC::Ref<Origin> create_opaque();
+    static GC::Ref<Origin> construct_impl();
+    static WebIDL::ExceptionOr<GC::Ref<Origin>> from(JS::Value);
 
     bool opaque() const;
     bool is_same_origin(Origin const&) const;
@@ -29,8 +33,7 @@ public:
     virtual ~Origin() override;
 
 private:
-    Origin(JS::Realm&, URL::Origin);
-    virtual void initialize(JS::Realm&) override;
+    explicit Origin(URL::Origin);
 
     // https://html.spec.whatwg.org/multipage/browsers.html#concept-origin-origin
     // Origin objects have an associated origin, which holds an origin.

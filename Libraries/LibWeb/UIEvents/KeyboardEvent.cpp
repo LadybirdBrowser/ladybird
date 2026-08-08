@@ -5,9 +5,9 @@
  */
 
 #include <AK/CharacterTypes.h>
+#include <LibGC/Heap.h>
 #include <LibUnicode/CharacterTypes.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/KeyboardEvent.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/KeyboardEvent.h>
 
@@ -698,21 +698,19 @@ static DOMKeyLocation get_event_location(KeyCode platform_key, unsigned modifier
     return DOMKeyLocation::Standard;
 }
 
-GC::Ref<KeyboardEvent> KeyboardEvent::create_from_platform_event(JS::Realm& realm, Utf16FlyString const& event_name, KeyCode platform_key, unsigned modifiers, u32 code_point, bool repeat)
+GC::Ref<KeyboardEvent> KeyboardEvent::create_from_platform_event(JS::Object const& relevant_global_object, FlyString const& event_name, KeyCode platform_key, unsigned modifiers, u32 code_point, bool repeat)
 {
     auto event_key = MUST(get_event_key(platform_key, code_point, modifiers));
     auto event_code = MUST(get_event_code(platform_key, modifiers));
     auto key_code = determine_key_code(platform_key, code_point);
-    auto char_code = determine_char_code(event_name, code_point);
+    auto char_code = determine_char_code(Utf16FlyString::from_fly_string(event_name), code_point);
 
-    // https://w3c.github.io/uievents/#determine-keypress-keycode
-    // For keypress events that produce a character, all major browsers set keyCode (and therefore which) to the
-    // character code rather than the virtual key code. React synthesizes its onBeforeInput text from
-    // String.fromCharCode(event.which) on keypress, so controlled editors break without this.
+    // For character-producing keypress events, browsers report the character code
+    // in keyCode/which rather than the virtual key code.
     if (event_name == UIEvents::EventNames::keypress && char_code != 0)
         key_code = char_code;
 
-    Bindings::KeyboardEventInit event_init {};
+    KeyboardEventInit event_init {};
     event_init.key = move(event_key);
     event_init.code = move(event_code);
     event_init.location = to_underlying(get_event_location(platform_key, modifiers));
@@ -728,7 +726,38 @@ GC::Ref<KeyboardEvent> KeyboardEvent::create_from_platform_event(JS::Realm& real
     event_init.cancelable = true;
     event_init.composed = true;
 
-    auto event = KeyboardEvent::create(realm, event_name, event_init);
+    auto event = KeyboardEvent::create(Utf16FlyString::from_fly_string(event_name), event_init, HighResolutionTime::current_high_resolution_time(relevant_global_object));
+    event->set_is_trusted(true);
+    return event;
+}
+
+GC::Ref<KeyboardEvent> KeyboardEvent::create_from_platform_event(JS::Object const& relevant_global_object, Utf16FlyString const& event_name, KeyCode platform_key, unsigned modifiers, u32 code_point, bool repeat)
+{
+    auto event_key = MUST(get_event_key(platform_key, code_point, modifiers));
+    auto event_code = MUST(get_event_code(platform_key, modifiers));
+    auto key_code = determine_key_code(platform_key, code_point);
+    auto char_code = determine_char_code(event_name, code_point);
+
+    if (event_name == UIEvents::EventNames::keypress && char_code != 0)
+        key_code = char_code;
+
+    KeyboardEventInit event_init {};
+    event_init.key = move(event_key);
+    event_init.code = move(event_code);
+    event_init.location = to_underlying(get_event_location(platform_key, modifiers));
+    event_init.repeat = repeat;
+    event_init.is_composing = false;
+    event_init.ctrl_key = modifiers & Mod_Ctrl;
+    event_init.shift_key = modifiers & Mod_Shift;
+    event_init.alt_key = modifiers & Mod_Alt;
+    event_init.meta_key = modifiers & Mod_Super;
+    event_init.repeat = repeat;
+    event_init.key_code = key_code;
+    event_init.char_code = char_code;
+    event_init.bubbles = true;
+    event_init.cancelable = true;
+    event_init.composed = true;
+    auto event = KeyboardEvent::create(event_name, event_init, HighResolutionTime::current_high_resolution_time(relevant_global_object));
     event->set_is_trusted(true);
     return event;
 }
@@ -789,18 +818,13 @@ void KeyboardEvent::init_keyboard_event(Utf16FlyString const& type, bool bubbles
     m_meta_key = meta_key;
 }
 
-GC::Ref<KeyboardEvent> KeyboardEvent::create(JS::Realm& realm, Utf16FlyString const& event_name, Bindings::KeyboardEventInit const& event_init)
+GC::Ref<KeyboardEvent> KeyboardEvent::create(Utf16FlyString const& event_name, KeyboardEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
-    return realm.create<KeyboardEvent>(realm, event_name, event_init);
+    return GC::Heap::the().allocate<KeyboardEvent>(event_name, event_init, time_stamp);
 }
 
-WebIDL::ExceptionOr<GC::Ref<KeyboardEvent>> KeyboardEvent::construct_impl(JS::Realm& realm, Utf16FlyString const& event_name, Bindings::KeyboardEventInit const& event_init)
-{
-    return create(realm, event_name, event_init);
-}
-
-KeyboardEvent::KeyboardEvent(JS::Realm& realm, Utf16FlyString const& event_name, Bindings::KeyboardEventInit const& event_init)
-    : UIEvent(realm, event_name, event_init)
+KeyboardEvent::KeyboardEvent(Utf16FlyString const& event_name, KeyboardEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : UIEvent(event_name, event_init, time_stamp)
     , m_key(event_init.key)
     , m_code(event_init.code)
     , m_location(event_init.location)
@@ -826,11 +850,5 @@ KeyboardEvent::KeyboardEvent(JS::Realm& realm, Utf16FlyString const& event_name,
 }
 
 KeyboardEvent::~KeyboardEvent() = default;
-
-void KeyboardEvent::initialize(JS::Realm& realm)
-{
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(KeyboardEvent);
-    Base::initialize(realm);
-}
 
 }

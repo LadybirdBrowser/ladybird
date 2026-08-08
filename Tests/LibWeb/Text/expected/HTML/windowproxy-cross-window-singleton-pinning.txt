@@ -1,0 +1,2 @@
+parent navigator after iframe-first read: true
+parent indexedDB after iframe-first read: true

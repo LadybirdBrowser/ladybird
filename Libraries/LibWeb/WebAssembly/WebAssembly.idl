@@ -9,11 +9,11 @@ dictionary WebAssemblyInstantiatedSource {
 namespace WebAssembly {
     // FIXME: Streaming APIs are supposed to be only exposed to Window, Worker
 
-    boolean validate(BufferSource bytes);
-    Promise<Module> compile(BufferSource bytes);
-    Promise<Module> compileStreaming(Promise<Response> source);
+    [NeedsCallerRealm] boolean validate(BufferSource bytes);
+    [NeedsCallerRealm] Promise<Module> compile(BufferSource bytes);
+    [NeedsCallerRealm] Promise<Module> compileStreaming(Promise<Response> source);
 
-    Promise<WebAssemblyInstantiatedSource> instantiate(BufferSource bytes, optional object importObject);
-    Promise<WebAssemblyInstantiatedSource> instantiateStreaming(Promise<Response> source, optional object importObject);
-    Promise<Instance> instantiate(Module moduleObject, optional object importObject);
+    [NeedsCallerRealm] Promise<WebAssemblyInstantiatedSource> instantiate(BufferSource bytes, optional object importObject);
+    [NeedsCallerRealm] Promise<WebAssemblyInstantiatedSource> instantiateStreaming(Promise<Response> source, optional object importObject);
+    [NeedsCallerRealm] Promise<Instance> instantiate(Module moduleObject, optional object importObject);
 };

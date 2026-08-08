@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg xmlns="http://www.w3.org/2000/svg" id="svg">
+    <text id="text" rotate="10 20">hello</text>
+</svg>
+<script>
+test(() => {
+    const list = document.getElementById("text").rotate.baseVal;
+    const number = list.getItem(0);
+
+    println(`initial length: ${list.length}`);
+    println(`initial [0]: ${list[0].value}`);
+    println(`same wrapper: ${list[0] === list.getItem(0)}`);
+
+    try {
+        list[0] = number;
+    } catch (e) {
+        println(`existing index: ${e.name}: ${e.message}`);
+    }
+
+    try {
+        list[1] = number;
+    } catch (e) {
+        println(`new index: ${e.name}: ${e.message}`);
+    }
+
+    try {
+        list[0] = {};
+    } catch (e) {
+        println(`wrong type: ${e.name}: ${e.message}`);
+    }
+});
+</script>
