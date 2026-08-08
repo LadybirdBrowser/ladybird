@@ -48,7 +48,12 @@ static DecoderErrorOr<void> initialize_format_context(AVFormatContext*& format_c
     if (format_context == nullptr)
         return DecoderError::with_description(DecoderErrorCategory::Memory, "Failed to allocate format context"sv);
     format_context->pb = &io_context;
+    format_context->flags |= AVFMT_FLAG_CUSTOM_IO;
     format_context->flags |= AVFMT_FLAG_FAST_SEEK;
+
+    ArmedScopeGuard close_input = [&] {
+        avformat_close_input(&format_context);
+    };
 
     AVDictionary* options = nullptr;
     ScopeGuard free_options = [&] { av_dict_free(&options); };
@@ -64,6 +69,7 @@ static DecoderErrorOr<void> initialize_format_context(AVFormatContext*& format_c
     if (avformat_find_stream_info(format_context, nullptr) < 0)
         return DecoderError::with_description(DecoderErrorCategory::Corrupted, "Failed to find stream info"sv);
 
+    close_input.disarm();
     return {};
 }
 
@@ -144,6 +150,9 @@ DecoderErrorOr<NonnullRefPtr<FFmpegDemuxer>> FFmpegDemuxer::from_stream(NonnullR
 
     AVFormatContext* format_context = nullptr;
     TRY(initialize_format_context(format_context, *io_context->avio_context()));
+    ScopeGuard close_input = [&] {
+        avformat_close_input(&format_context);
+    };
 
     auto demuxer = DECODER_TRY_ALLOC(adopt_nonnull_ref_or_enomem(new (nothrow) FFmpegDemuxer(stream)));
     demuxer->m_total_duration = AK::Duration::from_time_units(format_context->duration, 1, AV_TIME_BASE);
@@ -191,7 +200,6 @@ DecoderErrorOr<NonnullRefPtr<FFmpegDemuxer>> FFmpegDemuxer::from_stream(NonnullR
 
     demuxer->start_buffered_scan_thread(*format_context);
 
-    avformat_close_input(&format_context);
     return demuxer;
 }
 
