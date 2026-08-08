@@ -1,0 +1,19 @@
+document
+  generic focused
+    link name="Simple link" url="file:///page1"
+      text leaf name="Simple link"
+    link name="Icon Link with image" url="file:///page2"
+      image name="Icon"
+      text leaf name=" Link with image"
+    button name="Simple button"
+      text leaf name="Simple button"
+    button name="Disabled button" disabled
+      text leaf name="Disabled button"
+    button name="Input button"
+    group collapsed
+      button name="Expandable section"
+        text leaf name="Expandable section"
+    button name="Custom button"
+      text leaf name="Custom button"
+    link name="Custom link"
+      text leaf name="Custom link"

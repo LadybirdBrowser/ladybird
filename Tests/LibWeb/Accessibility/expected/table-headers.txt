@@ -1,0 +1,21 @@
+document
+  generic focused
+    table name="Sales" rows=3 cols=2
+      caption
+        text leaf name="Sales"
+      rowgroup
+        row name="Quarter      Revenue"
+          rowheader name="Quarter" cell_row=0 cell_col=0
+            text leaf name="Quarter"
+          rowheader name="Revenue" cell_row=0 cell_col=1
+            text leaf name="Revenue"
+        row name="Q1      100"
+          rowheader name="Q1" cell_row=1 cell_col=0
+            text leaf name="Q1"
+          cell name="100" cell_row=1 cell_col=1
+            text leaf name="100"
+        row name="Q2      150"
+          rowheader name="Q2" cell_row=2 cell_col=0
+            text leaf name="Q2"
+          cell name="150" cell_row=2 cell_col=1
+            text leaf name="150"

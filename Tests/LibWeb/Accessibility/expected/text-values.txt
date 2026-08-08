@@ -1,0 +1,19 @@
+document
+  generic focused
+    text leaf name="
+"
+    textbox name="Text field" value="hello world" editable
+    text leaf name="
+"
+    searchbox name="Search field" value="a query" editable
+    text leaf name="
+"
+     name="Password field" editable
+    text leaf name="
+"
+    textbox name="Notes" value="note text" editable multiline
+      text leaf name="note text"
+    text leaf name="
+
+
+"

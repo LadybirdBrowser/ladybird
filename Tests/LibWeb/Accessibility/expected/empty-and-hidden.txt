@@ -1,0 +1,10 @@
+document
+  generic focused
+    generic
+      text leaf name="Visible content"
+    generic
+    paragraph
+    generic
+      text leaf name="Visible span"
+    button name="After hidden content"
+      text leaf name="After hidden content"

@@ -1,0 +1,9 @@
+document
+  generic focused
+    generic
+      text leaf name="Visible before"
+    generic
+      text leaf name="Visible after"
+    generic
+      paragraph
+        text leaf name="Explicitly visible paragraph"

@@ -1,0 +1,36 @@
+document
+  generic focused
+    table name="Schedule" rows=4 cols=3
+      caption
+        text leaf name="Weekly Schedule"
+      rowgroup
+        row name="Day                  Morning                  Afternoon"
+          columnheader name="Day" cell_row=0 cell_col=0
+            text leaf name="Day"
+          columnheader name="Morning" cell_row=0 cell_col=1
+            text leaf name="Morning"
+          columnheader name="Afternoon" cell_row=0 cell_col=2
+            text leaf name="Afternoon"
+      rowgroup
+        row name="Monday                  Meeting                  Code review"
+          cell name="Monday" cell_row=1 cell_col=0
+            text leaf name="Monday"
+          cell name="Meeting" cell_row=1 cell_col=1
+            text leaf name="Meeting"
+          cell name="Code review" cell_row=1 cell_col=2
+            text leaf name="Code review"
+        row name="Tuesday                  Workshop                  Free"
+          cell name="Tuesday" cell_row=2 cell_col=0
+            text leaf name="Tuesday"
+          cell name="Workshop" cell_row=2 cell_col=1
+            text leaf name="Workshop"
+          cell name="Free" cell_row=2 cell_col=2
+            text leaf name="Free"
+      rowgroup
+        row name="Total                  2 events                  1 event"
+          cell name="Total" cell_row=3 cell_col=0
+            text leaf name="Total"
+          cell name="2 events" cell_row=3 cell_col=1
+            text leaf name="2 events"
+          cell name="1 event" cell_row=3 cell_col=2
+            text leaf name="1 event"

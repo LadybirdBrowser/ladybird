@@ -1,0 +1,17 @@
+document
+  generic focused
+    alert
+      text leaf name="Alert message!"
+    status
+      text leaf name="Status: OK"
+    separator
+    progressbar name="Upload progress"
+    slider name="Volume"
+    tablist
+      tab name="Tab 1"
+        text leaf name="Tab 1"
+      tab name="Tab 2"
+        text leaf name="Tab 2"
+    tabpanel
+      paragraph
+        text leaf name="Tab panel content."

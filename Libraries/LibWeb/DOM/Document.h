@@ -60,6 +60,7 @@
 #include <LibWeb/SVG/SVGUseElement.h>
 #include <LibWeb/TrustedTypes/InjectionSink.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
+#include <LibWebView/Forward.h>
 
 namespace Web::CSS {
 
@@ -583,6 +584,11 @@ public:
     bool autofocus_processed_flag() const { return m_autofocus_processed_flag; }
     void flush_autofocus_candidates();
 
+    // The current accessibility (screen-reader) focus target. It is drawn with a focus ring as a
+    // browser overlay (see Paintable::paint_outline) without moving DOM focus.
+    Element const* accessibility_focus_target() const { return m_accessibility_focus_target.ptr(); }
+    void set_accessibility_focus_target(GC::Ptr<Element>);
+
     void try_to_scroll_to_the_fragment();
     void scroll_to_the_fragment();
     void scroll_to_the_beginning_of_the_document();
@@ -868,6 +874,7 @@ public:
     void did_stop_being_active_document_in_navigable();
 
     Utf16String dump_accessibility_tree_as_json();
+    Vector<WebView::AccessibilityNodeData> build_accessibility_node_data();
 
     void make_active();
 
@@ -1471,6 +1478,7 @@ private:
 
     GC::Ptr<Element> m_active_element;
     GC::Ptr<Element> m_target_element;
+    GC::Ptr<Element> m_accessibility_focus_target;
 
     // https://html.spec.whatwg.org/multipage/interaction.html#autofocus-candidates
     Vector<GC::Ref<Element>> m_autofocus_candidates;

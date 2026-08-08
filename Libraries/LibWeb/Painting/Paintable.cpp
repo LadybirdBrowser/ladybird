@@ -2492,7 +2492,15 @@ void Paintable::paint_border(DisplayListRecordingContext& context, CSSPixelRect 
 
 void Paintable::paint_outline(DisplayListRecordingContext& context, CSSPixelRect const& border_box_rect, BorderRadiiData const& border_radii) const
 {
-    auto const& outline_data = this->outline_data();
+    // The assistive-technology reading cursor draws a focus ring on the current accessibility
+    // focus target. It is a browser overlay independent of the CSS cascade, so author stylesheets
+    // can neither observe it (as they could with a :focus-visible-based approach) nor suppress it.
+    auto const* accessibility_focus_target = document().accessibility_focus_target();
+    bool const is_accessibility_focus_target = accessibility_focus_target && dom_node().ptr() == accessibility_focus_target;
+
+    auto outline_data = is_accessibility_focus_target
+        ? borders_data_for_outline(layout_node(), {}, CSS::OutlineStyle::Auto, {})
+        : this->outline_data();
     if (!outline_data.has_value())
         return;
 

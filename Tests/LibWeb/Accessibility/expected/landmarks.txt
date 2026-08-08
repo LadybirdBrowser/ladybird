@@ -1,0 +1,26 @@
+document
+  generic focused
+    banner
+      text leaf name="Site Header"
+    navigation name="Primary"
+      text leaf name="
+        "
+      link name="Home" url="file:///home"
+        text leaf name="Home"
+      text leaf name="
+        "
+      link name="About" url="file:///about"
+        text leaf name="About"
+      text leaf name="
+    "
+    main
+      article
+        heading name="Article Title" level=1
+          text leaf name="Article Title"
+        paragraph
+          text leaf name="Article content."
+      complementary name="Sidebar"
+        paragraph
+          text leaf name="Sidebar content."
+    contentinfo
+      text leaf name="Site Footer"

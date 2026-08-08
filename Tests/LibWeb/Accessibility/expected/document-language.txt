@@ -1,0 +1,4 @@
+document lang="fr-CA"
+  generic focused
+    paragraph
+      text leaf name="Bonjour"
