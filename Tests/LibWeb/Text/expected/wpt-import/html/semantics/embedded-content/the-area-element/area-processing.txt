@@ -1,0 +1,19 @@
+Harness status: OK
+
+Found 14 tests
+
+14 Pass
+Pass	too few numbers: "2,2,10" (rect)
+Pass	negative: "-10,-10,10,10" (rect)
+Pass	empty string: "" (rect)
+Pass	omitted coords: null (rect)
+Pass	first > third: "10,2,2,10" (rect)
+Pass	second > fourth: "2,10,10,2" (rect)
+Pass	first > third, second > fourth: "10,10,2,2" (rect)
+Pass	negative: "-10,-10,-10,-10" (default)
+Pass	too few numbers: "20,40" (circle)
+Pass	negative radius: "20,40,-10" (circle)
+Pass	zero radius: "20,40,0" (circle)
+Pass	too few numbers: "100,100,120,100,100" (poly)
+Pass	one too many numbers: "100,100,120,100,100,120,300" (poly)
+Pass	even-odd rule: "100,100,200,100,100,200,150,50,200,200" (poly)

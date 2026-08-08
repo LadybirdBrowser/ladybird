@@ -336,6 +336,61 @@ Optional<double> parse_floating_point_number(Utf16View string)
     return parse_floating_point_number_impl(string);
 }
 
+// https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-a-list-of-floating-point-numbers
+Vector<double> parse_list_of_floating_point_numbers(Utf16View string)
+{
+    auto is_delimiter = [](u32 code_unit) {
+        return Web::Infra::is_ascii_whitespace(code_unit) || code_unit == ',' || code_unit == ';';
+    };
+
+    // 1. Let input be the string being parsed.
+    // 2. Let position be a pointer into input, initially pointing at the start of the string.
+    size_t position = 0;
+
+    // 3. Let numbers be an initially empty list of floating-point numbers. This list will be the result of this
+    //    algorithm.
+    Vector<double> numbers;
+
+    // 4. Collect a sequence of code points that are ASCII whitespace, U+002C COMMA, or U+003B SEMICOLON characters
+    //    from input given position. This skips past any leading delimiters.
+    while (!is_eof(string, position) && is_delimiter(code_unit_at(string, position)))
+        ++position;
+
+    // 5. While position is not past the end of input:
+    while (!is_eof(string, position)) {
+        // 1. Collect a sequence of code points that are not ASCII whitespace, U+002C COMMA, U+003B SEMICOLON, ASCII
+        //    digits, U+002E FULL STOP, or U+002D HYPHEN-MINUS characters from input given position. This skips past
+        //    leading garbage.
+        while (!is_eof(string, position)) {
+            auto code_unit = code_unit_at(string, position);
+            if (is_delimiter(code_unit) || is_ascii_digit(code_unit) || code_unit == '.' || code_unit == '-')
+                break;
+            ++position;
+        }
+
+        // 2. Collect a sequence of code points that are not ASCII whitespace, U+002C COMMA, or U+003B SEMICOLON
+        //    characters from input given position, and let unparsed number be the result.
+        size_t start_index = position;
+        while (!is_eof(string, position) && !is_delimiter(code_unit_at(string, position)))
+            ++position;
+        auto unparsed_number = string.substring_view(start_index, position - start_index);
+
+        // 3. Let number be the result of parsing unparsed number using the rules for parsing floating-point number
+        //    values.
+        // 4. If number is an error, set number to zero.
+        // 5. Append number to numbers.
+        numbers.append(parse_floating_point_number(unparsed_number).value_or(0));
+
+        // 6. Collect a sequence of code points that are ASCII whitespace, U+002C COMMA, or U+003B SEMICOLON
+        //    characters from input given position. This skips past the delimiter.
+        while (!is_eof(string, position) && is_delimiter(code_unit_at(string, position)))
+            ++position;
+    }
+
+    // 6. Return numbers.
+    return numbers;
+}
+
 template<typename StringType>
 static bool is_valid_floating_point_number_impl(StringType string)
 {

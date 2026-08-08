@@ -21,6 +21,8 @@ public:
 private:
     ImagePaintable(Layout::Box const& layout_box, Layout::ImageProvider const& image_provider);
 
+    void paint_focused_area_outline(DisplayListRecordingContext&) const;
+
     Layout::ImageProvider const& m_image_provider;
 };
 

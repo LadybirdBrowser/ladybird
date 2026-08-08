@@ -143,8 +143,11 @@ public:
 
     bool cannot_navigate() const;
 
+    HTML::HTMLHyperlinkElementUtils const* created_hyperlink() const;
+    bool creates_a_hyperlink() const;
     void follow_the_hyperlink(Optional<Utf16String> hyperlink_suffix, HTML::UserNavigationInvolvement = HTML::UserNavigationInvolvement::None);
     void download_the_hyperlink(Optional<Utf16String> hyperlink_suffix, HTML::UserNavigationInvolvement = HTML::UserNavigationInvolvement::None);
+    void activate_the_hyperlink(Event const&);
 
     Optional<Utf16String> lang() const;
     Optional<Utf16View> lang_view() const;

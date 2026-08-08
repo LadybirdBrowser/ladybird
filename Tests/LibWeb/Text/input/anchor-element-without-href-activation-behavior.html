@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<details id="plain-details"><summary><a id="plain">link</a></summary>content</details>
+<details id="linked-details"><summary><a id="linked" href="#target">link</a></summary>content</details>
+<script>
+    test(() => {
+        document.getElementById("plain").click();
+        println(`a element without an href does not become the activation target: ${document.getElementById("plain-details").open}`);
+
+        document.getElementById("linked").click();
+        println(`a element with an href becomes the activation target: ${!document.getElementById("linked-details").open}`);
+    });
+</script>

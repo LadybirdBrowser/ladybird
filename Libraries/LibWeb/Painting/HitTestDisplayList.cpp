@@ -8,6 +8,9 @@
 #include <AK/QuickSort.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Node.h>
+#include <LibWeb/HTML/HTMLAreaElement.h>
+#include <LibWeb/HTML/HTMLImageElement.h>
+#include <LibWeb/HTML/HTMLMapElement.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Painting/ChromeWidget.h>
 #include <LibWeb/Painting/HitTestDisplayList.h>
@@ -658,10 +661,31 @@ bool HitTestDisplayList::item_is_direct_caret_target(Item const& item) const
     return dom_node && dom_node == event_dispatch_dom_node_for_item(item);
 }
 
+// https://html.spec.whatwg.org/multipage/image-maps.html#image-map-processing-model
+static GC::Ptr<DOM::Node> image_map_area_for_point(Paintable& paintable, CSSPixelPoint local_point)
+{
+    auto* image_element = as_if<HTML::HTMLImageElement>(paintable.dom_node().ptr());
+    if (!image_element)
+        return {};
+
+    auto map_element = image_element->associated_map_element();
+    if (!map_element)
+        return {};
+
+    // For historical reasons, the coordinates must be interpreted relative to the displayed image after any stretching
+    // caused by the CSS 'width' and 'height' properties.
+    auto image_rect = paintable.absolute_rect();
+    return map_element->area_for_point(local_point - image_rect.location(), image_rect.size());
+}
+
 HitTestResult HitTestDisplayList::hit_test_result_for_item(Item const& item, CSSPixelPoint local_point) const
 {
     switch (item.kind) {
     case ItemKind::Box:
+        return HitTestResult {
+            .paintable = item.paintable,
+            .dom_node_override = image_map_area_for_point(*item.paintable, local_point),
+        };
     case ItemKind::SvgPath:
         return HitTestResult { .paintable = item.paintable };
     case ItemKind::TextFragment:

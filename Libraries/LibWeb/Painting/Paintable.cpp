@@ -2857,8 +2857,11 @@ BorderRadiiData Paintable::border_radii_data() const
 
 Optional<BordersData> Paintable::outline_data() const
 {
-    auto const& computed_values = this->computed_values();
+    return outline_data(computed_values());
+}
 
+Optional<BordersData> Paintable::outline_data(CSS::ComputedValues const& computed_values) const
+{
     // The `auto` outline is the UA focus ring; like native controls, it is only shown while the window has focus.
     if (computed_values.outline_style() == CSS::OutlineStyle::Auto && (!navigable() || !navigable()->is_focused()))
         return {};
