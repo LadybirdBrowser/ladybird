@@ -2102,6 +2102,9 @@ void LocalTraversableNavigable::apply_the_history_step_after_unload_check(
     GC::Ref<GC::Function<void(HistoryStepResult)>> on_complete)
 {
     if (history_initiation_expected_ongoing_navigation_was_superseded(history_initiation_id)) {
+        // NB: A push or same-document finalization claimed its target step at request time. This return never
+        //     creates the ApplyHistoryStepState whose completion would retire that claim, so retire it here.
+        retire_claimed_session_history_step(target_step);
         on_complete->function()(HistoryStepResult::Applied);
         return;
     }
