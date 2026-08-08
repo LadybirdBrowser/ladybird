@@ -148,9 +148,8 @@ enum FloatSide {
 }
 
 #[derive(Clone, Copy)]
-struct FloatingBox<'pass> {
+struct FloatingBox {
     box_: Node,
-    used_values: &'pass UsedValues,
     side: FloatSide,
 
     // Offset from left/right edge to the left content edge of `box`.
@@ -189,7 +188,7 @@ pub(crate) struct BlockFormattingContext<'pass> {
     block_offset_of_current_block_container: Cell<Option<CssPixels>>,
     pending_legend_flow_position: Cell<Option<LogicalOffset>>,
     margin_state: RefCell<BlockMarginState>,
-    floats: RefCell<Vec<FloatingBox<'pass>>>,
+    floats: RefCell<Vec<FloatingBox>>,
     bands: RefCell<Vec<FloatBand>>,
     lowest_left_margin_edge: Cell<CssPixels>,
     lowest_right_margin_edge: Cell<CssPixels>,
@@ -991,8 +990,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         let pending_adjustment =
             self.block_offset_adjustment_from_pending_ancestor_block_start_margins(floating_box.box_);
         containing_block_rect_in_root.y += pending_adjustment;
-        // SAFETY: The float record points to a stable state-owned entry.
-        let used = floating_box.used_values;
+        let used = self.used(floating_box.box_);
         let root_content_inline_size = self.used(self.root).content_inline_size.get();
         let margin_box_rect = floating_box
             .margin_box_rect_in_root_coordinate_space
@@ -1086,11 +1084,11 @@ impl<'pass> BlockFormattingContext<'pass> {
     }
 
     fn margin_box_left_of_float_in_root(
+        &self,
         floating_box: FloatingBox,
         containing_block_rect_in_root: BlockCssPixelRect,
     ) -> CssPixels {
-        // SAFETY: The state owns the float's used-values entry.
-        let used = floating_box.used_values;
+        let used = self.used(floating_box.box_);
         if floating_box.side == FloatSide::Left {
             containing_block_rect_in_root.x + floating_box.offset_from_edge
                 - used.margin_left.get()
@@ -2274,10 +2272,7 @@ impl<'pass> BlockFormattingContext<'pass> {
     }
 
     fn margin_box_left_of_float_record(&self, floating_box: FloatingBox) -> CssPixels {
-        Self::margin_box_left_of_float_in_root(
-            floating_box,
-            floating_box.containing_block_rect_in_root_coordinate_space,
-        )
+        self.margin_box_left_of_float_in_root(floating_box, floating_box.containing_block_rect_in_root_coordinate_space)
     }
 
     // Run-prelude inline sizing for a block-level root: reproduces the
@@ -2451,7 +2446,6 @@ impl<'pass> BlockFormattingContext<'pass> {
             .translated(containing_block_rect.x, containing_block_rect.y);
         let floating_box = FloatingBox {
             box_: node,
-            used_values: self.used(node),
             side,
             offset_from_edge: placement.offset_from_edge,
             top_margin_edge: content_block_offset
@@ -2709,8 +2703,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             block_start < floating_box.bottom_margin_edge && block_end > floating_box.top_margin_edge
         };
         let inline_size_to_make_room_for_float_margin_box = |floating_box: &FloatingBox| {
-            // SAFETY: Float records retain stable state-owned used-values pointers.
-            let used = floating_box.used_values;
+            let used = self.used(floating_box.box_);
             if floating_box.side == FloatSide::Left {
                 floating_box.offset_from_edge
                     + used.content_inline_size.get()
