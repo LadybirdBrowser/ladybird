@@ -61,10 +61,10 @@ size_t InstructionStream::external_memory_size() const
         [](Vector<u8> const& bytecode) -> size_t {
             return vector_external_memory_size(bytecode);
         },
-        [](Core::ImmutableBytes const& bytecode) -> size_t {
+        [this](Core::ImmutableBytes const& bytecode) -> size_t {
             if (bytecode.is_file_backed())
                 return 0;
-            return bytecode.size();
+            return m_size;
         });
 }
 

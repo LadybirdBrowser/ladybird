@@ -35,7 +35,7 @@
 
 namespace JS::Bytecode {
 
-class InstructionStream {
+class JS_API InstructionStream {
 public:
     explicit InstructionStream(Vector<u8>);
     InstructionStream(Core::ImmutableBytes, size_t offset, size_t size);
