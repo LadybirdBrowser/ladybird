@@ -534,16 +534,6 @@ DecoderErrorOr<CodedFrame> FFmpegDemuxer::get_next_sample_for_track(Track const&
             continue;
         }
 
-        auto auxiliary_data = [&]() -> CodedFrame::AuxiliaryData {
-            if (track.type() == TrackType::Video) {
-                return CodedVideoFrameData();
-            }
-            if (track.type() == TrackType::Audio) {
-                return CodedAudioFrameData();
-            }
-            VERIFY_NOT_REACHED();
-        }();
-
         // Copy the packet data so that we have a permanent reference to it whilst the Sample is alive, which allows us
         // to wipe the packet afterwards.
         auto packet_data = DECODER_TRY_ALLOC(ByteBuffer::copy(packet.data, packet.size));
@@ -568,8 +558,7 @@ DecoderErrorOr<CodedFrame> FFmpegDemuxer::get_next_sample_for_track(Track const&
             decode_timestamp,
             duration,
             flags,
-            move(packet_data),
-            auxiliary_data);
+            move(packet_data));
 
         // Wipe the packet now that the data is safe.
         av_packet_unref(&packet);

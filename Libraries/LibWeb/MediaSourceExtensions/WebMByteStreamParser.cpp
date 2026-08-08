@@ -268,13 +268,6 @@ Media::DecoderErrorOr<ParseMediaSegmentResult> WebMByteStreamParser::parse_media
                 auto frame_data = TRY(streamer.read_raw_octets(data_size));
                 TRY(cursor.seek(current_position, SeekMode::SetPosition));
 
-                auto track_entry = m_track_entries.get(block.track_number());
-                auto is_video = track_entry.has_value() && (*track_entry)->track_type() == Media::Matroska::TrackEntry::TrackType::Video;
-
-                Media::CodedFrame::AuxiliaryData aux_data = is_video
-                    ? Media::CodedFrame::AuxiliaryData { Media::CodedVideoFrameData {} }
-                    : Media::CodedFrame::AuxiliaryData { Media::CodedAudioFrameData {} };
-
                 result.coded_frames.append({
                     .track_number = block.track_number(),
                     .coded_frame = Media::CodedFrame(
@@ -282,8 +275,7 @@ Media::DecoderErrorOr<ParseMediaSegmentResult> WebMByteStreamParser::parse_media
                         block.timestamp().value(),
                         block.duration().value_or(AK::Duration::zero()),
                         block.only_keyframes() ? Media::FrameFlags::Keyframe : Media::FrameFlags::None,
-                        move(frame_data),
-                        aux_data),
+                        move(frame_data)),
                 });
                 return IterationDecision::Continue;
             }
