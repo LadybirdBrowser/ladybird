@@ -172,6 +172,7 @@ public:
     AccumulatedVisualContextNode const& node_at(VisualContextIndex index) const { return m_nodes[index.value()]; }
     AccumulatedVisualContextNode& node_at(VisualContextIndex index) { return m_nodes[index.value()]; }
     ReadonlySpan<AccumulatedVisualContextNode> nodes() const { return m_nodes.span(); }
+    size_t node_count() const { return m_nodes.size(); }
 
     Optional<Gfx::FloatPoint> transform_point_for_hit_test(VisualContextIndex, Gfx::FloatPoint, ScrollStateSnapshot const&, ClipBehavior = ClipBehavior::Respect) const;
     Gfx::FloatPoint inverse_transform_point(VisualContextIndex, Gfx::FloatPoint) const;
