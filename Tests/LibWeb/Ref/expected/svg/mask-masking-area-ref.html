@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<div style="display: flex; gap: 8px">
+  <!-- userSpaceOnUse with explicit x/y and the width/height percentage defaults -->
+  <svg width="100" height="100" viewBox="-50 -50 100 100">
+    <rect x="-30" y="-20" width="80" height="70" fill="red" />
+  </svg>
+  <!-- userSpaceOnUse percentages resolve against the viewport (no viewBox) -->
+  <svg width="100" height="100">
+    <rect x="10" y="20" width="50" height="60" fill="teal" />
+  </svg>
+  <!-- objectBoundingBox fractions and percentages -->
+  <svg width="100" height="100" viewBox="0 0 100 100">
+    <rect x="30" y="30" width="40" height="40" fill="blue" />
+  </svg>
+  <!-- No masking area attributes: the default masking area must not clip the target -->
+  <svg width="100" height="100" viewBox="0 0 100 100">
+    <rect x="20" y="20" width="60" height="60" fill="green" />
+  </svg>
+  <!-- maskContentUnits=objectBoundingBox with the default masking area -->
+  <svg width="100" height="100" viewBox="0 0 100 100">
+    <rect x="10" y="10" width="80" height="40" fill="purple" />
+  </svg>
+  <!-- A masking area width of zero disables rendering of the target -->
+  <svg width="100" height="100" viewBox="0 0 100 100"></svg>
+</div>

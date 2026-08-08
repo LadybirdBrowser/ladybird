@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/svg/mask-masking-area-ref.html" />
+<div style="display: flex; gap: 8px">
+  <!-- userSpaceOnUse with explicit x/y and the width/height percentage defaults -->
+  <svg width="100" height="100" viewBox="-50 -50 100 100">
+    <mask id="m1" x="-30" y="-20" maskUnits="userSpaceOnUse">
+      <rect x="-50" y="-50" width="100" height="100" fill="white" />
+    </mask>
+    <rect x="-50" y="-50" width="100" height="100" fill="red" mask="url(#m1)" />
+  </svg>
+  <!-- userSpaceOnUse percentages resolve against the viewport (no viewBox) -->
+  <svg width="100" height="100">
+    <mask id="m2" x="10%" y="20%" width="50%" height="60%" maskUnits="userSpaceOnUse">
+      <rect x="0" y="0" width="100" height="100" fill="white" />
+    </mask>
+    <rect x="0" y="0" width="100" height="100" fill="teal" mask="url(#m2)" />
+  </svg>
+  <!-- objectBoundingBox fractions and percentages -->
+  <svg width="100" height="100" viewBox="0 0 100 100">
+    <mask id="m3" x="0.25" y="25%" width="0.5" height="50%" maskUnits="objectBoundingBox">
+      <rect x="0" y="0" width="100" height="100" fill="white" />
+    </mask>
+    <rect x="10" y="10" width="80" height="80" fill="blue" mask="url(#m3)" />
+  </svg>
+  <!-- No masking area attributes: the default masking area must not clip the target -->
+  <svg width="100" height="100" viewBox="0 0 100 100">
+    <mask id="m4">
+      <rect x="20" y="20" width="60" height="60" fill="white" />
+    </mask>
+    <rect x="10" y="10" width="80" height="80" fill="green" mask="url(#m4)" />
+  </svg>
+  <!-- maskContentUnits=objectBoundingBox with the default masking area -->
+  <svg width="100" height="100" viewBox="0 0 100 100">
+    <mask id="m5" maskContentUnits="objectBoundingBox">
+      <rect x="0" y="0" width="1" height="0.5" fill="white" />
+    </mask>
+    <rect x="10" y="10" width="80" height="80" fill="purple" mask="url(#m5)" />
+  </svg>
+  <!-- A masking area width of zero disables rendering of the target -->
+  <svg width="100" height="100" viewBox="0 0 100 100">
+    <mask id="m6" width="0">
+      <rect x="0" y="0" width="100" height="100" fill="white" />
+    </mask>
+    <rect x="0" y="0" width="100" height="100" fill="red" mask="url(#m6)" />
+  </svg>
+</div>

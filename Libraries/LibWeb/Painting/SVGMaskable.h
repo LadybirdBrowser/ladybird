@@ -30,6 +30,7 @@ public:
 
 private:
     Gfx::AffineTransform target_svg_transform() const;
+    Gfx::AffineTransform target_svg_to_css_pixels_transform() const;
 };
 
 }
