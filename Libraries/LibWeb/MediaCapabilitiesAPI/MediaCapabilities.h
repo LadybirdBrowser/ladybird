@@ -11,6 +11,7 @@
 #include <AK/String.h>
 #include <AK/Vector.h>
 #include <LibGC/Ptr.h>
+#include <LibMedia/DecoderCapabilities.h>
 #include <LibWeb/Bindings/MediaCapabilities.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/EncryptedMediaExtensions/EncryptedMediaExtensions.h>
@@ -54,7 +55,7 @@ private:
 // https://w3c.github.io/media-capabilities/#create-a-mediacapabilitiesdecodinginfo
 MediaCapabilitiesDecodingInfo create_a_media_capabilities_decoding_info(MediaDecodingConfiguration);
 
-bool is_able_to_decode_media(MediaDecodingConfiguration const&);
+Optional<Media::DecoderCapabilities> media_decoding_capabilities(MediaDecodingConfiguration const&);
 
 // https://w3c.github.io/media-capabilities/#valid-audio-mime-type
 bool is_valid_audio_mime_type(Utf16View);

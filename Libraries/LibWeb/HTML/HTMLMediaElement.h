@@ -100,20 +100,6 @@ public:
     [[nodiscard]] GC::Ref<TimeRanges> played() const;
     [[nodiscard]] GC::Ref<TimeRanges> seekable() const;
 
-    static constexpr auto supported_video_subtypes = Array {
-        "webm"sv,
-        "mp4"sv,
-        "mpeg"sv,
-        "ogg"sv,
-    };
-    static constexpr auto supported_audio_subtypes = Array {
-        "flac"sv,
-        "mp3"sv,
-        "mpeg"sv,
-        "ogg"sv,
-        "wav"sv,
-        "webm"sv,
-    };
     Bindings::CanPlayTypeResult can_play_type(Utf16View type) const;
 
     enum class ReadyState : u8 {

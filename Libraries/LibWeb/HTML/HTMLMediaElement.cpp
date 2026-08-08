@@ -11,6 +11,7 @@
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/Promise.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
+#include <LibMedia/MediaSupport.h>
 #include <LibMedia/PlaybackManager.h>
 #include <LibMedia/Sinks/DisplayingVideoSink.h>
 #include <LibMedia/Track.h>
@@ -464,25 +465,19 @@ Bindings::CanPlayTypeResult HTMLMediaElement::can_play_type(Utf16View type) cons
 
     auto mime_type = MimeSniff::MimeType::parse(type);
 
-    if (mime_type.has_value() && mime_type->type() == "video"sv) {
-        if (supported_video_subtypes.contains_slow(mime_type->subtype()))
-            return Bindings::CanPlayTypeResult::Probably;
+    if (!mime_type.has_value())
+        return Bindings::CanPlayTypeResult::Empty;
+
+    auto support = Media::file_media_support({ mime_type->type(), mime_type->subtype(), mime_type->parameters() });
+    switch (support.support) {
+    case Media::MediaSupport::NotSupported:
+        return Bindings::CanPlayTypeResult::Empty;
+    case Media::MediaSupport::Maybe:
         return Bindings::CanPlayTypeResult::Maybe;
+    case Media::MediaSupport::Probably:
+        return Bindings::CanPlayTypeResult::Probably;
     }
-
-    if (mime_type.has_value() && mime_type->type() == "audio"sv) {
-        auto result = Bindings::CanPlayTypeResult::Maybe;
-        if (supported_audio_subtypes.contains_slow(mime_type->subtype()))
-            result = Bindings::CanPlayTypeResult::Probably;
-
-        // "Maybe" because we support mp3, but "mpeg" can also refer to MP1 and MP2.
-        if (mime_type->subtype() == "mpeg"sv)
-            result = Bindings::CanPlayTypeResult::Maybe;
-
-        return result;
-    }
-
-    return Bindings::CanPlayTypeResult::Empty;
+    VERIFY_NOT_REACHED();
 }
 
 void HTMLMediaElement::set_seeking(bool seeking)

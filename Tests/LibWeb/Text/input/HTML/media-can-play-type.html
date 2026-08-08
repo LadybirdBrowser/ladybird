@@ -7,7 +7,21 @@
 
         println(`application/octet-stream: "${video.canPlayType("application/octet-stream")}"`);
         println(`video/webm: "${video.canPlayType("video/webm")}"`);
+        println(`video/webm VP9: "${video.canPlayType('video/webm; codecs="vp09.00.10.08"')}"`);
+        println(`video/webm legacy VP9: "${video.canPlayType('video/webm; codecs="vp9"')}"`);
+        println(`video/webm H.264: "${video.canPlayType('video/webm; codecs="avc1.640028"')}"`);
+        println(`video/webm malformed VP9: "${video.canPlayType('video/webm; codecs="vp09.00"')}"`);
+        println(`video/mp4 H.264: "${video.canPlayType('video/mp4; codecs="avc1.640028"')}"`);
+        println(`video/mp4 underspecified H.264: "${video.canPlayType('video/mp4; codecs="avc1"')}"`);
+        println(`audio/mp4 AAC: "${audio.canPlayType('audio/mp4; codecs="mp4a.40.2"')}"`);
+        println(`audio/mp4 underspecified AAC: "${audio.canPlayType('audio/mp4; codecs="mp4a.40"')}"`);
+        println(`audio/mp4 unknown MPEG-4 audio: "${audio.canPlayType('audio/mp4; codecs="mp4a"')}"`);
         println(`audio/mpeg: "${audio.canPlayType("audio/mpeg")}"`);
+        println(`audio/wav: "${audio.canPlayType("audio/wav")}"`);
+        println(`audio/wav PCM: "${audio.canPlayType('audio/wav; codecs="1"')}"`);
+        println(`audio/wav unsupported: "${audio.canPlayType('audio/wav; codecs="2"')}"`);
+        println(`application/ogg Opus: "${audio.canPlayType('application/ogg; codecs="opus"')}"`);
+        println(`unknown video container: "${video.canPlayType("video/unknown")}"`);
         println(`invalid non-ascii: "${video.canPlayType("vidéo/webm")}"`);
     });
 </script>
