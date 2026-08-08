@@ -49,14 +49,23 @@ private:
     {
     }
 
+    void ensure_target(void* target)
+    {
+        MutexLocker locker { m_mutex };
+        if (!m_revoked && !m_target)
+            m_target = target;
+    }
+
     void revoke()
     {
         MutexLocker locker { m_mutex };
         m_target = nullptr;
+        m_revoked = true;
     }
 
     Mutex m_mutex;
     void* m_target { nullptr };
+    bool m_revoked { false };
 };
 
 template<typename T>
@@ -91,12 +100,15 @@ class Weakable {
 public:
     WeakRef<T> make_weak_ref()
     {
+        // The self-pointer is installed here rather than in the constructor: Weakable is constructed
+        // before T's lifetime begins, so downcasting `this` to T* there is undefined behavior.
+        m_link->ensure_target(static_cast<T*>(this));
         return WeakRef<T> { m_link };
     }
 
 protected:
     Weakable()
-        : m_link(adopt_ref(*new WeakRefLink(static_cast<T*>(this))))
+        : m_link(adopt_ref(*new WeakRefLink(nullptr)))
     {
     }
 
