@@ -6,7 +6,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AllOf.h>
 #include <AK/CharacterTypes.h>
+#include <AK/IPv4Address.h>
+#include <AK/IPv6Address.h>
 #include <AK/String.h>
 #include <AK/StringBuilder.h>
 #include <LibFileSystem/FileSystem.h>
@@ -17,6 +20,73 @@
 #include <LibWebView/URL.h>
 
 namespace WebView {
+
+// AD-HOC: When guessing the scheme for schemeless input, we prefer "https" — except for hosts that can't generally
+//         obtain publicly-trusted TLS certs, and whose traffic never leaves the machine: loopback addresses and
+//         localhost names (which the Secure Contexts spec treats as "potentially trustworthy", even over plain http),
+//         as well as the unspecified addresses 0.0.0.0 and [::] (which reach loopback in practice), and private-use and
+//         link-local addresses. Gecko and Blink likewise exempt all of those hosts from their HTTPS-upgrade machinery.
+static bool should_guess_http_scheme_for_host(URL::Host const& host)
+{
+    if (host.is_loopback_or_localhost())
+        return true;
+
+    // NOTE: For hosts produced by the URL parser, to_u32() is the URL spec's IPv4 number — with the first octet in the
+    //       most-significant byte.
+    if (host.has<IPv4Address>()) {
+        u32 const value = host.get<IPv4Address>().to_u32();
+        return (value >> 24) == 0x00    // 0.0.0.0/8: "this network" (RFC 791).
+            || (value >> 24) == 0x0a    // 10.0.0.0/8: private use (RFC 1918).
+            || (value >> 20) == 0xac1   // 172.16.0.0/12: private use (RFC 1918).
+            || (value >> 16) == 0xc0a8  // 192.168.0.0/16: private use (RFC 1918).
+            || (value >> 16) == 0xa9fe; // 169.254.0.0/16: link-local (RFC 3927).
+    }
+
+    if (host.has<IPv6Address>()) {
+        auto const& address = host.get<IPv6Address>();
+        return address.is_zero()                // [::]: the unspecified address.
+            || (address[0] & 0xfe00) == 0xfc00  // fc00::/7: unique local (RFC 4193).
+            || (address[0] & 0xffc0) == 0xfe80; // fe80::/10: link-local (RFC 4291).
+    }
+
+    return false;
+}
+
+// FIXME: Add support for other schemes, e.g. "mailto:". Firefox and Chrome open mailto: locations.
+static constexpr Array SUPPORTED_SCHEMES { "about"sv, "data"sv, "file"sv, "http"sv, "https"sv, "resource"sv };
+
+// Schemes that sanitize_url() recognizes as schemes even though navigating to them is unsupported (input with one of
+// these schemes becomes a search). Recognizing them keeps is_likely_host_with_port() below from reinterpreting input
+// like "tel:911" or "javascript:0" as a hostname followed by a port number.
+static constexpr Array RECOGNIZED_UNSUPPORTED_SCHEMES { "ftp"sv, "javascript"sv, "mailto"sv, "tel"sv, "ws"sv, "wss"sv };
+
+static bool is_recognized_scheme(StringView scheme)
+{
+    return any_of(SUPPORTED_SCHEMES, [&](StringView supported_scheme) { return supported_scheme == scheme; })
+        || any_of(RECOGNIZED_UNSUPPORTED_SCHEMES, [&](StringView unsupported_scheme) { return unsupported_scheme == scheme; });
+}
+
+// AD-HOC: A dotted hostname followed by a port (e.g. "example.org:8000") is also a syntactically valid URL scheme — so
+//         the URL parser accepts it as one, and schemeless host-with-port input would then fall through to a search.
+//         So, when the parsed scheme isn’t a scheme we know — and everything between the first colon and its first '/',
+//         '?', or '#' (or its end) is one or more ASCII digits — treat it as a host with a port instead. Chromium's
+//         url_fixer and Firefox's URIFixup likewise decline to treat an unknown scheme as a scheme when a port-like
+//         number follows the colon. Port range checking is left to the URL parser: For "example.org:99999", etc., the
+//         "https://" retry below fails to parse, and the input becomes a search — just as in Chromium and Firefox.
+static bool is_likely_host_with_port(URL::URL const& url, StringView location)
+{
+    if (is_recognized_scheme(url.scheme()))
+        return false;
+
+    auto first_colon_index = location.find(':');
+    if (!first_colon_index.has_value())
+        return false;
+
+    auto after_colon = location.substring_view(*first_colon_index + 1);
+    auto port_length = after_colon.find_any_of("/?#"sv).value_or(after_colon.length());
+    auto port = after_colon.substring_view(0, port_length);
+    return !port.is_empty() && all_of(port, is_ascii_digit);
+}
 
 Optional<URL::URL> sanitize_url(StringView location, Optional<SearchEngine> const& search_engine, AppendTLD append_tld)
 {
@@ -37,19 +107,26 @@ Optional<URL::URL> sanitize_url(StringView location, Optional<SearchEngine> cons
     }
 
     bool https_scheme_was_guessed = false;
+    ByteString schemeless_location;
 
     auto url = URL::create_with_url_or_path(location);
 
-    if (!url.has_value() || url->scheme() == "localhost"sv) {
-        url = URL::create_with_url_or_path(ByteString::formatted("https://{}", location));
+    if (!url.has_value() || is_likely_host_with_port(*url, location)) {
+        schemeless_location = location;
+
+        // AD-HOC: A bare IPv6 address can't be a URL host until it's wrapped in square brackets. Wrap it here, so that
+        //         e.g., "::1" becomes a navigation — instead of falling through to a search. Chromium's omnibox
+        //         likewise classifies bare IPv6 addresses as navigations.
+        if (auto ipv6_address = IPv6Address::from_string(location); ipv6_address.has_value())
+            schemeless_location = ByteString::formatted("[{}]", MUST(ipv6_address->to_string()));
+
+        url = URL::create_with_url_or_path(ByteString::formatted("https://{}", schemeless_location));
         if (!url.has_value())
             return search_url_or_error();
 
         https_scheme_was_guessed = true;
     }
 
-    // FIXME: Add support for other schemes, e.g. "mailto:". Firefox and Chrome open mailto: locations.
-    static constexpr Array SUPPORTED_SCHEMES { "about"sv, "data"sv, "file"sv, "http"sv, "https"sv, "resource"sv };
     if (!any_of(SUPPORTED_SCHEMES, [&](StringView const& scheme) { return scheme == url->scheme(); }))
         return search_url_or_error();
 
@@ -61,17 +138,25 @@ Optional<URL::URL> sanitize_url(StringView location, Optional<SearchEngine> cons
 
         // https://datatracker.ietf.org/doc/html/rfc2606
         static constexpr Array RESERVED_TLDS { ".test"sv, ".example"sv, ".invalid"sv, ".localhost"sv };
-        if (any_of(RESERVED_TLDS, [&](StringView const& tld) { return domain.byte_count() > tld.length() && domain.ends_with_bytes(tld); }))
-            return url;
+        bool has_reserved_tld = any_of(RESERVED_TLDS, [&](StringView const& tld) { return domain.byte_count() > tld.length() && domain.ends_with_bytes(tld); });
 
-        auto public_suffix = URL::PublicSuffixData::find_matching_public_suffix(domain, URL::PublicSuffixData::IncludeStarRule::No);
-        if (!public_suffix.has_value() || *public_suffix == domain) {
-            if (append_tld == AppendTLD::Yes)
-                url->set_host(MUST(String::formatted("{}.com", domain)));
-            else if (https_scheme_was_guessed && domain != "localhost"sv)
-                return search_url_or_error();
+        if (!has_reserved_tld) {
+            auto public_suffix = URL::PublicSuffixData::find_matching_public_suffix(domain, URL::PublicSuffixData::IncludeStarRule::No);
+            if (!public_suffix.has_value() || *public_suffix == domain) {
+                if (append_tld == AppendTLD::Yes)
+                    url->set_host(MUST(String::formatted("{}.com", domain)));
+                else if (https_scheme_was_guessed && !host->is_loopback_or_localhost())
+                    return search_url_or_error();
+            }
         }
     }
+
+    // AD-HOC: We guessed "https" above without knowing the host. Now that the host is known, guess "http" instead where
+    //         https can't reasonably work. Reparsing the input keeps intact a port that's default for one scheme but
+    //         not the other. An AppendTLD::Yes rewrite above never produces a host for which this branch is taken — so,
+    //         the rewrite can't be lost by reparsing.
+    if (https_scheme_was_guessed && url->host().has_value() && should_guess_http_scheme_for_host(*url->host()))
+        url = URL::create_with_url_or_path(ByteString::formatted("http://{}", schemeless_location));
 
     return url;
 }
