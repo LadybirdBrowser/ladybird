@@ -30,6 +30,7 @@
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Fetch/BodyInit.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
+#include <LibWeb/Fetch/Fetching/RefCountedFlag.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP.h>
@@ -38,6 +39,7 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/HTML/EventHandler.h>
+#include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/Parser/HTMLEncodingDetection.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
@@ -897,11 +899,20 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(NullableDocumentOrXMLHttpRequestB
     }
     // 12. Otherwise, if this’s synchronous flag is set:
     else {
+        // NB: These flags are shared with the fetch algorithms below — which can run after send() has returned (e.g., a
+        //      response that completes after the fetch was terminated because it timed out). So they must not live in
+        //      this stack frame.
         // 1. Let processedResponse be false.
-        IGNORE_USE_IN_ESCAPING_LAMBDA bool processed_response = false;
+        auto processed_response = Fetch::Fetching::RefCountedFlag::create(false);
+        auto did_time_out = Fetch::Fetching::RefCountedFlag::create(false);
 
         // 2. Let processResponseConsumeBody, given a response and nullOrFailureOrBytes, be these steps:
-        auto process_response_consume_body = [this, &processed_response](GC::Ref<Fetch::Infrastructure::Response> response, Fetch::Infrastructure::FetchAlgorithms::BodyBytes null_or_failure_or_bytes) {
+        auto process_response_consume_body = [this, processed_response, did_time_out](GC::Ref<Fetch::Infrastructure::Response> response, Fetch::Infrastructure::FetchAlgorithms::BodyBytes null_or_failure_or_bytes) {
+            // AD-HOC: If send() already returned because this fetch timed out, then leave this's response and received
+            //         bytes alone.
+            if (did_time_out->value())
+                return;
+
             // 1. If nullOrFailureOrBytes is not failure, then set this’s response to response.
             if (!null_or_failure_or_bytes.has<Fetch::Infrastructure::FetchAlgorithms::ConsumeBodyFailureTag>())
                 m_response = response;
@@ -913,7 +924,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(NullableDocumentOrXMLHttpRequestB
             }
 
             // 3. Set processedResponse to true.
-            processed_response = true;
+            processed_response->set_value(true);
         };
 
         // 3. Set this’s fetch controller to the result of fetching req with processResponseConsumeBody set to processResponseConsumeBody and useParallelQueue set to true.
@@ -933,27 +944,36 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(NullableDocumentOrXMLHttpRequestB
 
         // 4. Let now be the present time.
         // 5. Pause until either processedResponse is true or this’s timeout is not 0 and this’s timeout milliseconds have passed since now.
-        IGNORE_USE_IN_ESCAPING_LAMBDA bool did_time_out = false;
-
         if (m_timeout != 0) {
             stop_timeout_timer();
             m_timeout_timer = Platform::Timer::create_single_shot(heap(), m_timeout, nullptr);
-            m_timeout_timer->on_timeout = GC::create_function(heap(), [this, &did_time_out]() {
-                did_time_out = true;
+            m_timeout_timer->on_timeout = GC::create_function(heap(), [this, did_time_out]() {
+                did_time_out->set_value(true);
                 stop_timeout_timer();
             });
             m_timeout_timer->start();
         }
 
-        // FIXME: This is not exactly correct, as it allows the HTML event loop to continue executing tasks.
-        HTML::main_thread_event_loop().spin_until(GC::create_function(heap(), [&]() {
-            return processed_response || did_time_out;
-        }));
+        {
+            // NB: While a synchronous send() is blocked, the event loop must not run tasks or perform microtask
+            //     checkpoints (https://html.spec.whatwg.org/multipage/webappapis.html#pause). The fetch above was
+            //     started with useParallelQueue set to true, and makes progress on the underlying platform event loop
+            //     (deferred invocations, IPC, and timers) — which keeps being pumped here. So, the response arrives and
+            //     is read to completion while the HTML event loop stays paused. See the parallel-queue path in
+            //     fetch_response_handover().
+            // AD-HOC: We don't update the rendering when pausing: Doing so runs author callbacks (e.g., rAF callbacks),
+            //         which must not happen from inside a blocked send() — one that, in addition, may itself have been
+            //         invoked from within a microtask.
+            auto pause_handle = HTML::main_thread_event_loop().pause(HTML::EventLoop::UpdateTheRendering::No);
+            Platform::EventLoopPlugin::the().spin_until(GC::create_function(heap(), [processed_response, did_time_out]() {
+                return processed_response->value() || did_time_out->value();
+            }));
+        }
 
         stop_timeout_timer();
 
         // 6. If processedResponse is false, then set this’s timed out flag and terminate this’s fetch controller.
-        if (!processed_response) {
+        if (!processed_response->value()) {
             m_timed_out = true;
             m_fetch_controller->terminate();
         }
