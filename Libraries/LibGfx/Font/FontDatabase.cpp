@@ -15,10 +15,6 @@
 #    include <FindDirectory.h>
 #endif
 
-#ifdef USE_FONTCONFIG
-#    include <LibGfx/Font/GlobalFontConfig.h>
-#endif
-
 namespace Gfx {
 
 // Key function for SystemFontProvider to emit the vtable here
@@ -76,18 +72,7 @@ void FontDatabase::for_each_typeface_with_family_name(FlyString const& family_na
 
 ErrorOr<Vector<String>> FontDatabase::font_directories()
 {
-#if defined(USE_FONTCONFIG)
-    Vector<String> paths;
-    FcConfig* config = Gfx::GlobalFontConfig::the().get();
-    FcStrList* dirs = FcConfigGetFontDirs(config);
-    while (FcChar8* dir = FcStrListNext(dirs)) {
-        char const* dir_cstring = reinterpret_cast<char const*>(dir);
-        paths.append(TRY(String::from_utf8(StringView { dir_cstring, strlen(dir_cstring) })));
-    }
-    FcStrListDone(dirs);
-    return paths;
-
-#elif defined(AK_OS_HAIKU)
+#if defined(AK_OS_HAIKU)
     Vector<String> paths_vector;
     char** paths;
     size_t paths_count;
@@ -100,34 +85,36 @@ ErrorOr<Vector<String>> FontDatabase::font_directories()
     }
     return paths_vector;
 
-#else
-#    if defined(AK_OS_SERENITY)
+#elif defined(AK_OS_SERENITY)
     return Vector<String> { {
         "/res/fonts"_string,
     } };
 
-#    elif defined(AK_OS_MACOS)
+#elif defined(AK_OS_MACOS)
     return Vector<String> { {
         "/System/Library/Fonts"_string,
         "/Library/Fonts"_string,
         TRY(String::formatted("{}/Library/Fonts"sv, Core::StandardPaths::home_directory())),
     } };
 
-#    elif defined(AK_OS_ANDROID)
+#elif defined(AK_OS_ANDROID)
     return Vector<String> { {
         // FIXME: We should be using the ASystemFontIterator NDK API here.
         // There is no guarantee that this will continue to exist on future versions of Android.
         "/system/fonts"_string,
     } };
 
-#    elif defined(AK_OS_WINDOWS)
+#elif defined(AK_OS_WINDOWS)
     return Vector<String> { {
         TRY(String::formatted(R"({}\Fonts)"sv, getenv("WINDIR"))),
         TRY(String::formatted(R"({}\Microsoft\Windows\Fonts)"sv, getenv("LOCALAPPDATA"))),
     } };
 
-#    else
+#else
     Vector<String> paths;
+
+    auto home_directory = Core::StandardPaths::home_directory();
+    paths.append(TRY(String::formatted("{}/.fonts", home_directory)));
 
     auto user_data_directory = Core::StandardPaths::user_data_directory();
     paths.append(TRY(String::formatted("{}/fonts", user_data_directory)));
@@ -140,7 +127,6 @@ ErrorOr<Vector<String>> FontDatabase::font_directories()
     }
 
     return paths;
-#    endif
 #endif
 }
 
