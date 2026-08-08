@@ -772,6 +772,7 @@ pub(crate) struct ChildLayoutResult {
     pub automatic_content_inline_size: CssPixels,
     pub automatic_content_block_size: CssPixels,
     pub baselines: DerivedBaselines,
+    pub table_box_in_wrapper_border_box_block_size: Option<CssPixels>,
 }
 
 pub(crate) enum ChildLayoutOutcome {
@@ -1516,6 +1517,7 @@ fn run_formatting_context<'pass>(
                     automatic_content_inline_size: context.automatic_content_inline_size(),
                     automatic_content_block_size: context.automatic_content_block_size(),
                     baselines,
+                    table_box_in_wrapper_border_box_block_size: context.table_box_in_wrapper_border_box_block_size(),
                 }
             }
             FormattingContextImplementation::Flex(context) => {
@@ -1526,6 +1528,7 @@ fn run_formatting_context<'pass>(
                     automatic_content_inline_size: context.automatic_content_inline_size(),
                     automatic_content_block_size: context.automatic_content_block_size(),
                     baselines,
+                    ..ChildLayoutResult::default()
                 }
             }
             FormattingContextImplementation::Grid(context) => {
@@ -1536,6 +1539,7 @@ fn run_formatting_context<'pass>(
                     automatic_content_inline_size: context.automatic_content_inline_size(),
                     automatic_content_block_size: context.automatic_content_block_size(),
                     baselines,
+                    ..ChildLayoutResult::default()
                 }
             }
             FormattingContextImplementation::Table(context) => {
@@ -1546,6 +1550,7 @@ fn run_formatting_context<'pass>(
                     automatic_content_inline_size: context.automatic_content_inline_size(),
                     automatic_content_block_size: context.automatic_content_block_size,
                     baselines,
+                    ..ChildLayoutResult::default()
                 }
             }
             FormattingContextImplementation::Svg(context) => {
