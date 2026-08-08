@@ -208,4 +208,6 @@ RefPtr<CSS::StyleValue const> parse_nonzero_dimension_value(Utf16View);
 Optional<Color> parse_legacy_color_value(Utf16View);
 RefPtr<CSS::StyleValue const> parse_table_child_element_align_value(Utf16View);
 
+u64 parser_non_append_insertions();
+
 }

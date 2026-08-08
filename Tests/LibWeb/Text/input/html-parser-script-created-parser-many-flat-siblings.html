@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    // Regression test for a problem where the parser computed every append-style insertion location by counting the
+    // parent’s children. That's an O(children) sibling-list walk, so inserting N flat siblings performed O(N^2) sibling
+    // hops overall. A previous test was racy due to trying to catch the regression through timing measurement. This
+    // test instead doesn't rely on timing at all. Appends now resolve to an append sentinel, not an explicit child
+    // index; internals.parserNonAppendInsertions() counts insertions that carried an explicit offset rather than the
+    // sentinel — so appending flat siblings must add zero.
+    const siblingCount = 5000;
+    const before = internals.parserNonAppendInsertions();
+    document.write("<span></span>".repeat(siblingCount) + "<span>PASS</span>");
+    const nonAppendInsertions = internals.parserNonAppendInsertions() - before;
+
+    test(() => {
+        println(document.getElementsByTagName("span").item(siblingCount).textContent);
+        if (nonAppendInsertions === 0)
+            println("parser appended every sibling using the append sentinel");
+        else
+            println(`parser computed an explicit insertion offset ${nonAppendInsertions} time(s) while appending ${siblingCount} flat siblings`);
+    });
+</script>

@@ -2118,10 +2118,19 @@ struct NodeAndOffset {
     }
 };
 
+static u64 s_parser_non_append_insertions { 0 };
+
+u64 parser_non_append_insertions()
+{
+    return s_parser_non_append_insertions;
+}
+
 static NodeAndOffset node_and_offset_from_html_parser_ffi(size_t node, size_t offset)
 {
     auto& dom_node = node_from_html_parser_ffi(node);
     VERIFY(offset == NodeAndOffset::append_child_offset || offset <= dom_node.child_count());
+    if (offset != NodeAndOffset::append_child_offset)
+        ++s_parser_non_append_insertions;
     return { dom_node, offset };
 }
 

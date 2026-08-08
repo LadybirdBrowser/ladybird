@@ -47,6 +47,7 @@
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
+#include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/HTML/SharedResourceRequest.h>
@@ -930,6 +931,11 @@ void Internals::set_geolocation_emulated_position(double latitude, double longit
         .latitude = latitude,
         .longitude = longitude,
     });
+}
+
+u64 Internals::parser_non_append_insertions()
+{
+    return HTML::parser_non_append_insertions();
 }
 
 JS::Object* Internals::get_style_invalidation_counters()

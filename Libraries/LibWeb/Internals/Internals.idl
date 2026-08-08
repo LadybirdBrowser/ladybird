@@ -136,6 +136,9 @@ interface Internals {
 
     undefined clearElement(HTMLElement element);
 
+    // Returns the number of insertions that computed an explicit child offset instead of using the append sentinel.
+    unsigned long long parserNonAppendInsertions();
+
     // Returns a snapshot of the style-invalidation and recomputation counters for the current document.
     // Keys include hasAncestorWalkInvocations, hasInvalidationRuleCacheBuilds,
     // styleInvalidations, elementStyleRecomputations, and elementStyleNoopRecomputations.
