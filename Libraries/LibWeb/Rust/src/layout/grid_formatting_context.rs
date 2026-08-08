@@ -1050,6 +1050,8 @@ pub(crate) struct GridFormattingContext<'pass> {
     layout_mode: LayoutMode,
     callbacks: FfiLayoutFcCallbacks,
     should_collect_devtools_layout_data: bool,
+    treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
+    fragments: Option<std::rc::Rc<RunFragmentBuilder>>,
     available_space: Option<AvailableSpace>,
     layout_input: Option<LayoutInput>,
     column_lines: Vec<Vec<LineName>>,
@@ -1122,22 +1124,18 @@ impl ParentGridData {
 }
 
 impl<'pass> GridFormattingContext<'pass> {
-    pub(crate) fn new(
-        state: &'pass LayoutState,
-        grid_container: Node,
-        parent_grid: Option<&GridFormattingContext<'_>>,
-        layout_mode: LayoutMode,
-        callbacks: FfiLayoutFcCallbacks,
-        should_collect_devtools_layout_data: bool,
-    ) -> Self {
+    pub(crate) fn new(run: &FormattingContextRun<'pass>, parent_grid: Option<&GridFormattingContext<'_>>) -> Self {
+        let grid_container = run.box_;
         Self {
-            state,
+            state: run.state,
             grid_container,
             derived_baselines_of_root_box: DerivedBaselines::default(),
             parent_grid: parent_grid.map(|parent| ParentGridData::for_child_container(parent, grid_container)),
-            layout_mode,
-            callbacks,
-            should_collect_devtools_layout_data,
+            layout_mode: run.layout_mode,
+            callbacks: run.callbacks,
+            should_collect_devtools_layout_data: run.should_collect_devtools_layout_data,
+            treat_block_axis_percentage_insets_as_auto_beyond_root: run.treat_block_axis_percentage_insets_as_auto_beyond_root,
+            fragments: run.fragments.clone(),
             available_space: None,
             layout_input: None,
             column_lines: Vec::new(),
@@ -1156,6 +1154,19 @@ impl<'pass> GridFormattingContext<'pass> {
             automatic_content_block_size: CssPixels::default(),
             row_alignment_container_size: CssPixels::default(),
             use_row_alignment_container_size: false,
+        }
+    }
+
+
+    fn formatting_context_run(&self) -> FormattingContextRun<'pass> {
+        FormattingContextRun {
+            state: self.state,
+            box_: self.grid_container,
+            layout_mode: self.layout_mode,
+            callbacks: self.callbacks,
+            should_collect_devtools_layout_data: self.should_collect_devtools_layout_data,
+            treat_block_axis_percentage_insets_as_auto_beyond_root: self.treat_block_axis_percentage_insets_as_auto_beyond_root,
+            fragments: self.fragments.clone(),
         }
     }
 
@@ -2474,14 +2485,16 @@ impl<'pass> GridFormattingContext<'pass> {
         live.mirror_box_metrics_and_size_constraints_into(scratch_root);
         scratch_root.has_definite_inline_size.set(live.has_definite_inline_size.get());
         scratch_root.has_definite_block_size.set(live.has_definite_block_size.get());
-        let mut context = GridFormattingContext::new(
-            scratch.layout_state(),
-            subgrid.box_,
-            Some(self),
-            LayoutMode::IntrinsicSizing,
-            self.callbacks,
-            false,
-        );
+        let scratch_run = FormattingContextRun {
+            state: scratch.layout_state(),
+            box_: subgrid.box_,
+            layout_mode: LayoutMode::IntrinsicSizing,
+            callbacks: self.callbacks,
+            should_collect_devtools_layout_data: false,
+            treat_block_axis_percentage_insets_as_auto_beyond_root: false,
+            fragments: None,
+        };
+        let mut context = GridFormattingContext::new(&scratch_run, Some(self));
         let mut available = self.available_space.unwrap();
         if !axis.is_column() && self.used(subgrid).has_definite_inline_size() {
             available.inline_size = AvailableSize::definite(self.used(subgrid).content_inline_size.get());
@@ -3236,7 +3249,7 @@ impl<'pass> GridFormattingContext<'pass> {
                 self.grid_container,
                 run.treat_block_axis_percentage_insets_as_auto_beyond_root,
             );
-            crate::layout::place_child(self.state, &self.callbacks, item.box_, offset);
+            crate::layout::place_child(&self.formatting_context_run(), item.box_, offset);
         }
         self.derived_baselines_of_root_box =
             crate::layout::derive_baselines(self.state, &self.callbacks, self.grid_container, false);

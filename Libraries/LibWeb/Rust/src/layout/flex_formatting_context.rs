@@ -174,7 +174,9 @@ struct FlexFormattingContext<'pass> {
     flex_container: Node,
     layout_mode: LayoutMode,
     callbacks: FfiLayoutFcCallbacks,
+    fragments: Option<std::rc::Rc<RunFragmentBuilder>>,
     should_collect_devtools_layout_data: bool,
+    treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
     flex_lines: Vec<FlexLine>,
     flex_items: Vec<FlexItem<'pass>>,
     derived_baselines_of_root_box: DerivedBaselines,
@@ -193,7 +195,9 @@ impl<'pass> FlexFormattingContext<'pass> {
             flex_container: run.box_,
             layout_mode: run.layout_mode,
             callbacks: run.callbacks,
+            fragments: run.fragments.clone(),
             should_collect_devtools_layout_data: run.should_collect_devtools_layout_data,
+            treat_block_axis_percentage_insets_as_auto_beyond_root: run.treat_block_axis_percentage_insets_as_auto_beyond_root,
             flex_lines: Vec::new(),
             flex_items: Vec::new(),
             derived_baselines_of_root_box: DerivedBaselines::default(),
@@ -202,6 +206,19 @@ impl<'pass> FlexFormattingContext<'pass> {
             available_space: None,
             layout_input: None,
             item_percentage_bases: ContainingBlockConstraints::default(),
+        }
+    }
+
+
+    fn formatting_context_run(&self) -> FormattingContextRun<'pass> {
+        FormattingContextRun {
+            state: self.state,
+            box_: self.flex_container,
+            layout_mode: self.layout_mode,
+            callbacks: self.callbacks,
+            should_collect_devtools_layout_data: self.should_collect_devtools_layout_data,
+            treat_block_axis_percentage_insets_as_auto_beyond_root: self.treat_block_axis_percentage_insets_as_auto_beyond_root,
+            fragments: self.fragments.clone(),
         }
     }
 
@@ -3069,7 +3086,7 @@ impl<'pass> FlexFormattingContext<'pass> {
                         y: item.main_offset,
                     }
                 };
-                crate::layout::place_child(self.state, &self.callbacks, item.box_, offset);
+                crate::layout::place_child(&self.formatting_context_run(), item.box_, offset);
             }
             self.derived_baselines_of_root_box =
                 crate::layout::derive_baselines(self.state, &self.callbacks, self.flex_container, true);
