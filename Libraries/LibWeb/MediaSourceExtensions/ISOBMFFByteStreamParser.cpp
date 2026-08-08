@@ -41,6 +41,19 @@ static Media::DecoderErrorOr<BoxHeader> read_top_level_box_header(Streamer& stre
 ISOBMFFByteStreamParser::ISOBMFFByteStreamParser() = default;
 ISOBMFFByteStreamParser::~ISOBMFFByteStreamParser() = default;
 
+bool ISOBMFFByteStreamParser::supports_codec(StringView codec_string, Media::CodecID codec_id)
+{
+    if (!Reader::supports_codec(codec_id))
+        return false;
+    if (codec_id == Media::CodecID::VP8)
+        return false;
+    if (codec_id == Media::CodecID::VP9)
+        return codec_string.starts_with("vp09"sv);
+    if (codec_id == Media::CodecID::MP3)
+        return codec_string.starts_with("mp4a."sv);
+    return true;
+}
+
 Media::DecoderErrorOr<void> ISOBMFFByteStreamParser::skip_ignored_bytes(Media::MediaStreamCursor& cursor)
 {
     // NB: The cursor sits within the Media Data boxes of a partly read media segment, not at a box that could be
