@@ -86,8 +86,11 @@ static auto make_registered_mime_types()
         MimeType { .name = "application/zip"sv, .common_extensions = { ".zip"sv }, .description = "ZIP archive"sv, .magic_bytes = Vector<u8> { 0x50, 0x4B } },
 
         MimeType { .name = "audio/flac"sv, .common_extensions = { ".flac"sv }, .description = "FLAC audio"sv, .magic_bytes = Vector<u8> { 'f', 'L', 'a', 'C' } },
+        MimeType { .name = "audio/matroska"sv, .common_extensions = { ".mka"sv }, .description = "Matroska audio"sv },
         MimeType { .name = "audio/midi"sv, .common_extensions = { ".mid"sv }, .description = "MIDI notes"sv, .magic_bytes = Vector<u8> { 0x4D, 0x54, 0x68, 0x64 } },
+        MimeType { .name = "audio/mp4"sv, .common_extensions = { ".m4a"sv }, .description = "MPEG-4 audio"sv },
         MimeType { .name = "audio/mpeg"sv, .common_extensions = { ".mp3"sv }, .description = "MP3 audio"sv, .magic_bytes = Vector<u8> { 0xFF, 0xFB } },
+        MimeType { .name = "audio/ogg"sv, .common_extensions = { ".ogg"sv, ".oga"sv, ".opus"sv }, .description = "Ogg audio"sv },
         MimeType { .name = "audio/qoa"sv, .common_extensions = { ".qoa"sv }, .description = "Quite OK Audio"sv, .magic_bytes = Vector<u8> { 'q', 'o', 'a', 'f' } },
         MimeType { .name = "audio/wav"sv, .common_extensions = { ".wav"sv }, .description = "WAVE audio"sv, .magic_bytes = Vector<u8> { 'W', 'A', 'V', 'E' }, .offset = 8 },
 
@@ -147,6 +150,8 @@ static auto make_registered_mime_types()
         MimeType { .name = "text/x-shellscript"sv, .common_extensions = { ".sh"sv }, .description = "POSIX shell script text executable"sv, .magic_bytes = Vector<u8> { '#', '!', '/', 'b', 'i', 'n', '/', 's', 'h', '\n' } },
 
         MimeType { .name = "video/matroska"sv, .common_extensions = { ".mkv"sv }, .description = "Matroska container"sv, .magic_bytes = Vector<u8> { 0x1A, 0x45, 0xDF, 0xA3 } },
+        MimeType { .name = "video/mp4"sv, .common_extensions = { ".mp4"sv, ".m4v"sv, ".mpg4"sv }, .description = "MPEG-4 video"sv },
+        MimeType { .name = "video/ogg"sv, .common_extensions = { ".ogv"sv }, .description = "Ogg video"sv },
         MimeType { .name = "video/webm"sv, .common_extensions = { ".webm"sv }, .description = "WebM video"sv },
     };
 }
@@ -161,7 +166,7 @@ StringView guess_mime_type_based_on_filename(StringView path)
 {
     for (auto const& mime_type : registered_mime_types()) {
         for (auto const possible_extension : mime_type.common_extensions) {
-            if (path.ends_with(possible_extension))
+            if (path.ends_with(possible_extension, CaseSensitivity::CaseInsensitive))
                 return mime_type.name;
         }
     }
