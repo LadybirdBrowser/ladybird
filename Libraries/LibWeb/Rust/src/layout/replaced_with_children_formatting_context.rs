@@ -66,7 +66,7 @@ fn layout_replaced_with_children(run: &FormattingContextRun, layout_input: Layou
 
     let wrapper_result =
         crate::layout::hold_unplaced_root_and_take_result(run.fragments.as_deref(), wrapper, wrapper_layout);
-    crate::layout::place_child(run, wrapper, FfiCssPixelPoint::default());
+    crate::layout::place_child(run, wrapper, FfiCssPixelPoint::default(), None);
 
     ChildLayoutResult {
         automatic_content_inline_size: content_inline_size,

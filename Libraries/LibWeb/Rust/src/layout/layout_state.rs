@@ -189,13 +189,6 @@ pub struct FfiCommittedBoxMetrics {
     pub has_containing_line_box_index: bool,
 }
 
-#[derive(Clone, Copy, Debug)]
-pub(crate) enum LineFragmentLookup {
-    NotFound,
-    LineOnly,
-    Found(crate::layout::FfiCssPixelPoint),
-}
-
 #[derive(Clone, Copy, Debug, Default)]
 pub(crate) struct InlineAncestorChainRelativeOffset {
     pub(crate) offset_x: crate::layout::CssPixels,
@@ -367,10 +360,7 @@ impl LayoutState {
         // definite. We model all of those by considering sizes definite once
         // they are assigned through set_content_inline_size() or
         // set_content_block_size().
-        let used = UsedValues {
-            node,
-            ..UsedValues::default()
-        };
+        let used = UsedValues::default();
 
         #[derive(Clone, Copy)]
         enum Axis {
@@ -521,11 +511,7 @@ impl LayoutState {
         // Skip normal node initialization: resolving computed sizes requires
         // percentage bases, and every resulting geometry field is replaced by
         // the previous paintable's committed value immediately.
-        let used = UsedValues {
-            node,
-            ..UsedValues::default()
-        };
-        used.materialized_from_paintable.set(true);
+        let used = UsedValues::default();
         used.set_content_inline_size(geometry.content_inline_size);
         used.set_content_block_size(geometry.content_block_size);
         used.has_definite_inline_size.set(true);
@@ -657,13 +643,6 @@ impl LayoutState {
             .map(RefCell::borrow)
     }
 
-    pub(crate) fn line_data_mut_if_present(&self, slot_index: u32) -> Option<RefMut<'_, LineData>> {
-        self.used_values_by_slot(slot_index)?
-            .line_data
-            .get()
-            .map(RefCell::borrow_mut)
-    }
-
     pub(crate) fn used_values_rare_data(&self, slot_index: u32) -> Option<Ref<'_, UsedValuesRareData>> {
         self.used_values_by_slot(slot_index)?
             .rare_data
@@ -734,55 +713,32 @@ impl LayoutState {
 
     /// The line box index to record for atomic inlines whose containing line
     /// survived line post-processing.
-    fn containing_line_box_index(
+    fn resolve_containing_line_box_index(
         &self,
         callbacks: &FfiLayoutFcCallbacks,
         node: Node,
-        used: &UsedValues,
+        coordinate: Option<LineBoxFragmentCoordinate>,
+        placed_offset: FfiCssPixelPoint,
     ) -> Option<usize> {
-        if used.materialized_from_paintable.get() {
-            return None;
-        }
+        let coordinate = coordinate?;
         let facts = self.node_facts(callbacks, node);
         if !facts.is_non_fragmented_box() {
             return None;
         }
-        match self.line_fragment_lookup(callbacks, used) {
-            LineFragmentLookup::NotFound => None,
-            LineFragmentLookup::LineOnly => Some(used.containing_line_box_fragment.get().line_box_index),
-            LineFragmentLookup::Found(line_fragment_offset) => {
-                debug_assert_eq!(
-                    line_fragment_offset,
-                    used.content_offset.get(),
-                    "stored line fragment offset diverged from the placed offset (is_block_outside={})",
-                    facts.display().is_block_outside()
-                );
-                Some(used.containing_line_box_fragment.get().line_box_index)
-            }
-        }
-    }
-
-    fn line_fragment_lookup(&self, callbacks: &FfiLayoutFcCallbacks, used: &UsedValues) -> LineFragmentLookup {
-        if !used.has_containing_line_box_fragment.get() {
-            return LineFragmentLookup::NotFound;
-        }
-        // SAFETY: Commit traverses the still-live C++ layout tree
-        // synchronously with the pass callback table.
-        let containing_block = callbacks.containing_block(used.node);
+        let containing_block = callbacks.containing_block(node);
         assert!(!containing_block.is_invalid());
-        let slot_index = callbacks.slot_index(containing_block);
-        let Some(data) = self.line_data(slot_index) else {
-            return LineFragmentLookup::NotFound;
-        };
-        let coordinate = used.containing_line_box_fragment.get();
-        let Some(line) = data.line_boxes.get(coordinate.line_box_index) else {
-            return LineFragmentLookup::NotFound;
-        };
-        let Some(fragment) = line.fragments.get(coordinate.fragment_index) else {
-            return LineFragmentLookup::LineOnly;
-        };
-        let (x, y) = fragment.offset();
-        LineFragmentLookup::Found(crate::layout::FfiCssPixelPoint { x, y })
+        let data = self.line_data(callbacks.slot_index(containing_block))?;
+        let line = data.line_boxes.get(coordinate.line_box_index)?;
+        if let Some(fragment) = line.fragments.get(coordinate.fragment_index) {
+            let (x, y) = fragment.offset();
+            debug_assert_eq!(
+                crate::layout::FfiCssPixelPoint { x, y },
+                placed_offset,
+                "stored line fragment offset diverged from the placed offset (is_block_outside={})",
+                facts.display().is_block_outside()
+            );
+        }
+        Some(coordinate.line_box_index)
     }
 
     fn commit_subtree(
@@ -801,11 +757,8 @@ impl LayoutState {
             entry.is_some() == used.is_some(),
             "every record has exactly one fragment and every fragment a record"
         );
-        let abspos_layout_inputs = self
-            .used_values_rare_data(slot_index)
-            .and_then(|rare| rare.abspos_layout_inputs);
-        if entry.is_some() {
-            callbacks.set_saved_abspos_layout_inputs(node, abspos_layout_inputs);
+        if let Some(link) = entry {
+            callbacks.set_saved_abspos_layout_inputs(node, link.abspos_layout_inputs);
         }
         // SAFETY: The C++ sink owns paintables and copies every plain-data
         // input synchronously.
@@ -813,7 +766,7 @@ impl LayoutState {
         let paintable = unsafe { (sink.prepare_node)(sink.context, node_shell, entry.is_some()) };
 
         let mut has_pending_inline_box_geometry = false;
-        if let (Some(link), Some(used)) = (entry, used)
+        if let Some(link) = entry
             && !paintable.is_null()
         {
             let fragment = &link.fragment;
@@ -849,21 +802,16 @@ impl LayoutState {
                 );
             }
 
-            let (override_borders, table_cell_coordinates) =
-                self.used_values_rare_data(slot_index).map_or((None, None), |rare| {
-                    (rare.override_borders_data, rare.table_cell_coordinates)
-                });
             unsafe {
-                if let Some(borders) = override_borders {
+                if let Some(borders) = fragment.override_borders_data {
                     (sink.set_override_borders)(sink.context, paintable, borders);
                 }
-                if let Some(coordinates) = table_cell_coordinates {
+                if let Some(coordinates) = fragment.table_cell_coordinates {
                     (sink.set_table_cell_coordinates)(sink.context, paintable, coordinates);
                 }
             }
 
-            let has_line_data = self.line_data(slot_index).is_some();
-            if has_line_data {
+            if let Some(line_data) = &fragment.line_data {
                 // SAFETY: The sink keeps one line accumulator live between
                 // begin_line_data() and finish_line_data().
                 let accepts_lines = unsafe { (sink.begin_line_data)(sink.context, paintable) };
@@ -874,19 +822,11 @@ impl LayoutState {
                         emit_fragment: sink.emit_fragment,
                         emit_inline_box_piece: sink.emit_inline_box_piece,
                     };
-                    assert!(push_line_data(
-                        self,
-                        slot_index,
-                        used.content_inline_size.get(),
-                        callbacks,
-                        line_sink
-                    ));
+                    push_line_data(line_data, fragment.content_inline_size, callbacks, line_sink);
                     unsafe {
                         (sink.finish_line_data)(sink.context);
                     }
-                    has_pending_inline_box_geometry = self
-                        .line_data(slot_index)
-                        .is_some_and(|data| !data.inline_box_pieces.is_empty());
+                    has_pending_inline_box_geometry = !line_data.inline_box_pieces.is_empty();
                 }
             }
 
@@ -912,28 +852,20 @@ impl LayoutState {
                     (sink.set_computed_svg_path)(sink.context, paintable, path);
                 }
             }
-            if let Some(rare) = self.used_values_rare_data(slot_index) {
-                if let Some(data) = &rare.grid_layout_data {
-                    data.with_ffi_view(|view| {
-                        // SAFETY: The Rust-owned nested vectors remain live
-                        // while the commit sink copies this borrowed view.
-                        unsafe { (sink.set_grid_layout_data)(sink.context, paintable, view) };
-                    });
-                }
-                if let Some(data) = &rare.flex_layout_data {
-                    data.with_ffi_view(|view| {
-                        // SAFETY: The Rust-owned lines and items remain live
-                        // while the commit sink copies this borrowed view.
-                        unsafe { (sink.set_flex_layout_data)(sink.context, paintable, view) };
-                    });
-                }
-                if let Some(tracks) = &rare.used_grid_tracks {
-                    tracks.with_ffi_views(|columns, rows| {
-                        // SAFETY: Both Rust-owned track lists remain live
-                        // while the commit sink copies these borrowed views.
-                        unsafe { (sink.set_used_grid_tracks)(sink.context, paintable, columns, rows) };
-                    });
-                }
+            if let Some(data) = &fragment.grid_layout_data {
+                data.with_ffi_view(|view| {
+                    unsafe { (sink.set_grid_layout_data)(sink.context, paintable, view) };
+                });
+            }
+            if let Some(data) = &fragment.flex_layout_data {
+                data.with_ffi_view(|view| {
+                    unsafe { (sink.set_flex_layout_data)(sink.context, paintable, view) };
+                });
+            }
+            if let Some(tracks) = &fragment.used_grid_tracks {
+                tracks.with_ffi_views(|columns, rows| {
+                    unsafe { (sink.set_used_grid_tracks)(sink.context, paintable, columns, rows) };
+                });
             }
         }
 

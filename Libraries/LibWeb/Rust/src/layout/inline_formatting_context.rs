@@ -1154,7 +1154,15 @@ impl<'context, 'pass> InlineFormattingContext<'context, 'pass> {
                     continue;
                 }
                 let (x, y) = fragment.offset();
-                crate::layout::place_child(self.run, fragment.layout_node, FfiCssPixelPoint { x, y });
+                crate::layout::place_child(
+                    self.run,
+                    fragment.layout_node,
+                    FfiCssPixelPoint { x, y },
+                    Some(LineBoxFragmentCoordinate {
+                        line_box_index: line_index,
+                        fragment_index,
+                    }),
+                );
             }
         }
 
@@ -1436,16 +1444,12 @@ fn line_rect(line: &LineBoxData, content_inline_size: CssPixels) -> FfiCssPixelR
 }
 
 pub(crate) fn push_line_data(
-    state: &crate::layout::LayoutState,
-    slot_index: u32,
+    data: &LineData,
     content_inline_size: CssPixels,
     callbacks: &FfiLayoutFcCallbacks,
     sink: FfiLineSinkCallbacks,
-) -> bool {
-    let Some(mut data) = state.line_data_mut_if_present(slot_index) else {
-        return false;
-    };
-    for line in &mut data.line_boxes {
+) {
+    for line in &data.line_boxes {
         let committed_fragment_count = line
             .fragments
             .iter()
@@ -1461,22 +1465,18 @@ pub(crate) fn push_line_data(
                 },
             );
         }
-        for fragment in &mut line.fragments {
+        for fragment in &line.fragments {
             if fragment.is_fully_truncated {
                 continue;
             }
             let (x, y) = fragment.offset();
             let (x, y) = (x + fragment.relpos_delta.x, y + fragment.relpos_delta.y);
             let (width, height) = fragment.size();
-            let glyphs = fragment
-                .glyphs
-                .as_mut()
-                .map(|glyph_data| std::mem::take(&mut glyph_data.glyphs));
             let (glyph_pointer, glyph_count, glyph_font, glyph_text_type, glyph_run_width) =
-                if let (Some(glyphs), Some(glyph_data)) = (glyphs.as_ref(), fragment.glyphs.as_ref()) {
+                if let Some(glyph_data) = fragment.glyphs.as_ref() {
                     (
-                        glyphs.as_ptr(),
-                        glyphs.len(),
+                        glyph_data.glyphs.as_ptr(),
+                        glyph_data.glyphs.len(),
                         glyph_data.font,
                         glyph_data.text_type,
                         glyph_data.width,
@@ -1497,7 +1497,7 @@ pub(crate) fn push_line_data(
                         baseline: fragment.baseline,
                         writing_mode: fragment.writing_mode,
                         has_trailing_whitespace: fragment.has_trailing_whitespace,
-                        has_glyph_run: glyphs.is_some(),
+                        has_glyph_run: fragment.glyphs.is_some(),
                         glyphs: glyph_pointer,
                         glyph_count,
                         glyph_font,
@@ -1529,5 +1529,4 @@ pub(crate) fn push_line_data(
             );
         }
     }
-    true
 }

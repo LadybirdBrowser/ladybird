@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#[allow(dead_code)]
 pub(crate) struct Fragment {
     pub(crate) node: crate::layout::node_data::NodeSlotId,
     pub(crate) content_inline_size: CssPixels,
@@ -21,10 +20,15 @@ pub(crate) struct Fragment {
     pub(crate) padding_right: CssPixels,
     pub(crate) padding_top: CssPixels,
     pub(crate) padding_bottom: CssPixels,
+    pub(crate) table_cell_coordinates: Option<FfiTableCellCoordinates>,
+    pub(crate) override_borders_data: Option<FfiBordersData>,
+    pub(crate) line_data: Option<Box<LineData>>,
+    pub(crate) grid_layout_data: Option<OwnedGridLayoutData>,
+    pub(crate) flex_layout_data: Option<OwnedFlexLayoutData>,
+    pub(crate) used_grid_tracks: Option<OwnedUsedGridTracks>,
     pub(crate) children: Vec<FragmentLink>,
 }
 
-#[allow(dead_code)]
 pub(crate) struct FragmentLink {
     pub(crate) fragment: Box<Fragment>,
     pub(crate) committed_offset: FfiCssPixelPoint,
@@ -33,6 +37,7 @@ pub(crate) struct FragmentLink {
     pub(crate) inset_top: CssPixels,
     pub(crate) inset_bottom: CssPixels,
     pub(crate) containing_line_box_index: Option<usize>,
+    pub(crate) abspos_layout_inputs: Option<AbsposLayoutInputs>,
 }
 
 fn snapshot_fragment(
@@ -40,6 +45,19 @@ fn snapshot_fragment(
     children: Vec<FragmentLink>,
     used: &UsedValues,
 ) -> Box<Fragment> {
+    let line_data = used.line_data.get().map(|cell| Box::new(cell.take()));
+    let rare_payloads = used.rare_data.get().map(|cell| {
+        let mut rare = cell.borrow_mut();
+        (
+            rare.table_cell_coordinates,
+            rare.override_borders_data,
+            rare.grid_layout_data.take(),
+            rare.flex_layout_data.take(),
+            rare.used_grid_tracks.take(),
+        )
+    });
+    let (table_cell_coordinates, override_borders_data, grid_layout_data, flex_layout_data, used_grid_tracks) =
+        rare_payloads.unwrap_or_default();
     Box::new(Fragment {
         node,
         content_inline_size: used.content_inline_size.get(),
@@ -56,6 +74,12 @@ fn snapshot_fragment(
         padding_right: used.padding_right.get(),
         padding_top: used.padding_top.get(),
         padding_bottom: used.padding_bottom.get(),
+        table_cell_coordinates,
+        override_borders_data,
+        line_data,
+        grid_layout_data,
+        flex_layout_data,
+        used_grid_tracks,
         children,
     })
 }
@@ -67,17 +91,26 @@ pub(crate) struct PlacementData {
     pub(crate) inset_top: CssPixels,
     pub(crate) inset_bottom: CssPixels,
     pub(crate) containing_line_box_index: Option<usize>,
+    pub(crate) abspos_layout_inputs: Option<AbsposLayoutInputs>,
 }
 
 impl PlacementData {
-    fn from_record(used: &UsedValues, containing_line_box_index: Option<usize>) -> Self {
+    fn from_record(
+        used: &UsedValues,
+        containing_line_box_index: Option<usize>,
+        committed_offset: FfiCssPixelPoint,
+    ) -> Self {
         Self {
-            committed_offset: crate::layout::point_add(used.content_offset.get(), used.committed_offset_delta.get()),
+            committed_offset,
             inset_left: used.inset_left.get(),
             inset_right: used.inset_right.get(),
             inset_top: used.inset_top.get(),
             inset_bottom: used.inset_bottom.get(),
             containing_line_box_index,
+            abspos_layout_inputs: used
+                .rare_data
+                .get()
+                .and_then(|cell| cell.borrow().abspos_layout_inputs),
         }
     }
 }
@@ -91,7 +124,7 @@ fn link_fragment(fragment: Box<Fragment>, placement: PlacementData) -> FragmentL
         inset_top: placement.inset_top,
         inset_bottom: placement.inset_bottom,
         containing_line_box_index: placement.containing_line_box_index,
-    }
+        abspos_layout_inputs: placement.abspos_layout_inputs,    }
 }
 
 pub(crate) struct AnchorCandidate {
@@ -497,6 +530,7 @@ impl RunFragmentBuilder {
         used: &UsedValues,
         containing_block_is_sealed: bool,
         containing_line_box_index: Option<usize>,
+        committed_offset: FfiCssPixelPoint,
         own_anchor_candidate_border_box_rect: Option<PhysicalRect>,
     ) {
         let mut inner = self.inner.borrow_mut();
@@ -517,7 +551,7 @@ impl RunFragmentBuilder {
             };
         let link = link_fragment(
             snapshot_fragment(node, children, used),
-            PlacementData::from_record(used, containing_line_box_index),
+            PlacementData::from_record(used, containing_line_box_index, committed_offset),
         );
         self.attach(&mut inner, link, containing_block, containing_block_is_sealed);
         let content_offset = used.content_offset.get();
@@ -619,7 +653,7 @@ impl RunFragmentBuilder {
                 .expect("a pending fragment's containing block has no record");
             inner.top_scope_links.push(link_fragment(
                 snapshot_fragment(pending_fragment.node, pending_fragment.children, used),
-                PlacementData::from_record(used, None),
+                PlacementData::from_record(used, None, used.content_offset.get()),
             ));
         }
         let child_roots_awaiting_placement = std::mem::take(&mut inner.child_roots_awaiting_placement);
@@ -631,7 +665,7 @@ impl RunFragmentBuilder {
             propagated_anchor_candidates.extend(root.propagated_anchor_candidates);
             inner.top_scope_links.push(link_fragment(
                 snapshot_fragment(root.node, root.scoped_descendants, used),
-                PlacementData::from_record(used, None),
+                PlacementData::from_record(used, None, used.content_offset.get()),
             ));
         }
         for entry in &mut propagated_pending_abspos {
