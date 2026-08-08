@@ -17,6 +17,7 @@ set(SOURCES
     Codecs/Opus.cpp
     Codecs/Vorbis.cpp
     Codecs/VP9.cpp
+    ContainerID.cpp
     Containers/ConstantBitrateContainerNavigator.cpp
     Containers/FLACNavigator.cpp
     Containers/IndexedContainerNavigator.cpp
@@ -32,6 +33,7 @@ set(SOURCES
     Containers/OggNavigator.cpp
     DecodeAudioStream.cpp
     DecoderRegistry.cpp
+    DemuxerRegistry.cpp
     IncrementallyPopulatedStream.cpp
     MediaTime.cpp
     MonotonicMediaClock.cpp

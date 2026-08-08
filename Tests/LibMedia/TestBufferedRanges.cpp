@@ -44,7 +44,7 @@ static ByteBuffer read_fixture(StringView path)
     return MUST(file->read_until_eof());
 }
 
-static NonnullRefPtr<Media::FFmpeg::FFmpegDemuxer> create_demuxer(NonnullRefPtr<Media::IncrementallyPopulatedStream> const& stream)
+static NonnullRefPtr<Media::Demuxer> create_demuxer(NonnullRefPtr<Media::IncrementallyPopulatedStream> const& stream)
 {
     return MUST(Media::FFmpeg::FFmpegDemuxer::from_stream(stream));
 }

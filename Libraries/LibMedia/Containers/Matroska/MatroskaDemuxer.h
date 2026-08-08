@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/HashMap.h>
+#include <LibMedia/ContainerID.h>
 #include <LibMedia/Demuxer.h>
 #include <LibMedia/DemuxerScanThread.h>
 #include <LibMedia/Export.h>
@@ -20,7 +21,10 @@ namespace Media::Matroska {
 
 class MEDIA_API MatroskaDemuxer final : public Demuxer {
 public:
-    static DecoderErrorOr<NonnullRefPtr<MatroskaDemuxer>> from_stream(NonnullRefPtr<MediaStream> const&);
+    static bool should_attempt(NonnullRefPtr<MediaStream> const&);
+    static DecoderErrorOr<NonnullRefPtr<Demuxer>> from_stream(NonnullRefPtr<MediaStream> const&);
+    static bool supports_container_mime_type(ContainerMimeType);
+    static bool supports_codec_in_container(ContainerID, CodecID);
 
     MatroskaDemuxer(NonnullRefPtr<MediaStream> const& stream, Reader&& reader);
     ~MatroskaDemuxer();

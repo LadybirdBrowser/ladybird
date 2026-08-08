@@ -55,8 +55,6 @@ public:
     static NonnullOwnPtr<PlaybackManager> create();
     ~PlaybackManager();
 
-    static DecoderErrorOr<NonnullRefPtr<Demuxer>> create_demuxer_for_stream(NonnullRefPtr<MediaStream> const&);
-
     void set_audio_output_disabled(bool disabled) { m_audio_output_disabled = disabled; }
 
     AK::Duration duration() const { return m_duration; }

@@ -17,7 +17,24 @@
 
 namespace Media::Matroska {
 
-DecoderErrorOr<NonnullRefPtr<MatroskaDemuxer>> MatroskaDemuxer::from_stream(NonnullRefPtr<MediaStream> const& stream)
+bool MatroskaDemuxer::supports_container_mime_type(ContainerMimeType mime_type)
+{
+    if (mime_type.media_type == ContainerMediaType::Application)
+        return false;
+    return mime_type.container_id == ContainerID::Matroska || mime_type.container_id == ContainerID::WebM;
+}
+
+bool MatroskaDemuxer::supports_codec_in_container(ContainerID container_id, CodecID codec_id)
+{
+    return Matroska::supports_codec_in_container(container_id, codec_id);
+}
+
+bool MatroskaDemuxer::should_attempt(NonnullRefPtr<MediaStream> const& stream)
+{
+    return Reader::is_matroska_or_webm(stream->create_cursor());
+}
+
+DecoderErrorOr<NonnullRefPtr<Demuxer>> MatroskaDemuxer::from_stream(NonnullRefPtr<MediaStream> const& stream)
 {
     auto cursor = stream->create_cursor();
     auto demuxer = make_ref_counted<MatroskaDemuxer>(stream, TRY(Reader::from_stream(cursor)));

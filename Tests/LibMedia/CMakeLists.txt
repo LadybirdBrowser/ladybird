@@ -6,8 +6,10 @@ set(TEST_SOURCES
     TestCICP.cpp
     TestCodecConfigurations.cpp
     TestCodecParameters.cpp
+    TestContainerID.cpp
     TestDecodedAudioProducer.cpp
     TestDecoderRegistry.cpp
+    TestDemuxerRegistry.cpp
     TestDisplayingVideoSink.cpp
     TestFFmpegAudioNormalization.cpp
     TestFFmpegDemuxer.cpp

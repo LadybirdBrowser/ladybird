@@ -9,8 +9,8 @@
 #include <LibMedia/DecodeAudioStream.h>
 #include <LibMedia/DecoderRegistry.h>
 #include <LibMedia/Demuxer.h>
+#include <LibMedia/DemuxerRegistry.h>
 #include <LibMedia/FFmpeg/FFmpegAudioConverter.h>
-#include <LibMedia/PlaybackManager.h>
 #include <LibMedia/Track.h>
 
 namespace Media {
@@ -48,7 +48,7 @@ static DecoderErrorOr<void> append_block_samples(AudioBlock const& block, Decode
 // changes mid-stream come out uniform.
 DecoderErrorOr<DecodedAudioData> decode_entire_audio_stream(NonnullRefPtr<MediaStream> const& stream, Optional<u32> output_sample_rate)
 {
-    auto demuxer = TRY(PlaybackManager::create_demuxer_for_stream(stream));
+    auto demuxer = TRY(create_demuxer(stream));
     auto track = TRY(demuxer->get_preferred_track_for_type(TrackType::Audio));
     if (!track.has_value()) {
         // NB: Not all containers mark a default track; fall back to the first audio track in that case.
