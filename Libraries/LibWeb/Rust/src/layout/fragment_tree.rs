@@ -96,6 +96,10 @@ fn link_fragment(fragment: Box<Fragment>, placement: PlacementData) -> FragmentL
 
 pub(crate) fn translate_pending_abspos_payloads(entry: &mut PendingAbsposChild, offset: FfiCssPixelPoint) {
     entry.static_position_rect = crate::layout::translate_static_position_rect(entry.static_position_rect, offset);
+    if let Some(rect) = &mut entry.inline_containing_block_rect {
+        rect.x += offset.x;
+        rect.y += offset.y;
+    }
 }
 
 trait PropagatedPayload {
@@ -184,6 +188,22 @@ struct RunFragmentBuilderInner {
     top_scope_links: Vec<FragmentLink>,
 }
 
+impl RunFragmentBuilderInner {
+    fn iter_pending_abspos(&self) -> impl Iterator<Item = &PendingAbsposChild> {
+        self.pending_fragments
+            .values()
+            .flat_map(|pending_fragment| pending_fragment.pending_abspos.iter())
+            .chain(self.pending_abspos_at_root.iter())
+    }
+
+    fn iter_pending_abspos_mut(&mut self) -> impl Iterator<Item = &mut PendingAbsposChild> {
+        self.pending_fragments
+            .values_mut()
+            .flat_map(|pending_fragment| pending_fragment.pending_abspos.iter_mut())
+            .chain(self.pending_abspos_at_root.iter_mut())
+    }
+}
+
 impl RunFragmentBuilder {
     pub(crate) fn new(
         root_node: crate::layout::node_data::NodeSlotId,
@@ -253,6 +273,37 @@ impl RunFragmentBuilder {
         for entry in &mut self.inner.borrow_mut().pending_abspos_at_root {
             if callbacks.containing_block(entry.child_box) == containing_block {
                 entry.containing_block_info_override = Some(containing_block_info_for_child(entry.child_box));
+            }
+        }
+    }
+
+    pub(crate) fn any_pending_abspos_has_inline_containing_block(&self) -> bool {
+        self.inner
+            .borrow()
+            .iter_pending_abspos()
+            .any(|entry| !entry.inline_containing_block.is_invalid())
+    }
+
+    pub(crate) fn any_pending_abspos_names_inline_containing_block(&self, inline_box: crate::layout::node_data::NodeSlotId) -> bool {
+        self.inner
+            .borrow()
+            .iter_pending_abspos()
+            .any(|entry| entry.inline_containing_block == inline_box)
+    }
+
+    pub(crate) fn set_inline_containing_block_rect_on_pending_abspos(
+        &self,
+        inline_box: crate::layout::node_data::NodeSlotId,
+        rect: PhysicalRect,
+        expected_space: crate::layout::node_data::NodeSlotId,
+    ) {
+        for entry in self.inner.borrow_mut().iter_pending_abspos_mut() {
+            if entry.inline_containing_block == inline_box {
+                debug_assert!(
+                    entry.coordinate_space_box == expected_space,
+                    "an inline containing block rect met an entry in a different space"
+                );
+                entry.inline_containing_block_rect = Some(rect);
             }
         }
     }

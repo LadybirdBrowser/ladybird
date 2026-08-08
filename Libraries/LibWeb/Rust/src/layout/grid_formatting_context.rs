@@ -3515,7 +3515,6 @@ impl<'pass> GridFormattingContext<'pass> {
                     alignment_derives_from_own_computed_values: false,
                 };
                 crate::layout::register_contained_abspos_child(
-                    self.state,
                     &self.callbacks,
                     self.fragments.as_deref(),
                     self.grid_container,
