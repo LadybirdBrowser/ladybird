@@ -1,0 +1,4 @@
+first animations after timeout: 1
+first opacity after timeout: 0
+second animations after timeout: 1
+second opacity after timeout: 0
