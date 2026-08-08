@@ -830,26 +830,15 @@ impl LayoutState {
                 }
             }
 
-            let (transforms, viewport_size, path) = self
-                .used_values_rare_data(slot_index)
-                .map_or((None, None, None), |rare| {
-                    (
-                        rare.computed_svg_transforms,
-                        rare.svg_viewport_size,
-                        rare.computed_svg_path.as_ref().map(libgfx_rust::path::OwnedPath::as_raw),
-                    )
-                });
             unsafe {
-                if let Some(transforms) = transforms {
+                if let Some(transforms) = fragment.computed_svg_transforms {
                     (sink.set_computed_svg_transforms)(sink.context, paintable, transforms);
                 }
-                if let Some(viewport_size) = viewport_size {
+                if let Some(viewport_size) = fragment.svg_viewport_size {
                     (sink.set_svg_viewport_size)(sink.context, paintable, viewport_size);
                 }
-                if let Some(path) = path {
-                    // The sink only borrows the path and moves its contents
-                    // out; the rare data keeps ownership until state teardown.
-                    (sink.set_computed_svg_path)(sink.context, paintable, path);
+                if let Some(path) = fragment.computed_svg_path.take() {
+                    (sink.set_computed_svg_path)(sink.context, paintable, path.as_raw());
                 }
             }
             if let Some(data) = &fragment.grid_layout_data {
