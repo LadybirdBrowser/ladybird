@@ -3243,6 +3243,7 @@ impl<'pass> GridFormattingContext<'pass> {
             crate::layout::compute_inset_native(
                 self.state,
                 self.callbacks,
+                self.fragments.clone(),
                 item.box_,
                 area.size.inline_size,
                 area.size.block_size,

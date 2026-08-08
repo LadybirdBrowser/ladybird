@@ -83,19 +83,6 @@ pub(crate) fn translate_static_position_rect(mut rect: StaticPositionRect, offse
     rect
 }
 
-pub(crate) fn anchor_rect_from_geometry(
-    anchor_state: &UsedValues,
-    containing_block_state: &UsedValues,
-    anchor_offset: FfiCssPixelPoint,
-) -> PhysicalRect {
-    let collapsed = anchor_state.uses_collapsing_borders_model.get();
-    PhysicalRect {
-        x: anchor_offset.x - anchor_state.border_box_left(collapsed) + containing_block_state.padding_left.get(),
-        y: anchor_offset.y - anchor_state.border_box_top(collapsed) + containing_block_state.padding_top.get(),
-        width: anchor_state.border_box_inline_size(collapsed),
-        height: anchor_state.border_box_block_size(collapsed),
-    }
-}
 
 pub(crate) type Node = NodeSlotId;
 
@@ -355,7 +342,7 @@ pub(crate) fn place_child(run: &FormattingContextRun, node: Node, offset: FfiCss
             if batch.is_empty() {
                 break;
             }
-            let engine = crate::layout::AbsposEngine::new(state, *callbacks);
+            let engine = crate::layout::AbsposEngine::new(state, *callbacks, run.fragments.clone());
             for entry in batch {
                 engine.layout_pending_child(run, entry);
             }
@@ -365,6 +352,17 @@ pub(crate) fn place_child(run: &FormattingContextRun, node: Node, offset: FfiCss
             && state
                 .used_values_by_slot(callbacks.slot_index(containing_block))
                 .is_none_or(|used| used.has_content_offset.get());
+        let node_facts = state.node_facts(callbacks, node);
+        let own_anchor_candidate_border_box_rect = (node_facts.is_box() && node_facts.has_anchor_names())
+            .then(|| {
+                let collapsed = used.uses_collapsing_borders_model.get();
+                PhysicalRect {
+                    x: used.content_offset.get().x - used.border_box_left(collapsed),
+                    y: used.content_offset.get().y - used.border_box_top(collapsed),
+                    width: used.border_box_inline_size(collapsed),
+                    height: used.border_box_block_size(collapsed),
+                }
+            });
         fragments.build_fragment_for_placed_box(
             callbacks,
             node,
@@ -372,6 +370,7 @@ pub(crate) fn place_child(run: &FormattingContextRun, node: Node, offset: FfiCss
             used,
             containing_block_is_sealed,
             state.containing_line_box_index(callbacks, node, used),
+            own_anchor_candidate_border_box_rect,
         );
     }
 }
@@ -1270,7 +1269,7 @@ fn apply_root_sizing_directives(
             body_input_with_inner_available_space(run, input)
         }
         ParticipationInParentFormattingContext::AbsolutelyPositioned(abspos_inputs) => {
-            AbsposEngine::new(run.state, run.callbacks).dimension_out_of_flow_root(run.box_, abspos_inputs);
+            AbsposEngine::new(run.state, run.callbacks, run.fragments.clone()).dimension_out_of_flow_root(run.box_, abspos_inputs);
             body_input_with_inner_available_space(run, input)
         }
         ParticipationInParentFormattingContext::Item => {
@@ -1382,7 +1381,7 @@ fn size_skipped_independent_root(
             parent.finalize_float_root(child, input, None);
         }
         ParticipationInParentFormattingContext::AbsolutelyPositioned(abspos_inputs) => {
-            let engine = AbsposEngine::new(run.state, run.callbacks);
+            let engine = AbsposEngine::new(run.state, run.callbacks, run.fragments.clone());
             engine.dimension_out_of_flow_root(child, abspos_inputs);
             engine.finalize_out_of_flow_root_after_inside_layout(child, abspos_inputs, None);
         }
@@ -1531,7 +1530,7 @@ fn run_formatting_context<'pass>(
             );
         }
         ParticipationInParentFormattingContext::AbsolutelyPositioned(abspos_inputs) => {
-            AbsposEngine::new(run.state, run.callbacks).finalize_out_of_flow_root_after_inside_layout(
+            AbsposEngine::new(run.state, run.callbacks, run.fragments.clone()).finalize_out_of_flow_root_after_inside_layout(
                 run.box_,
                 abspos_inputs,
                 Some(result.automatic_content_block_size),
@@ -1922,7 +1921,7 @@ pub unsafe extern "C" fn rust_layout_compute_subtree_layout(
             entry_fragments.hold_unplaced_root(unplaced_root);
         }
         entry_fragments.normalize_arrivals_for_placement(root);
-        entry_fragments.build_fragment_for_placed_box(&callbacks, root, None, root_used, false, None);
+        entry_fragments.build_fragment_for_placed_box(&callbacks, root, None, root_used, false, None, None);
         drain_abspos_with_placed_containing_blocks(state_ref, callbacks, false, &entry_fragments);
         let pass_fragments = entry_fragments.take_completed_pass(state_ref, &callbacks);
         debug_assert!(!pass_fragments.roots.is_empty(), "the subtree root always has a fragment");
@@ -1963,7 +1962,7 @@ pub unsafe extern "C" fn rust_layout_replay_saved_abspos_layout(
             treat_block_axis_percentage_insets_as_auto_beyond_root: false,
             fragments: Some(entry_fragments.clone()),
         };
-        AbsposEngine::new(state_ref, callbacks).replay(&run, box_);
+        AbsposEngine::new(state_ref, callbacks, Some(entry_fragments.clone())).replay(&run, box_);
         drain_abspos_with_placed_containing_blocks(state_ref, callbacks, false, &entry_fragments);
         let pass_fragments = entry_fragments.take_completed_pass(state_ref, &callbacks);
         debug_assert!(!pass_fragments.roots.is_empty(), "the replayed box always has a fragment");

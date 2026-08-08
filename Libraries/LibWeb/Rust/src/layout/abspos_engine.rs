@@ -67,11 +67,20 @@ fn out_of_flow_root_space(inputs: AbsposLayoutInputs) -> (AvailableSpace, Contai
 pub(crate) struct AbsposEngine<'pass> {
     state: &'pass LayoutState,
     callbacks: FfiLayoutFcCallbacks,
+    fragments: Option<std::rc::Rc<crate::layout::RunFragmentBuilder>>,
 }
 
 impl<'pass> AbsposEngine<'pass> {
-    pub(crate) fn new(state: &'pass LayoutState, callbacks: FfiLayoutFcCallbacks) -> Self {
-        Self { state, callbacks }
+    pub(crate) fn new(
+        state: &'pass LayoutState,
+        callbacks: FfiLayoutFcCallbacks,
+        fragments: Option<std::rc::Rc<crate::layout::RunFragmentBuilder>>,
+    ) -> Self {
+        Self {
+            state,
+            callbacks,
+            fragments,
+        }
     }
 
     fn sizing(&self) -> SizingContext<'_> {
@@ -257,6 +266,8 @@ struct AnchorCalcCallbackContext<'pass> {
     engine: *const AbsposEngine<'pass>,
     positioned_box: Node,
     containing_block: Node,
+    containing_block_geometry: Option<ContainingBlockGeometry>,
+    entry_coordinate_space_box: Node,
     is_from_end: bool,
     is_horizontal_axis: bool,
     containing_block_extent: CssPixels,
@@ -265,11 +276,12 @@ struct AnchorCalcCallbackContext<'pass> {
 
 impl AbsposEngine<'_> {
     fn anchor_lookup(&self, positioned_box: Node, anchor_name: usize) -> Option<Node> {
-        let eligible_anchor_shells = self.state.anchor_candidate_shells();
+        let eligible_anchor_shells = self
+            .fragments
+            .as_deref()
+            .map(|fragments| fragments.anchor_candidate_shells(&self.callbacks))
+            .unwrap_or_default();
         // SAFETY: The name handle is retained by either the style snapshot or
-        // the live anchor() shell. The registry borrow is held only for this
-        // synchronous lookup, and the callback never re-enters layout code
-        // that could register another candidate.
         let anchor_box = unsafe {
             (self.callbacks.anchor_lookup)(
                 self.callbacks.context,
@@ -293,16 +305,66 @@ impl AbsposEngine<'_> {
         NodeSlotId::INVALID
     }
 
-    fn anchor_rect(&self, anchor_box: Node, containing_block: Node) -> PhysicalRect {
-        let anchor_state = self.used(anchor_box);
-        let mut anchor_offset = FfiCssPixelPoint::default();
-        let mut node = anchor_box;
-        while node != containing_block {
-            assert!(!node.is_invalid());
-            anchor_offset = point_add(anchor_offset, self.used(node).content_offset.get());
-            node = self.callbacks.containing_block(node);
+    fn translation_between_payload_resting_spaces(&self, from_space: Node, to_space: Node) -> FfiCssPixelPoint {
+        if from_space == to_space || from_space.is_invalid() || to_space.is_invalid() {
+            return FfiCssPixelPoint::default();
         }
-        anchor_rect_from_geometry(anchor_state, self.used(containing_block), anchor_offset)
+        let mut merge_point = from_space;
+        while merge_point != to_space && !self.callbacks.is_ancestor(merge_point, to_space) {
+            merge_point = self.callbacks.containing_block(merge_point);
+            assert!(!merge_point.is_invalid());
+        }
+        let offset_relative_to_merge_point = |descendant: Node| {
+            let mut offset = FfiCssPixelPoint::default();
+            let mut current = descendant;
+            while current != merge_point {
+                offset = point_add(offset, self.used(current).content_offset.get());
+                current = self.callbacks.containing_block(current);
+                assert!(!current.is_invalid());
+            }
+            offset
+        };
+        point_sub(
+            offset_relative_to_merge_point(from_space),
+            offset_relative_to_merge_point(to_space),
+        )
+    }
+
+    fn anchor_rect(
+        &self,
+        anchor_box: Node,
+        containing_block: Node,
+        entry_containing_block_geometry: Option<&ContainingBlockGeometry>,
+        entry_coordinate_space_box: Node,
+    ) -> PhysicalRect {
+        let (rect, coordinate_space_box) = self
+            .fragments
+            .as_deref()
+            .and_then(|fragments| fragments.find_anchor_candidate(anchor_box))
+            .expect("an accepted anchor is placed in the draining subtree and propagated here");
+        match entry_containing_block_geometry {
+            Some(geometry) => {
+                let fold_into_entry_space =
+                    self.translation_between_payload_resting_spaces(coordinate_space_box, entry_coordinate_space_box);
+                PhysicalRect {
+                    x: rect.x + fold_into_entry_space.x - geometry.content_origin_in_entry_space.x
+                        + geometry.padding_left,
+                    y: rect.y + fold_into_entry_space.y - geometry.content_origin_in_entry_space.y
+                        + geometry.padding_top,
+                    width: rect.width,
+                    height: rect.height,
+                }
+            }
+            None => {
+                let containing_block_used = self.used(containing_block);
+                PhysicalRect {
+                    x: rect.x + containing_block_used.padding_left.get(),
+                    y: rect.y + containing_block_used.padding_top.get(),
+                    width: rect.width,
+                    height: rect.height,
+                }
+            }
+        }
     }
 
     fn anchor_side(
@@ -398,11 +460,14 @@ impl AbsposEngine<'_> {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn resolve_anchor_value(
         &self,
         value: InsetValue,
         positioned_box: Node,
         containing_block: Node,
+        containing_block_geometry: Option<ContainingBlockGeometry>,
+        entry_coordinate_space_box: Node,
         axis: AnchorValueAxis,
         resolution_state: &mut AnchorResolutionState,
     ) -> Option<CssPixels> {
@@ -412,6 +477,8 @@ impl AbsposEngine<'_> {
             engine: self,
             positioned_box,
             containing_block,
+            containing_block_geometry,
+            entry_coordinate_space_box,
             is_from_end: axis.is_from_end,
             is_horizontal_axis: axis.is_horizontal,
             containing_block_extent: axis.containing_block_extent,
@@ -430,7 +497,12 @@ impl AbsposEngine<'_> {
         result.resolved.then(|| CssPixels::nearest_value_for(result.value))
     }
 
-    fn resolve_anchor_insets(&self, node: Node) {
+    fn resolve_anchor_insets(
+        &self,
+        node: Node,
+        entry_containing_block_geometry: Option<&ContainingBlockGeometry>,
+        entry_coordinate_space_box: Node,
+    ) {
         // Clear a stale default scroll shift before any early return.
         // SAFETY: The node is live and a null anchor clears the weak target.
         unsafe {
@@ -475,6 +547,8 @@ impl AbsposEngine<'_> {
                 style.inset_top(),
                 node,
                 containing_block,
+                entry_containing_block_geometry.copied(),
+                entry_coordinate_space_box,
                 AnchorValueAxis {
                     is_from_end: false,
                     is_horizontal: false,
@@ -493,6 +567,8 @@ impl AbsposEngine<'_> {
                 style.inset_right(),
                 node,
                 containing_block,
+                entry_containing_block_geometry.copied(),
+                entry_coordinate_space_box,
                 AnchorValueAxis {
                     is_from_end: true,
                     is_horizontal: true,
@@ -511,6 +587,8 @@ impl AbsposEngine<'_> {
                 style.inset_bottom(),
                 node,
                 containing_block,
+                entry_containing_block_geometry.copied(),
+                entry_coordinate_space_box,
                 AnchorValueAxis {
                     is_from_end: true,
                     is_horizontal: false,
@@ -529,6 +607,8 @@ impl AbsposEngine<'_> {
                 style.inset_left(),
                 node,
                 containing_block,
+                entry_containing_block_geometry.copied(),
+                entry_coordinate_space_box,
                 AnchorValueAxis {
                     is_from_end: false,
                     is_horizontal: true,
@@ -592,7 +672,12 @@ unsafe extern "C" fn resolve_anchor_non_math_function(context: *mut c_void, shel
         && let Some(anchor_name) = anchor_name
         && let Some(anchor_box) = engine.anchor_lookup(context.positioned_box, anchor_name)
     {
-        let rect = engine.anchor_rect(anchor_box, context.containing_block);
+        let rect = engine.anchor_rect(
+            anchor_box,
+            context.containing_block,
+            context.containing_block_geometry.as_ref(),
+            context.entry_coordinate_space_box,
+        );
         if let Some(side) = engine.anchor_side(
             anchor_side_from_style_value(anchor_side.data()),
             rect,
@@ -1566,7 +1651,7 @@ impl<'pass> AbsposEngine<'pass> {
         self.state
             .create_used_values(&self.callbacks, child_box, ContainingBlockConstraints::default());
         let containing_block_geometry = self.containing_block_geometry_for_pending_child(&child);
-        self.resolve_anchor_insets(child_box);
+        self.resolve_anchor_insets(child_box, Some(&containing_block_geometry), child.coordinate_space_box);
         let translation_into_containing_block_space =
             point_sub(FfiCssPixelPoint::default(), containing_block_geometry.content_origin_in_entry_space);
         crate::layout::translate_pending_abspos_payloads(&mut child, translation_into_containing_block_space);
@@ -1621,7 +1706,7 @@ impl<'pass> AbsposEngine<'pass> {
             || initial_style.inset_bottom().contains_anchor_function()
             || initial_style.inset_left().contains_anchor_function()
         {
-            self.resolve_anchor_insets(node);
+            self.resolve_anchor_insets(node, None, NodeSlotId::INVALID);
         }
         let style = self.style(node);
         if style.position() != positioning::RELATIVE {
@@ -1695,23 +1780,25 @@ pub(crate) fn drain_abspos_with_placed_containing_blocks(
         if batch.is_empty() {
             break;
         }
-        let engine = AbsposEngine::new(state, callbacks);
+        let engine = AbsposEngine::new(state, callbacks, Some(entry_fragments.clone()));
         for entry in batch {
             engine.layout_pending_child(&run, entry);
         }
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn compute_inset_native(
     state: &LayoutState,
     callbacks: FfiLayoutFcCallbacks,
+    fragments: Option<std::rc::Rc<crate::layout::RunFragmentBuilder>>,
     node: Node,
     inline_size: CssPixels,
     block_size: CssPixels,
     formatting_context_root: Node,
     treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
 ) {
-    AbsposEngine::new(state, callbacks).compute_inset(
+    AbsposEngine::new(state, callbacks, fragments).compute_inset(
         node,
         LogicalSize {
             inline_size,

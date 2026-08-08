@@ -345,6 +345,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         crate::layout::compute_inset_native(
             self.state,
             self.callbacks,
+            self.fragments.clone(),
             node,
             containing_block_size.inline_size,
             containing_block_size.block_size,

@@ -94,6 +94,12 @@ fn link_fragment(fragment: Box<Fragment>, placement: PlacementData) -> FragmentL
     }
 }
 
+pub(crate) struct AnchorCandidate {
+    pub(crate) node: crate::layout::node_data::NodeSlotId,
+    pub(crate) border_box_rect: PhysicalRect,
+    pub(crate) coordinate_space_box: crate::layout::node_data::NodeSlotId,
+}
+
 pub(crate) fn translate_pending_abspos_payloads(entry: &mut PendingAbsposChild, offset: FfiCssPixelPoint) {
     entry.static_position_rect = crate::layout::translate_static_position_rect(entry.static_position_rect, offset);
     if let Some(rect) = &mut entry.inline_containing_block_rect {
@@ -117,6 +123,19 @@ impl PropagatedPayload for PendingAbsposChild {
     }
     fn translate_by(&mut self, offset: FfiCssPixelPoint) {
         translate_pending_abspos_payloads(self, offset);
+    }
+}
+
+impl PropagatedPayload for AnchorCandidate {
+    fn coordinate_space_box(&self) -> crate::layout::node_data::NodeSlotId {
+        self.coordinate_space_box
+    }
+    fn set_coordinate_space_box(&mut self, node: crate::layout::node_data::NodeSlotId) {
+        self.coordinate_space_box = node;
+    }
+    fn translate_by(&mut self, offset: FfiCssPixelPoint) {
+        self.border_box_rect.x += offset.x;
+        self.border_box_rect.y += offset.y;
     }
 }
 
@@ -160,6 +179,7 @@ pub(crate) struct UnplacedRootFragment {
     pub(crate) node: crate::layout::node_data::NodeSlotId,
     pub(crate) scoped_descendants: Vec<FragmentLink>,
     pub(crate) propagated_pending_abspos: Vec<PendingAbsposChild>,
+    pub(crate) propagated_anchor_candidates: Vec<AnchorCandidate>,
 }
 
 pub(crate) struct CompletedPassFragments {
@@ -170,6 +190,7 @@ struct PendingFragment {
     node: crate::layout::node_data::NodeSlotId,
     children: Vec<FragmentLink>,
     pending_abspos: Vec<PendingAbsposChild>,
+    anchor_candidates: Vec<AnchorCandidate>,
 }
 
 pub(crate) struct RunFragmentBuilder {
@@ -185,6 +206,7 @@ struct RunFragmentBuilderInner {
     placed_slots: std::collections::HashSet<u32>,
     child_roots_awaiting_placement: std::collections::HashMap<u32, UnplacedRootFragment>,
     pending_abspos_at_root: Vec<PendingAbsposChild>,
+    anchor_candidates_at_root: Vec<AnchorCandidate>,
     top_scope_links: Vec<FragmentLink>,
 }
 
@@ -201,6 +223,13 @@ impl RunFragmentBuilderInner {
             .values_mut()
             .flat_map(|pending_fragment| pending_fragment.pending_abspos.iter_mut())
             .chain(self.pending_abspos_at_root.iter_mut())
+    }
+
+    fn iter_anchor_candidates(&self) -> impl Iterator<Item = &AnchorCandidate> {
+        self.pending_fragments
+            .values()
+            .flat_map(|pending_fragment| pending_fragment.anchor_candidates.iter())
+            .chain(self.anchor_candidates_at_root.iter())
     }
 }
 
@@ -257,6 +286,7 @@ impl RunFragmentBuilder {
                             node: coordinate_space_box,
                             children: Vec::new(),
                             pending_abspos: vec![entry],
+                            anchor_candidates: Vec::new(),
                         },
                     );
                 }
@@ -308,6 +338,25 @@ impl RunFragmentBuilder {
         }
     }
 
+    pub(crate) fn anchor_candidate_shells(&self, callbacks: &FfiLayoutFcCallbacks) -> Vec<*mut c_void> {
+        self.inner
+            .borrow()
+            .iter_anchor_candidates()
+            .map(|candidate| callbacks.shell(candidate.node))
+            .collect()
+    }
+
+    pub(crate) fn find_anchor_candidate(
+        &self,
+        node: crate::layout::node_data::NodeSlotId,
+    ) -> Option<(PhysicalRect, crate::layout::node_data::NodeSlotId)> {
+        self.inner
+            .borrow()
+            .iter_anchor_candidates()
+            .find(|candidate| candidate.node == node)
+            .map(|candidate| (candidate.border_box_rect, candidate.coordinate_space_box))
+    }
+
     pub(crate) fn take_drainable_abspos(
         &self,
         placed: crate::layout::node_data::NodeSlotId,
@@ -356,18 +405,23 @@ impl RunFragmentBuilder {
     pub(crate) fn normalize_arrivals_for_placement(&self, node: crate::layout::node_data::NodeSlotId) {
         let mut inner = self.inner.borrow_mut();
         let slot = node.slot_index();
-        let (scoped_descendants, propagated_pending_abspos) =
+        let (scoped_descendants, propagated_pending_abspos, propagated_anchor_candidates) =
             match inner.child_roots_awaiting_placement.remove(&slot) {
                 Some(root) => {
                     debug_assert!(root.node == node, "a held unplaced root was keyed under a different box");
-                    (root.scoped_descendants, root.propagated_pending_abspos)
+                    (
+                        root.scoped_descendants,
+                        root.propagated_pending_abspos,
+                        root.propagated_anchor_candidates,
+                    )
                 }
-                None => (Vec::new(), Vec::new()),
+                None => (Vec::new(), Vec::new(), Vec::new()),
             };
         let pending_fragment = inner.pending_fragments.entry(slot).or_insert_with(|| PendingFragment {
             node,
             children: Vec::new(),
             pending_abspos: Vec::new(),
+            anchor_candidates: Vec::new(),
         });
         debug_assert!(
             pending_fragment.children.is_empty() || scoped_descendants.is_empty(),
@@ -375,8 +429,10 @@ impl RunFragmentBuilder {
         );
         pending_fragment.children.extend(scoped_descendants);
         pending_fragment.pending_abspos.extend(propagated_pending_abspos);
+        pending_fragment.anchor_candidates.extend(propagated_anchor_candidates);
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn build_fragment_for_placed_box(
         &self,
         callbacks: &FfiLayoutFcCallbacks,
@@ -385,6 +441,7 @@ impl RunFragmentBuilder {
         used: &UsedValues,
         containing_block_is_sealed: bool,
         containing_line_box_index: Option<usize>,
+        own_anchor_candidate_border_box_rect: Option<PhysicalRect>,
     ) {
         let mut inner = self.inner.borrow_mut();
         let slot = node.slot_index();
@@ -393,10 +450,15 @@ impl RunFragmentBuilder {
             !inner.child_roots_awaiting_placement.contains_key(&slot),
             "a box was placed without normalizing its held unplaced root (slot {slot})"
         );
-        let (children, pending_abspos_from_placed_box) = match inner.pending_fragments.remove(&slot) {
-            Some(pending_fragment) => (pending_fragment.children, pending_fragment.pending_abspos),
-            None => (Vec::new(), Vec::new()),
-        };
+        let (children, pending_abspos_from_placed_box, anchor_candidates_from_placed_box) =
+            match inner.pending_fragments.remove(&slot) {
+                Some(pending_fragment) => (
+                    pending_fragment.children,
+                    pending_fragment.pending_abspos,
+                    pending_fragment.anchor_candidates,
+                ),
+                None => (Vec::new(), Vec::new(), Vec::new()),
+            };
         let link = link_fragment(
             snapshot_fragment(node, children, used),
             PlacementData::from_record(used, containing_line_box_index),
@@ -413,6 +475,18 @@ impl RunFragmentBuilder {
             match inner.pending_fragments.get_mut(&entry.coordinate_space_box.slot_index()) {
                 Some(pending_fragment) => pending_fragment.pending_abspos.push(entry),
                 None => inner.pending_abspos_at_root.push(entry),
+            }
+        }
+        let own_candidate = own_anchor_candidate_border_box_rect.map(|border_box_rect| AnchorCandidate {
+            node,
+            border_box_rect,
+            coordinate_space_box: containing_block.unwrap_or(node),
+        });
+        for mut candidate in anchor_candidates_from_placed_box.into_iter().chain(own_candidate) {
+            propagate_payload_into_containing_block_space(&mut candidate, node, containing_block, content_offset);
+            match inner.pending_fragments.get_mut(&candidate.coordinate_space_box.slot_index()) {
+                Some(pending_fragment) => pending_fragment.anchor_candidates.push(candidate),
+                None => inner.anchor_candidates_at_root.push(candidate),
             }
         }
     }
@@ -446,23 +520,26 @@ impl RunFragmentBuilder {
                 node: containing_block,
                 children: vec![link],
                 pending_abspos: Vec::new(),
+                anchor_candidates: Vec::new(),
             },
         );
     }
 
     pub(crate) fn take_unplaced_root(&self, state: &LayoutState, callbacks: &FfiLayoutFcCallbacks) -> UnplacedRootFragment {
         debug_assert!(!self.is_entry_accumulator, "an entry accumulator closes as a pass, not a run");
-        let (scoped_descendants, propagated_pending_abspos) = self.close(state, callbacks);
+        let (scoped_descendants, propagated_pending_abspos, propagated_anchor_candidates) =
+            self.close(state, callbacks);
         UnplacedRootFragment {
             node: self.root_node,
             scoped_descendants,
             propagated_pending_abspos,
+            propagated_anchor_candidates,
         }
     }
 
     pub(crate) fn take_completed_pass(&self, state: &LayoutState, callbacks: &FfiLayoutFcCallbacks) -> CompletedPassFragments {
         debug_assert!(self.is_entry_accumulator, "an ordinary run closes as a singular unplaced root");
-        let (roots, _dropped_pending_abspos) = self.close(state, callbacks);
+        let (roots, _dropped_pending_abspos, _dropped_anchor_candidates) = self.close(state, callbacks);
         CompletedPassFragments { roots }
     }
 
@@ -470,12 +547,14 @@ impl RunFragmentBuilder {
         &self,
         state: &LayoutState,
         callbacks: &FfiLayoutFcCallbacks,
-    ) -> (Vec<FragmentLink>, Vec<PendingAbsposChild>) {
+    ) -> (Vec<FragmentLink>, Vec<PendingAbsposChild>, Vec<AnchorCandidate>) {
         let mut inner = self.inner.take();
         let mut propagated_pending_abspos = std::mem::take(&mut inner.pending_abspos_at_root);
+        let mut propagated_anchor_candidates = std::mem::take(&mut inner.anchor_candidates_at_root);
         let pending_fragments = std::mem::take(&mut inner.pending_fragments);
         for (slot, pending_fragment) in pending_fragments {
             propagated_pending_abspos.extend(pending_fragment.pending_abspos);
+            propagated_anchor_candidates.extend(pending_fragment.anchor_candidates);
             if pending_fragment.children.is_empty() {
                 continue;
             }
@@ -493,6 +572,7 @@ impl RunFragmentBuilder {
                 .used_values_by_slot(slot)
                 .expect("a held child run's root has no record");
             propagated_pending_abspos.extend(root.propagated_pending_abspos);
+            propagated_anchor_candidates.extend(root.propagated_anchor_candidates);
             inner.top_scope_links.push(link_fragment(
                 snapshot_fragment(root.node, root.scoped_descendants, used),
                 PlacementData::from_record(used, None),
@@ -512,6 +592,9 @@ impl RunFragmentBuilder {
             }
             propagate_payload_toward_run_root_space(entry, self.root_node, state, callbacks);
         }
-        (inner.top_scope_links, propagated_pending_abspos)
+for candidate in &mut propagated_anchor_candidates {
+            propagate_payload_toward_run_root_space(candidate, self.root_node, state, callbacks);
+        }
+        (inner.top_scope_links, propagated_pending_abspos, propagated_anchor_candidates)
     }
 }
