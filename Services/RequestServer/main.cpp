@@ -7,6 +7,7 @@
 
 #include <AK/ByteString.h>
 #include <AK/Format.h>
+#include <AK/Optional.h>
 #include <AK/StringView.h>
 #include <AK/Vector.h>
 #include <LibCore/ArgsParser.h>
@@ -61,10 +62,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     if (wait_for_debugger)
         Core::Process::wait_for_debugger_and_break();
 
-    // FIXME: Update RequestServer to support multiple custom root certificates.
-    if (!certificates.is_empty())
-        RequestServer::set_default_certificate_path(certificates.first());
-
     if (!resource_map_path.is_empty()) {
         auto map = RequestServer::ResourceSubstitutionMap::load_from_file(resource_map_path);
         if (map.is_error())
@@ -103,8 +100,13 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     TRY(RequestServer::initialize_libcurl());
 
+    if (auto bundle = RequestServer::read_default_root_certificate_bundle(certificates); bundle.is_error())
+        warnln("Unable to read root certificate bundle: {}", bundle.error());
+    else
+        RequestServer::set_root_certificate_bundle(bundle.release_value());
+
     if (!disable_sandbox)
-        TRY(RequestServer::apply_sandbox(certificates, cache_path));
+        TRY(RequestServer::apply_sandbox(cache_path));
 
     // Connections are stored on the stack to ensure they are destroyed before static destruction begins. This prevents
     // crashes from notifiers trying to unregister from already-destroyed thread data during process exit.
