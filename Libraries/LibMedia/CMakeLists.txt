@@ -35,6 +35,7 @@ set(SOURCES
     DecoderRegistry.cpp
     DemuxerRegistry.cpp
     IncrementallyPopulatedStream.cpp
+    MediaSupport.cpp
     MediaTime.cpp
     MonotonicMediaClock.cpp
     PlaybackManager.cpp
