@@ -15,6 +15,7 @@
 #include <LibHTTP/Cache/Utilities.h>
 #include <LibHTTP/Status.h>
 #include <LibTextCodec/Decoder.h>
+#include <RequestServer/AIA.h>
 #include <RequestServer/CURL.h>
 #include <RequestServer/ConnectionFromClient.h>
 #include <RequestServer/Request.h>
@@ -526,6 +527,8 @@ void Request::notify_retrieved_http_cookie(Badge<ConnectionFromClient>, StringVi
     transition_to_state(State::Fetch);
 }
 
+static constexpr size_t max_aia_fetches_per_request = 5;
+
 void Request::notify_fetch_complete(Badge<ConnectionFromClient>, int result_code)
 {
     mark_lifecycle_event(this, &WireStats::complete_observed_at);
@@ -533,6 +536,12 @@ void Request::notify_fetch_complete(Badge<ConnectionFromClient>, int result_code
     if (m_type == RequestType::Fetch || m_type == RequestType::BackgroundRevalidation) {
         log_network_activity(m_url, m_method, m_curl_easy_handle, result_code, is_revalidation_request(), m_type);
         log_chunk_stats(this);
+    }
+
+    if (m_type == RequestType::Fetch && result_code == CURLE_PEER_FAILED_VERIFICATION && m_aia_collector && !m_aia_collector->pending_urls.is_empty() && m_aia_fetch_count < max_aia_fetches_per_request) {
+        m_curl_result_code = result_code;
+        transition_to_state(State::Complete);
+        return;
     }
 
     if (is_revalidation_request()) {
@@ -562,6 +571,36 @@ void Request::notify_fetch_complete(Badge<ConnectionFromClient>, int result_code
         transition_to_state(State::Complete);
 }
 
+void Request::start_aia_fetch_and_retry()
+{
+    ++m_aia_fetch_count;
+    auto url = m_aia_collector->pending_urls.take_first();
+    m_aia_collector->attempted_urls.set(url);
+    dbgln_if(REQUESTSERVER_DEBUG, "AIA: fetching missing intermediate from {} (attempt {})", url, m_aia_fetch_count);
+    m_client->fetch_aia_intermediate({}, url, m_request_id);
+    transition_to_state(State::WaitForAIA);
+}
+
+void Request::retry_after_aia(Badge<ConnectionFromClient>)
+{
+    if (m_state != State::WaitForAIA)
+        return;
+
+    if (m_curl_easy_handle) {
+        if (m_curl_easy_handle_is_in_multi) {
+            auto result = curl_multi_remove_handle(m_curl_multi_handle, m_curl_easy_handle);
+            VERIFY(result == CURLM_OK);
+        }
+        curl_easy_cleanup(m_curl_easy_handle);
+        m_curl_easy_handle = nullptr;
+        m_curl_easy_handle_is_in_multi = false;
+    }
+    m_curl_result_code = {};
+    if (m_aia_collector)
+        m_aia_collector->pending_urls.clear();
+    transition_to_state(State::Fetch);
+}
+
 void Request::transition_to_state(State state)
 {
     dbgln_if(REQUESTSERVER_DEBUG, "Request::Transition[{}]: {} -> {} ({} {})", m_request_id, state_name(m_state), state_name(state), m_method, m_url);
@@ -580,6 +619,9 @@ void Request::process()
         break;
     case State::WaitForCache:
         // Do nothing; we are waiting for the disk cache to notify us to proceed.
+        break;
+    case State::WaitForAIA:
+        // Do nothing; we are waiting for the AIA intermediate-certificate fetch to notify us to proceed.
         break;
     case State::FailedCacheOnly:
         handle_failed_cache_only_state();
@@ -919,7 +961,7 @@ void Request::handle_fetch_state()
 
     auto is_revalidation_request = this->is_revalidation_request();
 
-    if (!is_revalidation_request) {
+    if (!is_revalidation_request && !m_informed_client_request_started) {
         if (inform_client_request_started().is_error())
             return;
     }
@@ -935,6 +977,12 @@ void Request::handle_fetch_state()
 
     if (auto const& path = default_certificate_path(); !path.is_empty())
         set_option(CURLOPT_CAINFO, path.characters());
+
+#ifndef AK_OS_MACOS
+    if (!m_aia_collector)
+        m_aia_collector = make_ref_counted<AIACollector>();
+    install_aia_verification_hook(m_curl_easy_handle, *m_aia_collector);
+#endif
 
     set_option(CURLOPT_ACCEPT_ENCODING, ""); // Empty string lets curl define the accepted encodings.
     set_option(CURLOPT_URL, m_url.to_byte_string().characters());
@@ -1059,6 +1107,11 @@ void Request::handle_complete_state()
         // such server. We ignore this error if we were actually able to download some response data.
         if (m_curl_result_code == CURLE_RECV_ERROR && m_bytes_transferred_to_client != 0 && !m_response_headers->contains("Content-Length"sv))
             m_curl_result_code = CURLE_OK;
+
+        if (m_curl_result_code == CURLE_PEER_FAILED_VERIFICATION && m_aia_collector && !m_aia_collector->pending_urls.is_empty() && m_aia_fetch_count < max_aia_fetches_per_request) {
+            start_aia_fetch_and_retry();
+            return;
+        }
 
         if (m_curl_result_code != CURLE_OK) {
             m_network_error = curl_code_to_network_error(*m_curl_result_code);
@@ -1267,6 +1320,7 @@ ErrorOr<void> Request::inform_client_request_started()
 
     m_client_request_pipe = request_pipe.release_value();
     TRY(send_request_pipe_to_client());
+    m_informed_client_request_started = true;
 
     return {};
 }

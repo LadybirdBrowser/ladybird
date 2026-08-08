@@ -7,8 +7,10 @@
 #include "Application.h"
 #include "Fixture.h"
 
+#include <AK/LexicalPath.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/Environment.h>
+#include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
 
 namespace TestWeb {
@@ -72,6 +74,10 @@ void Application::create_platform_options(WebView::BrowserOptions& browser_optio
     browser_options.disable_sql_database = WebView::DisableSQLDatabase::Yes;
 
     request_server_options.http_disk_cache_mode = WebView::HTTPDiskCacheMode::Testing;
+
+    // Trust the AIA integration test's root CA (written by the http-test-server fixture) — so its broken-chain HTTPS
+    // hosts validate once their intermediate is fetched. Must match the path passed in HttpEchoServerFixture::setup.
+    request_server_options.certificates.append(LexicalPath::join(Core::StandardPaths::tempfile_directory(), "ladybird-aia-test-ca.pem"sv).string());
 
     web_content_options.is_test_mode = WebView::IsTestMode::Yes;
 

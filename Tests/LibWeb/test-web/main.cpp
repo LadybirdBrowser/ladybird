@@ -177,6 +177,18 @@ static ErrorOr<void> skip_ui_process_session_history_tests_unless_enabled(Applic
     return {};
 }
 
+static ErrorOr<void> skip_aia_tests_on_apple(Application const& app)
+{
+#ifdef AK_OS_MACOS
+    auto path = LexicalPath::join(app.test_root_path, "Text/input/aia-cert-fetching.html"sv).string();
+    if (FileSystem::exists(path))
+        s_skipped_tests.append(TRY(real_path_for_test_input(path)));
+#else
+    (void)app;
+#endif
+    return {};
+}
+
 static void log_active_test_views(StringView reason)
 {
     outln();
@@ -1025,6 +1037,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
     TRY(load_test_config(app.test_root_path));
     TRY(skip_async_scrolling_tests_unless_enabled(app));
     TRY(skip_ui_process_session_history_tests_unless_enabled(app));
+    TRY(skip_aia_tests_on_apple(app));
 
     Vector<Test> tests;
 
