@@ -2113,7 +2113,7 @@ Web::WebDriver::Response WebDriverConnection::element_send_keys_impl(StringView 
         auto& input_element = static_cast<Web::HTML::HTMLInputElement&>(*element);
 
         // 2. If element is not mutable return an error with error code element not interactable.
-        if (input_element.is_mutable())
+        if (!input_element.is_mutable())
             return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::ElementNotInteractable, "Element is immutable"sv);
 
         // 3. Set a property value to text on element.
