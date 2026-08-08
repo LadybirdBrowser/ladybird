@@ -260,7 +260,11 @@ pub(crate) fn compute(
     context: &InlineFormattingContext,
 ) -> (Vec<InlineBoxPieceData>, Vec<InlineContainingBlockRectCandidate>) {
     let horizontal = context.style(context.containing_block).writing_mode() == writing_mode::HORIZONTAL_TB;
-    let collect_inline_containing_block_rects = context.state.has_inline_containing_blocks();
+    let collect_inline_containing_block_rects = context
+        .run
+        .fragments
+        .as_deref()
+        .is_some_and(RunFragmentBuilder::any_pending_abspos_has_inline_containing_block);
     let container_inline_axis_is_reverse = collect_inline_containing_block_rects
         && context.facts(context.containing_block).inline_axis_is_reverse();
     let mut inline_containing_block_rect_candidates = Vec::<InlineContainingBlockRectCandidate>::new();
@@ -436,8 +440,12 @@ pub(crate) fn compute(
             )
         };
 
-        let node_is_inline_containing_block =
-            collect_inline_containing_block_rects && context.state.is_inline_containing_block(node);
+        let node_is_inline_containing_block = collect_inline_containing_block_rects
+            && context
+                .run
+                .fragments
+                .as_deref()
+                .is_some_and(|fragments| fragments.any_pending_abspos_names_inline_containing_block(node));
         let mut corners = FirstAndLastContentLineCorners::default();
 
         for line in lines {
@@ -580,7 +588,13 @@ pub(crate) fn compute(
                 ..Default::default()
             }
         };
-        if collect_inline_containing_block_rects && context.state.is_inline_containing_block(node) {
+        if collect_inline_containing_block_rects
+            && context
+                .run
+                .fragments
+                .as_deref()
+                .is_some_and(|fragments| fragments.any_pending_abspos_names_inline_containing_block(node))
+        {
             inline_containing_block_rect_candidates.push(InlineContainingBlockRectCandidate {
                 inline_containing_block: node,
                 rect: PhysicalRect {
@@ -1178,7 +1192,6 @@ impl<'context, 'pass> InlineFormattingContext<'context, 'pass> {
                     }
                 }
                 crate::layout::register_contained_abspos_child(
-                    self.state,
                     &self.callbacks,
                     self.run.fragments.as_deref(),
                     self.containing_block,
@@ -1237,9 +1250,13 @@ impl<'context, 'pass> InlineFormattingContext<'context, 'pass> {
             let mut rect = candidate.rect;
             rect.x += relative_inset_chain.offset_x;
             rect.y += relative_inset_chain.offset_y;
-            self.state
-                .used_values_rare_data_for_node_mut(&self.callbacks, candidate.inline_containing_block)
-                .inline_containing_block_first_last_rect = Some(rect);
+            if let Some(fragments) = self.run.fragments.as_deref() {
+                fragments.set_inline_containing_block_rect_on_pending_abspos(
+                    candidate.inline_containing_block,
+                    rect,
+                    self.containing_block,
+                );
+            }
         }
     }
 

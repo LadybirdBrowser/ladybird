@@ -409,7 +409,6 @@ fn committed_offset_delta_at_placement(
 }
 
 pub(crate) fn register_contained_abspos_child(
-    state: &LayoutState,
     callbacks: &FfiLayoutFcCallbacks,
     fragments: Option<&RunFragmentBuilder>,
     coordinate_space_box: Node,
@@ -425,9 +424,7 @@ pub(crate) fn register_contained_abspos_child(
         return;
     }
     let inline_containing_block = callbacks.inline_containing_block(child);
-    if !inline_containing_block.is_invalid() {
-        state.note_inline_containing_block(inline_containing_block);
-    }
+
     fragments.register_pending_abspos(
         coordinate_space_box,
         PendingAbsposChild {
@@ -435,6 +432,8 @@ pub(crate) fn register_contained_abspos_child(
             coordinate_space_box,
             static_position_rect,
             containing_block_info_override,
+            inline_containing_block,
+            inline_containing_block_rect: None,
         },
     );
 }
@@ -1198,7 +1197,6 @@ fn register_table_abspos_descendants(run: &FormattingContextRun, parent: Node) {
         if facts.is_box() {
             if facts.is_absolutely_positioned() {
                 register_contained_abspos_child(
-                    run.state,
                     &run.callbacks,
                     run.fragments.as_deref(),
                     run.box_,

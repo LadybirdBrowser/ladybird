@@ -3107,7 +3107,6 @@ impl<'pass> FlexFormattingContext<'pass> {
             let facts = self.facts(child);
             if facts.is_box() && facts.is_absolutely_positioned() {
                 crate::layout::register_contained_abspos_child(
-                    self.state,
                     &self.callbacks,
                     self.fragments.as_deref(),
                     self.flex_container,
