@@ -3109,8 +3109,11 @@ impl<'pass> FlexFormattingContext<'pass> {
                 crate::layout::register_contained_abspos_child(
                     self.state,
                     &self.callbacks,
+                    self.fragments.as_deref(),
+                    self.flex_container,
                     child,
                     self.calculate_static_position_rect(child),
+                    None,
                 );
             }
             child = next;

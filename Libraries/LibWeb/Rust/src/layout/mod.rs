@@ -61,6 +61,5 @@ use std::cell::RefCell;
 use std::cell::RefMut;
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::collections::VecDeque;
 use std::ffi::c_void;
 use std::ptr::null_mut;

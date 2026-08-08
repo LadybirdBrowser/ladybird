@@ -94,9 +94,68 @@ fn link_fragment(fragment: Box<Fragment>, placement: PlacementData) -> FragmentL
     }
 }
 
+pub(crate) fn translate_pending_abspos_payloads(entry: &mut PendingAbsposChild, offset: FfiCssPixelPoint) {
+    entry.static_position_rect = crate::layout::translate_static_position_rect(entry.static_position_rect, offset);
+}
+
+trait PropagatedPayload {
+    fn coordinate_space_box(&self) -> crate::layout::node_data::NodeSlotId;
+    fn set_coordinate_space_box(&mut self, node: crate::layout::node_data::NodeSlotId);
+    fn translate_by(&mut self, offset: FfiCssPixelPoint);
+}
+
+impl PropagatedPayload for PendingAbsposChild {
+    fn coordinate_space_box(&self) -> crate::layout::node_data::NodeSlotId {
+        self.coordinate_space_box
+    }
+    fn set_coordinate_space_box(&mut self, node: crate::layout::node_data::NodeSlotId) {
+        self.coordinate_space_box = node;
+    }
+    fn translate_by(&mut self, offset: FfiCssPixelPoint) {
+        translate_pending_abspos_payloads(self, offset);
+    }
+}
+
+fn propagate_payload_into_containing_block_space<Payload: PropagatedPayload>(
+    payload: &mut Payload,
+    placed_box: crate::layout::node_data::NodeSlotId,
+    containing_block: Option<crate::layout::node_data::NodeSlotId>,
+    placed_box_content_offset: FfiCssPixelPoint,
+) {
+    if payload.coordinate_space_box() == placed_box
+        && let Some(containing_block) = containing_block
+    {
+        payload.translate_by(placed_box_content_offset);
+        payload.set_coordinate_space_box(containing_block);
+    }
+}
+
+fn propagate_payload_toward_run_root_space<Payload: PropagatedPayload>(
+    payload: &mut Payload,
+    run_root: crate::layout::node_data::NodeSlotId,
+    state: &LayoutState,
+    callbacks: &FfiLayoutFcCallbacks,
+) {
+    while payload.coordinate_space_box() != run_root {
+        let Some(used) = state
+            .used_values_by_slot(payload.coordinate_space_box().slot_index())
+            .filter(|used| used.has_content_offset.get())
+        else {
+            break;
+        };
+        payload.translate_by(used.content_offset.get());
+        let containing_block = callbacks.containing_block(payload.coordinate_space_box());
+        if containing_block.is_invalid() {
+            break;
+        }
+        payload.set_coordinate_space_box(containing_block);
+    }
+}
+
 pub(crate) struct UnplacedRootFragment {
     pub(crate) node: crate::layout::node_data::NodeSlotId,
     pub(crate) scoped_descendants: Vec<FragmentLink>,
+    pub(crate) propagated_pending_abspos: Vec<PendingAbsposChild>,
 }
 
 pub(crate) struct CompletedPassFragments {
@@ -106,6 +165,7 @@ pub(crate) struct CompletedPassFragments {
 struct PendingFragment {
     node: crate::layout::node_data::NodeSlotId,
     children: Vec<FragmentLink>,
+    pending_abspos: Vec<PendingAbsposChild>,
 }
 
 pub(crate) struct RunFragmentBuilder {
@@ -118,9 +178,9 @@ pub(crate) struct RunFragmentBuilder {
 #[derive(Default)]
 struct RunFragmentBuilderInner {
     pending_fragments: std::collections::HashMap<u32, PendingFragment>,
-    #[cfg(debug_assertions)]
     placed_slots: std::collections::HashSet<u32>,
     child_roots_awaiting_placement: std::collections::HashMap<u32, UnplacedRootFragment>,
+    pending_abspos_at_root: Vec<PendingAbsposChild>,
     top_scope_links: Vec<FragmentLink>,
 }
 
@@ -146,6 +206,93 @@ impl RunFragmentBuilder {
         }
     }
 
+    pub(crate) fn root_node(&self) -> crate::layout::node_data::NodeSlotId {
+        self.root_node
+    }
+
+    pub(crate) fn register_pending_abspos(
+        &self,
+        coordinate_space_box: crate::layout::node_data::NodeSlotId,
+        entry: PendingAbsposChild,
+    ) {
+        let mut inner = self.inner.borrow_mut();
+        #[cfg(debug_assertions)]
+        assert!(
+            !inner.placed_slots.contains(&coordinate_space_box.slot_index()),
+            "an abspos registration named an already-placed coordinate-space box"
+        );
+        if coordinate_space_box == self.root_node {
+            inner.pending_abspos_at_root.push(entry);
+            return;
+        }
+        match inner.pending_fragments.get_mut(&coordinate_space_box.slot_index()) {
+            Some(pending_fragment) => pending_fragment.pending_abspos.push(entry),
+            None => {
+                if self.is_entry_accumulator {
+                    inner.pending_abspos_at_root.push(entry);
+                } else {
+                    inner.pending_fragments.insert(
+                        coordinate_space_box.slot_index(),
+                        PendingFragment {
+                            node: coordinate_space_box,
+                            children: Vec::new(),
+                            pending_abspos: vec![entry],
+                        },
+                    );
+                }
+            }
+        }
+    }
+
+    pub(crate) fn override_containing_block_info_for_pending_abspos_of_containing_block(
+        &self,
+        containing_block: crate::layout::node_data::NodeSlotId,
+        callbacks: &FfiLayoutFcCallbacks,
+        containing_block_info_for_child: impl Fn(crate::layout::node_data::NodeSlotId) -> AbsposContainingBlockInfo,
+    ) {
+        for entry in &mut self.inner.borrow_mut().pending_abspos_at_root {
+            if callbacks.containing_block(entry.child_box) == containing_block {
+                entry.containing_block_info_override = Some(containing_block_info_for_child(entry.child_box));
+            }
+        }
+    }
+
+    pub(crate) fn take_drainable_abspos(
+        &self,
+        placed: crate::layout::node_data::NodeSlotId,
+        callbacks: &FfiLayoutFcCallbacks,
+    ) -> Vec<PendingAbsposChild> {
+        let mut inner = self.inner.borrow_mut();
+        let inner = &mut *inner;
+        let containing_block_is_placed = |entry: &PendingAbsposChild| {
+            let containing_block = callbacks.containing_block(entry.child_box);
+            !containing_block.is_invalid()
+                && (self.is_entry_accumulator || containing_block != self.root_node)
+                && (containing_block == placed || inner.placed_slots.contains(&containing_block.slot_index()))
+        };
+        let mut taken: Vec<PendingAbsposChild> = inner
+            .pending_abspos_at_root
+            .extract_if(.., |entry| containing_block_is_placed(entry))
+            .collect();
+        if let Some(pending_fragment) = inner.pending_fragments.get_mut(&placed.slot_index()) {
+            taken.extend(
+                pending_fragment
+                    .pending_abspos
+                    .extract_if(.., |entry| containing_block_is_placed(entry)),
+            );
+        }
+        taken.sort_by(|left, right| {
+            if left.child_box == right.child_box {
+                std::cmp::Ordering::Equal
+            } else if callbacks.is_before(left.child_box, right.child_box) {
+                std::cmp::Ordering::Less
+            } else {
+                std::cmp::Ordering::Greater
+            }
+        });
+        taken
+    }
+
     pub(crate) fn hold_unplaced_root(&self, root: UnplacedRootFragment) {
         let slot = root.node.slot_index();
         let previous = self.inner.borrow_mut().child_roots_awaiting_placement.insert(slot, root);
@@ -158,26 +305,30 @@ impl RunFragmentBuilder {
     pub(crate) fn normalize_arrivals_for_placement(&self, node: crate::layout::node_data::NodeSlotId) {
         let mut inner = self.inner.borrow_mut();
         let slot = node.slot_index();
-        let scoped_descendants = match inner.child_roots_awaiting_placement.remove(&slot) {
-            Some(root) => {
-                debug_assert!(root.node == node, "a held unplaced root was keyed under a different box");
-                root.scoped_descendants
-            }
-            None => Vec::new(),
-        };
+        let (scoped_descendants, propagated_pending_abspos) =
+            match inner.child_roots_awaiting_placement.remove(&slot) {
+                Some(root) => {
+                    debug_assert!(root.node == node, "a held unplaced root was keyed under a different box");
+                    (root.scoped_descendants, root.propagated_pending_abspos)
+                }
+                None => (Vec::new(), Vec::new()),
+            };
         let pending_fragment = inner.pending_fragments.entry(slot).or_insert_with(|| PendingFragment {
             node,
             children: Vec::new(),
+            pending_abspos: Vec::new(),
         });
         debug_assert!(
             pending_fragment.children.is_empty() || scoped_descendants.is_empty(),
             "a held unplaced root and an open pending fragment both carry children for slot {slot}"
         );
         pending_fragment.children.extend(scoped_descendants);
+        pending_fragment.pending_abspos.extend(propagated_pending_abspos);
     }
 
     pub(crate) fn build_fragment_for_placed_box(
         &self,
+        callbacks: &FfiLayoutFcCallbacks,
         node: crate::layout::node_data::NodeSlotId,
         containing_block: Option<crate::layout::node_data::NodeSlotId>,
         used: &UsedValues,
@@ -186,21 +337,33 @@ impl RunFragmentBuilder {
     ) {
         let mut inner = self.inner.borrow_mut();
         let slot = node.slot_index();
-        #[cfg(debug_assertions)]
         assert!(inner.placed_slots.insert(slot), "a box was placed twice in one run");
         debug_assert!(
             !inner.child_roots_awaiting_placement.contains_key(&slot),
             "a box was placed without normalizing its held unplaced root (slot {slot})"
         );
-        let children = match inner.pending_fragments.remove(&slot) {
-            Some(pending_fragment) => pending_fragment.children,
-            None => Vec::new(),
+        let (children, pending_abspos_from_placed_box) = match inner.pending_fragments.remove(&slot) {
+            Some(pending_fragment) => (pending_fragment.children, pending_fragment.pending_abspos),
+            None => (Vec::new(), Vec::new()),
         };
         let link = link_fragment(
             snapshot_fragment(node, children, used),
             PlacementData::from_record(used, containing_line_box_index),
         );
         self.attach(&mut inner, link, containing_block, containing_block_is_sealed);
+        let content_offset = used.content_offset.get();
+        for mut entry in pending_abspos_from_placed_box {
+            debug_assert!(
+                callbacks.containing_block(entry.child_box) != node,
+                "an abspos registration outlived its containing block's placement drain (slot {})",
+                entry.child_box.slot_index()
+            );
+            propagate_payload_into_containing_block_space(&mut entry, node, containing_block, content_offset);
+            match inner.pending_fragments.get_mut(&entry.coordinate_space_box.slot_index()) {
+                Some(pending_fragment) => pending_fragment.pending_abspos.push(entry),
+                None => inner.pending_abspos_at_root.push(entry),
+            }
+        }
     }
 
     fn attach(
@@ -231,27 +394,37 @@ impl RunFragmentBuilder {
             PendingFragment {
                 node: containing_block,
                 children: vec![link],
+                pending_abspos: Vec::new(),
             },
         );
     }
 
-    pub(crate) fn take_unplaced_root(&self, state: &LayoutState) -> UnplacedRootFragment {
+    pub(crate) fn take_unplaced_root(&self, state: &LayoutState, callbacks: &FfiLayoutFcCallbacks) -> UnplacedRootFragment {
         debug_assert!(!self.is_entry_accumulator, "an entry accumulator closes as a pass, not a run");
+        let (scoped_descendants, propagated_pending_abspos) = self.close(state, callbacks);
         UnplacedRootFragment {
             node: self.root_node,
-            scoped_descendants: self.close(state),
+            scoped_descendants,
+            propagated_pending_abspos,
         }
     }
 
-    pub(crate) fn take_completed_pass(&self, state: &LayoutState) -> CompletedPassFragments {
+    pub(crate) fn take_completed_pass(&self, state: &LayoutState, callbacks: &FfiLayoutFcCallbacks) -> CompletedPassFragments {
         debug_assert!(self.is_entry_accumulator, "an ordinary run closes as a singular unplaced root");
-        CompletedPassFragments { roots: self.close(state) }
+        let (roots, _dropped_pending_abspos) = self.close(state, callbacks);
+        CompletedPassFragments { roots }
     }
 
-    fn close(&self, state: &LayoutState) -> Vec<FragmentLink> {
+    fn close(
+        &self,
+        state: &LayoutState,
+        callbacks: &FfiLayoutFcCallbacks,
+    ) -> (Vec<FragmentLink>, Vec<PendingAbsposChild>) {
         let mut inner = self.inner.take();
+        let mut propagated_pending_abspos = std::mem::take(&mut inner.pending_abspos_at_root);
         let pending_fragments = std::mem::take(&mut inner.pending_fragments);
         for (slot, pending_fragment) in pending_fragments {
+            propagated_pending_abspos.extend(pending_fragment.pending_abspos);
             if pending_fragment.children.is_empty() {
                 continue;
             }
@@ -268,11 +441,26 @@ impl RunFragmentBuilder {
             let used = state
                 .used_values_by_slot(slot)
                 .expect("a held child run's root has no record");
+            propagated_pending_abspos.extend(root.propagated_pending_abspos);
             inner.top_scope_links.push(link_fragment(
                 snapshot_fragment(root.node, root.scoped_descendants, used),
                 PlacementData::from_record(used, None),
             ));
         }
-        inner.top_scope_links
+        for entry in &mut propagated_pending_abspos {
+            #[cfg(debug_assertions)]
+            {
+                let containing_block = callbacks.containing_block(entry.child_box);
+                debug_assert!(
+                    containing_block.is_invalid()
+                        || containing_block == self.root_node
+                        || !inner.placed_slots.contains(&containing_block.slot_index()),
+                    "a drainable abspos registration survived its containing block's run (slot {})",
+                    entry.child_box.slot_index()
+                );
+            }
+            propagate_payload_toward_run_root_space(entry, self.root_node, state, callbacks);
+        }
+        (inner.top_scope_links, propagated_pending_abspos)
     }
 }

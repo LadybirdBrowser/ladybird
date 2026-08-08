@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<style>
+    .table { display: table; width: 200px; }
+    .row { display: table-row; position: relative; }
+    .cell { display: table-cell; height: 30px; }
+    .abspos { position: absolute; top: 5px; left: 10px; width: 50px; height: 20px; background: orange; }
+</style>
+<div class="table">
+    <div class="row"><div class="cell">first</div></div>
+    <div class="row">
+        <div class="abspos"></div>
+        <div class="cell">second</div>
+    </div>
+</div>

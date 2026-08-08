@@ -297,7 +297,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         crate::layout::place_child(&self.formatting_context_run(), node, offset);
     }
 
-    fn register_contained_abspos_child(&self, node: Node, block_offset: CssPixels) {
+    fn register_contained_abspos_child(&self, node: Node, block_offset: CssPixels, coordinate_space_box: Node) {
         let static_position = StaticPositionRect {
             rect: LogicalRect {
                 offset: LogicalOffset {
@@ -310,7 +310,15 @@ impl<'pass> BlockFormattingContext<'pass> {
             block_alignment: StaticPositionAlignment::Start,
             alignment_derives_from_own_computed_values: false,
         };
-        crate::layout::register_contained_abspos_child(self.state, &self.callbacks, node, static_position);
+        crate::layout::register_contained_abspos_child(
+            self.state,
+            &self.callbacks,
+            self.fragments.as_deref(),
+            coordinate_space_box,
+            node,
+            static_position,
+            None,
+        );
     }
 
     fn compute_and_store_baselines(&self, node: Node) {
@@ -1550,6 +1558,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                     self.block_offset_of_current_block_container
                         .get()
                         .expect("a block container flow cursor is active"),
+                    block_container,
                 );
             }
             return;
