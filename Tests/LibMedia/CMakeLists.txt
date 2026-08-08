@@ -7,6 +7,7 @@ set(TEST_SOURCES
     TestCodecConfigurations.cpp
     TestCodecParameters.cpp
     TestDecodedAudioProducer.cpp
+    TestDecoderRegistry.cpp
     TestDisplayingVideoSink.cpp
     TestFFmpegAudioNormalization.cpp
     TestFFmpegDemuxer.cpp

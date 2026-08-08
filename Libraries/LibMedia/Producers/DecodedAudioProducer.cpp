@@ -7,9 +7,9 @@
 #include <AK/Debug.h>
 #include <LibCore/EventLoop.h>
 #include <LibMedia/Audio/SampleSpecification.h>
+#include <LibMedia/DecoderRegistry.h>
 #include <LibMedia/Demuxer.h>
 #include <LibMedia/FFmpeg/FFmpegAudioConverter.h>
-#include <LibMedia/FFmpeg/FFmpegAudioDecoder.h>
 #include <LibMedia/Sinks/AudioSink.h>
 #include <LibSync/Mutex.h>
 #include <LibThreading/Thread.h>
@@ -198,7 +198,7 @@ DecoderErrorOr<void> DecodedAudioProducer::ThreadData::create_decoder()
     auto codec_id = TRY(m_demuxer->get_codec_id_for_track(m_track));
     auto const& sample_specification = m_track.audio_data().sample_specification;
     auto codec_initialization_data = TRY(m_demuxer->get_codec_initialization_data_for_track(m_track));
-    m_decoder = TRY(FFmpeg::FFmpegAudioDecoder::try_create(codec_id, sample_specification, codec_initialization_data));
+    m_decoder = TRY(create_audio_decoder(codec_id, sample_specification, codec_initialization_data));
     return {};
 }
 

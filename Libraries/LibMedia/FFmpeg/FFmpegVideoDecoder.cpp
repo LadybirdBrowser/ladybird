@@ -13,6 +13,15 @@
 
 namespace Media::FFmpeg {
 
+Optional<DecoderCapabilities> FFmpegVideoDecoder::capabilities(ParsedCodec const& codec)
+{
+    if (track_type_from_codec_id(codec.codec_id()) != TrackType::Video)
+        return {};
+    if (!avcodec_find_decoder(ffmpeg_codec_id_from_media_codec_id(codec.codec_id())))
+        return {};
+    return DecoderCapabilities { .smooth = true, .power_efficient = false };
+}
+
 static AVPixelFormat negotiate_output_format(AVCodecContext*, AVPixelFormat const* formats)
 {
     while (*formats >= 0) {
