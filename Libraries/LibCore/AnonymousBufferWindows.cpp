@@ -55,8 +55,10 @@ ErrorOr<NonnullRefPtr<AnonymousBufferImpl>> AnonymousBufferImpl::create(int fd, 
     return adopt_ref(*new AnonymousBufferImpl(fd, size, ptr));
 }
 
-ErrorOr<AnonymousBuffer> AnonymousBuffer::create_with_size(size_t size)
+ErrorOr<AnonymousBuffer> AnonymousBuffer::create_with_size(size_t size, [[maybe_unused]] bool seal_immutable_size)
 {
+    // seal_immutable_size is a no-op on Windows: A CreateFileMapping section has a fixed size baked in at creation — so
+    // a peer holding the handle can't resize it (there's no ftruncate-style shrink to guard against).
     auto impl = TRY(AnonymousBufferImpl::create(size));
     return AnonymousBuffer(move(impl));
 }

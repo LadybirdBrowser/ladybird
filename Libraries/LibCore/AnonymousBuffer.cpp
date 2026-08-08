@@ -12,9 +12,9 @@
 
 namespace Core {
 
-ErrorOr<AnonymousBuffer> AnonymousBuffer::create_with_size(size_t size)
+ErrorOr<AnonymousBuffer> AnonymousBuffer::create_with_size(size_t size, bool seal_immutable_size)
 {
-    auto fd = TRY(Core::System::anon_create(size, O_CLOEXEC));
+    auto fd = TRY(Core::System::anon_create(size, O_CLOEXEC, seal_immutable_size));
     return create_from_anon_fd(fd, size);
 }
 

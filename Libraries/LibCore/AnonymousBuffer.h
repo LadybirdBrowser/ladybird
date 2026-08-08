@@ -37,7 +37,7 @@ private:
 
 class CORE_API AnonymousBuffer {
 public:
-    static ErrorOr<AnonymousBuffer> create_with_size(size_t);
+    static ErrorOr<AnonymousBuffer> create_with_size(size_t, bool seal_immutable_size = false);
     static ErrorOr<AnonymousBuffer> create_from_anon_fd(int fd, size_t);
 
     AnonymousBuffer() = default;

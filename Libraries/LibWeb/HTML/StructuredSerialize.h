@@ -16,6 +16,7 @@
 #include <AK/StringView.h>
 #include <AK/TypeCasts.h>
 #include <AK/Vector.h>
+#include <LibCore/AnonymousBuffer.h>
 #include <LibCrypto/Forward.h>
 #include <LibGC/Ptr.h>
 #include <LibIPC/Decoder.h>
@@ -99,10 +100,19 @@ public:
     IPCSerializationRecord take_ipc_record();
     StorageSerializationRecord take_storage_record();
 
+    // AD-HOC: SharedArrayBuffers can be shared across agents only on the messaging path, where a side list is available
+    //         to carry their cross-process shared memory by file descriptor. enable_shared_buffers() opts a writer in.
+    void enable_shared_buffers() { m_supports_shared_buffers = true; }
+    bool supports_shared_buffers() const { return m_supports_shared_buffers; }
+    Vector<Core::AnonymousBuffer>& shared_buffers() { return m_shared_buffers; }
+    Vector<Core::AnonymousBuffer> take_shared_buffers() { return move(m_shared_buffers); }
+
 private:
     explicit StructuredSerializeWriter(NonnullOwnPtr<StructuredSerializeDataEncoder>);
 
     NonnullOwnPtr<StructuredSerializeDataEncoder> m_encoder;
+    Vector<Core::AnonymousBuffer> m_shared_buffers;
+    bool m_supports_shared_buffers { false };
 };
 
 class WEB_API StructuredSerializeReader {
@@ -118,13 +128,21 @@ public:
     template<typename T>
     ErrorOr<T> decode();
 
+    // Set on the messaging path so the deserializer can map SharedArrayBuffers back to their cross-process shared memory.
+    void set_shared_buffers(Vector<Core::AnonymousBuffer>& shared_buffers) { m_shared_buffers = &shared_buffers; }
+    Vector<Core::AnonymousBuffer>* shared_buffers() { return m_shared_buffers; }
+
 private:
     NonnullOwnPtr<StructuredSerializeDataDecoder> m_decoder;
+    Vector<Core::AnonymousBuffer>* m_shared_buffers { nullptr };
 };
 
 struct SerializedTransferRecord {
     IPCSerializationRecord serialized;
     Vector<TransferDataEncoder> transfer_data_holders;
+    // AD-HOC: Cross-process shared memory backing serialized SharedArrayBuffers — referenced by index from the main
+    //         record (whose bytes can't carry file descriptors).
+    Vector<Core::AnonymousBuffer> shared_array_buffers;
 };
 
 struct DeserializedTransferRecord {
@@ -136,7 +154,7 @@ WEB_API WebIDL::ExceptionOr<IPCSerializationRecord> structured_serialize(JS::VM&
 WEB_API WebIDL::ExceptionOr<StorageSerializationRecord> structured_serialize_for_storage(JS::VM&, JS::Value);
 WebIDL::ExceptionOr<void> structured_serialize_internal(JS::VM&, StructuredSerializeWriter&, JS::Value, bool for_storage, SerializationMemory&);
 
-WebIDL::ExceptionOr<JS::Value> structured_deserialize(JS::VM&, IPCSerializationRecord const&, JS::Realm&, Optional<DeserializationMemory> = {});
+WebIDL::ExceptionOr<JS::Value> structured_deserialize(JS::VM&, IPCSerializationRecord const&, JS::Realm&, Optional<DeserializationMemory> = {}, Vector<Core::AnonymousBuffer>* shared_buffers = nullptr);
 WebIDL::ExceptionOr<JS::Value> structured_deserialize(JS::VM&, StorageSerializationRecord const&, JS::Realm&, Optional<DeserializationMemory> = {});
 WEB_API WebIDL::ExceptionOr<JS::Value> structured_deserialize_internal(JS::VM&, StructuredSerializeReader&, JS::Realm&, DeserializationMemory&, CheckFullyConsumed = CheckFullyConsumed::No);
 

@@ -81,7 +81,7 @@ ErrorOr<int> openat(int fd, StringView path, int options, mode_t mode = 0);
 CORE_API ErrorOr<int> fcntl(int fd, int command, ...);
 ErrorOr<void*> mmap(void* address, size_t, int protection, int flags, int fd, off_t, size_t alignment = 0, StringView name = {});
 ErrorOr<void> munmap(void* address, size_t);
-ErrorOr<int> anon_create(size_t size, int options);
+ErrorOr<int> anon_create(size_t size, int options, bool seal_immutable_size = false);
 CORE_API ErrorOr<int> open(StringView path, int options, mode_t mode = 0);
 ErrorOr<void> ftruncate(int fd, off_t length);
 CORE_API ErrorOr<struct stat> stat(StringView path);
@@ -128,6 +128,9 @@ CORE_API ErrorOr<void*> reserve_address_space(size_t size);
 CORE_API ErrorOr<void> commit_memory(void* address, size_t size);
 CORE_API ErrorOr<void> decommit_memory(void* address, size_t size);
 CORE_API ErrorOr<void> release_address_space(void* address, size_t size);
+
+// Used for placing a SharedArrayBuffer's cross-process shared memory inside the primitive storage cage.
+CORE_API ErrorOr<void> map_shared_memory_fixed(void* address, size_t size, int fd);
 
 CORE_API ErrorOr<void> close(int fd);
 CORE_API ErrorOr<int> dup(int source_fd);

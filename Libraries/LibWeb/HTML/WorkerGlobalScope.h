@@ -93,6 +93,10 @@ public:
     URL::URL const& url() const { return m_url.value(); }
     void set_url(URL::URL const& url) { m_url = url; }
 
+    // https://html.spec.whatwg.org/multipage/workers.html#concept-workerglobalscope-cross-origin-isolated-capability
+    bool cross_origin_isolated_capability() const { return m_cross_origin_isolated_capability; }
+    void set_cross_origin_isolated_capability(bool value) { m_cross_origin_isolated_capability = value; }
+
     Utf16String const& name() const { return m_name; }
     void set_name(Utf16String name) { m_name = move(name); }
 

@@ -180,6 +180,15 @@ ErrorOr<void> decommit_memory(void* address, size_t size)
     return {};
 }
 
+ErrorOr<void> map_shared_memory_fixed(void* address, size_t size, int fd)
+{
+    auto* ptr = ::mmap(address, size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_FIXED, fd, 0);
+    if (ptr == MAP_FAILED)
+        return Error::from_syscall("mmap"sv, errno);
+    VERIFY(ptr == address);
+    return {};
+}
+
 ErrorOr<void> release_address_space(void* address, size_t size)
 {
     if (::munmap(address, size) < 0)
@@ -187,12 +196,16 @@ ErrorOr<void> release_address_space(void* address, size_t size)
     return {};
 }
 
-ErrorOr<int> anon_create([[maybe_unused]] size_t size, [[maybe_unused]] int options)
+ErrorOr<int> anon_create([[maybe_unused]] size_t size, [[maybe_unused]] int options, [[maybe_unused]] bool seal_immutable_size)
 {
     int fd = -1;
 #if defined(AK_OS_LINUX) || defined(AK_OS_FREEBSD)
     // FIXME: Support more options on Linux.
     auto linux_options = ((options & O_CLOEXEC) > 0) ? MFD_CLOEXEC : 0;
+#    if defined(AK_OS_LINUX)
+    if (seal_immutable_size)
+        linux_options |= MFD_ALLOW_SEALING;
+#    endif
     fd = memfd_create("", linux_options);
 #elif defined(SHM_ANON)
     fd = shm_open(SHM_ANON, O_RDWR | O_CREAT | options, 0600);
@@ -224,11 +237,32 @@ ErrorOr<int> anon_create([[maybe_unused]] size_t size, [[maybe_unused]] int opti
     if (fd < 0)
         return Error::from_errno(errno);
 
-    if (::ftruncate(fd, size) < 0) {
+    int truncate_result;
+    do {
+        truncate_result = ::ftruncate(fd, size);
+    } while (truncate_result < 0 && errno == EINTR);
+    if (truncate_result < 0) {
         auto saved_errno = errno;
         TRY(close(fd));
         return Error::from_errno(saved_errno);
     }
+
+    // FIXME: seal_immutable_size is enforced only on Linux, via the memfd F_SEAL_* seals below. On macOS, the flag is
+    //        accepted, but the fd stays resizable (ftruncate remains possible). SAB backing relies on this seal to stop
+    //        a transferred fd from being shrunk under a peer. POSIX shared memory has no equivalent seal — so a macOS
+    //        equivalent would require implementing backing of the block with a Mach memory entry instead of an shm fd.
+#if defined(AK_OS_LINUX)
+    // Seal a fixed-size shared fd against resizing: A peer process holding the transferred fd must not be able to
+    // ftruncate it smaller, and SIGBUS siblings that touch the now-missing pages. Writes stay allowed on purpose (no
+    // F_SEAL_WRITE); the shared memory must remain writable.
+    if (seal_immutable_size) {
+        if (::fcntl(fd, F_ADD_SEALS, F_SEAL_SHRINK | F_SEAL_GROW | F_SEAL_SEAL) < 0) {
+            auto saved_errno = errno;
+            TRY(close(fd));
+            return Error::from_errno(saved_errno);
+        }
+    }
+#endif
 
     return fd;
 }

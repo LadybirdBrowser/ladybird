@@ -25,6 +25,12 @@ GC::Ref<WorkerEnvironmentSettingsObject> WorkerEnvironmentSettingsObject::setup(
     // 2. Let worker global scope be realm's global object.
     auto& worker = as<HTML::WorkerGlobalScope>(realm->global_object());
 
+    // AD-HOC: The worker global scope's cross-origin isolated capability is inherited from the outside/creating
+    //         settings object. In our multi-process model, it arrives via the serialized outside settings; the spec
+    //         sets it while running the worker (before this algorithm), from the worker agent's agent cluster's
+    //         cross-origin isolation mode.
+    worker.set_cross_origin_isolated_capability(outside_settings.cross_origin_isolated_capability == CanUseCrossOriginIsolatedAPIs::Yes);
+
     // 3. Let origin be a unique opaque origin if worker global scope's url's scheme is "data"; otherwise outside settings's origin.
     auto origin = worker.url().scheme() == "data" ? URL::Origin::create_opaque() : outside_settings.origin;
 
@@ -106,8 +112,8 @@ GC::Ref<PolicyContainer> WorkerEnvironmentSettingsObject::policy_container() con
 // https://html.spec.whatwg.org/multipage/workers.html#script-settings-for-workers:concept-settings-object-cross-origin-isolated-capability
 CanUseCrossOriginIsolatedAPIs WorkerEnvironmentSettingsObject::cross_origin_isolated_capability() const
 {
-    // FIXME: Return worker global scope's cross-origin isolated capability.
-    return CanUseCrossOriginIsolatedAPIs::No;
+    // Return worker global scope's cross-origin isolated capability.
+    return m_global_scope->cross_origin_isolated_capability() ? CanUseCrossOriginIsolatedAPIs::Yes : CanUseCrossOriginIsolatedAPIs::No;
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#script-settings-for-workers:concept-settings-object-time-origin
