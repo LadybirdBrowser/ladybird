@@ -511,13 +511,21 @@ impl<'pass> SvgFormattingContext<'pass> {
         has_transforms.then_some(transforms)
     }
 
+    fn note_svg_payload_write(&self) {
+        if let Some(fragments) = &self.fragments {
+            fragments.note_svg_payload_write();
+        }
+    }
+
     fn set_computed_transforms(&self, node: Node, transforms: FfiSvgComputedTransforms) {
+        self.note_svg_payload_write();
         self.state
             .used_values_rare_data_for_node_mut(&self.callbacks, node)
             .computed_svg_transforms = Some(transforms);
     }
 
     fn set_svg_viewport_size(&self, node: Node, viewport_size: FfiCssPixelSize) {
+        self.note_svg_payload_write();
         self.state
             .used_values_rare_data_for_node_mut(&self.callbacks, node)
             .svg_viewport_size = Some(viewport_size);
@@ -967,6 +975,7 @@ impl<'pass> SvgFormattingContext<'pass> {
         let used = used_pointer;
         used.set_content_inline_size(transformed_bounding_box.width);
         used.set_content_block_size(transformed_bounding_box.height);
+        self.note_svg_payload_write();
         self.state
             .used_values_rare_data_for_node_mut(&self.callbacks, graphics_box)
             .computed_svg_path = Some(path);

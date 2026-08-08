@@ -26,6 +26,9 @@ pub(crate) struct Fragment {
     pub(crate) grid_layout_data: Option<OwnedGridLayoutData>,
     pub(crate) flex_layout_data: Option<OwnedFlexLayoutData>,
     pub(crate) used_grid_tracks: Option<OwnedUsedGridTracks>,
+    pub(crate) computed_svg_transforms: Option<crate::layout::FfiSvgComputedTransforms>,
+    pub(crate) svg_viewport_size: Option<crate::layout::FfiCssPixelSize>,
+    pub(crate) computed_svg_path: Cell<Option<libgfx_rust::path::OwnedPath>>,
     pub(crate) children: Vec<FragmentLink>,
 }
 
@@ -54,10 +57,21 @@ fn snapshot_fragment(
             rare.grid_layout_data.take(),
             rare.flex_layout_data.take(),
             rare.used_grid_tracks.take(),
+            rare.computed_svg_transforms,
+            rare.svg_viewport_size,
+            rare.computed_svg_path.take(),
         )
     });
-    let (table_cell_coordinates, override_borders_data, grid_layout_data, flex_layout_data, used_grid_tracks) =
-        rare_payloads.unwrap_or_default();
+    let (
+        table_cell_coordinates,
+        override_borders_data,
+        grid_layout_data,
+        flex_layout_data,
+        used_grid_tracks,
+        computed_svg_transforms,
+        svg_viewport_size,
+        computed_svg_path,
+    ) = rare_payloads.unwrap_or_default();
     Box::new(Fragment {
         node,
         content_inline_size: used.content_inline_size.get(),
@@ -80,6 +94,9 @@ fn snapshot_fragment(
         grid_layout_data,
         flex_layout_data,
         used_grid_tracks,
+        computed_svg_transforms,
+        svg_viewport_size,
+        computed_svg_path: Cell::new(computed_svg_path),
         children,
     })
 }
@@ -286,6 +303,7 @@ pub(crate) struct RunFragmentBuilder {
     root_node: crate::layout::node_data::NodeSlotId,
     root_containing_block_slot: Option<u32>,
     is_entry_accumulator: bool,
+    saw_svg_payload_write: Cell<bool>,
     inner: std::cell::RefCell<RunFragmentBuilderInner>,
 }
 
@@ -331,6 +349,7 @@ impl RunFragmentBuilder {
             root_node,
             root_containing_block_slot: root_containing_block.map(|node| node.slot_index()),
             is_entry_accumulator: false,
+            saw_svg_payload_write: Cell::new(false),
             inner: std::cell::RefCell::new(RunFragmentBuilderInner::default()),
         }
     }
@@ -340,12 +359,17 @@ impl RunFragmentBuilder {
             root_node,
             root_containing_block_slot: None,
             is_entry_accumulator: true,
+            saw_svg_payload_write: Cell::new(false),
             inner: std::cell::RefCell::new(RunFragmentBuilderInner::default()),
         }
     }
 
     pub(crate) fn root_node(&self) -> crate::layout::node_data::NodeSlotId {
         self.root_node
+    }
+
+    pub(crate) fn note_svg_payload_write(&self) {
+        self.saw_svg_payload_write.set(true);
     }
 
     pub(crate) fn register_pending_abspos(
@@ -685,6 +709,32 @@ impl RunFragmentBuilder {
 for candidate in &mut propagated_anchor_candidates {
             propagate_payload_toward_run_root_space(candidate, self.root_node, state, callbacks);
         }
+        if self.saw_svg_payload_write.take() {
+            refresh_svg_payloads_from_records(&mut inner.top_scope_links, state);
+        }
         (inner.top_scope_links, propagated_pending_abspos, propagated_anchor_candidates)
+    }
+}
+
+fn refresh_svg_payloads_from_records(links: &mut [FragmentLink], state: &LayoutState) {
+    for link in links {
+        let fragment = &mut *link.fragment;
+        let slot_index = fragment.node.slot_index();
+        if let Some(rare) = state.used_values_rare_data(slot_index) {
+            if rare.computed_svg_transforms.is_some() {
+                fragment.computed_svg_transforms = rare.computed_svg_transforms;
+            }
+            if rare.svg_viewport_size.is_some() {
+                fragment.svg_viewport_size = rare.svg_viewport_size;
+            }
+        }
+        if let Some(path) = state
+            .used_values_by_slot(slot_index)
+            .and_then(|used| used.rare_data.get())
+            .and_then(|rare| rare.borrow_mut().computed_svg_path.take())
+        {
+            fragment.computed_svg_path.set(Some(path));
+        }
+        refresh_svg_payloads_from_records(&mut fragment.children, state);
     }
 }
