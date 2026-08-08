@@ -104,6 +104,11 @@ public:
         return { arguments_data(), argument_count };
     }
 
+    ReadonlySpan<Value> passed_arguments_span() const
+    {
+        return { arguments_data(), passed_argument_count };
+    }
+
     Value* arguments_data()
     {
         return registers_and_constants_and_locals_and_arguments() + (registers_and_constants_and_locals_and_arguments_count - argument_count);
