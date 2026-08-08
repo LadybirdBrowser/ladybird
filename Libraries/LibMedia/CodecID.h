@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2023, Stephan Vedder <stephan.vedder@gmail.com>
+ * Copyright (c) 2026-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -7,6 +8,7 @@
 #pragma once
 
 #include <AK/Format.h>
+#include <AK/StringView.h>
 #include <LibMedia/TrackType.h>
 
 namespace Media {
@@ -56,10 +58,10 @@ inline TrackType track_type_from_codec_id(CodecID codec)
     case CodecID::H264:
     case CodecID::H265:
     case CodecID::AV1:
+    case CodecID::Theora:
         return TrackType::Video;
     case CodecID::MP3:
     case CodecID::AAC:
-    case CodecID::Theora:
     case CodecID::Vorbis:
     case CodecID::Opus:
     case CodecID::FLAC:
@@ -77,6 +79,48 @@ inline TrackType track_type_from_codec_id(CodecID codec)
         break;
     }
     return TrackType::Unknown;
+}
+
+// Maps a codec ID string, as used in the codecs parameter of a MIME type, to a CodecID.  Returns CodecID::Unknown for
+// codec ID strings that aren't recognized.
+// https://www.rfc-editor.org/rfc/rfc6381
+inline CodecID codec_id_from_rfc6381_codec_string(StringView codec_string)
+{
+    // Codec ID strings for codec families such as AVC, HEVC, VP9, AV1 and AAC have period-separated suffixes that
+    // describe the profile, level, and other parameters of the codec used.
+    auto is_codec_family = [&](StringView family) {
+        if (!codec_string.starts_with(family))
+            return false;
+        return codec_string.length() == family.length() || codec_string[family.length()] == '.';
+    };
+
+    if (is_codec_family("avc1"sv) || is_codec_family("avc3"sv))
+        return CodecID::H264;
+    if (is_codec_family("hvc1"sv) || is_codec_family("hev1"sv))
+        return CodecID::H265;
+    if (codec_string == "vp8"sv || is_codec_family("vp08"sv))
+        return CodecID::VP8;
+    if (codec_string == "vp9"sv || is_codec_family("vp09"sv))
+        return CodecID::VP9;
+    if (is_codec_family("av01"sv))
+        return CodecID::AV1;
+    if (codec_string == "theora"sv)
+        return CodecID::Theora;
+    if (codec_string == "vorbis"sv)
+        return CodecID::Vorbis;
+    if (codec_string == "opus"sv)
+        return CodecID::Opus;
+    if (codec_string == "flac"sv)
+        return CodecID::FLAC;
+    if (codec_string == "mp3"sv)
+        return CodecID::MP3;
+    // MPEG-4 audio object type 0x40 is MPEG-4 AAC and object types 0x66 to 0x68 are MPEG-2 AAC, while object types 0x69
+    // and 0x6B are MPEG-1/2 audio, whose ubiquitous layer is MP3.
+    if (is_codec_family("mp4a.40"sv) || codec_string == "mp4a.66"sv || codec_string == "mp4a.67"sv || codec_string == "mp4a.68"sv)
+        return CodecID::AAC;
+    if (codec_string == "mp4a.69"sv || codec_string == "mp4a.6B"sv || codec_string == "mp4a.6b"sv)
+        return CodecID::MP3;
+    return CodecID::Unknown;
 }
 
 constexpr StringView codec_id_to_string(CodecID codec)
