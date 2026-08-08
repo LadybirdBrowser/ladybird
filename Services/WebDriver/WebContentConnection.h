@@ -24,7 +24,8 @@ public:
     Web::WebDriver::Response wait_for_navigation_completion()
     {
         auto response = send_sync_but_allow_failure<Messages::WebDriverClient::WaitForNavigationCompletion>();
-        VERIFY(response);
+        if (!response)
+            return JsonValue {};
         return response->response();
     }
 
