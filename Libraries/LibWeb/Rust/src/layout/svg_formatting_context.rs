@@ -380,6 +380,7 @@ pub(crate) fn scale_and_align_viewbox_content(
 
 struct SvgFormattingContext<'pass> {
     state: &'pass LayoutState,
+    records: std::rc::Rc<RunRecords>,
     box_: Node,
     layout_mode: LayoutMode,
     callbacks: FfiLayoutFcCallbacks,
@@ -409,6 +410,7 @@ impl<'pass> SvgFormattingContext<'pass> {
     ) -> Self {
         Self {
             state: run.state,
+            records: run.records.clone(),
             box_,
             layout_mode: run.layout_mode,
             callbacks: run.callbacks,
@@ -429,6 +431,7 @@ impl<'pass> SvgFormattingContext<'pass> {
     fn formatting_context_run(&self) -> FormattingContextRun<'pass> {
         FormattingContextRun {
             state: self.state,
+            records: self.records.clone(),
             box_: self.box_,
             layout_mode: self.layout_mode,
             callbacks: self.callbacks,
@@ -477,24 +480,25 @@ impl<'pass> SvgFormattingContext<'pass> {
         self.state.style_facts(&self.callbacks, node)
     }
 
-    fn used_values(&self, node: Node) -> &'pass UsedValues {
-        self.state.used_values(&self.callbacks, node)
+    #[track_caller]
+    fn used_values(&self, node: Node) -> std::rc::Rc<UsedValues> {
+        self.records.used_values(node)
     }
 
-    fn create_used_values(&self, node: Node) -> &'pass UsedValues {
+    fn create_used_values(&self, node: Node) -> std::rc::Rc<UsedValues> {
         // SVG descendants deliberately carry no percentage basis.
         // SVG layout resolves percentages against the SVG viewport, not a CSS containing
         // block, so boxes inside the SVG subtree carry no percentage basis.
-        self.state
-            .create_used_values(&self.callbacks, node, crate::layout::ContainingBlockConstraints::default())
+        self.records
+            .create_used_values(self.state, &self.callbacks, node, crate::layout::ContainingBlockConstraints::default())
     }
 
     fn computed_transforms(&self, node: Node) -> Option<FfiSvgComputedTransforms> {
-        let slot_index = self.callbacks.slot_index(node);
         if let Some(transforms) = self
-            .state
-            .used_values_rare_data(slot_index)
-            .and_then(|data| data.computed_svg_transforms)
+            .used_values(node)
+            .rare_data
+            .get()
+            .and_then(|cell| cell.borrow().computed_svg_transforms)
         {
             return Some(transforms);
         }
@@ -519,16 +523,12 @@ impl<'pass> SvgFormattingContext<'pass> {
 
     fn set_computed_transforms(&self, node: Node, transforms: FfiSvgComputedTransforms) {
         self.note_svg_payload_write();
-        self.state
-            .used_values_rare_data_for_node_mut(&self.callbacks, node)
-            .computed_svg_transforms = Some(transforms);
+        self.used_values(node).rare_data_mut().computed_svg_transforms = Some(transforms);
     }
 
     fn set_svg_viewport_size(&self, node: Node, viewport_size: FfiCssPixelSize) {
         self.note_svg_payload_write();
-        self.state
-            .used_values_rare_data_for_node_mut(&self.callbacks, node)
-            .svg_viewport_size = Some(viewport_size);
+        self.used_values(node).rare_data_mut().svg_viewport_size = Some(viewport_size);
     }
 
     fn place_child(&self, node: Node, x: CssPixels, y: CssPixels) {
@@ -560,7 +560,7 @@ impl<'pass> SvgFormattingContext<'pass> {
         let kind = self.node_kind(self.box_);
         let facts = self.svg_facts(self.box_);
         let used_pointer = self.used_values(self.box_);
-        let used = used_pointer;
+        let used = &used_pointer;
 
         if facts.is_document_element && !facts.document_is_decoded_svg && !used.has_content_offset.get() {
             // Overwrite the content width/height with the styled node width/height (from <svg width height ...>)
@@ -836,7 +836,7 @@ impl<'pass> SvgFormattingContext<'pass> {
             parent_viewbox_transform = FfiAffineTransform::default();
         }
 
-        let used = used_pointer;
+        let used = used_pointer.clone();
         used.set_content_inline_size(content_inline_size);
         used.set_content_block_size(content_block_size);
         used.has_definite_inline_size.set(true);
@@ -864,7 +864,7 @@ impl<'pass> SvgFormattingContext<'pass> {
             });
             // Reborrow after recursive layout to avoid keeping a Rust
             // reference across callbacks.
-            let used = used_pointer;
+            let used = &used_pointer;
             used.set_content_inline_size(css_pixels_from_f32(mapped_rect.width));
             used.set_content_block_size(css_pixels_from_f32(mapped_rect.height));
             self.place_child(
@@ -972,13 +972,11 @@ impl<'pass> SvgFormattingContext<'pass> {
         transformed_bounding_box.inflate(stroke_width, stroke_width);
 
         let used_pointer = self.used_values(graphics_box);
-        let used = used_pointer;
+        let used = &used_pointer;
         used.set_content_inline_size(transformed_bounding_box.width);
         used.set_content_block_size(transformed_bounding_box.height);
         self.note_svg_payload_write();
-        self.state
-            .used_values_rare_data_for_node_mut(&self.callbacks, graphics_box)
-            .computed_svg_path = Some(path);
+        self.used_values(graphics_box).rare_data_mut().computed_svg_path = Some(path);
         self.place_child(graphics_box, transformed_bounding_box.x, transformed_bounding_box.y);
         used.has_definite_inline_size.set(true);
         used.has_definite_block_size.set(true);
@@ -1002,7 +1000,7 @@ impl<'pass> SvgFormattingContext<'pass> {
         };
         let bounding_box = float_rect_to_css_pixels(to_css_pixels_transform.map_rect(source));
         let used_pointer = self.used_values(image_box);
-        let used = used_pointer;
+        let used = &used_pointer;
         used.set_content_inline_size(bounding_box.width);
         used.set_content_block_size(bounding_box.height);
         self.place_child(image_box, bounding_box.x, bounding_box.y);
@@ -1030,7 +1028,7 @@ impl<'pass> SvgFormattingContext<'pass> {
                 } else {
                     facts.pattern_height.value
                 };
-                let used = used_pointer;
+                let used = &used_pointer;
                 used.set_content_inline_size(css_pixels_from_f32(width));
                 used.set_content_block_size(css_pixels_from_f32(height));
             } else {
@@ -1038,7 +1036,7 @@ impl<'pass> SvgFormattingContext<'pass> {
                 assert!(!parent.is_invalid());
                 let parent_used_pointer = self.used_values(parent);
                 let parent_used = parent_used_pointer;
-                let used = used_pointer;
+                let used = &used_pointer;
                 used.set_content_inline_size(CssPixels::nearest_value_for(
                     facts.pattern_width.value as f64 * parent_used.content_inline_size.get().to_double(),
                 ));
@@ -1055,7 +1053,7 @@ impl<'pass> SvgFormattingContext<'pass> {
             assert!(!parent.is_invalid());
             let parent_used_pointer = self.used_values(parent);
             let parent_used = parent_used_pointer;
-            let used = used_pointer;
+            let used = &used_pointer;
             used.set_content_inline_size(parent_used.content_inline_size.get());
             used.set_content_block_size(parent_used.content_block_size.get());
             // https://svgwg.org/svg2-draft/pservers.html#PatternElementPatternContentUnitsAttribute
@@ -1070,19 +1068,19 @@ impl<'pass> SvgFormattingContext<'pass> {
                 );
             }
         } else {
-            let used = used_pointer;
+            let used = &used_pointer;
             used.set_content_inline_size(self.viewport_width);
             used.set_content_block_size(self.viewport_height);
         }
 
-        let used = used_pointer;
+        let used = used_pointer.clone();
         used.has_definite_inline_size.set(true);
         used.has_definite_block_size.set(true);
         // Pretend masks/clips are a viewport so we can scale the contents depending on the `contentUnits`.
         let mut nested_context = Self::new_nested(run, resource, parent_viewbox_transform, Some(FfiAffineTransform::default()));
         nested_context.run(run, self.nested_layout_input());
 
-        let used = used_pointer;
+        let used = &used_pointer;
         let mapped_rect = parent_viewbox_transform.map_rect(FfiFloatRect {
             x: 0.0,
             y: 0.0,
@@ -1141,7 +1139,7 @@ impl<'pass> SvgFormattingContext<'pass> {
         }
 
         let used_pointer = self.used_values(container);
-        let used = used_pointer;
+        let used = &used_pointer;
         used.set_content_inline_size(max_x - min_x);
         used.set_content_block_size(max_y - min_y);
         self.place_child(container, min_x, min_y);

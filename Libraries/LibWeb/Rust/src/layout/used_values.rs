@@ -200,6 +200,18 @@ impl Default for UsedValues {
 }
 
 impl UsedValues {
+    pub(crate) fn rare_data_mut(&self) -> RefMut<'_, UsedValuesRareData> {
+        self.rare_data.get_or_init(UsedValuesRareData::default).borrow_mut()
+    }
+
+    pub(crate) fn line_data_ref(&self) -> Option<Ref<'_, LineData>> {
+        self.line_data.get().map(RefCell::borrow)
+    }
+
+    pub(crate) fn line_data_cell(&self) -> &RefCell<LineData> {
+        self.line_data.get_or_init(LineData::default)
+    }
+
     pub(crate) fn content_baselines_from_cells(&self) -> crate::layout::DerivedBaselines {
         crate::layout::DerivedBaselines {
             first: self.has_first_baseline.get().then(|| self.first_baseline.get()),

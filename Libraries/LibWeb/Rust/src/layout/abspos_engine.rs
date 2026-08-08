@@ -66,25 +66,115 @@ fn out_of_flow_root_space(inputs: AbsposLayoutInputs) -> (AvailableSpace, Contai
 
 pub(crate) struct AbsposEngine<'pass> {
     state: &'pass LayoutState,
+    records: std::rc::Rc<RunRecords>,
     callbacks: FfiLayoutFcCallbacks,
     fragments: Option<std::rc::Rc<crate::layout::RunFragmentBuilder>>,
 }
 
 impl<'pass> AbsposEngine<'pass> {
-    pub(crate) fn new(
-        state: &'pass LayoutState,
-        callbacks: FfiLayoutFcCallbacks,
-        fragments: Option<std::rc::Rc<crate::layout::RunFragmentBuilder>>,
-    ) -> Self {
+    pub(crate) fn for_run(run: &crate::layout::FormattingContextRun<'pass>) -> Self {
         Self {
-            state,
-            callbacks,
-            fragments,
+            state: run.state,
+            records: run.records.clone(),
+            callbacks: run.callbacks,
+            fragments: run.fragments.clone(),
         }
     }
 
-    fn sizing(&self) -> SizingContext<'_> {
-        SizingContext::new(self.state, self.callbacks)
+    fn containing_block_geometry_for_pending_child(&self, entry: &PendingAbsposChild) -> ContainingBlockGeometry {
+        let containing_block = self.callbacks.containing_block(entry.child_box);
+        let Some(containing_block_used) = self.records.used_values_if_owned(containing_block) else {
+            panic!(
+                "no owned record for the containing block of slot {} (cb slot {})",
+                entry.child_box.slot_index(),
+                containing_block.slot_index()
+            );
+        };
+        let content_origin_in_entry_space =
+            self.origin_of_containing_block_in_entry_space(containing_block, entry.coordinate_space_box);
+        ContainingBlockGeometry::from_used_values(&containing_block_used, content_origin_in_entry_space)
+    }
+
+    fn origin_of_containing_block_in_entry_space(&self, containing_block: Node, entry_space: Node) -> FfiCssPixelPoint {
+        if entry_space == containing_block {
+            return FfiCssPixelPoint::default();
+        }
+        let mut origins_by_chain_box = Vec::new();
+        let mut chain_box = containing_block;
+        let mut origin = FfiCssPixelPoint::default();
+        loop {
+            origins_by_chain_box.push((chain_box, origin));
+            let Some(used) = self
+                .records
+                .used_values_if_owned(chain_box)
+                .filter(|used| used.has_content_offset.get())
+            else {
+                break;
+            };
+            origin = point_add(origin, used.content_offset.get());
+            chain_box = self.callbacks.containing_block(chain_box);
+            if chain_box.is_invalid() {
+                break;
+            }
+        }
+        let mut space_box = entry_space;
+        let mut space_origin = FfiCssPixelPoint::default();
+        loop {
+            if let Some((_, origin)) = origins_by_chain_box.iter().find(|(chain_box, _)| *chain_box == space_box) {
+                return point_sub(*origin, space_origin);
+            }
+            let used = self
+                .records
+                .used_values_if_owned(space_box)
+                .filter(|used| used.has_content_offset.get())
+                .unwrap_or_else(|| {
+                    panic!(
+                        "an entry's space chain crossed an unplaced or foreign record before meeting its containing block's chain (slot {})",
+                        space_box.slot_index()
+                    )
+                });
+            space_origin = point_add(space_origin, used.content_offset.get());
+            space_box = self.callbacks.containing_block(space_box);
+            assert!(
+                !space_box.is_invalid(),
+                "an entry's space chain ended before meeting its containing block's chain"
+            );
+        }
+    }
+
+    fn translation_between_payload_resting_spaces(&self, from_space: Node, to_space: Node) -> FfiCssPixelPoint {
+        if from_space == to_space || from_space.is_invalid() || to_space.is_invalid() {
+            return FfiCssPixelPoint::default();
+        }
+        let mut merge_point = from_space;
+        while merge_point != to_space && !self.callbacks.is_ancestor(merge_point, to_space) {
+            merge_point = self.callbacks.containing_block(merge_point);
+            assert!(!merge_point.is_invalid());
+        }
+        let offset_relative_to_merge_point = |descendant: Node| {
+            let mut offset = FfiCssPixelPoint::default();
+            let mut current = descendant;
+            while current != merge_point {
+                let used = self.records.used_values_if_owned(current).unwrap_or_else(|| {
+                    panic!(
+                        "a payload resting space's chain crossed a record this run does not own (slot {})",
+                        current.slot_index()
+                    )
+                });
+                offset = point_add(offset, used.content_offset.get());
+                current = self.callbacks.containing_block(current);
+                assert!(!current.is_invalid());
+            }
+            offset
+        };
+        point_sub(
+            offset_relative_to_merge_point(from_space),
+            offset_relative_to_merge_point(to_space),
+        )
+    }
+
+    fn sizing(&self) -> SizingContext<'pass> {
+        SizingContext::new(self.state, self.records.clone(), self.callbacks)
     }
 
     fn style(&self, node: Node) -> StyleValues<'pass> {
@@ -95,55 +185,9 @@ impl<'pass> AbsposEngine<'pass> {
         self.state.node_facts(&self.callbacks, node)
     }
 
-    fn used(&self, node: Node) -> &'pass UsedValues {
-        self.state.used_values(&self.callbacks, node)
-    }
-
-    fn node_is_ancestor(&self, ancestor: Node, node: Node) -> bool {
-        self.callbacks.is_ancestor(ancestor, node)
-    }
-
-    fn containing_block_geometry_for_pending_child(&self, entry: &PendingAbsposChild) -> ContainingBlockGeometry {
-        let containing_block = self.callbacks.containing_block(entry.child_box);
-        assert!(!containing_block.is_invalid());
-        let translation_into_containing_block_space =
-            self.chain_translation_delta_to(containing_block, entry.coordinate_space_box);
-        ContainingBlockGeometry::from_used_values(
-            self.used(containing_block),
-            point_sub(FfiCssPixelPoint::default(), translation_into_containing_block_space),
-        )
-    }
-
-    fn chain_translation_delta_to(
-        &self,
-        actual_containing_block: Node,
-        coordinate_space_box: Node,
-    ) -> FfiCssPixelPoint {
-        if coordinate_space_box.is_invalid() || coordinate_space_box == actual_containing_block {
-            return FfiCssPixelPoint::default();
-        }
-
-        let mut merge_point = coordinate_space_box;
-        while merge_point != actual_containing_block && !self.node_is_ancestor(merge_point, actual_containing_block) {
-            merge_point = self.callbacks.containing_block(merge_point);
-            assert!(!merge_point.is_invalid());
-        }
-
-        let offset_relative_to_merge_point = |descendant: Node| {
-            let mut offset = FfiCssPixelPoint::default();
-            let mut current = descendant;
-            while current != merge_point {
-                let used = self.used(current);
-                offset = point_add(offset, used.content_offset.get());
-                current = self.callbacks.containing_block(current);
-                assert!(!current.is_invalid());
-            }
-            offset
-        };
-        point_sub(
-            offset_relative_to_merge_point(coordinate_space_box),
-            offset_relative_to_merge_point(actual_containing_block),
-        )
+    #[track_caller]
+    fn used(&self, node: Node) -> std::rc::Rc<UsedValues> {
+        self.records.used_values(node)
     }
 
     fn base_containing_block_info(
@@ -196,7 +240,6 @@ impl<'pass> AbsposEngine<'pass> {
     }
 
 }
-
 
 fn calc_node_create_px_dimension(value: f64) -> *const c_void {
     crate::css::calc::rust_calc_node_create_numeric_dimension(
@@ -303,31 +346,6 @@ impl AbsposEngine<'_> {
             ancestor = self.callbacks.containing_block(ancestor);
         }
         NodeSlotId::INVALID
-    }
-
-    fn translation_between_payload_resting_spaces(&self, from_space: Node, to_space: Node) -> FfiCssPixelPoint {
-        if from_space == to_space || from_space.is_invalid() || to_space.is_invalid() {
-            return FfiCssPixelPoint::default();
-        }
-        let mut merge_point = from_space;
-        while merge_point != to_space && !self.callbacks.is_ancestor(merge_point, to_space) {
-            merge_point = self.callbacks.containing_block(merge_point);
-            assert!(!merge_point.is_invalid());
-        }
-        let offset_relative_to_merge_point = |descendant: Node| {
-            let mut offset = FfiCssPixelPoint::default();
-            let mut current = descendant;
-            while current != merge_point {
-                offset = point_add(offset, self.used(current).content_offset.get());
-                current = self.callbacks.containing_block(current);
-                assert!(!current.is_invalid());
-            }
-            offset
-        };
-        point_sub(
-            offset_relative_to_merge_point(from_space),
-            offset_relative_to_merge_point(to_space),
-        )
     }
 
     fn anchor_rect(
@@ -528,7 +546,12 @@ impl AbsposEngine<'_> {
         if containing_block.is_invalid() {
             return;
         }
-        let containing_block_state = self.used(containing_block);
+        let containing_block_geometry = match entry_containing_block_geometry {
+            Some(geometry) => *geometry,
+            None => {
+                ContainingBlockGeometry::from_used_values(&self.used(containing_block), FfiCssPixelPoint::default())
+            }
+        };
         let default_anchor_box = if style.has_position_anchor() {
             self.anchor_lookup(node, style.position_anchor_name())
                 .unwrap_or(NodeSlotId::INVALID)
@@ -552,9 +575,7 @@ impl AbsposEngine<'_> {
                 AnchorValueAxis {
                     is_from_end: false,
                     is_horizontal: false,
-                    containing_block_extent: containing_block_state.content_block_size.get()
-                        + containing_block_state.padding_top.get()
-                        + containing_block_state.padding_bottom.get(),
+                    containing_block_extent: containing_block_geometry.padding_box_block_size(),
                 },
                 &mut resolution_state,
             );
@@ -572,9 +593,7 @@ impl AbsposEngine<'_> {
                 AnchorValueAxis {
                     is_from_end: true,
                     is_horizontal: true,
-                    containing_block_extent: containing_block_state.content_inline_size.get()
-                        + containing_block_state.padding_left.get()
-                        + containing_block_state.padding_right.get(),
+                    containing_block_extent: containing_block_geometry.padding_box_inline_size(),
                 },
                 &mut resolution_state,
             );
@@ -592,9 +611,7 @@ impl AbsposEngine<'_> {
                 AnchorValueAxis {
                     is_from_end: true,
                     is_horizontal: false,
-                    containing_block_extent: containing_block_state.content_block_size.get()
-                        + containing_block_state.padding_top.get()
-                        + containing_block_state.padding_bottom.get(),
+                    containing_block_extent: containing_block_geometry.padding_box_block_size(),
                 },
                 &mut resolution_state,
             );
@@ -612,9 +629,7 @@ impl AbsposEngine<'_> {
                 AnchorValueAxis {
                     is_from_end: false,
                     is_horizontal: true,
-                    containing_block_extent: containing_block_state.content_inline_size.get()
-                        + containing_block_state.padding_left.get()
-                        + containing_block_state.padding_right.get(),
+                    containing_block_extent: containing_block_geometry.padding_box_inline_size(),
                 },
                 &mut resolution_state,
             );
@@ -1629,8 +1644,8 @@ impl<'pass> AbsposEngine<'pass> {
         used_offset.block_offset += used.margin_top.get() + used.border_box_top(collapsed);
         let is_measurement = self.state.is_measurement();
         if !is_measurement {
-            self.state
-                .used_values_rare_data_for_node_mut(&self.callbacks, node)
+            self.used(node)
+                .rare_data_mut()
                 .abspos_layout_inputs = Some(inputs);
         }
         crate::layout::place_child(
@@ -1647,8 +1662,8 @@ impl<'pass> AbsposEngine<'pass> {
     pub(crate) fn layout_pending_child(&self, run: &crate::layout::FormattingContextRun<'pass>, mut child: PendingAbsposChild) {
         debug_assert!(!self.state.is_measurement());
         let child_box = child.child_box;
-        self.state
-            .create_used_values(&self.callbacks, child_box, ContainingBlockConstraints::default());
+        self.records
+            .create_used_values(self.state, &self.callbacks, child_box, ContainingBlockConstraints::default());
         let containing_block_geometry = self.containing_block_geometry_for_pending_child(&child);
         self.resolve_anchor_insets(child_box, Some(&containing_block_geometry), child.coordinate_space_box);
         let translation_into_containing_block_space =
@@ -1656,12 +1671,10 @@ impl<'pass> AbsposEngine<'pass> {
         crate::layout::translate_pending_abspos_payloads(&mut child, translation_into_containing_block_space);
         let inputs = AbsposLayoutInputs {
             static_position_rect: child.static_position_rect,
-            containing_block_info: child
-                .containing_block_info_override
-                .unwrap_or_else(|| {
-                    let inline_containing_block_rect = child.inline_containing_block_rect;
-                    self.base_containing_block_info(child_box, inline_containing_block_rect, &containing_block_geometry)
-                }),
+            containing_block_info: child.containing_block_info_override.unwrap_or_else(|| {
+                let inline_containing_block_rect = child.inline_containing_block_rect;
+                self.base_containing_block_info(child_box, inline_containing_block_rect, &containing_block_geometry)
+            }),
         };
         self.layout_element(run, child_box, inputs);
     }
@@ -1678,8 +1691,8 @@ impl<'pass> AbsposEngine<'pass> {
         }
         // Partial relayout uses a fresh state and creates the replay root
         // exactly once.
-        self.state
-            .create_used_values(&self.callbacks, node, ContainingBlockConstraints::default());
+        self.records
+            .create_used_values(self.state, &self.callbacks, node, ContainingBlockConstraints::default());
         self.layout_element(run, node, inputs);
     }
 
@@ -1733,6 +1746,7 @@ impl<'pass> AbsposEngine<'pass> {
             || style.inset_bottom().contains_percentage())
             && !crate::layout::resolve_block_axis_percentage_inset_basis_is_definite(
                 self.state,
+                &self.records,
                 &self.callbacks,
                 self.callbacks.containing_block(node),
                 formatting_context_root,
@@ -1760,6 +1774,7 @@ impl<'pass> AbsposEngine<'pass> {
 
 pub(crate) fn drain_abspos_with_placed_containing_blocks(
     state: &LayoutState,
+    records: &std::rc::Rc<RunRecords>,
     callbacks: FfiLayoutFcCallbacks,
     should_collect_devtools_layout_data: bool,
     entry_fragments: &std::rc::Rc<crate::layout::RunFragmentBuilder>,
@@ -1767,6 +1782,7 @@ pub(crate) fn drain_abspos_with_placed_containing_blocks(
     let accumulator_root = entry_fragments.root_node();
     let run = crate::layout::FormattingContextRun {
         state,
+        records: records.clone(),
         box_: accumulator_root,
         layout_mode: LayoutMode::Normal,
         callbacks,
@@ -1775,35 +1791,30 @@ pub(crate) fn drain_abspos_with_placed_containing_blocks(
         fragments: Some(entry_fragments.clone()),
     };
     loop {
-        let batch = entry_fragments.take_drainable_abspos(accumulator_root, &callbacks);
+        let batch = entry_fragments.take_drainable_abspos(accumulator_root, records, &callbacks);
         if batch.is_empty() {
             break;
         }
-        let engine = AbsposEngine::new(state, callbacks, Some(entry_fragments.clone()));
+        let engine = AbsposEngine::for_run(&run);
         for entry in batch {
             engine.layout_pending_child(&run, entry);
         }
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 pub(crate) fn compute_inset_native(
-    state: &LayoutState,
-    callbacks: FfiLayoutFcCallbacks,
-    fragments: Option<std::rc::Rc<crate::layout::RunFragmentBuilder>>,
+    run: &crate::layout::FormattingContextRun<'_>,
     node: Node,
     inline_size: CssPixels,
     block_size: CssPixels,
-    formatting_context_root: Node,
-    treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
 ) {
-    AbsposEngine::new(state, callbacks, fragments).compute_inset(
+    AbsposEngine::for_run(run).compute_inset(
         node,
         LogicalSize {
             inline_size,
             block_size,
         },
-        formatting_context_root,
-        treat_block_axis_percentage_insets_as_auto_beyond_root,
+        run.box_,
+        run.treat_block_axis_percentage_insets_as_auto_beyond_root,
     );
 }
