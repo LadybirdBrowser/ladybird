@@ -2626,6 +2626,10 @@ impl<'pass> BlockFormattingContext<'pass> {
             );
         }
 
+        if let Some(automatic_content_block_size) = automatic_content_block_size_of_completed_run {
+            return automatic_content_block_size;
+        }
+
         // https://www.w3.org/TR/CSS22/visudet.html#normal-block
         // 10.6.3 Block-level non-replaced elements in normal flow when 'overflow' computes to 'visible'
 
