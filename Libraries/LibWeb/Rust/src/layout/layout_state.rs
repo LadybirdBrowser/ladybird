@@ -64,33 +64,7 @@ impl<T> PagedStore<T> {
         entry.get().unwrap()
     }
 
-    fn for_each_indexed(&self, mut callback: impl FnMut(u32, &T)) {
-        let Some(directory) = self.page_table_directory.get() else {
-            return;
-        };
-        for (directory_index, page_table) in directory.iter().enumerate() {
-            let Some(page_table) = page_table.get() else {
-                continue;
-            };
-            for (page_index, page) in page_table.iter().enumerate() {
-                let Some(page) = page.get() else {
-                    continue;
-                };
-                for (entry_index, entry) in page.iter().enumerate() {
-                    if let Some(entry) = entry.get() {
-                        let index = (directory_index << (PAGE_TABLE_BITS + PAGE_BITS))
-                            | (page_index << PAGE_BITS)
-                            | entry_index;
-                        callback(index as u32, entry);
-                    }
-                }
-            }
-        }
-    }
 
-    pub(crate) fn for_each(&self, mut callback: impl FnMut(&T)) {
-        self.for_each_indexed(|_, value| callback(value));
-    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -129,6 +103,39 @@ pub(crate) enum AbsposAlignment {
     Start,
     Stretch,
     Unsafe,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct ContainingBlockGeometry {
+    pub(crate) content_origin_in_entry_space: FfiCssPixelPoint,
+    pub(crate) padding_left: CssPixels,
+    pub(crate) padding_right: CssPixels,
+    pub(crate) padding_top: CssPixels,
+    pub(crate) padding_bottom: CssPixels,
+    pub(crate) content_inline_size: CssPixels,
+    pub(crate) content_block_size: CssPixels,
+}
+
+impl ContainingBlockGeometry {
+    pub(crate) fn from_used_values(used: &UsedValues, content_origin_in_entry_space: FfiCssPixelPoint) -> Self {
+        Self {
+            content_origin_in_entry_space,
+            padding_left: used.padding_left.get(),
+            padding_right: used.padding_right.get(),
+            padding_top: used.padding_top.get(),
+            padding_bottom: used.padding_bottom.get(),
+            content_inline_size: used.content_inline_size.get(),
+            content_block_size: used.content_block_size.get(),
+        }
+    }
+
+    pub(crate) fn padding_box_inline_size(&self) -> CssPixels {
+        self.content_inline_size + self.padding_left + self.padding_right
+    }
+
+    pub(crate) fn padding_box_block_size(&self) -> CssPixels {
+        self.content_block_size + self.padding_top + self.padding_bottom
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -265,12 +272,12 @@ pub struct FfiCommitSink {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct PendingAbsposChild {
     pub(crate) child_box: Node,
+    pub(crate) coordinate_space_box: Node,
     pub(crate) static_position_rect: StaticPositionRect,
     pub(crate) containing_block_info_override: Option<AbsposContainingBlockInfo>,
 }
 pub(crate) struct LayoutState {
     used_values: PagedStore<UsedValues>,
-    contained_abspos_children: PagedStore<RefCell<VecDeque<PendingAbsposChild>>>,
     anchor_inset_store: AnchorInsetStore,
     inline_containing_blocks: RefCell<HashSet<Node>>,
     anchor_candidate_shells: RefCell<Vec<*mut c_void>>,
@@ -314,7 +321,6 @@ impl LayoutState {
     pub(crate) fn new(purpose: LayoutStatePurpose) -> Self {
         Self {
             used_values: PagedStore::default(),
-            contained_abspos_children: PagedStore::default(),
             anchor_inset_store: AnchorInsetStore::default(),
             inline_containing_blocks: RefCell::new(HashSet::new()),
             anchor_candidate_shells: RefCell::new(Vec::new()),
@@ -716,73 +722,6 @@ impl LayoutState {
         self.used_values
             .get(callbacks.slot_index(node))
             .expect("missing used values")
-    }
-
-    pub(crate) fn register_contained_abspos_child(
-        &self,
-        callbacks: &FfiLayoutFcCallbacks,
-        target_box: Node,
-        child_box: Node,
-        static_position_rect: StaticPositionRect,
-    ) {
-        let slot_index = target_box.slot_index();
-        let children = self.contained_abspos_children.get(slot_index).unwrap_or_else(|| {
-            self.contained_abspos_children
-                .allocate(slot_index, RefCell::new(VecDeque::new()))
-        });
-        let mut children = children.borrow_mut();
-        if cfg!(debug_assertions) {
-            for entry in children.iter() {
-                // Every box is laid out at most once per state, so it can only be registered once.
-                assert_ne!(entry.child_box, child_box);
-            }
-        }
-        // Entries are kept in tree order so consumption follows document order.
-        let insertion_index = children.partition_point(|entry| callbacks.is_before(entry.child_box, child_box));
-        children.insert(
-            insertion_index,
-            PendingAbsposChild {
-                child_box,
-                static_position_rect,
-                containing_block_info_override: None,
-            },
-        );
-    }
-
-    pub(crate) fn has_contained_abspos_children(&self, target_box: Node) -> bool {
-        self.contained_abspos_children
-            .get(target_box.slot_index())
-            .is_some_and(|children| !children.borrow().is_empty())
-    }
-
-    pub(crate) fn all_registered_contained_abspos_children_are_laid_out(&self) -> bool {
-        let mut all_laid_out = true;
-        self.contained_abspos_children.for_each(|children| {
-            all_laid_out &= children.borrow().is_empty();
-        });
-        all_laid_out
-    }
-
-    /// By completion time the grid-area geometry is final and every abspos
-    /// child registering against this containing block has done so.
-    pub(crate) fn override_contained_abspos_child_containing_blocks(
-        &self,
-        target_box: Node,
-        containing_block_info_for_child: impl Fn(Node) -> AbsposContainingBlockInfo,
-    ) {
-        let Some(children) = self.contained_abspos_children.get(target_box.slot_index()) else {
-            return;
-        };
-        for entry in children.borrow_mut().iter_mut() {
-            entry.containing_block_info_override = Some(containing_block_info_for_child(entry.child_box));
-        }
-    }
-
-    pub(crate) fn take_next_contained_abspos_child(&self, target_box: Node) -> Option<PendingAbsposChild> {
-        self.contained_abspos_children
-            .get(target_box.slot_index())?
-            .borrow_mut()
-            .pop_front()
     }
 
     /// Accumulates relative-position insets from a chain of inline-flow

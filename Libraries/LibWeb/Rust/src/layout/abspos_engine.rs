@@ -90,10 +90,6 @@ impl<'pass> AbsposEngine<'pass> {
         self.state.used_values(&self.callbacks, node)
     }
 
-    fn static_position_containing_block(&self, node: Node) -> Node {
-        self.callbacks.static_position_containing_block(node)
-    }
-
     fn inline_containing_block(&self, node: Node) -> Node {
         self.callbacks.inline_containing_block(node)
     }
@@ -106,18 +102,27 @@ impl<'pass> AbsposEngine<'pass> {
         self.callbacks.is_ancestor(ancestor, node)
     }
 
-    fn resolve_static_position_relative_to_containing_block(
+    fn containing_block_geometry_for_pending_child(&self, entry: &PendingAbsposChild) -> ContainingBlockGeometry {
+        let containing_block = self.callbacks.containing_block(entry.child_box);
+        assert!(!containing_block.is_invalid());
+        let translation_into_containing_block_space =
+            self.chain_translation_delta_to(containing_block, entry.coordinate_space_box);
+        ContainingBlockGeometry::from_used_values(
+            self.used(containing_block),
+            point_sub(FfiCssPixelPoint::default(), translation_into_containing_block_space),
+        )
+    }
+
+    fn chain_translation_delta_to(
         &self,
-        node: Node,
-        static_position_rect: StaticPositionRect,
-    ) -> StaticPositionRect {
-        let static_position_cb = self.static_position_containing_block(node);
-        let actual_containing_block = self.callbacks.containing_block(node);
-        if static_position_cb.is_invalid() || static_position_cb == actual_containing_block {
-            return static_position_rect;
+        actual_containing_block: Node,
+        coordinate_space_box: Node,
+    ) -> FfiCssPixelPoint {
+        if coordinate_space_box.is_invalid() || coordinate_space_box == actual_containing_block {
+            return FfiCssPixelPoint::default();
         }
 
-        let mut merge_point = static_position_cb;
+        let mut merge_point = coordinate_space_box;
         while merge_point != actual_containing_block && !self.node_is_ancestor(merge_point, actual_containing_block) {
             merge_point = self.callbacks.containing_block(merge_point);
             assert!(!merge_point.is_invalid());
@@ -134,9 +139,8 @@ impl<'pass> AbsposEngine<'pass> {
             }
             offset
         };
-        translate_static_position_between_chains(
-            static_position_rect,
-            offset_relative_to_merge_point(static_position_cb),
+        point_sub(
+            offset_relative_to_merge_point(coordinate_space_box),
             offset_relative_to_merge_point(actual_containing_block),
         )
     }
@@ -171,7 +175,11 @@ impl<'pass> AbsposEngine<'pass> {
         Some(rect)
     }
 
-    fn base_containing_block_info(&self, node: Node) -> AbsposContainingBlockInfo {
+    fn base_containing_block_info(
+        &self,
+        node: Node,
+        entry_containing_block_geometry: &ContainingBlockGeometry,
+    ) -> AbsposContainingBlockInfo {
         let style = self.style(node);
         let (inline_axis_mode, block_axis_mode) = axis_modes(style);
         let containing_block = self.callbacks.containing_block(node);
@@ -199,20 +207,15 @@ impl<'pass> AbsposEngine<'pass> {
             };
         }
 
-        let containing_block_used = self.used(containing_block);
         AbsposContainingBlockInfo {
             rect: LogicalRect {
                 offset: LogicalOffset {
-                    inline_offset: -containing_block_used.padding_left.get(),
-                    block_offset: -containing_block_used.padding_top.get(),
+                    inline_offset: -entry_containing_block_geometry.padding_left,
+                    block_offset: -entry_containing_block_geometry.padding_top,
                 },
                 size: LogicalSize {
-                    inline_size: containing_block_used.content_inline_size.get()
-                        + containing_block_used.padding_left.get()
-                        + containing_block_used.padding_right.get(),
-                    block_size: containing_block_used.content_block_size.get()
-                        + containing_block_used.padding_top.get()
-                        + containing_block_used.padding_bottom.get(),
+                    inline_size: entry_containing_block_geometry.padding_box_inline_size(),
+                    block_size: entry_containing_block_geometry.padding_box_block_size(),
                 },
             },
             inline_axis_mode,
@@ -1597,22 +1600,23 @@ impl<'pass> AbsposEngine<'pass> {
 
     }
 
-    pub(crate) fn layout_children(&self, run: &crate::layout::FormattingContextRun<'pass>) {
+    pub(crate) fn layout_pending_child(&self, run: &crate::layout::FormattingContextRun<'pass>, mut child: PendingAbsposChild) {
         debug_assert!(!self.state.is_measurement());
-        while let Some(child) = self.state.take_next_contained_abspos_child(run.box_) {
-            let child_box = child.child_box;
-            self.state
-                .create_used_values(&self.callbacks, child_box, ContainingBlockConstraints::default());
-            self.resolve_anchor_insets(child_box);
-            let inputs = AbsposLayoutInputs {
-                static_position_rect: self
-                    .resolve_static_position_relative_to_containing_block(child_box, child.static_position_rect),
-                containing_block_info: child
-                    .containing_block_info_override
-                    .unwrap_or_else(|| self.base_containing_block_info(child_box)),
-            };
-            self.layout_element(run, child_box, inputs);
-        }
+        let child_box = child.child_box;
+        self.state
+            .create_used_values(&self.callbacks, child_box, ContainingBlockConstraints::default());
+        let containing_block_geometry = self.containing_block_geometry_for_pending_child(&child);
+        self.resolve_anchor_insets(child_box);
+        let translation_into_containing_block_space =
+            point_sub(FfiCssPixelPoint::default(), containing_block_geometry.content_origin_in_entry_space);
+        crate::layout::translate_pending_abspos_payloads(&mut child, translation_into_containing_block_space);
+        let inputs = AbsposLayoutInputs {
+            static_position_rect: child.static_position_rect,
+            containing_block_info: child
+                .containing_block_info_override
+                .unwrap_or_else(|| self.base_containing_block_info(child_box, &containing_block_geometry)),
+        };
+        self.layout_element(run, child_box, inputs);
     }
 
     fn replay(&self, run: &crate::layout::FormattingContextRun<'pass>, node: Node) {
@@ -1707,37 +1711,32 @@ impl<'pass> AbsposEngine<'pass> {
     }
 }
 
-pub(crate) fn layout_contained_abspos_children(run: &crate::layout::FormattingContextRun<'_>) {
-    AbsposEngine::new(run.state, run.callbacks).layout_children(run);
-}
-
-pub(crate) fn drain_remaining_abspos_targets(
+pub(crate) fn drain_abspos_with_placed_containing_blocks(
     state: &LayoutState,
     callbacks: FfiLayoutFcCallbacks,
     should_collect_devtools_layout_data: bool,
-    targets: &[Node],
     entry_fragments: &std::rc::Rc<crate::layout::RunFragmentBuilder>,
 ) {
-    while let Some(target) = targets
-        .iter()
-        .copied()
-        .find(|target| !target.is_invalid() && state.has_contained_abspos_children(*target))
-    {
-        let run = crate::layout::FormattingContextRun {
-            state,
-            box_: target,
-            layout_mode: LayoutMode::Normal,
-            callbacks,
-            should_collect_devtools_layout_data,
-            treat_block_axis_percentage_insets_as_auto_beyond_root: false,
-            fragments: Some(entry_fragments.clone()),
-        };
-        layout_contained_abspos_children(&run);
+    let accumulator_root = entry_fragments.root_node();
+    let run = crate::layout::FormattingContextRun {
+        state,
+        box_: accumulator_root,
+        layout_mode: LayoutMode::Normal,
+        callbacks,
+        should_collect_devtools_layout_data,
+        treat_block_axis_percentage_insets_as_auto_beyond_root: false,
+        fragments: Some(entry_fragments.clone()),
+    };
+    loop {
+        let batch = entry_fragments.take_drainable_abspos(accumulator_root, &callbacks);
+        if batch.is_empty() {
+            break;
+        }
+        let engine = AbsposEngine::new(state, callbacks);
+        for entry in batch {
+            engine.layout_pending_child(&run, entry);
+        }
     }
-    debug_assert!(
-        state.all_registered_contained_abspos_children_are_laid_out(),
-        "registered abspos children were left without layout after the entry sweep"
-    );
 }
 
 pub(crate) fn compute_inset_native(

@@ -77,14 +77,9 @@ fn point_sub(left: FfiCssPixelPoint, right: FfiCssPixelPoint) -> FfiCssPixelPoin
     }
 }
 
-pub(crate) fn translate_static_position_between_chains(
-    mut rect: StaticPositionRect,
-    static_chain_offset: FfiCssPixelPoint,
-    containing_chain_offset: FfiCssPixelPoint,
-) -> StaticPositionRect {
-    let physical_offset = point_sub(static_chain_offset, containing_chain_offset);
-    rect.rect.offset.inline_offset += physical_offset.x;
-    rect.rect.offset.block_offset += physical_offset.y;
+pub(crate) fn translate_static_position_rect(mut rect: StaticPositionRect, offset: FfiCssPixelPoint) -> StaticPositionRect {
+    rect.rect.offset.inline_offset += offset.x;
+    rect.rect.offset.block_offset += offset.y;
     rect
 }
 
@@ -355,12 +350,23 @@ pub(crate) fn place_child(run: &FormattingContextRun, node: Node, offset: FfiCss
     used.seal_committed_box_metrics();
     if let Some(fragments) = run.fragments.as_deref() {
         fragments.normalize_arrivals_for_placement(node);
+        loop {
+            let batch = fragments.take_drainable_abspos(node, callbacks);
+            if batch.is_empty() {
+                break;
+            }
+            let engine = crate::layout::AbsposEngine::new(state, *callbacks);
+            for entry in batch {
+                engine.layout_pending_child(run, entry);
+            }
+        }
         let containing_block = callbacks.containing_block(node);
         let containing_block_is_sealed = !containing_block.is_invalid()
             && state
                 .used_values_by_slot(callbacks.slot_index(containing_block))
                 .is_none_or(|used| used.has_content_offset.get());
         fragments.build_fragment_for_placed_box(
+            callbacks,
             node,
             (!containing_block.is_invalid()).then_some(containing_block),
             used,
@@ -405,42 +411,32 @@ fn committed_offset_delta_at_placement(
 pub(crate) fn register_contained_abspos_child(
     state: &LayoutState,
     callbacks: &FfiLayoutFcCallbacks,
+    fragments: Option<&RunFragmentBuilder>,
+    coordinate_space_box: Node,
     child: Node,
     static_position_rect: StaticPositionRect,
+    containing_block_info_override: Option<AbsposContainingBlockInfo>,
 ) {
-    let mut target = callbacks.containing_block(child);
-    if target.is_invalid() {
+    let Some(fragments) = fragments else {
+        debug_assert!(false, "abspos registration outside a committing run");
+        return;
+    };
+    if callbacks.containing_block(child).is_invalid() {
         return;
     }
     let inline_containing_block = callbacks.inline_containing_block(child);
     if !inline_containing_block.is_invalid() {
         state.note_inline_containing_block(inline_containing_block);
     }
-    loop {
-        let containing_block = callbacks.containing_block(target);
-        let facts = state.node_facts(callbacks, target);
-        if containing_block.is_invalid()
-            || (formatting_context_type_created_by_box(facts).is_some()
-                && !containing_block_geometry_is_finalized_by_the_table_run(state, callbacks, target))
-        {
-            break;
-        }
-        target = containing_block;
-    }
-    state.register_contained_abspos_child(callbacks, target, child, static_position_rect);
-}
-
-fn containing_block_geometry_is_finalized_by_the_table_run(
-    state: &LayoutState,
-    callbacks: &FfiLayoutFcCallbacks,
-    containing_block: Node,
-) -> bool {
-    let facts = state.node_facts(callbacks, containing_block);
-    facts.is_table_cell()
-        || facts.is_table_row()
-        || facts.is_table_row_group()
-        || facts.is_table_header_group()
-        || facts.is_table_footer_group()
+    fragments.register_pending_abspos(
+        coordinate_space_box,
+        PendingAbsposChild {
+            child_box: child,
+            coordinate_space_box,
+            static_position_rect,
+            containing_block_info_override,
+        },
+    );
 }
 
 pub(crate) fn box_baseline(
@@ -1204,6 +1200,8 @@ fn register_table_abspos_descendants(run: &FormattingContextRun, parent: Node) {
                 register_contained_abspos_child(
                     run.state,
                     &run.callbacks,
+                    run.fragments.as_deref(),
+                    run.box_,
                     child,
                     StaticPositionRect {
                         rect: Default::default(),
@@ -1211,6 +1209,7 @@ fn register_table_abspos_descendants(run: &FormattingContextRun, parent: Node) {
                         block_alignment: StaticPositionAlignment::Start,
                         alignment_derives_from_own_computed_values: false,
                     },
+                    None,
                 );
             }
             if formatting_context_type_created_by_box(facts).is_none() {
@@ -1549,7 +1548,11 @@ fn run_formatting_context<'pass>(
         ParticipationInParentFormattingContext::Root => {}
     }
 
-    let take_root = || run.fragments.as_ref().map(|fragments| fragments.take_unplaced_root(run.state));
+    let take_root = || {
+        run.fragments
+            .as_ref()
+            .map(|fragments| fragments.take_unplaced_root(run.state, &run.callbacks))
+    };
 
     let registered_abspos_children_could_never_be_laid_out = run.fragments.is_none();
     if registered_abspos_children_could_never_be_laid_out {
@@ -1573,7 +1576,6 @@ fn run_formatting_context<'pass>(
             return run.outputs(result, take_root());
         }
     }
-    layout_contained_abspos_children(run);
     run.state.used_values(&run.callbacks, run.box_).seal_own_metrics();
     run.outputs(result, take_root())
 }
@@ -1844,14 +1846,8 @@ pub unsafe extern "C" fn rust_layout_run_root_layout(
             entry_fragments.hold_unplaced_root(unplaced_root);
         }
         place_child(&entry_run, root_for_layout, FfiCssPixelPoint::default());
-        drain_remaining_abspos_targets(
-            state_ref,
-            callbacks,
-            should_collect_devtools_layout_data,
-            &[root, root_for_layout],
-            &entry_fragments,
-        );
-        let pass_fragments = entry_fragments.take_completed_pass(state_ref);
+        drain_abspos_with_placed_containing_blocks(state_ref, callbacks, should_collect_devtools_layout_data, &entry_fragments);
+        let pass_fragments = entry_fragments.take_completed_pass(state_ref, &callbacks);
         debug_assert!(!pass_fragments.roots.is_empty(), "the run root always has a fragment");
         state.commit_replacing(root, std::ptr::null_mut(), &callbacks, sink);
     });
@@ -1927,9 +1923,10 @@ pub unsafe extern "C" fn rust_layout_compute_subtree_layout(
             debug_assert!(unplaced_root.node == root, "the subtree run returned a root for a different box");
             entry_fragments.hold_unplaced_root(unplaced_root);
         }
-        entry_fragments.build_fragment_for_placed_box(root, None, root_used, false, None);
-        drain_remaining_abspos_targets(state_ref, callbacks, false, &[viewport, root], &entry_fragments);
-        let pass_fragments = entry_fragments.take_completed_pass(state_ref);
+        entry_fragments.normalize_arrivals_for_placement(root);
+        entry_fragments.build_fragment_for_placed_box(&callbacks, root, None, root_used, false, None);
+        drain_abspos_with_placed_containing_blocks(state_ref, callbacks, false, &entry_fragments);
+        let pass_fragments = entry_fragments.take_completed_pass(state_ref, &callbacks);
         debug_assert!(!pass_fragments.roots.is_empty(), "the subtree root always has a fragment");
         state.commit_replacing(root, paintable_to_replace, &callbacks, sink);
     });
@@ -1969,8 +1966,8 @@ pub unsafe extern "C" fn rust_layout_replay_saved_abspos_layout(
             fragments: Some(entry_fragments.clone()),
         };
         AbsposEngine::new(state_ref, callbacks).replay(&run, box_);
-        drain_remaining_abspos_targets(state_ref, callbacks, false, &[containing_block], &entry_fragments);
-        let pass_fragments = entry_fragments.take_completed_pass(state_ref);
+        drain_abspos_with_placed_containing_blocks(state_ref, callbacks, false, &entry_fragments);
+        let pass_fragments = entry_fragments.take_completed_pass(state_ref, &callbacks);
         debug_assert!(!pass_fragments.roots.is_empty(), "the replayed box always has a fragment");
         state.commit_replacing(box_, paintable_to_replace, &callbacks, sink);
     });

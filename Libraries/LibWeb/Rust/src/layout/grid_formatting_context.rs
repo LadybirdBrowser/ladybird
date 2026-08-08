@@ -3514,12 +3514,20 @@ impl<'pass> GridFormattingContext<'pass> {
                     block_alignment: StaticPositionAlignment::Start,
                     alignment_derives_from_own_computed_values: false,
                 };
-                crate::layout::register_contained_abspos_child(self.state, &self.callbacks, child, rect);
+                crate::layout::register_contained_abspos_child(
+                    self.state,
+                    &self.callbacks,
+                    self.fragments.as_deref(),
+                    self.grid_container,
+                    child,
+                    rect,
+                    None,
+                );
             }
             child = next;
         }
-        self.state
-            .override_contained_abspos_child_containing_blocks(self.grid_container, |child| {
+        if let Some(fragments) = self.fragments.as_deref() {
+            fragments.override_containing_block_info_for_pending_abspos_of_containing_block(self.grid_container, &self.callbacks, |child| {
                 let mut info = self.abspos_containing_block_info(child);
                 let grid_area_is_childs_static_position =
                     self.callbacks.static_position_containing_block(child) == self.grid_container;
@@ -3530,6 +3538,7 @@ impl<'pass> GridFormattingContext<'pass> {
                 }
                 info
             });
+        }
     }
 
     // https://www.w3.org/TR/css-grid-2/#abspos-items
