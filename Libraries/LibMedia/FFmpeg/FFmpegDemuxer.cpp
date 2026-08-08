@@ -5,10 +5,14 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AnyOf.h>
+#include <AK/Array.h>
 #include <AK/Math.h>
 #include <AK/MemoryStream.h>
+#include <AK/NeverDestroyed.h>
 #include <AK/QuickSort.h>
 #include <AK/Stream.h>
+#include <AK/StringBuilder.h>
 #include <AK/Time.h>
 #include <LibMedia/Containers/ConstantBitrateContainerNavigator.h>
 #include <LibMedia/Containers/FLACNavigator.h>
@@ -25,6 +29,49 @@ extern "C" {
 }
 
 namespace Media::FFmpeg {
+
+static ByteString create_codec_whitelist()
+{
+    static constexpr Array codec_ids {
+        CodecID::VP8,
+        CodecID::VP9,
+        CodecID::H264,
+        CodecID::H265,
+        CodecID::MP3,
+        CodecID::AAC,
+        CodecID::AV1,
+        CodecID::Theora,
+        CodecID::Vorbis,
+        CodecID::Opus,
+        CodecID::FLAC,
+        CodecID::U8,
+        CodecID::S16LE,
+        CodecID::S24LE,
+        CodecID::S32LE,
+        CodecID::F32LE,
+        CodecID::ALaw,
+        CodecID::MuLaw,
+    };
+
+    StringBuilder whitelist;
+    void* iterator = nullptr;
+    while (auto const* decoder = av_codec_iterate(&iterator)) {
+        if (!av_codec_is_decoder(decoder))
+            continue;
+        if (!any_of(codec_ids, [&](auto codec_id) { return decoder->id == ffmpeg_codec_id_from_media_codec_id(codec_id); }))
+            continue;
+        if (!whitelist.is_empty())
+            whitelist.append(',');
+        whitelist.append(StringView(decoder->name, strlen(decoder->name)));
+    }
+    return MUST(whitelist.to_string()).to_byte_string();
+}
+
+static ByteString const& codec_whitelist()
+{
+    static NeverDestroyed<ByteString> whitelist { create_codec_whitelist() };
+    return *whitelist;
+}
 
 FFmpegDemuxer::FFmpegDemuxer(NonnullRefPtr<MediaStream> const& stream)
     : m_stream(stream)
@@ -57,6 +104,13 @@ static DecoderErrorOr<void> initialize_format_context(AVFormatContext*& format_c
 
     AVDictionary* options = nullptr;
     ScopeGuard free_options = [&] { av_dict_free(&options); };
+
+    if (av_dict_set(&options, "format_whitelist", "flac,mov,mp3,ogg,wav", 0) < 0)
+        return DecoderError::with_description(DecoderErrorCategory::Memory, "Failed to allocate FFmpeg format whitelist"sv);
+
+    auto const& codecs = codec_whitelist();
+    if (av_dict_set(&options, "codec_whitelist", codecs.characters(), 0) < 0)
+        return DecoderError::with_description(DecoderErrorCategory::Memory, "Failed to allocate FFmpeg codec whitelist"sv);
 
     // Reduce the maximum packet size for the WAV demuxer, so that playback begins sooner.
     av_dict_set(&options, "max_size", "4096", 0);
