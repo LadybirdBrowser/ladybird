@@ -175,6 +175,62 @@ fn propagate_payload_toward_run_root_space<Payload: PropagatedPayload>(
     }
 }
 
+pub(crate) struct CommitScopes<'tree> {
+    links_by_slot: std::collections::HashMap<u32, &'tree FragmentLink>,
+    open_scopes: Vec<&'tree [FragmentLink]>,
+}
+
+impl<'tree> CommitScopes<'tree> {
+    pub(crate) fn for_pass(fragments: &'tree CompletedPassFragments) -> Self {
+        #[cfg(debug_assertions)]
+        assert_one_fragment_per_slot_in_whole_pass(&fragments.roots, &mut std::collections::HashSet::new());
+        let mut scopes = Self {
+            links_by_slot: std::collections::HashMap::new(),
+            open_scopes: Vec::new(),
+        };
+        scopes.open_scope(&fragments.roots);
+        scopes
+    }
+
+    pub(crate) fn link_for_slot(&self, slot: u32) -> Option<&'tree FragmentLink> {
+        self.links_by_slot.get(&slot).copied()
+    }
+
+    pub(crate) fn open_scope(&mut self, links: &'tree [FragmentLink]) {
+        for link in links {
+            let previous = self.links_by_slot.insert(link.fragment.node.slot_index(), link);
+            assert!(
+                previous.is_none(),
+                "two open fragments claim slot {}",
+                link.fragment.node.slot_index()
+            );
+        }
+        self.open_scopes.push(links);
+    }
+
+    pub(crate) fn close_scope(&mut self) {
+        let links = self
+            .open_scopes
+            .pop()
+            .expect("a commit scope was closed without being opened");
+        for link in links {
+            self.links_by_slot.remove(&link.fragment.node.slot_index());
+        }
+    }
+}
+
+#[cfg(debug_assertions)]
+fn assert_one_fragment_per_slot_in_whole_pass(links: &[FragmentLink], seen: &mut std::collections::HashSet<u32>) {
+    for link in links {
+        assert!(
+            seen.insert(link.fragment.node.slot_index()),
+            "two fragments claim slot {}",
+            link.fragment.node.slot_index()
+        );
+        assert_one_fragment_per_slot_in_whole_pass(&link.fragment.children, seen);
+    }
+}
+
 pub(crate) struct UnplacedRootFragment {
     pub(crate) node: crate::layout::node_data::NodeSlotId,
     pub(crate) scoped_descendants: Vec<FragmentLink>,

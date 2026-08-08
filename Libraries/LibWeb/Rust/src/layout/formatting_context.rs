@@ -1705,6 +1705,21 @@ pub(crate) fn hold_unplaced_root_and_take_result(
     outputs.result
 }
 
+fn drain_and_commit_entry_pass(
+    state: &LayoutState,
+    entry_fragments: &std::rc::Rc<RunFragmentBuilder>,
+    callbacks: &FfiLayoutFcCallbacks,
+    should_collect_devtools_layout_data: bool,
+    commit_root: Node,
+    paintable_to_replace: *mut c_void,
+    sink: &FfiCommitSink,
+) {
+    drain_abspos_with_placed_containing_blocks(state, *callbacks, should_collect_devtools_layout_data, entry_fragments);
+    let pass_fragments = entry_fragments.take_completed_pass(state, callbacks);
+    debug_assert!(!pass_fragments.roots.is_empty(), "an entry pass always produces the entry root's fragment");
+    state.commit_replacing(commit_root, paintable_to_replace, callbacks, sink, &pass_fragments);
+}
+
 fn independent_formatting_context_type(
     state: &LayoutState,
     box_: Node,
@@ -1843,10 +1858,15 @@ pub unsafe extern "C" fn rust_layout_run_root_layout(
             entry_fragments.hold_unplaced_root(unplaced_root);
         }
         place_child(&entry_run, root_for_layout, FfiCssPixelPoint::default());
-        drain_abspos_with_placed_containing_blocks(state_ref, callbacks, should_collect_devtools_layout_data, &entry_fragments);
-        let pass_fragments = entry_fragments.take_completed_pass(state_ref, &callbacks);
-        debug_assert!(!pass_fragments.roots.is_empty(), "the run root always has a fragment");
-        state.commit_replacing(root, std::ptr::null_mut(), &callbacks, sink);
+        drain_and_commit_entry_pass(
+            &state,
+            &entry_fragments,
+            &callbacks,
+            should_collect_devtools_layout_data,
+            root,
+            std::ptr::null_mut(),
+            sink,
+        );
     });
 }
 
@@ -1922,10 +1942,15 @@ pub unsafe extern "C" fn rust_layout_compute_subtree_layout(
         }
         entry_fragments.normalize_arrivals_for_placement(root);
         entry_fragments.build_fragment_for_placed_box(&callbacks, root, None, root_used, false, None, None);
-        drain_abspos_with_placed_containing_blocks(state_ref, callbacks, false, &entry_fragments);
-        let pass_fragments = entry_fragments.take_completed_pass(state_ref, &callbacks);
-        debug_assert!(!pass_fragments.roots.is_empty(), "the subtree root always has a fragment");
-        state.commit_replacing(root, paintable_to_replace, &callbacks, sink);
+        drain_and_commit_entry_pass(
+            &state,
+            &entry_fragments,
+            &callbacks,
+            false,
+            root,
+            paintable_to_replace,
+            sink,
+        );
     });
 }
 
@@ -1963,9 +1988,14 @@ pub unsafe extern "C" fn rust_layout_replay_saved_abspos_layout(
             fragments: Some(entry_fragments.clone()),
         };
         AbsposEngine::new(state_ref, callbacks, Some(entry_fragments.clone())).replay(&run, box_);
-        drain_abspos_with_placed_containing_blocks(state_ref, callbacks, false, &entry_fragments);
-        let pass_fragments = entry_fragments.take_completed_pass(state_ref, &callbacks);
-        debug_assert!(!pass_fragments.roots.is_empty(), "the replayed box always has a fragment");
-        state.commit_replacing(box_, paintable_to_replace, &callbacks, sink);
+        drain_and_commit_entry_pass(
+            &state,
+            &entry_fragments,
+            &callbacks,
+            false,
+            box_,
+            paintable_to_replace,
+            sink,
+        );
     });
 }
