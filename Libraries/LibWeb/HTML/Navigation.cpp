@@ -703,7 +703,7 @@ WebIDL::ExceptionOr<Bindings::NavigationResult> Navigation::perform_a_navigation
                         queue_global_task(HTML::Task::Source::NavigationAndTraversal, relevant_global_object(*this), GC::create_function(heap(), [this, api_method_tracker] {
                             auto& reject_realm = relevant_realm(*this);
                             TemporaryExecutionContext execution_context { reject_realm };
-                            WebIDL::reject_promise(reject_realm, api_method_tracker->finished_promise,
+                            reject_the_finished_promise(api_method_tracker,
                                 WebIDL::InvalidStateError::create(reject_realm, "Cannot traverse with stale session history entry"_utf16));
                         }));
                     };
