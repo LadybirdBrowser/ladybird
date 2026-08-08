@@ -115,30 +115,41 @@ void NavigableContainer::create_new_child_navigable()
     auto traversable = parent_navigable->traversable_navigable();
 
     // 12. Append the following session history traversal steps to traversable:
-    traversable->append_session_history_traversal_steps(GC::create_function(heap(), [this, navigable, parent_navigable, history_entry, traversable](NonnullRefPtr<Core::Promise<Empty>> signal) mutable {
-        if (navigable->has_been_destroyed() || parent_navigable->has_been_destroyed()) {
-            signal->resolve({});
-            return;
-        }
+    traversable->request_history_operation(
+        NavigableCreationHistoryOperationParameters {
+            .navigable_id = navigable->id(),
+        },
+        {
+            .pending_document = nullptr,
+            .expected_ongoing_navigation_navigable = nullptr,
+            .expected_ongoing_navigation_id = {},
+            .source_snapshot_params = nullptr,
+            .initiator_to_check = nullptr,
+            .pre_steps = GC::create_function(heap(), [this, navigable, parent_navigable, history_entry, traversable](u64, GC::Ref<LocalTraversableNavigable::OnHistoryOperationReady> ready) mutable {
+                if (navigable->has_been_destroyed() || parent_navigable->has_been_destroyed()) {
+                    ready->function()(false, {}, HistoryStepResult::Applied);
+                    return;
+                }
 
-        // 1-6. Append nestedHistory to parentDocState's nested histories.
-        VERIFY(append_nested_history_for_child_navigable(*parent_navigable, *navigable, *history_entry));
+                // 1-6. Append nestedHistory to parentDocState's nested histories.
+                VERIFY(append_nested_history_for_child_navigable(*parent_navigable, *navigable, *history_entry));
 
-        // 7. Update for navigable creation/destruction given traversable
-        traversable->update_for_navigable_creation_or_destruction(GC::create_function(traversable->heap(), [signal](HistoryStepResult) {
-            signal->resolve({});
-        }));
+                // 7. Update for navigable creation/destruction given traversable
+                ready->function()(true, {}, HistoryStepResult::Applied);
 
-        traversable->append_session_history_traversal_steps(GC::create_function(traversable->heap(), [this, navigable](NonnullRefPtr<Core::Promise<Empty>> signal) {
-            if (navigable->has_been_destroyed() || content_navigable() != navigable) {
-                signal->resolve({});
-                return;
-            }
+                traversable->append_session_history_traversal_steps(GC::create_function(traversable->heap(), [this, navigable](NonnullRefPtr<Core::Promise<Empty>> signal) {
+                    if (navigable->has_been_destroyed() || content_navigable() != navigable) {
+                        signal->resolve({});
+                        return;
+                    }
 
-            set_content_navigable_has_session_history_entry_and_ready_for_navigation();
-            signal->resolve({});
-        }));
-    }));
+                    set_content_navigable_has_session_history_entry_and_ready_for_navigation();
+                    signal->resolve({});
+                }));
+            }),
+            .on_apply_complete = nullptr,
+            .on_complete = nullptr,
+        });
 }
 
 // https://html.spec.whatwg.org/multipage/browsers.html#concept-bcc-content-document
@@ -349,12 +360,10 @@ void NavigableContainer::destroy_the_child_navigable()
         traversable->page().client().page_did_remove_nested_history(this->navigable()->id(), navigable->id());
 
         // 9. Append the following session history traversal steps to traversable:
-        traversable->append_session_history_traversal_steps(GC::create_function(heap(), [traversable](NonnullRefPtr<Core::Promise<Empty>> signal) {
-            // 1. Update for navigable creation/destruction given traversable.
-            traversable->update_for_navigable_creation_or_destruction(GC::create_function(traversable->heap(), [signal](HistoryStepResult) {
-                signal->resolve({});
-            }));
-        }));
+        // 1. Update for navigable creation/destruction given traversable.
+        traversable->request_history_operation(NavigableDestructionHistoryOperationParameters {
+            .traversable_id = traversable->id(),
+        });
     });
 
     // 5. Destroy a document and its descendants given navigable's active document.

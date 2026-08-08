@@ -51,6 +51,7 @@
 #include <LibWeb/HTML/CrossProcessId.h>
 #include <LibWeb/HTML/FileFilter.h>
 #include <LibWeb/HTML/HistoryHandlingBehavior.h>
+#include <LibWeb/HTML/HistoryOperation.h>
 #include <LibWeb/HTML/NavigationSourceSnapshot.h>
 #include <LibWeb/HTML/POSTResource.h>
 #include <LibWeb/HTML/ReplicatedNavigableState.h>
@@ -451,11 +452,6 @@ private:
 enum class ContextMenuForInputEventsTarget : u8 {
     No,
     Yes,
-};
-
-enum class HistoryTraversalPrecheck : u8 {
-    Needed,
-    AlreadyDone,
 };
 
 enum class NavigationTarget : u8 {
