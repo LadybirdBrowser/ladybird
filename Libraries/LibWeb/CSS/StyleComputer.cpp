@@ -2531,6 +2531,12 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
             } },
         .set_custom_properties = [](void* context, ComputedValuesFFI::FfiCascadedCustomProperty const* properties, size_t count) -> void const* {
             auto& bulk_context = *static_cast<BulkCascadeContext*>(context);
+            auto pseudo_element = bulk_context.abstract_element.pseudo_element();
+            if (!pseudo_element.has_value()) {
+                bulk_context.abstract_element.element().set_resolved_custom_property_declarations(nullptr);
+            } else if (count > 0) {
+                bulk_context.abstract_element.element().set_custom_property_refresh_requires_full_recompute();
+            }
             OrderedHashMap<Utf16FlyString, StyleProperty> cascaded_all;
             cascaded_all.ensure_capacity(count);
             for (size_t i = 0; i < count; ++i) {
@@ -2560,6 +2566,15 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
                 }
                 cascaded_own.set(name, move(property));
             }
+
+            if (!pseudo_element.has_value() && cascaded_own.size() != cascaded_all.size())
+                bulk_context.abstract_element.element().set_custom_property_refresh_requires_full_recompute();
+
+            HashTable<Utf16FlyString> custom_property_names;
+            custom_property_names.ensure_capacity(cascaded_own.size());
+            for (auto const& [name, _] : cascaded_own)
+                custom_property_names.set(name);
+            bulk_context.cascaded_properties.set_custom_property_names(move(custom_property_names));
 
             if (cascaded_own.is_empty() && parent_data) {
                 bulk_context.abstract_element.set_custom_property_data(parent_data);
@@ -3117,9 +3132,11 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties_without_inli
     // Computing custom properties normally caches them on the element. Preserve the real cache while asking the
     // cascade what this element would look like without its inline declaration.
     auto custom_property_data = abstract_element.custom_property_data();
+    auto resolved_custom_property_declarations = abstract_element.element().take_resolved_custom_property_declarations();
     auto needs_style_update = abstract_element.element().needs_style_update();
     ScopeGuard restore_custom_property_data = [&] {
         abstract_element.set_custom_property_data(move(custom_property_data));
+        abstract_element.element().set_resolved_custom_property_declarations(move(resolved_custom_property_declarations));
         abstract_element.element().set_needs_style_update(needs_style_update);
     };
 
@@ -3772,7 +3789,7 @@ NonnullRefPtr<ComputedProperties> StyleComputer::compute_properties(DOM::Abstrac
     }
 
     // Compute the value of custom properties
-    compute_custom_properties(computed_style, abstract_element);
+    compute_custom_properties(computed_style, abstract_element, cascaded_properties.custom_property_names());
 
     clear_computation_context_caches();
 
@@ -4174,8 +4191,11 @@ static NonnullRefPtr<StyleValue const> resolve_css_wide_keyword_for_custom_prope
     if (keyword_value->is_initial())
         return initial_custom_property_value(registration, element.document());
 
-    if (keyword_value->is_inherit())
+    if (keyword_value->is_inherit()) {
+        auto abstract_element = element.abstract_element();
+        abstract_element.element().set_custom_property_refresh_requires_full_recompute();
         return inherited_custom_property_value(registration, element, name, computed_style_for_custom_property_resolution, guarded_contexts);
+    }
 
     // https://drafts.csswg.org/css-mixins/#resolve-function-styles
     // NB: When resolving function styles (i.e. when we have a hypothetical element), all CSS-wide keywords other than
@@ -4184,10 +4204,13 @@ static NonnullRefPtr<StyleValue const> resolve_css_wide_keyword_for_custom_prope
         return GuaranteedInvalidStyleValue::create();
 
     // Unset is the same as inherit for inherited properties, and by default all unregistered custom properties inherit.
-    if (keyword_value->is_unset())
-        return registration.has_value() && !registration->inherit
-            ? initial_custom_property_value(registration, element.document())
-            : inherited_custom_property_value(registration, element, name, computed_style_for_custom_property_resolution, guarded_contexts);
+    if (keyword_value->is_unset()) {
+        if (registration.has_value() && !registration->inherit)
+            return initial_custom_property_value(registration, element.document());
+        auto abstract_element = element.abstract_element();
+        abstract_element.element().set_custom_property_refresh_requires_full_recompute();
+        return inherited_custom_property_value(registration, element, name, computed_style_for_custom_property_resolution, guarded_contexts);
+    }
 
     if (keyword_value->is_revert()) {
         // FIXME: Implement reverting custom properties.
@@ -4252,8 +4275,11 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_custom_property(
             if (element.has<HypotheticalElement*>())
                 return invalid_value;
 
-            if (registration->inherit)
+            if (registration->inherit) {
+                auto abstract_element = element.abstract_element();
+                abstract_element.element().set_custom_property_refresh_requires_full_recompute();
                 return inherited_custom_property_value(registration, element, name, computed_style_for_custom_property_resolution, guarded_contexts);
+            }
             return initial_custom_property_value(registration, element.document());
         }
     };
@@ -4318,7 +4344,7 @@ ComputationContext StyleComputer::fallback_computation_context_for_custom_proper
     };
 }
 
-void StyleComputer::compute_custom_properties(ComputedProperties& computed_style, DOM::AbstractElement abstract_element) const
+void StyleComputer::compute_custom_properties(ComputedProperties& computed_style, DOM::AbstractElement abstract_element, HashTable<Utf16FlyString> const& cascaded_custom_property_names) const
 {
     // https://drafts.csswg.org/css-variables/#propdef-
     // The computed value of a custom property is its specified value with any arbitrary-substitution functions replaced.
@@ -4343,23 +4369,31 @@ void StyleComputer::compute_custom_properties(ComputedProperties& computed_style
     if (inherit_from.has_value())
         parent_data = inheritable_custom_property_data(*inherit_from);
 
+    OrderedHashMap<Utf16FlyString, StyleProperty> resolved_declarations;
+    resolved_declarations.ensure_capacity(cascaded_custom_property_names.size());
     OrderedHashMap<Utf16FlyString, StyleProperty> resolved_own;
     for (auto const& [name, style_property] : data->own_values()) {
         // FIXME: Can we store the resolved value in `data` immediately to avoid recomputing it for any subsequent
         //        properties that depend on it?
         auto resolved_value = compute_value_of_custom_property(&computed_style, abstract_element, name);
+        StyleProperty resolved_property {
+            .important = style_property.important,
+            .property_id = style_property.property_id,
+            .value = move(resolved_value),
+        };
+
+        if (cascaded_custom_property_names.contains(name))
+            resolved_declarations.set(name, resolved_property);
         if (parent_data) {
             auto const* parent_property = parent_data->get(name);
-            if (parent_property && resolved_value->equals(*parent_property->value))
+            if (parent_property && resolved_property.value->equals(*parent_property->value))
                 continue;
         }
-        resolved_own.set(name,
-            StyleProperty {
-                .important = style_property.important,
-                .property_id = style_property.property_id,
-                .value = move(resolved_value),
-            });
+        resolved_own.set(name, move(resolved_property));
     }
+
+    if (!abstract_element.pseudo_element().has_value() && !resolved_declarations.is_empty())
+        abstract_element.element().set_resolved_custom_property_declarations(make<DOM::Element::ResolvedCustomPropertyDeclarations>(move(resolved_declarations)));
 
     if (resolved_own.is_empty() && parent_data) {
         abstract_element.set_custom_property_data(parent_data);

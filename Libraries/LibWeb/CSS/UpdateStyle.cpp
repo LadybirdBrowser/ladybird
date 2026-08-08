@@ -178,7 +178,7 @@ static void enter_style_update_frame(StyleUpdateFrame& frame, StyleComputer& sty
             || (frame.traversal == StyleUpdateTraversal::TraverseDisplayNoneSubtrees && !element.computed_values())
             || frame.parent_display_changed
             || frame.ancestor_needs_descendant_style_recompute
-            || (frame.recompute_elements_depending_on_custom_properties && (element.style_uses_var_css_function() || element.style_uses_inherit_css_function()))
+            || (frame.recompute_elements_depending_on_custom_properties && (element.style_uses_var_css_function() || element.style_uses_inherit_css_function() || element.custom_property_refresh_requires_full_recompute()))
             || needs_style_update_due_to_if_media) {
             frame.node_invalidation = element.recompute_style(did_change_custom_properties);
         } else {

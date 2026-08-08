@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @property --registered {
+        syntax: "<number>";
+        inherits: true;
+        initial-value: 1;
+    }
+    @property --non-inherited {
+        syntax: "<number>";
+        inherits: false;
+        initial-value: 0;
+    }
+    #consumer-unregistered { color: var(--unregistered, rgb(0, 0, 0)); }
+    #consumer-registered { opacity: var(--registered, 1); }
+    #consumer-deduplicated { color: var(--deduplicated, rgb(0, 0, 0)); }
+    #consumer-keyword { color: var(--keyword, rgb(0, 0, 0)); }
+    #ancestor-shared-rule, #carrier-shared-rule { --shared: rgb(255, 0, 0); }
+    #consumer-shared-rule { color: var(--shared, rgb(0, 0, 0)); }
+    #consumer-absorbed { color: var(--absorbed, rgb(0, 0, 0)); }
+    #consumer-non-inherited { color: var(--tracked, rgb(0, 0, 0)); }
+</style>
+
+<div id="ancestor-unregistered">
+    <div id="carrier-unregistered">
+        <div id="consumer-unregistered"></div>
+    </div>
+</div>
+
+<div id="ancestor-registered">
+    <div id="carrier-registered">
+        <div id="consumer-registered"></div>
+    </div>
+</div>
+
+<div id="ancestor-deduplicated" style="--deduplicated: rgb(255, 0, 0)">
+    <div id="carrier-deduplicated" style="--deduplicated: rgb(255, 0, 0)">
+        <div id="consumer-deduplicated"></div>
+    </div>
+</div>
+
+<div id="ancestor-keyword" style="--keyword: rgb(255, 0, 0)">
+    <div id="carrier-keyword" style="--keyword: inherit">
+        <div id="consumer-keyword"></div>
+    </div>
+</div>
+
+<div id="ancestor-shared-rule">
+    <div id="carrier-shared-rule">
+        <div id="consumer-shared-rule"></div>
+    </div>
+</div>
+
+<div id="ancestor-absorbed" style="--absorbed: rgb(255, 0, 0)">
+    <div id="carrier-absorbed" style="--absorbed-own: 1">
+        <div id="consumer-absorbed"></div>
+    </div>
+</div>
+
+<div id="ancestor-non-inherited" style="--non-inherited: 5; --tracked: rgb(255, 0, 0)">
+    <div id="carrier-non-inherited">
+        <div id="consumer-non-inherited"></div>
+    </div>
+</div>
+
+<script>
+    test(() => {
+        const carrier = (name) => document.getElementById(`carrier-${name}`);
+        const ancestor = (name) => document.getElementById(`ancestor-${name}`);
+        const consumer = (name) => getComputedStyle(document.getElementById(`consumer-${name}`));
+
+        carrier("unregistered").style.setProperty("--unregistered", "rgb(255, 0, 0)");
+        carrier("registered").style.setProperty("--registered", "0.5");
+
+        // Force a full style pass so the ancestor changes below take the incremental update path.
+        document.body.offsetHeight;
+
+        ancestor("unregistered").style.setProperty("--other", "1");
+        ancestor("registered").style.setProperty("--other", "1");
+        ancestor("deduplicated").style.setProperty("--deduplicated", "rgb(0, 0, 255)");
+        ancestor("keyword").style.setProperty("--keyword", "rgb(0, 0, 255)");
+        ancestor("shared-rule").style.setProperty("--shared", "rgb(0, 0, 255)");
+        ancestor("absorbed").style.setProperty("--absorbed", "rgb(0, 0, 255)");
+        ancestor("non-inherited").style.setProperty("--tracked", "rgb(0, 0, 255)");
+        document.body.offsetHeight;
+
+        println(`unregistered consumer color: ${consumer("unregistered").color}`);
+        println(`unregistered carrier value: ${getComputedStyle(carrier("unregistered")).getPropertyValue("--unregistered")}`);
+        println(`registered consumer opacity: ${consumer("registered").opacity}`);
+        println(`registered carrier value: ${getComputedStyle(carrier("registered")).getPropertyValue("--registered")}`);
+        println(`deduplicated consumer color: ${consumer("deduplicated").color}`);
+        println(`deduplicated carrier value: ${getComputedStyle(carrier("deduplicated")).getPropertyValue("--deduplicated")}`);
+        println(`keyword consumer color: ${consumer("keyword").color}`);
+        println(`shared rule consumer color: ${consumer("shared-rule").color}`);
+        println(`absorbed consumer color: ${consumer("absorbed").color}`);
+        println(`absorbed carrier value: ${getComputedStyle(carrier("absorbed")).getPropertyValue("--absorbed")}`);
+        println(`non-inherited consumer color: ${consumer("non-inherited").color}`);
+        println(`non-inherited carrier value: ${getComputedStyle(carrier("non-inherited")).getPropertyValue("--tracked")}`);
+    });
+</script>

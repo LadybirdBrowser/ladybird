@@ -1326,6 +1326,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style(bool& did_cha
     m_style_uses_tree_counting_function = false;
     m_style_uses_if_css_function = false;
     m_style_uses_inherit_css_function = false;
+    m_custom_property_refresh_requires_full_recompute = false;
     m_style_depends_on_size_container_query = false;
     m_style_depends_on_style_container_query = false;
     m_affected_by_has_pseudo_class_in_subject_position = false;
@@ -4260,9 +4261,31 @@ bool Element::refresh_inherited_custom_property_data()
             parent_data = data->inheritable(document());
     }
 
-    if (m_custom_property_data == parent_data)
-        return false;
-    m_custom_property_data = move(parent_data);
+    if (!m_resolved_custom_property_declarations) {
+        if (m_custom_property_data == parent_data)
+            return false;
+        m_custom_property_data = move(parent_data);
+        return true;
+    }
+
+    OrderedHashMap<Utf16FlyString, CSS::StyleProperty> own_values;
+    for (auto const& [name, style_property] : *m_resolved_custom_property_declarations) {
+        if (parent_data) {
+            auto const* parent_property = parent_data->get(name);
+            if (parent_property && style_property.value->equals(*parent_property->value))
+                continue;
+        }
+        own_values.set(name, style_property);
+    }
+
+    if (own_values.is_empty()) {
+        if (m_custom_property_data == parent_data)
+            return false;
+        m_custom_property_data = move(parent_data);
+        return true;
+    }
+
+    m_custom_property_data = CSS::CustomPropertyData::create(move(own_values), move(parent_data));
     return true;
 }
 

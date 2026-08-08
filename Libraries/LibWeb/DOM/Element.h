@@ -8,6 +8,7 @@
 
 #include <AK/Badge.h>
 #include <AK/Concepts.h>
+#include <AK/HashMap.h>
 #include <AK/Optional.h>
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16StringBuilder.h>
@@ -342,6 +343,10 @@ public:
     void set_custom_property_data(Optional<CSS::PseudoElement>, RefPtr<CSS::CustomPropertyData const>);
     [[nodiscard]] RefPtr<CSS::CustomPropertyData const> custom_property_data(Optional<CSS::PseudoElement>) const;
 
+    using ResolvedCustomPropertyDeclarations = OrderedHashMap<Utf16FlyString, CSS::StyleProperty>;
+    void set_resolved_custom_property_declarations(OwnPtr<ResolvedCustomPropertyDeclarations> declarations) { m_resolved_custom_property_declarations = move(declarations); }
+    [[nodiscard]] OwnPtr<ResolvedCustomPropertyDeclarations> take_resolved_custom_property_declarations() { return move(m_resolved_custom_property_declarations); }
+
     [[nodiscard]] bool refresh_inherited_custom_property_data();
 
     bool style_uses_attr_css_function() const { return m_style_uses_attr_css_function; }
@@ -360,6 +365,8 @@ public:
     void set_style_uses_if_css_function() { m_style_uses_if_css_function = true; }
     bool style_uses_inherit_css_function() const { return m_style_uses_inherit_css_function; }
     void set_style_uses_inherit_css_function() { m_style_uses_inherit_css_function = true; }
+    bool custom_property_refresh_requires_full_recompute() const { return m_custom_property_refresh_requires_full_recompute; }
+    void set_custom_property_refresh_requires_full_recompute() { m_custom_property_refresh_requires_full_recompute = true; }
     bool style_depends_on_size_container_query() const { return m_style_depends_on_size_container_query; }
     void set_style_depends_on_size_container_query() { m_style_depends_on_size_container_query = true; }
     bool style_depends_on_style_container_query() const { return m_style_depends_on_style_container_query; }
@@ -720,6 +727,7 @@ private:
 
     RefPtr<CSS::ComputedValues const> m_computed_values;
     RefPtr<CSS::CustomPropertyData const> m_custom_property_data;
+    OwnPtr<ResolvedCustomPropertyDeclarations> m_resolved_custom_property_declarations;
 
     using PseudoElementData = HashMap<CSS::PseudoElement, GC::Ref<PseudoElement>>;
     mutable OwnPtr<PseudoElementData> m_pseudo_element_data;
@@ -773,6 +781,7 @@ private:
     bool m_style_uses_tree_counting_function : 1 { false };
     bool m_style_uses_if_css_function : 1 { false };
     bool m_style_uses_inherit_css_function : 1 { false };
+    bool m_custom_property_refresh_requires_full_recompute : 1 { false };
     bool m_style_depends_on_size_container_query : 1 { false };
     bool m_style_depends_on_style_container_query : 1 { false };
     bool m_child_style_uses_tree_counting_function : 1 { false };
