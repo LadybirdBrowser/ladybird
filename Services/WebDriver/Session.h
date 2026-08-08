@@ -46,9 +46,17 @@ public:
     static void close_all();
 
     struct Window {
+        enum class AwaitingReplacement {
+            No,
+            Announced,
+            InferredFromClosedConnection,
+        };
+
         String handle;
         RefPtr<WebContentConnection> web_content_connection;
-        bool is_awaiting_replacement { false };
+        AwaitingReplacement awaiting_replacement { AwaitingReplacement::No };
+
+        bool is_awaiting_replacement() const { return awaiting_replacement != AwaitingReplacement::No; }
     };
 
     WebContentConnection& web_content_connection() const
@@ -73,7 +81,6 @@ public:
     Web::WebDriver::Response close_window();
     Web::WebDriver::Response switch_to_window(StringView);
     Web::WebDriver::Response get_window_handles() const;
-    ErrorOr<void, Web::WebDriver::Error> ensure_current_window_handle_is_valid() const;
     ErrorOr<bool, Web::WebDriver::Error> wait_for_current_window_to_have_web_content_connection();
     void mark_current_window_as_awaiting_replacement(WebContentConnection const&);
 
@@ -88,7 +95,14 @@ public:
         Optional<Web::WebDriver::Response> response;
         RefPtr connection { &web_content_connection() };
 
-        ScopeGuard guard { [&]() { connection->on_driver_execution_complete = nullptr; } };
+        auto previous_connection_awaiting_replacement = m_connection_awaiting_possible_replacement;
+        if (web_content_replacement == WebContentReplacement::Allow)
+            m_connection_awaiting_possible_replacement = connection.ptr();
+
+        ScopeGuard guard { [&]() {
+            connection->on_driver_execution_complete = nullptr;
+            m_connection_awaiting_possible_replacement = previous_connection_awaiting_replacement;
+        } };
         connection->on_driver_execution_complete = [&](auto result) { response = move(result); };
 
         TRY(action(*connection));
@@ -101,7 +115,17 @@ public:
                 return false;
 
             auto current_window = m_windows.get(m_current_window_handle);
-            return !current_window.has_value() || (current_window->is_awaiting_replacement && !current_window->web_content_connection);
+            if (!current_window.has_value())
+                return true;
+
+            // A replacement WebContent process can register itself with this session before the event loop dispatches
+            // the closing of the connection this action was sent to. That close matches no window – so, the awaiting-
+            // replacement state this wait watches for is never entered. The current window being connected to another
+            // connection is equally proof that no response will ever arrive from the connection this was sent to.
+            if (current_window->web_content_connection)
+                return current_window->web_content_connection.ptr() != connection.ptr();
+
+            return current_window->is_awaiting_replacement();
         });
 
         if (response.has_value())
@@ -136,6 +160,8 @@ private:
 
     HashMap<String, Window> m_windows;
     String m_current_window_handle;
+
+    WebContentConnection const* m_connection_awaiting_possible_replacement { nullptr };
 
     HashMap<u64, NonnullRefPtr<WebContentConnection>> m_pending_connections;
     u64 m_next_pending_connection_id { 0 };

@@ -342,7 +342,8 @@ Web::WebDriver::Response Client::traverse_history_from_ui(Web::WebDriver::Parame
     RefPtr previous_connection { &session->web_content_connection() };
     auto response = TRY(session->perform_async_action([&](auto& connection) {
         return connection.traverse_history_from_ui(move(payload));
-    }));
+    },
+        Session::WebContentReplacement::Allow));
     if (response.is_object() && response.as_object().get_bool("willReplaceWebContentProcess"sv).value_or(false))
         session->mark_current_window_as_awaiting_replacement(*previous_connection);
 
