@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/AnyOf.h>
-#include <AK/Array.h>
 #include <LibGC/Heap.h>
+#include <LibMedia/CodecParameters.h>
+#include <LibMedia/DecoderRegistry.h>
 #include <LibMedia/PlaybackManager.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/AudioTrackList.h>
@@ -17,9 +17,11 @@
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/MediaSourceExtensions/EventNames.h>
+#include <LibWeb/MediaSourceExtensions/ISOBMFFByteStreamParser.h>
 #include <LibWeb/MediaSourceExtensions/MediaSource.h>
 #include <LibWeb/MediaSourceExtensions/SourceBuffer.h>
 #include <LibWeb/MediaSourceExtensions/SourceBufferList.h>
+#include <LibWeb/MediaSourceExtensions/WebMByteStreamParser.h>
 #include <LibWeb/MimeSniff/MimeType.h>
 
 namespace Web::MediaSourceExtensions {
@@ -408,66 +410,79 @@ void MediaSource::run_duration_change_algorithm(double new_duration)
 }
 
 // https://w3c.github.io/media-source/#dom-mediasource-istypesupported
-static bool is_type_supported(Utf16View type)
+// AD-HOC: Returns the capabilities of the decoders that would play the type, so that the Media Capabilities API can report
+//         them without asking a second time.
+Optional<Media::DecoderCapabilities> MediaSource::decoder_capabilities_for_type(Utf16View type)
 {
     // 1. If type is an empty string, then return false.
     if (type.is_empty())
-        return false;
+        return {};
 
     // 2. If type does not contain a valid MIME type string, then return false.
     auto mime_type = MimeSniff::MimeType::parse(type);
     if (!mime_type.has_value())
-        return false;
-
-    // FIXME: Ask LibMedia about what it supports instead of hardcoding this.
-
-    // 3. If type contains a media type or media subtype that the MediaSource does not support, then
-    //    return false.
-    if (mime_type->type() != "video" && mime_type->type() != "audio")
-        return false;
-
-    // FIXME: Parse codec strings into a form that LibMedia can answer capability queries about, so that this,
-    //        HTMLMediaElement's canPlayType() and the Media Capabilities API can all share one answer. Until
-    //        then, the codecs of a byte stream format are matched by their prefixes alone, which accepts codec
-    //        strings that are malformed or name a profile that we cannot decode.
-    static constexpr Array WEBM_CODEC_PREFIXES { "vp9"sv, "vp09"sv, "opus"sv };
-    static constexpr Array MP4_CODEC_PREFIXES { "av01"sv, "avc1"sv, "avc3"sv, "mp4a"sv, "Opus"sv, "fLaC"sv };
-    auto supported_codec_prefixes = [&] -> ReadonlySpan<StringView> {
-        if (mime_type->subtype() == "webm")
-            return WEBM_CODEC_PREFIXES;
-        if (mime_type->subtype() == "mp4")
-            return MP4_CODEC_PREFIXES;
         return {};
+
+    // 3. If type contains a media type or media subtype that the MediaSource does not support, then return false.
+    if (mime_type->type() != "video" && mime_type->type() != "audio")
+        return {};
+
+    using SupportsCodec = bool (*)(StringView, Media::CodecID);
+    auto supports_codec = [&]() -> SupportsCodec {
+        if (mime_type->subtype() == "webm")
+            return WebMByteStreamParser::supports_codec;
+        if (mime_type->subtype() == "mp4")
+            return ISOBMFFByteStreamParser::supports_codec;
+        return nullptr;
     }();
-    if (supported_codec_prefixes.is_empty())
-        return false;
+    // NB: A subtype that no byte stream format handles is the media subtype half of the step above.
+    if (!supports_codec)
+        return {};
 
     // 4. If type contains a codec that the MediaSource does not support, then return false.
-    // 5. If the MediaSource does not support the specified combination of media type, media
-    //    subtype, and codecs then return false.
+    // 5. If the MediaSource does not support the specified combination of media type, media subtype, and codecs then
+    //    return false.
     auto codecs_iter = mime_type->parameters().find("codecs"sv);
     if (codecs_iter == mime_type->parameters().end())
-        return false;
-    auto codecs = codecs_iter->value.bytes_as_string_view();
-    auto had_unsupported_codec = false;
-    codecs.for_each_split_view(',', SplitBehavior::Nothing, [&](auto const& codec) {
-        auto codec_is_supported = any_of(supported_codec_prefixes, [&](auto prefix) { return codec.starts_with(prefix); });
-        if (!codec_is_supported) {
-            had_unsupported_codec = true;
-            return IterationDecision::Break;
-        }
-        return IterationDecision::Continue;
-    });
-    if (had_unsupported_codec)
-        return false;
+        return {};
+
+    auto codec_strings = codecs_iter->value.bytes_as_string_view().split_view(',', SplitBehavior::KeepEmpty);
+    if (codec_strings.is_empty())
+        return {};
+
+    Media::DecoderCapabilities capabilities { .smooth = true, .power_efficient = true };
+    for (auto codec_string : codec_strings) {
+        codec_string = codec_string.trim_whitespace();
+        auto codec = Media::parse_codec_parameters_string(codec_string);
+        if (!codec.has_value())
+            return {};
+
+        // AD-HOC: An underspecified codec string names a family rather than a specific codec, so we cannot confirm
+        //         support in this case.
+        if (!codec->is_fully_specified())
+            return {};
+
+        if (mime_type->type() == "audio" && Media::track_type_from_codec_id(codec->codec_id()) != Media::TrackType::Audio)
+            return {};
+
+        if (!supports_codec(codec_string, codec->codec_id()))
+            return {};
+
+        auto codec_capabilities = Media::decoder_capabilities(*codec);
+        if (!codec_capabilities.has_value())
+            return {};
+
+        capabilities.smooth &= codec_capabilities->smooth;
+        capabilities.power_efficient &= codec_capabilities->power_efficient;
+    }
 
     // 6. Return true.
-    return true;
+    return capabilities;
 }
 
 bool MediaSource::is_type_supported(Utf16View type)
 {
-    return MediaSourceExtensions::is_type_supported(type);
+    return decoder_capabilities_for_type(type).has_value();
 }
 
 }

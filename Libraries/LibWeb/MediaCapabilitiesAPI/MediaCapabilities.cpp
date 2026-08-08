@@ -252,13 +252,10 @@ static Optional<Media::DecoderCapabilities> check_mime_type_support(Utf16View co
     // AD-HOC: A media-source content type is supported exactly when MediaSource.isTypeSupported() accepts it,
     //         and a file content type when canPlayType() answers "probably" for it.
     Optional<Media::DecoderCapabilities> capabilities;
-    if (decoding_type == MediaDecodingType::MediaSource) {
-        // FIXME: Report the decoder's capabilities for media-source content types too.
-        if (MediaSourceExtensions::MediaSource::is_type_supported(content_type))
-            capabilities = Media::DecoderCapabilities {};
-    } else {
+    if (decoding_type == MediaDecodingType::MediaSource)
+        capabilities = MediaSourceExtensions::MediaSource::decoder_capabilities_for_type(content_type);
+    else
         capabilities = file_decoding_capabilities(content_type);
-    }
 
     // 5. Return supported.
     return capabilities;

@@ -29,6 +29,8 @@ public:
     ISOBMFFByteStreamParser();
     virtual ~ISOBMFFByteStreamParser() override;
 
+    static bool supports_codec(StringView, Media::CodecID);
+
     virtual Media::DecoderErrorOr<void> skip_ignored_bytes(Media::MediaStreamCursor&) override;
     virtual Media::DecoderErrorOr<SegmentType> sniff_segment_type(Media::MediaStreamCursor&) override;
     virtual Media::DecoderErrorOr<void> parse_initialization_segment(Media::MediaStreamCursor&) override;

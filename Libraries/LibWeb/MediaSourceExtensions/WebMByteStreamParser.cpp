@@ -18,6 +18,11 @@ using namespace Media::Matroska;
 WebMByteStreamParser::WebMByteStreamParser() = default;
 WebMByteStreamParser::~WebMByteStreamParser() = default;
 
+bool WebMByteStreamParser::supports_codec(StringView, Media::CodecID codec_id)
+{
+    return Media::Matroska::supports_codec_in_container(Media::ContainerID::WebM, codec_id);
+}
+
 Media::DecoderErrorOr<void> WebMByteStreamParser::skip_ignored_bytes(Media::MediaStreamCursor& cursor)
 {
     // AD-HOC: The cursor sits within a partly read Cluster, not at an element that could be skipped.
