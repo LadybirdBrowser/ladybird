@@ -922,6 +922,7 @@ set(SOURCES
     Painting/ResizeHandle.cpp
     Painting/Scrollbar.cpp
     Painting/ScrollNodeState.cpp
+    Painting/ScrollSnap.cpp
     Painting/ScrollState.cpp
     Painting/ShadowPainting.cpp
     Painting/StackingContext.cpp

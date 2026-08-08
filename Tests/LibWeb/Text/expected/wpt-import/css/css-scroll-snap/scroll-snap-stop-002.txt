@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	The closest snap point is preferred than scroll-snap-stop: always where it's further than the destination (the closest one is closer to the scroll start position than the destination)
+Pass	The closest snap point is preferred than scroll-snap-stop: always where it's further than the destination (the closest one is further than the destination from the start position)
+Pass	The scroll destination on a large element whose snap area covers the snapport entirely is a valid snap position
+Pass	The scroll destination on a large element whose snap area covers the snapport entirely is a valid snap position (with two `scroll-snap-stop: always` snap points
+Pass	`scroll-snap-stop: always` snap point is preferred even if the snap area entire snapport
+Pass	`scroll-snap-stop: always` snap point is further than the scroll destination

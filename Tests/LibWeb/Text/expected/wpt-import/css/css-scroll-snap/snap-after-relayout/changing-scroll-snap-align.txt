@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Removing the current target's snap alignment should make the scroller resnap to a new snap area.
+Pass	Changing an element snap alignment from none to start should make thescroller resnap.
+Pass	Changing an element snap alignment from none to start by adding a class should make the scroller resnap.

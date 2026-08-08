@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<title>Ignore snap points orthogonal to scroll snap axis</title>
+<link rel="help" href="https://drafts.csswg.org/css-scroll-snap/#snap-axis" />
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+div {
+  position: absolute;
+  margin: 0;
+}
+
+#scroller {
+  height: 500px;
+  width: 500px;
+  overflow: hidden;
+  scroll-snap-type: x mandatory;
+}
+
+#y-target {
+  width: 300px;
+  height: 300px;
+  top: 100px;
+  left: 0;
+  background-color: green;
+  /* align only on y-axis */
+  scroll-snap-align: start none;
+}
+
+#x-target {
+  width: 300px;
+  height: 300px;
+  top: 0;
+  left: 100px;
+  background-color: red;
+  scroll-snap-align: none start;
+}
+
+.area {
+  width: 2000px;
+  height: 2000px;
+}
+</style>
+
+<div id="scroller">
+  <div class="area"></div>
+  <div id="x-target"></div>
+  <div id="y-target"></div>
+</div>
+
+<script>
+test(t => {
+  scroller.scrollTo(0,0);
+  assert_equals(scroller.scrollTop, 0);
+  assert_equals(scroller.scrollLeft, 100);
+}, "Ignore snap points orthogonal to scroll snap axis");
+
+</script>

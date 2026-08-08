@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<title>
+  When an element no longer captures snap positions (e.g., no longer
+  scrollable), then its currently captured snap areas must be reassigned.
+</title>
+<link rel="help" href="https://drafts.csswg.org/css-scroll-snap/#captures-snap-positions"/>
+<meta name="viewport" content="user-scalable=no">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+div {
+  position: absolute;
+  margin: 0px;
+}
+
+html {
+  scroll-snap-type: y mandatory;
+}
+
+body {
+  margin: 0px;
+}
+
+#middle-scroller {
+  top: 100px;
+  height: 500px;
+  width: 500px;
+  overflow: scroll;
+  background-color: rgb(12, 61, 2);
+  scroll-snap-type: none;
+}
+
+#inner-scroller {
+  top: 200px;
+  height: 400px;
+  width: 400px;
+  overflow: scroll;
+  background-color: rgb(65, 139, 50);
+  scroll-snap-type: y mandatory;
+}
+
+.space {
+  width: 2000px;
+  height: 2000px;
+}
+
+#inner-snap-area {
+  top: 300px;
+  width: 200px;
+  height: 200px;
+  background-color: blue;
+  scroll-snap-align: start;
+}
+
+#document-snap-area {
+  top: 500px;
+  width: 200px;
+  height: 200px;
+  background-color: lightblue;
+  scroll-snap-align: start;
+}
+
+</style>
+<div class="space"></div>
+  <div id="middle-scroller">
+    <div class="space"></div>
+    <div id="inner-scroller">
+        <div class="space"></div>
+        <div id="inner-snap-area"></div>
+    </div>
+  </div>
+</div>
+<div id="document-snap-area"></div>
+<script>
+
+// This tests that making a snap container no longer scrollable will reassign
+// its snap areas to the next scrollable ancestor, per spec [1].
+// [1] https://drafts.csswg.org/css-scroll-snap/#captures-snap-positions
+test(() => {
+  const inner_scroller = document.getElementById("inner-scroller");
+  const middle_scroller = document.getElementById("middle-scroller");
+  const document_scroller = document.scrollingElement;
+
+  // Inner scroller should snap to its captured area.
+  // Middle scroller doesn't snap.
+  // Document scroller should snap to its only captured area.
+  inner_scroller.scrollBy(0,10);
+  middle_scroller.scrollBy(0, 10);
+  // Scroll to (0,600), where we would expect the inner snap area to be relative
+  // to the document scroller.
+  document_scroller.scrollTo(0, 600);
+  assert_equals(inner_scroller.scrollTop, 300);
+  assert_equals(middle_scroller.scrollTop, 10);
+  assert_equals(document_scroller.scrollTop, 500);
+
+  // Inner scroller is no longer a scroll container.
+  inner_scroller.style.setProperty("overflow", "visible");
+  assert_equals(inner_scroller.scrollTop, 0);
+  assert_equals(middle_scroller.scrollTop, 10);
+  assert_equals(document_scroller.scrollTop, 500);
+
+  // The new snap container is the middle scroller, which has snap-type 'none'.
+  // Per spec, the scroll container should capture snap positions even if it has
+  // snap-type 'none'.
+  // The middle scroller should not snap.
+  // The document scroller should still only snap to its captured snap area.
+  document_scroller.scrollBy(0, 100);
+  middle_scroller.scrollBy(0, 10);
+  assert_equals(inner_scroller.scrollTop, 0);
+  assert_equals(middle_scroller.scrollTop, 20);
+  assert_equals(document_scroller.scrollTop, 500);
+
+  // The scroll container should now be at the document level.
+  middle_scroller.style.setProperty("overflow", "visible");
+  document_scroller.scrollBy(0, -10);
+  assert_equals(inner_scroller.scrollTop, 0);
+  assert_equals(middle_scroller.scrollTop, 0);
+
+  // Check that the existing snap area did not get removed when reassigning
+  // the inner snap area.
+  assert_equals(document_scroller.scrollTop, 500);
+
+  // Check that the inner snap area got reassigned to the document.
+  document_scroller.scrollBy(0, 150);
+  assert_equals(document_scroller.scrollTop, 600);
+}, 'Making a snap container not scrollable should promote the next scrollable\
+ ancestor to become a snap container.');
+</script>

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    #scroller {
+        width: 200px;
+        height: 200px;
+        overflow: scroll;
+        scroll-snap-type: y mandatory;
+    }
+    .item {
+        height: 200px;
+        scroll-snap-align: start;
+    }
+</style>
+<div id="scroller">
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+</div>
+<script>
+    promiseTest(async () => {
+        const scroller = document.getElementById("scroller");
+
+        // A blocking wheel event listener keeps the scrolling of this gesture on the main thread.
+        scroller.addEventListener("wheel", () => {});
+
+        await animationFrame();
+        await animationFrame();
+
+        let scrollendCount = 0;
+        scroller.addEventListener("scrollend", () => ++scrollendCount);
+
+        await internals.wheel(50, 50, 0, 120, true);
+        while (scroller.scrollTop === 120)
+            await animationFrame();
+        println(`snap scroll in flight: ${scroller.scrollTop > 120}`);
+
+        // The scroll the input of a new gesture takes over belongs to the gesture that started it, so its scrollend
+        // event is not delivered mid-gesture.
+        await internals.wheel(50, 50, 0, 20, true);
+        await animationFrame();
+        println(`scrollend events while the gesture was in progress: ${scrollendCount}`);
+
+        await scrollendEvent(scroller);
+        println(`scroll offset after the gesture settled: ${scroller.scrollLeft},${scroller.scrollTop}`);
+        println(`scrollend events in total: ${scrollendCount}`);
+    });
+</script>

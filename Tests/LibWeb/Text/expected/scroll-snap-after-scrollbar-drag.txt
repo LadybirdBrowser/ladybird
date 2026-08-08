@@ -1,0 +1,4 @@
+scroll offset after a down arrow key press: 0,500
+scroll offset after dragging the scrollbar to the end: 0,1500
+scroll offset after the momentum gesture ends: 0,0
+scroll offset after dragging the scrollbar to the end again: 0,1500

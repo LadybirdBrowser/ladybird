@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	Property scroll-snap-align value 'none'
+Pass	Property scroll-snap-align value 'start'
+Pass	Property scroll-snap-align value 'end'
+Pass	Property scroll-snap-align value 'center'
+Pass	Property scroll-snap-align value 'start none'
+Pass	Property scroll-snap-align value 'center end'
+Pass	Property scroll-snap-align value 'start start'

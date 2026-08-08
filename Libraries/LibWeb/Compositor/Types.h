@@ -52,6 +52,9 @@ AK_ENUM_BITWISE_OPERATORS(VideoUpdateFlags);
 struct PendingAsyncScrollUpdates {
     Vector<AsyncScrollOffset> scroll_offsets;
     Vector<AsyncScrollOperationID> completed_operation_ids;
+    Vector<AsyncScrollOperationID> operation_ids_taken_over_by_user_input;
+    bool user_scroll_gesture_in_progress { false };
+    bool user_scroll_gesture_ended { false };
 };
 
 struct AsyncScrollEnqueueResult {
@@ -62,6 +65,11 @@ struct AsyncScrollEnqueueResult {
 enum class AsyncScrollOperationTracking {
     No,
     Yes,
+};
+
+enum class ScrollAnimationKind : u8 {
+    SmoothScroll,
+    Momentum,
 };
 
 }

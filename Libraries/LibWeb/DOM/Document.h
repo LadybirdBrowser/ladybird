@@ -33,6 +33,7 @@
 #include <LibWeb/CSS/EnvironmentVariable.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/CSS/StyleScope.h>
+#include <LibWeb/Compositor/AsyncScrollingState.h>
 #include <LibWeb/DOM/AnchorNameMap.h>
 #include <LibWeb/DOM/HoverEventData.h>
 #include <LibWeb/DOM/ParentNode.h>
@@ -56,6 +57,7 @@
 #include <LibWeb/Painting/Forward.h>
 #include <LibWeb/Painting/GridInspectorOverlay.h>
 #include <LibWeb/Painting/HitTestResult.h>
+#include <LibWeb/Painting/ScrollSnap.h>
 #include <LibWeb/ResizeObserver/ResizeObserver.h>
 #include <LibWeb/SVG/SVGUseElement.h>
 #include <LibWeb/TrustedTypes/InjectionSink.h>
@@ -1055,6 +1057,21 @@ public:
     void schedule_scrollable_overflow_recalculation(Element&);
     void schedule_scrollable_overflow_recalculation(Layout::Node const&);
 
+    Painting::SnappedAreas const& snapped_areas_of_scroll_container(Compositor::AsyncScrollNodeStableID const&) const;
+    void set_snapped_areas_of_scroll_container(Compositor::AsyncScrollNodeStableID const&, Painting::SnappedAreas);
+    void forget_snapped_areas_of_scroll_container(Painting::Paintable const&);
+
+    void schedule_scroll_container_resnap() { m_needs_scroll_container_resnap = true; }
+    void cancel_scheduled_scroll_container_resnap() { m_needs_scroll_container_resnap = false; }
+    [[nodiscard]] bool needs_scroll_container_resnap() const { return m_needs_scroll_container_resnap; }
+    void set_may_have_scroll_snap_areas() { m_may_have_scroll_snap_areas = true; }
+    [[nodiscard]] bool may_have_scroll_snap_areas() const { return m_may_have_scroll_snap_areas; }
+
+    void register_scroll_snap_container(Painting::Paintable const&);
+    void forget_scroll_snap_containers_in_subtree(Painting::Paintable const&);
+    void forget_all_scroll_snap_containers() { m_scroll_snap_containers.clear(); }
+    [[nodiscard]] Vector<NonnullRefPtr<Painting::Paintable const>> collect_scroll_snap_containers();
+
     virtual JS::Value named_item_value(Utf16FlyString const& name) const override;
     virtual Vector<Utf16FlyString> supported_property_names() const override;
     Vector<GC::Ref<DOM::Element>> const& potentially_named_elements() const { return m_potentially_named_elements; }
@@ -1707,6 +1724,11 @@ private:
 
     bool m_needs_full_scrollable_overflow_recalculation { false };
     Vector<WeakPtr<Painting::Paintable>> m_paintable_boxes_needing_scrollable_overflow_recalculation;
+
+    HashMap<Compositor::AsyncScrollNodeStableID, Painting::SnappedAreas> m_scroll_container_snapped_areas;
+    Vector<WeakPtr<Painting::Paintable const>> m_scroll_snap_containers;
+    bool m_needs_scroll_container_resnap { false };
+    bool m_may_have_scroll_snap_areas { false };
     // NB: Holds raw layout node pointers that are only safe to read while m_layout_root still owns
     //     the tree they came from: every full layout rebuilds the map, layout tree teardown clears
     //     it, and its only reader, the scheduled scrollable overflow recalculation, runs only when

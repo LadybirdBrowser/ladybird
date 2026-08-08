@@ -58,6 +58,7 @@
 #include <LibWeb/Painting/SVGGraphicsPaintable.h>
 #include <LibWeb/Painting/SVGPaintable.h>
 #include <LibWeb/Painting/SVGSVGPaintable.h>
+#include <LibWeb/Painting/ScrollSnap.h>
 #include <LibWeb/Painting/Scrollbar.h>
 #include <LibWeb/Painting/ShadowPainting.h>
 #include <LibWeb/Painting/StackingContext.h>
@@ -628,20 +629,6 @@ static bool is_nested_navigable_container(Paintable const& paintable_box)
     return node && node->is_navigable_container() && as<HTML::NavigableContainer const>(*node).content_navigable();
 }
 
-static CSSPixelPoint maximum_scroll_offset_for(Paintable const& paintable_box)
-{
-    CSSPixelPoint max_scroll_offset;
-    auto scrollable_overflow_rect = paintable_box.scrollable_overflow_rect();
-    if (!scrollable_overflow_rect.has_value())
-        return max_scroll_offset;
-
-    auto scrollport_rect = paintable_box.absolute_padding_box_rect();
-
-    max_scroll_offset.set_x(max(CSSPixels(0), scrollable_overflow_rect->width() - scrollport_rect.width()));
-    max_scroll_offset.set_y(max(CSSPixels(0), scrollable_overflow_rect->height() - scrollport_rect.height()));
-    return max_scroll_offset;
-}
-
 static void record_scroll_node(Paintable const& paintable_box, DisplayListRecordingContext& context)
 {
     auto scroll_node_kind = scroll_node_kind_for(paintable_box);
@@ -656,6 +643,8 @@ static void record_scroll_node(Paintable const& paintable_box, DisplayListRecord
         ? Gfx::IntRect { {}, context.device_viewport_rect().size().to_type<int>() }
         : context.rounded_device_rect(paintable_box.absolute_padding_box_rect()).to_type<int>();
 
+    auto snap_axes = snap_axes_of_scroll_container(paintable_box);
+
     auto& recorder = context.display_list_recorder();
     recorder.compositor_scroll_node({
         .document_id = paintable_box.document().unique_id(),
@@ -663,12 +652,14 @@ static void record_scroll_node(Paintable const& paintable_box, DisplayListRecord
         .scroll_node_index = paintable_box.own_scroll_node_index(),
         .parent_scroll_node_index = parent_scroll_node_index,
         .scrollport_rect = scrollport_rect,
-        .max_scroll_offset = css_point_to_device_point(maximum_scroll_offset_for(paintable_box), context.device_pixels_per_css_pixel()),
+        .max_scroll_offset = css_point_to_device_point(paintable_box.maximum_scroll_offset(), context.device_pixels_per_css_pixel()),
         .scroll_node_kind = *scroll_node_kind,
         .pseudo_element_type = pseudo_element_type_for(paintable_box),
         .is_viewport = paintable_box.is_viewport_paintable(),
         .can_be_wheel_scrolled_horizontally = paintable_box.could_be_scrolled_by_wheel_event(Paintable::ScrollDirection::Horizontal),
         .can_be_wheel_scrolled_vertically = paintable_box.could_be_scrolled_by_wheel_event(Paintable::ScrollDirection::Vertical),
+        .snaps_scroll_position_horizontally = snap_axes.x,
+        .snaps_scroll_position_vertically = snap_axes.y,
     });
 }
 
@@ -807,7 +798,7 @@ static void record_viewport_scrollbar_state(Paintable const& paintable_box, Disp
         VERIFY(expanded_scrollbar_data.has_value());
 
         auto gutter_rect = context.rounded_device_rect(scrollbar_data->gutter_rect).to_type<int>();
-        auto max_scroll_offset = css_point_to_device_point(maximum_scroll_offset_for(paintable_box), context.device_pixels_per_css_pixel());
+        auto max_scroll_offset = css_point_to_device_point(paintable_box.maximum_scroll_offset(), context.device_pixels_per_css_pixel());
         auto orientation = direction == Paintable::ScrollDirection::Horizontal ? Gfx::Orientation::Horizontal : Gfx::Orientation::Vertical;
 
         context.display_list_recorder().compositor_viewport_scrollbar({
@@ -1111,6 +1102,33 @@ CSSPixelPoint Paintable::scroll_offset() const
     return {};
 }
 
+CSSPixelPoint Paintable::maximum_scroll_offset() const
+{
+    CSSPixelPoint max_scroll_offset;
+    auto scrollable_overflow_rect = this->scrollable_overflow_rect();
+    if (!scrollable_overflow_rect.has_value())
+        return max_scroll_offset;
+
+    auto scrollport_rect = absolute_padding_box_rect();
+
+    max_scroll_offset.set_x(max(CSSPixels(0), scrollable_overflow_rect->width() - scrollport_rect.width()));
+    max_scroll_offset.set_y(max(CSSPixels(0), scrollable_overflow_rect->height() - scrollport_rect.height()));
+    return max_scroll_offset;
+}
+
+Optional<Compositor::AsyncScrollNodeStableID> Paintable::async_scroll_node_stable_id() const
+{
+    auto scroll_node_kind = scroll_node_kind_for(*this);
+    if (!scroll_node_kind.has_value())
+        return {};
+
+    return Compositor::AsyncScrollNodeStableID {
+        .node_id = scrollable_node_id_for(*this),
+        .kind = Compositor::async_scroll_node_kind_for(*scroll_node_kind),
+        .pseudo_element_type = pseudo_element_type_for(*this),
+    };
+}
+
 Optional<CSSPixelRect> Paintable::absolute_containing_line_box_rect() const
 {
     if (!m_containing_line_box_index.has_value())
@@ -1127,15 +1145,11 @@ Optional<CSSPixelRect> Paintable::absolute_containing_line_box_rect() const
 
 CSSPixelPoint Paintable::clamp_scroll_offset(CSSPixelPoint offset) const
 {
-    auto scrollable_overflow_rect = this->scrollable_overflow_rect();
-    if (!scrollable_overflow_rect.has_value())
+    if (!scrollable_overflow_rect().has_value())
         return offset;
 
-    auto padding_rect = absolute_padding_box_rect();
-    auto max_x_offset = max(scrollable_overflow_rect->width() - padding_rect.width(), 0);
-    auto max_y_offset = max(scrollable_overflow_rect->height() - padding_rect.height(), 0);
-
-    return { clamp(offset.x(), 0, max_x_offset), clamp(offset.y(), 0, max_y_offset) };
+    auto max_offset = maximum_scroll_offset();
+    return { clamp(offset.x(), 0, max_offset.x()), clamp(offset.y(), 0, max_offset.y()) };
 }
 
 Paintable::ScrollHandled Paintable::set_scroll_offset(CSSPixelPoint offset)
@@ -1198,14 +1212,21 @@ Paintable::ScrollHandled Paintable::scroll_by(double delta_x, double delta_y)
 
 Paintable::ScrollHandled Paintable::set_scroll_offset_from_user_input(CSSPixelPoint offset)
 {
-    auto scroll_handled = set_scroll_offset(offset);
     auto navigable = document().navigable();
+    auto stable_node_id = async_scroll_node_stable_id();
+
+    auto scroll_offset_before_scroll = scroll_offset();
+
+    if (navigable && stable_node_id.has_value())
+        navigable->abort_in_flight_smooth_scrolls_taken_over_by_user_input(*stable_node_id, scroll_offset_before_scroll);
+
+    auto scroll_handled = set_scroll_offset(offset);
     if (!navigable)
         return scroll_handled;
 
     if (scroll_handled == ScrollHandled::Yes) {
         if (auto event_target = scroll_event_target())
-            navigable->queue_scrollend_event_after_user_scroll(*event_target);
+            navigable->queue_scrollend_event_after_user_scroll(*event_target, stable_node_id, scroll_offset_before_scroll);
     } else {
         // User input keeps the scroll gesture in progress even when it does not move the scrolling box.
         navigable->defer_user_scroll_settlement();

@@ -53,6 +53,9 @@ ErrorOr<void> encode(Encoder& encoder, Web::Compositor::PendingAsyncScrollUpdate
 {
     TRY(encoder.encode(updates.scroll_offsets));
     TRY(encoder.encode(updates.completed_operation_ids));
+    TRY(encoder.encode(updates.operation_ids_taken_over_by_user_input));
+    TRY(encoder.encode(updates.user_scroll_gesture_in_progress));
+    TRY(encoder.encode(updates.user_scroll_gesture_ended));
     return {};
 }
 
@@ -62,6 +65,9 @@ ErrorOr<Web::Compositor::PendingAsyncScrollUpdates> decode(Decoder& decoder)
     return Web::Compositor::PendingAsyncScrollUpdates {
         .scroll_offsets = TRY(decoder.decode<Vector<Web::Compositor::AsyncScrollOffset>>()),
         .completed_operation_ids = TRY(decoder.decode<Vector<Web::Compositor::AsyncScrollOperationID>>()),
+        .operation_ids_taken_over_by_user_input = TRY(decoder.decode<Vector<Web::Compositor::AsyncScrollOperationID>>()),
+        .user_scroll_gesture_in_progress = TRY(decoder.decode<bool>()),
+        .user_scroll_gesture_ended = TRY(decoder.decode<bool>()),
     };
 }
 

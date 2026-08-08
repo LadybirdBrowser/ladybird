@@ -41,6 +41,7 @@
 #include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
+#include <LibWeb/Painting/ScrollSnap.h>
 #include <LibWeb/Painting/ScrollState.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/XHR/FormDataEntry.h>
@@ -324,11 +325,45 @@ public:
         UserInput,
     };
 
+    // Whether the snap position a gesture ends at is selected as each of its scrolls runs, or once from the offsets
+    // the whole gesture traveled between.
+    enum class SnapPositionSelection {
+        AtGestureEnd,
+        PerScroll,
+    };
+
+    // How long the offset a gesture's input deltas have reached goes on being the offset its next step travels from.
+    // A wheel gesture stays latched between its steps, so its deltas keep accumulating until it settles, and crossing a
+    // snap position costs the distance between them however slowly the steps arrive. Keys are separate commands rather
+    // than one gesture, so each press travels from the scrolling box itself.
+    enum class SnapStepAccumulation {
+        UntilScrollFinishes,
+        UntilGestureSettles,
+    };
+
+    enum class SmoothScrollAbortCause {
+        ReplacedByNewScroll,
+        TakenOverByUserInput,
+    };
+
+    enum class AsyncScrollCompletion {
+        Finished,
+        TakenOverByUserInput,
+    };
+
     GC::Ref<WebIDL::Promise> scroll_viewport_by_delta(CSSPixelPoint delta, Bindings::ScrollBehavior = Bindings::ScrollBehavior::Instant);
-    GC::Ref<WebIDL::Promise> perform_a_scroll_of_the_viewport(CSSPixelPoint position, Bindings::ScrollBehavior = Bindings::ScrollBehavior::Auto, ScrollTrigger = ScrollTrigger::Programmatic);
-    GC::Ref<WebIDL::Promise> perform_a_scroll_of_an_element(DOM::Element&, CSSPixelPoint position, Bindings::ScrollBehavior);
-    void queue_scrollend_event_after_user_scroll(GC::Ref<DOM::EventTarget>);
+    GC::Ref<WebIDL::Promise> perform_a_scroll_of_the_viewport(CSSPixelPoint position, Bindings::ScrollBehavior = Bindings::ScrollBehavior::Auto, ScrollTrigger = ScrollTrigger::Programmatic, Optional<CSSPixelPoint> relative_displacement = {});
+    GC::Ref<WebIDL::Promise> perform_a_scroll_of_an_element(DOM::Element&, CSSPixelPoint position, Bindings::ScrollBehavior, Optional<CSSPixelPoint> relative_displacement = {});
+    bool perform_a_snapped_relative_user_scroll(Painting::Paintable&, CSSPixelPoint delta, Painting::SnapSelectionStrategy::Type, SnapStepAccumulation, Compositor::ScrollAnimationKind = Compositor::ScrollAnimationKind::SmoothScroll);
+    bool perform_a_snapped_momentum_scroll(Painting::Paintable&, CSSPixelPoint momentum_delta);
+    void re_snap_scroll_containers_after_layout_change();
+    void abort_in_flight_smooth_scrolls(Compositor::AsyncScrollNodeStableID, SmoothScrollAbortCause);
+    void abort_in_flight_smooth_scrolls_taken_over_by_user_input(Compositor::AsyncScrollNodeStableID, CSSPixelPoint scroll_offset_at_gesture_start);
+    void queue_scrollend_event_after_user_scroll(GC::Ref<DOM::EventTarget>, Optional<Compositor::AsyncScrollNodeStableID>, Optional<CSSPixelPoint> scroll_offset_before_scroll = {}, SnapPositionSelection = SnapPositionSelection::AtGestureEnd);
+    void note_user_scroll_input_intent(Painting::SnapSelectionStrategy::Type);
+    void note_user_scroll_gesture_phase(ScrollGesturePhase);
     void defer_user_scroll_settlement();
+    void snap_user_scroll_gestures_that_awaited_layout();
     void begin_user_scroll_gesture_hold(Badge<UserScrollGestureHold>);
     void end_user_scroll_gesture_hold(Badge<UserScrollGestureHold>);
     void reset_zoom();
@@ -365,17 +400,56 @@ private:
 
     void start_download_for_response(GC::Ref<Fetch::Infrastructure::Response>, URL::URL const& download_url, ByteString suggested_filename, GC::Ptr<Fetch::Infrastructure::FetchController>);
 
-    void resolve_async_scroll_operation(Compositor::AsyncScrollOperationID);
+    // A request toward the position a scroll is already headed for joins that scroll rather than restarting it, so one
+    // scroll can owe more than one promise.
+    using ScrollPromises = Vector<GC::Ref<WebIDL::Promise>, 1>;
+
+    void resolve_async_scroll_operation(Compositor::AsyncScrollOperationID, AsyncScrollCompletion = AsyncScrollCompletion::Finished);
     void resolve_all_pending_async_scroll_operations();
-    void resolve_pending_smooth_scrolls(Compositor::AsyncScrollNodeStableID);
-    GC::Ref<WebIDL::Promise> perform_a_scroll_of_a_scrolling_box(Compositor::AsyncScrollNodeStableID, CSSPixelPoint position, Bindings::ScrollBehavior, GC::Ptr<DOM::Element> associated_element, ScrollTrigger);
+    void resolve_pending_smooth_scrolls(Compositor::AsyncScrollNodeStableID, SmoothScrollAbortCause);
+    // Whether a programmatic scroll still needs a snap position selected for its destination, or was given a
+    // destination that snap position selection already produced.
+    enum class DestinationSnapping {
+        SelectSnapPosition,
+        DestinationIsSnapPosition,
+    };
+    GC::Ref<WebIDL::Promise> perform_a_scroll_of_a_scrolling_box(Compositor::AsyncScrollNodeStableID, CSSPixelPoint position, Bindings::ScrollBehavior, GC::Ptr<DOM::Element> associated_element, ScrollTrigger, Optional<CSSPixelPoint> relative_displacement = {}, DestinationSnapping = DestinationSnapping::SelectSnapPosition, Compositor::ScrollAnimationKind = Compositor::ScrollAnimationKind::SmoothScroll);
     Optional<CSSPixelPoint> scroll_offset_for(Compositor::AsyncScrollNodeStableID) const;
     bool set_scroll_offset_for(Compositor::AsyncScrollNodeStableID, CSSPixelPoint);
-    void queue_scrollend_event(Compositor::AsyncScrollNodeStableID, ScrollTrigger);
-    void queue_scrollend_event(DOM::Document&, GC::Ref<DOM::EventTarget>, ScrollTrigger);
-    void queue_scrollend_event_for_finished_scroll(Compositor::AsyncScrollNodeStableID, ScrollTrigger);
-    bool has_in_flight_user_scroll_operation() const;
-    void user_scroll_did_settle();
+    void queue_scrollend_event(Compositor::AsyncScrollNodeStableID, ScrollTrigger, Optional<CSSPixelPoint> scroll_offset_before_scroll = {});
+    void queue_scrollend_event(DOM::Document&, GC::Ref<DOM::EventTarget>, Optional<Compositor::AsyncScrollNodeStableID>, ScrollTrigger, Optional<CSSPixelPoint> scroll_offset_before_scroll = {});
+    void queue_scrollend_event_for_finished_scroll(Compositor::AsyncScrollNodeStableID, ScrollTrigger, Optional<CSSPixelPoint> scroll_offset_before_scroll);
+    void queue_scrollend_event_and_promise_resolution_for_finished_scroll(Optional<Compositor::AsyncScrollNodeStableID>, ScrollTrigger, Optional<CSSPixelPoint> scroll_offset_before_scroll, ScrollPromises const&);
+    ScrollPromises* promises_of_smooth_scroll_in_flight_toward(Compositor::AsyncScrollNodeStableID, CSSPixelPoint position, ScrollTrigger);
+    // The scroll a new input to a scrolling box would interact with; a scroll driven by user input is reported over
+    // any programmatic scroll also in flight.
+    struct InFlightScroll {
+        ScrollTrigger trigger { ScrollTrigger::Programmatic };
+        Optional<CSSPixelPoint> destination_scroll_offset;
+    };
+    Optional<InFlightScroll> in_flight_scroll_for(Optional<Compositor::AsyncScrollNodeStableID> const&) const;
+    struct PendingUserScrollendTarget {
+        GC::Ref<DOM::EventTarget> target;
+        Optional<Compositor::AsyncScrollNodeStableID> stable_node_id;
+        Optional<CSSPixelPoint> scroll_offset_at_gesture_start;
+        Optional<CSSPixelPoint> unsnapped_scroll_destination;
+        Painting::SnapSelectionStrategy::Type intent { Painting::SnapSelectionStrategy::Type::EndPosition };
+        bool travels_under_momentum { false };
+        SnapPositionSelection snap_position_selection { SnapPositionSelection::AtGestureEnd };
+        bool awaits_layout_for_snapping { false };
+    };
+    PendingUserScrollendTarget* latched_user_scroll_gesture_for(GC::Ref<DOM::EventTarget>, Optional<Compositor::AsyncScrollNodeStableID> const&);
+    void abandon_snapping_of_user_scroll_gesture(Compositor::AsyncScrollNodeStableID);
+    void settle_user_scroll_gesture();
+    void settle_user_scroll_gesture_if_input_deadline_passed();
+    void reset_momentum_fling_state();
+    // Which of the latched gestures a settlement is for: every gesture that ran out of input, or only those left
+    // waiting for layout by an earlier settlement.
+    enum class UserScrollSettlement {
+        GestureRanOutOfInput,
+        SnappingDeferredUntilLayout,
+    };
+    void user_scroll_did_settle(UserScrollSettlement = UserScrollSettlement::GestureRanOutOfInput);
     void cancel_user_scroll_settlement();
     void schedule_hover_update_after_async_scroll();
     void update_hover_after_async_scroll_stops();
@@ -441,15 +515,32 @@ private:
     Painting::DisplayListResourceSet m_compositor_display_list_resources;
     OwnPtr<Compositor::CompositorContextHandle> m_compositor_context;
     RefPtr<Core::Timer> m_async_scroll_hover_update_timer;
-    Vector<GC::Ref<DOM::EventTarget>> m_pending_user_scrollend_targets;
+    Vector<PendingUserScrollendTarget> m_pending_user_scrollend_targets;
     RefPtr<Core::Timer> m_user_scroll_settle_timer;
+    OwnPtr<UserScrollGestureHold> m_compositor_user_scroll_gesture_hold;
+    OwnPtr<UserScrollGestureHold> m_wheel_user_scroll_gesture_hold;
     size_t m_user_scroll_gesture_hold_count { 0 };
+    Painting::SnapSelectionStrategy::Type m_user_scroll_input_intent { Painting::SnapSelectionStrategy::Type::EndPosition };
+    bool m_user_scroll_gesture_travels_under_momentum { false };
+    // Momentum that selects no snap position is scrolled by for the rest of the gesture rather than being asked again
+    // for each delta it produces.
+    enum class MomentumSnapPositionSelection : u8 {
+        NotSelectedYet,
+        ScrollingToSelectedPosition,
+        NoPositionSelected,
+    };
+    MomentumSnapPositionSelection m_momentum_snap_position_selection { MomentumSnapPositionSelection::NotSelectedYet };
+    Painting::MomentumFlingEstimator m_momentum_fling_estimator;
+    size_t m_scrolls_being_started { 0 };
+    bool m_user_scroll_settlement_awaits_scroll_start { false };
+    bool m_is_re_snapping_scroll_containers { false };
 
     struct PendingAsyncScrollOperation {
         Compositor::AsyncScrollOperationID operation_id { 0 };
-        GC::Ref<WebIDL::Promise> promise;
+        ScrollPromises promises;
         Optional<Compositor::AsyncScrollNodeStableID> stable_node_id;
         Optional<CSSPixelPoint> initial_scroll_offset;
+        Optional<CSSPixelPoint> destination_scroll_offset;
         ScrollTrigger trigger { ScrollTrigger::Programmatic };
     };
     Vector<PendingAsyncScrollOperation> m_pending_async_scroll_operations;
@@ -460,7 +551,8 @@ private:
         MonotonicTime last_tick;
         AK::Duration elapsed;
         CSSPixelPoint initial_scroll_offset;
-        GC::Ref<WebIDL::Promise> promise;
+        CSSPixelPoint destination_scroll_offset;
+        ScrollPromises promises;
         ScrollTrigger trigger { ScrollTrigger::Programmatic };
     };
     Vector<MainThreadSmoothScroll> m_main_thread_smooth_scrolls;

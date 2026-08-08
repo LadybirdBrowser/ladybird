@@ -98,21 +98,6 @@ static PhysicalOverflowDirections physical_overflow_directions(Box const& box)
     };
 }
 
-static CSSPixelRect apply_css_transform_to_overflow_rect(Box const& box, CSSPixelRect const& rect)
-{
-    auto const& paintable_box = *box.paintable_box();
-    auto transform_data = Painting::compute_transform(paintable_box, box.computed_values(), 1.0);
-    if (!transform_data.has_value())
-        return rect;
-
-    auto affine = Gfx::extract_2d_affine_transform(transform_data->matrix);
-    auto transformed_rect = rect.to_type<float>();
-    transformed_rect.translate_by(-transform_data->origin);
-    transformed_rect = affine.map(transformed_rect);
-    transformed_rect.translate_by(transform_data->origin);
-    return transformed_rect.to_type<CSSPixels>();
-}
-
 static CSSPixelRect padding_inflated_scrollable_overflow(Box const& box, CSSPixelRect const& in_flow_and_floated_content_bounds)
 {
     auto const& paintable_box = *box.paintable_box();
@@ -216,7 +201,7 @@ CSSPixelRect measure_scrollable_overflow(Box const& box, ContainedBoxesMap const
                 continue;
 
             auto untransformed_child_border_box = child.paintable_box()->absolute_border_box_rect();
-            auto child_border_box = apply_css_transform_to_overflow_rect(child, untransformed_child_border_box);
+            auto child_border_box = Painting::apply_css_transform_to_rect(*child.paintable_box(), untransformed_child_border_box);
 
             // NOTE: Only boxes that are not wholly in the unreachable scrollable overflow region contribute.
             auto wholly_in_unreachable_horizontal_axis = overflow_directions.horizontal_axis_is_positive
@@ -244,7 +229,7 @@ CSSPixelRect measure_scrollable_overflow(Box const& box, ContainedBoxesMap const
                 continue;
 
             if (child.computed_values().overflow_x() == CSS::Overflow::Visible || child.computed_values().overflow_y() == CSS::Overflow::Visible) {
-                auto child_scrollable_overflow = apply_css_transform_to_overflow_rect(child, measure_scrollable_overflow(child, contained_boxes_map));
+                auto child_scrollable_overflow = Painting::apply_css_transform_to_rect(*child.paintable_box(), measure_scrollable_overflow(child, contained_boxes_map));
                 if (!child_scrollable_overflow.is_empty()) {
                     if (child.computed_values().overflow_x() == CSS::Overflow::Visible) {
                         scrollable_overflow_rect.unite_horizontally(child_scrollable_overflow);

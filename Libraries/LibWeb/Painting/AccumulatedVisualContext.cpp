@@ -192,6 +192,20 @@ Optional<TransformData> compute_transform(Paintable const& paintable_box, CSS::C
     return TransformData { scale_matrix_for_device_pixels(matrix, scale), device_origin };
 }
 
+CSSPixelRect apply_css_transform_to_rect(Paintable const& paintable, CSSPixelRect const& rect)
+{
+    auto transform_data = compute_transform(paintable, paintable.computed_values(), 1.0);
+    if (!transform_data.has_value())
+        return rect;
+
+    auto affine_transform = Gfx::extract_2d_affine_transform(transform_data->matrix);
+    auto transformed_rect = rect.to_type<float>();
+    transformed_rect.translate_by(-transform_data->origin);
+    transformed_rect = affine_transform.map(transformed_rect);
+    transformed_rect.translate_by(transform_data->origin);
+    return transformed_rect.to_type<CSSPixels>();
+}
+
 // https://drafts.csswg.org/css-transforms-2/#perspective-matrix
 static Optional<Gfx::FloatMatrix4x4> compute_perspective_matrix(Paintable const& paintable_box, CSS::ComputedValues const& computed_values)
 {

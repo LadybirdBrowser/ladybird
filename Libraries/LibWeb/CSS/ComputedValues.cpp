@@ -205,6 +205,9 @@ static constexpr Array misc_reset_group_properties {
     PropertyID::ViewTransitionName,
     PropertyID::TouchAction,
     PropertyID::ScrollBehavior,
+    PropertyID::ScrollSnapAlign,
+    PropertyID::ScrollSnapStop,
+    PropertyID::ScrollSnapType,
     PropertyID::ScrollbarGutter,
     PropertyID::ScrollbarWidth,
     PropertyID::ShapeImageThreshold,
@@ -508,6 +511,9 @@ static void register_style_group_field_descriptors()
     add(misc_reset, PropertyID::ViewTransitionName, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::None), nullptr);
     add(misc_reset, PropertyID::TouchAction, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
     add(misc_reset, PropertyID::ScrollBehavior, offsetof(MiscReset, scroll_behavior), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_scroll_behavior>());
+    add(misc_reset, PropertyID::ScrollSnapAlign, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
+    add(misc_reset, PropertyID::ScrollSnapStop, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
+    add(misc_reset, PropertyID::ScrollSnapType, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
     add(misc_reset, PropertyID::ScrollbarGutter, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
     add(misc_reset, PropertyID::ScrollbarWidth, offsetof(MiscReset, scrollbar_width), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_scrollbar_width>());
     add(misc_reset, PropertyID::ShapeImageThreshold, offsetof(MiscReset, shape_image_threshold), GROUP_FIELD_RESOLVED_F64, 0, nullptr);
@@ -2519,6 +2525,35 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
         computed_values.set_direction(computed_style.direction());
     if (!misc_reset_adopted)
         computed_values.set_scroll_behavior(CSS::keyword_to_scroll_behavior(computed_style.property(CSS::PropertyID::ScrollBehavior).to_keyword()).release_value());
+    if (!misc_reset_adopted) {
+        auto const& scroll_snap_align = computed_style.property(CSS::PropertyID::ScrollSnapAlign);
+        if (scroll_snap_align.is_value_list()) {
+            auto const& values = scroll_snap_align.as_value_list().values();
+            computed_values.set_scroll_snap_align({
+                .block_alignment = CSS::keyword_to_scroll_snap_align(values[0]->to_keyword()).release_value(),
+                .inline_alignment = CSS::keyword_to_scroll_snap_align(values[1]->to_keyword()).release_value(),
+            });
+        } else {
+            auto alignment = CSS::keyword_to_scroll_snap_align(scroll_snap_align.to_keyword()).release_value();
+            computed_values.set_scroll_snap_align({ .block_alignment = alignment, .inline_alignment = alignment });
+        }
+    }
+    if (!misc_reset_adopted)
+        computed_values.set_scroll_snap_stop(CSS::keyword_to_scroll_snap_stop(computed_style.property(CSS::PropertyID::ScrollSnapStop).to_keyword()).release_value());
+    if (!misc_reset_adopted) {
+        auto const& scroll_snap_type = computed_style.property(CSS::PropertyID::ScrollSnapType);
+        if (scroll_snap_type.is_value_list()) {
+            auto const& values = scroll_snap_type.as_value_list().values();
+            computed_values.set_scroll_snap_type({
+                .axis = CSS::keyword_to_scroll_snap_axis(values[0]->to_keyword()).release_value(),
+                .strictness = CSS::keyword_to_scroll_snap_strictness(values[1]->to_keyword()).release_value(),
+            });
+        } else if (auto axis = CSS::keyword_to_scroll_snap_axis(scroll_snap_type.to_keyword()); axis.has_value()) {
+            computed_values.set_scroll_snap_type({ .axis = *axis, .strictness = CSS::ScrollSnapStrictness::Proximity });
+        } else {
+            computed_values.set_scroll_snap_type(CSS::InitialValues::scroll_snap_type());
+        }
+    }
     if (!inherited_ui_adopted)
         computed_values.set_scrollbar_color(computed_style.scrollbar_color(color_resolution_context));
     if (!misc_reset_adopted)

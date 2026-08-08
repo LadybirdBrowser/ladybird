@@ -483,7 +483,7 @@ public:
     void set_custom_element_state(CustomElementState);
     void setup_custom_element_from_constructor(HTML::CustomElementDefinition& custom_element_definition, Optional<Utf16FlyString> const& is_value);
 
-    GC::Ref<WebIDL::Promise> scroll(Bindings::ScrollToOptions);
+    GC::Ref<WebIDL::Promise> scroll(Bindings::ScrollToOptions, Optional<CSSPixelPoint> relative_displacement = {});
     GC::Ref<WebIDL::Promise> scroll(double x, double y);
     GC::Ref<WebIDL::Promise> scroll_by(Bindings::ScrollToOptions);
     GC::Ref<WebIDL::Promise> scroll_by(double x, double y);

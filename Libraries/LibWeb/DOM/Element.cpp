@@ -2622,12 +2622,12 @@ double Element::scroll_top() const
     if (document.document_element() == this && document.in_quirks_mode())
         return 0.0;
 
+    // NOTE: Ensure that layout is up-to-date before looking at metrics.
+    const_cast<Document&>(document).update_layout(UpdateLayoutReason::ElementScrollTop);
+
     // 6. If the element is the root element return the value of scrollY on window.
     if (document.document_element() == this)
         return window->scroll_y();
-
-    // NOTE: Ensure that layout is up-to-date before looking at metrics.
-    const_cast<Document&>(document).update_layout(UpdateLayoutReason::ElementScrollTop);
 
     // 7. If the element is the body element, document is in quirks mode, and the element is not potentially scrollable, return the value of scrollY on window.
     if (document.body() == this && document.in_quirks_mode() && !is_potentially_scrollable())
@@ -2667,12 +2667,12 @@ double Element::scroll_left() const
     if (document.document_element() == this && document.in_quirks_mode())
         return 0.0;
 
+    // NOTE: Ensure that layout is up-to-date before looking at metrics.
+    const_cast<Document&>(document).update_layout(UpdateLayoutReason::ElementScrollLeft);
+
     // 6. If the element is the root element return the value of scrollX on window.
     if (document.document_element() == this)
         return window->scroll_x();
-
-    // NOTE: Ensure that layout is up-to-date before looking at metrics.
-    const_cast<Document&>(document).update_layout(UpdateLayoutReason::ElementScrollLeft);
 
     // 7. If the element is the body element, document is in quirks mode, and the element is not potentially scrollable, return the value of scrollX on window.
     if (document.body() == this && document.in_quirks_mode() && !is_potentially_scrollable())
@@ -4284,7 +4284,7 @@ GC::Ref<WebIDL::Promise> Element::scroll(double x, double y)
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-element-scroll
-GC::Ref<WebIDL::Promise> Element::scroll(Bindings::ScrollToOptions options)
+GC::Ref<WebIDL::Promise> Element::scroll(Bindings::ScrollToOptions options, Optional<CSSPixelPoint> relative_displacement)
 {
     // 1. If invoked with one argument, follow these substeps:
     //     1. Let options be the argument.
@@ -4324,7 +4324,7 @@ GC::Ref<WebIDL::Promise> Element::scroll(Bindings::ScrollToOptions options)
         //         See: https://github.com/w3c/csswg-drafts/issues/8700
         options.left = x;
         options.top = y;
-        return window->scroll(options);
+        return window->scroll(options, relative_displacement);
     }
 
     // 9. If the element is the body element, document is in quirks mode, and the element is not potentially
@@ -4333,7 +4333,7 @@ GC::Ref<WebIDL::Promise> Element::scroll(Bindings::ScrollToOptions options)
     if (document.body() == this && document.in_quirks_mode() && !is_potentially_scrollable()) {
         options.left = x;
         options.top = y;
-        return window->scroll(options);
+        return window->scroll(options, relative_displacement);
     }
 
     // 10. If the element does not have any associated box, the element has no associated scrolling box, or the element
@@ -4351,7 +4351,7 @@ GC::Ref<WebIDL::Promise> Element::scroll(Bindings::ScrollToOptions options)
     auto navigable = document.navigable();
     if (!navigable)
         return WebIDL::create_resolved_promise(realm(), JS::js_undefined());
-    auto scroll_promise = navigable->perform_a_scroll_of_an_element(*this, scroll_offset, options.behavior);
+    auto scroll_promise = navigable->perform_a_scroll_of_an_element(*this, scroll_offset, options.behavior, relative_displacement);
 
     // 12. Return scrollPromise.
     return scroll_promise;
@@ -4392,7 +4392,8 @@ GC::Ref<WebIDL::Promise> Element::scroll_by(Bindings::ScrollToOptions options)
     options.top = scroll_top() + top;
 
     // 5. Return the Promise returned by scroll() after the method is invoked with options as the only argument.
-    return scroll(options);
+    CSSPixelPoint relative_displacement { CSSPixels::nearest_value_for(left), CSSPixels::nearest_value_for(top) };
+    return scroll(options, relative_displacement);
 }
 
 // https://drafts.csswg.org/cssom-view-1/#dom-element-checkvisibility

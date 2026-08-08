@@ -52,6 +52,28 @@ function timeout(ms) {
     return promise;
 }
 
+function scrollendEvent(target) {
+    const { promise, resolve } = Promise.withResolvers();
+    target.addEventListener("scrollend", resolve, { once: true });
+    return promise;
+}
+
+async function scrollSettled(target, action) {
+    const scrollend = scrollendEvent(target);
+    await action();
+    await scrollend;
+}
+
+async function scrollOffsetStopsChanging(readScrollOffset) {
+    let previousScrollOffset = null;
+    while (previousScrollOffset !== readScrollOffset()) {
+        previousScrollOffset = readScrollOffset();
+        for (let frame = 0; frame < 5; frame++) {
+            await animationFrame();
+        }
+    }
+}
+
 async function waitForImageAnimationState(url, predicate, targetWindow = window) {
     return new Promise(async resolve => {
         while (true) {

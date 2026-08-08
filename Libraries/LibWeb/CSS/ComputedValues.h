@@ -245,6 +245,20 @@ struct ScrollbarColorData {
     bool operator==(ScrollbarColorData const&) const = default;
 };
 
+struct ScrollSnapType {
+    ScrollSnapAxis axis { ScrollSnapAxis::Both };
+    ScrollSnapStrictness strictness { ScrollSnapStrictness::None };
+
+    bool operator==(ScrollSnapType const&) const = default;
+};
+
+struct ScrollSnapAlignData {
+    ScrollSnapAlign block_alignment { ScrollSnapAlign::None };
+    ScrollSnapAlign inline_alignment { ScrollSnapAlign::None };
+
+    bool operator==(ScrollSnapAlignData const&) const = default;
+};
+
 struct TextIndentData {
     LengthPercentage length_percentage;
     bool each_line { false };
@@ -476,6 +490,9 @@ public:
     static int math_depth() { return 0; }
 
     static ScrollBehavior scroll_behavior() { return ScrollBehavior::Auto; }
+    static ScrollSnapAlignData scroll_snap_align() { return {}; }
+    static ScrollSnapStop scroll_snap_stop() { return ScrollSnapStop::Normal; }
+    static ScrollSnapType scroll_snap_type() { return {}; }
     static ScrollbarColorData scrollbar_color()
     {
         return ScrollbarColorData {
@@ -1516,6 +1533,9 @@ public:
     int math_depth() const { return m_inherited.font->math_depth; }
 
     ScrollBehavior scroll_behavior() const { return m_noninherited.misc->scroll_behavior; }
+    ScrollSnapAlignData scroll_snap_align() const { return m_noninherited.misc->scroll_snap_align; }
+    ScrollSnapStop scroll_snap_stop() const { return m_noninherited.misc->scroll_snap_stop; }
+    ScrollSnapType scroll_snap_type() const { return m_noninherited.misc->scroll_snap_type; }
     ScrollbarColorData scrollbar_color() const { return m_inherited.ui->scrollbar_color; }
     ScrollbarGutter scrollbar_gutter() const { return m_noninherited.misc->scrollbar_gutter; }
     ScrollbarWidth scrollbar_width() const { return m_noninherited.misc->scrollbar_width; }
@@ -1966,6 +1986,9 @@ public:
         Optional<Utf16FlyString> view_transition_name;
         TouchActionData touch_action;
         ScrollBehavior scroll_behavior { InitialValues::scroll_behavior() };
+        ScrollSnapAlignData scroll_snap_align { InitialValues::scroll_snap_align() };
+        ScrollSnapStop scroll_snap_stop { InitialValues::scroll_snap_stop() };
+        ScrollSnapType scroll_snap_type { InitialValues::scroll_snap_type() };
         ScrollbarGutter scrollbar_gutter { InitialValues::scrollbar_gutter() };
         ScrollbarWidth scrollbar_width { InitialValues::scrollbar_width() };
         double shape_image_threshold { InitialValues::shape_image_threshold() };
@@ -3474,6 +3497,24 @@ public:
         if (m_values.m_noninherited.misc->scroll_behavior == value)
             return;
         m_values.m_noninherited.misc.access().scroll_behavior = value;
+    }
+    void set_scroll_snap_align(ScrollSnapAlignData value)
+    {
+        if (m_values.m_noninherited.misc->scroll_snap_align == value)
+            return;
+        m_values.m_noninherited.misc.access().scroll_snap_align = value;
+    }
+    void set_scroll_snap_stop(ScrollSnapStop value)
+    {
+        if (m_values.m_noninherited.misc->scroll_snap_stop == value)
+            return;
+        m_values.m_noninherited.misc.access().scroll_snap_stop = value;
+    }
+    void set_scroll_snap_type(ScrollSnapType value)
+    {
+        if (m_values.m_noninherited.misc->scroll_snap_type == value)
+            return;
+        m_values.m_noninherited.misc.access().scroll_snap_type = value;
     }
     void set_scrollbar_color(ScrollbarColorData value)
     {

@@ -780,6 +780,13 @@ RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
                     bridge.m_commit_parent_paintable->remove_child(*bridge.m_replaced_paintable);
             }
 
+            // The boxes this commit builds register themselves as snap containers, so the boxes it replaces stop
+            // being the document's.
+            if (bridge.m_replaced_paintable)
+                root.document().forget_scroll_snap_containers_in_subtree(*bridge.m_replaced_paintable);
+            else if (root.is_viewport())
+                root.document().forget_all_scroll_snap_containers();
+
             return RustFFI::FfiCommitPosition {
                 .parent_paintable = bridge.m_commit_parent_paintable.ptr(),
                 .insert_before_paintable = bridge.m_commit_insert_before_paintable.ptr(),
@@ -802,6 +809,8 @@ RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
                 else
                     paintable = node.create_paintable();
                 node.set_paintable(paintable);
+                if (paintable && Painting::is_scroll_snap_container(*paintable))
+                    node.document().register_scroll_snap_container(*paintable);
             } else if (node.paintable_ptr()) {
                 // A paintable surviving from a previous layout on a node this pass did not lay out is
                 // stale; drop it so the layout tree only points into the paint tree built by this commit.

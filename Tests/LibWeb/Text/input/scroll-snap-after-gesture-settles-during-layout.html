@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    #scroller {
+        width: 200px;
+        height: 100px;
+        overflow: scroll;
+        scroll-snap-type: y mandatory;
+        position: relative;
+    }
+    .area {
+        position: absolute;
+        width: 50%;
+        height: 100px;
+        scroll-snap-align: start;
+    }
+</style>
+<div id="scroller">
+    <div class="area" style="top: 0"></div>
+    <div class="area" style="top: 500px"></div>
+    <div class="area" style="top: 1000px"></div>
+</div>
+<script>
+    promiseTest(async () => {
+        const scroller = document.getElementById("scroller");
+
+        await animationFrame();
+        await animationFrame();
+
+        // Drag the scrollbar thumb to an offset between two snap positions.
+        const rect = scroller.getBoundingClientRect();
+        internals.mouseDown(rect.right - 5, rect.top + 30);
+        internals.mouseMove(rect.right - 5, rect.top + 40);
+        const scrollOffsetDuringDrag = scroller.scrollTop;
+
+        // Laying the page out again while the thumb is grabbed ends the gesture from inside the layout update, where
+        // the snap positions of the scroll container cannot be consulted.
+        document.body.appendChild(document.createElement("div"));
+        scroller.getBoundingClientRect();
+
+        let previousScrollTop = null;
+        while (previousScrollTop !== scroller.scrollTop) {
+            previousScrollTop = scroller.scrollTop;
+            for (let frame = 0; frame < 5; frame++)
+                await animationFrame();
+        }
+
+        println(`the drag ended between snap positions: ${scrollOffsetDuringDrag % 500 !== 0}`);
+        println(`the gesture snapped once layout was up to date: ${scroller.scrollTop % 500 === 0}`);
+    });
+</script>

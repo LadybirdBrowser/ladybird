@@ -218,7 +218,7 @@ public:
 
     double scroll_x() const;
     double scroll_y() const;
-    GC::Ref<WebIDL::Promise> scroll(Bindings::ScrollToOptions const&);
+    GC::Ref<WebIDL::Promise> scroll(Bindings::ScrollToOptions const&, Optional<CSSPixelPoint> relative_displacement = {});
     GC::Ref<WebIDL::Promise> scroll(double x, double y);
     GC::Ref<WebIDL::Promise> scroll_by(Bindings::ScrollToOptions);
     GC::Ref<WebIDL::Promise> scroll_by(double x, double y);

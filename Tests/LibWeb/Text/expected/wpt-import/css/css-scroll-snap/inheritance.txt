@@ -1,0 +1,43 @@
+Harness status: OK
+
+Found 38 tests
+
+38 Pass
+Pass	Property scroll-margin-block-end has initial value 0px
+Pass	Property scroll-margin-block-end does not inherit
+Pass	Property scroll-margin-block-start has initial value 0px
+Pass	Property scroll-margin-block-start does not inherit
+Pass	Property scroll-margin-bottom has initial value 0px
+Pass	Property scroll-margin-bottom does not inherit
+Pass	Property scroll-margin-inline-end has initial value 0px
+Pass	Property scroll-margin-inline-end does not inherit
+Pass	Property scroll-margin-inline-start has initial value 0px
+Pass	Property scroll-margin-inline-start does not inherit
+Pass	Property scroll-margin-left has initial value 0px
+Pass	Property scroll-margin-left does not inherit
+Pass	Property scroll-margin-right has initial value 0px
+Pass	Property scroll-margin-right does not inherit
+Pass	Property scroll-margin-top has initial value 0px
+Pass	Property scroll-margin-top does not inherit
+Pass	Property scroll-padding-block-end has initial value auto
+Pass	Property scroll-padding-block-end does not inherit
+Pass	Property scroll-padding-block-start has initial value auto
+Pass	Property scroll-padding-block-start does not inherit
+Pass	Property scroll-padding-bottom has initial value auto
+Pass	Property scroll-padding-bottom does not inherit
+Pass	Property scroll-padding-inline-end has initial value auto
+Pass	Property scroll-padding-inline-end does not inherit
+Pass	Property scroll-padding-inline-start has initial value auto
+Pass	Property scroll-padding-inline-start does not inherit
+Pass	Property scroll-padding-left has initial value auto
+Pass	Property scroll-padding-left does not inherit
+Pass	Property scroll-padding-right has initial value auto
+Pass	Property scroll-padding-right does not inherit
+Pass	Property scroll-padding-top has initial value auto
+Pass	Property scroll-padding-top does not inherit
+Pass	Property scroll-snap-align has initial value none
+Pass	Property scroll-snap-align does not inherit
+Pass	Property scroll-snap-stop has initial value normal
+Pass	Property scroll-snap-stop does not inherit
+Pass	Property scroll-snap-type has initial value none
+Pass	Property scroll-snap-type does not inherit

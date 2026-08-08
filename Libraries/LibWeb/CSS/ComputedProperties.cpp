@@ -1385,6 +1385,32 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
         return timeline_name_list_style_value(scroll_timeline_names());
     case PropertyID::ScrollBehavior:
         return KeywordStyleValue::create(to_keyword(scroll_behavior()));
+    case PropertyID::ScrollSnapAlign: {
+        auto alignment = scroll_snap_align();
+        if (alignment.block_alignment == alignment.inline_alignment)
+            return KeywordStyleValue::create(to_keyword(alignment.block_alignment));
+        return StyleValueList::create(
+            StyleValueVector {
+                KeywordStyleValue::create(to_keyword(alignment.block_alignment)),
+                KeywordStyleValue::create(to_keyword(alignment.inline_alignment)),
+            },
+            StyleValueList::Separator::Space);
+    }
+    case PropertyID::ScrollSnapStop:
+        return KeywordStyleValue::create(to_keyword(scroll_snap_stop()));
+    case PropertyID::ScrollSnapType: {
+        auto type = scroll_snap_type();
+        if (type.strictness == ScrollSnapStrictness::None)
+            return KeywordStyleValue::create(Keyword::None);
+        if (type.strictness == ScrollSnapStrictness::Proximity)
+            return KeywordStyleValue::create(to_keyword(type.axis));
+        return StyleValueList::create(
+            StyleValueVector {
+                KeywordStyleValue::create(to_keyword(type.axis)),
+                KeywordStyleValue::create(to_keyword(type.strictness)),
+            },
+            StyleValueList::Separator::Space);
+    }
     case PropertyID::ScrollbarColor:
         if (scrollbar_color().is_auto)
             return KeywordStyleValue::create(Keyword::Auto);

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    #scroller {
+        width: 200px;
+        height: 200px;
+        overflow: scroll;
+        scroll-snap-type: y mandatory;
+    }
+    .item {
+        width: 100%;
+        height: 200px;
+        scroll-snap-align: start;
+    }
+</style>
+<div id="scroller" tabindex="0">
+    <div class="item"></div>
+    <div style="height: 60px"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+</div>
+<script>
+    promiseTest(async () => {
+        const scroller = document.getElementById("scroller");
+
+        await animationFrame();
+        await animationFrame();
+
+        // Each press selects a snap position from the offset the presses before it reached, so a burst advances by the
+        // distance it asked for rather than by one snap position for each press.
+        let scrollend = scrollendEvent(scroller);
+        for (let press = 0; press < 6; ++press)
+            internals.sendKey(scroller, "Down");
+        println(`scroll offset after six down arrow key presses: ${scroller.scrollLeft},${scroller.scrollTop}`);
+        await scrollend;
+        println(`scroll offset once the presses settle: ${scroller.scrollLeft},${scroller.scrollTop}`);
+
+        // The repeats of a held key select snap positions the same way as separate presses do.
+        scrollend = scrollendEvent(scroller);
+        internals.sendKey(scroller, "Up", 0, 6);
+        println(`scroll offset while the up arrow key repeats: ${scroller.scrollLeft},${scroller.scrollTop}`);
+        await scrollend;
+        println(`scroll offset once the held key is released: ${scroller.scrollLeft},${scroller.scrollTop}`);
+    });
+</script>

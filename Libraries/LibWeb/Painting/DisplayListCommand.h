@@ -605,6 +605,8 @@ struct CompositorScrollNode {
     bool is_viewport { false };
     bool can_be_wheel_scrolled_horizontally { false };
     bool can_be_wheel_scrolled_vertically { false };
+    bool snaps_scroll_position_horizontally { false };
+    bool snaps_scroll_position_vertically { false };
 
     void dump(StringBuilder&) const;
 };

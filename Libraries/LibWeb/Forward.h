@@ -36,6 +36,8 @@ class XMLDocumentBuilder;
 
 enum class InvalidateDisplayList;
 enum class TraversalDecision;
+enum class WheelDeltaPrecision : u8;
+enum class ScrollGesturePhase : u8;
 
 AK_TYPEDEF_DISTINCT_NUMERIC_GENERAL(i64, UniqueNodeID, Comparison, Increment, CastToUnderlying);
 
@@ -62,6 +64,7 @@ class DisplayListPlayerSkia;
 class DisplayListRecorder;
 class DisplayListResourceStorage;
 struct DisplayListResourceSet;
+enum class CompositorScrollNodeKind : u8;
 enum class PaintCommandCacheMode : u8;
 struct GradientPaintStyle;
 struct PatternPaintStyle;

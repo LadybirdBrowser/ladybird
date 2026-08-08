@@ -128,6 +128,8 @@ using VisualContextData = Variant<ScrollData, ClipData, TransformData, Perspecti
 
 Optional<TransformData> compute_transform(Paintable const&, CSS::ComputedValues const&, double pixel_ratio);
 
+CSSPixelRect apply_css_transform_to_rect(Paintable const&, CSSPixelRect const&);
+
 struct AccumulatedVisualContextNode {
     VisualContextData data;
     VisualContextIndex parent_index {};
