@@ -1,0 +1,2 @@
+error page names the redirect target that failed: true
+error page names the pre-redirect URL: false
