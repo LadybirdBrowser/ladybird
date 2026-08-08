@@ -7,10 +7,12 @@
 
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Object.h>
+#include <LibMedia/MediaSupport.h>
 #include <LibWeb/HTML/EventLoop/Task.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/MediaCapabilitiesAPI/MediaCapabilities.h>
+#include <LibWeb/MediaSourceExtensions/MediaSource.h>
 #include <LibWeb/MimeSniff/MimeType.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/WebIDL/Promise.h>
@@ -64,22 +66,28 @@ bool is_valid_media_decoding_configuration(MediaDecodingConfiguration const& con
 // https://w3c.github.io/media-capabilities/#valid-audio-mime-type
 bool is_valid_audio_mime_type(Utf16View string)
 {
-    // A valid audio MIME type is a string that is a valid media MIME type and for which the type per [RFC9110] is
-    // either audio or application.
+    // 1. Let mimeType be the result of running parse a MIME type with configuration's contentType.
     auto mime_type = MimeSniff::MimeType::parse(string);
+
+    // 2. If mimeType is failure, return false.
     if (!mime_type.has_value())
         return false;
+
+    // FIXME: 3. Return the result of running check MIME type validity with mimeType and audio.
     return mime_type->type() == "audio"sv || mime_type->type() == "application"sv;
 }
 
 // https://w3c.github.io/media-capabilities/#valid-video-mime-type
 bool is_valid_video_mime_type(Utf16View string)
 {
-    // A valid video MIME type is a string that is a valid media MIME type and for which the type per [RFC9110] is
-    // either video or application.
+    // 1. Let mimeType be the result of running parse a MIME type with configuration's contentType.
     auto mime_type = MimeSniff::MimeType::parse(string);
+
+    // 2. If mimeType is failure, return false.
     if (!mime_type.has_value())
         return false;
+
+    // FIXME: 3. Return the result of running check MIME type validity with mimeType and video.
     return mime_type->type() == "video"sv || mime_type->type() == "application"sv;
 }
 
@@ -177,6 +185,8 @@ MediaCapabilitiesDecodingInfo create_a_media_capabilities_decoding_info(MediaDec
     info_configuration.key_system_configuration = configuration.key_system_configuration;
     info.configuration = move(info_configuration);
 
+    Optional<Media::DecoderCapabilities> capabilities;
+
     // 3. If configuration.keySystemConfiguration exists:
     if (false) {
         // FIXME: Implement this.
@@ -186,43 +196,104 @@ MediaCapabilitiesDecodingInfo create_a_media_capabilities_decoding_info(MediaDec
         // 1. Set keySystemAccess to null.
         // NB: info is value-initialized above, so key_system_access is already null.
 
-        // 2. If the user agent is able to decode the media represented by configuration, set supported to true.
-        // 3. Otherwise, set it to false.
-        info.supported = is_able_to_decode_media(configuration);
+        capabilities = media_decoding_capabilities(configuration);
     }
 
-    // 5. If the user agent is able to decode the media represented by configuration at the indicated framerate without
+    // 5. Set supported to true.
+    // NB: Step 4's substep 6 sets it to false instead when a content type is unsupported, which an empty result
+    //     stands for.
+    info.supported = capabilities.has_value();
+
+    // 6. If the user agent is able to decode the media represented by configuration at the indicated framerate without
     //    dropping frames, set smooth to true. Otherwise set it to false.
-    // FIXME: Actually check this.
-    info.smooth = false;
+    info.smooth = capabilities.has_value() && capabilities->smooth;
 
-    // 6. If the user agent is able to decode the media represented by configuration in a power efficient manner, set
+    // 7. If the user agent is able to decode the media represented by configuration in a power efficient manner, set
     //    powerEfficient to true. Otherwise set it to false.
-    // FIXME: Actually check this... somehow.
-    info.power_efficient = false;
+    info.power_efficient = capabilities.has_value() && capabilities->power_efficient;
 
-    // 7. Return info.
+    // 8. Return info.
     return info;
 }
 
-bool is_able_to_decode_media(MediaDecodingConfiguration const& configuration)
+static Optional<Media::DecoderCapabilities> file_decoding_capabilities(Utf16View content_type)
 {
-    if (configuration.type != MediaDecodingType::MediaSource)
-        return false;
+    // NB: The content type is parsed here rather than by the caller, since MediaSource::is_type_supported()
+    //     takes it unparsed.
+    auto mime_type = MimeSniff::MimeType::parse(content_type);
+    if (!mime_type.has_value())
+        return {};
 
-    if (configuration.video.has_value()) {
-        auto video_mime_type = MimeSniff::MimeType::parse(configuration.video.value().content_type);
-        if (!video_mime_type.has_value() || !Web::HTML::HTMLMediaElement::supported_video_subtypes.contains_slow(video_mime_type->subtype()))
-            return false;
+    auto support = Media::file_media_support({ mime_type->type(), mime_type->subtype(), mime_type->parameters() });
+
+    // AD-HOC: An inexact answer is treated as unsupported, as Chromium does.
+    if (support.support != Media::MediaSupport::Probably)
+        return {};
+    return support.capabilities;
+}
+
+// https://w3c.github.io/media-capabilities/#check-mime-type-support
+// AD-HOC: The spec answers only supported or unsupported, leaving steps 6 and 7 of "Create a
+//         MediaCapabilitiesDecodingInfo" to determine smoothness and power efficiency by unspecified means.
+//         LibMedia answers all three from one query, so the capabilities are returned here instead.
+static Optional<Media::DecoderCapabilities> check_mime_type_support(Utf16View content_type, MediaDecodingType decoding_type)
+{
+    // 1. If encodingOrDecodingType is webrtc and mimeType is not one that is used with RTP [...], return
+    //    unsupported.
+    // FIXME: No RTP payload formats are supported, so every webrtc configuration is rejected here.
+    if (decoding_type == MediaDecodingType::Webrtc)
+        return {};
+
+    // FIXME: 2. If colorGamut is present and is not valid for mimeType, return unsupported.
+
+    // FIXME: 3. If transferFunction is present and is not valid for mimeType, return unsupported.
+
+    // 4. If mimeType is not supported by the user agent, return unsupported.
+    // AD-HOC: A media-source content type is supported exactly when MediaSource.isTypeSupported() accepts it,
+    //         and a file content type when canPlayType() answers "probably" for it.
+    Optional<Media::DecoderCapabilities> capabilities;
+    if (decoding_type == MediaDecodingType::MediaSource) {
+        // FIXME: Report the decoder's capabilities for media-source content types too.
+        if (MediaSourceExtensions::MediaSource::is_type_supported(content_type))
+            capabilities = Media::DecoderCapabilities {};
+    } else {
+        capabilities = file_decoding_capabilities(content_type);
     }
 
-    if (configuration.audio.has_value()) {
-        auto audio_mime_type = MimeSniff::MimeType::parse(configuration.audio.value().content_type);
-        if (!audio_mime_type.has_value() || !Web::HTML::HTMLMediaElement::supported_audio_subtypes.contains_slow(audio_mime_type->subtype()))
-            return false;
-    }
+    // 5. Return supported.
+    return capabilities;
+}
 
-    return true;
+// https://w3c.github.io/media-capabilities/#create-a-mediacapabilitiesdecodinginfo
+// NB: These are step 4's substeps 2 through 6, hoisted out so that the combined capabilities can answer its
+//     steps 6 and 7 as well.
+Optional<Media::DecoderCapabilities> media_decoding_capabilities(MediaDecodingConfiguration const& configuration)
+{
+    //     2. Let videoSupported be unknown.
+    //     4. Let audioSupported be unknown.
+    Media::DecoderCapabilities capabilities { .smooth = true, .power_efficient = true };
+    auto check_content_type = [&](Utf16View content_type) {
+        auto type_capabilities = check_mime_type_support(content_type, configuration.type);
+        if (!type_capabilities.has_value())
+            return false;
+        capabilities.smooth &= type_capabilities->smooth;
+        capabilities.power_efficient &= type_capabilities->power_efficient;
+        return true;
+    };
+
+    //     3. If video is present in configuration, [...] set videoSupported to the result of running check MIME
+    //        type support with videoMimeType, configuration's type, colorGamut, and transferFunction.
+    if (configuration.video.has_value() && !check_content_type(configuration.video->content_type))
+        return {};
+
+    //     5. If audio is present in configuration, [...] set audioSupported to the result of running check MIME
+    //        type support with audioMimeType and configuration's type.
+    if (configuration.audio.has_value() && !check_content_type(configuration.audio->content_type))
+        return {};
+
+    // NB: Substep 6 sets supported, smooth and powerEfficient to false when either is unsupported; the returns
+    //     above do that by giving the caller nothing.
+    return capabilities;
 }
 
 }
