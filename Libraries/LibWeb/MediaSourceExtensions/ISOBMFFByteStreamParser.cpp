@@ -172,7 +172,6 @@ Media::DecoderErrorOr<void> ISOBMFFByteStreamParser::parse_initialization_segmen
             return Media::DecoderError::format(Media::DecoderErrorCategory::Corrupted, "Track {} in the Movie box contains samples", track_id);
     }
 
-    auto is_first_initialization_segment = m_track_entries.is_empty();
     m_duration = movie.duration_as_time();
     m_track_entries = move(movie.tracks);
 
@@ -203,13 +202,6 @@ Media::DecoderErrorOr<void> ISOBMFFByteStreamParser::parse_initialization_segmen
                                                     .sample_description_count = track_entry->sample_entries.size(),
                                                     .sample_defaults = track_entry->fragment_defaults,
                                                 });
-
-        if (is_first_initialization_segment && track_entry->default_sample_entry().has_value()) {
-            m_active_sample_descriptions.set(track_id, ActiveSampleDescription {
-                                                           track_entry,
-                                                           track_entry->fragment_defaults.sample_description_index,
-                                                       });
-        }
 
         if (!maybe_tracks_for_type)
             continue;
@@ -380,7 +372,7 @@ Media::DecoderErrorOr<ParseMediaSegmentResult> ISOBMFFByteStreamParser::parse_me
                 auto* track_entry = m_track_entries.get(sample.track_id).value();
                 auto const& sample_entry = track_entry->sample_entry_for_description_index(sample.sample_description_index).value();
 
-                FixedArray<u8> new_codec_configuration;
+                Optional<FixedArray<u8>> new_codec_configuration;
                 auto& active_description = m_active_sample_descriptions.ensure(sample.track_id);
                 auto current_sample_description = ActiveSampleDescription { track_entry, sample.sample_description_index };
                 if (active_description != current_sample_description)
@@ -390,6 +382,7 @@ Media::DecoderErrorOr<ParseMediaSegmentResult> ISOBMFFByteStreamParser::parse_me
                 result.coded_frames.append({
                     .track_number = sample.track_id,
                     .coded_frame = Media::CodedFrame(
+                        sample_entry.codec_id,
                         sample.presentation_timestamp,
                         sample.decode_timestamp,
                         sample.duration,

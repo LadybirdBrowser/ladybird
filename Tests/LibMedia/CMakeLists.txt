@@ -8,6 +8,7 @@ set(TEST_SOURCES
     TestCodecParameters.cpp
     TestContainerID.cpp
     TestDecodedAudioProducer.cpp
+    TestDecodedVideoProducer.cpp
     TestDecoderRegistry.cpp
     TestDemuxerRegistry.cpp
     TestDisplayingVideoSink.cpp

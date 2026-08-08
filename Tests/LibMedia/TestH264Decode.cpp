@@ -43,31 +43,15 @@ static DemuxerAndVideoTrack create_demuxer_and_video_track(StringView path)
 TEST_CASE(h264_configuration_change)
 {
     auto [initial_demuxer, initial_track] = create_demuxer_and_video_track("./avc.mp4"sv);
-    auto initial_configuration = MUST(initial_demuxer->get_codec_initialization_data_for_track(initial_track));
-    auto decoder = MUST(Media::FFmpeg::FFmpegVideoDecoder::try_create(Media::CodecID::H264, initial_configuration));
+    auto initial_sample = MUST(initial_demuxer->get_next_sample_for_track(initial_track));
+    auto decoder = MUST(Media::FFmpeg::FFmpegVideoDecoder::try_create(initial_sample.codec_id(), initial_sample.new_codec_configuration().value()));
 
     auto [new_demuxer, new_track] = create_demuxer_and_video_track("./vfr.mkv"sv);
-    auto new_configuration = MUST(new_demuxer->get_codec_initialization_data_for_track(new_track));
 
-    bool sent_configuration = false;
     bool decoded_frame = false;
     while (!decoded_frame) {
         auto sample = MUST(new_demuxer->get_next_sample_for_track(new_track));
-        FixedArray<u8> configuration;
-        if (!sent_configuration) {
-            configuration = MUST(FixedArray<u8>::create(new_configuration));
-            sent_configuration = true;
-        }
-
-        Media::CodedFrame configured_sample {
-            sample.presentation_timestamp(),
-            sample.decode_timestamp(),
-            sample.duration(),
-            sample.flags(),
-            MUST(FixedArray<u8>::create(sample.data())),
-            move(configuration),
-        };
-        MUST(decoder->receive_coded_data(configured_sample));
+        MUST(decoder->receive_coded_data(sample));
 
         while (true) {
             auto metadata_result = decoder->peek_next_output(new_track.video_data().cicp);
@@ -100,9 +84,9 @@ TEST_CASE(avc_in_mp4_with_reordered_frames)
     auto track = optional_track.release_value();
     MUST(demuxer->create_context_for_track(track));
 
-    auto codec_id = MUST(demuxer->get_codec_id_for_track(track));
-    auto codec_initialization_data = MUST(demuxer->get_codec_initialization_data_for_track(track));
-    auto decoder = MUST(Media::FFmpeg::FFmpegVideoDecoder::try_create(codec_id, codec_initialization_data));
+    auto first_sample = MUST(demuxer->get_next_sample_for_track(track));
+    auto decoder = MUST(Media::FFmpeg::FFmpegVideoDecoder::try_create(first_sample.codec_id(), first_sample.new_codec_configuration().value()));
+    MUST(decoder->receive_coded_data(first_sample));
 
     size_t frame_count = 0;
     auto last_timestamp = AK::Duration::min();

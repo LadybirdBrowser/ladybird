@@ -123,8 +123,8 @@ DecoderErrorOr<void> FFmpegAudioDecoder::receive_coded_data(CodedFrame const& co
 
     ScopeGuard clear_packet_side_data { [&] { av_packet_free_side_data(m_packet); } };
     auto new_codec_configuration = coded_frame.new_codec_configuration();
-    if (!new_codec_configuration.is_empty())
-        TRY(add_new_extradata_to_packet(*m_packet, new_codec_configuration));
+    if (new_codec_configuration.has_value() && !new_codec_configuration->is_empty())
+        TRY(add_new_extradata_to_packet(*m_packet, *new_codec_configuration));
 
     auto result = avcodec_send_packet(m_codec_context, m_packet);
     switch (result) {

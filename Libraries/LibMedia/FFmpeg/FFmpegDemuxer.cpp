@@ -556,7 +556,7 @@ AK::Duration FFmpegDemuxer::select_fast_seek_target_for_track(Track const&, AK::
     return target;
 }
 
-DecoderErrorOr<DemuxerSeekResult> FFmpegDemuxer::seek_to_most_recent_keyframe(Track const& track, AK::Duration timestamp, DemuxerSeekOptions)
+DecoderErrorOr<DemuxerSeekResult> FFmpegDemuxer::seek_to_most_recent_keyframe(Track const& track, AK::Duration timestamp, DemuxerSeekOptions options)
 {
     auto& track_context = get_track_context(track);
     auto& format_context = *track_context.format_context;
@@ -604,19 +604,9 @@ DecoderErrorOr<DemuxerSeekResult> FFmpegDemuxer::seek_to_most_recent_keyframe(Tr
         }
     }
 
+    if (has_flag(options, DemuxerSeekOptions::NeedCodecConfiguration))
+        track_context.needs_codec_configuration = true;
     return DemuxerSeekResult::MovedPosition;
-}
-
-DecoderErrorOr<CodecID> FFmpegDemuxer::get_codec_id_for_track(Track const& track)
-{
-    auto const& track_info = get_track_info(track);
-    return track_info.codec_id;
-}
-
-DecoderErrorOr<ReadonlyBytes> FFmpegDemuxer::get_codec_initialization_data_for_track(Track const& track)
-{
-    auto const& track_info = get_track_info(track);
-    return track_info.codec_initialization_data.bytes();
 }
 
 DecoderErrorOr<CodedFrame> FFmpegDemuxer::get_next_sample_for_track(Track const& track)
@@ -646,10 +636,13 @@ DecoderErrorOr<CodedFrame> FFmpegDemuxer::get_next_sample_for_track(Track const&
         ScopeGuard clear_packet { [&] { av_packet_unref(&packet); } };
 
         auto packet_data = DECODER_TRY_ALLOC(FixedArray<u8>::create(ReadonlyBytes { packet.data, static_cast<size_t>(packet.size) }));
-        FixedArray<u8> new_codec_configuration;
+        Optional<FixedArray<u8>> new_codec_configuration;
         size_t new_extradata_size = 0;
         if (auto* new_extradata = av_packet_get_side_data(&packet, AV_PKT_DATA_NEW_EXTRADATA, &new_extradata_size); new_extradata && new_extradata_size > 0)
             new_codec_configuration = DECODER_TRY_ALLOC(FixedArray<u8>::create(ReadonlyBytes { new_extradata, new_extradata_size }));
+        if (!new_codec_configuration.has_value() && track_context.needs_codec_configuration)
+            new_codec_configuration = DECODER_TRY_ALLOC(FixedArray<u8>::create(get_track_info(track).codec_initialization_data.bytes()));
+        track_context.needs_codec_configuration = false;
 
         if (track_context.pending_timestamp_offset.has_value() && packet.pts == 0)
             track_context.timestamp_offset = track_context.pending_timestamp_offset.release_value();
@@ -666,7 +659,10 @@ DecoderErrorOr<CodedFrame> FFmpegDemuxer::get_next_sample_for_track(Track const&
         if (packet.dts != AV_NOPTS_VALUE)
             decode_timestamp = track_context.timestamp_offset + time_units_to_duration(packet.dts, stream.time_base);
 
+        auto const& track_info = get_track_info(track);
+
         auto sample = CodedFrame(
+            track_info.codec_id,
             presentation_timestamp,
             decode_timestamp,
             duration,

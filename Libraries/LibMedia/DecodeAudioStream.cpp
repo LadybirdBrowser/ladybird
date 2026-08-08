@@ -5,7 +5,10 @@
  */
 
 #include <AK/Checked.h>
+#include <AK/OwnPtr.h>
 #include <LibMedia/AudioBlock.h>
+#include <LibMedia/AudioDecoder.h>
+#include <LibMedia/CodedFrame.h>
 #include <LibMedia/DecodeAudioStream.h>
 #include <LibMedia/DecoderRegistry.h>
 #include <LibMedia/Demuxer.h>
@@ -59,9 +62,7 @@ DecoderErrorOr<DecodedAudioData> decode_entire_audio_stream(NonnullRefPtr<MediaS
     }
     TRY(demuxer->create_context_for_track(*track));
 
-    auto codec_id = TRY(demuxer->get_codec_id_for_track(*track));
-    auto codec_initialization_data = TRY(demuxer->get_codec_initialization_data_for_track(*track));
-    auto decoder = TRY(create_audio_decoder(codec_id, track->audio_data().sample_specification, codec_initialization_data));
+    OwnPtr<AudioDecoder> decoder;
     auto converter = DECODER_TRY_ALLOC(FFmpeg::FFmpegAudioConverter::try_create());
 
     DecodedAudioData data;
@@ -108,9 +109,17 @@ DecoderErrorOr<DecodedAudioData> decode_entire_audio_stream(NonnullRefPtr<MediaS
         if (sample_result.is_error()) {
             if (sample_result.error().category() != DecoderErrorCategory::EndOfStream)
                 return sample_result.release_error();
+            if (!decoder)
+                break;
             decoder->signal_end_of_stream();
         } else {
             auto sample = sample_result.release_value();
+            if (!decoder) {
+                auto codec_initialization_data = sample.new_codec_configuration();
+                if (!codec_initialization_data.has_value())
+                    return DecoderError::with_description(DecoderErrorCategory::Corrupted, "Coded frame starting a decode sequence carries no codec configuration"sv);
+                decoder = TRY(create_audio_decoder(sample.codec_id(), track->audio_data().sample_specification, *codec_initialization_data));
+            }
             TRY(decoder->receive_coded_data(sample));
         }
 

@@ -10,11 +10,8 @@
 
 namespace Web::MediaSourceExtensions {
 
-TrackBufferDemuxer::TrackBufferDemuxer(Media::Track const& track, Media::CodecID codec_id, ByteBuffer codec_initialization_data)
+TrackBufferDemuxer::TrackBufferDemuxer(Media::Track const& track)
     : m_track(track)
-    , m_codec_id(codec_id)
-    , m_codec_initialization_data(move(codec_initialization_data))
-    , m_last_appended_codec_configuration(MUST(FixedArray<u8>::create(m_codec_initialization_data.bytes())))
 {
 }
 
@@ -56,12 +53,12 @@ void TrackBufferDemuxer::recalculate_run_bounds(FrameRun& run)
 
 // A run's first frame carries the codec configuration to decode it from, so a run never has to be searched
 // past to find one.
-ReadonlyBytes TrackBufferDemuxer::codec_configuration_after_frame_prefix_while_locked(FrameRun const& run, size_t frame_count)
+Optional<ReadonlyBytes> TrackBufferDemuxer::codec_configuration_after_frame_prefix_while_locked(FrameRun const& run, size_t frame_count)
 {
     VERIFY(frame_count <= run.frames.size());
     for (auto index = frame_count; index-- > 0;) {
         auto configuration = run.frames[index].new_codec_configuration();
-        if (!configuration.is_empty())
+        if (configuration.has_value())
             return configuration;
     }
     return {};
@@ -73,8 +70,8 @@ void TrackBufferDemuxer::add_coded_frame(Media::CodedFrame frame)
 
     auto update_last_appended_codec_configuration = [&] {
         auto configuration = frame.new_codec_configuration();
-        if (!configuration.is_empty())
-            m_last_appended_codec_configuration = MUST(FixedArray<u8>::create(configuration));
+        if (configuration.has_value())
+            m_last_appended_codec_configuration = MUST(FixedArray<u8>::create(configuration.value()));
     };
 
     // A frame continues a run when it decodes after every frame already in it, without a gap that
@@ -116,8 +113,8 @@ void TrackBufferDemuxer::add_coded_frame(Media::CodedFrame frame)
     }
 
     FrameRun run;
-    if (frame.new_codec_configuration().is_empty())
-        frame.set_new_codec_configuration(MUST(m_last_appended_codec_configuration.clone()));
+    if (!frame.new_codec_configuration().has_value() && m_last_appended_codec_configuration.has_value())
+        frame.set_new_codec_configuration(MUST(m_last_appended_codec_configuration->clone()));
     extend_run_bounds_for_frame(run, frame);
     update_last_appended_codec_configuration();
     run.frames.append(move(frame));
@@ -157,7 +154,7 @@ void TrackBufferDemuxer::split_run_while_locked(size_t run_index, size_t split_a
     for (size_t index = split_at; index < run.frames.size(); index++)
         tail.frames.append(move(run.frames[index]));
     run.frames.remove(split_at, run.frames.size() - split_at);
-    if (tail.frames.first().new_codec_configuration().is_empty())
+    if (!tail.frames.first().new_codec_configuration().has_value())
         tail.frames.first().set_new_codec_configuration(move(codec_configuration_before_tail));
     recalculate_run_bounds(run);
     recalculate_run_bounds(tail);
@@ -199,7 +196,8 @@ size_t TrackBufferDemuxer::erase_frames_and_dependants_while_locked(size_t run_i
     FixedArray<u8> codec_configuration_before_remaining_frames;
     if (first_frame + frame_count < run.frames.size()) {
         auto configuration = codec_configuration_after_frame_prefix_while_locked(run, first_frame + frame_count);
-        codec_configuration_before_remaining_frames = MUST(FixedArray<u8>::create(configuration));
+        if (configuration.has_value())
+            codec_configuration_before_remaining_frames = MUST(FixedArray<u8>::create(*configuration));
     }
 
     m_total_bytes -= bytes;
@@ -225,7 +223,7 @@ size_t TrackBufferDemuxer::erase_frames_and_dependants_while_locked(size_t run_i
     }
 
     if (first_frame == 0) {
-        if (run.frames.first().new_codec_configuration().is_empty())
+        if (!run.frames.first().new_codec_configuration().has_value())
             run.frames.first().set_new_codec_configuration(move(codec_configuration_before_remaining_frames));
     } else if (first_frame < run.frames.size()) {
         VERIFY(run.frames[first_frame].is_keyframe());
@@ -451,7 +449,7 @@ Optional<size_t> TrackBufferDemuxer::find_run_to_play_from_while_locked(AK::Dura
     return earliest_run_after_timestamp;
 }
 
-ReadonlyBytes TrackBufferDemuxer::codec_configuration_at_position_while_locked(size_t run_index, size_t frame_index) const
+Optional<ReadonlyBytes> TrackBufferDemuxer::codec_configuration_at_position_while_locked(size_t run_index, size_t frame_index) const
 {
     auto const& run = m_runs[run_index];
     VERIFY(frame_index < run.frames.size());
@@ -516,17 +514,18 @@ Media::DecoderErrorOr<Media::CodedFrame> TrackBufferDemuxer::get_next_sample_for
     if (m_cursor_continuity == CursorContinuity::Jumped) {
         m_cursor_continuity = CursorContinuity::Continuous;
         auto configuration = codec_configuration_at_position_while_locked(m_current_run, m_current_frame);
-        auto configuration_is_new = !configuration.is_empty() && configuration != m_last_delivered_codec_configuration.span();
+        auto configuration_is_new = configuration.has_value() && (!m_last_delivered_codec_configuration.has_value() || *configuration != m_last_delivered_codec_configuration->span());
         if (configuration_is_new)
-            m_last_delivered_codec_configuration = MUST(FixedArray<u8>::create(configuration));
+            m_last_delivered_codec_configuration = MUST(FixedArray<u8>::create(*configuration));
 
         // The first frame of a run always includes a codec configuration, but we only want to emit it if it differs
         // from the config at the end of the last run.
-        if (configuration_is_new || !stored_frame.new_codec_configuration().is_empty()) {
-            FixedArray<u8> new_codec_configuration;
+        if (configuration_is_new || stored_frame.new_codec_configuration().has_value()) {
+            Optional<FixedArray<u8>> new_codec_configuration;
             if (configuration_is_new)
-                new_codec_configuration = MUST(m_last_delivered_codec_configuration.clone());
+                new_codec_configuration = MUST(m_last_delivered_codec_configuration->clone());
             Media::CodedFrame frame {
+                stored_frame.codec_id(),
                 stored_frame.presentation_timestamp(),
                 stored_frame.decode_timestamp(),
                 stored_frame.duration(),
@@ -538,23 +537,13 @@ Media::DecoderErrorOr<Media::CodedFrame> TrackBufferDemuxer::get_next_sample_for
             m_current_frame++;
             return frame;
         }
-    } else if (auto configuration = stored_frame.new_codec_configuration(); !configuration.is_empty()) {
-        m_last_delivered_codec_configuration = MUST(FixedArray<u8>::create(configuration));
+    } else if (auto configuration = stored_frame.new_codec_configuration(); configuration.has_value()) {
+        m_last_delivered_codec_configuration = MUST(FixedArray<u8>::create(*configuration));
     }
 
     m_cursor_presentation_timestamp = stored_frame.presentation_timestamp();
     m_current_frame++;
     return stored_frame;
-}
-
-Media::DecoderErrorOr<Media::CodecID> TrackBufferDemuxer::get_codec_id_for_track(Media::Track const&)
-{
-    return m_codec_id;
-}
-
-Media::DecoderErrorOr<ReadonlyBytes> TrackBufferDemuxer::get_codec_initialization_data_for_track(Media::Track const&)
-{
-    return m_codec_initialization_data.bytes();
 }
 
 AK::Duration TrackBufferDemuxer::select_fast_seek_target_for_track(Media::Track const&, AK::Duration target, Media::SeekMode mode)
@@ -604,9 +593,13 @@ bool TrackBufferDemuxer::move_cursor_to_presentation_time_while_locked(AK::Durat
     return true;
 }
 
-Media::DecoderErrorOr<Media::DemuxerSeekResult> TrackBufferDemuxer::seek_to_most_recent_keyframe(Media::Track const&, AK::Duration timestamp, Media::DemuxerSeekOptions)
+Media::DecoderErrorOr<Media::DemuxerSeekResult> TrackBufferDemuxer::seek_to_most_recent_keyframe(Media::Track const&, AK::Duration timestamp, Media::DemuxerSeekOptions options)
 {
     Sync::MutexLocker locker { m_mutex };
+
+    // Forget what the consumer was sent, so that the configuration in effect is delivered again.
+    if (has_flag(options, Media::DemuxerSeekOptions::NeedCodecConfiguration))
+        m_last_delivered_codec_configuration = {};
 
     while (true) {
         if (m_aborted.load())

@@ -8,6 +8,7 @@
 #include <AK/Math.h>
 #include <AK/NonnullOwnPtr.h>
 #include <LibMedia/DecoderError.h>
+#include <LibMedia/DecoderRegistry.h>
 #include <LibMedia/ReadonlyBytesCursor.h>
 #include <LibWeb/MediaSourceExtensions/ByteStreamParser.h>
 #include <LibWeb/MediaSourceExtensions/SourceBufferProcessor.h>
@@ -349,14 +350,40 @@ bool SourceBufferProcessor::initialization_segment_received()
 
     // 3. If the [[first initialization segment received flag]] is true, then run the following steps:
     if (m_first_initialization_segment_received_flag) {
-        // FIXME: 1. Verify the following properties. If any of the checks fail then run the append error algorithm
-        //           and abort these steps.
-        //               - The number of audio, video, and text tracks match what was in the first initialization segment.
-        //               - If more than one track for a single type are present (e.g., 2 audio tracks), then the Track IDs
-        //                 match the ones in the first initialization segment.
-        //               - The codecs for each track are supported by the user agent.
+        // 1. Verify the following properties. If any of the checks fail then run the append error algorithm
+        //    and abort these steps.
+        //        - The number of audio, video, and text tracks match what was in the first initialization segment.
+        //        - If more than one track for a single type are present (e.g., 2 audio tracks), then the Track IDs
+        //          match the ones in the first initialization segment.
+        //        - The codecs for each track are supported by the user agent.
+        // NB: Track buffers are keyed by Track ID, so finding one of a matching type for every track in this segment
+        //     and counting the same number of them covers both of the first two checks.
+        size_t track_count = 0;
+        for (auto const* tracks : { &m_parser->audio_tracks(), &m_parser->video_tracks(), &m_parser->text_tracks() }) {
+            for (auto const& track : *tracks) {
+                track_count++;
+                auto track_buffer = m_track_buffers.get(track.identifier());
+                if (!track_buffer.has_value() || track_buffer.value()->demuxer().track().type() != track.type()) {
+                    m_append_error_callback();
+                    return false;
+                }
+                if (track.type() == Media::TrackType::Subtitles)
+                    continue;
+                auto codec_id = m_parser->codec_id_for_track(track.identifier());
+                if (!Media::decoder_capabilities(Media::ParsedCodec { codec_id }).has_value()) {
+                    m_append_error_callback();
+                    return false;
+                }
+            }
+        }
+        if (track_count != m_track_buffers.size()) {
+            m_append_error_callback();
+            return false;
+        }
 
-        // FIXME: 2. Add the appropriate track descriptions from this initialization segment to each of the track buffers.
+        // 2. Add the appropriate track descriptions from this initialization segment to each of the track buffers.
+        // NB: A track's description travels with its coded frames, since the parser gives the first frame that
+        //     follows an initialization segment the codec and configuration that it selects.
 
         // 3. Set the need random access point flag on all track buffers to true.
         set_need_random_access_point_flag_on_all_track_buffers(true);
@@ -381,9 +408,7 @@ bool SourceBufferProcessor::initialization_segment_received()
 
                 // 7. Create a new track buffer to store coded frames for this track.
                 // 8. Add the track description for this track to the track buffer.
-                auto codec_id = m_parser->codec_id_for_track(track.identifier());
-                auto codec_init_data = MUST(ByteBuffer::copy(m_parser->codec_initialization_data_for_track(track.identifier())));
-                auto demuxer = make_ref_counted<TrackBufferDemuxer>(track, codec_id, move(codec_init_data));
+                auto demuxer = make_ref_counted<TrackBufferDemuxer>(track);
                 auto track_buffer = make<TrackBuffer>(demuxer);
                 m_track_buffers.set(track.identifier(), move(track_buffer));
 
@@ -455,6 +480,7 @@ void SourceBufferProcessor::run_coded_frame_processing(Vector<DemuxedCodedFrame>
 
         auto last_decode_timestamp = track_buffer.last_decode_timestamp();
         auto last_frame_duration = track_buffer.last_frame_duration();
+        VERIFY(last_decode_timestamp.has_value() == last_frame_duration.has_value());
 
         // 6.
         if (
@@ -470,12 +496,12 @@ void SourceBufferProcessor::run_coded_frame_processing(Vector<DemuxedCodedFrame>
                 && decode_timestamp - last_decode_timestamp.value() > (last_frame_duration.value() + last_frame_duration.value()))) {
             // 1. -> If mode equals "segments":
             if (m_mode == AppendMode::Segments) {
-                // Set [[group end timestamp]] to presentation timestamp.
+                //       Set [[group end timestamp]] to presentation timestamp.
                 m_group_end_timestamp = presentation_timestamp;
             }
             //    -> If mode equals "sequence":
-            if (m_mode == AppendMode::Sequence) {
-                // -> Set [[group start timestamp]] equal to the [[group end timestamp]].
+            else if (m_mode == AppendMode::Sequence) {
+                //       Set [[group start timestamp]] equal to the [[group end timestamp]].
                 m_group_start_timestamp = m_group_end_timestamp;
             }
 

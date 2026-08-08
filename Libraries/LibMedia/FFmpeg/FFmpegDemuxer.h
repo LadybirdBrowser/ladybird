@@ -48,10 +48,6 @@ public:
     virtual DemuxerScanState const& scan_state() const LIFETIME_BOUND override;
     virtual void set_scan_state_change_handler(Function<void()>) override;
 
-    virtual DecoderErrorOr<CodecID> get_codec_id_for_track(Track const&) override;
-
-    virtual DecoderErrorOr<ReadonlyBytes> get_codec_initialization_data_for_track(Track const&) override;
-
     virtual DecoderErrorOr<CodedFrame> get_next_sample_for_track(Track const&) override;
 
     virtual void set_blocking_reads_aborted_for_track(Track const&) override;
@@ -83,6 +79,7 @@ private:
         AVPacket* packet { nullptr };
         bool is_seekable { true };
         bool peeked_packet_already { false };
+        bool needs_codec_configuration { true };
         Optional<AK::Duration> pending_timestamp_offset;
         AK::Duration timestamp_offset;
     };

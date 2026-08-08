@@ -14,6 +14,7 @@
 #include <AK/ThreadID.h>
 #include <AK/Time.h>
 #include <LibCore/Forward.h>
+#include <LibMedia/CodedFrame.h>
 #include <LibMedia/DecoderError.h>
 #include <LibMedia/Demuxer.h>
 #include <LibMedia/Export.h>
@@ -72,7 +73,9 @@ private:
         void set_wake_handler(PipelineWakeHandler);
 
         void start();
-        DecoderErrorOr<void> create_decoder();
+        DecoderErrorOr<void> create_decoder_for_frame(CodedFrame const&);
+        DecoderErrorOr<void> receive_coded_frame(CodedFrame const&);
+        DecoderErrorOr<bool> replace_drained_decoder();
         void release_decoder();
         void exit();
 
@@ -132,9 +135,12 @@ private:
         AK::ThreadID m_decode_thread_id;
         NonnullRefPtr<Demuxer> m_demuxer;
         Track m_track;
+        CodecID m_decoder_codec_id { CodecID::Unknown };
+        Optional<CodedFrame> m_frame_awaiting_decoder_replacement;
         OwnPtr<VideoDecoder> m_decoder;
         RefPtr<VideoFramePool> m_frame_pool;
         bool m_decoder_needs_keyframe_next_seek { false };
+        bool m_decoder_needs_codec_configuration_next_seek { true };
 
         FrameQueue m_queue;
         AK::Duration m_earliest_available_timestamp;
