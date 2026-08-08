@@ -363,7 +363,9 @@ pub(crate) fn place_child(run: &FormattingContextRun, node: Node, offset: FfiCss
         fragments.build_fragment_for_placed_box(
             node,
             (!containing_block.is_invalid()).then_some(containing_block),
+            used,
             containing_block_is_sealed,
+            state.containing_line_box_index(callbacks, node, used),
         );
     }
 }
@@ -1547,7 +1549,7 @@ fn run_formatting_context<'pass>(
         ParticipationInParentFormattingContext::Root => {}
     }
 
-    let take_root = || run.fragments.as_ref().map(|fragments| fragments.take_unplaced_root());
+    let take_root = || run.fragments.as_ref().map(|fragments| fragments.take_unplaced_root(run.state));
 
     let registered_abspos_children_could_never_be_laid_out = run.fragments.is_none();
     if registered_abspos_children_could_never_be_laid_out {
@@ -1849,7 +1851,7 @@ pub unsafe extern "C" fn rust_layout_run_root_layout(
             &[root, root_for_layout],
             &entry_fragments,
         );
-        let pass_fragments = entry_fragments.take_completed_pass();
+        let pass_fragments = entry_fragments.take_completed_pass(state_ref);
         debug_assert!(!pass_fragments.roots.is_empty(), "the run root always has a fragment");
         state.commit_replacing(root, std::ptr::null_mut(), &callbacks, sink);
     });
@@ -1925,8 +1927,9 @@ pub unsafe extern "C" fn rust_layout_compute_subtree_layout(
             debug_assert!(unplaced_root.node == root, "the subtree run returned a root for a different box");
             entry_fragments.hold_unplaced_root(unplaced_root);
         }
+        entry_fragments.build_fragment_for_placed_box(root, None, root_used, false, None);
         drain_remaining_abspos_targets(state_ref, callbacks, false, &[viewport, root], &entry_fragments);
-        let pass_fragments = entry_fragments.take_completed_pass();
+        let pass_fragments = entry_fragments.take_completed_pass(state_ref);
         debug_assert!(!pass_fragments.roots.is_empty(), "the subtree root always has a fragment");
         state.commit_replacing(root, paintable_to_replace, &callbacks, sink);
     });
@@ -1967,7 +1970,7 @@ pub unsafe extern "C" fn rust_layout_replay_saved_abspos_layout(
         };
         AbsposEngine::new(state_ref, callbacks).replay(&run, box_);
         drain_remaining_abspos_targets(state_ref, callbacks, false, &[containing_block], &entry_fragments);
-        let pass_fragments = entry_fragments.take_completed_pass();
+        let pass_fragments = entry_fragments.take_completed_pass(state_ref);
         debug_assert!(!pass_fragments.roots.is_empty(), "the replayed box always has a fragment");
         state.commit_replacing(box_, paintable_to_replace, &callbacks, sink);
     });

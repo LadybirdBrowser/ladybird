@@ -4,16 +4,94 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#[allow(dead_code)]
 pub(crate) struct Fragment {
-    #[allow(dead_code)]
     pub(crate) node: crate::layout::node_data::NodeSlotId,
-    #[allow(dead_code)]
+    pub(crate) content_inline_size: CssPixels,
+    pub(crate) content_block_size: CssPixels,
+    pub(crate) margin_left: CssPixels,
+    pub(crate) margin_right: CssPixels,
+    pub(crate) margin_top: CssPixels,
+    pub(crate) margin_bottom: CssPixels,
+    pub(crate) border_left: CssPixels,
+    pub(crate) border_right: CssPixels,
+    pub(crate) border_top: CssPixels,
+    pub(crate) border_bottom: CssPixels,
+    pub(crate) padding_left: CssPixels,
+    pub(crate) padding_right: CssPixels,
+    pub(crate) padding_top: CssPixels,
+    pub(crate) padding_bottom: CssPixels,
     pub(crate) children: Vec<FragmentLink>,
 }
 
+#[allow(dead_code)]
 pub(crate) struct FragmentLink {
-    #[allow(dead_code)]
     pub(crate) fragment: Box<Fragment>,
+    pub(crate) committed_offset: FfiCssPixelPoint,
+    pub(crate) inset_left: CssPixels,
+    pub(crate) inset_right: CssPixels,
+    pub(crate) inset_top: CssPixels,
+    pub(crate) inset_bottom: CssPixels,
+    pub(crate) containing_line_box_index: Option<usize>,
+}
+
+fn snapshot_fragment(
+    node: crate::layout::node_data::NodeSlotId,
+    children: Vec<FragmentLink>,
+    used: &UsedValues,
+) -> Box<Fragment> {
+    Box::new(Fragment {
+        node,
+        content_inline_size: used.content_inline_size.get(),
+        content_block_size: used.content_block_size.get(),
+        margin_left: used.margin_left.get(),
+        margin_right: used.margin_right.get(),
+        margin_top: used.margin_top.get(),
+        margin_bottom: used.margin_bottom.get(),
+        border_left: used.border_left.get(),
+        border_right: used.border_right.get(),
+        border_top: used.border_top.get(),
+        border_bottom: used.border_bottom.get(),
+        padding_left: used.padding_left.get(),
+        padding_right: used.padding_right.get(),
+        padding_top: used.padding_top.get(),
+        padding_bottom: used.padding_bottom.get(),
+        children,
+    })
+}
+
+pub(crate) struct PlacementData {
+    pub(crate) committed_offset: FfiCssPixelPoint,
+    pub(crate) inset_left: CssPixels,
+    pub(crate) inset_right: CssPixels,
+    pub(crate) inset_top: CssPixels,
+    pub(crate) inset_bottom: CssPixels,
+    pub(crate) containing_line_box_index: Option<usize>,
+}
+
+impl PlacementData {
+    fn from_record(used: &UsedValues, containing_line_box_index: Option<usize>) -> Self {
+        Self {
+            committed_offset: crate::layout::point_add(used.content_offset.get(), used.committed_offset_delta.get()),
+            inset_left: used.inset_left.get(),
+            inset_right: used.inset_right.get(),
+            inset_top: used.inset_top.get(),
+            inset_bottom: used.inset_bottom.get(),
+            containing_line_box_index,
+        }
+    }
+}
+
+fn link_fragment(fragment: Box<Fragment>, placement: PlacementData) -> FragmentLink {
+    FragmentLink {
+        fragment,
+        committed_offset: placement.committed_offset,
+        inset_left: placement.inset_left,
+        inset_right: placement.inset_right,
+        inset_top: placement.inset_top,
+        inset_bottom: placement.inset_bottom,
+        containing_line_box_index: placement.containing_line_box_index,
+    }
 }
 
 pub(crate) struct UnplacedRootFragment {
@@ -102,7 +180,9 @@ impl RunFragmentBuilder {
         &self,
         node: crate::layout::node_data::NodeSlotId,
         containing_block: Option<crate::layout::node_data::NodeSlotId>,
+        used: &UsedValues,
         containing_block_is_sealed: bool,
+        containing_line_box_index: Option<usize>,
     ) {
         let mut inner = self.inner.borrow_mut();
         let slot = node.slot_index();
@@ -116,9 +196,10 @@ impl RunFragmentBuilder {
             Some(pending_fragment) => pending_fragment.children,
             None => Vec::new(),
         };
-        let link = FragmentLink {
-            fragment: Box::new(Fragment { node, children }),
-        };
+        let link = link_fragment(
+            snapshot_fragment(node, children, used),
+            PlacementData::from_record(used, containing_line_box_index),
+        );
         self.attach(&mut inner, link, containing_block, containing_block_is_sealed);
     }
 
@@ -154,41 +235,43 @@ impl RunFragmentBuilder {
         );
     }
 
-    pub(crate) fn take_unplaced_root(&self) -> UnplacedRootFragment {
+    pub(crate) fn take_unplaced_root(&self, state: &LayoutState) -> UnplacedRootFragment {
         debug_assert!(!self.is_entry_accumulator, "an entry accumulator closes as a pass, not a run");
         UnplacedRootFragment {
             node: self.root_node,
-            scoped_descendants: self.close(),
+            scoped_descendants: self.close(state),
         }
     }
 
-    pub(crate) fn take_completed_pass(&self) -> CompletedPassFragments {
+    pub(crate) fn take_completed_pass(&self, state: &LayoutState) -> CompletedPassFragments {
         debug_assert!(self.is_entry_accumulator, "an ordinary run closes as a singular unplaced root");
-        CompletedPassFragments { roots: self.close() }
+        CompletedPassFragments { roots: self.close(state) }
     }
 
-    fn close(&self) -> Vec<FragmentLink> {
+    fn close(&self, state: &LayoutState) -> Vec<FragmentLink> {
         let mut inner = self.inner.take();
         let pending_fragments = std::mem::take(&mut inner.pending_fragments);
-        for (_, pending_fragment) in pending_fragments {
+        for (slot, pending_fragment) in pending_fragments {
             if pending_fragment.children.is_empty() {
                 continue;
             }
-            inner.top_scope_links.push(FragmentLink {
-                fragment: Box::new(Fragment {
-                    node: pending_fragment.node,
-                    children: pending_fragment.children,
-                }),
-            });
+            let used = state
+                .used_values_by_slot(slot)
+                .expect("a pending fragment's containing block has no record");
+            inner.top_scope_links.push(link_fragment(
+                snapshot_fragment(pending_fragment.node, pending_fragment.children, used),
+                PlacementData::from_record(used, None),
+            ));
         }
         let child_roots_awaiting_placement = std::mem::take(&mut inner.child_roots_awaiting_placement);
-        for (_, root) in child_roots_awaiting_placement {
-            inner.top_scope_links.push(FragmentLink {
-                fragment: Box::new(Fragment {
-                    node: root.node,
-                    children: root.scoped_descendants,
-                }),
-            });
+        for (slot, root) in child_roots_awaiting_placement {
+            let used = state
+                .used_values_by_slot(slot)
+                .expect("a held child run's root has no record");
+            inner.top_scope_links.push(link_fragment(
+                snapshot_fragment(root.node, root.scoped_descendants, used),
+                PlacementData::from_record(used, None),
+            ));
         }
         inner.top_scope_links
     }
