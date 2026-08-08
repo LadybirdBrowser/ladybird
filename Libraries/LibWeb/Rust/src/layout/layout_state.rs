@@ -281,7 +281,6 @@ pub(crate) struct PendingAbsposChild {
 pub(crate) struct LayoutState {
     used_values: PagedStore<UsedValues>,
     anchor_inset_store: AnchorInsetStore,
-    anchor_candidate_shells: RefCell<Vec<*mut c_void>>,
     purpose: LayoutStatePurpose,
 }
 
@@ -322,7 +321,6 @@ impl LayoutState {
         Self {
             used_values: PagedStore::default(),
             anchor_inset_store: AnchorInsetStore::default(),
-            anchor_candidate_shells: RefCell::new(Vec::new()),
             purpose,
         }
     }
@@ -499,9 +497,7 @@ impl LayoutState {
         used.content_inline_size.set(content_inline_size.unwrap_or_default());
         used.content_block_size.set(content_block_size.unwrap_or_default());
 
-        let used = self.used_values.allocate(slot_index, used);
-        self.register_anchor_candidate_if_carries_anchor_names(callbacks, node);
-        used
+        self.used_values.allocate(slot_index, used)
     }
 
     pub(crate) fn populate_from_paintable(
@@ -560,7 +556,6 @@ impl LayoutState {
         if self.node_facts(callbacks, node).is_svg_svg_box() {
             self.used_values_rare_data_mut(slot_index).svg_viewport_size = Some(geometry.svg_viewport_size);
         }
-        self.register_anchor_candidate_if_carries_anchor_names(callbacks, node);
         Some(used)
     }
 
@@ -568,16 +563,7 @@ impl LayoutState {
 
 
 
-    fn register_anchor_candidate_if_carries_anchor_names(&self, callbacks: &FfiLayoutFcCallbacks, node: Node) {
-        if !self.node_facts(callbacks, node).has_anchor_names() {
-            return;
-        }
-        self.anchor_candidate_shells.borrow_mut().push(callbacks.shell(node));
-    }
 
-    pub(crate) fn anchor_candidate_shells(&self) -> Ref<'_, Vec<*mut c_void>> {
-        self.anchor_candidate_shells.borrow()
-    }
 
     pub(crate) fn set_box_is_grid_item(&self, callbacks: &FfiLayoutFcCallbacks, node: Node, is_grid_item: bool) {
         callbacks.arena().set_node_flag(node, NodeFlag::IsGridItem, is_grid_item);
