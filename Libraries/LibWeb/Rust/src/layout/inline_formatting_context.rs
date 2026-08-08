@@ -783,6 +783,12 @@ impl<'context, 'pass> InlineFormattingContext<'context, 'pass> {
     pub(crate) fn nearest_fragmented_inline_ancestor(&self, node: Node) -> Node {
         let mut ancestor = self.parent_node(node);
         while !ancestor.is_invalid() {
+            // The containing block bounds this context's subtree even when it
+            // is itself inline-outside with flow inside (an inline list-item
+            // root): ancestors beyond it belong to the enclosing run.
+            if ancestor == self.containing_block {
+                break;
+            }
             let display = self.style(ancestor).display();
             if !display.is_inline_outside() || !display.is_flow_inside() {
                 break;
@@ -1254,7 +1260,7 @@ impl<'context, 'pass> InlineFormattingContext<'context, 'pass> {
                     let chain = self.state.accumulated_relative_insets_from_inline_ancestor_chain(
                         &self.callbacks,
                         first_ancestor,
-                        NodeSlotId::INVALID,
+                        self.containing_block,
                     );
                     FfiCssPixelPoint {
                         x: chain.offset_x,
