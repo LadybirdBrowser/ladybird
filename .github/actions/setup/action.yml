@@ -181,6 +181,16 @@ runs:
       shell: bash
       run: echo "${GITHUB_WORKSPACE}/${{ steps.wasm-tools.outputs.name }}" >> "$GITHUB_PATH"
 
+    - name: 'Cache cargo registry'
+      uses: actions/cache@v5
+      with:
+        path: |
+          ~/.cargo/registry
+          /opt/cargo/registry
+        key: cargo-registry-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock') }}
+        restore-keys: |
+          cargo-registry-${{ runner.os }}-${{ runner.arch }}-
+
     - name: 'Set required environment variables'
       if: ${{ inputs.os == 'Linux' && inputs.arch == 'arm64' }}
       shell: bash
