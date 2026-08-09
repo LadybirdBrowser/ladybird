@@ -9,5 +9,6 @@
 mod rust_allocator;
 
 pub mod font;
+pub mod path;
 pub mod text_layout;
 pub mod yuv;
