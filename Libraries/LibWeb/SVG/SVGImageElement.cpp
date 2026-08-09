@@ -7,6 +7,7 @@
 #include "SVGImageElement.h"
 #include <LibGC/Heap.h>
 #include <LibGfx/DecodedImageFrame.h>
+#include <LibWeb/CSS/Sizing.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentObserver.h>
 #include <LibWeb/DOM/Event.h>
@@ -82,31 +83,27 @@ void SVGImageElement::attribute_changed(Utf16FlyString const& name, Optional<Utf
 
 Gfx::FloatRect SVGImageElement::bounding_box(CSSPixelSize viewport_size) const
 {
-    Optional<float> width;
-    if (m_width.has_value())
-        width = m_width->resolve_relative_to(viewport_size.width().to_float());
+    // https://w3c.github.io/svgwg/svg2-draft/embedded.html#Placement
+    // Computation of automatically-sized values follows the Default Sizing Algorithm defined for replaced elements in
+    // CSS layout [css-images-3]. In particular, when the referenced resource does not have an intrinsic size (such as
+    // image types with no defined dimensions), it is assumed to have a width of 300px and a height of 150px.
+    auto specified_width = m_width.map([&](NumberPercentage const& width) { return CSSPixels::nearest_value_for(width.resolve_relative_to(viewport_size.width().to_float())); });
+    auto specified_height = m_height.map([&](NumberPercentage const& height) { return CSSPixels::nearest_value_for(height.resolve_relative_to(viewport_size.height().to_float())); });
 
-    Optional<float> height;
-    if (m_height.has_value())
-        height = m_height->resolve_relative_to(viewport_size.height().to_float());
+    CSS::SizeWithAspectRatio intrinsic_size_with_aspect_ratio { this->intrinsic_width(), this->intrinsic_height(), this->intrinsic_aspect_ratio() };
 
-    if (!height.has_value() && width.has_value() && intrinsic_aspect_ratio().has_value())
-        height = width.value() / intrinsic_aspect_ratio().value().to_float();
+    CSSPixelSize default_size {};
 
-    if (!width.has_value() && height.has_value() && intrinsic_aspect_ratio().has_value())
-        width = height.value() * intrinsic_aspect_ratio().value().to_float();
+    if (decoded_image_data())
+        default_size = CSSPixelSize { 300, 150 };
 
-    if (!width.has_value() && intrinsic_width().has_value())
-        width = intrinsic_width()->to_float();
-
-    if (!height.has_value() && intrinsic_height().has_value())
-        height = intrinsic_height()->to_float();
+    auto sizing = CSS::run_default_sizing_algorithm(specified_width, specified_height, intrinsic_size_with_aspect_ratio, default_size);
 
     return {
         m_x.value_or(NumberPercentage::create_number(0)).resolve_relative_to(viewport_size.width().to_float()),
         m_y.value_or(NumberPercentage::create_number(0)).resolve_relative_to(viewport_size.height().to_float()),
-        width.value_or(0.0f),
-        height.value_or(0.0f),
+        sizing.width().to_float(),
+        sizing.height().to_float()
     };
 }
 
