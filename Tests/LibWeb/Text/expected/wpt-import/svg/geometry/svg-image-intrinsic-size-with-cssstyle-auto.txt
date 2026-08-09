@@ -2,37 +2,36 @@ Harness status: OK
 
 Found 32 tests
 
-10 Pass
-22 Fail
+32 Pass
 Pass	<svg:image> 'auto' sizing with 256x256 png image, attributes width='64' height='64'
-Fail	<svg:image> 'auto' sizing with 256x256 png image, attributes width='128' height='64' and CSS 'width:auto'
-Fail	<svg:image> 'auto' sizing with 256x256 png image, attributes width='64' height='128' and CSS 'height:auto'
-Fail	<svg:image> 'auto' sizing with 256x256 png image, attributes width='64' height='64' and CSS 'width:auto; height:auto'
+Pass	<svg:image> 'auto' sizing with 256x256 png image, attributes width='128' height='64' and CSS 'width:auto'
+Pass	<svg:image> 'auto' sizing with 256x256 png image, attributes width='64' height='128' and CSS 'height:auto'
+Pass	<svg:image> 'auto' sizing with 256x256 png image, attributes width='64' height='64' and CSS 'width:auto; height:auto'
 Pass	<svg:image> 'auto' sizing with default sized svg image, attributes width='50' height='50'
-Fail	<svg:image> 'auto' sizing with 200x100 svg image, attributes width='50' height='50' and CSS 'width:auto; height:auto'
-Fail	<svg:image> 'auto' sizing with 200x100 svg image, attributes width='50' height='50' and CSS 'width:auto'
+Pass	<svg:image> 'auto' sizing with 200x100 svg image, attributes width='50' height='50' and CSS 'width:auto; height:auto'
+Pass	<svg:image> 'auto' sizing with 200x100 svg image, attributes width='50' height='50' and CSS 'width:auto'
 Pass	<svg:image> 'auto' sizing with 200x100 svg image, without attributes width and height and CSS 'width:auto'
 Pass	<svg:image> 'auto' sizing with 200x100 svg image, attributes height='50' and 'width:auto'
 Pass	<svg:image> 'auto' sizing with 200x100 svg image, attributes width='50' and CSS height:auto
-Fail	<svg:image> 'auto' sizing with default sized svg image, attributes width='200' height='200' and CSS 'width:auto; height:auto'
-Fail	<svg:image> 'auto' sizing with default sized svg image, attributes height='200' and CSS 'width:auto; height:auto'
-Fail	<svg:image> 'auto' sizing with default sized svg image, attributes width='200' and CSS 'width:auto; height:auto'
+Pass	<svg:image> 'auto' sizing with default sized svg image, attributes width='200' height='200' and CSS 'width:auto; height:auto'
+Pass	<svg:image> 'auto' sizing with default sized svg image, attributes height='200' and CSS 'width:auto; height:auto'
+Pass	<svg:image> 'auto' sizing with default sized svg image, attributes width='200' and CSS 'width:auto; height:auto'
 Pass	<svg:image> 'auto' sizing with default sized svg image, without attributes width and height, no css width/height specified
 Pass	<svg:image> 'auto' sizing with default sized svg image viewBox='0 0 400 100', attributes width='60' height='60' and no css width/height specified
-Fail	<svg:image> 'auto' sizing with default sized svg image viewBox='0 0 400 100', attributes width='60' height='60' and CSS 'width:auto'
-Fail	<svg:image> 'auto' sizing with default sized svg image viewBox='0 0 400 100', attributes width='60' height='60' and CSS 'height:auto'
-Fail	<svg:image> 'auto' sizing with default sized svg image viewBox='0 0 400 100', attributes width='60' height='60' and CSS 'width:auto; height:auto'
+Pass	<svg:image> 'auto' sizing with default sized svg image viewBox='0 0 400 100', attributes width='60' height='60' and CSS 'width:auto'
+Pass	<svg:image> 'auto' sizing with default sized svg image viewBox='0 0 400 100', attributes width='60' height='60' and CSS 'height:auto'
+Pass	<svg:image> 'auto' sizing with default sized svg image viewBox='0 0 400 100', attributes width='60' height='60' and CSS 'width:auto; height:auto'
 Pass	<svg:image> 'auto' sizing with svg image width='200' viewBox='0 0 400 100', attributes width='60' height='60' and no css width/height specified
-Fail	<svg:image> 'auto' sizing with svg image width='200' viewBox='0 0 400 100', attributes width='60' height='60' and CSS 'width:auto'
-Fail	<svg:image> 'auto' sizing with svg image width='200' viewBox='0 0 400 100', attributes width='60' height='60' and CSS 'height:auto'
-Fail	<svg:image> 'auto' sizing with svg image width='200' viewBox='0 0 400 100', attributes width='60' height='60' and CSS 'width:auto; height:auto'
+Pass	<svg:image> 'auto' sizing with svg image width='200' viewBox='0 0 400 100', attributes width='60' height='60' and CSS 'width:auto'
+Pass	<svg:image> 'auto' sizing with svg image width='200' viewBox='0 0 400 100', attributes width='60' height='60' and CSS 'height:auto'
+Pass	<svg:image> 'auto' sizing with svg image width='200' viewBox='0 0 400 100', attributes width='60' height='60' and CSS 'width:auto; height:auto'
 Pass	<svg:image> 'auto' sizing with svg image height='100' viewBox='0 0 400 100', attributes width='60' height='60' and no css width/height specified
-Fail	<svg:image> 'auto' sizing with svg image height='100' viewBox='0 0 400 100', attributes width='60' height='60' and CSS 'width:auto'
-Fail	<svg:image> 'auto' sizing with svg image height='100' viewBox='0 0 400 100', attributes width='60' height='60' and CSS 'height:auto'
-Fail	<svg:image> 'auto' sizing with svg image height='100' viewBox='0 0 400 100', attributes width='60' height='60' and CSS 'width:auto; height:auto'
+Pass	<svg:image> 'auto' sizing with svg image height='100' viewBox='0 0 400 100', attributes width='60' height='60' and CSS 'width:auto'
+Pass	<svg:image> 'auto' sizing with svg image height='100' viewBox='0 0 400 100', attributes width='60' height='60' and CSS 'height:auto'
+Pass	<svg:image> 'auto' sizing with svg image height='100' viewBox='0 0 400 100', attributes width='60' height='60' and CSS 'width:auto; height:auto'
 Pass	<svg:image> 'auto' sizing with 200x100 svg image viewBox='0 0 400 100', attributes width='60' height='60' and no css width/height specified
-Fail	<svg:image> 'auto' sizing with 200x100 svg image viewBox='0 0 400 100', attributes width='60' height='60' and CSS 'width:auto'
-Fail	<svg:image> 'auto' sizing with 200x100 svg image viewBox='0 0 400 100', attributes width='60' height='60' and CSS 'height:auto'
-Fail	<svg:image> 'auto' sizing with 200x100 svg image viewBox='0 0 400 100', attributes width='60' height='60' and CSS 'width:auto; height:auto'
-Fail	<svg:image> 'auto' sizing with default sized svg image, attributes width='60' height='60' and CSS 'height:auto'
-Fail	<svg:image> 'auto' sizing with default sized svg image, attributes width='60' height='60' and CSS 'width:auto'
+Pass	<svg:image> 'auto' sizing with 200x100 svg image viewBox='0 0 400 100', attributes width='60' height='60' and CSS 'width:auto'
+Pass	<svg:image> 'auto' sizing with 200x100 svg image viewBox='0 0 400 100', attributes width='60' height='60' and CSS 'height:auto'
+Pass	<svg:image> 'auto' sizing with 200x100 svg image viewBox='0 0 400 100', attributes width='60' height='60' and CSS 'width:auto; height:auto'
+Pass	<svg:image> 'auto' sizing with default sized svg image, attributes width='60' height='60' and CSS 'height:auto'
+Pass	<svg:image> 'auto' sizing with default sized svg image, attributes width='60' height='60' and CSS 'width:auto'
