@@ -2609,7 +2609,7 @@ impl<'pass> GridFormattingContext<'pass> {
         scratch_root.has_definite_inline_size.set(live.has_definite_inline_size.get());
         scratch_root.has_definite_block_size.set(live.has_definite_block_size.get());
         let mut context = GridFormattingContext::new(
-            scratch.rust_state(),
+            scratch.layout_state(),
             subgrid.box_,
             Some(self),
             LayoutMode::IntrinsicSizing,

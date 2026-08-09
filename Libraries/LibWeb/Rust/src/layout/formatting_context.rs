@@ -230,10 +230,10 @@ impl MeasurementState {
         layout_mode: LayoutMode,
         input: LayoutInput,
     ) -> crate::layout::ChildLayoutResult {
-        let rust_state = self.rust_state();
-        let fc_type = crate::layout::independent_formatting_context_type(rust_state, node, &self.callbacks);
+        let layout_state = self.layout_state();
+        let fc_type = crate::layout::independent_formatting_context_type(layout_state, node, &self.callbacks);
         crate::layout::run_formatting_context(
-            rust_state,
+            layout_state,
             node,
             None,
             fc_type,
@@ -245,7 +245,7 @@ impl MeasurementState {
         )
     }
 
-    pub(crate) fn rust_state(&self) -> &LayoutState {
+    pub(crate) fn layout_state(&self) -> &LayoutState {
         &self.state
     }
 
