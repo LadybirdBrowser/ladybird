@@ -422,6 +422,19 @@ impl<'pass> SvgFormattingContext<'pass> {
         }
     }
 
+    // The input a nested viewport or resource context is laid out with: it inherits this context's
+    // available space and quirks-mode percentage basis, and participates as an item.
+    fn nested_layout_input(&self) -> LayoutInput {
+        LayoutInput::new(
+            self.available_space.unwrap(),
+            ContainingBlockConstraints {
+                quirks_mode_percentage_basis_block_size: self.quirks_mode_percentage_basis_block_size,
+                ..Default::default()
+            },
+            ParticipationInParentFormattingContext::Item,
+        )
+    }
+
     fn first_child(&self, node: Node) -> Node {
         self.callbacks.node_data(node).first_child
     }
@@ -816,19 +829,7 @@ impl<'pass> SvgFormattingContext<'pass> {
             parent_viewbox_transform,
             Some(parent_svg_transform),
         );
-        nested_context.run(
-            run,
-            LayoutInput {
-                available_space: self.available_space.unwrap(),
-                containing_block_constraints: ContainingBlockConstraints {
-                    quirks_mode_percentage_basis_block_size: self.quirks_mode_percentage_basis_block_size,
-                    ..Default::default()
-                },
-                content_box_position_in_bfc_root: None,
-                sizing: RootSizingDirectives::default(),
-                participation: ParticipationInParentFormattingContext::Item,
-            },
-        );
+        nested_context.run(run, self.nested_layout_input());
         self.set_svg_viewport_size(
             viewport,
             FfiCssPixelSize {
@@ -1068,19 +1069,7 @@ impl<'pass> SvgFormattingContext<'pass> {
             parent_viewbox_transform,
             Some(FfiAffineTransform::default()),
         );
-        nested_context.run(
-            run,
-            LayoutInput {
-                available_space: self.available_space.unwrap(),
-                containing_block_constraints: ContainingBlockConstraints {
-                    quirks_mode_percentage_basis_block_size: self.quirks_mode_percentage_basis_block_size,
-                    ..Default::default()
-                },
-                content_box_position_in_bfc_root: None,
-                sizing: RootSizingDirectives::default(),
-                participation: ParticipationInParentFormattingContext::Item,
-            },
-        );
+        nested_context.run(run, self.nested_layout_input());
 
         let used = used_pointer;
         let mapped_rect = parent_viewbox_transform.map_rect(FfiFloatRect {
