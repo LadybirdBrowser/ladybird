@@ -41,7 +41,6 @@
 #include <LibWeb/Dump.h>
 #include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/HTML/HTMLElement.h>
-#include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/DominantBaseline.h>
 #include <LibWeb/Layout/FieldSetBox.h>
@@ -59,7 +58,6 @@
 #include <LibWeb/Layout/SVGSVGBox.h>
 #include <LibWeb/Layout/SVGTextBox.h>
 #include <LibWeb/Layout/SVGTextPathBox.h>
-#include <LibWeb/Layout/TextInputBox.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Painting/PaintableWithLines.h>
@@ -671,7 +669,6 @@ void LayoutRustBridge::run_root_layout(Box& viewport, CSSPixels viewport_inline_
     };
 
     viewport.document().invalidate_stacking_context_tree();
-    viewport.document().layout_node_arena().sync_enrolled_text_node_content();
     auto callbacks = formatting_context_callbacks();
     auto sink = commit_sink();
     {
@@ -696,7 +693,6 @@ void LayoutRustBridge::compute_subtree_layout(Box& root, Painting::Paintable& pa
     };
 
     root.document().invalidate_stacking_context_tree();
-    root.document().layout_node_arena().sync_enrolled_text_node_content();
     auto viewport_rect = root.document().viewport_rect();
     auto callbacks = formatting_context_callbacks();
     auto sink = commit_sink();
@@ -723,7 +719,6 @@ void LayoutRustBridge::replay_saved_abspos_layout(Box& box, Painting::Paintable&
     };
 
     box.document().invalidate_stacking_context_tree();
-    box.document().layout_node_arena().sync_enrolled_text_node_content();
     auto callbacks = formatting_context_callbacks();
     auto sink = commit_sink();
     {
@@ -1160,43 +1155,6 @@ RustFFI::FfiLayoutFcCallbacks LayoutRustBridge::formatting_context_callbacks()
             dbgln("FIXME: InlineFormattingContext::dimension_box_on_line got unexpected box in inline context:");
             dump_tree(box); },
         .release_anchor_name_handle = ladybird_layout_release_anchor_name_handle,
-        .build_replaced_content_facts = [](void*, void* node) {
-            RustFFI::FfiReplacedContentFacts facts {};
-            auto const* box = as_if<Box>(*static_cast<Node const*>(node));
-            if (!box)
-                return facts;
-            auto auto_content_size = box->auto_content_box_size();
-            facts.has_auto_content_width = auto_content_size.has_width();
-            facts.auto_content_width = auto_content_size.width.value_or(0).raw_value();
-            facts.has_auto_content_height = auto_content_size.has_height();
-            facts.auto_content_height = auto_content_size.height.value_or(0).raw_value();
-            if (auto_content_size.aspect_ratio.has_value()) {
-                facts.auto_content_aspect_ratio_numerator = auto_content_size.aspect_ratio->numerator().raw_value();
-                facts.auto_content_aspect_ratio_denominator = auto_content_size.aspect_ratio->denominator().raw_value();
-            }
-            if (box->computed_values().appearance() == CSS::Appearance::None) {
-                if (auto const* input = as_if<HTML::HTMLInputElement>(box->dom_node())) {
-                    switch (input->type_state()) {
-                    case HTML::HTMLInputElement::TypeAttributeState::Text:
-                    case HTML::HTMLInputElement::TypeAttributeState::Search:
-                    case HTML::HTMLInputElement::TypeAttributeState::URL:
-                    case HTML::HTMLInputElement::TypeAttributeState::Telephone:
-                    case HTML::HTMLInputElement::TypeAttributeState::Email:
-                    case HTML::HTMLInputElement::TypeAttributeState::Password:
-                    case HTML::HTMLInputElement::TypeAttributeState::Number: {
-                        auto default_preferred_size = TextInputBox::default_preferred_size_for_text_control(*input, *box);
-                        facts.has_default_preferred_width = default_preferred_size.has_width();
-                        facts.default_preferred_width = default_preferred_size.width.value_or(0).raw_value();
-                        facts.has_default_preferred_height = default_preferred_size.has_height();
-                        facts.default_preferred_height = default_preferred_size.height.value_or(0).raw_value();
-                        break;
-                    }
-                    default:
-                        break;
-                    }
-                }
-            }
-            return facts; },
         .build_svg_facts = [](void*, void* node) {
             auto const* node_with_style = as_if<NodeWithStyle>(*static_cast<Node const*>(node));
             VERIFY(node_with_style);

@@ -314,6 +314,10 @@ private:
     void set_node_kind(RustFFI::NodeKind);
     void synchronize_topology();
 
+protected:
+    void enroll_for_arena_replaced_content_facts_sync_if_eligible();
+
+private:
     // A DOM mutation can disconnect a node before the next layout-tree update. Keep the DOM node alive until this
     // layout node is destroyed so detach hooks never observe a collected image provider or other element state.
     GC::Root<DOM::Node> m_dom_node;
@@ -329,6 +333,8 @@ private:
     InlineNode const* m_inline_containing_block_if_applicable { nullptr };
 
     GC::Weak<DOM::Element> m_pseudo_element_generator;
+
+    bool m_enrolled_for_arena_replaced_content_facts_sync { false };
 };
 
 class NodeKindSetter {

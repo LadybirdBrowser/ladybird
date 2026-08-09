@@ -5,6 +5,8 @@
  */
 
 #include <AK/Assertions.h>
+#include <LibWeb/Layout/Box.h>
+#include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Layout/TextNode.h>
 
@@ -57,6 +59,37 @@ void NodeArena::sync_enrolled_text_node_content()
         text_node->sync_text_content_to_arena();
     }
     m_text_nodes_enrolled_for_content_sync = move(still_detached_text_nodes);
+}
+
+void NodeArena::enroll_node_for_replaced_content_facts_sync(Node const& node)
+{
+    m_nodes_enrolled_for_replaced_content_facts_sync.append(node.make_weak_ptr<Node>());
+}
+
+void NodeArena::sync_enrolled_content_for_layout()
+{
+    if (layout_pass_currently_running())
+        return;
+    sync_enrolled_text_node_content();
+    sync_enrolled_replaced_content_facts();
+}
+
+void NodeArena::sync_enrolled_replaced_content_facts()
+{
+    bool any_enrolled_node_died = false;
+    for (auto& weak_node : m_nodes_enrolled_for_replaced_content_facts_sync) {
+        auto const* node = weak_node.ptr();
+        if (!node) {
+            any_enrolled_node_died = true;
+            continue;
+        }
+        RustFFI::FfiReplacedContentFacts facts {};
+        if (auto const* box = as_if<Box>(*node))
+            facts = box->build_replaced_content_facts_for_arena();
+        RustFFI::layout_arena_set_replaced_content_facts(m_handle, Node::slot_id(node), facts);
+    }
+    if (any_enrolled_node_died)
+        m_nodes_enrolled_for_replaced_content_facts_sync.remove_all_matching([](auto& weak_node) { return !weak_node.ptr(); });
 }
 
 }

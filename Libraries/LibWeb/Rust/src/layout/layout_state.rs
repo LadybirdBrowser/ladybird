@@ -350,7 +350,21 @@ impl<'pass> NodeFacts<'pass> {
     }
 
     fn replaced_content(&self) -> crate::layout::FfiReplacedContentFacts {
-        self.state.replaced_content_facts(self.callbacks, self.node)
+        let Some(facts) = self.callbacks.replaced_content_facts(self.node) else {
+            // The kind check is cheap enough for release builds; the style
+            // half of the enrollment predicate is debug-only because this
+            // miss path is the steady state for ordinary boxes.
+            assert!(
+                !crate::layout::node_may_have_replaced_content_facts(self.data()),
+                "replaced content facts were not synced to the arena before layout"
+            );
+            debug_assert!(
+                !crate::layout::node_may_have_replaced_content_facts_including_size_containment(self.data()),
+                "replaced content facts were not synced to the arena before layout"
+            );
+            return crate::layout::FfiReplacedContentFacts::default();
+        };
+        facts
     }
 
     pub(crate) fn is_text_node(&self) -> bool {
@@ -836,7 +850,6 @@ pub(crate) struct LayoutState {
     abspos_layout_pass_queue_in_completion_order: RefCell<VecDeque<Node>>,
     abspos_layout_pass_is_active: Cell<bool>,
     anchor_inset_store: AnchorInsetStore,
-    replaced_content_facts: PagedStore<crate::layout::FfiReplacedContentFacts>,
     inline_containing_blocks: RefCell<HashSet<Node>>,
     anchor_candidate_shells: RefCell<Vec<*mut c_void>>,
     purpose: LayoutStatePurpose,
@@ -883,7 +896,6 @@ impl LayoutState {
             abspos_layout_pass_queue_in_completion_order: RefCell::new(VecDeque::new()),
             abspos_layout_pass_is_active: Cell::new(false),
             anchor_inset_store: AnchorInsetStore::default(),
-            replaced_content_facts: PagedStore::default(),
             inline_containing_blocks: RefCell::new(HashSet::new()),
             anchor_candidate_shells: RefCell::new(Vec::new()),
             purpose,
@@ -1197,33 +1209,6 @@ impl LayoutState {
         if resolved.resolves_left {
             replace(InsetField::Left, resolved.left_is_auto, resolved.left);
         }
-    }
-
-    pub(crate) fn replaced_content_facts(
-        &self,
-        callbacks: &FfiLayoutFcCallbacks,
-        node: Node,
-    ) -> crate::layout::FfiReplacedContentFacts {
-        let slot_index = callbacks.slot_index(node);
-        if let Some(facts) = self.replaced_content_facts.get(slot_index) {
-            return *facts;
-        }
-        let data = callbacks.node_data(node);
-        // Size containment gives any box an auto content box size of zero, so
-        // size-contained boxes join the replaced kinds in fetching real facts.
-        let size_containment_may_apply = crate::layout::kind_is_box(data.kind) && !data.style.is_null() && {
-            let style = self.style_facts(callbacks, node);
-            style.has_size_containment() || style.is_size_container()
-        };
-        let facts = if crate::layout::node_may_have_replaced_content_facts(data) || size_containment_may_apply {
-            // SAFETY: The callback table and node are supplied by the live C++
-            // formatting-context shim and remain valid for this layout pass.
-            unsafe { (callbacks.build_replaced_content_facts)(callbacks.context, callbacks.shell(node)) }
-        } else {
-            crate::layout::FfiReplacedContentFacts::default()
-        };
-        self.replaced_content_facts.allocate(slot_index, facts);
-        facts
     }
 
     pub(crate) fn text_chunks(

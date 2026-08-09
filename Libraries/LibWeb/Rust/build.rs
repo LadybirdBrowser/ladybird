@@ -803,6 +803,18 @@ fn generate_ffi_header(
 /// Strict variant for the layout headers: dormant layout sources are parsed
 /// by cbindgen before they join the module tree, so a syntax error anywhere
 /// must fail the build instead of silently producing a stale header.
+// CssPixels is a single i32 fixed-point value shared with the CSS module; C++
+// already has the matching CSSPixels class, so expose its raw representation in
+// the generated ABI rather than generating a second C++ pixel type in the
+// RustFFI namespace.
+fn expose_css_pixels_as_raw_i32(config: &mut cbindgen::Config) {
+    config.export.exclude.push("CssPixels".to_string());
+    config
+        .export
+        .rename
+        .insert("CssPixels".to_string(), "int32_t".to_string());
+}
+
 fn generate_ffi_header_strict(
     config: cbindgen::Config,
     sources: &[PathBuf],
@@ -990,6 +1002,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     tree_builder_config.namespaces = Some(vec!["Web".to_string(), "Layout".to_string(), "RustFFI".to_string()]);
     tree_builder_config.export.include = vec![
         "FfiNodeKindFacts".to_string(),
+        "FfiReplacedContentFacts".to_string(),
         "FfiStylePayloads".to_string(),
         "NodeAllocation".to_string(),
         "NodeData".to_string(),
@@ -1001,6 +1014,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "rust_calc_node_create_numeric_dimension".to_string(),
         "rust_calc_resolve".to_string(),
     ];
+    expose_css_pixels_as_raw_i32(&mut tree_builder_config);
     generate_ffi_header_strict(
         tree_builder_config,
         &[
@@ -1015,23 +1029,17 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
 
     // Layout engine header - namespace Web::Layout::RustFFI, layered on the tree-builder
-    // header. CssPixels is a single i32 fixed-point value shared with the CSS module; C++
-    // already has the matching CSSPixels class, so expose its raw representation in the
-    // generated ABI rather than generating a second C++ pixel type in the RustFFI namespace.
+    // header.
     let mut layout_config = base_config;
     layout_config.namespaces = Some(vec!["Web".to_string(), "Layout".to_string(), "RustFFI".to_string()]);
     layout_config.export.exclude = vec![
         "rust_calc_node_create_numeric_dimension".to_string(),
         "rust_calc_resolve".to_string(),
-        "CssPixels".to_string(),
         "rust_calc_root_from_calculated".to_string(),
         "rust_calc_external_resolutions".to_string(),
         "rust_calc_external_resolutions_release".to_string(),
     ];
-    layout_config
-        .export
-        .rename
-        .insert("CssPixels".to_string(), "int32_t".to_string());
+    expose_css_pixels_as_raw_i32(&mut layout_config);
     layout_config
         .includes
         .push("LibWeb/Layout/TreeBuilderRustFFI.h".to_string());

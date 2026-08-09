@@ -2130,6 +2130,12 @@ pub extern "C" fn layout_node_kind_facts_match(kind: NodeKind, facts: FfiNodeKin
     facts == kind_facts(kind)
 }
 
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_node_data_may_have_replaced_content_facts(data: *const NodeData) -> bool {
+    // SAFETY: The C++ caller passes the node's live arena slot.
+    crate::layout::node_may_have_replaced_content_facts_including_size_containment(unsafe { &*data })
+}
+
 fn node_is_generated_for_pseudo_element(data: &NodeData) -> bool {
     data.generated_for != 0
 }
