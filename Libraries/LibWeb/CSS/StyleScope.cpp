@@ -364,6 +364,8 @@ void StyleScope::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_origin
         // Loosely based on https://drafts.csswg.org/css-animations-2/#keyframe-processing
         sheet.for_each_effective_keyframes_at_rule([&](CSSKeyframesRule const& rule) {
             auto keyframe_set = adopt_ref(*new Animations::KeyframeEffect::KeyFrameSet);
+            if (auto* parent_style_sheet = rule.parent_style_sheet())
+                keyframe_set->source_style_sheet = parent_style_sheet;
             HashTable<PropertyID> animated_properties;
 
             // Forwards pass, resolve all the user-specified keyframe properties.
