@@ -48,9 +48,11 @@ ErrorOr<void> apply_sandbox(StringView cache_path)
         }
     }
 
-    // ANGLE's Metal backend opens this while creating WebGL contexts.
+    // ANGLE's Metal backend opens one of these while creating WebGL contexts, depending on whether the GPU is real
+    // hardware or the paravirtualized device of a virtual machine.
     static constexpr Array metal_iokit_user_client_classes {
         "AGXDeviceUserClient"sv,
+        "AppleParavirtDeviceUserClient"sv,
     };
 
     return Sandbox::apply_macos_sandbox(paths.span(), Sandbox::NetworkAccess::Denied, {}, metal_iokit_user_client_classes);
