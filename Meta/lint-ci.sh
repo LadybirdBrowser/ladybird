@@ -5,6 +5,23 @@ set -e
 script_path=$(cd -P -- "$(dirname -- "$0")" && pwd -P)
 cd "${script_path}/.." || exit 1
 
+if [[ -z "${CARGO_TARGET_DIR:-}" ]]; then
+    export CARGO_TARGET_DIR="${script_path}/../Build/release/cargo/build"
+fi
+
+should_lint_rust=1
+if (( $# > 0 )); then
+    should_lint_rust=0
+    for path in "$@"; do
+        case "${path}" in
+            *.rs|*/Cargo.toml|Cargo.toml|*/Cargo.lock|Cargo.lock|*/rust-toolchain.toml|rust-toolchain.toml|*/rustfmt.toml|rustfmt.toml)
+                should_lint_rust=1
+                break
+                ;;
+        esac
+    done
+fi
+
 BOLD_RED='\033[0;1;31m'
 GREEN='\033[0;32m'
 NC='\033[0m' # No Color
@@ -49,18 +66,23 @@ else
     ((FAILURES+=1))
 fi
 
-if cargo fmt --check ; then
-    echo -e "[${GREEN}OK${NC}]: cargo fmt --check"
-else
-    echo -e "[${BOLD_RED}FAIL${NC}]: cargo fmt --check"
-    ((FAILURES+=1))
-fi
+if (( should_lint_rust )); then
+    if cargo fmt --check ; then
+        echo -e "[${GREEN}OK${NC}]: cargo fmt --check"
+    else
+        echo -e "[${BOLD_RED}FAIL${NC}]: cargo fmt --check"
+        ((FAILURES+=1))
+    fi
 
-if cargo clippy -- -D clippy::all ; then
-    echo -e "[${GREEN}OK${NC}]: cargo clippy -- -D clippy::all"
+    rust_target_triple=$(rustc -vV | sed -n 's/^host: //p')
+    if cargo clippy --release --target "${rust_target_triple}" -- -D clippy::all ; then
+        echo -e "[${GREEN}OK${NC}]: cargo clippy -- -D clippy::all"
+    else
+        echo -e "[${BOLD_RED}FAIL${NC}]: cargo clippy -- -D clippy::all"
+        ((FAILURES+=1))
+    fi
 else
-    echo -e "[${BOLD_RED}FAIL${NC}]: cargo clippy -- -D clippy::all"
-    ((FAILURES+=1))
+    echo "No Rust files to check."
 fi
 
 exit "${FAILURES}"

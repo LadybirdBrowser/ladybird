@@ -249,6 +249,10 @@ WEB_API Optional<PropertyID> property_id_from_string(Utf16View);
 [[nodiscard]] WEB_API Utf16FlyString const& string_from_property_id(PropertyID);
 [[nodiscard]] Utf16FlyString const& camel_case_string_from_property_id(PropertyID);
 WEB_API bool is_inherited_property(PropertyID);
+// The ComputedValues style group this longhand's computed value is declared to live in, by name,
+// or nothing when the property declares no group. Checked at style group registration against the
+// bindings derived from what actually builds the groups.
+WEB_API Optional<StringView> style_group_name_of_property(PropertyID);
 WEB_API NonnullRefPtr<StyleValue const> property_initial_value(PropertyID);
 
 enum class PropertyMultiplicity {{
@@ -540,6 +544,32 @@ bool is_inherited_property(PropertyID property_id)
     if (property_id >= first_inherited_property_id && property_id <= last_inherited_property_id)
         return true;
     return false;
+}
+
+Optional<StringView> style_group_name_of_property(PropertyID property_id)
+{
+    switch (property_id) {
+""")
+
+    style_groups: dict[str, list[str]] = {}
+    for name, value in properties.items():
+        if is_legacy_alias(value):
+            continue
+        # A logical alias inherits its physical template's fields, but its computed value lives in
+        # the physical property's group field, so it declares no group of its own.
+        if "logical-alias-for" in value:
+            continue
+        if style_group := value.get("style-group"):
+            style_groups.setdefault(style_group, []).append(name)
+    for style_group, group_properties in style_groups.items():
+        for name in group_properties:
+            out.write(f"    case PropertyID::{title_casify(name)}:\n")
+        out.write(f'        return "{style_group}"sv;\n')
+
+    out.write("""
+    default:
+        return {};
+    }
 }
 
 bool property_affects_layout(PropertyID property_id)

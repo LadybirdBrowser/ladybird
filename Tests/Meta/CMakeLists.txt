@@ -7,4 +7,13 @@ if (NOT WIN32)
     )
     add_test(NAME test-css-grammar-parser COMMAND "${Python3_EXECUTABLE}" "${CMAKE_BINARY_DIR}/bin/test-css-grammar-parser.py")
     set_tests_properties(test-css-grammar-parser PROPERTIES ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
+
+    add_custom_target(test-xctrace-time-profile ALL DEPENDS "${CMAKE_BINARY_DIR}/bin/test-xctrace-time-profile.py")
+    add_custom_command(
+        OUTPUT "${CMAKE_BINARY_DIR}/bin/test-xctrace-time-profile.py"
+        COMMAND "${CMAKE_COMMAND}" -E copy "${ladybird_SOURCE_DIR}/Tests/Meta/test-xctrace-time-profile.py" "${CMAKE_BINARY_DIR}/bin/test-xctrace-time-profile.py"
+        DEPENDS "${ladybird_SOURCE_DIR}/Tests/Meta/test-xctrace-time-profile.py"
+    )
+    add_test(NAME test-xctrace-time-profile COMMAND "${Python3_EXECUTABLE}" "${CMAKE_BINARY_DIR}/bin/test-xctrace-time-profile.py")
+    set_tests_properties(test-xctrace-time-profile PROPERTIES ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
 endif()

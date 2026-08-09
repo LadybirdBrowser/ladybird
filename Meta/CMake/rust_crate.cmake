@@ -110,7 +110,7 @@ endfunction()
 #
 # Builds a Rust binary crate target using cargo and exposes the copied binary path through OUTPUT_PATH_VAR.
 function(build_rust_binary)
-    cmake_parse_arguments(PARSE_ARGV 0 ARG "" "MANIFEST_PATH;CRATE_NAME;BINARY_NAME;OUTPUT_NAME;OUTPUT_PATH_VAR;FFI_OUTPUT_DIR" "")
+    cmake_parse_arguments(PARSE_ARGV 0 ARG "" "MANIFEST_PATH;CRATE_NAME;BINARY_NAME;OUTPUT_NAME;OUTPUT_PATH_VAR;FFI_OUTPUT_DIR" "FEATURES")
 
     if (NOT ARG_OUTPUT_NAME)
         set(ARG_OUTPUT_NAME "${ARG_BINARY_NAME}")
@@ -120,7 +120,14 @@ function(build_rust_binary)
         MANIFEST_PATH "${ARG_MANIFEST_PATH}"
         CRATE_NAME ${ARG_CRATE_NAME}
         FFI_OUTPUT_DIR "${ARG_FFI_OUTPUT_DIR}"
+        TARGET_DIR "${CMAKE_BINARY_DIR}/cargo/binaries/${ARG_BINARY_NAME}"
     )
+
+    set(cargo_feature_flags "")
+    if (ARG_FEATURES)
+        list(JOIN ARG_FEATURES "," cargo_features)
+        list(APPEND cargo_feature_flags "--features=${cargo_features}")
+    endif()
 
     set(cargo_binary "${cargo_output_dir}/${ARG_BINARY_NAME}${CMAKE_EXECUTABLE_SUFFIX}")
     set(depfile "${cargo_output_dir}/${ARG_BINARY_NAME}.d")
@@ -136,6 +143,7 @@ function(build_rust_binary)
             "${RUST_CARGO}"
                 rustc
                 --bin ${ARG_BINARY_NAME}
+                ${cargo_feature_flags}
                 ${cargo_common_flags}
         DEPENDS "${manifest_path}"
             "${workspace_dir}/Cargo.lock" "${workspace_dir}/Cargo.toml"
@@ -163,7 +171,7 @@ endfunction()
 
 # Shared cargo setup for import_rust_crate() and build_rust_binary().
 function(_rust_crate_common_setup)
-    cmake_parse_arguments(PARSE_ARGV 0 ARG "" "MANIFEST_PATH;CRATE_NAME;FFI_OUTPUT_DIR" "")
+    cmake_parse_arguments(PARSE_ARGV 0 ARG "" "MANIFEST_PATH;CRATE_NAME;FFI_OUTPUT_DIR;TARGET_DIR" "")
 
     set(manifest_path "${CMAKE_CURRENT_SOURCE_DIR}/${ARG_MANIFEST_PATH}")
 
@@ -206,7 +214,11 @@ function(_rust_crate_common_setup)
         set(cargo_profile_dir "release")
     endif()
 
-    set(cargo_target_dir "${CMAKE_BINARY_DIR}/cargo/build")
+    if (ARG_TARGET_DIR)
+        set(cargo_target_dir "${ARG_TARGET_DIR}")
+    else()
+        set(cargo_target_dir "${CMAKE_BINARY_DIR}/cargo/build")
+    endif()
     set(cargo_output_dir "${cargo_target_dir}/${RUST_TARGET_TRIPLE}/${cargo_profile_dir}")
 
     # Build environment variables for cargo.
