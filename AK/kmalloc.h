@@ -28,6 +28,7 @@ void ak_kfree(void* ptr);
 [[nodiscard]] void* ak_krealloc(void* ptr, size_t size);
 [[nodiscard]] void* ak_krealloc(HeapPartition, void* ptr, size_t size);
 [[nodiscard]] size_t ak_kmalloc_good_size(size_t size);
+void ak_kmalloc_collect();
 
 [[nodiscard]] inline void* kcalloc(size_t count, size_t size)
 {
