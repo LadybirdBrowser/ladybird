@@ -3168,13 +3168,27 @@ static ContentDataAndQuoteNestingLevel resolve_content(StyleValue const& value, 
 
         ContentData content_data;
 
+        Utf16StringBuilder pending_text;
+        bool has_pending_text = false;
+        auto append_text = [&](Utf16View const& text) {
+            pending_text.append(text);
+            has_pending_text = true;
+        };
+        auto flush_pending_text = [&] {
+            if (!has_pending_text)
+                return;
+            content_data.data.append(pending_text.to_string());
+            pending_text.clear();
+            has_pending_text = false;
+        };
+
         for (auto const& item : content_style_value.content().values()) {
             if (item->is_string()) {
-                content_data.data.append(item->as_string().string_value().to_utf16_string());
+                append_text(item->as_string().string_value().view());
             } else if (item->is_keyword()) {
                 switch (item->to_keyword()) {
                 case Keyword::OpenQuote:
-                    content_data.data.append(get_quote_string(true, quote_nesting_level++).to_utf16_string());
+                    append_text(get_quote_string(true, quote_nesting_level++).view());
                     break;
                 case Keyword::CloseQuote:
                     // A 'close-quote' or 'no-close-quote' that would make the depth negative is in error and is ignored
@@ -3183,7 +3197,7 @@ static ContentDataAndQuoteNestingLevel resolve_content(StyleValue const& value, 
                     // - https://www.w3.org/TR/CSS21/generate.html#quotes-insert
                     // (This is missing from the CONTENT-3 spec.)
                     if (quote_nesting_level > 0)
-                        content_data.data.append(get_quote_string(false, --quote_nesting_level).to_utf16_string());
+                        append_text(get_quote_string(false, --quote_nesting_level).view());
                     break;
                 case Keyword::NoOpenQuote:
                     quote_nesting_level++;
@@ -3198,18 +3212,21 @@ static ContentDataAndQuoteNestingLevel resolve_content(StyleValue const& value, 
                     break;
                 }
             } else if (item->is_counter()) {
+                flush_pending_text();
                 content_data.counter_style_dependencies.append(item->as_counter().counter_style()->as_counter_style().resolve_counter_style(element_reference.style_scope()));
                 content_data.data.append(item->as_counter().resolve(element_reference));
             } else if (item->is_image() || item->is_image_set()) {
                 // https://drafts.csswg.org/css-content-3/#typedef-content-list
                 // https://drafts.csswg.org/css-images-4/#typedef-image
                 // <content-list> accepts <image>, and image-set() is an <image>.
+                flush_pending_text();
                 content_data.data.append(NonnullRefPtr { const_cast<AbstractImageStyleValue&>(item->as_abstract_image()) });
             } else {
                 // TODO: Implement images, and other things.
                 dbgln("`{}` is not supported in `content` (yet?)", item->to_string(SerializationMode::Normal));
             }
         }
+        flush_pending_text();
         content_data.type = ContentData::Type::List;
 
         if (auto alt_text = content_style_value.alt_text()) {
