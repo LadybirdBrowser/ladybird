@@ -3746,6 +3746,8 @@ mod ffi_test_stubs {
     extern "C" fn ladybird_utf16_fly_string_ref(_raw: usize) {}
     #[unsafe(no_mangle)]
     extern "C" fn ladybird_string_unref(_raw: usize) {}
+    #[unsafe(no_mangle)]
+    extern "C" fn ladybird_gfx_path_destroy(_path: *mut std::ffi::c_void) {}
 }
 
 #[cfg(test)]
