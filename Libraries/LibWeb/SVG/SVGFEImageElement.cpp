@@ -7,6 +7,8 @@
 #include "SVGFEImageElement.h"
 #include <LibCore/Timer.h>
 #include <LibGfx/DecodedImageFrame.h>
+#include <LibWeb/Bindings/SVGFEImageElement.h>
+#include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/HTML/PotentialCORSRequest.h>
@@ -62,7 +64,7 @@ void SVGFEImageElement::process_href(Optional<Utf16String> const& href)
     m_resource_request = HTML::SharedResourceRequest::get_or_create(document(), *m_href);
     m_resource_request->add_callbacks(
         [this, resource_request = GC::Root { m_resource_request }] {
-            set_needs_style_update(true);
+            document().style_computer().style_engine().record_element_style_input_change(style_node_id());
             set_needs_layout_update(DOM::SetNeedsLayoutReason::SVGImageFilterFetch);
         },
         nullptr);
@@ -97,16 +99,16 @@ Optional<Gfx::IntRect> SVGFEImageElement::content_rect() const
     auto layout_node = this->unsafe_layout_node();
     if (!layout_node)
         return {};
-    auto width = layout_node->computed_values().width().to_px(0);
+    auto width = layout_node->width().to_px(0);
     if (width == 0)
         width = bitmap->width();
 
-    auto height = layout_node->computed_values().height().to_px(0);
+    auto height = layout_node->height().to_px(0);
     if (height == 0)
         height = bitmap->height();
 
-    auto x = layout_node->computed_values().x().to_px(0);
-    auto y = layout_node->computed_values().y().to_px(0);
+    auto x = layout_node->x().to_px(0);
+    auto y = layout_node->y().to_px(0);
     return Gfx::enclosing_int_rect({ x, y, width, height });
 }
 

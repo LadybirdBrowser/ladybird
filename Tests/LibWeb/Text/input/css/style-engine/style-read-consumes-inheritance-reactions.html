@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #parent.before { color: red; }
+    #parent.after { color: green; }
+</style>
+<div id="parent" class="before">
+    <span id="read-child"></span>
+    <span id="sibling"></span>
+</div>
+<script>
+    test(() => {
+        const parent = document.getElementById("parent");
+        const readChild = document.getElementById("read-child");
+        const sibling = document.getElementById("sibling");
+        internals.updateStyle();
+
+        internals.resetStyleInvalidationCounters();
+        parent.className = "after";
+        const readChildColor = getComputedStyle(readChild).color;
+        const readCounters = internals.getStyleInvalidationCounters();
+
+        internals.updateStyle();
+        const siblingColor = getComputedStyle(sibling).color;
+        const finalCounters = internals.getStyleInvalidationCounters();
+
+        println("read child color: " + readChildColor);
+        println("sibling color: " + siblingColor);
+        println("style read reaction batch runs: " + readCounters.styleEngineReactionBatchRuns);
+        println("style read reaction elements: " + readCounters.styleEngineReactionElements);
+        println("style read published reactions: " + readCounters.styleEnginePublishedReactions);
+        println("style read recomputations: " + readCounters.elementStyleRecomputations);
+        println("subsequent update reaction batch runs: " + (finalCounters.styleEngineReactionBatchRuns - readCounters.styleEngineReactionBatchRuns));
+        println("subsequent update recomputations: " + (finalCounters.elementStyleRecomputations - readCounters.elementStyleRecomputations));
+    });
+</script>

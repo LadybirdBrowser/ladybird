@@ -52,6 +52,19 @@ public:
     void set_last_css_animation_play_state(CSS::AnimationPlayState state) { m_last_css_animation_play_state = state; }
 
 private:
+    struct AppliedCSSProperties {
+        Variant<double, Utf16String> duration;
+        EasingFunction timing_function;
+        double iteration_count;
+        AnimationDirection direction;
+        AnimationPlayState play_state;
+        double delay;
+        AnimationFillMode fill_mode;
+        AnimationComposition composition;
+
+        bool operator==(AppliedCSSProperties const&) const = default;
+    };
+
     explicit CSSAnimation(HTML::EnvironmentSettingsObject&);
 
     virtual bool is_css_animation() const override { return true; }
@@ -66,6 +79,7 @@ private:
     HashTable<CSS::PropertyID> m_ignored_css_properties;
 
     Optional<CSS::AnimationPlayState> m_last_css_animation_play_state;
+    Optional<AppliedCSSProperties> m_applied_css_properties;
 
     bool m_script_overrode_play_state { false };
     bool m_applying_css_play_state { false };

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    input#pending.final[data-stage="ready"]:checked { color: green }
+</style>
+<div id="settled"><span></span></div>
+<script>
+    test(() => {
+        internals.updateStyle();
+
+        const beforeTemporary = internals.styleEngineCounters();
+        const temporary = document.createElement("div");
+        temporary.id = "temporary";
+        temporary.className = "item selected";
+        temporary.setAttribute("data-value", "temporary");
+        settled.appendChild(temporary);
+        temporary.remove();
+        internals.updateStyle();
+        const afterTemporary = internals.styleEngineCounters();
+        println(`temporary element facts omitted: ${afterTemporary.localFeatureDeltas === beforeTemporary.localFeatureDeltas}`);
+
+        const pending = document.createElement("input");
+        settled.appendChild(pending);
+        pending.type = "checkbox";
+        pending.id = "pending";
+        pending.className = "initial";
+        pending.className = "final";
+        pending.setAttribute("data-stage", "ready");
+        pending.checked = true;
+        pending.style.marginLeft = "7px";
+
+        println(`selector query sees final facts: ${document.querySelector('input#pending.final[data-stage="ready"]:checked') === pending}`);
+        println(`final selector facts style the element: ${getComputedStyle(pending).color}`);
+        println(`final inline declarations style the element: ${getComputedStyle(pending).marginLeft}`);
+
+        const empty = document.createElement("div");
+        settled.appendChild(empty);
+        const texted = document.createElement("div");
+        texted.appendChild(document.createTextNode("text"));
+        settled.appendChild(texted);
+        println(`final emptiness facts style the elements: ${empty.matches(":empty") && !texted.matches(":empty")}`);
+        texted.firstChild.remove();
+        println(`final nonempty fact can transition to empty: ${texted.matches(":empty")}`);
+    });
+</script>

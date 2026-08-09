@@ -1,0 +1,9 @@
+plain font size: 20px
+declared font size: 12px
+em margin: 40px
+inherited recomputations: 5
+answered by group swap: 3
+plain color: rgb(0, 128, 0)
+plain border color: rgb(0, 128, 0)
+color inherited recomputations: 5
+color answered by group swap: 3

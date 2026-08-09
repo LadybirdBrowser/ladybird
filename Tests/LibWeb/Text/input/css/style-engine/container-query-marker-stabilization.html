@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .container {
+        container-type: size;
+        width: 200px;
+        height: 40px;
+    }
+    @container (min-width: 300px) {
+        #container li::marker { color: green; }
+    }
+</style>
+<main id="container" class="container"><ol><li>One</li></ol></main>
+<script>
+    test(() => {
+        println(getComputedStyle(document.querySelector("li"), "::marker").color);
+    });
+</script>

@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="root" class="a b" lang="en-GB" dir="rtl" title="t" data-k="v1 v2">
+    <p class="a" id="p1"><em class="c">one</em><b>two</b></p>
+    <p class="b" id="p2" hidden><i>three</i></p>
+    <section class="c"><a href="#x" class="a">link</a><input type="checkbox" checked disabled></section>
+    <ul><li class="x">1</li><li class="y">2</li><li class="x">3</li><li>4</li></ul>
+    <svg viewBox="0 0 1 1"><rect/></svg>
+    <span></span>
+</div>
+<script>
+    // One page per selector shape is how a matching gap gets pinned, and one page holding every
+    // shape is how one gets found: the report compares the engine against the matcher on every
+    // element, so a shape either agrees or names itself.
+    const shapes = [
+        "*", "div", "DIV", ".a", "#root", "[title]", "[title=t]", "[title='T' i]", "[title^=t]",
+        "[title$=t]", "[title*=t]", "[data-k~=v1]", "[lang|=en]", "[missing]",
+        ".a.b", "div.a#root", "p.a", "p .c", "p > .c", "p + p", "p ~ section", "div p em",
+        ":root", ":root > p", ":scope", ":scope p",
+        ":is(p, section)", ":is(p, section) > *", ":where(p, section)", ":not(p)", ":not(p, section)",
+        ":is()", ":not(:is())", ":is(:is(p))", ":not(:not(p))",
+        ":first-child", ":last-child", ":only-child", ":nth-child(2)", ":nth-child(2n+1)",
+        ":nth-last-child(1)", ":nth-child(odd)", ":nth-child(even)", ":nth-child(-n+2)",
+        ":first-of-type", ":last-of-type", ":only-of-type", ":nth-of-type(2)", ":nth-last-of-type(1)",
+        "li:nth-child(2 of .x)", "li:nth-last-child(1 of .x)",
+        ":empty", ":link", ":any-link", ":checked", ":disabled", ":enabled", ":required", ":optional",
+        ":read-only", ":read-write", ":indeterminate", ":default", ":defined", ":target",
+        ":lang(en)", ":lang(en-GB)", ":lang(fr)", ":dir(rtl)", ":dir(ltr)",
+        ":has(em)", ":has(> em)", ":has(+ p)", ":has(~ section)", ":has(.c)", ":has(:checked)",
+        "p:has(em, b)", ":not(:has(em))", ":has(em) > b",
+        "div:has(p) :is(em, b)", "ul > li:nth-child(2)",
+        "svg", "svg rect", "[viewBox]", "[viewbox]",
+        "p:hover", "p:focus", "p:focus-within", "p:active",
+        ":is(.a, #root):not(.c)", "* > *", "* + *", ":root *",
+
+        // Compounds that stack several kinds of test on one subject.
+        "p.a[id]:first-child", "li.x:nth-child(odd):not(:last-child)",
+        "[data-k~=v2][title][lang|=en]", "div:not(.c):not(.d) > p",
+        ":is(p, li):is(.a, .x)", ":not(:is(p, li))", ":is(:not(p), :not(li))",
+        "*|div", "|div", "*|*", "[*|title]", "[|title]",
+
+        // Steps that leave the subject compound with nothing of its own.
+        "p > *", "p ~ *", "* em", ":root > * > *", "section > :not(a)",
+        ":has(> :not(em))", ":has(:not(.c))", "div:has(> p > em)",
+
+        // Pseudo-elements, whose originating element is what a compound describes.
+        "p::before", "p::after", "p::first-line", "p::first-letter", "p::marker",
+        "li::marker", "input::placeholder", "::before", "div p::before",
+        "p:hover::before", "p::before:hover",
+    ];
+
+    // The shapes only a shadow tree can write, in a tree of its own. `::part()` and `::slotted()`
+    // decide for an element the tree does not hold, and `:host` for the element it hangs off.
+    const shadowShapes = [
+        ":host", ":host(.h)", ":host(.missing)", ":host(:hover)", ":host-context(.a)",
+        ":host-context(.missing)", ":host *", ":host > *", ":host .inner", ":host(.h) .inner",
+        "::slotted(*)", "::slotted(.s)", "::slotted(p)", "::slotted(.missing)",
+        "slot::slotted(*)", "slot[name=n]::slotted(*)", "slot[name=other]::slotted(*)",
+        ".inner", ".inner:first-child", ".inner:only-child", "div .inner", ":root .inner",
+        "#inner", "[data-i]", ":scope .inner",
+    ];
+
+    test(() => {
+        const host = document.createElement("div");
+        host.className = "h";
+        document.getElementById("root").appendChild(host);
+        const shadow = host.attachShadow({ mode: "open" });
+        shadow.innerHTML = `<style id="s"></style><div class="inner" id="inner" data-i>inner</div><slot name="n"></slot>`;
+        const slotted = document.createElement("p");
+        slotted.className = "s";
+        slotted.slot = "n";
+        host.appendChild(slotted);
+        shadow.getElementById("s").textContent = shadowShapes
+            .map((selector, index) => `${selector} { --shadow-${index}: 1 }`)
+            .join("\n");
+
+        const style = document.createElement("style");
+        document.head.appendChild(style);
+        let text = "";
+        shapes.forEach((selector, index) => {
+            // Each shape gets a property of its own, so a wrong answer moves one value and not the
+            // whole cascade.
+            text += `${selector} { --shape-${index}: 1 }\n`;
+        });
+        style.textContent = text;
+        internals.updateStyle();
+
+        // Every element's style has to exist for the winner comparison to cover it.
+        for (const element of document.querySelectorAll("*"))
+            getComputedStyle(element).color;
+        println(`${shapes.length} shapes, ${shadowShapes.length} shadow shapes`);
+        println(internals.styleEngineMatchedRules());
+    });
+</script>

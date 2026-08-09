@@ -340,7 +340,7 @@ void PageClient::set_palette_impl(Gfx::PaletteImpl& impl)
 {
     m_palette_impl = impl;
     if (auto* document = page().top_level_browsing_context().active_document()) {
-        document->invalidate_style(Web::DOM::StyleInvalidationReason::SettingsChange);
+        document->record_style_environment_change();
         document->set_needs_media_query_evaluation();
     }
     request_frame();
@@ -350,7 +350,7 @@ void PageClient::set_preferred_color_scheme(Web::CSS::PreferredColorScheme color
 {
     m_preferred_color_scheme = color_scheme;
     if (auto* document = page().top_level_browsing_context().active_document()) {
-        document->invalidate_style(Web::DOM::StyleInvalidationReason::SettingsChange);
+        document->record_style_environment_change();
         document->set_needs_media_query_evaluation();
     }
 }
@@ -359,7 +359,7 @@ void PageClient::set_preferred_contrast(Web::CSS::PreferredContrast contrast)
 {
     m_preferred_contrast = contrast;
     if (auto* document = page().top_level_browsing_context().active_document()) {
-        document->invalidate_style(Web::DOM::StyleInvalidationReason::SettingsChange);
+        document->record_style_environment_change();
         document->set_needs_media_query_evaluation();
     }
 }
@@ -368,7 +368,7 @@ void PageClient::set_preferred_motion(Web::CSS::PreferredMotion motion)
 {
     m_preferred_motion = motion;
     if (auto* document = page().top_level_browsing_context().active_document()) {
-        document->invalidate_style(Web::DOM::StyleInvalidationReason::SettingsChange);
+        document->record_style_environment_change();
         document->set_needs_media_query_evaluation();
     }
 }
@@ -1654,7 +1654,7 @@ Vector<Web::CSS::StyleSheetIdentifier> PageClient::list_style_sheets() const
         });
     }
 
-    Web::CSS::StyleScope::for_each_user_agent_stylesheet(document && document->in_quirks_mode(), [&](auto&, auto const& identifier) {
+    Web::CSS::StyleScope::for_each_user_agent_stylesheet(document && document->in_quirks_mode(), true, [&](auto&, auto const& identifier) {
         results.append(identifier);
     });
 

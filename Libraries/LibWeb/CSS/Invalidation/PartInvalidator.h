@@ -14,8 +14,6 @@ class Element;
 
 namespace Web::CSS::Invalidation {
 
-void invalidate_style_after_part_attribute_change(DOM::Element&);
 void invalidate_style_after_exportparts_attribute_change(DOM::Element&);
-void invalidate_part_targets(DOM::Element&);
 
 }

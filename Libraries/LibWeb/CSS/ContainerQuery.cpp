@@ -93,7 +93,7 @@ static FeatureValue size_feature_value_for_query_container(SizeFeatureID id, Pai
 {
     auto width = paintable_box.content_width();
     auto height = paintable_box.content_height();
-    auto inline_axis_horizontal = paintable_box.computed_values().writing_mode() == WritingMode::HorizontalTb;
+    auto inline_axis_horizontal = paintable_box.layout_node().writing_mode() == WritingMode::HorizontalTb;
 
     auto length_feature_value = [](CSSPixels length) {
         return FeatureValue(FeatureValue::Type::Length, LengthStyleValue::create(Length::make_px(length)));
@@ -279,10 +279,14 @@ static Optional<Keyword> single_css_wide_keyword(ReadonlySpan<Parser::ComponentV
 static ColorResolutionContext fallback_color_resolution_context_for_style_query(AbstractOrHypotheticalElement const& element, ComputationContext const& computation_context)
 {
     auto calculation_resolution_context = CalculationResolutionContext::from_computation_context(computation_context);
-    auto color_resolution_context_for_style = [&](ComputedValues const& style) {
+    auto color_resolution_context_for_style = [&](DOM::AbstractElement const& styled_element) {
+        auto const* ui_values = styled_element.style_group<ComputedValues::InheritedUIValues>();
+        auto const* text_values = styled_element.style_group<ComputedValues::InheritedTextValues>();
+        VERIFY(ui_values);
+        VERIFY(text_values);
         ColorResolutionContext color_resolution_context {
-            .color_scheme = style.color_scheme(),
-            .current_color = style.color(),
+            .color_scheme = ui_values->color_scheme,
+            .current_color = text_values->color,
             .calculation_resolution_context = calculation_resolution_context,
         };
         return color_resolution_context;
@@ -290,11 +294,11 @@ static ColorResolutionContext fallback_color_resolution_context_for_style_query(
 
     auto abstract_element = element.abstract_element();
 
-    if (auto const* style = abstract_element.computed_values())
-        return color_resolution_context_for_style(*style);
+    if (abstract_element.has_style())
+        return color_resolution_context_for_style(abstract_element);
 
-    if (auto parent = abstract_element.element_to_inherit_style_from(); parent.has_value() && parent->computed_values())
-        return color_resolution_context_for_style(*parent->computed_values());
+    if (auto parent = abstract_element.element_to_inherit_style_from(); parent.has_value() && parent->has_style())
+        return color_resolution_context_for_style(*parent);
 
     return {
         .color_scheme = element.document().page().preferred_color_scheme(),
@@ -545,7 +549,7 @@ MatchResult StyleFeature::evaluate(BooleanExpressionEvaluationContext const& con
 
     // FIXME: We should use the computed style that we are currently computing rather than the fallback (i.e. the previously applied style).
     auto computation_context = element.document().style_computer().fallback_computation_context_for_custom_property(element);
-    auto const* computed_values = element.abstract_element().computed_values();
+    auto computed_values = element.abstract_element().computed_style();
     auto const* computed_style_for_custom_property_resolution = computed_values ? document.style_computer().reconstruct_computed_properties(*computed_values).ptr() : nullptr;
 
     auto color_resolution_context = fallback_color_resolution_context_for_style_query(element, computation_context);
@@ -707,12 +711,13 @@ ContainerQuery::ContainerQuery(NonnullOwnPtr<BooleanExpression>&& condition)
 
 static bool container_satisfies_requirements(DOM::Element const& element, ContainerQueryFeatureRequirements const& requirements)
 {
-    auto style = element.computed_values();
-    if (!style)
+    auto const* box_values = element.style_group<ComputedValues::BoxValues>();
+    auto const* inherited_box_values = element.style_group<ComputedValues::InheritedBoxValues>();
+    if (!box_values || !inherited_box_values)
         return false;
 
-    auto container_type = style->container_type();
-    auto inline_axis_horizontal = style->writing_mode() == WritingMode::HorizontalTb;
+    ContainerType container_type { box_values->is_size_container, box_values->is_inline_size_container, box_values->is_scroll_state_container };
+    auto inline_axis_horizontal = static_cast<WritingMode>(inherited_box_values->writing_mode) == WritingMode::HorizontalTb;
 
     if (requirements.requires_width_container) {
         if (inline_axis_horizontal) {
@@ -811,8 +816,12 @@ bool container_name_matches(DOM::Element const& element, Optional<Utf16FlyString
     if (!container_name.has_value())
         return true;
 
-    if (auto style = element.computed_values())
-        return style->container_name_contains(*container_name);
+    if (auto const* values = element.style_group<ComputedValues::BoxValues>()) {
+        for (size_t i = 0; i < values->container_name.length; ++i) {
+            if (Utf16FlyString::from_raw(values->container_name.pointer[i].raw) == *container_name)
+                return true;
+        }
+    }
 
     return false;
 }

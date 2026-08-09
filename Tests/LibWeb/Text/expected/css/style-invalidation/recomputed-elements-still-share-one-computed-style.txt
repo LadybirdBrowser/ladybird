@@ -1,0 +1,1 @@
+PASS: alike siblings share a recomputed style too: true

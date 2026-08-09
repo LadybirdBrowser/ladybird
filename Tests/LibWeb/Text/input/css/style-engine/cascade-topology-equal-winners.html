@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="plan.js"></script>
+<style id="layers">
+    @layer a, b;
+    @layer a {
+        .same { color: rgb(20, 24, 28); }
+        #sentinel { outline: 0 solid rgb(160, 20, 20); }
+    }
+    @layer b {
+        .same { color: rgb(20, 24, 28); }
+        #sentinel { outline: 0 solid rgb(20, 20, 160); }
+    }
+</style>
+<div id="first" class="same"></div>
+<div id="sentinel" class="same"></div>
+<div id="last" class="same"></div>
+<script>
+    test(() => {
+        const sheet = document.getElementById("layers").sheet;
+
+        plan("reverse layers with equal ordinary winners", () => {
+            sheet.insertRule("@layer b, a;", 0);
+        });
+        plan("restore layers with equal ordinary winners", () => {
+            sheet.deleteRule(0);
+        });
+    });
+</script>

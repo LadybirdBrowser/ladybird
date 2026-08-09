@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="host"><span class="light" part="badge">light</span></div>
+<style>#host::part(badge) { color: purple }</style>
+<script>
+    test(() => {
+        const root = document.getElementById("host").attachShadow({ mode: "open" });
+        root.innerHTML = `<style>::slotted(.light) { color: orange } ::slotted(span) { font-weight: bold }</style>
+                          <slot></slot>`;
+        // A slotted element stands outside the tree it is slotted into, and only that tree's
+        // `::slotted()` rules reach it. The two of them order by specificity, which for
+        // `::slotted()` counts its argument as well as the pseudo-element itself.
+        println(internals.styleEngineMatchedRules());
+    });
+</script>

@@ -8,6 +8,7 @@
 #include <LibWeb/CSS/CSSGroupingRule.h>
 #include <LibWeb/CSS/CSSRuleList.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
+#include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/HTML/Window.h>
 
 namespace Web::CSS {
@@ -46,16 +47,22 @@ WebIDL::ExceptionOr<u32> CSSGroupingRule::insert_rule(Utf16View rule, u32 index)
 
     // AD-HOC: The spec doesn't say where to set the parent rule, so we'll do it here.
     m_rules->item(index)->set_parent_rule(this);
-    if (auto* sheet = parent_style_sheet())
-        sheet->invalidate_owners(DOM::StyleInvalidationReason::StyleSheetInsertRule);
+    if (auto* sheet = parent_style_sheet()) {
+        record_style_rule_inserted(*m_rules->item(index));
+        sheet->invalidate_owners();
+    }
     return index;
 }
 
 WebIDL::ExceptionOr<void> CSSGroupingRule::delete_rule(u32 index)
 {
+    auto removed_rule = m_rules->item(index);
     TRY(m_rules->remove_a_css_rule(index));
-    if (auto* sheet = parent_style_sheet())
-        sheet->invalidate_owners(DOM::StyleInvalidationReason::StyleSheetDeleteRule);
+    if (auto* sheet = parent_style_sheet()) {
+        if (removed_rule)
+            record_style_rule_removed(*sheet, *removed_rule);
+        sheet->invalidate_owners();
+    }
     return {};
 }
 

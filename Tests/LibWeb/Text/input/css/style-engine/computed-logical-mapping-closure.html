@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .margins { margin-inline-start: 10px; margin-left: 20px }
+    .before { direction: ltr }
+    .after { direction: rtl }
+    .vertical { direction: ltr; writing-mode: vertical-rl }
+    .margin-before { margin-inline-start: 10px }
+    .margin-after { margin-inline-start: 30px }
+</style>
+<div id="target" class="margins before"></div>
+<div id="margin-target" class="margin-before"></div>
+<script>
+    test(() => {
+        internals.updateStyle();
+        const before = internals.getStyleInvalidationCounters();
+
+        target.className = "margins after";
+        internals.updateStyle();
+
+        const after = internals.getStyleInvalidationCounters();
+        const style = getComputedStyle(target);
+        println(`left margin: ${style.marginLeft}`);
+        println(`right margin: ${style.marginRight}`);
+
+        target.className = "margins vertical";
+        internals.updateStyle();
+        const vertical = internals.getStyleInvalidationCounters();
+        println(`top margin: ${getComputedStyle(target).marginTop}`);
+
+        const marginTarget = document.getElementById("margin-target");
+        const beforeMargin = internals.getStyleInvalidationCounters();
+        marginTarget.className = "margin-after";
+        internals.updateStyle();
+        const margin = internals.getStyleInvalidationCounters();
+        println(`margin family longhand evaluations: ${margin.computedLonghandEvaluations - beforeMargin.computedLonghandEvaluations}`);
+        println(`changed logical margin: ${getComputedStyle(marginTarget).marginLeft}`);
+    });
+</script>

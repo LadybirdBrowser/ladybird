@@ -37,7 +37,7 @@
         getComputedStyle(host).color;
         internals.resetStyleInvalidationCounters();
 
-        // Mutating disconnected elements should not schedule any style invalidation.
+        // Mutating disconnected elements should not publish any style reaction.
         const tree = document.createElement("div");
         for (let i = 0; i < 10; ++i) {
             const child = document.createElement("span");
@@ -51,17 +51,14 @@
         const custom = document.createElement("my-element");
         tree.appendChild(custom);
 
-        // Adding these classes schedules a descendant invalidation plan for ".highlight span" and :has()
-        // ancestor bookkeeping for "div:has(> .flag)", even though nothing in the disconnected tree has
-        // computed style.
-        internals.resetStyleInvalidationCounters();
+        // Adding these classes changes no StyleEngine facts, because the disconnected tree has no
+        // style identities yet.
+        internals.styleEngineTransactionReactions();
         tree.className = "highlight";
         tree.children[3].className = "flag";
-        getComputedStyle(host).backgroundColor;
 
-        const counters = internals.getStyleInvalidationCounters();
-        println(`invalidations after disconnected mutations: ${counters.styleInvalidations}`);
-        println(`:has() metadata candidates after disconnected mutations: ${counters.hasInvalidationMetadataCandidates}`);
+        const reactions = internals.styleEngineTransactionReactions();
+        println(`reactions after disconnected mutations: ${reactions.elements.length}`);
 
         // Once inserted, all the mutations made while disconnected must still be reflected in computed style.
         host.appendChild(tree);
@@ -71,7 +68,7 @@
         println(`#blue child color: ${getComputedStyle(tree.firstChild).color}`);
         println(`custom element :defined color: ${getComputedStyle(custom).color}`);
 
-        // And mutations after insertion must invalidate as usual.
+        // And mutations after insertion must react as usual.
         tree.children[2].className = "";
         println(`un-classed child color: ${getComputedStyle(tree.children[2]).color}`);
 

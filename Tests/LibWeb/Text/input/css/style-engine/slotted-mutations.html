@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="plan.js"></script>
+<div id="host"></div>
+<input id="outside">
+<script>
+    test(() => {
+        const host = document.getElementById("host");
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        shadowRoot.appendChild(document.createElement("slot"));
+        const style = document.createElement("style");
+        style.textContent = "::slotted(input:disabled) { --a: 1 } ::slotted(.mark) { --b: 1 }";
+        shadowRoot.appendChild(style);
+        const slotted = make("input", "slotted");
+        host.appendChild(slotted);
+        document.body.offsetWidth;
+
+        // `::slotted()` styles the element assigned to the slot, so its argument is a constraint on
+        // that element and a change to what the argument tests has to reach it. The element sits in
+        // the light DOM while the rule lives in the shadow tree, which is the only reason this is
+        // not an ordinary compound.
+        plan("disable the slotted element", () => slotted.disabled = true);
+        plan("mark the slotted element", () => slotted.classList.add("mark"));
+
+        // An element the slot never sees is still named by what the user-agent sheet styles for
+        // it, and by the subject features of the shadow rule: routing narrows a region by the
+        // features a subject carries, not by the slot assignment the guard also requires. The
+        // element is reached, and nothing around it is.
+        plan("disable an element outside the host", () => document.getElementById("outside").disabled = true);
+        plan("mark an element outside the host", () => document.getElementById("outside").classList.add("mark"));
+    });
+</script>

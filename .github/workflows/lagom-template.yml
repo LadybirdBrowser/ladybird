@@ -197,6 +197,15 @@ jobs:
             --load="module-native-protocol-unix auth-anonymous=1 socket=/tmp/pulse-native" \
             --load="module-null-sink sink_name=virtual_sink"
 
+      - name: Verify StyleEngine invariants
+        if: ${{ inputs.os_name == 'Linux' && (inputs.build_preset == 'Release' || inputs.build_preset == 'Sanitizer') }}
+        timeout-minutes: 5
+        working-directory: ${{ github.workspace }}/Build/Tests/LibWeb/test-web
+        run: |
+          ../../../bin/test-web --verify-style -j10 \
+            -f Text/input/css/style-engine/ \
+            -f Text/input/css/style-invalidation/
+
       - name: Check new tests for flakiness
         if: ${{ github.event_name == 'pull_request' && inputs.build_preset == 'Sanitizer' && (inputs.os_name == 'Linux' || inputs.os_name == 'macOS') }}
         timeout-minutes: 30

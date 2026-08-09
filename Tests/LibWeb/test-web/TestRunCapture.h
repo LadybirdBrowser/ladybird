@@ -71,7 +71,7 @@ private:
     void setup_output_capture_for_helper_process(WebView::Process&);
     void setup_output_capture_for_view(TestWebView&, ViewOutputCapture&);
     void consume_helper_capture(pid_t pid);
-    void close_view_capture_notifiers(pid_t pid);
+    void consume_view_capture(WebView::Process&);
     void destroy_view_capture_of(TestWebView const& view);
 
     Function<void(WebView::Process&&, Optional<int> exit_status)> m_previous_on_process_exited;

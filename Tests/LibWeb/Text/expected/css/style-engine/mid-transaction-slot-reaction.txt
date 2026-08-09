@@ -1,0 +1,3 @@
+slotted color: rgb(0, 128, 0)
+assigned element recomputations: 1
+read recomputations: 0

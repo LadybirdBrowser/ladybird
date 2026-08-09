@@ -1,0 +1,16 @@
+lowercase color: rgb(0, 0, 0)
+no-namespace backgroundColor: rgb(4, 5, 6)
+first-other outlineColor: rgb(7, 8, 9)
+first-xhtml borderTopColor: rgb(10, 11, 12)
+first-other borderTopColor: rgb(10, 11, 12)
+first-none borderTopColor: rgb(10, 11, 12)
+second-xhtml borderTopColor: rgb(0, 0, 0)
+inherits-es borderLeftColor: rgb(13, 14, 15)
+not-es borderLeftColor: rgb(0, 0, 0)
+p: p:first-of-type
+t#no-namespace: none|t
+p#first-xhtml: p:first-of-type
+p#first-other: other|p p:first-of-type
+p#first-none: p:first-of-type
+span#inherits-es: span:lang(es)
+

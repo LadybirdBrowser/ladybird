@@ -1,0 +1,4 @@
+cascade longhand transitions: 1
+inherited descendant transitions: 1
+registered custom property transitions: 1
+no-op transitions: 0

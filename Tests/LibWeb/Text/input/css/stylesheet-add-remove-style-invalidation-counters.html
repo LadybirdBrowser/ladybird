@@ -26,15 +26,17 @@
         }
     }
 
-    function verifyInvalidationsStayBounded(label, maxInvalidations) {
-        const invalidations = internals.getStyleInvalidationCounters().styleInvalidations;
+    function verifyRecomputationsStayBounded(label, maximum) {
+        const recomputations = internals.getStyleInvalidationCounters().elementStyleRecomputations;
         // These are intentionally upper bounds rather than exact counts: the
         // mutation itself can legitimately dirty a small fixed number of helper
         // nodes, but it must not grow with the number of unrelated bystanders.
-        if (invalidations <= maxInvalidations)
-            println(`PASS: ${label} (${invalidations} invalidations)`);
+        // The bound is what this asserts, so the bound is what it prints: recording the exact count
+        // would make the expectation depend on a number no assertion here cares about.
+        if (recomputations <= maximum)
+            println(`PASS: ${label} (at most ${maximum} recomputations)`);
         else
-            println(`FAIL: ${label} (${invalidations} invalidations)`);
+            println(`FAIL: ${label} (${recomputations} recomputations, expected at most ${maximum})`);
     }
 
     test(() => {
@@ -46,7 +48,7 @@
         addStyle.textContent = ".add-target-class { color: rgb(255, 0, 0); }";
         document.head.appendChild(addStyle);
         getComputedStyle(addTarget).color;
-        verifyInvalidationsStayBounded("document stylesheet add stays bounded", 4);
+        verifyRecomputationsStayBounded("document stylesheet add stays bounded", 4);
 
         const shadowRoot = document.getElementById("shadow-host").attachShadow({ mode: "open" });
         shadowRoot.innerHTML = `
@@ -64,7 +66,7 @@
         // Shadow-root sheet mutations can legitimately dirty the matching
         // descendant, the shadow host, and a small fixed amount of plumbing,
         // but must still stay constant as unrelated bystanders grow.
-        verifyInvalidationsStayBounded("shadow stylesheet add stays bounded", 4);
+        verifyRecomputationsStayBounded("shadow stylesheet add stays bounded", 4);
 
         const removeTarget = document.getElementById("remove-target");
         addBystanders(document.body, "document remove", 25);
@@ -75,6 +77,6 @@
         settleAndReset(removeTarget, "::before");
         removeStyle.remove();
         getComputedStyle(removeTarget, "::before").color;
-        verifyInvalidationsStayBounded("pseudo-only stylesheet removal stays bounded", 2);
+        verifyRecomputationsStayBounded("pseudo-only stylesheet removal stays bounded", 2);
     });
 </script>

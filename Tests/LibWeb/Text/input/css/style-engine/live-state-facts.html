@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="plan.js"></script>
+<style>
+    #checkbox:indeterminate + #indeterminate-subject { color: green }
+    #progress:indeterminate + #progress-subject { color: green }
+    #text:read-only + #read-only-subject { color: green }
+    #text:read-write ~ #read-write-subject { color: green }
+    #editable-subject:read-write { color: green }
+    #design-mode-subject:read-write { color: green }
+    #moved:read-write { color: green }
+    #media:muted + #muted-subject { color: green }
+    #media:paused ~ #paused-subject { color: green }
+    #media:playing ~ #playing-subject { color: green }
+    #media:buffering ~ #buffering-subject { color: green }
+    #media:seeking ~ #seeking-subject { color: green }
+</style>
+<input id="checkbox" type="checkbox">
+<span id="indeterminate-subject"></span>
+<progress id="progress"></progress>
+<span id="progress-subject"></span>
+<input id="text">
+<span id="read-only-subject"></span>
+<span id="read-write-subject"></span>
+<div id="editable">
+    <span id="editable-subject"></span>
+</div>
+<div id="design-mode-subject"></div>
+<div id="non-editable-parent">
+    <span id="moved"></span>
+</div>
+<div id="editable-parent" contenteditable></div>
+<video id="media"></video>
+<span id="muted-subject"></span>
+<span id="paused-subject"></span>
+<span id="playing-subject"></span>
+<span id="buffering-subject"></span>
+<span id="seeking-subject"></span>
+<script>
+    test(() => {
+        const checkbox = document.getElementById("checkbox");
+        const progress = document.getElementById("progress");
+        const text = document.getElementById("text");
+        const editable = document.getElementById("editable");
+        const moved = document.getElementById("moved");
+        const nonEditableParent = document.getElementById("non-editable-parent");
+        const editableParent = document.getElementById("editable-parent");
+        const media = document.getElementById("media");
+
+        plan("make checkbox indeterminate", () => checkbox.indeterminate = true);
+        plan("make checkbox determinate", () => checkbox.indeterminate = false);
+        plan("make progress determinate", () => progress.value = 0.5);
+        plan("make progress indeterminate", () => progress.removeAttribute("value"));
+
+        plan("make text input read-only", () => text.readOnly = true);
+        plan("make text input read-write", () => text.readOnly = false);
+        plan("disable text input", () => text.disabled = true);
+        plan("enable text input", () => text.disabled = false);
+
+        plan("make subtree editable", () => editable.contentEditable = "true");
+        plan("make subtree non-editable", () => editable.contentEditable = "false");
+
+        planSetup();
+        document.designMode = "on";
+        println(`design mode makes elements read-write: ${getComputedStyle(document.getElementById("design-mode-subject")).color}`);
+        document.designMode = "off";
+        println(`disabling design mode makes elements read-only: ${getComputedStyle(document.getElementById("design-mode-subject")).color}`);
+
+        plan("move into editable subtree", () => editableParent.moveBefore(moved, null));
+        plan("move out of editable subtree", () => nonEditableParent.moveBefore(moved, null));
+
+        plan("mute media", () => media.muted = true);
+        plan("unmute media", () => media.muted = false);
+        plan("media has enough data", () => internals.setMediaElementReadyState(media, 3));
+        plan("unpause playable media", () => internals.setMediaElementPaused(media, false));
+        plan("start seeking", () => internals.setMediaElementSeeking(media, true));
+        plan("finish seeking", () => internals.setMediaElementSeeking(media, false));
+        plan("pause playable media", () => internals.setMediaElementPaused(media, true));
+        plan("media starts buffering", () => internals.setMediaElementReadyState(media, 0));
+    });
+</script>

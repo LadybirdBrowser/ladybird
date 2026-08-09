@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style id="loser">#target { color: rgb(255, 0, 0) }</style>
+<style id="winner">#target { color: rgb(0, 128, 0) }</style>
+<div id="target">text</div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const loser = document.getElementById("loser");
+        const winner = document.getElementById("winner");
+        const colorOf = () => getComputedStyle(target).color;
+
+        // Later sheets win against equal specificity, so the second one decides to begin with.
+        println(`initially: ${colorOf()}`);
+
+        // Inserting a sheet ahead of an existing one puts a new competitor in front of it without
+        // moving any sheet already attached against any other.
+        const arriving = document.createElement("style");
+        arriving.textContent = "#target { color: rgb(0, 0, 255) }";
+        document.head.insertBefore(arriving, winner);
+        println(`after inserting a losing sheet before the winner: ${colorOf()}`);
+
+        arriving.remove();
+        println(`after removing it: ${colorOf()}`);
+
+        // Inserting one after the current winner takes the decision from it.
+        const arrivingLast = document.createElement("style");
+        arrivingLast.textContent = "#target { color: rgb(255, 0, 255) }";
+        document.head.appendChild(arrivingLast);
+        println(`after appending a sheet that wins: ${colorOf()}`);
+
+        // Moving the original loser to the end makes it the winner. This is a real reorder: the
+        // sheet is detached and attached again, and every sheet it passed changed priority with it.
+        document.head.appendChild(loser);
+        println(`after moving the first sheet to the end: ${colorOf()}`);
+
+        // And moving it back in front of the others gives the decision up again. Reaching the same
+        // position by naming a successor rather than by appending has to answer the same way.
+        document.head.insertBefore(loser, winner);
+        println(`after moving it back in front: ${colorOf()}`);
+    });
+</script>

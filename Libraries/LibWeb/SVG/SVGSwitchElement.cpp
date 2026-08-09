@@ -20,7 +20,7 @@ SVGSwitchElement::SVGSwitchElement(DOM::Document& document, DOM::QualifiedName q
 
 SVGSwitchElement::~SVGSwitchElement() = default;
 
-RefPtr<Layout::Node> SVGSwitchElement::create_layout_node(NonnullRefPtr<CSS::ComputedValues const> style)
+RefPtr<Layout::Node> SVGSwitchElement::create_layout_node(CSS::LayoutStyle style)
 {
     return make_ref_counted<Layout::SVGGraphicsBox>(document(), *this, style);
 }

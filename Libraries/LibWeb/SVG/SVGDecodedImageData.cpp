@@ -239,18 +239,6 @@ Optional<Painting::DisplayListResource> SVGDecodedImageData::record_display_list
     auto& resource_storage = navigable.display_list_resource_storage();
 
     RenderKey const key { size, color_scheme };
-
-    // `prefers-color-scheme` inside the image answers with the embedding element's used scheme, so
-    // the media query has to be evaluated again whenever that differs from the last recording.
-    if (m_color_scheme != color_scheme) {
-        m_color_scheme = color_scheme;
-        m_cached_rendered_frames.clear();
-        m_cached_rendered_surfaces.clear();
-        m_document->set_svg_image_color_scheme(color_scheme);
-        m_document->style_scope().invalidate_style_cache();
-        m_document->invalidate_style(DOM::StyleInvalidationReason::SettingsChange);
-    }
-
     if (auto it = m_cached_display_lists.find(key); it != m_cached_display_lists.end()) {
         copy_referenced_resources_to(destination_resource_storage, resource_storage, it->value.referenced_resources);
         return Painting::DisplayListResource { *it->value.display_list, it->value.visual_context_tree };
@@ -276,6 +264,17 @@ Optional<Painting::DisplayListResource> SVGDecodedImageData::record_display_list
     ScopeGuard restore_viewport_size = [&] {
         navigable.set_viewport_size(previous_viewport_size);
     };
+
+    // `prefers-color-scheme` inside the image answers with the embedding element's used scheme, so
+    // the media query has to be evaluated again whenever that differs from the last recording.
+    if (m_color_scheme != color_scheme) {
+        m_color_scheme = color_scheme;
+        m_cached_rendered_frames.clear();
+        m_cached_rendered_surfaces.clear();
+        m_document->set_svg_image_color_scheme(color_scheme);
+        m_document->style_scope().invalidate_style_cache();
+        m_document->record_style_environment_change();
+    }
 
     navigable.set_viewport_size(size.to_type<CSSPixels>());
     m_document->update_layout(DOM::UpdateLayoutReason::SVGDecodedImageDataRender);
@@ -352,9 +351,9 @@ Optional<CSSPixels> SVGDecodedImageData::intrinsic_width() const
     // https://www.w3.org/TR/SVG2/coords.html#SizingSVGInCSS
     ScopedSVGImageDocument scoped_document { *m_page_client, *m_document, ScopedSVGImageDocument::FrameRequests::RouteToCurrentImage, const_cast<SVGDecodedImageData&>(*this) };
     m_document->update_style();
-    auto const root_element_style = m_root_element->computed_values();
-    VERIFY(root_element_style);
-    auto const& width_value = root_element_style->width();
+    auto const* sizing_values = m_root_element->style_group<CSS::ComputedValues::SizingValues>();
+    VERIFY(sizing_values);
+    auto const& width_value = CSS::Size::view(sizing_values->width);
     if (width_value.is_length() && width_value.length().is_absolute())
         return width_value.length().absolute_length_to_px();
     return {};
@@ -365,9 +364,9 @@ Optional<CSSPixels> SVGDecodedImageData::intrinsic_height() const
     // https://www.w3.org/TR/SVG2/coords.html#SizingSVGInCSS
     ScopedSVGImageDocument scoped_document { *m_page_client, *m_document, ScopedSVGImageDocument::FrameRequests::RouteToCurrentImage, const_cast<SVGDecodedImageData&>(*this) };
     m_document->update_style();
-    auto const root_element_style = m_root_element->computed_values();
-    VERIFY(root_element_style);
-    auto const& height_value = root_element_style->height();
+    auto const* sizing_values = m_root_element->style_group<CSS::ComputedValues::SizingValues>();
+    VERIFY(sizing_values);
+    auto const& height_value = CSS::Size::view(sizing_values->height);
     if (height_value.is_length() && height_value.length().is_absolute())
         return height_value.length().absolute_length_to_px();
     return {};

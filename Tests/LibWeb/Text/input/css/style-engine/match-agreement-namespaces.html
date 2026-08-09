@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @namespace url(http://www.w3.org/2000/svg);
+    @namespace html url(http://www.w3.org/1999/xhtml);
+
+    /* The default namespace is SVG, so an unprefixed name constrains its subject to it. */
+    * { --a: 1 }
+    circle { --b: 1 }
+
+    /* A prefix names one namespace, `*|` names any, and `|` names none. */
+    html|div { --c: 1 }
+    html|* { --d: 1 }
+    *|circle { --e: 1 }
+    *|* { --f: 1 }
+    |circle { --g: 1 }
+
+    /* Every compound carries its own constraint, not just the subject's: the ancestor half of
+       these has to be in the namespace its name resolved to as well. */
+    html|div circle { --h: 1 }
+    svg html|div { --i: 1 }
+    * circle { --j: 1 }
+    *:not(foreignObject) > svg { --k: 1 }
+
+    /* A compound that writes no name has one implied, and the default namespace constrains it. */
+    :not(circle) { --l: 1 }
+    .marked { --m: 1 }
+</style>
+<div id="host" class="marked">
+    <svg width="10" height="10" class="marked">
+        <circle id="dot" cx="5" cy="5" r="1" class="marked" />
+        <foreignObject><span class="marked">x</span></foreignObject>
+    </svg>
+</div>
+<script>
+    test(() => {
+        // Every element in this document is in a namespace, and half the rules name one, so a
+        // matcher that ignores namespaces matches almost everything here.
+        println(internals.styleEngineMatchedRules());
+    });
+</script>

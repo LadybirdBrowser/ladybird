@@ -7,8 +7,21 @@
 #include <LibTest/TestCase.h>
 
 #include <AK/Bitmap.h>
+#include <AK/FixedBitmap.h>
 
 using namespace Test::Randomized;
+
+TEST_CASE(fixed_bitmap_copies_packed_bytes)
+{
+    Array<u8, 2> bytes { 0b10000001, 0b00000010 };
+    AK::FixedBitmap<10> bitmap { false };
+    bitmap.copy_from(bytes.span());
+
+    EXPECT(bitmap.get(0));
+    EXPECT(bitmap.get(7));
+    EXPECT(bitmap.get(9));
+    EXPECT_EQ(bitmap.bytes(), bytes.span());
+}
 
 TEST_CASE(construct_empty)
 {

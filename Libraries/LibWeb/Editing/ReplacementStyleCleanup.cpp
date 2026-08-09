@@ -61,7 +61,7 @@ void remove_redundant_styles_from_inserted_content(InsertedContent& inserted_con
 
         element->document().update_layout_if_needed_for_node(element, DOM::UpdateLayoutReason::NavigableSelectedText);
         DOM::AbstractElement abstract_element { element };
-        auto const* computed_values = abstract_element.computed_values();
+        auto computed_values = abstract_element.computed_style();
         if (!computed_values)
             continue;
 

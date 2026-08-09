@@ -207,7 +207,7 @@ void HTMLObjectElement::set_data(Utf16View data)
     set_attribute_value(HTML::AttributeNames::data, data);
 }
 
-RefPtr<Layout::Node> HTMLObjectElement::create_layout_node(NonnullRefPtr<CSS::ComputedValues const> style)
+RefPtr<Layout::Node> HTMLObjectElement::create_layout_node(CSS::LayoutStyle style)
 {
     switch (m_representation) {
     case Representation::Children:
@@ -569,7 +569,6 @@ void HTMLObjectElement::update_layout_and_child_objects(Representation represent
     }
 
     m_representation = representation;
-    CSS::Invalidation::invalidate_style_after_object_representation_change(*this);
 
     if (auto parent_element = this->parent_element())
         parent_element->set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::HTMLObjectElementUpdateLayoutAndChildObjects);

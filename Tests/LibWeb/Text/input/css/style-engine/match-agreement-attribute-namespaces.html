@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @namespace xml url(http://www.w3.org/XML/1998/namespace);
+    [xml|space] { color: red }
+    [xml|space="preserve"] { color: blue }
+    [*|space] { font-weight: bold }
+    [space] { color: green }
+</style>
+<div id="a" xml:space="preserve">a</div>
+<div id="b" space="preserve">b</div>
+<script>
+    test(() => {
+        // `[ns|x]` names an attribute that `[x]` does not, and a prefixed selector reaches only
+        // the qualified name. In HTML markup `xml:space` is not in a namespace at all - the
+        // adjustment that puts it in one applies to foreign content - so nothing here answers to
+        // the prefixed form, and that is what both sides have to say.
+        println(internals.styleEngineMatchedRules());
+    });
+</script>

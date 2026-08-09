@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .red { color: red }
+    .blue { color: blue }
+    .shared { color: var(--missing, green) }
+</style>
+<div class="red">first</div>
+<div class="blue">second</div>
+<script>
+    test(() => {
+        const [first, second] = document.querySelectorAll("div");
+        internals.updateStyle();
+        getComputedStyle(first).color;
+        getComputedStyle(second).color;
+
+        const before = internals.getStyleInvalidationCounters();
+        first.className = "shared";
+        second.className = "shared";
+        internals.updateStyle();
+        const after = internals.getStyleInvalidationCounters();
+
+        println(getComputedStyle(first).color);
+        println(getComputedStyle(second).color);
+        println(`shared computations: ${after.elementStyleSharedComputations - before.elementStyleSharedComputations}`);
+    });
+</script>

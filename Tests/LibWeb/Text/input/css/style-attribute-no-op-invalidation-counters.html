@@ -8,42 +8,38 @@
 <div id="target">target</div>
 <div id="custom-property-target"></div>
 <script>
-    function settleAndReset(triggerElement) {
-        getComputedStyle(triggerElement).color;
+    function settleAndReset() {
+        internals.updateStyle();
         internals.resetStyleInvalidationCounters();
     }
 
     function report(label) {
-        const invalidations = internals.getStyleInvalidationCounters().styleInvalidations;
-        println(`${label}: ${invalidations} invalidations`);
+        internals.updateStyle();
+        const recomputations = internals.getStyleInvalidationCounters().elementStyleRecomputations;
+        println(`${label}: ${recomputations} recomputations`);
     }
 
     test(() => {
         const target = document.getElementById("target");
 
         target.setAttribute("style", "color: red");
-        settleAndReset(target);
+        settleAndReset();
 
         target.setAttribute("style", "color: red");
-        getComputedStyle(target).color;
         report("setting identical style text");
 
-        settleAndReset(target);
+        settleAndReset();
         target.setAttribute("style", "color: green");
-        getComputedStyle(target).color;
         report("setting changed style text");
 
-        const customPropertyTarget = document.getElementById("custom-property-target");
         document.documentElement.style.setProperty("--vh", "9px");
-        settleAndReset(customPropertyTarget);
+        settleAndReset();
 
         document.documentElement.style.setProperty("--vh", "9px");
-        getComputedStyle(customPropertyTarget).height;
         report("setting identical custom property");
 
-        settleAndReset(customPropertyTarget);
+        settleAndReset();
         document.documentElement.style.setProperty("--vh", "10px");
-        getComputedStyle(customPropertyTarget).height;
         report("setting changed custom property");
     });
 </script>

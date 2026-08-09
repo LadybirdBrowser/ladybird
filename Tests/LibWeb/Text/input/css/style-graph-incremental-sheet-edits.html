@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style id="sheet">
+    #target { --a: 1 }
+    #target { --b: 1 }
+    #target { --c: 1 }
+    #target { --d: 1 }
+</style>
+<div id="target" tabindex="0"></div>
+<script>
+    const sheet = document.getElementById("sheet").sheet;
+    const target = document.getElementById("target");
+
+    function compiledBy(name, mutate) {
+        const before = internals.styleEngineCounters().styleRulesCompiled;
+        mutate();
+        // Reading a value flushes, so the count covers the whole edit and not just the call.
+        getComputedStyle(target).getPropertyValue("--a");
+        println(`${name}: ${internals.styleEngineCounters().styleRulesCompiled - before} compiled`);
+    }
+
+    function colour() {
+        return getComputedStyle(target).color;
+    }
+
+    test(() => {
+        document.body.offsetWidth;
+
+        // One rule arriving is one rule compiled, wherever it lands. The rules around it keep their
+        // identities and their order tokens, so none of them is compiled again.
+        compiledBy("insert at the front", () => sheet.insertRule("#target:focus { color: rgb(1, 1, 1) }", 0));
+        compiledBy("insert in the middle", () => sheet.insertRule("#target:focus { color: rgb(2, 2, 2) }", 2));
+        compiledBy("insert at the end", () => sheet.insertRule("#target:focus { color: rgb(3, 3, 3) }", sheet.cssRules.length));
+
+        // Each landed where it was asked to, so the last one wins on equal specificity.
+        target.focus();
+        println(`after three inserts: ${colour()}`);
+
+        // Deleting one rule compiles nothing, and the rule behind it takes over.
+        compiledBy("delete the winner", () => sheet.deleteRule(sheet.cssRules.length - 1));
+        println(`after deleting the winner: ${colour()}`);
+
+        // Retargeting a rule is that one rule changing. Its position is untouched, so it still
+        // cascades where it did.
+        compiledBy("retarget one rule", () => { sheet.cssRules[2].selectorText = "#target:focus, .unrelated"; });
+        println(`after retargeting: ${colour()}`);
+
+        // A group arriving brings its own rules and nothing else.
+        compiledBy("insert a group of two", () => sheet.insertRule("@media all { #target:focus { color: rgb(4, 4, 4) } #target:focus { color: rgb(5, 5, 5) } }", sheet.cssRules.length));
+        println(`after the group: ${colour()}`);
+
+        // Deleting the group takes its rules with it, and compiles nothing.
+        compiledBy("delete the group", () => sheet.deleteRule(sheet.cssRules.length - 1));
+        println(`after deleting the group: ${colour()}`);
+
+        // Editing every rule in turn costs one compile per rule, not one per rule per edit.
+        const count = sheet.cssRules.length;
+        compiledBy(`retarget all ${count} rules`, () => {
+            for (let index = 0; index < count; ++index)
+                sheet.cssRules[index].selectorText = `#target:focus, .all-${index}`;
+        });
+        println(`after retargeting all: ${colour()}`);
+
+        // Deleting every rule in turn compiles nothing at all.
+        compiledBy(`delete all ${count} rules`, () => {
+            while (sheet.cssRules.length > 0)
+                sheet.deleteRule(sheet.cssRules.length - 1);
+        });
+        println(`after deleting all: ${colour()}`);
+
+        // `replace()` is the one edit that is not incremental, because it swaps the whole rule
+        // list. It compiles what it was given and nothing more.
+        const constructed = new CSSStyleSheet();
+        document.adoptedStyleSheets = [constructed];
+        compiledBy("replaceSync with three rules", () => {
+            constructed.replaceSync("#target:focus { color: rgb(6, 6, 6) } .x { color: red } .y { color: red }");
+        });
+        println(`after replaceSync: ${colour()}`);
+        compiledBy("replaceSync with one rule", () => {
+            constructed.replaceSync("#target:focus { color: rgb(7, 7, 7) }");
+        });
+        println(`after the second replaceSync: ${colour()}`);
+    });
+</script>

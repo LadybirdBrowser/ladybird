@@ -15,7 +15,7 @@ class LegendBox final : public BlockContainer {
     LAYOUT_NODE(LegendBox, BlockContainer);
 
 public:
-    LegendBox(DOM::Document&, DOM::Element&, NonnullRefPtr<CSS::ComputedValues const>);
+    LegendBox(DOM::Document&, DOM::Element&, CSS::LayoutStyle);
     virtual ~LegendBox() override;
 
     DOM::Element& dom_node() { return static_cast<DOM::Element&>(*Box::dom_node()); }

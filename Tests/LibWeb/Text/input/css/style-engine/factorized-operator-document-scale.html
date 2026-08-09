@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #descendant-anchor.active #descendant-target { color: red }
+    #sibling-anchor.active ~ #sibling-target { color: red }
+    #positional-target:nth-child(odd) { color: red }
+    #relational-anchor:has(.witness) { color: red }
+</style>
+<div id="descendant-anchor"><div id="descendant-target"></div></div>
+<div id="sibling-root"><div id="sibling-anchor"></div><div id="sibling-target"></div></div>
+<div id="positional-root"><div id="positional-target"></div></div>
+<div id="relational-anchor"></div>
+<div id="filler-root"></div>
+<script>
+    test(() => {
+        const styleCounterNames = [
+            "styleEngineReactionElements",
+            "elementStyleRecomputations",
+            "elementComputedStyleChanges",
+        ];
+
+        function difference(after, before, names) {
+            // Residency gauges publish absolute pool state rather than work, so they
+            // legitimately scale with the document and are not held to invariance.
+            const measured = names.filter(name => !name.startsWith("tier3Resident"));
+            return Object.fromEntries(measured.map(name => [name, after[name] - before[name]]));
+        }
+
+        function measure(action, undo) {
+            action();
+            internals.updateStyle();
+            undo();
+            internals.updateStyle();
+
+            const graphBefore = internals.styleEngineCounters();
+            const styleBefore = internals.getStyleInvalidationCounters();
+            action();
+            internals.updateStyle();
+            const graphAfter = internals.styleEngineCounters();
+            const styleAfter = internals.getStyleInvalidationCounters();
+            undo();
+            internals.updateStyle();
+            return {
+                graph: difference(graphAfter, graphBefore, Object.keys(graphBefore)),
+                style: difference(styleAfter, styleBefore, styleCounterNames),
+            };
+        }
+
+        const descendantAnchor = document.getElementById("descendant-anchor");
+        const siblingAnchor = document.getElementById("sibling-anchor");
+        const positionalRoot = document.getElementById("positional-root");
+        const positionalTarget = document.getElementById("positional-target");
+        const positionalShift = document.createElement("div");
+        const relationalAnchor = document.getElementById("relational-anchor");
+        const witness = document.createElement("span");
+        witness.className = "witness";
+        const fillerRoot = document.getElementById("filler-root");
+
+        const measurements = [];
+        for (const size of [256, 1024, 4096]) {
+            const fragment = document.createDocumentFragment();
+            for (let index = fillerRoot.childElementCount; index < size; ++index)
+                fragment.appendChild(document.createElement("div"));
+            fillerRoot.appendChild(fragment);
+            internals.updateStyle();
+
+            measurements.push({
+                descendant: measure(
+                    () => descendantAnchor.classList.add("active"),
+                    () => descendantAnchor.classList.remove("active")),
+                sibling: measure(
+                    () => siblingAnchor.classList.add("active"),
+                    () => siblingAnchor.classList.remove("active")),
+                positional: measure(
+                    () => positionalRoot.insertBefore(positionalShift, positionalTarget),
+                    () => positionalShift.remove()),
+                relational: measure(
+                    () => relationalAnchor.appendChild(witness),
+                    () => witness.remove()),
+            });
+        }
+
+        const expectedStyleConsequences = { descendant: 1, sibling: 1, positional: 2, relational: 2 };
+        for (const operator of ["descendant", "sibling", "positional", "relational"]) {
+            const baseline = JSON.stringify(measurements[0][operator]);
+            println(`${operator} work is document-scale invariant: ${measurements.every(measurement => JSON.stringify(measurement[operator]) === baseline)}`);
+            println(`${operator} publishes fixed style changes: ${measurements[0][operator].style.elementComputedStyleChanges === expectedStyleConsequences[operator]}`);
+            println(`${operator} has no unattributed work: ${measurements[0][operator].graph.plannedNodesUnattributed === 0}`);
+        }
+        println(`largest unrelated population: ${fillerRoot.childElementCount}`);
+    });
+</script>

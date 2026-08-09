@@ -11,6 +11,7 @@
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StylePropertyMap.h>
 #include <LibWeb/Dump.h>
 
@@ -159,7 +160,8 @@ void CSSStyleRule::set_selector_text(Utf16View selector_text)
 
         m_selectors = parsed_selectors.release_value();
         if (auto* sheet = parent_style_sheet()) {
-            sheet->invalidate_owners(DOM::StyleInvalidationReason::SetSelectorText);
+            record_style_rule_selector_changed(*this);
+            sheet->invalidate_owners();
         }
     }
 

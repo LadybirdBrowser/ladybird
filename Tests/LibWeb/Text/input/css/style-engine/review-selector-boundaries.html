@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @namespace url("http://www.w3.org/2000/svg");
+    *|*#namespace-target { color: rgb(255, 0, 0); }
+    *|*#namespace-target:is(:disabled) { color: rgb(0, 128, 0); }
+    *|input { background-color: rgb(0, 128, 0); }
+    *|input:not(:disabled) { background-color: rgb(255, 0, 0); }
+</style>
+<input id="namespace-target" disabled>
+<div id="featureless-host" class="host"></div>
+<div id="closed-slot-host"><span id="slotted-target">slotted</span></div>
+<div id="part-host"></div>
+<script>
+    asyncTest(async done => {
+        const namespaceTarget = document.getElementById("namespace-target");
+        println(`namespace is: ${getComputedStyle(namespaceTarget).color}`);
+        println(`namespace not: ${getComputedStyle(namespaceTarget).backgroundColor}`);
+
+        const featurelessHost = document.getElementById("featureless-host");
+        const featurelessRoot = featurelessHost.attachShadow({ mode: "open" });
+        featurelessRoot.innerHTML = `<style>
+            :host { color: rgb(0, 128, 0); background-color: rgb(0, 128, 0); border-top-color: rgb(0, 128, 0); }
+            :host:host { background-color: rgb(0, 128, 0); }
+            div:host { color: rgb(255, 0, 0); }
+            :host.host { background-color: rgb(255, 0, 0); }
+            *:host { border-top-color: rgb(255, 0, 0); }
+        </style>`;
+        const featurelessStyle = getComputedStyle(featurelessHost);
+        println(`featureless valid: ${featurelessStyle.backgroundColor}`);
+        println(`featureless type: ${featurelessStyle.color}`);
+        println(`featureless class: ${featurelessStyle.backgroundColor}`);
+        println(`featureless universal: ${featurelessStyle.borderTopColor}`);
+
+        const closedSlotHost = document.getElementById("closed-slot-host");
+        closedSlotHost.attachShadow({ mode: "closed" }).innerHTML = `
+            <style>:lang(ja)::slotted(*) { color: rgb(0, 128, 0) !important; }</style>
+            <slot lang="ja"></slot>`;
+
+        const partHost = document.getElementById("part-host");
+        const partRoot = partHost.attachShadow({ mode: "open" });
+        partRoot.innerHTML = `<span id="part" part="a">part</span>`;
+        const scopedStyle = document.createElement("style");
+        scopedStyle.textContent = `@scope { :scope::part(a) { color: rgb(0, 0, 255); } }`;
+        partHost.appendChild(scopedStyle);
+
+        await animationFrame();
+        println(`closed slotted: ${getComputedStyle(document.getElementById("slotted-target")).color}`);
+        println(`scoped part: ${getComputedStyle(partRoot.getElementById("part")).color}`);
+        done();
+    });
+</script>

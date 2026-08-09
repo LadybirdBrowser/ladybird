@@ -141,18 +141,7 @@ impl SpecifiedValues {
             value: unsafe { &*value },
         };
         let lookup = match self.lookup(probe) {
-            Lookup::Known(id) => {
-                // A content hit through a pointer this table has not retained would re-scan
-                // linearly on every later intern of the same immutable spelling. Adopt the
-                // spelling as an alias so the pointer index answers all later asks directly.
-                if !self.entries_by_pointer.contains_key(&(value as usize)) {
-                    let retained =
-                        unsafe { RetainedStyleValueData::from_retained_pointer(rust_style_value_retain(value)) };
-                    self.push_entry(id, retained, value as usize);
-                    self.settle_memory(memory);
-                }
-                return (id, Lookup::Known(()));
-            }
+            Lookup::Known(id) => return (id, Lookup::Known(())),
             Lookup::KnownAbsent => Lookup::KnownAbsent,
             Lookup::Missing(gap) => Lookup::Missing(gap),
         };
@@ -274,9 +263,10 @@ mod tests {
         let (reused, reused_lookup) = unsafe { values.intern(std::sync::Arc::as_ptr(&equal_value), &mut memory) };
         assert_eq!(reused, first);
         assert!(matches!(reused_lookup, Lookup::Known(())));
-        // The content hit adopts the second spelling as a pointer alias of the same identity, so
-        // later interns of it answer from the pointer index instead of re-scanning by content.
-        assert_eq!(values.entries_by_pointer.len(), 2);
+        // A content hit does not retain a one-use duplicate spelling. Looking it up again repeats
+        // the collision-safe content lookup against the canonical table.
+        assert_eq!(values.entries_by_pointer.len(), 1);
+        assert!(matches!(values.lookup(probe(&equal_value)), Lookup::Known(id) if id == first));
 
         values.evict();
         assert!(matches!(

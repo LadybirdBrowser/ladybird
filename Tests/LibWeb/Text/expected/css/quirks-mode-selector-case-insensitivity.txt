@@ -1,0 +1,9 @@
+compatMode: BackCompat
+class selector: rgb(0, 128, 0)
+tag and class selector: rgb(0, 0, 255)
+id selector: rgb(255, 0, 0)
+tag and id selector: rgb(255, 0, 255)
+descendant of class selector: rgb(0, 128, 128)
+descendant of id selector: rgb(128, 0, 128)
+class added later: rgb(128, 128, 0)
+id added later: rgb(255, 128, 0)

@@ -1,0 +1,45 @@
+<!DOCTYPE quirks>
+<script src="../include.js"></script>
+<style>
+    .ITEM { color: rgb(0, 128, 0); }
+    div.WIDGET { color: rgb(0, 0, 255); }
+    #HEADER { color: rgb(255, 0, 0); }
+    div#FOOTER { color: rgb(255, 0, 255); }
+    .OUTER .inner { color: rgb(0, 128, 128); }
+    #WRAPPER .inner { color: rgb(128, 0, 128); }
+    .LATER { color: rgb(128, 128, 0); }
+    #LATE { color: rgb(255, 128, 0); }
+</style>
+<div id="item" class="item"></div>
+<div id="widget" class="widget"></div>
+<div id="header"></div>
+<div id="footer"></div>
+<div class="outer"><span id="descendant-of-class" class="inner"></span></div>
+<div id="wrapper"><span id="descendant-of-id" class="inner"></span></div>
+<div id="gains-class"></div>
+<div></div>
+<script>
+    function color(id) {
+        return getComputedStyle(document.getElementById(id)).color;
+    }
+
+    test(() => {
+        println(`compatMode: ${document.compatMode}`);
+        println(`class selector: ${color("item")}`);
+        println(`tag and class selector: ${color("widget")}`);
+        println(`id selector: ${color("header")}`);
+        println(`tag and id selector: ${color("footer")}`);
+        println(`descendant of class selector: ${color("descendant-of-class")}`);
+        println(`descendant of id selector: ${color("descendant-of-id")}`);
+
+        // A class or id arriving after the first style update has to reach the rules naming it in
+        // the other case, which is a question about invalidation rather than about matching.
+        internals.updateStyle();
+        document.getElementById("gains-class").className = "later";
+        println(`class added later: ${color("gains-class")}`);
+
+        internals.updateStyle();
+        document.querySelector("div:last-of-type").id = "late";
+        println(`id added later: ${color("late")}`);
+    });
+</script>

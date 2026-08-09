@@ -1,0 +1,4 @@
+direct before: rgb(1, 1, 1)
+forwarded before: rgb(2, 2, 2)
+direct after: rgb(0, 128, 0)
+forwarded after: rgb(0, 128, 0)

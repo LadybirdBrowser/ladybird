@@ -20,6 +20,7 @@
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
+#include <LibWeb/Layout/Node.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/WebDriver/Actions.h>
@@ -159,10 +160,10 @@ static CSSPixelPoint get_parent_offset(HTML::BrowsingContext const& browsing_con
 
         if (auto paintable_box = container_element->paintable_box()) {
             // 7. Let borderLeftWidth be the computed border-left-width of containerElement in CSS pixels.
-            border_left_width = paintable_box->computed_values().border_left().width;
+            border_left_width = paintable_box->layout_node().border_left().width;
 
             // 8. Let borderTopWidth be the computed border-top-width of containerElement in CSS pixels.
-            border_top_width = paintable_box->computed_values().border_top().width;
+            border_top_width = paintable_box->layout_node().border_top().width;
         }
 
         // 9. Add containerRect.left + borderLeftWidth to offsetLeft.

@@ -317,25 +317,25 @@ ErrorOr<void> ViewTransition::capture_the_old_state()
             });
 
         // 7. Set capture’s old writing-mode to the computed value of writing-mode on element.
-        capture->old_writing_mode = element.layout_node()->computed_values().writing_mode();
+        capture->old_writing_mode = element.layout_node()->writing_mode();
 
         // 8. Set capture’s old direction to the computed value of direction on element.
-        capture->old_direction = element.layout_node()->computed_values().direction();
+        capture->old_direction = element.layout_node()->direction();
 
         // 9. Set capture’s old text-orientation to the computed value of text-orientation on element.
         // FIXME: Implement this once we have text-orientation.
 
         // 10. Set capture’s old mix-blend-mode to the computed value of mix-blend-mode on element.
-        capture->old_mix_blend_mode = element.layout_node()->computed_values().mix_blend_mode();
+        capture->old_mix_blend_mode = element.layout_node()->mix_blend_mode();
 
         // 11. Set capture’s old backdrop-filter to the computed value of backdrop-filter on element.
-        capture->old_backdrop_filter = element.layout_node()->computed_values().backdrop_filter();
+        capture->old_backdrop_filter = element.layout_node()->backdrop_filter();
 
         // 12. Set capture’s old color-scheme to the computed value of color-scheme on element.
-        capture->old_color_scheme = element.layout_node()->computed_values().color_scheme();
+        capture->old_color_scheme = element.layout_node()->color_scheme();
 
         // 13. Let transitionName be the computed value of view-transition-name for element.
-        auto transition_name = element.layout_node()->computed_values().view_transition_name();
+        auto transition_name = element.layout_node()->view_transition_name();
 
         // 14. Set namedElements[transitionName] to capture.
         named_elements.set(transition_name.value(), capture);
@@ -899,10 +899,10 @@ ErrorOr<void> ViewTransition::update_pseudo_element_styles()
             transform = CSS::TransformationStyleValue::create(CSS::PropertyID::Transform, CSS::TransformFunction::Translate, move(transform_values));
 
             // 6. Set writingMode to the computed value of writing-mode on capturedElement’s new element.
-            writing_mode = captured_element->new_element->layout_node()->computed_values().writing_mode();
+            writing_mode = captured_element->new_element->layout_node()->writing_mode();
 
             // 7. Set direction to the computed value of direction on capturedElement’s new element.
-            direction = captured_element->new_element->layout_node()->computed_values().direction();
+            direction = captured_element->new_element->layout_node()->direction();
 
             // 8. Set textOrientation to the computed value of text-orientation on capturedElement’s new
             //    element.
@@ -910,13 +910,13 @@ ErrorOr<void> ViewTransition::update_pseudo_element_styles()
 
             // 9. Set mixBlendMode to the computed value of mix-blend-mode on capturedElement’s new
             //    element.
-            mix_blend_mode = captured_element->new_element->layout_node()->computed_values().mix_blend_mode();
+            mix_blend_mode = captured_element->new_element->layout_node()->mix_blend_mode();
 
             // 10. Set backdropFilter to the computed value of backdrop-filter on capturedElement’s new element.
-            backdrop_filter = captured_element->new_element->layout_node()->computed_values().backdrop_filter();
+            backdrop_filter = captured_element->new_element->layout_node()->backdrop_filter();
 
             // 11. Set colorScheme to the computed value of color-scheme on capturedElement’s new element.
-            color_scheme = captured_element->new_element->layout_node()->computed_values().color_scheme();
+            color_scheme = captured_element->new_element->layout_node()->color_scheme();
         }
 
         // 4. If capturedElement’s group styles rule is null, then set capturedElement’s group styles rule to a new

@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style id="s"></style>
+<div class="x">x</div>
+<script>
+    test(() => {
+        // An `@import` carries a media query of its own, which gates everything the imported sheet
+        // brings in exactly as an `@media` around those rules would. A sheet imported under a
+        // condition that does not hold decides nothing.
+        const sheet = document.getElementById("s").sheet;
+        const imported = "data:text/css," + encodeURIComponent(":root { color: red } .x { color: red }");
+        sheet.insertRule(`@import url("${imported}") (min-width: 100000px);`, 0);
+        sheet.insertRule(`@import url("${imported}") (min-width: 1px);`, 1);
+        internals.updateStyle();
+        println(internals.styleEngineMatchedRules());
+    });
+</script>

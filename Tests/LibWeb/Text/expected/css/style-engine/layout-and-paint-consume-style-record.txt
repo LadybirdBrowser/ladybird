@@ -1,0 +1,10 @@
+initial record is nonzero: true
+layout consumes initial record: true
+paint consumes initial record: true
+layout shares records: true
+metadata-only change publishes a new record: true
+layout consumes metadata-only record: true
+paint consumes metadata-only record: true
+style change publishes a new record: true
+layout consumes changed record: true
+paint consumes changed record: true

@@ -7,6 +7,7 @@
 
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/CSS/Invalidation/ElementStateInvalidator.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ElementFactory.h>
@@ -215,6 +216,10 @@ void HTMLMeterElement::update_meter_value_element()
         else
             m_cached_value_state = ValueState::EvenLessGood;
     }
+
+    // The state is decided here, and the element published the facts it arrived with before this
+    // ever ran, so the engine hears it from here or not at all.
+    CSS::Invalidation::invalidate_style_after_meter_value_state_change(*this);
 
     if (!m_meter_value_element)
         return;

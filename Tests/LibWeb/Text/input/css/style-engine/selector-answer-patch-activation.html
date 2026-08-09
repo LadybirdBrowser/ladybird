@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style id="sheet">
+    #target { color: blue }
+    @media (width < 1px) {
+        #guard .activation-target { color: red }
+    }
+</style>
+<div id="guard"><span id="target" class="activation-target"></span></div>
+<span class="activation-target"></span>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const group = document.getElementById("sheet").sheet.cssRules[1];
+        internals.updateStyle();
+
+        const before = internals.styleEngineCounters();
+        group.media.mediaText = "all";
+        internals.updateStyle();
+        println(`active color: ${getComputedStyle(target).color}`);
+        group.media.mediaText = "(width < 1px)";
+        internals.updateStyle();
+        const after = internals.styleEngineCounters();
+
+        const answerPatches = after.retainedMatchAnswerPatches - before.retainedMatchAnswerPatches
+            + after.retainedMatchAnswerDeltaPatches - before.retainedMatchAnswerDeltaPatches;
+        println(`answer patches: ${answerPatches}`);
+        println(`answer reuses: ${after.retainedMatchAnswerReuses - before.retainedMatchAnswerReuses}`);
+        println(`cold node evaluations: ${after.coldNodesEvaluated - before.coldNodesEvaluated}`);
+        println(`invalidated nodes: ${after.invalidatedStyleNodes - before.invalidatedStyleNodes}`);
+        println(`inactive color: ${getComputedStyle(target).color}`);
+    });
+</script>

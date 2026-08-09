@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .winner {
+        color: green !important;
+    }
+
+    .loser-a {
+        color: red;
+    }
+
+    .loser-b {
+        color: blue;
+    }
+</style>
+<div id="container"></div>
+<script>
+    test(() => {
+        internals.resetStyleInvalidationCounters();
+        const first = document.createElement("span");
+        first.className = "winner loser-a";
+        const second = document.createElement("span");
+        second.className = "winner loser-b";
+        document.getElementById("container").append(first, second);
+        document.body.offsetWidth;
+
+        const counters = internals.getStyleInvalidationCounters();
+        println(`shared equivalent cascade: ${counters.elementStyleSharedComputations >= 1}`);
+        println(`first color: ${getComputedStyle(first).color}`);
+        println(`second color: ${getComputedStyle(second).color}`);
+    });
+</script>

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .item { color: black !important }
+</style>
+<div id="root"></div>
+<script>
+    test(() => {
+        const root = document.getElementById("root");
+        for (let index = 0; index < 100; ++index) {
+            const item = document.createElement("div");
+            item.className = "item";
+            root.appendChild(item);
+        }
+        root.lastElementChild.id = "sentinel";
+
+        internals.updateStyle();
+        const before = internals.styleEngineCounters();
+        println(`winner groups cover the document: ${before.cascadeNodeHandlesPublished >= 100}`);
+        const sheet = document.createElement("style");
+        sheet.textContent = `
+            .item { color: red }
+            #sentinel { outline-color: green }
+        `;
+        document.head.appendChild(sheet);
+        internals.updateStyle();
+        const after = internals.styleEngineCounters();
+
+        println(`losing candidates rejected: ${after.programCandidatesRejectedByCascade - before.programCandidatesRejectedByCascade}`);
+        println(`only local nodes invalidated: ${after.invalidatedStyleNodes - before.invalidatedStyleNodes < 10}`);
+        println(`ordinary item: ${getComputedStyle(root.firstElementChild).color}`);
+        println(`sentinel: ${getComputedStyle(root.lastElementChild).outlineColor}`);
+    });
+</script>

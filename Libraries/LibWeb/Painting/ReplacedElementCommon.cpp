@@ -5,6 +5,7 @@
  */
 
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
+#include <LibWeb/Layout/Node.h>
 #include <LibWeb/Painting/DisplayListRecordingContext.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/ReplacedElementCommon.h>
@@ -73,7 +74,7 @@ Gfx::IntRect get_replaced_box_painting_area(Paintable const& paintable, DisplayL
     auto residual_vertical = paintable_rect.height() - scaled_bitmap_height;
 
     // https://drafts.csswg.org/css-images/#the-object-position
-    auto const& object_position = paintable.computed_values().object_position();
+    auto object_position = paintable.layout_node().object_position();
 
     auto offset_x = CSSPixels::from_raw(0);
     if (object_position.edge_x == CSS::PositionEdge::Left) {

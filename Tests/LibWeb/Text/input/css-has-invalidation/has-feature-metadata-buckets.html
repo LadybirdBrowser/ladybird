@@ -21,10 +21,7 @@
     function printMetadataCounters(label) {
         const counters = internals.getStyleInvalidationCounters();
         println(`[${label}]`);
-        println(`  hasInvalidationMetadataCandidates: ${counters.hasInvalidationMetadataCandidates}`);
-        println(`  hasAncestorWalkInvocations: ${counters.hasAncestorWalkInvocations}`);
-        println(`  hasAncestorWalkVisits: ${counters.hasAncestorWalkVisits}`);
-        println(`  styleInvalidations: ${counters.styleInvalidations}`);
+        println(`  elementStyleRecomputations: ${counters.elementStyleRecomputations}`);
     }
 
     test(() => {

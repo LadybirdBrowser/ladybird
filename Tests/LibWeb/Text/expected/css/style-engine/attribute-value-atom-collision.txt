@@ -1,0 +1,4 @@
+first: rgb(1, 2, 3) / rgba(0, 0, 0, 0)
+second: rgb(0, 0, 0) / rgb(4, 5, 6)
+mutated first: rgb(0, 0, 0) / rgb(4, 5, 6)
+mutated second: rgb(1, 2, 3) / rgba(0, 0, 0, 0)

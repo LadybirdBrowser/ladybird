@@ -90,6 +90,10 @@ define_counters! {
     PrefixTransitionCacheHits => "prefixTransitionCacheHits",
     PrefixTransitionCacheMatchHits => "prefixTransitionCacheMatchHits",
     PrefixTransitionCacheMatchMisses => "prefixTransitionCacheMatchMisses",
+    PrefixTransitionMemoHits => "prefixTransitionMemoHits",
+    PrefixTransitionMemoMisses => "prefixTransitionMemoMisses",
+    PrefixLocalFactIdentityHits => "prefixLocalFactIdentityHits",
+    PrefixLocalFactIdentityMisses => "prefixLocalFactIdentityMisses",
     PrefixAnswerCacheHits => "prefixAnswerCacheHits",
     PrefixAnswerCacheMisses => "prefixAnswerCacheMisses",
     Tier3BenefitEvictions => "tier3BenefitEvictions",
@@ -194,6 +198,18 @@ define_counters! {
     // Style node identity lifecycle.
     StyleNodesAllocated => "styleNodesAllocated",
     DocumentWidenings => "documentWidenings",
+    TransitionProofConfirmed => "transitionProofConfirmed",
+    TransitionProofNoPreviousState => "transitionProofNoPreviousState",
+    TransitionProofGenerationGap => "transitionProofGenerationGap",
+    TransitionProofMissingAnswer => "transitionProofMissingAnswer",
+    TransitionProofElementDeclarations => "transitionProofElementDeclarations",
+    TransitionProofRemoval => "transitionProofRemoval",
+    TransitionProofUnsafeRule => "transitionProofUnsafeRule",
+    TransitionProofPseudoOrScope => "transitionProofPseudoOrScope",
+    TransitionProofElementWinnerGap => "transitionProofElementWinnerGap",
+    TransitionProofOperatorOrContinuation => "transitionProofOperatorOrContinuation",
+    TransitionProofWinnerGap => "transitionProofWinnerGap",
+    TransitionProofPriorityWin => "transitionProofPriorityWin",
 }
 
 /// The counter set for one document.

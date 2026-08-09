@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .target { color: green }
+</style>
+<div id="target" class="target"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const sheet = new CSSStyleSheet();
+        sheet.replaceSync("#target { color: red }");
+        internals.updateStyle();
+
+        const before = internals.styleEngineCounters();
+        document.adoptedStyleSheets = [sheet];
+        internals.updateStyle();
+        println(`attached color: ${getComputedStyle(target).color}`);
+        document.adoptedStyleSheets = [];
+        internals.updateStyle();
+        const after = internals.styleEngineCounters();
+
+        const answerPatches = after.retainedMatchAnswerPatches - before.retainedMatchAnswerPatches
+            + after.retainedMatchAnswerDeltaPatches - before.retainedMatchAnswerDeltaPatches;
+        println(`answer patches: ${answerPatches}`);
+        println(`answer reuses: ${after.retainedMatchAnswerReuses - before.retainedMatchAnswerReuses}`);
+        println(`cold node evaluations: ${after.coldNodesEvaluated - before.coldNodesEvaluated}`);
+        println(`invalidated nodes: ${after.invalidatedStyleNodes - before.invalidatedStyleNodes}`);
+        println(`detached color: ${getComputedStyle(target).color}`);
+    });
+</script>

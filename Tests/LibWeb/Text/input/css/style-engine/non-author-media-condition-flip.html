@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div class="target">target</div>
+<script>
+    test(() => {
+        const target = document.querySelector(".target");
+        internals.setPreferredColorScheme("light");
+        internals.setUserStyle(`
+            @media (prefers-color-scheme: dark) {
+                .target { color: rgb(1, 2, 3); }
+            }
+        `);
+        internals.updateStyle();
+        println(`light: ${getComputedStyle(target).color}`);
+
+        internals.setPreferredColorScheme("dark");
+        internals.updateStyle();
+        println(`dark: ${getComputedStyle(target).color}`);
+
+        internals.setUserStyle("");
+        internals.setPreferredColorScheme("auto");
+    });
+</script>

@@ -1,0 +1,6 @@
+unsupported pseudo-classes: 0
+uninterned names: 0
+malformed: 0
+unsupported combinators: 0
+unsupported pseudo-elements: 0
+exact entries: true

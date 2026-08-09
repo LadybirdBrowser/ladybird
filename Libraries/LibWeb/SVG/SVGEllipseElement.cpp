@@ -21,7 +21,8 @@ SVGEllipseElement::SVGEllipseElement(DOM::Document& document, DOM::QualifiedName
 
 Gfx::Path SVGEllipseElement::get_path(CSSPixelSize viewport_size)
 {
-    auto const& computed_values = this->computed_values();
+    auto computed_values = this->computed_style();
+    VERIFY(computed_values);
 
     auto computed_rx = computed_values->rx();
     auto computed_ry = computed_values->ry();

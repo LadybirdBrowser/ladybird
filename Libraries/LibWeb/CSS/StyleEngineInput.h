@@ -27,6 +27,7 @@ class StyleEngine;
 // identity if it does not have one yet.
 WEB_API void record_element_connected(DOM::Element&);
 WEB_API void prepare_style_nodes_for_subtree(DOM::Node&);
+WEB_API void publish_pending_element_features(StyleEngine&, StyleComputer&);
 
 // Populate an isolated engine with the current facts of a DOM tree. The callback receives the temporary identity
 // assigned to each element; no identity or transaction in the document's
@@ -109,6 +110,7 @@ WEB_API void record_stylesheet_detached(CSSStyleSheet&, DOM::Node& document_or_s
 // Called once a sheet's media queries have been evaluated.
 WEB_API void record_stylesheet_conditions(CSSStyleSheet&, DOM::Node& document_or_shadow_root, bool conditions_hold);
 WEB_API void record_stylesheet_rule_conditions(CSSStyleSheet&);
+WEB_API void record_stylesheet_rule_conditions(CSSStyleSheet&, DOM::Document&);
 
 WEB_API void record_element_id_changed(DOM::Element&, Optional<Utf16FlyString> const& old_value, Optional<Utf16FlyString> const& new_value);
 WEB_API void record_element_class_list_changed(DOM::Element&, Vector<Utf16FlyString> const& old_classes, Vector<Utf16FlyString> const& new_classes);

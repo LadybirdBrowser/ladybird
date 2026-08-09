@@ -1,7 +1,1 @@
 [after add .descendant (no :has() in sheet)]
-  hasAncestorWalkInvocations: 0
-  hasAncestorWalkVisits: 0
-  hasMatchInvocations: 0
-  hasResultCacheHits: 0
-  hasResultCacheMisses: 0
-  styleInvalidations: 1

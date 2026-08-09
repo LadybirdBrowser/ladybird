@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="plan.js"></script>
+<style>
+    .card:has(.error) .button { color: green }
+    .simple:has(.flag) { color: green }
+    .child:has(> .direct) { color: green }
+    .sibling:has(+ .next) { color: green }
+    .complex:has(.a .b) { color: green }
+    .negated:has(#probe:not(.a .b)) { color: green }
+    .listed:has(:is(.a .b, .c)) { color: green }
+    .anchored:has(#anchored-probe:is(.up .down)) { color: green }
+    .adjacent:has(+ .row .cell) { color: green }
+    .general:has(~ .row .deep) { color: green }
+    .menu:has(> .flag) > :first-child { color: green }
+    .leaving:has(.gone) { color: green }
+    .leaving-sibling:has(~ .gone) { color: green }
+    .hollow:has(.box:empty) { color: green }
+    .texted:has(.slot:empty) { color: green }
+    .listed-alternatives:has(.first, .second) { color: green }
+    .anything:has(*) { color: green }
+    .positional:has(> :last-child) { color: green }
+    .constrained:has(:required) { color: green }
+    .seam .before + .after { color: green }
+</style>
+<div id="card" class="card">
+    <span id="witness"></span>
+    <span id="button" class="button"></span>
+</div>
+<div id="outside" class="button"></div>
+<div id="simple" class="simple"><span id="flagged"></span></div>
+<div id="child" class="child"><span id="direct-child"></span></div>
+<div id="sibling" class="sibling"></div><span id="next-sibling"></span>
+<div id="complex" class="complex"><span id="outer"><span id="inner"></span></span></div>
+<div id="negated" class="negated"><span id="probe"></span></div>
+<div id="listed" class="listed"><span id="outer2"><span id="inner2"></span></span></div>
+<div id="above"><div id="anchored" class="anchored"><span id="anchored-probe" class="down"></span></div></div>
+<div id="adjacent" class="adjacent"></div><div id="adjacent-row" class="row"><span id="adjacent-cell"></span></div>
+<div id="general" class="general"></div><div></div><div id="general-row" class="row"><span id="general-deep"></span></div>
+<div id="leaving" class="leaving"><span id="departing" class="gone"></span></div>
+<div id="leaving-sibling" class="leaving-sibling"></div><span id="departing-sibling" class="gone"></span>
+<div id="texted" class="texted"><div id="slot" class="slot"></div></div>
+<div id="hollow" class="hollow"><div id="box" class="box"></div></div>
+<div id="listed-alternatives" class="listed-alternatives"></div>
+<div id="listed-alternatives-2" class="listed-alternatives"></div>
+<div id="anything" class="anything"></div>
+<div id="positional" class="positional"><span id="positional-first"></span></div>
+<div id="constrained" class="constrained"></div>
+<div id="seam" class="seam"><span id="seam-before" class="before"></span><span id="seam-middle"></span><span id="seam-after" class="after"></span></div>
+<div id="menu" class="menu"><div id="menu-first"></div><div id="menu-flagged"></div><div id="menu-3"></div><div id="menu-4"></div></div>
+<script>
+    test(() => {
+        // A relational query resolves its anchors first: the change reaches the .button elements
+        // under the .card ancestors of the witness, not every descendant of every ancestor.
+        plan("a witness gains the argument's class", () => document.getElementById("witness").classList.add("error"));
+        plan("and loses it again", () => document.getElementById("witness").classList.remove("error"));
+
+        // The subject of a bare `:has()` is the anchor itself.
+        plan("a bare :has() subject", () => document.getElementById("flagged").classList.add("flag"));
+
+        // A child query has exactly one possible anchor, and a sibling query one too.
+        plan("a child query", () => document.getElementById("direct-child").classList.add("direct"));
+        plan("a sibling query", () => document.getElementById("next-sibling").classList.add("next"));
+
+        // An argument with more than one compound has no single axis its witnesses sit on, but they
+        // are all inside the anchor's subtree, so the descendant axis still bounds the search.
+        plan("a descendant-combinator argument", () => {
+            document.getElementById("outer").classList.add("a");
+            document.getElementById("inner").classList.add("b");
+        });
+        plan("a :not() holding a combinator", () => document.getElementById("probe").classList.add("a"));
+        plan("an :is() holding a combinator", () => document.getElementById("inner2").classList.add("c"));
+
+        // The steps inside a relative argument lead from the anchor to a witness, not from the
+        // anchor to the entry's subjects, so they are not followed: doing so sent the query looking
+        // for its own subject among that subject's descendants.
+        //
+        // The changed element is then a step above a witness rather than one itself, and when the
+        // argument reaches out of the anchor's subtree it is above the anchor entirely. Neither is
+        // reachable by walking from it, so the witnesses are enumerated by what the query says they
+        // carry, and the anchors are walked from those.
+        plan("an argument reaching down from the anchor", () => document.getElementById("anchored").classList.add("up"));
+        plan("an argument reaching up out of the anchor", () => document.getElementById("above").classList.add("up"));
+
+        // A leading sibling combinator with more compounds puts the witness under a sibling rather
+        // than making it one, so the anchors are the siblings before the witness's ancestors.
+        plan("a witness under the adjacent sibling", () => document.getElementById("adjacent-cell").classList.add("cell"));
+        plan("a witness under a following sibling", () => document.getElementById("general-deep").classList.add("deep"));
+
+        // A subject with no feature to enumerate by can still be bounded by where in a sequence it
+        // is allowed to be, so a `:first-child` subject names one child of the anchor however many
+        // children the anchor has.
+        plan("a positional subject under the anchor", () => document.getElementById("menu-flagged").classList.add("flag"));
+
+        // A witness leaving takes its facts with it, and routing runs once it has already been
+        // detached, so no walk from it finds the anchors. Its old relations still say where they
+        // were: above it for a descendant query, behind it for a sibling one.
+        plan("a witness is removed", () => document.getElementById("departing").remove());
+        plan("a sibling witness is removed", () => document.getElementById("departing-sibling").remove());
+
+        // A child arriving changes whether its parent is empty and nothing else about it, so the
+        // parent is the witness of a query that asks.
+        plan("a witness stops being empty", () => document.getElementById("box").appendChild(make("span", "filling")));
+
+        // A text node connects no element, so no tree delta carries it, but it decides whether its
+        // parent is empty just as an element does.
+        plan("text makes a witness non-empty", () => document.getElementById("slot").appendChild(document.createTextNode("x")));
+        plan("and removing it makes it empty again", () => document.getElementById("slot").firstChild.remove());
+
+        // A selector list holds when any one of its arguments does, so every alternative reaches the
+        // anchor and not just whichever one was compiled.
+        plan("the first alternative of a listed argument", () =>
+            document.getElementById("listed-alternatives").appendChild(make("span", "listed-hit", { className: "first" })));
+        plan("the second alternative of a listed argument", () =>
+            document.getElementById("listed-alternatives-2").appendChild(make("span", "listed-hit-2", { className: "second" })));
+
+        // A witness naming no fact is reached by nothing an arriving element publishes, so the
+        // arrival itself is what has to be asked.
+        plan("an argument that names no fact at all", () =>
+            document.getElementById("anything").appendChild(make("span", "anything-child")));
+
+        // A position is decided by the child sequence rather than published by the element, so the
+        // element that has just become the last child is asked in the same way.
+        plan("an argument that names a position", () =>
+            document.getElementById("positional").appendChild(make("span", "positional-last")));
+
+        // A control arrives already required, which no attribute the engine indexes says.
+        plan("an argument that names a constraint", () =>
+            document.getElementById("constrained").appendChild(make("input", "constrained-input", { attributes: { required: "" } })));
+
+        // An element leaving from between two others makes them adjacent, which is a change to what
+        // the one that follows names as its previous sibling.
+        plan("a sibling seam closing over a departure", () => document.getElementById("seam-middle").remove());
+    });
+</script>

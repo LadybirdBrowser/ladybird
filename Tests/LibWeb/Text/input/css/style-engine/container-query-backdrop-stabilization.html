@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .container {
+        container-type: size;
+        width: 200px;
+        height: 60px;
+    }
+    @container (min-width: 300px) {
+        #target::backdrop { color: rgb(2, 2, 2); }
+    }
+</style>
+<main id="container" class="container"><div id="target">Text</div></main>
+<script>
+    test(() => {
+        println(getComputedStyle(target, "::backdrop").color);
+        container.style.width = "300px";
+        println(getComputedStyle(target, "::backdrop").color);
+    });
+</script>

@@ -8,7 +8,7 @@
 
 namespace Web::Layout {
 
-TextInputBox::TextInputBox(DOM::Document& document, GC::Ptr<DOM::Element> element, NonnullRefPtr<CSS::ComputedValues const> style)
+TextInputBox::TextInputBox(DOM::Document& document, GC::Ptr<DOM::Element> element, CSS::LayoutStyle style)
     : BlockContainer(document, element, style)
 {
 }
@@ -36,9 +36,9 @@ CSS::SizeWithAspectRatio TextInputBox::default_preferred_size_for_text_control(H
 
     // FIXME: HTML does not yet detail the primitive appearance of text inputs. Use one line for the default preferred
     //        block size, matching the native appearance described by HTML and the behavior of other engines.
-    auto block_size = box.computed_values().line_height();
+    auto block_size = box.line_height();
 
-    if (box.computed_values().writing_mode() != CSS::WritingMode::HorizontalTb)
+    if (box.writing_mode() != CSS::WritingMode::HorizontalTb)
         return { block_size, inline_size, {} };
 
     return { inline_size, block_size, {} };

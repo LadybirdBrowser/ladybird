@@ -17,7 +17,7 @@
 
 namespace Web::Layout {
 
-Viewport::Viewport(DOM::Document& document, NonnullRefPtr<CSS::ComputedValues const> style)
+Viewport::Viewport(DOM::Document& document, CSS::LayoutStyle style)
     : BlockContainer(document, &document, style)
 {
 }
@@ -86,8 +86,8 @@ void Viewport::update_text_blocks()
         }
 
         if (auto* text_node = as_if<Layout::TextNode>(layout_node)) {
-            auto const& computed_values = text_node->parent()->computed_values();
-            if (computed_values.visibility() != CSS::Visibility::Visible || computed_values.opacity() == 0)
+            auto const& style_source = *text_node->parent();
+            if (style_source.visibility() != CSS::Visibility::Visible || style_source.opacity() == 0)
                 return TraversalDecision::Continue;
 
             // https://html.spec.whatwg.org/multipage/interaction.html#inert-subtrees
@@ -101,7 +101,7 @@ void Viewport::update_text_blocks()
             if (dom_node.is_inert())
                 return TraversalDecision::Continue;
 
-            auto white_space_collapse = computed_values.white_space_collapse();
+            auto white_space_collapse = style_source.white_space_collapse();
             auto const should_collapse = first_is_one_of(white_space_collapse,
                 CSS::WhiteSpaceCollapse::Collapse,
                 CSS::WhiteSpaceCollapse::PreserveBreaks);

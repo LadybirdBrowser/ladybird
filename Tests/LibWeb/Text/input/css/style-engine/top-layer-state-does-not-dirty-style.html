@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #popover { color: rgb(1, 2, 3); }
+    #popover:popover-open { color: rgb(4, 5, 6); }
+</style>
+<div id="popover" popover="manual"></div>
+<script>
+    test(() => {
+        const popover = document.getElementById("popover");
+        internals.updateStyle();
+
+        internals.resetStyleInvalidationCounters();
+        popover.showPopover();
+        internals.updateStyle();
+        const shownUpdateCounters = internals.getStyleInvalidationCounters();
+        const shownColor = getComputedStyle(popover).color;
+        const shownReadCounters = internals.getStyleInvalidationCounters();
+
+        popover.hidePopover();
+        internals.updateStyle();
+        const hiddenUpdateCounters = internals.getStyleInvalidationCounters();
+        const hiddenColor = getComputedStyle(popover).color;
+        const hiddenReadCounters = internals.getStyleInvalidationCounters();
+
+        println("shown color: " + shownColor);
+        println("shown reaction batch runs: " + shownUpdateCounters.styleEngineReactionBatchRuns);
+        println("shown reaction elements: " + shownUpdateCounters.styleEngineReactionElements);
+        println("shown published reactions: " + shownUpdateCounters.styleEnginePublishedReactions);
+        println("shown recomputations: " + shownUpdateCounters.elementStyleRecomputations);
+        println("shown read recomputations: " + (shownReadCounters.elementStyleRecomputations - shownUpdateCounters.elementStyleRecomputations));
+        println("hidden color: " + hiddenColor);
+        println("hidden reaction batch runs: " + (hiddenUpdateCounters.styleEngineReactionBatchRuns - shownReadCounters.styleEngineReactionBatchRuns));
+        println("hidden reaction elements: " + (hiddenUpdateCounters.styleEngineReactionElements - shownReadCounters.styleEngineReactionElements));
+        println("hidden published reactions: " + (hiddenUpdateCounters.styleEnginePublishedReactions - shownReadCounters.styleEnginePublishedReactions));
+        println("hidden recomputations: " + (hiddenUpdateCounters.elementStyleRecomputations - shownReadCounters.elementStyleRecomputations));
+        println("hidden read recomputations: " + (hiddenReadCounters.elementStyleRecomputations - hiddenUpdateCounters.elementStyleRecomputations));
+    });
+</script>

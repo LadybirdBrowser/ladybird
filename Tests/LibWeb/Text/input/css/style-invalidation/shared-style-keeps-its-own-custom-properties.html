@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../../include.js"></script>
+<script src="structural-matrix.js"></script>
+<script>
+    test(() => {
+        const style = addStyle(document.head, `
+            .red-theme { --theme: red; }
+            .blue-theme { --theme: blue; }
+            .plain-kid { color: rgb(1, 2, 3); }
+        `);
+
+        const box = makeElement("section");
+        for (const parentClass of ["red-theme", "blue-theme"]) {
+            const parent = makeElement("div", { className: parentClass });
+            parent.appendChild(makeElement("div", { className: "plain-kid" }));
+            box.appendChild(parent);
+        }
+        document.body.append(box);
+
+        resetStyleCounters();
+        internals.updateStyle();
+        const shared = styleCounters().elementStyleSharedComputations;
+
+        // Neither child reads a custom property, so what their parents declare cannot decide
+        // anything about them and they compute one style between them.
+        const [redKid, blueKid] = box.querySelectorAll(".plain-kid");
+        println(`PASS: children that read no custom property share a style: ${shared >= 1}`);
+
+        // Taking the other child's style must not take the other parent's environment with it.
+        assertEqual("the red parent's child", getComputedStyle(redKid).getPropertyValue("--theme"), "red");
+        assertEqual("the blue parent's child", getComputedStyle(blueKid).getPropertyValue("--theme"), "blue");
+        println("PASS: each of them still inherits its own parent's custom properties");
+
+        box.remove();
+        style.remove();
+    });
+</script>

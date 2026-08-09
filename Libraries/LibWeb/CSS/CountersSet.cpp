@@ -181,7 +181,7 @@ static ReversedScopeWalkDecision apply_reversed_counter_contribution(ReversedSco
 static ReversedScopeWalkDecision walk_reversed_counter_sibling_run(ReversedScopeWalkState& state, GC::Ptr<DOM::Element> first)
 {
     for (auto element = first; element; element = element->next_element_sibling()) {
-        auto style = element->computed_values();
+        auto style = element->computed_style();
         if (!style || style->display().is_none())
             continue;
         bool resets_name = false;
@@ -232,7 +232,10 @@ static CounterValue reversed_counter_start_value(Utf16FlyString const& name, DOM
 void resolve_counters(DOM::AbstractElement& element_reference)
 {
     // Resolving counter values on a given element is a multi-step process:
-    auto const& style = *element_reference.computed_values();
+    auto const* box_values = element_reference.style_group<ComputedValues::BoxValues>();
+    auto const* content_values = element_reference.style_group<ComputedValues::ContentValues>();
+    VERIFY(box_values);
+    VERIFY(content_values);
 
     // 1. Existing counters are inherited from previous elements.
     inherit_counters(element_reference);
@@ -241,14 +244,17 @@ void resolve_counters(DOM::AbstractElement& element_reference)
     // An element that does not generate a box (for example, an element with display set to none,
     // or a pseudo-element with content set to none) cannot set, reset, or increment a counter.
     // The counter properties are still valid on such an element, but they must have no effect.
-    if (style.display().is_none())
+    if (display_from_ffi_display(box_values->display).is_none())
         return;
 
+    auto style = element_reference.computed_style();
+    VERIFY(style);
+
     // 2. New counters are instantiated (counter-reset).
-    for (auto const& counter : style.counter_reset()) {
+    for (auto const& counter : content_values->counter_reset) {
         auto value = counter.value;
         if (counter.is_reversed && !value.has_value())
-            value = reversed_counter_start_value(counter.name, element_reference, style);
+            value = reversed_counter_start_value(counter.name, element_reference, *style);
         element_reference.ensure_counters_set().instantiate_a_counter(counter.name, element_reference, counter.is_reversed, value);
     }
 
@@ -259,10 +265,10 @@ void resolve_counters(DOM::AbstractElement& element_reference)
     //    new counter.
 
     // 3. Counter values are incremented (counter-increment).
-    for (auto const& counter : style.counter_increment())
+    for (auto const& counter : content_values->counter_increment)
         element_reference.ensure_counters_set().increment_a_counter(counter.name, element_reference, *counter.value);
 
-    if (style_has_implicit_list_item_increment(style)) {
+    if (style_has_implicit_list_item_increment(*style)) {
         auto& counters = element_reference.ensure_counters_set();
         auto innermost_list_item_counter = counters.last_counter_with_name(list_item_counter_name());
         bool reversed = innermost_list_item_counter.has_value() && innermost_list_item_counter->reversed;
@@ -270,7 +276,7 @@ void resolve_counters(DOM::AbstractElement& element_reference)
     }
 
     // 4. Counter values are explicitly set (counter-set).
-    for (auto const& counter : style.counter_set())
+    for (auto const& counter : content_values->counter_set)
         element_reference.ensure_counters_set().set_a_counter(counter.name, element_reference, *counter.value);
 
     // 5. Counter values are used (counter()/counters()).

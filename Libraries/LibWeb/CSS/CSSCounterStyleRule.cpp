@@ -348,7 +348,7 @@ void CSSCounterStyleRule::clear_caches()
 
     parent_style_sheet->for_each_owning_style_scope([&](StyleScope& style_scope) {
         style_scope.invalidate_counter_style_cache();
-        style_scope.node().invalidate_style(DOM::StyleInvalidationReason::CounterStyleCacheInvalidated);
+        style_scope.node().record_style_environment_change();
     });
 }
 

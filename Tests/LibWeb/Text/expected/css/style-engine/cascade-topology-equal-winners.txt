@@ -1,0 +1,2 @@
+reverse layers with equal ordinary winners: [sentinel]
+restore layers with equal ordinary winners: [sentinel]

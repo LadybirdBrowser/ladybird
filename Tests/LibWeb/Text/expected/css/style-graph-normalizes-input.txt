@@ -1,0 +1,11 @@
+initial tree used one bulk load: true
+initial bulk load installed every connected element: true
+initial matching used one bulk load: true
+initial matching published every connected element: true
+recorded more raw mutations than normalized keys: true
+cancellations: true
+tree deltas recorded: true
+feature deltas recorded: true
+style nodes allocated: true
+no scope markers: true
+an arriving element's facts folded onto its arrival: true

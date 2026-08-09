@@ -1,0 +1,2 @@
+PASS: children that read no custom property share a style: true
+PASS: each of them still inherits its own parent's custom properties

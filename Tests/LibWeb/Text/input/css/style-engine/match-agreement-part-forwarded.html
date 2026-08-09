@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .outer::part(popup) { color: rgb(1, 2, 3) }
+    ::part(popup) { background-color: rgb(4, 5, 6) }
+</style>
+<x-outer id="outer" class="outer"></x-outer>
+<script>
+    test(() => {
+        const outer = document.getElementById("outer").attachShadow({ mode: "open" });
+        outer.innerHTML = `<x-inner class="inner" exportparts="popup"></x-inner>`;
+        const inner = outer.querySelector("x-inner").attachShadow({ mode: "open" });
+        inner.innerHTML = `<div part="popup">popup</div>`;
+        // A forwarded part is addressed from the outermost host that exports it, so the outer
+        // compound of a `::part()` rule describes that host and not the one the part sits under.
+        const part = inner.querySelector("div");
+        println("color: " + getComputedStyle(part).color);
+        println("background-color: " + getComputedStyle(part).backgroundColor);
+        println(internals.styleEngineMatchedRules());
+    });
+</script>

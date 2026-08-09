@@ -8,6 +8,7 @@
 
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleSheetList.h>
 #include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
 #include <LibWeb/DOM/Document.h>
@@ -74,13 +75,27 @@ void StyleElementBase::update_a_style_block(UpdateSource update_source)
 
     // 1. Let element be the style element.
     // 2. If element has an associated CSS style sheet, remove the CSS style sheet in question.
+    Optional<GC::Root<CSS::CSSStyleSheet>> replaced_sheet;
+    Optional<GC::Root<CSS::StyleSheetList>> replaced_sheet_list;
+    bool defer_style_engine_update = false;
     if (m_associated_css_style_sheet) {
-        m_style_sheet_list->remove_a_css_style_sheet(*m_associated_css_style_sheet);
+        defer_style_engine_update = m_associated_css_style_sheet->style_engine_sheet_id() != 0;
+        replaced_sheet = GC::Root { *m_associated_css_style_sheet };
+        replaced_sheet_list = GC::Root { *m_style_sheet_list };
+        m_style_sheet_list->remove_a_css_style_sheet(
+            *m_associated_css_style_sheet,
+            defer_style_engine_update ? CSS::StyleSheetList::StyleEngineUpdate::Defer : CSS::StyleSheetList::StyleEngineUpdate::Record);
         m_style_sheet_list = nullptr;
 
         // FIXME: This should probably be handled by StyleSheet::set_owner_node().
         m_associated_css_style_sheet = nullptr;
     }
+    auto record_deferred_detachment = [&] {
+        if (!defer_style_engine_update)
+            return;
+        CSS::record_stylesheet_detached(**replaced_sheet, (*replaced_sheet_list)->document_or_shadow_root());
+        defer_style_engine_update = false;
+    };
 
     // AD-HOC: The script-blocking style sheet set tracks elements, but a style element's associated sheet can be
     //         replaced before that sheet's critical subresources finish loading. Keep that set and any queued
@@ -90,18 +105,24 @@ void StyleElementBase::update_a_style_block(UpdateSource update_source)
     clear_associated_css_style_sheet_parser_blocking_state();
 
     // 3. If element is not connected, then return.
-    if (!style_element.is_connected())
+    if (!style_element.is_connected()) {
+        record_deferred_detachment();
         return;
+    }
 
     // 4. If element's type attribute is present and its value is neither the empty string nor an ASCII case-insensitive match for "text/css", then return.
     auto type_attribute = style_element.attribute(HTML::AttributeNames::type);
-    if (type_attribute.has_value() && !type_attribute->is_empty() && !type_attribute->equals_ignoring_ascii_case(u"text/css"sv))
+    if (type_attribute.has_value() && !type_attribute->is_empty() && !type_attribute->equals_ignoring_ascii_case(u"text/css"sv)) {
+        record_deferred_detachment();
         return;
+    }
 
     // 5. If the Should element's inline behavior be blocked by Content Security Policy? algorithm returns "Blocked" when executed upon the style element, "style", and the style element's child text content, then return. [CSP]
     auto child_text = style_element.child_text_content();
-    if (ContentSecurityPolicy::should_elements_inline_type_behavior_be_blocked_by_content_security_policy(style_element, ContentSecurityPolicy::Directives::Directive::InlineType::Style, child_text.utf16_view()) == ContentSecurityPolicy::Directives::Directive::Result::Blocked)
+    if (ContentSecurityPolicy::should_elements_inline_type_behavior_be_blocked_by_content_security_policy(style_element, ContentSecurityPolicy::Directives::Directive::InlineType::Style, child_text.utf16_view()) == ContentSecurityPolicy::Directives::Directive::Result::Blocked) {
+        record_deferred_detachment();
         return;
+    }
 
     // 6. Create a CSS style sheet with the following properties:
     //        type
@@ -139,7 +160,19 @@ void StyleElementBase::update_a_style_block(UpdateSource update_source)
         CSS::StyleSheetList::OriginClean::Yes,
         {},
         nullptr,
-        nullptr);
+        nullptr,
+        defer_style_engine_update ? CSS::StyleSheetList::StyleEngineUpdate::Defer : CSS::StyleSheetList::StyleEngineUpdate::Record);
+
+    if (defer_style_engine_update) {
+        m_associated_css_style_sheet->set_style_engine_sheet_id((*replaced_sheet)->style_engine_sheet_id());
+        CSS::record_stylesheet_rules_replaced(*m_associated_css_style_sheet);
+        m_associated_css_style_sheet->evaluate_media_queries(style_element.document());
+        CSS::record_stylesheet_conditions(
+            *m_associated_css_style_sheet,
+            m_style_sheet_list->document_or_shadow_root(),
+            !m_associated_css_style_sheet->disabled() && m_associated_css_style_sheet->media()->matches());
+        defer_style_engine_update = false;
+    }
 
     evaluate_associated_style_sheet_media_queries();
     if (update_source == UpdateSource::ParserPop) {

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #declares-font-size { font-size: 12px; }
+    #em-margin { margin-left: 2em; }
+    #plain { border: 2px solid; }
+</style>
+<div id="root">
+    <div><div><div id="plain">plain</div></div></div>
+    <div id="declares-font-size">declares font size</div>
+    <div id="em-margin">em margin</div>
+</div>
+<script>
+    test(() => {
+        const root = document.getElementById("root");
+        const plain = document.getElementById("plain");
+        const declaresFontSize = document.getElementById("declares-font-size");
+        const emMargin = document.getElementById("em-margin");
+
+        getComputedStyle(plain).fontSize;
+        internals.updateStyle();
+        internals.resetStyleInvalidationCounters();
+
+        root.style.fontSize = "20px";
+        internals.updateStyle();
+
+        println(`plain font size: ${getComputedStyle(plain).fontSize}`);
+        println(`declared font size: ${getComputedStyle(declaresFontSize).fontSize}`);
+        println(`em margin: ${getComputedStyle(emMargin).marginLeft}`);
+
+        const counters = internals.getStyleInvalidationCounters();
+        println(`inherited recomputations: ${counters.elementInheritedStyleRecomputations}`);
+        println(`answered by group swap: ${counters.elementInheritedStyleGroupSwaps}`);
+
+        internals.resetStyleInvalidationCounters();
+        root.style.color = "rgb(0, 128, 0)";
+        internals.updateStyle();
+
+        println(`plain color: ${getComputedStyle(plain).color}`);
+        println(`plain border color: ${getComputedStyle(plain).borderTopColor}`);
+        const colorCounters = internals.getStyleInvalidationCounters();
+        println(`color inherited recomputations: ${colorCounters.elementInheritedStyleRecomputations}`);
+        println(`color answered by group swap: ${colorCounters.elementInheritedStyleGroupSwaps}`);
+    });
+</script>

@@ -19,7 +19,7 @@ impl StyleEngine {
         }
         let initialized = pending_order.is_some() || self.program.layer_order_is_initialized(scope);
         self.pending_program_base_version.get_or_insert(self.program.version());
-        self.invalidate_scope_programs();
+        self.invalidate_scope_program(scope);
         self.pending_layer_orders.insert(scope, ranks);
         if initialized {
             self.record_layer_topology_change(scope);
@@ -116,6 +116,7 @@ impl StyleEngine {
             return;
         }
         self.pending_program_base_version.get_or_insert(self.program.version());
+        self.invalidate_scope_programs_for_sheet(self.program.rule_sheet(rule));
         self.pending_rule_declarations
             .insert(rule, PendingRuleDeclarations { declared, complete });
     }
@@ -498,7 +499,7 @@ impl StyleEngine {
             return;
         }
         self.pending_program_base_version.get_or_insert(self.program.version());
-        self.invalidate_scope_programs();
+        self.invalidate_scope_programs_for_sheet(self.program.rule_sheet(rule));
         self.pending_rule_versions.stage(rule, contents);
     }
 
@@ -516,7 +517,7 @@ impl StyleEngine {
             return;
         }
         self.pending_program_base_version.get_or_insert(self.program.version());
-        self.invalidate_scope_programs();
+        self.invalidate_scope_programs_for_sheet(self.program.rule_sheet(rule));
         self.pending_rule_gated_by_container_query.stage(rule, gated);
     }
 
@@ -526,6 +527,7 @@ impl StyleEngine {
             return;
         }
         self.pending_program_base_version.get_or_insert(self.program.version());
+        self.invalidate_scope_programs_for_sheet(self.program.rule_sheet(rule));
         self.pending_rule_in_a_layer.stage(rule, in_a_layer);
     }
 
@@ -625,7 +627,9 @@ impl StyleEngine {
 
     pub(super) fn stage_rule_liveness(&mut self, rule: RuleID, live: bool) {
         self.pending_program_base_version.get_or_insert(self.program.version());
-        self.invalidate_scope_programs();
+        if !self.rule_change_is_carried_by_its_sheet(rule) {
+            self.invalidate_scope_programs_for_sheet(self.program.rule_sheet(rule));
+        }
         self.pending_rule_liveness.stage(rule, live);
     }
 
@@ -665,8 +669,41 @@ impl StyleEngine {
     }
 
     pub(super) fn stage_sheets_in_scope(&mut self, tree_scope: TreeScopeID, sheets: Vec<SheetID>) {
+        self.rule_change_is_carried_by_sheet.clear();
         self.pending_program_base_version.get_or_insert(self.program.version());
-        self.invalidate_scope_programs();
+        if tree_scope == TreeScopeID::DOCUMENT {
+            // Ordinary shadow roots add only the document's non-author sheets to their local sheet
+            // set. Keep their ranked programs when a document author sheet changes, while scopes
+            // that explicitly consume document author sheets still follow every document change.
+            let non_author_changed = self
+                .current_sheets_in_scope(tree_scope)
+                .into_iter()
+                .filter(|&sheet| self.program.sheet_origin(sheet) != CascadeOrigin::Author)
+                .ne(sheets
+                    .iter()
+                    .copied()
+                    .filter(|&sheet| self.program.sheet_origin(sheet) != CascadeOrigin::Author));
+            let scopes: Vec<_> = self
+                .scope_program_by_scope
+                .iter()
+                .enumerate()
+                .filter_map(|(index, retained)| {
+                    let (_, program) = retained.as_ref()?;
+                    let invalidate = index == TreeScopeID::DOCUMENT.0 as usize
+                        || self.scope_program(*program).key.document_sheet_mode == DocumentSheetMode::All
+                        || (non_author_changed
+                            && self.scope_program(*program).key.document_sheet_mode == DocumentSheetMode::NonAuthor);
+                    invalidate.then_some(TreeScopeID(
+                        u32::try_from(index).expect("tree scope identity space exhausted"),
+                    ))
+                })
+                .collect();
+            for scope in scopes {
+                self.invalidate_concrete_scope_program(scope);
+            }
+        } else {
+            self.invalidate_concrete_scope_program(tree_scope);
+        }
         self.pending_sheets_in_scope.stage(tree_scope, sheets);
     }
 
@@ -698,18 +735,91 @@ impl StyleEngine {
         self.settle_program();
     }
 
-    /// A ranked scope program bakes layer and sheet ranking into its entries' cascade orders, so
-    /// a topology change must drop the cached dispatches or later patches rank with stale orders.
+    /// Make every concrete scope resolve its ranked program again. Programs whose sheet and layer
+    /// dependencies are unchanged remain interned for one invalidation generation, preserving the
+    /// dispatch and prefix work shared by unaffected scopes.
     pub(super) fn invalidate_scope_programs(&mut self) {
-        self.discard_retained_prefix_caches();
-        self.scope_programs.clear();
-        self.vacant_scope_programs.clear();
+        let inactive: Vec<_> = self
+            .scope_programs
+            .iter()
+            .enumerate()
+            .filter_map(|(index, program)| {
+                program
+                    .as_ref()
+                    .is_some_and(|program| program.scope_count == 0)
+                    .then_some(ScopeProgramID(
+                        u32::try_from(index).expect("scope program identity space exhausted"),
+                    ))
+            })
+            .collect();
+        for id in inactive {
+            let mut caches = self.prefix_caches.borrow_mut();
+            caches.states.remove(id);
+            caches.answers.remove_program(&mut self.match_answers, id);
+            drop(caches);
+            let program = self.scope_programs[id].take().unwrap();
+            self.scope_programs
+                .remove_identity(intern_table::content_hash(&program.key), id);
+            self.vacant_scope_programs.push(id);
+        }
+        for program in self.scope_programs.iter_mut().flatten() {
+            program.scope_count = 0;
+        }
         self.scope_program_by_scope.clear();
         self.held_scope_program = None;
     }
 
+    /// Drop the ranked program for one tree scope while leaving equivalent scopes' shared program
+    /// and prefix caches alive. Callers without the replacement document sheet order conservatively
+    /// invalidate every shadow scope because they cannot distinguish author-only changes.
+    pub(super) fn invalidate_scope_program(&mut self, tree_scope: TreeScopeID) {
+        if tree_scope == TreeScopeID::DOCUMENT {
+            self.invalidate_scope_programs();
+            return;
+        }
+        self.invalidate_concrete_scope_program(tree_scope);
+    }
+
+    fn invalidate_concrete_scope_program(&mut self, tree_scope: TreeScopeID) {
+        if self.held_scope_program.is_some_and(|(scope, _, _)| scope == tree_scope) {
+            self.held_scope_program = None;
+        }
+        let Some((_, program)) = self
+            .scope_program_by_scope
+            .get_mut(tree_scope.0 as usize)
+            .and_then(Option::take)
+        else {
+            return;
+        };
+        self.release_scope_program(program);
+    }
+
+    /// Drop only concrete scope programs that consume `sheet`. The key contains the effective
+    /// document sheets as well as locally attached sheets, so this also reaches shadow scopes that
+    /// inherit a changed document sheet without scanning the DOM's attachment topology again.
+    pub(super) fn invalidate_scope_programs_for_sheet(&mut self, sheet: SheetID) {
+        let scopes: Vec<_> = self
+            .scope_program_by_scope
+            .iter()
+            .enumerate()
+            .filter_map(|(index, retained)| {
+                let (_, program) = retained.as_ref()?;
+                self.scope_program(*program)
+                    .key
+                    .sheets
+                    .iter()
+                    .any(|&(candidate, _)| candidate == sheet)
+                    .then_some(TreeScopeID(
+                        u32::try_from(index).expect("tree scope identity space exhausted"),
+                    ))
+            })
+            .collect();
+        for scope in scopes {
+            self.invalidate_concrete_scope_program(scope);
+        }
+    }
+
     pub(super) fn record_sheet_order_change(&mut self, tree_scope: TreeScopeID) {
-        self.invalidate_scope_programs();
         self.winner_groups.invalidate_priorities();
         let previous = self.sheet_order_version;
         self.sheet_order_version += 1;
@@ -733,8 +843,11 @@ impl StyleEngine {
     /// way in, and a journal that has to coarsen loses which keys moved - which costs a restyle of
     /// the entire document, for rules whose arrival was already accounted for.
     #[must_use]
-    pub(super) fn rule_change_is_carried_by_its_sheet(&self, rule: RuleID) -> bool {
+    pub(super) fn rule_change_is_carried_by_its_sheet(&mut self, rule: RuleID) -> bool {
         let sheet = self.program.rule_sheet(rule);
+        if let Some(&carried) = self.rule_change_is_carried_by_sheet.get(&sheet) {
+            return carried;
+        }
         let mut scopes = self.program.sheet_scopes(sheet);
         scopes.extend(
             self.pending_sheets_in_scope
@@ -745,13 +858,16 @@ impl StyleEngine {
         scopes.dedup();
         scopes.retain(|&scope| self.current_sheets_in_scope(scope).contains(&sheet));
         if scopes.is_empty() {
+            self.rule_change_is_carried_by_sheet.insert(sheet, true);
             return true;
         }
         // Every scope it decides in has to be arriving. A sheet adopted somewhere long ago and
         // attached somewhere new this transaction still has to answer for the old scope.
-        scopes.iter().all(|&tree_scope| {
+        let carried = scopes.iter().all(|&tree_scope| {
             self.journal.pending_old(InputKey::SheetAttachment(sheet, tree_scope)) == Some(InputValue::Flag(false))
-        })
+        });
+        self.rule_change_is_carried_by_sheet.insert(sheet, carried);
+        carried
     }
 
     pub(super) fn record_rule_existence(&mut self, rule: RuleID, previous: bool, current: bool) {
@@ -771,7 +887,7 @@ impl StyleEngine {
     /// It never invalidates selector truth.
     pub(super) fn record_layer_topology_change(&mut self, scope: TreeScopeID) {
         self.pending_program_base_version.get_or_insert(self.program.version());
-        self.invalidate_scope_programs();
+        self.invalidate_scope_program(scope);
         self.winner_groups.invalidate_priorities();
         let previous = self.layer_topology_version;
         self.layer_topology_version += 1;

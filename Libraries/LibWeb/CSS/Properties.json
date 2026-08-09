@@ -147,6 +147,7 @@
     "legacy-alias-for": "perspective-origin"
   },
   "-webkit-text-fill-color": {
+    "style-group": "InheritedTextValues",
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": true,
@@ -185,6 +186,7 @@
     "legacy-alias-for": "user-select"
   },
   "accent-color": {
+    "style-group": "InheritedUIValues",
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": true,
@@ -198,6 +200,7 @@
     ]
   },
   "align-content": {
+    "style-group": "AlignmentValues",
     "animation-type": "discrete",
     "inherited": false,
     "initial": "normal",
@@ -207,6 +210,7 @@
     ]
   },
   "align-items": {
+    "style-group": "AlignmentValues",
     "animation-type": "discrete",
     "inherited": false,
     "initial": "normal",
@@ -216,6 +220,7 @@
     ]
   },
   "align-self": {
+    "style-group": "AlignmentValues",
     "animation-type": "discrete",
     "inherited": false,
     "initial": "auto",
@@ -232,6 +237,7 @@
     "_comment": "The 'longhands' array is populated in the code generator to avoid having to maintain it manually"
   },
   "anchor-name": {
+    "style-group": "AnchorValues",
     "animation-type": "discrete",
     "inherited": false,
     "initial": "none",
@@ -244,6 +250,7 @@
     ]
   },
   "anchor-scope": {
+    "style-group": "AnchorValues",
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": false,
@@ -274,6 +281,7 @@
     ]
   },
   "animation-composition": {
+    "style-group": "AnimationValues",
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
@@ -285,6 +293,7 @@
     "multiplicity": "coordinating-list"
   },
   "animation-delay": {
+    "style-group": "AnimationValues",
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
@@ -296,6 +305,7 @@
     ]
   },
   "animation-direction": {
+    "style-group": "AnimationValues",
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
@@ -310,6 +320,7 @@
     ]
   },
   "animation-duration": {
+    "style-group": "AnimationValues",
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
@@ -325,6 +336,7 @@
     ]
   },
   "animation-fill-mode": {
+    "style-group": "AnimationValues",
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
@@ -339,6 +351,7 @@
     ]
   },
   "animation-iteration-count": {
+    "style-group": "AnimationValues",
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
@@ -353,6 +366,7 @@
     ]
   },
   "animation-name": {
+    "style-group": "AnimationValues",
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
@@ -368,6 +382,7 @@
     ]
   },
   "animation-play-state": {
+    "style-group": "AnimationValues",
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
@@ -380,6 +395,7 @@
     ]
   },
   "animation-timeline": {
+    "style-group": "AnimationValues",
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
@@ -397,6 +413,7 @@
     "multiplicity": "coordinating-list"
   },
   "animation-timing-function": {
+    "style-group": "AnimationValues",
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
@@ -409,6 +426,7 @@
     ]
   },
   "appearance": {
+    "style-group": "MiscResetValues",
     "animation-type": "discrete",
     "inherited": false,
     "initial": "none",
@@ -418,6 +436,7 @@
     ]
   },
   "aspect-ratio": {
+    "style-group": "BoxValues",
     "affects-layout": true,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -432,6 +451,7 @@
   },
   "backdrop-filter": {
     "affects-accumulated-visual-contexts": true,
+    "style-group": "EffectsValues",
     "affects-layout": false,
     "affects-stacking-context": true,
     "animation-type": "custom",
@@ -446,6 +466,7 @@
     ]
   },
   "backface-visibility": {
+    "style-group": "TransformValues",
     "affects-accumulated-visual-contexts": true,
     "affects-stacking-context": true,
     "animation-type": "discrete",
@@ -472,6 +493,7 @@
     "multiplicity": "coordinating-list"
   },
   "background-attachment": {
+    "style-group": "BackgroundValues",
     "affects-accumulated-visual-contexts": true,
     "affects-layout": false,
     "animation-type": "discrete",
@@ -484,6 +506,7 @@
     ]
   },
   "background-blend-mode": {
+    "style-group": "BackgroundValues",
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": false,
@@ -495,6 +518,7 @@
     ]
   },
   "background-clip": {
+    "style-group": "BackgroundValues",
     "affects-layout": false,
     "animation-type": "repeatable-list",
     "inherited": false,
@@ -507,6 +531,7 @@
     ]
   },
   "background-color": {
+    "style-group": "BackgroundValues",
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -521,6 +546,7 @@
     ]
   },
   "background-image": {
+    "style-group": "BackgroundValues",
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": false,
@@ -535,6 +561,7 @@
     ]
   },
   "background-origin": {
+    "style-group": "BackgroundValues",
     "affects-layout": false,
     "animation-type": "repeatable-list",
     "inherited": false,
@@ -564,6 +591,7 @@
     "percentages-resolve-to": "length"
   },
   "background-position-x": {
+    "style-group": "BackgroundValues",
     "affects-layout": false,
     "animation-type": "repeatable-list",
     "inherited": false,
@@ -582,6 +610,7 @@
     "percentages-resolve-to": "length"
   },
   "background-position-y": {
+    "style-group": "BackgroundValues",
     "affects-layout": false,
     "animation-type": "repeatable-list",
     "inherited": false,
@@ -600,6 +629,7 @@
     "percentages-resolve-to": "length"
   },
   "background-repeat": {
+    "style-group": "BackgroundValues",
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": false,
@@ -616,6 +646,7 @@
     ]
   },
   "background-size": {
+    "style-group": "BackgroundValues",
     "affects-layout": false,
     "animation-type": "repeatable-list",
     "inherited": false,
@@ -770,6 +801,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "border-bottom-color": {
+    "style-group": "BorderValues",
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "initial": "currentcolor",
@@ -784,6 +816,7 @@
     ]
   },
   "border-bottom-left-radius": {
+    "style-group": "BorderValues",
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "initial": "0",
@@ -797,6 +830,7 @@
     "percentages-resolve-to": "length"
   },
   "border-bottom-right-radius": {
+    "style-group": "BorderValues",
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "initial": "0",
@@ -810,6 +844,7 @@
     "percentages-resolve-to": "length"
   },
   "border-bottom-style": {
+    "style-group": "BorderValues",
     "animation-type": "discrete",
     "initial": "none",
     "inherited": false,
@@ -819,6 +854,7 @@
     ]
   },
   "border-bottom-width": {
+    "style-group": "BorderValues",
     "animation-type": "by-computed-value",
     "initial": "medium",
     "inherited": false,
@@ -834,6 +870,7 @@
     "needs-layout-node-for-resolved-value": true
   },
   "border-collapse": {
+    "style-group": "InheritedTableValues",
     "animation-type": "discrete",
     "inherited": true,
     "initial": "separate",
@@ -884,6 +921,7 @@
     ]
   },
   "border-image-outset": {
+    "style-group": "BorderValues",
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -896,6 +934,7 @@
     ]
   },
   "border-image-repeat": {
+    "style-group": "BorderValues",
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": false,
@@ -907,6 +946,7 @@
     ]
   },
   "border-image-slice": {
+    "style-group": "BorderValues",
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -922,6 +962,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "border-image-source": {
+    "style-group": "BorderValues",
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": false,
@@ -935,6 +976,7 @@
     ]
   },
   "border-image-width": {
+    "style-group": "BorderValues",
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -1064,6 +1106,7 @@
     ]
   },
   "border-left-color": {
+    "style-group": "BorderValues",
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "initial": "currentcolor",
@@ -1078,6 +1121,7 @@
     ]
   },
   "border-left-style": {
+    "style-group": "BorderValues",
     "animation-type": "discrete",
     "initial": "none",
     "inherited": false,
@@ -1087,6 +1131,7 @@
     ]
   },
   "border-left-width": {
+    "style-group": "BorderValues",
     "animation-type": "by-computed-value",
     "initial": "medium",
     "inherited": false,
@@ -1124,6 +1169,7 @@
     ]
   },
   "border-right-color": {
+    "style-group": "BorderValues",
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "initial": "currentcolor",
@@ -1138,6 +1184,7 @@
     ]
   },
   "border-right-style": {
+    "style-group": "BorderValues",
     "animation-type": "discrete",
     "initial": "none",
     "inherited": false,
@@ -1147,6 +1194,7 @@
     ]
   },
   "border-right-width": {
+    "style-group": "BorderValues",
     "animation-type": "by-computed-value",
     "initial": "medium",
     "inherited": false,
@@ -1161,6 +1209,7 @@
     "needs-layout-node-for-resolved-value": true
   },
   "border-spacing": {
+    "style-group": "InheritedTableValues",
     "_comment": "Follows the newer definition from: https://drafts.csswg.org/css-tables-3/#border-spacing-property",
     "animation-type": "by-computed-value",
     "inherited": true,
@@ -1210,6 +1259,7 @@
     ]
   },
   "border-top-color": {
+    "style-group": "BorderValues",
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "initial": "currentcolor",
@@ -1224,6 +1274,7 @@
     ]
   },
   "border-top-left-radius": {
+    "style-group": "BorderValues",
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "initial": "0",
@@ -1237,6 +1288,7 @@
     "percentages-resolve-to": "length"
   },
   "border-top-right-radius": {
+    "style-group": "BorderValues",
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "initial": "0",
@@ -1250,6 +1302,7 @@
     "percentages-resolve-to": "length"
   },
   "border-top-style": {
+    "style-group": "BorderValues",
     "animation-type": "discrete",
     "initial": "none",
     "inherited": false,
@@ -1259,6 +1312,7 @@
     ]
   },
   "border-top-width": {
+    "style-group": "BorderValues",
     "animation-type": "by-computed-value",
     "initial": "medium",
     "inherited": false,
@@ -1290,6 +1344,7 @@
     ]
   },
   "bottom": {
+    "style-group": "SurroundValues",
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
@@ -1309,6 +1364,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "box-shadow": {
+    "style-group": "EffectsValues",
     "affects-layout": false,
     "animation-type": "custom",
     "inherited": false,
@@ -1321,6 +1377,7 @@
     ]
   },
   "box-sizing": {
+    "style-group": "BoxValues",
     "animation-type": "discrete",
     "inherited": false,
     "initial": "content-box",
@@ -1330,6 +1387,7 @@
     ]
   },
   "caption-side": {
+    "style-group": "InheritedTableValues",
     "animation-type": "discrete",
     "inherited": true,
     "initial": "top",
@@ -1339,6 +1397,7 @@
     ]
   },
   "caret-color": {
+    "style-group": "InheritedUIValues",
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": true,
@@ -1353,6 +1412,7 @@
     ]
   },
   "clear": {
+    "style-group": "BoxValues",
     "animation-type": "discrete",
     "inherited": false,
     "initial": "none",
@@ -1362,6 +1422,7 @@
     ]
   },
   "clip": {
+    "style-group": "EffectsValues",
     "affects-accumulated-visual-contexts": true,
     "affects-layout": false,
     "animation-type": "by-computed-value",
@@ -1379,6 +1440,7 @@
     ]
   },
   "clip-path": {
+    "style-group": "MaskValues",
     "affects-accumulated-visual-contexts": true,
     "animation-type": "by-computed-value",
     "affects-layout": false,
@@ -1396,6 +1458,7 @@
     "initial": "none"
   },
   "clip-rule": {
+    "style-group": "InheritedSVGValues",
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": true,
@@ -1406,11 +1469,11 @@
     ]
   },
   "color": {
+    "style-group": "InheritedTextValues",
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": true,
     "initial": "canvastext",
-    "needs-layout-node-for-resolved-value": true,
     "requires-computation": "non-inherited-value",
     "valid-types": [
       "color"
@@ -1420,6 +1483,7 @@
     ]
   },
   "color-interpolation": {
+    "style-group": "InheritedSVGValues",
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": true,
@@ -1430,6 +1494,7 @@
     ]
   },
   "color-interpolation-filters": {
+    "style-group": "InheritedSVGValues",
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": true,
@@ -1440,6 +1505,7 @@
     ]
   },
   "color-scheme": {
+    "style-group": "InheritedUIValues",
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": true,
@@ -1455,6 +1521,7 @@
     ]
   },
   "column-count": {
+    "style-group": "BoxValues",
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
@@ -1467,6 +1534,7 @@
     ]
   },
   "column-gap": {
+    "style-group": "AlignmentValues",
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "normal",
@@ -1481,6 +1549,7 @@
     "percentages-resolve-to": "length"
   },
   "column-height": {
+    "style-group": "MiscResetValues",
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
@@ -1493,6 +1562,7 @@
     ]
   },
   "column-span": {
+    "style-group": "MiscResetValues",
     "animation-type": "discrete",
     "inherited": false,
     "initial": "none",
@@ -1502,6 +1572,7 @@
     ]
   },
   "column-width": {
+    "style-group": "BoxValues",
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
@@ -1522,6 +1593,7 @@
     ]
   },
   "contain": {
+    "style-group": "BoxValues",
     "affects-stacking-context": true,
     "animation-type": "none",
     "inherited": false,
@@ -1540,6 +1612,7 @@
     ]
   },
   "container-name": {
+    "style-group": "BoxValues",
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
@@ -1554,6 +1627,7 @@
     ]
   },
   "container-type": {
+    "style-group": "BoxValues",
     "affects-stacking-context": true,
     "animation-type": "none",
     "inherited": false,
@@ -1567,6 +1641,7 @@
     ]
   },
   "content": {
+    "style-group": "ContentValues",
     "animation-type": "discrete",
     "inherited": false,
     "initial": "normal",
@@ -1587,6 +1662,7 @@
     ]
   },
   "content-visibility": {
+    "style-group": "InheritedBoxValues",
     "animation-type": "custom",
     "inherited": false,
     "initial": "visible",
@@ -1618,6 +1694,7 @@
     ]
   },
   "corner-bottom-left-shape": {
+    "style-group": "BorderValues",
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "round",
@@ -1627,6 +1704,7 @@
     ]
   },
   "corner-bottom-right-shape": {
+    "style-group": "BorderValues",
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "round",
@@ -1728,6 +1806,7 @@
     }
   },
   "corner-top-left-shape": {
+    "style-group": "BorderValues",
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "round",
@@ -1737,6 +1816,7 @@
     ]
   },
   "corner-top-right-shape": {
+    "style-group": "BorderValues",
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "round",
@@ -1757,6 +1837,7 @@
     ]
   },
   "counter-increment": {
+    "style-group": "ContentValues",
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "none",
@@ -1771,6 +1852,7 @@
     ]
   },
   "counter-reset": {
+    "style-group": "ContentValues",
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "none",
@@ -1785,6 +1867,7 @@
     ]
   },
   "counter-set": {
+    "style-group": "ContentValues",
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "none",
@@ -1799,6 +1882,7 @@
     ]
   },
   "cursor": {
+    "style-group": "InheritedUIValues",
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": true,
@@ -1811,6 +1895,7 @@
     ]
   },
   "cx": {
+    "style-group": "SVGResetValues",
     "__comment": "This is an SVG 2 geometry property, see: https://www.w3.org/TR/SVG/geometry.html#CX.",
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -1826,6 +1911,7 @@
     ]
   },
   "cy": {
+    "style-group": "SVGResetValues",
     "__comment": "This is an SVG 2 geometry property, see: https://www.w3.org/TR/SVG/geometry.html#CY.",
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -1841,12 +1927,14 @@
     ]
   },
   "d": {
+    "style-group": "SVGResetValues",
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "none",
     "requires-computation": "never"
   },
   "direction": {
+    "style-group": "InheritedBoxValues",
     "animation-type": "none",
     "inherited": true,
     "initial": "ltr",
@@ -1856,6 +1944,7 @@
     ]
   },
   "display": {
+    "style-group": "BoxValues",
     "animation-type": "custom",
     "inherited": false,
     "initial": "inline",
@@ -1873,6 +1962,7 @@
     ]
   },
   "dominant-baseline": {
+    "style-group": "InheritedSVGValues",
     "animation-type": "discrete",
     "inherited": true,
     "initial": "auto",
@@ -1885,6 +1975,7 @@
     ]
   },
   "empty-cells": {
+    "style-group": "InheritedTableValues",
     "animation-type": "discrete",
     "inherited": true,
     "initial": "show",
@@ -1894,6 +1985,7 @@
     ]
   },
   "fill": {
+    "style-group": "InheritedSVGValues",
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": true,
@@ -1904,6 +1996,7 @@
     ]
   },
   "fill-opacity": {
+    "style-group": "InheritedSVGValues",
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": true,
@@ -1914,6 +2007,7 @@
     ]
   },
   "fill-rule": {
+    "style-group": "InheritedSVGValues",
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": true,
@@ -1924,6 +2018,7 @@
     ]
   },
   "filter": {
+    "style-group": "EffectsValues",
     "affects-accumulated-visual-contexts": true,
     "affects-layout": false,
     "affects-stacking-context": true,
@@ -1950,6 +2045,7 @@
     ]
   },
   "flex-basis": {
+    "style-group": "AlignmentValues",
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
@@ -1968,6 +2064,7 @@
     "percentages-resolve-to": "length"
   },
   "flex-direction": {
+    "style-group": "AlignmentValues",
     "animation-type": "discrete",
     "inherited": false,
     "initial": "row",
@@ -1984,6 +2081,7 @@
     ]
   },
   "flex-grow": {
+    "style-group": "AlignmentValues",
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
@@ -1993,6 +2091,7 @@
     ]
   },
   "flex-shrink": {
+    "style-group": "AlignmentValues",
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "1",
@@ -2002,6 +2101,7 @@
     ]
   },
   "flex-wrap": {
+    "style-group": "AlignmentValues",
     "animation-type": "discrete",
     "inherited": false,
     "initial": "nowrap",
@@ -2011,6 +2111,7 @@
     ]
   },
   "float": {
+    "style-group": "BoxValues",
     "animation-type": "discrete",
     "inherited": false,
     "initial": "none",
@@ -2020,6 +2121,7 @@
     ]
   },
   "flood-color": {
+    "style-group": "SVGResetValues",
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -2030,6 +2132,7 @@
     ]
   },
   "flood-opacity": {
+    "style-group": "SVGResetValues",
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -2115,6 +2218,7 @@
     ]
   },
   "font-size": {
+    "style-group": "FontValues",
     "animation-type": "by-computed-value",
     "inherited": true,
     "initial": "medium",
@@ -2251,10 +2355,10 @@
     ]
   },
   "font-weight": {
+    "style-group": "FontValues",
     "animation-type": "by-computed-value",
     "inherited": true,
     "initial": "normal",
-    "needs-layout-node-for-resolved-value": true,
     "requires-computation": "non-inherited-value",
     "valid-types": [
       "number [1,1000]"
@@ -2267,6 +2371,7 @@
     ]
   },
   "font-width": {
+    "style-group": "FontValues",
     "animation-type": "by-computed-value",
     "inherited": true,
     "initial": "normal",
@@ -2329,6 +2434,7 @@
     ]
   },
   "grid-auto-columns": {
+    "style-group": "GridValues",
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
@@ -2344,12 +2450,14 @@
     "percentages-resolve-to": "length"
   },
   "grid-auto-flow": {
+    "style-group": "BoxValues",
     "animation-type": "discrete",
     "inherited": false,
     "initial": "row",
     "requires-computation": "never"
   },
   "grid-auto-rows": {
+    "style-group": "GridValues",
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
@@ -2378,6 +2486,7 @@
     ]
   },
   "grid-column-end": {
+    "style-group": "GridValues",
     "animation-type": "discrete",
     "inherited": false,
     "initial": "auto",
@@ -2393,6 +2502,7 @@
     "legacy-alias-for": "column-gap"
   },
   "grid-column-start": {
+    "style-group": "GridValues",
     "animation-type": "discrete",
     "inherited": false,
     "initial": "auto",
@@ -2421,6 +2531,7 @@
     ]
   },
   "grid-row-end": {
+    "style-group": "GridValues",
     "animation-type": "discrete",
     "inherited": false,
     "initial": "auto",
@@ -2436,6 +2547,7 @@
     "legacy-alias-for": "row-gap"
   },
   "grid-row-start": {
+    "style-group": "GridValues",
     "animation-type": "discrete",
     "inherited": false,
     "initial": "auto",
@@ -2466,6 +2578,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "grid-template-areas": {
+    "style-group": "GridValues",
     "animation-type": "discrete",
     "inherited": false,
     "initial": "none",
@@ -2478,6 +2591,7 @@
     ]
   },
   "grid-template-columns": {
+    "style-group": "GridValues",
     "animation-type": "custom",
     "inherited": false,
     "initial": "none",
@@ -2495,6 +2609,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "grid-template-rows": {
+    "style-group": "GridValues",
     "animation-type": "custom",
     "inherited": false,
     "initial": "none",
@@ -2512,6 +2627,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "height": {
+    "style-group": "SizingValues",
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
@@ -2533,6 +2649,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "image-rendering": {
+    "style-group": "InheritedBoxValues",
     "animation-type": "discrete",
     "affects-layout": false,
     "inherited": true,
@@ -2637,6 +2754,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "isolation": {
+    "style-group": "EffectsValues",
     "animation-type": "discrete",
     "inherited": false,
     "initial": "auto",
@@ -2646,6 +2764,7 @@
     ]
   },
   "justify-content": {
+    "style-group": "AlignmentValues",
     "animation-type": "discrete",
     "inherited": false,
     "initial": "normal",
@@ -2655,6 +2774,7 @@
     ]
   },
   "justify-items": {
+    "style-group": "AlignmentValues",
     "animation-type": "discrete",
     "inherited": false,
     "initial": "legacy",
@@ -2664,6 +2784,7 @@
     ]
   },
   "justify-self": {
+    "style-group": "AlignmentValues",
     "animation-type": "discrete",
     "inherited": false,
     "initial": "auto",
@@ -2673,6 +2794,7 @@
     ]
   },
   "left": {
+    "style-group": "SurroundValues",
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
@@ -2692,6 +2814,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "letter-spacing": {
+    "style-group": "InheritedTextValues",
     "animation-type": "by-computed-value",
     "inherited": true,
     "initial": "normal",
@@ -2710,6 +2833,7 @@
     ]
   },
   "line-height": {
+    "style-group": "FontValues",
     "animation-type": "by-computed-value",
     "inherited": true,
     "initial": "normal",
@@ -2735,6 +2859,7 @@
     ]
   },
   "list-style-image": {
+    "style-group": "InheritedListValues",
     "animation-type": "discrete",
     "inherited": true,
     "initial": "none",
@@ -2747,6 +2872,7 @@
     ]
   },
   "list-style-position": {
+    "style-group": "InheritedListValues",
     "animation-type": "discrete",
     "inherited": true,
     "initial": "outside",
@@ -2756,6 +2882,7 @@
     ]
   },
   "list-style-type": {
+    "style-group": "InheritedListValues",
     "animation-type": "discrete",
     "inherited": true,
     "initial": "disc",
@@ -2822,6 +2949,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "margin-bottom": {
+    "style-group": "SurroundValues",
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
@@ -2871,6 +2999,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "margin-left": {
+    "style-group": "SurroundValues",
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
@@ -2889,6 +3018,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "margin-right": {
+    "style-group": "SurroundValues",
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
@@ -2907,6 +3037,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "margin-top": {
+    "style-group": "SurroundValues",
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
@@ -2941,6 +3072,7 @@
     ]
   },
   "mask-clip": {
+    "style-group": "MaskValues",
     "animation-type": "discrete",
     "inherited": false,
     "affects-layout": false,
@@ -2955,6 +3087,7 @@
     "initial": "border-box"
   },
   "mask-composite": {
+    "style-group": "MaskValues",
     "animation-type": "discrete",
     "inherited": false,
     "affects-layout": false,
@@ -2966,6 +3099,7 @@
     "initial": "add"
   },
   "mask-image": {
+    "style-group": "MaskValues",
     "affects-accumulated-visual-contexts": true,
     "animation-type": "discrete",
     "inherited": false,
@@ -2983,6 +3117,7 @@
     "initial": "none"
   },
   "mask-mode": {
+    "style-group": "MaskValues",
     "animation-type": "discrete",
     "inherited": false,
     "affects-layout": false,
@@ -2994,6 +3129,7 @@
     "initial": "match-source"
   },
   "mask-origin": {
+    "style-group": "MaskValues",
     "animation-type": "discrete",
     "inherited": false,
     "affects-layout": false,
@@ -3005,6 +3141,7 @@
     "initial": "border-box"
   },
   "mask-position": {
+    "style-group": "MaskValues",
     "animation-type": "repeatable-list",
     "affects-layout": false,
     "inherited": false,
@@ -3017,6 +3154,7 @@
     "percentages-resolve-to": "length"
   },
   "mask-repeat": {
+    "style-group": "MaskValues",
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": false,
@@ -3033,6 +3171,7 @@
     ]
   },
   "mask-size": {
+    "style-group": "MaskValues",
     "affects-layout": false,
     "animation-type": "repeatable-list",
     "inherited": false,
@@ -3052,6 +3191,7 @@
     "percentages-resolve-to": "length"
   },
   "mask-type": {
+    "style-group": "MaskValues",
     "affects-accumulated-visual-contexts": true,
     "animation-type": "discrete",
     "inherited": false,
@@ -3103,6 +3243,7 @@
     "initial": "none"
   },
   "max-height": {
+    "style-group": "SizingValues",
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "none",
@@ -3130,6 +3271,7 @@
     "initial": "none"
   },
   "max-width": {
+    "style-group": "SizingValues",
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "none",
@@ -3157,6 +3299,7 @@
     "initial": "0"
   },
   "min-height": {
+    "style-group": "SizingValues",
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
@@ -3184,6 +3327,7 @@
     "initial": "0"
   },
   "min-width": {
+    "style-group": "SizingValues",
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
@@ -3204,6 +3348,7 @@
     ]
   },
   "mix-blend-mode": {
+    "style-group": "EffectsValues",
     "affects-accumulated-visual-contexts": true,
     "affects-layout": false,
     "animation-type": "discrete",
@@ -3215,6 +3360,7 @@
     ]
   },
   "object-fit": {
+    "style-group": "MiscResetValues",
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": false,
@@ -3225,6 +3371,7 @@
     ]
   },
   "object-position": {
+    "style-group": "MiscResetValues",
     "affects-layout": false,
     "animation-type": "repeatable-list",
     "affects-layout": false,
@@ -3237,6 +3384,7 @@
     "percentages-resolve-to": "length"
   },
   "opacity": {
+    "style-group": "EffectsValues",
     "affects-accumulated-visual-contexts": true,
     "animation-type": "by-computed-value",
     "affects-layout": false,
@@ -3249,6 +3397,7 @@
     ]
   },
   "order": {
+    "style-group": "AlignmentValues",
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
@@ -3258,6 +3407,7 @@
     ]
   },
   "orphans": {
+    "style-group": "InheritedTextValues",
     "animation-type": "by-computed-value",
     "inherited": true,
     "initial": "2",
@@ -3277,6 +3427,7 @@
     ]
   },
   "outline-color": {
+    "style-group": "MiscResetValues",
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -3289,6 +3440,7 @@
     ]
   },
   "outline-offset": {
+    "style-group": "MiscResetValues",
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -3299,6 +3451,7 @@
     ]
   },
   "outline-style": {
+    "style-group": "MiscResetValues",
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -3309,6 +3462,7 @@
     ]
   },
   "outline-width": {
+    "style-group": "MiscResetValues",
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -3374,6 +3528,7 @@
     }
   },
   "overflow-clip-margin-bottom": {
+    "style-group": "MiscResetValues",
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0px",
@@ -3405,6 +3560,7 @@
     }
   },
   "overflow-clip-margin-left": {
+    "style-group": "MiscResetValues",
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0px",
@@ -3414,6 +3570,7 @@
     "requires-computation": "cascaded-value"
   },
   "overflow-clip-margin-right": {
+    "style-group": "MiscResetValues",
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0px",
@@ -3423,6 +3580,7 @@
     "requires-computation": "cascaded-value"
   },
   "overflow-clip-margin-top": {
+    "style-group": "MiscResetValues",
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0px",
@@ -3438,6 +3596,7 @@
     }
   },
   "overflow-wrap": {
+    "style-group": "InheritedTextValues",
     "animation-type": "discrete",
     "inherited": true,
     "initial": "normal",
@@ -3449,6 +3608,7 @@
     ]
   },
   "overflow-x": {
+    "style-group": "BoxValues",
     "animation-type": "discrete",
     "inherited": false,
     "initial": "visible",
@@ -3461,6 +3621,7 @@
     ]
   },
   "overflow-y": {
+    "style-group": "BoxValues",
     "animation-type": "discrete",
     "inherited": false,
     "initial": "visible",
@@ -3520,6 +3681,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "padding-bottom": {
+    "style-group": "SurroundValues",
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
@@ -3562,6 +3724,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "padding-left": {
+    "style-group": "SurroundValues",
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
@@ -3577,6 +3740,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "padding-right": {
+    "style-group": "SurroundValues",
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
@@ -3592,6 +3756,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "padding-top": {
+    "style-group": "SurroundValues",
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
@@ -3607,6 +3772,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "paint-order": {
+    "style-group": "InheritedSVGValues",
     "animation-type": "discrete",
     "inherited": true,
     "initial": "normal",
@@ -3619,6 +3785,7 @@
     ]
   },
   "perspective": {
+    "style-group": "TransformValues",
     "affects-accumulated-visual-contexts": true,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -3632,6 +3799,7 @@
     ]
   },
   "perspective-origin": {
+    "style-group": "TransformValues",
     "affects-accumulated-visual-contexts": true,
     "animation-type": "by-computed-value",
     "affects-layout": false,
@@ -3665,6 +3833,7 @@
     ]
   },
   "pointer-events": {
+    "style-group": "InheritedUIValues",
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": true,
@@ -3675,6 +3844,7 @@
     ]
   },
   "position": {
+    "style-group": "BoxValues",
     "animation-type": "discrete",
     "inherited": false,
     "initial": "static",
@@ -3684,6 +3854,7 @@
     ]
   },
   "position-anchor": {
+    "style-group": "AnchorValues",
     "animation-type": "discrete",
     "inherited": false,
     "initial": "normal",
@@ -3698,6 +3869,7 @@
     ]
   },
   "position-area": {
+    "style-group": "AnchorValues",
     "animation-type": "discrete",
     "__comment": "Animation type is currently listed as TBD in the specification",
     "inherited": false,
@@ -3711,6 +3883,7 @@
     ]
   },
   "position-try-fallbacks": {
+    "style-group": "AnchorValues",
     "animation-type": "discrete",
     "inherited": false,
     "initial": "none",
@@ -3724,6 +3897,7 @@
     ]
   },
   "position-try-order": {
+    "style-group": "AnchorValues",
     "animation-type": "discrete",
     "inherited": false,
     "initial": "normal",
@@ -3736,6 +3910,7 @@
     ]
   },
   "position-visibility": {
+    "style-group": "AnchorValues",
     "animation-type": "discrete",
     "inherited": false,
     "initial": "anchors-visible",
@@ -3748,6 +3923,7 @@
     ]
   },
   "quotes": {
+    "style-group": "InheritedListValues",
     "animation-type": "discrete",
     "inherited": true,
     "initial": "auto",
@@ -3762,6 +3938,7 @@
     ]
   },
   "r": {
+    "style-group": "SVGResetValues",
     "__comment": "This is an SVG 2 geometry property, see: https://www.w3.org/TR/SVG/geometry.html#R.",
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -3777,6 +3954,7 @@
     ]
   },
   "resize": {
+    "style-group": "BoxValues",
     "animation-type": "none",
     "inherited": false,
     "affects-layout": false,
@@ -3787,6 +3965,7 @@
     ]
   },
   "right": {
+    "style-group": "SurroundValues",
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
@@ -3806,6 +3985,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "rotate": {
+    "style-group": "TransformValues",
     "affects-accumulated-visual-contexts": true,
     "animation-type": "custom",
     "inherited": false,
@@ -3816,6 +3996,7 @@
     "requires-computation": "cascaded-value"
   },
   "row-gap": {
+    "style-group": "AlignmentValues",
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "normal",
@@ -3830,6 +4011,7 @@
     "percentages-resolve-to": "length"
   },
   "rx": {
+    "style-group": "SVGResetValues",
     "__comment": "This is an SVG 2 geometry property, see: https://www.w3.org/TR/SVG/geometry.html#RX.",
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -3848,6 +4030,7 @@
     ]
   },
   "ry": {
+    "style-group": "SVGResetValues",
     "__comment": "This is an SVG 2 geometry property, see: https://www.w3.org/TR/SVG/geometry.html#RY.",
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -3866,6 +4049,7 @@
     ]
   },
   "scale": {
+    "style-group": "TransformValues",
     "affects-accumulated-visual-contexts": true,
     "animation-type": "custom",
     "inherited": false,
@@ -3876,6 +4060,7 @@
     "requires-computation": "cascaded-value"
   },
   "scroll-behavior": {
+    "style-group": "MiscResetValues",
     "initial": "auto",
     "inherited": false,
     "affects-layout": false,
@@ -3923,6 +4108,7 @@
     }
   },
   "scroll-margin-bottom": {
+    "style-group": "MiscResetValues",
     "animation-type": "by-computed-value",
     "initial": "0",
     "inherited": false,
@@ -3955,6 +4141,7 @@
     }
   },
   "scroll-margin-left": {
+    "style-group": "MiscResetValues",
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
@@ -3964,6 +4151,7 @@
     ]
   },
   "scroll-margin-right": {
+    "style-group": "MiscResetValues",
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
@@ -3973,6 +4161,7 @@
     ]
   },
   "scroll-margin-top": {
+    "style-group": "MiscResetValues",
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
@@ -4028,6 +4217,7 @@
     }
   },
   "scroll-padding-bottom": {
+    "style-group": "MiscResetValues",
     "animation-type": "by-computed-value",
     "initial": "auto",
     "inherited": false,
@@ -4070,6 +4260,7 @@
     }
   },
   "scroll-padding-left": {
+    "style-group": "MiscResetValues",
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
@@ -4084,6 +4275,7 @@
     "percentages-resolve-to": "length"
   },
   "scroll-padding-right": {
+    "style-group": "MiscResetValues",
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
@@ -4098,6 +4290,7 @@
     "percentages-resolve-to": "length"
   },
   "scroll-padding-top": {
+    "style-group": "MiscResetValues",
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
@@ -4121,6 +4314,7 @@
     ]
   },
   "scroll-timeline-axis": {
+    "style-group": "AnimationValues",
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
@@ -4132,6 +4326,7 @@
     "multiplicity": "coordinating-list"
   },
   "scroll-timeline-name": {
+    "style-group": "AnimationValues",
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
@@ -4146,6 +4341,7 @@
     "multiplicity": "coordinating-list"
   },
   "scrollbar-color": {
+    "style-group": "InheritedUIValues",
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": true,
@@ -4153,6 +4349,7 @@
     "requires-computation": "cascaded-value"
   },
   "scrollbar-gutter": {
+    "style-group": "MiscResetValues",
     "affects-layout": false,
     "animation-type": "discrete",
     "__comment": "This property should affect layout per-spec, but ladybird always uses overlay scrollbars so it doesn't in practice.",
@@ -4161,6 +4358,7 @@
     "requires-computation": "never"
   },
   "scrollbar-width": {
+    "style-group": "MiscResetValues",
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -4176,6 +4374,7 @@
     ]
   },
   "shape-image-threshold": {
+    "style-group": "MiscResetValues",
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -4186,6 +4385,7 @@
     ]
   },
   "shape-margin": {
+    "style-group": "MiscResetValues",
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "0",
@@ -4197,6 +4397,7 @@
     "percentages-resolve-to": "length"
   },
   "shape-outside": {
+    "style-group": "MiscResetValues",
     "affects-layout": true,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -4204,6 +4405,7 @@
     "requires-computation": "cascaded-value"
   },
   "shape-rendering": {
+    "style-group": "InheritedSVGValues",
     "affects-layout": true,
     "animation-type": "discrete",
     "inherited": true,
@@ -4214,6 +4416,7 @@
     ]
   },
   "stop-color": {
+    "style-group": "SVGResetValues",
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -4224,6 +4427,7 @@
     ]
   },
   "stop-opacity": {
+    "style-group": "SVGResetValues",
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -4234,6 +4438,7 @@
     ]
   },
   "stroke": {
+    "style-group": "InheritedSVGValues",
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": true,
@@ -4244,6 +4449,7 @@
     ]
   },
   "stroke-dasharray": {
+    "style-group": "InheritedSVGValues",
     "animation-type": "custom",
     "inherited": true,
     "initial": "none",
@@ -4252,6 +4458,7 @@
     "requires-computation": "cascaded-value"
   },
   "stroke-dashoffset": {
+    "style-group": "InheritedSVGValues",
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": true,
@@ -4265,6 +4472,7 @@
     "percentages-resolve-to": "length"
   },
   "stroke-linecap": {
+    "style-group": "InheritedSVGValues",
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": true,
@@ -4275,6 +4483,7 @@
     ]
   },
   "stroke-linejoin": {
+    "style-group": "InheritedSVGValues",
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": true,
@@ -4285,6 +4494,7 @@
     ]
   },
   "stroke-miterlimit": {
+    "style-group": "InheritedSVGValues",
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": true,
@@ -4295,6 +4505,7 @@
     ]
   },
   "stroke-opacity": {
+    "style-group": "InheritedSVGValues",
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": true,
@@ -4305,6 +4516,7 @@
     ]
   },
   "stroke-width": {
+    "style-group": "InheritedSVGValues",
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": true,
@@ -4318,6 +4530,7 @@
     "percentages-resolve-to": "length"
   },
   "tab-size": {
+    "style-group": "InheritedTextValues",
     "animation-type": "by-computed-value",
     "inherited": true,
     "initial": "8",
@@ -4328,6 +4541,7 @@
     ]
   },
   "table-layout": {
+    "style-group": "BoxValues",
     "animation-type": "discrete",
     "inherited": false,
     "initial": "auto",
@@ -4337,6 +4551,7 @@
     ]
   },
   "text-align": {
+    "style-group": "InheritedTextValues",
     "animation-type": "discrete",
     "inherited": true,
     "initial": "start",
@@ -4346,6 +4561,7 @@
     ]
   },
   "text-anchor": {
+    "style-group": "InheritedSVGValues",
     "animation-type": "discrete",
     "inherited": true,
     "initial": "start",
@@ -4365,6 +4581,7 @@
     ]
   },
   "text-decoration-color": {
+    "style-group": "TextResetValues",
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -4376,6 +4593,7 @@
     ]
   },
   "text-decoration-line": {
+    "style-group": "TextResetValues",
     "affects-layout": false,
     "animation-type": "discrete",
     "__comment": "FIXME: This property is not supposed to be inherited, but we currently rely on inheritance to propagate decorations into line boxes.",
@@ -4387,6 +4605,7 @@
     ]
   },
   "text-decoration-skip-ink": {
+    "style-group": "InheritedTextValues",
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": true,
@@ -4397,6 +4616,7 @@
     ]
   },
   "text-decoration-style": {
+    "style-group": "TextResetValues",
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": false,
@@ -4407,6 +4627,7 @@
     ]
   },
   "text-decoration-thickness": {
+    "style-group": "TextResetValues",
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -4423,6 +4644,7 @@
     "percentages-resolve-to": "length"
   },
   "text-indent": {
+    "style-group": "InheritedTextValues",
     "animation-type": "by-computed-value",
     "inherited": true,
     "initial": "0",
@@ -4441,6 +4663,7 @@
     ]
   },
   "text-justify": {
+    "style-group": "InheritedTextValues",
     "animation-type": "discrete",
     "inherited": true,
     "initial": "auto",
@@ -4453,6 +4676,7 @@
     ]
   },
   "text-overflow": {
+    "style-group": "BoxValues",
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": false,
@@ -4473,6 +4697,7 @@
     ]
   },
   "text-shadow": {
+    "style-group": "InheritedTextValues",
     "affects-layout": false,
     "animation-type": "custom",
     "inherited": true,
@@ -4484,6 +4709,7 @@
     ]
   },
   "text-transform": {
+    "style-group": "InheritedTextValues",
     "__comment": "NOTE: This property has custom invalidation handling.",
     "animation-type": "discrete",
     "inherited": true,
@@ -4494,6 +4720,7 @@
     ]
   },
   "text-underline-offset": {
+    "style-group": "InheritedTextValues",
     "animation-type": "by-computed-value",
     "inherited": true,
     "initial": "auto",
@@ -4508,6 +4735,7 @@
     "percentages-resolve-to": "length"
   },
   "text-underline-position": {
+    "style-group": "InheritedTextValues",
     "animation-type": "discrete",
     "inherited": true,
     "initial": "auto",
@@ -4525,6 +4753,7 @@
     ]
   },
   "text-wrap-mode": {
+    "style-group": "InheritedTextValues",
     "animation-type": "discrete",
     "inherited": true,
     "initial": "wrap",
@@ -4534,6 +4763,7 @@
     ]
   },
   "text-wrap-style": {
+    "style-group": "InheritedTextValues",
     "animation-type": "discrete",
     "inherited": true,
     "initial": "auto",
@@ -4543,6 +4773,7 @@
     ]
   },
   "timeline-scope": {
+    "style-group": "AnimationValues",
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
@@ -4550,6 +4781,7 @@
     "requires-computation": "never"
   },
   "top": {
+    "style-group": "SurroundValues",
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
@@ -4569,6 +4801,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "touch-action": {
+    "style-group": "MiscResetValues",
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": false,
@@ -4580,6 +4813,7 @@
     ]
   },
   "transform": {
+    "style-group": "TransformValues",
     "affects-accumulated-visual-contexts": true,
     "animation-type": "custom",
     "inherited": false,
@@ -4598,6 +4832,7 @@
     ]
   },
   "transform-box": {
+    "style-group": "TransformValues",
     "affects-accumulated-visual-contexts": true,
     "animation-type": "discrete",
     "inherited": false,
@@ -4610,6 +4845,7 @@
     ]
   },
   "transform-origin": {
+    "style-group": "TransformValues",
     "affects-accumulated-visual-contexts": true,
     "affects-layout": false,
     "affects-scrollable-overflow": true,
@@ -4632,7 +4868,7 @@
     "percentages-resolve-to": "length"
   },
   "transform-style": {
-    "affects-accumulated-visual-contexts": true,
+    "style-group": "TransformValues",
     "animation-type": "discrete",
     "inherited": false,
     "initial": "flat",
@@ -4655,6 +4891,7 @@
     ]
   },
   "transition-behavior": {
+    "style-group": "AnimationValues",
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
@@ -4666,6 +4903,7 @@
     ]
   },
   "transition-delay": {
+    "style-group": "AnimationValues",
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
@@ -4677,6 +4915,7 @@
     ]
   },
   "transition-duration": {
+    "style-group": "AnimationValues",
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
@@ -4688,6 +4927,7 @@
     ]
   },
   "transition-property": {
+    "style-group": "AnimationValues",
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
@@ -4702,6 +4942,7 @@
     ]
   },
   "transition-timing-function": {
+    "style-group": "AnimationValues",
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
@@ -4714,6 +4955,7 @@
     ]
   },
   "translate": {
+    "style-group": "TransformValues",
     "affects-accumulated-visual-contexts": true,
     "animation-type": "custom",
     "inherited": false,
@@ -4729,6 +4971,7 @@
     "percentages-resolve-to": "length"
   },
   "unicode-bidi": {
+    "style-group": "BoxValues",
     "animation-type": "none",
     "inherited": false,
     "initial": "normal",
@@ -4738,6 +4981,7 @@
     ]
   },
   "user-select": {
+    "style-group": "MiscResetValues",
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": false,
@@ -4748,6 +4992,7 @@
     ]
   },
   "vector-effect": {
+    "style-group": "SVGResetValues",
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": false,
@@ -4758,6 +5003,7 @@
     ]
   },
   "vertical-align": {
+    "style-group": "BoxValues",
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "baseline",
@@ -4783,6 +5029,7 @@
     ]
   },
   "view-timeline-axis": {
+    "style-group": "AnimationValues",
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
@@ -4794,6 +5041,7 @@
     "multiplicity": "coordinating-list"
   },
   "view-timeline-inset": {
+    "style-group": "AnimationValues",
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
@@ -4806,6 +5054,7 @@
     "multiplicity": "coordinating-list"
   },
   "view-timeline-name": {
+    "style-group": "AnimationValues",
     "affects-layout": false,
     "animation-type": "none",
     "inherited": false,
@@ -4820,6 +5069,7 @@
     "multiplicity": "coordinating-list"
   },
   "view-transition-name": {
+    "style-group": "MiscResetValues",
     "affects-layout": false,
     "affects-stacking-context": true,
     "animation-type": "discrete",
@@ -4834,6 +5084,7 @@
     ]
   },
   "visibility": {
+    "style-group": "InheritedBoxValues",
     "animation-type": "custom",
     "inherited": true,
     "initial": "visible",
@@ -4854,6 +5105,7 @@
     ]
   },
   "white-space-collapse": {
+    "style-group": "InheritedTextValues",
     "animation-type": "discrete",
     "inherited": true,
     "initial": "collapse",
@@ -4863,6 +5115,7 @@
     ]
   },
   "white-space-trim": {
+    "style-group": "TextResetValues",
     "animation-type": "discrete",
     "inherited": false,
     "initial": "none",
@@ -4875,6 +5128,7 @@
     ]
   },
   "widows": {
+    "style-group": "InheritedTextValues",
     "animation-type": "by-computed-value",
     "inherited": true,
     "initial": "2",
@@ -4885,6 +5139,7 @@
     "__comment": "FIXME: We don't implement this property any further than compute time"
   },
   "width": {
+    "style-group": "SizingValues",
     "animation-type": "by-computed-value",
     "inherited": false,
     "initial": "auto",
@@ -4906,6 +5161,7 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "will-change": {
+    "style-group": "MiscResetValues",
     "affects-layout": false,
     "affects-stacking-context": true,
     "animation-type": "none",
@@ -4923,6 +5179,7 @@
     ]
   },
   "word-break": {
+    "style-group": "InheritedTextValues",
     "animation-type": "discrete",
     "initial": "normal",
     "inherited": true,
@@ -4935,6 +5192,7 @@
     ]
   },
   "word-spacing": {
+    "style-group": "InheritedTextValues",
     "animation-type": "by-computed-value",
     "inherited": true,
     "initial": "normal",
@@ -4955,6 +5213,7 @@
     "legacy-alias-for": "overflow-wrap"
   },
   "writing-mode": {
+    "style-group": "InheritedBoxValues",
     "animation-type": "none",
     "inherited": true,
     "initial": "horizontal-tb",
@@ -4964,6 +5223,7 @@
     ]
   },
   "x": {
+    "style-group": "SVGResetValues",
     "__comment": "This is an SVG 2 geometry property, see: https://www.w3.org/TR/SVG/geometry.html#X.",
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -4979,6 +5239,7 @@
     ]
   },
   "y": {
+    "style-group": "SVGResetValues",
     "__comment": "This is an SVG 2 geometry property, see: https://www.w3.org/TR/SVG/geometry.html#Y.",
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -4994,6 +5255,7 @@
     ]
   },
   "z-index": {
+    "style-group": "BoxValues",
     "affects-layout": false,
     "affects-stacking-context": true,
     "animation-type": "by-computed-value",

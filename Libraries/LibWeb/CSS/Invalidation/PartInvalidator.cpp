@@ -5,42 +5,28 @@
  */
 
 #include <LibWeb/CSS/Invalidation/PartInvalidator.h>
+#include <LibWeb/CSS/PseudoClass.h>
+#include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/TraversalDecision.h>
 
 namespace Web::CSS::Invalidation {
 
-void invalidate_style_after_part_attribute_change(DOM::Element& element)
-{
-    // ::part(...) rules in the outer scope target this element by part name, so the element's computed style must
-    // be recomputed when its part tokens change.
-    element.set_needs_style_update(true);
-}
-
+// What an `exportparts` change moves is how far out of the tree each part reaches, which is a fact
+// about the elements exposing parts rather than about the host. Nested hosts forward outwards in
+// turn, so the whole hosted tree is walked and each of them republishes its own reach.
 void invalidate_style_after_exportparts_attribute_change(DOM::Element& element)
-{
-    // When exportparts changes on a shadow host, elements with part tokens inside its shadow tree may newly become
-    // or stop being targets of ::part() rules in the outer scope.
-    if (auto shadow_root = element.shadow_root()) {
-        shadow_root->for_each_in_subtree_of_type<DOM::Element>([](DOM::Element& element) {
-            if (!element.part_names().is_empty())
-                element.set_needs_style_update(true);
-            return TraversalDecision::Continue;
-        });
-    }
-}
-
-void invalidate_part_targets(DOM::Element& element)
 {
     auto shadow_root = element.shadow_root();
     if (!shadow_root)
         return;
 
-    for (auto const& [_, part_elements] : shadow_root->part_element_map()) {
-        for (auto const& part_element : part_elements)
-            const_cast<DOM::Element&>(part_element.element()).set_needs_style_update(true);
-    }
+    shadow_root->for_each_shadow_including_descendant([](DOM::Node& node) {
+        if (auto* descendant = as_if<DOM::Element>(node); descendant && !descendant->part_names().is_empty())
+            record_element_parts_changed(*descendant);
+        return TraversalDecision::Continue;
+    });
 }
 
 }

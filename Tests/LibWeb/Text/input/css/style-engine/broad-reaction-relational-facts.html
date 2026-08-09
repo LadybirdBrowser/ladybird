@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+div, main { color: grey }
+div:has(> .test) ~ #subject { color: green }
+</style>
+<main>
+    <div id="previous"><div id="child"></div></div>
+    <div id="subject"></div>
+</main>
+<script>
+test(() => {
+    function color(label) {
+        println(`${label}: ${getComputedStyle(subject).color}`);
+    }
+
+    const first = document.createElement("div");
+    first.className = "test";
+    previous.before(first);
+    color("first insertion");
+    first.className = "";
+    color("first removal");
+    first.className = "test";
+    color("first addition");
+    first.remove();
+    color("first detach");
+    first.className = "";
+    previous.before(first);
+    color("first reinsert");
+    first.className = "test";
+    color("first reinsert addition");
+    first.className = "";
+    color("first reinsert removal");
+    first.remove();
+    color("first final detach");
+
+    const second = document.createElement("div");
+    second.className = "test";
+    child.before(second);
+    color("second insertion");
+    second.className = "";
+    color("second removal");
+});
+</script>

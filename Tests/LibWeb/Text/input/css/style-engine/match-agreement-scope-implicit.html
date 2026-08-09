@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div class="outside"><div class="inner">outside the scope entirely</div></div>
+<div class="holder">
+    <style>
+        @scope {
+            :scope { color: rgb(1, 2, 3) }
+            .inner { background-color: rgb(4, 5, 6) }
+        }
+        @scope to (.limit) {
+            .inner { outline-color: rgb(7, 8, 9) }
+        }
+    </style>
+    <div class="inner">inner</div>
+    <div class="limit"><div class="inner">beyond the limit</div></div>
+</div>
+<script>
+    test(() => {
+        // https://drafts.csswg.org/css-cascade-6/#scope-atrule
+        // An `@scope` with no `<scope-start>` roots at the parent element of its sheet's owner
+        // node, which is an element and not a selector. `:scope` therefore names the holder, the
+        // scoped rules reach only inside it, and a limit written without a root still bounds the
+        // scope that element opens.
+        const holder = document.querySelector(".holder");
+        const inner = holder.querySelector(".inner");
+        const beyond = document.querySelector(".limit .inner");
+        println("holder color: " + getComputedStyle(holder).color);
+        println("inner background-color: " + getComputedStyle(inner).backgroundColor);
+        println("inner outline-color: " + getComputedStyle(inner).outlineColor);
+        println("beyond the limit outline-color: " + getComputedStyle(beyond).outlineColor);
+        println("outside background-color: " + getComputedStyle(document.querySelector(".outside .inner")).backgroundColor);
+        println(internals.styleEngineMatchedRules());
+    });
+</script>

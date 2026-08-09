@@ -37,9 +37,10 @@ static float dominant_baseline_offset(CSS::BaselineMetric metric, Gfx::FontPixel
     VERIFY_NOT_REACHED();
 }
 
-static CSS::BaselineMetric resolve_dominant_baseline_metric(CSS::ComputedValues const& computed_values)
+template<typename StyleSource>
+static CSS::BaselineMetric resolve_dominant_baseline_metric(StyleSource const& style_source)
 {
-    auto dominant_baseline = computed_values.dominant_baseline();
+    auto dominant_baseline = style_source.dominant_baseline();
     if (dominant_baseline.has_value())
         return *dominant_baseline;
 
@@ -47,7 +48,7 @@ static CSS::BaselineMetric resolve_dominant_baseline_metric(CSS::ComputedValues 
     // Equivalent to alphabetic in horizontal writing modes and in vertical writing modes when text-orientation is
     // sideways. Equivalent to central in vertical writing modes when text-orientation is mixed or upright.
     // FIXME: Take text-orientation into account once it is implemented.
-    switch (computed_values.writing_mode()) {
+    switch (style_source.writing_mode()) {
     case CSS::WritingMode::HorizontalTb:
     case CSS::WritingMode::SidewaysRl:
     case CSS::WritingMode::SidewaysLr:

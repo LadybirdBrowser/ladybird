@@ -12,13 +12,13 @@
         settleAndReset();
 
         document.getElementById("target").setAttribute("data-matched", "");
-        getComputedStyle(document.getElementById("anchor")).color;
+        internals.updateStyle();
         printCounters("set data-matched attribute");
 
         internals.resetStyleInvalidationCounters();
 
         document.getElementById("target").removeAttribute("data-matched");
-        getComputedStyle(document.getElementById("anchor")).color;
+        internals.updateStyle();
         printCounters("remove data-matched attribute");
     });
 </script>

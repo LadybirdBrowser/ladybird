@@ -12,7 +12,6 @@
 #include <LibWeb/Bindings/AnimationEffect.h>
 #include <LibWeb/CSS/CSSNumericValue.h>
 #include <LibWeb/CSS/ComputedProperties.h>
-#include <LibWeb/CSS/Invalidation/SlotInvalidator.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleComputer.h>
@@ -21,7 +20,6 @@
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
-#include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -819,9 +817,14 @@ static CSS::StyleValue const* animated_property_value(CSS::AnimatedProperties co
     return value.value();
 }
 
-static CSS::RequiredInvalidationAfterStyleChange compute_required_invalidation_for_animated_properties(CSS::AnimatedProperties const* old_properties, CSS::AnimatedProperties const* new_properties)
-{
+struct AnimatedPropertyInvalidation {
     CSS::RequiredInvalidationAfterStyleChange invalidation;
+    bool requires_base_style_recomputation { false };
+};
+
+static AnimatedPropertyInvalidation compute_required_invalidation_for_animated_properties(CSS::AnimatedProperties const* old_properties, CSS::AnimatedProperties const* new_properties)
+{
+    AnimatedPropertyInvalidation result;
     auto old_and_new_properties = MUST(Bitmap::create(CSS::number_of_longhand_properties, 0));
     if (old_properties) {
         for (auto const& [property_id, _] : old_properties->values())
@@ -839,12 +842,28 @@ static CSS::RequiredInvalidationAfterStyleChange compute_required_invalidation_f
         auto const* new_value = animated_property_value(new_properties, property_id);
         if (!old_value && !new_value)
             continue;
+        if (old_value && new_value && old_value->equals(*new_value))
+            continue;
+        if (first_is_one_of(property_id,
+                CSS::PropertyID::Direction,
+                CSS::PropertyID::Display,
+                CSS::PropertyID::Float,
+                CSS::PropertyID::OverflowX,
+                CSS::PropertyID::OverflowY,
+                CSS::PropertyID::Position,
+                CSS::PropertyID::TextAlign))
+            result.requires_base_style_recomputation = true;
         auto property_invalidation = compute_property_invalidation(property_id, old_value, new_value);
-        if (!property_invalidation.is_none() && CSS::is_inherited_property(property_id))
-            property_invalidation.inherited_style_changed = true;
-        invalidation |= property_invalidation;
+        if (!property_invalidation.is_none() && CSS::is_inherited_property(property_id)) {
+            auto group = CSS::ComputedValues::style_group_of_property(property_id);
+            if (group.has_value() && to_underlying(*group) < CSS::ComputedValues::inherited_style_group_count)
+                property_invalidation.mark_inherited_style_group_changed(to_underlying(*group));
+            else
+                property_invalidation.mark_all_inherited_style_groups_changed();
+        }
+        result.invalidation |= property_invalidation;
     }
-    return invalidation;
+    return result;
 }
 
 AnimationUpdateContext::~AnimationUpdateContext()
@@ -858,70 +877,53 @@ AnimationUpdateContext::~AnimationUpdateContext()
         if (!it.value.effects.is_empty())
             target->document().style_computer().collect_animations_into(element, it.value.effects.span(), *style);
         auto animated_properties_after_update = style->animated_properties_snapshot();
-        auto invalidation = compute_required_invalidation_for_animated_properties(it.value.animated_properties_before_update.ptr(), animated_properties_after_update.ptr());
+        auto animated_property_invalidation = compute_required_invalidation_for_animated_properties(it.value.animated_properties_before_update.ptr(), animated_properties_after_update.ptr());
+        auto invalidation = animated_property_invalidation.invalidation;
 
         if (invalidation.is_none())
             continue;
 
-        auto computed_values = target->document().style_computer().build_computed_values(*style, element, element.style_scope());
-        target->refresh_computed_values(element.pseudo_element(), computed_values);
+        auto computed_values = [&] {
+            auto previous_values = element.computed_style();
+            if (previous_values)
+                return target->document().style_computer().build_animated_computed_values(*style, element, element.style_scope(), *previous_values);
+            return target->document().style_computer().build_computed_values(*style, element, element.style_scope());
+        }();
+        if (animated_properties_after_update && !animated_properties_after_update->values().is_empty()
+            && (target->document().style_stabilization_has_style_reactions() || animated_property_invalidation.requires_base_style_recomputation)) {
+            target->document().style_computer().record_transition_stabilization_baseline(element);
+        }
+        auto publication = target->document().style_computer().publish_computed_style_inputs(element, *computed_values);
+        target->refresh_computed_style(element.pseudo_element(), publication.new_style_record);
 
-        if (!element.pseudo_element().has_value() && invalidation.inherited_style_changed)
+        // Box-type, overflow, and text-alignment adjustments consume the unadjusted base values,
+        // which an animation-only overlay update deliberately does not reconstruct. Publish an
+        // exact feedback action so the ordinary reaction path re-cascades that base before the
+        // frame becomes observable.
+        if (animated_property_invalidation.requires_base_style_recomputation)
+            target->document().style_computer().style_engine().record_element_style_input_change(target->style_node_id());
+
+        if (!element.pseudo_element().has_value() && invalidation.inherited_style_changed())
             invalidation |= target->recompute_pseudo_element_styles_after_animation_update({});
 
-        // Traversal of the subtree is necessary to update the animated properties inherited from the target element.
-        bool invalidated_assigned_slottables_for_descendant_slots = false;
-        if (!element.pseudo_element().has_value()) {
-            CSS::Invalidation::invalidate_assigned_slottables_after_slot_style_change(target);
-            if (invalidation.inherited_style_changed || invalidation.needs_layout_tree_rebuild()) {
-                CSS::Invalidation::invalidate_assigned_slottables_for_descendant_slots_after_inherited_style_change(target);
-                invalidated_assigned_slottables_for_descendant_slots = true;
-            }
-        }
-
-        target->for_each_shadow_including_descendant([&](auto& node) {
-            if (!is<DOM::Element>(node))
-                return TraversalDecision::Continue;
-            auto& element = static_cast<DOM::Element&>(node);
-            if (!element.computed_values())
-                return TraversalDecision::SkipChildrenAndContinue;
-            // NB: A styled element can inherit from an unstyled one in the flat tree: per css-shadow-1, a slotted
-            //     element inherits from the slot it's assigned to rather than its light tree parent
-            //     (https://drafts.csswg.org/css-shadow-1/#slots-in-shadow-tree), and that slot may not have computed
-            //     values yet (e.g. a freshly attached shadow tree that hasn't been through a style update).
-            //     Inherited style can't be recomputed against an unstyled parent, so leave the element to the
-            //     regular style pass, which always styles slots before their assigned slottables.
-            if (auto inheritance_parent = DOM::AbstractElement { element }.element_to_inherit_style_from();
-                inheritance_parent.has_value() && !inheritance_parent->computed_values()) {
-                element.set_needs_style_update(true);
-                return TraversalDecision::SkipChildrenAndContinue;
-            }
-            auto element_invalidation = element.recompute_inherited_style();
-            if (element_invalidation.is_none())
-                return TraversalDecision::SkipChildrenAndContinue;
-            CSS::Invalidation::invalidate_assigned_slottables_after_slot_style_change(element);
-            if (!invalidated_assigned_slottables_for_descendant_slots
-                && (element_invalidation.inherited_style_changed || element_invalidation.needs_layout_tree_rebuild())) {
-                CSS::Invalidation::invalidate_assigned_slottables_for_descendant_slots_after_inherited_style_change(target);
-                invalidated_assigned_slottables_for_descendant_slots = true;
-            }
-            // NB: Descendant invalidations are merged into one, so value-only visual context updates must be
-            //     scheduled here, for each affected descendant.
-            if (element_invalidation.accumulated_visual_contexts() == CSS::AccumulatedVisualContextInvalidation::UpdateValues)
-                element.document().schedule_accumulated_visual_context_value_update(element);
-            if (element_invalidation.needs_scrollable_overflow_recalculation())
-                element.document().schedule_scrollable_overflow_recalculation(element);
-            invalidation |= element_invalidation;
-            return TraversalDecision::Continue;
-        });
+        // An animated value can be inherited through shadow and slot boundaries. Publish the exact
+        // flat-tree descendants as one feedback batch; the ordinary transaction owns their style
+        // materialization and observer consequences.
+        if (!element.pseudo_element().has_value())
+            target->document().style_computer().style_engine().record_flat_tree_descendant_style_input_changes(
+                target->style_node_id(),
+                CSS::StyleEngine::InheritedStyle,
+                invalidation.inherited_style_changed()
+                    ? invalidation.inherited_style_groups_changed()
+                    : CSS::RequiredInvalidationAfterStyleChange::all_inherited_style_groups);
 
         // NB: Called from animation update context destructor during style recalculation.
         if (!element.pseudo_element().has_value()) {
             if (target->unsafe_layout_node())
-                target->unsafe_layout_node()->apply_style(computed_values);
+                target->unsafe_layout_node()->apply_style(target->style_record_identity());
         } else {
             if (auto pseudo_element_node = target->pseudo_element_unsafe_layout_node(element.pseudo_element().value()))
-                pseudo_element_node->apply_style(computed_values);
+                pseudo_element_node->apply_style(target->style_record_identity(element.pseudo_element()));
         }
 
         if (invalidation.changes_containing_block_establishment)

@@ -1110,6 +1110,11 @@ impl ComputedGroupSets {
             .filter_map(move |(&(row_node, pseudo_kind), &state)| (row_node == node).then_some((pseudo_kind, state)))
     }
 
+    #[must_use]
+    pub fn pseudo_retained_cascade_state(&self, node: StyleNodeID, pseudo_kind: u8) -> Option<(u64, CascadeStateID)> {
+        self.pseudo_retained_cascade_rows.get(&(node, pseudo_kind)).copied()
+    }
+
     /// The pseudo-element kinds this node holds published computed styles for.
     pub fn assigned_pseudo_kinds(&self, node: StyleNodeID) -> impl Iterator<Item = u8> + '_ {
         self.pseudo_kinds_by_node

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .before { list-style-position: outside; }
+    .after { list-style-position: inside; }
+</style>
+<div id="parent" class="before"><div id="child"></div></div>
+<script>
+    test(() => {
+        const parentElement = document.getElementById("parent");
+        const childElement = document.getElementById("child");
+        internals.updateStyle();
+        internals.resetStyleInvalidationCounters();
+
+        parentElement.className = "after";
+        internals.updateStyle();
+
+        const counters = internals.getStyleInvalidationCounters();
+        println(`child list position: ${getComputedStyle(childElement).listStylePosition}`);
+        println(`materialized gaps: ${counters.styleEngineMaterializedGaps}`);
+        println(`record deltas applied: ${counters.styleEngineRecordDeltasApplied}`);
+        println(`inherited group swaps: ${counters.elementInheritedStyleGroupSwaps}`);
+        println(`longhand evaluations: ${counters.computedLonghandEvaluations}`);
+    });
+</script>

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @import url("imported-sheet-media-text-flips.css") all;
+</style>
+<div class="target inner">target</div>
+<script>
+    test(() => {
+        const sheet = document.styleSheets[0];
+        internals.updateStyle();
+
+        const target = document.querySelector(".target");
+        const importRule = sheet.cssRules[0];
+        println(`import before: ${getComputedStyle(target).color}`);
+
+        importRule.media.mediaText = "not all";
+        internals.updateStyle();
+        println(`import after: ${getComputedStyle(target).color}`);
+
+        importRule.media.mediaText = "all";
+        internals.updateStyle();
+        println(`inner media before: ${getComputedStyle(target).backgroundColor}`);
+
+        importRule.styleSheet.cssRules[1].media.mediaText = "not all";
+        internals.updateStyle();
+        println(`inner media after: ${getComputedStyle(target).backgroundColor}`);
+    });
+</script>

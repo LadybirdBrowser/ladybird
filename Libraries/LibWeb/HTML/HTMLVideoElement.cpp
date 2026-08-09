@@ -72,7 +72,7 @@ void HTMLVideoElement::attribute_changed(Utf16FlyString const& name, Optional<Ut
     }
 }
 
-RefPtr<Layout::Node> HTMLVideoElement::create_layout_node(NonnullRefPtr<CSS::ComputedValues const> style)
+RefPtr<Layout::Node> HTMLVideoElement::create_layout_node(CSS::LayoutStyle style)
 {
     return make_ref_counted<Layout::VideoBox>(document(), *this, style);
 }

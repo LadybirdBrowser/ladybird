@@ -6,9 +6,33 @@
 
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/RustStyleBridge.h>
+#include <LibWeb/CSS/StyleGroupPayloadPins.h>
 #include <LibWeb/ComputedValuesRustFFI.h>
 
 namespace Web::CSS {
+
+StyleGroupPayloadPins::~StyleGroupPayloadPins()
+{
+    clear();
+}
+
+void StyleGroupPayloadPins::set(ReadonlySpan<void const*> payloads)
+{
+    clear();
+    if (payloads.is_empty())
+        return;
+    m_payloads.ensure_capacity(payloads.size());
+    ComputedValuesFFI::rust_style_groups_retain(payloads.data(), payloads.size());
+    for (auto const* payload : payloads)
+        m_payloads.unchecked_append(payload);
+}
+
+void StyleGroupPayloadPins::clear()
+{
+    if (!m_payloads.is_empty())
+        ComputedValuesFFI::rust_style_groups_release(m_payloads.data(), m_payloads.size());
+    m_payloads.clear_with_capacity();
+}
 
 void* clone_rust_style_group(size_t group_index, void const* payload)
 {

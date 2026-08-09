@@ -41,6 +41,17 @@ HTMLTextAreaElement::HTMLTextAreaElement(DOM::Document& document, DOM::Qualified
 
 HTMLTextAreaElement::~HTMLTextAreaElement() = default;
 
+// `:user-valid` and `:user-invalid` turn on the first time the user has interacted with the
+// control, which no attribute and no value says. The style engine is told what the element now
+// holds rather than asking.
+void HTMLTextAreaElement::set_user_validity(bool flag)
+{
+    if (m_user_validity == flag)
+        return;
+    m_user_validity = flag;
+    CSS::Invalidation::invalidate_style_after_validity_change(*this);
+}
+
 void HTMLTextAreaElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
@@ -185,6 +196,8 @@ void HTMLTextAreaElement::set_value(Utf16View value)
 
             set_the_selection_range(m_text_node->length(), m_text_node->length());
         }
+
+        CSS::Invalidation::invalidate_style_after_placeholder_shown_change(*this);
     }
 }
 
@@ -435,6 +448,7 @@ void HTMLTextAreaElement::children_changed(ChildrenChangedMetadata const& metada
         if (m_text_node)
             m_text_node->set_data(m_raw_value);
         update_placeholder_visibility();
+        CSS::Invalidation::invalidate_style_after_placeholder_shown_change(*this);
     }
 }
 
@@ -522,7 +536,7 @@ Optional<Utf16String> HTMLTextAreaElement::placeholder_value() const
     return get_attribute_value(HTML::AttributeNames::placeholder);
 }
 
-RefPtr<Layout::Node> HTMLTextAreaElement::create_layout_node(NonnullRefPtr<CSS::ComputedValues const> style)
+RefPtr<Layout::Node> HTMLTextAreaElement::create_layout_node(CSS::LayoutStyle style)
 {
     return make_ref_counted<Layout::TextAreaBox>(document(), *this, style);
 }

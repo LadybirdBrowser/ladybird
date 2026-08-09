@@ -18,7 +18,8 @@ SVGRectElement::SVGRectElement(DOM::Document& document, DOM::QualifiedName quali
 
 Gfx::Path SVGRectElement::get_path(CSSPixelSize viewport_size)
 {
-    auto computed_values = this->computed_values();
+    auto computed_values = this->computed_style();
+    VERIFY(computed_values);
 
     auto computed_width = computed_values->width();
     auto computed_height = computed_values->height();
@@ -95,7 +96,8 @@ Gfx::FloatSize SVGRectElement::calculate_used_corner_radius_values(float used_wi
 {
     // The used values for rx and ry are determined from the computed values by following these steps in order:
 
-    auto const& computed_values = this->computed_values();
+    auto computed_values = this->computed_style();
+    VERIFY(computed_values);
 
     auto computed_rx = computed_values->rx();
     auto computed_ry = computed_values->ry();

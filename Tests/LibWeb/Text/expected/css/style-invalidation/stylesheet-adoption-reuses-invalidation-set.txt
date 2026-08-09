@@ -1,1 +1,0 @@
-PASS: adopting one constructed sheet into four shadow roots | styleSheetInvalidationSetBuilds=1

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="plan.js"></script>
+<style>
+    .theme .item { color: green }
+    #named { color: green }
+    [data-mode] .item { color: green }
+    [data-mode="dark"] .item { color: blue }
+    span.item { color: green }
+    [data-mode] [class] + span { color: green }
+</style>
+<div id="guard">
+    <div id="middle">
+        <span id="item" class="item"></span>
+        <span id="bare"></span>
+    </div>
+</div>
+<div id="other"><span id="far" class="item"></span></div>
+<div id="sib-guard">
+    <div><span id="plain-anchor"></span><span id="plain-next"></span></div>
+    <div><span id="classed-anchor" class="anchor"></span><span id="classed-next"></span></div>
+</div>
+<script>
+    test(() => {
+        const guard = document.getElementById("guard");
+        const item = document.getElementById("item");
+
+        // A class the guard gains reaches the .item elements under it, and no further: #far is an
+        // .item too, but it is not under the guard.
+        plan("add a class", () => guard.classList.add("theme"));
+        plan("remove that class", () => guard.classList.remove("theme"));
+
+        // A class nothing selects reaches nothing at all.
+        plan("add an unmentioned class", () => guard.classList.add("nobody-selects-this"));
+
+        // An id is the element's own, so it reaches only that element.
+        plan("gain an id", () => item.id = "named");
+        plan("lose that id", () => item.id = "item");
+
+        // An attribute reaches through both the rules that test its presence and the ones that test
+        // its value, and stays inside the subtree either way.
+        plan("add an attribute", () => guard.setAttribute("data-mode", "light"));
+        plan("change its value", () => guard.setAttribute("data-mode", "dark"));
+        plan("remove it", () => guard.removeAttribute("data-mode"));
+
+        // What a selector required on the way is checked by walking the path back, whichever steps
+        // it takes. Only the span whose previous sibling carries a class can match, so the one
+        // beside an unclassed anchor is not named.
+        plan("an attribute above a sibling combinator", () => document.getElementById("sib-guard").setAttribute("data-mode", "light"));
+
+        // Setting an attribute to the value it already has moves nothing, so the journal cancels it.
+        guard.setAttribute("data-mode", "dark");
+        planSetup();
+        guard.setAttribute("data-mode", "dark");
+        const repeat = internals.styleEngineTransactionReactions();
+        println(`rewrite with the same value: [${repeat.elements.join(", ")}]`);
+    });
+</script>

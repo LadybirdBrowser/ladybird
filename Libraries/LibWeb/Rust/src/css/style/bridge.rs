@@ -47,6 +47,8 @@ use super::memory::MEMORY_CATEGORIES;
 use super::memory::MEMORY_CATEGORY_COUNT;
 use super::memory::MemoryCategory;
 use super::memory::MemoryLease;
+#[cfg(feature = "style-recording")]
+use super::memory::TIER3_REFUSAL_CATEGORIES;
 use super::program::CascadeLayerID;
 use super::program::CascadeOrigin;
 use super::program::DeclarationBlockID;
@@ -189,7 +191,7 @@ pub struct FfiMemoryPressureSnapshot {
     pub tier4_bytes: u64,
     pub tier3_refusals: u64,
     pub tier4_refusals: u64,
-    pub tier3_refusal_categories: [u64; 8],
+    pub tier3_refusal_categories: [u64; TIER3_REFUSAL_CATEGORIES.len()],
     pub tier4_refusal_categories: [u64; 2],
     pub tier3_evictions: u64,
     pub category_bytes: [u64; MEMORY_CATEGORY_COUNT],
@@ -859,7 +861,7 @@ pub unsafe extern "C" fn style_engine_apply_transaction(engine: *mut c_void, tra
         engine.record_boundary_call(EventKind::ApplyTransaction, |payload| {
             write_recording_tree_deltas(tree, payload);
             payload.write_raw_slice(features);
-            payload.write_raw_slice(states);
+            write_recording_state_deltas(states, payload);
             payload.write_raw_slice(declarations);
             write_recording_element_style_inputs(element_style_inputs, payload);
         });
@@ -891,6 +893,22 @@ fn write_recording_tree_relations(relations: FfiTreeRelations, payload: &mut sup
     payload.write_native_u32(relations.tree_scope);
     payload.write_native_u32(relations.assigned_slot);
     payload.write_native_u32(relations.reserved);
+}
+
+fn write_recording_state_deltas(state_deltas: &[FfiStateDelta], payload: &mut super::record_replay::PayloadWriter) {
+    payload.write_raw_rows(
+        state_deltas.len(),
+        size_of::<FfiStateDelta>(),
+        align_of::<FfiStateDelta>(),
+        |payload| {
+            for delta in state_deltas {
+                payload.write_native_u32(delta.node);
+                payload.write_u8(delta.fact as u8);
+                payload.write_bool(delta.new_value);
+                payload.write_native_u16(0);
+            }
+        },
+    );
 }
 
 fn write_recording_element_style_inputs(
@@ -1378,6 +1396,9 @@ pub struct FfiRuleMatch {
     /// The rule identity as the boundary numbers it: one more than the engine's, so that zero can
     /// mean no rule.
     pub rule: u32,
+    /// Collision-checked identity of the rule's complete semantic declaration inventory, or zero
+    /// when custom properties or another declaration kind remain on the C++ side.
+    pub semantic_declaration: u32,
     /// The pseudo-element the match targets, or `u32::MAX` for the originating element itself.
     pub pseudo_element: u32,
     /// The host whose shadow tree this match decides in, or 0 for the document's own context. How
@@ -1404,6 +1425,7 @@ unsafe fn write_rule_matches(
             *out.add(index) = FfiRuleMatch {
                 node: entry.node.raw(),
                 rule: entry.rule.0 + 1,
+                semantic_declaration: engine.program.ensure_semantic_declaration(entry.rule).0,
                 pseudo_element: entry.pseudo_element.map_or(u32::MAX, |target| u32::from(target.kind.0)),
                 scope_host: engine.cascade_context_host(entry.rule, entry.tree_scope),
                 scope_proximity: entry.scope_proximity,
@@ -1436,10 +1458,11 @@ pub unsafe extern "C" fn style_engine_consume_published_match_answer(
             .consume_published_match_answer_with(
                 node,
                 capacity,
-                |index, node, rule, pseudo_element, scope_host, scope_proximity| unsafe {
+                |index, node, rule, semantic_declaration, pseudo_element, scope_host, scope_proximity| unsafe {
                     *out.add(index) = FfiRuleMatch {
                         node: node.raw(),
                         rule: rule.0 + 1,
+                        semantic_declaration: semantic_declaration.0,
                         pseudo_element: pseudo_element.map_or(u32::MAX, |target| u32::from(target.kind.0)),
                         scope_host,
                         scope_proximity,
@@ -1750,21 +1773,7 @@ pub fn replay_style_value(token: u64, dependency_flags: u8) -> *const c_void {
 pub unsafe fn replay_memory_pressure_snapshot(engine: *const c_void) -> FfiMemoryPressureSnapshot {
     let engine = unsafe { &*engine.cast::<StyleEngine>() };
     let memory = engine.memory();
-    let tier3_refusal_categories: [u64; 8] = [
-        MemoryCategory::RetainedWitness,
-        MemoryCategory::FeaturePosting,
-        MemoryCategory::SpecifiedValueTable,
-        MemoryCategory::CascadeWinnerGroup,
-        MemoryCategory::RetainedSelectorIncidence,
-        MemoryCategory::RetainedMatchAnswer,
-        MemoryCategory::PrefixTransitionCache,
-        MemoryCategory::PrefixAnswerCache,
-    ]
-    .into_iter()
-    .map(|category| memory.refusals(category))
-    .collect::<Vec<_>>()
-    .try_into()
-    .expect("fixed memory category count");
+    let tier3_refusal_categories = TIER3_REFUSAL_CATEGORIES.map(|category| memory.refusals(category));
     let tier4_refusal_categories: [u64; 2] = [MemoryCategory::NormalizationJournal, MemoryCategory::BatchScratch]
         .into_iter()
         .map(|category| memory.refusals(category))
@@ -2391,6 +2400,38 @@ mod tests {
         let mut payload = crate::css::style::record_replay::PayloadWriter::default();
         write_recording_tree_deltas(&[tree], &mut payload);
         assert_eq!(&payload.as_bytes()[18..20], &[0, 0]);
+
+        let mut state = std::mem::MaybeUninit::<FfiStateDelta>::uninit();
+        let state_pointer = state.as_mut_ptr();
+        // SAFETY: every byte starts initialized and every typed field is then written with a valid
+        // value before the row is assumed initialized.
+        let state = unsafe {
+            state_pointer.cast::<u8>().write_bytes(0xaa, size_of::<FfiStateDelta>());
+            std::ptr::addr_of_mut!((*state_pointer).node).write(1);
+            std::ptr::addr_of_mut!((*state_pointer).fact).write(FfiStateFact::Hover);
+            std::ptr::addr_of_mut!((*state_pointer).new_value).write(true);
+            state.assume_init()
+        };
+        let mut first_payload = crate::css::style::record_replay::PayloadWriter::default();
+        write_recording_state_deltas(&[state], &mut first_payload);
+        assert_eq!(&first_payload.as_bytes()[18..20], &[0, 0]);
+
+        let mut second_state = std::mem::MaybeUninit::<FfiStateDelta>::uninit();
+        let second_state_pointer = second_state.as_mut_ptr();
+        // SAFETY: every byte starts initialized and every typed field is then written with a valid
+        // value before the row is assumed initialized.
+        let second_state = unsafe {
+            second_state_pointer
+                .cast::<u8>()
+                .write_bytes(0xbb, size_of::<FfiStateDelta>());
+            std::ptr::addr_of_mut!((*second_state_pointer).node).write(1);
+            std::ptr::addr_of_mut!((*second_state_pointer).fact).write(FfiStateFact::Hover);
+            std::ptr::addr_of_mut!((*second_state_pointer).new_value).write(true);
+            second_state.assume_init()
+        };
+        let mut second_payload = crate::css::style::record_replay::PayloadWriter::default();
+        write_recording_state_deltas(&[second_state], &mut second_payload);
+        assert_eq!(first_payload.as_bytes(), second_payload.as_bytes());
 
         let mut style_input = std::mem::MaybeUninit::<FfiElementStyleInput>::uninit();
         let style_input_pointer = style_input.as_mut_ptr();

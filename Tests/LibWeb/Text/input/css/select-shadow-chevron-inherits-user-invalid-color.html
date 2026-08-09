@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../include.js"></script>
+<style>
+    #sel { color: rgb(0, 0, 0); }
+    #sel:user-invalid { color: rgb(255, 0, 0); }
+</style>
+<form id="f" action="javascript:void 0">
+    <select id="sel" required>
+        <option id="ph"></option>
+        <option>choice</option>
+    </select>
+    <button id="sub">submit</button>
+</form>
+<script>
+    test(() => {
+        const form = document.getElementById("f");
+        form.addEventListener("submit", event => event.preventDefault());
+        document.getElementById("sub").click();
+        document.getElementById("sel").style.borderWidth = "1px";
+        println(`before: ${getComputedStyle(document.getElementById("sel")).color}`);
+        document.getElementById("ph").remove();
+        println(`after: ${getComputedStyle(document.getElementById("sel")).color}`);
+        internals.updateStyle();
+        println("final update survived");
+    });
+</script>

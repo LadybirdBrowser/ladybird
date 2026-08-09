@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @scope (.outer) {
+        @scope (.inner) {
+            .target { color: rgb(1, 2, 3) }
+        }
+    }
+</style>
+<div class="outer"><div class="inner"><span class="target">both</span></div></div>
+<div class="inner"><span class="target">inner only</span></div>
+<div class="outer"><span class="target">outer only</span></div>
+<script>
+    test(() => {
+        // Scopes nest, so an element is in scope only when it is in every one of them. Compiling
+        // the two roots as one list would make them alternatives, and either `.inner` or `.outer`
+        // alone would be enough.
+        for (const target of document.querySelectorAll(".target"))
+            println(target.textContent + ": " + getComputedStyle(target).color);
+        println(internals.styleEngineMatchedRules());
+    });
+</script>

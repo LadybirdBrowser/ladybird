@@ -159,6 +159,7 @@ public:
         Showing,
     };
     PopoverVisibilityState popover_visibility_state() const { return m_popover_visibility_state; }
+    void set_popover_visibility_state(PopoverVisibilityState);
 
     WebIDL::ExceptionOr<void> show_popover(ShowPopoverOptions const& = {});
     WebIDL::ExceptionOr<void> hide_popover_for_bindings();

@@ -302,7 +302,7 @@ void StackingContext::paint_descendants(DisplayListRecordingContext& context, Pa
         if (child.has_stacking_context())
             return IterationDecision::Continue;
 
-        auto const& z_index = [&] { return child.computed_values().z_index(); };
+        auto const& z_index = [&] { return child.layout_node().z_index(); };
 
         // Positioned descendants at stack level 0 are painted in a separate pass.
         // See `m_positioned_descendants_and_stacking_contexts_with_stack_level_0`.
@@ -485,8 +485,7 @@ void StackingContext::paint(DisplayListRecordingContext& context) const
         VERIFY(context.display_list_recorder().m_save_nesting_level == 0);
     });
 
-    auto const& computed_values = paintable_box().computed_values();
-    auto const& mask_layers = computed_values.mask_layers();
+    auto const& mask_layers = paintable_box().layout_node().mask_layers();
 
     auto effective_context_index = paintable_box().accumulated_visual_context_index();
     context.display_list_recorder().set_accumulated_visual_context(effective_context_index);

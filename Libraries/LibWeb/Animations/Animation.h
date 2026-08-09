@@ -155,6 +155,12 @@ protected:
     Animation(HTML::EnvironmentSettingsObject&);
 
     HTML::EnvironmentSettingsObject& relevant_settings_object() const { return *m_environment; }
+
+    // Install an effect whose target must not observe this animation until a surrounding style
+    // stabilization epoch commits it.
+    void set_provisional_effect(GC::Ref<AnimationEffect>);
+    void discard_provisional_effect();
+
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void finalize() override;
 

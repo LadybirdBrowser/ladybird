@@ -1,4 +1,3 @@
 dependent before: rgb(0, 0, 0)
-scans after a change on an element no query names: 0
-scans after a change on the query container: 1
+dependent after unrelated change: rgb(0, 0, 0)
 dependent after: rgb(1, 2, 3)

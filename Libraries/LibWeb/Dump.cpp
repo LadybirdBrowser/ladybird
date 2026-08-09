@@ -282,7 +282,7 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
             builder.appendff(" {}inline-table{}", inline_color_on, color_off);
         if (box.display().is_flex_inside()) {
             StringView direction;
-            switch (box.computed_values().flex_direction()) {
+            switch (box.flex_direction()) {
             case CSS::FlexDirection::Column:
                 direction = "column"sv;
                 break;
@@ -412,13 +412,13 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
         });
     }
 
-    if (show_computed_properties && layout_node.dom_node() && layout_node.dom_node()->is_element() && as<DOM::Element>(layout_node.dom_node())->computed_values()) {
+    if (show_computed_properties && layout_node.dom_node() && layout_node.dom_node()->is_element() && as<DOM::Element>(layout_node.dom_node())->computed_style()) {
         struct NameAndValue {
             Utf16FlyString name;
             String value;
         };
         Vector<NameAndValue> properties;
-        auto computed_values = as<DOM::Element>(*layout_node.dom_node()).computed_values();
+        auto computed_values = as<DOM::Element>(*layout_node.dom_node()).computed_style();
         for (auto i = to_underlying(CSS::first_longhand_property_id); i <= to_underlying(CSS::last_longhand_property_id); ++i) {
             auto property_id = static_cast<CSS::PropertyID>(i);
             auto value = computed_values->computed_style_value(property_id);

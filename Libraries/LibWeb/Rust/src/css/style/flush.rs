@@ -6,6 +6,8 @@
 
 use super::*;
 
+const MIN_SHARED_CASCADE_COMPLETION_BATCH: usize = 16;
+
 impl StyleEngine {
     pub fn take_style_transaction(
         &mut self,
@@ -272,6 +274,31 @@ impl StyleEngine {
             }
         }
 
+        // The parents whose child sequences this transaction touched. A sibling-observing answer
+        // for a child of an untouched parent cannot have gone positionally stale.
+        let sequence_truth_is_coarse = transaction.has_coarsened_markers();
+        let mut sequence_touched_parents: Vec<StyleNodeID> = Vec::new();
+        if !sequence_truth_is_coarse {
+            for input in &transaction.inputs {
+                if let InputKey::TreeRelations(node) = input.key {
+                    for value in [input.old, input.new] {
+                        if let InputValue::TreeRelations(Some(relations)) = value
+                            && let Some(parent) = relations.parent
+                        {
+                            sequence_touched_parents.push(parent);
+                        }
+                    }
+                    if let Some(parent) = self.tree.parent(node) {
+                        sequence_touched_parents.push(parent);
+                    }
+                }
+            }
+            sequence_touched_parents.sort_unstable();
+            sequence_touched_parents.dedup();
+        }
+        let sequence_touched_parent_bytes = (sequence_touched_parents.capacity() * size_of::<StyleNodeID>()) as u64;
+        self.memory
+            .reserve_required(MemoryCategory::BatchScratch, sequence_touched_parent_bytes);
         let connected_element_count = self.tree.connected_element_count() as usize;
         let departing_nodes = transaction
             .inputs
@@ -351,7 +378,36 @@ impl StyleEngine {
             // the document, no local feature, tree relation, or sequence route can add anything to
             // it. Initial style is the important ordinary case, since a universal rule and all of
             // the document's arriving facts usually share one transaction.
-            for input in &transaction.inputs {
+            let mut attachment_groups: Vec<(usize, Vec<TreeScopeID>)> = Vec::new();
+            let mut attachment_group_indices: HashMap<(SheetID, bool, bool), usize> = HashMap::default();
+            for (input_index, input) in transaction.inputs.iter().enumerate() {
+                let InputKey::SheetAttachment(sheet, scope) = input.key else {
+                    continue;
+                };
+                let (InputValue::Flag(previous), InputValue::Flag(current)) = (input.old, input.new) else {
+                    unreachable!("a sheet attachment input must carry flags");
+                };
+                let group_key = (sheet, previous, current);
+                let group_index = match attachment_group_indices.get(&group_key) {
+                    Some(&group_index) => group_index,
+                    None => {
+                        let group_index = attachment_groups.len();
+                        attachment_groups.push((input_index, Vec::new()));
+                        attachment_group_indices.insert(group_key, group_index);
+                        group_index
+                    }
+                };
+                attachment_groups[group_index].1.push(scope);
+            }
+            for (_, scopes) in &mut attachment_groups {
+                scopes.sort_unstable();
+                scopes.dedup();
+            }
+            for input in transaction
+                .inputs
+                .iter()
+                .filter(|input| !matches!(input.key, InputKey::SheetAttachment(..)))
+            {
                 self.route_program_input(
                     input,
                     transaction.program_joins_for(input.key),
@@ -361,11 +417,33 @@ impl StyleEngine {
                         resident_nodes: (!outer_arrivals.is_empty()).then_some(resident_nodes.as_slice()),
                         winner_program_version: transaction.program_base_version,
                         document_root: root,
+                        attachment_scopes: None,
                     },
                     &mut regions,
                 );
                 if regions.covers_document() {
                     break;
+                }
+            }
+            if !regions.covers_document() {
+                for (input_index, scopes) in &attachment_groups {
+                    let input = &transaction.inputs[*input_index];
+                    self.route_program_input(
+                        input,
+                        transaction.program_joins_for(input.key),
+                        &rules_arriving,
+                        &scopes_departed,
+                        ProgramRoutingContext {
+                            resident_nodes: (!outer_arrivals.is_empty()).then_some(resident_nodes.as_slice()),
+                            winner_program_version: transaction.program_base_version,
+                            document_root: root,
+                            attachment_scopes: Some(scopes),
+                        },
+                        &mut regions,
+                    );
+                    if regions.covers_document() {
+                        break;
+                    }
                 }
             }
             let prefix_producer_admission = if !regions.covers_document() && collect_pending_prefix_producers {
@@ -666,16 +744,27 @@ impl StyleEngine {
             .reserve_required(MemoryCategory::BatchScratch, selector_truth_change_bytes);
         // A winner-pruned route preserves this flush's cascade result but makes its exact answer
         // stale. Retire it only after the current batch has been compiled so publication stays put.
+        let mut stale_refresh_nodes = Vec::new();
+        let mut patch_preserved_nodes: Vec<StyleNodeID> = Vec::new();
+        let mut patch_processed_nodes: Vec<StyleNodeID> = Vec::new();
         for refresh in selector_truth_changes.refreshes.as_slice() {
             if !regions.batch_contains_node(&compiled_regions, refresh.node) {
                 self.retained_match_answers
                     .forget_answer(&mut self.match_answers, refresh.node);
+            } else {
+                stale_refresh_nodes.push(refresh.node);
             }
         }
+        stale_refresh_nodes.sort_unstable();
+        stale_refresh_nodes.dedup();
+        let stale_refresh_node_bytes = (stale_refresh_nodes.capacity() * size_of::<StyleNodeID>()) as u64;
+        self.memory
+            .reserve_required(MemoryCategory::BatchScratch, stale_refresh_node_bytes);
+        let mut patch_node_scratch_bytes = 0_u64;
         let mut published_nodes = Vec::new();
-        let mut previous_cascade_inputs = Vec::new();
         let mut identity_repair_nodes = Vec::new();
         let mut incremental_cascade_answers = Vec::new();
+        let mut previous_cascade_inputs = Vec::new();
         let mut exact_cascade_stop_nodes = DeltaBatch::default();
         let mut exact_cascade_confirmation_nodes = DeltaBatch::default();
         let mut attribution_scratch: Vec<(RuleID, SelectorProgramID)> = Vec::new();
@@ -686,12 +775,13 @@ impl StyleEngine {
                 capture.nodes.push(node.raw());
             }
             let has_direct_action = direct_action_nodes.as_slice().binary_search(&node).is_ok();
-            let previous_cascade_input = self
-                .retained_match_answers
-                .cascade_input_lookup(node)
-                .sparse()
-                .ok()
-                .copied();
+            previous_cascade_inputs.push(
+                self.retained_match_answers
+                    .cascade_input_lookup(node)
+                    .sparse()
+                    .ok()
+                    .copied(),
+            );
             let has_signed_delta = !selector_truth_changes.deltas_for(node).is_empty();
             let mut has_output_change = false;
             let mut has_upquery = false;
@@ -786,6 +876,12 @@ impl StyleEngine {
                     match self.patch_retained_match_answer(node, patch, truth_patch) {
                         Some(outcome) => {
                             has_output_change = outcome.emit;
+                            if outcome.emit {
+                                patch_processed_nodes.push(node);
+                                if outcome.identity_preserved {
+                                    patch_preserved_nodes.push(node);
+                                }
+                            }
                             if let Some(answer) = outcome.incremental_cascade_answer {
                                 incremental_cascade_answers.push(answer);
                             }
@@ -818,7 +914,7 @@ impl StyleEngine {
             // and a live shadow root is a synthetic relation node rather than a style output.
             // Neither has a C++ element to consume a record; every live element whose style either
             // can affect is another member of the region.
-            let is_scope_root = self.scope_roots.contains(&Some(node));
+            let is_scope_root = self.scope_by_root.contains_key(&node);
             if !self.tree.is_live(node) || is_scope_root {
                 return;
             }
@@ -843,7 +939,6 @@ impl StyleEngine {
             }
             node_count += 1;
             published_nodes.push(node);
-            previous_cascade_inputs.push(previous_cascade_input);
             if can_stop_at_exact_cascade {
                 exact_cascade_stop_nodes.push(node);
             }
@@ -901,14 +996,22 @@ impl StyleEngine {
                             published_retained_answer_orders.as_slice(),
                         ))
                     });
-                let mut exact_cascade_confirmation_cache: Vec<((MatchAnswerID, CascadeInputID), bool)> =
-                    Vec::with_capacity(exact_cascade_confirmation_nodes.as_slice().len());
-                let exact_cascade_confirmation_cache_bytes = (exact_cascade_confirmation_cache.capacity()
-                    * size_of::<((MatchAnswerID, CascadeInputID), bool)>())
-                    as u64;
+                patch_preserved_nodes.sort_unstable();
+                patch_preserved_nodes.dedup();
+                patch_processed_nodes.sort_unstable();
+                patch_processed_nodes.dedup();
+                patch_node_scratch_bytes = ((patch_preserved_nodes.capacity() + patch_processed_nodes.capacity())
+                    * size_of::<StyleNodeID>()) as u64;
                 self.memory
-                    .reserve_required(MemoryCategory::BatchScratch, exact_cascade_confirmation_cache_bytes);
+                    .reserve_required(MemoryCategory::BatchScratch, patch_node_scratch_bytes);
                 let mut accepted_node_count = 0;
+                // Exact retained answers are interned across elements. Once one sufficiently
+                // expensive answer has been compacted in this completion batch, other elements
+                // without element declarations can share its cascade input and winner identities.
+                let mut completed_retained_answers: HashMap<MatchAnswerID, (StyleNodeID, CascadeInputID, bool)> =
+                    HashMap::default();
+                let mut completed_retained_answer_bytes = 0_u64;
+                let share_cascade_completions = published_nodes.len() >= MIN_SHARED_CASCADE_COMPLETION_BATCH;
                 for index in 0..published_nodes.len() {
                     let node = published_nodes[index];
                     let previous_exact_cascade_input = previous_cascade_inputs[index];
@@ -922,6 +1025,12 @@ impl StyleEngine {
                         .binary_search(&node)
                         .ok()
                         .and(retained_cascade_input);
+                    let retained_answer_identity = (share_cascade_completions
+                        && retained_answer_orders.is_some()
+                        && self.match_answer_is_comparable_across_elements(node)
+                        && self.has_no_element_declarations(node))
+                    .then(|| self.retained_match_answers.answer_identity(node))
+                    .flatten();
                     let published_answer = incremental_cascade_answers
                         .binary_search_by_key(&node, |answer| answer.node)
                         .ok()
@@ -936,10 +1045,42 @@ impl StyleEngine {
                                 observed: false,
                             }
                         })
+                        .or_else(|| {
+                            if completed_retained_answers.is_empty() {
+                                return None;
+                            }
+                            let identity = retained_answer_identity?;
+                            let (source, cascade_input, cascade_winners_are_complete) =
+                                completed_retained_answers.get(&identity).copied()?;
+                            self.complete_published_match_answer_from_cascade_input(
+                                node,
+                                source,
+                                cascade_input,
+                                retained_answer_orders.unwrap(),
+                                cascade_winners_are_complete,
+                            )
+                        })
                         .unwrap_or_else(|| {
                             self.complete_published_match_answer(node, retained_answer_orders)
                                 .expect("a connected style reaction must have complete selector facts")
                         });
+                    if let Some(identity) = retained_answer_identity
+                        && let Some(cascade_input) = published_answer.cascade_input
+                        && !completed_retained_answers.contains_key(&identity)
+                        && self.shared_cascade_completion_is_profitable(identity, cascade_input)
+                    {
+                        let capacity_before = completed_retained_answers.capacity();
+                        completed_retained_answers.entry(identity).or_insert((
+                            node,
+                            cascade_input,
+                            published_answer.cascade_winners_are_complete,
+                        ));
+                        let added_bytes = ((completed_retained_answers.capacity() - capacity_before)
+                            * (size_of::<MatchAnswerID>() + size_of::<(StyleNodeID, CascadeInputID, bool)>() + 1))
+                            as u64;
+                        self.memory.reserve_required(MemoryCategory::BatchScratch, added_bytes);
+                        completed_retained_answer_bytes += added_bytes;
+                    }
                     if let Some(retained_cascade_input) = retained_cascade_input
                         && let Some(published_cascade_input) = published_answer.cascade_input
                     {
@@ -949,50 +1090,65 @@ impl StyleEngine {
                             self.counters.bump(Counter::PublishedMatchAnswerRetainedIdentityMatches);
                         }
                     }
-                    let confirmed_exact_cascade = if exact_cascade_confirmation_nodes
-                        .as_slice()
-                        .binary_search(&node)
-                        .is_err()
-                    {
-                        false
-                    } else if let Some(current_cascade_input) = published_answer.cascade_input
-                        && previous_exact_cascade_input == Some(current_cascade_input)
-                    {
-                        let current_answer = match self.retained_match_answers.lookup(node) {
-                            Lookup::Known(answer) => Some(*answer),
-                            Lookup::KnownAbsent => {
-                                unreachable!("retained answers are sparse, never known absent")
-                            }
-                            Lookup::Missing(_) => None,
-                        };
-                        current_answer.is_some_and(|current_answer| {
-                            let key = (current_answer, current_cascade_input);
-                            let exact = exact_cascade_confirmation_cache
-                                .iter()
-                                .find_map(|&(candidate, exact)| (candidate == key).then_some(exact))
-                                .unwrap_or_else(|| {
-                                    let exact = self.retained_cascade_input_is_exact(node, current_cascade_input);
-                                    exact_cascade_confirmation_cache.push((key, exact));
-                                    exact
-                                });
-                            if exact {
-                                // NB: Verify mode cold-matches every stopped node even when
-                                // production reused a previously confirmed canonical cohort.
-                                verify_style_answer_patch(|| {
-                                    self.verify_retained_cascade_input(node, current_cascade_input);
-                                });
-                            }
-                            exact
-                        })
-                    } else {
-                        published_answer.cascade_input.is_some_and(|current_cascade_input| {
-                            self.retained_cascade_input_is_exact_and_unchanged(
-                                node,
-                                previous_exact_cascade_input,
-                                current_cascade_input,
-                            )
-                        })
-                    };
+                    // A confirmation may stop a reaction only when its proof is strictly cheaper
+                    // than the materialization it avoids. The answer above is current either way:
+                    // a fresh completion just derived it exactly, and a reused answer is the
+                    // output of this flush's retained-answer patch. A complete winner inventory
+                    // plus the same live output-identity predicates the exact-cascade stop trusts
+                    // therefore prove the stop without re-matching or cloning anything; verify
+                    // mode still cold-matches every stopped node.
+                    let confirmed_exact_cascade =
+                        exact_cascade_confirmation_nodes.as_slice().binary_search(&node).is_ok()
+                            && published_answer.cascade_input.is_some_and(|current_cascade_input| {
+                                // A patch consumed this node's routed deltas and refreshes under
+                                // the confirmation set's rule-safety gating, so its answer is
+                                // authoritative. Only a patch MISS leaves completion standing on
+                                // maintained state, where the two guards below must decline.
+                                let node_was_patched = patch_processed_nodes.binary_search(&node).is_ok();
+                                if node_was_patched
+                                    && previous_exact_cascade_input == Some(current_cascade_input)
+                                    && patch_preserved_nodes.binary_search(&node).is_ok()
+                                {
+                                    return true;
+                                }
+                                // Routing flagged this node's truth as unprovable this flush. A
+                                // patch consumed the routed refreshes, so only a patch MISS stands
+                                // on maintained state here.
+                                if !node_was_patched && stale_refresh_nodes.binary_search(&node).is_ok() {
+                                    return false;
+                                }
+                                // Sibling and positional truth is maintained state that no patch
+                                // observes; it answers only while the node's own child sequence
+                                // went untouched.
+                                if (sequence_truth_is_coarse
+                                    || self
+                                        .tree
+                                        .parent(node)
+                                        .is_some_and(|parent| sequence_touched_parents.binary_search(&parent).is_ok()))
+                                    && self.answer_observes_sibling_relations(current_cascade_input)
+                                {
+                                    return false;
+                                }
+                                let whole_inventory_proof = published_answer.cascade_winners_are_complete
+                                    && self.exact_cascade_output_is_unchanged(node)
+                                    && self.pseudo_cascade_states_are_unchanged(node);
+                                whole_inventory_proof
+                                    || previous_exact_cascade_input.is_some_and(|previous_cascade_input| {
+                                        // Equality proves nothing by itself: a stale answer equals
+                                        // itself, and the patch-preserved case confirmed above.
+                                        previous_cascade_input != current_cascade_input
+                                            && self.answer_transition_cannot_change_cascade(
+                                                node,
+                                                previous_cascade_input,
+                                                current_cascade_input,
+                                            )
+                                    })
+                            });
+                    if confirmed_exact_cascade && let Some(current_cascade_input) = published_answer.cascade_input {
+                        verify_style_answer_patch(|| {
+                            self.verify_retained_cascade_input(node, current_cascade_input);
+                        });
+                    }
                     match published_answer {
                         published_answer
                             if previous_cascade_input.is_some()
@@ -1026,9 +1182,9 @@ impl StyleEngine {
                         }
                     }
                 }
-                published_nodes.truncate(accepted_node_count);
                 self.memory
-                    .release(MemoryCategory::BatchScratch, exact_cascade_confirmation_cache_bytes);
+                    .release(MemoryCategory::BatchScratch, completed_retained_answer_bytes);
+                published_nodes.truncate(accepted_node_count);
                 if !reuse_active_batch_matching_traversal {
                     self.end_published_match_answer_completion_batch();
                 }
@@ -1044,17 +1200,35 @@ impl StyleEngine {
             MemoryCategory::BatchScratch,
             exact_cascade_stop_node_bytes + exact_cascade_confirmation_node_bytes,
         );
+        self.memory.release(
+            MemoryCategory::BatchScratch,
+            sequence_touched_parent_bytes + stale_refresh_node_bytes + patch_node_scratch_bytes,
+        );
         verify_style_plan_provenance(|| {
             assert!(
                 plan_is_broad || unattributed_node_count == 0,
                 "a scoped style transaction published {unattributed_node_count} nodes without semantic provenance"
             );
         });
+        let final_retained_answer_patch_scratch_bytes = retained_answer_patch
+            .as_ref()
+            .map_or(0, RetainedAnswerPatch::capacity_bytes);
+        if final_retained_answer_patch_scratch_bytes > retained_answer_patch_scratch_bytes {
+            self.memory.reserve_required(
+                MemoryCategory::BatchScratch,
+                final_retained_answer_patch_scratch_bytes - retained_answer_patch_scratch_bytes,
+            );
+        } else {
+            self.memory.release(
+                MemoryCategory::BatchScratch,
+                retained_answer_patch_scratch_bytes - final_retained_answer_patch_scratch_bytes,
+            );
+        }
         if retained_answer_patch.take().is_some() {
             self.retain_prefix_states();
         }
         self.memory
-            .release(MemoryCategory::BatchScratch, retained_answer_patch_scratch_bytes);
+            .release(MemoryCategory::BatchScratch, final_retained_answer_patch_scratch_bytes);
         self.memory
             .release(MemoryCategory::BatchScratch, published_retained_answer_order_bytes);
         self.memory

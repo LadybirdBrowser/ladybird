@@ -1,0 +1,5 @@
+before the move: rgb(0, 0, 0)
+after the move: rgb(1, 2, 3)
+child order: anchor, moved, style
+span.target: .anchor + .moved .target
+

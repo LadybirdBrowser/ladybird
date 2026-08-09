@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @keyframes slide {
+        from { transform: translateX(0px); }
+        to { transform: translateX(100px); }
+    }
+    @keyframes fade {
+        from { opacity: 1; }
+        to { opacity: 0; }
+    }
+    @keyframes tint {
+        from { color: rgb(0, 0, 0); }
+        to { color: rgb(200, 0, 0); }
+    }
+    #slider { animation: slide 1s linear paused; background-color: rgb(0, 0, 255); }
+    #fader { animation: fade 1s linear paused; }
+    #tinter { animation: tint 1s linear paused; }
+</style>
+<div id="slider">slide</div>
+<div id="fader">fade</div>
+<div id="tinter">tint</div>
+<script>
+    test(() => {
+        const slider = document.getElementById("slider");
+        const fader = document.getElementById("fader");
+        const tinter = document.getElementById("tinter");
+
+        for (const element of [slider, fader, tinter])
+            element.getAnimations()[0].currentTime = 500;
+
+        // Sampling a paused animation must land the interpolated value in the computed style and
+        // leave everything the animation does not touch alone.
+        println(`transform: ${getComputedStyle(slider).transform}`);
+        println(`background: ${getComputedStyle(slider).backgroundColor}`);
+        println(`opacity: ${getComputedStyle(fader).opacity}`);
+
+        // A color animation resolves currentcolor consumers baked in other groups, so it takes the
+        // full build.
+        println(`color: ${getComputedStyle(tinter).color}`);
+
+        const counters = internals.getStyleInvalidationCounters();
+        println(`reconstruction fallbacks: ${counters.animatedStyleReconstructionFallbacks > 0 ? "some" : "none"}`);
+        println(`overlay builds: ${counters.animatedStyleOverlayBuilds > 0 ? "some" : "none"}`);
+        println(`full builds: ${counters.animatedStyleFullBuilds > 0 ? "some" : "none"}`);
+    });
+</script>

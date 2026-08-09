@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .item { color: red }
+    .theme .item { color: green }
+    div > span.a#b[data-x="1"] { color: blue }
+    li:nth-child(2n+1), li:nth-last-of-type(3) { color: teal }
+    a:hover, a:focus, a:visited, a:any-link, a:local-link { color: purple }
+    input:checked, input:enabled, input:disabled, input:required, input:optional { color: gray }
+    input:read-only, input:read-write, input:indeterminate, input:default { color: gray }
+    input:in-range, input:out-of-range, input:user-valid, input:user-invalid { color: gray }
+    video:playing, video:paused, video:muted, video:seeking, video:buffering, video:stalled { color: gray }
+    dialog:modal, :fullscreen, :defined, :autofill, :popover-open { color: gray }
+    :root, :empty, :scope { color: gray }
+    p:dir(rtl), p:lang(en-GB), p:heading(1,2) { color: gray }
+    .card:has(> .error) { color: olive }
+    :is(.x, .y) .z, :where(.p) .q, :not(.r) { color: navy }
+    p::before, p::after, p::marker, p::first-line { content: "" }
+    *|div, td { color: black }
+</style>
+<script>
+    test(() => {
+        // The counters cover every sheet the document's program holds, user-agent ones included,
+        // and those are attached at the first style flush. Read them before that and the answer
+        // depends on whether a paint happened to have run.
+        internals.updateStyle();
+
+        const c = internals.styleEngineCounters();
+        // Every category of unhandled selector construct must be empty. A construct with no
+        // mapping compiles to something the engine cannot route, and a selector that cannot be
+        // routed cannot be invalidated.
+        println(`unsupported pseudo-classes: ${c.unsupportedPseudoClass}`);
+        println(`uninterned names: ${c.unsupportedUninternedName}`);
+        println(`malformed: ${c.unsupportedMalformed}`);
+        println(`unsupported combinators: ${c.unsupportedCombinator}`);
+        println(`unsupported pseudo-elements: ${c.unsupportedPseudoElement}`);
+        println(`exact entries: ${c.exactSelectorEntries > 40}`);
+    });
+</script>

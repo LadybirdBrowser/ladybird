@@ -1,0 +1,2 @@
+light: rgb(0, 0, 0)
+dark: rgb(1, 2, 3)

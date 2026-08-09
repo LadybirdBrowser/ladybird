@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="plan.js"></script>
+<style id="layers"></style>
+<div id="first" class="same"></div>
+<div id="sentinel" class="same"></div>
+<div id="last" class="same"></div>
+<script>
+    test(() => {
+        const style = document.getElementById("layers");
+        const rules = order => `
+            @layer ${order};
+            @layer a {
+                .same { color: rgb(20, 24, 28); }
+                #sentinel { outline: 0 solid rgb(160, 20, 20); }
+            }
+            @layer b {
+                .same { color: rgb(20, 24, 28); }
+                #sentinel { outline: 0 solid rgb(20, 20, 160); }
+            }
+        `;
+        style.textContent = rules("a, b");
+        getComputedStyle(document.body).color;
+
+        plan("replace a sheet while reversing equal-value layers", () => {
+            style.textContent = rules("b, a");
+        });
+        plan("replace a sheet while restoring equal-value layers", () => {
+            style.textContent = rules("a, b");
+        });
+    });
+</script>

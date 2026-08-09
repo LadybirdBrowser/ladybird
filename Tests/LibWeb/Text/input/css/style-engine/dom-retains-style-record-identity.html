@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #ancestor.hidden { display: none; }
+    #target { color: green; }
+</style>
+<div id="ancestor"><span id="target">target</span></div>
+<script>
+    test(() => {
+        getComputedStyle(target).color;
+        const visibleIdentity = internals.styleRecordIdentity(target);
+        println(`initial assignment is retained: ${visibleIdentity !== 0}`);
+
+        ancestor.classList.add("hidden");
+        getComputedStyle(ancestor).display;
+        const hiddenIdentity = internals.styleRecordIdentity(target);
+        println(`display-none propagation republishes the assignment: ${hiddenIdentity !== 0 && hiddenIdentity !== visibleIdentity}`);
+
+        ancestor.classList.remove("hidden");
+        getComputedStyle(target).color;
+        println(`returning to the shared style restores its identity: ${internals.styleRecordIdentity(target) === visibleIdentity}`);
+    });
+</script>

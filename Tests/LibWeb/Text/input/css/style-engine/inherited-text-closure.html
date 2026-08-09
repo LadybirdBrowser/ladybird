@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .before { color: red }
+    .after { color: green }
+    #target { font-size: 12px; border: 1px solid currentColor }
+</style>
+<div id="parent" class="before">
+    <div id="target"></div>
+</div>
+<script>
+    test(() => {
+        const parent = document.getElementById("parent");
+        const target = document.getElementById("target");
+        internals.updateStyle();
+        const before = internals.getStyleInvalidationCounters();
+
+        parent.className = "after";
+        internals.updateStyle();
+
+        const after = internals.getStyleInvalidationCounters();
+        println(`inherited text longhand evaluations: ${after.computedLonghandEvaluations - before.computedLonghandEvaluations}`);
+        println(`color: ${getComputedStyle(target).color}`);
+        println(`border: ${getComputedStyle(target).borderTopColor}`);
+    });
+</script>

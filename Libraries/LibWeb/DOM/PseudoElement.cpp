@@ -7,7 +7,9 @@
 #include <LibWeb/Animations/KeyframeEffect.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/CustomPropertyData.h>
+#include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/DOM/AbstractElement.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/PseudoElement.h>
 #include <LibWeb/Layout/Node.h>
@@ -24,55 +26,85 @@ struct SyntheticPseudoElement::CustomPropertyDataStorage {
 };
 
 SyntheticPseudoElement::SyntheticPseudoElement() = default;
+SyntheticPseudoElement::SyntheticPseudoElement(GC::Ref<Element> originating_element)
+    : m_originating_element(originating_element)
+{
+}
 SyntheticPseudoElement::~SyntheticPseudoElement() = default;
 
 void SyntheticPseudoElement::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
 
+    visitor.visit(m_originating_element);
     if (m_counters_set)
         m_counters_set->visit_edges(visitor);
 }
 
 void SyntheticPseudoElement::set_layout_node(Layout::NodeWithStyle* value)
 {
+    if (m_layout_node && m_layout_node.ptr() != value)
+        m_layout_node->pin_style_record_for_detachment();
     m_layout_node = value;
-}
-
-RefPtr<CSS::ComputedValues const> SyntheticPseudoElement::computed_values() const
-{
-    return m_computed_values;
 }
 
 void SyntheticPseudoElement::update_animated_properties(Badge<Web::Animations::KeyframeEffect> const&, DOM::AbstractElement abstract_element, Web::Animations::KeyframeEffect& effect, Web::Animations::AnimationUpdateContext& context)
 {
-    if (!m_computed_values)
+    if (!m_style_record_identity)
         return;
     effect.update_computed_properties_for_style(context, abstract_element);
 }
 
-void SyntheticPseudoElement::set_computed_style(RefPtr<CSS::ComputedValues const> values)
+void SyntheticPseudoElement::replace_style_record(CSS::StyleRecordID style_record_identity)
 {
-    m_computed_values = move(values);
+    VERIFY(m_originating_element);
+    auto old_style_record_identity = m_style_record_identity;
+    if (old_style_record_identity == style_record_identity)
+        return;
+    m_style_record_identity = style_record_identity;
+    if (m_layout_node)
+        m_layout_node->set_style_record_identity(style_record_identity);
 }
 
-void SyntheticPseudoElement::refresh_computed_values(NonnullRefPtr<CSS::ComputedValues const> values)
+void SyntheticPseudoElement::set_computed_style(CSS::StyleRecordID style_record_identity)
 {
-    VERIFY(m_computed_values);
-    m_computed_values = move(values);
+    if (!style_record_identity) {
+        clear_computed_style();
+        return;
+    }
+    replace_style_record(style_record_identity);
 }
 
-void SyntheticPseudoElement::set_computed_values_in_display_none_subtree()
+void SyntheticPseudoElement::clear_computed_style(RefPtr<CSS::ComputedValues const> style_to_preserve_for_detachment)
 {
-    if (m_computed_values) {
-        CSS::ComputedValues::Builder builder(*m_computed_values);
+    if (m_layout_node) {
+        if (style_to_preserve_for_detachment)
+            m_layout_node->set_computed_values(style_to_preserve_for_detachment.release_nonnull());
+        else
+            m_layout_node->pin_style_record_for_detachment();
+    }
+    replace_style_record(0);
+}
+
+void SyntheticPseudoElement::refresh_computed_style(CSS::StyleRecordID style_record_identity)
+{
+    replace_style_record(style_record_identity);
+    VERIFY(m_style_record_identity);
+}
+
+void SyntheticPseudoElement::set_computed_values_in_display_none_subtree(DOM::AbstractElement abstract_element)
+{
+    if (auto computed_values = abstract_element.computed_style()) {
+        CSS::ComputedValues::Builder builder(*computed_values);
         builder->set_in_display_none_subtree(true);
-        if (m_computed_values->has_animated_values()) {
-            CSS::ComputedValues::Builder base_values_builder(m_computed_values->base_values());
+        if (computed_values->has_animated_values()) {
+            CSS::ComputedValues::Builder base_values_builder(computed_values->base_values());
             base_values_builder->set_in_display_none_subtree(true);
             builder->set_base_values(move(base_values_builder).build());
         }
-        m_computed_values = move(builder).build();
+        auto updated_values = move(builder).build();
+        auto publication = abstract_element.document().style_computer().publish_computed_style_inputs(abstract_element, *updated_values);
+        replace_style_record(publication.new_style_record);
     }
 }
 
@@ -115,6 +147,10 @@ void SyntheticPseudoElement::set_counters_set(OwnPtr<CSS::CountersSet>&& counter
 }
 
 SyntheticPseudoElementTreeNode::SyntheticPseudoElementTreeNode() = default;
+SyntheticPseudoElementTreeNode::SyntheticPseudoElementTreeNode(GC::Ref<Element> originating_element)
+    : SyntheticPseudoElement(originating_element)
+{
+}
 SyntheticPseudoElementTreeNode::~SyntheticPseudoElementTreeNode() = default;
 
 void SyntheticPseudoElementTreeNode::visit_edges(JS::Cell::Visitor& visitor)
@@ -133,9 +169,9 @@ Layout::NodeWithStyle* ElementReferencePseudoElement::unsafe_layout_node() const
     return m_referenced_element->unsafe_layout_node();
 }
 
-RefPtr<CSS::ComputedValues const> ElementReferencePseudoElement::computed_values() const
+CSS::StyleRecordID ElementReferencePseudoElement::style_record_identity() const
 {
-    return m_referenced_element->computed_values({});
+    return m_referenced_element->style_record_identity({});
 }
 
 void ElementReferencePseudoElement::update_animated_properties(Badge<Web::Animations::KeyframeEffect> const& badge, DOM::AbstractElement abstract_element, Web::Animations::KeyframeEffect& effect, Web::Animations::AnimationUpdateContext& context)

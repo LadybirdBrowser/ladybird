@@ -1,0 +1,7 @@
+transform: matrix(1, 0, 0, 1, 50, 0)
+background: rgb(0, 0, 255)
+opacity: 0.5
+color: rgb(100, 0, 0)
+reconstruction fallbacks: none
+overlay builds: some
+full builds: some

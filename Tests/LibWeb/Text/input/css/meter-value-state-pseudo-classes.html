@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    meter:optimal-value { color: rgb(1, 2, 3) }
+    meter:suboptimal-value { color: rgb(4, 5, 6) }
+    meter:even-less-good-value { color: rgb(7, 8, 9) }
+    meter:low-value { background-color: rgb(10, 11, 12) }
+    meter:high-value { background-color: rgb(13, 14, 15) }
+</style>
+<meter id="optimal" min="0" max="100" low="20" high="80" optimum="50" value="50"></meter>
+<meter id="suboptimal" min="0" max="100" low="20" high="80" optimum="50" value="90"></meter>
+<meter id="even-less-good" min="0" max="100" low="20" high="80" optimum="10" value="90"></meter>
+<script>
+    test(() => {
+        for (const id of ["optimal", "suboptimal", "even-less-good"])
+            println(id + " color: " + getComputedStyle(document.getElementById(id)).color);
+        println("suboptimal background-color: " + getComputedStyle(document.getElementById("suboptimal")).backgroundColor);
+
+        const meter = document.getElementById("optimal");
+        meter.value = 90;
+        println("after value=90 color: " + getComputedStyle(meter).color);
+        meter.value = 10;
+        println("after value=10 background-color: " + getComputedStyle(meter).backgroundColor);
+    });
+</script>

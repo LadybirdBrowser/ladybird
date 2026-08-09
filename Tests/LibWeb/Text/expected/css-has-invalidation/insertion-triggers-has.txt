@@ -1,14 +1,2 @@
 [insert <span class='match'> into anchor subtree]
-  hasAncestorWalkInvocations: 1
-  hasAncestorWalkVisits: 2
-  hasMatchInvocations: 1
-  hasResultCacheHits: 0
-  hasResultCacheMisses: 1
-  styleInvalidations: 3
 [remove the matching span]
-  hasAncestorWalkInvocations: 1
-  hasAncestorWalkVisits: 2
-  hasMatchInvocations: 1
-  hasResultCacheHits: 0
-  hasResultCacheMisses: 1
-  styleInvalidations: 2

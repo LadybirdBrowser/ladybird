@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #cascade-longhand {
+        width: 10px;
+        transition: width 100s;
+    }
+
+    #cascade-longhand.changed {
+        width: 20px;
+    }
+
+    #inherited-parent {
+        color: red;
+    }
+
+    #inherited-parent.changed {
+        color: blue;
+    }
+
+    #inherited-child {
+        color: black;
+        transition: color 100s;
+    }
+
+    #inherited-parent.changed #inherited-child {
+        color: unset;
+    }
+
+    #registered-custom-property {
+        --transition-width: 10px;
+        width: var(--transition-width);
+        transition: width 100s;
+    }
+
+    #registered-custom-property.changed {
+        --transition-width: 20px;
+    }
+
+    #no-op {
+        width: 10px;
+        color: red;
+        transition: width 100s;
+    }
+
+    #no-op.changed {
+        width: 10px;
+        color: blue;
+    }
+</style>
+<div id="cascade-longhand"></div>
+<div id="inherited-parent"><div id="inherited-child"></div></div>
+<div id="registered-custom-property"></div>
+<div id="no-op"></div>
+<script>
+    test(() => {
+        const cascadeLonghand = document.getElementById("cascade-longhand");
+        const inheritedParent = document.getElementById("inherited-parent");
+        const inheritedChild = document.getElementById("inherited-child");
+        const registeredCustomProperty = document.getElementById("registered-custom-property");
+        const noOp = document.getElementById("no-op");
+
+        CSS.registerProperty({
+            name: "--transition-width",
+            syntax: "<length>",
+            inherits: false,
+            initialValue: "0px",
+        });
+
+        for (const element of [cascadeLonghand, inheritedChild, registeredCustomProperty, noOp])
+            getComputedStyle(element).width;
+
+        cascadeLonghand.classList.add("changed");
+        getComputedStyle(cascadeLonghand).width;
+        println(`cascade longhand transitions: ${cascadeLonghand.getAnimations().length}`);
+
+        inheritedParent.classList.add("changed");
+        getComputedStyle(inheritedChild).color;
+        println(`inherited descendant transitions: ${inheritedChild.getAnimations().length}`);
+
+        registeredCustomProperty.classList.add("changed");
+        getComputedStyle(registeredCustomProperty).width;
+        println(`registered custom property transitions: ${registeredCustomProperty.getAnimations().length}`);
+
+        noOp.classList.add("changed");
+        getComputedStyle(noOp).color;
+        println(`no-op transitions: ${noOp.getAnimations().length}`);
+    });
+</script>

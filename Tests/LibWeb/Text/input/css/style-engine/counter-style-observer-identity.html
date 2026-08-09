@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @counter-style marker {
+        system: cyclic;
+        symbols: "A";
+    }
+
+    .target::before {
+        content: counter(item, marker);
+        counter-increment: item;
+    }
+</style>
+<div id="target" class="target"></div>
+<script>
+    test(() => {
+        internals.updateStyle();
+        const contentBefore = getComputedStyle(target, "::before").content;
+        const before = internals.styleEngineCounters();
+
+        const sheet = document.styleSheets[0];
+        sheet.deleteRule(0);
+        sheet.insertRule('@counter-style marker { system: cyclic; symbols: "B"; }', 0);
+        internals.updateStyle();
+
+        const after = internals.styleEngineCounters();
+        const contentAfter = getComputedStyle(target, "::before").content;
+        println(`computed content stayed equal: ${contentAfter === contentBefore}`);
+        println(`observer metadata changed: ${after.computedFixedMetadataNodeHandlesPublished > before.computedFixedMetadataNodeHandlesPublished}`);
+        println(`style record changed: ${after.styleRecordNodeHandlesPublished > before.styleRecordNodeHandlesPublished}`);
+    });
+</script>

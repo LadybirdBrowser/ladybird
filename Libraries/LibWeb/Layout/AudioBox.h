@@ -16,7 +16,7 @@ class AudioBox final : public ReplacedBox {
     LAYOUT_NODE(AudioBox, ReplacedBox);
 
 public:
-    AudioBox(DOM::Document&, DOM::Element&, NonnullRefPtr<CSS::ComputedValues const>);
+    AudioBox(DOM::Document&, DOM::Element&, CSS::LayoutStyle);
 
     HTML::HTMLAudioElement& dom_node();
     HTML::HTMLAudioElement const& dom_node() const;

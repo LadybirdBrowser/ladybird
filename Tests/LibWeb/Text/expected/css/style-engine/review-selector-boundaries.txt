@@ -1,0 +1,8 @@
+namespace is: rgb(0, 128, 0)
+namespace not: rgb(0, 128, 0)
+featureless valid: rgb(0, 128, 0)
+featureless type: rgb(0, 128, 0)
+featureless class: rgb(0, 128, 0)
+featureless universal: rgb(0, 128, 0)
+closed slotted: rgb(0, 128, 0)
+scoped part: rgb(0, 0, 255)

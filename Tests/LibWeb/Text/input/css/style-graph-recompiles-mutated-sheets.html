@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style id="sheet"></style>
+<div id="target" tabindex="0"><span id="item"></span></div>
+<script>
+    test(() => {
+        const sheet = document.getElementById("sheet").sheet;
+        const item = document.getElementById("item");
+        document.body.offsetWidth;
+        internals.styleEngineTransactionReactions();
+
+        // The sheet was empty when it attached. A rule inserted afterwards still has to reach the
+        // engine, or focusing #target routes to nothing and #item keeps the colour it started with.
+        sheet.insertRule("#target:focus #item { color: rgb(0, 128, 0) }");
+        document.getElementById("target").focus({ preventScroll: true });
+        const plan = internals.styleEngineTransactionReactions();
+        println(`plan: wholeDocument=${plan.wholeDocument} elements=${plan.elements.join(",")}`);
+
+        // Inspecting the plan consumes that transaction. Generate a fresh state transition for the
+        // style update whose result is checked below.
+        document.getElementById("target").blur();
+        getComputedStyle(item).color;
+        document.getElementById("target").focus({ preventScroll: true });
+        println(`item colour: ${getComputedStyle(item).color}`);
+
+        // Deleting it has to take it back out again. A rule that stays compiled keeps winning
+        // wherever it was winning.
+        sheet.deleteRule(0);
+        println(`after delete: ${getComputedStyle(item).color}`);
+    });
+</script>

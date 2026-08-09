@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="host"><input></div>
+<script>
+    test(() => {
+        const host = document.getElementById("host");
+        const root = host.attachShadow({ mode: "open" });
+        root.innerHTML = '<div id="old"><slot></slot></div><div id="new"></div>';
+        const oldParent = root.getElementById("old");
+        const newParent = root.getElementById("new");
+        const slot = root.querySelector("slot");
+        host.firstElementChild.focus();
+        internals.updateStyle();
+        println(`before: ${oldParent.matches(":focus-within")}, ${newParent.matches(":focus-within")}`);
+
+        newParent.moveBefore(slot, null);
+        internals.updateStyle();
+        println(`after: ${oldParent.matches(":focus-within")}, ${newParent.matches(":focus-within")}`);
+    });
+</script>

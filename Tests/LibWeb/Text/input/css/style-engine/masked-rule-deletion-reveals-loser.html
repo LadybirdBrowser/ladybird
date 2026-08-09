@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .x {
+        color: rgb(0, 0, 255);
+    }
+</style>
+<div class="x" id="target">x</div>
+<script>
+    test(() => {
+        internals.updateStyle();
+        println("initial: " + getComputedStyle(document.getElementById("target")).color);
+
+        // Insert a losing rule with a DIFFERENT selector program (:is(.x)) at an earlier
+        // position: same specificity, earlier rank, so it loses and winner pruning drops the
+        // element from the plan, leaving its retained answer without this rule.
+        const sheet = document.styleSheets[0];
+        sheet.insertRule(":is(.x) { color: rgb(255, 0, 0) }", 0);
+        internals.updateStyle();
+        println("masked: " + getComputedStyle(document.getElementById("target")).color);
+
+        // Delete the winner. The patch drops it and evaluates nothing else, so the answer
+        // becomes empty instead of containing the :is(.x) rule. Expected red; the bug gives
+        // the initial black.
+        sheet.deleteRule(1);
+        internals.updateStyle();
+        println("after: " + getComputedStyle(document.getElementById("target")).color);
+    });
+</script>

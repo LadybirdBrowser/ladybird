@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    div > span { color: red }
+    div span { color: blue }
+</style>
+<div id="host"></div>
+<script>
+    test(() => {
+        const root = document.getElementById("host").attachShadow({ mode: "open" });
+        root.innerHTML = `<style>* > span { color: green } :where(div, section) span { color: teal }</style>
+                          <span>shadow</span>`;
+        // A shadow root is a node of the style tree that publishes no facts of its own: it is not an
+        // element and gets no style. A combinator evaluated inside the tree still navigates onto it -
+        // the top-level span's parent is the root - and the answer there is that nothing holds,
+        // rather than a question the pass cannot answer and has to give up on.
+        println(internals.styleEngineMatchedRules());
+    });
+</script>

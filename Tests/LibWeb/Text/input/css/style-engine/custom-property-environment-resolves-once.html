@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .themed {
+        --a: 1px; --b: 2px; --c: 3px; --d: 4px; --e: 5px;
+        --f: var(--a); --g: var(--b); --h: var(--c); --i: var(--d); --j: var(--e);
+        padding: var(--f);
+    }
+</style>
+<div id="host"></div>
+<script>
+    test(() => {
+        const host = document.getElementById("host");
+        // Fifty elements are handed the same ten declarations against the same inherited
+        // environment, so there is one environment between them and it resolves once.
+        host.innerHTML = '<div class="themed">x</div>'.repeat(50);
+        internals.updateStyle();
+
+        const counters = internals.getStyleInvalidationCounters();
+        println(`elements resolving custom properties: ${counters.customPropertyElements}`);
+        println(`custom property resolutions: ${counters.customPropertyResolutions}`);
+        println(`padding: ${getComputedStyle(host.firstElementChild).paddingTop}`);
+
+        // An element whose values differ resolves an environment of its own, and its neighbours
+        // keep theirs.
+        host.firstElementChild.style.setProperty("--a", "9px");
+        println(`changed padding: ${getComputedStyle(host.firstElementChild).paddingTop}`);
+        println(`neighbour padding: ${getComputedStyle(host.lastElementChild).paddingTop}`);
+    });
+</script>

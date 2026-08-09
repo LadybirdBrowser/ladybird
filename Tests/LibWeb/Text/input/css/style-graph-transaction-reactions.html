@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .theme:focus .item { color: green }
+</style>
+<div id="outer" tabindex="0">
+    <div id="guard" class="theme" tabindex="0">
+        <div><div><div><span class="item" id="deep"></span></div></div></div>
+        <div><div><div><span></span></div></div></div>
+        <div><div><div><span></span></div></div></div>
+    </div>
+</div>
+<script>
+    test(() => {
+        document.body.offsetWidth;
+        internals.styleEngineTransactionReactions();
+
+        // A descendant combinator reaches a whole subtree, but only the elements carrying the
+        // subject's own feature inside it can change. The reaction batch names those, not the subtree: the
+        // guard has twelve descendants and exactly one of them is an .item. The guard itself is
+        // named because the user-agent sheet styles whatever is focused.
+        const guard = document.getElementById("guard");
+        println(`descendants of the guard: ${guard.querySelectorAll("*").length}`);
+        guard.focus({ preventScroll: true });
+        let reactions = internals.styleEngineTransactionReactions();
+        println(`reactions: wholeDocument=${reactions.wholeDocument} elements=${reactions.elements.join(",")}`);
+
+        // The element an input happened to has to satisfy the rest of the compound that input
+        // occurs in. Focusing an element that is not a .theme reaches the elements the user-agent
+        // sheet styles by focus, and no .item at all.
+        document.getElementById("outer").focus({ preventScroll: true });
+        reactions = internals.styleEngineTransactionReactions();
+        println(`unguarded focus: wholeDocument=${reactions.wholeDocument} reaches the item=${reactions.elements.includes("deep")}`);
+    });
+</script>

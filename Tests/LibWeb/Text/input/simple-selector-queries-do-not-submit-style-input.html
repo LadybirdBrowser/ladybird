@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<ul><li id="target" class="item selected"></li></ul>
+<script>
+    test(() => {
+        internals.updateStyle();
+        const before = internals.styleEngineCounters().rawMutationRecords;
+        target.classList.add("pending-style-input");
+
+        println(`tag matches: ${target.matches("li")}`);
+        println(`id matches: ${target.matches("#target")}`);
+        println(`classes match: ${target.matches(".item.selected")}`);
+        println(`closest: ${target.closest("ul") === target.parentElement}`);
+
+        const after = internals.styleEngineCounters().rawMutationRecords;
+        println(`style inputs submitted: ${after - before}`);
+    });
+</script>

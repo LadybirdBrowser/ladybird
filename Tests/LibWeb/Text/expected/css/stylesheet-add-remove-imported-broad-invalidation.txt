@@ -1,2 +1,4 @@
-PASS: imported layer-only stylesheet add schedules full restyle
-PASS: imported layer-only stylesheet remove schedules full restyle
+PASS: imported layer-only stylesheet add restyles nothing
+PASS: imported layer-only stylesheet remove restyles nothing
+PASS: imported layer reorder reaches the layered element
+PASS: imported layer reorder stays bounded

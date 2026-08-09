@@ -190,7 +190,6 @@ struct WebContentOptions {
     EnableAsyncScrolling enable_async_scrolling { EnableAsyncScrolling::Yes };
     FileSchemeUrlsHaveTupleOrigins file_scheme_urls_have_tuple_origins { FileSchemeUrlsHaveTupleOrigins::No };
     Optional<StringView> default_time_zone {};
-    Optional<u64> style_invalidation_counter_dump_interval {};
 };
 
 }

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="host"></div>
+<style>
+    /* A parent named by a disjunction: the parent has to carry one of the branches, not a
+       particular one, so a filter that picks a single branch loses every other. */
+    :is(ol, ul, menu) > .item { color: green }
+    /* Same through a sibling, which shares the parent the constraint is on. */
+    :is(section, article) > .lead + .item { color: blue }
+    /* An ancestor named by a disjunction, which bounds a subtree rather than a child list. */
+    :is(.alpha, .beta) .deep { color: red }
+</style>
+<ol><li class="item">a</li></ol>
+<ul><li class="item">b</li></ul>
+<menu><li class="item">c</li></menu>
+<section><span class="lead"></span><span class="item"></span></section>
+<article><span class="lead"></span><span class="item"></span></article>
+<div class="alpha"><div><span class="deep"></span></div></div>
+<div class="beta"><div><span class="deep"></span></div></div>
+<script>
+    test(() => {
+        // A shadow root publishes no facts at all, so a filter that asks one what it carries has to
+        // treat the answer as unknown rather than as a rejection.
+        const shadowRoot = document.getElementById("host").attachShadow({ mode: "open" });
+        shadowRoot.innerHTML = `
+            <style>
+                .wrap > .child { color: green }
+                .wrap .grandchild { color: blue }
+            </style>
+            <div class="wrap"><span class="child"><span class="grandchild"></span></span></div>
+        `;
+        // The top-level child of the shadow root is the case where the walked parent is the root.
+        shadowRoot.append(document.createElement("span"));
+
+        for (const element of document.querySelectorAll("*")) getComputedStyle(element).color;
+        println(internals.styleEngineMatchedRules());
+    });
+</script>

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="app"></div>
+<script>
+    test(() => {
+        const classCount = 600;
+        const classesPerElement = 12;
+        const style = document.createElement("style");
+        // Model a utility sheet whose custom-property declarations prevent retaining a complete
+        // winner inventory, while the portal-dependent rule loses the cascade everywhere.
+        style.textContent = `
+            *, ::before, ::after { box-sizing: border-box; }
+            .item { color: black !important; }
+            .shared { animation-name: none; background: white; }
+            body.open .item { color: red; }
+        ` + Array.from({ length: classCount }, (_, index) => `
+            .utility-${index} { --utility-${index}: ${index}; }
+            .utility-${index} .utility-${(index + 1) % classCount} { --descendant-${index}: ${index}; }
+            .utility-${index}:hover .utility-${(index + 2) % classCount} { --hover-descendant-${index}: ${index}; }
+            .utility-${index} + .utility-${(index + 3) % classCount} { --adjacent-${index}: ${index}; }
+            .utility-${index} ~ .utility-${(index + 4) % classCount} { --sibling-${index}: ${index}; }
+            .utility-${index}:where(.dark, .dark *) { --dark-${index}: ${index}; }
+        `).join("\n");
+        document.head.append(style);
+
+        const utilityClasses = start => Array.from(
+            { length: classesPerElement },
+            (_, offset) => `utility-${(start + offset) % classCount}`,
+        ).join(" ");
+
+        for (let index = 0; index < 1000; ++index) {
+            const element = document.createElement("div");
+            element.className = `item ${utilityClasses(index)}`;
+            if (index % 5 === 0)
+                app.append(element);
+            else
+                app.lastElementChild.append(element);
+        }
+
+        internals.updateStyle();
+        app.offsetWidth;
+        internals.resetStyleInvalidationCounters();
+
+        const portal = document.createElement("div");
+        portal.className = "portal";
+        const portalTarget = document.createElement("div");
+        portal.append(portalTarget);
+        for (let index = 0; index < 150; ++index) {
+            const element = document.createElement("div");
+            element.className = utilityClasses(index);
+            if (index % 5 === 0)
+                portalTarget.append(element);
+            else
+                portalTarget.lastElementChild.append(element);
+        }
+        for (let index = 0; index < 120; ++index) {
+            const element = document.createElement("div");
+            element.className = "shared";
+            portalTarget.append(element);
+        }
+        document.body.append(portal);
+        document.body.classList.add("open");
+        portalTarget.firstElementChild.classList.add("utility-59");
+
+        internals.updateStyle();
+        const counters = internals.getStyleInvalidationCounters();
+        println(`no-op reactions suppressed: ${counters.styleEnginePublishedReactions < 700}`);
+        println(`none animation names remain shareable: ${counters.elementStyleSharedComputations >= 100}`);
+        println(`inserted elements were styled: ${counters.elementComputedStyleChanges >= 271}`);
+    });
+</script>

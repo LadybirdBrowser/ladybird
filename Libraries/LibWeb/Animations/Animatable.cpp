@@ -337,8 +337,14 @@ void Animatable::set_css_defined_animations(Optional<CSS::PseudoElement> pseudo_
                      .map([](CSS::PseudoElement pseudo_element_value) { return to_underlying(pseudo_element_value) + 1; })
                      .value_or(0);
 
+    // NB: The flag says the element has animations to play or cancel, not that it has been through
+    //     the step that would have registered some. Every element goes through that step, so setting
+    //     it here unconditionally made it true of every element that had computed a style once.
+    //     It stays set once any list is non-empty, since the lists are per pseudo-element and this
+    //     is one flag for all of them.
+    if (!animations.is_empty())
+        impl.has_css_defined_animations = true;
     impl.css_defined_animations[index] = make<Vector<GC::Ref<CSS::CSSAnimation>>>(move(animations));
-    impl.has_css_defined_animations = true;
 }
 
 Animatable::Impl& Animatable::ensure_impl() const

@@ -58,32 +58,31 @@ static bool node_is_in_focused_text_control(DOM::Node const& node)
 
 static PhysicalOverflowDirections physical_overflow_directions(Box const& box)
 {
-    auto const& computed_values = box.computed_values();
     AxisDirection inline_axis {
-        .is_horizontal = inline_axis_is_horizontal(computed_values.writing_mode()),
-        .is_reverse = computed_values.inline_axis_is_reverse(),
+        .is_horizontal = inline_axis_is_horizontal(box.writing_mode()),
+        .is_reverse = box.inline_axis_is_reverse(),
     };
     AxisDirection block_axis {
         .is_horizontal = !inline_axis.is_horizontal,
-        .is_reverse = computed_values.block_axis_is_reverse(),
+        .is_reverse = box.block_axis_is_reverse(),
     };
 
     auto horizontal_and_vertical_axes = [&]() {
         if (!box.display().is_flex_inside())
             return AK::Tuple { inline_axis.is_horizontal ? inline_axis : block_axis, inline_axis.is_horizontal ? block_axis : inline_axis };
 
-        auto is_row_layout = computed_values.flex_direction() == CSS::FlexDirection::Row
-            || computed_values.flex_direction() == CSS::FlexDirection::RowReverse;
+        auto is_row_layout = box.flex_direction() == CSS::FlexDirection::Row
+            || box.flex_direction() == CSS::FlexDirection::RowReverse;
 
         auto main_axis = is_row_layout ? inline_axis : block_axis;
-        if (computed_values.flex_direction() == CSS::FlexDirection::RowReverse
-            || computed_values.flex_direction() == CSS::FlexDirection::ColumnReverse) {
+        if (box.flex_direction() == CSS::FlexDirection::RowReverse
+            || box.flex_direction() == CSS::FlexDirection::ColumnReverse) {
             main_axis.is_reverse = !main_axis.is_reverse;
         }
 
         auto cross_axis = is_row_layout ? block_axis : inline_axis;
         // AD-HOC: A legacy webkit box ignores `flex-wrap`, matching other engines.
-        if (!box.display().is_webkit_box_inside() && computed_values.flex_wrap() == CSS::FlexWrap::WrapReverse)
+        if (!box.display().is_webkit_box_inside() && box.flex_wrap() == CSS::FlexWrap::WrapReverse)
             cross_axis.is_reverse = !cross_axis.is_reverse;
 
         return AK::Tuple { main_axis.is_horizontal ? main_axis : cross_axis, main_axis.is_horizontal ? cross_axis : main_axis };
@@ -101,7 +100,7 @@ static PhysicalOverflowDirections physical_overflow_directions(Box const& box)
 static CSSPixelRect apply_css_transform_to_overflow_rect(Box const& box, CSSPixelRect const& rect)
 {
     auto const& paintable_box = *box.paintable_box();
-    auto transform_data = Painting::compute_transform(paintable_box, box.computed_values(), 1.0);
+    auto transform_data = Painting::compute_transform(paintable_box, 1.0);
     if (!transform_data.has_value())
         return rect;
 
@@ -182,14 +181,14 @@ CSSPixelRect measure_scrollable_overflow(Box const& box, ContainedBoxesMap const
                 // NB: Reserve one pixel of reachable inline-axis overflow for an end-of-line caret. This keeps the
                 //     caret at its insertion position while allowing a text control to scroll the painted bar fully
                 //     into view, matching the caret overflow accounted for by other engines.
-                auto const& computed_values = fragment.style_source().computed_values();
-                if (inline_axis_is_horizontal(computed_values.writing_mode())) {
-                    if (computed_values.inline_axis_is_reverse())
+                auto const& style_source = fragment.style_source();
+                if (inline_axis_is_horizontal(style_source.writing_mode())) {
+                    if (style_source.inline_axis_is_reverse())
                         fragment_rect.set_left(fragment_rect.left() - 1);
                     else
                         fragment_rect.set_right(fragment_rect.right() + 1);
                 } else {
-                    if (computed_values.inline_axis_is_reverse())
+                    if (style_source.inline_axis_is_reverse())
                         fragment_rect.set_top(fragment_rect.top() - 1);
                     else
                         fragment_rect.set_bottom(fragment_rect.bottom() + 1);
@@ -243,13 +242,13 @@ CSSPixelRect measure_scrollable_overflow(Box const& box, ContainedBoxesMap const
             if (child.has_layout_containment() || child.has_paint_containment())
                 continue;
 
-            if (child.computed_values().overflow_x() == CSS::Overflow::Visible || child.computed_values().overflow_y() == CSS::Overflow::Visible) {
+            if (child.overflow_x() == CSS::Overflow::Visible || child.overflow_y() == CSS::Overflow::Visible) {
                 auto child_scrollable_overflow = apply_css_transform_to_overflow_rect(child, measure_scrollable_overflow(child, contained_boxes_map));
                 if (!child_scrollable_overflow.is_empty()) {
-                    if (child.computed_values().overflow_x() == CSS::Overflow::Visible) {
+                    if (child.overflow_x() == CSS::Overflow::Visible) {
                         scrollable_overflow_rect.unite_horizontally(child_scrollable_overflow);
                     }
-                    if (child.computed_values().overflow_y() == CSS::Overflow::Visible) {
+                    if (child.overflow_y() == CSS::Overflow::Visible) {
                         scrollable_overflow_rect.unite_vertically(child_scrollable_overflow);
                     }
                 }

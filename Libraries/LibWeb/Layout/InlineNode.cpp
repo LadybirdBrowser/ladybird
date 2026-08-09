@@ -13,7 +13,7 @@
 
 namespace Web::Layout {
 
-InlineNode::InlineNode(DOM::Document& document, GC::Ptr<DOM::Element> element, NonnullRefPtr<CSS::ComputedValues const> style)
+InlineNode::InlineNode(DOM::Document& document, GC::Ptr<DOM::Element> element, CSS::LayoutStyle style)
     : Layout::NodeWithStyle(document, element, style)
 {
 }

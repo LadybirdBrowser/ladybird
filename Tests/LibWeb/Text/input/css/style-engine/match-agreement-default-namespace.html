@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @namespace url(urn:example);
+
+    /* A default namespace applies to type and universal selectors. */
+    thing { color: rgb(1, 2, 3) }
+    * { border-top-color: rgb(4, 5, 6) }
+
+    /* And to nothing else: an attribute selector written without a prefix names an attribute in no
+       namespace however the sheet declared its default. */
+    thing[data-k] { background-color: rgb(7, 8, 9) }
+    thing[data-k="v"] { outline-color: rgb(10, 11, 12) }
+</style>
+<div id="host"></div>
+<script>
+    test(() => {
+        // The elements have to be in the declared namespace for the type selector to reach them,
+        // which HTML markup cannot say.
+        const host = document.getElementById("host");
+        const thing = document.createElementNS("urn:example", "thing");
+        thing.setAttribute("data-k", "v");
+        const html = document.createElement("div");
+        html.setAttribute("data-k", "v");
+        host.append(thing, html);
+
+        println("thing color: " + getComputedStyle(thing).color);
+        println("thing background-color: " + getComputedStyle(thing).backgroundColor);
+        println("thing outline-color: " + getComputedStyle(thing).outlineColor);
+        println("html div color: " + getComputedStyle(html).color);
+        println("html div border-top-color: " + getComputedStyle(html).borderTopColor);
+        for (const element of document.querySelectorAll("*"))
+            getComputedStyle(element).color;
+        println(internals.styleEngineMatchedRules());
+    });
+</script>

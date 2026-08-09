@@ -13,8 +13,8 @@
 
 namespace Web::HTML {
 
-// https://html.spec.whatwg.org/multipage/custom-elements.html#invoke-custom-element-reactions
-void invoke_custom_element_reactions(Vector<GC::Weak<DOM::Element>>& element_queue)
+template<typename ElementQueue>
+static void invoke_custom_element_reactions_impl(ElementQueue& element_queue)
 {
     // 1. While queue is not empty:
     while (!element_queue.is_empty()) {
@@ -59,6 +59,18 @@ void invoke_custom_element_reactions(Vector<GC::Weak<DOM::Element>>& element_que
                 });
         }
     }
+}
+
+// https://html.spec.whatwg.org/multipage/custom-elements.html#invoke-custom-element-reactions
+void invoke_custom_element_reactions(Vector<GC::Root<DOM::Element>>& element_queue)
+{
+    invoke_custom_element_reactions_impl(element_queue);
+}
+
+// https://html.spec.whatwg.org/multipage/custom-elements.html#invoke-custom-element-reactions
+void invoke_custom_element_reactions(Vector<GC::Weak<DOM::Element>>& element_queue)
+{
+    invoke_custom_element_reactions_impl(element_queue);
 }
 
 }

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #chain {
+        --e: 1px;
+        --d: var(--e);
+        --c: var(--d);
+        --b: var(--c);
+        --a: var(--b);
+        padding-top: var(--a);
+    }
+    #cycle {
+        --x: var(--y);
+        --y: var(--x);
+        margin-top: var(--x, 7px);
+    }
+    #fallback-cycle {
+        /* Not a cycle: the fallback naming --r is never chosen because --q is valid, and only a
+           chosen fallback participates. */
+        --q: 5px;
+        --p: var(--q, var(--r));
+        --r: var(--p);
+        margin-bottom: var(--p);
+    }
+</style>
+<div id="chain">chain</div>
+<div id="cycle">cycle</div>
+<div id="fallback-cycle">fallback</div>
+<script>
+    test(() => {
+        const chain = document.getElementById("chain");
+        const cycle = document.getElementById("cycle");
+        const fallbackCycle = document.getElementById("fallback-cycle");
+
+        // A chain of references resolves to the value at its end.
+        println(`chain padding: ${getComputedStyle(chain).paddingTop}`);
+
+        // Both members of a reference cycle are invalid, so the consumer takes its fallback.
+        println(`cycle margin: ${getComputedStyle(cycle).marginTop}`);
+        println(`cycle --x: [${getComputedStyle(cycle).getPropertyValue("--x")}]`);
+        println(`cycle --y: [${getComputedStyle(cycle).getPropertyValue("--y")}]`);
+
+        // A reference sitting in a fallback that is never chosen creates no cycle.
+        println(`fallback-cycle margin: ${getComputedStyle(fallbackCycle).marginBottom}`);
+        println(`fallback-cycle --p: [${getComputedStyle(fallbackCycle).getPropertyValue("--p")}]`);
+
+        // How much walking those answers took. Declared values is the input size; computations
+        // above it are values walked into again for another value's sake.
+        const counters = internals.getStyleInvalidationCounters();
+        println(`declared values resolved: ${counters.customPropertyResolutions}`);
+        println(`value computations: ${counters.customPropertyValueComputations}`);
+        println(`computations answered from finished values: ${counters.customPropertyOverlayHits}`);
+        println(`values resolved inside a reference cycle: ${counters.customPropertyCycleParticipants}`);
+    });
+</script>

@@ -21,6 +21,7 @@
 #include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/CSS/StyleSheetInvalidation.h>
 #include <LibWeb/CSS/StyleSheetList.h>
@@ -162,8 +163,6 @@ void CSSStyleSheet::visit_edges(GC::Cell::Visitor& visitor)
     visitor.visit(m_owning_documents_or_shadow_roots);
     if (m_shared_single_constructed_sheet_style_cache)
         m_shared_single_constructed_sheet_style_cache->visit_edges(visitor);
-    if (m_cached_style_sheet_invalidation_set)
-        m_cached_style_sheet_invalidation_set->invalidation_set.visit_edges(visitor);
     for (auto& subresource : m_critical_subresources)
         subresource.visit_edges(visitor);
 }
@@ -208,12 +207,17 @@ WebIDL::ExceptionOr<unsigned> CSSStyleSheet::insert_rule(Utf16View rule, unsigne
         // NOTE: The spec doesn't say where to set the parent style sheet, so we'll do it here.
         parsed_rule->set_parent_style_sheet(this);
 
-        if (!constructed() && owner_node() && owner_node()->is_html_style_element() && parsed_rule->type() == CSSRule::Type::Keyframes)
-            invalidate_owners_for_modified_keyframes_rule(*this, as<CSSKeyframesRule>(*parsed_rule));
-        else if (!constructed() && owner_node() && owner_node()->is_html_style_element() && parsed_rule->type() == CSSRule::Type::Style)
-            invalidate_owners_for_inserted_style_rule(*this, as<CSSStyleRule>(*parsed_rule), DOM::StyleInvalidationReason::StyleSheetInsertRule);
+        record_style_rule_inserted(*parsed_rule);
+
+        // OPTIMIZATION: A style rule or a keyframes rule arriving in a style element's own sheet changes only which
+        //               rules the scope holds, so dropping the rule cache is enough. Anything else can change what
+        //               the sheet as a whole contributes, which is what invalidate_owners() re-reads.
+        auto style_element_sheet = !constructed() && owner_node() && owner_node()->is_html_style_element();
+        auto rule_type = parsed_rule->type();
+        if (style_element_sheet && (rule_type == CSSRule::Type::Keyframes || rule_type == CSSRule::Type::Style))
+            invalidate_rule_cache_for_style_sheet_owners(*this);
         else
-            invalidate_owners(DOM::StyleInvalidationReason::StyleSheetInsertRule);
+            invalidate_owners();
     }
 
     return result;
@@ -229,10 +233,12 @@ WebIDL::ExceptionOr<void> CSSStyleSheet::delete_rule(unsigned index)
         return WebIDL::NotAllowedError::create("Can't call delete_rule() on non-modifiable stylesheets."_utf16);
 
     // 3. Remove a CSS rule in the CSS rules at index.
-    auto previous_sheet_effects = determine_shadow_root_stylesheet_effects(*this);
+    auto removed_rule = m_rules->item(index);
     auto result = m_rules->remove_a_css_rule(index);
     if (!result.is_exception()) {
-        invalidate_owners(DOM::StyleInvalidationReason::StyleSheetDeleteRule, &previous_sheet_effects);
+        if (removed_rule)
+            record_style_rule_removed(*this, *removed_rule);
+        invalidate_owners();
     }
     return result;
 }
@@ -259,7 +265,8 @@ GC::Ref<WebIDL::Promise> CSSStyleSheet::replace(Utf16String text)
     set_disallow_modification(true);
     Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [this, &realm, text = move(text), promise = GC::Root(promise)] {
         HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
-        auto previous_sheet_effects = determine_shadow_root_stylesheet_effects(*this);
+
+        // 1. Let rules be the result of running parse a stylesheet’s contents from text.
         auto rules = CSS::Parser::Parser::create(make_parsing_params(), text).parse_as_stylesheet_contents();
         GC::RootVector<GC::Ref<CSSRule>> rules_without_import;
         for (auto rule : rules) {
@@ -269,7 +276,10 @@ GC::Ref<WebIDL::Promise> CSSStyleSheet::replace(Utf16String text)
         for (auto& rule : rules_without_import)
             rule->set_parent_style_sheet(this);
         m_rules->set_rules({}, rules_without_import);
-        invalidate_owners(DOM::StyleInvalidationReason::StyleSheetReplace, &previous_sheet_effects);
+        record_stylesheet_rules_replaced(*this);
+        invalidate_owners();
+
+        // 4. Unset sheet’s disallow modification flag.
         set_disallow_modification(false);
         WebIDL::resolve_promise(*promise, css_style_sheet(realm, *this));
     }));
@@ -286,7 +296,6 @@ WebIDL::ExceptionOr<void> CSSStyleSheet::replace_sync(Utf16View text)
         return WebIDL::NotAllowedError::create("Can't call replaceSync() on non-modifiable stylesheets"_utf16);
 
     // 2. Let rules be the result of running parse a stylesheet’s contents from text.
-    auto previous_sheet_effects = determine_shadow_root_stylesheet_effects(*this);
     auto rules = CSS::Parser::Parser::create(make_parsing_params(), text).parse_as_stylesheet_contents();
 
     // 3. If rules contains one or more @import rules, remove those rules from rules.
@@ -303,7 +312,8 @@ WebIDL::ExceptionOr<void> CSSStyleSheet::replace_sync(Utf16View text)
 
     // 4. Set sheet’s CSS rules to rules.
     m_rules->set_rules({}, rules_without_import);
-    invalidate_owners(DOM::StyleInvalidationReason::StyleSheetReplace, &previous_sheet_effects);
+    record_stylesheet_rules_replaced(*this);
+    invalidate_owners();
 
     return {};
 }
@@ -350,14 +360,6 @@ void CSSStyleSheet::for_each_effective_rule(TraversalOrder order, Function<void(
 {
     if (m_media->matches())
         m_rules->for_each_effective_rule(order, callback);
-}
-
-void CSSStyleSheet::for_each_effective_style_producing_rule(Function<void(CSSRule const&)> const& callback) const
-{
-    for_each_effective_rule(TraversalOrder::Preorder, [&](CSSRule const& rule) {
-        if (rule.type() == CSSRule::Type::Style || rule.type() == CSSRule::Type::NestedDeclarations)
-            callback(rule);
-    });
 }
 
 void CSSStyleSheet::for_each_effective_keyframes_at_rule(Function<void(CSSKeyframesRule const&)> const& callback) const
@@ -423,7 +425,6 @@ void CSSStyleSheet::set_disabled(bool disabled)
     if (this->disabled() == disabled)
         return;
 
-    auto previous_sheet_effects = determine_shadow_root_stylesheet_effects(*this);
     auto document = owning_document();
     // When a stylesheet is disabled we stop evaluating its media queries, so both the cached top-level match bit
     // and the MediaList's internal state can go stale across viewport changes. Clear the cache for both
@@ -432,9 +433,16 @@ void CSSStyleSheet::set_disabled(bool disabled)
     m_did_match = {};
     StyleSheet::set_disabled(disabled);
 
+    if (!disabled && document)
+        evaluate_media_queries(*document);
+
+    // A disabled sheet contributes nothing, so its declarations have to be taken back wherever they
+    // were winning, and given back when it comes round again.
+    for (auto& owner : owning_documents_or_shadow_roots())
+        record_stylesheet_conditions(*this, *owner, !disabled && media()->matches());
+
     if (!disabled) {
         if (document) {
-            evaluate_media_queries(*document);
             document->font_computer().load_fonts_from_sheet(*this);
             load_pending_image_resources(*document);
         }
@@ -442,7 +450,7 @@ void CSSStyleSheet::set_disabled(bool disabled)
         document->font_computer().unload_fonts_from_sheet(*this);
     }
 
-    invalidate_owners(DOM::StyleInvalidationReason::StyleSheetDisabledStateChange, &previous_sheet_effects);
+    invalidate_owners();
 }
 
 void CSSStyleSheet::for_each_owning_style_scope(Function<void(StyleScope&)> const& callback) const
@@ -466,8 +474,6 @@ NonnullRefPtr<StyleCache> CSSStyleSheet::shared_single_constructed_sheet_style_c
 
 void CSSStyleSheet::invalidate_shared_style_cache()
 {
-    m_selector_insights = {};
-    m_cached_style_sheet_invalidation_set = nullptr;
     m_shared_single_constructed_sheet_style_cache = nullptr;
     ++m_shared_style_cache_generation;
 
@@ -478,67 +484,23 @@ void CSSStyleSheet::invalidate_shared_style_cache()
     }
 }
 
-SelectorInsights const& CSSStyleSheet::selector_insights() const
-{
-    if (m_selector_insights.has_value())
-        return *m_selector_insights;
-
-    SelectorInsights insights;
-    for_each_effective_rule(TraversalOrder::Preorder, [&](CSSRule const& rule) {
-        auto collect_selector_list = [&](SelectorList const& selectors) {
-            for (auto const& selector : selectors)
-                StyleScope::collect_selector_insights(selector, insights);
-        };
-        auto collect_optional_selector_list = [&](Optional<SelectorList> const& selectors) {
-            if (!selectors.has_value())
-                return;
-            collect_selector_list(*selectors);
-        };
-
-        if (rule.type() == CSSRule::Type::Scope) {
-            auto const& scope_rule = as<CSSScopeRule>(rule);
-            collect_optional_selector_list(scope_rule.start_selectors_for_matching());
-            collect_optional_selector_list(scope_rule.end_selectors_for_matching());
-            return;
-        }
-
-        if (rule.type() == CSSRule::Type::Import) {
-            auto const& import_rule = as<CSSImportRule>(rule);
-            if (import_rule.has_scope()) {
-                collect_optional_selector_list(import_rule.scope_start_selectors_for_matching());
-                collect_optional_selector_list(import_rule.scope_end_selectors_for_matching());
-            }
-            return;
-        }
-
-        if (rule.type() == CSSRule::Type::Style) {
-            collect_selector_list(static_cast<CSSStyleRule const&>(rule).absolutized_selectors());
-            return;
-        }
-
-        if (rule.type() == CSSRule::Type::NestedDeclarations)
-            collect_selector_list(static_cast<CSSNestedDeclarations const&>(rule).absolutized_selectors());
-    });
-    m_selector_insights = insights;
-    return *m_selector_insights;
-}
-
-void CSSStyleSheet::invalidate_owners(DOM::StyleInvalidationReason reason, ShadowRootStylesheetEffects const* previous_sheet_effects)
+void CSSStyleSheet::invalidate_owners()
 {
     auto previously_matched = m_did_match;
     m_did_match = {};
     invalidate_shared_style_cache();
 
-    // The MediaList may have been mutated (e.g. via MediaList::set_media_text), and owner invalidation computes
-    // shadow-root effects from effective rules. Refresh the media state first so host-side shadow invalidation
-    // sees the updated definitions.
+    // The MediaList may have been mutated (e.g. via MediaList::set_media_text), so refresh the media state before
+    // reporting what the sheet now says.
     if (auto document = owning_document()) {
         evaluate_media_queries(*document);
-        if (previously_matched.has_value() && previously_matched.value() != m_did_match.value())
+        if (previously_matched.has_value() && previously_matched.value() != m_did_match.value()) {
             reload_fonts_after_media_query_change();
+            record_conditions_for_owners();
+        }
     }
 
-    invalidate_style_for_style_sheet_owners(*this, reason, ShouldInvalidateRuleCache::Yes, previous_sheet_effects);
+    invalidate_rule_cache_for_style_sheet_owners(*this);
 }
 
 void CSSStyleSheet::reload_fonts_after_media_query_change()
@@ -574,6 +536,17 @@ void CSSStyleSheet::load_pending_image_resources(DOM::Document& document)
     }
 }
 
+// A sheet whose media stopped matching contributes nothing, so its declarations have to be taken
+// back wherever they were winning, and given back when it matches again. Publishing the activation
+// is separate from noticing the transition, because the two routes into a media change notice it in
+// different places: an ordinary re-evaluation compares against the baseline it holds, while
+// `invalidate_owners` resets that baseline first and compares for itself.
+void CSSStyleSheet::record_conditions_for_owners()
+{
+    for (auto& owner : owning_documents_or_shadow_roots())
+        record_stylesheet_conditions(*this, *owner, media()->matches() && !disabled());
+}
+
 bool CSSStyleSheet::evaluate_media_queries(DOM::Document const& document)
 {
     return evaluate_media_queries(document, [](CSSRule const&) { });
@@ -601,9 +574,14 @@ bool CSSStyleSheet::evaluate_media_queries(DOM::Document const& document, Functi
         m_rules->for_each_effective_rule(TraversalOrder::Preorder, changed_rule_callback);
     }
 
+    if (did_match_state_change)
+        record_conditions_for_owners();
+
     m_did_match = now_matches;
-    if (any_media_queries_changed_match_state)
+    if (any_media_queries_changed_match_state) {
         invalidate_shared_style_cache();
+        record_stylesheet_rule_conditions(*this);
+    }
 
     return any_media_queries_changed_match_state;
 }

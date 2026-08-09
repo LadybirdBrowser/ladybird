@@ -1,0 +1,7 @@
+feedback-free epoch: true
+feedback-free pass: true
+feedback-free state: true
+feedback shares one epoch: true
+feedback uses multiple passes: true
+feedback state is visible: true
+stable query result: rgb(0, 128, 0)

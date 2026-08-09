@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="root"></div>
+<script>
+    test(() => {
+        const depth = 12;
+        const rules = [
+            ".container { container-type: inline-size; width: 100px }",
+            "#target, #discarded { color: rgb(0, 0, 0); transition: color 1s linear }",
+            "#late { color: rgb(0, 0, 0) }",
+            "@container (min-width: 200px) { .container { width: 300px } }",
+        ];
+
+        let parent = root;
+        for (let i = 0; i < depth; ++i) {
+            const container = document.createElement("div");
+            container.id = `c${i}`;
+            container.className = "container";
+            parent.appendChild(container);
+            parent = container;
+
+            rules.push(`#c${i} { container-name: c${i} }`);
+            rules.push(`@container c${i} (min-width: 200px) { #target { color: rgb(${i + 1}, 0, 0) } }`);
+        }
+        rules.push("@container c0 (min-width: 200px) { #discarded { color: rgb(1, 0, 0) } }");
+        rules.push("@container c1 (min-width: 200px) { #discarded { transition: none } }");
+        rules.push("@container c0 (min-width: 200px) { #late { color: rgb(1, 0, 0) } }");
+        rules.push("@container c1 (min-width: 200px) { #late { transition: color 1s linear } }");
+
+        const target = document.createElement("div");
+        target.id = "target";
+        parent.appendChild(target);
+        const discarded = document.createElement("div");
+        discarded.id = "discarded";
+        parent.appendChild(discarded);
+        const late = document.createElement("div");
+        late.id = "late";
+        parent.appendChild(late);
+
+        const style = document.createElement("style");
+        style.textContent = rules.join("\n");
+        document.head.appendChild(style);
+        target.getBoundingClientRect();
+
+        internals.resetStyleInvalidationCounters();
+        document.getElementById("c0").style.width = "300px";
+        target.getBoundingClientRect();
+
+        const counters = internals.getStyleInvalidationCounters();
+        println(`feedback used provisional passes: ${counters.provisionalStylePasses > 1}`);
+        println(`transition decisions were provisional: ${counters.provisionalTransitionDecisions > counters.committedTransitionActions}`);
+        println(`intermediate decisions were superseded: ${counters.supersededProvisionalTransitionDecisions > 0}`);
+        println(`two transition actions committed: ${counters.committedTransitionActions === 2}`);
+        println(`two transitions started: ${counters.committedTransitionsStarted === 2}`);
+        println(`intermediate transition events were not created: ${counters.provisionalAnimationEvents === 0}`);
+        println(`no provisional events committed: ${counters.committedAnimationEvents === 0}`);
+        println(`one stable transition remains: ${target.getAnimations().length === 1}`);
+        println(`discarded transition was not published: ${discarded.getAnimations().length === 0}`);
+        println(`late transition used the committed baseline: ${late.getAnimations().length === 1}`);
+    });
+</script>

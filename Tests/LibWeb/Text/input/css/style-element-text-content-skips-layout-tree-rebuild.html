@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style id="style">#target { color: red; }</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        const style = document.getElementById("style");
+        const target = document.getElementById("target");
+        getComputedStyle(target).color;
+        const buildsBefore = internals.layoutTreeBuildStats().builds;
+
+        style.textContent = "#target { color: blue; }";
+        println(`color: ${getComputedStyle(target).color}`);
+        println(`layout tree rebuilds: ${internals.layoutTreeBuildStats().builds - buildsBefore}`);
+    });
+</script>

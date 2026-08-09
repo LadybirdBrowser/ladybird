@@ -1,0 +1,5 @@
+no duplicate fact batch: true
+no complete fact-store scan: true
+no complete fact-store clone: true
+first target: rgb(1, 2, 3)
+last target: rgb(1, 2, 3)

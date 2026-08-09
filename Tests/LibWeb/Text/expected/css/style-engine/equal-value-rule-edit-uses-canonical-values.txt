@@ -1,0 +1,5 @@
+canonical values reused: 3
+equal winners rejected twice: true
+only sentinel invalidated twice: true
+ordinary item: rgb(20, 24, 28)
+sentinel: rgb(10, 100, 200)

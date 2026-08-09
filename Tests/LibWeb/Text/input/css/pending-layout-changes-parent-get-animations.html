@@ -25,6 +25,10 @@
             await new Promise(resolve => window.addEventListener("load", resolve));
 
             frame.width = "500";
+            // The width lands on the parent, and the child re-evaluates its media queries when the
+            // parent's layout reaches it, so lay the parent out before reading. The frame is 500 wide,
+            // so `@media (width >= 500px)` matches and `#bar` has the animation it declares.
+            document.documentElement.offsetWidth;
             println(frame.contentDocument.getAnimations().length);
         });
     </script>

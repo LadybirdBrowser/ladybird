@@ -154,9 +154,19 @@ bool AbstractElement::is_before(AbstractElement const& other) const
     return this_node && other_node && this_node->is_before(*other_node);
 }
 
-CSS::ComputedValues const* AbstractElement::computed_values() const
+CSS::ComputedStyleRecordView AbstractElement::computed_style() const
 {
-    return m_element->computed_values(m_pseudo_element);
+    return m_element->computed_style(m_pseudo_element);
+}
+
+CSS::StyleRecordID AbstractElement::style_record_identity() const
+{
+    return m_element->style_record_identity(m_pseudo_element);
+}
+
+void const* AbstractElement::style_record_payloads() const
+{
+    return m_element->style_record_payloads(m_pseudo_element);
 }
 
 GC::Ptr<CSS::CSSStyleProperties const> AbstractElement::inline_style() const

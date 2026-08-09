@@ -483,7 +483,7 @@ WebIDL::ExceptionOr<void> Animation::set_playback_rate(double new_playback_rate)
 void Animation::update_style_if_needed() const
 {
     if (m_owning_element.has_value())
-        m_owning_element->document().update_style_if_needed_for_element(*m_owning_element);
+        m_owning_element->document().update_style_for_element(*m_owning_element, DOM::Document::StyleUpdateMode::OnlyIfNeeded);
 }
 
 AnimationPlayState Animation::play_state() const
@@ -656,8 +656,8 @@ void Animation::cancel(ShouldInvalidate should_invalidate)
     // Note: When called from JS, we always want to invalidate the animation target's style. However, this method is
     //       also called from the StyleComputer when the animation-name CSS property changes. That happens in the
     //       middle of a cascade, and importantly, _before_ computing the animation effect stack, so there is no
-    //       need for another invalidation. And in fact, if we did invalidate, it would lead to a crash, as the element
-    //       would not have it's "m_needs_style_update" flag cleared.
+    //       need for another invalidation. It would also schedule a redundant follow-up reaction while the current
+    //       style computation is already updating the animation effect stack.
 
     auto& realm = HTML::relevant_realm(relevant_global_object());
 
@@ -1622,6 +1622,22 @@ Animation::Animation(HTML::EnvironmentSettingsObject& environment)
 {
     static unsigned int next_animation_list_order = 0;
     m_global_animation_list_order = next_animation_list_order++;
+}
+
+void Animation::set_provisional_effect(GC::Ref<AnimationEffect> effect)
+{
+    VERIFY(!m_effect);
+    VERIFY(!effect->associated_animation());
+    effect->set_associated_animation(this);
+    m_effect = effect;
+}
+
+void Animation::discard_provisional_effect()
+{
+    VERIFY(m_effect);
+    VERIFY(m_effect->associated_animation() == GC::Ptr<Animation> { *this });
+    m_effect->set_associated_animation({});
+    m_effect = nullptr;
 }
 
 GC::Ptr<Bindings::Wrappable> Animation::relevant_global_impl() const

@@ -1,0 +1,3 @@
+descendants of the guard: 12
+reactions: wholeDocument=false elements=guard,deep
+unguarded focus: wholeDocument=false reaches the item=false

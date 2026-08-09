@@ -1,7 +1,1 @@
 [add .match at depth 10 (anchor at depth 5)]
-  hasAncestorWalkInvocations: 1
-  hasAncestorWalkVisits: 6
-  hasMatchInvocations: 1
-  hasResultCacheHits: 0
-  hasResultCacheMisses: 1
-  styleInvalidations: 1

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .x { color: rgb(0, 0, 0); }
+    .d ~ .x { color: rgb(255, 0, 0); }
+</style>
+<div id="departure">
+    <span id="departure-d" class="d"></span>
+    <span id="departure-next"></span>
+    <span class="x"></span>
+    <span class="x"></span>
+</div>
+<div id="arrival">
+    <span id="arrival-next"></span>
+    <span class="x"></span>
+    <span class="x"></span>
+</div>
+<script>
+    test(() => {
+        const departure = document.getElementById("departure");
+        const departureTargets = departure.querySelectorAll(".x");
+        const arrival = document.getElementById("arrival");
+        const arrivalTargets = arrival.querySelectorAll(".x");
+        const arriving = document.createElement("span");
+        arriving.className = "d";
+
+        internals.updateStyle();
+        println(`initial departure: ${Array.from(departureTargets, target => getComputedStyle(target).color)}`);
+        println(`initial arrival: ${Array.from(arrivalTargets, target => getComputedStyle(target).color)}`);
+
+        document.getElementById("departure-d").remove();
+        departure.append(document.getElementById("departure-next"));
+        arrival.insertBefore(arriving, document.getElementById("arrival-next"));
+        arrival.append(document.getElementById("arrival-next"));
+        internals.updateStyle();
+
+        println(`final departure: ${Array.from(departureTargets, target => getComputedStyle(target).color)}`);
+        println(`final arrival: ${Array.from(arrivalTargets, target => getComputedStyle(target).color)}`);
+    });
+</script>

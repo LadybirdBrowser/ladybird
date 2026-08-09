@@ -9,6 +9,7 @@
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/GridTrackPlacement.h>
 #include <LibWeb/CSS/GridTrackSize.h>
+#include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
@@ -364,6 +365,7 @@ static constexpr Array inherited_svg_group_properties {
     PropertyID::PaintOrder,
     PropertyID::TextAnchor,
     PropertyID::DominantBaseline,
+    PropertyID::ShapeRendering,
 };
 
 // The properties feeding the inherited list group's descriptors, in
@@ -446,6 +448,18 @@ static constexpr Array background_group_properties {
     PropertyID::BackgroundBlendMode,
 };
 
+// The style group each longhand's computed value lives in, filled as the field descriptors are
+// registered: the descriptors are what Rust builds the group payloads from, so a binding derived
+// from them cannot drift from where the value actually lives. Groups whose payloads build through
+// bespoke calls or in C++ bind their properties explicitly beside the descriptors, transcribed from
+// the builder or setters that consume them. A longhand without a binding has no single known group,
+// and callers treat it conservatively.
+static Array<Optional<StyleGroupIndex>, number_of_longhand_properties>& style_group_by_property()
+{
+    static Array<Optional<StyleGroupIndex>, number_of_longhand_properties> map;
+    return map;
+}
+
 static void register_style_group_field_descriptors()
 {
     using namespace ComputedValuesFFI;
@@ -454,7 +468,14 @@ static void register_style_group_field_descriptors()
         && sizeof(JustifyItems) == 1 && sizeof(JustifySelf) == 1);
 
     Vector<FfiGroupFieldDescriptor> descriptors;
+    auto bind_property_to_group = [](PropertyID property, size_t group_index) {
+        auto group = static_cast<StyleGroupIndex>(group_index);
+        auto& binding = style_group_by_property()[to_underlying(property) - to_underlying(first_longhand_property_id)];
+        VERIFY(!binding.has_value() || binding.value() == group);
+        binding = group;
+    };
     auto add = [&](size_t group_index, PropertyID property, u32 offset, u8 kind, u16 keyword, Array<u8, number_of_keywords> const* keyword_table, double required_px = 0) {
+        bind_property_to_group(property, group_index);
         descriptors.append({
             .group_index = static_cast<u32>(group_index),
             .property_id = static_cast<u16>(to_underlying(property)),
@@ -607,6 +628,7 @@ static void register_style_group_field_descriptors()
     add(inherited_svg, PropertyID::PaintOrder, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Normal), nullptr);
     add(inherited_svg, PropertyID::TextAnchor, offsetof(InheritedSVG, text_anchor), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_text_anchor>());
     add(inherited_svg, PropertyID::DominantBaseline, 0, GROUP_FIELD_REQUIRE_KEYWORD, to_underlying(Keyword::Auto), nullptr);
+    add(inherited_svg, PropertyID::ShapeRendering, offsetof(InheritedSVG, shape_rendering), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_shape_rendering>());
 
     using InheritedList = ComputedValues::InheritedListValues;
     constexpr auto inherited_list = to_underlying(StyleGroupIndex::InheritedListValues);
@@ -674,7 +696,121 @@ static void register_style_group_field_descriptors()
              PropertyID::BackgroundRepeat, PropertyID::BackgroundSize, PropertyID::BackgroundBlendMode })
         add(background, property, 0, GROUP_FIELD_REQUIRE_INITIAL_VALUE, 0, nullptr);
 
+    // Groups whose payloads build through bespoke calls rather than the descriptors above; the
+    // property lists mirror those calls' signatures in create_internal.
+    for (auto property : { PropertyID::Top, PropertyID::Right, PropertyID::Bottom, PropertyID::Left,
+             PropertyID::MarginTop, PropertyID::MarginRight, PropertyID::MarginBottom, PropertyID::MarginLeft,
+             PropertyID::PaddingTop, PropertyID::PaddingRight, PropertyID::PaddingBottom, PropertyID::PaddingLeft })
+        bind_property_to_group(property, to_underlying(StyleGroupIndex::SurroundValues));
+    for (auto property : { PropertyID::Width, PropertyID::MinWidth, PropertyID::MaxWidth,
+             PropertyID::Height, PropertyID::MinHeight, PropertyID::MaxHeight })
+        bind_property_to_group(property, to_underlying(StyleGroupIndex::SizingValues));
+    for (auto property : { PropertyID::FlexDirection, PropertyID::FlexWrap, PropertyID::FlexBasis,
+             PropertyID::FlexGrow, PropertyID::FlexShrink, PropertyID::Order,
+             PropertyID::AlignContent, PropertyID::AlignItems, PropertyID::AlignSelf,
+             PropertyID::JustifyContent, PropertyID::JustifyItems, PropertyID::JustifySelf,
+             PropertyID::ColumnGap, PropertyID::RowGap })
+        bind_property_to_group(property, to_underlying(StyleGroupIndex::AlignmentValues));
+    for (auto property : { PropertyID::Visibility, PropertyID::Direction, PropertyID::WritingMode,
+             PropertyID::ContentVisibility, PropertyID::ImageRendering })
+        bind_property_to_group(property, to_underlying(StyleGroupIndex::InheritedBoxValues));
+    for (auto property : { PropertyID::BorderCollapse, PropertyID::CaptionSide, PropertyID::EmptyCells, PropertyID::BorderSpacing })
+        bind_property_to_group(property, to_underlying(StyleGroupIndex::InheritedTableValues));
+    for (auto property : { PropertyID::Cx, PropertyID::Cy, PropertyID::D, PropertyID::R, PropertyID::Rx, PropertyID::Ry,
+             PropertyID::X, PropertyID::Y, PropertyID::StopColor, PropertyID::StopOpacity,
+             PropertyID::FloodColor, PropertyID::FloodOpacity, PropertyID::VectorEffect })
+        bind_property_to_group(property, to_underlying(StyleGroupIndex::SVGResetValues));
+    // The box group builds from a hand-written FFI struct rather than from descriptors, so its
+    // bindings are transcribed from that struct's fields.
+    for (auto property : { PropertyID::Display, PropertyID::Float, PropertyID::Clear, PropertyID::Position,
+             PropertyID::OverflowX, PropertyID::OverflowY, PropertyID::BoxSizing, PropertyID::Resize,
+             PropertyID::TextOverflow, PropertyID::UnicodeBidi, PropertyID::TableLayout, PropertyID::GridAutoFlow,
+             PropertyID::ColumnWidth, PropertyID::ColumnCount, PropertyID::ZIndex, PropertyID::VerticalAlign,
+             PropertyID::AspectRatio, PropertyID::Contain, PropertyID::ContainerType, PropertyID::ContainerName })
+        bind_property_to_group(property, to_underlying(StyleGroupIndex::BoxValues));
+    // The font group builds in C++; only bindings verified against its setters are made.
+    for (auto property : { PropertyID::FontSize, PropertyID::FontWeight, PropertyID::FontWidth, PropertyID::LineHeight })
+        bind_property_to_group(property, to_underlying(StyleGroupIndex::FontValues));
+
     rust_style_group_register_field_descriptors(descriptors.data(), descriptors.size());
+
+    // Double-entry bookkeeping: Properties.json declares each longhand's style group, and the
+    // bindings above derive it from what actually builds the groups. The two must agree exactly,
+    // so a new property cannot claim a group nothing builds it into, and a binding cannot go
+    // undeclared.
+    auto style_group_name = [](StyleGroupIndex group) -> StringView {
+        switch (group) {
+#define LIBWEB_STYLE_GROUP_NAME(name, path, sharing_name, affects_layout) \
+    case StyleGroupIndex::name:                                           \
+        return #name##sv;
+            LIBWEB_ENUMERATE_COMPUTED_VALUE_STYLE_GROUPS(LIBWEB_STYLE_GROUP_NAME)
+#undef LIBWEB_STYLE_GROUP_NAME
+        case StyleGroupIndex::Count:
+            break;
+        }
+        VERIFY_NOT_REACHED();
+    };
+    for (auto i = to_underlying(first_longhand_property_id); i <= to_underlying(last_longhand_property_id); ++i) {
+        auto property_id = static_cast<PropertyID>(i);
+        auto binding = style_group_by_property()[i - to_underlying(first_longhand_property_id)];
+        auto declared = style_group_name_of_property(property_id);
+        VERIFY(binding.has_value() == declared.has_value());
+        if (binding.has_value())
+            VERIFY(declared.value() == style_group_name(binding.value()));
+    }
+
+    Array<u32, number_of_longhand_properties> output_masks;
+    Array<u32, number_of_longhand_properties> dependency_masks;
+    for (auto i = to_underlying(first_longhand_property_id); i <= to_underlying(last_longhand_property_id); ++i) {
+        auto binding = style_group_by_property()[i - to_underlying(first_longhand_property_id)];
+        auto& output_mask = output_masks[i - to_underlying(first_longhand_property_id)];
+        auto& mask = dependency_masks[i - to_underlying(first_longhand_property_id)];
+        output_mask = binding.has_value() ? 1u << to_underlying(binding.value()) : 0;
+        mask = output_mask;
+    }
+
+    // Direction and writing-mode select the physical winners for every logical property group.
+    // Those aliases own no payload, so derive the exact output-group closure through their
+    // authoritative physical mappings.
+    u32 logical_mapping_dependency_mask = 0;
+    constexpr size_t writing_mode_count = 5;
+    constexpr size_t direction_count = 2;
+    for (auto i = to_underlying(first_longhand_property_id); i <= to_underlying(last_longhand_property_id); ++i) {
+        auto property_id = static_cast<PropertyID>(i);
+        if (!property_is_logical_alias(property_id))
+            continue;
+        u32 logical_alias_dependency_mask = 0;
+        for (size_t writing_mode = 0; writing_mode < writing_mode_count; ++writing_mode) {
+            for (size_t direction = 0; direction < direction_count; ++direction) {
+                auto physical_property = map_logical_alias_to_physical_property(property_id, LogicalAliasMappingContext { static_cast<WritingMode>(writing_mode), static_cast<Direction>(direction) });
+                auto binding = style_group_by_property()[to_underlying(physical_property) - to_underlying(first_longhand_property_id)];
+                VERIFY(binding.has_value());
+                auto group = 1u << to_underlying(binding.value());
+                logical_alias_dependency_mask |= group;
+                logical_mapping_dependency_mask |= group;
+            }
+        }
+        dependency_masks[i - to_underlying(first_longhand_property_id)] |= logical_alias_dependency_mask;
+    }
+    dependency_masks[to_underlying(PropertyID::Direction) - to_underlying(first_longhand_property_id)] |= logical_mapping_dependency_mask;
+    dependency_masks[to_underlying(PropertyID::WritingMode) - to_underlying(first_longhand_property_id)] |= logical_mapping_dependency_mask;
+    rust_style_group_register_property_dependency_masks(to_underlying(first_longhand_property_id), dependency_masks.data(), output_masks.data(), dependency_masks.size());
+
+#ifdef LIBWEB_DUMP_STYLE_GROUP_BINDINGS
+    for (auto i = to_underlying(first_longhand_property_id); i <= to_underlying(last_longhand_property_id); ++i) {
+        auto property_id = static_cast<PropertyID>(i);
+        auto binding = style_group_by_property()[i - to_underlying(first_longhand_property_id)];
+        dbgln("style-group-binding: {} {}", string_from_property_id(property_id), binding.has_value() ? to_underlying(binding.value()) : 999);
+    }
+#endif
+}
+
+Optional<StyleGroupIndex> ComputedValues::style_group_of_property(PropertyID property_id)
+{
+    VERIFY(property_id >= first_longhand_property_id && property_id <= last_longhand_property_id);
+    // The bindings are filled with the descriptor registration, which the default payloads trigger.
+    style_group_default_payload(0);
+    return style_group_by_property()[to_underlying(property_id) - to_underlying(first_longhand_property_id)];
 }
 
 // Groups whose layout is defined in Rust must not change size or alignment when the C++
@@ -841,14 +977,41 @@ bool ComputedValues::FontValues::operator==(FontValues const& other) const
         && math_depth == other.math_depth;
 }
 
+bool ComputedValues::property_inheritance_is_standard() const
+{
+    static auto const standard_inheritance_bitmap = [] {
+        AK::FixedBitmap<number_of_longhand_properties> bitmap { false };
+        for (auto i = to_underlying(first_longhand_property_id); i <= to_underlying(last_longhand_property_id); ++i) {
+            auto property_id = static_cast<PropertyID>(i);
+            if (is_inherited_property(property_id))
+                bitmap.set(property_bitmap_index(property_id), true);
+        }
+        return bitmap;
+    }();
+    return m_property_inherited == standard_inheritance_bitmap;
+}
+
+HashMap<PropertyID, NonnullRefPtr<StyleValue const>> ComputedValues::inheritance_dependent_specified_values_snapshot() const
+{
+    auto values = m_inheritance_dependent_specified_values;
+    for (auto const& entry : m_borrowed_inheritance_dependent_values) {
+        auto const* data = static_cast<StyleValueFFI::StyleValueData const*>(entry.value);
+        values.set(
+            static_cast<PropertyID>(entry.property),
+            StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(data)));
+    }
+    return values;
+}
+
 bool ComputedValues::adopt_identical_group_payloads(ComputedValues const& previous) const
 {
-    VERIFY(!m_style_container);
     bool all_shared = true;
     auto adopt = [&]<typename T>(StyleStructRef<T> const& mine, StyleStructRef<T> const& theirs) {
         if (mine.ptr_equals(theirs))
             return;
         if (mine == theirs) {
+            // StyleEngine retains the previously published payload independently, so adopting an
+            // equal canonical payload changes this projection without moving the shared record.
             const_cast<StyleStructRef<T>&>(mine) = theirs;
             return;
         }
@@ -940,15 +1103,94 @@ void const* ComputedValues::style_group_payload(StyleGroupIndex group) const
     VERIFY_NOT_REACHED();
 }
 
-void const* ComputedValues::style_container() const
+void ComputedValues::borrow_style_record_payloads(ReadonlySpan<void const*> payloads)
 {
-    if (!m_style_container) {
-        Array<void const*, to_underlying(StyleGroupIndex::Count)> groups;
-        for (size_t index = 0; index < groups.size(); ++index)
-            groups[index] = style_group_payload(static_cast<StyleGroupIndex>(index));
-        m_style_container = ComputedValuesFFI::rust_style_container_create(groups.data(), groups.size());
+    VERIFY(payloads.size() == to_underlying(StyleGroupIndex::Count));
+    size_t index = 0;
+#define LIBWEB_BORROW_STYLE_GROUP(path) path.borrow(payloads[index++]);
+    LIBWEB_BORROW_STYLE_GROUP(m_inherited.table)
+    LIBWEB_BORROW_STYLE_GROUP(m_inherited.list)
+    LIBWEB_BORROW_STYLE_GROUP(m_inherited.ui)
+    LIBWEB_BORROW_STYLE_GROUP(m_inherited.svg)
+    LIBWEB_BORROW_STYLE_GROUP(m_inherited.text)
+    LIBWEB_BORROW_STYLE_GROUP(m_inherited.box)
+    LIBWEB_BORROW_STYLE_GROUP(m_inherited.font)
+    LIBWEB_BORROW_STYLE_GROUP(m_noninherited.animation)
+    LIBWEB_BORROW_STYLE_GROUP(m_noninherited.svg_reset)
+    LIBWEB_BORROW_STYLE_GROUP(m_noninherited.grid)
+    LIBWEB_BORROW_STYLE_GROUP(m_noninherited.anchor)
+    LIBWEB_BORROW_STYLE_GROUP(m_noninherited.effects)
+    LIBWEB_BORROW_STYLE_GROUP(m_noninherited.mask_data)
+    LIBWEB_BORROW_STYLE_GROUP(m_noninherited.text_reset)
+    LIBWEB_BORROW_STYLE_GROUP(m_noninherited.content_data)
+    LIBWEB_BORROW_STYLE_GROUP(m_noninherited.transform)
+    LIBWEB_BORROW_STYLE_GROUP(m_noninherited.background)
+    LIBWEB_BORROW_STYLE_GROUP(m_noninherited.border)
+    LIBWEB_BORROW_STYLE_GROUP(m_noninherited.alignment)
+    LIBWEB_BORROW_STYLE_GROUP(m_noninherited.misc)
+    LIBWEB_BORROW_STYLE_GROUP(m_noninherited.sizing)
+    LIBWEB_BORROW_STYLE_GROUP(m_noninherited.surround)
+    LIBWEB_BORROW_STYLE_GROUP(m_noninherited.box)
+#undef LIBWEB_BORROW_STYLE_GROUP
+    VERIFY(index == payloads.size());
+}
+
+ComputedStyleRecordView::ComputedStyleRecordView(StyleEngineFFI::FfiStyleRecordView const& view, StyleComputer const& style_computer, StyleRecordID style_record_identity)
+    : m_style_computer(view.animation_overlay_identity != 0 ? &style_computer : nullptr)
+    , m_style_record_identity(style_record_identity)
+{
+    VERIFY(view.present);
+    VERIFY(style_record_identity);
+    VERIFY(view.payload_count == to_underlying(StyleGroupIndex::Count));
+    VERIFY(view.payloads);
+    VERIFY(view.base_payloads);
+    auto payloads = ReadonlySpan<void const*> { view.payloads, view.payload_count };
+    auto base_payloads = ReadonlySpan<void const*> { view.base_payloads, view.payload_count };
+    m_values.borrow_style_record_payloads(payloads);
+    if (view.animation_overlay_identity != 0) {
+        m_base_values.borrow_style_record_payloads(base_payloads);
+        m_values.m_borrowed_base_values = &m_base_values;
     }
-    return m_style_container;
+
+    VERIFY(view.property_importance_count == m_values.m_property_important.size_in_bytes());
+    VERIFY(view.property_inheritance_count == m_values.m_property_inherited.size_in_bytes());
+    m_values.m_property_important.copy_from({ view.property_importance, view.property_importance_count });
+    m_values.m_property_inherited.copy_from({ view.property_inheritance, view.property_inheritance_count });
+
+    m_values.m_pseudo_element_styles = view.pseudo_element_styles;
+    m_values.m_depends_on_viewport_metrics = view.dependency_flags & 1;
+    m_values.m_font_metrics_depend_on_viewport_metrics = view.dependency_flags & 2;
+    m_values.m_in_display_none_subtree = view.dependency_flags & 4;
+    m_values.m_borrowed_raw_cascaded_font_size = static_cast<StyleValueFFI::StyleValueData const*>(view.raw_cascaded_font_size);
+    m_values.m_borrowed_inheritance_dependent_values = { view.inheritance_dependent_values, view.inheritance_dependent_value_count };
+    m_values.m_animated_properties = static_cast<AnimatedProperties const*>(view.animated_properties);
+    if (view.animation_overlay_identity != 0) {
+        m_base_values.m_property_important = m_values.m_property_important;
+        m_base_values.m_property_inherited = m_values.m_property_inherited;
+        m_base_values.m_pseudo_element_styles = m_values.m_pseudo_element_styles;
+        m_base_values.m_depends_on_viewport_metrics = m_values.m_depends_on_viewport_metrics;
+        m_base_values.m_font_metrics_depend_on_viewport_metrics = m_values.m_font_metrics_depend_on_viewport_metrics;
+        m_base_values.m_in_display_none_subtree = m_values.m_in_display_none_subtree;
+        m_base_values.m_borrowed_raw_cascaded_font_size = m_values.m_borrowed_raw_cascaded_font_size;
+        m_base_values.m_borrowed_inheritance_dependent_values = m_values.m_borrowed_inheritance_dependent_values;
+    }
+    m_present = true;
+}
+
+ComputedStyleRecordView::~ComputedStyleRecordView()
+{
+    if (m_style_computer)
+        m_style_computer->unpin_style_record(m_style_record_identity);
+}
+
+void ComputedStyleRecordView::retain_across_style_record_publication()
+{
+    VERIFY(m_present);
+    VERIFY(m_style_computer);
+    VERIFY(m_values.animated_properties());
+    m_retained_values = ComputedValues::Builder { m_values }.build();
+    m_style_computer->unpin_style_record(m_style_record_identity);
+    m_style_computer = nullptr;
 }
 
 static Utf16FlyString make_grid_implicit_line_name(Utf16View name, StringView suffix)
@@ -1165,33 +1407,59 @@ static void* build_grid_group_payload(ComputedProperties const& computed_style)
 
 NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties const& computed_style, DOM::Document const& document, StyleScope const& style_scope, ColorResolutionContext color_resolution_context, ComputedValues const* inherit_parent)
 {
-    Builder builder;
+    return create_internal(computed_style, document, style_scope, move(color_resolution_context), inherit_parent, nullptr, all_style_groups);
+}
+
+NonnullRefPtr<ComputedValues const> ComputedValues::create_over_base(ComputedProperties const& computed_style, DOM::Document const& document, StyleScope const& style_scope, ColorResolutionContext color_resolution_context, ComputedValues const& base, u32 groups_to_apply)
+{
+    return create_internal(computed_style, document, style_scope, move(color_resolution_context), nullptr, &base, groups_to_apply);
+}
+
+NonnullRefPtr<ComputedValues const> ComputedValues::create_internal(ComputedProperties const& computed_style, DOM::Document const& document, StyleScope const& style_scope, ColorResolutionContext color_resolution_context, ComputedValues const* inherit_parent, ComputedValues const* base, u32 groups_to_apply)
+{
+    // A group outside `groups_to_apply` keeps the base's payload: its build is skipped and it counts
+    // as adopted, so the guarded setters below leave it alone. The caller warrants that every
+    // property in a skipped group computes to the same value in `computed_style` as it did when
+    // `base` was built. Unguarded setters still run, and their value-equality checks are what keeps
+    // a skipped group's payload shared rather than cloned.
+    // The Rust surround payload duplicates position-anchor for layout, so rebuilding the anchor
+    // group must also refresh that payload.
+    if ((groups_to_apply >> to_underlying(StyleGroupIndex::AnchorValues)) & 1u)
+        groups_to_apply |= 1u << to_underlying(StyleGroupIndex::SurroundValues);
+    auto applies = [&](StyleGroupIndex group) { return ((groups_to_apply >> to_underlying(group)) & 1u) != 0; };
+    auto builder = base ? Builder { *base } : Builder {};
     auto& computed_values = *builder.operator->();
 
     // The inherited box group builds on the Rust side from the computed keyword
     // values, sharing the parent's payload or the default payload when it can. A
     // null result means a value the core cannot map, and the setters below apply.
-    auto* inherited_box_payload = ComputedValuesFFI::rust_build_inherited_box_group(
-        InheritedBoxValues::style_group_index,
-        computed_style.property(PropertyID::Visibility).rust_style_value_data(),
-        computed_style.property(PropertyID::Direction).rust_style_value_data(),
-        computed_style.property(PropertyID::WritingMode).rust_style_value_data(),
-        computed_style.property(PropertyID::ContentVisibility).rust_style_value_data(),
-        computed_style.property(PropertyID::ImageRendering).rust_style_value_data(),
-        inherit_parent ? static_cast<void const*>(inherit_parent->m_inherited.box.operator->()) : nullptr);
-    bool const inherited_box_adopted = inherited_box_payload != nullptr;
-    if (inherited_box_adopted)
+    void const* inherited_box_payload = nullptr;
+    if (applies(StyleGroupIndex::InheritedBoxValues)) {
+        inherited_box_payload = ComputedValuesFFI::rust_build_inherited_box_group(
+            InheritedBoxValues::style_group_index,
+            computed_style.property(PropertyID::Visibility).rust_style_value_data(),
+            computed_style.property(PropertyID::Direction).rust_style_value_data(),
+            computed_style.property(PropertyID::WritingMode).rust_style_value_data(),
+            computed_style.property(PropertyID::ContentVisibility).rust_style_value_data(),
+            computed_style.property(PropertyID::ImageRendering).rust_style_value_data(),
+            inherit_parent ? static_cast<void const*>(inherit_parent->m_inherited.box.operator->()) : nullptr);
+    }
+    bool const inherited_box_adopted = inherited_box_payload != nullptr || !applies(StyleGroupIndex::InheritedBoxValues);
+    if (inherited_box_payload)
         computed_values.adopt_inherited_box_group(const_cast<void*>(inherited_box_payload));
 
-    auto* inherited_table_payload = ComputedValuesFFI::rust_build_inherited_table_group(
-        InheritedTableValues::style_group_index,
-        computed_style.property(PropertyID::BorderCollapse).rust_style_value_data(),
-        computed_style.property(PropertyID::CaptionSide).rust_style_value_data(),
-        computed_style.property(PropertyID::EmptyCells).rust_style_value_data(),
-        computed_style.property(PropertyID::BorderSpacing).rust_style_value_data(),
-        inherit_parent ? static_cast<void const*>(inherit_parent->m_inherited.table.operator->()) : nullptr);
-    bool const inherited_table_adopted = inherited_table_payload != nullptr;
-    if (inherited_table_adopted)
+    void const* inherited_table_payload = nullptr;
+    if (applies(StyleGroupIndex::InheritedTableValues)) {
+        inherited_table_payload = ComputedValuesFFI::rust_build_inherited_table_group(
+            InheritedTableValues::style_group_index,
+            computed_style.property(PropertyID::BorderCollapse).rust_style_value_data(),
+            computed_style.property(PropertyID::CaptionSide).rust_style_value_data(),
+            computed_style.property(PropertyID::EmptyCells).rust_style_value_data(),
+            computed_style.property(PropertyID::BorderSpacing).rust_style_value_data(),
+            inherit_parent ? static_cast<void const*>(inherit_parent->m_inherited.table.operator->()) : nullptr);
+    }
+    bool const inherited_table_adopted = inherited_table_payload != nullptr || !applies(StyleGroupIndex::InheritedTableValues);
+    if (inherited_table_payload)
         computed_values.adopt_inherited_table_group(const_cast<void*>(inherited_table_payload));
 
     auto gather_group_values = [&]<size_t N>(Array<PropertyID, N> const& properties, Array<ComputedValuesFFI::FfiGroupValueEntry, N>& entries) {
@@ -1203,24 +1471,30 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
 
     Array<ComputedValuesFFI::FfiGroupValueEntry, content_group_properties.size()> content_group_values;
     gather_group_values(content_group_properties, content_group_values);
-    auto* content_payload = ComputedValuesFFI::rust_build_style_group(
-        ContentValues::style_group_index,
-        content_group_values.data(),
-        content_group_values.size(),
-        inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.content_data.operator->()) : nullptr);
-    bool const content_adopted = content_payload != nullptr;
-    if (content_adopted)
+    void const* content_payload = nullptr;
+    if (applies(StyleGroupIndex::ContentValues)) {
+        content_payload = ComputedValuesFFI::rust_build_style_group(
+            ContentValues::style_group_index,
+            content_group_values.data(),
+            content_group_values.size(),
+            inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.content_data.operator->()) : nullptr);
+    }
+    bool const content_adopted = content_payload != nullptr || !applies(StyleGroupIndex::ContentValues);
+    if (content_payload)
         computed_values.adopt_content_group(const_cast<void*>(content_payload));
 
     Array<ComputedValuesFFI::FfiGroupValueEntry, anchor_group_properties.size()> anchor_group_values;
     gather_group_values(anchor_group_properties, anchor_group_values);
-    auto* anchor_payload = ComputedValuesFFI::rust_build_style_group(
-        AnchorValues::style_group_index,
-        anchor_group_values.data(),
-        anchor_group_values.size(),
-        inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.anchor.operator->()) : nullptr);
-    bool const anchor_adopted = anchor_payload != nullptr;
-    if (anchor_adopted)
+    void const* anchor_payload = nullptr;
+    if (applies(StyleGroupIndex::AnchorValues)) {
+        anchor_payload = ComputedValuesFFI::rust_build_style_group(
+            AnchorValues::style_group_index,
+            anchor_group_values.data(),
+            anchor_group_values.size(),
+            inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.anchor.operator->()) : nullptr);
+    }
+    bool const anchor_adopted = anchor_payload != nullptr || !applies(StyleGroupIndex::AnchorValues);
+    if (anchor_payload)
         computed_values.adopt_anchor_group(const_cast<void*>(anchor_payload));
 
     // https://drafts.csswg.org/css-anchor-position-1/#position-anchor
@@ -1245,136 +1519,162 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
         }
     }
 
-    auto* surround_payload = ComputedValuesFFI::rust_build_surround_group(
-        SurroundValues::style_group_index,
-        computed_style.property(PropertyID::Top).rust_style_value_data(),
-        computed_style.property(PropertyID::Right).rust_style_value_data(),
-        computed_style.property(PropertyID::Bottom).rust_style_value_data(),
-        computed_style.property(PropertyID::Left).rust_style_value_data(),
-        computed_style.property(PropertyID::MarginTop).rust_style_value_data(),
-        computed_style.property(PropertyID::MarginRight).rust_style_value_data(),
-        computed_style.property(PropertyID::MarginBottom).rust_style_value_data(),
-        computed_style.property(PropertyID::MarginLeft).rust_style_value_data(),
-        computed_style.property(PropertyID::PaddingTop).rust_style_value_data(),
-        computed_style.property(PropertyID::PaddingRight).rust_style_value_data(),
-        computed_style.property(PropertyID::PaddingBottom).rust_style_value_data(),
-        computed_style.property(PropertyID::PaddingLeft).rust_style_value_data(),
-        position_anchor.name.has_value() ? position_anchor.name->to_raw_leaked() : 0,
-        inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.surround.operator->()) : nullptr);
-    VERIFY(surround_payload);
-    computed_values.adopt_surround_group(const_cast<void*>(surround_payload));
+    void const* surround_payload = nullptr;
+    if (applies(StyleGroupIndex::SurroundValues)) {
+        surround_payload = ComputedValuesFFI::rust_build_surround_group(
+            SurroundValues::style_group_index,
+            computed_style.property(PropertyID::Top).rust_style_value_data(),
+            computed_style.property(PropertyID::Right).rust_style_value_data(),
+            computed_style.property(PropertyID::Bottom).rust_style_value_data(),
+            computed_style.property(PropertyID::Left).rust_style_value_data(),
+            computed_style.property(PropertyID::MarginTop).rust_style_value_data(),
+            computed_style.property(PropertyID::MarginRight).rust_style_value_data(),
+            computed_style.property(PropertyID::MarginBottom).rust_style_value_data(),
+            computed_style.property(PropertyID::MarginLeft).rust_style_value_data(),
+            computed_style.property(PropertyID::PaddingTop).rust_style_value_data(),
+            computed_style.property(PropertyID::PaddingRight).rust_style_value_data(),
+            computed_style.property(PropertyID::PaddingBottom).rust_style_value_data(),
+            computed_style.property(PropertyID::PaddingLeft).rust_style_value_data(),
+            position_anchor.name.has_value() ? position_anchor.name->to_raw_leaked() : 0,
+            inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.surround.operator->()) : nullptr);
+    }
+    VERIFY(surround_payload || !applies(StyleGroupIndex::SurroundValues));
+    if (surround_payload)
+        computed_values.adopt_surround_group(const_cast<void*>(surround_payload));
 
-    auto containment = computed_style.contain();
-    auto container_type = computed_style.container_type();
-    auto z_index = computed_style.z_index();
-    Optional<int> column_count;
-    if (auto const& column_count_value = computed_style.property(PropertyID::ColumnCount); column_count_value.to_keyword() != Keyword::Auto)
-        column_count = int_from_style_value(NonnullRefPtr<StyleValue const> { column_count_value });
-    auto const grid_auto_flow = computed_style.grid_auto_flow();
-    ComputedValuesFFI::BoxValues box_group_values {
-        .display = to_ffi_display(computed_style.display()),
-        .display_before_box_type_transformation = to_ffi_display(computed_style.display_before_box_type_transformation()),
-        .float_ = static_cast<u8>(to_underlying(computed_style.float_())),
-        .clear = static_cast<u8>(to_underlying(computed_style.clear())),
-        .position = static_cast<u8>(to_underlying(computed_style.position())),
-        .overflow_x = static_cast<u8>(to_underlying(computed_style.overflow_x())),
-        .overflow_y = static_cast<u8>(to_underlying(computed_style.overflow_y())),
-        .box_sizing = static_cast<u8>(to_underlying(computed_style.box_sizing())),
-        .resize = static_cast<u8>(to_underlying(computed_style.resize())),
-        .text_overflow = static_cast<u8>(to_underlying(computed_style.text_overflow())),
-        .unicode_bidi = static_cast<u8>(to_underlying(computed_style.unicode_bidi())),
-        .table_layout = static_cast<u8>(to_underlying(computed_style.table_layout())),
-        .grid_auto_flow_row = grid_auto_flow.row,
-        .grid_auto_flow_dense = grid_auto_flow.dense,
-        .column_width = to_ffi_computed_size(computed_style.size_value(PropertyID::ColumnWidth)),
-        .column_count_has_value = column_count.has_value(),
-        .column_count = column_count.value_or(0),
-        .has_z_index = z_index.has_value(),
-        .z_index = z_index.value_or(0),
-        .vertical_align = to_ffi_vertical_align(computed_style.vertical_align()),
-        .aspect_ratio = to_ffi_aspect_ratio(computed_style.aspect_ratio()),
-        .size_containment = containment.size_containment,
-        .inline_size_containment = containment.inline_size_containment,
-        .layout_containment = containment.layout_containment,
-        .style_containment = containment.style_containment,
-        .paint_containment = containment.paint_containment,
-        .is_size_container = container_type.is_size_container,
-        .is_inline_size_container = container_type.is_inline_size_container,
-        .is_scroll_state_container = container_type.is_scroll_state_container,
-        .container_name = { .pointer = nullptr, .length = 0 },
-    };
-    auto leaked_container_name_raws = to_leaked_fly_string_raws(computed_style.container_name());
-    ComputedValuesFFI::rust_replace_computed_fly_string_list(
-        &box_group_values.container_name, leaked_container_name_raws.data(), leaked_container_name_raws.size());
-    auto* box_payload = ComputedValuesFFI::rust_build_box_group(
-        BoxValues::style_group_index,
-        &box_group_values,
-        inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.box.operator->()) : nullptr);
-    VERIFY(box_payload);
-    computed_values.adopt_box_group(const_cast<void*>(box_payload));
+    void const* box_payload = nullptr;
+    if (applies(StyleGroupIndex::BoxValues)) {
+        auto containment = computed_style.contain();
+        auto container_type = computed_style.container_type();
+        auto z_index = computed_style.z_index();
+        Optional<int> column_count;
+        if (auto const& column_count_value = computed_style.property(PropertyID::ColumnCount); column_count_value.to_keyword() != Keyword::Auto)
+            column_count = int_from_style_value(NonnullRefPtr<StyleValue const> { column_count_value });
+        auto const grid_auto_flow = computed_style.grid_auto_flow();
+        ComputedValuesFFI::BoxValues box_group_values {
+            .display = to_ffi_display(computed_style.display()),
+            .display_before_box_type_transformation = to_ffi_display(computed_style.display_before_box_type_transformation()),
+            .float_ = static_cast<u8>(to_underlying(computed_style.float_())),
+            .clear = static_cast<u8>(to_underlying(computed_style.clear())),
+            .position = static_cast<u8>(to_underlying(computed_style.position())),
+            .overflow_x = static_cast<u8>(to_underlying(computed_style.overflow_x())),
+            .overflow_y = static_cast<u8>(to_underlying(computed_style.overflow_y())),
+            .box_sizing = static_cast<u8>(to_underlying(computed_style.box_sizing())),
+            .resize = static_cast<u8>(to_underlying(computed_style.resize())),
+            .text_overflow = static_cast<u8>(to_underlying(computed_style.text_overflow())),
+            .unicode_bidi = static_cast<u8>(to_underlying(computed_style.unicode_bidi())),
+            .table_layout = static_cast<u8>(to_underlying(computed_style.table_layout())),
+            .grid_auto_flow_row = grid_auto_flow.row,
+            .grid_auto_flow_dense = grid_auto_flow.dense,
+            .column_width = to_ffi_computed_size(computed_style.size_value(PropertyID::ColumnWidth)),
+            .column_count_has_value = column_count.has_value(),
+            .column_count = column_count.value_or(0),
+            .has_z_index = z_index.has_value(),
+            .z_index = z_index.value_or(0),
+            .vertical_align = to_ffi_vertical_align(computed_style.vertical_align()),
+            .aspect_ratio = to_ffi_aspect_ratio(computed_style.aspect_ratio()),
+            .size_containment = containment.size_containment,
+            .inline_size_containment = containment.inline_size_containment,
+            .layout_containment = containment.layout_containment,
+            .style_containment = containment.style_containment,
+            .paint_containment = containment.paint_containment,
+            .is_size_container = container_type.is_size_container,
+            .is_inline_size_container = container_type.is_inline_size_container,
+            .is_scroll_state_container = container_type.is_scroll_state_container,
+            .container_name = { .pointer = nullptr, .length = 0 },
+        };
+        auto leaked_container_name_raws = to_leaked_fly_string_raws(computed_style.container_name());
+        ComputedValuesFFI::rust_replace_computed_fly_string_list(
+            &box_group_values.container_name, leaked_container_name_raws.data(), leaked_container_name_raws.size());
+        box_payload = ComputedValuesFFI::rust_build_box_group(
+            BoxValues::style_group_index,
+            &box_group_values,
+            inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.box.operator->()) : nullptr);
+        VERIFY(box_payload);
+    }
+    VERIFY(box_payload || !applies(StyleGroupIndex::BoxValues));
+    if (box_payload)
+        computed_values.adopt_box_group(const_cast<void*>(box_payload));
 
-    auto* alignment_payload = ComputedValuesFFI::rust_build_alignment_group(
-        AlignmentValues::style_group_index,
-        computed_style.property(PropertyID::FlexDirection).rust_style_value_data(),
-        computed_style.property(PropertyID::FlexWrap).rust_style_value_data(),
-        computed_style.property(PropertyID::FlexBasis).rust_style_value_data(),
-        computed_style.flex_grow(),
-        computed_style.flex_shrink(),
-        computed_style.order(),
-        computed_style.property(PropertyID::AlignContent).rust_style_value_data(),
-        computed_style.property(PropertyID::AlignItems).rust_style_value_data(),
-        computed_style.property(PropertyID::AlignSelf).rust_style_value_data(),
-        computed_style.property(PropertyID::JustifyContent).rust_style_value_data(),
-        computed_style.property(PropertyID::JustifyItems).rust_style_value_data(),
-        computed_style.property(PropertyID::JustifySelf).rust_style_value_data(),
-        computed_style.property(PropertyID::ColumnGap).rust_style_value_data(),
-        computed_style.property(PropertyID::RowGap).rust_style_value_data(),
-        inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.alignment.operator->()) : nullptr);
-    VERIFY(alignment_payload);
-    computed_values.adopt_alignment_group(const_cast<void*>(alignment_payload));
+    void const* alignment_payload = nullptr;
+    if (applies(StyleGroupIndex::AlignmentValues)) {
+        alignment_payload = ComputedValuesFFI::rust_build_alignment_group(
+            AlignmentValues::style_group_index,
+            computed_style.property(PropertyID::FlexDirection).rust_style_value_data(),
+            computed_style.property(PropertyID::FlexWrap).rust_style_value_data(),
+            computed_style.property(PropertyID::FlexBasis).rust_style_value_data(),
+            computed_style.flex_grow(),
+            computed_style.flex_shrink(),
+            computed_style.order(),
+            computed_style.property(PropertyID::AlignContent).rust_style_value_data(),
+            computed_style.property(PropertyID::AlignItems).rust_style_value_data(),
+            computed_style.property(PropertyID::AlignSelf).rust_style_value_data(),
+            computed_style.property(PropertyID::JustifyContent).rust_style_value_data(),
+            computed_style.property(PropertyID::JustifyItems).rust_style_value_data(),
+            computed_style.property(PropertyID::JustifySelf).rust_style_value_data(),
+            computed_style.property(PropertyID::ColumnGap).rust_style_value_data(),
+            computed_style.property(PropertyID::RowGap).rust_style_value_data(),
+            inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.alignment.operator->()) : nullptr);
+    }
+    VERIFY(alignment_payload || !applies(StyleGroupIndex::AlignmentValues));
+    if (alignment_payload)
+        computed_values.adopt_alignment_group(const_cast<void*>(alignment_payload));
 
-    auto* sizing_payload = ComputedValuesFFI::rust_build_sizing_group(
-        SizingValues::style_group_index,
-        computed_style.property(PropertyID::Width).rust_style_value_data(),
-        computed_style.property(PropertyID::MinWidth).rust_style_value_data(),
-        computed_style.property(PropertyID::MaxWidth).rust_style_value_data(),
-        computed_style.property(PropertyID::Height).rust_style_value_data(),
-        computed_style.property(PropertyID::MinHeight).rust_style_value_data(),
-        computed_style.property(PropertyID::MaxHeight).rust_style_value_data(),
-        inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.sizing.operator->()) : nullptr);
-    computed_values.adopt_sizing_group(const_cast<void*>(sizing_payload));
+    void const* sizing_payload = nullptr;
+    if (applies(StyleGroupIndex::SizingValues)) {
+        sizing_payload = ComputedValuesFFI::rust_build_sizing_group(
+            SizingValues::style_group_index,
+            computed_style.property(PropertyID::Width).rust_style_value_data(),
+            computed_style.property(PropertyID::MinWidth).rust_style_value_data(),
+            computed_style.property(PropertyID::MaxWidth).rust_style_value_data(),
+            computed_style.property(PropertyID::Height).rust_style_value_data(),
+            computed_style.property(PropertyID::MinHeight).rust_style_value_data(),
+            computed_style.property(PropertyID::MaxHeight).rust_style_value_data(),
+            inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.sizing.operator->()) : nullptr);
+    }
+    if (sizing_payload)
+        computed_values.adopt_sizing_group(const_cast<void*>(sizing_payload));
 
     Array<ComputedValuesFFI::FfiGroupValueEntry, grid_group_properties.size()> grid_group_values;
     gather_group_values(grid_group_properties, grid_group_values);
-    auto* grid_payload = ComputedValuesFFI::rust_build_style_group(
-        GridValues::style_group_index,
-        grid_group_values.data(),
-        grid_group_values.size(),
-        inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.grid.operator->()) : nullptr);
-    bool const grid_adopted = grid_payload != nullptr;
-    if (grid_adopted)
+    void const* grid_payload = nullptr;
+    if (applies(StyleGroupIndex::GridValues)) {
+        grid_payload = ComputedValuesFFI::rust_build_style_group(
+            GridValues::style_group_index,
+            grid_group_values.data(),
+            grid_group_values.size(),
+            inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.grid.operator->()) : nullptr);
+    }
+    bool const grid_adopted = grid_payload != nullptr || !applies(StyleGroupIndex::GridValues);
+    if (grid_payload)
         computed_values.adopt_grid_group(const_cast<void*>(grid_payload));
 
     Array<ComputedValuesFFI::FfiGroupValueEntry, mask_group_properties.size()> mask_group_values;
     gather_group_values(mask_group_properties, mask_group_values);
-    auto* mask_payload = ComputedValuesFFI::rust_build_style_group(
-        MaskValues::style_group_index,
-        mask_group_values.data(),
-        mask_group_values.size(),
-        inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.mask_data.operator->()) : nullptr);
-    bool const mask_adopted = mask_payload != nullptr;
-    if (mask_adopted)
+    void const* mask_payload = nullptr;
+    if (applies(StyleGroupIndex::MaskValues)) {
+        mask_payload = ComputedValuesFFI::rust_build_style_group(
+            MaskValues::style_group_index,
+            mask_group_values.data(),
+            mask_group_values.size(),
+            inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.mask_data.operator->()) : nullptr);
+    }
+    bool const mask_adopted = mask_payload != nullptr || !applies(StyleGroupIndex::MaskValues);
+    if (mask_payload)
         computed_values.adopt_mask_group(const_cast<void*>(mask_payload));
 
     Array<ComputedValuesFFI::FfiGroupValueEntry, transform_group_properties.size()> transform_group_values;
     gather_group_values(transform_group_properties, transform_group_values);
-    auto* transform_payload = ComputedValuesFFI::rust_build_style_group(
-        TransformValues::style_group_index,
-        transform_group_values.data(),
-        transform_group_values.size(),
-        inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.transform.operator->()) : nullptr);
-    bool const transform_adopted = transform_payload != nullptr;
-    if (transform_adopted)
+    void const* transform_payload = nullptr;
+    if (applies(StyleGroupIndex::TransformValues)) {
+        transform_payload = ComputedValuesFFI::rust_build_style_group(
+            TransformValues::style_group_index,
+            transform_group_values.data(),
+            transform_group_values.size(),
+            inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.transform.operator->()) : nullptr);
+    }
+    bool const transform_adopted = transform_payload != nullptr || !applies(StyleGroupIndex::TransformValues);
+    if (transform_payload)
         computed_values.adopt_transform_group(const_cast<void*>(transform_payload));
 
     Array<ComputedValuesFFI::FfiGroupValueEntry, effects_group_properties.size()> effects_group_values;
@@ -1385,13 +1685,16 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
             effects_group_values[i].has_resolved_number = true;
         }
     }
-    auto* effects_payload = ComputedValuesFFI::rust_build_style_group(
-        EffectsValues::style_group_index,
-        effects_group_values.data(),
-        effects_group_values.size(),
-        inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.effects.operator->()) : nullptr);
-    bool const effects_adopted = effects_payload != nullptr;
-    if (effects_adopted)
+    void const* effects_payload = nullptr;
+    if (applies(StyleGroupIndex::EffectsValues)) {
+        effects_payload = ComputedValuesFFI::rust_build_style_group(
+            EffectsValues::style_group_index,
+            effects_group_values.data(),
+            effects_group_values.size(),
+            inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.effects.operator->()) : nullptr);
+    }
+    bool const effects_adopted = effects_payload != nullptr || !applies(StyleGroupIndex::EffectsValues);
+    if (effects_payload)
         computed_values.adopt_effects_group(const_cast<void*>(effects_payload));
 
     auto custom_ident_list = [&](PropertyID property_id) {
@@ -1437,45 +1740,50 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
     // NOTE: We have to be careful that font-related properties get set in the right order.
     //       m_font is used by Length::to_px() when resolving sizes against this layout node.
     //       That's why it has to be set before everything else.
-    computed_values.set_font_list(computed_style.computed_font_list(document.font_computer()));
-    Vector<ComputedFontFamily> font_families;
-    for (auto const& family : computed_style.property(PropertyID::FontFamily).as_value_list().values()) {
-        if (family->is_keyword()) {
-            font_families.append(keyword_to_generic_font_family(family->to_keyword()).value());
-        } else {
-            font_families.append(ComputedFontFamilyName {
-                .name = string_from_style_value(family),
-                .syntax = family->is_string() ? ComputedFontFamilySyntax::String : ComputedFontFamilySyntax::CustomIdent,
-            });
+    if (applies(StyleGroupIndex::FontValues)) {
+        computed_values.set_font_list(computed_style.computed_font_list(document.font_computer()));
+        Vector<ComputedFontFamily> font_families;
+        for (auto const& family : computed_style.property(PropertyID::FontFamily).as_value_list().values()) {
+            if (family->is_keyword()) {
+                font_families.append(keyword_to_generic_font_family(family->to_keyword()).value());
+            } else {
+                font_families.append(ComputedFontFamilyName {
+                    .name = string_from_style_value(family),
+                    .syntax = family->is_string() ? ComputedFontFamilySyntax::String : ComputedFontFamilySyntax::CustomIdent,
+                });
+            }
         }
+        computed_values.set_font_families(move(font_families));
+        computed_values.set_font_size(computed_style.font_size());
+        computed_values.set_font_weight(computed_style.font_weight());
+        computed_values.set_font_width(computed_style.font_width());
+        auto const& font_style = computed_style.property(PropertyID::FontStyle).as_font_style();
+        Optional<Variant<Angle, NonnullRefPtr<CalculatedStyleValue const>>> font_style_angle;
+        if (font_style.angle()) {
+            if (font_style.angle()->is_angle())
+                font_style_angle = font_style.angle()->as_angle().angle();
+            else
+                font_style_angle = NonnullRefPtr { font_style.angle()->as_calculated() };
+        }
+        computed_values.set_font_style({ font_style.font_style(), move(font_style_angle) });
+        computed_values.set_font_optical_sizing(computed_style.font_optical_sizing());
+        computed_values.set_font_feature_data(computed_style.font_feature_data());
+        computed_values.set_line_height(computed_style.line_height_data(), computed_style.line_height(document.font_computer()));
+        computed_values.set_font_variant_emoji(computed_style.font_variant_emoji());
     }
-    computed_values.set_font_families(move(font_families));
-    computed_values.set_font_size(computed_style.font_size());
-    computed_values.set_font_weight(computed_style.font_weight());
-    computed_values.set_font_width(computed_style.font_width());
-    auto const& font_style = computed_style.property(PropertyID::FontStyle).as_font_style();
-    Optional<Variant<Angle, NonnullRefPtr<CalculatedStyleValue const>>> font_style_angle;
-    if (font_style.angle()) {
-        if (font_style.angle()->is_angle())
-            font_style_angle = font_style.angle()->as_angle().angle();
-        else
-            font_style_angle = NonnullRefPtr { font_style.angle()->as_calculated() };
-    }
-    computed_values.set_font_style({ font_style.font_style(), move(font_style_angle) });
-    computed_values.set_font_optical_sizing(computed_style.font_optical_sizing());
-    computed_values.set_font_feature_data(computed_style.font_feature_data());
-    computed_values.set_line_height(computed_style.line_height_data(), computed_style.line_height(document.font_computer()));
-    computed_values.set_font_variant_emoji(computed_style.font_variant_emoji());
 
     Array<ComputedValuesFFI::FfiGroupValueEntry, animation_group_properties.size()> animation_group_values;
     gather_group_values(animation_group_properties, animation_group_values);
-    auto* animation_payload = ComputedValuesFFI::rust_build_style_group(
-        AnimationValues::style_group_index,
-        animation_group_values.data(),
-        animation_group_values.size(),
-        inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.animation.operator->()) : nullptr);
-    bool const animation_adopted = animation_payload != nullptr;
-    if (animation_adopted)
+    void const* animation_payload = nullptr;
+    if (applies(StyleGroupIndex::AnimationValues)) {
+        animation_payload = ComputedValuesFFI::rust_build_style_group(
+            AnimationValues::style_group_index,
+            animation_group_values.data(),
+            animation_group_values.size(),
+            inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.animation.operator->()) : nullptr);
+    }
+    bool const animation_adopted = animation_payload != nullptr || !applies(StyleGroupIndex::AnimationValues);
+    if (animation_payload)
         computed_values.adopt_animation_group(const_cast<void*>(animation_payload));
 
     Vector<ComputedAnimationName> animation_names;
@@ -1613,13 +1921,16 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
 
     Array<ComputedValuesFFI::FfiGroupValueEntry, inherited_list_group_properties.size()> inherited_list_group_values;
     gather_group_values(inherited_list_group_properties, inherited_list_group_values);
-    auto* inherited_list_payload = ComputedValuesFFI::rust_build_style_group(
-        InheritedListValues::style_group_index,
-        inherited_list_group_values.data(),
-        inherited_list_group_values.size(),
-        inherit_parent ? static_cast<void const*>(inherit_parent->m_inherited.list.operator->()) : nullptr);
-    bool const inherited_list_adopted = inherited_list_payload != nullptr;
-    if (inherited_list_adopted)
+    void const* inherited_list_payload = nullptr;
+    if (applies(StyleGroupIndex::InheritedListValues)) {
+        inherited_list_payload = ComputedValuesFFI::rust_build_style_group(
+            InheritedListValues::style_group_index,
+            inherited_list_group_values.data(),
+            inherited_list_group_values.size(),
+            inherit_parent ? static_cast<void const*>(inherit_parent->m_inherited.list.operator->()) : nullptr);
+    }
+    bool const inherited_list_adopted = inherited_list_payload != nullptr || !applies(StyleGroupIndex::InheritedListValues);
+    if (inherited_list_payload)
         computed_values.adopt_inherited_list_group(const_cast<void*>(inherited_list_payload));
 
     Array<ComputedValuesFFI::FfiGroupValueEntry, inherited_svg_group_properties.size()> inherited_svg_group_values;
@@ -1634,34 +1945,40 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
             inherited_svg_group_values[i].has_resolved_number = true;
         }
     }
-    auto* inherited_svg_payload = ComputedValuesFFI::rust_build_style_group(
-        InheritedSVGValues::style_group_index,
-        inherited_svg_group_values.data(),
-        inherited_svg_group_values.size(),
-        inherit_parent ? static_cast<void const*>(inherit_parent->m_inherited.svg.operator->()) : nullptr);
-    bool const inherited_svg_adopted = inherited_svg_payload != nullptr;
-    if (inherited_svg_adopted)
+    void const* inherited_svg_payload = nullptr;
+    if (applies(StyleGroupIndex::InheritedSVGValues)) {
+        inherited_svg_payload = ComputedValuesFFI::rust_build_style_group(
+            InheritedSVGValues::style_group_index,
+            inherited_svg_group_values.data(),
+            inherited_svg_group_values.size(),
+            inherit_parent ? static_cast<void const*>(inherit_parent->m_inherited.svg.operator->()) : nullptr);
+    }
+    bool const inherited_svg_adopted = inherited_svg_payload != nullptr || !applies(StyleGroupIndex::InheritedSVGValues);
+    if (inherited_svg_payload)
         computed_values.adopt_inherited_svg_group(const_cast<void*>(inherited_svg_payload));
 
-    auto* svg_reset_payload = ComputedValuesFFI::rust_build_svg_reset_group(
-        SVGResetValues::style_group_index,
-        computed_style.property(PropertyID::Cx).rust_style_value_data(),
-        computed_style.property(PropertyID::Cy).rust_style_value_data(),
-        computed_style.property(PropertyID::D).rust_style_value_data(),
-        computed_style.property(PropertyID::R).rust_style_value_data(),
-        computed_style.property(PropertyID::Rx).rust_style_value_data(),
-        computed_style.property(PropertyID::Ry).rust_style_value_data(),
-        computed_style.property(PropertyID::X).rust_style_value_data(),
-        computed_style.property(PropertyID::Y).rust_style_value_data(),
-        computed_style.color(PropertyID::StopColor, own_color_resolution_context).value(),
-        computed_style.stop_opacity(),
-        computed_style.color(PropertyID::FloodColor, own_color_resolution_context).value(),
-        computed_style.flood_opacity(),
-        computed_style.property(PropertyID::VectorEffect).rust_style_value_data(),
-        computed_style.property(PropertyID::ShapeRendering).rust_style_value_data(),
-        inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.svg_reset.operator->()) : nullptr);
-    VERIFY(svg_reset_payload);
-    computed_values.adopt_svg_reset_group(const_cast<void*>(svg_reset_payload));
+    void const* svg_reset_payload = nullptr;
+    if (applies(StyleGroupIndex::SVGResetValues)) {
+        svg_reset_payload = ComputedValuesFFI::rust_build_svg_reset_group(
+            SVGResetValues::style_group_index,
+            computed_style.property(PropertyID::Cx).rust_style_value_data(),
+            computed_style.property(PropertyID::Cy).rust_style_value_data(),
+            computed_style.property(PropertyID::D).rust_style_value_data(),
+            computed_style.property(PropertyID::R).rust_style_value_data(),
+            computed_style.property(PropertyID::Rx).rust_style_value_data(),
+            computed_style.property(PropertyID::Ry).rust_style_value_data(),
+            computed_style.property(PropertyID::X).rust_style_value_data(),
+            computed_style.property(PropertyID::Y).rust_style_value_data(),
+            computed_style.color(PropertyID::StopColor, own_color_resolution_context).value(),
+            computed_style.stop_opacity(),
+            computed_style.color(PropertyID::FloodColor, own_color_resolution_context).value(),
+            computed_style.flood_opacity(),
+            computed_style.property(PropertyID::VectorEffect).rust_style_value_data(),
+            inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.svg_reset.operator->()) : nullptr);
+    }
+    VERIFY(svg_reset_payload || !applies(StyleGroupIndex::SVGResetValues));
+    if (svg_reset_payload)
+        computed_values.adopt_svg_reset_group(const_cast<void*>(svg_reset_payload));
 
     Array<ComputedValuesFFI::FfiGroupValueEntry, border_group_properties.size()> border_group_values;
     gather_group_values(border_group_properties, border_group_values);
@@ -1694,33 +2011,42 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
             background_group_values[i].has_resolved_color = true;
         }
     }
-    auto* background_payload = ComputedValuesFFI::rust_build_style_group(
-        BackgroundValues::style_group_index,
-        background_group_values.data(),
-        background_group_values.size(),
-        inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.background.operator->()) : nullptr);
-    bool const background_adopted = background_payload != nullptr;
-    if (background_adopted)
+    void const* background_payload = nullptr;
+    if (applies(StyleGroupIndex::BackgroundValues)) {
+        background_payload = ComputedValuesFFI::rust_build_style_group(
+            BackgroundValues::style_group_index,
+            background_group_values.data(),
+            background_group_values.size(),
+            inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.background.operator->()) : nullptr);
+    }
+    bool const background_adopted = background_payload != nullptr || !applies(StyleGroupIndex::BackgroundValues);
+    if (background_payload)
         computed_values.adopt_background_group(const_cast<void*>(background_payload));
 
-    auto* border_payload = ComputedValuesFFI::rust_build_style_group(
-        BorderValues::style_group_index,
-        border_group_values.data(),
-        border_group_values.size(),
-        inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.border.operator->()) : nullptr);
-    bool const border_adopted = border_payload != nullptr;
-    if (border_adopted)
+    void const* border_payload = nullptr;
+    if (applies(StyleGroupIndex::BorderValues)) {
+        border_payload = ComputedValuesFFI::rust_build_style_group(
+            BorderValues::style_group_index,
+            border_group_values.data(),
+            border_group_values.size(),
+            inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.border.operator->()) : nullptr);
+    }
+    bool const border_adopted = border_payload != nullptr || !applies(StyleGroupIndex::BorderValues);
+    if (border_payload)
         computed_values.adopt_border_group(const_cast<void*>(border_payload));
 
-    auto* inherited_ui_payload = ComputedValuesFFI::rust_build_style_group(
-        InheritedUIValues::style_group_index,
-        inherited_ui_group_values.data(),
-        inherited_ui_group_values.size(),
-        inherit_parent ? static_cast<void const*>(inherit_parent->m_inherited.ui.operator->()) : nullptr);
-    bool const inherited_ui_adopted = inherited_ui_payload != nullptr;
-    if (inherited_ui_adopted) {
+    void const* inherited_ui_payload = nullptr;
+    if (applies(StyleGroupIndex::InheritedUIValues)) {
+        inherited_ui_payload = ComputedValuesFFI::rust_build_style_group(
+            InheritedUIValues::style_group_index,
+            inherited_ui_group_values.data(),
+            inherited_ui_group_values.size(),
+            inherit_parent ? static_cast<void const*>(inherit_parent->m_inherited.ui.operator->()) : nullptr);
+    }
+    bool const inherited_ui_adopted = inherited_ui_payload != nullptr || !applies(StyleGroupIndex::InheritedUIValues);
+    if (inherited_ui_payload) {
         computed_values.adopt_inherited_ui_group(const_cast<void*>(inherited_ui_payload));
-    } else {
+    } else if (applies(StyleGroupIndex::InheritedUIValues)) {
         // NB: Nothing in this function reads the group's color-scheme fields; the
         //     resolution context carries its own copy, so setting them here rather
         //     than first is equivalent.
@@ -1728,13 +2054,16 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
         computed_values.set_color_scheme(color_scheme);
     }
 
-    auto* inherited_text_payload = ComputedValuesFFI::rust_build_style_group(
-        InheritedTextValues::style_group_index,
-        inherited_text_group_values.data(),
-        inherited_text_group_values.size(),
-        inherit_parent ? static_cast<void const*>(inherit_parent->m_inherited.text.operator->()) : nullptr);
-    bool const inherited_text_adopted = inherited_text_payload != nullptr;
-    if (inherited_text_adopted)
+    void const* inherited_text_payload = nullptr;
+    if (applies(StyleGroupIndex::InheritedTextValues)) {
+        inherited_text_payload = ComputedValuesFFI::rust_build_style_group(
+            InheritedTextValues::style_group_index,
+            inherited_text_group_values.data(),
+            inherited_text_group_values.size(),
+            inherit_parent ? static_cast<void const*>(inherit_parent->m_inherited.text.operator->()) : nullptr);
+    }
+    bool const inherited_text_adopted = inherited_text_payload != nullptr || !applies(StyleGroupIndex::InheritedTextValues);
+    if (inherited_text_payload)
         computed_values.adopt_inherited_text_group(const_cast<void*>(inherited_text_payload));
 
     if (!inherited_text_adopted)
@@ -1756,13 +2085,16 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
             text_reset_group_values[i].has_resolved_color = true;
         }
     }
-    auto* text_reset_payload = ComputedValuesFFI::rust_build_style_group(
-        TextResetValues::style_group_index,
-        text_reset_group_values.data(),
-        text_reset_group_values.size(),
-        inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.text_reset.operator->()) : nullptr);
-    bool const text_reset_adopted = text_reset_payload != nullptr;
-    if (text_reset_adopted)
+    void const* text_reset_payload = nullptr;
+    if (applies(StyleGroupIndex::TextResetValues)) {
+        text_reset_payload = ComputedValuesFFI::rust_build_style_group(
+            TextResetValues::style_group_index,
+            text_reset_group_values.data(),
+            text_reset_group_values.size(),
+            inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.text_reset.operator->()) : nullptr);
+    }
+    bool const text_reset_adopted = text_reset_payload != nullptr || !applies(StyleGroupIndex::TextResetValues);
+    if (text_reset_payload)
         computed_values.adopt_text_reset_group(const_cast<void*>(text_reset_payload));
 
     Array<ComputedValuesFFI::FfiGroupValueEntry, misc_reset_group_properties.size()> misc_reset_group_values;
@@ -1780,13 +2112,16 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
             misc_reset_group_values[i].has_resolved_number = true;
         }
     }
-    auto* misc_reset_payload = ComputedValuesFFI::rust_build_style_group(
-        MiscResetValues::style_group_index,
-        misc_reset_group_values.data(),
-        misc_reset_group_values.size(),
-        inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.misc.operator->()) : nullptr);
-    bool const misc_reset_adopted = misc_reset_payload != nullptr;
-    if (misc_reset_adopted)
+    void const* misc_reset_payload = nullptr;
+    if (applies(StyleGroupIndex::MiscResetValues)) {
+        misc_reset_payload = ComputedValuesFFI::rust_build_style_group(
+            MiscResetValues::style_group_index,
+            misc_reset_group_values.data(),
+            misc_reset_group_values.size(),
+            inherit_parent ? static_cast<void const*>(inherit_parent->m_noninherited.misc.operator->()) : nullptr);
+    }
+    bool const misc_reset_adopted = misc_reset_payload != nullptr || !applies(StyleGroupIndex::MiscResetValues);
+    if (misc_reset_payload)
         computed_values.adopt_misc_reset_group(const_cast<void*>(misc_reset_payload));
 
     if (!inherited_ui_adopted) {
@@ -2402,6 +2737,8 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
             computed_values.set_clip_path(clip_path.as_url().url());
         else if (clip_path.is_basic_shape())
             computed_values.set_clip_path(clip_path.as_basic_shape());
+        else
+            computed_values.set_clip_path({});
     }
     if (!inherited_svg_adopted)
         computed_values.set_clip_rule(computed_style.clip_rule());
@@ -2430,6 +2767,8 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create(ComputedProperties co
         computed_values.set_text_anchor(computed_style.text_anchor());
     if (!inherited_svg_adopted)
         computed_values.set_dominant_baseline(computed_style.dominant_baseline());
+    if (!inherited_svg_adopted)
+        computed_values.set_shape_rendering(computed_style.shape_rendering());
 
     if (!misc_reset_adopted)
         computed_values.set_column_span(computed_style.column_span());

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .old-a {
+        color: red;
+    }
+
+    .old-b {
+        color: blue;
+    }
+
+    .new {
+        color: green;
+    }
+</style>
+<div id="container">
+    <span class="old-a">a</span>
+    <span class="old-b">b</span>
+    <span class="old-a">c</span>
+</div>
+<script>
+    test(() => {
+        const items = document.querySelectorAll("span");
+        document.body.offsetWidth;
+
+        internals.resetStyleInvalidationCounters();
+        for (const item of items)
+            item.className = "new";
+        document.body.offsetWidth;
+
+        const counters = internals.getStyleInvalidationCounters();
+        println(`shared converging style: ${counters.elementStyleSharedComputations >= 1}`);
+        println(`shared style transition damage: ${counters.styleRecordPropertyDamageCacheHits >= 1}`);
+        println(`colors became green: ${[...items].every(item => getComputedStyle(item).color === "rgb(0, 128, 0)")}`);
+    });
+</script>

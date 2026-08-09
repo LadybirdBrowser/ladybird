@@ -5,7 +5,9 @@
  */
 
 #include <AK/StdLibExtras.h>
+#include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleEngineBridge.h>
+#include <LibWeb/CSS/StyleEngineInput.h>
 
 namespace Web::CSS {
 
@@ -14,8 +16,9 @@ static_assert(!IsMoveAssignable<StyleEngine>);
 
 #include <LibWeb/StyleEngineBridgeGenerated.inc>
 
-StyleEngine::StyleEngine(DeviceClass device_class)
+StyleEngine::StyleEngine(DeviceClass device_class, StyleComputer* style_computer)
     : m_impl(StyleEngineFFI::style_engine_create(device_class))
+    , m_style_computer(style_computer)
 {
 }
 
@@ -25,6 +28,11 @@ StyleEngine::~StyleEngine()
         StyleEngineFFI::style_engine_destroy(m_impl);
     for (auto raw : m_atoms)
         Utf16FlyString::unref_raw(raw);
+}
+
+void StyleEngine::visit_edges(GC::Cell::Visitor& visitor)
+{
+    visitor.visit(m_style_computer);
 }
 
 StyleNodeID StyleEngine::allocate_style_node()
@@ -39,6 +47,16 @@ void StyleEngine::allocate_style_nodes(Span<StyleNodeID> nodes)
     if (nodes.is_empty())
         return;
     StyleEngineFFI::style_engine_allocate_style_nodes(m_impl, reinterpret_cast<u32*>(nodes.data()), nodes.size());
+}
+
+Vector<StyleNodeID> StyleEngine::take_deferred_element_initial_features()
+{
+    Vector<StyleNodeID> nodes;
+    nodes.ensure_capacity(m_nodes_with_pending_initial_features.size());
+    for (auto node : m_nodes_with_pending_initial_features)
+        nodes.unchecked_append(node);
+    m_nodes_with_pending_initial_features.clear_with_capacity();
+    return nodes;
 }
 
 bool StyleEngine::resize_parsed_substitution_cache(u64 bytes)
@@ -235,21 +253,27 @@ void StyleEngine::record_element_style_input_change(StyleNodeID style_node, u8 r
         m_element_style_inputs.append({ style_node.value(), reaction, inherited_style_groups });
 }
 
-void StyleEngine::record_flat_tree_descendant_style_input_changes(StyleNodeID style_node)
+void StyleEngine::record_flat_tree_descendant_style_input_changes(StyleNodeID style_node, u8 reaction, u8 inherited_style_groups)
 {
-    if (style_node == 0)
+    if (style_node == 0 || reaction == 0)
         return;
 
     // The relation columns must include every tree delta recorded before this derived action. The
     // descendants themselves stay in the C++ batch so the next transaction normalizes them with
     // every other feedback action from this stabilization pass.
     submit_recorded_input();
+    struct Context {
+        Vector<StyleEngineFFI::FfiElementStyleInput>& inputs;
+        u8 reaction;
+        u8 inherited_style_groups;
+    } context { m_element_style_inputs, reaction, inherited_style_groups };
     StyleEngineFFI::style_engine_for_each_flat_tree_descendant(
         m_impl,
         style_node.value(),
-        &m_element_style_inputs,
+        &context,
         [](void* context, u32 descendant) {
-            static_cast<Vector<StyleEngineFFI::FfiElementStyleInput>*>(context)->append({ descendant, PublishedStyle | RecomputeStyle, 0 });
+            auto& data = *static_cast<Context*>(context);
+            data.inputs.append({ descendant, data.reaction, data.inherited_style_groups });
         });
 }
 
@@ -268,7 +292,6 @@ bool StyleEngine::has_recorded_element_style_input_change(StyleNodeID style_node
     }
     return false;
 }
-#ifdef ENABLE_STYLE_RECORDING
 void StyleEngine::record_benchmark_marker(Utf16View name)
 {
     auto const* data = name.has_ascii_storage()
@@ -276,7 +299,6 @@ void StyleEngine::record_benchmark_marker(Utf16View name)
         : static_cast<void const*>(name.utf16_span().data());
     StyleEngineFFI::style_engine_record_benchmark_marker(m_impl, data, name.length_in_code_units(), name.has_ascii_storage());
 }
-#endif
 
 bool StyleEngine::has_recorded_input() const
 {
@@ -289,6 +311,8 @@ bool StyleEngine::has_recorded_input() const
 
 void StyleEngine::submit_recorded_input()
 {
+    if (m_style_computer)
+        publish_pending_element_features(*this, *m_style_computer);
     if (!has_recorded_input())
         return;
 

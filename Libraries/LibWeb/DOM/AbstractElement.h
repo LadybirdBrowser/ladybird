@@ -47,7 +47,20 @@ public:
 
     void set_inheritance_override(GC::Ref<Element> element) { m_inheritance_override = element; }
 
-    CSS::ComputedValues const* computed_values() const;
+    [[nodiscard]] CSS::ComputedStyleRecordView computed_style() const;
+    [[nodiscard]] CSS::StyleRecordID style_record_identity() const;
+    [[nodiscard]] bool has_style() const { return !!style_record_identity(); }
+    [[nodiscard]] void const* style_record_payloads() const;
+    template<typename StyleGroup>
+    StyleGroup const* style_group() const
+    {
+        auto const* payloads = static_cast<void const* const*>(style_record_payloads());
+        if (!payloads)
+            return nullptr;
+        auto const* payload = payloads[StyleGroup::style_group_index];
+        VERIFY(payload);
+        return static_cast<StyleGroup const*>(payload);
+    }
     GC::Ptr<CSS::CSSStyleProperties const> inline_style() const;
 
     void set_custom_property_data(RefPtr<CSS::CustomPropertyData const>);

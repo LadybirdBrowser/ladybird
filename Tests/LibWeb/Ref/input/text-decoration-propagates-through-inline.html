@@ -1,0 +1,10 @@
+<!doctype html>
+<link rel="match" href="../expected/text-decoration-propagates-through-inline-ref.html">
+<style>
+    html { font-size: 32px; }
+    a:hover { text-decoration: underline; }
+</style>
+<a><span>foo bar baz</span></a>
+<script>
+    requestAnimationFrame(() => internals.mouseMove(16, 16));
+</script>

@@ -38,11 +38,9 @@
         document.body.appendChild(anchor);
 
         println(`before: ${getComputedStyle(anchor).color}`);
-        println(`cached before import: ${internals.styleSheetMayHaveHasSelectors(style.sheet)}`);
 
         await waitForImportedSheet(style);
         println(`after import: ${getComputedStyle(anchor).color}`);
-        println(`cached after import: ${internals.styleSheetMayHaveHasSelectors(style.sheet)}`);
 
         unrelatedStyle.sheet.insertRule(".not-matching { color: blue; }", 0);
 

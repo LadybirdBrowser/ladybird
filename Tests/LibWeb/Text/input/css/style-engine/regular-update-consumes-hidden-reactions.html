@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #reaction.before { background-color: red; }
+    #reaction.after { background-color: green; }
+    #hidden { display: none; }
+    #hidden-reaction.before { color: red; }
+    #hidden-reaction.after { color: green; }
+</style>
+<span id="reaction" class="before"></span>
+<div id="bystander"></div>
+<div id="hidden"><span id="hidden-reaction" class="before"></span></div>
+<script>
+    test(() => {
+        const reaction = document.getElementById("reaction");
+        const bystander = document.getElementById("bystander");
+        const hiddenReaction = document.getElementById("hidden-reaction");
+        internals.updateStyle();
+
+        internals.resetStyleInvalidationCounters();
+        reaction.className = "after";
+        hiddenReaction.className = "after";
+        bystander.appendChild(document.createElement("span"));
+        internals.updateStyle();
+
+        const regularCounters = internals.getStyleInvalidationCounters();
+        const reactionColor = getComputedStyle(reaction).backgroundColor;
+        const hiddenReactionColor = getComputedStyle(hiddenReaction).color;
+        const finalCounters = internals.getStyleInvalidationCounters();
+
+        println("reaction color: " + reactionColor);
+        println("hidden reaction color: " + hiddenReactionColor);
+        println("regular recomputations: " + regularCounters.elementStyleRecomputations);
+        println("targeted hidden recomputations: " + (finalCounters.elementStyleRecomputations - regularCounters.elementStyleRecomputations));
+    });
+</script>

@@ -1,0 +1,9 @@
+one: any=11px any-exact=22px any-insensitive=33px bare-exact=0px
+many: any=11px any-exact=0px any-insensitive=33px bare-exact=0px
+plain: any=11px any-exact=22px any-insensitive=33px bare-exact=44px
+none: any=784px any-exact=0px any-insensitive=0px bare-exact=0px
+many after removing the matching namespace: any=11px any-insensitive=0px
+many after removing every namespace: any=784px
+div#one: [*|foo] [*|foo="bar"] [*|foo="bar" i]
+div#plain: [*|foo] [*|foo="bar"] [*|foo="bar" i] [foo="bar"]
+

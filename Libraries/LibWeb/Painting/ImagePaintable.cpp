@@ -41,7 +41,7 @@ void ImagePaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
             auto image_int_rect_device_pixels = image_rect_device_pixels.to_type<int>();
 
             // https://drafts.csswg.org/css-images/#the-object-fit
-            auto object_fit = computed_values().object_fit();
+            auto object_fit = layout_node().object_fit();
 
             CSS::SizeWithAspectRatio natural_size { m_image_provider.intrinsic_width(), m_image_provider.intrinsic_height(), m_image_provider.intrinsic_aspect_ratio() };
             auto concrete_object_size = CSS::run_default_sizing_algorithm({}, {}, natural_size, image_rect.size());
@@ -53,7 +53,7 @@ void ImagePaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
                     context.display_list_recorder().save();
                     context.display_list_recorder().add_clip_rect(image_int_rect_device_pixels);
                 }
-                decoded_image_data->paint(context, draw_rect, computed_values().image_rendering(), computed_values().color_scheme());
+                decoded_image_data->paint(context, draw_rect, layout_node().image_rendering(), layout_node().color_scheme());
                 if (draw_rect_needs_clip)
                     context.display_list_recorder().restore();
             }

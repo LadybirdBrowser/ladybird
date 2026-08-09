@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="outer"></div>
+<script>
+    test(() => {
+        const outer = document.getElementById("outer").attachShadow({ mode: "open" });
+        outer.innerHTML = `<style>
+                               .hovercard::part(popup) { color: rgb(1, 2, 3) }
+                               .hovercard[placement="bottom"]::part(popup) { background-color: rgb(4, 5, 6) }
+                               ::part(popup) { outline-color: rgb(7, 8, 9) }
+                           </style>
+                           <x-popper class="hovercard" placement="bottom"></x-popper>`;
+        const popper = outer.querySelector("x-popper").attachShadow({ mode: "open" });
+        popper.innerHTML = `<div class="popup" part="popup">popup</div>`;
+        // The rule lives in a shadow tree's own sheet, and the host it addresses is in that tree.
+        const part = popper.querySelector("div");
+        println("color: " + getComputedStyle(part).color);
+        println("background-color: " + getComputedStyle(part).backgroundColor);
+        println("outline-color: " + getComputedStyle(part).outlineColor);
+        println(internals.styleEngineMatchedRules());
+    });
+</script>

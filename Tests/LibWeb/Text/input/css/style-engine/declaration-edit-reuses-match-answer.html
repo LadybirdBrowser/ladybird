@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .target { color: green }
+    .target { color: red }
+</style>
+<div class="target" id="target"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        internals.updateStyle();
+
+        const before = internals.styleEngineCounters();
+        document.styleSheets[0].cssRules[0].style.setProperty("color", "blue", "important");
+        internals.updateStyle();
+        const after = internals.styleEngineCounters();
+
+        println(`retained answer reuses: ${after.retainedMatchAnswerReuses - before.retainedMatchAnswerReuses}`);
+        println(`published answer consumptions: ${after.publishedMatchAnswerConsumptions - before.publishedMatchAnswerConsumptions}`);
+        println(`matcher calls during transaction: ${after.matchElementCallsDuringPublishedStyleTransaction - before.matchElementCallsDuringPublishedStyleTransaction}`);
+        println(`cold node evaluations: ${after.coldNodesEvaluated - before.coldNodesEvaluated}`);
+        println(`candidate checks: ${after.candidateChecks - before.candidateChecks}`);
+        println(`color: ${getComputedStyle(target).color}`);
+    });
+</script>

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #target {
+        margin-left: 1in;
+    }
+</style>
+<div id="target">target</div>
+<script>
+    test(() => {
+        internals.updateStyle();
+        const before = internals.styleEngineCounters();
+
+        document.styleSheets[0].cssRules[0].style.marginLeft = "96px";
+        internals.updateStyle();
+
+        const after = internals.styleEngineCounters();
+        println(`specified winner changed: ${after.cascadeWinnerDeltaProperties > before.cascadeWinnerDeltaProperties}`);
+        println(`equal computed group canonicalized: ${after.computedOutputGroupsCanonicalized > before.computedOutputGroupsCanonicalized}`);
+        println(`computed output stopped propagation: ${after.computedWinnerPropagationStops > before.computedWinnerPropagationStops}`);
+        println(`computed group handle stayed equal: ${after.computedGroupNodeHandlesPublished === before.computedGroupNodeHandlesPublished}`);
+        println(`computed margin: ${getComputedStyle(target).marginLeft}`);
+    });
+</script>

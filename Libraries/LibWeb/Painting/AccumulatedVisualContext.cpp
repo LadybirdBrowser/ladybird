@@ -132,24 +132,25 @@ static Optional<Gfx::AffineTransform> svg_to_css_pixels_transform(Paintable cons
     return {};
 }
 
-static bool computed_values_have_transform(CSS::ComputedValues const& computed_values)
+static bool style_has_transform(Layout::NodeWithStyle const& style_source)
 {
-    return !computed_values.transformations().is_empty()
-        || !computed_values.rotate().is_null()
-        || !computed_values.translate().is_null()
-        || !computed_values.scale().is_null();
+    return !style_source.transformations().is_empty()
+        || !style_source.rotate().is_null()
+        || !style_source.translate().is_null()
+        || !style_source.scale().is_null();
 }
 
 // https://drafts.csswg.org/css-transforms-2/#ctm
-Optional<TransformData> compute_transform(Paintable const& paintable_box, CSS::ComputedValues const& computed_values, double pixel_ratio)
+Optional<TransformData> compute_transform(Paintable const& paintable_box, double pixel_ratio)
 {
-    if (!computed_values_have_transform(computed_values) || !paintable_box.layout_node().is_transformable())
+    auto const& style_source = paintable_box.layout_node();
+    if (!style_has_transform(style_source) || !style_source.is_transformable())
         return {};
 
     // The transformation matrix is computed from the transform, transform-origin, translate, rotate, scale, and
     // offset properties as follows:
     auto reference_box = paintable_box.transform_reference_box();
-    auto const& css_transform_origin = computed_values.transform_origin();
+    auto const& css_transform_origin = style_source.transform_origin();
     auto origin_x = css_transform_origin.x.to_px(reference_box.width());
     auto origin_y = css_transform_origin.y.to_px(reference_box.height());
     auto origin_z = css_transform_origin.z.to_px(0).to_float();
@@ -159,21 +160,21 @@ Optional<TransformData> compute_transform(Paintable const& paintable_box, CSS::C
     auto matrix = Gfx::translation_matrix(Vector3 { 0.f, 0.f, origin_z });
 
     // 3. Translate by the computed X, Y, and Z values of translate.
-    if (auto const& translate = computed_values.translate())
+    if (auto const& translate = style_source.translate())
         matrix = matrix * translate->to_matrix(paintable_box);
 
     // 4. Rotate by the computed <angle> about the specified axis of rotate.
-    if (auto const& rotate = computed_values.rotate())
+    if (auto const& rotate = style_source.rotate())
         matrix = matrix * rotate->to_matrix(paintable_box);
 
     // 5. Scale by the computed X, Y, and Z values of scale.
-    if (auto const& scale = computed_values.scale())
+    if (auto const& scale = style_source.scale())
         matrix = matrix * scale->to_matrix(paintable_box);
 
     // FIXME: 6. Translate and rotate by the transform specified by offset.
 
     // 7. Multiply by each of the transform functions in transform from left to right.
-    for (auto const& transform : computed_values.transformations())
+    for (auto const& transform : style_source.transformations())
         matrix = matrix * transform->to_matrix(paintable_box);
 
     // 8. Translate by the negated computed X, Y and Z values of transform-origin.
@@ -193,9 +194,10 @@ Optional<TransformData> compute_transform(Paintable const& paintable_box, CSS::C
 }
 
 // https://drafts.csswg.org/css-transforms-2/#perspective-matrix
-static Optional<Gfx::FloatMatrix4x4> compute_perspective_matrix(Paintable const& paintable_box, CSS::ComputedValues const& computed_values)
+static Optional<Gfx::FloatMatrix4x4> compute_perspective_matrix(Paintable const& paintable_box)
 {
-    auto perspective = computed_values.perspective();
+    auto const& style_source = paintable_box.layout_node();
+    auto perspective = style_source.perspective();
     if (!perspective.has_value() || !paintable_box.layout_node().is_transformable())
         return {};
 
@@ -206,7 +208,7 @@ static Optional<Gfx::FloatMatrix4x4> compute_perspective_matrix(Paintable const&
     // https://drafts.csswg.org/css-transforms-2/#perspective-origin-property
     // Percentages: refer to the size of the reference box
     auto reference_box = paintable_box.transform_reference_box();
-    auto perspective_origin = computed_values.perspective_origin().resolved(reference_box);
+    auto perspective_origin = style_source.perspective_origin().resolved(reference_box);
     auto computed_x = perspective_origin.x().to_float();
     auto computed_y = perspective_origin.y().to_float();
     auto perspective_matrix = Gfx::translation_matrix(Vector3<float>(computed_x, computed_y, 0));
@@ -222,10 +224,11 @@ static Optional<Gfx::FloatMatrix4x4> compute_perspective_matrix(Paintable const&
     return perspective_matrix * Gfx::translation_matrix(Vector3 { -computed_x, -computed_y, 0.f });
 }
 
-static Optional<ClipData> compute_clip_data(Paintable const& paintable_box, CSS::ComputedValues const& computed_values, DevicePixelConverter const& converter)
+static Optional<ClipData> compute_clip_data(Paintable const& paintable_box, DevicePixelConverter const& converter)
 {
-    auto overflow_x = computed_values.overflow_x();
-    auto overflow_y = computed_values.overflow_y();
+    auto const& style_source = paintable_box.layout_node();
+    auto overflow_x = style_source.overflow_x();
+    auto overflow_y = style_source.overflow_y();
 
     // https://drafts.csswg.org/css-contain-2/#paint-containment
     // 1. The contents of the element including any ink or scrollable overflow must be clipped to the overflow clip
@@ -234,8 +237,8 @@ static Optional<ClipData> compute_clip_data(Paintable const& paintable_box, CSS:
     //    any such mechanism through other properties, such as overflow, resize, or text-overflow.
     //    NOTE: This clipping shape respects overflow-clip-margin, allowing an element with paint containment
     //          to still slightly overflow its normal bounds.
-    auto has_paint_containment = computed_values.contain().paint_containment
-        || computed_values.content_visibility() == CSS::ContentVisibility::Auto;
+    auto has_paint_containment = style_source.contain().paint_containment
+        || style_source.content_visibility() == CSS::ContentVisibility::Auto;
     if (has_paint_containment && paintable_box.layout_node().has_paint_containment()) {
         // NOTE: Note: The behavior is described in this paragraph is equivalent to changing 'overflow-x: visible' into
         //       'overflow-x: clip' and 'overflow-y: visible' into 'overflow-y: clip' at used value time, while leaving other
@@ -286,9 +289,9 @@ static Optional<ClipData> compute_clip_data(Paintable const& paintable_box, CSS:
     return {};
 }
 
-static Optional<ClipData> compute_css_clip_data(Paintable const& paintable_box, CSS::ComputedValues const& computed_values, DevicePixelConverter const& converter)
+static Optional<ClipData> compute_css_clip_data(Paintable const& paintable_box, DevicePixelConverter const& converter)
 {
-    if (!computed_values.clip().is_rect())
+    if (!paintable_box.layout_node().clip().is_rect())
         return {};
     if (auto css_clip = paintable_box.get_clip_rect(); css_clip.has_value()) {
         auto effective_rect = effective_css_clip_rect(*css_clip);
@@ -297,10 +300,10 @@ static Optional<ClipData> compute_css_clip_data(Paintable const& paintable_box, 
     return {};
 }
 
-static Optional<ClipPathData> compute_basic_shape_clip_path_data(Paintable const& paintable_box, CSS::ComputedValues const& computed_values, DevicePixelConverter const& converter, float scale)
+static Optional<ClipPathData> compute_basic_shape_clip_path_data(Paintable const& paintable_box, DevicePixelConverter const& converter, float scale)
 {
     // FIXME: Support other geometry boxes. See: https://drafts.fxtf.org/css-masking/#typedef-geometry-box
-    auto const& clip_path = computed_values.clip_path();
+    auto const& clip_path = paintable_box.layout_node().clip_path();
     if (!clip_path.has_value() || !clip_path->is_basic_shape())
         return {};
 
@@ -318,31 +321,32 @@ static Optional<ClipPathData> compute_basic_shape_clip_path_data(Paintable const
     return ClipPathData { move(device_path), device_bounding_rect, fill_rule };
 }
 
-static Optional<PerspectiveData> compute_perspective_data(Paintable const& paintable_box, CSS::ComputedValues const& computed_values, float scale)
+static Optional<PerspectiveData> compute_perspective_data(Paintable const& paintable_box, float scale)
 {
-    auto perspective_matrix = compute_perspective_matrix(paintable_box, computed_values);
+    auto perspective_matrix = compute_perspective_matrix(paintable_box);
     if (!perspective_matrix.has_value())
         return {};
     return PerspectiveData { scale_matrix_for_device_pixels(*perspective_matrix, scale) };
 }
 
 // NB: Resolves the box's filter as a side effect, since the effects data embeds the resolved gfx filter.
-static Optional<EffectsData> compute_effects_data(Paintable& box, CSS::ComputedValues const& computed_values, double pixel_ratio)
+static Optional<EffectsData> compute_effects_data(Paintable& box, double pixel_ratio)
 {
-    if (computed_values.filter().has_filters())
-        box.set_filter(resolve_css_filter(computed_values.filter(), box));
+    auto const& style_source = box.layout_node();
+    if (style_source.filter().has_filters())
+        box.set_filter(resolve_css_filter(style_source.filter(), box));
     else if (box.filter().has_filters() || box.filter().svg_filter_bounds.has_value())
         box.set_filter({});
 
-    if (!box.filter().has_filters() && computed_values.opacity() == 1 && computed_values.mix_blend_mode() == CSS::MixBlendMode::Normal)
+    if (!box.filter().has_filters() && style_source.opacity() == 1 && style_source.mix_blend_mode() == CSS::MixBlendMode::Normal)
         return {};
 
     Optional<Gfx::Filter> gfx_filter;
     if (box.filter().has_filters())
         gfx_filter = to_gfx_filter(box.filter(), pixel_ratio);
     EffectsData effects {
-        computed_values.opacity(),
-        mix_blend_mode_to_compositing_and_blending_operator(computed_values.mix_blend_mode()),
+        style_source.opacity(),
+        mix_blend_mode_to_compositing_and_blending_operator(style_source.mix_blend_mode()),
         move(gfx_filter)
     };
     if (!effects.needs_layer())
@@ -490,16 +494,14 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
             nearest_scroll_nodes_for_descendants = { sticky_scroll_node_index, sticky_scroll_node_index };
         }
 
-        auto const& computed_values = layout_node.computed_values();
-
-        if (auto effects = compute_effects_data(paintable_box, computed_values, pixel_ratio); effects.has_value())
+        if (auto effects = compute_effects_data(paintable_box, pixel_ratio); effects.has_value())
             append_to_own_and_positioned_descendant_contexts(effects.value());
 
         auto flattens_inherited_transform = inherited_contexts.flattens_inherited_transform;
 
         bool appended_transform_node = false;
-        if (computed_values_have_transform(computed_values)) {
-            if (auto transform_data = compute_transform(paintable_box, computed_values, pixel_ratio); transform_data.has_value()) {
+        if (style_has_transform(layout_node)) {
+            if (auto transform_data = compute_transform(paintable_box, pixel_ratio); transform_data.has_value()) {
                 transform_data->flattens_inherited_transform = flattens_inherited_transform;
                 paintable_box.set_has_non_invertible_css_transform(!transform_data->matrix.is_invertible());
                 own_state = append_node(own_state, *transform_data);
@@ -527,7 +529,7 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
             return inherited_contexts.normal_plane_root;
         }();
         bool appended_backface_marker = false;
-        if (computed_values.backface_visibility() == CSS::BackfaceVisibility::Hidden && layout_node.is_transformable()) {
+        if (layout_node.style_group<CSS::ComputedValues::TransformValues>().backface_visibility == CSS::BackfaceVisibility::Hidden && layout_node.is_transformable()) {
             own_state = append_node(own_state, BackfaceVisibilityData { inherited_plane_root, !appended_transform_node && flattens_inherited_transform });
             appended_backface_marker = true;
         }
@@ -547,12 +549,12 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
         bool inherited_flatten_still_pending = flattens_inherited_transform && !appended_transform_node && !appended_backface_marker;
         auto descendants_flatten_inherited_transform = invisible_to_3d_rendering_contexts ? flattens_inherited_transform : (!establishes_or_extends_3d_rendering_context || inherited_flatten_still_pending);
 
-        if (computed_values.clip().is_rect()) {
-            if (auto css_clip = compute_css_clip_data(paintable_box, computed_values, converter); css_clip.has_value())
+        if (layout_node.clip().is_rect()) {
+            if (auto css_clip = compute_css_clip_data(paintable_box, converter); css_clip.has_value())
                 append_to_own_and_positioned_descendant_contexts(css_clip.value());
         }
 
-        if (auto clip_path_data = compute_basic_shape_clip_path_data(paintable_box, computed_values, converter, scale); clip_path_data.has_value())
+        if (auto clip_path_data = compute_basic_shape_clip_path_data(paintable_box, converter, scale); clip_path_data.has_value())
             append_to_own_and_positioned_descendant_contexts(clip_path_data.value());
 
         for (auto const& mask_layer : paintable_box.mask_layer_presence(MaskLayerSet::CssAndSvg))
@@ -560,7 +562,7 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
 
         paintable_box.set_accumulated_visual_context(own_state);
 
-        Vector<CSS::BackgroundLayerData> const* background_layers = &computed_values.background_layers();
+        Vector<CSS::BackgroundLayerData> const* background_layers = &layout_node.background_layers();
         auto is_root_element = may_be_root_element && layout_node.is_root_element();
         if (is_root_element) {
             if (auto* html_element = as_if<HTML::HTMLHtmlElement>(paintable_box.dom_node().ptr())) {
@@ -610,20 +612,20 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
         // Build state for descendants: own state + perspective + clip + scroll.
         VisualContextIndex state_for_descendants = own_state;
 
-        if (computed_values.perspective().has_value()) {
-            if (auto perspective_data = compute_perspective_data(paintable_box, computed_values, scale); perspective_data.has_value()) {
+        if (layout_node.perspective().has_value()) {
+            if (auto perspective_data = compute_perspective_data(paintable_box, scale); perspective_data.has_value()) {
                 perspective_data->flattens_inherited_transform = descendants_flatten_inherited_transform;
                 descendants_flatten_inherited_transform = false;
                 state_for_descendants = append_node(state_for_descendants, *perspective_data);
             }
         }
 
-        auto may_have_clip = computed_values.overflow_x() != CSS::Overflow::Visible
-            || computed_values.overflow_y() != CSS::Overflow::Visible
-            || computed_values.contain().paint_containment
-            || computed_values.content_visibility() == CSS::ContentVisibility::Auto;
+        auto may_have_clip = layout_node.overflow_x() != CSS::Overflow::Visible
+            || layout_node.overflow_y() != CSS::Overflow::Visible
+            || layout_node.contain().paint_containment
+            || layout_node.content_visibility() == CSS::ContentVisibility::Auto;
         if (may_have_clip) {
-            if (auto clip_data = compute_clip_data(paintable_box, computed_values, converter); clip_data.has_value())
+            if (auto clip_data = compute_clip_data(paintable_box, converter); clip_data.has_value())
                 state_for_descendants = append_node(state_for_descendants, clip_data.value());
         }
 
@@ -772,11 +774,9 @@ bool update_accumulated_visual_context_values(ViewportPaintable& viewport_painta
         return false;
 
     auto pixel_ratio = viewport_paintable.document().page().client().device_pixels_per_css_pixel();
-    auto const& computed_values = paintable_box.computed_values();
-
-    auto effects = compute_effects_data(paintable_box, computed_values, pixel_ratio);
-    auto transform = compute_transform(paintable_box, computed_values, pixel_ratio);
-    auto perspective = compute_perspective_data(paintable_box, computed_values, static_cast<float>(pixel_ratio));
+    auto effects = compute_effects_data(paintable_box, pixel_ratio);
+    auto transform = compute_transform(paintable_box, pixel_ratio);
+    auto perspective = compute_perspective_data(paintable_box, static_cast<float>(pixel_ratio));
 
     paintable_box.set_has_non_invertible_css_transform(transform.has_value() && !transform->matrix.is_invertible());
 

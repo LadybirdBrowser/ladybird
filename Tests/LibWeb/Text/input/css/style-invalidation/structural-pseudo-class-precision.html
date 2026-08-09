@@ -30,6 +30,7 @@
     function settleAndReset() {
         document.body.offsetWidth;
         document.body.offsetWidth;
+        internals.updateStyle();
         resetStyleCounters();
     }
 
@@ -43,6 +44,7 @@
             settleAndReset();
 
             fixture.insertBefore(makeElement("div"), watchers[0]);
+            internals.updateStyle();
             assertEqual(":first-child loses on prepend", getComputedStyle(watchers[0]).color, "rgb(0, 0, 0)");
             for (let i = 1; i < watchers.length; ++i)
                 assertEqual(`other watcher unchanged at ${i}`, getComputedStyle(watchers[i]).color, "rgb(0, 0, 0)");
@@ -61,6 +63,7 @@
             settleAndReset();
 
             fixture.insertBefore(makeElement("div"), watchers[3]);
+            internals.updateStyle();
             assertEqual("first-child preserved", getComputedStyle(watchers[0]).color, "rgb(1, 2, 3)");
             for (let i = 1; i < watchers.length; ++i)
                 assertEqual(`other watcher unchanged at ${i}`, getComputedStyle(watchers[i]).color, "rgb(0, 0, 0)");
@@ -78,6 +81,7 @@
             settleAndReset();
 
             fixture.appendChild(makeElement("div"));
+            internals.updateStyle();
             const last = watchers[watchers.length - 1];
             assertEqual(":last-child loses on append", getComputedStyle(last).color, "rgb(0, 0, 0)");
             for (let i = 0; i < watchers.length - 1; ++i)
@@ -98,6 +102,7 @@
             settleAndReset();
 
             watchers[2].remove();
+            internals.updateStyle();
             assertEqual("last-child preserved", getComputedStyle(last).color, "rgb(1, 2, 3)");
             printPassWithCounters(":last-child observers are not restyled when last-child cannot flip");
 
@@ -115,6 +120,7 @@
             settleAndReset();
 
             originalLast.remove();
+            internals.updateStyle();
             const newLast = watchers[watchers.length - 2];
             assertEqual("new last-child gains", getComputedStyle(newLast).color, "rgb(1, 2, 3)");
             for (let i = 0; i < watchers.length - 2; ++i)
@@ -139,6 +145,7 @@
             settleAndReset();
 
             fixture.insertBefore(makeElement("div"), solo);
+            internals.updateStyle();
             assertEqual(":only-child loses after prepend", getComputedStyle(solo).color, "rgb(0, 0, 0)");
             printPassWithCounters(":only-child loses on prepend before solo child");
 
@@ -156,6 +163,7 @@
             settleAndReset();
 
             fixture.appendChild(makeElement("div"));
+            internals.updateStyle();
             assertEqual(":only-child loses after append", getComputedStyle(solo).color, "rgb(0, 0, 0)");
             printPassWithCounters(":only-child loses on append after solo child");
 
@@ -173,6 +181,7 @@
             settleAndReset();
 
             fixture.insertBefore(makeElement("div"), watchers[3]);
+            internals.updateStyle();
             for (const watcher of watchers)
                 assertEqual("watcher color unchanged", getComputedStyle(watcher).color, "rgb(0, 0, 0)");
             printPassWithCounters(":only-child observers are not restyled when only-child cannot start matching");
@@ -199,6 +208,7 @@
             settleAndReset();
 
             fixture.insertBefore(makeElement("div"), watchers[0]);
+            internals.updateStyle();
             assertEqual(":first-child loses across text", getComputedStyle(watchers[0]).color, "rgb(0, 0, 0)");
             for (let i = 1; i < watchers.length; ++i)
                 assertEqual(`later watcher unchanged at ${i}`, getComputedStyle(watchers[i]).color, "rgb(0, 0, 0)");
@@ -220,6 +230,7 @@
             settleAndReset();
 
             fixture.appendChild(makeElement("div"));
+            internals.updateStyle();
             const newIndex = watchers.length - 1;
             assertEqual(":nth-last-child(2) shifts on append", getComputedStyle(watchers[newIndex]).color, "rgb(1, 2, 3)");
             assertEqual("previous match no longer applies", getComputedStyle(watchers[indexFromEnd]).color, "rgb(0, 0, 0)");
@@ -238,6 +249,7 @@
             settleAndReset();
 
             fixture.insertBefore(makeElement("div"), watchers[0]);
+            internals.updateStyle();
             assertEqual(":nth-child(2) shifts on prepend", getComputedStyle(watchers[0]).color, "rgb(1, 2, 3)");
             assertEqual("previous match no longer applies", getComputedStyle(watchers[1]).color, "rgb(0, 0, 0)");
             printPassWithCounters(":nth-child still re-evaluates every following sibling on prepend");

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #seq > .item:nth-child(2n+1) { color: rgb(255, 0, 0) }
+    #seq > .item:nth-child(3n) { color: rgb(0, 0, 255) }
+</style>
+<div id="seq"></div>
+<script>
+    test(() => {
+        const seq = document.getElementById("seq");
+        for (let index = 0; index < 40; ++index) {
+            const child = document.createElement("div");
+            child.className = "item";
+            seq.appendChild(child);
+        }
+        internals.updateStyle();
+
+        for (let round = 0; round < 4; ++round) {
+            const extra = document.createElement("div");
+            extra.className = "item";
+            seq.insertBefore(extra, seq.children[5]);
+            internals.updateStyle();
+            seq.removeChild(extra);
+            internals.updateStyle();
+        }
+
+        let mismatches = 0;
+        for (let index = 0; index < seq.children.length; ++index) {
+            const color = getComputedStyle(seq.children[index]).color;
+            const expected = (index + 1) % 3 === 0 ? "rgb(0, 0, 255)"
+                : index % 2 === 0 ? "rgb(255, 0, 0)"
+                : "rgb(0, 0, 0)";
+            if (color !== expected) {
+                println(`mismatch at ${index}: ${color} expected ${expected}`);
+                ++mismatches;
+            }
+        }
+        println(`mismatches: ${mismatches}`);
+    });
+</script>

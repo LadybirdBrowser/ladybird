@@ -1,0 +1,4 @@
+inner before: rgb(0, 128, 0)
+outer before: rgb(0, 128, 0)
+inner after: rgb(0, 0, 0)
+outer after: rgb(0, 128, 0)

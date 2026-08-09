@@ -1,0 +1,7 @@
+thing color: rgb(1, 2, 3)
+thing background-color: rgb(7, 8, 9)
+thing outline-color: rgb(10, 11, 12)
+html div color: rgb(0, 0, 0)
+html div border-top-color: rgb(0, 0, 0)
+thing: * thing thing[data-k] thing[data-k="v"]
+

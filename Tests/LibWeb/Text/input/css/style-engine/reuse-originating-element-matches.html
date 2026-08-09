@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .target { color: rgb(1, 2, 3) }
+    .target::before { content: "before"; color: rgb(4, 5, 6) }
+    .target::after { content: "after"; color: rgb(7, 8, 9) }
+    .target::first-letter { color: rgb(10, 11, 12) }
+    .target::selection { color: rgb(13, 14, 15) }
+
+    .target.changed { color: rgb(16, 17, 18) }
+    .target.changed::before { color: rgb(19, 20, 21) }
+    .target.changed::after { color: rgb(22, 23, 24) }
+    .target.changed::first-letter { color: rgb(25, 26, 27) }
+    .target.changed::selection { color: rgb(28, 29, 30) }
+</style>
+<div id="target" class="target">target</div>
+<script>
+    test(() => {
+        internals.updateStyle();
+
+        const before = internals.styleEngineCounters();
+        target.classList.add("changed");
+        internals.updateStyle();
+        const after = internals.styleEngineCounters();
+
+        println(`cold node evaluations: ${after.coldNodesEvaluated - before.coldNodesEvaluated}`);
+        println(`candidate checks: ${after.candidateChecks - before.candidateChecks}`);
+        println(`rule matches emitted: ${after.ruleMatchesEmitted - before.ruleMatchesEmitted}`);
+        println(`element: ${getComputedStyle(target).color}`);
+        println(`before: ${getComputedStyle(target, "::before").color}`);
+        println(`after: ${getComputedStyle(target, "::after").color}`);
+        println(`first-letter: ${getComputedStyle(target, "::first-letter").color}`);
+        println(`selection: ${getComputedStyle(target, "::selection").color}`);
+    });
+</script>

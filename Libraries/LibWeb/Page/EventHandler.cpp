@@ -320,7 +320,7 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
         return EventResult::Dropped;
     }
 
-    auto pointer_events = paintable->computed_values().pointer_events();
+    auto pointer_events = paintable->layout_node().pointer_events();
     // FIXME: Handle other values for pointer-events.
     VERIFY(pointer_events != CSS::PointerEvents::None);
 
@@ -507,7 +507,7 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
             return *dispath_result;
         }
 
-        auto pointer_events = paintable->computed_values().pointer_events();
+        auto pointer_events = paintable->layout_node().pointer_events();
         // FIXME: Handle other values for pointer-events.
         VERIFY(pointer_events != CSS::PointerEvents::None);
 
@@ -626,7 +626,7 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position,
         return EventResult::Dropped;
     }
 
-    auto pointer_events = paintable->computed_values().pointer_events();
+    auto pointer_events = paintable->layout_node().pointer_events();
     if (pointer_events == CSS::PointerEvents::None)
         return EventResult::Cancelled;
 
@@ -3421,9 +3421,9 @@ void EventHandler::update_cursor(RefPtr<Painting::Paintable> paintable, GC::Ptr<
 
         if (paintable) {
             auto* host_layout_node = host_element ? host_element->layout_node() : nullptr;
-            auto const* cursor_data = &paintable->computed_values().cursor();
+            auto const* cursor_data = &paintable->layout_node().cursor();
             if (hit_text_fragment && host_layout_node)
-                cursor_data = &as<Layout::NodeWithStyle>(*host_layout_node).computed_values().cursor();
+                cursor_data = &as<Layout::NodeWithStyle>(*host_layout_node).cursor();
 
             auto* host_node_with_style = host_layout_node ? as_if<Layout::NodeWithStyle>(*host_layout_node) : nullptr;
             auto is_selectable_text_fragment = hit_text_fragment
@@ -3442,7 +3442,7 @@ void EventHandler::update_cursor(RefPtr<Painting::Paintable> paintable, GC::Ptr<
             //         from. Resolve the cursor from the area's computed values instead, falling back to the layout
             //         node of the image that renders the area's image map for image cursors.
             if (auto const* area_element = as_if<HTML::HTMLAreaElement>(host_element.ptr())) {
-                if (auto area_computed_values = area_element->computed_values(); area_computed_values)
+                if (auto area_computed_values = area_element->computed_style(); area_computed_values)
                     return resolve_cursor(paintable->layout_node(), area_computed_values->cursor(), Gfx::StandardCursor::Arrow);
             }
         }

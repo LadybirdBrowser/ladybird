@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="plan.js"></script>
+<style id="first">
+    @layer base, theme;
+    @layer base { .item { color: green } }
+</style>
+<style id="second">
+    @layer theme { .item { color: blue } }
+</style>
+<div id="guard">
+    <span id="item" class="item"></span>
+    <span id="bare"></span>
+</div>
+<div id="host"></div>
+<script>
+    test(() => {
+        // Cascade topology is the other half of the program: which rules exist is one input, and
+        // which of them wins where they overlap is another. A topology change moves no selector
+        // truth at all - every element matches exactly what it matched before - so what it reaches
+        // is the elements where a declaration changed hands.
+        const first = document.getElementById("first");
+        const second = document.getElementById("second");
+        const head = document.head;
+
+        // Moving a sheet changes its order token, and with it the winner among the rules that
+        // overlap. Only the elements those rules match can change.
+        // FIXME: A sheet reordering widens to the document one way round and names the overlapping
+        //        element the other, which is the same input answered two ways. Narrowing it properly
+        //        needs the cascade stage to say which declarations changed hands.
+        plan("move a sheet after the one it overlaps", () => head.appendChild(first));
+        plan("move it back in front", () => head.insertBefore(first, second));
+
+        // Reordering `adoptedStyleSheets` is the same input by another route: assigning the array
+        // detaches every sheet and attaches it again, so what says a reorder happened is that each
+        // sheet's attachment cancels while it was attached at both ends.
+        // FIXME: It reaches the whole document, because the scope it happened in is the document's
+        //        own and that scope holds the user-agent sheet, whose rules dispatch on everything.
+        //        Narrowing it needs the cascade stage to say which declarations changed hands.
+        const a = new CSSStyleSheet();
+        a.replaceSync(".item { font-weight: bold }");
+        const b = new CSSStyleSheet();
+        b.replaceSync(".item { font-weight: normal }");
+        plan("adopt two overlapping sheets", () => document.adoptedStyleSheets = [a, b]);
+        plan("swap their order", () => document.adoptedStyleSheets = [b, a]);
+        plan("unadopt both", () => document.adoptedStyleSheets = []);
+
+        // A layer statement declares the order of the layers, so inserting one ahead of the others
+        // can reverse which layer wins without any rule moving. Layers are not scoped, but what a
+        // layer order change can reach is still bounded: a declaration outside every layer cannot
+        // change hands when that order moves.
+        const sheet = first.sheet;
+        plan("declare the layers in the other order", () => sheet.insertRule("@layer theme, base;", 0));
+        plan("take that statement away again", () => sheet.deleteRule(0));
+
+        // An important declaration reverses the layer ordering it participates in, so adding one
+        // changes the winner in the opposite direction from a normal declaration.
+        plan("make a layered declaration important", () => {
+            sheet.cssRules[sheet.cssRules.length - 1].cssRules[0].style.setProperty("color", "green", "important");
+        });
+        plan("make it normal again", () => {
+            sheet.cssRules[sheet.cssRules.length - 1].cssRules[0].style.setProperty("color", "green", "");
+        });
+
+        // A layer arriving with no rules in it declares an order and decides nothing.
+        plan("insert an empty layer block", () => sheet.insertRule("@layer unused { }", sheet.cssRules.length));
+        plan("delete the empty layer", () => sheet.deleteRule(sheet.cssRules.length - 1));
+
+        // A nested layer takes its order from its parent, so declaring one changes priority inside
+        // that parent and nowhere else.
+        plan("insert nested layers with overlapping rules", () => {
+            sheet.insertRule("@layer base { @layer inner { .item { color: purple } } }", sheet.cssRules.length);
+        });
+        plan("delete the nested layer", () => sheet.deleteRule(sheet.cssRules.length - 1));
+
+        // A layer declared inside a group is gated by the group's condition as well as ordered by
+        // the statement, so the two inputs meet on the same rules.
+        plan("insert a layered rule behind a matching condition", () => {
+            sheet.insertRule("@media all { @layer theme { .item { color: olive } } }", sheet.cssRules.length);
+        });
+        plan("delete the gated layer", () => sheet.deleteRule(sheet.cssRules.length - 1));
+
+        // Moving a sheet within the head and moving it to another parent are the same input: its
+        // order token moved. Detaching it entirely is not - that takes its rules away.
+        plan("move a sheet out of the document", () => second.remove());
+        plan("put it back at the front", () => head.insertBefore(second, first));
+
+        // Sheet order is per scope, and a scope holds only the sheets attached to it. Reordering
+        // inside a shadow root can therefore reach the elements those sheets' rules match and no
+        // others, where the document's own scope holds the user-agent sheet as well - whose rules
+        // dispatch on everything, so a reorder there has nothing narrower to say.
+        const shadowRoot = document.getElementById("host").attachShadow({ mode: "open" });
+        shadowRoot.innerHTML = "<style id='inner-first'>.inner { color: green }</style>"
+            + "<style id='inner-second'>.inner { color: blue }</style>"
+            + "<span id='inner' class='inner'></span>";
+        plan("move a shadow sheet past the one it overlaps", () => {
+            shadowRoot.appendChild(shadowRoot.getElementById("inner-first"));
+        });
+
+        // A layer name belongs to the tree scope its sheet is attached to, so declaring a layer inside
+        // a shadow root reorders that scope's layers and nothing outside it: the document's own layered
+        // declarations cannot change hands.
+        const innerLayered = shadowRoot.getElementById("inner-second").sheet;
+        innerLayered.insertRule("@layer inner-a { .inner { font-weight: bold } }", 0);
+        plan("declare layers inside the shadow root", () => {
+            innerLayered.insertRule("@layer inner-a, inner-b;", 0);
+        });
+        plan("put the shadow layers in the other order", () => {
+            innerLayered.insertRule("@layer inner-b, inner-a;", 0);
+        });
+
+        // A topology change that moves nothing has nothing to say.
+        // FIXME: Re-appending the sheet that is already last reaches the element its rules match. The
+        //        order token is rewritten either way, so nothing notices that the order it describes
+        //        is the one it already had.
+        plan("append a sheet that is already last", () => head.appendChild(head.lastElementChild));
+    });
+</script>

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<style>
+    state-enabled:enabled { color: green; }
+    state-disabled:disabled { color: red; }
+</style>
+<state-enabled id="enabled"></state-enabled>
+<state-disabled id="disabled" disabled></state-disabled>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const enabled = document.getElementById("enabled");
+        const disabled = document.getElementById("disabled");
+
+        println(`enabled before definition: ${getComputedStyle(enabled).color}`);
+        println(`disabled before definition: ${getComputedStyle(disabled).color}`);
+
+        customElements.define("state-enabled", class extends HTMLElement {
+            static get formAssociated() { return true; }
+        });
+        customElements.define("state-disabled", class extends HTMLElement {
+            static get formAssociated() { return true; }
+        });
+
+        println(`enabled after definition: ${getComputedStyle(enabled).color}`);
+        println(`disabled after definition: ${getComputedStyle(disabled).color}`);
+    });
+</script>

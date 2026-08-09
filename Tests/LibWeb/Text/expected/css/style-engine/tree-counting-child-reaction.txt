@@ -1,0 +1,7 @@
+target index: 2
+stable color: rgb(4, 5, 6)
+reaction batch runs: 1
+reaction elements: 1
+published reactions: 1
+update recomputations: 1
+read recomputations: 0

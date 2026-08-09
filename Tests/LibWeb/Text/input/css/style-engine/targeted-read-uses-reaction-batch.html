@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #target.before { color: red; }
+    #target.after { color: green; }
+</style>
+<div id="target" class="before"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        internals.updateStyle();
+
+        internals.resetStyleInvalidationCounters();
+        target.className = "after";
+        println("color: " + getComputedStyle(target).color);
+
+        const counters = internals.getStyleInvalidationCounters();
+        println("reaction batch runs: " + counters.styleEngineReactionBatchRuns);
+        println("reaction elements: " + counters.styleEngineReactionElements);
+        println("published reactions: " + counters.styleEnginePublishedReactions);
+        println("recomputations: " + counters.elementStyleRecomputations);
+    });
+</script>

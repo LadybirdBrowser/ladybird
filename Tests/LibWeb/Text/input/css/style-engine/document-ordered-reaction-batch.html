@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #parent.active { color: rgb(0, 128, 0); }
+    #subject.direct { background-color: rgb(0, 0, 255); }
+    .changed { outline-width: 3px; }
+</style>
+<div id="holding">
+    <div id="subject">
+        <span id="leaf">leaf</span>
+    </div>
+</div>
+<section id="parent"></section>
+<div id="early"></div>
+<div id="late"></div>
+<script>
+    test(() => {
+        const parent = document.getElementById("parent");
+        const subject = document.getElementById("subject");
+        const leaf = document.getElementById("leaf");
+        const early = document.getElementById("early");
+        const late = document.getElementById("late");
+
+        // Move the subject under the ancestor whose inherited style will change, then settle the
+        // move before testing the reaction-batch handoff.
+        parent.append(subject);
+        internals.updateStyle();
+
+        // Reinsert the later-identity sibling before the earlier one. This makes identity order
+        // disagree with document order without introducing an inheritance dependency.
+        early.before(late);
+        internals.updateStyle();
+        early.classList.add("changed");
+        late.classList.add("changed");
+        const siblingIdentityOrderPlan = internals.styleEngineTransactionReactions();
+        println(`sibling identity-order plan: [${siblingIdentityOrderPlan.elements.join(", ")}]`);
+        early.classList.remove("changed");
+        late.classList.remove("changed");
+        internals.updateStyle();
+        internals.resetStyleInvalidationCounters();
+
+        parent.classList.add("active");
+        subject.classList.add("direct");
+        early.classList.add("changed");
+        late.classList.add("changed");
+        internals.updateStyle();
+
+        println(`subject color: ${getComputedStyle(subject).color}`);
+        println(`subject background: ${getComputedStyle(subject).backgroundColor}`);
+        println(`leaf color: ${getComputedStyle(leaf).color}`);
+
+        const counters = internals.getStyleInvalidationCounters();
+        println(`reaction batch runs: ${counters.styleEngineReactionBatchRuns}`);
+        println(`reaction elements: ${counters.styleEngineReactionElements}`);
+        println(`published reactions: ${counters.styleEnginePublishedReactions}`);
+        println(`regular recomputations: ${counters.elementStyleRecomputations}`);
+        println(`inherited recomputations: ${counters.elementInheritedStyleRecomputations}`);
+    });
+</script>

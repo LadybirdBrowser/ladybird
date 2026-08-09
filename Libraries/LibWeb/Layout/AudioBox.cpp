@@ -10,7 +10,7 @@
 
 namespace Web::Layout {
 
-AudioBox::AudioBox(DOM::Document& document, DOM::Element& element, NonnullRefPtr<CSS::ComputedValues const> style)
+AudioBox::AudioBox(DOM::Document& document, DOM::Element& element, CSS::LayoutStyle style)
     : ReplacedBox(document, element, style)
 {
     set_flag(RustFFI::NodeFlag::ReplacedBoxCanHaveChildren, element.shadow_root() != nullptr);

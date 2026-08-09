@@ -102,16 +102,16 @@ static Gfx::MaskKind mask_type_to_gfx_mask_kind(CSS::MaskType mask_type)
 
 static void build_nested_svg_visual_context_tree_for_subtree(AccumulatedVisualContextTree& visual_context_tree, NestedMaskNodeAssignments& mask_node_assignments, DevicePixelConverter const& converter, Paintable& paintable_box, VisualContextIndex inherited_state, float pixel_ratio)
 {
-    auto const& computed_values = paintable_box.computed_values();
-    if (computed_values.filter().has_filters())
-        paintable_box.set_filter(resolve_css_filter(computed_values.filter(), paintable_box));
+    auto const& style_source = paintable_box.layout_node();
+    if (style_source.filter().has_filters())
+        paintable_box.set_filter(resolve_css_filter(style_source.filter(), paintable_box));
     else
         paintable_box.set_filter({});
 
     auto gfx_filter = to_gfx_filter(paintable_box.filter(), pixel_ratio);
     EffectsData effects {
-        computed_values.opacity(),
-        mix_blend_mode_to_compositing_and_blending_operator(computed_values.mix_blend_mode()),
+        style_source.opacity(),
+        mix_blend_mode_to_compositing_and_blending_operator(style_source.mix_blend_mode()),
         move(gfx_filter)
     };
 
@@ -146,7 +146,7 @@ Optional<Gfx::MaskKind> SVGMaskable::get_svg_mask_type() const
 {
     auto const& graphics_element = as<SVG::SVGGraphicsElement const>(*dom_node_of_svg());
     if (auto* mask_box = get_mask_box(graphics_element))
-        return mask_type_to_gfx_mask_kind(mask_box->computed_values().mask_type());
+        return mask_type_to_gfx_mask_kind(mask_box->mask_type());
     return {};
 }
 

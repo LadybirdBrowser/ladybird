@@ -1536,7 +1536,7 @@ Messages::WebDriverClient::GetElementCssValueResponse WebDriverConnection::get_e
                         if (auto const* style_property = data->get(property->name()))
                             computed_value = style_property->value->to_string(Web::CSS::SerializationMode::Normal);
                     }
-                } else if (auto computed_values = element->computed_values()) {
+                } else if (auto computed_values = element->computed_style()) {
                     computed_value = computed_values->computed_style_value(property->id())->to_string(Web::CSS::SerializationMode::Normal);
                 }
             }

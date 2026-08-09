@@ -1,0 +1,9 @@
+.target {
+    color: rgb(1, 2, 3);
+}
+
+@media all {
+    .inner {
+        background-color: rgb(4, 5, 6);
+    }
+}

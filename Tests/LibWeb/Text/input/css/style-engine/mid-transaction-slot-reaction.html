@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="host"><template shadowrootmode="open">
+        <style>
+            slot { --color: red; }
+            ::slotted(span) { color: var(--color); }
+        </style>
+        <slot id="control-slot" name="control"></slot>
+        <slot id="slot"></slot>
+    </template><span id="slotted"></span></div>
+<script>
+    test(() => {
+        const shadowRoot = document.getElementById("host").shadowRoot;
+        const controlSlot = shadowRoot.getElementById("control-slot");
+        const slot = shadowRoot.getElementById("slot");
+        const slotted = document.getElementById("slotted");
+        internals.updateStyle();
+
+        internals.resetStyleInvalidationCounters();
+        controlSlot.style.setProperty("--color", "green");
+        internals.updateStyle();
+        const controlCounters = internals.getStyleInvalidationCounters();
+
+        internals.resetStyleInvalidationCounters();
+        slot.style.setProperty("--color", "green");
+        internals.updateStyle();
+        const updateCounters = internals.getStyleInvalidationCounters();
+
+        const color = getComputedStyle(slotted).color;
+        const readCounters = internals.getStyleInvalidationCounters();
+
+        println("slotted color: " + color);
+        println("assigned element recomputations: " + (updateCounters.elementStyleRecomputations - controlCounters.elementStyleRecomputations));
+        println("read recomputations: " + (readCounters.elementStyleRecomputations - updateCounters.elementStyleRecomputations));
+    });
+</script>

@@ -119,20 +119,20 @@ static bool caret_line_is_better_candidate(CSSPixels block_distance, CSSPixels i
 
 static bool local_point_is_before_box(Paintable const& paintable, CSSPixelRect rect, CSSPixelPoint local_point)
 {
-    auto const& computed_values = paintable.computed_values();
-    auto writing_mode = computed_values.writing_mode();
+    auto const& style_source = paintable.layout_node();
+    auto writing_mode = style_source.writing_mode();
 
     auto block_coordinate = block_axis_coordinate(local_point, writing_mode);
     if (block_coordinate < block_axis_start(rect, writing_mode))
-        return !computed_values.block_axis_is_reverse();
+        return !style_source.block_axis_is_reverse();
     if (block_coordinate >= block_axis_end(rect, writing_mode))
-        return computed_values.block_axis_is_reverse();
+        return style_source.block_axis_is_reverse();
 
     auto inline_start = inline_axis_start(rect, writing_mode);
     auto inline_end = inline_axis_end(rect, writing_mode);
     auto inline_middle = inline_start + (inline_end - inline_start).scaled(0.5);
     auto inline_coordinate = inline_axis_coordinate(local_point, writing_mode);
-    return computed_values.inline_axis_is_reverse()
+    return style_source.inline_axis_is_reverse()
         ? inline_coordinate > inline_middle
         : inline_coordinate <= inline_middle;
 }
@@ -269,7 +269,7 @@ CSSPixelRect HitTestDisplayList::caret_line_rect_for_item(Item const& item) cons
         return item.caret_rect;
 
     auto rect = item.caret_rect;
-    auto writing_mode = item.paintable->computed_values().writing_mode();
+    auto writing_mode = item.paintable->layout_node().writing_mode();
     auto line_rect = item.caret_line_rect.value();
     if (writing_mode_is_horizontal(writing_mode)) {
         auto top = min(rect.top(), line_rect.top());
@@ -336,12 +336,12 @@ static bool text_fragment_is_hit_testable(PaintableFragment const& fragment)
     if (!text_node)
         return false;
 
-    auto const& computed_values = text_node->parent()->computed_values();
-    if (computed_values.visibility() != CSS::Visibility::Visible || computed_values.opacity() == 0)
+    auto const& style_source = *text_node->parent();
+    if (style_source.visibility() != CSS::Visibility::Visible || style_source.opacity() == 0)
         return false;
     if (auto const* node = text_node->dom_text(); node && node->is_inert())
         return false;
-    if (computed_values.pointer_events() == CSS::PointerEvents::None)
+    if (style_source.pointer_events() == CSS::PointerEvents::None)
         return false;
     return true;
 }
@@ -541,7 +541,7 @@ void HitTestDisplayList::add_item_to_caret_items(size_t item_index) const
     auto caret_item_index = m_caret_item_indices.size();
     m_caret_item_indices.append(item_index);
 
-    auto writing_mode = item.paintable->computed_values().writing_mode();
+    auto writing_mode = item.paintable->layout_node().writing_mode();
     auto item_line_rect = caret_line_rect_for_item(item);
     if (!m_caret_lines.is_empty()) {
         auto& line = m_caret_lines.last();
@@ -816,8 +816,8 @@ HitTestDisplayList::Item const& HitTestDisplayList::item_at_line_edge(CaretLine 
     // INTEROP: Home and End operate on visual lines in other engines. Choose the furthest caret-capable painted item
     // along the logical inline axis instead of assuming that display-list order or DOM order describes that edge.
     auto const& first_item = m_items[m_caret_item_indices[line.first_caret_item_index]];
-    auto writing_mode = first_item.paintable->computed_values().writing_mode();
-    auto inline_axis_is_reverse = first_item.paintable->computed_values().inline_axis_is_reverse();
+    auto writing_mode = first_item.paintable->layout_node().writing_mode();
+    auto inline_axis_is_reverse = first_item.paintable->layout_node().inline_axis_is_reverse();
     auto coordinate_for_item = [&](Item const& item) {
         if (type == CaretPositionType::Before)
             return inline_axis_is_reverse ? inline_axis_end(item.caret_rect, writing_mode) : inline_axis_start(item.caret_rect, writing_mode);
@@ -942,8 +942,8 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_on_adjacent_line(DOM:
 
     auto const& current_line = m_caret_lines[*current_line_index];
     auto const& current_first_item = m_items[m_caret_item_indices[current_line.first_caret_item_index]];
-    auto writing_mode = current_first_item.paintable->computed_values().writing_mode();
-    auto block_axis_is_reverse = current_first_item.paintable->computed_values().block_axis_is_reverse();
+    auto writing_mode = current_first_item.paintable->layout_node().writing_mode();
+    auto block_axis_is_reverse = current_first_item.paintable->layout_node().block_axis_is_reverse();
     auto physically_after = (direction == CaretLineDirection::Next) != block_axis_is_reverse;
     auto line_context_for_item = [](Item const& item) -> Paintable const* {
         if (item.text_fragment)
@@ -1015,7 +1015,7 @@ Optional<CSSPixels> HitTestDisplayList::caret_line_block_coordinate(DOM::Node co
 
     auto const& line = m_caret_lines[*line_index];
     auto const& first_item = m_items[m_caret_item_indices[line.first_caret_item_index]];
-    auto writing_mode = first_item.paintable->computed_values().writing_mode();
+    auto writing_mode = first_item.paintable->layout_node().writing_mode();
     return block_axis_start(line.rect, writing_mode)
         + (block_axis_end(line.rect, writing_mode) - block_axis_start(line.rect, writing_mode)).scaled(0.5);
 }
@@ -1023,8 +1023,8 @@ Optional<CSSPixels> HitTestDisplayList::caret_line_block_coordinate(DOM::Node co
 Optional<CaretPosition> HitTestDisplayList::caret_position_for_line(CaretLine const& line, CSSPixelPoint local_point, CaretPositionMode mode) const
 {
     auto const& first_item = m_items[m_caret_item_indices[line.first_caret_item_index]];
-    auto writing_mode = first_item.paintable->computed_values().writing_mode();
-    auto inline_axis_is_reverse = first_item.paintable->computed_values().inline_axis_is_reverse();
+    auto writing_mode = first_item.paintable->layout_node().writing_mode();
+    auto inline_axis_is_reverse = first_item.paintable->layout_node().inline_axis_is_reverse();
 
     auto block_coordinate = block_axis_coordinate(local_point, writing_mode);
     // Once a line has been selected, points before or after its block-axis range resolve to the logical line edges.
@@ -1062,7 +1062,7 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_for_line(CaretLine co
     for (auto caret_item_index = line.first_caret_item_index; caret_item_index <= line.last_caret_item_index; ++caret_item_index) {
         auto item_index = m_caret_item_indices[caret_item_index];
         auto const& item = m_items[item_index];
-        auto writing_mode = item.paintable->computed_values().writing_mode();
+        auto writing_mode = item.paintable->layout_node().writing_mode();
         auto block_distance = block_axis_distance_to_line_rect(caret_line_rect_for_item(item), local_point, writing_mode);
         auto inline_distance = inline_axis_distance_to_rect(item.caret_rect, local_point, writing_mode);
         if (!closest_item_index.has_value()
@@ -1097,7 +1097,7 @@ bool HitTestDisplayList::item_is_inline_adjacent_to_line(Item const& item, Caret
 
     auto first_item_index = m_caret_item_indices[line.first_caret_item_index];
     auto const& first_item = m_items[first_item_index];
-    auto writing_mode = first_item.paintable->computed_values().writing_mode();
+    auto writing_mode = first_item.paintable->layout_node().writing_mode();
     if (!rects_overlap_in_block_axis(item.rect, line.rect, writing_mode))
         return false;
 
@@ -1253,7 +1253,7 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(CSSPixelPo
 
             auto first_item_index = m_caret_item_indices[line.first_caret_item_index];
             auto const& first_item = m_items[first_item_index];
-            auto writing_mode = first_item.paintable->computed_values().writing_mode();
+            auto writing_mode = first_item.paintable->layout_node().writing_mode();
             auto block_distance = block_axis_distance_to_line_rect(line.rect, *local_point, writing_mode);
             auto block_coordinate = block_axis_coordinate(*local_point, writing_mode);
             auto inline_distance = inline_axis_distance_to_rect(line.rect, *local_point, writing_mode);
@@ -1328,7 +1328,7 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(CSSPixelPo
             auto const& line = m_caret_lines[*closest_line.index];
             auto first_item_index = m_caret_item_indices[line.first_caret_item_index];
             auto const& first_item = m_items[first_item_index];
-            auto writing_mode = first_item.paintable->computed_values().writing_mode();
+            auto writing_mode = first_item.paintable->layout_node().writing_mode();
             auto block_coordinate = block_axis_coordinate(*closest_line.local_point, writing_mode);
             auto point_is_in_closest_line_block_container_margin = closest_line.block_container_margin_rect.has_value()
                 && block_coordinate < block_axis_end(*closest_line.block_container_margin_rect, writing_mode);

@@ -2,14 +2,15 @@ Harness status: OK
 
 Found 10 tests
 
-10 Fail
-Fail	:checked & :indeterminate invalidation on <input>
-Fail	:indeterminate invalidation on <progress>
-Fail	:disabled invalidation
-Fail	:read-only invalidation
-Fail	:valid invalidation
-Fail	:default invalidation with input[type=radio]
-Fail	:required invalidation
+9 Pass
+1 Fail
+Pass	:checked & :indeterminate invalidation on <input>
+Pass	:indeterminate invalidation on <progress>
+Pass	:disabled invalidation
+Pass	:read-only invalidation
+Pass	:valid invalidation
+Pass	:default invalidation with input[type=radio]
+Pass	:required invalidation
 Fail	:out-of-range invalidation
-Fail	:placeholder-shown invalidation
-Fail	:default invalidation with input[type=checkbox] and assignment to .checked
+Pass	:placeholder-shown invalidation
+Pass	:default invalidation with input[type=checkbox] and assignment to .checked

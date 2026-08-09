@@ -12,6 +12,6 @@
 
         gradient.setAttribute("cx", "75%");
 
-        println(internals.getStyleInvalidationCounters().styleInvalidations == 0 ? "PASS" : "FAIL");
+        println(internals.getStyleInvalidationCounters().elementStyleRecomputations == 0 ? "PASS" : "FAIL");
     });
 </script>

@@ -1,0 +1,13 @@
+html: html|* *|*
+head: html|* *|*
+script: html|* *|*
+style: html|* *|*
+body: html|* *|*
+div#host.marked: html|* *|* html|div
+svg.marked: * *|* :not(circle) .marked
+circle#dot.marked: * *|* circle *|circle * circle html|div circle .marked
+foreignObject: * *|* :not(circle)
+span.marked: html|* *|*
+script: html|* *|*
+pre#out: html|* *|*
+

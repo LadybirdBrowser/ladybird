@@ -1,0 +1,5 @@
+left margin: 20px
+right margin: 10px
+top margin: 10px
+margin family longhand evaluations: 18
+changed logical margin: 30px

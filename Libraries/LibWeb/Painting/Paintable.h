@@ -83,11 +83,7 @@ public:
     virtual ~Paintable();
     virtual StringView class_name() const { return "Paintable"sv; }
 
-    [[nodiscard]] bool is_visible() const
-    {
-        auto const& cv = computed_values();
-        return cv.visibility() == CSS::Visibility::Visible && cv.opacity() != 0;
-    }
+    [[nodiscard]] bool is_visible() const;
     [[nodiscard]] bool is_positioned() const { return m_positioned; }
     [[nodiscard]] bool is_fixed_position() const { return m_fixed_position; }
     [[nodiscard]] bool is_sticky_position() const { return m_sticky_position; }
@@ -115,7 +111,7 @@ public:
     [[nodiscard]] GC::Ptr<DOM::Node const> dom_node() const;
     void set_dom_node(GC::Ptr<DOM::Node>);
 
-    CSS::ComputedValues const& computed_values() const;
+    CSS::StyleRecordID style_record_identity() const;
 
     bool visible_for_hit_testing() const;
 

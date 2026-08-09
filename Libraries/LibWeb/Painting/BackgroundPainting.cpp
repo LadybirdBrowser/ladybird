@@ -159,10 +159,10 @@ void paint_background(DisplayListRecordingContext& context, Paintable const& pai
         DevicePixels right { 0 };
     } clip_shrink;
 
-    auto border_top = paintable_box.computed_values().border_top();
-    auto border_bottom = paintable_box.computed_values().border_bottom();
-    auto border_left = paintable_box.computed_values().border_left();
-    auto border_right = paintable_box.computed_values().border_right();
+    auto border_top = paintable_box.layout_node().border_top();
+    auto border_bottom = paintable_box.layout_node().border_bottom();
+    auto border_left = paintable_box.layout_node().border_left();
+    auto border_right = paintable_box.layout_node().border_right();
 
     if (border_top.color.alpha() == 255 && border_bottom.color.alpha() == 255
         && border_left.color.alpha() == 255 && border_right.color.alpha() == 255) {
@@ -359,7 +359,7 @@ void paint_background(DisplayListRecordingContext& context, Paintable const& pai
         auto const& document = paintable_box.layout_node().document();
         // An SVG used as an image resolves `prefers-color-scheme` from the used `color-scheme` of
         // the element referencing it.
-        auto const color_scheme = paintable_box.computed_values().color_scheme();
+        auto const color_scheme = paintable_box.layout_node().color_scheme();
         if (auto color = image.color_if_single_pixel_bitmap(document); color.has_value()) {
             apply_blend_layer();
             // OPTIMIZATION: If the image is a single pixel, we can just fill the whole area with it.

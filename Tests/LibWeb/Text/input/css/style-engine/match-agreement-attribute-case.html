@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    [align="left"] { color: rgb(1, 2, 3) }
+    [title="left"] { background-color: rgb(4, 5, 6) }
+</style>
+<div id="legacy" align="LEFT" title="LEFT">legacy</div>
+<div id="exact" align="left" title="left">exact</div>
+<script>
+    test(() => {
+        // https://html.spec.whatwg.org/multipage/semantics-other.html#case-sensitivity-of-selectors
+        // A handful of attribute names compare their values ASCII case-insensitively, but only on an
+        // HTML element in an HTML document. `align` is one of them and `title` is not, so the two
+        // rules answer differently for the same value.
+        for (const id of ["legacy", "exact"]) {
+            const element = document.getElementById(id);
+            const style = getComputedStyle(element);
+            println(`${id}: ${style.color} / ${style.backgroundColor}`);
+        }
+        println(internals.styleEngineMatchedRules());
+    });
+</script>

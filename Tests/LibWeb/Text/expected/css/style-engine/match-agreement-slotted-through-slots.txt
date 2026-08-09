@@ -1,0 +1,8 @@
+named color: rgb(1, 2, 3)
+named background-color: rgb(4, 5, 6)
+named outline-color: rgb(1, 2, 3)
+reslotted border-top-color: rgb(10, 11, 12)
+reslotted border-left-color: rgb(13, 14, 15)
+ul#named-target: ::slotted(ul) slot[name="links"]::slotted(ul)
+p#reslotted-target: ::slotted(p) ::slotted(p)
+

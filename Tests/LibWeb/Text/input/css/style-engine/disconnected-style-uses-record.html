@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const first = document.createElement("canvas");
+        const firstContext = first.getContext("2d");
+        firstContext.font = "bold 24px serif";
+        const firstIdentity = internals.styleRecordIdentity(first);
+        println(`disconnected style has a record: ${firstIdentity !== 0}`);
+
+        const second = document.createElement("canvas");
+        second.getContext("2d").font = "bold 24px serif";
+        println(`equal disconnected styles share a record: ${internals.styleRecordIdentity(second) === firstIdentity}`);
+
+        first.style.color = "red";
+        firstContext.font = "bold 24px serif";
+        println(`a disconnected style change replaces the record: ${internals.styleRecordIdentity(first) !== firstIdentity}`);
+
+        document.body.append(first);
+        getComputedStyle(first).color;
+        println(`inserting the element keeps a record: ${internals.styleRecordIdentity(first) !== 0}`);
+    });
+</script>

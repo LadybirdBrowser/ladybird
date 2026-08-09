@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    /* Local features. */
+    div { --a: 1 }
+    .item { --b: 1 }
+    #target { --c: 1 }
+    [data-kind] { --d: 1 }
+    [data-kind="wide"] { --e: 1 }
+    [data-kind~="wide"] { --f: 1 }
+    [data-kind^="wi"] { --g: 1 }
+    [data-kind$="de"] { --h: 1 }
+    [data-kind*="id"] { --i: 1 }
+    [data-kind="WIDE" i] { --j: 1 }
+
+    /* Combinators. */
+    .box .item { --k: 1 }
+    .box > .item { --l: 1 }
+    .item + .item { --m: 1 }
+    .item ~ .item { --n: 1 }
+
+    /* Boolean and list. */
+    :is(.box, .panel) .item { --o: 1 }
+    :where(.box, .panel) .item { --p: 1 }
+    .item:not(.excluded) { --q: 1 }
+    .item:not(.excluded, .other) { --r: 1 }
+    .alpha, .beta { --s: 1 }
+
+    /* Structural. */
+    .box > :first-child { --t: 1 }
+    .box > :last-child { --u: 1 }
+    .box > :only-child { --v: 1 }
+    .box > :nth-child(2) { --w: 1 }
+    .box > :nth-child(odd) { --x: 1 }
+    .box > :nth-last-child(2) { --y: 1 }
+    .box > :first-of-type { --z: 1 }
+    .box > :nth-of-type(2) { --aa: 1 }
+    .box > :nth-child(2 of .item) { --ab: 1 }
+    :root { --ac: 1 }
+    .empty:empty { --ad: 1 }
+    /* A text child is not a style node, so only the element itself can say it is there. */
+    .texted:empty { --bt: 1 }
+    .commented:empty { --bu: 1 }
+    .spaced:empty { --bv: 1 }
+
+    /* Relational. */
+    .box:has(.item) { --ae: 1 }
+    .box:has(> .item) { --af: 1 }
+    .item:has(+ .item) { --ag: 1 }
+    .item:has(~ .marked) { --ah: 1 }
+    .box:has(.item.excluded) { --ai: 1 }
+    .box:has(.alpha, .missing) { --aj: 1 }
+
+    /* State. */
+    a:link { --ak: 1 }
+    input:enabled { --al: 1 }
+    input:disabled { --am: 1 }
+    input:checked { --an: 1 }
+    input:required { --ao: 1 }
+    input:optional { --ap: 1 }
+    input:read-only { --aq: 1 }
+    input:read-write { --ar: 1 }
+    input:placeholder-shown { --as: 1 }
+    input:in-range { --at: 1 }
+    details:open { --au: 1 }
+
+    /* Value states. A parameterized state is as selective as a class and is bucketed like one,
+       so a rule resting on nothing else has to be reachable through the value the element holds. */
+    :lang(en) { --av: 1 }
+    :dir(ltr) { --aw: 1 }
+    :dir(rtl) { --bm: 1 }
+    div:dir(rtl) { --bn: 1 }
+
+    /* Heading level, which counts the heading offset an ancestor declares. */
+    :heading { --bo: 1 }
+    :heading(2) { --bp: 1 }
+    :heading(3, 4) { --bq: 1 }
+    :heading(7) { --br: 1 }
+    :heading(9) { --bs: 1 }
+
+    /* Type-ish. */
+    :any-link { --ax: 1 }
+    * { --ay: 1 }
+    .box *, .panel * { --az: 1 }
+
+    /* Nesting. */
+    .nest {
+        --ba: 1;
+        & .item { --bb: 1 }
+        > .child { --bc: 1 }
+        &:hover { --bd: 1 }
+    }
+
+    /* Conditional groups. */
+    @media (min-width: 1px) {
+        .item { --be: 1 }
+    }
+    @supports (color: red) {
+        .item { --bf: 1 }
+    }
+    @layer base {
+        .item { --bg: 1 }
+    }
+    @scope (.box) to (.panel) {
+        .item { --bh: 1 }
+    }
+
+    /* Two scopes reaching the same element. The nearer scoping root wins, whatever order the
+       rules were written in, and both beat the same declaration from an unscoped rule. */
+    @scope (.outer-scope) {
+        .scoped-target { --bw: 1 }
+    }
+    @scope (.inner-scope) {
+        .scoped-target { --bx: 1 }
+    }
+    .scoped-target { --by: 1 }
+
+    /* Conditions that do not hold. A rule behind one keeps its identity and its place and
+       decides nothing, so none of these may reach an element. */
+    @media (min-width: 100000px) {
+        * { --bi: 1 }
+        .item { --bj: 1 }
+    }
+    @supports (nonsense-property: nonsense-value) {
+        * { --bk: 1 }
+    }
+    @media (min-width: 1px) {
+        @media (min-width: 100000px) {
+            * { --bl: 1 }
+        }
+    }
+</style>
+<div class="box" id="target" data-kind="wide" lang="en">
+    <div class="item alpha">a</div>
+    <div class="item excluded">b</div>
+    <span class="item marked">c</span>
+    <p class="empty"></p>
+    <p class="texted">text</p>
+    <p class="commented"><!-- comment --></p>
+    <p class="spaced"> </p>
+    <div class="panel">
+        <div class="item beta">d</div>
+    </div>
+</div>
+<div class="outer-scope"><div class="inner-scope"><div class="scoped-target">scoped</div></div></div>
+<div dir="rtl">rtl</div>
+<div class="nest">
+    <div class="item child">e</div>
+</div>
+<h2>h2</h2>
+<div headingoffset="1"><h2>offset h2, level 3</h2></div>
+<div headingreset><h3>reset h3</h3></div>
+<!-- An offset pushes a computed level past the six an element can be written as. Bare `:heading`
+     is still every level, and the level itself is clamped at nine. -->
+<div headingoffset="5"><h2>offset h2, level 7</h2></div>
+<div headingoffset="20"><h4>offset h4, clamped to level 9</h4></div>
+<a href="https://example.com/never-visited">link</a>
+<input type="text" required placeholder="p">
+<input type="checkbox" checked disabled>
+<details open><summary>s</summary></details>
+<script>
+    test(() => {
+        // A disagreement is printed as the selector that caused it, so the expectation below is a
+        // record of exactly which selectors StyleEngine's own matching does not yet answer the way
+        // the matcher styling still uses does.
+        println(internals.styleEngineMatchedRules());
+    });
+</script>

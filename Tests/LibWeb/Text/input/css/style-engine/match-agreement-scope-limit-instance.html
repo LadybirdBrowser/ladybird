@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @scope (.a) to (:scope > .b) {
+        span { color: rgb(1, 2, 3) }
+    }
+</style>
+<div class="a">
+    <div class="b"><span id="excluded">excluded by the outer root's own limit</span></div>
+    <div class="a">
+        <div class="b"><span id="still-in-the-outer-scope">in the outer scope, not the inner one</span></div>
+    </div>
+</div>
+<script>
+    test(() => {
+        // https://drafts.csswg.org/css-cascade-6/#scope-limits
+        // One `@scope` builds one scope per element its `<scope-start>` matches, and a limit is
+        // relative to each of those roots separately. `:scope > .b` therefore excludes a `.b` from
+        // the scope of its own parent and from no other, so the inner span stays in the outer
+        // `.a`'s scope even though the inner `.a` excludes it.
+        for (const id of ["excluded", "still-in-the-outer-scope"])
+            println(`${id}: ${getComputedStyle(document.getElementById(id)).color}`);
+        println(internals.styleEngineMatchedRules());
+    });
+</script>

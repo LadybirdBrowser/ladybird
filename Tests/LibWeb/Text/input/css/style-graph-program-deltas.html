@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style id="first">.a { color: red }</style>
+<script>
+    test(() => {
+        const before = internals.styleEngineCounters();
+
+        // Inserting a sheet between two existing ones names its successor; the engine writes one
+        // order token and renumbers nothing.
+        const middle = document.createElement("style");
+        middle.textContent = ".b { color: green }";
+        document.head.insertBefore(middle, null);
+
+        const last = document.createElement("style");
+        last.textContent = ".c { color: blue }";
+        document.head.appendChild(last);
+
+        document.body.offsetWidth;
+        const afterAdd = internals.styleEngineCounters();
+
+        middle.remove();
+        document.body.offsetWidth;
+        const afterRemove = internals.styleEngineCounters();
+
+        println(`attaching records program deltas: ${afterAdd.programDeltas > before.programDeltas}`);
+        println(`detaching records more: ${afterRemove.programDeltas > afterAdd.programDeltas}`);
+        println(`no scope markers: ${afterRemove.coarsenedScopeMarkers === 0}`);
+    });
+</script>

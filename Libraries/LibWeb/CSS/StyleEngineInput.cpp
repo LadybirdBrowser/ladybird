@@ -7,6 +7,7 @@
 #include <AK/NeverDestroyed.h>
 #include <LibWeb/CSS/CSSConditionRule.h>
 #include <LibWeb/CSS/CSSContainerRule.h>
+#include <LibWeb/CSS/CSSCounterStyleRule.h>
 #include <LibWeb/CSS/CSSFontFeatureValuesRule.h>
 #include <LibWeb/CSS/CSSFunctionRule.h>
 #include <LibWeb/CSS/CSSGroupingRule.h>
@@ -56,6 +57,11 @@ static HashTable<DOM::Element*>& preallocated_style_elements()
 {
     static NeverDestroyed<HashTable<DOM::Element*>> elements;
     return *elements;
+}
+
+static bool has_pending_initial_features(DOM::Element const& element)
+{
+    return element.document().style_computer().style_engine().has_deferred_element_initial_features(element.style_node_id());
 }
 
 static StyleEngine* style_engine_for(DOM::Node& node)
@@ -141,7 +147,7 @@ static StyleNodeID style_tree_parent_of(DOM::Element& element, StyleEngine& styl
 static StyleEngineFFI::FfiTreeRelations relations_of(DOM::Element& element, StyleEngine& style_engine)
 {
     auto assigned_slot = no_style_node;
-    if (auto slot = element.assigned_slot())
+    if (auto slot = element.assigned_slot_internal())
         assigned_slot = slot->style_node_id();
 
     return StyleEngineFFI::FfiTreeRelations {
@@ -237,7 +243,7 @@ void record_element_connected(DOM::Element& element)
         .old_relations = detached_relations(),
         .new_relations = relations_of(element, *style_engine),
     });
-    record_element_initial_features(element);
+    style_engine->defer_element_initial_features(element.style_node_id());
 
     // A slot can take its identity after the nodes assigned to it took theirs - a shadow tree built
     // from markup assigns before the slot connects - and a slottable's assignment is published as
@@ -248,6 +254,14 @@ void record_element_connected(DOM::Element& element)
             if (auto const* assigned = slottable.get_pointer<GC::Ref<DOM::Element>>())
                 record_element_assigned_slot_changed(**assigned, nullptr);
         }
+    }
+}
+
+void publish_pending_element_features(StyleEngine& style_engine, StyleComputer& style_computer)
+{
+    for (auto node : style_engine.take_deferred_element_initial_features()) {
+        if (auto element = style_computer.element_for_style_node(node))
+            record_element_initial_features(*element);
     }
 }
 
@@ -281,6 +295,68 @@ void prepare_style_nodes_for_subtree(DOM::Node& root)
         shadow_root.set_style_node_id(identity);
         style_engine.set_tree_scope_root(tree_scope_of(shadow_root), identity);
     }
+}
+
+enum class InvalidateLanguageCache {
+    No,
+    Yes,
+};
+
+// Publish every selector-visible fact intrinsic to one element. Connected elements and isolated
+// selector queries differ only in how an initial local feature delta describes its old side.
+template<typename PublishFeature, typename PublishEmptiness>
+static void publish_element_selector_features(StyleEngine& style_engine, DOM::Element& element, StyleNodeID node, PublishFeature publish_feature, PublishEmptiness publish_emptiness, InvalidateLanguageCache invalidate_language_cache)
+{
+    // Slot identity and namespace never change during an element's lifetime.
+    if (is<HTML::HTMLSlotElement>(element))
+        style_engine.set_element_is_slot(node, true);
+    if (auto const& namespace_uri = element.namespace_uri(); namespace_uri.has_value() && !namespace_uri->is_empty())
+        style_engine.set_element_namespace(node, style_engine.intern_case_sensitive_text_atom(namespace_uri->view()));
+
+    publish_feature(StyleEngineFFI::FfiFeatureKind::TagName, StyleAtomID {}, StyleEngineFFI::FfiFeatureValueKind::Atom, style_engine.intern_atom(element.local_name()));
+    if (auto folded_name = element.local_name().to_ascii_lowercase(); folded_name != element.local_name())
+        publish_feature(StyleEngineFFI::FfiFeatureKind::FoldedTagName, StyleAtomID {}, StyleEngineFFI::FfiFeatureValueKind::Atom, style_engine.intern_atom(folded_name));
+    if (auto const& id = element.id(); id.has_value())
+        publish_feature(StyleEngineFFI::FfiFeatureKind::Id, StyleAtomID {}, StyleEngineFFI::FfiFeatureValueKind::Atom, intern_id_or_class_atom(style_engine, element, *id));
+    for (auto const& class_name : element.class_names())
+        publish_feature(StyleEngineFFI::FfiFeatureKind::Class, intern_id_or_class_atom(style_engine, element, class_name), StyleEngineFFI::FfiFeatureValueKind::Present, StyleAtomID {});
+    element.for_each_attribute([&](DOM::Attr const& attribute) {
+        publish_feature(StyleEngineFFI::FfiFeatureKind::Attribute, attribute_name_atom(style_engine, attribute.local_name(), attribute.namespace_uri()), StyleEngineFFI::FfiFeatureValueKind::Atom, style_engine.intern_attribute_value(attribute.value()));
+    });
+
+    bool has_nonempty_text_child = false;
+    for (GC::Ptr<DOM::Node const> child = element.first_child(); child; child = child->next_sibling()) {
+        if (GC::Ptr<DOM::Text const> text = as_if<DOM::Text>(*child); text && !text->data().is_empty()) {
+            has_nonempty_text_child = true;
+            break;
+        }
+    }
+    publish_emptiness(has_nonempty_text_child);
+
+    auto states = SelectorMatching::element_states(element);
+    for (size_t index = 0; index < to_underlying(PseudoClass::__Count); ++index) {
+        auto pseudo_class = static_cast<PseudoClass>(index);
+        auto fact = state_fact_for(pseudo_class);
+        if (fact.has_value() && states.get(pseudo_class))
+            style_engine.record_state_delta({ .node = node.value(), .fact = *fact, .new_value = true });
+    }
+
+    auto const language = element.lang_view();
+    style_engine.set_element_language(node, language.has_value() ? style_engine.intern_text_atom(*language) : 0, language.value_or({}));
+    auto const directionality = element.directionality() == DOM::Element::Directionality::Rtl ? "rtl"sv : "ltr"sv;
+    style_engine.set_element_directionality(node, style_engine.intern_text_atom(Utf16View { directionality }));
+    if (invalidate_language_cache == InvalidateLanguageCache::Yes)
+        element.invalidate_lang_value();
+
+    GC::Ptr<HTML::HTMLHeadingElement const> heading = as_if<HTML::HTMLHeadingElement>(element);
+    style_engine.set_element_heading_level(node, static_cast<u8>(min(heading ? heading->heading_level() : 0, 255u)));
+
+    Vector<StyleAtomID> custom_states;
+    if (auto states = element.custom_state_set()) {
+        for (auto const& state : states->states())
+            custom_states.append(style_engine.intern_atom(state));
+    }
+    style_engine.set_element_custom_states(node, custom_states);
 }
 
 void populate_isolated_selector_query_engine(StyleEngine& style_engine, DOM::ParentNode& root, Function<void(GC::Ref<DOM::Element>, StyleNodeID)> const& publish_identity)
@@ -373,52 +449,17 @@ void populate_isolated_selector_query_engine(StyleEngine& style_engine, DOM::Par
             },
         });
 
-        if (is<HTML::HTMLSlotElement>(element))
-            style_engine.set_element_is_slot(node, true);
-        if (auto const& namespace_uri = element.namespace_uri(); namespace_uri.has_value() && !namespace_uri->is_empty())
-            style_engine.set_element_namespace(node, style_engine.intern_case_sensitive_text_atom(namespace_uri->view()));
-
-        record_query_feature(node, StyleEngineFFI::FfiFeatureKind::TagName, 0, StyleEngineFFI::FfiFeatureValueKind::Atom, style_engine.intern_atom(element.local_name()));
-        if (auto folded_name = element.local_name().to_ascii_lowercase(); folded_name != element.local_name())
-            record_query_feature(node, StyleEngineFFI::FfiFeatureKind::FoldedTagName, 0, StyleEngineFFI::FfiFeatureValueKind::Atom, style_engine.intern_atom(folded_name));
-        if (auto const& id = element.id(); id.has_value())
-            record_query_feature(node, StyleEngineFFI::FfiFeatureKind::Id, 0, StyleEngineFFI::FfiFeatureValueKind::Atom, intern_id_or_class_atom(style_engine, element, *id));
-        for (auto const& class_name : element.class_names())
-            record_query_feature(node, StyleEngineFFI::FfiFeatureKind::Class, intern_id_or_class_atom(style_engine, element, class_name), StyleEngineFFI::FfiFeatureValueKind::Present, 0);
-        element.for_each_attribute([&](DOM::Attr const& attribute) {
-            record_query_feature(node, StyleEngineFFI::FfiFeatureKind::Attribute, attribute_name_atom(style_engine, attribute.local_name(), attribute.namespace_uri()), StyleEngineFFI::FfiFeatureValueKind::Atom, style_engine.intern_attribute_value(attribute.value()));
-        });
-
-        bool has_nonempty_text_child = false;
-        for (GC::Ptr<DOM::Node const> child = element.first_child(); child; child = child->next_sibling()) {
-            if (GC::Ptr<DOM::Text const> text = as_if<DOM::Text>(*child); text && !text->data().is_empty()) {
-                has_nonempty_text_child = true;
-                break;
-            }
-        }
-        record_query_feature(node, StyleEngineFFI::FfiFeatureKind::Emptiness, 0, has_nonempty_text_child ? StyleEngineFFI::FfiFeatureValueKind::Absent : StyleEngineFFI::FfiFeatureValueKind::Present, 0);
-
-        auto states = SelectorMatching::element_states(element);
-        for (size_t index = 0; index < to_underlying(PseudoClass::__Count); ++index) {
-            auto pseudo_class = static_cast<PseudoClass>(index);
-            auto fact = state_fact_for(pseudo_class);
-            if (fact.has_value() && states.get(pseudo_class))
-                style_engine.record_state_delta({ .node = node.value(), .fact = *fact, .new_value = true });
-        }
-
-        auto const language = element.lang_view();
-        style_engine.set_element_language(node, language.has_value() ? style_engine.intern_text_atom(*language) : 0, language.value_or({}));
-        auto const directionality = element.directionality() == DOM::Element::Directionality::Rtl ? "rtl"sv : "ltr"sv;
-        style_engine.set_element_directionality(node, style_engine.intern_text_atom(Utf16View { directionality }));
-        GC::Ptr<HTML::HTMLHeadingElement const> heading = as_if<HTML::HTMLHeadingElement>(element);
-        style_engine.set_element_heading_level(node, static_cast<u8>(min(heading ? heading->heading_level() : 0, 255u)));
-
-        Vector<StyleAtomID> custom_states;
-        if (auto states = element.custom_state_set()) {
-            for (auto const& state : states->states())
-                custom_states.append(style_engine.intern_atom(state));
-        }
-        style_engine.set_element_custom_states(node, custom_states);
+        publish_element_selector_features(
+            style_engine,
+            element,
+            node,
+            [&](auto kind, auto name_atom, auto value_kind, auto value_atom) {
+                record_query_feature(node, kind, name_atom, value_kind, value_atom);
+            },
+            [&](bool has_nonempty_text_child) {
+                record_query_feature(node, StyleEngineFFI::FfiFeatureKind::Emptiness, 0, has_nonempty_text_child ? StyleEngineFFI::FfiFeatureValueKind::Absent : StyleEngineFFI::FfiFeatureValueKind::Present, 0);
+            },
+            InvalidateLanguageCache::No);
         return TraversalDecision::Continue;
     });
 
@@ -446,99 +487,37 @@ static void record_element_initial_features(DOM::Element& element)
     if (!style_engine || element.style_node_id() == no_style_node)
         return;
 
-    // Whether an element is a `<slot>` is fixed when it is created, and it decides whether
-    // `::slotted()` can name it: a slot standing in a shadow tree is not a flattened slottable of
-    // the tree it is assigned into, even though its own assignment carries the chain onward.
-    if (is<HTML::HTMLSlotElement>(element))
-        style_engine->set_element_is_slot(element.style_node_id(), true);
-
-    // An element's namespace is fixed when it is created, so it is published once, here, and is
-    // never an input that moves.
-    if (auto const& namespace_uri = element.namespace_uri(); namespace_uri.has_value() && !namespace_uri->is_empty())
-        style_engine->set_element_namespace(element.style_node_id(), style_engine->intern_case_sensitive_text_atom(namespace_uri->view()));
-
-    auto tag = style_engine->intern_atom(element.local_name());
-    record_feature(
+    publish_element_selector_features(
+        *style_engine,
         element,
-        StyleEngineFFI::FfiFeatureKind::TagName,
-        0,
-        StyleEngineFFI::FfiFeatureValueKind::Absent,
-        0,
-        StyleEngineFFI::FfiFeatureValueKind::Atom,
-        tag);
-
-    // A type selector is matched ASCII case-insensitively against an HTML element in an HTML
-    // document, so the engine dispatches selectors on their folded name. An element whose local
-    // name is not already lowercase has to be reachable under that name too. Folding an already
-    // lowercase name returns the same fly string, so the common case costs a pointer comparison.
-    if (auto folded_name = element.local_name().to_ascii_lowercase(); folded_name != element.local_name()) {
-        record_feature(
-            element,
-            StyleEngineFFI::FfiFeatureKind::FoldedTagName,
-            0,
-            StyleEngineFFI::FfiFeatureValueKind::Absent,
-            0,
-            StyleEngineFFI::FfiFeatureValueKind::Atom,
-            style_engine->intern_atom(folded_name));
-    }
-
-    if (auto const& id = element.id(); id.has_value()) {
-        auto atom = intern_id_or_class_atom(*style_engine, element, *id);
-        record_feature(
-            element,
-            StyleEngineFFI::FfiFeatureKind::Id,
-            0,
-            StyleEngineFFI::FfiFeatureValueKind::Absent,
-            0,
-            StyleEngineFFI::FfiFeatureValueKind::Atom,
-            atom);
-    }
+        element.style_node_id(),
+        [&](auto kind, auto name_atom, auto value_kind, auto value_atom) {
+            style_engine->record_local_feature_delta({
+                .node = element.style_node_id().value(),
+                .feature_kind = kind,
+                .name_atom = name_atom.value(),
+                .old_kind = StyleEngineFFI::FfiFeatureValueKind::Absent,
+                .old_atom = 0,
+                .new_kind = value_kind,
+                .new_atom = value_atom.value(),
+            });
+        },
+        [&](bool has_nonempty_text_child) {
+            style_engine->record_local_feature_delta({
+                .node = element.style_node_id().value(),
+                .feature_kind = StyleEngineFFI::FfiFeatureKind::Emptiness,
+                .name_atom = 0,
+                .old_kind = has_nonempty_text_child ? StyleEngineFFI::FfiFeatureValueKind::Present : StyleEngineFFI::FfiFeatureValueKind::Absent,
+                .old_atom = 0,
+                .new_kind = has_nonempty_text_child ? StyleEngineFFI::FfiFeatureValueKind::Absent : StyleEngineFFI::FfiFeatureValueKind::Present,
+                .new_atom = 0,
+            });
+        },
+        InvalidateLanguageCache::Yes);
 
     if (!element.part_names().is_empty())
         record_element_parts_changed(element);
-
-    // An element arrives already matching some of these: an `<input>` with no value is
-    // `:placeholder-shown` from the moment it connects, a `<details open>` is `:open`, and almost
-    // everything is `:read-only`. A state nothing publishes is not merely unrouted, it is a state no
-    // selector resting on it can ever match, so every one of them is asked rather than a list of the
-    // ones someone remembered. Only the states that hold are published, because a state that was
-    // never true and still is not has not changed.
-    auto states = SelectorMatching::element_states(element);
-    for (size_t index = 0; index < to_underlying(PseudoClass::__Count); ++index) {
-        auto pseudo_class = static_cast<PseudoClass>(index);
-        if (!state_fact_for(pseudo_class).has_value())
-            continue;
-        if (states.get(pseudo_class))
-            record_element_state_changed(element, pseudo_class, true);
-    }
-
-    record_element_language_and_directionality(element);
-    record_element_heading_level(element);
     record_element_inline_style_properties(element);
-
-    for (auto const& class_name : element.class_names()) {
-        auto atom = intern_id_or_class_atom(*style_engine, element, class_name);
-        record_feature(
-            element,
-            StyleEngineFFI::FfiFeatureKind::Class,
-            atom,
-            StyleEngineFFI::FfiFeatureValueKind::Absent,
-            0,
-            StyleEngineFFI::FfiFeatureValueKind::Present,
-            0);
-    }
-
-    element.for_each_attribute([&](DOM::Attr const& attribute) {
-        auto value = style_engine->intern_attribute_value(attribute.value());
-        record_feature(
-            element,
-            StyleEngineFFI::FfiFeatureKind::Attribute,
-            attribute_name_atom(*style_engine, attribute.local_name(), attribute.namespace_uri()),
-            StyleEngineFFI::FfiFeatureValueKind::Absent,
-            0,
-            StyleEngineFFI::FfiFeatureValueKind::Atom,
-            value);
-    });
 }
 
 void record_element_moved(DOM::Element& element, DOM::Node* old_parent, DOM::Element* old_previous_sibling, DOM::Element* old_next_sibling)
@@ -625,6 +604,8 @@ void record_element_disconnecting(DOM::Element& element)
     if (node == no_style_node)
         return;
 
+    style_engine->cancel_deferred_element_initial_features(node);
+
     style_engine->record_tree_delta({
         .node = node.value(),
         .old_connected = true,
@@ -692,7 +673,7 @@ void record_element_custom_property_names(DOM::Element& element, ReadonlySpan<Ut
 static void record_element_heading_level(DOM::Element& element)
 {
     auto* style_engine = style_engine_for(element);
-    if (!style_engine || element.style_node_id() == no_style_node)
+    if (!style_engine || element.style_node_id() == no_style_node || has_pending_initial_features(element))
         return;
 
     auto const* heading = as_if<HTML::HTMLHeadingElement>(element);
@@ -713,7 +694,7 @@ static void record_heading_levels_in_subtree(DOM::Element& element)
 void record_element_language_and_directionality(DOM::Element& element)
 {
     auto* style_engine = style_engine_for(element);
-    if (!style_engine || element.style_node_id() == no_style_node)
+    if (!style_engine || element.style_node_id() == no_style_node || has_pending_initial_features(element))
         return;
 
     auto const language = element.lang_view();
@@ -736,7 +717,7 @@ void record_element_language_and_directionality(DOM::Element& element)
 void record_element_custom_states_changed(DOM::Element& element)
 {
     auto* style_engine = style_engine_for(element);
-    if (!style_engine || element.style_node_id() == no_style_node)
+    if (!style_engine || element.style_node_id() == no_style_node || has_pending_initial_features(element))
         return;
 
     Vector<StyleAtomID> atoms;
@@ -794,7 +775,7 @@ static StyleNodeID collect_part_exposure(DOM::Element const& element, Vector<Utf
 void record_element_parts_changed(DOM::Element& element)
 {
     auto* style_engine = style_engine_for(element);
-    if (!style_engine || element.style_node_id() == no_style_node)
+    if (!style_engine || element.style_node_id() == no_style_node || has_pending_initial_features(element))
         return;
 
     // A rule naming a forwarded part names the element under the forwarded name, so the names it
@@ -928,7 +909,7 @@ struct DeclaredPropertyColumns {
 static void publish_element_declared_properties(DOM::Element& element, StyleEngineFFI::FfiElementDeclarationKind kind, ReadonlySpan<StyleProperty> style_properties, bool declarations_are_complete = true)
 {
     auto* style_engine = style_engine_for(element);
-    if (!style_engine || element.style_node_id() == no_style_node) {
+    if (!style_engine || element.style_node_id() == no_style_node || has_pending_initial_features(element)) {
         return;
     }
 
@@ -973,7 +954,7 @@ void record_element_declarations_changed(DOM::Element& element, ElementDeclarati
     element.retire_style_input_record();
 
     auto* style_engine = style_engine_for(element);
-    if (!style_engine || element.style_node_id() == no_style_node)
+    if (!style_engine || element.style_node_id() == no_style_node || has_pending_initial_features(element))
         return;
     if (!had_declarations && !has_declarations)
         return;
@@ -1141,7 +1122,7 @@ static void record_rule_declared_properties(StyleEngine& style_engine, StyleEngi
 // Where a compiled rule's identity is written. Author rules carry theirs on the rule object; the
 // user-agent and user sheets are process-wide singletons, so their rules cannot, and the document
 // that compiled them holds the identity instead.
-static void set_compiled_rule_id(CSSRule& rule, StyleEngineRuleID rule_id, HashMap<CSSRule const*, StyleEngineRuleID>* non_author_rule_ids, StyleComputer& style_computer, CascadeOrigin cascade_origin, Utf16FlyString const& layer_name)
+static void set_compiled_rule_id(CSSRule& rule, StyleEngineRuleID rule_id, HashMap<GC::Ptr<CSSRule const>, StyleEngineRuleID>* non_author_rule_ids, StyleComputer& style_computer, CascadeOrigin cascade_origin, Utf16FlyString const& layer_name)
 {
     if (non_author_rule_ids)
         non_author_rule_ids->set(&rule, rule_id);
@@ -1252,9 +1233,9 @@ struct RuleCompilationContext {
     StyleEngine& style_engine;
     SheetID sheet_handle;
     StyleEngineRuleID before_rule;
-    DOM::Document const& document;
-    StyleComputer& style_computer;
-    HashMap<CSSRule const*, StyleEngineRuleID>* non_author_rule_ids { nullptr };
+    GC::Ref<DOM::Document const> document;
+    GC::Ref<StyleComputer> style_computer;
+    HashMap<GC::Ptr<CSSRule const>, StyleEngineRuleID>* non_author_rule_ids { nullptr };
     Vector<void const*> scope_roots;
     Vector<void const*> scope_limits;
     StyleEngine::ScopeLevels scope_levels;
@@ -1270,8 +1251,8 @@ static void compile_rules_into(RuleCompilationContext const& context, CSSRule& r
     auto& style_engine = context.style_engine;
     auto const sheet_handle = context.sheet_handle;
     auto const before_rule = context.before_rule;
-    auto const& document = context.document;
-    auto& style_computer = context.style_computer;
+    auto const& document = *context.document;
+    auto& style_computer = *context.style_computer;
     auto* non_author_rule_ids = context.non_author_rule_ids;
     auto const& scope_roots = context.scope_roots;
     auto const& scope_limits = context.scope_limits;
@@ -1281,6 +1262,10 @@ static void compile_rules_into(RuleCompilationContext const& context, CSSRule& r
     auto const conditions_hold = context.conditions_hold;
     auto const in_a_layer = context.in_a_layer;
     auto const gated_by_container_query = context.gated_by_container_query;
+    auto record_initial_conditions = [&](StyleEngineRuleID rule_id) {
+        if (!conditions_hold)
+            style_engine.set_rule_conditions_hold(rule_id, false);
+    };
 
     // A block of nested declarations is a rule of its own: the cascade matches it by the selector its
     // position implies, which is its parent rule's selector, or `:where(:scope)` directly inside a
@@ -1307,8 +1292,7 @@ static void compile_rules_into(RuleCompilationContext const& context, CSSRule& r
                 style_engine.set_rule_gated_by_container_query(rule_id);
             // A rule behind a group whose condition does not hold keeps its identity and its place
             // and decides nothing, which is the same shape a disabled sheet has.
-            if (!conditions_hold)
-                style_engine.set_rule_conditions_hold(rule_id, false);
+            record_initial_conditions(rule_id);
             // Which layer a rule sits in is part of what the rule is: the cascade compares where
             // it sits, and a change to layer order moves every rule that references it.
             if (in_a_layer) {
@@ -1321,14 +1305,32 @@ static void compile_rules_into(RuleCompilationContext const& context, CSSRule& r
     // `@font-feature-values` matches nothing either, and unlike `@font-face` it has no consumer index
     // to be found by: it is in the program so that a change to it is an input at all.
     if (is<CSSFontFeatureValuesRule>(rule)) {
-        set_compiled_rule_id(rule, style_engine.add_font_feature_values_rule(sheet_handle, before_rule), non_author_rule_ids, style_computer, cascade_origin, layer_name);
+        auto rule_id = style_engine.add_font_feature_values_rule(sheet_handle, before_rule);
+        set_compiled_rule_id(rule, rule_id, non_author_rule_ids, style_computer, cascade_origin, layer_name);
+        record_initial_conditions(rule_id);
+        return;
+    }
+
+    // A counter style matches nothing, but changes the counter-style environment used by list
+    // markers and generated content. Keep its position and layer in the program so attachment,
+    // condition, and layer changes are routed like the environment changes they are.
+    if (is<CSSCounterStyleRule>(rule)) {
+        auto rule_id = style_engine.add_counter_style_rule(sheet_handle, before_rule);
+        set_compiled_rule_id(rule, rule_id, non_author_rule_ids, style_computer, cascade_origin, layer_name);
+        record_initial_conditions(rule_id);
+        if (in_a_layer) {
+            style_engine.set_rule_in_a_layer(rule_id);
+            style_engine.set_rule_layer(rule_id, style_engine.intern_atom(layer_name).value());
+        }
         return;
     }
 
     // A custom function contributes no declarations and matches nothing: the elements it decides for
     // are the ones that called it.
     if (is<CSSFunctionRule>(rule)) {
-        set_compiled_rule_id(rule, style_engine.add_function_rule(sheet_handle, before_rule), non_author_rule_ids, style_computer, cascade_origin, layer_name);
+        auto rule_id = style_engine.add_function_rule(sheet_handle, before_rule);
+        set_compiled_rule_id(rule, rule_id, non_author_rule_ids, style_computer, cascade_origin, layer_name);
+        record_initial_conditions(rule_id);
         return;
     }
 
@@ -1350,33 +1352,37 @@ static void compile_rules_into(RuleCompilationContext const& context, CSSRule& r
     // by: registering a property changes how every element that declares or references it computes.
     // It is in the program so that a change to it is an input at all.
     if (auto* property_rule = as_if<CSSPropertyRule>(rule)) {
+        auto rule_id = style_engine.add_property_rule(
+            sheet_handle,
+            before_rule,
+            style_engine.intern_atom(property_rule->name()),
+            property_rule->initial_value().has_value());
         set_compiled_rule_id(
             rule,
-            style_engine.add_property_rule(
-                sheet_handle,
-                before_rule,
-                style_engine.intern_atom(property_rule->name()),
-                property_rule->initial_value().has_value()),
+            rule_id,
             non_author_rule_ids,
             style_computer,
             cascade_origin,
             layer_name);
+        record_initial_conditions(rule_id);
         return;
     }
 
     // A `@keyframes` rule matches nothing, so it is in the program only to be found by the name it
     // declares - which is how a change to it reaches the elements running that animation.
     if (auto* keyframes_rule = as_if<CSSKeyframesRule>(rule)) {
+        auto rule_id = style_engine.add_keyframes_rule(
+            sheet_handle,
+            before_rule,
+            style_engine.intern_atom(keyframes_rule->name()));
         set_compiled_rule_id(
             rule,
-            style_engine.add_keyframes_rule(
-                sheet_handle,
-                before_rule,
-                style_engine.intern_atom(keyframes_rule->name())),
+            rule_id,
             non_author_rule_ids,
             style_computer,
             cascade_origin,
             layer_name);
+        record_initial_conditions(rule_id);
         return;
     }
 
@@ -1454,7 +1460,7 @@ static void collect_rules_in_cascade_order(CSSRuleList& rules, Vector<GC::Ref<CS
 
 // The engine rule that a rule compiled at `rule`'s position would come before, or 0 when nothing
 // follows it. Rules inside `rule` are skipped, because they are about to be compiled with it.
-static StyleEngineRuleID successor_of(CSSStyleSheet& sheet, CSSRule& rule)
+static StyleEngineRuleID successor_of(StyleComputer const& style_computer, CSSStyleSheet& sheet, CSSRule& rule)
 {
     Vector<GC::Ref<CSSRule>> order;
     collect_rules_in_cascade_order(sheet.rules(), order);
@@ -1470,7 +1476,7 @@ static StyleEngineRuleID successor_of(CSSStyleSheet& sheet, CSSRule& rule)
         collect_rules_in_cascade_order(grouping_rule->css_rules(), inside);
     }
     for (size_t index = *position + 1 + inside.size(); index < order.size(); ++index) {
-        if (auto rule_id = order[index]->style_engine_rule_id(); rule_id != 0)
+        if (auto rule_id = style_computer.style_engine_rule_id_for(order[index]); rule_id != 0)
             return rule_id;
     }
     return 0;
@@ -1508,17 +1514,35 @@ static void collect_enclosing_scope(CSSRule& rule, Vector<void const*>& scope_ro
 }
 
 // The sheet a rule's compiled rules belong to. An imported sheet's rules cascade in the importing
-// sheet's program, so the handle to compile into is the outermost sheet's.
+// sheet's program, so the handle to compile into is the outermost sheet's. A constructed sheet is
+// always its own engine sheet: its ids are held per adopting document, so its raw id member being 0
+// does not mean its rules live in another sheet's program.
 static CSSStyleSheet* owning_compiled_sheet(CSSRule& rule)
 {
     auto* sheet = rule.parent_style_sheet();
-    while (sheet && sheet->style_engine_sheet_id() == 0) {
+    while (sheet && !sheet->constructed() && sheet->style_engine_sheet_id() == 0) {
         auto owner = sheet->owner_rule();
         if (!owner)
             return nullptr;
         sheet = owner->parent_style_sheet();
     }
     return sheet;
+}
+
+// A constructed sheet compiles once per adopting document, so a mutation to it has to be replayed
+// into every document engine holding a copy; every other sheet has exactly one owning document.
+static void for_each_document_with_engine_copy(CSSStyleSheet& sheet, auto const& callback)
+{
+    if (sheet.constructed()) {
+        HashTable<DOM::Document*> documents;
+        for (auto owner : sheet.owning_documents_or_shadow_roots())
+            documents.set(&owner->document());
+        for (auto* document : documents)
+            callback(*document);
+        return;
+    }
+    if (auto document = sheet.owning_document())
+        callback(*document);
 }
 
 // Whether the conditions of every group a rule sits inside hold. A rule compiled on its own has to
@@ -1543,35 +1567,47 @@ static bool encloses_a_layer(CSSRule& rule)
     return false;
 }
 
-// A rule arrived. Compile it, and everything it brings with it, into the position it holds.
-void record_style_rule_inserted(CSSRule& rule)
+// A rule arrived in one document's engine. Compile it, and everything it brings with it, into the
+// position it holds there.
+static void record_style_rule_inserted_in(CSSRule& rule, CSSStyleSheet& sheet, DOM::Document& document)
 {
-    auto* sheet = owning_compiled_sheet(rule);
-    if (!sheet || sheet->style_engine_sheet_id() == 0)
-        return;
-    auto document = sheet->owning_document();
-    if (!document)
+    auto& style_computer = document.style_computer();
+    auto sheet_id = style_computer.style_engine_sheet_id_for(sheet);
+    if (sheet_id == 0)
         return;
 
-    document->bump_style_environment_version();
+    document.bump_style_environment_version();
 
     Vector<void const*> scope_roots;
     Vector<void const*> scope_limits;
     StyleEngine::ScopeLevels scope_levels;
     collect_enclosing_scope(rule, scope_roots, scope_limits, scope_levels);
     RuleCompilationContext context {
-        document->style_computer().style_engine(),
-        sheet->style_engine_sheet_id(),
-        successor_of(*sheet, rule),
-        *document,
-        document->style_computer()
+        style_computer.style_engine(),
+        sheet_id,
+        successor_of(style_computer, sheet, rule),
+        document,
+        style_computer
     };
+    if (sheet.constructed())
+        context.non_author_rule_ids = &style_computer.constructed_rule_ids();
     context.scope_roots = move(scope_roots);
     context.scope_limits = move(scope_limits);
     context.scope_levels = move(scope_levels);
-    context.conditions_hold = enclosing_conditions_hold(rule, *document);
+    context.conditions_hold = enclosing_conditions_hold(rule, document);
     context.in_a_layer = encloses_a_layer(rule);
     compile_rules_into(context, rule);
+}
+
+// A rule arrived. Compile it, and everything it brings with it, into the position it holds.
+void record_style_rule_inserted(CSSRule& rule)
+{
+    auto* sheet = owning_compiled_sheet(rule);
+    if (!sheet)
+        return;
+    for_each_document_with_engine_copy(*sheet, [&](DOM::Document& document) {
+        record_style_rule_inserted_in(rule, *sheet, document);
+    });
 }
 
 // A rule left. Retire the identities it compiled into, so nothing it decided keeps deciding.
@@ -1580,12 +1616,6 @@ void record_style_rule_inserted(CSSRule& rule)
 // the time this runs the rule no longer knows where it was.
 void record_style_rule_removed(CSSStyleSheet& sheet_it_left, CSSRule& rule)
 {
-    auto document = sheet_it_left.owning_document();
-    if (!document)
-        return;
-
-    document->bump_style_environment_version();
-
     Vector<GC::Ref<CSSRule>> removed;
     removed.append(rule);
     if (auto* import_rule = as_if<CSSImportRule>(rule)) {
@@ -1595,20 +1625,36 @@ void record_style_rule_removed(CSSStyleSheet& sheet_it_left, CSSRule& rule)
         collect_rules_in_cascade_order(grouping_rule->css_rules(), removed);
     }
 
-    auto& style_engine = document->style_computer().style_engine();
-    for (auto& entry : removed) {
-        // A layer declaration leaving reorders the layers as much as one arriving does, and it holds no
-        // rule identity that removing would carry the change for.
-        if (declares_a_layer(entry)) {
-            style_engine.record_layer_statement(sheet_it_left.style_engine_sheet_id());
-            document->style_scope().publish_cascade_layer_order();
+    bool any_engine_heard = false;
+    for_each_document_with_engine_copy(sheet_it_left, [&](DOM::Document& document) {
+        any_engine_heard = true;
+        document.bump_style_environment_version();
+
+        auto& style_computer = document.style_computer();
+        auto& style_engine = style_computer.style_engine();
+        for (auto& entry : removed) {
+            // A layer declaration leaving reorders the layers as much as one arriving does, and it holds no
+            // rule identity that removing would carry the change for.
+            if (declares_a_layer(entry)) {
+                if (auto sheet_id = style_computer.style_engine_sheet_id_for(sheet_it_left); sheet_id != 0)
+                    style_engine.record_layer_statement(sheet_id);
+                document.style_scope().publish_cascade_layer_order();
+            }
+            if (auto rule_id = style_computer.style_engine_rule_id_for(entry); rule_id != 0) {
+                style_computer.invalidate_parsed_substitutions_for_rule(rule_id);
+                style_engine.remove_rule(rule_id);
+                style_computer.non_author_rule_ids().remove(entry.ptr());
+                style_computer.constructed_rule_ids().remove(entry.ptr());
+            }
         }
-        if (auto rule_id = entry->style_engine_rule_id(); rule_id != 0) {
-            document->style_computer().invalidate_parsed_substitutions_for_rule(rule_id);
-            style_engine.remove_rule(rule_id);
-            entry->set_style_engine_rule_id(0);
-        }
-    }
+    });
+
+    // The identities are cleared after every engine copy heard the removal, so the loop above can
+    // still resolve them.
+    if (!any_engine_heard)
+        return;
+    for (auto& entry : removed)
+        entry->set_style_engine_rule_id(0);
 }
 
 // The selectors a rule matches by, replaced in place. A rule that compiled to nothing has no
@@ -1626,13 +1672,15 @@ static void replace_matching_selectors(CSSRule& rule, DOM::Document& document)
     if (!matching_selectors)
         return;
 
-    auto rule_id = rule.style_engine_rule_id();
+    auto& style_computer = document.style_computer();
+    auto rule_id = style_computer.style_engine_rule_id_for(rule);
     if (rule_id == 0) {
-        record_style_rule_inserted(rule);
+        if (auto* sheet = owning_compiled_sheet(rule))
+            record_style_rule_inserted_in(rule, *sheet, document);
         return;
     }
 
-    auto& style_engine = document.style_computer().style_engine();
+    auto& style_engine = style_computer.style_engine();
     Vector<void const*> selectors;
     selectors.ensure_capacity(matching_selectors->size());
     for (auto const& selector : *matching_selectors)
@@ -1654,24 +1702,24 @@ void record_style_rule_selector_changed(CSSStyleRule& rule)
     auto* sheet = owning_compiled_sheet(rule);
     if (!sheet)
         return;
-    auto document = sheet->owning_document();
-    if (!document)
-        return;
 
     // A nested rule's selector is written relative to the one it sits in, so a rule's selector
     // changing changes what everything nested inside it matches as well.
     Vector<GC::Ref<CSSRule>> affected;
     affected.append(rule);
     for (size_t index = 0; index < affected.size(); ++index) {
-        auto& affected_rule = *affected[index];
-        replace_matching_selectors(affected_rule, *document);
-        if (auto* grouping_rule = as_if<CSSGroupingRule>(affected_rule)) {
+        if (auto* grouping_rule = as_if<CSSGroupingRule>(*affected[index])) {
             for (size_t child = 0; child < grouping_rule->css_rules().length(); ++child) {
                 if (auto nested = grouping_rule->css_rules().item(child))
                     affected.append(*nested);
             }
         }
     }
+
+    for_each_document_with_engine_copy(*sheet, [&](DOM::Document& document) {
+        for (auto& affected_rule : affected)
+            replace_matching_selectors(*affected_rule, document);
+    });
 }
 
 // A rule kept its place and its selector, and changed what it declares.
@@ -1686,59 +1734,68 @@ void record_style_rule_declarations_changed(CSSRule& rule)
             return;
     }
 
-    auto rule_id = changed_rule->style_engine_rule_id();
-    if (rule_id == 0)
-        return;
     auto& rule_to_report = *changed_rule;
     auto* sheet = owning_compiled_sheet(rule_to_report);
     if (!sheet)
         return;
-    auto document = sheet->owning_document();
-    if (!document)
-        return;
 
-    // Every style input record naming this block names it by its identity, which has not moved.
-    document->bump_style_environment_version();
+    for_each_document_with_engine_copy(*sheet, [&](DOM::Document& document) {
+        auto& style_computer = document.style_computer();
+        auto rule_id = style_computer.style_engine_rule_id_for(rule_to_report);
+        if (rule_id == 0)
+            return;
 
-    auto& style_engine = document->style_computer().style_engine();
-    document->style_computer().invalidate_parsed_substitutions_for_rule(rule_id);
-    style_engine.record_rule_declarations_changed(rule_id, style_engine.next_declaration_block_version());
-    // Which properties the rule declares is part of what changed: an edit that adds or drops one
-    // changes which properties it can win.
-    record_rule_declared_properties(style_engine, rule_id, rule_to_report);
+        // Every style input record naming this block names it by its identity, which has not moved.
+        document.bump_style_environment_version();
+
+        auto& style_engine = style_computer.style_engine();
+        style_computer.invalidate_parsed_substitutions_for_rule(rule_id);
+        style_engine.record_rule_declarations_changed(rule_id, style_engine.next_declaration_block_version());
+        // Which properties the rule declares is part of what changed: an edit that adds or drops one
+        // changes which properties it can win.
+        record_rule_declared_properties(style_engine, rule_id, rule_to_report);
+    });
 }
 
 // `replace()` swaps a sheet's whole rule list, so there is nothing of the old one to keep.
 void record_stylesheet_rules_replaced(CSSStyleSheet& sheet)
 {
-    auto sheet_id = sheet.style_engine_sheet_id();
-    if (sheet_id == 0)
-        return;
-    auto document = sheet.owning_document();
-    if (!document)
-        return;
+    HashTable<DOM::Document*> documents;
+    for (auto owner : sheet.owning_documents_or_shadow_roots())
+        documents.set(&owner->document());
 
-    auto& style_engine = document->style_computer().style_engine();
-    style_engine.begin_sheet_rules_replacement(sheet_id);
-    RuleCompilationContext context { style_engine, sheet_id, 0, *document, document->style_computer() };
-    for (size_t index = 0; index < sheet.rules().length(); ++index) {
-        if (auto rule = sheet.rules().item(index))
-            compile_rules_into(context, *rule);
+    for (auto* document : documents) {
+        auto& style_computer = document->style_computer();
+        auto sheet_id = style_computer.style_engine_sheet_id_for(sheet);
+        if (sheet_id == 0)
+            continue;
+        auto& style_engine = style_computer.style_engine();
+        style_engine.begin_sheet_rules_replacement(sheet_id);
+        RuleCompilationContext context { style_engine, sheet_id, 0, *document, style_computer };
+        if (sheet.constructed())
+            context.non_author_rule_ids = &style_computer.constructed_rule_ids();
+        for (size_t index = 0; index < sheet.rules().length(); ++index) {
+            if (auto rule = sheet.rules().item(index))
+                compile_rules_into(context, *rule);
+        }
+        style_engine.finish_sheet_rules_replacement(sheet_id);
     }
-    style_engine.finish_sheet_rules_replacement(sheet_id);
 }
 
 void record_stylesheet_attached(CSSStyleSheet& sheet, DOM::Node& document_or_shadow_root, CSSStyleSheet* before)
 {
     publish_document_kind(document_or_shadow_root.document());
-    auto& style_engine = document_or_shadow_root.document().style_computer().style_engine();
-    auto first_attachment = sheet.style_engine_sheet_id() == 0;
+    auto& style_computer = document_or_shadow_root.document().style_computer();
+    auto& style_engine = style_computer.style_engine();
+    auto sheet_id = style_computer.style_engine_sheet_id_for(sheet);
+    auto first_attachment = sheet_id == 0;
     if (first_attachment) {
         // The CSSOM object's identity is what the program keys its wrapper by; the semantic sheet
         // is a separate identity that survives edits to its contents.
-        sheet.set_style_engine_sheet_id(style_engine.add_sheet(
+        sheet_id = style_engine.add_sheet(
             static_cast<u32>(reinterpret_cast<FlatPtr>(&sheet) >> 3),
-            StyleEngineFFI::FfiCascadeOrigin::Author));
+            StyleEngineFFI::FfiCascadeOrigin::Author);
+        style_computer.set_style_engine_sheet_id_for(sheet, sheet_id);
     }
     // A sheet attached to a shadow root is bounded by the tree it decides in, and what bounds it is
     // that tree's root. Attaching the root to its host numbers the scope but puts nothing in it, so
@@ -1750,15 +1807,15 @@ void record_stylesheet_attached(CSSStyleSheet& sheet, DOM::Node& document_or_sha
     // Naming the successor rather than a position is what lets the engine keep order as tokens: an
     // insertion writes one label and renumbers nothing.
     style_engine.attach_sheet(
-        sheet.style_engine_sheet_id(),
+        sheet_id,
         tree_scope_of(document_or_shadow_root),
-        before ? before->style_engine_sheet_id() : 0);
+        before ? style_computer.style_engine_sheet_id_for(*before) : 0);
 
     // A constructed sheet can be configured before anything adopts it, so attachment is its first
     // opportunity to publish the condition state.
     if (sheet.constructed()) {
         sheet.evaluate_media_queries(document_or_shadow_root.document());
-        style_engine.set_sheet_conditions_hold(sheet.style_engine_sheet_id(), !sheet.disabled() && sheet.media()->matches());
+        style_engine.set_sheet_conditions_hold(sheet_id, !sheet.disabled() && sheet.media()->matches());
     }
 
     // Layer ranks belong to the attachment's tree scope. Publishing them while attaching keeps the
@@ -1779,7 +1836,9 @@ void record_stylesheet_attached(CSSStyleSheet& sheet, DOM::Node& document_or_sha
     // of every rule.
     if (!first_attachment)
         return;
-    RuleCompilationContext context { style_engine, sheet.style_engine_sheet_id(), 0, document_or_shadow_root.document(), document_or_shadow_root.document().style_computer() };
+    RuleCompilationContext context { style_engine, sheet_id, 0, document_or_shadow_root.document(), style_computer };
+    if (sheet.constructed())
+        context.non_author_rule_ids = &style_computer.constructed_rule_ids();
     for (size_t index = 0; index < sheet.rules().length(); ++index) {
         if (auto rule = sheet.rules().item(index))
             compile_rules_into(context, *rule);
@@ -1816,7 +1875,7 @@ void record_non_author_stylesheets(DOM::Document& document)
     if (recorded.size() == sheets.size()) {
         bool unchanged = true;
         for (size_t index = 0; index < sheets.size(); ++index)
-            unchanged &= recorded[index].sheet == sheets[index].ptr();
+            unchanged &= recorded[index].sheet == sheets[index];
         if (unchanged)
             return;
     }
@@ -1858,17 +1917,18 @@ void record_non_author_stylesheets(DOM::Document& document)
 // A group's condition can come true or stop being true without the sheet's own media moving - a
 // viewport change is one `@media` becoming false and another becoming true. Each rule hears the
 // state it is now in, and the engine rejects the ones that did not move.
-static void record_rule_conditions_in(StyleEngine& style_engine, CSSRule& rule, bool conditions_hold, DOM::Document const& document)
+static void record_rule_conditions_in(StyleComputer& style_computer, CSSRule& rule, bool conditions_hold, DOM::Document const& document)
 {
-    if (auto* style_rule = as_if<CSSStyleRule>(rule); style_rule && style_rule->style_engine_rule_id() != 0)
-        style_engine.set_rule_conditions_hold(style_rule->style_engine_rule_id(), conditions_hold);
+    auto& style_engine = style_computer.style_engine();
+    if (auto rule_id = style_computer.style_engine_rule_id_for(rule); rule_id != 0)
+        style_engine.set_rule_conditions_hold(rule_id, conditions_hold);
 
     if (auto* import_rule = as_if<CSSImportRule>(rule)) {
         if (auto* imported = import_rule->loaded_style_sheet()) {
             auto imported_conditions_hold = conditions_hold && condition_holds(rule, document);
             for (size_t index = 0; index < imported->rules().length(); ++index) {
                 if (auto child = imported->rules().item(index))
-                    record_rule_conditions_in(style_engine, *child, imported_conditions_hold, document);
+                    record_rule_conditions_in(style_computer, *child, imported_conditions_hold, document);
             }
         }
         return;
@@ -1878,39 +1938,67 @@ static void record_rule_conditions_in(StyleEngine& style_engine, CSSRule& rule, 
         auto nested = conditions_hold && condition_holds(rule, document);
         for (size_t index = 0; index < grouping_rule->css_rules().length(); ++index) {
             if (auto child = grouping_rule->css_rules().item(index))
-                record_rule_conditions_in(style_engine, *child, nested, document);
+                record_rule_conditions_in(style_computer, *child, nested, document);
         }
     }
 }
 
+static CSSStyleSheet* owning_engine_sheet(CSSStyleSheet& sheet)
+{
+    // A constructed sheet is always its own engine sheet; its per-document ids make the raw member 0
+    // without its rules living in any other sheet's program.
+    if (sheet.constructed())
+        return &sheet;
+    auto* engine_sheet = &sheet;
+    while (engine_sheet->style_engine_sheet_id() == 0) {
+        auto owner = engine_sheet->owner_rule();
+        if (!owner)
+            return nullptr;
+        engine_sheet = owner->parent_style_sheet();
+        if (!engine_sheet)
+            return nullptr;
+    }
+    return engine_sheet;
+}
+
 void record_stylesheet_rule_conditions(CSSStyleSheet& sheet)
 {
-    if (sheet.style_engine_sheet_id() == 0)
+    auto* engine_sheet = owning_engine_sheet(sheet);
+    if (!engine_sheet)
         return;
-    auto document = sheet.owning_document();
-    if (!document)
-        return;
-    auto& style_engine = document->style_computer().style_engine();
+    for_each_document_with_engine_copy(*engine_sheet, [&](DOM::Document& document) {
+        record_stylesheet_rule_conditions(sheet, document);
+    });
+}
+
+void record_stylesheet_rule_conditions(CSSStyleSheet& sheet, DOM::Document& document)
+{
+    auto& style_computer = document.style_computer();
     for (size_t index = 0; index < sheet.rules().length(); ++index) {
         if (auto rule = sheet.rules().item(index))
-            record_rule_conditions_in(style_engine, *rule, true, *document);
+            record_rule_conditions_in(style_computer, *rule, true, document);
     }
 }
 
 void record_stylesheet_conditions(CSSStyleSheet& sheet, DOM::Node& document_or_shadow_root, bool conditions_hold)
 {
-    if (sheet.style_engine_sheet_id() == 0)
+    auto* engine_sheet = owning_engine_sheet(sheet);
+    if (!engine_sheet)
         return;
-    auto& style_engine = document_or_shadow_root.document().style_computer().style_engine();
-    style_engine.set_sheet_conditions_hold(sheet.style_engine_sheet_id(), conditions_hold);
+    auto& style_computer = document_or_shadow_root.document().style_computer();
+    auto sheet_id = style_computer.style_engine_sheet_id_for(*engine_sheet);
+    if (sheet_id == 0)
+        return;
+    style_computer.style_engine().set_sheet_conditions_hold(sheet_id, conditions_hold);
 }
 
 void record_stylesheet_detached(CSSStyleSheet& sheet, DOM::Node& document_or_shadow_root)
 {
-    if (sheet.style_engine_sheet_id() == 0)
+    auto& style_computer = document_or_shadow_root.document().style_computer();
+    auto sheet_id = style_computer.style_engine_sheet_id_for(sheet);
+    if (sheet_id == 0)
         return;
-    auto& style_engine = document_or_shadow_root.document().style_computer().style_engine();
-    style_engine.detach_sheet(sheet.style_engine_sheet_id(), tree_scope_of(document_or_shadow_root));
+    style_computer.style_engine().detach_sheet(sheet_id, tree_scope_of(document_or_shadow_root));
 }
 
 // Every boolean pseudo-class the parser can produce has a fact, so the switch is exhaustive over
@@ -1925,7 +2013,7 @@ void record_element_state_changed(DOM::Element& element, PseudoClass pseudo_clas
     if (!style_engine)
         return;
     auto node = element.style_node_id();
-    if (node == no_style_node)
+    if (node == no_style_node || has_pending_initial_features(element))
         return;
     auto fact = state_fact_for(pseudo_class);
     if (!fact.has_value())
@@ -1951,7 +2039,7 @@ static void record_feature(
     if (!style_engine)
         return;
     auto node = element.style_node_id();
-    if (node == no_style_node)
+    if (node == no_style_node || has_pending_initial_features(element))
         return;
 
     style_engine->record_local_feature_delta(

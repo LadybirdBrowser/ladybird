@@ -140,9 +140,9 @@ interface Internals {
 
     undefined clearElement(HTMLElement element);
 
-    // Returns a snapshot of the style-invalidation and recomputation counters for the current document.
-    // Keys include hasAncestorWalkInvocations, hasInvalidationRuleCacheBuilds,
-    // styleInvalidations, elementStyleRecomputations, and elementStyleNoopRecomputations.
+    // Returns a snapshot of the style engine counters exposed to LibWeb tests.
+    // Keys include styleEngineReactionBatchRuns, styleEnginePublishedReactions,
+    // elementStyleRecomputations, and styleEnvironmentVersion.
     [ImplementedAs=style_invalidation_counters_object] object getStyleInvalidationCounters();
     undefined resetStyleInvalidationCounters();
     // Returns the confinement report of the most recent layout tree build for the current
@@ -150,18 +150,28 @@ interface Internals {
     // subtrees rebuilt in place), lastBuildEscapedRebuildRoots (whether any tree mutation
     // escaped the rebuilt subtrees, disqualifying the build from partial relayout).
     object layoutTreeBuildStats();
-    // Returns process-wide ComputedValues instance statistics.
-    // Keys: liveComputedValues, totalComputedValuesCreated.
+    // Returns process-wide ComputedValues instance and retained representation statistics.
+    // Keys: liveComputedValues, totalComputedValuesCreated,
+    // retainedLegacyComputedPropertyArrayHolders, retainedLegacyComputedPropertyArrayBytes.
     object computedValuesStats();
     // Returns a snapshot of the process-wide style FFI boundary counters: one key per boundary
     // operation, counting calls into the Rust style core and callbacks it makes into C++.
     object styleFfiCounters();
+    object styleEngineCounters();
+    unsigned long long styleRecordIdentity(Element element);
+    unsigned long long layoutStyleRecordIdentity(Element element);
+    unsigned long long paintStyleRecordIdentity(Element element);
+    double styleEngineMatchDocument();
+    // Reports a snapshot of StyleEngine's matched rules for the whole document.
+    DOMString styleEngineMatchedRules();
+    object styleEngineTransactionReactions();
     undefined resetStyleFfiCounters();
     // Returns, for each ComputedValues style value group of the given element, whether the
     // group payload is shared with the parent element and whether it is the default payload.
     object styleGroupSharingInfo(Element element);
     // Flushes pending style work without forcing layout.
     undefined updateStyle();
+    undefined setUserStyle(Utf16DOMString source);
     undefined setPreferredColorScheme(Utf16DOMString colorScheme);
     // Simulates the window gaining or losing focus (e.g. browser chrome or another window taking focus).
     undefined setPageFocus(boolean hasFocus);
@@ -169,10 +179,12 @@ interface Internals {
     undefined setSystemVisibilityState(Utf16DOMString state);
     Utf16DOMString canvasColorScheme();
     // Returns the selector-insight cache state for stylesheet invalidation tests.
-    boolean styleSheetMayHaveHasSelectors(CSSStyleSheet sheet);
     object imageAnimationStateForURL(Utf16USVString url);
     boolean mediaElementIsFetching(HTMLMediaElement element);
     boolean mediaElementIsPlayingAudio(HTMLMediaElement element);
+    undefined setMediaElementReadyState(HTMLMediaElement element, unsigned short readyState);
+    undefined setMediaElementPaused(HTMLMediaElement element, boolean paused);
+    undefined setMediaElementSeeking(HTMLMediaElement element, boolean seeking);
     undefined setPageMuted(boolean muted);
 
     [ImplementedAs=async_scrolling_state_object] object asyncScrollingState();

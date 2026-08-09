@@ -16,12 +16,11 @@
 #include <AK/Utf16StringBuilder.h>
 #include <AK/Utf16View.h>
 #include <AK/Vector.h>
-#include <LibWeb/CSS/InvalidationSet.h>
+#include <LibWeb/Bindings/Node.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/DOM/FragmentSerializationMode.h>
 #include <LibWeb/DOM/NodeType.h>
 #include <LibWeb/DOM/Slottable.h>
-#include <LibWeb/DOM/StyleInvalidationReason.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/InvalidateDisplayList.h>
 #include <LibWeb/TraversalDecision.h>
@@ -230,6 +229,8 @@ public:
     virtual bool is_html_title_element() const { return false; }
     virtual bool is_html_br_element() const { return false; }
     virtual bool is_html_button_element() const { return false; }
+    virtual bool is_html_details_element() const { return false; }
+    virtual bool is_html_dialog_element() const { return false; }
     virtual bool is_html_slot_element() const { return false; }
     virtual bool is_html_embed_element() const { return false; }
     virtual bool is_html_object_element() const { return false; }
@@ -243,6 +244,7 @@ public:
     virtual bool is_html_textarea_element() const { return false; }
     virtual bool is_html_frameset_element() const { return false; }
     virtual bool is_html_fieldset_element() const { return false; }
+    virtual bool is_html_meter_element() const { return false; }
     virtual bool is_html_li_element() const { return false; }
     virtual bool is_html_menu_element() const { return false; }
     virtual bool is_html_olist_element() const { return false; }
@@ -398,24 +400,12 @@ public:
     [[nodiscard]] bool child_needs_layout_tree_update() const { return m_child_needs_layout_tree_update; }
     void set_child_needs_layout_tree_update(bool b) { m_child_needs_layout_tree_update = b; }
 
-    bool needs_style_update() const { return m_needs_style_update; }
-    void set_needs_style_update(bool);
-    void set_needs_style_update_internal(bool) { m_needs_style_update = true; }
-
-    bool child_needs_style_update() const { return m_child_needs_style_update; }
-    void set_child_needs_style_update(bool b) { m_child_needs_style_update = b; }
-
-    [[nodiscard]] bool entire_subtree_needs_style_update() const { return m_entire_subtree_needs_style_update; }
-    void set_entire_subtree_needs_style_update(bool b) { m_entire_subtree_needs_style_update = b; }
-
     [[nodiscard]] bool children_may_depend_on_non_inherited_property_inheritance() const { return m_children_may_depend_on_non_inherited_property_inheritance; }
     void set_children_may_depend_on_non_inherited_property_inheritance() { m_children_may_depend_on_non_inherited_property_inheritance = true; }
 
-    void invalidate_style(StyleInvalidationReason);
-    void invalidate_style(StyleInvalidationReason, Vector<CSS::InvalidationSet::Property> const&, StyleInvalidationOptions);
+    void record_style_environment_change();
     CSS::StyleScope& style_scope();
     CSS::StyleScope const& style_scope() const { return const_cast<Node*>(this)->style_scope(); }
-    void for_each_style_scope_which_may_observe_the_node(Function<void(CSS::StyleScope&)> const&);
 
     void set_document(Badge<Document, NamedNodeMap>, Document&);
 
@@ -555,9 +545,6 @@ protected:
     bool m_needs_layout_tree_update { false };
     bool m_child_needs_layout_tree_update { false };
 
-    bool m_needs_style_update { false };
-    bool m_child_needs_style_update { false };
-    bool m_entire_subtree_needs_style_update { false };
     bool m_children_may_depend_on_non_inherited_property_inheritance { false };
     bool m_in_editable_subtree { false };
     bool m_is_connected { false };

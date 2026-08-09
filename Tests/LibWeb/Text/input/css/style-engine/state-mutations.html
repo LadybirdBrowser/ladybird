@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="plan.js"></script>
+<style>
+    #guard:focus .item { color: green }
+    #box:hover { color: green }
+    input:checked + .after { color: green }
+    input:disabled ~ .later { color: green }
+    fieldset:has(:invalid) .flag { color: green }
+    #guard:focus-within .within { color: green }
+</style>
+<div id="guard" tabindex="0">
+    <span id="item" class="item"></span>
+    <span id="within" class="within"></span>
+    <span id="quiet"></span>
+</div>
+<div id="box"></div>
+<form>
+    <fieldset id="fieldset">
+        <input id="checkbox" type="checkbox">
+        <span id="after" class="after"></span>
+        <span id="later" class="later"></span>
+        <span id="flag" class="flag"></span>
+        <input id="required" required>
+    </fieldset>
+</form>
+<script>
+    test(() => {
+        const guard = document.getElementById("guard");
+        const checkbox = document.getElementById("checkbox");
+
+        // Focus reaches the .item and .within under the guard, plus whatever the user-agent sheet
+        // styles by focus, and stops there. The unclassed span beside them is untouched.
+        plan("focus the guard", () => guard.focus({ preventScroll: true }));
+        plan("blur the guard", () => guard.blur());
+
+        // Checking a box reaches its next sibling, not the one after that.
+        plan("check the box", () => checkbox.checked = true);
+        plan("uncheck it", () => checkbox.checked = false);
+
+        // Disabling reaches the following siblings a general combinator names.
+        plan("disable the box", () => checkbox.disabled = true);
+        plan("enable it", () => checkbox.disabled = false);
+
+        // Validity is not element-local: it moves for the form and the fieldsets above it, which is
+        // what lets `fieldset:has(:invalid)` be reached at all.
+        const required = document.getElementById("required");
+        plan("make a field valid", () => required.value = "filled");
+        plan("make it invalid again", () => required.value = "");
+
+        // No author rule mentions popovers, so this reaches only the element the user-agent sheet
+        // styles for having one, and nothing around it.
+        plan("set a state only the user-agent sheet mentions", () => document.getElementById("quiet").setAttribute("popover", "auto"));
+    });
+</script>

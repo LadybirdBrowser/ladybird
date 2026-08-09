@@ -1,0 +1,12 @@
+shown color: rgb(4, 5, 6)
+shown reaction batch runs: 1
+shown reaction elements: 1
+shown published reactions: 1
+shown recomputations: 1
+shown read recomputations: 0
+hidden color: rgb(1, 2, 3)
+hidden reaction batch runs: 1
+hidden reaction elements: 1
+hidden published reactions: 1
+hidden recomputations: 1
+hidden read recomputations: 1

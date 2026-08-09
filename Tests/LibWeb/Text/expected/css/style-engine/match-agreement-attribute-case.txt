@@ -1,0 +1,5 @@
+legacy: rgb(1, 2, 3) / rgba(0, 0, 0, 0)
+exact: rgb(1, 2, 3) / rgb(4, 5, 6)
+div#legacy: [align="left"]
+div#exact: [align="left"] [title="left"]
+

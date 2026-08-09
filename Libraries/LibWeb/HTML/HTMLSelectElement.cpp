@@ -47,6 +47,17 @@ HTMLSelectElement::HTMLSelectElement(DOM::Document& document, DOM::QualifiedName
 
 HTMLSelectElement::~HTMLSelectElement() = default;
 
+// `:user-valid` and `:user-invalid` turn on the first time the user has interacted with the
+// control, which no attribute and no value says. The style engine is told what the element now
+// holds rather than asking.
+void HTMLSelectElement::set_user_validity(bool flag)
+{
+    if (m_user_validity == flag)
+        return;
+    m_user_validity = flag;
+    CSS::Invalidation::invalidate_style_after_validity_change(*this);
+}
+
 void HTMLSelectElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
@@ -495,7 +506,7 @@ void HTMLSelectElement::set_is_open(bool open)
         return;
 
     m_is_open = open;
-    CSS::Invalidation::invalidate_style_after_select_open_state_change(*this);
+    CSS::Invalidation::invalidate_style_after_select_open_state_change(*this, open);
 }
 
 bool HTMLSelectElement::has_activation_behavior() const
@@ -664,7 +675,9 @@ void HTMLSelectElement::computed_properties_changed()
 {
     // Hide chevron icon when appearance is none
     if (m_chevron_icon_element) {
-        auto appearance = computed_values()->appearance();
+        auto style = computed_style();
+        VERIFY(style);
+        auto appearance = style->appearance();
         if (appearance == CSS::Appearance::None) {
             MUST(m_chevron_icon_element->style()->set_property(CSS::PropertyID::Display, "none"_utf16));
             MUST(m_inner_text_element->style()->set_property(CSS::PropertyID::MarginInlineEnd, "0"_utf16));

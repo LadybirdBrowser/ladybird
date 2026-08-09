@@ -62,6 +62,7 @@ use super::transaction::StateFact;
 use super::tree::PseudoElementTarget;
 use super::tree::StyleNodeID;
 use super::tree::StyleNodeTree;
+use super::tree::TreeScopeID;
 pub use crate::css::selector::Specificity;
 
 #[cfg(feature = "style-recording")]
@@ -628,6 +629,10 @@ pub struct SelectorProgram {
     relative_queries: Vec<RelativeQuery>,
     /// Ranges into `text`, one per extended language range a `:lang()` names.
     language_ranges: Vec<(u32, u32)>,
+    /// Immutable dispatch analysis, retained so rebuilding scope dispatches does not repeatedly
+    /// allocate the same per-entry key sets.
+    subject_dispatch_keys: Vec<Box<[DispatchKey]>>,
+    subject_required_keys: Vec<Box<[DispatchKey]>>,
     can_leave_scope: bool,
 }
 
@@ -732,9 +737,21 @@ impl SelectorProgram {
                 self.entries,
                 self.relative_queries,
                 self.language_ranges,
+                self.subject_dispatch_keys,
+                self.subject_required_keys,
             ];
             cached [];
-            nested [size_of::<bool>()];
+            nested [
+                size_of::<bool>(),
+                self.subject_dispatch_keys
+                    .iter()
+                    .map(|keys| size_of_val(keys.as_ref()) as u64)
+                    .sum::<u64>(),
+                self.subject_required_keys
+                    .iter()
+                    .map(|keys| size_of_val(keys.as_ref()) as u64)
+                    .sum::<u64>(),
+            ];
             skip [self.can_leave_scope];
         }
     }
@@ -946,11 +963,24 @@ impl SelectorProgramBuilder {
             .entries
             .iter()
             .any(|entry| self.program.leaves_its_scope(entry.root));
+        self.program.cache_subject_dispatch_analysis();
         self.program
     }
 }
 
 impl SelectorProgram {
+    fn cache_subject_dispatch_analysis(&mut self) {
+        let (subject_dispatch_keys, subject_required_keys): (Vec<_>, Vec<_>) = (0..self.entries.len())
+            .map(|entry| {
+                let dispatch = self.compute_subject_dispatch_keys(entry);
+                let required = self.compute_subject_required_keys(entry, &dispatch);
+                (dispatch.into_boxed_slice(), required.into_boxed_slice())
+            })
+            .unzip();
+        self.subject_dispatch_keys = subject_dispatch_keys;
+        self.subject_required_keys = subject_required_keys;
+    }
+
     /// Decompose a selector whose tree relations are its linear chain over all four axes:
     /// descendant, child, adjacent, and general sibling. This is the form the prefix automaton
     /// registers.
@@ -1360,7 +1390,11 @@ impl SelectorProgram {
 
     /// The same, as the set of keys the subject can be reached by. Empty means it has none.
     #[must_use]
-    pub fn subject_dispatch_keys(&self, entry: usize) -> Vec<DispatchKey> {
+    pub fn subject_dispatch_keys(&self, entry: usize) -> &[DispatchKey] {
+        &self.subject_dispatch_keys[entry]
+    }
+
+    fn compute_subject_dispatch_keys(&self, entry: usize) -> Vec<DispatchKey> {
         let mut keys = Vec::new();
         if !self.dispatch_keys_of(self.entries()[entry].root, &mut keys) {
             keys.clear();
@@ -1378,7 +1412,11 @@ impl SelectorProgram {
     /// Operators that cannot express one independently necessary key contribute nothing. That is
     /// the conservative direction: the candidate survives and the exact matcher settles it.
     #[must_use]
-    pub fn subject_required_keys(&self, entry: usize, dispatch: &[DispatchKey]) -> Vec<DispatchKey> {
+    pub fn subject_required_keys(&self, entry: usize) -> &[DispatchKey] {
+        &self.subject_required_keys[entry]
+    }
+
+    fn compute_subject_required_keys(&self, entry: usize, dispatch: &[DispatchKey]) -> Vec<DispatchKey> {
         let mut keys = Vec::new();
         self.required_dispatch_keys_of(self.entries()[entry].root, &mut keys);
         if let [already_required] = dispatch {
@@ -1898,19 +1936,37 @@ impl SelectorProgram {
             // An implicit scoping root can be the host, and nothing in the program says whether
             // this one is. Asking the host is the widest of the two answers.
             SelectorOp::IsNode(_) => true,
-            // A scope rooted at the host makes `:scope` name the host, so a rule inside one whose
-            // subject may be the scoping root has the host as a subject.
+            // `:scope` is explicitly allowed to match a featureless host when that host is the
+            // scoping root. The inner selector otherwise decides which element is the subject.
             SelectorOp::InScope {
                 root,
                 inner,
                 names_the_scope,
                 ..
             } => self.subject_is_the_host(inner) || (names_the_scope && self.subject_is_the_host(root)),
-            SelectorOp::And { first, count } | SelectorOp::Or { first, count } => self
+            // Every simple selector in a compound has to be allowed to match a featureless host.
+            // `:has()` is the one exception: it is allowed when another simple selector in the
+            // compound is allowed, so it does not disqualify an otherwise valid host compound.
+            SelectorOp::And { first, count } => {
+                let operands = self.operands(first, count);
+                operands.iter().any(|&operand| {
+                    !matches!(
+                        self.node(operand),
+                        SelectorOp::Feature(FeatureTest::AnyElement) | SelectorOp::RelativeExists(_)
+                    ) && self.subject_is_the_host(operand)
+                }) && operands.iter().all(|&operand| {
+                    matches!(
+                        self.node(operand),
+                        SelectorOp::Feature(FeatureTest::AnyElement) | SelectorOp::RelativeExists(_)
+                    ) || self.subject_is_the_host(operand)
+                })
+            }
+            SelectorOp::Or { first, count } => self
                 .operands(first, count)
                 .iter()
                 .any(|&operand| self.subject_is_the_host(operand)),
             SelectorOp::Where(inner) | SelectorOp::Not(inner) => self.subject_is_the_host(inner),
+            SelectorOp::ScopeRootInstance => true,
             _ => false,
         }
     }
@@ -1942,6 +1998,7 @@ impl SelectorProgram {
     pub fn subject_is_a_part(&self, id: SelectorNodeID) -> bool {
         match self.node(id) {
             SelectorOp::Part(_) | SelectorOp::ExposedToHost { .. } => true,
+            SelectorOp::InScope { inner, .. } => self.subject_is_a_part(inner),
             SelectorOp::And { first, count } | SelectorOp::Or { first, count } => self
                 .operands(first, count)
                 .iter()
@@ -2206,6 +2263,14 @@ impl SelectorPrograms {
             ));
         }
         self.rebuild_program_index();
+    }
+
+    #[must_use]
+    pub(super) fn has_unreferenced_programs(&self, referenced: &[bool]) -> bool {
+        self.programs
+            .iter()
+            .enumerate()
+            .any(|(index, program)| program.is_some() && !referenced.get(index).copied().unwrap_or(false))
     }
 
     #[must_use]
@@ -3106,7 +3171,7 @@ impl RoutingRegistry {
         for entry in 0..compiled.entries().len() {
             let selector_entry = compiled.entries()[entry];
             let subject_dispatch = compiled.subject_dispatch_keys(entry);
-            let subject_required = compiled.subject_required_keys(entry, &subject_dispatch);
+            let subject_required = compiled.subject_required_keys(entry);
             let subject_position = compiled.subject_position(entry);
             compiled.collect_transpose_entry_points(entry, |site| {
                 self.insert(
@@ -3116,8 +3181,8 @@ impl RoutingRegistry {
                         program,
                         entry: u32::try_from(entry).expect("selector entry space exhausted"),
                         structural_node: (site.key == RoutingKey::Structural).then_some(site.node),
-                        subject_dispatch: &subject_dispatch,
-                        subject_required: &subject_required,
+                        subject_dispatch,
+                        subject_required,
                         subject_position,
                         origin_dispatch: site.origin_dispatch,
                         origin_required: site.origin_required,
@@ -3358,6 +3423,8 @@ pub struct MatchEvaluator<'a> {
     /// The shadow root of the tree whose rules are being evaluated, when it is one. `:host` names
     /// the host of the tree its rule is in, so a rule from the document scope names no host at all.
     scope_shadow_root: Option<StyleNodeID>,
+    /// The outer tree scope asking about a part exposed from a shadow tree.
+    part_exposure_scope: Option<TreeScopeID>,
     /// The scoping root a `<scope-end>` is currently being checked against. Bound only while the
     /// limit walk runs, because that is the only place one scope instance is distinguishable from
     /// another. Interior mutability so that evaluation stays a shared borrow.
@@ -4111,6 +4178,7 @@ impl<'a> MatchEvaluator<'a> {
             facts,
             transaction_fact_view: None,
             scope_shadow_root: None,
+            part_exposure_scope: None,
             scope_root_instance: Cell::new(None),
             root_matches_parentless_node: true,
             relative_anchor: Cell::new(None),
@@ -4124,6 +4192,13 @@ impl<'a> MatchEvaluator<'a> {
     #[must_use]
     pub fn in_shadow_tree(mut self, shadow_root: StyleNodeID) -> Self {
         self.scope_shadow_root = Some(shadow_root);
+        self
+    }
+
+    /// Evaluate a part through the tree scope it is exposed to.
+    #[must_use]
+    pub fn for_a_part_exposed_in(mut self, scope: TreeScopeID) -> Self {
+        self.part_exposure_scope = Some(scope);
         self
     }
 
@@ -4355,6 +4430,19 @@ impl<'a> MatchEvaluator<'a> {
         let result = self.matches_node(program, entry.root, node, counters);
         self.transitive_relation_program.set(previous);
         result
+    }
+
+    /// Evaluate one entry without admitting its primitive and transitive relation answers to the
+    /// shared program caches. Narrow exact comparisons consume the answer once, so they keep the
+    /// workspace's positional geometry but avoid canonicalization and sparse-column traffic.
+    pub(super) fn matches_entry_without_program_caches(
+        &self,
+        program: &SelectorProgram,
+        entry: &SelectorEntry,
+        node: StyleNodeID,
+        counters: &mut Counters,
+    ) -> Result<bool, Incomplete> {
+        self.matches_node(program, entry.root, node, counters)
     }
 
     /// Whether `node` matches one selector IR node. Routing's retained-witness check uses this to
@@ -4886,6 +4974,40 @@ impl<'a> MatchEvaluator<'a> {
                 // asked before the binding moves, because `:scope` written in one names the scope it
                 // is nested in rather than the scope it opens.
                 let enclosing_root = self.scope_root_instance.get();
+
+                // A part stands inside a shadow tree, but an outer scope reaches it through the
+                // host exposing it. Scope membership is therefore measured from that host rather
+                // than from the part's DOM parent chain, which stops at the shadow root.
+                if let Some(part_exposure_scope) = self.part_exposure_scope
+                    && program.subject_is_a_part(inner)
+                {
+                    for level_host in self.part_exposure_hosts(node) {
+                        if self.tree.tree_scope(level_host) != part_exposure_scope {
+                            continue;
+                        }
+                        let mut candidate = match names_the_scope {
+                            true => Some(level_host),
+                            false => self.tree.parent(level_host),
+                        };
+                        while let Some(root_candidate) = candidate {
+                            if self.matches_node(program, root, root_candidate, counters)? {
+                                let outer = self.scope_root_instance.replace(Some(root_candidate));
+                                let answer =
+                                    self.subject_is_in_scope(program, limit, inner, node, root_candidate, counters);
+                                self.scope_root_instance.set(outer);
+                                if answer? {
+                                    return Ok(true);
+                                }
+                            }
+                            if Some(root_candidate) == enclosing_root {
+                                break;
+                            }
+                            candidate = self.tree.parent(root_candidate);
+                        }
+                    }
+                    return Ok(false);
+                }
+
                 let mut candidate = match names_the_scope {
                     true => Some(node),
                     false => self.tree.parent(node),
@@ -5750,7 +5872,7 @@ mod tests {
         });
 
         assert_eq!(
-            program.subject_required_keys(0, &program.subject_dispatch_keys(0)),
+            program.subject_required_keys(0),
             vec![DispatchKey::Class(CLASS_ITEM), DispatchKey::TagName(TAG_SPAN),]
         );
     }
@@ -5767,8 +5889,8 @@ mod tests {
         });
 
         assert_eq!(
-            program.subject_required_keys(0, &program.subject_dispatch_keys(0)),
-            Vec::<DispatchKey>::new(),
+            program.subject_required_keys(0),
+            &[],
             "neither alternative is independently necessary"
         );
     }

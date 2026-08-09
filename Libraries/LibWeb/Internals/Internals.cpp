@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/HashTable.h>
 #include <AK/JsonObject.h>
 #include <AK/NumericLimits.h>
 #include <AK/Utf16String.h>
@@ -24,19 +25,30 @@
 #include <LibURL/Parser.h>
 #include <LibWeb/ARIA/AriaData.h>
 #include <LibWeb/ARIA/StateAndProperties.h>
+#include <LibWeb/Bindings/Internals.h>
+#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/Node.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
+#include <LibWeb/CSS/CSSGroupingRule.h>
+#include <LibWeb/CSS/CSSImportRule.h>
+#include <LibWeb/CSS/CSSNestedDeclarations.h>
+#include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
+#include <LibWeb/CSS/PseudoElement.h>
+#include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/CSS/StyleSheetList.h>
 #include <LibWeb/Compositor/AsyncScrollTree.h>
 #include <LibWeb/Compositor/AsyncScrollingState.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/DOM/NodeList.h>
+#include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
@@ -969,6 +981,23 @@ bool Internals::media_element_is_playing_audio(HTML::HTMLMediaElement& element)
     return element.is_playing_audio();
 }
 
+void Internals::set_media_element_ready_state(HTML::HTMLMediaElement& element, u16 ready_state)
+{
+    if (ready_state > to_underlying(HTML::HTMLMediaElement::ReadyState::HaveEnoughData))
+        return;
+    element.set_ready_state(static_cast<HTML::HTMLMediaElement::ReadyState>(ready_state));
+}
+
+void Internals::set_media_element_paused(HTML::HTMLMediaElement& element, bool paused)
+{
+    element.set_paused(paused);
+}
+
+void Internals::set_media_element_seeking(HTML::HTMLMediaElement& element, bool seeking)
+{
+    element.set_seeking(seeking);
+}
+
 void Internals::set_page_muted(bool muted)
 {
     window().associated_document().page().set_page_mute_state(muted ? HTML::MuteState::Muted : HTML::MuteState::Unmuted);
@@ -1009,6 +1038,191 @@ GC::Ref<JS::Object> Internals::style_ffi_counters()
     return object;
 }
 
+GC::Ref<JS::Object> Internals::style_engine_counters()
+{
+    auto& realm = HTML::relevant_realm(window());
+    auto object = JS::Object::create(realm, nullptr);
+    auto& style_engine = window().associated_document().style_computer().style_engine();
+    StringView name;
+    u64 value = 0;
+    for (size_t index = 0; style_engine.counter(index, name, value); ++index) {
+        object->define_direct_property(
+            Utf16FlyString::from_utf8(name),
+            JS::Value(static_cast<double>(value)),
+            JS::default_attributes);
+    }
+    return object;
+}
+
+u64 Internals::style_record_identity(DOM::Element& element)
+{
+    return element.style_record_identity().value();
+}
+
+u64 Internals::layout_style_record_identity(DOM::Element& element)
+{
+    element.document().update_layout(DOM::UpdateLayoutReason::Debugging);
+    auto const* layout_node = element.unsafe_layout_node();
+    return layout_node ? layout_node->style_record_identity().value() : 0;
+}
+
+u64 Internals::paint_style_record_identity(DOM::Element& element)
+{
+    element.document().update_layout(DOM::UpdateLayoutReason::Debugging);
+    auto const* layout_node = element.unsafe_layout_node();
+    if (!layout_node)
+        return 0;
+    auto paintable = layout_node->paintable();
+    return paintable ? paintable->style_record_identity().value() : 0;
+}
+
+GC::Ref<JS::Object> Internals::style_engine_transaction_reactions()
+{
+    auto& realm = HTML::relevant_realm(window());
+    auto& document = window().associated_document();
+    auto& style_computer = document.style_computer();
+    auto object = JS::Object::create(realm, nullptr);
+
+    auto* root = document.document_element();
+    if (!root || root->style_node_id() == 0)
+        return object;
+
+    auto tags = MUST(JS::Array::create(realm, 0));
+    u32 index = 0;
+    Function<void(ReadonlySpan<CSS::StyleNodeID>)> consume = [&](ReadonlySpan<CSS::StyleNodeID> style_node_ids) {
+        for (auto style_node_id : style_node_ids) {
+            auto element = style_computer.element_for_style_node(style_node_id);
+            if (!element)
+                continue;
+            auto identity = element->id().has_value() ? *element->id() : element->local_name();
+            MUST(tags->create_data_property_or_throw(index++, JS::PrimitiveString::create(vm(), identity)));
+        }
+    };
+    auto transaction_is_scoped = style_computer.style_engine().take_diagnostic_style_transaction(root->style_node_id(), move(consume));
+    object->define_direct_property("wholeDocument"_utf16_fly_string, JS::Value(!transaction_is_scoped), JS::default_attributes);
+    object->define_direct_property("elements"_utf16_fly_string, tags, JS::default_attributes);
+    return object;
+}
+
+double Internals::style_engine_match_document()
+{
+    auto& document = window().associated_document();
+    auto* root = document.document_element();
+    if (!root || root->style_node_id() == 0)
+        return -1;
+    auto matches = document.style_computer().style_engine().match_document(root->style_node_id());
+    if (matches == NumericLimits<size_t>::max())
+        return -1;
+    return static_cast<double>(matches);
+}
+
+// Names every rule identity StyleEngine was given, so a disagreement can be reported as the selector
+// that caused it rather than as a number.
+static void collect_style_engine_rule_names(CSS::StyleComputer const& style_computer, CSS::CSSRule const& rule, HashMap<CSS::StyleEngineRuleID, Utf16String>& names, HashMap<CSS::StyleEngineRuleID, Utf16String>& places, Utf16String const& place)
+{
+    if (auto rule_id = style_computer.style_engine_rule_id_for(rule); rule_id != 0) {
+        places.set(rule_id, place);
+        if (auto const* style_rule = as_if<CSS::CSSStyleRule>(rule)) {
+            names.set(rule_id, style_rule->selector_text());
+        } else if (auto const* nested = as_if<CSS::CSSNestedDeclarations>(rule)) {
+            names.set(rule_id, Utf16String::formatted("{} (nested declarations)", nested->parent_style_rule().selector_text()));
+        } else {
+            names.set(rule_id, Utf16String::formatted("<rule {}>", rule_id.value()));
+        }
+    }
+    if (auto const* group = as_if<CSS::CSSGroupingRule>(rule)) {
+        for (size_t index = 0; index < group->css_rules().length(); ++index)
+            collect_style_engine_rule_names(style_computer, *group->css_rules().item(index), names, places, place);
+    }
+    // An imported sheet's rules are the importing sheet's rules as far as the cascade is concerned,
+    // and they are not in any style sheet list of their own, so nothing else would reach them.
+    if (auto const* import_rule = as_if<CSS::CSSImportRule>(rule)) {
+        if (auto const* imported = import_rule->loaded_style_sheet()) {
+            for (size_t index = 0; index < imported->css_rules()->length(); ++index)
+                collect_style_engine_rule_names(style_computer, *imported->css_rules()->item(index), names, places, place);
+        }
+    }
+}
+
+// What StyleEngine matches, element by element, in the order the cascade applies it.
+//
+// This is a snapshot of the engine's own answer rather than a comparison against a second matcher:
+// a shape whose matching changes shows up as a diff, and the expectation is readable enough to say
+// whether the change was meant. It is the regression guard the agreement report used to be, without
+// a second engine to be right or wrong about.
+Utf16String Internals::style_engine_matched_rules()
+{
+    auto& document = window().associated_document();
+    document.update_style();
+
+    auto& style_computer = document.style_computer();
+    // The page's own rules are what a test is about. A user-agent rule reaching an element is not
+    // this page's business and would bury the answer, so it is named and then left out.
+    HashMap<CSS::StyleEngineRuleID, Utf16String> rule_names;
+    HashMap<CSS::StyleEngineRuleID, Utf16String> rule_places;
+    HashTable<CSS::StyleEngineRuleID> user_agent_rules;
+    auto name_sheet = [&](CSS::CSSStyleSheet& sheet, StringView place) {
+        HashMap<CSS::StyleEngineRuleID, Utf16String> names;
+        for (size_t index = 0; index < sheet.css_rules()->length(); ++index)
+            collect_style_engine_rule_names(style_computer, *sheet.css_rules()->item(index), names, rule_places, Utf16String::from_utf8(place));
+        for (auto const& [rule_id, name] : names) {
+            rule_names.set(rule_id, name);
+            if (place == "user-agent"sv)
+                user_agent_rules.set(rule_id);
+        }
+    };
+    document.style_scope().for_each_stylesheet(CSS::CascadeOrigin::UserAgent, [&](CSS::CSSStyleSheet& sheet) { name_sheet(sheet, "user-agent"sv); });
+    document.style_scope().for_each_stylesheet(CSS::CascadeOrigin::User, [&](CSS::CSSStyleSheet& sheet) { name_sheet(sheet, "user"sv); });
+    document.style_scope().for_each_stylesheet(CSS::CascadeOrigin::Author, [&](CSS::CSSStyleSheet& sheet) { name_sheet(sheet, "author"sv); });
+    for (auto& sheet : document.style_sheets().sheets())
+        name_sheet(*sheet, "author"sv);
+    document.for_each_shadow_root([&](DOM::ShadowRoot& shadow_root) {
+        shadow_root.style_scope().for_each_stylesheet(CSS::CascadeOrigin::Author, [&](CSS::CSSStyleSheet& sheet) { name_sheet(sheet, "shadow"sv); });
+        for (auto& sheet : shadow_root.style_sheets().sheets())
+            name_sheet(*sheet, "shadow"sv);
+    });
+
+    Utf16StringBuilder builder;
+    auto describe = [&](DOM::Element const& element) {
+        Utf16StringBuilder description;
+        description.append(element.local_name());
+        if (auto id = element.id(); id.has_value())
+            description.appendff("#{}", *id);
+        for (auto const& class_name : element.class_names())
+            description.appendff(".{}", class_name);
+        return description.to_string();
+    };
+
+    document.for_each_shadow_including_descendant([&](DOM::Node& node) {
+        auto* element = as_if<DOM::Element>(node);
+        if (!element || element->style_node_id() == 0)
+            return TraversalDecision::Continue;
+        Vector<CSS::StyleEngine::RuleMatch> matches;
+        if (!style_computer.style_engine().match_element(element->style_node_id(), matches, CSS::StyleEngine::MatchPurpose::Exact)) {
+            builder.appendff("{}: the engine could not answer\n", describe(*element));
+            return TraversalDecision::Continue;
+        }
+        Utf16StringBuilder line;
+        for (auto const& match : matches) {
+            auto rule_id = CSS::StyleEngineRuleID { match.rule };
+            if (user_agent_rules.contains(rule_id))
+                continue;
+            auto name = rule_names.get(rule_id).value_or(Utf16String::formatted("<rule {}>", match.rule));
+            line.appendff(" {}", name);
+            if (match.pseudo_element != NumericLimits<u32>::max())
+                line.appendff("[pseudo {}]", match.pseudo_element);
+        }
+        if (line.is_empty())
+            return TraversalDecision::Continue;
+        builder.append(describe(*element));
+        builder.append(":"sv);
+        builder.append(line.to_string());
+        builder.append("\n"sv);
+        return TraversalDecision::Continue;
+    });
+    return builder.to_string();
+}
+
 void Internals::reset_style_ffi_counters()
 {
     CSS::StyleValueFFI::rust_style_ffi_counters_reset();
@@ -1016,15 +1230,15 @@ void Internals::reset_style_ffi_counters()
 
 GC::Ref<JS::Object> Internals::style_group_sharing_info(DOM::Element& element)
 {
-    auto object = JS::Object::create(window().principal_realm(), nullptr);
-    auto computed_values = element.computed_values();
+    auto& realm = HTML::relevant_realm(window());
+    auto object = JS::Object::create(realm, nullptr);
+    auto computed_values = element.computed_style();
     if (!computed_values)
         return object;
-    RefPtr<CSS::ComputedValues const> parent_values;
-    if (auto parent = element.parent_element())
-        parent_values = parent->computed_values();
-    computed_values->for_each_style_group_sharing_state(parent_values.ptr(), [&](StringView name, bool shared_with_parent, bool is_default) {
-        auto group = JS::Object::create(window().principal_realm(), nullptr);
+    auto parent = element.parent_element();
+    auto parent_values = parent ? parent->computed_style() : CSS::ComputedStyleRecordView {};
+    computed_values->for_each_style_group_sharing_state(parent_values ? &*parent_values : nullptr, [&](StringView name, bool shared_with_parent, bool is_default) {
+        auto group = JS::Object::create(realm, nullptr);
         group->define_direct_property("sharedWithParent"_utf16_fly_string, JS::Value(shared_with_parent), JS::default_attributes);
         group->define_direct_property("isDefault"_utf16_fly_string, JS::Value(is_default), JS::default_attributes);
         object->define_direct_property(Utf16FlyString::from_utf8(name), group, JS::default_attributes);
@@ -1034,16 +1248,25 @@ GC::Ref<JS::Object> Internals::style_group_sharing_info(DOM::Element& element)
 
 GC::Ref<JS::Object> Internals::computed_values_stats()
 {
+    auto& realm = HTML::relevant_realm(window());
     auto const& statistics = CSS::ComputedValues::statistics();
-    auto object = JS::Object::create(window().principal_realm(), nullptr);
+    auto const& legacy_retention = CSS::ComputedProperties::legacy_property_array_retention_statistics();
+    auto object = JS::Object::create(realm, nullptr);
     object->define_direct_property("liveComputedValues"_utf16_fly_string, JS::Value(statistics.live_instance_count), JS::default_attributes);
     object->define_direct_property("totalComputedValuesCreated"_utf16_fly_string, JS::Value(statistics.total_instances_created), JS::default_attributes);
+    object->define_direct_property("retainedLegacyComputedPropertyArrayHolders"_utf16_fly_string, JS::Value(legacy_retention.holder_count), JS::default_attributes);
+    object->define_direct_property("retainedLegacyComputedPropertyArrayBytes"_utf16_fly_string, JS::Value(legacy_retention.bytes), JS::default_attributes);
     return object;
 }
 
 void Internals::update_style()
 {
     window().associated_document().update_style();
+}
+
+void Internals::set_user_style(Utf16String const& source)
+{
+    page().set_user_style(source);
 }
 
 void Internals::set_preferred_color_scheme(Utf16String const& color_scheme)
@@ -1056,7 +1279,7 @@ void Internals::set_preferred_color_scheme(Utf16String const& color_scheme)
     page().set_preferred_color_scheme_override_for_testing(preferred_color_scheme_override);
 
     auto& document = window().associated_document();
-    document.invalidate_style(DOM::StyleInvalidationReason::SettingsChange);
+    document.record_style_environment_change();
     document.set_needs_media_query_evaluation();
 }
 
@@ -1076,11 +1299,6 @@ Utf16String Internals::canvas_color_scheme()
     auto& document = window().associated_document();
     document.update_layout(DOM::UpdateLayoutReason::Debugging);
     return CSS::preferred_color_scheme_to_utf16_fly_string(document.canvas_color_scheme()).to_utf16_string();
-}
-
-bool Internals::style_sheet_may_have_has_selectors(CSS::CSSStyleSheet& style_sheet)
-{
-    return style_sheet.selector_insights().has_has_selectors;
 }
 
 WebIDL::ExceptionOr<GC::Ref<JS::Object>> Internals::image_animation_state_for_url(Utf16String const& url)
@@ -1233,7 +1451,7 @@ String Internals::viewport_overflow_x()
 {
     auto& document = window().associated_document();
     document.update_layout(DOM::UpdateLayoutReason::Debugging);
-    auto overflow = document.unsafe_layout_node()->computed_values().overflow_x();
+    auto overflow = document.unsafe_layout_node()->overflow_x();
     switch (overflow) {
     case CSS::Overflow::Auto:
         return "auto"_string;
@@ -1271,30 +1489,64 @@ GC::Ref<JS::Object> Internals::style_invalidation_counters_object() const
     auto& realm = HTML::relevant_realm(window());
     auto const& counters = style_invalidation_counters();
     auto object = JS::Object::create(realm, nullptr);
-    object->define_direct_property("hasAncestorWalkInvocations"_utf16_fly_string, JS::Value(counters.has_ancestor_walk_invocations), JS::default_attributes);
-    object->define_direct_property("hasAncestorWalkVisits"_utf16_fly_string, JS::Value(counters.has_ancestor_walk_visits), JS::default_attributes);
-    object->define_direct_property("hasAncestorSiblingElementChecks"_utf16_fly_string, JS::Value(counters.has_ancestor_sibling_element_checks), JS::default_attributes);
-    object->define_direct_property("hasInvalidationMetadataCandidates"_utf16_fly_string, JS::Value(counters.has_invalidation_metadata_candidates), JS::default_attributes);
-    object->define_direct_property("hasInvalidationRuleCacheBuilds"_utf16_fly_string, JS::Value(counters.has_invalidation_rule_cache_builds), JS::default_attributes);
-    object->define_direct_property("hasMatchInvocations"_utf16_fly_string, JS::Value(counters.has_match_invocations), JS::default_attributes);
-    object->define_direct_property("hasResultCacheHits"_utf16_fly_string, JS::Value(counters.has_result_cache_hits), JS::default_attributes);
-    object->define_direct_property("hasResultCacheMisses"_utf16_fly_string, JS::Value(counters.has_result_cache_misses), JS::default_attributes);
-    object->define_direct_property("fullStyleInvalidations"_utf16_fly_string, JS::Value(counters.full_style_invalidations), JS::default_attributes);
-    object->define_direct_property("styleInvalidations"_utf16_fly_string, JS::Value(counters.style_invalidations), JS::default_attributes);
+    object->define_direct_property("styleEnvironmentVersion"_utf16_fly_string, JS::Value(window().associated_document().style_environment_version()), JS::default_attributes);
+    object->define_direct_property("styleEngineReactionBatchRuns"_utf16_fly_string, JS::Value(counters.style_engine_reaction_batch_runs), JS::default_attributes);
+    object->define_direct_property("styleEngineReactionElements"_utf16_fly_string, JS::Value(counters.style_engine_reaction_elements), JS::default_attributes);
+    object->define_direct_property("styleEnginePublishedReactions"_utf16_fly_string, JS::Value(counters.style_engine_published_reactions), JS::default_attributes);
+    object->define_direct_property("styleEngineRecordDeltasApplied"_utf16_fly_string, JS::Value(counters.style_engine_record_deltas_applied), JS::default_attributes);
+    object->define_direct_property("styleEngineMaterializedGaps"_utf16_fly_string, JS::Value(counters.style_engine_materialized_gaps), JS::default_attributes);
     object->define_direct_property("elementStyleRecomputations"_utf16_fly_string, JS::Value(counters.element_style_recomputations), JS::default_attributes);
     object->define_direct_property("elementStyleNoopRecomputations"_utf16_fly_string, JS::Value(counters.element_style_noop_recomputations), JS::default_attributes);
+    object->define_direct_property("styleRecordPropertyDamageCacheHits"_utf16_fly_string, JS::Value(counters.style_record_property_damage_cache_hits), JS::default_attributes);
+    object->define_direct_property("elementComputedStyleChanges"_utf16_fly_string, JS::Value(counters.element_computed_style_changes), JS::default_attributes);
+    object->define_direct_property("elementStyleSharedComputations"_utf16_fly_string, JS::Value(counters.element_style_shared_computations), JS::default_attributes);
+    object->define_direct_property("elementStyleInputChangedByParentStyle"_utf16_fly_string, JS::Value(counters.element_style_input_changed_by_parent_style), JS::default_attributes);
+    object->define_direct_property("elementStyleInputChangedByParentCustomProperties"_utf16_fly_string, JS::Value(counters.element_style_input_changed_by_parent_custom_properties), JS::default_attributes);
+    object->define_direct_property("elementStyleInputReused"_utf16_fly_string, JS::Value(counters.element_style_input_reused), JS::default_attributes);
     object->define_direct_property("elementInheritedStyleRecomputations"_utf16_fly_string, JS::Value(counters.element_inherited_style_recomputations), JS::default_attributes);
     object->define_direct_property("elementInheritedStyleNoopRecomputations"_utf16_fly_string, JS::Value(counters.element_inherited_style_noop_recomputations), JS::default_attributes);
-    object->define_direct_property("previousSiblingInvalidationWalkVisits"_utf16_fly_string, JS::Value(counters.previous_sibling_invalidation_walk_visits), JS::default_attributes);
-    object->define_direct_property("descendantSlotInvalidationSubtreeScans"_utf16_fly_string, JS::Value(counters.descendant_slot_invalidation_subtree_scans), JS::default_attributes);
-    object->define_direct_property("hasFlushScopesExamined"_utf16_fly_string, JS::Value(counters.has_flush_scopes_examined), JS::default_attributes);
+    object->define_direct_property("elementInheritedStyleGroupSwaps"_utf16_fly_string, JS::Value(counters.element_inherited_style_group_swaps), JS::default_attributes);
+    object->define_direct_property("animatedStyleReconstructionFallbacks"_utf16_fly_string, JS::Value(counters.animated_style_reconstruction_fallbacks), JS::default_attributes);
+    object->define_direct_property("animatedStyleOverlayBuilds"_utf16_fly_string, JS::Value(counters.animated_style_overlay_builds), JS::default_attributes);
+    object->define_direct_property("animatedStyleFullBuilds"_utf16_fly_string, JS::Value(counters.animated_style_full_builds), JS::default_attributes);
+    object->define_direct_property("baseStylePartialBuilds"_utf16_fly_string, JS::Value(counters.base_style_partial_builds), JS::default_attributes);
+    object->define_direct_property("baseStyleFullBuilds"_utf16_fly_string, JS::Value(counters.base_style_full_builds), JS::default_attributes);
+    object->define_direct_property("computedLonghandEvaluations"_utf16_fly_string, JS::Value(counters.computed_longhand_evaluations), JS::default_attributes);
+    object->define_direct_property("parentInheritedSnapshotBuilds"_utf16_fly_string, JS::Value(counters.parent_inherited_snapshot_builds), JS::default_attributes);
+    object->define_direct_property("parentInheritedSnapshotProperties"_utf16_fly_string, JS::Value(counters.parent_inherited_snapshot_properties), JS::default_attributes);
+    object->define_direct_property("parentInheritedSnapshotMicroseconds"_utf16_fly_string, JS::Value(counters.parent_inherited_snapshot_microseconds), JS::default_attributes);
+    object->define_direct_property("styleStabilizationEpochs"_utf16_fly_string, JS::Value(counters.style_stabilization_epochs), JS::default_attributes);
+    object->define_direct_property("styleStabilizationFeedbackEpochs"_utf16_fly_string, JS::Value(counters.style_stabilization_feedback_epochs), JS::default_attributes);
+    object->define_direct_property("provisionalStylePasses"_utf16_fly_string, JS::Value(counters.provisional_style_passes), JS::default_attributes);
+    object->define_direct_property("styleStabilizationRoundGuardHits"_utf16_fly_string, JS::Value(counters.style_stabilization_round_guard_hits), JS::default_attributes);
+    object->define_direct_property("styleUpdatePassGuardHits"_utf16_fly_string, JS::Value(counters.style_update_pass_guard_hits), JS::default_attributes);
+    object->define_direct_property("exactStabilizationPasses"_utf16_fly_string, JS::Value(counters.exact_stabilization_passes), JS::default_attributes);
+    object->define_direct_property("styleStabilizationBoundFailures"_utf16_fly_string, JS::Value(counters.style_stabilization_bound_failures), JS::default_attributes);
+    object->define_direct_property("provisionalAnimationEvents"_utf16_fly_string, JS::Value(counters.provisional_animation_events), JS::default_attributes);
+    object->define_direct_property("committedAnimationEvents"_utf16_fly_string, JS::Value(counters.committed_animation_events), JS::default_attributes);
+    object->define_direct_property("provisionalTransitionDecisions"_utf16_fly_string, JS::Value(counters.provisional_transition_decisions), JS::default_attributes);
+    object->define_direct_property("supersededProvisionalTransitionDecisions"_utf16_fly_string, JS::Value(counters.superseded_provisional_transition_decisions), JS::default_attributes);
+    object->define_direct_property("committedTransitionActions"_utf16_fly_string, JS::Value(counters.committed_transition_actions), JS::default_attributes);
+    object->define_direct_property("committedTransitionsStarted"_utf16_fly_string, JS::Value(counters.committed_transitions_started), JS::default_attributes);
     object->define_direct_property("mediaRuleEvaluations"_utf16_fly_string, JS::Value(counters.media_rule_evaluations), JS::default_attributes);
     object->define_direct_property("registeredPropertiesCacheRebuilds"_utf16_fly_string, JS::Value(counters.registered_properties_cache_rebuilds), JS::default_attributes);
-    object->define_direct_property("styleSheetInvalidationSetBuilds"_utf16_fly_string, JS::Value(counters.style_sheet_invalidation_set_builds), JS::default_attributes);
     object->define_direct_property("scopeRuleCacheBuilds"_utf16_fly_string, JS::Value(counters.scope_rule_cache_builds), JS::default_attributes);
     object->define_direct_property("styleQueryContainerScans"_utf16_fly_string, JS::Value(counters.style_query_container_scans), JS::default_attributes);
     object->define_direct_property("sizeQueryContainerScanVisits"_utf16_fly_string, JS::Value(counters.size_query_container_scan_visits), JS::default_attributes);
+    object->define_direct_property("styleEngineTransactionSetups"_utf16_fly_string, JS::Value(counters.style_engine_transaction_setups), JS::default_attributes);
+    object->define_direct_property("styleEngineTransactionSetupMicroseconds"_utf16_fly_string, JS::Value(counters.style_engine_transaction_setup_microseconds), JS::default_attributes);
+    object->define_direct_property("styleEnginePlanningMicroseconds"_utf16_fly_string, JS::Value(counters.style_engine_planning_microseconds), JS::default_attributes);
     object->define_direct_property("relayoutsPerformed"_utf16_fly_string, JS::Value(counters.relayouts_performed), JS::default_attributes);
+    object->define_direct_property("styleUpdateMicroseconds"_utf16_fly_string, JS::Value(counters.style_update_microseconds), JS::default_attributes);
+    object->define_direct_property("styleRecomputeMicroseconds"_utf16_fly_string, JS::Value(counters.style_recompute_microseconds), JS::default_attributes);
+    object->define_direct_property("customPropertyResolutions"_utf16_fly_string, JS::Value(counters.custom_property_resolutions), JS::default_attributes);
+    object->define_direct_property("customPropertyElements"_utf16_fly_string, JS::Value(counters.custom_property_elements), JS::default_attributes);
+    object->define_direct_property("customPropertyValueComputations"_utf16_fly_string, JS::Value(counters.custom_property_value_computations), JS::default_attributes);
+    object->define_direct_property("customPropertyOverlayHits"_utf16_fly_string, JS::Value(counters.custom_property_overlay_hits), JS::default_attributes);
+    object->define_direct_property("customPropertyCycleParticipants"_utf16_fly_string, JS::Value(counters.custom_property_cycle_participants), JS::default_attributes);
+    object->define_direct_property("substitutionValueParses"_utf16_fly_string, JS::Value(counters.substitution_value_parses), JS::default_attributes);
+    object->define_direct_property("styleCascadeMicroseconds"_utf16_fly_string, JS::Value(counters.style_cascade_microseconds), JS::default_attributes);
+    object->define_direct_property("styleValuesMicroseconds"_utf16_fly_string, JS::Value(counters.style_values_microseconds), JS::default_attributes);
     object->define_direct_property("scrollableOverflowRecalculations"_utf16_fly_string, JS::Value(counters.scrollable_overflow_recalculations), JS::default_attributes);
     return object;
 }

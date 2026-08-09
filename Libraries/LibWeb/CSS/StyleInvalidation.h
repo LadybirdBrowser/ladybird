@@ -51,8 +51,13 @@ struct RequiredInvalidationAfterStyleChange {
 
     // The element's change affects rule matching for descendants, without necessarily changing inherited style.
     bool recompute_descendant_styles : 1 { false };
-    // At least one inherited longhand changed, so shadow-tree descendants may need inherited style recomputation.
-    bool inherited_style_changed : 1 { false };
+    // Names the inherited ComputedValues groups whose identities changed. Descendants can use the
+    // exact set to avoid reading unrelated inherited groups.
+    static constexpr u8 all_inherited_style_groups = (1 << 7) - 1;
+    [[nodiscard]] bool inherited_style_changed() const { return m_inherited_style_groups_changed != 0; }
+    [[nodiscard]] u8 inherited_style_groups_changed() const { return m_inherited_style_groups_changed; }
+    void mark_inherited_style_group_changed(size_t group) { m_inherited_style_groups_changed |= 1 << group; }
+    void mark_all_inherited_style_groups_changed() { m_inherited_style_groups_changed = all_inherited_style_groups; }
     // The element gained or lost a containing block for absolutely/fixed positioned
     // descendants. Containing block pointers are only recomputed by a full layout pass, so
     // partial relayout boundary qualification cannot be trusted until one runs.
@@ -65,7 +70,7 @@ struct RequiredInvalidationAfterStyleChange {
         m_rebuild_stacking_context_tree |= other.m_rebuild_stacking_context_tree;
         m_needs_scrollable_overflow_recalculation |= other.m_needs_scrollable_overflow_recalculation;
         recompute_descendant_styles |= other.recompute_descendant_styles;
-        inherited_style_changed |= other.inherited_style_changed;
+        m_inherited_style_groups_changed |= other.m_inherited_style_groups_changed;
         changes_containing_block_establishment |= other.changes_containing_block_establishment;
     }
 
@@ -75,7 +80,7 @@ struct RequiredInvalidationAfterStyleChange {
             && m_accumulated_visual_contexts == AccumulatedVisualContextInvalidation::None
             && !m_needs_scrollable_overflow_recalculation
             && !recompute_descendant_styles
-            && !inherited_style_changed
+            && !inherited_style_changed()
             && !changes_containing_block_establishment;
     }
 
@@ -92,6 +97,7 @@ private:
     AccumulatedVisualContextInvalidation m_accumulated_visual_contexts { AccumulatedVisualContextInvalidation::None };
     bool m_rebuild_stacking_context_tree : 1 { false };
     bool m_needs_scrollable_overflow_recalculation : 1 { false };
+    u8 m_inherited_style_groups_changed { 0 };
 };
 
 RequiredInvalidationAfterStyleChange compute_property_invalidation(CSS::PropertyID property_id, StyleValue const* old_value, StyleValue const* new_value, ComputedValues const* old_computed_values = nullptr, ComputedValues const* new_computed_values = nullptr);

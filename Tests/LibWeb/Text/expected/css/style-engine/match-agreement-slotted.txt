@@ -1,0 +1,2 @@
+span.light: ::slotted(span) ::slotted(.light)
+

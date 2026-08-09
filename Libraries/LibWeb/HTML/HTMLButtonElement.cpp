@@ -84,6 +84,11 @@ void HTMLButtonElement::set_type_for_bindings(Utf16View type)
 void HTMLButtonElement::form_associated_element_attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const&, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
 {
     PopoverTargetAttributes::associated_attribute_changed(name, value, namespace_);
+
+    if (name.is_one_of(AttributeNames::type, AttributeNames::command, AttributeNames::commandfor)) {
+        if (auto* form = this->form())
+            form->default_button_state_maybe_changed();
+    }
 }
 
 void HTMLButtonElement::visit_edges(Visitor& visitor)

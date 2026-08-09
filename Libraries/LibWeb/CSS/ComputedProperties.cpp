@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Atomic.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/NonnullRawPtr.h>
 #include <AK/QuickSort.h>
@@ -69,6 +70,13 @@
 
 namespace Web::CSS {
 
+extern "C" void ladybird_animated_properties_ref(void const*);
+extern "C" void ladybird_animated_properties_unref(void const*);
+extern "C" void style_engine_recording_pointer_will_die(void const*);
+
+static Atomic<u64> s_next_animated_properties_identity { 1 };
+static ComputedProperties::LegacyPropertyArrayRetentionStatistics s_legacy_property_array_retention_statistics;
+
 ComputedValues::Statistics ComputedValues::s_statistics;
 
 ComputedValues::ComputedValues()
@@ -77,11 +85,31 @@ ComputedValues::ComputedValues()
     ++s_statistics.total_instances_created;
 }
 
+ComputedValues::ComputedValues(BorrowedStyleRecord)
+    : m_is_style_record_view(true)
+{
+    m_ref_count = 0;
+}
+
 ComputedValues::~ComputedValues()
 {
-    if (m_style_container)
-        ComputedValuesFFI::rust_style_container_unref(m_style_container, to_underlying(StyleGroupIndex::Count));
-    --s_statistics.live_instance_count;
+    if (!m_is_style_record_view)
+        --s_statistics.live_instance_count;
+}
+
+AnimatedProperties::~AnimatedProperties()
+{
+    style_engine_recording_pointer_will_die(this);
+}
+
+extern "C" void ladybird_animated_properties_ref(void const* values)
+{
+    static_cast<AnimatedProperties const*>(values)->ref();
+}
+
+extern "C" void ladybird_animated_properties_unref(void const* values)
+{
+    static_cast<AnimatedProperties const*>(values)->unref();
 }
 
 void ComputedValues::Mutator::set_animated_properties(AnimatedProperties const* value)
@@ -122,6 +150,15 @@ RefPtr<StyleValue const> ComputedValues::word_spacing_style_value() const
 RefPtr<StyleValue const> ComputedValues::letter_spacing_style_value() const
 {
     return style_value_from_handle(PropertyID::LetterSpacing, m_inherited.text->letter_spacing_style_value);
+}
+
+RefPtr<StyleValue const> ComputedValues::raw_cascaded_font_size() const
+{
+    if (m_raw_cascaded_font_size)
+        return m_raw_cascaded_font_size;
+    if (!m_borrowed_raw_cascaded_font_size)
+        return {};
+    return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(m_borrowed_raw_cascaded_font_size));
 }
 
 RefPtr<StyleValue const> ComputedValues::background_color_style_value() const
@@ -165,8 +202,8 @@ bool ComputedValues::inset_properties_contain_anchor_functions() const
 
 RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID property_id, WithAnimationsApplied with_animations_applied) const
 {
-    if (with_animations_applied == WithAnimationsApplied::No && m_base_values)
-        return m_base_values->computed_style_value(property_id);
+    if (with_animations_applied == WithAnimationsApplied::No && has_animated_values())
+        return base_values().computed_style_value(property_id);
 
     if (property_is_logical_alias(property_id))
         property_id = map_logical_alias_to_physical_property(property_id, LogicalAliasMappingContext { writing_mode(), direction() });
@@ -1713,11 +1750,21 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
 
 RefPtr<StyleValue const> ComputedValues::computed_style_value_for_inheritance(PropertyID property_id, WithAnimationsApplied with_animations_applied) const
 {
-    if (with_animations_applied == WithAnimationsApplied::No && m_base_values)
-        return m_base_values->computed_style_value_for_inheritance(property_id);
+    if (with_animations_applied == WithAnimationsApplied::No && has_animated_values())
+        return base_values().computed_style_value_for_inheritance(property_id);
 
     if (auto value = m_inheritance_dependent_specified_values.get(property_id); value.has_value() && value.value()->depends_on_current_color())
         return *value;
+
+    for (auto const& entry : m_borrowed_inheritance_dependent_values) {
+        if (entry.property != to_underlying(property_id))
+            continue;
+        auto const* data = static_cast<StyleValueFFI::StyleValueData const*>(entry.value);
+        auto value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(data));
+        if (value->depends_on_current_color())
+            return value;
+        break;
+    }
 
     return computed_style_value(property_id, with_animations_applied);
 }
@@ -1738,6 +1785,7 @@ ComputedProperties::Builder::Builder(ComputedProperties const& style)
     : Builder()
 {
     m_data->property_values = style.data().property_values;
+    m_data->fallback_values = style.data().fallback_values;
     m_data->property_important = style.data().property_important;
     m_data->property_inherited = style.data().property_inherited;
     m_data->display_before_box_type_transformation = style.data().display_before_box_type_transformation;
@@ -1754,6 +1802,25 @@ ComputedProperties::Builder::Builder(ComputedProperties const& style)
     m_style->m_in_display_none_subtree = m_in_display_none_subtree;
     if (style.m_animated_properties)
         m_style->m_animated_properties = adopt_ref(*new AnimatedProperties(*style.m_animated_properties));
+}
+
+ComputedProperties::Builder::Builder(ComputedValues const& style)
+    : Builder()
+{
+    auto const& base = style.base_values();
+    m_data->fallback_values = ComputedValues::Builder { base }.build();
+    m_data->property_important.copy_from(base.property_importance_bitmap());
+    m_data->property_inherited.copy_from(base.property_inheritance_bitmap());
+    m_data->display_before_box_type_transformation = base.display_before_box_type_transformation();
+    m_data->pseudo_element_styles = base.pseudo_element_style_mask();
+    m_data->inheritance_dependent_specified_values = base.inheritance_dependent_specified_values_snapshot();
+    m_data->raw_cascaded_font_size = base.raw_cascaded_font_size();
+    m_depends_on_viewport_metrics = base.depends_on_viewport_metrics();
+    m_font_metrics_depend_on_viewport_metrics = base.font_metrics_depend_on_viewport_metrics();
+    m_in_display_none_subtree = base.in_display_none_subtree();
+    m_style->m_depends_on_viewport_metrics = m_depends_on_viewport_metrics;
+    m_style->m_font_metrics_depend_on_viewport_metrics = m_font_metrics_depend_on_viewport_metrics;
+    m_style->m_in_display_none_subtree = m_in_display_none_subtree;
 }
 
 NonnullRefPtr<ComputedProperties> ComputedProperties::Builder::build() &&
@@ -1774,13 +1841,24 @@ ComputedProperties::Builder ComputedProperties::create_builder_with_base_values_
     return Builder { style };
 }
 
+ComputedProperties::Builder ComputedProperties::create_builder_with_base_values_from(ComputedValues const& style)
+{
+    return Builder { style };
+}
+
 NonnullRefPtr<ComputedProperties> ComputedProperties::create(Builder&& builder)
 {
     return move(builder).build();
 }
 
+AnimatedProperties::AnimatedProperties()
+    : m_identity(s_next_animated_properties_identity.fetch_add(1, AK::MemoryOrder::memory_order_relaxed))
+{
+}
+
 AnimatedProperties::AnimatedProperties(AnimatedProperties const& other)
-    : m_has_property(other.m_has_property)
+    : m_identity(s_next_animated_properties_identity.fetch_add(1, AK::MemoryOrder::memory_order_relaxed))
+    , m_has_property(other.m_has_property)
     , m_property_inherited(other.m_property_inherited)
     , m_property_result_of_transition(other.m_property_result_of_transition)
     , m_values(other.m_values)
@@ -1795,6 +1873,33 @@ ComputedProperties::ComputedProperties(NonnullRefPtr<Data const> data, bool depe
 }
 
 ComputedProperties::~ComputedProperties() = default;
+
+size_t ComputedProperties::retained_size_in_bytes() const
+{
+    auto const& inheritance_dependent_values = m_data->inheritance_dependent_specified_values;
+    return sizeof(ComputedProperties) + sizeof(Data)
+        + inheritance_dependent_values.capacity()
+        * (sizeof(PropertyID) + sizeof(NonnullRefPtr<StyleValue const>) + 1);
+}
+
+ComputedProperties::LegacyPropertyArrayRetentionStatistics const& ComputedProperties::legacy_property_array_retention_statistics()
+{
+    return s_legacy_property_array_retention_statistics;
+}
+
+void ComputedProperties::retain_legacy_property_array() const
+{
+    ++s_legacy_property_array_retention_statistics.holder_count;
+    s_legacy_property_array_retention_statistics.bytes += sizeof(m_data->property_values);
+}
+
+void ComputedProperties::release_legacy_property_array() const
+{
+    VERIFY(s_legacy_property_array_retention_statistics.holder_count > 0);
+    VERIFY(s_legacy_property_array_retention_statistics.bytes >= sizeof(m_data->property_values));
+    --s_legacy_property_array_retention_statistics.holder_count;
+    s_legacy_property_array_retention_statistics.bytes -= sizeof(m_data->property_values);
+}
 
 NonnullRefPtr<ComputedProperties> ComputedProperties::copy_without_animations() const
 {
@@ -1963,6 +2068,12 @@ void ComputedProperties::Builder::set_in_display_none_subtree()
     m_style->m_in_display_none_subtree = true;
 }
 
+void ComputedProperties::Builder::clear_in_display_none_subtree()
+{
+    m_in_display_none_subtree = false;
+    m_style->m_in_display_none_subtree = false;
+}
+
 void ComputedProperties::set_depends_on_viewport_metrics(Badge<StyleComputer>)
 {
     m_depends_on_viewport_metrics = true;
@@ -2033,19 +2144,13 @@ void ComputedProperties::set_animated_property(Badge<DOM::Element>, PropertyID i
     set_animated_property_internal(id, move(value), animated_property_result_of_transition, inherited);
 }
 
-void ComputedProperties::remove_animated_property(Badge<DOM::Element>, PropertyID id)
+void ComputedProperties::clear_animated_properties(Badge<StyleComputer>)
 {
-    if (!has_animated_property(id))
+    if (!m_animated_properties)
         return;
 
-    bool should_clear_computed_font_list_cache = property_affects_computed_font_list(id);
-    auto& animated_properties = mutable_animated_properties();
-    animated_properties.remove_property(id);
-    if (animated_properties.is_empty())
-        m_animated_properties = nullptr;
-
-    if (should_clear_computed_font_list_cache)
-        clear_computed_font_list_cache();
+    m_animated_properties = nullptr;
+    clear_computed_font_list_cache();
 }
 
 void ComputedProperties::reset_non_inherited_animated_properties(Badge<Animations::KeyframeEffect>)
@@ -2085,19 +2190,13 @@ StyleValue const& ComputedProperties::property(PropertyID property_id, WithAnima
         return animated_properties().property(property_id);
     }
 
-    // By the time we call this method, the property should have been assigned
-    return *data().property_values[to_underlying(property_id) - to_underlying(first_longhand_property_id)];
-}
-
-Variant<LengthPercentage, NormalGap> ComputedProperties::gap_value(PropertyID id) const
-{
-    auto const& value = property(id);
-    if (value.is_keyword()) {
-        VERIFY(value.as_keyword().keyword() == Keyword::Normal);
-        return NormalGap {};
+    auto& value = data().property_values[to_underlying(property_id) - to_underlying(first_longhand_property_id)];
+    if (!value) {
+        VERIFY(data().fallback_values);
+        value = data().fallback_values->computed_style_value_for_inheritance(property_id, ComputedValues::WithAnimationsApplied::No);
+        VERIFY(value);
     }
-
-    return LengthPercentage::from_style_value(value);
+    return *value;
 }
 
 Size ComputedProperties::size_value(PropertyID id) const
@@ -2403,12 +2502,6 @@ StrokeLinejoin ComputedProperties::stroke_linejoin() const
     return keyword_to_stroke_linejoin(value.to_keyword()).release_value();
 }
 
-VectorEffect ComputedProperties::vector_effect() const
-{
-    auto const& value = property(PropertyID::VectorEffect);
-    return keyword_to_vector_effect(value.to_keyword()).release_value();
-}
-
 double ComputedProperties::stroke_miterlimit() const
 {
     return number_from_style_value(property(PropertyID::StrokeMiterlimit), {});
@@ -2439,28 +2532,6 @@ ClipRule ComputedProperties::clip_rule() const
 float ComputedProperties::flood_opacity() const
 {
     return property(PropertyID::FloodOpacity).as_opacity_value().resolved();
-}
-
-FlexDirection ComputedProperties::flex_direction() const
-{
-    auto const& value = property(PropertyID::FlexDirection);
-    return keyword_to_flex_direction(value.to_keyword()).release_value();
-}
-
-FlexWrap ComputedProperties::flex_wrap() const
-{
-    auto const& value = property(PropertyID::FlexWrap);
-    return keyword_to_flex_wrap(value.to_keyword()).release_value();
-}
-
-FlexBasis ComputedProperties::flex_basis() const
-{
-    auto const& value = property(PropertyID::FlexBasis);
-
-    if (value.is_keyword() && value.to_keyword() == Keyword::Content)
-        return FlexBasisContent {};
-
-    return size_value(PropertyID::FlexBasis);
 }
 
 double ComputedProperties::flex_grow() const
@@ -2758,24 +2829,6 @@ Clip ComputedProperties::clip() const
     return Clip(value.as_rect().rect());
 }
 
-JustifyContent ComputedProperties::justify_content() const
-{
-    auto const& value = property(PropertyID::JustifyContent);
-    return keyword_to_justify_content(value.to_keyword()).release_value();
-}
-
-JustifyItems ComputedProperties::justify_items() const
-{
-    auto const& value = property(PropertyID::JustifyItems);
-    return keyword_to_justify_items(value.to_keyword()).release_value();
-}
-
-JustifySelf ComputedProperties::justify_self() const
-{
-    auto const& value = property(PropertyID::JustifySelf);
-    return keyword_to_justify_self(value.to_keyword()).release_value();
-}
-
 Vector<NonnullRefPtr<TransformationStyleValue const>> ComputedProperties::transformations_for_style_value(StyleValue const& value)
 {
     if (value.is_keyword() && value.to_keyword() == Keyword::None)
@@ -2892,24 +2945,6 @@ Color ComputedProperties::accent_color(ColorResolutionContext const& color_resol
     return value.to_color(color_resolution_context).value();
 }
 
-AlignContent ComputedProperties::align_content() const
-{
-    auto const& value = property(PropertyID::AlignContent);
-    return keyword_to_align_content(value.to_keyword()).release_value();
-}
-
-AlignItems ComputedProperties::align_items() const
-{
-    auto const& value = property(PropertyID::AlignItems);
-    return keyword_to_align_items(value.to_keyword()).release_value();
-}
-
-AlignSelf ComputedProperties::align_self() const
-{
-    auto const& value = property(PropertyID::AlignSelf);
-    return keyword_to_align_self(value.to_keyword()).release_value();
-}
-
 Appearance ComputedProperties::appearance() const
 {
     auto const& value = property(PropertyID::Appearance);
@@ -2960,29 +2995,6 @@ Positioning ComputedProperties::position() const
 {
     auto const& value = property(PropertyID::Position);
     return keyword_to_positioning(value.to_keyword()).release_value();
-}
-
-bool ComputedProperties::operator==(ComputedProperties const& other) const
-{
-    for (size_t i = 0; i < data().property_values.size(); ++i) {
-        auto const& my_style = data().property_values[i];
-        auto const& other_style = other.data().property_values[i];
-        if (!my_style) {
-            if (other_style)
-                return false;
-            continue;
-        }
-        if (!other_style)
-            return false;
-        auto const& my_value = *my_style;
-        auto const& other_value = *other_style;
-        if (my_value.type() != other_value.type())
-            return false;
-        if (my_value != other_value)
-            return false;
-    }
-
-    return true;
 }
 
 TextAnchor ComputedProperties::text_anchor() const
@@ -3289,11 +3301,6 @@ static ContentDataAndQuoteNestingLevel resolve_content(StyleValue const& value, 
     }
 
     return { {}, quote_nesting_level };
-}
-
-ContentDataAndQuoteNestingLevel ComputedProperties::content(DOM::AbstractElement& element_reference, u32 initial_quote_nesting_level) const
-{
-    return resolve_content(property(PropertyID::Content), quotes(), element_reference, initial_quote_nesting_level);
 }
 
 ContentDataAndQuoteNestingLevel ComputedValues::resolved_content(DOM::AbstractElement& element_reference, u32 initial_quote_nesting_level) const
@@ -4482,11 +4489,6 @@ ValueComparingNonnullRefPtr<Gfx::Font const> ComputedProperties::first_available
     }
 
     return *m_cached_first_available_computed_font;
-}
-
-MathStyle ComputedProperties::math_style() const
-{
-    return keyword_to_math_style(property(PropertyID::MathStyle).to_keyword()).value();
 }
 
 int ComputedProperties::math_depth() const

@@ -77,6 +77,12 @@ public:
 
     MUST_UPCALL virtual void clear_caches();
 
+    // The StyleEngine rule this CSSOM rule compiled into, or 0 if it has not been compiled. The
+    // engine's rule is a separate identity that keeps its position and its cascade order across
+    // edits to what this rule says.
+    [[nodiscard]] StyleEngineRuleID style_engine_rule_id() const { return m_style_engine_rule_id; }
+    void set_style_engine_rule_id(StyleEngineRuleID rule_id) { m_style_engine_rule_id = rule_id; }
+
 protected:
     CSSRule(Type);
 
@@ -95,6 +101,7 @@ protected:
 
     Optional<SourcePosition> m_source_position;
     mutable Optional<Utf16FlyString> m_cached_layer_name;
+    StyleEngineRuleID m_style_engine_rule_id;
 };
 
 }

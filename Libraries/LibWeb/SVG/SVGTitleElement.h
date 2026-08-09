@@ -16,8 +16,7 @@ class SVGTitleElement final : public SVGElement {
 
 private:
     SVGTitleElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual RefPtr<Layout::Node> create_layout_node(NonnullRefPtr<CSS::ComputedValues const>) override;
+    virtual RefPtr<Layout::Node> create_layout_node(CSS::LayoutStyle) override;
     virtual void children_changed(ChildrenChangedMetadata const&) override;
 };
 

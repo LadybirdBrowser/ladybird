@@ -85,7 +85,7 @@ void HTMLOptionElement::set_selected(bool selected)
 void HTMLOptionElement::set_selected_internal(bool selected)
 {
     if (m_selected != selected)
-        CSS::Invalidation::invalidate_style_after_option_selected_state_change(*this);
+        CSS::Invalidation::invalidate_style_after_option_selected_state_change(*this, selected);
 
     m_selected = selected;
     if (selected)

@@ -7,10 +7,12 @@
  */
 
 #include <AK/Demangle.h>
+#include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CursorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageSetStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
+#include <LibWeb/DOM/AbstractElement.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ShadowRoot.h>
@@ -174,8 +176,15 @@ static void invalidate_paint_caches(Node& node)
         paintable->invalidate_paint_cache();
 }
 
+void Node::pin_style_record_for_detachment()
+{
+    if (auto* node_with_style = as_if<NodeWithStyle>(*this))
+        node_with_style->pin_style_record_for_cxx_consumers();
+}
+
 void Node::prepare_for_detach_from_layout_tree()
 {
+    pin_style_record_for_detachment();
     invalidate_paint_caches(*this);
     if (auto* node_with_style = as_if<NodeWithStyle>(*this))
         node_with_style->clear_image_observers();
@@ -208,15 +217,13 @@ bool Node::is_out_of_flow() const
 }
 
 // https://drafts.csswg.org/css-position-3/#fixed-positioning-containing-block
-static bool computed_values_establish_fixed_positioning_containing_block(NodeWithStyle const& node)
+static bool style_establishes_fixed_positioning_containing_block(NodeWithStyle const& node)
 {
-    auto const& computed_values = node.computed_values();
-
     // https://drafts.csswg.org/css-will-change/#will-change
     // If any non-initial value of a property would cause the element to generate a containing block for fixed
     // positioned elements, specifying that property in will-change must cause the element to generate a containing
     // block for fixed positioned elements.
-    auto const& will_change = computed_values.will_change();
+    auto const& will_change = node.will_change();
     auto has_will_change = !will_change.is_auto();
     auto will_change_property = [&](CSS::PropertyID property_id) {
         return has_will_change && will_change.has_property(property_id);
@@ -231,33 +238,33 @@ static bool computed_values_establish_fixed_positioning_containing_block(NodeWit
 
     // https://drafts.csswg.org/css-transforms-1/#propdef-transform
     // Any computed value other than none for the transform affects containing block and stacking context.
-    if ((!computed_values.transformations().is_empty() || will_change_property(CSS::PropertyID::Transform)) && node_is_transformable())
+    if ((!node.transformations().is_empty() || will_change_property(CSS::PropertyID::Transform)) && node_is_transformable())
         return true;
-    if ((computed_values.translate() || will_change_property(CSS::PropertyID::Translate)) && node_is_transformable())
+    if ((node.translate() || will_change_property(CSS::PropertyID::Translate)) && node_is_transformable())
         return true;
-    if ((computed_values.rotate() || will_change_property(CSS::PropertyID::Rotate)) && node_is_transformable())
+    if ((node.rotate() || will_change_property(CSS::PropertyID::Rotate)) && node_is_transformable())
         return true;
-    if ((computed_values.scale() || will_change_property(CSS::PropertyID::Scale)) && node_is_transformable())
+    if ((node.scale() || will_change_property(CSS::PropertyID::Scale)) && node_is_transformable())
         return true;
 
     // https://drafts.csswg.org/css-transforms-2/#propdef-perspective
     // The use of this property with any value other than 'none' establishes a stacking context. It also establishes
     // a containing block for all descendants, just like the 'transform' property does.
-    if ((computed_values.perspective().has_value() || will_change_property(CSS::PropertyID::Perspective)) && node_is_transformable())
+    if ((node.perspective().has_value() || will_change_property(CSS::PropertyID::Perspective)) && node_is_transformable())
         return true;
 
     // https://drafts.csswg.org/filter-effects-1/#FilterProperty
     // A value other than none for the filter property results in the creation of a containing block for absolute and
     // fixed positioned descendants, unless the element it applies to is a document root element in the current
     // browsing context.
-    if ((computed_values.filter().has_filters() || will_change_property(CSS::PropertyID::Filter)) && !node.is_root_element())
+    if ((node.filter().has_filters() || will_change_property(CSS::PropertyID::Filter)) && !node.is_root_element())
         return true;
 
     // https://drafts.csswg.org/filter-effects-2/#BackdropFilterProperty
     // A computed value of other than none results in the creation of both a stacking context and a containing block
     // for absolute and fixed position descendants, unless the element it applies to is a document root element in the
     // current browsing context.
-    if ((computed_values.backdrop_filter().has_filters() || will_change_property(CSS::PropertyID::BackdropFilter)) && !node.is_root_element())
+    if ((node.backdrop_filter().has_filters() || will_change_property(CSS::PropertyID::BackdropFilter)) && !node.is_root_element())
         return true;
 
     // https://drafts.csswg.org/css-contain-2/#containment-types
@@ -267,22 +274,22 @@ static bool computed_values_establish_fixed_positioning_containing_block(NodeWit
     //    containing block.
     if (will_change_property(CSS::PropertyID::Contain))
         return true;
-    auto content_visibility_adds_containment = computed_values.content_visibility() == CSS::ContentVisibility::Auto;
-    if ((computed_values.contain().layout_containment || content_visibility_adds_containment) && node.has_layout_containment())
+    auto content_visibility_adds_containment = node.content_visibility() == CSS::ContentVisibility::Auto;
+    if ((node.contain().layout_containment || content_visibility_adds_containment) && node.has_layout_containment())
         return true;
-    if ((computed_values.contain().paint_containment || content_visibility_adds_containment) && node.has_paint_containment())
+    if ((node.contain().paint_containment || content_visibility_adds_containment) && node.has_paint_containment())
         return true;
 
     // https://drafts.csswg.org/css-transforms-2/#transform-style-property
     // A computed value of 'preserve-3d' for 'transform-style' on a transformable element establishes both a
     // stacking context and a containing block for all descendants.
-    if ((computed_values.transform_style() == CSS::TransformStyle::Preserve3d || will_change_property(CSS::PropertyID::TransformStyle)) && node_is_transformable())
+    if ((node.transform_style() == CSS::TransformStyle::Preserve3d || will_change_property(CSS::PropertyID::TransformStyle)) && node_is_transformable())
         return true;
 
     // https://drafts.csswg.org/css-transforms-2/#backface-visibility-property
     // A computed value of hidden for backface-visibility on a transformable element that participates in a 3D
     // rendering context establishes both a stacking context and a containing block for all descendants.
-    if ((computed_values.backface_visibility() == CSS::BackfaceVisibility::Hidden || will_change_property(CSS::PropertyID::BackfaceVisibility))
+    if ((node.style_group<CSS::ComputedValues::TransformValues>().backface_visibility == CSS::BackfaceVisibility::Hidden || will_change_property(CSS::PropertyID::BackfaceVisibility))
         && node_is_transformable() && node.participates_in_a_3d_rendering_context())
         return true;
 
@@ -297,18 +304,16 @@ static bool computed_values_establish_fixed_positioning_containing_block(NodeWit
 // Checks if the computed values of this node would establish an absolute positioning
 // containing block. This is separate from establishes_an_absolute_positioning_containing_block()
 // because that function also checks is<Box>, but we need these checks for inline elements too.
-bool NodeWithStyle::computed_values_establish_absolute_positioning_containing_block() const
+bool NodeWithStyle::style_establishes_absolute_positioning_containing_block() const
 {
-    auto const& computed_values = this->computed_values();
-
     // https://drafts.csswg.org/css-position/#position-property
     // Values other than 'static' make the box a positioned box, and cause it to establish an absolute positioning
     // containing block for its descendants.
-    if (computed_values.position() != CSS::Positioning::Static
-        || (!computed_values.will_change().is_auto() && computed_values.will_change().has_property(CSS::PropertyID::Position)))
+    if (position() != CSS::Positioning::Static
+        || (!will_change().is_auto() && will_change().has_property(CSS::PropertyID::Position)))
         return true;
 
-    return computed_values_establish_fixed_positioning_containing_block(*this);
+    return style_establishes_fixed_positioning_containing_block(*this);
 }
 
 // https://drafts.csswg.org/css-position-3/#absolute-positioning-containing-block
@@ -325,7 +330,7 @@ bool NodeWithStyle::establishes_an_absolute_positioning_containing_block() const
     if (is_svg_foreign_object_box())
         return true;
 
-    return computed_values_establish_absolute_positioning_containing_block();
+    return style_establishes_absolute_positioning_containing_block();
 }
 
 // https://drafts.csswg.org/css-position-3/#fixed-positioning-containing-block
@@ -339,7 +344,7 @@ bool NodeWithStyle::establishes_a_fixed_positioning_containing_block() const
     if (is_svg_foreign_object_box())
         return true;
 
-    return computed_values_establish_fixed_positioning_containing_block(*this);
+    return style_establishes_fixed_positioning_containing_block(*this);
 }
 
 NodeWithStyle::PositioningContainingBlockEstablishment NodeWithStyle::establishes_positioning_containing_blocks() const
@@ -352,13 +357,12 @@ NodeWithStyle::PositioningContainingBlockEstablishment NodeWithStyle::establishe
     if (is_svg_foreign_object_box())
         return { true, true };
 
-    auto establishes_fixed_positioning_containing_block = computed_values_establish_fixed_positioning_containing_block(*this);
+    auto establishes_fixed_positioning_containing_block = style_establishes_fixed_positioning_containing_block(*this);
     if (establishes_fixed_positioning_containing_block)
         return { true, true };
 
-    auto const& computed_values = this->computed_values();
-    auto establishes_absolute_positioning_containing_block = computed_values.position() != CSS::Positioning::Static
-        || (!computed_values.will_change().is_auto() && computed_values.will_change().has_property(CSS::PropertyID::Position));
+    auto establishes_absolute_positioning_containing_block = position() != CSS::Positioning::Static
+        || (!will_change().is_auto() && will_change().has_property(CSS::PropertyID::Position));
     if (establishes_absolute_positioning_containing_block)
         return { true, false };
 
@@ -391,7 +395,7 @@ void Node::recompute_containing_block(Badge<DOM::Document>)
         return;
     }
 
-    auto position = as<NodeWithStyle>(*this).computed_values().position();
+    auto position = as<NodeWithStyle>(*this).position();
 
     // https://drafts.csswg.org/css-position-3/#absolute-cb
     if (position == CSS::Positioning::Absolute) {
@@ -447,14 +451,13 @@ void Node::recompute_containing_block(Badge<DOM::Document>)
                 // Restrict the per-property trigger set to those that actually apply to
                 // non-atomic inlines: `position` and filter/backdrop-filter. transform,
                 // contain, perspective and friends from
-                // computed_values_establish_absolute_positioning_containing_block()
+                // style_establishes_absolute_positioning_containing_block()
                 // explicitly do not apply to non-atomic inlines per their respective specs.
-                auto const& computed_values = layout_node->computed_values();
-                auto const& will_change = computed_values.will_change();
+                auto const& will_change = layout_node->will_change();
                 bool const inline_establishes_cb = layout_node->is_positioned()
                     || will_change.has_property(CSS::PropertyID::Position)
-                    || computed_values.filter().has_filters() || will_change.has_property(CSS::PropertyID::Filter)
-                    || computed_values.backdrop_filter().has_filters() || will_change.has_property(CSS::PropertyID::BackdropFilter);
+                    || layout_node->filter().has_filters() || will_change.has_property(CSS::PropertyID::Filter)
+                    || layout_node->backdrop_filter().has_filters() || will_change.has_property(CSS::PropertyID::BackdropFilter);
                 if (inline_establishes_cb) {
                     set_inline_containing_block(&as<InlineNode>(*layout_node));
                     break;
@@ -519,18 +522,16 @@ bool NodeWithStyle::establishes_stacking_context() const
     if (is_root_element())
         return true;
 
-    auto const& computed_values = this->computed_values();
-
-    auto position = computed_values.position();
+    auto position = this->position();
 
     // https://drafts.csswg.org/css-will-change/#will-change
     // If any non-initial value of a property would create a stacking context on the element, specifying that property
     // in will-change must create a stacking context on the element.
     auto will_change_property = [&](CSS::PropertyID property_id) {
-        return computed_values.will_change().has_property(property_id);
+        return will_change().has_property(property_id);
     };
 
-    auto has_z_index = computed_values.z_index().has_value() || will_change_property(CSS::PropertyID::ZIndex);
+    auto has_z_index = z_index().has_value() || will_change_property(CSS::PropertyID::ZIndex);
 
     // Element with a position value absolute or relative and z-index value other than auto.
     if (position == CSS::Positioning::Absolute || position == CSS::Positioning::Relative) {
@@ -546,16 +547,16 @@ bool NodeWithStyle::establishes_stacking_context() const
     }
 
     if (is_transformable()) {
-        if (!computed_values.transformations().is_empty() || will_change_property(CSS::PropertyID::Transform))
+        if (!transformations().is_empty() || will_change_property(CSS::PropertyID::Transform))
             return true;
 
-        if (computed_values.translate() || will_change_property(CSS::PropertyID::Translate))
+        if (translate() || will_change_property(CSS::PropertyID::Translate))
             return true;
 
-        if (computed_values.rotate() || will_change_property(CSS::PropertyID::Rotate))
+        if (rotate() || will_change_property(CSS::PropertyID::Rotate))
             return true;
 
-        if (computed_values.scale() || will_change_property(CSS::PropertyID::Scale))
+        if (scale() || will_change_property(CSS::PropertyID::Scale))
             return true;
     }
 
@@ -573,7 +574,7 @@ bool NodeWithStyle::establishes_stacking_context() const
     // [CSS21] and a Containing Block for absolute and fixed position descendants, unless the
     // element it applies to is a document root element in the current browsing context.
     // Spec Note: This rule works in the same way as for the filter property.
-    if (computed_values.backdrop_filter().has_filters() || computed_values.filter().has_filters()
+    if (backdrop_filter().has_filters() || filter().has_filters()
         || will_change_property(CSS::PropertyID::BackdropFilter)
         || will_change_property(CSS::PropertyID::Filter)) {
         return true;
@@ -586,7 +587,7 @@ bool NodeWithStyle::establishes_stacking_context() const
     // - perspective
     // - clip-path
     // - mask / mask-image / mask-border
-    if (computed_values.mask().has_value() || computed_values.clip_path().has_value() || computed_values.mask_image()
+    if (mask().has_value() || clip_path().has_value() || mask_image()
         || will_change_property(CSS::PropertyID::Mask)
         || will_change_property(CSS::PropertyID::ClipPath)
         || will_change_property(CSS::PropertyID::MaskImage)) {
@@ -598,7 +599,7 @@ bool NodeWithStyle::establishes_stacking_context() const
 
     // https://drafts.fxtf.org/compositing/#propdef-isolation
     // For CSS, setting isolation to isolate will turn the element into a stacking context.
-    if (computed_values.isolation() == CSS::Isolation::Isolate || will_change_property(CSS::PropertyID::Isolation))
+    if (isolation() == CSS::Isolation::Isolate || will_change_property(CSS::PropertyID::Isolation))
         return true;
 
     // https://drafts.csswg.org/css-contain-2/#containment-types
@@ -609,35 +610,35 @@ bool NodeWithStyle::establishes_stacking_context() const
 
     // https://drafts.fxtf.org/compositing/#mix-blend-mode
     // Applying a blendmode other than normal to the element must establish a new stacking context.
-    if (computed_values.mix_blend_mode() != CSS::MixBlendMode::Normal || will_change_property(CSS::PropertyID::MixBlendMode))
+    if (mix_blend_mode() != CSS::MixBlendMode::Normal || will_change_property(CSS::PropertyID::MixBlendMode))
         return true;
 
     // https://drafts.csswg.org/css-view-transitions-1/#named-and-transitioning
     // Elements captured in a view transition during a view transition or whose view-transition-name computed value is
     // not 'none' (at any time):
     // - Form a stacking context.
-    if (computed_values.view_transition_name().has_value() || will_change_property(CSS::PropertyID::ViewTransitionName))
+    if (view_transition_name().has_value() || will_change_property(CSS::PropertyID::ViewTransitionName))
         return true;
 
     // https://drafts.csswg.org/css-transforms-2/#propdef-perspective
     // The use of this property with any value other than 'none' establishes a stacking context.
-    if (is_transformable() && (computed_values.perspective().has_value() || will_change_property(CSS::PropertyID::Perspective)))
+    if (is_transformable() && (perspective().has_value() || will_change_property(CSS::PropertyID::Perspective)))
         return true;
 
     // https://drafts.csswg.org/css-transforms-2/#transform-style-property
     // A computed value of 'preserve-3d' for 'transform-style' on a transformable element establishes both a
     // stacking context and a containing block for all descendants.
-    if (is_transformable() && (computed_values.transform_style() == CSS::TransformStyle::Preserve3d || will_change_property(CSS::PropertyID::TransformStyle)))
+    if (is_transformable() && (transform_style() == CSS::TransformStyle::Preserve3d || will_change_property(CSS::PropertyID::TransformStyle)))
         return true;
 
     // https://drafts.csswg.org/css-transforms-2/#backface-visibility-property
     // A computed value of hidden for backface-visibility on a transformable element that participates in a 3D
     // rendering context establishes both a stacking context and a containing block for all descendants.
-    if ((computed_values.backface_visibility() == CSS::BackfaceVisibility::Hidden || will_change_property(CSS::PropertyID::BackfaceVisibility))
+    if ((style_group<CSS::ComputedValues::TransformValues>().backface_visibility == CSS::BackfaceVisibility::Hidden || will_change_property(CSS::PropertyID::BackfaceVisibility))
         && is_transformable() && participates_in_a_3d_rendering_context())
         return true;
 
-    return computed_values.opacity() < 1.0f || will_change_property(CSS::PropertyID::Opacity);
+    return opacity() < 1.0f || will_change_property(CSS::PropertyID::Opacity);
 }
 
 GC::Ptr<HTML::LocalNavigable> Node::navigable() const
@@ -664,43 +665,83 @@ bool NodeWithStyle::is_floating() const
     // flex-items don't float.
     if (is_flex_item())
         return false;
-    return computed_values().float_() != CSS::Float::None;
+    return float_() != CSS::Float::None;
 }
 
 bool NodeWithStyle::is_positioned() const
 {
-    return computed_values().position() != CSS::Positioning::Static;
+    return position() != CSS::Positioning::Static;
 }
 
 bool NodeWithStyle::is_absolutely_positioned() const
 {
-    auto position = computed_values().position();
+    auto position = this->position();
     return position == CSS::Positioning::Absolute || position == CSS::Positioning::Fixed;
 }
 
 bool NodeWithStyle::is_fixed_position() const
 {
-    auto position = computed_values().position();
+    auto position = this->position();
     return position == CSS::Positioning::Fixed;
 }
 
 bool NodeWithStyle::is_sticky_position() const
 {
-    auto position = computed_values().position();
+    auto position = this->position();
     return position == CSS::Positioning::Sticky;
 }
 
-NodeWithStyle::NodeWithStyle(DOM::Document& document, GC::Ptr<DOM::Node> node, NonnullRefPtr<CSS::ComputedValues const> computed_values)
+NodeWithStyle::NodeWithStyle(DOM::Document& document, GC::Ptr<DOM::Node> node, CSS::LayoutStyle style)
     : Node(document, node)
-    , m_computed_values(move(computed_values))
 {
+    VERIFY(style);
+    if (!!style.style_record_identity()) {
+        m_style_record_identity = style.style_record_identity();
+    } else if (auto* element = as_if<DOM::Element>(node.ptr())) {
+        m_owned_computed_values = style.values();
+        m_style_record_identity = document.style_computer().intern_computed_style_inputs({ *element }, *style.values());
+    } else {
+        m_owned_computed_values = style.values();
+        m_style_record_identity = document.style_computer().intern_anonymous_layout_style(*style.values());
+    }
     set_flag(RustFFI::NodeFlag::HasStyle, true);
     set_flag(RustFFI::NodeFlag::IsBody, node && node == GC::Ptr { document.body() });
-    set_flag(RustFFI::NodeFlag::HasAnchorNames, !m_computed_values->anchor_names().is_empty());
-    set_flag(RustFFI::NodeFlag::InsetsUseAnchorFunctions, m_computed_values->inset_properties_contain_anchor_functions());
-    publish_style_container_to_node_data();
+    // NB: Nodes constructed from an interned style record own no ComputedValues; read anchor names through the record view there.
+    bool has_anchor_names = false;
+    bool insets_use_anchor_functions = false;
+    if (m_owned_computed_values) {
+        has_anchor_names = !m_owned_computed_values->anchor_names().is_empty();
+        insets_use_anchor_functions = m_owned_computed_values->inset_properties_contain_anchor_functions();
+    } else if (auto record_view = computed_style_record_view()) {
+        has_anchor_names = !record_view->anchor_names().is_empty();
+        insets_use_anchor_functions = record_view->inset_properties_contain_anchor_functions();
+    }
+    set_flag(RustFFI::NodeFlag::HasAnchorNames, has_anchor_names);
+    set_flag(RustFFI::NodeFlag::InsetsUseAnchorFunctions, insets_use_anchor_functions);
+    publish_style_record_to_node_data();
     synchronize_table_span_data();
     enroll_for_arena_replaced_content_facts_sync_if_eligible();
+}
+
+CSS::ComputedValues const& NodeWithStyle::owned_computed_values() const
+{
+    VERIFY(m_owned_computed_values);
+    return *m_owned_computed_values;
+}
+
+NonnullRefPtr<CSS::ComputedValues const> NodeWithStyle::copy_computed_values() const
+{
+    if (m_owned_computed_values)
+        return *m_owned_computed_values;
+    auto record_view = computed_style_record_view();
+    VERIFY(record_view);
+    return CSS::ComputedValues::Builder { *record_view }.build();
+}
+
+CSS::ComputedStyleRecordView NodeWithStyle::computed_style_record_view() const
+{
+    VERIFY(m_style_record_identity);
+    return document().style_computer().computed_style_record_view(m_style_record_identity);
 }
 
 NodeWithStyle::ImageObserver::ImageObserver(NodeWithStyle& owner, NonnullRefPtr<CSS::ImageStyleValue const> image)
@@ -726,6 +767,7 @@ void NodeWithStyle::ImageObserver::image_style_value_did_update(CSS::ImageStyleV
 NodeWithStyle::~NodeWithStyle()
 {
     clear_image_observers();
+    release_pinned_style_record();
 }
 
 void NodeWithStyle::clear_image_observers()
@@ -751,16 +793,16 @@ void NodeWithStyle::rebuild_image_observers()
     };
 
     Vector<NonnullOwnPtr<ImageObserver>> new_observers;
-    for (auto const& layer : computed_values().background_layers())
+    for (auto const& layer : background_layers())
         add_observer_for(layer.background_image.ptr(), new_observers);
-    add_observer_for(computed_values().list_style_image(), new_observers);
-    for (auto const& layer : computed_values().mask_layers())
+    add_observer_for(list_style_image(), new_observers);
+    for (auto const& layer : mask_layers())
         add_observer_for(layer.background_image.ptr(), new_observers);
-    for (auto const& cursor : computed_values().cursor()) {
+    for (auto const& cursor : this->cursor()) {
         if (auto const* cursor_style_value = cursor.get_pointer<NonnullRefPtr<CSS::CursorStyleValue const>>())
             add_observer_for(&(*cursor_style_value)->image(), new_observers);
     }
-    if (auto const& border_image = computed_values().border_image(); border_image.source)
+    if (auto const& border_image = this->border_image(); border_image.source)
         add_observer_for(border_image.source.ptr(), new_observers);
     // TODO: Observe other <image> accepting properties once we support them.
 
@@ -771,12 +813,20 @@ void NodeWithStyle::rebuild_image_observers()
 
 namespace Web::Layout {
 
-void NodeWithStyle::apply_style(NonnullRefPtr<CSS::ComputedValues const> computed_values)
+void NodeWithStyle::apply_style(CSS::StyleRecordID style_record_identity)
 {
-    set_computed_values(move(computed_values));
-
+    release_pinned_style_record();
+    m_owned_computed_values = nullptr;
+    m_style_record_identity = style_record_identity;
+    publish_style_record_to_node_data();
+    auto record_view = computed_style_record_view();
+    VERIFY(record_view);
+    set_flag(RustFFI::NodeFlag::HasAnchorNames, !record_view->anchor_names().is_empty());
+    set_flag(RustFFI::NodeFlag::InsetsUseAnchorFunctions, record_view->inset_properties_contain_anchor_functions());
+    // A style change can introduce the properties that make a node carry replaced-content facts,
+    // such as size containment arriving on a kept layout node.
+    enroll_for_arena_replaced_content_facts_sync_if_eligible();
     propagate_style_to_anonymous_wrappers();
-
     attach_style_resources();
 }
 
@@ -787,19 +837,19 @@ void NodeWithStyle::attach_style_resources()
             const_cast<CSS::AbstractImageStyleValue&>(*image).load_any_resources(*this);
     };
 
-    for (auto const& layer : computed_values().background_layers())
+    for (auto const& layer : background_layers())
         load_image(layer.background_image.ptr());
-    for (auto const& layer : computed_values().mask_layers())
+    for (auto const& layer : mask_layers())
         load_image(layer.background_image.ptr());
-    if (auto const& border_image = computed_values().border_image(); border_image.source)
+    if (auto const& border_image = this->border_image(); border_image.source)
         load_image(border_image.source.ptr());
-    for (auto const& cursor_data : computed_values().cursor()) {
+    for (auto const& cursor_data : cursor()) {
         if (auto const* cursor_style_value = cursor_data.get_pointer<NonnullRefPtr<CSS::CursorStyleValue const>>())
             load_image(&(*cursor_style_value)->image());
     }
-    load_image(computed_values().mask_image().ptr());
+    load_image(mask_image());
 
-    load_image(computed_values().list_style_image());
+    load_image(list_style_image());
 
     rebuild_image_observers();
 }
@@ -821,10 +871,10 @@ CSS::StyleScope const& NodeWithStyle::style_scope() const
 void NodeWithStyle::propagate_non_inherit_values(CSS::ComputedValues::Builder& builder) const
 {
     // NOTE: These properties are not inherited, but we still have to propagate them to anonymous wrappers.
-    builder->set_text_decoration_line(computed_values().text_decoration_line());
-    builder->set_text_decoration_thickness(computed_values().text_decoration_thickness());
-    builder->set_text_decoration_color(computed_values().text_decoration_color());
-    builder->set_text_decoration_style(computed_values().text_decoration_style());
+    builder->set_text_decoration_line(text_decoration_line());
+    builder->set_text_decoration_thickness(text_decoration_thickness());
+    builder->set_text_decoration_color(text_decoration_color());
+    builder->set_text_decoration_style(text_decoration_style());
 }
 
 void NodeWithStyle::propagate_style_to_anonymous_wrappers()
@@ -836,8 +886,9 @@ void NodeWithStyle::propagate_style_to_anonymous_wrappers()
     // If this is a `display:table` box with an anonymous wrapper parent,
     // the parent inherits style from *this* node, not the other way around.
     if (auto* table_wrapper = as_if<TableWrapper>(parent()); table_wrapper && display().is_table_inside()) {
-        CSS::ComputedValues::Builder builder(table_wrapper->computed_values());
-        builder->inherit_from(computed_values());
+        CSS::ComputedValues::Builder builder(table_wrapper->owned_computed_values());
+        auto values = copy_computed_values();
+        builder->inherit_from(*values);
         transfer_table_box_computed_values_to_wrapper_computed_values(builder);
         table_wrapper->set_computed_values(move(builder).build());
     }
@@ -852,8 +903,9 @@ void NodeWithStyle::propagate_style_to_anonymous_wrappers()
                 && child.pseudo_element_generator()->pseudo_element_unsafe_layout_node(*pseudo_element) == &child) {
                 return IterationDecision::Continue;
             }
-            CSS::ComputedValues::Builder builder(child.computed_values());
-            builder->inherit_from(computed_values());
+            CSS::ComputedValues::Builder builder(child.owned_computed_values());
+            auto values = copy_computed_values();
+            builder->inherit_from(*values);
             propagate_non_inherit_values(builder);
             child.set_computed_values(move(builder).build());
             child.propagate_style_to_anonymous_wrappers();
@@ -991,11 +1043,23 @@ bool NodeWithStyle::is_transformable() const
 // https://drafts.csswg.org/css-transforms-2/#grouping-property-values
 CSS::TransformStyle NodeWithStyle::used_transform_style() const
 {
-    auto const& computed_values = this->computed_values();
-    if (computed_values.transform_style() == CSS::TransformStyle::Flat)
+    if (transform_style() == CSS::TransformStyle::Flat)
         return CSS::TransformStyle::Flat;
 
-    if (computed_values.has_transform_style_grouping_property())
+    // Keep this in sync with ComputedValues::has_transform_style_grouping_property().
+    auto has_mask_layer_image = any_of(mask_layers(), [](auto const& layer) { return layer.background_image != nullptr; });
+    bool has_transform_style_grouping_property = (overflow_x() != CSS::Overflow::Visible && overflow_x() != CSS::Overflow::Clip)
+        || (overflow_y() != CSS::Overflow::Visible && overflow_y() != CSS::Overflow::Clip)
+        || opacity() < 1
+        || filter().has_filters()
+        || !clip().is_auto()
+        || clip_path().has_value()
+        || isolation() == CSS::Isolation::Isolate
+        || mask().has_value()
+        || has_mask_layer_image
+        || mix_blend_mode() != CSS::MixBlendMode::Normal
+        || backdrop_filter().has_filters();
+    if (has_transform_style_grouping_property)
         return CSS::TransformStyle::Flat;
 
     // contain: paint and any other property/value combination that causes paint containment.
@@ -1023,7 +1087,8 @@ bool NodeWithStyle::participates_in_a_3d_rendering_context() const
 
 NonnullRefPtr<NodeWithStyle> NodeWithStyle::create_anonymous_wrapper() const
 {
-    auto builder = CSS::ComputedValues::Builder::create_inheriting_from(computed_values());
+    auto values = copy_computed_values();
+    auto builder = CSS::ComputedValues::Builder::create_inheriting_from(*values);
     builder->set_display(CSS::Display(CSS::DisplayOutside::Block, CSS::DisplayInside::Flow));
     propagate_non_inherit_values(builder);
     // CSS 2.2 9.2.1.1 creates anonymous block boxes, but 9.4.1 states inline-block creates a BFC.
@@ -1046,14 +1111,41 @@ void NodeWithStyle::set_computed_values(NonnullRefPtr<CSS::ComputedValues const>
     // node data plus the animated-value overlay, which lives outside the groups and
     // disqualifies pointer diffing the same way it disqualifies the style differ's group
     // fast path.
-    bool const changes_layout_affecting_style = fragment_cache_epochs_enabled()
-        && (CSS::ComputedValues::either_carries_animated_overlay(*m_computed_values, *computed_values)
-            || computed_values->differs_in_any_layout_affecting_group_payload_from(*m_computed_values));
+    bool changes_layout_affecting_style = false;
+    if (fragment_cache_epochs_enabled()) {
+        auto differs_from = [&](CSS::ComputedValues const& previous_values) {
+            return CSS::ComputedValues::either_carries_animated_overlay(previous_values, *computed_values)
+                || computed_values->differs_in_any_layout_affecting_group_payload_from(previous_values);
+        };
+        if (m_owned_computed_values)
+            changes_layout_affecting_style = differs_from(*m_owned_computed_values);
+        else if (auto record_view = computed_style_record_view())
+            changes_layout_affecting_style = differs_from(*record_view);
+    }
 
-    m_computed_values = move(computed_values);
-    set_flag(RustFFI::NodeFlag::HasAnchorNames, !m_computed_values->anchor_names().is_empty());
-    set_flag(RustFFI::NodeFlag::InsetsUseAnchorFunctions, m_computed_values->inset_properties_contain_anchor_functions());
-    publish_style_container_to_node_data();
+    release_pinned_style_record();
+    Optional<DOM::AbstractElement> abstract_element;
+    if (is_generated_for_pseudo_element())
+        abstract_element = DOM::AbstractElement { *pseudo_element_generator(), generated_for_pseudo_element() };
+    else if (auto* element = as_if<DOM::Element>(dom_node()))
+        abstract_element = DOM::AbstractElement { *element };
+
+    if (abstract_element.has_value()) {
+        auto style_record_identity = document().style_computer().intern_computed_style_inputs(*abstract_element, *computed_values);
+        if (!m_owned_computed_values && style_record_identity == m_style_record_identity) {
+            m_owned_computed_values = nullptr;
+        } else {
+            m_style_record_identity = style_record_identity;
+            m_owned_computed_values = computed_values;
+        }
+    } else {
+        auto style_record_identity = document().style_computer().intern_anonymous_layout_style(*computed_values);
+        m_style_record_identity = style_record_identity;
+        m_owned_computed_values = computed_values;
+    }
+    set_flag(RustFFI::NodeFlag::HasAnchorNames, !computed_values->anchor_names().is_empty());
+    set_flag(RustFFI::NodeFlag::InsetsUseAnchorFunctions, computed_values->inset_properties_contain_anchor_functions());
+    publish_style_record_to_node_data();
     enroll_for_arena_replaced_content_facts_sync_if_eligible();
 
     if (changes_layout_affecting_style)
@@ -1065,9 +1157,76 @@ void NodeWithStyle::set_computed_values(NonnullRefPtr<CSS::ComputedValues const>
     }
 }
 
-void NodeWithStyle::publish_style_container_to_node_data()
+void NodeWithStyle::set_style_record_identity(CSS::StyleRecordID style_record_identity)
 {
-    node_data().style = m_computed_values->style_container();
+    // A detached or layout-derived record is independent of its DOM target's record. A
+    // rendering consequence replaces and re-derives it explicitly through apply_style().
+    if (m_style_record_owner || m_owned_computed_values)
+        return;
+    if (m_style_record_identity == style_record_identity) {
+        publish_style_record_to_node_data();
+        return;
+    }
+
+    auto new_record_view = document().style_computer().computed_style_record_view(style_record_identity);
+    VERIFY(new_record_view);
+    bool changes_layout_affecting_style = false;
+    if (fragment_cache_epochs_enabled()) {
+        auto old_record_view = computed_style_record_view();
+        changes_layout_affecting_style = !old_record_view
+            || CSS::ComputedValues::either_carries_animated_overlay(*old_record_view, *new_record_view)
+            || new_record_view->differs_in_any_layout_affecting_group_payload_from(*old_record_view);
+    }
+
+    release_pinned_style_record();
+    m_owned_computed_values = nullptr;
+    m_style_record_identity = style_record_identity;
+    set_flag(RustFFI::NodeFlag::HasAnchorNames, !new_record_view->anchor_names().is_empty());
+    set_flag(RustFFI::NodeFlag::InsetsUseAnchorFunctions, new_record_view->inset_properties_contain_anchor_functions());
+    publish_style_record_to_node_data();
+    enroll_for_arena_replaced_content_facts_sync_if_eligible();
+
+    if (changes_layout_affecting_style)
+        bump_fragment_cache_epoch_of_self_and_ancestors();
+}
+
+void NodeWithStyle::pin_style_record_for_cxx_consumers()
+{
+    if (m_owned_computed_values || m_style_record_owner)
+        return;
+
+    VERIFY(m_style_record_identity);
+    auto& owner = document();
+    owner.style_computer().pin_style_record(m_style_record_identity);
+    m_style_record_owner = owner;
+}
+
+void NodeWithStyle::release_pinned_style_record()
+{
+    if (!m_style_record_owner)
+        return;
+    m_style_record_owner->style_computer().unpin_style_record(m_style_record_identity);
+    m_style_record_owner = {};
+}
+
+void NodeWithStyle::bind_generated_style_record(CSS::StyleRecordID target_style_record_identity)
+{
+    VERIFY(is_generated_for_pseudo_element());
+    if (!m_owned_computed_values) {
+        set_style_record_identity(target_style_record_identity);
+        return;
+    }
+    if (m_style_record_identity != target_style_record_identity)
+        return;
+    m_owned_computed_values = nullptr;
+    publish_style_record_to_node_data();
+}
+
+void NodeWithStyle::publish_style_record_to_node_data()
+{
+    auto const* payloads = document().style_computer().style_engine().style_record_payloads(m_style_record_identity);
+    VERIFY(payloads);
+    node_data().style = payloads;
 }
 
 bool NodeWithStyle::synchronize_table_span_data()
@@ -1151,28 +1310,28 @@ void NodeWithStyle::transfer_table_box_computed_values_to_wrapper_computed_value
         builder->set_display(CSS::Display::from_short(CSS::Display::Short::InlineBlock));
     else
         builder->set_display(CSS::Display::from_short(CSS::Display::Short::FlowRoot));
-    builder->set_position(computed_values().position());
-    builder->set_position_anchor(computed_values().position_anchor_value());
-    builder->set_inset(computed_values().inset());
-    builder->set_float(computed_values().float_());
-    builder->set_clear(computed_values().clear());
+    builder->set_position(position());
+    builder->set_position_anchor(position_anchor_value());
+    builder->set_inset(inset());
+    builder->set_float(float_());
+    builder->set_clear(clear());
     // CSS 2 moves table-root positioning and margins to the wrapper. The wrapper is also the grid item for
     // display:table, so grid placement, self-alignment, and order need to move there as well.
-    builder->copy_grid_placements_from(computed_values());
-    builder->set_align_self(computed_values().align_self());
-    builder->set_justify_self(computed_values().justify_self());
-    builder->set_order(computed_values().order());
-    builder->set_margin(computed_values().margin());
+    builder->copy_grid_placements_from(style_group<CSS::ComputedValues::GridValues>());
+    builder->set_align_self(align_self());
+    builder->set_justify_self(justify_self());
+    builder->set_order(order());
+    builder->set_margin(margin());
     // AD-HOC:
     // To match other browsers, z-index needs to be moved to the wrapper box as well,
     // even if the spec does not mention that: https://github.com/w3c/csswg-drafts/issues/11689
     // Note that there may be more properties that need to be added to this list.
-    builder->set_z_index(computed_values().z_index());
+    builder->set_z_index(z_index());
     // "clip" only takes effect on absolutely-positioned elements; the table box isn't one — the wrapper is.
-    builder->set_clip(computed_values().clip());
+    builder->set_clip(clip());
     // AD-HOC: The wrapper box participates in inline layout in place of the table box, so vertical-align
     //         must be moved to the wrapper to have any effect.
-    builder->set_vertical_align(computed_values().vertical_align());
+    builder->set_vertical_align(vertical_align());
 
     reset_table_box_computed_values_used_by_wrapper_to_init_values();
 }
@@ -1197,8 +1356,8 @@ bool NodeWithStyle::is_scroll_container() const
     if (is_viewport())
         return true;
 
-    return overflow_value_makes_box_a_scroll_container(computed_values().overflow_x())
-        || overflow_value_makes_box_a_scroll_container(computed_values().overflow_y());
+    return overflow_value_makes_box_a_scroll_container(overflow_x())
+        || overflow_value_makes_box_a_scroll_container(overflow_y());
 }
 
 void Node::set_paintable(RefPtr<Painting::Paintable> paintable)
@@ -1262,6 +1421,8 @@ void Node::set_generated_for(CSS::PseudoElement type, DOM::Element& element)
     static_assert(encode_generated_for(CSS::PseudoElement::Marker) == RustFFI::GENERATED_FOR_MARKER);
     m_data->generated_for = encode_generated_for(type);
     m_pseudo_element_generator = element;
+    if (auto* node_with_style = as_if<NodeWithStyle>(*this))
+        node_with_style->bind_generated_style_record(element.style_record_identity(type));
 }
 
 DOM::Document& Node::document()
@@ -1287,9 +1448,10 @@ CSS::UserSelect Node::user_select_used_value() const
             return node->user_select_used_value();
     }
 
-    auto const* node_with_style = as_if<NodeWithStyle>(*this);
-    auto const& computed_values = node_with_style ? node_with_style->computed_values() : parent()->computed_values();
-    auto computed_value = computed_values.user_select();
+    auto const* style_source = as_if<NodeWithStyle>(*this);
+    if (!style_source)
+        style_source = parent();
+    auto computed_value = style_source->user_select();
     if (computed_value != CSS::UserSelect::Auto)
         return computed_value;
 
@@ -1321,10 +1483,10 @@ bool NodeWithStyle::has_size_containment() const
     // - if its principal box is an internal ruby box or a non-atomic inline-level box
     // FIXME: Implement this.
 
-    if (computed_values().contain().size_containment)
+    if (contain().size_containment)
         return true;
 
-    if (computed_values().container_type().is_size_container)
+    if (container_type().is_size_container)
         return true;
 
     return false;
@@ -1348,10 +1510,10 @@ bool NodeWithStyle::has_inline_size_containment() const
     // - if its principal box is an internal ruby box or a non-atomic inline-level box
     // FIXME: Implement this.
 
-    if (computed_values().contain().inline_size_containment)
+    if (contain().inline_size_containment)
         return true;
 
-    if (computed_values().container_type().is_inline_size_container)
+    if (container_type().is_inline_size_container)
         return true;
 
     return false;
@@ -1359,13 +1521,12 @@ bool NodeWithStyle::has_inline_size_containment() const
 // https://drafts.csswg.org/css-contain-2/#containment-layout
 bool NodeWithStyle::has_layout_containment() const
 {
-    auto const& computed_values = this->computed_values();
-    auto has_layout_containment = computed_values.contain().layout_containment;
+    auto has_layout_containment = contain().layout_containment;
 
     // https://drafts.csswg.org/css-contain-2/#valdef-content-visibility-auto
     // Changes the used value of the 'contain' property so as to turn on layout containment, style containment, and
     // paint containment for the element.
-    has_layout_containment = has_layout_containment || computed_values.content_visibility() == CSS::ContentVisibility::Auto;
+    has_layout_containment = has_layout_containment || content_visibility() == CSS::ContentVisibility::Auto;
     if (!has_layout_containment)
         return false;
 
@@ -1393,16 +1554,16 @@ bool NodeWithStyle::has_style_containment() const
     // - if the element does not generate a principal box (as is the case with 'display: contents' or 'display: none')
     // Note: This is the principal box
 
-    if (computed_values().contain().style_containment)
+    if (contain().style_containment)
         return true;
 
-    if (computed_values().container_type().is_size_container || computed_values().container_type().is_inline_size_container)
+    if (container_type().is_size_container || container_type().is_inline_size_container)
         return true;
 
     // https://drafts.csswg.org/css-contain-2/#valdef-content-visibility-auto
     // Changes the used value of the 'contain' property so as to turn on layout containment, style containment, and
     // paint containment for the element.
-    if (computed_values().content_visibility() == CSS::ContentVisibility::Auto)
+    if (content_visibility() == CSS::ContentVisibility::Auto)
         return true;
 
     return false;
@@ -1410,13 +1571,12 @@ bool NodeWithStyle::has_style_containment() const
 // https://drafts.csswg.org/css-contain-2/#containment-paint
 bool NodeWithStyle::has_paint_containment() const
 {
-    auto const& computed_values = this->computed_values();
-    auto has_paint_containment = computed_values.contain().paint_containment;
+    auto has_paint_containment = contain().paint_containment;
 
     // https://drafts.csswg.org/css-contain-2/#valdef-content-visibility-auto
     // Changes the used value of the 'contain' property so as to turn on layout containment, style containment, and
     // paint containment for the element.
-    has_paint_containment = has_paint_containment || computed_values.content_visibility() == CSS::ContentVisibility::Auto;
+    has_paint_containment = has_paint_containment || content_visibility() == CSS::ContentVisibility::Auto;
     if (!has_paint_containment)
         return false;
 

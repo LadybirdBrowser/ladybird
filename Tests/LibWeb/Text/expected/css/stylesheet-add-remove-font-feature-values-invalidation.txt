@@ -1,2 +1,0 @@
-PASS: @font-feature-values stylesheet add schedules full restyle (1 full invalidations)
-PASS: @font-feature-values stylesheet remove schedules full restyle (1 full invalidations)

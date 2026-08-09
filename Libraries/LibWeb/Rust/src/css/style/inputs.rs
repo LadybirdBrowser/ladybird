@@ -47,6 +47,7 @@ impl StyleEngine {
             pending_layer_orders: HashMap::default(),
             pending_scopes_using_document_sheets: HashSet::default(),
             pending_sheets_in_scope: PendingField::default(),
+            rule_change_is_carried_by_sheet: HashMap::default(),
             pending_program_base_version: None,
             pending_rule_declaration_changes: Vec::new(),
             sheet_rule_replacement: None,
@@ -92,8 +93,12 @@ impl StyleEngine {
             relational_witnesses: RefCell::new(RelationalWitnesses::default()),
             relational_witness_residency: MemoryLease::new(MemoryCategory::RetainedWitness),
             scope_roots: Column::default(),
+            scope_by_root: HashMap::default(),
             scope_programs: intern_table::InternTable::default(),
             vacant_scope_programs: Vec::new(),
+            scope_dispatch_templates: HashMap::default(),
+            scope_cascade_templates: HashMap::default(),
+            ancestor_dispatch_templates: HashMap::default(),
             scope_program_by_scope: Column::default(),
             held_scope_program: None,
             atoms: HashMap::default(),
@@ -1244,29 +1249,43 @@ impl StyleEngine {
     /// Attach a compiled program at the end of a scope's sheet order.
     pub(super) fn attach_sheet(&mut self, sheet: SheetID, tree_scope: TreeScopeID) {
         let mut sheets = self.current_sheets_in_scope(tree_scope);
+        let previous_sheets = sheets.clone();
+        let was_attached = sheets.contains(&sheet);
+        sheets.retain(|&candidate| candidate != sheet);
         sheets.push(sheet);
+        let order_changed = was_attached && sheets != previous_sheets;
         self.stage_sheets_in_scope(tree_scope, sheets);
-        self.record_attachment(sheet, tree_scope, false, true);
+        self.record_attachment(sheet, tree_scope, was_attached, true);
+        if order_changed {
+            self.record_sheet_order_change(tree_scope);
+        }
     }
 
     /// Attach at a position established before the sheet finished loading. Network completion order
     /// does not determine cascade order.
     pub(super) fn attach_sheet_before(&mut self, sheet: SheetID, before: SheetID, tree_scope: TreeScopeID) {
         let mut sheets = self.current_sheets_in_scope(tree_scope);
+        let previous_sheets = sheets.clone();
+        let was_attached = sheets.contains(&sheet);
+        sheets.retain(|&candidate| candidate != sheet);
         let position = sheets
             .iter()
             .position(|&candidate| candidate == before)
             .unwrap_or(sheets.len());
         sheets.insert(position, sheet);
+        let order_changed = was_attached && sheets != previous_sheets;
         self.stage_sheets_in_scope(tree_scope, sheets);
         // A sheet arriving in the middle is not the scope's order changing. Order is kept as tokens
         // precisely so an insertion writes one label and renumbers nothing, so every sheet already
         // attached keeps the priority it had against every other. What is new is one more competitor
         // for the declarations it makes, and the elements that competition can reach are exactly the
         // ones its own rules match, which the attachment recorded above already names. A sheet that
-        // was attached a moment ago and is arriving again is a move, and `record_attachment` reports
-        // the order change for that.
-        self.record_attachment(sheet, tree_scope, false, true);
+        // was attached a moment ago and is arriving again can be a move, whose order delta is
+        // recorded below.
+        self.record_attachment(sheet, tree_scope, was_attached, true);
+        if order_changed {
+            self.record_sheet_order_change(tree_scope);
+        }
     }
 
     /// Attach a sheet immediately before another sheet in the same scope, or at the end when that
@@ -1326,7 +1345,7 @@ impl StyleEngine {
             return;
         }
         self.pending_program_base_version.get_or_insert(self.program.version());
-        self.invalidate_scope_programs();
+        self.invalidate_scope_program(tree_scope);
     }
 
     pub fn set_tree_scope_root(&mut self, tree_scope: TreeScopeID, root: StyleNodeID) {
@@ -1334,7 +1353,13 @@ impl StyleEngine {
             return;
         }
         let index = tree_scope.0 as usize;
+        if let Some(previous_root) = self.scope_roots.get(index).copied().flatten()
+            && previous_root != root
+        {
+            self.scope_by_root.remove(&previous_root);
+        }
         self.scope_roots.insert(index, Some(root));
+        self.scope_by_root.insert(root, tree_scope);
         // The root is a node selectors reach and nothing publishes features for, so this is where it
         // gets a row of its own.
         self.facts.ensure_row(root);

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style id="definition">@function --width() { result: 10px }</style>
+<style>#target { width: --width() }</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const widthOf = () => getComputedStyle(target).width;
+        const definition = document.getElementById("definition");
+        println(`with the function defined: ${widthOf()}`);
+
+        // Taking the definition away leaves the call unresolvable, so the declaration is invalid at
+        // computed-value time and the element falls back to its initial width.
+        const sheet = definition.sheet;
+        sheet.deleteRule(0);
+        println(`with the definition deleted: ${widthOf()}`);
+
+        // Calling a function that is not defined still makes the element a consumer of one. Giving
+        // the name a definition again has to reach it, and the only thing that can find it is the
+        // index of elements that called a function.
+        sheet.insertRule("@function --width() { result: 30px; }", 0);
+        println(`with a definition restored by rule: ${widthOf()}`);
+
+        // The same by way of a whole sheet arriving rather than a rule, which is what replacing a
+        // style element does.
+        sheet.deleteRule(0);
+        println(`with the definition deleted again: ${widthOf()}`);
+        const arriving = document.createElement("style");
+        arriving.textContent = "@function --width() { result: 50px; }";
+        document.head.appendChild(arriving);
+        println(`with a definition restored by sheet: ${widthOf()}`);
+    });
+</script>

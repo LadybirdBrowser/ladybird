@@ -1,0 +1,6 @@
+temporary element facts omitted: true
+selector query sees final facts: true
+final selector facts style the element: rgb(0, 128, 0)
+final inline declarations style the element: 7px
+final emptiness facts style the elements: true
+final nonempty fact can transition to empty: true

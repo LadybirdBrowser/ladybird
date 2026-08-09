@@ -1,0 +1,5 @@
+child list position: inside
+materialized gaps: 1
+record deltas applied: 1
+inherited group swaps: 0
+longhand evaluations: 83

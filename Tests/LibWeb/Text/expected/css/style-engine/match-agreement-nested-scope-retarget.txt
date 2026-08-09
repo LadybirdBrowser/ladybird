@@ -1,0 +1,5 @@
+p > .x: rgb(0, 0, 0)
+r > .x: rgb(1, 2, 3)
+div.r: .r
+div.x: :scope .x
+

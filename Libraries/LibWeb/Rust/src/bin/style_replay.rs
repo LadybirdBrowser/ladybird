@@ -40,6 +40,7 @@ use libweb_rust::css::style::memory::MEMORY_CATEGORIES;
 #[cfg(test)]
 use libweb_rust::css::style::memory::MemoryCategory;
 use libweb_rust::css::style::memory::TIER_COUNT;
+use libweb_rust::css::style::memory::TIER3_REFUSAL_CATEGORIES;
 use libweb_rust::css::style::memory::Tier;
 use libweb_rust::css::style::program::DeclaredProperty;
 use libweb_rust::css::style::record_replay::EventKind;
@@ -67,6 +68,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     libweb_rust::css::computed_values::enable_style_group_replay();
 
     let mut encountered_subtests = BTreeSet::new();
+    let mut reports = Vec::new();
     for path in &options.paths {
         let mapping = mapped_log::MappedLog::open(path)?;
         let mut reader = LogReader::new(mapping.bytes())?;
@@ -88,8 +90,10 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         let mut pending_changed_rows = FastMap::<usize, u64>::default();
         let mut amplification = AmplificationLedger::default();
         let mut amplification_counter_reader = None;
-        let mut recorded_style_record_payloads = Vec::<Vec<Option<Option<Vec<u64>>>>>::new();
-        let mut recorded_style_record_views = Vec::<Vec<Option<Option<SemanticStyleRecordView>>>>::new();
+        let mut detailed_counters = DetailedCounterLedger::default();
+        let mut detailed_counter_reader = None;
+        let mut recorded_style_record_payloads = Vec::<Vec<Option<Option<EncodedU64Slice<'_>>>>>::new();
+        let mut recorded_style_record_views = Vec::<Vec<Option<Option<RecordedStyleRecordView<'_>>>>>::new();
         let mut computed_group_payloads = Vec::new();
         let mut animation_overlay_payloads = Vec::new();
         let mut inheritance_dependent_properties = Vec::new();
@@ -195,10 +199,18 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     let counter_reader =
                         amplification_counter_reader.get_or_insert_with(|| AmplificationCounterReader::new(engine));
                     let before = counter_reader.read(engine);
+                    let detailed_before = options.detailed_counters.then(|| {
+                        detailed_counter_reader
+                            .get_or_insert_with(|| DetailedCounterReader::new(engine))
+                            .read(engine)
+                    });
                     let start = Instant::now();
                     unsafe { bridge::style_engine_flush(engine) };
                     let elapsed = start.elapsed();
                     let after = counter_reader.read(engine);
+                    let detailed_after = detailed_before
+                        .as_ref()
+                        .map(|_| detailed_counter_reader.as_ref().unwrap().read(engine));
                     boundary_time += elapsed;
                     flush_count += 1;
                     let selected = record_timing(
@@ -212,6 +224,9 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     let changed_rows = pending_changed_rows.remove(&(engine as usize)).unwrap_or(0);
                     if selected {
                         amplification.record(changed_rows, &before, &after);
+                        if let (Some(before), Some(after)) = (&detailed_before, &detailed_after) {
+                            detailed_counters.record(before, after);
+                        }
                     }
                 }
                 EventKind::AddStyleRule => {
@@ -295,6 +310,11 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     let counter_reader =
                         amplification_counter_reader.get_or_insert_with(|| AmplificationCounterReader::new(engine));
                     let before = counter_reader.read(engine);
+                    let detailed_before = options.detailed_counters.then(|| {
+                        detailed_counter_reader
+                            .get_or_insert_with(|| DetailedCounterReader::new(engine))
+                            .read(engine)
+                    });
                     let start = Instant::now();
                     let actual_result = unsafe {
                         bridge::style_engine_take_style_transaction(
@@ -306,6 +326,9 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     };
                     let elapsed = start.elapsed();
                     let after = counter_reader.read(engine);
+                    let detailed_after = detailed_before
+                        .as_ref()
+                        .map(|_| detailed_counter_reader.as_ref().unwrap().read(engine));
                     boundary_time += elapsed;
                     flush_count += 1;
                     let selected = record_timing(
@@ -319,6 +342,9 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     let changed_rows = pending_changed_rows.remove(&(engine as usize)).unwrap_or(0);
                     if selected {
                         amplification.record(changed_rows, &before, &after);
+                        if let (Some(before), Some(after)) = (&detailed_before, &detailed_after) {
+                            detailed_counters.record(before, after);
+                        }
                     }
                     if let Some(error) = context.error {
                         return Err(error.into());
@@ -394,6 +420,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                         FfiRuleMatch {
                             node: 0,
                             rule: 0,
+                            semantic_declaration: 0,
                             pseudo_element: 0,
                             scope_host: 0,
                             scope_proximity: 0,
@@ -415,7 +442,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                         )
                         .into());
                     }
-                    if has_output && actual[..actual_result] != expected {
+                    if has_output && !rule_matches_equal(&actual[..actual_result], &expected) {
                         return Err(format!(
                             "element matches diverged for node {node}: expected {expected:?}, got {:?}",
                             &actual[..actual_result]
@@ -463,6 +490,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                         FfiRuleMatch {
                             node: 0,
                             rule: 0,
+                            semantic_declaration: 0,
                             pseudo_element: 0,
                             scope_host: 0,
                             scope_proximity: 0,
@@ -478,7 +506,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     )
                     .into());
                     }
-                    if has_output && actual[..actual_result] != expected {
+                    if has_output && !rule_matches_equal(&actual[..actual_result], &expected) {
                         return Err(format!(
                             "published matches diverged for node {node}: expected {expected:?}, got {:?}",
                             &actual[..actual_result]
@@ -768,7 +796,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     let records = &mut recorded_style_record_payloads[engine_index];
                     if record_response {
                         let response = match event.payload.read_bool()? {
-                            true => Some(read_u64_vec(&mut event.payload)?),
+                            true => Some(read_u64_slice(&mut event.payload)?),
                             false => None,
                         };
                         if records.len() <= index {
@@ -793,7 +821,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     if let Some(expected) = expected {
                         let pointers =
                             unsafe { std::slice::from_raw_parts(actual.cast::<*const c_void>(), expected.len()) };
-                        for (position, (&pointer, &want)) in pointers.iter().zip(expected).enumerate() {
+                        for (position, (&pointer, want)) in pointers.iter().zip(expected.iter()).enumerate() {
                             if pointer_value(pointer)? != want {
                                 return Err(format!(
                                     "style record {style_record} payload {position} diverged from {want}"
@@ -893,15 +921,47 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 options.selection
             );
         }
-        for (phase, elapsed) in phase_times {
+        for (phase, elapsed) in &phase_times {
             println!("  {phase}: {:.3} ms", elapsed.as_secs_f64() * 1000.0);
         }
         amplification.print();
+        detailed_counters.print(detailed_counter_reader.as_ref());
+        reports.push(serde_json::json!({
+            "path": path,
+            "events": event_count,
+            "flushes": flush_count,
+            "document_engines": engine_count,
+            "live_at_capture_exit": live_at_process_exit,
+            "presence_degraded_exact_cascade_publication_comparisons": presence_degraded_publication_comparisons,
+            "timing": {
+                "boundary_ms": duration_ms(boundary_time),
+                "selected_flushes": selected_flush_count,
+                "selected_boundary_ms": duration_ms(selected_boundary_time),
+                "phases_ms": phase_times
+                    .iter()
+                    .map(|(phase, elapsed)| (phase, duration_ms(*elapsed)))
+                    .collect::<BTreeMap<_, _>>(),
+            },
+            "memory": memory_report(engine_count, &memory_pressure),
+            "amplification": amplification.report(),
+            "detailed_counters": detailed_counters.report(detailed_counter_reader.as_ref()),
+        }));
     }
     if options.list {
-        for subtest in encountered_subtests {
+        for subtest in &encountered_subtests {
             println!("{subtest}");
         }
+    }
+    if let Some(path) = &options.json_output {
+        let output = serde_json::json!({
+            "schema_version": 1,
+            "selection": options.selection.as_json(),
+            "assert_digests": options.assert_digests,
+            "subtests": encountered_subtests,
+            "captures": reports,
+        });
+        let file = std::fs::File::create(path)?;
+        serde_json::to_writer_pretty(file, &output)?;
     }
     Ok(())
 }
@@ -923,31 +983,53 @@ impl std::fmt::Display for Selection {
     }
 }
 
+impl Selection {
+    fn as_json(&self) -> serde_json::Value {
+        match self {
+            Self::Full => serde_json::json!({ "kind": "full" }),
+            Self::Suite(suite) => serde_json::json!({ "kind": "suite", "suite": suite }),
+            Self::Subtest { suite, test } => {
+                serde_json::json!({ "kind": "subtest", "suite": suite, "test": test })
+            }
+        }
+    }
+}
+
 struct Options {
     paths: Vec<PathBuf>,
     selection: Selection,
     assert_digests: bool,
+    detailed_counters: bool,
     list: bool,
+    json_output: Option<PathBuf>,
 }
 
 impl Options {
     fn parse() -> Result<Self, Box<dyn std::error::Error>> {
-        let mut arguments = env::args_os();
+        Self::parse_from(env::args_os())
+    }
+
+    fn parse_from(arguments: impl IntoIterator<Item = std::ffi::OsString>) -> Result<Self, Box<dyn std::error::Error>> {
+        let mut arguments = arguments.into_iter();
         let program = arguments.next().unwrap_or_default();
         let usage = || {
             format!(
-                "usage: {} [--assert-digests] [--list] [--suite NAME | --subtest SUITE/TEST] <capture>...",
+                "usage: {} [--assert-digests] [--detailed-counters] [--list] [--json-output PATH] [--suite NAME | --subtest SUITE/TEST] <capture>...",
                 program.to_string_lossy()
             )
         };
         let mut paths = Vec::new();
         let mut selection = Selection::Full;
         let mut assert_digests = false;
+        let mut detailed_counters = false;
         let mut list = false;
+        let mut json_output = None;
         while let Some(argument) = arguments.next() {
             match argument.to_str() {
                 Some("--assert-digests") => assert_digests = true,
+                Some("--detailed-counters") => detailed_counters = true,
                 Some("--list") => list = true,
+                Some("--json-output") => json_output = Some(PathBuf::from(arguments.next().ok_or_else(usage)?)),
                 Some("--suite") => {
                     if !matches!(selection, Selection::Full) {
                         return Err(usage().into());
@@ -979,7 +1061,9 @@ impl Options {
             paths,
             selection,
             assert_digests,
+            detailed_counters,
             list,
+            json_output,
         })
     }
 }
@@ -1107,6 +1191,72 @@ struct AmplificationCounterReader {
     cascade_touched: usize,
 }
 
+struct DetailedCounterReader {
+    names: Vec<String>,
+}
+
+#[derive(Default)]
+struct DetailedCounterLedger {
+    values: Vec<u64>,
+}
+
+impl DetailedCounterReader {
+    fn new(engine: *mut c_void) -> Self {
+        let mut names = Vec::new();
+        for index in 0.. {
+            let mut value = 0_u64;
+            let mut name_length = 0_usize;
+            let name = unsafe { bridge::style_engine_counter(engine, index, &mut value, &mut name_length) };
+            if name.is_null() {
+                break;
+            }
+            let name = unsafe { std::slice::from_raw_parts(name, name_length) };
+            names.push(String::from_utf8(name.to_vec()).unwrap());
+        }
+        Self { names }
+    }
+
+    fn read(&self, engine: *mut c_void) -> Vec<u64> {
+        (0..self.names.len())
+            .map(|index| read_counter_value(engine, index))
+            .collect()
+    }
+}
+
+impl DetailedCounterLedger {
+    fn record(&mut self, before: &[u64], after: &[u64]) {
+        self.values.resize(before.len(), 0);
+        for (value, (&before, &after)) in self.values.iter_mut().zip(before.iter().zip(after)) {
+            *value += after - before;
+        }
+    }
+
+    fn print(&self, reader: Option<&DetailedCounterReader>) {
+        let Some(reader) = reader else {
+            return;
+        };
+        println!("detailed counters:");
+        for (name, &value) in reader.names.iter().zip(&self.values) {
+            if value != 0 {
+                println!("  {name}: {value}");
+            }
+        }
+    }
+
+    fn report(&self, reader: Option<&DetailedCounterReader>) -> BTreeMap<String, u64> {
+        let Some(reader) = reader else {
+            return BTreeMap::new();
+        };
+        reader
+            .names
+            .iter()
+            .cloned()
+            .zip(self.values.iter().copied())
+            .filter(|(_, value)| *value != 0)
+            .collect()
+    }
+}
+
 impl AmplificationCounterReader {
     fn new(engine: *mut c_void) -> Self {
         let mut reader = Self {
@@ -1207,6 +1357,33 @@ impl AmplificationLedger {
             touched as f64 / self.flushes as f64
         );
     }
+
+    fn report(&self) -> serde_json::Value {
+        serde_json::json!({
+            "selected_flushes": self.flushes,
+            "stages": {
+                "ingress": amplification_stage_report(self.input_changed, self.ingress_touched, self.flushes),
+                "selector": amplification_stage_report(self.selector_changed, self.selector_touched, self.flushes),
+                "match": amplification_stage_report(self.match_changed, self.match_touched, self.flushes),
+                "cascade": amplification_stage_report(self.cascade_changed, self.cascade_touched, self.flushes),
+            },
+        })
+    }
+}
+
+fn duration_ms(duration: Duration) -> f64 {
+    duration.as_secs_f64() * 1000.0
+}
+
+fn amplification_stage_report(changed_rows: u64, touched_rows: u64, flushes: u64) -> serde_json::Value {
+    let amplification = (changed_rows != 0).then(|| touched_rows as f64 / changed_rows as f64);
+    let touched_per_flush = (flushes != 0).then(|| touched_rows as f64 / flushes as f64);
+    serde_json::json!({
+        "changed_rows": changed_rows,
+        "touched_rows": touched_rows,
+        "amplification": amplification,
+        "touched_per_flush": touched_per_flush,
+    })
 }
 
 fn read_counter_value(engine: *mut c_void, index: usize) -> u64 {
@@ -1252,6 +1429,47 @@ fn memory_tier_totals(snapshot: &FfiMemoryPressureSnapshot) -> [u64; TIER_COUNT]
     totals
 }
 
+fn memory_report(engine_count: u64, snapshot: &FfiMemoryPressureSnapshot) -> serde_json::Value {
+    let tiers = memory_tier_totals(snapshot);
+    let categories = MEMORY_CATEGORIES
+        .iter()
+        .zip(snapshot.category_bytes)
+        .map(|(category, bytes)| (category.name(), bytes))
+        .collect::<BTreeMap<_, _>>();
+    let tier3_refusal_categories = TIER3_REFUSAL_CATEGORIES
+        .into_iter()
+        .map(|category| category.name())
+        .zip(snapshot.tier3_refusal_categories)
+        .collect::<BTreeMap<_, _>>();
+    let tier4_refusal_categories = ["normalizationJournal", "batchScratch"]
+        .into_iter()
+        .zip(snapshot.tier4_refusal_categories)
+        .collect::<BTreeMap<_, _>>();
+    serde_json::json!({
+        "engine_count": engine_count,
+        "total_bytes": tiers.iter().sum::<u64>(),
+        "tiers": {
+            "authoritative_bytes": tiers[Tier::Authoritative.index()],
+            "live_bytes": tiers[Tier::Live.index()],
+            "program_bytes": tiers[Tier::Program.index()],
+            "acceleration_bytes": tiers[Tier::Acceleration.index()],
+            "scratch_bytes": tiers[Tier::Scratch.index()],
+        },
+        "categories_bytes": categories,
+        "pressure": {
+            "tier3_limit_bytes": snapshot.tier3_limit,
+            "tier3_resident_bytes": snapshot.tier3_bytes,
+            "tier4_limit_bytes": snapshot.tier4_limit,
+            "tier4_resident_bytes": snapshot.tier4_bytes,
+            "tier3_refusals": snapshot.tier3_refusals,
+            "tier4_refusals": snapshot.tier4_refusals,
+            "tier3_refusals_by_category": tier3_refusal_categories,
+            "tier4_refusals_by_category": tier4_refusal_categories,
+            "tier3_evictions": snapshot.tier3_evictions,
+        },
+    })
+}
+
 fn print_memory_residency(engine_count: u64, snapshot: &FfiMemoryPressureSnapshot) {
     let tiers = memory_tier_totals(snapshot);
     let total = tiers.iter().sum::<u64>();
@@ -1273,18 +1491,9 @@ fn print_memory_residency(engine_count: u64, snapshot: &FfiMemoryPressureSnapsho
 }
 
 fn print_memory_pressure(label: &str, snapshot: FfiMemoryPressureSnapshot) {
-    let tier3_names = [
-        "retainedWitness",
-        "featurePosting",
-        "specifiedValueTable",
-        "cascadeWinnerGroup",
-        "retainedSelectorIncidence",
-        "retainedMatchAnswer",
-        "prefixTransitionCache",
-        "prefixAnswerCache",
-    ];
-    let tier3_categories = tier3_names
+    let tier3_categories = TIER3_REFUSAL_CATEGORIES
         .into_iter()
+        .map(|category| category.name())
         .zip(snapshot.tier3_refusal_categories)
         .filter(|(_, count)| *count != 0)
         .map(|(name, count)| format!("{name}: {count}"))
@@ -1365,12 +1574,24 @@ fn read_rule_matches(payload: &mut PayloadReader) -> Result<Vec<FfiRuleMatch>, B
         matches.push(FfiRuleMatch {
             node: payload.read_u32()?,
             rule: payload.read_u32()?,
+            semantic_declaration: 0,
             pseudo_element: payload.read_u32()?,
             scope_host: payload.read_u32()?,
             scope_proximity: payload.read_u32()?,
         });
     }
     Ok(matches)
+}
+
+fn rule_matches_equal(actual: &[FfiRuleMatch], expected: &[FfiRuleMatch]) -> bool {
+    actual.len() == expected.len()
+        && actual.iter().zip(expected).all(|(actual, expected)| {
+            actual.node == expected.node
+                && actual.rule == expected.rule
+                && actual.pseudo_element == expected.pseudo_element
+                && actual.scope_host == expected.scope_host
+                && actual.scope_proximity == expected.scope_proximity
+        })
 }
 
 #[derive(Clone)]
@@ -1655,22 +1876,77 @@ fn require_matching_verification_gates(recorded: u8, actual: u8) -> Result<(), S
     }
 }
 
-fn read_u64_vec(payload: &mut PayloadReader) -> Result<Vec<u64>, Box<dyn std::error::Error>> {
-    let count = payload.read_length()?;
-    let mut values = Vec::with_capacity(count);
-    for _ in 0..count {
-        values.push(payload.read_u64()?);
-    }
-    Ok(values)
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct EncodedU64Slice<'a> {
+    bytes: &'a [u8],
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-struct SemanticStyleRecordView {
-    payloads: Vec<u64>,
-    base_payloads: Vec<u64>,
-    property_importance: Vec<u8>,
-    property_inheritance: Vec<u8>,
-    inheritance_dependent_values: Vec<(u16, u64)>,
+impl EncodedU64Slice<'_> {
+    fn len(self) -> usize {
+        self.bytes.len() / size_of::<u64>()
+    }
+
+    fn is_empty(self) -> bool {
+        self.bytes.is_empty()
+    }
+
+    fn iter(self) -> impl Iterator<Item = u64> {
+        self.bytes
+            .chunks_exact(size_of::<u64>())
+            .map(|bytes| u64::from_le_bytes(bytes.try_into().unwrap()))
+    }
+}
+
+impl std::fmt::Debug for EncodedU64Slice<'_> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_list().entries(self.iter()).finish()
+    }
+}
+
+fn read_u64_slice<'a>(payload: &mut PayloadReader<'a>) -> Result<EncodedU64Slice<'a>, Box<dyn std::error::Error>> {
+    Ok(EncodedU64Slice {
+        bytes: payload.read_fixed_width_slice(size_of::<u64>())?,
+    })
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct EncodedInheritanceDependentValues<'a> {
+    bytes: &'a [u8],
+}
+
+impl EncodedInheritanceDependentValues<'_> {
+    const ENTRY_SIZE: usize = size_of::<u16>() + size_of::<u64>();
+
+    fn len(self) -> usize {
+        self.bytes.len() / Self::ENTRY_SIZE
+    }
+
+    fn is_empty(self) -> bool {
+        self.bytes.is_empty()
+    }
+
+    fn iter(self) -> impl Iterator<Item = (u16, u64)> {
+        self.bytes.chunks_exact(Self::ENTRY_SIZE).map(|bytes| {
+            let property = u16::from_le_bytes(bytes[..size_of::<u16>()].try_into().unwrap());
+            let value = u64::from_le_bytes(bytes[size_of::<u16>()..].try_into().unwrap());
+            (property, value)
+        })
+    }
+}
+
+impl std::fmt::Debug for EncodedInheritanceDependentValues<'_> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_list().entries(self.iter()).finish()
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct RecordedStyleRecordView<'a> {
+    payloads: EncodedU64Slice<'a>,
+    base_payloads: EncodedU64Slice<'a>,
+    property_importance: &'a [u8],
+    property_inheritance: &'a [u8],
+    inheritance_dependent_values: EncodedInheritanceDependentValues<'a>,
     raw_cascaded_font_size: u64,
     animated_properties: u64,
     pseudo_element_styles: u64,
@@ -1679,17 +1955,17 @@ struct SemanticStyleRecordView {
     dependency_flags: u8,
 }
 
-fn read_style_record_view(payload: &mut PayloadReader) -> Result<SemanticStyleRecordView, Box<dyn std::error::Error>> {
-    let payloads = read_u64_vec(payload)?;
-    let base_payloads = read_u64_vec(payload)?;
-    let property_importance = payload.read_bytes()?.to_vec();
-    let property_inheritance = payload.read_bytes()?.to_vec();
-    let count = payload.read_length()?;
-    let mut inheritance_dependent_values = Vec::with_capacity(count);
-    for _ in 0..count {
-        inheritance_dependent_values.push((payload.read_u16()?, payload.read_u64()?));
-    }
-    Ok(SemanticStyleRecordView {
+fn read_style_record_view<'a>(
+    payload: &mut PayloadReader<'a>,
+) -> Result<RecordedStyleRecordView<'a>, Box<dyn std::error::Error>> {
+    let payloads = read_u64_slice(payload)?;
+    let base_payloads = read_u64_slice(payload)?;
+    let property_importance = payload.read_bytes()?;
+    let property_inheritance = payload.read_bytes()?;
+    let inheritance_dependent_values = EncodedInheritanceDependentValues {
+        bytes: payload.read_fixed_width_slice(EncodedInheritanceDependentValues::ENTRY_SIZE)?,
+    };
+    Ok(RecordedStyleRecordView {
         payloads,
         base_payloads,
         property_importance,
@@ -1705,7 +1981,7 @@ fn read_style_record_view(payload: &mut PayloadReader) -> Result<SemanticStyleRe
 }
 
 fn style_record_view_matches(
-    expected: &SemanticStyleRecordView,
+    expected: &RecordedStyleRecordView,
     actual: bridge::FfiStyleRecordView,
 ) -> Result<bool, std::num::TryFromIntError> {
     if actual.payload_count != expected.payloads.len()
@@ -1716,17 +1992,18 @@ fn style_record_view_matches(
     {
         return Ok(false);
     }
-    let pointers_match = |pointer: *const *const c_void, expected: &[u64]| -> Result<bool, std::num::TryFromIntError> {
-        if expected.is_empty() {
-            return Ok(true);
-        }
-        unsafe { std::slice::from_raw_parts(pointer, expected.len()) }
-            .iter()
-            .zip(expected)
-            .try_fold(true, |matches, (&actual, &expected)| {
-                Ok(matches && pointer_value(actual)? == expected)
-            })
-    };
+    let pointers_match =
+        |pointer: *const *const c_void, expected: EncodedU64Slice<'_>| -> Result<bool, std::num::TryFromIntError> {
+            if expected.is_empty() {
+                return Ok(true);
+            }
+            unsafe { std::slice::from_raw_parts(pointer, expected.len()) }
+                .iter()
+                .zip(expected.iter())
+                .try_fold(true, |matches, (&actual, expected)| {
+                    Ok(matches && pointer_value(actual)? == expected)
+                })
+        };
     let bytes_match = |pointer: *const u8, expected: &[u8]| {
         expected.is_empty() || unsafe { std::slice::from_raw_parts(pointer, expected.len()) } == expected
     };
@@ -1740,15 +2017,15 @@ fn style_record_view_matches(
             )
         }
         .iter()
-        .zip(&expected.inheritance_dependent_values)
+        .zip(expected.inheritance_dependent_values.iter())
         .try_fold(true, |matches, (actual, expected)| {
             Ok::<bool, std::num::TryFromIntError>(
-                matches && (actual.property, pointer_value(actual.value)?) == *expected,
+                matches && (actual.property, pointer_value(actual.value)?) == expected,
             )
         })?
     };
-    Ok(pointers_match(actual.payloads, &expected.payloads)?
-        && pointers_match(actual.base_payloads, &expected.base_payloads)?
+    Ok(pointers_match(actual.payloads, expected.payloads)?
+        && pointers_match(actual.base_payloads, expected.base_payloads)?
         && bytes_match(actual.property_importance, &expected.property_importance)
         && bytes_match(actual.property_inheritance, &expected.property_inheritance)
         && inheritance_dependent_values_match
@@ -1762,7 +2039,7 @@ fn style_record_view_matches(
 
 fn semantic_style_record_view(
     view: bridge::FfiStyleRecordView,
-) -> Result<SemanticStyleRecordView, Box<dyn std::error::Error>> {
+) -> Result<OwnedSemanticStyleRecordView, Box<dyn std::error::Error>> {
     let pointers = |pointer: *const *const c_void, count: usize| -> Result<Vec<u64>, Box<dyn std::error::Error>> {
         if count == 0 {
             return Ok(Vec::new());
@@ -1788,7 +2065,7 @@ fn semantic_style_record_view(
             values
         }
     };
-    Ok(SemanticStyleRecordView {
+    Ok(OwnedSemanticStyleRecordView {
         payloads: pointers(view.payloads, view.payload_count)?,
         base_payloads: pointers(view.base_payloads, view.payload_count)?,
         property_importance: bytes(view.property_importance, view.property_importance_count),
@@ -1801,6 +2078,42 @@ fn semantic_style_record_view(
         animation_overlay_identity: view.animation_overlay_identity,
         dependency_flags: view.dependency_flags,
     })
+}
+
+struct OwnedSemanticStyleRecordView {
+    payloads: Vec<u64>,
+    base_payloads: Vec<u64>,
+    property_importance: Vec<u8>,
+    property_inheritance: Vec<u8>,
+    inheritance_dependent_values: Vec<(u16, u64)>,
+    raw_cascaded_font_size: u64,
+    animated_properties: u64,
+    pseudo_element_styles: u64,
+    counter_style_environment_identity: u64,
+    animation_overlay_identity: u64,
+    dependency_flags: u8,
+}
+
+impl std::fmt::Debug for OwnedSemanticStyleRecordView {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("SemanticStyleRecordView")
+            .field("payloads", &self.payloads)
+            .field("base_payloads", &self.base_payloads)
+            .field("property_importance", &self.property_importance)
+            .field("property_inheritance", &self.property_inheritance)
+            .field("inheritance_dependent_values", &self.inheritance_dependent_values)
+            .field("raw_cascaded_font_size", &self.raw_cascaded_font_size)
+            .field("animated_properties", &self.animated_properties)
+            .field("pseudo_element_styles", &self.pseudo_element_styles)
+            .field(
+                "counter_style_environment_identity",
+                &self.counter_style_environment_identity,
+            )
+            .field("animation_overlay_identity", &self.animation_overlay_identity)
+            .field("dependency_flags", &self.dependency_flags)
+            .finish()
+    }
 }
 
 fn pointer_value(pointer: *const c_void) -> Result<u64, std::num::TryFromIntError> {
@@ -1965,6 +2278,70 @@ mod tests {
 
         assert_eq!(total.category_bytes[MemoryCategory::StyleNodeMapping as usize], 40);
         assert_eq!(memory_tier_totals(&total), [0, 40, 0, 20, 40]);
+    }
+
+    #[test]
+    fn json_output_option_is_parsed() {
+        let options = Options::parse_from(
+            [
+                "style-replay",
+                "--assert-digests",
+                "--detailed-counters",
+                "--json-output",
+                "results.json",
+                "capture.sg",
+            ]
+            .map(std::ffi::OsString::from),
+        )
+        .unwrap();
+
+        assert!(options.assert_digests);
+        assert!(options.detailed_counters);
+        assert_eq!(options.json_output, Some(PathBuf::from("results.json")));
+        assert_eq!(options.paths, [PathBuf::from("capture.sg")]);
+        assert!(matches!(options.selection, Selection::Full));
+    }
+
+    #[test]
+    fn json_reports_raw_memory_and_amplification_counters() {
+        let mut memory = FfiMemoryPressureSnapshot {
+            tier3_limit: 100,
+            tier4_limit: 200,
+            tier3_bytes: 30,
+            tier4_bytes: 40,
+            tier3_refusals: 5,
+            tier4_refusals: 6,
+            tier3_evictions: 7,
+            ..Default::default()
+        };
+        memory.category_bytes[MemoryCategory::FeaturePosting as usize] = 50;
+        memory.tier3_refusal_categories[TIER3_REFUSAL_CATEGORIES
+            .iter()
+            .position(|&category| category == MemoryCategory::FeaturePosting)
+            .unwrap()] = 8;
+        memory.tier3_refusal_categories[TIER3_REFUSAL_CATEGORIES
+            .iter()
+            .position(|&category| category == MemoryCategory::ParsedSubstitutionCache)
+            .unwrap()] = 9;
+        let report = memory_report(2, &memory);
+        assert_eq!(report["engine_count"], 2);
+        assert_eq!(report["categories_bytes"]["featurePosting"], 50);
+        assert_eq!(report["pressure"]["tier3_refusals_by_category"]["featurePosting"], 8);
+        assert_eq!(
+            report["pressure"]["tier3_refusals_by_category"]["parsedSubstitutionCache"],
+            9
+        );
+
+        let amplification = AmplificationLedger {
+            flushes: 2,
+            selector_changed: 4,
+            selector_touched: 10,
+            ..Default::default()
+        }
+        .report();
+        assert_eq!(amplification["stages"]["selector"]["changed_rows"], 4);
+        assert_eq!(amplification["stages"]["selector"]["touched_rows"], 10);
+        assert_eq!(amplification["stages"]["selector"]["amplification"], 2.5);
     }
 }
 

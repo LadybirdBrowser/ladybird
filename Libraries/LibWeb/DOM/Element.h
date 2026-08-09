@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Array.h>
 #include <AK/Badge.h>
 #include <AK/Concepts.h>
 #include <AK/Error.h>
@@ -19,6 +20,7 @@
 #include <LibWeb/Bindings/Element.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Selector.h>
+#include <LibWeb/CSS/StyleInputRecord.h>
 #include <LibWeb/CSS/StyleProperty.h>
 #include <LibWeb/DOM/ChildNode.h>
 #include <LibWeb/DOM/NonDocumentTypeChildNode.h>
@@ -45,6 +47,12 @@ namespace Web::Animations {
 
 struct AnimationUpdateContext;
 class KeyframeEffect;
+
+}
+
+namespace Web::CSS {
+
+struct StyleEngineMatchResult;
 
 }
 
@@ -148,11 +156,6 @@ enum class ProximityToTheViewport : u8 {
     NotDetermined,
 };
 
-enum class ScheduleAnimationUpdate : u8 {
-    No,
-    Yes,
-};
-
 class WEB_API Element
     : public ParentNode
     , public ChildNode<Element>
@@ -249,6 +252,35 @@ public:
 
     using ShadowRootOptions = Bindings::ShadowRootInit;
 
+    // https://drafts.csswg.org/css-shadow-1/#exportparts
+    // The `exportparts` attribute as a list of (inner name, outer name) pairs.
+    template<typename Callback>
+    void for_each_exported_part(Callback callback) const
+    {
+        auto exportparts = get_attribute(HTML::AttributeNames::exportparts);
+        if (!exportparts.has_value())
+            return;
+
+        exportparts->for_each_split_view(u',', SplitBehavior::Nothing, [&](Utf16View mapping) {
+            auto trimmed = mapping.trim_ascii_whitespace();
+            if (trimmed.is_empty())
+                return IterationDecision::Continue;
+
+            Vector<Utf16View, 2> parts;
+            trimmed.for_each_split_view(u':', SplitBehavior::KeepEmpty, [&](Utf16View part) {
+                parts.append(part);
+                return IterationDecision::Continue;
+            });
+            if (parts.size() == 1) {
+                auto name = parts[0].trim_ascii_whitespace();
+                callback(name, name);
+            } else if (parts.size() == 2) {
+                callback(parts[0].trim_ascii_whitespace(), parts[1].trim_ascii_whitespace());
+            }
+            return IterationDecision::Continue;
+        });
+    }
+
     WebIDL::ExceptionOr<GC::Ref<ShadowRoot>> attach_shadow(ShadowRootOptions const&);
     WebIDL::ExceptionOr<void> attach_a_shadow_root(ShadowRootMode mode, bool clonable, bool serializable, bool delegates_focus, SlotAssignmentMode slot_assignment, GC::Ptr<HTML::CustomElementRegistry> registry);
     GC::Ptr<ShadowRoot> open_shadow_root() const;
@@ -271,6 +303,11 @@ public:
     bool has_class(Utf16FlyString const&, CaseSensitivity = CaseSensitivity::CaseSensitive) const;
     Vector<Utf16FlyString> const& class_names() const { return m_classes; }
 
+    // The element's StyleEngine identity, or 0 while it has none. Disconnected and never-styled
+    // elements keep 0, which is what makes them free.
+    [[nodiscard]] CSS::StyleNodeID style_node_id() const { return m_style_node_id; }
+    void set_style_node_id(CSS::StyleNodeID style_node_id) { m_style_node_id = style_node_id; }
+
     // https://html.spec.whatwg.org/multipage/embedded-content-other.html#dimension-attributes
     virtual bool supports_dimension_attributes() const { return false; }
 
@@ -279,8 +316,12 @@ public:
 
     void run_attribute_change_steps(Utf16FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_);
 
-    CSS::RequiredInvalidationAfterStyleChange recompute_style(bool& did_change_custom_properties);
-    CSS::RequiredInvalidationAfterStyleChange recompute_inherited_style(ScheduleAnimationUpdate = ScheduleAnimationUpdate::No);
+    enum class StyleEngineRecomputeReason : u8 {
+        General,
+        InheritedOnly,
+        PseudoInputsUnchanged,
+    };
+    CSS::RequiredInvalidationAfterStyleChange apply_style_engine_reaction(bool& did_change_custom_properties, StyleEngineRecomputeReason = StyleEngineRecomputeReason::General, u8 inherited_style_groups = 0);
     CSS::RequiredInvalidationAfterStyleChange recompute_pseudo_element_styles_after_animation_update(Badge<Web::Animations::AnimationUpdateContext>);
 
     void set_needs_layout_tree_rebuild(SetNeedsLayoutTreeUpdateReason);
@@ -294,9 +335,22 @@ public:
     Layout::NodeWithStyle* unsafe_layout_node();
     Layout::NodeWithStyle const* unsafe_layout_node() const;
 
-    RefPtr<CSS::ComputedValues const> computed_values(Optional<CSS::PseudoElement> = {}) const;
-    void set_computed_style(Optional<CSS::PseudoElement>, RefPtr<CSS::ComputedValues const>);
-    void refresh_computed_values(Optional<CSS::PseudoElement>, NonnullRefPtr<CSS::ComputedValues const>);
+    [[nodiscard]] CSS::ComputedStyleRecordView computed_style(Optional<CSS::PseudoElement> = {}) const;
+    [[nodiscard]] CSS::StyleRecordID style_record_identity(Optional<CSS::PseudoElement> = {}) const;
+    [[nodiscard]] bool has_style(Optional<CSS::PseudoElement> pseudo_element = {}) const { return !!style_record_identity(pseudo_element); }
+    [[nodiscard]] void const* style_record_payloads(Optional<CSS::PseudoElement> = {}) const;
+    template<typename StyleGroup>
+    StyleGroup const* style_group(Optional<CSS::PseudoElement> pseudo_element = {}) const
+    {
+        auto const* payloads = static_cast<void const* const*>(style_record_payloads(pseudo_element));
+        if (!payloads)
+            return nullptr;
+        auto const* payload = payloads[StyleGroup::style_group_index];
+        VERIFY(payload);
+        return static_cast<StyleGroup const*>(payload);
+    }
+    void set_computed_style(Optional<CSS::PseudoElement>, CSS::StyleRecordID);
+    void refresh_computed_style(Optional<CSS::PseudoElement>, CSS::StyleRecordID);
     void update_animated_properties(Badge<Web::Animations::KeyframeEffect> const&, Optional<CSS::PseudoElement>, Web::Animations::KeyframeEffect&, Web::Animations::AnimationUpdateContext&);
     void update_animated_properties_for_abstract_element(Badge<Web::Animations::KeyframeEffect> const&, DOM::AbstractElement, Web::Animations::KeyframeEffect&, Web::Animations::AnimationUpdateContext&);
 
@@ -382,7 +436,7 @@ public:
     RequestFullscreenError is_element_allowed_to_enter_fullscreen(FullscreenRequester) const;
     bool is_element_ready_for_fullscreen() const;
 
-    void set_fullscreen_flag(bool is_fullscreen) { m_fullscreen_flag = is_fullscreen; }
+    void set_fullscreen_flag(bool is_fullscreen);
     bool is_fullscreen_element() const { return m_fullscreen_flag; }
     void set_fullscreen_request_type(Fullscreen::RequestType request_type) { m_fullscreen_request_type = request_type; }
     Fullscreen::RequestType fullscreen_request_type() const { return m_fullscreen_request_type; }
@@ -421,18 +475,47 @@ public:
 
     [[nodiscard]] bool refresh_inherited_custom_property_data();
 
+    // What the element's last computation was allowed to read, so a later one can ask whether any of
+    // it moved before deriving a style that would be identical. Retired by anything that moves what
+    // a word of it names without moving the name, which is a write to a declaration the element
+    // itself sources.
+    // What the custom-property name index was last told about this element. Publishing it again
+    // costs one atom per name and a crossing into the engine, and a recomputation that resolved the
+    // same environment has the same names to publish.
+    struct PublishedCustomPropertyNames {
+        RefPtr<CSS::CustomPropertyData const> data;
+        bool uses_var_css_function { false };
+        bool uses_custom_function { false };
+        bool operator==(PublishedCustomPropertyNames const&) const = default;
+    };
+    [[nodiscard]] CSS::StyleInputRecord const* style_input_record() const { return m_style_input_record.ptr(); }
+    [[nodiscard]] CSS::StyleInputRecord* style_input_record() { return m_style_input_record.ptr(); }
+    void set_style_input_record(OwnPtr<CSS::StyleInputRecord>);
+    void retire_style_input_record();
+    [[nodiscard]] OwnPtr<CSS::StyleInputRecord> take_style_input_record();
+    void record_style_custom_property_reference(Utf16FlyString const&);
+    void finish_recording_style_custom_property_references();
+
     bool style_uses_attr_css_function() const { return m_style_uses_attr_css_function; }
     void set_style_uses_attr_css_function() { m_style_uses_attr_css_function = true; }
     bool style_uses_var_css_function() const { return m_style_uses_var_css_function; }
     void set_style_uses_var_css_function() { m_style_uses_var_css_function = true; }
-    bool style_uses_tree_counting_function() const { return m_style_uses_tree_counting_function; }
+    // A tree-counting function is answered from the element's position among its siblings, so what
+    // has to be remembered is on the parent: a child list mutation there moves the answer.
     void set_style_uses_tree_counting_function()
     {
+        m_style_uses_tree_counting_function = true;
         if (auto parent = parent_element())
             parent->set_child_style_uses_tree_counting_function();
-
-        m_style_uses_tree_counting_function = true;
     }
+    // Whether this element's own style read its place among its siblings, which is what makes its
+    // computed values its own rather than a function of what decides for it.
+    bool style_uses_tree_counting_function() const { return m_style_uses_tree_counting_function; }
+    // Whether this element's style resolution called a custom function. Which one is not reported by
+    // the substitution machinery, so an `@function` change reaches the elements that called any.
+    void set_style_uses_custom_function() { m_style_uses_custom_function = true; }
+    bool style_uses_custom_function() const { return m_style_uses_custom_function; }
+
     bool style_uses_if_css_function() const { return m_style_uses_if_css_function; }
     void set_style_uses_if_css_function() { m_style_uses_if_css_function = true; }
     bool style_uses_inherit_css_function() const { return m_style_uses_inherit_css_function; }
@@ -466,25 +549,15 @@ public:
     [[nodiscard]] Vector<CSSPixelRect> client_rects_assuming_layout_clean() const;
     [[nodiscard]] CSSPixelRect bounding_client_rect_assuming_layout_clean() const;
 
-    virtual RefPtr<Layout::Node> create_layout_node(NonnullRefPtr<CSS::ComputedValues const>);
+    virtual RefPtr<Layout::Node> create_layout_node(CSS::LayoutStyle);
+    virtual void adjust_computed_style(CSS::ComputedProperties::Builder&) { }
 
     virtual void did_receive_focus() { }
     virtual void did_lose_focus() { }
     bool should_indicate_focus() const;
     virtual bool is_focusable() const override;
 
-    static RefPtr<Layout::NodeWithStyle> create_layout_node_for_display_type(DOM::Document&, CSS::Display const&, NonnullRefPtr<CSS::ComputedValues const>, Element*);
-
-    void clear_removed_attributes_for_style_invalidation() { m_removed_attributes_for_style_invalidation.clear(); }
-    bool has_removed_attribute_for_style_invalidation(Utf16FlyString const& attribute_name) const
-    {
-        return m_removed_attributes_for_style_invalidation.contains_slow(attribute_name);
-    }
-    void remember_removed_attribute_for_style_invalidation(Utf16FlyString const& attribute_name)
-    {
-        if (!m_removed_attributes_for_style_invalidation.contains_slow(attribute_name))
-            m_removed_attributes_for_style_invalidation.append(attribute_name);
-    }
+    static RefPtr<Layout::NodeWithStyle> create_layout_node_for_display_type(DOM::Document&, CSS::Display const&, CSS::LayoutStyle, Element*);
 
     void set_synthetic_pseudo_element_node(Badge<Layout::LayoutTreeBuilderAccess>, CSS::PseudoElement, Layout::NodeWithStyle*);
 
@@ -655,71 +728,6 @@ public:
     bool matches_local_link_pseudo_class() const;
     bool matches_focus_within_pseudo_class() const;
 
-    bool affected_by_has_pseudo_class_in_subject_position() const { return m_affected_by_has_pseudo_class_in_subject_position; }
-    void set_affected_by_has_pseudo_class_in_subject_position(bool value) { m_affected_by_has_pseudo_class_in_subject_position = value; }
-
-    // Write-once: this can be set while matching descendants, and recomputing this element's own style may not revisit
-    // those descendant selectors. Keeping it sticky is conservative and avoids stale descendant style after mutations.
-    bool affected_by_has_pseudo_class_in_non_subject_position() const { return m_affected_by_has_pseudo_class_in_non_subject_position; }
-    void set_affected_by_has_pseudo_class_in_non_subject_position() { m_affected_by_has_pseudo_class_in_non_subject_position = true; }
-
-    bool affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator() const { return m_affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator; }
-    void set_affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator(bool value) { m_affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator = value; }
-    // Set on any element reached by stepping through a + or ~ combinator while
-    // matching a :has() argument. Lets generic invalidation defer ancestor
-    // sibling scans until it reaches the sibling subtree root. Write-once,
-    // intentionally never cleared.
-    bool in_subtree_of_has_pseudo_class_relative_selector_with_sibling_combinator() const { return m_in_subtree_of_has_pseudo_class_relative_selector_with_sibling_combinator; }
-    void set_in_subtree_of_has_pseudo_class_relative_selector_with_sibling_combinator(bool value) { m_in_subtree_of_has_pseudo_class_relative_selector_with_sibling_combinator = value; }
-
-    // Set on any element that was traversed during matching of a :has() argument
-    // selector (i.e. the descendant/child/sibling walk inside :has()). Lets the
-    // invalidation walker terminate once it reaches an element whose state cannot
-    // affect any :has() anchor. Write-once, intentionally never cleared.
-    bool in_has_scope() const { return m_in_has_scope; }
-    void set_in_has_scope(bool value) { m_in_has_scope = value; }
-
-    bool affected_by_direct_sibling_combinator() const { return m_affected_by_direct_sibling_combinator; }
-    void set_affected_by_direct_sibling_combinator(bool value) { m_affected_by_direct_sibling_combinator = value; }
-
-    bool affected_by_indirect_sibling_combinator() const { return m_affected_by_indirect_sibling_combinator; }
-    void set_affected_by_indirect_sibling_combinator(bool value) { m_affected_by_indirect_sibling_combinator = value; }
-
-    bool affected_by_first_child_pseudo_class() const { return m_affected_by_first_child_pseudo_class; }
-    void set_affected_by_first_child_pseudo_class(bool value) { m_affected_by_first_child_pseudo_class = value; }
-
-    bool affected_by_last_child_pseudo_class() const { return m_affected_by_last_child_pseudo_class; }
-    void set_affected_by_last_child_pseudo_class(bool value);
-
-    bool affected_by_forward_positional_pseudo_class() const { return m_affected_by_forward_positional_pseudo_class; }
-    void set_affected_by_forward_positional_pseudo_class(bool value) { m_affected_by_forward_positional_pseudo_class = value; }
-
-    bool affected_by_backward_positional_pseudo_class() const { return m_affected_by_backward_positional_pseudo_class; }
-    void set_affected_by_backward_positional_pseudo_class(bool value);
-
-    // Write-once: this can be set while matching descendants, and recomputing this element's own style may not revisit
-    // those descendant selectors. Keeping it sticky is conservative and avoids stale descendant style after moves.
-    bool affected_by_structural_pseudo_class_in_non_subject_position() const { return m_affected_by_structural_pseudo_class_in_non_subject_position; }
-    void set_affected_by_structural_pseudo_class_in_non_subject_position() { m_affected_by_structural_pseudo_class_in_non_subject_position = true; }
-
-    // Write-once: this can be set while matching descendants, and recomputing this element's own style may not revisit
-    // those descendant selectors. Keeping it sticky is conservative and avoids stale descendant style after moves.
-    bool affected_by_sibling_combinator_in_non_subject_position() const { return m_affected_by_sibling_combinator_in_non_subject_position; }
-    void set_affected_by_sibling_combinator_in_non_subject_position() { m_affected_by_sibling_combinator_in_non_subject_position = true; }
-
-    size_t sibling_invalidation_distance() const { return m_sibling_invalidation_distance; }
-    void set_sibling_invalidation_distance(size_t value) { m_sibling_invalidation_distance = value; }
-
-    bool affected_by_forward_structural_changes() const
-    {
-        return affected_by_direct_sibling_combinator() || affected_by_indirect_sibling_combinator() || affected_by_first_child_pseudo_class() || affected_by_forward_positional_pseudo_class();
-    }
-
-    bool affected_by_backward_structural_changes() const
-    {
-        return affected_by_last_child_pseudo_class() || affected_by_backward_positional_pseudo_class();
-    }
-
     void invalidate_list_item_counters_for_list_owner();
 
     bool captured_in_a_view_transition() const { return m_captured_in_a_view_transition; }
@@ -797,14 +805,16 @@ protected:
     void clear_element_reference_pseudo_elements();
 
 private:
+    using PreservedPseudoElementStyles = Array<RefPtr<CSS::ComputedValues const>, to_underlying(CSS::PseudoElement::KnownPseudoElementCount)>;
+
     Utf16FlyString make_html_uppercased_qualified_name() const;
 
     void exit_fullscreen_on_element_removal();
-    CSS::RequiredInvalidationAfterStyleChange recompute_pseudo_element_styles(bool& did_change_custom_properties, bool had_list_marker, CSS::ComputedValues const* old_originating_style);
+    CSS::RequiredInvalidationAfterStyleChange recompute_pseudo_element_styles(bool& did_change_custom_properties, bool had_list_marker, CSS::ComputedValues const* old_originating_style, CSS::StyleEngineMatchResult* = nullptr, PreservedPseudoElementStyles* = nullptr);
     void apply_computed_style_to_layout_node_if_needed(CSS::RequiredInvalidationAfterStyleChange const&);
     void apply_computed_pseudo_element_styles_to_layout_nodes_if_needed(CSS::RequiredInvalidationAfterStyleChange const&);
+    void replace_style_record(CSS::StyleRecordID);
     void set_in_display_none_subtree_on_descendant_styles();
-    void mark_descendants_with_stale_styles_for_style_update();
 
     WebIDL::ExceptionOr<GC::Ptr<Node>> insert_adjacent(Utf16View where, GC::Ref<Node> node);
 
@@ -824,8 +834,12 @@ private:
     GC::Ptr<ShadowRoot> m_shadow_root;
     GC::Ptr<DOMTokenList> m_part_list;
 
-    RefPtr<CSS::ComputedValues const> m_computed_values;
+    // The authoritative StyleEngine record. C++ compatibility consumers borrow the record-owned
+    // computed-values view rather than retaining one complete style per element.
+    CSS::StyleRecordID m_style_record_identity;
     RefPtr<CSS::CustomPropertyData const> m_custom_property_data;
+    OwnPtr<CSS::StyleInputRecord> m_style_input_record;
+    PublishedCustomPropertyNames m_published_custom_property_names;
 
     using PseudoElementData = HashMap<CSS::PseudoElement, GC::Ref<PseudoElement>>;
     mutable OwnPtr<PseudoElementData> m_pseudo_element_data;
@@ -836,6 +850,7 @@ private:
     Optional<CSS::PseudoElement> m_associated_shadow_host_pseudo_element;
 
     Vector<Utf16FlyString> m_classes;
+    CSS::StyleNodeID m_style_node_id;
     Vector<Utf16FlyString> m_parts;
     Optional<Dir> m_dir;
 
@@ -869,34 +884,21 @@ private:
     GC::Ptr<CSS::StylePropertyMapReadOnly> m_computed_style_map_cache;
 
     CSSPixelPoint m_scroll_offset;
-    Vector<Utf16FlyString, 1> m_removed_attributes_for_style_invalidation;
 
     bool m_is_being_activated : 1 { false };
     bool m_in_top_layer : 1 { false };
     bool m_rendered_in_top_layer : 1 { false };
     bool m_style_uses_attr_css_function : 1 { false };
     bool m_style_uses_var_css_function : 1 { false };
-    bool m_style_uses_tree_counting_function : 1 { false };
     bool m_style_uses_if_css_function : 1 { false };
+    bool m_style_uses_custom_function : 1 { false };
     bool m_style_uses_inherit_css_function : 1 { false };
     bool m_style_depends_on_size_container_query : 1 { false };
     bool m_style_depends_on_style_container_query : 1 { false };
     bool m_is_style_query_container : 1 { false };
     bool m_is_size_query_container : 1 { false };
     bool m_child_style_uses_tree_counting_function : 1 { false };
-    bool m_affected_by_has_pseudo_class_in_subject_position : 1 { false };
-    bool m_affected_by_has_pseudo_class_in_non_subject_position : 1 { false };
-    bool m_affected_by_direct_sibling_combinator : 1 { false };
-    bool m_affected_by_indirect_sibling_combinator : 1 { false };
-    bool m_affected_by_first_child_pseudo_class : 1 { false };
-    bool m_affected_by_last_child_pseudo_class : 1 { false };
-    bool m_affected_by_forward_positional_pseudo_class : 1 { false };
-    bool m_affected_by_backward_positional_pseudo_class : 1 { false };
-    bool m_affected_by_structural_pseudo_class_in_non_subject_position : 1 { false };
-    bool m_affected_by_sibling_combinator_in_non_subject_position : 1 { false };
-    bool m_affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator : 1 { false };
-    bool m_in_subtree_of_has_pseudo_class_relative_selector_with_sibling_combinator : 1 { false };
-    bool m_in_has_scope : 1 { false };
+    bool m_style_uses_tree_counting_function : 1 { false };
     bool m_fullscreen_flag : 1 { false };
 
     Fullscreen::RequestType m_fullscreen_request_type { Fullscreen::RequestType::Standard };

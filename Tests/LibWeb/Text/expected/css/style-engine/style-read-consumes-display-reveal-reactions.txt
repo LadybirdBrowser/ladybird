@@ -1,0 +1,5 @@
+read child color: rgb(0, 128, 0)
+sibling color: rgb(0, 128, 0)
+deep sibling color: rgb(0, 128, 0)
+style read recomputations: 4
+subsequent update recomputations: 0

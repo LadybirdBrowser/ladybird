@@ -18,7 +18,7 @@ SVGTSpanElement::SVGTSpanElement(DOM::Document& document, DOM::QualifiedName qua
 {
 }
 
-RefPtr<Layout::Node> SVGTSpanElement::create_layout_node(NonnullRefPtr<CSS::ComputedValues const> style)
+RefPtr<Layout::Node> SVGTSpanElement::create_layout_node(CSS::LayoutStyle style)
 {
     // Text must be within an SVG <text> element.
     if (first_flat_tree_ancestor_of_type<SVGTextElement>())

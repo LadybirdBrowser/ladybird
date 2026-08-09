@@ -37,7 +37,7 @@ CSSPixels FieldSetPaintable::effective_border_top() const
     // The space allocated for the element's border on the block-start side is expected to be the element's
     // 'border-block-start-width' or the rendered legend's margin box size in the fieldset's block-flow direction,
     // whichever is greater.
-    auto css_border_top = computed_values().border_top().width;
+    auto css_border_top = layout_box().border_top().width;
     if (auto legend = layout_box().rendered_legend()) {
         auto legend_paintable = legend->paintable_box();
         auto legend_margin_box_height = legend_paintable->box_model().margin.top
@@ -50,7 +50,7 @@ CSSPixels FieldSetPaintable::effective_border_top() const
 
 CSSPixelRect FieldSetPaintable::visual_border_box_rect() const
 {
-    auto css_border_top = computed_values().border_top().width;
+    auto css_border_top = layout_box().border_top().width;
     auto allocated_border_top = effective_border_top();
 
     // The CSS border is painted centered within the effective border area (which may be larger than the CSS border when
@@ -92,7 +92,7 @@ void FieldSetPaintable::paint(DisplayListRecordingContext& context, PaintPhase p
 
     auto legend_border_rect = context.rounded_device_rect(legend_paintable->absolute_border_box_rect());
 
-    auto top_border_data = computed_values().border_top();
+    auto top_border_data = layout_box().border_top();
     auto top_border = context.enclosing_device_pixels(top_border_data.width).value();
 
     auto device_border_rect = context.rounded_device_rect(visual_border_box_rect());
@@ -113,9 +113,9 @@ void FieldSetPaintable::paint(DisplayListRecordingContext& context, PaintPhase p
 
     BordersData borders_data {
         .top = {},
-        .right = computed_values().border_right(),
-        .bottom = computed_values().border_bottom(),
-        .left = computed_values().border_left(),
+        .right = layout_box().border_right(),
+        .bottom = layout_box().border_bottom(),
+        .left = layout_box().border_left(),
     };
     paint_borders_with_optional_clip(borders_data.to_device_pixels(context), {});
 

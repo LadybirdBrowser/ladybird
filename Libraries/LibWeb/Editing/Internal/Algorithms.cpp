@@ -7,6 +7,7 @@
 #include <AK/Utf16StringBuilder.h>
 #include <LibGC/RootVector.h>
 #include <LibGfx/Color.h>
+#include <LibWeb/Bindings/Document.h>
 #include <LibWeb/CSS/CascadedProperties.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>

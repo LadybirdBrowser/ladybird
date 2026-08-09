@@ -1,14 +1,2 @@
 [add .x (anchor should stop being styled)]
-  hasAncestorWalkInvocations: 1
-  hasAncestorWalkVisits: 3
-  hasMatchInvocations: 1
-  hasResultCacheHits: 0
-  hasResultCacheMisses: 1
-  styleInvalidations: 1
 [remove .x (anchor should be styled again)]
-  hasAncestorWalkInvocations: 1
-  hasAncestorWalkVisits: 3
-  hasMatchInvocations: 1
-  hasResultCacheHits: 0
-  hasResultCacheMisses: 1
-  styleInvalidations: 1

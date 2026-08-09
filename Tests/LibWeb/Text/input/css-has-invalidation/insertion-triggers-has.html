@@ -18,14 +18,14 @@
         const child = document.createElement("span");
         child.className = "match";
         document.getElementById("container").appendChild(child);
-        getComputedStyle(document.getElementById("anchor")).color;
+        internals.updateStyle();
         printCounters("insert <span class='match'> into anchor subtree");
 
         internals.resetStyleInvalidationCounters();
 
         // Remove the matching element. Anchor should unstyle.
         child.remove();
-        getComputedStyle(document.getElementById("anchor")).color;
+        internals.updateStyle();
         printCounters("remove the matching span");
     });
 </script>

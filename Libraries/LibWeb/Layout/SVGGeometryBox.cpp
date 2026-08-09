@@ -12,7 +12,7 @@
 
 namespace Web::Layout {
 
-SVGGeometryBox::SVGGeometryBox(DOM::Document& document, SVG::SVGGeometryElement& element, NonnullRefPtr<CSS::ComputedValues const> style)
+SVGGeometryBox::SVGGeometryBox(DOM::Document& document, SVG::SVGGeometryElement& element, CSS::LayoutStyle style)
     : SVGGraphicsBox(document, element, style)
 {
 }

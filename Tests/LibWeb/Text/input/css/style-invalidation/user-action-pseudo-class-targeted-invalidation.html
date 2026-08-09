@@ -53,8 +53,7 @@
     function dumpCounters(label) {
         const c = internals.getStyleInvalidationCounters();
         println(
-            `${label}: styleInvalidations=${c.styleInvalidations}, ` +
-            `elementStyleRecomputations=${c.elementStyleRecomputations}, ` +
+            `${label}: elementStyleRecomputations=${c.elementStyleRecomputations}, ` +
             `elementStyleNoopRecomputations=${c.elementStyleNoopRecomputations}`
         );
     }
@@ -80,6 +79,7 @@
         const activeTarget = document.getElementById("active-target");
 
         getComputedStyle(plain).color;
+        internals.updateStyle();
         internals.resetStyleInvalidationCounters();
         moveTo(plain);
         dumpCounters("plain text hover");
@@ -91,13 +91,13 @@
 
         appendUnaffectedSubtree(activeContainer, 100);
         getComputedStyle(activeContainer).color;
+        internals.updateStyle();
         internals.resetStyleInvalidationCounters();
         clickAndHold(activeTarget);
 
         const counters = internals.getStyleInvalidationCounters();
         println(
-            `active state: fullStyleInvalidations=${counters.fullStyleInvalidations}, ` +
-            `elementStyleRecomputations=${counters.elementStyleRecomputations}`
+            `active state: elementStyleRecomputations=${counters.elementStyleRecomputations}`
         );
         internals.mouseUp(0, 0);
     });

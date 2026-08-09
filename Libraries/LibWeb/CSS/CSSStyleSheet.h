@@ -19,10 +19,8 @@
 #include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/CSS/CSSRuleList.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
-#include <LibWeb/CSS/SelectorInsights.h>
 #include <LibWeb/CSS/StyleSheet.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
-#include <LibWeb/DOM/StyleInvalidationReason.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/WebIDL/Promise.h>
 #include <LibWeb/WebIDL/Types.h>
@@ -37,8 +35,6 @@ namespace Web::CSS {
 
 class CSSImportRule;
 class StyleScope;
-struct CachedStyleSheetInvalidationSet;
-struct ShadowRootStylesheetEffects;
 struct StyleCache;
 
 using CSSStyleSheetOptions = Bindings::CSSStyleSheetInit;
@@ -103,11 +99,11 @@ public:
     WebIDL::ExceptionOr<void> replace_sync(Utf16View text);
 
     void for_each_effective_rule(TraversalOrder, Function<void(CSSRule const&)> const& callback) const;
-    void for_each_effective_style_producing_rule(Function<void(CSSRule const&)> const& callback) const;
     // Returns whether the match state of any media queries changed after evaluation.
     bool evaluate_media_queries(DOM::Document const&);
     bool evaluate_media_queries(DOM::Document const&, Function<void(CSSRule const&)> const& changed_rule_callback);
     void reload_fonts_after_media_query_change();
+    void record_conditions_for_owners();
     void for_each_effective_keyframes_at_rule(Function<void(CSSKeyframesRule const&)> const& callback) const;
     void for_each_effective_counter_style_at_rule(Function<void(CSSCounterStyleRule const&)> const& callback) const;
     void for_each_effective_function_at_rule(Function<void(CSSFunctionRule const&)> const& callback) const;
@@ -115,13 +111,11 @@ public:
     HashTable<GC::Ptr<DOM::Node>> const& owning_documents_or_shadow_roots() const { return m_owning_documents_or_shadow_roots; }
     void add_owning_document_or_shadow_root(DOM::Node& document_or_shadow_root);
     void remove_owning_document_or_shadow_root(DOM::Node& document_or_shadow_root);
-    void invalidate_owners(DOM::StyleInvalidationReason, ShadowRootStylesheetEffects const* previous_sheet_effects = nullptr);
+    void invalidate_owners();
     GC::Ptr<DOM::Document> owning_document() const;
     virtual void set_disabled(bool) override;
     void for_each_owning_style_scope(Function<void(StyleScope&)> const&) const;
     NonnullRefPtr<StyleCache> shared_single_constructed_sheet_style_cache();
-    SelectorInsights const& selector_insights() const;
-    CachedStyleSheetInvalidationSet const& cached_style_sheet_invalidation_set() const;
 
     // Bumped whenever state that shared style caches derive from changes (rule mutations, media match-state flips).
     // Lets sheet-set style cache registry entries detect staleness at lookup time.
@@ -132,6 +126,7 @@ public:
     HashTable<Utf16FlyString> declared_namespaces() const;
 
     Optional<Utf16FlyString> namespace_uri(Utf16View namespace_prefix) const;
+    [[nodiscard]] HashMap<Utf16FlyString, GC::Ptr<CSSNamespaceRule>> const& namespace_rules() const { return m_namespace_rules; }
 
     Vector<GC::Ref<CSSImportRule>> const& import_rules() const { return m_import_rules; }
 
@@ -155,6 +150,10 @@ public:
     void remove_critical_subresource(Subresource&);
     LoadingState loading_state() const;
     void check_if_loading_completed();
+
+    // The sheet's StyleEngine program handle, one-based, or 0 while it has none.
+    [[nodiscard]] SheetID style_engine_sheet_id() const { return m_style_engine_sheet_id; }
+    void set_style_engine_sheet_id(SheetID sheet_id) { m_style_engine_sheet_id = sheet_id; }
 
 private:
     CSSStyleSheet(CSSRuleList&, MediaList&, Optional<::URL::URL> location);
@@ -185,14 +184,14 @@ private:
     bool m_constructed { false };
     bool m_disallow_modification { false };
     Optional<bool> m_did_match;
-    mutable Optional<SelectorInsights> m_selector_insights;
-    mutable OwnPtr<CachedStyleSheetInvalidationSet> m_cached_style_sheet_invalidation_set;
     RefPtr<StyleCache> m_shared_single_constructed_sheet_style_cache;
     u64 m_shared_style_cache_generation { 0 };
 
     Vector<Subresource&> m_critical_subresources;
 
     Vector<WeakPtr<ImageStyleValue>> m_pending_image_values;
+
+    SheetID m_style_engine_sheet_id;
 };
 
 }

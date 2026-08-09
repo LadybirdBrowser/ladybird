@@ -983,9 +983,9 @@ void Page::invalidate_user_style()
         document.invalidate_content_blocker_style_sheet();
         document.style_scope().invalidate_user_style_sheet();
         document.for_each_shadow_root([](auto& shadow_root) {
-            shadow_root.invalidate_style(DOM::StyleInvalidationReason::StyleSheetReplace);
+            shadow_root.record_style_environment_change();
         });
-        document.invalidate_style(DOM::StyleInvalidationReason::StyleSheetReplace);
+        document.record_style_environment_change();
     };
 
     auto& active_document = *top_level_traversable()->active_document();

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .before { font-size: 16px; margin-left: 2em }
+    .after { font-size: 20px; margin-left: 2em }
+</style>
+<div id="target" class="before"></div>
+<script>
+    test(() => {
+        internals.updateStyle();
+        const before = internals.getStyleInvalidationCounters();
+
+        target.className = "after";
+        internals.updateStyle();
+
+        const after = internals.getStyleInvalidationCounters();
+        println(`font change longhand evaluations: ${after.computedLonghandEvaluations - before.computedLonghandEvaluations}`);
+        println(`font size: ${getComputedStyle(target).fontSize}`);
+        println(`font-relative margin: ${getComputedStyle(target).marginLeft}`);
+    });
+</script>

@@ -18,7 +18,7 @@ SVGDescElement::SVGDescElement(DOM::Document& document, DOM::QualifiedName quali
 {
 }
 
-RefPtr<Layout::Node> SVGDescElement::create_layout_node(NonnullRefPtr<CSS::ComputedValues const>)
+RefPtr<Layout::Node> SVGDescElement::create_layout_node(CSS::LayoutStyle)
 {
     return nullptr;
 }

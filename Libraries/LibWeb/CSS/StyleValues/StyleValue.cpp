@@ -99,20 +99,26 @@
 extern "C" void ladybird_utf16_fly_string_unref(size_t);
 extern "C" void ladybird_utf16_fly_string_ref(size_t);
 extern "C" void ladybird_string_unref(size_t);
+extern "C" void ladybird_string_ref(size_t);
 
 namespace Web::CSS {
 
 ColorResolutionContext ColorResolutionContext::for_element(DOM::AbstractElement const& element)
 {
-    auto computed_values = element.computed_values();
-    VERIFY(computed_values);
+    auto const* ui_values = element.style_group<ComputedValues::InheritedUIValues>();
+    auto const* text_values = element.style_group<ComputedValues::InheritedTextValues>();
+    VERIFY(ui_values);
+    VERIFY(text_values);
 
     CalculationResolutionContext calculation_resolution_context { .length_resolution_context = Length::ResolutionContext::for_element(element) };
+    RefPtr<StyleValue const> current_color_style_value;
+    if (text_values->color_style_value)
+        current_color_style_value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(text_values->color_style_value.data()));
 
     return {
-        .color_scheme = computed_values->color_scheme(),
-        .current_color = computed_values->color(),
-        .current_color_style_value = computed_values->color_style_value(),
+        .color_scheme = ui_values->color_scheme,
+        .current_color = text_values->color,
+        .current_color_style_value = move(current_color_style_value),
         .calculation_resolution_context = calculation_resolution_context
     };
 }
@@ -122,14 +128,14 @@ ColorResolutionContext ColorResolutionContext::for_layout_node_with_style(Layout
     RefPtr<StyleValue const> current_color_style_value;
     if (auto* dom_node = layout_node.dom_node()) {
         if (auto* element = as_if<DOM::Element>(*dom_node)) {
-            if (auto computed_values = element->computed_values())
-                current_color_style_value = computed_values->color_style_value();
+            if (auto const* values = element->style_group<ComputedValues::InheritedTextValues>(); values && values->color_style_value)
+                current_color_style_value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(values->color_style_value.data()));
         }
     }
 
     return {
-        .color_scheme = layout_node.computed_values().color_scheme(),
-        .current_color = layout_node.computed_values().color(),
+        .color_scheme = layout_node.color_scheme(),
+        .current_color = layout_node.color(),
         .current_color_style_value = current_color_style_value,
         .calculation_resolution_context = { .length_resolution_context = Length::ResolutionContext::for_layout_node(layout_node) },
     };
@@ -722,4 +728,10 @@ extern "C" void ladybird_utf16_fly_string_ref(size_t raw)
 extern "C" void ladybird_string_unref(size_t raw)
 {
     String::unref_raw(raw);
+}
+
+// Called when Rust-owned style value data retains an additional reference to a String.
+extern "C" void ladybird_string_ref(size_t raw)
+{
+    (void)String::from_raw(raw).to_raw_leaked();
 }

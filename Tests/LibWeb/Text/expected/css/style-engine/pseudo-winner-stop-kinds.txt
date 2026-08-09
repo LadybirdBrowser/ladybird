@@ -1,0 +1,4 @@
+initial marker: rgb(255, 0, 0)
+initial backdrop: rgb(255, 0, 0)
+marker exact cascade stops: 0
+updated backdrop: rgb(0, 0, 255)

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .subject { color: black }
+    .descendant:has(.error) { color: red }
+    .child:has(> .error) { color: red }
+    .adjacent:has(+ .marker) { color: red }
+    .general:has(~ .marker) { color: red }
+</style>
+<div>
+    <div id="descendant-out" class="subject descendant"><span id="descendant-out-marker" class="error"></span></div>
+    <div id="descendant-out-stash"></div>
+</div>
+<div>
+    <div id="descendant-in" class="subject descendant"></div>
+    <div id="descendant-in-stash"><span id="descendant-in-marker" class="error"></span></div>
+</div>
+<div>
+    <div id="child-out" class="subject child"><span id="child-out-marker" class="error"></span></div>
+    <div id="child-out-stash"></div>
+</div>
+<div>
+    <div id="child-in" class="subject child"></div>
+    <div id="child-in-stash"><span id="child-in-marker" class="error"></span></div>
+</div>
+<div id="adjacent-out-parent">
+    <div id="adjacent-out" class="subject adjacent"></div>
+    <div id="adjacent-out-marker" class="marker"></div>
+</div>
+<div id="adjacent-out-stash"></div>
+<div id="adjacent-in-parent">
+    <div id="adjacent-in" class="subject adjacent"></div>
+</div>
+<div id="adjacent-in-stash"><div id="adjacent-in-marker" class="marker"></div></div>
+<div id="general-out-parent">
+    <div id="general-out" class="subject general"></div>
+    <div></div>
+    <div id="general-out-marker" class="marker"></div>
+</div>
+<div id="general-out-stash"></div>
+<div id="general-in-parent">
+    <div id="general-in" class="subject general"></div>
+    <div></div>
+</div>
+<div id="general-in-stash"><div id="general-in-marker" class="marker"></div></div>
+<script>
+    function color(id) {
+        return getComputedStyle(document.getElementById(id)).color;
+    }
+
+    function moveAndPrint(id, destination, marker) {
+        document.getElementById(destination).moveBefore(document.getElementById(marker), null);
+        internals.updateStyle();
+        println(`${id}: ${color(id)}`);
+    }
+
+    test(() => {
+        internals.updateStyle();
+        moveAndPrint("descendant-out", "descendant-out-stash", "descendant-out-marker");
+        moveAndPrint("descendant-in", "descendant-in", "descendant-in-marker");
+        moveAndPrint("child-out", "child-out-stash", "child-out-marker");
+        moveAndPrint("child-in", "child-in", "child-in-marker");
+        moveAndPrint("adjacent-out", "adjacent-out-stash", "adjacent-out-marker");
+        moveAndPrint("adjacent-in", "adjacent-in-parent", "adjacent-in-marker");
+        moveAndPrint("general-out", "general-out-stash", "general-out-marker");
+        moveAndPrint("general-in", "general-in-parent", "general-in-marker");
+    });
+</script>

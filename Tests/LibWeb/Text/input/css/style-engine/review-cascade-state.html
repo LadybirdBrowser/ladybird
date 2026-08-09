@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @layer {
+        #revert-target { color: rgb(0, 128, 0); }
+    }
+    @layer {
+        #revert-target {
+            color: rgb(255, 0, 0) !important;
+            color: revert-layer !important;
+        }
+    }
+    @layer {
+        #revert-target { color: rgb(255, 0, 0) !important; }
+    }
+</style>
+<div id="revert-target"></div>
+<div id="sheet-target"></div>
+<script>
+    test(() => {
+        println(`important revert-layer: ${getComputedStyle(document.getElementById("revert-target")).color}`);
+
+        const first = new CSSStyleSheet();
+        first.replaceSync("#sheet-target { color: rgb(255, 0, 0); z-index: 0; }");
+        const second = new CSSStyleSheet();
+        second.replaceSync("#sheet-target { color: rgb(0, 0, 255); z-index: 1; }");
+        document.adoptedStyleSheets = [second, first, second];
+        let computed = getComputedStyle(document.getElementById("sheet-target"));
+        println(`duplicate assignment: ${computed.color} ${computed.zIndex}`);
+
+        document.adoptedStyleSheets = [second, first];
+        computed = getComputedStyle(document.getElementById("sheet-target"));
+        println(`before duplicate push: ${computed.color} ${computed.zIndex}`);
+        document.adoptedStyleSheets.push(second);
+        computed = getComputedStyle(document.getElementById("sheet-target"));
+        println(`after duplicate push: ${computed.color} ${computed.zIndex}`);
+    });
+</script>

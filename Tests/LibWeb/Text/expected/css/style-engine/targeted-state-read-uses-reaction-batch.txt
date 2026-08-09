@@ -1,0 +1,5 @@
+reaction color: rgb(0, 128, 0)
+reaction batch runs: 1
+reaction elements: 1
+published reactions: 1
+recomputations: 1

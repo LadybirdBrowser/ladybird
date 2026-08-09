@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="plan.js"></script>
+<script>
+    test(() => {
+        function removeChild(name, cssText, removeSameType) {
+            const style = addStyleSheet(cssText);
+            const fixture = make("section", "fixture");
+            const first = make("div", "first", { className: "slot" });
+            const other = make("span", "other");
+            const subject = make("div", "subject", { className: "slot" });
+            subject.appendChild(make("em", "target", { className: "target" }));
+            fixture.append(first, other, subject);
+            document.body.appendChild(fixture);
+
+            plan(name, () => (removeSameType ? first : other).remove());
+
+            style.remove();
+            fixture.remove();
+        }
+
+        // A child changes only the of-type subsequence sharing its qualified type. The span leaving
+        // between two divs changes their child positions, but neither div's of-type position.
+        removeChild("other type leaves (subject)", ".slot:nth-of-type(2) { color: red }", false);
+        removeChild("same type leaves (subject)", ".slot:nth-of-type(2) { color: red }", true);
+        removeChild("other type leaves (descendant)", ".slot:nth-of-type(2) .target { color: red }", false);
+        removeChild("same type leaves (descendant)", ".slot:nth-of-type(2) .target { color: red }", true);
+    });
+</script>

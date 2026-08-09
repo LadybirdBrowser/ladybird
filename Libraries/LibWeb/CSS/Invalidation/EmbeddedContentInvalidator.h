@@ -15,6 +15,5 @@ class Element;
 namespace Web::CSS::Invalidation {
 
 void invalidate_style_after_embedded_content_geometry_change(DOM::Element&);
-void invalidate_style_after_object_representation_change(DOM::Element&);
 
 }

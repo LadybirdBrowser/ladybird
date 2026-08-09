@@ -1,0 +1,38 @@
+html: * :root :dir(ltr)
+head: * :dir(ltr)
+script: * :dir(ltr)
+style: * :dir(ltr)
+body: * :dir(ltr)
+div#target.box: * div [data-kind] [data-kind="wide"] [data-kind~="wide"] [data-kind^="wi"] [data-kind$="de"] [data-kind*="id"] [data-kind="WIDE" i] :lang(en) :dir(ltr) .box:has(.item) .box:has(> .item) .box:has(.alpha, .missing) .box:has(.item.excluded) #target
+div.item.alpha: .item * div .item :where(.box, .panel) .item .alpha, .beta :lang(en) :dir(ltr) .box *, .panel * .item .item .item .box .item .box > .item :is(.box, .panel) .item .item:not(.excluded) .item:not(.excluded, .other) .box > :first-child .box > :nth-child(2n+1) .box > :first-of-type .item:has(+ .item) .item:has(~ .marked)
+div.item.excluded: .item * div .item :where(.box, .panel) .item :lang(en) :dir(ltr) .box *, .panel * .item .item .item .box .item .box > .item .item + .item .item ~ .item :is(.box, .panel) .item .box > :nth-child(2) .box > :nth-of-type(2) .item:has(+ .item) .item:has(~ .marked) .box > :nth-child(2)
+span.item.marked: .item * .item :where(.box, .panel) .item :lang(en) :dir(ltr) .box *, .panel * .item .item .item .box .item .box > .item .item + .item .item ~ .item :is(.box, .panel) .item .item:not(.excluded) .item:not(.excluded, .other) .box > :nth-child(2n+1) .box > :first-of-type
+p.empty: * :lang(en) :dir(ltr) .box *, .panel * .box > :first-of-type .empty:empty
+p.texted: * :lang(en) :dir(ltr) .box *, .panel * .box > :nth-child(2n+1) .box > :nth-of-type(2)
+p.commented: * :lang(en) :dir(ltr) .box *, .panel * .commented:empty
+p.spaced: * :lang(en) :dir(ltr) .box *, .panel * .box > :nth-child(2n+1) .box > :nth-last-child(2)
+div.panel: * div :lang(en) :dir(ltr) .box *, .panel * .box > :last-child
+div.item.beta: .item * div .item :where(.box, .panel) .item .alpha, .beta :lang(en) :dir(ltr) .box *, .panel * .item .item .box .item :is(.box, .panel) .item .item:not(.excluded) .item:not(.excluded, .other)
+div.outer-scope: * div :dir(ltr)
+div.inner-scope: * div :dir(ltr)
+div.scoped-target: * div :dir(ltr) .scoped-target .scoped-target .scoped-target
+div: * div :dir(rtl) div:dir(rtl)
+div.nest: * div :dir(ltr) .nest
+div.item.child: .item * div .item :dir(ltr) .item .item .item:not(.excluded) .item:not(.excluded, .other) & .item & > .child
+h2: * :dir(ltr) :heading :heading(2)
+div: * div :dir(ltr)
+h2: * :dir(ltr) :heading :heading(3, 4)
+div: * div :dir(ltr)
+h3: * :dir(ltr) :heading :heading(3, 4)
+div: * div :dir(ltr)
+h2: * :dir(ltr) :heading :heading(7)
+div: * div :dir(ltr)
+h4: * :dir(ltr) :heading :heading(9)
+a: * :dir(ltr) :any-link a:link
+input: * :dir(ltr) input:enabled input:required input:read-write input:placeholder-shown
+input: * :dir(ltr) input:disabled input:checked input:optional input:read-only
+details: * :dir(ltr) details:open
+summary: * :dir(ltr)
+script: * :dir(ltr)
+pre#out: * :dir(ltr)
+

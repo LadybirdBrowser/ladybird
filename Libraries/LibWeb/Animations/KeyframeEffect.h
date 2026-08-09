@@ -135,7 +135,7 @@ public:
     WebIDL::ExceptionOr<GC::RootVector<GC::Ref<JS::Object>>> get_keyframes(JS::Object& relevant_global_object);
 
     KeyFrameSet const* key_frame_set() { return m_key_frame_set; }
-    void set_key_frame_set(RefPtr<KeyFrameSet const> key_frame_set) { m_key_frame_set = key_frame_set; }
+    void set_key_frame_set(RefPtr<KeyFrameSet const>);
 
     virtual bool is_keyframe_effect() const override { return true; }
 

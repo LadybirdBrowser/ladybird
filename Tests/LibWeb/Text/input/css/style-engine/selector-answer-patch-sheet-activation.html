@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #target { color: blue }
+</style>
+<style id="sheet">
+    #guard .activation-target { color: red }
+</style>
+<div id="guard"><span id="target" class="activation-target"></span></div>
+<span class="activation-target"></span>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const sheet = document.getElementById("sheet").sheet;
+        sheet.disabled = true;
+        internals.updateStyle();
+
+        const before = internals.styleEngineCounters();
+        sheet.disabled = false;
+        internals.updateStyle();
+        println(`active color: ${getComputedStyle(target).color}`);
+        sheet.disabled = true;
+        internals.updateStyle();
+        const after = internals.styleEngineCounters();
+
+        const answerPatches = after.retainedMatchAnswerPatches - before.retainedMatchAnswerPatches
+            + after.retainedMatchAnswerDeltaPatches - before.retainedMatchAnswerDeltaPatches;
+        println(`answer patches: ${answerPatches}`);
+        println(`answer reuses: ${after.retainedMatchAnswerReuses - before.retainedMatchAnswerReuses}`);
+        println(`cold node evaluations: ${after.coldNodesEvaluated - before.coldNodesEvaluated}`);
+        println(`invalidated nodes: ${after.invalidatedStyleNodes - before.invalidatedStyleNodes}`);
+        println(`inactive color: ${getComputedStyle(target).color}`);
+    });
+</script>

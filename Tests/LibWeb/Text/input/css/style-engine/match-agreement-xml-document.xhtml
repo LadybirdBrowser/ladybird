@@ -1,0 +1,57 @@
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<script src="../../include.js"></script>
+<style>
+ @namespace other "http://www.example.com/ns";
+ @namespace none "";
+
+ DIV { color: rgb(1, 2, 3) }
+ none|t { background-color: rgb(4, 5, 6) }
+ other|p { outline-color: rgb(7, 8, 9) }
+ p:first-of-type { border-top-color: rgb(10, 11, 12) }
+ span:lang(es) { border-left-color: rgb(13, 14, 15) }
+</style>
+</head>
+<body>
+<!-- A type selector is case-sensitive outside an HTML document, so `DIV` reaches neither of these. -->
+<div id="lowercase">lowercase</div>
+
+<!-- The empty string is the namespace an element in no namespace has, so a prefix bound to it
+     names exactly those. -->
+<p><t xmlns="" id="no-namespace">no namespace</t></p>
+
+<!-- An element's type is its qualified name, so these are three sequences and not one. -->
+<div id="of-type-holder">
+    <p id="first-xhtml">first xhtml p</p>
+    <p xmlns="http://www.example.com/ns" id="first-other">first other p</p>
+    <p xmlns="" id="first-none">first no-namespace p</p>
+    <p id="second-xhtml">second xhtml p</p>
+</div>
+
+<!-- `xml:lang` is the element's language exactly as a bare `lang` is, and it inherits. -->
+<div xml:lang="es"><span id="inherits-es">inherits es</span></div>
+<div xml:lang="MX-es"><span id="not-es">not es</span></div>
+<script>
+    test(() => {
+        const report = [
+            ["lowercase", "color"],
+            ["no-namespace", "backgroundColor"],
+            ["first-other", "outlineColor"],
+            ["first-xhtml", "borderTopColor"],
+            ["first-other", "borderTopColor"],
+            ["first-none", "borderTopColor"],
+            ["second-xhtml", "borderTopColor"],
+            ["inherits-es", "borderLeftColor"],
+            ["not-es", "borderLeftColor"],
+        ];
+        for (const [id, property] of report)
+            println(`${id} ${property}: ${getComputedStyle(document.getElementById(id))[property]}`);
+        // Style under `display: none` is computed on the read that asks for it, so the report counts
+        // a different number of cascaded elements depending on what has been read. Read them all.
+        for (const element of document.querySelectorAll("*"))
+            getComputedStyle(element).color;
+        println(internals.styleEngineMatchedRules());
+    });
+</script>
+</body>
+</html>

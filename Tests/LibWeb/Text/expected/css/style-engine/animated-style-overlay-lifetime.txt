@@ -1,0 +1,8 @@
+permanent style records added: 0
+permanent metadata added: 0
+overlay slots added: 0
+overlay records updated: 9
+live overlay records: 1
+overlay slots released: 1
+live overlays after removal: 0
+animated pseudo-element style survives removal

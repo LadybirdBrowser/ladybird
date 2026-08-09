@@ -12,6 +12,7 @@
 #include <AK/HashMap.h>
 #include <AK/Optional.h>
 #include <AK/RefCounted.h>
+#include <AK/Span.h>
 #include <AK/Utf16FlyString.h>
 #include <LibGfx/FontCascadeList.h>
 #include <LibGfx/InterpolationColorSpace.h>
@@ -33,6 +34,7 @@
 #include <LibWeb/CSS/PseudoElement.h>
 #include <LibWeb/CSS/Ratio.h>
 #include <LibWeb/CSS/Size.h>
+#include <LibWeb/CSS/StyleRecordID.h>
 #include <LibWeb/CSS/StyleStructRef.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BasicShapeStyleValue.h>
@@ -47,6 +49,7 @@
 #include <LibWeb/CSS/Time.h>
 #include <LibWeb/CSS/URL.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/StyleEngineRustFFI.h>
 
 namespace Web::DOM {
 
@@ -59,6 +62,8 @@ namespace Web::CSS {
 class AnimatedProperties;
 
 class ComputedProperties;
+class ComputedStyleRecordView;
+class StyleComputer;
 class StyleScope;
 
 using ClipRule = FillRule;
@@ -1049,11 +1054,23 @@ public:
 
     static NonnullRefPtr<ComputedValues const> create(ComputedProperties const&, DOM::Document const&, StyleScope const&, ColorResolutionContext, ComputedValues const* inherit_parent = nullptr);
 
+    // Build only the named groups; every other group keeps `base`'s payload untouched. The caller
+    // warrants that every property outside `groups_to_apply` computes to the same value in the
+    // given style as it did when `base` was built.
+    static constexpr u32 all_style_groups = (1u << to_underlying(StyleGroupIndex::Count)) - 1;
+    static NonnullRefPtr<ComputedValues const> create_over_base(ComputedProperties const&, DOM::Document const&, StyleScope const&, ColorResolutionContext, ComputedValues const& base, u32 groups_to_apply);
+
+    // The style group a longhand's computed value lives in, derived from the field descriptors the
+    // group payloads build from, plus explicit bindings for the bespoke-built groups. A longhand
+    // without a binding has no single known group and must be treated conservatively.
+    static Optional<StyleGroupIndex> style_group_of_property(PropertyID);
+
     RefPtr<StyleValue const> computed_style_value(PropertyID, WithAnimationsApplied = WithAnimationsApplied::Yes) const;
     RefPtr<StyleValue const> computed_style_value_for_inheritance(PropertyID, WithAnimationsApplied = WithAnimationsApplied::Yes) const;
     RefPtr<StyleValue const> color_style_value() const;
-    ComputedValues const& base_values() const { return m_base_values ? *m_base_values : *this; }
-    bool has_animated_values() const { return m_base_values; }
+    ComputedValues const& base_values() const { return m_borrowed_base_values ? *m_borrowed_base_values : m_base_values ? *m_base_values
+                                                                                                                        : *this; }
+    bool has_animated_values() const { return m_borrowed_base_values || m_base_values; }
     AnimatedProperties const* animated_properties() const { return m_animated_properties.ptr(); }
     RefPtr<AnimatedProperties const> animated_properties_snapshot() const;
 
@@ -1084,7 +1101,21 @@ public:
     // pointer is borrowed from this immutable ComputedValues instance.
     void const* style_group_payload(StyleGroupIndex) const;
 
-    void const* style_container() const;
+    // The identity of the half a child inherits. Two styles whose inherited groups are pairwise the
+    // same payload answer the same question for a child, whatever their non-inherited halves say.
+    static constexpr size_t inherited_style_group_count = 7;
+    Array<void const*, inherited_style_group_count> inherited_style_group_identities() const
+    {
+        return Array<void const*, inherited_style_group_count> {
+            m_inherited.table.payload_identity(),
+            m_inherited.list.payload_identity(),
+            m_inherited.ui.payload_identity(),
+            m_inherited.svg.payload_identity(),
+            m_inherited.text.payload_identity(),
+            m_inherited.box.payload_identity(),
+            m_inherited.font.payload_identity(),
+        };
+    }
 
     // Calls back with (name, shared_with_parent, is_default) for every style value group,
     // for introspecting how well group sharing is working (see internals.styleGroupSharingInfo()).
@@ -1099,15 +1130,30 @@ public:
 
     bool is_property_important(PropertyID property_id) const { return m_property_important.get(property_bitmap_index(property_id)); }
     bool is_property_inherited(PropertyID property_id) const { return m_property_inherited.get(property_bitmap_index(property_id)); }
+    ReadonlyBytes property_importance_bitmap() const LIFETIME_BOUND { return m_property_important.bytes(); }
+    ReadonlyBytes property_inheritance_bitmap() const LIFETIME_BOUND { return m_property_inherited.bytes(); }
+
+    // True when every inherited longhand took its value by inheritance and no other longhand did:
+    // the element's cascade declared nothing that survives into its inherited half, and nothing
+    // explicitly inherited a property that does not inherit on its own. Such an element's inherited
+    // half is, by construction, exactly what its parent's inherited half was when this style was
+    // computed.
+    bool property_inheritance_is_standard() const;
     bool depends_on_viewport_metrics() const { return m_depends_on_viewport_metrics; }
     bool font_metrics_depend_on_viewport_metrics() const { return m_font_metrics_depend_on_viewport_metrics; }
     bool in_display_none_subtree() const { return m_in_display_none_subtree; }
     bool has_pseudo_element_style(PseudoElement pseudo_element) const { return m_pseudo_element_styles & (1ull << to_underlying(pseudo_element)); }
+    u64 pseudo_element_style_mask() const { return m_pseudo_element_styles; }
     HashMap<PropertyID, NonnullRefPtr<StyleValue const>> const& inheritance_dependent_specified_values() const { return m_inheritance_dependent_specified_values; }
-    RefPtr<StyleValue const> raw_cascaded_font_size() const { return m_raw_cascaded_font_size; }
+    HashMap<PropertyID, NonnullRefPtr<StyleValue const>> inheritance_dependent_specified_values_snapshot() const;
+    RefPtr<StyleValue const> raw_cascaded_font_size() const;
 
     ~ComputedValues();
 
+private:
+    static NonnullRefPtr<ComputedValues const> create_internal(ComputedProperties const&, DOM::Document const&, StyleScope const&, ColorResolutionContext, ComputedValues const* inherit_parent, ComputedValues const* base, u32 groups_to_apply);
+
+public:
     AspectRatio aspect_ratio() const
     {
         auto const& value = m_noninherited.box->aspect_ratio;
@@ -1333,15 +1379,6 @@ public:
             .paint_containment = box.paint_containment,
         };
     }
-    bool container_name_contains(Utf16FlyString const& name) const
-    {
-        auto const& list = m_noninherited.box->container_name;
-        for (size_t i = 0; i < list.length; ++i) {
-            if (Utf16FlyString::from_raw(list.pointer[i].raw) == name)
-                return true;
-        }
-        return false;
-    }
     Vector<Utf16FlyString> container_name() const
     {
         auto const& list = m_noninherited.box->container_name;
@@ -1363,7 +1400,7 @@ public:
     MixBlendMode mix_blend_mode() const { return m_noninherited.effects->mix_blend_mode; }
     Optional<Utf16FlyString> view_transition_name() const { return m_noninherited.misc->view_transition_name; }
     TouchActionData touch_action() const { return m_noninherited.misc->touch_action; }
-    ShapeRendering shape_rendering() const { return static_cast<ShapeRendering>(m_noninherited.svg_reset->shape_rendering); }
+    ShapeRendering shape_rendering() const { return m_inherited.svg->shape_rendering; }
 
     LengthBox inset() const { return length_box(m_noninherited.surround->inset); }
     bool has_anchor_inset(PropertyID property_id) const
@@ -1513,7 +1550,11 @@ public:
     WillChange const& will_change() const { return m_noninherited.misc->will_change; }
 
 private:
+    friend class ComputedStyleRecordView;
+    enum class BorrowedStyleRecord { Yes };
     ComputedValues();
+    explicit ComputedValues(BorrowedStyleRecord);
+    void borrow_style_record_payloads(ReadonlySpan<void const*>);
 
     RefPtr<StyleValue const> style_value_from_handle(PropertyID, RustStyleValueHandle const&) const;
 
@@ -1641,6 +1682,7 @@ public:
         bool paint_order_is_normal { true };
         TextAnchor text_anchor { InitialValues::text_anchor() };
         Optional<BaselineMetric> dominant_baseline { InitialValues::dominant_baseline() };
+        ShapeRendering shape_rendering { InitialValues::shape_rendering() };
 
         static InheritedSVGValues make_default_payload_value();
 
@@ -1989,7 +2031,41 @@ public:
         ShapeOutsideData shape_outside { InitialValues::shape_outside() };
         WillChange will_change { InitialValues::will_change() };
 
-        bool operator==(MiscResetValues const&) const = default;
+        bool operator==(MiscResetValues const& other) const
+        {
+            // A style value is compared by value, not by address: recomputation builds a fresh one for
+            // the same declaration, and a defaulted comparison would call the group different when
+            // nothing about it moved.
+            auto style_values_equal = [](auto const& first, auto const& second) {
+                if (!first || !second)
+                    return !first && !second;
+                return *first == *second;
+            };
+            return style_values_equal(outline_offset_style_value, other.outline_offset_style_value)
+                && scroll_margin == other.scroll_margin
+                && scroll_padding == other.scroll_padding
+                && overflow_clip_margin == other.overflow_clip_margin
+                && column_span == other.column_span
+                && appearance == other.appearance
+                && computed_appearance == other.computed_appearance
+                && outline_style == other.outline_style
+                && object_fit == other.object_fit
+                && column_height == other.column_height
+                && outline_color == other.outline_color
+                && outline_width == other.outline_width
+                && outline_offset == other.outline_offset
+                && user_select == other.user_select
+                && object_position == other.object_position
+                && view_transition_name == other.view_transition_name
+                && touch_action == other.touch_action
+                && scroll_behavior == other.scroll_behavior
+                && scrollbar_gutter == other.scrollbar_gutter
+                && scrollbar_width == other.scrollbar_width
+                && shape_image_threshold == other.shape_image_threshold
+                && shape_margin == other.shape_margin
+                && shape_outside == other.shape_outside
+                && will_change == other.will_change;
+        }
     };
 
     struct SizingValues : ComputedValuesFFI::SizingValues {
@@ -2073,18 +2149,84 @@ private:
     };
 
     NonInheritedValues m_noninherited;
-    mutable void const* m_style_container { nullptr };
     AK::FixedBitmap<number_of_longhand_properties> m_property_important { false };
     AK::FixedBitmap<number_of_longhand_properties> m_property_inherited { false };
     HashMap<PropertyID, NonnullRefPtr<StyleValue const>> m_inheritance_dependent_specified_values;
     mutable HashMap<PropertyID, NonnullRefPtr<StyleValue const>> m_style_value_cache;
     RefPtr<StyleValue const> m_raw_cascaded_font_size;
+    StyleValueFFI::StyleValueData const* m_borrowed_raw_cascaded_font_size { nullptr };
+    ReadonlySpan<StyleEngineFFI::FfiInheritanceDependentValue const> m_borrowed_inheritance_dependent_values;
     RefPtr<ComputedValues const> m_base_values;
+    ComputedValues const* m_borrowed_base_values { nullptr };
     RefPtr<AnimatedProperties const> m_animated_properties;
     u64 m_pseudo_element_styles { 0 };
     bool m_depends_on_viewport_metrics { false };
     bool m_font_metrics_depend_on_viewport_metrics { false };
     bool m_in_display_none_subtree { false };
+    bool m_is_style_record_view { false };
+};
+
+// A synchronous, allocation-free compatibility surface over the payloads of
+// one authoritative StyleRecord. It owns no group or metadata payload.
+class WEB_API ComputedStyleRecordView {
+    AK_MAKE_NONCOPYABLE(ComputedStyleRecordView);
+    AK_MAKE_NONMOVABLE(ComputedStyleRecordView);
+
+public:
+    ComputedStyleRecordView() = default;
+    ComputedStyleRecordView(StyleEngineFFI::FfiStyleRecordView const&, StyleComputer const&, StyleRecordID);
+    ~ComputedStyleRecordView();
+
+    void retain_across_style_record_publication();
+
+    explicit operator bool() const { return m_present; }
+    ComputedValues const* operator->() const
+    {
+        if (!m_present)
+            return nullptr;
+        return m_retained_values ? m_retained_values.ptr() : &m_values;
+    }
+    ComputedValues const& operator*() const
+    {
+        VERIFY(m_present);
+        return m_retained_values ? *m_retained_values : m_values;
+    }
+
+private:
+    ComputedValues m_base_values { ComputedValues::BorrowedStyleRecord::Yes };
+    ComputedValues m_values { ComputedValues::BorrowedStyleRecord::Yes };
+    RefPtr<ComputedValues const> m_retained_values;
+    GC::Ptr<StyleComputer const> m_style_computer;
+    StyleRecordID m_style_record_identity;
+    bool m_present { false };
+};
+
+// The input to layout-node construction is either an authoritative style
+// record for a DOM style target or an owned style for an anonymous box.
+class LayoutStyle {
+public:
+    LayoutStyle() = default;
+    LayoutStyle(StyleRecordID style_record_identity)
+        : m_style_record_identity(style_record_identity)
+    {
+        VERIFY(style_record_identity);
+    }
+    LayoutStyle(NonnullRefPtr<ComputedValues const> values)
+        : m_values(move(values))
+    {
+    }
+    LayoutStyle(RefPtr<ComputedValues const> values)
+        : m_values(move(values))
+    {
+    }
+
+    explicit operator bool() const { return !!m_style_record_identity || m_values; }
+    [[nodiscard]] StyleRecordID style_record_identity() const { return m_style_record_identity; }
+    [[nodiscard]] RefPtr<ComputedValues const> const& values() const { return m_values; }
+
+private:
+    RefPtr<ComputedValues const> m_values;
+    StyleRecordID m_style_record_identity;
 };
 
 class ComputedValues::Mutator final {
@@ -2110,7 +2252,11 @@ public:
     void set_pseudo_element_styles(u64 value) { m_values.m_pseudo_element_styles = value; }
     void set_inheritance_dependent_specified_values(HashMap<PropertyID, NonnullRefPtr<StyleValue const>> value) { m_values.m_inheritance_dependent_specified_values = move(value); }
     void set_raw_cascaded_font_size(RefPtr<StyleValue const> value) { m_values.m_raw_cascaded_font_size = move(value); }
-    void set_base_values(NonnullRefPtr<ComputedValues const> value) { m_values.m_base_values = move(value); }
+    void set_base_values(NonnullRefPtr<ComputedValues const> value)
+    {
+        m_values.m_base_values = move(value);
+        m_values.m_borrowed_base_values = nullptr;
+    }
     void set_animated_properties(AnimatedProperties const*);
 
     // Adopts Rust-built group payloads, which arrive already carrying this
@@ -2971,6 +3117,30 @@ public:
             return;
         m_values.m_noninherited.border.access().border_bottom_color_style_value = retain_style_value_data(&value);
     }
+    void set_border_top_color(Color value)
+    {
+        if (m_values.m_noninherited.border->border_top.color == value)
+            return;
+        m_values.m_noninherited.border.access().border_top.color = value;
+    }
+    void set_border_right_color(Color value)
+    {
+        if (m_values.m_noninherited.border->border_right.color == value)
+            return;
+        m_values.m_noninherited.border.access().border_right.color = value;
+    }
+    void set_border_bottom_color(Color value)
+    {
+        if (m_values.m_noninherited.border->border_bottom.color == value)
+            return;
+        m_values.m_noninherited.border.access().border_bottom.color = value;
+    }
+    void set_border_left_color(Color value)
+    {
+        if (m_values.m_noninherited.border->border_left.color == value)
+            return;
+        m_values.m_noninherited.border.access().border_left.color = value;
+    }
     void set_border_left_computed_width(CSSPixels value)
     {
         if (m_values.m_noninherited.border->border_left_computed_width == value)
@@ -3173,11 +3343,17 @@ public:
     }
     void copy_grid_placements_from(ComputedValues const& source)
     {
-        auto const* source_grid = static_cast<ComputedValuesFFI::GridValues const*>(source.m_noninherited.grid.operator->());
+        copy_grid_placements_from(*source.m_noninherited.grid);
+    }
+    void copy_grid_placements_from(GridValues const& source)
+    {
+        auto const* source_grid = static_cast<ComputedValuesFFI::GridValues const*>(&source);
         auto const* current_grid = static_cast<ComputedValuesFFI::GridValues const*>(m_values.m_noninherited.grid.operator->());
         if (ComputedValuesFFI::rust_grid_values_placements_equal(source_grid, current_grid))
             return;
-        ComputedValuesFFI::rust_grid_values_copy_placements(source_grid, &m_values.m_noninherited.grid.access());
+        ComputedValuesFFI::rust_grid_values_copy_placements(
+            source_grid,
+            &m_values.m_noninherited.grid.access());
     }
     void reset_grid_placements_to_auto()
     {
@@ -3441,7 +3617,7 @@ public:
             return;
         m_values.m_noninherited.mask_data.access().mask_image = value;
     }
-    void set_clip_path(ClipPathReference value)
+    void set_clip_path(Optional<ClipPathReference> value)
     {
         if (m_values.m_noninherited.mask_data->clip_path == value)
             return;
@@ -3535,6 +3711,12 @@ public:
             return;
         m_values.m_noninherited.misc.access().shape_outside = move(value);
     }
+    void set_shape_rendering(ShapeRendering value)
+    {
+        if (m_values.m_inherited.svg->shape_rendering == value)
+            return;
+        m_values.m_inherited.svg.access().shape_rendering = value;
+    }
 
     void set_counter_increment(Vector<CounterData> value)
     {
@@ -3609,8 +3791,17 @@ public:
         m_values->m_property_important = values.m_property_important;
         m_values->m_property_inherited = values.m_property_inherited;
         m_values->m_inheritance_dependent_specified_values = values.m_inheritance_dependent_specified_values;
-        m_values->m_raw_cascaded_font_size = values.m_raw_cascaded_font_size;
-        m_values->m_base_values = values.m_base_values;
+        for (auto const& entry : values.m_borrowed_inheritance_dependent_values) {
+            auto const* data = static_cast<StyleValueFFI::StyleValueData const*>(entry.value);
+            m_values->m_inheritance_dependent_specified_values.set(
+                static_cast<PropertyID>(entry.property),
+                StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(data)));
+        }
+        m_values->m_raw_cascaded_font_size = values.raw_cascaded_font_size();
+        if (values.m_borrowed_base_values)
+            m_values->m_base_values = Builder { *values.m_borrowed_base_values }.build();
+        else
+            m_values->m_base_values = values.m_base_values;
         m_mutator.set_animated_properties(values.m_animated_properties.ptr());
         m_values->m_pseudo_element_styles = values.m_pseudo_element_styles;
         m_values->m_depends_on_viewport_metrics = values.m_depends_on_viewport_metrics;
@@ -3622,6 +3813,16 @@ public:
     {
         Builder builder;
         builder.m_values->m_inherited = values.m_inherited;
+        return builder;
+    }
+
+    // A copy of `values` whose inherited half is `inherited_source`'s, group references swapped
+    // rather than payloads rebuilt. Only correct when `values` takes every inherited property by
+    // standard inheritance (see property_inheritance_is_standard()).
+    static Builder create_with_inherited_style_replaced(ComputedValues const& values, ComputedValues const& inherited_source)
+    {
+        Builder builder { values };
+        builder.m_values->m_inherited = inherited_source.m_inherited;
         return builder;
     }
 

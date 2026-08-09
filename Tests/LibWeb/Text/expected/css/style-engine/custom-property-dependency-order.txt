@@ -1,0 +1,10 @@
+chain padding: 1px
+cycle margin: 7px
+cycle --x: []
+cycle --y: []
+fallback-cycle margin: 5px
+fallback-cycle --p: [5px]
+declared values resolved: 10
+value computations: 15
+computations answered from finished values: 6
+values resolved inside a reference cycle: 4

@@ -15,7 +15,7 @@ class SVGTextPathBox final : public SVGGraphicsBox {
     LAYOUT_NODE(SVGTextPathBox, SVGGraphicsBox);
 
 public:
-    SVGTextPathBox(DOM::Document&, SVG::SVGTextPathElement&, NonnullRefPtr<CSS::ComputedValues const>);
+    SVGTextPathBox(DOM::Document&, SVG::SVGTextPathElement&, CSS::LayoutStyle);
     virtual ~SVGTextPathBox() override = default;
 
     SVG::SVGTextPathElement& dom_node() { return static_cast<SVG::SVGTextPathElement&>(SVGGraphicsBox::dom_node()); }

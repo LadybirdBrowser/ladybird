@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+  #wide { container-type: inline-size; width: 500px }
+  #narrow { container-type: inline-size; width: 50px }
+  @container (min-width: 200px) { .probe { --a: 1 } }
+  @container (max-width: 100px) { .probe { --b: 1 } }
+  @supports (color: red) { .probe { --c: 1 } }
+</style>
+<div id="wide"><div class="probe" id="p1">a</div></div>
+<div id="narrow"><div class="probe" id="p2">b</div></div>
+<script>
+    test(() => {
+        // `@media` and `@supports` gate a rule for the document as a whole, so their answer is
+        // published as the rule's activation and the engine agrees about both.
+        //
+        // A container query asks about the element being styled rather than about the document, so
+        // it cannot be answered that way. The engine has no activation for one yet and the rules
+        // behind them match unconditionally, which is what the two lines below record.
+        println(internals.styleEngineMatchedRules());
+    });
+</script>

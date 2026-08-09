@@ -44,10 +44,9 @@ const PAYLOAD_ALIGNMENT: usize = 8;
 /// padding is written as-is and ignored on read.
 pub unsafe trait RawRecord: Copy {}
 
-/// Stable operation identifier in the on-disk stream.
-///
-/// Values are never reused. Removing an operation leaves a hole so an old capture cannot be
-/// mistaken for a new operation with the same payload shape.
+// Stable operation identifiers in the on-disk stream (EventKind). Values are never reused.
+// Removing an operation leaves a hole so an old capture cannot be mistaken for a new operation
+// with the same payload shape.
 include!(concat!(env!("OUT_DIR"), "/style_engine_event_kind_generated.rs"));
 
 #[derive(Debug)]
@@ -588,10 +587,16 @@ impl<'a> PayloadReader<'a> {
         self.take(length)
     }
 
-    pub fn read_u16_vec(&mut self) -> Result<Vec<u16>, Error> {
+    /// Reads a length-prefixed array's encoded bytes in place. Callers decode each fixed-width
+    /// element from the returned mapping-backed slice instead of allocating an owned array.
+    pub fn read_fixed_width_slice(&mut self, element_size: usize) -> Result<&'a [u8], Error> {
         let length = self.read_length()?;
-        let byte_length = length.checked_mul(size_of::<u16>()).ok_or(Error::TruncatedPayload)?;
-        let bytes = self.take(byte_length)?;
+        let byte_length = length.checked_mul(element_size).ok_or(Error::TruncatedPayload)?;
+        self.take(byte_length)
+    }
+
+    pub fn read_u16_vec(&mut self) -> Result<Vec<u16>, Error> {
+        let bytes = self.read_fixed_width_slice(size_of::<u16>())?;
         Ok(bytes
             .chunks_exact(size_of::<u16>())
             .map(|chunk| u16::from_le_bytes(chunk.try_into().unwrap()))
@@ -599,9 +604,7 @@ impl<'a> PayloadReader<'a> {
     }
 
     pub fn read_u32_vec(&mut self) -> Result<Vec<u32>, Error> {
-        let length = self.read_length()?;
-        let byte_length = length.checked_mul(size_of::<u32>()).ok_or(Error::TruncatedPayload)?;
-        let bytes = self.take(byte_length)?;
+        let bytes = self.read_fixed_width_slice(size_of::<u32>())?;
         Ok(bytes
             .chunks_exact(size_of::<u32>())
             .map(|chunk| u32::from_le_bytes(chunk.try_into().unwrap()))
@@ -683,6 +686,9 @@ mod tests {
         payload.write_bytes(b"StyleEngine");
         payload.write_u16_slice(&[1, 2, 3]);
         payload.write_u32_slice(&[4, 5, 6]);
+        payload.write_length(2);
+        payload.write_u64(0x0102_0304_0506_0708);
+        payload.write_u64(0x1112_1314_1516_1718);
         writer.write_event(EventKind::CreateGraph, &payload).unwrap();
         writer.flush().unwrap();
 
@@ -698,6 +704,12 @@ mod tests {
         assert_eq!(event.payload.read_bytes().unwrap(), b"StyleEngine");
         assert_eq!(event.payload.read_u16_vec().unwrap(), [1, 2, 3]);
         assert_eq!(event.payload.read_u32_vec().unwrap(), [4, 5, 6]);
+        assert_eq!(
+            event.payload.read_fixed_width_slice(size_of::<u64>()).unwrap(),
+            [
+                0x08, 0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01, 0x18, 0x17, 0x16, 0x15, 0x14, 0x13, 0x12, 0x11,
+            ]
+        );
         event.payload.finish().unwrap();
         assert!(reader.read_event().unwrap().is_none());
     }

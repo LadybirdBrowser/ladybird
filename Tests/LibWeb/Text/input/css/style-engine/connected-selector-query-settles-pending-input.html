@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #root.style-flush > span { color: rgb(1, 2, 3); }
+</style>
+<div id="root"></div>
+<script>
+    test(() => {
+        internals.updateStyle();
+
+        const root = document.getElementById("root");
+        const target = document.createElement("span");
+        root.appendChild(target);
+
+        const settles = operation => {
+            const before = internals.styleEngineCounters();
+            const result = operation();
+            const after = internals.styleEngineCounters();
+            return result && after.rawMutationRecords > before.rawMutationRecords;
+        };
+
+        target.className = "query-first";
+        println(`querySelector observes mutation: ${document.querySelector("#root > .query-first") === target}`);
+        println(`querySelector settles resident input: ${settles(() => {
+            target.className = "query-first-next";
+            return document.querySelector("#root > .query-first-next") === target;
+        })}`);
+
+        println(`querySelectorAll settles resident input: ${settles(() => {
+            target.className = "query-all";
+            return root.querySelectorAll(":scope > .query-all")[0] === target;
+        })}`);
+
+        println(`matches settles resident input: ${settles(() => {
+            target.className = "matches";
+            return target.matches("#root > .matches");
+        })}`);
+
+        println(`closest settles resident input: ${settles(() => {
+            root.className = "closest";
+            return target.closest("body > .closest") === root;
+        })}`);
+
+        root.classList.add("style-flush");
+        document.querySelector("#root.style-flush > span");
+        println(`connected query preserves pending style update: ${getComputedStyle(target).color === "rgb(1, 2, 3)"}`);
+
+        const detached = document.createElement("section");
+        detached.innerHTML = '<div class="ancestor"><span class="first"></span></div>';
+        const detachedTarget = detached.firstElementChild.firstElementChild;
+        println(`detached querySelector initial: ${detached.querySelector(".first") === detachedTarget}`);
+        detachedTarget.className = "second";
+        println(`detached querySelector sees attribute mutation: ${detached.querySelector(".second") === detachedTarget}`);
+        const extra = document.createElement("span");
+        extra.className = "second";
+        detached.firstElementChild.appendChild(extra);
+        println(`detached querySelectorAll sees tree mutation: ${detached.querySelectorAll(".second").length === 2}`);
+        detachedTarget.className = "third";
+        println(`detached matches sees attribute mutation: ${detachedTarget.matches(".third")}`);
+        detached.firstElementChild.className = "next-ancestor";
+        println(`detached closest sees attribute mutation: ${detachedTarget.closest(".next-ancestor") === detached.firstElementChild}`);
+
+        const textHost = document.createElement("div");
+        const text = document.createTextNode("text");
+        textHost.appendChild(text);
+        println(`detached :empty initial: ${textHost.matches(":empty") === false}`);
+        text.data = "";
+        println(`detached :empty sees character-data mutation: ${textHost.matches(":empty")}`);
+    });
+</script>

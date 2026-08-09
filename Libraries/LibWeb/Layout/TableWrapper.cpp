@@ -8,8 +8,8 @@
 
 namespace Web::Layout {
 
-TableWrapper::TableWrapper(DOM::Document& document, DOM::Node* node, NonnullRefPtr<CSS::ComputedValues const> computed_values)
-    : BlockContainer(document, node, move(computed_values))
+TableWrapper::TableWrapper(DOM::Document& document, DOM::Node* node, CSS::LayoutStyle style)
+    : BlockContainer(document, node, move(style))
 {
 }
 

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #seq > .item:nth-child(2n+1) { color: rgb(255, 0, 0) }
+    #seq > .item:nth-child(3n) { color: rgb(0, 0, 255) }
+    #seq > .item:nth-last-child(4n) { background-color: rgb(0, 255, 0) }
+</style>
+<div id="seq"></div>
+<script>
+    test(() => {
+        const seq = document.getElementById("seq");
+        for (let index = 0; index < 40; ++index) {
+            const child = document.createElement("div");
+            child.className = "item";
+            seq.appendChild(child);
+        }
+        internals.updateStyle();
+
+        // Every round batches mutations that cancel for most of the sequence within one
+        // style flush: an insertion and a removal on the same side, a same-place remove and
+        // reinsert, and a two-step shift that keeps 2n+1 parity but moves 3n truth.
+        for (let round = 0; round < 4; ++round) {
+            const extra = document.createElement("div");
+            extra.className = "item";
+            seq.insertBefore(extra, seq.children[5]);
+            seq.removeChild(seq.children[9]);
+            internals.updateStyle();
+
+            const moved = seq.children[12];
+            seq.removeChild(moved);
+            seq.insertBefore(moved, seq.children[12]);
+            internals.updateStyle();
+
+            const first = document.createElement("div");
+            first.className = "item";
+            const second = document.createElement("div");
+            second.className = "item";
+            seq.insertBefore(first, seq.children[20]);
+            seq.insertBefore(second, seq.children[20]);
+            internals.updateStyle();
+            seq.removeChild(first);
+            seq.removeChild(second);
+            internals.updateStyle();
+        }
+
+        let mismatches = 0;
+        const count = seq.children.length;
+        for (let index = 0; index < count; ++index) {
+            const style = getComputedStyle(seq.children[index]);
+            const expectedColor = (index + 1) % 3 === 0 ? "rgb(0, 0, 255)"
+                : index % 2 === 0 ? "rgb(255, 0, 0)"
+                : "rgb(0, 0, 0)";
+            const expectedBackground = (count - index) % 4 === 0
+                ? "rgb(0, 255, 0)"
+                : "rgba(0, 0, 0, 0)";
+            if (style.color !== expectedColor) {
+                println(`color mismatch at ${index}: ${style.color} expected ${expectedColor}`);
+                ++mismatches;
+            }
+            if (style.backgroundColor !== expectedBackground) {
+                println(`background mismatch at ${index}: ${style.backgroundColor} expected ${expectedBackground}`);
+                ++mismatches;
+            }
+        }
+        println(`mismatches: ${mismatches}`);
+    });
+</script>

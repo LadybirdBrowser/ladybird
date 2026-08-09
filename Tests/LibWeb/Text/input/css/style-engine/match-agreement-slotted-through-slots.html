@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<slot-host id="named"><ul id="named-target" slot="links"><li>x</li></ul></slot-host>
+<outer-host id="reslotted"><p id="reslotted-target">leaf</p></outer-host>
+<script>
+    function defineHost(name, html) {
+        customElements.define(name, class extends HTMLElement {
+            constructor() {
+                super();
+                this.attachShadow({ mode: "open" }).innerHTML = html;
+            }
+        });
+    }
+
+    // https://drafts.csswg.org/css-scoping/#slotted-pseudo
+    // The compound written before `::slotted()` describes the slot, not the element the slot stands
+    // in for, so it is a step and not a conjunct: an element assigned to a differently named slot is
+    // not reached by it.
+    defineHost("slot-host", `
+        <style>
+            slot[name="links"]::slotted(ul) { color: rgb(1, 2, 3) }
+            ::slotted(ul) { background-color: rgb(4, 5, 6) }
+            slot[name="other"]::slotted(ul) { outline-color: rgb(7, 8, 9) }
+        </style>
+        <slot name="links"></slot>`);
+
+    // A slot is itself a slottable, so an element can be assigned to a slot that is assigned to
+    // another. What stands in the flat tree at the end of that chain is the element, and every tree
+    // it passes through is one whose `::slotted()` names it.
+    defineHost("inner-host", `
+        <style>::slotted(p) { border-top-color: rgb(10, 11, 12) }</style>
+        <slot></slot>`);
+    defineHost("outer-host", `
+        <style>::slotted(p) { border-left-color: rgb(13, 14, 15) }</style>
+        <inner-host><slot></slot></inner-host>`);
+
+    test(() => {
+        const named = document.getElementById("named-target");
+        const reslotted = document.getElementById("reslotted-target");
+        println("named color: " + getComputedStyle(named).color);
+        println("named background-color: " + getComputedStyle(named).backgroundColor);
+        println("named outline-color: " + getComputedStyle(named).outlineColor);
+        println("reslotted border-top-color: " + getComputedStyle(reslotted).borderTopColor);
+        println("reslotted border-left-color: " + getComputedStyle(reslotted).borderLeftColor);
+        for (const element of document.querySelectorAll("*"))
+            getComputedStyle(element).color;
+        println(internals.styleEngineMatchedRules());
+    });
+</script>

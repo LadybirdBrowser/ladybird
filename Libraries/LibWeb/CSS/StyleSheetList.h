@@ -24,8 +24,12 @@ class WEB_API StyleSheetList final : public Bindings::GCAllocatedWrappable {
 public:
     [[nodiscard]] static GC::Ref<StyleSheetList> create(GC::Ref<DOM::Node> document_or_shadow_root);
 
-    void add_a_css_style_sheet(CSSStyleSheet&);
-    void remove_a_css_style_sheet(CSSStyleSheet&);
+    enum class StyleEngineUpdate : u8 {
+        Record,
+        Defer,
+    };
+    void add_a_css_style_sheet(CSSStyleSheet&, StyleEngineUpdate = StyleEngineUpdate::Record);
+    void remove_a_css_style_sheet(CSSStyleSheet&, StyleEngineUpdate = StyleEngineUpdate::Record);
     enum class Alternate : u8 {
         No,
         Yes,
@@ -34,7 +38,7 @@ public:
         No,
         Yes,
     };
-    GC::Ref<CSSStyleSheet> create_a_css_style_sheet(Utf16View css_text, DOM::Element* owner_node, Utf16View media, Utf16String title, Alternate, OriginClean, Optional<::URL::URL> location, CSSStyleSheet* parent_style_sheet, CSSRule* owner_rule);
+    GC::Ref<CSSStyleSheet> create_a_css_style_sheet(Utf16View css_text, DOM::Element* owner_node, Utf16View media, Utf16String title, Alternate, OriginClean, Optional<::URL::URL> location, CSSStyleSheet* parent_style_sheet, CSSRule* owner_rule, StyleEngineUpdate = StyleEngineUpdate::Record);
 
     Vector<GC::Ref<CSSStyleSheet>> const& sheets() const { return m_sheets; }
     Vector<GC::Ref<CSSStyleSheet>>& sheets() { return m_sheets; }
@@ -59,8 +63,8 @@ private:
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
-    void add_sheet(CSSStyleSheet&);
-    void remove_sheet(CSSStyleSheet&);
+    void add_sheet(CSSStyleSheet&, StyleEngineUpdate);
+    void remove_sheet(CSSStyleSheet&, StyleEngineUpdate);
 
     GC::Ref<DOM::Node> m_document_or_shadow_root;
     Vector<GC::Ref<CSSStyleSheet>> m_sheets;

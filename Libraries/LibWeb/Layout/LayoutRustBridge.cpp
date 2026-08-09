@@ -164,11 +164,10 @@ static OwnPtr<FlexLayoutData> build_flex_layout_data(RustFFI::FfiFlexLayoutData 
         for (size_t item_index = 0; item_index < ffi_line.item_count; ++item_index) {
             auto const& ffi_item = ffi_line.items[item_index];
             auto const& item_box = *static_cast<Box const*>(ffi_item.node);
-            auto const& values = item_box.computed_values();
-            auto const& flex_basis = values.flex_basis();
-            auto const& main_size = main_axis_is_horizontal ? values.width() : values.height();
-            auto const& main_min_size = main_axis_is_horizontal ? values.min_width() : values.min_height();
-            auto const& main_max_size = main_axis_is_horizontal ? values.max_width() : values.max_height();
+            auto flex_basis = item_box.flex_basis();
+            auto const& main_size = main_axis_is_horizontal ? item_box.width() : item_box.height();
+            auto const& main_min_size = main_axis_is_horizontal ? item_box.min_width() : item_box.min_height();
+            auto const& main_max_size = main_axis_is_horizontal ? item_box.max_width() : item_box.max_height();
 
             FlexLayoutItem item;
             if (auto* dom_node = item_box.dom_node())
@@ -456,7 +455,7 @@ static SvgTextChunkMeasurement measure_svg_text_chunk(SVGTextBox const& chunk_st
                 // https://svgwg.org/svg2-draft/text.html#TextLayoutAlgorithm
                 // Adjust shift based on the value of 'text-anchor' and 'direction' of the element the character at index i.
                 // FIXME: Take text direction into account.
-                measurement.anchor = text_box->computed_values().text_anchor();
+                measurement.anchor = text_box->text_anchor();
                 found_first_rendered_text = true;
             }
             measurement.advance += svg_text_run_advance(*text_box);
@@ -474,7 +473,7 @@ static Gfx::Path compute_path_for_svg_text(SVGTextBox const& text_box, Gfx::Floa
     auto text_contents = text_element.text_contents();
 
     auto text_offset = current_text_position;
-    auto baseline_metric = resolve_dominant_baseline_metric(text_box.computed_values());
+    auto baseline_metric = resolve_dominant_baseline_metric(text_box);
     text_offset.translate_by(0, dominant_baseline_offset(baseline_metric, font.pixel_metrics()));
 
     Gfx::Path path;
@@ -1039,7 +1038,7 @@ bool can_replay_saved_abspos_layout_inputs_after_style_change(Box const& box)
     if (box.saved_abspos_cb_derives_from_own_computed_values())
         return false;
 
-    auto const& inset = box.computed_values().inset();
+    auto inset = box.inset();
     bool uses_static_position = (inset.left().is_auto() && inset.right().is_auto())
         || (inset.top().is_auto() && inset.bottom().is_auto());
     if (uses_static_position && box.saved_abspos_alignment_derives_from_own_computed_values())

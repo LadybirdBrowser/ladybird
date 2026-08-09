@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .toggle:has(.witness), #target { color: blue }
+</style>
+<div class="toggle" id="target"><span id="witness"></span></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const witness = document.getElementById("witness");
+        internals.updateStyle();
+
+        const before = internals.styleEngineCounters();
+        witness.classList.add("witness");
+        internals.updateStyle();
+        witness.classList.remove("witness");
+        internals.updateStyle();
+        const after = internals.styleEngineCounters();
+
+        println(`delta patches: ${after.retainedMatchAnswerDeltaPatches - before.retainedMatchAnswerDeltaPatches}`);
+        println(`patch upqueries: ${after.retainedMatchAnswerPatches - before.retainedMatchAnswerPatches}`);
+        println(`unchanged stops: ${after.retainedMatchAnswerPatchStops - before.retainedMatchAnswerPatchStops}`);
+        println(`invalidated nodes: ${after.invalidatedStyleNodes - before.invalidatedStyleNodes}`);
+        println(`color: ${getComputedStyle(target).color}`);
+    });
+</script>

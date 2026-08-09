@@ -1,0 +1,5 @@
+delta patches: 2
+patch upqueries: 0
+unchanged stops: 2
+invalidated nodes: 0
+color: rgb(0, 0, 255)

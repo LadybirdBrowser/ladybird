@@ -11,7 +11,7 @@
 
 namespace Web::Layout {
 
-CheckBox::CheckBox(DOM::Document& document, HTML::HTMLInputElement& element, NonnullRefPtr<CSS::ComputedValues const> style)
+CheckBox::CheckBox(DOM::Document& document, HTML::HTMLInputElement& element, CSS::LayoutStyle style)
     : ReplacedBox(document, element, style)
 {
 }

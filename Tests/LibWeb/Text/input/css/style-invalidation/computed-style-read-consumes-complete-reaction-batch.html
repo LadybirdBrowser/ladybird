@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .context .target {
+        color: rgb(12, 34, 56);
+    }
+
+    .unrelated {
+        color: rgb(65, 43, 21);
+    }
+</style>
+<div id="unrelated"></div>
+<div class="context">
+    <div><span class="target">target</span></div>
+</div>
+<script>
+    test(() => {
+        const unrelated = document.getElementById("unrelated");
+        for (let i = 0; i < 100; ++i) {
+            const child = document.createElement("span");
+            child.className = "unrelated";
+            unrelated.appendChild(child);
+        }
+
+        internals.resetStyleInvalidationCounters();
+        println(`target color: ${getComputedStyle(document.querySelector(".target")).color}`);
+        const countersAfterTargetRead = internals.getStyleInvalidationCounters();
+        println(`unrelated color: ${getComputedStyle(unrelated.firstChild).color}`);
+        const countersAfterUnrelatedRead = internals.getStyleInvalidationCounters();
+        const completeBatchWasConsumed = countersAfterTargetRead.elementStyleRecomputations >= 100
+            && countersAfterUnrelatedRead.elementStyleRecomputations === countersAfterTargetRead.elementStyleRecomputations;
+        println(`PASS: the first style read consumed the complete reaction batch: ${completeBatchWasConsumed}`);
+    });
+</script>

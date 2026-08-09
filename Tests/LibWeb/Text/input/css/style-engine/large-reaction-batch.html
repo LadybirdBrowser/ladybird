@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="plan.js"></script>
+<style>
+    .theme .item { color: green }
+</style>
+<div id="guard"></div>
+<script>
+    test(() => {
+        const guard = document.getElementById("guard");
+        for (let i = 0; i < 1100; ++i) {
+            const item = document.createElement("div");
+            item.className = "item";
+            guard.appendChild(item);
+        }
+
+        planSetup();
+        guard.classList.add("theme");
+        const result = internals.styleEngineTransactionReactions();
+        println(`whole document: ${result.wholeDocument}`);
+        println(`published reactions: ${result.elements.length}`);
+    });
+</script>

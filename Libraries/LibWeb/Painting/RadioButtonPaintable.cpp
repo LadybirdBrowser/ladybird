@@ -48,7 +48,7 @@ void RadioButtonPaintable::paint(DisplayListRecordingContext& context, PaintPhas
     auto const& radio_button = static_cast<HTML::HTMLInputElement const&>(*dom_node());
 
     bool enabled = radio_button.enabled();
-    auto input_colors = compute_input_colors(computed_values().color_scheme(), computed_values().accent_color());
+    auto input_colors = compute_input_colors(layout_node().color_scheme(), layout_node().accent_color());
 
     auto background_color = input_colors.background_color(enabled);
     auto accent = input_colors.accent;
@@ -69,7 +69,7 @@ void RadioButtonPaintable::paint(DisplayListRecordingContext& context, PaintPhas
         auto color = radio_color();
         // FIXME: Make this only take effect while this element or its labels are hovered.
         if (radio_button.is_being_activated())
-            color = InputColors::get_shade(color, 0.3f, computed_values().color_scheme());
+            color = InputColors::get_shade(color, 0.3f, layout_node().color_scheme());
         return color;
     }();
 

@@ -1,0 +1,3 @@
+shared converging style: true
+shared style transition damage: true
+colors became green: true

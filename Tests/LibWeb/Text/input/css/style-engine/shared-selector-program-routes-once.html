@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="root"></div>
+<script>
+    test(() => {
+        const root = document.getElementById("root");
+        for (let index = 0; index < 100; ++index) {
+            const item = document.createElement("div");
+            item.className = "item";
+            root.appendChild(item);
+        }
+
+        internals.updateStyle();
+        const before = internals.styleEngineCounters();
+        const sheet = document.createElement("style");
+        sheet.textContent =
+            Array.from({ length: 100 }, () => ".missing .item { outline-color: red; }").join("\n");
+        document.head.appendChild(sheet);
+        internals.updateStyle();
+        const after = internals.styleEngineCounters();
+
+        println(`rules compiled: ${after.styleRulesCompiled - before.styleRulesCompiled}`);
+        println(`selector candidates tested: ${after.sheetChangeCandidatesRejected - before.sheetChangeCandidatesRejected}`);
+        println(`only local nodes invalidated: ${after.invalidatedStyleNodes - before.invalidatedStyleNodes < 10}`);
+    });
+</script>

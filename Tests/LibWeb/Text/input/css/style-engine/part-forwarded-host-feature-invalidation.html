@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    div::part(direct) { color: rgb(1, 1, 1) }
+    .on::part(direct) { color: rgb(0, 128, 0) }
+    div::part(forwarded) { color: rgb(2, 2, 2) }
+    .on::part(forwarded) { color: rgb(0, 128, 0) }
+</style>
+<div id="direct-host"></div>
+<div id="forwarding-host"></div>
+<script>
+    test(() => {
+        // A part sitting directly in the tree the host hosts.
+        const direct = document.getElementById("direct-host");
+        direct.attachShadow({ mode: "open" }).innerHTML = `<span part="direct">a</span>`;
+        const direct_part = direct.shadowRoot.querySelector("span");
+
+        // A part forwarded outwards by `exportparts`, which stands one shadow root deeper than the
+        // host a `::part()` rule addresses it from. A change to that host has to reach past the
+        // boundary the intermediate root would otherwise stop at.
+        const forwarding = document.getElementById("forwarding-host");
+        forwarding.attachShadow({ mode: "open" }).innerHTML = `<div exportparts="inner: forwarded"></div>`;
+        const middle = forwarding.shadowRoot.querySelector("div");
+        middle.attachShadow({ mode: "open" }).innerHTML = `<span part="inner">b</span>`;
+        const forwarded_part = middle.shadowRoot.querySelector("span");
+
+        println("direct before: " + getComputedStyle(direct_part).color);
+        println("forwarded before: " + getComputedStyle(forwarded_part).color);
+
+        direct.classList.add("on");
+        forwarding.classList.add("on");
+
+        println("direct after: " + getComputedStyle(direct_part).color);
+        println("forwarded after: " + getComputedStyle(forwarded_part).color);
+    });
+</script>

@@ -27,7 +27,8 @@ static bool should_serialize_node(DOM::Node const& node)
         return true;
 
     auto const* element = as_if<DOM::Element>(node);
-    return element && element->computed_values() && element->computed_values()->display().is_contents();
+    auto const* box_values = element ? element->style_group<CSS::ComputedValues::BoxValues>() : nullptr;
+    return box_values && CSS::display_from_ffi_display(box_values->display).is_contents();
 }
 
 StyledMarkupAccumulator::StyledMarkupAccumulator(StyledMarkupSelection const& selection)

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style disabled id="b">
+    .pad-a {
+        --x: 1;
+    }
+    .pad-b {
+        --x: 1;
+    }
+</style>
+<style>
+    .x {
+        background-color: rgb(0, 128, 0);
+    }
+    .w {
+        color: rgb(255, 0, 0);
+        padding: 1px;
+    }
+    #e {
+        color: rgb(0, 0, 255);
+    }
+</style>
+<div id="e" class="x">text</div>
+<script>
+    test(() => {
+        // NB: the parser does not honor a disabled attribute on <style>, so disable it here and
+        // settle so the element's retained answer carries the initial dispatch ranks.
+        document.getElementById("b").sheet.disabled = true;
+        internals.updateStyle();
+
+        // SheetActivation: patchable, but its affected region (.pad-* carriers) is empty, so no
+        // element is patched or rank-refreshed. The document dispatch rebuilds with new ranks.
+        document.getElementById("b").sheet.disabled = false;
+        internals.updateStyle();
+
+        // Local-feature patch splices .w at its fresh rank into the stale-ranked answer. If the
+        // ranks mix epochs, .w sorts after #e and its losing color wins. Expected blue.
+        document.getElementById("e").classList.add("w");
+        internals.updateStyle();
+        println("color: " + getComputedStyle(document.getElementById("e")).color);
+    });
+</script>

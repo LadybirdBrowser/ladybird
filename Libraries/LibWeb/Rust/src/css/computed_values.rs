@@ -25,8 +25,12 @@
 //! reference counted or freed.
 
 use std::alloc::{Layout, alloc, dealloc};
+#[cfg(feature = "style-recording")]
+use std::cell::RefCell;
 use std::ffi::c_void;
 use std::sync::OnceLock;
+#[cfg(feature = "style-recording")]
+use std::sync::atomic::AtomicBool;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::abort_on_panic;
@@ -43,6 +47,62 @@ use crate::css::style_value::{retained_list_drop, retained_list_partial_eq};
 
 /// Reference count value marking an intentionally leaked payload.
 pub const STYLE_GROUP_STATIC_REFCOUNT: usize = usize::MAX;
+
+#[cfg(feature = "style-recording")]
+static REPLAY_STYLE_GROUPS: AtomicBool = AtomicBool::new(false);
+#[cfg(feature = "style-recording")]
+thread_local! {
+    static REPLAY_STYLE_GROUP_SIZES: RefCell<Vec<Option<usize>>> = const { RefCell::new(Vec::new()) };
+}
+
+#[cfg(feature = "style-recording")]
+pub fn enable_style_group_replay() {
+    REPLAY_STYLE_GROUPS.store(true, Ordering::Relaxed);
+}
+
+#[cfg(feature = "style-recording")]
+pub fn register_replay_style_group(identity: u32, retained_bytes: usize) -> *const c_void {
+    let pointer = identity as usize + 1;
+    REPLAY_STYLE_GROUP_SIZES.with(|sizes| {
+        let mut sizes = sizes.borrow_mut();
+        let index = identity as usize;
+        if sizes.len() <= index {
+            sizes.resize(index + 1, None);
+        }
+        // Every replay publication registers its complete payload set before the graph consumes it.
+        // Group identities from another graph may therefore safely overwrite this dense scratch table.
+        sizes[index] = Some(retained_bytes);
+    });
+    pointer as *const c_void
+}
+
+fn replay_style_group_size(pointer: *const c_void) -> Option<usize> {
+    #[cfg(feature = "style-recording")]
+    return (pointer as usize)
+        .checked_sub(1)
+        .and_then(|identity| REPLAY_STYLE_GROUP_SIZES.with(|sizes| sizes.borrow().get(identity).copied().flatten()));
+    #[cfg(not(feature = "style-recording"))]
+    {
+        let _ = pointer;
+        None
+    }
+}
+
+pub(crate) fn replay_style_group_identity(pointer: *const c_void) -> Option<u32> {
+    #[cfg(feature = "style-recording")]
+    return u32::try_from((pointer as usize).checked_sub(1)?).ok();
+    #[cfg(not(feature = "style-recording"))]
+    let _ = pointer;
+    #[cfg(not(feature = "style-recording"))]
+    None
+}
+
+pub(crate) fn replaying_style_groups() -> bool {
+    #[cfg(feature = "style-recording")]
+    return REPLAY_STYLE_GROUPS.load(Ordering::Relaxed);
+    #[cfg(not(feature = "style-recording"))]
+    false
+}
 
 /// Layout of the inherited box style value group.
 ///
@@ -231,7 +291,6 @@ impl_computed_payload_clone_and_eq!(SVGResetValues {
     flood_color,
     flood_opacity,
     vector_effect,
-    shape_rendering,
 });
 impl_computed_payload_clone_and_eq!(ComputedVerticalAlign {
     is_keyword,
@@ -469,13 +528,20 @@ pub enum StyleGroupLifecycle {
 
 impl StyleGroupLifecycle {
     pub(crate) fn payload_is_cpp_owned(self) -> bool {
-        matches!(
-            self,
+        match self {
             StyleGroupLifecycle::Cpp
-                | StyleGroupLifecycle::CppWithBorderFacts
-                | StyleGroupLifecycle::CppWithInheritedTextFacts
-                | StyleGroupLifecycle::CppWithFontFacts
-        )
+            | StyleGroupLifecycle::CppWithBorderFacts
+            | StyleGroupLifecycle::CppWithInheritedTextFacts
+            | StyleGroupLifecycle::CppWithFontFacts => true,
+            StyleGroupLifecycle::InheritedTable
+            | StyleGroupLifecycle::InheritedBox
+            | StyleGroupLifecycle::Sizing
+            | StyleGroupLifecycle::Alignment
+            | StyleGroupLifecycle::SVGReset
+            | StyleGroupLifecycle::Surround
+            | StyleGroupLifecycle::Box
+            | StyleGroupLifecycle::Grid => false,
+        }
     }
 }
 
@@ -531,7 +597,10 @@ fn payload_size(table: &StyleGroupVTable) -> usize {
         StyleGroupLifecycle::Surround => size_of::<SurroundValues>(),
         StyleGroupLifecycle::Box => size_of::<BoxValues>(),
         StyleGroupLifecycle::Grid => size_of::<GridValues>(),
-        _ => unreachable!("C++-owned lifecycles are handled above"),
+        StyleGroupLifecycle::Cpp
+        | StyleGroupLifecycle::CppWithBorderFacts
+        | StyleGroupLifecycle::CppWithInheritedTextFacts
+        | StyleGroupLifecycle::CppWithFontFacts => unreachable!("C++-owned lifecycles are handled above"),
     }
 }
 
@@ -548,7 +617,10 @@ fn payload_align(table: &StyleGroupVTable) -> usize {
         StyleGroupLifecycle::Surround => align_of::<SurroundValues>(),
         StyleGroupLifecycle::Box => align_of::<BoxValues>(),
         StyleGroupLifecycle::Grid => align_of::<GridValues>(),
-        _ => unreachable!("C++-owned lifecycles are handled above"),
+        StyleGroupLifecycle::Cpp
+        | StyleGroupLifecycle::CppWithBorderFacts
+        | StyleGroupLifecycle::CppWithInheritedTextFacts
+        | StyleGroupLifecycle::CppWithFontFacts => unreachable!("C++-owned lifecycles are handled above"),
     }
 }
 
@@ -584,7 +656,10 @@ unsafe fn default_construct(table: &StyleGroupVTable, payload: *mut c_void) {
         StyleGroupLifecycle::Grid => unsafe {
             (payload as *mut GridValues).write(GridValues::initial());
         },
-        _ => unreachable!("C++-owned lifecycles are handled above"),
+        StyleGroupLifecycle::Cpp
+        | StyleGroupLifecycle::CppWithBorderFacts
+        | StyleGroupLifecycle::CppWithInheritedTextFacts
+        | StyleGroupLifecycle::CppWithFontFacts => unreachable!("C++-owned lifecycles are handled above"),
     }
 }
 
@@ -620,7 +695,10 @@ unsafe fn copy_construct(table: &StyleGroupVTable, payload: *mut c_void, source:
         StyleGroupLifecycle::Grid => unsafe {
             (payload as *mut GridValues).write((*(source as *const GridValues)).clone());
         },
-        _ => unreachable!("C++-owned lifecycles are handled above"),
+        StyleGroupLifecycle::Cpp
+        | StyleGroupLifecycle::CppWithBorderFacts
+        | StyleGroupLifecycle::CppWithInheritedTextFacts
+        | StyleGroupLifecycle::CppWithFontFacts => unreachable!("C++-owned lifecycles are handled above"),
     }
 }
 
@@ -640,7 +718,10 @@ unsafe fn destruct(table: &StyleGroupVTable, payload: *mut c_void) {
         StyleGroupLifecycle::Surround => unsafe { std::ptr::drop_in_place(payload as *mut SurroundValues) },
         StyleGroupLifecycle::Box => unsafe { std::ptr::drop_in_place(payload as *mut BoxValues) },
         StyleGroupLifecycle::Grid => unsafe { std::ptr::drop_in_place(payload as *mut GridValues) },
-        _ => unreachable!("C++-owned lifecycles are handled above"),
+        StyleGroupLifecycle::Cpp
+        | StyleGroupLifecycle::CppWithBorderFacts
+        | StyleGroupLifecycle::CppWithInheritedTextFacts
+        | StyleGroupLifecycle::CppWithFontFacts => unreachable!("C++-owned lifecycles are handled above"),
     }
 }
 
@@ -661,8 +742,22 @@ unsafe fn payloads_equal(table: &StyleGroupVTable, a: *const c_void, b: *const c
         StyleGroupLifecycle::Surround => unsafe { *(a as *const SurroundValues) == *(b as *const SurroundValues) },
         StyleGroupLifecycle::Box => unsafe { *(a as *const BoxValues) == *(b as *const BoxValues) },
         StyleGroupLifecycle::Grid => unsafe { *(a as *const GridValues) == *(b as *const GridValues) },
-        _ => unreachable!("C++-owned lifecycles are handled above"),
+        StyleGroupLifecycle::Cpp
+        | StyleGroupLifecycle::CppWithBorderFacts
+        | StyleGroupLifecycle::CppWithInheritedTextFacts
+        | StyleGroupLifecycle::CppWithFontFacts => unreachable!("C++-owned lifecycles are handled above"),
     }
+}
+
+pub(crate) fn style_group_payloads_equal(group_index: usize, a: *const c_void, b: *const c_void) -> bool {
+    assert!(!a.is_null());
+    assert!(!b.is_null());
+    if replaying_style_groups() {
+        return a == b;
+    }
+    // SAFETY: Published style-group payloads remain live for the call and both use the registered
+    // group type at `group_index`.
+    unsafe { payloads_equal(vtable(group_index), a, b) }
 }
 
 pub(crate) fn default_group_payload(group_index: usize) -> *const c_void {
@@ -672,11 +767,26 @@ pub(crate) fn default_group_payload(group_index: usize) -> *const c_void {
 /// Retains one reference to a payload, mirroring StyleStructRef::ref():
 /// intentionally leaked payloads are never counted.
 pub(crate) fn retain_group_payload(group_index: usize, payload: *const c_void) {
+    if replaying_style_groups() {
+        return;
+    }
     let refcount = refcount_of(payload, payload_align(vtable(group_index)));
     if refcount.load(Ordering::Relaxed) == STYLE_GROUP_STATIC_REFCOUNT {
         return;
     }
     refcount.fetch_add(1, Ordering::Relaxed);
+}
+
+pub(crate) fn retained_group_payload_bytes(group_index: usize, payload: *const c_void) -> usize {
+    if replaying_style_groups() {
+        return replay_style_group_size(payload).expect("replay style-group size was not registered");
+    }
+    let table = vtable(group_index);
+    let refcount = refcount_of(payload, payload_align(table));
+    if refcount.load(Ordering::Relaxed) == STYLE_GROUP_STATIC_REFCOUNT {
+        return 0;
+    }
+    allocation_layout(table).size()
 }
 
 fn header_size(align: usize) -> usize {
@@ -769,6 +879,40 @@ pub unsafe extern "C" fn rust_style_group_clone(group_index: usize, source: *con
     })
 }
 
+/// Retains one reference to each style-group payload in `payloads`.
+///
+/// # Safety
+/// `payloads` must point at `group_count` valid payloads in style group index
+/// order.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_groups_retain(payloads: *const *const c_void, group_count: usize) {
+    abort_on_panic(|| unsafe {
+        assert!(!payloads.is_null(), "style group payload array is null");
+        for group_index in 0..group_count {
+            let payload = *payloads.add(group_index);
+            assert!(!payload.is_null(), "style group payload is null");
+            retain_group_payload(group_index, payload);
+        }
+    });
+}
+
+/// Releases one reference to each style-group payload in `payloads`.
+///
+/// # Safety
+/// `payloads` must point at `group_count` valid payloads in style group index
+/// order, each with an outstanding reference.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_groups_release(payloads: *const *const c_void, group_count: usize) {
+    abort_on_panic(|| unsafe {
+        assert!(!payloads.is_null(), "style group payload array is null");
+        for group_index in 0..group_count {
+            let payload = *payloads.add(group_index);
+            assert!(!payload.is_null(), "style group payload is null");
+            release_group_payload(group_index, payload);
+        }
+    });
+}
+
 /// Destroys and deallocates a payload whose reference count has reached zero.
 ///
 /// # Safety
@@ -786,13 +930,17 @@ pub unsafe extern "C" fn rust_style_group_free(group_index: usize, payload: *mut
     });
 }
 
-fn release_group_payload(group_index: usize, payload: *const c_void) {
+pub(crate) fn release_group_payload(group_index: usize, payload: *const c_void) {
+    if replaying_style_groups() {
+        return;
+    }
     let table = vtable(group_index);
     let refcount = refcount_of(payload, payload_align(table));
     if refcount.load(Ordering::Relaxed) == STYLE_GROUP_STATIC_REFCOUNT {
         return;
     }
     if refcount.fetch_sub(1, Ordering::AcqRel) == 1 {
+        crate::css::style::record_replay::invalidate_pointer(payload as usize);
         // SAFETY: The count reached zero, so this reference was the last one.
         unsafe {
             destruct(table, payload.cast_mut());
@@ -800,78 +948,6 @@ fn release_group_payload(group_index: usize, payload: *const c_void) {
             dealloc(allocation, allocation_layout(table));
         }
     }
-}
-
-fn style_container_header_size() -> usize {
-    header_size(align_of::<*const c_void>())
-}
-
-fn style_container_allocation_layout(group_count: usize) -> Layout {
-    Layout::from_size_align(
-        style_container_header_size() + group_count * size_of::<*const c_void>(),
-        align_of::<usize>(),
-    )
-    .expect("style container layout overflow")
-}
-
-/// Allocates the style container for one built ComputedValues: a Rust-owned
-/// refcounted `[ ArcHeader | group payload pointer array ]` allocation that
-/// retains every group. The returned pointer addresses the pointer array, so
-/// the layout side reads it in place as the node's style payload array.
-///
-/// # Safety
-/// `groups` must point at `group_count` valid group payload pointers, in
-/// style group index order, covering every registered group.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_container_create(
-    groups: *const *const c_void,
-    group_count: usize,
-) -> *const c_void {
-    abort_on_panic(|| unsafe {
-        let registered_count = REGISTRY
-            .get()
-            .expect("style groups used before registration")
-            .vtables
-            .len();
-        assert_eq!(group_count, registered_count, "style container must cover every group");
-        let allocation = alloc(style_container_allocation_layout(group_count));
-        if allocation.is_null() {
-            std::process::abort();
-        }
-        (*(allocation as *mut AtomicUsize)).store(1, Ordering::Relaxed);
-        let array = allocation.add(style_container_header_size()) as *mut *const c_void;
-        for group_index in 0..group_count {
-            let payload = *groups.add(group_index);
-            assert!(!payload.is_null(), "style container group payload is null");
-            retain_group_payload(group_index, payload);
-            array.add(group_index).write(payload);
-        }
-        array as *const c_void
-    })
-}
-
-/// Releases one reference to a style container, releasing its group payloads
-/// and freeing the allocation when the count reaches zero.
-///
-/// # Safety
-/// `container` must be a pointer returned by rust_style_container_create with
-/// an outstanding reference, and `group_count` must match its creation.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_container_unref(container: *const c_void, group_count: usize) {
-    abort_on_panic(|| unsafe {
-        let refcount = &*(container as *const u8)
-            .sub(style_container_header_size())
-            .cast::<AtomicUsize>();
-        if refcount.fetch_sub(1, Ordering::AcqRel) != 1 {
-            return;
-        }
-        let array = container as *const *const c_void;
-        for group_index in 0..group_count {
-            release_group_payload(group_index, *array.add(group_index));
-        }
-        let allocation = (container as *mut u8).sub(style_container_header_size());
-        dealloc(allocation, style_container_allocation_layout(group_count));
-    });
 }
 
 /// Compares two payloads of the same style group for value equality, letting
@@ -886,7 +962,7 @@ pub unsafe extern "C" fn rust_style_group_payloads_equal(
     a: *const c_void,
     b: *const c_void,
 ) -> bool {
-    abort_on_panic(|| unsafe { payloads_equal(vtable(group_index), a, b) })
+    abort_on_panic(|| style_group_payloads_equal(group_index, a, b))
 }
 
 /// One field of a style group the generic builder can populate or check: a
@@ -971,6 +1047,58 @@ unsafe impl Sync for FieldDescriptors {}
 
 static FIELD_DESCRIPTORS: OnceLock<FieldDescriptors> = OnceLock::new();
 
+struct PropertyDependencyMasks {
+    first_property: u16,
+    masks: Box<[u32]>,
+    output_masks: Box<[u32]>,
+}
+
+static PROPERTY_DEPENDENCY_MASKS: OnceLock<PropertyDependencyMasks> = OnceLock::new();
+
+pub(crate) fn property_dependency_masks_snapshot() -> Option<(u16, &'static [u32], &'static [u32])> {
+    let mapping = PROPERTY_DEPENDENCY_MASKS.get()?;
+    Some((mapping.first_property, &mapping.masks, &mapping.output_masks))
+}
+
+#[cfg(feature = "style-recording")]
+pub fn register_replay_property_dependency_masks(first_property: u16, masks: &[u32], output_masks: &[u32]) {
+    assert_eq!(masks.len(), output_masks.len());
+    if let Some(existing) = PROPERTY_DEPENDENCY_MASKS.get() {
+        assert_eq!(existing.first_property, first_property);
+        assert_eq!(existing.masks.as_ref(), masks);
+        assert_eq!(existing.output_masks.as_ref(), output_masks);
+        return;
+    }
+    PROPERTY_DEPENDENCY_MASKS
+        .set(PropertyDependencyMasks {
+            first_property,
+            masks: masks.into(),
+            output_masks: output_masks.into(),
+        })
+        .unwrap_or_else(|_| unreachable!("property dependency masks were checked above"));
+}
+
+/// The computed style groups which may change when one longhand's specified winner changes.
+///
+/// The mapping comes from the C++ group builders which own the remaining cross-property
+/// computation rules. Missing coverage stays typed so callers can widen to every group.
+pub(crate) fn computed_group_dependency_mask(property: u16) -> Option<u32> {
+    let mapping = PROPERTY_DEPENDENCY_MASKS.get()?;
+    let index = property.checked_sub(mapping.first_property)?;
+    mapping.masks.get(index as usize).copied().filter(|mask| *mask != 0)
+}
+
+/// The computed style group which directly owns one longhand's output.
+pub(crate) fn computed_group_output_mask(property: u16) -> Option<u32> {
+    let mapping = PROPERTY_DEPENDENCY_MASKS.get()?;
+    let index = property.checked_sub(mapping.first_property)?;
+    mapping
+        .output_masks
+        .get(index as usize)
+        .copied()
+        .filter(|mask| *mask != 0)
+}
+
 /// Installs the pokeable-field descriptors for every group in one flat array.
 ///
 /// # Safety
@@ -990,6 +1118,33 @@ pub unsafe extern "C" fn rust_style_group_register_field_descriptors(
         assert!(
             FIELD_DESCRIPTORS.set(FieldDescriptors(copied)).is_ok(),
             "field descriptors installed twice"
+        );
+    });
+}
+
+/// Installs the dependency closure from longhand winners to computed style groups.
+///
+/// # Safety
+/// `masks` and `output_masks` must each point at `count` initialized entries.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_group_register_property_dependency_masks(
+    first_property: u16,
+    masks: *const u32,
+    output_masks: *const u32,
+    count: usize,
+) {
+    abort_on_panic(|| {
+        let masks = unsafe { std::slice::from_raw_parts(masks, count) };
+        let output_masks = unsafe { std::slice::from_raw_parts(output_masks, count) };
+        assert!(
+            PROPERTY_DEPENDENCY_MASKS
+                .set(PropertyDependencyMasks {
+                    first_property,
+                    masks: masks.into(),
+                    output_masks: output_masks.into(),
+                })
+                .is_ok(),
+            "property dependency masks installed twice"
         );
     });
 }
@@ -1613,7 +1768,7 @@ impl BoxValues {
 
 impl SVGResetValues {
     fn initial() -> Self {
-        use crate::css::css_enums::{keyword, shape_rendering, vector_effect};
+        use crate::css::css_enums::{keyword, vector_effect};
 
         const OPAQUE_BLACK_BGRA: u32 = 0xff00_0000;
 
@@ -1638,7 +1793,6 @@ impl SVGResetValues {
             flood_color: OPAQUE_BLACK_BGRA,
             flood_opacity: 1.0,
             vector_effect: vector_effect::NONE,
-            shape_rendering: shape_rendering::AUTO,
         }
     }
 }
@@ -1739,7 +1893,6 @@ pub unsafe extern "C" fn rust_build_svg_reset_group(
     flood_color: u32,
     flood_opacity: f32,
     vector_effect: *const c_void,
-    shape_rendering: *const c_void,
     parent_payload: *const c_void,
 ) -> *const c_void {
     use crate::css::style_value::StyleValueData;
@@ -1766,7 +1919,6 @@ pub unsafe extern "C" fn rust_build_svg_reset_group(
             flood_color,
             flood_opacity,
             vector_effect: keyword_code(vector_effect, crate::css::css_enums::keyword_to_vector_effect)?,
-            shape_rendering: keyword_code(shape_rendering, crate::css::css_enums::keyword_to_shape_rendering)?,
         };
 
         if !parent_payload.is_null() && built.eq(unsafe { &*parent_payload.cast::<SVGResetValues>() }) {

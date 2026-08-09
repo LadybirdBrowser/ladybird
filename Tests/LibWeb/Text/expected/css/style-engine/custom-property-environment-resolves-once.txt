@@ -1,0 +1,5 @@
+elements resolving custom properties: 1
+custom property resolutions: 10
+padding: 1px
+changed padding: 9px
+neighbour padding: 1px

@@ -10,6 +10,7 @@
 #include <LibWeb/CSS/CSSKeyframesRule.h>
 #include <LibWeb/CSS/CSSRuleList.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleSheetInvalidation.h>
 #include <LibWeb/Dump.h>
 
@@ -31,7 +32,14 @@ CSSKeyframesRule::CSSKeyframesRule(Utf16FlyString name, GC::Ref<CSSRuleList> key
         rule->set_parent_rule(this);
 }
 
-void CSSKeyframesRule::visit_edges(GC::Cell::Visitor& visitor)
+void CSSKeyframesRule::set_parent_style_sheet(CSSStyleSheet* parent_style_sheet)
+{
+    CSSRule::set_parent_style_sheet(parent_style_sheet);
+    for (auto& rule : *m_rules)
+        rule->set_parent_style_sheet(parent_style_sheet);
+}
+
+void CSSKeyframesRule::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_rules);
@@ -86,8 +94,10 @@ void CSSKeyframesRule::append_rule(Utf16String const& rule)
     //     applicable here.
     MUST(m_rules->insert_a_css_rule(parsed_rule.ptr(), m_rules->length(), CSSRuleList::Nested::Yes, {}));
 
-    if (auto* sheet = parent_style_sheet())
-        invalidate_owners_for_modified_keyframes_rule(*sheet, *this);
+    if (auto* sheet = parent_style_sheet()) {
+        record_style_rule_declarations_changed(*this);
+        invalidate_rule_cache_for_style_sheet_owners(*sheet);
+    }
 }
 
 // https://drafts.csswg.org/css-animations-1/#interface-csskeyframesrule-deleterule
@@ -106,8 +116,10 @@ void CSSKeyframesRule::delete_rule(Utf16String const& select)
         if (keyframe_rule.keys() == selectors) {
             MUST(m_rules->remove_a_css_rule(i));
 
-            if (auto* sheet = parent_style_sheet())
-                invalidate_owners_for_modified_keyframes_rule(*sheet, *this);
+            if (auto* sheet = parent_style_sheet()) {
+                record_style_rule_declarations_changed(*this);
+                invalidate_rule_cache_for_style_sheet_owners(*sheet);
+            }
 
             return;
         }

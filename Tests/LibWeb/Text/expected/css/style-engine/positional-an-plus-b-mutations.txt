@@ -1,0 +1,2 @@
+remove first: [third]
+insert first: [second, third, inserted]

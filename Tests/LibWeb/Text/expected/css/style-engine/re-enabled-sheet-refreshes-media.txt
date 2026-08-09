@@ -1,0 +1,2 @@
+before disable: rgb(1, 2, 3)
+after enable: rgb(0, 0, 0)

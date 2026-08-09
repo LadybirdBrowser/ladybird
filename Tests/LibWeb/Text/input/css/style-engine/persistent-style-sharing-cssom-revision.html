@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style id="sheet">
+    .shared { color: red }
+</style>
+<div id="container"><span class="shared"></span></div>
+<script>
+    test(() => {
+        const container = document.getElementById("container");
+        const first = container.firstElementChild;
+        internals.updateStyle();
+
+        internals.resetStyleInvalidationCounters();
+        const second = document.createElement("span");
+        second.className = "shared";
+        container.append(second);
+        internals.updateStyle();
+
+        let counters = internals.getStyleInvalidationCounters();
+        println(`shared across transactions: ${counters.elementStyleSharedComputations >= 1}`);
+        println(`initial colors: ${getComputedStyle(first).color}, ${getComputedStyle(second).color}`);
+
+        document.getElementById("sheet").sheet.cssRules[0].style.color = "green";
+        internals.updateStyle();
+        println(`CSSOM mutation colors: ${getComputedStyle(first).color}, ${getComputedStyle(second).color}`);
+
+        first.style.color = "blue";
+        internals.updateStyle();
+        println(`inline mutation colors: ${getComputedStyle(first).color}, ${getComputedStyle(second).color}`);
+    });
+</script>

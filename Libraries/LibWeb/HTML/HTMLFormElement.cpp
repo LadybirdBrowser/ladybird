@@ -11,6 +11,8 @@
 #include <AK/StringBuilder.h>
 #include <AK/Utf16StringBuilder.h>
 #include <LibTextCodec/Decoder.h>
+#include <LibWeb/Bindings/HTMLFormElement.h>
+#include <LibWeb/CSS/Invalidation/ElementStateInvalidator.h>
 #include <LibWeb/DOM/DOMTokenList.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
@@ -39,6 +41,7 @@
 #include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/WebIDL/ExceptionOrUtils.h>
 
 namespace Web::HTML {
 
@@ -59,6 +62,15 @@ void HTMLFormElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_planned_navigation);
     visitor.visit(m_rel_list);
     visitor.visit(m_past_names_map);
+}
+
+void HTMLFormElement::inserted()
+{
+    Base::inserted();
+
+    auto* default_button = this->default_button();
+    m_default_button_for_style_invalidation = default_button ? &default_button->form_associated_element_to_html_element() : nullptr;
+    m_default_button_for_style_invalidation_initialized = true;
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#implicit-submission
@@ -1212,6 +1224,40 @@ FormAssociatedElement* HTMLFormElement::default_button() const
     });
 
     return default_button;
+}
+
+void HTMLFormElement::default_button_state_maybe_changed()
+{
+    update_default_button_state_for_style(nullptr, false);
+}
+
+void HTMLFormElement::default_button_state_maybe_changed(DOM::Element& element, bool was_default)
+{
+    update_default_button_state_for_style(&element, was_default);
+}
+
+void HTMLFormElement::update_default_button_state_for_style(DOM::Element* element_with_known_previous_state, bool previous_state)
+{
+    auto* default_button = this->default_button();
+    auto* new_default_button = default_button ? &default_button->form_associated_element_to_html_element() : nullptr;
+
+    if (!m_default_button_for_style_invalidation_initialized) {
+        m_default_button_for_style_invalidation = new_default_button;
+        m_default_button_for_style_invalidation_initialized = true;
+        if (element_with_known_previous_state)
+            CSS::Invalidation::invalidate_style_after_default_state_change(*element_with_known_previous_state, previous_state);
+        return;
+    }
+
+    auto old_default_button = m_default_button_for_style_invalidation.ptr();
+    if (element_with_known_previous_state)
+        CSS::Invalidation::invalidate_style_after_default_state_change(*element_with_known_previous_state, previous_state);
+    if (old_default_button && old_default_button.ptr() != element_with_known_previous_state)
+        CSS::Invalidation::invalidate_style_after_default_state_change(*old_default_button, true);
+    if (new_default_button && new_default_button != old_default_button.ptr() && new_default_button != element_with_known_previous_state)
+        CSS::Invalidation::invalidate_style_after_default_state_change(*new_default_button, false);
+
+    m_default_button_for_style_invalidation = new_default_button;
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#field-that-blocks-implicit-submission

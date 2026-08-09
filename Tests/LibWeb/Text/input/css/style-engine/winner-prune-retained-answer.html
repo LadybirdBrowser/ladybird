@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .a { color: rgb(255, 0, 0); }
+    .w { color: rgb(0, 0, 255) !important; }
+    .activation-w { color: rgb(0, 0, 255) !important; }
+    @media (width < 1px) {
+        .activation-a { color: rgb(255, 0, 0); }
+    }
+</style>
+<div class="w">target</div>
+<div class="activation-a activation-w">activation target</div>
+<script>
+    test(() => {
+        const [target, activationTarget] = document.querySelectorAll("div");
+        const activationGroup = document.styleSheets[0].cssRules[3];
+        internals.updateStyle();
+        println(`initial: ${getComputedStyle(target).color}`);
+        println(`initial activation: ${getComputedStyle(activationTarget).color}`);
+
+        target.classList.add("a");
+        internals.updateStyle();
+        println(`masked addition: ${getComputedStyle(target).color}`);
+
+        target.classList.remove("w");
+        internals.updateStyle();
+        println(`revealed fallback: ${getComputedStyle(target).color}`);
+
+        activationGroup.media.mediaText = "all";
+        internals.updateStyle();
+        println(`masked activation: ${getComputedStyle(activationTarget).color}`);
+
+        activationTarget.classList.remove("activation-w");
+        internals.updateStyle();
+        println(`revealed activation: ${getComputedStyle(activationTarget).color}`);
+    });
+</script>

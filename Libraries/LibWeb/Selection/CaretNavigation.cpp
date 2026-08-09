@@ -186,7 +186,7 @@ Optional<CSSPixels> CaretNavigator::inline_coordinate(CaretLocation const& locat
 
     auto paintable = location.node->paintable();
     return m_document->current_caret_rect().map([&](auto const& rect) {
-        if (paintable && paintable->computed_values().writing_mode() != CSS::WritingMode::HorizontalTb)
+        if (paintable && paintable->layout_node().writing_mode() != CSS::WritingMode::HorizontalTb)
             return rect.y();
         return rect.x();
     });

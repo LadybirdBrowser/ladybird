@@ -19,6 +19,7 @@
 //! attribute and not the shape of the test applied to it. Only those tests need the value as text,
 //! and only for the attributes an attached program actually mentions.
 
+use super::AncestorDispatchShape;
 use super::capacity::capacity_bytes;
 use super::column::Column;
 use super::column::EpochColumn;
@@ -27,6 +28,7 @@ use super::fast_hash::FastMap as HashMap;
 use super::fast_hash::FastSet as HashSet;
 use std::cell::Cell;
 use std::cmp::Reverse;
+use std::rc::Rc;
 
 use super::memory::MemoryCategory;
 use super::memory::MemoryController;
@@ -682,8 +684,20 @@ impl StyleNodeFacts {
 
     pub fn clear(&mut self) {
         self.generation = next_batch_generation();
+        // Sparse batches can name high-index elements, so clearing their individual slots avoids
+        // writing the holes below them. Once enough of the directory is live, one contiguous fill
+        // is cheaper than scattered stores.
+        if self.nodes.len() < self.row_by_element_index.len() / 4 {
+            for &node in &self.nodes {
+                let Some(index) = node.element_index() else {
+                    continue;
+                };
+                self.row_by_element_index[index as usize] = NO_ROW;
+            }
+        } else {
+            self.row_by_element_index.fill(NO_ROW);
+        }
         self.nodes.clear();
-        self.row_by_element_index.clear();
         self.stale_rows = 0;
         self.tag.clear();
         self.folded_tag.clear();
@@ -1322,15 +1336,13 @@ impl<'a> AncestorDispatchFacts<'a> {
 /// full of `.item` elements never considers a rule whose subject compound requires `#header`. This
 /// is program-derived dispatch rather than acceleration over elements: it is Tier 2, it is rebuilt
 /// with the program, and it is never evicted independently of it.
+#[derive(Clone, Default)]
+struct AncestorDispatchTopology {
+    key_indices: HashMap<DispatchKey, u32>,
+}
+
 #[derive(Default)]
-pub struct RuleDispatch {
-    entries: Vec<DispatchEntry>,
-    /// One representative of each selector entry, sorted by its stable identity. Retained answers
-    /// query this on every patch, so keeping it with the immutable dispatch avoids repeatedly
-    /// projecting and sorting the full entry table.
-    entries_by_identity: Vec<DispatchEntryID>,
-    cascade_properties: Vec<u16>,
-    cascade_entries: Vec<CascadeEntryData>,
+struct RuleDispatchTopology {
     buckets: HashMap<DispatchKey, Vec<DispatchEntryID>>,
     /// Universal-subject entries that have no exact parent requirement.
     universal_without_parent_filter: Vec<DispatchEntryID>,
@@ -1344,8 +1356,44 @@ pub struct RuleDispatch {
     non_prefix_universal_without_parent_filter: Vec<DispatchEntryID>,
     non_prefix_universal_by_parent: HashMap<DispatchKey, Vec<DispatchEntryID>>,
     non_prefix_universal_with_parent_filter: Vec<DispatchEntryID>,
-    ancestor_key_indices: HashMap<DispatchKey, u32>,
+    ancestors: Rc<AncestorDispatchTopology>,
     prefixes: PrefixAutomaton,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) struct AncestorDispatchTopologyID(*const AncestorDispatchTopology);
+
+#[derive(Default)]
+pub struct RuleDispatch {
+    entries: Vec<DispatchEntry>,
+    /// Direct cascade-order projection for every rule represented in this dispatch. Rule
+    /// identities are program indices, so retained answers can restore an entry's order without
+    /// searching the dispatch's much larger candidate table. Sparse pages keep a scope containing
+    /// one late-created rule from allocating rows for every preceding rule in the document.
+    cascade_order_rule_pages: Vec<Option<Box<[CascadeOrderRule; CASCADE_ORDER_RULE_PAGE_SIZE]>>>,
+    cascade_orders_by_rule_entry: Vec<u32>,
+    cascade_properties: Vec<u16>,
+    cascade_entries: Vec<CascadeEntryData>,
+    topology: Rc<RuleDispatchTopology>,
+}
+
+const CASCADE_ORDER_RULE_PAGE_SIZE: usize = 256;
+
+#[derive(Clone, Copy)]
+struct CascadeOrderRule {
+    program: SelectorProgramID,
+    entry_start: u32,
+    entry_count: u32,
+}
+
+impl Default for CascadeOrderRule {
+    fn default() -> Self {
+        Self {
+            program: SelectorProgramID(u32::MAX),
+            entry_start: 0,
+            entry_count: 0,
+        }
+    }
 }
 
 impl RuleDispatch {
@@ -1354,14 +1402,92 @@ impl RuleDispatch {
         Self::default()
     }
 
+    fn topology_mut(&mut self) -> &mut RuleDispatchTopology {
+        Rc::get_mut(&mut self.topology).expect("a shared selector topology is immutable")
+    }
+
+    pub(super) fn rebind_rules(template: &Self, rules: &[RuleID]) -> Self {
+        assert_eq!(template.entries.len(), rules.len());
+        let mut entries = template.entries.clone();
+        for (entry, &rule) in entries.iter_mut().zip(rules) {
+            entry.rule = rule;
+            entry.cascade_order = 0;
+        }
+        Self {
+            entries,
+            cascade_order_rule_pages: Vec::new(),
+            cascade_orders_by_rule_entry: Vec::new(),
+            cascade_properties: Vec::new(),
+            cascade_entries: Vec::new(),
+            topology: Rc::clone(&template.topology),
+        }
+    }
+
+    pub(super) fn rebind_rules_for_extension(template: &Self, rules: &[RuleID]) -> Self {
+        let mut dispatch = Self::rebind_rules(template, rules);
+        let topology = &template.topology;
+        dispatch.topology = Rc::new(RuleDispatchTopology {
+            buckets: topology.buckets.clone(),
+            universal_without_parent_filter: topology.universal_without_parent_filter.clone(),
+            universal_by_parent: topology.universal_by_parent.clone(),
+            universal_with_parent_filter: topology.universal_with_parent_filter.clone(),
+            non_prefix_buckets: topology.non_prefix_buckets.clone(),
+            non_prefix_universal_without_parent_filter: topology.non_prefix_universal_without_parent_filter.clone(),
+            non_prefix_universal_by_parent: topology.non_prefix_universal_by_parent.clone(),
+            non_prefix_universal_with_parent_filter: topology.non_prefix_universal_with_parent_filter.clone(),
+            ancestors: Rc::new((*topology.ancestors).clone()),
+            prefixes: topology.prefixes.clone(),
+        });
+        dispatch.topology_mut().prefixes.prepare_to_extend();
+        dispatch
+    }
+
+    #[cfg(test)]
+    pub(super) fn shares_topology_with(&self, other: &Self) -> bool {
+        Rc::ptr_eq(&self.topology, &other.topology)
+    }
+
+    pub(super) fn shares_ancestor_topology_with(&self, other: &Self) -> bool {
+        Rc::ptr_eq(&self.topology.ancestors, &other.topology.ancestors)
+    }
+
+    pub(super) fn ancestor_topology_id(&self) -> AncestorDispatchTopologyID {
+        AncestorDispatchTopologyID(Rc::as_ptr(&self.topology.ancestors))
+    }
+
+    pub(super) fn ancestor_dispatch_shape(&self) -> AncestorDispatchShape {
+        let mut keys: Vec<_> = self
+            .topology
+            .ancestors
+            .key_indices
+            .iter()
+            .map(|(&key, &index)| (index, key))
+            .collect();
+        keys.sort_unstable_by_key(|&(index, _)| index);
+        AncestorDispatchShape(keys.into_iter().map(|(_, key)| key).collect())
+    }
+
+    pub(super) fn share_ancestor_topology_with(&mut self, template: &Self) {
+        if self.shares_ancestor_topology_with(template) {
+            return;
+        }
+        debug_assert_eq!(
+            self.topology.ancestors.key_indices,
+            template.topology.ancestors.key_indices
+        );
+        self.topology_mut().ancestors = Rc::clone(&template.topology.ancestors);
+    }
+
     pub(super) fn insert(&mut self, key: DispatchKey, mut entry: DispatchEntry) -> DispatchEntryID {
         entry.required_ancestor_index = entry.required_ancestor.map(|required| {
-            let next = u32::try_from(self.ancestor_key_indices.len()).expect("ancestor requirement space exhausted");
-            *self.ancestor_key_indices.entry(required).or_insert(next)
+            let topology = self.topology_mut();
+            let ancestors = Rc::get_mut(&mut topology.ancestors).expect("a shared ancestor topology is immutable");
+            let next = u32::try_from(ancestors.key_indices.len()).expect("ancestor requirement space exhausted");
+            *ancestors.key_indices.entry(required).or_insert(next)
         });
         let id = DispatchEntryID::from_index(self.entries.len());
         self.entries.push(entry);
-        self.buckets.entry(key).or_default().push(id);
+        self.topology_mut().buckets.entry(key).or_default().push(id);
         if key == DispatchKey::Universal {
             self.index_universal_entry(id);
         }
@@ -1380,7 +1506,7 @@ impl RuleDispatch {
         // Registration can refuse a chain whose structural tests would overflow the automaton's
         // truth bit space or whose origin does not admit them; the entry then stays a candidate
         // for the exact evaluator.
-        if self.prefixes.add_entry(
+        if self.topology_mut().prefixes.add_entry(
             programs,
             program,
             selector_entry,
@@ -1393,13 +1519,13 @@ impl RuleDispatch {
     }
 
     pub(super) fn finish_prefixes(&mut self) {
-        self.prefixes.finish();
+        self.topology_mut().prefixes.finish();
         self.rebuild_non_prefix_index();
     }
 
     #[must_use]
     pub(super) fn prefixes(&self) -> &PrefixAutomaton {
-        &self.prefixes
+        &self.topology.prefixes
     }
 
     #[must_use]
@@ -1412,60 +1538,91 @@ impl RuleDispatch {
         &self.entries
     }
 
-    pub(super) fn entries_in_identity_order(&self) -> impl Iterator<Item = DispatchEntry> + '_ {
-        self.entries_by_identity.iter().map(|&id| self.entries[id.index()])
+    pub(super) fn cascade_orders_in_identity_order(
+        &self,
+    ) -> impl Iterator<Item = (RuleID, SelectorProgramID, u32, u32)> + '_ {
+        self.cascade_order_rule_pages
+            .iter()
+            .enumerate()
+            .flat_map(move |(page_index, page)| {
+                page.as_deref().into_iter().flat_map(move |page| {
+                    page.iter()
+                        .enumerate()
+                        .filter(|(_, rule)| rule.entry_count != 0)
+                        .flat_map(move |(slot, rule)| {
+                            (0..rule.entry_count).map(move |entry| {
+                                let rule_index = page_index * CASCADE_ORDER_RULE_PAGE_SIZE + slot;
+                                let order_index = rule.entry_start as usize + entry as usize;
+                                (
+                                    RuleID(u32::try_from(rule_index).expect("rule identity space exhausted")),
+                                    rule.program,
+                                    entry,
+                                    self.cascade_orders_by_rule_entry[order_index],
+                                )
+                            })
+                        })
+                })
+            })
     }
 
     fn index_universal_entry(&mut self, id: DispatchEntryID) {
         let entry = self.entries[id.index()];
+        let topology = self.topology_mut();
         match entry.required_parent {
             Some(parent) => {
-                self.universal_by_parent.entry(parent).or_default().push(id);
-                self.universal_with_parent_filter.push(id);
+                topology.universal_by_parent.entry(parent).or_default().push(id);
+                topology.universal_with_parent_filter.push(id);
             }
-            None => self.universal_without_parent_filter.push(id),
+            None => topology.universal_without_parent_filter.push(id),
         }
     }
 
     fn rebuild_universal_index(&mut self) {
-        self.universal_without_parent_filter.clear();
-        self.universal_by_parent.clear();
-        self.universal_with_parent_filter.clear();
         let entries = self.bucket_ids(DispatchKey::Universal).to_vec();
+        let topology = self.topology_mut();
+        topology.universal_without_parent_filter.clear();
+        topology.universal_by_parent.clear();
+        topology.universal_with_parent_filter.clear();
         for id in entries {
             self.index_universal_entry(id);
         }
     }
 
     fn rebuild_non_prefix_index(&mut self) {
-        self.non_prefix_buckets.clear();
-        for (&key, entries) in &self.buckets {
+        let mut non_prefix_buckets = HashMap::default();
+        for (&key, entries) in &self.topology.buckets {
             let entries: Vec<_> = entries
                 .iter()
                 .copied()
                 .filter(|entry| !self.entries[entry.index()].prefix_matched)
                 .collect();
             if !entries.is_empty() {
-                self.non_prefix_buckets.insert(key, entries);
+                non_prefix_buckets.insert(key, entries);
             }
         }
 
-        self.non_prefix_universal_without_parent_filter.clear();
-        self.non_prefix_universal_by_parent.clear();
-        self.non_prefix_universal_with_parent_filter.clear();
-        let entries = self
-            .non_prefix_buckets
+        let entries = non_prefix_buckets
             .get(&DispatchKey::Universal)
             .cloned()
             .unwrap_or_default();
+        let topology = self.topology_mut();
+        topology.non_prefix_buckets = non_prefix_buckets;
+        topology.non_prefix_universal_without_parent_filter.clear();
+        topology.non_prefix_universal_by_parent.clear();
+        topology.non_prefix_universal_with_parent_filter.clear();
         for id in entries {
             let entry = self.entries[id.index()];
             match entry.required_parent {
                 Some(parent) => {
-                    self.non_prefix_universal_by_parent.entry(parent).or_default().push(id);
-                    self.non_prefix_universal_with_parent_filter.push(id);
+                    let topology = self.topology_mut();
+                    topology
+                        .non_prefix_universal_by_parent
+                        .entry(parent)
+                        .or_default()
+                        .push(id);
+                    topology.non_prefix_universal_with_parent_filter.push(id);
                 }
-                None => self.non_prefix_universal_without_parent_filter.push(id),
+                None => self.topology_mut().non_prefix_universal_without_parent_filter.push(id),
             }
         }
     }
@@ -1515,6 +1672,20 @@ impl RuleDispatch {
             group_start = group_end;
         }
 
+        self.rebuild_cascade_order_projection();
+    }
+
+    pub(super) fn reuse_cascade_order(&mut self, template: &Self) {
+        assert_eq!(self.entries.len(), template.entries.len());
+        for (entry, template_entry) in self.entries.iter_mut().zip(&template.entries) {
+            assert_eq!(entry.program, template_entry.program);
+            assert_eq!(entry.entry, template_entry.entry);
+            entry.cascade_order = template_entry.cascade_order;
+        }
+        self.rebuild_cascade_order_projection();
+    }
+
+    fn rebuild_cascade_order_projection(&mut self) {
         let mut entries_by_identity: Vec<_> = (0..self.entries.len()).map(DispatchEntryID::from_index).collect();
         entries_by_identity.sort_unstable_by_key(|&id| {
             let entry = self.entries[id.index()];
@@ -1524,8 +1695,38 @@ impl RuleDispatch {
             let entry = self.entries[id.index()];
             (entry.rule, entry.program, entry.entry)
         });
-        self.entries_by_identity = entries_by_identity;
-        self.rebuild_universal_index();
+        self.cascade_order_rule_pages.clear();
+        self.cascade_orders_by_rule_entry.clear();
+        self.cascade_orders_by_rule_entry.reserve(entries_by_identity.len());
+        for id in entries_by_identity {
+            let entry = self.entries[id.index()];
+            let rule_index = entry.rule.0 as usize;
+            let page_index = rule_index / CASCADE_ORDER_RULE_PAGE_SIZE;
+            if self.cascade_order_rule_pages.len() <= page_index {
+                self.cascade_order_rule_pages.resize_with(page_index + 1, || None);
+            }
+            let page = self.cascade_order_rule_pages[page_index]
+                .get_or_insert_with(|| Box::new([CascadeOrderRule::default(); CASCADE_ORDER_RULE_PAGE_SIZE]));
+            let rule = &mut page[rule_index % CASCADE_ORDER_RULE_PAGE_SIZE];
+            if rule.entry_count == 0 {
+                rule.program = entry.program;
+                rule.entry_start =
+                    u32::try_from(self.cascade_orders_by_rule_entry.len()).expect("dispatch entry space exhausted");
+            }
+            assert_eq!(
+                rule.program, entry.program,
+                "one rule cannot have multiple selector programs"
+            );
+            assert_eq!(
+                rule.entry_count, entry.entry,
+                "a rule's selector entries must form a dense identity space"
+            );
+            rule.entry_count = rule.entry_count.checked_add(1).expect("selector entry space exhausted");
+            self.cascade_orders_by_rule_entry.push(entry.cascade_order);
+        }
+        if Rc::strong_count(&self.topology) == 1 {
+            self.rebuild_universal_index();
+        }
     }
 
     #[must_use]
@@ -1535,14 +1736,18 @@ impl RuleDispatch {
         program: SelectorProgramID,
         selector_entry: u32,
     ) -> Option<u32> {
-        let index = self
-            .entries_by_identity
-            .binary_search_by_key(&(rule, program, selector_entry), |&id| {
-                let entry = self.entries[id.index()];
-                (entry.rule, entry.program, entry.entry)
-            })
-            .ok()?;
-        Some(self.entries[self.entries_by_identity[index].index()].cascade_order)
+        let rule_index = rule.0 as usize;
+        let page = self
+            .cascade_order_rule_pages
+            .get(rule_index / CASCADE_ORDER_RULE_PAGE_SIZE)?
+            .as_deref()?;
+        let rule = &page[rule_index % CASCADE_ORDER_RULE_PAGE_SIZE];
+        if rule.program != program || selector_entry >= rule.entry_count {
+            return None;
+        }
+        self.cascade_orders_by_rule_entry
+            .get(rule.entry_start as usize + selector_entry as usize)
+            .copied()
     }
 
     /// Publish each entry's complete normal author declaration inventory beside the dispatch.
@@ -1612,7 +1817,7 @@ impl RuleDispatch {
     }
 
     fn bucket_ids(&self, key: DispatchKey) -> &[DispatchEntryID] {
-        self.buckets.get(&key).map_or(&[], Vec::as_slice)
+        self.topology.buckets.get(&key).map_or(&[], Vec::as_slice)
     }
 
     pub fn bucket(&self, key: DispatchKey) -> impl ExactSizeIterator<Item = DispatchEntry> + '_ {
@@ -1626,12 +1831,12 @@ impl RuleDispatch {
 
     #[must_use]
     pub fn ancestor_key_count(&self) -> usize {
-        self.ancestor_key_indices.len()
+        self.topology.ancestors.key_indices.len()
     }
 
     #[must_use]
     pub fn ancestor_key_index(&self, key: DispatchKey) -> Option<u32> {
-        self.ancestor_key_indices.get(&key).copied()
+        self.topology.ancestors.key_indices.get(&key).copied()
     }
 
     /// Entries a candidate has to consider, given its local facts.
@@ -1654,16 +1859,16 @@ impl RuleDispatch {
         let (buckets, universal_without_parent_filter, universal_by_parent, universal_with_parent_filter) =
             match entries {
                 CandidateEntries::All => (
-                    &self.buckets,
-                    &self.universal_without_parent_filter,
-                    &self.universal_by_parent,
-                    &self.universal_with_parent_filter,
+                    &self.topology.buckets,
+                    &self.topology.universal_without_parent_filter,
+                    &self.topology.universal_by_parent,
+                    &self.topology.universal_with_parent_filter,
                 ),
                 CandidateEntries::NonPrefix => (
-                    &self.non_prefix_buckets,
-                    &self.non_prefix_universal_without_parent_filter,
-                    &self.non_prefix_universal_by_parent,
-                    &self.non_prefix_universal_with_parent_filter,
+                    &self.topology.non_prefix_buckets,
+                    &self.topology.non_prefix_universal_without_parent_filter,
+                    &self.topology.non_prefix_universal_by_parent,
+                    &self.topology.non_prefix_universal_with_parent_filter,
                 ),
             };
         let subject_bloom = facts.dispatch_bloom_of(row, is_document_root);
@@ -1741,48 +1946,64 @@ impl RuleDispatch {
 
     #[must_use]
     pub fn capacity_bytes(&self) -> u64 {
-        capacity_bytes! {
+        let scope_bytes = capacity_bytes! {
             shallow [
                 self.entries,
-                self.entries_by_identity,
+                self.cascade_order_rule_pages,
+                self.cascade_orders_by_rule_entry,
                 self.cascade_properties,
                 self.cascade_entries,
-                self.buckets,
-                self.universal_without_parent_filter,
-                self.universal_by_parent,
-                self.universal_with_parent_filter,
-                self.non_prefix_buckets,
-                self.non_prefix_universal_without_parent_filter,
-                self.non_prefix_universal_by_parent,
-                self.non_prefix_universal_with_parent_filter,
-                self.ancestor_key_indices,
             ];
             cached [];
             nested [
                 self
+                    .cascade_order_rule_pages
+                    .iter()
+                    .flatten()
+                    .map(|page| size_of_val(page.as_ref()))
+                    .sum::<usize>(),
+            ];
+            skip [];
+        };
+        let topology_bytes = capacity_bytes! {
+            shallow [
+                self.topology.buckets,
+                self.topology.universal_without_parent_filter,
+                self.topology.universal_by_parent,
+                self.topology.universal_with_parent_filter,
+                self.topology.non_prefix_buckets,
+                self.topology.non_prefix_universal_without_parent_filter,
+                self.topology.non_prefix_universal_by_parent,
+                self.topology.non_prefix_universal_with_parent_filter,
+                self.topology.ancestors.key_indices,
+            ];
+            cached [];
+            nested [
+                self.topology
                 .buckets
                 .values()
                 .map(|bucket| bucket.capacity() * size_of::<DispatchEntryID>())
                 .sum::<usize>(),
-                self
+                self.topology
                 .universal_by_parent
                 .values()
                 .map(|bucket| bucket.capacity() * size_of::<DispatchEntryID>())
                 .sum::<usize>(),
-                self
+                self.topology
                 .non_prefix_buckets
                 .values()
                 .map(|bucket| bucket.capacity() * size_of::<DispatchEntryID>())
                 .sum::<usize>(),
-                self
+                self.topology
                 .non_prefix_universal_by_parent
                 .values()
                 .map(|bucket| bucket.capacity() * size_of::<DispatchEntryID>())
                 .sum::<usize>(),
-                self.prefixes.capacity_bytes(),
+                self.topology.prefixes.capacity_bytes(),
             ];
             skip [];
-        }
+        };
+        scope_bytes + topology_bytes
     }
 }
 
@@ -3166,7 +3387,7 @@ impl ElementFactStore {
                 self.rows
                     .live_nodes()
                     .map(|node| self.rows.logical_bytes_of_row(self.rows.row_of(node).unwrap()))
-                    .sum()
+                    .sum::<u64>()
             );
         }
         let current = self.capacity_bytes();
@@ -3853,12 +4074,12 @@ mod tests {
     }
 
     #[test]
-    fn duplicate_branch_entries_share_one_cascade_order() {
+    fn cascade_order_projection_handles_duplicate_entries_and_sparse_rules() {
         let mut dispatch = RuleDispatch::new();
-        let entry = |rule: u32, multi_key| DispatchEntry {
+        let entry = |rule: u32, selector_entry: u32, multi_key| DispatchEntry {
             rule: RuleID(rule),
             program: SelectorProgramID(rule),
-            entry: 0,
+            entry: selector_entry,
             cascade_order: 0,
             required_attribute_value: StyleAtomID::NONE,
             required_parent: None,
@@ -3868,27 +4089,41 @@ mod tests {
             prefix_matched: false,
             multi_key,
         };
-        dispatch.insert(DispatchKey::Class(StyleAtomID(10)), entry(1, true));
-        dispatch.insert(DispatchKey::Class(StyleAtomID(11)), entry(1, true));
-        dispatch.insert(DispatchKey::Class(StyleAtomID(12)), entry(2, false));
+        dispatch.insert(DispatchKey::Class(StyleAtomID(10)), entry(1, 0, true));
+        dispatch.insert(DispatchKey::Class(StyleAtomID(11)), entry(1, 0, true));
+        dispatch.insert(DispatchKey::Class(StyleAtomID(12)), entry(1, 1, false));
+        dispatch.insert(DispatchKey::Class(StyleAtomID(13)), entry(1000, 0, false));
 
         dispatch.assign_cascade_order(|candidate| candidate.rule);
 
         let first_branch = dispatch.bucket(DispatchKey::Class(StyleAtomID(10))).next().unwrap();
         let second_branch = dispatch.bucket(DispatchKey::Class(StyleAtomID(11))).next().unwrap();
-        let later_rule = dispatch.bucket(DispatchKey::Class(StyleAtomID(12))).next().unwrap();
+        let later_entry = dispatch.bucket(DispatchKey::Class(StyleAtomID(12))).next().unwrap();
+        let sparse_rule = dispatch.bucket(DispatchKey::Class(StyleAtomID(13))).next().unwrap();
         assert_eq!(first_branch.cascade_order, second_branch.cascade_order);
-        assert!(first_branch.cascade_order < later_rule.cascade_order);
+        assert!(first_branch.cascade_order < later_entry.cascade_order);
         assert_eq!(
             dispatch.cascade_order_for_entry(first_branch.rule, first_branch.program, first_branch.entry),
             Some(first_branch.cascade_order)
         );
         assert_eq!(
-            dispatch.cascade_order_for_entry(later_rule.rule, later_rule.program, later_rule.entry),
-            Some(later_rule.cascade_order)
+            dispatch.cascade_order_for_entry(later_entry.rule, later_entry.program, later_entry.entry),
+            Some(later_entry.cascade_order)
         );
         assert_eq!(
-            dispatch.cascade_order_for_entry(RuleID(3), SelectorProgramID(3), 0),
+            dispatch.cascade_order_for_entry(sparse_rule.rule, sparse_rule.program, sparse_rule.entry),
+            Some(sparse_rule.cascade_order)
+        );
+        assert_eq!(
+            dispatch.cascade_order_for_entry(first_branch.rule, SelectorProgramID(2), first_branch.entry),
+            None
+        );
+        assert_eq!(
+            dispatch.cascade_order_for_entry(first_branch.rule, first_branch.program, 2),
+            None
+        );
+        assert_eq!(
+            dispatch.cascade_order_for_entry(RuleID(999), SelectorProgramID(999), 0),
             None
         );
     }

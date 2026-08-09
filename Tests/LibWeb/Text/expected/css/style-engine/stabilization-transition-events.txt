@@ -1,0 +1,10 @@
+feedback used provisional passes: true
+transition decisions were provisional: true
+intermediate decisions were superseded: true
+two transition actions committed: true
+two transitions started: true
+intermediate transition events were not created: true
+no provisional events committed: true
+one stable transition remains: true
+discarded transition was not published: true
+late transition used the committed baseline: true

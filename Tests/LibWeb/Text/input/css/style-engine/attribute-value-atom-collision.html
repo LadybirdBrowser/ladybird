@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    [data-exact="ehjjngetdp"] { color: rgb(1, 2, 3) }
+    [data-prefix^="mars"] { background-color: rgb(4, 5, 6) }
+</style>
+<div id="first" data-exact="ehjjngetdp" data-prefix="ehjjngetdp">first</div>
+<div id="second" data-exact="marswdpplw" data-prefix="marswdpplw">second</div>
+<script>
+    test(() => {
+        for (const id of ["first", "second"]) {
+            const style = getComputedStyle(document.getElementById(id));
+            println(`${id}: ${style.color} / ${style.backgroundColor}`);
+        }
+        first.setAttribute("data-exact", "marswdpplw");
+        first.setAttribute("data-prefix", "marswdpplw");
+        second.setAttribute("data-exact", "ehjjngetdp");
+        second.setAttribute("data-prefix", "ehjjngetdp");
+        for (const id of ["first", "second"]) {
+            const style = getComputedStyle(document.getElementById(id));
+            println(`mutated ${id}: ${style.color} / ${style.backgroundColor}`);
+        }
+    });
+</script>

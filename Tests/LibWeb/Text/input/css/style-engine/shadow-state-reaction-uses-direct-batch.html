@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>#host.active { color: green; }</style>
+<div id="host"></div>
+<script>
+    test(() => {
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        shadowRoot.innerHTML = `
+            <style>
+                #target:checked + #reaction { color: green; }
+                :host(.active) #reaction { background-color: blue; }
+            </style>
+            <input id="target" type="checkbox">
+            <span id="reaction"></span>
+        `;
+        const target = shadowRoot.getElementById("target");
+        const reaction = shadowRoot.getElementById("reaction");
+        internals.updateStyle();
+
+        internals.resetStyleInvalidationCounters();
+        target.checked = true;
+        getComputedStyle(target).color;
+
+        println(`reaction color: ${getComputedStyle(reaction).color}`);
+        const counters = internals.getStyleInvalidationCounters();
+        println(`direct reactions: ${counters.styleEnginePublishedReactions}`);
+        println(`recomputations: ${counters.elementStyleRecomputations}`);
+
+        internals.updateStyle();
+        internals.resetStyleInvalidationCounters();
+        host.className = "active";
+        getComputedStyle(host).color;
+
+        println(`cross-scope color: ${getComputedStyle(reaction).color}`);
+        println(`cross-scope background: ${getComputedStyle(reaction).backgroundColor}`);
+        const crossScopeCounters = internals.getStyleInvalidationCounters();
+        println(`cross-scope direct reactions: ${crossScopeCounters.styleEnginePublishedReactions}`);
+        println(`cross-scope recomputations: ${crossScopeCounters.elementStyleRecomputations}`);
+    });
+</script>

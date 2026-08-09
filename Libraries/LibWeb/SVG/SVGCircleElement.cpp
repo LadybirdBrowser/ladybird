@@ -30,7 +30,8 @@ static CSSPixels normalized_diagonal_length(CSSPixelSize viewport_size)
 
 Gfx::Path SVGCircleElement::get_path(CSSPixelSize viewport_size)
 {
-    auto computed_values = this->computed_values();
+    auto computed_values = this->computed_style();
+    VERIFY(computed_values);
 
     auto cx = float(computed_values->cx().to_px(viewport_size.width()));
     auto cy = float(computed_values->cy().to_px(viewport_size.height()));

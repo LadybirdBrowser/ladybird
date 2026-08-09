@@ -302,7 +302,9 @@ Optional<Painting::PaintStyle> SVGPatternElement::to_gfx_paint_style(SVGPaintCon
     Painting::StackingContext::paint_svg(paint_context_copy, *pattern_paintable, Painting::PaintPhase::Foreground);
 
     Optional<Gfx::AffineTransform> user_space_pattern_transform;
-    auto const& css_transformations = computed_values()->transformations();
+    auto style = computed_style();
+    VERIFY(style);
+    auto const& css_transformations = style->transformations();
     if (!css_transformations.is_empty()) {
         auto matrix = Gfx::FloatMatrix4x4::identity();
         for (auto const& css_transform : css_transformations)

@@ -13,10 +13,11 @@
 
 use std::mem::size_of;
 
-use super::ScopeProgramID;
+use super::ScopeDispatchShape;
 use super::capacity::capacity_bytes;
 use super::cascade::Top1Cascade;
 use super::index::AncestorDispatchFacts;
+use super::index::AncestorDispatchTopologyID;
 use super::index::CandidateEntries;
 use super::index::DispatchCandidateWorkspace;
 use super::index::DispatchEntry;
@@ -166,7 +167,6 @@ pub fn build_scope_dispatch(
     tree_scope: TreeScopeID,
 ) -> RuleDispatch {
     let mut dispatch = RuleDispatch::new();
-    insert_scope_sheets(&mut dispatch, program, programs, tree_scope, SheetsToTake::All);
     // The user-agent and user origins have no scope of their own: they decide for every element in
     // the document, whichever tree it is in. Their sheets are attached to the document scope, so a
     // shadow scope has to take them from there.
@@ -179,8 +179,50 @@ pub fn build_scope_dispatch(
         };
         insert_scope_sheets(&mut dispatch, program, programs, TreeScopeID::DOCUMENT, take);
     }
+    // Dispatch identity is independent of cascade order, which is assigned after construction.
+    // Put the document contribution first so shadow roots share a prefix even when their local
+    // sheets differ, letting a later scope extend the already-built common topology.
+    insert_scope_sheets(&mut dispatch, program, programs, tree_scope, SheetsToTake::All);
     dispatch.finish_prefixes();
     dispatch
+}
+
+/// Describe the selector topology of one effective scope and align each concrete rule with the
+/// dense dispatch entries that topology will produce.
+pub(super) fn scope_dispatch_shape_and_rules(
+    program: &StyleSheetProgram,
+    programs: &SelectorPrograms,
+    tree_scope: TreeScopeID,
+) -> (ScopeDispatchShape, Vec<RuleID>) {
+    let mut shape = Vec::new();
+    let mut rules = Vec::new();
+    let mut collect = |tree_scope, take| {
+        for_each_scope_rule(program, tree_scope, take, |sheet, rule, selector_program| {
+            shape.push((selector_program, program.sheet_origin(sheet) == CascadeOrigin::Author));
+            let compiled = programs.get(selector_program);
+            for (index, entry) in compiled.entries().iter().enumerate() {
+                let key = compiled.dispatch_key(entry);
+                let copies = if key == DispatchKey::Universal {
+                    let mut branch_keys = compiled.subject_dispatch_keys(index).to_vec();
+                    branch_keys.sort_unstable();
+                    branch_keys.dedup();
+                    branch_keys.len().max(1)
+                } else {
+                    1
+                };
+                rules.extend(std::iter::repeat_n(rule, copies));
+            }
+        });
+    };
+    if tree_scope != TreeScopeID::DOCUMENT {
+        let take = match program.scope_uses_document_sheets(tree_scope) {
+            true => SheetsToTake::All,
+            false => SheetsToTake::NonAuthorOnly,
+        };
+        collect(TreeScopeID::DOCUMENT, take);
+    }
+    collect(tree_scope, SheetsToTake::All);
+    (ScopeDispatchShape(shape), rules)
 }
 
 /// Which of a scope's sheets a dispatch build takes.
@@ -197,6 +239,110 @@ fn insert_scope_sheets(
     programs: &SelectorPrograms,
     tree_scope: TreeScopeID,
     take: SheetsToTake,
+) {
+    for_each_scope_rule(program, tree_scope, take, |sheet, rule, selector_program| {
+        insert_scope_rule(
+            dispatch,
+            programs,
+            rule,
+            selector_program,
+            program.sheet_origin(sheet) == CascadeOrigin::Author,
+        );
+    });
+}
+
+pub(super) fn insert_scope_rule(
+    dispatch: &mut RuleDispatch,
+    programs: &SelectorPrograms,
+    rule: RuleID,
+    selector_program: SelectorProgramID,
+    author: bool,
+) {
+    let compiled = programs.get(selector_program);
+    for (index, entry) in compiled.entries().iter().enumerate() {
+        let key = compiled.dispatch_key(entry);
+        let bloom_of = |keys: &[DispatchKey]| {
+            keys.iter()
+                .copied()
+                .fold(0_u64, |bloom, key| bloom | super::index::dispatch_bloom_bit(key))
+        };
+        let subject_dispatch = compiled.subject_dispatch_keys(index);
+        let required_attribute_value = match key {
+            DispatchKey::AttributeName(name) => compiled.required_attribute_value(entry, name),
+            _ => StyleAtomID::NONE,
+        };
+        let template = super::index::DispatchEntry {
+            rule,
+            program: selector_program,
+            entry: u32::try_from(index).expect("selector entry space exhausted"),
+            cascade_order: 0,
+            required_attribute_value,
+            required_parent: compiled.subject_parent_dispatch_key(index),
+            required_ancestor: compiled.subject_ancestor_dispatch_key(index),
+            required_ancestor_index: None,
+            required_subject_bloom: bloom_of(compiled.subject_required_keys(index)),
+            prefix_matched: false,
+            multi_key: false,
+        };
+        // A subject whose one key is universal but whose disjunction has selective branches
+        // - `:is(dl, ol) :is(.a, .b)` dispatches on nothing alone - goes under each branch's
+        // key instead of in front of every element. The cover is sound by the same contract
+        // routing relies on, and it comes back empty rather than truncated, so an entry is
+        // never unreachable from a key it needs.
+        let branch_keys = match key {
+            DispatchKey::Universal if !subject_dispatch.is_empty() => {
+                let mut branch_keys = subject_dispatch.to_vec();
+                branch_keys.sort_unstable();
+                branch_keys.dedup();
+                branch_keys
+            }
+            _ => Vec::new(),
+        };
+        if branch_keys.is_empty() {
+            let dispatch_entry = dispatch.insert(key, template);
+            if let Some(chain) = compiled.unified_chain(entry) {
+                // NB: Structural truth bits are admitted for author rules only. The
+                //     convergence walk consumes only author routes, so a user-agent
+                //     positional chain would put its tests into every document's
+                //     automaton, taxing each transition and widening every tree
+                //     flush's re-compare frontier, without any route ever being
+                //     subsumed in return.
+                dispatch.add_prefix_entry(
+                    programs,
+                    selector_program,
+                    u32::try_from(index).expect("selector entry space exhausted"),
+                    &chain,
+                    dispatch_entry,
+                    author,
+                );
+            }
+        } else {
+            // NB: A branch copy carries no required attribute value: a disjunction branch's
+            //     value is not required by the subject, and one copy serves every branch
+            //     naming the same attribute.
+            //
+            // NB: A branch copy stays out of the prefix program. The prefix pass emits one
+            //     match per registered entry, so registering every copy would report the
+            //     same rule once per branch key the element carries; the candidate walk
+            //     deduplicates them by the rank the copies share instead.
+            for &branch_key in &branch_keys {
+                dispatch.insert(
+                    branch_key,
+                    super::index::DispatchEntry {
+                        multi_key: true,
+                        ..template
+                    },
+                );
+            }
+        }
+    }
+}
+
+fn for_each_scope_rule(
+    program: &StyleSheetProgram,
+    tree_scope: TreeScopeID,
+    take: SheetsToTake,
+    mut callback: impl FnMut(super::program::SheetID, RuleID, SelectorProgramID),
 ) {
     for sheet in program.sheets_in_scope(tree_scope) {
         if take == SheetsToTake::NonAuthorOnly
@@ -222,83 +368,7 @@ fn insert_scope_sheets(
             let Some(selector_program) = version.selector_program else {
                 continue;
             };
-            let compiled = programs.get(selector_program);
-            for (index, entry) in compiled.entries().iter().enumerate() {
-                let key = compiled.dispatch_key(entry);
-                let bloom_of = |keys: Vec<DispatchKey>| {
-                    keys.into_iter()
-                        .fold(0_u64, |bloom, key| bloom | super::index::dispatch_bloom_bit(key))
-                };
-                let subject_dispatch = compiled.subject_dispatch_keys(index);
-                let required_attribute_value = match key {
-                    DispatchKey::AttributeName(name) => compiled.required_attribute_value(entry, name),
-                    _ => StyleAtomID::NONE,
-                };
-                let template = super::index::DispatchEntry {
-                    rule,
-                    program: selector_program,
-                    entry: u32::try_from(index).expect("selector entry space exhausted"),
-                    cascade_order: 0,
-                    required_attribute_value,
-                    required_parent: compiled.subject_parent_dispatch_key(index),
-                    required_ancestor: compiled.subject_ancestor_dispatch_key(index),
-                    required_ancestor_index: None,
-                    required_subject_bloom: bloom_of(compiled.subject_required_keys(index, &subject_dispatch)),
-                    prefix_matched: false,
-                    multi_key: false,
-                };
-                // A subject whose one key is universal but whose disjunction has selective branches
-                // - `:is(dl, ol) :is(.a, .b)` dispatches on nothing alone - goes under each branch's
-                // key instead of in front of every element. The cover is sound by the same contract
-                // routing relies on, and it comes back empty rather than truncated, so an entry is
-                // never unreachable from a key it needs.
-                let branch_keys = match key {
-                    DispatchKey::Universal if !subject_dispatch.is_empty() => {
-                        let mut branch_keys = subject_dispatch.clone();
-                        branch_keys.sort_unstable();
-                        branch_keys.dedup();
-                        branch_keys
-                    }
-                    _ => Vec::new(),
-                };
-                if branch_keys.is_empty() {
-                    let dispatch_entry = dispatch.insert(key, template);
-                    if let Some(chain) = compiled.unified_chain(entry) {
-                        // NB: Structural truth bits are admitted for author rules only. The
-                        //     convergence walk consumes only author routes, so a user-agent
-                        //     positional chain would put its tests into every document's
-                        //     automaton, taxing each transition and widening every tree
-                        //     flush's re-compare frontier, without any route ever being
-                        //     subsumed in return.
-                        dispatch.add_prefix_entry(
-                            programs,
-                            selector_program,
-                            u32::try_from(index).expect("selector entry space exhausted"),
-                            &chain,
-                            dispatch_entry,
-                            program.sheet_origin(sheet) == CascadeOrigin::Author,
-                        );
-                    }
-                } else {
-                    // NB: A branch copy carries no required attribute value: a disjunction branch's
-                    //     value is not required by the subject, and one copy serves every branch
-                    //     naming the same attribute.
-                    //
-                    // NB: A branch copy stays out of the prefix program. The prefix pass emits one
-                    //     match per registered entry, so registering every copy would report the
-                    //     same rule once per branch key the element carries; the candidate walk
-                    //     deduplicates them by the rank the copies share instead.
-                    for &branch_key in &branch_keys {
-                        dispatch.insert(
-                            branch_key,
-                            super::index::DispatchEntry {
-                                multi_key: true,
-                                ..template
-                            },
-                        );
-                    }
-                }
-            }
+            callback(sheet, rule, selector_program);
         }
     }
 }
@@ -464,11 +534,15 @@ impl AncestorRequirements {
 }
 
 /// Exact ancestor summaries shared by one synchronous matching traversal.
+const ANCESTOR_REQUIREMENTS_PROMOTION_ASKS: u32 = 128;
+
 #[derive(Default)]
 pub(super) struct AncestorRequirementsCache {
-    // A document has a handful of scope programs at most, so a list keeps the summaries contiguous.
-    // The program identity replaces comparisons and copies of the complete ordered sheet set.
-    by_program: Vec<(ScopeProgramID, AncestorRequirements)>,
+    // A document has a handful of selector topologies at most, so a list keeps the summaries
+    // contiguous. Concrete rule identities and cascade ranks do not affect ancestor requirements.
+    by_topology: Vec<(AncestorDispatchTopologyID, AncestorRequirements)>,
+    local_asks: Vec<(AncestorDispatchTopologyID, u32)>,
+    local_answer: Option<AncestorRequirements>,
     last_answered: usize,
     charged_bytes: u64,
 }
@@ -476,42 +550,42 @@ pub(super) struct AncestorRequirementsCache {
 impl AncestorRequirementsCache {
     fn capacity_bytes(&self) -> u64 {
         capacity_bytes! {
-            shallow [self.by_program];
+            shallow [self.by_topology, self.local_asks];
             cached [];
             nested [self
-                .by_program
+                .by_topology
                 .iter()
                 .map(|(_, requirements)| requirements.capacity_bytes())
-                .sum::<u64>()];
+                .sum::<u64>(), self.local_answer.as_ref().map_or(0, AncestorRequirements::capacity_bytes)];
             skip [self.last_answered, self.charged_bytes];
         }
     }
 
-    fn index_of(&self, program: ScopeProgramID) -> Option<usize> {
-        if let Some((held, _)) = self.by_program.get(self.last_answered)
-            && *held == program
+    fn index_of(&self, topology: AncestorDispatchTopologyID) -> Option<usize> {
+        if let Some((held, _)) = self.by_topology.get(self.last_answered)
+            && *held == topology
         {
             return Some(self.last_answered);
         }
-        self.by_program.iter().position(|(held, _)| *held == program)
+        self.by_topology.iter().position(|(held, _)| *held == topology)
     }
 
     pub(super) fn get_or_build(
         &mut self,
-        program: ScopeProgramID,
         tree: &StyleNodeTree,
         facts: &StyleNodeFacts,
         dispatch: &RuleDispatch,
         memory: &mut MemoryController,
     ) -> &AncestorRequirements {
-        let index = match self.index_of(program) {
+        let topology = dispatch.ancestor_topology_id();
+        let index = match self.index_of(topology) {
             Some(index) => index,
             None => {
                 let build_scratch =
                     AncestorRequirements::required_bytes(facts.row_count(), dispatch.ancestor_key_count());
                 memory.reserve_required(MemoryCategory::BatchScratch, build_scratch);
-                self.by_program
-                    .push((program, AncestorRequirements::build(tree, facts, dispatch)));
+                self.by_topology
+                    .push((topology, AncestorRequirements::build(tree, facts, dispatch)));
 
                 let current = self.capacity_bytes();
                 let growth = current.saturating_sub(self.charged_bytes);
@@ -521,17 +595,65 @@ impl AncestorRequirementsCache {
                     memory.release(MemoryCategory::BatchScratch, build_scratch - growth);
                 }
                 self.charged_bytes = current;
-                self.by_program.len() - 1
+                self.by_topology.len() - 1
             }
         };
         self.last_answered = index;
-        &self.by_program[index].1
+        &self.by_topology[index].1
+    }
+
+    pub(super) fn get_or_build_for_node(
+        &mut self,
+        tree: &StyleNodeTree,
+        facts: &StyleNodeFacts,
+        dispatch: &RuleDispatch,
+        node: StyleNodeID,
+        memory: &mut MemoryController,
+    ) -> &AncestorRequirements {
+        let topology = dispatch.ancestor_topology_id();
+        if let Some(index) = self.index_of(topology) {
+            self.last_answered = index;
+            return &self.by_topology[index].1;
+        }
+
+        let asks = match self.local_asks.iter_mut().find(|(candidate, _)| *candidate == topology) {
+            Some((_, asks)) => asks,
+            None => {
+                self.local_asks.push((topology, 0));
+                &mut self.local_asks.last_mut().unwrap().1
+            }
+        };
+        *asks = asks.checked_add(1).expect("ancestor summary ask count overflow");
+        // A local summary walks only this node's shallow ancestry. Promote a topology only after
+        // enough asks to amortize scanning every prepared fact row into a reusable dense matrix.
+        if *asks >= ANCESTOR_REQUIREMENTS_PROMOTION_ASKS && tree.tree_scope(node) == TreeScopeID::DOCUMENT {
+            self.local_answer = None;
+            return self.get_or_build(tree, facts, dispatch, memory);
+        }
+
+        let build_scratch = AncestorRequirements::required_bytes_for_one_row(dispatch.ancestor_key_count());
+        memory.reserve_required(MemoryCategory::BatchScratch, build_scratch);
+        self.local_answer = Some(
+            AncestorRequirements::build_for_node(tree, facts, dispatch, node)
+                .expect("a matched node must have prepared facts"),
+        );
+        let current = self.capacity_bytes();
+        let growth = current.saturating_sub(self.charged_bytes);
+        if growth > build_scratch {
+            memory.reserve_required(MemoryCategory::BatchScratch, growth - build_scratch);
+        } else {
+            memory.release(MemoryCategory::BatchScratch, build_scratch - growth);
+        }
+        self.charged_bytes = current;
+        self.local_answer.as_ref().unwrap()
     }
 
     pub(super) fn release(&mut self, memory: &mut MemoryController) {
         memory.release(MemoryCategory::BatchScratch, self.charged_bytes);
         self.charged_bytes = 0;
-        self.by_program = Vec::new();
+        self.by_topology = Vec::new();
+        self.local_asks = Vec::new();
+        self.local_answer = None;
         self.last_answered = 0;
     }
 }
@@ -684,21 +806,16 @@ pub(super) fn append_prefix_matches(
 pub(super) fn append_retained_matches(
     out: &mut RuleMatches,
     node: StyleNodeID,
+    tree_scope: TreeScopeID,
     programs: &SelectorPrograms,
     dispatch: &RuleDispatch,
     matches: &[super::RetainedRuleMatch],
 ) -> Option<()> {
     out.matches.reserve_exact(matches.len());
-    for &matched in matches {
-        let cascade_order = dispatch
-            .entries()
-            .iter()
-            .find(|candidate| {
-                candidate.rule == matched.rule
-                    && candidate.program == matched.program
-                    && candidate.entry == matched.entry
-            })?
-            .cascade_order;
+    for &stored_match in matches {
+        let mut matched = stored_match;
+        matched.tree_scope = tree_scope;
+        let cascade_order = dispatch.cascade_order_for_entry(matched.rule, matched.program, matched.entry)?;
         let matched = matched.materialize(node, programs, cascade_order)?;
         if programs.get(matched.program).entries().len() > 1
             && let Some(existing) = out.matches.iter_mut().find(|existing| {
@@ -833,6 +950,114 @@ impl<'a> BatchMatcher<'a> {
             .is_none_or(|rules| rules.binary_search(&(rule, program)).is_ok())
     }
 
+    fn filtered_rules_are_narrow(&self, rules: &[(RuleID, SelectorProgramID)]) -> bool {
+        let mut entry_count = 0;
+        for &(rule, program) in rules {
+            if !self.program.rule_can_decide(rule) || self.program.rule_version(rule).selector_program != Some(program)
+            {
+                continue;
+            }
+            entry_count += self.programs.get(program).entries().len();
+            // Dispatch pays a fixed cost to gather the node's subject buckets before applying the
+            // rule filter. Exact enumeration avoids that cost for a narrow patch, but gives up the
+            // subject index's pruning, so keep broad selector lists on the indexed path.
+            if entry_count > 128 {
+                return false;
+            }
+        }
+        true
+    }
+
+    fn match_filtered_rules_directly(
+        &self,
+        node: StyleNodeID,
+        row: u32,
+        rules: &[(RuleID, SelectorProgramID)],
+        evaluator: &MatchEvaluator<'_>,
+        out: &mut RuleMatches,
+        counters: &mut Counters,
+    ) -> Result<(), Incomplete> {
+        let start = out.matches.len();
+        let is_document_root = self.tree.parent(node).is_none();
+        for &(rule, program) in rules {
+            if !self.program.rule_can_decide(rule) || self.program.rule_version(rule).selector_program != Some(program)
+            {
+                continue;
+            }
+            let compiled = self.programs.get(program);
+            for (entry_index, entry) in compiled.entries().iter().enumerate() {
+                let subject_dispatch = compiled.subject_dispatch_keys(entry_index);
+                if !subject_dispatch.is_empty()
+                    && !subject_dispatch
+                        .iter()
+                        .any(|&key| self.facts.carries_dispatch_key(row, key, is_document_root))
+                {
+                    continue;
+                }
+                if compiled
+                    .subject_required_keys(entry_index)
+                    .iter()
+                    .any(|&key| !self.facts.carries_dispatch_key(row, key, is_document_root))
+                {
+                    continue;
+                }
+                let entry_index = u32::try_from(entry_index).expect("selector entry space exhausted");
+                let Some(cascade_order) = self.dispatch.cascade_order_for_entry(rule, program, entry_index) else {
+                    continue;
+                };
+                if self.node_is_slotted_in && !compiled.subject_is_slotted(entry.root) {
+                    continue;
+                }
+                if self.node_is_a_part_exposed_here && !compiled.subject_is_a_part(entry.root) {
+                    continue;
+                }
+                if self.node_is_the_host_of_this_tree && !compiled.subject_is_the_host(entry.root) {
+                    continue;
+                }
+                counters.bump(Counter::CandidateChecks);
+                let matches = match evaluator.matches_entry_for_program(program, compiled, entry, node, counters) {
+                    Ok(matches) => matches,
+                    Err(incomplete) => {
+                        out.matches.truncate(start);
+                        return Err(incomplete);
+                    }
+                };
+                if !matches {
+                    continue;
+                }
+                let scope_proximity = match evaluator.scope_proximity_of(compiled, entry, node, counters) {
+                    Ok(scope_proximity) => scope_proximity,
+                    Err(incomplete) => {
+                        out.matches.truncate(start);
+                        return Err(incomplete);
+                    }
+                };
+                let matched = RuleMatch {
+                    node,
+                    pseudo_element: entry.pseudo_element,
+                    rule,
+                    program,
+                    entry: entry_index,
+                    cascade_order,
+                    tree_scope: self.scope,
+                    specificity: entry.specificity,
+                    scope_proximity,
+                };
+                if let Some(existing) = out.matches[start..]
+                    .iter_mut()
+                    .find(|existing| existing.rule == rule && existing.pseudo_element == entry.pseudo_element)
+                {
+                    if matched.specificity > existing.specificity {
+                        *existing = matched;
+                    }
+                } else {
+                    out.matches.push(matched);
+                }
+            }
+        }
+        Ok(())
+    }
+
     /// Evaluate every style node in the subtree rooted at `root`, appending matches in node order.
     ///
     /// A missing fact row aborts the pass rather than being answered: the caller widens its batch
@@ -928,8 +1153,14 @@ impl<'a> BatchMatcher<'a> {
         if let Some(shadow_root) = self.shadow_root {
             evaluator = evaluator.in_shadow_tree(shadow_root);
         }
+        if self.node_is_a_part_exposed_here {
+            evaluator = evaluator.for_a_part_exposed_in(self.scope);
+        }
         if let Some(witnesses) = self.witnesses {
             evaluator = evaluator.observing_witnesses(witnesses);
+        }
+        if let Some(rules) = self.rule_filter.filter(|rules| self.filtered_rules_are_narrow(rules)) {
+            return self.match_filtered_rules_directly(node, row, rules, &evaluator, out, counters);
         }
         let start = out.matches.len();
         let mut used_prefixes = false;
@@ -1690,24 +1921,10 @@ mod tests {
         let dispatch = build_scope_dispatch(&document.program, &document.programs, TreeScopeID::DOCUMENT);
         let baseline = document.memory.bytes_in_category(MemoryCategory::BatchScratch);
         let mut cache = AncestorRequirementsCache::default();
-        let program = ScopeProgramID(0);
-
-        cache.get_or_build(
-            program,
-            &document.tree,
-            &document.facts,
-            &dispatch,
-            &mut document.memory,
-        );
+        cache.get_or_build(&document.tree, &document.facts, &dispatch, &mut document.memory);
         let after_first = document.memory.bytes_in_category(MemoryCategory::BatchScratch);
         assert!(after_first > baseline);
-        cache.get_or_build(
-            program,
-            &document.tree,
-            &document.facts,
-            &dispatch,
-            &mut document.memory,
-        );
+        cache.get_or_build(&document.tree, &document.facts, &dispatch, &mut document.memory);
         assert_eq!(
             document.memory.bytes_in_category(MemoryCategory::BatchScratch),
             after_first,
@@ -1719,6 +1936,75 @@ mod tests {
             document.memory.bytes_in_category(MemoryCategory::BatchScratch),
             baseline
         );
+    }
+
+    #[test]
+    fn one_node_ancestor_summaries_promote_after_sustained_reuse() {
+        let mut document = Document::new();
+        document.add_rule(|builder| {
+            let theme = builder.push_feature(FeatureTest::Class(CLASS_THEME));
+            let ancestor = builder.push(SelectorOp::Ancestor(theme));
+            let any = builder.push_feature(FeatureTest::AnyElement);
+            let root = builder.push_compound(&[any, ancestor]);
+            builder.push_entry(root);
+        });
+        let dispatch = build_scope_dispatch(&document.program, &document.programs, TreeScopeID::DOCUMENT);
+        let baseline = document.memory.bytes_in_category(MemoryCategory::BatchScratch);
+        let mut cache = AncestorRequirementsCache::default();
+        for _ in 1..ANCESTOR_REQUIREMENTS_PROMOTION_ASKS {
+            let requirements = cache.get_or_build_for_node(
+                &document.tree,
+                &document.facts,
+                &dispatch,
+                document.nodes[1],
+                &mut document.memory,
+            );
+            assert!(requirements.single_row.is_some());
+        }
+        assert!(cache.by_topology.is_empty());
+
+        let requirements = cache.get_or_build_for_node(
+            &document.tree,
+            &document.facts,
+            &dispatch,
+            document.nodes[1],
+            &mut document.memory,
+        );
+        assert!(requirements.single_row.is_none());
+        assert_eq!(cache.by_topology.len(), 1);
+
+        cache.release(&mut document.memory);
+        assert_eq!(
+            document.memory.bytes_in_category(MemoryCategory::BatchScratch),
+            baseline
+        );
+    }
+
+    #[test]
+    fn shadow_scope_ancestor_summaries_remain_local() {
+        let mut document = Document::new();
+        document.tree.enable_tree_scopes(&mut document.memory);
+        document.tree.set_tree_scope(document.nodes[1], TreeScopeID(1));
+        document.add_rule(|builder| {
+            let theme = builder.push_feature(FeatureTest::Class(CLASS_THEME));
+            let ancestor = builder.push(SelectorOp::Ancestor(theme));
+            let any = builder.push_feature(FeatureTest::AnyElement);
+            let root = builder.push_compound(&[any, ancestor]);
+            builder.push_entry(root);
+        });
+        let dispatch = build_scope_dispatch(&document.program, &document.programs, TreeScopeID::DOCUMENT);
+        let mut cache = AncestorRequirementsCache::default();
+        for _ in 0..ANCESTOR_REQUIREMENTS_PROMOTION_ASKS * 2 {
+            let requirements = cache.get_or_build_for_node(
+                &document.tree,
+                &document.facts,
+                &dispatch,
+                document.nodes[1],
+                &mut document.memory,
+            );
+            assert!(requirements.single_row.is_some());
+        }
+        assert!(cache.by_topology.is_empty());
     }
 
     #[test]

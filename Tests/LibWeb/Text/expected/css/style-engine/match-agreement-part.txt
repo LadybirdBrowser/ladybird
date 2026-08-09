@@ -1,0 +1,2 @@
+span: div::part(badge) #host::part(badge)
+

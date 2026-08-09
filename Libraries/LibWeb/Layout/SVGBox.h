@@ -16,7 +16,7 @@ class SVGBox : public Box {
     LAYOUT_NODE(SVGBox, Box);
 
 public:
-    SVGBox(DOM::Document&, SVG::SVGElement&, NonnullRefPtr<CSS::ComputedValues const>);
+    SVGBox(DOM::Document&, SVG::SVGElement&, CSS::LayoutStyle);
     virtual ~SVGBox() override = default;
 
     SVG::SVGElement& dom_node() { return as<SVG::SVGElement>(*Box::dom_node()); }

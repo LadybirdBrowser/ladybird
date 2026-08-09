@@ -6,9 +6,15 @@
  */
 
 #include <AK/Utf16StringBuilder.h>
+#include <LibGC/ConservativeVector.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibWeb/ARIA/Roles.h>
 #include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/CSS/Invalidation/ElementStateInvalidator.h>
+#include <LibWeb/CSS/Invalidation/FormControlInvalidator.h>
+#include <LibWeb/CSS/PseudoClass.h>
+#include <LibWeb/CSS/SelectorMatching.h>
+#include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/EditingHostManager.h>
@@ -71,6 +77,17 @@ HTMLElement::HTMLElement(DOM::Document& document, DOM::QualifiedName qualified_n
 }
 
 HTMLElement::~HTMLElement() = default;
+
+// `:popover-open` is a fact about the element, and the style engine is told what an element now
+// holds rather than asking. The top layer marks the element for its own reasons; that says nothing
+// about which selectors reach it.
+void HTMLElement::set_popover_visibility_state(PopoverVisibilityState state)
+{
+    if (m_popover_visibility_state == state)
+        return;
+    m_popover_visibility_state = state;
+    CSS::record_element_state_changed(*this, CSS::PseudoClass::PopoverOpen, state == PopoverVisibilityState::Showing);
+}
 
 void HTMLElement::visit_edges(Cell::Visitor& visitor)
 {
@@ -183,8 +200,6 @@ void HTMLElement::set_inner_text(Utf16View const& text)
 
     // 2. Replace all with fragment within element.
     replace_all(fragment);
-
-    set_needs_style_update(true);
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#merge-with-the-next-text-node
@@ -236,7 +251,6 @@ WebIDL::ExceptionOr<void> HTMLElement::set_outer_text(Utf16View const& value)
     if (auto* previous_text = as_if<DOM::Text>(previous))
         merge_with_the_next_text_node(*previous_text);
 
-    set_needs_style_update(true);
     return {};
 }
 
@@ -320,14 +334,14 @@ static Vector<Variant<Utf16String, RequiredLineBreakCount>> rendered_text_collec
         return items;
 
     auto const* layout_node_with_style = as_if<Layout::NodeWithStyle>(*layout_node);
-    auto const& computed_values = layout_node_with_style ? layout_node_with_style->computed_values() : layout_node->parent()->computed_values();
+    auto const& style_node = layout_node_with_style ? *layout_node_with_style : *layout_node->parent();
 
     // 2. If node's computed value of 'visibility' is not 'visible', then return items.
-    if (computed_values.visibility() != CSS::Visibility::Visible)
+    if (style_node.visibility() != CSS::Visibility::Visible)
         return items;
 
     // AD-HOC: If node's computed value of 'content-visibility' is 'hidden', then return items.
-    if (computed_values.content_visibility() == CSS::ContentVisibility::Hidden)
+    if (style_node.content_visibility() == CSS::ContentVisibility::Hidden)
         return items;
 
     // 4. If node is a Text node, then for each CSS text box produced by node, in content order, compute the text of the
@@ -346,7 +360,7 @@ static Vector<Variant<Utf16String, RequiredLineBreakCount>> rendered_text_collec
             // point after the first is removed.
             auto const& text = slice.text_for_rendering();
             auto should_collapse_whitespace = first_is_one_of(
-                slice.parent()->computed_values().white_space_collapse(),
+                slice.parent()->white_space_collapse(),
                 CSS::WhiteSpaceCollapse::Collapse, CSS::WhiteSpaceCollapse::PreserveBreaks);
             if (!should_collapse_whitespace) {
                 items.append(text);
@@ -372,7 +386,7 @@ static Vector<Variant<Utf16String, RequiredLineBreakCount>> rendered_text_collec
         return items;
     }
 
-    auto display = computed_values.display();
+    auto display = style_node.display();
 
     // 6. If node's computed value of 'display' is 'table-cell', and node's CSS box is not the last 'table-cell' box of its enclosing 'table-row' box, then append a string containing a single U+0009 TAB code point to items.
     if (display.is_table_cell() && node.next_sibling())
@@ -528,7 +542,7 @@ GC::Ptr<DOM::Element> HTMLElement::scroll_parent() const
 
         // 3. If the computed value of the position property of ancestor is fixed, and no ancestor establishes a fixed
         //    position containing block, terminate this algorithm and return null.
-        if (ancestor->computed_values().position() == CSS::Positioning::Fixed && no_ancestor_establishes_a_fixed_position_containing_block)
+        if (ancestor->position() == CSS::Positioning::Fixed && no_ancestor_establishes_a_fixed_position_containing_block)
             return nullptr;
 
         // 4. Let ancestor be the containing block of ancestor in the flat tree.
@@ -571,7 +585,9 @@ GC::Ptr<DOM::Element> HTMLElement::offset_parent() const
         //    fixed, and no ancestor establishes a fixed position containing block, terminate this algorithm and return
         //    null.
         bool ancestor_is_closed_shadow_hidden = ancestor->is_closed_shadow_hidden_from(*this);
-        bool ancestor_is_fixed_position = ancestor->computed_values()->position() == CSS::Positioning::Fixed;
+        auto const* ancestor_box_values = ancestor->style_group<CSS::ComputedValues::BoxValues>();
+        VERIFY(ancestor_box_values);
+        bool ancestor_is_fixed_position = static_cast<CSS::Positioning>(ancestor_box_values->position) == CSS::Positioning::Fixed;
         auto const* ancestor_layout_node = ancestor->layout_node();
         if (ancestor_is_closed_shadow_hidden
             && ancestor_is_fixed_position
@@ -603,7 +619,9 @@ GC::Ptr<DOM::Element> HTMLElement::offset_parent() const
                     return const_cast<Element*>(ancestor);
                 // - The computed value of the position property of the element is static and the ancestor is one of
                 //   the following HTML elements: td, th, or table.
-                if (computed_values()->position() == CSS::Positioning::Static && ancestor->local_name().is_one_of(HTML::TagNames::td, HTML::TagNames::th, HTML::TagNames::table))
+                auto style = computed_style();
+                VERIFY(style);
+                if (style->position() == CSS::Positioning::Static && ancestor->local_name().is_one_of(HTML::TagNames::td, HTML::TagNames::th, HTML::TagNames::table))
                     return const_cast<Element*>(ancestor);
             }
             // - FIXME: The element has a different effective zoom than ancestor.
@@ -747,6 +765,18 @@ int HTMLElement::offset_height() const
 
 void HTMLElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
 {
+    struct PreviousReadWriteState {
+        GC::Ptr<DOM::Element> element;
+        bool value;
+    };
+    GC::ConservativeVector<PreviousReadWriteState> previous_read_write_states;
+    if (name == HTML::AttributeNames::contenteditable && old_value != value) {
+        for_each_in_inclusive_subtree_of_type<DOM::Element>([&](DOM::Element& element) {
+            previous_read_write_states.append({ element, SelectorMatching::element_matches_state(element, CSS::PseudoClass::ReadWrite) });
+            return TraversalDecision::Continue;
+        });
+    }
+
     Base::attribute_changed(name, old_value, value, namespace_);
     HTMLOrSVGOrMathMLElement::attribute_changed(name, old_value, value, namespace_);
 
@@ -768,6 +798,8 @@ void HTMLElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16St
             m_content_editable_state = ContentEditableState::Inherit;
         }
         recompute_editable_subtree_flags_and_repaint();
+        for (auto const& state : previous_read_write_states)
+            CSS::Invalidation::invalidate_style_after_read_write_state_change(*state.element, state.value);
     } else if (name == HTML::AttributeNames::inert) {
         // https://html.spec.whatwg.org/multipage/interaction.html#the-inert-attribute
         // The inert attribute is a boolean attribute that indicates, by its presence, that the element and all its flat tree descendants which don't otherwise escape inertness
@@ -857,6 +889,17 @@ void HTMLElement::inserted()
     if (is_form_associated_element()) {
         form_node_was_inserted();
         form_associated_element_was_inserted();
+
+        // The control brought its constraints into a form and whatever fieldsets are above it, and
+        // `:invalid` on either of those is a statement about the controls under it. Published here
+        // rather than in form_associated_element_was_inserted(), which subclasses override without
+        // calling up.
+        CSS::Invalidation::invalidate_style_after_validity_change(*this);
+
+        // Whether the placeholder shows is decided by the control's value, which a text control
+        // keeps in the shadow tree that form_associated_element_was_inserted() has just built. The
+        // state published as the element connected was read before that existed.
+        CSS::Invalidation::invalidate_style_after_placeholder_shown_change(*this);
     }
 }
 
@@ -1447,7 +1490,7 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
     // 21. Add an element to the top layer given element.
     document.add_an_element_to_the_top_layer(*this);
     // 22. Set element's popover visibility state to showing.
-    m_popover_visibility_state = PopoverVisibilityState::Showing;
+    set_popover_visibility_state(PopoverVisibilityState::Showing);
     // 23. Set element's popover trigger to source.
     m_popover_trigger = source;
     // FIXME: 24. Set element's implicit anchor element to source.
@@ -1580,7 +1623,7 @@ WebIDL::ExceptionOr<void> HTMLElement::hide_popover(FocusPreviousElement focus_p
     m_opened_in_popover_mode = {};
 
     // 13. Set element's popover visibility state to hidden.
-    m_popover_visibility_state = PopoverVisibilityState::Hidden;
+    set_popover_visibility_state(PopoverVisibilityState::Hidden);
 
     // 14. If fireEvents is true, then queue a popover toggle event task given element, "open", "closed", and source.
     if (fire_events == FireEvents::Yes)
@@ -2116,6 +2159,11 @@ void HTMLElement::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ancestor
     if (is_form_associated_element()) {
         form_node_was_removed();
         form_associated_element_was_removed(old_ancestor);
+
+        // The control took its constraints out of the form and fieldsets it was under, and they
+        // answer for `:valid`/`:invalid` on behalf of what is left.
+        if (old_ancestor)
+            CSS::Invalidation::invalidate_style_after_form_control_left(*old_ancestor);
     }
 
     // 5. If removedNode's popover attribute is not in the No Popover state, then run the hide popover algorithm given

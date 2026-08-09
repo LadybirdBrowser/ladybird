@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #hidden { display: none; }
+    #hidden-reaction.before { color: red; }
+    #hidden-reaction.after { color: green; }
+    #visible.before { background-color: red; }
+    #visible.after { background-color: green; }
+</style>
+<div id="hidden"><span id="hidden-reaction" class="before"></span></div>
+<span id="visible" class="before"></span>
+<span id="query"></span>
+<script>
+    test(() => {
+        const hiddenReaction = document.getElementById("hidden-reaction");
+        const visible = document.getElementById("visible");
+        const query = document.getElementById("query");
+        internals.updateStyle();
+
+        hiddenReaction.className = "after";
+        getComputedStyle(query).color;
+        internals.updateStyle();
+
+        internals.resetStyleInvalidationCounters();
+        visible.className = "after";
+        internals.updateStyle();
+
+        const regularCounters = internals.getStyleInvalidationCounters();
+        const visibleColor = getComputedStyle(visible).backgroundColor;
+        const hiddenColor = getComputedStyle(hiddenReaction).color;
+        const finalCounters = internals.getStyleInvalidationCounters();
+
+        println("visible color: " + visibleColor);
+        println("hidden color: " + hiddenColor);
+        println("reaction batch runs: " + regularCounters.styleEngineReactionBatchRuns);
+        println("reaction elements: " + regularCounters.styleEngineReactionElements);
+        println("published reactions: " + regularCounters.styleEnginePublishedReactions);
+        println("regular recomputations: " + regularCounters.elementStyleRecomputations);
+        println("targeted hidden recomputations: " + (finalCounters.elementStyleRecomputations - regularCounters.elementStyleRecomputations));
+    });
+</script>

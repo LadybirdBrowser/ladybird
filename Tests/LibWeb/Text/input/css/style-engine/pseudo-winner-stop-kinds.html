@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    li::marker,
+    dialog::backdrop {
+        color: rgb(255, 0, 0);
+    }
+
+    li.flip::marker,
+    dialog.flip::backdrop {
+        color: rgb(0, 0, 255);
+    }
+</style>
+<ul>
+    <li>first</li>
+    <li>second</li>
+</ul>
+<dialog>first</dialog>
+<dialog>second</dialog>
+<script>
+    test(() => {
+        const markerTarget = document.querySelectorAll("li")[1];
+        const backdropTarget = document.querySelectorAll("dialog")[1];
+        for (const dialog of document.querySelectorAll("dialog"))
+            dialog.showModal();
+
+        internals.updateStyle();
+        println(`initial marker: ${getComputedStyle(markerTarget, "::marker").color}`);
+        println(`initial backdrop: ${getComputedStyle(backdropTarget, "::backdrop").color}`);
+        const before = internals.styleEngineCounters();
+
+        markerTarget.classList.add("flip");
+        internals.updateStyle();
+        const markerChanged = internals.styleEngineCounters();
+        println(`marker exact cascade stops: ${markerChanged.publishedExactCascadeStops - before.publishedExactCascadeStops}`);
+
+        backdropTarget.classList.add("flip");
+        internals.updateStyle();
+        println(`updated backdrop: ${getComputedStyle(backdropTarget, "::backdrop").color}`);
+    });
+</script>

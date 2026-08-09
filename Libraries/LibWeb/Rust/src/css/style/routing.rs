@@ -1125,6 +1125,9 @@ impl StyleEngine {
         regions: &mut ImpactRegions,
         workspace: &mut ImpactPlanningWorkspace,
     ) -> DeferredSequenceRoutes {
+        if sequences.entries.is_empty() {
+            return DeferredSequenceRoutes::default();
+        }
         let routing = Rc::clone(&self.routing);
         // A route stays registered under the rule that made it: a rule keeps its identity
         // through a new selector list, and a detached sheet's rules keep their positions because the
@@ -1888,7 +1891,7 @@ impl StyleEngine {
                 evaluation.candidate_changes(
                     &self.tree,
                     self.facts.primary(),
-                    (program, compiled, exact_entry),
+                    (compiled, exact_entry),
                     node,
                     old_matches,
                     self.transaction_fact_view.as_ref(),
@@ -2247,6 +2250,21 @@ impl StyleEngine {
 
         let has_usable_subject =
             !site.subject.is_empty() && site.subject.iter().all(|&key| posting_for_dispatch_key(key).is_some());
+        if !self.selector_truth_changes_active
+            && has_usable_subject
+            && site.subject.iter().all(|&key| {
+                !matches!(
+                    self.facts.postings().lookup(posting_for_dispatch_key(key).unwrap()),
+                    Lookup::Missing(_)
+                )
+            })
+            && routed_regions
+                .iter()
+                .all(|region| matches!(region, ImpactRegion::Node(_)))
+        {
+            self.add_narrowed_node_regions(routed_regions, site, regions);
+            return;
+        }
         let cardinality = if has_usable_subject {
             site.subject
                 .iter()
@@ -2324,19 +2342,22 @@ impl StyleEngine {
                 .add(Counter::RemainingPostingRowsInspected, inspected as u64);
         }
         let mut already_planned_moved_nodes = Vec::new();
-        self.transaction_fact_view
+        let moved_features = &self
+            .transaction_fact_view
             .as_ref()
             .expect("routing requires a transaction fact view")
-            .moved_features
-            .all_nodes(|node, keys| {
-                if keys.iter().any(|key| site.subject.contains(key)) {
-                    match regions.contains_node(node) {
-                        true => already_planned_moved_nodes.push(node),
-                        false => candidates.push(node),
-                    }
+            .moved_features;
+        for &key in site.subject {
+            moved_features.all_nodes_with_key(key, |node| {
+                match regions.contains_node(node) {
+                    true => already_planned_moved_nodes.push(node),
+                    false => candidates.push(node),
                 }
                 true
             });
+        }
+        already_planned_moved_nodes.sort_unstable();
+        already_planned_moved_nodes.dedup();
         // A node the posting dropped as already planned, and a moved node already in the plan,
         // still need this route's contribution reflected in their retained-answer patch. When
         // the route names its exact rule, one attribution of its extent carries that for all of
@@ -2384,6 +2405,68 @@ impl StyleEngine {
         let workspace_after = self.match_workspace.capacity_bytes();
         self.memory
             .reserve_required(MemoryCategory::BatchScratch, workspace_after - workspace_before);
+    }
+
+    /// Narrow a union of exact-node regions from the nodes themselves.
+    ///
+    /// A subject posting can contain many nodes while this route's region contains only one. The
+    /// local fact rows answer membership directly, so walking and copying the whole posting merely
+    /// to intersect it back down to those named nodes reverses the cheaper side of the join.
+    fn add_narrowed_node_regions(
+        &mut self,
+        routed_regions: &[ImpactRegion],
+        site: &RoutingSite<'_>,
+        regions: &mut ImpactRegions,
+    ) {
+        let mut candidates: Vec<_> = routed_regions
+            .iter()
+            .filter_map(|region| match region {
+                ImpactRegion::Node(node) => Some(*node),
+                _ => None,
+            })
+            .collect();
+        candidates.sort_unstable();
+        candidates.dedup();
+
+        let mut already_planned = Vec::new();
+        let workspace_before = self.match_workspace.capacity_bytes();
+        for candidate in candidates {
+            if !self.node_carries_any(site.subject, candidate, site.in_flux) {
+                continue;
+            }
+            if regions.contains_node(candidate) {
+                already_planned.push(candidate);
+                continue;
+            }
+            if self.node_carries_all(site.subject_required, candidate, site.in_flux)
+                && self.path_meets_waypoints(site.path, site.waypoints, candidate, site.in_flux)
+            {
+                let change = self.candidate_changes_exact_entry(candidate, site);
+                if exact_entry_changed(change) {
+                    self.record_exact_selector_truth_change(candidate, site, change);
+                    regions.add(ImpactRegion::Node(candidate), &mut self.counters);
+                }
+            }
+        }
+        let workspace_after = self.match_workspace.capacity_bytes();
+        self.memory
+            .reserve_required(MemoryCategory::BatchScratch, workspace_after - workspace_before);
+
+        if already_planned.is_empty() || !self.selector_truth_changes_active {
+            return;
+        }
+        match site.attribution() {
+            Some(key) => {
+                for &region in routed_regions {
+                    regions.attribute_extent(region, key, &mut self.counters);
+                }
+            }
+            None => {
+                for node in already_planned {
+                    self.record_already_planned_selector_truth(node, site);
+                }
+            }
+        }
     }
 
     /// Finish local routes after all normalized inputs have contributed their regions.
@@ -2440,6 +2523,9 @@ impl StyleEngine {
         if dispatch.prefixes().is_empty() {
             return PrefixConvergenceOutcome::default();
         }
+        let mut local_fact_changes = pending_nodes.clone();
+        local_fact_changes.sort_unstable();
+        local_fact_changes.dedup();
         let automaton_has_sibling_steps = dispatch.prefixes().has_sibling_steps();
         // A tree delta moves the rightward context entering the nodes that follow it, so a
         // sibling-bearing automaton walks the frontier those deltas name: the retained walk
@@ -2774,9 +2860,6 @@ impl StyleEngine {
                     .and_then(|view| view.facts(TransactionFactSide::Before, resident_facts))
                     .expect("prefix planning has before facts");
                 self.counters.bump(Counter::PrefixTransitionCacheHits);
-                let mut local_fact_changes = pending_nodes.clone();
-                local_fact_changes.sort_unstable();
-                local_fact_changes.dedup();
                 let nodes_in_preorder = regions.sort_nodes_for_top_down_walk(&mut pending_nodes, &self.tree);
                 if automaton_has_sibling_steps && !nodes_in_preorder {
                     retained.release();
@@ -2887,8 +2970,10 @@ impl StyleEngine {
                             true => None,
                             false => Some(&selection),
                         };
-                        let local_prefix_candidates = local_prefix_producers
-                            .get(&node)
+                        let local_facts_changed = local_fact_changes.binary_search(&node).is_ok();
+                        let local_prefix_candidates = local_facts_changed
+                            .then(|| local_prefix_producers.get(&node))
+                            .flatten()
                             .map(Vec::as_slice)
                             .filter(|steps| !steps.is_empty());
                         let difference = match states.compare_and_update(
@@ -2896,7 +2981,7 @@ impl StyleEngine {
                             &old_evaluation,
                             difference_selection,
                             node,
-                            local_fact_changes.binary_search(&node).is_ok(),
+                            local_facts_changed,
                             local_prefix_candidates,
                             pending_node.entering_deltas,
                             &mut prefix_delta_arena,
@@ -3597,6 +3682,7 @@ impl StyleEngine {
             resident_nodes,
             winner_program_version,
             document_root,
+            attachment_scopes,
         } = context;
         let key = input.key;
         if program_joins.is_empty() {
@@ -3609,11 +3695,13 @@ impl StyleEngine {
         // across the whole document, so a sheet adopted by one shadow root would otherwise reach
         // every element anywhere carrying the same class. A program using `:host`, `::slotted()` or
         // `::part()` does reach out of its scope, and only that program skips the check.
-        let scopes = match key {
+        let mut scopes = match key {
             // An attachment change names the scope it happened in, which is the only place it can
             // reach - and the only answer that still holds once the sheet has left, since by routing
             // time the attachment it is about is gone.
-            InputKey::SheetAttachment(_, tree_scope) => vec![tree_scope],
+            InputKey::SheetAttachment(_, tree_scope) => {
+                attachment_scopes.map_or_else(|| vec![tree_scope], |scopes| scopes.to_vec())
+            }
             InputKey::SheetActivation(sheet) => self.scopes_of_sheet(sheet, scopes_departed),
             InputKey::RuleField(rule, _) => self.scopes_of_sheet(self.program.rule_sheet(rule), scopes_departed),
             InputKey::CascadeTopology(TopologyAxis::SheetOrder(tree_scope) | TopologyAxis::LayerOrder(tree_scope)) => {
@@ -3621,6 +3709,8 @@ impl StyleEngine {
             }
             _ => Vec::new(),
         };
+        scopes.sort_unstable();
+        scopes.dedup();
 
         // A sheet attached nowhere decides nothing, so neither do its rules. Re-inserting a `<style>`
         // element builds a new sheet and drops the old one, and the dropped one's rules are still
@@ -3772,6 +3862,12 @@ impl StyleEngine {
                 regions.widen_to_document(&mut self.counters);
                 return;
             }
+            // A counter style can be referenced through list markers and generated content. Those
+            // consumers are resolved while computing values and are not indexed by rule name.
+            if version.kind == RuleKind::CounterStyle {
+                regions.widen_to_document(&mut self.counters);
+                return;
+            }
             // A rule that does not contribute declarations through selector matching reaches no
             // element: an @font-face rule arrives at its own consumers instead.
             if !version.kind.matches_elements() {
@@ -3887,7 +3983,7 @@ impl StyleEngine {
                     if resident_nodes.is_some_and(|resident| resident.binary_search(&node).is_err()) {
                         continue;
                     }
-                    if bounded_by_scope && !scopes.contains(&self.tree.tree_scope(node)) {
+                    if bounded_by_scope && scopes.binary_search(&self.tree.tree_scope(node)).is_err() {
                         continue;
                     }
                     let entry = &self.programs.get(selector_program).entries()[incidence.entry as usize];
@@ -4023,7 +4119,7 @@ impl StyleEngine {
                             None => posting.candidates().collect(),
                         };
                         for node in candidates {
-                            if bounded_by_scope && !scopes.contains(&self.tree.tree_scope(node)) {
+                            if bounded_by_scope && scopes.binary_search(&self.tree.tree_scope(node)).is_err() {
                                 continue;
                             }
                             if !self.node_is_within_subject_position(node, position) {

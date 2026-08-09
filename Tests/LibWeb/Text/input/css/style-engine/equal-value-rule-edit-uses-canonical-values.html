@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style id="rules">
+    .item { color: rgb(20, 24, 28) }
+    #sentinel { outline-color: rgb(10, 100, 200) }
+</style>
+<div id="root"></div>
+<script>
+    test(() => {
+        const root = document.getElementById("root");
+        for (let index = 0; index < 100; ++index) {
+            const item = document.createElement("div");
+            item.className = "item";
+            root.appendChild(item);
+        }
+        root.lastElementChild.id = "sentinel";
+
+        internals.updateStyle();
+        const before = internals.styleEngineCounters();
+        const rules = document.getElementById("rules").sheet.cssRules;
+        rules[0].style.setProperty("color", "#14181c");
+        rules[1].style.setProperty("outline-color", "rgb(200, 100, 10)");
+        internals.updateStyle();
+        rules[0].style.setProperty("color", "rgb(20, 24, 28)");
+        rules[1].style.setProperty("outline-color", "rgb(10, 100, 200)");
+        internals.updateStyle();
+        const after = internals.styleEngineCounters();
+
+        println(`canonical values reused: ${after.specifiedValuesReused - before.specifiedValuesReused}`);
+        println(`equal winners rejected twice: ${after.programCandidatesRejectedByCascade - before.programCandidatesRejectedByCascade >= 200}`);
+        println(`only sentinel invalidated twice: ${after.invalidatedStyleNodes - before.invalidatedStyleNodes === 2}`);
+        println(`ordinary item: ${getComputedStyle(root.firstElementChild).color}`);
+        println(`sentinel: ${getComputedStyle(root.lastElementChild).outlineColor}`);
+    });
+</script>

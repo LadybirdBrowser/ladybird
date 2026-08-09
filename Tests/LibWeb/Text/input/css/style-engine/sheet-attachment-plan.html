@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="plan.js"></script>
+<div id="guard" class="guard">
+    <div id="inside" class="target"></div>
+</div>
+<div id="outside" class="target"></div>
+<script>
+    // A sheet arriving, leaving, or toggling decides only for the elements its selectors match on
+    // the side where it contributes. The dispatch posting for `.target` names both carriers, but
+    // only the one under `.guard` is a subject of the change.
+    test(() => {
+        let style;
+        plan("sheet attaches", () => {
+            style = addStyleSheet(".guard .target { color: green }");
+        });
+        plan("sheet disables", () => {
+            style.sheet.disabled = true;
+        });
+        plan("sheet enables", () => {
+            style.sheet.disabled = false;
+        });
+        plan("sheet detaches", () => {
+            style.remove();
+        });
+    });
+</script>

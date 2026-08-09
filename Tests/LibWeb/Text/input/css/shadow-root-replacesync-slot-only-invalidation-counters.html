@@ -9,12 +9,12 @@
         internals.resetStyleInvalidationCounters();
     }
 
-    function verifyInvalidationsStayBounded(label, maxInvalidations) {
-        const invalidations = internals.getStyleInvalidationCounters().styleInvalidations;
-        if (invalidations <= maxInvalidations)
+    function verifyRecomputationsStayBounded(label, maximum) {
+        const recomputations = internals.getStyleInvalidationCounters().elementStyleRecomputations;
+        if (recomputations <= maximum)
             println(`PASS: ${label}`);
         else
-            println(`FAIL: ${label} (${invalidations} invalidations)`);
+            println(`FAIL: ${label} (${recomputations} recomputations)`);
     }
 
     test(() => {
@@ -39,11 +39,11 @@
         settleAndReset(target);
         sheet.replaceSync("slot { color: rgb(255, 0, 0); }");
         getComputedStyle(target).color;
-        verifyInvalidationsStayBounded("slot-only replaceSync stays scoped to the current host subtree", 4);
+        verifyRecomputationsStayBounded("slot-only replaceSync stays scoped to the current host subtree", 4);
 
         settleAndReset(target);
         sheet.replaceSync("");
         getComputedStyle(target).color;
-        verifyInvalidationsStayBounded("slot-only replaceSync removal stays scoped to the current host subtree", 4);
+        verifyRecomputationsStayBounded("slot-only replaceSync removal stays scoped to the current host subtree", 4);
     });
 </script>

@@ -85,7 +85,7 @@ Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithS
     if (!image.is_paintable(document))
         return {};
 
-    auto const& current_color = layout_node.computed_values().color();
+    auto current_color = layout_node.color();
     auto const current_color_scheme = document.page().preferred_color_scheme();
 
     // Create a bitmap if needed.
@@ -119,6 +119,9 @@ Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithS
 
     // Repaint the bitmap if necessary
     if (m_cached_bitmap_color != current_color || m_cached_bitmap_color_scheme != current_color_scheme) {
+        m_cached_bitmap_color = current_color;
+        m_cached_bitmap_color_scheme = current_color_scheme;
+
         // Clear whatever was in the bitmap before.
         auto& bitmap = *m_cached_bitmap->bitmap();
         auto painter = Gfx::Painter::create(bitmap);
@@ -139,9 +142,6 @@ Optional<Gfx::ImageCursor> CursorStyleValue::make_image_cursor(Layout::NodeWithS
         Painting::DisplayListPlayerSkia display_list_player;
         display_list_player.execute(*display_list, visual_context_tree, resource_storage, {}, painting_surface);
         display_list_player.flush(*painting_surface);
-
-        m_cached_bitmap_color = current_color;
-        m_cached_bitmap_color_scheme = current_color_scheme;
     }
 
     // "If the values are unspecified, then the natural hotspot defined inside the image resource itself is used.

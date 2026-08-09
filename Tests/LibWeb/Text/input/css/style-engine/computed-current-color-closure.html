@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .before { color: green; border: 1px solid currentColor }
+    .after { color: blue; border: 1px solid currentColor }
+</style>
+<div id="target" class="before"></div>
+<script>
+    test(() => {
+        internals.updateStyle();
+        const before = internals.getStyleInvalidationCounters();
+
+        target.className = "after";
+        internals.updateStyle();
+
+        const after = internals.getStyleInvalidationCounters();
+        println(`currentColor longhand evaluations: ${after.computedLonghandEvaluations - before.computedLonghandEvaluations}`);
+        println(`color: ${getComputedStyle(target).color}`);
+        println(`border color: ${getComputedStyle(target).borderTopColor}`);
+    });
+</script>

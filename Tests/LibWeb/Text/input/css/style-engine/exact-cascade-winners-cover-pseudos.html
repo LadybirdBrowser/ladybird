@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #target::before {
+        content: "marker";
+        color: red;
+    }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        internals.updateStyle();
+        const before = internals.styleEngineCounters();
+
+        const rule = document.styleSheets[0].cssRules[0];
+        rule.style.color = "black";
+        internals.updateStyle();
+        const changed = internals.styleEngineCounters();
+        const changedProperties = changed.cascadeWinnerDeltaProperties - before.cascadeWinnerDeltaProperties;
+
+        println(`pseudo winners publish exact deltas: ${changedProperties >= 1}`);
+        println(`computed dependencies consume pseudo deltas: ${changed.computedWinnerDeltaPropertiesConsumed - before.computedWinnerDeltaPropertiesConsumed === changedProperties}`);
+        println(`pseudo color: ${getComputedStyle(document.getElementById("target"), "::before").color}`);
+    });
+</script>

@@ -67,7 +67,7 @@ GC::Ref<DOM::DOMTokenList> SVGAElement::rel_list()
     return *m_rel_list;
 }
 
-RefPtr<Layout::Node> SVGAElement::create_layout_node(NonnullRefPtr<CSS::ComputedValues const> style)
+RefPtr<Layout::Node> SVGAElement::create_layout_node(CSS::LayoutStyle style)
 {
     return make_ref_counted<Layout::SVGGraphicsBox>(document(), *this, style);
 }

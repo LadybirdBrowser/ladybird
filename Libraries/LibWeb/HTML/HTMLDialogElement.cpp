@@ -512,7 +512,7 @@ void HTMLDialogElement::set_is_modal(bool is_modal)
     if (m_is_modal == is_modal)
         return;
     m_is_modal = is_modal;
-    CSS::Invalidation::invalidate_style_after_modal_state_change(*this);
+    CSS::Invalidation::invalidate_style_after_modal_state_change(*this, is_modal);
 }
 
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#the-dialog-element:is-valid-command-steps
@@ -671,7 +671,7 @@ void HTMLDialogElement::attribute_changed(Utf16FlyString const& local_name, Opti
     if (local_name != u"open"sv)
         return;
 
-    CSS::Invalidation::invalidate_style_after_open_state_change(*this);
+    CSS::Invalidation::invalidate_style_after_open_state_change(*this, value.has_value());
 
     // 3. If value is null and oldValue is not null, then run the dialog cleanup steps given element.
     if (!value.has_value() && old_value.has_value())

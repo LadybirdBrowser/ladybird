@@ -1,0 +1,3 @@
+plan: wholeDocument=false elements=target,item
+item colour: rgb(0, 128, 0)
+after delete: rgb(0, 0, 0)

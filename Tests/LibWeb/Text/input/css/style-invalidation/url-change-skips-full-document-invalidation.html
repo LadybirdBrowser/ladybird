@@ -16,7 +16,7 @@
 
         const printCounters = label => {
             const counters = internals.getStyleInvalidationCounters();
-            println(`${label}: fullStyleInvalidations=${counters.fullStyleInvalidations}, styleInvalidations=${counters.styleInvalidations}, elementStyleRecomputations=${counters.elementStyleRecomputations}`);
+            println(`${label}: elementStyleRecomputations=${counters.elementStyleRecomputations}`);
         };
 
         // Without any :local-link rule, a URL change should produce no invalidation work at all.

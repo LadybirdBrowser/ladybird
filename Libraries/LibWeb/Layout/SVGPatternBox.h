@@ -15,7 +15,7 @@ class SVGPatternBox final : public SVGBox {
     LAYOUT_NODE(SVGPatternBox, SVGBox);
 
 public:
-    SVGPatternBox(DOM::Document&, SVG::SVGPatternElement&, NonnullRefPtr<CSS::ComputedValues const>);
+    SVGPatternBox(DOM::Document&, SVG::SVGPatternElement&, CSS::LayoutStyle);
     virtual ~SVGPatternBox() override = default;
 
     SVG::SVGPatternElement& dom_node() { return as<SVG::SVGPatternElement>(SVGBox::dom_node()); }

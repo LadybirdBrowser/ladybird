@@ -1,0 +1,7 @@
+reaction color: rgb(0, 128, 0)
+direct reactions: 1
+recomputations: 1
+cross-scope color: rgb(0, 128, 0)
+cross-scope background: rgb(0, 0, 255)
+cross-scope direct reactions: 2
+cross-scope recomputations: 4

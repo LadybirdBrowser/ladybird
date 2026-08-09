@@ -9,7 +9,7 @@
 
 namespace Web::Layout {
 
-BreakNode::BreakNode(DOM::Document& document, HTML::HTMLBRElement& element, NonnullRefPtr<CSS::ComputedValues const> style)
+BreakNode::BreakNode(DOM::Document& document, HTML::HTMLBRElement& element, CSS::LayoutStyle style)
     : Layout::NodeWithStyle(document, &element, style)
 {
 }

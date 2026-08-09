@@ -16,7 +16,7 @@
 namespace {
 
 class WebGLRenderingContextBaseAccessor : public Web::WebGL::WebGLRenderingContextBase {
-    WEB_NON_IDL_PLATFORM_OBJECT(WebGLRenderingContextBaseAccessor, Web::WebGL::WebGLRenderingContextBase);
+    WEB_NON_IDL_WRAPPABLE(WebGLRenderingContextBaseAccessor, Web::WebGL::WebGLRenderingContextBase);
 
 public:
     template<typename T>

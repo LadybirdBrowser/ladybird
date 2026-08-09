@@ -1,0 +1,6 @@
+closed dialog: auto
+closed sibling: auto
+open dialog: auto
+open sibling: text-decoration
+closed again dialog: auto
+closed again sibling: auto

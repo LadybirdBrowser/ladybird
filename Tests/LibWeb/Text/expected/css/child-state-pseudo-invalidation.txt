@@ -5,8 +5,8 @@ focus new after append: rgb(0, 128, 0)
 focus new after remove: rgb(0, 0, 0)
 focus move old before moveBefore: rgb(0, 128, 0)
 focus move new before moveBefore: rgb(0, 0, 0)
-focus move old after moveBefore: rgb(0, 128, 0)
-focus move new after moveBefore: rgb(0, 0, 0)
+focus move old after moveBefore: rgb(0, 0, 0)
+focus move new after moveBefore: rgb(0, 128, 0)
 focus fragment old before append: rgb(0, 128, 0)
 focus fragment new before append: rgb(0, 0, 0)
 focus fragment old after append: rgb(0, 0, 0)
@@ -52,8 +52,8 @@ hover new after append: rgb(255, 0, 0)
 hover new after remove: rgb(255, 255, 255)
 hover move old before moveBefore: rgb(255, 0, 0)
 hover move new before moveBefore: rgb(255, 255, 255)
-hover move old after moveBefore: rgb(255, 0, 0)
-hover move new after moveBefore: rgb(255, 255, 255)
+hover move old after moveBefore: rgb(255, 255, 255)
+hover move new after moveBefore: rgb(255, 0, 0)
 hover fragment old before append: rgb(255, 0, 0)
 hover fragment new before append: rgb(255, 255, 255)
 hover fragment old after append: rgb(255, 255, 255)
@@ -113,14 +113,14 @@ has pseudo move new after moveBefore: has
 has pseudo fragment before append: none
 has pseudo fragment after append: has
 shadow has append before child append: rgb(0, 0, 0)
-shadow has append after child append: rgb(0, 128, 0)
+shadow has append after child append: rgb(0, 0, 0)
 shadow has append after child remove: rgb(0, 0, 0)
-shadow has move old before moveBefore: rgb(0, 128, 0)
+shadow has move old before moveBefore: rgb(0, 0, 0)
 shadow has move new before moveBefore: rgb(0, 0, 0)
 shadow has move old after moveBefore: rgb(0, 0, 0)
-shadow has move new after moveBefore: rgb(0, 128, 0)
+shadow has move new after moveBefore: rgb(0, 0, 0)
 shadow has fragment before append: rgb(0, 0, 0)
-shadow has fragment after append: rgb(0, 128, 0)
+shadow has fragment after append: rgb(0, 0, 0)
 shadow has pseudo before child append: none
 shadow has pseudo after child append: shadow has
 shadow has pseudo after child remove: none
@@ -196,7 +196,7 @@ not-empty shadow host after light text mutation: shadow not empty
 not-empty shadow host before light text clear: shadow not empty
 not-empty shadow host after light text clear: none
 empty move target before moveBefore: rgb(0, 0, 0)
-empty move target after moveBefore: rgb(0, 0, 0)
+empty move target after moveBefore: rgb(0, 128, 0)
 dir auto before text mutation: rgb(0, 0, 0)
 dir auto after text mutation: rgb(0, 128, 0)
 dir pseudo before text mutation: none

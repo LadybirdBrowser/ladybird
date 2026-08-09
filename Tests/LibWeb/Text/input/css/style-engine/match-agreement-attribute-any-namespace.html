@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @namespace ns url(http://example.com/ns);
+    [ns|thing] { color: rgb(1, 2, 3) }
+    [*|thing] { background-color: rgb(4, 5, 6) }
+    [thing] { outline-color: rgb(7, 8, 9) }
+</style>
+<div id="namespaced">namespaced</div>
+<div id="plain" thing="x">plain</div>
+<script>
+    test(() => {
+        document.getElementById("namespaced").setAttributeNS("http://example.com/ns", "ns:thing", "x");
+        // Three selectors, three questions. `[ns|thing]` reaches only the attribute in that
+        // namespace, `[*|thing]` reaches it whatever namespace it is in, and `[thing]` reaches only
+        // an attribute in no namespace.
+        for (const id of ["namespaced", "plain"]) {
+            const style = getComputedStyle(document.getElementById(id));
+            println(`${id}: ${style.color} / ${style.backgroundColor} / ${style.outlineColor}`);
+        }
+        println(internals.styleEngineMatchedRules());
+    });
+</script>

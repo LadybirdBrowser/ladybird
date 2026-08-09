@@ -1,0 +1,7 @@
+alpha: rgb(1, 2, 3)
+beta: rgb(1, 2, 3)
+both: rgb(1, 2, 3)
+neither: rgb(0, 0, 0)
+elements matched by the disjunction: 3
+listed margin: 7px
+unlisted margin: 0px

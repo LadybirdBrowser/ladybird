@@ -118,6 +118,39 @@ define_memory_categories! {
     SelectorQuery => (Scratch, "selectorQuery"),
 }
 
+impl MemoryCategory {
+    /// Whether the Rust owner can immediately release this category when the controller selects it.
+    /// Externally owned acceleration, such as the parsed-substitution cache, instead evicts itself
+    /// when its next capacity settlement is refused.
+    #[must_use]
+    pub(super) fn is_controller_evictable(self) -> bool {
+        matches!(
+            self,
+            Self::RetainedWitness
+                | Self::FeaturePosting
+                | Self::SpecifiedValueTable
+                | Self::CascadeWinnerGroup
+                | Self::RetainedSelectorIncidence
+                | Self::RetainedMatchAnswer
+                | Self::PrefixTransitionCache
+                | Self::PrefixAnswerCache
+        )
+    }
+}
+
+/// Acceleration categories whose reservation refusals are exposed in memory-pressure reports.
+pub const TIER3_REFUSAL_CATEGORIES: [MemoryCategory; 9] = [
+    MemoryCategory::RetainedWitness,
+    MemoryCategory::FeaturePosting,
+    MemoryCategory::SpecifiedValueTable,
+    MemoryCategory::CascadeWinnerGroup,
+    MemoryCategory::RetainedSelectorIncidence,
+    MemoryCategory::RetainedMatchAnswer,
+    MemoryCategory::PrefixTransitionCache,
+    MemoryCategory::PrefixAnswerCache,
+    MemoryCategory::ParsedSubstitutionCache,
+];
+
 /// The sole document memory class exposed by the browser.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DeviceClass {
@@ -662,6 +695,7 @@ impl MemoryController {
         for (index, &category) in MEMORY_CATEGORIES.iter().enumerate() {
             if category == requester
                 || category.tier() != Tier::Acceleration
+                || !category.is_controller_evictable()
                 || self.charges.category_bytes[index].get() == 0
                 || self.benefit_hits[index] != 0
             {
@@ -1003,6 +1037,22 @@ mod tests {
         for _ in 0..64 {
             controller.record_benefit_lookup(MemoryCategory::PrefixTransitionCache, true);
         }
+        controller.record_benefit_lookup(MemoryCategory::RetainedMatchAnswer, true);
+        assert!(matches!(
+            controller.reserve(MemoryCategory::RetainedMatchAnswer, 64 * KIB),
+            ReservationOutcome::Refused { .. }
+        ));
+        assert_eq!(controller.eviction_candidate(MemoryCategory::RetainedMatchAnswer), None);
+    }
+
+    #[test]
+    fn tier_three_does_not_select_externally_owned_cache_for_eviction() {
+        let mut controller = controller(DeviceClass::ForegroundDesktop, 0, 0);
+        assert!(
+            controller
+                .reserve(MemoryCategory::ParsedSubstitutionCache, MIB)
+                .is_granted()
+        );
         controller.record_benefit_lookup(MemoryCategory::RetainedMatchAnswer, true);
         assert!(matches!(
             controller.reserve(MemoryCategory::RetainedMatchAnswer, 64 * KIB),

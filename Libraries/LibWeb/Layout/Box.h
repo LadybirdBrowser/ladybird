@@ -85,7 +85,7 @@ public:
             ++epoch;
     }
 
-    Box(DOM::Document&, GC::Ptr<DOM::Node>, NonnullRefPtr<CSS::ComputedValues const>);
+    Box(DOM::Document&, GC::Ptr<DOM::Node>, CSS::LayoutStyle);
 
 protected:
     virtual CSS::SizeWithAspectRatio compute_auto_content_box_size() const { return natural_size(); }

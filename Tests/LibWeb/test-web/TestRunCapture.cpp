@@ -44,7 +44,7 @@ TestRunCapture::TestRunCapture()
     };
     m_previous_on_process_exited = move(process_manager.on_process_exited);
     process_manager.on_process_exited = [this](WebView::Process&& process, Optional<int> exit_status) {
-        close_view_capture_notifiers(process.pid());
+        consume_view_capture(process);
         consume_helper_capture(process.pid());
         log_helper_message(
             { process.type(), process.pid() },
@@ -338,16 +338,28 @@ void TestRunCapture::consume_helper_capture(pid_t pid)
     helper_capture->stderr_notifier->close();
 }
 
-void TestRunCapture::close_view_capture_notifiers(pid_t pid)
+void TestRunCapture::consume_view_capture(WebView::Process& process)
 {
-    // The view-capture notifier callbacks reference Core::File objects owned by the
-    // WebView::Process, which is destroyed when the process exits; the deferred
-    // WebContentClient::die() path that destroys the capture can race that, so stop
-    // the notifiers as soon as the process is gone.
     for (auto& entry : m_test_output_captures) {
         auto& view_capture = *entry.value;
-        if (view_capture.web_content_pid != pid)
+        if (view_capture.web_content_pid != process.pid())
             continue;
+
+        auto& output_capture = process.output_capture();
+        if (view_capture.stdout_notifier)
+            view_capture.stdout_notifier->set_enabled(false);
+        if (view_capture.stderr_notifier)
+            view_capture.stderr_notifier->set_enabled(false);
+        if (output_capture.stdout_file) {
+            (void)drain_capture_output(*output_capture.stdout_file, true, [&view_capture](StringView message) {
+                view_capture.output.write(message);
+            });
+        }
+        if (output_capture.stderr_file) {
+            (void)drain_capture_output(*output_capture.stderr_file, true, [&view_capture](StringView message) {
+                view_capture.output.write(message);
+            });
+        }
         if (view_capture.stdout_notifier)
             view_capture.stdout_notifier->close();
         if (view_capture.stderr_notifier)

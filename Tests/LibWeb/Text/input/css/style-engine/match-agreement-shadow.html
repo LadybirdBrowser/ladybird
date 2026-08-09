@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>.outside { color: red } span { color: blue }</style>
+<div id="host"><span class="light">light</span></div>
+<script>
+    test(() => {
+        const root = document.getElementById("host").attachShadow({ mode: "open" });
+        root.innerHTML = `<style>.inside { color: green } span { color: teal } :host { color: gray }</style>
+                          <span class="inside outside">shadow</span><slot></slot>`;
+        // A sheet decides in the scopes it is attached to, so each tree is evaluated against its
+        // own: the shadow sheet's rules reach the elements in the shadow tree and `:host` reaches
+        // the host, while the document's author rules do not reach into the tree at all. The
+        // user-agent origin has no scope of its own and decides for every element in either.
+        println(internals.styleEngineMatchedRules());
+    });
+</script>

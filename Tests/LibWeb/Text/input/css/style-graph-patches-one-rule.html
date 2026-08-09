@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style id="sheet">
+    .a { color: rgb(1, 0, 0) }
+    .b { color: rgb(2, 0, 0) }
+    .c { color: rgb(3, 0, 0) }
+</style>
+<div id="target" tabindex="0"></div>
+<script>
+    test(() => {
+        const sheet = document.getElementById("sheet").sheet;
+        const target = document.getElementById("target");
+        document.body.offsetWidth;
+
+        // Editing a sheet moves one rule; the rules around it are untouched. Compiling the whole
+        // sheet again would retire every identity in it and turn a one-rule edit into a program
+        // change over all of them.
+        const before = internals.styleEngineCounters().styleRulesCompiled;
+        sheet.insertRule("#target:focus { color: rgb(0, 128, 0) }", 1);
+        println(`rules compiled by insertRule: ${internals.styleEngineCounters().styleRulesCompiled - before}`);
+
+        // The rule landed where it was asked to, and it routes.
+        target.focus();
+        println(`target colour: ${getComputedStyle(target).color}`);
+        println(`rule index 1: ${sheet.cssRules[1].selectorText}`);
+
+        // Its selector can change without the sheet being rebuilt, and the old selector stops
+        // reaching anything.
+        const beforeEdit = internals.styleEngineCounters().styleRulesCompiled;
+        sheet.cssRules[1].selectorText = "#target:focus, .unrelated";
+        println(`rules compiled by selectorText: ${internals.styleEngineCounters().styleRulesCompiled - beforeEdit}`);
+        println(`target colour after edit: ${getComputedStyle(target).color}`);
+
+        const beforeDelete = internals.styleEngineCounters().styleRulesCompiled;
+        sheet.deleteRule(1);
+        println(`rules compiled by deleteRule: ${internals.styleEngineCounters().styleRulesCompiled - beforeDelete}`);
+        println(`target colour after delete: ${getComputedStyle(target).color}`);
+    });
+</script>

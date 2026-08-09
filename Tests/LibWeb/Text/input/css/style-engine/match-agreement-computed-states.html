@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    [popover] { position: fixed; width: 100px; height: 100px }
+    :popover-open { background-color: rgb(1, 2, 3) }
+    dialog:focus-visible { outline-color: rgb(4, 5, 6) }
+</style>
+<div id="a" popover="manual"></div>
+<div id="b" popover="manual"></div>
+<dialog id="dialog"></dialog>
+<script>
+    test(() => {
+        // A state the engine decides from is a fact the element publishes, not something the engine
+        // asks for, so a state that moves without an attribute or a class moving has to say so.
+        // `:popover-open` moves when the popover is shown or hidden, and showing one again in the
+        // same task moves it twice.
+        a.showPopover();
+        b.showPopover();
+        document.body.offsetHeight;
+        a.hidePopover();
+        a.showPopover();
+        println("a display: " + getComputedStyle(a).display);
+        println("a background-color: " + getComputedStyle(a).backgroundColor);
+        println("b display: " + getComputedStyle(b).display);
+
+        // `:focus-visible` is not focus. It is focus the user agent has decided to indicate, and a
+        // dialog focused by `showModal()` is not that, so publishing the focus move as the state
+        // would put a focus ring on it.
+        dialog.showModal();
+        println("dialog outline-color: " + getComputedStyle(dialog).outlineColor);
+        println("dialog matches :focus: " + dialog.matches(":focus"));
+        println("dialog matches :focus-visible: " + dialog.matches(":focus-visible"));
+
+        for (const element of document.querySelectorAll("*"))
+            getComputedStyle(element).color;
+        println(internals.styleEngineMatchedRules());
+    });
+</script>

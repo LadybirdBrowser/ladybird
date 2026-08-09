@@ -96,7 +96,7 @@ public:
     virtual void set_dirty_value_flag(bool flag) override { m_dirty_value = flag; }
 
     bool user_validity() const { return m_user_validity; }
-    void set_user_validity(bool flag) { m_user_validity = flag; }
+    void set_user_validity(bool);
 
     u32 text_length() const;
 
@@ -150,7 +150,7 @@ private:
 
     virtual bool is_html_textarea_element() const final { return true; }
     virtual void visit_edges(Cell::Visitor&) override;
-    virtual RefPtr<Layout::Node> create_layout_node(NonnullRefPtr<CSS::ComputedValues const>) override;
+    virtual RefPtr<Layout::Node> create_layout_node(CSS::LayoutStyle) override;
 
     void set_raw_value(Utf16String);
 

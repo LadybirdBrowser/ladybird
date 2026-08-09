@@ -24,8 +24,6 @@
 
             println(`deep child color: ${getComputedStyle(current).color}`);
 
-            const counters = internals.getStyleInvalidationCounters();
-            println(`descendant slot scans stayed linear: ${counters.descendantSlotInvalidationSubtreeScans <= 1}`);
             done();
         }, 100);
     });

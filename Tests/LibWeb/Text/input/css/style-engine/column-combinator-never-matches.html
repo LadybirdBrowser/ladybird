@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .a || .b { color: rgb(1, 2, 3) }
+</style>
+<div class="a"><span class="b"></span></div>
+<script>
+    test(() => {
+        println(getComputedStyle(document.querySelector(".b")).color);
+    });
+</script>

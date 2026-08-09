@@ -15,7 +15,7 @@ class BreakNode final : public NodeWithStyle {
     LAYOUT_NODE(BreakNode, NodeWithStyle);
 
 public:
-    BreakNode(DOM::Document&, HTML::HTMLBRElement&, NonnullRefPtr<CSS::ComputedValues const>);
+    BreakNode(DOM::Document&, HTML::HTMLBRElement&, CSS::LayoutStyle);
     virtual ~BreakNode() override;
 
     HTML::HTMLBRElement const& dom_node() const { return as<HTML::HTMLBRElement>(*Node::dom_node()); }

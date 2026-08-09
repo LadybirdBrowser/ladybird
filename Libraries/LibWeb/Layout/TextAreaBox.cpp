@@ -8,7 +8,7 @@
 
 namespace Web::Layout {
 
-TextAreaBox::TextAreaBox(DOM::Document& document, GC::Ptr<DOM::Element> element, NonnullRefPtr<CSS::ComputedValues const> style)
+TextAreaBox::TextAreaBox(DOM::Document& document, GC::Ptr<DOM::Element> element, CSS::LayoutStyle style)
     : BlockContainer(document, element, style)
 {
 }
@@ -18,7 +18,7 @@ CSS::SizeWithAspectRatio TextAreaBox::compute_auto_content_box_size() const
     auto inline_size = CSS::Length(dom_node().cols(), CSS::LengthUnit::Ch).to_px(*this);
     auto block_size = CSS::Length(dom_node().rows(), CSS::LengthUnit::Lh).to_px(*this);
 
-    if (this->computed_values().writing_mode() != CSS::WritingMode::HorizontalTb)
+    if (writing_mode() != CSS::WritingMode::HorizontalTb)
         return { block_size, inline_size, {} };
 
     return { inline_size, block_size, {} };

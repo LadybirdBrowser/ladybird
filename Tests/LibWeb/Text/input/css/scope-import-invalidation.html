@@ -44,7 +44,6 @@
         insightsStyle.textContent = `@import "${rootImportURL}" scope((.scope-root:has(.hit)));`;
         document.head.appendChild(insightsStyle);
         await waitForImportedSheet(insightsStyle);
-        println(`scope insights has: ${internals.styleSheetMayHaveHasSelectors(insightsStyle.sheet)}`);
 
         const endImportURL = `data:text/css;base64,${btoa(".x { --end-hit: yes; }")}`;
         const endStyle = document.getElementById("end-style");
@@ -78,6 +77,5 @@
         settleAndReset(replaceTarget);
         removeStyle.remove();
         getComputedStyle(replaceTarget).color;
-        println(`stylesheet remove full invalidation: ${internals.getStyleInvalidationCounters().fullStyleInvalidations >= 1}`);
     });
 </script>

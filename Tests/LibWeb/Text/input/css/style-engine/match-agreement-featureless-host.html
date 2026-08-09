@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="host" class="thing"></div>
+<script>
+    test(() => {
+        const root = document.getElementById("host").attachShadow({ mode: "open" });
+        root.innerHTML = `<style>
+                              * { outline-color: rgb(1, 2, 3) }
+                              .thing { color: rgb(4, 5, 6) }
+                              div { color: rgb(7, 8, 9) }
+                              :host { color: rgb(10, 11, 12) }
+                              :host(.thing) { background-color: rgb(13, 14, 15) }
+                          </style>
+                          <span>shadow</span>`;
+        // https://drafts.csswg.org/css-scoping-1/#host-element-in-tree
+        // Considered within its own shadow trees, the host is featureless: only :host, :host() and
+        // :host-context() may match it. Its own class and tag name decide nothing there, and neither
+        // does `*`, even though the host is the element those rules are being asked about.
+        const host = document.getElementById("host");
+        println("color: " + getComputedStyle(host).color);
+        println("background-color: " + getComputedStyle(host).backgroundColor);
+        println("outline-color: " + getComputedStyle(host).outlineColor);
+        println(internals.styleEngineMatchedRules());
+    });
+</script>

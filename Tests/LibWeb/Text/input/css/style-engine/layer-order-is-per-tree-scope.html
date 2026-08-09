@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @layer base, theme;
+    @layer base { #outer { color: red } }
+    @layer theme { #outer { color: green } }
+</style>
+<div id="outer"></div>
+<div id="host"></div>
+<div id="shared-host-a"></div>
+<div id="shared-host-b"></div>
+<script>
+    test(() => {
+        const shadowRoot = document.getElementById("host").attachShadow({ mode: "open" });
+        shadowRoot.innerHTML = `
+            <style>
+                @layer theme, base;
+                @layer base { #inner { color: blue } }
+                @layer theme { #inner { color: yellow } }
+            </style>
+            <span id="inner"></span>
+        `;
+
+        println(`document: ${getComputedStyle(document.getElementById("outer")).color}`);
+        println(`shadow: ${getComputedStyle(shadowRoot.getElementById("inner")).color}`);
+
+        const sharedSheet = new CSSStyleSheet();
+        sharedSheet.replaceSync(`
+            @layer theme, base;
+            @layer base { .shared { color: blue } }
+            @layer theme { .shared { color: yellow } }
+        `);
+        for (const id of ["shared-host-a", "shared-host-b"]) {
+            const sharedRoot = document.getElementById(id).attachShadow({ mode: "open" });
+            sharedRoot.adoptedStyleSheets = [sharedSheet];
+            sharedRoot.innerHTML = "<span class='shared'></span>";
+            println(`${id}: ${getComputedStyle(sharedRoot.firstElementChild).color}`);
+        }
+
+        sharedSheet.replaceSync(".shared { color: purple }");
+        for (const id of ["shared-host-a", "shared-host-b"]) {
+            const sharedRoot = document.getElementById(id).shadowRoot;
+            println(`${id} unlayered: ${getComputedStyle(sharedRoot.firstElementChild).color}`);
+        }
+    });
+</script>

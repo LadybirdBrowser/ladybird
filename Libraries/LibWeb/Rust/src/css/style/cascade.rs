@@ -21,9 +21,13 @@
 //! the same cascade answer therefore share one state and retain only a compact handle. States in
 //! turn share property-range groups, so changing one winner does not copy every unaffected one.
 
+use super::capacity::ShallowCapacityBytes;
 use super::capacity::capacity_bytes;
 use super::column::BitColumn;
 use super::column::Column;
+use super::column::PagedColumn;
+use super::column::PagedColumnPage;
+use super::column::RemovablePagedColumnPage;
 use super::fast_hash::FastMap as HashMap;
 use super::fast_hash::fast_hasher;
 use super::intern_table::InternIdentity;
@@ -254,6 +258,7 @@ pub enum CascadeContinuationCeiling {
         important: bool,
         context: u32,
         layer: CascadeLayerID,
+        layer_rank: (u64, u64),
     },
 }
 
@@ -272,11 +277,18 @@ pub struct CascadeStratum {
     important: bool,
     context: u32,
     layer: CascadeLayerID,
+    layer_rank: (u64, u64),
 }
 
 impl CascadeStratum {
     #[must_use]
-    pub fn new(origin: CascadeOrigin, important: bool, context: u32, layer: CascadeLayerID) -> Self {
+    pub fn new(
+        origin: CascadeOrigin,
+        important: bool,
+        context: u32,
+        layer: CascadeLayerID,
+        layer_rank: (u64, u64),
+    ) -> Self {
         let origin_group = match origin {
             CascadeOrigin::UserAgent => 0,
             CascadeOrigin::User => 1,
@@ -290,6 +302,7 @@ impl CascadeStratum {
             important,
             context,
             layer,
+            layer_rank,
         }
     }
 
@@ -304,6 +317,7 @@ impl CascadeStratum {
                 important: self.important,
                 context: self.context,
                 layer: self.layer,
+                layer_rank: self.layer_rank,
             }),
             _ => None,
         }
@@ -317,10 +331,19 @@ impl CascadeStratum {
             } => self.origin_group != origin_group || self.important != important,
             CascadeContinuationCeiling::Layer {
                 origin,
-                important,
+                important: _,
                 context,
                 layer,
-            } => self.origin != origin || self.important != important || self.context != context || self.layer != layer,
+                layer_rank,
+            } => {
+                if self.origin != origin || self.context != context {
+                    return true;
+                }
+                if layer == CascadeLayerID::UNLAYERED {
+                    return false;
+                }
+                self.layer != CascadeLayerID::UNLAYERED && self.layer_rank < layer_rank
+            }
         }
     }
 }
@@ -391,14 +414,10 @@ where
         }
     }
 
-    #[must_use]
-    pub(super) fn capacity_bytes_for(capacity: usize) -> usize {
-        (capacity_bytes! {
-            shallow [];
-            cached [];
-            nested [capacity * (size_of::<Top1Winner<Key, Priority, Payload>>() + size_of::<(Key, usize)>() + 1)];
-            skip [];
-        }) as usize
+    pub(super) fn clear(&mut self) {
+        self.winners.clear();
+        self.winner_by_key.clear();
+        self.sorted = true;
     }
 
     /// Join one candidate into the top-1 relation. A later equal-priority row wins, matching
@@ -559,6 +578,136 @@ pub(super) enum WinnerGroupTokenGap {
     StaleGeneration { retained: u64, current: u64 },
 }
 
+const WINNER_RULE_PAGE_SHIFT: usize = 6;
+const WINNER_RULE_PAGE_SIZE: usize = 1 << WINNER_RULE_PAGE_SHIFT;
+
+struct WinnerRuleIndexPage {
+    entries: [u32; WINNER_RULE_PAGE_SIZE],
+}
+
+impl Default for WinnerRuleIndexPage {
+    fn default() -> Self {
+        Self {
+            entries: [u32::MAX; WINNER_RULE_PAGE_SIZE],
+        }
+    }
+}
+
+impl PagedColumnPage for WinnerRuleIndexPage {
+    type Value = u32;
+
+    const SHIFT: usize = WINNER_RULE_PAGE_SHIFT;
+
+    fn get(&self, index: usize) -> Option<u32> {
+        (self.entries[index] != u32::MAX).then_some(self.entries[index])
+    }
+
+    fn insert(&mut self, index: usize, value: u32) {
+        self.entries[index] = value;
+    }
+}
+
+impl RemovablePagedColumnPage for WinnerRuleIndexPage {
+    fn remove(&mut self, index: usize) -> Option<u32> {
+        let previous = self.get(index)?;
+        self.entries[index] = u32::MAX;
+        Some(previous)
+    }
+}
+
+#[derive(Clone, Copy)]
+struct WinnerRuleReferenceEntry {
+    rule: RuleID,
+    references: u64,
+}
+
+/// A safe dense-and-sparse set of rules whose declarations currently win somewhere.
+///
+/// The sparse index is paged instead of reading uninitialized memory. Rule identity ranges without
+/// winners allocate no page, while the dense entries keep reference-count updates cache-local.
+#[derive(Default)]
+struct WinnerRuleReferences {
+    indices: PagedColumn<WinnerRuleIndexPage>,
+    entries: Vec<WinnerRuleReferenceEntry>,
+    accounted_dense_len: usize,
+    accounted_dense_capacity: usize,
+}
+
+impl Clone for WinnerRuleReferences {
+    fn clone(&self) -> Self {
+        let mut clone = Self {
+            accounted_dense_len: self.accounted_dense_len,
+            accounted_dense_capacity: self.accounted_dense_capacity,
+            ..Self::default()
+        };
+        clone.entries.reserve(self.entries.len());
+        for &entry in &self.entries {
+            let index = u32::try_from(clone.entries.len()).expect("winner rule inventory exhausted");
+            clone.entries.push(entry);
+            clone.indices.insert(entry.rule.0 as usize, index);
+        }
+        clone
+    }
+}
+
+impl WinnerRuleReferences {
+    fn retain(&mut self, rule: RuleID) {
+        self.account_for_dense_rule(rule);
+        if let Some(index) = self.indices.get(rule.0 as usize) {
+            self.entries[index as usize].references += 1;
+            return;
+        }
+        let index = u32::try_from(self.entries.len()).expect("winner rule inventory exhausted");
+        self.entries.push(WinnerRuleReferenceEntry { rule, references: 1 });
+        let (previous, _) = self.indices.insert(rule.0 as usize, index);
+        debug_assert!(previous.is_none());
+    }
+
+    fn release(&mut self, rule: RuleID) {
+        self.account_for_dense_rule(rule);
+        let index = self
+            .indices
+            .get(rule.0 as usize)
+            .expect("a released winner rule must be retained") as usize;
+        self.entries[index].references -= 1;
+        if self.entries[index].references != 0 {
+            return;
+        }
+        self.indices.remove(rule.0 as usize);
+        self.entries.swap_remove(index);
+        if let Some(moved) = self.entries.get(index) {
+            self.indices.insert(moved.rule.0 as usize, index as u32);
+        }
+    }
+
+    fn contains(&self, rule: RuleID) -> bool {
+        self.indices.get(rule.0 as usize).is_some()
+    }
+
+    fn account_for_dense_rule(&mut self, rule: RuleID) {
+        let required = (rule.0 as usize)
+            .checked_add(1)
+            .expect("winner rule identity space exhausted");
+        if required <= self.accounted_dense_len {
+            return;
+        }
+        if required > self.accounted_dense_capacity {
+            self.accounted_dense_capacity = required.max(self.accounted_dense_capacity.saturating_mul(2)).max(4);
+        }
+        self.accounted_dense_len = required;
+    }
+}
+
+impl ShallowCapacityBytes for WinnerRuleReferences {
+    fn shallow_capacity_bytes(&self) -> u64 {
+        // Preserve the old dense column's memory admission decisions. Those decisions affect which
+        // correctness-neutral caches stay warm, so making this inventory physically smaller must
+        // not give an extreme page a larger effective cache budget.
+        let dense_bytes = (self.accounted_dense_capacity * size_of::<u64>()) as u64;
+        dense_bytes.max(self.indices.capacity_bytes() + self.entries.shallow_capacity_bytes())
+    }
+}
+
 /// Interned per-node winning declarations.
 ///
 /// Sparse and shared: never one heap object per property per element. A node retains one state
@@ -572,9 +721,11 @@ pub struct WinnerGroups {
     group_reference_counts: Vec<u32>,
     continuations: InternTable<CascadeContinuationID, CascadeContinuation>,
     winner_entry_count: usize,
-    winner_rule_reference_counts: Column<u64>,
+    winner_rule_references: WinnerRuleReferences,
     column: Column<Option<(CascadeStateID, ProgramVersion)>>,
     pseudo_rows: HashMap<(StyleNodeID, PseudoElementTarget), PseudoWinnerRow>,
+    pseudo_targets_by_node: Column<Vec<PseudoElementTarget>>,
+    pseudo_target_capacity_bytes: u64,
     priority_current: BitColumn,
     row_count: usize,
     priority_current_row_count: usize,
@@ -608,9 +759,11 @@ impl Default for WinnerGroups {
             group_reference_counts: Vec::new(),
             continuations: InternTable::default(),
             winner_entry_count: 0,
-            winner_rule_reference_counts: Column::default(),
+            winner_rule_references: WinnerRuleReferences::default(),
             column: Column::default(),
             pseudo_rows: HashMap::default(),
+            pseudo_targets_by_node: Column::default(),
+            pseudo_target_capacity_bytes: 0,
             priority_current: BitColumn::default(),
             row_count: 0,
             priority_current_row_count: 0,
@@ -632,6 +785,11 @@ impl WinnerGroups {
     }
 
     pub(super) fn verification_copy(&self) -> Self {
+        let pseudo_targets_by_node = self.pseudo_targets_by_node.clone();
+        let pseudo_target_capacity_bytes = pseudo_targets_by_node
+            .iter()
+            .map(|targets| targets.capacity() * size_of::<PseudoElementTarget>())
+            .sum::<usize>() as u64;
         Self {
             states: self.states.clone(),
             state_reference_counts: self.state_reference_counts.clone(),
@@ -639,9 +797,11 @@ impl WinnerGroups {
             group_reference_counts: self.group_reference_counts.clone(),
             continuations: self.continuations.clone(),
             winner_entry_count: self.winner_entry_count,
-            winner_rule_reference_counts: self.winner_rule_reference_counts.clone(),
+            winner_rule_references: self.winner_rule_references.clone(),
             column: self.column.clone(),
             pseudo_rows: self.pseudo_rows.clone(),
+            pseudo_targets_by_node,
+            pseudo_target_capacity_bytes,
             priority_current: self.priority_current.clone(),
             row_count: self.row_count,
             priority_current_row_count: self.priority_current_row_count,
@@ -693,7 +853,8 @@ impl WinnerGroups {
     /// Resolve one property's ordered contenders and intern only the continuation payloads needed
     /// by `revert` and `revert-layer` operators.
     pub fn resolve_candidates(&mut self, candidates: &mut [CascadeCandidate]) -> Option<PropertyWinner> {
-        candidates.sort_by_key(|candidate| candidate.winner.priority);
+        // CascadePriority is the total declaration order, so equal keys are interchangeable here.
+        candidates.sort_unstable_by_key(|candidate| candidate.winner.priority);
         self.resolve_candidates_below(candidates, &mut Vec::new())
     }
 
@@ -1081,6 +1242,9 @@ impl WinnerGroups {
         state: CascadeStateID,
         program_version: ProgramVersion,
     ) {
+        let Some(index) = node.element_index().map(|index| index as usize) else {
+            return;
+        };
         let key = (node, pseudo);
         if self
             .pseudo_rows
@@ -1090,8 +1254,15 @@ impl WinnerGroups {
             self.pseudo_rows.get_mut(&key).unwrap().priority_current = true;
             return;
         }
-        if let Some(previous) = self.pseudo_rows.remove(&key) {
-            self.release_state(previous.state.0);
+        match self.pseudo_rows.remove(&key) {
+            Some(previous) => self.release_state(previous.state.0),
+            None => {
+                self.pseudo_targets_by_node.ensure(index);
+                let capacity_before = self.pseudo_targets_by_node[index].capacity();
+                self.pseudo_targets_by_node[index].push(pseudo);
+                self.pseudo_target_capacity_bytes += ((self.pseudo_targets_by_node[index].capacity() - capacity_before)
+                    * size_of::<PseudoElementTarget>()) as u64;
+            }
         }
         self.pseudo_rows.insert(
             key,
@@ -1115,14 +1286,45 @@ impl WinnerGroups {
             }
         }
         self.set_priority_current(index, false);
-        let pseudo_states = self
-            .pseudo_rows
-            .extract_if(|(row_node, _), _| *row_node == node)
-            .map(|(_, row)| row.state.0)
-            .collect::<Vec<_>>();
-        for state in pseudo_states {
-            self.release_state(state);
+        if let Some(targets) = self.pseudo_targets_by_node.get_mut(index) {
+            let targets = std::mem::take(targets);
+            self.pseudo_target_capacity_bytes -= (targets.capacity() * size_of::<PseudoElementTarget>()) as u64;
+            for pseudo in targets {
+                if let Some(row) = self.pseudo_rows.remove(&(node, pseudo)) {
+                    self.release_state(row.state.0);
+                }
+            }
         }
+    }
+
+    /// Publish one node's interned cascade winner rows for another node with the same exact
+    /// selector answer and no element declarations.
+    pub(super) fn copy_node_rows(
+        &mut self,
+        source: StyleNodeID,
+        target: StyleNodeID,
+        program_version: ProgramVersion,
+        memory: &mut MemoryController,
+    ) -> Option<usize> {
+        let (_, state) = self
+            .token_for(WinnerGroupKey::current(source, program_version))
+            .sparse()
+            .ok()?;
+        let pseudo_states: Vec<_> = self.pseudo_states(source).collect();
+        let scratch_bytes = (pseudo_states.capacity()
+            * size_of::<(PseudoElementTarget, ProgramVersion, CascadeStateID, bool)>())
+            as u64;
+        memory.reserve_required(MemoryCategory::BatchScratch, scratch_bytes);
+        self.remove(target);
+        self.set(target, state, program_version);
+        for (pseudo, version, state, priority_current) in &pseudo_states {
+            self.set_pseudo(target, *pseudo, *state, *version);
+            if !priority_current {
+                self.mark_pseudo_inventory_incomplete(target, *pseudo);
+            }
+        }
+        memory.release(MemoryCategory::BatchScratch, scratch_bytes);
+        Some(1 + pseudo_states.len())
     }
 
     fn retain_state(&mut self, state: CascadeStateID) {
@@ -1172,12 +1374,10 @@ impl WinnerGroups {
     fn update_winner_rule_references(&mut self, mut winner: PropertyWinner, retain: bool) {
         loop {
             if let WinnerSource::Rule(rule) = winner.source {
-                let index = rule.0 as usize;
-                self.winner_rule_reference_counts.ensure(index);
                 if retain {
-                    self.winner_rule_reference_counts[index] += 1;
+                    self.winner_rule_references.retain(rule);
                 } else {
-                    self.winner_rule_reference_counts[index] -= 1;
+                    self.winner_rule_references.release(rule);
                 }
             }
             let Some(continuation) = self.continuation(winner.key.continuation) else {
@@ -1192,9 +1392,7 @@ impl WinnerGroups {
 
     #[must_use]
     pub fn rule_is_a_winner(&self, rule: RuleID) -> bool {
-        self.winner_rule_reference_counts
-            .get(rule.0 as usize)
-            .is_some_and(|&references| references != 0)
+        self.winner_rule_references.contains(rule)
     }
 
     fn priority_is_current(&self, index: usize) -> bool {
@@ -1326,9 +1524,27 @@ impl WinnerGroups {
         &self,
         node: StyleNodeID,
     ) -> impl Iterator<Item = (PseudoElementTarget, ProgramVersion, CascadeStateID, bool)> + '_ {
-        self.pseudo_rows.iter().filter_map(move |(&(row_node, pseudo), row)| {
-            (row_node == node).then_some((pseudo, row.state.1, row.state.0, row.priority_current))
+        let targets = node
+            .element_index()
+            .and_then(|index| self.pseudo_targets_by_node.get(index as usize))
+            .into_iter()
+            .flatten();
+        targets.filter_map(move |&pseudo| {
+            self.pseudo_rows
+                .get(&(node, pseudo))
+                .map(|row| (pseudo, row.state.1, row.state.0, row.priority_current))
         })
+    }
+
+    #[must_use]
+    pub(super) fn pseudo_state(
+        &self,
+        node: StyleNodeID,
+        pseudo: PseudoElementTarget,
+    ) -> Option<(ProgramVersion, CascadeStateID, bool)> {
+        self.pseudo_rows
+            .get(&(node, pseudo))
+            .map(|row| (row.state.1, row.state.0, row.priority_current))
     }
 
     pub(super) fn mark_pseudo_inventory_incomplete(&mut self, node: StyleNodeID, pseudo: PseudoElementTarget) {
@@ -1360,9 +1576,11 @@ impl WinnerGroups {
         self.group_reference_counts = Vec::new();
         self.continuations = InternTable::default();
         self.winner_entry_count = 0;
-        self.winner_rule_reference_counts = Column::default();
+        self.winner_rule_references = WinnerRuleReferences::default();
         self.column = Column::default();
         self.pseudo_rows = HashMap::default();
+        self.pseudo_targets_by_node = Column::default();
+        self.pseudo_target_capacity_bytes = 0;
         self.priority_current = BitColumn::default();
         self.row_count = 0;
         self.priority_current_row_count = 0;
@@ -1379,13 +1597,14 @@ impl WinnerGroups {
                 self.continuations,
                 self.column,
                 self.pseudo_rows,
+                self.pseudo_targets_by_node,
                 self.priority_current,
                 self.state_reference_counts,
                 self.group_reference_counts,
-                self.winner_rule_reference_counts,
+                self.winner_rule_references,
             ];
             cached [self.nested_residency.bytes()];
-            nested [];
+            nested [self.pseudo_target_capacity_bytes];
             skip [
                 self.residency,
                 self.generation,
@@ -1394,6 +1613,7 @@ impl WinnerGroups {
                 self.priority_current_row_count,
                 self.newest_program_version,
                 self.newest_version_row_count,
+                self.pseudo_target_capacity_bytes,
             ];
         }
     }
@@ -1625,7 +1845,7 @@ mod tests {
         winner.priority = CascadePriority::new(priority_inputs);
         CascadeCandidate {
             winner,
-            stratum: CascadeStratum::new(origin, important, 0, layer),
+            stratum: CascadeStratum::new(origin, important, 0, layer, (layer_rank, 0)),
         }
     }
 
@@ -1718,18 +1938,18 @@ mod tests {
         let mut groups = WinnerGroups::new();
         let mut candidates = [
             candidate(
-                10,
-                1,
-                CascadeOperator::RevertLayer,
+                20,
+                2,
+                CascadeOperator::Declared,
                 CascadeOrigin::Author,
-                true,
+                false,
                 CascadeLayerID(1),
                 1,
             ),
             candidate(
-                20,
-                2,
-                CascadeOperator::Declared,
+                10,
+                1,
+                CascadeOperator::RevertLayer,
                 CascadeOrigin::Author,
                 true,
                 CascadeLayerID(2),
@@ -1763,6 +1983,13 @@ mod tests {
         assert_eq!(top_1.winner(&2).map(|winner| winner.payload), Some("later tie"));
         assert!(top_1.winner(&3).is_none());
         assert_eq!(top_1.winners().map(|winner| winner.key).collect::<Vec<_>>(), vec![1, 2]);
+
+        let capacity_bytes = top_1.capacity_bytes();
+        top_1.clear();
+        assert_eq!(top_1.capacity_bytes(), capacity_bytes);
+        assert!(top_1.winners().next().is_none());
+        top_1.consider(3, 9, "reused");
+        assert_eq!(top_1.winner(&3).map(|winner| winner.payload), Some("reused"));
     }
 
     #[test]
@@ -1925,13 +2152,18 @@ mod tests {
         let mut groups = WinnerGroups::new();
         let first = groups.intern_sorted(&[winner(1, 1, 3), winner(2, 2, 5)], None);
         let second = groups.intern_sorted(&[winner(1, 3, 5)], None);
+        let sparse = groups.intern_sorted(&[winner(1, 4, 100_000)], None);
         let first_node = StyleNodeID::element(1);
         let second_node = StyleNodeID::element(2);
+        let sparse_node = StyleNodeID::element(3);
 
         groups.set(first_node, first, ProgramVersion(1));
         groups.set(second_node, first, ProgramVersion(1));
         assert!(groups.rule_is_a_winner(RuleID(3)));
         assert!(groups.rule_is_a_winner(RuleID(5)));
+        groups.set(sparse_node, sparse, ProgramVersion(1));
+        assert!(groups.rule_is_a_winner(RuleID(100_000)));
+        assert_eq!(groups.winner_rule_references.entries.len(), 3);
 
         groups.set(first_node, second, ProgramVersion(1));
         groups.remove(second_node);
@@ -1940,6 +2172,9 @@ mod tests {
 
         groups.remove(first_node);
         assert!(!groups.rule_is_a_winner(RuleID(5)));
+        groups.remove(sparse_node);
+        assert!(!groups.rule_is_a_winner(RuleID(100_000)));
+        assert!(groups.winner_rule_references.entries.is_empty());
     }
 
     #[test]

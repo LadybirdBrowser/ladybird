@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @scope (#root) to (.limit:focus) {
+        .target { color: rgb(0, 128, 0) }
+    }
+</style>
+<div id="root">
+    <div id="limit" class="limit" tabindex="0">
+        <span id="inner" class="target"></span>
+    </div>
+    <span id="outer" class="target"></span>
+</div>
+<script>
+    test(() => {
+        document.body.offsetWidth;
+        println(`inner before: ${getComputedStyle(document.getElementById("inner")).color}`);
+        println(`outer before: ${getComputedStyle(document.getElementById("outer")).color}`);
+
+        // An element becoming a scope limit takes itself and everything under it out of the scope,
+        // so the rules the scope holds have to be reconsidered there. The limit is not a constraint
+        // the compiled entry can express, but it still has to route.
+        document.getElementById("limit").focus();
+        println(`inner after: ${getComputedStyle(document.getElementById("inner")).color}`);
+        println(`outer after: ${getComputedStyle(document.getElementById("outer")).color}`);
+    });
+</script>
