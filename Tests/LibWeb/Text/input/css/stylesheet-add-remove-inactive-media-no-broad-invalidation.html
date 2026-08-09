@@ -8,12 +8,12 @@
         internals.resetStyleInvalidationCounters();
     }
 
-    function verifyNoFullRestyleWasScheduled(label) {
-        const invalidations = internals.getStyleInvalidationCounters().fullStyleInvalidations;
-        if (invalidations === 0)
+    function verifyNoBroadReactionWasPublished(label) {
+        const reactions = internals.getStyleInvalidationCounters().styleEnginePublishedReactions;
+        if (reactions <= 1)
             println(`PASS: ${label}`);
         else
-            println(`FAIL: ${label} (${invalidations} full invalidations)`);
+            println(`FAIL: ${label} (${reactions} reactions)`);
     }
 
     test(() => {
@@ -21,20 +21,20 @@
         settleAndReset(target);
 
         const inactiveStyle = document.createElement("style");
-        // This sheet still contains a non-style rule that would require broad
-        // invalidation if it were active, so keeping the counter at zero proves
-        // we only consider effective rules after media evaluation.
+        // This sheet still contains a non-style rule that would publish broad
+        // reactions if it were active, so keeping the counter at zero proves we
+        // only consider effective rules after media evaluation.
         inactiveStyle.media = "print";
         inactiveStyle.textContent = "@layer B, A;";
         document.head.appendChild(inactiveStyle);
 
         getComputedStyle(target).color;
-        verifyNoFullRestyleWasScheduled("inactive media stylesheet add does not schedule full restyle");
+        verifyNoBroadReactionWasPublished("inactive media stylesheet add publishes no broad reactions");
 
         settleAndReset(target);
         inactiveStyle.remove();
 
         getComputedStyle(target).color;
-        verifyNoFullRestyleWasScheduled("inactive media stylesheet remove does not schedule full restyle");
+        verifyNoBroadReactionWasPublished("inactive media stylesheet remove publishes no broad reactions");
     });
 </script>

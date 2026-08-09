@@ -26,7 +26,7 @@ void SVGFEFloodElement::visit_edges(Cell::Visitor& visitor)
     SVGFilterPrimitiveStandardAttributes::visit_edges(visitor);
 }
 
-RefPtr<Layout::Node> SVGFEFloodElement::create_layout_node(NonnullRefPtr<CSS::ComputedValues const> style)
+RefPtr<Layout::Node> SVGFEFloodElement::create_layout_node(CSS::LayoutStyle style)
 {
     return make_ref_counted<Layout::SVGBox>(document(), *this, style);
 }
@@ -34,15 +34,17 @@ RefPtr<Layout::Node> SVGFEFloodElement::create_layout_node(NonnullRefPtr<CSS::Co
 // https://www.w3.org/TR/filter-effects-1/#FloodColorProperty
 Gfx::Color SVGFEFloodElement::flood_color()
 {
-    VERIFY(computed_values());
-    return computed_values()->flood_color();
+    auto style = computed_style();
+    VERIFY(style);
+    return style->flood_color();
 }
 
 // https://www.w3.org/TR/filter-effects-1/#FloodOpacityProperty
 float SVGFEFloodElement::flood_opacity() const
 {
-    VERIFY(computed_values());
-    return computed_values()->flood_opacity();
+    auto style = computed_style();
+    VERIFY(style);
+    return style->flood_opacity();
 }
 
 }

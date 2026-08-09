@@ -1,2 +1,3 @@
-PASS: layer-only stylesheet add schedules full restyle (1 full invalidations)
-PASS: layer-only stylesheet remove schedules full restyle (1 full invalidations)
+PASS: layer-only stylesheet add restyles nothing but itself
+PASS: layer-only stylesheet remove restyles nothing but itself
+PASS: layer reorder reaches the layered element

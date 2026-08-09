@@ -9,6 +9,8 @@
 #include <LibJS/Runtime/ExternalMemory.h>
 #include <LibUnicode/Segmenter.h>
 #include <LibWeb/CSS/Invalidation/LanguageInvalidator.h>
+#include <LibWeb/CSS/PseudoClass.h>
+#include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/DOM/CharacterData.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/MutationType.h>
@@ -153,6 +155,13 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
     if (m_data == old_data)
         return {};
 
+    // A text node holding nothing leaves its parent `:empty`, so data arriving in it or leaving it
+    // moves the parent's emptiness without any node being created or destroyed.
+    if (is<Text>(*this) && old_data.is_empty() != m_data.is_empty()) {
+        if (auto* parent = as_if<Element>(parent_node()))
+            CSS::record_element_emptiness_changed(*parent, *this, !old_data.is_empty(), !m_data.is_empty());
+    }
+
     // NB: Called during DOM text mutation, layout is stale.
     if (is<Text>(*this)) {
         if (is<Layout::TextSliceNode>(unsafe_layout_node())) {
@@ -181,7 +190,10 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
     if (m_word_segmenter)
         m_word_segmenter->set_segmented_text(m_data);
 
-    CSS::Invalidation::invalidate_style_after_text_directionality_change(*this);
+    if (is<Text>(*this)) {
+        if (auto parent = parent_element())
+            CSS::Invalidation::invalidate_style_after_text_change_under(*parent);
+    }
 
     return {};
 }

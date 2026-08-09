@@ -33,8 +33,7 @@
 
         const countersAfterNoHasMutation = internals.getStyleInvalidationCounters();
         println("[cold shadow roots without :has()]");
-        println(`  hasInvalidationRuleCacheBuilds: ${countersAfterNoHasMutation.hasInvalidationRuleCacheBuilds}`);
-        println(`  hasAncestorWalkInvocations: ${countersAfterNoHasMutation.hasAncestorWalkInvocations}`);
+        println(`  elementStyleRecomputations: ${countersAfterNoHasMutation.elementStyleRecomputations}`);
 
         const hasSheet = new CSSStyleSheet();
         hasSheet.replaceSync(":host(:has(.target)) { color: red; }");
@@ -53,7 +52,6 @@
 
         const countersAfterHasMutation = internals.getStyleInvalidationCounters();
         println("[cold shadow root with :has()]");
-        println(`  hasInvalidationRuleCacheBuilds: ${countersAfterHasMutation.hasInvalidationRuleCacheBuilds}`);
-        println(`  hasAncestorWalkInvocations: ${countersAfterHasMutation.hasAncestorWalkInvocations}`);
+        println(`  elementStyleRecomputations: ${countersAfterHasMutation.elementStyleRecomputations}`);
     });
 </script>

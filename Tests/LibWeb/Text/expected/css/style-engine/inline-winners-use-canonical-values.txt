@@ -1,0 +1,6 @@
+cascade states cover the elements: true
+inline values share identities: true
+computed dependencies consume winner deltas: true
+equal semantic winners stop: true
+equal winners emit no computed dependency rows: true
+ordinary item: rgb(0, 0, 0)

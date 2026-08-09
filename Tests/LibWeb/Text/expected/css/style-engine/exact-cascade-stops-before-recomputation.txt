@@ -1,0 +1,11 @@
+exact cascade stopped: 1
+unchanged style reactions: 0
+unchanged color: rgb(255, 0, 0)
+changed style reactions: 1
+changed color: rgb(0, 0, 255)
+pseudo cascade stopped: 1
+pseudo style reactions: 0
+pseudo content: "same"
+state cascade stopped: 1
+unchanged state reactions: 0
+state background: rgb(0, 128, 0)

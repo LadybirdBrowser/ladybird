@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="plan.js"></script>
+<style id="present">
+    .item { color: green }
+</style>
+<div id="guard">
+    <span id="item" class="item"></span>
+    <span id="bare"></span>
+</div>
+<div id="host"><span id="slottee" class="item"></span></div>
+<div id="dispatch">
+    <span id="by-id"></span>
+    <b id="by-tag"></b>
+    <span id="by-attr" data-flag="on"></span>
+</div>
+<script>
+    test(() => {
+        // A sheet arriving invalidates no existing selector truth: the region is the candidates of
+        // the rules it brings. A sheet of rules that name a class reaches only the elements
+        // carrying it, and a sheet whose rules match nothing present reaches nothing.
+        let added;
+        plan("attach a sheet naming .item", () => { added = addStyleSheet(".item { font-weight: bold }"); });
+        plan("detach it", () => added.remove());
+        plan("attach a sheet naming nothing present", () => { added = addStyleSheet(".nobody { font-weight: bold }"); });
+        plan("detach that one", () => added.remove());
+
+        // What a sheet reaches is decided by what its rules dispatch on, so each kind of
+        // distinguishing feature has to drive the same narrowing. A rule with none of them - `*`, a
+        // bare negation - has nothing to enumerate by and is the one case that widens.
+        plan("attach a sheet naming an id", () => { added = addStyleSheet("#by-id { font-weight: bold }"); });
+        plan("detach the id sheet", () => added.remove());
+        plan("attach a sheet naming a tag", () => { added = addStyleSheet("b { font-weight: bold }"); });
+        plan("detach the tag sheet", () => added.remove());
+        plan("attach a sheet naming an attribute", () => { added = addStyleSheet("[data-flag] { font-weight: bold }"); });
+        plan("detach the attribute sheet", () => added.remove());
+        plan("attach a sheet naming everything", () => { added = addStyleSheet("* { font-weight: bold }"); });
+        plan("detach the universal sheet", () => added.remove());
+        plan("attach a sheet whose only rule is a negation", () => { added = addStyleSheet(":not(.item) { font-weight: bold }"); });
+        plan("detach the negation sheet", () => added.remove());
+
+        // A sheet of many rules reaches the union of what its rules reach, and nothing for the ones
+        // that match nothing.
+        plan("attach a sheet of several rules, some matching", () => {
+            added = addStyleSheet(".item { font-weight: bold } .nobody { color: red } #by-id { color: red }");
+        });
+        plan("detach the several-rule sheet", () => added.remove());
+
+        // Two sheets arriving before anything is observed are one transaction, and a sheet that
+        // arrives and leaves again in one is a sheet that never decided anything.
+        plan("attach two sheets at once", () => {
+            addStyleSheet(".item { font-weight: bold }").id = "two-a";
+            addStyleSheet("#by-id { font-weight: bold }").id = "two-b";
+        });
+        plan("detach both at once", () => {
+            document.getElementById("two-a").remove();
+            document.getElementById("two-b").remove();
+        });
+        // A sheet that arrives and leaves again in one transaction decided nothing, so it reaches
+        // nothing: its attachment cancels in the journal, and a sheet attached nowhere has no rules
+        // that could have won anything.
+        plan("attach and detach a sheet in one transaction", () => addStyleSheet(".item { color: red }").remove());
+
+        // A sheet that contributes nothing right now reaches nothing when its rules arrive: a rule
+        // behind a group whose condition does not hold decides nothing, so neither its arrival nor
+        // an edit to it while it is gated can move anything. The condition itself moving is what
+        // reaches the elements the rule names, from whichever side it moved.
+        plan("attach a sheet behind a media query that does not match", () => {
+            added = addStyleSheet("@media (width < 1px) { .item { font-weight: bold } } ");
+        });
+        plan("insert a rule into the group whose condition does not hold", () => {
+            added.sheet.cssRules[0].insertRule(".item { color: red }", 0);
+        });
+        plan("turn the condition on", () => { added.sheet.cssRules[0].media.mediaText = "all"; });
+        plan("turn it off again", () => { added.sheet.cssRules[0].media.mediaText = "(width < 1px)"; });
+        plan("detach it", () => added.remove());
+
+        // Replacing the text of a `style` element replaces the sheet's whole program, so both the
+        // rules that left and the rules that arrived have to be reached.
+        const present = document.getElementById("present");
+        plan("replace a sheet's text with rules naming the same element", () => {
+            present.textContent = ".item { color: blue }";
+        });
+        plan("replace it with rules naming nothing present", () => {
+            present.textContent = ".nobody { color: blue }";
+        });
+        plan("replace it with rules naming .item again", () => {
+            present.textContent = ".item { color: green }";
+        });
+
+        // A sheet's `media` attribute is an activation predicate over the whole sheet. Turning it
+        // off takes every rule's declarations away, and turning it on brings them back.
+        plan("gate a sheet behind a media query that does not match", () => {
+            present.setAttribute("media", "(width < 1px)");
+        });
+        plan("ungate it", () => present.removeAttribute("media"));
+
+        // Disabling a sheet takes its declarations away wherever they were winning.
+        plan("disable a sheet", () => present.sheet.disabled = true);
+
+        // While a sheet is disabled its rules decide nothing, so editing them reaches nothing.
+        plan("insert a rule into the disabled sheet", () => present.sheet.insertRule(".bare { color: red }", 0));
+        plan("delete it again", () => present.sheet.deleteRule(0));
+        plan("enable it again", () => present.sheet.disabled = false);
+
+        // An adopted sheet is announced by nothing but the array it goes into.
+        const constructed = new CSSStyleSheet();
+        constructed.replaceSync(".item { font-style: italic }");
+        plan("adopt a constructed sheet", () => document.adoptedStyleSheets = [constructed]);
+
+        // `replaceSync` on an adopted sheet replaces its program in every scope that adopted it.
+        plan("replaceSync it onto another selector", () => constructed.replaceSync(".bare { font-style: italic }"));
+        plan("replaceSync it back", () => constructed.replaceSync(".item { font-style: italic }"));
+        plan("unadopt it", () => document.adoptedStyleSheets = []);
+
+        // Re-inserting a `<style>` element builds a whole new sheet rather than reattaching the old
+        // one, so a subtree holding one that leaves and comes back in a single transaction leaves a
+        // detached sheet behind with all its rules still recorded as having arrived. What those rules
+        // reach is the scope the sheet was attached to when they arrived, not the whole document.
+        const holder = document.getElementById("dispatch");
+        const held = document.createElement("style");
+        held.textContent = "#by-tag { font-style: italic }";
+        holder.appendChild(held);
+        plan("detach and reattach a subtree holding a sheet", () => {
+            holder.remove();
+            document.body.appendChild(holder);
+        });
+
+        // A sheet adopted into a shadow root decides inside that scope and nowhere else, so a rule
+        // naming `.item` reaches the element inside the scope and not the light-DOM ones.
+        const host = document.getElementById("host");
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        shadowRoot.innerHTML = "<slot></slot><span id='inner' class='item'></span>";
+        const scoped = new CSSStyleSheet();
+        scoped.replaceSync(".item { font-weight: bold }");
+        plan("adopt a sheet into a shadow root", () => shadowRoot.adoptedStyleSheets = [scoped]);
+        plan("unadopt it from the shadow root", () => shadowRoot.adoptedStyleSheets = []);
+
+        // The same sheet object can be adopted by several scopes at once. It decides in each of
+        // them, so it has to stop deciding in exactly the one it leaves.
+        plan("adopt one sheet into two scopes", () => {
+            document.adoptedStyleSheets = [scoped];
+            shadowRoot.adoptedStyleSheets = [scoped];
+        });
+        plan("unadopt it from the document only", () => document.adoptedStyleSheets = []);
+        plan("unadopt it from the shadow root too", () => shadowRoot.adoptedStyleSheets = []);
+
+        // Adopting the same sheet twice in one array is one attachment, not two.
+        plan("adopt the same sheet twice over", () => document.adoptedStyleSheets = [scoped, scoped]);
+        plan("unadopt the doubled sheet", () => document.adoptedStyleSheets = []);
+
+        // A shadow root gives up its place in the style tree when it disconnects and retakes it when
+        // it comes back. An empty shadow tree has no child whose relations would ask for that place,
+        // so a scope whose root was left behind is one the engine could no longer bound: the sheet
+        // adopted into it would have to be answered for with the whole document.
+        const emptyHost = document.createElement("div");
+        emptyHost.className = "item";
+        document.body.appendChild(emptyHost);
+        const emptyRoot = emptyHost.attachShadow({ mode: "open" });
+        const roundTripped = new CSSStyleSheet();
+        roundTripped.replaceSync(":host(.nobody) { color: red }");
+        emptyRoot.adoptedStyleSheets = [roundTripped];
+        plan("detach and reattach a host with an empty shadow tree", () => {
+            emptyHost.remove();
+            document.body.appendChild(emptyHost);
+        });
+        plan("edit its adopted sheet after the round trip", () => roundTripped.insertRule(":host(.item) { color: blue }", 0));
+
+        // The constructs a scope reaches out of are exactly `:host`, `::slotted()` and `::part()`,
+        // so a sheet using them names the host and the elements slotted into it as well. They have no
+        // feature to enumerate by, so what bounds them is the scope itself: a sheet attached to a
+        // shadow root reaches that tree, its host, and the nodes slotted into it, and nothing else.
+        const reaching = new CSSStyleSheet();
+        reaching.replaceSync(":host { color: red } ::slotted(.item) { color: red }");
+        plan("adopt a sheet reaching out of its scope", () => shadowRoot.adoptedStyleSheets = [reaching]);
+        plan("unadopt the reaching sheet", () => shadowRoot.adoptedStyleSheets = []);
+
+        // Attaching a shadow root numbers its scope without putting anything in it, so a sheet
+        // adopted straight afterwards names a scope holding no element the engine has an identity
+        // for. That is the ordinary shape of a custom element: attach, adopt, then fill. It decides
+        // nothing yet, and the elements that arrive later are reached by their own arrival.
+        const freshHost = document.createElement("div");
+        document.body.appendChild(freshHost);
+        const freshRoot = freshHost.attachShadow({ mode: "open" });
+        const componentSheet = new CSSStyleSheet();
+        componentSheet.replaceSync(".widget { color: red }");
+        plan("adopt a sheet into a shadow root nothing has entered yet", () => {
+            freshRoot.adoptedStyleSheets = [componentSheet];
+        });
+
+        // Once the tree has elements in it, the same sheet reaches them and no further.
+        plan("fill the shadow tree", () => freshRoot.innerHTML = "<span id='widget' class='widget'></span>");
+        plan("edit the adopted sheet now that the tree is populated", () => {
+            componentSheet.insertRule(".widget { font-weight: bold }", 0);
+        });
+
+        // A sheet using `:host` in a scope nothing has entered still reaches the host, which lives
+        // in the outer tree and does have an identity.
+        const hostReaching = new CSSStyleSheet();
+        hostReaching.replaceSync(":host { color: green }");
+        const emptierHost = document.createElement("div");
+        document.body.appendChild(emptierHost);
+        const emptierRoot = emptierHost.attachShadow({ mode: "open" });
+        plan("adopt a :host sheet into an unentered shadow root", () => {
+            emptierRoot.adoptedStyleSheets = [hostReaching];
+        });
+
+        // A host that has not taken its place in the style tree is one a `:host` rule cannot reach
+        // either, because the tree it heads hangs off nothing. Building a component before putting
+        // it in the document is the ordinary way to arrive here, and the host computes its style
+        // from scratch when it is finally inserted.
+        const detachedHost = document.createElement("div");
+        const detachedRoot = detachedHost.attachShadow({ mode: "open" });
+        const detachedSheet = new CSSStyleSheet();
+        detachedSheet.replaceSync(":host { color: red } .inside { color: red }");
+        plan("adopt a :host sheet into a shadow root whose host is not in the document", () => {
+            detachedRoot.adoptedStyleSheets = [detachedSheet];
+        });
+        plan("put that host in the document", () => document.body.appendChild(detachedHost));
+    });
+</script>

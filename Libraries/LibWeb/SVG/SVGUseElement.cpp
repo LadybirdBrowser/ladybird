@@ -214,10 +214,11 @@ Gfx::AffineTransform SVGUseElement::element_transform() const
         if (auto view_box = svg_svg_element->active_view_box(); view_box.has_value())
             viewport_size = { CSSPixels::nearest_value_for(view_box->width), CSSPixels::nearest_value_for(view_box->height) };
         else if (auto svg_svg_layout_node = svg_svg_element->unsafe_layout_node())
-            viewport_size = { svg_svg_layout_node->computed_values().width().to_px(0), svg_svg_layout_node->computed_values().height().to_px(0) };
+            viewport_size = { svg_svg_layout_node->width().to_px(0), svg_svg_layout_node->height().to_px(0) };
     }
 
-    auto computed_values = this->computed_values();
+    auto computed_values = this->computed_style();
+    VERIFY(computed_values);
 
     auto x = computed_values->x().to_px(viewport_size.width()).to_float();
     auto y = computed_values->y().to_px(viewport_size.height()).to_float();
@@ -395,7 +396,7 @@ GC::Ptr<SVGElement> SVGUseElement::instance_root() const
     return const_cast<DOM::ShadowRoot&>(*shadow_root()).first_child_of_type<SVGElement>();
 }
 
-RefPtr<Layout::Node> SVGUseElement::create_layout_node(NonnullRefPtr<CSS::ComputedValues const> style)
+RefPtr<Layout::Node> SVGUseElement::create_layout_node(CSS::LayoutStyle style)
 {
     return make_ref_counted<Layout::SVGGraphicsBox>(document(), *this, style);
 }

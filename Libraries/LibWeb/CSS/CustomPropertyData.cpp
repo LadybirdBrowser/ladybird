@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Atomic.h>
 #include <LibWeb/CSS/CustomPropertyData.h>
 #include <LibWeb/CSS/CustomPropertyRegistration.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
@@ -12,13 +13,16 @@
 
 namespace Web::CSS {
 
+static Atomic<u64> s_next_custom_property_data_identity { 1 };
 static constexpr u8 max_ancestor_count = 32;
 static constexpr size_t absorb_threshold = 8;
 
-CustomPropertyData::CustomPropertyData(OrderedHashMap<Utf16FlyString, StyleProperty> own_values, RefPtr<CustomPropertyData const> parent, u8 ancestor_count)
+CustomPropertyData::CustomPropertyData(OrderedHashMap<Utf16FlyString, StyleProperty> own_values, RefPtr<CustomPropertyData const> parent, u8 ancestor_count, size_t declared_count)
     : m_own_values(move(own_values))
     , m_parent(move(parent))
     , m_ancestor_count(ancestor_count)
+    , m_declared_count(declared_count)
+    , m_identity(s_next_custom_property_data_identity.fetch_add(1, AK::MemoryOrder::memory_order_relaxed))
 {
     Vector<String> names;
     names.ensure_capacity(m_own_values.size());
@@ -49,8 +53,9 @@ NonnullRefPtr<CustomPropertyData> CustomPropertyData::create(
     RefPtr<CustomPropertyData const> parent,
     CustomPropertyData::AllowParentOwnValueAbsorption allow_parent_own_value_absorption)
 {
+    auto declared_count = own_values.size();
     if (!parent)
-        return adopt_ref(*new CustomPropertyData(move(own_values), nullptr, 0));
+        return adopt_ref(*new CustomPropertyData(move(own_values), nullptr, 0, declared_count));
 
     if (allow_parent_own_value_absorption == AllowParentOwnValueAbsorption::Yes) {
         // If parent chain is too deep, flatten by copying all ancestor values into own.
@@ -58,7 +63,7 @@ NonnullRefPtr<CustomPropertyData> CustomPropertyData::create(
             parent->for_each_property([&](Utf16FlyString const& name, StyleProperty const& property) {
                 own_values.ensure(name, [&] { return property; });
             });
-            return adopt_ref(*new CustomPropertyData(move(own_values), nullptr, 0));
+            return adopt_ref(*new CustomPropertyData(move(own_values), nullptr, 0, declared_count));
         }
 
         // If parent has few own values, absorb them to shorten the chain.
@@ -67,12 +72,12 @@ NonnullRefPtr<CustomPropertyData> CustomPropertyData::create(
                 own_values.ensure(name, [&] { return property; });
             auto grandparent = parent->m_parent;
             u8 ancestor_count = grandparent ? grandparent->m_ancestor_count + 1 : 0;
-            return adopt_ref(*new CustomPropertyData(move(own_values), move(grandparent), ancestor_count));
+            return adopt_ref(*new CustomPropertyData(move(own_values), move(grandparent), ancestor_count, declared_count));
         }
     }
 
     u8 ancestor_count = parent->m_ancestor_count + 1;
-    return adopt_ref(*new CustomPropertyData(move(own_values), move(parent), ancestor_count));
+    return adopt_ref(*new CustomPropertyData(move(own_values), move(parent), ancestor_count, declared_count));
 }
 
 StyleProperty const* CustomPropertyData::get(Utf16FlyString const& name) const

@@ -1,0 +1,3 @@
+before: 50px
+after enable: 10px
+after disable: 50px

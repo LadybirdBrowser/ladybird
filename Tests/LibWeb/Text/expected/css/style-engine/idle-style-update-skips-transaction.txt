@@ -1,0 +1,5 @@
+idle transaction setups: 0
+changed transaction setups: 1
+changed color: rgb(0, 128, 0)
+animation transaction setups: 0
+animated opacity: 0.5

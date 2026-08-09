@@ -6,7 +6,9 @@
  */
 
 #include <LibJS/Runtime/VM.h>
+#include <LibWeb/Bindings/Performance.h>
 #include <LibWeb/Bindings/PerformanceMeasure.h>
+#include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/EventDispatcher.h>
@@ -79,6 +81,10 @@ double Performance::now() const
 // https://w3c.github.io/user-timing/#mark-method
 WebIDL::ExceptionOr<GC::Ref<UserTiming::PerformanceMark>> Performance::mark(Utf16String const& mark_name, Bindings::PerformanceMarkOptions const& mark_options)
 {
+    auto& realm = relevant_global_object().shape().realm();
+    if (is<HTML::Window>(realm.global_object()))
+        as<HTML::Window>(realm.global_object()).associated_document().style_computer().style_engine().record_benchmark_marker(mark_name);
+
     // 1. Run the PerformanceMark constructor and let entry be the newly created object.
     auto entry = TRY(UserTiming::PerformanceMark::create_for_constructor(relevant_global_object(), mark_name, mark_options));
 

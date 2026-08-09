@@ -1,0 +1,4 @@
+losing route rejected: 1
+only sentinel invalidated: true
+ordinary item: rgb(0, 0, 0)
+sentinel: rgb(0, 128, 0)

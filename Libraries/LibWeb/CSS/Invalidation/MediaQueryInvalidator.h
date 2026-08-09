@@ -14,6 +14,6 @@ class Document;
 
 namespace Web::CSS::Invalidation {
 
-void evaluate_media_rules_and_invalidate_style(DOM::Document&);
+void evaluate_media_rules_and_publish_conditions(DOM::Document&);
 
 }

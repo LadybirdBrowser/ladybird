@@ -1,0 +1,2 @@
+target: rgb(0, 0, 0)
+other: rgb(0, 128, 0)

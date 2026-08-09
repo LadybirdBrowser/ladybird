@@ -1,0 +1,2 @@
+PASS: elements declaring a transition share a style: true
+PASS: every one of them starts a transition afterwards: true

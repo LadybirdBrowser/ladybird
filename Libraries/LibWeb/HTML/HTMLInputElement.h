@@ -72,7 +72,7 @@ class WEB_API HTMLInputElement final
 public:
     virtual ~HTMLInputElement() override;
 
-    virtual RefPtr<Layout::Node> create_layout_node(NonnullRefPtr<CSS::ComputedValues const>) override;
+    virtual RefPtr<Layout::Node> create_layout_node(CSS::LayoutStyle) override;
     virtual void set_being_activated(bool) override;
 
     enum class TypeAttributeState {
@@ -101,7 +101,7 @@ public:
     virtual void set_dirty_value_flag(bool flag) override { m_dirty_value = flag; }
 
     bool user_validity() const { return m_user_validity; }
-    void set_user_validity(bool flag) { m_user_validity = flag; }
+    void set_user_validity(bool);
 
     void commit_pending_changes();
     bool has_uncommitted_changes() { return m_has_uncommitted_changes; }

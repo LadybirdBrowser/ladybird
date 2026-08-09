@@ -5,7 +5,6 @@ option(ENABLE_UNDEFINED_SANITIZER "Enable undefined behavior sanitizer testing i
 option(UNDEFINED_BEHAVIOR_IS_FATAL "Make undefined behavior sanitizer errors non-recoverable" OFF)
 
 option(ENABLE_ALL_THE_DEBUG_MACROS "Enable all debug macros to validate they still compile" OFF)
-option(ENABLE_STYLE_RECORDING "Compile the StyleEngine record-replay capture machinery" OFF)
 
 option(INCLUDE_WASM_SPEC_TESTS "Download and include the WebAssembly spec testsuite" OFF)
 

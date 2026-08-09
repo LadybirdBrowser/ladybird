@@ -27,15 +27,20 @@ bool HTMLHtmlElement::should_use_body_background_properties() const
     // properties from the <body> element to the initial containing block, the viewport, or the canvas background, is
     // disabled. Notably, this affects:
     // - 'background' and its longhands (see CSS Backgrounds 3 § 2.11.2 The Canvas Background and the HTML <body> Element)
-    if (!computed_values()->contain().is_empty())
+    auto has_containment = [](DOM::Element const& element) {
+        auto const* values = element.style_group<CSS::ComputedValues::BoxValues>();
+        VERIFY(values);
+        return values->size_containment || values->inline_size_containment || values->layout_containment || values->style_containment || values->paint_containment;
+    };
+    if (has_containment(*this))
         return false;
 
     auto* body_element = first_child_of_type<HTML::HTMLBodyElement>();
-    if (body_element && !body_element->computed_values()->contain().is_empty())
+    if (body_element && has_containment(*body_element))
         return false;
 
     // NB: Called during rendering, reading background properties.
-    auto background_color = unsafe_layout_node()->computed_values().background_color();
+    auto background_color = unsafe_layout_node()->background_color();
     auto const& background_layers = unsafe_layout_node()->background_layers();
 
     return !any_of(background_layers, [](auto const& layer) { return layer.background_image != nullptr; }) && background_color == Color::Transparent;

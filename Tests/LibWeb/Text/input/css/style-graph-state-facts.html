@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="outer"><input id="target" type="checkbox"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        document.body.offsetWidth;
+
+        // Focus moves between nodes, so the invalidator visits exactly the elements whose fact
+        // changed: the one that gains it, and the one that loses it.
+        const before = internals.styleEngineCounters();
+        target.focus();
+        document.body.offsetWidth;
+        const afterFocus = internals.styleEngineCounters();
+
+        target.blur();
+        document.body.offsetWidth;
+        const afterBlur = internals.styleEngineCounters();
+
+        println(`focusing records a state fact: ${afterFocus.stateDeltas > before.stateDeltas}`);
+        println(`blurring records another: ${afterBlur.stateDeltas > afterFocus.stateDeltas}`);
+        println(`no scope markers: ${afterBlur.coarsenedScopeMarkers === 0}`);
+    });
+</script>

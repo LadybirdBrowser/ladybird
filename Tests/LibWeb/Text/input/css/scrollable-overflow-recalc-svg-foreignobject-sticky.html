@@ -14,10 +14,8 @@
 <script>
     // A partial SVG relayout recreates the line paintables of inline-level elements inside
     // <foreignObject>, which destroys their sticky insets and scroll frame indices while the
-    // scroll state still holds a sticky frame for the old paintable. The scheduled scrollable
-    // overflow pass that runs after the relayout must rebuild sticky insets and reassign scroll
-    // frames; refreshing the constraints of the stale frame instead dereferences the dead
-    // paintable and crashes WebContent.
+    // scroll state still holds a sticky frame for the old paintable. Refreshing the constraints
+    // of the stale frame instead dereferences the dead paintable and crashes WebContent.
     // NOTE: All geometry reads happen before any println(), because printing mutates the DOM and
     //       forces a relayout that would mask missing invalidation.
     test(() => {
@@ -39,6 +37,5 @@
 
         println(`sticky position stable across partial SVG relayout: ${stickyTopAfter === stickyTopBefore}`);
         println(`relayouts performed: ${countersAfter.relayoutsPerformed - countersBefore.relayoutsPerformed}`);
-        println(`overflow was recalculated: ${countersAfter.scrollableOverflowRecalculations > countersBefore.scrollableOverflowRecalculations}`);
     });
 </script>

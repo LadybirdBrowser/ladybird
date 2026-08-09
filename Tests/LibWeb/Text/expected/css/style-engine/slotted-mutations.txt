@@ -1,0 +1,4 @@
+disable the slotted element: [slotted]
+mark the slotted element: [slotted]
+disable an element outside the host: [outside]
+mark an element outside the host: [outside]

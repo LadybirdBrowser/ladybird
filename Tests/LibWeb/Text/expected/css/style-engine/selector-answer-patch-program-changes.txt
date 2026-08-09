@@ -1,0 +1,10 @@
+retargeted color: rgb(0, 128, 0)
+restored selector color: rgb(0, 0, 255)
+inserted rule color: rgb(255, 0, 0)
+answer patches: 5
+answer reuses: 4
+cold node evaluations: 0
+invalidated nodes: 4
+deleted rule color: rgb(0, 0, 255)
+selector-list winner color: rgb(0, 0, 255)
+removed selector-list winner color: rgb(0, 128, 0)

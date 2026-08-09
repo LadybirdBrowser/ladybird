@@ -1,0 +1,2 @@
+spans under the guard: 3
+plan: wholeDocument=false elements=guard,qualified

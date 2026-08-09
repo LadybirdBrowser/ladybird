@@ -1,0 +1,13 @@
+descendant work is document-scale invariant: true
+descendant publishes fixed style changes: true
+descendant has no unattributed work: true
+sibling work is document-scale invariant: true
+sibling publishes fixed style changes: true
+sibling has no unattributed work: true
+positional work is document-scale invariant: true
+positional publishes fixed style changes: true
+positional has no unattributed work: true
+relational work is document-scale invariant: true
+relational publishes fixed style changes: true
+relational has no unattributed work: true
+largest unrelated population: 4096

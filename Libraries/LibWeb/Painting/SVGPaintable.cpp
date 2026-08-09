@@ -27,7 +27,7 @@ Layout::SVGBox const& SVGPaintable::layout_box() const
 bool SVGPaintable::contributes_to_clip_path() const
 {
     // If a child element is made invisible by display or visibility it does not contribute to the clipping path.
-    return computed_values().visibility() == CSS::Visibility::Visible && !display().is_none();
+    return layout_node().visibility() == CSS::Visibility::Visible && !display().is_none();
 }
 
 // https://drafts.csswg.org/css-masking-1/#ClipPathElement
@@ -75,7 +75,7 @@ CSSPixelRect SVGPaintable::compute_absolute_rect() const
 
 Gfx::ShouldAntiAlias SVGPaintable::should_anti_alias() const
 {
-    auto shape_rendering = computed_values().shape_rendering();
+    auto shape_rendering = layout_node().shape_rendering();
     if (first_is_one_of(shape_rendering, CSS::ShapeRendering::Optimizespeed, CSS::ShapeRendering::Crispedges))
         return Gfx::ShouldAntiAlias::No;
     return Gfx::ShouldAntiAlias::Yes;

@@ -1,0 +1,5 @@
+with the function defined: 10px
+with the definition deleted: 784px
+with a definition restored by rule: 30px
+with the definition deleted again: 784px
+with a definition restored by sheet: 50px

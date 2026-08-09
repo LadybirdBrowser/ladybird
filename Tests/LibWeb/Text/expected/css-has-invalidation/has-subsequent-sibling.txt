@@ -1,7 +1,1 @@
 [add .match to non-adjacent later sibling]
-  hasAncestorWalkInvocations: 1
-  hasAncestorWalkVisits: 2
-  hasMatchInvocations: 1
-  hasResultCacheHits: 0
-  hasResultCacheMisses: 1
-  styleInvalidations: 1

@@ -96,8 +96,6 @@ static BatchingDispatcher& batching_dispatcher()
 
 static bool image_element_dimensions_may_depend_on_intrinsic_size(Layout::ImageBox const& image_box)
 {
-    auto const& computed_values = image_box.computed_values();
-
     auto size_is_definite = [](CSS::Size const& size) {
         return size.is_length() || (size.is_calculated() && !size.contains_percentage());
     };
@@ -105,18 +103,18 @@ static bool image_element_dimensions_may_depend_on_intrinsic_size(Layout::ImageB
         return size.is_none() || size_is_definite(size);
     };
 
-    auto const& width = computed_values.width();
-    auto const& height = computed_values.height();
+    auto const& width = image_box.width();
+    auto const& height = image_box.height();
     if (!size_is_definite(width) || !size_is_definite(height))
         return true;
 
-    auto const& min_width = computed_values.min_width();
-    auto const& min_height = computed_values.min_height();
+    auto const& min_width = image_box.min_width();
+    auto const& min_height = image_box.min_height();
     if (!size_is_definite(min_width) || !size_is_definite(min_height))
         return true;
 
-    auto const& max_width = computed_values.max_width();
-    auto const& max_height = computed_values.max_height();
+    auto const& max_width = image_box.max_width();
+    auto const& max_height = image_box.max_height();
     if (!size_constraint_is_definite_or_none(max_width) || !size_constraint_is_definite_or_none(max_height))
         return true;
 
@@ -241,7 +239,7 @@ void HTMLImageElement::set_dimension_attribute_source(DOM::Element const* source
 {
     if (m_dimension_attribute_source.ptr() != source) {
         m_dimension_attribute_source = source;
-        set_needs_style_update(true);
+        document().style_computer().style_engine().record_element_style_input_change(style_node_id());
     }
 }
 
@@ -317,10 +315,13 @@ void HTMLImageElement::form_associated_element_attribute_changed(Utf16FlyString 
     }
 }
 
-RefPtr<Layout::Node> HTMLImageElement::create_layout_node(NonnullRefPtr<CSS::ComputedValues const> style)
+RefPtr<Layout::Node> HTMLImageElement::create_layout_node(CSS::LayoutStyle style)
 {
-    if (renders_as_alt_text() && !alt().is_empty())
-        return Element::create_layout_node_for_display_type(document(), style->display(), style, this);
+    if (renders_as_alt_text() && !alt().is_empty()) {
+        auto computed_style = this->computed_style();
+        VERIFY(computed_style);
+        return Element::create_layout_node_for_display_type(document(), computed_style->display(), style, this);
+    }
     return make_ref_counted<Layout::ImageBox>(document(), *this, style, *this);
 }
 
@@ -840,7 +841,7 @@ void HTMLImageElement::update_the_image_data_impl(bool restart_animations, bool 
 
             // AD-HOC: Invalidate synchronously here. The image data is already available — so a paint taken before the
             //         task below runs must still reflect it (otherwise, reftest screenshots can capture the old image).
-            set_needs_style_update(true);
+            document().style_computer().style_engine().record_element_style_input_change(style_node_id());
             set_needs_layout_update_or_repaint_after_image_data_change(DOM::SetNeedsLayoutReason::HTMLImageElementUpdateTheImageData);
 
             // 7. Queue an element task on the DOM manipulation task source given the img element and following steps:
@@ -1147,7 +1148,7 @@ void HTMLImageElement::add_callbacks_to_image_request(GC::Ref<ImageRequest> imag
                 document().list_of_available_images().add(key, *image_data, true);
                 document().prune_image_resource_caches();
 
-                set_needs_style_update(true);
+                document().style_computer().style_engine().record_element_style_input_change(style_node_id());
                 set_needs_layout_update_or_repaint_after_image_data_change(DOM::SetNeedsLayoutReason::HTMLImageElementUpdateTheImageData);
 
                 // 4. If maybe omit events is not set or previousURL is not equal to urlString, then fire an event named load at the img element.
@@ -1305,7 +1306,7 @@ void HTMLImageElement::react_to_changes_in_the_environment()
             // 6. Prepare image request for presentation given the img element.
             image_request->prepare_for_presentation(*this);
             // FIXME: This is ad-hoc, updating the layout here should probably be handled by prepare_for_presentation().
-            set_needs_style_update(true);
+            document().style_computer().style_engine().record_element_style_input_change(style_node_id());
             set_needs_layout_update_or_repaint_after_image_data_change(DOM::SetNeedsLayoutReason::HTMLImageElementReactToChangesInTheEnvironment);
 
             // 7. Fire an event named load at the img element.

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="target"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const animation = target.animate(
+            [{ transform: "translateX(0px)" }, { transform: "translateX(100px)" }],
+            { duration: 1000, fill: "both" });
+        animation.pause();
+        animation.currentTime = 0;
+        internals.updateStyle();
+
+        const before = internals.styleEngineCounters();
+        for (let time = 100; time < 1000; time += 100) {
+            animation.currentTime = time;
+            internals.updateStyle();
+        }
+        const sampled = internals.styleEngineCounters();
+
+        println(`permanent style records added: ${sampled.styleRecordsInterned - before.styleRecordsInterned}`);
+        println(`permanent metadata added: ${sampled.computedFixedMetadataInterned - before.computedFixedMetadataInterned}`);
+        println(`overlay slots added: ${sampled.animationOverlaySlotsAllocated - before.animationOverlaySlotsAllocated}`);
+        println(`overlay records updated: ${sampled.animationOverlayRecordsUpdated - before.animationOverlayRecordsUpdated}`);
+        println(`live overlay records: ${sampled.liveAnimationOverlayRecords}`);
+
+        target.remove();
+        internals.updateStyle();
+        const removed = internals.styleEngineCounters();
+        println(`overlay slots released: ${removed.animationOverlaySlotsReleased - sampled.animationOverlaySlotsReleased}`);
+        println(`live overlays after removal: ${removed.liveAnimationOverlayRecords}`);
+
+        const style = document.createElement("style");
+        style.textContent = `
+            #pseudo-target::after {
+                content: "";
+                display: block;
+            }
+        `;
+        document.head.append(style);
+
+        const pseudoTarget = document.createElement("div");
+        pseudoTarget.id = "pseudo-target";
+        document.body.append(pseudoTarget);
+        internals.updateStyle();
+
+        const inheritedAnimation = pseudoTarget.animate({ color: ["red", "green"] }, { duration: 1000, fill: "forwards" });
+        inheritedAnimation.pause();
+        inheritedAnimation.currentTime = 500;
+        internals.updateStyle();
+        document.body.offsetWidth;
+        inheritedAnimation.currentTime = 1000;
+        internals.updateStyle();
+
+        style.remove();
+        internals.updateStyle();
+        println("animated pseudo-element style survives removal");
+    });
+</script>

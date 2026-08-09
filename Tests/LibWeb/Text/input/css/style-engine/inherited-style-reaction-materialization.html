@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #declares-color { color: rgb(255, 0, 0); }
+    #em-margin { margin-left: 2em; }
+    #bordered { border: 2px solid; }
+</style>
+<div id="host">
+    <div><div><div id="plain">plain</div></div></div>
+    <div id="declares-color">declares color</div>
+    <div id="em-margin">em margin</div>
+    <div id="bordered">bordered</div>
+</div>
+<script>
+    test(() => {
+        const host = document.getElementById("host");
+        const plain = document.getElementById("plain");
+        const declaresColor = document.getElementById("declares-color");
+        const emMargin = document.getElementById("em-margin");
+
+        getComputedStyle(plain).color;
+        internals.updateStyle();
+        internals.resetStyleInvalidationCounters();
+        const graphBefore = internals.styleEngineCounters();
+
+        // An inherited color change flows to fully inheriting descendants and leaves an element
+        // that declares its own color alone. A default border color is currentcolor, so the
+        // bordered element's border must follow the color it inherits.
+        host.style.color = "rgb(0, 128, 0)";
+        internals.updateStyle();
+        println(`plain color: ${getComputedStyle(plain).color}`);
+        println(`declared color: ${getComputedStyle(declaresColor).color}`);
+        println(`border color: ${getComputedStyle(document.getElementById("bordered")).borderTopColor}`);
+
+        let counters = internals.getStyleInvalidationCounters();
+        println(`inherited recomputations: ${counters.elementInheritedStyleRecomputations}`);
+        println(`complete reactions materialized: ${counters.elementStyleRecomputations >= counters.elementInheritedStyleRecomputations}`);
+        const graphAfter = internals.styleEngineCounters();
+        println(`complete reactions publish inherited handles: ${graphAfter.inheritedGroupNodeHandlesPublished - graphBefore.inheritedGroupNodeHandlesPublished >= counters.elementInheritedStyleRecomputations}`);
+        println(`complete reactions publish style records: ${graphAfter.styleRecordNodeHandlesPublished - graphBefore.styleRecordNodeHandlesPublished >= counters.elementInheritedStyleRecomputations}`);
+
+        // An inherited font-size change must still recompute the element whose margin is declared
+        // in em, so its declared value is re-resolved against the new font size.
+        internals.resetStyleInvalidationCounters();
+        host.style.fontSize = "20px";
+        internals.updateStyle();
+        println(`em margin after font-size change: ${getComputedStyle(emMargin).marginLeft}`);
+        println(`plain font-size: ${getComputedStyle(plain).fontSize}`);
+
+        counters = internals.getStyleInvalidationCounters();
+        println(`inherited recomputations: ${counters.elementInheritedStyleRecomputations}`);
+        println(`complete reactions materialized: ${counters.elementStyleRecomputations >= counters.elementInheritedStyleRecomputations}`);
+    });
+</script>

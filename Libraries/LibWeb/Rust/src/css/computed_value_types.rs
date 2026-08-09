@@ -374,7 +374,6 @@ pub struct SVGResetValues {
     pub flood_color: u32,
     pub flood_opacity: f32,
     pub vector_effect: u8,
-    pub shape_rendering: u8,
 }
 
 // Registered indices of the style groups the computed-values view reads,

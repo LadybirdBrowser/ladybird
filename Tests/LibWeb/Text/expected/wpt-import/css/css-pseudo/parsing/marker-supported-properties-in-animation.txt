@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 96 tests
 
-45 Pass
-51 Fail
+46 Pass
+50 Fail
 Pass	Animation of font in ::marker
 Pass	Animation of font-family in ::marker
 Fail	Animation of font-feature-settings in ::marker
@@ -70,7 +70,7 @@ Pass	Transition of font-variant-east-asian in ::marker
 Pass	Transition of font-variant-ligatures in ::marker
 Pass	Transition of font-variant-numeric in ::marker
 Pass	Transition of font-variant-position in ::marker
-Fail	Transition of font-weight in ::marker
+Pass	Transition of font-weight in ::marker
 Pass	Transition of line-height in ::marker
 Pass	Transition of white-space in ::marker
 Pass	Transition of color in ::marker

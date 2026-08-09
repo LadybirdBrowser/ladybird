@@ -13,6 +13,7 @@
 //! table of weak references; each entry carries its slot index and the C++
 //! shell resolves a slot back to the source objects on demand.
 
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::hash::BuildHasherDefault;
@@ -72,7 +73,13 @@ struct Entry {
     source_shadow_root_identity: usize,
     /// Index into the C++ shell's table of GC-weak declaration sources.
     source_slot: u32,
+    /// The entry this property had before this one, or `NO_ENTRY`. A property keeps its entries as a
+    /// chain through the one arena rather than as a vector of its own, so an element that declares a
+    /// hundred properties allocates once rather than a hundred times.
+    previous_for_property: u32,
 }
+
+const NO_ENTRY: u32 = u32::MAX;
 
 const CONTAINED_BITMAP_WORDS: usize = (LAST_LONGHAND_PROPERTY_ID as usize + 1).div_ceil(64);
 
@@ -96,24 +103,41 @@ impl Hasher for PropertyIdHasher {
 }
 
 pub struct CascadedPropertyStore {
-    entries: HashMap<u16, Vec<Entry>, BuildHasherDefault<PropertyIdHasher>>,
+    /// Every entry the cascade stored, in the order it stored them.
+    arena: Vec<Entry>,
+    /// The last entry each property has, which is the head of its chain.
+    last_entry_index: HashMap<u16, u32, BuildHasherDefault<PropertyIdHasher>>,
     next_cascade_index: u64,
     next_source_slot: u32,
     free_source_slots: Vec<u32>,
     /// One bit per longhand property identifier, so the hot "is there any
     /// cascaded value at all" checks skip the hash map.
     contained: [u64; CONTAINED_BITMAP_WORDS],
+    retained_seeded: [u64; CONTAINED_BITMAP_WORDS],
 }
 
 impl CascadedPropertyStore {
     fn new() -> Self {
         Self {
-            entries: HashMap::default(),
+            arena: Vec::new(),
+            last_entry_index: HashMap::default(),
             next_cascade_index: 0,
             next_source_slot: 0,
             free_source_slots: Vec::new(),
             contained: [0; CONTAINED_BITMAP_WORDS],
+            retained_seeded: [0; CONTAINED_BITMAP_WORDS],
         }
+    }
+
+    /// Empties the store while keeping what it allocated to hold its entries.
+    fn reset(&mut self) {
+        self.arena.clear();
+        self.last_entry_index.clear();
+        self.free_source_slots.clear();
+        self.next_cascade_index = 0;
+        self.next_source_slot = 0;
+        self.contained = [0; CONTAINED_BITMAP_WORDS];
+        self.retained_seeded = [0; CONTAINED_BITMAP_WORDS];
     }
 
     fn contains(&self, property_id: u16) -> bool {
@@ -132,20 +156,39 @@ impl CascadedPropertyStore {
         }
     }
 
+    fn is_retained_seeded(&self, property_id: u16) -> bool {
+        let index = property_id as usize;
+        self.retained_seeded[index / 64] & (1 << (index % 64)) != 0
+    }
+
+    pub(crate) fn seed_retained_property(
+        &mut self,
+        property_id: u16,
+        value: RetainedStyleValueData,
+        important: bool,
+        has_style_sheet_context: bool,
+    ) -> u32 {
+        let slot = self.set_property(
+            property_id,
+            value,
+            has_style_sheet_context,
+            important,
+            CascadeOrigin::Author,
+            LayerName(None),
+            0,
+        );
+        let index = property_id as usize;
+        self.retained_seeded[index / 64] |= 1 << (index % 64);
+        u32::try_from(slot).expect("a fresh retained property allocates a source slot")
+    }
+
     fn last_entry(&self, property_id: u16) -> Option<&Entry> {
         if !self.contains(property_id) {
             return None;
         }
-        self.entries.get(&property_id).and_then(|entries| entries.last())
-    }
-
-    fn allocate_source_slot(&mut self) -> u32 {
-        if let Some(slot) = self.free_source_slots.pop() {
-            return slot;
-        }
-        let slot = self.next_source_slot;
-        self.next_source_slot += 1;
-        slot
+        self.last_entry_index
+            .get(&property_id)
+            .and_then(|index| self.arena.get(*index as usize))
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -164,8 +207,23 @@ impl CascadedPropertyStore {
         let cascade_index = self.next_cascade_index;
         self.next_cascade_index += 1;
 
-        let entries = self.entries.entry(property_id).or_default();
-        for entry in entries.iter_mut().rev() {
+        // The bucket is found once and then both read and appended to: a cascade applies as many
+        // declarations as an element matches, and finding it twice was one of two hash lookups per
+        // declaration. The source slot is taken from its own fields rather than through
+        // `allocate_source_slot`, which would want the whole store while the bucket is held.
+        let Self {
+            arena,
+            last_entry_index,
+            next_source_slot,
+            free_source_slots,
+            ..
+        } = self;
+        // The chain runs newest first, so this walks it exactly as scanning a property's entries in
+        // reverse did.
+        let head = last_entry_index.entry(property_id).or_insert(NO_ENTRY);
+        let mut current = *head;
+        while current != NO_ENTRY {
+            let entry = &mut arena[current as usize];
             if entry.origin == origin
                 && entry.layer_name.equals(&layer_name)
                 && entry.source_shadow_root_identity == source_shadow_root_identity
@@ -179,10 +237,16 @@ impl CascadedPropertyStore {
                 entry.cascade_index = cascade_index;
                 return entry.source_slot as i64;
             }
+            current = entry.previous_for_property;
         }
 
-        let source_slot = self.allocate_source_slot();
-        self.entries.get_mut(&property_id).unwrap().push(Entry {
+        let source_slot = free_source_slots.pop().unwrap_or_else(|| {
+            let slot = *next_source_slot;
+            *next_source_slot += 1;
+            slot
+        });
+        let index = u32::try_from(arena.len()).expect("cascaded entry space exhausted");
+        arena.push(Entry {
             value,
             has_style_sheet_context,
             important,
@@ -191,7 +255,9 @@ impl CascadedPropertyStore {
             layer_name,
             source_shadow_root_identity,
             source_slot,
+            previous_for_property: *head,
         });
+        *head = index;
         source_slot as i64
     }
 
@@ -206,6 +272,31 @@ impl CascadedPropertyStore {
                 entry.has_style_sheet_context,
             )
         })
+    }
+
+    pub(crate) fn winning_declarations(
+        &self,
+    ) -> impl Iterator<Item = (u16, *const StyleValueData, CascadeOrigin)> + '_ {
+        self.contained
+            .iter()
+            .enumerate()
+            .flat_map(|(word_index, &word)| {
+                let mut remaining = word;
+                std::iter::from_fn(move || {
+                    if remaining == 0 {
+                        return None;
+                    }
+                    let bit = remaining.trailing_zeros() as usize;
+                    remaining &= remaining - 1;
+                    Some(u16::try_from(word_index * u64::BITS as usize + bit).unwrap())
+                })
+            })
+            .filter_map(|property| {
+                self.last_entry_index
+                    .get(&property)
+                    .and_then(|&index| self.arena.get(index as usize))
+                    .map(|entry| (property, entry.value.pointer(), entry.origin))
+            })
     }
 
     /// Returns whichever of the two properties has the higher-priority winning
@@ -225,13 +316,37 @@ impl CascadedPropertyStore {
     }
 
     fn remove_matching_entries(&mut self, property_id: u16, mut matches: impl FnMut(&Entry) -> bool) {
-        let Some(entries) = self.entries.get_mut(&property_id) else {
+        let Some(&head) = self.last_entry_index.get(&property_id) else {
             return;
         };
-        entries.retain(|entry| !matches(entry));
-        if entries.is_empty() {
-            self.entries.remove(&property_id);
+        // The decisions are taken first because `matches` reads an entry while relinking writes one.
+        let mut chain = Vec::new();
+        let mut current = head;
+        while current != NO_ENTRY {
+            chain.push((current, matches(&self.arena[current as usize])));
+            current = self.arena[current as usize].previous_for_property;
+        }
+        let mut new_head = NO_ENTRY;
+        let mut newest_survivor = NO_ENTRY;
+        for &(index, removed) in &chain {
+            if removed {
+                continue;
+            }
+            if newest_survivor == NO_ENTRY {
+                new_head = index;
+            } else {
+                self.arena[newest_survivor as usize].previous_for_property = index;
+            }
+            newest_survivor = index;
+        }
+        if newest_survivor != NO_ENTRY {
+            self.arena[newest_survivor as usize].previous_for_property = NO_ENTRY;
+        }
+        if new_head == NO_ENTRY {
+            self.last_entry_index.remove(&property_id);
             self.set_contained(property_id, false);
+        } else {
+            self.last_entry_index.insert(property_id, new_head);
         }
     }
 
@@ -278,15 +393,41 @@ impl CascadedPropertyStore {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_cascaded_properties_create() -> *mut CascadedPropertyStore {
-    abort_on_panic(|| Box::into_raw(Box::new(CascadedPropertyStore::new())))
+    abort_on_panic(|| {
+        // A store lives exactly as long as the computation of one element's style, and a style pass
+        // builds one per element. Recycling the emptied ones keeps the arena's capacity and the
+        // map's buckets, so only the first few elements of a pass allocate at all. The store itself
+        // is still created and destroyed as C++ asks, so nothing about its lifetime changes.
+        let store = STORE_POOL
+            .with_borrow_mut(Vec::pop)
+            .unwrap_or_else(CascadedPropertyStore::new);
+        Box::into_raw(Box::new(store))
+    })
 }
+
+thread_local! {
+    static STORE_POOL: RefCell<Vec<CascadedPropertyStore>> = const { RefCell::new(Vec::new()) };
+}
+
+/// How many emptied stores are kept. A pass uses one at a time, so this only has to cover the
+/// nesting a computation can reach.
+const STORE_POOL_CAPACITY: usize = 4;
 
 /// # Safety
 /// `store` must be a pointer returned by `rust_cascaded_properties_create` that has not been
 /// destroyed yet; no references into the store may outlive this call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_cascaded_properties_destroy(store: *mut CascadedPropertyStore) {
-    abort_on_panic(|| drop(unsafe { Box::from_raw(store) }));
+    abort_on_panic(|| {
+        let mut store = unsafe { Box::from_raw(store) };
+        STORE_POOL.with_borrow_mut(|pool| {
+            if pool.len() >= STORE_POOL_CAPACITY {
+                return;
+            }
+            store.reset();
+            pool.push(*store);
+        });
+    });
 }
 
 /// Returns a borrowed pointer to the winning declaration's Rust-owned style value data, or null.
@@ -375,7 +516,7 @@ fn apply_declaration_block(
     unset_data: *const c_void,
     is_property_disallowed: &dyn Fn(u16) -> bool,
     resolve_unresolved: &dyn Fn(u16, *const c_void) -> FfiResolvedStyleValue,
-    parse_substituted: &dyn Fn(u16, &[u8]) -> FfiResolvedStyleValue,
+    parse_substituted: &dyn Fn(u16, *const c_void, &[u8]) -> FfiResolvedStyleValue,
     custom_property_store: *const c_void,
     custom_property_registry: *const c_void,
     mut assign_source_slot: impl FnMut(u32),
@@ -407,12 +548,12 @@ fn apply_declaration_block(
             };
             match native_resolution {
                 crate::css::custom_properties::NativeVarResolution::Resolved(source) => {
-                    let resolved = parse_substituted(declaration.property_id, &source);
+                    let resolved = parse_substituted(declaration.property_id, declaration.data, &source);
                     data = resolved.data;
                     has_style_sheet_context = resolved.has_style_sheet_context;
                 }
                 crate::css::custom_properties::NativeVarResolution::Invalid => {
-                    let resolved = parse_substituted(declaration.property_id, &[]);
+                    let resolved = parse_substituted(declaration.property_id, declaration.data, &[]);
                     data = resolved.data;
                     has_style_sheet_context = resolved.has_style_sheet_context;
                 }
@@ -454,6 +595,9 @@ fn apply_declaration_block(
             data,
             has_style_sheet_context,
             &mut |longhand_id, longhand_data, longhand_has_style_sheet_context| {
+                if store.is_retained_seeded(longhand_id) {
+                    return;
+                }
                 if is_property_disallowed(longhand_id) {
                     return;
                 }
@@ -534,6 +678,8 @@ pub struct FfiCascadeBlock {
     pub source_shadow_root_identity: usize,
     /// Index into the C++ side's per-block source table.
     pub source_id: u32,
+    /// StyleEngine rule identity, or zero for an element-attached block.
+    pub style_engine_rule_id: u32,
     pub declarations: *const FfiCascadeDeclaration,
     pub declaration_count: usize,
     pub custom_property_declarations: *const FfiCustomPropertyDeclaration,
@@ -568,7 +714,9 @@ pub struct FfiBulkCascadeCallbacks {
     /// Parses a substituted token stream and returns pinned Rust-owned data.
     pub parse_substituted: unsafe extern "C" fn(
         context: *mut c_void,
+        style_engine_rule_id: u32,
         property_id: u16,
+        unresolved_data: *const c_void,
         source: *const u8,
         source_length: usize,
     ) -> FfiResolvedStyleValue,
@@ -631,8 +779,9 @@ pub unsafe extern "C" fn rust_cascade_matched_blocks(
             unsafe { std::slice::from_raw_parts(blocks, block_count) }
         };
 
-        // Partition the block indices by origin; author blocks group by
-        // context, layer-major in arrival order, with inline style separate.
+        // StyleEngine supplied rule blocks in specificity and source order within each context and
+        // layer, and C++ preserved that order while appending element-attached blocks. Partition by
+        // the remaining cascade components without re-sorting inside those groups.
         let mut user_agent_blocks = Vec::new();
         let mut user_blocks = Vec::new();
         let mut presentational_hint_blocks = Vec::new();
@@ -784,9 +933,18 @@ pub unsafe extern "C" fn rust_cascade_matched_blocks(
                     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CascadeResolveUnresolvedCallback);
                     unsafe { (callbacks.resolve_unresolved)(context, property_id, data) }
                 },
-                &|property_id, source| {
+                &|property_id, unresolved_data, source| {
                     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CascadeParseSubstitutedCallback);
-                    unsafe { (callbacks.parse_substituted)(context, property_id, source.as_ptr(), source.len()) }
+                    unsafe {
+                        (callbacks.parse_substituted)(
+                            context,
+                            block.style_engine_rule_id,
+                            property_id,
+                            unresolved_data,
+                            source.as_ptr(),
+                            source.len(),
+                        )
+                    }
                 },
                 custom_property_store,
                 custom_property_registry,
@@ -853,5 +1011,29 @@ mod tests {
 
         drop(store);
         assert!(weak_value.upgrade().is_none());
+    }
+
+    #[test]
+    fn winning_declarations_are_sorted_by_property() {
+        let mut store = CascadedPropertyStore::new();
+        for property in [
+            crate::css::property_metadata::property_id::WIDTH,
+            crate::css::property_metadata::property_id::OPACITY,
+        ] {
+            let value = Arc::new(StyleValueData::Number { value: 42.0 });
+            let retained_value = unsafe { RetainedStyleValueData::from_retained_pointer(Arc::into_raw(value)) };
+            store.set_property(
+                property,
+                retained_value,
+                false,
+                false,
+                CascadeOrigin::Author,
+                LayerName(None),
+                0,
+            );
+        }
+
+        let properties: Vec<_> = store.winning_declarations().map(|(property, _, _)| property).collect();
+        assert!(properties.windows(2).all(|pair| pair[0] < pair[1]));
     }
 }

@@ -1,0 +1,6 @@
+initial: rgb(0, 0, 255)
+initial activation: rgb(0, 0, 255)
+masked addition: rgb(0, 0, 255)
+revealed fallback: rgb(255, 0, 0)
+masked activation: rgb(0, 0, 255)
+revealed activation: rgb(255, 0, 0)

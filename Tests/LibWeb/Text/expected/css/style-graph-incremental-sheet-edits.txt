@@ -1,0 +1,20 @@
+insert at the front: 1 compiled
+insert in the middle: 1 compiled
+insert at the end: 1 compiled
+after three inserts: rgb(3, 3, 3)
+delete the winner: 0 compiled
+after deleting the winner: rgb(2, 2, 2)
+retarget one rule: 1 compiled
+after retargeting: rgb(2, 2, 2)
+insert a group of two: 2 compiled
+after the group: rgb(5, 5, 5)
+delete the group: 0 compiled
+after deleting the group: rgb(2, 2, 2)
+retarget all 6 rules: 6 compiled
+after retargeting all: rgb(2, 2, 2)
+delete all 6 rules: 0 compiled
+after deleting all: rgb(0, 0, 0)
+replaceSync with three rules: 3 compiled
+after replaceSync: rgb(6, 6, 6)
+replaceSync with one rule: 1 compiled
+after the second replaceSync: rgb(7, 7, 7)

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="root"></div>
+<script>
+    test(() => {
+        const root = document.getElementById("root");
+        const before = internals.styleEngineCounters();
+        for (let index = 0; index < 100; ++index) {
+            const item = document.createElement("div");
+            item.style.setProperty("color", "black", "important");
+            root.appendChild(item);
+        }
+
+        internals.updateStyle();
+        const after = internals.styleEngineCounters();
+
+        println(`cascade states cover the elements: ${after.cascadeNodeHandlesPublished - before.cascadeNodeHandlesPublished >= 100}`);
+        println(`inline values share identities: ${after.specifiedValuesReused - before.specifiedValuesReused >= 99}`);
+        const changedProperties = after.cascadeWinnerDeltaProperties - before.cascadeWinnerDeltaProperties;
+        println(`computed dependencies consume winner deltas: ${changedProperties >= 100 && after.computedWinnerDeltaPropertiesConsumed - before.computedWinnerDeltaPropertiesConsumed === changedProperties}`);
+
+        root.firstElementChild.style.setProperty("color", "#000", "important");
+        internals.updateStyle();
+        const unchanged = internals.styleEngineCounters();
+        println(`equal semantic winners stop: ${unchanged.cascadeWinnerDeltaStops > after.cascadeWinnerDeltaStops}`);
+        println(`equal winners emit no computed dependency rows: ${unchanged.computedWinnerDeltaPropertiesConsumed === after.computedWinnerDeltaPropertiesConsumed}`);
+        println(`ordinary item: ${getComputedStyle(root.firstElementChild).color}`);
+    });
+</script>

@@ -1,0 +1,8 @@
+set a language on a subtree: [host, a, b]
+change it to another language: [host, a, b]
+rewrite it to the same value: []
+take it away again: [host, a, b]
+set a direction on a subtree: [host, a, b]
+change it to the other direction: [host, a, b]
+take it away again: [host]
+set a language on a leaf: [a]

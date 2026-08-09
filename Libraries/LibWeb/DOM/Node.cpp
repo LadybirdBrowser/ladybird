@@ -12,6 +12,7 @@
 #include <AK/JsonObjectSerializer.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/Utf16StringBuilder.h>
+#include <LibGC/ConservativeVector.h>
 #include <LibGC/DeferGC.h>
 #include <LibGC/Heap.h>
 #include <LibGC/WeakHashMap.h>
@@ -19,8 +20,12 @@
 #include <LibWeb/Animations/Animation.h>
 #include <LibWeb/Bindings/Node.h>
 #include <LibWeb/CSS/ComputedProperties.h>
-#include <LibWeb/CSS/Invalidation/NodeInvalidator.h>
-#include <LibWeb/CSS/Invalidation/StructuralMutationInvalidator.h>
+#include <LibWeb/CSS/Invalidation/ElementStateInvalidator.h>
+#include <LibWeb/CSS/Invalidation/LanguageInvalidator.h>
+#include <LibWeb/CSS/Invalidation/PseudoClassInvalidator.h>
+#include <LibWeb/CSS/SelectorMatching.h>
+#include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/DOM/AccessibilityTreeNode.h>
 #include <LibWeb/DOM/Attr.h>
@@ -134,12 +139,12 @@ CSS::UserSelect Node::user_select_used_value() const
         element = flat_tree_parent_element();
     }
 
-    if (!element || !element->computed_values())
+    auto const* values = element ? element->style_group<CSS::ComputedValues::MiscResetValues>() : nullptr;
+    if (!values)
         return CSS::UserSelect::None;
 
-    // The used value is the same as the computed value, except for editable
-    // elements and the special inheritance rules for `auto`.
-    auto computed_value = element->computed_values()->user_select();
+    // The used value is the same as the computed value, except:
+    auto computed_value = values->user_select;
 
     auto* form_control = as_if<HTML::FormAssociatedTextControlElement>(*element);
     if (element->is_editing_host() || (form_control && form_control->text_control_to_html_element().is_mutable()))
@@ -291,10 +296,9 @@ WebIDL::ExceptionOr<void> Node::set_text_content(Optional<Utf16String> const& ma
 
     // Otherwise, do nothing.
 
-    if (is_connected()) {
-        invalidate_style(StyleInvalidationReason::NodeSetTextContent);
+    auto is_boxless_style_element = (is_html_style_element() || is_svg_style_element()) && !unsafe_layout_node();
+    if (is_connected() && !is_boxless_style_element)
         set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeSetTextContent);
-    }
 
     document().bump_dom_tree_version();
     return {};
@@ -471,39 +475,31 @@ CSS::StyleScope& Node::style_scope()
     return document().style_scope();
 }
 
-void Node::for_each_style_scope_which_may_observe_the_node(Function<void(CSS::StyleScope&)> const& callback)
+void Node::record_style_environment_change()
 {
-    HashTable<CSS::StyleScope*> visited_scopes;
-    auto visit = [&](CSS::StyleScope& scope) {
-        if (visited_scopes.set(&scope) != AK::HashSetResult::InsertedNewEntry)
-            return;
-        callback(scope);
-    };
+    document().bump_style_environment_version();
 
-    visit(style_scope());
-
-    if (auto* element = as_if<Element>(*this)) {
-        if (auto shadow_root = element->shadow_root())
-            visit(shadow_root->style_scope());
+    if (is_document()) {
+        document().style_computer().style_engine().record_environment_change();
+        return;
     }
 
-    for (auto* ancestor = parent_or_shadow_host(); ancestor; ancestor = ancestor->parent_or_shadow_host()) {
-        visit(ancestor->style_scope());
-        if (auto* element = as_if<Element>(*ancestor)) {
-            if (auto shadow_root = element->shadow_root())
-                visit(shadow_root->style_scope());
-        }
+    // A shadow root has no style of its own, so a caller naming one means the scope it heads. An
+    // element names its own environment input; StyleEngine routes any consequences of its changed
+    // facts separately.
+    if (is_element()) {
+        auto& element = static_cast<Element&>(*this);
+        document().style_computer().style_engine().record_element_style_input_change(element.style_node_id());
+        return;
     }
-}
 
-void Node::invalidate_style(StyleInvalidationReason reason)
-{
-    CSS::Invalidation::invalidate_node_style(*this, reason);
-}
-
-void Node::invalidate_style(StyleInvalidationReason reason, Vector<CSS::InvalidationSet::Property> const& properties, StyleInvalidationOptions options)
-{
-    CSS::Invalidation::invalidate_node_style_for_properties(*this, reason, properties, options);
+    for_each_shadow_including_inclusive_descendant([](Node& descendant) {
+        auto* element = as_if<Element>(descendant);
+        if (!element)
+            return TraversalDecision::Continue;
+        element->document().style_computer().style_engine().record_element_style_input_change(element->style_node_id());
+        return TraversalDecision::Continue;
+    });
 }
 
 Utf16String Node::child_text_content() const
@@ -784,7 +780,11 @@ void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_
         // 6. Run assign slottables for a tree with node’s root.
         assign_slottables_for_a_tree(node_to_insert->root());
 
-        node_to_insert->invalidate_style(StyleInvalidationReason::NodeInsertBefore);
+        // And a subtree holding the focused or hovered node brings `:focus-within` and `:hover` to
+        // the chain it lands under.
+        CSS::Invalidation::invalidate_style_after_subtree_place_changed(*node_to_insert, nullptr);
+
+        CSS::prepare_style_nodes_for_subtree(*node_to_insert);
 
         // 7. For each shadow-including inclusive descendant inclusiveDescendant of node, in shadow-including tree order:
         node_to_insert->for_each_shadow_including_inclusive_descendant([&](Node& inclusive_descendant) {
@@ -860,9 +860,10 @@ void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_
             node->post_connection();
     }
 
-    if (is_connected()) {
+    auto is_boxless_style_element = (is_html_style_element() || is_svg_style_element()) && !unsafe_layout_node();
+    if (is_connected() && !is_boxless_style_element) {
         // NB: Called during DOM insertion, layout is not up to date.
-        if (auto* element = as_if<Element>(*this); element && element->computed_values() && element->computed_values()->display().is_contents() && parent_element()) {
+        if (auto* element = as_if<Element>(*this); element && element->has_style() && CSS::display_from_ffi_display(element->style_group<CSS::ComputedValues::BoxValues>()->display).is_contents() && parent_element()) {
             parent_element()->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeInsertBeforeWithDisplayContents);
         }
         set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeInsertBefore);
@@ -996,14 +997,35 @@ void Node::remove(bool suppress_observers)
     // AD-HOC: A removed list item renumbers the list-item counter for its list owner's whole list.
     if (is_element()) {
         auto* this_element = static_cast<Element*>(this);
-        if (is_html_li_element() || (this_element->computed_values() && this_element->computed_values()->display().is_list_item()))
+        auto style = this_element->computed_style();
+        if (is_html_li_element() || (style && style->display().is_list_item()))
             this_element->invalidate_list_item_counters_for_list_owner();
     }
 
     if (is_connected()) {
-        // Since the tree structure is about to change, we need to invalidate both style and layout.
-        // In the future, we should find a way to only invalidate the parts that actually need it.
-        invalidate_style(StyleInvalidationReason::NodeRemove);
+        // A text or comment node leaving connects no element to record a delta from, but it can
+        // leave its parent empty, and `:empty` is about the parent.
+        if (!is<Element>(*this)) {
+            if (auto* parent = as_if<Element>(parent_node())) {
+                auto const* text = as_if<Text>(*this);
+                CSS::record_element_emptiness_changed(*parent, *this, text && !text->data().is_empty(), false);
+            }
+        }
+
+        // NB: Recorded here rather than in removed_from(), because StyleEngine's tree delta carries
+        //     the old relations and this is the last point at which they are still readable.
+        for_each_shadow_including_inclusive_descendant([](Node& node) {
+            if (auto* element = as_if<Element>(node))
+                CSS::record_element_disconnecting(*element);
+            return TraversalDecision::Continue;
+        });
+        // Only once no element still names a shadow root as its parent can the root give up its
+        // own identity.
+        for_each_shadow_including_inclusive_descendant([](Node& node) {
+            if (auto* shadow_root = as_if<ShadowRoot>(node))
+                CSS::record_shadow_root_disconnecting(*shadow_root);
+            return TraversalDecision::Continue;
+        });
 
         // NOTE: If we didn’t have a layout node before, rebuilding the layout tree isn’t gonna give us one
         //       after we’ve been removed from the DOM.
@@ -1051,6 +1073,10 @@ void Node::remove(bool suppress_observers)
 
     // 11. Run the removing steps with node, true, and parent.
     removed_from(IsSubtreeRoot::Yes, parent, parent_root);
+
+    // A subtree holding the focused or hovered node takes `:focus-within` and `:hover` out of the
+    // chain it hung off. Nothing about any element in that chain moved, so it has to be told.
+    CSS::Invalidation::invalidate_style_after_subtree_place_changed(*this, parent);
 
     // 12. Let isParentConnected be parent’s connected.
     bool is_parent_connected = parent->is_connected();
@@ -1308,7 +1334,18 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
 
     // 8. Assert: oldParent is non-null.
     VERIFY(old_parent);
-    bool const is_same_parent_move = old_parent == &new_parent;
+
+    struct PreviousReadWriteState {
+        GC::Ptr<Element> element;
+        bool value;
+    };
+    GC::ConservativeVector<PreviousReadWriteState> previous_read_write_states;
+    if (old_parent->in_editable_subtree() != new_parent.in_editable_subtree()) {
+        for_each_in_inclusive_subtree_of_type<Element>([&](Element& element) {
+            previous_read_write_states.append({ element, SelectorMatching::element_matches_state(element, CSS::PseudoClass::ReadWrite) });
+            return TraversalDecision::Continue;
+        });
+    }
 
     // 9. Run the live range pre-remove steps, given node.
     live_range_pre_remove();
@@ -1325,14 +1362,18 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
     // 12. Let oldNextSibling be node’s next sibling.
     auto* old_next_sibling = next_sibling();
 
-    if (old_parent->is_connected()) {
-        // Since the tree structure is about to change, we need to invalidate both style and layout.
-        // In the future, we should find a way to only invalidate the parts that actually need it.
-        if (is_same_parent_move)
-            CSS::Invalidation::invalidate_style_after_same_parent_move(*this, StyleInvalidationReason::NodeRemove);
-        else
-            invalidate_style(StyleInvalidationReason::NodeRemove);
+    // A move keeps the element's identity, so nothing disconnects and nothing connects to say its
+    // relations changed. Remember where it was, which has to happen here: step 13 takes the node out
+    // of its old parent's children, and once it has there is nothing left to read the old place off.
+    auto* const moved_element = as_if<Element>(*this);
+    // The parent a move starts from can be a shadow root, which the style engine holds a node for:
+    // taking only the element would tell it the element crossed out of the tree, and the child list
+    // it left would keep naming it as its first child.
+    GC::Ptr<Node> const moved_from_parent = moved_element ? moved_element->parent() : nullptr;
+    GC::Ptr<Element> const moved_from_previous = moved_element ? moved_element->previous_element_sibling() : nullptr;
+    GC::Ptr<Element> const moved_from_next = moved_element ? moved_element->next_element_sibling() : nullptr;
 
+    if (old_parent->is_connected()) {
         // NOTE: If we didn’t have a layout node before, rebuilding the layout tree isn’t gonna give us one
         //       after we’ve been removed from the DOM.
         // NB: Called during DOM node move, layout is not up to date.
@@ -1404,12 +1445,22 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
         new_parent.insert_before_impl(*this, child);
     }
 
-    if (is_same_parent_move)
-        CSS::Invalidation::invalidate_style_after_same_parent_move(*this, StyleInvalidationReason::NodeInsertBefore);
-    else
-        // NB: Unlike a regular insertion, a moved node keeps state such as focus, so use a distinct reason that
-        //     keeps the conservative pseudo-class handling in :has() invalidation.
-        invalidate_style(StyleInvalidationReason::NodeMove);
+    if (moved_element)
+        CSS::record_element_moved(*moved_element, moved_from_parent.ptr(), moved_from_previous.ptr(), moved_from_next.ptr());
+    else if (is<CharacterData>(*this)) {
+        auto const* text = as_if<Text>(*this);
+        auto counts_for_emptiness = text && !text->data().is_empty();
+        if (auto* old_parent_element = as_if<Element>(*old_parent); old_parent_element && old_parent_element->is_connected())
+            CSS::record_element_emptiness_changed(*old_parent_element, *this, counts_for_emptiness, false);
+        if (auto* new_parent_element = as_if<Element>(new_parent); new_parent_element && new_parent_element->is_connected())
+            CSS::record_element_emptiness_changed(*new_parent_element, *this, false, counts_for_emptiness);
+        if (text) {
+            if (auto* old_parent_element = as_if<Element>(*old_parent); old_parent_element && old_parent_element->is_connected())
+                CSS::Invalidation::invalidate_style_after_text_change_under(*old_parent_element);
+            if (auto* new_parent_element = as_if<Element>(new_parent); new_parent_element && new_parent_element != old_parent)
+                CSS::Invalidation::invalidate_style_after_text_change_under(*new_parent_element);
+        }
+    }
     if (is_connected()) {
         new_parent.set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeInsertBefore);
     }
@@ -1444,6 +1495,8 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
     // 23. Run assign slottables for a tree with node’s root.
     assign_slottables_for_a_tree(root());
 
+    CSS::Invalidation::invalidate_style_after_subtree_place_changed(*this, moved_from_parent);
+
     // 24. For each shadow-including inclusive descendant inclusiveDescendant of node, in shadow-including tree order:
     for_each_shadow_including_inclusive_descendant([this, &new_parent, old_parent](Node& inclusive_descendant) {
         // 1. Let isSubtreeRoot be true if inclusiveDescendant is node; otherwise false.
@@ -1463,6 +1516,9 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
         }
         return TraversalDecision::Continue;
     });
+
+    for (auto const& state : previous_read_write_states)
+        CSS::Invalidation::invalidate_style_after_read_write_state_change(*state.element, state.value);
 
     // 25. Queue a tree mutation record for oldParent with « », « node », oldPreviousSibling, and oldNextSibling.
     old_parent->queue_tree_mutation_record({}, { *this }, old_previous_sibling, old_next_sibling);
@@ -1649,31 +1705,10 @@ void Node::set_document(Document& document)
         return;
 
     auto& old_document = *m_document;
-    bool const node_needs_style_update = needs_style_update();
-    bool const subtree_needs_style_update = entire_subtree_needs_style_update();
-    bool const descendants_need_style_update = child_needs_style_update();
     m_document = &document;
 
     if (auto* animatable = as_if<Animations::Animatable>(*this))
         animatable->on_document_changed(old_document, document);
-
-    if (node_needs_style_update) {
-        // NOTE: We unset and reset the "needs style update" flag here.
-        //       This ensures that there's a pending style update in the new document
-        //       that will eventually assign some style to this node if needed.
-        set_needs_style_update(false);
-        set_needs_style_update(true);
-    }
-
-    if (subtree_needs_style_update || descendants_need_style_update) {
-        // These broader dirty flags stay set across adoption, but the new ancestor chain has never seen them
-        // propagate. Re-mark ancestors so style update still descends into this adopted subtree.
-        for (auto* ancestor = parent_or_shadow_host(); ancestor; ancestor = ancestor->parent_or_shadow_host()) {
-            if (ancestor->m_child_needs_style_update)
-                break;
-            ancestor->m_child_needs_style_update = true;
-        }
-    }
 }
 
 bool Node::recompute_editable_subtree_flag()
@@ -1809,6 +1844,8 @@ GC::Ptr<Node> Node::editing_host()
 
 void Node::set_layout_node(Badge<Layout::Node>, Layout::Node& layout_node)
 {
+    if (m_layout_node && m_layout_node.ptr() != &layout_node)
+        m_layout_node->pin_style_record_for_detachment();
     m_layout_node = layout_node;
 }
 
@@ -1899,7 +1936,7 @@ void Node::set_needs_layout_tree_update(bool value, SetNeedsLayoutTreeUpdateReas
 
         // If this is an element with display: contents, we need to propagate the layout tree update to the parent.
         if (auto* element = as_if<Element>(*this)) {
-            if (element->computed_values() && element->computed_values()->display().is_contents()) {
+            if (element->has_style() && CSS::display_from_ffi_display(element->style_group<CSS::ComputedValues::BoxValues>()->display).is_contents()) {
                 if (auto parent_element = element->parent_or_shadow_host_element()) {
                     parent_element->set_needs_layout_tree_update(true, reason);
                 }
@@ -1940,24 +1977,6 @@ void Node::set_needs_layout_tree_update(bool value, SetNeedsLayoutTreeUpdateReas
     }
 }
 
-void Node::set_needs_style_update(bool value)
-{
-    if (m_needs_style_update == value)
-        return;
-    m_needs_style_update = value;
-
-    if (m_needs_style_update) {
-        document().set_needs_repaint(Badge<Node> {}, InvalidateDisplayList::No);
-
-        document().record_style_invalidation();
-        for (auto* ancestor = parent_or_shadow_host(); ancestor; ancestor = ancestor->parent_or_shadow_host()) {
-            if (ancestor->m_child_needs_style_update)
-                break;
-            ancestor->m_child_needs_style_update = true;
-        }
-    }
-}
-
 void Node::post_connection()
 {
 }
@@ -1974,7 +1993,27 @@ void Node::inserted()
 
     recompute_editable_subtree_flag();
     update_inside_blocking_wheel_event_handler_state();
-    set_needs_style_update(true);
+
+    // The DOM insertion steps visit shadow-including inclusive descendants in tree order, so an
+    // element's parent and preceding siblings already have their identities by the time it records
+    // its own relations.
+    if (auto* element = as_if<Element>(*this)) {
+        CSS::record_element_connected(*element);
+    } else if (auto* shadow_root = as_if<ShadowRoot>(*this)) {
+        // The root gave up its place in the style tree when it disconnected, and the insertion steps
+        // reach it after its host, so this is where it can retake it.
+        CSS::record_shadow_root_connected(*shadow_root);
+    } else if (auto* parent = as_if<Element>(parent_node())) {
+        // A text or comment node connects no element, so no tree delta carries it. It still decides
+        // whether its parent is empty, and `:empty` is about the parent.
+        auto const* text = as_if<Text>(*this);
+        CSS::record_element_emptiness_changed(*parent, *this, false, text && !text->data().is_empty());
+
+        // A dir=auto ancestor resolves its direction from the text under it, and this text is now
+        // part of that answer.
+        if (text)
+            CSS::Invalidation::invalidate_style_after_text_change_under(*parent);
+    }
 }
 
 void Node::clear_layout_node_paintable()
@@ -1985,11 +2024,21 @@ void Node::clear_layout_node_paintable()
     m_layout_node->clear_paintable();
 }
 
-void Node::removed_from(IsSubtreeRoot, Node*, Node&)
+void Node::removed_from(IsSubtreeRoot, Node* old_parent, Node&)
 {
+    // The text is out of the tree now, so a dir=auto ancestor that was reading it resolves to
+    // something else. This has to happen after the removal, unlike the emptiness the removal steps
+    // publish, because what a direction resolves to cannot be stated without walking the text.
+    if (is<Text>(*this)) {
+        if (auto* parent = as_if<Element>(old_parent); parent && parent->is_connected())
+            CSS::Invalidation::invalidate_style_after_text_change_under(*parent);
+    }
+
     m_is_connected = false;
     m_in_editable_subtree = false;
     m_inside_blocking_wheel_event_handler = false;
+    if (m_layout_node)
+        m_layout_node->pin_style_record_for_detachment();
     clear_layout_node_paintable();
     // A top layer element's box is a viewport child rather than part of the parent's box
     // subtree, so the parent rebuild triggered by this removal can never detach it.
@@ -2305,7 +2354,7 @@ void Node::serialize_tree_as_json(JsonObjectSerializer<Utf16StringBuilder>& obje
         }
 
         if (paintable_box()) {
-            MUST(object.add("display"sv, paintable_box()->computed_values().display().to_string()));
+            MUST(object.add("display"sv, paintable_box()->layout_node().display().to_string()));
             if (paintable_box()->could_be_scrolled_by_wheel_event()) {
                 MUST(object.add("scrollable"sv, true));
             }
@@ -3492,7 +3541,7 @@ ErrorOr<Utf16String> Node::name_or_description(NameOrDescription target, Documen
             if (auto before = element->pseudo_element_unsafe_layout_node(CSS::PseudoElement::Before)) {
                 // NB: We know that content has a value since we set it immediately when creating a ::before pseudo
                 //     element node.
-                auto const& content = before->computed_values().content().value();
+                auto const& content = before->content().value();
 
                 if (content.alt_text.has_value()) {
                     total_accumulated_text.append(content.alt_text.value());
@@ -3558,7 +3607,7 @@ ErrorOr<Utf16String> Node::name_or_description(NameOrDescription target, Documen
             if (auto after = element->pseudo_element_unsafe_layout_node(CSS::PseudoElement::After)) {
                 // NB: We know that content has a value since we set it immediately when creating an ::after pseudo
                 //     element node.
-                auto const& content = after->computed_values().content().value();
+                auto const& content = after->content().value();
 
                 if (content.alt_text.has_value()) {
                     total_accumulated_text.append(content.alt_text.value());
@@ -3701,7 +3750,8 @@ bool Node::has_inclusive_ancestor_with_display_none_ignoring_animations() const
         if (!ancestor->is_element())
             continue;
         auto const& ancestor_element = static_cast<Element const&>(*ancestor);
-        if (ancestor_element.computed_values() && ancestor_element.computed_values()->base_values().display().is_none()) {
+        auto style = ancestor_element.computed_style();
+        if (style && style->base_values().display().is_none()) {
             return true;
         }
     }

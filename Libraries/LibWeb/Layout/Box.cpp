@@ -17,8 +17,8 @@
 
 namespace Web::Layout {
 
-Box::Box(DOM::Document& document, GC::Ptr<DOM::Node> node, NonnullRefPtr<CSS::ComputedValues const> computed_values)
-    : NodeWithStyle(document, node, move(computed_values))
+Box::Box(DOM::Document& document, GC::Ptr<DOM::Node> node, CSS::LayoutStyle style)
+    : NodeWithStyle(document, node, move(style))
 {
 }
 
@@ -104,7 +104,7 @@ RustFFI::FfiReplacedContentFacts Box::build_replaced_content_facts_for_arena() c
         facts.auto_content_aspect_ratio_numerator = auto_content_size.aspect_ratio->numerator().raw_value();
         facts.auto_content_aspect_ratio_denominator = auto_content_size.aspect_ratio->denominator().raw_value();
     }
-    if (computed_values().appearance() == CSS::Appearance::None) {
+    if (appearance() == CSS::Appearance::None) {
         if (auto const* input = as_if<HTML::HTMLInputElement>(dom_node())) {
             switch (input->type_state()) {
             case HTML::HTMLInputElement::TypeAttributeState::Text:
@@ -150,7 +150,7 @@ RefPtr<Painting::Paintable const> Box::paintable_box() const
 
 Optional<CSSPixelFraction> Box::preferred_aspect_ratio() const
 {
-    auto const& computed_aspect_ratio = computed_values().aspect_ratio();
+    auto computed_aspect_ratio = aspect_ratio();
 
     // https://www.w3.org/TR/css-contain-2/#containment-size
     if (!has_size_containment() && computed_aspect_ratio.use_natural_aspect_ratio_if_available) {

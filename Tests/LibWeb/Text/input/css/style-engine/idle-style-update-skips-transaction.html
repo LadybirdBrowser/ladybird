@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #target.changed { color: green; }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        internals.updateStyle();
+        internals.resetStyleInvalidationCounters();
+
+        for (let iteration = 0; iteration < 100; ++iteration)
+            internals.updateStyle();
+
+        let counters = internals.getStyleInvalidationCounters();
+        println(`idle transaction setups: ${counters.styleEngineTransactionSetups}`);
+
+        target.className = "changed";
+        internals.updateStyle();
+        counters = internals.getStyleInvalidationCounters();
+        println(`changed transaction setups: ${counters.styleEngineTransactionSetups}`);
+        println(`changed color: ${getComputedStyle(target).color}`);
+
+        const animation = target.animate({ opacity: [0, 1] }, 1000);
+        animation.pause();
+        internals.updateStyle();
+        internals.resetStyleInvalidationCounters();
+
+        animation.currentTime = 500;
+        internals.updateStyle();
+        counters = internals.getStyleInvalidationCounters();
+        println(`animation transaction setups: ${counters.styleEngineTransactionSetups}`);
+        println(`animated opacity: ${getComputedStyle(target).opacity}`);
+    });
+</script>

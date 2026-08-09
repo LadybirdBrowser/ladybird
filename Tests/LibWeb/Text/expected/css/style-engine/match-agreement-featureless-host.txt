@@ -1,0 +1,7 @@
+color: rgb(10, 11, 12)
+background-color: rgb(13, 14, 15)
+outline-color: rgb(10, 11, 12)
+div#host.thing: :host :host(.thing)
+style: *
+span: *
+

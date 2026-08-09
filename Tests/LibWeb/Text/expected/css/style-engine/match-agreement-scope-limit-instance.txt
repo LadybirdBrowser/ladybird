@@ -1,0 +1,4 @@
+excluded: rgb(0, 0, 0)
+still-in-the-outer-scope: rgb(1, 2, 3)
+span#still-in-the-outer-scope: span
+

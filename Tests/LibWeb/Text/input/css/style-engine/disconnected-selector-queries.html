@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const root = document.createElement("section");
+        root.className = "outer";
+        root.innerHTML = `
+            <div class="inner first"></div>
+            <div class="inner second"><span class="leaf">text</span></div>
+            <input type="checkbox" checked>
+        `;
+
+        println(root.matches(":root"));
+        println(root.querySelectorAll(":scope > .inner").length);
+        println(root.querySelector(".outer > .second:has(.leaf)")?.className);
+        println(root.querySelector("input").matches(":checked:not(:disabled)"));
+        println(root.querySelector(".leaf").closest(".outer > .second")?.className);
+        println(root.querySelector(".leaf").matches(":empty"));
+    });
+</script>

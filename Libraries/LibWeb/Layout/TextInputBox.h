@@ -15,7 +15,7 @@ class TextInputBox : public BlockContainer {
     LAYOUT_NODE(TextInputBox, BlockContainer);
 
 public:
-    TextInputBox(DOM::Document&, GC::Ptr<DOM::Element>, NonnullRefPtr<CSS::ComputedValues const>);
+    TextInputBox(DOM::Document&, GC::Ptr<DOM::Element>, CSS::LayoutStyle);
 
     HTML::HTMLInputElement const& dom_node() const { return static_cast<HTML::HTMLInputElement const&>(*Box::dom_node()); }
     static CSS::SizeWithAspectRatio default_preferred_size_for_text_control(HTML::HTMLInputElement const&, Box const&);

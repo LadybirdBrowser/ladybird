@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="plan.js"></script>
+<style id="sheet">
+    .item { color: green }
+    .consumer { color: var(--used, green) }
+    .declarer { --used: blue }
+</style>
+<div id="guard">
+    <span id="item" class="item"></span>
+    <span id="other" class="other"></span>
+    <span id="bare"></span>
+    <span id="animated" class="animated"></span>
+    <span id="consumer" class="consumer"></span>
+    <span id="declarer" class="declarer"></span>
+    <span id="activation-match" class="activation-target"></span>
+</div>
+<span id="activation-miss" class="activation-target"></span>
+<div id="card" class="card"><span id="error" class="error"></span><span id="button" class="button"></span></div>
+<ul id="list"><li id="row-one" class="row"></li><li id="row-two" class="row"></li></ul>
+<script>
+    test(() => {
+        const sheet = document.getElementById("sheet").sheet;
+
+        // A rule arriving reaches the elements it could match, and no others. Nothing about the
+        // rules around it moves, so nothing about the elements they match moves either.
+        plan("insert a rule naming .other", () => sheet.insertRule(".other { font-weight: bold }", 1));
+        plan("insert a rule naming nothing present", () => sheet.insertRule(".nobody { font-weight: bold }", 2));
+
+        // Retargeting a rule reaches what it used to match and what it matches now, so the
+        // declarations the old selector was winning are taken back.
+        plan("retarget a rule onto nothing", () => { sheet.cssRules[1].selectorText = ".bare-target"; });
+        plan("retarget it back onto .other", () => { sheet.cssRules[1].selectorText = ".other"; });
+
+        // A rule's selector and an element's features can move in the same transaction, and the
+        // mutations recorded ahead of the retargeting happened while the old selector was the one in
+        // effect. So a class removed before the edit has to route through the selector it was removed
+        // from, not only through the one the rule ends up with.
+        plan("remove a class and retarget the rule that named it at once", () => {
+            document.getElementById("other").classList.remove("other");
+            sheet.cssRules[1].selectorText = "#bare";
+        });
+        plan("put the class back and retarget again", () => {
+            document.getElementById("other").classList.add("other");
+            sheet.cssRules[1].selectorText = ".other";
+        });
+
+        // Deleting a rule reaches wherever it was winning.
+        plan("delete a rule that matched", () => sheet.deleteRule(1));
+        plan("delete a rule that matched nothing", () => sheet.deleteRule(1));
+
+        // A declaration edit inside a rule reaches the rule's matches, not the whole sheet, and
+        // every way of editing one is the same input.
+        plan("edit a rule's declarations", () => { sheet.cssRules[0].style.fontWeight = "bold"; });
+        plan("remove a property from a rule", () => { sheet.cssRules[0].style.removeProperty("font-weight"); });
+        plan("rewrite a rule's whole declaration block", () => { sheet.cssRules[0].style.cssText = "color: teal"; });
+
+        // Where a rule goes in the sheet decides its cascade position but not what it matches, so
+        // inserting the same rule at either end reaches the same elements.
+        plan("insert a rule at the front of the sheet", () => sheet.insertRule(".other { font-style: italic }", 0));
+        plan("insert the same rule at the back", () => sheet.insertRule(".other { font-style: italic }", sheet.cssRules.length));
+        plan("delete both copies", () => { sheet.deleteRule(0); sheet.deleteRule(sheet.cssRules.length - 1); });
+
+        // A selector list matches through any of its branches, so a rule with one reaches the union
+        // of what its branches reach.
+        plan("insert a rule with a selector list", () => sheet.insertRule(".other, .nobody, #bare { color: red }", 1));
+        plan("widen its selector to everything", () => { sheet.cssRules[1].selectorText = "*"; });
+        plan("narrow it back to one class", () => { sheet.cssRules[1].selectorText = ".other"; });
+        plan("delete the listed rule", () => sheet.deleteRule(1));
+
+        // A relational rule reaches the anchors its argument can flip, not every element the
+        // argument names.
+        plan("insert a rule using :has()", () => sheet.insertRule(".card:has(.error) .button { color: red }", 1));
+        plan("delete the relational rule", () => sheet.deleteRule(1));
+
+        // A positional rule reaches the elements whose position it can name: a subject bounded to a
+        // prefix or suffix of its sibling sequence is not every element carrying its feature.
+        plan("insert a positional rule", () => sheet.insertRule(".row:first-child { color: red }", 1));
+        plan("delete the positional rule", () => sheet.deleteRule(1));
+        plan("insert one bounded from the end", () => sheet.insertRule(".row:last-child { color: red }", 1));
+        plan("delete it", () => sheet.deleteRule(1));
+        // The bound holds behind a combinator too: the subject's compound is a step away from the
+        // entry the rule dispatches from, and the bound is read through it rather than off it.
+        plan("insert a positional rule behind a combinator", () => sheet.insertRule("#list > .row:first-child { color: red }", 1));
+        plan("delete that one", () => sheet.deleteRule(1));
+
+        // A nested rule is a rule of its own with the parent's selector folded in, so it reaches
+        // what that combination matches.
+        plan("insert a rule with a nested one inside", () => {
+            sheet.insertRule(".card { color: red; & .button { color: blue } }", 1);
+        });
+        plan("delete the nesting rule", () => sheet.deleteRule(1));
+
+        // Writing the same declaration again moves nothing, and neither does a rule inserted and
+        // deleted before anything is observed.
+        // FIXME: The second of these reaches `other`. A rule that arrived and left in one transaction
+        //        never decided anything, but its two sides are journalled under different rule
+        //        identities and so do not cancel.
+        plan("rewrite a rule's declaration with the same value", () => {
+            sheet.cssRules[0].style.color = "teal";
+            sheet.cssRules[0].style.color = "teal";
+        });
+        plan("insert and delete a rule in one transaction", () => {
+            sheet.insertRule(".other { color: red }", 1);
+            sheet.deleteRule(1);
+        });
+
+        // Importance is a cascade fact, not a selector one. With no competing declaration,
+        // changing it leaves the exact cascade output unchanged and publishes no reaction.
+        plan("make a rule's declaration important", () => sheet.cssRules[0].style.setProperty("color", "teal", "important"));
+        plan("make it normal again", () => sheet.cssRules[0].style.setProperty("color", "teal", ""));
+
+        // A rule inside a grouping rule reaches the same elements as one outside it, as long as the
+        // group's condition holds. The group is a gate on the rules, not a rule of its own.
+        sheet.insertRule("@media all { }", 1);
+        const matching_group = sheet.cssRules[1];
+        plan("insert a rule into a matching @media group", () => matching_group.insertRule(".other { font-style: italic }", 0));
+        plan("delete it from the group", () => matching_group.deleteRule(0));
+
+        // A group whose condition does not hold gates its rules out, so a rule arriving inside it
+        // decides nothing anywhere.
+        sheet.insertRule("@media (width < 1px) { }", 1);
+        const unmatched_group = sheet.cssRules[1];
+        plan("insert a rule into a non-matching @media group", () => unmatched_group.insertRule(".other { font-style: italic }", 0));
+
+        // A condition rule's text is an activation predicate. Changing it turns the rules inside it
+        // on or off wherever they match.
+        plan("turn a group's condition on", () => { unmatched_group.media.mediaText = "all"; });
+        plan("turn it off again", () => { unmatched_group.media.mediaText = "(width < 1px)"; });
+        plan("delete both groups", () => { sheet.deleteRule(1); sheet.deleteRule(1); });
+
+        // The selector is still the other half of an activated rule. Elements that merely carry its
+        // dispatch feature do not move when the complete selector does not match them.
+        sheet.insertRule("@media (width < 1px) { #guard .activation-target { color: red } }", 1);
+        const activation_group = sheet.cssRules[1];
+        plan("turn a narrowed group's condition on", () => { activation_group.media.mediaText = "all"; });
+        plan("turn the narrowed group off again", () => { activation_group.media.mediaText = "(width < 1px)"; });
+        sheet.deleteRule(1);
+
+        // `@supports` gates the same way `@media` does.
+        plan("insert a supported @supports group with a rule", () => {
+            sheet.insertRule("@supports (color: green) { .other { font-style: italic } }", 1);
+        });
+        plan("insert an unsupported one", () => {
+            sheet.insertRule("@supports (not (color: green)) { .other { font-style: italic } }", 1);
+        });
+        plan("delete both @supports groups", () => { sheet.deleteRule(1); sheet.deleteRule(1); });
+
+        // Deleting a group takes every rule inside it with it, so it reaches what all of them
+        // matched.
+        plan("insert a group holding two matching rules", () => {
+            sheet.insertRule("@media all { .other { color: red } #bare { color: red } }", 1);
+        });
+        plan("delete the group with both rules inside", () => sheet.deleteRule(1));
+
+        // `@layer` blocks and `@scope` are groups too, and gate nothing by themselves.
+        plan("insert a layer block holding a rule", () => sheet.insertRule("@layer named { .other { color: red } }", 1));
+        plan("delete the layer block", () => sheet.deleteRule(1));
+        plan("insert a scoped rule", () => sheet.insertRule("@scope (#guard) { .other { color: red } }", 1));
+        plan("delete the scoped rule", () => sheet.deleteRule(1));
+
+        // A rule that contributes no declarations through selector matching reaches no element: it
+        // arrives at its own consumers instead.
+        plan("insert a @font-face rule", () => sheet.insertRule("@font-face { font-family: nothing; src: local(nothing) }", 1));
+        plan("insert a @counter-style rule", () => sheet.insertRule("@counter-style nothing { system: cyclic; symbols: 'x' }", 1));
+        plan("delete both at-rules", () => { sheet.deleteRule(1); sheet.deleteRule(1); });
+
+        // Keyframes reach the elements already referencing the animation name, and nothing else. A
+        // keyframes rule matches nothing, so what finds its consumers is an index of the animation
+        // names each element's computed style references.
+        sheet.insertRule(".animated { animation: spin 1s linear infinite }", 1);
+        plan("insert the @keyframes the animation names", () => {
+            sheet.insertRule("@keyframes spin { from { color: red } to { color: blue } }", 1);
+        });
+        // Editing one keyframe block reaches the same consumers the rule's arrival did: what an
+        // animation is built from is the whole rule, so a block of it moving moves the animation.
+        plan("edit a keyframe's declarations", () => { sheet.cssRules[1].cssRules[0].style.color = "teal"; });
+        plan("insert @keyframes nothing names", () => {
+            sheet.insertRule("@keyframes unused { from { color: red } to { color: blue } }", 1);
+        });
+        plan("delete the unused keyframes", () => sheet.deleteRule(1));
+
+        // Registering a custom property changes how every element that declares or references it
+        // computes, so it reaches the elements that use it and not the ones that do not. Which
+        // elements those are is an index of the names each element declared or looked up, because
+        // nothing about selector matching says it.
+        plan("register a custom property nobody uses", () => {
+            sheet.insertRule("@property --unused { syntax: '*'; inherits: false }", 1);
+        });
+        plan("unregister it", () => sheet.deleteRule(1));
+        plan("register one that is declared and referenced", () => {
+            sheet.insertRule("@property --used { syntax: '*'; inherits: false }", 1);
+        });
+        plan("unregister that one", () => sheet.deleteRule(1));
+
+        // A registration carrying an initial value is not like that: it gives the property a value on
+        // every element, whether or not the element mentions it. There is no index of the elements
+        // that never named it, so the answer is every element the sheet decides for.
+        plan("register one with an initial value", () => {
+            sheet.insertRule("@property --initialized { syntax: '<color>'; inherits: false; initial-value: red }", 1);
+        });
+        plan("unregister the initialized one", () => sheet.deleteRule(1));
+
+        // FIXME: A namespace statement changes which type selectors can match at all, and is not
+        //        covered here: `insertRule` refuses one once any other rule is present, so a case for
+        //        it needs a sheet built through `replaceSync` instead.
+    });
+</script>

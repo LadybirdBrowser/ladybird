@@ -1,0 +1,4 @@
+import before: rgb(1, 2, 3)
+import after: rgb(0, 0, 0)
+inner media before: rgb(4, 5, 6)
+inner media after: rgba(0, 0, 0, 0)

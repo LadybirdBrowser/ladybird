@@ -1,0 +1,7 @@
+rules compiled by insertRule: 1
+target colour: rgb(0, 128, 0)
+rule index 1: #target:focus
+rules compiled by selectorText: 1
+target colour after edit: rgb(0, 128, 0)
+rules compiled by deleteRule: 0
+target colour after delete: rgb(0, 0, 0)

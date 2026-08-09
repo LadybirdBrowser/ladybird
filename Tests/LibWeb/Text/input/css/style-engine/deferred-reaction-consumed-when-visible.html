@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #hidden.hidden { display: none; }
+    #reaction.before { color: red; }
+    #reaction.after { color: green; }
+</style>
+<div id="hidden" class="hidden"></div>
+<span id="query"></span>
+<script>
+    test(() => {
+        const hidden = document.getElementById("hidden");
+        const query = document.getElementById("query");
+        internals.updateStyle();
+
+        const middle = document.createElement("div");
+        const reaction = document.createElement("span");
+        reaction.id = "reaction";
+        reaction.className = "before";
+        middle.appendChild(reaction);
+        hidden.appendChild(middle);
+        getComputedStyle(query).color;
+        internals.updateStyle();
+
+        internals.resetStyleInvalidationCounters();
+        const before = internals.styleEngineCounters();
+        reaction.className = "after";
+        hidden.className = "";
+        internals.updateStyle();
+        const after = internals.styleEngineCounters();
+
+        const regularCounters = internals.getStyleInvalidationCounters();
+        const reactionColor = getComputedStyle(reaction).color;
+        const finalCounters = internals.getStyleInvalidationCounters();
+
+        println("reaction color: " + reactionColor);
+        println("reaction batch runs: " + regularCounters.styleEngineReactionBatchRuns);
+        println("reaction elements: " + regularCounters.styleEngineReactionElements);
+        println("published reactions: " + regularCounters.styleEnginePublishedReactions);
+        println("regular recomputations: " + regularCounters.elementStyleRecomputations);
+        println("targeted recomputations: " + (finalCounters.elementStyleRecomputations - regularCounters.elementStyleRecomputations));
+        println("closure answer completions: " + (after.publishedMatchAnswerClosureCompletions - before.publishedMatchAnswerClosureCompletions));
+        println("closure identity stops: " + (after.publishedClosureRetainedIdentityStops - before.publishedClosureRetainedIdentityStops));
+        println("match answer upqueries: " + (after.matchAnswerUpqueries - before.matchAnswerUpqueries));
+    });
+</script>

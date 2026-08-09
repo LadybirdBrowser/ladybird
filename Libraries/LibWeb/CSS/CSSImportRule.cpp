@@ -17,6 +17,7 @@
 #include <LibWeb/CSS/Fetch.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Dump.h>
@@ -258,7 +259,9 @@ void CSSImportRule::set_style_sheet(GC::Ref<CSSStyleSheet> style_sheet)
     if (document)
         m_style_sheet->load_pending_image_resources(*document);
 
-    m_style_sheet->invalidate_owners(DOM::StyleInvalidationReason::CSSImportRule);
+    // The rules the import brings in arrive now, at the position the import already holds.
+    record_style_rule_inserted(*this);
+    m_style_sheet->invalidate_owners();
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssimportrule-media

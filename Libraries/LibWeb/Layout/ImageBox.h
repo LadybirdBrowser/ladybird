@@ -16,8 +16,8 @@ class ImageBox final : public ReplacedBox {
     LAYOUT_NODE(ImageBox, ReplacedBox);
 
 public:
-    ImageBox(DOM::Document&, GC::Ptr<DOM::Element>, NonnullRefPtr<CSS::ComputedValues const>, ImageProvider const&);
-    ImageBox(DOM::Document&, GC::Ptr<DOM::Element>, NonnullRefPtr<CSS::ComputedValues const>, NonnullOwnPtr<ImageProvider>);
+    ImageBox(DOM::Document&, GC::Ptr<DOM::Element>, CSS::LayoutStyle, ImageProvider const&);
+    ImageBox(DOM::Document&, GC::Ptr<DOM::Element>, CSS::LayoutStyle, NonnullOwnPtr<ImageProvider>);
     virtual ~ImageBox() override;
 
     virtual RefPtr<Painting::Paintable> create_paintable() const override;

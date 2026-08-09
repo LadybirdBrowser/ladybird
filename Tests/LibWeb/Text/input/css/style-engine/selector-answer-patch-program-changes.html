@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style id="sheet">
+    #target { color: blue }
+    .target { color: green }
+    #selector-list-target, .selector-list-target { color: blue }
+    .selector-list-target { color: green }
+</style>
+<div id="target" class="target"></div>
+<div id="selector-list-target" class="selector-list-target"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const sheet = document.getElementById("sheet").sheet;
+        internals.updateStyle();
+
+        const before = internals.styleEngineCounters();
+        sheet.cssRules[0].selectorText = ".nobody";
+        internals.updateStyle();
+        println(`retargeted color: ${getComputedStyle(target).color}`);
+        sheet.cssRules[0].selectorText = "#target";
+        internals.updateStyle();
+        println(`restored selector color: ${getComputedStyle(target).color}`);
+        sheet.insertRule("#target { color: red }", sheet.cssRules.length);
+        internals.updateStyle();
+        println(`inserted rule color: ${getComputedStyle(target).color}`);
+        sheet.deleteRule(sheet.cssRules.length - 1);
+        internals.updateStyle();
+        const after = internals.styleEngineCounters();
+
+        const answerPatches = after.retainedMatchAnswerPatches - before.retainedMatchAnswerPatches
+            + after.retainedMatchAnswerDeltaPatches - before.retainedMatchAnswerDeltaPatches;
+        println(`answer patches: ${answerPatches}`);
+        println(`answer reuses: ${after.retainedMatchAnswerReuses - before.retainedMatchAnswerReuses}`);
+        println(`cold node evaluations: ${after.coldNodesEvaluated - before.coldNodesEvaluated}`);
+        println(`invalidated nodes: ${after.invalidatedStyleNodes - before.invalidatedStyleNodes}`);
+        println(`deleted rule color: ${getComputedStyle(target).color}`);
+
+        const selectorListTarget = document.getElementById("selector-list-target");
+        println(`selector-list winner color: ${getComputedStyle(selectorListTarget).color}`);
+        sheet.cssRules[2].selectorText = ".selector-list-target";
+        internals.updateStyle();
+        println(`removed selector-list winner color: ${getComputedStyle(selectorListTarget).color}`);
+    });
+</script>

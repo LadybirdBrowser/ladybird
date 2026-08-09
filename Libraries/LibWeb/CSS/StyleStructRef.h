@@ -43,10 +43,6 @@ WEB_API void const* style_group_default_payload(size_t group_index);
 // NB: This models the same copy-on-write scheme as WebKit's DataRef and
 //     Blink's ComputedStyleBase groups, with Stylo's arrangement of the
 //     reference count header preceding the payload.
-//
-// Setting LIBWEB_STYLE_NO_STRUCT_SHARING in the environment makes copies
-// deep-copy instead of sharing, to isolate sharing-related bugs and to
-// measure the memory/performance effect of sharing.
 template<typename T>
 class StyleStructRef {
 public:
@@ -56,28 +52,19 @@ public:
     }
 
     StyleStructRef(StyleStructRef const& other)
+        : m_payload(other.m_payload)
     {
-        if (sharing_disabled()) [[unlikely]] {
-            m_payload = clone_payload(other.m_payload);
-        } else {
-            m_payload = other.m_payload;
-            ref();
-        }
+        ref();
     }
 
     StyleStructRef& operator=(StyleStructRef const& other)
     {
         if (m_payload == other.m_payload)
             return *this;
-        if (sharing_disabled()) [[unlikely]] {
-            auto* clone = clone_payload(other.m_payload);
-            deref();
-            m_payload = clone;
-        } else {
-            other.ref();
-            deref();
-            m_payload = other.m_payload;
-        }
+        other.ref();
+        deref();
+        m_payload = other.m_payload;
+        m_is_borrowed = false;
         return *this;
     }
 
@@ -93,10 +80,11 @@ public:
     // shared with anyone else (including the leaked default payload).
     T& access()
     {
-        if (refcount().load(AK::memory_order_acquire) != 1) {
+        if (m_is_borrowed || refcount().load(AK::memory_order_acquire) != 1) {
             auto* clone = clone_payload(m_payload);
             deref();
             m_payload = clone;
+            m_is_borrowed = false;
         }
         return *m_payload;
     }
@@ -107,9 +95,24 @@ public:
     {
         deref();
         m_payload = static_cast<T*>(payload);
+        m_is_borrowed = false;
+    }
+
+    // Borrows a payload retained by a live StyleRecord. Copying or mutating
+    // this reference first acquires its own payload, so the borrowed state
+    // never escapes the synchronous record view which created it.
+    void borrow(void const* payload)
+    {
+        deref();
+        m_payload = static_cast<T*>(const_cast<void*>(payload));
+        m_is_borrowed = true;
     }
 
     bool ptr_equals(StyleStructRef const& other) const { return m_payload == other.m_payload; }
+
+    // The shared payload's address, which is the group's identity: two references to the same
+    // payload are the same group, and interning a style record is interning that tuple of addresses.
+    void const* payload_identity() const { return m_payload; }
     bool is_default() const { return m_payload == default_payload(); }
 
     static T const& default_value() { return *static_cast<T const*>(default_payload()); }
@@ -138,6 +141,8 @@ private:
 
     void deref()
     {
+        if (m_is_borrowed)
+            return;
         auto& count = refcount();
         if (count.load(AK::memory_order_relaxed) == style_group_static_refcount)
             return;
@@ -156,13 +161,8 @@ private:
         return payload;
     }
 
-    static bool sharing_disabled()
-    {
-        static bool disabled = getenv("LIBWEB_STYLE_NO_STRUCT_SHARING") != nullptr;
-        return disabled;
-    }
-
     T* m_payload { nullptr };
+    bool m_is_borrowed { false };
 };
 
 }

@@ -37,7 +37,6 @@ macro_rules! define_ffi_ops {
 
 define_ffi_ops! {
     // Entries: C++ -> Rust.
-    SelectorMatchEntry => "selectorMatchEntries",
     CascadeBulkEntry => "cascadeBulkEntries",
     CascadedStoreQueryEntry => "cascadedStoreQueryEntries",
     CustomPropertyStoreLifecycleEntry => "customPropertyStoreLifecycleEntries",
@@ -57,7 +56,6 @@ define_ffi_ops! {
     AnimationEvaluationEntry => "animationEvaluationEntries",
     TransitionDecisionEntry => "transitionDecisionEntries",
     // Callbacks: Rust -> C++.
-    SelectorDomReadCallback => "selectorDomReadCallbacks",
     SelectorMetadataCallback => "selectorMetadataCallbacks",
     CascadeResolveUnresolvedCallback => "cascadeResolveUnresolvedCallbacks",
     CascadeParseSubstitutedCallback => "cascadeParseSubstitutedCallbacks",

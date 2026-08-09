@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @keyframes retain-legacy-animation-source {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    .item {
+        animation: retain-legacy-animation-source 1s paused;
+        color: rebeccapurple;
+    }
+</style>
+<div class="item"></div>
+<script>
+    test(() => {
+        internals.updateStyle();
+        const before = internals.computedValuesStats();
+
+        for (let iteration = 0; iteration < 5; ++iteration)
+            internals.updateStyle();
+        const after = internals.computedValuesStats();
+        println(`no-op flushes do not increase retained array count: ${after.retainedLegacyComputedPropertyArrayHolders <= before.retainedLegacyComputedPropertyArrayHolders}`);
+        println(`no-op flushes do not increase retained array bytes: ${after.retainedLegacyComputedPropertyArrayBytes <= before.retainedLegacyComputedPropertyArrayBytes}`);
+        println(`retained array byte ratio is stable: ${before.retainedLegacyComputedPropertyArrayBytes * after.retainedLegacyComputedPropertyArrayHolders === after.retainedLegacyComputedPropertyArrayBytes * before.retainedLegacyComputedPropertyArrayHolders}`);
+    });
+</script>

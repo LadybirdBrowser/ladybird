@@ -19,26 +19,10 @@ function flushPendingStyleWork() {
 function styleCounterSummary() {
     const counters = internals.getStyleInvalidationCounters();
     return (
-        `styleInvalidations=${counters.styleInvalidations}, fullStyleInvalidations=${counters.fullStyleInvalidations}, ` +
         `elementStyleRecomputations=${counters.elementStyleRecomputations}, ` +
         `elementStyleNoopRecomputations=${counters.elementStyleNoopRecomputations}, ` +
         `elementInheritedStyleRecomputations=${counters.elementInheritedStyleRecomputations}, ` +
-        `elementInheritedStyleNoopRecomputations=${counters.elementInheritedStyleNoopRecomputations}, ` +
-        `hasAncestorWalkInvocations=${counters.hasAncestorWalkInvocations}, ` +
-        `hasInvalidationMetadataCandidates=${counters.hasInvalidationMetadataCandidates}, ` +
-        `hasMatchInvocations=${counters.hasMatchInvocations}, ` +
-        `hasResultCacheHits=${counters.hasResultCacheHits}, hasResultCacheMisses=${counters.hasResultCacheMisses}`
-    );
-}
-
-function styleCounterSummaryWithoutRecomputations() {
-    const counters = internals.getStyleInvalidationCounters();
-    return (
-        `styleInvalidations=${counters.styleInvalidations}, fullStyleInvalidations=${counters.fullStyleInvalidations}, ` +
-        `hasAncestorWalkInvocations=${counters.hasAncestorWalkInvocations}, ` +
-        `hasInvalidationMetadataCandidates=${counters.hasInvalidationMetadataCandidates}, ` +
-        `hasMatchInvocations=${counters.hasMatchInvocations}, ` +
-        `hasResultCacheHits=${counters.hasResultCacheHits}, hasResultCacheMisses=${counters.hasResultCacheMisses}`
+        `elementInheritedStyleNoopRecomputations=${counters.elementInheritedStyleNoopRecomputations}`
     );
 }
 
@@ -51,19 +35,7 @@ function printPassWithCounters(testName) {
 }
 
 function printPassWithoutRecomputeCounters(testName) {
-    println(`PASS: ${testName} | ${styleCounterSummaryWithoutRecomputations()}`);
-}
-
-function hasWalkCounterDetailSummary() {
-    const counters = styleCounters();
-    return (
-        `hasAncestorWalkVisits=${counters.hasAncestorWalkVisits}, ` +
-        `hasAncestorSiblingElementChecks=${counters.hasAncestorSiblingElementChecks}`
-    );
-}
-
-function printPassWithHasWalkCounters(testName) {
-    println(`PASS: ${testName} | ${styleCounterSummary()}, ${hasWalkCounterDetailSummary()}`);
+    println(`PASS: ${testName}`);
 }
 
 function makeElement(tagName, options = {}) {

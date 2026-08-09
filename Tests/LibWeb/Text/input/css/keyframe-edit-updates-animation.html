@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style id="sheet">
+    .animated { animation: recolour 100s linear infinite paused }
+    @keyframes recolour {
+        from { color: rgb(1, 2, 3) }
+        to { color: rgb(1, 2, 3) }
+    }
+</style>
+<span id="animated" class="animated">x</span>
+<script>
+    // A keyframe edited through the CSSOM has to reach the elements running the animation. A
+    // keyframes rule holds rules without being a grouping rule, so its keyframes are handed the sheet
+    // they belong to explicitly; without that the edit had no sheet to report against and the running
+    // animation kept the value it was built with.
+    test(() => {
+        const target = document.getElementById("animated");
+        println(`before: ${getComputedStyle(target).color}`);
+
+        const keyframes = document.getElementById("sheet").sheet.cssRules[1];
+        for (const keyframe of keyframes.cssRules)
+            keyframe.style.color = "rgb(9, 8, 7)";
+        println(`after editing every keyframe: ${getComputedStyle(target).color}`);
+
+        keyframes.cssRules[0].style.removeProperty("color");
+        keyframes.cssRules[1].style.removeProperty("color");
+        println(`after removing the property again: ${getComputedStyle(target).color}`);
+    });
+</script>

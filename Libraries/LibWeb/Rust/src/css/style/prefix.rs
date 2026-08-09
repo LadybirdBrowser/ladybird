@@ -128,6 +128,7 @@ enum PrefixPredicateKey {
     },
 }
 
+#[derive(Clone)]
 enum PrefixPredicate {
     Features {
         feature_start: u32,
@@ -140,14 +141,15 @@ enum PrefixPredicate {
     },
 }
 
+#[derive(Clone)]
 struct PrefixCompound {
     predicate: PrefixPredicate,
     dispatch_key: DispatchKey,
 }
 
+#[derive(Clone)]
 struct PrefixStep {
     compound: PrefixCompoundID,
-    dispatch_order: u32,
     /// The step's terminals and four successor kinds, compiled into one immutable action stream.
     output_start: u32,
     output_len: u32,
@@ -155,7 +157,7 @@ struct PrefixStep {
 
 /// Mutable output storage used only while selector chains are registered. Keeping it separate
 /// lets the finished automaton discard five vector headers per step.
-#[derive(Default)]
+#[derive(Clone, Default)]
 struct PrefixStepOutputBuilder {
     child_successors: Vec<PrefixStepID>,
     descendant_successors: Vec<PrefixStepID>,
@@ -181,17 +183,19 @@ struct PrefixOutput {
     kind: PrefixOutputKind,
 }
 
+#[derive(Clone)]
 struct PrefixEntryPath {
     terminal: DispatchEntryID,
     steps: Box<[PrefixStepID]>,
 }
 
+#[derive(Clone)]
 struct PrefixEntryPaths {
     key: (SelectorProgramID, u32),
     paths: Vec<PrefixEntryPath>,
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 struct PrefixDispatchBucket {
     root_steps: Vec<PrefixStepID>,
     first_step: u32,
@@ -199,7 +203,7 @@ struct PrefixDispatchBucket {
 }
 
 /// Immutable prefix program attached to one selector dispatch.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(super) struct PrefixAutomaton {
     compounds: Vec<PrefixCompound>,
     compound_ids: HashMap<PrefixPredicateKey, PrefixCompoundID>,
@@ -232,6 +236,104 @@ pub(super) struct PrefixSelection {
 }
 
 impl PrefixAutomaton {
+    /// Restore the builder indices and output lists discarded when this automaton was frozen.
+    /// The caller owns a deep clone, so extending it cannot mutate the retained template.
+    pub(super) fn prepare_to_extend(&mut self) {
+        assert!(
+            self.entry_paths_finished,
+            "only a finished prefix automaton can be extended"
+        );
+        self.compound_ids = self
+            .compounds
+            .iter()
+            .enumerate()
+            .map(|(index, compound)| {
+                let key = match &compound.predicate {
+                    PrefixPredicate::Features {
+                        feature_start,
+                        feature_len,
+                        required_positional_bits,
+                    } => {
+                        let start = *feature_start as usize;
+                        PrefixPredicateKey::Features {
+                            features: self.features[start..start + *feature_len as usize].into(),
+                            required_positional_bits: *required_positional_bits,
+                        }
+                    }
+                    PrefixPredicate::Program { program, local } => PrefixPredicateKey::Program {
+                        program: *program,
+                        local: *local,
+                    },
+                };
+                (
+                    key,
+                    PrefixCompoundID(u32::try_from(index).expect("selector prefix compound space exhausted")),
+                )
+            })
+            .collect();
+        self.step_output_builders = self
+            .steps
+            .iter()
+            .map(|step| {
+                let mut builder = PrefixStepOutputBuilder::default();
+                for output in self.outputs_for(step) {
+                    match output.kind {
+                        PrefixOutputKind::UniqueTerminal | PrefixOutputKind::SharedTerminal => builder
+                            .terminals
+                            .push(DispatchEntryID::from_index(output.target as usize)),
+                        PrefixOutputKind::Child => builder.child_successors.push(PrefixStepID(output.target)),
+                        PrefixOutputKind::Descendant => builder.descendant_successors.push(PrefixStepID(output.target)),
+                        PrefixOutputKind::NextSibling => builder.adjacent_successors.push(PrefixStepID(output.target)),
+                        PrefixOutputKind::FollowingSibling => {
+                            builder.following_successors.push(PrefixStepID(output.target));
+                        }
+                    }
+                }
+                builder
+            })
+            .collect();
+        self.step_ids.clear();
+        for (index, step) in self.steps.iter().enumerate() {
+            let predecessor = self.step_predecessors[index];
+            let predecessor = (predecessor != u32::MAX).then_some(PrefixStepID(predecessor));
+            let id = PrefixStepID(u32::try_from(index).expect("selector prefix step space exhausted"));
+            let axis = predecessor.map_or(SelectorPrefixAxis::Root, |predecessor| {
+                let outputs = &self.step_output_builders[predecessor.0 as usize];
+                if outputs.child_successors.contains(&id) {
+                    SelectorPrefixAxis::Child
+                } else if outputs.descendant_successors.contains(&id) {
+                    SelectorPrefixAxis::Descendant
+                } else if outputs.adjacent_successors.contains(&id) {
+                    SelectorPrefixAxis::NextSibling
+                } else if outputs.following_successors.contains(&id) {
+                    SelectorPrefixAxis::FollowingSibling
+                } else {
+                    unreachable!("a non-root prefix step must be an output of its predecessor")
+                }
+            });
+            self.step_ids.insert(
+                PrefixStepKey {
+                    compound: step.compound,
+                    predecessor,
+                    axis,
+                },
+                id,
+            );
+        }
+        self.entry_path_indices = self
+            .entry_paths
+            .iter()
+            .enumerate()
+            .map(|(index, paths)| (paths.key, index))
+            .collect();
+        for bucket in self.buckets.values_mut() {
+            bucket.first_step = 0;
+            bucket.end_step = 0;
+        }
+        self.outputs.clear();
+        self.entry_paths_finished = false;
+    }
+
     pub(super) fn add_entry(
         &mut self,
         programs: &SelectorPrograms,
@@ -251,15 +353,17 @@ impl PrefixAutomaton {
         // registering program, so deduplication is by test value across programs.
         let mut needs_structural_tests = false;
         let mut new_positional_tests: Vec<PrefixStructuralTest> = Vec::new();
-        for &chain_step in chain {
-            if let Some((_, tests)) = program.canonical_prefix_features_and_position(chain_step.local) {
-                for test in tests {
-                    needs_structural_tests = true;
-                    if !self.positional_tests.iter().any(|&(_, existing)| existing == test)
-                        && !new_positional_tests.contains(&test)
-                    {
-                        new_positional_tests.push(test);
-                    }
+        let canonical_steps: Vec<_> = chain
+            .iter()
+            .map(|step| program.canonical_prefix_features_and_position(step.local))
+            .collect();
+        for (_, tests) in canonical_steps.iter().flatten() {
+            for &test in tests {
+                needs_structural_tests = true;
+                if !self.positional_tests.iter().any(|&(_, existing)| existing == test)
+                    && !new_positional_tests.contains(&test)
+                {
+                    new_positional_tests.push(test);
                 }
             }
         }
@@ -279,8 +383,8 @@ impl PrefixAutomaton {
         }
         let mut predecessor = None;
         let mut path = Vec::with_capacity(chain.len());
-        for &chain_step in chain {
-            let predicate = match program.canonical_prefix_features_and_position(chain_step.local) {
+        for (&chain_step, canonical) in chain.iter().zip(canonical_steps) {
+            let predicate = match canonical {
                 Some((features, tests)) => {
                     let mut required_positional_bits = 0_u32;
                     for test in tests {
@@ -351,7 +455,6 @@ impl PrefixAutomaton {
                         PrefixStepID(u32::try_from(self.steps.len()).expect("selector prefix step space exhausted"));
                     self.steps.push(PrefixStep {
                         compound,
-                        dispatch_order: u32::MAX,
                         output_start: 0,
                         output_len: 0,
                     });
@@ -421,15 +524,63 @@ impl PrefixAutomaton {
             let compound = self.steps[step.0 as usize].compound;
             (self.compounds[compound.0 as usize].dispatch_key, *step)
         });
+        // Number immutable steps in dispatch order so every retained state payload is directly
+        // searchable by bucket range. Remap all builder references once here instead of loading a
+        // separate rank through the step table for every runtime state search and sort.
+        let mut remap = vec![0_u32; self.steps.len()];
         for (order, &step) in step_by_dispatch_order.iter().enumerate() {
-            self.steps[step.0 as usize].dispatch_order =
-                u32::try_from(order).expect("selector prefix step space exhausted");
-            let compound = self.steps[step.0 as usize].compound;
+            remap[step.0 as usize] = u32::try_from(order).expect("selector prefix step space exhausted");
+        }
+        let old_steps = std::mem::take(&mut self.steps);
+        self.steps = step_by_dispatch_order
+            .iter()
+            .map(|step| old_steps[step.0 as usize].clone())
+            .collect();
+        let mut old_builders = std::mem::take(&mut self.step_output_builders);
+        self.step_output_builders = step_by_dispatch_order
+            .iter()
+            .map(|step| std::mem::take(&mut old_builders[step.0 as usize]))
+            .collect();
+        let old_predecessors = std::mem::take(&mut self.step_predecessors);
+        self.step_predecessors = step_by_dispatch_order
+            .iter()
+            .map(|step| {
+                let predecessor = old_predecessors[step.0 as usize];
+                if predecessor == u32::MAX {
+                    u32::MAX
+                } else {
+                    remap[predecessor as usize]
+                }
+            })
+            .collect();
+        let remap_steps = |steps: &mut Vec<PrefixStepID>| {
+            for step in steps {
+                step.0 = remap[step.0 as usize];
+            }
+        };
+        for builder in &mut self.step_output_builders {
+            remap_steps(&mut builder.child_successors);
+            remap_steps(&mut builder.descendant_successors);
+            remap_steps(&mut builder.adjacent_successors);
+            remap_steps(&mut builder.following_successors);
+        }
+        for bucket in self.buckets.values_mut() {
+            remap_steps(&mut bucket.root_steps);
+        }
+        for entry in &mut self.entry_paths {
+            for path in &mut entry.paths {
+                for step in &mut path.steps {
+                    step.0 = remap[step.0 as usize];
+                }
+            }
+        }
+        for (order, step) in self.steps.iter_mut().enumerate() {
+            let order = u32::try_from(order).expect("selector prefix step space exhausted");
+            let compound = step.compound;
             let bucket = self
                 .buckets
                 .get_mut(&self.compounds[compound.0 as usize].dispatch_key)
                 .expect("every prefix compound has a dispatch bucket");
-            let order = u32::try_from(order).expect("selector prefix step space exhausted");
             if bucket.end_step == 0 {
                 bucket.first_step = order;
             }
@@ -492,7 +643,7 @@ impl PrefixAutomaton {
     }
 
     fn sort_steps_by_dispatch_order(&self, steps: &mut [PrefixStepID]) {
-        steps.sort_unstable_by_key(|step| self.steps[step.0 as usize].dispatch_order);
+        steps.sort_unstable();
     }
 
     #[must_use]
@@ -804,13 +955,15 @@ impl LocalFactInterner {
         }
     }
 
-    fn intern(&mut self, facts: &StyleNodeFacts, row: u32) -> u32 {
+    fn intern(&mut self, facts: &StyleNodeFacts, row: u32, counters: &mut Counters) -> u32 {
         let hash = hash_local_facts(facts, row);
         if let Some(slot) = self.identities.find(hash, |_slot, &(_identity, representative)| {
             rows_have_equal_local_facts(facts, row, representative)
         }) {
+            counters.bump(Counter::PrefixLocalFactIdentityHits);
             return self.identities[slot].0;
         }
+        counters.bump(Counter::PrefixLocalFactIdentityMisses);
         let identity = self.next_identity;
         self.next_identity = self
             .next_identity
@@ -1073,6 +1226,23 @@ impl PrefixDeltaArena {
         let persisting = self.sign_in_spans(delta.persisting_additions, delta.persisting_removals, step);
         let expiring = self.sign_in_spans(delta.expiring_additions, delta.expiring_removals, step);
         persisting + expiring
+    }
+
+    /// Whether an exact signed delta changes the active state viewed through `selection`.
+    ///
+    /// A step can occur in both delta partitions while moving between them, so test its combined
+    /// state sign instead of treating every non-empty span as a semantic change.
+    fn changes_selected_state(&self, id: PrefixStateDeltaID, selection: &PrefixSelection) -> bool {
+        let delta = self.delta(id);
+        [
+            delta.persisting_additions,
+            delta.persisting_removals,
+            delta.expiring_additions,
+            delta.expiring_removals,
+        ]
+        .into_iter()
+        .flat_map(|span| self.get(span))
+        .any(|&step| selection.contains_step(step) && self.state_sign(Some(id), step) != 0)
     }
 
     fn persisting_only(&mut self, id: Option<PrefixStateDeltaID>) -> PrefixStateDeltaID {
@@ -1618,15 +1788,13 @@ impl PrefixStates {
         }
     }
 
-    fn persisting_state_contains_step(&self, automaton: &PrefixAutomaton, state: u32, step: PrefixStepID) -> bool {
-        let dispatch_order = automaton.steps[step.0 as usize].dispatch_order;
+    fn persisting_state_contains_step(&self, state: u32, step: PrefixStepID) -> bool {
+        let step_index = step.0;
         let mut current = state;
         loop {
             if self
                 .additions_in(current)
-                .binary_search_by_key(&dispatch_order, |candidate| {
-                    automaton.steps[candidate.0 as usize].dispatch_order
-                })
+                .binary_search_by_key(&step_index, |candidate| candidate.0)
                 .is_ok()
             {
                 return true;
@@ -1639,14 +1807,12 @@ impl PrefixStates {
         }
     }
 
-    fn state_contains_step(&self, automaton: &PrefixAutomaton, state: u32, step: PrefixStepID) -> bool {
-        let dispatch_order = automaton.steps[step.0 as usize].dispatch_order;
+    fn state_contains_step(&self, state: u32, step: PrefixStepID) -> bool {
+        let step_index = step.0;
         self.expiring_in(state)
-            .binary_search_by_key(&dispatch_order, |candidate| {
-                automaton.steps[candidate.0 as usize].dispatch_order
-            })
+            .binary_search_by_key(&step_index, |candidate| candidate.0)
             .is_ok()
-            || self.persisting_state_contains_step(automaton, state, step)
+            || self.persisting_state_contains_step(state, step)
     }
 
     pub(super) fn producer_is_active(
@@ -1659,13 +1825,12 @@ impl PrefixStates {
             return false;
         };
         automaton.predecessor_of(producer.step).is_none()
-            || self.state_contains_step(automaton, entering.parent, producer.step)
-            || self.state_contains_step(automaton, entering.previous, producer.step)
+            || self.state_contains_step(entering.parent, producer.step)
+            || self.state_contains_step(entering.previous, producer.step)
     }
 
     fn state_membership_across_delta(
         &self,
-        automaton: &PrefixAutomaton,
         old_state: u32,
         new_state: u32,
         delta: Option<PrefixStateDeltaID>,
@@ -1676,11 +1841,11 @@ impl PrefixStates {
             1 => (false, true),
             -1 => (true, false),
             0 => {
-                let old_contains = self.state_contains_step(automaton, old_state, step);
+                let old_contains = self.state_contains_step(old_state, step);
                 let new_contains = if delta.is_some() || old_state == new_state {
                     old_contains
                 } else {
-                    self.state_contains_step(automaton, new_state, step)
+                    self.state_contains_step(new_state, step)
                 };
                 (old_contains, new_contains)
             }
@@ -1690,7 +1855,6 @@ impl PrefixStates {
 
     fn persisting_membership_across_delta(
         &self,
-        automaton: &PrefixAutomaton,
         old_state: u32,
         new_state: u32,
         delta: Option<PrefixStateDeltaID>,
@@ -1701,11 +1865,11 @@ impl PrefixStates {
             1 => (false, true),
             -1 => (true, false),
             0 => {
-                let old_contains = self.persisting_state_contains_step(automaton, old_state, step);
+                let old_contains = self.persisting_state_contains_step(old_state, step);
                 let new_contains = if delta.is_some() || old_state == new_state {
                     old_contains
                 } else {
-                    self.persisting_state_contains_step(automaton, new_state, step)
+                    self.persisting_state_contains_step(new_state, step)
                 };
                 (old_contains, new_contains)
             }
@@ -1762,7 +1926,6 @@ impl PrefixStates {
             });
             let is_root = evaluation.automaton.predecessor_of(step).is_none();
             let (old_parent, new_parent) = self.state_membership_across_delta(
-                evaluation.automaton,
                 old_entering.parent,
                 entering.parent,
                 entering_deltas.parent,
@@ -1770,7 +1933,6 @@ impl PrefixStates {
                 step,
             );
             let (old_previous, new_previous) = self.state_membership_across_delta(
-                evaluation.automaton,
                 old_entering.previous,
                 entering.previous,
                 entering_deltas.previous,
@@ -1853,7 +2015,6 @@ impl PrefixStates {
                 let correction = match output.kind {
                     PrefixOutputKind::Descendant => {
                         let (inherited_old, inherited_new) = self.persisting_membership_across_delta(
-                            evaluation.automaton,
                             old_entering.parent,
                             entering.parent,
                             entering_deltas.parent,
@@ -1866,7 +2027,6 @@ impl PrefixStates {
                     }
                     PrefixOutputKind::FollowingSibling => {
                         let (inherited_old, inherited_new) = self.persisting_membership_across_delta(
-                            evaluation.automaton,
                             old_entering.previous,
                             entering.previous,
                             entering_deltas.previous,
@@ -1921,7 +2081,6 @@ impl PrefixStates {
     #[allow(clippy::too_many_arguments)]
     fn rebase_payload_with_local_delta(
         &mut self,
-        automaton: &PrefixAutomaton,
         source_state: u32,
         old_base_state: u32,
         new_base_state: u32,
@@ -1962,12 +2121,12 @@ impl PrefixStates {
         additions
             .retain(|&step| arena.sign_in_spans(delta.persisting_additions, delta.persisting_removals, step) != -1);
         additions.extend_from_slice(arena.get(delta.persisting_additions));
-        additions.retain(|&step| !self.persisting_state_contains_step(automaton, new_base_state, step));
-        additions.sort_unstable_by_key(|step| automaton.steps[step.0 as usize].dispatch_order);
+        additions.retain(|&step| !self.persisting_state_contains_step(new_base_state, step));
+        additions.sort_unstable();
         additions.dedup();
         expiring.retain(|&step| arena.sign_in_spans(delta.expiring_additions, delta.expiring_removals, step) != -1);
         expiring.extend_from_slice(arena.get(delta.expiring_additions));
-        expiring.sort_unstable_by_key(|step| automaton.steps[step.0 as usize].dispatch_order);
+        expiring.sort_unstable();
         expiring.dedup();
         let additions_hash = additions
             .iter()
@@ -2048,7 +2207,6 @@ impl PrefixStates {
         let (state, right) = if local_output_deltas.outputs_changed {
             (
                 self.rebase_payload_with_local_delta(
-                    evaluation.automaton,
                     old.state,
                     old_entering.parent,
                     entering.parent,
@@ -2058,7 +2216,6 @@ impl PrefixStates {
                     counters,
                 )?,
                 self.rebase_payload_with_local_delta(
-                    evaluation.automaton,
                     old.right,
                     old_entering.previous,
                     entering.previous,
@@ -2142,7 +2299,7 @@ impl PrefixStates {
             0
         };
         let local_facts = if local_facts_changed || old.is_none() {
-            let identity = self.local_fact_interner.intern(evaluation.facts, row);
+            let identity = self.local_fact_interner.intern(evaluation.facts, row, counters);
             self.set_local_facts(node, identity);
             identity
         } else {
@@ -2342,25 +2499,37 @@ impl PrefixStates {
                 }
             };
         }
+        let sparse_has_local_output_delta = used_sparse_transition && local_output_deltas.unwrap().outputs_changed;
+        // An exact local delta is also an equality proof. Avoid walking both interned state
+        // chains after doing the more precise work needed for downstream propagation already.
+        let (continuation_changed, continuation_delta) = if old.state == new.state {
+            (false, None)
+        } else if can_derive_delta {
+            let delta = if used_sparse_transition && !sparse_has_local_output_delta {
+                delta_arena.persisting_only(entering_deltas.parent)
+            } else {
+                delta_arena.combine(entering_deltas.parent, local_output_deltas.unwrap().continuation)
+            };
+            let changed = delta_arena.changes_selected_state(delta, selection.unwrap());
+            (changed, changed.then_some(delta))
+        } else {
+            (!self.selected_states_equal(old.state, new.state, selection), None)
+        };
+        let (right_changed, right_delta) = if old.right == new.right {
+            (false, None)
+        } else if can_derive_delta {
+            let delta = if used_sparse_transition && !sparse_has_local_output_delta {
+                delta_arena.persisting_only(entering_deltas.previous)
+            } else {
+                delta_arena.combine(entering_deltas.previous, local_output_deltas.unwrap().right)
+            };
+            let changed = delta_arena.changes_selected_state(delta, selection.unwrap());
+            (changed, changed.then_some(delta))
+        } else {
+            (!self.selected_states_equal(old.right, new.right, selection), None)
+        };
         let old_matches = self.matches_of(old);
         let new_matches = self.matches_of(new);
-        let continuation_changed = !self.selected_states_equal(old.state, new.state, selection);
-        let right_changed = !self.selected_states_equal(old.right, new.right, selection);
-        let sparse_has_local_output_delta = used_sparse_transition && local_output_deltas.unwrap().outputs_changed;
-        let continuation_delta = if !continuation_changed || !can_derive_delta {
-            None
-        } else if used_sparse_transition && !sparse_has_local_output_delta {
-            Some(delta_arena.persisting_only(entering_deltas.parent))
-        } else {
-            Some(delta_arena.combine(entering_deltas.parent, local_output_deltas.unwrap().continuation))
-        };
-        let right_delta = if !right_changed || !can_derive_delta {
-            None
-        } else if used_sparse_transition && !sparse_has_local_output_delta {
-            Some(delta_arena.persisting_only(entering_deltas.previous))
-        } else {
-            Some(delta_arena.combine(entering_deltas.previous, local_output_deltas.unwrap().right))
-        };
         self.candidates = affected_candidates;
         PrefixTransitionLookup::Known(PrefixDifference {
             continuation_changed,
@@ -2675,36 +2844,16 @@ impl PrefixStates {
             }
         }
         if entering.parent != 0 {
-            self.offer_state_range(
-                automaton,
-                entering.parent,
-                bucket.first_step,
-                bucket.end_step,
-                selection,
-            );
+            self.offer_state_range(entering.parent, bucket.first_step, bucket.end_step, selection);
         }
         if entering.previous != 0 && entering.previous != entering.parent {
-            self.offer_state_range(
-                automaton,
-                entering.previous,
-                bucket.first_step,
-                bucket.end_step,
-                selection,
-            );
+            self.offer_state_range(entering.previous, bucket.first_step, bucket.end_step, selection);
         }
     }
 
-    fn offer_state_range(
-        &mut self,
-        automaton: &PrefixAutomaton,
-        state: u32,
-        first_step: u32,
-        end_step: u32,
-        selection: Option<&PrefixSelection>,
-    ) {
+    fn offer_state_range(&mut self, state: u32, first_step: u32, end_step: u32, selection: Option<&PrefixSelection>) {
         let contents = &self.states[state as usize];
         self.offer_step_range(
-            automaton,
             contents.payload_start as usize + contents.additions_len as usize,
             contents.expiring_len,
             (first_step, end_step),
@@ -2716,13 +2865,7 @@ impl PrefixStates {
             let payload_start = contents.payload_start;
             let additions_len = contents.additions_len;
             let base = contents.base;
-            self.offer_step_range(
-                automaton,
-                payload_start as usize,
-                additions_len,
-                (first_step, end_step),
-                selection,
-            );
+            self.offer_step_range(payload_start as usize, additions_len, (first_step, end_step), selection);
             if base == current {
                 break;
             }
@@ -2732,7 +2875,6 @@ impl PrefixStates {
 
     fn offer_step_range(
         &mut self,
-        automaton: &PrefixAutomaton,
         payload_start: usize,
         len: u32,
         dispatch_range: (u32, u32),
@@ -2745,10 +2887,8 @@ impl PrefixStates {
                 len as usize,
             )
         };
-        let start = steps.partition_point(|step| automaton.steps[step.0 as usize].dispatch_order < dispatch_range.0);
-        let end = steps[start..]
-            .partition_point(|step| automaton.steps[step.0 as usize].dispatch_order < dispatch_range.1)
-            + start;
+        let start = steps.partition_point(|step| step.0 < dispatch_range.0);
+        let end = steps[start..].partition_point(|step| step.0 < dispatch_range.1) + start;
         for &step in &steps[start..end] {
             if selection.is_some_and(|selection| !selection.contains_step(step)) {
                 continue;
@@ -3222,18 +3362,10 @@ impl PrefixStates {
             self.compact_interned_states();
             self.last_compacted_working_bytes = self.interned_working_bytes();
         }
-        self.states.shrink_to_fit();
-        self.delta_steps.shrink_to_fit();
-        self.match_offsets.shrink_to_fit();
-        self.match_entries.shrink_to_fit();
-        self.truth_offsets.shrink_to_fit();
-        self.truth_steps.shrink_to_fit();
-        self.results.shrink_to_fit();
-        self.descendant_only.shrink_to_fit();
-        self.transition_by_element.shrink_to_fit();
-        self.entering_by_element.shrink_to_fit();
-        self.local_facts_by_element.shrink_to_fit();
-        self.positional_bits_by_element.shrink_to_fit();
+        // Retained state becomes scratch again before it can be mutated. Preserve the allocation
+        // slack of its working vectors across that cycle: trimming them here makes the next flush
+        // immediately allocate the same capacity again. Batch-local workspaces below still give
+        // their complete allocations back because none of their contents cross this boundary.
         self.transition_by_row = Vec::new();
         self.candidate_epoch = EpochColumn::default();
         self.compound_epoch = EpochColumn::default();
@@ -3363,12 +3495,18 @@ impl PrefixTransitionSurface<'_> {
         }
     }
 
-    fn local_fact_identity(&mut self, facts: &StyleNodeFacts, node: StyleNodeID, row: u32) -> u32 {
+    fn local_fact_identity(
+        &mut self,
+        facts: &StyleNodeFacts,
+        node: StyleNodeID,
+        row: u32,
+        counters: &mut Counters,
+    ) -> u32 {
         match self {
             Self::Retained(states) => match states.local_facts_of(node) {
                 Some(identity) => identity,
                 None => {
-                    let identity = states.local_fact_interner.intern(facts, row);
+                    let identity = states.local_fact_interner.intern(facts, row, counters);
                     states.set_local_facts(node, identity);
                     identity
                 }
@@ -3429,12 +3567,14 @@ impl PrefixTransitionSurface<'_> {
             positional_bits: inputs.positional_bits,
         };
         if let Some(transition) = self.memoized_transition(&key) {
+            counters.bump(Counter::PrefixTransitionMemoHits);
             if !evaluation.automaton.positional_tests().is_empty() {
                 self.remember_positional_bits(node, inputs.positional_bits);
             }
             self.remember_entering(node, inputs.entering);
             return PrefixTransitionLookup::Known((transition, PrefixTransitionOrigin::Memoized));
         }
+        counters.bump(Counter::PrefixTransitionMemoMisses);
         let transition = match self {
             Self::Retained(states) => states.transition(
                 evaluation,
@@ -3518,7 +3658,7 @@ fn transition_for(
         } else {
             0
         };
-        let local_facts = surface.local_fact_identity(evaluation.facts, node, row);
+        let local_facts = surface.local_fact_identity(evaluation.facts, node, row, counters);
         let positional_bits = match evaluation.positional_bits(node, counters) {
             Ok(bits) => bits,
             Err(incomplete) => return PrefixTransitionLookup::Missing(PrefixTransitionGap::Incomplete(incomplete)),
@@ -3899,15 +4039,15 @@ fn matches_feature(facts: &StyleNodeFacts, row: u32, feature: FeatureTest) -> bo
 
 #[cfg(test)]
 mod tests {
+    use super::super::index::StyleAtomID;
     use super::*;
 
     #[test]
     fn begin_transition_sizes_every_scratch_column_independently() {
         let mut automaton = PrefixAutomaton::default();
-        for order in 0..8_u32 {
+        for _ in 0..8_u32 {
             automaton.steps.push(PrefixStep {
                 compound: PrefixCompoundID(0),
-                dispatch_order: order,
                 output_start: 0,
                 output_len: 0,
             });
@@ -4055,18 +4195,30 @@ mod tests {
     }
 
     #[test]
+    fn prefix_state_deltas_compare_the_selected_active_set() {
+        let cancelled = PrefixStepID(1);
+        let changed = PrefixStepID(2);
+        let mut arena = PrefixDeltaArena::default();
+        arena.scratch[0].extend([cancelled, changed]);
+        arena.scratch[3].push(cancelled);
+        let delta = arena.append_scratch_delta(0);
+        let cancelled_selection = PrefixSelection {
+            steps: vec![false, true, false].into_boxed_slice(),
+            terminals: Box::new([]),
+        };
+        let changed_selection = PrefixSelection {
+            steps: vec![false, true, true].into_boxed_slice(),
+            terminals: Box::new([]),
+        };
+
+        assert!(!arena.changes_selected_state(delta, &cancelled_selection));
+        assert!(arena.changes_selected_state(delta, &changed_selection));
+    }
+
+    #[test]
     fn sparse_rebase_applies_signed_local_output_edits() {
         let mut states = PrefixStates::new(0);
         let mut counters = Counters::new();
-        let mut automaton = PrefixAutomaton::default();
-        for dispatch_order in 0..7 {
-            automaton.steps.push(PrefixStep {
-                compound: PrefixCompoundID(0),
-                dispatch_order,
-                output_start: 0,
-                output_len: 0,
-            });
-        }
         let old_base_step = PrefixStepID(0);
         let retained_step = PrefixStepID(1);
         let removed_step = PrefixStepID(2);
@@ -4094,16 +4246,7 @@ mod tests {
         let delta = arena.append_scratch_delta(0);
 
         let rebased = states
-            .rebase_payload_with_local_delta(
-                &automaton,
-                source,
-                old_base,
-                new_base,
-                delta,
-                &arena,
-                true,
-                &mut counters,
-            )
+            .rebase_payload_with_local_delta(source, old_base, new_base, delta, &arena, true, &mut counters)
             .expect("a one-level local payload can apply signed edits");
 
         assert_eq!(states.states[rebased as usize].base, new_base);
@@ -4128,7 +4271,6 @@ mod tests {
         for _ in 0..2 {
             automaton.steps.push(PrefixStep {
                 compound: PrefixCompoundID(0),
-                dispatch_order: u32::MAX,
                 output_start: 0,
                 output_len: 0,
             });
@@ -4150,6 +4292,82 @@ mod tests {
         assert!(matches!(first_outputs[2].kind, PrefixOutputKind::SharedTerminal));
         let second_outputs = automaton.outputs_for(&automaton.steps[1]);
         assert!(matches!(second_outputs[0].kind, PrefixOutputKind::SharedTerminal));
+    }
+
+    #[test]
+    fn finished_automaton_remaps_step_references_into_dispatch_order() {
+        let mut automaton = PrefixAutomaton::default();
+        automaton.compounds.extend([
+            PrefixCompound {
+                predicate: PrefixPredicate::Features {
+                    feature_start: 0,
+                    feature_len: 0,
+                    required_positional_bits: 0,
+                },
+                dispatch_key: DispatchKey::Universal,
+            },
+            PrefixCompound {
+                predicate: PrefixPredicate::Features {
+                    feature_start: 0,
+                    feature_len: 0,
+                    required_positional_bits: 0,
+                },
+                dispatch_key: DispatchKey::Id(StyleAtomID(1)),
+            },
+        ]);
+        automaton.buckets.insert(
+            DispatchKey::Universal,
+            PrefixDispatchBucket {
+                root_steps: vec![PrefixStepID(0)],
+                ..PrefixDispatchBucket::default()
+            },
+        );
+        automaton
+            .buckets
+            .insert(DispatchKey::Id(StyleAtomID(1)), PrefixDispatchBucket::default());
+        automaton.steps.extend([
+            PrefixStep {
+                compound: PrefixCompoundID(0),
+                output_start: 0,
+                output_len: 0,
+            },
+            PrefixStep {
+                compound: PrefixCompoundID(1),
+                output_start: 0,
+                output_len: 0,
+            },
+        ]);
+        automaton.step_predecessors.extend([u32::MAX, 0]);
+        automaton
+            .step_output_builders
+            .resize(2, PrefixStepOutputBuilder::default());
+        automaton.step_output_builders[0].child_successors.push(PrefixStepID(1));
+        automaton.entry_paths.push(PrefixEntryPaths {
+            key: (SelectorProgramID(0), 0),
+            paths: vec![PrefixEntryPath {
+                terminal: DispatchEntryID::from_index(0),
+                steps: vec![PrefixStepID(0), PrefixStepID(1)].into_boxed_slice(),
+            }],
+        });
+
+        automaton.finish();
+
+        assert_eq!(
+            automaton.compounds[automaton.steps[0].compound.0 as usize].dispatch_key,
+            DispatchKey::Id(StyleAtomID(1))
+        );
+        assert_eq!(automaton.predecessor_of(PrefixStepID(0)), Some(PrefixStepID(1)));
+        let outputs = automaton.outputs_for(&automaton.steps[1]);
+        assert!(matches!(outputs[0].kind, PrefixOutputKind::Child));
+        assert_eq!(outputs[0].target, 0);
+        assert_eq!(
+            automaton.bucket(DispatchKey::Universal).unwrap().root_steps,
+            [PrefixStepID(1)]
+        );
+        assert_eq!(
+            automaton.entry_paths[0].paths[0].steps.as_ref(),
+            [PrefixStepID(1), PrefixStepID(0)]
+        );
     }
 
     #[test]
@@ -4256,5 +4474,39 @@ mod tests {
         let (key, memoized) = states.transitions.iter().next().unwrap();
         assert_eq!(key.parent, 2);
         assert_eq!(memoized.state, 2);
+    }
+
+    #[test]
+    fn retention_preserves_working_vector_capacity() {
+        let mut states = PrefixStates::new(0);
+        states.last_compacted_working_bytes = states.interned_working_bytes();
+        states.match_offsets.reserve(32);
+        states.match_entries.reserve(32);
+        states.truth_offsets.reserve(32);
+        states.truth_steps.reserve(32);
+        states.results.reserve(32);
+        states.transition_by_element.reserve(32);
+        let capacities = [
+            states.match_offsets.capacity(),
+            states.match_entries.capacity(),
+            states.truth_offsets.capacity(),
+            states.truth_steps.capacity(),
+            states.results.capacity(),
+            states.transition_by_element.capacity(),
+        ];
+
+        states.trim_for_retention();
+
+        assert_eq!(
+            capacities,
+            [
+                states.match_offsets.capacity(),
+                states.match_entries.capacity(),
+                states.truth_offsets.capacity(),
+                states.truth_steps.capacity(),
+                states.results.capacity(),
+                states.transition_by_element.capacity(),
+            ]
+        );
     }
 }

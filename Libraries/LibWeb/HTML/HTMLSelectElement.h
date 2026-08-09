@@ -109,7 +109,7 @@ public:
     bool can_skip_selectedness_update_for_inserted_option(HTMLOptionElement const&) const;
 
     bool user_validity() const { return m_user_validity; }
-    void set_user_validity(bool flag) { m_user_validity = flag; }
+    void set_user_validity(bool);
 
     // https://html.spec.whatwg.org/multipage/form-elements.html#placeholder-label-option
     HTMLOptionElement* placeholder_label_option() const;

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .changed {
+        --tone: rgb(1, 2, 3);
+    }
+
+    .container:has(.witness) > .target {
+        color: var(--tone, rgb(4, 5, 6));
+    }
+</style>
+<div id="container" class="container">
+    <div class="witness"></div>
+</div>
+<script>
+    const container = document.getElementById("container");
+    for (let i = 0; i < 256; ++i) {
+        const target = document.createElement("div");
+        target.className = "target";
+        container.appendChild(target);
+    }
+
+    test(() => {
+        internals.updateStyle();
+
+        const before = internals.styleEngineCounters();
+        container.classList.add("changed");
+        internals.updateStyle();
+        const after = internals.styleEngineCounters();
+
+        const batchRows = after.coldMatchingBatchRows - before.coldMatchingBatchRows;
+        const completeRowsInspected = after.preparedMatchingBatchCompletenessRowsInspected - before.preparedMatchingBatchCompletenessRowsInspected;
+        const completeRowsCloned = after.preparedMatchingBatchRowsCloned - before.preparedMatchingBatchRowsCloned;
+        println(`no duplicate fact batch: ${batchRows === 0}`);
+        println(`no complete fact-store scan: ${completeRowsInspected === 0}`);
+        println(`no complete fact-store clone: ${completeRowsCloned === 0}`);
+        println(`first target: ${getComputedStyle(container.children[1]).color}`);
+        println(`last target: ${getComputedStyle(container.lastElementChild).color}`);
+    });
+</script>

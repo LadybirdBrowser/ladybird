@@ -1,0 +1,2 @@
+move the previous sibling away: [subject]
+keep the old previous neighbour stationary: []

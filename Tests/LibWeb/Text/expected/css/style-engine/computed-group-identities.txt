@@ -1,0 +1,17 @@
+computed group handles cover the elements: true
+computed group sets are shared: true
+computed groups are shared: true
+inherited group handles cover the elements: true
+inherited group sets are shared: true
+custom property handles cover the elements: true
+custom property environments are shared: true
+computed fixed metadata handles cover the elements: true
+computed fixed metadata tuples are shared: true
+computed reconstruction metadata handles cover the elements: true
+computed reconstruction metadata tuples are shared: true
+base style record handles cover the elements: true
+base style records are shared: true
+pseudo assignments are published sparsely: true
+pseudo assignments are removed sparsely: true
+ordinary item: rgb(20, 24, 28)
+distinct non-inherited item: rgb(60, 64, 68)

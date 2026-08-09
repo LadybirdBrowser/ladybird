@@ -7,6 +7,7 @@
 
 import argparse
 import json
+import math
 import socket
 import statistics
 import subprocess
@@ -219,7 +220,7 @@ def run_iteration(webdriver, document_size, cycles, warmup_cycles):
 
 def percentile(values, percentile_value):
     ordered = sorted(values)
-    index = round((len(ordered) - 1) * percentile_value)
+    index = min(len(ordered) - 1, math.ceil((len(ordered) - 1) * percentile_value))
     return ordered[index]
 
 

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    [aB] { color: rgb(1, 2, 3) }
+    [viewBox] { background-color: rgb(4, 5, 6) }
+    [viewbox] { outline-color: rgb(7, 8, 9) }
+</style>
+<div id="html-lowercase" ab></div>
+<svg id="svg-camel" viewBox="0 0 1 1"></svg>
+<script>
+    test(() => {
+        // https://html.spec.whatwg.org/multipage/semantics-other.html#case-sensitivity-of-selectors
+        // An attribute name is matched ASCII case-insensitively against an HTML element in an HTML
+        // document and case-sensitively everywhere else. So `[aB]` reaches an HTML element carrying
+        // `ab`, `[viewBox]` reaches an SVG element carrying `viewBox`, and `[viewbox]` reaches
+        // neither of them.
+        //
+        // Both forms ride on one attribute test, the way a tag name's do, and the dispatch keys on
+        // the folded one - an attribute written `viewBox` answers to `viewbox` as well, so `[aB]`
+        // and `[ab]` land in one bucket and the exact test separates them.
+        const html = document.getElementById("html-lowercase");
+        const svg = document.getElementById("svg-camel");
+        println("html [aB] color: " + getComputedStyle(html).color);
+        println("svg [viewBox] background-color: " + getComputedStyle(svg).backgroundColor);
+        println("svg [viewbox] outline-color: " + getComputedStyle(svg).outlineColor);
+        println(internals.styleEngineMatchedRules());
+    });
+</script>

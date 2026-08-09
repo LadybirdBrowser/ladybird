@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<x-order></x-order>
+<script>
+    // https://drafts.csswg.org/css-scoping-1/#host-selector
+    // The specificity of :host() is that of a pseudo-class, plus the specificity of its argument,
+    // so it wins over a bare :host written after it.
+    customElements.define("x-order", class extends HTMLElement {
+        constructor() {
+            super();
+            const root = this.attachShadow({ mode: "open" });
+            root.innerHTML = "<style>"
+                + ":host(x-order) { color: rgb(1, 1, 1) }"
+                + ":host { color: rgb(2, 2, 2) }"
+                + "</style><span>x</span>";
+        }
+    });
+
+    test(() => {
+        const element = document.querySelector("x-order");
+        println(`host color: ${getComputedStyle(element).color}`);
+        // Which of the two the engine puts last is what specificity decides, and the dump says it
+        // in the order the cascade applies them.
+        println(internals.styleEngineMatchedRules());
+    });
+</script>

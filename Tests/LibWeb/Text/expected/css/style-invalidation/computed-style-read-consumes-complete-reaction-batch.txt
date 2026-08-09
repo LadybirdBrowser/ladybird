@@ -1,0 +1,3 @@
+target color: rgb(12, 34, 56)
+unrelated color: rgb(65, 43, 21)
+PASS: the first style read consumed the complete reaction batch: true

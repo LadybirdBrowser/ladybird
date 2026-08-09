@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @scope (.root) {
+        .root { color: rgb(1, 2, 3) }
+        :scope { background-color: rgb(4, 5, 6) }
+        .inner { outline-color: rgb(7, 8, 9) }
+    }
+</style>
+<div class="root"><div class="inner">inner</div></div>
+<script>
+    test(() => {
+        // https://drafts.csswg.org/css-cascade-6/#scoped-rules
+        // A scoped rule's selector is relative to the scoping root, so it carries an implied
+        // `:scope ` prefix and cannot match the root itself. Only a selector that names `:scope`
+        // or nests can.
+        const root = document.querySelector(".root");
+        println("color: " + getComputedStyle(root).color);
+        println("background-color: " + getComputedStyle(root).backgroundColor);
+        println("inner outline-color: " + getComputedStyle(document.querySelector(".inner")).outlineColor);
+        println(internals.styleEngineMatchedRules());
+    });
+</script>

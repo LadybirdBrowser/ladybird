@@ -8,7 +8,7 @@
 
         const counters = other.internals.getStyleInvalidationCounters.call(internals);
         println(`style counters has null prototype: ${Object.getPrototypeOf(counters) === null}`);
-        println(`style counters has styleInvalidations: ${"styleInvalidations" in counters}`);
+        println(`style counters has reaction batches: ${"styleEngineReactionBatchRuns" in counters}`);
 
         const asyncState = other.internals.asyncScrollingState.call(internals);
         println(`async state has null prototype: ${Object.getPrototypeOf(asyncState) === null}`);

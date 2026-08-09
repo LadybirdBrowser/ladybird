@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="plan.js"></script>
+<script>
+    test(() => {
+        function fixture() {
+            const root = make("section", "fixture");
+            root.append(
+                make("div", "first", { className: "slot" }),
+                make("div", "second", { className: "slot" }),
+                make("div", "third", { className: "slot" }),
+            );
+            document.body.appendChild(root);
+            return root;
+        }
+
+        const style = addStyleSheet(".slot:nth-child(3n) { color: red }");
+        let root = fixture();
+        plan("remove first", () => root.firstElementChild.remove());
+        root.remove();
+
+        root = fixture();
+        plan("insert first", () => root.prepend(make("div", "inserted")));
+        root.remove();
+        style.remove();
+    });
+</script>

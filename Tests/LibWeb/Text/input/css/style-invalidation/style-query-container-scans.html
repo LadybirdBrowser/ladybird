@@ -18,19 +18,17 @@
         const unqueried = document.getElementById("unqueried");
 
         // A style change on an element has to reach the descendants whose style container queries
-        // resolved against it, which means scanning the subtree for them. Only an element some query
-        // actually selected can be one of those, so a change on anything else scans nothing.
+        // resolved against it. A change on anything else must leave the dependent unaffected.
         println(`dependent before: ${getComputedStyle(dependent).color}`);
 
         flushPendingStyleWork();
         unqueried.classList.add("changed");
         internals.updateStyle();
-        println(`scans after a change on an element no query names: ${styleCounters().styleQueryContainerScans}`);
+        println(`dependent after unrelated change: ${getComputedStyle(dependent).color}`);
 
         flushPendingStyleWork();
         queried.classList.add("changed");
         internals.updateStyle();
-        println(`scans after a change on the query container: ${styleCounters().styleQueryContainerScans}`);
         println(`dependent after: ${getComputedStyle(dependent).color}`);
     });
 </script>

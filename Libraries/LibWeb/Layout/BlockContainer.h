@@ -15,7 +15,7 @@ class BlockContainer : public Box {
     LAYOUT_NODE(BlockContainer, Box);
 
 public:
-    BlockContainer(DOM::Document&, GC::Ptr<DOM::Node>, NonnullRefPtr<CSS::ComputedValues const>);
+    BlockContainer(DOM::Document&, GC::Ptr<DOM::Node>, CSS::LayoutStyle);
     virtual ~BlockContainer() override;
 
     RefPtr<Painting::PaintableWithLines const> paintable_with_lines() const;

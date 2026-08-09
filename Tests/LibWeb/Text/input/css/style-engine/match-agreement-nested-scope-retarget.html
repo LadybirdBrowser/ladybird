@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style id="sheet">
+    .p { @scope (&) { :scope .x { color: rgb(1, 2, 3) } } }
+</style>
+<div class="p"><div class="x">px</div></div>
+<div class="r"><div class="x">rx</div></div>
+<script>
+    test(() => {
+        // The `@scope` holds no selector of its own, so it holds no rule identity either. Treating a
+        // missing identity as a rule that has yet to arrive compiled everything nested inside it a
+        // second time, and the copy already in the graph kept deciding by the selector the outer rule
+        // used to have.
+        const rule = document.getElementById("sheet").sheet.cssRules[0];
+        rule.selectorText = ".r";
+
+        for (const element of document.querySelectorAll(".x"))
+            println(`${element.parentElement.className} > .x: ${getComputedStyle(element).color}`);
+
+        for (const element of document.querySelectorAll("*"))
+            getComputedStyle(element).color;
+        println(internals.styleEngineMatchedRules());
+    });
+</script>

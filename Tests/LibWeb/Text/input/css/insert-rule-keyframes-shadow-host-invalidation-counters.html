@@ -33,10 +33,10 @@
 
         sheet.insertRule("@keyframes fade { from { opacity: 0.25; } to { opacity: 0.25; } }", sheet.cssRules.length);
         getComputedStyle(host).animationName;
-        const invalidations = internals.getStyleInvalidationCounters().styleInvalidations;
-        if (invalidations <= 2)
-            println(`PASS: bare :host keyframes insertRule only invalidates the host`);
+        const recomputations = internals.getStyleInvalidationCounters().elementStyleRecomputations;
+        if (recomputations <= 2)
+            println(`PASS: bare :host keyframes insertRule only recomputes the host`);
         else
-            println(`FAIL: bare :host keyframes insertRule only invalidates the host (${invalidations} invalidations)`);
+            println(`FAIL: bare :host keyframes insertRule only recomputes the host (${recomputations} recomputations)`);
     });
 </script>

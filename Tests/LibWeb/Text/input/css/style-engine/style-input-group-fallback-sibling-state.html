@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    dialog:open + p {
+        will-change: text-decoration;
+    }
+</style>
+<dialog></dialog>
+<p></p>
+<script>
+    test(() => {
+        const dialog = document.querySelector("dialog");
+        const sibling = document.querySelector("p");
+        const dumpWillChange = label => {
+            internals.updateStyle();
+            println(`${label} dialog: ${getComputedStyle(dialog).willChange}`);
+            println(`${label} sibling: ${getComputedStyle(sibling).willChange}`);
+        };
+
+        dumpWillChange("closed");
+        dialog.show();
+        dumpWillChange("open");
+        dialog.close();
+        dumpWillChange("closed again");
+    });
+</script>

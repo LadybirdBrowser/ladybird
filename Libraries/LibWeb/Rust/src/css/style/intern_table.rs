@@ -84,11 +84,6 @@ impl<Identity: InternIdentity, Payload> InternTable<Identity, Payload> {
         self.entries.is_empty()
     }
 
-    pub(super) fn clear(&mut self) {
-        self.entries.clear();
-        self.identities.clear();
-    }
-
     pub(super) fn iter(&self) -> impl Iterator<Item = &Payload> {
         self.entries.iter()
     }

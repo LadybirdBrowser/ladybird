@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .nested {
+        color: rgb(1, 2, 3);
+
+        @media all {
+            color: rgb(4, 5, 6);
+        }
+    }
+
+    @media all {
+        @property --conditional-color {
+            syntax: "<color>";
+            inherits: false;
+            initial-value: rgb(7, 8, 9);
+        }
+
+        @keyframes conditional-animation {
+            from { opacity: 0.2; }
+            to { opacity: 0.6; }
+        }
+    }
+
+    .property {
+        color: var(--conditional-color, rgb(10, 11, 12));
+    }
+
+    .keyframes {
+        animation: conditional-animation 1s paused;
+        animation-timing-function: linear;
+    }
+</style>
+<div class="nested">nested</div>
+<div class="property">property</div>
+<div class="keyframes">keyframes</div>
+<script>
+    test(() => {
+        const sheet = document.styleSheets[0];
+        const nested = document.querySelector(".nested");
+        const property = document.querySelector(".property");
+        const keyframes = document.querySelector(".keyframes");
+        internals.updateStyle();
+
+        keyframes.getAnimations()[0].currentTime = 500;
+
+        println(`nested before: ${getComputedStyle(nested).color}`);
+        println(`property before: ${getComputedStyle(property).color}`);
+        println(`animated opacity before: ${getComputedStyle(keyframes).opacity}`);
+
+        sheet.cssRules[0].cssRules[0].media.mediaText = "not all";
+        sheet.cssRules[1].media.mediaText = "not all";
+        internals.updateStyle();
+
+        println(`nested after: ${getComputedStyle(nested).color}`);
+        println(`property after: ${getComputedStyle(property).color}`);
+
+        const newKeyframes = document.createElement("div");
+        newKeyframes.className = "keyframes";
+        document.body.appendChild(newKeyframes);
+        internals.updateStyle();
+        if (newKeyframes.getAnimations().length > 0)
+            newKeyframes.getAnimations()[0].currentTime = 500;
+        println(`animated opacity after: ${getComputedStyle(newKeyframes).opacity}`);
+    });
+</script>

@@ -178,6 +178,7 @@ use batch_matcher::RuleMatches;
 use batch_matcher::append_prefix_matches;
 use batch_matcher::append_retained_matches;
 use batch_matcher::build_scope_dispatch;
+use batch_matcher::scope_dispatch_shape_and_rules;
 use cascade::CascadeCandidate as OrderedCascadeCandidate;
 use cascade::CascadeOperator;
 use cascade::CascadePriority;
@@ -241,6 +242,7 @@ use program::RuleID;
 use program::RuleKind;
 use program::RuleVersion;
 use program::SelectorProgramID;
+use program::SemanticDeclarationID;
 use program::SheetID;
 use program::StyleSheetObjectID;
 use program::StyleSheetProgram;
@@ -518,6 +520,8 @@ pub struct StyleEngine {
     pending_scopes_using_document_sheets: HashSet<TreeScopeID>,
     /// Final sheet order per changed scope, staged until the program commit barrier.
     pending_sheets_in_scope: PendingField<TreeScopeID, Vec<SheetID>>,
+    /// Whether each sheet's pending attachment change carries changes to its rules.
+    rule_change_is_carried_by_sheet: HashMap<SheetID, bool>,
     /// The program version before the first program mutation in the pending transaction.
     pending_program_base_version: Option<ProgramVersion>,
     /// Original and final property inventories for declaration edits in the pending transaction.
@@ -619,10 +623,24 @@ pub struct StyleEngine {
     /// answer and therefore the safe one. Tree-scope identities are minted monotonically within one
     /// document, so the identity indexes the column directly.
     scope_roots: Column<Option<StyleNodeID>>,
+    /// The inverse of `scope_roots`. Departing ordinary elements vastly outnumber departing scope
+    /// roots, so retirement must ask this index instead of scanning every historical tree scope.
+    scope_by_root: HashMap<StyleNodeID, TreeScopeID>,
     /// The immutable selector dispatch of each distinct effective sheet set and encapsulation
     /// depth. Concrete scopes retain only its dense identity.
     scope_programs: intern_table::InternTable<ScopeProgramID, Option<ScopeProgram>>,
     vacant_scope_programs: Vec<ScopeProgramID>,
+    /// One representative dispatch for each live selector topology. Ordinary program changes keep
+    /// these templates because their topology contains no concrete rule identity; selector-program
+    /// sweeping drops templates whose selector programs are no longer live.
+    scope_dispatch_templates: HashMap<ScopeDispatchShape, Rc<RuleDispatch>>,
+    /// One ranked dispatch for each selector topology and semantic cascade arrangement. Concrete
+    /// rule identities differ between equivalent sheets, but their dense static ranks do not.
+    scope_cascade_templates: HashMap<ScopeCascadeShape, Rc<RuleDispatch>>,
+    /// One representative dispatch for each ancestor-key layout. Selector program growth often
+    /// leaves this much smaller topology unchanged, so its document-wide summaries remain shared
+    /// until selector-program sweeping bounds the set.
+    ancestor_dispatch_templates: HashMap<AncestorDispatchShape, Rc<RuleDispatch>>,
     /// The shared program each concrete tree scope resolved to. Program changes clear the table,
     /// while a depth change replaces only this scope's identity. It uses the same direct tree-scope
     /// index as the root column.

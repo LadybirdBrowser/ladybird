@@ -90,15 +90,19 @@ pub fn read(payload: &mut PayloadReader) -> Result<SelectorProgram, Error> {
     for _ in 0..language_range_count {
         language_ranges.push((payload.read_u32()?, payload.read_u32()?));
     }
-    Ok(SelectorProgram {
+    let mut program = SelectorProgram {
         nodes,
         operands,
         text,
         entries,
         relative_queries,
         language_ranges,
+        subject_dispatch_keys: Vec::new(),
+        subject_required_keys: Vec::new(),
         can_leave_scope: payload.read_bool()?,
-    })
+    };
+    program.cache_subject_dispatch_analysis();
+    Ok(program)
 }
 
 fn write_operation(operation: SelectorOp, payload: &mut PayloadWriter) {

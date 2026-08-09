@@ -7,6 +7,7 @@
 #include <AK/HashMap.h>
 #include <AK/QuickSort.h>
 #include <AK/Traits.h>
+#include <LibWeb/Layout/Node.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/DisplayListRecordingContext.h>
 #include <LibWeb/Painting/Paintable.h>
@@ -378,10 +379,10 @@ static DeviceBorderDataWithElementKind device_border_data_from_css_border_data(P
 static void paint_separate_cell_borders(Paintable const& cell_box, HashMap<CellCoordinates, DevicePixelRect> const& cell_coordinates_to_device_rect, DisplayListRecordingContext& context)
 {
     auto borders_data = cell_box.override_borders_data().has_value() ? Paintable::remove_element_kind_from_borders_data(cell_box.override_borders_data().value()) : BordersData {
-        .top = cell_box.box_model().border.top == 0 ? CSS::BorderData() : cell_box.computed_values().border_top(),
-        .right = cell_box.box_model().border.right == 0 ? CSS::BorderData() : cell_box.computed_values().border_right(),
-        .bottom = cell_box.box_model().border.bottom == 0 ? CSS::BorderData() : cell_box.computed_values().border_bottom(),
-        .left = cell_box.box_model().border.left == 0 ? CSS::BorderData() : cell_box.computed_values().border_left(),
+        .top = cell_box.box_model().border.top == 0 ? CSS::BorderData() : cell_box.layout_node().border_top(),
+        .right = cell_box.box_model().border.right == 0 ? CSS::BorderData() : cell_box.layout_node().border_right(),
+        .bottom = cell_box.box_model().border.bottom == 0 ? CSS::BorderData() : cell_box.layout_node().border_bottom(),
+        .left = cell_box.box_model().border.left == 0 ? CSS::BorderData() : cell_box.layout_node().border_left(),
     };
     auto cell_rect = cell_coordinates_to_device_rect.get({ cell_box.table_cell_coordinates()->row_index, cell_box.table_cell_coordinates()->column_index }).value();
     paint_all_borders(context.display_list_recorder(), cell_rect, cell_box.normalized_border_radii_data().as_corners(context.device_pixel_converter()), borders_data.to_device_pixels(context));
@@ -407,17 +408,17 @@ void paint_table_borders(DisplayListRecordingContext& context, Paintable const& 
     }
     auto cell_coordinates_to_device_rect = snap_cells_to_device_coordinates(cell_coordinates_to_box, row_count, column_count, context);
     for (auto const& cell_box : cell_boxes) {
-        if (table_paintable.computed_values().border_collapse() == CSS::BorderCollapse::Separate) {
-            if (cell_box.computed_values().empty_cells() == CSS::EmptyCells::Hide && !cell_box.has_children())
+        if (table_paintable.layout_node().border_collapse() == CSS::BorderCollapse::Separate) {
+            if (cell_box.layout_node().empty_cells() == CSS::EmptyCells::Hide && !cell_box.has_children())
                 continue;
             paint_separate_cell_borders(cell_box, cell_coordinates_to_device_rect, context);
             continue;
         }
         auto css_borders_data = cell_box.override_borders_data().has_value() ? cell_box.override_borders_data().value() : Paintable::BordersDataWithElementKind {
-            .top = { .border_data = cell_box.box_model().border.top == 0 ? CSS::BorderData() : cell_box.computed_values().border_top(), .element_kind = Paintable::ConflictingElementKind::Cell },
-            .right = { .border_data = cell_box.box_model().border.right == 0 ? CSS::BorderData() : cell_box.computed_values().border_right(), .element_kind = Paintable::ConflictingElementKind::Cell },
-            .bottom = { .border_data = cell_box.box_model().border.bottom == 0 ? CSS::BorderData() : cell_box.computed_values().border_bottom(), .element_kind = Paintable::ConflictingElementKind::Cell },
-            .left = { .border_data = cell_box.box_model().border.left == 0 ? CSS::BorderData() : cell_box.computed_values().border_left(), .element_kind = Paintable::ConflictingElementKind::Cell },
+            .top = { .border_data = cell_box.box_model().border.top == 0 ? CSS::BorderData() : cell_box.layout_node().border_top(), .element_kind = Paintable::ConflictingElementKind::Cell },
+            .right = { .border_data = cell_box.box_model().border.right == 0 ? CSS::BorderData() : cell_box.layout_node().border_right(), .element_kind = Paintable::ConflictingElementKind::Cell },
+            .bottom = { .border_data = cell_box.box_model().border.bottom == 0 ? CSS::BorderData() : cell_box.layout_node().border_bottom(), .element_kind = Paintable::ConflictingElementKind::Cell },
+            .left = { .border_data = cell_box.box_model().border.left == 0 ? CSS::BorderData() : cell_box.layout_node().border_left(), .element_kind = Paintable::ConflictingElementKind::Cell },
         };
         DeviceBordersDataWithElementKind borders_data = {
             .top = device_border_data_from_css_border_data(css_borders_data.top, context),
@@ -466,10 +467,10 @@ void paint_table_borders(DisplayListRecordingContext& context, Paintable const& 
             continue;
         } else {
             auto borders_data = cell_box.override_borders_data().has_value() ? Paintable::remove_element_kind_from_borders_data(cell_box.override_borders_data().value()) : BordersData {
-                .top = cell_box.box_model().border.top == 0 ? CSS::BorderData() : cell_box.computed_values().border_top(),
-                .right = cell_box.box_model().border.right == 0 ? CSS::BorderData() : cell_box.computed_values().border_right(),
-                .bottom = cell_box.box_model().border.bottom == 0 ? CSS::BorderData() : cell_box.computed_values().border_bottom(),
-                .left = cell_box.box_model().border.left == 0 ? CSS::BorderData() : cell_box.computed_values().border_left(),
+                .top = cell_box.box_model().border.top == 0 ? CSS::BorderData() : cell_box.layout_node().border_top(),
+                .right = cell_box.box_model().border.right == 0 ? CSS::BorderData() : cell_box.layout_node().border_right(),
+                .bottom = cell_box.box_model().border.bottom == 0 ? CSS::BorderData() : cell_box.layout_node().border_bottom(),
+                .left = cell_box.box_model().border.left == 0 ? CSS::BorderData() : cell_box.layout_node().border_left(),
             };
             paint_all_borders(context.display_list_recorder(), context.rounded_device_rect(cell_box.absolute_border_box_rect()), cell_box.normalized_border_radii_data().as_corners(context.device_pixel_converter()), borders_data.to_device_pixels(context));
         }

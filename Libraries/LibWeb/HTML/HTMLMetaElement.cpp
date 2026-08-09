@@ -7,6 +7,9 @@
 
 #include <AK/GenericLexer.h>
 #include <LibGC/Heap.h>
+#include <LibWeb/Bindings/HTMLMetaElement.h>
+#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/CSS/Invalidation/LanguageInvalidator.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleValues/ColorSchemeStyleValue.h>
@@ -186,7 +189,7 @@ void HTMLMetaElement::inserted()
 
             // 9. Set the pragma-set default language to candidate.
             document().set_pragma_set_default_language(Utf16String::from_utf16(candidate));
-            document().document_element()->invalidate_lang_value();
+            CSS::Invalidation::invalidate_style_after_language_change(*document().document_element());
             break;
         }
         case HttpEquivAttributeState::ContentSecurityPolicy: {

@@ -7,12 +7,15 @@
         const tokens = new CSSStyleSheet();
         tokens.replaceSync(`.card { color: rgb(1, 2, 3); }`);
         const component = new CSSStyleSheet();
-        component.replaceSync(`.title { color: rgb(4, 5, 6); }`);
+        component.replaceSync(`
+            .title { color: rgb(4, 5, 6); animation: shared 1s; }
+            @keyframes shared { from { opacity: 1; } to { opacity: 1; } }
+        `);
 
         document.body.offsetWidth;
 
-        // Shadow roots adopting the same ordered set of constructed sheets should share one rule cache
-        // instead of each scope building its own from identical input.
+        // Shadow roots adopting the same ordered set of constructed sheets should share the rule cache
+        // built on demand by the animation instead of each scope building its own from identical input.
         resetStyleCounters();
         const hosts = [];
         for (let i = 0; i < 4; i++) {

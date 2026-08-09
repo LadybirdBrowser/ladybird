@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    function animationFrame() {
+        return new Promise(resolve => requestAnimationFrame(resolve));
+    }
+
+    asyncTest(async done => {
+        const iframe = document.createElement("iframe");
+        iframe.style.width = "300px";
+        iframe.style.height = "200px";
+        iframe.style.border = "0";
+        const loaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        iframe.srcdoc = "<!DOCTYPE html><div id='first'></div><div id='second'></div>";
+        document.body.appendChild(iframe);
+        await loaded;
+
+        const child = iframe.contentWindow;
+        const sheet = new child.CSSStyleSheet();
+        sheet.replaceSync(`
+            :host { animation: shared-scope 1s paused linear; }
+            @media (min-width: 400px) {
+                @keyframes shared-scope {
+                    from { opacity: 0.2; }
+                    to { opacity: 0.6; }
+                }
+            }
+        `);
+
+        const hosts = [child.document.getElementById("first"), child.document.getElementById("second")];
+        for (const host of hosts) {
+            const root = host.attachShadow({ mode: "open" });
+            root.adoptedStyleSheets = [sheet];
+            root.innerHTML = "<slot></slot>";
+        }
+        child.internals.updateStyle();
+
+        iframe.style.width = "500px";
+        document.body.offsetWidth;
+        await animationFrame();
+        child.document.body.offsetWidth;
+        child.internals.updateStyle();
+
+        for (const host of hosts)
+            host.getAnimations()[0].currentTime = 500;
+        println(`first: ${child.getComputedStyle(hosts[0]).opacity}`);
+        println(`second: ${child.getComputedStyle(hosts[1]).opacity}`);
+        done();
+    });
+</script>

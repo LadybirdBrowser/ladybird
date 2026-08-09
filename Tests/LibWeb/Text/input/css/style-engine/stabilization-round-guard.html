@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .container {
+        container-type: inline-size;
+        width: 100px;
+    }
+    #root { width: 300px }
+    #target { color: black }
+    @container (min-width: 200px) {
+        .container { width: 300px }
+        #target { color: green }
+    }
+</style>
+<div id="root" class="container"></div>
+<script>
+    test(() => {
+        let parent = root;
+        for (let i = 0; i < 30; ++i) {
+            const child = document.createElement("div");
+            child.className = "container";
+            parent.appendChild(child);
+            parent = child;
+        }
+
+        const target = document.createElement("div");
+        target.id = "target";
+        parent.appendChild(target);
+
+        internals.resetStyleInvalidationCounters();
+        target.getBoundingClientRect();
+
+        const counters = internals.getStyleInvalidationCounters();
+        println(`continuation adds passes: ${counters.provisionalStylePasses > 8}`);
+        println(`round guard reached: ${counters.styleStabilizationRoundGuardHits === 1}`);
+        println(`exact continuation ran: ${counters.exactStabilizationPasses > 0}`);
+        println(`exact continuation stabilized: ${counters.styleStabilizationBoundFailures === 0}`);
+        println(`stable nested query result: ${getComputedStyle(target).color}`);
+    });
+</script>

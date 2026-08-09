@@ -1,0 +1,23 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    #box {
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        width: 100px;
+    }
+
+    #horizontal {
+        -webkit-box-orient: horizontal;
+    }
+</style>
+<div id="box"><div id="item">This text is wider than the container</div></div>
+<div id="horizontal"></div>
+<script>
+    test(() => {
+        println(`flex direction: ${getComputedStyle(box).flexDirection}`);
+        println(`container width: ${box.getBoundingClientRect().width}`);
+        println(`item width: ${item.getBoundingClientRect().width}`);
+        println(`horizontal flex direction: ${getComputedStyle(horizontal).flexDirection}`);
+    });
+</script>

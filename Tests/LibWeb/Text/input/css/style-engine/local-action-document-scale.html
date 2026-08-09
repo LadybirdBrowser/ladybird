@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #target.active { color: red }
+</style>
+<div id="root"><div id="target"></div></div>
+<script>
+    test(() => {
+        const root = document.getElementById("root");
+        const target = document.getElementById("target");
+        const graphCounterNames = [
+            "normalizedUniqueKeys",
+            "routedEntryPoints",
+            "candidateChecks",
+            "localFeatureTests",
+            "combinatorSteps",
+            "structuralTests",
+            "coldNodesEvaluated",
+            "selectorTruthAdditions",
+            "matchAnswerChanges",
+            "matchAnswerUpqueries",
+            "remainingPostingRowsCopied",
+            "remainingPostingRowsInspected",
+            "preparedMatchingBatchCompletenessRowsInspected",
+            "preparedMatchingBatchRowsCloned",
+            "invalidatedStyleNodes",
+            "plannedNodesWithDirectAction",
+            "plannedNodesWithSignedDelta",
+            "plannedNodesWithOutputChange",
+            "plannedNodesWithUpquery",
+            "plannedNodesUnattributed",
+        ];
+        const styleCounterNames = [
+            "styleEngineReactionElements",
+            "styleEnginePublishedReactions",
+            "elementStyleRecomputations",
+            "elementComputedStyleChanges",
+        ];
+
+        function difference(after, before, names) {
+            return Object.fromEntries(names.map(name => [name, after[name] - before[name]]));
+        }
+
+        function toggleActive(active) {
+            target.classList.toggle("active", active);
+            internals.updateStyle();
+        }
+
+        function measureAddition() {
+            // Establish the same retained answer and inactive starting state at every size.
+            toggleActive(true);
+            toggleActive(false);
+
+            const graphBefore = internals.styleEngineCounters();
+            const styleBefore = internals.getStyleInvalidationCounters();
+            toggleActive(true);
+            const graphAfter = internals.styleEngineCounters();
+            const styleAfter = internals.getStyleInvalidationCounters();
+            toggleActive(false);
+            return {
+                graph: difference(graphAfter, graphBefore, graphCounterNames),
+                style: difference(styleAfter, styleBefore, styleCounterNames),
+            };
+        }
+
+        function growTo(size) {
+            const fragment = document.createDocumentFragment();
+            const currentSize = root.childElementCount;
+            for (let index = currentSize; index < size; ++index) {
+                const filler = document.createElement("div");
+                filler.className = "unrelated";
+                fragment.appendChild(filler);
+            }
+            root.appendChild(fragment);
+            internals.updateStyle();
+        }
+
+        const measurements = [];
+        // These sizes exercise the same selective planner strategy while increasing the
+        // unrelated document population by 16x.
+        for (const size of [257, 1025, 4097]) {
+            growTo(size);
+            measurements.push(measureAddition());
+        }
+
+        const baseline = JSON.stringify(measurements[0]);
+        println(`normalized action rows: ${measurements[0].graph.normalizedUniqueKeys}`);
+        println(`one selector reaction: ${measurements[0].graph.selectorTruthAdditions}`);
+        println(`one match reaction: ${measurements[0].graph.matchAnswerChanges}`);
+        println(`one computed reaction: ${measurements[0].style.elementComputedStyleChanges}`);
+        println(`one directly acted node: ${measurements[0].graph.plannedNodesWithDirectAction}`);
+        println(`one signed-delta node: ${measurements[0].graph.plannedNodesWithSignedDelta}`);
+        println(`one changed-output node: ${measurements[0].graph.plannedNodesWithOutputChange}`);
+        println(`no upquery nodes: ${measurements[0].graph.plannedNodesWithUpquery}`);
+        println(`no unattributed nodes: ${measurements[0].graph.plannedNodesUnattributed}`);
+        println(`physical work is document-scale invariant: ${measurements.every(measurement => JSON.stringify(measurement) === baseline)}`);
+        println(`largest document elements: ${root.childElementCount}`);
+    });
+</script>

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="structural-matrix.js"></script>
+<style>
+    #hidden { display: none }
+    #plain.changed { background-color: blue }
+    #inheriting.changed { margin-left: 27px }
+    #inheriting > span { margin-left: inherit }
+    #color-source.changed { color: blue }
+</style>
+<div id="hidden">
+    <div id="plain"><span></span><span></span><span></span></div>
+    <div id="inheriting"><span></span><span></span><span></span></div>
+    <div id="color-source"><span></span><span></span><span></span></div>
+</div>
+<script>
+    test(() => {
+        // A computed style read under a display:none subtree recomputes the element's inheritance
+        // chain instead of running the document traversal, and what it leaves marked is what the
+        // next flush has to recompute. The rule is the one the traversal applies: a change confined
+        // to non-inherited properties has nothing a child can read, so it marks no child. `inherit`
+        // on a non-inherited property is the one way a child reaches past that.
+        const measure = (id, label) => {
+            const element = document.getElementById(id);
+            getComputedStyle(element).color;
+            flushPendingStyleWork();
+            element.classList.add("changed");
+            getComputedStyle(element).color;
+            println(`PASS: ${label} | ${styleCounterSummary()}`);
+        };
+
+        measure("plain", "a read after a non-inherited change marks no child");
+        measure("inheriting", "a read marks a child explicitly inheriting a non-inherited property");
+        measure("color-source", "a read after an inherited change marks every child");
+    });
+</script>

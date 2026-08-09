@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #target:checked + #reaction { color: green; }
+</style>
+<input id="target" type="checkbox">
+<span id="reaction"></span>
+<span id="query"></span>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const query = document.getElementById("query");
+        const reaction = document.getElementById("reaction");
+        internals.updateStyle();
+
+        internals.resetStyleInvalidationCounters();
+        target.checked = true;
+        getComputedStyle(query).color;
+
+        const readCounters = internals.getStyleInvalidationCounters();
+
+        internals.updateStyle();
+        const reactionColor = getComputedStyle(reaction).color;
+        const finalCounters = internals.getStyleInvalidationCounters();
+
+        println("style read reaction batch runs: " + readCounters.styleEngineReactionBatchRuns);
+        println("style read reaction elements: " + readCounters.styleEngineReactionElements);
+        println("style read published reactions: " + readCounters.styleEnginePublishedReactions);
+        println("style read recomputations: " + readCounters.elementStyleRecomputations);
+        println("reaction color: " + reactionColor);
+        println("subsequent update reaction batch runs: " + (finalCounters.styleEngineReactionBatchRuns - readCounters.styleEngineReactionBatchRuns));
+        println("subsequent update recomputations: " + (finalCounters.elementStyleRecomputations - readCounters.elementStyleRecomputations));
+    });
+</script>

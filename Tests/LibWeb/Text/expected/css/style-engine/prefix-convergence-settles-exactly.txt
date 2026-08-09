@@ -1,0 +1,16 @@
+a guard arrives two levels above the targets: settles exactly
+a nearer guard arrives while the outer one holds: settles exactly
+the outer guard leaves, the nearer one remains: settles exactly
+a guard leaves as a deep target arrives under it: settles exactly
+and both come back together: settles exactly
+the child of the guard stops being one: settles exactly
+and becomes one again: settles exactly
+a guard changes while the sequence around it moves: settles exactly
+and the sequence moves back: settles exactly
+a guard arrives on the shadow host: settles exactly
+and leaves the host again: settles exactly
+a subtree arrives as its guard does: settles exactly
+the guard leaves the arrived subtree: settles exactly
+a state changes under the guard: settles exactly
+convergence planned some of these: true
+and stopped descending somewhere: true

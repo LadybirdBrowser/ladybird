@@ -55,10 +55,12 @@
     function settleAndReset() {
         document.body.offsetWidth;
         document.body.offsetWidth;
+        internals.updateStyle();
         resetStyleCounters();
     }
 
     function assertColor(testName, element, expected) {
+        internals.updateStyle();
         assertEqual(testName, getComputedStyle(element).color, expected);
     }
 
@@ -78,6 +80,7 @@
             settleAndReset();
 
             mutate(fixtureParts);
+            internals.updateStyle();
 
             const passed = [
                 colorMatches(`${name}: host`, fixtureParts.host, expectedHostColor),

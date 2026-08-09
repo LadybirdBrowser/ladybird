@@ -3845,7 +3845,7 @@ void LocalNavigable::set_viewport_size(CSSPixelSize size, InvalidateDisplayList 
 
     if (auto document = active_document()) {
         if (invalidate_display_list == InvalidateDisplayList::Yes)
-            document->invalidate_style(DOM::StyleInvalidationReason::NavigableSetViewportSize);
+            document->record_style_environment_change();
         else
             document->invalidate_style_for_viewport_change();
         document->set_needs_media_query_evaluation();
@@ -4967,8 +4967,8 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_a_scrolling_box(Com
 
     auto should_scroll_smoothly = behavior == Bindings::ScrollBehavior::Smooth;
     if (behavior == Bindings::ScrollBehavior::Auto && associated_element) {
-        if (auto computed_values = associated_element->computed_values())
-            should_scroll_smoothly = computed_values->scroll_behavior() == CSS::ScrollBehavior::Smooth;
+        if (auto const* values = associated_element->style_group<CSS::ComputedValues::MiscResetValues>())
+            should_scroll_smoothly = values->scroll_behavior == CSS::ScrollBehavior::Smooth;
     }
 
     // https://drafts.csswg.org/cssom-view-1/#perform-a-scroll
@@ -5162,8 +5162,8 @@ void LocalNavigable::reset_zoom()
 bool LocalNavigable::has_inclusive_ancestor_with_visibility_hidden() const
 {
     if (auto container = this->container()) {
-        if (auto container_computed_values = container->computed_values()) {
-            if (container_computed_values->visibility() == CSS::Visibility::Hidden)
+        if (auto const* values = container->style_group<CSS::ComputedValues::InheritedBoxValues>()) {
+            if (static_cast<CSS::Visibility>(values->visibility) == CSS::Visibility::Hidden)
                 return true;
         }
         if (auto ancestor_navigable = container->document().navigable()) {

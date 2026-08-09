@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #target { color: blue }
+    #target.active { color: red }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        internals.updateStyle();
+
+        const before = internals.styleEngineCounters();
+        const styleBefore = internals.getStyleInvalidationCounters();
+        target.classList.add("active");
+        internals.updateStyle();
+        println(`active color: ${getComputedStyle(target).color}`);
+        target.classList.remove("active");
+        internals.updateStyle();
+        const after = internals.styleEngineCounters();
+        const styleAfter = internals.getStyleInvalidationCounters();
+
+        println(`selector truth additions: ${after.selectorTruthAdditions - before.selectorTruthAdditions}`);
+        println(`selector truth removals: ${after.selectorTruthRemovals - before.selectorTruthRemovals}`);
+        println(`selector truth cancellations: ${after.selectorTruthCancellations - before.selectorTruthCancellations}`);
+        println(`selector truth refreshes: ${after.selectorTruthRefreshes - before.selectorTruthRefreshes}`);
+        println(`match answer changes: ${after.matchAnswerChanges - before.matchAnswerChanges}`);
+        println(`match answer upqueries: ${after.matchAnswerUpqueries - before.matchAnswerUpqueries}`);
+        println(`delta patches: ${after.retainedMatchAnswerDeltaPatches - before.retainedMatchAnswerDeltaPatches}`);
+        println(`patch upqueries: ${after.retainedMatchAnswerPatches - before.retainedMatchAnswerPatches}`);
+        println(`answer reuses: ${after.retainedMatchAnswerReuses - before.retainedMatchAnswerReuses}`);
+        println(`cold node evaluations: ${after.coldNodesEvaluated - before.coldNodesEvaluated}`);
+        println(`invalidated nodes: ${after.invalidatedStyleNodes - before.invalidatedStyleNodes}`);
+        println(`computed style changes: ${styleAfter.elementComputedStyleChanges - styleBefore.elementComputedStyleChanges}`);
+        println(`inactive color: ${getComputedStyle(target).color}`);
+    });
+</script>

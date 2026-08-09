@@ -1,0 +1,10 @@
+span.child: .wrap > .child
+span.grandchild: .wrap .grandchild
+li.item: :is(ol, ul, menu) > .item
+li.item: :is(ol, ul, menu) > .item
+li.item: :is(ol, ul, menu) > .item
+span.item: :is(section, article) > .lead + .item
+span.item: :is(section, article) > .lead + .item
+span.deep: :is(.alpha, .beta) .deep
+span.deep: :is(.alpha, .beta) .deep
+

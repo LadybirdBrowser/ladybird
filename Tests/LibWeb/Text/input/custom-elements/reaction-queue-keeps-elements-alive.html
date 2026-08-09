@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="container"></div>
+<script>
+    test(() => {
+        let secondElementWasUpgraded = false;
+
+        customElements.define("gc-first", class extends HTMLElement {
+            constructor() {
+                super();
+                document.querySelector("gc-second").remove();
+                internals.gc();
+            }
+        });
+        customElements.define("gc-second", class extends HTMLElement {
+            constructor() {
+                super();
+                secondElementWasUpgraded = true;
+            }
+        });
+
+        container.innerHTML = "<gc-first></gc-first><gc-second></gc-second>";
+        println(`queued element was upgraded: ${secondElementWasUpgraded}`);
+    });
+</script>

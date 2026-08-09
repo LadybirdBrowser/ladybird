@@ -1,0 +1,6 @@
+pseudo content changed: "after"
+pseudo color changed: rgb(0, 0, 255)
+element cascade stopped: true
+pseudo delta consumed: true
+element background changed: rgb(0, 0, 255)
+pseudo content preserved: "after"

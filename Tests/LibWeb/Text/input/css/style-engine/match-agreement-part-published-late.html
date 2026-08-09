@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="outer"></div>
+<script>
+    test(() => {
+        const outer = document.getElementById("outer").attachShadow({ mode: "open" });
+        outer.innerHTML = `<style>.hovercard::part(popup) { color: rgb(1, 2, 3) }</style>`;
+        internals.updateStyle();
+
+        // The host arrives before it is a hovercard, and the part arrives before it is a part: a
+        // page that builds its shadow trees from script publishes these one at a time.
+        const popper = document.createElement("x-popper");
+        outer.appendChild(popper);
+        const inner = popper.attachShadow({ mode: "open" });
+        const part = document.createElement("div");
+        inner.appendChild(part);
+        internals.updateStyle();
+
+        part.setAttribute("part", "popup");
+        internals.updateStyle();
+        println("after part: " + getComputedStyle(part).color);
+
+        popper.classList.add("hovercard");
+        internals.updateStyle();
+        println("after class: " + getComputedStyle(part).color);
+        println(internals.styleEngineMatchedRules());
+    });
+</script>

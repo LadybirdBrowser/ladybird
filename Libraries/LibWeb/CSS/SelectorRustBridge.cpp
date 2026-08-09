@@ -127,7 +127,6 @@ public:
         }
 
         SelectorFFI::Selector ffi_selector {
-            .cxx_selector = &selector,
             .compound_selectors = m_compound_selectors.data(),
             .compound_selector_count = m_compound_selectors.size(),
         };
@@ -150,6 +149,7 @@ private:
     {
         output.namespace_type = namespace_type_to_ffi(qualified_name.namespace_type);
         output.namespace_ = store_string(qualified_name.namespace_);
+        output.interned_namespace = reinterpret_cast<uintptr_t const*>(&qualified_name.namespace_);
         output.name = store_string(qualified_name.name.name);
         output.lowercase_name = store_string(qualified_name.name.lowercase_name);
         output.interned_name = reinterpret_cast<uintptr_t const*>(&qualified_name.name.name);
@@ -173,11 +173,13 @@ private:
             output.selector_type = SelectorFFI::SimpleSelectorType::Id;
             output.name = store_string(simple_selector.id_name());
             output.interned_name = reinterpret_cast<uintptr_t const*>(&simple_selector.id_name());
+            output.interned_lowercase_name = reinterpret_cast<uintptr_t const*>(&simple_selector.lowercase_id_name());
             break;
         case Selector::SimpleSelector::Type::Class:
             output.selector_type = SelectorFFI::SimpleSelectorType::Class;
             output.name = store_string(simple_selector.class_name());
             output.interned_name = reinterpret_cast<uintptr_t const*>(&simple_selector.class_name());
+            output.interned_lowercase_name = reinterpret_cast<uintptr_t const*>(&simple_selector.lowercase_class_name());
             break;
         case Selector::SimpleSelector::Type::Attribute: {
             output.selector_type = SelectorFFI::SimpleSelectorType::Attribute;
@@ -186,6 +188,7 @@ private:
             output.attribute_match_type = attribute_match_type_to_ffi(attribute.match_type);
             output.attribute_case_type = attribute_case_type_to_ffi(attribute.case_type);
             output.attribute_value = store_string(attribute.value);
+            output.attribute_value_identity = reinterpret_cast<uintptr_t const*>(&attribute.value);
             break;
         }
         case Selector::SimpleSelector::Type::PseudoClass:
@@ -232,6 +235,7 @@ private:
         if (pseudo_class.ident.has_value()) {
             output.identifier = store_string(pseudo_class.ident->string_value);
             output.interned_name = reinterpret_cast<uintptr_t const*>(&pseudo_class.ident->string_value);
+            output.interned_lowercase_name = reinterpret_cast<uintptr_t const*>(&pseudo_class.ident->lowercase_string_value);
             if (pseudo_class.ident->keyword == Keyword::Ltr)
                 output.direction = SelectorFFI::Direction::LeftToRight;
             else if (pseudo_class.ident->keyword == Keyword::Rtl)
@@ -262,6 +266,10 @@ private:
             m_string_lists.append(move(identifiers));
             output.pseudo_element_identifiers = m_string_lists.last().data();
             output.pseudo_element_identifier_count = m_string_lists.last().size();
+            // A part name is an interned fly string like a class name, so it crosses as the one
+            // word that identifies it and needs no comparison on the other side.
+            static_assert(sizeof(Utf16FlyString) == sizeof(uintptr_t));
+            output.pseudo_element_identifier_identities = reinterpret_cast<uintptr_t const*>(pseudo_element.ident_list().data());
             break;
         }
         case PseudoElement::ViewTransitionGroup:
@@ -287,7 +295,7 @@ private:
     Vector<SelectorFFI::CompoundSelector> m_compound_selectors;
 };
 
-SelectorFFI::RustSelector* compile_selector_for_matching(Selector const& selector)
+SelectorFFI::RustSelector* compile_selector(Selector const& selector)
 {
     return SelectorCompiler {}.compile(selector);
 }

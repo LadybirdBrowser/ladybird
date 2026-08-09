@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="plan.js"></script>
+<style>
+    :lang(fr) { color: green }
+    :lang(en-GB) { font-weight: bold }
+    :dir(rtl) { font-style: italic }
+</style>
+<div id="host"><span id="a"></span><span id="b"></span></div>
+<span id="bystander"></span>
+<script>
+    test(() => {
+        // A resolved language and a resolved directionality both inherit, so a change on one element
+        // is a change for everything under it - and for nothing beside it. What a `:lang()` rule
+        // names cannot be said by one interned value, so every one of them hears any language
+        // change; what bounds the work is the region, which is exactly the elements whose own
+        // resolved value moved.
+        const host = document.getElementById("host");
+
+        plan("set a language on a subtree", () => host.setAttribute("lang", "fr"));
+        plan("change it to another language", () => host.setAttribute("lang", "en-GB"));
+        plan("rewrite it to the same value", () => host.setAttribute("lang", "en-GB"));
+        plan("take it away again", () => host.removeAttribute("lang"));
+
+        plan("set a direction on a subtree", () => host.setAttribute("dir", "rtl"));
+        plan("change it to the other direction", () => host.setAttribute("dir", "ltr"));
+        plan("take it away again", () => host.removeAttribute("dir"));
+
+        // A language on one element is that element's alone.
+        plan("set a language on a leaf", () => document.getElementById("a").setAttribute("lang", "fr"));
+    });
+</script>

@@ -21,6 +21,8 @@ class HTMLDialogElement final : public HTMLElement {
 public:
     virtual ~HTMLDialogElement() override;
 
+    virtual bool is_html_dialog_element() const final { return true; }
+
     virtual void removed_from(IsSubtreeRoot, Node* old_ancestor, Node& old_root) override;
 
     // ^EventTarget
@@ -85,5 +87,12 @@ private:
     // https://html.spec.whatwg.org/multipage/interactive-elements.html#previously-focused-element
     GC::Ptr<Node> m_previously_focused_element;
 };
+
+}
+
+namespace Web::DOM {
+
+template<>
+inline bool Node::fast_is<HTML::HTMLDialogElement>() const { return is_html_dialog_element(); }
 
 }

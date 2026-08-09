@@ -1,5 +1,4 @@
-invalidations after disconnected mutations: 0
-:has() metadata candidates after disconnected mutations: 0
+reactions after disconnected mutations: 0
 .highlight span background: rgb(255, 255, 0)
 div:has(> .flag) outline color: rgb(1, 2, 3)
 .red child color: rgb(255, 0, 0)

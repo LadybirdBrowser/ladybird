@@ -5,7 +5,6 @@ set(TEST_SOURCES
     TestControlMessageQueue.cpp
     TestCSSInheritedProperty.cpp
     TestCSSPixels.cpp
-    TestCSSStyleSheetInvalidation.cpp
     TestCSSSyntaxParser.cpp
     TestCSSTokenizer.cpp
     TestCSSTokenStream.cpp
@@ -29,6 +28,13 @@ set(TEST_SOURCES
     TestStructuredSerializeFormat.cpp
     TestStructuredSerializeHardening.cpp
     TestStrings.cpp
+    TestLengthAbsolutizeParity.cpp
+    TestNumericTypeParity.cpp
+    TestStyleEngineBridge.cpp
+    TestStylePropertyMetadataParity.cpp
+    TestStyleStructRef.cpp
+    TestWebIDLBuffers.cpp
+    TestWebGLSpanWithStorage.cpp
     TestWrapperWorld.cpp
     TestWorldCallback.cpp
     TestWindowProxyWorld.cpp
@@ -58,6 +64,8 @@ target_link_libraries(TestFetchURL PRIVATE LibURL)
 target_link_libraries(TestAccumulatedVisualContext PRIVATE LibGfx)
 target_link_libraries(TestImageData PRIVATE LibGC LibJS)
 target_link_libraries(TestPage PRIVATE LibGC LibJS)
+target_link_libraries(TestWebIDLBuffers PRIVATE LibGC LibJS)
+target_link_libraries(TestWebGLSpanWithStorage PRIVATE LibGC LibJS)
 target_link_libraries(TestStructuredSerializeCorpus PRIVATE LibGC LibJS LibCrypto LibGfx LibIPC)
 target_link_libraries(TestStructuredSerializeDurability PRIVATE LibGC LibJS LibCrypto LibGfx LibIPC)
 target_link_libraries(TestStructuredSerializeFormat PRIVATE LibGC LibJS LibCrypto LibGfx LibIPC)

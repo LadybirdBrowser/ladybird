@@ -9,12 +9,12 @@
         internals.resetStyleInvalidationCounters();
     }
 
-    function verifyInvalidationsStayBounded(label, maxInvalidations) {
-        const invalidations = internals.getStyleInvalidationCounters().styleInvalidations;
-        if (invalidations <= maxInvalidations)
+    function verifyRecomputationsStayBounded(label, maximum) {
+        const recomputations = internals.getStyleInvalidationCounters().elementStyleRecomputations;
+        if (recomputations <= maximum)
             println(`PASS: ${label}`);
         else
-            println(`FAIL: ${label} (${invalidations} invalidations)`);
+            println(`FAIL: ${label} (${recomputations} recomputations)`);
     }
 
     function attachSlotShadowRoot(host) {
@@ -44,11 +44,11 @@
         settleAndReset(target);
         shadowRootA.appendChild(shadowStyle);
         getComputedStyle(target).color;
-        verifyInvalidationsStayBounded("slotted stylesheet add ignores matching bystanders outside the current host", 4);
+        verifyRecomputationsStayBounded("slotted stylesheet add ignores matching bystanders outside the current host", 4);
 
         settleAndReset(target);
         shadowStyle.remove();
         getComputedStyle(target).color;
-        verifyInvalidationsStayBounded("slotted stylesheet remove ignores matching bystanders outside the current host", 4);
+        verifyRecomputationsStayBounded("slotted stylesheet remove ignores matching bystanders outside the current host", 4);
     });
 </script>

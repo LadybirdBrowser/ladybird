@@ -16,13 +16,13 @@
         settleAndReset();
 
         document.getElementById("target").classList.add("red");
-        getComputedStyle(document.getElementById("anchor")).color;
+        internals.updateStyle();
         printCounters("add .red (only :has(.red) flips)");
 
         internals.resetStyleInvalidationCounters();
 
         document.getElementById("target").classList.add("blue");
-        getComputedStyle(document.getElementById("anchor")).color;
+        internals.updateStyle();
         printCounters("add .blue (only :has(.blue) flips, .red stable)");
     });
 </script>

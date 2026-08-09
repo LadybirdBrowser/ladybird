@@ -10,7 +10,7 @@
 
 namespace Web::Layout {
 
-SVGGraphicsBox::SVGGraphicsBox(DOM::Document& document, SVG::SVGGraphicsElement& element, NonnullRefPtr<CSS::ComputedValues const> style)
+SVGGraphicsBox::SVGGraphicsBox(DOM::Document& document, SVG::SVGGraphicsElement& element, CSS::LayoutStyle style)
     : SVGBox(document, element, style)
 {
 }

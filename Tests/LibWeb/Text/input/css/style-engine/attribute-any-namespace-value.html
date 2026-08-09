@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    [*|foo] { width: 11px }
+    [*|foo="bar"] { height: 22px }
+    [*|foo="bar" i] { margin-top: 33px }
+    [foo="bar"] { padding-top: 44px }
+</style>
+<div id="one"></div>
+<div id="many"></div>
+<div id="plain" foo="bar"></div>
+<div id="none"></div>
+<script>
+    // An element can carry the same local name in several namespaces at once, and each of those is a
+    // fact with a value of its own. `[*|foo]` asks about all of them together, so it holds when *any*
+    // one satisfies the test - which means the engine cannot key them all under the one shared name
+    // and keep a single value there.
+    test(() => {
+        const one = document.getElementById("one");
+        one.setAttributeNS("http://a", "pa:foo", "bar");
+
+        const many = document.getElementById("many");
+        many.setAttribute("foo", "x");
+        many.setAttributeNS("http://a", "pa:foo", "x");
+        many.setAttributeNS("http://b", "pb:foo", "BAR");
+        many.setAttributeNS("http://c", "pc:foo", "x");
+
+        for (const id of ["one", "many", "plain", "none"]) {
+            const style = getComputedStyle(document.getElementById(id));
+            println(`${id}: any=${style.width} any-exact=${style.height}`
+                + ` any-insensitive=${style.marginTop} bare-exact=${style.paddingTop}`);
+        }
+
+        // Removing the one attribute that answered leaves the others, and the shared name is still
+        // true of the element: what has to stop matching is the value test, not the presence one.
+        many.removeAttributeNS("http://b", "foo");
+        println(`many after removing the matching namespace: any=${getComputedStyle(many).width}`
+            + ` any-insensitive=${getComputedStyle(many).marginTop}`);
+
+        many.removeAttribute("foo");
+        many.removeAttributeNS("http://a", "foo");
+        many.removeAttributeNS("http://c", "foo");
+        println(`many after removing every namespace: any=${getComputedStyle(many).width}`);
+
+        println(internals.styleEngineMatchedRules());
+    });
+</script>

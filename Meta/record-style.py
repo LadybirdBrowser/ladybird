@@ -117,7 +117,7 @@ def record(arguments):
 
     captures = sorted(output.glob("stylegraph-*.sg"))
     if not captures:
-        raise RuntimeError("the browser produced no capture; configure with ENABLE_STYLE_RECORDING=ON")
+        raise RuntimeError("the browser produced no capture")
     for capture in captures:
         print(f"recorded {capture} ({capture.stat().st_size} bytes)")
 

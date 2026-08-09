@@ -14,6 +14,8 @@
 #include <LibIPC/Forward.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/Forward.h>
+#include <LibWeb/CSS/StyleEngineIdentifiers.h>
+#include <LibWeb/CSS/StyleRecordID.h>
 #include <LibWeb/Export.h>
 
 namespace Web {
@@ -265,6 +267,8 @@ class ColorSchemeStyleValue;
 class ColorStyleValue;
 class ComputedProperties;
 class ComputedValues;
+class ComputedStyleRecordView;
+class LayoutStyle;
 class ConicGradientStyleValue;
 class ContainerQuery;
 class ContentStyleValue;
@@ -371,7 +375,6 @@ class HueRotateFilterStyleValue;
 class ImageSetStyleValue;
 class ImageStyleValue;
 class IntegerStyleValue;
-class InvalidationSet;
 class KeywordStyleValue;
 class Length;
 class LengthBox;
@@ -527,8 +530,6 @@ using StyleValueTuple = Vector<ValueComparingRefPtr<StyleValue const>>;
 }
 
 namespace Web::CSS::Invalidation {
-
-class StyleInvalidator;
 
 }
 

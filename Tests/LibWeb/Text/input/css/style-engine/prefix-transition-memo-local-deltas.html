@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .b .x { color: red }
+</style>
+<div class="parent a"><span class="x">first</span></div>
+<div class="parent a"><span class="x">second</span></div>
+<script>
+    test(() => {
+        const [first, second] = document.querySelectorAll(".parent");
+        internals.updateStyle();
+        getComputedStyle(first.firstElementChild).color;
+        getComputedStyle(second.firstElementChild).color;
+
+        first.className = "parent b";
+        second.className = "parent b";
+        internals.updateStyle();
+
+        println(getComputedStyle(first.firstElementChild).color);
+        println(getComputedStyle(second.firstElementChild).color);
+    });
+</script>

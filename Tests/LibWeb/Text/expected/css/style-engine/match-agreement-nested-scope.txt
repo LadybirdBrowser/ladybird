@@ -1,0 +1,5 @@
+both: rgb(1, 2, 3)
+inner only: rgb(0, 0, 0)
+outer only: rgb(0, 0, 0)
+span.target: .target
+

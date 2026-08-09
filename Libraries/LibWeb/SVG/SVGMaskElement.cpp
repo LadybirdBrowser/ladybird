@@ -22,7 +22,7 @@ SVGMaskElement::SVGMaskElement(DOM::Document& document, DOM::QualifiedName tag_n
 
 SVGMaskElement::~SVGMaskElement() = default;
 
-RefPtr<Layout::Node> SVGMaskElement::create_layout_node(NonnullRefPtr<CSS::ComputedValues const>)
+RefPtr<Layout::Node> SVGMaskElement::create_layout_node(CSS::LayoutStyle)
 {
     // Masks are handled as a special case in the TreeBuilder.
     return nullptr;

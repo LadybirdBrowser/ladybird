@@ -66,7 +66,7 @@ void HTMLDetailsElement::attribute_changed(Utf16FlyString const& local_name, Opt
 
     // 3. If localName is open, then:
     else if (local_name == HTML::AttributeNames::open) {
-        CSS::Invalidation::invalidate_style_after_open_state_change(*this);
+        CSS::Invalidation::invalidate_style_after_open_state_change(*this, value.has_value());
 
         // 1. If one of oldValue or value is null and the other is not null, run the following steps, which are known as
         //    the details notification task steps, for this details element:

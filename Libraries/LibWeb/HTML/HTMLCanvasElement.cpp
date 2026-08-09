@@ -248,7 +248,7 @@ void HTMLCanvasElement::attribute_changed(Utf16FlyString const& local_name, Opti
     }
 }
 
-RefPtr<Layout::Node> HTMLCanvasElement::create_layout_node(NonnullRefPtr<CSS::ComputedValues const> style)
+RefPtr<Layout::Node> HTMLCanvasElement::create_layout_node(CSS::LayoutStyle style)
 {
     return make_ref_counted<Layout::CanvasBox>(document(), *this, style);
 }

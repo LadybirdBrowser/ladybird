@@ -901,6 +901,15 @@ void KeyframeEffect::set_composite(Bindings::CompositeOperation value)
     invalidate_effect();
 }
 
+void KeyframeEffect::set_key_frame_set(RefPtr<KeyFrameSet const> key_frame_set)
+{
+    if (m_key_frame_set == key_frame_set)
+        return;
+
+    m_key_frame_set = move(key_frame_set);
+    invalidate_effect();
+}
+
 Bindings::CompositeOperation KeyframeEffect::composite_for_bindings() const
 {
     update_style_if_needed();
@@ -1033,7 +1042,7 @@ void KeyframeEffect::update_computed_properties_for_style(AnimationUpdateContext
 {
     auto& style_computer = abstract_element.element().document().style_computer();
     auto& element_data = context.elements.ensure(abstract_element, [&abstract_element, &style_computer] {
-        auto computed_values = abstract_element.computed_values();
+        auto computed_values = abstract_element.computed_style();
         VERIFY(computed_values);
         auto old_animated_properties = computed_values->animated_properties_snapshot();
         auto computed_properties = style_computer.reconstruct_computed_properties(*computed_values);

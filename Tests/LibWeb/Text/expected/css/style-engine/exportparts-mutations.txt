@@ -1,0 +1,4 @@
+forward a part out of the inner tree: [target]
+forward it under a different name: [target]
+forward a name nothing inside carries: [target]
+stop forwarding: []

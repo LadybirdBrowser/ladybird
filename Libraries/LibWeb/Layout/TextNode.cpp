@@ -371,7 +371,7 @@ static Utf16String apply_text_transform(Utf16String const& string, CSS::TextTran
 
 TextNode::TextForRenderingCacheKey TextNode::create_text_for_rendering_cache_key() const
 {
-    auto text_transform = parent()->computed_values().text_transform();
+    auto text_transform = parent()->text_transform();
     Optional<Utf16String> lang;
     if (first_is_one_of(text_transform, CSS::TextTransform::Uppercase, CSS::TextTransform::Lowercase, CSS::TextTransform::Capitalize)) {
         if (auto parent_element = parent_element_for_text_transform())
@@ -380,7 +380,7 @@ TextNode::TextForRenderingCacheKey TextNode::create_text_for_rendering_cache_key
 
     return {
         .text_transform = text_transform,
-        .white_space_collapse = parent()->computed_values().white_space_collapse(),
+        .white_space_collapse = parent()->white_space_collapse(),
         .lang = move(lang),
         .is_password_input = is_password_input(),
         .dom_start_offset = dom_start_offset(),

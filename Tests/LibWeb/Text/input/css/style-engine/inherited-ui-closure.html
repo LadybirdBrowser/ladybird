@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .before { color-scheme: light }
+    .after { color-scheme: dark }
+    #target { color: red; background-color: light-dark(white, black) }
+</style>
+<div id="parent" class="before">
+    <div id="target"></div>
+</div>
+<script>
+    test(() => {
+        const parentElement = document.getElementById("parent");
+        const target = document.getElementById("target");
+        internals.updateStyle();
+        const before = internals.getStyleInvalidationCounters();
+
+        parentElement.className = "after";
+        internals.updateStyle();
+
+        const after = internals.getStyleInvalidationCounters();
+        println(`inherited UI longhand evaluations: ${after.computedLonghandEvaluations - before.computedLonghandEvaluations}`);
+        println(`color: ${getComputedStyle(target).color}`);
+        println(`background: ${getComputedStyle(target).backgroundColor}`);
+    });
+</script>

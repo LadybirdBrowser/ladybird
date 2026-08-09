@@ -24,7 +24,7 @@
 
     function dumpCounters(label) {
         const c = internals.getStyleInvalidationCounters();
-        println(`${label}: fullStyleInvalidations=${c.fullStyleInvalidations}, styleInvalidations=${c.styleInvalidations}, elementStyleRecomputations=${c.elementStyleRecomputations}, elementStyleNoopRecomputations=${c.elementStyleNoopRecomputations}`);
+        println(`${label}: styleEnginePublishedReactions=${c.styleEnginePublishedReactions}`);
     }
 
     test(() => {
@@ -35,8 +35,7 @@
 
         // Adding a sheet whose only rule's rightmost compound is :first-child
         // (no class/tag/id/attr feature) should target boundary children only,
-        // not fall back to a whole-subtree invalidation that recomputes every
-        // element in the document.
+        // not fall back to publishing a selector reaction for every element.
         const firstChildStyle = document.createElement("style");
         firstChildStyle.textContent = ":first-child { color: rgb(0, 0, 128); }";
         document.head.appendChild(firstChildStyle);

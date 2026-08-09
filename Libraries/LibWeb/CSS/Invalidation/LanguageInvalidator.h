@@ -17,6 +17,6 @@ namespace Web::CSS::Invalidation {
 
 void invalidate_style_after_language_change(DOM::Element&);
 void invalidate_style_after_directionality_change(DOM::Element&);
-void invalidate_style_after_text_directionality_change(DOM::CharacterData&);
+void invalidate_style_after_text_change_under(DOM::Element& parent_of_text);
 
 }

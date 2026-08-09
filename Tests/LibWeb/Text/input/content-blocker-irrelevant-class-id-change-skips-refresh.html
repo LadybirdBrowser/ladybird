@@ -24,6 +24,7 @@
         println(getComputedStyle(idTarget).display);
 
         internals.resetStyleInvalidationCounters();
+        const styleEnvironmentVersion = internals.getStyleInvalidationCounters().styleEnvironmentVersion;
 
         classTarget.className = "irrelevant";
         idTarget.id = "unrelated";
@@ -32,10 +33,10 @@
         println(getComputedStyle(idTarget).color);
 
         const counters = internals.getStyleInvalidationCounters();
-        if (counters.fullStyleInvalidations == 0)
+        if (counters.styleEnvironmentVersion === styleEnvironmentVersion)
             println("PASS: irrelevant class/id changes skipped content blocker refresh");
         else
-            println(`FAIL: irrelevant class/id changes caused ${counters.fullStyleInvalidations} full invalidations`);
+            println("FAIL: irrelevant class/id changes refreshed content blocker style");
 
         classTarget.className = "ad";
         idTarget.id = "sponsor";

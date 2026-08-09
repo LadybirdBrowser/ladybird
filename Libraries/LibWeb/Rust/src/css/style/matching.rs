@@ -4,7 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use super::batch_matcher::insert_scope_rule;
 use super::*;
+
+const MIN_SHARED_CASCADE_COMPLETION_SAVINGS: usize = 8;
 
 fn verify_against_cold<T: std::fmt::Debug + PartialEq>(
     answer: &T,
@@ -19,6 +22,59 @@ fn verify_against_cold<T: std::fmt::Debug + PartialEq>(
 }
 
 impl StyleEngine {
+    fn retained_answer_delta_memo_key(
+        old_answer: MatchAnswerID,
+        old_cascade_input: CascadeInputID,
+        deltas: &[SelectorTruthDelta],
+    ) -> RetainedAnswerDeltaMemoKey {
+        let mut hasher = fast_hash::fast_hasher();
+        for delta in deltas {
+            (delta.rule, delta.program, delta.entry, delta.change).hash(&mut hasher);
+        }
+        RetainedAnswerDeltaMemoKey {
+            old_answer,
+            old_cascade_input,
+            delta_count: deltas.len(),
+            delta_digest: hasher.finish(),
+        }
+    }
+
+    fn retained_answer_delta_memo_entry_matches(
+        entry: &RetainedAnswerDeltaMemoEntry,
+        deltas: &[SelectorTruthDelta],
+    ) -> bool {
+        entry.deltas.iter().copied().eq(deltas
+            .iter()
+            .map(|delta| (delta.rule, delta.program, delta.entry, delta.change)))
+    }
+
+    fn remember_retained_answer_delta_transition(
+        patch: &mut RetainedAnswerPatch,
+        key: RetainedAnswerDeltaMemoKey,
+        deltas: &[SelectorTruthDelta],
+        transition: RetainedAnswerDeltaTransition,
+    ) {
+        use std::collections::hash_map::Entry;
+
+        match patch.delta_memo.entry(key) {
+            Entry::Vacant(entry) => {
+                entry.insert(RetainedAnswerDeltaMemoEntry {
+                    deltas: deltas
+                        .iter()
+                        .map(|delta| (delta.rule, delta.program, delta.entry, delta.change))
+                        .collect(),
+                    transition,
+                });
+            }
+            Entry::Occupied(mut entry) if Self::retained_answer_delta_memo_entry_matches(entry.get(), deltas) => {
+                entry.get_mut().transition = transition;
+            }
+            // A digest collision only forfeits this memo opportunity. It must not replace or use
+            // the unrelated transition already stored under the fixed-size probe key.
+            Entry::Occupied(_) => {}
+        }
+    }
+
     pub fn prepare_selector_query(&mut self) {
         self.apply_staged_tree_deltas();
         self.facts.prepare_selector_query(&mut self.memory);
@@ -196,12 +252,12 @@ impl StyleEngine {
         }
         let (_, dispatch) = self.ranked_scope_program(TreeScopeID::DOCUMENT);
         let orders: Vec<RetainedAnswerCascadeOrder> = dispatch
-            .entries_in_identity_order()
-            .map(|candidate| RetainedAnswerCascadeOrder {
-                rule: candidate.rule,
-                program: candidate.program,
-                entry: candidate.entry,
-                cascade_order: candidate.cascade_order,
+            .cascade_orders_in_identity_order()
+            .map(|(rule, program, entry, cascade_order)| RetainedAnswerCascadeOrder {
+                rule,
+                program,
+                entry,
+                cascade_order,
             })
             .collect();
         let bytes = (orders.capacity() * size_of::<RetainedAnswerCascadeOrder>()) as u64;
@@ -257,6 +313,8 @@ impl StyleEngine {
             match_workspace_bytes: 0,
             dispatch_workspace: DispatchCandidateWorkspace::default(),
             dispatch_workspace_bytes: 0,
+            cascade_compaction_workspace: ordering::CascadeCompactionWorkspace::default(),
+            cascade_compaction_workspace_bytes: 0,
         }));
     }
 
@@ -289,6 +347,10 @@ impl StyleEngine {
             .release(MemoryCategory::BatchScratch, traversal.match_workspace_bytes);
         self.memory
             .release(MemoryCategory::BatchScratch, traversal.dispatch_workspace_bytes);
+        self.memory.release(
+            MemoryCategory::BatchScratch,
+            traversal.cascade_compaction_workspace_bytes,
+        );
         let released_cascade_payload_bytes = self.match_answers.sweep_unreferenced();
         self.retained_match_answers
             .release_swept_cascade_payloads(released_cascade_payload_bytes);
@@ -337,6 +399,8 @@ impl StyleEngine {
             match_workspace_bytes,
             dispatch_workspace: DispatchCandidateWorkspace::default(),
             dispatch_workspace_bytes: 0,
+            cascade_compaction_workspace: ordering::CascadeCompactionWorkspace::default(),
+            cascade_compaction_workspace_bytes: 0,
         })
     }
 
@@ -433,6 +497,8 @@ impl StyleEngine {
             match_workspace_bytes,
             dispatch_workspace: DispatchCandidateWorkspace::default(),
             dispatch_workspace_bytes: 0,
+            cascade_compaction_workspace: ordering::CascadeCompactionWorkspace::default(),
+            cascade_compaction_workspace_bytes: 0,
         }));
     }
 
@@ -545,6 +611,10 @@ impl StyleEngine {
                 .release(MemoryCategory::BatchScratch, traversal.dispatch_workspace_bytes);
             self.memory.release(
                 MemoryCategory::BatchScratch,
+                traversal.cascade_compaction_workspace_bytes,
+            );
+            self.memory.release(
+                MemoryCategory::BatchScratch,
                 traversal.retained_answer_cascade_order_bytes,
             );
             self.discard_published_match_answers();
@@ -623,12 +693,83 @@ impl StyleEngine {
     }
 
     /// Build one scope's selector dispatch and rank its static cascade priorities once.
-    pub(super) fn build_ranked_scope_dispatch(&self, scope: TreeScopeID) -> RuleDispatch {
-        let mut dispatch = build_scope_dispatch(&self.program, &self.programs, scope);
-        dispatch.assign_cascade_order(|candidate| {
-            let entry = &self.programs.get(candidate.program).entries()[candidate.entry as usize];
-            self.cascade_priority_of(candidate.rule, scope, entry.specificity, u32::MAX, false)
+    pub(super) fn build_ranked_scope_dispatch(&mut self, scope: TreeScopeID) -> Rc<RuleDispatch> {
+        let (shape, rules) = scope_dispatch_shape_and_rules(&self.program, &self.programs, scope);
+        let document_sheet_mode = if scope == TreeScopeID::DOCUMENT {
+            DocumentSheetMode::None
+        } else if self.program.scope_uses_document_sheets(scope) {
+            DocumentSheetMode::All
+        } else {
+            DocumentSheetMode::NonAuthor
+        };
+        let cascade_shape = ScopeCascadeShape {
+            dispatch: shape.clone(),
+            depth: self.tree_scope_depth(scope),
+            document_sheet_mode,
+            rule_origins_and_layers: rules
+                .iter()
+                .map(|&rule| {
+                    let sheet = self.program.rule_sheet(rule);
+                    (
+                        self.program.sheet_origin(sheet) as u8,
+                        self.program.rule_version(rule).layer,
+                    )
+                })
+                .collect(),
+            layer_order: self.program.layer_order_key(scope),
+        };
+        let cascade_template = self.scope_cascade_templates.get(&cascade_shape).cloned();
+        let exact_template = self.scope_dispatch_templates.get(&shape).cloned();
+        let extension_template = exact_template.is_none().then(|| {
+            // Extending a template copies its topology first. Require the retained prefix to cover
+            // at least half the resulting entries so copying cannot dominate a small cold build.
+            self.scope_dispatch_templates
+                .iter()
+                .filter(|(candidate, _)| {
+                    !candidate.0.is_empty() && candidate.0.len() < shape.0.len() && shape.0.starts_with(&candidate.0)
+                })
+                .filter(|(_, template)| template.entries().len() >= rules.len().div_ceil(2))
+                .max_by_key(|(_, template)| template.entries().len())
+                .map(|(candidate, template)| (candidate.0.len(), Rc::clone(template)))
         });
+        let mut dispatch = match (exact_template, extension_template.flatten()) {
+            (Some(template), _) => RuleDispatch::rebind_rules(&template, &rules),
+            (None, Some((prefix_len, template))) => {
+                let mut dispatch =
+                    RuleDispatch::rebind_rules_for_extension(&template, &rules[..template.entries().len()]);
+                let mut rule_index = template.entries().len();
+                for &(selector_program, author) in &shape.0[prefix_len..] {
+                    insert_scope_rule(
+                        &mut dispatch,
+                        &self.programs,
+                        rules[rule_index],
+                        selector_program,
+                        author,
+                    );
+                    rule_index = dispatch.entries().len();
+                }
+                assert_eq!(rule_index, rules.len());
+                dispatch.finish_prefixes();
+                dispatch
+            }
+            (None, None) => {
+                let mut dispatch = build_scope_dispatch(&self.program, &self.programs, scope);
+                let ancestor_shape = dispatch.ancestor_dispatch_shape();
+                if let Some(template) = self.ancestor_dispatch_templates.get(&ancestor_shape) {
+                    dispatch.share_ancestor_topology_with(template);
+                }
+                dispatch
+            }
+        };
+        let ancestor_shape = dispatch.ancestor_dispatch_shape();
+        if let Some(template) = cascade_template {
+            dispatch.reuse_cascade_order(&template);
+        } else {
+            dispatch.assign_cascade_order(|candidate| {
+                let entry = &self.programs.get(candidate.program).entries()[candidate.entry as usize];
+                self.cascade_priority_of(candidate.rule, scope, entry.specificity, u32::MAX, false)
+            });
+        }
         dispatch.assign_cascade_properties(
             |candidate| {
                 self.program.rule_is_gated_by_container_query(candidate.rule)
@@ -652,6 +793,16 @@ impl StyleEngine {
                 Some(declared.iter().map(|property| property.property).collect())
             },
         );
+        let dispatch = Rc::new(dispatch);
+        self.scope_cascade_templates
+            .entry(cascade_shape)
+            .or_insert_with(|| Rc::clone(&dispatch));
+        self.scope_dispatch_templates
+            .entry(shape)
+            .or_insert_with(|| Rc::clone(&dispatch));
+        self.ancestor_dispatch_templates
+            .entry(ancestor_shape)
+            .or_insert_with(|| Rc::clone(&dispatch));
         dispatch
     }
 
@@ -663,10 +814,26 @@ impl StyleEngine {
         } else {
             DocumentSheetMode::NonAuthor
         };
+        let mut sheets = self.program.sheets_in_scope(scope);
+        if scope != TreeScopeID::DOCUMENT {
+            sheets.extend(
+                self.program
+                    .sheets_in_scope(TreeScopeID::DOCUMENT)
+                    .into_iter()
+                    .filter(|&sheet| {
+                        document_sheet_mode == DocumentSheetMode::All
+                            || self.program.sheet_origin(sheet) != CascadeOrigin::Author
+                    }),
+            );
+        }
         ScopeDispatchKey {
             depth: self.tree_scope_depth(scope),
             document_sheet_mode,
-            sheets: self.program.sheets_in_scope(scope),
+            sheets: sheets
+                .into_iter()
+                .map(|sheet| (sheet, self.program.sheet_dispatch_version(sheet)))
+                .collect(),
+            layer_order: self.program.layer_order_key(scope),
         }
     }
 
@@ -677,9 +844,6 @@ impl StyleEngine {
     }
 
     pub(super) fn release_scope_program(&mut self, id: ScopeProgramID) {
-        let mut caches = self.prefix_caches.borrow_mut();
-        caches.states.remove(id);
-        caches.answers.remove_program(&mut self.match_answers, id);
         let program = self.scope_programs[id]
             .as_mut()
             .expect("a retained scope names a live program");
@@ -688,6 +852,9 @@ impl StyleEngine {
         if program.scope_count != 0 {
             return;
         }
+        let mut caches = self.prefix_caches.borrow_mut();
+        caches.states.remove(id);
+        caches.answers.remove_program(&mut self.match_answers, id);
         let program = self.scope_programs[id].take().unwrap();
         let hash = intern_table::content_hash(&program.key);
         self.scope_programs.remove_identity(hash, id);
@@ -707,7 +874,7 @@ impl StyleEngine {
         let id = self.vacant_scope_programs.pop().unwrap_or_else(|| {
             ScopeProgramID(u32::try_from(self.scope_programs.len()).expect("scope program identity space exhausted"))
         });
-        let dispatch = Rc::new(self.build_ranked_scope_dispatch(scope));
+        let dispatch = self.build_ranked_scope_dispatch(scope);
         let program = ScopeProgram {
             key,
             dispatch,
@@ -767,7 +934,7 @@ impl StyleEngine {
         let requirements = if self.tree.tree_scope(node) != scope {
             None
         } else if let Some(cache) = shared_ancestor_requirements {
-            Some(cache.get_or_build(scope_program, &self.tree, facts, &dispatch, &mut self.memory))
+            Some(cache.get_or_build_for_node(&self.tree, facts, &dispatch, node, &mut self.memory))
         } else {
             local_requirements = AncestorRequirements::build_for_node(&self.tree, facts, &dispatch, node);
             local_requirements.as_ref()
@@ -1143,8 +1310,11 @@ impl StyleEngine {
     }
 
     pub(super) fn match_answer_is_comparable_across_elements(&self, node: StyleNodeID) -> bool {
-        self.tree.tree_scope(node) == TreeScopeID::DOCUMENT
-            && self.tree.shadow_root_of(node).is_none()
+        self.tree.tree_scope(node) == TreeScopeID::DOCUMENT && self.match_answer_is_retainable(node)
+    }
+
+    pub(super) fn match_answer_is_retainable(&self, node: StyleNodeID) -> bool {
+        self.tree.shadow_root_of(node).is_none()
             && !self
                 .scopes_slotted_into(node)
                 .any(|scope| scope != TreeScopeID::DOCUMENT)
@@ -1177,7 +1347,11 @@ impl StyleEngine {
         node: StyleNodeID,
         mut answer: Vec<RetainedRuleMatch>,
     ) {
-        if !self.match_answer_is_comparable_across_elements(node) {
+        if !self.match_answer_is_retainable(node) {
+            return;
+        }
+        let tree_scope = self.tree.tree_scope(node);
+        if answer.iter().any(|entry| entry.tree_scope != tree_scope) {
             return;
         }
         loop {
@@ -1266,15 +1440,14 @@ impl StyleEngine {
                 Lookup::KnownAbsent => continue,
                 Lookup::Missing(_) => return None,
             };
-            let subject_dispatch = compiled.subject_dispatch_keys(entry_index);
-            let subject_required = compiled.subject_required_keys(entry_index, &subject_dispatch);
+            let subject_required = compiled.subject_required_keys(entry_index);
             let position = compiled.subject_position(entry_index);
             for node in candidates {
                 if !self.node_is_within_subject_position(node, position) {
                     continue;
                 }
                 let mut carries_required = true;
-                for required in &subject_required {
+                for required in subject_required {
                     let Some(required) = posting_for_dispatch_key(*required) else {
                         continue;
                     };
@@ -1381,11 +1554,16 @@ impl StyleEngine {
         &mut self,
         identity: MatchAnswerID,
         node: StyleNodeID,
+        tree_scope_override: Option<TreeScopeID>,
         out: &mut Vec<RuleMatch>,
     ) -> Option<()> {
         let answer = Rc::clone(self.match_answers.answer(identity)?);
         out.reserve_exact(answer.len());
-        for &entry in answer.iter() {
+        for &stored_entry in answer.iter() {
+            let mut entry = stored_entry;
+            if let Some(tree_scope) = tree_scope_override {
+                entry.tree_scope = tree_scope;
+            }
             let (_, dispatch) = self.ranked_scope_program(entry.tree_scope);
             let cascade_order = dispatch.cascade_order_for_entry(entry.rule, entry.program, entry.entry)?;
             out.push(entry.materialize(node, &self.programs, cascade_order)?);
@@ -1766,6 +1944,8 @@ impl StyleEngine {
             requires_full_match: selection.requires_full_match,
             cascade_update_properties,
             cascade_update_rules,
+            cascade_candidates: Vec::new(),
+            cascade_compaction_workspace: ordering::CascadeCompactionWorkspace::default(),
             program_base_version: selection.program_base_version,
             delta_memo: HashMap::default(),
         }
@@ -1781,7 +1961,7 @@ impl StyleEngine {
     pub(super) fn apply_retained_cascade_updates(
         &mut self,
         node: StyleNodeID,
-        patch: &RetainedAnswerPatch,
+        patch: &mut RetainedAnswerPatch,
         retained: &[RetainedRuleMatch],
         old_cascade_input: CascadeInputID,
     ) -> Option<RetainedAnswerPatchOutcome> {
@@ -1812,11 +1992,12 @@ impl StyleEngine {
             return None;
         }
         let old_compact = Rc::clone(self.match_answers.answer(MatchAnswerID(old_cascade_input.0))?);
-        let updates = self.exact_cascade_winner_updates_for_properties(
+        let updates = self.exact_cascade_winner_updates_for_properties_with_scratch(
             node,
             &exact_answer,
             None,
             &patch.cascade_update_properties,
+            &mut patch.cascade_candidates,
         )?;
         let (state, delta) =
             self.with_cascade_interning_counters(|groups| groups.apply_property_updates(previous, &updates));
@@ -1856,6 +2037,7 @@ impl StyleEngine {
             self.counters.bump(Counter::RetainedMatchAnswerPatchStops);
         }
         Some(RetainedAnswerPatchOutcome {
+            identity_preserved: !emit,
             emit,
             incremental_cascade_answer: Some(IncrementalCascadeAnswer {
                 node,
@@ -1948,93 +2130,18 @@ impl StyleEngine {
         true
     }
 
-    /// Apply a complete signed match delta directly to one retained exact answer.
+    /// Apply signed entry truth to the compact retained relation without publishing it.
     ///
-    /// Entries with dynamic scope proximity still use the cold patch: their match row contains a
-    /// value that the prefix match-set delta does not carry yet.
-    pub(super) fn apply_retained_match_answer_deltas(
-        &mut self,
+    /// Mixed patches use this as their exact base, then ask the matcher only about the remaining
+    /// refreshes and attributed rules. The same selector-list guards as the direct path keep an
+    /// entry delta from hiding a different winning entry of the rule.
+    fn retained_answer_after_deltas(
+        &self,
         node: StyleNodeID,
-        patch: &mut RetainedAnswerPatch,
-        old_identity: MatchAnswerID,
+        patch: &RetainedAnswerPatch,
         retained: &[RetainedRuleMatch],
-        old_cascade_input: CascadeInputID,
         deltas: &[SelectorTruthDelta],
-    ) -> Option<RetainedAnswerPatchOutcome> {
-        if !patch.cascade_update_properties.is_empty() {
-            if !deltas.is_empty() {
-                return None;
-            }
-            let outcome = self.apply_retained_cascade_updates(node, patch, retained, old_cascade_input)?;
-            self.counters.bump(Counter::RetainedMatchAnswerDeltaPatches);
-            return Some(outcome);
-        }
-        // Empty signed truth preserves the exact answer. Unless cascade order itself moved, its
-        // compact identity is also unchanged, so stop without rebuilding either representation.
-        if deltas.is_empty() && !patch.orders_shifted {
-            self.publish_cascade_input(node, old_cascade_input);
-            self.counters.bump(Counter::RetainedMatchAnswerDeltaPatches);
-            let emit = patch.always_emit;
-            if !emit {
-                self.counters.bump(Counter::RetainedMatchAnswerPatchStops);
-            }
-            return Some(RetainedAnswerPatchOutcome {
-                emit,
-                incremental_cascade_answer: None,
-            });
-        }
-
-        // Nodes sharing the same retained identity, compact identity, and consolidated delta
-        // content share the entire transition: the answer content, the guards below, the compact
-        // reduction, and the stop verdict are all node-independent for comparable document-scope
-        // answers under one patch's fixed cascade orders. A stopping transition therefore runs
-        // once per cohort; every further member is one column store.
-        let memo_key = (!patch.always_emit && !patch.orders_shifted && !self.node_has_element_declaration_input(node))
-            .then(|| RetainedAnswerDeltaKey {
-                old_answer: old_identity,
-                old_cascade_input,
-                deltas: deltas
-                    .iter()
-                    .map(|delta| (delta.rule, delta.program, delta.entry, delta.change))
-                    .collect(),
-            });
-        if let Some(key) = &memo_key
-            && let Some(&transition) = patch.delta_memo.get(key)
-            && self
-                .retained_match_answers
-                .set_interned_identity(node, &mut self.match_answers, transition.new_answer)
-        {
-            self.counters.bump(Counter::RetainedMatchAnswerDeltaMemoHits);
-            let stopped = transition.new_cascade_input == old_cascade_input;
-            if let Some((state, version)) = transition.winner_state {
-                self.winner_groups.set(node, state, version);
-            }
-            self.publish_cascade_input(node, transition.new_cascade_input);
-            self.counters.bump(Counter::RetainedMatchAnswerDeltaPatches);
-            if stopped {
-                self.counters.bump(Counter::RetainedMatchAnswerPatchStops);
-                return Some(RetainedAnswerPatchOutcome {
-                    emit: false,
-                    incremental_cascade_answer: None,
-                });
-            }
-            self.counters.bump(Counter::MatchAnswerChanges);
-            let incremental_cascade_answer = transition.winners_updated.then_some(IncrementalCascadeAnswer {
-                node,
-                cascade_input: transition.new_cascade_input,
-                matches: None,
-                cascade_winners_are_complete: transition.cascade_winners_are_complete,
-            });
-            return Some(RetainedAnswerPatchOutcome {
-                emit: true,
-                incremental_cascade_answer,
-            });
-        }
-
-        // Retained answers keep only the winning selector-list entry for each rule and pseudo
-        // target. An entry delta is not a complete update when an addition competes with that
-        // winner, or removing the winner can reveal an unretained matching entry. Repair the rule
-        // through the filtered exact matcher in those cases.
+    ) -> Option<(Vec<RetainedRuleMatch>, u64)> {
         if !patch.requires_full_match {
             for delta in deltas {
                 let entries = self.programs.get(delta.program).entries();
@@ -2073,7 +2180,7 @@ impl StyleEngine {
         let mut answer = Vec::with_capacity(retained.len().saturating_add(deltas.len()));
         let mut retained_index = 0;
         let mut delta_index = 0;
-        let mut applied = 0;
+        let mut applied = 0_u64;
         while delta_index < deltas.len() {
             let delta = deltas[delta_index];
             debug_assert_eq!(delta.node, node);
@@ -2122,6 +2229,91 @@ impl StyleEngine {
             applied += 1;
         }
         answer.extend_from_slice(&retained[retained_index..]);
+        Some((answer, applied))
+    }
+
+    /// Apply a complete signed match delta directly to one retained exact answer.
+    ///
+    /// Entries with dynamic scope proximity still use the cold patch: their match row contains a
+    /// value that the prefix match-set delta does not carry yet.
+    pub(super) fn apply_retained_match_answer_deltas(
+        &mut self,
+        node: StyleNodeID,
+        patch: &mut RetainedAnswerPatch,
+        old_identity: MatchAnswerID,
+        retained: &[RetainedRuleMatch],
+        old_cascade_input: CascadeInputID,
+        deltas: &[SelectorTruthDelta],
+    ) -> Option<RetainedAnswerPatchOutcome> {
+        if !patch.cascade_update_properties.is_empty() {
+            if !deltas.is_empty() {
+                return None;
+            }
+            let outcome = self.apply_retained_cascade_updates(node, patch, retained, old_cascade_input)?;
+            self.counters.bump(Counter::RetainedMatchAnswerDeltaPatches);
+            return Some(outcome);
+        }
+        // Empty signed truth preserves the exact answer. Unless cascade order itself moved, its
+        // compact identity is also unchanged, so stop without rebuilding either representation.
+        if deltas.is_empty() && !patch.orders_shifted {
+            self.publish_cascade_input(node, old_cascade_input);
+            self.counters.bump(Counter::RetainedMatchAnswerDeltaPatches);
+            let emit = patch.always_emit;
+            if !emit {
+                self.counters.bump(Counter::RetainedMatchAnswerPatchStops);
+            }
+            return Some(RetainedAnswerPatchOutcome {
+                identity_preserved: true,
+                emit,
+                incremental_cascade_answer: None,
+            });
+        }
+
+        // Nodes sharing the same retained identity, compact identity, and consolidated delta
+        // content share the entire transition: the answer content, the guards below, the compact
+        // reduction, and the stop verdict are all node-independent for comparable document-scope
+        // answers under one patch's fixed cascade orders. A stopping transition therefore runs
+        // once per cohort; every further member is one column store.
+        let memo_key = (!patch.always_emit && !patch.orders_shifted && !self.node_has_element_declaration_input(node))
+            .then(|| Self::retained_answer_delta_memo_key(old_identity, old_cascade_input, deltas));
+        if let Some(key) = &memo_key
+            && let Some(entry) = patch.delta_memo.get(key)
+            && Self::retained_answer_delta_memo_entry_matches(entry, deltas)
+            && let transition = entry.transition
+            && self
+                .retained_match_answers
+                .set_interned_identity(node, &mut self.match_answers, transition.new_answer)
+        {
+            self.counters.bump(Counter::RetainedMatchAnswerDeltaMemoHits);
+            let stopped = transition.new_cascade_input == old_cascade_input;
+            if let Some((state, version)) = transition.winner_state {
+                self.winner_groups.set(node, state, version);
+            }
+            self.publish_cascade_input(node, transition.new_cascade_input);
+            self.counters.bump(Counter::RetainedMatchAnswerDeltaPatches);
+            if stopped {
+                self.counters.bump(Counter::RetainedMatchAnswerPatchStops);
+                return Some(RetainedAnswerPatchOutcome {
+                    identity_preserved: true,
+                    emit: false,
+                    incremental_cascade_answer: None,
+                });
+            }
+            self.counters.bump(Counter::MatchAnswerChanges);
+            let incremental_cascade_answer = transition.winners_updated.then_some(IncrementalCascadeAnswer {
+                node,
+                cascade_input: transition.new_cascade_input,
+                matches: None,
+                cascade_winners_are_complete: transition.cascade_winners_are_complete,
+            });
+            return Some(RetainedAnswerPatchOutcome {
+                identity_preserved: false,
+                emit: true,
+                incremental_cascade_answer,
+            });
+        }
+
+        let (answer, applied) = self.retained_answer_after_deltas(node, patch, retained, deltas)?;
 
         if !patch.orders_shifted && self.retained_match_deltas_cannot_change_cascade(node, retained, deltas) {
             self.remember_prepared_retained_match_answer(node, answer);
@@ -2141,8 +2333,10 @@ impl StyleEngine {
                     Lookup::Known(&(state, version)) => Some((state, version)),
                     Lookup::KnownAbsent | Lookup::Missing(_) => None,
                 };
-                patch.delta_memo.insert(
+                Self::remember_retained_answer_delta_transition(
+                    patch,
                     key,
+                    deltas,
                     RetainedAnswerDeltaTransition {
                         new_answer: *new_identity,
                         new_cascade_input: old_cascade_input,
@@ -2153,6 +2347,7 @@ impl StyleEngine {
                 );
             }
             return Some(RetainedAnswerPatchOutcome {
+                identity_preserved: true,
                 emit: patch.always_emit,
                 incremental_cascade_answer: None,
             });
@@ -2179,8 +2374,10 @@ impl StyleEngine {
         );
 
         self.remember_prepared_retained_match_answer(node, answer);
-        let cascade_winners_updated = self.apply_cascade_winner_match_deltas(node, &materialized, deltas);
-        let new_input = self.matches_for_cascade(materialized, false, None);
+        let cascade_winners_updated =
+            self.apply_cascade_winner_match_deltas(node, &materialized, deltas, &mut patch.cascade_candidates);
+        let new_input =
+            self.matches_for_cascade_with_scratch(materialized, false, None, &mut patch.cascade_compaction_workspace);
         let new_cascade_input = self.intern_cascade_input(&new_input);
         let changed = old_cascade_input != new_cascade_input;
         if changed {
@@ -2207,8 +2404,10 @@ impl StyleEngine {
                 Lookup::Known(&(state, version)) => Some((state, version)),
                 Lookup::KnownAbsent | Lookup::Missing(_) => None,
             };
-            patch.delta_memo.insert(
+            Self::remember_retained_answer_delta_transition(
+                patch,
                 key,
+                deltas,
                 RetainedAnswerDeltaTransition {
                     new_answer: new_identity,
                     new_cascade_input,
@@ -2219,6 +2418,7 @@ impl StyleEngine {
             );
         }
         Some(RetainedAnswerPatchOutcome {
+            identity_preserved: false,
             emit,
             incremental_cascade_answer: (emit && cascade_winners_updated).then(|| IncrementalCascadeAnswer {
                 node,
@@ -2308,6 +2508,20 @@ impl StyleEngine {
         {
             return Some(changed);
         }
+        let mixed_deltas = match truth_patch {
+            SelectorTruthPatch::Refresh { deltas, .. } | SelectorTruthPatch::Attributed { deltas, .. } => Some(deltas),
+            SelectorTruthPatch::Full | SelectorTruthPatch::Direct(_) => None,
+        };
+        // Materializing the adjusted base has a fixed compact-answer copy cost. Require at least
+        // two avoided matcher queries so small mixed patches keep their cheaper existing path.
+        let delta_base = if patch.cascade_update_properties.is_empty() {
+            mixed_deltas.filter(|deltas| deltas.len() >= 2).and_then(|deltas| {
+                self.retained_answer_after_deltas(node, patch, &retained, deltas)
+                    .map(|(answer, _)| answer)
+            })
+        } else {
+            None
+        };
         // The routes that planned this node named exactly these affected rules, so only they can
         // have changed truth here; every other affected rule was proven unchanged on this node by
         // its own narrowing. The filtered evaluation shrinks accordingly.
@@ -2316,25 +2530,31 @@ impl StyleEngine {
             SelectorTruthPatch::Direct(deltas) => {
                 Some(deltas.iter().map(|delta| (delta.rule, delta.program)).collect())
             }
-            SelectorTruthPatch::Refresh { deltas, refreshes } => Some(
-                deltas
+            SelectorTruthPatch::Refresh { deltas, refreshes } => Some(match delta_base.is_some() {
+                true => refreshes.iter().filter_map(|refresh| refresh.rule).collect(),
+                false => deltas
                     .iter()
                     .map(|delta| (delta.rule, delta.program))
                     .chain(refreshes.iter().filter_map(|refresh| refresh.rule))
                     .collect(),
-            ),
+            }),
             SelectorTruthPatch::Attributed {
                 deltas,
                 refreshes,
                 rules,
-            } => Some(
-                deltas
+            } => Some(match delta_base.is_some() {
+                true => refreshes
+                    .iter()
+                    .filter_map(|refresh| refresh.rule)
+                    .chain(rules.iter().copied())
+                    .collect(),
+                false => deltas
                     .iter()
                     .map(|delta| (delta.rule, delta.program))
                     .chain(refreshes.iter().filter_map(|refresh| refresh.rule))
                     .chain(rules.iter().copied())
                     .collect(),
-            ),
+            }),
         }
         .map(|mut keys: Vec<_>| {
             keys.retain(|key| patch.rule_keys.binary_search(key).is_ok());
@@ -2345,14 +2565,26 @@ impl StyleEngine {
         if let Some(keys) = narrowed_keys.as_deref() {
             self.counters.bump(Counter::RetainedMatchAnswerFilteredPatches);
             if keys.is_empty() {
-                // Nothing this transaction affects reached the node through a rule-naming route:
-                // its match answer is unchanged as it stands.
+                if let Some(deltas) = mixed_deltas
+                    && delta_base.is_some()
+                {
+                    return self.apply_retained_match_answer_deltas(
+                        node,
+                        patch,
+                        old_identity,
+                        &retained,
+                        old_cascade_input,
+                        deltas,
+                    );
+                }
+                // Nothing this transaction affects reached the node through a rule-naming route.
                 self.publish_cascade_input(node, old_cascade_input);
                 self.counters.bump(Counter::RetainedMatchAnswerPatches);
                 if !patch.always_emit {
                     self.counters.bump(Counter::RetainedMatchAnswerPatchStops);
                 }
                 return Some(RetainedAnswerPatchOutcome {
+                    identity_preserved: true,
                     emit: patch.always_emit,
                     incremental_cascade_answer: None,
                 });
@@ -2364,17 +2596,29 @@ impl StyleEngine {
         // match uses; both the unchanged-set stop and the full patch below consume its result.
         let replacement = self.filtered_patch_replacement(node, patch, narrowed_keys.as_deref())?;
         let affected_keys: &[(RuleID, SelectorProgramID)] = narrowed_keys.as_deref().unwrap_or(&patch.rule_keys);
+        let retained_base: &[RetainedRuleMatch] = delta_base.as_deref().unwrap_or(retained.as_ref());
 
         // Reuse the replacement allocation and append only old entries which survive into the
         // repaired answer. The compact retained slice is the old side for delta derivation below,
         // so no materialized old snapshot is needed.
-        let unaffected_count = retained
+        // Both inputs are ordered by (rule, program), so count survivors with one merge walk.
+        let mut affected_index = 0;
+        let unaffected_count = retained_base
             .iter()
-            .filter(|entry| affected_keys.binary_search(&(entry.rule, entry.program)).is_err())
+            .filter(|entry| {
+                let key = (entry.rule, entry.program);
+                while affected_keys
+                    .get(affected_index)
+                    .is_some_and(|affected| *affected < key)
+                {
+                    affected_index += 1;
+                }
+                affected_keys.get(affected_index) != Some(&key)
+            })
             .count();
         let mut patched_answer = replacement;
         patched_answer.reserve_exact(unaffected_count);
-        for &entry in retained.iter() {
+        for &entry in retained_base {
             if affected_keys.binary_search(&(entry.rule, entry.program)).is_ok() {
                 continue;
             }
@@ -2433,13 +2677,15 @@ impl StyleEngine {
                 self.counters.bump(Counter::RetainedMatchAnswerPatchStops);
             }
             return Some(RetainedAnswerPatchOutcome {
+                identity_preserved: true,
                 emit,
                 incremental_cascade_answer: None,
             });
         }
 
         self.remember_retained_match_answer(node, &patched_answer);
-        let new_input = self.matches_for_cascade(patched_answer, false, None);
+        let new_input =
+            self.matches_for_cascade_with_scratch(patched_answer, false, None, &mut patch.cascade_compaction_workspace);
         let new_cascade_input = self.intern_cascade_input(&new_input);
         let changed = old_cascade_input != new_cascade_input;
         if changed {
@@ -2452,6 +2698,7 @@ impl StyleEngine {
             self.counters.bump(Counter::RetainedMatchAnswerPatchStops);
         }
         Some(RetainedAnswerPatchOutcome {
+            identity_preserved: !changed,
             emit,
             incremental_cascade_answer: None,
         })
@@ -2504,6 +2751,15 @@ impl StyleEngine {
         node: StyleNodeID,
         retained_answer_cascade_orders: Option<RetainedAnswerCascadeOrders<'_>>,
     ) -> Result<PublishedMatchAnswer, Incomplete> {
+        if !self.match_answer_is_retainable(node) {
+            self.retained_match_answers.forget_answer(&mut self.match_answers, node);
+        }
+        let tree_scope = self.tree.tree_scope(node);
+        let scoped_dispatch = (tree_scope != TreeScopeID::DOCUMENT).then(|| self.ranked_scope_program(tree_scope).1);
+        let retained_answer_cascade_orders = scoped_dispatch
+            .as_deref()
+            .map(RetainedAnswerCascadeOrders::Dispatch)
+            .or(retained_answer_cascade_orders);
         let retained_answer = retained_answer_cascade_orders.and_then(|orders| {
             let retained = Rc::clone(self.retained_match_answer(node).sparse().ok()?);
             let exact_answer = retained
@@ -2557,6 +2813,72 @@ impl StyleEngine {
         })
     }
 
+    /// Complete a node from a matching node's already compacted cascade input and winner rows.
+    pub(super) fn complete_published_match_answer_from_cascade_input(
+        &mut self,
+        node: StyleNodeID,
+        source: StyleNodeID,
+        cascade_input: CascadeInputID,
+        orders: RetainedAnswerCascadeOrders<'_>,
+        cascade_winners_are_complete: bool,
+    ) -> Option<PublishedMatchAnswer> {
+        let compact = Rc::clone(self.match_answers.answer(MatchAnswerID(cascade_input.0))?);
+        let mut matches = compact
+            .iter()
+            .copied()
+            .map(|entry| {
+                let cascade_order = orders.cascade_order_for_entry(entry.rule, entry.program, entry.entry)?;
+                entry.materialize(node, &self.programs, cascade_order)
+            })
+            .collect::<Option<Vec<_>>>()?;
+        self.order_matches_in_cascade(&mut matches, false);
+        let published_rows =
+            self.winner_groups
+                .copy_node_rows(source, node, self.program.version(), &mut self.memory)?;
+        let winner_rows_retained = self.winner_groups.settle_memory(&mut self.memory);
+        if winner_rows_retained {
+            self.counters
+                .add(Counter::CascadeNodeHandlesPublished, published_rows as u64);
+        }
+        self.publish_cascade_input(node, cascade_input);
+        Some(PublishedMatchAnswer {
+            node,
+            cascade_input: Some(cascade_input),
+            matches: Some(matches.into_boxed_slice()),
+            cascade_winners_are_complete: cascade_winners_are_complete && winner_rows_retained,
+            observed: false,
+        })
+    }
+
+    pub(super) fn has_no_element_declarations(&self, node: StyleNodeID) -> bool {
+        ElementDeclarationKind::ALL.iter().all(|&kind| {
+            let (declarations, complete) = self.facts.element_declared_properties(node, kind);
+            complete && declarations.is_empty()
+        })
+    }
+
+    /// Whether sharing this compaction avoids enough declaration candidates to cover its fixed
+    /// identity lookup, compact payload materialization, and winner-row copy costs.
+    pub(super) fn shared_cascade_completion_is_profitable(
+        &self,
+        answer: MatchAnswerID,
+        cascade_input: CascadeInputID,
+    ) -> bool {
+        let Some(full) = self.match_answers.answer(answer) else {
+            return false;
+        };
+        let Some(compact) = self.match_answers.answer(MatchAnswerID(cascade_input.0)) else {
+            return false;
+        };
+        let declaration_count = |answer: &[RetainedRuleMatch]| {
+            answer
+                .iter()
+                .map(|matched| self.program.declared_properties_of(matched.rule).len())
+                .sum::<usize>()
+        };
+        declaration_count(full) >= declaration_count(compact).saturating_add(MIN_SHARED_CASCADE_COMPLETION_SAVINGS)
+    }
+
     /// Complete the transaction output over nodes added by the style consumer's inheritance
     /// closure. The active traversal owns the current cascade orders for retained answers, so lend
     /// them to the same completion path used before publication. A retained miss runs exact
@@ -2607,49 +2929,145 @@ impl StyleEngine {
         answer_is_equal && winner_rows_are_equal
     }
 
+    /// Whether any entry of the answer observes sibling or positional relations, whose truth is
+    /// maintained state in the prefix automaton.
+    pub(super) fn answer_observes_sibling_relations(&self, input: CascadeInputID) -> bool {
+        let Some(rows) = self.match_answers.answer(MatchAnswerID(input.0)) else {
+            return true;
+        };
+        rows.iter().any(|row| {
+            self.programs
+                .get(row.program)
+                .entries()
+                .get(row.entry as usize)
+                .is_none_or(|entry| entry.observes_sibling_relation())
+        })
+    }
+
+    /// Prove that an added-only transition between two compact answers cannot change any cascade
+    /// winner, by checking every added rule's declared properties against the node's previously
+    /// published winner rows: O(delta) instead of a cold re-derivation, so it holds even where
+    /// the winner inventory is incomplete. Any gap answers false: a removal, a pseudo-targeted or
+    /// scoped or container-gated added rule, an added rule whose declaration list is incomplete
+    /// (custom properties), or provenance the previous state cannot answer for.
+    pub(super) fn answer_transition_cannot_change_cascade(
+        &mut self,
+        node: StyleNodeID,
+        previous_input: CascadeInputID,
+        current_input: CascadeInputID,
+    ) -> bool {
+        // Identity equality is NOT a proof: a stale retained answer compares equal to itself.
+        if previous_input == current_input {
+            return false;
+        }
+        let target = computed::ComputedStyleTarget::new(node, u8::MAX);
+        let Some((previous_generation, previous_state)) = self.computed_group_sets.cascade_state(target) else {
+            self.counters.bump(Counter::TransitionProofNoPreviousState);
+            return false;
+        };
+        if previous_generation != self.winner_groups.generation() {
+            self.counters.bump(Counter::TransitionProofGenerationGap);
+            return false;
+        }
+        let Some(previous_rows) = self.match_answers.answer(MatchAnswerID(previous_input.0)) else {
+            self.counters.bump(Counter::TransitionProofMissingAnswer);
+            return false;
+        };
+        let Some(current_rows) = self.match_answers.answer(MatchAnswerID(current_input.0)) else {
+            self.counters.bump(Counter::TransitionProofMissingAnswer);
+            return false;
+        };
+        if ElementDeclarationKind::ALL
+            .iter()
+            .any(|&kind| !self.facts.element_declared_properties(node, kind).1)
+        {
+            self.counters.bump(Counter::TransitionProofElementDeclarations);
+            return false;
+        }
+        let (mut i, mut j) = (0, 0);
+        while i < previous_rows.len() || j < current_rows.len() {
+            let added = match (previous_rows.get(i), current_rows.get(j)) {
+                (Some(previous), Some(current)) if previous == current => {
+                    i += 1;
+                    j += 1;
+                    continue;
+                }
+                (Some(previous), Some(current)) if previous < current => {
+                    let _ = previous;
+                    self.counters.bump(Counter::TransitionProofRemoval);
+                    return false;
+                }
+                (Some(_), Some(current)) => {
+                    j += 1;
+                    *current
+                }
+                (Some(_), None) => {
+                    self.counters.bump(Counter::TransitionProofRemoval);
+                    return false;
+                }
+                (None, Some(current)) => {
+                    j += 1;
+                    *current
+                }
+                (None, None) => unreachable!(),
+            };
+            if added.tree_scope != TreeScopeID::DOCUMENT
+                || self.program.rule_is_gated_by_container_query(added.rule)
+                || !self.program.declarations_are_complete_for(added.rule)
+            {
+                self.counters.bump(Counter::TransitionProofUnsafeRule);
+                return false;
+            }
+            let Some(entry) = self.programs.get(added.program).entries().get(added.entry as usize) else {
+                self.counters.bump(Counter::TransitionProofUnsafeRule);
+                return false;
+            };
+            if entry.pseudo_element.is_some() || entry.scope_root.is_some() {
+                self.counters.bump(Counter::TransitionProofPseudoOrScope);
+                return false;
+            }
+            if !self.rule_has_complete_element_winners(added.rule, entry) {
+                self.counters.bump(Counter::TransitionProofElementWinnerGap);
+                return false;
+            }
+            for declared in self.program.declared_properties_of(added.rule) {
+                if matches!(
+                    declared.operator,
+                    CascadeOperator::Revert | CascadeOperator::RevertLayer
+                ) {
+                    self.counters.bump(Counter::TransitionProofOperatorOrContinuation);
+                    return false;
+                }
+                let Some(winner) = self.winner_groups.winner_in_state(previous_state, declared.property) else {
+                    self.counters.bump(Counter::TransitionProofWinnerGap);
+                    return false;
+                };
+                if self.winner_groups.continuation(winner.key.continuation).is_some() {
+                    self.counters.bump(Counter::TransitionProofOperatorOrContinuation);
+                    return false;
+                }
+                let priority = self.cascade_priority_of(
+                    added.rule,
+                    added.tree_scope,
+                    entry.specificity,
+                    added.scope_proximity,
+                    declared.important,
+                );
+                if priority >= winner.priority {
+                    self.counters.bump(Counter::TransitionProofPriorityWin);
+                    return false;
+                }
+            }
+        }
+        self.counters.bump(Counter::TransitionProofConfirmed);
+        true
+    }
+
     pub(super) fn verify_retained_cascade_input(&mut self, node: StyleNodeID, cascade_input: CascadeInputID) {
         assert!(
             self.retained_cascade_input_is_exact(node, cascade_input),
             "retained cascade identity stop diverged from exact matching"
         );
-    }
-
-    /// Confirm that a retained cascade input is the exact current selector answer and that its
-    /// element and pseudo-element cascades are identical to the last computed publication.
-    pub(super) fn retained_cascade_input_is_exact_and_unchanged(
-        &mut self,
-        node: StyleNodeID,
-        previous_cascade_input: Option<CascadeInputID>,
-        current_cascade_input: CascadeInputID,
-    ) -> bool {
-        debug_assert_ne!(previous_cascade_input, Some(current_cascade_input));
-        let Ok((full_answer, verification_winner_groups)) = self.exact_cascade_answer_for_verification(node) else {
-            return false;
-        };
-        let prepared_answer = prepare_retained_match_answer(full_answer.into_iter());
-        let answer_is_exact = self
-            .match_answers
-            .answer(MatchAnswerID(current_cascade_input.0))
-            .is_some_and(|retained_answer| retained_answer.as_ref() == prepared_answer);
-        let winner_rows_are_exact = self.winner_groups.node_rows_are_semantically_equal(
-            &verification_winner_groups,
-            node,
-            self.program.version(),
-        );
-        let target = computed::ComputedStyleTarget::new(node, u8::MAX);
-        let base_output_is_unchanged =
-            self.computed_group_sets
-                .cascade_state(target)
-                .is_some_and(|(previous_generation, previous)| {
-                    matches!(
-                        verification_winner_groups.token_for(WinnerGroupKey::current(node, self.program.version())),
-                        Lookup::Known((current_generation, current))
-                            if current_generation == previous_generation
-                                && verification_winner_groups.semantic_delta(Some(previous), current).is_empty()
-                    )
-                });
-        let pseudo_output_is_unchanged = self.pseudo_cascade_states_are_unchanged_in(node, &verification_winner_groups);
-        answer_is_exact && winner_rows_are_exact && base_output_is_unchanged && pseudo_output_is_unchanged
     }
 
     pub fn complete_published_match_answers_for_closure(&mut self, nodes: &[StyleNodeID]) -> Result<(), Incomplete> {
@@ -2743,7 +3161,7 @@ impl StyleEngine {
         {
             let mut answer = Vec::new();
             if self
-                .append_catalog_answer(MatchAnswerID(cascade_input.0), node, &mut answer)
+                .append_catalog_answer(MatchAnswerID(cascade_input.0), node, None, &mut answer)
                 .is_some()
             {
                 matches = Some(answer);
@@ -2809,7 +3227,15 @@ impl StyleEngine {
         &mut self,
         node: StyleNodeID,
         capacity: usize,
-        mut consume: impl FnMut(usize, StyleNodeID, RuleID, Option<tree::PseudoElementTarget>, u32, u32),
+        mut consume: impl FnMut(
+            usize,
+            StyleNodeID,
+            RuleID,
+            SemanticDeclarationID,
+            Option<tree::PseudoElementTarget>,
+            u32,
+            u32,
+        ),
     ) -> Option<usize> {
         if let Some(published) = self.published_match_answers.lookup(node) {
             let cascade_input = published.cascade_input;
@@ -2837,6 +3263,7 @@ impl StyleEngine {
                             index,
                             node,
                             matched.rule,
+                            self.program.ensure_semantic_declaration(matched.rule),
                             matched.pseudo_element,
                             self.cascade_context_host(matched.rule, matched.tree_scope),
                             matched.scope_proximity,
@@ -2860,6 +3287,7 @@ impl StyleEngine {
                             index,
                             node,
                             matched.rule,
+                            self.program.ensure_semantic_declaration(matched.rule),
                             pseudo_element,
                             self.cascade_context_host(matched.rule, matched.tree_scope),
                             matched.scope_proximity,
@@ -2878,6 +3306,7 @@ impl StyleEngine {
                     index,
                     node,
                     matched.rule,
+                    self.program.ensure_semantic_declaration(matched.rule),
                     matched.pseudo_element,
                     self.cascade_context_host(matched.rule, matched.tree_scope),
                     matched.scope_proximity,
@@ -2910,11 +3339,14 @@ impl StyleEngine {
         // no witness the answer must be a recompute, never a vacuous pass.
         let held_kinds_are_witnessed = self.computed_group_sets.assigned_pseudo_kinds(node).all(|kind| {
             self.computed_group_sets
-                .pseudo_retained_cascade_states(node)
-                .any(|(observed_kind, _)| observed_kind == kind)
+                .pseudo_retained_cascade_state(node, kind)
+                .is_some()
                 || winner_groups
-                    .pseudo_states(node)
-                    .any(|(pseudo, _, _, _)| pseudo.kind.0 == u16::from(kind))
+                    .pseudo_state(
+                        node,
+                        tree::PseudoElementTarget::new(tree::PseudoElementKind(u16::from(kind))),
+                    )
+                    .is_some()
         });
         let observed_are_current =
             self.computed_group_sets
@@ -2996,10 +3428,9 @@ impl StyleEngine {
     fn exact_match_answer(&mut self, node: StyleNodeID) -> Result<Vec<RuleMatch>, Incomplete> {
         let scope = self.tree.tree_scope(node);
         let inner_scope = self.tree.shadow_root_of(node).and_then(|shadow_root| {
-            self.scope_roots
-                .iter()
-                .position(|&root| root == Some(shadow_root))
-                .map(|index| TreeScopeID(u32::try_from(index).expect("tree scope identity space exhausted")))
+            self.scope_by_root
+                .get(&shadow_root)
+                .copied()
                 .filter(|&inner| inner != scope)
         });
         let slotted_scopes: Vec<_> = self
@@ -3020,14 +3451,7 @@ impl StyleEngine {
         for matched in exact {
             let (_, dispatch) = self.ranked_scope_program(matched.tree_scope);
             let cascade_order = dispatch
-                .entries()
-                .iter()
-                .find(|candidate| {
-                    candidate.rule == matched.rule
-                        && candidate.program == matched.program
-                        && candidate.entry == matched.entry
-                })
-                .map(|candidate| candidate.cascade_order)
+                .cascade_order_for_entry(matched.rule, matched.program, matched.entry)
                 .expect("every exact rule entry has a cascade rank");
             matches.push(RuleMatch {
                 node: matched.node,
@@ -3107,50 +3531,13 @@ impl StyleEngine {
 
         self.counters.bump(Counter::MatchAnswerUpqueries);
 
-        // Which other nodes a selector reads is a property of the selectors, not of the element:
-        // a descendant combinator climbs, a sibling combinator walks back, `:has()` descends. So
-        // the batch grows by exactly the node each miss names. A sibling, positional or descendant
-        // scan names the rest of the range it can read instead, and the batch takes a doubling
-        // window of that range, so a scan that reads its whole range needs a logarithmic number of
-        // restarts rather than one per row. Both requests converge because the tree is finite and
-        // cover only nodes the interrupted operator can still read.
-        //
-        // The ancestors are seeded because a descendant or child combinator reads them and one of
-        // those is in almost every stylesheet: without this a page of depth eight discovers one
-        // ancestor per retry. Other exact requests are collected across the candidate set, and a
-        // completion bit keeps candidates that already answered from being replayed while those
-        // requests are materialized.
-        let mut covered = vec![node];
-        covered.extend(self.tree.ancestors(node));
-        // The unified automaton's rightward states read the node's left context the same way its
-        // down axes read the ancestry, so a sibling-bearing automaton seeds the preceding
-        // siblings of the node and of each ancestor up front rather than discovering them one
-        // restart at a time.
-        if self
-            .ranked_scope_program(self.tree.tree_scope(node))
-            .1
-            .prefixes()
-            .has_sibling_steps()
-        {
-            let spine_len = covered.len();
-            for level_index in 0..spine_len {
-                let mut previous = self.tree.previous_element_sibling(covered[level_index]);
-                while let Some(sibling) = previous {
-                    covered.push(sibling);
-                    previous = self.tree.previous_element_sibling(sibling);
-                }
-            }
-        }
-        let mut sibling_window = INITIAL_SIBLING_FACT_WINDOW;
-        let mut facts = StyleNodeFacts::new();
         let scope = self.tree.tree_scope(node);
         // A host stands outside the tree its own shadow root opens, and `:host` inside that tree
         // names it, so the tree's own rules are asked of it as well.
         let inner_scope = self.tree.shadow_root_of(node).and_then(|shadow_root| {
-            self.scope_roots
-                .iter()
-                .position(|&root| root == Some(shadow_root))
-                .map(|index| TreeScopeID(u32::try_from(index).expect("tree scope identity space exhausted")))
+            self.scope_by_root
+                .get(&shadow_root)
+                .copied()
                 .filter(|&inner| inner != scope)
         });
         // A slotted element stands outside the tree it is slotted into, and `::slotted()` inside
@@ -3182,11 +3569,10 @@ impl StyleEngine {
             let prefix_caches = Rc::clone(&traversal.prefix_caches);
             let facts = traversal.batch.as_ref().unwrap();
             let mut matches = RuleMatches::new();
-            let can_defer_prefix_matches = compact_for_cascade
-                && scope == TreeScopeID::DOCUMENT
-                && inner_scope.is_none()
-                && slotted_scopes.is_empty()
-                && part_scopes.is_empty();
+            // OPTIMIZATION: Identical sheet sets share a scope program, so the prefix automaton's
+            // answer can be reused across otherwise independent shadow trees.
+            let can_defer_prefix_matches =
+                compact_for_cascade && inner_scope.is_none() && slotted_scopes.is_empty() && part_scopes.is_empty();
             let mut deferred_prefix_matches = None;
             let mut retained_match_answer_is_exact = compact_for_cascade;
             let result = for_each_matching_scope(
@@ -3233,7 +3619,7 @@ impl StyleEngine {
                         matches: prefix_matches,
                     };
                     let mut newly_materialized_exact_prefix = None;
-                    if retained_match_answer_is_exact {
+                    if retained_match_answer_is_exact && scope == TreeScopeID::DOCUMENT {
                         let known_exact_prefix = match prefix_caches
                             .borrow()
                             .answers
@@ -3308,6 +3694,33 @@ impl StyleEngine {
                                 retained_match_answer_key_to_remember = Some(exact_answer_key);
                             }
                         }
+                    } else if retained_match_answer_is_exact {
+                        // Exact retained answers carry a concrete tree scope. Materialize that
+                        // cheap payload locally while still sharing the selector evaluation.
+                        let mut prefix_rules = RuleMatches::new();
+                        let mut caches = prefix_caches.borrow_mut();
+                        match caches.states.lookup_mut(scope_program) {
+                            Lookup::Known(states) => append_prefix_matches(
+                                &mut prefix_rules,
+                                node,
+                                scope,
+                                &dispatch,
+                                &self.program,
+                                &self.programs,
+                                states.matches_in(prefix_matches),
+                                &mut self.counters,
+                                CountRuleMatchEmission::No,
+                            ),
+                            Lookup::KnownAbsent | Lookup::Missing(_) => {
+                                unreachable!("matching retained the scope's prefix states")
+                            }
+                        }
+                        drop(caches);
+                        let mut retained = prepare_retained_match_answer(matches.as_slice().iter().copied());
+                        let exact_prefix = prepare_retained_match_answer(prefix_rules.as_slice().iter().copied());
+                        merge_retained_match_answers(&mut retained, &exact_prefix);
+                        retained_match_answer = Some(retained);
+                        newly_materialized_exact_prefix = Some(prefix_rules);
                     }
                     // OPTIMIZATION: A prefix rule which loses every declaration to another prefix
                     // rule cannot become a winner after adding non-prefix contenders. Canonicalize
@@ -3355,7 +3768,12 @@ impl StyleEngine {
                                     prefix_rules
                                 }
                             };
-                            self.compact_matches_for_cascade(prefix_rules.as_mut_vec(), false, None);
+                            self.compact_matches_for_cascade_with_scratch(
+                                prefix_rules.as_mut_vec(),
+                                false,
+                                None,
+                                &mut traversal.cascade_compaction_workspace,
+                            );
                             let contribution = prefix_rules.take(&mut self.memory);
                             prefix_caches.borrow_mut().answers.remember_prefix_contribution(
                                 &mut self.match_answers,
@@ -3377,6 +3795,7 @@ impl StyleEngine {
                         append_retained_matches(
                             &mut matches,
                             node,
+                            scope,
                             &self.programs,
                             &dispatch,
                             self.match_answers
@@ -3384,7 +3803,12 @@ impl StyleEngine {
                                 .expect("a prefix contribution must remain live"),
                         )
                         .expect("a prefix contribution must reference live selector entries");
-                        self.compact_matches_for_cascade(matches.as_mut_vec(), false, Some(node));
+                        self.compact_matches_for_cascade_with_scratch(
+                            matches.as_mut_vec(),
+                            false,
+                            Some(node),
+                            &mut traversal.cascade_compaction_workspace,
+                        );
                         let answer = matches.take(&mut self.memory);
                         cascade_input = Some(self.intern_cascade_input(&answer));
                         answer
@@ -3409,16 +3833,26 @@ impl StyleEngine {
                                 cascade_input = Some(answer_cascade_input);
                                 cached_cascade_winner_inventory_is_complete =
                                     Some(cascade_winner_inventory_is_complete);
-                                let matches = if let Some(compact_answer) = compact_answer.as_mut() {
+                                let mut matches = if scope == TreeScopeID::DOCUMENT
+                                    && let Some(compact_answer) = compact_answer.as_mut()
+                                {
                                     **compact_answer = Some(answer_cascade_input);
                                     Vec::new()
                                 } else {
                                     let mut matches = Vec::new();
-                                    self.append_catalog_answer(answer_matches, node, &mut matches)
+                                    self.append_catalog_answer(answer_matches, node, Some(scope), &mut matches)
                                         .expect("a cached prefix answer must reference live selector entries");
                                     matches
                                 };
-                                if let Some((generation, group)) = winner_group
+                                if scope != TreeScopeID::DOCUMENT {
+                                    // The shared answer stores the scope which first populated it.
+                                    // Rebind and compact against this node's contextual declarations.
+                                    self.compact_matches_for_cascade(&mut matches, false, Some(node));
+                                    cascade_input = Some(self.intern_cascade_input(&matches));
+                                    cached_cascade_winner_inventory_is_complete = None;
+                                }
+                                if scope == TreeScopeID::DOCUMENT
+                                    && let Some((generation, group)) = winner_group
                                     && self
                                         .winner_groups
                                         .set_from_token(node, generation, group, self.program.version())
@@ -3434,6 +3868,7 @@ impl StyleEngine {
                                 append_retained_matches(
                                     &mut matches,
                                     node,
+                                    scope,
                                     &self.programs,
                                     &dispatch,
                                     self.match_answers
@@ -3441,7 +3876,12 @@ impl StyleEngine {
                                         .expect("a prefix contribution must remain live"),
                                 )
                                 .expect("a prefix contribution must reference live selector entries");
-                                self.compact_matches_for_cascade(matches.as_mut_vec(), false, Some(node));
+                                self.compact_matches_for_cascade_with_scratch(
+                                    matches.as_mut_vec(),
+                                    false,
+                                    Some(node),
+                                    &mut traversal.cascade_compaction_workspace,
+                                );
                                 let answer = matches.take(&mut self.memory);
                                 let winner_group = match self
                                     .winner_groups
@@ -3480,7 +3920,12 @@ impl StyleEngine {
                         retained_match_answer = Some(prepare_retained_match_answer(matches.as_slice().iter().copied()));
                     }
                     if compact_for_cascade {
-                        self.compact_matches_for_cascade(matches.as_mut_vec(), can_have_scope_duplicates, Some(node));
+                        self.compact_matches_for_cascade_with_scratch(
+                            matches.as_mut_vec(),
+                            can_have_scope_duplicates,
+                            Some(node),
+                            &mut traversal.cascade_compaction_workspace,
+                        );
                     } else if !retained_match_answer_is_exact {
                         self.order_matches_in_cascade(matches.as_mut_vec(), can_have_scope_duplicates);
                     }
@@ -3502,6 +3947,12 @@ impl StyleEngine {
                 dispatch_workspace_bytes - traversal.dispatch_workspace_bytes,
             );
             traversal.dispatch_workspace_bytes = dispatch_workspace_bytes;
+            let cascade_compaction_workspace_bytes = traversal.cascade_compaction_workspace.capacity_bytes();
+            self.memory.reserve_required(
+                MemoryCategory::BatchScratch,
+                cascade_compaction_workspace_bytes - traversal.cascade_compaction_workspace_bytes,
+            );
+            traversal.cascade_compaction_workspace_bytes = cascade_compaction_workspace_bytes;
             self.batch_matching_traversal = Some(held_traversal);
             if let Ok(matches) = &all {
                 if let Some(retained_match_answer) = retained_match_answer {
@@ -3538,6 +3989,36 @@ impl StyleEngine {
             return all;
         }
 
+        // Which other nodes a selector reads is a property of the selectors, not of the element:
+        // a descendant combinator climbs, a sibling combinator walks back, `:has()` descends. So
+        // the batch grows by exactly the node each miss names. A sibling, positional or descendant
+        // scan names the rest of the range it can read instead, and the batch takes a doubling
+        // window of that range, so a scan that reads its whole range needs a logarithmic number of
+        // restarts rather than one per row. Both requests converge because the tree is finite and
+        // cover only nodes the interrupted operator can still read.
+        //
+        // The ancestors are seeded because a descendant or child combinator reads them and one of
+        // those is in almost every stylesheet: without this a page of depth eight discovers one
+        // ancestor per retry. Other exact requests are collected across the candidate set, and a
+        // completion bit keeps candidates that already answered from being replayed while those
+        // requests are materialized.
+        let mut covered = vec![node];
+        covered.extend(self.tree.ancestors(node));
+        // The unified automaton's rightward states read the node's left context the same way its
+        // down axes read the ancestry, so a sibling-bearing automaton seeds the preceding
+        // siblings of the node and of each ancestor up front rather than discovering them one
+        // restart at a time.
+        if self.ranked_scope_program(scope).1.prefixes().has_sibling_steps() {
+            let spine_len = covered.len();
+            for level_index in 0..spine_len {
+                let mut previous = self.tree.previous_element_sibling(covered[level_index]);
+                while let Some(sibling) = previous {
+                    covered.push(sibling);
+                    previous = self.tree.previous_element_sibling(sibling);
+                }
+            }
+        }
+        let mut sibling_window = INITIAL_SIBLING_FACT_WINDOW;
         let mut matches = RuleMatches::new();
         let mut completed_by_scope: Column<Vec<bool>> = Column::default();
         let mut dispatch_workspace = DispatchCandidateWorkspace::default();
@@ -3549,9 +4030,11 @@ impl StyleEngine {
             .unwrap_or_else(|| Rc::new(RefCell::new(PrefixCaches::default())));
         let mut completion_scratch_bytes = 0;
         let mut retained_match_answer_is_exact = compact_for_cascade;
+        let mut facts = StyleNodeFacts::new();
+        let mut requests = Vec::new();
         loop {
             self.facts.materialize(covered.iter().copied(), &mut facts);
-            let mut requests = Vec::new();
+            requests.clear();
             let result = for_each_matching_scope(
                 scope,
                 inner_scope,

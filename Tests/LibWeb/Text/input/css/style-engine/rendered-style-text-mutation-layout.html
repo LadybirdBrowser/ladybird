@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<body>
+<style id="set-target" style="display: block; white-space: pre; font: 10px/10px monospace">a { color: red; }</style>
+<style id="insert-target" style="display: block; white-space: pre; font: 10px/10px monospace"></style>
+<script>
+    test(() => {
+        const setTarget = document.getElementById("set-target");
+        const setHeightBefore = setTarget.getBoundingClientRect().height;
+        setTarget.textContent = "a { color: red; }\nb { color: blue; }";
+        const setHeightAfter = setTarget.getBoundingClientRect().height;
+        println(`textContent relayout: ${setHeightAfter > setHeightBefore}`);
+
+        const insertTarget = document.getElementById("insert-target");
+        const insertHeightBefore = insertTarget.getBoundingClientRect().height;
+        insertTarget.appendChild(document.createTextNode("a { color: red; }\nb { color: blue; }"));
+        const insertHeightAfter = insertTarget.getBoundingClientRect().height;
+        println(`insert relayout: ${insertHeightAfter > insertHeightBefore}`);
+    });
+</script>

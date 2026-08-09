@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="plan.js"></script>
+<style>
+    #list > .row:first-child { color: green }
+    #list > .row:nth-child(2) { color: blue }
+    #list > .row:last-child { color: red }
+    #list > .row:first-child .leaf { color: purple }
+    .anchor + .adjacent { color: teal }
+    .general-anchor ~ .general-target { color: navy }
+    .lead + * + .trail { color: olive }
+    .lead ~ .distant { color: maroon }
+    .forest-anchor ~ .forest-branch .forest-target { color: purple }
+    .adjacent-forest-anchor + .forest-branch .adjacent-forest-target { color: purple }
+    .replacement-guard + .replacement-target { color: green }
+    .chain-guard + .chain-guard + .chain-target { color: blue }
+    .theme .item { color: green }
+    #host::part(label) { color: green }
+    ::slotted(.slotted) { color: green }
+</style>
+<div id="list">
+    <div id="first" class="row"><span id="leaf" class="leaf"></span></div>
+    <div id="second" class="row"></div>
+    <div id="third" class="row"></div>
+</div>
+<div id="pair"><span id="anchor" class="anchor"></span><span id="adjacent" class="adjacent"></span></div>
+<div id="general-pair"><span class="general-anchor"></span><span id="general-target" class="general-target"></span></div>
+<div id="seam"><span id="lead" class="lead"></span><span id="spacer"></span><span id="trail" class="trail"></span><span id="distant" class="distant"></span></div>
+<div id="forest">
+    <div class="forest-branch"><span id="forest-before" class="forest-target"></span></div>
+    <span id="forest-anchor" class="forest-anchor"></span>
+    <div class="forest-branch"><span id="forest-after" class="forest-target"></span></div>
+    <div class="forest-branch"><span id="forest-later" class="forest-target"></span></div>
+</div>
+<div id="adjacent-forest">
+    <div class="forest-branch"><span id="adjacent-forest-before" class="adjacent-forest-target"></span></div>
+    <span id="adjacent-forest-anchor" class="adjacent-forest-anchor"></span>
+    <div class="forest-branch"><span id="adjacent-forest-after" class="adjacent-forest-target"></span></div>
+    <div class="forest-branch"><span id="adjacent-forest-later" class="adjacent-forest-target"></span></div>
+</div>
+<div id="replacement-seam">
+    <span class="replacement-guard"></span>
+    <span id="replacement-removed" class="replacement-guard"></span>
+    <span id="replacement-target" class="replacement-target"></span>
+</div>
+<div id="chain-seam">
+    <span class="chain-guard"></span>
+    <span id="chain-removed" class="chain-guard"></span>
+    <span id="chain-target" class="chain-target"></span>
+</div>
+<div id="theme" class="theme"><span id="item" class="item"></span></div>
+<div id="elsewhere"></div>
+<script>
+    test(() => {
+        const list = document.getElementById("list");
+        const elsewhere = document.getElementById("elsewhere");
+
+        // A positional rule makes the child sequence an input, so joining or leaving one reaches
+        // the positions that moved. The parent is named only when something asks about its
+        // emptiness, which nothing here does.
+        //
+        // Only the positions the attached selectors can actually see are named: an append cannot
+        // move any count taken from the start, so it reaches nothing that was already there.
+        const inserted = make("div", "inserted", { className: "row" });
+        plan("prepend a row", () => list.insertBefore(inserted, list.firstElementChild));
+        plan("remove it again", () => inserted.remove());
+
+        const appended = make("div", "appended", { className: "row" });
+        plan("append a row", () => list.appendChild(appended));
+        plan("remove the appended row", () => appended.remove());
+
+        // Two rows joining one sequence before anything is observed move every count twice, so the
+        // position that crossed the one a selector asks about is two away and not one. Taking them
+        // away again moves no count from the start, so only the row that becomes last is reached.
+        const pairA = make("div", "pairA", { className: "row" });
+        const pairB = make("div", "pairB", { className: "row" });
+        plan("append two rows at once", () => {
+            list.appendChild(pairA);
+            list.appendChild(pairB);
+        });
+        plan("remove both again", () => {
+            pairA.remove();
+            pairB.remove();
+        });
+
+        // An element landing between two others changes *their* sibling relations, and `A + B` is
+        // a constraint on B, so B is what an insertion between the two reaches.
+        const wedge = make("span", "wedge");
+        plan("insert between an anchor and its adjacent match", () => {
+            document.getElementById("pair").insertBefore(wedge, document.getElementById("adjacent"));
+        });
+
+        // A general sibling selector depends on whether any matching element precedes its subject,
+        // not on which one is immediately adjacent. An unrelated arrival between a matching pair
+        // therefore reaches only the arrival itself.
+        const generalWedge = make("span", "general-wedge");
+        plan("insert between a general sibling pair", () => {
+            document.getElementById("general-pair").insertBefore(generalWedge, document.getElementById("general-target"));
+        });
+
+        // An element leaving takes the features its following siblings were looking at with it, so
+        // a sibling rule that names it reaches the subjects beyond it, however many steps away.
+        const seam = document.getElementById("seam");
+        const lead = document.getElementById("lead");
+        const spacer = document.getElementById("spacer");
+        plan("remove the element two sibling rules look from", () => lead.remove());
+        plan("put it back", () => seam.insertBefore(lead, spacer));
+
+        // A sibling combinator followed by a descendant combinator reaches a forest, not the
+        // parent's whole subtree. A departure reaches descendants of following sibling branches,
+        // but neither a preceding branch nor branches after an adjacent sibling.
+        plan("remove a general sibling forest anchor", () => document.getElementById("forest-anchor").remove());
+        plan("remove an adjacent sibling forest anchor", () => document.getElementById("adjacent-forest-anchor").remove());
+
+        // A deletion can expose another sibling that passes the same compound. The complete old
+        // and new selector answers decide whether the replacement preserves the match, including
+        // when the selector has more than one sibling step.
+        plan("remove an adjacent sibling with an equivalent replacement", () =>
+            document.getElementById("replacement-removed").remove());
+        plan("remove a sibling from a longer adjacent chain", () =>
+            document.getElementById("chain-removed").remove());
+
+        // `moveBefore()` keeps the element's identity and its state, so nothing disconnects and
+        // nothing connects: only its relations move, and only it says so.
+        plan("move a row to the front without removing it", () => list.moveBefore(document.getElementById("third"), document.getElementById("first")));
+
+        // An element arriving under a guard is reached by what the guard selects, and an element
+        // arriving where no rule looks is reached by nothing beyond itself.
+        const arrival = make("span", "arrival", { className: "item" });
+        plan("insert under the guard", () => document.getElementById("theme").appendChild(arrival));
+        plan("move it out of the guard", () => elsewhere.appendChild(arrival));
+        plan("disconnect it", () => arrival.remove());
+
+        // A subtree arriving brings everything in it.
+        const subtree = make("div", "subtree");
+        subtree.appendChild(make("span", "nested", { className: "item" }));
+        plan("insert a subtree under the guard", () => document.getElementById("theme").appendChild(subtree));
+        plan("remove the subtree", () => subtree.remove());
+
+        // A shadow root arriving is a scope arriving, and a slot assignment changes flat-tree
+        // identity without moving anything in the DOM.
+        const host = make("div", "host");
+        document.body.appendChild(host);
+        plan("attach a shadow root", () => {
+            const shadowRoot = host.attachShadow({ mode: "open" });
+            shadowRoot.innerHTML = "<slot></slot>";
+        });
+        const slotted = make("span", "slottee", { className: "slotted" });
+        plan("assign an element to the slot", () => host.appendChild(slotted));
+        plan("unassign it", () => slotted.remove());
+    });
+</script>

@@ -1,0 +1,8 @@
+section.guard.counted: .guard:nth-last-of-type(2) .guard:has(~ .target)
+section.target.counted: .guard ~ .target .middle + .target .target:nth-child(4) .target:nth-of-type(2) .guard:has(.deep) ~ .target .guard ~ .target:has(.inside)
+section.shadow-guard: .shadow-guard:has(~ .shadow-target)
+section.shadow-target: .shadow-guard ~ .shadow-target .shadow-target:nth-of-type(2) .shadow-guard:has(.shadow-deep) ~ .shadow-target
+
+cold node evaluations: 25
+candidate checks: 78
+rule matches emitted: 117

@@ -1,0 +1,3 @@
+the origin loses its feature as it leaves the sequence: settles exactly
+it comes back carrying the feature again: settles exactly
+it loses the feature while staying and moving within the sequence: settles exactly

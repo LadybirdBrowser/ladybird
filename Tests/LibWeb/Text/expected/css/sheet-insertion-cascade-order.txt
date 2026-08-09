@@ -1,0 +1,6 @@
+initially: rgb(0, 128, 0)
+after inserting a losing sheet before the winner: rgb(0, 128, 0)
+after removing it: rgb(0, 128, 0)
+after appending a sheet that wins: rgb(255, 0, 255)
+after moving the first sheet to the end: rgb(255, 0, 0)
+after moving it back in front: rgb(255, 0, 255)

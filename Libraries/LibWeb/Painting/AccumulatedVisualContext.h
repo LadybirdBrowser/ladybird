@@ -23,12 +23,6 @@
 #include <LibWeb/Painting/ScrollNodeState.h>
 #include <LibWeb/PixelUnits.h>
 
-namespace Web::CSS {
-
-class ComputedValues;
-
-}
-
 namespace Web::Painting {
 
 class Paintable;
@@ -126,7 +120,7 @@ struct AnchorScrollShift {
 
 using VisualContextData = Variant<ScrollData, ClipData, TransformData, PerspectiveData, BackfaceVisibilityData, ClipPathData, EffectsData, ScrollCompensation, AnchorScrollShift, MaskData>;
 
-Optional<TransformData> compute_transform(Paintable const&, CSS::ComputedValues const&, double pixel_ratio);
+Optional<TransformData> compute_transform(Paintable const&, double pixel_ratio);
 
 struct AccumulatedVisualContextNode {
     VisualContextData data;

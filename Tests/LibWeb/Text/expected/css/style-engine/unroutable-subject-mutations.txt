@@ -1,0 +1,34 @@
+insert a rule naming :root: [html]
+delete it: [html]
+insert :root compounded with a class: []
+delete it: []
+insert a rule for the children of an id: [first-child, second-child]
+delete it: [first-child, second-child]
+insert one for the children of a class: []
+delete it: []
+insert one naming either of two parents: [first-child, second-child, cousin]
+delete it: [first-child, second-child, cousin]
+insert one behind a sibling of a child: [second-child]
+delete it: [second-child]
+insert a universal rule: WHOLE DOCUMENT
+delete it: WHOLE DOCUMENT
+insert a negation with no other constraint: WHOLE DOCUMENT
+delete it: WHOLE DOCUMENT
+insert one behind a descendant combinator: [first-child, second-child]
+delete it: [first-child, second-child]
+insert one under either of two ancestors: [first-child, second-child, cousin]
+delete it: [first-child, second-child, cousin]
+insert one with both an ancestor and a parent: []
+delete it: []
+insert a bare :has(): [html, body, parent]
+delete it: [html, body, parent]
+insert a bare :has() naming nothing present: []
+delete it: []
+insert :has() over a child axis: [parent]
+delete it: [parent]
+insert :has() over the next-sibling axis: [first-child]
+delete it: [first-child]
+insert :has() over the following-sibling axis: [first-child]
+delete it: [first-child]
+insert a negated :has(): WHOLE DOCUMENT
+delete it: WHOLE DOCUMENT

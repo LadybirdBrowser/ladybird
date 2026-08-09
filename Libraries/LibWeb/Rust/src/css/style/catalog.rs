@@ -888,20 +888,28 @@ pub(super) struct RetainedAnswerPatch {
     pub(super) requires_full_match: bool,
     pub(super) cascade_update_properties: Vec<u16>,
     pub(super) cascade_update_rules: Vec<RuleID>,
+    pub(super) cascade_candidates: Vec<OrderedCascadeCandidate>,
+    pub(super) cascade_compaction_workspace: ordering::CascadeCompactionWorkspace,
     pub(super) program_base_version: Option<ProgramVersion>,
     /// Memoized stopping delta transitions, shared by every node whose retained answer identity,
     /// compact cascade identity, and consolidated delta content are equal. The patch's cascade
     /// orders are fixed for the flush and the transition is node-independent for comparable
     /// document-scope answers, so a container of equal siblings pays the O(answer) derivation once
     /// and every further member is one column store.
-    pub(super) delta_memo: HashMap<RetainedAnswerDeltaKey, RetainedAnswerDeltaTransition>,
+    pub(super) delta_memo: HashMap<RetainedAnswerDeltaMemoKey, RetainedAnswerDeltaMemoEntry>,
 }
 
-#[derive(PartialEq, Eq, Hash)]
-pub(super) struct RetainedAnswerDeltaKey {
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub(super) struct RetainedAnswerDeltaMemoKey {
     pub(super) old_answer: MatchAnswerID,
     pub(super) old_cascade_input: CascadeInputID,
+    pub(super) delta_count: usize,
+    pub(super) delta_digest: u64,
+}
+
+pub(super) struct RetainedAnswerDeltaMemoEntry {
     pub(super) deltas: Vec<(RuleID, SelectorProgramID, u32, SetChange)>,
+    pub(super) transition: RetainedAnswerDeltaTransition,
 }
 
 #[derive(Clone, Copy)]
@@ -921,6 +929,9 @@ pub(super) struct RetainedAnswerDeltaTransition {
 
 pub(super) struct RetainedAnswerPatchOutcome {
     pub(super) emit: bool,
+    /// The patch proved the answer identity and winner state unchanged and emits only because
+    /// the plan demands it; publication may confirm such a reaction away without any re-proof.
+    pub(super) identity_preserved: bool,
     pub(super) incremental_cascade_answer: Option<IncrementalCascadeAnswer>,
 }
 
@@ -934,9 +945,26 @@ pub(super) struct IncrementalCascadeAnswer {
 impl RetainedAnswerPatch {
     pub(super) fn capacity_bytes(&self) -> u64 {
         capacity_bytes! {
-            shallow [self.rules, self.cascade_update_properties, self.cascade_update_rules];
+            shallow [
+                self.rules,
+                self.cascade_update_properties,
+                self.cascade_update_rules,
+                self.cascade_candidates,
+                self.delta_memo,
+            ];
             cached [];
-            nested [self.dispatch_workspace.capacity_bytes()];
+            nested [
+                self.dispatch_workspace.capacity_bytes(),
+                self.cascade_compaction_workspace.capacity_bytes(),
+                self.delta_memo
+                    .values()
+                    .map(|entry| {
+                        (entry.deltas.capacity()
+                            * size_of::<(RuleID, SelectorProgramID, u32, SetChange)>())
+                            as u64
+                    })
+                    .sum::<u64>(),
+            ];
             skip [];
         }
     }
@@ -960,6 +988,14 @@ pub(super) struct RetainedAnswerPatchSelectionRule {
 }
 
 impl RetainedMatchAnswers {
+    pub(super) fn answer_identity(&self, node: StyleNodeID) -> Option<MatchAnswerID> {
+        let index = node.element_index()? as usize;
+        self.column
+            .get(index)
+            .copied()
+            .filter(|identity| *identity != MatchAnswerID::default())
+    }
+
     fn cascade_input_capacity_bytes(&self, catalog: &MatchAnswerCatalog) -> u64 {
         capacity_bytes! {
             shallow [self.cascade_input_column];
@@ -1229,6 +1265,8 @@ pub(super) struct BatchMatchingTraversal {
     pub(super) match_workspace_bytes: u64,
     pub(super) dispatch_workspace: DispatchCandidateWorkspace,
     pub(super) dispatch_workspace_bytes: u64,
+    pub(super) cascade_compaction_workspace: ordering::CascadeCompactionWorkspace,
+    pub(super) cascade_compaction_workspace_bytes: u64,
 }
 
 /// Current-side matching scratch produced by the transaction immediately before a style
@@ -1428,8 +1466,28 @@ pub(super) enum DocumentSheetMode {
 pub(super) struct ScopeDispatchKey {
     pub(super) depth: u32,
     pub(super) document_sheet_mode: DocumentSheetMode,
-    pub(super) sheets: Vec<SheetID>,
+    pub(super) sheets: Vec<(SheetID, u64)>,
+    pub(super) layer_order: Vec<(CascadeLayerID, u32)>,
 }
+
+/// The selector-derived topology shared by scopes whose concrete sheets contain the same compiled
+/// selector programs in the same order. Rule identities and cascade ranks remain scope-local.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub(super) struct ScopeDispatchShape(pub(super) Vec<(SelectorProgramID, bool)>);
+
+/// Every part of static cascade ordering that is not a concrete rule or sheet identity.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub(super) struct ScopeCascadeShape {
+    pub(super) dispatch: ScopeDispatchShape,
+    pub(super) depth: u32,
+    pub(super) document_sheet_mode: DocumentSheetMode,
+    pub(super) rule_origins_and_layers: Vec<(u8, CascadeLayerID)>,
+    pub(super) layer_order: Vec<(CascadeLayerID, u32)>,
+}
+
+/// The ordered ancestor keys whose dense indices define an ancestor-requirement table.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub(super) struct AncestorDispatchShape(pub(super) Vec<DispatchKey>);
 
 define_id! {
     /// The immutable selector and static-cascade program shared by equivalent tree scopes.

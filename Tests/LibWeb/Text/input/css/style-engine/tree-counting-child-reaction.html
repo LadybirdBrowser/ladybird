@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #target { z-index: sibling-index(); }
+    #stable { color: rgb(4, 5, 6); }
+</style>
+<div id="parent">
+    <span id="removed"></span>
+    <span id="stable"></span>
+    <span id="target"></span>
+</div>
+<script>
+    test(() => {
+        const removed = document.getElementById("removed");
+        const stable = document.getElementById("stable");
+        const target = document.getElementById("target");
+        internals.updateStyle();
+
+        internals.resetStyleInvalidationCounters();
+        removed.remove();
+        internals.updateStyle();
+        const updateCounters = internals.getStyleInvalidationCounters();
+
+        const targetIndex = getComputedStyle(target).zIndex;
+        const stableColor = getComputedStyle(stable).color;
+        const readCounters = internals.getStyleInvalidationCounters();
+
+        println("target index: " + targetIndex);
+        println("stable color: " + stableColor);
+        println("reaction batch runs: " + updateCounters.styleEngineReactionBatchRuns);
+        println("reaction elements: " + updateCounters.styleEngineReactionElements);
+        println("published reactions: " + updateCounters.styleEnginePublishedReactions);
+        println("update recomputations: " + updateCounters.elementStyleRecomputations);
+        println("read recomputations: " + (readCounters.elementStyleRecomputations - updateCounters.elementStyleRecomputations));
+    });
+</script>

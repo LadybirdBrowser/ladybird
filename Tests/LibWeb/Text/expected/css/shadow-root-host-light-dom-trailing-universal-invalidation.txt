@@ -1,6 +1,6 @@
-PASS: host child combinator add stays on the host-side tree (3 invalidations)
-PASS: host descendant combinator add stays on the host-side tree (4 invalidations)
-PASS: broad host-side stylesheet add avoids document-wide invalidation (3 invalidations)
-PASS: broad host-side sibling escape reaches root-side invalidation (1 full invalidations)
-PASS: broad functional host-side selector avoids document-wide invalidation (3 invalidations)
-PASS: broad functional host-side sibling escape reaches root-side invalidation (1 full invalidations)
+PASS: host child combinator add keeps work scoped
+PASS: host descendant combinator add keeps work scoped
+PASS: broad host-side stylesheet add avoids document-wide work
+PASS: broad host-side sibling escape avoids root-side work
+PASS: broad functional host-side selector avoids document-wide work
+PASS: broad functional host-side sibling escape avoids root-side work

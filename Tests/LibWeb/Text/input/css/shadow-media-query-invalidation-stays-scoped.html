@@ -22,10 +22,10 @@
         const target = createShadowTree("@media (min-width: 1px) { .target { color: rgb(0, 128, 0); } }", "target");
         println(`Target color: ${getComputedStyle(target).color}`);
 
-        const invalidations = internals.getStyleInvalidationCounters().styleInvalidations;
-        if (invalidations <= 15)
-            println(`PASS: shadow media query invalidation stayed scoped (${invalidations} invalidations)`);
+        const recomputations = internals.getStyleInvalidationCounters().elementStyleRecomputations;
+        if (recomputations <= 15)
+            println(`PASS: shadow media query update stayed scoped (${recomputations} recomputations)`);
         else
-            println(`FAIL: shadow media query invalidation was too broad (${invalidations} invalidations)`);
+            println(`FAIL: shadow media query update was too broad (${recomputations} recomputations)`);
     });
 </script>

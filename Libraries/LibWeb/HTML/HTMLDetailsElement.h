@@ -22,6 +22,8 @@ class HTMLDetailsElement final : public HTMLElement {
 public:
     virtual ~HTMLDetailsElement() override;
 
+    virtual bool is_html_details_element() const final { return true; }
+
     // https://www.w3.org/TR/html-aria/#el-details
     virtual Optional<ARIA::Role> default_role() const override { return ARIA::Role::group; }
 
@@ -47,5 +49,12 @@ private:
     GC::Ptr<HTML::HTMLSlotElement> m_summary_slot;
     GC::Ptr<HTML::HTMLSlotElement> m_descendants_slot;
 };
+
+}
+
+namespace Web::DOM {
+
+template<>
+inline bool Node::fast_is<HTML::HTMLDetailsElement>() const { return is_html_details_element(); }
 
 }

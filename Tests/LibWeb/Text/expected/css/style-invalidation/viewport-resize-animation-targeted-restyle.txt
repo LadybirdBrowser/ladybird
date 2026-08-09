@@ -11,5 +11,4 @@ resized root-font animated width: 75px
 resized animated font size: 75px
 resized animated inherited-font width: 112.5px
 resized post-style animated width: 75px
-full invalidations: 0
 style recomputations bounded: true

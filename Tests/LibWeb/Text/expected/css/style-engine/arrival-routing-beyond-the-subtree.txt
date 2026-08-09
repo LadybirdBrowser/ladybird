@@ -1,0 +1,4 @@
+an arrival moves which sibling is the second `.a`: [one, two, zero]
+an arrival is the left side of a sibling selector: [after, later, trigger]
+an arrival witnesses a relational query above it: [outer, witness]
+a host arrives with its shadow tree already built: [host, style, inner]

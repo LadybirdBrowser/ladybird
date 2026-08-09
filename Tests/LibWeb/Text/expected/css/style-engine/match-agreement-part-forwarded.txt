@@ -1,0 +1,4 @@
+color: rgb(1, 2, 3)
+background-color: rgb(4, 5, 6)
+div: ::part(popup) .outer::part(popup)
+

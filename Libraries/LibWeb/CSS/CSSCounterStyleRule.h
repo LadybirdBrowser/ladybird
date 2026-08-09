@@ -25,6 +25,7 @@ public:
     Utf16FlyString name() const { return m_name; }
     void set_name(Utf16String const& name);
     void set_name(Utf16FlyString name);
+    Utf16FlyString const& qualified_layer_name() const { return parent_layer_internal_qualified_name(); }
 
     Utf16String system() const;
     void set_system(Utf16String const& system);

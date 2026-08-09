@@ -1,0 +1,4 @@
+one witness arrives as the only other one leaves: settles exactly
+that witness leaves as the first one comes back: settles exactly
+a witness moves past what it preceded: settles exactly
+and comes back to the front: settles exactly

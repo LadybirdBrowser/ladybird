@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    asyncTest(done => {
+        const frame = document.createElement("iframe");
+        frame.width = 300;
+        frame.height = 100;
+        frame.onload = () => {
+            const target = frame.contentDocument.querySelector("target");
+            println(`media layers narrow: ${getComputedStyle(target).color}`);
+            frame.width = 500;
+            println(`media layers wide: ${getComputedStyle(target).color}`);
+            done();
+        };
+        frame.srcdoc = `<style>
+            @media (max-width: 300px) { @layer B, A; }
+            @media (min-width: 500px) { @layer A, B; }
+            @layer A { target { color: rgb(255, 0, 0); } }
+            @layer B { target { color: rgb(0, 128, 0); } }
+        </style><target></target>`;
+        document.body.appendChild(frame);
+    });
+</script>

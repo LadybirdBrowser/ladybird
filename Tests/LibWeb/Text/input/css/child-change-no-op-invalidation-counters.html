@@ -13,8 +13,8 @@
     }
 
     function report(label) {
-        const invalidations = internals.getStyleInvalidationCounters().styleInvalidations;
-        println(`${label}: ${invalidations} invalidations`);
+        const recomputations = internals.getStyleInvalidationCounters().elementStyleRecomputations;
+        println(`${label}: ${recomputations} recomputations`);
     }
 
     test(() => {

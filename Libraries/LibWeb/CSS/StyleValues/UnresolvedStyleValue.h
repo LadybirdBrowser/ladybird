@@ -43,6 +43,7 @@ public:
     bool includes_inherit_function() const { return m_value->unresolved.presence_inherit; }
     bool includes_if_function() const { return m_value->unresolved.presence_if; }
     bool includes_var_function() const { return m_value->unresolved.presence_var; }
+    bool includes_dashed_function() const { return m_value->unresolved.presence_dashed_function; }
     RefPtr<StyleValue const> parsed_value() const { return m_parsed_value; }
 
     bool equals(StyleValue const& other) const;

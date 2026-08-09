@@ -1,0 +1,3 @@
+shared equivalent cascade: true
+first color: rgb(0, 128, 0)
+second color: rgb(0, 128, 0)

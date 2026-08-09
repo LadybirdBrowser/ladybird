@@ -1,0 +1,4 @@
+flex direction: column
+container width: 100
+item width: 100
+horizontal flex direction: row

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="plan.js"></script>
+<style>
+    .moved + .subject { color: green }
+    .guard + .stationary { color: blue }
+</style>
+<div id="fixture">
+    <span id="moved" class="moved"></span>
+    <span id="subject" class="subject"></span>
+    <span></span>
+</div>
+<div id="overinvalidation-fixture">
+    <span class="guard"></span>
+    <span id="stationary" class="stationary"></span>
+    <span id="second-moved"></span>
+    <span></span>
+</div>
+<script>
+    test(() => {
+        const fixture = document.getElementById("fixture");
+        const moved = document.getElementById("moved");
+        plan("move the previous sibling away", () => fixture.moveBefore(moved, null));
+
+        const overinvalidationFixture = document.getElementById("overinvalidation-fixture");
+        const secondMoved = document.getElementById("second-moved");
+        plan("keep the old previous neighbour stationary", () =>
+            overinvalidationFixture.moveBefore(secondMoved, null));
+    });
+</script>

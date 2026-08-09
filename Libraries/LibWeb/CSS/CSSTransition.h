@@ -17,6 +17,11 @@ class CSSTransition : public Animations::Animation {
     GC_DECLARE_ALLOCATOR(CSSTransition);
 
 public:
+    enum class Publication {
+        Committed,
+        Provisional,
+    };
+
     static GC::Ref<CSSTransition> start_a_transition(
         DOM::AbstractElement,
         PropertyID,
@@ -27,7 +32,11 @@ public:
         NonnullRefPtr<StyleValue const> start_value,
         NonnullRefPtr<StyleValue const> end_value,
         NonnullRefPtr<StyleValue const> reversing_adjusted_start_value,
-        double reversing_shortening_factor);
+        double reversing_shortening_factor,
+        Publication = Publication::Committed);
+
+    void commit_provisional_transition();
+    void discard_provisional_transition();
 
     Utf16FlyString const& transition_property() const;
 
@@ -66,7 +75,8 @@ private:
         NonnullRefPtr<StyleValue const> end_value,
         NonnullRefPtr<StyleValue const> reversing_adjusted_start_value,
         double reversing_shortening_factor,
-        GC::Ref<Animations::KeyframeEffect>);
+        Publication);
+
     virtual void visit_edges(Cell::Visitor&) override;
 
     virtual bool is_css_transition() const override { return true; }
@@ -97,6 +107,8 @@ private:
     GC::Ref<Animations::KeyframeEffect> m_keyframe_effect;
 
     GC::Ptr<CSS::CSSStyleDeclaration const> m_cached_declaration;
+
+    bool m_is_provisional { false };
 
     Phase m_previous_phase { Phase::Idle };
 };

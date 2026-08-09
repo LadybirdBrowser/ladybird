@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="plan.js"></script>
+<style>
+    #host::part(panel) { color: green }
+    #host::part(panel):focus-within { color: blue }
+    #host::part(control):focus { color: red }
+    #host.themed::part(panel) { font-weight: bold }
+    #other::part(panel) { font-style: italic }
+</style>
+<div id="host"></div>
+<div id="other"></div>
+<span id="bystander" class="hit"></span>
+<script>
+    test(() => {
+        // A `::part()` selector describes two elements at once: the host it is written against, and
+        // an element inside the tree that host holds. What the engine has to reach is the part
+        // element, so anything that can change what a part rule decides has to arrive there.
+        const host = document.getElementById("host");
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        shadowRoot.innerHTML = "<div id='panel' part='panel'><input id='control' part='control'></div>"
+            + "<span id='unexposed'></span>";
+        const panel = shadowRoot.getElementById("panel");
+        const control = shadowRoot.getElementById("control");
+
+        // A state on the part element itself is what the pseudo-classes after `::part()` test, and
+        // `:focus-within` holds on the part element's ancestors as well as on the focused one.
+        plan("focus a control exposed as a part", () => control.focus({ preventScroll: true }));
+        plan("blur it again", () => control.blur());
+
+        // The host's own features gate the rule, so changing one reaches the parts it exposes and
+        // nothing else - the part elements are in another tree entirely.
+        plan("add the class the host rule names", () => host.classList.add("themed"));
+        plan("take it away again", () => host.classList.remove("themed"));
+
+        // The part name is a fact about the element exposing it, so exposing and un-exposing one is
+        // that element arriving in and leaving the rule's reach.
+        plan("expose another element as the same part", () => {
+            shadowRoot.getElementById("unexposed").setAttribute("part", "panel");
+        });
+        plan("stop exposing it", () => shadowRoot.getElementById("unexposed").removeAttribute("part"));
+        plan("rename a part to one nothing selects", () => panel.setAttribute("part", "nobody"));
+        plan("rename it back", () => panel.setAttribute("part", "panel"));
+
+        // A rule naming a host that exposes no parts reaches nothing, and one arriving for a host
+        // that does reaches only that host's parts.
+        plan("insert a rule naming a part of a host with no shadow tree", () => {
+            document.styleSheets[0].insertRule("#other::part(panel) { color: teal }", 0);
+        });
+        plan("delete it", () => document.styleSheets[0].deleteRule(0));
+        plan("insert a rule naming a part that is exposed", () => {
+            document.styleSheets[0].insertRule("#host::part(control) { color: teal }", 0);
+        });
+        plan("delete that one", () => document.styleSheets[0].deleteRule(0));
+
+        // A part element leaving the tree takes its exposure with it.
+        plan("remove an exposed element", () => control.remove());
+        plan("put it back", () => panel.appendChild(control));
+    });
+</script>

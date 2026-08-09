@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Span.h>
+#include <AK/StdLibExtras.h>
 #include <AK/Vector.h>
 
 namespace Web::CSS {
@@ -16,6 +17,18 @@ public:
     StyleGroupPayloadPins() = default;
     StyleGroupPayloadPins(StyleGroupPayloadPins const&) = delete;
     StyleGroupPayloadPins& operator=(StyleGroupPayloadPins const&) = delete;
+    StyleGroupPayloadPins(StyleGroupPayloadPins&& other)
+        : m_payloads(move(other.m_payloads))
+    {
+    }
+    StyleGroupPayloadPins& operator=(StyleGroupPayloadPins&& other)
+    {
+        if (this == &other)
+            return *this;
+        clear();
+        m_payloads = move(other.m_payloads);
+        return *this;
+    }
 
     ~StyleGroupPayloadPins();
 

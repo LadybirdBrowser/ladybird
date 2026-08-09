@@ -69,7 +69,9 @@ SpreadMethod SVGGradientElement::spread_method_impl(GC::RootHashTable<SVGGradien
 
 Gfx::InterpolationColorSpace SVGGradientElement::color_space() const
 {
-    return CSS::to_interpolation_color_space(computed_values()->color_interpolation());
+    auto style = computed_style();
+    VERIFY(style);
+    return CSS::to_interpolation_color_space(style->color_interpolation());
 }
 
 Optional<Gfx::AffineTransform> SVGGradientElement::gradient_transform() const

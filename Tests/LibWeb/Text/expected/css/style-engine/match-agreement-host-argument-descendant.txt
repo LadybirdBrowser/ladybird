@@ -1,0 +1,6 @@
+class argument: rgb(1, 2, 3)
+attribute argument: rgb(4, 5, 6)
+child combinator: rgb(7, 8, 9)
+argument that does not hold: 0px
+span#top: :host(.active) span :host([data-active]) span :host(div.active) > span
+

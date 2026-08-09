@@ -23,6 +23,7 @@
 </style>
 <script>
     promiseTest(async () => {
+        getComputedStyle(overflow).overflowX;
         const overflowAnimation = overflow.animate(
             [{ overflowY: "visible" }, { overflowY: "visible" }],
             { duration: 1000, fill: "forwards" });

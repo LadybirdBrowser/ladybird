@@ -20,6 +20,8 @@ class HTMLMeterElement final : public HTMLElement {
 public:
     virtual ~HTMLMeterElement() override;
 
+    virtual bool is_html_meter_element() const final { return true; }
+
     double value() const;
     void set_value(double);
     double min() const;
@@ -60,5 +62,12 @@ private:
     GC::Ptr<DOM::Element> m_meter_value_element;
     ValueState m_cached_value_state { ValueState::Optimal };
 };
+
+}
+
+namespace Web::DOM {
+
+template<>
+inline bool Node::fast_is<HTML::HTMLMeterElement>() const { return is_html_meter_element(); }
 
 }

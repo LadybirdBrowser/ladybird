@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .seq .origin ~ .following { color: rgb(0, 128, 0) }
+    .seq .origin + .adjacent { outline-color: rgb(0, 0, 255) }
+</style>
+<div id="fixture">
+    <div id="seq" class="seq">
+        <span id="first" class="origin"></span>
+        <span id="a" class="following adjacent"></span>
+        <span id="b" class="following"></span>
+        <span id="c" class="following"></span>
+    </div>
+</div>
+<script>
+    // A general sibling route from an arriving element is monotone: it can only add a witness for
+    // the siblings that follow it. A departing one is monotone the other way. Exact planning uses
+    // that to evaluate only the side that can reject a candidate, so one transaction that both
+    // adds and removes a witness in the same sequence has to be caught by the pair of routes
+    // rather than by either one alone.
+    let forced = 0;
+
+    function snapshot() {
+        return Array.from(document.querySelectorAll("#fixture *"))
+            .map(element => {
+                const style = getComputedStyle(element);
+                return `${element.id}=${style.color}/${style.outlineColor}`;
+            })
+            .join(" ");
+    }
+
+    function settlesExactly(name, mutate) {
+        internals.updateStyle();
+        mutate();
+        internals.updateStyle();
+        const incremental = snapshot();
+        CSS.registerProperty({ name: `--force-${forced++}`, syntax: "*", inherits: false, initialValue: "1px" });
+        internals.updateStyle();
+        const complete = snapshot();
+        if (incremental === complete) {
+            println(`${name}: settles exactly`);
+            return;
+        }
+        println(`${name}: STALE`);
+        println(`  incremental: ${incremental}`);
+        println(`  complete:    ${complete}`);
+    }
+
+    test(() => {
+        const seq = document.getElementById("seq");
+        const first = document.getElementById("first");
+        const a = document.getElementById("a");
+
+        const late = Object.assign(document.createElement("span"), { className: "origin", id: "late" });
+        settlesExactly("one witness arrives as the only other one leaves", () => {
+            seq.insertBefore(late, a);
+            first.remove();
+        });
+        settlesExactly("that witness leaves as the first one comes back", () => {
+            late.remove();
+            seq.insertBefore(first, seq.firstChild);
+        });
+        settlesExactly("a witness moves past what it preceded", () => seq.appendChild(first));
+        settlesExactly("and comes back to the front", () => seq.insertBefore(first, seq.firstChild));
+    });
+</script>

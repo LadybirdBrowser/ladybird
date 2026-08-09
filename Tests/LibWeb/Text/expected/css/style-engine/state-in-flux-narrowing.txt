@@ -1,0 +1,6 @@
+the box becomes checked: settles exactly
+and is unchecked again: settles exactly
+the control becomes disabled: settles exactly
+and is enabled again: settles exactly
+a guard arrives as the box becomes checked: settles exactly
+the box is unchecked while the guard leaves: settles exactly

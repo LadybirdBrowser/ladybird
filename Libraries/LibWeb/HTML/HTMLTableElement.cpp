@@ -7,6 +7,7 @@
 
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
@@ -150,7 +151,7 @@ void HTMLTableElement::attribute_changed(Utf16FlyString const& name, Optional<Ut
         //       When it changes, we need new style for the cells.
         if (old_cellpadding != m_cellpadding) {
             for_each_in_subtree_of_type<HTMLTableCellElement>([&](auto& cell) {
-                cell.set_needs_style_update(true);
+                cell.document().style_computer().style_engine().record_element_style_input_change(cell.style_node_id());
                 return TraversalDecision::Continue;
             });
         }

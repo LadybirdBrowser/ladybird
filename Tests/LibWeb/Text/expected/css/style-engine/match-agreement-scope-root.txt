@@ -1,0 +1,6 @@
+color: rgb(0, 0, 0)
+background-color: rgb(4, 5, 6)
+inner outline-color: rgb(7, 8, 9)
+div.root: :scope
+div.inner: .inner
+

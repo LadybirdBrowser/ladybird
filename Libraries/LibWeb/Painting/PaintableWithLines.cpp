@@ -37,8 +37,7 @@ static void paint_text_fragment(DisplayListRecordingContext&, PaintableFragment:
 
 static bool layout_node_is_visible(Layout::NodeWithStyle const& layout_node)
 {
-    auto const& computed_values = layout_node.computed_values();
-    return computed_values.visibility() == CSS::Visibility::Visible && computed_values.opacity() != 0;
+    return layout_node.visibility() == CSS::Visibility::Visible && layout_node.opacity() != 0;
 }
 
 NonnullRefPtr<PaintableWithLines> PaintableWithLines::create(Layout::BlockContainer const& block_container)
@@ -243,7 +242,7 @@ Vector<PaintableWithLines::EmptyLineCaretTarget> PaintableWithLines::empty_line_
         return {};
 
     // FIXME: Support vertical writing modes.
-    if (computed_values().writing_mode() != CSS::WritingMode::HorizontalTb)
+    if (layout_node().writing_mode() != CSS::WritingMode::HorizontalTb)
         return {};
 
     auto const* dom_text = text_layout_node->dom_text();
@@ -330,6 +329,17 @@ void PaintableWithLines::record_empty_line_caret_items(HitTestDisplayList& hit_t
     }
 }
 
+static Layout::NodeWithStyle const& text_decoration_source(Layout::TextNode const& text_node)
+{
+    auto const* source = text_node.parent();
+    while (source->text_decoration_line().is_empty()) {
+        if (source->is_atomic_inline() || source->is_out_of_flow() || !source->parent())
+            break;
+        source = source->parent();
+    }
+    return *source;
+}
+
 static void resolve_text_fragment_properties(PaintableWithLines const& paintable_with_lines)
 {
     for (auto& fragment : const_cast<PaintableWithLines&>(paintable_with_lines).fragments()) {
@@ -340,7 +350,7 @@ static void resolve_text_fragment_properties(PaintableWithLines const& paintable
         auto const& font = text_node->first_available_font();
         auto const glyph_height = CSSPixels::nearest_value_for(font.pixel_size());
         auto const line_thickness = [&] {
-            auto const& thickness = text_node->parent()->computed_values().text_decoration_thickness();
+            auto const& thickness = text_decoration_source(*text_node).text_decoration_thickness();
             return thickness.value.visit(
                 [glyph_height](CSS::TextDecorationThickness::Auto) {
                     // https://drafts.csswg.org/css-text-decor-4/#valdef-text-decoration-thickness-auto
@@ -362,7 +372,7 @@ static void resolve_text_fragment_properties(PaintableWithLines const& paintable
         }();
         fragment.set_text_decoration_thickness(line_thickness);
 
-        auto const& text_shadow = text_node->parent()->computed_values().text_shadow();
+        auto const& text_shadow = text_node->parent()->text_shadow();
         Vector<ShadowData> resolved_shadow_data;
         if (!text_shadow.is_empty()) {
             resolved_shadow_data.ensure_capacity(text_shadow.size());
@@ -440,7 +450,7 @@ void compute_render_spans(PaintableFragment const& fragment, Vector<PaintableFra
     if (!layout_node_is_visible(*text_node->parent()))
         return;
 
-    auto text_color = text_node->parent()->computed_values().webkit_text_fill_color();
+    auto text_color = text_node->parent()->webkit_text_fill_color();
     auto selection_offsets = fragment.selection_offsets();
 
     // No selection: single span with base styling.
@@ -581,7 +591,7 @@ Optional<PaintableFragment const&> PaintableWithLines::fragment_at_position(DOM:
 CSSPixelRect PaintableWithLines::caret_rect_for_child_offset(size_t offset) const
 {
     auto content_box = absolute_padding_box_rect();
-    auto line_height = computed_values().line_height();
+    auto line_height = layout_node().line_height();
     CSSPixelRect rect { content_box.x(), content_box.y(), 1, line_height };
 
     auto dom_node = layout_node().dom_node();
@@ -599,10 +609,10 @@ CSSPixelRect PaintableWithLines::caret_rect_for_child_offset(size_t offset) cons
                     continue;
 
                 auto fragment_rect = fragment.absolute_rect();
-                if (computed_values().writing_mode() == CSS::WritingMode::HorizontalTb)
-                    rect.set_x(computed_values().inline_axis_is_reverse() ? fragment_rect.left() : fragment_rect.right());
+                if (layout_node().writing_mode() == CSS::WritingMode::HorizontalTb)
+                    rect.set_x(layout_node().inline_axis_is_reverse() ? fragment_rect.left() : fragment_rect.right());
                 else
-                    rect.set_y(computed_values().inline_axis_is_reverse() ? fragment_rect.top() : fragment_rect.bottom());
+                    rect.set_y(layout_node().inline_axis_is_reverse() ? fragment_rect.top() : fragment_rect.bottom());
                 return rect;
             }
         }
@@ -665,7 +675,7 @@ void PaintableWithLines::paint_cursor(DisplayListRecordingContext& context, Inli
         // differ from this box's.
         if (!layout_node_is_visible(fragment->style_source()))
             return;
-        caret_color = fragment->style_source().computed_values().caret_color();
+        caret_color = fragment->style_source().caret_color();
         cursor_rect = fragment->range_rect(SelectionState::StartAndEnd, cursor_position->offset(), cursor_position->offset());
     } else if (owner) {
         // Blank lines and empty editable elements are handled by the block / the box itself.
@@ -674,14 +684,14 @@ void PaintableWithLines::paint_cursor(DisplayListRecordingContext& context, Inli
         // Blank-line and empty-element carets belong to this block itself.
         return;
     } else if (auto empty_line_rect = empty_line_caret_rect(*cursor_position); empty_line_rect.has_value()) {
-        caret_color = m_fragments.first().style_source().computed_values().caret_color();
+        caret_color = m_fragments.first().style_source().caret_color();
         cursor_rect = { empty_line_rect->x(), empty_line_rect->y(), 1, empty_line_rect->height() };
     } else {
         // Empty editable elements have no fragments, but should still draw a cursor.
         if (cursor_position->node() != GC::Ptr { dom_node })
             return;
 
-        caret_color = computed_values().caret_color();
+        caret_color = layout_node().caret_color();
         cursor_rect = caret_rect_for_child_offset(cursor_position->offset());
     }
 
@@ -763,18 +773,19 @@ void paint_text_decoration(DisplayListRecordingContext& context, Layout::TextNod
     CSSPixels glyph_height = CSSPixels::nearest_value_for(font.pixel_size());
     auto baseline = fragment.baseline();
 
-    // Use span's text decoration if explicitly set, otherwise use the element's computed values.
+    // Use span's text decoration if explicitly set, otherwise use the decorating box's computed values.
     Color line_color;
     CSS::TextDecorationStyle line_style;
     Vector<CSS::TextDecorationLine> text_decoration_lines;
+    auto const& decoration_source = text_decoration_source(text_node);
     if (span.text_decoration.has_value()) {
         line_color = span.text_decoration->color;
         line_style = span.text_decoration->style;
         text_decoration_lines = span.text_decoration->line;
     } else {
-        line_color = text_node.parent()->computed_values().text_decoration_color();
-        line_style = text_node.parent()->computed_values().text_decoration_style();
-        text_decoration_lines = text_node.parent()->computed_values().text_decoration_line();
+        line_color = decoration_source.text_decoration_color();
+        line_style = decoration_source.text_decoration_style();
+        text_decoration_lines = decoration_source.text_decoration_line();
     }
 
     // Compute the decoration box for this span.
@@ -786,8 +797,8 @@ void paint_text_decoration(DisplayListRecordingContext& context, Layout::TextNod
         fragment_box.set_x(span_rect.x());
         fragment_box.set_width(span_rect.width());
     }
-    auto text_underline_offset = text_node.parent()->computed_values().text_underline_offset();
-    auto text_underline_position = text_node.parent()->computed_values().text_underline_position();
+    auto text_underline_offset = decoration_source.text_underline_offset();
+    auto text_underline_position = decoration_source.text_underline_position();
     for (auto line : text_decoration_lines) {
         auto line_thickness = fragment.text_decoration_thickness();
 
@@ -880,7 +891,7 @@ void paint_text_decoration(DisplayListRecordingContext& context, Layout::TextNod
         // https://drafts.csswg.org/css-text-decor-4/#text-decoration-skip-ink-property
         // FIXME: For text-decoration-skip-ink: auto, skip CJK ideographs and symbols from the intercept
         //        computation, since their complex strokes would create too many gaps in the decoration line.
-        auto skip_ink = text_node.parent()->computed_values().text_decoration_skip_ink();
+        auto skip_ink = decoration_source.text_decoration_skip_ink();
         bool should_skip_ink = skip_ink != CSS::TextDecorationSkipInk::None
             && first_is_one_of(line, CSS::TextDecorationLine::Underline, CSS::TextDecorationLine::Overline);
 

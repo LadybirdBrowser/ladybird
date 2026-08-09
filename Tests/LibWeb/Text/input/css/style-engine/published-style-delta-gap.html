@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .before { color: red; }
+    .after { color: blue; }
+</style>
+<div id="target" class="before"></div>
+<script>
+    test(() => {
+        internals.updateStyle();
+        const before = internals.getStyleInvalidationCounters();
+
+        target.className = "after";
+        internals.updateStyle();
+        const after = internals.getStyleInvalidationCounters();
+
+        println(`materialized gaps: ${after.styleEngineMaterializedGaps - before.styleEngineMaterializedGaps}`);
+        println(`record deltas applied: ${after.styleEngineRecordDeltasApplied - before.styleEngineRecordDeltasApplied}`);
+        println(`color: ${getComputedStyle(target).color}`);
+    });
+</script>

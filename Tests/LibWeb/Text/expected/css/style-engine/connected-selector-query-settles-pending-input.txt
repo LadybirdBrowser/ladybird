@@ -1,0 +1,13 @@
+querySelector observes mutation: true
+querySelector settles resident input: true
+querySelectorAll settles resident input: true
+matches settles resident input: true
+closest settles resident input: true
+connected query preserves pending style update: true
+detached querySelector initial: true
+detached querySelector sees attribute mutation: true
+detached querySelectorAll sees tree mutation: true
+detached matches sees attribute mutation: true
+detached closest sees attribute mutation: true
+detached :empty initial: true
+detached :empty sees character-data mutation: true

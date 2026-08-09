@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .before { color: green; opacity: 1 }
+    .after { color: green; opacity: 0.5 }
+    .leaves { color: green; opacity: 0.75; transform: translateX(10px); background-color: blue }
+    .broad { color: green; opacity: 0.5; margin-inline-start: 20px }
+</style>
+<div id="target" class="before"></div>
+<script>
+    test(() => {
+        internals.updateStyle();
+        const before = internals.getStyleInvalidationCounters();
+
+        target.className = "after";
+        internals.updateStyle();
+
+        const after = internals.getStyleInvalidationCounters();
+        println(`winner closure longhand evaluations: ${after.computedLonghandEvaluations - before.computedLonghandEvaluations}`);
+        println(`changed value: ${getComputedStyle(target).opacity}`);
+        println(`unchanged value: ${getComputedStyle(target).color}`);
+
+        target.className = "leaves";
+        internals.updateStyle();
+        const leaves = internals.getStyleInvalidationCounters();
+        println(`independent leaf evaluations: ${leaves.computedLonghandEvaluations - after.computedLonghandEvaluations}`);
+        println(`independent leaf opacity: ${getComputedStyle(target).opacity}`);
+        println(`independent leaf background: ${getComputedStyle(target).backgroundColor}`);
+
+        target.className = "broad";
+        internals.updateStyle();
+        const broad = internals.getStyleInvalidationCounters();
+        println(`mixed leaf and logical evaluations: ${broad.computedLonghandEvaluations - leaves.computedLonghandEvaluations}`);
+        println(`logical value: ${getComputedStyle(target).marginInlineStart}`);
+    });
+</script>

@@ -801,6 +801,12 @@ impl PartialEq for CalcNodeHandle {
     }
 }
 
+impl Clone for CalcNodeHandle {
+    fn clone(&self) -> Self {
+        Self::from_arc(self.node_arc())
+    }
+}
+
 /// https://drafts.csswg.org/css-values-4/#combine-math
 /// Interpolation of math functions, with each other or with numeric values and other numeric-valued functions, is
 /// defined as Vresult = calc((1 - p) * VA + p * VB).

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="plan.js"></script>
+<script>
+    // A `moveBefore()` within one parent is the only mutation that gives an element a new place in a
+    // child sequence without anything joining or leaving it. Both directions of both ends have to be
+    // reached: a positional test that begins holding and one that stops holding are the same input,
+    // and the element that stopped is exactly the one that no longer looks like a subject.
+    test(() => {
+        function moveWithin(name, cssText, startsLast, subject) {
+            const style = addStyleSheet(cssText);
+            const fixture = make("section", "fixture");
+            document.body.appendChild(fixture);
+
+            const moved = make("div", "moved", { className: "moved" });
+            moved.appendChild(make("span", "target", { className: "target" }));
+            const other = make("div", "other");
+            fixture.append(...(startsLast ? [other, moved] : [moved, other]));
+
+            plan(`${name} (${subject})`, () => fixture.moveBefore(moved, startsLast ? other : null));
+
+            style.remove();
+            fixture.remove();
+        }
+
+        for (const [subject, suffix] of [["subject", ""], ["descendant", " .target"]]) {
+            moveWithin("first-child begins matching", `.moved:first-child${suffix} { color: red }`, true, subject);
+            moveWithin("first-child stops matching", `.moved:first-child${suffix} { color: red }`, false, subject);
+            moveWithin("last-child begins matching", `.moved:last-child${suffix} { color: red }`, false, subject);
+            moveWithin("last-child stops matching", `.moved:last-child${suffix} { color: red }`, true, subject);
+            moveWithin("nth-last-child(2) begins matching", `.moved:nth-last-child(2)${suffix} { color: red }`, true, subject);
+            moveWithin("nth-last-child(2) stops matching", `.moved:nth-last-child(2)${suffix} { color: red }`, false, subject);
+        }
+    });
+</script>

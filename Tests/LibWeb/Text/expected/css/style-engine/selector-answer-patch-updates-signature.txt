@@ -1,0 +1,14 @@
+active color: rgb(255, 0, 0)
+selector truth additions: 1
+selector truth removals: 1
+selector truth cancellations: 0
+selector truth refreshes: 0
+match answer changes: 2
+match answer upqueries: 0
+delta patches: 2
+patch upqueries: 0
+answer reuses: 2
+cold node evaluations: 0
+invalidated nodes: 2
+computed style changes: 2
+inactive color: rgb(0, 0, 255)

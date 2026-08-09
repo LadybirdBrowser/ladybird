@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    /* An `:is()` whose every argument is invalid parses to an empty list, and an empty list matches
+       nothing. `:not()` of the same list matches everything, because nothing is what it excludes. */
+    :is(::before) { color: rgb(1, 2, 3) }
+    :not(::before) { border-top-color: rgb(4, 5, 6) }
+
+    /* `&` inside a rule whose selector carries a pseudo-element absolutizes to `:is(x::before)`,
+       which is invalid, so the nested rule names nothing. */
+    .holder::before { content: ""; background-color: rgb(7, 8, 9) }
+    .holder::before { & { background-color: rgb(10, 11, 12) } }
+
+    /* A positional test filtered by a selector that names nothing counts an empty sequence, not
+       every sibling. */
+    .list > :nth-child(1 of ::before) { outline-color: rgb(13, 14, 15) }
+</style>
+<div class="holder">holder</div>
+<div class="list"><span id="first">first</span><span>second</span></div>
+<script>
+    test(() => {
+        const holder = document.querySelector(".holder");
+        println("holder color: " + getComputedStyle(holder).color);
+        println("holder border-top-color: " + getComputedStyle(holder).borderTopColor);
+        println("holder::before background-color: " + getComputedStyle(holder, "::before").backgroundColor);
+        println("first outline-color: " + getComputedStyle(document.getElementById("first")).outlineColor);
+        for (const element of document.querySelectorAll("*"))
+            getComputedStyle(element).color;
+        println(internals.styleEngineMatchedRules());
+    });
+</script>

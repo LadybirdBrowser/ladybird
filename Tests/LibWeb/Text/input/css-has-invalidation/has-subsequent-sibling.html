@@ -15,7 +15,7 @@
 
         // Add .match to a non-adjacent later sibling: anchor should restyle.
         document.getElementById("far-sibling").classList.add("match");
-        getComputedStyle(document.getElementById("anchor")).color;
+        internals.updateStyle();
         printCounters("add .match to non-adjacent later sibling");
     });
 </script>

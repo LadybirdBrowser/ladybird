@@ -16,7 +16,7 @@ class ListItemMarkerBox final : public BlockContainer {
     LAYOUT_NODE(ListItemMarkerBox, BlockContainer);
 
 public:
-    explicit ListItemMarkerBox(DOM::Document&, bool is_inside, NonnullRefPtr<CSS::ComputedValues const>);
+    explicit ListItemMarkerBox(DOM::Document&, bool is_inside, CSS::LayoutStyle);
     virtual ~ListItemMarkerBox() override;
 
 private:

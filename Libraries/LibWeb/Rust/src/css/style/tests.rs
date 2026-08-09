@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use super::batch_matcher::insert_scope_rule;
 use super::instrumentation::Counter;
 use super::program::DeclarationBlockID;
 use super::program::SelectorProgramID;
@@ -1365,6 +1366,27 @@ fn add_guard_target_rule(engine: &mut StyleEngine, guard: StyleAtomID, target: S
     rule
 }
 
+fn add_guard_target_rule_in_sheet(
+    engine: &mut StyleEngine,
+    sheet_object: StyleSheetObjectID,
+    guard: StyleAtomID,
+    target: StyleAtomID,
+) -> RuleID {
+    let program = engine.programs.add(test_selector_program(
+        ".guard .target",
+        &[("guard", guard), ("target", target)],
+    ));
+    let sheet = engine.add_sheet(sheet_object, CascadeOrigin::Author);
+    engine.attach_sheet(sheet, TreeScopeID::DOCUMENT);
+    let rule = engine.append_rule(sheet, None, RuleKind::Style);
+    engine.add_routing_rule(rule, program);
+    let mut version = engine.program.rule_version(rule);
+    version.selector_program = Some(program);
+    version.declaration_block = Some(DeclarationBlockID(1));
+    engine.replace_rule_version(rule, version);
+    rule
+}
+
 fn add_guard_universal_rule(engine: &mut StyleEngine, guard: StyleAtomID) {
     let program = engine
         .programs
@@ -2476,7 +2498,7 @@ fn an_exact_unchanged_custom_state_cascade_stops_before_style_recomputation() {
 }
 
 #[test]
-fn retained_answer_patching_dispatches_affected_rules_per_node() {
+fn retained_answer_patching_evaluates_narrow_affected_rules_directly() {
     let (mut engine, nodes) = linear_document();
     let matching_class = StyleAtomID(200);
     let unrelated_class = StyleAtomID(201);
@@ -2517,8 +2539,8 @@ fn retained_answer_patching_dispatches_affected_rules_per_node() {
             .map(|outcome| outcome.emit),
         Some(false)
     );
-    // The unrelated rule is rejected by dispatch, so patching evaluates exactly the
-    // matching rule once and nothing for the rest of the selection.
+    // The narrow repair path filters out the unrelated rule before selector evaluation without
+    // paying the fixed cost to gather and filter the node's subject dispatch buckets.
     assert_eq!(
         engine.counters().get(Counter::LocalFeatureTests),
         feature_tests_before + 1
@@ -2585,12 +2607,117 @@ fn retained_answer_patching_applies_complete_signed_deltas_without_matching() {
             change: SetChange::Added,
             selector_truth_changed: true,
         }],
+        &mut Vec::new(),
     ));
     assert!(matches!(
         engine
             .winner_groups
             .winner(WinnerGroupKey::current(nodes[1], engine.program.version()), 1),
         Lookup::Known(winner) if winner.source == WinnerSource::Rule(rule)
+    ));
+}
+
+#[test]
+fn retained_answer_patching_matches_only_unresolved_rules_after_signed_deltas() {
+    let (mut engine, nodes) = linear_document();
+    let delta_target = StyleAtomID(200);
+    let second_delta_target = StyleAtomID(201);
+    let refresh_target = StyleAtomID(202);
+    let mut add_rule = |target, sheet_object| {
+        let program = engine
+            .programs
+            .add(test_selector_program(".target:nth-child(2n+1)", &[("target", target)]));
+        let sheet = engine.add_sheet(sheet_object, CascadeOrigin::Author);
+        engine.attach_sheet(sheet, TreeScopeID::DOCUMENT);
+        let rule = engine.append_rule(sheet, None, RuleKind::Style);
+        engine.add_routing_rule(rule, program);
+        let mut version = engine.program.rule_version(rule);
+        version.selector_program = Some(program);
+        version.declaration_block = Some(DeclarationBlockID(1));
+        engine.replace_rule_version(rule, version);
+        (rule, program)
+    };
+    let (delta_rule, delta_program) = add_rule(delta_target, StyleSheetObjectID(1));
+    let (second_delta_rule, second_delta_program) = add_rule(second_delta_target, StyleSheetObjectID(2));
+    let (refresh_rule, refresh_program) = add_rule(refresh_target, StyleSheetObjectID(3));
+    engine.set_rule_declared_properties(delta_rule, &[(1, false)], true);
+    engine.set_rule_declared_properties(second_delta_rule, &[(2, false)], true);
+    engine.set_rule_declared_properties(refresh_rule, &[(3, false)], true);
+    add_feature(&mut engine, nodes[1], FeatureKey::Class(refresh_target));
+    discard_transaction(&mut engine);
+
+    let exact_answer = engine.match_element(nodes[1]).unwrap();
+    let compact_answer = engine.matches_for_cascade(exact_answer.clone(), false, None);
+    engine.remember_retained_match_answer(nodes[1], &exact_answer);
+    engine.remember_cascade_input(nodes[1], &compact_answer);
+    add_feature(&mut engine, nodes[1], FeatureKey::Class(delta_target));
+    add_feature(&mut engine, nodes[1], FeatureKey::Class(second_delta_target));
+    engine.facts.commit_pending(&mut engine.memory);
+    let mut patch = engine.prepare_retained_answer_patch(RetainedAnswerPatchSelection {
+        affected: vec![
+            RetainedAnswerPatchSelectionRule {
+                rule: delta_rule,
+                program: delta_program,
+                evaluate: true,
+            },
+            RetainedAnswerPatchSelectionRule {
+                rule: second_delta_rule,
+                program: second_delta_program,
+                evaluate: true,
+            },
+            RetainedAnswerPatchSelectionRule {
+                rule: refresh_rule,
+                program: refresh_program,
+                evaluate: true,
+            },
+        ],
+        always_emit: false,
+        orders_shifted: false,
+        requires_full_match: false,
+        ..Default::default()
+    });
+    let candidate_checks_before = engine.counters().get(Counter::CandidateChecks);
+
+    assert_eq!(
+        engine
+            .patch_retained_match_answer(
+                nodes[1],
+                &mut patch,
+                SelectorTruthPatch::Refresh {
+                    deltas: &[
+                        SelectorTruthDelta {
+                            node: nodes[1],
+                            rule: delta_rule,
+                            program: delta_program,
+                            entry: 0,
+                            change: SetChange::Added,
+                            selector_truth_changed: true,
+                        },
+                        SelectorTruthDelta {
+                            node: nodes[1],
+                            rule: second_delta_rule,
+                            program: second_delta_program,
+                            entry: 0,
+                            change: SetChange::Added,
+                            selector_truth_changed: true,
+                        },
+                    ],
+                    refreshes: &[SelectorTruthRefresh {
+                        node: nodes[1],
+                        rule: Some((refresh_rule, refresh_program)),
+                    }],
+                },
+            )
+            .map(|outcome| outcome.emit),
+        Some(true)
+    );
+    assert_eq!(
+        engine.counters().get(Counter::CandidateChecks),
+        candidate_checks_before + 1
+    );
+    assert!(matches!(
+        engine.retained_match_answer(nodes[1]),
+        Lookup::Known(answer) if answer.len() == 3
     ));
 }
 
@@ -3062,7 +3189,12 @@ fn author_revert_retains_and_repairs_its_user_agent_continuation() {
         change: SetChange::Removed,
         selector_truth_changed: true,
     };
-    assert!(engine.apply_cascade_winner_match_deltas(nodes[0], &[author_value_match, author_revert_match], &[removed]));
+    assert!(engine.apply_cascade_winner_match_deltas(
+        nodes[0],
+        &[author_value_match, author_revert_match],
+        &[removed],
+        &mut Vec::new()
+    ));
     let Lookup::Known(repaired) = engine.winner_groups.winner(key, 1) else {
         panic!("revert winner was not repaired");
     };
@@ -3331,7 +3463,12 @@ fn pseudo_winner_deltas_update_only_their_sparse_cascade_row() {
         selector_truth_changed: true,
     };
 
-    assert!(engine.apply_cascade_winner_match_deltas(nodes[0], &[element_match, lower_match], &[removed]));
+    assert!(engine.apply_cascade_winner_match_deltas(
+        nodes[0],
+        &[element_match, lower_match],
+        &[removed],
+        &mut Vec::new()
+    ));
     assert!(matches!(
         engine.winner_groups.token_for(element_key),
         Lookup::Known((_, state)) if state == element_state
@@ -3641,6 +3778,74 @@ fn candidate_narrowing_requires_the_whole_subject_compound() {
     );
 
     assert_eq!(regions.regions(), &[ImpactRegion::Node(nodes[1])]);
+}
+
+#[test]
+fn exact_node_narrowing_does_not_enumerate_the_subject_posting() {
+    let (mut engine, nodes) = linear_document();
+    let class_target = StyleAtomID(200);
+    add_feature(&mut engine, nodes[1], FeatureKey::Class(class_target));
+    add_feature(&mut engine, nodes[2], FeatureKey::Class(class_target));
+    discard_transaction(&mut engine);
+    prepare_empty_transaction_fact_view(&mut engine, nodes[0]);
+
+    let posting_builds = engine.counters().get(Counter::RemainingPostingBuilds);
+    let mut regions = ImpactRegions::new();
+    engine.add_narrowed_region(
+        ImpactRegion::Node(nodes[1]),
+        &RoutingSite {
+            subject: &[DispatchKey::Class(class_target)],
+            subject_required: &[],
+            position: SubjectPosition::UNBOUNDED,
+            path: &[],
+            waypoints: &[],
+            in_flux: None,
+            exact_entry: None,
+            exact_tree_evaluation: None,
+            refresh_rule: None,
+        },
+        &mut regions,
+    );
+
+    assert_eq!(regions.regions(), &[ImpactRegion::Node(nodes[1])]);
+    assert_eq!(engine.counters().get(Counter::RemainingPostingBuilds), posting_builds);
+}
+
+#[test]
+fn exact_node_narrowing_preserves_posting_history_for_truth_patches() {
+    let (mut engine, nodes) = linear_document();
+    let class_target = StyleAtomID(200);
+    add_feature(&mut engine, nodes[1], FeatureKey::Class(class_target));
+    add_feature(&mut engine, nodes[2], FeatureKey::Class(class_target));
+    discard_transaction(&mut engine);
+    prepare_empty_transaction_fact_view(&mut engine, nodes[0]);
+    engine.selector_truth_changes_active = true;
+
+    let posting_builds = engine.counters().get(Counter::RemainingPostingBuilds);
+    let mut regions = ImpactRegions::new();
+    engine.add_narrowed_region(
+        ImpactRegion::Node(nodes[1]),
+        &RoutingSite {
+            subject: &[DispatchKey::Class(class_target)],
+            subject_required: &[],
+            position: SubjectPosition::UNBOUNDED,
+            path: &[],
+            waypoints: &[],
+            in_flux: None,
+            exact_entry: None,
+            exact_tree_evaluation: None,
+            refresh_rule: None,
+        },
+        &mut regions,
+    );
+
+    assert_eq!(regions.regions(), &[ImpactRegion::Node(nodes[1])]);
+    // Truth patches also consume the posting's accumulated already-planned history, so this path
+    // must not replace the posting walk with local membership tests.
+    assert_eq!(
+        engine.counters().get(Counter::RemainingPostingBuilds),
+        posting_builds + 1
+    );
 }
 
 #[test]
@@ -4013,6 +4218,70 @@ fn partial_match_answer_completion_shares_prefix_states_between_nodes() {
 }
 
 #[test]
+fn shared_retained_answer_completion_reuses_compact_cascade_state() {
+    let (mut engine, nodes) = nested_document();
+    let target = StyleAtomID(200);
+    for index in 0..10 {
+        let rule = add_target_rule(&mut engine, StyleSheetObjectID(index + 1), target);
+        engine.set_rule_declared_properties(rule, &[(1, false)], true);
+    }
+    for &node in &nodes {
+        for kind in ElementDeclarationKind::ALL {
+            engine.set_element_declared_properties(node, kind, &[], true);
+        }
+    }
+    for node in [nodes[2], nodes[3]] {
+        add_feature(&mut engine, node, FeatureKey::Class(target));
+    }
+    discard_transaction(&mut engine);
+
+    let first_matches = engine.match_element(nodes[2]).unwrap();
+    let second_matches = engine.match_element(nodes[3]).unwrap();
+    assert_eq!(first_matches.len(), 10);
+    assert_eq!(second_matches.len(), 10);
+    engine.remember_retained_match_answer(nodes[2], &first_matches);
+    engine.remember_retained_match_answer(nodes[3], &second_matches);
+    let first_identity = engine.retained_match_answers.answer_identity(nodes[2]).unwrap();
+    assert_eq!(
+        engine.retained_match_answers.answer_identity(nodes[3]),
+        Some(first_identity)
+    );
+
+    let (_, dispatch) = engine.ranked_scope_program(TreeScopeID::DOCUMENT);
+    let orders = RetainedAnswerCascadeOrders::Dispatch(&dispatch);
+    let first = engine.complete_published_match_answer(nodes[2], Some(orders)).unwrap();
+    let cascade_input = first.cascade_input.unwrap();
+    assert!(engine.shared_cascade_completion_is_profitable(first_identity, cascade_input));
+    let compaction_rows = engine.counters().get(Counter::CascadeMatchesBeforeCompaction);
+
+    let second = engine
+        .complete_published_match_answer_from_cascade_input(
+            nodes[3],
+            nodes[2],
+            cascade_input,
+            orders,
+            first.cascade_winners_are_complete,
+        )
+        .unwrap();
+
+    assert_eq!(second.cascade_input, Some(cascade_input));
+    assert_eq!(second.matches.as_ref().unwrap().len(), 1);
+    assert_eq!(
+        engine.counters().get(Counter::CascadeMatchesBeforeCompaction),
+        compaction_rows
+    );
+    let program_version = engine.program.version();
+    assert_eq!(
+        engine
+            .winner_groups
+            .token_for(WinnerGroupKey::current(nodes[2], program_version)),
+        engine
+            .winner_groups
+            .token_for(WinnerGroupKey::current(nodes[3], program_version))
+    );
+}
+
+#[test]
 fn closure_identity_stop_verification_is_observer_only() {
     let (mut engine, nodes) = nested_document();
     let guard = StyleAtomID(200);
@@ -4273,13 +4542,25 @@ fn program_changes_discard_retained_prefix_transitions() {
     assert!(engine.memory().bytes_in_category(MemoryCategory::PrefixTransitionCache) > 0);
     assert!(engine.memory().bytes_in_category(MemoryCategory::PrefixAnswerCache) > 0);
 
+    // A program change keeps the outgoing program's prefix work interned for one invalidation
+    // generation, so a scope whose effective sheet set is unchanged re-adopts it without a rebuild.
     let sheet = engine.add_sheet(StyleSheetObjectID(2), CascadeOrigin::Author);
     engine.attach_sheet(sheet, TreeScopeID::DOCUMENT);
-    assert_eq!(
-        engine.memory().bytes_in_category(MemoryCategory::PrefixTransitionCache),
-        0
-    );
+    assert!(engine.memory().bytes_in_category(MemoryCategory::PrefixTransitionCache) > 0);
+
+    // A second generation in which no scope re-adopts the program discards it and its caches.
+    // What stays is the shared dispatch template's prefix machinery: its shape names only live
+    // immutable selector programs, and the selector-program sweep drops it before an identity
+    // it references could ever be recycled.
+    let another = engine.add_sheet(StyleSheetObjectID(3), CascadeOrigin::Author);
+    engine.attach_sheet(another, TreeScopeID::DOCUMENT);
+    assert_eq!(engine.scope_programs.iter().flatten().count(), 0);
     assert_eq!(engine.memory().bytes_in_category(MemoryCategory::PrefixAnswerCache), 0);
+    assert_eq!(engine.scope_dispatch_templates.len(), 1);
+    assert!(
+        engine.memory().bytes_in_category(MemoryCategory::PrefixTransitionCache) > 0,
+        "the shared dispatch template keeps its prefix states"
+    );
 }
 
 #[test]
@@ -5434,6 +5715,31 @@ fn a_broad_matching_batch_includes_shadow_scope_roots() {
 }
 
 #[test]
+fn departing_scope_roots_are_removed_from_the_reverse_scope_index() {
+    let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+    let mut raw = [0_u32; 2];
+    engine.allocate_style_nodes(&mut raw);
+    let first_root = StyleNodeID::from_raw(raw[0]).unwrap();
+    let second_root = StyleNodeID::from_raw(raw[1]).unwrap();
+    let scope = TreeScopeID(1);
+
+    engine.record_tree_delta(first_root, None, Some(TreeRelations::detached(scope)));
+    engine.set_tree_scope_root(scope, first_root);
+    assert_eq!(engine.scope_by_root.get(&first_root), Some(&scope));
+
+    engine.record_tree_delta(second_root, None, Some(TreeRelations::detached(scope)));
+    engine.set_tree_scope_root(scope, second_root);
+    assert!(!engine.scope_by_root.contains_key(&first_root));
+    assert_eq!(engine.scope_by_root.get(&second_root), Some(&scope));
+    discard_transaction(&mut engine);
+
+    engine.record_tree_delta(second_root, Some(TreeRelations::detached(scope)), None);
+    discard_transaction(&mut engine);
+    assert!(!engine.scope_by_root.contains_key(&second_root));
+    assert_eq!(engine.scope_roots[scope.0 as usize], None);
+}
+
+#[test]
 fn independent_sibling_paths_request_their_fact_ranges_together() {
     let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
     let mut raw = [0_u32; 5];
@@ -6253,6 +6559,9 @@ fn identical_sheet_sets_share_a_scope_program() {
         set_atom_feature(&mut engine, child, FeatureKey::TagName, StyleAtomID(100));
         add_feature(&mut engine, child, FeatureKey::Class(StyleAtomID(200)));
     }
+    for node in [*document_root, *first_host, *second_host] {
+        set_atom_feature(&mut engine, node, FeatureKey::TagName, StyleAtomID(100));
+    }
 
     let program = engine
         .programs
@@ -6267,26 +6576,50 @@ fn identical_sheet_sets_share_a_scope_program() {
     engine.replace_rule_version(rule, version);
     discard_transaction(&mut engine);
 
+    assert!(engine.begin_cold_matching_batch(*document_root));
+    let first_cached = engine.match_element_for_cascade(*first_child).unwrap();
+    let second_cached = engine.match_element_for_cascade(*second_child).unwrap();
+    assert_eq!(first_cached.len(), 1);
+    assert_eq!(second_cached.len(), 1);
+    assert_eq!(first_cached[0].tree_scope, first_scope);
+    assert_eq!(second_cached[0].tree_scope, second_scope);
+    assert_eq!(engine.counters().get(Counter::PrefixAnswerCacheMisses), 1);
+    assert_eq!(engine.counters().get(Counter::PrefixAnswerCacheHits), 1);
+    engine.end_cold_matching_batch();
+
     let first = engine.match_element(*first_child).unwrap();
     let second = engine.match_element(*second_child).unwrap();
     assert_eq!(first.len(), 1);
     assert_eq!(second.len(), 1);
     assert_eq!(first[0].tree_scope, first_scope);
     assert_eq!(second[0].tree_scope, second_scope);
-    assert_eq!(engine.scope_program_by_scope.iter().flatten().count(), 2);
+    engine.remember_retained_match_answer(*first_child, &first);
+    assert!(matches!(engine.retained_match_answer(*first_child), Lookup::Known(_)));
+    let reuses_before = engine.counters().get(Counter::RetainedMatchAnswerReuses);
+    engine.begin_published_match_answer_completion_batch(*document_root, false);
+    let published = engine.complete_published_match_answer(*first_child, None).unwrap();
+    engine.end_published_match_answer_completion_batch();
     assert_eq!(
-        engine.scope_program_by_scope[first_scope.0 as usize].unwrap().1,
+        engine.counters().get(Counter::RetainedMatchAnswerReuses),
+        reuses_before + 1
+    );
+    assert_eq!(published.matches.as_deref(), Some(first.as_slice()));
+    assert_eq!(published.cascade_input, None);
+    assert_eq!(engine.match_element_signature(*first_child), None);
+    // The batch also ranks the document scope for the ancestor spine, so three concrete
+    // scopes retain programs while the two shadow scopes share one immutable program.
+    assert_eq!(engine.scope_program_by_scope.iter().flatten().count(), 3);
+    let shared_program = engine.scope_program_by_scope[first_scope.0 as usize].unwrap().1;
+    assert_eq!(
+        shared_program,
         engine.scope_program_by_scope[second_scope.0 as usize].unwrap().1
     );
     assert_eq!(
         engine.scope_programs.iter().flatten().count(),
-        1,
-        "the concrete scopes retain one shared immutable program"
+        2,
+        "the concrete shadow scopes retain one shared immutable program beside the document's"
     );
-    assert_eq!(
-        engine.held_scope_program.map(|(_, _, id)| id),
-        Some(engine.scope_program_by_scope[second_scope.0 as usize].unwrap().1)
-    );
+    assert_eq!(engine.held_scope_program.map(|(_, _, id)| id), Some(shared_program));
 
     let second_sheet = engine.add_sheet(StyleSheetObjectID(2), CascadeOrigin::Author);
     engine.attach_sheet(second_sheet, second_scope);
@@ -6305,13 +6638,152 @@ fn identical_sheet_sets_share_a_scope_program() {
     );
     assert_eq!(
         engine.scope_programs.iter().flatten().count(),
-        2,
+        3,
         "a scope that changes its effective sheet set gets a distinct program"
     );
     assert_eq!(
         engine.held_scope_program.map(|(_, _, id)| id),
         Some(engine.scope_program_by_scope[second_scope.0 as usize].unwrap().1)
     );
+}
+
+#[test]
+fn equivalent_sheet_programs_share_dispatch_topology() {
+    let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+    let selector_program = engine
+        .programs
+        .add(test_selector_program(".target", &[("target", StyleAtomID(200))]));
+    let mut rules = Vec::new();
+    for (scope, object) in [(TreeScopeID(1), 1), (TreeScopeID(2), 2)] {
+        let sheet = engine.add_sheet(StyleSheetObjectID(object), CascadeOrigin::Author);
+        engine.attach_sheet(sheet, scope);
+        let rule = engine.append_rule(sheet, None, RuleKind::Style);
+        let mut version = engine.program.rule_version(rule);
+        version.selector_program = Some(selector_program);
+        engine.replace_rule_version(rule, version);
+        rules.push(rule);
+    }
+    discard_transaction(&mut engine);
+
+    let (_, first) = engine.ranked_scope_program(TreeScopeID(1));
+    let (_, second) = engine.ranked_scope_program(TreeScopeID(2));
+    assert!(!Rc::ptr_eq(&first, &second));
+    assert!(first.shares_topology_with(&second));
+    assert_eq!(engine.scope_cascade_templates.len(), 1);
+    assert_eq!(first.entries()[0].cascade_order, second.entries()[0].cascade_order);
+    assert_eq!(first.entries()[0].rule, rules[0]);
+    assert_eq!(second.entries()[0].rule, rules[1]);
+
+    engine.invalidate_scope_programs();
+    let (_, rebuilt) = engine.ranked_scope_program(TreeScopeID(1));
+    assert!(first.shares_topology_with(&rebuilt));
+
+    let replacement_program = engine
+        .programs
+        .add(test_selector_program(".other", &[("other", StyleAtomID(201))]));
+    engine.selector_programs_need_sweep = true;
+    for rule in rules {
+        let mut version = engine.program.rule_version(rule);
+        version.selector_program = Some(replacement_program);
+        engine.replace_rule_version(rule, version);
+    }
+    discard_transaction(&mut engine);
+    assert!(
+        engine
+            .scope_dispatch_templates
+            .keys()
+            .all(|shape| shape.0.iter().all(|&(program, _)| program != selector_program))
+    );
+}
+
+#[test]
+fn a_scope_dispatch_can_extend_a_finished_prefix_template() {
+    let mut programs = SelectorPrograms::new();
+    let base = programs.add(test_selector_program(
+        ".base .target",
+        &[("base", StyleAtomID(200)), ("target", StyleAtomID(201))],
+    ));
+    let suffix = programs.add(test_selector_program(
+        ".extra .target",
+        &[("extra", StyleAtomID(202)), ("target", StyleAtomID(201))],
+    ));
+    let rules = [RuleID(1), RuleID(2)];
+
+    let mut template = RuleDispatch::new();
+    insert_scope_rule(&mut template, &programs, rules[0], base, true);
+    template.finish_prefixes();
+    let mut extended = RuleDispatch::rebind_rules_for_extension(&template, &rules[..1]);
+    insert_scope_rule(&mut extended, &programs, rules[1], suffix, true);
+    extended.finish_prefixes();
+
+    let mut cold = RuleDispatch::new();
+    insert_scope_rule(&mut cold, &programs, rules[0], base, true);
+    insert_scope_rule(&mut cold, &programs, rules[1], suffix, true);
+    cold.finish_prefixes();
+
+    assert_eq!(extended.entries(), cold.entries());
+    assert_eq!(extended.ancestor_dispatch_shape(), cold.ancestor_dispatch_shape());
+    assert!(extended.prefixes().contains_entry(base, 0));
+    assert!(extended.prefixes().contains_entry(suffix, 0));
+}
+
+#[test]
+fn document_author_sheets_keep_independent_shadow_scope_programs() {
+    let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+    let independent_scope = TreeScopeID(1);
+    let document_style_scope = TreeScopeID(2);
+    engine.set_tree_scope_uses_document_sheets(document_style_scope);
+    let shadow_sheet = engine.add_sheet(StyleSheetObjectID(1), CascadeOrigin::Author);
+    engine.attach_sheet(shadow_sheet, independent_scope);
+    engine.attach_sheet(shadow_sheet, document_style_scope);
+    discard_transaction(&mut engine);
+
+    let (independent_program, _) = engine.ranked_scope_program(independent_scope);
+    engine.ranked_scope_program(document_style_scope);
+    engine.ranked_scope_program(TreeScopeID::DOCUMENT);
+    let document_sheet = engine.add_sheet(StyleSheetObjectID(2), CascadeOrigin::Author);
+    engine.attach_sheet(document_sheet, TreeScopeID::DOCUMENT);
+
+    assert_eq!(
+        engine.scope_program_by_scope[independent_scope.0 as usize].unwrap().1,
+        independent_program
+    );
+    assert!(engine.scope_program_by_scope[document_style_scope.0 as usize].is_none());
+    assert!(engine.scope_program_by_scope[TreeScopeID::DOCUMENT.0 as usize].is_none());
+
+    let user_agent_sheet = engine.add_sheet(StyleSheetObjectID(3), CascadeOrigin::UserAgent);
+    engine.attach_sheet(user_agent_sheet, TreeScopeID::DOCUMENT);
+
+    assert!(engine.scope_program_by_scope[independent_scope.0 as usize].is_none());
+}
+
+#[test]
+fn changing_one_scope_keeps_an_equivalent_scopes_ranked_program() {
+    let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+    let selector_program = engine
+        .programs
+        .add(test_selector_program(".target", &[("target", StyleAtomID(200))]));
+    let shared_sheet = engine.add_sheet(StyleSheetObjectID(1), CascadeOrigin::Author);
+    engine.attach_sheet(shared_sheet, TreeScopeID(1));
+    engine.attach_sheet(shared_sheet, TreeScopeID(2));
+    let rule = engine.append_rule(shared_sheet, None, RuleKind::Style);
+    let mut version = engine.program.rule_version(rule);
+    version.selector_program = Some(selector_program);
+    engine.replace_rule_version(rule, version);
+    let additional_sheet = engine.add_sheet(StyleSheetObjectID(2), CascadeOrigin::Author);
+    discard_transaction(&mut engine);
+
+    let (first_program, _) = engine.ranked_scope_program(TreeScopeID(1));
+    let (second_program, _) = engine.ranked_scope_program(TreeScopeID(2));
+    assert_eq!(first_program, second_program);
+
+    engine.attach_sheet(additional_sheet, TreeScopeID(2));
+    assert_eq!(
+        engine.scope_program_by_scope[TreeScopeID(1).0 as usize].unwrap().1,
+        first_program
+    );
+    assert!(engine.scope_program_by_scope[TreeScopeID(2).0 as usize].is_none());
+    assert_eq!(engine.scope_program(first_program).scope_count, 1);
 }
 
 #[test]
@@ -6636,6 +7108,31 @@ fn repeated_selector_replacement_reuses_program_and_route_storage() {
 }
 
 #[test]
+fn adding_a_live_selector_program_keeps_existing_routing() {
+    let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+    let sheet = engine.add_sheet(StyleSheetObjectID(1), CascadeOrigin::Author);
+    engine.attach_sheet(sheet, TreeScopeID::DOCUMENT);
+
+    for index in 0..2_u32 {
+        let rule = engine.append_rule(sheet, None, RuleKind::Style);
+        let (program, inserted) = engine
+            .programs
+            .add_with_status(test_selector_program(".target", &[("target", StyleAtomID(index + 1))]));
+        engine.selector_programs_need_sweep |= inserted;
+        engine.programs.settle_memory(&mut engine.memory);
+        engine.add_routing_rule(rule, program);
+        let mut version = engine.program.rule_version(rule);
+        version.selector_program = Some(program);
+        engine.replace_rule_version(rule, version);
+
+        let routing_before_sweep = Rc::clone(&engine.routing);
+        discard_transaction(&mut engine);
+        assert!(Rc::ptr_eq(&routing_before_sweep, &engine.routing));
+    }
+    assert_eq!(engine.routing.len(), 2);
+}
+
+#[test]
 fn a_declaration_edit_journals_only_the_declaration_field() {
     let (mut engine, _, rule) = authoring_engine();
     let mut contents = engine.program().rule_version(rule);
@@ -6702,12 +7199,35 @@ fn rule_metadata_commits_at_the_transaction_barrier() {
 
 #[test]
 fn container_query_gating_invalidates_committed_scope_dispatch() {
-    let (mut engine, _, rule) = authoring_engine();
-    engine.held_scope_program = Some((TreeScopeID::DOCUMENT, 0, ScopeProgramID(1)));
+    let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+    let program = engine
+        .programs
+        .add(test_selector_program(".target", &[("target", StyleAtomID(200))]));
+    let sheet = engine.add_sheet(StyleSheetObjectID(1), CascadeOrigin::Author);
+    engine.attach_sheet(sheet, TreeScopeID::DOCUMENT);
+    let rule = engine.append_rule(sheet, None, RuleKind::Style);
+    engine.add_routing_rule(rule, program);
+    let mut version = engine.program.rule_version(rule);
+    version.selector_program = Some(program);
+    engine.replace_rule_version(rule, version);
+    discard_transaction(&mut engine);
+
+    // The held program is only ever set beside its scope's retained entry, and the sheet-scoped
+    // sweep reaches it through that entry.
+    let (scope_program, _) = engine.ranked_scope_program(TreeScopeID::DOCUMENT);
+    assert_eq!(engine.held_scope_program.map(|(_, _, id)| id), Some(scope_program));
 
     engine.set_rule_gated_by_container_query(rule);
 
     assert!(engine.held_scope_program.is_none());
+    assert!(
+        engine
+            .scope_program_by_scope
+            .get(TreeScopeID::DOCUMENT.0 as usize)
+            .copied()
+            .flatten()
+            .is_none()
+    );
 }
 
 #[test]
@@ -6872,6 +7392,31 @@ fn sheet_attachment_commits_at_the_transaction_barrier() {
 }
 
 #[test]
+fn rule_changes_share_one_sheet_attachment_decision_per_transaction() {
+    let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+    let sheet = engine.add_sheet(StyleSheetObjectID(1), CascadeOrigin::Author);
+    engine.attach_sheet(sheet, TreeScopeID::DOCUMENT);
+
+    engine.append_rule(sheet, None, RuleKind::Style);
+    engine.append_rule(sheet, None, RuleKind::Style);
+    assert_eq!(engine.rule_change_is_carried_by_sheet.len(), 1);
+
+    discard_transaction(&mut engine);
+    assert!(engine.rule_change_is_carried_by_sheet.is_empty());
+
+    engine.append_rule(sheet, None, RuleKind::Style);
+    assert_eq!(engine.rule_change_is_carried_by_sheet.len(), 1);
+    let transaction = engine.take_transaction();
+    assert!(
+        transaction
+            .inputs
+            .iter()
+            .any(|input| matches!(input.key, InputKey::RuleField(_, RuleField::Existence)))
+    );
+    engine.release_transaction(transaction);
+}
+
+#[test]
 fn deleting_a_group_rule_journals_every_identity_it_took_with_it() {
     let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
     let sheet = engine.add_sheet(StyleSheetObjectID(1), CascadeOrigin::Author);
@@ -6992,4 +7537,95 @@ fn disabling_a_sheet_is_an_activation_change() {
         vec![InputKey::SheetActivation(sheet)]
     );
     engine.release_transaction(transaction);
+}
+
+#[test]
+fn an_added_rule_that_loses_everywhere_confirms_without_cold_matching() {
+    let (mut engine, nodes) = linear_document();
+    let guard_class = StyleAtomID(200);
+    let target_class = StyleAtomID(201);
+    let important = add_target_rule(&mut engine, StyleSheetObjectID(1), target_class);
+    engine.set_rule_declared_properties(important, &[(1, true)], true);
+    // A second matched rule with an incomplete declaration list keeps the winner inventory
+    // incomplete, so the whole-inventory proof cannot carry the stop; the transition proof must.
+    let incomplete = add_target_rule(&mut engine, StyleSheetObjectID(2), target_class);
+    engine.set_rule_declared_properties(incomplete, &[(2, false)], false);
+    // The addition arrives through an ancestor class toggle, so the confirmed node itself
+    // carries no direct transaction input and stays eligible for confirmation.
+    let loser = add_guard_target_rule_in_sheet(&mut engine, StyleSheetObjectID(3), guard_class, target_class);
+    engine.set_rule_declared_properties(loser, &[(1, false)], true);
+    for &node in &nodes {
+        set_atom_feature(&mut engine, node, FeatureKey::TagName, StyleAtomID(100));
+    }
+    add_feature(&mut engine, nodes[1], FeatureKey::Class(target_class));
+    discard_transaction(&mut engine);
+
+    let old_answer = engine.match_element_for_cascade(nodes[1]).unwrap();
+    assert!(old_answer.iter().any(|entry| entry.rule == important));
+    publish_current_cascade_as_computed(&mut engine, nodes[1]);
+
+    add_feature(&mut engine, nodes[0], FeatureKey::Class(guard_class));
+    let stops_before = engine.counters().get(Counter::PublishedExactCascadeStops);
+    let proofs_before = engine.counters().get(Counter::TransitionProofConfirmed);
+    let mut planned = Vec::new();
+    assert!(engine.take_style_transaction(nodes[0], |_, _, reactions| {
+        planned.extend(reactions.iter().map(|reaction| reaction.style_node));
+    }));
+
+    assert!(
+        !planned.contains(&nodes[1].raw()),
+        "an added rule that loses everywhere must not publish the losing node"
+    );
+    assert_eq!(
+        engine.counters().get(Counter::PublishedExactCascadeStops),
+        stops_before + 1
+    );
+    assert_eq!(
+        engine.counters().get(Counter::TransitionProofConfirmed),
+        proofs_before + 1
+    );
+    let current = engine.match_element_for_cascade(nodes[1]).unwrap();
+    assert!(current.iter().any(|entry| entry.rule == loser));
+}
+
+#[test]
+fn answer_transitions_refuse_equality_removals_and_winning_additions() {
+    let (mut engine, nodes) = linear_document();
+    let anchor_class = StyleAtomID(200);
+    let toggled_class = StyleAtomID(201);
+    let base = add_target_rule(&mut engine, StyleSheetObjectID(1), anchor_class);
+    engine.set_rule_declared_properties(base, &[(1, false)], true);
+    let winner = add_target_rule(&mut engine, StyleSheetObjectID(2), toggled_class);
+    engine.set_rule_declared_properties(winner, &[(1, false)], true);
+    add_feature(&mut engine, nodes[1], FeatureKey::Class(anchor_class));
+    discard_transaction(&mut engine);
+
+    let exact = engine.match_element(nodes[1]).unwrap();
+    let before = engine.matches_for_cascade(exact.clone(), false, Some(nodes[1]));
+    engine.remember_retained_match_answer(nodes[1], &exact);
+    engine.remember_cascade_input(nodes[1], &before);
+    let Lookup::Known(&before_input) = engine.retained_match_answers.cascade_input_lookup(nodes[1]) else {
+        panic!("the anchored answer must intern a cascade input");
+    };
+    publish_current_cascade_as_computed(&mut engine, nodes[1]);
+
+    // Equality is never a proof: a stale retained answer compares equal to itself.
+    assert!(!engine.answer_transition_cannot_change_cascade(nodes[1], before_input, before_input));
+
+    add_feature(&mut engine, nodes[1], FeatureKey::Class(toggled_class));
+    discard_transaction(&mut engine);
+    let exact = engine.match_element(nodes[1]).unwrap();
+    let with = engine.matches_for_cascade(exact.clone(), false, Some(nodes[1]));
+    engine.remember_retained_match_answer(nodes[1], &exact);
+    engine.remember_cascade_input(nodes[1], &with);
+    let Lookup::Known(&with_winner) = engine.retained_match_answers.cascade_input_lookup(nodes[1]) else {
+        panic!("the toggled answer must intern a cascade input");
+    };
+    assert_ne!(before_input, with_winner);
+
+    // A later-sheet addition to the same property is not strictly weaker; the proof must refuse.
+    assert!(!engine.answer_transition_cannot_change_cascade(nodes[1], before_input, with_winner));
+
+    // A removal can uncover a candidate provenance cannot always name; it must refuse too.
+    assert!(!engine.answer_transition_cannot_change_cascade(nodes[1], with_winner, before_input));
 }

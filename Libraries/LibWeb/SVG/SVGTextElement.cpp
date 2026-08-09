@@ -17,7 +17,7 @@ SVGTextElement::SVGTextElement(DOM::Document& document, DOM::QualifiedName quali
 {
 }
 
-RefPtr<Layout::Node> SVGTextElement::create_layout_node(NonnullRefPtr<CSS::ComputedValues const> style)
+RefPtr<Layout::Node> SVGTextElement::create_layout_node(CSS::LayoutStyle style)
 {
     return make_ref_counted<Layout::SVGTextBox>(document(), *this, style);
 }

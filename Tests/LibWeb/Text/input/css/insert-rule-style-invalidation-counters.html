@@ -23,12 +23,12 @@
         }
     }
 
-    function verifyInvalidationsStayNarrow(label, maxInvalidations) {
-        const invalidations = internals.getStyleInvalidationCounters().styleInvalidations;
-        if (invalidations <= maxInvalidations)
-            println(`PASS: ${label} (${invalidations} invalidations)`);
+    function verifyRecomputationsStayNarrow(label, maximum) {
+        const recomputations = internals.getStyleInvalidationCounters().elementStyleRecomputations;
+        if (recomputations <= maximum)
+            println(`PASS: ${label} (${recomputations} recomputations)`);
         else
-            println(`FAIL: ${label} (${invalidations} invalidations)`);
+            println(`FAIL: ${label} (${recomputations} recomputations)`);
     }
 
     test(() => {
@@ -40,7 +40,7 @@
         settleAndReset(documentTarget);
         documentStyleSheet.insertRule(".foo { color: rgb(255, 0, 0); }", documentStyleSheet.cssRules.length);
         getComputedStyle(documentTarget).color;
-        verifyInvalidationsStayNarrow("document insertRule stays targeted across many bystanders", 1);
+        verifyRecomputationsStayNarrow("document insertRule stays targeted across many bystanders", 1);
 
         const shadowRoot = document.getElementById("shadow-host").attachShadow({ mode: "open" });
         shadowRoot.innerHTML = `
@@ -56,6 +56,6 @@
         getComputedStyle(shadowTarget).color;
         // Shadow-root sheets can legitimately dirty both the matching shadow
         // descendant and the host when the sheet gains selectors such as :host.
-        verifyInvalidationsStayNarrow("shadow insertRule stays targeted across many bystanders", 2);
+        verifyRecomputationsStayNarrow("shadow insertRule stays targeted across many bystanders", 2);
     });
 </script>

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .guard .target { color: rgb(0, 128, 0) }
+    .guard .target .deep { outline-color: rgb(0, 0, 255) }
+    .other .target { border-top-color: rgb(255, 0, 0) }
+</style>
+<div id="fixture">
+    <div id="outer">
+        <div id="middle">
+            <span id="keeper" class="target"><span class="deep"></span></span>
+        </div>
+    </div>
+</div>
+<script>
+    // Prefix transitions are retained across transactions as Tier-3 acceleration, so the next
+    // invalidation compares a state it did not compute in the same pass. A style node identity that
+    // a departed element gave up and a new element took over is where that goes wrong quietly: the
+    // retained transition still describes the element that left. Cycle the same subtree out and
+    // back often enough to reuse identities, and settle exactly every time.
+    let forced = 0;
+    let cacheHits = 0;
+    let publishedAnswerConsumptions = 0;
+
+    function snapshot() {
+        return Array.from(document.querySelectorAll("#fixture *"))
+            .map(element => {
+                const style = getComputedStyle(element);
+                return `${element.className}=${style.color}/${style.outlineColor}/${style.borderTopColor}`;
+            })
+            .join(" ");
+    }
+
+    function settlesExactly(name, mutate) {
+        internals.updateStyle();
+        const before = internals.styleEngineCounters();
+        mutate();
+        internals.updateStyle();
+        const after = internals.styleEngineCounters();
+        cacheHits += after.prefixTransitionCacheHits - before.prefixTransitionCacheHits;
+        publishedAnswerConsumptions += after.publishedMatchAnswerConsumptions - before.publishedMatchAnswerConsumptions;
+        const incremental = snapshot();
+        CSS.registerProperty({ name: `--force-${forced++}`, syntax: "*", inherits: false, initialValue: "1px" });
+        internals.updateStyle();
+        const complete = snapshot();
+        if (incremental === complete) {
+            return true;
+        }
+        println(`${name}: STALE`);
+        println(`  incremental: ${incremental}`);
+        println(`  complete:    ${complete}`);
+        return false;
+    }
+
+    test(() => {
+        const outer = document.getElementById("outer");
+        const middle = document.getElementById("middle");
+
+        const branch = () => {
+            const root = document.createElement("div");
+            root.innerHTML = `<span class="target"><span class="deep"></span></span>`;
+            return root;
+        };
+
+        let stale = 0;
+        for (let round = 0; round < 12; ++round) {
+            const arrival = branch();
+            // Each round leaves a subtree behind whose descendants never journal a departure of
+            // their own, then takes fresh identities for the next one.
+            if (!settlesExactly(`round ${round}: a subtree arrives`, () => middle.appendChild(arrival)))
+                ++stale;
+            if (!settlesExactly(`round ${round}: the guard moves`, () => outer.classList.toggle("guard")))
+                ++stale;
+            if (!settlesExactly(`round ${round}: the subtree leaves`, () => arrival.remove()))
+                ++stale;
+            if (!settlesExactly(`round ${round}: another guard moves`, () => outer.classList.toggle("other")))
+                ++stale;
+        }
+
+        // A subtree that leaves and comes back keeping its identities, with the guard moving while
+        // it is detached, so the retained transitions describe an ancestry that no longer holds.
+        const detached = branch();
+        middle.appendChild(detached);
+        internals.updateStyle();
+        if (!settlesExactly("a detached subtree returns under a moved guard", () => {
+            detached.remove();
+            outer.classList.toggle("guard");
+        }))
+            ++stale;
+        if (!settlesExactly("and comes back", () => middle.appendChild(detached)))
+            ++stale;
+        if (!settlesExactly("the guard moves again with it in place", () => outer.classList.toggle("guard")))
+            ++stale;
+
+        // Without these the cycles above would pass whether or not anything was ever retained.
+        println(`invalidation consumed a retained transition: ${cacheHits > 0}`);
+        println(`matching consumed a published answer: ${publishedAnswerConsumptions > 0}`);
+        println(`stale settlements: ${stale}`);
+        println(`final: ${snapshot()}`);
+    });
+</script>

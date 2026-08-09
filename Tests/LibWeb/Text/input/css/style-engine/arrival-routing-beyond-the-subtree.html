@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../../include.js"></script>
+<script src="plan.js"></script>
+<script>
+    // An arriving element's tree delta already plans its whole subtree, so its individual facts are
+    // only routed through the entry points that can reach outside it. These are the shapes that do:
+    // a relational anchor above it, a sibling selector it stands to the left of, and a positional
+    // test whose count it moves. Each must still be planned.
+    test(() => {
+        addStyleSheet(`
+            #list > :nth-child(2 of .a) { outline: 1px solid red }
+            .trigger + .after { color: red }
+            .trigger ~ .later { color: blue }
+            #outer:has(.witness) { color: green }
+        `);
+
+        const list = make("div", "list");
+        document.body.appendChild(list);
+        for (const id of ["one", "two", "three"])
+            list.appendChild(make("div", id, { className: "a" }));
+        plan("an arrival moves which sibling is the second `.a`", () =>
+            list.insertBefore(make("div", "zero", { className: "a" }), list.firstChild));
+
+        const box = make("div", "box");
+        document.body.appendChild(box);
+        box.appendChild(make("div", "after", { className: "after" }));
+        box.appendChild(make("div", "later", { className: "later" }));
+        plan("an arrival is the left side of a sibling selector", () =>
+            box.insertBefore(make("div", "trigger", { className: "trigger" }), box.firstChild));
+
+        const outer = make("div", "outer");
+        document.body.appendChild(outer);
+        plan("an arrival witnesses a relational query above it", () =>
+            outer.appendChild(make("div", "witness", { className: "witness" })));
+
+        // A host whose shadow tree is built before it connects: the tree the host's own facts reach
+        // is not in the host's subtree, and what plans it is each shadow element's own arrival.
+        const host = make("div", "host", { className: "marked" });
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        const style = document.createElement("style");
+        style.textContent = ":host(.marked) .inner { color: red }";
+        shadowRoot.append(style, make("div", "inner", { className: "inner" }));
+        plan("a host arrives with its shadow tree already built", () => document.body.appendChild(host));
+    });
+</script>

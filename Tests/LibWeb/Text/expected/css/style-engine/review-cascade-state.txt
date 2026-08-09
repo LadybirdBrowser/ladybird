@@ -1,0 +1,4 @@
+important revert-layer: rgb(0, 128, 0)
+duplicate assignment: rgb(0, 0, 255) 1
+before duplicate push: rgb(255, 0, 0) 0
+after duplicate push: rgb(0, 0, 255) 1

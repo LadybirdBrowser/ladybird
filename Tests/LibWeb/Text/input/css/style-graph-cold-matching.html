@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .item { color: red }
+    .theme .item { color: green }
+    #target { color: blue }
+    span { color: teal }
+    div > .item:first-child { color: olive }
+</style>
+<div class="theme">
+    <div class="item" id="target">a</div>
+    <div class="item">b</div>
+    <span>c</span>
+</div>
+<script>
+    test(() => {
+        document.body.offsetWidth;
+
+        // The cold path runs over the real document: no witness, no signature, no winner group,
+        // just facts and the attached program.
+        const matches = internals.styleEngineMatchDocument();
+        println(`cold matching completed: ${matches >= 0}`);
+
+        // .item matches twice, .theme .item twice, #target once, span once, and the first-child
+        // rule once. The user-agent sheet is part of the program too, so the total is larger than
+        // those seven and not worth pinning to a number that every user-agent rule would move.
+        println(`concrete matches cover the author rules: ${matches >= 7}`);
+
+        // Dispatch means a candidate only considers the rules its own features reach, so the
+        // checks stay far below one per rule per element.
+        const c = internals.styleEngineCounters();
+        println(`checks below the product of nodes and rules: ${c.candidateChecks < c.coldNodesEvaluated * c.styleRulesCompiled}`);
+
+        // Running it again is stable.
+        println(`stable across passes: ${internals.styleEngineMatchDocument() === matches}`);
+    });
+</script>

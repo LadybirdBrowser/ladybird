@@ -1,0 +1,8 @@
+cold node evaluations: 0
+candidate checks: 0
+rule matches emitted: 0
+element: rgb(16, 17, 18)
+before: rgb(19, 20, 21)
+after: rgb(22, 23, 24)
+first-letter: rgb(25, 26, 27)
+selection: rgb(28, 29, 30)

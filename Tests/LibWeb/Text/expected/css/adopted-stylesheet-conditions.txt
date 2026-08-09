@@ -1,0 +1,4 @@
+disabled sheet color: rgb(0, 0, 0)
+print-only sheet background: rgba(0, 0, 0, 0)
+enabled sheet outline: rgb(7, 8, 9)
+after enabling: rgb(1, 2, 3)

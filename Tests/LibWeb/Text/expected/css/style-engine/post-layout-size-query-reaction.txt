@@ -1,0 +1,4 @@
+dependent color: rgb(1, 2, 3)
+layout recomputations: 2
+size-query scan visits: 1
+read recomputations: 0

@@ -1,0 +1,4 @@
+cold matching completed: true
+concrete matches cover the author rules: true
+checks below the product of nodes and rules: true
+stable across passes: true

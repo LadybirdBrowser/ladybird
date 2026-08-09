@@ -1,0 +1,21 @@
+<!doctype html>
+<style>
+    #target {
+        display: table;
+        position: absolute;
+        height: fit-content;
+    }
+    .changed {
+        --unused: value;
+    }
+</style>
+<p id="target">table text</p>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        target.offsetWidth;
+        target.className = "changed";
+        target.offsetHeight;
+        println("PASS");
+    });
+</script>

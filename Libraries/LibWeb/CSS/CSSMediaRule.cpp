@@ -22,6 +22,7 @@ CSSMediaRule::CSSMediaRule(MediaList& media, CSSRuleList& rules)
     : CSSConditionRule(rules, Type::Media)
     , m_media(media)
 {
+    m_media->set_associated_rule(*this);
 }
 
 void CSSMediaRule::visit_edges(GC::Cell::Visitor& visitor)

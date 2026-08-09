@@ -34,10 +34,10 @@
         settleAndReset(target);
         sheet.insertRule("@keyframes fade { from { opacity: 0; } to { opacity: 1; } }", sheet.cssRules.length);
         getComputedStyle(target).animationName;
-        const invalidations = internals.getStyleInvalidationCounters().styleInvalidations;
-        if (invalidations <= 2)
-            println(`PASS: keyframes insertRule only invalidates animation users`);
+        const recomputations = internals.getStyleInvalidationCounters().elementStyleRecomputations;
+        if (recomputations <= 2)
+            println(`PASS: keyframes insertRule only recomputes animation users`);
         else
-            println(`FAIL: keyframes insertRule only invalidates animation users (${invalidations} invalidations)`);
+            println(`FAIL: keyframes insertRule only recomputes animation users (${recomputations} recomputations)`);
     });
 </script>

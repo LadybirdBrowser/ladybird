@@ -88,7 +88,6 @@ public:
         ComputedProperties const& style() const { return *m_style; }
         NonnullRefPtr<ComputedProperties> build() &&;
 
-        bool depends_on_viewport_metrics() const { return m_depends_on_viewport_metrics; }
         bool font_metrics_depend_on_viewport_metrics() const { return m_font_metrics_depend_on_viewport_metrics; }
         Display display() const { return style().display(); }
         StyleValue const& property(PropertyID property_id, WithAnimationsApplied with_animations_applied = WithAnimationsApplied::Yes) const { return style().property(property_id, with_animations_applied); }
@@ -101,6 +100,7 @@ public:
         void set_depends_on_viewport_metrics();
         void set_font_metrics_depend_on_viewport_metrics();
         void set_in_display_none_subtree();
+        void clear_in_display_none_subtree();
         void set_has_pseudo_element_style(PseudoElement);
 
         void set_property(PropertyID, NonnullRefPtr<StyleValue const> value, Inherited = Inherited::No, Important = Important::No);
@@ -113,6 +113,7 @@ public:
 
         HashMap<PropertyID, NonnullRefPtr<StyleValue const>> const& inheritance_dependent_specified_values() const { return m_data->inheritance_dependent_specified_values; }
         void add_inheritance_dependent_specified_value(PropertyID property_id, NonnullRefPtr<StyleValue const> value) { m_data->inheritance_dependent_specified_values.set(property_id, move(value)); }
+        void remove_inheritance_dependent_specified_value(PropertyID property_id) { m_data->inheritance_dependent_specified_values.remove(property_id); }
 
         RefPtr<StyleValue const> raw_cascaded_font_size() const { return m_data->raw_cascaded_font_size; }
         void set_raw_cascaded_font_size(NonnullRefPtr<StyleValue const> value) { m_data->raw_cascaded_font_size = move(value); }
@@ -121,6 +122,7 @@ public:
         friend class ComputedProperties;
 
         Builder(ComputedProperties const&);
+        Builder(ComputedValues const&);
         Data& data() { return *m_data; }
         Data const& data() const { return *m_data; }
 
@@ -134,15 +136,7 @@ public:
     static NonnullRefPtr<ComputedProperties> create(Builder&&);
     static Builder create_builder();
     static Builder create_builder_with_base_values_from(ComputedProperties const&);
-
-    template<typename Callback>
-    inline void for_each_property(Callback callback) const
-    {
-        for (size_t i = 0; i < m_data->property_values.size(); ++i) {
-            if (m_data->property_values[i])
-                callback(static_cast<PropertyID>(i + to_underlying(first_longhand_property_id)), *m_data->property_values[i]);
-        }
-    }
+    static Builder create_builder_with_base_values_from(ComputedValues const&);
 
     HashMap<PropertyID, NonnullRefPtr<StyleValue const>> const& animated_property_values() const;
     RefPtr<AnimatedProperties const> animated_properties_snapshot() const;
@@ -157,18 +151,15 @@ public:
     bool font_metrics_depend_on_viewport_metrics() const { return m_font_metrics_depend_on_viewport_metrics; }
     // Whether the element this style was computed for has computed display none, or is a descendant of one that does.
     bool in_display_none_subtree() const { return m_in_display_none_subtree; }
-    void set_in_display_none_subtree(Badge<DOM::Element>) { m_in_display_none_subtree = true; }
-    void set_in_display_none_subtree(Badge<DOM::SyntheticPseudoElement>) { m_in_display_none_subtree = true; }
     bool has_pseudo_element_style(PseudoElement) const;
     void set_depends_on_viewport_metrics(Badge<StyleComputer>);
     void set_font_metrics_depend_on_viewport_metrics(Badge<StyleComputer>);
     void set_animated_property(Badge<StyleComputer>, PropertyID, NonnullRefPtr<StyleValue const> value, AnimatedPropertyResultOfTransition, Inherited = Inherited::No);
     void set_animated_property(Badge<DOM::Element>, PropertyID, NonnullRefPtr<StyleValue const> value, AnimatedPropertyResultOfTransition, Inherited = Inherited::No);
-    void remove_animated_property(Badge<DOM::Element>, PropertyID);
+    void clear_animated_properties(Badge<StyleComputer>);
     StyleValue const& property(PropertyID, WithAnimationsApplied = WithAnimationsApplied::Yes) const;
 
     Size size_value(PropertyID) const;
-    [[nodiscard]] Variant<LengthPercentage, NormalGap> gap_value(PropertyID) const;
     Length length(PropertyID) const;
     LengthBox length_box(PropertyID left_id, PropertyID top_id, PropertyID right_id, PropertyID bottom_id, LengthPercentageOrAuto const& default_value) const;
     Color color(PropertyID, ColorResolutionContext) const;
@@ -197,7 +188,6 @@ public:
     Color caret_color(ColorResolutionContext const&) const;
     Clear clear() const;
     ColumnSpan column_span() const;
-    ContentDataAndQuoteNestingLevel content(DOM::AbstractElement&, u32 initial_quote_nesting_level) const;
     ContentVisibility content_visibility() const;
     Vector<CursorData> cursor() const;
     Variant<CSSPixels, double> tab_size() const;
@@ -218,25 +208,16 @@ public:
     TextWrapMode text_wrap_mode() const;
     ListStyleType list_style_type(StyleScope const&) const;
     ListStylePosition list_style_position() const;
-    FlexDirection flex_direction() const;
-    FlexWrap flex_wrap() const;
-    FlexBasis flex_basis() const;
     double flex_grow() const;
     double flex_shrink() const;
     i32 order() const;
     Color accent_color(ColorResolutionContext const&) const;
-    AlignContent align_content() const;
-    AlignItems align_items() const;
-    AlignSelf align_self() const;
     Appearance appearance() const;
     Filter backdrop_filter() const;
     Filter filter() const;
     float opacity() const;
     Visibility visibility() const;
     ImageRendering image_rendering() const;
-    JustifyContent justify_content() const;
-    JustifyItems justify_items() const;
-    JustifySelf justify_self() const;
     Overflow overflow_x() const;
     Overflow overflow_y() const;
     Vector<ShadowData> box_shadow(ColorResolutionContext const&) const;
@@ -309,7 +290,6 @@ public:
     StrokeLinecap stroke_linecap() const;
     StrokeLinejoin stroke_linejoin() const;
     LengthPercentage stroke_width() const;
-    VectorEffect vector_effect() const;
     double stroke_miterlimit() const;
     float stroke_opacity() const;
     FillRule fill_rule() const;
@@ -323,7 +303,6 @@ public:
     ValueComparingNonnullRefPtr<Gfx::FontCascadeList const> computed_font_list(FontComputer const&) const;
     ValueComparingNonnullRefPtr<Gfx::Font const> first_available_computed_font(FontComputer const&) const;
 
-    MathStyle math_style() const;
     int math_depth() const;
     [[nodiscard]] static CSSPixels normal_line_height(Gfx::FontPixelMetrics const&);
     [[nodiscard]] CSSPixels line_height(FontComputer const&) const;
@@ -333,8 +312,6 @@ public:
     Percentage font_width() const;
     int font_slope() const;
     FontOpticalSizing font_optical_sizing() const;
-
-    bool operator==(ComputedProperties const&) const;
 
     Positioning position() const;
     Optional<int> z_index() const;
@@ -351,6 +328,15 @@ public:
     HashMap<PropertyID, NonnullRefPtr<StyleValue const>> const& inheritance_dependent_specified_values() const { return m_data->inheritance_dependent_specified_values; }
 
     RefPtr<StyleValue const> raw_cascaded_font_size() const { return m_data->raw_cascaded_font_size; }
+    [[nodiscard]] size_t retained_size_in_bytes() const;
+
+    struct LegacyPropertyArrayRetentionStatistics {
+        u64 holder_count { 0 };
+        u64 bytes { 0 };
+    };
+    static LegacyPropertyArrayRetentionStatistics const& legacy_property_array_retention_statistics();
+    void retain_legacy_property_array() const;
+    void release_legacy_property_array() const;
 
 private:
     friend class Layout::NodeWithStyle;
@@ -362,7 +348,8 @@ private:
     public:
         Data() = default;
 
-        Array<RefPtr<StyleValue const>, number_of_longhand_properties> property_values;
+        mutable Array<RefPtr<StyleValue const>, number_of_longhand_properties> property_values;
+        RefPtr<ComputedValues const> fallback_values;
         AK::FixedBitmap<number_of_longhand_properties> property_important { false };
         AK::FixedBitmap<number_of_longhand_properties> property_inherited { false };
 
@@ -405,9 +392,11 @@ class AnimatedProperties final : public RefCounted<AnimatedProperties> {
 public:
     using PropertyMap = HashMap<PropertyID, NonnullRefPtr<StyleValue const>>;
 
-    AnimatedProperties() = default;
+    AnimatedProperties();
     AnimatedProperties(AnimatedProperties const&);
+    ~AnimatedProperties();
 
+    u64 identity() const { return m_identity; }
     bool is_empty() const { return m_values.is_empty(); }
     PropertyMap const& values() const { return m_values; }
 
@@ -424,6 +413,7 @@ private:
     void set_property_inherited(PropertyID, ComputedProperties::Inherited);
     void set_property_result_of_transition(PropertyID, AnimatedPropertyResultOfTransition);
 
+    u64 m_identity;
     AK::FixedBitmap<number_of_longhand_properties> m_has_property { false };
     AK::FixedBitmap<number_of_longhand_properties> m_property_inherited { false };
     AK::FixedBitmap<number_of_longhand_properties> m_property_result_of_transition { false };

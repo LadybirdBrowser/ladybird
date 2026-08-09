@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #counter-target, #counter-reference { font-family: monospace; width: min-content; }
+    #counter-reference::before { content: "0000"; }
+    @counter-style three { system: cyclic; symbols: "000"; }
+    @counter-style four { system: cyclic; symbols: "0000"; }
+</style>
+<div id="counter-target"></div>
+<div id="counter-reference"></div>
+<script>
+    test(() => {
+        const style = document.createElement("style");
+        style.textContent = `
+            @layer base, override;
+            #counter-target::before { content: counter(dont-care, review-counter); }
+            @layer override { @counter-style review-counter { system: extends four; } }
+            @layer base { @counter-style review-counter { system: extends three; } }
+        `;
+        document.head.appendChild(style);
+        println(`counter layer override: ${getComputedStyle(document.getElementById("counter-target")).width === getComputedStyle(document.getElementById("counter-reference")).width}`);
+
+        style.remove();
+        const appended = document.createElement("style");
+        appended.textContent = `
+            @layer base, override;
+            #counter-target::before { content: counter(dont-care, appended-counter); }
+            @layer base { @counter-style appended-counter { system: extends three; } }
+        `;
+        document.head.appendChild(appended);
+        getComputedStyle(document.getElementById("counter-target")).width;
+        appended.sheet.insertRule("@layer override { @counter-style appended-counter { system: extends four; } }", appended.sheet.cssRules.length);
+        println(`counter appended override: ${getComputedStyle(document.getElementById("counter-target")).width === getComputedStyle(document.getElementById("counter-reference")).width}`);
+    });
+</script>

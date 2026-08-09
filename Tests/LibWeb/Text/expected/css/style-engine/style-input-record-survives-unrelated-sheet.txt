@@ -1,0 +1,4 @@
+input changed by parent style: 0
+input changed by parent custom properties: 0
+item color: rgb(0, 0, 255)
+wrap padding: 3px

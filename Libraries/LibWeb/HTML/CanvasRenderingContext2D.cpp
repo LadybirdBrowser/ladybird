@@ -83,10 +83,10 @@ DOM::EventTarget& CanvasRenderingContext2D::context_event_target()
 Gfx::Color CanvasRenderingContext2D::resolve_drop_shadow_color(CSS::DropShadowFilterStyleValue const& drop_shadow) const
 {
     DOM::AbstractElement abstract_element { *m_element };
-    m_element->document().update_style_if_needed_for_element(abstract_element);
+    m_element->document().update_style_for_element(abstract_element, DOM::Document::StyleUpdateMode::OnlyIfNeeded);
 
     Gfx::Color color = Gfx::Color::Black;
-    if (drop_shadow.color() && m_element->computed_values()) {
+    if (drop_shadow.color() && m_element->has_style()) {
         auto color_context = CSS::ColorResolutionContext::for_element(abstract_element);
         color = drop_shadow.color()->to_color(color_context).value_or(Gfx::Color::Black);
     }

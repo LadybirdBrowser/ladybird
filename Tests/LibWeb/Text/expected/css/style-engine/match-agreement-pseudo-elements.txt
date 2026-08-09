@@ -1,0 +1,12 @@
+before color: rgb(1, 2, 3)
+before outline-color: rgb(13, 14, 15)
+after color: rgb(7, 8, 9)
+after background-color: rgb(10, 11, 12)
+marker color: rgb(22, 23, 24)
+scoped before color: rgb(28, 29, 30)
+shadow before color: rgb(31, 32, 33)
+div#box.box: #box::before[pseudo 2] #box::before[pseudo 2] div::after[pseudo 0] .box::before[pseudo 2] :is(.box, .other)::after[pseudo 0] #box::before[pseudo 2]
+span: span::before[pseudo 2] .box > span::first-line[pseudo 4]
+li: li::marker[pseudo 5] #list > li::marker[pseudo 5]
+div: div::before[pseudo 2]
+

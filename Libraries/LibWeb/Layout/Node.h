@@ -159,6 +159,7 @@ public:
     void clear_paintable();
     void prepare_for_detach_from_layout_tree();
     void prepare_subtree_for_detach_from_layout_tree();
+    void pin_style_record_for_detachment();
 
     // Returns the direct viewport child above this node (the node itself or its outermost
     // anonymous table-fixup wrapper), or null when the node is not placed as a top layer box.
@@ -371,18 +372,246 @@ public:
         NonnullRefPtr<CSS::ImageStyleValue const> m_image;
     };
 
-    CSS::ComputedValues const& computed_values() const { return *m_computed_values; }
+    NonnullRefPtr<CSS::ComputedValues const> copy_computed_values() const;
+    CSS::ComputedStyleRecordView computed_style_record_view() const;
+    CSS::StyleRecordID style_record_identity() const { return m_style_record_identity; }
+
+    template<typename StyleGroup>
+    StyleGroup const& style_group() const
+    {
+        VERIFY(node_data().style);
+        auto const* payloads = static_cast<void const* const*>(node_data().style);
+        auto const* payload = payloads[StyleGroup::style_group_index];
+        VERIFY(payload);
+        return *static_cast<StyleGroup const*>(payload);
+    }
 
     template<typename Callback>
     void modify_computed_values(Callback callback)
     {
-        CSS::ComputedValues::Builder builder(computed_values());
+        auto record_view = computed_style_record_view();
+        CSS::ComputedValues::Builder builder(m_owned_computed_values ? *m_owned_computed_values : *record_view);
         callback(*builder.operator->());
         set_computed_values(move(builder).build());
     }
 
-    CSS::Display display() const { return computed_values().display(); }
-    CSS::Display display_before_box_type_transformation() const { return computed_values().display_before_box_type_transformation(); }
+    static CSS::LengthPercentageOrAuto length_percentage_or_auto(CSS::ComputedValuesFFI::ComputedLengthPercentageOrAuto const& value)
+    {
+        if (value.is_auto)
+            return CSS::LengthPercentageOrAuto::make_auto();
+        return CSS::LengthPercentage::view(value.value);
+    }
+
+    static CSS::LengthBox length_box(CSS::ComputedValuesFFI::ComputedLengthBox const& box)
+    {
+        return {
+            length_percentage_or_auto(box.top),
+            length_percentage_or_auto(box.right),
+            length_percentage_or_auto(box.bottom),
+            length_percentage_or_auto(box.left),
+        };
+    }
+
+    CSS::Display display() const { return CSS::display_from_ffi_display(style_group<CSS::ComputedValues::BoxValues>().display); }
+    CSS::Display display_before_box_type_transformation() const { return CSS::display_from_ffi_display(style_group<CSS::ComputedValues::BoxValues>().display_before_box_type_transformation); }
+    CSS::Float float_() const { return static_cast<CSS::Float>(style_group<CSS::ComputedValues::BoxValues>().float_); }
+    CSS::Clear clear() const { return static_cast<CSS::Clear>(style_group<CSS::ComputedValues::BoxValues>().clear); }
+    CSS::Positioning position() const { return static_cast<CSS::Positioning>(style_group<CSS::ComputedValues::BoxValues>().position); }
+    CSS::BoxSizing box_sizing() const { return static_cast<CSS::BoxSizing>(style_group<CSS::ComputedValues::BoxValues>().box_sizing); }
+    CSS::Overflow overflow_x() const { return static_cast<CSS::Overflow>(style_group<CSS::ComputedValues::BoxValues>().overflow_x); }
+    CSS::Overflow overflow_y() const { return static_cast<CSS::Overflow>(style_group<CSS::ComputedValues::BoxValues>().overflow_y); }
+    CSS::Resize resize() const { return static_cast<CSS::Resize>(style_group<CSS::ComputedValues::BoxValues>().resize); }
+    Variant<CSS::VerticalAlign, CSS::LengthPercentage> vertical_align() const
+    {
+        auto const& value = style_group<CSS::ComputedValues::BoxValues>().vertical_align;
+        if (value.is_keyword)
+            return static_cast<CSS::VerticalAlign>(value.keyword);
+        return CSS::LengthPercentage::view(value.value);
+    }
+    Optional<int> z_index() const
+    {
+        auto const& values = style_group<CSS::ComputedValues::BoxValues>();
+        if (!values.has_z_index)
+            return {};
+        return values.z_index;
+    }
+    CSS::AspectRatio aspect_ratio() const
+    {
+        auto const& value = style_group<CSS::ComputedValues::BoxValues>().aspect_ratio;
+        return {
+            value.use_natural_aspect_ratio_if_available,
+            value.has_preferred_ratio ? Optional<CSS::Ratio> { CSS::Ratio { value.preferred_ratio_numerator, value.preferred_ratio_denominator } } : OptionalNone {},
+            value.computed_use_natural_aspect_ratio_if_available,
+            value.has_computed_ratio ? Optional<CSS::Ratio> { CSS::Ratio { value.computed_ratio_numerator, value.computed_ratio_denominator } } : OptionalNone {},
+        };
+    }
+    CSS::Containment contain() const
+    {
+        auto const& values = style_group<CSS::ComputedValues::BoxValues>();
+        return { values.size_containment, values.inline_size_containment, values.layout_containment, values.style_containment, values.paint_containment };
+    }
+    CSS::ContainerType container_type() const
+    {
+        auto const& values = style_group<CSS::ComputedValues::BoxValues>();
+        return { values.is_size_container, values.is_inline_size_container, values.is_scroll_state_container };
+    }
+    CSS::ContentVisibility content_visibility() const { return static_cast<CSS::ContentVisibility>(style_group<CSS::ComputedValues::InheritedBoxValues>().content_visibility); }
+    CSS::Direction direction() const { return static_cast<CSS::Direction>(style_group<CSS::ComputedValues::InheritedBoxValues>().direction); }
+    CSS::WritingMode writing_mode() const { return static_cast<CSS::WritingMode>(style_group<CSS::ComputedValues::InheritedBoxValues>().writing_mode); }
+    bool inline_axis_is_reverse() const
+    {
+        switch (writing_mode()) {
+        case CSS::WritingMode::HorizontalTb:
+        case CSS::WritingMode::VerticalRl:
+        case CSS::WritingMode::VerticalLr:
+        case CSS::WritingMode::SidewaysRl:
+            return direction() == CSS::Direction::Rtl;
+        case CSS::WritingMode::SidewaysLr:
+            return direction() == CSS::Direction::Ltr;
+        }
+        VERIFY_NOT_REACHED();
+    }
+    bool block_axis_is_reverse() const
+    {
+        switch (writing_mode()) {
+        case CSS::WritingMode::HorizontalTb:
+        case CSS::WritingMode::VerticalLr:
+        case CSS::WritingMode::SidewaysLr:
+            return false;
+        case CSS::WritingMode::VerticalRl:
+        case CSS::WritingMode::SidewaysRl:
+            return true;
+        }
+        VERIFY_NOT_REACHED();
+    }
+    CSS::Visibility visibility() const { return static_cast<CSS::Visibility>(style_group<CSS::ComputedValues::InheritedBoxValues>().visibility); }
+    CSS::ImageRendering image_rendering() const { return static_cast<CSS::ImageRendering>(style_group<CSS::ComputedValues::InheritedBoxValues>().image_rendering); }
+    Color caret_color() const { return style_group<CSS::ComputedValues::InheritedUIValues>().caret_color.used_value; }
+    Optional<Color> accent_color() const
+    {
+        auto const& accent_color = style_group<CSS::ComputedValues::InheritedUIValues>().accent_color;
+        if (accent_color.computed_value.has<CSS::ColorOrAuto::Auto>())
+            return {};
+        return accent_color.used_value;
+    }
+    CSS::PreferredColorScheme color_scheme() const { return style_group<CSS::ComputedValues::InheritedUIValues>().color_scheme; }
+    Vector<Utf16FlyString> const& color_schemes() const { return style_group<CSS::ComputedValues::InheritedUIValues>().color_schemes; }
+    Vector<CSS::CursorData> const& cursor() const { return style_group<CSS::ComputedValues::InheritedUIValues>().cursor; }
+    CSS::PointerEvents pointer_events() const { return style_group<CSS::ComputedValues::InheritedUIValues>().pointer_events; }
+    CSS::ScrollbarColorData scrollbar_color() const { return style_group<CSS::ComputedValues::InheritedUIValues>().scrollbar_color; }
+    CSS::Appearance appearance() const { return style_group<CSS::ComputedValues::MiscResetValues>().appearance; }
+    CSS::ObjectFit object_fit() const { return style_group<CSS::ComputedValues::MiscResetValues>().object_fit; }
+    CSS::Position object_position() const { return style_group<CSS::ComputedValues::MiscResetValues>().object_position; }
+    CSS::OverflowClipMarginData const& overflow_clip_margin() const { return style_group<CSS::ComputedValues::MiscResetValues>().overflow_clip_margin; }
+    CSS::LengthBox const& scroll_padding() const { return style_group<CSS::ComputedValues::MiscResetValues>().scroll_padding; }
+    CSS::ScrollbarWidth scrollbar_width() const { return style_group<CSS::ComputedValues::MiscResetValues>().scrollbar_width; }
+    CSS::UserSelect user_select() const { return style_group<CSS::ComputedValues::MiscResetValues>().user_select; }
+    CSS::WillChange const& will_change() const { return style_group<CSS::ComputedValues::MiscResetValues>().will_change; }
+    Optional<Utf16FlyString> view_transition_name() const { return style_group<CSS::ComputedValues::MiscResetValues>().view_transition_name; }
+    Color outline_color() const { return style_group<CSS::ComputedValues::MiscResetValues>().outline_color; }
+    CSSPixels outline_offset() const { return style_group<CSS::ComputedValues::MiscResetValues>().outline_offset; }
+    CSS::OutlineStyle outline_style() const { return style_group<CSS::ComputedValues::MiscResetValues>().outline_style; }
+    CSSPixels outline_width() const { return style_group<CSS::ComputedValues::MiscResetValues>().outline_width; }
+    Color background_color() const { return style_group<CSS::ComputedValues::BackgroundValues>().background_color; }
+    CSS::BackgroundBox background_color_clip() const { return style_group<CSS::ComputedValues::BackgroundValues>().background_color_clip; }
+    Vector<CSS::BackgroundLayerData> const& background_layers() const { return style_group<CSS::ComputedValues::BackgroundValues>().background_layers; }
+    Vector<CSS::BackgroundLayerData> const& mask_layers() const { return style_group<CSS::ComputedValues::MaskValues>().mask_layers; }
+    CSS::AbstractImageStyleValue const* mask_image() const { return style_group<CSS::ComputedValues::MaskValues>().mask_image.ptr(); }
+    CSS::ListStyleType const& list_style_type() const { return style_group<CSS::ComputedValues::InheritedListValues>().list_style_type; }
+    CSS::ListStylePosition list_style_position() const { return style_group<CSS::ComputedValues::InheritedListValues>().list_style_position; }
+    CSS::AbstractImageStyleValue const* list_style_image() const { return style_group<CSS::ComputedValues::InheritedListValues>().list_style_image.ptr(); }
+    CSS::Filter const& backdrop_filter() const { return style_group<CSS::ComputedValues::EffectsValues>().backdrop_filter; }
+    CSS::Clip clip() const { return style_group<CSS::ComputedValues::EffectsValues>().clip; }
+    CSS::Filter const& filter() const { return style_group<CSS::ComputedValues::EffectsValues>().filter; }
+    CSS::Isolation isolation() const { return style_group<CSS::ComputedValues::EffectsValues>().isolation; }
+    CSS::MixBlendMode mix_blend_mode() const { return style_group<CSS::ComputedValues::EffectsValues>().mix_blend_mode; }
+    float opacity() const { return style_group<CSS::ComputedValues::EffectsValues>().opacity; }
+    Vector<CSS::ShadowData> const& box_shadow() const { return style_group<CSS::ComputedValues::EffectsValues>().box_shadow; }
+    CSS::BorderData const& border_left() const { return style_group<CSS::ComputedValues::BorderValues>().border_left; }
+    CSS::BorderData const& border_top() const { return style_group<CSS::ComputedValues::BorderValues>().border_top; }
+    CSS::BorderData const& border_right() const { return style_group<CSS::ComputedValues::BorderValues>().border_right; }
+    CSS::BorderData const& border_bottom() const { return style_group<CSS::ComputedValues::BorderValues>().border_bottom; }
+    CSS::BorderImageData const& border_image() const { return style_group<CSS::ComputedValues::BorderValues>().border_image; }
+    bool has_noninitial_border_radii() const { return style_group<CSS::ComputedValues::BorderValues>().has_noninitial_border_radii; }
+    CSS::BorderRadiusData const& border_bottom_left_radius() const { return style_group<CSS::ComputedValues::BorderValues>().border_bottom_left_radius; }
+    CSS::BorderRadiusData const& border_bottom_right_radius() const { return style_group<CSS::ComputedValues::BorderValues>().border_bottom_right_radius; }
+    CSS::BorderRadiusData const& border_top_left_radius() const { return style_group<CSS::ComputedValues::BorderValues>().border_top_left_radius; }
+    CSS::BorderRadiusData const& border_top_right_radius() const { return style_group<CSS::ComputedValues::BorderValues>().border_top_right_radius; }
+    CSS::BorderCollapse border_collapse() const { return static_cast<CSS::BorderCollapse>(style_group<CSS::ComputedValues::InheritedTableValues>().border_collapse); }
+    CSS::EmptyCells empty_cells() const { return static_cast<CSS::EmptyCells>(style_group<CSS::ComputedValues::InheritedTableValues>().empty_cells); }
+    Color color() const { return style_group<CSS::ComputedValues::InheritedTextValues>().color; }
+    Color webkit_text_fill_color() const { return style_group<CSS::ComputedValues::InheritedTextValues>().webkit_text_fill_color; }
+    CSSPixels letter_spacing() const { return style_group<CSS::ComputedValues::InheritedTextValues>().letter_spacing; }
+    Vector<CSS::ShadowData> const& text_shadow() const { return style_group<CSS::ComputedValues::InheritedTextValues>().text_shadow; }
+    CSS::TextTransform text_transform() const { return style_group<CSS::ComputedValues::InheritedTextValues>().text_transform; }
+    CSS::WhiteSpaceCollapse white_space_collapse() const { return style_group<CSS::ComputedValues::InheritedTextValues>().white_space_collapse; }
+    CSS::TextDecorationSkipInk text_decoration_skip_ink() const { return style_group<CSS::ComputedValues::InheritedTextValues>().text_decoration_skip_ink; }
+    CSSPixels text_underline_offset() const { return style_group<CSS::ComputedValues::InheritedTextValues>().text_underline_offset.used_value; }
+    CSS::TextUnderlinePosition text_underline_position() const { return style_group<CSS::ComputedValues::InheritedTextValues>().text_underline_position; }
+    Vector<CSS::TextDecorationLine> const& text_decoration_line() const { return style_group<CSS::ComputedValues::TextResetValues>().text_decoration_line; }
+    CSS::TextDecorationThickness const& text_decoration_thickness() const { return style_group<CSS::ComputedValues::TextResetValues>().text_decoration_thickness; }
+    Color text_decoration_color() const { return style_group<CSS::ComputedValues::TextResetValues>().text_decoration_color; }
+    CSS::TextDecorationStyle text_decoration_style() const { return style_group<CSS::ComputedValues::TextResetValues>().text_decoration_style; }
+    Optional<CSS::ContentData> const& content() const { return style_group<CSS::ComputedValues::ContentValues>().content; }
+    CSSPixels line_height() const { return style_group<CSS::ComputedValues::FontValues>().line_height_used; }
+    CSSPixels font_size() const { return style_group<CSS::ComputedValues::FontValues>().font_size; }
+    Gfx::FontCascadeList const& font_list() const { return *style_group<CSS::ComputedValues::FontValues>().font_list; }
+    CSS::FlexBasis flex_basis() const
+    {
+        auto const& value = style_group<CSS::ComputedValues::AlignmentValues>().flex_basis;
+        if (value.is_content)
+            return CSS::FlexBasisContent {};
+        return CSS::Size::view(value.size);
+    }
+    CSS::FlexDirection flex_direction() const { return static_cast<CSS::FlexDirection>(style_group<CSS::ComputedValues::AlignmentValues>().flex_direction); }
+    CSS::FlexWrap flex_wrap() const { return static_cast<CSS::FlexWrap>(style_group<CSS::ComputedValues::AlignmentValues>().flex_wrap); }
+    CSS::AlignSelf align_self() const { return static_cast<CSS::AlignSelf>(style_group<CSS::ComputedValues::AlignmentValues>().align_self); }
+    CSS::JustifySelf justify_self() const { return static_cast<CSS::JustifySelf>(style_group<CSS::ComputedValues::AlignmentValues>().justify_self); }
+    i32 order() const { return style_group<CSS::ComputedValues::AlignmentValues>().order; }
+    CSS::Size const& width() const { return CSS::Size::view(style_group<CSS::ComputedValues::SizingValues>().width); }
+    CSS::Size const& min_width() const { return CSS::Size::view(style_group<CSS::ComputedValues::SizingValues>().min_width); }
+    CSS::Size const& max_width() const { return CSS::Size::view(style_group<CSS::ComputedValues::SizingValues>().max_width); }
+    CSS::Size const& height() const { return CSS::Size::view(style_group<CSS::ComputedValues::SizingValues>().height); }
+    CSS::Size const& min_height() const { return CSS::Size::view(style_group<CSS::ComputedValues::SizingValues>().min_height); }
+    CSS::Size const& max_height() const { return CSS::Size::view(style_group<CSS::ComputedValues::SizingValues>().max_height); }
+    CSS::LengthBox inset() const { return length_box(style_group<CSS::ComputedValues::SurroundValues>().inset); }
+    CSS::LengthBox margin() const { return length_box(style_group<CSS::ComputedValues::SurroundValues>().margin); }
+    CSS::LengthBox padding() const { return length_box(style_group<CSS::ComputedValues::SurroundValues>().padding); }
+    CSS::PositionAnchor const& position_anchor_value() const { return style_group<CSS::ComputedValues::AnchorValues>().position_anchor; }
+    Vector<NonnullRefPtr<CSS::TransformationStyleValue const>> const& transformations() const { return style_group<CSS::ComputedValues::TransformValues>().transformations; }
+    CSS::TransformBox const& transform_box() const { return style_group<CSS::ComputedValues::TransformValues>().transform_box; }
+    CSS::TransformOrigin const& transform_origin() const { return style_group<CSS::ComputedValues::TransformValues>().transform_origin; }
+    CSS::TransformStyle const& transform_style() const { return style_group<CSS::ComputedValues::TransformValues>().transform_style; }
+    RefPtr<CSS::TransformationStyleValue const> const& rotate() const { return style_group<CSS::ComputedValues::TransformValues>().rotate; }
+    RefPtr<CSS::TransformationStyleValue const> const& translate() const { return style_group<CSS::ComputedValues::TransformValues>().translate; }
+    RefPtr<CSS::TransformationStyleValue const> const& scale() const { return style_group<CSS::ComputedValues::TransformValues>().scale; }
+    Optional<CSSPixels> const& perspective() const { return style_group<CSS::ComputedValues::TransformValues>().perspective; }
+    CSS::Position const& perspective_origin() const { return style_group<CSS::ComputedValues::TransformValues>().perspective_origin; }
+    Optional<CSS::MaskReference> const& mask() const { return style_group<CSS::ComputedValues::MaskValues>().mask; }
+    CSS::MaskType mask_type() const { return style_group<CSS::ComputedValues::MaskValues>().mask_type; }
+    Optional<CSS::ClipPathReference> const& clip_path() const { return style_group<CSS::ComputedValues::MaskValues>().clip_path; }
+    Optional<CSS::BaselineMetric> dominant_baseline() const { return style_group<CSS::ComputedValues::InheritedSVGValues>().dominant_baseline; }
+    Optional<CSS::SVGPaint> const& fill() const { return style_group<CSS::ComputedValues::InheritedSVGValues>().fill; }
+    CSS::FillRule fill_rule() const { return style_group<CSS::ComputedValues::InheritedSVGValues>().fill_rule; }
+    Optional<CSS::SVGPaint> const& stroke() const { return style_group<CSS::ComputedValues::InheritedSVGValues>().stroke; }
+    float fill_opacity() const { return style_group<CSS::ComputedValues::InheritedSVGValues>().fill_opacity; }
+    Vector<Variant<CSS::LengthPercentage, float>> const& stroke_dasharray() const { return style_group<CSS::ComputedValues::InheritedSVGValues>().stroke_dasharray; }
+    CSS::LengthPercentage const& stroke_dashoffset() const { return style_group<CSS::ComputedValues::InheritedSVGValues>().stroke_dashoffset; }
+    CSS::StrokeLinecap stroke_linecap() const { return style_group<CSS::ComputedValues::InheritedSVGValues>().stroke_linecap; }
+    CSS::StrokeLinejoin stroke_linejoin() const { return style_group<CSS::ComputedValues::InheritedSVGValues>().stroke_linejoin; }
+    double stroke_miterlimit() const { return style_group<CSS::ComputedValues::InheritedSVGValues>().stroke_miterlimit; }
+    float stroke_opacity() const { return style_group<CSS::ComputedValues::InheritedSVGValues>().stroke_opacity; }
+    CSS::LengthPercentage const& stroke_width() const { return style_group<CSS::ComputedValues::InheritedSVGValues>().stroke_width; }
+    CSS::ClipRule clip_rule() const { return style_group<CSS::ComputedValues::InheritedSVGValues>().clip_rule; }
+    CSS::PaintOrderList paint_order() const { return style_group<CSS::ComputedValues::InheritedSVGValues>().paint_order; }
+    CSS::TextAnchor text_anchor() const { return style_group<CSS::ComputedValues::InheritedSVGValues>().text_anchor; }
+    CSS::ShapeRendering shape_rendering() const { return style_group<CSS::ComputedValues::InheritedSVGValues>().shape_rendering; }
+    CSS::LengthPercentage const& cx() const { return CSS::LengthPercentage::view(style_group<CSS::ComputedValues::SVGResetValues>().cx); }
+    CSS::LengthPercentage const& cy() const { return CSS::LengthPercentage::view(style_group<CSS::ComputedValues::SVGResetValues>().cy); }
+    CSS::LengthPercentage const& r() const { return CSS::LengthPercentage::view(style_group<CSS::ComputedValues::SVGResetValues>().r); }
+    CSS::LengthPercentage const& x() const { return CSS::LengthPercentage::view(style_group<CSS::ComputedValues::SVGResetValues>().x); }
+    CSS::LengthPercentage const& y() const { return CSS::LengthPercentage::view(style_group<CSS::ComputedValues::SVGResetValues>().y); }
+    CSS::VectorEffect vector_effect() const { return static_cast<CSS::VectorEffect>(style_group<CSS::ComputedValues::SVGResetValues>().vector_effect); }
     bool is_inline_block() const;
     bool is_inline_table() const;
     bool has_replaced_element_table_display_adjustment() const;
@@ -406,7 +635,7 @@ public:
     bool is_in_flow() const { return !is_out_of_flow(); }
 
     bool establishes_stacking_context() const;
-    bool computed_values_establish_absolute_positioning_containing_block() const;
+    bool style_establishes_absolute_positioning_containing_block() const;
     bool establishes_an_absolute_positioning_containing_block() const;
     bool establishes_a_fixed_positioning_containing_block() const;
 
@@ -425,22 +654,16 @@ public:
 
     [[nodiscard]] bool has_css_transform() const
     {
-        auto const& computed_values = this->computed_values();
-        auto has_transform = !computed_values.transformations().is_empty()
-            || computed_values.rotate()
-            || computed_values.translate()
-            || computed_values.scale();
+        auto has_transform = !transformations().is_empty() || rotate() || translate() || scale();
         return has_transform && is_transformable();
     }
 
     void clear_image_observers();
-    void apply_style(NonnullRefPtr<CSS::ComputedValues const>);
+    void apply_style(CSS::StyleRecordID);
     void attach_style_resources();
     bool synchronize_table_span_data();
 
     Gfx::Font const& first_available_font() const;
-    Vector<CSS::BackgroundLayerData> const& background_layers() const { return computed_values().background_layers(); }
-    CSS::AbstractImageStyleValue const* list_style_image() const { return computed_values().list_style_image(); }
     CSS::StyleScope const& style_scope() const;
 
     NonnullRefPtr<NodeWithStyle> create_anonymous_wrapper() const;
@@ -451,13 +674,17 @@ public:
     bool is_scroll_container() const;
 
     void set_computed_values(NonnullRefPtr<CSS::ComputedValues const>);
+    void set_style_record_identity(CSS::StyleRecordID);
+    void pin_style_record_for_cxx_consumers();
+    void release_pinned_style_record();
+    void bind_generated_style_record(CSS::StyleRecordID);
 
     void set_display(CSS::Display);
     void set_content(CSS::ContentData const&);
     void set_overflow(CSS::Overflow overflow_x, CSS::Overflow overflow_y);
 
 protected:
-    NodeWithStyle(DOM::Document&, GC::Ptr<DOM::Node>, NonnullRefPtr<CSS::ComputedValues const>);
+    NodeWithStyle(DOM::Document&, GC::Ptr<DOM::Node>, CSS::LayoutStyle);
 
 private:
     virtual bool is_node_with_style() const final { return true; }
@@ -465,11 +692,13 @@ private:
     void reset_table_box_computed_values_used_by_wrapper_to_init_values();
     void propagate_non_inherit_values(CSS::ComputedValues::Builder&) const;
     void propagate_style_to_anonymous_wrappers();
-    void publish_style_container_to_node_data();
+    void publish_style_record_to_node_data();
 
     void rebuild_image_observers();
-
-    NonnullRefPtr<CSS::ComputedValues const> m_computed_values;
+    CSS::ComputedValues const& owned_computed_values() const;
+    RefPtr<CSS::ComputedValues const> m_owned_computed_values;
+    CSS::StyleRecordID m_style_record_identity;
+    GC::Root<DOM::Document> m_style_record_owner;
     Vector<NonnullOwnPtr<ImageObserver>> m_image_observers;
 };
 
@@ -514,7 +743,7 @@ inline Gfx::Font const& NodeWithStyle::first_available_font() const
 {
     // https://drafts.csswg.org/css-fonts/#first-available-font
     // First font for which the character U+0020 (space) is not excluded by a unicode-range
-    return computed_values().font_list().font_for_code_point(' ');
+    return font_list().font_for_code_point(' ');
 }
 
 bool overflow_value_makes_box_a_scroll_container(CSS::Overflow overflow);

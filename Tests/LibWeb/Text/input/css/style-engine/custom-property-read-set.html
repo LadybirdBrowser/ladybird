@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    :root {
+        --changed: rgb(255, 0, 0);
+        --show: none;
+        --stable: rgb(0, 0, 255);
+    }
+
+    .unrelated {
+        color: var(--stable);
+    }
+
+    #changed {
+        color: var(--changed);
+    }
+
+    #fallback {
+        color: var(--outer, var(--changed));
+    }
+
+    #maybe::before {
+        content: var(--show, none);
+    }
+</style>
+<div id="host">
+    <div id="changed">changed</div>
+    <div id="fallback">fallback</div>
+    <div id="maybe">maybe</div>
+</div>
+<script>
+    test(() => {
+        const host = document.getElementById("host");
+        const changed = document.getElementById("changed");
+        const fallback = document.getElementById("fallback");
+        const maybe = document.getElementById("maybe");
+        for (let index = 0; index < 100; ++index)
+            host.appendChild(document.createElement("div")).className = "unrelated";
+
+        host.offsetWidth;
+        getComputedStyle(maybe, "::before").content;
+        internals.resetStyleInvalidationCounters();
+
+        document.documentElement.style.setProperty("--changed", "rgb(128, 0, 128)");
+        internals.updateStyle();
+
+        const counters = internals.getStyleInvalidationCounters();
+        const unrelated = host.lastElementChild;
+        println(`changed value: ${getComputedStyle(changed).color}`);
+        println(`fallback value: ${getComputedStyle(fallback).color}`);
+        println(`unrelated value: ${getComputedStyle(unrelated).color}`);
+        println(`refreshed inherited value: ${getComputedStyle(unrelated).getPropertyValue("--changed")}`);
+        println(`unrelated styles reused: ${counters.elementStyleInputReused >= 100}`);
+        println(`recomputations bounded: ${counters.elementStyleRecomputations <= 4}`);
+
+        // Pseudo-element substitution contributes to the originating element's read set even when
+        // its previous value produced no pseudo-element.
+        internals.resetStyleInvalidationCounters();
+        document.documentElement.style.setProperty("--show", '"created"');
+        internals.updateStyle();
+        println(`changed binding creates pseudo: ${getComputedStyle(maybe, "::before").content}`);
+    });
+</script>

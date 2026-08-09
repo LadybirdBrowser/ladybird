@@ -15,6 +15,8 @@
 #include <AK/Types.h>
 #include <AK/Utf16FlyString.h>
 #include <AK/Vector.h>
+#include <LibGC/Cell.h>
+#include <LibGC/Ptr.h>
 #include <LibWeb/CSS/StyleEngineIdentifiers.h>
 #include <LibWeb/CSS/StyleRecordID.h>
 #include <LibWeb/ComputedValuesRustFFI.h>
@@ -22,6 +24,8 @@
 #include <LibWeb/StyleEngineRustFFI.h>
 
 namespace Web::CSS {
+
+class StyleComputer;
 
 // Owns one document's StyleEngine. The engine itself lives entirely on the Rust side: selector
 // evaluation, cascade, computed values, and every index and identity they are keyed by. C++ keeps
@@ -36,14 +40,20 @@ class WEB_API StyleEngine {
 
 public:
     using DeviceClass = StyleEngineFFI::FfiDeviceClass;
-    explicit StyleEngine(DeviceClass);
+    explicit StyleEngine(DeviceClass, StyleComputer* = nullptr);
     ~StyleEngine();
+
+    void visit_edges(GC::Cell::Visitor&);
 
 #include <LibWeb/StyleEngineBridgeGenerated.h>
 
     // Identity 0 is never returned; it means "no node".
     StyleNodeID allocate_style_node();
     void allocate_style_nodes(Span<StyleNodeID> nodes);
+    void defer_element_initial_features(StyleNodeID style_node) { m_nodes_with_pending_initial_features.set(style_node); }
+    void cancel_deferred_element_initial_features(StyleNodeID style_node) { m_nodes_with_pending_initial_features.remove(style_node); }
+    [[nodiscard]] bool has_deferred_element_initial_features(StyleNodeID style_node) const { return m_nodes_with_pending_initial_features.contains(style_node); }
+    Vector<StyleNodeID> take_deferred_element_initial_features();
     [[nodiscard]] bool resize_parsed_substitution_cache(u64 bytes);
 
     void set_element_parts(StyleNodeID node, ReadonlySpan<StyleAtomID> names, ReadonlySpan<StyleNodeID> hosts);
@@ -144,12 +154,10 @@ public:
         PseudoInputsMayHaveChanged = 1 << 6,
     };
     void record_element_style_input_change(StyleNodeID style_node, u8 reaction = PublishedStyle | RecomputeStyle, u8 inherited_style_groups = 0);
-    void record_flat_tree_descendant_style_input_changes(StyleNodeID style_node);
+    void record_flat_tree_descendant_style_input_changes(StyleNodeID style_node, u8 reaction, u8 inherited_style_groups = 0);
     void consume_recorded_element_style_input_change(StyleNodeID style_node);
     [[nodiscard]] bool has_recorded_element_style_input_change(StyleNodeID style_node) const;
-#ifdef ENABLE_STYLE_RECORDING
     void record_benchmark_marker(Utf16View);
-#endif
     [[nodiscard]] bool has_recorded_input() const;
     [[nodiscard]] bool has_pending_transaction() const;
 
@@ -204,8 +212,10 @@ private:
     void submit_recorded_input();
 
     void* m_impl { nullptr };
+    GC::Ptr<StyleComputer> m_style_computer;
 
     HashTable<FlatPtr> m_atoms;
+    HashTable<StyleNodeID> m_nodes_with_pending_initial_features;
     size_t m_element_match_capacity { 64 };
 
     u32 m_declaration_block_version { 1 };

@@ -114,6 +114,21 @@ public:
 
     GC::Ptr<Element> retargeted_fullscreen_element() const;
 
+    // A shadow root is not an element and has no style of its own, but it is a parent in the style
+    // tree: it is what a shadow-tree element's relations name, and it is what bounds the region a
+    // `:host()` rule reaches. Without an identity of its own, that region has no name and every
+    // route across the boundary widens to the document.
+    [[nodiscard]] CSS::StyleNodeID style_node_id() const { return m_style_node_id; }
+    void set_style_node_id(CSS::StyleNodeID style_node_id) { m_style_node_id = style_node_id; }
+
+    // A shadow root is also a style scope, and that is a longer-lived thing than its place in the
+    // style tree. The style node identity is minted when the root joins the tree and given up when
+    // it leaves; the scope identity has to survive that, because a sheet adopted into the scope is
+    // detached with the identity it was attached with. Only moving to another document retires it,
+    // since identities belong to one document's engine.
+    [[nodiscard]] CSS::TreeScopeID style_engine_tree_scope() const { return m_style_engine_tree_scope; }
+    void set_style_engine_tree_scope(CSS::TreeScopeID tree_scope) { m_style_engine_tree_scope = tree_scope; }
+
 protected:
     virtual void visit_edges(Cell::Visitor&) override;
 
@@ -130,6 +145,9 @@ private:
     virtual void adopted_from(Document&) override;
 
     void calculate_part_element_map();
+
+    CSS::StyleNodeID m_style_node_id;
+    CSS::TreeScopeID m_style_engine_tree_scope;
 
     // NOTE: The specification doesn't seem to specify a default value for mode. Assuming closed for now.
     ShadowRootMode m_mode { ShadowRootMode::Closed };

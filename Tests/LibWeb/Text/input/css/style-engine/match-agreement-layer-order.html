@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div class="x">x</div>
+<script>
+    test(() => {
+        // Which layer comes before which follows the order the document declares them in, not the
+        // order the sheets arrive in. Here the sheet that declares the order arrives last, and a
+        // sheet using one of its layers arrived first.
+        const late = document.createElement("style");
+        late.textContent = "@layer utils { .x { color: red } }";
+        document.head.appendChild(late);
+        internals.updateStyle();
+
+        const first = document.createElement("style");
+        first.textContent = "@layer base, utils; @layer base { .x { color: green } }";
+        document.head.insertBefore(first, late);
+        internals.updateStyle();
+        // Style under `display: none` is cascaded on the read that asks for it, and the two style
+        // elements are inserted after the document's first pass. Asking settles them, so the report
+        // counts no element it has no answer for either way round.
+        for (const element of document.querySelectorAll("*")) getComputedStyle(element).color;
+        println(internals.styleEngineMatchedRules());
+    });
+</script>

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="plan.js"></script>
+<style>
+    .item { color: green }
+</style>
+<div id="guard">
+    <span id="item" class="item"></span>
+    <span id="sibling" class="item"></span>
+</div>
+<table id="table"><tr><td id="cell">x</td></tr></table>
+<svg id="svg"><circle id="circle" cx="5" cy="5" r="4"></circle></svg>
+<script>
+    test(() => {
+        const item = document.getElementById("item");
+
+        // A declaration sourced from the element changes what wins on that element and nothing
+        // else. There is no selector to transpose, so the region is the element itself, however
+        // many rules the document has.
+        plan("gain an inline style", () => item.setAttribute("style", "color: red"));
+        plan("edit that inline style", () => item.style.color = "blue");
+        plan("add a property through the CSSOM", () => item.style.fontWeight = "bold");
+        plan("lose the inline style", () => item.removeAttribute("style"));
+
+        // A presentational hint is a declaration too, and reaches only its element.
+        plan("gain a presentational hint", () => document.getElementById("table").setAttribute("bgcolor", "red"));
+        plan("lose it", () => document.getElementById("table").removeAttribute("bgcolor"));
+
+        // An SVG presentation attribute is a third kind of element-sourced declaration, with its own
+        // cascade placement and the same reach: the element it is written on.
+        const circle = document.getElementById("circle");
+        plan("gain an SVG presentation attribute", () => circle.setAttribute("fill", "red"));
+        plan("change it", () => circle.setAttribute("fill", "blue"));
+        plan("lose it", () => circle.removeAttribute("fill"));
+
+        // Removing one property of an inline block is the same input as replacing the block.
+        plan("remove one inline property through the CSSOM", () => {
+            item.style.color = "red";
+            item.style.removeProperty("color");
+        });
+
+        // Writing the same declarations again moves nothing.
+        item.setAttribute("style", "color: red");
+        planSetup();
+        item.setAttribute("style", "color: red");
+        println(`rewrite the same inline style: [${internals.styleEngineTransactionReactions().elements.join(", ")}]`);
+    });
+</script>

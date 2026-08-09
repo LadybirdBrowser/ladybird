@@ -100,9 +100,14 @@ void Paintable::set_containing_block(Paintable* containing_block)
     invalidate_absolute_geometry_cache(InvalidateDescendantGeometry::No);
 }
 
-CSS::ComputedValues const& Paintable::computed_values() const
+bool Paintable::is_visible() const
 {
-    return layout_node().computed_values();
+    return layout_node().visibility() == CSS::Visibility::Visible && layout_node().opacity() != 0;
+}
+
+CSS::StyleRecordID Paintable::style_record_identity() const
+{
+    return layout_node().style_record_identity();
 }
 
 Vector<MaskLayerPresence, 3> Paintable::mask_layer_presence(MaskLayerSet mask_layer_set) const
@@ -110,7 +115,7 @@ Vector<MaskLayerPresence, 3> Paintable::mask_layer_presence(MaskLayerSet mask_la
     Vector<MaskLayerPresence, 3> presence;
 
     if (mask_layer_set == MaskLayerSet::CssAndSvg
-        && any_of(computed_values().mask_layers(), [](auto const& layer) { return layer.background_image != nullptr; })
+        && any_of(layout_node().mask_layers(), [](auto const& layer) { return layer.background_image != nullptr; })
         && is<Layout::Box>(layout_node())
         && layout_node().establishes_stacking_context()) {
         presence.append({
@@ -172,7 +177,7 @@ bool Paintable::visible_for_hit_testing() const
 {
     if (auto node = dom_node(); node && node->is_inert())
         return false;
-    return computed_values().pointer_events() != CSS::PointerEvents::None;
+    return layout_node().pointer_events() != CSS::PointerEvents::None;
 }
 
 void Paintable::set_dom_node(GC::Ptr<DOM::Node> dom_node)
@@ -344,20 +349,20 @@ Paintable::SelectionStyle Paintable::selection_style_for_node(Layout::Node const
 
     // For text nodes, check the parent element since text nodes don't have computed properties.
     if (!node)
-        return default_style_for_color_scheme(style_source.computed_values().color_scheme());
+        return default_style_for_color_scheme(style_source.color_scheme());
 
     DOM::Element const* element = as_if<DOM::Element>(*node);
     if (!element)
         element = node->parent_element().ptr();
     if (!element)
-        return default_style_for_color_scheme(style_source.computed_values().color_scheme());
+        return default_style_for_color_scheme(style_source.color_scheme());
 
-    auto color_scheme_is_normal = element->computed_values()->color_schemes().is_empty();
+    auto color_scheme_is_normal = style_source.color_schemes().is_empty();
     auto use_palette_for_normal_color_scheme = color_scheme_is_normal && !layout_node.document().supported_color_schemes().has_value();
-    auto default_style = default_style_for_color_scheme(style_source.computed_values().color_scheme(), use_palette_for_normal_color_scheme);
+    auto default_style = default_style_for_color_scheme(style_source.color_scheme(), use_palette_for_normal_color_scheme);
 
     auto style_from_element = [&](DOM::Element const& element) -> Optional<SelectionStyle> {
-        auto computed_selection_style = element.computed_values(CSS::PseudoElement::Selection);
+        auto computed_selection_style = element.computed_style(CSS::PseudoElement::Selection);
         if (!computed_selection_style)
             return {};
 
@@ -451,13 +456,13 @@ void Paintable::scroll_text_offset_into_view(DOM::Text const& text, size_t offse
 {
     auto scroll_to_cursor = [&](PaintableFragment const& fragment) {
         auto cursor_rect = fragment.range_rect(SelectionState::StartAndEnd, offset, offset);
-        auto const& computed_values = fragment.style_source().computed_values();
-        if (computed_values.writing_mode() == CSS::WritingMode::HorizontalTb) {
-            if (computed_values.inline_axis_is_reverse())
+        auto const& style_source = fragment.style_source();
+        if (style_source.writing_mode() == CSS::WritingMode::HorizontalTb) {
+            if (style_source.inline_axis_is_reverse())
                 cursor_rect.set_x(cursor_rect.x() - 1);
             cursor_rect.set_width(1);
         } else {
-            if (computed_values.inline_axis_is_reverse())
+            if (style_source.inline_axis_is_reverse())
                 cursor_rect.set_y(cursor_rect.y() - 1);
             cursor_rect.set_height(1);
         }
@@ -465,7 +470,7 @@ void Paintable::scroll_text_offset_into_view(DOM::Text const& text, size_t offse
             if (ancestor->has_scrollable_overflow()) {
                 if (scroll_block_direction == ScrollBlockDirection::No) {
                     auto snapport = ancestor->scroll_snapport_rect();
-                    if (computed_values.writing_mode() == CSS::WritingMode::HorizontalTb) {
+                    if (style_source.writing_mode() == CSS::WritingMode::HorizontalTb) {
                         cursor_rect.set_y(snapport.y() + ancestor->scroll_offset().y());
                         cursor_rect.set_height(snapport.height());
                     } else {
@@ -537,14 +542,14 @@ struct Paintable::CachedPaintData {
 
 static bool content_size_change_affects_container_queries(Paintable const& paintable_box, CSSPixelSize old_size, CSSPixelSize new_size)
 {
-    auto const& container_type = paintable_box.computed_values().container_type();
+    auto container_type = paintable_box.layout_node().container_type();
     if (container_type.is_size_container)
         return old_size != new_size;
 
     if (!container_type.is_inline_size_container)
         return false;
 
-    if (paintable_box.computed_values().writing_mode() == CSS::WritingMode::HorizontalTb)
+    if (paintable_box.layout_node().writing_mode() == CSS::WritingMode::HorizontalTb)
         return old_size.width() != new_size.width();
 
     return old_size.height() != new_size.height();
@@ -748,7 +753,7 @@ static Color effective_scrollbar_background_color(Paintable const& paintable_box
         if (is_canvas_background_source(layout_node_with_style))
             continue;
 
-        auto color = layout_node_with_style.computed_values().background_color();
+        auto color = layout_node_with_style.background_color();
         if (color.alpha() == 0)
             continue;
 
@@ -777,7 +782,7 @@ static CSS::ScrollbarColorData automatic_scrollbar_colors(Paintable const& paint
 
 static CSS::ScrollbarColorData scrollbar_colors_for_paint(Paintable const& paintable_box)
 {
-    auto scrollbar_colors = paintable_box.computed_values().scrollbar_color();
+    auto scrollbar_colors = paintable_box.layout_node().scrollbar_color();
     if (!scrollbar_colors.is_auto)
         return scrollbar_colors;
 
@@ -792,7 +797,7 @@ static void record_viewport_scrollbar_state(Paintable const& paintable_box, Disp
         return;
     if (!should_paint_viewport_scrollbars())
         return;
-    if (paintable_box.computed_values().scrollbar_width() == CSS::ScrollbarWidth::None)
+    if (paintable_box.layout_node().scrollbar_width() == CSS::ScrollbarWidth::None)
         return;
 
     auto scrollbar_colors = scrollbar_colors_for_paint(paintable_box);
@@ -848,7 +853,6 @@ static void record_blocking_wheel_event_region(Paintable const& paintable_box, D
 
 ResolvedCSSFilter resolve_css_filter(CSS::Filter const& computed_filter, Paintable const& paintable_box)
 {
-    auto const& computed_values = paintable_box.computed_values();
     auto const& layout_node = paintable_box.layout_node();
 
     ResolvedCSSFilter result;
@@ -905,8 +909,8 @@ ResolvedCSSFilter resolve_css_filter(CSS::Filter const& computed_filter, Paintab
             };
             auto color_context = CSS::ColorResolutionContext::for_layout_node_with_style(layout_node);
             auto resolved_color = drop_shadow.color()
-                ? drop_shadow.color()->to_color(color_context).value_or(computed_values.color())
-                : computed_values.color();
+                ? drop_shadow.color()->to_color(color_context).value_or(layout_node.color())
+                : layout_node.color();
 
             result.operations.empend(ResolvedCSSFilter::DropShadow {
                 .offset_x = to_css_px(drop_shadow.offset_x()),
@@ -944,19 +948,18 @@ NonnullRefPtr<Paintable> Paintable::create(Layout::Box const& layout_box)
 Paintable::Paintable(Layout::NodeWithStyle const& layout_node)
     : m_layout_node(layout_node)
 {
-    auto& computed_values = layout_node.computed_values();
-    if ((layout_node.is_flex_item() || layout_node.is_grid_item()) && computed_values.z_index().has_value()) {
+    if ((layout_node.is_flex_item() || layout_node.is_grid_item()) && layout_node.z_index().has_value()) {
         // https://drafts.csswg.org/css-flexbox-1/#painting
         // https://drafts.csswg.org/css-grid-2/#z-order
         // Flex and grid items with z-index values other than "auto" behave as if position were "relative".
         m_positioned = true;
     } else {
-        m_positioned = computed_values.position() != CSS::Positioning::Static;
+        m_positioned = layout_node.position() != CSS::Positioning::Static;
     }
 
-    m_fixed_position = computed_values.position() == CSS::Positioning::Fixed;
-    m_sticky_position = computed_values.position() == CSS::Positioning::Sticky;
-    m_absolutely_positioned = computed_values.position() == CSS::Positioning::Absolute;
+    m_fixed_position = layout_node.position() == CSS::Positioning::Fixed;
+    m_sticky_position = layout_node.position() == CSS::Positioning::Sticky;
+    m_absolutely_positioned = layout_node.position() == CSS::Positioning::Absolute;
     m_floating = layout_node.is_floating();
     m_inline = layout_node.is_inline();
     m_display = layout_node.display();
@@ -1227,15 +1230,14 @@ CSSPixelRect Paintable::scroll_snapport_rect() const
 
 CSSPixelRect Paintable::scroll_snapport_rect(CSSPixelRect scrollport) const
 {
-    auto const* scroll_padding_source = &computed_values();
+    Layout::NodeWithStyle const* scroll_padding_source = &layout_node();
 
-    RefPtr<CSS::ComputedValues const> document_element_computed_values;
     if (is_viewport_paintable()) {
         auto const* document_element = document().document_element();
-        document_element_computed_values = document_element ? document_element->computed_values() : nullptr;
-        if (!document_element_computed_values)
+        auto const* document_element_layout_node = document_element ? document_element->unsafe_layout_node() : nullptr;
+        if (!document_element_layout_node)
             return scrollport;
-        scroll_padding_source = document_element_computed_values.ptr();
+        scroll_padding_source = document_element_layout_node;
     }
 
     // Percentages refer to the corresponding dimension of the scroll container’s scrollport.
@@ -1390,7 +1392,7 @@ CSSPixelRect Paintable::overflow_clip_edge_rect() const
     // '<visual-box>'
     //     Specifies the box edge to use as the overflow clip edge origin, i.e. when the specified offset is zero.
     //     If omitted, defaults to 'padding-box' on non-replaced elements, or 'content-box' on replaced elements.
-    auto const& overflow_clip_margin = computed_values().overflow_clip_margin();
+    auto const& overflow_clip_margin = layout_node().overflow_clip_margin();
     auto resolve_box_edge = [&](CSS::OverflowClipMarginSide const& side) -> CSSPixelRect {
         auto box = side.visual_box;
         if (!box.has_value()) {
@@ -1425,7 +1427,7 @@ CSSPixelRect Paintable::overflow_clip_edge_rect() const
 
 Optional<CSSPixelRect> Paintable::get_clip_rect() const
 {
-    auto clip = computed_values().clip();
+    auto clip = layout_node().clip();
     if (clip.is_rect() && layout_node().is_absolutely_positioned()) {
         auto border_box = absolute_border_box_rect();
         return clip.to_rect().resolved(border_box);
@@ -1448,28 +1450,33 @@ NonnullRefPtr<Scrollbar> Paintable::ensure_scrollbar(ScrollDirection direction)
 
 static CSS::Overflow overflow_value_applied_to_viewport_for_wheel_scrolling(DOM::Document const& document, Paintable::ScrollDirection direction)
 {
-    auto overflow_for_direction = [direction](CSS::ComputedValues const& computed_values) {
+    auto overflow_for_direction = [direction](CSS::ComputedValues::BoxValues const& style) {
         return direction == Paintable::ScrollDirection::Horizontal
-            ? computed_values.overflow_x()
-            : computed_values.overflow_y();
+            ? static_cast<CSS::Overflow>(style.overflow_x)
+            : static_cast<CSS::Overflow>(style.overflow_y);
+    };
+    auto has_containment = [](CSS::ComputedValues::BoxValues const& style) {
+        return style.size_containment || style.inline_size_containment || style.layout_containment || style.style_containment || style.paint_containment;
     };
 
     auto* root_element = document.document_element();
-    if (!root_element || !root_element->computed_values())
+    auto const* root_style = root_element ? root_element->style_group<CSS::ComputedValues::BoxValues>() : nullptr;
+    if (!root_style)
         return CSS::Overflow::Auto;
 
-    auto* overflow_origin_element = root_element;
-    if (root_element->is_html_html_element() && root_element->computed_values()->contain().is_empty()) {
-        auto root_overflow_x = root_element->computed_values()->overflow_x();
-        auto root_overflow_y = root_element->computed_values()->overflow_y();
+    auto const* overflow_origin = root_style;
+    if (root_element->is_html_html_element() && !has_containment(*root_style)) {
+        auto root_overflow_x = static_cast<CSS::Overflow>(root_style->overflow_x);
+        auto root_overflow_y = static_cast<CSS::Overflow>(root_style->overflow_y);
         if (root_overflow_x == CSS::Overflow::Visible && root_overflow_y == CSS::Overflow::Visible) {
             auto* body_element = root_element->first_child_of_type<HTML::HTMLBodyElement>();
-            if (body_element && body_element->computed_values() && body_element->computed_values()->contain().is_empty())
-                overflow_origin_element = body_element;
+            auto const* body_style = body_element ? body_element->style_group<CSS::ComputedValues::BoxValues>() : nullptr;
+            if (body_style && !has_containment(*body_style))
+                overflow_origin = body_style;
         }
     }
 
-    auto overflow = overflow_for_direction(*overflow_origin_element->computed_values());
+    auto overflow = overflow_for_direction(*overflow_origin);
     if (overflow == CSS::Overflow::Visible)
         return CSS::Overflow::Auto;
     if (overflow == CSS::Overflow::Clip)
@@ -1481,7 +1488,7 @@ bool Paintable::could_be_scrolled_by_wheel_event(ScrollDirection direction) cons
 {
     bool is_horizontal = direction == ScrollDirection::Horizontal;
     Gfx::Orientation orientation = is_horizontal ? Gfx::Orientation::Horizontal : Gfx::Orientation::Vertical;
-    auto overflow = is_horizontal ? computed_values().overflow_x() : computed_values().overflow_y();
+    auto overflow = is_horizontal ? layout_node().overflow_x() : layout_node().overflow_y();
     if (is_viewport_paintable())
         overflow = overflow_value_applied_to_viewport_for_wheel_scrolling(document(), direction);
 
@@ -1511,7 +1518,7 @@ bool Paintable::overflow_property_applies() const
     //        not all elements that should support overflow are currently identifiable that way.
     if (is<SVGPaintable>(*this))
         return false;
-    auto const& display = computed_values().display();
+    auto display = layout_node().display();
     if (layout_node().is_fragmented_inline())
         return false;
     if (display.is_ruby_inside())
@@ -1542,7 +1549,7 @@ Optional<CSSPixelRect> Paintable::absolute_scrollbar_rect(ScrollDirection direct
     if (!could_be_scrolled_by_wheel_event(direction))
         return {};
 
-    if (computed_values().scrollbar_width() == CSS::ScrollbarWidth::None)
+    if (layout_node().scrollbar_width() == CSS::ScrollbarWidth::None)
         return {};
 
     bool is_horizontal = direction == ScrollDirection::Horizontal;
@@ -1579,7 +1586,7 @@ Optional<Paintable::ScrollbarData> Paintable::compute_scrollbar_data(ScrollDirec
 {
     bool is_horizontal = direction == ScrollDirection::Horizontal;
     auto orientation = is_horizontal ? Gfx::Orientation::Horizontal : Gfx::Orientation::Vertical;
-    auto overflow = is_horizontal ? computed_values().overflow_x() : computed_values().overflow_y();
+    auto overflow = is_horizontal ? layout_node().overflow_x() : layout_node().overflow_y();
 
     if (overflow != CSS::Overflow::Scroll && !could_be_scrolled_by_wheel_event(direction))
         return {};
@@ -1701,7 +1708,7 @@ void Paintable::record_hit_test_items(DisplayListRecordingContext& context, Pain
     if (!hit_test_display_list)
         return;
 
-    auto const is_visible = computed_values().visibility() == CSS::Visibility::Visible;
+    auto const is_visible = layout_node().visibility() == CSS::Visibility::Visible;
     if (!is_visible || !visible_for_hit_testing())
         return;
 
@@ -1735,7 +1742,7 @@ void Paintable::paint(DisplayListRecordingContext& context, PaintPhase phase) co
         return;
 
     auto empty_cells_property_applies = [this]() {
-        return display().is_internal_table() && computed_values().empty_cells() == CSS::EmptyCells::Hide && !has_children();
+        return display().is_internal_table() && layout_node().empty_cells() == CSS::EmptyCells::Hide && !has_children();
     };
 
     if (phase == PaintPhase::Background && !empty_cells_property_applies()) {
@@ -1744,12 +1751,12 @@ void Paintable::paint(DisplayListRecordingContext& context, PaintPhase phase) co
         paint_box_shadow(context);
     }
 
-    auto const is_table_with_collapsed_borders = display().is_table_inside() && computed_values().border_collapse() == CSS::BorderCollapse::Collapse;
+    auto const is_table_with_collapsed_borders = display().is_table_inside() && layout_node().border_collapse() == CSS::BorderCollapse::Collapse;
     if (!display().is_table_cell() && !is_table_with_collapsed_borders && phase == PaintPhase::Border) {
         paint_border(context);
     }
 
-    if ((display().is_table_inside() || computed_values().border_collapse() == CSS::BorderCollapse::Collapse) && phase == PaintPhase::TableCollapsedBorder) {
+    if ((display().is_table_inside() || layout_node().border_collapse() == CSS::BorderCollapse::Collapse) && phase == PaintPhase::TableCollapsedBorder) {
         paint_table_borders(context, *this);
     }
 
@@ -1762,7 +1769,7 @@ void Paintable::paint(DisplayListRecordingContext& context, PaintPhase phase) co
         ChromeMetrics const& metrics = context.chrome_metrics();
 
         if (((g_paint_viewport_scrollbars && !document().page().async_scrolling_enabled()) || !is_viewport_paintable())
-            && computed_values().scrollbar_width() != CSS::ScrollbarWidth::None) {
+            && layout_node().scrollbar_width() != CSS::ScrollbarWidth::None) {
             auto scrollbar_colors = scrollbar_colors_for_paint(*this);
 
             for (auto direction : { ScrollDirection::Vertical, ScrollDirection::Horizontal }) {
@@ -2121,7 +2128,7 @@ Optional<int> Paintable::effective_z_index() const
     // https://drafts.csswg.org/css2/#z-index
     // Applies to: positioned elements
     if (is_positioned())
-        return computed_values().z_index();
+        return layout_node().z_index();
 
     return {};
 }
@@ -2400,7 +2407,7 @@ static void paint_border_image_slice(DisplayListRecordingContext& context, Gfx::
 
 static bool paint_border_image(DisplayListRecordingContext& context, Paintable const& paintable_box, BordersData const& borders_data, CSSPixelRect const& border_box_rect)
 {
-    auto const& border_image = paintable_box.computed_values().border_image();
+    auto const& border_image = paintable_box.layout_node().border_image();
     if (!border_image.source)
         return false;
 
@@ -2430,7 +2437,7 @@ static bool paint_border_image(DisplayListRecordingContext& context, Paintable c
     auto repeat_x = border_image.repeat_x;
     auto repeat_y = border_image.repeat_y;
 
-    auto image_rendering = paintable_box.computed_values().image_rendering();
+    auto image_rendering = paintable_box.layout_node().image_rendering();
 
     // A tile keeps the source region's aspect ratio at the scale forced by the border thickness.
     auto natural_tile_size = [&](BorderImageTrack column, BorderImageTrack row, CSSPixelRect const& destination_rect) -> CSSPixelSize {
@@ -2476,10 +2483,10 @@ static bool paint_border_image(DisplayListRecordingContext& context, Paintable c
 void Paintable::paint_border(DisplayListRecordingContext& context) const
 {
     auto borders_data = m_override_borders_data.has_value() ? remove_element_kind_from_borders_data(m_override_borders_data.value()) : BordersData {
-        .top = box_model().border.top == 0 ? CSS::BorderData() : computed_values().border_top(),
-        .right = box_model().border.right == 0 ? CSS::BorderData() : computed_values().border_right(),
-        .bottom = box_model().border.bottom == 0 ? CSS::BorderData() : computed_values().border_bottom(),
-        .left = box_model().border.left == 0 ? CSS::BorderData() : computed_values().border_left(),
+        .top = box_model().border.top == 0 ? CSS::BorderData() : layout_node().border_top(),
+        .right = box_model().border.right == 0 ? CSS::BorderData() : layout_node().border_right(),
+        .bottom = box_model().border.bottom == 0 ? CSS::BorderData() : layout_node().border_bottom(),
+        .left = box_model().border.left == 0 ? CSS::BorderData() : layout_node().border_left(),
     };
     paint_border(context, absolute_border_box_rect(), borders_data, normalized_border_radii_data());
 }
@@ -2539,7 +2546,7 @@ void Paintable::paint_focused_area_outline(DisplayListRecordingContext& context)
     if (!image_element || map_element->first_painted_image_with_focusable_shapes().ptr() != image_element)
         return;
 
-    auto area_computed_values = area_element->computed_values();
+    auto area_computed_values = area_element->computed_style();
     if (!area_computed_values)
         return;
 
@@ -2580,10 +2587,10 @@ void Paintable::paint_focused_area_outline(DisplayListRecordingContext& context)
 
 void Paintable::paint_backdrop_filter(DisplayListRecordingContext& context) const
 {
-    if (!computed_values().backdrop_filter().has_filters())
+    if (!layout_node().backdrop_filter().has_filters())
         return;
 
-    auto resolved = resolve_css_filter(computed_values().backdrop_filter(), *this);
+    auto resolved = resolve_css_filter(layout_node().backdrop_filter(), *this);
     auto backdrop_region = context.rounded_device_rect(absolute_border_box_rect());
     auto border_radii_data = normalized_border_radii_data();
     ScopedCornerRadiusClip corner_clipper { context, backdrop_region, border_radii_data };
@@ -2593,8 +2600,7 @@ void Paintable::paint_backdrop_filter(DisplayListRecordingContext& context) cons
 
 bool Paintable::has_css_borders() const
 {
-    auto const& computed_values = this->computed_values();
-    return computed_values.border_top().width != 0 || computed_values.border_right().width != 0 || computed_values.border_bottom().width != 0 || computed_values.border_left().width != 0;
+    return layout_node().border_top().width != 0 || layout_node().border_right().width != 0 || layout_node().border_bottom().width != 0 || layout_node().border_left().width != 0;
 }
 
 void Paintable::paint_background(DisplayListRecordingContext& context) const
@@ -2603,13 +2609,11 @@ void Paintable::paint_background(DisplayListRecordingContext& context) const
     if (body_background_is_propagated_to_root(layout_node()))
         return;
 
-    auto const& computed_values = this->computed_values();
-
     // https://drafts.csswg.org/css-backgrounds/#root-background
     if (layout_node().is_root_element()) {
         auto background_rect = absolute_border_box_rect();
-        Color background_color = computed_values.background_color();
-        auto const* background_layers = &computed_values.background_layers();
+        Color background_color = layout_node().background_color();
+        auto const* background_layers = &layout_node().background_layers();
 
         auto& html_element = as<HTML::HTMLHtmlElement>(*layout_node().dom_node());
         if (html_element.should_use_body_background_properties()) {
@@ -2621,7 +2625,7 @@ void Paintable::paint_background(DisplayListRecordingContext& context) const
 
         ResolvedBackground resolved_background;
         if (background_layers)
-            resolved_background = resolve_background_layers(*background_layers, *this, background_color, computed_values.background_color_clip(), background_rect, border_radii);
+            resolved_background = resolve_background_layers(*background_layers, *this, background_color, layout_node().background_color_clip(), background_rect, border_radii);
 
         auto canvas_rect = navigable()->viewport_rect();
         if (auto overflow_rect = scrollable_overflow_rect(); overflow_rect.has_value())
@@ -2630,7 +2634,7 @@ void Paintable::paint_background(DisplayListRecordingContext& context) const
         resolved_background.color_box.rect.unite(canvas_rect);
 
         // If the body's background was propagated to the root element, use the body's image-rendering value.
-        auto image_rendering = computed_values.image_rendering();
+        auto image_rendering = layout_node().image_rendering();
         if (html_element.should_use_body_background_properties())
             image_rendering = document().background_image_rendering();
 
@@ -2646,9 +2650,8 @@ void Paintable::paint_background(DisplayListRecordingContext& context) const
 
 void Paintable::paint_background_within(DisplayListRecordingContext& context, CSSPixelRect const& background_rect, BorderRadiiData const& border_radii) const
 {
-    auto const& computed_values = this->computed_values();
-    auto resolved_background = resolve_background_layers(computed_values.background_layers(), *this, computed_values.background_color(), computed_values.background_color_clip(), background_rect, border_radii);
-    Painting::paint_background(context, *this, computed_values.image_rendering(), resolved_background, border_radii);
+    auto resolved_background = resolve_background_layers(layout_node().background_layers(), *this, layout_node().background_color(), layout_node().background_color_clip(), background_rect, border_radii);
+    Painting::paint_background(context, *this, layout_node().image_rendering(), resolved_background, border_radii);
 }
 
 void Paintable::paint_box_shadow(DisplayListRecordingContext& context) const
@@ -2658,7 +2661,7 @@ void Paintable::paint_box_shadow(DisplayListRecordingContext& context) const
 
 void Paintable::paint_box_shadow(DisplayListRecordingContext& context, CSSPixelRect const& border_box_rect, CSSPixelRect const& padding_box_rect, BorderRadiiData const& border_radii) const
 {
-    auto const& box_shadow_layers = computed_values().box_shadow();
+    auto const& box_shadow_layers = layout_node().box_shadow();
     if (box_shadow_layers.is_empty())
         return;
     Vector<Painting::ShadowData> resolved_box_shadow_data;
@@ -2666,10 +2669,10 @@ void Paintable::paint_box_shadow(DisplayListRecordingContext& context, CSSPixelR
     for (auto const& layer : box_shadow_layers)
         resolved_box_shadow_data.unchecked_append(ShadowData::from_css(layer));
     auto borders_data = BordersData {
-        .top = computed_values().border_top(),
-        .right = computed_values().border_right(),
-        .bottom = computed_values().border_bottom(),
-        .left = computed_values().border_left(),
+        .top = layout_node().border_top(),
+        .right = layout_node().border_right(),
+        .bottom = layout_node().border_bottom(),
+        .left = layout_node().border_left(),
     };
     Painting::paint_box_shadow(context, border_box_rect, padding_box_rect,
         borders_data, border_radii, resolved_box_shadow_data);
@@ -2680,10 +2683,10 @@ BorderRadiiData Paintable::normalized_border_radii_data(ShrinkRadiiForBorders sh
     auto border_radii_data = this->border_radii_data();
     if (shrink == ShrinkRadiiForBorders::Yes)
         border_radii_data.shrink(
-            computed_values().border_top().width,
-            computed_values().border_right().width,
-            computed_values().border_bottom().width,
-            computed_values().border_left().width);
+            layout_node().border_top().width,
+            layout_node().border_right().width,
+            layout_node().border_bottom().width,
+            layout_node().border_left().width);
 
     return border_radii_data;
 }
@@ -2762,8 +2765,8 @@ bool Paintable::has_resizer() const
 
 bool Paintable::is_chrome_mirrored() const
 {
-    auto const& writing_mode = computed_values().writing_mode();
-    return (writing_mode == CSS::WritingMode::HorizontalTb && computed_values().direction() == CSS::Direction::Rtl)
+    auto writing_mode = layout_node().writing_mode();
+    return (writing_mode == CSS::WritingMode::HorizontalTb && layout_node().direction() == CSS::Direction::Rtl)
         || writing_mode == CSS::WritingMode::VerticalRl
         || writing_mode == CSS::WritingMode::SidewaysRl;
 }
@@ -2840,7 +2843,7 @@ void Paintable::set_needs_repaint(InvalidateDisplayList should_invalidate_displa
 // https://www.w3.org/TR/css-transforms-1/#reference-box
 CSSPixelRect Paintable::transform_reference_box() const
 {
-    auto transform_box = computed_values().transform_box();
+    auto transform_box = layout_node().transform_box();
     // For SVG elements without associated CSS layout box, the used value for content-box is fill-box and for
     // border-box is stroke-box.
     // FIXME: This currently detects any SVG element except the <svg> one. Is that correct?
@@ -2905,18 +2908,21 @@ CSSPixelRect Paintable::transform_reference_box() const
 
 BorderRadiiData Paintable::border_radii_data() const
 {
-    auto const& computed_values = this->computed_values();
-    if (!computed_values.has_noninitial_border_radii())
+    if (!layout_node().has_noninitial_border_radii())
         return {};
     CSSPixelRect const border_rect { 0, 0, border_box_width(), border_box_height() };
     return normalize_border_radii_data(border_rect, border_rect,
-        computed_values.border_top_left_radius(), computed_values.border_top_right_radius(),
-        computed_values.border_bottom_right_radius(), computed_values.border_bottom_left_radius());
+        layout_node().border_top_left_radius(), layout_node().border_top_right_radius(),
+        layout_node().border_bottom_right_radius(), layout_node().border_bottom_left_radius());
 }
 
 Optional<BordersData> Paintable::outline_data() const
 {
-    return outline_data(computed_values());
+    // The `auto` outline is the UA focus ring; like native controls, it is only shown while the window has focus.
+    if (layout_node().outline_style() == CSS::OutlineStyle::Auto && (!navigable() || !navigable()->is_focused()))
+        return {};
+
+    return borders_data_for_outline(layout_node(), layout_node().outline_color(), layout_node().outline_style(), layout_node().outline_width());
 }
 
 Optional<BordersData> Paintable::outline_data(CSS::ComputedValues const& computed_values) const
@@ -2930,7 +2936,7 @@ Optional<BordersData> Paintable::outline_data(CSS::ComputedValues const& compute
 
 CSSPixels Paintable::outline_offset() const
 {
-    return computed_values().outline_offset();
+    return layout_node().outline_offset();
 }
 
 RefPtr<Paintable const> Paintable::nearest_scrollable_ancestor() const
@@ -2948,34 +2954,32 @@ RefPtr<Paintable const> Paintable::nearest_scrollable_ancestor() const
 
 Paintable::PhysicalResizeAxes Paintable::physical_resize_axes() const
 {
-    auto const& computed = computed_values();
-
     // https://drafts.csswg.org/css-ui/#resize
-    if (computed.resize() == CSS::Resize::None)
+    if (layout_node().resize() == CSS::Resize::None)
         return {};
 
     // 4.1. ... The resize property applies to elements that are scroll containers. UAs may also apply it,
     // regardless of the value of the overflow property, to:
     // - Replaced elements representing images or videos, such as img, video, picture, svg, object, or canvas.
     // - The <iframe> element.
-    if (computed.display().is_inline_outside() && computed.display().is_flow_inside())
+    if (layout_node().display().is_inline_outside() && layout_node().display().is_flow_inside())
         return {};
 
-    bool horizontal_writing_mode = computed.writing_mode() == CSS::WritingMode::HorizontalTb;
+    bool horizontal_writing_mode = layout_node().writing_mode() == CSS::WritingMode::HorizontalTb;
 
     return {
-        .horizontal = computed.overflow_x() != CSS::Overflow::Visible
-            && computed.overflow_x() != CSS::Overflow::Clip
-            && (computed.resize() == CSS::Resize::Both
-                || computed.resize() == CSS::Resize::Horizontal
-                || (computed.resize() == CSS::Resize::Inline && horizontal_writing_mode)
-                || (computed.resize() == CSS::Resize::Block && !horizontal_writing_mode)),
-        .vertical = computed.overflow_y() != CSS::Overflow::Visible
-            && computed.overflow_y() != CSS::Overflow::Clip
-            && (computed.resize() == CSS::Resize::Both
-                || computed.resize() == CSS::Resize::Vertical
-                || (computed.resize() == CSS::Resize::Inline && !horizontal_writing_mode)
-                || (computed.resize() == CSS::Resize::Block && horizontal_writing_mode))
+        .horizontal = layout_node().overflow_x() != CSS::Overflow::Visible
+            && layout_node().overflow_x() != CSS::Overflow::Clip
+            && (layout_node().resize() == CSS::Resize::Both
+                || layout_node().resize() == CSS::Resize::Horizontal
+                || (layout_node().resize() == CSS::Resize::Inline && horizontal_writing_mode)
+                || (layout_node().resize() == CSS::Resize::Block && !horizontal_writing_mode)),
+        .vertical = layout_node().overflow_y() != CSS::Overflow::Visible
+            && layout_node().overflow_y() != CSS::Overflow::Clip
+            && (layout_node().resize() == CSS::Resize::Both
+                || layout_node().resize() == CSS::Resize::Vertical
+                || (layout_node().resize() == CSS::Resize::Inline && !horizontal_writing_mode)
+                || (layout_node().resize() == CSS::Resize::Block && horizontal_writing_mode))
     };
 }
 

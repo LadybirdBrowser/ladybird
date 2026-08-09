@@ -15,7 +15,7 @@ class TextAreaBox : public BlockContainer {
     LAYOUT_NODE(TextAreaBox, BlockContainer);
 
 public:
-    TextAreaBox(DOM::Document&, GC::Ptr<DOM::Element>, NonnullRefPtr<CSS::ComputedValues const>);
+    TextAreaBox(DOM::Document&, GC::Ptr<DOM::Element>, CSS::LayoutStyle);
 
     HTML::HTMLTextAreaElement const& dom_node() const { return static_cast<HTML::HTMLTextAreaElement const&>(*Box::dom_node()); }
 

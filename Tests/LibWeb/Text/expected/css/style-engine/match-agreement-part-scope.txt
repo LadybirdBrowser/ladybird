@@ -1,0 +1,5 @@
+target: --from-the-document, --with-nothing-before-it
+inner-target: --one-level-down
+div#target: ::part(target) #outer::part(target)
+div#inner-target: #middle::part(inner-target)
+

@@ -16,13 +16,13 @@
         settleAndReset();
 
         document.getElementById("target").classList.add("x");
-        getComputedStyle(document.getElementById("anchor")).color;
+        internals.updateStyle();
         printCounters("add .x (anchor should stop being styled)");
 
         internals.resetStyleInvalidationCounters();
 
         document.getElementById("target").classList.remove("x");
-        getComputedStyle(document.getElementById("anchor")).color;
+        internals.updateStyle();
         printCounters("remove .x (anchor should be styled again)");
     });
 </script>

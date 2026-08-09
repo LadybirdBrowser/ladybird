@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="plan.js"></script>
+<style>
+    x-outer::part(foo) { color: green }
+    x-outer::part(renamed) { font-weight: bold }
+</style>
+<x-outer id="outer"></x-outer>
+<script>
+    test(() => {
+        // A part name says nothing on its own about how far out it reaches. `exportparts` forwards
+        // it through a host, usually under the name it already had, so the names an element carries
+        // can stay exactly as they were while the scopes able to address it change. What is
+        // published is the reach: the outermost host a `::part()` rule can name the element from.
+        const outer = document.getElementById("outer");
+        const outerShadow = outer.attachShadow({ mode: "open" });
+        outerShadow.innerHTML = "<x-inner id='inner'></x-inner>";
+        const inner = outerShadow.getElementById("inner");
+        const innerShadow = inner.attachShadow({ mode: "open" });
+        innerShadow.innerHTML = "<span id='target' part='foo'></span><span id='unexposed'></span>";
+
+        // The forwarded name is the one the element already had, so its part names do not move at
+        // all - only the tree it can be addressed from does.
+        plan("forward a part out of the inner tree", () => inner.setAttribute("exportparts", "foo"));
+        plan("forward it under a different name", () => inner.setAttribute("exportparts", "foo: renamed"));
+        plan("forward a name nothing inside carries", () => inner.setAttribute("exportparts", "nobody"));
+        plan("stop forwarding", () => inner.removeAttribute("exportparts"));
+    });
+</script>

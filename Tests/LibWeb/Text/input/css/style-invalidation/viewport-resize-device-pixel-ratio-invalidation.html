@@ -26,6 +26,6 @@
         println(`updated device pixel ratio: ${devicePixelRatio}`);
         println(`updated border width: ${getComputedStyle(target).borderTopWidth}`);
         println(`updated outline width: ${getComputedStyle(target).outlineWidth}`);
-        println(`full invalidation happened: ${counters.fullStyleInvalidations > 0}`);
+        println(`reaction batch happened: ${counters.styleEngineReactionBatchRuns > 0}`);
     });
 </script>

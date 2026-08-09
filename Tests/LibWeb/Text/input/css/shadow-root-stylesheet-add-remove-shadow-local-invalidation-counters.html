@@ -8,12 +8,14 @@
         internals.resetStyleInvalidationCounters();
     }
 
-    function verifyInvalidationsStayBounded(label, maxInvalidations) {
-        const invalidations = internals.getStyleInvalidationCounters().styleInvalidations;
-        if (invalidations <= maxInvalidations)
-            println(`PASS: ${label} (${invalidations} invalidations)`);
+    function verifyRecomputationsStayBounded(label, maximum) {
+        const recomputations = internals.getStyleInvalidationCounters().elementStyleRecomputations;
+        // The bound is what this asserts, so the bound is what it prints: recording the exact count
+        // would make the expectation depend on a number no assertion here cares about.
+        if (recomputations <= maximum)
+            println(`PASS: ${label} (at most ${maximum} recomputations)`);
         else
-            println(`FAIL: ${label} (${invalidations} invalidations)`);
+            println(`FAIL: ${label} (${recomputations} recomputations, expected at most ${maximum})`);
     }
 
     test(() => {
@@ -35,11 +37,11 @@
         settleAndReset(shadowTarget);
         shadowRoot.appendChild(shadowStyle);
         getComputedStyle(shadowTarget).color;
-        verifyInvalidationsStayBounded("shadow-local stylesheet add ignores matching light-DOM bystanders", 4);
+        verifyRecomputationsStayBounded("shadow-local stylesheet add ignores matching light-DOM bystanders", 4);
 
         settleAndReset(shadowTarget);
         shadowStyle.remove();
         getComputedStyle(shadowTarget).color;
-        verifyInvalidationsStayBounded("shadow-local stylesheet remove ignores matching light-DOM bystanders", 4);
+        verifyRecomputationsStayBounded("shadow-local stylesheet remove ignores matching light-DOM bystanders", 4);
     });
 </script>

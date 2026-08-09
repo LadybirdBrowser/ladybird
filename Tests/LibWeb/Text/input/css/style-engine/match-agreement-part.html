@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>#host::part(badge) { color: purple } div::part(badge) { font-weight: bold }</style>
+<div id="host"></div>
+<script>
+    test(() => {
+        const root = document.getElementById("host").attachShadow({ mode: "open" });
+        root.innerHTML = `<span part="badge">inside</span><span>plain</span>`;
+        // A part is inside a tree the addressing scope does not decide in, and only `::part()`
+        // there reaches it: the plain span beside it is reached by nothing outside the tree.
+        println(internals.styleEngineMatchedRules());
+    });
+</script>

@@ -186,6 +186,9 @@ impl<'a> ExactMatcher<'a> {
                 if let Some(shadow_root) = self.shadow_root {
                     evaluator = evaluator.in_shadow_tree(shadow_root);
                 }
+                if self.context == ExactMatchContext::Part {
+                    evaluator = evaluator.for_a_part_exposed_in(self.scope);
+                }
                 for (index, entry) in compiled.entries().iter().enumerate() {
                     let context_admits = match self.context {
                         ExactMatchContext::Ordinary => true,

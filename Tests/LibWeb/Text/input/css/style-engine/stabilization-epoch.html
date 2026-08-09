@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #container {
+        container-type: size;
+        width: 100px;
+        height: 20px;
+    }
+    #target { color: black }
+    #ordinary.changed { color: green }
+    @container (min-width: 200px) {
+        #target { color: green }
+    }
+</style>
+<div id="container"><div id="target"></div></div>
+<div id="ordinary"></div>
+<script>
+    test(() => {
+        target.getBoundingClientRect();
+
+        internals.resetStyleInvalidationCounters();
+        ordinary.className = "changed";
+        internals.updateStyle();
+
+        let counters = internals.getStyleInvalidationCounters();
+        println(`feedback-free epoch: ${counters.styleStabilizationEpochs === 1}`);
+        println(`feedback-free pass: ${counters.provisionalStylePasses === 1}`);
+        println(`feedback-free state: ${counters.styleStabilizationFeedbackEpochs === 0}`);
+
+        internals.resetStyleInvalidationCounters();
+        container.style.width = "300px";
+        target.getBoundingClientRect();
+
+        counters = internals.getStyleInvalidationCounters();
+        println(`feedback shares one epoch: ${counters.styleStabilizationEpochs === 1}`);
+        println(`feedback uses multiple passes: ${counters.provisionalStylePasses > 1}`);
+        println(`feedback state is visible: ${counters.styleStabilizationFeedbackEpochs === 1}`);
+        println(`stable query result: ${getComputedStyle(target).color}`);
+    });
+</script>

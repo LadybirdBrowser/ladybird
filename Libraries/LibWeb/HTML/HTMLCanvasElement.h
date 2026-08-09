@@ -86,7 +86,8 @@ private:
     virtual bool is_presentational_hint(Utf16FlyString const&) const override;
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;
 
-    virtual RefPtr<Layout::Node> create_layout_node(NonnullRefPtr<CSS::ComputedValues const>) override;
+    virtual RefPtr<Layout::Node> create_layout_node(CSS::LayoutStyle) override;
+
     template<typename ContextType>
     JS::ThrowCompletionOr<HasOrCreatedContext> create_webgl_context(JS::Value options);
     WebGL::WebGLRenderingContextBase* webgl_context() const;

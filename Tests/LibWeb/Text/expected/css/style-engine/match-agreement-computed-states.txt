@@ -1,0 +1,9 @@
+a display: block
+a background-color: rgb(1, 2, 3)
+b display: block
+dialog outline-color: rgb(0, 0, 0)
+dialog matches :focus: true
+dialog matches :focus-visible: false
+div#a: [popover] :popover-open
+div#b: [popover] :popover-open
+

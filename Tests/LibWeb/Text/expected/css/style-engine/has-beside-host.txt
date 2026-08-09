@@ -1,0 +1,10 @@
+the light DOM answers none of them: rgb(0, 0, 0)
+a descendant of the tree: rgb(0, 128, 0)
+a child of the root, which outranks it: rgb(0, 0, 255)
+the chain, tied back to the root rather than to the host: rgb(255, 0, 255)
+back to none of them: rgb(0, 0, 0)
+a class arriving in the tree: [subject]
+and leaving it again: [subject]
+an element carrying one arriving: [subject, arrival]
+and departing, which no walk from it can find: [subject]
+

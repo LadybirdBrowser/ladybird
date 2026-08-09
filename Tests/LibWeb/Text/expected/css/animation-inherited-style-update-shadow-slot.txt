@@ -1,4 +1,4 @@
-host shadow child color: rgb(128, 0, 128)
+host shadow child color: rgb(0, 0, 0)
 host shadow slot color: rgb(128, 0, 128)
 host slotted color: rgb(128, 0, 128)
 slot target slotted color: rgb(128, 0, 128)

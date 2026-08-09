@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div class="x" id="target">x</div>
+<script>
+    test(() => {
+        const a = new CSSStyleSheet();
+        a.replaceSync(".x { color: rgb(255, 0, 0); font-weight: bold }");
+        const b = new CSSStyleSheet();
+        b.replaceSync(".x { color: rgb(0, 0, 255); text-decoration: underline }");
+        document.adoptedStyleSheets = [a, b];
+        internals.updateStyle();
+        println("before: " + getComputedStyle(document.getElementById("target")).color);
+
+        document.adoptedStyleSheets = [b, a];
+        internals.updateStyle();
+        // Both rules still win something, so the compact winner set is unchanged; only the
+        // contested color changes hands. Expected red; the suppression bug keeps blue.
+        println("after: " + getComputedStyle(document.getElementById("target")).color);
+    });
+</script>

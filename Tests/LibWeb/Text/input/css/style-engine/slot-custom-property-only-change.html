@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="host">
+    <template shadowrootmode="open">
+        <style>
+            slot { --color: red; }
+            slot.green { --color: green; }
+            ::slotted(span) { color: var(--color); }
+        </style>
+        <slot id="slot"></slot>
+    </template>
+    <span id="slotted">slotted</span>
+</div>
+<script>
+    test(() => {
+        const slot = document.getElementById("host").shadowRoot.getElementById("slot");
+        const slotted = document.getElementById("slotted");
+
+        internals.updateStyle();
+        println("before: " + getComputedStyle(slotted).color);
+
+        // The slot's ordinary computed properties do not change, but its custom-property
+        // environment does. Assigned slottables are observers across a non-DOM inheritance edge.
+        slot.classList.add("green");
+        internals.updateStyle();
+
+        println("after: " + getComputedStyle(slotted).color);
+    });
+</script>

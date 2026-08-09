@@ -1,0 +1,3 @@
+published reaction batches: 8
+style pass guard reached: 1
+ninth reaction applied: rgb(255, 0, 0)

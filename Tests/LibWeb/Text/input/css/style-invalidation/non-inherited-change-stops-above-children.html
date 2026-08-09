@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="structural-matrix.js"></script>
+<style>
+    #plain.changed { background-color: blue }
+    #inheriting.changed { margin-left: 27px }
+    #inheriting > span { margin-left: inherit }
+    #color-source.changed { color: blue }
+</style>
+<div id="plain"><span></span><span></span><span></span></div>
+<div id="inheriting"><span></span><span></span><span></span></div>
+<div id="color-source"><span></span><span></span><span></span></div>
+<script>
+    test(() => {
+        // What a child reads of its parent is the inherited half of the parent's style, so a change
+        // confined to non-inherited properties has nothing a child can see and the walk stops at the
+        // parent. `inherit` on a non-inherited property is the one way a child reaches past that.
+        const measure = (id, label, read) => {
+            flushPendingStyleWork();
+            document.getElementById(id).classList.add("changed");
+            internals.updateStyle();
+            printPassWithCounters(label);
+            if (read)
+                println(read());
+        };
+
+        const firstChildOf = id => document.getElementById(id).firstElementChild;
+
+        measure("plain", "a non-inherited change reaches no child");
+        measure("inheriting", "a child explicitly inheriting a non-inherited property is reached",
+            () => `explicitly inherited margin-left: ${getComputedStyle(firstChildOf("inheriting")).marginLeft}`);
+        measure("color-source", "an inherited change reaches every child",
+            () => `inherited color: ${getComputedStyle(firstChildOf("color-source")).color}`);
+    });
+</script>

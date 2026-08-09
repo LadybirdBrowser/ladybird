@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .container:has(.witness) .target {
+        color: rgb(1, 2, 3);
+    }
+
+    .target::before {
+        content: "before";
+        color: rgb(4, 5, 6);
+    }
+</style>
+<div class="container">
+    <div class="witness"></div>
+    <div id="target" class="target">target</div>
+</div>
+<script>
+    test(() => {
+        internals.updateStyle();
+
+        const graphBefore = internals.styleEngineCounters();
+        const invalidationBefore = internals.getStyleInvalidationCounters();
+        internals.setPreferredColorScheme("dark");
+        internals.updateStyle();
+        const graphAfter = internals.styleEngineCounters();
+        const invalidationAfter = internals.getStyleInvalidationCounters();
+
+        println(`one environment action: ${graphAfter.environmentDeltas - graphBefore.environmentDeltas === 1}`);
+        println(`one reaction batch: ${invalidationAfter.styleEngineReactionBatchRuns - invalidationBefore.styleEngineReactionBatchRuns === 1}`);
+        println(`element: ${getComputedStyle(target).color}`);
+        println(`before: ${getComputedStyle(target, "::before").color}`);
+    });
+</script>

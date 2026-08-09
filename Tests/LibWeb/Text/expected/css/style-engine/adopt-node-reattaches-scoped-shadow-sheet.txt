@@ -1,0 +1,2 @@
+before: rgb(1, 2, 3)
+after: rgb(1, 2, 3)

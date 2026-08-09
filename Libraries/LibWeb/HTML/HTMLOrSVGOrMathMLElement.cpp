@@ -31,16 +31,26 @@ GC::Ref<DOMStringMap> HTMLOrSVGOrMathMLElement<ElementBase>::dataset()
 template<typename ElementBase>
 void HTMLOrSVGOrMathMLElement<ElementBase>::focus(Bindings::FocusOptions const& options)
 {
+    auto& element = *static_cast<ElementBase*>(this);
+
     // 1. If the allow focus steps given this's node document return false, then return.
-    if (!static_cast<ElementBase*>(this)->document().allow_focus())
+    if (!element.document().allow_focus())
         return;
+
+    // OPTIMIZATION: Checking whether an element is focusable may update its style. WebKit and Blink
+    // also return before that check when focus() is called on the already-focused element.
+    if (auto navigable = element.document().navigable()) {
+        auto& traversable = as<LocalTraversableNavigable>(*navigable->top_level_traversable());
+        if (traversable.currently_focused_area() == GC::Ptr<DOM::Node> { element })
+            return;
+    }
 
     // 2. Run the focusing steps for this.
     // 4. If options["preventScroll"] is false, then scroll a target into view given this, "auto", "center", and
     //    "center".
     // NB: The scroll into view of step 4 is performed by the focus update steps, which scroll the newly focused
     //     element into  view for every way of focusing it.
-    run_focusing_steps(static_cast<ElementBase*>(this), nullptr, FocusTrigger::Script, options.prevent_scroll ? ScrollIntoView::No : ScrollIntoView::Yes);
+    run_focusing_steps(&element, nullptr, FocusTrigger::Script, options.prevent_scroll ? ScrollIntoView::No : ScrollIntoView::Yes);
 
     // FIXME: 3. If options["focusVisible"] is true, or does not exist but in an implementation-defined way the user agent determines it would be best to do so, then indicate focus.
 }

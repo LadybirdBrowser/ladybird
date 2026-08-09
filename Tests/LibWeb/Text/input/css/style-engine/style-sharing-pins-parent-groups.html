@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .parent {
+        color: rgb(1, 2, 3);
+    }
+
+    .parent.changed {
+        color: rgb(4, 5, 6);
+    }
+</style>
+<div id="first-parent" class="parent"><span>first</span></div>
+<div id="second-parent" class="parent"><span>second</span></div>
+<script>
+    test(() => {
+        const firstParent = document.getElementById("first-parent");
+        const secondParent = document.getElementById("second-parent");
+        internals.updateStyle();
+
+        firstParent.classList.add("changed");
+        internals.updateStyle();
+        println(`restyled child: ${getComputedStyle(firstParent.firstElementChild).color}`);
+
+        const thirdParent = document.createElement("div");
+        thirdParent.className = "parent";
+        thirdParent.innerHTML = "<span>third</span>";
+        secondParent.after(thirdParent);
+        internals.updateStyle();
+        println(`shared child: ${getComputedStyle(thirdParent.firstElementChild).color}`);
+    });
+</script>

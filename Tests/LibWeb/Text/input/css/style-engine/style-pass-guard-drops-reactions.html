@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="fixture"></div>
+<script>
+    test(() => {
+        const outerHost = document.createElement("div");
+        fixture.appendChild(outerHost);
+        const outerShadow = outerHost.attachShadow({ mode: "open" });
+        outerShadow.innerHTML = `
+            <style>
+                #starter { --state: off; color: red }
+                #starter.changed { --state: on; color: green }
+            </style>
+            <slot id="starter"></slot>
+        `;
+
+        let parent = outerHost;
+        let target;
+        for (let i = 0; i < 8; ++i) {
+            const host = document.createElement("div");
+            parent.appendChild(host);
+            const shadow = host.attachShadow({ mode: "open" });
+            shadow.innerHTML = `
+                <style>
+                    #outlet { --state: off; color: red }
+                    @container style(--state: on) {
+                        #outlet { --state: on; color: green }
+                    }
+                </style>
+                <div id="bridge"><slot id="outlet"></slot></div>
+            `;
+            target = shadow.getElementById("outlet");
+            parent = host;
+        }
+
+        internals.updateStyle();
+
+        internals.resetStyleInvalidationCounters();
+        outerShadow.getElementById("starter").className = "changed";
+        internals.updateStyle();
+
+        const counters = internals.getStyleInvalidationCounters();
+        println(`published reaction batches: ${counters.styleEngineReactionBatchRuns}`);
+        println(`style pass guard reached: ${counters.styleUpdatePassGuardHits}`);
+        println(`ninth reaction applied: ${getComputedStyle(target).color}`);
+    });
+</script>

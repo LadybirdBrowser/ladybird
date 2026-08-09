@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<span id="target">target</span>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+
+        // A constructed sheet is built disabled or given media before anything adopts it, so the
+        // state it arrives with is never announced by the mutation that set it.
+        const disabled = new CSSStyleSheet({ disabled: true });
+        disabled.replaceSync("#target { color: rgb(1, 2, 3) }");
+        const printOnly = new CSSStyleSheet({ media: "print" });
+        printOnly.replaceSync("#target { background-color: rgb(4, 5, 6) }");
+        const enabled = new CSSStyleSheet();
+        enabled.replaceSync("#target { outline-color: rgb(7, 8, 9) }");
+
+        document.adoptedStyleSheets = [disabled, printOnly, enabled];
+        println("disabled sheet color: " + getComputedStyle(target).color);
+        println("print-only sheet background: " + getComputedStyle(target).backgroundColor);
+        println("enabled sheet outline: " + getComputedStyle(target).outlineColor);
+
+        disabled.disabled = false;
+        println("after enabling: " + getComputedStyle(target).color);
+    });
+</script>

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    :root { --theme: rgb(0, 0, 255); }
+    .wrap { --local: 3px; padding: var(--local); }
+    .item { color: var(--theme); }
+</style>
+<div id="host"></div>
+<script>
+    test(() => {
+        const host = document.getElementById("host");
+        host.innerHTML = '<div class="wrap"><div class="item">a</div><div class="item">b</div></div>'.repeat(20);
+        getComputedStyle(host).color;
+
+        // A sheet that decides for every element recomputes every element, but what each of those
+        // computations reads has not moved: the counter styles it resolves and the custom property
+        // environment it inherits are the ones it read last time. Both used to be minted afresh,
+        // which named a new inherited half for every element, and for every element under it.
+        const insertSheet = (text) => {
+            const style = document.createElement("style");
+            style.textContent = text;
+            document.head.appendChild(style);
+            getComputedStyle(host).color;
+        };
+
+        insertSheet("* { outline-width: 1px }");
+        internals.resetStyleInvalidationCounters();
+        insertSheet("* { outline-width: 2px }");
+
+        const counters = internals.getStyleInvalidationCounters();
+        println(`input changed by parent style: ${counters.elementStyleInputChangedByParentStyle}`);
+        println(`input changed by parent custom properties: ${counters.elementStyleInputChangedByParentCustomProperties}`);
+        println(`item color: ${getComputedStyle(host.firstElementChild.firstElementChild).color}`);
+        println(`wrap padding: ${getComputedStyle(host.firstElementChild).paddingTop}`);
+    });
+</script>

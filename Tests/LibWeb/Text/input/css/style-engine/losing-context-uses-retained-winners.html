@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .item { color: black !important }
+    .boost .item { color: red }
+    .boost #sentinel { outline-color: green }
+</style>
+<div id="root"></div>
+<script>
+    test(() => {
+        const root = document.getElementById("root");
+        for (let index = 0; index < 100; ++index) {
+            const item = document.createElement("div");
+            item.className = "item";
+            root.appendChild(item);
+        }
+        root.lastElementChild.id = "sentinel";
+
+        internals.updateStyle();
+        const before = internals.styleEngineCounters();
+        root.classList.add("boost");
+        internals.updateStyle();
+        const after = internals.styleEngineCounters();
+
+        println(`losing route rejected: ${after.selectorRoutesRejectedByCascade - before.selectorRoutesRejectedByCascade}`);
+        println(`only sentinel invalidated: ${after.invalidatedStyleNodes - before.invalidatedStyleNodes === 1}`);
+        println(`ordinary item: ${getComputedStyle(root.firstElementChild).color}`);
+        println(`sentinel: ${getComputedStyle(root.lastElementChild).outlineColor}`);
+    });
+</script>

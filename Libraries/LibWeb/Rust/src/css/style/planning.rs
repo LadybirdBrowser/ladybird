@@ -1460,6 +1460,7 @@ pub(super) struct ProgramRoutingContext<'a> {
     pub(super) resident_nodes: Option<&'a [StyleNodeID]>,
     pub(super) winner_program_version: Option<ProgramVersion>,
     pub(super) document_root: StyleNodeID,
+    pub(super) attachment_scopes: Option<&'a [TreeScopeID]>,
 }
 
 /// Which exact tree comparison a routed candidate can use.
@@ -1478,18 +1479,18 @@ impl ExactTreeEvaluation {
         self,
         tree: &StyleNodeTree,
         facts: &StyleNodeFacts,
-        program: (SelectorProgramID, &SelectorProgram, &selector::SelectorEntry),
+        program: (&SelectorProgram, &selector::SelectorEntry),
         node: StyleNodeID,
         old_matches: Option<bool>,
         transaction_fact_view: Option<&TransactionFactView>,
         match_workspace: &MatchEvaluationWorkspace,
         counters: &mut Counters,
     ) -> Result<ExactEntryResult, Incomplete> {
-        let (program_id, compiled, entry) = program;
+        let (compiled, entry) = program;
         let evaluate_new = |counters: &mut Counters| {
             MatchEvaluator::new(tree, facts)
                 .with_match_workspace(match_workspace, MatchEvaluationSide::Current)
-                .matches_entry_for_program(program_id, compiled, entry, node, counters)
+                .matches_entry_without_program_caches(compiled, entry, node, counters)
         };
         let evaluate_old = |view: &TransactionFactView, counters: &mut Counters| match view.is_present(
             tree,
@@ -1500,7 +1501,7 @@ impl ExactTreeEvaluation {
             true => MatchEvaluator::new(tree, facts)
                 .with_transaction_fact_view(view, TransactionFactSide::Before)
                 .with_match_workspace(match_workspace, MatchEvaluationSide::OldTree)
-                .matches_entry_for_program(program_id, compiled, entry, node, counters),
+                .matches_entry_without_program_caches(compiled, entry, node, counters),
         };
         match self {
             Self::Arrival => match evaluate_new(counters)? {

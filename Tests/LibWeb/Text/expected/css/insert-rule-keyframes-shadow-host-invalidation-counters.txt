@@ -1,1 +1,1 @@
-PASS: bare :host keyframes insertRule only invalidates the host
+PASS: bare :host keyframes insertRule only recomputes the host

@@ -9,6 +9,7 @@
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/MediaList.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleSheetInvalidation.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/WebIDL/DOMException.h>
@@ -32,6 +33,7 @@ void MediaList::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_associated_style_sheet);
+    visitor.visit(m_associated_rule);
 }
 
 // https://www.w3.org/TR/cssom-1/#dom-medialist-mediatext
@@ -40,15 +42,35 @@ Utf16String MediaList::media_text() const
     return serialize_a_media_query_list(m_media);
 }
 
+// Both owners reach the same place: the sheet whose rules the gate belongs to.
+GC::Ptr<CSSStyleSheet> MediaList::owning_style_sheet()
+{
+    if (m_associated_style_sheet)
+        return as<CSSStyleSheet>(*m_associated_style_sheet);
+    if (m_associated_rule)
+        return m_associated_rule->parent_style_sheet();
+    return {};
+}
+
+void MediaList::invalidate_owners_for_media_change()
+{
+    auto sheet = owning_style_sheet();
+    if (!sheet)
+        return;
+    sheet->invalidate_owners();
+
+    // Which of the sheet's rules are gated is published from here rather than from the transition
+    // `evaluate_media_queries` reports, because a list that has just been reparsed has evaluated
+    // nothing: a freshly parsed query reads as not matching, so turning a condition off looks like
+    // no change at all. Saying the state outright leaves it to the engine to reject what did not
+    // move, which it does.
+    record_stylesheet_rule_conditions(*sheet);
+}
+
 void MediaList::set_media_text(Utf16View text)
 {
-    auto previous_sheet_effects = m_associated_style_sheet
-        ? Optional<ShadowRootStylesheetEffects> { determine_shadow_root_stylesheet_effects(as<CSS::CSSStyleSheet>(*m_associated_style_sheet)) }
-        : Optional<ShadowRootStylesheetEffects> {};
-
     ScopeGuard guard = [&] {
-        if (m_associated_style_sheet)
-            as<CSS::CSSStyleSheet>(*m_associated_style_sheet).invalidate_owners(DOM::StyleInvalidationReason::MediaListSetMediaText, previous_sheet_effects.has_value() ? &previous_sheet_effects.value() : nullptr);
+        invalidate_owners_for_media_change();
     };
 
     m_media.clear();
@@ -83,15 +105,10 @@ void MediaList::append_medium(Utf16View medium)
             return;
     }
 
-    auto previous_sheet_effects = m_associated_style_sheet
-        ? Optional<ShadowRootStylesheetEffects> { determine_shadow_root_stylesheet_effects(as<CSS::CSSStyleSheet>(*m_associated_style_sheet)) }
-        : Optional<ShadowRootStylesheetEffects> {};
-
     // 4. Append m to the collection of media queries.
     m_media.append(m.release_nonnull());
 
-    if (m_associated_style_sheet)
-        as<CSS::CSSStyleSheet>(*m_associated_style_sheet).invalidate_owners(DOM::StyleInvalidationReason::MediaListAppendMedium, previous_sheet_effects.has_value() ? &previous_sheet_effects.value() : nullptr);
+    invalidate_owners_for_media_change();
 }
 
 // https://www.w3.org/TR/cssom-1/#dom-medialist-deletemedium
@@ -104,10 +121,6 @@ WebIDL::ExceptionOr<void> MediaList::delete_medium(Utf16View medium)
     if (!m)
         return {};
 
-    auto previous_sheet_effects = m_associated_style_sheet
-        ? Optional<ShadowRootStylesheetEffects> { determine_shadow_root_stylesheet_effects(as<CSS::CSSStyleSheet>(*m_associated_style_sheet)) }
-        : Optional<ShadowRootStylesheetEffects> {};
-
     // 3. Remove any media query from the collection of media queries for which comparing the media query with m
     //    returns true. If nothing was removed, then throw a NotFoundError exception.
     bool was_removed = m_media.remove_all_matching([&](auto& existing) -> bool {
@@ -116,8 +129,7 @@ WebIDL::ExceptionOr<void> MediaList::delete_medium(Utf16View medium)
     if (!was_removed)
         return WebIDL::NotFoundError::create("Media query not found in list"_utf16);
 
-    if (m_associated_style_sheet)
-        as<CSS::CSSStyleSheet>(*m_associated_style_sheet).invalidate_owners(DOM::StyleInvalidationReason::MediaListDeleteMedium, previous_sheet_effects.has_value() ? &previous_sheet_effects.value() : nullptr);
+    invalidate_owners_for_media_change();
 
     return {};
 }

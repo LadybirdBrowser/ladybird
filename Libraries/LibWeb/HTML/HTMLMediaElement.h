@@ -39,6 +39,12 @@ enum class CanPlayTypeResult : u8;
 
 }
 
+namespace Web::Internals {
+
+class Internals;
+
+}
+
 namespace Web::HTML {
 
 enum class MediaSeekMode : u8 {
@@ -207,6 +213,7 @@ protected:
 
 private:
     friend SourceElementSelector;
+    friend class Web::Internals::Internals;
 
     class ActiveVideoSink;
     struct RemoteFetchData;

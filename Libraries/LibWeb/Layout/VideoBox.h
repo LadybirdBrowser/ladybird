@@ -15,7 +15,7 @@ class VideoBox final : public ReplacedBox {
     LAYOUT_NODE(VideoBox, ReplacedBox);
 
 public:
-    VideoBox(DOM::Document&, DOM::Element&, NonnullRefPtr<CSS::ComputedValues const>);
+    VideoBox(DOM::Document&, DOM::Element&, CSS::LayoutStyle);
 
     HTML::HTMLVideoElement& dom_node();
     HTML::HTMLVideoElement const& dom_node() const;

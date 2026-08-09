@@ -14,7 +14,7 @@
 
 namespace Web::Layout {
 
-SVGSVGBox::SVGSVGBox(DOM::Document& document, SVG::SVGSVGElement& element, NonnullRefPtr<CSS::ComputedValues const> style)
+SVGSVGBox::SVGSVGBox(DOM::Document& document, SVG::SVGSVGElement& element, CSS::LayoutStyle style)
     : ReplacedBox(document, element, style)
 {
 }

@@ -1,0 +1,2 @@
+media layers narrow: rgb(255, 0, 0)
+media layers wide: rgb(0, 128, 0)

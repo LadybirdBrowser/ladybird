@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    /* From the document, a part of a tree hosted by an element of the document. */
+    #outer::part(target) { --from-the-document: 1 }
+    ::part(target) { --with-nothing-before-it: 1 }
+    /* Two levels down is one level too far. */
+    #outer::part(inner-target) { --two-levels-down: 1 }
+</style>
+<div id="outer"></div>
+<script>
+    test(() => {
+        const outer = document.getElementById("outer");
+        const shadow = outer.attachShadow({ mode: "open" });
+        shadow.innerHTML = `
+            <style>
+                /* A rule of this tree reaches the trees hosted below it, not its own. */
+                ::part(target) { --own-tree-bare: 1 }
+                *::part(target) { --own-tree-universal: 1 }
+                #middle::part(inner-target) { --one-level-down: 1 }
+            </style>
+            <div id="target" part="target"></div>
+            <div id="middle"></div>`;
+        const middle = shadow.getElementById("middle");
+        const inner = middle.attachShadow({ mode: "open" });
+        inner.innerHTML = `<div id="inner-target" part="inner-target"></div>`;
+
+        const names = ["--from-the-document", "--with-nothing-before-it", "--two-levels-down",
+                       "--own-tree-bare", "--own-tree-universal", "--one-level-down"];
+        for (const [label, element] of [["target", shadow.getElementById("target")],
+                                        ["inner-target", inner.getElementById("inner-target")]]) {
+            const style = getComputedStyle(element);
+            const held = names.filter(name => style.getPropertyValue(name));
+            println(`${label}: ${held.join(", ") || "(nothing)"}`);
+        }
+
+        for (const element of document.querySelectorAll("*"))
+            getComputedStyle(element).color;
+        println(internals.styleEngineMatchedRules());
+    });
+</script>

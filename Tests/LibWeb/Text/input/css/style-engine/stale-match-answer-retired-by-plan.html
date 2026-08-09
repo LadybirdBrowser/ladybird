@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .theme .item {
+        color: rgb(255, 0, 0);
+    }
+    #other {
+        color: rgb(0, 0, 255);
+    }
+</style>
+<div class="theme" id="ancestor"><span class="item" id="target">x</span></div>
+<div id="other">y</div>
+<div id="hidden" style="display: none">z</div>
+<script>
+    test(() => {
+        // Settle style so every element has a retained match answer.
+        internals.updateStyle();
+
+        // A: selector-affecting mutation routed to #target. `.theme .item` stops matching.
+        document.getElementById("ancestor").classList.remove("theme");
+
+        // Targeted style read: consumes the transaction, marks #target dirty, but recomputes
+        // only #hidden's inheritance chain. #target stays dirty with its stale retained answer.
+        getComputedStyle(document.getElementById("hidden")).color;
+
+        // B: declaration-only transaction.
+        document.styleSheets[0].cssRules[1].style.setProperty("color", "rgb(0, 128, 0)");
+
+        // Full flush: the traversal reuses retained answers because B was declaration-only.
+        internals.updateStyle();
+
+        // Expected: #target no longer matches `.theme .item`, so its color is the initial
+        // rgb(0, 0, 0). If the stale retained answer is reused, this prints rgb(255, 0, 0).
+        println("target: " + getComputedStyle(document.getElementById("target")).color);
+        println("other: " + getComputedStyle(document.getElementById("other")).color);
+    });
+</script>

@@ -1,0 +1,6 @@
+document: rgb(0, 128, 0)
+shadow: rgb(0, 0, 255)
+shared-host-a: rgb(0, 0, 255)
+shared-host-b: rgb(0, 0, 255)
+shared-host-a unlayered: rgb(128, 0, 128)
+shared-host-b unlayered: rgb(128, 0, 128)

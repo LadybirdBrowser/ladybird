@@ -1,0 +1,3 @@
+no-op reactions suppressed: true
+none animation names remain shareable: true
+inserted elements were styled: true

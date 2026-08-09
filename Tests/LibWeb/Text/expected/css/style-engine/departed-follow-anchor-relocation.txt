@@ -1,0 +1,4 @@
+initial departure: rgb(255, 0, 0),rgb(255, 0, 0)
+initial arrival: rgb(0, 0, 0),rgb(0, 0, 0)
+final departure: rgb(0, 0, 0),rgb(0, 0, 0)
+final arrival: rgb(255, 0, 0),rgb(255, 0, 0)

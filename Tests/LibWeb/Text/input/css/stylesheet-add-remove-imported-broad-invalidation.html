@@ -8,12 +8,20 @@
         internals.resetStyleInvalidationCounters();
     }
 
-    function verifyFullRestyleWasScheduled(label) {
-        const invalidations = internals.getStyleInvalidationCounters().fullStyleInvalidations;
-        if (invalidations >= 1)
+    function verifyRecomputationsStayBounded(label, maximum) {
+        const recomputations = internals.getStyleInvalidationCounters().elementStyleRecomputations;
+        if (recomputations <= maximum)
             println(`PASS: ${label}`);
         else
-            println(`FAIL: ${label} (${invalidations} full invalidations)`);
+            println(`FAIL: ${label} (${recomputations} recomputations)`);
+    }
+
+    function verifyTargetWasRecomputed(label) {
+        const recomputations = internals.getStyleInvalidationCounters().elementStyleRecomputations;
+        if (recomputations >= 1)
+            println(`PASS: ${label}`);
+        else
+            println(`FAIL: ${label} (${recomputations} recomputations)`);
     }
 
     async function waitForImportedSheet(styleElement) {
@@ -31,12 +39,28 @@
         await waitForImportedSheet(layerImportStyle);
 
         getComputedStyle(target).color;
-        verifyFullRestyleWasScheduled("imported layer-only stylesheet add schedules full restyle");
+        // A layer order change can only move declarations that sit in layers, and nothing here does.
+        verifyRecomputationsStayBounded("imported layer-only stylesheet add restyles nothing", 1);
 
         settleAndReset(target);
         layerImportStyle.remove();
 
         getComputedStyle(target).color;
-        verifyFullRestyleWasScheduled("imported layer-only stylesheet remove schedules full restyle");
+        verifyRecomputationsStayBounded("imported layer-only stylesheet remove restyles nothing", 1);
+
+        // With a declaration in a layer, reordering the layers has to reach the element it decides
+        // for - and still not the whole document.
+        const layeredStyle = document.createElement("style");
+        layeredStyle.textContent = "@layer A, B; @layer A { #target { color: green } } @layer B { #target { color: blue } }";
+        document.head.appendChild(layeredStyle);
+        settleAndReset(target);
+
+        document.head.appendChild(layerImportStyle);
+        await waitForImportedSheet(layerImportStyle);
+
+        getComputedStyle(target).color;
+        verifyTargetWasRecomputed("imported layer reorder reaches the layered element");
+        verifyRecomputationsStayBounded("imported layer reorder stays bounded", 8);
+
     });
 </script>

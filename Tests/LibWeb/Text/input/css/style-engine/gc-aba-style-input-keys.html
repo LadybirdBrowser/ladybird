@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .target {
+        color: rgb(255, 0, 0);
+    }
+</style>
+<div id="target" class="target">target</div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const sheet = document.styleSheets[0];
+        internals.updateStyle();
+        println(`initial: ${getComputedStyle(target).color}`);
+
+        let version = internals.getStyleInvalidationCounters().styleEnvironmentVersion;
+        sheet.deleteRule(0);
+        let nextVersion = internals.getStyleInvalidationCounters().styleEnvironmentVersion;
+        println(`deletion advances the environment: ${nextVersion > version}`);
+
+        internals.gc();
+        version = nextVersion;
+        sheet.insertRule(".target { color: rgb(0, 0, 255) }", 0);
+        nextVersion = internals.getStyleInvalidationCounters().styleEnvironmentVersion;
+        println(`insertion advances the environment: ${nextVersion > version}`);
+
+        internals.updateStyle();
+        println(`replacement: ${getComputedStyle(target).color}`);
+    });
+</script>

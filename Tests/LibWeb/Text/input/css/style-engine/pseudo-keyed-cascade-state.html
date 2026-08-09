@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #target {
+        background-color: red;
+    }
+
+    #target::before {
+        content: "before";
+        color: red;
+    }
+
+    #target.pseudo-flip::before {
+        content: "after";
+        color: blue;
+    }
+
+    #target.element-flip {
+        background-color: blue;
+    }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        internals.updateStyle();
+        getComputedStyle(target, "::before").width;
+        const graphBefore = internals.styleEngineCounters();
+
+        target.classList.add("pseudo-flip");
+        internals.updateStyle();
+        const graphAfterPseudo = internals.styleEngineCounters();
+        const pseudoStyle = getComputedStyle(target, "::before");
+
+        println(`pseudo content changed: ${pseudoStyle.content}`);
+        println(`pseudo color changed: ${pseudoStyle.color}`);
+        println(`element cascade stopped: ${graphAfterPseudo.cascadeWinnerDeltaStops - graphBefore.cascadeWinnerDeltaStops >= 1}`);
+        println(`pseudo delta consumed: ${graphAfterPseudo.computedWinnerDeltaPropertiesConsumed - graphBefore.computedWinnerDeltaPropertiesConsumed >= 2}`);
+
+        target.classList.add("element-flip");
+        internals.updateStyle();
+
+        println(`element background changed: ${getComputedStyle(target).backgroundColor}`);
+        println(`pseudo content preserved: ${getComputedStyle(target, "::before").content}`);
+    });
+</script>

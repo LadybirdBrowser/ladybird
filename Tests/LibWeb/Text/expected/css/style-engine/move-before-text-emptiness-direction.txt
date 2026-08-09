@@ -1,0 +1,4 @@
+before empty: false, true
+before direction: rtl, ltr
+after empty: true, false
+after direction: ltr, rtl

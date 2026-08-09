@@ -5,32 +5,59 @@
     function settleAndReset(triggerElement) {
         getComputedStyle(triggerElement).color;
         getComputedStyle(triggerElement).color;
+        internals.updateStyle();
         internals.resetStyleInvalidationCounters();
     }
 
-    function verifyLayerMutationSchedulesFullRestyle(label) {
-        const invalidations = internals.getStyleInvalidationCounters().fullStyleInvalidations;
-        if (invalidations >= 1)
-            println(`PASS: ${label} (${invalidations} full invalidations)`);
+    // A `<style>` element arriving or leaving is itself an element whose style is computed, so the
+    // narrowest a layer-only sheet can be is that one element and nothing else.
+    function verifyRestyledOnlyItself(label) {
+        const recomputations = internals.getStyleInvalidationCounters().elementStyleRecomputations;
+        if (recomputations <= 1)
+            println(`PASS: ${label}`);
         else
-            println(`FAIL: ${label} (${invalidations} full invalidations)`);
+            println(`FAIL: ${label} (${recomputations} recomputations)`);
+    }
+
+    function verifyRestyledTheLayeredElement(label) {
+        const recomputations = internals.getStyleInvalidationCounters().elementStyleRecomputations;
+        if (recomputations >= 1)
+            println(`PASS: ${label}`);
+        else
+            println(`FAIL: ${label} (${recomputations} recomputations)`);
     }
 
     test(() => {
         const target = document.getElementById("target");
         settleAndReset(target);
 
+        // A layer order change can only move a declaration that sits in a layer, and nothing here
+        // does, so a layer-only sheet arriving or leaving restyles nothing at all.
         const layerOrderStyle = document.createElement("style");
         layerOrderStyle.textContent = "@layer B, A;";
         document.head.appendChild(layerOrderStyle);
 
         getComputedStyle(target).color;
-        verifyLayerMutationSchedulesFullRestyle("layer-only stylesheet add schedules full restyle");
+        verifyRestyledOnlyItself("layer-only stylesheet add restyles nothing but itself");
 
         settleAndReset(target);
         layerOrderStyle.remove();
 
         getComputedStyle(target).color;
-        verifyLayerMutationSchedulesFullRestyle("layer-only stylesheet remove schedules full restyle");
+        verifyRestyledOnlyItself("layer-only stylesheet remove restyles nothing but itself");
+
+        // With a declaration in a layer, a reorder that actually moves the layers has to reach
+        // the element it decides for - and still not the whole document. The statement sheet is
+        // inserted before the block sheet so its "@layer B, A" wins first occurrence and really
+        // flips the order; appended after, it would re-declare the existing order and correctly
+        // reach nothing.
+        const layered = document.createElement("style");
+        layered.textContent = "@layer A, B; @layer A { #target { color: green } } @layer B { #target { color: blue } }";
+        document.head.appendChild(layered);
+        settleAndReset(target);
+
+        document.head.insertBefore(layerOrderStyle, layered);
+        getComputedStyle(target).color;
+        verifyRestyledTheLayeredElement("layer reorder reaches the layered element");
     });
 </script>

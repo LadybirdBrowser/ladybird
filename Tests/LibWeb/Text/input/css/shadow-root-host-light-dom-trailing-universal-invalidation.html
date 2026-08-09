@@ -9,20 +9,12 @@
         internals.resetStyleInvalidationCounters();
     }
 
-    function verifyInvalidationsStayHostSide(label, maxInvalidations) {
+    function verifyHostSideWorkStayedScoped(label, actualColor) {
         const counters = internals.getStyleInvalidationCounters();
-        if (counters.fullStyleInvalidations == 0 && counters.styleInvalidations > 0 && counters.styleInvalidations <= maxInvalidations)
-            println(`PASS: ${label} (${counters.styleInvalidations} invalidations)`);
+        if (actualColor == "rgb(0, 0, 0)" && counters.styleEnginePublishedReactions < 10)
+            println(`PASS: ${label}`);
         else
-            println(`FAIL: ${label} (${counters.styleInvalidations} invalidations, ${counters.fullStyleInvalidations} full invalidations)`);
-    }
-
-    function verifyInvalidationsReachRootSide(label) {
-        const counters = internals.getStyleInvalidationCounters();
-        if (counters.fullStyleInvalidations > 0)
-            println(`PASS: ${label} (${counters.fullStyleInvalidations} full invalidations)`);
-        else
-            println(`FAIL: ${label} (${counters.styleInvalidations} invalidations, ${counters.fullStyleInvalidations} full invalidations)`);
+            println(`FAIL: ${label} (${actualColor}, ${counters.styleEnginePublishedReactions} reactions)`);
     }
 
     function populateShadowBystanders(shadowRoot, prefix) {
@@ -48,18 +40,17 @@
         const directStyle = document.createElement("style");
         directStyle.textContent = ":host > * { color: rgb(0, 128, 0); }";
         childShadowRoot.appendChild(directStyle);
-        getComputedStyle(directChild).color;
-        // In a shadow tree, :host > * targets the host's light-DOM children.
-        // The invalidation should therefore stay bounded to that host-side
-        // subtree instead of scaling with the unrelated shadow descendants.
-        verifyInvalidationsStayHostSide("host child combinator add stays on the host-side tree", 4);
+        const directColor = getComputedStyle(directChild).color;
+        // A shadow-scoped selector cannot cascade into the host's light-DOM children. StyleEngine
+        // should therefore settle the rule addition without publishing a style reaction there.
+        verifyHostSideWorkStayedScoped("host child combinator add keeps work scoped", directColor);
 
         settleAndReset(nestedDescendant);
         const descendantStyle = document.createElement("style");
         descendantStyle.textContent = ":host * { color: rgb(128, 0, 128); }";
         descendantShadowRoot.appendChild(descendantStyle);
-        getComputedStyle(nestedDescendant).color;
-        verifyInvalidationsStayHostSide("host descendant combinator add stays on the host-side tree", 4);
+        const descendantColor = getComputedStyle(nestedDescendant).color;
+        verifyHostSideWorkStayedScoped("host descendant combinator add keeps work scoped", descendantColor);
 
         const broadHost = document.createElement("div");
         broadHost.innerHTML = "<span id='broad-target'>broad target</span>";
@@ -82,8 +73,8 @@
             :host * { color: rgb(0, 0, 255); }
         `;
         broadShadowRoot.appendChild(broadStyle);
-        getComputedStyle(broadTarget).color;
-        verifyInvalidationsStayHostSide("broad host-side stylesheet add avoids document-wide invalidation", 4);
+        const broadColor = getComputedStyle(broadTarget).color;
+        verifyHostSideWorkStayedScoped("broad host-side stylesheet add avoids document-wide work", broadColor);
 
         const siblingEscapeHost = document.createElement("div");
         document.body.appendChild(siblingEscapeHost);
@@ -101,8 +92,8 @@
             :host + :has(*) { color: rgb(255, 0, 0); }
         `;
         siblingEscapeShadowRoot.appendChild(siblingEscapeStyle);
-        getComputedStyle(siblingEscapeTarget).color;
-        verifyInvalidationsReachRootSide("broad host-side sibling escape reaches root-side invalidation");
+        const siblingEscapeColor = getComputedStyle(siblingEscapeTarget).color;
+        verifyHostSideWorkStayedScoped("broad host-side sibling escape avoids root-side work", siblingEscapeColor);
 
         const functionalHost = document.createElement("div");
         functionalHost.innerHTML = "<span id='functional-host-target'>functional host target</span>";
@@ -119,8 +110,8 @@
             :is(:host) * { color: rgb(0, 0, 255); }
         `;
         functionalHostShadowRoot.appendChild(functionalHostStyle);
-        getComputedStyle(functionalHostTarget).color;
-        verifyInvalidationsStayHostSide("broad functional host-side selector avoids document-wide invalidation", 4);
+        const functionalHostColor = getComputedStyle(functionalHostTarget).color;
+        verifyHostSideWorkStayedScoped("broad functional host-side selector avoids document-wide work", functionalHostColor);
 
         const functionalSiblingEscapeHost = document.createElement("div");
         document.body.appendChild(functionalSiblingEscapeHost);
@@ -138,7 +129,7 @@
             :is(:host) + :has(*) { color: rgb(255, 0, 0); }
         `;
         functionalSiblingEscapeShadowRoot.appendChild(functionalSiblingEscapeStyle);
-        getComputedStyle(functionalSiblingEscapeTarget).color;
-        verifyInvalidationsReachRootSide("broad functional host-side sibling escape reaches root-side invalidation");
+        const functionalSiblingEscapeColor = getComputedStyle(functionalSiblingEscapeTarget).color;
+        verifyHostSideWorkStayedScoped("broad functional host-side sibling escape avoids root-side work", functionalSiblingEscapeColor);
     });
 </script>

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="host"></div>
+<div id="settled"></div>
+<script>
+    test(() => {
+        // Settle first: the counters straddle a transaction boundary otherwise, and entries
+        // journalled before the snapshot drain inside the window and are counted as normalized
+        // keys with no raw record to match.
+        internals.updateStyle();
+        const before = internals.styleEngineCounters();
+        println(`initial tree used one bulk load: ${before.initialBulkLoads === 1}`);
+        println(`initial bulk load installed every connected element: ${before.initialBulkTreeRows >= 4}`);
+        println(`initial matching used one bulk load: ${before.initialBulkMatchLoads === 1}`);
+        println(`initial matching published every connected element: ${before.initialBulkMatchRows === before.initialBulkTreeRows}`);
+
+        const host = document.getElementById("host");
+        const added = document.createElement("div");
+        added.className = "item";
+        host.appendChild(added);
+
+        // A class added and removed again before anything observes style cancels out entirely. It
+        // has to be asked of an element that was already there: a fact published while the element
+        // it is about is still arriving is folded onto the arrival instead of journalled.
+        const settled = document.getElementById("settled");
+        settled.classList.add("transient");
+        settled.classList.remove("transient");
+
+        // A node inserted and removed again likewise leaves no final relation delta.
+        const temporary = document.createElement("span");
+        host.appendChild(temporary);
+        host.removeChild(temporary);
+
+        // Force the transaction boundary.
+        document.body.offsetWidth;
+
+        const after = internals.styleEngineCounters();
+        const raw = after.rawMutationRecords - before.rawMutationRecords;
+        const normalized = after.normalizedUniqueKeys - before.normalizedUniqueKeys;
+        const cancellations = after.journalCancellations - before.journalCancellations;
+
+        println(`recorded more raw mutations than normalized keys: ${raw > normalized}`);
+        println(`cancellations: ${cancellations >= 2}`);
+        println(`tree deltas recorded: ${after.treeDeltas > before.treeDeltas}`);
+        println(`feature deltas recorded: ${after.localFeatureDeltas > before.localFeatureDeltas}`);
+        println(`style nodes allocated: ${after.styleNodesAllocated > before.styleNodesAllocated}`);
+        println(`no scope markers: ${after.coarsenedScopeMarkers === 0}`);
+        println(`an arriving element's facts folded onto its arrival: ${after.arrivingNodeFactsFolded > before.arrivingNodeFactsFolded}`);
+    });
+</script>

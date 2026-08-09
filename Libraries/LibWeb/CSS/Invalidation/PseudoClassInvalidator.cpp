@@ -8,15 +8,10 @@
 #include <AK/StdLibExtras.h>
 #include <AK/Vector.h>
 #include <LibWeb/CSS/Invalidation/AncestorTraversal.h>
-#include <LibWeb/CSS/Invalidation/InvalidationSetMatcher.h>
 #include <LibWeb/CSS/Invalidation/PseudoClassInvalidator.h>
-#include <LibWeb/CSS/InvalidationSet.h>
-#include <LibWeb/CSS/StyleScope.h>
-#include <LibWeb/DOM/AbstractElement.h>
+#include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
-#include <LibWeb/DOM/StyleInvalidationReason.h>
-#include <LibWeb/HTML/AttributeNames.h>
 
 namespace Web::CSS::Invalidation {
 
@@ -35,79 +30,6 @@ static AncestorTraversal ancestor_traversal_for_pseudo_class(CSS::PseudoClass ps
     }
 }
 
-static bool pseudo_class_subject_may_match_element(DOM::Element& element, CSS::Selector const& selector, CSS::PseudoClass pseudo_class)
-{
-    auto const& compound_selectors = selector.compound_selectors();
-    for (size_t i = compound_selectors.size(); i > 0; --i) {
-        auto const& compound_selector = compound_selectors[i - 1];
-        bool contains_pseudo_class = false;
-        for (auto const& simple_selector : compound_selector.simple_selectors) {
-            if (simple_selector.type == CSS::Selector::SimpleSelector::Type::PseudoClass
-                && simple_selector.pseudo_class().type == pseudo_class) {
-                contains_pseudo_class = true;
-                break;
-            }
-        }
-        if (!contains_pseudo_class)
-            continue;
-
-        if (!compound_may_match_element(element, compound_selector, pseudo_class))
-            return false;
-
-        if (compound_selector.simple_selectors.size() > 1 || i == 1)
-            return true;
-
-        if (compound_selector.combinator != CSS::Selector::Combinator::None)
-            return true;
-
-        // Some selectors are represented with the pseudo-class in its own
-        // compound. In that case, the preceding compound carries the subject
-        // constraints, such as the `a` in `a:hover`.
-        return compound_may_match_element(element, compound_selectors[i - 2], pseudo_class);
-    }
-    return true;
-}
-
-static bool element_may_match_rule_containing_pseudo_class_in_style_scope(DOM::Element& element, CSS::StyleScope& style_scope, CSS::PseudoClass pseudo_class)
-{
-    auto const& rule_cache = style_scope.get_pseudo_class_rule_cache(pseudo_class);
-
-    auto any_rule_may_match = [&](Vector<CSS::MatchingRule> const& matching_rules) {
-        for (auto const& matching_rule : matching_rules) {
-            if (pseudo_class_subject_may_match_element(element, matching_rule.selector, pseudo_class))
-                return true;
-        }
-        return false;
-    };
-
-    bool may_match = false;
-    auto abstract_element = DOM::AbstractElement { element };
-    Function<bool(u32)> const may_contain_ancestor_hash = [](u32) { return true; };
-    rule_cache.for_each_matching_rules(abstract_element, may_contain_ancestor_hash, [&](auto const& matching_rules) {
-        if (!any_rule_may_match(matching_rules))
-            return IterationDecision::Continue;
-        may_match = true;
-        return IterationDecision::Break;
-    });
-
-    if (!may_match && element.has_attribute(HTML::AttributeNames::part))
-        may_match = any_rule_may_match(rule_cache.part_rules);
-    if (!may_match && element.assigned_slot_internal())
-        may_match = any_rule_may_match(rule_cache.slotted_rules);
-
-    return may_match;
-}
-
-static bool element_may_match_rule_containing_pseudo_class(DOM::Element& element, CSS::PseudoClass pseudo_class)
-{
-    bool may_match = false;
-    element.for_each_style_scope_which_may_observe_the_node([&](CSS::StyleScope& scope) {
-        if (element_may_match_rule_containing_pseudo_class_in_style_scope(element, scope, pseudo_class))
-            may_match = true;
-    });
-    return may_match;
-}
-
 void invalidate_style_after_pseudo_class_state_change(CSS::PseudoClass pseudo_class, GC::Ptr<DOM::Node> old_state, GC::Ptr<DOM::Node> new_state)
 {
     if (!old_state && !new_state)
@@ -115,17 +37,6 @@ void invalidate_style_after_pseudo_class_state_change(CSS::PseudoClass pseudo_cl
 
     bool const propagates = pseudo_class_propagates_to_ancestors(pseudo_class);
     auto traversal = ancestor_traversal_for_pseudo_class(pseudo_class);
-
-    Vector<CSS::InvalidationSet::Property, 1> properties { { CSS::InvalidationSet::Property::Type::PseudoClass, pseudo_class } };
-    auto reason = DOM::StyleInvalidationReason::PseudoClassStateChange;
-
-    auto invalidate = [&](DOM::Element& element) {
-        DOM::StyleInvalidationOptions options {
-            .invalidate_self = element_may_match_rule_containing_pseudo_class(element, pseudo_class),
-        };
-        options.invalidate_self_from_property_plan = options.invalidate_self;
-        element.invalidate_style(reason, properties, options);
-    };
 
     auto build_chain = [&](GC::Ptr<DOM::Node> start) {
         HashTable<DOM::Element const*> chain;
@@ -148,24 +59,86 @@ void invalidate_style_after_pseudo_class_state_change(CSS::PseudoClass pseudo_cl
     // Walk start's ancestor chain (inclusive) and invalidate each element whose pseudo-class
     // state changes. Elements in both chains have unchanged state and are skipped; once we
     // reach one, all further ancestors are also in both chains so we stop.
-    auto walk_and_invalidate = [&](GC::Ptr<DOM::Node> start, HashTable<DOM::Element const*> const& other_chain) {
+    auto walk_and_invalidate = [&](GC::Ptr<DOM::Node> start, HashTable<DOM::Element const*> const& other_chain, bool new_value) {
         if (!start)
             return;
+        // This walk visits exactly the elements whose state changed, which is exactly the set
+        // StyleEngine has to hear a state fact for.
+        auto visit = [&](DOM::Element& element) {
+            // `:focus-visible` is not focus. It is focus the user agent has decided to indicate,
+            // which the element answers for itself, so a focus move publishes what the element says
+            // rather than the move. Publishing the move lights up every element script focuses.
+            auto value = new_value;
+            if (pseudo_class == CSS::PseudoClass::FocusVisible)
+                value = value && element.should_indicate_focus();
+            record_element_state_changed(element, pseudo_class, value);
+        };
         if (propagates) {
             for_each_inclusive_ancestor_element(*start, traversal, [&](DOM::Element& element) {
                 if (other_chain.contains(&element))
                     return TraversalDecision::Break;
-                invalidate(element);
+                visit(element);
                 return TraversalDecision::Continue;
             });
         } else if (auto* element = as_if<DOM::Element>(*start)) {
             if (!other_chain.contains(element))
-                invalidate(*element);
+                visit(*element);
         }
     };
 
-    walk_and_invalidate(old_state, new_chain);
-    walk_and_invalidate(new_state, old_chain);
+    walk_and_invalidate(old_state, new_chain, false);
+    walk_and_invalidate(new_state, old_chain, true);
+}
+
+// A state that propagates to ancestors is a statement about the subtree below them, so moving a
+// subtree that holds one moves the state: the chain above where it was stops holding it and the
+// chain above where it landed starts, and no feature of any element in either chain moved to say
+// so. The source has not moved relative to itself, so each element is asked its own answer rather
+// than being told a transition.
+void invalidate_style_after_subtree_place_changed(DOM::Node& subtree, GC::Ptr<DOM::Node> old_parent)
+{
+    auto& document = subtree.document();
+    auto republish = [](CSS::PseudoClass pseudo_class, GC::Ptr<DOM::Node> from) {
+        if (!from)
+            return;
+        for_each_inclusive_ancestor_element(*from, ancestor_traversal_for_pseudo_class(pseudo_class), [&](DOM::Element& element) {
+            auto* hovered = element.document().hovered_node();
+            auto holds = pseudo_class == CSS::PseudoClass::FocusWithin
+                ? element.matches_focus_within_pseudo_class()
+                : hovered && (&element == hovered || element.is_shadow_including_ancestor_of(*hovered));
+            record_element_state_changed(element, pseudo_class, holds);
+            return TraversalDecision::Continue;
+        });
+    };
+
+    struct PropagatingState {
+        CSS::PseudoClass pseudo_class;
+        GC::Ptr<DOM::Node> source;
+    };
+    Array<PropagatingState, 2> const states { {
+        { CSS::PseudoClass::FocusWithin, document.focused_area() },
+        { CSS::PseudoClass::Hover, document.hovered_node() },
+    } };
+    for (auto const& [pseudo_class, source] : states) {
+        if (!source)
+            continue;
+        auto traversal = ancestor_traversal_for_pseudo_class(pseudo_class);
+        bool source_is_in_subtree = false;
+        if (traversal == AncestorTraversal::FlatTree) {
+            for (auto* node = source.ptr(); node; node = node->flat_tree_parent()) {
+                if (node == &subtree) {
+                    source_is_in_subtree = true;
+                    break;
+                }
+            }
+        } else {
+            source_is_in_subtree = subtree.is_shadow_including_inclusive_ancestor_of(*source);
+        }
+        if (!source_is_in_subtree)
+            continue;
+        republish(pseudo_class, source);
+        republish(pseudo_class, old_parent);
+    }
 }
 
 }

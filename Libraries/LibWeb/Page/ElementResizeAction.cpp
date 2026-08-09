@@ -45,26 +45,25 @@ void ElementResizeAction::handle_pointer_move(CSSPixelPoint pointer_position)
     if (!paintable_box)
         return;
     auto const& layout_node = paintable_box->layout_node();
-    auto const& computed = layout_node.computed_values();
-    auto resize = computed.resize();
+    auto resize = layout_node.resize();
     if (resize == CSS::Resize::None)
         return;
 
-    bool horizontal_writing_mode = computed.writing_mode() == CSS::WritingMode::HorizontalTb;
-    bool resize_x = computed.resize() == CSS::Resize::Both
-        || computed.resize() == CSS::Resize::Horizontal
-        || (computed.resize() == CSS::Resize::Inline && horizontal_writing_mode)
-        || (computed.resize() == CSS::Resize::Block && !horizontal_writing_mode);
+    bool horizontal_writing_mode = layout_node.writing_mode() == CSS::WritingMode::HorizontalTb;
+    bool resize_x = resize == CSS::Resize::Both
+        || resize == CSS::Resize::Horizontal
+        || (resize == CSS::Resize::Inline && horizontal_writing_mode)
+        || (resize == CSS::Resize::Block && !horizontal_writing_mode);
 
-    bool resize_y = computed.resize() == CSS::Resize::Both
-        || computed.resize() == CSS::Resize::Vertical
-        || (computed.resize() == CSS::Resize::Inline && !horizontal_writing_mode)
-        || (computed.resize() == CSS::Resize::Block && horizontal_writing_mode);
+    bool resize_y = resize == CSS::Resize::Both
+        || resize == CSS::Resize::Vertical
+        || (resize == CSS::Resize::Inline && !horizontal_writing_mode)
+        || (resize == CSS::Resize::Block && horizontal_writing_mode);
 
     CSSPixels dx = resize_x ? pointer_position.x() - m_pointer_down_origin.x() : 0;
     CSSPixels dy = resize_y ? pointer_position.y() - m_pointer_down_origin.y() : 0;
-    auto writing_mode = computed.writing_mode();
-    if ((writing_mode == CSS::WritingMode::HorizontalTb && computed.direction() == CSS::Direction::Rtl)
+    auto writing_mode = layout_node.writing_mode();
+    if ((writing_mode == CSS::WritingMode::HorizontalTb && layout_node.direction() == CSS::Direction::Rtl)
         || writing_mode == CSS::WritingMode::VerticalRl
         || writing_mode == CSS::WritingMode::SidewaysRl) {
         dx = -dx;
@@ -75,23 +74,23 @@ void ElementResizeAction::handle_pointer_move(CSSPixelPoint pointer_position)
     auto reference_basis = containing_block_padding_box_size(layout_node);
 
     if (reference_basis.has_value()) {
-        if (auto const& min_width = computed.min_width(); !min_width.is_auto()) {
+        if (auto const& min_width = layout_node.min_width(); !min_width.is_auto()) {
             css_width = max(css_width, min_width.to_px(reference_basis->width()));
         }
-        if (auto const& max_width = computed.max_width(); !max_width.is_none()) {
+        if (auto const& max_width = layout_node.max_width(); !max_width.is_none()) {
             css_width = min(css_width, max_width.to_px(reference_basis->width()));
         }
-        if (auto const& min_height = computed.min_height(); !min_height.is_auto()) {
+        if (auto const& min_height = layout_node.min_height(); !min_height.is_auto()) {
             css_height = max(css_height, min_height.to_px(reference_basis->height()));
         }
-        if (auto const& max_height = computed.max_height(); !max_height.is_none()) {
+        if (auto const& max_height = layout_node.max_height(); !max_height.is_none()) {
             css_height = min(css_height, max_height.to_px(reference_basis->height()));
         }
     }
-    if (computed.box_sizing() == CSS::BoxSizing::ContentBox) {
+    if (layout_node.box_sizing() == CSS::BoxSizing::ContentBox) {
         auto const& metrics = paintable_box->box_model();
-        css_width -= metrics.padding.left + metrics.padding.right + computed.border_left().width + computed.border_right().width;
-        css_height -= metrics.padding.top + metrics.padding.bottom + computed.border_top().width + computed.border_bottom().width;
+        css_width -= metrics.padding.left + metrics.padding.right + layout_node.border_left().width + layout_node.border_right().width;
+        css_height -= metrics.padding.top + metrics.padding.bottom + layout_node.border_top().width + layout_node.border_bottom().width;
     }
 
     auto style = element->style();

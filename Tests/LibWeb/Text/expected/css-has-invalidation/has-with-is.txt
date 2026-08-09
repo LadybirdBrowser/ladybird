@@ -1,14 +1,2 @@
 [add .a (matches :is() branch)]
-  hasAncestorWalkInvocations: 1
-  hasAncestorWalkVisits: 3
-  hasMatchInvocations: 1
-  hasResultCacheHits: 0
-  hasResultCacheMisses: 1
-  styleInvalidations: 1
 [swap to .b (other :is() branch)]
-  hasAncestorWalkInvocations: 1
-  hasAncestorWalkVisits: 3
-  hasMatchInvocations: 1
-  hasResultCacheHits: 0
-  hasResultCacheMisses: 1
-  styleInvalidations: 1

@@ -38,6 +38,11 @@ public:
 
     void set_associated_style_sheet(GC::Ref<StyleSheet> style_sheet) { m_associated_style_sheet = style_sheet; }
 
+    // A media list belongs either to a sheet or to an `@media` rule inside one. Both are gates on
+    // whether rules apply, so both have to say when the gate moves - a rule's list said nothing at
+    // all, and changing a group's media therefore changed no style.
+    void set_associated_rule(GC::Ref<CSSRule> rule) { m_associated_rule = rule; }
+
     void dump(StringBuilder&, int indent_levels = 0) const;
 
 private:
@@ -45,7 +50,11 @@ private:
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
+    GC::Ptr<CSSStyleSheet> owning_style_sheet();
+    void invalidate_owners_for_media_change();
+
     GC::Ptr<StyleSheet> m_associated_style_sheet;
+    GC::Ptr<CSSRule> m_associated_rule;
     Vector<NonnullRefPtr<MediaQuery>> m_media;
 };
 

@@ -39,6 +39,11 @@ public:
     void delete_rule(Utf16String const& select);
     GC::Ptr<CSSKeyframeRule> find_rule(Utf16String const& select);
 
+    // A keyframes rule holds rules without being a grouping rule, so its keyframes have to be handed
+    // the sheet themselves. A keyframe edited through the CSSOM reports against the sheet it belongs
+    // to, and one that never learned its sheet reports against nothing at all.
+    virtual void set_parent_style_sheet(CSSStyleSheet*) override;
+
 private:
     CSSKeyframesRule(Utf16FlyString name, GC::Ref<CSSRuleList> keyframes);
     virtual void visit_edges(Visitor&) override;

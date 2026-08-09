@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .target.active { color: red; }
+</style>
+<div id="first" class="target" style="margin-left: 1px"></div>
+<div id="second" class="target" style="margin-left: 2px"></div>
+<script>
+    test(() => {
+        const first = document.getElementById("first");
+        const second = document.getElementById("second");
+        internals.updateStyle();
+
+        const before = internals.styleEngineCounters();
+        first.classList.add("active");
+        second.classList.add("active");
+        internals.updateStyle();
+        const after = internals.styleEngineCounters();
+
+        println(`first color: ${getComputedStyle(first).color}`);
+        println(`second color: ${getComputedStyle(second).color}`);
+        println(`published answers: ${after.publishedMatchAnswerRecords - before.publishedMatchAnswerRecords}`);
+        println(`identity reads: ${after.publishedMatchAnswerIdentityReads - before.publishedMatchAnswerIdentityReads}`);
+        println(`payload consumptions: ${after.publishedMatchAnswerConsumptions - before.publishedMatchAnswerConsumptions}`);
+        println(`shared payloads: ${after.publishedMatchAnswerSharedPayloads - before.publishedMatchAnswerSharedPayloads}`);
+    });
+</script>

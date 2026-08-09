@@ -1,0 +1,6 @@
+active color: rgb(255, 0, 0)
+answer patches: 2
+answer reuses: 2
+cold node evaluations: 0
+invalidated nodes: 2
+inactive color: rgb(0, 0, 255)

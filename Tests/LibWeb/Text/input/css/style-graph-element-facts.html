@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="outer" class="a b" data-x="1"><span class="c"></span></div>
+<script>
+    test(() => {
+        const before = internals.styleEngineCounters();
+
+        // An element arriving with facts already true of it publishes them as ordinary deltas.
+        const added = document.createElement("p");
+        added.id = "added";
+        added.className = "d e";
+        added.setAttribute("data-y", "2");
+        document.body.appendChild(added);
+        document.body.offsetWidth;
+
+        const after = internals.styleEngineCounters();
+        // tag + id + two classes + two attributes, at least.
+        println(`initial facts published: ${after.localFeatureDeltas - before.localFeatureDeltas >= 6}`);
+        println(`no scope markers: ${after.coarsenedScopeMarkers === 0}`);
+        println(`tree delta recorded: ${after.treeDeltas > before.treeDeltas}`);
+    });
+</script>

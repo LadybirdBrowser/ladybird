@@ -13,7 +13,6 @@
     function counterSummary() {
         const counters = internals.getStyleInvalidationCounters();
         return {
-            fullStyleInvalidations: counters.fullStyleInvalidations,
             elementStyleRecomputations: counters.elementStyleRecomputations,
             elementStyleNoopRecomputations: counters.elementStyleNoopRecomputations,
         };
@@ -52,13 +51,15 @@
         addBystanders(container, 30);
         addBystanders(document.body, 30);
 
+        // Settle everything the page setup left pending before measuring, or what this counts
+        // depends on how much of that was still outstanding when the first read arrived.
+        internals.updateStyle();
         internals.resetStyleInvalidationCounters();
         getComputedStyle(target).color;
 
         const initialCounters = counterSummary();
         const initialElementCount = document.querySelectorAll("*").length;
         println(`initial target color: ${getComputedStyle(target).color}`);
-        println(`initial full invalidations: ${initialCounters.fullStyleInvalidations}`);
         println(`initial recomputations bounded: ${initialCounters.elementStyleRecomputations < initialElementCount + 5}`);
 
         internals.resetStyleInvalidationCounters();
@@ -67,7 +68,6 @@
 
         const dynamicCounters = counterSummary();
         println(`dynamic target color: ${getComputedStyle(target).color}`);
-        println(`dynamic full invalidations: ${dynamicCounters.fullStyleInvalidations}`);
         println(`dynamic recomputations bounded: ${dynamicCounters.elementStyleRecomputations <= 4}`);
         println(`dynamic noop recomputations bounded: ${dynamicCounters.elementStyleNoopRecomputations <= 2}`);
     });

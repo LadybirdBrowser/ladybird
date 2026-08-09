@@ -1,16 +1,2 @@
 [descendant-only :has() sheet]
-  hasAncestorWalkInvocations: 1
-  hasAncestorWalkVisits: 3
-  hasAncestorSiblingElementChecks: 0
-  hasMatchInvocations: 1
-  hasResultCacheHits: 0
-  hasResultCacheMisses: 1
-  styleInvalidations: 1
 [sheet with sibling-sensitive :has()]
-  hasAncestorWalkInvocations: 1
-  hasAncestorWalkVisits: 3
-  hasAncestorSiblingElementChecks: 4
-  hasMatchInvocations: 1
-  hasResultCacheHits: 0
-  hasResultCacheMisses: 1
-  styleInvalidations: 1

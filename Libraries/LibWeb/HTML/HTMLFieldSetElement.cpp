@@ -85,7 +85,7 @@ Layout::FieldSetBox* HTMLFieldSetElement::layout_node()
     return static_cast<Layout::FieldSetBox*>(Node::layout_node());
 }
 
-RefPtr<Layout::Node> HTMLFieldSetElement::create_layout_node(NonnullRefPtr<CSS::ComputedValues const> style)
+RefPtr<Layout::Node> HTMLFieldSetElement::create_layout_node(CSS::LayoutStyle style)
 {
     return make_ref_counted<Layout::FieldSetBox>(document(), *this, style);
 }

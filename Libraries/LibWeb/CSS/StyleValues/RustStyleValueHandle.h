@@ -64,7 +64,13 @@ public:
 
     StyleValueFFI::StyleValueData const* leak_data() { return exchange(m_value, nullptr); }
 
-    bool operator==(RustStyleValueHandle const&) const = default;
+    // Two handles are the same value when they name the same allocation or hold equal values. A
+    // defaulted comparison would only ever see the addresses, and a recomputed style builds a fresh
+    // allocation for a declaration that has not changed.
+    bool operator==(RustStyleValueHandle const& other) const
+    {
+        return StyleValueFFI::rust_style_value_equals(m_value, other.m_value);
+    }
 
 private:
     StyleValueFFI::StyleValueData const* m_value { nullptr };

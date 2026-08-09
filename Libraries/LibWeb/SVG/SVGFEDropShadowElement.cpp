@@ -30,15 +30,17 @@ void SVGFEDropShadowElement::visit_edges(Cell::Visitor& visitor)
 // https://www.w3.org/TR/filter-effects-1/#FloodColorProperty
 Gfx::Color SVGFEDropShadowElement::flood_color()
 {
-    VERIFY(computed_values());
-    return computed_values()->flood_color();
+    auto style = computed_style();
+    VERIFY(style);
+    return style->flood_color();
 }
 
 // https://www.w3.org/TR/filter-effects-1/#FloodOpacityProperty
 float SVGFEDropShadowElement::flood_opacity() const
 {
-    VERIFY(computed_values());
-    return computed_values()->flood_opacity();
+    auto style = computed_style();
+    VERIFY(style);
+    return style->flood_opacity();
 }
 
 // https://drafts.csswg.org/filter-effects-1/#dom-svgfedropshadowelement-in1

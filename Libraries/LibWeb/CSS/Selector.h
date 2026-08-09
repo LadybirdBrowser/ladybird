@@ -122,6 +122,7 @@ public:
             struct Ident {
                 Keyword keyword;
                 Utf16FlyString string_value;
+                Utf16FlyString lowercase_string_value;
             };
             Optional<Ident> ident {};
 
@@ -140,22 +141,29 @@ public:
             Utf16FlyString lowercase_name;
         };
 
+        // A quirks-mode document matches id and class selectors ASCII case-insensitively, so the
+        // lowercase folding of the name is kept beside it: it is the identity such a document keys
+        // both the selector and the element by.
         struct Id {
             Id(Utf16FlyString n)
                 : name(move(n))
+                , lowercase_name(name.to_ascii_lowercase())
             {
             }
 
             Utf16FlyString name;
+            Utf16FlyString lowercase_name;
         };
 
         struct ClassName {
             ClassName(Utf16FlyString n)
                 : name(move(n))
+                , lowercase_name(name.to_ascii_lowercase())
             {
             }
 
             Utf16FlyString name;
+            Utf16FlyString lowercase_name;
         };
 
         // Equivalent to `<wq-name>`
@@ -189,7 +197,7 @@ public:
             };
             MatchType match_type;
             QualifiedName qualified_name;
-            Utf16String value {};
+            Utf16FlyString value {};
             CaseType case_type;
         };
 
@@ -210,9 +218,9 @@ public:
         Utf16FlyString const& name() const { return value.get<Name>().name; }
         Utf16FlyString& name() { return value.get<Name>().name; }
         Utf16FlyString const& id_name() const { return value.get<Id>().name; }
-        Utf16FlyString& id_name() { return value.get<Id>().name; }
+        Utf16FlyString const& lowercase_id_name() const { return value.get<Id>().lowercase_name; }
         Utf16FlyString const& class_name() const { return value.get<ClassName>().name; }
-        Utf16FlyString& class_name() { return value.get<ClassName>().name; }
+        Utf16FlyString const& lowercase_class_name() const { return value.get<ClassName>().lowercase_name; }
         Utf16FlyString const& lowercase_name() const { return value.get<Name>().lowercase_name; }
         Utf16FlyString& lowercase_name() { return value.get<Name>().lowercase_name; }
         QualifiedName const& qualified_name() const { return value.get<QualifiedName>(); }
@@ -262,13 +270,6 @@ public:
     Utf16String serialize() const;
     void serialize_to(Utf16StringBuilder&, GC::Ptr<CSSStyleSheet const> = nullptr) const;
 
-    auto const& ancestor_hashes() const { return m_ancestor_hashes; }
-
-    bool can_use_ancestor_filter() const { return m_can_use_ancestor_filter; }
-
-    bool is_slotted() const { return m_contains_slotted_pseudo_element; }
-    bool has_part_pseudo_element() const { return m_contains_part_pseudo_element; }
-
     SelectorFFI::RustSelector const& rust_selector() const
     {
         VERIFY(m_rust_selector);
@@ -279,18 +280,11 @@ private:
     explicit Selector(Vector<CompoundSelector>&&);
 
     Vector<CompoundSelector> m_compound_selectors;
-    mutable Optional<u32> m_specificity;
     Optional<PseudoElement> m_target_pseudo_element;
-    bool m_can_use_ancestor_filter { false };
     bool m_contains_the_nesting_selector { false };
-    bool m_contains_slotted_pseudo_element { false };
-    bool m_contains_part_pseudo_element { false };
 
     PseudoClassBitmap m_contained_pseudo_classes;
 
-    void collect_ancestor_hashes();
-
-    Array<u32, 8> m_ancestor_hashes;
     SelectorFFI::RustSelector* m_rust_selector { nullptr };
 };
 

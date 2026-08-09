@@ -1,0 +1,5 @@
+continuation adds passes: true
+round guard reached: true
+exact continuation ran: true
+exact continuation stabilized: true
+stable nested query result: rgb(0, 128, 0)

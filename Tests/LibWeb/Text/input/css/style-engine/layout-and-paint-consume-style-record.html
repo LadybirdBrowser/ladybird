@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .shared { color: red; --token: initial; }
+    .metadata { color: red; --token: changed; }
+    .changed { color: blue; --token: changed; }
+</style>
+<div id="first" class="shared"></div>
+<div id="second" class="shared"></div>
+<script>
+    test(() => {
+        internals.updateStyle();
+        const firstRecord = internals.styleRecordIdentity(first);
+        println(`initial record is nonzero: ${firstRecord !== 0}`);
+        println(`layout consumes initial record: ${internals.layoutStyleRecordIdentity(first) === firstRecord}`);
+        println(`paint consumes initial record: ${internals.paintStyleRecordIdentity(first) === firstRecord}`);
+        println(`layout shares records: ${internals.layoutStyleRecordIdentity(second) === firstRecord}`);
+        first.className = "metadata";
+        internals.updateStyle();
+
+        const metadataRecord = internals.styleRecordIdentity(first);
+        println(`metadata-only change publishes a new record: ${metadataRecord !== firstRecord}`);
+        println(`layout consumes metadata-only record: ${internals.layoutStyleRecordIdentity(first) === metadataRecord}`);
+        println(`paint consumes metadata-only record: ${internals.paintStyleRecordIdentity(first) === metadataRecord}`);
+
+        first.className = "changed";
+        internals.updateStyle();
+
+        const changedRecord = internals.styleRecordIdentity(first);
+        println(`style change publishes a new record: ${changedRecord !== metadataRecord}`);
+        println(`layout consumes changed record: ${internals.layoutStyleRecordIdentity(first) === changedRecord}`);
+        println(`paint consumes changed record: ${internals.paintStyleRecordIdentity(first) === changedRecord}`);
+    });
+</script>

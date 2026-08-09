@@ -8,7 +8,7 @@
 
 namespace Web::Layout {
 
-LegendBox::LegendBox(DOM::Document& document, DOM::Element& element, NonnullRefPtr<CSS::ComputedValues const> style)
+LegendBox::LegendBox(DOM::Document& document, DOM::Element& element, CSS::LayoutStyle style)
     : BlockContainer(document, &element, style)
 {
 }

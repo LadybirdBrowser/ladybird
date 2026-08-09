@@ -1,0 +1,16 @@
+holder color: rgb(0, 0, 0)
+holder border-top-color: rgb(4, 5, 6)
+holder::before background-color: rgb(7, 8, 9)
+first outline-color: rgb(0, 0, 0)
+html: :not(::before)
+head: :not(::before)
+script: :not(::before)
+style: :not(::before)
+body: :not(::before)
+div.holder: :not(::before) .holder::before[pseudo 2] .holder::before[pseudo 2]
+div.list: :not(::before)
+span#first: :not(::before)
+span: :not(::before)
+script: :not(::before)
+pre#out: :not(::before)
+

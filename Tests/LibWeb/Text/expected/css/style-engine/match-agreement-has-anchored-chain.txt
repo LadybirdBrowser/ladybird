@@ -1,0 +1,7 @@
+--child-of-next-sibling: (none)
+--under-next-sibling: 1
+--child-of-following-sibling: (none)
+--under-a-child: (none)
+--under-an-outer: (none)
+div#subject: #subject:has(+ div .t)
+

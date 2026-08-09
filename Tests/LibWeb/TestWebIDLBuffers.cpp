@@ -32,7 +32,7 @@ struct TestVM {
 };
 
 struct ExposedWebGLRenderingContextBase : Web::WebGL::WebGLRenderingContextBase {
-    WEB_NON_IDL_PLATFORM_OBJECT(ExposedWebGLRenderingContextBase, Web::WebGL::WebGLRenderingContextBase);
+    WEB_NON_IDL_WRAPPABLE(ExposedWebGLRenderingContextBase, Web::WebGL::WebGLRenderingContextBase);
 
     using Web::WebGL::WebGLRenderingContextBase::with_buffer_source_bytes;
 };

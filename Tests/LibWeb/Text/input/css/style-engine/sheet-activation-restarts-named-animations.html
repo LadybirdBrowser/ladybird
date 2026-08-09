@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style id="k" media="not all">
+    @keyframes grow {
+        from {
+            width: 10px;
+        }
+        to {
+            width: 10px;
+        }
+    }
+</style>
+<style>
+    #t {
+        width: 50px;
+        animation: grow 1000s paused both;
+        height: 5px;
+    }
+</style>
+<div id="t">x</div>
+<script>
+    test(() => {
+        internals.updateStyle();
+        println("before: " + getComputedStyle(document.getElementById("t")).width);
+
+        // A @keyframes rule has no selector program, so sheet activation's patch selection
+        // must force emission for its planned consumers: #t is planned exactly because its
+        // animation definition toggled, not because any selector answer moved.
+        document.getElementById("k").media = "all";
+        internals.updateStyle();
+        println("after enable: " + getComputedStyle(document.getElementById("t")).width);
+
+        document.getElementById("k").media = "not all";
+        internals.updateStyle();
+        println("after disable: " + getComputedStyle(document.getElementById("t")).width);
+    });
+</script>

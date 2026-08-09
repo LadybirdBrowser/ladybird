@@ -19,7 +19,7 @@ SVGGElement::SVGGElement(DOM::Document& document, DOM::QualifiedName qualified_n
 {
 }
 
-RefPtr<Layout::Node> SVGGElement::create_layout_node(NonnullRefPtr<CSS::ComputedValues const> style)
+RefPtr<Layout::Node> SVGGElement::create_layout_node(CSS::LayoutStyle style)
 {
     return make_ref_counted<Layout::SVGGraphicsBox>(document(), *this, style);
 }

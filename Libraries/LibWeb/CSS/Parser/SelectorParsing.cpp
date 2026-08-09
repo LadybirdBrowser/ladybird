@@ -577,7 +577,7 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_attribute_simple_se
         return ParseError::SyntaxError;
     }
     auto const& value_string = value_part.token().is(Token::Type::Ident) ? value_part.token().ident() : value_part.token().string();
-    simple_selector.attribute().value = value_string.to_utf16_string();
+    simple_selector.attribute().value = value_string;
 
     attribute_tokens.discard_whitespace();
     // Handle case-sensitivity suffixes. https://www.w3.org/TR/selectors-4/#attribute-case
@@ -830,6 +830,7 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_class_simple
                     .ident = Selector::SimpleSelector::PseudoClassSelector::Ident {
                         .keyword = keyword_from_string(ident).value_or(Keyword::Invalid),
                         .string_value = ident,
+                        .lowercase_string_value = ident.to_ascii_lowercase(),
                     },
                 }
             };

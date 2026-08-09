@@ -77,8 +77,8 @@ Optional<Gfx::Filter> SVGFilterElement::gfx_filter(Layout::NodeWithStyle const& 
 
     auto operating_color_space = [](DOM::Element const& element) {
         // linearRGB performs color operations in the linear-light sRGB color space; auto and sRGB use gamma-encoded sRGB.
-        auto computed_values = element.computed_values();
-        auto color_interpolation_filters = computed_values ? computed_values->color_interpolation_filters() : CSS::ColorInterpolation::Linearrgb;
+        auto const* svg_values = element.style_group<CSS::ComputedValues::InheritedSVGValues>();
+        auto color_interpolation_filters = svg_values ? svg_values->color_interpolation_filters : CSS::ColorInterpolation::Linearrgb;
         return CSS::to_interpolation_color_space(color_interpolation_filters);
     };
 
@@ -308,7 +308,7 @@ Optional<Gfx::Filter> SVGFilterElement::gfx_filter(Layout::NodeWithStyle const& 
                 return IterationDecision::Continue;
 
             auto dest_rect = Gfx::enclosing_int_rect(paintable_box->absolute_rect().to_type<float>());
-            auto scaling_mode = CSS::to_gfx_scaling_mode(paintable_box->computed_values().image_rendering(), src_rect->size(), dest_rect.size());
+            auto scaling_mode = CSS::to_gfx_scaling_mode(paintable_box->layout_node().image_rendering(), src_rect->size(), dest_rect.size());
             root = { Gfx::Filter::image(*frame, *src_rect, dest_rect, scaling_mode), Gfx::InterpolationColorSpace::SRGB };
             update_result_map(*image_primitive);
         } else if (auto* merge_primitive = as_if<SVGFEMergeElement>(node)) {

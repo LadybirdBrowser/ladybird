@@ -1,0 +1,9 @@
+sibling identity-order plan: [early, late]
+subject color: rgb(0, 128, 0)
+subject background: rgb(0, 0, 255)
+leaf color: rgb(0, 128, 0)
+reaction batch runs: 1
+reaction elements: 4
+published reactions: 4
+regular recomputations: 5
+inherited recomputations: 1

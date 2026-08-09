@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../../include.js"></script>
+<script src="structural-matrix.js"></script>
+<script>
+    test(() => {
+        const style = addStyle(document.head, `.leaf { color: rgb(10, 20, 30); transition: color 10s linear; }`);
+
+        const box = makeElement("section");
+        for (let i = 0; i < 10; i++) box.appendChild(makeElement("div", { className: "leaf" }));
+        document.body.append(box);
+        internals.updateStyle();
+
+        // A declared transition registers the properties it names on the element, which is decided by
+        // the computed values rather than by the element, so these ten still compute one style
+        // between them on the pass that gives them one to transition from.
+        resetStyleCounters();
+        const second = addStyle(document.head, `.leaf { letter-spacing: 1px; }`);
+        internals.updateStyle();
+        const shared = styleCounters().elementStyleSharedComputations;
+        println(`PASS: elements declaring a transition share a style: ${shared >= 9}`);
+
+        // What they registered has to survive taking someone else's answer: changing the transitioned
+        // property now starts a transition on every one of them.
+        second.textContent = `.leaf { color: rgb(200, 100, 50); }`;
+        internals.updateStyle();
+        const running = [...box.children].filter(leaf => leaf.getAnimations().length === 1).length;
+        println(`PASS: every one of them starts a transition afterwards: ${running === 10}`);
+
+        box.remove();
+        style.remove();
+        second.remove();
+    });
+</script>

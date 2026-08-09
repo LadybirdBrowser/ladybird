@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="fixture"></div>
+<script>
+    test(() => {
+        // A `moveBefore()` inside a shadow root moves an element in a child list whose parent is the
+        // root itself, which is a node of the style tree without being an element. Reporting only an
+        // element parent says the element left the tree rather than moved inside it, and the list it
+        // left goes on naming it as its first child - so the engine's walk of the tree misses every
+        // element after it.
+        const host = document.createElement("div");
+        const root = host.attachShadow({ mode: "open" });
+        root.innerHTML = `<div class="moved"><span class="target">t</span></div><div class="anchor"></div>`;
+        document.getElementById("fixture").appendChild(host);
+
+        // The sheet arrives after the tree it decides for, which is what a shadow tree built from
+        // script does.
+        const style = document.createElement("style");
+        style.textContent = ".anchor + .moved .target { color: rgb(1, 2, 3) }";
+        root.appendChild(style);
+
+        const moved = root.querySelector(".moved");
+        const anchor = root.querySelector(".anchor");
+        const target = root.querySelector(".target");
+        internals.updateStyle();
+        println("before the move: " + getComputedStyle(target).color);
+
+        root.moveBefore(moved, anchor.nextSibling);
+        internals.updateStyle();
+        println("after the move: " + getComputedStyle(target).color);
+        println("child order: " + [...root.children].map(element => element.className || element.localName).join(", "));
+
+        for (const element of root.querySelectorAll("*"))
+            getComputedStyle(element).color;
+        println(internals.styleEngineMatchedRules());
+    });
+</script>

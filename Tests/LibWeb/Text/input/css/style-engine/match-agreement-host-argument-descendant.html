@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="host" class="active" data-active></div>
+<script>
+    test(() => {
+        const root = document.getElementById("host").attachShadow({ mode: "open" });
+        // What `:host()` names is the host, which stands outside the tree its descendants are in, so
+        // none of these say anything about an ancestor of the `span`.
+        root.innerHTML = `<style>
+                              :host(.active) span { color: rgb(1, 2, 3) }
+                              :host([data-active]) span { background-color: rgb(4, 5, 6) }
+                              :host(div.active) > span { outline-color: rgb(7, 8, 9) }
+                              :host(.inactive) span { border-top-width: 10px }
+                          </style>
+                          <span id="top">top</span>`;
+        const top = root.getElementById("top");
+        println("class argument: " + getComputedStyle(top).color);
+        println("attribute argument: " + getComputedStyle(top).backgroundColor);
+        println("child combinator: " + getComputedStyle(top).outlineColor);
+        println("argument that does not hold: " + getComputedStyle(top).borderTopWidth);
+        println(internals.styleEngineMatchedRules());
+    });
+</script>

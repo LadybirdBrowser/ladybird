@@ -79,7 +79,8 @@
     [76, "SetComputedGroupDependencyMasks"],
     [77, "StyleDeltaBatch"],
     [78, "SelectorQueryAtomMappings"],
-    [79, "PrepareSelectorQuery"]
+    [79, "PrepareSelectorQuery"],
+    [80, "AddCounterStyleRule"]
   ],
   "operations": [
     { "event": "SetFoldIdAndClassNameCase", "ffi": "style_engine_set_fold_id_and_class_name_case", "cpp": "set_fold_id_and_class_name_case", "return": "void", "args": [["fold", "bool"]], "body": "engine.set_fold_id_and_class_name_case(fold);" },
@@ -127,6 +128,7 @@
     { "event": "DiscardStyleTransactionOutputs", "ffi": "style_engine_discard_style_transaction_outputs", "return": "void", "args": [], "body": "engine.discard_style_transaction_outputs();" },
     { "event": "RecordLayerStatement", "ffi": "style_engine_record_layer_statement", "cpp": "record_layer_statement", "return": "void", "args": [["sheet", "sheet_id"]], "body": "if sheet != 0 { engine.record_layer_statement(SheetID(sheet - 1)); }" },
     { "event": "AddPropertyRule", "ffi": "style_engine_add_property_rule", "cpp": "add_property_rule", "return": "style_rule_id", "args": [["sheet", "sheet_id"], ["before_rule", "style_rule_id"], ["name_atom", "style_atom"], ["has_initial_value", "bool"]], "body": "let result = if sheet == 0 { 0 } else { let before = (before_rule != 0).then(|| RuleID(before_rule - 1)); engine.add_property_rule(SheetID(sheet - 1), before, StyleAtomID(name_atom), has_initial_value).0 + 1 };" },
+    { "event": "AddCounterStyleRule", "ffi": "style_engine_add_counter_style_rule", "cpp": "add_counter_style_rule", "return": "style_rule_id", "args": [["sheet", "sheet_id"], ["before_rule", "style_rule_id"]], "body": "let result = if sheet == 0 { 0 } else { let before = (before_rule != 0).then(|| RuleID(before_rule - 1)); engine.add_non_matching_rule(SheetID(sheet - 1), before, RuleKind::CounterStyle).0 + 1 };" },
     { "event": "AddFontFeatureValuesRule", "ffi": "style_engine_add_font_feature_values_rule", "cpp": "add_font_feature_values_rule", "return": "style_rule_id", "args": [["sheet", "sheet_id"], ["before_rule", "style_rule_id"]], "body": "let result = if sheet == 0 { 0 } else { let before = (before_rule != 0).then(|| RuleID(before_rule - 1)); engine.add_non_matching_rule(SheetID(sheet - 1), before, RuleKind::FontFeatureValues).0 + 1 };" },
     { "event": "AddFunctionRule", "ffi": "style_engine_add_function_rule", "cpp": "add_function_rule", "return": "style_rule_id", "args": [["sheet", "sheet_id"], ["before_rule", "style_rule_id"]], "body": "let result = if sheet == 0 { 0 } else { let before = (before_rule != 0).then(|| RuleID(before_rule - 1)); engine.add_non_matching_rule(SheetID(sheet - 1), before, RuleKind::Function).0 + 1 };" },
     { "event": "AddKeyframesRule", "ffi": "style_engine_add_keyframes_rule", "cpp": "add_keyframes_rule", "return": "style_rule_id", "args": [["sheet", "sheet_id"], ["before_rule", "style_rule_id"], ["name_atom", "style_atom"]], "body": "let result = if sheet == 0 { 0 } else { let before = (before_rule != 0).then(|| RuleID(before_rule - 1)); engine.add_keyframes_rule(SheetID(sheet - 1), before, StyleAtomID(name_atom)).0 + 1 };" },

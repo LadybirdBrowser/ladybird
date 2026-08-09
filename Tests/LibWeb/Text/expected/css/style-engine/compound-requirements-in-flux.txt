@@ -1,0 +1,4 @@
+two of three conjuncts leave at once: [one]
+two of three conjuncts arrive at once: [two]
+one conjunct leaves as another arrives: [three]
+the origin compound loses two conjuncts at once: [target]

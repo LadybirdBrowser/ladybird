@@ -18,6 +18,7 @@
 #include <LibURL/Parser.h>
 #include <LibWeb/Bindings/HTMLMediaElement.h>
 #include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/CSS/Invalidation/ElementStateInvalidator.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/Compositor/CompositorHost.h>
 #include <LibWeb/DOM/Document.h>
@@ -490,7 +491,7 @@ void HTMLMediaElement::set_seeking(bool seeking)
     if (m_seeking == seeking)
         return;
     m_seeking = seeking;
-    set_needs_style_update(true);
+    CSS::Invalidation::invalidate_style_after_media_seeking_state_change(*this, seeking);
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-media-load
@@ -682,7 +683,7 @@ void HTMLMediaElement::set_muted(bool muted)
 
     m_muted = muted;
     volume_or_muted_attribute_changed();
-    set_needs_style_update(true);
+    CSS::Invalidation::invalidate_style_after_media_muted_state_change(*this, muted);
 }
 
 void HTMLMediaElement::toggle_fullscreen()
@@ -2353,14 +2354,16 @@ void HTMLMediaElement::set_ready_state(ReadyState ready_state)
     if (m_ready_state == ready_state)
         return;
 
+    auto was_buffering = blocked();
+    auto was_playing = !was_buffering && !paused();
     auto old_ready_state = m_ready_state;
     m_ready_state = ready_state;
+    CSS::Invalidation::invalidate_style_after_media_ready_state_change(*this, was_buffering, was_playing);
 
     ScopeGuard guard { [&] {
         upon_has_ended_playback_possibly_changed();
         update_screen_wake_lock();
         update_natural_dimensions();
-        set_needs_style_update(true);
     } };
 
     // When the ready state of a media element whose networkState is not NETWORK_EMPTY changes, the user agent must
@@ -2937,7 +2940,7 @@ void HTMLMediaElement::set_paused(bool paused)
 
     update_natural_dimensions();
     set_needs_repaint();
-    set_needs_style_update(true);
+    CSS::Invalidation::invalidate_style_after_media_paused_state_change(*this, paused);
 }
 
 void HTMLMediaElement::set_ended(bool ended)

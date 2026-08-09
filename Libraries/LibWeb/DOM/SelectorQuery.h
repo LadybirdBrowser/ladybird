@@ -7,7 +7,9 @@
 #pragma once
 
 #include <AK/HashMap.h>
+#include <AK/OwnPtr.h>
 #include <AK/RefCounted.h>
+#include <AK/Vector.h>
 #include <LibGC/Cell.h>
 #include <LibGC/Ptr.h>
 #include <LibGC/Weak.h>
@@ -16,14 +18,19 @@
 
 namespace Web::DOM {
 
+class IsolatedSelectorQueryCacheEntry;
+class IsolatedSelectorQueryEngine;
+
 // A selectors string parsed for use by querySelector(All), matches() and closest().
 // Documents cache these per selector string, so one SelectorQuery may be reused by many queries.
 class SelectorQuery : public RefCounted<SelectorQuery> {
 public:
-    static NonnullRefPtr<SelectorQuery> create(CSS::SelectorList&& selectors)
+    static NonnullRefPtr<SelectorQuery> create(Document& document, CSS::SelectorList&& selectors)
     {
-        return adopt_ref(*new SelectorQuery(move(selectors)));
+        return adopt_ref(*new SelectorQuery(document, move(selectors)));
     }
+
+    ~SelectorQuery();
 
     CSS::SelectorList const& selectors() const { return m_selectors; }
 
@@ -32,11 +39,19 @@ public:
 
     GC::Ptr<Element> query_first(ParentNode&) const;
     GC::Ref<NodeList> query_all(ParentNode&) const;
+    bool matches(Element const&, ParentNode const& scope) const;
+    GC::Ptr<Element const> closest(Element const&) const;
 
 private:
-    explicit SelectorQuery(CSS::SelectorList&&);
+    SelectorQuery(Document&, CSS::SelectorList&&);
+
+    bool can_match_simple_selector_in_dom() const;
+    bool matches_simple_selector_in_dom(Element const&) const;
+    bool matches_in_style_engine(Element const&, ParentNode const& scope) const;
+    IsolatedSelectorQueryEngine& isolated_engine_for(ParentNode&) const;
 
     CSS::SelectorList m_selectors;
+    void* m_engine_query { nullptr };
 
     // Whether matching can only change when the document's dom_tree_version (plus character_data_version, see below)
     // changes. Queries with selectors that depend on other state (:hover, :checked, :target, etc) are not cacheable.
@@ -45,6 +60,8 @@ private:
     // Whether matching also depends on character data (only :empty), so cached results must additionally be
     // validated against the document's character_data_version.
     bool m_depends_on_character_data { false };
+
+    mutable Vector<NonnullOwnPtr<IsolatedSelectorQueryCacheEntry>> m_isolated_engine_cache;
 };
 
 // Caches querySelectorAll element lists per (query root, selector query) so that repeated queries against an

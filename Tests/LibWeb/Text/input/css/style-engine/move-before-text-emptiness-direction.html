@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="old" dir="auto">مرحبا</div>
+<div id="new" dir="auto"></div>
+<script>
+    test(() => {
+        const oldParent = document.getElementById("old");
+        const newParent = document.getElementById("new");
+        const text = oldParent.firstChild;
+        internals.updateStyle();
+        println(`before empty: ${oldParent.matches(":empty")}, ${newParent.matches(":empty")}`);
+        println(`before direction: ${getComputedStyle(oldParent).direction}, ${getComputedStyle(newParent).direction}`);
+
+        newParent.moveBefore(text, null);
+        internals.updateStyle();
+        println(`after empty: ${oldParent.matches(":empty")}, ${newParent.matches(":empty")}`);
+        println(`after direction: ${getComputedStyle(oldParent).direction}, ${getComputedStyle(newParent).direction}`);
+    });
+</script>

@@ -10,7 +10,7 @@
 
 namespace Web::Layout {
 
-SVGTextBox::SVGTextBox(DOM::Document& document, SVG::SVGTextPositioningElement& element, NonnullRefPtr<CSS::ComputedValues const> style)
+SVGTextBox::SVGTextBox(DOM::Document& document, SVG::SVGTextPositioningElement& element, CSS::LayoutStyle style)
     : SVGGraphicsBox(document, element, style)
 {
 }

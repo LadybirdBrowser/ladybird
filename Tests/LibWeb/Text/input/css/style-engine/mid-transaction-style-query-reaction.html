@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #container { --state: off; }
+    #container.changed { --state: on; }
+    @container style(--state: on) {
+        #dependent { color: rgb(1, 2, 3); }
+    }
+</style>
+<div id="container"><span id="dependent"></span></div>
+<script>
+    test(() => {
+        const container = document.getElementById("container");
+        const dependent = document.getElementById("dependent");
+        internals.updateStyle();
+
+        internals.resetStyleInvalidationCounters();
+        container.classList.add("changed");
+        internals.updateStyle();
+        const updateCounters = internals.getStyleInvalidationCounters();
+
+        const color = getComputedStyle(dependent).color;
+        const readCounters = internals.getStyleInvalidationCounters();
+
+        println("dependent color: " + color);
+        println("update recomputations: " + updateCounters.elementStyleRecomputations);
+        println("read recomputations: " + (readCounters.elementStyleRecomputations - updateCounters.elementStyleRecomputations));
+    });
+</script>

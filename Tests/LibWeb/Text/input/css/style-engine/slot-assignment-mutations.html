@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="plan.js"></script>
+<div id="host"><span id="a" class="hit"></span><span id="b"></span></div>
+<script>
+    test(() => {
+        // A slottable's assigned slot is its parent in the flat tree. A slot name change moves it
+        // there with no DOM mutation at all: nothing about its child sequence moves and no feature
+        // of its own changes, so the relation itself is what has to be published.
+        const host = document.getElementById("host");
+        const root = host.attachShadow({ mode: "open" });
+        root.innerHTML = "<style>::slotted(.hit) { color: green }</style>"
+            + "<slot name='x'></slot><slot></slot>";
+        const a = document.getElementById("a");
+
+        plan("assign a slottable to a named slot", () => a.setAttribute("slot", "x"));
+        plan("rewrite the attribute to the same slot", () => a.setAttribute("slot", "x"));
+        plan("send it to a slot that does not exist", () => a.setAttribute("slot", "nobody"));
+        plan("send it back to the default slot", () => a.removeAttribute("slot"));
+    });
+</script>

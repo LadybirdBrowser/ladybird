@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    div { color: rgb(1, 2, 3) }
+
+    /* An argument the engine cannot compile exactly is still an argument: dropping it leaves the
+       compound with nothing but its subject, which names every element rather than none. */
+    #a:has(:is(:bogus-thing .x)) { color: rgb(10, 0, 0) }
+    #b:has(:is(:bogus-thing)) { color: rgb(20, 0, 0) }
+    #c:has(:bogus-thing) { color: rgb(30, 0, 0) }
+    #d:has(:is()) { color: rgb(40, 0, 0) }
+    #e:has(.x:bogus-thing) { color: rgb(50, 0, 0) }
+
+    /* An alternative that survives forgiving parsing still decides for itself. */
+    #f:has(:is(.x, :bogus-thing)) { color: rgb(60, 0, 0) }
+</style>
+<div id="a"><span class="x"></span></div>
+<div id="b"><span class="x"></span></div>
+<div id="c"><span class="x"></span></div>
+<div id="d"><span class="x"></span></div>
+<div id="e"><span class="x"></span></div>
+<div id="f"><span class="x"></span></div>
+<script>
+    test(() => {
+        for (const id of ["a", "b", "c", "d", "e", "f"])
+            println(`${id}: ${getComputedStyle(document.getElementById(id)).color}`);
+
+        for (const element of document.querySelectorAll("*"))
+            getComputedStyle(element).color;
+        println(internals.styleEngineMatchedRules());
+    });
+</script>

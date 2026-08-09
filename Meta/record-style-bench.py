@@ -149,7 +149,7 @@ return {{ started: startBenchmark(), count: benchmarkClient.stepCount }};
 
     captures = sorted(output.glob("stylebench-*.sg"))
     if not captures:
-        raise RuntimeError("the browser produced no capture; configure with ENABLE_STYLE_RECORDING=ON")
+        raise RuntimeError("the browser produced no capture")
     print(f"recorded {state['total']} StyleBench subtests:")
     for capture in captures:
         print(f"  {capture} ({capture.stat().st_size} bytes)")

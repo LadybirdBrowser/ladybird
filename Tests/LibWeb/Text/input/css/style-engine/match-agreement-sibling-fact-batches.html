@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .guard ~ .target { --general: 1 }
+    .middle + .target { --adjacent: 1 }
+    .target:nth-child(4) { --nth-child: 1 }
+    .target:nth-of-type(2) { --nth-type: 1 }
+    .guard:nth-last-of-type(2) { --nth-last-type: 1 }
+    .guard:has(~ .target) { --following-has: 1 }
+    .guard:has(.deep) ~ .target { --nested-under-sibling: 1 }
+    .guard ~ .target:has(.inside) { --nested-under-subject: 1 }
+    .missing ~ .target { --negative-general: 1 }
+    .target:nth-child(2 of .counted) { --nth-of-selector: 1 }
+</style>
+<div id="ordinary">
+    <section class="guard counted"><i class="deep"></i></section>
+    <p class="counted"></p>
+    <div class="middle"></div>
+    <section class="target counted"><i class="inside"></i></section>
+</div>
+<div id="host"></div>
+<script>
+    test(() => {
+        const shadow = document.querySelector("#host").attachShadow({ mode: "open" });
+        shadow.innerHTML = `
+            <style>
+                .shadow-guard ~ .shadow-target { --shadow-general: 1 }
+                .shadow-target:nth-of-type(2) { --shadow-nth-type: 1 }
+                .shadow-guard:has(~ .shadow-target) { --shadow-following-has: 1 }
+                .shadow-guard:has(.shadow-deep) ~ .shadow-target { --shadow-nested: 1 }
+            </style>
+            <section class="shadow-guard"><i class="shadow-deep"></i></section>
+            <p></p>
+            <section class="shadow-target"></section>
+        `;
+
+        internals.updateStyle();
+        for (const element of document.querySelectorAll("*"))
+            getComputedStyle(element).color;
+        for (const element of shadow.querySelectorAll("*"))
+            getComputedStyle(element).color;
+        const before = internals.styleEngineCounters();
+        const report = internals.styleEngineMatchedRules();
+        const after = internals.styleEngineCounters();
+        println(report);
+        println(`cold node evaluations: ${after.coldNodesEvaluated - before.coldNodesEvaluated}`);
+        println(`candidate checks: ${after.candidateChecks - before.candidateChecks}`);
+        println(`rule matches emitted: ${after.ruleMatchesEmitted - before.ruleMatchesEmitted}`);
+    });
+</script>

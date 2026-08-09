@@ -4,14 +4,25 @@ version = "0.1.0"
 edition = "2024"
 
 [lib]
-crate-type = ["staticlib"]
+crate-type = ["rlib", "staticlib"]
+
+[[bin]]
+name = "style-replay"
+path = "src/bin/style_replay.rs"
+required-features = ["style-recording"]
+
+[features]
+style-recording = []
 
 # After changing dependencies, regenerate the Flatpak sources:
 #   python3 Meta/CMake/flatpak/generate-cargo-sources.py
 [dependencies]
 chardetng = "1.0.0"
+foldhash = "0.1"
+hashbrown = "0.16.1"
 libgfx_rust = { path = "../../LibGfx/Rust", default-features = false }
 libweb_html_tokenizer = { path = "../HTML/Parser/Rust" }
+serde_json = { version = "1", features = ["float_roundtrip", "preserve_order"] }
 
 [build-dependencies]
 cbindgen = "0.29"

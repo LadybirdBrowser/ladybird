@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="host"></div>
+<template id="template"></template>
+<script>
+    test(() => {
+        const hostElement = document.getElementById("host");
+        const templateElement = document.getElementById("template");
+        const sheet = new CSSStyleSheet();
+        sheet.replaceSync("div { color: blue; }");
+
+        const root = hostElement.attachShadow({ mode: "open" });
+        root.innerHTML = "<div></div>";
+        root.adoptedStyleSheets = [sheet];
+        println(getComputedStyle(root.firstChild).color);
+
+        templateElement.content.appendChild(hostElement);
+        println(root.adoptedStyleSheets.length);
+
+        document.body.appendChild(hostElement);
+        println(getComputedStyle(root.firstChild).color);
+    });
+</script>

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .x { color: blue }
+</style>
+<div id="clean-first">
+    <div class="item">clean</div>
+    <div class="item" style="color: green">inline</div>
+    <div class="item">clean</div>
+</div>
+<div id="inline-first">
+    <div class="item" style="color: green">inline</div>
+    <div class="item">clean</div>
+    <div class="item">clean</div>
+</div>
+<script>
+    function addClassAndPrintColors(container) {
+        const elements = container.children;
+        internals.updateStyle();
+        for (const element of elements)
+            element.classList.add("x");
+        internals.updateStyle();
+        for (const element of elements)
+            println(getComputedStyle(element).color);
+    }
+
+    test(() => {
+        const before = internals.styleEngineCounters();
+        addClassAndPrintColors(document.getElementById("clean-first"));
+        addClassAndPrintColors(document.getElementById("inline-first"));
+        const after = internals.styleEngineCounters();
+        println(`delta memo replays: ${after.retainedMatchAnswerDeltaMemoHits - before.retainedMatchAnswerDeltaMemoHits}`);
+    });
+</script>

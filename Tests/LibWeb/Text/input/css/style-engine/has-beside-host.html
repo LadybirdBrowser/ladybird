@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="plan.js"></script>
+<div id="host">
+  <template shadowrootmode="open">
+    <style>
+      :host:has(.descendant) .subject { color: rgb(0, 128, 0) }
+      :host:has(> .child) .subject { color: rgb(0, 0, 255) }
+      :host:has(> .child > .grand_child) .subject { color: rgb(255, 0, 255) }
+      :host:has(~ .sibling) .subject { color: rgb(255, 255, 0) }
+    </style>
+    <div id="subject" class="subject"></div>
+    <div id="shadow_child"><div id="shadow_descendant"></div></div>
+  </template>
+  <div class="child"><div class="descendant"></div></div>
+</div>
+<div class="sibling"></div>
+<script>
+    // A `:has()` written beside `:host` is anchored on the host but reads the tree the host opens,
+    // because its argument is a selector of that tree's own sheet. So the light-DOM `.child` and
+    // `.descendant` above answer nothing, the `.sibling` beside the host answers nothing ever, and
+    // every axis is walked from the shadow root the way `:host > .x` crosses to it.
+    //
+    // The report at the end still names three of them as missing from the engine. That is the matcher
+    // the engine replaced answering them from the host's light DOM - the `.sibling` beside the host
+    // included, which no axis of a shadow tree's sheet can reach - and not a gap here.
+    test(() => {
+        const root = document.getElementById("host").shadowRoot;
+        const subject = root.getElementById("subject");
+        const shadow_child = root.getElementById("shadow_child");
+        const shadow_descendant = root.getElementById("shadow_descendant");
+        const color = label => println(`${label}: ${getComputedStyle(subject).color}`);
+
+        color("the light DOM answers none of them");
+
+        shadow_descendant.classList.add("descendant");
+        color("a descendant of the tree");
+        shadow_child.classList.add("child");
+        color("a child of the root, which outranks it");
+        shadow_descendant.classList.add("grand_child");
+        color("the chain, tied back to the root rather than to the host");
+
+        shadow_child.classList.remove("child");
+        shadow_descendant.classList.remove("descendant", "grand_child");
+        color("back to none of them");
+
+        // Routing is the other half: the plan names what the engine would recompute, and it is asked
+        // of the engine whichever matcher styling happens to use.
+        plan("a class arriving in the tree", () => shadow_child.classList.add("descendant"));
+        plan("and leaving it again", () => shadow_child.classList.remove("descendant"));
+        plan("an element carrying one arriving", () => {
+            const arrival = document.createElement("div");
+            arrival.className = "descendant";
+            arrival.id = "arrival";
+            root.appendChild(arrival);
+        });
+        plan("and departing, which no walk from it can find", () => {
+            root.getElementById("arrival").remove();
+        });
+
+        // See the note above: the rules this reports as missing from the engine are the old matcher
+        // over-matching from the light DOM.
+        println(internals.styleEngineMatchedRules());
+    });
+</script>

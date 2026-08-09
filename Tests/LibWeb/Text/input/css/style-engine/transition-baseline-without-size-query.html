@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #root { --root-state: off }
+    #root.changed { --root-state: on }
+    #middle { --middle-state: off }
+    #target { width: 10px }
+
+    @container style(--root-state: on) {
+        #middle { --middle-state: on }
+    }
+
+    @container style(--middle-state: on) {
+        #target {
+            width: 30px;
+            transition: width 1000s linear;
+        }
+    }
+</style>
+<div id="root">
+    <div id="middle">
+        <div id="target"></div>
+    </div>
+</div>
+<script>
+    test(() => {
+        internals.updateStyle();
+
+        const animation = target.animate(
+            [{ width: "10px" }, { width: "20px" }],
+            { duration: 1000, fill: "both" });
+        animation.pause();
+        animation.currentTime = 1000;
+
+        internals.resetStyleInvalidationCounters();
+        root.className = "changed";
+        internals.updateStyle();
+
+        const counters = internals.getStyleInvalidationCounters();
+        const transition = target.getAnimations().find(animation => animation instanceof CSSTransition);
+        animation.cancel();
+        transition.currentTime = 500000;
+        println(`feedback used provisional passes: ${counters.provisionalStylePasses > 1}`);
+        println(`one transition started: ${transition !== undefined}`);
+        println(`transition midpoint width: ${getComputedStyle(target).width}`);
+    });
+</script>

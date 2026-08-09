@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="plan.js"></script>
+<style>
+    #checkbox:default + #checkbox-subject { color: green }
+    #option:default { color: green }
+    #typed:default + #typed-subject { color: green }
+    #first-submit:default ~ #first-submit-subject { color: green }
+    #second-submit:default ~ #second-submit-subject { color: green }
+    #command-button:default + #command-subject { color: green }
+</style>
+<input id="checkbox" type="checkbox">
+<span id="checkbox-subject"></span>
+<select>
+    <option id="option">option</option>
+</select>
+<input id="typed" checked>
+<span id="typed-subject"></span>
+<form id="form">
+    <input id="first-submit" type="submit">
+    <button id="second-submit" type="submit"></button>
+    <span id="first-submit-subject"></span>
+    <span id="second-submit-subject"></span>
+</form>
+<form id="command-form">
+    <button id="command-button"></button>
+    <span id="command-subject"></span>
+</form>
+<form id="other-form"></form>
+<script>
+    test(() => {
+        const checkbox = document.getElementById("checkbox");
+        const option = document.getElementById("option");
+        const typed = document.getElementById("typed");
+        const form = document.getElementById("form");
+        const firstSubmit = document.getElementById("first-submit");
+        const secondSubmit = document.getElementById("second-submit");
+        const commandButton = document.getElementById("command-button");
+        const color = id => getComputedStyle(document.getElementById(id)).color;
+        const assertColor = (id, expected) => {
+            const actual = color(id);
+            if (actual !== expected)
+                throw new Error(`Expected ${id} to be ${expected}, got ${actual}`);
+        };
+
+        checkbox.defaultChecked = true;
+        assertColor("checkbox-subject", "rgb(0, 128, 0)");
+        checkbox.defaultChecked = false;
+        assertColor("checkbox-subject", "rgb(0, 0, 0)");
+        option.defaultSelected = true;
+        assertColor("option", "rgb(0, 128, 0)");
+        option.defaultSelected = false;
+        assertColor("option", "rgb(0, 0, 0)");
+        typed.type = "radio";
+        assertColor("typed-subject", "rgb(0, 128, 0)");
+        typed.type = "text";
+        assertColor("typed-subject", "rgb(0, 0, 0)");
+
+        firstSubmit.type = "button";
+        assertColor("first-submit-subject", "rgb(0, 0, 0)");
+        assertColor("second-submit-subject", "rgb(0, 128, 0)");
+        firstSubmit.type = "submit";
+        assertColor("first-submit-subject", "rgb(0, 128, 0)");
+        assertColor("second-submit-subject", "rgb(0, 0, 0)");
+        form.moveBefore(secondSubmit, firstSubmit);
+        assertColor("first-submit-subject", "rgb(0, 0, 0)");
+        assertColor("second-submit-subject", "rgb(0, 128, 0)");
+        form.moveBefore(firstSubmit, secondSubmit);
+        assertColor("first-submit-subject", "rgb(0, 128, 0)");
+        assertColor("second-submit-subject", "rgb(0, 0, 0)");
+        firstSubmit.setAttribute("form", "other-form");
+        assertColor("first-submit-subject", "rgb(0, 128, 0)");
+        assertColor("second-submit-subject", "rgb(0, 128, 0)");
+        firstSubmit.removeAttribute("form");
+        assertColor("first-submit-subject", "rgb(0, 128, 0)");
+        assertColor("second-submit-subject", "rgb(0, 0, 0)");
+        firstSubmit.remove();
+        assertColor("first-submit-subject", "rgb(0, 0, 0)");
+        assertColor("second-submit-subject", "rgb(0, 128, 0)");
+        form.insertBefore(firstSubmit, secondSubmit);
+        assertColor("first-submit-subject", "rgb(0, 128, 0)");
+        assertColor("second-submit-subject", "rgb(0, 0, 0)");
+
+        commandButton.setAttribute("command", "show-modal");
+        assertColor("command-subject", "rgb(0, 0, 0)");
+        commandButton.removeAttribute("command");
+        assertColor("command-subject", "rgb(0, 128, 0)");
+
+        plan("make checkbox default", () => checkbox.defaultChecked = true);
+        plan("make checkbox non-default", () => checkbox.defaultChecked = false);
+        plan("make option default", () => option.defaultSelected = true);
+        plan("make option non-default", () => option.defaultSelected = false);
+        plan("make checked input a radio", () => typed.type = "radio");
+        plan("make checked input text again", () => typed.type = "text");
+
+        plan("remove first submit status", () => firstSubmit.type = "button");
+        plan("restore first submit status", () => firstSubmit.type = "submit");
+        plan("move second submit first", () => form.moveBefore(secondSubmit, firstSubmit));
+        plan("move first submit first", () => form.moveBefore(firstSubmit, secondSubmit));
+        plan("associate first submit to another form", () => firstSubmit.setAttribute("form", "other-form"));
+        plan("restore first submit owner", () => firstSubmit.removeAttribute("form"));
+        plan("remove first submit", () => firstSubmit.remove());
+        plan("reinsert first submit", () => form.insertBefore(firstSubmit, secondSubmit));
+
+        plan("give auto button a command", () => commandButton.setAttribute("command", "show-modal"));
+        plan("remove auto button command", () => commandButton.removeAttribute("command"));
+    });
+</script>

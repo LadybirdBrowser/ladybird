@@ -26,6 +26,7 @@
 #include <LibWeb/CSS/Invalidation/ElementStateInvalidator.h>
 #include <LibWeb/CSS/Invalidation/FormControlInvalidator.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/SelectorMatching.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
@@ -108,6 +109,17 @@ HTMLInputElement::HTMLInputElement(DOM::Document& document, DOM::QualifiedName q
 
 HTMLInputElement::~HTMLInputElement() = default;
 
+// `:user-valid` and `:user-invalid` turn on the first time the user has interacted with the
+// control, which no attribute and no value says. The style engine is told what the element now
+// holds rather than asking.
+void HTMLInputElement::set_user_validity(bool flag)
+{
+    if (m_user_validity == flag)
+        return;
+    m_user_validity = flag;
+    CSS::Invalidation::invalidate_style_after_validity_change(*this);
+}
+
 void HTMLInputElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
@@ -144,7 +156,7 @@ void HTMLInputElement::set_being_activated(bool activated)
         set_needs_repaint();
 }
 
-RefPtr<Layout::Node> HTMLInputElement::create_layout_node(NonnullRefPtr<CSS::ComputedValues const> style)
+RefPtr<Layout::Node> HTMLInputElement::create_layout_node(CSS::LayoutStyle style)
 {
     if (type_state() == TypeAttributeState::Hidden)
         return nullptr;
@@ -152,8 +164,11 @@ RefPtr<Layout::Node> HTMLInputElement::create_layout_node(NonnullRefPtr<CSS::Com
     // NOTE: Image inputs are `appearance: none` per the default UA style,
     //       but we still need to create an ImageBox for them, or no image will get loaded.
     if (type_state() == TypeAttributeState::ImageButton) {
-        if (renders_as_alt_text() && !get_attribute_value(HTML::AttributeNames::alt).is_empty())
-            return Element::create_layout_node_for_display_type(document(), style->display(), style, this);
+        if (renders_as_alt_text() && !get_attribute_value(HTML::AttributeNames::alt).is_empty()) {
+            auto computed_style = this->computed_style();
+            VERIFY(computed_style);
+            return Element::create_layout_node_for_display_type(document(), computed_style->display(), style, this);
+        }
         return make_ref_counted<Layout::ImageBox>(document(), *this, style, *this);
     }
 
@@ -161,8 +176,10 @@ RefPtr<Layout::Node> HTMLInputElement::create_layout_node(NonnullRefPtr<CSS::Com
     // This specification introduces the appearance property to provide some control over this behavior.
     // In particular, using appearance: none allows authors to suppress the native appearance of widgets,
     // giving them a primitive appearance where CSS can be used to restyle them.
-    if (style->appearance() == CSS::Appearance::None) {
-        return Element::create_layout_node_for_display_type(document(), style->display(), style, this);
+    auto computed_style = this->computed_style();
+    VERIFY(computed_style);
+    if (computed_style->appearance() == CSS::Appearance::None) {
+        return Element::create_layout_node_for_display_type(document(), computed_style->display(), style, this);
     }
 
     switch (type_state()) {
@@ -179,7 +196,7 @@ RefPtr<Layout::Node> HTMLInputElement::create_layout_node(NonnullRefPtr<CSS::Com
         return make_ref_counted<Layout::RangeInputBox>(document(), *this, style);
     case TypeAttributeState::Color:
     case TypeAttributeState::FileUpload:
-        return Element::create_layout_node_for_display_type(document(), style->display(), style, this);
+        return Element::create_layout_node_for_display_type(document(), computed_style->display(), style, this);
     default:
         return make_ref_counted<Layout::TextInputBox>(document(), *this, style);
     }
@@ -195,7 +212,7 @@ void HTMLInputElement::set_checked(bool checked)
 
     m_checked = checked;
 
-    CSS::Invalidation::invalidate_style_after_checked_state_change(*this, DOM::StyleInvalidationReason::HTMLInputElementSetChecked);
+    CSS::Invalidation::invalidate_style_after_checked_state_change(*this);
 
     set_needs_repaint();
 
@@ -224,7 +241,10 @@ bool HTMLInputElement::indeterminate() const
 void HTMLInputElement::set_indeterminate(bool value)
 {
     // The indeterminate setter steps are to set this's indeterminateness to the given value.
+    if (m_indeterminateness == value)
+        return;
     m_indeterminateness = value;
+    CSS::Invalidation::invalidate_style_after_indeterminate_state_change(*this, value);
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#dom-input-list
@@ -886,6 +906,10 @@ static GC::Ref<CSS::CSSStyleProperties> placeholder_style_when_hidden()
 
 void HTMLInputElement::update_placeholder_visibility()
 {
+    // Whether the placeholder shows is decided by the control's value, which no attribute carries,
+    // so `:placeholder-shown` moves with it and the style engine has to be told.
+    CSS::Invalidation::invalidate_style_after_placeholder_shown_change(*this);
+
     if (!m_placeholder_element)
         return;
     if (this->placeholder_value().has_value())
@@ -934,7 +958,7 @@ void HTMLInputElement::update_text_input_shadow_tree()
 
     if (m_type == TypeAttributeState::Number) {
         // The `textfield` appearance is used to hide the stepper buttons.
-        if (auto style = computed_values(); style && style->appearance() == CSS::Appearance::Textfield) {
+        if (auto style = computed_style(); style && style->appearance() == CSS::Appearance::Textfield) {
             m_up_button_element->set_inline_style(stepper_button_style_when_hidden());
             m_down_button_element->set_inline_style(stepper_button_style_when_hidden());
         } else {
@@ -1671,11 +1695,13 @@ void HTMLInputElement::type_attribute_changed(TypeAttributeState old_state, Type
     if (old_state == new_state)
         return;
 
+    auto was_default = SelectorMatching::element_matches_state(*this, CSS::PseudoClass::Default);
+    auto was_read_write = SelectorMatching::element_matches_state(*this, CSS::PseudoClass::ReadWrite);
     auto new_value_attribute_mode = value_attribute_mode_for_type_state(new_state);
     auto old_value_attribute_mode = value_attribute_mode_for_type_state(old_state);
 
     if (checked_applies(old_state) != checked_applies(new_state)) {
-        CSS::Invalidation::invalidate_style_after_checked_state_change(*this, DOM::StyleInvalidationReason::HTMLInputElementSetType);
+        CSS::Invalidation::invalidate_style_after_checked_state_change(*this);
     }
 
     // 1. If the previous state of the element's type attribute put the value IDL attribute in the value mode, and the element's
@@ -1706,6 +1732,11 @@ void HTMLInputElement::type_attribute_changed(TypeAttributeState old_state, Type
 
     // 4. Update the element's rendering and behavior to the new state's.
     m_type = new_state;
+    if (auto* form = this->form())
+        form->default_button_state_maybe_changed(*this, was_default);
+    else
+        CSS::Invalidation::invalidate_style_after_default_state_change(*this, was_default);
+    CSS::Invalidation::invalidate_style_after_read_write_state_change(*this, was_read_write);
     clear_element_reference_pseudo_elements();
     set_shadow_root(nullptr);
     m_image_button_alt_text_node = nullptr;
@@ -3920,7 +3951,7 @@ void HTMLInputElement::set_is_open(bool is_open)
         return;
 
     m_is_open = is_open;
-    CSS::Invalidation::invalidate_style_after_input_open_state_change(*this);
+    CSS::Invalidation::invalidate_style_after_input_open_state_change(*this, is_open);
 }
 
 bool HTMLInputElement::is_mutable() const

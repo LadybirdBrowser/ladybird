@@ -1,0 +1,4 @@
+div#host: :host
+span.inside.outside: span .inside
+span.light: span
+

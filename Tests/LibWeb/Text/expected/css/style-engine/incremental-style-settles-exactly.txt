@@ -1,0 +1,29 @@
+a guard arrives above the target: settles exactly
+a nearer guard arrives under it: settles exactly
+the outer guard leaves, the nearer one remains: settles exactly
+the last guard leaves: settles exactly
+an attribute arrives: settles exactly
+its value changes: settles exactly
+it is rewritten with the same value: settles exactly
+it leaves: settles exactly
+a relational witness arrives: settles exactly
+a second witness joins it: settles exactly
+the first witness leaves: settles exactly
+the last witness leaves: settles exactly
+a child-axis witness arrives: settles exactly
+it leaves again: settles exactly
+a sibling gains what the selector reads: settles exactly
+and loses it: settles exactly
+two conjuncts leave together: settles exactly
+they arrive together: settles exactly
+one leaves as another arrives: settles exactly
+an element arrives between two adjacent siblings: settles exactly
+and leaves again, closing the seam: settles exactly
+a counted sibling arrives at the front: settles exactly
+the element a general prefix rests on leaves: settles exactly
+and comes back at the front: settles exactly
+it moves past what it preceded: settles exactly
+a following peer arrives: settles exactly
+that peer leaves: settles exactly
+text fills an empty element: settles exactly
+and the text goes away again: settles exactly

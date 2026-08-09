@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="host"></div>
+<script>
+    test(() => {
+        const root = document.getElementById("host").attachShadow({ mode: "open" });
+        root.innerHTML = `<style>:host * { color: rgb(1, 2, 3) } :host > span { color: rgb(4, 5, 6) }</style>
+                          <span id="top">top</span><div><span id="deep">deep</span></div>`;
+        println("top: " + getComputedStyle(root.getElementById("top")).color);
+        println("deep: " + getComputedStyle(root.getElementById("deep")).color);
+        println(internals.styleEngineMatchedRules());
+    });
+</script>

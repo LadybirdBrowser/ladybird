@@ -109,6 +109,7 @@ impl FeatureFluxColumn {
         self.keys_of(node.element_index().unwrap() as usize)
     }
 
+    #[cfg(test)]
     pub(super) fn all_nodes(&self, mut predicate: impl FnMut(StyleNodeID, &[DispatchKey]) -> bool) -> bool {
         for (page_index, &occupied) in self.occupied.iter().enumerate() {
             let mut remaining = occupied;

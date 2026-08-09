@@ -221,6 +221,10 @@ pub struct SelectorCompiler<'a> {
     /// the order its simple selectors were written in, so `:has(.x):host` says the same as
     /// `:host:has(.x)`.
     compound_names_the_host: bool,
+    /// Whether the current compound is the subject of a selector nested in a logical pseudo-class.
+    /// A sheet's default namespace does not constrain that subject unless it writes a type or
+    /// universal selector of its own.
+    logical_pseudo_subject: Option<*const CompoundSelector>,
 }
 
 impl<'a> SelectorCompiler<'a> {
@@ -241,6 +245,7 @@ impl<'a> SelectorCompiler<'a> {
             scope_root_is_bound: false,
             selector_names_the_scope: false,
             compound_names_the_host: false,
+            logical_pseudo_subject: None,
         }
     }
 
@@ -453,6 +458,19 @@ impl<'a> SelectorCompiler<'a> {
         self.compile_chain_anchored(compounds, index, marker, None)
     }
 
+    fn compile_chain_with_subject(
+        &mut self,
+        compounds: &[CompoundSelector],
+        index: usize,
+        marker: &mut Option<CompilationMarker>,
+        subject: *const CompoundSelector,
+    ) -> SelectorNodeID {
+        let outer_subject = self.logical_pseudo_subject.replace(subject);
+        let result = self.compile_chain(compounds, index, marker);
+        self.logical_pseudo_subject = outer_subject;
+        result
+    }
+
     /// The same, with `leftmost` conjoined onto the compound the chain starts at.
     ///
     /// A relative selector uses this to say where its chain started, which the constraints on the
@@ -569,20 +587,18 @@ impl<'a> SelectorCompiler<'a> {
         // and it is a property of the compound as a whole, so it is answered by looking rather than
         // by relying on the order the simple selectors happen to be compiled in. An inner compound
         // does not inherit it: `:host :is(.a:has(.x))` anchors that query on the `.a`.
-        let outer_names_the_host = std::mem::replace(
-            &mut self.compound_names_the_host,
-            compound.simple_selectors.iter().any(|simple| {
-                matches!(
-                    simple,
-                    // FIXME: `:host-context()` names the host too, and a `:has()` beside one reads
-                    //        the hosted tree for the same reason. The parser has no pseudo-class for
-                    //        it yet - it arrives as an invalid simple selector - so there is nothing
-                    //        to test here until it does.
-                    SimpleSelector::PseudoClass(pseudo_class)
-                        if pseudo_class.pseudo_class == PseudoClassType::Host
-                )
-            }),
-        );
+        let compound_names_the_host = compound.simple_selectors.iter().any(|simple| {
+            matches!(
+                simple,
+                // FIXME: `:host-context()` names the host too, and a `:has()` beside one reads
+                //        the hosted tree for the same reason. The parser has no pseudo-class for
+                //        it yet - it arrives as an invalid simple selector - so there is nothing
+                //        to test here until it does.
+                SimpleSelector::PseudoClass(pseudo_class)
+                    if pseudo_class.pseudo_class == PseudoClassType::Host
+            )
+        });
+        let outer_names_the_host = std::mem::replace(&mut self.compound_names_the_host, compound_names_the_host);
         for simple in &compound.simple_selectors {
             if let Some(operand) = self.compile_simple(simple, marker) {
                 match part.is_some() && matches!(simple, SimpleSelector::PseudoClass(_)) {
@@ -596,7 +612,7 @@ impl<'a> SelectorCompiler<'a> {
         // A compound with no type or universal selector written has one implied, and a default
         // namespace constrains that one as well: in a sheet declaring one, `:link` names a link in
         // that namespace rather than a link anywhere.
-        if let Some(default) = self.implied_default_namespace(compound) {
+        if let Some(default) = self.implied_default_namespace(compound, compound_names_the_host) {
             operands.push(self.builder.push_feature(FeatureTest::Namespace(default)));
         }
 
@@ -655,6 +671,7 @@ impl<'a> SelectorCompiler<'a> {
             // only the first, and only when its sheet gave it one to constrain.
             SimpleSelector::Universal(name) => Some(match self.namespace_test(name) {
                 Some(test) => self.builder.push_feature(FeatureTest::Namespace(test)),
+                None if self.compound_names_the_host => self.builder.push_never(),
                 None => self.builder.push_feature(FeatureTest::AnyElement),
             }),
             SimpleSelector::TagName(name) => {
@@ -773,8 +790,15 @@ impl<'a> SelectorCompiler<'a> {
     ///
     /// Returns nothing when the compound names a type or universal selector of its own, since that
     /// name carries the constraint already, and when the sheet declared no default.
-    fn implied_default_namespace(&self, compound: &CompoundSelector) -> Option<NamespaceTest> {
-        if self.selector_escapes_its_namespace {
+    fn implied_default_namespace(
+        &self,
+        compound: &CompoundSelector,
+        compound_names_the_host: bool,
+    ) -> Option<NamespaceTest> {
+        if self.selector_escapes_its_namespace
+            || compound_names_the_host
+            || self.logical_pseudo_subject == Some(compound as *const CompoundSelector)
+        {
             return None;
         }
         let names_an_element = compound
@@ -1172,7 +1196,10 @@ impl<'a> SelectorCompiler<'a> {
             if argument.target_pseudo_element.is_some() {
                 continue;
             }
-            branches.push(self.compile_chain(compounds, compounds.len() - 1, marker));
+            let subject_index = compounds.len() - 1;
+            let subject = &raw const compounds[subject_index];
+            let branch = self.compile_chain_with_subject(compounds, subject_index, marker, subject);
+            branches.push(branch);
         }
         branches
     }

@@ -1,0 +1,2 @@
+old document: rgb(4, 5, 6)
+new document: rgb(4, 5, 6)

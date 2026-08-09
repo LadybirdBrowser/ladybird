@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .first { color: red; }
+    .second { color: red; }
+    .changed { color: blue; }
+    .pseudo-first::before { content: "same"; }
+    .pseudo-second::before { content: "same"; }
+    #state-target:state(active) { background-color: green; }
+    #state-target:not(:state(active)) { background-color: green; }
+</style>
+<div id="target" class="first">target</div>
+<div id="pseudo" class="pseudo-first">pseudo target</div>
+<state-target id="state-target">state target</state-target>
+<script>
+    customElements.define("state-target", class extends HTMLElement {
+        constructor() {
+            super();
+            this.internals = this.attachInternals();
+        }
+    });
+
+    test(() => {
+        const stateTarget = document.getElementById("state-target");
+        internals.updateStyle();
+        const before = internals.styleEngineCounters();
+
+        target.className = "second";
+        internals.updateStyle();
+        const unchanged = internals.styleEngineCounters();
+
+        println(`exact cascade stopped: ${unchanged.publishedExactCascadeStops - before.publishedExactCascadeStops}`);
+        println(`unchanged style reactions: ${unchanged.invalidatedStyleNodes - before.invalidatedStyleNodes}`);
+        println(`unchanged color: ${getComputedStyle(target).color}`);
+
+        target.className = "changed";
+        internals.updateStyle();
+        const changed = internals.styleEngineCounters();
+
+        println(`changed style reactions: ${changed.invalidatedStyleNodes - unchanged.invalidatedStyleNodes}`);
+        println(`changed color: ${getComputedStyle(target).color}`);
+
+        pseudo.className = "pseudo-second";
+        internals.updateStyle();
+        const pseudoChanged = internals.styleEngineCounters();
+
+        println(`pseudo cascade stopped: ${pseudoChanged.publishedExactCascadeStops - changed.publishedExactCascadeStops}`);
+        println(`pseudo style reactions: ${pseudoChanged.invalidatedStyleNodes - changed.invalidatedStyleNodes}`);
+        println(`pseudo content: ${getComputedStyle(pseudo, "::before").content}`);
+
+        stateTarget.internals.states.add("active");
+        internals.updateStyle();
+        const stateChanged = internals.styleEngineCounters();
+
+        println(`state cascade stopped: ${stateChanged.publishedExactCascadeStops - pseudoChanged.publishedExactCascadeStops}`);
+        println(`unchanged state reactions: ${stateChanged.invalidatedStyleNodes - pseudoChanged.invalidatedStyleNodes}`);
+        println(`state background: ${getComputedStyle(stateTarget).backgroundColor}`);
+    });
+</script>

@@ -34,6 +34,7 @@ public:
 
     [[nodiscard]] RefPtr<StyleValue const> property(PropertyID) const;
     [[nodiscard]] GC::Ptr<DOM::ShadowRoot const> property_source_shadow_root(PropertyID) const;
+    // The declaration whose value won this property, which is what says where the value came from.
 
     // For the Rust-driven cascade application: the underlying store, and assignment of the
     // GC-weak declaration source pair for a slot the store handed out.

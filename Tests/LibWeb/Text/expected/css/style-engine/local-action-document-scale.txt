@@ -1,0 +1,11 @@
+normalized action rows: 2
+one selector reaction: 1
+one match reaction: 1
+one computed reaction: 1
+one directly acted node: 1
+one signed-delta node: 1
+one changed-output node: 1
+no upquery nodes: 0
+no unattributed nodes: 0
+physical work is document-scale invariant: true
+largest document elements: 4097

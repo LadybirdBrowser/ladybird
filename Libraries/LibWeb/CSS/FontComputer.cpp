@@ -23,6 +23,7 @@
 #include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/CSS/FontFaceSet.h>
 #include <LibWeb/CSS/FontLoading.h>
+#include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
@@ -716,9 +717,9 @@ static bool style_value_references_font_family(StyleValue const& font_family_val
     return false;
 }
 
-static bool computed_values_reference_font_family(ComputedValues const& computed_values, Utf16FlyString const& family_name)
+static bool font_values_reference_font_family(ComputedValues::FontValues const& font_values, Utf16FlyString const& family_name)
 {
-    for (auto const& family : computed_values.font_families()) {
+    for (auto const& family : font_values.font_families) {
         if (auto const* name = family.get_pointer<ComputedFontFamilyName>(); name && name->name.equals_ignoring_ascii_case(family_name))
             return true;
     }
@@ -734,16 +735,16 @@ void FontComputer::clear_computed_font_cache(Utf16FlyString const& family_name)
 
     auto element_uses_font_family = [&](DOM::Element const& element) {
         // Check the element's own font-family.
-        if (auto style = element.computed_values()) {
-            if (computed_values_reference_font_family(*style, family_name))
+        if (auto const* values = element.style_group<ComputedValues::FontValues>()) {
+            if (font_values_reference_font_family(*values, family_name))
                 return true;
         }
 
         // Check pseudo-elements, which may use a different font-family than the element itself.
         bool synthetic_pseudo_element_uses_font_family = false;
-        element.for_each_synthetic_pseudo_element([&](Web::CSS::PseudoElement, Web::DOM::SyntheticPseudoElement const& pseudo_element) {
-            if (auto style = pseudo_element.computed_values()) {
-                if (computed_values_reference_font_family(*style, family_name)) {
+        element.for_each_synthetic_pseudo_element([&](Web::CSS::PseudoElement pseudo_element, Web::DOM::SyntheticPseudoElement const&) {
+            if (auto const* values = element.style_group<ComputedValues::FontValues>(pseudo_element)) {
+                if (font_values_reference_font_family(*values, family_name)) {
                     synthetic_pseudo_element_uses_font_family = true;
                     return IterationDecision::Break;
                 }
@@ -754,25 +755,14 @@ void FontComputer::clear_computed_font_cache(Utf16FlyString const& family_name)
         return synthetic_pseudo_element_uses_font_family;
     };
 
-    if (document().needs_full_style_update())
-        return;
-
-    // Walk the DOM tree (including shadow trees) and invalidate elements that use this font family.
+    // Walk the DOM tree (including shadow trees) and publish inputs for elements that use this font family.
     document().for_each_shadow_including_inclusive_descendant([&](DOM::Node& node) {
         auto* element = as_if<DOM::Element>(node);
         if (!element)
             return TraversalDecision::Continue;
 
-        // If this element's subtree is already marked for style update, skip the entire subtree.
-        if (element->entire_subtree_needs_style_update())
-            return TraversalDecision::SkipChildrenAndContinue;
-
-        // If this element already needs a style update, check descendants but don't re-check this element.
-        if (element->needs_style_update())
-            return TraversalDecision::Continue;
-
         if (element_uses_font_family(*element)) {
-            element->set_needs_style_update(true);
+            element->document().style_computer().style_engine().record_element_style_input_change(element->style_node_id());
             return TraversalDecision::Continue;
         }
 
@@ -787,6 +777,9 @@ void FontComputer::clear_font_feature_values_cache(Utf16FlyString const& family_
 
 void FontComputer::did_load_font(Utf16FlyString const& family_name)
 {
+    // What a computation resolves a family to is not named by any word of a style input record, so
+    // the records taken before this font arrived answer for nothing.
+    m_document->bump_style_environment_version();
     clear_computed_font_cache(family_name);
 }
 

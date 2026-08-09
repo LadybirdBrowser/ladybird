@@ -190,19 +190,12 @@ set(SOURCES
     CSS/Invalidation/EmbeddedContentInvalidator.cpp
     CSS/Invalidation/ElementStateInvalidator.cpp
     CSS/Invalidation/FormControlInvalidator.cpp
-    CSS/Invalidation/HasMutationFeatureCollector.cpp
-    CSS/Invalidation/HasMutationInvalidator.cpp
-    CSS/Invalidation/InvalidationSetMatcher.cpp
     CSS/Invalidation/LanguageInvalidator.cpp
     CSS/Invalidation/LinkInvalidator.cpp
     CSS/Invalidation/MediaQueryInvalidator.cpp
-    CSS/Invalidation/NodeInvalidator.cpp
     CSS/Invalidation/PartInvalidator.cpp
     CSS/Invalidation/PseudoClassInvalidator.cpp
     CSS/Invalidation/SlotInvalidator.cpp
-    CSS/Invalidation/StyleInvalidator.cpp
-    CSS/Invalidation/StructuralMutationInvalidator.cpp
-    CSS/InvalidationSet.cpp
     CSS/Length.cpp
     CSS/LengthBox.cpp
     CSS/MediaList.cpp
@@ -244,8 +237,9 @@ set(SOURCES
     CSS/Serialize.cpp
     CSS/Sizing.cpp
     CSS/StyleComputer.cpp
+    CSS/StyleEngineBridge.cpp
+    CSS/StyleEngineInput.cpp
     CSS/StyleInvalidation.cpp
-    CSS/StyleInvalidationData.cpp
     CSS/StyleProperty.cpp
     CSS/StylePropertyMapReadOnly.cpp
     CSS/StylePropertyMap.cpp
@@ -1333,14 +1327,25 @@ endforeach()
 import_rust_crate(
     MANIFEST_PATH Rust/Cargo.toml
     CRATE_NAME libweb_rust
+    FEATURES style-recording
     FFI_HEADERS
         HTML/Parser/RustFFI.h
         RustFFI.h
         SelectorRustFFI.h
         StyleValueRustFFI.h
         ComputedValuesRustFFI.h
+        StyleEngineRustFFI.h
+        StyleEngineBridgeGenerated.h
+        StyleEngineBridgeGenerated.inc
+        StyleEngineStateFactsGenerated.inc
         Layout/TreeBuilderRustFFI.h
         Layout/LayoutRustFFI.h
+)
+build_rust_binary(
+    MANIFEST_PATH Rust/Cargo.toml
+    CRATE_NAME libweb_rust
+    BINARY_NAME style-replay
+    FEATURES style-recording
 )
 target_link_libraries(libweb_rust INTERFACE LibGfx)
 

@@ -1,3 +1,3 @@
-appending a child to a parent without observable child-state pseudos: 2 invalidations
-removing the only child from a parent without observable child-state pseudos: 1 invalidations
-appending a fragment to a parent without observable child-state pseudos: 3 invalidations
+appending a child to a parent without observable child-state pseudos: 1 recomputations
+removing the only child from a parent without observable child-state pseudos: 0 recomputations
+appending a fragment to a parent without observable child-state pseudos: 2 recomputations

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #parent.hidden { display: none; color: red; }
+    #parent.visible { display: block; color: green; }
+</style>
+<div id="parent" class="hidden">
+    <span id="read-child"></span>
+    <span id="sibling"><b id="deep-sibling"></b></span>
+</div>
+<script>
+    test(() => {
+        const parent = document.getElementById("parent");
+        const readChild = document.getElementById("read-child");
+        const sibling = document.getElementById("sibling");
+        const deepSibling = document.getElementById("deep-sibling");
+        internals.updateStyle();
+
+        internals.resetStyleInvalidationCounters();
+        parent.className = "visible";
+        const readChildColor = getComputedStyle(readChild).color;
+        const readCounters = internals.getStyleInvalidationCounters();
+
+        internals.updateStyle();
+        const siblingColor = getComputedStyle(sibling).color;
+        const deepSiblingColor = getComputedStyle(deepSibling).color;
+        const finalCounters = internals.getStyleInvalidationCounters();
+
+        println("read child color: " + readChildColor);
+        println("sibling color: " + siblingColor);
+        println("deep sibling color: " + deepSiblingColor);
+        println("style read recomputations: " + readCounters.elementStyleRecomputations);
+        println("subsequent update recomputations: " + (finalCounters.elementStyleRecomputations - readCounters.elementStyleRecomputations));
+    });
+</script>

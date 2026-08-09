@@ -5,6 +5,7 @@
  */
 
 #include <LibGC/Heap.h>
+#include <LibWeb/Bindings/HTMLAudioElement.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/HTML/HTMLAudioElement.h>
@@ -22,7 +23,7 @@ HTMLAudioElement::HTMLAudioElement(DOM::Document& document, DOM::QualifiedName q
 
 HTMLAudioElement::~HTMLAudioElement() = default;
 
-RefPtr<Layout::Node> HTMLAudioElement::create_layout_node(NonnullRefPtr<CSS::ComputedValues const> style)
+RefPtr<Layout::Node> HTMLAudioElement::create_layout_node(CSS::LayoutStyle style)
 {
     return make_ref_counted<Layout::AudioBox>(document(), *this, style);
 }

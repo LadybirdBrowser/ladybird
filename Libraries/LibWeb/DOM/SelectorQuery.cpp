@@ -6,13 +6,107 @@
 
 #include <LibGC/WeakInlines.h>
 #include <LibWeb/CSS/SelectorMatching.h>
+#include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/CSS/StyleEngineBridge.h>
+#include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ParentNode.h>
 #include <LibWeb/DOM/SelectorQuery.h>
+#include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/StaticNodeList.h>
 
 namespace Web::DOM {
+
+class IsolatedSelectorQueryEngine {
+public:
+    IsolatedSelectorQueryEngine(ParentNode& root, CSS::SelectorList const& selectors)
+        : m_engine(CSS::StyleEngine::DeviceClass::ForegroundDesktop)
+        , m_has_document_root(is<Document>(root))
+    {
+        CSS::populate_isolated_selector_query_engine(m_engine, root, [&](GC::Ref<Element> element, CSS::StyleNodeID identity) {
+            m_identities.set(element, identity);
+        });
+
+        Vector<void const*> selector_handles;
+        selector_handles.ensure_capacity(selectors.size());
+        for (auto const& selector : selectors)
+            selector_handles.unchecked_append(&selector->rust_selector());
+        m_query = m_engine.compile_selector_query(selector_handles);
+    }
+
+    ~IsolatedSelectorQueryEngine()
+    {
+        CSS::StyleEngine::destroy_selector_query(m_query);
+    }
+
+    bool matches(Element const& element, ParentNode const& scope)
+    {
+        auto node = m_identities.get(GC::Ptr { element });
+        VERIFY(node.has_value());
+        CSS::StyleNodeID scope_root;
+        if (GC::Ptr<Element const> scope_element = as_if<Element>(scope))
+            scope_root = m_identities.get(scope_element).value_or(0);
+        auto result = m_has_document_root
+            ? m_engine.selector_query_matches(m_query, *node, scope_root, 0)
+            : m_engine.selector_query_matches_without_document_root(m_query, *node, scope_root, 0);
+        VERIFY(result.has_value());
+        return *result;
+    }
+
+private:
+    CSS::StyleEngine m_engine;
+    HashMap<GC::Ptr<Element const>, CSS::StyleNodeID> m_identities;
+    void* m_query { nullptr };
+    bool m_has_document_root { false };
+};
+
+class IsolatedSelectorQueryCacheEntry {
+public:
+    IsolatedSelectorQueryCacheEntry(ParentNode& root, CSS::SelectorList const& selectors)
+        : root(root)
+        , dom_tree_version(root.document().dom_tree_version())
+        , character_data_version(root.document().character_data_version())
+        , engine(root, selectors)
+    {
+    }
+
+    GC::Weak<ParentNode> root;
+    u64 dom_tree_version { 0 };
+    u64 character_data_version { 0 };
+    IsolatedSelectorQueryEngine engine;
+};
+
+template<typename Matcher>
+static GC::Ptr<Element> first_match(ParentNode& root, Matcher&& matcher)
+{
+    GC::Ptr<Element> result;
+    // FIXME: This should be shadow-including. https://drafts.csswg.org/selectors-4/#match-a-selector-against-a-tree
+    root.for_each_in_subtree_of_type<Element>([&](auto& element) {
+        if (matcher(element)) {
+            result = GC::Ptr { element };
+            return TraversalDecision::Break;
+        }
+        return TraversalDecision::Continue;
+    });
+    return result;
+}
+
+template<typename Matcher>
+static void collect_matches(ParentNode& root, Matcher&& matcher, Vector<GC::RawPtr<Element>>& elements)
+{
+    // FIXME: This should be shadow-including. https://drafts.csswg.org/selectors-4/#match-a-selector-against-a-tree
+    root.for_each_in_subtree_of_type<Element>([&](auto& element) {
+        if (matcher(element))
+            elements.append(element);
+        return TraversalDecision::Continue;
+    });
+}
+
+static void settle_connected_selector_query(Document& document)
+{
+    document.style_computer().style_engine().prepare_selector_query();
+}
 
 // Whether matching this pseudo-class can only change when Document::dom_tree_version() or
 // Document::character_data_version() change, i.e. it depends only on tree structure, attributes and character
@@ -49,9 +143,15 @@ static bool pseudo_class_matching_is_covered_by_version_counters(CSS::PseudoClas
     }
 }
 
-SelectorQuery::SelectorQuery(CSS::SelectorList&& selectors)
+SelectorQuery::SelectorQuery(Document& document, CSS::SelectorList&& selectors)
     : m_selectors(move(selectors))
 {
+    Vector<void const*> selector_handles;
+    selector_handles.ensure_capacity(m_selectors.size());
+    for (auto const& selector : m_selectors)
+        selector_handles.unchecked_append(&selector->rust_selector());
+    m_engine_query = document.style_computer().style_engine().compile_selector_query(selector_handles);
+
     m_is_result_cacheable = true;
     for (auto const& selector : m_selectors) {
         // NB: The contained-pseudo-class bitmap may be under-collected for selectors containing the nesting
@@ -76,6 +176,167 @@ SelectorQuery::SelectorQuery(CSS::SelectorList&& selectors)
     }
 }
 
+SelectorQuery::~SelectorQuery()
+{
+    CSS::StyleEngine::destroy_selector_query(m_engine_query);
+}
+
+bool SelectorQuery::can_match_simple_selector_in_dom() const
+{
+    if (m_selectors.size() != 1)
+        return false;
+    auto const& compounds = m_selectors.first()->compound_selectors();
+    if (compounds.size() != 1 || compounds.first().simple_selectors.is_empty())
+        return false;
+    for (auto const& simple_selector : compounds.first().simple_selectors) {
+        if (simple_selector.type == CSS::Selector::SimpleSelector::Type::TagName) {
+            auto namespace_type = simple_selector.qualified_name().namespace_type;
+            if (namespace_type != CSS::Selector::SimpleSelector::QualifiedName::NamespaceType::Default
+                && namespace_type != CSS::Selector::SimpleSelector::QualifiedName::NamespaceType::Any)
+                return false;
+            continue;
+        }
+        if (simple_selector.type != CSS::Selector::SimpleSelector::Type::Id
+            && simple_selector.type != CSS::Selector::SimpleSelector::Type::Class)
+            return false;
+    }
+    return true;
+}
+
+bool SelectorQuery::matches_simple_selector_in_dom(Element const& element) const
+{
+    auto const& simple_selectors = m_selectors.first()->compound_selectors().first().simple_selectors;
+    auto case_sensitivity = element.document().in_quirks_mode() ? CaseSensitivity::CaseInsensitive : CaseSensitivity::CaseSensitive;
+    for (auto const& simple_selector : simple_selectors) {
+        if (simple_selector.type == CSS::Selector::SimpleSelector::Type::Class) {
+            if (!element.has_class(simple_selector.class_name(), case_sensitivity))
+                return false;
+            continue;
+        }
+        if (simple_selector.type == CSS::Selector::SimpleSelector::Type::TagName) {
+            auto const& name = simple_selector.qualified_name().name.name;
+            if (element.is_html_element() && element.document().is_html_document()) {
+                if (!element.local_name().view().equals_ignoring_ascii_case(name.view()))
+                    return false;
+            } else if (element.local_name() != name) {
+                return false;
+            }
+            continue;
+        }
+        auto const& id = element.id();
+        if (!id.has_value())
+            return false;
+        if (case_sensitivity == CaseSensitivity::CaseInsensitive) {
+            if (!id->view().equals_ignoring_ascii_case(simple_selector.id_name().view()))
+                return false;
+        } else if (*id != simple_selector.id_name()) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool SelectorQuery::matches(Element const& element, ParentNode const& scope) const
+{
+    if (can_match_simple_selector_in_dom())
+        return matches_simple_selector_in_dom(element);
+
+    auto& document = const_cast<Document&>(element.document());
+    if (element.is_connected()) {
+        settle_connected_selector_query(document);
+        return matches_in_style_engine(element, scope);
+    }
+
+    auto& root = as<ParentNode>(const_cast<Node&>(element.root()));
+    if (m_is_result_cacheable)
+        return isolated_engine_for(root).matches(element, scope);
+    IsolatedSelectorQueryEngine engine(root, m_selectors);
+    return engine.matches(element, scope);
+}
+
+bool SelectorQuery::matches_in_style_engine(Element const& element, ParentNode const& scope) const
+{
+    VERIFY(element.style_node_id() != 0);
+
+    CSS::StyleNodeID scope_root;
+    if (GC::Ptr<Element const> scope_element = as_if<Element>(scope))
+        scope_root = scope_element->style_node_id();
+
+    CSS::StyleNodeID shadow_root;
+    if (GC::Ptr<ShadowRoot const> root = as_if<ShadowRoot>(element.root()))
+        shadow_root = root->style_node_id();
+
+    auto result = const_cast<Document&>(element.document()).style_computer().style_engine().selector_query_matches(m_engine_query, element.style_node_id(), scope_root, shadow_root);
+    VERIFY(result.has_value());
+    return *result;
+}
+
+IsolatedSelectorQueryEngine& SelectorQuery::isolated_engine_for(ParentNode& root) const
+{
+    auto dom_tree_version = root.document().dom_tree_version();
+    auto character_data_version = root.document().character_data_version();
+    for (size_t index = 0; index < m_isolated_engine_cache.size();) {
+        auto& entry = *m_isolated_engine_cache[index];
+        if (!entry.root) {
+            m_isolated_engine_cache.remove(index);
+            continue;
+        }
+        if (entry.root.ptr() != GC::Ptr { root }) {
+            ++index;
+            continue;
+        }
+        if (entry.dom_tree_version == dom_tree_version && entry.character_data_version == character_data_version)
+            return entry.engine;
+        m_isolated_engine_cache.remove(index);
+        break;
+    }
+
+    static constexpr size_t max_isolated_engine_cache_size = 64;
+    if (m_isolated_engine_cache.size() >= max_isolated_engine_cache_size)
+        m_isolated_engine_cache.remove(0);
+    auto entry = make<IsolatedSelectorQueryCacheEntry>(root, m_selectors);
+    auto& engine = entry->engine;
+    m_isolated_engine_cache.append(move(entry));
+    return engine;
+}
+
+GC::Ptr<Element const> SelectorQuery::closest(Element const& element) const
+{
+    if (can_match_simple_selector_in_dom()) {
+        for (GC::Ptr<Element const> ancestor = &element; ancestor; ancestor = ancestor->parent_element()) {
+            if (matches_simple_selector_in_dom(*ancestor))
+                return ancestor;
+        }
+        return nullptr;
+    }
+
+    if (element.is_connected()) {
+        settle_connected_selector_query(const_cast<Document&>(element.document()));
+        for (GC::Ptr<Element const> ancestor = GC::Ptr { element }; ancestor; ancestor = ancestor->parent_element()) {
+            if (matches_in_style_engine(*ancestor, element))
+                return ancestor;
+        }
+        return nullptr;
+    }
+
+    auto& root = as<ParentNode>(const_cast<Node&>(element.root()));
+    if (m_is_result_cacheable) {
+        auto& engine = isolated_engine_for(root);
+        for (GC::Ptr<Element const> ancestor = &element; ancestor; ancestor = ancestor->parent_element()) {
+            if (engine.matches(*ancestor, element))
+                return ancestor;
+        }
+        return nullptr;
+    }
+
+    IsolatedSelectorQueryEngine engine(root, m_selectors);
+    for (GC::Ptr<Element const> ancestor = GC::Ptr { element }; ancestor; ancestor = ancestor->parent_element()) {
+        if (engine.matches(*ancestor, element))
+            return ancestor;
+    }
+    return nullptr;
+}
+
 // https://dom.spec.whatwg.org/#scope-match-a-selectors-string
 // This implements step 3, "match a selector against a tree" with the parsed selectors,
 // stopping at the first match.
@@ -87,19 +348,18 @@ GC::Ptr<Element> SelectorQuery::query_first(ParentNode& root) const
             return cached_elements->is_empty() ? nullptr : cached_elements->first().ptr();
     }
 
-    GC::Ptr<Element> result;
-    // FIXME: This should be shadow-including. https://drafts.csswg.org/selectors-4/#match-a-selector-against-a-tree
-    root.for_each_in_subtree_of_type<Element>([&](auto& element) {
-        for (auto const& selector : m_selectors) {
-            SelectorMatching::MatchContext context;
-            if (SelectorMatching::matches(selector, element, nullptr, context, root)) {
-                result = &element;
-                return TraversalDecision::Break;
-            }
+    if (!root.is_connected()) {
+        auto& tree_root = as<ParentNode>(root.root());
+        if (m_is_result_cacheable) {
+            auto& engine = isolated_engine_for(tree_root);
+            return first_match(root, [&](auto& element) { return engine.matches(element, root); });
         }
-        return TraversalDecision::Continue;
-    });
-    return result;
+        IsolatedSelectorQueryEngine engine(tree_root, m_selectors);
+        return first_match(root, [&](auto& element) { return engine.matches(element, root); });
+    }
+
+    settle_connected_selector_query(root.document());
+    return first_match(root, [&](auto& element) { return matches_in_style_engine(element, root); });
 }
 
 static GC::Ref<NodeList> create_node_list(Vector<GC::RawPtr<Element>> const& elements)
@@ -123,17 +383,19 @@ GC::Ref<NodeList> SelectorQuery::query_all(ParentNode& root) const
     }
 
     Vector<GC::RawPtr<Element>> elements;
-    // FIXME: This should be shadow-including. https://drafts.csswg.org/selectors-4/#match-a-selector-against-a-tree
-    root.for_each_in_subtree_of_type<Element>([&](auto& element) {
-        for (auto const& selector : m_selectors) {
-            SelectorMatching::MatchContext context;
-            if (SelectorMatching::matches(selector, element, nullptr, context, root)) {
-                elements.append(element);
-                break;
-            }
+    if (!root.is_connected()) {
+        auto& tree_root = as<ParentNode>(root.root());
+        if (m_is_result_cacheable) {
+            auto& engine = isolated_engine_for(tree_root);
+            collect_matches(root, [&](auto& element) { return engine.matches(element, root); }, elements);
+        } else {
+            IsolatedSelectorQueryEngine engine(tree_root, m_selectors);
+            collect_matches(root, [&](auto& element) { return engine.matches(element, root); }, elements);
         }
-        return TraversalDecision::Continue;
-    });
+    } else {
+        settle_connected_selector_query(document);
+        collect_matches(root, [&](auto& element) { return matches_in_style_engine(element, root); }, elements);
+    }
 
     auto node_list = create_node_list(elements);
     if (m_is_result_cacheable)

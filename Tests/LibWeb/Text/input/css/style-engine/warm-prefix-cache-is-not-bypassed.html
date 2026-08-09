@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .guard .rare { color: green }
+</style>
+<div id="root"></div>
+<script>
+    test(() => {
+        const root = document.getElementById("root");
+        for (let index = 0; index < 1100; ++index)
+            root.appendChild(document.createElement("div"));
+        root.lastElementChild.className = "rare";
+
+        internals.updateStyle();
+        const before = internals.styleEngineCounters();
+        root.classList.add("guard");
+        internals.updateStyle();
+        const after = internals.styleEngineCounters();
+
+        println(`rare subject updated: ${getComputedStyle(root.lastElementChild).color}`);
+        println(`prefix convergence bypassed: ${after.prefixConvergenceBypasses > before.prefixConvergenceBypasses}`);
+        println(`prefix convergence maintained: ${after.prefixConvergencePasses > before.prefixConvergencePasses}`);
+    });
+</script>

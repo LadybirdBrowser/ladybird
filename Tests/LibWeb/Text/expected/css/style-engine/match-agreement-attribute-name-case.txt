@@ -1,0 +1,6 @@
+html [aB] color: rgb(1, 2, 3)
+svg [viewBox] background-color: rgb(4, 5, 6)
+svg [viewbox] outline-color: rgb(0, 0, 0)
+div#html-lowercase: [aB]
+svg#svg-camel: [viewBox]
+

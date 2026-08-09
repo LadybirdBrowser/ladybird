@@ -1,0 +1,7 @@
+visible color: rgb(0, 128, 0)
+hidden color: rgb(0, 128, 0)
+reaction batch runs: 1
+reaction elements: 1
+published reactions: 1
+regular recomputations: 1
+targeted hidden recomputations: 1

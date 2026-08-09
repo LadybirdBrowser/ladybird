@@ -753,10 +753,10 @@ pub unsafe extern "C" fn rust_recascade_font_size_step(
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_pseudo_element_has_implicit_style(pseudo_element: u8) -> bool {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::NestedPropertyComputeEntry);
-    use crate::css::selector_engine::PseudoElementType;
+    use crate::css::selector::PseudoElementType;
     abort_on_panic(|| {
         matches!(
-            crate::css::selector_engine::pseudo_element_type_from_code(pseudo_element),
+            crate::css::selector::pseudo_element_type_from_code(pseudo_element),
             PseudoElementType::DetailsContent
                 | PseudoElementType::FileSelectorButton
                 | PseudoElementType::Marker
@@ -776,7 +776,7 @@ pub extern "C" fn rust_pseudo_element_has_implicit_style(pseudo_element: u8) -> 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_pseudo_element_content_bails(content_value: *const c_void, pseudo_element: u8) -> bool {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::NestedPropertyComputeEntry);
-    use crate::css::selector_engine::PseudoElementType;
+    use crate::css::selector::PseudoElementType;
     abort_on_panic(|| {
         let content_is_normal = if content_value.is_null() {
             // NOTE: `normal` is the initial value, so the absence of a value is treated as `normal`.
@@ -794,7 +794,7 @@ pub unsafe extern "C" fn rust_pseudo_element_content_bails(content_value: *const
         };
         content_is_normal
             && matches!(
-                crate::css::selector_engine::pseudo_element_type_from_code(pseudo_element),
+                crate::css::selector::pseudo_element_type_from_code(pseudo_element),
                 PseudoElementType::Before | PseudoElementType::After
             )
     })
@@ -807,7 +807,7 @@ pub unsafe extern "C" fn rust_pseudo_element_content_bails(content_value: *const
 ///
 /// Returns None for value types that must not reach computational-independence checks. A
 /// container is likewise undecided when any nested value is unsupported.
-fn value_is_computationally_independent(value: &StyleValueData) -> Option<bool> {
+pub(crate) fn value_is_computationally_independent(value: &StyleValueData) -> Option<bool> {
     fn grid_entries_are_computationally_independent(
         entries: &[crate::css::style_value::RetainedGridTrackEntry],
     ) -> Option<bool> {
@@ -859,8 +859,7 @@ fn value_is_computationally_independent(value: &StyleValueData) -> Option<bool> 
             if value_is_css_wide_keyword(value) {
                 return Some(false);
             }
-            // FIXME: Are there any other color keywords which aren't computationally independent?
-            if *keyword == keyword::ACCENTCOLOR || *keyword == keyword::ACCENTCOLORTEXT {
+            if *keyword != keyword::CURRENTCOLOR && keyword_is_color(*keyword) {
                 return Some(false);
             }
             // FIXME: Are there any other keywords which aren't computationally independent?
@@ -1913,6 +1912,8 @@ pub unsafe extern "C" fn rust_style_metadata_set_physical_to_logical_table(table
             PHYSICAL_TO_LOGICAL_TABLE.set(entries).is_ok(),
             "physical to logical table installed twice"
         );
+        // Both tables are in by now, so what they map between them can be summarized once.
+        let _ = TABLE_MAPS_SUMMARY.set(summarize_table_rows());
     });
 }
 
@@ -1961,8 +1962,22 @@ pub struct FfiComputedStoreEntry {
     /// in `value` while `data` remains the specified value for the
     /// inheritance-dependence bookkeeping.
     pub computed_kind: u8,
+    /// Where `data` came from, when it came from somewhere C++ already holds a
+    /// wrapper for: the initial value table, or the parent's computed value for
+    /// `inherited_property_id`. Wrapping a value allocates a C++ StyleValue, and
+    /// the great majority of the longhands an element never declares take their
+    /// value from one of those two places, so naming the source lets C++ reuse
+    /// the wrapper instead of minting one per longhand per element.
+    pub wrapper_hint: u8,
     pub value: f64,
 }
+
+/// `data` is not known to be wrapped anywhere; C++ must wrap it.
+pub const WRAPPER_HINT_NONE: u8 = 0;
+/// `data` is the initial value of `property_id`.
+pub const WRAPPER_HINT_INITIAL: u8 = 1;
+/// `data` is the parent's computed value of `inherited_property_id`.
+pub const WRAPPER_HINT_PARENT_INHERITED: u8 = 2;
 
 pub const COMPUTED_KIND_UNCHANGED: u8 = 0;
 /// A pixel length of `value`.
@@ -2194,7 +2209,10 @@ pub struct FfiParentSnapshot {
 pub struct FfiLonghandDriverResults {
     pub important_words: *mut u64,
     pub inherited_words: *mut u64,
+    pub evaluated_words: *mut u64,
     pub word_count: usize,
+    /// Longhands whose specified-to-computed evaluation ran in this drive.
+    pub longhand_evaluations: u32,
     /// The raw winning cascaded font-size value data, or null; borrowed from the
     /// cascaded property store.
     pub raw_cascaded_font_size_data: *const c_void,
@@ -2203,15 +2221,52 @@ pub struct FfiLonghandDriverResults {
     pub explicitly_inherited_non_inherited_property: bool,
 }
 
-fn table_row_maps(table: &std::sync::OnceLock<Vec<u16>>, property_id: u16) -> bool {
+/// Which longhands either table maps at all, as one bit each.
+///
+/// Whether a longhand is in a logical property group is a fact about the stylesheet language, and
+/// the driver asked it of both tables for every longhand of every element - ten entries scanned
+/// twice, seven hundred times an element, to answer something that never changes.
+static TABLE_MAPS_SUMMARY: std::sync::OnceLock<Vec<u8>> = std::sync::OnceLock::new();
+
+const LOGICAL_ALIAS_BIT: u8 = 1;
+const PHYSICAL_TO_LOGICAL_BIT: u8 = 2;
+
+fn summarize_table_rows() -> Vec<u8> {
     use crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID;
-    let Some(table) = table.get() else {
-        return false;
+    let row_maps = |table: &std::sync::OnceLock<Vec<u16>>, property_id: u16| -> bool {
+        let Some(table) = table.get() else {
+            return false;
+        };
+        let start = (property_id - FIRST_LONGHAND_PROPERTY_ID) as usize * WRITING_MODE_COUNT * DIRECTION_COUNT;
+        table[start..start + WRITING_MODE_COUNT * DIRECTION_COUNT]
+            .iter()
+            .any(|&entry| entry != 0)
     };
-    let start = (property_id - FIRST_LONGHAND_PROPERTY_ID) as usize * WRITING_MODE_COUNT * DIRECTION_COUNT;
-    table[start..start + WRITING_MODE_COUNT * DIRECTION_COUNT]
-        .iter()
-        .any(|&entry| entry != 0)
+    let longhand_count = LOGICAL_ALIAS_TABLE
+        .get()
+        .map_or(0, |table| table.len() / (WRITING_MODE_COUNT * DIRECTION_COUNT));
+    (0..longhand_count)
+        .map(|index| {
+            let property_id = FIRST_LONGHAND_PROPERTY_ID + index as u16;
+            let mut bits = 0;
+            if row_maps(&LOGICAL_ALIAS_TABLE, property_id) {
+                bits |= LOGICAL_ALIAS_BIT;
+            }
+            if row_maps(&PHYSICAL_TO_LOGICAL_TABLE, property_id) {
+                bits |= PHYSICAL_TO_LOGICAL_BIT;
+            }
+            bits
+        })
+        .collect()
+}
+
+fn table_row_bits(property_id: u16) -> u8 {
+    use crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID;
+    let Some(summary) = TABLE_MAPS_SUMMARY.get() else {
+        return 0;
+    };
+    let index = (property_id - FIRST_LONGHAND_PROPERTY_ID) as usize;
+    summary.get(index).copied().unwrap_or(0)
 }
 
 fn value_is_initial_or_unset(value: *const c_void) -> bool {
@@ -2263,6 +2318,8 @@ pub unsafe extern "C" fn rust_drive_property_computation(
     device_pixels_per_css_pixel: f64,
     initial_font_size_raw: i32,
     default_font_size_raw: i32,
+    computed_group_mask: u32,
+    computed_property_words: *const u64,
     results: *mut FfiLonghandDriverResults,
 ) {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::LonghandDriverEntry);
@@ -2287,11 +2344,14 @@ pub unsafe extern "C" fn rust_drive_property_computation(
         assert!(results.word_count * 64 >= NUMBER_OF_LONGHAND_PROPERTIES);
         let important_words = unsafe { std::slice::from_raw_parts_mut(results.important_words, results.word_count) };
         let inherited_words = unsafe { std::slice::from_raw_parts_mut(results.inherited_words, results.word_count) };
+        let evaluated_words = unsafe { std::slice::from_raw_parts_mut(results.evaluated_words, results.word_count) };
         let mut cached_writing_mode_and_direction: Option<(u8, u8)> = None;
 
         // Store operations queued for properties that need no computation, flushed in one
-        // crossing before any callback that may read the stored values.
-        let mut pending_stores: Vec<FfiComputedStoreEntry> = Vec::new();
+        // crossing before any callback that may read the stored values. Every longhand queues one,
+        // so the room for them is asked for once rather than grown into ten times per element.
+        let mut pending_stores: Vec<FfiComputedStoreEntry> =
+            Vec::with_capacity(crate::css::property_metadata::property_computation_order().len());
         let mut pending_effective_color_scheme: i16 = -1;
         // Length resolution contexts fetched from C++ on first use, one per kind, like
         // the C++ side's per-element computation context caches.
@@ -2383,8 +2443,43 @@ pub unsafe extern "C" fn rust_drive_property_computation(
         let mut computed_display: Option<FfiDisplay> = None;
         let mut computed_float: Option<u16> = None;
         let mut computed_position: Option<u16> = None;
+        let computed_property_words = if computed_property_words.is_null() {
+            None
+        } else {
+            Some(unsafe { std::slice::from_raw_parts(computed_property_words, results.word_count) })
+        };
 
         for &property_id in crate::css::property_metadata::property_computation_order() {
+            use crate::css::computed_values::computed_group_output_mask;
+            let required_driver_input = matches!(
+                property_id,
+                prop::COLOR_SCHEME
+                    | prop::DIRECTION
+                    | prop::DISPLAY
+                    | prop::FLOAT
+                    | prop::MATH_DEPTH
+                    | prop::OVERFLOW_X
+                    | prop::OVERFLOW_Y
+                    | prop::POSITION
+                    | prop::TEXT_ALIGN
+                    | prop::WRITING_MODE
+            );
+            let output_is_selected = computed_group_output_mask(property_id)
+                .is_none_or(|output_mask| output_mask & computed_group_mask != 0);
+            let property_index = usize::from(property_id - crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID);
+            let property_is_selected = computed_property_words
+                .is_some_and(|words| words[property_index / 64] & (1 << (property_index % 64)) != 0);
+            if !required_driver_input
+                && !property_is_selected
+                && (computed_property_words.is_some() || computed_group_mask != u32::MAX && !output_is_selected)
+            {
+                continue;
+            }
+            set_longhand_bit(evaluated_words, property_id);
+            results.longhand_evaluations = results
+                .longhand_evaluations
+                .checked_add(1)
+                .expect("longhand evaluation count overflow");
             let mut cascaded_property_id = property_id;
             let mut inherited_property_id = property_id;
 
@@ -2394,8 +2489,9 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             // value of both properties in the pair is derived from the specified value of the
             // property declared with higher priority in the CSS cascade. A longhand is in a
             // logical property group exactly when either mapping table maps it.
-            let is_logical_alias = table_row_maps(&LOGICAL_ALIAS_TABLE, property_id);
-            if is_logical_alias || table_row_maps(&PHYSICAL_TO_LOGICAL_TABLE, property_id) {
+            let table_bits = table_row_bits(property_id);
+            let is_logical_alias = table_bits & LOGICAL_ALIAS_BIT != 0;
+            if table_bits != 0 {
                 let (writing_mode, direction) = *cached_writing_mode_and_direction.get_or_insert_with(|| {
                     // Direction and writing-mode precede every logical property in the
                     // generated computation order and only accept keywords, so their
@@ -2422,6 +2518,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             let mut value = std::ptr::null();
             let mut source_slot = -1;
             let mut has_style_sheet_context = false;
+            let mut wrapper_hint = WRAPPER_HINT_NONE;
             if let Some((value_data, important, cascaded_source_slot, cascaded_has_style_sheet_context)) =
                 store.winning_declaration(cascaded_property_id)
             {
@@ -2466,6 +2563,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                 value = if property_is_inherited(inherited_property_id) {
                     let index = (inherited_property_id - FIRST_INHERITED_PROPERTY_ID) as usize;
                     assert!(index < snapshot.entry_count);
+                    wrapper_hint = WRAPPER_HINT_PARENT_INHERITED;
                     unsafe { *snapshot.entries.add(index) }
                 } else {
                     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::LonghandParentValueFetchCallback);
@@ -2501,6 +2599,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             if use_initial {
                 source_slot = -1;
                 has_style_sheet_context = false;
+                wrapper_hint = WRAPPER_HINT_INITIAL;
                 value = initial_value_data(property_id).cast();
                 required_level = REQUIRES_COMPUTATION_NON_INHERITED;
             }
@@ -2874,6 +2973,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                     inherited: inherit_fetch_attempted,
                     computed_data,
                     computed_kind,
+                    wrapper_hint,
                     value: computed_value,
                 });
             } else {
@@ -2887,6 +2987,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
                     inherited: inherit_fetch_attempted,
                     computed_data: std::ptr::null(),
                     computed_kind: COMPUTED_KIND_UNCHANGED,
+                    wrapper_hint,
                     value: 0.0,
                 });
             }
@@ -3069,6 +3170,7 @@ pub unsafe extern "C" fn rust_drive_property_computation(
             inherited: false,
             computed_data: std::ptr::null(),
             computed_kind,
+            wrapper_hint: WRAPPER_HINT_INITIAL,
             value,
         };
         let mut adjustments = Vec::new();
@@ -3746,6 +3848,10 @@ mod ffi_test_stubs {
     extern "C" fn ladybird_utf16_fly_string_ref(_raw: usize) {}
     #[unsafe(no_mangle)]
     extern "C" fn ladybird_string_unref(_raw: usize) {}
+    #[unsafe(no_mangle)]
+    extern "C" fn ladybird_string_ref(_raw: usize) {}
+    #[unsafe(no_mangle)]
+    extern "C" fn ladybird_gfx_font_cascade_list_unref(_raw: *const std::ffi::c_void) {}
     #[unsafe(no_mangle)]
     extern "C" fn ladybird_gfx_path_destroy(_path: *mut std::ffi::c_void) {}
 }

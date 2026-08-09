@@ -1,0 +1,7 @@
+initial: rgb(128, 128, 128)
+after insert div.test after subject_parent (want 0,0,255): rgb(0, 0, 255)
+after remove class (want 128,128,128): rgb(128, 128, 128)
+after add class again (want 0,0,255): rgb(0, 0, 255)
+sideways step (want 1,1,1): rgb(1, 1, 1)
+div#subject: #subject div:has(+ .a + .b) > #subject
+

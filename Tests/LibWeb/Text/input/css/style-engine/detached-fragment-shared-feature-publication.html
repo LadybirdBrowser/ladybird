@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    class FeatureStateElement extends HTMLElement {
+        constructor() {
+            super();
+            this.attachInternals().states.add("--active");
+        }
+    }
+    customElements.define("feature-state-element", FeatureStateElement);
+
+    test(() => {
+        const fragment = document.createDocumentFragment();
+        const heading = document.createElement("h2");
+        const stateful = document.createElement("feature-state-element");
+        fragment.append(heading, stateful);
+
+        println(`detached heading: ${fragment.querySelector(":heading(2)") === heading}`);
+        println(`detached custom state: ${fragment.querySelector(":state(--active)") === stateful}`);
+    });
+</script>

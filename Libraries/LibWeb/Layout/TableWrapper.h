@@ -14,7 +14,7 @@ class TableWrapper : public BlockContainer {
     LAYOUT_NODE(TableWrapper, BlockContainer);
 
 public:
-    TableWrapper(DOM::Document&, DOM::Node*, NonnullRefPtr<CSS::ComputedValues const>);
+    TableWrapper(DOM::Document&, DOM::Node*, CSS::LayoutStyle);
     virtual ~TableWrapper() override;
 
 private:

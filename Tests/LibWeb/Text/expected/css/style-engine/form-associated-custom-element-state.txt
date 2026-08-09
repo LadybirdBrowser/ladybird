@@ -1,0 +1,4 @@
+enabled before definition: rgb(0, 0, 0)
+disabled before definition: rgb(0, 0, 0)
+enabled after definition: rgb(0, 128, 0)
+disabled after definition: rgb(255, 0, 0)

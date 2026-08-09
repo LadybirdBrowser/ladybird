@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../../include.js"></script>
+<script src="structural-matrix.js"></script>
+<script>
+    test(() => {
+        const style = addStyle(document.head, `
+            .red { border-color: rgb(255, 0, 0); }
+            .green { border-color: rgb(0, 128, 0); }
+            .plain-kid { border-style: solid; }
+            .inheriting-kid { border-style: solid; border-color: inherit; }
+        `);
+
+        const box = makeElement("section");
+        for (const parentClass of ["red", "green"]) {
+            const parent = makeElement("div", { className: parentClass });
+            parent.appendChild(makeElement("div", { className: "plain-kid" }));
+            parent.appendChild(makeElement("div", { className: "inheriting-kid" }));
+            box.appendChild(parent);
+        }
+        document.body.append(box);
+
+        resetStyleCounters();
+        internals.updateStyle();
+        const shared = styleCounters().elementStyleSharedComputations;
+
+        const [redPlain, redInheriting, greenPlain, greenInheriting] = box.querySelectorAll("div div");
+        const color = element => getComputedStyle(element).borderTopColor;
+
+        // Two parents that differ only in what they say about themselves decide the same thing for a
+        // child that reads nothing of that, so both plain children compute one style between them.
+        assertEqual("a plain child of the red parent", color(redPlain), "rgb(0, 0, 0)");
+        assertEqual("a plain child of the green parent", color(greenPlain), "rgb(0, 0, 0)");
+        println(`PASS: children reading only the inherited half share a style: ${shared >= 1}`);
+
+        // `border-color: inherit` reads the half of the parent's style those two parents differ in,
+        // so each of these children answers for itself.
+        assertEqual("an inheriting child of the red parent", color(redInheriting), "rgb(255, 0, 0)");
+        assertEqual("an inheriting child of the green parent", color(greenInheriting), "rgb(0, 128, 0)");
+        println("PASS: a child that reads the other half is not offered another parent's answer");
+
+        box.remove();
+        style.remove();
+    });
+</script>

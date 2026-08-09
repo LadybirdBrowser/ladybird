@@ -1,5 +1,5 @@
 style counters has null prototype: true
-style counters has styleInvalidations: true
+style counters has reaction batches: true
 async state has null prototype: true
 async scrollNodes uses iframe Array: false
 async scrollNodes uses top Array: true

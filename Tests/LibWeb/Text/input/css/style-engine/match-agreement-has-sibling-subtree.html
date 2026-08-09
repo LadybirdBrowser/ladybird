@@ -1,0 +1,49 @@
+<!DOCTYPE html><script src="../../include.js"></script>
+<style>
+  #subject { color: rgb(128,128,128) }
+  div:has(.test) > #subject { color: rgb(255,0,0) }
+  div:has(> .test) > #subject { color: rgb(0,128,0) }
+  div:has(~ .test) > #subject { color: rgb(255,255,0) }
+  div:has(+ .test) > #subject { color: rgb(0,0,255) }
+  div:has(~ div .test) > #subject { color: rgb(128,0,128) }
+  div:has(+ div .test) > #subject { color: rgb(255,192,203) }
+  div:has(+ .a + .b) > #subject { color: rgb(1,1,1) }
+</style>
+<main id="main"><div id="subject_ancestor"><div id="subject_parent"><div id="subject"><div id="subject_child"></div></div></div></div></main>
+<script>
+    test(() => {
+        // https://drafts.csswg.org/selectors/#relational
+        // `:has(+ div .test)` names a `.test` under the anchor's next sibling, not a next sibling
+        // that is itself a `.test`. The relative selector's chain compiles to constraints on the
+        // witness, which cannot say that on its own, so a selector whose every step after the
+        // leading one goes downwards has to say the witness is below the axis element.
+        const subject = document.getElementById("subject");
+        const parent = document.getElementById("subject_parent");
+        internals.updateStyle();
+        println("initial: " + getComputedStyle(subject).color);
+        const el = document.createElement("div");
+        el.classList.add("test");
+        parent.after(el);
+        internals.updateStyle();
+        println("after insert div.test after subject_parent (want 0,0,255): " + getComputedStyle(subject).color);
+        el.classList.remove("test");
+        internals.updateStyle();
+        println("after remove class (want 128,128,128): " + getComputedStyle(subject).color);
+        el.classList.add("test");
+        internals.updateStyle();
+        println("after add class again (want 0,0,255): " + getComputedStyle(subject).color);
+
+        // A step that goes sideways again reaches a witness beside the axis element rather than
+        // below it, so that one still names a sibling.
+        el.className = "a";
+        const beside = document.createElement("div");
+        beside.className = "b";
+        el.after(beside);
+        internals.updateStyle();
+        println("sideways step (want 1,1,1): " + getComputedStyle(subject).color);
+
+        for (const element of document.querySelectorAll("*"))
+            getComputedStyle(element).color;
+        println(internals.styleEngineMatchedRules());
+    });
+</script>

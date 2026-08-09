@@ -4,7 +4,89 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use super::cascade::Top1Winner;
 use super::*;
+
+#[derive(Clone, Copy)]
+enum CascadeCompactionCandidate {
+    Rule(usize),
+    Element(ElementDeclarationKind, DeclaredProperty),
+}
+
+type CascadeCompactionTop1 =
+    Top1Cascade<(Option<tree::PseudoElementTarget>, u16), CascadePriority, CascadeCompactionCandidate>;
+
+// Element declarations use the overwhelmingly common target and a dense property identity. Keep
+// their winner lookup in a property-indexed table; pseudo targets remain in the sparse table above.
+struct ElementCascadeCompactionTop1 {
+    winners: Vec<Top1Winner<u16, CascadePriority, CascadeCompactionCandidate>>,
+    winner_by_property: Vec<u32>,
+}
+
+impl ElementCascadeCompactionTop1 {
+    fn clear(&mut self) {
+        for winner in &self.winners {
+            self.winner_by_property[winner.key as usize] = 0;
+        }
+        self.winners.clear();
+    }
+
+    fn consider(&mut self, property: u16, priority: CascadePriority, payload: CascadeCompactionCandidate) {
+        let property_index = property as usize;
+        if self.winner_by_property.len() <= property_index {
+            self.winner_by_property.resize(property_index + 1, 0);
+        }
+        let winner = self.winner_by_property[property_index];
+        if winner == 0 {
+            self.winners.push(Top1Winner {
+                key: property,
+                priority,
+                payload,
+            });
+            self.winner_by_property[property_index] = u32::try_from(self.winners.len())
+                .expect("a property winner table cannot exceed the u16 property identity space");
+        } else if priority >= self.winners[winner as usize - 1].priority {
+            self.winners[winner as usize - 1] = Top1Winner {
+                key: property,
+                priority,
+                payload,
+            };
+        }
+    }
+
+    fn winners(&mut self) -> &[Top1Winner<u16, CascadePriority, CascadeCompactionCandidate>] {
+        self.winners.sort_unstable_by_key(|winner| winner.key);
+        &self.winners
+    }
+
+    fn capacity_bytes(&self) -> u64 {
+        (self.winners.capacity() * size_of::<Top1Winner<u16, CascadePriority, CascadeCompactionCandidate>>()
+            + self.winner_by_property.capacity() * size_of::<u32>()) as u64
+    }
+}
+
+pub(super) struct CascadeCompactionWorkspace {
+    top_1: CascadeCompactionTop1,
+    element_top_1: ElementCascadeCompactionTop1,
+}
+
+impl Default for CascadeCompactionWorkspace {
+    fn default() -> Self {
+        Self {
+            top_1: CascadeCompactionTop1::with_capacity(0),
+            element_top_1: ElementCascadeCompactionTop1 {
+                winners: Vec::new(),
+                winner_by_property: Vec::new(),
+            },
+        }
+    }
+}
+
+impl CascadeCompactionWorkspace {
+    pub(super) fn capacity_bytes(&self) -> u64 {
+        self.top_1.capacity_bytes() as u64 + self.element_top_1.capacity_bytes()
+    }
+}
 
 impl StyleEngine {
     /// Order matches the way the cascade applies them, dropping repeats from asking more than one
@@ -81,11 +163,13 @@ impl StyleEngine {
     pub(super) fn cascade_stratum_of(&self, rule: RuleID, tree_scope: TreeScopeID, important: bool) -> CascadeStratum {
         let sheet = self.program.rule_sheet(rule);
         let context_scope = self.cascade_context_scope(rule, tree_scope);
+        let layer = self.program.rule_version(rule).layer;
         CascadeStratum::new(
             self.program.sheet_origin(sheet),
             important,
             self.tree_scope_depth(context_scope),
-            self.program.rule_version(rule).layer,
+            layer,
+            self.program.layer_rank(context_scope, layer),
         )
     }
 
@@ -107,6 +191,7 @@ impl StyleEngine {
             important,
             self.tree_scope_depth(tree_scope),
             CascadeLayerID::UNLAYERED,
+            self.program.layer_rank(tree_scope, CascadeLayerID::UNLAYERED),
         )
     }
 
@@ -117,8 +202,19 @@ impl StyleEngine {
         pseudo: Option<tree::PseudoElementTarget>,
         properties: Option<&[u16]>,
     ) -> Vec<PropertyWinner> {
+        self.resolved_cascade_winners_for_properties_with_scratch(node, matches, pseudo, properties, &mut Vec::new())
+    }
+
+    fn resolved_cascade_winners_for_properties_with_scratch(
+        &mut self,
+        node: StyleNodeID,
+        matches: &[RuleMatch],
+        pseudo: Option<tree::PseudoElementTarget>,
+        properties: Option<&[u16]>,
+        candidates: &mut Vec<OrderedCascadeCandidate>,
+    ) -> Vec<PropertyWinner> {
         let wants = |property| properties.is_none_or(|properties| properties.binary_search(&property).is_ok());
-        let mut candidates = Vec::new();
+        candidates.clear();
         for entry in matches.iter().filter(|entry| entry.pseudo_element == pseudo) {
             for &declared in self.program.declared_properties_of(entry.rule) {
                 if !wants(declared.property) {
@@ -166,7 +262,7 @@ impl StyleEngine {
                 }
             }
         }
-        candidates.sort_by_key(|candidate| candidate.winner.property);
+        candidates.sort_unstable_by_key(|candidate| candidate.winner.property);
         let mut winners = Vec::new();
         let mut start = 0;
         while start < candidates.len() {
@@ -224,12 +320,26 @@ impl StyleEngine {
         can_have_scope_duplicates: bool,
         publish_winners_for: Option<StyleNodeID>,
     ) {
-        #[derive(Clone, Copy)]
-        enum CascadeCandidate {
-            Rule(usize),
-            Element(ElementDeclarationKind, DeclaredProperty),
-        }
+        let mut workspace = CascadeCompactionWorkspace::default();
+        self.compact_matches_for_cascade_with_scratch(
+            all,
+            can_have_scope_duplicates,
+            publish_winners_for,
+            &mut workspace,
+        );
+        let workspace_bytes = workspace.capacity_bytes();
+        self.memory
+            .reserve_required(MemoryCategory::BatchScratch, workspace_bytes);
+        self.memory.release(MemoryCategory::BatchScratch, workspace_bytes);
+    }
 
+    pub(super) fn compact_matches_for_cascade_with_scratch(
+        &mut self,
+        all: &mut Vec<RuleMatch>,
+        can_have_scope_duplicates: bool,
+        publish_winners_for: Option<StyleNodeID>,
+        workspace: &mut CascadeCompactionWorkspace,
+    ) {
         self.order_matches_in_cascade(all, can_have_scope_duplicates);
         self.counters
             .add(Counter::CascadeMatchesBeforeCompaction, all.len() as u64);
@@ -262,22 +372,14 @@ impl StyleEngine {
             return;
         }
 
-        let mut candidate_count: usize = all
-            .iter()
-            .map(|entry| self.program.declared_properties_of(entry.rule).len())
-            .sum();
-        if let Some(node) = publish_winners_for {
-            candidate_count += ElementDeclarationKind::ALL
-                .iter()
-                .map(|&kind| self.facts.element_declared_properties(node, kind).0.len())
-                .sum::<usize>();
-        }
-        type CascadeKey = (Option<tree::PseudoElementTarget>, u16);
-        type CascadeTop1 = Top1Cascade<CascadeKey, CascadePriority, CascadeCandidate>;
-        let mut scratch_bytes = CascadeTop1::capacity_bytes_for(candidate_count) as u64;
-        self.memory
-            .reserve_required(MemoryCategory::BatchScratch, scratch_bytes);
-        let mut top_1 = CascadeTop1::with_capacity(candidate_count);
+        // The number of declaration candidates can be orders of magnitude larger than the number
+        // of semantic outputs: every rule may declare the same properties, while this reduction
+        // stores only one winner per pseudo/property pair. Let the table grow with distinct keys
+        // instead of reserving for every losing declaration.
+        let top_1 = &mut workspace.top_1;
+        top_1.clear();
+        let element_top_1 = &mut workspace.element_top_1;
+        element_top_1.clear();
         for (match_index, entry) in all.iter().enumerate() {
             if compaction_blocked
                 && (entry.tree_scope != TreeScopeID::DOCUMENT
@@ -286,18 +388,40 @@ impl StyleEngine {
             {
                 continue;
             }
-            for declared in self.program.declared_properties_of(entry.rule) {
-                top_1.consider(
-                    (entry.pseudo_element, declared.property),
-                    self.cascade_priority_of(
-                        entry.rule,
-                        entry.tree_scope,
-                        entry.specificity,
-                        entry.scope_proximity,
-                        declared.important,
+            let declared_properties = self.program.declared_properties_of(entry.rule);
+            let normal_priority = self.cascade_priority_of(
+                entry.rule,
+                entry.tree_scope,
+                entry.specificity,
+                entry.scope_proximity,
+                false,
+            );
+            let mut important_priority = None;
+            for declared in declared_properties {
+                let priority = match declared.important {
+                    true => *important_priority.get_or_insert_with(|| {
+                        self.cascade_priority_of(
+                            entry.rule,
+                            entry.tree_scope,
+                            entry.specificity,
+                            entry.scope_proximity,
+                            true,
+                        )
+                    }),
+                    false => normal_priority,
+                };
+                match entry.pseudo_element {
+                    Some(_) => top_1.consider(
+                        (entry.pseudo_element, declared.property),
+                        priority,
+                        CascadeCompactionCandidate::Rule(match_index),
                     ),
-                    CascadeCandidate::Rule(match_index),
-                );
+                    None => element_top_1.consider(
+                        declared.property,
+                        priority,
+                        CascadeCompactionCandidate::Rule(match_index),
+                    ),
+                }
             }
         }
         if let Some(node) = publish_winners_for {
@@ -308,14 +432,15 @@ impl StyleEngine {
                     continue;
                 }
                 for &declared in declared_properties {
-                    top_1.consider(
-                        (None, declared.property),
+                    element_top_1.consider(
+                        declared.property,
                         self.element_cascade_priority(node, kind, declared.important),
-                        CascadeCandidate::Element(kind, declared),
+                        CascadeCompactionCandidate::Element(kind, declared),
                     );
                 }
             }
         }
+        let mut scratch_bytes = 0;
 
         let published_winners = if let Some(node) = publish_winners_for {
             let mut targets = vec![None];
@@ -347,33 +472,41 @@ impl StyleEngine {
                     targets
                         .into_iter()
                         .map(|target| {
-                            let winners = top_1
-                                .winners()
-                                .filter(|winner| winner.key.0 == target)
-                                .map(|winner| {
-                                    let (key, source) = match winner.payload {
-                                        CascadeCandidate::Rule(match_index) => {
-                                            let entry = &all[match_index];
-                                            let declared = *self
-                                                .program
-                                                .declared_properties_of(entry.rule)
-                                                .iter()
-                                                .find(|declared| declared.property == winner.key.1)
-                                                .expect("winner candidate came from the rule's declaration inventory");
-                                            (Self::retained_rule_winner_key(declared), WinnerSource::Rule(entry.rule))
-                                        }
-                                        CascadeCandidate::Element(kind, declared) => {
-                                            (Self::retained_rule_winner_key(declared), WinnerSource::Element(kind))
-                                        }
-                                    };
-                                    PropertyWinner {
-                                        property: winner.key.1,
-                                        key,
-                                        priority: winner.priority,
-                                        source,
+                            let materialize = |property, priority, payload| {
+                                let (key, source) = match payload {
+                                    CascadeCompactionCandidate::Rule(match_index) => {
+                                        let entry = &all[match_index];
+                                        let declared = *self
+                                            .program
+                                            .declared_properties_of(entry.rule)
+                                            .iter()
+                                            .find(|declared| declared.property == property)
+                                            .expect("winner candidate came from the rule's declaration inventory");
+                                        (Self::retained_rule_winner_key(declared), WinnerSource::Rule(entry.rule))
                                     }
-                                })
-                                .collect();
+                                    CascadeCompactionCandidate::Element(kind, declared) => {
+                                        (Self::retained_rule_winner_key(declared), WinnerSource::Element(kind))
+                                    }
+                                };
+                                PropertyWinner {
+                                    property,
+                                    key,
+                                    priority,
+                                    source,
+                                }
+                            };
+                            let winners = match target {
+                                None => element_top_1
+                                    .winners()
+                                    .iter()
+                                    .map(|winner| materialize(winner.key, winner.priority, winner.payload))
+                                    .collect(),
+                                Some(_) => top_1
+                                    .winners()
+                                    .filter(|winner| winner.key.0 == target)
+                                    .map(|winner| materialize(winner.key.1, winner.priority, winner.payload))
+                                    .collect(),
+                            };
                             (target, winners)
                         })
                         .collect::<Vec<_>>(),
@@ -435,7 +568,12 @@ impl StyleEngine {
             }
         }
         for winner in top_1.winners() {
-            if let CascadeCandidate::Rule(match_index) = winner.payload {
+            if let CascadeCompactionCandidate::Rule(match_index) = winner.payload {
+                keep[match_index] = true;
+            }
+        }
+        for winner in element_top_1.winners() {
+            if let CascadeCompactionCandidate::Rule(match_index) = winner.payload {
                 keep[match_index] = true;
             }
         }
@@ -474,8 +612,7 @@ impl StyleEngine {
             }
         }
 
-        let actual_scratch_bytes = (top_1.capacity_bytes()
-            + keep.capacity().div_ceil(8)
+        let actual_scratch_bytes = (keep.capacity().div_ceil(8)
             + retained_pseudo_targets.capacity() * size_of::<tree::PseudoElementTarget>())
             as u64;
         if actual_scratch_bytes > scratch_bytes {
@@ -506,6 +643,22 @@ impl StyleEngine {
         all
     }
 
+    pub(super) fn matches_for_cascade_with_scratch(
+        &mut self,
+        mut all: Vec<RuleMatch>,
+        can_have_scope_duplicates: bool,
+        publish_winners_for: Option<StyleNodeID>,
+        workspace: &mut CascadeCompactionWorkspace,
+    ) -> Vec<RuleMatch> {
+        self.compact_matches_for_cascade_with_scratch(
+            &mut all,
+            can_have_scope_duplicates,
+            publish_winners_for,
+            workspace,
+        );
+        all
+    }
+
     /// Re-reduce only the requested element properties from an exact retained match answer.
     ///
     /// This is the typed upquery for winner deletion repair. It consumes no selector facts and
@@ -517,6 +670,23 @@ impl StyleEngine {
         pseudo: Option<tree::PseudoElementTarget>,
         properties: &[u16],
     ) -> Option<Vec<PropertyWinnerUpdate>> {
+        self.exact_cascade_winner_updates_for_properties_with_scratch(
+            node,
+            matches,
+            pseudo,
+            properties,
+            &mut Vec::new(),
+        )
+    }
+
+    pub(super) fn exact_cascade_winner_updates_for_properties_with_scratch(
+        &mut self,
+        node: StyleNodeID,
+        matches: &[RuleMatch],
+        pseudo: Option<tree::PseudoElementTarget>,
+        properties: &[u16],
+        candidates: &mut Vec<OrderedCascadeCandidate>,
+    ) -> Option<Vec<PropertyWinnerUpdate>> {
         debug_assert!(properties.windows(2).all(|pair| pair[0] < pair[1]));
         if properties.is_empty() {
             return Some(Vec::new());
@@ -525,7 +695,13 @@ impl StyleEngine {
             return None;
         }
 
-        let winners = self.resolved_cascade_winners_for_properties(node, matches, pseudo, Some(properties));
+        let winners = self.resolved_cascade_winners_for_properties_with_scratch(
+            node,
+            matches,
+            pseudo,
+            Some(properties),
+            candidates,
+        );
 
         Some(
             properties
@@ -551,6 +727,7 @@ impl StyleEngine {
         node: StyleNodeID,
         matches: &[RuleMatch],
         deltas: &[SelectorTruthDelta],
+        candidates: &mut Vec<OrderedCascadeCandidate>,
     ) -> bool {
         let mut targets = Vec::new();
         for delta in deltas {
@@ -563,7 +740,7 @@ impl StyleEngine {
         }
         targets
             .into_iter()
-            .all(|target| self.apply_cascade_winner_match_deltas_for_target(node, matches, deltas, target))
+            .all(|target| self.apply_cascade_winner_match_deltas_for_target(node, matches, deltas, target, candidates))
     }
 
     pub(super) fn apply_cascade_winner_match_deltas_for_target(
@@ -572,6 +749,7 @@ impl StyleEngine {
         matches: &[RuleMatch],
         deltas: &[SelectorTruthDelta],
         pseudo: Option<tree::PseudoElementTarget>,
+        candidates: &mut Vec<OrderedCascadeCandidate>,
     ) -> bool {
         if !self.cascade_winner_inventory_is_complete_for_target(matches, Some(node), pseudo) {
             return false;
@@ -657,9 +835,13 @@ impl StyleEngine {
         repair_properties.sort_unstable();
         repair_properties.dedup();
         if !repair_properties.is_empty() {
-            let Some(repairs) =
-                self.exact_cascade_winner_updates_for_properties(node, matches, pseudo, &repair_properties)
-            else {
+            let Some(repairs) = self.exact_cascade_winner_updates_for_properties_with_scratch(
+                node,
+                matches,
+                pseudo,
+                &repair_properties,
+                candidates,
+            ) else {
                 return false;
             };
             updates.retain(|update| repair_properties.binary_search(&update.property).is_err());
@@ -759,14 +941,9 @@ impl StyleEngine {
                 continue;
             }
             let scope = TreeScopeID(u32::try_from(index).expect("tree scope identity space exhausted"));
-            let (scope_program, dispatch) = self.ranked_scope_program(scope);
-            let ancestor_requirements = ancestor_requirements_cache.get_or_build(
-                scope_program,
-                &self.tree,
-                &batch,
-                &dispatch,
-                &mut self.memory,
-            );
+            let (_, dispatch) = self.ranked_scope_program(scope);
+            let ancestor_requirements =
+                ancestor_requirements_cache.get_or_build(&self.tree, &batch, &dispatch, &mut self.memory);
             // `:host` names the host of this tree, which stands outside it, so the tree's own rules
             // are asked of it as well.
             let host = self.scope_root(scope).and_then(|root| self.tree.host_of(root));
@@ -978,6 +1155,7 @@ impl StyleEngine {
         self.apply_pending_scope_program_metadata();
         self.apply_pending_sheet_orders();
         self.committed_rule_count = self.program.rule_count();
+        self.rule_change_is_carried_by_sheet.clear();
         self.apply_staged_tree_deltas();
     }
 
@@ -1048,6 +1226,19 @@ impl StyleEngine {
             return;
         }
         let live_rules = self.program.live_selector_programs().collect::<Vec<_>>();
+        let mut referenced = Vec::new();
+        for &(_, program) in &live_rules {
+            if referenced.len() <= program.0 as usize {
+                referenced.resize(program.0 as usize + 1, false);
+            }
+            referenced[program.0 as usize] = true;
+        }
+        self.match_answers.mark_referenced_selector_programs(&mut referenced);
+        if !self.programs.has_unreferenced_programs(&referenced) {
+            self.selector_programs_need_sweep = false;
+            return;
+        }
+
         let mut rebuilt_routing = RoutingRegistry::new();
         for &(rule, program) in &live_rules {
             rebuilt_routing.add_rule(rule, program, self.programs.get(program));
@@ -1062,14 +1253,14 @@ impl StyleEngine {
 
         self.relational_witnesses.borrow_mut().clear_all();
         self.relational_witness_residency.release();
-        let mut referenced = Vec::new();
-        for &(_, program) in &live_rules {
-            if referenced.len() <= program.0 as usize {
-                referenced.resize(program.0 as usize + 1, false);
-            }
-            referenced[program.0 as usize] = true;
-        }
-        self.match_answers.mark_referenced_selector_programs(&mut referenced);
+        self.scope_dispatch_templates.retain(|shape, _| {
+            shape
+                .0
+                .iter()
+                .all(|&(program, _)| referenced.get(program.0 as usize).copied().unwrap_or(false))
+        });
+        self.scope_cascade_templates.clear();
+        self.ancestor_dispatch_templates.clear();
         self.programs.sweep_unreferenced(&referenced);
         self.programs.settle_memory(&mut self.memory);
         self.selector_programs_need_sweep = false;
@@ -1088,10 +1279,8 @@ impl StyleEngine {
         for node in departed {
             self.facts.forget(node);
             self.retained_match_answers.forget(&mut self.match_answers, node);
-            for root in self.scope_roots.iter_mut() {
-                if *root == Some(node) {
-                    *root = None;
-                }
+            if let Some(tree_scope) = self.scope_by_root.remove(&node) {
+                self.scope_roots[tree_scope.0 as usize] = None;
             }
         }
         self.facts.sweep_auxiliary_catalogs();

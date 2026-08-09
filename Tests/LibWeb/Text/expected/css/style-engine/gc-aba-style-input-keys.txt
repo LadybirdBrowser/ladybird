@@ -1,0 +1,4 @@
+initial: rgb(255, 0, 0)
+deletion advances the environment: true
+insertion advances the environment: true
+replacement: rgb(0, 0, 255)

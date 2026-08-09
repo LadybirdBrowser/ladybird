@@ -1,0 +1,13 @@
+shared environment parse callbacks: 50
+shared environment value parses: 1
+shared value: 7px
+later transaction parse callbacks: 1
+later transaction value parses: 0
+later transaction value: 7px
+registration change parse callbacks: 50
+registration change value parses: 1
+registration change value: 7px
+different environment parse callbacks: 1
+different environment value parses: 1
+changed value: 9px
+unchanged neighbour: 7px

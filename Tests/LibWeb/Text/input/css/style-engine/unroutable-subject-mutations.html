@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="plan.js"></script>
+<style id="sheet">
+    .settled { color: green }
+</style>
+<div id="parent">
+    <span id="first-child" class="settled"></span>
+    <span id="second-child"></span>
+</div>
+<div id="elsewhere">
+    <span id="cousin"></span>
+</div>
+<script>
+    test(() => {
+        // A rule whose subject compound has no feature to enumerate by cannot be routed from the
+        // dispatch buckets. That does not make it unbounded: the subject's own shape often says
+        // where it can be, and only when it says nothing at all is the document the answer.
+        const sheet = document.getElementById("sheet").sheet;
+        const insert = cssText => sheet.insertRule(cssText, sheet.cssRules.length);
+        const drop = () => sheet.deleteRule(sheet.cssRules.length - 1);
+
+        // `:root` matches the document's root element and nothing else, whatever else it is
+        // compounded with and however many elements the document holds.
+        plan("insert a rule naming :root", () => insert(":root { --a: 1 }"));
+        plan("delete it", drop);
+        plan("insert :root compounded with a class", () => insert(":root.absent { --b: 1 }"));
+        plan("delete it", drop);
+
+        // A child combinator names what the subject's parent must be, and a parent does have a
+        // posting to enumerate. Every subject the rule can have is a child of one of those.
+        plan("insert a rule for the children of an id", () => insert("#parent > * { --c: 1 }"));
+        plan("delete it", drop);
+        plan("insert one for the children of a class", () => insert(".settled > * { --d: 1 }"));
+        plan("delete it", drop);
+
+        // The parent constraint is a disjunction when the selector offers alternatives, so the
+        // region is the union over the branches rather than a guess at one of them.
+        plan("insert one naming either of two parents", () => insert(":is(#parent, #elsewhere) > * { --e: 1 }"));
+        plan("delete it", drop);
+
+        // A sibling combinator says nothing about the subject's own parent until it is followed, and
+        // siblings share one, so what the sibling's parent must be bounds the subject too.
+        plan("insert one behind a sibling of a child", () => insert("#parent > .settled ~ * { --f: 1 }"));
+        plan("delete it", drop);
+
+        // A subject that genuinely can be any element is the document, and saying so is the honest
+        // answer rather than a failure to narrow.
+        plan("insert a universal rule", () => insert("* { --g: 1 }"));
+        plan("delete it", drop);
+        plan("insert a negation with no other constraint", () => insert(":not(.absent) { --h: 1 }"));
+        plan("delete it", drop);
+
+        // A descendant combinator bounds the subject more weakly than a child one: it can be at any
+        // depth below the ancestor, so what it names is a subtree rather than a child list.
+        plan("insert one behind a descendant combinator", () => insert("#parent :not(.absent) { --i: 1 }"));
+        plan("delete it", drop);
+        plan("insert one under either of two ancestors", () => insert(":is(#parent, #elsewhere) :not(.absent) { --j: 1 }"));
+        plan("delete it", drop);
+
+        // A parent constraint is the tighter of the two, so an entry offering both is bounded by the
+        // child list rather than by the subtree.
+        plan("insert one with both an ancestor and a parent", () => insert("#elsewhere #parent > * { --k: 1 }"));
+        plan("delete it", drop);
+
+        // A relative query the subject has to satisfy bounds it as well. The subject names no feature
+        // of its own, but it can only be an anchor of that query, and the witness does have a posting.
+        plan("insert a bare :has()", () => insert(":has(.settled) { --l: 1 }"));
+        plan("delete it", drop);
+        plan("insert a bare :has() naming nothing present", () => insert(":has(.absent) { --m: 1 }"));
+        plan("delete it", drop);
+
+        // The axis decides which relation the anchor stands in to the witness. A child query's anchor
+        // is the witness's parent, which the ancestors cover.
+        plan("insert :has() over a child axis", () => insert(":has(> .settled) { --n: 1 }"));
+        plan("delete it", drop);
+        plan("insert :has() over the next-sibling axis", () => insert(":has(+ #second-child) { --o: 1 }"));
+        plan("delete it", drop);
+        plan("insert :has() over the following-sibling axis", () => insert(":has(~ #second-child) { --p: 1 }"));
+        plan("delete it", drop);
+
+        // A negated query says the opposite of what bounds a subject: an element with no `.settled`
+        // under it is not one of the `.settled` elements' ancestors, so nothing is narrowed.
+        plan("insert a negated :has()", () => insert(":not(:has(.settled)) { --q: 1 }"));
+        plan("delete it", drop);
+    });
+</script>

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    /* A relative selector with more than one compound compiles to constraints on the witness. Those
+       cannot say where the chain started, so each of these has a shape whose witness satisfies the
+       chain while standing somewhere the anchor never reaches. */
+    #subject:has(+ div > .t) { --child-of-next-sibling: 1 }
+    #subject:has(+ div .t) { --under-next-sibling: 1 }
+    #subject:has(~ div > .t) { --child-of-following-sibling: 1 }
+    #subject:has(> div .t) { --under-a-child: 1 }
+    #subject:has(.outer .t) { --under-an-outer: 1 }
+</style>
+<div class="outer">
+    <div id="above"><div class="t" id="above-t"></div></div>
+    <main>
+        <div id="subject"><span></span></div>
+        <div id="sibling">
+            <div id="sibling-child"><div class="t" id="deep-t"></div></div>
+        </div>
+    </main>
+</div>
+<script>
+    test(() => {
+        const style = getComputedStyle(document.getElementById("subject"));
+        for (const name of ["--child-of-next-sibling", "--under-next-sibling",
+                            "--child-of-following-sibling", "--under-a-child", "--under-an-outer"])
+            println(`${name}: ${style.getPropertyValue(name) || "(none)"}`);
+
+        for (const element of document.querySelectorAll("*"))
+            getComputedStyle(element).color;
+        println(internals.styleEngineMatchedRules());
+    });
+</script>

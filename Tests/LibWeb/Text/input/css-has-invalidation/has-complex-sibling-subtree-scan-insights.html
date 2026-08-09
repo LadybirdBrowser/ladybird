@@ -17,13 +17,6 @@
 <script>
     function printCounters() {
         let counters = internals.getStyleInvalidationCounters();
-        println(`hasAncestorWalkInvocations: ${counters.hasAncestorWalkInvocations}`);
-        println(`hasAncestorWalkVisits: ${counters.hasAncestorWalkVisits}`);
-        println(`hasAncestorSiblingElementChecks: ${counters.hasAncestorSiblingElementChecks}`);
-        println(`hasMatchInvocations: ${counters.hasMatchInvocations}`);
-        println(`hasResultCacheHits: ${counters.hasResultCacheHits}`);
-        println(`hasResultCacheMisses: ${counters.hasResultCacheMisses}`);
-        println(`styleInvalidations: ${counters.styleInvalidations}`);
     }
 
     test(() => {

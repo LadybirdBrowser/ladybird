@@ -92,8 +92,6 @@ pub struct FfiDomTreeBuilderCallbacks {
     pub element_layout_node: unsafe extern "C" fn(*mut c_void) -> NodeSlotId,
     pub principal_node_entry_facts: unsafe extern "C" fn(*mut c_void, *mut c_void, bool) -> FfiPrincipalNodeEntryFacts,
     pub request_top_layer_zone_rebuild: unsafe extern "C" fn(*mut c_void),
-    pub push_style_ancestor: unsafe extern "C" fn(*mut c_void),
-    pub pop_style_ancestor: unsafe extern "C" fn(*mut c_void),
     pub push_principal_frame: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiPrincipalNodeFrame,
     pub pop_principal_frame: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub prepare_principal_element:
@@ -110,7 +108,7 @@ pub struct FfiDomTreeBuilderCallbacks {
     pub apply_replaced_display_adjustment: unsafe extern "C" fn(*mut c_void, FfiReplacedElementDisplayAdjustment),
     pub insert_principal_backdrop_before_old: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void),
     pub place_principal_layout: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, FfiPrincipalBoxPlacement),
-    pub reset_style_ancestor_filter: unsafe extern "C" fn(*mut c_void),
+    pub clear_stale_inclusive_subtree: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub document_layout_node: unsafe extern "C" fn(*mut c_void) -> NodeSlotId,
     pub report_rebuild_outcome: unsafe extern "C" fn(*mut c_void, *const *mut c_void, usize, bool),
     pub layout: FfiTreeBuilderCallbacks,
@@ -1551,10 +1549,6 @@ fn update_layout_tree(
             return;
         }
 
-        if entry_facts.is_element {
-            // SAFETY: `dom_node` is a live Element when this fact is set.
-            unsafe { (host.callbacks.push_style_ancestor)(dom_node) };
-        }
         // SAFETY: The builder and DOM node remain live, and the callback retains frame-owned C++ objects.
         let pushed_frame = unsafe { (host.callbacks.push_principal_frame)(host.callbacks.builder, dom_node) };
         assert!(!pushed_frame.frame.is_null());
@@ -1568,10 +1562,6 @@ fn update_layout_tree(
             must_create_subtree,
         };
         update_principal_node_after_entry(&mut update, entry_facts, entry_decision);
-        if entry_facts.is_element {
-            // SAFETY: Balances the style ancestor push above.
-            unsafe { (host.callbacks.pop_style_ancestor)(dom_node) };
-        }
         // SAFETY: `frame` is the most recently pushed principal frame and is no longer used by Rust.
         unsafe { (host.callbacks.pop_principal_frame)(host.callbacks.builder, pushed_frame.frame) };
     });
@@ -1599,8 +1589,6 @@ pub unsafe extern "C" fn rust_build_layout_tree(
             unsafe { (host.callbacks.principal_node_entry_facts)(host.callbacks.builder, document, false) };
         assert!(entry_facts.is_document);
 
-        // SAFETY: The document remains live throughout the build.
-        unsafe { (host.callbacks.reset_style_ancestor_filter)(document) };
         update_layout_tree(&host, &mut state, document, &mut context, false);
 
         // NB: Called during layout tree construction.

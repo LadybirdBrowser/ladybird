@@ -61,6 +61,7 @@ public:
     struct ResolutionContext {
         [[nodiscard]] static ResolutionContext for_document(DOM::Document const&);
         [[nodiscard]] static ResolutionContext for_element(DOM::AbstractElement const&);
+        [[nodiscard]] static ResolutionContext for_element(DOM::AbstractElement const&, ComputedValues const&);
         [[nodiscard]] static ResolutionContext for_layout_node(Layout::NodeWithStyle const&);
 
         CSSPixelRect viewport_rect;

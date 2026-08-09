@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @layer late, early;
+    #box::before { content: "b"; color: rgb(1, 2, 3) }
+    .box::before { color: rgb(4, 5, 6) }
+    div::after { content: "a"; color: rgb(7, 8, 9) }
+    :is(.box, .other)::after { background-color: rgb(10, 11, 12) }
+    @layer early { #box::before { outline-color: rgb(13, 14, 15) } }
+    @layer late { #box::before { outline-color: rgb(16, 17, 18) } }
+    li::marker { color: rgb(19, 20, 21) }
+    #list > li::marker { color: rgb(22, 23, 24) }
+    .box > span::first-line { color: rgb(25, 26, 27) }
+    @scope (#box) { span::before { content: "s"; color: rgb(28, 29, 30) } }
+</style>
+<div id="box" class="box"><span>text</span></div>
+<ul id="list"><li>item</li></ul>
+<x-thing id="thing"></x-thing>
+<script>
+    test(() => {
+        const root = document.getElementById("thing").attachShadow({ mode: "open" });
+        root.innerHTML = `<style>div::before { content: "p"; color: rgb(31, 32, 33) }</style><div part="popup">popup</div>`;
+
+        const box = document.getElementById("box");
+        const span = box.querySelector("span");
+        const item = document.querySelector("#list > li");
+        const popup = root.querySelector("div");
+
+        // A pseudo-element is decided by the rules that match its originating element and name it as
+        // their target, so every one of these is a cascade of its own over the same element.
+        println("before color: " + getComputedStyle(box, "::before").color);
+        println("before outline-color: " + getComputedStyle(box, "::before").outlineColor);
+        println("after color: " + getComputedStyle(box, "::after").color);
+        println("after background-color: " + getComputedStyle(box, "::after").backgroundColor);
+        println("marker color: " + getComputedStyle(item, "::marker").color);
+        println("scoped before color: " + getComputedStyle(span, "::before").color);
+        println("shadow before color: " + getComputedStyle(popup, "::before").color);
+        println(internals.styleEngineMatchedRules());
+    });
+</script>

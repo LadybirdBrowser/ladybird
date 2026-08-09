@@ -36,7 +36,6 @@
         println(getComputedStyle(targets[0]).display);
 
         const counters = internals.getStyleInvalidationCounters();
-        println(`hasInvalidationRuleCacheBuilds: ${counters.hasInvalidationRuleCacheBuilds}`);
 
         internals.setContentBlockers("");
     });

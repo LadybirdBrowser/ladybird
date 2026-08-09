@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 152 tests
 
-117 Pass
-35 Fail
+118 Pass
+34 Fail
 Pass	Property scale value 'random(1, 11)'
 Fail	Property scale value 'random(--foo element-scoped, 2, 12)'
 Pass	Property scale value 'random(--foo, 3, 13)'
@@ -141,7 +141,7 @@ Pass	Shared between elements within a property: random(property-index-scoped, a,
 Pass	Shared between elements within a property, random inside color functions: random(property-index-scoped, a, b)
 Pass	Shared between elements within a property, unresolved percentage values: random(property-index-scoped, a, b)
 Fail	Shared between elements within a property - shorthand: random(property-index-scoped, a, b)
-Fail	Shared globally: random(--identifier, a, b)
+Pass	Shared globally: random(--identifier, a, b)
 Pass	Shared globally - shorthand: random(--other-identifier, a, b)
 Fail	Shared by property - shorthand and longhand: random(property-index-scoped, a, b)
 Fail	Shared by property - logical and physical property: random(property-index-scoped, a, b)

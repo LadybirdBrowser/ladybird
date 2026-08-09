@@ -150,7 +150,7 @@ void SVGPathPaintable::paint(DisplayListRecordingContext& context, PaintPhase ph
         // https://svgwg.org/svg2-draft/painting.html#PaintingVectorEffects
         // With the non-scaling-stroke vector effect, stroke outline shall be calculated in the "host" coordinate space instead of user coordinate system.
         // Note: This is assuming .x_scale() == .y_scale() (which it does currently).
-        auto stroke_scale = computed_values().vector_effect() == CSS::VectorEffect::NonScalingStroke ? 1.0f : paint_transform.x_scale();
+        auto stroke_scale = layout_node().vector_effect() == CSS::VectorEffect::NonScalingStroke ? 1.0f : paint_transform.x_scale();
         float stroke_thickness = graphics_element.stroke_width().value_or(1) * stroke_scale;
         auto stroke_dasharray = graphics_element.stroke_dasharray();
         for (auto& value : stroke_dasharray)
@@ -212,7 +212,7 @@ void SVGPathPaintable::record_hit_test_items(DisplayListRecordingContext& contex
     if (!computed_path().has_value())
         return;
 
-    if (computed_values().visibility() != CSS::Visibility::Visible || !visible_for_hit_testing())
+    if (layout_node().visibility() != CSS::Visibility::Visible || !visible_for_hit_testing())
         return;
 
     auto& graphics_element = dom_node();

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../../include.js"></script>
+<script src="plan.js"></script>
+<script>
+    // Routing rejects a route whose subject compound the element cannot satisfy. Every conjunct of
+    // that compound is checked against the facts, and a transaction can move more than one of them
+    // at once - so a conjunct that has already left has to be admitted the same way the one input
+    // being routed is.
+    test(() => {
+        addStyleSheet(`
+            span.a.b.c { color: red }
+            .wrap.on .target { color: green }
+        `);
+
+        const one = make("span", "one", { className: "a b c" });
+        document.body.appendChild(one);
+        plan("two of three conjuncts leave at once", () => (one.className = "a"));
+
+        const two = make("span", "two", { className: "a" });
+        document.body.appendChild(two);
+        plan("two of three conjuncts arrive at once", () => (two.className = "a b c"));
+
+        const three = make("span", "three", { className: "a b c" });
+        document.body.appendChild(three);
+        plan("one conjunct leaves as another arrives", () => (three.className = "a b d"));
+
+        // The same question about the compound a change occurs in rather than the subject's.
+        const wrap = make("div", "wrap", { className: "wrap on" });
+        document.body.appendChild(wrap);
+        wrap.appendChild(make("div", "target", { className: "target" }));
+        plan("the origin compound loses two conjuncts at once", () => (wrap.className = "wrap"));
+    });
+</script>

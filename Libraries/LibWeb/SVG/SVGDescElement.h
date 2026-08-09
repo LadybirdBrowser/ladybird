@@ -16,8 +16,7 @@ class SVGDescElement final : public SVGElement {
 
 private:
     SVGDescElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual RefPtr<Layout::Node> create_layout_node(NonnullRefPtr<CSS::ComputedValues const>) override;
+    virtual RefPtr<Layout::Node> create_layout_node(CSS::LayoutStyle) override;
 };
 
 }

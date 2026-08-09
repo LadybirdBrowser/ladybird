@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+    <style>
+        #bar {
+            color: inherit;
+        }
+    </style>
+    <div id="foo"><div id="bar"></div></div>
+    <script src="../include.js"></script>
+    <script>
+        promiseTest(async () => {
+            // Settle initial style so changing the parent's animation exercises the inherited
+            // StyleEngine reaction rather than initial materialization.
+            await animationFrame();
+
+            const animation = foo.animate([{ color: "red" }, { color: "blue" }], {
+                duration: 1000,
+            });
+            animation.pause();
+            animation.currentTime = 500;
+            await animation.ready;
+
+            println(getComputedStyle(bar).color);
+        });
+    </script>
+</html>

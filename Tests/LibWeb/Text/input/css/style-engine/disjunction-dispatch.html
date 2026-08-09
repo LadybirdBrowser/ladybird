@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    :is(.alpha, .beta) { color: rgb(1, 2, 3); }
+    :is(dl, ol) :is(.left, .right) { margin-left: 7px; }
+</style>
+<div id="host">
+    <div class="alpha">alpha</div>
+    <div class="beta">beta</div>
+    <div class="alpha beta">both</div>
+    <div class="gamma">neither</div>
+    <dl><div class="left right">listed</div></dl>
+    <div><div class="left">unlisted</div></div>
+</div>
+<script>
+    test(() => {
+        const [alpha, beta, both, neither] = document.getElementById("host").children;
+
+        // A rule whose subject is a disjunction dispatches from each branch's key rather than in
+        // front of every element, and an element carrying two of the branches matches it once.
+        println(`alpha: ${getComputedStyle(alpha).color}`);
+        println(`beta: ${getComputedStyle(beta).color}`);
+        println(`both: ${getComputedStyle(both).color}`);
+        println(`neither: ${getComputedStyle(neither).color}`);
+        const report = internals.styleEngineMatchedRules();
+        const disjunction_matches = report.split("\n").filter((line) => line.includes(":is(.alpha, .beta)")).length;
+        println(`elements matched by the disjunction: ${disjunction_matches}`);
+
+        const listed = document.querySelector("dl .left");
+        const unlisted = document.querySelector("div > .left");
+        println(`listed margin: ${getComputedStyle(listed).marginLeft}`);
+        println(`unlisted margin: ${getComputedStyle(unlisted).marginLeft}`);
+    });
+</script>

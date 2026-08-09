@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<input id="target">
+<script>
+    test(() => {
+        internals.updateStyle();
+        target.focus();
+        internals.resetStyleInvalidationCounters();
+
+        document.body.classList.add("pending-style-change");
+        target.focus();
+
+        const counters = internals.getStyleInvalidationCounters();
+        println(`active element preserved: ${document.activeElement === target}`);
+        println(`style updates: ${counters.styleStabilizationEpochs}`);
+    });
+</script>

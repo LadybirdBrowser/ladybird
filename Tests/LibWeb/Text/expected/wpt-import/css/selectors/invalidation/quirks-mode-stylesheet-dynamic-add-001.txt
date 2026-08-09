@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Style should've changed to a green background
+1 Pass
+Pass	Style should've changed to a green background

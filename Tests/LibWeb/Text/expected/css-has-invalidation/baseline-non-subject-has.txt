@@ -1,7 +1,1 @@
 [after add .match on target]
-  hasAncestorWalkInvocations: 1
-  hasAncestorWalkVisits: 3
-  hasMatchInvocations: 1
-  hasResultCacheHits: 0
-  hasResultCacheMisses: 1
-  styleInvalidations: 1

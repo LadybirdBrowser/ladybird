@@ -278,6 +278,14 @@ static Vector<ComponentValue> replace_a_dashed_function(AbstractOrHypotheticalEl
 {
     auto const& declaration_value_list = arguments.get<DeclarationValueList>();
 
+    // Calling a dashed function is what makes an element a consumer of one, and that is true whether
+    // or not the name resolves. An element whose call found no definition is exactly the one an
+    // `@function` rule arriving later has to reach, so it has to be in the index that finds it before
+    // the lookup can send it away. A hypothetical element is not in the tree and has no style to
+    // invalidate; a real one is what an `@function` change has to reach.
+    if (element.has<DOM::AbstractElement>())
+        element.get<DOM::AbstractElement>().element().set_style_uses_custom_function();
+
     // 1. Let function be the result of dereferencing the dashed function’s name as a tree-scoped reference. If no such
     //    name exists, return the guaranteed-invalid value.
 
@@ -463,6 +471,7 @@ static Vector<ComponentValue> replace_an_inherit_function(AbstractOrHypothetical
     //    does not contain the guaranteed-invalid value, return that inherited value.
     if (name_token.is(Token::Type::Ident) && is_a_custom_property_name_string(name_token.token().ident()) && first_argument_tokens.is_empty()) {
         auto const& custom_property_name = name_token.token().ident();
+        element.abstract_element().element().record_style_custom_property_reference(custom_property_name);
 
         auto inherited_value = inherited_custom_property_value(
             element.get_registered_custom_property(custom_property_name),
@@ -512,12 +521,22 @@ static Vector<ComponentValue> replace_a_var_function(AbstractOrHypotheticalEleme
     } else {
         // Look up the value of the custom property
         auto custom_property_name = name_token.token().ident();
+        element.abstract_element().element().record_style_custom_property_reference(custom_property_name);
 
         // NB: We compute against the element that declared the custom property (if any did) - this is irrelevant for
         //     normal style computation since inherited values are already in computed form (since style computation
         //     occurs in tree order), but it is required for custom function evaluation.
         auto element_to_compute_custom_property_against = [&] -> AbstractOrHypotheticalElement {
-            if (!element.get_custom_property(custom_property_name))
+            auto looked_up_value = element.get_custom_property(custom_property_name);
+            if (!looked_up_value)
+                return element;
+
+            // A final value computes the same against any element: it is already in computed form,
+            // so nothing font-relative or function-shaped is left to resolve against the declarer.
+            // Values in a hypothetical element's chain keep the walk, since a custom function's
+            // locals and result carry semantics the declaring element decides.
+            if (element.has<DOM::AbstractElement>()
+                && !(looked_up_value->is_unresolved() && looked_up_value->as_unresolved().contains_arbitrary_substitution_function()))
                 return element;
 
             Optional<AbstractOrHypotheticalElement> current_element = element;
@@ -542,8 +561,9 @@ static Vector<ComponentValue> replace_a_var_function(AbstractOrHypotheticalEleme
         //         "calling context root" element, in which case this is the correct computed style to use, or;
         //      2. We are computing against an ancestor abstract element in which case the custom property's value will
         //         already be in it's computed form so the computed_style used is irrelevant.
-        auto custom_property_value = element.document().style_computer().compute_value_of_custom_property(replacement_context.computed_style_for_custom_property_resolution, element_to_compute_custom_property_against, custom_property_name, guarded_contexts);
-        result = custom_property_value->tokenize();
+        auto& style_computer = element.document().style_computer();
+        auto custom_property_value = style_computer.compute_value_of_custom_property(replacement_context.computed_style_for_custom_property_resolution, element_to_compute_custom_property_against, custom_property_name, guarded_contexts);
+        result = style_computer.tokenized_custom_property_value(custom_property_value);
     }
 
     // FIXME: 3. If the custom property named by the var()’s first argument is animation-tainted, and the var() is being used

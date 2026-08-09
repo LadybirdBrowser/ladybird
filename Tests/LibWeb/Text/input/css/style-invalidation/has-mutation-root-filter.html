@@ -217,7 +217,7 @@
             resetStyleCounters();
             subgrid.classList.add("unrelated");
             assertEqual(`${name} after unrelated mixed-rule mutation`, readProbe(target), MATCH);
-            printPassWithHasWalkCounters(`mixed-rule sibling scan preserves feature-filter skip: ${name}`);
+            printPassWithCounters(`mixed-rule sibling scan preserves feature-filter skip: ${name}`);
 
             style.remove();
             fixture.remove();

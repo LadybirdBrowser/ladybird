@@ -57,15 +57,15 @@ void SVGImagePaintable::paint(DisplayListRecordingContext& context, PaintPhase p
     // over-ridden by the author, images will therefore be clipped to the positioning rectangle defined by the
     // geometry properties.
     auto positioning_rectangle = context.rounded_device_rect(image_rect).to_type<int>();
-    bool overflow_is_visible = computed_values().overflow_x() == CSS::Overflow::Visible
-        && computed_values().overflow_y() == CSS::Overflow::Visible;
+    bool overflow_is_visible = layout_box().overflow_x() == CSS::Overflow::Visible
+        && layout_box().overflow_y() == CSS::Overflow::Visible;
     bool draw_rect_needs_clip = !overflow_is_visible && !positioning_rectangle.contains(draw_rect);
     if (draw_rect_needs_clip) {
         context.display_list_recorder().save();
         context.display_list_recorder().add_clip_rect(positioning_rectangle);
     }
 
-    decoded_image_data->paint(context, draw_rect, computed_values().image_rendering(), computed_values().color_scheme());
+    decoded_image_data->paint(context, draw_rect, layout_box().image_rendering(), layout_box().color_scheme());
 
     if (draw_rect_needs_clip)
         context.display_list_recorder().restore();
