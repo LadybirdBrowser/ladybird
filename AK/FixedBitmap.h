@@ -42,6 +42,17 @@ public:
 
     [[nodiscard]] constexpr size_t size() const { return Size; }
     [[nodiscard]] constexpr size_t size_in_bytes() const { return ceil_div(Size, static_cast<size_t>(8)); }
+    [[nodiscard]] constexpr ReadonlyBytes bytes() const LIFETIME_BOUND { return m_data.span(); }
+
+    constexpr void copy_from(ReadonlyBytes bytes)
+    {
+        VERIFY(bytes.size() == size_in_bytes());
+        __builtin_memcpy(m_data.data(), bytes.data(), size_in_bytes());
+    }
+
+    // NB: fill(true) also sets the padding bits past Size, so only compare bitmaps built the same
+    //     way: two false-initialized bitmaps mutated bit by bit compare exactly.
+    [[nodiscard]] constexpr bool operator==(FixedBitmap const& other) const = default;
 
 private:
     Array<u8, ceil_div(Size, static_cast<size_t>(8))> m_data;
