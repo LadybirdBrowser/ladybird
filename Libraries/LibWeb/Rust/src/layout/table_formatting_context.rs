@@ -2020,11 +2020,11 @@ impl<'pass> TableFormattingContext<'pass> {
                 participation: ParticipationInParentFormattingContext::Item,
             },
         );
-        let measured_cell_used = measurement.rust_state().used_values(measurement.callbacks(), cell.box_);
+        let measured_cell_used = measurement.layout_state().used_values(measurement.callbacks(), cell.box_);
         Some(MeasuredCellContent {
             content_block_size: result.automatic_content_block_size,
             first_baseline: crate::layout::box_baseline_with_content_baselines(
-                measurement.rust_state(),
+                measurement.layout_state(),
                 measurement.callbacks(),
                 cell.box_,
                 measured_cell_used,

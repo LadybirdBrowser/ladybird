@@ -1854,7 +1854,7 @@ impl<'pass> SizingContext<'pass> {
     ) -> &UsedValues {
         let callbacks = *measurement.callbacks();
         measurement
-            .rust_state()
+            .layout_state()
             .create_used_values(&callbacks, node, constraints)
     }
 
@@ -1900,7 +1900,7 @@ impl<'pass> SizingContext<'pass> {
             .set(table_style.padding_right().to_px(containing_block_inline_size));
 
         let table_run = crate::layout::FormattingContextRun::new(
-            measurement.rust_state(),
+            measurement.layout_state(),
             table_box,
             LayoutMode::IntrinsicSizing,
             *measurement.callbacks(),
