@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 34 tests
 
-17 Pass
-17 Fail
+19 Pass
+15 Fail
 Pass	SVG Geometry Properties: getComputedStyle().height, <rect> initial
 Pass	SVG Geometry Properties: getComputedStyle().height, <rect> presentation attribute
 Pass	SVG Geometry Properties: getComputedStyle().height, <rect> inline style (auto)
@@ -13,8 +13,8 @@ Pass	SVG Geometry Properties: getComputedStyle().height, <rect> inline style but
 Pass	SVG Geometry Properties: getComputedStyle().height, <image> initial
 Pass	SVG Geometry Properties: getComputedStyle().height, <image> presentation attribute
 Pass	SVG Geometry Properties: getComputedStyle().height, <image> inline style (auto)
-Fail	SVG Geometry Properties: getComputedStyle().height, <image> inline style (pixels)
-Fail	SVG Geometry Properties: getComputedStyle().height, <image> inline style (percentage)
+Pass	SVG Geometry Properties: getComputedStyle().height, <image> inline style (pixels)
+Pass	SVG Geometry Properties: getComputedStyle().height, <image> inline style (percentage)
 Pass	SVG Geometry Properties: getComputedStyle().height, <image> inline style but "display: none"
 Pass	SVG Geometry Properties: getComputedStyle().height, <foreignObject> initial
 Pass	SVG Geometry Properties: getComputedStyle().height, <foreignObject> presentation attribute

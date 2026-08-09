@@ -67,11 +67,6 @@ private:
     virtual RefPtr<Layout::Node> create_layout_node(NonnullRefPtr<CSS::ComputedValues const>) override;
     virtual void decoded_image_data_did_update() override { set_needs_repaint(); }
 
-    Optional<NumberPercentage> m_x;
-    Optional<NumberPercentage> m_y;
-    Optional<NumberPercentage> m_width;
-    Optional<NumberPercentage> m_height;
-
     Optional<URL::URL> m_href;
 
     GC::Ptr<HTML::SharedResourceRequest> m_resource_request;
