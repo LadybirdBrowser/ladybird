@@ -1387,46 +1387,7 @@ impl<'pass> SizingContext<'pass> {
         if !self.has_children(node) {
             return CssPixels::default();
         }
-        let key = cache_key(None, constraints);
-        if let Some(cached) =
-            self.intrinsic_inline_measurement_cache_get(node, IntrinsicSizeCacheKind::MinContentInline, key)
-        {
-            return cached.automatic_content_inline_size;
-        }
-
-        let measurement = MeasurementState::create(self.callbacks, node, constraints);
-        let root = measurement.root_used();
-        root.inline_size_constraint.set(SizeConstraint::MinContent);
-        root.has_definite_inline_size.set(false);
-        let block_size = if root.has_definite_block_size() {
-            AvailableSize::definite(root.content_block_size.get())
-        } else {
-            AvailableSize::Indefinite
-        };
-        let mut result = measurement.run(
-            node,
-            LayoutInput {
-                available_space: AvailableSpace {
-                    inline_size: AvailableSize::MinContent,
-                    block_size,
-                },
-                containing_block_constraints: constraints,
-                content_box_position_in_bfc_root: None,
-                sizing: RootSizingDirectives::default(),
-                participation: ParticipationInParentFormattingContext::Root,
-            },
-        );
-        result.automatic_content_inline_size = clamp_to_max_dimension_value(result.automatic_content_inline_size);
-        let value = result.automatic_content_inline_size;
-        self.cache_intrinsic_inline_measurement(
-            node,
-            IntrinsicSizeCacheKind::MinContentInline,
-            key,
-            &measurement,
-            result,
-            block_size,
-        );
-        value
+        self.measure_intrinsic_inline_size(node, constraints, IntrinsicSizeCacheKind::MinContentInline)
     }
 
     pub(crate) fn calculate_max_content_inline_size(
@@ -1588,16 +1549,29 @@ impl<'pass> SizingContext<'pass> {
         if !self.has_children(node) {
             return CssPixels::default();
         }
+        self.measure_intrinsic_inline_size(node, constraints, IntrinsicSizeCacheKind::MaxContentInline)
+    }
+
+    // Lays `node` out under an intrinsic inline-size constraint, reusing and populating the measurement cache.
+    fn measure_intrinsic_inline_size(
+        &self,
+        node: Node,
+        constraints: ContainingBlockConstraints,
+        kind: IntrinsicSizeCacheKind,
+    ) -> CssPixels {
+        let (size_constraint, available_inline_size) = match kind {
+            IntrinsicSizeCacheKind::MinContentInline => (SizeConstraint::MinContent, AvailableSize::MinContent),
+            IntrinsicSizeCacheKind::MaxContentInline => (SizeConstraint::MaxContent, AvailableSize::MaxContent),
+            _ => unreachable!("inline measurement cache kind must use the inline axis"),
+        };
         let key = cache_key(None, constraints);
-        if let Some(cached) =
-            self.intrinsic_inline_measurement_cache_get(node, IntrinsicSizeCacheKind::MaxContentInline, key)
-        {
+        if let Some(cached) = self.intrinsic_inline_measurement_cache_get(node, kind, key) {
             return cached.automatic_content_inline_size;
         }
 
         let measurement = MeasurementState::create(self.callbacks, node, constraints);
         let root = measurement.root_used();
-        root.inline_size_constraint.set(SizeConstraint::MaxContent);
+        root.inline_size_constraint.set(size_constraint);
         root.has_definite_inline_size.set(false);
         let block_size = if root.has_definite_block_size() {
             AvailableSize::definite(root.content_block_size.get())
@@ -1606,27 +1580,57 @@ impl<'pass> SizingContext<'pass> {
         };
         let mut result = measurement.run(
             node,
-            LayoutInput {
-                available_space: AvailableSpace {
-                    inline_size: AvailableSize::MaxContent,
+            LayoutInput::new(
+                AvailableSpace {
+                    inline_size: available_inline_size,
                     block_size,
                 },
-                containing_block_constraints: constraints,
-                content_box_position_in_bfc_root: None,
-                sizing: RootSizingDirectives::default(),
-                participation: ParticipationInParentFormattingContext::Root,
-            },
+                constraints,
+                ParticipationInParentFormattingContext::Root,
+            ),
         );
         result.automatic_content_inline_size = clamp_to_max_dimension_value(result.automatic_content_inline_size);
         let value = result.automatic_content_inline_size;
-        self.cache_intrinsic_inline_measurement(
+        self.cache_intrinsic_inline_measurement(node, kind, key, &measurement, result, block_size);
+        value
+    }
+
+    // Lays `node` out at `inline_size` under an intrinsic block-size constraint, reusing and populating the cache.
+    fn measure_intrinsic_block_size(
+        &self,
+        node: Node,
+        inline_size: CssPixels,
+        constraints: ContainingBlockConstraints,
+        kind: IntrinsicSizeCacheKind,
+    ) -> CssPixels {
+        let (size_constraint, available_block_size) = match kind {
+            IntrinsicSizeCacheKind::MinContentBlock => (SizeConstraint::MinContent, AvailableSize::MinContent),
+            IntrinsicSizeCacheKind::MaxContentBlock => (SizeConstraint::MaxContent, AvailableSize::MaxContent),
+            _ => unreachable!("block size cache kind must use the block axis"),
+        };
+        let key = cache_key(Some(inline_size), constraints);
+        if let Some(cached) = self.intrinsic_block_cache_get(node, kind, key) {
+            return cached;
+        }
+
+        let measurement = MeasurementState::create(self.callbacks, node, constraints);
+        let root = measurement.root_used();
+        root.block_size_constraint.set(size_constraint);
+        root.has_definite_block_size.set(false);
+        root.set_content_inline_size(inline_size);
+        let result = measurement.run(
             node,
-            IntrinsicSizeCacheKind::MaxContentInline,
-            key,
-            &measurement,
-            result,
-            block_size,
+            LayoutInput::new(
+                AvailableSpace {
+                    inline_size: AvailableSize::definite(inline_size),
+                    block_size: available_block_size,
+                },
+                constraints,
+                ParticipationInParentFormattingContext::Root,
+            ),
         );
+        let value = clamp_to_max_dimension_value(result.automatic_content_block_size);
+        self.intrinsic_block_cache_put(node, kind, key, value);
         value
     }
 
@@ -1650,32 +1654,7 @@ impl<'pass> SizingContext<'pass> {
         if !self.has_children(node) {
             return CssPixels::default();
         }
-        let key = cache_key(Some(inline_size), constraints);
-        if let Some(cached) = self.intrinsic_block_cache_get(node, IntrinsicSizeCacheKind::MinContentBlock, key) {
-            return cached;
-        }
-
-        let measurement = MeasurementState::create(self.callbacks, node, constraints);
-        let root = measurement.root_used();
-        root.block_size_constraint.set(SizeConstraint::MinContent);
-        root.has_definite_block_size.set(false);
-        root.set_content_inline_size(inline_size);
-        let result = measurement.run(
-            node,
-            LayoutInput {
-                available_space: AvailableSpace {
-                    inline_size: AvailableSize::definite(inline_size),
-                    block_size: AvailableSize::MinContent,
-                },
-                containing_block_constraints: constraints,
-                content_box_position_in_bfc_root: None,
-                sizing: RootSizingDirectives::default(),
-                participation: ParticipationInParentFormattingContext::Root,
-            },
-        );
-        let value = clamp_to_max_dimension_value(result.automatic_content_block_size);
-        self.intrinsic_block_cache_put(node, IntrinsicSizeCacheKind::MinContentBlock, key, value);
-        value
+        self.measure_intrinsic_block_size(node, inline_size, constraints, IntrinsicSizeCacheKind::MinContentBlock)
     }
 
     pub(crate) fn calculate_max_content_block_size(
@@ -1703,32 +1682,7 @@ impl<'pass> SizingContext<'pass> {
         if !self.has_children(node) {
             return CssPixels::default();
         }
-        let key = cache_key(Some(inline_size), constraints);
-        if let Some(cached) = self.intrinsic_block_cache_get(node, IntrinsicSizeCacheKind::MaxContentBlock, key) {
-            return cached;
-        }
-
-        let measurement = MeasurementState::create(self.callbacks, node, constraints);
-        let root = measurement.root_used();
-        root.block_size_constraint.set(SizeConstraint::MaxContent);
-        root.has_definite_block_size.set(false);
-        root.set_content_inline_size(inline_size);
-        let result = measurement.run(
-            node,
-            LayoutInput {
-                available_space: AvailableSpace {
-                    inline_size: AvailableSize::definite(inline_size),
-                    block_size: AvailableSize::MaxContent,
-                },
-                containing_block_constraints: constraints,
-                content_box_position_in_bfc_root: None,
-                sizing: RootSizingDirectives::default(),
-                participation: ParticipationInParentFormattingContext::Root,
-            },
-        );
-        let value = clamp_to_max_dimension_value(result.automatic_content_block_size);
-        self.intrinsic_block_cache_put(node, IntrinsicSizeCacheKind::MaxContentBlock, key, value);
-        value
+        self.measure_intrinsic_block_size(node, inline_size, constraints, IntrinsicSizeCacheKind::MaxContentBlock)
     }
 
     pub(crate) fn measure_automatic_content_block_size(
