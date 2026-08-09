@@ -537,6 +537,14 @@ impl<'pass> BlockFormattingContext<'pass> {
             }
         }
 
+        // An auto margin that is not honoured resolves to zero and stops taking part in the remaining steps.
+        fn zero_out_auto_margin(margin: &mut CssPixels, is_auto: &mut bool) {
+            if *is_auto {
+                *margin = CssPixels::default();
+                *is_auto = false;
+            }
+        }
+
         let remaining_inline_size = remaining_available_space.inline_size.to_px_or_zero();
         let computed_margin_left = style.margin_left();
         let computed_margin_right = style.margin_right();
@@ -566,14 +574,8 @@ impl<'pass> BlockFormattingContext<'pass> {
                 // width of the containing block, then any 'auto' values for 'margin-left' or 'margin-right' are, for the
                 // following rules, treated as zero.
                 if inline_size.is_some() && total > remaining_inline_size {
-                    if *margin_left_is_auto {
-                        *margin_left = CssPixels::default();
-                        *margin_left_is_auto = false;
-                    }
-                    if *margin_right_is_auto {
-                        *margin_right = CssPixels::default();
-                        *margin_right_is_auto = false;
-                    }
+                    zero_out_auto_margin(margin_left, margin_left_is_auto);
+                    zero_out_auto_margin(margin_right, margin_right_is_auto);
                     total = border_left_width
                         + border_right_width
                         + *margin_left
@@ -589,14 +591,8 @@ impl<'pass> BlockFormattingContext<'pass> {
                     underflow = CssPixels::default();
                 }
                 if inline_size.is_none() {
-                    if *margin_left_is_auto {
-                        *margin_left = CssPixels::default();
-                        *margin_left_is_auto = false;
-                    }
-                    if *margin_right_is_auto {
-                        *margin_right = CssPixels::default();
-                        *margin_right_is_auto = false;
-                    }
+                    zero_out_auto_margin(margin_left, margin_left_is_auto);
+                    zero_out_auto_margin(margin_right, margin_right_is_auto);
                     if matches!(available_space.inline_size, AvailableSize::Definite(_)) {
                         inline_size = Some(underflow.max(CssPixels::default()));
                     } else if available_space.inline_size == AvailableSize::MinContent {
