@@ -241,6 +241,47 @@ struct AnchorResolutionState {
     compensates_for_vertical_scroll: bool,
 }
 
+/// The interpreted <anchor-side> argument of an anchor() function; the
+/// percentage carries its value as a fraction.
+#[derive(Clone, Copy, PartialEq)]
+enum AnchorSide {
+    Invalid,
+    Top,
+    Right,
+    Bottom,
+    Left,
+    Center,
+    Start,
+    End,
+    SelfStart,
+    SelfEnd,
+    Inside,
+    Outside,
+    Percentage(f64),
+}
+
+fn anchor_side_from_style_value(side: &crate::css::style_value::StyleValueData) -> AnchorSide {
+    use crate::css::style_value::StyleValueData;
+    match side {
+        StyleValueData::Keyword { keyword } => match *keyword {
+            keyword::TOP => AnchorSide::Top,
+            keyword::RIGHT => AnchorSide::Right,
+            keyword::BOTTOM => AnchorSide::Bottom,
+            keyword::LEFT => AnchorSide::Left,
+            keyword::CENTER => AnchorSide::Center,
+            keyword::START => AnchorSide::Start,
+            keyword::END => AnchorSide::End,
+            keyword::SELF_START => AnchorSide::SelfStart,
+            keyword::SELF_END => AnchorSide::SelfEnd,
+            keyword::INSIDE => AnchorSide::Inside,
+            keyword::OUTSIDE => AnchorSide::Outside,
+            _ => AnchorSide::Invalid,
+        },
+        StyleValueData::Percentage { value } => AnchorSide::Percentage(value / 100.0),
+        _ => AnchorSide::Invalid,
+    }
+}
+
 #[derive(Clone, Copy)]
 struct AnchorValueAxis {
     is_from_end: bool,
@@ -303,7 +344,7 @@ impl AbsposEngine<'_> {
 
     fn anchor_side(
         &self,
-        facts: FfiAnchorFunctionFacts,
+        side: AnchorSide,
         rect: PhysicalRect,
         positioned_box: Node,
         containing_block: Node,
@@ -312,19 +353,19 @@ impl AbsposEngine<'_> {
     ) -> Option<CssPixels> {
         let containing_block_direction = self.style(containing_block).direction();
         let box_direction = self.style(positioned_box).direction();
-        match facts.side_kind {
-            FfiAnchorSideKind::Invalid => None,
-            FfiAnchorSideKind::Top => (!is_horizontal_axis).then_some(rect.top()),
-            FfiAnchorSideKind::Bottom => (!is_horizontal_axis).then_some(rect.bottom()),
-            FfiAnchorSideKind::Left => is_horizontal_axis.then_some(rect.left()),
-            FfiAnchorSideKind::Right => is_horizontal_axis.then_some(rect.right()),
-            FfiAnchorSideKind::Center => Some(if is_horizontal_axis {
+        match side {
+            AnchorSide::Invalid => None,
+            AnchorSide::Top => (!is_horizontal_axis).then_some(rect.top()),
+            AnchorSide::Bottom => (!is_horizontal_axis).then_some(rect.bottom()),
+            AnchorSide::Left => is_horizontal_axis.then_some(rect.left()),
+            AnchorSide::Right => is_horizontal_axis.then_some(rect.right()),
+            AnchorSide::Center => Some(if is_horizontal_axis {
                 rect.left() + rect.width / 2
             } else {
                 rect.top() + rect.height / 2
             }),
-            FfiAnchorSideKind::Start | FfiAnchorSideKind::End => {
-                let is_start = facts.side_kind == FfiAnchorSideKind::Start;
+            AnchorSide::Start | AnchorSide::End => {
+                let is_start = side == AnchorSide::Start;
                 if is_horizontal_axis {
                     let use_left = (containing_block_direction == direction::LTR) == is_start;
                     Some(if use_left { rect.left() } else { rect.right() })
@@ -332,8 +373,8 @@ impl AbsposEngine<'_> {
                     Some(if is_start { rect.top() } else { rect.bottom() })
                 }
             }
-            FfiAnchorSideKind::SelfStart | FfiAnchorSideKind::SelfEnd => {
-                let is_start = facts.side_kind == FfiAnchorSideKind::SelfStart;
+            AnchorSide::SelfStart | AnchorSide::SelfEnd => {
+                let is_start = side == AnchorSide::SelfStart;
                 if is_horizontal_axis {
                     let use_left = (box_direction == direction::LTR) == is_start;
                     Some(if use_left { rect.left() } else { rect.right() })
@@ -341,8 +382,8 @@ impl AbsposEngine<'_> {
                     Some(if is_start { rect.top() } else { rect.bottom() })
                 }
             }
-            FfiAnchorSideKind::Inside | FfiAnchorSideKind::Outside => {
-                let same_side = facts.side_kind == FfiAnchorSideKind::Inside;
+            AnchorSide::Inside | AnchorSide::Outside => {
+                let same_side = side == AnchorSide::Inside;
                 if is_horizontal_axis {
                     Some(if is_from_end == same_side {
                         rect.right()
@@ -357,16 +398,16 @@ impl AbsposEngine<'_> {
                     })
                 }
             }
-            FfiAnchorSideKind::Percentage => {
+            AnchorSide::Percentage(fraction) => {
                 if is_horizontal_axis {
                     let (start, end) = if containing_block_direction == direction::LTR {
                         (rect.left(), rect.right())
                     } else {
                         (rect.right(), rect.left())
                     };
-                    Some(start + CssPixels::nearest_value_for((end - start).to_double() * facts.side_percentage))
+                    Some(start + CssPixels::nearest_value_for((end - start).to_double() * fraction))
                 } else {
-                    Some(rect.top() + CssPixels::nearest_value_for(rect.height.to_double() * facts.side_percentage))
+                    Some(rect.top() + CssPixels::nearest_value_for(rect.height.to_double() * fraction))
                 }
             }
         }
@@ -559,30 +600,38 @@ impl AbsposEngine<'_> {
 }
 
 unsafe extern "C" fn resolve_anchor_non_math_function(context: *mut c_void, shell: *const c_void) -> *const c_void {
+    use crate::css::style_value::StyleValueData;
     // SAFETY: The CSS calc engine calls this only during resolve_anchor_value,
     // whose stack owns this callback context.
     let context = unsafe { &mut *context.cast::<AnchorCalcCallbackContext<'_>>() };
     // SAFETY: The engine pointer is live for the enclosing resolution.
     let engine = unsafe { &*context.engine };
-    // SAFETY: `shell` is the live Rust style-value handle supplied by the
-    // CSS calc core.
-    let facts = unsafe { (engine.callbacks.build_anchor_function_facts)(engine.callbacks.context, shell) };
+    // SAFETY: `shell` is the live Rust style-value data retained by the CSS
+    // calc core's non-math-function node for this synchronous resolution.
+    let StyleValueData::Anchor {
+        has_anchor_name,
+        anchor_name: explicit_anchor_name,
+        anchor_side,
+        fallback_value,
+    } = (unsafe { &*shell.cast::<StyleValueData>() })
+    else {
+        return std::ptr::null();
+    };
     let style = engine.style(context.positioned_box);
-    let anchor_name = if facts.has_anchor_name {
-        Some(facts.anchor_name)
+    let anchor_name = if *has_anchor_name {
+        Some(explicit_anchor_name.raw())
     } else if style.has_position_anchor() {
         Some(style.position_anchor_name())
     } else {
         None
     };
-    let mut resolved_node = std::ptr::null();
     if engine.facts(context.positioned_box).is_absolutely_positioned()
         && let Some(anchor_name) = anchor_name
         && let Some(anchor_box) = engine.anchor_lookup(context.positioned_box, anchor_name)
     {
         let rect = engine.anchor_rect(anchor_box, context.containing_block);
         if let Some(side) = engine.anchor_side(
-            facts,
+            anchor_side_from_style_value(anchor_side.data()),
             rect,
             context.positioned_box,
             context.containing_block,
@@ -601,35 +650,29 @@ unsafe extern "C" fn resolve_anchor_non_math_function(context: *mut c_void, shel
             // SAFETY: This CSS crate export transfers one Arc reference to
             // the external-resolution snapshot, which releases it after
             // calc resolution.
-            resolved_node = calc_node_create_px_dimension(inset.to_double());
+            return calc_node_create_px_dimension(inset.to_double());
         }
-    }
-    if facts.has_anchor_name {
-        // SAFETY: The C++ facts callback transferred one raw fly-string
-        // reference for this explicit anchor name.
-        unsafe {
-            (engine.callbacks.release_anchor_name_handle)(facts.anchor_name);
-        }
-    }
-    if !resolved_node.is_null() {
-        return resolved_node;
     }
 
-    // SAFETY: The callback borrows fallback data from the live anchor style
-    // value for this synchronous resolution.
-    let fallback = unsafe { (engine.callbacks.anchor_function_fallback)(engine.callbacks.context, shell) };
-    match fallback.kind {
-        FfiAnchorFallbackKind::None => std::ptr::null(),
-        FfiAnchorFallbackKind::Px => calc_node_create_px_dimension(fallback.px.to_double()),
-        FfiAnchorFallbackKind::Percentage => {
-            calc_node_create_px_dimension(context.containing_block_extent.to_double() * fallback.fraction)
+    match fallback_value.optional_data() {
+        None => std::ptr::null(),
+        Some(StyleValueData::Length { value, unit }) => {
+            // Computed anchor() fallbacks hold absolute lengths only; relative
+            // units carry NaN canonical ratios.
+            let ratio = crate::css::style_compute::LENGTH_UNIT_CANONICAL_PX_RATIOS[*unit as usize];
+            assert!(ratio.is_finite());
+            calc_node_create_px_dimension(CssPixels::nearest_value_for(*value * ratio).to_double())
         }
-        FfiAnchorFallbackKind::Calculated => {
-            assert!(!fallback.value.is_null());
+        Some(StyleValueData::Percentage { value }) => {
+            calc_node_create_px_dimension(context.containing_block_extent.to_double() * (value / 100.0))
+        }
+        Some(StyleValueData::Calculated { .. }) => {
             let mut nested_context = *context;
+            // SAFETY: The anchor() shell retains the fallback calculation for
+            // this synchronous resolution.
             let resolved = unsafe {
                 resolve_calc_with_external_resolutions(
-                    fallback.value,
+                    fallback_value.pointer().cast(),
                     context.containing_block_extent,
                     (&raw mut nested_context).cast(),
                     Some(resolve_anchor_non_math_function),
@@ -640,11 +683,13 @@ unsafe extern "C" fn resolve_anchor_non_math_function(context: *mut c_void, shel
             }
             calc_node_create_px_dimension(resolved.value)
         }
-        FfiAnchorFallbackKind::Anchor => {
-            assert!(!fallback.value.is_null());
+        Some(StyleValueData::Anchor { .. }) => {
             let mut nested_context = *context;
-            unsafe { resolve_anchor_non_math_function((&raw mut nested_context).cast(), fallback.value) }
+            // SAFETY: The outer anchor() shell retains the nested anchor()
+            // for this synchronous resolution.
+            unsafe { resolve_anchor_non_math_function((&raw mut nested_context).cast(), fallback_value.pointer().cast()) }
         }
+        Some(_) => unreachable!("anchor() fallback must be a length, percentage, calculation or nested anchor()"),
     }
 }
 
