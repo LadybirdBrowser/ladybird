@@ -938,39 +938,29 @@ impl<'pass> BlockFormattingContext<'pass> {
                 available_space.inline_size.to_px_or_zero() - intrusions.left - intrusions.right;
             let has_floats_present =
                 band.left_intrusion > CssPixels::default() || band.right_intrusion > CssPixels::default();
-            if matches!(
+            let fits = matches!(
                 available_space.inline_size,
                 AvailableSize::MaxContent | AvailableSize::Indefinite
-            )
-                || margin_box_inline_size <= available_inline_size
-                || !has_floats_present
+            ) || margin_box_inline_size <= available_inline_size
+                || !has_floats_present;
+            if !fits
+                && let Some(next) = self.next_float_band_block_start_after(candidate_block_start)
             {
-                return FloatPlacement {
-                    block_start: candidate_block_start,
-                    offset_from_edge: if side == FloatSide::Left {
-                        intrusions.left + used.margin_left.get() + used.border_box_left(false)
-                    } else {
-                        intrusions.right
-                            + used.content_inline_size.get()
-                            + used.margin_right.get()
-                            + used.border_box_right(false)
-                    },
-                };
+                candidate_block_start = next;
+                continue;
             }
-            let Some(next) = self.next_float_band_block_start_after(candidate_block_start) else {
-                return FloatPlacement {
-                    block_start: candidate_block_start,
-                    offset_from_edge: if side == FloatSide::Left {
-                        intrusions.left + used.margin_left.get() + used.border_box_left(false)
-                    } else {
-                        intrusions.right
-                            + used.content_inline_size.get()
-                            + used.margin_right.get()
-                            + used.border_box_right(false)
-                    },
-                };
+            let offset_from_edge = if side == FloatSide::Left {
+                intrusions.left + used.margin_left.get() + used.border_box_left(false)
+            } else {
+                intrusions.right
+                    + used.content_inline_size.get()
+                    + used.margin_right.get()
+                    + used.border_box_right(false)
             };
-            candidate_block_start = next;
+            return FloatPlacement {
+                block_start: candidate_block_start,
+                offset_from_edge,
+            };
         }
     }
 
