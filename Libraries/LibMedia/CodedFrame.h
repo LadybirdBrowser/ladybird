@@ -46,7 +46,9 @@ public:
 
     CodecID codec_id() const { return m_codec_id; }
     AK::Duration presentation_timestamp() const { return m_presentation_timestamp; }
+    void set_presentation_timestamp(AK::Duration timestamp) { m_presentation_timestamp = timestamp; }
     AK::Duration decode_timestamp() const { return m_decode_timestamp; }
+    void set_decode_timestamp(AK::Duration timestamp) { m_decode_timestamp = timestamp; }
     AK::Duration duration() const { return m_duration; }
     FrameFlags flags() const { return m_flags; }
     bool is_keyframe() const { return has_flag(m_flags, FrameFlags::Keyframe); }

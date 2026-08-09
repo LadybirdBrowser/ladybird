@@ -43,6 +43,16 @@ bool SourceBufferProcessor::generate_timestamps_flag() const
     return m_generate_timestamps_flag;
 }
 
+AK::Duration SourceBufferProcessor::timestamp_offset() const
+{
+    return m_timestamp_offset;
+}
+
+void SourceBufferProcessor::set_timestamp_offset(AK::Duration timestamp_offset)
+{
+    m_timestamp_offset = timestamp_offset;
+}
+
 AK::Duration SourceBufferProcessor::group_end_timestamp() const
 {
     return m_group_end_timestamp;
@@ -466,7 +476,13 @@ void SourceBufferProcessor::run_coded_frame_processing(Vector<DemuxedCodedFrame>
 
         // FIXME: 3. If mode equals "sequence" and group start timestamp is set, then run the following steps:
 
-        // FIXME: 4. If timestampOffset is not 0, then run the following steps:
+        // 4. If timestampOffset is not 0, then run the following steps:
+        if (!m_timestamp_offset.is_zero()) {
+            // 1. Add timestampOffset to the presentation timestamp.
+            presentation_timestamp += m_timestamp_offset;
+            // 2. Add timestampOffset to the decode timestamp.
+            decode_timestamp += m_timestamp_offset;
+        }
 
         // 5. Let track buffer equal the track buffer that the coded frame will be added to.
         auto maybe_track_buffer = m_track_buffers.get(demuxed_frame.track_number);
@@ -575,6 +591,8 @@ void SourceBufferProcessor::run_coded_frame_processing(Vector<DemuxedCodedFrame>
         //     Otherwise:
         //         Add the coded frame with the presentation timestamp, decode timestamp, and frame
         //         duration to the track buffer.
+        frame.set_presentation_timestamp(presentation_timestamp);
+        frame.set_decode_timestamp(decode_timestamp);
         demuxer.add_coded_frame(move(frame));
 
         // 17. Set last decode timestamp for track buffer to decode timestamp.

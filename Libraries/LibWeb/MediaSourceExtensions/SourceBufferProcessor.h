@@ -58,6 +58,7 @@ public:
     bool is_parsing_media_segment() const;
     bool generate_timestamps_flag() const;
     AK::Duration group_end_timestamp() const;
+    AK::Duration timestamp_offset() const;
     bool is_buffer_full() const;
 
     size_t total_buffered_bytes() const;
@@ -66,6 +67,7 @@ public:
     void set_mode(AppendMode);
     void set_generate_timestamps_flag(bool);
     void set_group_start_timestamp(Optional<AK::Duration>);
+    void set_timestamp_offset(AK::Duration);
     bool first_initialization_segment_received_flag() const;
     void set_first_initialization_segment_received_flag(bool);
     void set_pending_initialization_segment_for_change_type_flag(bool);
@@ -124,6 +126,8 @@ private:
     Optional<AK::Duration> m_group_start_timestamp;
     // https://w3c.github.io/media-source/#dfn-group-end-timestamp
     AK::Duration m_group_end_timestamp;
+    // https://w3c.github.io/media-source/#dom-sourcebuffer-timestampoffset
+    AK::Duration m_timestamp_offset;
     // https://w3c.github.io/media-source/#dfn-generate-timestamps-flag
     bool m_generate_timestamps_flag { false };
     // https://w3c.github.io/media-source/#dfn-first-initialization-segment-received-flag
