@@ -90,10 +90,6 @@ impl<'pass> AbsposEngine<'pass> {
         self.state.used_values(&self.callbacks, node)
     }
 
-    fn used_mut(&self, node: Node) -> &'pass UsedValues {
-        self.used(node)
-    }
-
     fn static_position_containing_block(&self, node: Node) -> Node {
         self.callbacks.static_position_containing_block(node)
     }
@@ -860,7 +856,7 @@ impl AbsposEngine<'_> {
             }
             let content_inline_size = shrink_to_fit(left, margin_left, margin_right, right);
             inline_size = Some(content_inline_size);
-            self.used_mut(node).set_content_inline_size(content_inline_size);
+            self.used(node).set_content_inline_size(content_inline_size);
             left = self.static_offset(node, static_position_rect).inline_offset;
             right = solve_for_right(left, inline_size, margin_left, margin_right);
         }
@@ -980,7 +976,7 @@ impl AbsposEngine<'_> {
             }
         }
 
-        let used = self.used_mut(node);
+        let used = self.used(node);
         used.set_content_inline_size(auto_px_value(used_inline_size));
         used.inset_left.set(left);
         used.inset_right.set(right);
@@ -1019,7 +1015,7 @@ impl AbsposEngine<'_> {
             },
         );
 
-        let used = self.used_mut(node);
+        let used = self.used(node);
         used.inset_left.set(solution.start);
         used.inset_right.set(solution.end);
         used.margin_left.set(solution.margin_start);
@@ -1159,7 +1155,7 @@ impl AbsposEngine<'_> {
             };
             block_size = Some(automatic);
             let constrained = self.apply_min_max_block_size_constraints(node, available_space, constraints, block_size);
-            self.used_mut(node).set_content_block_size(auto_px_value(constrained));
+            self.used(node).set_content_block_size(auto_px_value(constrained));
             top = Some(self.static_offset(node, static_position_rect).block_offset);
             bottom = Some(solve_for(
                 bottom,
@@ -1371,7 +1367,7 @@ impl AbsposEngine<'_> {
 
         let containing_block_inline_size = available_space.inline_size.to_px_or_zero();
         let containing_block_block_size = available_space.block_size.to_px_or_zero();
-        let used = self.used_mut(node);
+        let used = self.used(node);
         used.set_content_block_size(auto_px_value(used_block_size));
         if style.height().is_auto() && pass == BlockSizePass::BeforeInsideLayout {
             return;
@@ -1423,7 +1419,7 @@ impl AbsposEngine<'_> {
             },
         );
 
-        let used = self.used_mut(node);
+        let used = self.used(node);
         used.set_content_block_size(block_size);
         if style.height().is_auto() && pass == BlockSizePass::BeforeInsideLayout {
             return;
@@ -1465,7 +1461,7 @@ impl<'pass> AbsposEngine<'pass> {
         let containing_block_inline_size = available_space.inline_size.to_px_or_zero();
         let style = self.style(node);
         {
-            let used = self.used_mut(node);
+            let used = self.used(node);
             used.border_left.set(style.border_left_width());
             used.border_right.set(style.border_right_width());
             used.border_top.set(style.border_top_width());
@@ -1490,7 +1486,7 @@ impl<'pass> AbsposEngine<'pass> {
         );
 
         {
-            let used = self.used_mut(node);
+            let used = self.used(node);
             if !style.inset_left().is_auto() && !style.inset_right().is_auto() {
                 used.has_definite_inline_size.set(true);
             }
@@ -1505,7 +1501,7 @@ impl<'pass> AbsposEngine<'pass> {
             let block_size_resolved_from_aspect_ratio = style.height().is_auto()
                 && self.facts(node).has_preferred_aspect_ratio()
                 && self.used(node).has_definite_inline_size();
-            let used = self.used_mut(node);
+            let used = self.used(node);
             used.has_definite_inline_size.set(true);
             if (!style.height().is_auto() && !style.height().is_intrinsic_sizing_constraint())
                 || block_size_resolved_from_aspect_ratio
@@ -1543,7 +1539,7 @@ impl<'pass> AbsposEngine<'pass> {
         }
 
         {
-            let used = self.used_mut(node);
+            let used = self.used(node);
             let collapsed = used.uses_collapsing_borders_model.get();
             if let Some(inline_alignment) = inputs.containing_block_info.inline_alignment
                 && style.inset_left().is_auto()
@@ -1743,7 +1739,7 @@ impl<'pass> AbsposEngine<'pass> {
             block_axis_inset_value(style.inset_bottom()),
             containing_block_size.block_size,
         );
-        let used = self.used_mut(node);
+        let used = self.used(node);
         used.inset_left.set(left);
         used.inset_right.set(right);
         used.inset_top.set(top);
