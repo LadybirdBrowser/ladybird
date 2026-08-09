@@ -920,6 +920,27 @@ impl<'pass> SizingContext<'pass> {
         resolution_space
     }
 
+    fn clamp_block_size_to_min_max(
+        &self,
+        node: Node,
+        mut block_size: CssPixels,
+        available_space: AvailableSpace,
+        constraints: ContainingBlockConstraints,
+    ) -> CssPixels {
+        let style = self.style(node);
+        if !self.should_treat_max_block_size_as_none(node, available_space.block_size, constraints)
+            && !style.max_height().is_auto()
+        {
+            let max = self.calculate_inner_block_size(node, available_space, style.max_height(), constraints);
+            block_size = block_size.min(max);
+        }
+        if !style.min_height().is_auto() {
+            let min = self.calculate_inner_block_size(node, available_space, style.min_height(), constraints);
+            block_size = block_size.max(min);
+        }
+        block_size
+    }
+
     pub(crate) fn resolve_used_block_size_if_not_treated_as_auto(
         &self,
         node: Node,
@@ -930,25 +951,8 @@ impl<'pass> SizingContext<'pass> {
             return;
         }
         let style = self.style(node);
-        let mut block_size = self.calculate_inner_block_size(node, available_space, style.height(), constraints);
-        if !self.should_treat_max_block_size_as_none(node, available_space.block_size, constraints)
-            && !style.max_height().is_auto()
-        {
-            block_size = block_size.min(self.calculate_inner_block_size(
-                node,
-                available_space,
-                style.max_height(),
-                constraints,
-            ));
-        }
-        if !style.min_height().is_auto() {
-            block_size = block_size.max(self.calculate_inner_block_size(
-                node,
-                available_space,
-                style.min_height(),
-                constraints,
-            ));
-        }
+        let block_size = self.calculate_inner_block_size(node, available_space, style.height(), constraints);
+        let block_size = self.clamp_block_size_to_min_max(node, block_size, available_space, constraints);
         let used = self.used(node);
         used.set_content_block_size(block_size);
         if !style.height().is_intrinsic_sizing_constraint() {
@@ -974,24 +978,7 @@ impl<'pass> SizingContext<'pass> {
         } else {
             child_automatic_block_size.unwrap_or_else(automatic_block_size_fallback)
         };
-        if !self.should_treat_max_block_size_as_none(node, available_space.block_size, constraints)
-            && !style.max_height().is_auto()
-        {
-            block_size = block_size.min(self.calculate_inner_block_size(
-                node,
-                available_space,
-                style.max_height(),
-                constraints,
-            ));
-        }
-        if !style.min_height().is_auto() {
-            block_size = block_size.max(self.calculate_inner_block_size(
-                node,
-                available_space,
-                style.min_height(),
-                constraints,
-            ));
-        }
+        block_size = self.clamp_block_size_to_min_max(node, block_size, available_space, constraints);
 
         if facts.document_in_quirks_mode() && facts.is_html_html_element() && style.height().is_auto() {
             // 3.6. The html element fills the viewport quirk
