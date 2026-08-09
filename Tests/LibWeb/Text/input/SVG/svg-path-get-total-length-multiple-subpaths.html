@@ -1,0 +1,10 @@
+<!doctype html>
+<script src="../include.js"></script>
+<svg xmlns="http://www.w3.org/2000/svg">
+    <path id="path" d="M0 0 h 10 v 10 H 0 z M 20 0 h 20 v 20 H 20 z" />
+</svg>
+<script>
+    test(() => {
+        println(document.getElementById("path").getTotalLength());
+    });
+</script>
