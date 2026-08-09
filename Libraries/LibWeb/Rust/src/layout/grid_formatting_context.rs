@@ -1340,6 +1340,23 @@ impl<'pass> GridFormattingContext<'pass> {
             column_end: Option<usize>,
         }
 
+        // Names the two lines a parent grid area contributes to a subgrid, in subgrid-local coordinates.
+        fn name_subgrid_area_lines(lines: &mut [Vec<LineName>], area: Area, start: i32, end: i32) {
+            for (index, raw, area_is_start) in [(start, area.start_name_raw, true), (end, area.end_name_raw, false)] {
+                let Some(line) = lines.get_mut(index as usize) else {
+                    continue;
+                };
+                line.push(LineName {
+                    name_index: crate::layout::GRID_NO_INDEX,
+                    raw,
+                    implicit: true,
+                    adopted_from_parent: false,
+                    area_name_raw: area.name_raw,
+                    area_is_start,
+                });
+            }
+        }
+
         let Some(parent) = self.parent_grid() else {
             return;
         };
@@ -1411,50 +1428,12 @@ impl<'pass> GridFormattingContext<'pass> {
             if column_is_subgrid {
                 let start = column_start.max(subgrid_column_start) - subgrid_column_start;
                 let end = column_end.min(subgrid_column_end) - subgrid_column_start;
-                if let Some(line) = columns.get_mut(start as usize) {
-                    line.push(LineName {
-                        name_index: crate::layout::GRID_NO_INDEX,
-                        raw: area.start_name_raw,
-                        implicit: true,
-                        adopted_from_parent: false,
-                        area_name_raw: area.name_raw,
-                        area_is_start: true,
-                    });
-                }
-                if let Some(line) = columns.get_mut(end as usize) {
-                    line.push(LineName {
-                        name_index: crate::layout::GRID_NO_INDEX,
-                        raw: area.end_name_raw,
-                        implicit: true,
-                        adopted_from_parent: false,
-                        area_name_raw: area.name_raw,
-                        area_is_start: false,
-                    });
-                }
+                name_subgrid_area_lines(columns, area, start, end);
             }
             if row_is_subgrid {
                 let start = row_start.max(subgrid_row_start) - subgrid_row_start;
                 let end = row_end.min(subgrid_row_end) - subgrid_row_start;
-                if let Some(line) = rows.get_mut(start as usize) {
-                    line.push(LineName {
-                        name_index: crate::layout::GRID_NO_INDEX,
-                        raw: area.start_name_raw,
-                        implicit: true,
-                        adopted_from_parent: false,
-                        area_name_raw: area.name_raw,
-                        area_is_start: true,
-                    });
-                }
-                if let Some(line) = rows.get_mut(end as usize) {
-                    line.push(LineName {
-                        name_index: crate::layout::GRID_NO_INDEX,
-                        raw: area.end_name_raw,
-                        implicit: true,
-                        adopted_from_parent: false,
-                        area_name_raw: area.name_raw,
-                        area_is_start: false,
-                    });
-                }
+                name_subgrid_area_lines(rows, area, start, end);
             }
         }
     }
