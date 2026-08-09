@@ -49,6 +49,7 @@ pub(crate) struct LineBoxFragmentData {
     pub(crate) first_available_font: *const c_void,
     pub(crate) text_utf16: *const u16,
     pub(crate) text_length_in_code_units: usize,
+    pub(crate) content_baselines: Option<DerivedBaselines>,
 }
 
 #[derive(Clone, Copy)]
@@ -103,6 +104,7 @@ impl LineBoxFragmentData {
             first_available_font: facts.first_available_font,
             text_utf16: facts.text_utf16,
             text_length_in_code_units: facts.text_length_in_code_units,
+            content_baselines: None,
         };
         if let Some(glyphs) = &fragment.glyphs {
             fragment.current_insert_direction = fragment.resolve_glyph_run_direction(glyphs.text_type);

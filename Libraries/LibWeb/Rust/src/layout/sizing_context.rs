@@ -1275,7 +1275,7 @@ impl<'pass> SizingContext<'pass> {
         available_inline_size: AvailableSize,
         available_block_size: AvailableSize,
         constraints: ContainingBlockConstraints,
-    ) -> Option<CssPixels> {
+    ) -> Option<(CssPixels, DerivedBaselines)> {
         // OPTIMIZATION: Calculating an intrinsic inline size already performs a complete measurement layout.
         // A later equivalent intrinsic line build only consumes the atomic box's measured dimensions and
         // baselines, so retain that summary instead of formatting the same descendants again. Commit layout
@@ -1304,7 +1304,11 @@ impl<'pass> SizingContext<'pass> {
         used.first_baseline.set(measurement.first_baseline);
         used.has_last_baseline.set(measurement.has_last_baseline);
         used.last_baseline.set(measurement.last_baseline);
-        Some(measurement.automatic_content_block_size)
+        let baselines = DerivedBaselines {
+            first: measurement.has_first_baseline.then_some(measurement.first_baseline),
+            last: measurement.has_last_baseline.then_some(measurement.last_baseline),
+        };
+        Some((measurement.automatic_content_block_size, baselines))
     }
 
     fn calculate_transferred_inline_size_for_replaced_element(

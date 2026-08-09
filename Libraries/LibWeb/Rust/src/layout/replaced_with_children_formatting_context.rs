@@ -69,5 +69,6 @@ fn layout_replaced_with_children(run: &FormattingContextRun, layout_input: Layou
     ChildLayoutResult {
         automatic_content_inline_size: content_inline_size,
         automatic_content_block_size: wrapper_layout.automatic_content_block_size,
+        baselines: DerivedBaselines::default(),
     }
 }

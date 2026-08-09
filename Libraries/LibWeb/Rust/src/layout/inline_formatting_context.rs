@@ -886,26 +886,28 @@ impl<'context, 'pass> InlineFormattingContext<'context, 'pass> {
         next.map(|next| next - containing_block_offset_in_root)
     }
 
-    fn layout_inside(&mut self, node: Node, available_space: AvailableSpace) {
+    fn layout_inside(&mut self, node: Node, available_space: AvailableSpace) -> DerivedBaselines {
         let input = LayoutInput::new(
             available_space,
             self.input.containing_block_constraints,
             ParticipationInParentFormattingContext::AtomicInline,
         );
-        if let crate::layout::ChildLayoutOutcome::ReenterCurrent = crate::layout::layout_inside_child(
-            self.run,
-            Some(self.parent),
-            None,
-            node,
-            self.layout_mode,
-            input,
-            false,
-        ) {
-            self.parent.run(self.run, input);
+        let content_baselines_from_cells = |used: &UsedValues| DerivedBaselines {
+            first: used.has_first_baseline.get().then(|| used.first_baseline.get()),
+            last: used.has_last_baseline.get().then(|| used.last_baseline.get()),
+        };
+        match crate::layout::layout_inside_child(self.run, Some(self.parent), None, node, self.layout_mode, input, false)
+        {
+            crate::layout::ChildLayoutOutcome::Created(result) => result.baselines,
+            crate::layout::ChildLayoutOutcome::ReenterCurrent => {
+                self.parent.run(self.run, input);
+                content_baselines_from_cells(self.used(node))
+            }
+            crate::layout::ChildLayoutOutcome::Skipped => content_baselines_from_cells(self.used(node)),
         }
     }
 
-    pub(crate) fn dimension_box_on_line(&mut self, node: Node) {
+    pub(crate) fn dimension_box_on_line(&mut self, node: Node) -> DerivedBaselines {
         let available_space = self.input.available_space;
         let facts = self.facts(node);
         // Any fragmented inline box should have generated line box fragments already.
@@ -918,15 +920,16 @@ impl<'context, 'pass> InlineFormattingContext<'context, 'pass> {
                     self.callbacks.shell(node),
                 );
             }
-            return;
+            return DerivedBaselines::default();
         }
 
-        self.layout_inside(node, available_space);
+        let content_baselines = self.layout_inside(node, available_space);
         debug_assert!(
             self.used(node).has_definite_inline_size.get()
                 || self.used(node).inline_size_constraint.get() != SizeConstraint::None,
             "atomic inline-level run left its root's inline size unresolved"
         );
+        content_baselines
     }
 
     fn clear_floating_boxes(&self, node: Node) -> bool {
@@ -1021,6 +1024,7 @@ impl<'context, 'pass> InlineFormattingContext<'context, 'pass> {
                         item.padding_end + item.border_end,
                         item.margin_start,
                         item.margin_end,
+                        item.content_baselines,
                     );
                 }
                 ItemType::BlockLevelBox => {
