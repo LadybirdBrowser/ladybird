@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 32 tests
 
-9 Pass
-23 Fail
+10 Pass
+22 Fail
 Pass	<svg:image> 'auto' sizing with 256x256 png image, attributes width='64' height='64'
 Fail	<svg:image> 'auto' sizing with 256x256 png image, attributes width='128' height='64' and CSS 'width:auto'
 Fail	<svg:image> 'auto' sizing with 256x256 png image, attributes width='64' height='128' and CSS 'height:auto'
@@ -17,7 +17,7 @@ Pass	<svg:image> 'auto' sizing with 200x100 svg image, attributes width='50' and
 Fail	<svg:image> 'auto' sizing with default sized svg image, attributes width='200' height='200' and CSS 'width:auto; height:auto'
 Fail	<svg:image> 'auto' sizing with default sized svg image, attributes height='200' and CSS 'width:auto; height:auto'
 Fail	<svg:image> 'auto' sizing with default sized svg image, attributes width='200' and CSS 'width:auto; height:auto'
-Fail	<svg:image> 'auto' sizing with default sized svg image, without attributes width and height, no css width/height specified
+Pass	<svg:image> 'auto' sizing with default sized svg image, without attributes width and height, no css width/height specified
 Pass	<svg:image> 'auto' sizing with default sized svg image viewBox='0 0 400 100', attributes width='60' height='60' and no css width/height specified
 Fail	<svg:image> 'auto' sizing with default sized svg image viewBox='0 0 400 100', attributes width='60' height='60' and CSS 'width:auto'
 Fail	<svg:image> 'auto' sizing with default sized svg image viewBox='0 0 400 100', attributes width='60' height='60' and CSS 'height:auto'
