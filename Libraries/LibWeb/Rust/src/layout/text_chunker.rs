@@ -176,6 +176,16 @@ fn is_interword_space(code_point: u32) -> bool {
     code_point == 0x0020 || code_point == 0x00a0
 }
 
+// A chunk while it is still being accumulated: where it starts, plus the properties shared by
+// every chunk that can be committed from it.
+#[derive(Clone, Copy)]
+struct PendingChunk<'text> {
+    start: usize,
+    font: FontRef<'text>,
+    text_type: u8,
+    broken_on_tab: bool,
+}
+
 #[derive(Clone, Copy)]
 struct ChunkBreakFlags {
     has_breaking_newline: bool,
@@ -414,32 +424,22 @@ impl<'text> TextChunker<'text> {
 
             let mut code_point = self.current_code_point();
             let mut can_break_at_current_position = self.is_at_line_break_opportunity();
-            let start_of_chunk = self.current_index;
-
-            let font = self.expected_font_for(code_point);
-            let text_type = self.current_text_type();
-
-            let mut broken_on_tab = false;
+            let mut pending = PendingChunk {
+                start: self.current_index,
+                font: self.expected_font_for(code_point),
+                text_type: self.current_text_type(),
+                broken_on_tab: false,
+            };
 
             while self.current_index < self.text.len() {
                 code_point = self.current_code_point();
 
                 if code_point == '\t' as u32 {
-                    if let Some(chunk) = self.try_commit_chunk(
-                        start_of_chunk,
-                        self.current_index,
-                        ChunkBreakFlags {
-                            has_breaking_newline: false,
-                            has_breaking_tab: broken_on_tab,
-                            can_break_after: false,
-                        },
-                        font,
-                        text_type,
-                    ) {
+                    if let Some(chunk) = self.try_commit_chunk_at_cursor(pending, false) {
                         return Some(chunk);
                     }
 
-                    broken_on_tab = true;
+                    pending.broken_on_tab = true;
                     // consume any consecutive tabs
                     while self.current_index < self.text.len() && self.current_code_point() == '\t' as u32 {
                         self.current_index = self.next_grapheme_boundary();
@@ -449,18 +449,8 @@ impl<'text> TextChunker<'text> {
 
                 let expected_font = self.expected_font_for(code_point);
 
-                if font != expected_font
-                    && let Some(chunk) = self.try_commit_chunk(
-                        start_of_chunk,
-                        self.current_index,
-                        ChunkBreakFlags {
-                            has_breaking_newline: false,
-                            has_breaking_tab: broken_on_tab,
-                            can_break_after: can_break_at_current_position,
-                        },
-                        font,
-                        text_type,
-                    )
+                if pending.font != expected_font
+                    && let Some(chunk) = self.try_commit_chunk_at_cursor(pending, can_break_at_current_position)
                 {
                     return Some(chunk);
                 }
@@ -469,32 +459,22 @@ impl<'text> TextChunker<'text> {
                     // Newline encountered, and we're supposed to preserve them.
                     // If we have accumulated some code points in the current chunk, commit them now and continue with
                     // the newline next time.
-                    if let Some(chunk) = self.try_commit_chunk(
-                        start_of_chunk,
-                        self.current_index,
-                        ChunkBreakFlags {
-                            has_breaking_newline: false,
-                            has_breaking_tab: broken_on_tab,
-                            can_break_after: false,
-                        },
-                        font,
-                        text_type,
-                    ) {
+                    if let Some(chunk) = self.try_commit_chunk_at_cursor(pending, false) {
                         return Some(chunk);
                     }
 
                     // Otherwise, commit the newline!
                     self.current_index = self.next_grapheme_boundary();
                     let chunk = self.try_commit_chunk(
-                        start_of_chunk,
+                        pending.start,
                         self.current_index,
                         ChunkBreakFlags {
                             has_breaking_newline: true,
-                            has_breaking_tab: broken_on_tab,
+                            has_breaking_tab: pending.broken_on_tab,
                             can_break_after: false,
                         },
-                        font,
-                        text_type,
+                        pending.font,
+                        pending.text_type,
                     );
                     return Some(chunk.expect("newline chunk must be non-empty"));
                 }
@@ -505,17 +485,7 @@ impl<'text> TextChunker<'text> {
                     && self.current_index > 0
                     && self.is_collapsible(code_point_at(self.text, self.current_index - 1))
                 {
-                    let chunk = self.try_commit_chunk(
-                        start_of_chunk,
-                        self.current_index,
-                        ChunkBreakFlags {
-                            has_breaking_newline: false,
-                            has_breaking_tab: broken_on_tab,
-                            can_break_after: false,
-                        },
-                        font,
-                        text_type,
-                    );
+                    let chunk = self.try_commit_chunk_at_cursor(pending, false);
 
                     while self.current_index < self.text.len() && self.is_collapsible(self.current_code_point()) {
                         self.current_index = self.next_grapheme_boundary();
@@ -533,18 +503,8 @@ impl<'text> TextChunker<'text> {
                 // read into a non-split.
                 if self.should_wrap_lines
                     && self.current_index < self.text.len()
-                    && text_type != self.current_text_type()
-                    && let Some(chunk) = self.try_commit_chunk(
-                        start_of_chunk,
-                        self.current_index,
-                        ChunkBreakFlags {
-                            has_breaking_newline: false,
-                            has_breaking_tab: broken_on_tab,
-                            can_break_after: can_break_at_current_position,
-                        },
-                        font,
-                        text_type,
-                    )
+                    && pending.text_type != self.current_text_type()
+                    && let Some(chunk) = self.try_commit_chunk_at_cursor(pending, can_break_at_current_position)
                 {
                     return Some(chunk);
                 }
@@ -554,17 +514,7 @@ impl<'text> TextChunker<'text> {
                         // Whitespace encountered, and we're allowed to break on whitespace.
                         // If we have accumulated some code points in the current chunk, commit them now and continue
                         // with the whitespace next time.
-                        if let Some(chunk) = self.try_commit_chunk(
-                            start_of_chunk,
-                            self.current_index,
-                            ChunkBreakFlags {
-                                has_breaking_newline: false,
-                                has_breaking_tab: broken_on_tab,
-                                can_break_after: false,
-                            },
-                            font,
-                            text_type,
-                        ) {
+                        if let Some(chunk) = self.try_commit_chunk_at_cursor(pending, false) {
                             return Some(chunk);
                         }
 
@@ -572,34 +522,18 @@ impl<'text> TextChunker<'text> {
                         self.current_index = self.next_grapheme_boundary();
                         can_break_at_current_position = self.is_at_line_break_opportunity();
                         let space_font = self.font_for_space(self.current_index, code_point);
-                        if let Some(chunk) = self.try_commit_chunk(
-                            start_of_chunk,
-                            self.current_index,
-                            ChunkBreakFlags {
-                                has_breaking_newline: false,
-                                has_breaking_tab: broken_on_tab,
-                                can_break_after: false,
-                            },
-                            space_font,
-                            text_type,
-                        ) {
+                        let space = PendingChunk {
+                            font: space_font,
+                            ..pending
+                        };
+                        if let Some(chunk) = self.try_commit_chunk_at_cursor(space, false) {
                             return Some(chunk);
                         }
                         continue;
                     }
 
                     if can_break_at_current_position
-                        && let Some(chunk) = self.try_commit_chunk(
-                            start_of_chunk,
-                            self.current_index,
-                            ChunkBreakFlags {
-                                has_breaking_newline: false,
-                                has_breaking_tab: broken_on_tab,
-                                can_break_after: true,
-                            },
-                            font,
-                            text_type,
-                        )
+                        && let Some(chunk) = self.try_commit_chunk_at_cursor(pending, true)
                     {
                         return Some(chunk);
                     }
@@ -609,18 +543,18 @@ impl<'text> TextChunker<'text> {
                 can_break_at_current_position = self.is_at_line_break_opportunity();
             }
 
-            if start_of_chunk != self.text.len() {
+            if pending.start != self.text.len() {
                 // Try to output whatever's left at the end of the text node.
                 if let Some(chunk) = self.try_commit_chunk(
-                    start_of_chunk,
+                    pending.start,
                     self.text.len(),
                     ChunkBreakFlags {
                         has_breaking_newline: false,
-                        has_breaking_tab: broken_on_tab,
+                        has_breaking_tab: pending.broken_on_tab,
                         can_break_after: false,
                     },
-                    font,
-                    text_type,
+                    pending.font,
+                    pending.text_type,
                 ) {
                     return Some(chunk);
                 }
@@ -628,5 +562,20 @@ impl<'text> TextChunker<'text> {
 
             return None;
         }
+    }
+
+    // Commits everything accumulated since `pending.start` up to the cursor, if that range is non-empty.
+    fn try_commit_chunk_at_cursor(&mut self, pending: PendingChunk<'text>, can_break_after: bool) -> Option<TextChunk> {
+        self.try_commit_chunk(
+            pending.start,
+            self.current_index,
+            ChunkBreakFlags {
+                has_breaking_newline: false,
+                has_breaking_tab: pending.broken_on_tab,
+                can_break_after,
+            },
+            pending.font,
+            pending.text_type,
+        )
     }
 }
