@@ -71,6 +71,10 @@ void ak_kfree(void* ptr)
     free(ptr);
 }
 
+void ak_kmalloc_collect()
+{
+}
+
 extern "C" {
 void* ladybird_rust_alloc(size_t size, size_t alignment);
 void* ladybird_rust_alloc_zeroed(size_t size, size_t alignment);
@@ -123,6 +127,8 @@ void* ak_kmalloc(size_t size)
     return mi_malloc(size);
 }
 
+static thread_local mi_heap_t* s_string_heap = nullptr;
+
 static mi_heap_t* heap_for_partition(HeapPartition partition)
 {
     switch (partition) {
@@ -141,8 +147,9 @@ static mi_heap_t* heap_for_partition(HeapPartition partition)
         static mi_heap_t* painting_heap = mi_heap_new();
         return painting_heap;
     case HeapPartition::String:
-        static thread_local mi_heap_t* string_heap = mi_heap_new();
-        return string_heap;
+        if (!s_string_heap)
+            s_string_heap = mi_heap_new();
+        return s_string_heap;
     }
     VERIFY_NOT_REACHED();
 }
@@ -170,6 +177,16 @@ size_t ak_kmalloc_good_size(size_t size)
 void ak_kfree(void* ptr)
 {
     mi_free(ptr);
+}
+
+void ak_kmalloc_collect()
+{
+    // mi_collect() only visits the calling thread's default heap, so the string heap has to be collected separately.
+    // The remaining partitions are shared between threads and are left to their owners.
+    if (s_string_heap)
+        mi_heap_collect(s_string_heap, true);
+
+    mi_collect(true);
 }
 
 extern "C" {
