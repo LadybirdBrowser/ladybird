@@ -18,56 +18,6 @@ pub(crate) enum LayoutMode {
     IntrinsicSizing,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
-#[repr(u8)]
-// NB: Some variants are only constructed by C++ through the FFI.
-#[allow(dead_code)]
-pub enum FfiAnchorSideKind {
-    Invalid,
-    Top,
-    Right,
-    Bottom,
-    Left,
-    Center,
-    Start,
-    End,
-    SelfStart,
-    SelfEnd,
-    Inside,
-    Outside,
-    Percentage,
-}
-
-#[derive(Clone, Copy, Debug)]
-#[repr(C)]
-pub struct FfiAnchorFunctionFacts {
-    pub has_anchor_name: bool,
-    pub anchor_name: usize,
-    pub side_kind: FfiAnchorSideKind,
-    pub side_percentage: f64,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u8)]
-// NB: Some variants are only constructed by C++ through the FFI.
-#[allow(dead_code)]
-pub enum FfiAnchorFallbackKind {
-    None,
-    Px,
-    Percentage,
-    Calculated,
-    Anchor,
-}
-
-#[derive(Clone, Copy, Debug)]
-#[repr(C)]
-pub struct FfiAnchorFallbackFacts {
-    pub kind: FfiAnchorFallbackKind,
-    pub px: CssPixels,
-    pub fraction: f64,
-    pub value: *const c_void,
-}
-
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(C)]
 pub struct FfiResolvedAnchorInsets {
@@ -924,7 +874,6 @@ pub struct FfiLayoutFcCallbacks {
     pub static_position_containing_block: unsafe extern "C" fn(*mut c_void, *mut c_void) -> NodeSlotId,
     pub needs_inset_resolution: unsafe extern "C" fn(*mut c_void, *mut c_void) -> bool,
     pub report_unexpected_fragmented_inline: unsafe extern "C" fn(*mut c_void, *mut c_void),
-    pub release_anchor_name_handle: crate::layout::FfiReleaseAnchorNameHandleCallback,
     pub build_svg_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiSvgElementFacts,
     pub read_paintable_geometry:
         unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, *mut crate::layout::FfiPaintableGeometry) -> bool,
@@ -933,8 +882,6 @@ pub struct FfiLayoutFcCallbacks {
     pub compute_svg_path: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiSvgPathRequest) -> FfiSvgPathResult,
     pub svg_image_bounding_box: unsafe extern "C" fn(*mut c_void, *mut c_void, CssPixels, CssPixels) -> FfiFloatRect,
     pub anchor_lookup: unsafe extern "C" fn(*mut c_void, *mut c_void, usize, *const *mut c_void, usize) -> NodeSlotId,
-    pub build_anchor_function_facts: unsafe extern "C" fn(*mut c_void, *const c_void) -> FfiAnchorFunctionFacts,
-    pub anchor_function_fallback: unsafe extern "C" fn(*mut c_void, *const c_void) -> FfiAnchorFallbackFacts,
     pub set_default_scroll_shift: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, bool, bool),
 }
 

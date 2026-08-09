@@ -61,10 +61,6 @@ private:
 
 }
 
-// Releases one position-anchor name reference transferred by a lazy style
-// field decode.
-extern "C" WEB_API void ladybird_layout_release_anchor_name_handle(size_t);
-
 // Per-code-point classification lookups for the Rust text chunker. The
 // line-break-class groupings implement the css-text-4 word-break policies.
 extern "C" WEB_API u8 ladybird_layout_text_type_for_code_point(u32);

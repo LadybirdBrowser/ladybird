@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-pub type FfiReleaseAnchorNameHandleCallback = unsafe extern "C" fn(usize);
-
 /// The four inset properties; the discriminant indexes the anchor-inset
 /// store fields.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
