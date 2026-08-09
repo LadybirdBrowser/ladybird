@@ -989,6 +989,19 @@ impl Axis {
     fn is_column(self) -> bool {
         self == Self::Column
     }
+
+    // Picks whichever of the two per-axis values belongs to this axis.
+    fn select<T>(self, column: T, row: T) -> T {
+        if self.is_column() { column } else { row }
+    }
+
+    fn sizing_axis(self) -> SizingAxis {
+        self.select(SizingAxis::Inline, SizingAxis::Block)
+    }
+
+    fn opposite(self) -> Self {
+        self.select(Self::Row, Self::Column)
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -1077,11 +1090,7 @@ impl GridItemPlacement {
     }
 
     fn span(self, axis: Axis) -> usize {
-        if axis.is_column() {
-            self.column_span
-        } else {
-            self.row_span
-        }
+        axis.select(self.column_span, self.row_span)
     }
 }
 
@@ -1218,20 +1227,12 @@ impl<'pass> GridFormattingContext<'pass> {
         // a subgrid.
         // FIXME: Also reject subgrid here when the grid container is forced to
         // establish an independent formatting context.
-        let list = if axis.is_column() {
-            grid_style.template_columns
-        } else {
-            grid_style.template_rows
-        };
+        let list = axis.select(grid_style.template_columns, grid_style.template_rows);
         list.is_subgrid && self.parent_grid_placement().is_some()
     }
 
     fn container_is_subgridded(&self, axis: Axis) -> bool {
-        if axis.is_column() {
-            self.subgridded_columns
-        } else {
-            self.subgridded_rows
-        }
+        axis.select(self.subgridded_columns, self.subgridded_rows)
     }
 
     fn cache_subgrid_axes(&mut self, grid_style: &GridValues) {
@@ -1241,20 +1242,12 @@ impl<'pass> GridFormattingContext<'pass> {
 
     fn axis_available(&self, axis: Axis) -> AvailableSize {
         let space = self.available_space.unwrap();
-        if axis.is_column() {
-            space.inline_size
-        } else {
-            space.block_size
-        }
+        axis.select(space.inline_size, space.block_size)
     }
 
     fn axis_gap_value(&self, axis: Axis) -> &'pass ComputedGap {
         let style = self.style(self.grid_container);
-        if axis.is_column() {
-            style.column_gap()
-        } else {
-            style.row_gap()
-        }
+        axis.select(style.column_gap(), style.row_gap())
     }
 
     fn parent_gap_size_for_subgrid(&self, axis: Axis) -> CssPixels {
@@ -1267,11 +1260,7 @@ impl<'pass> GridFormattingContext<'pass> {
         if item.span(axis) <= 1 {
             return CssPixels::default();
         }
-        let gaps = if axis.is_column() {
-            &parent.column_gaps
-        } else {
-            &parent.row_gaps
-        };
+        let gaps = axis.select(&parent.column_gaps, &parent.row_gaps);
         if gaps.is_empty() {
             return CssPixels::default();
         }
@@ -1500,11 +1489,7 @@ impl<'pass> GridFormattingContext<'pass> {
     }
 
     fn expand_axis(&self, axis: Axis, grid_style: &'static GridValues) -> ExpandedTrackList {
-        let list = if axis.is_column() {
-            grid_style.template_columns
-        } else {
-            grid_style.template_rows
-        };
+        let list = axis.select(grid_style.template_columns, grid_style.template_rows);
         let source = TrackListSource::from_grid_style(grid_style);
         if self.is_subgridded(axis, grid_style) {
             let parent_item = self.parent_grid_placement().unwrap();
@@ -1512,11 +1497,7 @@ impl<'pass> GridFormattingContext<'pass> {
             let inherited = self
                 .parent_grid()
                 .map(|parent| {
-                    let lines = if axis.is_column() {
-                        &parent.column_lines
-                    } else {
-                        &parent.row_lines
-                    };
+                    let lines = axis.select(&parent.column_lines, &parent.row_lines);
                     let start = parent_item.position(axis).max(0) as usize;
                     lines
                         .iter()
@@ -1565,16 +1546,8 @@ impl<'pass> GridFormattingContext<'pass> {
     ) -> ResolvedAxisPlacement {
         let start_is_auto = start.kind != crate::layout::ComputedGridPlacementKind::Line as u8;
         let end_is_auto = end.kind != crate::layout::ComputedGridPlacementKind::Line as u8;
-        let lines = if axis.is_column() {
-            &self.column_lines
-        } else {
-            &self.row_lines
-        };
-        let explicit_lines = if axis.is_column() {
-            self.explicit_column_line_count
-        } else {
-            self.explicit_row_line_count
-        };
+        let lines = self.axis_lines(axis);
+        let explicit_lines = self.explicit_line_count(axis);
         let explicit_tracks = lines.len().saturating_sub(1);
         if start_is_auto && end_is_auto {
             return ResolvedAxisPlacement {
@@ -1737,11 +1710,7 @@ impl<'pass> GridFormattingContext<'pass> {
     }
 
     fn expanded_auto_tracks(&self, grid_style: &'static GridValues, axis: Axis) -> Vec<TrackDefinition> {
-        let list = if axis.is_column() {
-            grid_style.auto_columns
-        } else {
-            grid_style.auto_rows
-        };
+        let list = axis.select(grid_style.auto_columns, grid_style.auto_rows);
         expand_standalone(TrackListSource::from_grid_style(grid_style), list, |_index, _entry| 1).tracks
     }
 
@@ -1762,11 +1731,7 @@ impl<'pass> GridFormattingContext<'pass> {
                 return vec![Track::auto()];
             };
             let parent_item = self.parent_grid_placement().unwrap();
-            let parent_tracks = if axis.is_column() {
-                &parent.columns
-            } else {
-                &parent.rows
-            };
+            let parent_tracks = axis.select(&parent.columns, &parent.rows);
             let mut tracks = Vec::new();
             for offset in 0..parent_item.span(axis) {
                 let index = parent_item.position(axis) + offset as i32;
@@ -1836,11 +1801,7 @@ impl<'pass> GridFormattingContext<'pass> {
             })
         };
         let items = &self.items;
-        let tracks = if axis.is_column() {
-            &mut self.columns
-        } else {
-            &mut self.rows
-        };
+        let tracks = axis.select(&mut self.columns, &mut self.rows);
         for (index, track) in tracks.iter_mut().enumerate() {
             if track.is_auto_fit && !occupied(index, items) {
                 // A collapsed grid track is treated as having a fixed track sizing function of 0px, and the gutters on
@@ -1901,15 +1862,37 @@ impl<'pass> GridFormattingContext<'pass> {
     }
 
     fn axis_tracks(&self, axis: Axis) -> &[Track] {
-        if axis.is_column() { &self.columns } else { &self.rows }
+        axis.select(&self.columns, &self.rows)
     }
 
     fn axis_gaps(&self, axis: Axis) -> &[Track] {
-        if axis.is_column() {
-            &self.column_gaps
-        } else {
-            &self.row_gaps
-        }
+        axis.select(&self.column_gaps, &self.row_gaps)
+    }
+
+    fn axis_lines(&self, axis: Axis) -> &[Vec<LineName>] {
+        axis.select(&self.column_lines, &self.row_lines)
+    }
+
+    fn explicit_line_count(&self, axis: Axis) -> usize {
+        axis.select(self.explicit_column_line_count, self.explicit_row_line_count)
+    }
+
+    fn content_alignment(&self, axis: Axis) -> Alignment {
+        let style = self.style(self.grid_container);
+        axis.select(
+            inline_content_alignment(style.justify_content()),
+            block_content_alignment(style.align_content()),
+        )
+    }
+
+    fn container_padding_start(&self, axis: Axis) -> CssPixels {
+        let used = self.container_used();
+        axis.select(used.padding_left.get(), used.padding_top.get())
+    }
+
+    fn container_padding_end(&self, axis: Axis) -> CssPixels {
+        let used = self.container_used();
+        axis.select(used.padding_right.get(), used.padding_bottom.get())
     }
 
     fn interleaved_tracks(&self, axis: Axis) -> Vec<Track> {
@@ -1943,11 +1926,8 @@ impl<'pass> GridFormattingContext<'pass> {
     }
 
     fn store_interleaved_tracks(&mut self, axis: Axis, interleaved: &[Track]) {
-        let (tracks, gaps) = if axis.is_column() {
-            (&mut self.columns, &mut self.column_gaps)
-        } else {
-            (&mut self.rows, &mut self.row_gaps)
-        };
+        let (tracks, gaps) =
+            axis.select((&mut self.columns, &mut self.column_gaps), (&mut self.rows, &mut self.row_gaps));
         for (index, track) in tracks.iter_mut().enumerate() {
             *track = interleaved[Self::interleaved_index_of_track(index)];
         }
@@ -2032,26 +2012,7 @@ impl<'pass> GridFormattingContext<'pass> {
     }
 
     fn outer_edges(&self, item: GridItem, axis: Axis) -> CssPixels {
-        let used = self.used(item);
-        if axis.is_column() {
-            used.margin_left.get()
-                + used.border_left.get()
-                + used.padding_left.get()
-                + used.padding_right.get()
-                + used.border_right.get()
-                + used.margin_right.get()
-                + item.extra_margin_left
-                + item.extra_margin_right
-        } else {
-            used.margin_top.get()
-                + used.border_top.get()
-                + used.padding_top.get()
-                + used.padding_bottom.get()
-                + used.border_bottom.get()
-                + used.margin_bottom.get()
-                + item.extra_margin_top
-                + item.extra_margin_bottom
-        }
+        self.item_margin_box_start(item, axis) + self.item_margin_box_end(item, axis)
     }
 
     fn add_outer_size(&self, item: GridItem, axis: Axis, size: CssPixels) -> CssPixels {
@@ -2060,40 +2021,24 @@ impl<'pass> GridFormattingContext<'pass> {
 
     fn preferred_size(&self, item: GridItem, axis: Axis) -> &'pass ComputedSize {
         let style = self.style(item.box_);
-        if axis.is_column() {
-            style.width()
-        } else {
-            style.height()
-        }
+        axis.select(style.width(), style.height())
     }
 
     fn minimum_size(&self, item: GridItem, axis: Axis) -> &'pass ComputedSize {
         let style = self.style(item.box_);
-        if axis.is_column() {
-            style.min_width()
-        } else {
-            style.min_height()
-        }
+        axis.select(style.min_width(), style.min_height())
     }
 
     fn maximum_size(&self, item: GridItem, axis: Axis) -> &'pass ComputedSize {
         let style = self.style(item.box_);
-        if axis.is_column() {
-            style.max_width()
-        } else {
-            style.max_height()
-        }
+        axis.select(style.max_width(), style.max_height())
     }
 
     fn preferred_behaves_as_auto(&self, item: GridItem, axis: Axis) -> bool {
         let available = self.item_available_space(item);
         let behaves_as_auto = self.sizing().should_treat_size_as_auto(
             item.box_,
-            if axis.is_column() {
-                SizingAxis::Inline
-            } else {
-                SizingAxis::Block
-            },
+            axis.sizing_axis(),
             available,
             self.track_sizing_constraints(),
         );
@@ -2136,18 +2081,10 @@ impl<'pass> GridFormattingContext<'pass> {
                 self.min_content_size(item, axis)
             }
         } else {
-            let property = if axis.is_column() {
-                SizingProperty::Width
-            } else {
-                SizingProperty::Height
-            };
+            let property = axis.select(SizingProperty::Width, SizingProperty::Height);
             self.sizing().calculate_inner_size_for_property(
                 item.box_,
-                if axis.is_column() {
-                    SizingAxis::Inline
-                } else {
-                    SizingAxis::Block
-                },
+                axis.sizing_axis(),
                 property,
                 self.available_space.unwrap(),
                 self.track_sizing_constraints(),
@@ -2167,11 +2104,7 @@ impl<'pass> GridFormattingContext<'pass> {
         let content = if self.preferred_behaves_as_auto(item, axis) || preferred.is_fit_content() {
             self.sizing().calculate_fit_content_size(
                 item.box_,
-                if axis.is_column() {
-                    SizingAxis::Inline
-                } else {
-                    SizingAxis::Block
-                },
+                axis.sizing_axis(),
                 self.item_available_space(item),
                 self.container_constraints(),
             )
@@ -2186,16 +2119,8 @@ impl<'pass> GridFormattingContext<'pass> {
             };
             self.sizing().calculate_inner_size_for_property(
                 item.box_,
-                if axis.is_column() {
-                    SizingAxis::Inline
-                } else {
-                    SizingAxis::Block
-                },
-                if axis.is_column() {
-                    SizingProperty::Width
-                } else {
-                    SizingProperty::Height
-                },
+                axis.sizing_axis(),
+                axis.select(SizingProperty::Width, SizingProperty::Height),
                 area_space,
                 self.track_sizing_constraints(),
             )
@@ -2219,11 +2144,8 @@ impl<'pass> GridFormattingContext<'pass> {
             return None;
         }
 
-        let has_definite_preferred_size = if axis.is_column() {
-            self.used(item).has_definite_inline_size()
-        } else {
-            self.used(item).has_definite_block_size()
-        };
+        let used = self.used(item);
+        let has_definite_preferred_size = axis.select(used.has_definite_inline_size(), used.has_definite_block_size());
         if has_definite_preferred_size {
             // FIXME: consider margins, padding and borders because it is outer size.
             let containing_block_size = self.containing_block_size(item, axis);
@@ -2240,8 +2162,7 @@ impl<'pass> GridFormattingContext<'pass> {
         // through the aspect ratio. It is otherwise undefined.
         let preferred_aspect_ratio = self.facts(item.box_).preferred_aspect_ratio()?;
 
-        let preferred_size_in_opposite_axis =
-            self.preferred_size(item, if axis.is_column() { Axis::Row } else { Axis::Column });
+        let preferred_size_in_opposite_axis = self.preferred_size(item, axis.opposite());
         if preferred_size_in_opposite_axis.is_length() {
             let opposite_axis_size = preferred_size_in_opposite_axis.to_px(CssPixels::default());
             // FIXME: Clamp by opposite-axis minimum and maximum sizes if they are definite
@@ -2366,16 +2287,8 @@ impl<'pass> GridFormattingContext<'pass> {
             }
             self.sizing().calculate_inner_size_for_property(
                 item.box_,
-                if axis.is_column() {
-                    SizingAxis::Inline
-                } else {
-                    SizingAxis::Block
-                },
-                if axis.is_column() {
-                    SizingProperty::MinWidth
-                } else {
-                    SizingProperty::MinHeight
-                },
+                axis.sizing_axis(),
+                axis.select(SizingProperty::MinWidth, SizingProperty::MinHeight),
                 available,
                 self.track_sizing_constraints(),
             )
@@ -2421,16 +2334,8 @@ impl<'pass> GridFormattingContext<'pass> {
         let constraints = self.layout_input.unwrap().containing_block_constraints;
         self.sizing().calculate_inner_size_for_property(
             self.grid_container,
-            if axis.is_column() {
-                SizingAxis::Inline
-            } else {
-                SizingAxis::Block
-            },
-            if axis.is_column() {
-                SizingProperty::MaxWidth
-            } else {
-                SizingProperty::MaxHeight
-            },
+            axis.sizing_axis(),
+            axis.select(SizingProperty::MaxWidth, SizingProperty::MaxHeight),
             available,
             constraints,
         )
@@ -2522,11 +2427,7 @@ impl<'pass> GridFormattingContext<'pass> {
             return false;
         }
         let grid_style = self.grid_style(item.box_);
-        if axis.is_column() {
-            grid_style.template_columns.is_subgrid
-        } else {
-            grid_style.template_rows.is_subgrid
-        }
+        axis.select(grid_style.template_columns.is_subgrid, grid_style.template_rows.is_subgrid)
     }
 
     fn apply_subgrid_edge_extra_margins(&self, item: &mut GridItem, axis: Axis) {
@@ -2658,11 +2559,10 @@ impl<'pass> GridFormattingContext<'pass> {
         let mut tracks = self.interleaved_tracks(axis);
         let contributions = self.item_contributions_to_track_sizing(axis);
         let style = self.style(self.grid_container);
-        let distribution_stretches = if axis.is_column() {
-            matches!(style.justify_content(), justify_content::NORMAL | justify_content::STRETCH)
-        } else {
-            matches!(style.align_content(), align_content::NORMAL | align_content::STRETCH)
-        };
+        let distribution_stretches = axis.select(
+            matches!(style.justify_content(), justify_content::NORMAL | justify_content::STRETCH),
+            matches!(style.align_content(), align_content::NORMAL | align_content::STRETCH),
+        );
         run_track_sizing(
             &mut tracks,
             CssPixels::default(),
@@ -2718,11 +2618,10 @@ impl<'pass> GridFormattingContext<'pass> {
     fn item_alignment_for_node(&self, node: Node, axis: Axis) -> Alignment {
         let item_style = self.style(node);
         let container_style = self.style(self.grid_container);
-        if axis.is_column() {
-            inline_item_alignment(item_style.justify_self(), container_style.justify_items())
-        } else {
-            block_item_alignment(item_style.align_self(), container_style.align_items())
-        }
+        axis.select(
+            inline_item_alignment(item_style.justify_self(), container_style.justify_items()),
+            block_item_alignment(item_style.align_self(), container_style.align_items()),
+        )
     }
 
     fn item_alignment(&self, item: GridItem, axis: Axis) -> Alignment {
@@ -2731,20 +2630,18 @@ impl<'pass> GridFormattingContext<'pass> {
 
     fn item_margin_box_start(&self, item: GridItem, axis: Axis) -> CssPixels {
         let used = self.used(item);
-        if axis.is_column() {
-            used.margin_left.get() + used.border_left.get() + used.padding_left.get() + item.extra_margin_left
-        } else {
-            used.margin_top.get() + used.border_top.get() + used.padding_top.get() + item.extra_margin_top
-        }
+        axis.select(
+            used.margin_left.get() + used.border_left.get() + used.padding_left.get() + item.extra_margin_left,
+            used.margin_top.get() + used.border_top.get() + used.padding_top.get() + item.extra_margin_top,
+        )
     }
 
     fn item_margin_box_end(&self, item: GridItem, axis: Axis) -> CssPixels {
         let used = self.used(item);
-        if axis.is_column() {
-            used.padding_right.get() + used.border_right.get() + used.margin_right.get() + item.extra_margin_right
-        } else {
-            used.padding_bottom.get() + used.border_bottom.get() + used.margin_bottom.get() + item.extra_margin_bottom
-        }
+        axis.select(
+            used.padding_right.get() + used.border_right.get() + used.margin_right.get() + item.extra_margin_right,
+            used.padding_bottom.get() + used.border_bottom.get() + used.margin_bottom.get() + item.extra_margin_bottom,
+        )
     }
 
     fn non_cyclic_table_wrapper_inline_size(&self, item: GridItem, containing: CssPixels) -> CssPixels {
@@ -2920,18 +2817,13 @@ impl<'pass> GridFormattingContext<'pass> {
                 constraints.percentage_basis_block_size = Some(containing);
             }
             let style = self.style(item.box_);
-            let preferred = if axis.is_column() {
-                style.width()
-            } else {
-                style.height()
-            };
+            let preferred = axis.select(style.width(), style.height());
             let alignment = self.item_alignment(item, axis);
             let facts = self.facts(item.box_);
-            let has_natural = if axis.is_column() {
-                facts.has_auto_content_width() || (facts.has_auto_content_height() && facts.has_preferred_aspect_ratio())
-            } else {
-                facts.has_auto_content_height() || (facts.has_auto_content_width() && facts.has_preferred_aspect_ratio())
-            };
+            let has_natural = axis.select(
+                facts.has_auto_content_width() || facts.has_auto_content_height() && facts.has_preferred_aspect_ratio(),
+                facts.has_auto_content_height() || facts.has_auto_content_width() && facts.has_preferred_aspect_ratio(),
+            );
             // https://drafts.csswg.org/css-grid-1/#grid-item-sizing
             // If the grid item has no preferred aspect ratio, and no natural size in the relevant axis (if it is a replaced
             // element), the grid item is sized as for 'align-self: stretch'.
@@ -2993,27 +2885,15 @@ impl<'pass> GridFormattingContext<'pass> {
             } else if preferred.is_auto() || preferred.is_fit_content() {
                 self.sizing().calculate_fit_content_size(
                     item.box_,
-                    if axis.is_column() {
-                        SizingAxis::Inline
-                    } else {
-                        SizingAxis::Block
-                    },
+                    axis.sizing_axis(),
                     available,
                     constraints,
                 )
             } else {
                 self.sizing().calculate_inner_size_for_property(
                     item.box_,
-                    if axis.is_column() {
-                        SizingAxis::Inline
-                    } else {
-                        SizingAxis::Block
-                    },
-                    if axis.is_column() {
-                        SizingProperty::Width
-                    } else {
-                        SizingProperty::Height
-                    },
+                    axis.sizing_axis(),
+                    axis.select(SizingProperty::Width, SizingProperty::Height),
                     available,
                     constraints,
                 )
@@ -3062,16 +2942,8 @@ impl<'pass> GridFormattingContext<'pass> {
             if !maximum_is_none {
                 let maximum = self.sizing().calculate_inner_size_for_property(
                     item.box_,
-                    if axis.is_column() {
-                        SizingAxis::Inline
-                    } else {
-                        SizingAxis::Block
-                    },
-                    if axis.is_column() {
-                        SizingProperty::MaxWidth
-                    } else {
-                        SizingProperty::MaxHeight
-                    },
+                    axis.sizing_axis(),
+                    axis.select(SizingProperty::MaxWidth, SizingProperty::MaxHeight),
                     available,
                     constraints,
                 );
@@ -3079,24 +2951,12 @@ impl<'pass> GridFormattingContext<'pass> {
                     resolved = resolve_alignment(maximum, false);
                 }
             }
-            let minimum = if axis.is_column() {
-                style.min_width()
-            } else {
-                style.min_height()
-            };
+            let minimum = axis.select(style.min_width(), style.min_height());
             if !minimum.is_auto() {
                 let minimum = self.sizing().calculate_inner_size_for_property(
                     item.box_,
-                    if axis.is_column() {
-                        SizingAxis::Inline
-                    } else {
-                        SizingAxis::Block
-                    },
-                    if axis.is_column() {
-                        SizingProperty::MinWidth
-                    } else {
-                        SizingProperty::MinHeight
-                    },
+                    axis.sizing_axis(),
+                    axis.select(SizingProperty::MinWidth, SizingProperty::MinHeight),
                     available,
                     constraints,
                 );
@@ -3149,18 +3009,10 @@ impl<'pass> GridFormattingContext<'pass> {
             .axis_tracks(axis)
             .iter()
             .fold(CssPixels::default(), |sum, track| sum + track.base_size);
-        let alignment = if axis.is_column() {
-            inline_content_alignment(self.style(self.grid_container).justify_content())
-        } else {
-            block_content_alignment(self.style(self.grid_container).align_content())
-        };
+        let alignment = self.content_alignment(axis);
         let minimum = self.resolved_gap(axis, AvailableSize::definite(container));
         let size = distributed_gap_size(alignment, container, track_sum, self.axis_gaps(axis).len(), minimum);
-        let gaps = if axis.is_column() {
-            &mut self.column_gaps
-        } else {
-            &mut self.row_gaps
-        };
+        let gaps = axis.select(&mut self.column_gaps, &mut self.row_gaps);
         for gap in gaps {
             gap.base_size = size;
         }
@@ -3220,16 +3072,8 @@ impl<'pass> GridFormattingContext<'pass> {
     }
 
     fn axis_grid_area(&self, axis: Axis, placement: Option<(i32, usize)>) -> (CssPixels, CssPixels) {
-        let padding_start = if axis.is_column() {
-            self.container_used().padding_left.get()
-        } else {
-            self.container_used().padding_top.get()
-        };
-        let padding_end = if axis.is_column() {
-            self.container_used().padding_right.get()
-        } else {
-            self.container_used().padding_bottom.get()
-        };
+        let padding_start = self.container_padding_start(axis);
+        let padding_end = self.container_padding_end(axis);
         let Some((position, span)) = placement else {
             let content_size = match self.axis_available(axis) {
                 AvailableSize::Definite(size) => size,
@@ -3244,11 +3088,7 @@ impl<'pass> GridFormattingContext<'pass> {
         let start = position.saturating_mul(2);
         let end = start.saturating_add(span.saturating_mul(2) as i32);
         let container = self.grid_container_alignment_size(axis);
-        let alignment = if axis.is_column() {
-            inline_content_alignment(self.style(self.grid_container).justify_content())
-        } else {
-            block_content_alignment(self.style(self.grid_container).align_content())
-        };
+        let alignment = self.content_alignment(axis);
         let initial_offset = content_start_offset(alignment, container, self.track_sum(axis));
         let mut start_offset = initial_offset;
         let mut end_offset = initial_offset;
@@ -3268,16 +3108,8 @@ impl<'pass> GridFormattingContext<'pass> {
         end: ComputedGridPlacement,
         placement_names: &[usize],
     ) -> (CssPixels, CssPixels) {
-        let lines = if axis.is_column() {
-            &self.column_lines
-        } else {
-            &self.row_lines
-        };
-        let explicit_lines = if axis.is_column() {
-            self.explicit_column_line_count
-        } else {
-            self.explicit_row_line_count
-        };
+        let lines = self.axis_lines(axis);
+        let explicit_lines = self.explicit_line_count(axis);
         let resolved = resolve_placement_position(
             start,
             end,
@@ -3304,11 +3136,7 @@ impl<'pass> GridFormattingContext<'pass> {
         // overflows). These lines become the first and last lines (0th and -0th) of the augmented grid used for positioning absolutely-positioned items.
         let explicit_line_position = |line: i32| {
             let tracks = self.interleaved_tracks(axis);
-            let alignment = if axis.is_column() {
-                inline_content_alignment(self.style(self.grid_container).justify_content())
-            } else {
-                block_content_alignment(self.style(self.grid_container).align_content())
-            };
+            let alignment = self.content_alignment(axis);
             let mut offset = content_start_offset(
                 alignment,
                 self.axis_available(axis).to_px_or_zero(),
@@ -3321,21 +3149,13 @@ impl<'pass> GridFormattingContext<'pass> {
         };
         let augmented_edge = |is_start: bool| {
             if is_start {
-                if axis.is_column() {
-                    -self.container_used().padding_left.get()
-                } else {
-                    -self.container_used().padding_top.get()
-                }
+                -self.container_padding_start(axis)
             } else {
                 let mut offset = match self.axis_available(axis) {
                     AvailableSize::Definite(size) => size,
                     _ => self.track_sum(axis),
                 };
-                offset += if axis.is_column() {
-                    self.container_used().padding_right.get()
-                } else {
-                    self.container_used().padding_bottom.get()
-                };
+                offset += self.container_padding_end(axis);
                 offset
             }
         };
@@ -3434,11 +3254,7 @@ impl<'pass> GridFormattingContext<'pass> {
         // grid-template-rows and grid-template-columns properties represents the used number of columns,
         // serialized as the subgrid keyword followed by a list representing each of its lines as a line
         // name set of all the line's names explicitly defined on the subgrid, without using repeat().
-        let lines = if axis.is_column() {
-            &self.column_lines
-        } else {
-            &self.row_lines
-        };
+        let lines = self.axis_lines(axis);
         let mut names = Vec::with_capacity(lines.len());
         for line in lines {
             names.push(
@@ -3479,26 +3295,10 @@ impl<'pass> GridFormattingContext<'pass> {
         let serialize = |axis: Axis| {
             let tracks = self.axis_tracks(axis);
             let gaps = self.axis_gaps(axis);
-            let lines = if axis.is_column() {
-                &self.column_lines
-            } else {
-                &self.row_lines
-            };
-            let explicit_start = if axis.is_column() {
-                self.explicit_column_start
-            } else {
-                self.explicit_row_start
-            };
-            let explicit_count = if axis.is_column() {
-                self.explicit_column_line_count
-            } else {
-                self.explicit_row_line_count
-            };
-            let alignment = if axis.is_column() {
-                inline_content_alignment(self.style(self.grid_container).justify_content())
-            } else {
-                block_content_alignment(self.style(self.grid_container).align_content())
-            };
+            let lines = self.axis_lines(axis);
+            let explicit_start = axis.select(self.explicit_column_start, self.explicit_row_start);
+            let explicit_count = self.explicit_line_count(axis);
+            let alignment = self.content_alignment(axis);
             let mut start = content_start_offset(
                 alignment,
                 self.grid_container_alignment_size(axis),
