@@ -1,0 +1,38 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <title>CSS Test: Quotes applied to elements with 'display' set to 'table-row'</title>
+        <link rel="author" title="Microsoft" href="http://www.microsoft.com/" />
+        <link rel="help" href="http://www.w3.org/TR/CSS21/generate.html#propdef-quotes" />
+        <link rel="help" href="http://www.w3.org/TR/CSS21/generate.html#quotes-specify" />
+        <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/generated-content/../../reference/pass_if_pass_below.html"/>
+        <meta name="assert" content="The 'quotes' property applies to elements with a 'display' set to 'table-row'." />
+        <style type="text/css">
+            #table
+            {
+                display: table;
+            }
+            #row
+            {
+                display: table-row;
+                quotes: "P" "S" "A" "S";
+            }
+            #cell
+            {
+                display: table-cell;
+            }
+            #cell:before
+            {
+                content: open-quote open-quote close-quote close-quote;
+            }
+        </style>
+    </head>
+    <body>
+        <p>Test passes if there is the word "PASS" below.</p>
+        <div id="table">
+            <div id="row">
+                <div id="cell"></div>
+            </div>
+        </div>
+    </body>
+</html>
