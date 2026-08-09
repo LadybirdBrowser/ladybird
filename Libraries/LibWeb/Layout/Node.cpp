@@ -1094,6 +1094,7 @@ void NodeWithStyle::reset_table_box_computed_values_used_by_wrapper_to_init_valu
         // Note that there may be more properties that need to be added to this list.
         values.set_z_index(CSS::InitialValues::z_index());
         values.set_clip(CSS::InitialValues::clip());
+        values.set_vertical_align(CSS::InitialValues::vertical_align());
     });
 }
 
@@ -1125,6 +1126,9 @@ void NodeWithStyle::transfer_table_box_computed_values_to_wrapper_computed_value
     builder->set_z_index(computed_values().z_index());
     // "clip" only takes effect on absolutely-positioned elements; the table box isn't one — the wrapper is.
     builder->set_clip(computed_values().clip());
+    // AD-HOC: The wrapper box participates in inline layout in place of the table box, so vertical-align
+    //         must be moved to the wrapper to have any effect.
+    builder->set_vertical_align(computed_values().vertical_align());
 
     reset_table_box_computed_values_used_by_wrapper_to_init_values();
 }

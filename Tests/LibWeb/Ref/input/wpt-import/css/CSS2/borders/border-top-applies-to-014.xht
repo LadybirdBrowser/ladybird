@@ -1,0 +1,45 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <title>CSS Test: Border-top applied to element with display inline-table</title>
+        <link rel="author" title="Microsoft" href="http://www.microsoft.com/" />
+        <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2012-12-05 -->
+        <link rel="help" href="http://www.w3.org/TR/CSS21/box.html#propdef-border-top" />
+        <link rel="help" href="http://www.w3.org/TR/CSS21/box.html#border-shorthand-properties" />
+        <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/borders/border-bottom-applies-to-001-ref.xht" />
+
+        <meta name="assert" content="The 'border-top' property applies to elements with a display of inline-table." />
+        <style type="text/css">
+            #test
+            {
+                border-top: solid green 3px;
+                display: inline-table;
+                table-layout: fixed;
+                vertical-align: top;
+                width: 1in;
+            }
+            .row
+            {
+                display: table-row;
+            }
+            .cell
+            {
+                display: table-cell;
+            }
+        </style>
+    </head>
+    <body>
+        <p>Test passes if there is a short horizontal green line.</p>
+
+        <div id="test">
+            <div class="row">
+                <div class="cell"></div><div class="cell"></div>
+            </div>
+
+            <div class="row">
+                <div class="cell"></div><div class="cell"></div>
+            </div>
+        </div>
+
+    </body>
+</html>
