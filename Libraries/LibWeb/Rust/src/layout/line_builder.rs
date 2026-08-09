@@ -216,6 +216,7 @@ impl<'builder, 'context, 'pass> LineBuilder<'builder, 'context, 'pass> {
         trailing_size: CssPixels,
         leading_margin: CssPixels,
         trailing_margin: CssPixels,
+        content_baselines: DerivedBaselines,
     ) {
         self.prepare_to_append_inline_content();
         let used = self.context().used(node);
@@ -244,6 +245,7 @@ impl<'builder, 'context, 'pass> LineBuilder<'builder, 'context, 'pass> {
             fragment_facts,
             text_align_is_justify,
         );
+        self.line_mut(line_index).fragments[fragment_index].content_baselines = Some(content_baselines);
         self.max_block_size_on_current_line = self.max_block_size_on_current_line.max(margin_block_size);
         let used = self.context().used_mut(node);
         used.has_containing_line_box_fragment.set(false);
@@ -557,18 +559,28 @@ impl<'builder, 'context, 'pass> LineBuilder<'builder, 'context, 'pass> {
         let mut line_box_baseline = strut_baseline;
         let fragment_count = self.line(line_index).fragments.len();
         for fragment_index in 0..fragment_count {
-            let (node, style_source) = {
+            let (node, style_source, content_baselines) = {
                 let fragment = &self.line(line_index).fragments[fragment_index];
-                (fragment.layout_node, fragment.style_source)
+                (fragment.layout_node, fragment.style_source, fragment.content_baselines)
             };
             let style = self.context().style(style_source);
             let fragment_baseline = if self.context().facts(node).is_text_node() {
                 Self::baseline_for_style(style, style.line_height())
+            } else if let Some(content_baselines) = content_baselines {
+                crate::layout::box_baseline_with_content_baselines(
+                    self.context().state,
+                    &self.context().callbacks,
+                    node,
+                    self.context().used(node),
+                    crate::layout::BaselineSet::Last,
+                    content_baselines,
+                )
             } else {
                 crate::layout::box_baseline(
                     self.context().state,
                     &self.context().callbacks,
                     node,
+                    self.context().used(node),
                     crate::layout::BaselineSet::Last,
                 )
             };

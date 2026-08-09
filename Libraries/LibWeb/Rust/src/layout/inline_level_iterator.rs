@@ -31,6 +31,7 @@ pub(crate) struct Item {
     pub(crate) is_collapsible_whitespace: bool,
     pub(crate) can_break_before: bool,
     pub(crate) preceded_by_unattached_inline_start_edges: bool,
+    pub(crate) content_baselines: DerivedBaselines,
 }
 
 impl Item {
@@ -51,6 +52,7 @@ impl Item {
             is_collapsible_whitespace: false,
             can_break_before: false,
             preceded_by_unattached_inline_start_edges: false,
+            content_baselines: DerivedBaselines::default(),
         }
     }
 
@@ -552,8 +554,9 @@ impl<'iterator, 'context, 'pass> InlineLevelIteratorGenerator<'iterator, 'contex
             self.context()
                 .create_used_values(node, self.context().input.containing_block_constraints)
         };
-        self.context_mut().dimension_box_on_line(node);
+        let content_baselines = self.context_mut().dimension_box_on_line(node);
         let mut item = Item::new(ItemType::Element, node);
+        item.content_baselines = content_baselines;
         item.inline_size = used.content_inline_size.get();
         item.padding_start = used.padding_left.get();
         item.padding_end = used.padding_right.get();
