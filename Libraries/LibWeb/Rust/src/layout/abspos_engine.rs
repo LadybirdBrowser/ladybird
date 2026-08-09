@@ -695,6 +695,24 @@ pub(crate) fn solve_abspos_axis_for(
     }
 }
 
+// The block-axis unknowns of the absolute positioning equation. Each field is `None` while it is
+// still unresolved, and holds its used value once solved for.
+#[derive(Clone, Copy)]
+struct BlockAxisSolution {
+    block_size: AutoPx,
+    top: AutoPx,
+    bottom: AutoPx,
+    margin_top: AutoPx,
+    margin_bottom: AutoPx,
+}
+
+impl BlockAxisSolution {
+    fn zero_out_auto_margins(&mut self) {
+        self.margin_top = Some(auto_px_value(self.margin_top));
+        self.margin_bottom = Some(auto_px_value(self.margin_bottom));
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct ReplacedAxisSolution {
     pub(crate) start: CssPixels,
@@ -1107,191 +1125,92 @@ impl AbsposEngine<'_> {
         constraints: ContainingBlockConstraints,
         static_position_rect: StaticPositionRect,
         pass: BlockSizePass,
-        mut block_size: AutoPx,
-    ) -> (AutoPx, AutoPx, AutoPx, AutoPx, AutoPx) {
+        block_size: AutoPx,
+    ) -> BlockAxisSolution {
         let style = self.style(node);
         let containing_block_inline_size = available_space.inline_size.to_px_or_zero();
         let containing_block_block_size = available_space.block_size.to_px_or_zero();
-        let mut margin_top = resolve_margin_or_auto(style.margin_top(), containing_block_inline_size);
-        let mut margin_bottom = resolve_margin_or_auto(style.margin_bottom(), containing_block_inline_size);
-        let mut top = resolve_or_auto(style.inset_top(), containing_block_block_size);
-        let mut bottom = resolve_or_auto(style.inset_bottom(), containing_block_block_size);
         let used = self.used(node);
         let padding_top = used.padding_top.get();
         let padding_bottom = used.padding_bottom.get();
+        let mut solution = BlockAxisSolution {
+            block_size,
+            top: resolve_or_auto(style.inset_top(), containing_block_block_size),
+            bottom: resolve_or_auto(style.inset_bottom(), containing_block_block_size),
+            margin_top: resolve_margin_or_auto(style.margin_top(), containing_block_inline_size),
+            margin_bottom: resolve_margin_or_auto(style.margin_bottom(), containing_block_inline_size),
+        };
 
-        let solve_for = |length: AutoPx,
-                         clamp_to_zero: bool,
-                         top: AutoPx,
-                         margin_top: AutoPx,
-                         block_size: AutoPx,
-                         margin_bottom: AutoPx,
-                         bottom: AutoPx| {
+        // Solves the block axis equation for `target`, which must be one of the solution's own
+        // fields; every other field contributes its current value.
+        let solve_for = |target: AutoPx, clamp_to_zero: bool, solution: BlockAxisSolution| {
             solve_abspos_axis_for(
                 containing_block_block_size,
-                length,
+                target,
                 clamp_to_zero,
-                top,
-                margin_top,
+                solution.top,
+                solution.margin_top,
                 style.border_top_width(),
                 padding_top,
-                block_size,
+                solution.block_size,
                 padding_bottom,
                 style.border_bottom_width(),
-                margin_bottom,
-                bottom,
+                solution.margin_bottom,
+                solution.bottom,
             )
         };
 
-        if top.is_none() && block_size.is_none() && bottom.is_none() {
-            if margin_top.is_none() {
-                margin_top = Some(CssPixels::default());
-            }
-            if margin_bottom.is_none() {
-                margin_bottom = Some(CssPixels::default());
-            }
+        if solution.top.is_none() && solution.block_size.is_none() && solution.bottom.is_none() {
+            solution.zero_out_auto_margins();
             let Some(automatic) = self.automatic_block_size(node, available_space, constraints, pass) else {
-                return (block_size, top, bottom, margin_top, margin_bottom);
+                return solution;
             };
-            block_size = Some(automatic);
-            let constrained = self.apply_min_max_block_size_constraints(node, available_space, constraints, block_size);
+            solution.block_size = Some(automatic);
+            let constrained =
+                self.apply_min_max_block_size_constraints(node, available_space, constraints, solution.block_size);
             self.used(node).set_content_block_size(auto_px_value(constrained));
-            top = Some(self.static_offset(node, static_position_rect).block_offset);
-            bottom = Some(solve_for(
-                bottom,
-                false,
-                top,
-                margin_top,
-                block_size,
-                margin_bottom,
-                bottom,
-            ));
-        } else if top.is_some() && block_size.is_some() && bottom.is_some() {
-            if margin_top.is_none() && margin_bottom.is_none() {
-                let remainder = solve_for(
-                    Some(auto_px_value(margin_top) + auto_px_value(margin_bottom)),
-                    false,
-                    top,
-                    margin_top,
-                    block_size,
-                    margin_bottom,
-                    bottom,
-                );
-                margin_top = Some(remainder / 2);
-                margin_bottom = Some(remainder / 2);
-            } else if margin_top.is_none() || margin_bottom.is_none() {
-                if margin_top.is_none() {
-                    margin_top = Some(solve_for(
-                        margin_top,
-                        false,
-                        top,
-                        margin_top,
-                        block_size,
-                        margin_bottom,
-                        bottom,
-                    ));
-                } else {
-                    margin_bottom = Some(solve_for(
-                        margin_bottom,
-                        false,
-                        top,
-                        margin_top,
-                        block_size,
-                        margin_bottom,
-                        bottom,
-                    ));
-                }
+            solution.top = Some(self.static_offset(node, static_position_rect).block_offset);
+            solution.bottom = Some(solve_for(solution.bottom, false, solution));
+        } else if solution.top.is_some() && solution.block_size.is_some() && solution.bottom.is_some() {
+            if solution.margin_top.is_none() && solution.margin_bottom.is_none() {
+                let total = Some(auto_px_value(solution.margin_top) + auto_px_value(solution.margin_bottom));
+                let remainder = solve_for(total, false, solution);
+                solution.margin_top = Some(remainder / 2);
+                solution.margin_bottom = Some(remainder / 2);
+            } else if solution.margin_top.is_none() {
+                solution.margin_top = Some(solve_for(solution.margin_top, false, solution));
+            } else if solution.margin_bottom.is_none() {
+                solution.margin_bottom = Some(solve_for(solution.margin_bottom, false, solution));
             } else {
-                bottom = Some(solve_for(
-                    bottom,
-                    false,
-                    top,
-                    margin_top,
-                    block_size,
-                    margin_bottom,
-                    bottom,
-                ));
+                solution.bottom = Some(solve_for(solution.bottom, false, solution));
             }
         } else {
-            if margin_top.is_none() {
-                margin_top = Some(CssPixels::default());
-            }
-            if margin_bottom.is_none() {
-                margin_bottom = Some(CssPixels::default());
-            }
+            solution.zero_out_auto_margins();
 
-            if top.is_none() && block_size.is_none() && bottom.is_some() {
+            if solution.top.is_none() && solution.block_size.is_none() && solution.bottom.is_some() {
                 let Some(automatic) = self.automatic_block_size(node, available_space, constraints, pass) else {
-                    return (block_size, top, bottom, margin_top, margin_bottom);
+                    return solution;
                 };
-                block_size = Some(automatic);
-                top = Some(solve_for(
-                    top,
-                    false,
-                    top,
-                    margin_top,
-                    block_size,
-                    margin_bottom,
-                    bottom,
-                ));
-            } else if top.is_none() && bottom.is_none() && block_size.is_some() {
-                top = Some(self.static_offset(node, static_position_rect).block_offset);
-                bottom = Some(solve_for(
-                    bottom,
-                    false,
-                    top,
-                    margin_top,
-                    block_size,
-                    margin_bottom,
-                    bottom,
-                ));
-            } else if block_size.is_none() && bottom.is_none() && top.is_some() {
+                solution.block_size = Some(automatic);
+                solution.top = Some(solve_for(solution.top, false, solution));
+            } else if solution.top.is_none() && solution.bottom.is_none() && solution.block_size.is_some() {
+                solution.top = Some(self.static_offset(node, static_position_rect).block_offset);
+                solution.bottom = Some(solve_for(solution.bottom, false, solution));
+            } else if solution.block_size.is_none() && solution.bottom.is_none() && solution.top.is_some() {
                 let Some(automatic) = self.automatic_block_size(node, available_space, constraints, pass) else {
-                    return (block_size, top, bottom, margin_top, margin_bottom);
+                    return solution;
                 };
-                block_size = Some(automatic);
-                bottom = Some(solve_for(
-                    bottom,
-                    false,
-                    top,
-                    margin_top,
-                    block_size,
-                    margin_bottom,
-                    bottom,
-                ));
-            } else if top.is_none() && block_size.is_some() && bottom.is_some() {
-                top = Some(solve_for(
-                    top,
-                    false,
-                    top,
-                    margin_top,
-                    block_size,
-                    margin_bottom,
-                    bottom,
-                ));
-            } else if block_size.is_none() && top.is_some() && bottom.is_some() {
-                block_size = Some(solve_for(
-                    block_size,
-                    true,
-                    top,
-                    margin_top,
-                    block_size,
-                    margin_bottom,
-                    bottom,
-                ));
-            } else if bottom.is_none() && top.is_some() && block_size.is_some() {
-                bottom = Some(solve_for(
-                    bottom,
-                    false,
-                    top,
-                    margin_top,
-                    block_size,
-                    margin_bottom,
-                    bottom,
-                ));
+                solution.block_size = Some(automatic);
+                solution.bottom = Some(solve_for(solution.bottom, false, solution));
+            } else if solution.top.is_none() && solution.block_size.is_some() && solution.bottom.is_some() {
+                solution.top = Some(solve_for(solution.top, false, solution));
+            } else if solution.block_size.is_none() && solution.top.is_some() && solution.bottom.is_some() {
+                solution.block_size = Some(solve_for(solution.block_size, true, solution));
+            } else if solution.bottom.is_none() && solution.top.is_some() && solution.block_size.is_some() {
+                solution.bottom = Some(solve_for(solution.bottom, false, solution));
             }
         }
-        (block_size, top, bottom, margin_top, margin_bottom)
+        solution
     }
 
     fn compute_block_size_for_non_replaced(
@@ -1321,18 +1240,18 @@ impl AbsposEngine<'_> {
                     .calculate_inner_block_size(node, intrinsic_available_space, style.height(), constraints),
             )
         };
-        let (mut used_block_size, mut top, mut bottom, mut margin_top, mut margin_bottom) =
+        let mut solution =
             self.solve_non_replaced_block_once(node, available_space, constraints, static_position_rect, pass, initial);
 
-        if used_block_size.is_some() && !style.max_height().is_none() {
+        if solution.block_size.is_some() && !style.max_height().is_none() {
             let max_block_size = self.sizing().calculate_inner_block_size(
                 node,
                 intrinsic_available_space,
                 style.max_height(),
                 constraints,
             );
-            if auto_px_value(used_block_size) > max_block_size {
-                (used_block_size, top, bottom, margin_top, margin_bottom) = self.solve_non_replaced_block_once(
+            if auto_px_value(solution.block_size) > max_block_size {
+                solution = self.solve_non_replaced_block_once(
                     node,
                     available_space,
                     constraints,
@@ -1342,15 +1261,15 @@ impl AbsposEngine<'_> {
                 );
             }
         }
-        if used_block_size.is_some() && !style.min_height().is_auto() {
+        if solution.block_size.is_some() && !style.min_height().is_auto() {
             let min_block_size = self.sizing().calculate_inner_block_size(
                 node,
                 intrinsic_available_space,
                 style.min_height(),
                 constraints,
             );
-            if auto_px_value(used_block_size) < min_block_size {
-                (used_block_size, top, bottom, margin_top, margin_bottom) = self.solve_non_replaced_block_once(
+            if auto_px_value(solution.block_size) < min_block_size {
+                solution = self.solve_non_replaced_block_once(
                     node,
                     available_space,
                     constraints,
@@ -1360,28 +1279,25 @@ impl AbsposEngine<'_> {
                 );
             }
         }
-        if used_block_size.is_none() {
-            used_block_size =
-                self.apply_min_max_block_size_constraints(node, available_space, constraints, used_block_size);
+        if solution.block_size.is_none() {
+            solution.block_size =
+                self.apply_min_max_block_size_constraints(node, available_space, constraints, solution.block_size);
         }
 
-        let containing_block_inline_size = available_space.inline_size.to_px_or_zero();
-        let containing_block_block_size = available_space.block_size.to_px_or_zero();
         let used = self.used(node);
-        used.set_content_block_size(auto_px_value(used_block_size));
+        used.set_content_block_size(auto_px_value(solution.block_size));
         if style.height().is_auto() && pass == BlockSizePass::BeforeInsideLayout {
             return;
         }
         if !style.height().is_intrinsic_sizing_constraint() {
             used.has_definite_block_size.set(true);
         }
-        used.inset_top.set(auto_px_value(top));
-        used.inset_bottom.set(auto_px_value(bottom));
-        // The local values are already resolved against these bases. Keep the
-        // variables to document and pin the C++ basis distinction.
-        let _ = (containing_block_inline_size, containing_block_block_size);
-        used.margin_top.set(auto_px_value(margin_top));
-        used.margin_bottom.set(auto_px_value(margin_bottom));
+        used.inset_top.set(auto_px_value(solution.top));
+        used.inset_bottom.set(auto_px_value(solution.bottom));
+        // NOTE: solve_non_replaced_block_once() already resolved these against the bases the C++ layout code used:
+        //       the insets against the containing block's block size, but the margins against its inline size.
+        used.margin_top.set(auto_px_value(solution.margin_top));
+        used.margin_bottom.set(auto_px_value(solution.margin_bottom));
     }
 
     fn compute_block_size_for_replaced(
