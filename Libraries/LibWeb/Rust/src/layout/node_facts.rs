@@ -4,26 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-/// Content-derived sizing data that genuinely lives on the C++ side (image
-/// decode state, media metadata, font-resolved default control sizes). Fetched
-/// lazily once per pass, and only for node kinds that can produce any of it.
-#[derive(Clone, Copy, Default)]
-#[repr(C)]
-pub struct FfiReplacedContentFacts {
-    pub has_auto_content_width: bool,
-    pub auto_content_width: CssPixels,
-    pub has_auto_content_height: bool,
-    pub auto_content_height: CssPixels,
-    /// A zero denominator means the auto content box size carries no aspect
-    /// ratio; a valid ratio can never have a zero denominator.
-    pub auto_content_aspect_ratio_numerator: CssPixels,
-    pub auto_content_aspect_ratio_denominator: CssPixels,
-    pub has_default_preferred_width: bool,
-    pub default_preferred_width: CssPixels,
-    pub has_default_preferred_height: bool,
-    pub default_preferred_height: CssPixels,
-}
-
 pub(crate) fn node_may_have_replaced_content_facts(data: &NodeData) -> bool {
     kind_is_replaced_box(data.kind)
         || matches!(
@@ -31,6 +11,23 @@ pub(crate) fn node_may_have_replaced_content_facts(data: &NodeData) -> bool {
             NodeKind::RangeInputBox | NodeKind::TextAreaBox | NodeKind::TextInputBox
         )
         || has_flag(data, NodeFlag::IsHtmlInputElement)
+}
+
+// Size containment gives any box an auto content box size of zero, so
+// size-contained boxes join the replaced kinds in publishing real facts.
+// C++ enrollment and the Rust sync assertion both evaluate this predicate.
+pub(crate) fn node_may_have_replaced_content_facts_including_size_containment(data: &NodeData) -> bool {
+    if node_may_have_replaced_content_facts(data) {
+        return true;
+    }
+    if !kind_is_box(data.kind) || data.style.is_null() {
+        return false;
+    }
+    // SAFETY: A non-null style pointer addresses the container's group
+    // pointer array, which FfiStylePayloads mirrors exactly.
+    let payloads = unsafe { &*data.style.cast::<crate::layout::FfiStylePayloads>() };
+    let style = ComputedValuesView::new(&payloads.groups);
+    style.has_size_containment() || style.is_size_container()
 }
 
 pub(crate) fn node_is_out_of_flow(data: &NodeData, style: Option<ComputedValuesView<'_>>) -> bool {
@@ -169,7 +166,6 @@ fn kind_is_svg_box(kind: NodeKind) -> bool {
             | NodeKind::SVGTextPathBox
     )
 }
-
 
 #[cfg(test)]
 mod node_facts_tests {

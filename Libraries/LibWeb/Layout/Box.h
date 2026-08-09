@@ -50,6 +50,8 @@ public:
     Optional<CSSPixelFraction> preferred_aspect_ratio() const;
     bool has_preferred_aspect_ratio() const { return preferred_aspect_ratio().has_value(); }
 
+    RustFFI::FfiReplacedContentFacts build_replaced_content_facts_for_arena() const;
+
     virtual ~Box() override;
 
     virtual void did_set_content_size() { }

@@ -16,6 +16,7 @@
 
 namespace Web::Layout {
 
+class Node;
 class TextNode;
 
 static_assert(sizeof(RustFFI::NodeAllocation) == 24);
@@ -36,11 +37,17 @@ public:
     void* handle() const { return m_handle; }
 
     void enroll_text_node_for_content_sync(TextNode const&);
-    void sync_enrolled_text_node_content();
+    void enroll_node_for_replaced_content_facts_sync(Node const&);
+
+    void sync_enrolled_content_for_layout();
 
 private:
+    void sync_enrolled_text_node_content();
+    void sync_enrolled_replaced_content_facts();
+
     void* m_handle { nullptr };
     Vector<WeakPtr<TextNode>> m_text_nodes_enrolled_for_content_sync;
+    Vector<WeakPtr<Node>> m_nodes_enrolled_for_replaced_content_facts_sync;
 };
 
 }

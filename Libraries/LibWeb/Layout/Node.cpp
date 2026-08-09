@@ -102,6 +102,17 @@ void Node::set_node_kind(RustFFI::NodeKind kind)
                                                            .is_replaced_box = is_replaced_box(),
                                                        }));
 #endif
+    enroll_for_arena_replaced_content_facts_sync_if_eligible();
+}
+
+void Node::enroll_for_arena_replaced_content_facts_sync_if_eligible()
+{
+    if (m_enrolled_for_arena_replaced_content_facts_sync)
+        return;
+    if (!RustFFI::layout_node_data_may_have_replaced_content_facts(m_data))
+        return;
+    m_enrolled_for_arena_replaced_content_facts_sync = true;
+    node_arena().enroll_node_for_replaced_content_facts_sync(*this);
 }
 
 void* Node::arena_handle() const
@@ -667,6 +678,7 @@ NodeWithStyle::NodeWithStyle(DOM::Document& document, DOM::Node* node, NonnullRe
     set_flag(RustFFI::NodeFlag::HasAnchorNames, !m_computed_values->anchor_names().is_empty());
     publish_style_container_to_node_data();
     synchronize_table_span_data();
+    enroll_for_arena_replaced_content_facts_sync_if_eligible();
 }
 
 NodeWithStyle::ImageObserver::ImageObserver(NodeWithStyle& owner, NonnullRefPtr<CSS::ImageStyleValue const> image)
@@ -1006,6 +1018,7 @@ void NodeWithStyle::set_computed_values(NonnullRefPtr<CSS::ComputedValues const>
     m_computed_values = move(computed_values);
     set_flag(RustFFI::NodeFlag::HasAnchorNames, !m_computed_values->anchor_names().is_empty());
     publish_style_container_to_node_data();
+    enroll_for_arena_replaced_content_facts_sync_if_eligible();
 
     for (auto* child = first_child_ptr(); child; child = child->next_sibling_ptr()) {
         if (auto* text_child = as_if<TextNode>(*child))

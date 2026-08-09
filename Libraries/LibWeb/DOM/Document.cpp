@@ -2098,6 +2098,7 @@ Document::PartialRelayoutResult Document::try_partial_relayout(HashTable<WeakPtr
     if (partial_relayout_roots.is_empty())
         return PartialRelayoutResult::NotEligible;
 
+    layout_node_arena().sync_enrolled_content_for_layout();
     for (auto const& root : partial_relayout_roots) {
         relayout_subtree(*root.box, *root.old_paintable);
         // NB: The subtree commit reset the root's descendant paintables, and the subtree's
@@ -2197,6 +2198,7 @@ void Document::update_layout(UpdateLayoutReason reason)
         // on, so pending changes that escaped classification are accounted for from here on.
         m_partial_relayout_invalidation.clear_escape(PartialRelayoutEscapeClearReason::FullLayoutPass);
 
+        layout_node_arena().sync_enrolled_content_for_layout();
         Layout::LayoutRustBridge bridge;
         bridge.run_root_layout(
             *m_layout_root,

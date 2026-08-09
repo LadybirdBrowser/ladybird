@@ -8,6 +8,7 @@ use crate::abort_on_panic;
 use crate::layout::AbsposLayoutInputs;
 use crate::layout::AvailableSize;
 use crate::layout::CssPixels;
+use crate::layout::FfiReplacedContentFacts;
 use crate::layout::node_data::{FfiStylePayloads, MAX_NODE_SLOT_COUNT, NodeData, NodeFlag, NodeSlotId};
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -143,6 +144,12 @@ struct TextContentSlot {
     content: Option<Box<TextContent>>,
 }
 
+#[derive(Default)]
+struct ReplacedContentFactsSlot {
+    generation: u8,
+    facts: Option<FfiReplacedContentFacts>,
+}
+
 #[derive(Clone, Copy, PartialEq)]
 pub(crate) struct TextChunkCacheKey {
     pub(crate) should_wrap_lines: bool,
@@ -209,6 +216,7 @@ pub(crate) struct LayoutNodeArena {
     saved_abspos_layout_inputs: RefCell<Vec<SavedAbsposLayoutInputsSlot>>,
     text_contents: Vec<TextContentSlot>,
     text_chunk_caches: RefCell<Vec<TextChunkCacheSlot>>,
+    replaced_content_facts: Vec<ReplacedContentFactsSlot>,
     raw_table_column_spans: HashMap<NodeSlotId, u32>,
     owner_thread: thread::ThreadId,
 }
@@ -226,6 +234,7 @@ impl LayoutNodeArena {
             saved_abspos_layout_inputs: RefCell::new(Vec::new()),
             text_contents: Vec::new(),
             text_chunk_caches: RefCell::new(Vec::new()),
+            replaced_content_facts: Vec::new(),
             raw_table_column_spans: HashMap::new(),
             owner_thread: thread::current().id(),
         }
@@ -318,6 +327,9 @@ impl LayoutNodeArena {
         }
         if let Some(slot) = self.text_chunk_caches.get_mut().get_mut(index as usize) {
             *slot = TextChunkCacheSlot::default();
+        }
+        if let Some(slot) = self.replaced_content_facts.get_mut(index as usize) {
+            *slot = ReplacedContentFactsSlot::default();
         }
         self.raw_table_column_spans.remove(&id);
         *self.data_mut(index) = NodeData::default();
@@ -672,6 +684,28 @@ impl LayoutNodeArena {
         }
     }
 
+    pub(crate) fn set_replaced_content_facts(&mut self, id: NodeSlotId, facts: FfiReplacedContentFacts) {
+        self.assert_owner_thread();
+        self.data(id);
+        let index = id.slot_index() as usize;
+        if self.replaced_content_facts.len() <= index {
+            self.replaced_content_facts
+                .resize_with(index + 1, ReplacedContentFactsSlot::default);
+        }
+        self.replaced_content_facts[index] = ReplacedContentFactsSlot {
+            generation: id.generation(),
+            facts: Some(facts),
+        };
+    }
+
+    pub(crate) fn replaced_content_facts(&self, id: NodeSlotId) -> Option<FfiReplacedContentFacts> {
+        assert!(!id.is_invalid(), "invalid layout node arena slot ID");
+        self.replaced_content_facts
+            .get(id.slot_index() as usize)
+            .filter(|slot| slot.generation == id.generation())
+            .and_then(|slot| slot.facts)
+    }
+
     pub(crate) fn set_raw_table_column_span(&mut self, id: NodeSlotId, value: u32) {
         self.assert_owner_thread();
         self.data(id);
@@ -866,6 +900,20 @@ pub unsafe extern "C" fn layout_arena_set_text_content(
             untransformed_text_is_ascii_whitespace,
             may_require_bidi_processing,
         );
+    });
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_set_replaced_content_facts(
+    arena: *mut c_void,
+    id: NodeSlotId,
+    facts: FfiReplacedContentFacts,
+) {
+    abort_on_panic(|| {
+        assert!(!arena.is_null(), "layout node arena handle is null");
+        // SAFETY: The C++ wrapper keeps the arena alive for this call and
+        // serializes all access on the document thread.
+        unsafe { &mut *arena.cast::<LayoutNodeArena>() }.set_replaced_content_facts(id, facts);
     });
 }
 
