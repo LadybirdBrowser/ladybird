@@ -73,7 +73,6 @@
 namespace Web::Layout {
 
 static Atomic<size_t> s_outstanding_anchor_name_handles;
-static Atomic<size_t> s_outstanding_svg_path_handles;
 
 static_assert(to_underlying(CSS::StyleGroupIndex::Count) == RustFFI::STYLE_GROUP_COUNT);
 static_assert(to_underlying(CSS::StyleGroupIndex::GridValues) == RustFFI::STYLE_GROUP_INDEX_GRID);
@@ -582,8 +581,8 @@ static RustFFI::FfiSvgPathResult compute_svg_path(NodeWithStyle const& node, Rus
     }
 
     auto bounding_box = path.bounding_box();
+    // Rust adopts this heap-allocated path and destroys it via ladybird_gfx_path_destroy().
     auto* path_handle = new Gfx::Path(move(path));
-    ++s_outstanding_svg_path_handles;
     return {
         .path_handle = path_handle,
         .bounding_box = {
@@ -597,14 +596,6 @@ static RustFFI::FfiSvgPathResult compute_svg_path(NodeWithStyle const& node, Rus
             .y = text_position.y(),
         },
     };
-}
-
-static void release_svg_path_handle(void const* handle)
-{
-    VERIFY(handle);
-    VERIFY(s_outstanding_svg_path_handles.load() > 0);
-    --s_outstanding_svg_path_handles;
-    delete static_cast<Gfx::Path const*>(handle);
 }
 
 Optional<RustFFI::FfiFormattingContextType> formatting_context_type_created_by_box(Box const& box)
@@ -957,10 +948,10 @@ RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
         .set_computed_svg_path = [](void*, void* paintable_pointer, void* path_pointer) {
             VERIFY(path_pointer);
             auto& paintable = *static_cast<Painting::Paintable*>(paintable_pointer);
+            // The path stays owned by the Rust layout state; only its contents move out.
             auto* path = static_cast<Gfx::Path*>(path_pointer);
             if (auto* svg_path_paintable = as_if<Painting::SVGPathPaintable>(paintable))
-                svg_path_paintable->set_computed_path(move(*path));
-            release_svg_path_handle(path); },
+                svg_path_paintable->set_computed_path(move(*path)); },
         .set_grid_layout_data = [](void*, void* paintable_pointer, RustFFI::FfiGridLayoutData const* data) {
             VERIFY(data);
             static_cast<Painting::Paintable*>(paintable_pointer)->set_grid_layout_data(build_grid_layout_data(*data)); },
@@ -1221,7 +1212,6 @@ RustFFI::FfiLayoutFcCallbacks LayoutRustBridge::formatting_context_callbacks()
             auto const* node_with_style = as_if<NodeWithStyle>(*static_cast<Node const*>(node));
             VERIFY(node_with_style);
             return compute_svg_path(*node_with_style, request); },
-        .release_svg_path = [](void*, void* path_handle) { release_svg_path_handle(path_handle); },
         .svg_image_bounding_box = [](void*, void* node, i32 viewport_width, i32 viewport_height) {
             auto const& image_box = as<SVGImageBox>(*static_cast<Node const*>(node));
             auto bounding_box = image_box.dom_node().bounding_box({

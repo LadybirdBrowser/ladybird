@@ -262,49 +262,6 @@ pub struct FfiCommitSink {
     pub assign_inline_box_geometry: unsafe extern "C" fn(*mut c_void, *mut c_void),
 }
 
-pub(crate) type ReleaseRetainedLayoutHandle = unsafe extern "C" fn(*mut c_void, *mut c_void);
-
-pub(crate) struct RetainedLayoutHandle {
-    handle: *mut c_void,
-    callback_context: *mut c_void,
-    release: ReleaseRetainedLayoutHandle,
-}
-
-impl RetainedLayoutHandle {
-    pub(crate) fn new(
-        handle: *mut c_void,
-        callback_context: *mut c_void,
-        release: ReleaseRetainedLayoutHandle,
-    ) -> Self {
-        assert!(!handle.is_null());
-        Self {
-            handle,
-            callback_context,
-            release,
-        }
-    }
-
-    pub(crate) fn take(&mut self) -> *mut c_void {
-        let handle = self.handle;
-        self.handle = null_mut();
-        handle
-    }
-}
-
-impl Drop for RetainedLayoutHandle {
-    fn drop(&mut self) {
-        if self.handle.is_null() {
-            return;
-        }
-        // SAFETY: Each retained layout handle is returned with one ownership
-        // unit by its creating callback and is either transferred to the
-        // commit sink or released exactly once with the paired callback.
-        unsafe {
-            (self.release)(self.callback_context, self.handle);
-        }
-    }
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct PendingAbsposChild {
     pub(crate) child_box: Node,
@@ -342,7 +299,7 @@ pub(crate) struct LineData {
 #[derive(Default)]
 pub(crate) struct UsedValuesRareData {
     pub(crate) table_cell_coordinates: Option<FfiTableCellCoordinates>,
-    pub(crate) computed_svg_path: Option<RetainedLayoutHandle>,
+    pub(crate) computed_svg_path: Option<libgfx_rust::path::OwnedPath>,
     pub(crate) computed_svg_transforms: Option<crate::layout::FfiSvgComputedTransforms>,
     pub(crate) svg_viewport_size: Option<crate::layout::FfiCssPixelSize>,
     pub(crate) grid_layout_data: Option<OwnedGridLayoutData>,
@@ -1017,12 +974,12 @@ impl LayoutState {
             }
 
             let (transforms, viewport_size, path) = self
-                .used_values_rare_data_mut_if_present(slot_index)
-                .map_or((None, None, None), |mut rare| {
+                .used_values_rare_data(slot_index)
+                .map_or((None, None, None), |rare| {
                     (
                         rare.computed_svg_transforms,
                         rare.svg_viewport_size,
-                        rare.computed_svg_path.as_mut().map(RetainedLayoutHandle::take),
+                        rare.computed_svg_path.as_ref().map(libgfx_rust::path::OwnedPath::as_raw),
                     )
                 });
             unsafe {
@@ -1033,6 +990,8 @@ impl LayoutState {
                     (sink.set_svg_viewport_size)(sink.context, paintable, viewport_size);
                 }
                 if let Some(path) = path {
+                    // The sink only borrows the path and moves its contents
+                    // out; the rare data keeps ownership until state teardown.
                     (sink.set_computed_svg_path)(sink.context, paintable, path);
                 }
             }
@@ -1110,14 +1069,5 @@ impl LayoutState {
         unsafe {
             (sink.finish_commit)(sink.context);
         }
-    }
-}
-
-impl LayoutState {
-    fn used_values_rare_data_mut_if_present(&self, slot_index: u32) -> Option<RefMut<'_, UsedValuesRareData>> {
-        self.used_values_by_slot(slot_index)?
-            .rare_data
-            .get()
-            .map(RefCell::borrow_mut)
     }
 }
