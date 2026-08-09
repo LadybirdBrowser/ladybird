@@ -9,6 +9,10 @@
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
 
+extern "C" {
+void ladybird_gfx_path_destroy(void*);
+}
+
 namespace Gfx {
 
 Path Path::from_serialized_bytes(ReadonlyBytes bytes)
@@ -42,4 +46,9 @@ ErrorOr<Gfx::Path> decode(Decoder& decoder)
     return Gfx::Path::from_serialized_bytes(path_data);
 }
 
+}
+
+extern "C" void ladybird_gfx_path_destroy(void* path)
+{
+    delete static_cast<Gfx::Path*>(path);
 }
