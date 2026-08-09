@@ -926,29 +926,29 @@ GC::Ptr<Selection::Selection> Document::get_selection() const
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-document-write
-WebIDL::ExceptionOr<void> Document::write(StringView text)
+WebIDL::ExceptionOr<void> Document::write(Utf16View text)
 {
     // The document.write(...text) method steps are to run the document write steps with this, text, false, and "Document write".
     return run_the_document_write_steps(text, AddLineFeed::No);
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-document-writeln
-WebIDL::ExceptionOr<void> Document::writeln(StringView text)
+WebIDL::ExceptionOr<void> Document::writeln(Utf16View text)
 {
     // The document.writeln(...text) method steps are to run the document write steps with this, text, true, and "Document writeln".
     return run_the_document_write_steps(text, AddLineFeed::Yes);
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#document-write-steps
-WebIDL::ExceptionOr<void> Document::run_the_document_write_steps(StringView text, AddLineFeed line_feed)
+WebIDL::ExceptionOr<void> Document::run_the_document_write_steps(Utf16View text, AddLineFeed line_feed)
 {
     // 1-4. The binding layer concatenates text and validates it with Trusted Types.
-    StringBuilder string;
+    Utf16StringBuilder string;
     string.append(text);
 
     // 5. If lineFeed is true, append U+000A LINE FEED to string.
     if (line_feed == AddLineFeed::Yes)
-        string.append('\n');
+        string.append_ascii('\n');
 
     // 6. If document is an XML document, then throw an "InvalidStateError" DOMException.
     if (m_type == Type::XML)
@@ -973,7 +973,7 @@ WebIDL::ExceptionOr<void> Document::run_the_document_write_steps(StringView text
     }
 
     // 10. Insert string into the input stream just before the insertion point.
-    m_parser->tokenizer().insert_input_at_insertion_point(string.string_view());
+    m_parser->tokenizer().insert_input_at_insertion_point(string.view());
 
     // 11. If document's pending parsing-blocking script is null, then have the HTML parser process string, one code
     //     point at a time, processing resulting tokens as they are emitted, and stopping when the tokenizer reaches
@@ -9902,10 +9902,10 @@ WebIDL::ExceptionOr<GC::Root<DOM::Document>> parse_html_unsafe(JS::Realm& realm,
     return document;
 }
 
-static WebIDL::ExceptionOr<String> document_write_compliant_string(DOM::Document& document, Vector<TrustedTypes::TrustedHTMLOrString> const& text, TrustedTypes::InjectionSink sink)
+static WebIDL::ExceptionOr<Utf16String> document_write_compliant_string(DOM::Document& document, Vector<TrustedTypes::TrustedHTMLOrString> const& text, TrustedTypes::InjectionSink sink)
 {
     // 1. Let string be the empty string.
-    StringBuilder string;
+    Utf16StringBuilder string;
 
     // 2. Let isTrusted be false if text contains a string; otherwise true.
     auto is_trusted = true;
@@ -9919,11 +9919,10 @@ static WebIDL::ExceptionOr<String> document_write_compliant_string(DOM::Document
     // 3. For each value of text:
     for (auto const& value : text) {
         string.append(value.visit(
-                               // 1. If value is a TrustedHTML object, then append value's associated data to string.
-                               [](GC::Root<TrustedTypes::TrustedHTML> const& value) { return value->to_string(); },
-                               // 2. Otherwise, append value to string.
-                               [](Utf16String const& value) { return value; })
-                .to_utf8_but_should_be_ported_to_utf16());
+            // 1. If value is a TrustedHTML object, then append value's associated data to string.
+            [](GC::Root<TrustedTypes::TrustedHTML> const& value) -> Utf16String const& { return value->to_string(); },
+            // 2. Otherwise, append value to string.
+            [](Utf16String const& value) -> Utf16String const& { return value; }));
     }
 
     // 4. If isTrusted is false, set string to the result of invoking the Get Trusted Type compliant string algorithm
@@ -9932,14 +9931,14 @@ static WebIDL::ExceptionOr<String> document_write_compliant_string(DOM::Document
         auto const new_string = TRY(TrustedTypes::get_trusted_type_compliant_string(
             TrustedTypes::TrustedTypeName::TrustedHTML,
             HTML::relevant_global_object(document),
-            Utf16String::from_utf8(MUST(string.to_string())),
+            string.to_string(),
             sink,
             "script"_utf16));
         string.clear();
-        string.append(new_string.to_utf8_but_should_be_ported_to_utf16());
+        string.append(new_string);
     }
 
-    return MUST(string.to_string());
+    return string.to_string();
 }
 
 WebIDL::ExceptionOr<void> write(DOM::Document& document, Vector<TrustedTypes::TrustedHTMLOrString> const& text)

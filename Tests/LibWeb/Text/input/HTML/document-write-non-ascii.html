@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    document.write("<span id=write>\u2603</span>");
+    document.writeln("<span id=writeln>\u00E9</span>");
+    document.close();
+
+    internals.signalTestIsDone([
+        document.getElementById("write").textContent.codePointAt(0).toString(16),
+        document.getElementById("writeln").textContent.codePointAt(0).toString(16),
+    ].join("\n"));
+</script>

@@ -625,8 +625,8 @@ public:
 
     void set_window(HTML::Window&);
 
-    WebIDL::ExceptionOr<void> write(StringView text);
-    WebIDL::ExceptionOr<void> writeln(StringView text);
+    WebIDL::ExceptionOr<void> write(Utf16View text);
+    WebIDL::ExceptionOr<void> writeln(Utf16View text);
 
     WebIDL::ExceptionOr<Document*> open(Optional<Utf16String> const& = {}, Optional<Utf16String> const& = {});
     WebIDL::ExceptionOr<GC::Ptr<HTML::WindowProxy>> open(Utf16View url, Utf16View name, Utf16View features);
@@ -1387,7 +1387,7 @@ private:
         Yes,
         No,
     };
-    WebIDL::ExceptionOr<void> run_the_document_write_steps(StringView text, AddLineFeed line_feed);
+    WebIDL::ExceptionOr<void> run_the_document_write_steps(Utf16View text, AddLineFeed line_feed);
 
     void queue_intersection_observer_task();
     void queue_an_intersection_observer_entry(IntersectionObserver::IntersectionObserver&, HighResolutionTime::DOMHighResTimeStamp time, GC::Ref<Geometry::DOMRectReadOnly> root_bounds, GC::Ref<Geometry::DOMRectReadOnly> bounding_client_rect, GC::Ref<Geometry::DOMRectReadOnly> intersection_rect, bool is_intersecting, double intersection_ratio, GC::Ref<Element> target);
