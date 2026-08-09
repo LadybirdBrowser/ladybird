@@ -26,5 +26,10 @@
     <body>
         <div id="indicator"></div>
         <div id="frame-placeholder"></div>
+        <script>
+            const unblockToken = new URLSearchParams(location.search).get("unblock");
+            if (unblockToken)
+                fetch(`/unblock/${encodeURIComponent(unblockToken)}`);
+        </script>
     </body>
 </html>
