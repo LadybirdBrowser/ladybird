@@ -214,15 +214,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         self.flex_items[index].used_values
     }
 
-    fn item_used_mut(&self, index: usize) -> &'pass UsedValues {
-        self.flex_items[index].used_values
-    }
-
     fn container_used(&self) -> &'pass UsedValues {
-        self.flex_container_state
-    }
-
-    fn container_used_mut(&self) -> &'pass UsedValues {
         self.flex_container_state
     }
 
@@ -432,49 +424,49 @@ impl<'pass> FlexFormattingContext<'pass> {
 
     fn set_has_definite_main_size(&mut self, index: usize) {
         if self.main_axis_is_horizontal() {
-            self.item_used_mut(index).has_definite_inline_size.set(true);
+            self.item_used(index).has_definite_inline_size.set(true);
         } else {
-            self.item_used_mut(index).has_definite_block_size.set(true);
+            self.item_used(index).has_definite_block_size.set(true);
         }
     }
 
     fn set_has_definite_cross_size(&mut self, index: usize) {
         if self.cross_axis_is_horizontal() {
-            self.item_used_mut(index).has_definite_inline_size.set(true);
+            self.item_used(index).has_definite_inline_size.set(true);
         } else {
-            self.item_used_mut(index).has_definite_block_size.set(true);
+            self.item_used(index).has_definite_block_size.set(true);
         }
     }
 
     fn set_main_size(&mut self, index: usize, size: CssPixels) {
         if self.main_axis_is_horizontal() {
-            self.item_used_mut(index).set_content_inline_size(size);
+            self.item_used(index).set_content_inline_size(size);
         } else {
-            self.item_used_mut(index).set_content_block_size(size);
+            self.item_used(index).set_content_block_size(size);
         }
     }
 
     fn set_cross_size(&mut self, index: usize, size: CssPixels) {
         if self.cross_axis_is_horizontal() {
-            self.item_used_mut(index).set_content_inline_size(size);
+            self.item_used(index).set_content_inline_size(size);
         } else {
-            self.item_used_mut(index).set_content_block_size(size);
+            self.item_used(index).set_content_block_size(size);
         }
     }
 
     fn set_container_main_size(&mut self, size: CssPixels) {
         if self.main_axis_is_horizontal() {
-            self.container_used_mut().set_content_inline_size(size);
+            self.container_used().set_content_inline_size(size);
         } else {
-            self.container_used_mut().set_content_block_size(size);
+            self.container_used().set_content_block_size(size);
         }
     }
 
     fn set_container_cross_size(&mut self, size: CssPixels) {
         if self.cross_axis_is_horizontal() {
-            self.container_used_mut().set_content_inline_size(size);
+            self.container_used().set_content_inline_size(size);
         } else {
-            self.container_used_mut().set_content_block_size(size);
+            self.container_used().set_content_block_size(size);
         }
     }
 
@@ -734,7 +726,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         let padding_top = style.padding_top().to_px(basis);
         let padding_bottom = style.padding_bottom().to_px(basis);
         {
-            let used = self.item_used_mut(index);
+            let used = self.item_used(index);
             used.padding_left.set(padding_left);
             used.padding_right.set(padding_right);
             used.padding_top.set(padding_top);
@@ -1872,18 +1864,18 @@ impl<'pass> FlexFormattingContext<'pass> {
     fn set_main_axis_first_margin(&mut self, index: usize, margin: CssPixels) {
         self.flex_items[index].margins.main_before = margin;
         if self.main_axis_is_horizontal() {
-            self.item_used_mut(index).margin_left.set(margin);
+            self.item_used(index).margin_left.set(margin);
         } else {
-            self.item_used_mut(index).margin_top.set(margin);
+            self.item_used(index).margin_top.set(margin);
         }
     }
 
     fn set_main_axis_second_margin(&mut self, index: usize, margin: CssPixels) {
         self.flex_items[index].margins.main_after = margin;
         if self.main_axis_is_horizontal() {
-            self.item_used_mut(index).margin_right.set(margin);
+            self.item_used(index).margin_right.set(margin);
         } else {
-            self.item_used_mut(index).margin_bottom.set(margin);
+            self.item_used(index).margin_bottom.set(margin);
         }
     }
 
@@ -2347,7 +2339,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         for index in 0..self.flex_items.len() {
             let style = self.style(self.flex_items[index].box_);
             {
-                let used = self.item_used_mut(index);
+                let used = self.item_used(index);
                 used.margin_left.set(style.margin_left().to_px(reference));
                 used.margin_right.set(style.margin_right().to_px(reference));
                 used.margin_top.set(style.margin_top().to_px(reference));

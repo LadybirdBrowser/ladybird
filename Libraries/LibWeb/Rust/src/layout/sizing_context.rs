@@ -26,10 +26,6 @@ impl<'pass> SizingContext<'pass> {
         self.state.used_values(&self.callbacks, node)
     }
 
-    fn used_mut(&self, node: Node) -> &'pass UsedValues {
-        self.state.used_values(&self.callbacks, node)
-    }
-
     fn parent(&self, node: Node) -> Node {
         self.callbacks.parent(node)
     }
@@ -947,7 +943,7 @@ impl<'pass> SizingContext<'pass> {
                 constraints,
             ));
         }
-        let used = self.used_mut(node);
+        let used = self.used(node);
         used.set_content_block_size(block_size);
         if !style.height().is_intrinsic_sizing_constraint() {
             used.has_definite_block_size.set(true);
@@ -1007,7 +1003,7 @@ impl<'pass> SizingContext<'pass> {
             //    according to the CSS specification.
             block_size = block_size.max(size);
             // NOTE: The block size of the root element when affected by this quirk is considered to be definite.
-            self.used_mut(node).has_definite_block_size.set(true);
+            self.used(node).has_definite_block_size.set(true);
         }
 
         if facts.document_in_quirks_mode() && facts.is_html_body_element() && style.height().is_auto() {
@@ -1034,12 +1030,12 @@ impl<'pass> SizingContext<'pass> {
                 block_size = block_size.max(size);
             }
         }
-        self.used_mut(node).set_content_block_size(block_size);
+        self.used(node).set_content_block_size(block_size);
     }
 
     pub(crate) fn resolve_box_model_metrics_against_inline_basis(&self, node: Node, containing_inline_size: CssPixels) {
         let style = self.style(node);
-        let used = self.used_mut(node);
+        let used = self.used(node);
         used.margin_left.set(style.margin_left().to_px(containing_inline_size));
         used.border_left.set(style.border_left_width());
         used.padding_left
@@ -1073,14 +1069,14 @@ impl<'pass> SizingContext<'pass> {
         let facts = self.facts(node);
         if self.box_is_sized_as_replaced_element(node, available_space, constraints) {
             let inline_size = self.compute_inline_size_for_replaced_element(node, available_space, constraints);
-            self.used_mut(node).set_content_inline_size(inline_size);
+            self.used(node).set_content_inline_size(inline_size);
             let block_size = self.compute_block_size_for_replaced_element(node, available_space, constraints);
-            self.used_mut(node).set_content_block_size(block_size);
+            self.used(node).set_content_block_size(block_size);
             let block_size_is_automatic =
                 style.height().is_auto() || self.should_treat_block_size_as_auto(node, available_space, constraints);
             if self.used(node).has_definite_inline_size() && facts.has_preferred_aspect_ratio() && block_size_is_automatic
             {
-                self.used_mut(node).has_definite_block_size.set(true);
+                self.used(node).has_definite_block_size.set(true);
             }
             return;
         }
@@ -1131,7 +1127,7 @@ impl<'pass> SizingContext<'pass> {
                 constraints,
             ));
         }
-        self.used_mut(node).set_content_inline_size(inline_size);
+        self.used(node).set_content_inline_size(inline_size);
 
         let inline_definite_space = AvailableSpace {
             inline_size: AvailableSize::definite(inline_size),
@@ -1292,7 +1288,7 @@ impl<'pass> SizingContext<'pass> {
         if measurement.available_block_size != available_block_size {
             return None;
         }
-        let used = self.used_mut(node);
+        let used = self.used(node);
         if used.content_inline_size.get() != measurement.content_inline_size {
             return None;
         }
@@ -1823,7 +1819,7 @@ impl<'pass> SizingContext<'pass> {
         if used_block_size <= natural {
             return;
         }
-        let used = self.used_mut(node);
+        let used = self.used(node);
         used.set_content_block_size(used_block_size);
         used.has_definite_block_size.set(true);
     }

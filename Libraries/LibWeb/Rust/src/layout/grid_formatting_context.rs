@@ -1179,15 +1179,7 @@ impl<'pass> GridFormattingContext<'pass> {
         self.container_used_values
     }
 
-    fn container_used_mut(&self) -> &'pass UsedValues {
-        self.container_used_values
-    }
-
     fn used(&self, item: GridItem<'pass>) -> &'pass UsedValues {
-        item.used_values
-    }
-
-    fn used_mut(&self, item: GridItem<'pass>) -> &'pass UsedValues {
         item.used_values
     }
 
@@ -2713,7 +2705,7 @@ impl<'pass> GridFormattingContext<'pass> {
             let item_start = item.position(axis);
             let item_end = item_start + item.span(axis) as i32;
             let track_count = self.axis_tracks(axis).len() as i32;
-            let used = self.used_mut(item);
+            let used = self.used(item);
             if axis.is_column() {
                 used.padding_left.set(style.padding_left().to_px(inline_basis));
                 used.padding_right.set(style.padding_right().to_px(inline_basis));
@@ -2974,7 +2966,7 @@ impl<'pass> GridFormattingContext<'pass> {
                 // display:table, the anonymous table wrapper is the grid item, while table layout computes the inner
                 // table's border-box inline size, so resolve the wrapper with the same grid-area basis used later.
                 let resolved = self.resolve_table_wrapper_inline_size(item, containing);
-                let used = self.used_mut(item);
+                let used = self.used(item);
                 used.margin_left.set(resolved.margin_start);
                 used.margin_right.set(resolved.margin_end);
                 used.set_content_inline_size(resolved.size);
@@ -3134,7 +3126,7 @@ impl<'pass> GridFormattingContext<'pass> {
                 }
             }
 
-            let used = self.used_mut(item);
+            let used = self.used(item);
             if axis.is_column() {
                 used.margin_left.set(resolved.margin_start);
                 used.margin_right.set(resolved.margin_end);
@@ -3393,13 +3385,13 @@ impl<'pass> GridFormattingContext<'pass> {
                 let resolved = self.resolve_table_wrapper_inline_size(item, area.size.inline_size);
                 table_wrapper_inline_basis =
                     Some(self.non_cyclic_table_wrapper_inline_size(item, area.size.inline_size));
-                let used = self.used_mut(item);
+                let used = self.used(item);
                 used.margin_left.set(resolved.margin_start);
                 used.margin_right.set(resolved.margin_end);
                 used.set_content_inline_size(resolved.size);
             }
             {
-                let used = self.used_mut(item);
+                let used = self.used(item);
                 used.has_definite_inline_size.set(true);
                 used.has_definite_block_size.set(true);
             }
@@ -3696,11 +3688,11 @@ impl<'pass> GridFormattingContext<'pass> {
             // (including gutters) in the appropriate axis, when the grid is sized under a max-content constraint (min-content constraint).
             if available.inline_size.is_intrinsic_sizing_constraint() {
                 let size = self.track_sum(Axis::Column);
-                self.container_used_mut().set_content_inline_size(size);
+                self.container_used().set_content_inline_size(size);
             }
             if available.block_size.is_intrinsic_sizing_constraint() {
                 let size = self.track_sum(Axis::Row);
-                self.container_used_mut().set_content_block_size(size);
+                self.container_used().set_content_block_size(size);
             }
             return;
         }

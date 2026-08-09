@@ -236,10 +236,6 @@ impl<'pass> BlockFormattingContext<'pass> {
         self.state.used_values(&self.callbacks, node)
     }
 
-    fn used_mut(&self, node: Node) -> &'pass UsedValues {
-        self.used(node)
-    }
-
     fn create_used_values(&self, node: Node, constraints: ContainingBlockConstraints) -> &'pass UsedValues {
         self.state.create_used_values(&self.callbacks, node, constraints)
     }
@@ -358,7 +354,7 @@ impl<'pass> BlockFormattingContext<'pass> {
 
     fn resolve_vertical_box_model_metrics(&self, node: Node, containing_block_inline_size: CssPixels) {
         let style = self.style(node);
-        let used = self.used_mut(node);
+        let used = self.used(node);
         used.margin_top
             .set(style.margin_top().to_px(containing_block_inline_size));
         used.margin_bottom
@@ -448,7 +444,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         let content_inline_size =
             self.resolve_root_inline_metrics_and_content_size(node, available_space, constraints, float_avoidance_inline_size);
         if let Some(content_inline_size) = content_inline_size {
-            self.used_mut(node).set_content_inline_size(content_inline_size);
+            self.used(node).set_content_inline_size(content_inline_size);
         }
     }
 
@@ -476,7 +472,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             // margins. Replaced sizing consults the box's own used metrics,
             // so they are written first.
             {
-                let used = self.used_mut(node);
+                let used = self.used(node);
                 used.margin_left.set(style.margin_left().to_px(available_inline_size));
                 used.margin_right.set(style.margin_right().to_px(available_inline_size));
                 used.border_left.set(style.border_left_width());
@@ -507,7 +503,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         let border_left_width = style.border_left_width();
         let border_right_width = style.border_right_width();
         {
-            let used = self.used_mut(node);
+            let used = self.used(node);
             used.margin_left.set(margin_left);
             used.margin_right.set(margin_right);
             used.border_left.set(border_left_width);
@@ -700,7 +696,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         }
 
         {
-            let used = self.used_mut(node);
+            let used = self.used(node);
             used.margin_left.set(margin_left);
             used.margin_right.set(margin_right);
         }
@@ -723,7 +719,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         let padding_left = style.padding_left().to_px(containing_block_inline_size);
         let padding_right = style.padding_right().to_px(containing_block_inline_size);
         {
-            let used = self.used_mut(node);
+            let used = self.used(node);
             used.padding_left.set(padding_left);
             used.padding_right.set(padding_right);
             used.margin_left.set(margin_left);
@@ -1430,7 +1426,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         let max_content_inline_size = self
             .sizing()
             .calculate_max_content_inline_size(marker, marker_constraints);
-        let marker_used = self.used_mut(marker);
+        let marker_used = self.used(marker);
         marker_used.set_content_inline_size(max_content_inline_size);
         marker_used.has_definite_inline_size.set(true);
         let inner_available_space = crate::layout::AvailableSpace {
@@ -1692,7 +1688,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         if !has_independent_formatting_context
             && let Some(content_inline_size) = probe.content_inline_size
         {
-            self.used_mut(node).set_content_inline_size(content_inline_size);
+            self.used(node).set_content_inline_size(content_inline_size);
         }
         let content_inline_size_now = probe
             .content_inline_size
@@ -1902,7 +1898,7 @@ impl<'pass> BlockFormattingContext<'pass> {
 
         if let Some(position) = pending_position {
             if let Some(coordinate) = containing_line_box_fragment {
-                let used = self.used_mut(node);
+                let used = self.used(node);
                 used.has_containing_line_box_fragment.set(true);
                 used.containing_line_box_fragment.set(coordinate);
             }
@@ -2039,7 +2035,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                     ));
                 }
             }
-            let used = self.used_mut(block_container);
+            let used = self.used(block_container);
             used.set_content_inline_size(inline_size);
             used.set_content_block_size(bottom_of_lowest_margin_box);
         }
@@ -2112,7 +2108,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                     ));
                 }
             }
-            let used = self.used_mut(fieldset);
+            let used = self.used(fieldset);
             used.set_content_inline_size(inline_size);
             used.set_content_block_size(bottom_of_lowest_margin_box);
         }
@@ -2308,7 +2304,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             input.containing_block_constraints,
             input.sizing.float_avoidance_inline_size,
         ) {
-            self.used_mut(node).set_content_inline_size(content_inline_size);
+            self.used(node).set_content_inline_size(content_inline_size);
         }
     }
 
@@ -2375,7 +2371,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         if self.facts(node).is_table_wrapper()
             && let Some((automatic_content_inline_size, _)) = run_automatic_sizes
         {
-            self.used_mut(node).set_content_inline_size(automatic_content_inline_size);
+            self.used(node).set_content_inline_size(automatic_content_inline_size);
         }
         self.resolve_used_block_size_if_treated_as_auto(
             node,
@@ -2593,7 +2589,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                     used_inline_size = used_inline_size.max(minimum);
                 }
             }
-            let used = self.used_mut(block_container);
+            let used = self.used(block_container);
             used.set_content_inline_size(used_inline_size);
             used.set_content_block_size(automatic_block_size);
         }

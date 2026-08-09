@@ -756,10 +756,6 @@ impl<'context, 'pass> InlineFormattingContext<'context, 'pass> {
         self.state.used_values(&self.callbacks, node)
     }
 
-    pub(crate) fn used_mut(&self, node: Node) -> &'pass UsedValues {
-        self.state.used_values(&self.callbacks, node)
-    }
-
     pub(crate) fn create_used_values(
         &self,
         node: Node,
