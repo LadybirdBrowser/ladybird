@@ -475,6 +475,28 @@ impl<'pass> SizingContext<'pass> {
         (input_inline_size, input_block_size)
     }
 
+    // The computed inline and block sizes a replaced element is sized from, with sizes that must be
+    // treated as automatic replaced by `auto`.
+    fn computed_sizes_for_replaced_element(
+        &self,
+        node: Node,
+        available_space: AvailableSpace,
+        constraints: ContainingBlockConstraints,
+    ) -> (&'pass ComputedSize, &'pass ComputedSize) {
+        let style = self.style(node);
+        let inline = if self.should_treat_inline_size_as_auto(node, available_space) {
+            auto_computed_size()
+        } else {
+            style.width()
+        };
+        let block = if self.should_treat_block_size_as_auto(node, available_space, constraints) {
+            auto_computed_size()
+        } else {
+            style.height()
+        };
+        (inline, block)
+    }
+
     pub(crate) fn compute_inline_size_for_replaced_element(
         &self,
         node: Node,
@@ -484,16 +506,8 @@ impl<'pass> SizingContext<'pass> {
         // 10.3.4 Block-level, replaced elements in normal flow...
         // 10.3.2 Inline, replaced elements
         let style = self.style(node);
-        let computed_inline = if self.should_treat_inline_size_as_auto(node, available_space) {
-            auto_computed_size()
-        } else {
-            style.width()
-        };
-        let computed_block = if self.should_treat_block_size_as_auto(node, available_space, constraints) {
-            auto_computed_size()
-        } else {
-            style.height()
-        };
+        let (computed_inline, computed_block) =
+            self.computed_sizes_for_replaced_element(node, available_space, constraints);
         // 1. The tentative used width is calculated (without 'min-width' and 'max-width')
         let mut used =
             self.tentative_inline_size_for_replaced_element(node, computed_inline, available_space, constraints);
@@ -546,16 +560,8 @@ impl<'pass> SizingContext<'pass> {
         // 10.6.6 Floating replaced elements
         // 10.6.10 'inline-block' replaced elements in normal flow
         let style = self.style(node);
-        let computed_inline = if self.should_treat_inline_size_as_auto(node, available_space) {
-            auto_computed_size()
-        } else {
-            style.width()
-        };
-        let computed_block = if self.should_treat_block_size_as_auto(node, available_space, constraints) {
-            auto_computed_size()
-        } else {
-            style.height()
-        };
+        let (computed_inline, computed_block) =
+            self.computed_sizes_for_replaced_element(node, available_space, constraints);
         // 1. The tentative used height is calculated (without 'min-height' and 'max-height')
         let mut used =
             self.tentative_block_size_for_replaced_element(node, computed_block, available_space, constraints);
