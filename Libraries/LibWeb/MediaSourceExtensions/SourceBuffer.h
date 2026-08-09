@@ -47,6 +47,10 @@ public:
     AppendMode mode() const;
     WebIDL::ExceptionOr<void> set_mode(AppendMode);
 
+    // https://w3c.github.io/media-source/#dom-sourcebuffer-timestampoffset
+    double timestamp_offset() const;
+    WebIDL::ExceptionOr<void> set_timestamp_offset(double);
+
     // https://w3c.github.io/media-source/#dom-sourcebuffer-updating
     bool updating() const;
 

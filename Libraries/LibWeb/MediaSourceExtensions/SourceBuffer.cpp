@@ -193,6 +193,50 @@ AppendMode SourceBuffer::mode() const
     return m_processor->mode();
 }
 
+// https://w3c.github.io/media-source/#dom-sourcebuffer-timestampoffset
+double SourceBuffer::timestamp_offset() const
+{
+    return m_processor->timestamp_offset().to_seconds_f64();
+}
+
+// https://w3c.github.io/media-source/#dom-sourcebuffer-timestampoffset
+WebIDL::ExceptionOr<void> SourceBuffer::set_timestamp_offset(double timestamp_offset)
+{
+    // 1. Let new timestamp offset equal the new value being assigned to this attribute.
+
+    // 2. If this object has been removed from the sourceBuffers attribute of the parent media source, then throw
+    //    an InvalidStateError exception and abort these steps.
+    if (!m_media_source->source_buffers()->contains(*this))
+        return WebIDL::InvalidStateError::create("SourceBuffer has been removed"_utf16);
+
+    // 3. If the updating attribute equals true, then throw an InvalidStateError exception and abort these steps.
+    if (updating())
+        return WebIDL::InvalidStateError::create("SourceBuffer is updating"_utf16);
+
+    // 4. If the readyState attribute of the parent media source is in the "ended" state then run the following steps:
+    if (m_media_source->ready_state() == Bindings::ReadyState::Ended) {
+        // 1. Set the readyState attribute of the parent media source to "open"
+        // 2. Queue a task to fire an event named sourceopen at the parent media source.
+        m_media_source->set_ready_state_to_open_and_fire_sourceopen_event();
+    }
+
+    // 5. If the [[append state]] equals PARSING_MEDIA_SEGMENT, then throw an InvalidStateError exception and abort
+    //    these steps.
+    if (m_processor->is_parsing_media_segment())
+        return WebIDL::InvalidStateError::create("Cannot set timestampOffset while parsing a media segment"_utf16);
+
+    auto new_timestamp_offset = AK::Duration::from_seconds_f64(timestamp_offset);
+
+    // 6. If the mode attribute equals "sequence", then set the [[group start timestamp]] to new timestamp offset.
+    if (m_processor->mode() == AppendMode::Sequence)
+        m_processor->set_group_start_timestamp(new_timestamp_offset);
+
+    // 7. Update the attribute to new timestamp offset.
+    m_processor->set_timestamp_offset(new_timestamp_offset);
+
+    return {};
+}
+
 // https://w3c.github.io/media-source/#dom-sourcebuffer-updating
 bool SourceBuffer::updating() const
 {
