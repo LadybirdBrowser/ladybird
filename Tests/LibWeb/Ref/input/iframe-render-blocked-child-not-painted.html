@@ -35,7 +35,8 @@
         <script>
             document.addEventListener("DOMContentLoaded", async () => {
                 const server = httpTestServer();
-                const stylesheetURL = await server.createEcho("GET", "/iframe-render-blocked-child-not-painted.css", {
+                const routeNamespace = location.hostname;
+                const stylesheetURL = await server.createEcho("GET", `/iframe-render-blocked-child-not-painted-${routeNamespace}.css`, {
                     status: 200,
                     headers: {
                         "Content-Type": "text/css",
@@ -44,7 +45,7 @@
                     delay_ms: 1000,
                 });
 
-                const childURL = await server.createEcho("GET", "/iframe-render-blocked-child-not-painted-child.html", {
+                const childURL = await server.createEcho("GET", `/iframe-render-blocked-child-not-painted-child-${routeNamespace}.html`, {
                     status: 200,
                     headers: {
                         "Content-Type": "text/html",
