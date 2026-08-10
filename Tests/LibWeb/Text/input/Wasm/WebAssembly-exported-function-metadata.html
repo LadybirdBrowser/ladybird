@@ -27,6 +27,26 @@
         println(`name descriptor: writable=${nameDescriptor.writable}, enumerable=${nameDescriptor.enumerable}, configurable=${nameDescriptor.configurable}`);
         println(`call result: ${fn(42, 7)}`);
 
+        // This module imports a global followed by two functions and places the functions into an exported table.
+        // Host function names are their index among the external function imports, ignoring non-function imports.
+        const importedFunctionBytes = new Uint8Array([
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+            0x01, 0x04, 0x01, 0x60, 0x00, 0x00,
+            0x02, 0x16, 0x03,
+            0x01, 0x6d, 0x01, 0x67, 0x03, 0x7f, 0x00,
+            0x01, 0x6d, 0x02, 0x66, 0x30, 0x00, 0x00,
+            0x01, 0x6d, 0x02, 0x66, 0x31, 0x00, 0x00,
+            0x04, 0x04, 0x01, 0x70, 0x00, 0x02,
+            0x07, 0x09, 0x01, 0x05, 0x74, 0x61, 0x62, 0x6c, 0x65, 0x01, 0x00,
+            0x09, 0x08, 0x01, 0x00, 0x41, 0x00, 0x0b, 0x02, 0x00, 0x01,
+        ]);
+
+        const imports = { m: { g: 42, f0() {}, f1() {} } };
+        const { instance: importedFunctionInstance } = await WebAssembly.instantiate(importedFunctionBytes, imports);
+
+        println(`imported function 0 name: ${importedFunctionInstance.exports.table.get(0).name}`);
+        println(`imported function 1 name: ${importedFunctionInstance.exports.table.get(1).name}`);
+
         done();
     });
 </script>

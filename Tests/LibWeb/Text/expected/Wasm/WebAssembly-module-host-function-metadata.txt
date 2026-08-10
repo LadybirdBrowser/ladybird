@@ -1,0 +1,2 @@
+function 0 name: 0
+function 1 name: 1
