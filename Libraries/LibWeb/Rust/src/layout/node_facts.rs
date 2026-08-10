@@ -113,7 +113,6 @@ pub(crate) fn kind_is_box(kind: NodeKind) -> bool {
             | NodeKind::InlineNode
             | NodeKind::Node
             | NodeKind::NodeWithStyle
-            | NodeKind::NodeWithStyleAndBoxModelMetrics
             | NodeKind::GeneratedTextNode
             | NodeKind::TextNode
             | NodeKind::TextSliceNode

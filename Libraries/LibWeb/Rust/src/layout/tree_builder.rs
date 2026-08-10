@@ -2072,12 +2072,9 @@ fn kind_facts(kind: NodeKind) -> FfiNodeKindFacts {
     };
 
     match kind {
-        NodeKind::Unset
-        | NodeKind::BreakNode
-        | NodeKind::InlineNode
-        | NodeKind::Node
-        | NodeKind::NodeWithStyle
-        | NodeKind::NodeWithStyleAndBoxModelMetrics => NON_BOX,
+        NodeKind::Unset | NodeKind::BreakNode | NodeKind::InlineNode | NodeKind::Node | NodeKind::NodeWithStyle => {
+            NON_BOX
+        }
         NodeKind::GeneratedTextNode | NodeKind::TextNode | NodeKind::TextSliceNode => TEXT,
         NodeKind::Box | NodeKind::ListItemMarkerBox => BOX,
         NodeKind::AudioBox

@@ -1120,7 +1120,7 @@ RustFFI::FfiLayoutFcCallbacks LayoutRustBridge::formatting_context_callbacks()
         .document_in_quirks_mode = m_commit_root->document().in_quirks_mode(),
         .static_position_containing_block = [](void*, void* node) { return Node::slot_id(static_cast<Box const*>(node)->static_position_containing_block()); },
         .needs_inset_resolution = [](void*, void* node) {
-            auto const& styled_node = *static_cast<NodeWithStyleAndBoxModelMetrics const*>(node);
+            auto const& styled_node = *static_cast<NodeWithStyle const*>(node);
             if (styled_node.computed_values().position() == CSS::Positioning::Relative)
                 return true;
             auto const* box = as_if<Box>(styled_node);

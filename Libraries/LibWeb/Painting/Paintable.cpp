@@ -938,7 +938,7 @@ NonnullRefPtr<Paintable> Paintable::create(Layout::Box const& layout_box)
     return adopt_ref(*new Paintable(layout_box));
 }
 
-Paintable::Paintable(Layout::NodeWithStyleAndBoxModelMetrics const& layout_node)
+Paintable::Paintable(Layout::NodeWithStyle const& layout_node)
     : m_layout_node(layout_node)
 {
     auto& computed_values = layout_node.computed_values();
@@ -960,7 +960,7 @@ Paintable::Paintable(Layout::NodeWithStyleAndBoxModelMetrics const& layout_node)
 }
 
 Paintable::Paintable(Layout::Box const& layout_box)
-    : Paintable(static_cast<Layout::NodeWithStyleAndBoxModelMetrics const&>(layout_box))
+    : Paintable(static_cast<Layout::NodeWithStyle const&>(layout_box))
 {
 }
 

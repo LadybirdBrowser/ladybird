@@ -173,7 +173,7 @@ public:
     bool is_replaced_element() const;
     bool is_atomic_inline() const;
     bool is_fragmented_inline() const;
-    NodeWithStyleAndBoxModelMetrics const* nearest_fragmented_inline_ancestor() const;
+    NodeWithStyle const* nearest_fragmented_inline_ancestor() const;
 
     // An element is called out of flow if it is floated, absolutely positioned, or is the root element.
     // https://www.w3.org/TR/CSS22/visuren.html#positioning-scheme
@@ -206,7 +206,6 @@ public:
     virtual bool is_legend_box() const { return false; }
     virtual bool is_table_wrapper() const { return false; }
     virtual bool is_node_with_style() const { return false; }
-    virtual bool is_node_with_style_and_box_model_metrics() const { return false; }
 
     bool is_replaced_box_with_children() const { return is_replaced_box() && can_have_children(); }
 
@@ -467,25 +466,6 @@ private:
 
 template<>
 inline bool Node::fast_is<NodeWithStyle>() const { return is_node_with_style(); }
-
-class NodeWithStyleAndBoxModelMetrics : public NodeWithStyle {
-    LAYOUT_NODE(NodeWithStyleAndBoxModelMetrics, NodeWithStyle);
-
-public:
-    bool is_inline_flow_interrupting_block() const;
-
-protected:
-    NodeWithStyleAndBoxModelMetrics(DOM::Document& document, DOM::Node* node, NonnullRefPtr<CSS::ComputedValues const> computed_values)
-        : NodeWithStyle(document, node, move(computed_values))
-    {
-    }
-
-private:
-    virtual bool is_node_with_style_and_box_model_metrics() const final { return true; }
-};
-
-template<>
-inline bool Node::fast_is<NodeWithStyleAndBoxModelMetrics>() const { return is_node_with_style_and_box_model_metrics(); }
 
 inline bool Node::has_style_or_parent_with_style() const
 {

@@ -35,7 +35,6 @@
 #include <LibWeb/Painting/PaintableWithLines.h>
 #include <LibWeb/SVG/SVGClipPathElement.h>
 #include <LibWeb/SVG/SVGFilterElement.h>
-#include <LibWeb/SVG/SVGForeignObjectElement.h>
 #include <LibWeb/SVG/SVGGradientElement.h>
 #include <LibWeb/SVG/SVGPatternElement.h>
 #include <LibWeb/SVG/SVGTextContentElement.h>
@@ -915,13 +914,13 @@ bool Node::is_fragmented_inline() const
         || (is_list_item_box() && as<NodeWithStyle>(*this).display().is_inline_outside() && as<NodeWithStyle>(*this).display().is_flow_inside());
 }
 
-NodeWithStyleAndBoxModelMetrics const* Node::nearest_fragmented_inline_ancestor() const
+NodeWithStyle const* Node::nearest_fragmented_inline_ancestor() const
 {
     for (auto const* ancestor = parent(); ancestor; ancestor = ancestor->parent()) {
         if (!ancestor->display().is_inline_outside() || !ancestor->display().is_flow_inside())
             break;
         if (ancestor->is_fragmented_inline())
-            return static_cast<NodeWithStyleAndBoxModelMetrics const*>(ancestor);
+            return static_cast<NodeWithStyle const*>(ancestor);
     }
     return nullptr;
 }
@@ -1388,48 +1387,6 @@ bool NodeWithStyle::has_paint_containment() const
     // - if its principal box is an internal ruby box or a non-atomic inline-level box
     // FIXME: Also check for internal ruby boxes.
     if (display().is_inline_outside() && display().is_flow_inside() && !is_replaced_box())
-        return false;
-
-    return true;
-}
-
-bool NodeWithStyleAndBoxModelMetrics::is_inline_flow_interrupting_block() const
-{
-    // This node remains a layout child of its inline-flow parent. InlineLevelIterator emits it as a BlockLevelBox item
-    // so the inline formatting context can lay it out as an interrupting block.
-    if (!parent())
-        return false;
-    auto const& parent_display = parent()->display();
-    if (!parent_display.is_inline_outside() || !parent_display.is_flow_inside())
-        return false;
-
-    // This node must not be inline itself or out of flow (which gets handled separately).
-    if (display().is_inline_outside() || is_out_of_flow())
-        return false;
-
-    // This node must not have `display: contents`; interrupting block handling gets delegated to its children.
-    if (display().is_contents())
-        return false;
-
-    // Internal table display types and table captions are handled by the table fixup algorithm.
-    if (display().is_internal_table() || display().is_table_caption())
-        return false;
-
-    // Parent element must not be <foreignObject>
-    if (is<SVG::SVGForeignObjectElement>(parent()->dom_node()))
-        return false;
-
-    // Non-root SVG elements and foreign object boxes should not interrupt inline flow.
-    if (is_svg_box() || is_svg_foreign_object_box())
-        return false;
-
-    // Nested SVG roots should not interrupt inline flow, but a top-level SVG root inside an HTML inline element should.
-    if (is_svg_svg_box() && (parent()->is_svg_box() || parent()->is_svg_svg_box()))
-        return false;
-
-    // Replaced boxes with children (e.g. media elements with shadow DOM controls)
-    // have their own formatting context; don't let their children interrupt inline flow.
-    if (parent()->is_replaced_box_with_children())
         return false;
 
     return true;
