@@ -2510,6 +2510,116 @@ impl TableFormattingContext {
         }
     }
 
+    // https://drafts.csswg.org/css2/#table-layers
+    fn build_column_background_data(&mut self) {
+        if self.purpose.is_measurement() || self.columns.is_empty() || self.rows.is_empty() {
+            return;
+        }
+
+        let inline_spacing = self.border_spacing_inline();
+        let block_spacing = self.border_spacing_block();
+
+        // Rects are relative to the table box's content box. Columns cover the band of rows placed
+        // by position_row_boxes().
+        let rows_top = block_spacing;
+        let mut rows_bottom = rows_top;
+        let mut row_offset = rows_top;
+        for row in &self.rows {
+            if row.is_collapsed {
+                continue;
+            }
+            rows_bottom = row_offset + row.final_block_size;
+            row_offset = rows_bottom + block_spacing;
+        }
+
+        let column_count = self.columns.len();
+        let column_rect = |columns: &[Column], start: usize, span: usize| -> FfiCssPixelRect {
+            let x = inline_spacing + columns[start].inline_offset + inline_spacing * start;
+            let mut width = inline_spacing * (span - 1);
+            for column in &columns[start..start + span] {
+                width += column.used_inline_size;
+            }
+            FfiCssPixelRect {
+                x,
+                y: rows_top,
+                width,
+                height: rows_bottom - rows_top,
+            }
+        };
+
+        let mut entries = vec![FfiTableColumnBackground::default(); column_count];
+        let mut has_column_boxes = false;
+        let mut column_index = 0usize;
+
+        let mut child = self.first_child(self.table_box);
+        while !child.is_invalid() {
+            let facts = self.node_facts(child);
+            if !facts.is_box() {
+                child = self.next_sibling(child);
+                continue;
+            }
+            let is_table_column_group = facts.is_table_column_group();
+            let is_table_column = facts.is_table_column();
+            if is_table_column_group {
+                has_column_boxes = true;
+                let group_start = column_index;
+                let group_shell = self.callbacks.shell(child);
+                let columns_in_group = self.matching_children(child, |facts| facts.is_table_column());
+                if columns_in_group.is_empty() {
+                    // A column group without table-column children generates span-many columns itself.
+                    if column_index < column_count {
+                        let span = self.table_column_span(child).min(column_count - column_index);
+                        let rect = column_rect(&self.columns, column_index, span);
+                        for entry in &mut entries[column_index..column_index + span] {
+                            entry.column_group_shell = group_shell;
+                            entry.column_group_rect = rect;
+                        }
+                        column_index += span;
+                    }
+                } else {
+                    for column in columns_in_group {
+                        if column_index >= column_count {
+                            continue;
+                        }
+                        let span = self.table_column_span(column).min(column_count - column_index);
+                        let column_shell = self.callbacks.shell(column);
+                        let rect = column_rect(&self.columns, column_index, span);
+                        for entry in &mut entries[column_index..column_index + span] {
+                            entry.column_shell = column_shell;
+                            entry.column_rect = rect;
+                        }
+                        column_index += span;
+                    }
+                    if column_index > group_start {
+                        let rect = column_rect(&self.columns, group_start, column_index - group_start);
+                        for entry in &mut entries[group_start..column_index] {
+                            entry.column_group_shell = group_shell;
+                            entry.column_group_rect = rect;
+                        }
+                    }
+                }
+            } else if is_table_column {
+                has_column_boxes = true;
+                if column_index < column_count {
+                    let span = self.table_column_span(child).min(column_count - column_index);
+                    let column_shell = self.callbacks.shell(child);
+                    let rect = column_rect(&self.columns, column_index, span);
+                    for entry in &mut entries[column_index..column_index + span] {
+                        entry.column_shell = column_shell;
+                        entry.column_rect = rect;
+                    }
+                    column_index += span;
+                }
+            }
+            child = self.next_sibling(child);
+        }
+
+        if !has_column_boxes {
+            return;
+        }
+        self.used_values(self.table_box).rare_data_mut().table_column_backgrounds = Some(entries);
+    }
+
     fn compute_and_store_baselines(&self, node: Node) {
         let baselines = crate::layout::derive_baselines(&self.records, &self.callbacks, node, false);
         if node == self.table_box {
@@ -2554,6 +2664,7 @@ impl TableFormattingContext {
         self.position_row_boxes();
         self.layout_deferred_cells_inside(run);
         self.position_cell_boxes();
+        self.build_column_background_data();
         table_used.set_content_block_size(self.table_block_size);
         // Derive baselines for the table internals bottom-up (rows, then row groups, then the table box)
         // now that all offsets are final, so the table exports its baseline to outside consumers

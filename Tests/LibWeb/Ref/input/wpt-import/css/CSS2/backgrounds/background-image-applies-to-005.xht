@@ -1,0 +1,60 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <title>CSS Test: Background-image applied to elements with 'display' set to 'table-column-group'</title>
+        <link rel="author" title="Microsoft" href="http://www.microsoft.com/" />
+        <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2012-11-27 -->
+        <link rel="help" href="http://www.w3.org/TR/CSS21/colors.html#propdef-background" />
+        <link rel="help" href="http://www.w3.org/TR/CSS21/colors.html#background-properties" />
+        <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/backgrounds/../reference/ref-filled-black-96px-square.xht" />
+
+        <meta name="flags" content="image" />
+        <meta name="assert" content="The 'background-image' property applies to elements with 'display' set to 'table-column-group'." />
+        <style type="text/css">
+            #test
+            {
+                display: table-column-group;
+                background-image: url('support/black15x15.png');
+            }
+            #table
+            {
+                display: table;
+                table-layout: fixed;
+                width: 1in;
+            }
+
+            .col
+            {
+                display: table-column;
+            }
+
+            .row
+            {
+                display: table-row;
+            }
+            .cell
+            {
+                display: table-cell;
+                height: 0.5in;
+            }
+        </style>
+    </head>
+    <body>
+        <p>Test passes if there is a filled black square.</p>
+
+        <div id="table">
+
+            <div id="test"><div class="col"></div><div class="col"></div></div>
+
+                <div class="row">
+                    <div class="cell">a</div><div class="cell">b</div>
+                </div>
+
+                <div class="row">
+                    <div class="cell">c</div><div class="cell">d</div>
+                </div>
+
+        </div>
+
+    </body>
+</html>

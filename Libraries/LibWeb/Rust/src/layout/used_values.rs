@@ -123,6 +123,7 @@ pub(crate) struct LineData {
 #[derive(Default)]
 pub(crate) struct UsedValuesRareData {
     pub(crate) table_cell_coordinates: Option<FfiTableCellCoordinates>,
+    pub(crate) table_column_backgrounds: Option<Vec<FfiTableColumnBackground>>,
     pub(crate) computed_svg_path: Option<libgfx_rust::path::OwnedPath>,
     pub(crate) computed_svg_transforms: Option<crate::layout::FfiSvgComputedTransforms>,
     pub(crate) svg_viewport_size: Option<crate::layout::FfiCssPixelSize>,
@@ -137,6 +138,7 @@ impl UsedValuesRareData {
     pub(crate) fn install_present_payloads_into(self, record: &UsedValues) {
         let Self {
             table_cell_coordinates,
+            table_column_backgrounds,
             computed_svg_path,
             computed_svg_transforms,
             svg_viewport_size,
@@ -150,7 +152,8 @@ impl UsedValuesRareData {
             table_cell_coordinates.is_none() && override_borders_data.is_none() && abspos_layout_inputs.is_none(),
             "a run authored a parent-owned rare payload on its root record"
         );
-        if computed_svg_path.is_none()
+        if table_column_backgrounds.is_none()
+            && computed_svg_path.is_none()
             && computed_svg_transforms.is_none()
             && svg_viewport_size.is_none()
             && grid_layout_data.is_none()
@@ -160,6 +163,9 @@ impl UsedValuesRareData {
             return;
         }
         let mut rare = record.rare_data_mut();
+        if let Some(column_backgrounds) = table_column_backgrounds {
+            rare.table_column_backgrounds = Some(column_backgrounds);
+        }
         if let Some(path) = computed_svg_path {
             rare.computed_svg_path = Some(path);
         }

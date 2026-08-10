@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/table-colgroup-span-background-ref.html" />
+<style>
+table {
+    table-layout: fixed;
+    width: 100px;
+    border-collapse: collapse;
+}
+td {
+    height: 50px;
+}
+</style>
+<p>Test passes if there is a 100x100 green square.</p>
+<table>
+    <colgroup span="2" style="background: green"></colgroup>
+    <tr><td></td><td></td></tr>
+    <tr><td></td><td></td></tr>
+</table>

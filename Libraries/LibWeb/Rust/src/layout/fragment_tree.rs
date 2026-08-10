@@ -21,6 +21,7 @@ pub(crate) struct Fragment {
     pub(crate) padding_top: CssPixels,
     pub(crate) padding_bottom: CssPixels,
     pub(crate) table_cell_coordinates: Option<FfiTableCellCoordinates>,
+    pub(crate) table_column_backgrounds: Option<Vec<FfiTableColumnBackground>>,
     pub(crate) override_borders_data: Option<FfiBordersData>,
     pub(crate) line_data: Option<Box<LineData>>,
     pub(crate) grid_layout_data: Option<OwnedGridLayoutData>,
@@ -157,6 +158,7 @@ fn snapshot_fragment(
         let mut rare = cell.borrow_mut();
         (
             rare.table_cell_coordinates,
+            rare.table_column_backgrounds.take(),
             rare.override_borders_data,
             rare.grid_layout_data.take(),
             rare.flex_layout_data.take(),
@@ -168,6 +170,7 @@ fn snapshot_fragment(
     });
     let (
         table_cell_coordinates,
+        table_column_backgrounds,
         override_borders_data,
         grid_layout_data,
         flex_layout_data,
@@ -193,6 +196,7 @@ fn snapshot_fragment(
         padding_top: used.padding_top.get(),
         padding_bottom: used.padding_bottom.get(),
         table_cell_coordinates,
+        table_column_backgrounds,
         override_borders_data,
         line_data,
         grid_layout_data,

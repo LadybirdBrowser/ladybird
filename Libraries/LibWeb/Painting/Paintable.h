@@ -361,6 +361,20 @@ public:
     void set_table_cell_coordinates(TableCellCoordinates const& table_cell_coordinates) { m_table_cell_coordinates = table_cell_coordinates; }
     auto const& table_cell_coordinates() const { return m_table_cell_coordinates; }
 
+    struct TablePartBackgroundData {
+        WeakPtr<Layout::NodeWithStyle const> layout_box;
+        BoxModelMetrics box_model;
+        CSSPixelRect rect;
+    };
+
+    struct TableColumnBackgroundInfo {
+        TablePartBackgroundData column;
+        TablePartBackgroundData column_group;
+    };
+
+    void set_table_column_backgrounds(Vector<TableColumnBackgroundInfo> table_column_backgrounds) { m_table_column_backgrounds = move(table_column_backgrounds); }
+    Vector<TableColumnBackgroundInfo> const& table_column_backgrounds() const { return m_table_column_backgrounds; }
+
     enum class ShrinkRadiiForBorders {
         Yes,
         No
@@ -481,6 +495,7 @@ protected:
 
     void paint_border(DisplayListRecordingContext&, CSSPixelRect const& border_box_rect, BordersData const&, BorderRadiiData const&) const;
     void paint_background_within(DisplayListRecordingContext&, CSSPixelRect const& background_rect, BorderRadiiData const&) const;
+    void paint_table_column_backgrounds(DisplayListRecordingContext&) const;
     void paint_box_shadow(DisplayListRecordingContext&, CSSPixelRect const& border_box_rect, CSSPixelRect const& padding_box_rect, BorderRadiiData const&) const;
     void paint_outline(DisplayListRecordingContext&, CSSPixelRect const& border_box_rect, BorderRadiiData const&) const;
 
@@ -545,6 +560,7 @@ private:
 
     Optional<BordersDataWithElementKind> m_override_borders_data;
     Optional<TableCellCoordinates> m_table_cell_coordinates;
+    Vector<TableColumnBackgroundInfo> m_table_column_backgrounds;
     Optional<size_t> m_containing_line_box_index;
 
     ResolvedCSSFilter m_filter;

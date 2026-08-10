@@ -840,6 +840,42 @@ RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
                                                                                                                              .row_span = coordinates.row_span,
                                                                                                                              .column_span = coordinates.column_span,
                                                                                                                          }); },
+        .set_table_column_backgrounds = [](void*, void* paintable_pointer, RustFFI::FfiTableColumnBackground const* entries, size_t entry_count) {
+            bool has_any_background = false;
+            auto part_from_entry = [&has_any_background](void* shell, RustFFI::FfiCssPixelRect const& rect) -> Painting::Paintable::TablePartBackgroundData {
+                if (!shell)
+                    return {};
+                auto const& box = as<NodeWithStyle>(*static_cast<Node*>(shell));
+                auto const& computed_values = box.computed_values();
+                if (computed_values.background_color().alpha() == 0 && computed_values.background_layers().is_empty())
+                    return {};
+                has_any_background = true;
+                Painting::BoxModelMetrics box_model;
+                box_model.border = {
+                    computed_values.border_top().width,
+                    computed_values.border_right().width,
+                    computed_values.border_bottom().width,
+                    computed_values.border_left().width,
+                };
+                CSSPixelRect part_rect {
+                    CSSPixels::from_raw(rect.x),
+                    CSSPixels::from_raw(rect.y),
+                    CSSPixels::from_raw(rect.width),
+                    CSSPixels::from_raw(rect.height),
+                };
+                return { box, box_model, part_rect };
+            };
+            Vector<Painting::Paintable::TableColumnBackgroundInfo> column_backgrounds;
+            column_backgrounds.ensure_capacity(entry_count);
+            for (size_t entry_index = 0; entry_index < entry_count; ++entry_index) {
+                auto const& entry = entries[entry_index];
+                column_backgrounds.unchecked_append({
+                    .column = part_from_entry(entry.column_shell, entry.column_rect),
+                    .column_group = part_from_entry(entry.column_group_shell, entry.column_group_rect),
+                });
+            }
+            if (has_any_background)
+                static_cast<Painting::Paintable*>(paintable_pointer)->set_table_column_backgrounds(move(column_backgrounds)); },
         .begin_line_data = [](void* context, void* paintable_pointer) {
             auto& bridge = *static_cast<LayoutRustBridge*>(context);
             VERIFY(!bridge.m_line_commit_context);
