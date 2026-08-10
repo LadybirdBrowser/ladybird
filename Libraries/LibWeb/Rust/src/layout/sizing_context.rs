@@ -1137,21 +1137,6 @@ impl SizingContext {
             block_size: AvailableSize::Indefinite,
         };
         self.resolve_used_block_size_if_not_treated_as_auto(node, inline_definite_space, constraints);
-        if style.display().is_flex_inside() {
-            // Flex containers with an automatic block size are treated as max-content, so resolve it early.
-            self.resolve_used_block_size_if_treated_as_auto(node, inline_definite_space, constraints, None, || {
-                crate::layout::independent_root_automatic_block_size(
-                    self.purpose,
-                    &self.records,
-                    &self.callbacks,
-                    node,
-                    self.used(node)
-                        .available_inner_space_or_constraints_from(inline_definite_space),
-                    constraints,
-                    None,
-                )
-            });
-        }
         self.make_button_content_box_definite(node, layout_mode, available_space, constraints, None);
     }
 

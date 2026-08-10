@@ -2318,14 +2318,21 @@ impl BlockFormattingContext {
         }
     }
 
-    pub(crate) fn resolve_block_level_root_block_size_before_body(&self, node: Node, input: &LayoutInput) {
+    pub(crate) fn resolve_block_level_root_block_size_before_body(
+        &self,
+        node: Node,
+        input: &LayoutInput,
+        flex_root_resolves_own_auto_block_size: bool,
+    ) {
         let resolution_space = self.sizing().available_space_for_block_size_resolution(
             node,
             input.available_space,
             input.containing_block_constraints,
         );
         self.resolve_used_block_size_if_not_treated_as_auto(node, resolution_space, input.containing_block_constraints);
-        if self.facts(node).has_auto_content_box_size() || self.style(node).display().is_flex_inside() {
+        if self.facts(node).has_auto_content_box_size()
+            || (self.style(node).display().is_flex_inside() && !flex_root_resolves_own_auto_block_size)
+        {
             self.resolve_used_block_size_if_treated_as_auto(
                 node,
                 resolution_space,
@@ -2335,7 +2342,12 @@ impl BlockFormattingContext {
         }
     }
 
-    pub(crate) fn dimension_float_root(&self, node: Node, input: &LayoutInput) {
+    pub(crate) fn dimension_float_root(
+        &self,
+        node: Node,
+        input: &LayoutInput,
+        flex_root_resolves_own_auto_block_size: bool,
+    ) {
         let available_space = input.available_space;
         let block_container = self.containing_block(node);
         let block_container_inline_size = self.used(block_container).content_inline_size.get();
@@ -2360,7 +2372,9 @@ impl BlockFormattingContext {
             },
         );
         self.resolve_used_block_size_if_not_treated_as_auto(node, available_space, input.containing_block_constraints);
-        if self.facts(node).has_auto_content_box_size() || self.style(node).display().is_flex_inside() {
+        if self.facts(node).has_auto_content_box_size()
+            || (self.style(node).display().is_flex_inside() && !flex_root_resolves_own_auto_block_size)
+        {
             self.resolve_used_block_size_if_treated_as_auto(
                 node,
                 available_space,
