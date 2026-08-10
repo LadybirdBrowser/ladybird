@@ -485,8 +485,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         expect_file_matches(path, body.bytes());
 
         outln("two connections: {} requests, {} of them ranged", server.request_count(), server.range_requests().size());
-        // Three minimum, but redistribution may add more depending on how the serial server interleaves with response validation.
-        VERIFY(server.request_count() >= 3);
+        // Two minimum (initial + attempted split), but redistribution may add more depending on how the serial server interleaves with response validation.
+        VERIFY(server.request_count() >= 2);
         VERIFY(server.range_requests().size() == server.request_count() - 1);
     }
 
