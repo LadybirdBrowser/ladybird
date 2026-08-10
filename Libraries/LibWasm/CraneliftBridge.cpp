@@ -11,6 +11,7 @@
 #include <AK/Platform.h>
 #include <AK/ScopeGuard.h>
 #include <CraneliftFFI.h>
+#include <LibCore/AnonymousBuffer.h>
 #include <LibCore/Process.h>
 #include <LibCore/System.h>
 #include <LibFileSystem/FileSystem.h>
@@ -24,9 +25,7 @@
 #if defined(AK_OS_WINDOWS)
 #    include <AK/Windows.h>
 #else
-#    include <fcntl.h>
 #    include <sys/mman.h>
-#    include <unistd.h>
 #endif
 
 #if defined(AK_OS_MACOS)
@@ -865,10 +864,10 @@ static StringView resolve_cranelift_compiler_path()
     return s_path->view();
 }
 
-static void try_cranelift_compile_batch(Vector<BatchInput>& batch)
+static ErrorOr<void> try_cranelift_compile_batch(ReadonlySpan<BatchInput> batch)
 {
     if (batch.is_empty())
-        return;
+        return {};
 
     static auto helpers = make_runtime_helpers();
     u64 outcome_return = to_underlying(Outcome::Return);
@@ -879,7 +878,7 @@ static void try_cranelift_compile_batch(Vector<BatchInput>& batch)
 
     size_t total_insn_count = 0;
     size_t total_locals_bytes = 0;
-    for (auto& entry : batch) {
+    for (auto const& entry : batch) {
         total_insn_count += entry.insns.size();
         total_locals_bytes += entry.num_locals;
     }
@@ -894,57 +893,8 @@ static void try_cranelift_compile_batch(Vector<BatchInput>& batch)
     auto const reloc_region_size = max(oop_reloc_region_min_size, total_insn_count * oop_reloc_bytes_per_insn);
     auto const total_size = reloc_region_start + reloc_region_size;
 
-#if defined(AK_OS_WINDOWS)
-    DWORD size_hi = static_cast<DWORD>(static_cast<u64>(total_size) >> 32);
-    DWORD size_lo = static_cast<DWORD>(total_size & 0xFFFFFFFF);
-    HANDLE section_handle = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, size_hi, size_lo, NULL);
-    if (!section_handle)
-        return;
-    SetHandleInformation(section_handle, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT);
-    ScopeGuard close_handle = [section_handle] { CloseHandle(section_handle); };
-
-    auto* mapping = MapViewOfFile(section_handle, FILE_MAP_ALL_ACCESS, 0, 0, total_size);
-    if (!mapping)
-        return;
-    ScopeGuard unmap = [mapping] { UnmapViewOfFile(mapping); };
-#elif defined(AK_OS_MACOS)
-    // macOS lacks memfd_create; use shm_open + shm_unlink for an anonymous fd.
-    char shm_name[] = "/libwasm-cranelift-XXXXXX";
-    constexpr size_t shm_suffix_offset = sizeof("/libwasm-cranelift-") - 1;
-    arc4random_buf(shm_name + shm_suffix_offset, 6);
-    for (size_t i = shm_suffix_offset; i < shm_suffix_offset + 6; ++i)
-        shm_name[i] = 'A' + (static_cast<unsigned char>(shm_name[i]) % 26);
-    int fd = shm_open(shm_name, O_RDWR | O_CREAT | O_EXCL, 0600);
-    if (fd < 0)
-        return;
-    shm_unlink(shm_name);
-    // POSIX shm_open sets FD_CLOEXEC on the returned fd, which would close it
-    // in the spawned cranelift-compiler child. Clear it so the child inherits.
-    if (auto flags = fcntl(fd, F_GETFD); flags >= 0)
-        fcntl(fd, F_SETFD, flags & ~FD_CLOEXEC);
-    ScopeGuard close_fd = [fd] { close(fd); };
-    if (ftruncate(fd, static_cast<off_t>(total_size)) < 0)
-        return;
-
-    auto* mapping = mmap(nullptr, total_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-    if (mapping == MAP_FAILED)
-        return;
-    ScopeGuard unmap = [mapping, total_size] { munmap(mapping, total_size); };
-#else
-    int fd = memfd_create("libwasm-cranelift", 0);
-    if (fd < 0)
-        return;
-    ScopeGuard close_fd = [fd] { close(fd); };
-    if (ftruncate(fd, static_cast<off_t>(total_size)) < 0)
-        return;
-
-    auto* mapping = mmap(nullptr, total_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-    if (mapping == MAP_FAILED)
-        return;
-    ScopeGuard unmap = [mapping, total_size] { munmap(mapping, total_size); };
-#endif
-
-    auto* base = static_cast<u8*>(mapping);
+    auto buffer = TRY(Core::AnonymousBuffer::create_with_size(total_size));
+    auto* base = buffer.data<u8>();
     __builtin_memset(base, 0, total_size);
 
     auto* header = reinterpret_cast<InputHeader*>(base);
@@ -960,7 +910,7 @@ static void try_cranelift_compile_batch(Vector<BatchInput>& batch)
     size_t insn_cursor = insn_region_offset;
     size_t locals_cursor = locals_region_offset;
     for (size_t i = 0; i < function_count; ++i) {
-        auto& input = batch[i];
+        auto const& input = batch[i];
         auto* entry = reinterpret_cast<InputFunctionEntry*>(base + entries_offset + i * sizeof(InputFunctionEntry));
         *entry = InputFunctionEntry {
             .insn_offset = static_cast<u32>(insn_cursor),
@@ -981,23 +931,25 @@ static void try_cranelift_compile_batch(Vector<BatchInput>& batch)
 
     __builtin_memcpy(base + helpers_offset, &helpers, sizeof(helpers));
 
+    auto inherited_fd = TRY(Core::System::dup(buffer.fd()));
+    ScopeGuard close_inherited_fd { [&]() { (void)Core::System::close(inherited_fd); } };
+    TRY(Core::System::set_close_on_exec(inherited_fd, false));
+
     Vector<ByteString> arguments;
 #if defined(AK_OS_WINDOWS)
-    arguments.append(ByteString::number(reinterpret_cast<uintptr_t>(section_handle)));
+    arguments.append(ByteString::number(reinterpret_cast<uintptr_t>(to_handle(inherited_fd))));
 #else
-    arguments.append(ByteString::number(fd));
+    arguments.append(ByteString::number(inherited_fd));
 #endif
 
-    auto process_result = Core::Process::spawn({
+    auto process = TRY(Core::Process::spawn({
         .name = "cranelift-compiler"sv,
         .executable = resolve_cranelift_compiler_path(),
         .arguments = arguments,
-    });
-    if (process_result.is_error())
-        return;
-    auto status_result = process_result.release_value().wait_for_termination();
-    if (status_result.is_error() || status_result.value() != 0)
-        return;
+    }));
+
+    if (TRY(process.wait_for_termination()) != 0)
+        return Error::from_string_literal("Failed to compile a WebAssembly module");
 
     // Extract results for each function.
     auto const code_base_offset = code_region_start + sizeof(OutputFunctionEntry) * function_count;
@@ -1061,6 +1013,8 @@ static void try_cranelift_compile_batch(Vector<BatchInput>& batch)
 
         install_compiled_function(*batch[i].target, code_bytes, relocs, reloc_count, traps, helpers);
     }
+
+    return {};
 }
 
 bool try_cranelift_compile(CompiledInstructions& compiled, u32 result_arity)
@@ -1228,7 +1182,11 @@ void flush_cranelift_batch()
 {
     if (cranelift_cache_state().pending_batch.is_empty())
         return;
-    try_cranelift_compile_batch(cranelift_cache_state().pending_batch);
+
+    auto result = try_cranelift_compile_batch(cranelift_cache_state().pending_batch);
+    if (result.is_error())
+        warnln("Cranelift compilation failed: {}", result.error());
+
     cranelift_cache_state().pending_batch.clear();
 }
 
