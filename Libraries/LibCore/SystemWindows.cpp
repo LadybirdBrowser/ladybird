@@ -74,9 +74,27 @@ ErrorOr<void*> reserve_address_space(size_t size)
     return ptr;
 }
 
+ErrorOr<void*> allocate_anonymous_memory(size_t size)
+{
+    void* ptr = VirtualAlloc(nullptr, size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+    if (!ptr)
+        return Error::from_windows_error();
+    return ptr;
+}
+
 ErrorOr<void> commit_memory(void* address, size_t size)
 {
     if (!VirtualAlloc(address, size, MEM_COMMIT, PAGE_READWRITE))
+        return Error::from_windows_error();
+    return {};
+}
+
+ErrorOr<void> protect_memory_readonly(void* address, size_t size)
+{
+    if (size == 0)
+        return {};
+    DWORD previous_protection;
+    if (!VirtualProtect(address, size, PAGE_READONLY, &previous_protection))
         return Error::from_windows_error();
     return {};
 }

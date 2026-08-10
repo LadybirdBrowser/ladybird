@@ -14,7 +14,6 @@
 #include <AK/String.h>
 #include <AK/Types.h>
 #include <AK/Utf16FlyString.h>
-#include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibCore/ImmutableBytes.h>
 #include <LibGC/CellAllocator.h>
@@ -44,6 +43,7 @@ public:
     [[nodiscard]] u8 const* data() const LIFETIME_BOUND { return m_data; }
     [[nodiscard]] size_t size() const { return m_size; }
     [[nodiscard]] size_t external_memory_size() const;
+    [[nodiscard]] bool is_readonly_mapped() const { return m_storage.is_readonly_mapped(); }
     [[nodiscard]] u8 operator[](size_t index) const { return m_data[index]; }
 
     operator ReadonlyBytes() const LIFETIME_BOUND { return span(); }
@@ -53,7 +53,7 @@ public:
 private:
     void update_view_from_storage(size_t offset = 0, Optional<size_t> size = {});
 
-    Variant<Vector<u8>, Core::ImmutableBytes> m_storage;
+    Core::ImmutableBytes m_storage;
     u8 const* m_data { nullptr };
     size_t m_size { 0 };
 };
