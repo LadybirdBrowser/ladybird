@@ -2735,6 +2735,26 @@ impl<'pass> FlexFormattingContext<'pass> {
         self.resolve_own_auto_block_size(max_content_main_size, resolution_space);
     }
 
+    fn resolve_own_auto_block_size_from_line_cross_sizes(&mut self) {
+        let Some(resolution_space) = self.layout_input.unwrap().sizing.flex_self_block_size_resolution_space else {
+            return;
+        };
+        if self.cross_axis_is_horizontal() {
+            return;
+        }
+        // https://drafts.csswg.org/css-align-3/#gap-percent
+        // In Flex Layout: Cyclic percentage sizes resolve against zero in all cases.
+        let style = self.style(self.flex_container);
+        let gap = if self.is_row_layout() { style.row_gap() } else { style.column_gap() };
+        let cross_gap_resolved_against_zero = gap.to_px(CssPixels::default());
+        let mut line_cross_size_sum = self
+            .flex_lines
+            .iter()
+            .fold(CssPixels::default(), |sum, line| sum + line.cross_size);
+        line_cross_size_sum += cross_gap_resolved_against_zero * self.flex_lines.len().saturating_sub(1);
+        self.resolve_own_auto_block_size(line_cross_size_sum, resolution_space);
+    }
+
     fn resolve_own_auto_block_size(&self, automatic_block_size: CssPixels, resolution_space: AvailableSpace) {
         self.sizing().resolve_used_block_size_if_treated_as_auto(
             self.flex_container,
@@ -3070,7 +3090,10 @@ impl<'pass> FlexFormattingContext<'pass> {
         self.align_all_flex_items_along_the_cross_axis();
 
         // 15. Determine the flex container’s used cross size
-        // NOTE: This is handled by the parent formatting context.
+        // Determine the flex container's used cross size using the rules of the formatting context
+        // in which it participates. If a content-based cross size is needed, use the sum of the
+        // flex lines' cross sizes.
+        self.resolve_own_auto_block_size_from_line_cross_sizes();
 
         // https://drafts.csswg.org/css-flexbox-1/#definite-sizes
         // 4. Once the cross size of a flex line has been determined,
