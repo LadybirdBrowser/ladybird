@@ -170,7 +170,7 @@ struct AxisAgnosticAvailableSpace {
 }
 
 struct FlexFormattingContext<'pass> {
-    state: &'pass LayoutState,
+    purpose: LayoutPurpose,
     records: std::rc::Rc<RunRecords>,
     flex_container: Node,
     layout_mode: LayoutMode,
@@ -189,10 +189,10 @@ struct FlexFormattingContext<'pass> {
 }
 
 impl<'pass> FlexFormattingContext<'pass> {
-    fn new(run: &FormattingContextRun<'pass>) -> Self {
+    fn new(run: &FormattingContextRun) -> Self {
         let flex_direction = StyleValues::for_node(&run.callbacks, run.box_).flex_direction();
         Self {
-            state: run.state,
+            purpose: run.purpose,
             records: run.records.clone(),
             flex_container: run.box_,
             layout_mode: run.layout_mode,
@@ -211,9 +211,9 @@ impl<'pass> FlexFormattingContext<'pass> {
         }
     }
 
-    fn formatting_context_run(&self) -> FormattingContextRun<'pass> {
+    fn formatting_context_run(&self) -> FormattingContextRun {
         FormattingContextRun {
-            state: self.state,
+            purpose: self.purpose,
             records: self.records.clone(),
             box_: self.flex_container,
             layout_mode: self.layout_mode,
@@ -239,8 +239,8 @@ impl<'pass> FlexFormattingContext<'pass> {
         NodeFacts::new(&self.callbacks, node)
     }
 
-    fn sizing(&self) -> SizingContext<'pass> {
-        SizingContext::new(self.state, self.records.clone(), self.callbacks)
+    fn sizing(&self) -> SizingContext {
+        SizingContext::new(self.purpose, self.records.clone(), self.callbacks)
     }
 
     fn create_used_values(&self, node: Node) -> std::rc::Rc<UsedValues> {
@@ -2315,7 +2315,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         }
     }
 
-    fn layout_inside_item(&mut self, run: &FormattingContextRun<'pass>, index: usize) {
+    fn layout_inside_item(&mut self, run: &FormattingContextRun, index: usize) {
         let node = self.flex_items[index].box_;
         let mut input = LayoutInput {
             available_space: self
@@ -2877,7 +2877,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         sum
     }
 
-    fn run(&mut self, run: &FormattingContextRun<'pass>, layout_input: LayoutInput) {
+    fn run(&mut self, run: &FormattingContextRun, layout_input: LayoutInput) {
         let available_space = layout_input.available_space;
         // This implements https://www.w3.org/TR/css-flexbox-1/#layout-algorithm
 

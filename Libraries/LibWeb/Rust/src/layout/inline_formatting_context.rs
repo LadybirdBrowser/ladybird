@@ -727,14 +727,13 @@ pub(crate) fn accumulated_relative_insets_from_inline_ancestor_chain(
     result
 }
 
-pub(crate) struct InlineFormattingContext<'context, 'pass> {
-    pub(crate) run: &'context FormattingContextRun<'pass>,
-    pub(crate) state: &'pass LayoutState,
+pub(crate) struct InlineFormattingContext<'context> {
+    pub(crate) run: &'context FormattingContextRun,
     pub(crate) containing_block: Node,
     pub(crate) layout_mode: LayoutMode,
     pub(crate) input: LayoutInput,
     pub(crate) callbacks: FfiLayoutFcCallbacks,
-    parent: &'context BlockFormattingContext<'pass>,
+    parent: &'context BlockFormattingContext,
     pub(crate) containing_used_values: std::rc::Rc<UsedValues>,
     pub(crate) fragmented_inlines_in_pre_order: Vec<Node>,
     pub(crate) automatic_content_inline_size: CssPixels,
@@ -742,21 +741,19 @@ pub(crate) struct InlineFormattingContext<'context, 'pass> {
     block_axis_float_clearance: Cell<CssPixels>,
 }
 
-impl<'context, 'pass> InlineFormattingContext<'context, 'pass> {
+impl<'context> InlineFormattingContext<'context> {
     pub(crate) fn new_with_rust_parent(
-        run: &'context FormattingContextRun<'pass>,
-        state: &'pass LayoutState,
+        run: &'context FormattingContextRun,
         containing_block: Node,
         layout_mode: LayoutMode,
         input: LayoutInput,
         callbacks: FfiLayoutFcCallbacks,
-        parent: &'context BlockFormattingContext<'pass>,
+        parent: &'context BlockFormattingContext,
     ) -> Self {
         let containing_used_values = run.records.used_values(containing_block);
         containing_used_values.line_data_cell();
         Self {
             run,
-            state,
             containing_block,
             layout_mode,
             input,
@@ -778,7 +775,7 @@ impl<'context, 'pass> InlineFormattingContext<'context, 'pass> {
         self.block_axis_float_clearance.set(clearance);
     }
 
-    pub(crate) fn style(&self, node: Node) -> StyleValues<'pass> {
+    pub(crate) fn style(&self, node: Node) -> StyleValues<'static> {
         StyleValues::for_node(&self.callbacks, node)
     }
 
@@ -1244,7 +1241,7 @@ impl<'context, 'pass> InlineFormattingContext<'context, 'pass> {
     pub(crate) fn run(&mut self) {
         assert!(self.facts(self.containing_block).children_are_inline());
         self.generate_line_boxes();
-        if self.layout_mode == LayoutMode::Normal && !self.state.is_measurement() {
+        if self.layout_mode == LayoutMode::Normal && !self.run.purpose.is_measurement() {
             self.compute_inline_box_pieces();
             self.fold_inline_ancestor_relative_insets_into_line_data();
         }
@@ -1338,7 +1335,7 @@ impl<'context, 'pass> InlineFormattingContext<'context, 'pass> {
     }
 }
 
-impl EllipsisFontProvider for InlineFormattingContext<'_, '_> {
+impl EllipsisFontProvider for InlineFormattingContext<'_> {
     fn font_glyph_width(&self, font: *const c_void, code_point: u32) -> f32 {
         font_glyph_width(font, code_point)
     }

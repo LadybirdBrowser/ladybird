@@ -41,8 +41,8 @@ struct LineRelativeAlignedSubtree {
     shift: CssPixels,
 }
 
-pub(crate) struct LineBuilder<'builder, 'context, 'pass> {
-    context: &'builder InlineFormattingContext<'context, 'pass>,
+pub(crate) struct LineBuilder<'builder, 'context> {
+    context: &'builder InlineFormattingContext<'context>,
     available_inline_size_for_current_line: AvailableSize,
     current_block_offset: CssPixels,
     max_block_size_on_current_line: CssPixels,
@@ -58,8 +58,8 @@ pub(crate) struct LineBuilder<'builder, 'context, 'pass> {
     pending_margin_follows_block_level_box: bool,
 }
 
-impl<'builder, 'context, 'pass> LineBuilder<'builder, 'context, 'pass> {
-    pub(crate) fn new(context: &'builder InlineFormattingContext<'context, 'pass>) -> Self {
+impl<'builder, 'context> LineBuilder<'builder, 'context> {
+    pub(crate) fn new(context: &'builder InlineFormattingContext<'context>) -> Self {
         let style = context.style(context.containing_block);
         let containing_inline_size = context.input.containing_block_constraints.inline_basis();
         let mut builder = Self {
@@ -82,7 +82,7 @@ impl<'builder, 'context, 'pass> LineBuilder<'builder, 'context, 'pass> {
         builder
     }
 
-    fn context(&self) -> &InlineFormattingContext<'context, 'pass> {
+    fn context(&self) -> &InlineFormattingContext<'context> {
         self.context
     }
 

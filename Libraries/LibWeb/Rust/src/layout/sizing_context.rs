@@ -4,20 +4,20 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-pub(crate) struct SizingContext<'pass> {
-    state: &'pass LayoutState,
+pub(crate) struct SizingContext {
+    purpose: LayoutPurpose,
     records: std::rc::Rc<RunRecords>,
     callbacks: FfiLayoutFcCallbacks,
 }
 
-impl<'pass> SizingContext<'pass> {
+impl SizingContext {
     pub(crate) fn new(
-        state: &'pass LayoutState,
+        purpose: LayoutPurpose,
         records: std::rc::Rc<RunRecords>,
         callbacks: FfiLayoutFcCallbacks,
     ) -> Self {
         Self {
-            state,
+            purpose,
             records,
             callbacks,
         }
@@ -27,7 +27,7 @@ impl<'pass> SizingContext<'pass> {
         NodeFacts::new(&self.callbacks, node)
     }
 
-    fn style(&self, node: Node) -> StyleValues<'pass> {
+    fn style(&self, node: Node) -> StyleValues<'static> {
         StyleValues::for_node(&self.callbacks, node)
     }
 
@@ -492,7 +492,7 @@ impl<'pass> SizingContext<'pass> {
         node: Node,
         available_space: AvailableSpace,
         constraints: ContainingBlockConstraints,
-    ) -> (&'pass ComputedSize, &'pass ComputedSize) {
+    ) -> (&'static ComputedSize, &'static ComputedSize) {
         let style = self.style(node);
         let inline = if self.should_treat_inline_size_as_auto(node, available_space) {
             auto_computed_size()
@@ -1141,7 +1141,7 @@ impl<'pass> SizingContext<'pass> {
             // Flex containers with an automatic block size are treated as max-content, so resolve it early.
             self.resolve_used_block_size_if_treated_as_auto(node, inline_definite_space, constraints, None, || {
                 crate::layout::independent_root_automatic_block_size(
-                    self.state,
+                    self.purpose,
                     &self.records,
                     &self.callbacks,
                     node,
@@ -1281,7 +1281,7 @@ impl<'pass> SizingContext<'pass> {
         // A later equivalent intrinsic line build only consumes the atomic box's measured dimensions and
         // baselines, so retain that summary instead of formatting the same descendants again. Commit layout
         // must still create all descendant geometry.
-        if !self.state.is_measurement() {
+        if !self.purpose.is_measurement() {
             return None;
         }
         let kind = match available_inline_size {
@@ -1846,7 +1846,7 @@ impl<'pass> SizingContext<'pass> {
             .set(table_style.padding_right().to_px(containing_block_inline_size));
 
         let table_run = crate::layout::FormattingContextRun {
-            state: measurement.layout_state(),
+            purpose: LayoutPurpose::Measurement,
             records: std::rc::Rc::new(RunRecords::new(table_box, table_used.clone())),
             box_: table_box,
             layout_mode: LayoutMode::IntrinsicSizing,
