@@ -438,7 +438,6 @@ private:
     {
         frame.local_init_log_height = m_local_init_log.size();
         m_frames.append(move(frame));
-        m_max_frame_size = max(m_max_frame_size, m_frames.size());
     }
     void mark_local_initialized(u32 local_index)
     {
@@ -457,7 +456,6 @@ private:
     Vector<Frame, 16> m_frames;
     Vector<bool> m_local_initialized;
     Vector<u32> m_local_init_log;
-    size_t m_max_frame_size { 0 };
     COWVector<GlobalType> m_globals_without_internal_globals;
 };
 

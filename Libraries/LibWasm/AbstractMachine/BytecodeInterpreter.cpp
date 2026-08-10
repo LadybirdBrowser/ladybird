@@ -7127,6 +7127,19 @@ CompiledInstructions try_compile_instructions(Expression const& expression, Span
         }
     }
 
+    {
+        size_t depth = 0;
+        size_t max_depth = 0;
+        for (auto const* instruction_ptr : expanded) {
+            auto op = instruction_ptr->opcode();
+            if (first_is_one_of(op, Instructions::block, Instructions::loop, Instructions::if_, Instructions::try_table))
+                max_depth = max(max_depth, ++depth);
+            else if (op == Instructions::structured_end && depth > 0)
+                --depth;
+        }
+        result.max_label_depth = static_cast<u32>(max_depth + 1);
+    }
+
     for (auto const* instruction_ptr : expanded) {
         auto& instruction = *instruction_ptr;
         if (instruction.opcode() == Instructions::call) {

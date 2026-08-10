@@ -1010,6 +1010,7 @@ struct CompiledInstructions {
     u32 cranelift_local_count = 0;    // total locals (params + declared + inlined); lets Cranelift promote locals to SSA instead of memory. Only meaningful when cranelift_eligible.
     u32 cranelift_param_count = 0;    // leading locals that are parameters; the compiled entry block zero-initializes everything past them. Only meaningful when cranelift_eligible.
     u32 cranelift_inlined_locals = 0; // extra locals appended for inlined callee bodies (see try_compile_instructions); the frame is grown by this much in both interpreter and JIT paths.
+    u32 max_label_depth = 0;          // max concurrent labels (incl. the function-level label) the compiled stream can push.
 
     bool direct = false;                  // true if all dispatches contain handler_ptr, otherwise false and all contain instruction_opcode.
     bool cranelift_eligible = false;      // true if this expression cleared the Cranelift type/shape checks during validation.
@@ -1268,15 +1269,12 @@ public:
 
     void set_stack_usage_hint(size_t value) const { m_stack_usage_hint = value; }
     auto stack_usage_hint() const { return m_stack_usage_hint; }
-    void set_frame_usage_hint(size_t value) const { m_frame_usage_hint = value; }
-    auto frame_usage_hint() const { return m_frame_usage_hint; }
 
     mutable CompiledInstructions compiled_instructions;
 
 private:
     Vector<Instruction> m_instructions;
     mutable Optional<size_t> m_stack_usage_hint;
-    mutable Optional<size_t> m_frame_usage_hint;
 };
 
 class TableSection {
