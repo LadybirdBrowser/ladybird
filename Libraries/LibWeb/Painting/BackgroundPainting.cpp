@@ -11,6 +11,7 @@
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/Path.h>
 #include <LibWeb/CSS/Sizing.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/TextNode.h>
@@ -79,17 +80,17 @@ static void append_text_clip_paths(DisplayListRecordingContext& context, Paintab
     });
 }
 
-static BackgroundBox get_box(CSS::BackgroundBox box_clip, BackgroundBox border_box, auto const& paintable_box)
+static BackgroundBox get_box(CSS::BackgroundBox box_clip, BackgroundBox border_box, BoxModelMetrics const& box_model)
 {
     auto box = border_box;
     switch (box_clip) {
     case CSS::BackgroundBox::ContentBox: {
-        auto& padding = paintable_box.box_model().padding;
+        auto const& padding = box_model.padding;
         box.shrink(padding.top, padding.right, padding.bottom, padding.left);
         [[fallthrough]];
     }
     case CSS::BackgroundBox::PaddingBox: {
-        auto& border = paintable_box.box_model().border;
+        auto const& border = box_model.border;
         box.shrink(border.top, border.right, border.bottom, border.left);
         [[fallthrough]];
     }
@@ -179,7 +180,7 @@ void paint_background(DisplayListRecordingContext& context, Paintable const& pai
         DisplayListRecorderStateSaver state { display_list_recorder };
 
         // Clip
-        auto clip_box = get_box(layer.clip, border_box, paintable_box);
+        auto clip_box = get_box(layer.clip, border_box, resolved_background.positioning_box_model);
 
         CSSPixelRect const& css_clip_rect = clip_box.rect;
         auto clip_rect = context.rounded_device_rect(css_clip_rect);
@@ -230,8 +231,8 @@ void paint_background(DisplayListRecordingContext& context, Paintable const& pai
 
         switch (layer.attachment) {
         case CSS::BackgroundAttachment::Fixed:
-            if (auto fixed_context = paintable_box.fixed_background_visual_context(); fixed_context.has_value())
-                display_list_recorder.set_accumulated_visual_context(*fixed_context);
+            if (resolved_background.fixed_background_visual_context.has_value())
+                display_list_recorder.set_accumulated_visual_context(*resolved_background.fixed_background_visual_context);
             break;
         case CSS::BackgroundAttachment::Local:
             if (!paintable_box.is_viewport_paintable()) {
@@ -321,7 +322,8 @@ void paint_background(DisplayListRecordingContext& context, Paintable const& pai
         CSSPixels initial_image_x = image_rect.x();
         CSSPixels image_y = image_rect.y();
 
-        image.resolve_for_size(paintable_box.layout_node(), image_rect.size());
+        VERIFY(resolved_background.positioning_node);
+        image.resolve_for_size(*resolved_background.positioning_node, image_rect.size());
 
         auto for_each_image_device_rect = [&](auto callback) {
             while (image_y < css_clip_rect.bottom()) {
@@ -473,15 +475,16 @@ enum class LayerType : u8 {
 
 // https://drafts.fxtf.org/css-masking-1/#the-mask-image
 static ResolvedBackground resolve_layers(Vector<CSS::BackgroundLayerData> const& layers,
-    Paintable const& paintable_box, Color background_color, CSS::BackgroundBox background_color_clip,
-    CSSPixelRect const& border_rect, BorderRadiiData const& border_radii, LayerType layer_type)
+    Layout::NodeWithStyle const& positioning_node, BoxModelMetrics const& positioning_box_model, Color background_color,
+    CSS::BackgroundBox background_color_clip, CSSPixelRect const& border_rect, BorderRadiiData const& border_radii,
+    Optional<VisualContextIndex> fixed_background_visual_context, LayerType layer_type)
 {
     BackgroundBox border_box {
         border_rect,
         border_radii
     };
 
-    auto color_box = get_box(background_color_clip, border_box, paintable_box);
+    auto color_box = get_box(background_color_clip, border_box, positioning_box_model);
 
     Vector<ResolvedBackgroundLayerData> resolved_layers;
     // A value of none counts as a transparent black image layer.
@@ -502,23 +505,20 @@ static ResolvedBackground resolve_layers(Vector<CSS::BackgroundLayerData> const&
             resolved_layers.append(move(transparent_mask_layer));
         };
 
-        auto const& document = paintable_box.layout_node().document();
+        auto const& document = positioning_node.document();
         if (!layer.background_image || !layer.background_image->is_paintable(document)) {
             append_transparent_mask_layer();
             continue;
         }
 
-        auto background_positioning_area = get_box(layer.origin, border_box, paintable_box).rect;
+        auto background_positioning_area = get_box(layer.origin, border_box, positioning_box_model).rect;
 
         // https://drafts.csswg.org/css-backgrounds-3/#background-origin
         // If the background-attachment value for this layer is fixed, then this property has no effect: in this case
         // the background positioning area is the initial containing block.
-        if (layer.attachment == CSS::BackgroundAttachment::Fixed
-            && paintable_box.fixed_background_visual_context().has_value()) {
-            if (auto navigable = paintable_box.navigable()) {
-                auto viewport_size = navigable->viewport_rect().size();
-                background_positioning_area = CSSPixelRect { { 0, 0 }, viewport_size };
-            }
+        if (layer.attachment == CSS::BackgroundAttachment::Fixed && fixed_background_visual_context.has_value()) {
+            if (auto navigable = document.navigable())
+                background_positioning_area = CSSPixelRect { { 0, 0 }, navigable->viewport_rect().size() };
         }
 
         auto const& image = *layer.background_image;
@@ -635,6 +635,9 @@ static ResolvedBackground resolve_layers(Vector<CSS::BackgroundLayerData> const&
         .layers = move(resolved_layers),
         .needs_text_clip = background_color_clip == CSS::BackgroundBox::Text,
         .background_rect = border_rect,
+        .positioning_node = positioning_node,
+        .positioning_box_model = positioning_box_model,
+        .fixed_background_visual_context = fixed_background_visual_context,
         .color = background_color
     };
 }
@@ -643,14 +646,25 @@ ResolvedBackground resolve_background_layers(Vector<CSS::BackgroundLayerData> co
     Paintable const& paintable_box, Color background_color, CSS::BackgroundBox background_color_clip,
     CSSPixelRect const& border_rect, BorderRadiiData const& border_radii)
 {
-    return resolve_layers(layers, paintable_box, background_color, background_color_clip, border_rect, border_radii,
+    return resolve_layers(layers, paintable_box.layout_node(), paintable_box.box_model(), background_color,
+        background_color_clip, border_rect, border_radii, paintable_box.fixed_background_visual_context(),
         LayerType::Background);
+}
+
+ResolvedBackground resolve_background_layers(Vector<CSS::BackgroundLayerData> const& layers,
+    Layout::NodeWithStyle const& positioning_node, BoxModelMetrics const& positioning_box_model,
+    Color background_color, CSS::BackgroundBox background_color_clip, CSSPixelRect const& border_rect,
+    BorderRadiiData const& border_radii, Optional<VisualContextIndex> fixed_background_visual_context)
+{
+    return resolve_layers(layers, positioning_node, positioning_box_model, background_color, background_color_clip,
+        border_rect, border_radii, fixed_background_visual_context, LayerType::Background);
 }
 
 ResolvedBackground resolve_mask_layers(Vector<CSS::BackgroundLayerData> const& layers, Paintable const& paintable_box,
     CSSPixelRect const& border_rect)
 {
-    return resolve_layers(layers, paintable_box, Color::Transparent, CSS::BackgroundBox::BorderBox, border_rect, {},
+    return resolve_layers(layers, paintable_box.layout_node(), paintable_box.box_model(), Color::Transparent,
+        CSS::BackgroundBox::BorderBox, border_rect, {}, paintable_box.fixed_background_visual_context(),
         LayerType::Mask);
 }
 
