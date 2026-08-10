@@ -40,61 +40,80 @@ static auto& intrinsic_accessor_map()
     return *intrinsics;
 }
 
-// Heap-allocated named property storage layout:
+// Heap-allocated property storage layout:
 //   [u32 capacity] [u32 padding] [Value 0] [Value 1] ...
-//   m_named_properties points to Value 0.
-// For small property counts (<=INLINE_NAMED_PROPERTY_CAPACITY), storage is inline in the Object.
-static constexpr u32 HEAP_STORAGE_HEADER_SIZE = sizeof(Value);
+// The accessors below are the only code that depends on this allocation layout.
+class HeapValueStorage {
+public:
+    static constexpr size_t header_size = sizeof(Value);
 
-static Value* allocate_heap_named_storage(u32 capacity)
-{
-    VERIFY(capacity > Object::INLINE_NAMED_PROPERTY_CAPACITY);
-    auto allocation_size = HEAP_STORAGE_HEADER_SIZE + capacity * sizeof(Value);
-    auto* raw = static_cast<u8*>(kmalloc(HeapPartition::JSObjectStorage, allocation_size));
-    VERIFY(raw);
-    *reinterpret_cast<u32*>(raw) = capacity;
-    return reinterpret_cast<Value*>(raw + HEAP_STORAGE_HEADER_SIZE);
-}
+    static Value* allocate(u32 capacity)
+    {
+        auto* raw = static_cast<u8*>(kmalloc(HeapPartition::JSObjectStorage, allocation_size(capacity)));
+        VERIFY(raw);
+        *reinterpret_cast<u32*>(raw) = capacity;
+        *reinterpret_cast<u32*>(raw + sizeof(u32)) = 0;
+        return reinterpret_cast<Value*>(raw + header_size);
+    }
 
-static void free_heap_named_storage(Value* storage)
-{
-    auto* raw = reinterpret_cast<u8*>(storage) - HEAP_STORAGE_HEADER_SIZE;
-    kfree(raw);
-}
+    static Value* reallocate(Value* storage, u32 capacity)
+    {
+        auto* raw = static_cast<u8*>(krealloc(HeapPartition::JSObjectStorage, allocation_start(storage), allocation_size(capacity)));
+        VERIFY(raw);
+        *reinterpret_cast<u32*>(raw) = capacity;
+        return reinterpret_cast<Value*>(raw + header_size);
+    }
 
-static u32 heap_named_storage_capacity(Value* storage)
-{
-    return *reinterpret_cast<u32*>(reinterpret_cast<u8*>(storage) - HEAP_STORAGE_HEADER_SIZE);
-}
+    static void deallocate(Value* storage)
+    {
+        if (storage)
+            kfree(allocation_start(storage));
+    }
+
+    static u32 capacity(Value const* storage)
+    {
+        return *reinterpret_cast<u32 const*>(allocation_start(storage));
+    }
+
+    static size_t allocation_size(u32 capacity)
+    {
+        return header_size + capacity * sizeof(Value);
+    }
+
+private:
+    static u8* allocation_start(Value* storage)
+    {
+        return reinterpret_cast<u8*>(storage) - header_size;
+    }
+
+    static u8 const* allocation_start(Value const* storage)
+    {
+        return reinterpret_cast<u8 const*>(storage) - header_size;
+    }
+};
 
 size_t Object::named_storage_external_memory_size() const
 {
     if (named_storage_is_inline())
         return 0;
-    return HEAP_STORAGE_HEADER_SIZE + heap_named_storage_capacity(m_named_properties) * sizeof(Value);
+    return HeapValueStorage::allocation_size(HeapValueStorage::capacity(m_named_properties.data()));
 }
 
 void Object::ensure_named_storage_capacity(u32 needed)
 {
     bool is_inline = named_storage_is_inline();
-    u32 old_capacity = is_inline ? INLINE_NAMED_PROPERTY_CAPACITY : heap_named_storage_capacity(m_named_properties);
+    u32 old_capacity = is_inline ? INLINE_NAMED_PROPERTY_CAPACITY : HeapValueStorage::capacity(m_named_properties.data());
     if (needed <= old_capacity)
         return;
     u32 new_capacity = max(needed, old_capacity * 2);
     if (is_inline) {
-        auto* new_storage = allocate_heap_named_storage(new_capacity);
+        auto* new_storage = HeapValueStorage::allocate(new_capacity);
         memcpy(new_storage, m_inline_named_storage, INLINE_NAMED_PROPERTY_CAPACITY * sizeof(Value));
         for (u32 i = INLINE_NAMED_PROPERTY_CAPACITY; i < new_capacity; ++i)
             new_storage[i] = Value();
         m_named_properties = new_storage;
     } else {
-        auto* raw = static_cast<u8*>(krealloc(
-            HeapPartition::JSObjectStorage,
-            reinterpret_cast<u8*>(m_named_properties) - HEAP_STORAGE_HEADER_SIZE,
-            HEAP_STORAGE_HEADER_SIZE + new_capacity * sizeof(Value)));
-        VERIFY(raw);
-        *reinterpret_cast<u32*>(raw) = new_capacity;
-        m_named_properties = reinterpret_cast<Value*>(raw + HEAP_STORAGE_HEADER_SIZE);
+        m_named_properties = HeapValueStorage::reallocate(m_named_properties.data(), new_capacity);
         for (u32 i = old_capacity; i < new_capacity; ++i)
             m_named_properties[i] = Value();
     }
@@ -172,7 +191,7 @@ Object::~Object()
     if (has_intrinsic_accessors())
         intrinsic_accessor_map().remove(this);
     if (!named_storage_is_inline())
-        free_heap_named_storage(m_named_properties);
+        HeapValueStorage::deallocate(m_named_properties.data());
 }
 
 void Object::initialize(Realm& realm)
@@ -1686,7 +1705,7 @@ void Object::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_shape);
     if (auto count = shape().property_count())
-        visitor.visit(Span<Value> { m_named_properties, count });
+        visitor.visit(Span<Value> { m_named_properties.data(), count });
 
     switch (m_indexed_storage_kind) {
     case IndexedStorageKind::None:
@@ -1771,7 +1790,7 @@ static constexpr size_t SPARSE_ARRAY_HOLE_THRESHOLD = 200;
 GenericIndexedPropertyStorage* Object::indexed_dictionary() const
 {
     VERIFY(m_indexed_storage_kind == IndexedStorageKind::Dictionary);
-    return reinterpret_cast<GenericIndexedPropertyStorage*>(m_indexed_elements);
+    return m_indexed_elements.as<GenericIndexedPropertyStorage>();
 }
 
 u32 Object::indexed_elements_capacity() const
@@ -1779,8 +1798,7 @@ u32 Object::indexed_elements_capacity() const
     if (!m_indexed_elements)
         return 0;
     VERIFY(m_indexed_storage_kind == IndexedStorageKind::Packed || m_indexed_storage_kind == IndexedStorageKind::Holey);
-    // Capacity is stored as a u32 at (m_indexed_elements - sizeof(u64))
-    return *reinterpret_cast<u32 const*>(reinterpret_cast<u8 const*>(m_indexed_elements) - sizeof(u64));
+    return HeapValueStorage::capacity(m_indexed_elements.data());
 }
 
 size_t Object::indexed_storage_external_memory_size() const
@@ -1790,7 +1808,7 @@ size_t Object::indexed_storage_external_memory_size() const
         return 0;
     case IndexedStorageKind::Packed:
     case IndexedStorageKind::Holey:
-        return sizeof(u64) + indexed_elements_capacity() * sizeof(Value);
+        return HeapValueStorage::allocation_size(indexed_elements_capacity());
     case IndexedStorageKind::Dictionary:
         return sizeof(GenericIndexedPropertyStorage) + indexed_dictionary()->external_memory_size();
     }
@@ -1799,13 +1817,7 @@ size_t Object::indexed_storage_external_memory_size() const
 
 static Value* allocate_indexed_elements(u32 capacity)
 {
-    // Layout: [u32 capacity] [u32 padding] [Value 0] [Value 1] ...
-    auto allocation_size = sizeof(u64) + capacity * sizeof(Value);
-    auto* raw = static_cast<u8*>(kmalloc(HeapPartition::JSObjectStorage, allocation_size));
-    VERIFY(raw);
-    *reinterpret_cast<u32*>(raw) = capacity;
-    *reinterpret_cast<u32*>(raw + sizeof(u32)) = 0; // padding
-    auto* elements = reinterpret_cast<Value*>(raw + sizeof(u64));
+    auto* elements = HeapValueStorage::allocate(capacity);
     for (u32 i = 0; i < capacity; ++i)
         new (&elements[i]) Value(js_special_empty_value());
     return elements;
@@ -1813,10 +1825,7 @@ static Value* allocate_indexed_elements(u32 capacity)
 
 static void deallocate_indexed_elements(Value* elements)
 {
-    if (!elements)
-        return;
-    auto* raw = reinterpret_cast<u8*>(elements) - sizeof(u64);
-    kfree(raw);
+    HeapValueStorage::deallocate(elements);
 }
 
 void Object::free_indexed_elements()
@@ -1824,7 +1833,7 @@ void Object::free_indexed_elements()
     if (m_indexed_storage_kind == IndexedStorageKind::Dictionary) {
         delete indexed_dictionary();
     } else {
-        deallocate_indexed_elements(m_indexed_elements);
+        deallocate_indexed_elements(m_indexed_elements.data());
     }
     m_indexed_elements = nullptr;
     m_indexed_storage_kind = IndexedStorageKind::None;
@@ -1851,7 +1860,7 @@ void Object::grow_indexed_elements(u32 needed_capacity)
         u32 copy_count = min(old_capacity, needed_capacity);
         for (u32 i = 0; i < copy_count; ++i)
             new_elements[i] = m_indexed_elements[i];
-        deallocate_indexed_elements(m_indexed_elements);
+        deallocate_indexed_elements(m_indexed_elements.data());
     }
 
     m_indexed_elements = new_elements;
@@ -1869,7 +1878,7 @@ void Object::transition_to_dictionary()
             if (!value.is_special_empty_value())
                 dict->put(i, value, default_attributes);
         }
-        deallocate_indexed_elements(m_indexed_elements);
+        deallocate_indexed_elements(m_indexed_elements.data());
     }
 
     // Set the array_like_size on the dictionary
@@ -2083,7 +2092,7 @@ ValueAndAttributes Object::indexed_take_first()
     auto first = available_elements > 0 ? m_indexed_elements[0] : js_special_empty_value();
 
     if (available_elements > 1)
-        memmove(m_indexed_elements, m_indexed_elements + 1, (available_elements - 1) * sizeof(Value));
+        memmove(m_indexed_elements.data(), m_indexed_elements.data() + 1, (available_elements - 1) * sizeof(Value));
 
     m_indexed_array_like_size--;
     if (available_elements > 0)
@@ -2185,7 +2194,7 @@ void Object::set_indexed_property_elements(Vector<Value>&& values)
 ReadonlySpan<Value> Object::indexed_packed_elements_span() const
 {
     VERIFY(m_indexed_storage_kind == IndexedStorageKind::Packed);
-    return { m_indexed_elements, m_indexed_array_like_size };
+    return { m_indexed_elements.data(), m_indexed_array_like_size };
 }
 
 void Object::convert_to_prototype_if_needed()
