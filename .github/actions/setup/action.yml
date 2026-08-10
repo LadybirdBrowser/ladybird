@@ -117,7 +117,23 @@ runs:
     - name: 'Warm up the Rust toolchain'
       if: ${{ inputs.os == 'macOS' || inputs.os == 'Android' }}
       shell: bash
-      run: rustup toolchain install
+      run: |
+        if rustup toolchain install ; then
+          exit 0
+        fi
+
+        # Some Blacksmith runner images boot with a partially installed toolchain whose files rustup does not know
+        # about. It cannot repair that on its own and fails with a "detected conflict" error, so wipe the toolchain and
+        # retry.
+        CHANNEL=$(sed -n 's/^channel *= *"\(.*\)"/\1/p' "${{ github.workspace }}/rust-toolchain.toml")
+        if [ -z "${CHANNEL}" ]; then
+          echo "Could not determine the pinned Rust channel" >&2
+          exit 1
+        fi
+
+        echo "Reinstalling Rust toolchain ${CHANNEL} from scratch"
+        rustup toolchain uninstall "${CHANNEL}" || rm -rf "$(rustup show home)/toolchains/${CHANNEL}"-*
+        rustup toolchain install
 
     - name: 'Resolve wasm-tools release'
       id: 'wasm-tools'
