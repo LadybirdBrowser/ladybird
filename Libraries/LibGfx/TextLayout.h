@@ -31,9 +31,15 @@ struct DrawGlyph {
     bool should_paint { true };
 };
 
+struct TrailingWhitespace {
+    size_t length_in_code_units { 0 };
+    float advance { 0 };
+};
+
 struct ShapedGlyphs {
     Vector<DrawGlyph> glyphs;
     float width { 0 };
+    TrailingWhitespace trailing_whitespace;
 };
 
 class GlyphRun : public AtomicRefCounted<GlyphRun> {
@@ -74,7 +80,7 @@ private:
     mutable OwnPtr<CachedTextBlob> m_cached_text_blob;
 };
 
-NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, Utf16View const&, Gfx::Font const& font, GlyphRun::TextType);
+NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, Utf16View const&, Gfx::Font const& font, GlyphRun::TextType, TrailingWhitespace* = nullptr);
 Vector<NonnullRefPtr<GlyphRun>> shape_text(FloatPoint baseline_start, Utf16View const&, FontCascadeList const&, float letter_spacing = 0.f);
 float measure_text_width(Utf16View const&, Font const& font, float letter_spacing = 0.f);
 
