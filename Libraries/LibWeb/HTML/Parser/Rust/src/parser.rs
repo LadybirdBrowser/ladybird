@@ -129,6 +129,7 @@ unsafe extern "C" {
     fn ladybird_html_parser_prepare_svg_script(parser: *mut c_void, element: usize, source_line_number: usize);
     fn ladybird_html_parser_set_script_source_line(parser: *mut c_void, element: usize, source_line_number: usize);
     fn ladybird_html_parser_mark_script_already_started(parser: *mut c_void, element: usize);
+    fn ladybird_html_parser_process_meta_element(parser: *mut c_void, element: usize);
     fn ladybird_html_parser_parent_node(node: usize) -> usize;
     fn ladybird_html_parser_node_index(node: usize) -> usize;
     fn ladybird_html_parser_create_element(
@@ -900,22 +901,13 @@ impl TreeBuilder {
         // -> A start tag whose tag name is "meta"
         if token.is_start_tag_named("meta") {
             // Insert an HTML element for the token. Immediately pop the current node off the stack of open elements.
-            self.insert_html_element_for(&token);
+            let element = self.insert_html_element_for(&token);
             self.pop_current_node();
 
             // FIXME: Acknowledge the token's self-closing flag, if it is set.
 
-            // FIXME: If the active speculative HTML parser is null:
-            //     1. If the element has a charset attribute, and getting an encoding from its value results in an
-            //        encoding, and the confidence is currently tentative, then change the encoding to the resulting
-            //        encoding.
-            //     2. Otherwise, if the element has an http-equiv attribute whose value is an ASCII case-insensitive
-            //        match for "Content-Type", and the element has a content attribute, and applying the algorithm for
-            //        extracting a character encoding from a meta element to that attribute's value returns an encoding,
-            //        and the confidence is currently tentative, then change the encoding to the extracted encoding.
-
-            // NOTE: The speculative HTML parser doesn't speculatively apply character encoding declarations in order to
-            //       reduce implementation complexity.
+            unsafe { ladybird_html_parser_process_meta_element(self.host, element) };
+            return;
         }
 
         // -> A start tag whose tag name is "title"

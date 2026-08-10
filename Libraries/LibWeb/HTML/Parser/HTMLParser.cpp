@@ -38,6 +38,7 @@
 #include <LibWeb/HTML/HTMLFormElement.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/HTML/HTMLLinkElement.h>
+#include <LibWeb/HTML/HTMLMetaElement.h>
 #include <LibWeb/HTML/HTMLOptionElement.h>
 #include <LibWeb/HTML/HTMLScriptElement.h>
 #include <LibWeb/HTML/HTMLTemplateElement.h>
@@ -122,6 +123,7 @@ extern "C" void ladybird_html_parser_handle_element_popped(size_t);
 extern "C" void ladybird_html_parser_prepare_svg_script(void*, size_t, size_t);
 extern "C" void ladybird_html_parser_set_script_source_line(void*, size_t, size_t);
 extern "C" void ladybird_html_parser_mark_script_already_started(void*, size_t);
+extern "C" void ladybird_html_parser_process_meta_element(void*, size_t);
 extern "C" size_t ladybird_html_parser_parent_node(size_t);
 extern "C" size_t ladybird_html_parser_node_index(size_t);
 extern "C" size_t ladybird_html_parser_create_element(void*, size_t, RustFfiHtmlNamespace, u16 const*, size_t, u16 const*, size_t, RustFfiHtmlParserAttribute const*, size_t, bool, size_t, bool);
@@ -133,9 +135,10 @@ extern "C" size_t ladybird_html_parser_attach_declarative_shadow_root(size_t, Ru
 extern "C" void ladybird_html_parser_set_template_content(size_t, size_t);
 extern "C" bool ladybird_html_parser_is_shadow_host(size_t);
 
-HTMLParser::HTMLParser(DOM::Document& document, ParserScriptingMode scripting_mode, StringView input, StringView encoding)
+HTMLParser::HTMLParser(DOM::Document& document, ParserScriptingMode scripting_mode, StringView input, StringView encoding, EncodingConfidence encoding_confidence)
     : m_tokenizer(decode_html_parser_input(input, encoding))
     , m_scripting_mode(scripting_mode)
+    , m_encoding_confidence(encoding_confidence)
     , m_document(document)
 {
     m_rust_parser = rust_html_parser_create();
@@ -145,9 +148,10 @@ HTMLParser::HTMLParser(DOM::Document& document, ParserScriptingMode scripting_mo
     m_document->set_encoding(utf16_string_from_standardized_encoding_label(standardized_encoding.value()));
 }
 
-HTMLParser::HTMLParser(DOM::Document& document, ParserScriptingMode scripting_mode, Utf16View input, Utf16View encoding)
+HTMLParser::HTMLParser(DOM::Document& document, ParserScriptingMode scripting_mode, Utf16View input, Utf16View encoding, EncodingConfidence encoding_confidence)
     : m_tokenizer(input)
     , m_scripting_mode(scripting_mode)
+    , m_encoding_confidence(encoding_confidence)
     , m_document(document)
 {
     m_rust_parser = rust_html_parser_create();
@@ -161,15 +165,17 @@ HTMLParser::HTMLParser(DOM::Document& document, ParserScriptingMode scripting_mo
     : m_tokenizer(input)
     , m_parsing_fragment(fragment_parser == FragmentParser::Yes)
     , m_scripting_mode(scripting_mode)
+    , m_encoding_confidence(EncodingConfidence::Irrelevant)
     , m_document(document)
 {
     VERIFY(m_parsing_fragment);
     m_rust_parser = rust_html_parser_create();
 }
 
-HTMLParser::HTMLParser(DOM::Document& document, ParserScriptingMode scripting_mode, ScriptCreatedParser script_created)
+HTMLParser::HTMLParser(DOM::Document& document, ParserScriptingMode scripting_mode, ScriptCreatedParser script_created, EncodingConfidence encoding_confidence)
     : m_scripting_mode(scripting_mode)
     , m_script_created(script_created == ScriptCreatedParser::Yes)
+    , m_encoding_confidence(encoding_confidence)
     , m_document(document)
 {
     m_rust_parser = rust_html_parser_create();
@@ -195,6 +201,8 @@ void HTMLParser::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_context_element);
     visitor.visit(m_root_insertion_target);
     visitor.visit(m_active_speculative_html_parser);
+    visitor.visit(m_change_encoding_callback);
+    visitor.visit(m_parsing_complete_callback);
 
     rust_html_parser_visit_edges(m_rust_parser, &visitor);
 }
@@ -388,6 +396,101 @@ void HTMLParser::set_script_source_line_from_rust_parser(DOM::Element& element, 
 void HTMLParser::mark_script_already_started_from_rust_parser(HTMLScriptElement& script)
 {
     script.set_already_started(Badge<HTMLParser> {}, true);
+}
+
+// https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-inhead
+// -> A start tag whose tag name is "meta"
+void HTMLParser::process_meta_element_from_rust_parser(HTMLMetaElement& element)
+{
+    // If the active speculative HTML parser is null:
+    if (m_active_speculative_html_parser)
+        return;
+
+    // NB: Both steps below require tentative confidence.
+    if (m_encoding_confidence != EncodingConfidence::Tentative)
+        return;
+
+    // 1. If the element has a charset attribute, and getting an encoding from its value results in an encoding, and the
+    //    confidence is currently tentative, then change the encoding to the resulting encoding.
+    if (auto charset = element.get_attribute(AttributeNames::charset); charset.has_value()) {
+        if (auto encoding = TextCodec::get_standardized_encoding(charset->utf16_view()); encoding.has_value()) {
+            change_the_encoding(*encoding);
+            return;
+        }
+    }
+
+    // 2. Otherwise, if the element has an http-equiv attribute whose value is an ASCII case-insensitive match for
+    //    "Content-Type", and the element has a content attribute, and applying the algorithm for extracting a character
+    //    encoding from a meta element to that attribute's value returns an encoding, and the confidence is currently
+    //    tentative, then change the encoding to the extracted encoding.
+    if (element.http_equiv_state() != HTMLMetaElement::HttpEquivAttributeState::EncodingDeclaration)
+        return;
+
+    auto content = element.get_attribute(AttributeNames::content);
+    if (!content.has_value())
+        return;
+
+    auto content_as_utf8 = content->to_utf8_but_should_be_ported_to_utf16().to_byte_string();
+    if (auto encoding = extract_character_encoding_from_meta_element(content_as_utf8); encoding.has_value())
+        change_the_encoding(*encoding);
+}
+
+// https://html.spec.whatwg.org/multipage/parsing.html#change-the-encoding
+void HTMLParser::change_the_encoding(StringView new_encoding)
+{
+    VERIFY(m_encoding_confidence == EncodingConfidence::Tentative);
+    VERIFY(m_document->has_encoding());
+
+    auto current_encoding = TextCodec::get_standardized_encoding(m_document->encoding().value());
+    VERIFY(current_encoding.has_value());
+
+    // 1. If the encoding that is already being used to interpret the input stream is UTF-16BE/LE, then set the
+    //    confidence to certain and return. The new encoding is ignored; if it was anything but the same encoding, then
+    //    it would be clearly incorrect.
+    if (current_encoding->is_one_of_ignoring_ascii_case("UTF-16BE"sv, "UTF-16LE"sv)) {
+        m_encoding_confidence = EncodingConfidence::Certain;
+        return;
+    }
+
+    // 2. If the new encoding is UTF-16BE/LE, then change it to UTF-8.
+    if (new_encoding.is_one_of_ignoring_ascii_case("UTF-16BE"sv, "UTF-16LE"sv))
+        new_encoding = "UTF-8"sv;
+
+    // 3. If the new encoding is x-user-defined, then change it to windows-1252.
+    if (new_encoding.equals_ignoring_ascii_case("x-user-defined"sv))
+        new_encoding = "windows-1252"sv;
+
+    // 4. If the new encoding is identical or equivalent to the encoding that is already being used to interpret the
+    //    input stream, then set the confidence to certain and return. This happens when the encoding information found
+    //    in the file matches what the encoding sniffing algorithm determined to be the encoding, and in the second pass
+    //    through the parser if the first pass found that the encoding sniffing algorithm described in the earlier
+    //    section failed to find the right encoding.
+    if (current_encoding->equals_ignoring_ascii_case(new_encoding)) {
+        m_encoding_confidence = EncodingConfidence::Certain;
+        return;
+    }
+
+    // 5. If all the bytes up to the last byte converted by the current decoder have the same Unicode interpretations in
+    //    both the current encoding and the new encoding, and if the user agent supports changing the converter on the
+    //    fly, then the user agent may change to the new converter for the encoding on the fly. Set the document's
+    //    character encoding and the encoding used to convert the input stream to the new encoding, set the confidence
+    //    to certain, and return.
+    if (m_change_encoding_callback && m_change_encoding_callback->function()(new_encoding)) {
+        m_document->set_encoding(utf16_string_from_standardized_encoding_label(new_encoding));
+        m_encoding_confidence = EncodingConfidence::Certain;
+        return;
+    }
+
+    // FIXME: 6. Otherwise, restart the navigate algorithm, with historyHandling set to "replace" and other inputs kept the
+    //           same, but this time skip the encoding sniffing algorithm and instead just set the encoding to the new encoding
+    //           and the confidence to certain. Whenever possible, this should be done without actually contacting the network
+    //           layer (the bytes should be re-parsed from memory), even if, e.g., the document is marked as not being
+    //           cacheable. If this is not possible and contacting the network layer would involve repeating a request that
+    //           uses a method other than `GET`, then instead set the confidence to certain and ignore the new encoding. The
+    //           resource will be misinterpreted. User agents may notify the user of the situation, to aid in application
+    //           development.
+    dbgln_if(HTML_PARSER_DEBUG, "Unable to change HTML parser encoding from '{}' to '{}' without restarting navigation", *current_encoding, new_encoding);
+    m_encoding_confidence = EncodingConfidence::Certain;
 }
 
 void HTMLParser::stop_parsing_from_rust_parser()
@@ -1034,6 +1137,8 @@ void HTMLParser::resume_after_parser_blocking_script()
 
 void HTMLParser::invoke_post_parse_action()
 {
+    if (auto callback = exchange(m_parsing_complete_callback, nullptr))
+        callback->function()();
     if (auto action = exchange(m_post_parse_action, nullptr))
         action();
 }
@@ -1228,13 +1333,13 @@ WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> HTMLParser::parse_html_fragm
 GC::Ref<HTMLParser> HTMLParser::create_for_scripting(DOM::Document& document)
 {
     auto scripting_mode = document.is_scripting_enabled() ? ParserScriptingMode::Normal : ParserScriptingMode::Disabled;
-    return document.relevant_settings_object().realm().create<HTMLParser>(document, scripting_mode, ScriptCreatedParser::Yes);
+    return document.relevant_settings_object().realm().create<HTMLParser>(document, scripting_mode, ScriptCreatedParser::Yes, EncodingConfidence::Irrelevant);
 }
 
-GC::Ref<HTMLParser> HTMLParser::create_with_open_input_stream(DOM::Document& document)
+GC::Ref<HTMLParser> HTMLParser::create_with_open_input_stream(DOM::Document& document, EncodingConfidence encoding_confidence)
 {
     auto scripting_mode = document.is_scripting_enabled() ? ParserScriptingMode::Normal : ParserScriptingMode::Disabled;
-    return document.relevant_settings_object().realm().create<HTMLParser>(document, scripting_mode, ScriptCreatedParser::No);
+    return document.relevant_settings_object().realm().create<HTMLParser>(document, scripting_mode, ScriptCreatedParser::No, encoding_confidence);
 }
 
 GC::Ref<HTMLParser> HTMLParser::create_with_uncertain_encoding(DOM::Document& document, ByteBuffer const& input, Optional<MimeSniff::MimeType> maybe_mime_type)
@@ -1242,21 +1347,21 @@ GC::Ref<HTMLParser> HTMLParser::create_with_uncertain_encoding(DOM::Document& do
     auto scripting_mode = document.is_scripting_enabled() ? ParserScriptingMode::Normal : ParserScriptingMode::Disabled;
 
     if (document.has_encoding())
-        return document.relevant_settings_object().realm().create<HTMLParser>(document, scripting_mode, input, document.encoding().value().to_byte_string());
+        return document.relevant_settings_object().realm().create<HTMLParser>(document, scripting_mode, input, document.encoding().value().to_byte_string(), EncodingConfidence::Certain);
 
-    auto encoding = run_encoding_sniffing_algorithm(document, input, maybe_mime_type);
+    auto [encoding, confidence] = run_encoding_sniffing_algorithm(document, input, maybe_mime_type);
     dbgln_if(HTML_PARSER_DEBUG, "The encoding sniffing algorithm returned encoding '{}'", encoding);
-    return document.relevant_settings_object().realm().create<HTMLParser>(document, scripting_mode, input, encoding);
+    return document.relevant_settings_object().realm().create<HTMLParser>(document, scripting_mode, input, encoding, confidence);
 }
 
 GC::Ref<HTMLParser> HTMLParser::create_from_byte_string(DOM::Document& document, StringView input, ParserScriptingMode scripting_mode, StringView encoding)
 {
-    return document.relevant_settings_object().realm().create<HTMLParser>(document, scripting_mode, input, encoding);
+    return document.relevant_settings_object().realm().create<HTMLParser>(document, scripting_mode, input, encoding, EncodingConfidence::Certain);
 }
 
 GC::Ref<HTMLParser> HTMLParser::create_for_decoded_string(DOM::Document& document, Utf16View input, ParserScriptingMode scripting_mode, Utf16View encoding)
 {
-    return document.relevant_settings_object().realm().create<HTMLParser>(document, scripting_mode, input, encoding);
+    return document.relevant_settings_object().realm().create<HTMLParser>(document, scripting_mode, input, encoding, EncodingConfidence::Irrelevant);
 }
 
 enum class AttributeMode {
@@ -2209,6 +2314,11 @@ extern "C" void ladybird_html_parser_mark_script_already_started(void* parser, s
 {
     if (auto* script = as_if<HTMLScriptElement>(node_from_html_parser_ffi(element)))
         parser_from_html_parser_ffi(parser).mark_script_already_started_from_rust_parser(*script);
+}
+
+extern "C" void ladybird_html_parser_process_meta_element(void* parser, size_t element)
+{
+    parser_from_html_parser_ffi(parser).process_meta_element_from_rust_parser(as<HTMLMetaElement>(node_from_html_parser_ffi(element)));
 }
 
 extern "C" size_t ladybird_html_parser_parent_node(size_t node)

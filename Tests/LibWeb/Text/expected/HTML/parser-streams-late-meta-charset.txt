@@ -1,0 +1,9 @@
+charset charset: UTF-8
+charset script: you’re
+charset body: ©
+http-equiv charset: UTF-8
+http-equiv script: you’re
+http-equiv body: ©
+charset-less progressive: true
+post-eof charset: UTF-8
+post-eof script: true

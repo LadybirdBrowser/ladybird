@@ -289,7 +289,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_text_document(HTML::Navi
     //    load event to be fired.
     // FIXME: Parse as we receive the document data, instead of waiting for the whole document to be fetched first.
     auto process_body = GC::create_function(GC::Heap::the(), [document, url = navigation_params.response->url().value(), mime = type](ByteBuffer data) {
-        auto encoding = HTML::run_encoding_sniffing_algorithm(document, data, mime);
+        auto [encoding, confidence] = HTML::run_encoding_sniffing_algorithm(document, data, mime);
         dbgln_if(HTML_PARSER_DEBUG, "The encoding sniffing algorithm returned encoding '{}'", encoding);
 
         auto run_text_parser = [document, data = move(data), url, encoding = move(encoding)] {

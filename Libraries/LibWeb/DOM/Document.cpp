@@ -8723,7 +8723,6 @@ void Document::parse_html_from_a_string(Utf16View html)
     // 2. Let parser be a new HTML parser whose allow declarative shadow roots is document's allow declarative shadow roots,
     //    associated with document.
     // 3. Place html into the input stream for parser. The encoding confidence is irrelevant.
-    // FIXME: We don't have the concept of encoding confidence yet.
     auto scripting_mode = is_scripting_enabled() ? HTML::ParserScriptingMode::Normal : HTML::ParserScriptingMode::Disabled;
     auto parser = HTML::HTMLParser::create_for_decoded_string(*this, html, scripting_mode, "UTF-8"_utf16);
     parser->set_allow_declarative_shadow_roots(allow_declarative_shadow_roots());
