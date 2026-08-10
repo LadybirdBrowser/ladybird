@@ -3525,6 +3525,9 @@ impl<'pass> GridFormattingContext<'pass> {
                 let grid_area_is_childs_static_position =
                     self.callbacks.static_position_containing_block(child) == self.grid_container;
                 if !grid_area_is_childs_static_position {
+                    // Registration-time axis modes read raw style: anchor()
+                    // insets resolve later in layout_pending_child, and an
+                    // anchor-bearing inset is never auto either way.
                     let (inline_axis_mode, block_axis_mode) = axis_modes(self.style(child));
                     info.inline_axis_mode = inline_axis_mode;
                     info.block_axis_mode = block_axis_mode;

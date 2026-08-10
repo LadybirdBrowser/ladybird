@@ -4,66 +4,22 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-/// The four inset properties; the discriminant indexes the anchor-inset
-/// store fields.
+/// The four inset properties.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum InsetField {
-    Top = 0,
-    Right = 1,
-    Bottom = 2,
-    Left = 3,
+    Top,
+    Right,
+    Bottom,
+    Left,
 }
 
-/// A resolved px-or-auto inset written back by anchor resolution.
+/// A resolved px-or-auto inset produced by anchor resolution. It takes
+/// precedence over every style read and reports
+/// contains_anchor_function() == false.
 #[derive(Clone, Copy)]
 pub(crate) struct ResolvedInsetOverride {
     pub(crate) is_auto: bool,
     pub(crate) px: CssPixels,
-}
-
-#[derive(Default)]
-struct AnchorInsetField {
-    /// Resolved value written by replace_resolved_anchor_insets. It takes
-    /// precedence over every style read and reports
-    /// contains_anchor_function() == false; the abspos engine's early-out on
-    /// re-entry depends on both properties.
-    resolved_override: Cell<Option<ResolvedInsetOverride>>,
-}
-
-#[derive(Default)]
-struct AnchorInsetSlot {
-    fields: [AnchorInsetField; 4],
-}
-
-/// Per-LayoutState side store for the four inset fields of anchor-positioned
-/// nodes, the only style reads whose results are not a pure function of the
-/// immutable group payloads.
-#[derive(Default)]
-pub(crate) struct AnchorInsetStore {
-    slots: PagedStore<AnchorInsetSlot>,
-    /// False until the first override write, so inset reads on anchor-free
-    /// pages never touch the slots store.
-    any_overrides: Cell<bool>,
-}
-
-impl AnchorInsetStore {
-    fn slot(&self, slot_index: u32) -> &AnchorInsetSlot {
-        self.slots
-            .get(slot_index)
-            .unwrap_or_else(|| self.slots.allocate(slot_index, AnchorInsetSlot::default()))
-    }
-
-    fn override_for(&self, slot_index: u32, field: InsetField) -> Option<ResolvedInsetOverride> {
-        if !self.any_overrides.get() {
-            return None;
-        }
-        self.slots.get(slot_index)?.fields[field as usize].resolved_override.get()
-    }
-
-    pub(crate) fn set_override(&self, slot_index: u32, field: InsetField, value: ResolvedInsetOverride) {
-        self.slot(slot_index).fields[field as usize].resolved_override.set(Some(value));
-        self.any_overrides.set(true);
-    }
 }
 
 #[derive(Clone, Copy)]
@@ -130,14 +86,14 @@ impl InsetValue<'_> {
 }
 
 /// The layout pass view of a node's computed style: the pure payload view
-/// plus the per-LayoutState anchor-inset store the four inset reads consult
-/// and the line builder's vertical-align keyword substitution. Every other
-/// read derefs to ComputedValuesView.
+/// plus the resolved anchor insets the abspos engine threads to the four
+/// inset reads of the box it is placing, and the line builder's
+/// vertical-align keyword substitution. Every other read derefs to
+/// ComputedValuesView.
 #[derive(Clone, Copy)]
 pub(crate) struct StyleValues<'a> {
     style: ComputedValuesView<'a>,
-    anchor_insets: &'a AnchorInsetStore,
-    slot_index: u32,
+    resolved_anchor_insets: Option<&'a ResolvedAnchorInsets>,
     vertical_align_override: u16,
 }
 
@@ -151,13 +107,17 @@ impl<'a> std::ops::Deref for StyleValues<'a> {
 
 impl<'a> StyleValues<'a> {
     #[inline]
-    pub(crate) fn new(payloads: &'a FfiStylePayloads, anchor_insets: &'a AnchorInsetStore, slot_index: u32) -> Self {
+    pub(crate) fn new(payloads: &'a FfiStylePayloads) -> Self {
         Self {
             style: ComputedValuesView::new(&payloads.groups),
-            anchor_insets,
-            slot_index,
+            resolved_anchor_insets: None,
             vertical_align_override: u16::MAX,
         }
+    }
+
+    pub(crate) fn with_resolved_insets(mut self, resolved: Option<&'a ResolvedAnchorInsets>) -> Self {
+        self.resolved_anchor_insets = resolved;
+        self
     }
 
     fn bare_anchor_wrapper(self, field: InsetField) -> Option<&'a crate::css::style_value::StyleValueData> {
@@ -174,7 +134,7 @@ impl<'a> StyleValues<'a> {
     }
 
     fn inset_value(self, field: InsetField) -> InsetValue<'a> {
-        if let Some(resolved) = self.anchor_insets.override_for(self.slot_index, field) {
+        if let Some(resolved) = self.resolved_anchor_insets.and_then(|insets| insets.override_for(field)) {
             return InsetValue::Resolved(resolved);
         }
         if let Some(wrapper) = self.bare_anchor_wrapper(field) {

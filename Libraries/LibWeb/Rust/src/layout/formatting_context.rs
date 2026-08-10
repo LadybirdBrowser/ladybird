@@ -18,21 +18,35 @@ pub(crate) enum LayoutMode {
     IntrinsicSizing,
 }
 
+/// The anchor() inset resolutions of one positioned box, produced by the
+/// abspos engine's resolve pass; sides without anchor functions stay
+/// unresolved and read from style.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-#[repr(C)]
-pub struct FfiResolvedAnchorInsets {
-    pub resolves_top: bool,
-    pub top_is_auto: bool,
-    pub top: CssPixels,
-    pub resolves_right: bool,
-    pub right_is_auto: bool,
-    pub right: CssPixels,
-    pub resolves_bottom: bool,
-    pub bottom_is_auto: bool,
-    pub bottom: CssPixels,
-    pub resolves_left: bool,
-    pub left_is_auto: bool,
-    pub left: CssPixels,
+pub(crate) struct ResolvedAnchorInsets {
+    pub(crate) resolves_top: bool,
+    pub(crate) top_is_auto: bool,
+    pub(crate) top: CssPixels,
+    pub(crate) resolves_right: bool,
+    pub(crate) right_is_auto: bool,
+    pub(crate) right: CssPixels,
+    pub(crate) resolves_bottom: bool,
+    pub(crate) bottom_is_auto: bool,
+    pub(crate) bottom: CssPixels,
+    pub(crate) resolves_left: bool,
+    pub(crate) left_is_auto: bool,
+    pub(crate) left: CssPixels,
+}
+
+impl ResolvedAnchorInsets {
+    pub(crate) fn override_for(&self, field: InsetField) -> Option<ResolvedInsetOverride> {
+        let (resolves, is_auto, px) = match field {
+            InsetField::Top => (self.resolves_top, self.top_is_auto, self.top),
+            InsetField::Right => (self.resolves_right, self.right_is_auto, self.right),
+            InsetField::Bottom => (self.resolves_bottom, self.bottom_is_auto, self.bottom),
+            InsetField::Left => (self.resolves_left, self.left_is_auto, self.left),
+        };
+        resolves.then_some(ResolvedInsetOverride { is_auto, px })
+    }
 }
 
 
