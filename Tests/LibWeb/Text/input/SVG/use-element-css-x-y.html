@@ -1,0 +1,28 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #target {
+        x: 50px;
+        y: 40px;
+    }
+</style>
+<svg width="200" height="100">
+    <defs>
+        <rect id="source" width="10" height="10"></rect>
+    </defs>
+    <use id="target" href="#source" x="5" y="6"></use>
+</svg>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const style = getComputedStyle(target);
+        println(`computed: x=${style.x} y=${style.y}`);
+
+        const box = target.getBoundingClientRect();
+        println(`client rect: x=${box.x} y=${box.y} width=${box.width} height=${box.height}`);
+    });
+</script>
