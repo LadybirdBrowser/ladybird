@@ -9,7 +9,7 @@ use crate::CraneliftInsn;
 use crate::CraneliftTrap;
 use crate::HelperId;
 use crate::HelperReloc;
-use crate::RuntimeHelpers;
+use crate::RuntimeLayout;
 
 use cranelift_codegen::Context;
 use cranelift_codegen::FinalizedRelocTarget;
@@ -91,7 +91,7 @@ pub struct CraneliftCompiler;
 impl CraneliftCompiler {
     pub fn compile_to_bytes(
         insns: &[CraneliftInsn],
-        helpers: &RuntimeHelpers,
+        layout: &RuntimeLayout,
         outcome_return_value: u64,
         result_arity: u32,
         num_locals: u32,
@@ -155,8 +155,8 @@ impl CraneliftCompiler {
 
         // Load regs[0..7] from configuration. regs is at offset `regs_offset` from Configuration*.
         // Each Value is `value_size` bytes; the low 8 bytes are the i64 payload.
-        let regs_offset = helpers.regs_offset as i32;
-        let value_size = helpers.value_size as i32;
+        let regs_offset = layout.regs_offset as i32;
+        let value_size = layout.value_size as i32;
         for (i, var) in reg_vars.iter().enumerate() {
             let offset = regs_offset + (i as i32) * value_size;
             let val = builder
@@ -236,16 +236,16 @@ impl CraneliftCompiler {
         let h_memory_copy = decl_helper!(memory_copy_sig, HelperId::memory_copy);
         let h_memory_fill = decl_helper!(memory_fill_sig, HelperId::memory_fill);
         let h_primitive_storage_cage_base = decl_helper!(cage_base_sig, HelperId::primitive_storage_cage_base);
-        let locals_base_offset = helpers.locals_base_offset as i32;
-        let memory_instances_offset = helpers.memory_instances_offset as i32;
-        let global_instances_offset = helpers.global_instances_offset as i32;
-        let global_instance_value_offset = helpers.global_instance_value_offset as i32;
-        let memory_instance_data_offset = helpers.memory_instance_data_offset as i32;
-        let memory_buffer_storage_offset_offset = helpers.memory_buffer_storage_offset_offset as i32;
-        let compiled_call_result_scratch_offset = helpers.compiled_call_result_scratch_offset as i32;
-        let value_stack_base_offset = helpers.value_stack_base_offset as i32;
-        let value_stack_top_offset = helpers.value_stack_top_offset as i32;
-        let call_record_base_offset = helpers.call_record_base_offset as i32;
+        let locals_base_offset = layout.locals_base_offset as i32;
+        let memory_instances_offset = layout.memory_instances_offset as i32;
+        let global_instances_offset = layout.global_instances_offset as i32;
+        let global_instance_value_offset = layout.global_instance_value_offset as i32;
+        let memory_instance_data_offset = layout.memory_instance_data_offset as i32;
+        let memory_buffer_storage_offset_offset = layout.memory_buffer_storage_offset_offset as i32;
+        let compiled_call_result_scratch_offset = layout.compiled_call_result_scratch_offset as i32;
+        let value_stack_base_offset = layout.value_stack_base_offset as i32;
+        let value_stack_top_offset = layout.value_stack_top_offset as i32;
+        let call_record_base_offset = layout.call_record_base_offset as i32;
         // Accesses to memory32 are unchecked and may fault; the fault handler turns
         // faults inside a memory's guarded reservation into wasm traps.
         let wasm_memory_flags = MemFlags::new();

@@ -5,6 +5,7 @@
  */
 
 pub mod compiler;
+pub mod serialized;
 
 use compiler::CraneliftCompiler;
 
@@ -30,31 +31,7 @@ pub struct CraneliftInsn {
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
-pub struct RuntimeHelpers {
-    // i32 fn(interp, config, func_index); returns 1 on trap
-    pub call_function: usize,
-    // void fn(interp, msg_ptr, msg_len)
-    pub set_trap: usize,
-    // i64 fn(config, mem_idx); returns size in pages
-    pub memory_size: usize,
-    // i32 fn(config, mem_idx, pages); returns old size or -1
-    pub memory_grow: usize,
-    // i32 fn(interp, config, func_index); call using call record args
-    pub call_with_record: usize,
-    // i32 fn(interp, config, func_index, ...args); direct call via compiled function table
-    pub direct_call_0: usize,
-    pub direct_call_1: usize,
-    pub direct_call_2: usize,
-    pub direct_call_3: usize,
-    // i32 fn(interp, config, table_idx, type_idx, element_index)
-    pub call_indirect: usize,
-    // i32 fn(interp, config, dst_mem, src_mem, dst, src, count)
-    pub memory_copy: usize,
-    // i32 fn(interp, config, mem_idx, offset, value, count)
-    pub memory_fill: usize,
-    // Address of the process-global primitive storage cage base.
-    pub primitive_storage_cage_base: usize,
-
+pub struct RuntimeLayout {
     pub regs_offset: u32,
     pub value_size: u32,
     pub locals_base_offset: u32,
@@ -92,6 +69,7 @@ pub enum HelperId {
 }
 
 pub const HELPER_COUNT: u32 = 13;
+pub const SERIALIZED_CODE_ALIGNMENT: usize = 16;
 
 /// One relocation slot in the generated machine code. `code_offset` is the byte offset
 /// from the start of the function where 8 contiguous bytes hold the absolute helper
@@ -122,7 +100,7 @@ pub struct CompiledFunction {
 
 pub fn compile_to_bytes(
     insns: &[CraneliftInsn],
-    helpers: &RuntimeHelpers,
+    layout: &RuntimeLayout,
     outcome_return_value: u64,
     result_arity: u32,
     num_locals: u32,
@@ -131,7 +109,7 @@ pub fn compile_to_bytes(
 ) -> Result<CompiledFunction, &'static str> {
     CraneliftCompiler::compile_to_bytes(
         insns,
-        helpers,
+        layout,
         outcome_return_value,
         result_arity,
         num_locals,

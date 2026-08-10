@@ -6,85 +6,14 @@
 
 #![allow(clippy::manual_let_else)]
 
-use libwasm_cranelift::CompiledFunction;
-use libwasm_cranelift::CraneliftInsn;
-use libwasm_cranelift::CraneliftTrap;
-use libwasm_cranelift::HelperReloc;
-use libwasm_cranelift::RuntimeHelpers;
-use libwasm_cranelift::compile_to_bytes;
+use libwasm_cranelift::serialized::compile_serialized_buffer;
 use std::env;
-use std::mem::size_of;
-use std::mem::size_of_val;
-
-#[cfg(all(unix, not(target_os = "macos")))]
-use std::fs::File;
-#[cfg(all(unix, not(target_os = "macos")))]
-use std::io;
-#[cfg(all(unix, not(target_os = "macos")))]
-use std::os::fd::FromRawFd;
-#[cfg(all(unix, not(target_os = "macos")))]
-use std::os::unix::fs::FileExt;
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-struct InputHeader {
-    function_count: u32,
-    helpers_offset: u32,
-    outcome_return: u64,
-    code_region_start: u64,
-    reloc_region_start: u64,
-    total_size: u64,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-struct InputFunctionEntry {
-    insn_offset: u32,
-    insn_count: u32,
-    result_arity: u32,
-    num_locals: u32,
-    locals_offset: u32,
-    num_params: u32,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy, Default)]
-struct OutputFunctionEntry {
-    code_offset: u64,
-    code_size: u32,
-    compiled: u32,
-    reloc_offset: u64,
-    reloc_count: u32,
-    trap_offset: u64,
-    trap_count: u32,
-    _pad: u32,
-}
-
-fn as_bytes_slice<T>(value: &[T]) -> &[u8] {
-    unsafe { std::slice::from_raw_parts(value.as_ptr().cast::<u8>(), size_of_val(value)) }
-}
-
-fn read_pod<T: Copy>(base: &[u8], offset: usize) -> Result<T, &'static str> {
-    let end = offset.checked_add(size_of::<T>()).ok_or("overflow")?;
-    let bytes = base.get(offset..end).ok_or("out of bounds read")?;
-    Ok(unsafe { (bytes.as_ptr().cast::<T>()).read_unaligned() })
-}
-
-#[cfg(all(unix, not(target_os = "macos")))]
-fn read_exact_at_offset(file: &File, buf: &mut [u8], offset: u64) -> io::Result<()> {
-    file.read_exact_at(buf, offset)
-}
-
-#[cfg(all(unix, not(target_os = "macos")))]
-fn write_all_at_offset(file: &File, data: &[u8], offset: u64) -> io::Result<()> {
-    file.write_all_at(data, offset)
-}
 
 // macOS POSIX shm objects don't support read/write/pread/pwrite, only mmap and
-// ftruncate. So we mmap the parent's shm fd directly instead of using the
-// file-based path the Linux memfd build takes.
-#[cfg(target_os = "macos")]
-mod mac {
+// ftruncate. Mmap both buffers on all Unix platforms so Linux does not need to
+// copy them through temporary Vecs.
+#[cfg(unix)]
+mod unix {
     use std::ffi::c_void;
     use std::io;
 
@@ -95,22 +24,16 @@ mod mac {
     }
 
     impl Mapping {
-        pub fn open(fd: i32) -> Result<Self, Box<dyn std::error::Error>> {
-            let mut st: libc::stat = unsafe { std::mem::zeroed() };
-            if unsafe { libc::fstat(fd, &raw mut st) } != 0 {
-                return Err(io::Error::last_os_error().into());
+        pub fn open(fd: i32, len: usize, writable: bool) -> Result<Self, Box<dyn std::error::Error>> {
+            if fd < 0 {
+                return Err("invalid fd".into());
             }
-            let len = usize::try_from(st.st_size).map_err(|_| "stat size overflow")?;
-            let ptr = unsafe {
-                libc::mmap(
-                    std::ptr::null_mut(),
-                    len,
-                    libc::PROT_READ | libc::PROT_WRITE,
-                    libc::MAP_SHARED,
-                    fd,
-                    0,
-                )
+            let protection = if writable {
+                libc::PROT_READ | libc::PROT_WRITE
+            } else {
+                libc::PROT_READ
             };
+            let ptr = unsafe { libc::mmap(std::ptr::null_mut(), len, protection, libc::MAP_SHARED, fd, 0) };
             if ptr == libc::MAP_FAILED {
                 return Err(io::Error::last_os_error().into());
             }
@@ -119,6 +42,10 @@ mod mac {
                 len,
                 fd,
             })
+        }
+
+        pub fn as_slice(&self) -> &[u8] {
+            unsafe { std::slice::from_raw_parts(self.ptr, self.len) }
         }
 
         pub fn as_slice_mut(&mut self) -> &mut [u8] {
@@ -141,6 +68,7 @@ mod win {
     use std::ffi::c_void;
     use std::io;
 
+    const FILE_MAP_READ: u32 = 0x0004;
     const FILE_MAP_ALL_ACCESS: u32 = 0xf001f;
 
     #[link(name = "kernel32")]
@@ -165,19 +93,22 @@ mod win {
     }
 
     impl Mapping {
-        pub fn open(arg: &str) -> Result<Self, Box<dyn std::error::Error>> {
+        pub fn open(arg: &str, len: usize, writable: bool) -> Result<Self, Box<dyn std::error::Error>> {
             let handle_val = arg.parse::<usize>()?;
             let handle = handle_val as *mut c_void;
-            let ptr = unsafe { MapViewOfFile(handle, FILE_MAP_ALL_ACCESS, 0, 0, 0) };
+            let desired_access = if writable { FILE_MAP_ALL_ACCESS } else { FILE_MAP_READ };
+            let ptr = unsafe { MapViewOfFile(handle, desired_access, 0, 0, len) };
             if ptr.is_null() {
                 return Err(io::Error::last_os_error().into());
             }
-            let header = unsafe { ptr.cast::<super::InputHeader>().read_unaligned() };
-            let len = usize::try_from(header.total_size).map_err(|_| "size overflow")?;
             Ok(Mapping {
                 ptr: ptr.cast::<u8>(),
                 len,
             })
+        }
+
+        pub fn as_slice(&self) -> &[u8] {
+            unsafe { std::slice::from_raw_parts(self.ptr, self.len) }
         }
 
         pub fn as_slice_mut(&mut self) -> &mut [u8] {
@@ -195,215 +126,25 @@ mod win {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let arg = env::args()
-        .nth(1)
-        .ok_or("Usage: cranelift-compiler <shm-fd-or-handle>")?;
+    let mut arguments = env::args().skip(1);
+    let input_handle = arguments
+        .next()
+        .ok_or("Usage: cranelift-compiler <input-handle> <input-size> <output-handle> <output-size>")?;
+    let input_size = arguments.next().ok_or("missing input size")?.parse::<usize>()?;
+    let output_handle = arguments.next().ok_or("missing output handle")?;
+    let output_size = arguments.next().ok_or("missing output size")?.parse::<usize>()?;
 
-    #[cfg(all(unix, not(target_os = "macos")))]
-    let (file, mut owned_mapped): (File, Vec<u8>) = {
-        let shmfd = arg.parse::<i32>()?;
-        if shmfd < 0 {
-            return Err("invalid fd".into());
-        }
-        let file = unsafe { File::from_raw_fd(shmfd) };
-
-        let mut header_buf = [0u8; size_of::<InputHeader>()];
-        read_exact_at_offset(&file, &mut header_buf, 0)?;
-        let header = unsafe { (header_buf.as_ptr().cast::<InputHeader>()).read_unaligned() };
-
-        let total_size = usize::try_from(header.total_size).map_err(|_| "total_size overflow")?;
-        let mut buf = vec![0u8; total_size];
-        read_exact_at_offset(&file, &mut buf, 0)?;
-        (file, buf)
-    };
-
-    #[cfg(target_os = "macos")]
-    let mut mac_mapping = {
-        let shmfd = arg.parse::<i32>()?;
-        if shmfd < 0 {
-            return Err("invalid fd".into());
-        }
-        mac::Mapping::open(shmfd)?
-    };
-
+    #[cfg(unix)]
+    let input = unix::Mapping::open(input_handle.parse::<i32>()?, input_size, false)?;
     #[cfg(windows)]
-    let mut mapping = win::Mapping::open(&arg)?;
+    let input = win::Mapping::open(&input_handle, input_size, false)?;
 
-    #[cfg(all(unix, not(target_os = "macos")))]
-    let mapped: &mut [u8] = &mut owned_mapped;
-    #[cfg(target_os = "macos")]
-    let mapped: &mut [u8] = mac_mapping.as_slice_mut();
+    #[cfg(unix)]
+    let mut output = unix::Mapping::open(output_handle.parse::<i32>()?, output_size, true)?;
     #[cfg(windows)]
-    let mapped: &mut [u8] = mapping.as_slice_mut();
+    let mut output = win::Mapping::open(&output_handle, output_size, true)?;
 
-    let header: InputHeader = read_pod(mapped, 0)?;
-    let func_count = usize::try_from(header.function_count).map_err(|_| "function_count overflow")?;
-    let entries_offset = size_of::<InputHeader>();
-    let helpers_offset = usize::try_from(header.helpers_offset).map_err(|_| "helpers_offset overflow")?;
-    let code_region_start = usize::try_from(header.code_region_start).map_err(|_| "code_region_start overflow")?;
-    let helpers: RuntimeHelpers = read_pod(mapped, helpers_offset)?;
-
-    let out_entries_offset = code_region_start;
-    let code_base_offset = out_entries_offset + func_count * size_of::<OutputFunctionEntry>();
-    let reloc_region_start = usize::try_from(header.reloc_region_start).map_err(|_| "reloc_region_start overflow")?;
-    let code_capacity = reloc_region_start
-        .checked_sub(code_base_offset)
-        .ok_or("bad code region")?;
-    let reloc_capacity = mapped.len().checked_sub(reloc_region_start).ok_or("bad reloc region")?;
-
-    let mut entries: Vec<InputFunctionEntry> = Vec::with_capacity(func_count);
-    for i in 0..func_count {
-        let entry_offset = entries_offset + i * size_of::<InputFunctionEntry>();
-        entries.push(read_pod(mapped, entry_offset)?);
-    }
-
-    let thread_count = std::thread::available_parallelism()
-        .map(|n| n.get())
-        .unwrap_or(1)
-        .max(1);
-    let chunk_size = func_count.div_ceil(thread_count.max(1));
-    let mapped_ref: &[u8] = mapped;
-    let helpers_ref = &helpers;
-    let outcome_return = header.outcome_return;
-
-    let compiled_chunks: Vec<Vec<(usize, CompiledFunction)>> = std::thread::scope(|scope| {
-        let mut handles = Vec::with_capacity(thread_count);
-        for chunk_idx in 0..thread_count {
-            let start = chunk_idx * chunk_size;
-            if start >= func_count {
-                break;
-            }
-            let end = (start + chunk_size).min(func_count);
-            let chunk_entries = &entries[start..end];
-            handles.push(scope.spawn(move || {
-                let mut out: Vec<(usize, CompiledFunction)> = Vec::with_capacity(end - start);
-                for (offset_in_chunk, entry) in chunk_entries.iter().enumerate() {
-                    let i = start + offset_in_chunk;
-                    if entry.insn_count == 0 {
-                        continue;
-                    }
-                    let insn_offset = match usize::try_from(entry.insn_offset) {
-                        Ok(v) => v,
-                        Err(_) => continue,
-                    };
-                    let insn_count = entry.insn_count as usize;
-                    let insn_bytes_len = match insn_count.checked_mul(size_of::<CraneliftInsn>()) {
-                        Some(v) => v,
-                        None => continue,
-                    };
-                    let insn_bytes = match mapped_ref.get(insn_offset..insn_offset + insn_bytes_len) {
-                        Some(b) => b,
-                        None => continue,
-                    };
-                    let insns =
-                        unsafe { std::slice::from_raw_parts(insn_bytes.as_ptr().cast::<CraneliftInsn>(), insn_count) };
-                    let num_locals = entry.num_locals as usize;
-                    let local_types = usize::try_from(entry.locals_offset)
-                        .ok()
-                        .and_then(|off| mapped_ref.get(off..off + num_locals))
-                        .unwrap_or(&[]);
-                    if let Ok(compiled) = compile_to_bytes(
-                        insns,
-                        helpers_ref,
-                        outcome_return,
-                        entry.result_arity,
-                        entry.num_locals,
-                        entry.num_params,
-                        local_types,
-                    ) {
-                        out.push((i, compiled));
-                    }
-                }
-                out
-            }));
-        }
-        handles.into_iter().map(|h| h.join().unwrap()).collect()
-    });
-
-    let mut code_cursor = 0usize;
-    let mut reloc_cursor = 0usize;
-    for chunk in compiled_chunks {
-        for (i, compiled) in chunk {
-            let code = compiled.code;
-            let relocs = compiled.relocs;
-            let traps = compiled.traps;
-            let aligned = (code.len() + 15) & !15;
-            let reloc_bytes_len = relocs.len() * size_of::<HelperReloc>();
-            let trap_bytes_len = traps.len() * size_of::<CraneliftTrap>();
-            if code_cursor + aligned > code_capacity {
-                continue;
-            }
-            if reloc_cursor + reloc_bytes_len + trap_bytes_len > reloc_capacity {
-                continue;
-            }
-            let code_offset = code_cursor;
-            let code_dst = code_base_offset + code_offset;
-            mapped[code_dst..code_dst + code.len()].copy_from_slice(&code);
-
-            let reloc_offset = reloc_cursor;
-            if !relocs.is_empty() {
-                let reloc_dst = reloc_region_start + reloc_offset;
-                mapped[reloc_dst..reloc_dst + reloc_bytes_len].copy_from_slice(as_bytes_slice(&relocs));
-            }
-
-            let trap_offset = reloc_cursor + reloc_bytes_len;
-            if !traps.is_empty() {
-                let trap_dst = reloc_region_start + trap_offset;
-                mapped[trap_dst..trap_dst + trap_bytes_len].copy_from_slice(as_bytes_slice(&traps));
-            }
-
-            let entry = OutputFunctionEntry {
-                code_offset: u64::try_from(code_offset).map_err(|_| "code offset overflow")?,
-                code_size: u32::try_from(code.len()).map_err(|_| "code size overflow")?,
-                compiled: 1,
-                reloc_offset: u64::try_from(reloc_offset).map_err(|_| "reloc offset overflow")?,
-                reloc_count: u32::try_from(relocs.len()).map_err(|_| "reloc count overflow")?,
-                trap_offset: u64::try_from(trap_offset).map_err(|_| "trap offset overflow")?,
-                trap_count: u32::try_from(traps.len()).map_err(|_| "trap count overflow")?,
-                _pad: 0,
-            };
-            let entry_dst = out_entries_offset + i * size_of::<OutputFunctionEntry>();
-            let entry_bytes = as_bytes_slice(std::slice::from_ref(&entry));
-            mapped[entry_dst..entry_dst + size_of::<OutputFunctionEntry>()].copy_from_slice(entry_bytes);
-
-            code_cursor += aligned;
-            reloc_cursor += reloc_bytes_len + trap_bytes_len;
-        }
-    }
-
-    #[cfg(all(unix, not(target_os = "macos")))]
-    {
-        write_all_at_offset(
-            &file,
-            &mapped[out_entries_offset..code_base_offset],
-            u64::try_from(out_entries_offset)?,
-        )?;
-        write_all_at_offset(
-            &file,
-            &mapped[code_base_offset..code_base_offset + code_cursor],
-            u64::try_from(code_base_offset)?,
-        )?;
-        if reloc_cursor > 0 {
-            write_all_at_offset(
-                &file,
-                &mapped[reloc_region_start..reloc_region_start + reloc_cursor],
-                u64::try_from(reloc_region_start)?,
-            )?;
-        }
-        let _ = file.sync_all();
-    }
-    // On macOS we mmap'd the parent's shm fd with MAP_SHARED, so the writes
-    // above are already visible in the parent's mapping. Nothing to flush.
-    #[cfg(target_os = "macos")]
-    {
-        let _ = (
-            out_entries_offset,
-            code_base_offset,
-            code_cursor,
-            reloc_region_start,
-            reloc_cursor,
-        );
-    }
+    compile_serialized_buffer(input.as_slice(), output.as_slice_mut())?;
 
     Ok(())
 }
