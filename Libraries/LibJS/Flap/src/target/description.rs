@@ -1045,8 +1045,10 @@ fn lookup_operation(operation: Operation) -> &'static InstructionDescription {
             &const { plain(&[GprIn, GprInOrImm]).scratches(&[R11], &[X9, X10]) }
         }
         Operation::StorePairIndexed(PairWidth::Word) => unreachable!("indexed 32-bit pair stores are unsupported"),
-        Operation::Memory(MemoryOperation::Load64NonZero) => {
-            unreachable!("checked loads must be lowered before target selection")
+        Operation::Memory(
+            MemoryOperation::Load64NonZero | MemoryOperation::LoadCellPointer | MemoryOperation::LoadNonnullCellPointer,
+        ) => {
+            unreachable!("specialized loads must be lowered before target selection")
         }
         Operation::Move(U8 | U16) => unreachable!("narrow moves are unsupported"),
         Operation::IntegerBinary { .. } => unreachable!("unsupported integer operation width"),

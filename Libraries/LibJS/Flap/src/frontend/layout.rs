@@ -181,6 +181,7 @@ pub(crate) struct Field {
     pub(crate) offset: LayoutValue,
     pub(crate) nonnull: bool,
     pub(crate) embedded: bool,
+    pub(crate) cell_pointer: bool,
     pub(crate) pair: Option<String>,
     pub(crate) pinned_base: Option<String>,
     pub(crate) pinned_offset: Option<LayoutValue>,
@@ -195,6 +196,7 @@ struct UnresolvedField {
     offset: String,
     nonnull: bool,
     embedded: bool,
+    cell_pointer: bool,
     pair: Option<String>,
     pinned_base: Option<String>,
     pinned_offset: Option<String>,
@@ -242,10 +244,10 @@ impl LayoutDatabase {
                 return Err(LayoutError::new(line_number, "expected 'const' or 'field' declaration"));
             };
             let words = declaration.split_ascii_whitespace().collect::<Vec<_>>();
-            if words.len() < 4 {
+            if words.len() < 5 {
                 return Err(LayoutError::new(
                     line_number,
-                    "field requires a qualified name, type, offset, and storage kind",
+                    "field requires a qualified name, type, offset, storage kind, and representation",
                 ));
             }
             let (owner_name, name) = words[0]
@@ -275,12 +277,34 @@ impl LayoutDatabase {
                     ));
                 }
             };
+            let cell_pointer = match words[4] {
+                "cell" => true,
+                "scalar" => false,
+                representation => {
+                    return Err(LayoutError::new(
+                        line_number,
+                        format!("unknown field representation '{representation}'"),
+                    ));
+                }
+            };
+            if embedded && cell_pointer {
+                return Err(LayoutError::new(
+                    line_number,
+                    "embedded fields must use scalar representation",
+                ));
+            }
+            if cell_pointer && ty.width() != Some(8) {
+                return Err(LayoutError::new(
+                    line_number,
+                    format!("cell pointer field must be 64 bits, not {ty}"),
+                ));
+            }
 
             let mut pair = None;
             let mut pinned_base = None;
             let mut pinned_offset = None;
             let mut stride = None;
-            let mut cursor = 4;
+            let mut cursor = 5;
             while cursor < words.len() {
                 match words[cursor] {
                     "pinned" => {
@@ -322,6 +346,7 @@ impl LayoutDatabase {
                 offset: words[2].to_string(),
                 nonnull,
                 embedded,
+                cell_pointer,
                 pair,
                 pinned_base,
                 pinned_offset,
@@ -339,6 +364,7 @@ impl LayoutDatabase {
                     offset: resolve_layout_value(field.line, &field.offset, &database.constants)?,
                     nonnull: field.nonnull,
                     embedded: field.embedded,
+                    cell_pointer: field.cell_pointer,
                     pair: field.pair,
                     pinned_base: field.pinned_base,
                     pinned_offset: field
@@ -436,18 +462,20 @@ mod tests {
     #[test]
     fn parses_typed_layout_fields_and_constants() {
         let database =
-            LayoutDatabase::parse("const OBJECT_SHAPE = 16\nfield Object.shape Shape OBJECT_SHAPE nonnull\n").unwrap();
+            LayoutDatabase::parse("const OBJECT_SHAPE = 16\nfield Object.shape Shape OBJECT_SHAPE nonnull cell\n")
+                .unwrap();
 
         assert_eq!(database.constants().get("OBJECT_SHAPE").unwrap().value(), 16);
         assert_eq!(database.fields()[0].owner, Type::Object);
         assert_eq!(database.fields()[0].ty, Type::Shape);
         assert!(database.fields()[0].nonnull);
+        assert!(database.fields()[0].cell_pointer);
     }
 
     #[test]
     fn parses_pairs_pinned_offsets_and_strides() {
         let database = LayoutDatabase::parse(
-            "const EXCEPTION = 8\nfield ExecutionContext.exception Value EXCEPTION nullable values_pair pinned values EXCEPTION\nfield EnvironmentCoordinateEntry.hops u32 0 nullable coordinate_pair stride 8\n",
+            "const EXCEPTION = 8\nfield ExecutionContext.exception Value EXCEPTION nullable scalar values_pair pinned values EXCEPTION\nfield EnvironmentCoordinateEntry.hops u32 0 nullable scalar coordinate_pair stride 8\n",
         )
         .unwrap();
 
@@ -463,7 +491,8 @@ mod tests {
     #[test]
     fn resolves_forward_layout_value_references() {
         let database =
-            LayoutDatabase::parse("field Object.shape Shape OBJECT_SHAPE nonnull\nconst OBJECT_SHAPE = 16\n").unwrap();
+            LayoutDatabase::parse("field Object.shape Shape OBJECT_SHAPE nonnull cell\nconst OBJECT_SHAPE = 16\n")
+                .unwrap();
 
         assert!(matches!(
             database.fields()[0].offset,
@@ -473,15 +502,18 @@ mod tests {
 
     #[test]
     fn rejects_malformed_generated_input() {
-        let error = LayoutDatabase::parse("field Object.shape Shape MISSING sometimes\n").unwrap_err();
+        let error = LayoutDatabase::parse("field Object.shape Shape MISSING sometimes cell\n").unwrap_err();
         assert_eq!(error.line, 1);
         assert!(error.message.contains("unknown storage kind"));
 
-        let error = LayoutDatabase::parse("field Object.shape Unknown 0 nullable\n").unwrap_err();
+        let error = LayoutDatabase::parse("field Object.shape Unknown 0 nullable cell\n").unwrap_err();
         assert_eq!(error.line, 1);
         assert!(error.message.contains("unknown field type"));
 
-        let error = LayoutDatabase::parse("field Object.shape Shape MISSING nullable\n").unwrap_err();
+        let error = LayoutDatabase::parse("field Object.shape Shape MISSING nullable cell\n").unwrap_err();
         assert!(error.message.contains("undefined layout value"));
+
+        let error = LayoutDatabase::parse("field Object.flag u8 0 nullable cell\n").unwrap_err();
+        assert!(error.message.contains("cell pointer field must be 64 bits"));
     }
 }

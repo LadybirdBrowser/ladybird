@@ -90,6 +90,7 @@ struct LayoutField {
     offset: layout::LayoutValue,
     nonnull: bool,
     embedded: bool,
+    cell_pointer: bool,
     pair: Option<FieldPair>,
     pinned_base: Option<String>,
     pinned_offset: Option<layout::LayoutValue>,
@@ -1524,14 +1525,17 @@ impl<'a> Checker<'a> {
         }
         let width = field_width(&field.ty, false)
             .ok_or_else(|| Diagnostic::new(self.filename, span, format!("cannot load field of type {}", field.ty)))?;
+        let kind = if field.cell_pointer {
+            debug_assert_eq!(width, FieldWidth::U64);
+            FieldAccessKind::LoadCellPointer { nonzero: field.nonnull }
+        } else {
+            FieldAccessKind::Load {
+                width,
+                nonzero: field.nonnull && width == FieldWidth::U64,
+            }
+        };
         Ok(Call::new(
-            CallTarget::FieldAccess(FieldAccess {
-                kind: FieldAccessKind::Load {
-                    width,
-                    nonzero: field.nonnull && width == FieldWidth::U64,
-                },
-                pair: field.pair,
-            }),
+            CallTarget::FieldAccess(FieldAccess { kind, pair: field.pair }),
             vec![memory],
             vec![ParameterMode::In],
             Some(field.ty),
@@ -3428,6 +3432,7 @@ pub(crate) fn check_with_layouts(
                 offset: field.offset,
                 nonnull: field.nonnull,
                 embedded: field.embedded,
+                cell_pointer: field.cell_pointer,
                 pair,
                 pinned_base: field.pinned_base.clone(),
                 pinned_offset: field.pinned_offset,
@@ -4133,7 +4138,7 @@ inline fn bad(value: in Value) {
     #[test]
     fn rejects_field_assignment_through_in_parameter() {
         let layouts = crate::frontend::layout::LayoutDatabase::parse(
-            "const PROGRAM_COUNTER = 0\nfield ExecutionContext.program_counter u32 PROGRAM_COUNTER nullable\n",
+            "const PROGRAM_COUNTER = 0\nfield ExecutionContext.program_counter u32 PROGRAM_COUNTER nullable scalar\n",
         )
         .unwrap();
         let ast = parser::parse(
@@ -4157,7 +4162,7 @@ inline fn bad(frame: in ExecutionContext) {
     #[test]
     fn accepts_boolean_literals() {
         let layouts = crate::frontend::layout::LayoutDatabase::parse(
-            "const YIELD_IS_AWAIT = 0\nfield ExecutionContext.yield_is_await bool YIELD_IS_AWAIT nullable\n",
+            "const YIELD_IS_AWAIT = 0\nfield ExecutionContext.yield_is_await bool YIELD_IS_AWAIT nullable scalar\n",
         )
         .unwrap();
         let ast = parser::parse(
@@ -4178,9 +4183,10 @@ handler Initialize(address: u64) {
 
     #[test]
     fn rejects_definitely_null_binding_store_to_nonnull_field() {
-        let layouts =
-            crate::frontend::layout::LayoutDatabase::parse("const SHAPE = 0\nfield Object.shape Shape SHAPE nonnull\n")
-                .unwrap();
+        let layouts = crate::frontend::layout::LayoutDatabase::parse(
+            "const SHAPE = 0\nfield Object.shape Shape SHAPE nonnull cell\n",
+        )
+        .unwrap();
         let ast = parser::parse(
             "test.flap",
             r#"
@@ -4206,9 +4212,10 @@ handler StoreNull(address: u64) {
 
     #[test]
     fn rejects_null_binding_store_after_conditional_assignment() {
-        let layouts =
-            crate::frontend::layout::LayoutDatabase::parse("const SHAPE = 0\nfield Object.shape Shape SHAPE nonnull\n")
-                .unwrap();
+        let layouts = crate::frontend::layout::LayoutDatabase::parse(
+            "const SHAPE = 0\nfield Object.shape Shape SHAPE nonnull cell\n",
+        )
+        .unwrap();
         let ast = parser::parse(
             "test.flap",
             r#"
@@ -4238,9 +4245,10 @@ handler StoreNull(address: u64, flag: u32) {
 
     #[test]
     fn accepts_reassigned_null_binding_store_to_nonnull_field() {
-        let layouts =
-            crate::frontend::layout::LayoutDatabase::parse("const SHAPE = 0\nfield Object.shape Shape SHAPE nonnull\n")
-                .unwrap();
+        let layouts = crate::frontend::layout::LayoutDatabase::parse(
+            "const SHAPE = 0\nfield Object.shape Shape SHAPE nonnull cell\n",
+        )
+        .unwrap();
         let ast = parser::parse(
             "test.flap",
             r#"
@@ -4261,7 +4269,7 @@ handler StoreShape(address: u64) {
     #[test]
     fn does_not_apply_pointer_nonzero_checks_to_byte_fields() {
         let layouts = crate::frontend::layout::LayoutDatabase::parse(
-            "const FLAG = 0\nfield ExecutionContext.flag bool FLAG nonnull\n",
+            "const FLAG = 0\nfield ExecutionContext.flag bool FLAG nonnull scalar\n",
         )
         .unwrap();
         let ast = parser::parse(
@@ -4294,6 +4302,38 @@ handler Read(address: u64) {
                 nonzero: false,
             }
         );
+    }
+
+    #[test]
+    fn routes_cell_pointer_fields_through_cell_pointer_loads() {
+        let layouts = crate::frontend::layout::LayoutDatabase::parse(
+            "const SHAPE = 0\nfield Object.shape Shape SHAPE nonnull cell\n",
+        )
+        .unwrap();
+        let ast = parser::parse(
+            "test.flap",
+            r#"
+handler Read(address: u64) {
+    let object: Object = alias(address);
+    let shape = object.shape;
+    assert_nonzero(shape);
+    dispatch_next;
+}
+"#,
+        )
+        .unwrap();
+        let program = check_with_layouts("test.flap", &ast, layouts.fields()).unwrap();
+        let field_access = program.handlers[0]
+            .body
+            .statements
+            .iter()
+            .find_map(|statement| match &statement.kind {
+                StatementKindIr::Call(_, call) => call.field_access(),
+                _ => None,
+            })
+            .unwrap();
+
+        assert_eq!(field_access.kind, FieldAccessKind::LoadCellPointer { nonzero: true });
     }
 
     accepts!(

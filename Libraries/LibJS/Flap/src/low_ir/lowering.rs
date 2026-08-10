@@ -2021,12 +2021,20 @@ fn lower_memory_operation(
     inputs: &[Operand],
     output: &mut Vec<Instruction>,
 ) -> Result<(), String> {
-    if operation == MemoryOperation::Load64NonZero {
+    if matches!(
+        operation,
+        MemoryOperation::Load64NonZero | MemoryOperation::LoadNonnullCellPointer
+    ) {
         let ([destination], [address]) = (results, inputs) else {
             return Err("'load64_nonzero' requires one result and one address".to_string());
         };
         emit!(output; MachineOperation::load(MemoryWidth::DoubleWord, false) => [destination.clone(), address.clone()];);
         emit!(output; MachineOperation::Assertion(AssertionOperation::NonZero) => [destination.clone()];);
+    } else if operation == MemoryOperation::LoadCellPointer {
+        let ([destination], [address]) = (results, inputs) else {
+            return Err("'load_cell_ptr' requires one result and one address".to_string());
+        };
+        emit!(output; MachineOperation::load(MemoryWidth::DoubleWord, false) => [destination.clone(), address.clone()];);
     } else {
         output.push(machine_instruction(
             MachineOperation::Memory(operation),
@@ -2052,7 +2060,9 @@ fn lower_field_access_pair(
     let (Some(first_pair), Some(second_pair)) = (first_access.pair, second_access.pair) else {
         return Ok(false);
     };
-    if first_access.kind != second_access.kind
+    if first_access.kind.width() != second_access.kind.width()
+        || first_access.kind.writes() != second_access.kind.writes()
+        || first_access.kind.nonzero() != second_access.kind.nonzero()
         || first_pair.id != second_pair.id
         || first_pair.order > 1
         || second_pair.order != 1 - first_pair.order
