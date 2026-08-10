@@ -828,17 +828,17 @@ impl TableTree for TableFormattingContext<'_> {
     fn row_is_collapsed(&self, row: Node, row_group: Option<Node>) -> bool {
         // CSS::Visibility::Collapse is pinned to zero in
         // LayoutRustBridge.cpp.
-        self.style_facts(row).visibility() == 0 || row_group.is_some_and(|group| self.style_facts(group).visibility() == 0)
+        self.style(row).visibility() == 0 || row_group.is_some_and(|group| self.style(group).visibility() == 0)
     }
 }
 
 impl<'pass> TableFormattingContext<'pass> {
     fn node_facts(&self, node: Node) -> NodeFacts<'_> {
-        self.state.node_facts(&self.callbacks, node)
+        NodeFacts::new(&self.callbacks, node)
     }
 
-    fn style_facts(&self, node: Node) -> StyleValues<'pass> {
-        self.state.style_facts(&self.callbacks, node)
+    fn style(&self, node: Node) -> StyleValues<'pass> {
+        StyleValues::for_node(&self.callbacks, node)
     }
 
     fn raw_column_span(&self, column: Node) -> usize {
@@ -913,7 +913,7 @@ impl<'pass> TableFormattingContext<'pass> {
     }
 
     fn create_used_values(&self, node: Node, constraints: ContainingBlockConstraints) -> std::rc::Rc<UsedValues> {
-        self.records.create_used_values(self.state, &self.callbacks, node, constraints)
+        self.records.create_used_values(&self.callbacks, node, constraints)
     }
 
     fn set_cell_coordinates(&self, cell: TableCell) {
@@ -932,7 +932,7 @@ impl<'pass> TableFormattingContext<'pass> {
     }
 
     fn border_spacing_inline(&mut self) -> CssPixels {
-        let style = self.style_facts(self.table_box);
+        let style = self.style(self.table_box);
         // When a table is laid out in collapsed-borders mode, the border-spacing of the table-root is ignored (as if it was set to 0px):
         // https://www.w3.org/TR/css-tables-3/#collapsed-style-overrides
         if style.border_collapse() != BORDER_COLLAPSE_SEPARATE {
@@ -943,7 +943,7 @@ impl<'pass> TableFormattingContext<'pass> {
     }
 
     fn border_spacing_block(&mut self) -> CssPixels {
-        let style = self.style_facts(self.table_box);
+        let style = self.style(self.table_box);
         // When a table is laid out in collapsed-borders mode, the border-spacing of the table-root is ignored (as if it was set to 0px):
         // https://www.w3.org/TR/css-tables-3/#collapsed-style-overrides
         if style.border_collapse() != BORDER_COLLAPSE_SEPARATE {
@@ -954,7 +954,7 @@ impl<'pass> TableFormattingContext<'pass> {
     }
 
     fn element_borders(&mut self, node: Node) -> ElementBorders {
-        let style = self.style_facts(node);
+        let style = self.style(node);
         ElementBorders {
             top: FfiBorderData {
                 color: style.border_top_color(),
@@ -980,7 +980,7 @@ impl<'pass> TableFormattingContext<'pass> {
     }
 
     fn border_conflict_resolution(&mut self) {
-        if self.style_facts(self.table_box).border_collapse() == BORDER_COLLAPSE_SEPARATE {
+        if self.style(self.table_box).border_collapse() == BORDER_COLLAPSE_SEPARATE {
             for cell_index in 0..self.cells.len() {
                 let cell = self.cells[cell_index];
                 self.set_cell_coordinates(cell);
@@ -1093,7 +1093,7 @@ impl<'pass> TableFormattingContext<'pass> {
         // A table-root is said to be laid out in fixed mode whenever the computed value of the table-layout property is equal to fixed, and the
         // specified width of the table root is either a <length-percentage>, min-content or fit-content. When the specified width is not one of
         // those values, or if the computed value of the table-layout property is auto, then the table-root is said to be laid out in auto mode.
-        let style = self.style_facts(self.table_box);
+        let style = self.style(self.table_box);
         let width = style.width();
         style.table_layout() == TABLE_LAYOUT_FIXED
             && (width.is_length() || width.is_percentage() || width.is_min_content() || width.is_fit_content())
@@ -1106,7 +1106,7 @@ impl<'pass> TableFormattingContext<'pass> {
         let mut column_index = 0usize;
         for group in self.matching_children(self.table_box, |facts| facts.is_table_column_group()) {
             for column in self.matching_children(group, |facts| facts.is_table_column()) {
-                if self.style_facts(column).width().is_length() {
+                if self.style(column).width().is_length() {
                     self.columns[column_index].is_constrained = true;
                 }
                 column_index += self.raw_column_span(column);
@@ -1114,13 +1114,13 @@ impl<'pass> TableFormattingContext<'pass> {
         }
         for row_index in 0..self.rows.len() {
             let row_box = self.rows[row_index].box_;
-            if self.style_facts(row_box).height().is_length() {
+            if self.style(row_box).height().is_length() {
                 self.rows[row_index].is_constrained = true;
             }
         }
         for cell_index in 0..self.cells.len() {
             let cell = self.cells[cell_index];
-            let style = self.style_facts(cell.box_);
+            let style = self.style(cell.box_);
             if style.width().is_length() {
                 self.columns[cell.column_index].is_constrained = true;
             }
@@ -1156,11 +1156,11 @@ impl<'pass> TableFormattingContext<'pass> {
         let block_basis = self.table_constraints.block_basis();
         self.compute_constrainedness();
         let fixed = self.use_fixed_mode_layout();
-        let collapsed = self.style_facts(self.table_box).border_collapse() != BORDER_COLLAPSE_SEPARATE;
+        let collapsed = self.style(self.table_box).border_collapse() != BORDER_COLLAPSE_SEPARATE;
 
         for cell_index in 0..self.cells.len() {
             let cell = self.cells[cell_index];
-            let style = self.style_facts(cell.box_);
+            let style = self.style(cell.box_);
             let padding_block_start = style.padding_top().to_px(block_basis);
             let padding_block_end = style.padding_bottom().to_px(block_basis);
             let padding_inline_start = style.padding_left().to_px(inline_basis);
@@ -1277,7 +1277,7 @@ impl<'pass> TableFormattingContext<'pass> {
     fn initialize_row_content_sizes(&mut self) {
         let basis = self.table_constraints.block_basis();
         for row_index in 0..self.rows.len() {
-            let style = self.style_facts(self.rows[row_index].box_);
+            let style = self.style(self.rows[row_index].box_);
             let min_size = style.min_height().to_px(basis);
             let max_size = if style.max_height().is_length() {
                 style.max_height().to_px(basis)
@@ -1297,7 +1297,7 @@ impl<'pass> TableFormattingContext<'pass> {
         let mut column_index = 0usize;
         for group in self.matching_children(self.table_box, |facts| facts.is_table_column_group()) {
             for column in self.matching_children(group, |facts| facts.is_table_column()) {
-                let style = self.style_facts(column);
+                let style = self.style(column);
                 let min_size = style.min_width().to_px(basis);
                 let max_size = if style.max_width().is_length() {
                     style.max_width().to_px(basis)
@@ -1423,7 +1423,7 @@ impl<'pass> TableFormattingContext<'pass> {
     fn initialize_intrinsic_percentages(&mut self, axis: TrackAxis) {
         if axis == TrackAxis::Row {
             for index in 0..self.rows.len() {
-                let style = self.style_facts(self.rows[index].box_);
+                let style = self.style(self.rows[index].box_);
                 // Definition of percentage contribution: https://www.w3.org/TR/css-tables-3/#percentage-contribution
                 self.rows[index].has_intrinsic_percentage =
                     style.max_height().is_percentage() || style.height().is_percentage();
@@ -1433,7 +1433,7 @@ impl<'pass> TableFormattingContext<'pass> {
             let mut column_index = 0usize;
             for group in self.matching_children(self.table_box, |facts| facts.is_table_column_group()) {
                 for column in self.matching_children(group, |facts| facts.is_table_column()) {
-                    let style = self.style_facts(column);
+                    let style = self.style(column);
                     // Definition of percentage contribution: https://www.w3.org/TR/css-tables-3/#percentage-contribution
                     self.columns[column_index].has_intrinsic_percentage =
                         style.max_width().is_percentage() || style.width().is_percentage();
@@ -1445,7 +1445,7 @@ impl<'pass> TableFormattingContext<'pass> {
 
         for cell_index in 0..self.cells.len() {
             let cell = self.cells[cell_index];
-            let style = self.style_facts(cell.box_);
+            let style = self.style(cell.box_);
             let size = match axis {
                 TrackAxis::Row => style.height(),
                 TrackAxis::Column => style.width(),
@@ -1484,7 +1484,7 @@ impl<'pass> TableFormattingContext<'pass> {
                 if Self::cell_span(cell, axis) != current_span {
                     continue;
                 }
-                let style = self.style_facts(cell.box_);
+                let style = self.style(cell.box_);
                 let start = Self::cell_index(cell, axis);
                 let end = start + current_span;
                 // 1. Start with the percentage contribution of the cell.
@@ -1547,7 +1547,7 @@ impl<'pass> TableFormattingContext<'pass> {
             for cell_index in 0..self.cells.len() {
                 let cell = self.cells[cell_index];
                 if cell.row_span == 1 {
-                    let specified = self.style_facts(cell.box_).height().to_px(basis);
+                    let specified = self.style(cell.box_).height().to_px(basis);
                     // https://www.w3.org/TR/css-tables-3/#row-layout makes specified cell height part of the initialization formula for row table measures:
                     // This is done by running the same algorithm as the column measurement, with the span=1 value being initialized (for min-content) with
                     // the largest of the resulting height of the previous row layout, the height specified on the corresponding table-row (if any), and
@@ -1695,7 +1695,7 @@ impl<'pass> TableFormattingContext<'pass> {
         let basis = self.table_constraints.inline_basis();
         let mut capmin = CssPixels::default();
         for caption in self.matching_children(self.table_box, |facts| facts.is_table_caption()) {
-            let style = self.style_facts(caption);
+            let style = self.style(caption);
             let outer = |inner: CssPixels| {
                 inner
                     + style.margin_left().to_px(basis)
@@ -1743,7 +1743,7 @@ impl<'pass> TableFormattingContext<'pass> {
         // CSS Sizing says box-sizing:border-box applies length/percentage width/min-width/max-width constraints to
         // the border box. The table inline-size algorithm compares content inline sizes, so convert them before comparing.
         let mut resolved = constraint.to_px(basis);
-        if self.style_facts(self.table_box).box_sizing() == box_sizing::BORDER_BOX {
+        if self.style(self.table_box).box_sizing() == box_sizing::BORDER_BOX {
             let used = self.used_values(self.table_box);
             resolved -= used.border_box_left(false) + used.border_box_right(false);
         }
@@ -1758,7 +1758,7 @@ impl<'pass> TableFormattingContext<'pass> {
     fn compute_table_inline_size(&mut self) {
         // https://drafts.csswg.org/css-tables-3/#computing-the-table-width
 
-        let table_style = self.style_facts(self.table_box);
+        let table_style = self.style(self.table_box);
         let available_inline = self.available_space.inline_size;
         // Percentages on 'width' and 'height' on the table are relative to the table wrapper box's containing block,
         // not the table wrapper box itself.
@@ -1810,7 +1810,7 @@ impl<'pass> TableFormattingContext<'pass> {
                 // 'width: auto', a percentage represents a constraint on the column's inline size, which a UA should try to satisfy.
                 for cell_index in 0..self.cells.len() {
                     let cell = self.cells[cell_index];
-                    let cell_width = self.style_facts(cell.box_).width();
+                    let cell_width = self.style(cell.box_).width();
                     if cell_width.is_percentage() {
                         let mut adjusted = spacing;
                         let percentage = cell_width.length_percentage().as_fraction() * 100.0;
@@ -1854,7 +1854,7 @@ impl<'pass> TableFormattingContext<'pass> {
             if self.rows[row_index].is_collapsed {
                 return false;
             }
-            let style = self.style_facts(self.rows[row_index].box_);
+            let style = self.style(self.rows[row_index].box_);
             if !style.height().is_auto() || !style.min_height().is_auto() || !style.max_height().is_none() {
                 return false;
             }
@@ -1864,7 +1864,7 @@ impl<'pass> TableFormattingContext<'pass> {
             if cell.row_span != 1 {
                 return false;
             }
-            let style = self.style_facts(cell.box_);
+            let style = self.style(cell.box_);
             if !style.height().is_auto() || !style.min_height().is_auto() || !style.max_height().is_none() {
                 return false;
             }
@@ -1891,7 +1891,7 @@ impl<'pass> TableFormattingContext<'pass> {
         // resolve against those. Percentage block sizes of participants only resolve once the table
         // itself has a non-auto block size.
         self.table_constraints = input.containing_block_constraints;
-        let table_height_auto = self.style_facts(self.table_box).height().is_auto();
+        let table_height_auto = self.style(self.table_box).height().is_auto();
         self.participant_constraints = ContainingBlockConstraints {
             percentage_basis_inline_size: self.table_constraints.percentage_basis_inline_size,
             percentage_basis_block_size: if table_height_auto {
@@ -1973,7 +1973,6 @@ impl<'pass> TableFormattingContext<'pass> {
             return self.box_baseline(cell_box);
         };
         crate::layout::box_baseline_with_content_baselines(
-            self.state,
             &self.callbacks,
             cell_box,
             &self.used_values(cell_box),
@@ -1984,7 +1983,6 @@ impl<'pass> TableFormattingContext<'pass> {
 
     fn box_baseline(&self, node: Node) -> CssPixels {
         crate::layout::box_baseline(
-            self.state,
             &self.callbacks,
             node,
             &self.used_values(node),
@@ -2001,7 +1999,7 @@ impl<'pass> TableFormattingContext<'pass> {
     ) -> Option<MeasuredCellContent> {
         // The table formatting context owns the cell's outer geometry. Seed the inputs
         // needed to lay out its contents without copying placement or layout outputs.
-        let facts = self.state.node_facts(&self.callbacks, cell.box_);
+        let facts = NodeFacts::new(&self.callbacks, cell.box_);
         if self.layout_mode == LayoutMode::IntrinsicSizing
             && !facts.is_inline()
             && used.inline_size_constraint.get() == SizeConstraint::None
@@ -2048,7 +2046,6 @@ impl<'pass> TableFormattingContext<'pass> {
         Some(MeasuredCellContent {
             content_block_size: result.automatic_content_block_size,
             first_baseline: crate::layout::box_baseline_with_content_baselines(
-                measurement.layout_state(),
                 measurement.callbacks(),
                 cell.box_,
                 &measured_cell_used,
@@ -2065,7 +2062,7 @@ impl<'pass> TableFormattingContext<'pass> {
                 self.rows[row_index].base_block_size = CssPixels::default();
                 continue;
             }
-            let height = self.style_facts(self.rows[row_index].box_).height();
+            let height = self.style(self.rows[row_index].box_).height();
             if height.is_length() {
                 // NOTE: A <length> block size resolves without a percentage basis.
                 self.rows[row_index].base_block_size = self.rows[row_index]
@@ -2075,12 +2072,12 @@ impl<'pass> TableFormattingContext<'pass> {
         }
         let inline_basis = self.participant_constraints.inline_basis();
         let participant_block_basis = self.participant_constraints.block_basis();
-        let collapsed = self.style_facts(self.table_box).border_collapse() != BORDER_COLLAPSE_SEPARATE;
+        let collapsed = self.style(self.table_box).border_collapse() != BORDER_COLLAPSE_SEPARATE;
         let inline_spacing = self.border_spacing_inline();
         // First pass of cells layout:
         for cell_index in 0..self.cells.len() {
             let cell = self.cells[cell_index];
-            let style = self.style_facts(cell.box_);
+            let style = self.style(cell.box_);
             let span_inline = (0..cell.column_span).fold(CssPixels::default(), |sum, index| {
                 sum + self.columns[cell.column_index + index].used_inline_size
             });
@@ -2185,7 +2182,7 @@ impl<'pass> TableFormattingContext<'pass> {
             let content_min = minimum - used.border_box_top(false) - used.border_box_bottom(false);
             self.table_block_size = self.table_block_size.max(content_min);
         }
-        let table_style = self.style_facts(self.table_box);
+        let table_style = self.style(self.table_box);
         if !table_style.height().is_auto() {
             // If the table has a `height` property other than auto, it is treated as a minimum block size for the
             // table grid, and will eventually be distributed to the rows if their collective minimum block size is smaller.
@@ -2214,7 +2211,7 @@ impl<'pass> TableFormattingContext<'pass> {
                 self.rows[row_index].reference_block_size = CssPixels::default();
                 continue;
             }
-            let style = self.style_facts(self.rows[row_index].box_);
+            let style = self.style(self.rows[row_index].box_);
             if style.height().is_percentage() {
                 let used = style.height().to_px(self.table_block_size);
                 self.rows[row_index].reference_block_size = self.rows[row_index].reference_block_size.max(used);
@@ -2224,7 +2221,7 @@ impl<'pass> TableFormattingContext<'pass> {
         // At this point, percentage cell block sizes can be resolved because the final table block size is calculated.
         for cell_index in 0..self.cells.len() {
             let cell = self.cells[cell_index];
-            let style = self.style_facts(cell.box_);
+            let style = self.style(cell.box_);
             if !style.height().is_percentage() {
                 continue;
             }
@@ -2271,7 +2268,7 @@ impl<'pass> TableFormattingContext<'pass> {
         }
         let auto_rows = (0..self.rows.len())
             .filter(|index| {
-                !self.rows[*index].is_collapsed && self.style_facts(self.rows[*index].box_).height().is_auto()
+                !self.rows[*index].is_collapsed && self.style(self.rows[*index].box_).height().is_auto()
             })
             .collect::<Vec<_>>();
         if self.table_block_size <= sum {
@@ -2374,13 +2371,13 @@ impl<'pass> TableFormattingContext<'pass> {
     fn layout_deferred_cells_inside(&mut self, run: &FormattingContextRun<'pass>) {
         // Deferred cells get their one and only committing inside layout here, once row
         // block sizes are final.
-        let collapsed = self.style_facts(self.table_box).border_collapse() != BORDER_COLLAPSE_SEPARATE;
+        let collapsed = self.style(self.table_box).border_collapse() != BORDER_COLLAPSE_SEPARATE;
         for cell_index in 0..self.cells.len() {
             if !self.deferred_cell_inside_layouts[cell_index] {
                 continue;
             }
             let cell = self.cells[cell_index];
-            let adopt_automatic_content_block_size = !self.style_facts(cell.box_).height().is_percentage();
+            let adopt_automatic_content_block_size = !self.style(cell.box_).height().is_percentage();
             let intrinsic_block_padding = self.cell_intrinsic_block_padding(cell, collapsed);
             let used = self.used_values(cell.box_);
             let measured_content_block_size = used.content_block_size.get();
@@ -2403,7 +2400,7 @@ impl<'pass> TableFormattingContext<'pass> {
     fn cell_intrinsic_block_padding(&mut self, cell: TableCell, collapsed: bool) -> Option<(CssPixels, CssPixels)> {
         let row_size = self.compute_row_content_block_size(cell);
         let used = self.used_values(cell.box_);
-        let style = self.style_facts(cell.box_);
+        let style = self.style(cell.box_);
         // When a table cell is an anonymous wrapper around a flex or grid container (e.g., a <td> with display:flex is
         // wrapped in an anonymous table-cell box per CSS Tables 3), the cell should be aligned to the top. This allows
         // the flex/grid container to fill the cell and handle alignment of its children via its own properties.
@@ -2495,7 +2492,7 @@ impl<'pass> TableFormattingContext<'pass> {
             offset += column.used_inline_size;
         }
         let spacing = self.border_spacing_inline();
-        let collapsed = self.style_facts(self.table_box).border_collapse() != BORDER_COLLAPSE_SEPARATE;
+        let collapsed = self.style(self.table_box).border_collapse() != BORDER_COLLAPSE_SEPARATE;
         for cell_index in 0..self.cells.len() {
             let cell = self.cells[cell_index];
             let used = self.used_values(cell.box_);
@@ -2515,7 +2512,7 @@ impl<'pass> TableFormattingContext<'pass> {
     }
 
     fn compute_and_store_baselines(&self, node: Node) {
-        let baselines = crate::layout::derive_baselines(self.state, &self.records, &self.callbacks, node, false);
+        let baselines = crate::layout::derive_baselines(&self.records, &self.callbacks, node, false);
         if node == self.table_box {
             self.derived_baselines_of_root_box.set(baselines);
         } else {

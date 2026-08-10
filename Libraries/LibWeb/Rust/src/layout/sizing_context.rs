@@ -24,11 +24,11 @@ impl<'pass> SizingContext<'pass> {
     }
 
     fn facts(&self, node: Node) -> NodeFacts<'_> {
-        self.state.node_facts(&self.callbacks, node)
+        NodeFacts::new(&self.callbacks, node)
     }
 
     fn style(&self, node: Node) -> StyleValues<'pass> {
-        self.state.style_facts(&self.callbacks, node)
+        StyleValues::for_node(&self.callbacks, node)
     }
 
     #[track_caller]

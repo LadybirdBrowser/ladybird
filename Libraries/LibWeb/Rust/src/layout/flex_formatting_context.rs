@@ -190,7 +190,7 @@ struct FlexFormattingContext<'pass> {
 
 impl<'pass> FlexFormattingContext<'pass> {
     fn new(run: &FormattingContextRun<'pass>) -> Self {
-        let flex_direction = run.state.style_facts(&run.callbacks, run.box_).flex_direction();
+        let flex_direction = StyleValues::for_node(&run.callbacks, run.box_).flex_direction();
         Self {
             state: run.state,
             records: run.records.clone(),
@@ -232,11 +232,11 @@ impl<'pass> FlexFormattingContext<'pass> {
         self.records.used_values(self.flex_container)
     }
     fn style(&self, node: Node) -> StyleValues<'pass> {
-        self.state.style_facts(&self.callbacks, node)
+        StyleValues::for_node(&self.callbacks, node)
     }
 
     fn facts(&self, node: Node) -> NodeFacts<'_> {
-        self.state.node_facts(&self.callbacks, node)
+        NodeFacts::new(&self.callbacks, node)
     }
 
     fn sizing(&self) -> SizingContext<'pass> {
@@ -245,7 +245,7 @@ impl<'pass> FlexFormattingContext<'pass> {
 
     fn create_used_values(&self, node: Node) -> std::rc::Rc<UsedValues> {
         let constraints = self.item_percentage_bases;
-        self.records.create_used_values(self.state, &self.callbacks, node, constraints)
+        self.records.create_used_values(&self.callbacks, node, constraints)
     }
 
     fn constraints_for_child_context(
@@ -774,7 +774,7 @@ impl<'pass> FlexFormattingContext<'pass> {
                 // Skip any "out-of-flow" children
                 if !skip && !facts.is_absolutely_positioned() {
                     // Flex inhibits floating, so only absolute positioning is out of flow here.
-                    self.state.set_box_is_flex_item(&self.callbacks, child, true);
+                    self.callbacks.arena().set_node_flag(child, NodeFlag::IsFlexItem, true);
                     self.create_used_values(child);
                     let item = FlexItem::new(child);
                     buckets.entry(self.style(child).order()).or_default().push(item);
@@ -2254,7 +2254,6 @@ impl<'pass> FlexFormattingContext<'pass> {
     fn item_box_baseline(&self, index: usize) -> CssPixels {
         let item = &self.flex_items[index];
         crate::layout::box_baseline_with_content_baselines(
-            self.state,
             &self.callbacks,
             item.box_,
             &self.item_used(index),
@@ -3080,7 +3079,7 @@ impl<'pass> FlexFormattingContext<'pass> {
                 crate::layout::place_child(&self.formatting_context_run(), item.box_, offset, None);
             }
             self.derived_baselines_of_root_box =
-                crate::layout::derive_baselines(self.state, &self.records, &self.callbacks, self.flex_container, true);
+                crate::layout::derive_baselines(&self.records, &self.callbacks, self.flex_container, true);
         }
 
         if self.should_collect_devtools_layout_data {

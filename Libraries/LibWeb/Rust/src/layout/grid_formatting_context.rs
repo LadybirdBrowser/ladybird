@@ -1201,11 +1201,11 @@ impl<'pass> GridFormattingContext<'pass> {
         self.records.used_values(item.box_)
     }
     fn style(&self, node: Node) -> StyleValues<'pass> {
-        self.state.style_facts(&self.callbacks, node)
+        StyleValues::for_node(&self.callbacks, node)
     }
 
     fn facts(&self, node: Node) -> NodeFacts<'_> {
-        self.state.node_facts(&self.callbacks, node)
+        NodeFacts::new(&self.callbacks, node)
     }
 
     /// The node's computed grid style group, read in place. The payload
@@ -1615,7 +1615,7 @@ impl<'pass> GridFormattingContext<'pass> {
             if box_facts.is_box() && !box_facts.is_absolutely_positioned() {
                 let skip = self.callbacks.can_skip_is_anonymous_text_run(child);
                 if !skip {
-                    self.state.set_box_is_grid_item(&self.callbacks, child, true);
+                    self.callbacks.arena().set_node_flag(child, NodeFlag::IsGridItem, true);
                     let child_grid_style = self.grid_style(child);
                     let source = TrackListSource::from_grid_style(child_grid_style);
                     let column_subgrid_span = child_grid_style
@@ -1645,7 +1645,7 @@ impl<'pass> GridFormattingContext<'pass> {
                         ),
                     });
                     self.records
-                        .create_used_values(self.state, &self.callbacks, child, ContainingBlockConstraints::default());
+                        .create_used_values(&self.callbacks, child, ContainingBlockConstraints::default());
                     nodes.push(child);
                 }
             }
@@ -3246,7 +3246,7 @@ impl<'pass> GridFormattingContext<'pass> {
             crate::layout::place_child(&self.formatting_context_run(), item.box_, offset, None);
         }
         self.derived_baselines_of_root_box =
-            crate::layout::derive_baselines(self.state, &self.records, &self.callbacks, self.grid_container, false);
+            crate::layout::derive_baselines(&self.records, &self.callbacks, self.grid_container, false);
     }
 
     fn used_track_list_data(&self, axis: Axis, subgrid: bool) -> OwnedUsedGridTrackList {

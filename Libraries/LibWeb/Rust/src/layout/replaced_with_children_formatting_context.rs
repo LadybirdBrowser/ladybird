@@ -27,7 +27,7 @@ fn layout_replaced_with_children(run: &FormattingContextRun, layout_input: Layou
     // Delegate layout to a BFC for that wrapper.
     let mut wrapper = run.callbacks.first_child(run.box_);
     while !wrapper.is_invalid() {
-        if run.state.node_facts(&run.callbacks, wrapper).is_block_container() {
+        if NodeFacts::new(&run.callbacks, wrapper).is_block_container() {
             break;
         }
         wrapper = run.callbacks.next_sibling(wrapper);
@@ -41,7 +41,7 @@ fn layout_replaced_with_children(run: &FormattingContextRun, layout_input: Layou
         .constraints_for_child_context(run.box_, layout_input.containing_block_constraints);
     let wrapper_state = run
         .records
-        .create_used_values(run.state, &run.callbacks, wrapper, wrapper_constraints);
+        .create_used_values(&run.callbacks, wrapper, wrapper_constraints);
     wrapper_state.set_content_inline_size(content_inline_size);
 
     let wrapper_layout = crate::layout::run_formatting_context(
