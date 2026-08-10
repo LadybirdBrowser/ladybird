@@ -490,13 +490,12 @@ ByteString extract_tld_hint(URL::URL const& url)
 }
 
 // https://html.spec.whatwg.org/multipage/parsing.html#determining-the-character-encoding
-ByteString run_encoding_sniffing_algorithm(DOM::Document& document, ReadonlyBytes input, Optional<MimeSniff::MimeType> maybe_mime_type)
+EncodingSniffingResult run_encoding_sniffing_algorithm(DOM::Document& document, ReadonlyBytes input, Optional<MimeSniff::MimeType> maybe_mime_type)
 {
     // 1. If the result of BOM sniffing is an encoding, return that encoding with confidence certain.
-    // FIXME: There is no concept of decoding certainty yet.
     auto bom = run_bom_sniff(input);
     if (bom.has_value())
-        return bom.value();
+        return { bom.release_value(), EncodingConfidence::Certain };
     // 2. FIXME: If the user has explicitly instructed the user agent to override the document's character encoding with a specific encoding,
     //    optionally return that encoding with the confidence certain.
 
@@ -510,7 +509,7 @@ ByteString run_encoding_sniffing_algorithm(DOM::Document& document, ReadonlyByte
         // FIXME: This is awkward because lecacy_extract_an_encoding can not fail
         auto maybe_transport_encoding = Fetch::Infrastructure::legacy_extract_an_encoding(maybe_mime_type, "invalid"sv);
         if (maybe_transport_encoding != "invalid"sv)
-            return maybe_transport_encoding;
+            return { maybe_transport_encoding, EncodingConfidence::Certain };
     }
 
     // 5. Optionally, prescan the byte stream to determine its encoding, with the end condition being when the user agent decides that scanning further bytes would not
@@ -519,7 +518,7 @@ ByteString run_encoding_sniffing_algorithm(DOM::Document& document, ReadonlyByte
     //    The aforementioned algorithm returns either a character encoding or failure. If it returns a character encoding, then return the same encoding, with confidence tentative.
     auto prescan = run_prescan_byte_stream_algorithm(document, input);
     if (prescan.has_value())
-        return prescan.value();
+        return { prescan.release_value(), EncodingConfidence::Tentative };
 
     // 6. FIXME: If the HTML parser for which this algorithm is being run is associated with a Document d whose container document is non-null, then:
     // 1. Let parentDocument be d's container document.
@@ -552,13 +551,13 @@ ByteString run_encoding_sniffing_algorithm(DOM::Document& document, ReadonlyByte
         auto detected = StringView { reinterpret_cast<char const*>(encoding_name_ptr), encoding_name_len };
         auto standardized = TextCodec::get_standardized_encoding(detected);
         if (standardized.has_value())
-            return ByteString { standardized.value() };
+            return { ByteString { standardized.value() }, EncodingConfidence::Tentative };
     }
 
     // 9. Otherwise, return an implementation-defined or user-specified default character encoding, with the confidence tentative.
     //    In controlled environments or in environments where the encoding of documents can be prescribed (for example, for user agents intended for dedicated use in new
     //    networks), the comprehensive UTF-8 encoding is suggested.
-    return "UTF-8";
+    return { "UTF-8", EncodingConfidence::Tentative };
 }
 
 }

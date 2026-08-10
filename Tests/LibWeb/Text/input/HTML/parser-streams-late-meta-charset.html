@@ -1,0 +1,108 @@
+<!doctype html>
+<meta charset="UTF-8" />
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        internals.setTestTimeout(5000);
+
+        const httpServer = httpTestServer();
+        const token = crypto.randomUUID().replaceAll("-", "");
+        async function runCase(name, declaration) {
+            const scriptURL = await httpServer.createEcho("GET", `/parser-streams-late-meta-script-${name}-${token}`, {
+                status: 200,
+                headers: {
+                    "Content-Type": "application/javascript",
+                },
+                body: `window.decodedScriptText = "you’re";`,
+            });
+
+            const body = `<!DOCTYPE html><head><!--${"a".repeat(2000)}-->${declaration}<script src="${scriptURL}"><\/script></head><body><span id="target">©</span>`;
+            const url = await httpServer.createEcho("GET", `/parser-streams-late-meta-${name}-${token}`, {
+                status: 200,
+                headers: {
+                    "Content-Type": "text/html",
+                },
+                body,
+            });
+
+            const frame = document.createElement("iframe");
+            await new Promise(resolve => {
+                frame.onload = resolve;
+                frame.src = `${url}?chunks=1500&chunk_delay_ms=50`;
+                document.body.appendChild(frame);
+            });
+
+            println(`${name} charset: ${frame.contentDocument.characterSet}`);
+            println(`${name} script: ${frame.contentWindow.decodedScriptText}`);
+            println(`${name} body: ${frame.contentDocument.getElementById("target").textContent}`);
+            frame.remove();
+        }
+
+        async function runProgressiveCase() {
+            const body = `<!DOCTYPE html><body>©<span id="target">ready</span>${" ".repeat(6000)}`;
+            const url = await httpServer.createEcho("GET", `/parser-streams-tentative-progressive-${token}`, {
+                status: 200,
+                headers: {
+                    "Content-Type": "text/html",
+                },
+                body,
+            });
+
+            const frame = document.createElement("iframe");
+            let didLoad = false;
+            const loadPromise = new Promise(resolve => {
+                frame.onload = () => {
+                    didLoad = true;
+                    resolve();
+                };
+            });
+            frame.src = `${url}?chunks=1500&chunk_delay_ms=100`;
+            document.body.appendChild(frame);
+
+            while (!didLoad && !frame.contentDocument.getElementById("target"))
+                await new Promise(resolve => setTimeout(resolve, 10));
+            const parsedBeforeLoad = !didLoad && !!frame.contentDocument.getElementById("target");
+
+            await loadPromise;
+            println(`charset-less progressive: ${parsedBeforeLoad}`);
+            frame.remove();
+        }
+
+        async function runPostEOFCase() {
+            const scriptURL = await httpServer.createEcho("GET", `/parser-streams-post-eof-script-${token}`, {
+                status: 200,
+                headers: {
+                    "Content-Type": "application/javascript",
+                },
+                body: `window.postEOFScriptRan = true;`,
+                delay_ms: 500,
+            });
+
+            const body = `<!DOCTYPE html><head><script type="application/json">"<meta charset=windows-1252>"<\/script><!--${"a".repeat(1200)}--><script src="${scriptURL}"><\/script><meta charset="UTF-8"></head><body>ASCII`;
+            const url = await httpServer.createEcho("GET", `/parser-streams-post-eof-meta-${token}`, {
+                status: 200,
+                headers: {
+                    "Content-Type": "text/html",
+                },
+                body,
+            });
+
+            const frame = document.createElement("iframe");
+            await new Promise(resolve => {
+                frame.onload = resolve;
+                frame.src = url;
+                document.body.appendChild(frame);
+            });
+
+            println(`post-eof charset: ${frame.contentDocument.characterSet}`);
+            println(`post-eof script: ${frame.contentWindow.postEOFScriptRan}`);
+            frame.remove();
+        }
+
+        await runCase("charset", `<meta charset="UTF-8">`);
+        await runCase("http-equiv", `<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">`);
+        await runProgressiveCase();
+        await runPostEOFCase();
+        done();
+    });
+</script>

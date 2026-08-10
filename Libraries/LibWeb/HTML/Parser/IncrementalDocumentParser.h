@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/ByteBuffer.h>
+#include <AK/Error.h>
 #include <AK/Optional.h>
 #include <AK/OwnPtr.h>
 #include <AK/Utf16StringBuilder.h>
@@ -41,7 +42,10 @@ private:
     void process_body_chunk(ByteBuffer);
     void process_end_of_body();
     void process_body_error(JS::Value);
+    ErrorOr<bool> change_encoding(StringView);
 
+    void decode_and_process(ReadonlyBytes);
+    void release_encoding_change_buffers();
     void append_decoded(Utf16View);
     void pump();
     void register_deferred_start();
@@ -56,7 +60,9 @@ private:
     GC::Ptr<HTMLParser> m_parser;
     OwnPtr<TextCodec::StreamingDecoder> m_decoder;
 
+    ByteBuffer m_input_bytes;
     Utf16StringBuilder m_source;
+    bool m_reached_end_of_body { false };
 };
 
 }

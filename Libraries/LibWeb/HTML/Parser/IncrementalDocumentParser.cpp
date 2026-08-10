@@ -76,11 +76,13 @@ void IncrementalDocumentParser::initialize_parser(ReadonlyBytes sniff_bytes)
     // https://html.spec.whatwg.org/multipage/parsing.html#parsing-with-a-known-character-encoding
     // https://html.spec.whatwg.org/multipage/parsing.html#determining-the-character-encoding
     Optional<StringView> standardized_encoding;
+    auto encoding_confidence = EncodingConfidence::Certain;
     if (m_document->has_encoding()) {
         standardized_encoding = TextCodec::get_standardized_encoding(m_document->encoding().value());
     } else {
-        auto encoding = run_encoding_sniffing_algorithm(m_document, sniff_bytes, m_mime_type);
+        auto [encoding, confidence] = run_encoding_sniffing_algorithm(m_document, sniff_bytes, m_mime_type);
         standardized_encoding = TextCodec::get_standardized_encoding(encoding);
+        encoding_confidence = confidence;
     }
     VERIFY(standardized_encoding.has_value());
     dbgln_if(HTML_PARSER_DEBUG, "The incremental HTML parser selected encoding '{}'", standardized_encoding.value());
@@ -93,9 +95,19 @@ void IncrementalDocumentParser::initialize_parser(ReadonlyBytes sniff_bytes)
     // to use for the input byte stream.
     m_document->set_encoding(utf16_string_from_standardized_encoding_label(standardized_encoding.value()));
 
-    // FIXME: Implement the spec's "change the encoding while parsing" algorithm.
     m_document->set_url(m_url);
-    m_parser = HTMLParser::create_with_open_input_stream(m_document);
+    m_parser = HTMLParser::create_with_open_input_stream(m_document, encoding_confidence);
+    m_parser->set_change_encoding_callback(GC::create_function(GC::Heap::the(), [this](StringView encoding) {
+        auto result = change_encoding(encoding);
+        if (result.is_error()) {
+            release_encoding_change_buffers();
+            return false;
+        }
+        return result.release_value();
+    }));
+    m_parser->set_parsing_complete_callback(GC::create_function(GC::Heap::the(), [this]() {
+        release_encoding_change_buffers();
+    }));
     m_parser->set_allow_declarative_shadow_roots(m_allow_declarative_shadow_roots);
 
     start_incremental_read();
@@ -133,22 +145,69 @@ void IncrementalDocumentParser::append_decoded(Utf16View decoded)
 
 void IncrementalDocumentParser::process_body_chunk(ByteBuffer bytes)
 {
-    if (!should_continue())
+    if (!should_continue()) {
+        release_encoding_change_buffers();
         return;
+    }
 
     // https://html.spec.whatwg.org/multipage/document-lifecycle.html#read-html
     // Each task that the networking task source places on the task queue while fetching runs must
     // fill the parser's input byte stream with the fetched bytes and cause the HTML parser to
     // perform the appropriate processing of the input stream.
-    auto decoded = m_decoder->to_utf16(bytes.bytes()).release_value_but_fixme_should_propagate_errors();
-    append_decoded(decoded);
-    pump();
+    auto bytes_to_decode = bytes.bytes();
+
+    if (m_parser->encoding_confidence() == EncodingConfidence::Tentative) {
+        auto current_encoding = TextCodec::get_standardized_encoding(m_document->encoding().value());
+        VERIFY(current_encoding.has_value());
+
+        // If a meta declaration precedes the first encoding-sensitive byte in this chunk, allow the parser to process
+        // the encoding-independent prefix first. This lets the declaration switch the decoder before the remainder of
+        // the chunk is decoded, while still allowing charset-less documents to parse progressively.
+        if (!current_encoding->is_one_of_ignoring_ascii_case("UTF-16BE"sv, "UTF-16LE"sv)) {
+            size_t encoding_independent_prefix_length = 0;
+            while (encoding_independent_prefix_length < bytes_to_decode.size()) {
+                auto byte = bytes_to_decode[encoding_independent_prefix_length];
+
+                // Non-ASCII bytes may have different Unicode interpretations in different encodings. ESC is also
+                // encoding-sensitive because it can change the state of an ISO-2022-JP decoder, affecting how
+                // subsequent ASCII-range bytes are interpreted.
+                if (!is_ascii(byte) || byte == 0x1B)
+                    break;
+
+                ++encoding_independent_prefix_length;
+            }
+
+            if (encoding_independent_prefix_length > 0) {
+                auto encoding_independent_prefix = bytes_to_decode.trim(encoding_independent_prefix_length);
+                m_input_bytes.append(encoding_independent_prefix);
+                decode_and_process(encoding_independent_prefix);
+
+                if (!should_continue()) {
+                    release_encoding_change_buffers();
+                    return;
+                }
+
+                bytes_to_decode = bytes_to_decode.slice(encoding_independent_prefix_length);
+            }
+        }
+    }
+
+    if (!bytes_to_decode.is_empty()) {
+        if (m_parser->encoding_confidence() == EncodingConfidence::Tentative)
+            m_input_bytes.append(bytes_to_decode);
+        decode_and_process(bytes_to_decode);
+    }
+
+    if (!should_continue() || m_parser->encoding_confidence() != EncodingConfidence::Tentative)
+        release_encoding_change_buffers();
 }
 
 void IncrementalDocumentParser::process_end_of_body()
 {
-    if (!should_continue())
+    if (!should_continue()) {
+        release_encoding_change_buffers();
         return;
+    }
 
     auto decoded = m_decoder->finish_to_utf16().release_value_but_fixme_should_propagate_errors();
     append_decoded(decoded);
@@ -156,12 +215,62 @@ void IncrementalDocumentParser::process_end_of_body()
     // https://html.spec.whatwg.org/multipage/document-lifecycle.html#read-html
     // When no more bytes are available, have the parser process the implied EOF character.
     m_document->set_source(m_source.to_string());
+    m_reached_end_of_body = true;
     m_parser->tokenizer().close_input_stream();
     pump();
+
+    if (!should_continue())
+        release_encoding_change_buffers();
+}
+
+ErrorOr<bool> IncrementalDocumentParser::change_encoding(StringView new_encoding)
+{
+    // If all bytes converted so far have the same interpretation in the new encoding, retain the replacement
+    // streaming decoder after feeding it those bytes. Feeding the prefix both performs the required comparison and
+    // restores any decoder state needed to continue at the current byte position.
+    auto decoder = make<TextCodec::StreamingDecoder>(new_encoding, TextCodec::IgnoreBOM::No, TextCodec::ErrorMode::Replacement);
+
+    Utf16StringBuilder builder;
+    builder.append(TRY(decoder->to_utf16(m_input_bytes.bytes())));
+    if (m_reached_end_of_body)
+        builder.append(TRY(decoder->finish_to_utf16()));
+    auto redecoded_source = builder.to_string();
+
+    auto current_source = m_reached_end_of_body ? m_document->source().utf16_view() : m_source.view();
+    if (!redecoded_source.starts_with(current_source)
+        || (m_reached_end_of_body && redecoded_source.length_in_code_units() != current_source.length_in_code_units())) {
+        // FIXME: A mismatch requires restarting the navigation with the new encoding, as described by step 6 of the
+        //        change-the-encoding algorithm.
+        release_encoding_change_buffers();
+        return false;
+    }
+
+    auto additionally_decoded_source = redecoded_source.utf16_view().substring_view(current_source.length_in_code_units());
+    if (!additionally_decoded_source.is_empty()) {
+        VERIFY(!m_reached_end_of_body);
+        append_decoded(additionally_decoded_source);
+    }
+
+    m_decoder = move(decoder);
+    release_encoding_change_buffers();
+    return true;
+}
+
+void IncrementalDocumentParser::decode_and_process(ReadonlyBytes bytes)
+{
+    auto decoded = m_decoder->to_utf16(bytes).release_value_but_fixme_should_propagate_errors();
+    append_decoded(decoded);
+    pump();
+}
+
+void IncrementalDocumentParser::release_encoding_change_buffers()
+{
+    m_input_bytes.clear();
 }
 
 void IncrementalDocumentParser::process_body_error(JS::Value)
 {
+    release_encoding_change_buffers();
     dbgln("FIXME: Load html page with an error if incremental read of body failed.");
     HTMLParser::the_end(m_document, m_parser);
 }
