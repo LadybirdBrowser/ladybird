@@ -64,6 +64,39 @@ fn out_of_flow_root_space(inputs: AbsposLayoutInputs) -> (AvailableSpace, Contai
     )
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct ContainingBlockGeometry {
+    pub(crate) content_origin_in_entry_space: FfiCssPixelPoint,
+    pub(crate) padding_left: CssPixels,
+    pub(crate) padding_right: CssPixels,
+    pub(crate) padding_top: CssPixels,
+    pub(crate) padding_bottom: CssPixels,
+    pub(crate) content_inline_size: CssPixels,
+    pub(crate) content_block_size: CssPixels,
+}
+
+impl ContainingBlockGeometry {
+    pub(crate) fn from_used_values(used: &UsedValues, content_origin_in_entry_space: FfiCssPixelPoint) -> Self {
+        Self {
+            content_origin_in_entry_space,
+            padding_left: used.padding_left.get(),
+            padding_right: used.padding_right.get(),
+            padding_top: used.padding_top.get(),
+            padding_bottom: used.padding_bottom.get(),
+            content_inline_size: used.content_inline_size.get(),
+            content_block_size: used.content_block_size.get(),
+        }
+    }
+
+    pub(crate) fn padding_box_inline_size(&self) -> CssPixels {
+        self.content_inline_size + self.padding_left + self.padding_right
+    }
+
+    pub(crate) fn padding_box_block_size(&self) -> CssPixels {
+        self.content_block_size + self.padding_top + self.padding_bottom
+    }
+}
+
 pub(crate) struct AbsposEngine<'pass> {
     state: &'pass LayoutState,
     records: std::rc::Rc<RunRecords>,

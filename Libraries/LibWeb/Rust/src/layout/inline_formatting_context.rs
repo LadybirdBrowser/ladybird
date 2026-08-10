@@ -685,6 +685,13 @@ fn padding_box_rect_spanning_first_and_last_content_lines(
         }
     })
 }
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct InlineAncestorChainRelativeOffset {
+    pub(crate) offset_x: crate::layout::CssPixels,
+    pub(crate) offset_y: crate::layout::CssPixels,
+    pub(crate) found_fragmented_inline_node: bool,
+}
+
 pub(crate) struct InlineFormattingContext<'context, 'pass> {
     pub(crate) run: &'context FormattingContextRun<'pass>,
     pub(crate) state: &'pass LayoutState,

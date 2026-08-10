@@ -110,6 +110,25 @@ impl<T: Copy> SealableCell<T> {
     }
 }
 
+#[derive(Default)]
+pub(crate) struct LineData {
+    pub(crate) line_boxes: Vec<LineBoxData>,
+    pub(crate) inline_box_pieces: Vec<InlineBoxPieceData>,
+}
+
+#[derive(Default)]
+pub(crate) struct UsedValuesRareData {
+    pub(crate) table_cell_coordinates: Option<FfiTableCellCoordinates>,
+    pub(crate) computed_svg_path: Option<libgfx_rust::path::OwnedPath>,
+    pub(crate) computed_svg_transforms: Option<crate::layout::FfiSvgComputedTransforms>,
+    pub(crate) svg_viewport_size: Option<crate::layout::FfiCssPixelSize>,
+    pub(crate) grid_layout_data: Option<OwnedGridLayoutData>,
+    pub(crate) flex_layout_data: Option<OwnedFlexLayoutData>,
+    pub(crate) used_grid_tracks: Option<OwnedUsedGridTracks>,
+    pub(crate) override_borders_data: Option<FfiBordersData>,
+    pub(crate) abspos_layout_inputs: Option<AbsposLayoutInputs>,
+}
+
 /// The per-box geometry stored in a Rust-owned layout pass.
 #[derive(Debug)]
 pub(crate) struct UsedValues {
