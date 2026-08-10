@@ -494,27 +494,17 @@ ErrorOr<void> FormatBuilder::put_fixed_point(
     return {};
 }
 
-static ErrorOr<void> round_up_digits(StringBuilder& digits_builder)
+static bool round_up_digits(Span<char> digits)
 {
-    auto digits_buffer = TRY(digits_builder.to_byte_buffer());
-    int current_position = digits_buffer.size() - 1;
-
-    while (current_position >= 0) {
-        if (digits_buffer[current_position] == '.') {
-            --current_position;
-            continue;
+    for (auto index = digits.size(); index > 0; --index) {
+        auto& digit = digits[index - 1];
+        if (digit != '9') {
+            ++digit;
+            return false;
         }
-        ++digits_buffer[current_position];
-        if (digits_buffer[current_position] <= '9')
-            break;
-        digits_buffer[current_position] = '0';
-        --current_position;
+        digit = '0';
     }
-
-    digits_builder.clear();
-    if (current_position < 0)
-        TRY(digits_builder.try_append('1'));
-    return digits_builder.try_append(digits_buffer);
+    return true;
 }
 
 ErrorOr<void> FormatBuilder::put_f64_with_precision(
@@ -537,10 +527,10 @@ ErrorOr<void> FormatBuilder::put_f64_with_precision(
     if (is_negative)
         value = -value;
 
-    TRY(format_builder.put_u64(static_cast<u64>(value), base, false, upper_case, false, use_separator, Align::Right, 0, ' ', sign_mode, is_negative));
+    auto integer_value = static_cast<u64>(value);
     value -= static_cast<i64>(value);
 
-    bool did_emit_decimals = false;
+    Vector<char, 32> fraction_digits;
 
     if (precision > 0) {
         // FIXME: This is a terrible approximation but doing it properly would be a lot of work. If someone is up for that, a good
@@ -562,32 +552,26 @@ ErrorOr<void> FormatBuilder::put_f64_with_precision(
             if (value > NumericLimits<u32>::max())
                 value -= static_cast<u64>(value) - (static_cast<u64>(value) % 10);
 
-            if (digit == 0)
-                TRY(string_builder.try_append('.'));
-
-            TRY(string_builder.try_append('0' + (static_cast<u32>(value) % 10)));
-            did_emit_decimals = true;
+            TRY(fraction_digits.try_append('0' + (static_cast<u32>(value) % 10)));
         }
     }
 
     // Round up if the following decimal is 5 or higher
-    if (static_cast<u64>(value * 10.0) % 10 >= 5)
-        TRY(round_up_digits(string_builder));
+    if (static_cast<u64>(value * 10.0) % 10 >= 5) {
+        if (round_up_digits(fraction_digits.span()))
+            ++integer_value;
+    }
 
-    if (did_emit_decimals && display_mode == RealNumberDisplayMode::Default) {
-        while (!string_builder.is_empty()) {
-            // Strip trailing zero decimals.
-            if (string_builder.string_view().ends_with('0')) {
-                string_builder.trim(1);
-                continue;
-            }
-            // Strip trailing decimal point.
-            if (string_builder.string_view().ends_with('.')) {
-                string_builder.trim(1);
-                break;
-            }
-            break;
-        }
+    if (display_mode == RealNumberDisplayMode::Default) {
+        while (!fraction_digits.is_empty() && fraction_digits.last() == '0')
+            fraction_digits.take_last();
+    }
+
+    TRY(format_builder.put_u64(integer_value, base, false, upper_case, false, use_separator, Align::Right, 0, ' ', sign_mode, is_negative));
+
+    if (!fraction_digits.is_empty()) {
+        TRY(string_builder.try_append('.'));
+        TRY(string_builder.try_append(StringView { fraction_digits.data(), fraction_digits.size() }));
     }
 
     return put_string(string_builder.string_view(), align, min_width, NumericLimits<size_t>::max(), fill);
@@ -782,8 +766,10 @@ ErrorOr<void> FormatBuilder::put_f80(
     if (is_negative)
         value = -value;
 
-    TRY(format_builder.put_u64(static_cast<u64>(value), base, false, upper_case, false, use_separator, Align::Right, 0, ' ', sign_mode, is_negative));
+    auto integer_value = static_cast<u64>(value);
     value -= static_cast<i64>(value);
+
+    Vector<char, 32> fraction_digits;
 
     if (precision > 0) {
         // FIXME: This is a terrible approximation but doing it properly would be a lot of work. If someone is up for that, a good
@@ -805,16 +791,22 @@ ErrorOr<void> FormatBuilder::put_f80(
             if (value > NumericLimits<u32>::max())
                 value -= static_cast<u64>(value) - (static_cast<u64>(value) % 10);
 
-            if (digit == 0)
-                TRY(string_builder.try_append('.'));
-
-            TRY(string_builder.try_append('0' + (static_cast<u32>(value) % 10)));
+            TRY(fraction_digits.try_append('0' + (static_cast<u32>(value) % 10)));
         }
     }
 
     // Round up if the following decimal is 5 or higher
-    if (static_cast<u64>(value * 10.0l) % 10 >= 5)
-        TRY(round_up_digits(string_builder));
+    if (static_cast<u64>(value * 10.0l) % 10 >= 5) {
+        if (round_up_digits(fraction_digits.span()))
+            ++integer_value;
+    }
+
+    TRY(format_builder.put_u64(integer_value, base, false, upper_case, false, use_separator, Align::Right, 0, ' ', sign_mode, is_negative));
+
+    if (!fraction_digits.is_empty()) {
+        TRY(string_builder.try_append('.'));
+        TRY(string_builder.try_append(StringView { fraction_digits.data(), fraction_digits.size() }));
+    }
 
     TRY(put_string(string_builder.string_view(), align, min_width, NumericLimits<size_t>::max(), fill));
     return {};
