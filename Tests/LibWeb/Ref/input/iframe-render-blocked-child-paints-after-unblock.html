@@ -28,8 +28,9 @@
 
             window.addEventListener("load", async () => {
                 const server = httpTestServer();
-                const unblockToken = "iframe-render-blocked-child-paints-after-unblock";
-                const stylesheetURL = await server.createEcho("GET", "/iframe-render-blocked-child-paints-after-unblock.css", {
+                const routeNamespace = location.hostname;
+                const unblockToken = `iframe-render-blocked-child-paints-after-unblock-${routeNamespace}`;
+                const stylesheetURL = await server.createEcho("GET", `/iframe-render-blocked-child-paints-after-unblock-${routeNamespace}.css`, {
                     status: 200,
                     headers: {
                         "Content-Type": "text/css",
@@ -41,7 +42,7 @@
                 const childHTML = "\x3C!DOCTYPE html>"
                     + '\x3Clink id="blocker" rel="stylesheet" href="' + stylesheetURL + '">'
                     + '\x3Cbody style="margin: 0; background: green;">\x3C/body>';
-                const childURL = await server.createEcho("GET", "/iframe-render-blocked-child-paints-after-unblock-child.html", {
+                const childURL = await server.createEcho("GET", `/iframe-render-blocked-child-paints-after-unblock-child-${routeNamespace}.html`, {
                     status: 200,
                     headers: {
                         "Content-Type": "text/html",
