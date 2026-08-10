@@ -184,16 +184,39 @@ impl_computed_payload_clone_and_eq!(ComputedLengthBox {
     bottom,
     left,
 });
-impl_computed_payload_clone_and_eq!(SurroundValues {
-    inset,
-    top_anchor_inset,
-    right_anchor_inset,
-    bottom_anchor_inset,
-    left_anchor_inset,
-    position_anchor_name,
-    margin,
-    padding,
-});
+impl Clone for SurroundValues {
+    fn clone(&self) -> Self {
+        Self {
+            inset: self.inset.clone(),
+            top_anchor_inset: self.top_anchor_inset.clone(),
+            right_anchor_inset: self.right_anchor_inset.clone(),
+            bottom_anchor_inset: self.bottom_anchor_inset.clone(),
+            left_anchor_inset: self.left_anchor_inset.clone(),
+            top_anchor_inset_wrapper: self.top_anchor_inset_wrapper.clone(),
+            right_anchor_inset_wrapper: self.right_anchor_inset_wrapper.clone(),
+            bottom_anchor_inset_wrapper: self.bottom_anchor_inset_wrapper.clone(),
+            left_anchor_inset_wrapper: self.left_anchor_inset_wrapper.clone(),
+            position_anchor_name: self.position_anchor_name.clone(),
+            margin: self.margin.clone(),
+            padding: self.padding.clone(),
+        }
+    }
+}
+
+// The anchor-inset wrappers are pure derivatives of the anchor-inset fields,
+// so payload equality excludes them.
+impl PartialEq for SurroundValues {
+    fn eq(&self, other: &Self) -> bool {
+        self.inset == other.inset
+            && self.top_anchor_inset == other.top_anchor_inset
+            && self.right_anchor_inset == other.right_anchor_inset
+            && self.bottom_anchor_inset == other.bottom_anchor_inset
+            && self.left_anchor_inset == other.left_anchor_inset
+            && self.position_anchor_name == other.position_anchor_name
+            && self.margin == other.margin
+            && self.padding == other.padding
+    }
+}
 impl_computed_payload_clone_and_eq!(SVGResetValues {
     cx,
     cy,
@@ -1515,6 +1538,10 @@ impl SurroundValues {
             right_anchor_inset: ComputedStyleValueHandle::empty(),
             bottom_anchor_inset: ComputedStyleValueHandle::empty(),
             left_anchor_inset: ComputedStyleValueHandle::empty(),
+            top_anchor_inset_wrapper: ComputedStyleValueHandle::empty(),
+            right_anchor_inset_wrapper: ComputedStyleValueHandle::empty(),
+            bottom_anchor_inset_wrapper: ComputedStyleValueHandle::empty(),
+            left_anchor_inset_wrapper: ComputedStyleValueHandle::empty(),
             position_anchor_name: RetainedUtf16FlyString::none(),
             margin: ComputedLengthBox::zero(),
             padding: ComputedLengthBox::zero(),
@@ -1795,12 +1822,16 @@ pub unsafe extern "C" fn rust_build_surround_group(
                 ComputedStyleValueHandle::empty()
             }
         };
-        let built = SurroundValues {
+        let mut built = SurroundValues {
             inset: ComputedLengthBox::from_data(top, right, bottom, left, true),
             top_anchor_inset: anchor(top),
             right_anchor_inset: anchor(right),
             bottom_anchor_inset: anchor(bottom),
             left_anchor_inset: anchor(left),
+            top_anchor_inset_wrapper: ComputedStyleValueHandle::empty(),
+            right_anchor_inset_wrapper: ComputedStyleValueHandle::empty(),
+            bottom_anchor_inset_wrapper: ComputedStyleValueHandle::empty(),
+            left_anchor_inset_wrapper: ComputedStyleValueHandle::empty(),
             // SAFETY: The caller transfers one leaked reference (or zero for
             // no name), which the payload or this local assumes in every
             // outcome below.
@@ -1817,6 +1848,23 @@ pub unsafe extern "C" fn rust_build_surround_group(
         if built.eq(unsafe { &*default_payload.cast::<SurroundValues>() }) {
             return Some(default_payload);
         }
+
+        // Only a fresh payload builds wrappers: equality excludes them, and a
+        // shared parent payload already carries its own.
+        let wrapper = |handle: &ComputedStyleValueHandle| {
+            if handle.pointer.is_null() {
+                return ComputedStyleValueHandle::empty();
+            }
+            // SAFETY: The handle retains anchor style value data.
+            let calculated = unsafe { crate::css::calc::create_anchor_inset_calculated(handle.pointer.cast()) };
+            ComputedStyleValueHandle {
+                pointer: std::sync::Arc::into_raw(calculated).cast(),
+            }
+        };
+        built.top_anchor_inset_wrapper = wrapper(&built.top_anchor_inset);
+        built.right_anchor_inset_wrapper = wrapper(&built.right_anchor_inset);
+        built.bottom_anchor_inset_wrapper = wrapper(&built.bottom_anchor_inset);
+        built.left_anchor_inset_wrapper = wrapper(&built.left_anchor_inset);
 
         let payload = allocate_payload(vtable(group_index), 1);
         unsafe { payload.cast::<SurroundValues>().write(built) };

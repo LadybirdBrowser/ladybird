@@ -28,11 +28,6 @@ struct AnchorInsetField {
     /// contains_anchor_function() == false; the abspos engine's early-out on
     /// re-entry depends on both properties.
     resolved_override: Cell<Option<ResolvedInsetOverride>>,
-    /// Memoized in-crate calculated wrapper for a bare anchor() inset: the
-    /// single owner of the Arc that the returned inset values borrow.
-    /// Written at most once and never replaced or dropped before the owning
-    /// LayoutState drops.
-    wrapper: std::cell::OnceCell<std::sync::Arc<crate::css::style_value::StyleValueData>>,
 }
 
 #[derive(Default)]
@@ -63,17 +58,6 @@ impl AnchorInsetStore {
             return None;
         }
         self.slots.get(slot_index)?.fields[field as usize].resolved_override.get()
-    }
-
-    fn memoized_bare_anchor_wrapper(
-        &self,
-        slot_index: u32,
-        field: InsetField,
-        build_wrapper: impl FnOnce() -> std::sync::Arc<crate::css::style_value::StyleValueData>,
-    ) -> &crate::css::style_value::StyleValueData {
-        self.slot(slot_index).fields[field as usize]
-            .wrapper
-            .get_or_init(build_wrapper)
     }
 
     pub(crate) fn set_override(&self, slot_index: u32, field: InsetField, value: ResolvedInsetOverride) {
@@ -176,32 +160,25 @@ impl<'a> StyleValues<'a> {
         }
     }
 
-    fn anchor_inset_handle(self, field: InsetField) -> Option<&'a ComputedStyleValueHandle> {
+    fn bare_anchor_wrapper(self, field: InsetField) -> Option<&'a crate::css::style_value::StyleValueData> {
         let values = self.style.surround();
         let handle = match field {
-            InsetField::Top => &values.top_anchor_inset,
-            InsetField::Right => &values.right_anchor_inset,
-            InsetField::Bottom => &values.bottom_anchor_inset,
-            InsetField::Left => &values.left_anchor_inset,
+            InsetField::Top => &values.top_anchor_inset_wrapper,
+            InsetField::Right => &values.right_anchor_inset_wrapper,
+            InsetField::Bottom => &values.bottom_anchor_inset_wrapper,
+            InsetField::Left => &values.left_anchor_inset_wrapper,
         };
-        (!handle.pointer.is_null()).then_some(handle)
+        // SAFETY: The node's style group payload retains the wrapper for the
+        // view's lifetime.
+        unsafe { handle.pointer.cast::<crate::css::style_value::StyleValueData>().as_ref() }
     }
 
     fn inset_value(self, field: InsetField) -> InsetValue<'a> {
         if let Some(resolved) = self.anchor_insets.override_for(self.slot_index, field) {
             return InsetValue::Resolved(resolved);
         }
-        if let Some(handle) = self.anchor_inset_handle(field) {
-            return InsetValue::BareAnchor(self.anchor_insets.memoized_bare_anchor_wrapper(
-                self.slot_index,
-                field,
-                || {
-                    // SAFETY: The handle is non-null, and the node's style
-                    // group payload keeps the anchor value alive for the
-                    // synchronous layout pass.
-                    unsafe { crate::css::calc::create_anchor_inset_calculated(handle.pointer.cast()) }
-                },
-            ));
+        if let Some(wrapper) = self.bare_anchor_wrapper(field) {
+            return InsetValue::BareAnchor(wrapper);
         }
         let values = self.style.surround();
         InsetValue::FromStyle(match field {
