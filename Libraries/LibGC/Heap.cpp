@@ -376,26 +376,17 @@ void Heap::update_gc_bytes_threshold(size_t live_cell_bytes, size_t live_externa
 
 static void add_possible_value(HashMap<FlatPtr, HeapRoot>& possible_pointers, FlatPtr data, HeapRoot origin, FlatPtr heap_region_start, FlatPtr heap_region_end)
 {
-    if constexpr (sizeof(FlatPtr*) == sizeof(NanBoxedValue)) {
-        // Because NanBoxedValue stores pointers in non-canonical form we have to check if the top bytes
-        // match any pointer-backed tag, in that case we have to extract the pointer to its
-        // canonical form and add that as a possible pointer.
-        FlatPtr possible_pointer;
-        if ((data & SHIFTED_IS_CELL_PATTERN) == SHIFTED_IS_CELL_PATTERN)
-            possible_pointer = NanBoxedValue::extract_pointer_bits(data);
-        else
-            possible_pointer = data;
-        if (possible_pointer < heap_region_start || possible_pointer >= heap_region_end)
-            return;
-        possible_pointers.set(possible_pointer, move(origin));
-    } else {
-        static_assert((sizeof(NanBoxedValue) % sizeof(FlatPtr*)) == 0);
-        if (data < heap_region_start || data >= heap_region_end)
-            return;
-        // In the 32-bit case we will look at the top and bottom part of NanBoxedValue separately we just
-        // add both the upper and lower bytes as possible pointers.
-        possible_pointers.set(data, move(origin));
-    }
+    // Because NanBoxedValue stores pointers in non-canonical form we have to check if the top bytes
+    // match any pointer-backed tag, in that case we have to extract the pointer to its
+    // canonical form and add that as a possible pointer.
+    FlatPtr possible_pointer;
+    if ((data & SHIFTED_IS_CELL_PATTERN) == SHIFTED_IS_CELL_PATTERN)
+        possible_pointer = NanBoxedValue::extract_pointer_bits(data);
+    else
+        possible_pointer = data;
+    if (possible_pointer < heap_region_start || possible_pointer >= heap_region_end)
+        return;
+    possible_pointers.set(possible_pointer, move(origin));
 }
 
 template<typename Callback>
