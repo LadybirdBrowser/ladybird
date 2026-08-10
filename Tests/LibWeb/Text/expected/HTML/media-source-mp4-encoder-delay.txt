@@ -1,0 +1,3 @@
+aac-encoder-delay-edit-list: [0-1]
+aac-encoder-delay-tfdt: [0-1]
+PASS: both encodings buffer the same range
