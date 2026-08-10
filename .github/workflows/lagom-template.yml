@@ -198,12 +198,22 @@ jobs:
             echo "::warning::SIP is enabled on this runner. Can't write to TCC.db."
             exit 0
           fi
-          # We tried doing this TCC DB update with the tccutil convenience tool — but that tool turned out to be
-          # broken and just getting in the way, rather than helping. In contrast, direct SQL just works.
+          # Grant Accessibility by writing the system TCC database directly: tccutil is broken here and MDM/PPPC
+          # profiles are off-limits, so direct SQL is the only lever. Two things are load-bearing on macOS 26:
           #
-          #   service, client, client_type=1 (path), auth_value=2 (allowed), auth_reason=4 (user-authorized),
-          #   auth_version=1 — plus the auto-defaulted columns. INSERT OR REPLACE keeps it idempotent.
+          #   1. csreq must be populated. At authorization time tccd matches the requesting process against the
+          #      code-requirement blob stored in the row, and a NULL csreq matches nothing, so the grant is inert.
+          #      The runner image's own osascript row is csreq=NULL and is inert for the same reason (osascript's
+          #      'UI elements enabled' is false). So for each client we compile its designated requirement into a
+          #      csreq blob and store it alongside the grant.
+          #   2. tccd must be restarted after the write. It caches the database and watches only MDMOverrides.plist,
+          #      not TCC.db, so a direct write stays invisible until the daemons are bounced. 'launchctl kickstart -k'
+          #      does that reliably; 'killall tccd' does not dependably relaunch the root-owned system instance.
+          #
+          #   Columns: client_type=1 (path), auth_value=2 (allowed), auth_reason=4, auth_version=1, csreq=<blob>.
+          #   The rest default (boot_uuid defaults to 'UNUSED'). INSERT OR REPLACE keeps it idempotent.
           SYSTEM_TCC=/Library/Application\ Support/com.apple.TCC/TCC.db
+          REQ_BIN=$(mktemp "${RUNNER_TEMP:-/tmp}/tcc-csreq.XXXXXX")
           # The preflight and run_tests.sh both use the active python3, which is the actions/setup-python one and
           # is where we install PyObjC, so it needs the grant as much as the system interpreters do.
           ACTIVE_PY=$(command -v python3 || true)
@@ -219,14 +229,29 @@ jobs:
                         /bin/bash /usr/bin/python3 /Library/Developer/CommandLineTools/usr/bin/python3; do
             [ -n "$client" ] || continue
             [ -e "$client" ] || continue
+            # codesign prints the designated requirement as 'designated => ...', or as a commented
+            # '# designated => cdhash H"..."' for ad-hoc-signed binaries (Homebrew's bash, the downloaded Python).
+            # Accept both, then compile it to the binary csreq blob that tccd stores and matches against.
+            req=$(codesign -d -r- "$client" 2>/dev/null | sed -n 's/^#* *designated => //p')
+            if [ -z "$req" ]; then
+              echo "=== Skipping $client (no derivable code requirement) ==="
+              continue
+            fi
+            if ! printf '%s' "$req" | /usr/bin/csreq -r- -b "$REQ_BIN"; then
+              echo "=== Skipping $client (csreq compile failed) ==="
+              continue
+            fi
             echo "=== Granting Accessibility to $client ==="
             sudo sqlite3 "$SYSTEM_TCC" \
-              "INSERT OR REPLACE INTO access (service, client, client_type, auth_value, auth_reason, auth_version) VALUES ('kTCCServiceAccessibility', '$client', 1, 2, 4, 1);"
+              "INSERT OR REPLACE INTO access (service, client, client_type, auth_value, auth_reason, auth_version, csreq) VALUES ('kTCCServiceAccessibility', '$client', 1, 2, 4, 1, readfile('$REQ_BIN'));"
           done
+          rm -f "$REQ_BIN"
           echo "=== Accessibility entries after grant ==="
           sudo sqlite3 "$SYSTEM_TCC" \
-            "SELECT service, client, client_type, auth_value FROM access WHERE service = 'kTCCServiceAccessibility';"
-          sudo killall tccd 2>&1 || echo "(tccd was not running; will be relaunched on next access)"
+            "SELECT client, auth_value, CASE WHEN csreq IS NULL THEN 'NULL' ELSE 'len=' || length(csreq) END FROM access WHERE service = 'kTCCServiceAccessibility' ORDER BY client;"
+          # Bounce both the system and per-user tccd so the next AX request reads these rows fresh (see note above).
+          sudo launchctl kickstart -k system/com.apple.tccd.system || true
+          launchctl kickstart -k "gui/$(id -u)/com.apple.tccd" || true
 
       # TEMPORARY DIAGNOSTIC. Every path we can name is granted and AXIsProcessTrusted still says no, so this
       # compares our rows against the ones the runner image provisioned, and probes trust from several identities.
