@@ -462,12 +462,6 @@ void Node::recompute_containing_block(Badge<DOM::Document>)
     set_containing_block(nearest_ancestor_capable_of_forming_a_containing_block(*this));
 }
 
-// returns containing block this node would have had if its position was static
-Box const* Node::static_position_containing_block() const
-{
-    return nearest_ancestor_capable_of_forming_a_containing_block(const_cast<Node&>(*this));
-}
-
 Box const* Node::non_anonymous_containing_block() const
 {
     auto nearest_ancestor_box = containing_block();
