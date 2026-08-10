@@ -35,7 +35,7 @@ public:
 
     virtual RefPtr<Layout::Node> create_layout_node(NonnullRefPtr<CSS::ComputedValues const>) override;
 
-    CSSPixelRect resolve_masking_area(CSSPixelRect const& target_border_box, Gfx::FloatSize const& viewport_size, Gfx::AffineTransform const& user_space_to_css_pixels) const;
+    CSSPixelRect resolve_masking_area(CSSPixelRect const& target_object_bounding_box, Gfx::FloatSize const& viewport_size, Gfx::AffineTransform const& user_space_to_css_pixels) const;
 
     MaskContentUnits mask_content_units() const;
     MaskUnits mask_units() const;
