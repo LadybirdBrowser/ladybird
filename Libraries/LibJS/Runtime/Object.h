@@ -385,6 +385,41 @@ protected:
     explicit Object(Shape&, MayInterfereWithIndexedPropertyAccess = MayInterfereWithIndexedPropertyAccess::No);
 
 private:
+    class StoragePointer {
+    public:
+        constexpr StoragePointer() = default;
+        constexpr StoragePointer(Value* storage)
+            : m_storage(storage)
+        {
+        }
+
+        ALWAYS_INLINE Value* data() { return m_storage; }
+        ALWAYS_INLINE Value const* data() const { return m_storage; }
+
+        ALWAYS_INLINE Value& operator[](size_t index) { return m_storage[index]; }
+        ALWAYS_INLINE Value const& operator[](size_t index) const { return m_storage[index]; }
+
+        ALWAYS_INLINE explicit operator bool() const { return m_storage != nullptr; }
+        ALWAYS_INLINE bool operator==(Value const* other) const { return m_storage == other; }
+
+        template<typename T>
+        ALWAYS_INLINE T* as() const
+        {
+            return reinterpret_cast<T*>(m_storage);
+        }
+
+        ALWAYS_INLINE StoragePointer& operator=(Value* storage)
+        {
+            m_storage = storage;
+            return *this;
+        }
+
+    private:
+        Value* m_storage { nullptr };
+    };
+
+    static_assert(sizeof(StoragePointer) == sizeof(Value*));
+
     struct Flag {
         static constexpr u16 IsExtensible = 1 << 0;
         static constexpr u16 IsRawNativeFunction = 1 << 1;
@@ -412,7 +447,7 @@ private:
     void transition_to_dictionary();
     void free_indexed_elements();
     void ensure_named_storage_capacity(u32 needed);
-    bool named_storage_is_inline() const { return m_named_properties == const_cast<Object*>(this)->m_inline_named_storage; }
+    bool named_storage_is_inline() const { return m_named_properties == m_inline_named_storage; }
     size_t named_storage_external_memory_size() const;
     size_t indexed_storage_external_memory_size() const;
 
@@ -421,8 +456,8 @@ public:
 
 private:
     GC::Ptr<Shape> m_shape;
-    Value* m_named_properties { m_inline_named_storage };
-    Value* m_indexed_elements { nullptr };
+    StoragePointer m_named_properties { m_inline_named_storage };
+    StoragePointer m_indexed_elements;
     OwnPtr<Vector<PrivateElement>> m_private_elements; // [[PrivateElements]]
     Value m_inline_named_storage[INLINE_NAMED_PROPERTY_CAPACITY] {};
 };
