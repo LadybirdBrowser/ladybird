@@ -24,7 +24,7 @@ class CapturingNativeFunction final : public NativeFunction {
     GC_DECLARE_ALLOCATOR(CapturingNativeFunction);
 
 public:
-    CapturingNativeFunction(Function<ThrowCompletionOr<Value>(VM&)> native_function, Object* prototype, Realm& realm, Optional<Bytecode::Builtin> builtin)
+    CapturingNativeFunction(Function<ThrowCompletionOr<Value>(VM&)> native_function, GC::Ptr<Object> prototype, Realm& realm, Optional<Bytecode::Builtin> builtin)
         : NativeFunction(prototype, realm, builtin)
         , m_native_function(move(native_function))
     {
@@ -135,7 +135,7 @@ GC::Ref<RawNativeFunction> RawNativeFunction::create(Realm& realm, Utf16FlyStrin
     return realm.create<RawNativeFunction>(name, function, realm.intrinsics().function_prototype());
 }
 
-NativeFunction::NativeFunction(Object* prototype, Realm& realm, Optional<Bytecode::Builtin> builtin)
+NativeFunction::NativeFunction(GC::Ptr<Object> prototype, Realm& realm, Optional<Bytecode::Builtin> builtin)
     : FunctionObject(realm, prototype)
     , m_realm(realm)
 {
@@ -159,7 +159,7 @@ NativeFunction::NativeFunction(Utf16FlyString name, Object& prototype)
 {
 }
 
-RawNativeFunction::RawNativeFunction(NativeFunctionPointer native_function, Object* prototype, Realm& realm, Optional<Bytecode::Builtin> builtin)
+RawNativeFunction::RawNativeFunction(NativeFunctionPointer native_function, GC::Ptr<Object> prototype, Realm& realm, Optional<Bytecode::Builtin> builtin)
     : NativeFunction(prototype, realm, builtin)
     , m_native_function(native_function)
 {

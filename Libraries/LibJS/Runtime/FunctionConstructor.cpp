@@ -158,13 +158,13 @@ ThrowCompletionOr<GC::Ref<ECMAScriptFunctionObject>> FunctionConstructor::create
     function_data = rust_compilation->value();
 
     // 25. Let proto be ? GetPrototypeFromConstructor(newTarget, fallbackProto).
-    auto* prototype = TRY(get_prototype_from_constructor(vm, *new_target, fallback_prototype));
+    GC::Ptr prototype = TRY(get_prototype_from_constructor(vm, *new_target, fallback_prototype));
 
     // 26. Let env be currentRealm.[[GlobalEnv]].
     auto& environment = realm.global_environment();
 
     // 27. Let privateEnv be null.
-    PrivateEnvironment* private_environment = nullptr;
+    GC::Ptr<PrivateEnvironment> private_environment;
 
     auto function = ECMAScriptFunctionObject::create_from_function_data(
         realm,

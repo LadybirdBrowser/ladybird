@@ -155,7 +155,7 @@ bool PropertyNameIterator::fast_path_still_valid() const
     // receiver or prototype chain changes underneath us. After deopting, the
     // iterator resumes with has_property() checks for the remaining snapshot.
     auto& shape = m_object->shape();
-    if (&shape != m_shape)
+    if (&shape != m_shape.ptr())
         return false;
 
     if (m_shape_is_dictionary && shape.dictionary_generation() != m_shape_dictionary_generation)

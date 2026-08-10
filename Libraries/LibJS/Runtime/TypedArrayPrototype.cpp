@@ -100,7 +100,7 @@ static ThrowCompletionOr<GC::Ref<FunctionObject>> callback_from_args(VM& vm, Str
 // throwaway ArrayBuffer that the public TypedArray constructor allocates in its `is_object()` branch before
 // overwriting it via InitializeTypedArrayFromArrayBuffer/TypedArray/etc.
 template<typename DefaultConstruct>
-static ThrowCompletionOr<TypedArrayBase*> typed_array_species_create(VM& vm, TypedArrayBase const& exemplar, DefaultConstruct&& default_construct, GC::RootVector<Value> slow_path_arguments)
+static ThrowCompletionOr<GC::Ref<TypedArrayBase>> typed_array_species_create(VM& vm, TypedArrayBase const& exemplar, DefaultConstruct&& default_construct, GC::RootVector<Value> slow_path_arguments)
 {
     auto& realm = *vm.current_realm();
 
@@ -110,7 +110,7 @@ static ThrowCompletionOr<TypedArrayBase*> typed_array_species_create(VM& vm, Typ
     // 2. Let constructor be ? SpeciesConstructor(exemplar, defaultConstructor).
     auto* constructor = TRY(species_constructor(vm, exemplar, *default_constructor));
 
-    TypedArrayBase* result;
+    GC::Ptr<TypedArrayBase> result;
     if (constructor == default_constructor.ptr()) {
         // OPTIMIZATION: Same outcome as `Construct(defaultConstructor, argumentList)` would produce, but without the
         //               throwaway buffer or the constructor invocation overhead.
@@ -126,7 +126,7 @@ static ThrowCompletionOr<TypedArrayBase*> typed_array_species_create(VM& vm, Typ
         return vm.throw_completion<TypeError>(ErrorType::TypedArrayContentTypeMismatch, result->class_name(), exemplar.class_name());
 
     // 6. Return result.
-    return result;
+    return result.as_nonnull();
 }
 
 // 23.2.3.1 %TypedArray%.prototype.at ( index ), https://tc39.es/ecma262/#sec-%typedarray%.prototype.at
@@ -703,7 +703,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::filter)
     GC::RootVector<Value> arguments;
     arguments.empend(captured);
     auto& realm = *vm.current_realm();
-    auto* filter_array = TRY(typed_array_species_create(vm, *typed_array, [&]() -> ThrowCompletionOr<GC::Ref<TypedArrayBase>> { return TRY(typed_array->create_default(realm, captured)); }, move(arguments)));
+    auto filter_array = TRY(typed_array_species_create(vm, *typed_array, [&]() -> ThrowCompletionOr<GC::Ref<TypedArrayBase>> { return TRY(typed_array->create_default(realm, captured)); }, move(arguments)));
 
     // 10. Let n be 0.
     size_t index = 0;
@@ -1238,7 +1238,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::map)
     GC::RootVector<Value> arguments;
     arguments.empend(length);
     auto& realm = *vm.current_realm();
-    auto* array = TRY(typed_array_species_create(vm, *typed_array, [&]() -> ThrowCompletionOr<GC::Ref<TypedArrayBase>> { return TRY(typed_array->create_default(realm, length)); }, move(arguments)));
+    auto array = TRY(typed_array_species_create(vm, *typed_array, [&]() -> ThrowCompletionOr<GC::Ref<TypedArrayBase>> { return TRY(typed_array->create_default(realm, length)); }, move(arguments)));
 
     // 6. Let k be 0.
     // 7. Repeat, while k < len,
@@ -1737,7 +1737,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::slice)
     GC::RootVector<Value> arguments;
     arguments.empend(count);
     auto& realm = *vm.current_realm();
-    auto* array = TRY(typed_array_species_create(vm, *typed_array, [&]() -> ThrowCompletionOr<GC::Ref<TypedArrayBase>> { return TRY(typed_array->create_default(realm, count)); }, move(arguments)));
+    auto array = TRY(typed_array_species_create(vm, *typed_array, [&]() -> ThrowCompletionOr<GC::Ref<TypedArrayBase>> { return TRY(typed_array->create_default(realm, count)); }, move(arguments)));
 
     // 14. If count > 0, then
     if (count > 0) {

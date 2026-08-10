@@ -131,7 +131,7 @@ static ThrowCompletionOr<Object*> array_species_create(VM& vm, Object& original_
         auto* this_realm = vm.current_realm();
         auto* constructor_realm = TRY(get_function_realm(vm, constructor_function));
         if (constructor_realm != this_realm) {
-            if (&constructor_function == constructor_realm->intrinsics().array_constructor())
+            if (&constructor_function == constructor_realm->intrinsics().array_constructor().ptr())
                 constructor = js_undefined();
         }
     }

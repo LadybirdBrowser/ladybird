@@ -317,7 +317,7 @@ bool validate_and_apply_property_descriptor(Object* object, PropertyKey const& p
         // c. If IsAccessorDescriptor(Desc) is true, then
         if (descriptor.is_accessor_descriptor()) {
             // i. Create an own accessor property named P of object O whose [[Get]], [[Set]], [[Enumerable]], and [[Configurable]] attributes are set to the value of the corresponding field in Desc if Desc has that field, or to the attribute's default value otherwise.
-            auto accessor = Accessor::create(object->vm(), descriptor.get.value_or(nullptr), descriptor.set.value_or(nullptr));
+            auto accessor = Accessor::create(object->vm(), descriptor.get.value_or(nullptr).ptr(), descriptor.set.value_or(nullptr).ptr());
             auto offset = object->storage_set(property_key, { accessor, descriptor.attributes() });
             descriptor.property_offset = offset;
         }
@@ -386,7 +386,7 @@ bool validate_and_apply_property_descriptor(Object* object, PropertyKey const& p
             auto enumerable = descriptor.enumerable.value_or(*current->enumerable);
 
             // iii. Replace the property named P of object O with an accessor property having [[Configurable]] and [[Enumerable]] attributes set to configurable and enumerable, respectively, and each other attribute set to its corresponding value in Desc if present, otherwise to its default value.
-            auto accessor = Accessor::create(object->vm(), descriptor.get.value_or(nullptr), descriptor.set.value_or(nullptr));
+            auto accessor = Accessor::create(object->vm(), descriptor.get.value_or(nullptr).ptr(), descriptor.set.value_or(nullptr).ptr());
             PropertyAttributes attributes;
             attributes.set_enumerable(enumerable);
             attributes.set_configurable(configurable);
@@ -417,7 +417,7 @@ bool validate_and_apply_property_descriptor(Object* object, PropertyKey const& p
             if (descriptor.is_accessor_descriptor() || (current->is_accessor_descriptor() && !descriptor.is_data_descriptor())) {
                 auto getter = descriptor.get.value_or(current->get.value_or(nullptr));
                 auto setter = descriptor.set.value_or(current->set.value_or(nullptr));
-                value = Accessor::create(object->vm(), getter, setter);
+                value = Accessor::create(object->vm(), getter.ptr(), setter.ptr());
             } else {
                 value = descriptor.value.value_or(current->value.value_or({}));
             }
@@ -721,18 +721,18 @@ ThrowCompletionOr<Value> perform_eval(VM& vm, Value x, CallerMode strict_caller,
     // 18. If direct is true, then
     if (direct == EvalMode::Direct) {
         // a. Let lexEnv be NewDeclarativeEnvironment(runningContext's LexicalEnvironment).
-        lexical_environment = new_declarative_environment(*running_context.lexical_environment);
+        lexical_environment = new_declarative_environment(*running_context.lexical_environment).ptr();
 
         // b. Let varEnv be runningContext's VariableEnvironment.
-        variable_environment = running_context.variable_environment;
+        variable_environment = running_context.variable_environment.ptr();
 
         // c. Let privateEnv be runningContext's PrivateEnvironment.
-        private_environment = running_context.private_environment;
+        private_environment = running_context.private_environment.ptr();
     }
     // 19. Else,
     else {
         // a. Let lexEnv be NewDeclarativeEnvironment(evalRealm.[[GlobalEnv]]).
-        lexical_environment = new_declarative_environment(eval_realm.global_environment());
+        lexical_environment = new_declarative_environment(eval_realm.global_environment()).ptr();
 
         // b. Let varEnv be evalRealm.[[GlobalEnv]].
         variable_environment = &eval_realm.global_environment();
@@ -1131,7 +1131,7 @@ Object* create_unmapped_arguments_object(VM& vm, ReadonlySpan<Value> arguments)
     object->put_direct(realm.intrinsics().unmapped_arguments_object_callee_offset(), realm.intrinsics().throw_type_error_accessor());
 
     // 9. Return obj.
-    return object;
+    return object.ptr();
 }
 
 // 10.4.4.7 CreateMappedArgumentsObject ( func, formals, argumentsList, env ), https://tc39.es/ecma262/#sec-createmappedargumentsobject
@@ -1217,7 +1217,7 @@ Object* create_mapped_arguments_object(VM& vm, FunctionObject& function, Readonl
     object->put_direct(realm.intrinsics().mapped_arguments_object_callee_offset(), Value(&function));
 
     // 22. Return obj.
-    return object;
+    return object.ptr();
 }
 
 // 7.1.21 CanonicalNumericIndexString ( argument ), https://tc39.es/ecma262/#sec-canonicalnumericindexstring

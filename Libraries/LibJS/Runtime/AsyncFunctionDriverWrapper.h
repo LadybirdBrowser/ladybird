@@ -19,7 +19,7 @@ class AsyncFunctionDriverWrapper final : public Promise {
     GC_DECLARE_ALLOCATOR(AsyncFunctionDriverWrapper);
 
 public:
-    [[nodiscard]] static GC::Ref<Promise> create(Realm&, GeneratorObject*);
+    [[nodiscard]] static GC::Ref<Promise> create(Realm&, GC::Ref<GeneratorObject>);
 
     virtual ~AsyncFunctionDriverWrapper() override = default;
     void visit_edges(Cell::Visitor&) override;

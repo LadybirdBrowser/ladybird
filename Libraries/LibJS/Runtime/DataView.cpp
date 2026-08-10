@@ -15,7 +15,7 @@ GC::Ref<DataView> DataView::create(Realm& realm, ArrayBuffer* viewed_buffer, Byt
     return realm.create<DataView>(viewed_buffer, move(byte_length), byte_offset, realm.intrinsics().data_view_prototype());
 }
 
-DataView::DataView(ArrayBuffer* viewed_buffer, ByteLength byte_length, size_t byte_offset, Object& prototype)
+DataView::DataView(GC::Ptr<ArrayBuffer> viewed_buffer, ByteLength byte_length, size_t byte_offset, Object& prototype)
     : Object(ConstructWithPrototypeTag::Tag, prototype)
     , m_viewed_array_buffer(viewed_buffer)
     , m_byte_length(move(byte_length))

@@ -50,8 +50,8 @@ public:
     bool numeric() const { return m_numeric; }
     void set_numeric(bool numeric) { m_numeric = numeric; }
 
-    CollatorCompareFunction* bound_compare() const { return m_bound_compare; }
-    void set_bound_compare(CollatorCompareFunction* bound_compare) { m_bound_compare = bound_compare; }
+    CollatorCompareFunction* bound_compare() const { return m_bound_compare.ptr(); }
+    void set_bound_compare(GC::Ptr<CollatorCompareFunction> bound_compare) { m_bound_compare = bound_compare; }
 
     Unicode::Collator const& collator() const { return *m_collator; }
     void set_collator(NonnullOwnPtr<Unicode::Collator> collator) { m_collator = move(collator); }

@@ -12,12 +12,12 @@
 
 namespace JS {
 
-ThrowCompletionOr<ECMAScriptFunctionObject*> construct_class(
+ThrowCompletionOr<GC::Ref<ECMAScriptFunctionObject>> construct_class(
     VM&,
     Bytecode::ClassBlueprint const&,
     Bytecode::Executable const&,
-    Environment* class_environment,
-    Environment* outer_environment,
+    GC::Ptr<Environment> class_environment,
+    GC::Ptr<Environment> outer_environment,
     Value super_class,
     ReadonlySpan<Value> element_keys,
     Optional<Utf16FlyString> const& binding_name,

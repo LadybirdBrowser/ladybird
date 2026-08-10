@@ -78,7 +78,7 @@ public:
         return *shared_data().m_executable;
     }
 
-    Environment* environment() { return m_environment; }
+    Environment* environment() { return m_environment.ptr(); }
     virtual Realm* realm() const override { return &shape().realm(); }
 
     [[nodiscard]] ConstructorKind constructor_kind() const { return shared_data().m_constructor_kind; }
@@ -94,8 +94,8 @@ public:
     }
     [[nodiscard]] i32 function_length() const { return shared_data().m_function_length; }
 
-    Object* home_object() const { return m_home_object; }
-    void set_home_object(Object* home_object) { m_home_object = home_object; }
+    Object* home_object() const { return m_home_object.ptr(); }
+    void set_home_object(GC::Ptr<Object> home_object) { m_home_object = home_object; }
 
     [[nodiscard]] Utf16String source_text() const { return shared_data().source_text(); }
     void set_source_text(Utf16View source_text) { const_cast<SharedFunctionInstanceData&>(shared_data()).set_source_text(source_text); }
@@ -136,8 +136,8 @@ public:
 private:
     ECMAScriptFunctionObject(
         GC::Ref<SharedFunctionInstanceData>,
-        Environment* parent_environment,
-        PrivateEnvironment* private_environment,
+        GC::Ptr<Environment> parent_environment,
+        GC::Ptr<PrivateEnvironment> private_environment,
         Object& prototype);
 
     virtual ThrowCompletionOr<Optional<PropertyDescriptor>> internal_get_own_property(PropertyKey const&) const override;

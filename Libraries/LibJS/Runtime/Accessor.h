@@ -18,16 +18,16 @@ class Accessor final : public Cell {
     GC_DECLARE_ALLOCATOR(Accessor);
 
 public:
-    static GC::Ref<Accessor> create(VM& vm, FunctionObject* getter, FunctionObject* setter)
+    static GC::Ref<Accessor> create(VM& vm, GC::Ptr<FunctionObject> getter, GC::Ptr<FunctionObject> setter)
     {
         return vm.heap().allocate<Accessor>(getter, setter);
     }
 
-    FunctionObject* getter() const { return m_getter; }
-    void set_getter(FunctionObject* getter) { m_getter = getter; }
+    FunctionObject* getter() const { return m_getter.ptr(); }
+    void set_getter(GC::Ptr<FunctionObject> getter) { m_getter = getter; }
 
-    FunctionObject* setter() const { return m_setter; }
-    void set_setter(FunctionObject* setter) { m_setter = setter; }
+    FunctionObject* setter() const { return m_setter.ptr(); }
+    void set_setter(GC::Ptr<FunctionObject> setter) { m_setter = setter; }
 
     void visit_edges(Cell::Visitor& visitor) override
     {
@@ -37,7 +37,7 @@ public:
     }
 
 private:
-    Accessor(FunctionObject* getter, FunctionObject* setter)
+    Accessor(GC::Ptr<FunctionObject> getter, GC::Ptr<FunctionObject> setter)
         : m_getter(getter)
         , m_setter(setter)
     {

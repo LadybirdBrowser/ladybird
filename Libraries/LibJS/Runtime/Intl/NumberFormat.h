@@ -159,8 +159,8 @@ public:
     Utf16String sign_display_string() const { return Unicode::sign_display_to_string(m_sign_display); }
     void set_sign_display(Utf16View sign_display) { m_sign_display = Unicode::sign_display_from_string(sign_display); }
 
-    NativeFunction* bound_format() const { return m_bound_format; }
-    void set_bound_format(NativeFunction* bound_format) { m_bound_format = bound_format; }
+    NativeFunction* bound_format() const { return m_bound_format.ptr(); }
+    void set_bound_format(GC::Ptr<NativeFunction> bound_format) { m_bound_format = bound_format; }
 
     Unicode::DisplayOptions display_options() const override;
 

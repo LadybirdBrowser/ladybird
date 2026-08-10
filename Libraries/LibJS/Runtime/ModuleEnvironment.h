@@ -27,7 +27,7 @@ public:
     virtual ThrowCompletionOr<bool> delete_binding(VM&, Utf16FlyString const& name) override;
     virtual bool has_this_binding() const final { return true; }
     virtual ThrowCompletionOr<Value> get_this_binding(VM&) const final;
-    ThrowCompletionOr<void> create_import_binding(Utf16FlyString name, Module* module, Utf16FlyString binding_name);
+    ThrowCompletionOr<void> create_import_binding(Utf16FlyString name, GC::Ptr<Module> module, Utf16FlyString binding_name);
 
 private:
     explicit ModuleEnvironment(Environment* outer_environment);

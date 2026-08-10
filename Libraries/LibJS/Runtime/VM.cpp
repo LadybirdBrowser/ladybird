@@ -123,7 +123,7 @@ VM::VM(ErrorMessages error_messages)
         enqueue_finalization_registry_cleanup_job(finalization_registry);
     };
 
-    host_enqueue_promise_job = [this](GC::Ref<GC::Function<ThrowCompletionOr<Value>()>> job, Realm* realm) {
+    host_enqueue_promise_job = [this](GC::Ref<GC::Function<ThrowCompletionOr<Value>()>> job, GC::Ptr<Realm> realm) {
         enqueue_promise_job(job, realm);
     };
 
@@ -308,44 +308,44 @@ struct ExecutionContextRootsCollector : public Cell::Visitor {
 
 void VM::gather_roots(HashMap<GC::Cell*, GC::HeapRoot>& roots)
 {
-    roots.set(m_empty_string, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
+    roots.set(m_empty_string.ptr(), GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
     for (auto string : m_single_ascii_character_strings)
-        roots.set(string, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
+        roots.set(string.ptr(), GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
 
     for (auto string : m_numeric_string_cache) {
         // The numeric string cache is populated lazily, so skip null entries.
         if (!string)
             continue;
-        roots.set(string, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
+        roots.set(string.ptr(), GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
     }
 
-    roots.set(cached_strings.number, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
-    roots.set(cached_strings.undefined, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
-    roots.set(cached_strings.object, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
-    roots.set(cached_strings.string, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
-    roots.set(cached_strings.symbol, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
-    roots.set(cached_strings.boolean, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
-    roots.set(cached_strings.bigint, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
-    roots.set(cached_strings.function, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
-    roots.set(cached_strings.object_Object, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
+    roots.set(cached_strings.number.ptr(), GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
+    roots.set(cached_strings.undefined.ptr(), GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
+    roots.set(cached_strings.object.ptr(), GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
+    roots.set(cached_strings.string.ptr(), GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
+    roots.set(cached_strings.symbol.ptr(), GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
+    roots.set(cached_strings.boolean.ptr(), GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
+    roots.set(cached_strings.bigint.ptr(), GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
+    roots.set(cached_strings.function.ptr(), GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
+    roots.set(cached_strings.object_Object.ptr(), GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
 
 #define __JS_ENUMERATE(SymbolName, snake_name) \
-    roots.set(m_well_known_symbols.snake_name, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
+    roots.set(m_well_known_symbols.snake_name.ptr(), GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
     JS_ENUMERATE_WELL_KNOWN_SYMBOLS
 #undef __JS_ENUMERATE
 
     for (auto& symbol : m_global_symbol_registry)
-        roots.set(symbol.value, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
+        roots.set(symbol.value.ptr(), GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
 
     for (auto finalization_registry : m_finalization_registry_cleanup_jobs)
-        roots.set(finalization_registry, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
+        roots.set(finalization_registry.ptr(), GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
 
     auto gather_roots_from_execution_context_stack = [&roots](Vector<ExecutionContext*> const& stack, Vector<ExecutionContext*> const& previous_running_contexts, ExecutionContext* running_execution_context) {
         for_each_execution_context_top_to_bottom(stack, previous_running_contexts, running_execution_context, [&](ExecutionContext& execution_context) {
             ExecutionContextRootsCollector visitor;
             execution_context.visit_edges(visitor);
             for (auto cell : visitor.roots)
-                roots.set(cell, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
+                roots.set(cell.ptr(), GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
             return true;
         });
     };
@@ -354,14 +354,14 @@ void VM::gather_roots(HashMap<GC::Cell*, GC::HeapRoot>& roots)
         gather_roots_from_execution_context_stack(saved_stack.stack, saved_stack.previous_running_contexts, saved_stack.running_execution_context);
 
     if (m_type_error_realm_override)
-        roots.set(m_type_error_realm_override, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
+        roots.set(m_type_error_realm_override.ptr(), GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
     for (auto const& saved_stack : m_saved_execution_context_stacks) {
         if (saved_stack.type_error_realm_override)
-            roots.set(saved_stack.type_error_realm_override, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
+            roots.set(saved_stack.type_error_realm_override.ptr(), GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
     }
 
     for (auto& job : m_promise_jobs)
-        roots.set(job, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
+        roots.set(job.ptr(), GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
 }
 
 // 9.1.2.1 GetIdentifierReference ( env, name, strict ), https://tc39.es/ecma262/#sec-getidentifierreference
@@ -399,7 +399,7 @@ ThrowCompletionOr<Reference> VM::get_identifier_reference(Environment* environme
 }
 
 // 9.4.2 ResolveBinding ( name [ , env ] ), https://tc39.es/ecma262/#sec-resolvebinding
-ThrowCompletionOr<Reference> VM::resolve_binding(Utf16FlyString const& name, Strict strict, Environment* environment)
+ThrowCompletionOr<Reference> VM::resolve_binding(Utf16FlyString const& name, Strict strict, GC::Ptr<Environment> environment)
 {
     // 1. If env is not present or if env is undefined, then
     if (!environment) {
@@ -414,7 +414,7 @@ ThrowCompletionOr<Reference> VM::resolve_binding(Utf16FlyString const& name, Str
     // NOTE: We take this as a parameter.
 
     // 4. Return ? GetIdentifierReference(env, name, strict).
-    return get_identifier_reference(environment, name, strict);
+    return get_identifier_reference(environment.ptr(), name, strict);
 
     // NOTE: The spec says:
     //       Note: The result of ResolveBinding is always a Reference Record whose [[ReferencedName]] field is name.
@@ -446,7 +446,7 @@ Value VM::get_new_target()
 
 // 13.3.12.1 Runtime Semantics: Evaluation, https://tc39.es/ecma262/#sec-meta-properties-runtime-semantics-evaluation
 // ImportMeta branch only
-Object* VM::get_import_meta()
+GC::Ref<Object> VM::get_import_meta()
 {
     // 1. Let module be GetActiveScriptOrModule().
     auto script_or_module = get_active_script_or_module();
@@ -455,7 +455,7 @@ Object* VM::get_import_meta()
     auto& module = as<SourceTextModule>(*script_or_module.get<GC::Ref<Module>>());
 
     // 3. Let importMeta be module.[[ImportMeta]].
-    auto* import_meta = module.import_meta();
+    GC::Ptr<Object> import_meta = module.import_meta();
 
     // 4. If importMeta is empty, then
     if (import_meta == nullptr) {
@@ -472,13 +472,13 @@ Object* VM::get_import_meta()
         }
 
         // d. Perform HostFinalizeImportMeta(importMeta, module).
-        host_finalize_import_meta(import_meta, module);
+        host_finalize_import_meta(import_meta.ptr(), module);
 
         // e. Set module.[[ImportMeta]] to importMeta.
-        module.set_import_meta({}, import_meta);
+        module.set_import_meta({}, import_meta.ptr());
 
         // f. Return importMeta.
-        return import_meta;
+        return import_meta.as_nonnull();
     }
     // 5. Else,
     else {
@@ -486,7 +486,7 @@ Object* VM::get_import_meta()
         // Note: This is always true by the type.
 
         // b. Return importMeta.
-        return import_meta;
+        return import_meta.as_nonnull();
     }
 }
 
@@ -513,7 +513,7 @@ void VM::run_queued_promise_jobs_impl()
 }
 
 // 9.5.4 HostEnqueuePromiseJob ( job, realm ), https://tc39.es/ecma262/#sec-hostenqueuepromisejob
-void VM::enqueue_promise_job(GC::Ref<GC::Function<ThrowCompletionOr<Value>()>> job, Realm*)
+void VM::enqueue_promise_job(GC::Ref<GC::Function<ThrowCompletionOr<Value>()>> job, GC::Ptr<Realm>)
 {
     // An implementation of HostEnqueuePromiseJob must conform to the requirements in 9.5 as well as the following:
     // - FIXME: If realm is not null, each time job is invoked the implementation must perform implementation-defined steps such that execution is prepared to evaluate ECMAScript code at the time of job's invocation.

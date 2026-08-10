@@ -53,7 +53,7 @@ GC::Ref<GeneratorObject> GeneratorObject::create(Realm& realm, Variant<GC::Ref<E
     return object;
 }
 
-GeneratorObject::GeneratorObject(Realm& realm, Object* prototype, NonnullOwnPtr<ExecutionContext> context, Optional<StringView> generator_brand)
+GeneratorObject::GeneratorObject(Realm& realm, GC::Ptr<Object> prototype, NonnullOwnPtr<ExecutionContext> context, Optional<StringView> generator_brand)
     : Object(realm, prototype)
     , m_execution_context(move(context))
     , m_generator_brand(move(generator_brand))

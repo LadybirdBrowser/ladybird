@@ -387,7 +387,7 @@ Value Promise::perform_then(Value on_fulfilled, Value on_rejected, GC::Ptr<Promi
     m_is_handled = true;
 
     // 13. If resultCapability is undefined, then
-    if (result_capability == nullptr) {
+    if (!result_capability) {
         // a. Return undefined.
         dbgln_if(PROMISE_DEBUG, "[Promise @ {} / perform_then()]: No result PromiseCapability, returning undefined", this);
         return js_undefined();

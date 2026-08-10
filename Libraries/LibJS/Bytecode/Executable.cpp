@@ -539,13 +539,13 @@ static bool cell_is_dead(Cell const* cell)
 
 static void clear_cache_entry_if_dead(PropertyLookupCache::Entry& entry)
 {
-    if (entry.from_shape && cell_is_dead(entry.from_shape))
+    if (entry.from_shape && cell_is_dead(entry.from_shape.ptr()))
         entry.from_shape = nullptr;
-    if (entry.shape && cell_is_dead(entry.shape))
+    if (entry.shape && cell_is_dead(entry.shape.ptr()))
         entry.shape = nullptr;
-    if (entry.prototype && cell_is_dead(entry.prototype))
+    if (entry.prototype && cell_is_dead(entry.prototype.ptr()))
         entry.prototype = nullptr;
-    if (entry.prototype_chain_validity && cell_is_dead(entry.prototype_chain_validity))
+    if (entry.prototype_chain_validity && cell_is_dead(entry.prototype_chain_validity.ptr()))
         entry.prototype_chain_validity = nullptr;
 }
 

@@ -58,13 +58,13 @@ private:
     };
 
     // Stringify helpers
-    static ThrowCompletionOr<bool> serialize_json_property(VM&, StringifyState&, PropertyKey const& key, Object* holder);
+    static ThrowCompletionOr<bool> serialize_json_property(VM&, StringifyState&, PropertyKey const& key, GC::Ref<Object> holder);
     static ThrowCompletionOr<void> serialize_json_object(VM&, StringifyState&, Object&);
     static ThrowCompletionOr<void> serialize_json_array(VM&, StringifyState&, Object&);
     static void quote_json_string(Utf16StringBuilder&, Utf16View const&);
 
     // Parse helpers
-    static ThrowCompletionOr<Value> internalize_json_property(VM&, Object* holder, PropertyKey const& name, FunctionObject& reviver, JSONParseRecord const* parse_record);
+    static ThrowCompletionOr<Value> internalize_json_property(VM&, GC::Ref<Object> holder, PropertyKey const& name, FunctionObject& reviver, JSONParseRecord const* parse_record);
 
     JS_DECLARE_NATIVE_FUNCTION(stringify);
     JS_DECLARE_NATIVE_FUNCTION(parse);

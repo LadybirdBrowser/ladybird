@@ -325,7 +325,7 @@ static bool object_property_iterator_cache_matches(Object& object, ObjectPropert
         return false;
 
     auto& shape = object.shape();
-    if (&shape != cache.shape())
+    if (&shape != cache.shape().ptr())
         return false;
 
     if (shape.is_dictionary() && shape.dictionary_generation() != cache.shape_dictionary_generation())
@@ -1122,7 +1122,7 @@ i64 asm_slow_path_get_global(VM* vm, u32 pc, Op::GetGlobal const* instruction)
     auto& shape = binding_object.shape();
     if (cache.environment_serial_number == declarative_record.environment_serial_number()) {
         auto* entry = cache.first_entry();
-        if (entry && &shape == entry->shape && (!shape.is_dictionary() || shape.dictionary_generation() == entry->shape_dictionary_generation)) {
+        if (entry && &shape == entry->shape.ptr() && (!shape.is_dictionary() || shape.dictionary_generation() == entry->shape_dictionary_generation)) {
             auto value = binding_object.get_direct(entry->property_offset);
             vm->set(instruction->dst(), ASM_TRY(*vm, pc, get_cached_property_value(*vm, value, &binding_object)));
             return static_cast<i64>(pc + sizeof(Op::GetGlobal));
@@ -1224,7 +1224,7 @@ i64 asm_slow_path_set_global(VM* vm, u32 pc, Op::SetGlobal const* instruction)
 
     if (cache.environment_serial_number == declarative_record.environment_serial_number()) {
         auto* entry = cache.first_entry();
-        if (entry && &shape == entry->shape && (!shape.is_dictionary() || shape.dictionary_generation() == entry->shape_dictionary_generation)) {
+        if (entry && &shape == entry->shape.ptr() && (!shape.is_dictionary() || shape.dictionary_generation() == entry->shape_dictionary_generation)) {
             auto value = binding_object.get_direct(entry->property_offset);
             if (value.is_accessor())
                 ASM_TRY(*vm, pc, call(*vm, value.as_accessor().setter(), &binding_object, src));
@@ -1316,7 +1316,7 @@ i64 asm_slow_path_copy_object_excluding_properties(VM* vm, u32 pc, Op::CopyObjec
 {
     auto& realm = *vm->current_realm();
     auto from_object = vm->get(instruction->from_object());
-    auto to_object = Object::create(realm, realm.intrinsics().object_prototype());
+    auto to_object = Object::create(realm, realm.intrinsics().object_prototype().ptr());
 
     GC::ConservativeHashTable<PropertyKey> excluded_names;
     auto excluded_names_operands = instruction->excluded_names();
@@ -1371,7 +1371,7 @@ i64 asm_slow_path_new_class(VM* vm, u32 pc, Op::NewClass const* instruction)
         binding_name = class_name;
     }
 
-    auto* retval = ASM_TRY(*vm, pc, construct_class(*vm, blueprint, vm->current_executable(), class_environment, outer_environment, super_class, element_keys, binding_name, class_name));
+    auto retval = ASM_TRY(*vm, pc, construct_class(*vm, blueprint, vm->current_executable(), class_environment, outer_environment, super_class, element_keys, binding_name, class_name));
     vm->set(instruction->dst(), retval);
     return static_cast<i64>(pc + instruction->length());
 }
@@ -1859,7 +1859,7 @@ i64 asm_slow_path_new_object(VM* vm, u32 pc, Op::NewObject const* instruction)
         }
     }
 
-    vm->set(instruction->dst(), Object::create(realm, realm.intrinsics().object_prototype()));
+    vm->set(instruction->dst(), Object::create(realm, realm.intrinsics().object_prototype().ptr()));
     return static_cast<i64>(pc + sizeof(Op::NewObject));
 }
 
@@ -2227,7 +2227,7 @@ i64 asm_try_put_by_id_cache(VM* vm, u32, Op::PutById const* instruction)
             return 0;
         }
         case PropertyLookupCache::Entry::Type::AddOwnProperty: {
-            if (entry.from_shape != &object.shape()) [[unlikely]]
+            if (entry.from_shape.ptr() != &object.shape()) [[unlikely]]
                 continue;
             if (object.requires_slow_add_own_property()) [[unlikely]]
                 continue;
@@ -2273,7 +2273,7 @@ i64 asm_try_get_by_id_cache(VM* vm, u32, Op::GetById const* instruction)
 
         auto cached_prototype = entry.prototype.ptr();
         if (cached_prototype) {
-            if (&shape != entry.shape) [[unlikely]]
+            if (&shape != entry.shape.ptr()) [[unlikely]]
                 continue;
             if (shape.is_dictionary()
                 && shape.dictionary_generation() != entry.shape_dictionary_generation)
@@ -2286,7 +2286,7 @@ i64 asm_try_get_by_id_cache(VM* vm, u32, Op::GetById const* instruction)
                 return 1;
             vm->set(instruction->dst(), value);
             return 0;
-        } else if (&shape == entry.shape) {
+        } else if (&shape == entry.shape.ptr()) {
             if (shape.is_dictionary()
                 && shape.dictionary_generation() != entry.shape_dictionary_generation)
                 continue;
@@ -2511,7 +2511,7 @@ i64 asm_slow_path_enter_object_environment(VM* vm, u32 pc, Op::EnterObjectEnviro
 {
     auto object = ASM_TRY(*vm, pc, vm->get(instruction->object()).to_object(*vm));
     auto& old_environment = vm->running_execution_context().lexical_environment;
-    auto new_environment = new_object_environment(*object, true, old_environment);
+    auto new_environment = new_object_environment(*object, true, old_environment.ptr());
     vm->set(instruction->dst(), new_environment);
     vm->running_execution_context().lexical_environment = new_environment;
     return static_cast<i64>(pc + sizeof(Op::EnterObjectEnvironment));
@@ -2651,7 +2651,7 @@ i64 asm_slow_path_create_private_environment(VM* vm, u32 pc, Op::CreatePrivateEn
 {
     auto& running_execution_context = vm->running_execution_context();
     auto outer_private_environment = running_execution_context.private_environment;
-    running_execution_context.private_environment = new_private_environment(*vm, outer_private_environment);
+    running_execution_context.private_environment = new_private_environment(*vm, outer_private_environment.ptr());
     return static_cast<i64>(pc + sizeof(Op::CreatePrivateEnvironment));
 }
 

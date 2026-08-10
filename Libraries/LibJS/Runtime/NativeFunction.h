@@ -40,7 +40,7 @@ public:
     Utf16FlyString const& name() const { return m_name; }
     virtual bool is_strict_mode() const override;
     virtual bool has_constructor() const override { return false; }
-    virtual Realm* realm() const override { return m_realm; }
+    virtual Realm* realm() const override { return m_realm.ptr(); }
 
     Optional<Utf16FlyString> const& initial_name() const { return m_initial_name; }
     void set_initial_name(Badge<FunctionObject>, Utf16FlyString initial_name) { m_initial_name = move(initial_name); }
@@ -49,7 +49,7 @@ public:
     virtual size_t function_environment_bindings_count() const { return 0; }
 
 protected:
-    NativeFunction(Object* prototype, Realm& realm, Optional<Bytecode::Builtin> builtin);
+    NativeFunction(GC::Ptr<Object> prototype, Realm& realm, Optional<Bytecode::Builtin> builtin);
     NativeFunction(Utf16FlyString name, Object& prototype);
     explicit NativeFunction(Object& prototype);
 
@@ -81,7 +81,7 @@ public:
     NativeFunctionPointer native_function() const { return m_native_function; }
 
 private:
-    RawNativeFunction(NativeFunctionPointer, Object* prototype, Realm& realm, Optional<Bytecode::Builtin> builtin);
+    RawNativeFunction(NativeFunctionPointer, GC::Ptr<Object> prototype, Realm& realm, Optional<Bytecode::Builtin> builtin);
     RawNativeFunction(Utf16FlyString name, NativeFunctionPointer, Object& prototype);
 
     NativeFunctionPointer m_native_function { nullptr };

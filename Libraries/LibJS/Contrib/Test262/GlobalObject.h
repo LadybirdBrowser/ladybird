@@ -20,7 +20,7 @@ public:
     virtual void initialize(Realm&) override;
     virtual ~GlobalObject() override = default;
 
-    $262Object* $262() const { return m_$262; }
+    $262Object* $262() const { return m_$262.ptr(); }
 
 private:
     GlobalObject(JS::Realm& realm)

@@ -101,7 +101,7 @@ void Object::ensure_named_storage_capacity(u32 needed)
 }
 
 // 10.1.12 OrdinaryObjectCreate ( proto [ , additionalInternalSlotsList ] ), https://tc39.es/ecma262/#sec-ordinaryobjectcreate
-GC::Ref<Object> Object::create(Realm& realm, Object* prototype)
+GC::Ref<Object> Object::create(Realm& realm, GC::Ptr<Object> prototype)
 {
     if (!prototype)
         return realm.create<Object>(realm.intrinsics().empty_object_shape());
@@ -110,7 +110,7 @@ GC::Ref<Object> Object::create(Realm& realm, Object* prototype)
     return realm.create<Object>(ConstructWithPrototypeTag::Tag, *prototype);
 }
 
-GC::Ref<Object> Object::create_prototype(Realm& realm, Object* prototype)
+GC::Ref<Object> Object::create_prototype(Realm& realm, GC::Ptr<Object> prototype)
 {
     auto shape = realm.heap().allocate<Shape>(realm);
     if (prototype)
@@ -138,13 +138,13 @@ Object::Object(ConstructWithoutPrototypeTag, Realm& realm, MayInterfereWithIndex
     m_shape = heap().allocate<Shape>(realm);
 }
 
-Object::Object(Realm& realm, Object* prototype, MayInterfereWithIndexedPropertyAccess may_interfere_with_indexed_property_access)
+Object::Object(Realm& realm, GC::Ptr<Object> prototype, MayInterfereWithIndexedPropertyAccess may_interfere_with_indexed_property_access)
 {
     if (may_interfere_with_indexed_property_access == MayInterfereWithIndexedPropertyAccess::Yes)
         set_may_interfere_with_indexed_property_access();
     m_shape = realm.intrinsics().empty_object_shape();
     VERIFY(m_shape);
-    if (prototype != nullptr)
+    if (prototype)
         set_prototype(prototype);
 }
 
@@ -1449,19 +1449,19 @@ void Object::storage_delete(PropertyKey const& property_key)
         memmove(&m_named_properties[metadata->offset], &m_named_properties[metadata->offset + 1], remaining * sizeof(Value));
 }
 
-void Object::set_prototype(Object* new_prototype)
+void Object::set_prototype(GC::Ptr<Object> new_prototype)
 {
-    if (prototype() == new_prototype)
+    if (prototype() == new_prototype.ptr())
         return;
-    m_shape = shape().create_prototype_transition(new_prototype);
+    m_shape = shape().create_prototype_transition(new_prototype.ptr());
 }
 
 void Object::define_native_accessor(Realm& realm, PropertyKey const& property_key, NativeFunctionPointer getter, NativeFunctionPointer setter, PropertyAttributes attribute)
 {
-    FunctionObject* getter_function = nullptr;
+    GC::Ptr<FunctionObject> getter_function;
     if (getter)
         getter_function = NativeFunction::create(realm, move(getter), 0, property_key, &realm, "get"sv);
-    FunctionObject* setter_function = nullptr;
+    GC::Ptr<FunctionObject> setter_function;
     if (setter)
         setter_function = NativeFunction::create(realm, move(setter), 1, property_key, &realm, "set"sv);
     define_direct_accessor(property_key, getter_function, setter_function, attribute);
@@ -1469,19 +1469,19 @@ void Object::define_native_accessor(Realm& realm, PropertyKey const& property_ke
 
 void Object::define_native_accessor(Realm& realm, PropertyKey const& property_key, Function<ThrowCompletionOr<Value>(VM&)> getter, Function<ThrowCompletionOr<Value>(VM&)> setter, PropertyAttributes attribute)
 {
-    FunctionObject* getter_function = nullptr;
+    GC::Ptr<FunctionObject> getter_function;
     if (getter)
         getter_function = NativeFunction::create(realm, move(getter), 0, property_key, &realm, "get"sv);
-    FunctionObject* setter_function = nullptr;
+    GC::Ptr<FunctionObject> setter_function;
     if (setter)
         setter_function = NativeFunction::create(realm, move(setter), 1, property_key, &realm, "set"sv);
     define_direct_accessor(property_key, getter_function, setter_function, attribute);
 }
 
-void Object::define_direct_accessor(PropertyKey const& property_key, FunctionObject* getter, FunctionObject* setter, PropertyAttributes attributes)
+void Object::define_direct_accessor(PropertyKey const& property_key, GC::Ptr<FunctionObject> getter, GC::Ptr<FunctionObject> setter, PropertyAttributes attributes)
 {
     auto existing_property = storage_get(property_key).value_or({}).value;
-    auto* accessor = existing_property.is_accessor() ? &existing_property.as_accessor() : nullptr;
+    GC::Ptr<Accessor> accessor = existing_property.is_accessor() ? &existing_property.as_accessor() : nullptr;
     if (!accessor) {
         accessor = Accessor::create(vm(), getter, setter);
         define_direct_property(property_key, accessor, attributes);

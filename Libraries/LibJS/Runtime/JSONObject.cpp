@@ -142,7 +142,7 @@ JS_DEFINE_NATIVE_FUNCTION(JSONObject::stringify)
 // 25.5.2.1 SerializeJSONProperty ( state, key, holder ), https://tc39.es/ecma262/#sec-serializejsonproperty
 // 1.4.1 SerializeJSONProperty ( state, key, holder ), https://tc39.es/proposal-json-parse-with-source/#sec-serializejsonproperty
 // Returns true if a value was serialized, false if the value was undefined (should be omitted).
-ThrowCompletionOr<bool> JSONObject::serialize_json_property(VM& vm, StringifyState& state, PropertyKey const& key, Object* holder)
+ThrowCompletionOr<bool> JSONObject::serialize_json_property(VM& vm, StringifyState& state, PropertyKey const& key, GC::Ref<Object> holder)
 {
     auto& builder = state.builder;
 
@@ -307,7 +307,7 @@ ThrowCompletionOr<void> JSONObject::serialize_json_object(VM& vm, StringifyState
             builder.append_ascii(' ');
 
         // Serialize value
-        bool wrote_value = TRY(serialize_json_property(vm, state, key, &object));
+        bool wrote_value = TRY(serialize_json_property(vm, state, key, object));
 
         if (wrote_value) {
             first = false;
@@ -371,7 +371,7 @@ ThrowCompletionOr<void> JSONObject::serialize_json_array(VM& vm, StringifyState&
         }
 
         // Serialize value (undefined becomes null for arrays)
-        bool wrote_value = TRY(serialize_json_property(vm, state, i, &object));
+        bool wrote_value = TRY(serialize_json_property(vm, state, i, object));
         if (!wrote_value)
             builder.append_ascii("null"sv);
     }
@@ -1003,7 +1003,7 @@ ThrowCompletionOr<Value> JSONObject::parse_json(VM& vm, Utf16View text, JSONPars
 }
 
 // 25.5.1.1 InternalizeJSONProperty ( holder, name, reviver, parseRecord ), https://tc39.es/ecma262/#sec-internalizejsonproperty
-ThrowCompletionOr<Value> JSONObject::internalize_json_property(VM& vm, Object* holder, PropertyKey const& name, FunctionObject& reviver, JSONParseRecord const* parse_record)
+ThrowCompletionOr<Value> JSONObject::internalize_json_property(VM& vm, GC::Ref<Object> holder, PropertyKey const& name, FunctionObject& reviver, JSONParseRecord const* parse_record)
 {
     auto& realm = *vm.current_realm();
 
@@ -1045,7 +1045,7 @@ ThrowCompletionOr<Value> JSONObject::internalize_json_property(VM& vm, Object* h
         auto& value_object = value.as_object();
         auto process_property = [&](PropertyKey const& key, JSONParseRecord const* child_record) -> ThrowCompletionOr<void> {
             // i/ii/iii. Let newElement be ? InternalizeJSONProperty(value, propertyKey, reviver, elementRecord/entryRecord).
-            auto new_element = TRY(internalize_json_property(vm, &value_object, key, reviver, child_record));
+            auto new_element = TRY(internalize_json_property(vm, value_object, key, reviver, child_record));
             // If newElement is undefined, perform ? value.[[Delete]](propertyKey).
             if (new_element.is_undefined())
                 TRY(value_object.internal_delete(key));

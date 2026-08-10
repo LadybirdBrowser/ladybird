@@ -43,7 +43,7 @@ public:
     ByteLength const& byte_length() const { return m_byte_length; }
     u32 byte_offset() const { return m_byte_offset; }
     ContentType content_type() const { return m_content_type; }
-    ArrayBuffer* viewed_array_buffer() const { return m_viewed_array_buffer; }
+    ArrayBuffer* viewed_array_buffer() const { return m_viewed_array_buffer.ptr(); }
 
     static constexpr size_t invalid_cached_data_offset = GC::PrimitiveStorage::invalid_offset;
 

@@ -106,7 +106,7 @@ ThrowCompletionOr<GC::Ref<Object>> DurationFormatConstructor::construct(Function
         auto unit_options = TRY(get_duration_unit_options(vm, unit, *options, duration_format->style(), styles, digital_base, previous_style, digital_format.uses_two_digit_hours));
 
         // f. Set the value of durationFormat's internal slot whose name is slot to unitOptions.
-        (duration_format->*slot)(unit_options);
+        ((*duration_format).*slot)(unit_options);
 
         // g. If unit is one of "hours", "minutes", "seconds", "milliseconds", or "microseconds", then
         if (first_is_one_of(unit, DurationFormat::Unit::Hours, DurationFormat::Unit::Minutes, DurationFormat::Unit::Seconds, DurationFormat::Unit::Milliseconds, DurationFormat::Unit::Microseconds)) {

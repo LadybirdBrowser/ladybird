@@ -44,8 +44,8 @@ public:
     virtual ThrowCompletionOr<bool> delete_binding(VM&, [[maybe_unused]] Utf16FlyString const& name) = 0;
 
     // [[OuterEnv]]
-    Environment* outer_environment() { return m_outer_environment; }
-    Environment const* outer_environment() const { return m_outer_environment; }
+    Environment* outer_environment() { return m_outer_environment.ptr(); }
+    Environment const* outer_environment() const { return m_outer_environment.ptr(); }
 
     [[nodiscard]] bool is_declarative_environment() const { return m_declarative; }
     virtual bool is_global_environment() const { return false; }

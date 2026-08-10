@@ -53,8 +53,8 @@ bool WeakMap::weak_map_remove(GC::Ptr<Cell> key)
 
 void WeakMap::remove_dead_cells(Badge<GC::Heap>)
 {
-    m_values.remove_all_matching([this](Cell* key, Value) {
-        auto* block = GC::HeapBlock::from_cell(key);
+    m_values.remove_all_matching([this](GC::Ptr<Cell> key, Value) {
+        auto* block = GC::HeapBlock::from_cell(key.ptr());
         return !heap().is_live_heap_block(block) || key->state() != Cell::State::Live || !key->is_marked();
     });
 }

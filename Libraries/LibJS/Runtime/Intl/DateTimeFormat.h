@@ -61,8 +61,8 @@ public:
     Unicode::CalendarPattern& date_time_format() { return m_date_time_format; }
     void set_date_time_format(Unicode::CalendarPattern date_time_format) { m_date_time_format = move(date_time_format); }
 
-    NativeFunction* bound_format() const { return m_bound_format; }
-    void set_bound_format(NativeFunction* bound_format) { m_bound_format = bound_format; }
+    NativeFunction* bound_format() const { return m_bound_format.ptr(); }
+    void set_bound_format(GC::Ptr<NativeFunction> bound_format) { m_bound_format = bound_format; }
 
     Unicode::DateTimeFormat const& formatter() const { return *m_formatter; }
     void set_formatter(NonnullOwnPtr<Unicode::DateTimeFormat> formatter) { m_formatter = move(formatter); }

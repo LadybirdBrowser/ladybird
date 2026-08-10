@@ -333,7 +333,7 @@ ThrowCompletionOr<u32> CyclicModule::inner_module_linking(VM& vm, GC::RootVector
     // 11. Assert: module occurs exactly once in stack.
     size_t count = 0;
     for (auto module : stack) {
-        if (module == this)
+        if (module.ptr() == this)
             count++;
     }
     VERIFY(count == 1);
@@ -359,7 +359,7 @@ ThrowCompletionOr<u32> CyclicModule::inner_module_linking(VM& vm, GC::RootVector
             static_cast<CyclicModule&>(*required_module).m_status = ModuleStatus::Linked;
 
             // v. If requiredModule and module are the same Module Record, set done to true.
-            if (required_module == this)
+            if (required_module.ptr() == this)
                 break;
         }
     }
@@ -379,7 +379,7 @@ ThrowCompletionOr<GC::Ref<PromiseCapability>> CyclicModule::evaluate(VM& vm)
     VERIFY(m_status == ModuleStatus::Linked || m_status == ModuleStatus::EvaluatingAsync || m_status == ModuleStatus::Evaluated);
 
     // 3. If module.[[Status]] is either evaluating-async or evaluated, then
-    if ((m_status == ModuleStatus::EvaluatingAsync || m_status == ModuleStatus::Evaluated) && m_cycle_root != this) {
+    if ((m_status == ModuleStatus::EvaluatingAsync || m_status == ModuleStatus::Evaluated) && m_cycle_root.ptr() != this) {
         // a. If module.[[CycleRoot]] is not empty, then
         if (m_cycle_root) {
             // i. Set module to module.[[CycleRoot]].
@@ -394,7 +394,7 @@ ThrowCompletionOr<GC::Ref<PromiseCapability>> CyclicModule::evaluate(VM& vm)
     }
 
     // 4. If module.[[TopLevelCapability]] is not empty, then
-    if (m_top_level_capability != nullptr) {
+    if (m_top_level_capability) {
         // a. Return module.[[TopLevelCapability]].[[Promise]].
         return GC::Ref<PromiseCapability>(*m_top_level_capability);
     }
@@ -579,7 +579,7 @@ ThrowCompletionOr<u32> CyclicModule::inner_module_evaluation(VM& vm, GC::RootVec
     // 14. Assert: module occurs exactly once in stack.
     auto count = 0;
     for (auto module : stack) {
-        if (module == this)
+        if (module.ptr() == this)
             count++;
     }
     VERIFY(count == 1);
@@ -613,7 +613,7 @@ ThrowCompletionOr<u32> CyclicModule::inner_module_evaluation(VM& vm, GC::RootVec
                 cyclic_module.m_status = ModuleStatus::EvaluatingAsync;
 
             // vii. If _requiredModule_ and _module_ are the same Module Record, set _done_ to *true*.
-            if (required_module == this)
+            if (required_module.ptr() == this)
                 done = true;
 
             // viii. Set _requiredModule_.[[CycleRoot]] to _module_.
@@ -753,9 +753,9 @@ void CyclicModule::async_module_execution_fulfilled(VM& vm)
     m_status = ModuleStatus::Evaluated;
 
     // 7. If module.[[TopLevelCapability]] is not empty, then
-    if (m_top_level_capability != nullptr) {
+    if (m_top_level_capability) {
         // a. Assert: module.[[CycleRoot]] is module.
-        VERIFY(m_cycle_root == this);
+        VERIFY(m_cycle_root.ptr() == this);
 
         // b. Perform ! Call(module.[[TopLevelCapability]].[[Resolve]], undefined, « undefined »).
         MUST(call(vm, *m_top_level_capability->resolve(), js_undefined(), js_undefined()));
@@ -812,7 +812,7 @@ void CyclicModule::async_module_execution_fulfilled(VM& vm)
                 module->m_status = ModuleStatus::Evaluated;
 
                 // 3. If _m_.[[TopLevelCapability]] is not ~empty~, then
-                if (module->m_top_level_capability != nullptr) {
+                if (module->m_top_level_capability) {
                     // a. Assert: _m_.[[CycleRoot]] and _m_ are the same Module Record.
                     VERIFY(module->m_cycle_root == module);
 
@@ -861,9 +861,9 @@ void CyclicModule::async_module_execution_rejected(VM& vm, Value error)
     //    [[EvaluationError]] internal slot is not ~empty~.
 
     // 9. If module.[[TopLevelCapability]] is not empty, then
-    if (m_top_level_capability != nullptr) {
+    if (m_top_level_capability) {
         // a. Assert: module.[[CycleRoot]] and module are the same Module Record.
-        VERIFY(m_cycle_root == this);
+        VERIFY(m_cycle_root.ptr() == this);
 
         // b. Perform ! Call(module.[[TopLevelCapability]].[[Reject]], undefined, « error »).
         MUST(call(vm, *m_top_level_capability->reject(), js_undefined(), error));

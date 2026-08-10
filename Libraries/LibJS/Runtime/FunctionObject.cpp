@@ -13,7 +13,7 @@
 
 namespace JS {
 
-FunctionObject::FunctionObject(Realm& realm, Object* prototype, MayInterfereWithIndexedPropertyAccess may_interfere_with_indexed_property_access)
+FunctionObject::FunctionObject(Realm& realm, GC::Ptr<Object> prototype, MayInterfereWithIndexedPropertyAccess may_interfere_with_indexed_property_access)
     : Object(realm, prototype, may_interfere_with_indexed_property_access)
 {
     set_is_function();
