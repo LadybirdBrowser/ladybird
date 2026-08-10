@@ -265,7 +265,7 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::create_with_settings(HTML::Enviro
     auto base_url = relevant_settings_object.api_base_url();
 
     // 4. Let signal be null.
-    DOM::AbortSignal* input_signal = nullptr;
+    GC::Ptr<DOM::AbortSignal> input_signal;
 
     // 5. If input is a string, then:
     if (input.has<Utf16String>()) {

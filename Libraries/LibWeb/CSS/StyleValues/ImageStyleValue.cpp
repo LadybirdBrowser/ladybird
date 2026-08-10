@@ -178,7 +178,7 @@ Optional<CSSPixelFraction> ImageStyleValue::natural_aspect_ratio(DOM::Document c
 
 bool ImageStyleValue::is_paintable(DOM::Document const& document) const
 {
-    return image_data(document);
+    return !!image_data(document);
 }
 
 void ImageStyleValue::paint(DisplayListRecordingContext& context, DOM::Document const& document, DevicePixelRect const& dest_rect, CSS::ImageRendering image_rendering, PreferredColorScheme color_scheme) const

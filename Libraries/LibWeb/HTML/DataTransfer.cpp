@@ -49,7 +49,7 @@ static DataTransferTypesCacheEntry& types_cache_for(DataTransfer& data_transfer)
     prune_data_transfer_types_caches();
 
     for (auto& entry : caches) {
-        if (entry.data_transfer.ptr() != &data_transfer)
+        if (entry.data_transfer.ptr().ptr() != &data_transfer)
             continue;
 
         if (entry.types_revision != data_transfer.types_revision()) {

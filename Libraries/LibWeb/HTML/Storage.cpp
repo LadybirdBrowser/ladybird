@@ -201,7 +201,7 @@ void Storage::broadcast(Optional<Utf16View> key, Optional<Utf16View> old_value, 
             return IterationDecision::Continue;
 
         // "excluding storage"
-        if (storage == this)
+        if (storage == GC::Ref { *this })
             return IterationDecision::Continue;
 
         // * relevant settings object's origin is same origin with storage's relevant settings object's origin

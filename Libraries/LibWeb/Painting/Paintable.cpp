@@ -204,7 +204,7 @@ DOM::Node* HitTestResult::dom_node()
 
     for (auto* current = paintable.ptr(); current; current = current->parent()) {
         if (auto node = current->dom_node())
-            return node;
+            return node.ptr();
     }
     return nullptr;
 }
@@ -216,7 +216,7 @@ DOM::Node const* HitTestResult::dom_node() const
 
     for (auto const* current = paintable.ptr(); current; current = current->parent()) {
         if (auto node = current->dom_node())
-            return node;
+            return node.ptr();
     }
     return nullptr;
 }
@@ -345,7 +345,7 @@ Paintable::SelectionStyle Paintable::selection_style_for_node(Layout::Node const
 
     DOM::Element const* element = as_if<DOM::Element>(*node);
     if (!element)
-        element = node->parent_element();
+        element = node->parent_element().ptr();
     if (!element)
         return default_style_for_color_scheme(style_source.computed_values().color_scheme());
 

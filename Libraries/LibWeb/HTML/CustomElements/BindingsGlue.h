@@ -26,7 +26,7 @@ class CustomStateSet;
 namespace Web::Bindings {
 
 WEB_API GC::Ref<HTML::CustomElementRegistry> construct_custom_element_registry();
-WEB_API JS::ThrowCompletionOr<void> define(JS::Realm&, HTML::CustomElementRegistry&, Utf16String const&, WebIDL::CallbackType*, ElementDefinitionOptions const&);
+WEB_API JS::ThrowCompletionOr<void> define(JS::Realm&, HTML::CustomElementRegistry&, Utf16String const&, GC::Ref<WebIDL::CallbackType>, ElementDefinitionOptions const&);
 WEB_API GC::Ref<WebIDL::Promise> when_defined(JS::Realm&, HTML::CustomElementRegistry&, Utf16String const&);
 WEB_API GC::Ref<JS::Set> setlike_entries(JS::Realm&, WrapperWorld const&, HTML::CustomStateSet const&);
 WEB_API bool setlike_has(HTML::CustomStateSet const&, JS::Value);

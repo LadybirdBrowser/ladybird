@@ -186,7 +186,7 @@ public:
 
     [[nodiscard]] GC::Ptr<HTML::EnvironmentSettingsObject const> client() const { return m_client; }
     [[nodiscard]] GC::Ptr<HTML::EnvironmentSettingsObject> client() { return m_client; }
-    void set_client(HTML::EnvironmentSettingsObject* client) { m_client = client; }
+    void set_client(GC::Ptr<HTML::EnvironmentSettingsObject> client) { m_client = client; }
 
     [[nodiscard]] ReservedClientType const& reserved_client() const { return m_reserved_client; }
     [[nodiscard]] ReservedClientType& reserved_client() { return m_reserved_client; }

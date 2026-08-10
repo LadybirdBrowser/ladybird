@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 # Copyright (c) 2024, Luke Wilde <luke@ladybird.org>
 # Copyright (c) 2026-present, the Ladybird developers.
 #
@@ -71,7 +69,7 @@ namespace {
 JS::ThrowCompletionOr<CSS::CSSStyleProperties*> impl_from(JS::VM& vm, JS::Value value)
 {
     if (auto object = value.as_if<JS::Object>()) {
-        if (auto* wrappable = wrappable_impl_from(object)) {
+        if (auto* wrappable = wrappable_impl_from(object.ptr())) {
             if (auto* impl = as_if<CSS::CSSStyleProperties>(wrappable))
                 return impl;
         }

@@ -26,8 +26,8 @@ class WEB_API ResizeObserver : public Bindings::GCAllocatedWrappable {
 public:
     static constexpr bool OVERRIDES_FINALIZE = true;
 
-    static GC::Ref<ResizeObserver> create(WebIDL::CallbackType* callback, DOM::Document&);
-    static GC::Ref<ResizeObserver> create_for_constructor(JS::Object&, WebIDL::CallbackType*);
+    static GC::Ref<ResizeObserver> create(GC::Ptr<WebIDL::CallbackType> callback, DOM::Document&);
+    static GC::Ref<ResizeObserver> create_for_constructor(JS::Object&, GC::Ref<WebIDL::CallbackType>);
 
     virtual ~ResizeObserver() override;
 
@@ -46,7 +46,7 @@ public:
     static void release_activity_roots_with_dead_documents();
 
 private:
-    explicit ResizeObserver(WebIDL::CallbackType* callback, DOM::Document&);
+    explicit ResizeObserver(GC::Ptr<WebIDL::CallbackType> callback, DOM::Document&);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual void finalize() override;

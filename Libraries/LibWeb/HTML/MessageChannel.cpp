@@ -50,22 +50,22 @@ void MessageChannel::visit_edges(GC::Cell::Visitor& visitor)
 
 MessagePort* MessageChannel::port1()
 {
-    return m_port1;
+    return m_port1.ptr();
 }
 
 MessagePort* MessageChannel::port2()
 {
-    return m_port2;
+    return m_port2.ptr();
 }
 
 MessagePort const* MessageChannel::port1() const
 {
-    return m_port1;
+    return m_port1.ptr();
 }
 
 MessagePort const* MessageChannel::port2() const
 {
-    return m_port2;
+    return m_port2.ptr();
 }
 
 }

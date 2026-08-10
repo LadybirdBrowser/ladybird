@@ -407,7 +407,7 @@ void MessagePort::post_message_task_steps(SerializedTransferRecord& serialize_wi
     //      Worker objects act as if they had an implicit MessagePort associated with them.
     //      All messages received by that port must immediately be retargeted at the Worker object.
     // We therefore set a special event target for those implicit ports on the Worker and the WorkerGlobalScope objects
-    EventTarget* message_event_target = final_target_port;
+    GC::Ptr<EventTarget> message_event_target = final_target_port;
     if (m_worker_event_target != nullptr) {
         message_event_target = m_worker_event_target;
     }

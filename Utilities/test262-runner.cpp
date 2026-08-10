@@ -221,10 +221,10 @@ static ErrorOr<void, TestError> run_test(StringView source, StringView filepath,
 
     auto root_execution_context = MUST(JS::Realm::initialize_host_defined_realm(
         *vm,
-        [&](JS::Realm& realm_) -> JS::GlobalObject* {
+        [&](JS::Realm& realm_) -> GC::Ref<JS::Object> {
             realm = &realm_;
             global_object = vm->heap().allocate<JS::Test262::GlobalObject>(realm_);
-            return global_object;
+            return global_object.as_nonnull();
         },
         nullptr));
 

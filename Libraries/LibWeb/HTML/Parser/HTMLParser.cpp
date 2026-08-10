@@ -925,7 +925,7 @@ void HTMLParser::resume_after_parser_blocking_script()
 
     // INTEROP: Blink and WebKit detach a parser when document.open() replaces it. Do not let resume work from the
     //          detached parser consume a parsing-blocking script owned by the replacement parser.
-    if (m_document->parser() != this)
+    if (m_document->parser().ptr() != this)
         return;
 
     auto pending = document().pending_parsing_blocking_script();

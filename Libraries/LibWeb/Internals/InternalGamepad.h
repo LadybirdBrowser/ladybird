@@ -49,8 +49,8 @@ public:
 
     Vector<ReceivedRumbleEffect> const& received_rumble_effects() const { return m_received_rumble_effects; }
     Vector<ReceivedRumbleTriggerEffect> const& received_rumble_trigger_effects() const { return m_received_rumble_trigger_effects; }
-    GC::RootVector<JS::Object*> get_received_rumble_effects(JS::Object& relevant_global_object) const;
-    GC::RootVector<JS::Object*> get_received_rumble_trigger_effects(JS::Object& relevant_global_object) const;
+    GC::RootVector<GC::Ref<JS::Object>> get_received_rumble_effects(JS::Object& relevant_global_object) const;
+    GC::RootVector<GC::Ref<JS::Object>> get_received_rumble_trigger_effects(JS::Object& relevant_global_object) const;
 
     void received_rumble(u16 low_frequency_rumble, u16 high_frequency_rumble);
     void received_rumble_triggers(u16 left_rumble, u16 right_rumble);

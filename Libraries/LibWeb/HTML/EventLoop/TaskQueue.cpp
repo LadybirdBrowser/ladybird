@@ -52,7 +52,7 @@ GC::Ptr<Task> TaskQueue::dequeue()
         if (tasks.is_empty())
             return {};
         auto* task = tasks.take_first();
-        if (m_last_added_task == task)
+        if (m_last_added_task.ptr() == task)
             m_last_added_task = {};
         return task;
     };
@@ -76,14 +76,14 @@ GC::Ptr<Task> TaskQueue::take_first_runnable()
         }
 
         if (task.is_runnable()) {
-            if (m_last_added_task == &task)
+            if (m_last_added_task.ptr() == &task)
                 m_last_added_task = {};
             it.erase();
             return &task;
         }
 
         if (task.is_permanently_unrunnable()) {
-            if (m_last_added_task == &task)
+            if (m_last_added_task.ptr() == &task)
                 m_last_added_task = {};
             it.erase();
             continue;
@@ -96,14 +96,14 @@ GC::Ptr<Task> TaskQueue::take_first_runnable()
         auto& task = *it;
 
         if (task.is_runnable()) {
-            if (m_last_added_task == &task)
+            if (m_last_added_task.ptr() == &task)
                 m_last_added_task = {};
             it.erase();
             return &task;
         }
 
         if (task.is_permanently_unrunnable()) {
-            if (m_last_added_task == &task)
+            if (m_last_added_task.ptr() == &task)
                 m_last_added_task = {};
             it.erase();
             continue;
@@ -142,7 +142,7 @@ void TaskQueue::remove_tasks_matching(Function<bool(HTML::Task const&)> filter)
                 ++it;
                 continue;
             }
-            if (m_last_added_task == &task)
+            if (m_last_added_task.ptr() == &task)
                 m_last_added_task = {};
             it.erase();
         }
@@ -157,14 +157,14 @@ GC::Ptr<Task> TaskQueue::take_first_runnable_matching(Function<bool(HTML::Task c
         auto& task = *it;
 
         if (task.is_runnable() && filter(task)) {
-            if (m_last_added_task == &task)
+            if (m_last_added_task.ptr() == &task)
                 m_last_added_task = {};
             it.erase();
             return &task;
         }
 
         if (task.is_permanently_unrunnable()) {
-            if (m_last_added_task == &task)
+            if (m_last_added_task.ptr() == &task)
                 m_last_added_task = {};
             it.erase();
             continue;
@@ -177,14 +177,14 @@ GC::Ptr<Task> TaskQueue::take_first_runnable_matching(Function<bool(HTML::Task c
         auto& task = *it;
 
         if (task.is_runnable() && filter(task)) {
-            if (m_last_added_task == &task)
+            if (m_last_added_task.ptr() == &task)
                 m_last_added_task = {};
             it.erase();
             return &task;
         }
 
         if (task.is_permanently_unrunnable()) {
-            if (m_last_added_task == &task)
+            if (m_last_added_task.ptr() == &task)
                 m_last_added_task = {};
             it.erase();
             continue;

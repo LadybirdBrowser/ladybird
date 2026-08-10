@@ -53,7 +53,7 @@ WebIDL::ExceptionOr<GC::Ref<FormData>> FormData::create_from_form(GC::Ptr<HTML::
                 return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Submitter is not a valid submit button."_utf16 };
             }
             // 2. If submitter’s form owner is not form, then throw a "NotFoundError" DOMException.
-            auto* form_owner = form_associated_element->form();
+            GC::Ptr form_owner = form_associated_element->form();
             if (form_owner && form_owner != form) {
                 return WebIDL::NotFoundError::create("Submitter does not belong to the provided form."_utf16);
             }

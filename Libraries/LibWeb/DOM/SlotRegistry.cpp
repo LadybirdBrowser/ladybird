@@ -16,7 +16,7 @@ void SlotRegistry::add(HTML::HTMLSlotElement& slot)
     });
 
     auto slot_removed = m_slots.remove_first_matching([&](auto const& other_slot) {
-        return &slot == other_slot.ptr();
+        return &slot == other_slot.ptr().ptr();
     });
     if (slot_removed)
         --m_slot_count;
@@ -37,7 +37,7 @@ bool SlotRegistry::try_insert_in_tree_order(HTML::HTMLSlotElement& slot)
             continue;
 
         auto index = m_slots.find_first_index_if([&](auto const& s) {
-            return s.ptr() == following_slot;
+            return s.ptr().ptr() == following_slot;
         });
 
         if (index.has_value()) {
@@ -52,7 +52,7 @@ bool SlotRegistry::try_insert_in_tree_order(HTML::HTMLSlotElement& slot)
 void SlotRegistry::remove(HTML::HTMLSlotElement& slot)
 {
     m_slot_count -= m_slots.remove_all_matching([&](GC::Weak<HTML::HTMLSlotElement>& s) {
-        return !s || &slot == s.ptr();
+        return !s || &slot == s.ptr().ptr();
     });
 }
 

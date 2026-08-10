@@ -60,7 +60,7 @@ public:
     bool has_activity_root(JS::Object&);
     GC::Ref<XHR::XMLHttpRequest> create_xml_http_request_for_document(DOM::Document&);
     Optional<Painting::HitTestResult> hit_test(double x, double y);
-    JS::Object* hit_test_result(double x, double y);
+    GC::Ptr<JS::Object> hit_test_result(double x, double y);
 
     void send_text(HTML::HTMLElement&, Utf16String const&, WebIDL::UnsignedShort modifiers);
     void send_key(HTML::HTMLElement&, Utf16String const&, WebIDL::UnsignedShort modifiers);
@@ -161,26 +161,26 @@ public:
     void set_geolocation_emulated_position(double latitude, double longitude, double accuracy);
 
     DOM::Document::StyleInvalidationCounters const& style_invalidation_counters() const;
-    JS::Object* style_invalidation_counters_object() const;
+    GC::Ref<JS::Object> style_invalidation_counters_object() const;
     void reset_style_invalidation_counters();
-    JS::Object* layout_tree_build_stats();
-    JS::Object* computed_values_stats();
-    JS::Object* style_ffi_counters();
+    GC::Ref<JS::Object> layout_tree_build_stats();
+    GC::Ref<JS::Object> computed_values_stats();
+    GC::Ref<JS::Object> style_ffi_counters();
     void reset_style_ffi_counters();
-    JS::Object* style_group_sharing_info(DOM::Element&);
+    GC::Ref<JS::Object> style_group_sharing_info(DOM::Element&);
     void update_style();
     void set_preferred_color_scheme(Utf16String const& color_scheme);
     void set_page_focus(bool has_focus);
     void set_system_visibility_state(Utf16String const& state);
     Utf16String canvas_color_scheme();
     bool style_sheet_may_have_has_selectors(CSS::CSSStyleSheet&);
-    WebIDL::ExceptionOr<JS::Object*> image_animation_state_for_url(Utf16String const& url);
+    WebIDL::ExceptionOr<GC::Ref<JS::Object>> image_animation_state_for_url(Utf16String const& url);
     bool media_element_is_fetching(HTML::HTMLMediaElement&);
     bool media_element_is_playing_audio(HTML::HTMLMediaElement&);
     void set_page_muted(bool muted);
     WebIDL::UnsignedLongLong active_image_style_value_animation_count();
     Compositor::AsyncScrollingState async_scrolling_state();
-    JS::Object* async_scrolling_state_object();
+    GC::Ref<JS::Object> async_scrolling_state_object();
     bool async_scrolling_state_blocks_wheel_event_at(double x, double y);
     bool async_scrolling_state_can_wheel_scroll_at(double x, double y, double delta_x, double delta_y, bool force_stale_wheel_event_regions);
     Utf16String async_scrolling_state_wheel_routing_admission();

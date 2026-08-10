@@ -13,7 +13,7 @@ void ElementByIdMap::add(Utf16FlyString const& element_id, Element& element)
     auto& entry = m_map.ensure(element_id, [] { return MapEntry {}; });
 
     for (auto const& existing : entry.elements) {
-        if (existing.ptr() == &element)
+        if (existing.ptr().ptr() == &element)
             return;
     }
 
@@ -34,7 +34,7 @@ void ElementByIdMap::remove(Utf16FlyString const& element_id, Element& element)
     auto& entry = it->value;
 
     entry.elements.remove_all_matching([&](auto& weak_el) {
-        return !weak_el || weak_el.ptr() == &element;
+        return !weak_el || weak_el.ptr().ptr() == &element;
     });
 
     if (entry.elements.is_empty()) {
@@ -42,7 +42,7 @@ void ElementByIdMap::remove(Utf16FlyString const& element_id, Element& element)
         return;
     }
 
-    if (entry.cached_first_element.ptr() == &element)
+    if (entry.cached_first_element.ptr().ptr() == &element)
         entry.cached_first_element = {};
 }
 

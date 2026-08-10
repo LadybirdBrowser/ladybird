@@ -303,7 +303,7 @@ Optional<CSSPixelRect> PaintableWithLines::empty_line_caret_rect(DOM::Position c
     if (m_fragments.is_empty())
         return {};
     auto const* text_layout_node = as_if<Layout::TextNode>(m_fragments.first().layout_node());
-    if (!text_layout_node || position.node() != text_layout_node->dom_text())
+    if (!text_layout_node || position.node() != GC::Ptr { text_layout_node->dom_text() })
         return {};
     for (auto const& target : empty_line_caret_targets()) {
         if (target.offset == position.offset())
@@ -560,7 +560,7 @@ Optional<PaintableFragment const&> PaintableWithLines::fragment_at_position(DOM:
     PaintableFragment const* fallback_fragment = nullptr;
     for (auto const& fragment : m_fragments) {
         auto const* text_node = as_if<Layout::TextNode>(fragment.layout_node());
-        if (!text_node || position.node() != text_node->dom_text())
+        if (!text_node || position.node() != GC::Ptr { text_node->dom_text() })
             continue;
         switch (fragment.caret_match(position.offset(), position.affinity())) {
         case PaintableFragment::CaretMatch::None:
@@ -678,7 +678,7 @@ void PaintableWithLines::paint_cursor(DisplayListRecordingContext& context, Inli
         cursor_rect = { empty_line_rect->x(), empty_line_rect->y(), 1, empty_line_rect->height() };
     } else {
         // Empty editable elements have no fragments, but should still draw a cursor.
-        if (cursor_position->node() != dom_node)
+        if (cursor_position->node() != GC::Ptr { dom_node })
             return;
 
         caret_color = computed_values().caret_color();

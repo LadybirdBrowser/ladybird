@@ -25,8 +25,8 @@ public:
 
     virtual Utf16FlyString type() const = 0;
 
-    DOM::Element* owner_node() { return m_owner_node; }
-    DOM::Element const* owner_node() const { return m_owner_node; }
+    DOM::Element* owner_node() { return m_owner_node.ptr(); }
+    DOM::Element const* owner_node() const { return m_owner_node.ptr(); }
     void set_owner_node(DOM::Element*);
 
     Optional<String> href() const;
@@ -58,8 +58,8 @@ public:
     bool disabled() const { return m_disabled; }
     virtual void set_disabled(bool disabled) { m_disabled = disabled; }
 
-    CSSStyleSheet* parent_style_sheet() { return m_parent_style_sheet; }
-    CSSStyleSheet const* parent_style_sheet() const { return m_parent_style_sheet; }
+    CSSStyleSheet* parent_style_sheet() { return m_parent_style_sheet.ptr(); }
+    CSSStyleSheet const* parent_style_sheet() const { return m_parent_style_sheet.ptr(); }
     void set_parent_css_style_sheet(CSSStyleSheet*);
 
 protected:

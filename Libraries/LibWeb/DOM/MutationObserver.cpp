@@ -126,7 +126,7 @@ WebIDL::ExceptionOr<void> MutationObserver::observe(Node& target, MutationObserv
                 if (node->registered_observer_list()) {
                     node->registered_observer_list()->remove_all_matching([&registered_observer](RegisteredObserver& observer) {
                         auto* transient = as_if<TransientRegisteredObserver>(observer);
-                        return transient && transient->source().ptr() == registered_observer;
+                        return transient && transient->source().ptr() == registered_observer.ptr();
                     });
                 }
             }
@@ -229,7 +229,7 @@ void queue_mutation_observer_microtask(HTML::SimilarOriginWindowAgent& surroundi
 
                 if (node->registered_observer_list()) {
                     node->registered_observer_list()->remove_all_matching([&mutation_observer](RegisteredObserver& registered_observer) {
-                        return is<TransientRegisteredObserver>(registered_observer) && static_cast<TransientRegisteredObserver&>(registered_observer).observer().ptr() == mutation_observer;
+                        return is<TransientRegisteredObserver>(registered_observer) && static_cast<TransientRegisteredObserver&>(registered_observer).observer().ptr() == mutation_observer.ptr();
                     });
                 }
             }

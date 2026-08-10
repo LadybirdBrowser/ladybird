@@ -140,7 +140,7 @@ GC::Ptr<SVGGradientElement const> SVGGradientElement::linked_gradient(GC::RootHa
             element = document().get_element_by_id(id_as_utf16);
         if (!element)
             return {};
-        if (element == this)
+        if (element == GC::Ref { *this })
             return {};
         if (!is<SVGGradientElement>(*element))
             return {};

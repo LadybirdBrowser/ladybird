@@ -29,7 +29,7 @@ public:
     MediaDeviceKind kind() const { return m_kind; }
     Utf16String const& label() const { return m_label; }
     Utf16String const& group_id() const { return m_group_id; }
-    JS::Object* to_json(JS::VM&) const;
+    GC::Ref<JS::Object> to_json(JS::VM&) const;
 
 private:
     MediaDeviceInfo(Utf16String device_id, MediaDeviceKind kind, Utf16String label, Utf16String group_id);

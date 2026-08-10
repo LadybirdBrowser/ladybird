@@ -103,7 +103,7 @@ static bool is_collection(JS::Object const& value)
 // Helper to convert AK::JsonValue to JS::Value (for WebDriver protocol)
 static JS::Value json_value_to_js_value(JS::Realm& realm, JsonValue const& value);
 
-static JS::Object* json_object_to_js_object(JS::Realm& realm, JsonObject const& json_object)
+static GC::Ref<JS::Object> json_object_to_js_object(JS::Realm& realm, JsonObject const& json_object)
 {
     auto object = JS::Object::create(realm, realm.intrinsics().object_prototype());
     json_object.for_each_member([&](auto& key, auto& value) {
@@ -112,7 +112,7 @@ static JS::Object* json_object_to_js_object(JS::Realm& realm, JsonObject const& 
     return object;
 }
 
-static JS::Array* json_array_to_js_array(JS::Realm& realm, JsonArray const& json_array)
+static GC::Ref<JS::Array> json_array_to_js_array(JS::Realm& realm, JsonArray const& json_array)
 {
     auto array = MUST(JS::Array::create(realm, 0));
     size_t index = 0;

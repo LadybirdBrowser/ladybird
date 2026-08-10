@@ -145,7 +145,7 @@ public:
 
     HashTable<CSS::PropertyID> const& target_properties() const { return m_target_properties; }
 
-    virtual DOM::Element* target() const { return {}; }
+    virtual GC::Ptr<DOM::Element> target() const { return {}; }
     virtual bool is_keyframe_effect() const { return false; }
 
     virtual void update_computed_properties(AnimationUpdateContext&) = 0;

@@ -509,11 +509,11 @@ bool HitTestDisplayList::item_can_produce_caret_position(Item const& item) const
 {
     switch (item.kind) {
     case ItemKind::TextFragment:
-        return item.text_fragment && item.text_fragment->layout_node().dom_node();
+        return item.text_fragment && !!item.text_fragment->layout_node().dom_node();
     case ItemKind::EmptyLine:
-        return item.caret_node;
+        return !!item.caret_node;
     case ItemKind::EmptyEditable:
-        return item.paintable->dom_node();
+        return !!item.paintable->dom_node();
     case ItemKind::Box: {
         auto const* paintable_box = item.paintable.ptr();
         if (paintable_box && paintable_box->effective_z_index().value_or(0) < 0)
@@ -621,11 +621,11 @@ DOM::Node const* HitTestDisplayList::item_dom_node(Item const& item) const
     case ItemKind::SvgPath:
     case ItemKind::EmptyEditable:
     case ItemKind::ChromeWidget:
-        return item.paintable->dom_node();
+        return item.paintable->dom_node().ptr();
     case ItemKind::TextFragment:
         return item.text_fragment ? item.text_fragment->layout_node().dom_node() : nullptr;
     case ItemKind::EmptyLine:
-        return item.caret_node;
+        return item.caret_node.ptr();
     }
     VERIFY_NOT_REACHED();
 }
@@ -638,7 +638,7 @@ DOM::Node const* HitTestDisplayList::event_dispatch_dom_node_for_item(Item const
         if (auto const* node = layout_node.dom_node())
             return node;
         if (layout_node.is_generated_for_pseudo_element())
-            return layout_node.pseudo_element_generator();
+            return layout_node.pseudo_element_generator().ptr();
         return nullptr;
     }
 
@@ -647,7 +647,7 @@ DOM::Node const* HitTestDisplayList::event_dispatch_dom_node_for_item(Item const
 
     for (auto const* current = item.paintable.ptr(); current; current = current->parent()) {
         if (auto node = current->dom_node())
-            return node;
+            return node.ptr();
     }
     return nullptr;
 }
@@ -862,7 +862,7 @@ bool HitTestDisplayList::item_contains_caret_position(Item const& item, DOM::Nod
     case ItemKind::EmptyLine:
         return item_dom_node(item) == &node && item.caret_offset == offset;
     case ItemKind::EmptyEditable:
-        return item.paintable->dom_node() == &node && offset == 0;
+        return item.paintable->dom_node() == GC::Ptr { &node } && offset == 0;
     case ItemKind::Box: {
         auto dom_node = item.paintable->dom_node();
         return dom_node && dom_node->parent() == &node && (offset == dom_node->index() || offset == dom_node->index() + 1);
@@ -1116,7 +1116,7 @@ void HitTestDisplayList::find_items_in_list(Vector<size_t> const& item_indices, 
     }
 }
 
-Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(CSSPixelPoint point, ViewportPaintable const& viewport_paintable, double device_pixels_per_css_pixel, ChromeMetrics const& chrome_metrics, CaretPositionMode mode, DOM::Node const* constraint_scope) const
+Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(CSSPixelPoint point, ViewportPaintable const& viewport_paintable, double device_pixels_per_css_pixel, ChromeMetrics const& chrome_metrics, CaretPositionMode mode, GC::Ptr<DOM::Node const> constraint_scope) const
 {
     if (m_visual_context_tree_version != viewport_paintable.visual_context_tree().version())
         return {};
@@ -1182,7 +1182,7 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(CSSPixelPo
     // This prevents overlays or side content from snapping the caret to unrelated nearby text.
     DOM::Node const* line_scope_dom_node = nullptr;
     if (constraint_scope) {
-        line_scope_dom_node = constraint_scope;
+        line_scope_dom_node = constraint_scope.ptr();
     } else if (topmost_hit_item_index.has_value()) {
         auto const& topmost_hit_item = m_items[*topmost_hit_item_index];
         if (!item_can_produce_caret_position(topmost_hit_item) || !item_is_direct_caret_target(topmost_hit_item))

@@ -68,7 +68,7 @@ WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_javascript_mod
     script->set_error_to_rethrow(JS::js_null());
 
     // 7. Let result be ParseModule(source, realm, script).
-    auto result = JS::SourceTextModule::parse(source, realm, script->filename(), script->display_filename(), script);
+    auto result = JS::SourceTextModule::parse(source, realm, script->filename(), script->display_filename(), script.ptr());
 
     // 8. If result is a list of errors, then:
     if (result.is_error()) {
@@ -98,7 +98,7 @@ WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_from_pre_parsed(
     script->set_parse_error(JS::js_null());
     script->set_error_to_rethrow(JS::js_null());
 
-    auto result = JS::SourceTextModule::parse_from_pre_parsed(parsed, move(source_code), realm, script->filename(), script);
+    auto result = JS::SourceTextModule::parse_from_pre_parsed(parsed, move(source_code), realm, script->filename(), script.ptr());
 
     if (result.is_error()) {
         auto& parse_error = result.error().first();
@@ -120,7 +120,7 @@ WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_from_pre_compile
     script->set_parse_error(JS::js_null());
     script->set_error_to_rethrow(JS::js_null());
 
-    auto result = JS::SourceTextModule::parse_from_pre_compiled(compiled, move(source_code), realm, script->filename(), script);
+    auto result = JS::SourceTextModule::parse_from_pre_compiled(compiled, move(source_code), realm, script->filename(), script.ptr());
 
     if (result.is_error()) {
         auto& parse_error = result.error().first();
@@ -142,7 +142,7 @@ WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_from_bytecode_ca
     script->set_parse_error(JS::js_null());
     script->set_error_to_rethrow(JS::js_null());
 
-    auto result = JS::SourceTextModule::parse_from_bytecode_cache(bytecode_cache, move(source_code), realm, script->filename(), script);
+    auto result = JS::SourceTextModule::parse_from_bytecode_cache(bytecode_cache, move(source_code), realm, script->filename(), script.ptr());
 
     if (result.is_error()) {
         auto& parse_error = result.error().first();
@@ -246,7 +246,7 @@ WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_webassembly_mo
     // 7. Let result be the result of parsing a web assembly module given bodyBytes, realm, and script.
     // NOTE: Passing script as the last parameter here ensures result.[[HostDefined]] will be script.
     TemporaryExecutionContext execution_context { realm };
-    auto result = WebAssembly::WebAssemblyModule::parse(body_bytes, realm, filename, script);
+    auto result = WebAssembly::WebAssemblyModule::parse(body_bytes, realm, filename, script.ptr());
 
     // 8. If the previous step threw an error error, then:
     if (result.is_error()) {
@@ -265,7 +265,7 @@ WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_webassembly_mo
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#run-a-module-script
-WebIDL::Promise* ModuleScript::run(PreventErrorReporting prevent_error_reporting)
+GC::Ptr<WebIDL::Promise> ModuleScript::run(PreventErrorReporting prevent_error_reporting)
 {
     // 1. Let settings be the settings object of script.
     auto& settings = this->settings_object();

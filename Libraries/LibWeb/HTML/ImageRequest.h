@@ -98,6 +98,6 @@ private:
 };
 
 // https://html.spec.whatwg.org/multipage/images.html#abort-the-image-request
-void abort_the_image_request(ImageRequest*);
+void abort_the_image_request(GC::Ptr<ImageRequest>);
 
 }

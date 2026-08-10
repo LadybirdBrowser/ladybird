@@ -873,14 +873,14 @@ void Window::set_current_event(DOM::Event* event)
     m_current_event = event;
 }
 
-BrowsingContext const* Window::browsing_context() const
+GC::Ptr<BrowsingContext const> Window::browsing_context() const
 {
     if (!m_associated_document)
         return nullptr;
     return m_associated_document->browsing_context();
 }
 
-BrowsingContext* Window::browsing_context()
+GC::Ptr<BrowsingContext> Window::browsing_context()
 {
     if (!m_associated_document)
         return nullptr;
@@ -1224,7 +1224,7 @@ GC::Ptr<WindowProxy const> Window::top() const
 GC::Ptr<WindowProxy const> Window::opener() const
 {
     // 1. Let current be this's browsing context.
-    auto const* current = browsing_context();
+    auto current = browsing_context();
 
     // 2. If current is null, then return null.
     if (!current)
@@ -1242,7 +1242,7 @@ GC::Ptr<WindowProxy const> Window::opener() const
 WebIDL::ExceptionOr<void> Window::set_opener(JS::Value value)
 {
     // 1. If the given value is null and this's browsing context is non-null, then set this's browsing context's opener browsing context to null.
-    auto* browsing_context = this->browsing_context();
+    auto browsing_context = this->browsing_context();
     if (value.is_null() && browsing_context)
         browsing_context->set_opener_browsing_context(nullptr);
 

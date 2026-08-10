@@ -974,7 +974,7 @@ void Internals::reset_style_invalidation_counters()
     window().associated_document().reset_style_invalidation_counters();
 }
 
-JS::Object* Internals::layout_tree_build_stats()
+GC::Ref<JS::Object> Internals::layout_tree_build_stats()
 {
     auto object = JS::Object::create(window().principal_realm(), nullptr);
     auto const& stats = window().associated_document().layout_tree_build_stats();
@@ -984,7 +984,7 @@ JS::Object* Internals::layout_tree_build_stats()
     return object;
 }
 
-JS::Object* Internals::style_ffi_counters()
+GC::Ref<JS::Object> Internals::style_ffi_counters()
 {
     auto object = JS::Object::create(window().principal_realm(), nullptr);
     auto const counter_count = CSS::StyleValueFFI::rust_style_ffi_counter_count();
@@ -1004,7 +1004,7 @@ void Internals::reset_style_ffi_counters()
     CSS::StyleValueFFI::rust_style_ffi_counters_reset();
 }
 
-JS::Object* Internals::style_group_sharing_info(DOM::Element& element)
+GC::Ref<JS::Object> Internals::style_group_sharing_info(DOM::Element& element)
 {
     auto object = JS::Object::create(window().principal_realm(), nullptr);
     auto computed_values = element.computed_values();
@@ -1022,7 +1022,7 @@ JS::Object* Internals::style_group_sharing_info(DOM::Element& element)
     return object;
 }
 
-JS::Object* Internals::computed_values_stats()
+GC::Ref<JS::Object> Internals::computed_values_stats()
 {
     auto const& statistics = CSS::ComputedValues::statistics();
     auto object = JS::Object::create(window().principal_realm(), nullptr);
@@ -1073,7 +1073,7 @@ bool Internals::style_sheet_may_have_has_selectors(CSS::CSSStyleSheet& style_she
     return style_sheet.selector_insights().has_has_selectors;
 }
 
-WebIDL::ExceptionOr<JS::Object*> Internals::image_animation_state_for_url(Utf16String const& url)
+WebIDL::ExceptionOr<GC::Ref<JS::Object>> Internals::image_animation_state_for_url(Utf16String const& url)
 {
     auto& document = window().associated_document();
     auto parsed_url = document.encoding_parse_url(url);
@@ -1105,7 +1105,7 @@ WebIDL::ExceptionOr<JS::Object*> Internals::image_animation_state_for_url(Utf16S
     object->define_direct_property("loopCount"_utf16_fly_string, JS::Value(animated_bitmap_data->m_loop_count), JS::default_attributes);
     object->define_direct_property("clientCount"_utf16_fly_string, JS::Value(image_data->m_clients.size()), JS::default_attributes);
 
-    return object.ptr();
+    return object;
 }
 
 struct AsyncScrollingStateSnapshot {
@@ -1239,7 +1239,7 @@ String Internals::viewport_overflow_x()
     VERIFY_NOT_REACHED();
 }
 
-static JS::Object* create_hit_testing_result(JS::Realm& realm, Painting::HitTestResult& result)
+static GC::Ref<JS::Object> create_hit_testing_result(JS::Realm& realm, Painting::HitTestResult& result)
 {
     auto hit_testing_result = JS::Object::create(realm, nullptr);
     hit_testing_result->define_direct_property("node"_utf16_fly_string, Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref { *result.dom_node() }), JS::default_attributes);
@@ -1247,7 +1247,7 @@ static JS::Object* create_hit_testing_result(JS::Realm& realm, Painting::HitTest
     return hit_testing_result;
 }
 
-JS::Object* Internals::hit_test_result(double x, double y)
+GC::Ptr<JS::Object> Internals::hit_test_result(double x, double y)
 {
     auto& realm = HTML::relevant_realm(window());
     auto result = hit_test(x, y);
@@ -1256,7 +1256,7 @@ JS::Object* Internals::hit_test_result(double x, double y)
     return nullptr;
 }
 
-JS::Object* Internals::style_invalidation_counters_object() const
+GC::Ref<JS::Object> Internals::style_invalidation_counters_object() const
 {
     auto& realm = HTML::relevant_realm(window());
     auto const& counters = style_invalidation_counters();
@@ -1289,7 +1289,7 @@ JS::Object* Internals::style_invalidation_counters_object() const
     return object;
 }
 
-JS::Object* Internals::async_scrolling_state_object()
+GC::Ref<JS::Object> Internals::async_scrolling_state_object()
 {
     auto& realm = HTML::relevant_realm(window());
     auto state = async_scrolling_state();

@@ -882,7 +882,7 @@ Messages::WebDriverClient::SwitchToFrameResponse WebDriverConnection::switch_to_
 Messages::WebDriverClient::SwitchToParentFrameResponse WebDriverConnection::switch_to_parent_frame(JsonValue)
 {
     // 1. If session's current browsing context is already the top-level browsing context:
-    if (&current_browsing_context() == current_top_level_browsing_context()) {
+    if (GC::Ref { current_browsing_context() } == current_top_level_browsing_context()) {
         // 1. If session's current browsing context is no longer open, return error with error code no such window.
         TRY(ensure_current_browsing_context_is_open());
 

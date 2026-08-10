@@ -902,9 +902,9 @@ GC::Ptr<DOM::NodeList> HTMLElement::labels()
         return {};
 
     if (!m_labels) {
-        m_labels = DOM::LiveNodeList::create(root(), DOM::LiveNodeList::Scope::Descendants, [&](auto& node) {
-            auto* label_element = as_if<HTMLLabelElement>(node);
-            return label_element && label_element->control() == this;
+        m_labels = DOM::LiveNodeList::create(root(), DOM::LiveNodeList::Scope::Descendants, [&](DOM::Node const& node) {
+            auto const* label_element = as_if<HTMLLabelElement>(node);
+            return label_element && label_element->control().ptr() == this;
         });
     }
 
@@ -1226,7 +1226,7 @@ WebIDL::ExceptionOr<bool> HTMLElement::check_popover_validity(ExpectedToBeShowin
 
     if ((ignore_dom_state == IgnoreDomState::No && !is_connected())
         || !document().is_fully_active()
-        || (ignore_dom_state == IgnoreDomState::No && expected_document && &document() != expected_document)
+        || (ignore_dom_state == IgnoreDomState::No && expected_document && &document() != expected_document.ptr())
         || (is<HTMLDialogElement>(*this) && as<HTMLDialogElement>(*this).is_modal())) {
         if (throw_exceptions == ThrowExceptions::Yes)
             return WebIDL::InvalidStateError::create("Element is not in a valid state to show a popover"_utf16);
@@ -1517,7 +1517,7 @@ WebIDL::ExceptionOr<void> HTMLElement::hide_popover(FocusPreviousElement focus_p
     }
     // 8. Let autoPopoverListContainsElement be true if document's showing auto popover list's last item is element, otherwise false.
     auto const& showing_popovers = document.showing_auto_popover_list();
-    bool auto_popover_list_contains_element = !showing_popovers.is_empty() && showing_popovers.last() == this;
+    bool auto_popover_list_contains_element = !showing_popovers.is_empty() && showing_popovers.last().ptr() == this;
 
     // 9. If fireEvents is true:
     if (fire_events == FireEvents::Yes) {
@@ -1531,7 +1531,7 @@ WebIDL::ExceptionOr<void> HTMLElement::hide_popover(FocusPreviousElement focus_p
 
         // 2. If autoPopoverListContainsElement is true and document's showing auto popover list's last item is not
         //    element, then run hide all popovers until given element, focusPreviousElement, and false.
-        if (auto_popover_list_contains_element && (showing_popovers.is_empty() || showing_popovers.last() != this))
+        if (auto_popover_list_contains_element && (showing_popovers.is_empty() || showing_popovers.last().ptr() != this))
             hide_all_popovers_until(GC::Ptr(this), focus_previous_element, FireEvents::No);
 
         // 3. If the result of running check popover validity given element, true, throwExceptions, null, and
@@ -1555,7 +1555,7 @@ WebIDL::ExceptionOr<void> HTMLElement::hide_popover(FocusPreviousElement focus_p
     if (m_opened_in_popover_mode.has_value() && m_opened_in_popover_mode->is_one_of(u"auto"sv, u"hint"sv)) {
         // If document's showing hint popover list's last item is element:
         auto& hint_popovers = document.showing_hint_popover_list();
-        if (!hint_popovers.is_empty() && hint_popovers.last() == this) {
+        if (!hint_popovers.is_empty() && hint_popovers.last().ptr() == this) {
             // Assert: element's opened in popover mode is "hint".
             VERIFY(m_opened_in_popover_mode == u"hint"sv);
 
@@ -1566,7 +1566,7 @@ WebIDL::ExceptionOr<void> HTMLElement::hide_popover(FocusPreviousElement focus_p
         else {
             // Assert: document's showing auto popover list's last item is element.
             auto& auto_popovers = document.showing_auto_popover_list();
-            VERIFY(!auto_popovers.is_empty() && auto_popovers.last() == this);
+            VERIFY(!auto_popovers.is_empty() && auto_popovers.last().ptr() == this);
 
             // Remove the last item from document's showing auto popover list.
             auto_popovers.remove(auto_popovers.size() - 1);
@@ -1708,7 +1708,7 @@ void HTMLElement::hide_popover_stack_until(Vector<GC::Ref<HTMLElement>> const& p
         // AD-HOC: This needs to be iterated in reverse because step 4 hides items in reverse.
         for (auto const& popover : popover_list.in_reverse()) {
             // 1. If popover is endpoint, then break.
-            if (popover == this)
+            if (popover.ptr() == this)
                 break;
 
             // 2. Set lastToHide to popover.
@@ -1729,10 +1729,10 @@ void HTMLElement::hide_popover_stack_until(Vector<GC::Ref<HTMLElement>> const& p
         }
 
         // 5. Assert: repeatingHide is false or popoverList's last item is endpoint.
-        VERIFY(!repeating_hide || popover_list.last() == this);
+        VERIFY(!repeating_hide || popover_list.last().ptr() == this);
 
         // 6. Set repeatingHide to true if popoverList contains endpoint and popoverList's last item is not endpoint, otherwise false.
-        repeating_hide = popover_list.contains_slow(GC::Ref(*this)) && popover_list.last() != this;
+        repeating_hide = popover_list.contains_slow(GC::Ref(*this)) && popover_list.last().ptr() != this;
 
         // 7. If repeatingHide is true, then set fireEvents to false.
         if (repeating_hide)

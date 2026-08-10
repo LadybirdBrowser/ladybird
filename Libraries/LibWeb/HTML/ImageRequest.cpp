@@ -79,7 +79,7 @@ void ImageRequest::set_current_url(DOM::Document& document, Utf16String url)
 }
 
 // https://html.spec.whatwg.org/multipage/images.html#abort-the-image-request
-void abort_the_image_request(ImageRequest* image_request)
+void abort_the_image_request(GC::Ptr<ImageRequest> image_request)
 {
     // 1. If image request is null, then return.
     if (!image_request)

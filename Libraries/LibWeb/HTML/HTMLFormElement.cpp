@@ -147,7 +147,7 @@ WebIDL::ExceptionOr<void> HTMLFormElement::submit_form(GC::Ref<HTMLElement> subm
 
         // 5. Let submitterButton be null if submitter is form. Otherwise, let submitterButton be submitter.
         GC::Ptr<HTMLElement> submitter_button;
-        if (submitter != this)
+        if (submitter.ptr() != this)
             submitter_button = submitter;
 
         // 6. Let shouldContinue be the result of firing an event named submit at form using SubmitEvent, with the
@@ -410,7 +410,7 @@ void HTMLFormElement::remove_associated_element(Badge<FormAssociatedElement>, HT
     m_associated_elements.remove_first_matching([&](auto& entry) { return entry.ptr() == &element; });
 
     // If an element listed in a form element's past names map changes form owner, then its entries must be removed from that map.
-    m_past_names_map.remove_all_matching([&](auto&, auto const& entry) { return entry.node == &element; });
+    m_past_names_map.remove_all_matching([&](auto&, auto const& entry) { return entry.node.ptr() == &element; });
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-fs-action
@@ -998,7 +998,7 @@ void HTMLFormElement::plan_to_navigate_to(URL::URL url, DocumentResource post_re
     // 3. If the form has a non-null planned navigation, remove it from its task queue.
     if (m_planned_navigation) {
         HTML::main_thread_event_loop().task_queue().remove_tasks_matching([this](Task const& task) {
-            return &task == m_planned_navigation;
+            return &task == m_planned_navigation.ptr();
         });
     }
 

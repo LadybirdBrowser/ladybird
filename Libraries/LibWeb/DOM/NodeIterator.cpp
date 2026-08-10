@@ -185,9 +185,9 @@ NodeIterator::NodePointer NodeIterator::adjust_node_pointer(NodePointer node_poi
     if (node_pointer.pointer_before) {
         // 1. Let next be toBeRemovedNode’s first following node that is an inclusive descendant of nodeIterator’s root
         //    and is not an inclusive descendant of toBeRemovedNode, if there is such a node; otherwise null.
-        auto* next = to_be_removed_node.next_in_pre_order(root());
+        auto* next = to_be_removed_node.next_in_pre_order(root().ptr());
         while (next && next->is_descendant_of(to_be_removed_node))
-            next = next->next_in_pre_order(root());
+            next = next->next_in_pre_order(root().ptr());
 
         // 2. If next is non-null, then return (next, true).
         if (next)

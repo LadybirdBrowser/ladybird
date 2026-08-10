@@ -113,7 +113,7 @@ GC::Ptr<HTMLOptionsCollection> const& HTMLSelectElement::options() const
     if (!m_options) {
         m_options = HTMLOptionsCollection::create(const_cast<HTMLSelectElement&>(*this), [this](DOM::Element const& element) {
             auto const* maybe_option = as_if<HTML::HTMLOptionElement>(element);
-            return maybe_option && maybe_option->nearest_select_element() == this;
+            return maybe_option && maybe_option->nearest_select_element().ptr() == this;
         });
     }
     return m_options;
@@ -188,7 +188,7 @@ GC::Ref<DOM::HTMLCollection> HTMLSelectElement::selected_options()
     if (!m_selected_options) {
         m_selected_options = DOM::HTMLCollection::create(*this, DOM::HTMLCollection::Scope::Descendants, [this](Element const& element) {
             auto const* maybe_option = as_if<HTML::HTMLOptionElement>(element);
-            if (maybe_option && maybe_option->nearest_select_element() == this) {
+            if (maybe_option && maybe_option->nearest_select_element().ptr() == this) {
                 return maybe_option->selected();
             }
             return false;

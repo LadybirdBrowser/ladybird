@@ -157,9 +157,9 @@ void InternalGamepad::received_rumble_triggers(u16 left_rumble, u16 right_rumble
     });
 }
 
-GC::RootVector<JS::Object*> InternalGamepad::get_received_rumble_effects(JS::Object& relevant_global_object) const
+GC::RootVector<GC::Ref<JS::Object>> InternalGamepad::get_received_rumble_effects(JS::Object& relevant_global_object) const
 {
-    GC::RootVector<JS::Object*> received_rumble_effects;
+    GC::RootVector<GC::Ref<JS::Object>> received_rumble_effects;
     for (auto const& received_rumble_effect : m_received_rumble_effects) {
         auto object = JS::Object::create(HTML::relevant_realm(relevant_global_object), nullptr);
         object->define_direct_property("lowFrequencyRumble"_utf16, JS::Value(received_rumble_effect.low_frequency_rumble), JS::default_attributes);
@@ -169,9 +169,9 @@ GC::RootVector<JS::Object*> InternalGamepad::get_received_rumble_effects(JS::Obj
     return received_rumble_effects;
 }
 
-GC::RootVector<JS::Object*> InternalGamepad::get_received_rumble_trigger_effects(JS::Object& relevant_global_object) const
+GC::RootVector<GC::Ref<JS::Object>> InternalGamepad::get_received_rumble_trigger_effects(JS::Object& relevant_global_object) const
 {
-    GC::RootVector<JS::Object*> received_rumble_trigger_effects;
+    GC::RootVector<GC::Ref<JS::Object>> received_rumble_trigger_effects;
     for (auto const& received_rumble_trigger_effect : m_received_rumble_trigger_effects) {
         auto object = JS::Object::create(HTML::relevant_realm(relevant_global_object), nullptr);
         object->define_direct_property("leftRumble"_utf16, JS::Value(received_rumble_trigger_effect.left_rumble), JS::default_attributes);

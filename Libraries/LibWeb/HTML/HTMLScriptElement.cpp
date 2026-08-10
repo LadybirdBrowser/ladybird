@@ -577,7 +577,7 @@ void HTMLScriptElement::prepare_script()
             m_steps_to_run_when_the_result_is_ready = [this] {
                 auto& scripts = m_preparation_time_document->scripts_to_execute_in_order_as_soon_as_possible();
                 // 1. If scripts[0] is not el, then abort these steps.
-                if (scripts[0] != this)
+                if (scripts[0].ptr() != this)
                     return;
 
                 // 2. While scripts is not empty, and scripts[0]'s result is not "uninitialized":

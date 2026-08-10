@@ -425,7 +425,7 @@ void EventLoop::update_the_rendering()
             //         synchronous XHR) and run tasks that stopped document from being actively rendered, for example
             //         by detaching it from its navigable after its iframe was removed. update_layout() is a no-op for
             //         such documents, which can leave them without a paint tree, so skip the rest of this step.
-            if (!document->navigable() || document->navigable()->active_document() != document)
+            if (!document->navigable() || document->navigable()->active_document().ptr() != document.ptr())
                 break;
 
             // Clamp viewport scroll offset to valid range after layout, in case the
@@ -624,7 +624,7 @@ TaskID queue_global_task(HTML::Task::Source source, JS::Object& global_object, G
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#queue-a-microtask
-void queue_a_microtask(DOM::Document const* document, GC::Ref<GC::Function<void()>> steps)
+void queue_a_microtask(GC::Ptr<DOM::Document const> document, GC::Ref<GC::Function<void()>> steps)
 {
     // 1. If event loop was not given, set event loop to the implied event loop.
     auto& event_loop = HTML::main_thread_event_loop();
@@ -722,7 +722,7 @@ void EventLoop::register_document(Badge<DOM::Document>, DOM::Document& document)
 
 void EventLoop::unregister_document(Badge<DOM::Document>, DOM::Document& document)
 {
-    bool did_remove = m_documents.remove_first_matching([&](auto& entry) { return entry.ptr() == &document; });
+    bool did_remove = m_documents.remove_first_matching([&](auto& entry) { return entry.ptr().ptr() == &document; });
     VERIFY(did_remove);
 }
 
@@ -746,7 +746,7 @@ void EventLoop::ensure_documents_sorted() const
     HashMap<DOM::Document*, size_t> doc_to_index;
     doc_to_index.ensure_capacity(m_documents.size());
     for (size_t i = 0; i < m_documents.size(); ++i)
-        doc_to_index.set(m_documents[i].ptr(), i);
+        doc_to_index.set(m_documents[i].ptr().ptr(), i);
 
     Vector<bool> visited;
     visited.resize(m_documents.size());

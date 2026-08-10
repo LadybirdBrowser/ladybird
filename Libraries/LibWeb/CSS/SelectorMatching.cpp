@@ -939,7 +939,7 @@ extern "C" CSS::SelectorFFI::Element selector_ffi_parent_element(void const* ele
 {
     auto const& target = ffi_element(element);
     if (!shadow_host)
-        return element_to_ffi(target.parent_element());
+        return element_to_ffi(target.parent_element().ptr());
     if (element == shadow_host)
         return {};
     return element_to_ffi(target.parent_or_shadow_host_element());
@@ -947,7 +947,7 @@ extern "C" CSS::SelectorFFI::Element selector_ffi_parent_element(void const* ele
 
 extern "C" CSS::SelectorFFI::Element selector_ffi_parent_element_in_light_tree(void const* element)
 {
-    return element_to_ffi(ffi_element(element).parent_element());
+    return element_to_ffi(ffi_element(element).parent_element().ptr());
 }
 
 extern "C" CSS::SelectorFFI::Element selector_ffi_previous_element_sibling(void const* element)
@@ -1015,10 +1015,10 @@ extern "C" CSS::SelectorFFI::ElementAndShadowHost selector_ffi_slotted_parent(vo
     auto const& target = ffi_element(element);
     for (auto slot = target.assigned_slot_internal(); slot; slot = slot->assigned_slot_internal()) {
         auto const* slot_shadow_root = as_if<DOM::ShadowRoot>(slot->root());
-        if (slot_shadow_root != match_context.rule_shadow_root)
+        if (slot_shadow_root != match_context.rule_shadow_root.ptr())
             continue;
         return {
-            .element = element_to_ffi(slot),
+            .element = element_to_ffi(slot.ptr()),
             .shadow_host = element_to_ffi(slot_shadow_root ? slot_shadow_root->host() : nullptr),
         };
     }
@@ -1070,7 +1070,7 @@ extern "C" CSS::SelectorFFI::ElementAndShadowHost selector_ffi_part_parent(void*
 
 static void note_structural_pseudo_class_match_attempt(MatchContext& match_context, DOM::Element& element)
 {
-    if (&element != match_context.subject)
+    if (&element != match_context.subject.ptr())
         element.set_affected_by_structural_pseudo_class_in_non_subject_position();
 }
 
@@ -1118,7 +1118,7 @@ extern "C" void selector_ffi_note_has_pseudo_class(void* context, void const* el
     if (!match_context.collect_per_element_selector_involvement_metadata)
         return;
     auto& target = const_cast<DOM::Element&>(ffi_element(element));
-    if (&target == match_context.subject)
+    if (&target == match_context.subject.ptr())
         target.set_affected_by_has_pseudo_class_in_subject_position(true);
     else
         target.set_affected_by_has_pseudo_class_in_non_subject_position();
@@ -1137,7 +1137,7 @@ extern "C" void selector_ffi_note_sibling_combinator(void* context, void const* 
         VERIFY(combinator == Combinator::SubsequentSibling);
         target.set_affected_by_indirect_sibling_combinator(true);
     }
-    if (&target != match_context.subject)
+    if (&target != match_context.subject.ptr())
         target.set_affected_by_sibling_combinator_in_non_subject_position();
 }
 

@@ -49,7 +49,7 @@ static MemoryBufferCache& memory_buffer_cache_for(Memory const& memory)
     prune_memory_buffer_caches();
 
     for (auto& cache : caches) {
-        if (cache.memory.ptr() == &memory)
+        if (cache.memory.ptr() == GC::Ref { memory })
             return cache;
     }
 
@@ -72,7 +72,7 @@ static GC::Ref<JS::ArrayBuffer> create_a_fixed_length_memory_buffer(JS::VM& vm, 
     auto* memory_instance = memory.cache().abstract_machine().store().get(memory.address());
     VERIFY(memory_instance);
 
-    JS::ArrayBuffer* array_buffer;
+    GC::Ptr<JS::ArrayBuffer> array_buffer;
     // https://webassembly.github.io/threads/js-api/index.html#create-a-fixed-length-memory-buffer
     // 3. If share is shared,
     if (memory.is_shared()) {
@@ -92,7 +92,7 @@ static GC::Ref<JS::ArrayBuffer> create_a_fixed_length_memory_buffer(JS::VM& vm, 
         array_buffer->set_detach_key(JS::PrimitiveString::create(vm, "WebAssembly.Memory"_utf16_fly_string));
     }
 
-    return GC::Ref(*array_buffer);
+    return array_buffer.as_nonnull();
 }
 
 // https://webassembly.github.io/spec/js-api/#create-a-resizable-memory-buffer
@@ -238,7 +238,7 @@ static void refresh_buffer_objects(Memory& memory)
     for (auto const& buffer : cache.live_buffer_objects) {
         bool already_appended = false;
         for (auto const& buffer_object : buffer_objects) {
-            if (buffer_object.ptr() == buffer.ptr()) {
+            if (buffer_object == buffer.ptr()) {
                 already_appended = true;
                 break;
             }
@@ -451,12 +451,12 @@ bool memory_has_buffer_object(Memory const& memory, JS::ArrayBuffer const& buffe
 {
     auto& cache = memory_buffer_cache_for(memory);
 
-    if (cache.primary_buffer.ptr() == &buffer)
+    if (cache.primary_buffer.ptr() == GC::Ref { buffer })
         return true;
 
     prune_memory_buffer_cache(cache);
     for (auto const& live_buffer : cache.live_buffer_objects) {
-        if (live_buffer.ptr() == &buffer)
+        if (live_buffer.ptr() == GC::Ref { buffer })
             return true;
     }
 

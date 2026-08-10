@@ -55,7 +55,7 @@ NodeArenaAllocation::~NodeArenaAllocation()
     m_arena->free(m_slot, m_slot_generation);
 }
 
-Node::Node(DOM::Document& document, DOM::Node* node, AttachToDOMNode attach_to_dom_node)
+Node::Node(DOM::Document& document, GC::Ptr<DOM::Node> node, AttachToDOMNode attach_to_dom_node)
     : NodeArenaAllocation(document)
     , m_dom_node(node ? *node : document)
 {
@@ -668,12 +668,12 @@ bool NodeWithStyle::is_sticky_position() const
     return position == CSS::Positioning::Sticky;
 }
 
-NodeWithStyle::NodeWithStyle(DOM::Document& document, DOM::Node* node, NonnullRefPtr<CSS::ComputedValues const> computed_values)
+NodeWithStyle::NodeWithStyle(DOM::Document& document, GC::Ptr<DOM::Node> node, NonnullRefPtr<CSS::ComputedValues const> computed_values)
     : Node(document, node)
     , m_computed_values(move(computed_values))
 {
     set_flag(RustFFI::NodeFlag::HasStyle, true);
-    set_flag(RustFFI::NodeFlag::IsBody, node && node == document.body());
+    set_flag(RustFFI::NodeFlag::IsBody, node && node == GC::Ptr { document.body() });
     set_flag(RustFFI::NodeFlag::HasAnchorNames, !m_computed_values->anchor_names().is_empty());
     publish_style_container_to_node_data();
     synchronize_table_span_data();
@@ -1198,14 +1198,14 @@ DOM::Node* Node::dom_node()
     return m_dom_node.ptr();
 }
 
-DOM::Element const* Node::pseudo_element_generator() const
+GC::Ptr<DOM::Element const> Node::pseudo_element_generator() const
 {
     VERIFY(is_generated_for_pseudo_element());
     VERIFY(m_pseudo_element_generator);
     return m_pseudo_element_generator.ptr();
 }
 
-DOM::Element* Node::pseudo_element_generator()
+GC::Ptr<DOM::Element> Node::pseudo_element_generator()
 {
     VERIFY(is_generated_for_pseudo_element());
     VERIFY(m_pseudo_element_generator);
@@ -1407,7 +1407,7 @@ void Node::set_needs_layout_update(DOM::SetNeedsLayoutReason reason, LayoutUpdat
         if constexpr (UPDATE_LAYOUT_DEBUG) {
             // NOTE: We check some conditions here to avoid debug spam in documents that don't do layout.
             auto navigable = this->navigable();
-            if (navigable && navigable->active_document() == &document())
+            if (navigable && navigable->active_document() == GC::Ptr { &document() })
                 dbgln_if(UPDATE_LAYOUT_DEBUG, "NEED LAYOUT {}", DOM::to_string(reason));
         }
 

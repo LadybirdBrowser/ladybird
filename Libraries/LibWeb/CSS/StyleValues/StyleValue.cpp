@@ -310,7 +310,7 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValue::adopt_rust_style_value
 
 void StyleValue::set_style_sheet(GC::Ptr<CSSStyleSheet> style_sheet)
 {
-    m_has_style_sheet_context = style_sheet;
+    m_has_style_sheet_context = !!style_sheet;
 
     // Only the types holding nested values with document-associated state care.
     switch (type()) {

@@ -92,14 +92,14 @@ Layout::NodeWithStyle* AbstractElement::unsafe_layout_node()
 GC::Ptr<Element const> AbstractElement::parent_element() const
 {
     if (m_pseudo_element.has_value())
-        return m_element;
+        return m_element.ptr();
     return m_element->parent_element();
 }
 
 Element* AbstractElement::flat_tree_parent_element() const
 {
     if (m_pseudo_element.has_value())
-        return m_element;
+        return m_element.ptr();
     return m_element->flat_tree_parent_element();
 }
 

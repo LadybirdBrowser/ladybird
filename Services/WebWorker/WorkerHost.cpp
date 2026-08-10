@@ -69,21 +69,21 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
     // 5. Let realm execution context be the result of creating a new realm given agent and the following customizations:
     auto realm_execution_context = Web::Bindings::create_a_new_javascript_realm(
         Web::Bindings::main_thread_vm(),
-        [page, is_shared](JS::Realm& realm) -> JS::Object* {
+        [page, is_shared](JS::Realm& realm) -> GC::Ref<JS::Object> {
             // For the global object, if is shared is true, create a new SharedWorkerGlobalScope object.
             if (is_shared) {
                 auto worker_global_scope = GC::Heap::the().allocate<Web::HTML::SharedWorkerGlobalScope>(page);
-                return Web::Bindings::create_global_object_wrapper(realm, GC::Ref { *worker_global_scope }).ptr();
+                return Web::Bindings::create_global_object_wrapper(realm, GC::Ref { *worker_global_scope });
             }
             // Otherwise, create a new DedicatedWorkerGlobalScope object.
             auto worker_global_scope = GC::Heap::the().allocate<Web::HTML::DedicatedWorkerGlobalScope>(page);
-            return Web::Bindings::create_global_object_wrapper(realm, GC::Ref { *worker_global_scope }).ptr();
+            return Web::Bindings::create_global_object_wrapper(realm, GC::Ref { *worker_global_scope });
         },
         nullptr);
 
     // 6. Let worker global scope be the global object of realm execution context's Realm component.
     // NOTE: This is the DedicatedWorkerGlobalScope or SharedWorkerGlobalScope object wrapped in the previous step.
-    GC::Ref<Web::HTML::WorkerGlobalScope> worker_global_scope { Web::Bindings::impl_from<Web::HTML::WorkerGlobalScope>(realm_execution_context->realm->global_object()) };
+    auto worker_global_scope = GC::Ref { Web::Bindings::impl_from<Web::HTML::WorkerGlobalScope>(realm_execution_context->realm->global_object()) };
     m_worker_global_scope = worker_global_scope;
 
     // AD-HOC: The spec assumes when setting up the worker environment settings object that the URL is already set on

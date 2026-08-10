@@ -353,7 +353,7 @@ Optional<PaintableFragment::SelectionOffsets> PaintableFragment::selection_range
     auto const* text_control = as_if<HTML::FormAssociatedTextControlElement>(layout_node().document().focused_area().ptr());
     if (!text_control)
         return {};
-    if (layout_node().dom_node() != text_control->form_associated_element_to_text_node())
+    if (GC::Ptr { layout_node().dom_node() } != text_control->form_associated_element_to_text_node())
         return {};
 
     auto selection_start = text_control->selection_start();

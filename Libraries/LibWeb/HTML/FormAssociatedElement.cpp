@@ -246,7 +246,7 @@ void FormAssociatedElement::reset_form_owner()
     //    then do nothing, and return.
     if (m_form
         && (!is_listed() || !html_element.has_attribute(HTML::AttributeNames::form))
-        && html_element.first_ancestor_of_type<HTMLFormElement>() == m_form.ptr()) {
+        && html_element.first_ancestor_of_type<HTMLFormElement>() == m_form.ptr().ptr()) {
         return;
     }
 

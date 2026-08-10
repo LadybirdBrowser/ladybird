@@ -183,12 +183,12 @@ ErrorOr<NonnullRefPtr<Gfx::Bitmap>> ImageData::bitmap()
 
 JS::Uint8ClampedArray* ImageData::data()
 {
-    return m_data;
+    return m_data.ptr();
 }
 
 JS::Uint8ClampedArray const* ImageData::data() const
 {
-    return m_data;
+    return m_data.ptr();
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#pixel-manipulation:serialization-steps

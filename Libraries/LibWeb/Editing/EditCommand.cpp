@@ -84,7 +84,7 @@ bool RemoveNodeCommand::unapply()
 {
     if (!m_parent || !m_parent->is_editable_or_editing_host())
         return false;
-    auto reference_child = m_old_next_sibling && m_old_next_sibling->parent() == m_parent ? m_old_next_sibling : nullptr;
+    auto reference_child = m_old_next_sibling && m_old_next_sibling->parent() == m_parent.ptr() ? m_old_next_sibling : nullptr;
     if (m_parent->ensure_pre_insertion_validity(m_node, reference_child).is_error())
         return false;
     m_parent->insert_before(m_node, reference_child);

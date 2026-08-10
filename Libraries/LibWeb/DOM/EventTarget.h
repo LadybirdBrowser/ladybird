@@ -41,10 +41,10 @@ public:
         GC::Ptr<AbortSignal> signal;
     };
 
-    void add_event_listener(FlyString const& type, IDLEventListener* callback, AddEventListenerOptions const& options);
-    void add_event_listener(Utf16FlyString const& type, IDLEventListener* callback, AddEventListenerOptions const& options);
-    void remove_event_listener(FlyString const& type, IDLEventListener* callback, EventListenerOptions const& options);
-    void remove_event_listener(Utf16FlyString const& type, IDLEventListener* callback, EventListenerOptions const& options);
+    void add_event_listener(FlyString const& type, GC::Ptr<IDLEventListener> callback, AddEventListenerOptions const& options);
+    void add_event_listener(Utf16FlyString const& type, GC::Ptr<IDLEventListener> callback, AddEventListenerOptions const& options);
+    void remove_event_listener(FlyString const& type, GC::Ptr<IDLEventListener> callback, EventListenerOptions const& options);
+    void remove_event_listener(Utf16FlyString const& type, GC::Ptr<IDLEventListener> callback, EventListenerOptions const& options);
 
     // NOTE: These are for internal use only. They operate as though addEventListener(type, callback) was called instead of addEventListener(type, callback, options).
     void add_event_listener_without_options(Utf16FlyString const& type, IDLEventListener& callback);
@@ -69,7 +69,7 @@ public:
     virtual void legacy_cancelled_activation_behavior_was_not_called() { }
 
     WebIDL::CallbackType* event_handler_attribute(Utf16FlyString const& name);
-    void set_event_handler_attribute(Utf16FlyString const& name, WebIDL::CallbackType*);
+    void set_event_handler_attribute(Utf16FlyString const& name, GC::Ptr<WebIDL::CallbackType>);
 
     bool has_event_listener(Utf16FlyString const& type) const;
     bool has_blocking_wheel_event_listener() const;

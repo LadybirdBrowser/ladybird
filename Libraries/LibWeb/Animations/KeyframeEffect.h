@@ -107,8 +107,8 @@ public:
     static WebIDL::ExceptionOr<GC::Ref<KeyframeEffect>> construct_impl(GC::Ref<KeyframeEffect> source);
     static WebIDL::ExceptionOr<GC::Ref<KeyframeEffect>> create_copy(GC::Ref<KeyframeEffect> source);
 
-    DOM::Element* target() const override { return m_target_element; }
-    void set_target(DOM::Element* target);
+    virtual GC::Ptr<DOM::Element> target() const override { return m_target_element; }
+    void set_target(GC::Ptr<DOM::Element> target);
 
     // JS bindings
     Optional<Utf16String> pseudo_element() const;
@@ -132,7 +132,7 @@ public:
     Vector<BaseKeyframe> const& keyframes() const { return m_keyframes; }
     void set_keyframes(Vector<BaseKeyframe>);
     WebIDL::ExceptionOr<void> set_keyframes_from_js(JS::Realm&, GC::Ptr<JS::Object>);
-    WebIDL::ExceptionOr<GC::RootVector<JS::Object*>> get_keyframes(JS::Object& relevant_global_object);
+    WebIDL::ExceptionOr<GC::RootVector<GC::Ref<JS::Object>>> get_keyframes(JS::Object& relevant_global_object);
 
     KeyFrameSet const* key_frame_set() { return m_key_frame_set; }
     void set_key_frame_set(RefPtr<KeyFrameSet const> key_frame_set) { m_key_frame_set = key_frame_set; }

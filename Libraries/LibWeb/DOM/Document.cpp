@@ -2078,7 +2078,7 @@ Document::PartialRelayoutResult Document::try_partial_relayout(HashTable<WeakPtr
 void Document::update_layout(UpdateLayoutReason reason)
 {
     auto navigable = this->navigable();
-    if (!navigable || navigable->active_document() != this)
+    if (!navigable || navigable->active_document().ptr() != this)
         return;
 
     VERIFY(!m_is_running_update_layout);
@@ -2243,7 +2243,7 @@ void Document::clear_devtools_layout_inspection_data()
 
 bool Document::layout_is_up_to_date() const
 {
-    if (!navigable() || navigable()->active_document() != this)
+    if (!navigable() || navigable()->active_document().ptr() != this)
         return true;
     if (!m_layout_root)
         return false;
@@ -2865,7 +2865,7 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
         return;
 
     GC::Ptr<Node> old_hovered_node = move(m_hovered_node);
-    auto* common_ancestor = find_common_ancestor(old_hovered_node, node);
+    auto* common_ancestor = find_common_ancestor(old_hovered_node.ptr(), node.ptr());
     GC::Ptr<HTML::WindowProxy> window_proxy;
     if (auto navigable = this->navigable())
         window_proxy = navigable->active_window_proxy();
@@ -3644,7 +3644,7 @@ Element const* Document::active_element() const
 
 void Document::set_active_element(GC::Ptr<Element> element)
 {
-    if (m_active_element.ptr() == element)
+    if (m_active_element == element)
         return;
 
     m_active_element = element;
@@ -3654,7 +3654,7 @@ void Document::set_active_element(GC::Ptr<Element> element)
 
 void Document::set_target_element(GC::Ptr<Element> element)
 {
-    if (m_target_element.ptr() == element)
+    if (m_target_element == element)
         return;
 
     GC::Ptr<Element> old_target_element = move(m_target_element);
@@ -4292,7 +4292,7 @@ EventTarget* Document::get_parent(Event const& event)
     if (event.type() == HTML::EventNames::load)
         return nullptr;
 
-    return m_window;
+    return m_window.ptr();
 }
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#completely-loaded
@@ -4535,7 +4535,7 @@ bool Document::is_fully_active() const
         return true;
 
     auto container_document = navigable->container_document();
-    if (container_document && container_document != this && container_document->is_fully_active())
+    if (container_document && container_document.ptr() != this && container_document->is_fully_active())
         return true;
 
     return false;
@@ -4544,7 +4544,7 @@ bool Document::is_fully_active() const
 bool Document::is_active() const
 {
     auto navigable = this->navigable();
-    return navigable && navigable->active_document() == this;
+    return navigable && navigable->active_document().ptr() == this;
 }
 
 // https://html.spec.whatwg.org/multipage/history.html#dom-document-location
@@ -4767,7 +4767,7 @@ DOMImplementation* Document::implementation()
 {
     if (!m_implementation)
         m_implementation = DOMImplementation::create(*this);
-    return m_implementation;
+    return m_implementation.ptr();
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-document-hasfocus
@@ -4795,7 +4795,7 @@ bool Document::has_focus() const
     // 3. While true:
     while (candidate) {
         // 3.1. If candidate is target, then return true.
-        if (candidate == this)
+        if (candidate.ptr() == this)
             return true;
 
         // 3.2. If the focused area of candidate is a navigable container with a non-null content navigable,
@@ -6152,7 +6152,7 @@ void Document::register_resize_observer(Badge<ResizeObserver::ResizeObserver>, R
 
 void Document::unregister_resize_observer(Badge<ResizeObserver::ResizeObserver>, ResizeObserver::ResizeObserver& observer)
 {
-    m_resize_observers.remove_all_matching([&](auto const& entry) { return !entry || entry.ptr() == &observer; });
+    m_resize_observers.remove_all_matching([&](auto const& entry) { return !entry || entry.ptr().ptr() == &observer; });
 }
 
 // https://www.w3.org/TR/intersection-observer/#queue-an-intersection-observer-task
@@ -7189,7 +7189,7 @@ static bool is_potentially_named_element_by_id(DOM::Element const& element)
 static void insert_in_tree_order(Vector<GC::Ref<DOM::Element>>& elements, DOM::Element& element)
 {
     for (auto& el : elements) {
-        if (el == &element)
+        if (el.ptr() == &element)
             return;
     }
 
@@ -7423,7 +7423,7 @@ GC::RootVector<GC::Ref<Element>> Document::elements_from_point(double x, double 
 
     // 4. If the document has a root element, and the last item in sequence is not the root element,
     //    append the root element to sequence.
-    if (auto* root_element = document_element(); root_element && (sequence.is_empty() || (sequence.last() != root_element)))
+    if (auto* root_element = document_element(); root_element && (sequence.is_empty() || (sequence.last().ptr() != root_element)))
         sequence.append(*root_element);
 
     // 5. Return sequence.
@@ -8272,7 +8272,7 @@ GC::Ptr<Element> Document::retargeted_fullscreen_element() const
     // NB: We're not a shadow root. See ShadowRoot::retargeted_fullscreen_element().
 
     // 2. Let candidate be the result of retargeting fullscreen element against this.
-    auto* candidate = retarget(fullscreen_element, const_cast<Document*>(this));
+    auto* candidate = retarget(fullscreen_element.ptr(), const_cast<Document*>(this));
     if (!candidate)
         return nullptr;
 
@@ -8477,10 +8477,10 @@ InputEventsTarget* Document::active_input_events_target(Node const* for_node)
 
     if (focused_area->is_editable_or_editing_host()) {
         if (!for_node || m_editing_host_manager->is_within_active_contenteditable(*for_node))
-            return m_editing_host_manager;
+            return m_editing_host_manager.ptr();
     }
     if (auto* form_text_element = as_if<HTML::FormAssociatedTextControlElement>(*focused_area)) {
-        if (!for_node || for_node->find_in_shadow_including_ancestry([&](Node const& it) { return &it == focused_area; }))
+        if (!for_node || for_node->find_in_shadow_including_ancestry([&](Node const& it) { return &it == focused_area.ptr(); }))
             return form_text_element;
     }
     return nullptr;
@@ -8945,7 +8945,7 @@ Optional<Painting::CaretPosition> Document::caret_position_from_point_for_select
     return hit_test_display_list->caret_position_from_point(position, *viewport_paintable, page().client().device_pixels_per_css_pixel(), page().chrome_metrics(), Painting::CaretPositionMode::SelectionStart);
 }
 
-Optional<Painting::CaretPosition> Document::caret_position_from_point_for_selection(CSSPixelPoint position, Node const* constraint_scope)
+Optional<Painting::CaretPosition> Document::caret_position_from_point_for_selection(CSSPixelPoint position, GC::Ptr<Node const> constraint_scope)
 {
     auto hit_test_display_list = ensure_hit_test_display_list();
     auto viewport_paintable = paintable();

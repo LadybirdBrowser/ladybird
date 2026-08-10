@@ -237,7 +237,7 @@ WebIDL::ExceptionOr<JS::Value> XMLHttpRequest::response(JS::Realm& realm)
     m_cached_response_objects.remove_all_matching([](auto const& entry) { return !entry.wrapper; });
 
     auto cached_response_object = [&]() -> GC::Ptr<JS::Object> {
-        auto cached = m_cached_response_objects.find_if([&](auto const& entry) { return entry.wrapper.ptr() == wrapper.ptr(); });
+        auto cached = m_cached_response_objects.find_if([&](auto const& entry) { return entry.wrapper.ptr() == wrapper; });
         if (cached.is_end())
             return nullptr;
         return cached->object;

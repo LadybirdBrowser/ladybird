@@ -332,13 +332,13 @@ inline JSFileResult TestRunner::run_file_test(ByteString const& test_path)
     GC::Ptr<TestRunnerGlobalObject> global_object;
     auto root_execution_context = MUST(JS::Realm::initialize_host_defined_realm(
         *g_vm,
-        [&](JS::Realm& realm_) -> JS::GlobalObject* {
+        [&](JS::Realm& realm_) -> GC::Ref<JS::Object> {
             realm = &realm_;
             global_object = realm->create<TestRunnerGlobalObject>(*realm);
             if (this->needs_timings()) {
                 global_object->on_test_reported = print_test_timings;
             }
-            return global_object;
+            return global_object.as_nonnull();
         },
         nullptr));
     auto& global_execution_context = *root_execution_context;

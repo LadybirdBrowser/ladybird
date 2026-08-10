@@ -68,7 +68,7 @@ void Animation::set_effect(GC::Ptr<AnimationEffect> new_effect, ShouldInvalidate
     // 5. If new effect is not null and if new effect is the associated effect of another animation, previous animation,
     //    run the procedure to set the associated effect of an animation (this procedure) on previous animation passing
     //    null as new effect.
-    if (new_effect && new_effect->associated_animation() != this) {
+    if (new_effect && new_effect->associated_animation() != GC::Ptr<Animation> { *this }) {
         if (auto animation = new_effect->associated_animation())
             animation->set_effect({});
     }
@@ -1612,7 +1612,7 @@ void Animation::invalidate_effect()
     if (!m_effect)
         return;
 
-    if (auto* target = m_effect->target())
+    if (auto target = m_effect->target())
         target->document().set_needs_animated_style_update();
 }
 

@@ -153,7 +153,7 @@ GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_new_top_l
     }
 
     // 11. Append traversable to the user agent's top-level traversable set.
-    user_agent_top_level_traversable_set().set(traversable);
+    user_agent_top_level_traversable_set().set(traversable.ptr());
 
     // 12. Return traversable.
     return traversable;

@@ -109,7 +109,7 @@ int HTMLTableRowElement::row_index() const
         return -1;
     auto rows = rows_collection->collect_matching_elements();
     for (size_t i = 0; i < rows.size(); ++i) {
-        if (rows[i] == this)
+        if (rows[i].ptr() == this)
             return i;
     }
     return -1;
@@ -134,7 +134,7 @@ int HTMLTableRowElement::section_row_index() const
         return -1;
     auto rows = rows_collection->collect_matching_elements();
     for (size_t i = 0; i < rows.size(); ++i) {
-        if (rows[i] == this)
+        if (rows[i].ptr() == this)
             return i;
     }
     return -1;

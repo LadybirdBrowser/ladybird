@@ -156,14 +156,14 @@ GC::Ref<WebIDL::CallbackType> UniversalGlobalScopeMixin::byte_length_queuing_str
     return GC::Ref { *m_byte_length_queuing_strategy_size_function };
 }
 
-void UniversalGlobalScopeMixin::push_onto_outstanding_rejected_promises_weak_set(JS::Promise* promise)
+void UniversalGlobalScopeMixin::push_onto_outstanding_rejected_promises_weak_set(GC::Ptr<JS::Promise> promise)
 {
     m_outstanding_rejected_promises_weak_set.append(promise);
 }
 
-bool UniversalGlobalScopeMixin::remove_from_outstanding_rejected_promises_weak_set(JS::Promise* promise)
+bool UniversalGlobalScopeMixin::remove_from_outstanding_rejected_promises_weak_set(GC::Ptr<JS::Promise> promise)
 {
-    return m_outstanding_rejected_promises_weak_set.remove_first_matching([&](JS::Promise* promise_in_set) {
+    return m_outstanding_rejected_promises_weak_set.remove_first_matching([&](GC::Ptr<JS::Promise> promise_in_set) {
         return promise == promise_in_set;
     });
 }

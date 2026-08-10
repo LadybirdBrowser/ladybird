@@ -1425,7 +1425,7 @@ void ConnectionFromClient::highlight_dom_node(u64 page_id, Web::UniqueNodeID nod
 
     auto& document = node->document();
     auto navigable = document.navigable();
-    if (!navigable || navigable->active_document() != &document)
+    if (!navigable || navigable->active_document() != GC::Ref { document })
         return;
 
     document.update_layout(Web::DOM::UpdateLayoutReason::Debugging);

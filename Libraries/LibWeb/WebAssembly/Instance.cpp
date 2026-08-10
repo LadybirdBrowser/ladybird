@@ -120,7 +120,7 @@ static InstanceExportsCache& instance_exports_cache_for(WebAssembly::Instance& i
     prune_instance_exports_caches();
 
     for (auto& cache : caches) {
-        if (cache.instance.ptr() == &instance)
+        if (cache.instance.ptr() == GC::Ref { instance })
             return cache;
     }
 
@@ -216,34 +216,33 @@ static GC::Ref<JS::Object> create_exports_object(JS::Realm& realm, WebAssembly::
     return GC::Ref { *exports };
 }
 
-JS::Object const* exports(JS::Realm& realm, GC::Ref<WebAssembly::Instance> instance)
+GC::Ref<JS::Object const> exports(JS::Realm& realm, GC::Ref<WebAssembly::Instance> instance)
 {
     auto& cache = instance_exports_cache_for(instance);
 
     if (!cache.primary_exports) {
         auto exports = create_exports_object(realm, instance, true);
         cache.primary_exports = exports;
-        return exports.ptr();
+        return exports;
     }
 
     if (&realm == &cache.primary_exports->shape().realm())
-        return cache.primary_exports.ptr();
+        return cache.primary_exports.ptr().as_nonnull();
 
     prune_instance_exports_cache(cache);
     for (auto const& exports : cache.live_export_objects) {
         if (&exports->shape().realm() == &realm)
-            return exports.ptr();
+            return exports.ptr().as_nonnull();
     }
 
     auto exports = create_exports_object(realm, instance, false);
     cache.live_export_objects.append(exports);
-    return exports.ptr();
+    return exports;
 }
 
 JS::ThrowCompletionOr<void> initialize_webassembly_export_binding(JS::Realm& realm, JS::Environment& environment, Utf16FlyString const& name, GC::Ref<WebAssembly::Instance> instance)
 {
-    auto* exports = Bindings::exports(realm, instance);
-    VERIFY(exports);
+    auto exports = Bindings::exports(realm, instance);
     return environment.initialize_binding(realm.vm(), name, TRY(exports->get(JS::PropertyKey { name })), JS::Environment::InitializeBindingHint::Normal);
 }
 

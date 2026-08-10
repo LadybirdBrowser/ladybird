@@ -153,7 +153,7 @@ static JS::ThrowCompletionOr<Vector<Utf16FlyString>> convert_value_to_sequence_o
 }
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#dom-customelementregistry-define
-JS::ThrowCompletionOr<void> CustomElementRegistry::define(JS::Realm& realm, Utf16String const& name, WebIDL::CallbackType* constructor, ElementDefinitionOptions const& options)
+JS::ThrowCompletionOr<void> CustomElementRegistry::define(JS::Realm& realm, Utf16String const& name, GC::Ref<WebIDL::CallbackType> constructor, ElementDefinitionOptions const& options)
 {
     auto& vm = realm.vm();
     auto name_fly = Utf16FlyString::from_utf16(name.utf16_view());
@@ -427,7 +427,7 @@ void CustomElementRegistry::upgrade(GC::Ref<DOM::Node> root) const
             return TraversalDecision::Continue;
 
         // 2. If candidate's custom element registry is not this, then continue.
-        if (element->custom_element_registry() != this)
+        if (element->custom_element_registry().ptr() != this)
             return TraversalDecision::Continue;
 
         // 3. Try to upgrade candidate.
@@ -441,7 +441,7 @@ WebIDL::ExceptionOr<void> CustomElementRegistry::initialize_for_bindings(GC::Ref
 {
     // 1. If this's is scoped is false and either root is a Document node or root's node document's custom element
     //    registry is not this, then throw a "NotSupportedError" DOMException.
-    if (!is_scoped() && (root->is_document() || root->document().custom_element_registry() != this))
+    if (!is_scoped() && (root->is_document() || root->document().custom_element_registry().ptr() != this))
         return WebIDL::NotSupportedError::create("CustomElementRegistry must either be scoped or the document's custom element registry."_utf16);
 
     // 2. If root is a Document node whose custom element registry is null, then set root's custom element registry to
@@ -473,7 +473,7 @@ WebIDL::ExceptionOr<void> CustomElementRegistry::initialize_for_bindings(GC::Ref
         }
 
         // 3. If inclusiveDescendant's custom element registry is not this, then continue.
-        if (element->custom_element_registry() != this)
+        if (element->custom_element_registry().ptr() != this)
             return TraversalDecision::Continue;
 
         // 4. Try to upgrade inclusiveDescendant.
@@ -573,7 +573,7 @@ GC::Ref<HTML::CustomElementRegistry> construct_custom_element_registry()
     return HTML::CustomElementRegistry::create_scoped();
 }
 
-JS::ThrowCompletionOr<void> define(JS::Realm& realm, HTML::CustomElementRegistry& registry, Utf16String const& name, WebIDL::CallbackType* constructor, ElementDefinitionOptions const& options)
+JS::ThrowCompletionOr<void> define(JS::Realm& realm, HTML::CustomElementRegistry& registry, Utf16String const& name, GC::Ref<WebIDL::CallbackType> constructor, ElementDefinitionOptions const& options)
 {
     return registry.define(realm, name, constructor, options);
 }

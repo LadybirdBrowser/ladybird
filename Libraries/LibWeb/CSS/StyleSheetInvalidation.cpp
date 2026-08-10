@@ -386,7 +386,7 @@ static void apply_trailing_universal_combinator(Selector::Combinator combinator,
         // The column combinator relates a <col>/<colgroup> anchor to the table cells in the represented column. We do
         // not yet have a more precise invalidation primitive for column membership, so keep the work bounded to the
         // current table instead of dropping the invalidation.
-        for (auto* ancestor = &anchor; ancestor; ancestor = ancestor->parent_element()) {
+        for (GC::Ptr<DOM::Element> ancestor = anchor; ancestor; ancestor = ancestor->parent_element()) {
             if (auto* table = as_if<HTML::HTMLTableElement>(*ancestor)) {
                 table->for_each_in_subtree_of_type<HTML::HTMLTableCellElement>([](HTML::HTMLTableCellElement& cell) {
                     cell.set_needs_style_update(true);

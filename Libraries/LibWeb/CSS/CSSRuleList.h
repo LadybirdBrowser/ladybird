@@ -36,14 +36,14 @@ public:
     {
         if (index >= length())
             return nullptr;
-        return m_rules[index];
+        return m_rules[index].ptr();
     }
 
     CSSRule* item(size_t index)
     {
         if (index >= length())
             return nullptr;
-        return m_rules[index];
+        return m_rules[index].ptr();
     }
 
     size_t length() const { return m_rules.size(); }

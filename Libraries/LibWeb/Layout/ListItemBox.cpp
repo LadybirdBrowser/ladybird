@@ -10,7 +10,7 @@
 
 namespace Web::Layout {
 
-ListItemBox::ListItemBox(DOM::Document& document, DOM::Element* element, NonnullRefPtr<CSS::ComputedValues const> style)
+ListItemBox::ListItemBox(DOM::Document& document, GC::Ptr<DOM::Element> element, NonnullRefPtr<CSS::ComputedValues const> style)
     : Layout::BlockContainer(document, element, style)
 {
 }

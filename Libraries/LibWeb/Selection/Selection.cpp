@@ -138,8 +138,8 @@ WebIDL::ExceptionOr<GC::Ptr<DOM::Range>> Selection::get_range_at(unsigned index)
     GC::Ptr<DOM::Node> anchor = anchor_node();
 
     // The method must throw an IndexSizeError exception if index is not 0, or if this is empty or either focus or anchor is not in the document tree.
-    auto is_focus_in_document_tree = focus && &focus->document() == document();
-    auto is_anchor_in_document_tree = anchor && &anchor->document() == document();
+    auto is_focus_in_document_tree = focus && GC::Ref { focus->document() } == document();
+    auto is_anchor_in_document_tree = anchor && GC::Ref { anchor->document() } == document();
 
     if (index != 0 || is_empty() || !is_focus_in_document_tree || !is_anchor_in_document_tree)
         return WebIDL::IndexSizeError::create("Selection.getRangeAt() on empty Selection or with invalid argument"_utf16);

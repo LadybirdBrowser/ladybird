@@ -56,7 +56,7 @@ static CryptoKeyCacheEntry& cache_for(CryptoKey& key)
     prune_crypto_key_caches();
 
     for (auto& entry : caches) {
-        if (entry.key.ptr() == &key)
+        if (entry.key.ptr().ptr() == &key)
             return entry;
     }
 
@@ -457,7 +457,7 @@ JS::ThrowCompletionOr<JS::Value> CryptoKey::algorithm(JS::Realm& realm)
     auto wrapper = Bindings::wrap(wrapper_world, realm, GC::Ref { *this });
     m_cached_algorithm_objects.remove_all_matching([](auto const& entry) { return !entry.wrapper; });
 
-    auto cached_object = m_cached_algorithm_objects.find_if([&](auto const& entry) { return entry.wrapper.ptr() == wrapper.ptr(); });
+    auto cached_object = m_cached_algorithm_objects.find_if([&](auto const& entry) { return entry.wrapper.ptr() == wrapper; });
     if (!cached_object.is_end())
         return cached_object->object;
 

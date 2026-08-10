@@ -141,8 +141,8 @@ public:
     void set_associated_document(DOM::Document&);
 
     // https://html.spec.whatwg.org/multipage/window-object.html#window-bc
-    BrowsingContext const* browsing_context() const;
-    BrowsingContext* browsing_context();
+    GC::Ptr<BrowsingContext const> browsing_context() const;
+    GC::Ptr<BrowsingContext> browsing_context();
 
     GC::Ptr<LocalNavigable> navigable() const;
 

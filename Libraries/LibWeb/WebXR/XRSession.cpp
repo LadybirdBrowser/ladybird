@@ -52,7 +52,7 @@ void XRSession::shut_down()
     m_ended = true;
 
     // 2. If the active immersive session is equal to session, set the active immersive session to null.
-    if (m_xr_system->active_immersive_session() == this)
+    if (m_xr_system->active_immersive_session() == GC::Ref { *this })
         m_xr_system->set_active_immersive_session({});
 
     // 3. Remove session from the list of inline sessions.

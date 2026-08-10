@@ -28,7 +28,7 @@ public:
 
     virtual bool condition_matches() const override { return m_media->matches(); }
 
-    MediaList* media() const { return m_media; }
+    MediaList* media() const { return m_media.ptr(); }
 
     bool evaluate(DOM::Document const& document)
     {

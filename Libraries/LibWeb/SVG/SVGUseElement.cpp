@@ -235,7 +235,7 @@ void SVGUseElement::svg_element_changed(SVGElement& svg_element)
     }
 
     // NOTE: We need to check the ancestor because attribute_changed of a child doesn't call children_changed on the parent(s)
-    if (to_clone == &svg_element || to_clone->is_ancestor_of(svg_element)) {
+    if (to_clone == GC::Ref { svg_element } || to_clone->is_ancestor_of(svg_element)) {
         clone_element_tree_as_our_shadow_tree(to_clone);
     }
 }
@@ -247,7 +247,7 @@ void SVGUseElement::svg_element_changed_before_document_complete(SVGElement& svg
         return;
 
     // NOTE: We need to check the ancestor because attribute_changed of a child doesn't call children_changed on the parent(s)
-    if (to_clone == &svg_element || to_clone->is_ancestor_of(svg_element))
+    if (to_clone == GC::Ref { svg_element } || to_clone->is_ancestor_of(svg_element))
         m_needs_document_complete_reclone = true;
 }
 
@@ -309,7 +309,7 @@ void SVGUseElement::fetch_the_document(URL::URL const& url)
 }
 
 // https://svgwg.org/svg2-draft/struct.html#UseShadowTree
-void SVGUseElement::clone_element_tree_as_our_shadow_tree(Element* to_clone)
+void SVGUseElement::clone_element_tree_as_our_shadow_tree(GC::Ptr<Element> to_clone)
 {
     shadow_root()->remove_all_children();
 

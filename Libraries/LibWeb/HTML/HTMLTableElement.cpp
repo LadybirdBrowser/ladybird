@@ -406,7 +406,7 @@ GC::Ref<DOM::HTMLCollection> HTMLTableElement::rows()
             if (!is<HTMLTableRowElement>(element)) {
                 return false;
             }
-            if (element.parent_element() == table_node)
+            if (element.parent_element().ptr() == table_node)
                 return true;
 
             if (element.parent_element() && element.parent_element()->local_name().is_one_of(TagNames::thead, TagNames::tbody, TagNames::tfoot) && element.parent()->parent() == table_node)

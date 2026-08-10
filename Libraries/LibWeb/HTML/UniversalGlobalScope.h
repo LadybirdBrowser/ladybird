@@ -39,10 +39,10 @@ public:
     GC::Ref<WebIDL::CallbackType> count_queuing_strategy_size_function();
     GC::Ref<WebIDL::CallbackType> byte_length_queuing_strategy_size_function();
 
-    void push_onto_outstanding_rejected_promises_weak_set(JS::Promise*);
+    void push_onto_outstanding_rejected_promises_weak_set(GC::Ptr<JS::Promise>);
 
     // Returns true if removed, false otherwise.
-    bool remove_from_outstanding_rejected_promises_weak_set(JS::Promise*);
+    bool remove_from_outstanding_rejected_promises_weak_set(GC::Ptr<JS::Promise>);
 
     void push_onto_about_to_be_notified_rejected_promises_list(GC::Ref<JS::Promise>);
 

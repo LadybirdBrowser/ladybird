@@ -14,7 +14,7 @@ class InlineNode final : public NodeWithStyle {
     LAYOUT_NODE(InlineNode, NodeWithStyle);
 
 public:
-    InlineNode(DOM::Document&, DOM::Element*, NonnullRefPtr<CSS::ComputedValues const>);
+    InlineNode(DOM::Document&, GC::Ptr<DOM::Element>, NonnullRefPtr<CSS::ComputedValues const>);
     virtual ~InlineNode() override;
 
     virtual RefPtr<Painting::Paintable> create_paintable() const override;

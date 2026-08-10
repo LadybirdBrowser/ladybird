@@ -2564,7 +2564,7 @@ bool EventHandler::maybe_request_paste_for_middle_click(DOM::Document& document,
 }
 
 // https://drafts.csswg.org/css-ui/#propdef-user-select
-static void set_user_selection(GC::Ptr<DOM::Node> anchor_node, size_t anchor_offset, GC::Ptr<DOM::Node> focus_node, size_t focus_offset, Selection::Selection* selection, CSS::UserSelect user_select)
+static void set_user_selection(GC::Ptr<DOM::Node> anchor_node, size_t anchor_offset, GC::Ptr<DOM::Node> focus_node, size_t focus_offset, GC::Ptr<Selection::Selection> selection, CSS::UserSelect user_select)
 {
     auto move_focus_before_node = [&](GC::Ref<DOM::Node> node) -> bool {
         if (!node->parent())
@@ -2963,7 +2963,7 @@ void EventHandler::apply_mouse_selection(CSSPixelPoint visual_viewport_position)
 
     // Selection driven through an input events target (a text control or editing host) is constrained to that
     // target's scope, so the selection keeps tracking the mouse after it leaves the target.
-    DOM::Node const* constraint_scope = nullptr;
+    GC::Ptr<DOM::Node const> constraint_scope;
     if (m_mouse_selection_target)
         constraint_scope = m_mouse_selection_target->mouse_selection_scope();
 
@@ -3074,12 +3074,12 @@ void EventHandler::apply_mouse_selection(CSSPixelPoint visual_viewport_position)
     }
 }
 
-static void set_node_and_ancestors_being_activated(DOM::Node*, bool);
+static void set_node_and_ancestors_being_activated(GC::Ptr<DOM::Node>, bool);
 
 void EventHandler::clear_mousedown_tracking()
 {
     if (m_mousedown_target)
-        set_node_and_ancestors_being_activated(m_mousedown_target, false);
+        set_node_and_ancestors_being_activated(m_mousedown_target.ptr(), false);
 
     m_mousedown_target = nullptr;
     m_mousedown_visual_viewport_position = {};
@@ -3117,9 +3117,9 @@ static void light_dismiss_activities(UIEvents::PointerEvent const& event, GC::Re
     HTML::HTMLDialogElement::light_dismiss_open_dialogs(event, target);
 }
 
-static void set_node_and_ancestors_being_activated(DOM::Node* node, bool activated)
+static void set_node_and_ancestors_being_activated(GC::Ptr<DOM::Node> node, bool activated)
 {
-    for (auto* ancestor = node; ancestor; ancestor = ancestor->parent()) {
+    for (auto ancestor = node; ancestor; ancestor = ancestor->parent()) {
         if (auto* element = as_if<DOM::Element>(*ancestor))
             element->set_being_activated(activated);
     }
@@ -3169,7 +3169,7 @@ EventHandler::PointerEventDispatchResult EventHandler::dispatch_a_pointer_event_
         if (type == PointerEventType::PointerDown)
             set_node_and_ancestors_being_activated(node, true);
         else if (m_mousedown_target)
-            set_node_and_ancestors_being_activated(m_mousedown_target, false);
+            set_node_and_ancestors_being_activated(m_mousedown_target.ptr(), false);
     }
 
     update_hovered_chrome_widget(chrome_widget);

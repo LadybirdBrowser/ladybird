@@ -194,7 +194,7 @@ static DOM::BoundaryPoint canonicalize_inserted_content_end(DOM::BoundaryPoint b
         }
     }
 
-    auto* traversal_start = boundary.node.ptr();
+    GC::Ptr<DOM::Node> traversal_start = boundary.node;
     auto is_empty_placeholder = boundary.offset == 0 && is<HTML::HTMLElement>(*boundary.node)
         && !is<HTML::HTMLLIElement>(*boundary.node) && is<HTML::HTMLBRElement>(boundary.node->first_child());
     if (is_empty_placeholder && plan.selection_end_was_end_of_paragraph)
@@ -206,7 +206,7 @@ static DOM::BoundaryPoint canonicalize_inserted_content_end(DOM::BoundaryPoint b
         traversal_start = block;
     }
 
-    for (auto* ancestor = traversal_start; ancestor && ancestor->parent(); ancestor = ancestor->parent()) {
+    for (auto ancestor = traversal_start; ancestor && ancestor->parent(); ancestor = ancestor->parent()) {
         if (ancestor->is_editing_host())
             break;
         for (auto* sibling = ancestor->next_sibling(); sibling; sibling = sibling->next_sibling()) {

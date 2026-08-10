@@ -114,15 +114,15 @@ static DOM::EventTarget::AddEventListenerOptions flatten_add_event_listener_opti
     }
 
     // 5. Return capture, passive, once, and signal.
-    return DOM::EventTarget::AddEventListenerOptions { .capture = capture, .passive = passive, .once = once, .signal = signal.ptr() };
+    return DOM::EventTarget::AddEventListenerOptions { .capture = capture, .passive = passive, .once = once, .signal = signal };
 }
 
-void add_event_listener(DOM::EventTarget& event_target, Utf16String const& type, DOM::IDLEventListener* callback, Variant<AddEventListenerOptions, bool> const& options)
+void add_event_listener(DOM::EventTarget& event_target, Utf16String const& type, GC::Ptr<DOM::IDLEventListener> callback, Variant<AddEventListenerOptions, bool> const& options)
 {
     event_target.add_event_listener(Utf16FlyString::from_utf16(type.utf16_view()), callback, flatten_add_event_listener_options(options));
 }
 
-void remove_event_listener(DOM::EventTarget& event_target, Utf16String const& type, DOM::IDLEventListener* callback, Variant<EventListenerOptions, bool> const& options)
+void remove_event_listener(DOM::EventTarget& event_target, Utf16String const& type, GC::Ptr<DOM::IDLEventListener> callback, Variant<EventListenerOptions, bool> const& options)
 {
     event_target.remove_event_listener(Utf16FlyString::from_utf16(type.utf16_view()), callback, DOM::EventTarget::EventListenerOptions {
                                                                                                     .capture = flatten_event_listener_options(options),
@@ -304,7 +304,7 @@ static void update_needs_beforeunload_check(EventTarget& event_target, DOMEventL
 }
 
 // https://dom.spec.whatwg.org/#dom-eventtarget-addeventlistener
-void EventTarget::add_event_listener(FlyString const& type, IDLEventListener* callback, AddEventListenerOptions const& options)
+void EventTarget::add_event_listener(FlyString const& type, GC::Ptr<IDLEventListener> callback, AddEventListenerOptions const& options)
 {
     // 1. Let capture, passive, once, and signal be the result of flattening more options.
 
@@ -321,7 +321,7 @@ void EventTarget::add_event_listener(FlyString const& type, IDLEventListener* ca
     add_an_event_listener(*event_listener);
 }
 
-void EventTarget::add_event_listener(Utf16FlyString const& type, IDLEventListener* callback, AddEventListenerOptions const& options)
+void EventTarget::add_event_listener(Utf16FlyString const& type, GC::Ptr<IDLEventListener> callback, AddEventListenerOptions const& options)
 {
     auto event_listener = GC::Heap::the().allocate<DOMEventListener>();
     event_listener->type = type;
@@ -386,7 +386,7 @@ void EventTarget::add_an_event_listener(DOMEventListener& listener)
 }
 
 // https://dom.spec.whatwg.org/#dom-eventtarget-removeeventlistener
-void EventTarget::remove_event_listener(FlyString const& type, IDLEventListener* callback, EventListenerOptions const& options)
+void EventTarget::remove_event_listener(FlyString const& type, GC::Ptr<IDLEventListener> callback, EventListenerOptions const& options)
 {
     auto& event_listener_list = ensure_data().event_listener_list;
 
@@ -412,7 +412,7 @@ void EventTarget::remove_event_listener(FlyString const& type, IDLEventListener*
         remove_an_event_listener(**it);
 }
 
-void EventTarget::remove_event_listener(Utf16FlyString const& type, IDLEventListener* callback, EventListenerOptions const& options)
+void EventTarget::remove_event_listener(Utf16FlyString const& type, GC::Ptr<IDLEventListener> callback, EventListenerOptions const& options)
 {
     remove_event_listener(FlyString { type.to_utf16_string().to_utf8() }, callback, options);
 }
@@ -513,7 +513,7 @@ static EventTarget* determine_target_of_event_handler(EventTarget& event_target,
         return nullptr;
 
     // 4. Return eventTarget's node document's relevant global object.
-    return event_target_element.document().window();
+    return event_target_element.document().window().ptr();
 }
 
 static Optional<Utf16FlyString> event_name_from_event_handler_attribute_local_name(Utf16FlyString const& local_name)
@@ -677,11 +677,11 @@ WebIDL::CallbackType* EventTarget::get_current_value_of_event_handler(Utf16FlySt
 
     // 4. Return eventHandler's value.
     VERIFY(event_handler->value.has<GC::Ptr<WebIDL::CallbackType>>());
-    return *event_handler->value.get_pointer<GC::Ptr<WebIDL::CallbackType>>();
+    return event_handler->value.get_pointer<GC::Ptr<WebIDL::CallbackType>>()->ptr();
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#event-handler-attributes:event-handler-idl-attributes-3
-void EventTarget::set_event_handler_attribute(Utf16FlyString const& name, WebIDL::CallbackType* value)
+void EventTarget::set_event_handler_attribute(Utf16FlyString const& name, GC::Ptr<WebIDL::CallbackType> value)
 {
     // 1. Let eventTarget be the result of determining the target of an event handler given this object and name.
     auto event_target = determine_target_of_event_handler(*this, name);

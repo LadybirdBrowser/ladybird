@@ -54,18 +54,18 @@ void invoke_resize_observer_callback(ResizeObserver& observer, ReadonlySpan<GC::
 }
 
 // https://drafts.csswg.org/resize-observer/#dom-resizeobserver-resizeobserver
-GC::Ref<ResizeObserver> ResizeObserver::create(WebIDL::CallbackType* callback, DOM::Document& document)
+GC::Ref<ResizeObserver> ResizeObserver::create(GC::Ptr<WebIDL::CallbackType> callback, DOM::Document& document)
 {
     return GC::Heap::the().allocate<ResizeObserver>(callback, document);
 }
 
-GC::Ref<ResizeObserver> ResizeObserver::create_for_constructor(JS::Object& relevant_global_object, WebIDL::CallbackType* callback)
+GC::Ref<ResizeObserver> ResizeObserver::create_for_constructor(JS::Object& relevant_global_object, GC::Ref<WebIDL::CallbackType> callback)
 {
     auto& window = HTML::relevant_window(relevant_global_object);
     return create(callback, window.associated_document());
 }
 
-ResizeObserver::ResizeObserver(WebIDL::CallbackType* callback, DOM::Document& document)
+ResizeObserver::ResizeObserver(GC::Ptr<WebIDL::CallbackType> callback, DOM::Document& document)
     : m_callback(callback)
 {
     static bool did_register_sweep_callback = false;

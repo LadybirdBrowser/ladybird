@@ -452,8 +452,8 @@ public:
     void string_replace_all(Utf16View);
     void string_replace_all(Utf16String);
 
-    bool is_same_node(Node const*) const;
-    bool is_equal_node(Node const*) const;
+    bool is_same_node(GC::Ptr<Node const>) const;
+    bool is_equal_node(GC::Ptr<Node const>) const;
 
     GC::Ref<Node> get_root_node(RootNodeComposed = RootNodeComposed::No);
     GC::Ref<Node> get_root_node(Bindings::GetRootNodeOptions const&);

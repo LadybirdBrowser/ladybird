@@ -638,12 +638,12 @@ void CookieStore::delete_(URL::URL url, CookieStoreDeleteOptions const& options,
     }));
 }
 
-void CookieStore::set_onchange(WebIDL::CallbackType* event_handler)
+void CookieStore::set_onchange(GC::Ptr<WebIDL::CallbackType> event_handler)
 {
     set_event_handler_attribute(HTML::EventNames::change, event_handler);
 }
 
-WebIDL::CallbackType* CookieStore::onchange()
+GC::Ptr<WebIDL::CallbackType> CookieStore::onchange()
 {
     return event_handler_attribute(HTML::EventNames::change);
 }
