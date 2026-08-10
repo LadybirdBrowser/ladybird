@@ -22,6 +22,7 @@
 #include <AK/UFixedBigInt.h>
 #include <AK/Variant.h>
 #include <AK/WeakPtr.h>
+#include <LibCore/AnonymousBuffer.h>
 #include <LibSync/ConditionVariable.h>
 #include <LibSync/Mutex.h>
 #include <LibWasm/Constants.h>
@@ -1798,6 +1799,8 @@ void flush_cranelift_batch();
 void discard_cranelift_batch();
 
 void compile_module_to_native(Module&);
+
+WASM_API ErrorOr<Core::AnonymousBuffer> compile_cranelift_buffer(Core::AnonymousBuffer const&);
 
 WASM_API void record_module_stats(ModuleStats);
 WASM_API void dump_module_stats();

@@ -19,4 +19,9 @@ void abort_cranelift_cache_install() { }
 Optional<ByteBuffer> serialize_cranelift_cache_blob(ReadonlyBytes) { return {}; }
 bool try_install_cranelift_cache_blob(ReadonlyBytes, ReadonlyBytes) { return false; }
 
+ErrorOr<Core::AnonymousBuffer> compile_cranelift_buffer(Core::AnonymousBuffer const&)
+{
+    return Error::from_string_literal("Cranelift is disabled");
+}
+
 }
