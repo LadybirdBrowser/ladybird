@@ -855,100 +855,178 @@ impl TreeBuilder {
 
     // https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-inhead
     fn handle_in_head(&mut self, token: Token) {
+        // -> A character token that is one of U+0009 CHARACTER TABULATION, U+000A LINE FEED (LF), U+000C FORM FEED (FF),
+        //    U+000D CARRIAGE RETURN (CR), or U+0020 SPACE
         if token.is_parser_whitespace() {
+            // Insert the character.
             self.insert_character(token.code_point);
             return;
         }
 
+        // -> A comment token
         if token.token_type == TokenType::Comment {
+            // Insert a comment.
             self.insert_comment(token.comment_data(), None);
             return;
         }
 
+        // FIXME: -> A processing instruction token
+        //     Insert a processing instruction.
+
+        // -> A DOCTYPE token
         if token.token_type == TokenType::Doctype {
             // Parse error. Ignore the token.
             self.parse_error("DOCTYPE token in in head insertion mode");
             return;
         }
 
+        // -> A start tag whose tag name is "html"
         if token.is_start_tag_named("html") {
+            // Process the token using the rules for the "in body" insertion mode.
             self.process_using_the_rules_for(InsertionMode::InBody, token);
             return;
         }
 
-        if token.is_start_tag_one_of(&["base", "basefont", "bgsound", "link", "meta"]) {
+        // -> A start tag whose tag name is one of: "base", "basefont", "bgsound", "link"
+        if token.is_start_tag_one_of(&["base", "basefont", "bgsound", "link"]) {
+            // Insert an HTML element for the token. Immediately pop the current node off the stack of open elements.
             self.insert_html_element_for(&token);
             self.pop_current_node();
+
+            // FIXME: Acknowledge the token's self-closing flag, if it is set.
             return;
         }
 
+        // -> A start tag whose tag name is "meta"
+        if token.is_start_tag_named("meta") {
+            // Insert an HTML element for the token. Immediately pop the current node off the stack of open elements.
+            self.insert_html_element_for(&token);
+            self.pop_current_node();
+
+            // FIXME: Acknowledge the token's self-closing flag, if it is set.
+
+            // FIXME: If the active speculative HTML parser is null:
+            //     1. If the element has a charset attribute, and getting an encoding from its value results in an
+            //        encoding, and the confidence is currently tentative, then change the encoding to the resulting
+            //        encoding.
+            //     2. Otherwise, if the element has an http-equiv attribute whose value is an ASCII case-insensitive
+            //        match for "Content-Type", and the element has a content attribute, and applying the algorithm for
+            //        extracting a character encoding from a meta element to that attribute's value returns an encoding,
+            //        and the confidence is currently tentative, then change the encoding to the extracted encoding.
+
+            // NOTE: The speculative HTML parser doesn't speculatively apply character encoding declarations in order to
+            //       reduce implementation complexity.
+        }
+
+        // -> A start tag whose tag name is "title"
         if token.is_start_tag_named("title") {
+            // Follow the generic RCDATA element parsing algorithm.
             self.parse_generic_rcdata_element(token);
             return;
         }
 
+        // -> A start tag whose tag name is "noscript", if scripting mode is not Disabled
+        // -> A start tag whose tag name is one of: "noframes", "style"
         if token.is_start_tag_one_of(&["style", "noframes"])
             || (token.is_start_tag_named("noscript") && self.scripting_enabled)
         {
+            // Follow the generic raw text element parsing algorithm.
             self.parse_generic_raw_text_element(token);
             return;
         }
 
+        // -> A start tag whose tag name is "noscript", if scripting mode is Disabled
         if token.is_start_tag_named("noscript") && !self.scripting_enabled {
+            // Insert an HTML element for the token.
             self.insert_html_element_for(&token);
+
+            // Switch the insertion mode to "in head noscript".
             self.insertion_mode = InsertionMode::InHeadNoscript;
             return;
         }
 
-        if token.is_start_tag_named("template") {
-            self.handle_template_start_tag(&token);
-            return;
-        }
-
+        // -> A start tag whose tag name is "script"
         if token.is_start_tag_named("script") {
             // Run these steps:
             //
             // 1. Let the adjustedInsertionLocation be the appropriate place for inserting a node.
             // 2. Create an element for the token in the HTML namespace, with the intended parent being the element in
             //    which the adjustedInsertionLocation finds itself.
+            // 3. If the scripting mode is not Fragment, then set the element's parser document to the Document.
+            // NOTE: The Fragment scripting mode treats parser-inserted scripts as if they were not parser-inserted,
+            //       allowing, for example, executing scripts when applying a fragment created by
+            //       createContextualFragment().
+            // 4. Set the element's force async to false.
+            // NOTE: This ensures that, if the script is external, any document.write() calls in the script will execute
+            //       in-line, instead of blowing the document away, as would happen in most other cases. It also
+            //       prevents the script from executing until the end tag is seen.
+            // 5. If the parser's scripting mode is Inert, then set the script element's already started to true.
+            //    (fragment case)
+            // 6. If the parser was invoked via the document.write() or document.writeln() methods, then optionally set
+            //    the script element's already started to true. (For example, the user agent might use this clause to
+            //    prevent execution of cross-origin scripts inserted via document.write() under slow network conditions,
+            //    or when the page has already taken a long time to load.)
+            // 7. Insert the newly created element at the adjusted insertion location given adjustedInsertionLocation.
+            // 8. Push the element onto the stack of open elements so that it is the new current node.
             self.insert_html_element_for(&token);
+
             // 9. Switch the tokenizer to the script data state.
             self.switch_tokenizer_to(State::ScriptData);
+
             // 10. Set the original insertion mode to the current insertion mode.
             self.original_insertion_mode = self.insertion_mode;
+
             // 11. Switch the insertion mode to "text".
             self.insertion_mode = InsertionMode::Text;
             return;
         }
 
+        // -> An end tag whose tag name is "head"
         if token.is_end_tag_named("head") {
+            // Pop the current node (which will be the head element) off the stack of open elements.
             self.pop_current_node();
+
+            // Switch the insertion mode to "after head".
             self.insertion_mode = InsertionMode::AfterHead;
             return;
         }
 
-        if token.is_end_tag_named("template") {
-            self.handle_template_end_tag();
-            return;
-        }
-
+        // -> An end tag whose tag name is one of: "body", "html", "br"
         if token.is_end_tag_one_of(&["body", "html", "br"]) {
+            // Act as described in the "anything else" entry below.
             self.pop_current_node();
             self.insertion_mode = InsertionMode::AfterHead;
             self.process_using_the_rules_for(InsertionMode::AfterHead, token);
             return;
         }
 
+        // -> A start tag whose tag name is "template"
+        if token.is_start_tag_named("template") {
+            self.handle_template_start_tag(&token);
+            return;
+        }
+
+        // -> An end tag whose tag name is "template"
+        if token.is_end_tag_named("template") {
+            self.handle_template_end_tag();
+            return;
+        }
+
+        // -> A start tag whose tag name is "head"
+        // -> Any other end tag
         if token.is_start_tag_named("head") || token.is_end_tag() {
             // Parse error. Ignore the token.
             self.parse_error("unexpected tag in in head insertion mode");
             return;
         }
 
+        // -> Anything else
         // Pop the current node (which will be the head element) off the stack of open elements.
         self.pop_current_node();
+
         // Switch the insertion mode to "after head".
         self.insertion_mode = InsertionMode::AfterHead;
+
         // Reprocess the token.
         self.process_using_the_rules_for(InsertionMode::AfterHead, token);
     }
