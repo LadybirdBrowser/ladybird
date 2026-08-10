@@ -209,6 +209,14 @@ impl<'iterator, 'context, 'pass> InlineLevelIteratorGenerator<'iterator, 'contex
         leading.border += used.border_left.get();
         leading.padding += used.padding_left.get();
         self.context().compute_inset(node);
+        if self.context().layout_mode == LayoutMode::Normal && !self.context().state.is_measurement() {
+            crate::layout::place_child(
+                self.context().state,
+                &self.context().callbacks,
+                node,
+                FfiCssPixelPoint::default(),
+            );
+        }
         self.box_model_node_stack.push(node);
     }
 
