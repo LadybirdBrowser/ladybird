@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>CSS Reftest Reference</title>
+    <link rel="author" title="Daniel Holbert" href="mailto:dholbert@mozilla.com">
+    <style type="text/css">
+      .objectOuter {
+        border: 1px dashed gray;
+        padding: 1px;
+        float: left;
+      }
+      .objectOuter > * {
+        background-image: url("support/colors-16x8-noSize.svg");
+        background-size: contain;
+        background-repeat: no-repeat;
+      }
+      .bigWide {
+        width: 48px;
+        height: 32px;
+      }
+      .bigTall {
+        width: 32px;
+        height: 48px;
+      }
+      .small {
+        width: 8px;
+        height: 8px;
+      }
+
+      br { clear: both; }
+
+      .tr { background-position: top right }
+      .bl { background-position: bottom left }
+      .tl { background-position: top 25% left 25% }
+      .br { background-position: bottom 1px right 2px }
+
+      .tc { background-position: top 3px center }
+      .cr { background-position: center right 25% }
+      .default { background-position: 50% 50% }
+    </style>
+  </head>
+  <body>
+    <!-- big/wide: -->
+    <div class="objectOuter"><div class="bigWide tr"></div></div>
+    <div class="objectOuter"><div class="bigWide bl"></div></div>
+    <div class="objectOuter"><div class="bigWide tl"></div></div>
+    <div class="objectOuter"><div class="bigWide br"></div></div>
+    <div class="objectOuter"><div class="bigWide tc"></div></div>
+    <div class="objectOuter"><div class="bigWide cr"></div></div>
+    <div class="objectOuter"><div class="bigWide default"></div></div>
+    <br>
+    <!-- big/tall: -->
+    <div class="objectOuter"><div class="bigTall tr"></div></div>
+    <div class="objectOuter"><div class="bigTall bl"></div></div>
+    <div class="objectOuter"><div class="bigTall tl"></div></div>
+    <div class="objectOuter"><div class="bigTall br"></div></div>
+    <div class="objectOuter"><div class="bigTall tc"></div></div>
+    <div class="objectOuter"><div class="bigTall cr"></div></div>
+    <div class="objectOuter"><div class="bigTall default"></div></div>
+    <br>
+    <!-- small: -->
+    <div class="objectOuter"><div class="small tr"></div></div>
+    <div class="objectOuter"><div class="small bl"></div></div>
+    <div class="objectOuter"><div class="small tl"></div></div>
+    <div class="objectOuter"><div class="small br"></div></div>
+    <div class="objectOuter"><div class="small tc"></div></div>
+    <div class="objectOuter"><div class="small cr"></div></div>
+    <div class="objectOuter"><div class="small default"></div></div>
+    <br>
+  </body>
+</html>
