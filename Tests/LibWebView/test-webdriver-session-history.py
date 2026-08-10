@@ -5174,16 +5174,24 @@ return [Math.floor(rect.left + rect.width / 2), Math.floor(rect.top + rect.heigh
         )
 
         perform_browser_history_shortcut(webdriver_port, session_id, "left", log)
-        blocked_shortcut_back_state = execute_script(
+
+        def shortcut_back_was_canceled_by_beforeunload(result):
+            return (
+                isinstance(result, list)
+                and len(result) == 2
+                and result[0] == url_b
+                and isinstance(result[1], int)
+                and result[1] > blocked_webdriver_back_state[1]
+            )
+
+        blocked_shortcut_back_state = wait_for_script_result(
             webdriver_port,
             session_id,
+            "beforeunload-canceled browser history shortcut from /b",
             "return [location.href, window.beforeUnloadCount];",
+            shortcut_back_was_canceled_by_beforeunload,
+            log,
         )
-        if blocked_shortcut_back_state[0] != url_b or blocked_shortcut_back_state[1] <= blocked_webdriver_back_state[1]:
-            raise AssertionError(
-                f"Expected beforeunload to cancel browser history shortcut from /b, got {blocked_shortcut_back_state}\n"
-                + "\n".join(log)
-            )
         expect_ui_session_history(
             webdriver_port,
             session_id,
