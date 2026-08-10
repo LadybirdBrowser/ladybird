@@ -67,7 +67,7 @@ protected:
         No,
         Yes,
     };
-    explicit Environment(Environment* parent, IsDeclarative = IsDeclarative::No);
+    explicit Environment(GC::Ptr<Environment> parent, IsDeclarative = IsDeclarative::No);
 
     virtual void visit_edges(Visitor&) override;
 

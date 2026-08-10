@@ -49,7 +49,7 @@ private:
             CALL_CHECK(JS::call(vm, *(capability)->reject(), JS::js_undefined(), _temporary_try_or_reject_result.release_error().value())); \
                                                                                                                                             \
             /* b. Return capability.[[Promise]]. */                                                                                         \
-            return (capability)->promise().ptr();                                                                                           \
+            return (capability)->promise();                                                                                                 \
         }                                                                                                                                   \
                                                                                                                                             \
         static_assert(!::AK::Detail::IsLvalueReference<decltype(_temporary_try_or_reject_result.release_value())>,                          \

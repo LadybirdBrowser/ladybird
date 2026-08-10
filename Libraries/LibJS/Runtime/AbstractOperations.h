@@ -31,7 +31,7 @@
 namespace JS {
 
 GC::Ref<DeclarativeEnvironment> new_declarative_environment(Environment&);
-JS_API GC::Ref<ObjectEnvironment> new_object_environment(Object&, bool is_with_environment, Environment*);
+JS_API GC::Ref<ObjectEnvironment> new_object_environment(Object&, bool is_with_environment, GC::Ptr<Environment>);
 GC::Ref<FunctionEnvironment> new_function_environment(ECMAScriptFunctionObject&, Object* new_target);
 GC::Ref<FunctionEnvironment> new_function_environment(NativeJavaScriptBackedFunction&, Object* new_target);
 GC::Ref<PrivateEnvironment> new_private_environment(VM& vm, PrivateEnvironment* outer);

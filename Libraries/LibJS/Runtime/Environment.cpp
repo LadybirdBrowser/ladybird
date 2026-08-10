@@ -9,7 +9,7 @@
 
 namespace JS {
 
-Environment::Environment(Environment* outer_environment, IsDeclarative is_declarative)
+Environment::Environment(GC::Ptr<Environment> outer_environment, IsDeclarative is_declarative)
     : m_declarative(is_declarative == IsDeclarative::Yes)
     , m_outer_environment(outer_environment)
 {

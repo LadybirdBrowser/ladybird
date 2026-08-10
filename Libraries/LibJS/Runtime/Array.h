@@ -25,7 +25,7 @@ class JS_API Array : public Object {
     GC_DECLARE_ALLOCATOR(Array);
 
 public:
-    static ThrowCompletionOr<GC::Ref<Array>> create(Realm&, u64 length, Object* prototype = nullptr);
+    static ThrowCompletionOr<GC::Ref<Array>> create(Realm&, u64 length, GC::Ptr<Object> prototype = nullptr);
     static GC::Ref<Array> create_from(Realm&, ReadonlySpan<Value>);
 
     template<size_t N>

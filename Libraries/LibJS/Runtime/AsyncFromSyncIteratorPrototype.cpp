@@ -38,7 +38,7 @@ enum class CloseOnRejection {
 };
 
 // 27.1.4.4 AsyncFromSyncIteratorContinuation ( result, promiseCapability, syncIteratorRecord, closeOnRejection ), https://tc39.es/ecma262/#sec-asyncfromsynciteratorcontinuation
-static Object* async_from_sync_iterator_continuation(VM& vm, Object& result, PromiseCapability& promise_capability, IteratorRecord const& sync_iterator_record, CloseOnRejection close_on_rejection)
+static GC::Ref<Object> async_from_sync_iterator_continuation(VM& vm, Object& result, PromiseCapability& promise_capability, IteratorRecord const& sync_iterator_record, CloseOnRejection close_on_rejection)
 {
     auto& realm = *vm.current_realm();
 
@@ -105,7 +105,7 @@ static Object* async_from_sync_iterator_continuation(VM& vm, Object& result, Pro
     as<Promise>(value_wrapper.as_object()).perform_then(on_fulfilled, on_rejected, promise_capability);
 
     // 15. Return promiseCapability.[[Promise]].
-    return promise_capability.promise().ptr();
+    return promise_capability.promise();
 }
 
 // 27.1.4.2.1 %AsyncFromSyncIteratorPrototype%.next ( [ value ] ), https://tc39.es/ecma262/#sec-%asyncfromsynciteratorprototype%.next
