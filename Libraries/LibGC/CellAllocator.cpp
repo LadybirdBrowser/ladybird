@@ -68,11 +68,6 @@ Cell* CellAllocator::allocate_cell(Heap& heap)
 
     if (m_usable_blocks.is_empty()) {
         auto block = HeapBlock::create_with_cell_size(heap, *this, m_cell_size, m_overrides_finalize);
-        auto block_ptr = reinterpret_cast<FlatPtr>(block.ptr());
-        if (m_min_block_address > block_ptr)
-            m_min_block_address = block_ptr;
-        if (m_max_block_address < block_ptr)
-            m_max_block_address = block_ptr;
         m_usable_blocks.append(*block.leak_ptr());
     }
 

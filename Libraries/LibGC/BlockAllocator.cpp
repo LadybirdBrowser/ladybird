@@ -6,18 +6,16 @@
  */
 
 #include <AK/Assertions.h>
+#include <AK/Checked.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/Platform.h>
+#include <AK/Try.h>
 #include <AK/Vector.h>
+#include <LibCore/System.h>
 #include <LibGC/BlockAllocator.h>
 #include <LibGC/HeapBlock.h>
 #include <LibThreading/Thread.h>
 #include <sys/mman.h>
-
-#if defined(AK_OS_MACOS)
-#    include <mach/mach.h>
-#    include <mach/mach_vm.h>
-#endif
 
 #ifdef HAS_ADDRESS_SANITIZER
 #    include <sanitizer/asan_interface.h>
@@ -34,10 +32,8 @@
 
 namespace GC {
 
-// Each BlockAllocator carves its 16 KiB HeapBlock slots out of 2 MiB
-// chunks. Chunks are owned exclusively by a single BlockAllocator and are
-// never released back to the OS or shared across allocators -- the heap's
-// VM is permanently type-isolated.
+// Each BlockAllocator gets type-isolated 2 MiB chunks from one process-wide
+// reserved region and carves its 16 KiB HeapBlock slots out of those chunks.
 //
 // Per-block madvise() is deferred to a single global background "decommit
 // worker" so it never costs us GC pause time, and slots that are recycled
@@ -48,53 +44,47 @@ static_assert((HeapBlock::BLOCK_SIZE & (HeapBlock::BLOCK_SIZE - 1)) == 0);
 static_assert(CHUNK_SIZE % HeapBlock::BLOCK_SIZE == 0);
 static_assert(BLOCKS_PER_CHUNK == 128);
 
-#if !defined(AK_OS_MACOS) && !defined(AK_OS_WINDOWS)
-static auto const s_page_size = [] {
-    auto page_size_result = sysconf(_SC_PAGESIZE);
-    VERIFY(page_size_result > 0);
-    return static_cast<size_t>(page_size_result);
-}();
+class HeapRegion {
+public:
+    static constexpr size_t size = 4ull * TiB;
 
-static void* allocate_chunk_with_aligned_heap_blocks()
+    HeapRegion()
+    {
+        static_assert(sizeof(FlatPtr) >= sizeof(u64));
+        Checked<size_t> reservation_size = size;
+        reservation_size += HeapBlock::BLOCK_SIZE;
+        VERIFY(!reservation_size.has_overflow());
+
+        auto* reservation = MUST(Core::System::reserve_address_space(reservation_size.value()));
+        m_base = reinterpret_cast<u8*>(align_up_to(reinterpret_cast<FlatPtr>(reservation), HeapBlock::BLOCK_SIZE));
+        VERIFY(reinterpret_cast<FlatPtr>(m_base) % HeapBlock::BLOCK_SIZE == 0);
+    }
+
+    void* allocate_chunk()
+    {
+        // This process-global region is shared by every Heap. GC block allocation is single-threaded
+        // per process, so m_next_chunk_offset intentionally needs no lock. Supporting another allocating
+        // thread would require synchronization here or per-thread regions.
+        VERIFY(m_next_chunk_offset <= size - CHUNK_SIZE);
+        auto* chunk = m_base + m_next_chunk_offset;
+        MUST(Core::System::commit_memory(chunk, CHUNK_SIZE));
+        m_next_chunk_offset += CHUNK_SIZE;
+        return chunk;
+    }
+
+    FlatPtr start() const { return reinterpret_cast<FlatPtr>(m_base); }
+    FlatPtr end() const { return start() + size; }
+
+private:
+    u8* m_base { nullptr };
+    size_t m_next_chunk_offset { 0 };
+};
+
+static HeapRegion& heap_region()
 {
-    auto const page_size = s_page_size;
-    VERIFY((page_size & (page_size - 1)) == 0);
-    VERIFY(HeapBlock::BLOCK_SIZE % page_size == 0 || page_size % HeapBlock::BLOCK_SIZE == 0);
-    VERIFY(CHUNK_SIZE % page_size == 0);
-
-    auto const extra_size = page_size < HeapBlock::BLOCK_SIZE ? HeapBlock::BLOCK_SIZE - page_size : 0;
-    auto* mapped = mmap(nullptr, CHUNK_SIZE + extra_size, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
-    VERIFY(mapped != MAP_FAILED);
-
-    auto const mapped_address = reinterpret_cast<FlatPtr>(mapped);
-    auto const aligned_address = align_up_to(mapped_address, HeapBlock::BLOCK_SIZE);
-    VERIFY(aligned_address % HeapBlock::BLOCK_SIZE == 0);
-
-    auto const left_padding = aligned_address - mapped_address;
-    if (left_padding > 0) {
-        VERIFY(left_padding % page_size == 0);
-        if (munmap(mapped, left_padding) < 0) {
-            perror("munmap");
-            VERIFY_NOT_REACHED();
-        }
-    }
-
-    auto const mapped_end = mapped_address + CHUNK_SIZE + extra_size;
-    auto const chunk_end = aligned_address + CHUNK_SIZE;
-    VERIFY(chunk_end <= mapped_end);
-
-    auto const right_padding = mapped_end - chunk_end;
-    if (right_padding > 0) {
-        VERIFY(right_padding % page_size == 0);
-        if (munmap(reinterpret_cast<void*>(chunk_end), right_padding) < 0) {
-            perror("munmap");
-            VERIFY_NOT_REACHED();
-        }
-    }
-
-    return reinterpret_cast<void*>(aligned_address);
+    static AK::NeverDestroyed<HeapRegion> region;
+    return *region;
 }
-#endif
 
 static void madvise_block_for_decommit(void* block)
 {
@@ -292,6 +282,16 @@ size_t BlockAllocator::block_count()
     return m_blocks.size();
 }
 
+FlatPtr BlockAllocator::heap_region_start()
+{
+    return heap_region().start();
+}
+
+FlatPtr BlockAllocator::heap_region_end()
+{
+    return heap_region().end();
+}
+
 void* BlockAllocator::allocate_block([[maybe_unused]] char const* name)
 {
     void* block = nullptr;
@@ -313,30 +313,8 @@ void* BlockAllocator::allocate_block([[maybe_unused]] char const* name)
     }
 
     if (block == nullptr) {
-        // Both pools empty: allocate a fresh 2 MiB chunk and slice it.
-        void* chunk_base = nullptr;
-#if defined(AK_OS_MACOS)
-        mach_vm_address_t address = 0;
-        kern_return_t kr = mach_vm_map(
-            mach_task_self(),
-            &address,
-            CHUNK_SIZE,
-            HeapBlock::BLOCK_SIZE - 1,
-            VM_FLAGS_ANYWHERE,
-            MEMORY_OBJECT_NULL,
-            0,
-            false,
-            VM_PROT_READ | VM_PROT_WRITE,
-            VM_PROT_READ | VM_PROT_WRITE,
-            VM_INHERIT_DEFAULT);
-        VERIFY(kr == KERN_SUCCESS);
-        chunk_base = reinterpret_cast<void*>(address);
-#elif defined(AK_OS_WINDOWS)
-        chunk_base = VirtualAlloc(nullptr, CHUNK_SIZE, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
-        VERIFY(chunk_base);
-#else
-        chunk_base = allocate_chunk_with_aligned_heap_blocks();
-#endif
+        // Both pools empty: commit a fresh 2 MiB chunk and slice it.
+        auto* chunk_base = heap_region().allocate_chunk();
 
 #if defined(MADV_FREE_REUSE) && defined(MADV_FREE_REUSABLE)
         // Mark the whole chunk reusable upfront so MADV_FREE_REUSE pairs

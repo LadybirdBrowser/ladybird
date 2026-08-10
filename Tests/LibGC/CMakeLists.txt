@@ -1,4 +1,5 @@
 set(TEST_SOURCES
+    TestBlockAllocator.cpp
     TestGCContainers.cpp
     TestGCHeapGroup.cpp
     TestGCIdleCollection.cpp
