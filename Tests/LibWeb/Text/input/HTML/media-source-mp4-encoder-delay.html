@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        function fail(name, error) {
+            println(`FAIL: ${name}: ${error}`);
+            done();
+        }
+
+        // The same AAC stream muxed twice, expressing the encoder's 1024 sample delay in the two ways
+        // FFmpeg emits it: as an edit list with baseMediaDecodeTime 0, or as a baseMediaDecodeTime below
+        // zero that wraps around the unsigned field. Both describe the same presentation timeline.
+        //
+        // ffmpeg -f lavfi -i "sine=frequency=440:duration=1:sample_rate=48000" -c:a aac -f mp4 \
+        //     -movflags "+delay_moov+dash[+frag_discont]" -frag_duration 500000 -avoid_negative_ts disabled \
+        //     -map_metadata -1 -fflags +bitexact -flags:a +bitexact <asset>.mp4
+        const assets = ["aac-encoder-delay-edit-list", "aac-encoder-delay-tfdt"];
+
+        try {
+            const mimeType = 'audio/mp4;codecs="mp4a.40.2"';
+            if (!MediaSource.isTypeSupported(mimeType)) {
+                fail("isTypeSupported", `${mimeType} not supported`);
+                return;
+            }
+
+            async function bufferedRangesFor(asset) {
+                const response = await fetch(`../../../Assets/${asset}.mp4`);
+                if (!response.ok)
+                    throw new Error(`HTTP ${response.status}`);
+                const data = await response.arrayBuffer();
+
+                const audio = document.createElement("audio");
+                const mediaSource = new MediaSource();
+                audio.src = URL.createObjectURL(mediaSource);
+                await new Promise(resolve => mediaSource.addEventListener("sourceopen", resolve, { once: true }));
+
+                const sourceBuffer = mediaSource.addSourceBuffer(mimeType);
+                await new Promise((resolve, reject) => {
+                    sourceBuffer.addEventListener("updateend", resolve, { once: true });
+                    sourceBuffer.addEventListener("error", () =>
+                        reject(new Error("error event on SourceBuffer")), { once: true });
+                    sourceBuffer.appendBuffer(data);
+                });
+
+                const buffered = sourceBuffer.buffered;
+                const ranges = [];
+                for (let i = 0; i < buffered.length; i++)
+                    ranges.push(`${buffered.start(i)}-${buffered.end(i)}`);
+                return `[${ranges.join(", ")}]`;
+            }
+
+            const results = [];
+            for (const asset of assets) {
+                const ranges = await bufferedRangesFor(asset);
+                println(`${asset}: ${ranges}`);
+                results.push(ranges);
+            }
+
+            // The delay is dropped by appendWindowStart either way, so both must start at zero and agree.
+            println(results[0] === results[1] ? "PASS: both encodings buffer the same range"
+                                             : "FAIL: encodings disagree");
+            done();
+        } catch (e) {
+            fail("test", e);
+        }
+    });
+</script>

@@ -712,13 +712,17 @@ DecoderErrorOr<void> Reader::parse_track_fragment_box(Streamer& streamer, BoxHea
             if (found_decode_time)
                 return DecoderError::corrupted("Track Fragment box contains multiple Track Fragment Decode Time boxes"sv);
             auto full_box = TRY(read_full_box_header(streamer));
+            i64 base_media_decode_time = 0;
             if (full_box.version == 0) {
-                next_sample_decode_time = TRY(streamer.read<u32>());
+                base_media_decode_time = TRY(streamer.read<u32>());
             } else if (full_box.version == 1) {
-                next_sample_decode_time = AK::clamp_to<i64>(TRY(streamer.read<u64>()));
+                // AD-HOC: This field is supposed to be unsigned, but FFmpeg's MP4 encoder (movenc.c) writes it as
+                //         signed.
+                base_media_decode_time = static_cast<i64>(TRY(streamer.read<u64>()));
             } else {
                 return DecoderError::corrupted("Track Fragment Decode Time box has an unsupported version"sv);
             }
+            next_sample_decode_time = base_media_decode_time;
             found_decode_time = true;
         } else if (child.type == TRACK_RUN_BOX) {
             if (!found_track_fragment_header)
