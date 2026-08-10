@@ -1102,6 +1102,7 @@ impl<'context, 'pass> InlineFormattingContext<'context, 'pass> {
                         item.inline_size,
                         line_height,
                         item.glyphs.take().unwrap(),
+                        item.trailing_whitespace,
                     );
                 }
             }
@@ -1109,7 +1110,7 @@ impl<'context, 'pass> InlineFormattingContext<'context, 'pass> {
 
         let line_count = self.line_data().line_boxes.len();
         for line_index in 0..line_count {
-            self.line_data_mut().line_boxes[line_index].trim_trailing_whitespace(self);
+            self.line_data_mut().line_boxes[line_index].trim_trailing_whitespace();
         }
         if self.text_overflow_applies() {
             apply(self.line_data_mut().line_boxes.as_mut_slice(), self);
@@ -1278,15 +1279,9 @@ impl<'context, 'pass> InlineFormattingContext<'context, 'pass> {
     }
 }
 
-impl LineBoxTextProvider for InlineFormattingContext<'_, '_> {
-    fn font_glyph_width(&self, font: *const c_void, code_point: u32) -> f32 {
-        font_glyph_width(font, code_point)
-    }
-}
-
 impl EllipsisFontProvider for InlineFormattingContext<'_, '_> {
     fn font_glyph_width(&self, font: *const c_void, code_point: u32) -> f32 {
-        <Self as LineBoxTextProvider>::font_glyph_width(self, font, code_point)
+        font_glyph_width(font, code_point)
     }
 
     fn font_glyph_id(&self, font: *const c_void, code_point: u32) -> u32 {

@@ -128,8 +128,6 @@ impl<'builder, 'context, 'pass> LineBuilder<'builder, 'context, 'pass> {
             style_source,
             is_atomic_inline: facts.is_atomic_inline(),
             white_space_collapse: style.white_space_collapse(),
-            letter_spacing: style.letter_spacing(),
-            first_available_font: style.first_available_font(),
             text_utf16,
             text_length_in_code_units: text_length,
         }
@@ -254,6 +252,7 @@ impl<'builder, 'context, 'pass> LineBuilder<'builder, 'context, 'pass> {
             None,
             fragment_facts,
             text_align_is_justify,
+            TrailingWhitespace::default(),
         );
         self.line_mut(line_index).fragments[fragment_index].content_baselines = Some(content_baselines);
         self.max_block_size_on_current_line = self.max_block_size_on_current_line.max(margin_block_size);
@@ -281,6 +280,7 @@ impl<'builder, 'context, 'pass> LineBuilder<'builder, 'context, 'pass> {
         content_inline_size: CssPixels,
         content_block_size: CssPixels,
         glyphs: GlyphData,
+        trailing_whitespace: TrailingWhitespace,
     ) {
         self.prepare_to_append_inline_content();
         let line_index = self.ensure_last_line_index();
@@ -301,6 +301,7 @@ impl<'builder, 'context, 'pass> LineBuilder<'builder, 'context, 'pass> {
             Some(glyphs),
             facts,
             text_align_is_justify,
+            trailing_whitespace,
         );
         let line_block_length = self.line(line_index).block_length;
         self.max_block_size_on_current_line = self.max_block_size_on_current_line.max(line_block_length);
@@ -433,8 +434,7 @@ impl<'builder, 'context, 'pass> LineBuilder<'builder, 'context, 'pass> {
         let mut candidate = self.current_block_offset;
         let line_index = self.ensure_last_line_index();
         let mut line = self.line_mut(line_index);
-        let current_line_inline_size =
-            line.physical_horizontal_extent() - line.trailing_whitespace_inline_size(self.context());
+        let current_line_inline_size = line.physical_horizontal_extent() - line.trailing_whitespace_inline_size();
         let line_is_empty_or_whitespace = line.is_empty_or_ends_in_whitespace();
         drop(line);
         let mut needed = current_line_inline_size;

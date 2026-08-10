@@ -207,6 +207,14 @@ static hb_buffer_t* setup_text_shaping(Utf16View const& string, Font const& font
     return buffer;
 }
 
+static size_t length_of_trailing_whitespace_run(Utf16View const& string)
+{
+    size_t length = 0;
+    while (length < string.length_in_code_units() && is_ascii_space(string.code_unit_at(string.length_in_code_units() - length - 1)))
+        ++length;
+    return length;
+}
+
 static NonnullOwnPtr<ShapedGlyphs> build_origin_relative_shape(Utf16View const& string, Font const& font, GlyphRun::TextType text_type, float letter_spacing)
 {
     auto const& metrics = font.pixel_metrics();
@@ -219,6 +227,11 @@ static NonnullOwnPtr<ShapedGlyphs> build_origin_relative_shape(Utf16View const& 
     Vector<DrawGlyph> glyphs;
     glyphs.ensure_capacity(glyph_count);
     FloatPoint point;
+
+    // The trailing whitespace advance is recorded so that trimming it at line end can subtract exactly what shaping
+    // added, spacing included.
+    TrailingWhitespace trailing_whitespace { .length_in_code_units = length_of_trailing_whitespace_run(string), .advance = 0 };
+    auto first_trailing_whitespace_offset = string.length_in_code_units() - trailing_whitespace.length_in_code_units;
 
     // We track the code unit length rather than just the code unit offset because LibWeb may later collapse glyph runs.
     // Updating the offset of each glyph gets tricky when handling text direction (LTR/RTL). So rather than doing that,
@@ -266,18 +279,23 @@ static NonnullOwnPtr<ShapedGlyphs> build_origin_relative_shape(Utf16View const& 
         // NOTE: The spec says that we "really should not" apply letter-spacing to the trailing edge of a line but
         //       other browsers do so we will as well. https://drafts.csswg.org/css-text/#example-7880704e
         point.translate_by(letter_spacing, 0);
+
+        if (glyph_info[i].cluster >= first_trailing_whitespace_offset)
+            trailing_whitespace.advance += glyphs.last().glyph_width;
     }
 
     hb_buffer_destroy(buffer);
 
-    return make<ShapedGlyphs>(move(glyphs), point.x());
+    return make<ShapedGlyphs>(move(glyphs), point.x(), trailing_whitespace);
 }
 
-NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, Utf16View const& string, Font const& font, GlyphRun::TextType text_type)
+NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, Utf16View const& string, Font const& font, GlyphRun::TextType text_type, TrailingWhitespace* out_trailing_whitespace)
 {
     auto& shaping_cache = font.shaping_cache();
 
     auto build_glyph_run = [&](ShapedGlyphs const& shape) -> NonnullRefPtr<GlyphRun> {
+        if (out_trailing_whitespace)
+            *out_trailing_whitespace = shape.trailing_whitespace;
         Vector<DrawGlyph> glyphs = shape.glyphs;
         if (!baseline_start.is_zero()) {
             for (auto& glyph : glyphs)
@@ -368,17 +386,21 @@ extern "C" Gfx::FFI::ShapedRunView ladybird_gfx_shape_text(
     auto text = length_in_code_units == 0
         ? Utf16View {}
         : Utf16View { reinterpret_cast<char16_t const*>(text_utf16), length_in_code_units };
+    Gfx::TrailingWhitespace trailing_whitespace;
     auto run = Gfx::shape_text(
         { baseline_start_x, 0 },
         letter_spacing,
         text,
         *static_cast<Gfx::Font const*>(font),
-        static_cast<Gfx::GlyphRun::TextType>(text_type));
+        static_cast<Gfx::GlyphRun::TextType>(text_type),
+        &trailing_whitespace);
     auto* retained = &run.leak_ref();
     return {
         .glyphs = reinterpret_cast<Gfx::FFI::DrawGlyph const*>(retained->glyphs().data()),
         .glyph_count = retained->glyphs().size(),
         .width = retained->width(),
+        .trailing_whitespace_length_in_code_units = trailing_whitespace.length_in_code_units,
+        .trailing_whitespace_advance = trailing_whitespace.advance,
         .retained = retained,
     };
 }

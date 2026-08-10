@@ -32,6 +32,7 @@ pub(crate) struct Item {
     pub(crate) can_break_before: bool,
     pub(crate) preceded_by_unattached_inline_start_edges: bool,
     pub(crate) content_baselines: DerivedBaselines,
+    pub(crate) trailing_whitespace: TrailingWhitespace,
 }
 
 impl Item {
@@ -53,6 +54,7 @@ impl Item {
             can_break_before: false,
             preceded_by_unattached_inline_start_edges: false,
             content_baselines: DerivedBaselines::default(),
+            trailing_whitespace: TrailingWhitespace::default(),
         }
     }
 
@@ -353,14 +355,19 @@ impl<'iterator, 'context, 'pass> InlineLevelIteratorGenerator<'iterator, 'contex
         text_type: u8,
         baseline_start_x: f32,
         letter_spacing: f32,
-    ) -> GlyphData {
-        let (glyphs, width) = shape_text_with_font(font, text, text_type, baseline_start_x, letter_spacing);
-        GlyphData {
-            glyphs,
+    ) -> (GlyphData, TrailingWhitespace) {
+        let shaped = shape_text_with_font(font, text, text_type, baseline_start_x, letter_spacing);
+        let glyph_data = GlyphData {
+            glyphs: shaped.glyphs,
             font,
             text_type,
-            width,
-        }
+            width: shaped.width,
+        };
+        let trailing_whitespace = TrailingWhitespace {
+            length_in_code_units: shaped.trailing_whitespace_length_in_code_units,
+            inline_size: CssPixels::nearest_value_for_f32(shaped.trailing_whitespace_advance),
+        };
+        (glyph_data, trailing_whitespace)
     }
 
     fn add_extra_box_model_metrics_to_item(
@@ -474,7 +481,7 @@ impl<'iterator, 'context, 'pass> InlineLevelIteratorGenerator<'iterator, 'contex
             inline_offset = tab_stop_distance.to_double() as f32;
         }
         let shaped_text = &full_text[shaped_start..shaped_start + shaped_length];
-        let glyphs = self.shape_text(
+        let (glyphs, shaped_trailing_whitespace) = self.shape_text(
             shaped_text,
             chunk.font,
             text_type,
@@ -489,6 +496,14 @@ impl<'iterator, 'context, 'pass> InlineLevelIteratorGenerator<'iterator, 'contex
         item.offset_in_node = chunk.start;
         item.length_in_node = chunk.length;
         item.inline_size = chunk_inline_size;
+        item.trailing_whitespace = if chunk.is_all_whitespace {
+            TrailingWhitespace {
+                length_in_code_units: chunk.length,
+                inline_size: chunk_inline_size,
+            }
+        } else {
+            shaped_trailing_whitespace
+        };
         item.is_collapsible_whitespace =
             text_context.should_collapse_whitespace && chunk.is_all_whitespace && !generated_empty;
         item.can_break_before = self.previous_chunk_can_break_after;

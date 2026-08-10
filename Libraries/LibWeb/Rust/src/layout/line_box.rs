@@ -4,10 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-pub(crate) trait LineBoxTextProvider {
-    fn font_glyph_width(&self, font: *const c_void, code_point: u32) -> f32;
-}
-
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct StaticPositionMarker {
     pub(crate) box_: Node,
@@ -88,6 +84,7 @@ impl LineBoxData {
         glyphs: Option<GlyphData>,
         facts: FragmentBuildFacts,
         text_align_is_justify: bool,
+        trailing_whitespace: TrailingWhitespace,
     ) {
         let can_merge = glyphs.as_ref().is_some_and(|glyphs| {
             !text_align_is_justify
@@ -104,9 +101,15 @@ impl LineBoxData {
             let last = self.fragments.last_mut().unwrap();
             last.length_in_code_units += length;
             last.append_glyph_run(glyphs.unwrap(), content_inline_size);
+            if trailing_whitespace.length_in_code_units == length {
+                last.trailing_whitespace.length_in_code_units += trailing_whitespace.length_in_code_units;
+                last.trailing_whitespace.inline_size += trailing_whitespace.inline_size;
+            } else {
+                last.trailing_whitespace = trailing_whitespace;
+            }
         } else {
             let inline_offset = leading_margin + leading_size + self.inline_length;
-            self.fragments.push(LineBoxFragmentData::new(
+            let mut fragment = LineBoxFragmentData::new(
                 layout_node,
                 start,
                 length,
@@ -119,7 +122,9 @@ impl LineBoxData {
                 self.writing_mode,
                 glyphs,
                 facts,
-            ));
+            );
+            fragment.trailing_whitespace = trailing_whitespace;
+            self.fragments.push(fragment);
         }
         self.inline_length += leading_margin + leading_size + content_inline_size + trailing_size + trailing_margin;
         self.block_length = self
@@ -145,11 +150,7 @@ impl LineBoxData {
         }
     }
 
-    fn calculate_or_trim_trailing_whitespace(
-        &mut self,
-        provider: &impl LineBoxTextProvider,
-        should_remove: bool,
-    ) -> CssPixels {
+    fn calculate_or_trim_trailing_whitespace(&mut self, should_remove: bool) -> CssPixels {
         let mut whitespace_inline_size = CssPixels::default();
         let mut trailing_whitespace_inline_size = CssPixels::default();
         let mut fragment_index = self.fragments.len();
@@ -187,31 +188,17 @@ impl LineBoxData {
             return whitespace_inline_size;
         }
 
-        // Trim trailing whitespace characters from the last fragment.
-        let mut last_text_length = self.fragments[last_fragment_index].text().len();
-        while last_text_length != 0 {
-            last_text_length -= 1;
-            let last_character = self.fragments[last_fragment_index].text()[last_text_length];
-            if !is_ascii_space(last_character) {
-                break;
-            }
-            let font = self.fragments[last_fragment_index]
-                .glyphs
-                .as_ref()
-                .map(|glyphs| glyphs.font)
-                .unwrap_or(self.fragments[last_fragment_index].first_available_font);
-            let character_inline_size =
-                CssPixels::nearest_value_for_f32(provider.font_glyph_width(font, last_character as u32))
-                    + self.fragments[last_fragment_index].letter_spacing;
-            whitespace_inline_size += character_inline_size;
-            trailing_whitespace_inline_size += character_inline_size;
-            if should_remove {
-                let fragment = &mut self.fragments[last_fragment_index];
-                fragment.length_in_code_units -= 1;
-                fragment.inline_length -= character_inline_size;
-                self.inline_length -= character_inline_size;
-                self.clamp_static_position_markers_to_inline_length();
-            }
+        // Trim the last fragment's trailing whitespace by the advance recorded when it was shaped.
+        let fragment_trailing_whitespace = last_fragment.trailing_whitespace;
+        whitespace_inline_size += fragment_trailing_whitespace.inline_size;
+        trailing_whitespace_inline_size += fragment_trailing_whitespace.inline_size;
+        if should_remove {
+            let fragment = &mut self.fragments[last_fragment_index];
+            fragment.length_in_code_units -= fragment_trailing_whitespace.length_in_code_units;
+            fragment.inline_length -= fragment_trailing_whitespace.inline_size;
+            fragment.trailing_whitespace = TrailingWhitespace::default();
+            self.inline_length -= fragment_trailing_whitespace.inline_size;
+            self.clamp_static_position_markers_to_inline_length();
         }
 
         if should_remove
@@ -224,12 +211,12 @@ impl LineBoxData {
         whitespace_inline_size
     }
 
-    pub(crate) fn trailing_whitespace_inline_size(&mut self, provider: &impl LineBoxTextProvider) -> CssPixels {
-        self.calculate_or_trim_trailing_whitespace(provider, false)
+    pub(crate) fn trailing_whitespace_inline_size(&mut self) -> CssPixels {
+        self.calculate_or_trim_trailing_whitespace(false)
     }
 
-    pub(crate) fn trim_trailing_whitespace(&mut self, provider: &impl LineBoxTextProvider) {
-        self.calculate_or_trim_trailing_whitespace(provider, true);
+    pub(crate) fn trim_trailing_whitespace(&mut self) {
+        self.calculate_or_trim_trailing_whitespace(true);
     }
 
     pub(crate) fn is_empty_or_ends_in_whitespace(&self) -> bool {

@@ -23,6 +23,14 @@ pub(crate) struct GlyphData {
     pub(crate) width: f32,
 }
 
+// The advance of a run's trailing whitespace, recorded at shaping time so that trimming it subtracts exactly what
+// shaping added.
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct TrailingWhitespace {
+    pub(crate) length_in_code_units: usize,
+    pub(crate) inline_size: CssPixels,
+}
+
 #[derive(Clone, Debug)]
 pub(crate) struct LineBoxFragmentData {
     pub(crate) layout_node: Node,
@@ -45,8 +53,7 @@ pub(crate) struct LineBoxFragmentData {
     pub(crate) is_fully_truncated: bool,
     pub(crate) is_atomic_inline: bool,
     pub(crate) white_space_collapse: u8,
-    pub(crate) letter_spacing: CssPixels,
-    pub(crate) first_available_font: *const c_void,
+    pub(crate) trailing_whitespace: TrailingWhitespace,
     pub(crate) text_utf16: *const u16,
     pub(crate) text_length_in_code_units: usize,
     pub(crate) content_baselines: Option<DerivedBaselines>,
@@ -57,8 +64,6 @@ pub(crate) struct FragmentBuildFacts {
     pub(crate) style_source: Node,
     pub(crate) is_atomic_inline: bool,
     pub(crate) white_space_collapse: u8,
-    pub(crate) letter_spacing: CssPixels,
-    pub(crate) first_available_font: *const c_void,
     pub(crate) text_utf16: *const u16,
     pub(crate) text_length_in_code_units: usize,
 }
@@ -100,8 +105,7 @@ impl LineBoxFragmentData {
             is_fully_truncated: false,
             is_atomic_inline: facts.is_atomic_inline,
             white_space_collapse: facts.white_space_collapse,
-            letter_spacing: facts.letter_spacing,
-            first_available_font: facts.first_available_font,
+            trailing_whitespace: TrailingWhitespace::default(),
             text_utf16: facts.text_utf16,
             text_length_in_code_units: facts.text_length_in_code_units,
             content_baselines: None,
