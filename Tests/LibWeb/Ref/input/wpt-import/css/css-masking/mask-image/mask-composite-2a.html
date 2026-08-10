@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>CSS Masking: mask-composite: compose vector image</title>
+    <link rel="author" title="CJ Ku" href="mailto:cku@mozilla.com">
+    <link rel="author" title="Mozilla" href="https://www.mozilla.org">
+    <link rel="help" href="http://www.w3.org/TR/css-masking-1/#the-mask-composite">
+    <link rel="match" href="../../../../../expected/wpt-import/css/css-masking/mask-image/mask-composite-2-ref.html">
+    <meta name="assert" content="Test checks that vector-mask-image can be composed correctly by different mask-composite value.">
+    <style type="text/css">
+      div {
+        background-color: blue;
+        position: absolute;
+        margin: 0px;
+        padding: 0px;
+        width: 100px;
+        height: 100px;
+        top:10px;
+        mask-image: url(../../../images/blue-100x50-transparent-100x50.svg),
+                    url(../../../images/transparent-100x50-blue-100x50.svg);
+      }
+
+      div.add {
+        left: 10px;
+        mask-composite: add;
+      }
+
+      div.subtract {
+        left: 120px;
+        mask-composite: subtract;
+      }
+
+      div.intersect {
+        left: 230px;
+        mask-composite: intersect;
+      }
+
+      div.exclude {
+        left: 340px;
+        mask-composite: exclude;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="add"></div>
+    <div class="subtract"></div>
+    <div class="intersect"></div>
+    <div class="exclude"></div>
+  </body>
+</html>

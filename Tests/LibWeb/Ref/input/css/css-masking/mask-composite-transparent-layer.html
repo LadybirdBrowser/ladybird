@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<link rel="match" href="../../../expected/css/css-masking/mask-composite-transparent-layer-ref.html">
+<style>
+.grid {
+    display: grid;
+    grid-template-columns: repeat(4, 40px);
+}
+.test {
+    width: 40px;
+    height: 40px;
+    background: green;
+    mask-image: linear-gradient(black, black), linear-gradient(black, black);
+    mask-repeat: no-repeat;
+    mask-size: auto, 0 0;
+}
+.add {
+    mask-composite: add;
+}
+.subtract {
+    mask-composite: subtract;
+}
+.intersect {
+    mask-composite: intersect;
+}
+.exclude {
+    mask-composite: exclude;
+}
+</style>
+<div class="grid">
+    <div class="test add"></div>
+    <div class="test subtract"></div>
+    <div class="test intersect"></div>
+    <div class="test exclude"></div>
+</div>

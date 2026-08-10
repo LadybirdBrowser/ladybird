@@ -24,4 +24,21 @@ Gfx::CompositingAndBlendingOperator mix_blend_mode_to_compositing_and_blending_o
     }
 }
 
+// https://drafts.fxtf.org/css-masking-1/#the-mask-composite
+Gfx::CompositingAndBlendingOperator mask_composite_to_compositing_and_blending_operator(
+    CSS::CompositingOperator compositing_operator)
+{
+    switch (compositing_operator) {
+    case CSS::CompositingOperator::Add:
+        return Gfx::CompositingAndBlendingOperator::Normal;
+    case CSS::CompositingOperator::Subtract:
+        return Gfx::CompositingAndBlendingOperator::SourceOut;
+    case CSS::CompositingOperator::Intersect:
+        return Gfx::CompositingAndBlendingOperator::SourceIn;
+    case CSS::CompositingOperator::Exclude:
+        return Gfx::CompositingAndBlendingOperator::Xor;
+    }
+    VERIFY_NOT_REACHED();
+}
+
 }
