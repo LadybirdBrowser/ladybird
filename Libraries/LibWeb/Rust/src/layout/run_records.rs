@@ -35,12 +35,11 @@ impl RunRecords {
 
     pub(crate) fn create_used_values(
         &self,
-        state: &LayoutState,
         callbacks: &FfiLayoutFcCallbacks,
         node: Node,
         constraints: ContainingBlockConstraints,
     ) -> std::rc::Rc<UsedValues> {
-        let used = state.create_used_values(callbacks, node, constraints);
+        let used = crate::layout::create_used_values(callbacks, node, constraints);
         self.register(node, used.clone());
         used
     }

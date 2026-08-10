@@ -1057,7 +1057,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/layout/layout_state.rs"),
             manifest_dir.join("src/layout/commit.rs"),
             manifest_dir.join("src/layout/geometry.rs"),
-            manifest_dir.join("src/layout/style_facts.rs"),
+            manifest_dir.join("src/layout/style_values.rs"),
             manifest_dir.join("src/layout/node_facts.rs"),
             manifest_dir.join("src/css/computed_value_types.rs"),
             manifest_dir.join("src/css/display.rs"),

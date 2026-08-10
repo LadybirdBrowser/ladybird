@@ -579,3 +579,35 @@ impl<'text> TextChunker<'text> {
         )
     }
 }
+
+pub(crate) fn text_chunks(
+    callbacks: &FfiLayoutFcCallbacks,
+    node: Node,
+    should_wrap_lines: bool,
+    should_respect_linebreaks: bool,
+    unidirectional_ltr: bool,
+) -> &'static [TextChunk] {
+    let parent_style = StyleValues::for_node(callbacks, callbacks.parent(node));
+    let key = crate::layout::layout_node_arena::TextChunkCacheKey {
+        should_wrap_lines,
+        should_respect_linebreaks,
+        unidirectional_ltr,
+        white_space_collapse: parent_style.white_space_collapse(),
+        word_break: parent_style.word_break(),
+        font_variant_emoji: parent_style.font_variant_emoji(),
+        font_cascade_list: parent_style.font_cascade_list(),
+    };
+    let text = &callbacks.text_content(node).text;
+    callbacks.arena().text_chunks(node, key, || {
+        chunk_text(TextChunkInputs {
+            text,
+            font_cascade_list: key.font_cascade_list,
+            white_space_collapse: key.white_space_collapse,
+            word_break: key.word_break,
+            font_variant_emoji: key.font_variant_emoji,
+            should_wrap_lines,
+            should_respect_linebreaks,
+            unidirectional_ltr,
+        })
+    })
+}

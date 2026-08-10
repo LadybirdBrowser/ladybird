@@ -211,11 +211,11 @@ impl<'pass> AbsposEngine<'pass> {
     }
 
     fn style(&self, node: Node) -> StyleValues<'pass> {
-        self.state.style_facts(&self.callbacks, node)
+        StyleValues::for_node(&self.callbacks, node)
     }
 
     fn facts(&self, node: Node) -> NodeFacts<'_> {
-        self.state.node_facts(&self.callbacks, node)
+        NodeFacts::new(&self.callbacks, node)
     }
 
     #[track_caller]
@@ -1756,7 +1756,7 @@ impl<'pass> AbsposEngine<'pass> {
         debug_assert!(!self.state.is_measurement());
         let child_box = child.child_box;
         self.records
-            .create_used_values(self.state, &self.callbacks, child_box, ContainingBlockConstraints::default());
+            .create_used_values(&self.callbacks, child_box, ContainingBlockConstraints::default());
         let containing_block_geometry = self.containing_block_geometry_for_pending_child(&child);
         let resolved =
             self.resolve_anchor_insets(child_box, Some(&containing_block_geometry), child.coordinate_space_box);
@@ -1793,7 +1793,7 @@ impl<'pass> AbsposEngine<'pass> {
         // Partial relayout uses a fresh state and creates the replay root
         // exactly once.
         self.records
-            .create_used_values(self.state, &self.callbacks, node, ContainingBlockConstraints::default());
+            .create_used_values(&self.callbacks, node, ContainingBlockConstraints::default());
         self.layout_element(run, node, inputs);
     }
 
@@ -1848,7 +1848,6 @@ impl<'pass> AbsposEngine<'pass> {
         let treat_block_axis_percentage_insets_as_auto = (style.inset_top().contains_percentage()
             || style.inset_bottom().contains_percentage())
             && !crate::layout::resolve_block_axis_percentage_inset_basis_is_definite(
-                self.state,
                 &self.records,
                 &self.callbacks,
                 self.callbacks.containing_block(node),

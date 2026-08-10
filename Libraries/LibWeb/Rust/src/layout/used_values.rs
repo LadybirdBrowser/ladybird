@@ -463,3 +463,205 @@ impl UsedValues {
         }
     }
 }
+
+pub(crate) fn create_used_values(
+    callbacks: &FfiLayoutFcCallbacks,
+    node: Node,
+    constraints: ContainingBlockConstraints,
+) -> std::rc::Rc<UsedValues> {
+    assert!(!node.is_invalid());
+    let facts = NodeFacts::new(callbacks, node);
+
+    let style = StyleValues::for_node(callbacks, node);
+    let percentage_basis_inline_size = constraints.percentage_basis_inline_size;
+    let percentage_basis_block_size = constraints.percentage_basis_block_size;
+
+    // NOTE: In the code below, we decide if `node` has definite inline
+    // and/or block size. This attempts to cover all the *general* cases
+    // where CSS considers sizes to be definite. If `node` has definite
+    // values for min/max-width or min/max-height and a definite preferred
+    // size in the same axis, we clamp the preferred size here as well.
+    //
+    // There are additional cases where CSS considers values to be
+    // definite. We model all of those by considering sizes definite once
+    // they are assigned through set_content_inline_size() or
+    // set_content_block_size().
+    let used = UsedValues::default();
+
+    #[derive(Clone, Copy)]
+    enum Axis {
+        Inline,
+        Block,
+    }
+
+    let containing_block_size_for_axis = |axis: Axis| match axis {
+        Axis::Inline => percentage_basis_inline_size.unwrap_or_default(),
+        Axis::Block => percentage_basis_block_size.unwrap_or_default(),
+    };
+    let containing_block_has_definite_size = |axis: Axis| match axis {
+        Axis::Inline => percentage_basis_inline_size.is_some(),
+        Axis::Block => percentage_basis_block_size.is_some(),
+    };
+
+    let adjust_for_box_sizing = |unadjusted: crate::layout::CssPixels, computed_size: &ComputedSize, axis: Axis| {
+        // box-sizing: content-box and automatic sizes need no
+        // adjustment.
+        if style.box_sizing() == box_sizing::CONTENT_BOX || computed_size.is_auto() {
+            return unadjusted;
+        }
+
+        // box-sizing: border-box subtracts the relevant border and
+        // padding. Block-axis padding percentages also resolve against
+        // the containing block's inline size.
+        let inline_basis = percentage_basis_inline_size.unwrap_or_default();
+        let border_and_padding = match axis {
+            Axis::Inline => {
+                style.border_left_width()
+                    + style.padding_left().to_px(inline_basis)
+                    + style.border_right_width()
+                    + style.padding_right().to_px(inline_basis)
+            }
+            Axis::Block => {
+                style.border_top_width()
+                    + style.padding_top().to_px(inline_basis)
+                    + style.border_bottom_width()
+                    + style.padding_bottom().to_px(inline_basis)
+            }
+        };
+        unadjusted - border_and_padding
+    };
+
+    let parent = callbacks.parent(node);
+    let parent_facts = (!parent.is_invalid()).then(|| NodeFacts::new(callbacks, parent));
+    let is_definite_size = |size: &ComputedSize, axis: Axis| -> Option<crate::layout::CssPixels> {
+        // A definite size can be determined without performing
+        // layout: a length, an initial-containing-block size, or a
+        // percentage/formula resolved solely against definite sizes.
+        if size.is_auto() {
+            // The inline size of a non-flex-item block is definite when
+            // it is auto and its containing block has a definite inline
+            // size. This is the stretch-fit case from css-sizing-3.
+            // Replaced boxes remain content-based until layout.
+            if matches!(axis, Axis::Inline)
+                && !facts.is_replaced_box()
+                && !facts.is_floating()
+                && !facts.is_absolutely_positioned()
+                && facts.display().is_block_outside()
+                && parent_facts.is_some_and(|parent| {
+                    !parent.is_floating()
+                        && (parent.display().is_flow_root_inside() || parent.display().is_flow_inside())
+                })
+                && containing_block_has_definite_size(Axis::Inline)
+            {
+                let available = containing_block_size_for_axis(Axis::Inline);
+                return Some(clamp_to_max_dimension_value(
+                    available
+                        - used.margin_left.get()
+                        - used.margin_right.get()
+                        - used.padding_left.get()
+                        - used.padding_right.get()
+                        - used.border_left.get()
+                        - used.border_right.get(),
+                ));
+            }
+            return None;
+        }
+
+        if !size.is_length_percentage() {
+            return None;
+        }
+        if size.contains_percentage() && !containing_block_has_definite_size(axis) {
+            return None;
+        }
+        let basis = if size.contains_percentage() {
+            containing_block_size_for_axis(axis)
+        } else {
+            crate::layout::CssPixels::default()
+        };
+        Some(clamp_to_max_dimension_value(adjust_for_box_sizing(
+            size.to_px(basis),
+            size,
+            axis,
+        )))
+    };
+
+    let min_inline_size = is_definite_size(style.min_width(), Axis::Inline);
+    let max_inline_size = is_definite_size(style.max_width(), Axis::Inline);
+    let min_block_size = is_definite_size(style.min_height(), Axis::Block);
+    let max_block_size = is_definite_size(style.max_height(), Axis::Block);
+    let mut content_inline_size = is_definite_size(style.width(), Axis::Inline);
+    let mut content_block_size = is_definite_size(style.height(), Axis::Block);
+
+    used.has_definite_inline_size.set(content_inline_size.is_some());
+    used.has_definite_block_size.set(content_block_size.is_some());
+    if let Some(size) = content_inline_size.as_mut() {
+        if let Some(minimum) = min_inline_size {
+            *size = clamp_to_max_dimension_value((*size).max(minimum));
+        }
+        if let Some(maximum) = max_inline_size {
+            *size = clamp_to_max_dimension_value((*size).min(maximum));
+        }
+    }
+    if let Some(size) = content_block_size.as_mut() {
+        if let Some(minimum) = min_block_size {
+            *size = clamp_to_max_dimension_value((*size).max(minimum));
+        }
+        if let Some(maximum) = max_block_size {
+            *size = clamp_to_max_dimension_value((*size).min(maximum));
+        }
+    }
+    used.content_inline_size.set(content_inline_size.unwrap_or_default());
+    used.content_block_size.set(content_block_size.unwrap_or_default());
+
+    std::rc::Rc::new(used)
+}
+
+pub(crate) fn used_values_from_paintable(
+    callbacks: &FfiLayoutFcCallbacks,
+    node: Node,
+    paintable: *mut c_void,
+) -> Option<std::rc::Rc<UsedValues>> {
+    let mut geometry = FfiPaintableGeometry::default();
+    let found =
+        unsafe {
+            (callbacks.read_paintable_geometry)(callbacks.context, callbacks.shell(node), paintable, &raw mut geometry)
+        };
+    if !found {
+        return None;
+    }
+
+    // Skip normal node initialization: resolving computed sizes requires
+    // percentage bases, and every resulting geometry field is replaced by
+    // the previous paintable's committed value immediately.
+    let used = UsedValues::default();
+    used.set_content_inline_size(geometry.content_inline_size);
+    used.set_content_block_size(geometry.content_block_size);
+    used.has_definite_inline_size.set(true);
+    used.has_definite_block_size.set(true);
+    used.content_offset.set(geometry.content_offset);
+    used.margin_left.set(geometry.margin_left);
+    used.margin_right.set(geometry.margin_right);
+    used.margin_top.set(geometry.margin_top);
+    used.margin_bottom.set(geometry.margin_bottom);
+    used.border_left.set(geometry.border_left);
+    used.border_right.set(geometry.border_right);
+    used.border_top.set(geometry.border_top);
+    used.border_bottom.set(geometry.border_bottom);
+    used.padding_left.set(geometry.padding_left);
+    used.padding_right.set(geometry.padding_right);
+    used.padding_top.set(geometry.padding_top);
+    used.padding_bottom.set(geometry.padding_bottom);
+    used.inset_left.set(geometry.inset_left);
+    used.inset_right.set(geometry.inset_right);
+    used.inset_top.set(geometry.inset_top);
+    used.inset_bottom.set(geometry.inset_bottom);
+    // Materialization is this box's placement: the previous paintable's
+    // committed geometry is final from the moment it is adopted.
+    used.has_content_offset.set(true);
+    used.seal_committed_box_metrics();
+
+    if NodeFacts::new(callbacks, node).is_svg_svg_box() {
+        used.rare_data_mut().svg_viewport_size = Some(geometry.svg_viewport_size);
+    }
+    Some(std::rc::Rc::new(used))
+}

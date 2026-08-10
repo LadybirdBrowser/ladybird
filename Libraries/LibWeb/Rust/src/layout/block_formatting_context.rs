@@ -245,11 +245,11 @@ impl<'pass> BlockFormattingContext<'pass> {
     }
 
     fn facts(&self, node: Node) -> NodeFacts<'_> {
-        self.state.node_facts(&self.callbacks, node)
+        NodeFacts::new(&self.callbacks, node)
     }
 
     fn style(&self, node: Node) -> StyleValues<'pass> {
-        self.state.style_facts(&self.callbacks, node)
+        StyleValues::for_node(&self.callbacks, node)
     }
 
     #[track_caller]
@@ -258,7 +258,7 @@ impl<'pass> BlockFormattingContext<'pass> {
     }
 
     fn create_used_values(&self, node: Node, constraints: ContainingBlockConstraints) -> std::rc::Rc<UsedValues> {
-        self.records.create_used_values(self.state, &self.callbacks, node, constraints)
+        self.records.create_used_values(&self.callbacks, node, constraints)
     }
 
     fn first_child(&self, node: Node) -> Node {
@@ -334,7 +334,7 @@ impl<'pass> BlockFormattingContext<'pass> {
     }
 
     fn compute_and_store_baselines(&self, node: Node) {
-        let baselines = crate::layout::derive_baselines(self.state, &self.records, &self.callbacks, node, false);
+        let baselines = crate::layout::derive_baselines(&self.records, &self.callbacks, node, false);
         if node == self.root {
             self.record_derived_baselines_of_root_box(baselines);
         } else {
@@ -1995,7 +1995,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         let saved = self
             .block_offset_of_current_block_container
             .replace(Some(CssPixels::default()));
-        for child in table_wrapper_flow_children(self.state, self.callbacks, wrapper) {
+        for child in table_wrapper_flow_children(self.callbacks, wrapper) {
             let child_input = if self.style(child).display().is_table_inside() {
                 table_box_input
             } else {
@@ -2231,7 +2231,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         let collapsed_margin = self.margin_state.borrow().current_collapsed_margin();
         if collapsed_margin != CssPixels::default() {
             let flow_children_bottom_up = if root_facts.is_table_wrapper() {
-                table_wrapper_flow_children(self.state, self.callbacks, self.root)
+                table_wrapper_flow_children(self.callbacks, self.root)
             } else {
                 self.children(self.root)
             };
@@ -2618,7 +2618,6 @@ impl<'pass> BlockFormattingContext<'pass> {
             automatic_content_block_size_of_completed_run,
         );
         floor_list_item_automatic_block_size_by_marker_line_height(
-            self.state,
             self.callbacks,
             node,
             automatic_content_block_size,
@@ -2849,7 +2848,6 @@ impl<'pass> BlockFormattingContext<'pass> {
 
     pub(crate) fn automatic_content_block_size(&self) -> CssPixels {
         automatic_block_size_for_bfc_root(
-            self.state,
             &self.records,
             self.callbacks,
             self.root,
@@ -2859,11 +2857,11 @@ impl<'pass> BlockFormattingContext<'pass> {
     }
 }
 
-fn table_box_of_wrapper(state: &LayoutState, callbacks: FfiLayoutFcCallbacks, wrapper: Node) -> Node {
+fn table_box_of_wrapper(callbacks: FfiLayoutFcCallbacks, wrapper: Node) -> Node {
     let mut child = callbacks.first_child(wrapper);
     while !child.is_invalid() {
-        if state.node_facts(&callbacks, child).is_box()
-            && state.style_facts(&callbacks, child).display().is_table_inside()
+        if NodeFacts::new(&callbacks, child).is_box()
+            && StyleValues::for_node(&callbacks, child).display().is_table_inside()
         {
             return child;
         }
@@ -2876,15 +2874,15 @@ fn table_box_of_wrapper(state: &LayoutState, callbacks: FfiLayoutFcCallbacks, wr
 // order, then the table box, then bottom captions in document order. Captions are tree children
 // of the table box; absolutely positioned captions are out of flow and are registered by
 // register_table_abspos_descendants instead.
-pub(crate) fn table_wrapper_flow_children(state: &LayoutState, callbacks: FfiLayoutFcCallbacks, wrapper: Node) -> Vec<Node> {
-    let table_box = table_box_of_wrapper(state, callbacks, wrapper);
+pub(crate) fn table_wrapper_flow_children(callbacks: FfiLayoutFcCallbacks, wrapper: Node) -> Vec<Node> {
+    let table_box = table_box_of_wrapper(callbacks, wrapper);
     let mut flow_children = Vec::new();
     let mut bottom_captions = Vec::new();
     let mut child = callbacks.first_child(table_box);
     while !child.is_invalid() {
-        let facts = state.node_facts(&callbacks, child);
+        let facts = NodeFacts::new(&callbacks, child);
         if facts.is_box() && facts.is_table_caption() && !facts.is_absolutely_positioned() {
-            if state.style_facts(&callbacks, child).caption_side() == caption_side::TOP {
+            if StyleValues::for_node(&callbacks, child).caption_side() == caption_side::TOP {
                 flow_children.push(child);
             } else {
                 bottom_captions.push(child);
@@ -2899,14 +2897,13 @@ pub(crate) fn table_wrapper_flow_children(state: &LayoutState, callbacks: FfiLay
 
 // https://www.w3.org/TR/CSS22/visudet.html#root-height
 pub(crate) fn automatic_block_size_for_bfc_root(
-    state: &LayoutState,
     records: &RunRecords,
     callbacks: FfiLayoutFcCallbacks,
     root: Node,
     lowest_floating_descendant_bottom_margin_edge: Option<CssPixels>,
     trailing_collapsed_margin: Option<(Node, CssPixels)>,
 ) -> CssPixels {
-    let facts = state.node_facts(&callbacks, root);
+    let facts = NodeFacts::new(&callbacks, root);
     // https://drafts.csswg.org/css-contain-2/#containment-size
     // A size-contained box is sized as if it had no contents.
     if facts.node_has_size_containment() {
@@ -2934,7 +2931,7 @@ pub(crate) fn automatic_block_size_for_bfc_root(
         let flow_children = if facts.is_table_wrapper() {
             // Captions flow in the wrapper's formatting context while remaining tree children of
             // the table box, so the wrapper considers its flow children instead of tree children.
-            table_wrapper_flow_children(state, callbacks, root)
+            table_wrapper_flow_children(callbacks, root)
         } else {
             let mut children = Vec::new();
             let mut child = callbacks.first_child(root);
@@ -2945,7 +2942,7 @@ pub(crate) fn automatic_block_size_for_bfc_root(
             children
         };
         for child in flow_children {
-            let child_facts = state.node_facts(&callbacks, child);
+            let child_facts = NodeFacts::new(&callbacks, child);
             if !child_facts.is_flow_layout_participant() || child_facts.is_floating() {
                 continue;
             }
@@ -2971,7 +2968,6 @@ pub(crate) fn automatic_block_size_for_bfc_root(
         bottom = Some(bottom.map_or(lowest, |value| value.max(lowest)));
     }
     floor_list_item_automatic_block_size_by_marker_line_height(
-        state,
         callbacks,
         root,
         bottom.unwrap_or_default().max(CssPixels::default()),
@@ -2979,12 +2975,11 @@ pub(crate) fn automatic_block_size_for_bfc_root(
 }
 
 pub(crate) fn floor_list_item_automatic_block_size_by_marker_line_height(
-    state: &LayoutState,
     callbacks: FfiLayoutFcCallbacks,
     node: Node,
     automatic_content_block_size: CssPixels,
 ) -> CssPixels {
-    let facts = state.node_facts(&callbacks, node);
+    let facts = NodeFacts::new(&callbacks, node);
     if !facts.is_list_item_box() {
         return automatic_content_block_size;
     }
@@ -2992,5 +2987,5 @@ pub(crate) fn floor_list_item_automatic_block_size_by_marker_line_height(
     if marker.is_invalid() {
         return automatic_content_block_size;
     }
-    automatic_content_block_size.max(state.style_facts(&callbacks, marker).line_height())
+    automatic_content_block_size.max(StyleValues::for_node(&callbacks, marker).line_height())
 }

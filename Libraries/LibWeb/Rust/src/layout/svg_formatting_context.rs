@@ -476,8 +476,8 @@ impl<'pass> SvgFormattingContext<'pass> {
         unsafe { (self.callbacks.build_svg_facts)(self.callbacks.context, self.callbacks.shell(node)) }
     }
 
-    fn style_facts(&self, node: Node) -> StyleValues<'_> {
-        self.state.style_facts(&self.callbacks, node)
+    fn style(&self, node: Node) -> StyleValues<'_> {
+        StyleValues::for_node(&self.callbacks, node)
     }
 
     #[track_caller]
@@ -490,7 +490,7 @@ impl<'pass> SvgFormattingContext<'pass> {
         // SVG layout resolves percentages against the SVG viewport, not a CSS containing
         // block, so boxes inside the SVG subtree carry no percentage basis.
         self.records
-            .create_used_values(self.state, &self.callbacks, node, crate::layout::ContainingBlockConstraints::default())
+            .create_used_values(&self.callbacks, node, crate::layout::ContainingBlockConstraints::default())
     }
 
     fn computed_transforms(&self, node: Node) -> Option<FfiSvgComputedTransforms> {
@@ -566,7 +566,7 @@ impl<'pass> SvgFormattingContext<'pass> {
             // Overwrite the content width/height with the styled node width/height (from <svg width height ...>)
             //
             // NOTE: If a height had not been provided by the svg element, it was set to the height of the container
-            let style = self.style_facts(self.box_);
+            let style = self.style(self.box_);
             if style.width().is_length() {
                 used.set_content_inline_size(style.width().to_px(CssPixels::default()));
             }
@@ -687,7 +687,7 @@ impl<'pass> SvgFormattingContext<'pass> {
         let mut child = self.first_child(self.box_);
         while !child.is_invalid() {
             let next = self.next_sibling(child);
-            if self.state.node_facts(&self.callbacks, child).is_box() {
+            if NodeFacts::new(&self.callbacks, child).is_box() {
                 self.layout_svg_element(run, child, input, svg_transform_for_children);
             }
             child = next;
@@ -707,7 +707,7 @@ impl<'pass> SvgFormattingContext<'pass> {
             self.layout_nested_viewport(run, child, parent_svg_transform);
         } else if kind == NodeKind::SVGForeignObjectBox {
             let child_used_pointer = self.create_used_values(child);
-            let style = self.style_facts(child);
+            let style = self.style(child);
             let available_space = self.available_space.unwrap();
             let rect = SvgCssPixelRect {
                 x: style.x().to_px(available_space.inline_size.to_px_or_zero()),
@@ -779,7 +779,7 @@ impl<'pass> SvgFormattingContext<'pass> {
         // Layout for a nested SVG viewport.
         // https://svgwg.org/svg2-draft/coords.html#EstablishingANewSVGViewport.
         let used_pointer = self.create_used_values(viewport);
-        let style = self.style_facts(viewport);
+        let style = self.style(viewport);
         let kind = self.node_kind(viewport);
         let facts = self.svg_facts(viewport);
         let nested_viewport_x = style.x().to_px(self.viewport_width);
@@ -1112,7 +1112,7 @@ impl<'pass> SvgFormattingContext<'pass> {
         while !child.is_invalid() {
             let next = self.next_sibling(child);
             // Masks/clips/patterns do not change the bounding box of their parents.
-            if self.state.node_facts(&self.callbacks, child).is_box()
+            if NodeFacts::new(&self.callbacks, child).is_box()
                 && !kind_is_svg_resource_box(self.node_kind(child))
             {
                 self.layout_svg_element(run, child, input, container_svg_transform);

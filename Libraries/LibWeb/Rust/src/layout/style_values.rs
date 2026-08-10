@@ -115,6 +115,11 @@ impl<'a> StyleValues<'a> {
         }
     }
 
+    #[inline]
+    pub(crate) fn for_node(callbacks: &FfiLayoutFcCallbacks, node: Node) -> StyleValues<'static> {
+        StyleValues::new(callbacks.style_payloads(node))
+    }
+
     pub(crate) fn with_resolved_insets(mut self, resolved: Option<&'a ResolvedAnchorInsets>) -> Self {
         self.resolved_anchor_insets = resolved;
         self

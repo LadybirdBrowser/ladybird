@@ -312,7 +312,7 @@ impl<'iterator, 'context, 'pass> InlineLevelIteratorGenerator<'iterator, 'contex
             white_space_collapse::COLLAPSE | white_space_collapse::PRESERVE_BREAKS
         );
         let callbacks = self.context().callbacks;
-        let chunks = self.context().state.text_chunks(
+        let chunks = text_chunks(
             &callbacks,
             text_node,
             should_wrap_lines,

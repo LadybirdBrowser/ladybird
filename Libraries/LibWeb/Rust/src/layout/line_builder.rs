@@ -640,7 +640,6 @@ impl<'builder, 'context, 'pass> LineBuilder<'builder, 'context, 'pass> {
                 Self::baseline_for_style(style, style.line_height())
             } else if let Some(content_baselines) = content_baselines {
                 crate::layout::box_baseline_with_content_baselines(
-                    self.context().state,
                     &self.context().callbacks,
                     node,
                     &self.context().used(node),
@@ -649,7 +648,6 @@ impl<'builder, 'context, 'pass> LineBuilder<'builder, 'context, 'pass> {
                 )
             } else {
                 crate::layout::box_baseline(
-                    self.context().state,
                     &self.context().callbacks,
                     node,
                     &self.context().used(node),
