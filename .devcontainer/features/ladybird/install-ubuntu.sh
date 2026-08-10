@@ -31,7 +31,7 @@ install_cmake() {
 ### Install packages
 
 apt update -y
-apt install -y autoconf autoconf-archive automake build-essential ccache curl fonts-liberation2 git glslang-tools libdrm-dev libgl1-mesa-dev libncurses-dev libtool lsb-release nasm ninja-build pkg-config python3 qt6-base-dev qt6-tools-dev-tools qt6-wayland shellcheck tar unzip zip
+apt install -y autoconf autoconf-archive automake build-essential ccache curl fonts-liberation2 git glslang-tools libdrm-dev libgl1-mesa-dev libncurses-dev libtool lsb-release nasm ninja-build pkg-config python3 qt6-base-dev qt6-positioning-dev qt6-tools-dev-tools qt6-wayland shellcheck tar unzip zip
 
 install_cmake
 
