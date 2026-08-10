@@ -1301,7 +1301,12 @@ fn interpolate_translate(from: &StyleValueData, to: &StyleValueData, delta: f32)
     })
 }
 
-fn interpolate_individual_rotate(from: &StyleValueData, to: &StyleValueData, delta: f32) -> FfiAnimationValueResult {
+fn interpolate_individual_rotate(
+    context: Option<&FfiAnimationContext>,
+    from: &StyleValueData,
+    to: &StyleValueData,
+    delta: f32,
+) -> FfiAnimationValueResult {
     let none = crate::css::style_compute::none_keyword();
     if matches!(from, StyleValueData::Keyword { keyword } if *keyword == none)
         && matches!(to, StyleValueData::Keyword { keyword } if *keyword == none)
@@ -1321,7 +1326,8 @@ fn interpolate_individual_rotate(from: &StyleValueData, to: &StyleValueData, del
     let is_2d = |value: &StyleValueData| {
         is_none(value)
             || matches!(value, StyleValueData::Transformation { transform_function, values, .. }
-                if *transform_function == TRANSFORM_FUNCTION_ROTATE && values.as_slice().len() == 1)
+                if matches!(*transform_function, TRANSFORM_FUNCTION_ROTATE | TRANSFORM_FUNCTION_ROTATE_Z)
+                    && values.as_slice().len() == 1)
     };
     if is_2d(from) && is_2d(to) {
         let angle = |value: &StyleValueData| {
@@ -1334,10 +1340,7 @@ fn interpolate_individual_rotate(from: &StyleValueData, to: &StyleValueData, del
             let [angle] = values.as_slice() else {
                 return None;
             };
-            match angle.data() {
-                StyleValueData::Angle { value, unit } => angle_to_degrees(*value, *unit),
-                _ => None,
-            }
+            resolve_animation_angle(context, angle.data())
         };
         let (Some(from), Some(to)) = (angle(from), angle(to)) else {
             return not_handled();
@@ -1355,6 +1358,14 @@ fn interpolate_individual_rotate(from: &StyleValueData, to: &StyleValueData, del
         });
     }
 
+    let axis_rotation = |x: f64, y: f64, z: f64, angle: &RetainedStyleValueData| {
+        Some(RetainedStyleValueDataList::from_retained_values(vec![
+            retained_number(x),
+            retained_number(y),
+            retained_number(z),
+            angle.clone_retained(),
+        ]))
+    };
     let normalize = |value: &StyleValueData| {
         if is_none(value) {
             let angle = Arc::into_raw(Arc::new(StyleValueData::Angle { value: 0.0, unit: 0 }));
@@ -1374,12 +1385,9 @@ fn interpolate_individual_rotate(from: &StyleValueData, to: &StyleValueData, del
             return None;
         };
         match (*transform_function, values.as_slice()) {
-            (TRANSFORM_FUNCTION_ROTATE, [angle]) => Some(RetainedStyleValueDataList::from_retained_values(vec![
-                retained_number(0.0),
-                retained_number(0.0),
-                retained_number(1.0),
-                angle.clone_retained(),
-            ])),
+            (TRANSFORM_FUNCTION_ROTATE | TRANSFORM_FUNCTION_ROTATE_Z, [angle]) => axis_rotation(0.0, 0.0, 1.0, angle),
+            (TRANSFORM_FUNCTION_ROTATE_X, [angle]) => axis_rotation(1.0, 0.0, 0.0, angle),
+            (TRANSFORM_FUNCTION_ROTATE_Y, [angle]) => axis_rotation(0.0, 1.0, 0.0, angle),
             (TRANSFORM_FUNCTION_ROTATE_3D, [..]) if values.as_slice().len() == 4 => {
                 Some(RetainedStyleValueDataList::from_retained_values(
                     values
@@ -1396,6 +1404,7 @@ fn interpolate_individual_rotate(from: &StyleValueData, to: &StyleValueData, del
         return not_handled();
     };
     interpolate_rotate_3d(
+        context,
         crate::css::property_metadata::property_id::ROTATE,
         TRANSFORM_FUNCTION_ROTATE_3D,
         &from,
@@ -4004,6 +4013,7 @@ fn interpolate_scalar_value(
 }
 
 fn interpolate_rotate_3d(
+    context: Option<&FfiAnimationContext>,
     property: u16,
     transform_function: u8,
     from_arguments: &RetainedStyleValueDataList,
@@ -4015,38 +4025,18 @@ fn interpolate_rotate_3d(
     else {
         return None;
     };
-    let (
-        StyleValueData::Number { value: from_x },
-        StyleValueData::Number { value: from_y },
-        StyleValueData::Number { value: from_z },
-        StyleValueData::Angle {
-            value: from_angle,
-            unit: from_angle_unit,
-        },
-        StyleValueData::Number { value: to_x },
-        StyleValueData::Number { value: to_y },
-        StyleValueData::Number { value: to_z },
-        StyleValueData::Angle {
-            value: to_angle,
-            unit: to_angle_unit,
-        },
-    ) = (
-        from_x.data(),
-        from_y.data(),
-        from_z.data(),
-        from_angle.data(),
-        to_x.data(),
-        to_y.data(),
-        to_z.data(),
-        to_angle.data(),
-    )
-    else {
-        return None;
-    };
-    let from_angle = angle_to_degrees(*from_angle, *from_angle_unit)?.to_radians();
-    let to_angle = angle_to_degrees(*to_angle, *to_angle_unit)?.to_radians();
-    let from_axis = [*from_x, *from_y, *from_z];
-    let to_axis = [*to_x, *to_y, *to_z];
+    let from_angle = resolve_animation_angle(context, from_angle.data())?.to_radians();
+    let to_angle = resolve_animation_angle(context, to_angle.data())?.to_radians();
+    let from_axis = [
+        resolve_animation_number(context, from_x.data())?,
+        resolve_animation_number(context, from_y.data())?,
+        resolve_animation_number(context, from_z.data())?,
+    ];
+    let to_axis = [
+        resolve_animation_number(context, to_x.data())?,
+        resolve_animation_number(context, to_y.data())?,
+        resolve_animation_number(context, to_z.data())?,
+    ];
 
     let length = |vector: [f64; 3]| vector.iter().map(|component| component * component).sum::<f64>().sqrt();
     let normalize = |vector: [f64; 3]| {
@@ -5145,6 +5135,7 @@ fn interpolate_transform_list(
                     .collect(),
             );
             let transformation = interpolate_rotate_3d(
+                context,
                 *from_property,
                 transform_function,
                 &from_arguments,
@@ -6294,7 +6285,7 @@ pub(crate) fn interpolate_value(
         }
     }
     if animation_type == ANIMATION_TYPE_CUSTOM && property_id == crate::css::property_metadata::property_id::ROTATE {
-        let result = interpolate_individual_rotate(from, to, delta);
+        let result = interpolate_individual_rotate(context, from, to, delta);
         if result.handled {
             return result;
         }
@@ -7091,6 +7082,7 @@ mod tests {
             retained_angle(180.0),
         ]);
         let result = interpolate_rotate_3d(
+            None,
             crate::css::property_metadata::property_id::TRANSFORM,
             0,
             &from,
