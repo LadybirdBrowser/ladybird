@@ -45,6 +45,20 @@ requires(IsConvertible<U*, T*>)
 }
 
 template<typename T>
+Weak<T>::Weak(Ptr<T> const& other)
+    : m_impl(other ? *other->heap().create_weak_impl(other.ptr()) : WeakImpl::the_null_weak_impl)
+{
+}
+
+template<typename T>
+template<typename U>
+Weak<T>::Weak(Ptr<U> const& other)
+requires(IsConvertible<U*, T*>)
+    : m_impl(other ? *other->heap().create_weak_impl(other.ptr()) : WeakImpl::the_null_weak_impl)
+{
+}
+
+template<typename T>
 template<typename U>
 Weak<T>& Weak<T>::operator=(U const& other)
 requires(IsConvertible<U*, T*>)
@@ -60,6 +74,32 @@ Weak<T>& Weak<T>::operator=(Ref<T> const& other)
 {
     if (ptr().ptr() != other.ptr()) {
         m_impl = *other.ptr()->heap().create_weak_impl(other.ptr());
+    }
+    return *this;
+}
+
+template<typename T>
+Weak<T>& Weak<T>::operator=(Ptr<T> const& other)
+{
+    if (ptr() != other) {
+        if (other)
+            m_impl = *other->heap().create_weak_impl(other.ptr());
+        else
+            m_impl = WeakImpl::the_null_weak_impl;
+    }
+    return *this;
+}
+
+template<typename T>
+template<typename U>
+Weak<T>& Weak<T>::operator=(Ptr<U> const& other)
+requires(IsConvertible<U*, T*>)
+{
+    if (ptr() != other) {
+        if (other)
+            m_impl = *other->heap().create_weak_impl(other.ptr());
+        else
+            m_impl = WeakImpl::the_null_weak_impl;
     }
     return *this;
 }
