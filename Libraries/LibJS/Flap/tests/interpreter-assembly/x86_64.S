@@ -4901,7 +4901,12 @@ asm_handler_Call:
     mov rdx, QWORD PTR [rbp - 48]
     mov QWORD PTR [rdx + 15288], rax
     lea rbx, [rax + 120]
-    mov rdx, QWORD PTR [rcx + 104]
+    mov eax, DWORD PTR [rcx + 104]
+    mov rcx, QWORD PTR [rdx + 16688]
+    shl rax, 4
+    add rax, rcx
+    mov ecx, DWORD PTR [rax + 8]
+    mov rdx, QWORD PTR [rax]
     mov r11, rdx
     mov rdi, QWORD PTR [rbp - 48]
     call r11

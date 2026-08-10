@@ -243,6 +243,32 @@ VM::VM(ErrorMessages error_messages)
     };
 }
 
+u32 VM::register_native_function(NativeFunctionPointer function, NativeFunctionType type)
+{
+    VERIFY(function);
+
+    for (size_t index = 0; index < m_native_function_table.size(); ++index) {
+        auto const& entry = m_native_function_table[index];
+        if (entry.function == function && entry.type == type)
+            return static_cast<u32>(index);
+    }
+
+    VERIFY(m_native_function_table.size() < NumericLimits<u32>::max());
+    auto index = static_cast<u32>(m_native_function_table.size());
+    m_native_function_table.append({ function, type });
+    m_native_function_table_data = m_native_function_table.data();
+    return index;
+}
+
+NativeFunctionPointer VM::native_function(u32 index, NativeFunctionType expected_type) const
+{
+    VERIFY(index < m_native_function_table.size());
+    auto const& entry = m_native_function_table[index];
+    VERIFY(entry.type == expected_type);
+    VERIFY(entry.function);
+    return entry.function;
+}
+
 VM::~VM()
 {
     --s_vm_count;

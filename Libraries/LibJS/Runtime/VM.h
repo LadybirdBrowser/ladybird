@@ -58,6 +58,15 @@ enum class CompilationType {
     Timer,
 };
 
+enum class NativeFunctionType : u32 {
+    RawNativeFunction,
+};
+
+struct NativeFunctionTableEntry {
+    NativeFunctionPointer function { nullptr };
+    NativeFunctionType type { NativeFunctionType::RawNativeFunction };
+};
+
 class JS_API VM : public RefCounted<VM> {
 public:
     static NonnullRefPtr<VM> create();
@@ -357,6 +366,9 @@ public:
     void finish_execution_generation() { ++m_execution_generation; }
     FlatPtr primitive_storage_cage_base() const { return m_primitive_storage_cage_base; }
 
+    u32 register_native_function(NativeFunctionPointer, NativeFunctionType);
+    NativeFunctionPointer native_function(u32 index, NativeFunctionType expected_type) const;
+
     ThrowCompletionOr<Reference> resolve_binding(Utf16FlyString const&, Strict, GC::Ptr<Environment> = nullptr);
     ThrowCompletionOr<Reference> get_identifier_reference(Environment*, Utf16FlyString, Strict, size_t hops = 0);
 
@@ -622,6 +634,8 @@ private:
 
     u32 m_execution_generation { 0 };
     FlatPtr m_primitive_storage_cage_base { 0 };
+    Vector<NativeFunctionTableEntry> m_native_function_table;
+    NativeFunctionTableEntry const* m_native_function_table_data { nullptr };
     u32 m_run_executable_depth { 0 };
     u32 m_module_execution_depth { 0 };
     u64 m_module_async_evaluation_count { 0 }; // [[ModuleAsyncEvaluationCount]]

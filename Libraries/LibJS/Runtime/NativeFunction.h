@@ -78,13 +78,13 @@ public:
 
     virtual ThrowCompletionOr<Value> call() override;
 
-    NativeFunctionPointer native_function() const { return m_native_function; }
+    NativeFunctionPointer native_function() const;
 
 private:
     RawNativeFunction(NativeFunctionPointer, GC::Ptr<Object> prototype, Realm& realm, Optional<Bytecode::Builtin> builtin);
     RawNativeFunction(Utf16FlyString name, NativeFunctionPointer, Object& prototype);
 
-    NativeFunctionPointer m_native_function { nullptr };
+    u32 m_native_function_index { 0 };
 };
 
 template<>
