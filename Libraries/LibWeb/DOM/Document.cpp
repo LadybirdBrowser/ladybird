@@ -8553,7 +8553,7 @@ Optional<CSSPixelRect> Document::current_caret_rect()
 
     // Empty editable elements have no fragments; fall back to the caret position for the cursor's child offset
     // (which accounts for empty lines rendered by <br>), or the padding-box corner.
-    if (auto* node_with_style = as_if<Layout::NodeWithStyleAndBoxModelMetrics>(*layout_node)) {
+    if (auto* node_with_style = as_if<Layout::NodeWithStyle>(*layout_node)) {
         auto paintable = node_with_style->paintable();
         if (auto const* with_lines = as_if<Painting::PaintableWithLines>(paintable.ptr()))
             return to_viewport_rect(with_lines->caret_rect_for_child_offset(position->offset()));

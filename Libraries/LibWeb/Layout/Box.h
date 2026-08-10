@@ -24,8 +24,8 @@ struct LineBoxFragmentCoordinate {
     size_t fragment_index { 0 };
 };
 
-class WEB_API Box : public NodeWithStyleAndBoxModelMetrics {
-    LAYOUT_NODE(Box, NodeWithStyleAndBoxModelMetrics);
+class WEB_API Box : public NodeWithStyle {
+    LAYOUT_NODE(Box, NodeWithStyle);
 
 public:
     RefPtr<Painting::Paintable const> paintable_box() const;

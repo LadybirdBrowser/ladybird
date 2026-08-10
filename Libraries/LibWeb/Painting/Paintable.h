@@ -104,12 +104,12 @@ public:
     virtual bool forms_unconnected_subtree() const { return false; }
 
     bool has_layout_node() const { return m_layout_node; }
-    Layout::NodeWithStyleAndBoxModelMetrics const& layout_node() const
+    Layout::NodeWithStyle const& layout_node() const
     {
         VERIFY(m_layout_node);
         return *m_layout_node;
     }
-    Layout::NodeWithStyleAndBoxModelMetrics& layout_node() { return const_cast<Layout::NodeWithStyleAndBoxModelMetrics&>(const_cast<Paintable const&>(*this).layout_node()); }
+    Layout::NodeWithStyle& layout_node() { return const_cast<Layout::NodeWithStyle&>(const_cast<Paintable const&>(*this).layout_node()); }
 
     [[nodiscard]] GC::Ptr<DOM::Node> dom_node();
     [[nodiscard]] GC::Ptr<DOM::Node const> dom_node() const;
@@ -469,7 +469,7 @@ public:
     [[nodiscard]] VisualContextIndex own_scroll_node_index() const { return m_own_scroll_node_index; }
 
 protected:
-    explicit Paintable(Layout::NodeWithStyleAndBoxModelMetrics const&);
+    explicit Paintable(Layout::NodeWithStyle const&);
     explicit Paintable(Layout::Box const&);
 
     void paint_with_inspector_overlay_context(DisplayListRecordingContext&, Function<void()> const&) const;
@@ -511,7 +511,7 @@ private:
     void invalidate_absolute_geometry_cache(InvalidateDescendantGeometry);
 
     GC::Weak<DOM::Node> m_dom_node;
-    WeakPtr<Layout::NodeWithStyleAndBoxModelMetrics const> m_layout_node;
+    WeakPtr<Layout::NodeWithStyle const> m_layout_node;
     Paintable* m_containing_block { nullptr };
 
     SelectionState m_selection_state { SelectionState::None };

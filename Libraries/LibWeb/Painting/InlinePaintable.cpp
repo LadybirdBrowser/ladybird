@@ -17,12 +17,12 @@
 
 namespace Web::Painting {
 
-NonnullRefPtr<InlinePaintable> InlinePaintable::create(Layout::NodeWithStyleAndBoxModelMetrics const& layout_node)
+NonnullRefPtr<InlinePaintable> InlinePaintable::create(Layout::NodeWithStyle const& layout_node)
 {
     return adopt_ref(*new InlinePaintable(layout_node));
 }
 
-InlinePaintable::InlinePaintable(Layout::NodeWithStyleAndBoxModelMetrics const& layout_node)
+InlinePaintable::InlinePaintable(Layout::NodeWithStyle const& layout_node)
     : Paintable(layout_node)
 {
 }
