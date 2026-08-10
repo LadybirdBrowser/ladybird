@@ -834,7 +834,9 @@ impl<'pass> FlexFormattingContext<'pass> {
             main_size =
                 main_size.min(self.main_size_from_cross_size_and_aspect_ratio(max_cross_size.to_px(reference), ratio));
         }
-        if !min_cross_size.is_auto() {
+        if !min_cross_size.is_auto()
+            && (!min_cross_size.contains_percentage() || self.has_definite_cross_size_used(&self.container_used()))
+        {
             main_size =
                 main_size.max(self.main_size_from_cross_size_and_aspect_ratio(min_cross_size.to_px(reference), ratio));
         }
@@ -1629,7 +1631,10 @@ impl<'pass> FlexFormattingContext<'pass> {
             //         to the flex container instead of transferring the used main size through the aspect ratio.
             let replaced_with_only_natural_ratio =
                 facts.is_replaced_box() && !(facts.has_auto_content_width() && facts.has_auto_content_height());
-            if replaced_with_only_natural_ratio && !self.flex_items[index].used_flex_basis_is_definite {
+            if replaced_with_only_natural_ratio
+                && !self.flex_items[index].used_flex_basis_is_definite
+                && self.has_definite_cross_size_used(&self.container_used())
+            {
                 self.flex_items[index].hypothetical_cross_size =
                     css_clamp(self.inner_cross_size_used(&self.container_used()), clamp_min, clamp_max);
                 return;
