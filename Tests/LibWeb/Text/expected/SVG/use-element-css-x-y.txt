@@ -1,0 +1,2 @@
+computed: x=50px y=40px
+client rect: x=50 y=40 width=10 height=10

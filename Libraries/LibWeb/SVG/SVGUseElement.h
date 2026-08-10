@@ -83,8 +83,6 @@ private:
     void register_for_referenced_element_changes();
     void unregister_for_referenced_element_changes();
 
-    Optional<NumberPercentage> m_x;
-    Optional<NumberPercentage> m_y;
     bool m_needs_document_complete_reclone { false };
 
     Optional<URL::URL> m_href;
