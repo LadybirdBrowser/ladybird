@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<title>CSS Text Test: Word Spacing</title>
+<link rel="author" title="Nicholas Nethercote" href="mailto:nnethercote@mozilla.com">
+<link rel="help" href="http://www.w3.org/TR/css-text-3/#word-spacing">
+<link rel="stylesheet" href="../../../../../data/fonts/ahem.css">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-text/word-spacing/word-spacing-001-ref.html">
+<meta name="flags" content="ahem">
+<meta name="assert" content="Test checks that word-spacing works with percentages.">
+<style>
+@font-face {
+  font-family: Ahem;
+  src: url(../../../../../data/fonts/Ahem.ttf);
+}
+/* We use Ahem to avoid very minor differences between the test and the
+   reference that occur with certain font+platform combinations. */
+div { font-family: Ahem; font-size: 20px; }
+div.wsn100  { word-spacing: -100%; }
+div.wsn40   { word-spacing: -40%; }
+div.ws0     { word-spacing: 0%; }
+div.ws25    { word-spacing: calc(25% + 0px); }
+div.ws100   { word-spacing: 100%; }
+div.ws300   { word-spacing: calc(100% + 6em + 50%*4 - 12em/2); }
+div.ws400p1 { word-spacing: calc(400% + 1em); }
+</style>
+<body>
+  <p>Test passes if the space between the words starts at zero and increases by
+  one on each subsequent line.</p>
+  <div class="wsn100" >A Bc Def Ghij</div>
+  <div class="ws0"    >A Bc Def Ghij</div>
+  <div class="ws100"  >A Bc Def Ghij</div>
+  <div class="wsn40"  >A &nbsp;&nbsp;&nbsp;&nbsp;Bc &nbsp;&nbsp;&nbsp;&nbsp;Def &nbsp;&nbsp;&nbsp;&nbsp;Ghij</div>
+  <div class="ws300"  >A Bc Def Ghij</div>
+  <div class="ws25"   >A &nbsp;&nbsp;&nbsp;Bc &nbsp;&nbsp;&nbsp;Def &nbsp;&nbsp;&nbsp;Ghij</div>
+  <div class="ws400p1">A Bc Def Ghij</div>
+</body>

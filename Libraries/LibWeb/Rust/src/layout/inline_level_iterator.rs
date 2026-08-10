@@ -355,8 +355,9 @@ impl<'iterator, 'context, 'pass> InlineLevelIteratorGenerator<'iterator, 'contex
         text_type: u8,
         baseline_start_x: f32,
         letter_spacing: f32,
+        word_spacing: f32,
     ) -> (GlyphData, TrailingWhitespace) {
-        let shaped = shape_text_with_font(font, text, text_type, baseline_start_x, letter_spacing);
+        let shaped = shape_text_with_font(font, text, text_type, baseline_start_x, letter_spacing, word_spacing);
         let glyph_data = GlyphData {
             glyphs: shaped.glyphs,
             font,
@@ -450,13 +451,13 @@ impl<'iterator, 'context, 'pass> InlineLevelIteratorGenerator<'iterator, 'contex
         let full_text = text_context.text;
         let mut shaped_start = chunk.start;
         let mut shaped_length = chunk.length;
+        let word_spacing = style.word_spacing();
         if chunk.has_breaking_tab {
             let tab_inline_size = if style.tab_size_is_number() {
                 let space = font_glyph_width(chunk.font, b' ' as u32);
                 CssPixels::nearest_value_for(
                     style.tab_size_number()
-                        * (space + style.word_spacing().to_double() as f32 + style.letter_spacing().to_double() as f32)
-                            as f64,
+                        * (space + word_spacing.to_double() as f32 + style.letter_spacing().to_double() as f32) as f64,
                 )
             } else {
                 style.tab_size()
@@ -487,6 +488,7 @@ impl<'iterator, 'context, 'pass> InlineLevelIteratorGenerator<'iterator, 'contex
             text_type,
             inline_offset,
             style.letter_spacing().to_double() as f32,
+            word_spacing.to_double() as f32,
         );
         let chunk_inline_size = CssPixels::nearest_value_for_f32(glyphs.width + inline_offset);
         let generated_empty = synthesize_zero_length_chunk

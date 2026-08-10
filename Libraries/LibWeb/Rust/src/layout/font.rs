@@ -31,6 +31,7 @@ pub(crate) fn shape_text_with_font(
     text_type: u8,
     baseline_start_x: f32,
     letter_spacing: f32,
+    word_spacing: f32,
 ) -> ShapedRun {
     // SAFETY: Font pointers in layout snapshots are borrowed from the host for
     // the synchronous layout pass.
@@ -38,7 +39,7 @@ pub(crate) fn shape_text_with_font(
     let text_type =
         libgfx_rust::text_layout::TextType::try_from(text_type).expect("invalid Gfx::GlyphRun::TextType");
     let shaped =
-        libgfx_rust::text_layout::shape_text(font, text, text_type, baseline_start_x, letter_spacing);
+        libgfx_rust::text_layout::shape_text(font, text, text_type, baseline_start_x, letter_spacing, word_spacing);
     let glyphs = shaped
         .glyphs()
         .iter()

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<title>CSS Text Test: Word Spacing</title>
+<link rel="author" title="Minseong Kim" href="mailto:jja08111@gmail.com">
+<link rel="help" href="http://www.w3.org/TR/css-text-3/#word-spacing">
+<link rel="stylesheet" href="../../../../../data/fonts/ahem.css">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-text/word-spacing/word-spacing-003-ref.html">
+<meta name="flags" content="ahem">
+<meta name="assert" content="The leading space characters contain word-spacing when white-space: pre.">
+<style>
+@font-face {
+  font-family: Ahem;
+  src: url(../../../../../data/fonts/Ahem.ttf);
+}
+/* We use Ahem to avoid very minor differences between the test and the
+   reference that occur with certain font+platform combinations. */
+div    { font-family: Ahem, monospace; font-size: 20px; white-space: pre; }
+div.ws { word-spacing: 1ch; }
+</style>
+<body>
+  <p>Test passes if there is the one rectangle</p>
+  <div class="ws"> a</div>
+  <div>  a</div>
+</body>
