@@ -103,16 +103,14 @@ NumberPercentage SVGMaskElement::mask_height() const
 }
 
 // https://drafts.csswg.org/css-masking/#element-attrdef-mask-maskunits
-CSSPixelRect SVGMaskElement::resolve_masking_area(CSSPixelRect const& target_border_box, Gfx::FloatSize const& viewport_size, Gfx::AffineTransform const& user_space_to_css_pixels) const
+CSSPixelRect SVGMaskElement::resolve_masking_area(CSSPixelRect const& target_object_bounding_box, Gfx::FloatSize const& viewport_size, Gfx::AffineTransform const& user_space_to_css_pixels) const
 {
     Gfx::FloatRect masking_area;
     if (mask_units() == MaskUnits::ObjectBoundingBox) {
         // objectBoundingBox
         //     x, y, width and height represent fractions or percentages of the object bounding box of the element to
         //     which the mask is applied.
-        // AD-HOC: The target's border box stands in for its object bounding box here. For stroked targets, the border
-        //         box also includes the stroke — which the object bounding box doesn't.
-        auto target = target_border_box.to_type<float>();
+        auto target = target_object_bounding_box.to_type<float>();
         masking_area = {
             target.x() + (mask_x().value() * target.width()),
             target.y() + (mask_y().value() * target.height()),

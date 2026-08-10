@@ -16,6 +16,7 @@
 #include <LibWeb/Painting/SVGForeignObjectPaintable.h>
 #include <LibWeb/Painting/SVGGraphicsPaintable.h>
 #include <LibWeb/Painting/SVGPaintable.h>
+#include <LibWeb/Painting/SVGPathPaintable.h>
 #include <LibWeb/Painting/StackingContext.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
 
@@ -61,7 +62,16 @@ Optional<CSSPixelRect> SVGMaskable::get_svg_mask_area() const
     }
     user_space_to_css_pixels.multiply(target_svg_to_css_pixels_transform());
 
-    return mask_box->dom_node().resolve_masking_area(target_paintable->absolute_border_box_rect(), viewport_size, user_space_to_css_pixels);
+    // objectBoundingBox units resolve against the target's object bounding box — which covers its geometry alone. The
+    // paintable's border box is not that: SVG layout inflates it by the visible stroke width. So, take the bounding box
+    // from the target's geometry path, which carries no stroke, and map it into CSS pixels, the same way painting does.
+    // AD-HOC: A group or a foreign object has no single geometry path, and we have no object bounding box for it — so
+    //         its border box still stands in there.
+    auto target_object_bounding_box = target_paintable->absolute_border_box_rect();
+    if (auto const* path_paintable = as_if<SVGPathPaintable>(*target_paintable); path_paintable && path_paintable->computed_path().has_value())
+        target_object_bounding_box = user_space_to_css_pixels.map(path_paintable->computed_path()->bounding_box()).to_type<CSSPixels>();
+
+    return mask_box->dom_node().resolve_masking_area(target_object_bounding_box, viewport_size, user_space_to_css_pixels);
 }
 
 Optional<CSSPixelRect> SVGMaskable::get_svg_clip_area() const

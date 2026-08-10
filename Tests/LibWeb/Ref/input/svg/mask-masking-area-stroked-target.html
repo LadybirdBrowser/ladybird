@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/svg/mask-masking-area-stroked-target-ref.html" />
+<!-- With objectBoundingBox units, the masking area resolves against the target's object bounding box — which covers its
+     geometry alone. A stroke must not enlarge it: fill and stroke paint one solid 80x80 square here, but the object
+     bounding box is just the 60x60 geometry - so the masking area clips the painted stroke away. -->
+<svg width="100" height="100" viewBox="0 0 100 100">
+  <mask id="m" x="0" y="0" width="1" height="1" maskUnits="objectBoundingBox">
+    <rect x="0" y="0" width="100" height="100" fill="white" />
+  </mask>
+  <rect x="20" y="20" width="60" height="60" fill="blue" stroke="blue" stroke-width="20" mask="url(#m)" />
+</svg>
