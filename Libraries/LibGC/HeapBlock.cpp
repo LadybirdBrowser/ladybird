@@ -40,7 +40,7 @@ HeapBlock::HeapBlock(Heap& heap, CellAllocator& cell_allocator, size_t cell_size
 void HeapBlock::deallocate(Cell* cell)
 {
     VERIFY(is_valid_cell_pointer(cell));
-    VERIFY(!m_freelist || is_valid_cell_pointer(m_freelist));
+    VERIFY(!m_freelist || is_valid_cell_pointer(m_freelist.ptr()));
     VERIFY(cell->state() == Cell::State::Live);
     VERIFY(!cell->is_marked());
 
