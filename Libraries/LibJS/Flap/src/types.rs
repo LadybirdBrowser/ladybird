@@ -239,6 +239,7 @@ define_named_types! {
     layout {
         Value => "Value", Some(8), false;
         EnvironmentCoordinateEntry => "EnvironmentCoordinateEntry", Some(4), false;
+        NativeFunctionTableEntry => "NativeFunctionTableEntry", Some(8), false;
     }
     internal {
         AnyGpr => "general-purpose value", None, false;

@@ -4831,7 +4831,12 @@ asm_handler_Call:
     str x0, [x2, #15288]
     mov x28, x0
     add x27, x28, #120
-    ldr x2, [x1, #104]
+    ldr w0, [x1, #104]
+    ldr x1, [x2, #16688]
+    lsl x0, x0, #4
+    adds x0, x0, x1
+    ldr w1, [x0, #8]
+    ldr x2, [x0]
     mov x9, x2
     mov x0, x20
     blr x9

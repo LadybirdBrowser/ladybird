@@ -161,14 +161,14 @@ NativeFunction::NativeFunction(Utf16FlyString name, Object& prototype)
 
 RawNativeFunction::RawNativeFunction(NativeFunctionPointer native_function, GC::Ptr<Object> prototype, Realm& realm, Optional<Bytecode::Builtin> builtin)
     : NativeFunction(prototype, realm, builtin)
-    , m_native_function(native_function)
+    , m_native_function_index(realm.vm().register_native_function(native_function, NativeFunctionType::RawNativeFunction))
 {
     set_is_raw_native_function();
 }
 
 RawNativeFunction::RawNativeFunction(Utf16FlyString name, NativeFunctionPointer native_function, Object& prototype)
     : NativeFunction(move(name), prototype)
-    , m_native_function(native_function)
+    , m_native_function_index(prototype.vm().register_native_function(native_function, NativeFunctionType::RawNativeFunction))
 {
     set_is_raw_native_function();
 }
@@ -299,8 +299,12 @@ ThrowCompletionOr<Value> NativeFunction::call()
 
 ThrowCompletionOr<Value> RawNativeFunction::call()
 {
-    VERIFY(m_native_function);
-    return m_native_function(vm());
+    return native_function()(vm());
+}
+
+NativeFunctionPointer RawNativeFunction::native_function() const
+{
+    return vm().native_function(m_native_function_index, NativeFunctionType::RawNativeFunction);
 }
 
 ThrowCompletionOr<GC::Ref<Object>> NativeFunction::construct(FunctionObject&)

@@ -2988,6 +2988,7 @@ fn field_width(ty: &Type, allow_pointer: bool) -> Option<FieldWidth> {
         | Type::FunctionObject
         | Type::ECMAScriptFunctionObject
         | Type::RawNativeFunction
+        | Type::NativeFunctionTableEntry
         | Type::SharedFunctionInstanceData
         | Type::PropertyStorage
         | Type::Sequence(_) => FieldWidth::U64,

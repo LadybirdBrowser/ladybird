@@ -221,8 +221,10 @@ int main()
     EMIT_OFFSET(VM_STACK_INFO, VM, m_stack_info);
     EMIT_OFFSET(VM_EXECUTION_GENERATION, VM, m_execution_generation);
     EMIT_OFFSET(VM_PRIMITIVE_STORAGE_CAGE_BASE, VM, m_primitive_storage_cage_base);
+    EMIT_OFFSET(VM_NATIVE_FUNCTION_TABLE_DATA, VM, m_native_function_table_data);
     EMIT_OFFSET(VM_BREAKPOINT_CONTROLLER, VM, m_debugger);
     outln("field VM.primitive_storage_cage_base u64 VM_PRIMITIVE_STORAGE_CAGE_BASE nonnull");
+    outln("field VM.native_function_table Sequence<NativeFunctionTableEntry> VM_NATIVE_FUNCTION_TABLE_DATA nonnull");
     outln("const VM_INTERPRETER_STACK_TOP = {}", offsetof(VM, m_interpreter_stack) + offsetof(InterpreterStack, m_top));
     outln("const VM_INTERPRETER_STACK_LIMIT = {}", offsetof(VM, m_interpreter_stack) + offsetof(InterpreterStack, m_limit));
     outln("const VM_STACK_INFO_BASE = {}", offsetof(VM, m_stack_info) + offsetof(StackInfo, m_base));
@@ -348,7 +350,14 @@ int main()
 
     // RawNativeFunction layout
     outln("\n# RawNativeFunction layout");
-    EMIT_FIELD(RAW_NATIVE_FUNCTION_NATIVE_FUNCTION, RawNativeFunction, native_function, u64, RawNativeFunction, m_native_function, 8, nonnull);
+    EMIT_FIELD(RAW_NATIVE_FUNCTION_NATIVE_FUNCTION_INDEX, RawNativeFunction, native_function_index, u32, RawNativeFunction, m_native_function_index, 4, nullable);
+    static_assert(sizeof(NativeFunctionTableEntry::function) == 8);
+    static_assert(sizeof(NativeFunctionTableEntry::type) == 4);
+    EMIT_OFFSET(NATIVE_FUNCTION_TABLE_ENTRY_FUNCTION, NativeFunctionTableEntry, function);
+    EMIT_OFFSET(NATIVE_FUNCTION_TABLE_ENTRY_TYPE, NativeFunctionTableEntry, type);
+    outln("const NATIVE_FUNCTION_TYPE_COUNT = {}", to_underlying(NativeFunctionType::RawNativeFunction) + 1);
+    outln("field NativeFunctionTableEntry.function u64 NATIVE_FUNCTION_TABLE_ENTRY_FUNCTION nonnull native_function_table_entry stride {}", sizeof(NativeFunctionTableEntry));
+    outln("field NativeFunctionTableEntry.type u32 NATIVE_FUNCTION_TABLE_ENTRY_TYPE nullable native_function_table_entry");
 
     // ECMAScriptFunctionObject layout
     outln("\n# ECMAScriptFunctionObject layout");
