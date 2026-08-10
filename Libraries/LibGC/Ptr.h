@@ -228,6 +228,18 @@ inline bool operator==(Ref<T> const& a, Ptr<U> const& b)
     return a.ptr() == b.ptr();
 }
 
+template<typename T>
+inline bool operator==(Ptr<T> const& ptr, nullptr_t)
+{
+    return ptr.ptr() == nullptr;
+}
+
+template<typename T>
+inline bool operator==(nullptr_t, Ptr<T> const& ptr)
+{
+    return ptr.ptr() == nullptr;
+}
+
 }
 
 namespace AK {

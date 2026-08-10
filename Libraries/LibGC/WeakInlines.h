@@ -49,7 +49,7 @@ template<typename U>
 Weak<T>& Weak<T>::operator=(U const& other)
 requires(IsConvertible<U*, T*>)
 {
-    if (ptr() != &other) {
+    if (ptr().ptr() != &other) {
         m_impl = *other.heap().create_weak_impl(const_cast<void*>(static_cast<void const*>(&other)));
     }
     return *this;
@@ -58,7 +58,7 @@ requires(IsConvertible<U*, T*>)
 template<typename T>
 Weak<T>& Weak<T>::operator=(Ref<T> const& other)
 {
-    if (ptr() != other.ptr()) {
+    if (ptr().ptr() != other.ptr()) {
         m_impl = *other.ptr()->heap().create_weak_impl(other.ptr());
     }
     return *this;
@@ -69,7 +69,7 @@ template<typename U>
 Weak<T>& Weak<T>::operator=(Ref<U> const& other)
 requires(IsConvertible<U*, T*>)
 {
-    if (ptr() != other.ptr()) {
+    if (ptr().ptr() != other.ptr()) {
         m_impl = *other.ptr()->heap().create_weak_impl(other.ptr());
     }
     return *this;
@@ -78,7 +78,7 @@ requires(IsConvertible<U*, T*>)
 template<typename T>
 Weak<T>& Weak<T>::operator=(T const& other)
 {
-    if (ptr() != &other) {
+    if (ptr().ptr() != &other) {
         m_impl = *other.heap().create_weak_impl(const_cast<void*>(static_cast<void const*>(&other)));
     }
     return *this;
@@ -87,7 +87,7 @@ Weak<T>& Weak<T>::operator=(T const& other)
 template<typename T>
 Weak<T>& Weak<T>::operator=(T const* other)
 {
-    if (ptr() != other) {
+    if (ptr().ptr() != other) {
         if (other)
             m_impl = *other->heap().create_weak_impl(const_cast<void*>(static_cast<void const*>(other)));
         else
@@ -101,7 +101,7 @@ template<typename U>
 Weak<T>& Weak<T>::operator=(U const* other)
 requires(IsConvertible<U*, T*>)
 {
-    if (ptr() != other) {
+    if (ptr().ptr() != other) {
         if (other)
             m_impl = *other->heap().create_weak_impl(const_cast<void*>(static_cast<void const*>(other)));
         else
