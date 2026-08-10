@@ -65,6 +65,8 @@ enum class NativeFunctionType : u32 {
 struct NativeFunctionTableEntry {
     NativeFunctionPointer function { nullptr };
     NativeFunctionType type { NativeFunctionType::RawNativeFunction };
+
+    bool operator==(NativeFunctionTableEntry const&) const = default;
 };
 
 class JS_API VM : public RefCounted<VM> {
@@ -514,6 +516,13 @@ public:
 private:
     using ErrorMessages = AK::Array<Utf16String, to_underlying(ErrorMessage::__Count)>;
 
+    struct NativeFunctionTableEntryTraits : public Traits<NativeFunctionTableEntry> {
+        static unsigned hash(NativeFunctionTableEntry const& entry)
+        {
+            return pair_int_hash(ptr_hash(bit_cast<FlatPtr>(entry.function)), to_underlying(entry.type));
+        }
+    };
+
     struct WellKnownSymbols {
 #define __JS_ENUMERATE(SymbolName, snake_name) \
     GC::Ptr<Symbol> snake_name;
@@ -644,6 +653,7 @@ private:
     OwnPtr<Agent> m_agent;
 
     bool m_dynamic_imports_allowed { false };
+    HashMap<NativeFunctionTableEntry, u32, NativeFunctionTableEntryTraits> m_native_function_indices;
 };
 
 template<typename GlobalObjectType, typename... Args>
