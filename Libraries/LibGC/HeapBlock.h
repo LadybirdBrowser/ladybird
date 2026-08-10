@@ -36,8 +36,8 @@ public:
     {
         Cell* allocated_cell = nullptr;
         if (m_freelist) {
-            VERIFY(is_valid_cell_pointer(m_freelist));
-            allocated_cell = exchange(m_freelist, m_freelist->next);
+            VERIFY(is_valid_cell_pointer(m_freelist.ptr()));
+            allocated_cell = exchange(m_freelist, m_freelist->next).ptr();
         } else if (has_lazy_freelist()) {
             allocated_cell = cell(m_next_lazy_freelist_index++);
         }

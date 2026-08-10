@@ -23,8 +23,8 @@ class GC_API RootImpl : public RefCounted<RootImpl> {
 public:
     ~RootImpl();
 
-    Cell* cell() { return m_cell; }
-    Cell const* cell() const { return m_cell; }
+    Cell* cell() { return m_cell.ptr(); }
+    Cell const* cell() const { return m_cell.ptr(); }
 
     SourceLocation const& source_location() const { return m_location; }
 

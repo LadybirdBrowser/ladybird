@@ -67,8 +67,6 @@ public:
 
     RETURNS_NONNULL T* ptr() const { return m_ptr; }
 
-    RETURNS_NONNULL operator T*() const { return m_ptr; }
-
     operator T&() const { return *m_ptr; }
 
     operator bool() const = delete;
@@ -183,8 +181,6 @@ public:
 
     explicit operator bool() const { return !!m_ptr; }
     bool operator!() const { return !m_ptr; }
-
-    operator T*() const { return m_ptr; }
 
     Ref<T> as_nonnull() const
     {
