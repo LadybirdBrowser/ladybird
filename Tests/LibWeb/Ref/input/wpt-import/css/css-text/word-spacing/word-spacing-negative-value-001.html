@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+
+  <meta charset="UTF-8">
+
+  <title>CSS Text Test: 'word-spacing' value may be negative (basic)</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/">
+  <link rel="help" href="https://www.w3.org/TR/css-text-3/#word-spacing-property">
+  <link rel="match" href="../../../../../expected/wpt-import/css/css-text/word-spacing/reference/ref-filled-green-100px-square.xht">
+  <link rel="stylesheet" type="text/css" href="../../../../../data/fonts/ahem.css">
+
+  <meta content="may" name="flags">
+
+  <style>
+  div
+    {
+      background-color: red;
+      color: green;
+      font-family: Ahem;
+      font-size: 50px;
+      line-height: 1;
+      width: 2em;
+      word-spacing: -1em;
+    }
+  </style>
+
+  <p>Test passes if there is a filled green square and <strong>no red</strong>.
+
+  <div>T E</div>
+
+  <div>S T</div>

@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<title>CSS Text Reference: Word Spacing</title>
+<link rel="author" title="Minseong Kim" href="mailto:jja08111@gmail.com">
+<link rel="stylesheet" href="../../../../../data/fonts/ahem.css">
+<meta name="flags" content="ahem">
+<style>
+@font-face {
+  font-family: Ahem;
+  src: url(../../../../../data/fonts/Ahem.ttf);
+}
+/* We use Ahem to avoid very minor differences between the test and the
+   reference that occur with certain font+platform combinations. */
+div { font-family: Ahem, monospace; font-size: 20px; white-space: pre; }
+</style>
+<body>
+  <p>Test passes if there is the one rectangle</p>
+  <div>  a</div>
+  <div>  a</div>
+</body>

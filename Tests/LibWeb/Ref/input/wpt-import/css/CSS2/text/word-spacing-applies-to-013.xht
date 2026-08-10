@@ -1,0 +1,53 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <title>CSS Test: Word-spacing application to 'display: table-column' element</title>
+        <link rel="author" title="Microsoft" href="http://www.microsoft.com/" />
+        <link rel="help" href="http://www.w3.org/TR/CSS21/text.html#propdef-word-spacing" />
+        <link rel="help" href="http://www.w3.org/TR/CSS21/text.html#spacing-props" />
+        <link rel="help" href="https://drafts.csswg.org/css-text-3/#word-spacing-property"/>
+        <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/text/word-spacing-applies-to-012-ref.xht"/>
+        <meta name="flags" content="ahem" />
+        <meta name="assert" content="The 'word-spacing' property is not applied to 'display: table-column' elements." />
+        <link rel="stylesheet" type="text/css" href="../../../../../data/fonts/ahem.css" />
+        <style type="text/css">
+            div
+            {
+                font: 16px/1em Ahem;
+            }
+            #table
+            {
+                display: table;
+            }
+            #test
+            {
+                display: table-column;
+                word-spacing: 10em;
+            }
+            #row
+            {
+                display: table-row;
+            }
+            #cell
+            {
+                display: table-cell;
+            }
+            #div1
+            {
+                background: blue;
+                height: 1em;
+                width: 11em;
+            }
+        </style>
+    </head>
+    <body>
+        <p>Test passes if there are two black boxes below and the last black box ends when the blue box ends.</p>
+        <div id="table">
+            <div id="test"></div>
+            <div id="row">
+                <div id="cell">XXXXX XXXXX</div>
+            </div>
+        </div>
+        <div id="div1"></div>
+    </body>
+</html>

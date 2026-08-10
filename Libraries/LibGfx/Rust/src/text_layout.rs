@@ -63,6 +63,7 @@ unsafe extern "C" {
         text_type: TextType,
         baseline_start_x: f32,
         letter_spacing: f32,
+        word_spacing: f32,
     ) -> ShapedRunView;
 
     fn ladybird_gfx_glyph_run_unref(retained: *mut c_void);
@@ -116,6 +117,7 @@ pub fn shape_text(
     text_type: TextType,
     baseline_start_x: f32,
     letter_spacing: f32,
+    word_spacing: f32,
 ) -> ShapedText {
     // SAFETY: FontRef keeps the font live, and the text slice remains valid
     // for the duration of the synchronous shaping call.
@@ -127,6 +129,7 @@ pub fn shape_text(
             text_type,
             baseline_start_x,
             letter_spacing,
+            word_spacing,
         )
     };
     let retained = RetainedGlyphRun {

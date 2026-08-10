@@ -1,0 +1,46 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <title>test reference</title>
+        <meta name="flags" content="ahem" />
+        <link rel="stylesheet" type="text/css" href="../../../../../data/fonts/ahem.css" />
+        <style type="text/css">
+            div
+            {
+                font: 16px/1em Ahem;
+            }
+            #table
+            {
+                display: table;
+            }
+            #test
+            {
+                display: table-column-group;
+            }
+            #row
+            {
+                display: table-row;
+            }
+            #cell
+            {
+                display: table-cell;
+            }
+            #div1
+            {
+                background: blue;
+                height: 1em;
+                width: 11em;
+            }
+        </style>
+    </head>
+    <body>
+        <p>Test passes if there are two black boxes below and the last black box ends when the blue box ends.</p>
+        <div id="table">
+            <div id="test"></div>
+            <div id="row">
+                <div id="cell">XXXXX XXXXX</div>
+            </div>
+        </div>
+        <div id="div1"></div>
+    </body>
+</html>

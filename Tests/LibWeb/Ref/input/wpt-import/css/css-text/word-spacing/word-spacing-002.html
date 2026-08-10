@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<title>CSS Text Test: Word Spacing</title>
+<link rel="author" title="Nicholas Nethercote" href="mailto:nnethercote@mozilla.com">
+<link rel="author" title="Elika Etemad" href="http://fantasai.inkedblade.net/contact">
+<link rel="help" href="http://www.w3.org/TR/css-text-3/#word-spacing">
+<link rel="stylesheet" href="../../../../../data/fonts/ahem.css">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-text/word-spacing/word-spacing-002-ref.html">
+<meta name="flags" content="ahem">
+<meta name="assert" content="Test checks various length values of word-spacing, including calc().">
+<style>
+/* We use Ahem to avoid very minor differences between the test and the
+   reference that occur with certain font+platform combinations. */
+div        { font-family: Ahem, monospace; font-size: 20px; }
+div.ws0    { word-spacing: -1ch; }
+div.ws1    { word-spacing: 0; }
+div.ws2    { word-spacing: 1ch; }
+div.ws3    { word-spacing: calc(1ch + 1ch); }
+div.ws4    { word-spacing: calc(0.5*2ch); white-space: pre;}
+</style>
+<body>
+  <p>Test passes if the space between the words starts at zero and increases by
+  an even amount on each subsequent line.</p>
+  <div class="ws0">A&nbsp;Bc Def Ghij</div>
+  <div class="ws1">A&nbsp;Bc Def Ghij</div>
+  <div class="ws2">A&nbsp;Bc Def Ghij</div>
+  <div class="ws3">A&nbsp;Bc Def Ghij</div>
+  <div class="ws4">A&nbsp; Bc  Def&nbsp;&nbsp;Ghij</div>
+</body>

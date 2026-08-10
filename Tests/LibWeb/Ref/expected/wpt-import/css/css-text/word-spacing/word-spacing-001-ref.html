@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<title>CSS Text Test: Word Spacing</title>
+<link rel="author" title="Nicholas Nethercote" href="mailto:nnethercote@mozilla.com">
+<link rel="stylesheet" href="../../../../../data/fonts/ahem.css">
+<meta name="flags" content="ahem">
+<style>
+@font-face {
+  font-family: Ahem;
+  src: url(../../../../../data/fonts/Ahem.ttf);
+}
+/* We use Ahem to avoid very minor differences between the test and the
+   reference that occur with certain font+platform combinations. */
+div { font-family: Ahem; font-size: 20px; }
+span.padoneem { padding-left: 1em; }
+</style>
+<body>
+  <p>Test passes if the space between the words starts at zero and increases by
+  one on each subsequent line.</p>
+  <div>ABcDefGhij</div>
+  <div>A Bc Def Ghij</div>
+  <div>A &nbsp;Bc &nbsp;Def &nbsp;Ghij</div>
+  <div>A &nbsp;&nbsp;Bc &nbsp;&nbsp;Def &nbsp;&nbsp;Ghij</div>
+  <div>A &nbsp;&nbsp;&nbsp;Bc &nbsp;&nbsp;&nbsp;Def &nbsp;&nbsp;&nbsp;Ghij</div>
+  <div>A &nbsp;&nbsp;&nbsp;&nbsp;Bc &nbsp;&nbsp;&nbsp;&nbsp;Def &nbsp;&nbsp;&nbsp;&nbsp;Ghij</div>
+  <div>A &nbsp;&nbsp;&nbsp;&nbsp;<span class="padoneem">Bc &nbsp;&nbsp;&nbsp;&nbsp;<span class="padoneem">Def &nbsp;&nbsp;&nbsp;&nbsp;<span class="padoneem">Ghij &nbsp;&nbsp;&nbsp;&nbsp;<span class="padoneem"></div>
+</body>

@@ -32,6 +32,7 @@ struct ShapingCacheKey {
     Utf16String text;
     u8 text_type { 0 };
     u32 letter_spacing_bit_pattern { 0 };
+    u32 word_spacing_bit_pattern { 0 };
 
     bool operator==(ShapingCacheKey const&) const = default;
 };
@@ -154,7 +155,7 @@ template<>
 struct Traits<Gfx::ShapingCacheKey> : public DefaultTraits<Gfx::ShapingCacheKey> {
     static unsigned hash(Gfx::ShapingCacheKey const& key)
     {
-        return pair_int_hash(key.text.hash(), pair_int_hash(key.text_type, key.letter_spacing_bit_pattern));
+        return pair_int_hash(key.text.hash(), pair_int_hash(key.text_type, pair_int_hash(key.letter_spacing_bit_pattern, key.word_spacing_bit_pattern)));
     }
 };
 

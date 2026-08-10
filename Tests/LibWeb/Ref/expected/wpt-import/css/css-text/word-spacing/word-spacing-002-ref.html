@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<title>CSS Text Reference: Word Spacing</title>
+<link rel="stylesheet" href="../../../../../data/fonts/ahem.css">
+<meta name="flags" content="ahem">
+<style>
+/* We use Ahem to avoid very minor differences between the test and the
+   reference that occur with certain font+platform combinations. */
+div     { font-family: Ahem, monospace; font-size: 20px; white-space: pre; }
+div .ws { margin: -1ch; }
+</style>
+<body>
+  <p>Test passes if the space between the words starts at zero and increases by
+  an even amount on each subsequent line.</p>
+  <div class="ws0">A&nbsp;<span class="ws">Bc</span> Def <span class="ws">Ghij</span></div>
+  <div class="ws1">A&nbsp;Bc Def Ghij</div>
+  <div class="ws2">A&nbsp; Bc  Def  Ghij</div>
+  <div class="ws3">A&nbsp;  Bc   Def   Ghij</div>
+  <div class="ws4">A&nbsp;   Bc    Def    Ghij</div>
+</body>
