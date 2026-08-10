@@ -21,8 +21,8 @@ class JS_API NativeFunction : public FunctionObject {
     GC_DECLARE_ALLOCATOR(NativeFunction);
 
 public:
-    static GC::Ref<NativeFunction> create(Realm&, ESCAPING Function<ThrowCompletionOr<Value>(VM&)> behaviour, i32 length, PropertyKey const& name = Utf16FlyString {}, Optional<Realm*> = {}, Optional<StringView> const& prefix = {}, Optional<Bytecode::Builtin> builtin = {});
-    static GC::Ref<NativeFunction> create(Realm&, NativeFunctionPointer behaviour, i32 length, PropertyKey const& name = Utf16FlyString {}, Optional<Realm*> = {}, Optional<StringView> const& prefix = {}, Optional<Bytecode::Builtin> builtin = {});
+    static GC::Ref<NativeFunction> create(Realm&, ESCAPING Function<ThrowCompletionOr<Value>(VM&)> behaviour, i32 length, PropertyKey const& name = Utf16FlyString {}, Optional<GC::Ptr<Realm>> = {}, Optional<StringView> const& prefix = {}, Optional<Bytecode::Builtin> builtin = {});
+    static GC::Ref<NativeFunction> create(Realm&, NativeFunctionPointer behaviour, i32 length, PropertyKey const& name = Utf16FlyString {}, Optional<GC::Ptr<Realm>> = {}, Optional<StringView> const& prefix = {}, Optional<Bytecode::Builtin> builtin = {});
     static GC::Ref<NativeFunction> create(Realm&, Utf16FlyString const& name, ESCAPING Function<ThrowCompletionOr<Value>(VM&)>);
     static GC::Ref<NativeFunction> create(Realm&, Utf16FlyString const& name, NativeFunctionPointer);
 
@@ -71,7 +71,7 @@ class JS_API RawNativeFunction final : public NativeFunction {
     GC_DECLARE_ALLOCATOR(RawNativeFunction);
 
 public:
-    static GC::Ref<RawNativeFunction> create(Realm&, NativeFunctionPointer behaviour, i32 length, PropertyKey const& name = Utf16FlyString {}, Optional<Realm*> = {}, Optional<StringView> const& prefix = {}, Optional<Bytecode::Builtin> builtin = {});
+    static GC::Ref<RawNativeFunction> create(Realm&, NativeFunctionPointer behaviour, i32 length, PropertyKey const& name = Utf16FlyString {}, Optional<GC::Ptr<Realm>> = {}, Optional<StringView> const& prefix = {}, Optional<Bytecode::Builtin> builtin = {});
     static GC::Ref<RawNativeFunction> create(Realm&, Utf16FlyString const& name, NativeFunctionPointer);
 
     virtual ~RawNativeFunction() override = default;

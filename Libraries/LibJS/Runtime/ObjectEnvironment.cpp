@@ -13,7 +13,7 @@ namespace JS {
 
 GC_DEFINE_ALLOCATOR(ObjectEnvironment);
 
-ObjectEnvironment::ObjectEnvironment(Object& binding_object, IsWithEnvironment is_with_environment, Environment* outer_environment)
+ObjectEnvironment::ObjectEnvironment(Object& binding_object, IsWithEnvironment is_with_environment, GC::Ptr<Environment> outer_environment)
     : Environment(outer_environment)
     , m_binding_object(binding_object)
     , m_with_environment(is_with_environment == IsWithEnvironment::Yes)

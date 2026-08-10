@@ -20,7 +20,7 @@ namespace JS {
 GC_DEFINE_ALLOCATOR(Array);
 
 // 10.4.2.2 ArrayCreate ( length [ , proto ] ), https://tc39.es/ecma262/#sec-arraycreate
-ThrowCompletionOr<GC::Ref<Array>> Array::create(Realm& realm, u64 length, Object* prototype)
+ThrowCompletionOr<GC::Ref<Array>> Array::create(Realm& realm, u64 length, GC::Ptr<Object> prototype)
 {
     auto& vm = realm.vm();
 
@@ -30,7 +30,7 @@ ThrowCompletionOr<GC::Ref<Array>> Array::create(Realm& realm, u64 length, Object
 
     // 2. If proto is not present, set proto to %Array.prototype%.
     if (!prototype)
-        prototype = realm.intrinsics().array_prototype().ptr();
+        prototype = realm.intrinsics().array_prototype();
 
     // 3. Let A be MakeBasicObject(« [[Prototype]], [[Extensible]] »).
     // 4. Set A.[[Prototype]] to proto.
