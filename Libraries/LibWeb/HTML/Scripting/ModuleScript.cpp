@@ -42,9 +42,7 @@ ModuleScript::ModuleScript(Optional<URL::URL> base_url, ByteString filename, Env
 
 GC::Ref<ModuleScript> ModuleScript::create_internal(Optional<URL::URL> base_url, ByteString const& filename, EnvironmentSettingsObject& settings)
 {
-    auto script = GC::Heap::the().allocate<ModuleScript>(move(base_url), filename, settings);
-    script->initialize(settings.realm());
-    return script;
+    return settings.realm().create<ModuleScript>(move(base_url), filename, settings);
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#creating-a-javascript-module-script

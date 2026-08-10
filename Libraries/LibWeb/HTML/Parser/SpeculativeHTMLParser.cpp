@@ -25,9 +25,7 @@ GC_DEFINE_ALLOCATOR(SpeculativeHTMLParser);
 
 GC::Ref<SpeculativeHTMLParser> SpeculativeHTMLParser::create(GC::Ref<DOM::Document> document, Utf16String pending_input, URL::URL base_url)
 {
-    auto parser = GC::Heap::the().allocate<SpeculativeHTMLParser>(document, move(pending_input), move(base_url));
-    parser->initialize(document->relevant_settings_object().realm());
-    return parser;
+    return document->relevant_settings_object().realm().create<SpeculativeHTMLParser>(document, move(pending_input), move(base_url));
 }
 
 SpeculativeHTMLParser::SpeculativeHTMLParser(GC::Ref<DOM::Document> document, Utf16String pending_input, URL::URL base_url)
