@@ -23,16 +23,7 @@
 
 struct RustFfiHtmlParserHandle;
 
-namespace Web::SVG {
-
-class SVGScriptElement;
-
-}
-
 namespace Web::HTML {
-
-class HTMLScriptElement;
-class HTMLFormElement;
 
 class WEB_API HTMLParser final : public JS::Cell {
     GC_CELL(HTMLParser, JS::Cell);
