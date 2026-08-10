@@ -31,6 +31,9 @@ public:
 
     size_t block_count();
 
+    static FlatPtr heap_region_start();
+    static FlatPtr heap_region_end();
+
     // Wake the global decommit worker so it processes any deferred madvise
     // work that's piled up. Call this at the end of a GC sweep.
     static void wake_decommit_worker_async();

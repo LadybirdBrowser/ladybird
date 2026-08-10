@@ -96,8 +96,6 @@ public:
     using SweepList = IntrusiveList<&CellAllocator::m_sweep_list_node>;
 
     BlockAllocator& block_allocator() { return m_block_allocator; }
-    FlatPtr min_block_address() const { return m_min_block_address; }
-    FlatPtr max_block_address() const { return m_max_block_address; }
 
 private:
     friend class Heap;
@@ -112,8 +110,6 @@ private:
     BlockList m_full_blocks;
     BlockList m_usable_blocks;
     SweepBlockList m_blocks_pending_sweep;
-    FlatPtr m_min_block_address { explode_byte(0xff) };
-    FlatPtr m_max_block_address { 0 };
     bool m_overrides_finalize { false };
 };
 
