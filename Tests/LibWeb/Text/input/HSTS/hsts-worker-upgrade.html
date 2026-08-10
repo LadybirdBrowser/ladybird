@@ -24,7 +24,7 @@
                     targetURL = e.data;
                     let pre;
                     try {
-                        pre = await fetch(targetURL, { signal: AbortSignal.timeout(2000) });
+                        pre = await fetch(targetURL);
                     } catch (err) {
                         postMessage("FAIL - precondition: worker echo unreachable pre-HSTS");
                         return;
@@ -38,7 +38,7 @@
                     return;
                 }
                 try {
-                    await fetch(targetURL, { signal: AbortSignal.timeout(2000) });
+                    await fetch(targetURL);
                     postMessage("FAIL - worker fetch should have been upgraded and failed");
                 } catch (err) {
                     postMessage("PASS");
