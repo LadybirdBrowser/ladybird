@@ -1228,46 +1228,35 @@ WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> HTMLParser::parse_html_fragm
 GC::Ref<HTMLParser> HTMLParser::create_for_scripting(DOM::Document& document)
 {
     auto scripting_mode = document.is_scripting_enabled() ? ParserScriptingMode::Normal : ParserScriptingMode::Disabled;
-    auto parser = GC::Heap::the().allocate<HTMLParser>(document, scripting_mode, ScriptCreatedParser::Yes);
-    parser->initialize(document.relevant_settings_object().realm());
-    return parser;
+    return document.relevant_settings_object().realm().create<HTMLParser>(document, scripting_mode, ScriptCreatedParser::Yes);
 }
 
 GC::Ref<HTMLParser> HTMLParser::create_with_open_input_stream(DOM::Document& document)
 {
     auto scripting_mode = document.is_scripting_enabled() ? ParserScriptingMode::Normal : ParserScriptingMode::Disabled;
-    auto parser = GC::Heap::the().allocate<HTMLParser>(document, scripting_mode, ScriptCreatedParser::No);
-    parser->initialize(document.relevant_settings_object().realm());
-    return parser;
+    return document.relevant_settings_object().realm().create<HTMLParser>(document, scripting_mode, ScriptCreatedParser::No);
 }
 
 GC::Ref<HTMLParser> HTMLParser::create_with_uncertain_encoding(DOM::Document& document, ByteBuffer const& input, Optional<MimeSniff::MimeType> maybe_mime_type)
 {
     auto scripting_mode = document.is_scripting_enabled() ? ParserScriptingMode::Normal : ParserScriptingMode::Disabled;
-    if (document.has_encoding()) {
-        auto parser = GC::Heap::the().allocate<HTMLParser>(document, scripting_mode, input, document.encoding().value().to_byte_string());
-        parser->initialize(document.relevant_settings_object().realm());
-        return parser;
-    }
+
+    if (document.has_encoding())
+        return document.relevant_settings_object().realm().create<HTMLParser>(document, scripting_mode, input, document.encoding().value().to_byte_string());
+
     auto encoding = run_encoding_sniffing_algorithm(document, input, maybe_mime_type);
     dbgln_if(HTML_PARSER_DEBUG, "The encoding sniffing algorithm returned encoding '{}'", encoding);
-    auto parser = GC::Heap::the().allocate<HTMLParser>(document, scripting_mode, input, encoding);
-    parser->initialize(document.relevant_settings_object().realm());
-    return parser;
+    return document.relevant_settings_object().realm().create<HTMLParser>(document, scripting_mode, input, encoding);
 }
 
 GC::Ref<HTMLParser> HTMLParser::create_from_byte_string(DOM::Document& document, StringView input, ParserScriptingMode scripting_mode, StringView encoding)
 {
-    auto parser = GC::Heap::the().allocate<HTMLParser>(document, scripting_mode, input, encoding);
-    parser->initialize(document.relevant_settings_object().realm());
-    return parser;
+    return document.relevant_settings_object().realm().create<HTMLParser>(document, scripting_mode, input, encoding);
 }
 
 GC::Ref<HTMLParser> HTMLParser::create_for_decoded_string(DOM::Document& document, Utf16View input, ParserScriptingMode scripting_mode, Utf16View encoding)
 {
-    auto parser = GC::Heap::the().allocate<HTMLParser>(document, scripting_mode, input, encoding);
-    parser->initialize(document.relevant_settings_object().realm());
-    return parser;
+    return document.relevant_settings_object().realm().create<HTMLParser>(document, scripting_mode, input, encoding);
 }
 
 enum class AttributeMode {
