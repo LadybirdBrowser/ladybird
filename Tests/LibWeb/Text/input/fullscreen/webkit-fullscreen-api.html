@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<style>
+    body { margin: 0; }
+    #target { width: 100px; height: 100px; }
+</style>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const target = document.getElementById("target");
+        let changeEventCount = 0;
+
+        document.addEventListener("fullscreenchange", () => {
+            println("unexpected fullscreenchange");
+        });
+
+        document.addEventListener("fullscreenerror", () => {
+            println("unexpected fullscreenerror");
+        });
+
+        document.addEventListener("webkitfullscreenerror", () => {
+            println("webkitfullscreenerror");
+            internals.click(0, 0);
+        }, { once: true });
+
+        document.addEventListener("webkitfullscreenchange", () => {
+            ++changeEventCount;
+            println(`webkitfullscreenchange ${changeEventCount}`);
+
+            if (changeEventCount === 1) {
+                println(`webkitIsFullScreen: ${document.webkitIsFullScreen}`);
+                println(`webkitFullscreenElement: ${document.webkitFullscreenElement === target}`);
+                println(`webkitCurrentFullScreenElement: ${document.webkitCurrentFullScreenElement === target}`);
+                println(`webkitCancelFullScreen returns undefined: ${document.webkitCancelFullScreen() === undefined}`);
+                return;
+            }
+
+            println(`webkitIsFullScreen: ${document.webkitIsFullScreen}`);
+            println(`webkitFullscreenElement: ${document.webkitFullscreenElement}`);
+            done();
+        });
+
+        target.addEventListener("click", () => {
+            println(`webkitRequestFullScreen returns undefined: ${target.webkitRequestFullScreen() === undefined}`);
+        });
+
+        const disconnected = document.createElement("div");
+        println(`webkitRequestFullscreen returns undefined: ${disconnected.webkitRequestFullscreen() === undefined}`);
+    });
+</script>

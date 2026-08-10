@@ -8184,7 +8184,7 @@ void Document::run_fullscreen_steps()
     m_pending_fullscreen_events.clear();
 
     // 3. For each (type, element) in pendingEvents:
-    for (auto const& [type, element] : pending_events) {
+    for (auto const& [type, element, request_type] : pending_events) {
         // 1. Let target be element if element is connected and its node document is document, and otherwise let target be document.
         GC::Ref<Node> target { *this };
         if (element->is_connected() && &element->document() == this)
@@ -8194,26 +8194,26 @@ void Document::run_fullscreen_steps()
         switch (type) {
         case PendingFullscreenEvent::Type::Change:
             target->dispatch_event(Event::create_bubbling_composed(
-                HTML::EventNames::fullscreenchange,
+                request_type == Fullscreen::RequestType::WebKit ? HTML::EventNames::webkitfullscreenchange : HTML::EventNames::fullscreenchange,
                 HighResolutionTime::current_high_resolution_time(relevant_global_object(*this))));
             break;
         case PendingFullscreenEvent::Type::Error:
             target->dispatch_event(Event::create_bubbling_composed(
-                HTML::EventNames::fullscreenerror,
+                request_type == Fullscreen::RequestType::WebKit ? HTML::EventNames::webkitfullscreenerror : HTML::EventNames::fullscreenerror,
                 HighResolutionTime::current_high_resolution_time(relevant_global_object(*this))));
             break;
         }
     }
 }
 
-void Document::append_pending_fullscreen_change(PendingFullscreenEvent::Type type, GC::Ref<Element> element)
+void Document::append_pending_fullscreen_change(PendingFullscreenEvent::Type type, GC::Ref<Element> element, Fullscreen::RequestType request_type)
 {
-    m_pending_fullscreen_events.append(PendingFullscreenEvent { type, element });
+    m_pending_fullscreen_events.append(PendingFullscreenEvent { type, element, request_type });
     page().client().request_frame();
 }
 
 // https://fullscreen.spec.whatwg.org/#fullscreen-an-element
-void Document::fullscreen_element_within_doc(GC::Ref<Element> element)
+void Document::fullscreen_element_within_doc(GC::Ref<Element> element, Fullscreen::RequestType request_type)
 {
     // FIXME: Spec issue:  Finding topmost popover ancestor algorithm takes different parameters than those described
     //        by the fullscreen spec. Since the new algorithm takes 4 parameters, with the new "popover list", we must
@@ -8240,6 +8240,7 @@ void Document::fullscreen_element_within_doc(GC::Ref<Element> element)
 
     // 4. Set element’s fullscreen flag.
     element->set_fullscreen_flag(true);
+    element->set_fullscreen_request_type(request_type);
 
     // 5. Remove from the top layer immediately given element.
     remove_an_element_from_the_top_layer_immediately(element);
@@ -8353,7 +8354,7 @@ void Document::exit_fullscreen(GC::Ptr<WebIDL::Promise> promise)
     // 7. If doc’s fullscreen element is not connected:
     if (auto fullscreen_element = doc->fullscreen_element(); !fullscreen_element->is_connected()) {
         // 1. Append (fullscreenchange, doc’s fullscreen element) to doc’s list of pending fullscreen events.
-        doc->append_pending_fullscreen_change(PendingFullscreenEvent::Type::Change, *fullscreen_element);
+        doc->append_pending_fullscreen_change(PendingFullscreenEvent::Type::Change, *fullscreen_element, fullscreen_element->fullscreen_request_type());
 
         // 2. Unfullscreen doc’s fullscreen element.
         doc->unfullscreen_element(*fullscreen_element);
@@ -8361,6 +8362,11 @@ void Document::exit_fullscreen(GC::Ptr<WebIDL::Promise> promise)
 
     // 8. Return promise, and run the remaining steps in parallel.
     page().enqueue_fullscreen_exit(doc, resize, promise);
+}
+
+void Document::webkit_exit_fullscreen()
+{
+    exit_fullscreen(nullptr);
 }
 
 // https://fullscreen.spec.whatwg.org/#unfullscreen-a-document
@@ -9157,6 +9163,26 @@ WebIDL::CallbackType* Document::onfullscreenerror()
 void Document::set_onfullscreenerror(WebIDL::CallbackType* value)
 {
     set_event_handler_attribute(HTML::EventNames::fullscreenerror, value);
+}
+
+WebIDL::CallbackType* Document::onwebkitfullscreenchange()
+{
+    return event_handler_attribute(HTML::EventNames::webkitfullscreenchange);
+}
+
+void Document::set_onwebkitfullscreenchange(WebIDL::CallbackType* value)
+{
+    set_event_handler_attribute(HTML::EventNames::webkitfullscreenchange, value);
+}
+
+WebIDL::CallbackType* Document::onwebkitfullscreenerror()
+{
+    return event_handler_attribute(HTML::EventNames::webkitfullscreenerror);
+}
+
+void Document::set_onwebkitfullscreenerror(WebIDL::CallbackType* value)
+{
+    set_event_handler_attribute(HTML::EventNames::webkitfullscreenerror, value);
 }
 
 // https://drafts.csswg.org/css-view-transitions-1/#dom-document-startviewtransition

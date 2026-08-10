@@ -152,6 +152,8 @@ namespace Web::HTML::EventNames {
     __ENUMERATE_HTML_EVENT(webkitAnimationEnd)       \
     __ENUMERATE_HTML_EVENT(webkitAnimationIteration) \
     __ENUMERATE_HTML_EVENT(webkitAnimationStart)     \
+    __ENUMERATE_HTML_EVENT(webkitfullscreenchange)   \
+    __ENUMERATE_HTML_EVENT(webkitfullscreenerror)    \
     __ENUMERATE_HTML_EVENT(webkitTransitionEnd)
 
 #define __ENUMERATE_HTML_EVENT(name) extern WEB_API Utf16FlyString const& name;

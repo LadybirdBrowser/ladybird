@@ -1,0 +1,11 @@
+webkitRequestFullscreen returns undefined: true
+webkitfullscreenerror
+webkitRequestFullScreen returns undefined: true
+webkitfullscreenchange 1
+webkitIsFullScreen: true
+webkitFullscreenElement: true
+webkitCurrentFullScreenElement: true
+webkitCancelFullScreen returns undefined: true
+webkitfullscreenchange 2
+webkitIsFullScreen: false
+webkitFullscreenElement: null
