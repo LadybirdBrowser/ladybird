@@ -14,19 +14,13 @@
 #include <AK/Types.h>
 #include <AK/Vector.h>
 #include <LibGC/Export.h>
+#include <LibGC/ExternalEntityTable.h>
 
 namespace GC {
 
-struct PrimitiveStorageHandle {
-    static constexpr u32 invalid_index = NumericLimits<u32>::max();
+using PrimitiveStorageHandle = ExternalEntityTableHandle;
 
-    u32 index { invalid_index };
-    u32 generation { 0 };
-
-    bool is_valid() const { return index != invalid_index && generation != 0; }
-};
-
-class GC_API PrimitiveStorage {
+class GC_API PrimitiveStorage : private ExternalEntityTable {
     AK_MAKE_NONCOPYABLE(PrimitiveStorage);
     AK_MAKE_NONMOVABLE(PrimitiveStorage);
 
@@ -138,8 +132,6 @@ private:
     };
 
     struct Entry {
-        u32 generation { 1 };
-        bool allocated { false };
         size_t size { 0 };
         Allocator::Allocation allocation;
     };
@@ -152,7 +144,6 @@ private:
 
     Allocator m_allocator;
     Vector<Entry> m_entries;
-    Vector<u32> m_free_entry_indices;
 };
 
 }

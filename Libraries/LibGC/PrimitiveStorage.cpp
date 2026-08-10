@@ -19,6 +19,7 @@ namespace GC {
 static constexpr size_t small_slab_size = 64 * KiB;
 static constexpr size_t minimum_small_slot_size = 16;
 static constexpr size_t maximum_small_slot_size = 64 * KiB;
+static constexpr auto primitive_storage_tag = balanced_external_entity_table_tag(0);
 
 static size_t round_up_to_page(size_t value)
 {
@@ -409,27 +410,20 @@ ErrorOr<PrimitiveStorageHandle> PrimitiveStorage::try_reserve(size_t size, size_
 
 PrimitiveStorageHandle PrimitiveStorage::install_allocation(Allocator::Allocation allocation, size_t size)
 {
-    u32 index;
-    if (m_free_entry_indices.is_empty()) {
-        VERIFY(m_entries.size() < PrimitiveStorageHandle::invalid_index);
-        index = static_cast<u32>(m_entries.size());
+    auto handle = allocate_entry(primitive_storage_tag);
+    if (handle.index == m_entries.size())
         m_entries.append({});
-    } else {
-        index = m_free_entry_indices.take_last();
-    }
 
-    auto& entry = m_entries[index];
-    VERIFY(!entry.allocated);
-    entry.allocated = true;
+    auto& entry = m_entries[handle.index];
     entry.size = size;
     entry.allocation = move(allocation);
 
-    return PrimitiveStorageHandle { index, entry.generation };
+    return handle;
 }
 
 bool PrimitiveStorage::is_valid(PrimitiveStorageHandle handle) const
 {
-    return entry_for(handle) != nullptr;
+    return ExternalEntityTable::is_valid(handle, primitive_storage_tag);
 }
 
 bool PrimitiveStorage::contains(void const* address, size_t size) const
@@ -550,22 +544,16 @@ void PrimitiveStorage::free(PrimitiveStorageHandle handle)
         return;
 
     m_allocator.deallocate(entry->allocation);
-    entry->allocated = false;
     entry->size = 0;
-    ++entry->generation;
-    if (entry->generation == 0)
-        ++entry->generation;
-    m_free_entry_indices.append(handle.index);
+    free_entry(handle, primitive_storage_tag);
 }
 
 PrimitiveStorage::Entry* PrimitiveStorage::entry_for(PrimitiveStorageHandle handle)
 {
-    if (!handle.is_valid() || handle.index >= m_entries.size())
+    if (!ExternalEntityTable::is_valid(handle, primitive_storage_tag))
         return nullptr;
-    auto& entry = m_entries[handle.index];
-    if (!entry.allocated || entry.generation != handle.generation)
-        return nullptr;
-    return &entry;
+    VERIFY(handle.index < m_entries.size());
+    return &m_entries[handle.index];
 }
 
 PrimitiveStorage::Entry const* PrimitiveStorage::entry_for(PrimitiveStorageHandle handle) const

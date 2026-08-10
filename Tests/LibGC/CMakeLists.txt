@@ -1,5 +1,6 @@
 set(TEST_SOURCES
     TestBlockAllocator.cpp
+    TestExternalEntityTable.cpp
     TestGCContainers.cpp
     TestGCHeapGroup.cpp
     TestGCIdleCollection.cpp
