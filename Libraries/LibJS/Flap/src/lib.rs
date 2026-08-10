@@ -938,7 +938,7 @@ specialize Clear(dst: Undefined);
                 },
                 constants: Some(SourceInput {
                     name: "broken-layout.conf",
-                    contents: "field Object.shape Shape MISSING nullable\n",
+                    contents: "field Object.shape Shape MISSING nullable cell\n",
                 }),
             })
             .err()

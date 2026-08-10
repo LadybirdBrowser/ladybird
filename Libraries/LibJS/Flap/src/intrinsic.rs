@@ -201,6 +201,7 @@ impl From<FieldWidth> for MemoryWidth {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum FieldAccessKind {
     Load { width: FieldWidth, nonzero: bool },
+    LoadCellPointer { nonzero: bool },
     Store(FieldWidth),
 }
 
@@ -208,6 +209,7 @@ impl FieldAccessKind {
     pub(crate) fn width(self) -> FieldWidth {
         match self {
             Self::Load { width, .. } | Self::Store(width) => width,
+            Self::LoadCellPointer { .. } => FieldWidth::U64,
         }
     }
 
@@ -216,7 +218,10 @@ impl FieldAccessKind {
     }
 
     pub(crate) fn nonzero(self) -> bool {
-        matches!(self, Self::Load { nonzero: true, .. })
+        matches!(
+            self,
+            Self::Load { nonzero: true, .. } | Self::LoadCellPointer { nonzero: true }
+        )
     }
 
     pub(crate) fn memory_operation(self) -> MemoryOperation {
@@ -225,6 +230,8 @@ impl FieldAccessKind {
                 width: FieldWidth::U64,
                 nonzero: true,
             } => MemoryOperation::Load64NonZero,
+            Self::LoadCellPointer { nonzero: true } => MemoryOperation::LoadNonnullCellPointer,
+            Self::LoadCellPointer { nonzero: false } => MemoryOperation::LoadCellPointer,
             Self::Load { width, .. } => MemoryOperation::Load {
                 width: width.into(),
                 signed: false,
@@ -237,7 +244,8 @@ impl FieldAccessKind {
         match self {
             Self::Load {
                 width: FieldWidth::U64, ..
-            } => Some(MemoryOperation::LoadPair(PairWidth::DoubleWord)),
+            }
+            | Self::LoadCellPointer { .. } => Some(MemoryOperation::LoadPair(PairWidth::DoubleWord)),
             Self::Load {
                 width: FieldWidth::U32,
                 nonzero: false,
@@ -851,6 +859,8 @@ impl ControlOperation {
 pub(crate) enum MemoryOperation {
     Load { width: MemoryWidth, signed: bool },
     Load64NonZero,
+    LoadCellPointer,
+    LoadNonnullCellPointer,
     Store(MemoryWidth),
     LoadPair(PairWidth),
     StorePair(PairWidth),
@@ -864,6 +874,8 @@ intrinsic_names!(MemoryOperation {
     Self::Load { width: MemoryWidth::Word, signed: false } => "load32" signatures [signature!([Out AnyGpr, In Memory])];
     Self::Load { width: MemoryWidth::DoubleWord, signed: false } => "load64" signatures [signature!([Out AnyGpr, In Memory])];
     Self::Load64NonZero => "load64_nonzero" signatures [signature!([Out AnyGpr, In Memory])];
+    Self::LoadCellPointer => "load_cell_ptr" signatures [signature!([Out AnyGpr, In Memory])];
+    Self::LoadNonnullCellPointer => "load_nonnull_cell_ptr" signatures [signature!([Out AnyGpr, In Memory])];
     Self::Load { width: MemoryWidth::Float, signed: false } => "loadf32" signatures [signature!([Out F32, In Memory])];
     Self::LoadPair(PairWidth::Word) => "load_pair32" signatures [signature!([In Memory, In Memory] -> (U32, U32)), signature!([Out AnyGpr, Out AnyGpr, In Memory, In Memory])];
     Self::LoadPair(PairWidth::DoubleWord) => "load_pair64" signatures [signature!([In Memory, In Memory] -> (U64, U64)), signature!([Out AnyGpr, Out AnyGpr, In Memory, In Memory])];
@@ -880,7 +892,7 @@ impl MemoryOperation {
     pub(crate) fn effects(self) -> IntrinsicEffects {
         IntrinsicEffects {
             memory: if self.writes() { ModRef::Write } else { ModRef::Read },
-            may_trap: self == Self::Load64NonZero,
+            may_trap: matches!(self, Self::Load64NonZero | Self::LoadNonnullCellPointer),
             ..IntrinsicEffects::PURE
         }
     }
@@ -897,7 +909,7 @@ impl MemoryOperation {
     pub(crate) fn width(self) -> MemoryWidth {
         match self {
             Self::Load { width, .. } | Self::Store(width) => width,
-            Self::Load64NonZero => MemoryWidth::DoubleWord,
+            Self::Load64NonZero | Self::LoadCellPointer | Self::LoadNonnullCellPointer => MemoryWidth::DoubleWord,
             Self::LoadPair(PairWidth::Word) | Self::StorePair(PairWidth::Word) => MemoryWidth::Word,
             Self::LoadPair(PairWidth::DoubleWord) | Self::StorePair(PairWidth::DoubleWord) => MemoryWidth::DoubleWord,
         }
