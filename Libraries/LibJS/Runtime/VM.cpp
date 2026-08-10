@@ -247,15 +247,14 @@ u32 VM::register_native_function(NativeFunctionPointer function, NativeFunctionT
 {
     VERIFY(function);
 
-    for (size_t index = 0; index < m_native_function_table.size(); ++index) {
-        auto const& entry = m_native_function_table[index];
-        if (entry.function == function && entry.type == type)
-            return static_cast<u32>(index);
-    }
+    NativeFunctionTableEntry entry { function, type };
+    if (auto it = m_native_function_indices.find(entry); it != m_native_function_indices.end())
+        return it->value;
 
     VERIFY(m_native_function_table.size() < NumericLimits<u32>::max());
     auto index = static_cast<u32>(m_native_function_table.size());
-    m_native_function_table.append({ function, type });
+    m_native_function_table.append(entry);
+    m_native_function_indices.set(entry, index);
     m_native_function_table_data = m_native_function_table.data();
     return index;
 }
