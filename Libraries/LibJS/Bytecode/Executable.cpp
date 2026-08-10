@@ -28,8 +28,12 @@ GC_DEFINE_ALLOCATOR(TemplateObjectCache);
 GC_DEFINE_ALLOCATOR(ObjectPropertyIteratorCacheData);
 
 InstructionStream::InstructionStream(Vector<u8> bytecode)
-    : m_storage(move(bytecode))
+    : m_storage(MUST(Core::ImmutableBytes::copy_to_readonly_mapping(bytecode.span())))
 {
+    // Keep each fresh instruction stream in its own read-only mapping. This deliberately costs one VMA
+    // and page-rounded allocation per Executable. Packing streams into a shared arena would prevent us
+    // from sealing each stream immediately because memory protection is page-granular.
+    VERIFY(bytecode.is_empty() || m_storage.is_readonly_mapped());
     update_view_from_storage();
 }
 
@@ -41,13 +45,7 @@ InstructionStream::InstructionStream(Core::ImmutableBytes bytecode, size_t offse
 
 void InstructionStream::update_view_from_storage(size_t offset, Optional<size_t> size)
 {
-    auto bytes = m_storage.visit(
-        [](Vector<u8> const& bytecode) -> ReadonlyBytes {
-            return bytecode.span();
-        },
-        [](Core::ImmutableBytes const& bytecode) -> ReadonlyBytes {
-            return bytecode.bytes();
-        });
+    auto bytes = m_storage.bytes();
 
     VERIFY(offset <= bytes.size());
     m_size = size.value_or(bytes.size() - offset);
@@ -57,15 +55,9 @@ void InstructionStream::update_view_from_storage(size_t offset, Optional<size_t>
 
 size_t InstructionStream::external_memory_size() const
 {
-    return m_storage.visit(
-        [](Vector<u8> const& bytecode) -> size_t {
-            return vector_external_memory_size(bytecode);
-        },
-        [this](Core::ImmutableBytes const& bytecode) -> size_t {
-            if (bytecode.is_file_backed())
-                return 0;
-            return m_size;
-        });
+    if (m_storage.is_file_backed())
+        return 0;
+    return m_size;
 }
 
 static_assert(alignof(PropertyLookupCache::MonomorphicData) > PropertyLookupCache::polymorphic_data_tag);

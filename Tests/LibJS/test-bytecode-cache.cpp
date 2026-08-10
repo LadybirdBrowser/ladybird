@@ -25,6 +25,12 @@
 #include <LibJS/SourceTextModule.h>
 #include <LibTest/TestCase.h>
 
+#if !defined(AK_OS_WINDOWS)
+#    include <signal.h>
+#    include <sys/wait.h>
+#    include <unistd.h>
+#endif
+
 struct BytecodeCacheTestData {
     NonnullRefPtr<JS::SourceCode const> source_code;
     Core::ImmutableBytes blob;
@@ -43,6 +49,7 @@ TEST_CASE(script_parse_uses_filename_as_default_display_filename)
     auto* executable = script_or_error.value()->cached_executable();
     VERIFY(executable);
     EXPECT_EQ(executable->source_code->filename(), "/tmp/script-fallback.js"_utf16);
+    EXPECT(executable->bytecode.is_readonly_mapped());
 }
 
 TEST_CASE(module_parse_uses_filename_as_default_display_filename)
@@ -1039,4 +1046,31 @@ TEST_CASE(in_memory_instruction_stream_accounts_only_for_its_range)
     JS::Bytecode::InstructionStream instruction_stream { move(immutable_bytecode), 4, 3 };
 
     EXPECT_EQ(instruction_stream.external_memory_size(), 3u);
+}
+
+TEST_CASE(fresh_instruction_stream_is_readonly_mapped)
+{
+    Vector<u8> bytecode { 1, 2, 3, 4 };
+    JS::Bytecode::InstructionStream instruction_stream { move(bytecode) };
+    EXPECT(instruction_stream.is_readonly_mapped());
+
+#if !defined(AK_OS_WINDOWS)
+    auto child = fork();
+    ASSUME(child >= 0);
+    if (child == 0) {
+        *const_cast<u8*>(instruction_stream.data()) = 0xff;
+        _exit(0);
+    }
+
+    int status = 0;
+    EXPECT_EQ(waitpid(child, &status, 0), child);
+
+    auto died_from_inaccessible_memory = WIFSIGNALED(status) && (WTERMSIG(status) == SIGSEGV || WTERMSIG(status) == SIGBUS);
+#    if defined(HAS_ADDRESS_SANITIZER)
+    auto died_from_asan = (WIFEXITED(status) && WEXITSTATUS(status) != 0) || (WIFSIGNALED(status) && WTERMSIG(status) == SIGABRT);
+    EXPECT(died_from_inaccessible_memory || died_from_asan);
+#    else
+    EXPECT(died_from_inaccessible_memory);
+#    endif
+#endif
 }

@@ -156,11 +156,28 @@ ErrorOr<void*> reserve_address_space(size_t size)
     return ptr;
 }
 
+ErrorOr<void*> allocate_anonymous_memory(size_t size)
+{
+    auto* ptr = ::mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (ptr == MAP_FAILED)
+        return Error::from_syscall("mmap"sv, errno);
+    return ptr;
+}
+
 ErrorOr<void> commit_memory(void* address, size_t size)
 {
     auto* ptr = ::mmap(address, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
     if (ptr == MAP_FAILED)
         return Error::from_syscall("mmap"sv, errno);
+    return {};
+}
+
+ErrorOr<void> protect_memory_readonly(void* address, size_t size)
+{
+    if (size == 0)
+        return {};
+    if (::mprotect(address, size, PROT_READ) < 0)
+        return Error::from_syscall("mprotect"sv, errno);
     return {};
 }
 
