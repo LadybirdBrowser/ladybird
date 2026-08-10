@@ -134,7 +134,7 @@ public:
     explicit operator bool() const { return !!ptr(); }
     bool operator!() const { return !ptr(); }
 
-    operator T*() const { return ptr(); }
+    operator T*() const { return ptr().ptr(); }
 
     Ref<T> as_nonnull() const
     {
@@ -179,7 +179,7 @@ template<typename T>
 struct Formatter<GC::Weak<T>> : Formatter<T const*> {
     ErrorOr<void> format(FormatBuilder& builder, GC::Weak<T> const& value)
     {
-        return Formatter<T const*>::format(builder, value.ptr());
+        return Formatter<T const*>::format(builder, value.ptr().ptr());
     }
 };
 

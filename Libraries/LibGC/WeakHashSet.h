@@ -16,7 +16,7 @@ class WeakHashSet {
     struct InternalTraits : public DefaultTraits<Weak<T>> {
         static unsigned hash(Weak<T> const& value)
         {
-            return Traits<T*>::hash(value.ptr());
+            return Traits<T*>::hash(value.ptr().ptr());
         }
     };
 
@@ -34,7 +34,7 @@ public:
     bool remove(T& value)
     {
         maybe_prune();
-        auto it = m_table.find(Traits<T*>::hash(&value), [&](auto& entry) { return entry.ptr() == &value; });
+        auto it = m_table.find(Traits<T*>::hash(&value), [&](auto& entry) { return entry.ptr().ptr() == &value; });
         if (it == m_table.end())
             return false;
         m_table.remove(it);
@@ -43,7 +43,7 @@ public:
 
     bool contains(T& value) const
     {
-        auto it = m_table.find(Traits<T*>::hash(&value), [&](auto& entry) { return entry.ptr() == &value; });
+        auto it = m_table.find(Traits<T*>::hash(&value), [&](auto& entry) { return entry.ptr().ptr() == &value; });
         return it != m_table.end();
     }
 
@@ -71,7 +71,7 @@ public:
         }
 
         T& operator*() { return *m_it->ptr(); }
-        T* operator->() { return m_it->ptr(); }
+        T* operator->() { return m_it->ptr().ptr(); }
 
     private:
         friend class WeakHashSet;
@@ -108,7 +108,7 @@ public:
         }
 
         T& operator*() { return *(*m_it).ptr(); }
-        T* operator->() { return (*m_it).ptr(); }
+        T* operator->() { return (*m_it).ptr().ptr(); }
 
     private:
         friend class WeakHashSet;

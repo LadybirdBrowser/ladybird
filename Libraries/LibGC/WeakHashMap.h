@@ -28,7 +28,7 @@ class WeakHashMap {
         static unsigned hash(KeyStorage const& value)
         {
             if constexpr (key_is_cell)
-                return Traits<K const*>::hash(value.ptr());
+                return Traits<K const*>::hash(value.ptr().ptr());
             else
                 return Traits<K>::hash(value);
         }
@@ -106,7 +106,7 @@ public:
             auto it = find_iterator(key);
             if (it == m_table.end())
                 return static_cast<V*>(nullptr);
-            return static_cast<V*>(it->value.ptr());
+            return static_cast<V*>(it->value.ptr().ptr());
         } else {
             auto it = find_iterator(key);
             if (it == m_table.end())
@@ -121,7 +121,7 @@ public:
             auto it = find_iterator(key);
             if (it == m_table.end())
                 return static_cast<V const*>(nullptr);
-            return static_cast<V const*>(it->value.ptr());
+            return static_cast<V const*>(it->value.ptr().ptr());
         } else {
             auto it = find_iterator(key);
             if (it == m_table.end())
@@ -188,7 +188,7 @@ private:
     {
         if constexpr (key_is_cell) {
             return m_table.find(Traits<K const*>::hash(&key), [&](auto& entry) {
-                return entry.key.ptr() == &key;
+                return entry.key.ptr().ptr() == &key;
             });
         } else {
             return m_table.find(key);
@@ -199,7 +199,7 @@ private:
     {
         if constexpr (key_is_cell) {
             return m_table.find(Traits<K const*>::hash(&key), [&](auto& entry) {
-                return entry.key.ptr() == &key;
+                return entry.key.ptr().ptr() == &key;
             });
         } else {
             return m_table.find(key);
