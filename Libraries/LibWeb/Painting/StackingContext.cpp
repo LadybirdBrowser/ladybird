@@ -509,7 +509,7 @@ void StackingContext::paint(DisplayListRecordingContext& context) const
             DisplayListRecorder display_list_recorder(*mask_display_list, visual_context_tree, context.display_list_recorder().resource_storage());
             auto mask_painting_context = context.clone(display_list_recorder);
             auto mask_rect = CSSPixelRect { {}, mask_layer.area.size() };
-            auto resolved_mask = resolve_background_layers(mask_layers, paintable_box(), Color::Transparent, CSS::BackgroundBox::BorderBox, mask_rect, {});
+            auto resolved_mask = resolve_mask_layers(mask_layers, paintable_box(), mask_rect);
 
             // FIXME: Respect `image-rendering` here.
             paint_background(mask_painting_context, paintable_box(), CSS::ImageRendering::Auto, resolved_mask, {});

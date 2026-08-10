@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>CSS Masking: mask-image: unresovlable mask url</title>
+    <link rel="author" title="CJ Ku" href="mailto:cku@mozilla.com">
+    <link rel="author" title="Mozilla" href="https://www.mozilla.org">
+    <link rel="help" href="https://www.w3.org/TR/css-masking-1/#the-mask-image">
+    <link rel="match" href="../../../../../expected/wpt-import//css/reference/blank.html">
+    <meta name="assert" content="Test checks non-existent url should be counted as an image layer of transparent black.">
+    <style type="text/css">
+      div {
+        background-color: purple;
+        width: 100px;
+        height: 100px;
+      }
+
+      div.mask-by-png {
+        mask-image: url(non-existent.png);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="mask-by-png"></div>
+  </body>
+</html>

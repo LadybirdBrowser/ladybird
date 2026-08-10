@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>CSS Masking: mask-composite: compose vector image</title>
+    <link rel="author" title="CJ Ku" href="mailto:cku@mozilla.com">
+    <link rel="author" title="Mozilla" href="https://www.mozilla.org">
+    <link rel="help" href="http://www.w3.org/TR/css-masking-1/#the-mask-composite">
+    <link rel="match" href="../../../../../expected/wpt-import/css/css-masking/mask-image/mask-composite-1-ref.html">
+    <meta name="assert" content="Test checks that whether mask-composite is filled automatically according to the number of mask layers.">
+    <style type="text/css">
+      div {
+        background-color: blue;
+        position: absolute;
+        margin: 0px;
+        padding: 0px;
+        width: 100px;
+        height: 100px;
+        top: 10px;
+      }
+
+      div.add {
+        left: 10px;
+        mask-composite: add;
+        mask-image: url(../../../images/blue-100x50-transparent-100x50.svg),
+                    url(../../../images/blue-100x50-transparent-100x50.svg),
+                    url(../../../images/blue-100x50-transparent-100x50.svg);
+      }
+
+      div.intersect {
+        left: 120px;
+        mask-composite: intersect;
+        mask-image: url(../../../images/blue-100x50-transparent-100x50.svg),
+                    url(../../../images/transparent-100x50-blue-100x50.svg),
+                    linear-gradient(rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 1) 100%);
+      }
+
+      div.subtract {
+        left: 230px;
+        mask-composite: subtract;
+        mask-image: url(../../../images/blue-100x50-transparent-100x50.svg),
+                    url(../../../images/blue-100x50-transparent-100x50.svg),
+                    url(../../../images/blue-100x50-transparent-100x50.svg);
+      }
+
+      div.exclude {
+        left: 340px;
+        mask-composite: exclude;
+        mask-image: url(../../../images/transparent-100x50-blue-100x50.svg),
+                    linear-gradient(rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 1) 100%),
+                    url(../../../images/blue-100x50-transparent-100x50.svg);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="add"></div>
+    <div class="intersect"></div>
+    <div class="subtract"></div>
+    <div class="exclude"></div>
+  </body>
+</html>

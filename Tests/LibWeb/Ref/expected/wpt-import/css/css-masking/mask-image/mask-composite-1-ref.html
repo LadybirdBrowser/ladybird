@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>CSS mask-composite reference</title>
+    <link rel="author" title="CJ Ku" href="mailto:cku@mozilla.com">
+    <link rel="author" title="Mozilla" href="https://www.mozilla.org">
+    <style type="text/css">
+      div {
+        position: absolute;
+        margin: 0px;
+        padding: 0px;
+        width: 100px;
+        height: 100px;
+        top: 10px;
+      }
+
+      div.add {
+        left: 10px;
+        background-image: url(../../../images/blue-100x50-transparent-100x50.svg);
+      }
+
+      div.intersect {
+        left: 230px;
+        background-image: url(../../../images/blue-100x50-transparent-100x50.svg);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="add"></div>
+    <div class="intersect"></div>
+  </body>
+</html>

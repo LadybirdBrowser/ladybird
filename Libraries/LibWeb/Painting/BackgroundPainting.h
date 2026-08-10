@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibGfx/CompositingAndBlendingOperator.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/BorderPainting.h>
@@ -14,7 +15,7 @@
 namespace Web::Painting {
 
 struct ResolvedBackgroundLayerData {
-    NonnullRefPtr<CSS::AbstractImageStyleValue const> background_image;
+    RefPtr<CSS::AbstractImageStyleValue const> background_image;
     CSS::BackgroundAttachment attachment;
     CSS::BackgroundBox clip;
     CSSPixels position_x;
@@ -24,6 +25,7 @@ struct ResolvedBackgroundLayerData {
     CSS::Repetition repeat_x;
     CSS::Repetition repeat_y;
     CSS::MixBlendMode blend_mode;
+    Optional<Gfx::CompositingAndBlendingOperator> mask_composite;
 };
 
 struct BackgroundBox {
@@ -46,6 +48,7 @@ struct ResolvedBackground {
 };
 
 WEB_API ResolvedBackground resolve_background_layers(Vector<CSS::BackgroundLayerData> const& layers, Paintable const& paintable_box, Color background_color, CSS::BackgroundBox background_color_clip, CSSPixelRect const& border_rect, BorderRadiiData const& border_radii);
+ResolvedBackground resolve_mask_layers(Vector<CSS::BackgroundLayerData> const&, Paintable const&, CSSPixelRect const&);
 
 WEB_API void paint_background(DisplayListRecordingContext&, Paintable const&, CSS::ImageRendering, ResolvedBackground const&, BorderRadiiData const&);
 

@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibGfx/CompositingAndBlendingOperator.h>
+#include <LibWeb/CSS/Enums.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::Painting {
@@ -32,5 +33,6 @@ namespace Web::Painting {
     E(PlusLighter)
 
 Gfx::CompositingAndBlendingOperator mix_blend_mode_to_compositing_and_blending_operator(CSS::MixBlendMode blend_mode);
+Gfx::CompositingAndBlendingOperator mask_composite_to_compositing_and_blending_operator(CSS::CompositingOperator);
 
 }
