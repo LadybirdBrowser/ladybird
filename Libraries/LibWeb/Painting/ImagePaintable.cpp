@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/CSS/Sizing.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/Painting/BorderRadiusCornerClipper.h>
@@ -42,9 +43,10 @@ void ImagePaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
             // https://drafts.csswg.org/css-images/#the-object-fit
             auto object_fit = computed_values().object_fit();
 
-            auto intrinsic_size = m_image_provider.intrinsic_size().value_or(image_rect.size());
+            CSS::SizeWithAspectRatio natural_size { m_image_provider.intrinsic_width(), m_image_provider.intrinsic_height(), m_image_provider.intrinsic_aspect_ratio() };
+            auto concrete_object_size = CSS::run_default_sizing_algorithm({}, {}, natural_size, image_rect.size());
 
-            auto draw_rect = get_replaced_box_painting_area(*this, context, object_fit, intrinsic_size);
+            auto draw_rect = get_replaced_box_painting_area(*this, context, object_fit, concrete_object_size);
             if (!draw_rect.is_empty()) {
                 auto draw_rect_needs_clip = !image_int_rect_device_pixels.contains(draw_rect);
                 if (draw_rect_needs_clip) {
