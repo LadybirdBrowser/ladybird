@@ -13,7 +13,6 @@
 #include <AK/Vector.h>
 #include <LibWeb/CSS/PercentageOr.h>
 #include <LibWeb/CSS/Size.h>
-#include <LibWeb/Layout/AvailableSpace.h>
 
 namespace Web::CSS {
 
@@ -24,8 +23,6 @@ public:
 
     static GridSize make_auto();
 
-    bool is_auto(Layout::AvailableSize const&) const;
-    bool is_fixed(Layout::AvailableSize const&) const;
     bool is_flexible_length() const;
     bool is_fit_content() const;
     bool is_max_content() const;
@@ -35,10 +32,6 @@ public:
     double flex_factor() const { return Flex::from_style_value(m_value).to_fr(); }
 
     NonnullRefPtr<StyleValue const> style_value() const { return m_value; }
-
-    // https://www.w3.org/TR/css-grid-2/#layout-algorithm
-    // An intrinsic sizing function (min-content, max-content, auto, fit-content()).
-    bool is_intrinsic(Layout::AvailableSize const&) const;
 
     bool is_definite() const;
 

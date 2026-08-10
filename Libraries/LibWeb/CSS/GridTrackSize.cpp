@@ -22,31 +22,9 @@ GridSize::GridSize(NonnullRefPtr<StyleValue const> size)
 
 GridSize::~GridSize() = default;
 
-bool GridSize::is_auto(Layout::AvailableSize const& available_size) const
-{
-    if (m_value->to_keyword() == Keyword::Auto)
-        return true;
-
-    if (m_value->is_percentage() || (m_value->is_calculated() && m_value->as_calculated().contains_percentage()))
-        return !available_size.is_definite();
-
-    return false;
-}
-
 static bool is_length_percentage(NonnullRefPtr<StyleValue const> const& value)
 {
     return value->is_length() || value->is_percentage() || (value->is_calculated() && value->as_calculated().resolves_to_length());
-}
-
-bool GridSize::is_fixed(Layout::AvailableSize const& available_size) const
-{
-    if (!is_length_percentage(m_value))
-        return false;
-
-    if (m_value->is_percentage() || (m_value->is_calculated() && m_value->as_calculated().contains_percentage()))
-        return available_size.is_definite();
-
-    return true;
 }
 
 bool GridSize::is_flexible_length() const
@@ -73,11 +51,6 @@ bool GridSize::is_max_content() const
 bool GridSize::is_min_content() const
 {
     return m_value->to_keyword() == Keyword::MinContent;
-}
-
-bool GridSize::is_intrinsic(Layout::AvailableSize const& available_size) const
-{
-    return is_auto(available_size) || is_max_content() || is_min_content() || is_fit_content();
 }
 
 bool GridSize::is_definite() const

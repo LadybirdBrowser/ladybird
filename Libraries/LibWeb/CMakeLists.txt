@@ -806,7 +806,6 @@ set(SOURCES
     IntersectionObserver/IntersectionObserver.cpp
     IntersectionObserver/IntersectionObserverEntry.cpp
     Layout/AudioBox.cpp
-    Layout/AvailableSpace.cpp
     Layout/BlockContainer.cpp
     Layout/Box.cpp
     Layout/BreakNode.cpp
