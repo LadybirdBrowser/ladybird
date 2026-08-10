@@ -416,7 +416,12 @@ impl RunFragmentBuilder {
         containing_block_info_for_child: impl Fn(crate::layout::node_data::NodeSlotId) -> AbsposContainingBlockInfo,
     ) {
         for entry in &mut self.inner.borrow_mut().pending_abspos_at_root {
-            if callbacks.containing_block(entry.child_box) == containing_block {
+            // Entries registered with their containing block info already
+            // resolved keep it; this pass only fills in entries that arrived
+            // from descendant runs.
+            if entry.containing_block_info_override.is_none()
+                && callbacks.containing_block(entry.child_box) == containing_block
+            {
                 entry.containing_block_info_override = Some(containing_block_info_for_child(entry.child_box));
             }
         }

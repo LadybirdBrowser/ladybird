@@ -3508,30 +3508,34 @@ impl GridFormattingContext {
                     block_alignment: StaticPositionAlignment::Start,
                     alignment_derives_from_own_computed_values: false,
                 };
+                // The grid area supplies both the containing block and the
+                // static position for the grid's own abspos children.
+                let containing_block_info = (self.callbacks.containing_block(child) == self.grid_container)
+                    .then(|| self.abspos_containing_block_info(child));
                 crate::layout::register_contained_abspos_child(
                     &self.callbacks,
                     self.fragments.as_deref(),
                     self.grid_container,
                     child,
                     rect,
-                    None,
+                    containing_block_info,
                 );
             }
             child = next;
         }
         if let Some(fragments) = self.fragments.as_deref() {
             fragments.override_containing_block_info_for_pending_abspos_of_containing_block(self.grid_container, &self.callbacks, |child| {
+                // Deeper descendants inside grid items still get the grid area
+                // as their containing block, but their static position comes
+                // from their in-flow ancestor, so axis modes fall back to
+                // their own insets.
                 let mut info = self.abspos_containing_block_info(child);
-                let grid_area_is_childs_static_position =
-                    self.callbacks.static_position_containing_block(child) == self.grid_container;
-                if !grid_area_is_childs_static_position {
-                    // Registration-time axis modes read raw style: anchor()
-                    // insets resolve later in layout_pending_child, and an
-                    // anchor-bearing inset is never auto either way.
-                    let (inline_axis_mode, block_axis_mode) = axis_modes(self.style(child));
-                    info.inline_axis_mode = inline_axis_mode;
-                    info.block_axis_mode = block_axis_mode;
-                }
+                // Registration-time axis modes read raw style: anchor()
+                // insets resolve later in layout_pending_child, and an
+                // anchor-bearing inset is never auto either way.
+                let (inline_axis_mode, block_axis_mode) = axis_modes(self.style(child));
+                info.inline_axis_mode = inline_axis_mode;
+                info.block_axis_mode = block_axis_mode;
                 info
             });
         }
@@ -3545,10 +3549,6 @@ impl GridFormattingContext {
             self.absolute_axis_grid_area(Axis::Row, grid_style.row_start, grid_style.row_end, name_raws);
         let (inline_offset, inline_size) =
             self.absolute_axis_grid_area(Axis::Column, grid_style.column_start, grid_style.column_end, name_raws);
-        // An absolutely positioned child of a grid container gets its static
-        // position from grid placement and alignment, but deeper descendants
-        // inside grid items still use the generic static-position behavior from
-        // their in-flow ancestor.
         AbsposContainingBlockInfo {
             rect: LogicalRect {
                 offset: LogicalOffset {
