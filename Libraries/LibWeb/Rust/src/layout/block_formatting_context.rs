@@ -180,8 +180,8 @@ struct FloatPlacement {
 }
 
 // https://www.w3.org/TR/css-display/#block-formatting-context
-pub(crate) struct BlockFormattingContext<'pass> {
-    state: &'pass LayoutState,
+pub(crate) struct BlockFormattingContext {
+    purpose: LayoutPurpose,
     records: std::rc::Rc<RunRecords>,
     root: Node,
     layout_mode: LayoutMode,
@@ -202,10 +202,10 @@ pub(crate) struct BlockFormattingContext<'pass> {
     treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
 }
 
-impl<'pass> BlockFormattingContext<'pass> {
-    pub(crate) fn new(run: &FormattingContextRun<'pass>) -> Self {
+impl BlockFormattingContext {
+    pub(crate) fn new(run: &FormattingContextRun) -> Self {
         Self {
-            state: run.state,
+            purpose: run.purpose,
             records: run.records.clone(),
             root: run.box_,
             layout_mode: run.layout_mode,
@@ -227,9 +227,9 @@ impl<'pass> BlockFormattingContext<'pass> {
         }
     }
 
-    fn formatting_context_run(&self) -> FormattingContextRun<'pass> {
+    fn formatting_context_run(&self) -> FormattingContextRun {
         FormattingContextRun {
-            state: self.state,
+            purpose: self.purpose,
             records: self.records.clone(),
             box_: self.root,
             layout_mode: self.layout_mode,
@@ -248,7 +248,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         NodeFacts::new(&self.callbacks, node)
     }
 
-    fn style(&self, node: Node) -> StyleValues<'pass> {
+    fn style(&self, node: Node) -> StyleValues<'static> {
         StyleValues::for_node(&self.callbacks, node)
     }
 
@@ -293,8 +293,8 @@ impl<'pass> BlockFormattingContext<'pass> {
         ancestor == node || self.is_ancestor_of(ancestor, node)
     }
 
-    fn sizing(&self) -> SizingContext<'pass> {
-        SizingContext::new(self.state, self.records.clone(), self.callbacks)
+    fn sizing(&self) -> SizingContext {
+        SizingContext::new(self.purpose, self.records.clone(), self.callbacks)
     }
 
     fn place_child(&self, node: Node, offset: FfiCssPixelPoint) {
@@ -354,7 +354,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         self.derived_baselines_of_root_box.get()
     }
 
-    fn compute_inset(&self, run: &FormattingContextRun<'pass>, node: Node, containing_block_size: LogicalSize) {
+    fn compute_inset(&self, run: &FormattingContextRun, node: Node, containing_block_size: LogicalSize) {
         crate::layout::compute_inset_native(run, node, containing_block_size.inline_size, containing_block_size.block_size);
     }
 
@@ -1409,7 +1409,7 @@ impl<'pass> BlockFormattingContext<'pass> {
 
     fn layout_list_item_marker(
         &self,
-        run: &FormattingContextRun<'pass>,
+        run: &FormattingContextRun,
         list_item: Node,
         inline_space_used_before_list_item_elements_formatted: SpaceUsedByFloats,
         list_item_first_baseline: Option<CssPixels>,
@@ -1500,7 +1500,7 @@ impl<'pass> BlockFormattingContext<'pass> {
 
     fn layout_inside(
         &self,
-        run: &FormattingContextRun<'pass>,
+        run: &FormattingContextRun,
         node: Node,
         input: LayoutInput,
         force_independent_context_run: bool,
@@ -1542,7 +1542,7 @@ impl<'pass> BlockFormattingContext<'pass> {
 
     fn layout_block_level_box(
         &self,
-        run: &FormattingContextRun<'pass>,
+        run: &FormattingContextRun,
         node: Node,
         block_container: Node,
         bottom_of_lowest_margin_box: &mut CssPixels,
@@ -1941,7 +1941,7 @@ impl<'pass> BlockFormattingContext<'pass> {
 
     fn layout_block_level_children(
         &self,
-        run: &FormattingContextRun<'pass>,
+        run: &FormattingContextRun,
         block_container: Node,
         input: LayoutInput,
         available_space_for_children: AvailableSpace,
@@ -1978,7 +1978,7 @@ impl<'pass> BlockFormattingContext<'pass> {
     // block-level child.
     fn layout_table_wrapper_children(
         &self,
-        run: &FormattingContextRun<'pass>,
+        run: &FormattingContextRun,
         input: LayoutInput,
         available_space_for_children: AvailableSpace,
     ) {
@@ -2053,7 +2053,7 @@ impl<'pass> BlockFormattingContext<'pass> {
     }
 
     // https://html.spec.whatwg.org/multipage/rendering.html#the-fieldset-and-legend-elements
-    fn layout_fieldset_with_rendered_legend(&self, run: &FormattingContextRun<'pass>, fieldset: Node, input: LayoutInput) {
+    fn layout_fieldset_with_rendered_legend(&self, run: &FormattingContextRun, fieldset: Node, input: LayoutInput) {
         let available_space = input.available_space;
         let child_input = self.child_layout_input(fieldset, input, available_space);
         let legend = self.facts(fieldset).rendered_legend();
@@ -2186,7 +2186,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         }
     }
 
-    pub(crate) fn run(&self, run: &FormattingContextRun<'pass>, input: LayoutInput) {
+    pub(crate) fn run(&self, run: &FormattingContextRun, input: LayoutInput) {
         let available_space = input.available_space;
         // https://drafts.csswg.org/css-multicol-2/#the-multi-column-model
         let root_inline_size = self.used(self.root).content_inline_size.get();
@@ -2260,11 +2260,11 @@ impl<'pass> BlockFormattingContext<'pass> {
 
     pub(crate) fn layout_interrupting_block_inside_inline_context(
         &self,
-        run: &FormattingContextRun<'pass>,
+        run: &FormattingContextRun,
         node: Node,
         containing_block: Node,
         input: LayoutInput,
-        line_builder: &mut LineBuilder<'_, '_, '_>,
+        line_builder: &mut LineBuilder<'_, '_>,
     ) {
         let line_index = line_builder.line_index_for_block_level_box();
         let current_block_offset = line_builder.current_block_offset();
@@ -2393,11 +2393,11 @@ impl<'pass> BlockFormattingContext<'pass> {
 
     pub(crate) fn layout_floating_box(
         &self,
-        run: &FormattingContextRun<'pass>,
+        run: &FormattingContextRun,
         node: Node,
         input: LayoutInput,
         block_offset: CssPixels,
-        mut line_builder: Option<&mut LineBuilder<'_, '_, '_>>,
+        mut line_builder: Option<&mut LineBuilder<'_, '_>>,
     ) {
         let available_space = input.available_space;
         assert!(self.facts(node).is_floating());
@@ -2534,7 +2534,7 @@ impl<'pass> BlockFormattingContext<'pass> {
 
     fn layout_inline_children(
         &self,
-        run: &FormattingContextRun<'pass>,
+        run: &FormattingContextRun,
         block_container: Node,
         input: LayoutInput,
         available_space_for_children: AvailableSpace,
@@ -2543,7 +2543,6 @@ impl<'pass> BlockFormattingContext<'pass> {
         let inline_input = self.child_layout_input(block_container, input, available_space_for_children);
         let mut context = InlineFormattingContext::new_with_rust_parent(
             run,
-            self.state,
             block_container,
             self.layout_mode,
             inline_input,
@@ -2639,7 +2638,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             || style.display().is_table_inside()
         {
             return independent_root_automatic_block_size(
-                self.state,
+                self.purpose,
                 &self.records,
                 &self.callbacks,
                 node,

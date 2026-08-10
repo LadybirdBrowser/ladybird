@@ -45,7 +45,7 @@ fn layout_replaced_with_children(run: &FormattingContextRun, layout_input: Layou
     wrapper_state.set_content_inline_size(content_inline_size);
 
     let wrapper_layout = crate::layout::run_formatting_context(
-        run.state,
+        run.purpose,
         wrapper_state,
         wrapper,
         None,

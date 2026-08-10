@@ -97,17 +97,17 @@ impl ContainingBlockGeometry {
     }
 }
 
-pub(crate) struct AbsposEngine<'pass> {
-    state: &'pass LayoutState,
+pub(crate) struct AbsposEngine {
+    purpose: LayoutPurpose,
     records: std::rc::Rc<RunRecords>,
     callbacks: FfiLayoutFcCallbacks,
     fragments: Option<std::rc::Rc<crate::layout::RunFragmentBuilder>>,
 }
 
-impl<'pass> AbsposEngine<'pass> {
-    pub(crate) fn for_run(run: &crate::layout::FormattingContextRun<'pass>) -> Self {
+impl AbsposEngine {
+    pub(crate) fn for_run(run: &crate::layout::FormattingContextRun) -> Self {
         Self {
-            state: run.state,
+            purpose: run.purpose,
             records: run.records.clone(),
             callbacks: run.callbacks,
             fragments: run.fragments.clone(),
@@ -206,11 +206,11 @@ impl<'pass> AbsposEngine<'pass> {
         )
     }
 
-    fn sizing(&self) -> SizingContext<'pass> {
-        SizingContext::new(self.state, self.records.clone(), self.callbacks)
+    fn sizing(&self) -> SizingContext {
+        SizingContext::new(self.purpose, self.records.clone(), self.callbacks)
     }
 
-    fn style(&self, node: Node) -> StyleValues<'pass> {
+    fn style(&self, node: Node) -> StyleValues<'static> {
         StyleValues::for_node(&self.callbacks, node)
     }
 
@@ -339,8 +339,8 @@ struct AnchorValueAxis {
 }
 
 #[derive(Clone, Copy)]
-struct AnchorCalcCallbackContext<'pass> {
-    engine: *const AbsposEngine<'pass>,
+struct AnchorCalcCallbackContext {
+    engine: *const AbsposEngine,
     positioned_box: Node,
     containing_block: Node,
     containing_block_geometry: Option<ContainingBlockGeometry>,
@@ -351,7 +351,7 @@ struct AnchorCalcCallbackContext<'pass> {
     resolution_state: *mut AnchorResolutionState,
 }
 
-impl AbsposEngine<'_> {
+impl AbsposEngine {
     fn anchor_lookup(&self, positioned_box: Node, anchor_name: usize) -> Option<Node> {
         let eligible_anchor_shells = self
             .fragments
@@ -694,7 +694,7 @@ unsafe extern "C" fn resolve_anchor_non_math_function(context: *mut c_void, shel
     use crate::css::style_value::StyleValueData;
     // SAFETY: The CSS calc engine calls this only during resolve_anchor_value,
     // whose stack owns this callback context.
-    let context = unsafe { &mut *context.cast::<AnchorCalcCallbackContext<'_>>() };
+    let context = unsafe { &mut *context.cast::<AnchorCalcCallbackContext>() };
     // SAFETY: The engine pointer is live for the enclosing resolution.
     let engine = unsafe { &*context.engine };
     // SAFETY: `shell` is the live Rust style-value data retained by the CSS
@@ -926,7 +926,7 @@ pub(crate) fn solve_replaced_axis(
     }
 }
 
-impl AbsposEngine<'_> {
+impl AbsposEngine {
     fn static_offset(&self, node: Node, rect: StaticPositionRect) -> LogicalOffset {
         let used = self.used(node);
         let collapsed = used.uses_collapsing_borders_model.get();
@@ -1228,7 +1228,7 @@ enum BlockSizePass {
     },
 }
 
-impl AbsposEngine<'_> {
+impl AbsposEngine {
     fn apply_min_max_block_size_constraints(
         &self,
         node: Node,
@@ -1557,7 +1557,7 @@ impl AbsposEngine<'_> {
     }
 }
 
-impl<'pass> AbsposEngine<'pass> {
+impl AbsposEngine {
     // Run-prelude sizing for an absolutely positioned root: box-model
     // metrics, the inset-aware inline solve, the pre-inside-layout block
     // pass, and the definiteness overrides insets and aspect ratios provide.
@@ -1699,7 +1699,7 @@ impl<'pass> AbsposEngine<'pass> {
         }
     }
 
-    fn layout_element(&self, run: &crate::layout::FormattingContextRun<'pass>, node: Node, inputs: AbsposLayoutInputs) {
+    fn layout_element(&self, run: &crate::layout::FormattingContextRun, node: Node, inputs: AbsposLayoutInputs) {
         assert!(!self.facts(node).is_svg_box());
         let (available_space, constraints) = out_of_flow_root_space(inputs);
 
@@ -1735,7 +1735,7 @@ impl<'pass> AbsposEngine<'pass> {
         };
         used_offset.inline_offset += used.margin_left.get() + used.border_box_left(collapsed);
         used_offset.block_offset += used.margin_top.get() + used.border_box_top(collapsed);
-        let is_measurement = self.state.is_measurement();
+        let is_measurement = self.purpose.is_measurement();
         if !is_measurement {
             self.used(node)
                 .rare_data_mut()
@@ -1752,8 +1752,8 @@ impl<'pass> AbsposEngine<'pass> {
         );
     }
 
-    pub(crate) fn layout_pending_child(&self, run: &crate::layout::FormattingContextRun<'pass>, mut child: PendingAbsposChild) {
-        debug_assert!(!self.state.is_measurement());
+    pub(crate) fn layout_pending_child(&self, run: &crate::layout::FormattingContextRun, mut child: PendingAbsposChild) {
+        debug_assert!(!self.purpose.is_measurement());
         let child_box = child.child_box;
         self.records
             .create_used_values(&self.callbacks, child_box, ContainingBlockConstraints::default());
@@ -1779,7 +1779,7 @@ impl<'pass> AbsposEngine<'pass> {
         self.layout_element(run, child_box, inputs);
     }
 
-    fn replay(&self, run: &crate::layout::FormattingContextRun<'pass>, node: Node) {
+    fn replay(&self, run: &crate::layout::FormattingContextRun, node: Node) {
         let saved_inputs = self.callbacks.saved_abspos_layout_inputs(node);
         let found = saved_inputs.is_some();
         assert!(found);
@@ -1875,7 +1875,6 @@ impl<'pass> AbsposEngine<'pass> {
 }
 
 pub(crate) fn drain_abspos_with_placed_containing_blocks(
-    state: &LayoutState,
     records: &std::rc::Rc<RunRecords>,
     callbacks: FfiLayoutFcCallbacks,
     should_collect_devtools_layout_data: bool,
@@ -1883,7 +1882,7 @@ pub(crate) fn drain_abspos_with_placed_containing_blocks(
 ) {
     let accumulator_root = entry_fragments.root_node();
     let run = crate::layout::FormattingContextRun {
-        state,
+        purpose: LayoutPurpose::Commit,
         records: records.clone(),
         box_: accumulator_root,
         layout_mode: LayoutMode::Normal,
@@ -1905,7 +1904,7 @@ pub(crate) fn drain_abspos_with_placed_containing_blocks(
 }
 
 pub(crate) fn compute_inset_native(
-    run: &crate::layout::FormattingContextRun<'_>,
+    run: &crate::layout::FormattingContextRun,
     node: Node,
     inline_size: CssPixels,
     block_size: CssPixels,

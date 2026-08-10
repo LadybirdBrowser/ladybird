@@ -378,8 +378,8 @@ pub(crate) fn scale_and_align_viewbox_content(
     result
 }
 
-struct SvgFormattingContext<'pass> {
-    state: &'pass LayoutState,
+struct SvgFormattingContext {
+    purpose: LayoutPurpose,
     records: std::rc::Rc<RunRecords>,
     box_: Node,
     layout_mode: LayoutMode,
@@ -397,19 +397,19 @@ struct SvgFormattingContext<'pass> {
     treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
 }
 
-impl<'pass> SvgFormattingContext<'pass> {
-    fn new(run: &FormattingContextRun<'pass>) -> Self {
+impl SvgFormattingContext {
+    fn new(run: &FormattingContextRun) -> Self {
         Self::new_nested(run, run.box_, FfiAffineTransform::default(), None)
     }
 
     fn new_nested(
-        run: &FormattingContextRun<'pass>,
+        run: &FormattingContextRun,
         box_: Node,
         parent_viewbox_transform: FfiAffineTransform,
         parent_svg_transform: Option<FfiAffineTransform>,
     ) -> Self {
         Self {
-            state: run.state,
+            purpose: run.purpose,
             records: run.records.clone(),
             box_,
             layout_mode: run.layout_mode,
@@ -428,9 +428,9 @@ impl<'pass> SvgFormattingContext<'pass> {
         }
     }
 
-    fn formatting_context_run(&self) -> FormattingContextRun<'pass> {
+    fn formatting_context_run(&self) -> FormattingContextRun {
         FormattingContextRun {
-            state: self.state,
+            purpose: self.purpose,
             records: self.records.clone(),
             box_: self.box_,
             layout_mode: self.layout_mode,
@@ -554,7 +554,7 @@ impl<'pass> SvgFormattingContext<'pass> {
         result
     }
 
-    fn run(&mut self, run: &FormattingContextRun<'pass>, input: LayoutInput) {
+    fn run(&mut self, run: &FormattingContextRun, input: LayoutInput) {
         // NOTE: SVG doesn't have a "formatting context" in the spec, but this is the most
         //       obvious way to drive SVG layout in our engine at the moment.
         let kind = self.node_kind(self.box_);
@@ -696,7 +696,7 @@ impl<'pass> SvgFormattingContext<'pass> {
 
     fn layout_svg_element(
         &mut self,
-        run: &FormattingContextRun<'pass>,
+        run: &FormattingContextRun,
         child: Node,
         input: LayoutInput,
         parent_svg_transform: FfiAffineTransform,
@@ -772,7 +772,7 @@ impl<'pass> SvgFormattingContext<'pass> {
 
     fn layout_nested_viewport(
         &mut self,
-        run: &FormattingContextRun<'pass>,
+        run: &FormattingContextRun,
         viewport: Node,
         parent_svg_transform: FfiAffineTransform,
     ) {
@@ -877,7 +877,7 @@ impl<'pass> SvgFormattingContext<'pass> {
 
     fn layout_graphics_element(
         &mut self,
-        run: &FormattingContextRun<'pass>,
+        run: &FormattingContextRun,
         graphics_box: Node,
         input: LayoutInput,
         parent_svg_transform: FfiAffineTransform,
@@ -927,7 +927,7 @@ impl<'pass> SvgFormattingContext<'pass> {
         }
     }
 
-    fn layout_path_like_element(&mut self, run: &FormattingContextRun<'pass>, graphics_box: Node, input: LayoutInput) {
+    fn layout_path_like_element(&mut self, run: &FormattingContextRun, graphics_box: Node, input: LayoutInput) {
         let transforms = self
             .computed_transforms(graphics_box)
             .expect("SVG graphics box must have computed transforms");
@@ -1008,7 +1008,7 @@ impl<'pass> SvgFormattingContext<'pass> {
         used.has_definite_block_size.set(true);
     }
 
-    fn layout_mask_or_clip(&mut self, run: &FormattingContextRun<'pass>, resource: Node) {
+    fn layout_mask_or_clip(&mut self, run: &FormattingContextRun, resource: Node) {
         let kind = self.node_kind(resource);
         let facts = self.svg_facts(resource);
         assert!(kind_is_svg_resource_box(kind));
@@ -1098,7 +1098,7 @@ impl<'pass> SvgFormattingContext<'pass> {
 
     fn layout_container_element(
         &mut self,
-        run: &FormattingContextRun<'pass>,
+        run: &FormattingContextRun,
         container: Node,
         input: LayoutInput,
         container_svg_transform: FfiAffineTransform,

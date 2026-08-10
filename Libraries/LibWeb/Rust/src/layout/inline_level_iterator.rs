@@ -80,8 +80,8 @@ struct TextNodeContext {
     last_known_direction: Option<u8>,
 }
 
-struct InlineLevelIteratorGenerator<'iterator, 'context, 'pass> {
-    context: &'iterator mut InlineFormattingContext<'context, 'pass>,
+struct InlineLevelIteratorGenerator<'iterator, 'context> {
+    context: &'iterator mut InlineFormattingContext<'context>,
     current_node: Node,
     next_node: Node,
     text_node_context: Option<TextNodeContext>,
@@ -96,8 +96,8 @@ struct InlineLevelIteratorGenerator<'iterator, 'context, 'pass> {
     previous_chunk_can_break_after: bool,
 }
 
-impl<'iterator, 'context, 'pass> InlineLevelIteratorGenerator<'iterator, 'context, 'pass> {
-    fn generate(context: &'iterator mut InlineFormattingContext<'context, 'pass>) -> InlineLevelIterator {
+impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
+    fn generate(context: &'iterator mut InlineFormattingContext<'context>) -> InlineLevelIterator {
         let containing_block = context.containing_block;
         let next_node = context.first_child(containing_block);
         let mut iterator = Self {
@@ -125,11 +125,11 @@ impl<'iterator, 'context, 'pass> InlineLevelIteratorGenerator<'iterator, 'contex
         }
     }
 
-    fn context(&self) -> &InlineFormattingContext<'context, 'pass> {
+    fn context(&self) -> &InlineFormattingContext<'context> {
         self.context
     }
 
-    fn context_mut(&mut self) -> &mut InlineFormattingContext<'context, 'pass> {
+    fn context_mut(&mut self) -> &mut InlineFormattingContext<'context> {
         self.context
     }
 
@@ -597,7 +597,7 @@ pub(crate) struct InlineLevelIterator {
 }
 
 impl InlineLevelIterator {
-    pub(crate) fn new(context: &mut InlineFormattingContext<'_, '_>) -> Self {
+    pub(crate) fn new(context: &mut InlineFormattingContext<'_>) -> Self {
         InlineLevelIteratorGenerator::generate(context)
     }
 
@@ -615,7 +615,7 @@ impl InlineLevelIterator {
 
     pub(crate) fn next_non_whitespace_sequence_inline_size(
         &self,
-        context: &InlineFormattingContext<'_, '_>,
+        context: &InlineFormattingContext<'_>,
     ) -> CssPixels {
         let mut size = CssPixels::default();
         for item in &self.items[self.next_item_index..] {
@@ -640,7 +640,7 @@ impl InlineLevelIterator {
         size
     }
 
-    pub(crate) fn item_is_ascii_whitespace(&self, context: &InlineFormattingContext<'_, '_>, item: &Item) -> bool {
+    pub(crate) fn item_is_ascii_whitespace(&self, context: &InlineFormattingContext<'_>, item: &Item) -> bool {
         assert_eq!(item.type_, ItemType::Text);
         let text = &context.callbacks.text_content(item.node).text;
         text[item.offset_in_node..item.offset_in_node + item.length_in_node]
