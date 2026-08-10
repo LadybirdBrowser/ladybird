@@ -62,7 +62,7 @@ public:
     }
 
 protected:
-    GeneratorObject(Realm&, Object* prototype, NonnullOwnPtr<ExecutionContext>, Optional<StringView> generator_brand = {});
+    GeneratorObject(Realm&, GC::Ptr<Object> prototype, NonnullOwnPtr<ExecutionContext>, Optional<StringView> generator_brand = {});
 
     ThrowCompletionOr<GeneratorState> validate(VM&, Optional<StringView> const& generator_brand);
     virtual ThrowCompletionOr<IterationResult> execute(VM&, JS::Completion const& completion);

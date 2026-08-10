@@ -277,7 +277,7 @@ ThrowCompletionOr<Vector<Utf16String>> canonicalize_locale_list(VM& vm, Value lo
     // 2. Let seen be a new empty List.
     Vector<Utf16String> seen;
 
-    Object* object = nullptr;
+    GC::Ptr<Object> object;
     // 3. If Type(locales) is String or Type(locales) is Object and locales has an [[InitializedLocale]] internal slot, then
     if (locales.is_string() || locales.is<Locale>()) {
         // a. Let O be CreateArrayFromList(« locales »).

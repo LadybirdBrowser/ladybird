@@ -473,7 +473,7 @@ GC::Ref<Shape> Shape::clone_for_prototype()
     return new_shape;
 }
 
-void Shape::set_prototype_without_transition(Object* new_prototype)
+void Shape::set_prototype_without_transition(GC::Ptr<Object> new_prototype)
 {
     VERIFY(new_prototype);
     new_prototype->convert_to_prototype_if_needed();

@@ -35,7 +35,7 @@ bool FinalizationRegistry::remove_by_token(Cell& unregister_token)
     // 5. For each Record { [[WeakRefTarget]], [[HeldValue]], [[UnregisterToken]] } cell of finalizationRegistry.[[Cells]], do
     for (auto it = m_records.begin(); it != m_records.end();) {
         //  a. If cell.[[UnregisterToken]] is not empty and SameValue(cell.[[UnregisterToken]], unregisterToken) is true, then
-        if (it->unregister_token == &unregister_token) {
+        if (it->unregister_token.ptr() == &unregister_token) {
             // i. Remove cell from finalizationRegistry.[[Cells]].
             it = m_records.remove(it);
 
@@ -66,7 +66,7 @@ void FinalizationRegistry::remove_dead_cells(Badge<GC::Heap>)
     for (auto& record : m_records) {
         if (!record.target)
             continue;
-        auto* block = GC::HeapBlock::from_cell(record.target);
+        auto* block = GC::HeapBlock::from_cell(record.target.ptr());
         if (heap().is_live_heap_block(block) && record.target->state() == Cell::State::Live && record.target->is_marked())
             continue;
         record.target = nullptr;
@@ -97,7 +97,7 @@ ThrowCompletionOr<void> FinalizationRegistry::cleanup(GC::Ptr<JobCallback> callb
         // a. Choose any such cell.
         auto it = m_records.begin();
         for (; it != m_records.end(); ++it) {
-            if (it->target == nullptr)
+            if (!it->target)
                 break;
         }
         if (it == m_records.end())

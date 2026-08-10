@@ -38,8 +38,8 @@ public:
 
     void add_private_name(Utf16FlyString description);
 
-    PrivateEnvironment* outer_environment() { return m_outer_environment; }
-    PrivateEnvironment const* outer_environment() const { return m_outer_environment; }
+    PrivateEnvironment* outer_environment() { return m_outer_environment.ptr(); }
+    PrivateEnvironment const* outer_environment() const { return m_outer_environment.ptr(); }
 
 private:
     explicit PrivateEnvironment(PrivateEnvironment* parent);

@@ -32,7 +32,7 @@ public:
     virtual Object* with_base_object() const override
     {
         if (is_with_environment())
-            return m_binding_object;
+            return m_binding_object.ptr();
         return nullptr;
     }
 

@@ -19,7 +19,7 @@ namespace JS {
 GC_DEFINE_ALLOCATOR(Realm);
 
 // 9.3.1 InitializeHostDefinedRealm ( ), https://tc39.es/ecma262/#sec-initializehostdefinedrealm
-ThrowCompletionOr<NonnullOwnPtr<ExecutionContext>> Realm::initialize_host_defined_realm(VM& vm, Function<Object*(Realm&)> create_global_object, Function<Object*(Realm&)> create_global_this_value)
+ThrowCompletionOr<NonnullOwnPtr<ExecutionContext>> Realm::initialize_host_defined_realm(VM& vm, Function<GC::Ref<Object>(Realm&)> create_global_object, Function<GC::Ref<Object>(Realm&)> create_global_this_value)
 {
     GC::DeferGC defer_gc(vm.heap());
 
@@ -53,7 +53,7 @@ ThrowCompletionOr<NonnullOwnPtr<ExecutionContext>> Realm::initialize_host_define
     vm.push_execution_context(*new_context);
 
     // 12. If the host requires use of an exotic object to serve as realm's global object, then
-    Object* global = nullptr;
+    GC::Ptr<Object> global;
     if (create_global_object) {
         // a. Let global be such an object created in a host-defined manner.
         global = create_global_object(*realm);
@@ -67,7 +67,7 @@ ThrowCompletionOr<NonnullOwnPtr<ExecutionContext>> Realm::initialize_host_define
     }
 
     // 14. If the host requires that the this binding in realm's global scope return an object other than the global object, then
-    Object* this_value = nullptr;
+    GC::Ptr<Object> this_value;
     if (create_global_this_value) {
         // a. Let thisValue be such an object created in a host-defined manner.
         this_value = create_global_this_value(*realm);

@@ -312,21 +312,21 @@ public:
 
     ExecutionContext* previous_execution_context() const;
 
-    Environment const* lexical_environment() const { return running_execution_context().lexical_environment; }
-    Environment* lexical_environment() { return running_execution_context().lexical_environment; }
+    Environment const* lexical_environment() const { return running_execution_context().lexical_environment.ptr(); }
+    Environment* lexical_environment() { return running_execution_context().lexical_environment.ptr(); }
 
-    Environment const* variable_environment() const { return running_execution_context().variable_environment; }
-    Environment* variable_environment() { return running_execution_context().variable_environment; }
+    Environment const* variable_environment() const { return running_execution_context().variable_environment.ptr(); }
+    Environment* variable_environment() { return running_execution_context().variable_environment.ptr(); }
 
     // https://tc39.es/ecma262/#current-realm
     // The value of the Realm component of the running execution context is also called the current Realm Record.
-    Realm const* current_realm() const { return running_execution_context().realm; }
-    Realm* current_realm() { return running_execution_context().realm; }
+    Realm const* current_realm() const { return running_execution_context().realm.ptr(); }
+    Realm* current_realm() { return running_execution_context().realm.ptr(); }
 
     // https://tc39.es/ecma262/#active-function-object
     // The value of the Function component of the running execution context is also called the active function object.
-    FunctionObject const* active_function_object() const { return running_execution_context().function; }
-    FunctionObject* active_function_object() { return running_execution_context().function; }
+    FunctionObject const* active_function_object() const { return running_execution_context().function.ptr(); }
+    FunctionObject* active_function_object() { return running_execution_context().function.ptr(); }
     SharedFunctionInstanceData* active_shared_function_data();
 
     size_t argument_count() const
@@ -357,7 +357,7 @@ public:
     void finish_execution_generation() { ++m_execution_generation; }
     FlatPtr primitive_storage_cage_base() const { return m_primitive_storage_cage_base; }
 
-    ThrowCompletionOr<Reference> resolve_binding(Utf16FlyString const&, Strict, Environment* = nullptr);
+    ThrowCompletionOr<Reference> resolve_binding(Utf16FlyString const&, Strict, GC::Ptr<Environment> = nullptr);
     ThrowCompletionOr<Reference> get_identifier_reference(Environment*, Utf16FlyString, Strict, size_t hops = 0);
 
     // The override only applies at the execution-context-stack depth the scope was created at, so
@@ -428,7 +428,7 @@ public:
 
     Value get_new_target();
 
-    Object* get_import_meta();
+    GC::Ref<Object> get_import_meta();
 
     Object& get_global_object();
 
@@ -452,7 +452,7 @@ public:
         run_queued_promise_jobs_impl();
     }
 
-    void enqueue_promise_job(GC::Ref<GC::Function<ThrowCompletionOr<Value>()>> job, Realm*);
+    void enqueue_promise_job(GC::Ref<GC::Function<ThrowCompletionOr<Value>()>> job, GC::Ptr<Realm>);
 
     void run_queued_finalization_registry_cleanup_jobs();
     void enqueue_finalization_registry_cleanup_job(FinalizationRegistry&);
@@ -486,7 +486,7 @@ public:
     Function<void(Promise&, Promise::RejectionOperation)> host_promise_rejection_tracker;
     Function<ThrowCompletionOr<Value>(JobCallback&, Value, ReadonlySpan<Value>)> host_call_job_callback;
     Function<void(FinalizationRegistry&)> host_enqueue_finalization_registry_cleanup_job;
-    Function<void(GC::Ref<GC::Function<ThrowCompletionOr<Value>()>>, Realm*)> host_enqueue_promise_job;
+    Function<void(GC::Ref<GC::Function<ThrowCompletionOr<Value>()>>, GC::Ptr<Realm>)> host_enqueue_promise_job;
     Function<GC::Ref<JobCallback>(FunctionObject&)> host_make_job_callback;
     Function<GC::Ptr<PrimitiveString>(Object const&)> host_get_code_for_eval;
     Function<ThrowCompletionOr<void>(Realm&, ReadonlySpan<Utf16String>, Utf16View, Utf16View, CompilationType, ReadonlySpan<Value>, Value)> host_ensure_can_compile_strings;
@@ -637,7 +637,7 @@ template<typename GlobalObjectType, typename... Args>
 {
     auto root_execution_context = MUST(Realm::initialize_host_defined_realm(
         vm,
-        [&](Realm& realm_) -> GlobalObject* {
+        [&](Realm& realm_) -> GC::Ref<GlobalObject> {
             return vm.heap().allocate<GlobalObjectType>(realm_, forward<Args>(args)...);
         },
         nullptr));

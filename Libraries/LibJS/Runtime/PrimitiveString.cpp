@@ -277,16 +277,16 @@ void RopeString::resolve() const
 
     // This vector will hold all the pieces of the rope that need to be assembled
     // into the resolved string.
-    Vector<PrimitiveString const*, 2> pieces;
+    Vector<GC::Ptr<PrimitiveString const>, 2> pieces;
     size_t length_in_utf16_code_units = 0;
 
     // NOTE: We traverse the rope tree without using recursion, since we'd run out of
     //       stack space quickly when handling a long sequence of unresolved concatenations.
-    Vector<PrimitiveString const*, 2> stack;
+    Vector<GC::Ptr<PrimitiveString const>, 2> stack;
     stack.append(m_rhs);
     stack.append(m_lhs);
     while (!stack.is_empty()) {
-        auto const* current = stack.take_last();
+        auto current = stack.take_last();
         if (current->m_deferred_kind == DeferredKind::Rope) {
             auto& current_rope_string = static_cast<RopeString const&>(*current);
             stack.append(current_rope_string.m_rhs);
@@ -299,7 +299,7 @@ void RopeString::resolve() const
     }
 
     Utf16StringBuilder builder(length_in_utf16_code_units);
-    for (auto const* current : pieces) {
+    for (auto const& current : pieces) {
         builder.append(current->utf16_string_view());
     }
 

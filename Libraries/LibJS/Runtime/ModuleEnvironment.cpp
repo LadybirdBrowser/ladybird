@@ -66,7 +66,7 @@ ThrowCompletionOr<Value> ModuleEnvironment::get_this_binding(VM&) const
 }
 
 // 9.1.1.5.5 CreateImportBinding ( N, M, N2 ), https://tc39.es/ecma262/#sec-createimportbinding
-ThrowCompletionOr<void> ModuleEnvironment::create_import_binding(Utf16FlyString name, Module* module, Utf16FlyString binding_name)
+ThrowCompletionOr<void> ModuleEnvironment::create_import_binding(Utf16FlyString name, GC::Ptr<Module> module, Utf16FlyString binding_name)
 {
     // 1. Assert: envRec does not already have a binding for N.
     VERIFY(!get_indirect_binding(name));

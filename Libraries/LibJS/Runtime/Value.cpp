@@ -801,7 +801,7 @@ ThrowCompletionOr<Value> Value::to_number_slow_case(VM& vm) const
     }
 }
 
-static Optional<BigInt*> string_to_bigint(VM& vm, Utf16View string);
+static GC::Ptr<BigInt> string_to_bigint(VM& vm, Utf16View string);
 
 // 7.1.13 ToBigInt ( argument ), https://tc39.es/ecma262/#sec-tobigint
 ThrowCompletionOr<GC::Ref<BigInt>> Value::to_bigint(VM& vm) const
@@ -841,11 +841,11 @@ ThrowCompletionOr<GC::Ref<BigInt>> Value::to_bigint(VM& vm) const
         auto bigint = string_to_bigint(vm, primitive.as_string().utf16_string_view());
 
         // 2. If n is undefined, throw a SyntaxError exception.
-        if (!bigint.has_value())
+        if (!bigint)
             return vm.throw_completion<SyntaxError>(ErrorType::BigIntInvalidValue, primitive);
 
         // 3. Return n.
-        return *bigint.release_value();
+        return bigint.as_nonnull();
     }
     // Symbol
     case SYMBOL_TAG:
@@ -902,7 +902,7 @@ static Optional<BigIntParseResult> parse_bigint_text(Utf16View text)
 }
 
 // 7.1.14 StringToBigInt ( str ), https://tc39.es/ecma262/#sec-stringtobigint
-static Optional<BigInt*> string_to_bigint(VM& vm, Utf16View string)
+static GC::Ptr<BigInt> string_to_bigint(VM& vm, Utf16View string)
 {
     // 1. Let text be StringToCodePoints(str).
     auto text = string.trim(js_whitespace);
@@ -2366,11 +2366,11 @@ ThrowCompletionOr<bool> is_loosely_equal(VM& vm, Value lhs, Value rhs)
         auto bigint = string_to_bigint(vm, rhs.as_string().utf16_string_view());
 
         // b. If n is undefined, return false.
-        if (!bigint.has_value())
+        if (!bigint)
             return false;
 
         // c. Return ! IsLooselyEqual(x, n).
-        return is_loosely_equal(vm, lhs, *bigint);
+        return is_loosely_equal(vm, lhs, bigint);
     }
 
     // 8. If Type(x) is String and Type(y) is BigInt, return ! IsLooselyEqual(y, x).
@@ -2465,11 +2465,11 @@ ThrowCompletionOr<TriState> is_less_than(VM& vm, Value lhs, Value rhs, bool left
         auto y_bigint = string_to_bigint(vm, y_primitive.as_string().utf16_string_view());
 
         // ii. If ny is undefined, return undefined.
-        if (!y_bigint.has_value())
+        if (!y_bigint)
             return TriState::Unknown;
 
         // iii. Return BigInt::lessThan(px, ny).
-        if (x_primitive.as_bigint().big_integer() < (*y_bigint)->big_integer())
+        if (x_primitive.as_bigint().big_integer() < y_bigint->big_integer())
             return TriState::True;
         return TriState::False;
     }
@@ -2480,11 +2480,11 @@ ThrowCompletionOr<TriState> is_less_than(VM& vm, Value lhs, Value rhs, bool left
         auto x_bigint = string_to_bigint(vm, x_primitive.as_string().utf16_string_view());
 
         // ii. If nx is undefined, return undefined.
-        if (!x_bigint.has_value())
+        if (!x_bigint)
             return TriState::Unknown;
 
         // iii. Return BigInt::lessThan(nx, py).
-        if ((*x_bigint)->big_integer() < y_primitive.as_bigint().big_integer())
+        if (x_bigint->big_integer() < y_primitive.as_bigint().big_integer())
             return TriState::True;
         return TriState::False;
     }

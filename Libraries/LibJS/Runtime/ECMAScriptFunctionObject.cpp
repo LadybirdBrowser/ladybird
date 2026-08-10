@@ -75,8 +75,8 @@ GC::Ref<ECMAScriptFunctionObject> ECMAScriptFunctionObject::create_from_function
 
 ECMAScriptFunctionObject::ECMAScriptFunctionObject(
     GC::Ref<SharedFunctionInstanceData> shared_data,
-    Environment* parent_environment,
-    PrivateEnvironment* private_environment,
+    GC::Ptr<Environment> parent_environment,
+    GC::Ptr<PrivateEnvironment> private_environment,
     Object& prototype)
     : FunctionObject(prototype)
     , m_shared_data(shared_data)
@@ -119,7 +119,7 @@ void ECMAScriptFunctionObject::initialize(Realm& realm)
         MUST(define_property_or_throw(vm.names.name, name_descriptor));
 
         if (!is_arrow_function()) {
-            Object* prototype = nullptr;
+            GC::Ptr<Object> prototype;
             switch (kind()) {
             case FunctionKind::Normal:
                 VERIFY_NOT_REACHED();

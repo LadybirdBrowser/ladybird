@@ -191,7 +191,7 @@ bool SourceTextModule::try_install_bytecode_cache(NonnullRefPtr<RustIntegration:
         return false;
 
     auto shared_function_data = collect_shared_function_data();
-    auto result = RustIntegration::try_install_bytecode_cache_module(bytecode_cache, move(source_code), realm(), m_executable, shared_function_data, m_tla_shared_data);
+    auto result = RustIntegration::try_install_bytecode_cache_module(bytecode_cache, move(source_code), realm(), m_executable.ptr(), shared_function_data, m_tla_shared_data.ptr());
     if (!result.has_value())
         return false;
 
@@ -204,7 +204,7 @@ void SourceTextModule::install_generated_bytecode_cache(NonnullRefPtr<RustIntegr
     VERIFY(can_install_generated_bytecode_cache());
 
     auto shared_function_data = collect_shared_function_data();
-    auto result = RustIntegration::install_generated_bytecode_cache_module(bytecode_cache, move(source_code), realm(), m_executable, shared_function_data, m_tla_shared_data);
+    auto result = RustIntegration::install_generated_bytecode_cache_module(bytecode_cache, move(source_code), realm(), m_executable.ptr(), shared_function_data, m_tla_shared_data.ptr());
     complete_bytecode_cache_install(result.executable.ptr(), result.top_level_await_executable.ptr(), move(bytecode_cache));
 }
 
@@ -572,7 +572,7 @@ ResolvedBinding SourceTextModule::resolve_export(VM& vm, Utf16FlyString const& e
     // 3. For each Record { [[Module]], [[ExportName]] } r of resolveSet, do
     for (auto const& [type, module, exported_name] : resolve_set) {
         // a. If module and r.[[Module]] are the same Module Record and exportName is r.[[ExportName]], then
-        if (module == this && exported_name == export_name) {
+        if (module == GC::Ptr<Module> { *this } && exported_name == export_name) {
             // i. Assert: This is a circular import request.
 
             // ii. Return null.

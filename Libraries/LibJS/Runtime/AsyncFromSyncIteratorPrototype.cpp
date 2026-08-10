@@ -105,7 +105,7 @@ static Object* async_from_sync_iterator_continuation(VM& vm, Object& result, Pro
     as<Promise>(value_wrapper.as_object()).perform_then(on_fulfilled, on_rejected, promise_capability);
 
     // 15. Return promiseCapability.[[Promise]].
-    return promise_capability.promise();
+    return promise_capability.promise().ptr();
 }
 
 // 27.1.4.2.1 %AsyncFromSyncIteratorPrototype%.next ( [ value ] ), https://tc39.es/ecma262/#sec-%asyncfromsynciteratorprototype%.next
@@ -159,7 +159,7 @@ JS_DEFINE_NATIVE_FUNCTION(AsyncFromSyncIteratorPrototype::return_)
     auto return_method = TRY_OR_REJECT(vm, promise_capability, Value(sync_iterator).get_method(vm, vm.names.return_));
 
     // 8. If return is undefined, then
-    if (return_method == nullptr) {
+    if (!return_method) {
         // a. Let iteratorResult be CreateIteratorResultObject(value, true).
         auto iterator_result = create_iterator_result_object(vm, vm.argument(0), true);
 
@@ -216,7 +216,7 @@ JS_DEFINE_NATIVE_FUNCTION(AsyncFromSyncIteratorPrototype::throw_)
     auto throw_method = TRY_OR_REJECT(vm, promise_capability, Value(sync_iterator).get_method(vm, vm.names.throw_));
 
     // 8. If throw is undefined, then
-    if (throw_method == nullptr) {
+    if (!throw_method) {
         // a. NOTE: If syncIterator does not have a throw method, close it to give it a chance to clean up before we reject the capability.
 
         // b. Let closeCompletion be NormalCompletion(empty).

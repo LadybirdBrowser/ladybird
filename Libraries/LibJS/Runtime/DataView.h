@@ -23,12 +23,12 @@ public:
 
     virtual ~DataView() override = default;
 
-    ArrayBuffer* viewed_array_buffer() const { return m_viewed_array_buffer; }
+    ArrayBuffer* viewed_array_buffer() const { return m_viewed_array_buffer.ptr(); }
     ByteLength const& byte_length() const { return m_byte_length; }
     u32 byte_offset() const { return m_byte_offset; }
 
 private:
-    DataView(ArrayBuffer*, ByteLength byte_length, size_t byte_offset, Object& prototype);
+    DataView(GC::Ptr<ArrayBuffer>, ByteLength byte_length, size_t byte_offset, Object& prototype);
 
     virtual void visit_edges(Visitor& visitor) override;
 

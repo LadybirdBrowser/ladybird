@@ -56,7 +56,7 @@ static ThrowCompletionOr<Value> run_reaction_job(VM& vm, PromiseReaction& reacti
     }
 
     // f. If promiseCapability is undefined, then
-    if (promise_capability == nullptr) {
+    if (!promise_capability) {
         // i. Assert: handlerResult is not an abrupt completion.
         MUST_OR_THROW_INTERNAL_ERROR(handler_result);
 

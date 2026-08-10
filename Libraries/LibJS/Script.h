@@ -70,7 +70,7 @@ public:
     HostDefined* host_defined() const { return m_host_defined; }
     StringView filename() const LIFETIME_BOUND { return m_filename; }
 
-    Bytecode::Executable* cached_executable() const { return m_executable; }
+    Bytecode::Executable* cached_executable() const { return m_executable.ptr(); }
     ExecutableBacking const& executable_backing() const { return m_executable_backing; }
     [[nodiscard]] bool can_generate_bytecode_cache() const;
     [[nodiscard]] bool can_install_generated_bytecode_cache() const;

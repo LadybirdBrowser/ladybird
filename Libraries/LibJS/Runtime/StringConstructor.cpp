@@ -68,7 +68,7 @@ ThrowCompletionOr<GC::Ref<Object>> StringConstructor::construct(FunctionObject& 
     auto& realm = *vm.current_realm();
     auto value = vm.argument(0);
 
-    PrimitiveString* primitive_string;
+    GC::Ptr<PrimitiveString> primitive_string;
 
     // 1. If value is not present, let s be the empty String.
     if (!vm.argument_count()) {
@@ -81,7 +81,7 @@ ThrowCompletionOr<GC::Ref<Object>> StringConstructor::construct(FunctionObject& 
     }
 
     // 4. Return StringCreate(s, ? GetPrototypeFromConstructor(NewTarget, "%String.prototype%")).
-    auto* prototype = TRY(get_prototype_from_constructor(vm, new_target, &Intrinsics::string_prototype));
+    GC::Ref prototype = *TRY(get_prototype_from_constructor(vm, new_target, &Intrinsics::string_prototype));
     return StringObject::create(realm, *primitive_string, *prototype);
 }
 

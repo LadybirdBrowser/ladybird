@@ -1186,7 +1186,7 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_split_impl(VM& vm, Object& rege
         }
         if (typed_regexp
             && exec_is_builtin
-            && static_cast<Object const&>(regexp_object).prototype() == realm.intrinsics().regexp_prototype()
+            && static_cast<Object const&>(regexp_object).prototype() == realm.intrinsics().regexp_prototype().ptr()
             && !regexp_object.storage_has(vm.names.flags)
             && !regexp_object.storage_has(vm.names.constructor)
             && !regexp_object.storage_has(vm.well_known_symbol_match())
@@ -1478,7 +1478,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::test)
         }
         if (typed_regexp
             && exec_is_builtin
-            && static_cast<Object const&>(*regexp_object).prototype() == realm.intrinsics().regexp_prototype()) {
+            && static_cast<Object const&>(*regexp_object).prototype() == realm.intrinsics().regexp_prototype().ptr()) {
 
             auto flag_bits = typed_regexp->flag_bits();
             bool global = has_flag(flag_bits, RegExpObject::Flags::Global);

@@ -81,15 +81,15 @@ public:
 
     [[nodiscard]] u32 dictionary_generation() const { return m_dictionary_generation; }
 
-    [[nodiscard]] bool is_prototype_shape() const { return m_prototype_chain_validity; }
+    [[nodiscard]] bool is_prototype_shape() const { return !!m_prototype_chain_validity; }
     void set_prototype_shape();
 
     GC::Ptr<PrototypeChainValidity> prototype_chain_validity() const { return m_prototype_chain_validity; }
 
     Realm& realm() const { return m_realm; }
 
-    Object* prototype() { return m_prototype; }
-    Object const* prototype() const { return m_prototype; }
+    Object* prototype() { return m_prototype.ptr(); }
+    Object const* prototype() const { return m_prototype.ptr(); }
 
     Optional<PropertyMetadata> lookup(PropertyKey const&) const;
     template<typename Callback>
@@ -112,7 +112,7 @@ public:
     }
     u32 property_count() const { return m_property_count; }
 
-    void set_prototype_without_transition(Object* new_prototype);
+    void set_prototype_without_transition(GC::Ptr<Object> new_prototype);
 
 private:
     enum class PropertyCountChange : u8 {

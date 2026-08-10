@@ -82,8 +82,8 @@ class JS_API Object : public Cell {
     GC_DECLARE_ALLOCATOR(Object);
 
 public:
-    static GC::Ref<Object> create_prototype(Realm&, Object* prototype);
-    static GC::Ref<Object> create(Realm&, Object* prototype);
+    static GC::Ref<Object> create_prototype(Realm&, GC::Ptr<Object> prototype);
+    static GC::Ref<Object> create(Realm&, GC::Ptr<Object> prototype);
     static GC::Ref<Object> create_with_premade_shape(Shape&);
 
     virtual void initialize(Realm&) override;
@@ -233,7 +233,7 @@ public:
     Value get_without_side_effects(PropertyKey const&) const;
 
     void define_direct_property(PropertyKey const& property_key, Value value, PropertyAttributes attributes) { (void)storage_set(property_key, { value, attributes }); }
-    void define_direct_accessor(PropertyKey const&, FunctionObject* getter, FunctionObject* setter, PropertyAttributes attributes);
+    void define_direct_accessor(PropertyKey const&, GC::Ptr<FunctionObject> getter, GC::Ptr<FunctionObject> setter, PropertyAttributes attributes);
 
     using IntrinsicAccessor = Value (*)(Realm&);
     void define_intrinsic_accessor(PropertyKey const&, PropertyAttributes attributes, IntrinsicAccessor accessor);
@@ -360,7 +360,7 @@ public:
     template<typename T>
     bool fast_is() const = delete;
 
-    void set_prototype(Object*);
+    void set_prototype(GC::Ptr<Object>);
 
     [[nodiscard]] bool has_magical_length_property() const { return m_flags & Flag::HasMagicalLengthProperty; }
     void set_has_magical_length_property() { m_flags |= Flag::HasMagicalLengthProperty; }
@@ -380,7 +380,7 @@ protected:
 
     Object(GlobalObjectTag, Realm&, MayInterfereWithIndexedPropertyAccess = MayInterfereWithIndexedPropertyAccess::No);
     Object(ConstructWithoutPrototypeTag, Realm&, MayInterfereWithIndexedPropertyAccess = MayInterfereWithIndexedPropertyAccess::No);
-    Object(Realm&, Object* prototype, MayInterfereWithIndexedPropertyAccess = MayInterfereWithIndexedPropertyAccess::No);
+    Object(Realm&, GC::Ptr<Object> prototype, MayInterfereWithIndexedPropertyAccess = MayInterfereWithIndexedPropertyAccess::No);
     Object(ConstructWithPrototypeTag, Object& prototype, MayInterfereWithIndexedPropertyAccess = MayInterfereWithIndexedPropertyAccess::No);
     explicit Object(Shape&, MayInterfereWithIndexedPropertyAccess = MayInterfereWithIndexedPropertyAccess::No);
 

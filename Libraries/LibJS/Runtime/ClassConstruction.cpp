@@ -42,12 +42,12 @@ static ThrowCompletionOr<ClassElementName> resolve_element_key(VM& vm, Bytecode:
     return ClassElementName { key };
 }
 
-ThrowCompletionOr<ECMAScriptFunctionObject*> construct_class(
+ThrowCompletionOr<GC::Ref<ECMAScriptFunctionObject>> construct_class(
     VM& vm,
     Bytecode::ClassBlueprint const& blueprint,
     Bytecode::Executable const& executable,
-    Environment* class_environment,
-    Environment* outer_environment,
+    GC::Ptr<Environment> class_environment,
+    GC::Ptr<Environment> outer_environment,
     Value super_class,
     ReadonlySpan<Value> element_keys,
     Optional<Utf16FlyString> const& binding_name,
@@ -98,7 +98,7 @@ ThrowCompletionOr<ECMAScriptFunctionObject*> construct_class(
     class_constructor->set_home_object(prototype);
     class_constructor->set_is_class_constructor();
     class_constructor->define_direct_property(vm.names.prototype, prototype, 0);
-    TRY(class_constructor->internal_set_prototype_of(constructor_parent));
+    TRY(class_constructor->internal_set_prototype_of(constructor_parent.ptr()));
 
     if (blueprint.has_super_class)
         class_constructor->set_constructor_kind(ConstructorKind::Derived);
@@ -281,7 +281,7 @@ ThrowCompletionOr<ECMAScriptFunctionObject*> construct_class(
     if (blueprint.source_code)
         class_constructor->set_source_text_range(*blueprint.source_code, blueprint.source_text_offset, blueprint.source_text_length);
 
-    return { class_constructor };
+    return class_constructor;
 }
 
 }

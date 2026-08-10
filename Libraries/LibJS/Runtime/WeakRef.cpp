@@ -40,8 +40,8 @@ WeakRef::WeakRef(Symbol& value, Object& prototype)
 void WeakRef::remove_dead_cells(Badge<GC::Heap>)
 {
     auto is_alive = m_value.visit(
-        [this](Cell* cell) -> bool {
-            auto* block = GC::HeapBlock::from_cell(cell);
+        [this]<typename T>(GC::Ptr<T> cell) -> bool {
+            auto* block = GC::HeapBlock::from_cell(cell.ptr());
             return heap().is_live_heap_block(block) && cell->state() == Cell::State::Live && cell->is_marked();
         },
         [](Empty) -> bool { return true; });
@@ -56,7 +56,7 @@ void WeakRef::visit_edges(Visitor& visitor)
     Base::visit_edges(visitor);
 
     if (vm().execution_generation() == m_last_execution_generation) {
-        auto* cell = m_value.visit([](Cell* cell) -> Cell* { return cell; }, [](Empty) -> Cell* { return nullptr; });
+        GC::Ptr<Cell> cell = m_value.visit([]<typename T>(GC::Ptr<T> cell) -> GC::Ptr<Cell> { return cell; }, [](Empty) -> GC::Ptr<Cell> { return nullptr; });
         visitor.visit(cell);
     }
 }

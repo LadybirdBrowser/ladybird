@@ -161,7 +161,7 @@ public:
     template<DerivedFrom<Object> T>
     [[nodiscard]] ALWAYS_INLINE bool is() const
     {
-        return as_if<T>() != nullptr;
+        return !!as_if<T>();
     }
 
     template<DerivedFrom<Object> T>

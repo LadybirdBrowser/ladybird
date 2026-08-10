@@ -122,7 +122,7 @@ ALWAYS_INLINE ThrowCompletionOr<Value> get_by_id(VM& vm, GetBaseIdentifier get_b
         if (cached_prototype) {
             // OPTIMIZATION: If the prototype chain hasn't been mutated in a way that would invalidate the cache, we can use it.
             bool can_use_cache = [&]() -> bool {
-                if (&shape != cache_entry.shape) [[unlikely]]
+                if (&shape != cache_entry.shape.ptr()) [[unlikely]]
                     return false;
 
                 if (shape.is_dictionary()) {
@@ -142,7 +142,7 @@ ALWAYS_INLINE ThrowCompletionOr<Value> get_by_id(VM& vm, GetBaseIdentifier get_b
                 auto value = cached_prototype->get_direct(cache_entry.property_offset);
                 return TRY(get_cached_property_value(vm, value, this_value));
             }
-        } else if (&shape == cache_entry.shape) {
+        } else if (&shape == cache_entry.shape.ptr()) {
             // OPTIMIZATION: If the shape of the object hasn't changed, we can use the cached property offset.
             bool can_use_cache = true;
             if (shape.is_dictionary()) {
@@ -313,7 +313,7 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
                 case PropertyLookupCache::Entry::Type::AddOwnProperty: {
                     // OPTIMIZATION: If the object's shape is the same as the one cached before adding the new property, we can
                     //               reuse the resulting shape from the cache.
-                    if (cache.from_shape != &object->shape()) [[unlikely]]
+                    if (cache.from_shape.ptr() != &object->shape()) [[unlikely]]
                         break;
                     if (object->requires_slow_add_own_property()) [[unlikely]]
                         break;
@@ -415,7 +415,7 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
                     // objects, but keep this aligned with the normal PutById
                     // AddOwnProperty cache hit so a future bytecode path cannot
                     // bypass subclass hooks for objects that require them.
-                    if (cache.from_shape != &object->shape()) [[unlikely]]
+                    if (cache.from_shape.ptr() != &object->shape()) [[unlikely]]
                         continue;
                     if (object->requires_slow_add_own_property()) [[unlikely]]
                         continue;
