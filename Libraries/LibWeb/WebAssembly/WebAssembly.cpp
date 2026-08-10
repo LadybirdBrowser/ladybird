@@ -252,7 +252,7 @@ namespace Detail {
         _temporary_result.release_value();                                                                                                              \
     })
 
-Wasm::HostFunction create_host_function(JS::Realm& realm, JS::FunctionObject& function, Wasm::FunctionType const& type, ByteString const& name)
+Wasm::HostFunction create_host_function(JS::Realm& realm, JS::FunctionObject& function, Wasm::FunctionType const& type, size_t function_index)
 {
     return Wasm::HostFunction {
         [&realm, &function, &type](auto&, auto arguments) -> Wasm::Result {
@@ -290,7 +290,7 @@ Wasm::HostFunction create_host_function(JS::Realm& realm, JS::FunctionObject& fu
             return Wasm::Result { move(wasm_values) };
         },
         type,
-        name,
+        ByteString::number(function_index),
     };
 }
 
@@ -312,7 +312,8 @@ JS::ThrowCompletionOr<NonnullRefPtr<Wasm::ModuleInstance>> instantiate_module(JS
         dbgln_if(LIBWEB_WASM_DEBUG, "Trying to resolve stuff because import object was specified");
 
         // 3. For each (moduleName, componentName, externtype) of module_imports(module),
-        for (Wasm::Linker::Name const& import_name : linker.unresolved_imports()) {
+        for (auto const& import : module.import_section().imports()) {
+            Wasm::Linker::Name import_name { import.module(), import.name(), import.description() };
             dbgln_if(LIBWEB_WASM_DEBUG, "Trying to resolve {}::{}", import_name.module, import_name.name);
 
             // 3.1. Let o be ? Get(importObject, moduleName).
@@ -347,13 +348,14 @@ JS::ThrowCompletionOr<NonnullRefPtr<Wasm::ModuleInstance>> instantiate_module(JS
                     }
                     // 3.4.3. Otherwise,
                     else {
-                        // 3.4.3.1. Create a host function from v and functype, and let funcaddr be the result.
                         cache->add_imported_object(function);
-                        auto host_function = create_host_function(realm, function, function_type, ByteString::formatted("func{}", resolved_imports.size()));
+
+                        // 3.4.3.1. Create a host function from v and functype, and let funcaddr be the result.
+                        // 3.4.3.2. Let index be the number of external functions in imports. This value index is known as the index of the host function funcaddr.
+                        auto host_function = create_host_function(realm, function, function_type, imported_function_count);
                         address = cache->abstract_machine().store().allocate(move(host_function));
-                        // FIXME: 3.4.3.2. Let index be the number of external functions in imports. This value index is known as the index of the host function funcaddr.
-                        //        'index' doesn't seem to be used anywhere?
                     }
+
                     dbgln_if(LIBWEB_WASM_DEBUG, "Resolved to {}", address->value());
                     // FIXME: LinkError instead.
                     VERIFY(address.has_value());

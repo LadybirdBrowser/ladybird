@@ -40,7 +40,7 @@ WEB_API WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> instantiate_streaming(JS::
 
 namespace Detail {
 
-Wasm::HostFunction create_host_function(JS::Realm&, JS::FunctionObject& function, Wasm::FunctionType const& type, ByteString const& name);
+Wasm::HostFunction create_host_function(JS::Realm&, JS::FunctionObject& function, Wasm::FunctionType const& type, size_t function_index);
 
 struct CompiledWebAssemblyModule : public RefCounted<CompiledWebAssemblyModule> {
     explicit CompiledWebAssemblyModule(NonnullRefPtr<Wasm::Module> module)

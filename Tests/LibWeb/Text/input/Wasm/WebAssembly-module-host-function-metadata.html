@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script type="module">
+    import { function0, function1 } from "./WebAssembly-module-host-function-metadata.wasm";
+
+    test(() => {
+        println(`function 0 name: ${function0.name}`);
+        println(`function 1 name: ${function1.name}`);
+    });
+</script>

@@ -204,6 +204,7 @@ JS::ThrowCompletionOr<void> WebAssemblyModule::execute_module(JS::VM& vm, GC::Pt
 
     // 4. Let imports be « ».
     Vector<Wasm::ExternValue> imports;
+    size_t imported_function_count = 0;
 
     // 5. For each (importedModuleName, name, importtype) in module_imports(module),
     for (auto const& entry : module->module->import_section().imports()) {
@@ -353,15 +354,14 @@ JS::ThrowCompletionOr<void> WebAssemblyModule::execute_module(JS::VM& vm, GC::Pt
                     auto& exported_function = static_cast<Detail::ExportedWasmFunction&>(function);
                     funcaddr = exported_function.exported_address();
                 }
-
                 // 3. Otherwise,
                 else {
-                    // 1. Create a host function from v and functype, and let funcaddr be the result.
                     cache->add_imported_object(function);
-                    auto host_function = Detail::create_host_function(realm, function, functype, ByteString::formatted("func{}", imports.size()));
-                    funcaddr = cache->abstract_machine().store().allocate(move(host_function));
 
-                    // FIXME: 2. Let index be the number of external functions in imports, defining the index of the host function funcaddr.
+                    // 1. Create a host function from v and functype, and let funcaddr be the result.
+                    // 2. Let index be the number of external functions in imports, defining the index of the host function funcaddr.
+                    auto host_function = Detail::create_host_function(realm, function, functype, imported_function_count);
+                    funcaddr = cache->abstract_machine().store().allocate(move(host_function));
                 }
 
                 // 4. Let externfunc be the external value func funcaddr.
@@ -464,6 +464,9 @@ JS::ThrowCompletionOr<void> WebAssemblyModule::execute_module(JS::VM& vm, GC::Pt
                 imports.append(externtable);
             }
         }
+
+        if (entry.description().has<Wasm::FunctionType>() || entry.description().has<Wasm::TypeIndex>())
+            ++imported_function_count;
     }
 
     // 6. Instantiate the core of a WebAssembly module module with imports, and let instance be the result.
