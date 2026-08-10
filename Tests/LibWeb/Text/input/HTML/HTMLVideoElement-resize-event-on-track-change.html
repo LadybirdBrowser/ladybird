@@ -8,24 +8,55 @@
         println(`${name}: selectedIndex=${video.videoTracks.selectedIndex} videoWidth=${video.videoWidth} videoHeight=${video.videoHeight}`);
     }
 
-    for (const name of ["loadedmetadata", "resize"]) {
-        video.addEventListener(name, () => logEvent(name));
+    function waitForTrackChange(selectedIndex) {
+        return new Promise(resolve => {
+            video.videoTracks.addEventListener("change", function listener() {
+                if (video.videoTracks.selectedIndex !== selectedIndex)
+                    return;
+                video.videoTracks.removeEventListener("change", listener);
+                resolve();
+            });
+        });
     }
-    video.videoTracks.addEventListener("change", () => println(`videoTracks change: selectedIndex=${video.videoTracks.selectedIndex}`));
+
+    function waitForResize(width, height) {
+        return new Promise(resolve => {
+            video.addEventListener("resize", function listener() {
+                if (video.videoWidth !== width || video.videoHeight !== height)
+                    return;
+                video.removeEventListener("resize", listener);
+                resolve();
+            });
+        });
+    }
+
+    async function selectTrack(index, width, height) {
+        const trackChange = waitForTrackChange(index);
+        const resize = waitForResize(width, height);
+        video.videoTracks[index].selected = true;
+        await Promise.all([trackChange, resize]);
+        println(`videoTracks change: selectedIndex=${index}`);
+        logEvent("resize");
+    }
 
     asyncTest(async done => {
+        const initialTrackChange = waitForTrackChange(0);
+        const initialResize = waitForResize(320, 240);
+        const loadedMetadata = new Promise(resolve => {
+            video.addEventListener("loadedmetadata", resolve, { once: true });
+        });
         video.src = "../../../Assets/two-tracks-320x240-640x480.webm";
 
-        await new Promise(resolve => video.addEventListener("loadedmetadata", resolve, { once: true }));
+        await Promise.all([initialTrackChange, initialResize, loadedMetadata]);
+        println(`videoTracks change: selectedIndex=0`);
+        logEvent("resize");
+        logEvent("loadedmetadata");
 
-        const tracks = video.videoTracks;
         println(`--- selecting track 1 ---`);
-        tracks[1].selected = true;
-        await new Promise(resolve => video.addEventListener("resize", resolve, { once: true }));
+        await selectTrack(1, 640, 480);
 
         println(`--- selecting track 0 ---`);
-        tracks[0].selected = true;
-        await new Promise(resolve => video.addEventListener("resize", resolve, { once: true }));
+        await selectTrack(0, 320, 240);
 
         done();
     });
