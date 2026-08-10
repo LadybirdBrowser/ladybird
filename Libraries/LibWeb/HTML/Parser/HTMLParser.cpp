@@ -1064,6 +1064,8 @@ WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> HTMLParser::parse_html_fragm
     DOM::Element* context = target.has<GC::Ref<DOM::Element>>()
         ? target.get<GC::Ref<DOM::Element>>().ptr()
         : target.get<GC::Ref<DOM::DocumentFragment>>()->host();
+
+    // 3. Assert: context is non-null.
     VERIFY(context);
 
     // 4. Let document be a Document node whose type is "html".
