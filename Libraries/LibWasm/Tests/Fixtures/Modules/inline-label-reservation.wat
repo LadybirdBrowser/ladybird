@@ -1,0 +1,13 @@
+;; The bytecode compiler inlines $inlinee into $caller, splicing the callee's blocks (plus a wrapper block) into the
+;; caller's instruction list. That pushes far more labels at run time than the validator counted for $caller alone, so
+;; the label reservation must be recomputed from the compiled instructions. $caller returns multiple values to keep it
+;; out of Cranelift and on the interpreter path that pushes labels.
+(module
+  (memory 1)
+
+  (func $inlinee (param $p i32)
+    (block (block (block (block (block (block (block (block (block (block (block (block (block (block (block (block (block (block (block (block (i32.store (i32.const 0) (local.get $p)) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))))
+
+  (func $caller (export "run") (param $p i32) (result i32 i32)
+    (block (block (block (block (block (block (block (block (block (block (block (block (block (block (block (block (block (block (block (block (block (block (block (block (block (block (block (block (block (block (block (block (block (block (block (block (block (block (block (block (block (block (block (block (call $inlinee (local.get $p)) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p))) (br_if 0 (local.get $p)))
+    (local.get $p) (local.get $p)))
