@@ -50,7 +50,7 @@ void RequestList::on_request_processed()
 void RequestList::remove(GC::Ref<IDBRequest> request)
 {
     m_entries.remove_first_matching([&request](auto const& entry) {
-        return entry.request.ptr() == request.ptr();
+        return entry.request == request;
     });
 }
 

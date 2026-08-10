@@ -140,7 +140,7 @@ void run_unloading_cleanup_steps(GC::Ref<DOM::Document> document)
 
     // 3. Remove from store any entries for which the value's environment is equal to environment.
     store.remove_all_matching([&](auto&, auto& value) {
-        return value.environment == &environment;
+        return value.environment.ptr() == &environment;
     });
 }
 

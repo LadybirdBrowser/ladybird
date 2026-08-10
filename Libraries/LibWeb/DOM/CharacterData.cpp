@@ -110,36 +110,36 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
     // 8. For each live range whose start node is node and start offset is greater than offset but less than or equal to
     //    offset plus count, set its start offset to offset.
     for (auto* range : Range::live_ranges()) {
-        if (range == selection_range_to_preserve)
+        if (range == selection_range_to_preserve.ptr())
             continue;
-        if (range->start_container() == this && range->start_offset() > offset && range->start_offset() <= (offset + count))
+        if (range->start_container().ptr() == this && range->start_offset() > offset && range->start_offset() <= (offset + count))
             range->set_start_offset(offset);
     }
 
     // 9. For each live range whose end node is node and end offset is greater than offset but less than or equal to
     //    offset plus count, set its end offset to offset.
     for (auto* range : Range::live_ranges()) {
-        if (range == selection_range_to_preserve)
+        if (range == selection_range_to_preserve.ptr())
             continue;
-        if (range->end_container() == this && range->end_offset() > offset && range->end_offset() <= (offset + count))
+        if (range->end_container().ptr() == this && range->end_offset() > offset && range->end_offset() <= (offset + count))
             range->set_end_offset(offset);
     }
 
     // 10. For each live range whose start node is node and start offset is greater than offset plus count, increase its
     //     start offset by data’s length and decrease it by count.
     for (auto* range : Range::live_ranges()) {
-        if (range == selection_range_to_preserve)
+        if (range == selection_range_to_preserve.ptr())
             continue;
-        if (range->start_container() == this && range->start_offset() > (offset + count))
+        if (range->start_container().ptr() == this && range->start_offset() > (offset + count))
             range->set_start_offset(range->start_offset() + data.length_in_code_units() - count);
     }
 
     // 11. For each live range whose end node is node and end offset is greater than offset plus count, increase its end
     //     offset by data’s length and decrease it by count.
     for (auto* range : Range::live_ranges()) {
-        if (range == selection_range_to_preserve)
+        if (range == selection_range_to_preserve.ptr())
             continue;
-        if (range->end_container() == this && range->end_offset() > (offset + count))
+        if (range->end_container().ptr() == this && range->end_offset() > (offset + count))
             range->set_end_offset(range->end_offset() + data.length_in_code_units() - count);
     }
 

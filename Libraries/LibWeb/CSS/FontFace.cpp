@@ -809,7 +809,7 @@ GC::Ref<WebIDL::Promise> FontFace::load()
 
                         // 2. Remove font face from the FontFaceSet’s [[LoadingFonts]] list. If font was the last item
                         //    in that list (and so the list is now empty), switch the FontFaceSet to loaded.
-                        font_face_set->loading_fonts().remove_all_matching([this](auto const& entry) { return entry == this; });
+                        font_face_set->loading_fonts().remove_all_matching([this](auto const& entry) { return entry == GC::Ref<FontFace> { *this }; });
                         if (font_face_set->loading_fonts().is_empty())
                             font_face_set->switch_to_loaded();
                     }
@@ -833,7 +833,7 @@ GC::Ref<WebIDL::Promise> FontFace::load()
 
                         // 2. Remove font face from the FontFaceSet’s [[LoadingFonts]] list. If font was the last item
                         //    in that list (and so the list is now empty), switch the FontFaceSet to loaded.
-                        font_face_set->loading_fonts().remove_all_matching([this](auto const& entry) { return entry == this; });
+                        font_face_set->loading_fonts().remove_all_matching([this](auto const& entry) { return entry == GC::Ref<FontFace> { *this }; });
                         if (font_face_set->loading_fonts().is_empty())
                             font_face_set->switch_to_loaded();
                     }

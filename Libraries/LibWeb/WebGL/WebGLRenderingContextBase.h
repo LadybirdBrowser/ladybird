@@ -75,7 +75,7 @@ public:
     GC::Ref<WebIDL::Promise> make_xr_compatible();
 
     Optional<Vector<Utf16String>> get_supported_extensions();
-    JS::Object* get_extension(JS::Realm&, Utf16String const& name);
+    GC::Ptr<JS::Object> get_extension(JS::Realm&, Utf16String const& name);
 
     void enable_compressed_texture_format(WebIDL::UnsignedLong format);
 

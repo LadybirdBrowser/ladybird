@@ -53,8 +53,8 @@ public:
     GC::Ref<WebIDL::Promise> delete_(JS::Realm&, Utf16String);
     void delete_(URL::URL, CookieStoreDeleteOptions const&, GC::Ref<CookieMutationCompletionSteps>);
 
-    void set_onchange(WebIDL::CallbackType*);
-    WebIDL::CallbackType* onchange();
+    void set_onchange(GC::Ptr<WebIDL::CallbackType>);
+    GC::Ptr<WebIDL::CallbackType> onchange();
 
     void process_cookie_changes(JS::Object&, Vector<HTTP::Cookie::Cookie>);
 

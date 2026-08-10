@@ -21,8 +21,8 @@ class WEB_API Attr final : public Node {
     GC_DECLARE_ALLOCATOR(Attr);
 
 public:
-    [[nodiscard]] static GC::Ref<Attr> create(Document&, QualifiedName, Utf16String value = {}, Element* = nullptr);
-    [[nodiscard]] static GC::Ref<Attr> create(Document&, Utf16FlyString local_name, Utf16String value = {}, Element* = nullptr);
+    [[nodiscard]] static GC::Ref<Attr> create(Document&, QualifiedName, Utf16String value = {}, GC::Ptr<Element> = nullptr);
+    [[nodiscard]] static GC::Ref<Attr> create(Document&, Utf16FlyString local_name, Utf16String value = {}, GC::Ptr<Element> = nullptr);
     GC::Ref<Attr> clone(Document&) const;
 
     virtual ~Attr() override = default;
@@ -50,7 +50,7 @@ public:
     void handle_attribute_changes(Element&, Optional<Utf16String> const& old_value, Optional<Utf16String> const& new_value);
 
 private:
-    Attr(Document&, QualifiedName, Utf16String value, Element*);
+    Attr(Document&, QualifiedName, Utf16String value, GC::Ptr<Element>);
     virtual void visit_edges(Cell::Visitor&) override;
 
     QualifiedName m_qualified_name;

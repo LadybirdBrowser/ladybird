@@ -19,7 +19,7 @@ void Navigable::visit_edges(Cell::Visitor& visitor)
 bool Navigable::is_ancestor_of(GC::Ref<Navigable> other) const
 {
     for (auto ancestor = other->parent(); ancestor; ancestor = ancestor->parent()) {
-        if (ancestor == this)
+        if (ancestor.ptr() == this)
             return true;
     }
     return false;

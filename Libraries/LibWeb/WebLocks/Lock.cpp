@@ -77,7 +77,7 @@ void LockData::release_lock() const
 
     // 6. Remove lock from the manager’s held lock set.
     m_manager->held_lock_set().remove_first_matching([&](GC::Ref<LockData> held_lock) {
-        return held_lock == this;
+        return held_lock == GC::Ref { *this };
     });
 
     // 7. Process the lock request queue queue.

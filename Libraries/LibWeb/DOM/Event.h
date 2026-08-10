@@ -110,7 +110,7 @@ public:
     GC::Ptr<EventTarget> src_element() const { return target(); }
 
     GC::Ptr<EventTarget> related_target() const { return m_related_target; }
-    void set_related_target(EventTarget* related_target) { m_related_target = related_target; }
+    void set_related_target(GC::Ptr<EventTarget> related_target) { m_related_target = related_target; }
 
     bool should_stop_propagation() const { return m_stop_propagation; }
     void set_stop_propagation(bool stop_propagation) { m_stop_propagation = stop_propagation; }

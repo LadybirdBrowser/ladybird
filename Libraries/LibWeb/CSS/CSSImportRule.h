@@ -39,10 +39,10 @@ public:
     String href() const { return m_url.url(); }
     Utf16String href_for_bindings() const { return utf16_string_from_url_ascii(href()); }
 
-    CSSStyleSheet* loaded_style_sheet() { return m_style_sheet; }
-    CSSStyleSheet const* loaded_style_sheet() const { return m_style_sheet; }
+    CSSStyleSheet* loaded_style_sheet() { return m_style_sheet.ptr(); }
+    CSSStyleSheet const* loaded_style_sheet() const { return m_style_sheet.ptr(); }
     GC::Ref<MediaList> media() const;
-    CSSStyleSheet* style_sheet_for_bindings() { return m_style_sheet; }
+    CSSStyleSheet* style_sheet_for_bindings() { return m_style_sheet.ptr(); }
 
     Optional<Utf16FlyString> layer_name() const;
     Optional<Utf16String> supports_text() const;

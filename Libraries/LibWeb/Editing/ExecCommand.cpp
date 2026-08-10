@@ -178,7 +178,7 @@ WebIDL::ExceptionOr<bool> Document::exec_command_internal(Utf16FlyString const& 
         if (auto range = Editing::active_range(*this)) {
             // INTEROP: A trailing break remains the list item's line terminator after a block fragment is merged into
             //          that item. Blink removes paragraph placeholders here, but preserves list-item terminators.
-            if (auto block = Editing::block_node_of_node(*range->start_container()); block && block == paste_start_block.ptr()
+            if (auto block = Editing::block_node_of_node(*range->start_container()); block && block.ptr() == paste_start_block.ptr()
                 && !is<HTML::HTMLLIElement>(*block))
                 Editing::remove_extraneous_line_breaks_at_the_end_of_node(*block);
         }

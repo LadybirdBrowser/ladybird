@@ -156,7 +156,7 @@ Optional<Vector<Utf16String>> WebGLRenderingContextBase::get_supported_extension
     return webgl_extensions;
 }
 
-JS::Object* WebGLRenderingContextBase::get_extension(JS::Realm& caller_realm, Utf16String const& name)
+GC::Ptr<JS::Object> WebGLRenderingContextBase::get_extension(JS::Realm& caller_realm, Utf16String const& name)
 {
     // Returns an object if, and only if, name is an ASCII case-insensitive match [HTML] for one of the names returned
     // from getSupportedExtensions; otherwise, returns null. The object returned from getExtension contains any constants
@@ -181,7 +181,7 @@ JS::Object* WebGLRenderingContextBase::get_extension(JS::Realm& caller_realm, Ut
     auto& wrapper_world = Bindings::host_defined_wrapper_world(caller_realm);
     if (auto maybe_empty_extension_cache = m_enabled_empty_extensions.get(name_string); maybe_empty_extension_cache.has_value()) {
         if (auto extension = maybe_empty_extension_cache.value()->get(wrapper_world))
-            return extension.ptr();
+            return extension;
     }
 
     // If we pass the check above this will always return a value
@@ -205,7 +205,7 @@ JS::Object* WebGLRenderingContextBase::get_extension(JS::Realm& caller_realm, Ut
 
     auto extension = extension_info.factory(*this);
     m_enabled_extensions.set(move(name_string), extension);
-    return Bindings::wrap(Bindings::host_defined_wrapper_world(caller_realm), caller_realm, extension).ptr();
+    return Bindings::wrap(Bindings::host_defined_wrapper_world(caller_realm), caller_realm, extension);
 }
 
 void WebGLRenderingContextBase::enable_compressed_texture_format(WebIDL::UnsignedLong format)

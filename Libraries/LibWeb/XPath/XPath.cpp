@@ -122,7 +122,7 @@ static xmlNodePtr mirror_node(xmlDocPtr doc, DOM::Node const& node)
     return nullptr;
 }
 
-static void convert_xpath_result(xmlXPathObjectPtr xpath_result, XPath::XPathResult* result, unsigned short type)
+static void convert_xpath_result(xmlXPathObjectPtr xpath_result, GC::Ptr<XPath::XPathResult> result, unsigned short type)
 {
     if (!xpath_result) {
         return;

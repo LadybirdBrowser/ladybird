@@ -54,7 +54,7 @@ protected:
     TextNode(DOM::Document&, DOM::Text&, AttachToDOMNode);
     explicit TextNode(DOM::Document&);
 
-    virtual DOM::Element const* parent_element_for_text_transform() const;
+    virtual GC::Ptr<DOM::Element const> parent_element_for_text_transform() const;
     virtual bool is_password_input() const;
 
 private:
@@ -97,7 +97,7 @@ public:
     virtual Utf16String const& text() const override { return m_text; }
 
 private:
-    virtual DOM::Element const* parent_element_for_text_transform() const override;
+    virtual GC::Ptr<DOM::Element const> parent_element_for_text_transform() const override;
     virtual bool is_password_input() const override { return false; }
 
     Utf16String m_text;

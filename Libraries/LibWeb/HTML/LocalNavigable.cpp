@@ -665,7 +665,7 @@ static Vector<NonnullRefPtr<SessionHistoryEntry>>* get_session_history_entries_i
 Vector<NonnullRefPtr<SessionHistoryEntry>>* append_nested_history_for_child_navigable(
     LocalNavigable& parent_navigable, LocalNavigable& child_navigable, SessionHistoryEntry& history_entry)
 {
-    VERIFY(child_navigable.parent() == &parent_navigable);
+    VERIFY(child_navigable.parent().ptr() == &parent_navigable);
 
     auto parent_doc_state = parent_navigable.active_session_history_entry()->document_state();
     auto& parent_navigable_entries = parent_navigable.get_session_history_entries();
@@ -704,7 +704,7 @@ recreate_missing_nested_history_for_live_child_navigable(LocalTraversableNavigab
         return nullptr;
 
     auto container = navigable.container();
-    if (!container || container->content_navigable() != &navigable)
+    if (!container || container->content_navigable().ptr() != &navigable)
         return nullptr;
 
     auto history_entry = navigable.active_session_history_entry();
@@ -721,7 +721,7 @@ Vector<GC::Root<LocalNavigable>> LocalNavigable::child_navigables() const
     for (auto& entry : all_local_navigables()) {
         if (entry->current_session_history_entry()->step() == SessionHistoryEntry::Pending::Tag)
             continue;
-        if (entry->parent() == this)
+        if (entry->parent().ptr() == this)
             results.append(entry);
     }
 
@@ -1350,7 +1350,7 @@ LocalNavigable::ChosenNavigable LocalNavigable::choose_a_navigable(Utf16View nam
                 // 2. If sandboxingFlagSet's sandboxed navigation browsing context flag is set,
                 //    then set chosen's active browsing context's one permitted sandboxed navigator to currentNavigable's active browsing context.
                 if (has_flag(sandboxing_flag_set, SandboxingFlagSet::SandboxedNavigation))
-                    chosen->active_browsing_context()->set_the_one_permitted_sandboxed_navigator(active_browsing_context());
+                    chosen->active_browsing_context()->set_the_one_permitted_sandboxed_navigator(active_browsing_context().ptr());
             }
 
             // 9. If sandboxingFlagSet's sandbox propagates to auxiliary browsing contexts flag is set,
@@ -1420,7 +1420,7 @@ GC::Ptr<LocalNavigable> LocalNavigable::find_a_navigable_by_target_name(Utf16Vie
     // 7. For each topLevelBrowsingContext of group's browsing context set, in an implementation-defined order (the user agent should pick a consistent ordering, such as the most recently opened, most recently focused, or more closely related):
     for (auto const& top_level_browsing_context : group->browsing_context_set()) {
         // 1. If currentTopLevelBrowsingContext is topLevelBrowsingContext, then continue.
-        if (&current_top_level_browsing_context == top_level_browsing_context)
+        if (&current_top_level_browsing_context == top_level_browsing_context.ptr())
             continue;
 
         // 2. Let documentToSearch be topLevelBrowsingContext's active document.
@@ -1456,7 +1456,7 @@ Vector<NonnullRefPtr<SessionHistoryEntry>>& LocalNavigable::get_session_history_
     // FIXME: 2. Assert: this is running within traversable's session history traversal queue.
 
     // 3. If navigable is traversable, return traversable's session history entries.
-    if (this == traversable)
+    if (this == traversable.ptr())
         return traversable->session_history_entries();
 
     if (auto* entries = get_session_history_entries_if_present(*traversable, *this))
@@ -2030,7 +2030,7 @@ static void create_navigation_params_by_fetching(
         // 3. If sourceSnapshotParams's fetch client is navigable's container document's relevant settings object,
         //    then set request's initiator type to navigable's container's local name.
         // NOTE: This ensure that only container-initiated navigations are reported to resource timing.
-        if (source_snapshot_params->fetch_client == &navigable->container_document()->relevant_settings_object()) {
+        if (source_snapshot_params->fetch_client.ptr() == &navigable->container_document()->relevant_settings_object()) {
             // FIXME: Are there other container types? If so, we need a helper here
             Web::Fetch::Infrastructure::Request::InitiatorType initiator_type = is<HTMLIFrameElement>(*navigable->container()) ? Web::Fetch::Infrastructure::Request::InitiatorType::IFrame
                                                                                                                                : Web::Fetch::Infrastructure::Request::InitiatorType::Object;
@@ -4589,7 +4589,7 @@ void LocalNavigable::replace_input_method_marked_text(Utf16View text)
 
     // Drop a stale composition start (for example, if the editable content was replaced out from under us, or focus moved
     // to a different editable).
-    if (m_input_method_composition_node && (!m_input_method_composition_node->is_connected() || document->active_input_events_target(m_input_method_composition_node) != target))
+    if (m_input_method_composition_node && (!m_input_method_composition_node->is_connected() || document->active_input_events_target(m_input_method_composition_node.ptr()) != target))
         m_input_method_composition_node = nullptr;
 
     // The caret is the end of the marked text. Read it while the selection is still collapsed. Forming the marked-text
@@ -4631,7 +4631,7 @@ bool LocalNavigable::apply_input_method_commit_replacement(Utf16View text, i32 r
         return true;
     }
 
-    if (m_input_method_composition_node && (!m_input_method_composition_node->is_connected() || document->active_input_events_target(m_input_method_composition_node) != target))
+    if (m_input_method_composition_node && (!m_input_method_composition_node->is_connected() || document->active_input_events_target(m_input_method_composition_node.ptr()) != target))
         m_input_method_composition_node = nullptr;
 
     auto caret = document->cursor_position();

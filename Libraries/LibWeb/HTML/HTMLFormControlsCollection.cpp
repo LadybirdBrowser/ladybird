@@ -66,7 +66,7 @@ Variant<Empty, GC::Ref<DOM::Element>, GC::Ref<RadioNodeList>> HTMLFormControlsCo
             multiple_matching = true;
             break;
         }
-        matching_element = element;
+        matching_element = element.ptr();
     }
 
     if (!matching_element)

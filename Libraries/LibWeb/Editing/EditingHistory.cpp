@@ -264,7 +264,7 @@ void EditingHistory::end_recording()
     // NB: Decide this before merging, since merging moves the commands into the open step.
     bool closes_coalescing = step->performed_lasting_node_removal();
 
-    if (m_open_step && !m_undo_stack.is_empty() && m_open_step == m_undo_stack.last().ptr()
+    if (m_open_step && !m_undo_stack.is_empty() && m_open_step == m_undo_stack.last()
         && m_open_step->editing_host() == step->editing_host()
         && m_open_step->accepts_merge_of(step->category())) {
         // NB: The redo stack is necessarily empty here: it only fills up through undo, which

@@ -17,14 +17,14 @@ NonnullOwnPtr<JS::ExecutionContext> create_window_realm(GC::Ptr<Window>& window,
 {
     return Bindings::create_a_new_javascript_realm(
         Bindings::main_thread_vm(),
-        [&](JS::Realm& realm) -> JS::Object* {
+        [&](JS::Realm& realm) -> GC::Ref<JS::Object> {
             // For the global object, create a new Window object.
             window = Window::create();
-            return Bindings::create_global_object_wrapper(realm, GC::Ref { *window }).ptr();
+            return Bindings::create_global_object_wrapper(realm, GC::Ref { *window });
         },
-        [&](JS::Realm&) -> JS::Object* {
+        [&](JS::Realm&) -> GC::Ref<JS::Object> {
             // For the global this binding, use browsingContext's WindowProxy object.
-            return browsing_context.window_proxy();
+            return *browsing_context.window_proxy();
         });
 }
 

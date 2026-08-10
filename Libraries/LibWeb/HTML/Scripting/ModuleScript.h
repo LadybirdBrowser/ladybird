@@ -44,7 +44,7 @@ public:
         No
     };
 
-    WebIDL::Promise* run(PreventErrorReporting = PreventErrorReporting::No);
+    GC::Ptr<WebIDL::Promise> run(PreventErrorReporting = PreventErrorReporting::No);
 
     ModuleScriptRecord record() const { return m_record; }
 

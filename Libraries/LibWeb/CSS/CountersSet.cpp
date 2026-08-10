@@ -178,9 +178,9 @@ static ReversedScopeWalkDecision apply_reversed_counter_contribution(ReversedSco
     return ReversedScopeWalkDecision::Continue;
 }
 
-static ReversedScopeWalkDecision walk_reversed_counter_sibling_run(ReversedScopeWalkState& state, DOM::Element* first)
+static ReversedScopeWalkDecision walk_reversed_counter_sibling_run(ReversedScopeWalkState& state, GC::Ptr<DOM::Element> first)
 {
-    for (auto* element = first; element; element = element->next_element_sibling()) {
+    for (auto element = first; element; element = element->next_element_sibling()) {
         auto style = element->computed_values();
         if (!style || style->display().is_none())
             continue;

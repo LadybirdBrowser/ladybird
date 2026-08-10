@@ -55,7 +55,7 @@ static JS::Value form_data_entry_value(JS::Realm& realm, FormDataEntryValue cons
         });
 }
 
-JS::Object* FormDataIterator::next(JS::Realm& realm)
+GC::Ref<JS::Object> FormDataIterator::next(JS::Realm& realm)
 {
     auto& vm = this->vm();
 
@@ -71,7 +71,7 @@ JS::Object* FormDataIterator::next(JS::Realm& realm)
     if (m_iterator_kind == JS::Object::PropertyKind::Value)
         return JS::create_iterator_result_object(realm, entry_value, false);
 
-    return JS::create_iterator_result_object(realm, JS::Array::create_from(realm, { JS::PrimitiveString::create(vm, entry.name), entry_value }), false).ptr();
+    return JS::create_iterator_result_object(realm, JS::Array::create_from(realm, { JS::PrimitiveString::create(vm, entry.name), entry_value }), false);
 }
 
 GC::Ref<FormDataIterator> FormDataIterator::create(JS::Realm& realm, FormData const& form_data, JS::Object::PropertyKind iterator_kind)

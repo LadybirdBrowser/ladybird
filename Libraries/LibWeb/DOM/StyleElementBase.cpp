@@ -303,14 +303,14 @@ void StyleElementBase::clear_associated_css_style_sheet_parser_blocking_state()
 CSS::CSSStyleSheet* StyleElementBase::sheet()
 {
     // The sheet attribute must return the associated CSS style sheet for the node or null if there is no associated CSS style sheet.
-    return m_associated_css_style_sheet;
+    return m_associated_css_style_sheet.ptr();
 }
 
 // https://www.w3.org/TR/cssom/#dom-linkstyle-sheet
 CSS::CSSStyleSheet const* StyleElementBase::sheet() const
 {
     // The sheet attribute must return the associated CSS style sheet for the node or null if there is no associated CSS style sheet.
-    return m_associated_css_style_sheet;
+    return m_associated_css_style_sheet.ptr();
 }
 
 // https://html.spec.whatwg.org/multipage/semantics.html#dom-style-disabled

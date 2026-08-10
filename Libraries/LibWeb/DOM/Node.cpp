@@ -367,7 +367,7 @@ WebIDL::ExceptionOr<void> Node::normalize()
             // 1. For each live range whose start node is currentNode, add length to its start offset and set its start
             //    node to node.
             for (auto& range : Range::live_ranges()) {
-                if (range->start_container() == current_node) {
+                if (range->start_container().ptr() == current_node) {
                     range->increase_start_offset(length);
                     range->set_start_node(node);
                 }
@@ -376,7 +376,7 @@ WebIDL::ExceptionOr<void> Node::normalize()
             // 2. For each live range whose end node is currentNode, add length to its end offset and set its end node
             //    to node.
             for (auto& range : Range::live_ranges()) {
-                if (range->end_container() == current_node) {
+                if (range->end_container().ptr() == current_node) {
                     range->increase_end_offset(length);
                     range->set_end_node(node);
                 }
@@ -385,7 +385,7 @@ WebIDL::ExceptionOr<void> Node::normalize()
             // 3. For each live range whose start node is currentNode’s parent and start offset is currentNode’s index,
             //    set its start node to node and its start offset to length.
             for (auto& range : Range::live_ranges()) {
-                if (range->start_container() == current_node->parent() && range->start_offset() == current_node->index()) {
+                if (range->start_container().ptr() == current_node->parent() && range->start_offset() == current_node->index()) {
                     range->set_start_node(node);
                     range->set_start_offset(length);
                 }
@@ -394,7 +394,7 @@ WebIDL::ExceptionOr<void> Node::normalize()
             // 4. For each live range whose end node is currentNode’s parent and end offset is currentNode’s index, set
             //    its end node to node and its end offset to length.
             for (auto& range : Range::live_ranges()) {
-                if (range->end_container() == current_node->parent() && range->end_offset() == current_node->index()) {
+                if (range->end_container().ptr() == current_node->parent() && range->end_offset() == current_node->index()) {
                     range->set_end_node(node);
                     range->set_end_offset(length);
                 }
@@ -724,14 +724,14 @@ void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_
         // 1. For each live range whose start node is parent and start offset is greater than child’s index:
         //    increase its start offset by count.
         for (auto& range : Range::live_ranges()) {
-            if (range->start_container() == this && range->start_offset() > child->index())
+            if (range->start_container().ptr() == this && range->start_offset() > child->index())
                 range->increase_start_offset(count);
         }
 
         // 2. For each live range whose end node is parent and end offset is greater than child’s index:
         //    increase its end offset by count.
         for (auto& range : Range::live_ranges()) {
-            if (range->end_container() == this && range->end_offset() > child->index())
+            if (range->end_container().ptr() == this && range->end_offset() > child->index())
                 range->increase_end_offset(count);
         }
     }
@@ -955,13 +955,13 @@ void Node::live_range_pre_remove()
     // 6. For each live range whose start node is parent and start offset is greater than index, decrease its start
     //    offset by 1.
     for (auto* range : Range::live_ranges()) {
-        if (range->start_container() == parent && range->start_offset() > index)
+        if (range->start_container().ptr() == parent && range->start_offset() > index)
             range->decrease_start_offset(1);
     }
 
     // 7. For each live range whose end node is parent and end offset is greater than index, decrease its end offset by 1.
     for (auto* range : Range::live_ranges()) {
-        if (range->end_container() == parent && range->end_offset() > index)
+        if (range->end_container().ptr() == parent && range->end_offset() > index)
             range->decrease_end_offset(1);
     }
 }
@@ -1142,18 +1142,18 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::replace_child(GC::Ref<Node> node, GC::R
             // Otherwise, if node has one element child and either parent has an element child that is not child or a doctype is following child.
             auto node_element_child_count = as<DocumentFragment>(*node).child_element_count();
             if ((node_element_child_count > 1 || node->has_child_of_type<Text>())
-                || (node_element_child_count == 1 && (first_child_of_type<Element>() != child || child->has_following_node_of_type_in_tree_order<DocumentType>()))) {
+                || (node_element_child_count == 1 && (first_child_of_type<Element>() != child.ptr() || child->has_following_node_of_type_in_tree_order<DocumentType>()))) {
                 return WebIDL::HierarchyRequestError::create("Invalid node type for insertion"_utf16);
             }
         } else if (is<Element>(*node)) {
             // Element
             // parent has an element child that is not child or a doctype is following child.
-            if (first_child_of_type<Element>() != child || child->has_following_node_of_type_in_tree_order<DocumentType>())
+            if (first_child_of_type<Element>() != child.ptr() || child->has_following_node_of_type_in_tree_order<DocumentType>())
                 return WebIDL::HierarchyRequestError::create("Invalid node type for insertion"_utf16);
         } else if (is<DocumentType>(*node)) {
             // DocumentType
             // parent has a doctype child that is not child, or an element is preceding child.
-            if (first_child_of_type<DocumentType>() != child || child->has_preceding_node_of_type_in_tree_order<Element>())
+            if (first_child_of_type<DocumentType>() != child.ptr() || child->has_preceding_node_of_type_in_tree_order<Element>())
                 return WebIDL::HierarchyRequestError::create("Invalid node type for insertion"_utf16);
         }
     }
@@ -1213,7 +1213,7 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_node(GC::Ptr<Document> document, 
         document = m_document;
 
     // 1. Assert: node is not a document or node is document.
-    VERIFY(!is_document() || this == document);
+    VERIFY(!is_document() || this == document.ptr());
 
     // 2. Let copy be the result of cloning a single node given node, document, and fallbackRegistry.
     auto copy = TRY(clone_single_node(*document, fallback_registry));
@@ -1381,14 +1381,14 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
         // 1. For each live range whose start node is newParent and start offset is greater than child’s index:
         //    increase its start offset by 1.
         for (auto& range : Range::live_ranges()) {
-            if (range->start_container() == &new_parent && range->start_offset() > child->index())
+            if (range->start_container().ptr() == &new_parent && range->start_offset() > child->index())
                 range->increase_start_offset(1);
         }
 
         // 2. For each live range whose end node is newParent and end offset is greater than child’s index:
         //    increase its end offset by 1.
         for (auto& range : Range::live_ranges()) {
-            if (range->end_container() == &new_parent && range->end_offset() > child->index())
+            if (range->end_container().ptr() == &new_parent && range->end_offset() > child->index())
                 range->increase_end_offset(1);
         }
     }
@@ -1876,7 +1876,7 @@ void Node::set_needs_layout_tree_update(bool value, SetNeedsLayoutTreeUpdateReas
                     break;
                 }
             }
-            if (!any_ancestor_needs_layout_tree_update && navigable && navigable->active_document() == &document()) {
+            if (!any_ancestor_needs_layout_tree_update && navigable && navigable->active_document().ptr() == &document()) {
                 dbgln("Need tree update ({}): {}", to_string(reason), debug_description());
             }
         }
@@ -2069,7 +2069,7 @@ ParentNode* Node::flat_tree_parent()
     if (is_slottable()) {
         auto& slottable = as_slottable().visit([](auto& node) -> SlottableMixin& { return *node; });
         if (auto slot = slottable.assigned_slot())
-            return slot;
+            return slot.ptr();
     }
 
     // Otherwise, this is the parent or shadow host.
@@ -2494,21 +2494,21 @@ WebIDL::ExceptionOr<void> Node::unsafely_set_html(Variant<GC::Ref<Element>, GC::
 }
 
 // https://dom.spec.whatwg.org/#dom-node-issamenode
-bool Node::is_same_node(Node const* other_node) const
+bool Node::is_same_node(GC::Ptr<Node const> other_node) const
 {
     // The isSameNode(otherNode) method steps are to return true if otherNode is this; otherwise false.
-    return this == other_node;
+    return GC::Ref { *this } == other_node;
 }
 
 // https://dom.spec.whatwg.org/#dom-node-isequalnode
-bool Node::is_equal_node(Node const* other_node) const
+bool Node::is_equal_node(GC::Ptr<Node const> other_node) const
 {
     // The isEqualNode(otherNode) method steps are to return true if otherNode is non-null and this equals otherNode; otherwise false.
     if (!other_node)
         return false;
 
     // Fast path for testing a node against itself.
-    if (this == other_node)
+    if (GC::Ref { *this } == other_node)
         return true;
 
     // A node A equals a node B if all of the following conditions are true:
@@ -2621,7 +2621,7 @@ Vector<Utf16FlyString> Node::get_in_scope_prefixes() const
     add_prefix("xml"_utf16_fly_string);
     add_prefix("xmlns"_utf16_fly_string);
 
-    Element const* current = nullptr;
+    GC::Ptr<Element const> current;
 
     if (is<Element>(*this)) {
         current = static_cast<Element const*>(this);
@@ -3049,12 +3049,12 @@ void Node::queue_mutation_record(Utf16FlyString const& type, Optional<Utf16FlySt
                 auto mutation_observer = registered_observer->observer();
 
                 // 2. If interestedObservers[mo] does not exist, then set interestedObservers[mo] to null.
-                if (!interested_observers.contains(mutation_observer))
-                    interested_observers.set(mutation_observer, {});
+                if (!interested_observers.contains(mutation_observer.ptr()))
+                    interested_observers.set(mutation_observer.ptr(), {});
 
                 // 3. If either type is "attributes" and options["attributeOldValue"] is true, or type is "characterData" and options["characterDataOldValue"] is true, then set interestedObservers[mo] to oldValue.
                 if ((type == MutationType::attributes && options.attribute_old_value.has_value() && options.attribute_old_value.value()) || (type == MutationType::characterData && options.character_data_old_value.has_value() && options.character_data_old_value.value()))
-                    interested_observers.set(mutation_observer, old_value);
+                    interested_observers.set(mutation_observer.ptr(), old_value);
             }
         }
     }
@@ -3143,7 +3143,7 @@ void Node::build_accessibility_tree(AccessibilityTreeNode& parent)
 
         if (element->include_in_accessibility_tree()) {
             auto current_node = AccessibilityTreeNode::create(this);
-            parent.append_child(current_node);
+            parent.append_child(current_node.ptr());
             if (has_child_nodes()) {
                 for_each_child([&current_node](DOM::Node& child) {
                     child.build_accessibility_tree(*current_node);
@@ -3157,7 +3157,7 @@ void Node::build_accessibility_tree(AccessibilityTreeNode& parent)
             });
         }
     } else if (is_text()) {
-        parent.append_child(AccessibilityTreeNode::create(this));
+        parent.append_child(AccessibilityTreeNode::create(this).ptr());
         if (has_child_nodes()) {
             for_each_child([&parent](DOM::Node& child) {
                 child.build_accessibility_tree(parent);
@@ -3278,7 +3278,7 @@ ErrorOr<Utf16String> Node::name_or_description(NameOrDescription target, Documen
                     continue;
 
                 // a. Set the current node to the node referenced by the IDREF.
-                current_node = node;
+                current_node = node.ptr();
                 // b. Compute the text alternative of the current node beginning with step 2. Set the result to that text alternative.
                 auto result = TRY(node->name_or_description(target, document, visited_nodes));
                 // c. Append the result, with a space, to the accumulated text.

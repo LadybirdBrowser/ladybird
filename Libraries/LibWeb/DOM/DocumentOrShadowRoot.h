@@ -24,7 +24,7 @@ template<DocumentOrShadowRoot T>
 GC::Ptr<Element> calculate_active_element(T& self)
 {
     // 1. Let candidate be this's node document's focused area's DOM anchor.
-    Node* candidate = self.document().focused_area();
+    GC::Ptr<Node> candidate = self.document().focused_area();
 
     // AD-HOC: null focused_area indicates "viewport focus".
     // https://html.spec.whatwg.org/multipage/interaction.html#focusable-area
@@ -34,17 +34,17 @@ GC::Ptr<Element> calculate_active_element(T& self)
         candidate = &self.document();
 
     // 2. Set candidate to the result of retargeting candidate against this.
-    candidate = as<Node>(retarget(candidate, &self));
+    candidate = as<Node>(retarget(candidate.ptr(), &self));
 
     // 3. If candidate's root is not this, then return null.
     if (!candidate || &candidate->root() != &self)
         return nullptr;
 
     // 4. If candidate is not a Document object, then return candidate.
-    if (!is<Document>(candidate))
-        return as<Element>(candidate);
+    if (!is<Document>(*candidate))
+        return as<Element>(*candidate);
 
-    auto* candidate_document = as_if<Document>(candidate);
+    auto* candidate_document = as_if<Document>(candidate.ptr());
 
     // 5. If candidate has a body element, then return that body element.
     if (auto* body = candidate_document->body())

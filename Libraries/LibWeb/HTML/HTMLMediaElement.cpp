@@ -689,7 +689,7 @@ void HTMLMediaElement::toggle_fullscreen()
 {
     auto& document = this->document();
 
-    if (document.fullscreen_element() == this)
+    if (document.fullscreen_element().ptr() == this)
         document.exit_fullscreen(nullptr);
     else
         request_fullscreen(nullptr);

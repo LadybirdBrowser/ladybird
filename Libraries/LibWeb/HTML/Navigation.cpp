@@ -916,7 +916,7 @@ void Navigation::promote_an_upcoming_api_method_tracker_to_ongoing(Optional<Utf1
 void Navigation::clean_up(GC::Ref<NavigationAPIMethodTracker> api_method_tracker)
 {
     // 1. Let navigation be apiMethodTracker's navigation object.
-    VERIFY(api_method_tracker->navigation == this);
+    VERIFY(api_method_tracker->navigation.ptr() == this);
 
     // 2. If navigation's ongoing API method tracker is apiMethodTracker, then set navigation's ongoing API method tracker to null.
     if (m_ongoing_api_method_tracker == api_method_tracker) {

@@ -50,7 +50,7 @@ DOMRect const* DOMRectList::item(u32 index) const
     // Otherwise, the DOMRect object at index must be returned. Indices are zero-based.
     if (index >= m_rects.size())
         return nullptr;
-    return m_rects[index];
+    return m_rects[index].ptr();
 }
 
 }

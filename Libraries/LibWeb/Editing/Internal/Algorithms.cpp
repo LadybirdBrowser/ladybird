@@ -1059,7 +1059,7 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
         values = record_the_values_of_nodes(children);
 
         // 10. While children's first member's parent is not start block, split the parent of children.
-        while (children.first()->parent() != start_block)
+        while (children.first()->parent() != start_block.ptr())
             split_the_parent_of_nodes(children);
 
         // 11. If children's first member's previousSibling is an editable br, remove that br from its parent.
@@ -1077,7 +1077,7 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
         auto reference_node = start_block;
 
         // 3. While reference node is not a child of end block, set reference node to its parent.
-        while (reference_node->parent() && reference_node->parent() != end_block)
+        while (reference_node->parent() && reference_node->parent() != end_block.ptr())
             reference_node = reference_node->parent();
 
         // 4. If reference node's nextSibling is an inline node and start block's lastChild is a br, remove start
@@ -2965,14 +2965,14 @@ void move_node_preserving_ranges(GC::Ref<DOM::Node> node, GC::Ref<DOM::Node> new
 
             // 4. If a boundary point's node is old parent and its offset is old index or old index + 1, set its node
             //    to new parent and preserve its position relative to the moved node.
-            if (boundary.node == old_parent && (boundary.offset == old_index || boundary.offset == old_index + 1)) {
+            if (boundary.node.ptr() == old_parent && (boundary.offset == old_index || boundary.offset == old_index + 1)) {
                 boundary.node = new_parent;
                 boundary.offset = new_index + (boundary.offset - old_index);
             }
 
             // 5. If a boundary point's node is old parent and its offset is greater than old index + 1, subtract one
             //    from its offset.
-            if (boundary.node == old_parent && boundary.offset > old_index + 1)
+            if (boundary.node.ptr() == old_parent && boundary.offset > old_index + 1)
                 --boundary.offset;
         };
         adjust_boundary(start);
@@ -3532,7 +3532,7 @@ void remove_extraneous_line_breaks_before_node(GC::Ref<DOM::Node> node)
     //    parent, set ref to the node before it in tree order.
     while (is_invisible_node(*ref)
         && !is_extraneous_line_break(*ref)
-        && ref != node->parent()) {
+        && ref.ptr() != node->parent()) {
         ref = ref->previous_in_pre_order();
     }
 

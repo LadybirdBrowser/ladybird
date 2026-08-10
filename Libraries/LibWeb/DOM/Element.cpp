@@ -603,7 +603,7 @@ void Element::set_attribute(FlyString qualified_name, Utf16String const& verifie
 {
     auto utf16_qualified_name = Utf16FlyString::from_fly_string(qualified_name);
     // Let attribute be the first attribute in this’s attribute list whose qualified name is qualifiedName, and null otherwise.
-    auto* attribute = attributes()->get_attribute(utf16_qualified_name);
+    GC::Ptr<Attr> attribute = attributes()->get_attribute(utf16_qualified_name);
 
     // If attribute is non-null, then change attribute to verifiedValue and return.
     if (attribute) {
@@ -1791,11 +1791,11 @@ WebIDL::ExceptionOr<DOM::Element const*> Element::closest(Utf16View selectors) c
     auto const& selector_list = query->selectors();
 
     // 3. Let elements be this’s inclusive ancestors that are elements, in reverse tree order.
-    for (auto* element = this; element; element = element->parent_element()) {
-        if (!matches_selectors(selector_list, element))
+    for (GC::Ptr<Element const> element = this; element; element = element->parent_element()) {
+        if (!matches_selectors(selector_list, element.ptr()))
             continue;
 
-        return element;
+        return element.ptr();
     }
 
     // 5. Return null.
@@ -1838,7 +1838,7 @@ WebIDL::ExceptionOr<Utf16String> Element::inner_html() const
 
 bool Element::is_focused() const
 {
-    return document().focused_area() == this;
+    return document().focused_area().ptr() == this;
 }
 
 bool Element::is_the_active_element() const
@@ -1889,7 +1889,7 @@ void Element::set_shadow_root(GC::Ptr<ShadowRoot> shadow_root)
         //     connected in the first place)
         if (is_connected()) {
             m_shadow_root->for_each_shadow_including_descendant([&](DOM::Node& descendant) {
-                descendant.removed_from(IsSubtreeRoot::No, m_shadow_root, *m_shadow_root);
+                descendant.removed_from(IsSubtreeRoot::No, m_shadow_root.ptr(), *m_shadow_root);
                 return TraversalDecision::Continue;
             });
         }
@@ -2947,7 +2947,7 @@ WebIDL::ExceptionOr<Utf16String> Element::outer_html() const
 WebIDL::ExceptionOr<void> Element::set_outer_html(StringView html)
 {
     // 2. Let parent be this's parent.
-    auto* parent = this->parent();
+    GC::Ptr<Node> parent = this->parent();
 
     // 3. If parent is null, return. There would be no way to obtain a reference to the nodes created even if the remaining steps were run.
     if (!parent)
@@ -3093,7 +3093,7 @@ void Element::exit_fullscreen_on_element_removal()
             return TraversalDecision::Continue;
 
         // 1. If node is document’s fullscreen element, exit fullscreen document.
-        if (document.fullscreen_element() == element)
+        if (document.fullscreen_element().ptr() == element)
             document.exit_fullscreen(nullptr);
         // 2. Otherwise, unfullscreen node.
         else
@@ -4456,7 +4456,7 @@ void Element::invalidate_list_item_counters_for_list_owner()
 
 bool Element::id_reference_exists(Utf16View id_reference) const
 {
-    return document().get_element_by_id(id_reference);
+    return !!document().get_element_by_id(id_reference);
 }
 
 void Element::register_intersection_observer(Badge<IntersectionObserver::IntersectionObserver>, GC::Ref<IntersectionObserver::IntersectionObserver> observer)

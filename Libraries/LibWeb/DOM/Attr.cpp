@@ -20,12 +20,12 @@ namespace Web::DOM {
 
 GC_DEFINE_ALLOCATOR(Attr);
 
-GC::Ref<Attr> Attr::create(Document& document, Utf16FlyString local_name, Utf16String value, Element* owner_element)
+GC::Ref<Attr> Attr::create(Document& document, Utf16FlyString local_name, Utf16String value, GC::Ptr<Element> owner_element)
 {
     return GC::Heap::the().allocate<Attr>(document, QualifiedName(move(local_name), Optional<Utf16FlyString> {}, Optional<Utf16FlyString> {}), move(value), owner_element);
 }
 
-GC::Ref<Attr> Attr::create(Document& document, QualifiedName qualified_name, Utf16String value, Element* owner_element)
+GC::Ref<Attr> Attr::create(Document& document, QualifiedName qualified_name, Utf16String value, GC::Ptr<Element> owner_element)
 {
     return GC::Heap::the().allocate<Attr>(document, move(qualified_name), move(value), owner_element);
 }
@@ -35,7 +35,7 @@ GC::Ref<Attr> Attr::clone(Document& document) const
     return GC::Heap::the().allocate<Attr>(document, m_qualified_name, m_value, nullptr);
 }
 
-Attr::Attr(Document& document, QualifiedName qualified_name, Utf16String value, Element* owner_element)
+Attr::Attr(Document& document, QualifiedName qualified_name, Utf16String value, GC::Ptr<Element> owner_element)
     : Node(document, NodeType::ATTRIBUTE_NODE)
     , m_qualified_name(move(qualified_name))
     , m_value(move(value))

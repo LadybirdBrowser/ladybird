@@ -223,7 +223,7 @@ Variant<GC::Ptr<DOM::Element const>, GC::Ptr<DOM::Document>> ScrollTimeline::get
 
     // https://drafts.csswg.org/scroll-animations-1/#scroll-notation
     // References to the root element propagate to the document viewport (which functions as its scroll container).
-    if (source && source == source->document().document_element())
+    if (source && source.ptr() == source->document().document_element())
         return source->owner_document();
 
     return source;

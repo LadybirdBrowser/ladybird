@@ -67,7 +67,7 @@ bool TextNode::update_produces_line_box_fragment_when_empty_flag()
 
 TextNode::~TextNode() = default;
 
-DOM::Element const* TextNode::parent_element_for_text_transform() const
+GC::Ptr<DOM::Element const> TextNode::parent_element_for_text_transform() const
 {
     return dom_node().parent_element();
 }
@@ -85,7 +85,7 @@ GeneratedTextNode::GeneratedTextNode(DOM::Document& document, Utf16String text)
 
 GeneratedTextNode::~GeneratedTextNode() = default;
 
-DOM::Element const* GeneratedTextNode::parent_element_for_text_transform() const
+GC::Ptr<DOM::Element const> GeneratedTextNode::parent_element_for_text_transform() const
 {
     if (is_generated_for_pseudo_element())
         return pseudo_element_generator();

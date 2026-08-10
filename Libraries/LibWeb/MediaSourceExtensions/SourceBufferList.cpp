@@ -91,7 +91,9 @@ GC::Ptr<WebIDL::CallbackType> SourceBufferList::onremovesourcebuffer()
 
 bool SourceBufferList::contains(SourceBuffer const& source_buffer) const
 {
-    return m_buffers.contains([&](GC::Ref<SourceBuffer> const& contained_buffer) { return contained_buffer == &source_buffer; });
+    return m_buffers.contains([&](GC::Ref<SourceBuffer> contained_buffer) {
+        return contained_buffer == GC::Ref { source_buffer };
+    });
 }
 
 }

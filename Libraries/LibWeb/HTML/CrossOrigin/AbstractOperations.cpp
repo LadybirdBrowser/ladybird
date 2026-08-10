@@ -269,9 +269,9 @@ JS::ThrowCompletionOr<JS::PropertyDescriptor> cross_origin_property_fallback(JS:
     // 1. If P is "then", @@toStringTag, @@hasInstance, or @@isConcatSpreadable, then return PropertyDescriptor { [[Value]]: undefined, [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: true }.
     auto property_key_is_then = property_key.is_string() && property_key.as_string() == vm.names.then.as_string();
     auto property_key_is_allowed_symbol = property_key.is_symbol()
-        && (property_key.as_symbol() == vm.well_known_symbol_to_string_tag()
-            || property_key.as_symbol() == vm.well_known_symbol_has_instance()
-            || property_key.as_symbol() == vm.well_known_symbol_is_concat_spreadable());
+        && (property_key.as_symbol() == vm.well_known_symbol_to_string_tag().ptr()
+            || property_key.as_symbol() == vm.well_known_symbol_has_instance().ptr()
+            || property_key.as_symbol() == vm.well_known_symbol_is_concat_spreadable().ptr());
     if (property_key_is_then || property_key_is_allowed_symbol)
         return JS::PropertyDescriptor { .value = JS::js_undefined(), .writable = false, .enumerable = false, .configurable = true };
 

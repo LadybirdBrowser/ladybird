@@ -350,7 +350,7 @@ GC::Ptr<PlatformObject> current_target_wrapper(JS::Realm& realm, DOM::Event cons
 {
     auto current_target = event.current_target();
     if (auto* window = as_if<HTML::Window>(current_target.ptr())) {
-        if (auto* browsing_context = window->browsing_context())
+        if (auto browsing_context = window->browsing_context())
             return browsing_context->window_proxy_for(Bindings::host_defined_wrapper_world(realm), realm);
         return window->window();
     }

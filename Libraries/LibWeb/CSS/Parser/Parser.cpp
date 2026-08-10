@@ -1652,7 +1652,7 @@ CSSRule* Parser::parse_as_css_rule(bool nested)
 {
     auto nested_mode = nested ? Nested::Yes : Nested::No;
     if (auto maybe_rule = parse_a_rule(m_token_stream, nested_mode); maybe_rule.has_value())
-        return convert_to_rule<CSSNestedDeclarations>(maybe_rule.value(), nested_mode);
+        return convert_to_rule<CSSNestedDeclarations>(maybe_rule.value(), nested_mode).ptr();
     return {};
 }
 
@@ -2589,14 +2589,14 @@ template Vector<Vector<ComponentValue>> Parser::parse_a_comma_separated_list_of_
 
 DOM::Document const* Parser::document() const
 {
-    return m_document;
+    return m_document.ptr();
 }
 
 HTML::Window const* Parser::window() const
 {
     if (!m_document)
         return nullptr;
-    return m_document->window();
+    return m_document->window().ptr();
 }
 
 bool Parser::in_quirks_mode() const

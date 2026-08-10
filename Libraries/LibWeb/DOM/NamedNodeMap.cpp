@@ -159,7 +159,7 @@ Attr const* NamedNodeMap::get_attribute(Utf16FlyString const& qualified_name, si
     // 2. Return the first attribute in element’s attribute list whose qualified name is qualifiedName; otherwise null.
     for (auto const& attribute : m_attributes) {
         if (attribute->name() == *effective_qualified_name)
-            return attribute;
+            return attribute.ptr();
 
         if (item_index)
             ++(*item_index);

@@ -194,7 +194,7 @@ WebIDL::Long HTMLTableCellElement::cell_index() const
 
     auto rows = parent->cells()->collect_matching_elements();
     for (size_t i = 0; i < rows.size(); ++i) {
-        if (rows[i] == this)
+        if (rows[i].ptr() == this)
             return i;
     }
     return -1;

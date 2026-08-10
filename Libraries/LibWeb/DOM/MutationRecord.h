@@ -22,11 +22,11 @@ public:
     virtual ~MutationRecord() override;
 
     Utf16FlyString const& type() const { return m_type; }
-    Node const* target() const { return m_target; }
-    NodeList const* added_nodes() const { return m_added_nodes; }
-    NodeList const* removed_nodes() const { return m_removed_nodes; }
-    Node const* previous_sibling() const { return m_previous_sibling; }
-    Node const* next_sibling() const { return m_next_sibling; }
+    Node const* target() const { return m_target.ptr(); }
+    NodeList const* added_nodes() const { return m_added_nodes.ptr(); }
+    NodeList const* removed_nodes() const { return m_removed_nodes.ptr(); }
+    Node const* previous_sibling() const { return m_previous_sibling.ptr(); }
+    Node const* next_sibling() const { return m_next_sibling.ptr(); }
     Optional<Utf16String> attribute_name() const
     {
         return m_attribute_name.map([](auto const& name) { return name.to_utf16_string(); });

@@ -19,7 +19,7 @@ GC_DEFINE_ALLOCATOR(ClassicScript);
 
 static void register_source(ClassicScript& script, ScriptRegistry::IsInlineSource is_inline_source, size_t source_line_number)
 {
-    auto* script_record = script.script_record();
+    auto script_record = script.script_record();
     if (!script_record || !script_record->cached_executable())
         return;
 
@@ -56,7 +56,7 @@ GC::Ref<ClassicScript> ClassicScript::create(ByteString filename, Utf16View sour
 
     // 10. Let result be ParseScript(source, settings's realm, script).
     auto parse_timer = Core::ElapsedTimer::start_new();
-    auto result = JS::Script::parse(source, settings.realm(), script->filename(), script->display_filename(), script, source_line_number);
+    auto result = JS::Script::parse(source, settings.realm(), script->filename(), script->display_filename(), script.ptr(), source_line_number);
     dbgln_if(HTML_SCRIPT_DEBUG, "ClassicScript: Parsed {} in {}ms", script->filename(), parse_timer.elapsed_milliseconds());
 
     // 11. If result is a list of errors, then:
@@ -94,7 +94,7 @@ GC::Ref<ClassicScript> ClassicScript::create_from_pre_parsed(ByteString filename
     script->set_error_to_rethrow(JS::js_null());
 
     auto parse_timer = Core::ElapsedTimer::start_new();
-    auto result = JS::Script::create_from_parsed(parsed, move(source_code), realm, script->filename(), script);
+    auto result = JS::Script::create_from_parsed(parsed, move(source_code), realm, script->filename(), script.ptr());
     dbgln_if(HTML_SCRIPT_DEBUG, "ClassicScript: Compiled pre-parsed {} in {}ms", script->filename(), parse_timer.elapsed_milliseconds());
 
     if (result.is_error()) {
@@ -127,7 +127,7 @@ GC::Ref<ClassicScript> ClassicScript::create_from_pre_compiled(ByteString filena
     script->set_error_to_rethrow(JS::js_null());
 
     auto parse_timer = Core::ElapsedTimer::start_new();
-    auto result = JS::Script::create_from_compiled(compiled, move(source_code), realm, script->filename(), script);
+    auto result = JS::Script::create_from_compiled(compiled, move(source_code), realm, script->filename(), script.ptr());
     dbgln_if(HTML_SCRIPT_DEBUG, "ClassicScript: Materialized pre-compiled {} in {}ms", script->filename(), parse_timer.elapsed_milliseconds());
 
     if (result.is_error()) {
@@ -160,7 +160,7 @@ GC::Ref<ClassicScript> ClassicScript::create_from_bytecode_cache(ByteString file
     script->set_error_to_rethrow(JS::js_null());
 
     auto parse_timer = Core::ElapsedTimer::start_new();
-    auto result = JS::Script::create_from_bytecode_cache(bytecode_cache, move(source_code), realm, script->filename(), script);
+    auto result = JS::Script::create_from_bytecode_cache(bytecode_cache, move(source_code), realm, script->filename(), script.ptr());
     dbgln_if(HTML_SCRIPT_DEBUG, "ClassicScript: Materialized cached bytecode {} in {}ms", script->filename(), parse_timer.elapsed_milliseconds());
 
     if (result.is_error()) {

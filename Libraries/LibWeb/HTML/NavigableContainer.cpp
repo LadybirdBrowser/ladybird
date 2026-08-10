@@ -172,7 +172,7 @@ DOM::Document const* NavigableContainer::content_document() const
         return nullptr;
 
     // 4. Return document.
-    return document;
+    return document.ptr();
 }
 
 DOM::Document const* NavigableContainer::content_document_without_origin_check() const
@@ -180,7 +180,7 @@ DOM::Document const* NavigableContainer::content_document_without_origin_check()
     if (!m_content_navigable)
         return nullptr;
 
-    return m_content_navigable->active_document();
+    return m_content_navigable->active_document().ptr();
 }
 
 // https://html.spec.whatwg.org/multipage/embedded-content-other.html#dom-media-getsvgdocument
@@ -200,7 +200,7 @@ HTML::WindowProxy* NavigableContainer::content_window()
 {
     if (!m_content_navigable)
         return nullptr;
-    return m_content_navigable->active_window_proxy();
+    return m_content_navigable->active_window_proxy().ptr();
 }
 
 // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#shared-attribute-processing-steps-for-iframe-and-frame-elements

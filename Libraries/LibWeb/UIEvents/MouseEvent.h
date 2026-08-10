@@ -120,7 +120,7 @@ public:
 
     virtual u32 which() const override { return m_button + 1; }
 
-    void init_mouse_event(Utf16FlyString const& type, bool bubbles, bool cancelable, GC::Ptr<HTML::WindowProxy> view, WebIDL::Long detail, WebIDL::Long screen_x, WebIDL::Long screen_y, WebIDL::Long client_x, WebIDL::Long client_y, bool ctrl_key, bool alt_key, bool shift_key, bool meta_key, WebIDL::Short button, DOM::EventTarget* related_target);
+    void init_mouse_event(Utf16FlyString const& type, bool bubbles, bool cancelable, GC::Ptr<HTML::WindowProxy> view, WebIDL::Long detail, WebIDL::Long screen_x, WebIDL::Long screen_y, WebIDL::Long client_x, WebIDL::Long client_y, bool ctrl_key, bool alt_key, bool shift_key, bool meta_key, WebIDL::Short button, GC::Ptr<DOM::EventTarget> related_target);
 
     void set_offset_x(double offset_x) { m_offset_x = offset_x; }
     void set_offset_y(double offset_y) { m_offset_y = offset_y; }

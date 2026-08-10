@@ -205,7 +205,7 @@ bool EventDispatcher::dispatch(GC::Ref<EventTarget> target, Event& event, bool l
     GC::Ptr<EventTarget> activation_target;
 
     // 4. Let relatedTarget be the result of retargeting event’s relatedTarget against target.
-    GC::Ptr<EventTarget> related_target = retarget(event.related_target(), target);
+    GC::Ptr<EventTarget> related_target = retarget(event.related_target().ptr(), target.ptr());
 
     // 5. Let clearTargets be false.
     bool clear_targets = false;
@@ -231,7 +231,7 @@ bool EventDispatcher::dispatch(GC::Ref<EventTarget> target, Event& event, bool l
 
         // 2. For each touchTarget of event’s touch target list, append the result of retargeting touchTarget against target to touchTargets.
         for (auto& touch_target : event.touch_target_list()) {
-            touch_targets.append(retarget(touch_target, target));
+            touch_targets.append(retarget(touch_target.ptr(), target.ptr()));
         }
 
         // 3. Append to an event path with event, target, targetOverride, relatedTarget, touchTargets, and false.
@@ -279,14 +279,14 @@ bool EventDispatcher::dispatch(GC::Ref<EventTarget> target, Event& event, bool l
                 slottable = parent;
 
             // 3. Let relatedTarget be the result of retargeting event’s relatedTarget against parent.
-            related_target = retarget(event.related_target(), parent);
+            related_target = retarget(event.related_target().ptr(), parent);
 
             // 4. Let touchTargets be a new list.
             touch_targets.clear();
 
             // 5. For each touchTarget of event’s touch target list, append the result of retargeting touchTarget against parent to touchTargets.
             for (auto& touch_target : event.touch_target_list()) {
-                touch_targets.append(retarget(touch_target, parent));
+                touch_targets.append(retarget(touch_target.ptr(), parent));
             }
 
             // 6. If parent is a Window object, or parent is a node and target’s root is a shadow-including inclusive ancestor of parent, then:

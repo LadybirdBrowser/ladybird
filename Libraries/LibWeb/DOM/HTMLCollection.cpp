@@ -50,12 +50,12 @@ GC::Cell const& HTMLCollection::owner_cell(Badge<GC::Heap>) const
 void HTMLCollection::remove_dead_cells(Badge<GC::Heap>)
 {
     m_cached_elements.remove_all_matching([&](GC::RawPtr<Element> const& element) {
-        auto* block = GC::HeapBlock::from_cell(element);
+        auto* block = GC::HeapBlock::from_cell(element.ptr());
         return !heap().is_live_heap_block(block) || element->state() != Cell::State::Live || !element->is_marked();
     });
     if (m_cached_name_to_element_mappings) {
         m_cached_name_to_element_mappings->remove_all_matching([&](Utf16FlyString const&, GC::RawPtr<Element> const& element) {
-            auto* block = GC::HeapBlock::from_cell(element);
+            auto* block = GC::HeapBlock::from_cell(element.ptr());
             return !heap().is_live_heap_block(block) || element->state() != Cell::State::Live || !element->is_marked();
         });
     }
@@ -138,7 +138,7 @@ Element* HTMLCollection::item(size_t index) const
     update_cache_if_needed();
     if (index >= m_cached_elements.size())
         return nullptr;
-    return m_cached_elements[index];
+    return m_cached_elements[index].ptr();
 }
 
 // https://dom.spec.whatwg.org/#dom-htmlcollection-nameditem-key
@@ -150,7 +150,7 @@ Element* HTMLCollection::named_item(Utf16View key) const
 
     update_name_to_element_mappings_if_needed();
     if (auto it = m_cached_name_to_element_mappings->get(key); it.has_value())
-        return it.value();
+        return it.value().ptr();
     return nullptr;
 }
 

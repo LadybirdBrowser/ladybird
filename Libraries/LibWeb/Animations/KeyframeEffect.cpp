@@ -831,7 +831,7 @@ WebIDL::ExceptionOr<GC::Ref<KeyframeEffect>> KeyframeEffect::construct_impl(GC::
     return effect;
 }
 
-void KeyframeEffect::set_target(DOM::Element* target)
+void KeyframeEffect::set_target(GC::Ptr<DOM::Element> target)
 {
     if (auto animation = this->associated_animation()) {
         if (m_target_element)
@@ -908,7 +908,7 @@ Bindings::CompositeOperation KeyframeEffect::composite_for_bindings() const
 }
 
 // https://www.w3.org/TR/web-animations-1/#dom-keyframeeffect-getkeyframes
-WebIDL::ExceptionOr<GC::RootVector<JS::Object*>> KeyframeEffect::get_keyframes(JS::Object& relevant_global_object)
+WebIDL::ExceptionOr<GC::RootVector<GC::Ref<JS::Object>>> KeyframeEffect::get_keyframes(JS::Object& relevant_global_object)
 {
     // The getKeyframes() algorithm returns a fresh sequence of fresh objects on
     // every invocation. Do not expose the previous result as a mutable cache:
@@ -947,7 +947,7 @@ WebIDL::ExceptionOr<GC::RootVector<JS::Object*>> KeyframeEffect::get_keyframes(J
         }
     }
 
-    GC::RootVector<JS::Object*> keyframes;
+    GC::RootVector<GC::Ref<JS::Object>> keyframes;
     for (auto const& keyframe : m_keyframe_objects_cache)
         keyframes.append(keyframe);
     return keyframes;

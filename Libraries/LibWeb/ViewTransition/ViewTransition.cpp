@@ -626,7 +626,7 @@ void ViewTransition::call_the_update_callback()
     HTML::TemporaryExecutionContext execution_context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
 
     // 3. Let callbackPromise be null.
-    WebIDL::Promise* callback_promise;
+    GC::Ptr<WebIDL::Promise> callback_promise;
 
     // 4. If transition’s update callback is null, then set callbackPromise to a promise resolved with undefined, in
     //    transition’s relevant Realm.
@@ -723,7 +723,7 @@ void ViewTransition::skip_the_view_transition(JS::Value reason)
     document.set_rendering_suppression_for_view_transitions(false);
 
     // 5. If document’s active view transition is transition, Clear view transition transition.
-    if (document.active_view_transition() == this)
+    if (document.active_view_transition() == GC::Ref { *this })
         clear_view_transition();
 
     // 6. Set transition’s phase to "done".
@@ -1000,7 +1000,7 @@ void ViewTransition::clear_view_transition()
     auto& document = this->document();
 
     // 2. Assert: document’s active view transition is transition.
-    VERIFY(document.active_view_transition() == this);
+    VERIFY(document.active_view_transition() == GC::Ref { *this });
 
     // 3. For each capturedElement of transition’s named elements' values:
     for (auto captured_element : m_named_elements) {
@@ -1018,7 +1018,7 @@ void ViewTransition::clear_view_transition()
                 auto stylesheet = document.dynamic_view_transition_style_sheet();
                 auto rules = stylesheet->css_rules();
                 for (u32 i = 0; i < rules->length(); i++) {
-                    if (rules->item(i) == style) {
+                    if (GC::Ptr { rules->item(i) } == style) {
                         MUST(stylesheet->delete_rule(i));
                         break;
                     }

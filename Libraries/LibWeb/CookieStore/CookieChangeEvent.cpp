@@ -57,7 +57,7 @@ static CookieChangeEventCacheEntry& cookie_change_event_cache_for(CookieStore::C
     prune_cookie_change_event_caches();
 
     for (auto& entry : caches) {
-        if (entry.event.ptr() == &event)
+        if (entry.event.ptr().ptr() == &event)
             return entry;
     }
 

@@ -66,7 +66,7 @@ bool WebGLObject::invalidated_for_context(WebGLRenderingContextBase const* conte
 
 ErrorOr<void> WebGLObject::validate_context(WebGLRenderingContextBase const* context) const
 {
-    if (context == m_context)
+    if (GC::Ptr { context } == m_context)
         return {};
     return Error::from_errno(GL_INVALID_OPERATION);
 }

@@ -383,7 +383,7 @@ static Optional<ResolvedScope> resolve_single_scope(DOM::AbstractElement abstrac
         return {};
     if (outer_root && !outer_root->is_shadow_including_inclusive_ancestor_of(*root))
         return {};
-    for (auto const* candidate = &abstract_element.element(); candidate && candidate != root; candidate = candidate->parent_or_shadow_host_element())
+    for (auto const* candidate = &abstract_element.element(); candidate && candidate != root.ptr(); candidate = candidate->parent_or_shadow_host_element())
         ++proximity;
 
     if (!root)
@@ -631,8 +631,8 @@ Vector<StyleComputer::ScopedMatchingRule> StyleComputer::collect_matching_rules_
         // FIXME: We should reorganize the data so that the document-level StyleComputer doesn't cache *all* rules,
         //        but instead we'd have some kind of "style scope" at the document level, and also one for each shadow root.
         //        Then we could only evaluate rules from the current style scope.
-        bool rule_is_relevant_for_current_scope = rule_root == shadow_root
-            || (element_shadow_root && rule_root == element_shadow_root)
+        bool rule_is_relevant_for_current_scope = rule_root.ptr() == shadow_root
+            || (element_shadow_root && rule_root.ptr() == element_shadow_root.ptr())
             || from_user_agent_or_user_stylesheet
             || rule_to_run.slotted
             || rule_to_run.contains_part_pseudo_element
@@ -728,7 +728,7 @@ Vector<StyleComputer::ScopedMatchingRule> StyleComputer::collect_matching_rules_
     if (!subject_is_reslotted_slot) {
         for (GC::Ptr<HTML::HTMLSlotElement const> slot = abstract_element.element().assigned_slot_internal(); slot; slot = slot->assigned_slot_internal()) {
             if (auto const* slot_shadow_root = as_if<DOM::ShadowRoot>(slot->root())) {
-                if (slot_shadow_root != context_shadow_root)
+                if (slot_shadow_root != context_shadow_root.ptr())
                     continue;
                 if (auto const* rule_cache = rule_cache_for_cascade_origin(cascade_origin, qualified_layer_name, slot_shadow_root)) {
                     add_rules_to_run(rule_cache->slotted_rules, slot_shadow_root);
@@ -741,7 +741,7 @@ Vector<StyleComputer::ScopedMatchingRule> StyleComputer::collect_matching_rules_
     // Rules from any ancestor style scope can apply, including from the element's own shadow root
     // (for :host::part() within the shadow DOM's own stylesheet).
     if (shadow_root && (abstract_element.pseudo_element().has_value() || !abstract_element.element().part_names().is_empty())) {
-        if (context_shadow_root == shadow_root) {
+        if (context_shadow_root.ptr() == shadow_root) {
             if (auto const* rule_cache = rule_cache_for_cascade_origin(cascade_origin, qualified_layer_name, shadow_root)) {
                 add_rules_to_run(rule_cache->part_rules, shadow_root);
             }
@@ -750,7 +750,7 @@ Vector<StyleComputer::ScopedMatchingRule> StyleComputer::collect_matching_rules_
             part_shadow_root;
             part_shadow_root = part_shadow_root->first_flat_tree_ancestor_of_type<DOM::ShadowRoot>()) {
 
-            if (context_shadow_root != part_shadow_root)
+            if (context_shadow_root.ptr() != part_shadow_root)
                 continue;
             if (auto const* rule_cache = rule_cache_for_cascade_origin(cascade_origin, qualified_layer_name, part_shadow_root)) {
                 add_rules_to_run(rule_cache->part_rules, part_shadow_root);
@@ -808,7 +808,7 @@ Vector<StyleComputer::ScopedMatchingRule> StyleComputer::collect_matching_rules_
         }
         if (!SelectorMatching::matches(selector, abstract_element, shadow_host_to_use, context, resolved_scope->root))
             continue;
-        if (resolved_scope->root == &abstract_element.element()
+        if (resolved_scope->root.ptr() == &abstract_element.element()
             && !selector.contains_pseudo_class(PseudoClass::Scope)
             && !selector.contains_the_nesting_selector())
             continue;
@@ -2465,7 +2465,7 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
                 add_block(declaration.properties(), &declaration.custom_properties(), CascadeOrigin::Author, context_index, layer_index, false, false, layer_name, &declaration, match.shadow_root);
             }
         }
-        if (include_inline_style == IncludeInlineStyle::Yes && author_context.shadow_root == element_context_shadow_root) {
+        if (include_inline_style == IncludeInlineStyle::Yes && author_context.shadow_root.ptr() == element_context_shadow_root) {
             // NB: Inline style bypasses the pseudo-element property whitelist since inline style is used
             //     internally to style element-reference pseudo-elements and sometimes contains disallowed
             //     properties (e.g. input::placeholder has height set); authors can't set inline style on

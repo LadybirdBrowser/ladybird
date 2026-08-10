@@ -39,7 +39,7 @@ WEB_API WebIDL::ExceptionOr<void> set_value(JS::Realm&, WebAssembly::Global&, JS
 WEB_API WebIDL::ExceptionOr<JS::Value> value_of(JS::Realm&, WebAssembly::Global&);
 
 WEB_API WebIDL::ExceptionOr<GC::Ref<WebAssembly::Instance>> construct_instance(JS::Realm&, WebAssembly::Module&, GC::Ptr<JS::Object> import_object);
-WEB_API JS::Object const* exports(JS::Realm&, GC::Ref<WebAssembly::Instance>);
+WEB_API GC::Ref<JS::Object const> exports(JS::Realm&, GC::Ref<WebAssembly::Instance>);
 WEB_API JS::ThrowCompletionOr<void> initialize_webassembly_export_binding(JS::Realm&, JS::Environment&, Utf16FlyString const& name, GC::Ref<WebAssembly::Instance>);
 
 WEB_API WebIDL::ExceptionOr<GC::Ref<WebAssembly::Table>> construct_table(JS::Realm&, TableDescriptor const&, Optional<JS::Value>);

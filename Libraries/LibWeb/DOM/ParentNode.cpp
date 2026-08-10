@@ -216,7 +216,7 @@ WebIDL::ExceptionOr<void> ParentNode::move_before(GC::Ref<Node> node, GC::Ptr<No
         reference_child = node->next_sibling();
 
     // 3. Move node into this before referenceChild.
-    TRY(node->move_node(*this, reference_child));
+    TRY(node->move_node(*this, reference_child.ptr()));
 
     return {};
 }

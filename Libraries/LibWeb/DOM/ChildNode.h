@@ -122,6 +122,7 @@ private:
         auto* node = static_cast<NodeType*>(this);
 
         for (auto* sibling = node->previous_sibling(); sibling; sibling = sibling->previous_sibling()) {
+            GC::Ptr<Node> sibling_pointer = sibling;
             bool contained_in_nodes = false;
 
             for (auto const& node_or_string : nodes) {
@@ -129,14 +130,14 @@ private:
                     continue;
 
                 auto const& node_in_vector = node_or_string.template get<GC::Ref<Node>>();
-                if (node_in_vector == sibling) {
+                if (node_in_vector == sibling_pointer) {
                     contained_in_nodes = true;
                     break;
                 }
             }
 
             if (!contained_in_nodes)
-                return sibling;
+                return sibling_pointer;
         }
 
         return nullptr;
@@ -147,6 +148,7 @@ private:
         auto* node = static_cast<NodeType*>(this);
 
         for (auto* sibling = node->next_sibling(); sibling; sibling = sibling->next_sibling()) {
+            GC::Ptr<Node> sibling_pointer = sibling;
             bool contained_in_nodes = false;
 
             for (auto const& node_or_string : nodes) {
@@ -154,14 +156,14 @@ private:
                     continue;
 
                 auto const& node_in_vector = node_or_string.template get<GC::Ref<Node>>();
-                if (node_in_vector == sibling) {
+                if (node_in_vector == sibling_pointer) {
                     contained_in_nodes = true;
                     break;
                 }
             }
 
             if (!contained_in_nodes)
-                return sibling;
+                return sibling_pointer;
         }
 
         return nullptr;

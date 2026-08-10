@@ -127,9 +127,9 @@ void Page::set_focused_navigable(HTML::LocalNavigable& navigable)
 
 void Page::navigable_document_destroyed(Badge<DOM::Document>, HTML::LocalNavigable& navigable)
 {
-    if (&navigable == m_focused_navigable.ptr())
+    if (GC::Ref { navigable } == m_focused_navigable.ptr())
         m_focused_navigable = nullptr;
-    if (&navigable == m_mouse_event_tracking_navigable.ptr())
+    if (GC::Ref { navigable } == m_mouse_event_tracking_navigable.ptr())
         m_mouse_event_tracking_navigable = nullptr;
 }
 
@@ -441,7 +441,7 @@ void Page::update_needs_beforeunload_check()
         auto active_document = top_level_traversable->active_document();
         if (!active_document)
             return true;
-        if (active_document->navigable() != top_level_traversable.ptr())
+        if (active_document->navigable() != top_level_traversable)
             return true;
 
         for (auto const& navigable : active_document->inclusive_descendant_navigables()) {
@@ -470,7 +470,7 @@ void Page::set_top_level_traversable(GC::Ref<HTML::LocalTraversableNavigable> na
 
 bool Page::top_level_traversable_is_initialized() const
 {
-    return m_top_level_traversable;
+    return !!m_top_level_traversable;
 }
 
 HTML::BrowsingContext& Page::top_level_browsing_context()
@@ -1051,7 +1051,7 @@ Page::FindInPageResult Page::perform_find_in_page_query(FindInPageQuery const& q
     auto should_update_match_index = false;
     for (auto const& document : documents_in_active_window()) {
         auto matches = document->find_matching_text(query.string, query.case_sensitivity);
-        if (document == top_level_traversable()->active_document()) {
+        if (GC::Ptr { document.ptr() } == top_level_traversable()->active_document()) {
             if (auto range = active_range(*document)) {
                 auto new_match_index = find_current_match_index(*range, matches);
                 should_update_match_index = true;
@@ -1225,7 +1225,7 @@ void Page::process_pending_fullscreen_operations()
                     // 9. If any of the following conditions are false, then set error to true:
                     //    * This's node document is pendingDoc.
                     //    * The fullscreen element ready check for this returns true.
-                    if (enter.element->owner_document() != enter.pending_doc.ptr())
+                    if (enter.element->owner_document() != GC::Ptr { enter.pending_doc.ptr() })
                         enter.error = DOM::RequestFullscreenError::ElementNodeDocIsNotPendingDoc;
                     else if (!enter.element->is_element_ready_for_fullscreen())
                         enter.error = DOM::RequestFullscreenError::ElementReadyCheckFailed;

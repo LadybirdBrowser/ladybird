@@ -42,16 +42,16 @@ GC::Ref<JS::Realm> internal_css_realm()
         GC::Ptr<Bindings::PlatformObject> global_object;
         execution_context = Bindings::create_a_new_javascript_realm(
             vm,
-            [&](JS::Realm& new_realm) -> JS::Object* {
+            [&](JS::Realm& new_realm) -> GC::Ref<JS::Object> {
                 window = HTML::Window::create();
                 // initialize_host_defined_realm() asks for the global object
                 // before HostDefined is installed. Cache the wrapper after
                 // installing HostDefined below, matching Window realm setup.
                 global_object = Bindings::create_global_object_wrapper(new_realm, GC::Ref { *window });
-                return global_object.ptr();
+                return global_object.as_nonnull();
             },
-            [&](JS::Realm&) -> JS::Object* {
-                return global_object.ptr();
+            [&](JS::Realm&) -> GC::Ref<JS::Object> {
+                return global_object.as_nonnull();
             });
 
         realm = *execution_context->realm;

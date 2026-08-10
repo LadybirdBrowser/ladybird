@@ -158,7 +158,7 @@ Vector<GC::RawPtr<Element>> const* QuerySelectorResultCache::get(Document const&
         return nullptr;
 
     auto const& entry = it->value;
-    if (entry.root.ptr() != &root
+    if (entry.root.ptr().ptr() != &root
         || (query.depends_on_character_data() && entry.character_data_version != document.character_data_version())) {
         m_entries.remove(it);
         return nullptr;

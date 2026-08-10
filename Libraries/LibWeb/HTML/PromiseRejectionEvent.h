@@ -41,7 +41,7 @@ public:
     virtual ~PromiseRejectionEvent() override;
 
     // Needs to return a pointer for the generated JS bindings to work.
-    JS::Object const* promise() const { return m_promise; }
+    JS::Object const* promise() const { return m_promise.ptr(); }
     JS::Value const& reason() const { return m_reason; }
 
 private:

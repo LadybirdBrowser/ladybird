@@ -125,7 +125,7 @@ void Wrappable::set_cached_main_world_wrapper(PlatformObject& wrapper)
     VERIFY(wrapper_world.is_main_world());
     if (m_main_world_wrapper) {
         VERIFY(&host_defined_wrapper_world(m_main_world_wrapper->realm()) == &wrapper_world);
-        VERIFY(m_main_world_wrapper.ptr() == &wrapper);
+        VERIFY(m_main_world_wrapper.ptr().ptr() == &wrapper);
         return;
     }
 
@@ -134,7 +134,7 @@ void Wrappable::set_cached_main_world_wrapper(PlatformObject& wrapper)
 
 void Wrappable::clear_cached_main_world_wrapper(PlatformObject const& wrapper)
 {
-    if (!m_main_world_wrapper || m_main_world_wrapper.ptr() == &wrapper)
+    if (!m_main_world_wrapper || m_main_world_wrapper.ptr().ptr() == &wrapper)
         m_main_world_wrapper = nullptr;
 }
 
@@ -265,14 +265,14 @@ void preserve_wrapper(Wrappable& wrappable, PlatformObject& wrapper)
         return;
 
     if (world.is_main_world()) {
-        VERIFY(wrappable.m_main_world_wrapper.ptr() == &wrapper);
+        VERIFY(wrappable.m_main_world_wrapper.ptr().ptr() == &wrapper);
         gc_allocated_wrappable.set_main_world_wrapper_is_preserved(true);
         return;
     }
 
     auto& preserved_wrappers = non_main_world_preserved_wrappers().ensure(&gc_allocated_wrappable);
     for (auto const& entry : preserved_wrappers) {
-        if (entry.wrapper == &wrapper && entry.world.ptr() == &world)
+        if (entry.wrapper.ptr() == &wrapper && entry.world.ptr().ptr() == &world)
             return;
     }
 
@@ -290,13 +290,13 @@ bool wrapper_is_preserved(PlatformObject const& wrapper)
 
     auto& world = host_defined_wrapper_world(wrapper.realm());
     if (world.is_main_world())
-        return gc_allocated_wrappable.main_world_wrapper_is_preserved() && wrappable->m_main_world_wrapper.ptr() == &wrapper;
+        return gc_allocated_wrappable.main_world_wrapper_is_preserved() && wrappable->m_main_world_wrapper.ptr().ptr() == &wrapper;
 
     if (gc_allocated_wrappable.has_non_main_world_preserved_wrappers()) {
         auto it = non_main_world_preserved_wrappers().find(const_cast<GCAllocatedWrappable*>(&gc_allocated_wrappable));
         VERIFY(it != non_main_world_preserved_wrappers().end());
         for (auto const& entry : it->value) {
-            if (entry.wrapper == &wrapper && entry.world.ptr() == &world)
+            if (entry.wrapper.ptr() == &wrapper && entry.world.ptr().ptr() == &world)
                 return true;
         }
     }
@@ -313,7 +313,7 @@ void GCAllocatedWrappable::clear_preserved_wrappers(WrapperWorld const& world)
     auto& preserved_wrappers_by_wrappable = non_main_world_preserved_wrappers();
     auto it = preserved_wrappers_by_wrappable.find(this);
     VERIFY(it != preserved_wrappers_by_wrappable.end());
-    it->value.remove_all_matching([&](auto const& entry) { return entry.world.ptr() == &world; });
+    it->value.remove_all_matching([&](auto const& entry) { return entry.world.ptr().ptr() == &world; });
     if (it->value.is_empty()) {
         preserved_wrappers_by_wrappable.remove(it);
         set_has_non_main_world_preserved_wrappers(false);

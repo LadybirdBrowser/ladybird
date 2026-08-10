@@ -299,7 +299,7 @@ void initialize_main_thread_vm(HTML::AgentType type)
     };
 
     // 8.1.5.4.3 HostEnqueuePromiseJob(job, realm), https://html.spec.whatwg.org/multipage/webappapis.html#hostenqueuepromisejob
-    main_thread_vm_ptr()->host_enqueue_promise_job = [](GC::Ref<GC::Function<JS::ThrowCompletionOr<JS::Value>()>> job, JS::Realm* realm) {
+    main_thread_vm_ptr()->host_enqueue_promise_job = [](GC::Ref<GC::Function<JS::ThrowCompletionOr<JS::Value>()>> job, GC::Ptr<JS::Realm> realm) {
         auto& vm = *main_thread_vm_ptr();
 
         // IMPLEMENTATION DEFINED: The JS spec says we must take implementation defined steps to make the currently active script or module at the time of HostEnqueuePromiseJob being invoked
@@ -702,7 +702,7 @@ JS::VM& main_thread_vm()
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#creating-a-new-javascript-realm
-NonnullOwnPtr<JS::ExecutionContext> create_a_new_javascript_realm(JS::VM& vm, Function<JS::Object*(JS::Realm&)> create_global_object, Function<JS::Object*(JS::Realm&)> create_global_this_value)
+NonnullOwnPtr<JS::ExecutionContext> create_a_new_javascript_realm(JS::VM& vm, Function<GC::Ref<JS::Object>(JS::Realm&)> create_global_object, Function<GC::Ref<JS::Object>(JS::Realm&)> create_global_this_value)
 {
     // 1. Perform InitializeHostDefinedRealm() with the provided customizations for creating the global object and the global this binding.
     // 2. Let realm execution context be the running JavaScript execution context.
@@ -752,13 +752,13 @@ GC::Ref<JS::Realm> create_a_simple_javascript_realm()
     GC::Ptr<PlatformObject> global_this;
     auto execution_context = create_a_new_javascript_realm(
         vm,
-        [&](JS::Realm& realm) -> JS::Object* {
+        [&](JS::Realm& realm) -> GC::Ref<JS::Object> {
             window = HTML::Window::create();
             global_this = create_global_object_wrapper(realm, GC::Ref { *window });
-            return global_this.ptr();
+            return global_this.as_nonnull();
         },
-        [&](JS::Realm&) -> JS::Object* {
-            return global_this.ptr();
+        [&](JS::Realm&) -> GC::Ref<JS::Object> {
+            return global_this.as_nonnull();
         });
 
     auto& realm = *execution_context->realm;
@@ -841,13 +841,13 @@ GC::Ref<JS::Realm> create_a_principal_javascript_realm()
     GC::Ptr<PlatformObject> global_this;
     auto execution_context = create_a_new_javascript_realm(
         main_thread_vm(),
-        [&](JS::Realm& realm) -> JS::Object* {
+        [&](JS::Realm& realm) -> GC::Ref<JS::Object> {
             window = HTML::Window::create();
             global_this = create_global_object_wrapper(realm, GC::Ref { *window });
-            return global_this.ptr();
+            return global_this.as_nonnull();
         },
-        [&](JS::Realm&) -> JS::Object* {
-            return global_this.ptr();
+        [&](JS::Realm&) -> GC::Ref<JS::Object> {
+            return global_this.as_nonnull();
         });
 
     auto realm = execution_context->realm;

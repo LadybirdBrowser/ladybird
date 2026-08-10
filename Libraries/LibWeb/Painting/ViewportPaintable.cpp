@@ -68,13 +68,13 @@ struct BlockingWheelEventRegionState {
 
 static BlockingWheelEventRegionState collect_root_blocking_wheel_event_regions(DOM::Document& document)
 {
-    DOM::EventTarget* roots[] = {
+    GC::Ptr<DOM::EventTarget> roots[] = {
         document.navigable() ? document.navigable()->active_window() : nullptr,
         &document,
         document.document_element(),
         document.body(),
     };
-    for (auto* target : roots) {
+    for (auto target : roots) {
         if (target && target->has_blocking_wheel_event_listener()) {
             return {
                 .has_blocking_wheel_event_listeners = true,
@@ -446,7 +446,7 @@ void ViewportPaintable::recompute_selection_states(DOM::Range& range)
 
     DOM::Node* stop_at = end_container->child_at_index(range.end_offset());
     // Only stop at the end container if it has no children that may need to be included.
-    for (auto* node = start_at; node && (node != stop_at && !(node == end_container && !end_container->has_children())); node = node->next_in_pre_order(end_container)) {
+    for (auto* node = start_at; node && (node != stop_at && !(node == end_container.ptr() && !end_container->has_children())); node = node->next_in_pre_order(end_container.ptr())) {
         if (is_excluded_from_selection(*node))
             continue;
         set_selection_state_on_all_slices(*node, SelectionState::Full);

@@ -16,12 +16,12 @@ namespace Web::Editing {
 
 InlineInsertionBoundary prepare_inline_insertion_boundary(DOM::BoundaryPoint boundary, DOM::Node& containing_block)
 {
-    VERIFY(boundary.node == &containing_block || containing_block.is_ancestor_of(boundary.node));
+    VERIFY(boundary.node.ptr() == &containing_block || containing_block.is_ancestor_of(boundary.node));
 
     // INTEROP: Blink first advances through preceding inline nodes while the resulting DOM boundary represents the
     //          same caret. Inserting after a styled run then occurs beside that run instead of creating an empty style
     //          clone on its trailing edge.
-    while (boundary.node != &containing_block) {
+    while (boundary.node.ptr() != &containing_block) {
         if (boundary.offset != boundary.node->length() || !boundary.node->parent())
             break;
         auto node = boundary.node;

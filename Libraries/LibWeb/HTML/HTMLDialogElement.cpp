@@ -466,7 +466,7 @@ void HTMLDialogElement::run_dialog_setup_steps()
 void HTMLDialogElement::run_dialog_cleanup_steps()
 {
     // 1. Remove subject from subject's node document's open dialogs list.
-    document().open_dialogs_list().remove_first_matching([this](auto other) { return other == this; });
+    document().open_dialogs_list().remove_first_matching([this](auto other) { return other.ptr() == this; });
 
     // 2. If subject's close watcher is not null, then:
     if (m_close_watcher) {

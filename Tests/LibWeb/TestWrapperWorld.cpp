@@ -252,13 +252,13 @@ GC::Ref<JS::Realm> create_test_principal_realm(JS::VM& vm)
     GC::Ptr<Web::Bindings::PlatformObject> global_this;
     auto execution_context = Web::Bindings::create_a_new_javascript_realm(
         vm,
-        [&](JS::Realm& realm) -> JS::Object* {
+        [&](JS::Realm& realm) -> GC::Ref<JS::Object> {
             window = Web::HTML::Window::create();
             global_this = Web::Bindings::create_global_object_wrapper(realm, GC::Ref { *window });
-            return global_this.ptr();
+            return global_this.as_nonnull();
         },
-        [&](JS::Realm&) -> JS::Object* {
-            return global_this.ptr();
+        [&](JS::Realm&) -> GC::Ref<JS::Object> {
+            return global_this.as_nonnull();
         });
 
     auto realm = execution_context->realm;
@@ -493,8 +493,8 @@ TEST_CASE(global_wrapper_cache_uses_realm_wrapper_world)
 
     auto extension_execution_context = MUST(JS::Realm::initialize_host_defined_realm(
         *vm,
-        [&](JS::Realm& realm) -> JS::Object* {
-            return Web::Bindings::create_global_object_wrapper(realm, wrappable).ptr();
+        [&](JS::Realm& realm) -> GC::Ref<JS::Object> {
+            return Web::Bindings::create_global_object_wrapper(realm, wrappable);
         },
         nullptr));
     auto& extension_realm = *extension_execution_context->realm;
@@ -703,7 +703,7 @@ TEST_CASE(preserved_main_world_wrapper_keeps_expando_across_collection)
     EXPECT(original_wrapper);
 
     auto replacement_wrapper = wrap_test_wrappable(main_world.realm(), *wrappable_root);
-    EXPECT(replacement_wrapper.ptr() == original_wrapper.ptr());
+    EXPECT(replacement_wrapper == original_wrapper.ptr());
     auto descriptor = MUST(replacement_wrapper->internal_get_own_property(expando_name));
     EXPECT(descriptor.has_value());
     EXPECT(descriptor->value.has_value());
@@ -727,13 +727,13 @@ TEST_CASE(preserved_extension_world_wrapper_survives_collection_without_detach)
         live_wrapper = GC::Weak<Web::Bindings::PlatformObject> { wrapper };
         Web::Bindings::preserve_wrapper(*wrappable, *wrapper);
         EXPECT(!wrapper_world.is_detached());
-        EXPECT(wrapper_world.wrapper_for(*wrappable, extension_world.realm()).ptr() == wrapper.ptr());
+        EXPECT(wrapper_world.wrapper_for(*wrappable, extension_world.realm()) == wrapper);
     }
 
     vm->heap().collect_garbage(GC::Heap::CollectionType::CollectGarbage);
     EXPECT(live_wrappable);
     EXPECT(live_wrapper);
-    EXPECT(wrapper_world.wrapper_for(*wrappable_root, extension_world.realm()).ptr() == live_wrapper.ptr());
+    EXPECT(wrapper_world.wrapper_for(*wrappable_root, extension_world.realm()) == live_wrapper.ptr());
 
     wrapper_world.detach();
 }

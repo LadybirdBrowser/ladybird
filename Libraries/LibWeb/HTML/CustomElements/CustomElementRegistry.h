@@ -34,7 +34,7 @@ public:
 
     virtual ~CustomElementRegistry() override;
 
-    JS::ThrowCompletionOr<void> define(JS::Realm&, Utf16String const& name, WebIDL::CallbackType* constructor, ElementDefinitionOptions const&);
+    JS::ThrowCompletionOr<void> define(JS::Realm&, Utf16String const& name, GC::Ref<WebIDL::CallbackType> constructor, ElementDefinitionOptions const&);
     Variant<GC::Ref<WebIDL::CallbackType>, Empty> get(Utf16FlyString const& name) const;
     Optional<Utf16String> get_name(GC::Ref<WebIDL::CallbackType> constructor) const;
     GC::Ptr<WebIDL::CallbackType> constructor_for_defined_name(Utf16FlyString const& name) const;

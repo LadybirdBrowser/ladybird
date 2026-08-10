@@ -91,8 +91,8 @@ public:
     CSSRuleList const& rules() const { return *m_rules; }
     CSSRuleList& rules() { return *m_rules; }
 
-    CSSRuleList* css_rules() { return m_rules; }
-    CSSRuleList const* css_rules() const { return m_rules; }
+    CSSRuleList* css_rules() { return m_rules.ptr(); }
+    CSSRuleList const* css_rules() const { return m_rules.ptr(); }
 
     WebIDL::ExceptionOr<unsigned> insert_rule(Utf16View rule, unsigned index);
     WebIDL::ExceptionOr<WebIDL::Long> add_rule(Optional<Utf16String> selector, Optional<Utf16String> style, Optional<WebIDL::UnsignedLong> index);

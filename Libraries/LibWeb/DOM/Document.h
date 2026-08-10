@@ -792,7 +792,7 @@ public:
 
     void set_needs_to_refresh_scroll_state(bool b);
 
-    bool has_active_favicon() const { return m_active_favicon; }
+    bool has_active_favicon() const { return !!m_active_favicon; }
     void check_favicon_after_loading_link_resource();
 
     void increment_throw_on_dynamic_markup_insertion_counter(Badge<HTML::HTMLParser>);
@@ -972,7 +972,7 @@ public:
     bool ready_to_run_scripts() const { return m_ready_to_run_scripts; }
     void set_ready_to_run_scripts();
     void set_deferred_parser_start(GC::Ref<GC::Function<void()>>);
-    bool has_deferred_parser_start() const { return m_deferred_parser_start; }
+    bool has_deferred_parser_start() const { return !!m_deferred_parser_start; }
 
     RefPtr<HTML::SessionHistoryEntry> latest_entry() const { return m_latest_entry; }
     void set_latest_entry(RefPtr<HTML::SessionHistoryEntry>);
@@ -1171,7 +1171,7 @@ public:
     Optional<Painting::HitTestResult> hit_test(CSSPixelPoint, Painting::HitTestType);
     Optional<Painting::CaretPosition> caret_position_from_point(CSSPixelPoint);
     Optional<Painting::CaretPosition> caret_position_from_point_for_selection_start(CSSPixelPoint);
-    Optional<Painting::CaretPosition> caret_position_from_point_for_selection(CSSPixelPoint, Node const* constraint_scope = nullptr);
+    Optional<Painting::CaretPosition> caret_position_from_point_for_selection(CSSPixelPoint, GC::Ptr<Node const> constraint_scope = nullptr);
     Optional<Painting::CaretPosition> caret_position_at_line_edge(Node const&, size_t offset, TextAffinity, Painting::CaretLineEdge);
     Optional<Painting::CaretPosition> caret_position_on_adjacent_line(Node const&, size_t offset, TextAffinity, Painting::CaretLineDirection, CSSPixels inline_coordinate, Node const& scope);
     Optional<CSSPixels> caret_line_block_coordinate(Node const&, size_t offset, TextAffinity);

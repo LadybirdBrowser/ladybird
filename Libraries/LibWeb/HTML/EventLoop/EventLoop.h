@@ -67,7 +67,7 @@ public:
     void increment_termination_nesting_level() { ++m_termination_nesting_level; }
     void decrement_termination_nesting_level() { --m_termination_nesting_level; }
 
-    Task const* currently_running_task() const { return m_currently_running_task; }
+    GC::Ptr<Task const> currently_running_task() const { return m_currently_running_task; }
 
     u64 task_generation() const { return m_task_generation; }
 
@@ -154,7 +154,7 @@ WEB_API EventLoop& main_thread_event_loop();
 WEB_API void run_when_event_loop_reaches_step_1(GC::Ref<GC::Function<void()>> steps);
 WEB_API TaskID queue_a_task(HTML::Task::Source, GC::Ptr<EventLoop>, GC::Ptr<DOM::Document>, GC::Ref<GC::Function<void()>> steps);
 WEB_API TaskID queue_global_task(HTML::Task::Source, JS::Object&, GC::Ref<GC::Function<void()>> steps);
-WEB_API void queue_a_microtask(DOM::Document const*, GC::Ref<GC::Function<void()>> steps);
+WEB_API void queue_a_microtask(GC::Ptr<DOM::Document const>, GC::Ref<GC::Function<void()>> steps);
 void perform_a_microtask_checkpoint();
 
 }

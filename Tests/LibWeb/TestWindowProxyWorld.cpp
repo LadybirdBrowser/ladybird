@@ -104,11 +104,11 @@ TEST_CASE(per_world_windowproxy_and_window_wrapper)
     auto extension_world = vm.heap().allocate<Web::Bindings::WrapperWorld>(Web::Bindings::WrapperWorld::Type::Extension);
     auto extension_execution_context = Web::Bindings::create_a_new_javascript_realm(
         vm,
-        [&](JS::Realm& realm) -> JS::Object* {
-            return Web::Bindings::create_global_object_wrapper(realm, GC::Ref { *window }).ptr();
+        [&](JS::Realm& realm) -> GC::Ref<JS::Object> {
+            return Web::Bindings::create_global_object_wrapper(realm, GC::Ref { *window });
         },
-        [&](JS::Realm& realm) -> JS::Object* {
-            return browsing_context->window_proxy_for(*extension_world, realm);
+        [&](JS::Realm& realm) -> GC::Ref<JS::Object> {
+            return *browsing_context->window_proxy_for(*extension_world, realm);
         });
     auto& extension_realm = *extension_execution_context->realm;
     auto intrinsics = extension_realm.create<Web::Bindings::Intrinsics>(extension_realm);

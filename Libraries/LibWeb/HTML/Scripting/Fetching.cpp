@@ -788,7 +788,7 @@ void fetch_classic_script(GC::Ref<HTMLScriptElement> element, URL::URL const& ur
                                 ? ClassicScript::create_from_pre_compiled(move(response_url_string), move(source_code), *settings_root, move(response_url), result.compiled, muted_errors)
                                 : ClassicScript::create_from_pre_parsed(move(response_url_string), move(source_code), *settings_root, move(response_url), result.parsed, muted_errors);
                             BytecodeCacheInstallTarget install_target;
-                            if (auto* script_record = script->script_record()) {
+                            if (auto script_record = script->script_record()) {
                                 install_target.script = *script_record;
                                 if (!should_generate_bytecode_cache) {
                                     if (auto* executable = script_record->cached_executable())
@@ -824,7 +824,7 @@ void fetch_classic_script(GC::Ref<HTMLScriptElement> element, URL::URL const& ur
                     ? ClassicScript::create_from_pre_compiled(move(response_url_string), move(source_code), *settings_root, move(response_url), result.compiled, muted_errors)
                     : ClassicScript::create_from_pre_parsed(move(response_url_string), move(source_code), *settings_root, move(response_url), result.parsed, muted_errors);
                 BytecodeCacheInstallTarget install_target;
-                if (auto* script_record = script->script_record()) {
+                if (auto script_record = script->script_record()) {
                     install_target.script = *script_record;
                     if (!should_generate_bytecode_cache) {
                         if (auto* executable = script_record->cached_executable())
@@ -962,7 +962,7 @@ WebIDL::ExceptionOr<GC::Ref<ClassicScript>> fetch_a_classic_worker_imported_scri
     // FIXME: Consider using a "response holder" to avoid needing to annotate response as IGNORE_USE_IN_ESCAPING_LAMBDA.
     auto& event_loop = settings_object.responsible_event_loop();
     event_loop.spin_until(GC::create_function(GC::Heap::the(), [&]() -> bool {
-        return response;
+        return !!response;
     }));
 
     // 6. Set response to response's unsafe response.

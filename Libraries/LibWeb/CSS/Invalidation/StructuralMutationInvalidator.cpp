@@ -124,7 +124,7 @@ void invalidate_structurally_affected_siblings(DOM::Node& node, DOM::StyleInvali
                 // :nth-child / :nth-of-type / :first-of-type / :only-of-type need every next sibling
                 // re-evaluated since their leading indices shift.
                 needs_to_invalidate = true;
-            } else if (element->affected_by_first_child_pseudo_class() && element == first_child_transition_target) {
+            } else if (element->affected_by_first_child_pseudo_class() && element == first_child_transition_target.ptr()) {
                 // :first-child / :only-child only flip for the element transitioning into/out of the
                 // leading position.
                 needs_to_invalidate = true;

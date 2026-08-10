@@ -59,7 +59,7 @@ void remember_custom_element_definition_prototype(HTML::CustomElementDefinition&
     prune_custom_element_definition_prototype_cache();
 
     for (auto& entry : cache) {
-        if (entry.definition.ptr() == &definition && entry.prototype && &entry.prototype->shape().realm() == &prototype.shape().realm()) {
+        if (entry.definition.ptr().ptr() == &definition && entry.prototype && &entry.prototype->shape().realm() == &prototype.shape().realm()) {
             entry.prototype = prototype;
             return;
         }
@@ -73,7 +73,7 @@ static GC::Ptr<JS::Object> custom_element_definition_prototype(HTML::CustomEleme
     prune_custom_element_definition_prototype_cache();
 
     for (auto const& entry : custom_element_definition_prototype_cache()) {
-        if (entry.definition.ptr() == &definition && entry.prototype && &entry.prototype->shape().realm() == &realm)
+        if (entry.definition.ptr().ptr() == &definition && entry.prototype && &entry.prototype->shape().realm() == &realm)
             return entry.prototype.ptr();
     }
 
@@ -93,7 +93,7 @@ void set_prototype_from_custom_element_definition_if_needed(DOM::Element& elemen
     if (!prototype)
         return;
 
-    auto did_set_prototype = MUST(wrapper.internal_set_prototype_of(prototype));
+    auto did_set_prototype = MUST(wrapper.internal_set_prototype_of(prototype.ptr()));
     VERIFY(did_set_prototype);
 }
 

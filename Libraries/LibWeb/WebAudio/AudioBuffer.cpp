@@ -49,7 +49,7 @@ static AudioBufferChannelDataCacheEntry& cache_for(AudioBuffer& buffer, WebIDL::
     prune_audio_buffer_channel_data_caches();
 
     for (auto& entry : caches) {
-        if (entry.buffer.ptr() == &buffer && entry.channel == channel)
+        if (entry.buffer.ptr() == GC::Ref { buffer } && entry.channel == channel)
             return entry;
     }
 
@@ -112,7 +112,7 @@ RefPtr<Rendering::AudioBufferContents> AudioBuffer::acquire_contents()
     // 1. If any of the AudioBuffer's ArrayBuffers are detached, return true, abort these steps, and return a
     //    zero-length channel data buffer to the invoker.
     for (auto const& cache : audio_buffer_channel_data_caches()) {
-        if (cache.buffer.ptr() != this)
+        if (cache.buffer.ptr() != GC::Ref { *this })
             continue;
         for (auto const& view : cache.views) {
             if (view && view->viewed_array_buffer()->is_detached())
@@ -131,7 +131,7 @@ RefPtr<Rendering::AudioBufferContents> AudioBuffer::acquire_contents()
         channels.unchecked_append(move(samples));
     }
     for (auto& cache : audio_buffer_channel_data_caches()) {
-        if (cache.buffer.ptr() != this)
+        if (cache.buffer.ptr() != GC::Ref { *this })
             continue;
         for (auto const& view : cache.views) {
             if (view)

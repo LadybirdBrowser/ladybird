@@ -88,7 +88,7 @@ GC::Ptr<SVGPatternElement const> SVGPatternElement::linked_pattern(GC::RootHashT
     if (!element)
         return {};
 
-    if (element == this)
+    if (element == GC::Ref { *this })
         return {};
     auto* pattern = as_if<SVGPatternElement>(*element);
     if (!pattern)

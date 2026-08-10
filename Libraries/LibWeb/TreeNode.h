@@ -483,10 +483,10 @@ inline void TreeNode<T>::remove_child(GC::Ref<T> node)
 {
     VERIFY(node->m_parent == this);
 
-    if (m_first_child == node)
+    if (m_first_child == node.ptr())
         m_first_child = node->m_next_sibling;
 
-    if (m_last_child == node)
+    if (m_last_child == node.ptr())
         m_last_child = node->m_previous_sibling;
 
     if (node->m_next_sibling)
@@ -546,15 +546,15 @@ inline void TreeNode<T>::insert_before(GC::Ref<T> node, GC::Ptr<T> child)
     VERIFY(child->parent() == this);
 
     node->m_previous_sibling = child->m_previous_sibling;
-    node->m_next_sibling = child;
+    node->m_next_sibling = child.ptr();
 
     if (child->m_previous_sibling)
-        child->m_previous_sibling->m_next_sibling = node;
+        child->m_previous_sibling->m_next_sibling = node.ptr();
 
-    if (m_first_child == child)
-        m_first_child = node;
+    if (m_first_child == child.ptr())
+        m_first_child = node.ptr();
 
-    child->m_previous_sibling = node;
+    child->m_previous_sibling = node.ptr();
 
     node->m_parent = static_cast<T*>(this);
 }

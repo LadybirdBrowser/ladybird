@@ -752,7 +752,7 @@ Utf16FlyString name_of_webassembly_function(Wasm::Store& store, Wasm::FunctionAd
     return Utf16FlyString::from_utf16(name.utf16_view());
 }
 
-JS::NativeFunction* create_native_function(JS::Realm& realm, Wasm::FunctionAddress address, Utf16FlyString, Instance* instance)
+GC::Ptr<JS::NativeFunction> create_native_function(JS::Realm& realm, Wasm::FunctionAddress address, Utf16FlyString, GC::Ptr<Instance> instance)
 {
     auto cache = get_cache(realm);
     if (auto entry = cache->get_function_instance(address); entry.has_value())
@@ -848,7 +848,7 @@ JS::ThrowCompletionOr<Wasm::Value> to_webassembly_value(JS::Realm& realm, JS::Va
             auto& function = value.as_function();
             auto cache = get_cache(realm);
             for (auto& entry : cache->function_instances()) {
-                if (entry.value == &function)
+                if (entry.value == GC::Ref { function })
                     return Wasm::Value { Wasm::Reference { Wasm::Reference::Func { entry.key, cache->abstract_machine().store().get_module_for(entry.key) } } };
             }
         }

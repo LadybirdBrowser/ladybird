@@ -34,7 +34,7 @@ MediaDeviceInfo::MediaDeviceInfo(Utf16String device_id, MediaDeviceKind kind, Ut
 
 MediaDeviceInfo::~MediaDeviceInfo() = default;
 
-JS::Object* MediaDeviceInfo::to_json(JS::VM& vm) const
+GC::Ref<JS::Object> MediaDeviceInfo::to_json(JS::VM& vm) const
 {
     auto& realm = *vm.current_realm();
     auto result = JS::Object::create(realm, realm.intrinsics().object_prototype());

@@ -17,7 +17,7 @@
 
 namespace Web::Layout {
 
-Box::Box(DOM::Document& document, DOM::Node* node, NonnullRefPtr<CSS::ComputedValues const> computed_values)
+Box::Box(DOM::Document& document, GC::Ptr<DOM::Node> node, NonnullRefPtr<CSS::ComputedValues const> computed_values)
     : NodeWithStyle(document, node, move(computed_values))
 {
 }

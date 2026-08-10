@@ -173,17 +173,17 @@ BrowsingContext::BrowsingContextAndDocument BrowsingContext::create_a_new_browsi
     // 10. Let realm execution context be the result of creating a new JavaScript realm given agent and the following customizations:
     auto realm_execution_context = Bindings::create_a_new_javascript_realm(
         Bindings::main_thread_vm(),
-        [&](JS::Realm& realm) -> JS::Object* {
+        [&](JS::Realm& realm) -> GC::Ref<JS::Object> {
             auto window_proxy = WindowProxy::create(realm);
             browsing_context->set_window_proxy(window_proxy);
 
             // - For the global object, create a new Window object.
             window = Window::create();
-            return Bindings::create_global_object_wrapper(realm, GC::Ref { *window }).ptr();
+            return Bindings::create_global_object_wrapper(realm, GC::Ref { *window });
         },
-        [&](JS::Realm&) -> JS::Object* {
+        [&](JS::Realm&) -> GC::Ref<JS::Object> {
             // - For the global this binding, use browsingContext's WindowProxy object.
-            return browsing_context->window_proxy();
+            return *browsing_context->window_proxy();
         });
 
     auto& realm = *realm_execution_context->realm;
@@ -366,14 +366,14 @@ DOM::Document const* BrowsingContext::active_document() const
     //         same-origin navigation, because create-and-initialize updates the associated Document
     //         before the new Document is made active.
     //         Spec issue: https://github.com/whatwg/html/issues/12415
-    return m_active_document;
+    return m_active_document.ptr();
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#active-document
 DOM::Document* BrowsingContext::active_document()
 {
     // AD-HOC: See the const overload above.
-    return m_active_document;
+    return m_active_document.ptr();
 }
 
 void BrowsingContext::set_active_document(GC::Ptr<DOM::Document> document)
@@ -385,14 +385,14 @@ void BrowsingContext::set_active_document(GC::Ptr<DOM::Document> document)
 HTML::Window* BrowsingContext::active_window()
 {
     // A browsing context's active window is its WindowProxy object's [[Window]] internal slot value.
-    return m_window_proxy->window();
+    return m_window_proxy->window().ptr();
 }
 
 // https://html.spec.whatwg.org/multipage/browsers.html#active-window
 HTML::Window const* BrowsingContext::active_window() const
 {
     // A browsing context's active window is its WindowProxy object's [[Window]] internal slot value.
-    return m_window_proxy->window();
+    return m_window_proxy->window().ptr();
 }
 
 HTML::WindowProxy* BrowsingContext::window_proxy()
@@ -440,12 +440,12 @@ void BrowsingContext::set_window_proxy(GC::Ptr<WindowProxy> window_proxy)
 
 BrowsingContextGroup* BrowsingContext::group()
 {
-    return m_group;
+    return m_group.ptr();
 }
 
 BrowsingContextGroup const* BrowsingContext::group() const
 {
-    return m_group;
+    return m_group.ptr();
 }
 
 void BrowsingContext::set_group(BrowsingContextGroup* group)
@@ -496,7 +496,7 @@ bool BrowsingContext::is_ancestor_of(BrowsingContext const& potential_descendant
         auto ancestor_browsing_context = as<HTML::LocalNavigable>(*ancestor).active_browsing_context();
 
         // 4. If ancestorBCs contains potentialAncestor, then return true.
-        if (ancestor_browsing_context == this)
+        if (ancestor_browsing_context.ptr() == this)
             return true;
     }
 
@@ -516,7 +516,7 @@ bool BrowsingContext::is_familiar_with(BrowsingContext const& other) const
         return true;
 
     // 2. If A's top-level browsing context is B, then return true.
-    if (A.top_level_browsing_context() == &B)
+    if (A.top_level_browsing_context().ptr() == &B)
         return true;
 
     // 3. If B is an auxiliary browsing context and A is familiar with B's opener browsing context, then return true.

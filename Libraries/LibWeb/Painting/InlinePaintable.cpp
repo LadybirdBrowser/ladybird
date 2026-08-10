@@ -196,7 +196,7 @@ void InlinePaintable::paint_empty_editable_cursor(DisplayListRecordingContext& c
     VERIFY(cursor_position);
 
     auto const* dom_node = layout_node().dom_node();
-    if (!dom_node || cursor_position->node() != dom_node)
+    if (!dom_node || cursor_position->node() != GC::Ptr { dom_node })
         return;
 
     auto caret_color = computed_values().caret_color();

@@ -68,7 +68,7 @@ WebIDL::ExceptionOr<unsigned> CSSRuleList::insert_a_css_rule(Variant<Utf16View, 
     //       spec calls this algorithm with an already-parsed CSSRule. So, we use a Variant and skip step 3
     //       if that variant holds a CSSRule already.
 
-    CSSRule* new_rule = nullptr;
+    GC::Ptr<CSSRule> new_rule;
     if (!rule.has<CSSRule*>()) {
         Parser::ParsingParams parsing_params {};
         parsing_params.rule_context = rule_context();

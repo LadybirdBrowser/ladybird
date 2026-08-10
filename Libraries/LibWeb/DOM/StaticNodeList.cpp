@@ -51,7 +51,7 @@ Node const* StaticNodeList::item(u32 index) const
     // The item(index) method must return the indexth node in the collection. If there is no indexth node in the collection, then the method must return null.
     if (index >= m_static_nodes.size())
         return nullptr;
-    return m_static_nodes[index];
+    return m_static_nodes[index].ptr();
 }
 
 }

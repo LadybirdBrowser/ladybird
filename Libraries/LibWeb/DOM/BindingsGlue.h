@@ -47,8 +47,8 @@ WEB_API JS::ThrowCompletionOr<GC::Ptr<DOM::Node>> next_sibling(JS::Realm&, DOM::
 WEB_API JS::ThrowCompletionOr<GC::Ptr<DOM::Node>> previous_node(JS::Realm&, DOM::TreeWalker&);
 WEB_API JS::ThrowCompletionOr<GC::Ptr<DOM::Node>> next_node(JS::Realm&, DOM::TreeWalker&);
 
-WEB_API void add_event_listener(DOM::EventTarget&, Utf16String const&, DOM::IDLEventListener*, Variant<AddEventListenerOptions, bool> const&);
-WEB_API void remove_event_listener(DOM::EventTarget&, Utf16String const&, DOM::IDLEventListener*, Variant<EventListenerOptions, bool> const&);
+WEB_API void add_event_listener(DOM::EventTarget&, Utf16String const&, GC::Ptr<DOM::IDLEventListener>, Variant<AddEventListenerOptions, bool> const&);
+WEB_API void remove_event_listener(DOM::EventTarget&, Utf16String const&, GC::Ptr<DOM::IDLEventListener>, Variant<EventListenerOptions, bool> const&);
 WEB_API GC::Ref<JS::Environment> new_event_handler_object_environment(JS::Realm&, GC::Ref<DOM::EventTarget>, GC::Ref<JS::Environment>);
 WEB_API JS::Realm* callback_realm(WebIDL::CallbackType*);
 WEB_API HTML::Window* window_from_callback(WebIDL::CallbackType&);

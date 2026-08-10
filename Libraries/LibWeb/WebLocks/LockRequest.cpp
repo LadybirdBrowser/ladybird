@@ -49,7 +49,7 @@ void LockRequest::abort_request()
 
     // 6. Remove request from queue.
     queue.remove_first_matching([&](GC::Ref<LockRequest> queued_request) {
-        return queued_request == this;
+        return queued_request == GC::Ref { *this };
     });
 
     // 7. Process the lock request queue queue.
@@ -84,7 +84,7 @@ bool LockRequest::is_grantable(LockRequestQueue const& queue) const
     // 6. Let mode be request’s mode
 
     // 7. If queue is not empty and request is not the first item in queue, then return false.
-    if (!queue.is_empty() && queue.first() != this)
+    if (!queue.is_empty() && queue.first() != GC::Ref { *this })
         return false;
 
     // 8. If mode is "exclusive", then return true if no lock in held has name equal to name, and false otherwise.

@@ -56,15 +56,15 @@ void URLSearchParamsIterator::visit_edges(GC::Cell::Visitor& visitor)
 JS::Object* URLSearchParamsIterator::next(JS::Realm& realm)
 {
     if (m_index >= m_url_search_params->m_list.size())
-        return JS::create_iterator_result_object(realm, JS::js_undefined(), true);
+        return JS::create_iterator_result_object(realm, JS::js_undefined(), true).ptr();
 
     auto& entry = m_url_search_params->m_list[m_index++];
     if (m_iteration_kind == JS::Object::PropertyKind::Key)
-        return JS::create_iterator_result_object(realm, JS::PrimitiveString::create(vm(), entry.name), false);
+        return JS::create_iterator_result_object(realm, JS::PrimitiveString::create(vm(), entry.name), false).ptr();
     else if (m_iteration_kind == JS::Object::PropertyKind::Value)
-        return JS::create_iterator_result_object(realm, JS::PrimitiveString::create(vm(), entry.value), false);
+        return JS::create_iterator_result_object(realm, JS::PrimitiveString::create(vm(), entry.value), false).ptr();
 
-    return JS::create_iterator_result_object(realm, JS::Array::create_from(realm, { JS::PrimitiveString::create(vm(), entry.name), JS::PrimitiveString::create(vm(), entry.value) }), false);
+    return JS::create_iterator_result_object(realm, JS::Array::create_from(realm, { JS::PrimitiveString::create(vm(), entry.name), JS::PrimitiveString::create(vm(), entry.value) }), false).ptr();
 }
 
 }

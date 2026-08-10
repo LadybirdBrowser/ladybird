@@ -54,7 +54,7 @@ static Bindings::WrapperWorldWeakValueCache<WebIDL::Promise>& ready_promise_cach
     prune_service_worker_container_ready_promise_caches();
 
     for (auto& entry : caches) {
-        if (entry.container.ptr() == &container)
+        if (entry.container.ptr() == GC::Ref { container })
             return entry.ready_promises;
     }
 

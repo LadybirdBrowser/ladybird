@@ -2,12 +2,13 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 
+from __future__ import annotations
 
 from io import StringIO
-from typing import Optional
 from typing import TextIO
 
 from Generators.libweb_bindings.context import GenerationContext
+from Generators.libweb_bindings.cpp_types import cpp_type_for_idl_type_details
 from Generators.libweb_bindings.cpp_types import fully_qualified_name_for_interface
 from Generators.libweb_bindings.cpp_types import idl_identifier_cpp_name
 from Generators.libweb_bindings.cpp_types import idl_implementation_cpp_name
@@ -93,14 +94,19 @@ def implementation_attribute_getter_call(
 
 
 def implementation_attribute_setter_call(
-    interface: Interface, attribute: Attribute, realm_argument: str = "realm"
+    context: GenerationContext, interface: Interface, attribute: Attribute, realm_argument: str = "realm"
 ) -> str:
     method_name = f"set_{idl_implementation_cpp_name(attribute)}"
+    legacy_pointer_fallbacks = ""
+    if cpp_type_for_idl_type_details(attribute.type, context).gc_ref_target_type:
+        legacy_pointer_fallbacks = f""",
+            [&](auto& implementation) -> decltype(implementation.{method_name}(idl_value.ptr())) {{ return implementation.{method_name}(idl_value.ptr()); }},
+            [&](auto& implementation) -> decltype(implementation.{method_name}({realm_argument}, idl_value.ptr())) {{ return implementation.{method_name}({realm_argument}, idl_value.ptr()); }}"""
     return f"""[&]<typename Implementation = {fully_qualified_name_for_interface(interface)}> {{
         auto& implementation = static_cast<Implementation&>(*idl_object);
         return Web::Bindings::invoke_first_available(implementation,
             [&](auto& implementation) -> decltype(implementation.{method_name}(idl_value)) {{ return implementation.{method_name}(idl_value); }},
-            [&](auto& implementation) -> decltype(implementation.{method_name}({realm_argument}, idl_value)) {{ return implementation.{method_name}({realm_argument}, idl_value); }});
+            [&](auto& implementation) -> decltype(implementation.{method_name}({realm_argument}, idl_value)) {{ return implementation.{method_name}({realm_argument}, idl_value); }}{legacy_pointer_fallbacks});
     }}()"""
 
 
@@ -111,11 +117,16 @@ def bindings_attribute_getter_call(attribute: Attribute, realm_argument: str) ->
             [&](auto& implementation) -> decltype(Web::Bindings::{method_name}({realm_argument}, implementation)) {{ return Web::Bindings::{method_name}({realm_argument}, implementation); }})"""
 
 
-def bindings_attribute_setter_call(attribute: Attribute, realm_argument: str) -> str:
+def bindings_attribute_setter_call(context: GenerationContext, attribute: Attribute, realm_argument: str) -> str:
     method_name = f"set_{idl_implementation_cpp_name(attribute)}"
+    legacy_pointer_fallbacks = ""
+    if cpp_type_for_idl_type_details(attribute.type, context).gc_ref_target_type:
+        legacy_pointer_fallbacks = f""",
+            [&](auto& implementation) -> decltype(Web::Bindings::{method_name}(implementation, idl_value.ptr())) {{ return Web::Bindings::{method_name}(implementation, idl_value.ptr()); }},
+            [&](auto& implementation) -> decltype(Web::Bindings::{method_name}({realm_argument}, implementation, idl_value.ptr())) {{ return Web::Bindings::{method_name}({realm_argument}, implementation, idl_value.ptr()); }}"""
     return f"""Web::Bindings::invoke_first_available(*idl_object,
             [&](auto& implementation) -> decltype(Web::Bindings::{method_name}(implementation, idl_value)) {{ return Web::Bindings::{method_name}(implementation, idl_value); }},
-            [&](auto& implementation) -> decltype(Web::Bindings::{method_name}({realm_argument}, implementation, idl_value)) {{ return Web::Bindings::{method_name}({realm_argument}, implementation, idl_value); }})"""
+            [&](auto& implementation) -> decltype(Web::Bindings::{method_name}({realm_argument}, implementation, idl_value)) {{ return Web::Bindings::{method_name}({realm_argument}, implementation, idl_value); }}{legacy_pointer_fallbacks})"""
 
 
 def bindings_static_attribute_getter_call(attribute: Attribute) -> str:
@@ -248,7 +259,7 @@ def write_attribute_getter(
     includes: GeneratedIncludes,
     interface: Interface,
     attribute: Attribute,
-    receiver_class: Optional[str] = None,
+    receiver_class: str | None = None,
 ) -> None:
     if receiver_class is None:
         receiver_class = interface.prototype_class
@@ -548,7 +559,7 @@ def write_attribute_setter(
     includes: GeneratedIncludes,
     interface: Interface,
     attribute: Attribute,
-    receiver_class: Optional[str] = None,
+    receiver_class: str | None = None,
 ) -> None:
     if receiver_class is None:
         receiver_class = interface.prototype_class
@@ -632,7 +643,7 @@ def write_attribute_setter(
         return
 
     setter_realm_argument = member_realm_expr(attribute, interface=interface)
-    setter_steps = f"TRY(WebIDL::throw_dom_exception_if_needed(vm, {setter_realm_argument}, [&] {{ return {implementation_attribute_setter_call(interface, attribute, setter_realm_argument)}; }}));\n    return {{}};"
+    setter_steps = f"TRY(WebIDL::throw_dom_exception_if_needed(vm, {setter_realm_argument}, [&] {{ return {implementation_attribute_setter_call(context, interface, attribute, setter_realm_argument)}; }}));\n    return {{}};"
     is_reflected = "Reflect" in attribute.extended_attributes
     is_non_nullable_reflected = is_reflected and not attribute.type.nullable
     is_nullable_reflected_string = is_reflected and attribute.type.nullable and is_dom_string_type(attribute)
@@ -650,7 +661,7 @@ def write_attribute_setter(
     return {{}};"""
     elif "ImplementedInBindings" in attribute.extended_attributes:
         includes.add(bindings_glue_header_for_interface(interface))
-        setter_steps = f"TRY(WebIDL::throw_dom_exception_if_needed(vm, {setter_realm_argument}, [&] {{ return {bindings_attribute_setter_call(attribute, setter_realm_argument)}; }}));\n    return {{}};"
+        setter_steps = f"TRY(WebIDL::throw_dom_exception_if_needed(vm, {setter_realm_argument}, [&] {{ return {bindings_attribute_setter_call(context, attribute, setter_realm_argument)}; }}));\n    return {{}};"
     elif is_non_nullable_reflected and attribute.type.name == "unsigned long":
         setter_steps = f"""u32 minimum = 0;
     u32 new_value = minimum;
@@ -660,9 +671,7 @@ def write_attribute_setter(
     return {{}};"""
     elif is_non_nullable_reflected and attribute.type.name == "long":
         setter_steps = f'idl_object->set_attribute_value("{reflected_attribute_name(attribute)}"_utf16_fly_string, Utf16String::number(idl_value));\n    return {{}};'
-    elif is_reflected_usv_string:
-        setter_steps = f'idl_object->set_attribute_value("{reflected_attribute_name(attribute)}"_utf16_fly_string, {as_utf16_string_expression("idl_value")});\n    return {{}};'
-    elif is_non_nullable_reflected_string:
+    elif is_reflected_usv_string or is_non_nullable_reflected_string:
         setter_steps = f'idl_object->set_attribute_value("{reflected_attribute_name(attribute)}"_utf16_fly_string, {as_utf16_string_expression("idl_value")});\n    return {{}};'
     elif is_nullable_reflected_string:
         setter_steps = f"""if (!idl_value.has_value())

@@ -63,10 +63,10 @@ static Optional<u16> adjacent_text_character(DOM::Text const& text, size_t offse
         return text.data().code_unit_at(offset - 1);
 
     auto block = block_node_of_node(const_cast<DOM::Text&>(text));
-    for (auto* node = search_forward ? text.next_in_pre_order(block) : text.previous_in_pre_order();
-        node && node != block; node = search_forward ? node->next_in_pre_order(block) : node->previous_in_pre_order()) {
+    for (auto* node = search_forward ? text.next_in_pre_order(block.ptr()) : text.previous_in_pre_order();
+        node && node != block.ptr(); node = search_forward ? node->next_in_pre_order(block.ptr()) : node->previous_in_pre_order()) {
         if (is<HTML::HTMLBRElement>(*node) || is<HTML::HTMLImageElement>(*node)
-            || (is_prohibited_paragraph_child(const_cast<DOM::Node&>(*node)) && node != block))
+            || (is_prohibited_paragraph_child(const_cast<DOM::Node&>(*node)) && node != block.ptr()))
             return {};
         auto* adjacent_text = as_if<DOM::Text>(*node);
         if (!adjacent_text || adjacent_text->data().is_empty())
