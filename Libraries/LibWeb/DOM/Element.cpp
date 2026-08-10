@@ -3047,7 +3047,7 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, 
 }
 
 // https://fullscreen.spec.whatwg.org/#dom-element-requestfullscreen
-void Element::request_fullscreen(GC::Ptr<WebIDL::Promise> promise, FullscreenRequester fullscreen_requester)
+void Element::request_fullscreen(GC::Ptr<WebIDL::Promise> promise, FullscreenRequester fullscreen_requester, Fullscreen::RequestType request_type)
 {
     // 1. Let pendingDoc be this’s node document.
     auto pending_doc = m_document;
@@ -3072,7 +3072,12 @@ void Element::request_fullscreen(GC::Ptr<WebIDL::Promise> promise, FullscreenReq
     }
 
     // 7. Return promise, and run the remaining steps in parallel.
-    pending_doc->page().enqueue_fullscreen_enter(*this, *pending_doc, error, promise);
+    pending_doc->page().enqueue_fullscreen_enter(*this, *pending_doc, error, promise, request_type);
+}
+
+void Element::webkit_request_fullscreen()
+{
+    request_fullscreen(nullptr, FullscreenRequester::Bindings, Fullscreen::RequestType::WebKit);
 }
 
 // https://fullscreen.spec.whatwg.org/#removing-steps
@@ -3179,6 +3184,26 @@ GC::Ptr<WebIDL::CallbackType> Element::onfullscreenerror()
 void Element::set_onfullscreenerror(GC::Ptr<WebIDL::CallbackType> event_handler)
 {
     set_event_handler_attribute(HTML::EventNames::fullscreenerror, event_handler);
+}
+
+GC::Ptr<WebIDL::CallbackType> Element::onwebkitfullscreenchange()
+{
+    return event_handler_attribute(HTML::EventNames::webkitfullscreenchange);
+}
+
+void Element::set_onwebkitfullscreenchange(GC::Ptr<WebIDL::CallbackType> event_handler)
+{
+    set_event_handler_attribute(HTML::EventNames::webkitfullscreenchange, event_handler);
+}
+
+GC::Ptr<WebIDL::CallbackType> Element::onwebkitfullscreenerror()
+{
+    return event_handler_attribute(HTML::EventNames::webkitfullscreenerror);
+}
+
+void Element::set_onwebkitfullscreenerror(GC::Ptr<WebIDL::CallbackType> event_handler)
+{
+    set_event_handler_attribute(HTML::EventNames::webkitfullscreenerror, event_handler);
 }
 
 // https://dom.spec.whatwg.org/#insert-adjacent

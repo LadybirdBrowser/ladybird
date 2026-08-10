@@ -1167,9 +1167,9 @@ void Page::update_find_in_page_selection(Vector<GC::Root<DOM::Range>> matches, C
     }
 }
 
-void Page::enqueue_fullscreen_enter(GC::Ref<DOM::Element> element, GC::Ref<DOM::Document> pending_doc, DOM::RequestFullscreenError error, GC::Ptr<WebIDL::Promise> promise)
+void Page::enqueue_fullscreen_enter(GC::Ref<DOM::Element> element, GC::Ref<DOM::Document> pending_doc, DOM::RequestFullscreenError error, GC::Ptr<WebIDL::Promise> promise, Fullscreen::RequestType request_type)
 {
-    m_pending_fullscreen_operations.enqueue(PendingFullscreenEnter { element, pending_doc, error, promise });
+    m_pending_fullscreen_operations.enqueue(PendingFullscreenEnter { element, pending_doc, error, promise, request_type });
     // NOTE: Processing is deferred because the spec says "run the remaining steps in parallel",
     //       meaning the caller's synchronous JS should complete before we process the operation.
     Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [this]() {
@@ -1237,7 +1237,7 @@ void Page::process_pending_fullscreen_operations()
                 // 10. If error is true:
                 if (enter.error != DOM::RequestFullscreenError::False) {
                     // 1. Append (fullscreenerror, this) to pendingDoc's list of pending fullscreen events.
-                    enter.pending_doc->append_pending_fullscreen_change(DOM::PendingFullscreenEvent::Type::Error, enter.element);
+                    enter.pending_doc->append_pending_fullscreen_change(DOM::PendingFullscreenEvent::Type::Error, enter.element, enter.request_type);
 
                     // 2. Reject promise with a TypeError exception and terminate these steps.
                     if (enter.promise)
@@ -1279,10 +1279,10 @@ void Page::process_pending_fullscreen_operations()
                         as<HTML::HTMLIFrameElement>(*element).set_iframe_fullscreen_flag(true);
 
                     // 4. Fullscreen element within doc.
-                    doc.fullscreen_element_within_doc(element);
+                    doc.fullscreen_element_within_doc(element, enter.request_type);
 
                     // 5. Append (fullscreenchange, element) to doc's list of pending fullscreen events.
-                    doc.append_pending_fullscreen_change(DOM::PendingFullscreenEvent::Type::Change, element);
+                    doc.append_pending_fullscreen_change(DOM::PendingFullscreenEvent::Type::Change, element, enter.request_type);
                 }
 
                 // 14. Resolve promise with undefined
@@ -1330,9 +1330,11 @@ void Page::process_pending_fullscreen_operations()
 
                 // 14. For each exitDoc in exitDocs:
                 for (auto& exit_doc : exit_docs->elements()) {
+                    auto fullscreen_element = exit_doc->fullscreen_element();
+
                     // 1. Append (fullscreenchange, exitDoc's fullscreen element) to exitDoc's list of pending
                     //    fullscreen events.
-                    exit_doc->append_pending_fullscreen_change(DOM::PendingFullscreenEvent::Type::Change, *exit_doc->fullscreen_element());
+                    exit_doc->append_pending_fullscreen_change(DOM::PendingFullscreenEvent::Type::Change, *fullscreen_element, fullscreen_element->fullscreen_request_type());
 
                     // 2. If resize is true, unfullscreen exitDoc.
                     if (exit.resize)
@@ -1344,9 +1346,11 @@ void Page::process_pending_fullscreen_operations()
 
                 // 15. For each descendantDoc in descendantDocs:
                 for (auto& descendant_doc : descendant_docs->elements()) {
+                    auto fullscreen_element = descendant_doc->fullscreen_element();
+
                     // 1. Append (fullscreenchange, descendantDoc's fullscreen element) to descendantDoc's list of
                     //    pending fullscreen events.
-                    descendant_doc->append_pending_fullscreen_change(DOM::PendingFullscreenEvent::Type::Change, *descendant_doc->fullscreen_element());
+                    descendant_doc->append_pending_fullscreen_change(DOM::PendingFullscreenEvent::Type::Change, *fullscreen_element, fullscreen_element->fullscreen_request_type());
 
                     // 2. Unfullscreen descendantDoc.
                     descendant_doc->unfullscreen();

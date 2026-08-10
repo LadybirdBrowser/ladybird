@@ -41,6 +41,7 @@
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/ViewportClient.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/Fullscreen/FullscreenRequestType.h>
 #include <LibWeb/HTML/CrossOrigin/OpenerPolicy.h>
 #include <LibWeb/HTML/DocumentReadyState.h>
 #include <LibWeb/HTML/Focus.h>
@@ -245,6 +246,7 @@ struct PendingFullscreenEvent {
         Error,
     } type;
     GC::Ref<Element> element;
+    Fullscreen::RequestType request_type;
 };
 
 class WEB_API Document
@@ -1204,6 +1206,10 @@ public:
     void set_onfullscreenchange(WebIDL::CallbackType*);
     [[nodiscard]] WebIDL::CallbackType* onfullscreenerror();
     void set_onfullscreenerror(WebIDL::CallbackType*);
+    [[nodiscard]] WebIDL::CallbackType* onwebkitfullscreenchange();
+    void set_onwebkitfullscreenchange(WebIDL::CallbackType*);
+    [[nodiscard]] WebIDL::CallbackType* onwebkitfullscreenerror();
+    void set_onwebkitfullscreenerror(WebIDL::CallbackType*);
 
     // https://drafts.csswg.org/css-view-transitions-1/#dom-document-startviewtransition
     GC::Ptr<ViewTransition::ViewTransition> start_view_transition(GC::Ptr<WebIDL::CallbackType> update_callback, GC::Ref<WebIDL::Promise> ready_promise, GC::Ref<WebIDL::Promise> update_callback_done_promise, GC::Ref<WebIDL::Promise> finished_promise);
@@ -1279,9 +1285,9 @@ public:
 
     // https://fullscreen.spec.whatwg.org/#run-the-fullscreen-steps
     void run_fullscreen_steps();
-    void append_pending_fullscreen_change(PendingFullscreenEvent::Type type, GC::Ref<Element> element);
+    void append_pending_fullscreen_change(PendingFullscreenEvent::Type type, GC::Ref<Element> element, Fullscreen::RequestType request_type);
 
-    void fullscreen_element_within_doc(GC::Ref<Element> element);
+    void fullscreen_element_within_doc(GC::Ref<Element> element, Fullscreen::RequestType request_type);
     GC::Ptr<Element> fullscreen_element() const;
     GC::Ptr<Element> retargeted_fullscreen_element() const;
 
@@ -1290,6 +1296,7 @@ public:
 
     void fully_exit_fullscreen();
     void exit_fullscreen(GC::Ptr<WebIDL::Promise>);
+    void webkit_exit_fullscreen();
 
     void unfullscreen_element(GC::Ref<Element> element);
     void unfullscreen();

@@ -2,50 +2,51 @@ Harness status: OK
 
 Found 85 tests
 
-85 Pass
-Pass	<video> member must not be supported: onwebkitfullscreenchange
-Pass	Document member must not be supported: onwebkitfullscreenchange
+74 Pass
+11 Fail
+Fail	<video> member must not be supported: onwebkitfullscreenchange
+Fail	Document member must not be supported: onwebkitfullscreenchange
 Pass	<video> member must not be supported: onmozfullscreenchange
 Pass	Document member must not be supported: onmozfullscreenchange
 Pass	<video> member must not be supported: onmsfullscreenchange
 Pass	Document member must not be supported: onmsfullscreenchange
-Pass	<video> member must not be supported: onwebkitfullscreenerror
-Pass	Document member must not be supported: onwebkitfullscreenerror
+Fail	<video> member must not be supported: onwebkitfullscreenerror
+Fail	Document member must not be supported: onwebkitfullscreenerror
 Pass	<video> member must not be supported: onmozfullscreenerror
 Pass	Document member must not be supported: onmozfullscreenerror
 Pass	<video> member must not be supported: onmsfullscreenerror
 Pass	Document member must not be supported: onmsfullscreenerror
 Pass	<video> member must not be supported: webkitCurrentFullScreenElement (uppercase S)
-Pass	Document member must not be supported: webkitCurrentFullScreenElement (uppercase S)
+Fail	Document member must not be supported: webkitCurrentFullScreenElement (uppercase S)
 Pass	<video> member must not be supported: mozCurrentFullScreenElement (uppercase S)
 Pass	Document member must not be supported: mozCurrentFullScreenElement (uppercase S)
 Pass	<video> member must not be supported: msCurrentFullScreenElement (uppercase S)
 Pass	Document member must not be supported: msCurrentFullScreenElement (uppercase S)
 Pass	<video> member must not be supported: webkitFullscreenElement
-Pass	Document member must not be supported: webkitFullscreenElement
+Fail	Document member must not be supported: webkitFullscreenElement
 Pass	<video> member must not be supported: mozFullscreenElement
 Pass	Document member must not be supported: mozFullscreenElement
 Pass	<video> member must not be supported: msFullscreenElement
 Pass	Document member must not be supported: msFullscreenElement
 Pass	<video> member must not be supported: webkitFullscreenEnabled
-Pass	Document member must not be supported: webkitFullscreenEnabled
+Fail	Document member must not be supported: webkitFullscreenEnabled
 Pass	<video> member must not be supported: mozFullscreenEnabled
 Pass	Document member must not be supported: mozFullscreenEnabled
 Pass	<video> member must not be supported: msFullscreenEnabled
 Pass	Document member must not be supported: msFullscreenEnabled
 Pass	<video> member must not be supported: webkitIsFullScreen (uppercase S)
-Pass	Document member must not be supported: webkitIsFullScreen (uppercase S)
+Fail	Document member must not be supported: webkitIsFullScreen (uppercase S)
 Pass	<video> member must not be supported: mozIsFullScreen (uppercase S)
 Pass	Document member must not be supported: mozIsFullScreen (uppercase S)
 Pass	<video> member must not be supported: msIsFullScreen (uppercase S)
 Pass	Document member must not be supported: msIsFullScreen (uppercase S)
-Pass	<video> member must not be supported: webkitRequestFullScreen (uppercase S)
+Fail	<video> member must not be supported: webkitRequestFullScreen (uppercase S)
 Pass	Document member must not be supported: webkitRequestFullScreen (uppercase S)
 Pass	<video> member must not be supported: mozRequestFullScreen (uppercase S)
 Pass	Document member must not be supported: mozRequestFullScreen (uppercase S)
 Pass	<video> member must not be supported: msRequestFullScreen (uppercase S)
 Pass	Document member must not be supported: msRequestFullScreen (uppercase S)
-Pass	<video> member must not be supported: webkitRequestFullscreen
+Fail	<video> member must not be supported: webkitRequestFullscreen
 Pass	Document member must not be supported: webkitRequestFullscreen
 Pass	<video> member must not be supported: mozRequestFullscreen
 Pass	Document member must not be supported: mozRequestFullscreen
@@ -76,7 +77,7 @@ Pass	Document member must not be supported: mozExitFullScreen (uppercase S)
 Pass	<video> member must not be supported: msExitFullScreen (uppercase S)
 Pass	Document member must not be supported: msExitFullScreen (uppercase S)
 Pass	<video> member must not be supported: webkitExitFullscreen
-Pass	Document member must not be supported: webkitExitFullscreen
+Fail	Document member must not be supported: webkitExitFullscreen
 Pass	<video> member must not be supported: mozExitFullscreen
 Pass	Document member must not be supported: mozExitFullscreen
 Pass	<video> member must not be supported: msExitFullscreen

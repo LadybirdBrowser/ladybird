@@ -29,6 +29,7 @@
 #include <LibWeb/DOM/Slottable.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/Fullscreen/FullscreenRequestType.h>
 #include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/HTML/EventLoop/Task.h>
 #include <LibWeb/HTML/Parser/ParserScriptingMode.h>
@@ -372,19 +373,28 @@ public:
         Bindings,
         WebDriver,
     };
-    void request_fullscreen(GC::Ptr<WebIDL::Promise>, FullscreenRequester = FullscreenRequester::Bindings);
+    void request_fullscreen(GC::Ptr<WebIDL::Promise>, FullscreenRequester = FullscreenRequester::Bindings, Fullscreen::RequestType = Fullscreen::RequestType::Standard);
+    void webkit_request_fullscreen();
 
     RequestFullscreenError is_element_allowed_to_enter_fullscreen(FullscreenRequester) const;
     bool is_element_ready_for_fullscreen() const;
 
     void set_fullscreen_flag(bool is_fullscreen) { m_fullscreen_flag = is_fullscreen; }
     bool is_fullscreen_element() const { return m_fullscreen_flag; }
+    void set_fullscreen_request_type(Fullscreen::RequestType request_type) { m_fullscreen_request_type = request_type; }
+    Fullscreen::RequestType fullscreen_request_type() const { return m_fullscreen_request_type; }
 
     GC::Ptr<WebIDL::CallbackType> onfullscreenchange();
     void set_onfullscreenchange(GC::Ptr<WebIDL::CallbackType>);
 
     GC::Ptr<WebIDL::CallbackType> onfullscreenerror();
     void set_onfullscreenerror(GC::Ptr<WebIDL::CallbackType>);
+
+    GC::Ptr<WebIDL::CallbackType> onwebkitfullscreenchange();
+    void set_onwebkitfullscreenchange(GC::Ptr<WebIDL::CallbackType>);
+
+    GC::Ptr<WebIDL::CallbackType> onwebkitfullscreenerror();
+    void set_onwebkitfullscreenerror(GC::Ptr<WebIDL::CallbackType>);
 
     WebIDL::ExceptionOr<Utf16String> outer_html() const;
     WebIDL::ExceptionOr<void> set_outer_html(StringView html);
@@ -885,6 +895,8 @@ private:
     bool m_in_subtree_of_has_pseudo_class_relative_selector_with_sibling_combinator : 1 { false };
     bool m_in_has_scope : 1 { false };
     bool m_fullscreen_flag : 1 { false };
+
+    Fullscreen::RequestType m_fullscreen_request_type { Fullscreen::RequestType::Standard };
 
     size_t m_sibling_invalidation_distance { 0 };
 
