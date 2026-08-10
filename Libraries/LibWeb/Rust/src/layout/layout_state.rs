@@ -4,67 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-const PAGE_BITS: usize = 4;
-const PAGE_SIZE: usize = 1 << PAGE_BITS;
-const PAGE_MASK: usize = PAGE_SIZE - 1;
-const PAGE_TABLE_BITS: usize = 10;
-const PAGE_TABLE_FANOUT: usize = 1 << PAGE_TABLE_BITS;
-const PAGE_TABLE_MASK: usize = PAGE_TABLE_FANOUT - 1;
-const ADDRESSABLE_SLOT_INDEX_COUNT: usize = 1 << (2 * PAGE_TABLE_BITS + PAGE_BITS);
-
-type Page<T> = [OnceCell<T>; PAGE_SIZE];
-type PageTable<T> = [OnceCell<Box<Page<T>>>; PAGE_TABLE_FANOUT];
-type PageTableDirectory<T> = [OnceCell<Box<PageTable<T>>>; PAGE_TABLE_FANOUT];
-
-pub(crate) struct PagedStore<T> {
-    page_table_directory: OnceCell<Box<PageTableDirectory<T>>>,
-}
-
-impl<T> Default for PagedStore<T> {
-    fn default() -> Self {
-        Self {
-            page_table_directory: OnceCell::new(),
-        }
-    }
-}
-
-impl<T> PagedStore<T> {
-    fn empty_level<Entry, const FANOUT: usize>() -> Box<[OnceCell<Entry>; FANOUT]> {
-        Box::new([const { OnceCell::new() }; FANOUT])
-    }
-
-    fn split_index(index: u32) -> (usize, usize, usize) {
-        let index = index as usize;
-        (
-            index >> (PAGE_TABLE_BITS + PAGE_BITS),
-            (index >> PAGE_BITS) & PAGE_TABLE_MASK,
-            index & PAGE_MASK,
-        )
-    }
-
-    #[inline]
-    pub(crate) fn get(&self, index: u32) -> Option<&T> {
-        let (directory_index, page_table_index, entry_index) = Self::split_index(index);
-        self.page_table_directory
-            .get()?
-            .get(directory_index)?
-            .get()?[page_table_index]
-            .get()?[entry_index]
-            .get()
-    }
-
-    pub(crate) fn allocate(&self, index: u32, value: T) -> &T {
-        assert!((index as usize) < ADDRESSABLE_SLOT_INDEX_COUNT);
-        let (directory_index, page_table_index, entry_index) = Self::split_index(index);
-        let page_table =
-            self.page_table_directory.get_or_init(Self::empty_level)[directory_index].get_or_init(Self::empty_level);
-        let entry = &page_table[page_table_index].get_or_init(Self::empty_level)[entry_index];
-        let entry_was_vacant = entry.set(value).is_ok();
-        assert!(entry_was_vacant, "PagedStore index {index} allocated twice");
-        entry.get().unwrap()
-    }
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum StaticPositionAlignment {
     Start,
@@ -117,6 +56,7 @@ pub(crate) struct AbsposContainingBlockInfo {
 pub(crate) struct AbsposLayoutInputs {
     pub(crate) static_position_rect: StaticPositionRect,
     pub(crate) containing_block_info: AbsposContainingBlockInfo,
+    pub(crate) resolved_anchor_insets: Option<ResolvedAnchorInsets>,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -270,7 +210,6 @@ pub(crate) struct PendingAbsposChild {
     pub(crate) inline_containing_block_rect: Option<PhysicalRect>,
 }
 pub(crate) struct LayoutState {
-    anchor_inset_store: AnchorInsetStore,
     purpose: LayoutStatePurpose,
 }
 
@@ -365,10 +304,7 @@ pub(crate) struct UsedValuesRareData {
 
 impl LayoutState {
     pub(crate) fn new(purpose: LayoutStatePurpose) -> Self {
-        Self {
-            anchor_inset_store: AnchorInsetStore::default(),
-            purpose,
-        }
+        Self { purpose }
     }
 
     pub(crate) fn is_measurement(&self) -> bool {
@@ -605,36 +541,7 @@ impl LayoutState {
         callbacks: &FfiLayoutFcCallbacks,
         node: Node,
     ) -> StyleValues<'pass> {
-        StyleValues::new(
-            callbacks.style_payloads(node),
-            &self.anchor_inset_store,
-            callbacks.slot_index(node),
-        )
-    }
-
-    pub(crate) fn replace_resolved_anchor_insets(
-        &self,
-        callbacks: &FfiLayoutFcCallbacks,
-        node: Node,
-        resolved: crate::layout::FfiResolvedAnchorInsets,
-    ) {
-        let slot_index = callbacks.slot_index(node);
-        let replace = |field: InsetField, is_auto: bool, px: crate::layout::CssPixels| {
-            self.anchor_inset_store
-                .set_override(slot_index, field, ResolvedInsetOverride { is_auto, px });
-        };
-        if resolved.resolves_top {
-            replace(InsetField::Top, resolved.top_is_auto, resolved.top);
-        }
-        if resolved.resolves_right {
-            replace(InsetField::Right, resolved.right_is_auto, resolved.right);
-        }
-        if resolved.resolves_bottom {
-            replace(InsetField::Bottom, resolved.bottom_is_auto, resolved.bottom);
-        }
-        if resolved.resolves_left {
-            replace(InsetField::Left, resolved.left_is_auto, resolved.left);
-        }
+        StyleValues::new(callbacks.style_payloads(node))
     }
 
     pub(crate) fn text_chunks(

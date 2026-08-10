@@ -195,8 +195,9 @@ impl<'pass> AbsposEngine<'pass> {
         node: Node,
         inline_containing_block_rect: Option<PhysicalRect>,
         entry_containing_block_geometry: &ContainingBlockGeometry,
+        resolved_anchor_insets: Option<&ResolvedAnchorInsets>,
     ) -> AbsposContainingBlockInfo {
-        let style = self.style(node);
+        let style = self.style(node).with_resolved_insets(resolved_anchor_insets);
         let (inline_axis_mode, block_axis_mode) = axis_modes(style);
         let containing_block = self.callbacks.containing_block(node);
         assert!(!containing_block.is_invalid());
@@ -520,7 +521,7 @@ impl AbsposEngine<'_> {
         node: Node,
         entry_containing_block_geometry: Option<&ContainingBlockGeometry>,
         entry_coordinate_space_box: Node,
-    ) {
+    ) -> Option<ResolvedAnchorInsets> {
         // Clear a stale default scroll shift before any early return.
         // SAFETY: The node is live and a null anchor clears the weak target.
         unsafe {
@@ -539,12 +540,12 @@ impl AbsposEngine<'_> {
         let bottom_contains_anchor = style.inset_bottom().contains_anchor_function();
         let left_contains_anchor = style.inset_left().contains_anchor_function();
         if !top_contains_anchor && !right_contains_anchor && !bottom_contains_anchor && !left_contains_anchor {
-            return;
+            return None;
         }
 
         let containing_block = self.callbacks.containing_block(node);
         if containing_block.is_invalid() {
-            return;
+            return None;
         }
         let containing_block_geometry = match entry_containing_block_geometry {
             Some(geometry) => *geometry,
@@ -563,7 +564,7 @@ impl AbsposEngine<'_> {
             compensates_for_horizontal_scroll: false,
             compensates_for_vertical_scroll: false,
         };
-        let mut resolved = FfiResolvedAnchorInsets::default();
+        let mut resolved = ResolvedAnchorInsets::default();
 
         if top_contains_anchor {
             let value = self.resolve_anchor_value(
@@ -638,9 +639,6 @@ impl AbsposEngine<'_> {
             resolved.left = value.unwrap_or_default();
         }
 
-        self.state
-            .replace_resolved_anchor_insets(&self.callbacks, node, resolved);
-
         if resolution_state.compensates_for_horizontal_scroll || resolution_state.compensates_for_vertical_scroll {
             // SAFETY: The anchor and positioned box remain live through the
             // pass; C++ stores the anchor as a weak pointer.
@@ -654,6 +652,8 @@ impl AbsposEngine<'_> {
                 );
             }
         }
+
+        Some(resolved)
     }
 }
 
@@ -904,6 +904,7 @@ impl AbsposEngine<'_> {
         )
     }
 
+    #[expect(clippy::too_many_arguments)]
     fn solve_non_replaced_inline_once(
         &self,
         node: Node,
@@ -912,8 +913,9 @@ impl AbsposEngine<'_> {
         constraints: ContainingBlockConstraints,
         static_position_rect: StaticPositionRect,
         input_inline_size: AutoPx,
+        resolved_anchor_insets: Option<&ResolvedAnchorInsets>,
     ) -> (AutoPx, CssPixels, CssPixels, AutoPx, AutoPx) {
-        let style = self.style(node);
+        let style = self.style(node).with_resolved_insets(resolved_anchor_insets);
         let used = self.used(node);
         let border_left = style.border_left_width();
         let border_right = style.border_right_width();
@@ -1046,6 +1048,7 @@ impl AbsposEngine<'_> {
         available_space: AvailableSpace,
         constraints: ContainingBlockConstraints,
         static_position_rect: StaticPositionRect,
+        resolved_anchor_insets: Option<&ResolvedAnchorInsets>,
     ) {
         let containing_block_inline_size = available_space.inline_size.to_px_or_zero();
         let style = self.style(node);
@@ -1071,6 +1074,7 @@ impl AbsposEngine<'_> {
                 constraints,
                 static_position_rect,
                 initial,
+                resolved_anchor_insets,
             );
 
         if !sizing.should_treat_max_inline_size_as_none(node, available_space.inline_size, constraints) {
@@ -1084,6 +1088,7 @@ impl AbsposEngine<'_> {
                     constraints,
                     static_position_rect,
                     Some(max_inline_size),
+                    resolved_anchor_insets,
                 );
             }
         }
@@ -1098,6 +1103,7 @@ impl AbsposEngine<'_> {
                     constraints,
                     static_position_rect,
                     Some(min_inline_size),
+                    resolved_anchor_insets,
                 );
             }
         }
@@ -1116,11 +1122,12 @@ impl AbsposEngine<'_> {
         available_space: AvailableSpace,
         constraints: ContainingBlockConstraints,
         static_position_rect: StaticPositionRect,
+        resolved_anchor_insets: Option<&ResolvedAnchorInsets>,
     ) {
         let sizing = self.sizing();
         let inline_size = sizing.compute_inline_size_for_replaced_element(node, available_space, constraints);
         let containing_block_inline_size = available_space.inline_size.to_px_or_zero();
-        let style = self.style(node);
+        let style = self.style(node).with_resolved_insets(resolved_anchor_insets);
         let used = self.used(node);
         let available = containing_block_inline_size
             - inline_size
@@ -1155,14 +1162,27 @@ impl AbsposEngine<'_> {
         available_space: AvailableSpace,
         constraints: ContainingBlockConstraints,
         static_position_rect: StaticPositionRect,
+        resolved_anchor_insets: Option<&ResolvedAnchorInsets>,
     ) {
         if self
             .sizing()
             .box_is_sized_as_replaced_element(node, available_space, constraints)
         {
-            self.compute_inline_size_for_replaced(node, available_space, constraints, static_position_rect);
+            self.compute_inline_size_for_replaced(
+                node,
+                available_space,
+                constraints,
+                static_position_rect,
+                resolved_anchor_insets,
+            );
         } else {
-            self.compute_inline_size_for_non_replaced(node, available_space, constraints, static_position_rect);
+            self.compute_inline_size_for_non_replaced(
+                node,
+                available_space,
+                constraints,
+                static_position_rect,
+                resolved_anchor_insets,
+            );
         }
     }
 }
@@ -1226,6 +1246,7 @@ impl AbsposEngine<'_> {
         )
     }
 
+    #[expect(clippy::too_many_arguments)]
     fn solve_non_replaced_block_once(
         &self,
         node: Node,
@@ -1234,8 +1255,9 @@ impl AbsposEngine<'_> {
         static_position_rect: StaticPositionRect,
         pass: BlockSizePass,
         block_size: AutoPx,
+        resolved_anchor_insets: Option<&ResolvedAnchorInsets>,
     ) -> BlockAxisSolution {
-        let style = self.style(node);
+        let style = self.style(node).with_resolved_insets(resolved_anchor_insets);
         let containing_block_inline_size = available_space.inline_size.to_px_or_zero();
         let containing_block_block_size = available_space.block_size.to_px_or_zero();
         let used = self.used(node);
@@ -1328,6 +1350,7 @@ impl AbsposEngine<'_> {
         constraints: ContainingBlockConstraints,
         static_position_rect: StaticPositionRect,
         pass: BlockSizePass,
+        resolved_anchor_insets: Option<&ResolvedAnchorInsets>,
     ) {
         let style = self.style(node);
         let mut intrinsic_available_space = available_space;
@@ -1348,8 +1371,15 @@ impl AbsposEngine<'_> {
                     .calculate_inner_block_size(node, intrinsic_available_space, style.height(), constraints),
             )
         };
-        let mut solution =
-            self.solve_non_replaced_block_once(node, available_space, constraints, static_position_rect, pass, initial);
+        let mut solution = self.solve_non_replaced_block_once(
+            node,
+            available_space,
+            constraints,
+            static_position_rect,
+            pass,
+            initial,
+            resolved_anchor_insets,
+        );
 
         if solution.block_size.is_some() && !style.max_height().is_none() {
             let max_block_size = self.sizing().calculate_inner_block_size(
@@ -1366,6 +1396,7 @@ impl AbsposEngine<'_> {
                     static_position_rect,
                     pass,
                     Some(max_block_size),
+                    resolved_anchor_insets,
                 );
             }
         }
@@ -1384,6 +1415,7 @@ impl AbsposEngine<'_> {
                     static_position_rect,
                     pass,
                     Some(min_block_size),
+                    resolved_anchor_insets,
                 );
             }
         }
@@ -1415,12 +1447,13 @@ impl AbsposEngine<'_> {
         constraints: ContainingBlockConstraints,
         static_position_rect: StaticPositionRect,
         pass: BlockSizePass,
+        resolved_anchor_insets: Option<&ResolvedAnchorInsets>,
     ) {
         let block_size = self
             .sizing()
             .compute_block_size_for_replaced_element(node, available_space, constraints);
         let containing_block_block_size = available_space.block_size.to_px_or_zero();
-        let style = self.style(node);
+        let style = self.style(node).with_resolved_insets(resolved_anchor_insets);
         let used = self.used(node);
         let available = containing_block_block_size
             - block_size
@@ -1464,14 +1497,29 @@ impl AbsposEngine<'_> {
         constraints: ContainingBlockConstraints,
         static_position_rect: StaticPositionRect,
         pass: BlockSizePass,
+        resolved_anchor_insets: Option<&ResolvedAnchorInsets>,
     ) {
         if self
             .sizing()
             .box_is_sized_as_replaced_element(node, available_space, constraints)
         {
-            self.compute_block_size_for_replaced(node, available_space, constraints, static_position_rect, pass);
+            self.compute_block_size_for_replaced(
+                node,
+                available_space,
+                constraints,
+                static_position_rect,
+                pass,
+                resolved_anchor_insets,
+            );
         } else {
-            self.compute_block_size_for_non_replaced(node, available_space, constraints, static_position_rect, pass);
+            self.compute_block_size_for_non_replaced(
+                node,
+                available_space,
+                constraints,
+                static_position_rect,
+                pass,
+                resolved_anchor_insets,
+            );
         }
     }
 }
@@ -1483,7 +1531,16 @@ impl<'pass> AbsposEngine<'pass> {
     pub(crate) fn dimension_out_of_flow_root(&self, node: Node, inputs: AbsposLayoutInputs) {
         let (available_space, constraints) = out_of_flow_root_space(inputs);
         let containing_block_inline_size = available_space.inline_size.to_px_or_zero();
-        let style = self.style(node);
+        let resolved = inputs.resolved_anchor_insets.as_ref();
+        debug_assert!(
+            resolved.is_some()
+                || !(self.style(node).inset_top().contains_anchor_function()
+                    || self.style(node).inset_right().contains_anchor_function()
+                    || self.style(node).inset_bottom().contains_anchor_function()
+                    || self.style(node).inset_left().contains_anchor_function()),
+            "an out-of-flow root with anchor() insets must arrive with their resolutions"
+        );
+        let style = self.style(node).with_resolved_insets(resolved);
         {
             let used = self.used(node);
             used.border_left.set(style.border_left_width());
@@ -1500,13 +1557,14 @@ impl<'pass> AbsposEngine<'pass> {
                 .set(style.padding_bottom().to_px(containing_block_inline_size));
         }
 
-        self.compute_inline_size(node, available_space, constraints, inputs.static_position_rect);
+        self.compute_inline_size(node, available_space, constraints, inputs.static_position_rect, resolved);
         self.compute_block_size(
             node,
             available_space,
             constraints,
             inputs.static_position_rect,
             BlockSizePass::BeforeInsideLayout,
+            resolved,
         );
 
         {
@@ -1549,7 +1607,8 @@ impl<'pass> AbsposEngine<'pass> {
             inline_size: available_space.inline_size.to_px_or_zero(),
             block_size: available_space.block_size.to_px_or_zero(),
         };
-        let style = self.style(node);
+        let resolved = inputs.resolved_anchor_insets.as_ref();
+        let style = self.style(node).with_resolved_insets(resolved);
         if style.height().is_auto() {
             self.compute_block_size(
                 node,
@@ -1559,6 +1618,7 @@ impl<'pass> AbsposEngine<'pass> {
                 BlockSizePass::AfterInsideLayout {
                     automatic_content_block_size_of_inside_layout,
                 },
+                resolved,
             );
         }
 
@@ -1665,7 +1725,8 @@ impl<'pass> AbsposEngine<'pass> {
         self.records
             .create_used_values(self.state, &self.callbacks, child_box, ContainingBlockConstraints::default());
         let containing_block_geometry = self.containing_block_geometry_for_pending_child(&child);
-        self.resolve_anchor_insets(child_box, Some(&containing_block_geometry), child.coordinate_space_box);
+        let resolved =
+            self.resolve_anchor_insets(child_box, Some(&containing_block_geometry), child.coordinate_space_box);
         let translation_into_containing_block_space =
             point_sub(FfiCssPixelPoint::default(), containing_block_geometry.content_origin_in_entry_space);
         crate::layout::translate_pending_abspos_payloads(&mut child, translation_into_containing_block_space);
@@ -1673,8 +1734,14 @@ impl<'pass> AbsposEngine<'pass> {
             static_position_rect: child.static_position_rect,
             containing_block_info: child.containing_block_info_override.unwrap_or_else(|| {
                 let inline_containing_block_rect = child.inline_containing_block_rect;
-                self.base_containing_block_info(child_box, inline_containing_block_rect, &containing_block_geometry)
+                self.base_containing_block_info(
+                    child_box,
+                    inline_containing_block_rect,
+                    &containing_block_geometry,
+                    resolved.as_ref(),
+                )
             }),
+            resolved_anchor_insets: resolved,
         };
         self.layout_element(run, child_box, inputs);
     }
@@ -1685,7 +1752,8 @@ impl<'pass> AbsposEngine<'pass> {
         assert!(found);
         let mut inputs = saved_inputs.unwrap();
         if !inputs.containing_block_info.derives_from_own_computed_values {
-            let (inline, block) = axis_modes(self.style(node));
+            let (inline, block) =
+                axis_modes(self.style(node).with_resolved_insets(inputs.resolved_anchor_insets.as_ref()));
             inputs.containing_block_info.inline_axis_mode = inline;
             inputs.containing_block_info.block_axis_mode = block;
         }
@@ -1713,14 +1781,16 @@ impl<'pass> AbsposEngine<'pass> {
             return;
         }
         let initial_style = self.style(node);
-        if initial_style.inset_top().contains_anchor_function()
+        let resolved = if initial_style.inset_top().contains_anchor_function()
             || initial_style.inset_right().contains_anchor_function()
             || initial_style.inset_bottom().contains_anchor_function()
             || initial_style.inset_left().contains_anchor_function()
         {
-            self.resolve_anchor_insets(node, None, NodeSlotId::INVALID);
-        }
-        let style = self.style(node);
+            self.resolve_anchor_insets(node, None, NodeSlotId::INVALID)
+        } else {
+            None
+        };
+        let style = self.style(node).with_resolved_insets(resolved.as_ref());
         if style.position() != positioning::RELATIVE {
             return;
         }
@@ -1752,16 +1822,16 @@ impl<'pass> AbsposEngine<'pass> {
                 formatting_context_root,
                 treat_block_axis_percentage_insets_as_auto_beyond_root,
             );
-        let block_axis_inset_value = |value: InsetValue<'pass>| -> InsetValue<'pass> {
-            if treat_block_axis_percentage_insets_as_auto && value.contains_percentage() {
+        fn block_axis_inset_value(value: InsetValue<'_>, treat_percentage_as_auto: bool) -> InsetValue<'_> {
+            if treat_percentage_as_auto && value.contains_percentage() {
                 InsetValue::auto_value()
             } else {
                 value
             }
-        };
+        }
         let (top, bottom) = resolve_opposing(
-            block_axis_inset_value(style.inset_top()),
-            block_axis_inset_value(style.inset_bottom()),
+            block_axis_inset_value(style.inset_top(), treat_block_axis_percentage_insets_as_auto),
+            block_axis_inset_value(style.inset_bottom(), treat_block_axis_percentage_insets_as_auto),
             containing_block_size.block_size,
         );
         let used = self.used(node);
