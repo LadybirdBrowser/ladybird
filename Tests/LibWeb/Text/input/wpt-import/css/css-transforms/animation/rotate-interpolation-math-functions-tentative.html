@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>rotate interpolation with css math functions</title>
+    <link rel="help" href="https://drafts.csswg.org/css-transforms-2/#propdef-rotate">
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../css/support/interpolation-testcommon.js"></script>
+  </head>
+
+  <style>
+    :root {
+      font-size: 10px;
+    }
+  </style>
+  <body>
+    <script>
+      test_interpolation({
+        property: 'rotate',
+        from: '100deg',
+        to: 'calc(sign(20rem - 20px) * 180deg)',
+      }, [
+        {at: -1, expect: '20deg'},
+        {at: 0, expect: '100deg'},
+        {at: 0.125, expect: '110deg'},
+        {at: 0.875, expect: '170deg'},
+        {at: 1, expect: '180deg'},
+        {at: 2, expect: '260deg'}
+      ]);
+
+      test_interpolation({
+        property: 'rotate',
+        from: 'calc(sign(20rem - 20px) * 100deg)',
+        to: 'calc(progress(10rem, 20px, 100px) * 180deg)',
+      }, [
+        {at: -1, expect: '20deg'},
+        {at: 0, expect: '100deg'},
+        {at: 0.125, expect: '110deg'},
+        {at: 0.875, expect: '170deg'},
+        {at: 1, expect: '180deg'},
+        {at: 2, expect: '260deg'}
+      ]);
+    </script>
+  </body>
+</html>
