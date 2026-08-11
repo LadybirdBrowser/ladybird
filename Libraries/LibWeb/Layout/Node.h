@@ -42,10 +42,9 @@ static_assert(offsetof(RustFFI::NodeData, kind) == 28);
 static_assert(offsetof(RustFFI::NodeData, generated_for) == 29);
 static_assert(offsetof(RustFFI::NodeData, intrinsic_cache_epoch) == 30);
 static_assert(offsetof(RustFFI::NodeData, flags) == 32);
-static_assert(offsetof(RustFFI::NodeData, initial_quote_nesting_level) == 36);
-static_assert(offsetof(RustFFI::NodeData, slot_generation) == 40);
-static_assert(offsetof(RustFFI::NodeData, table_column_span) == 42);
-static_assert(offsetof(RustFFI::NodeData, table_row_span) == 44);
+static_assert(offsetof(RustFFI::NodeData, slot_generation) == 36);
+static_assert(offsetof(RustFFI::NodeData, table_column_span) == 38);
+static_assert(offsetof(RustFFI::NodeData, table_row_span) == 40);
 static_assert(offsetof(RustFFI::NodeData, style) == 48);
 static_assert(offsetof(RustFFI::NodeData, shell) == 56);
 
@@ -261,9 +260,6 @@ public:
 
     bool is_editing_host() const { return has_flag(RustFFI::NodeFlag::IsEditingHost); }
     void set_is_editing_host(bool value) { set_flag(RustFFI::NodeFlag::IsEditingHost, value); }
-
-    u32 initial_quote_nesting_level() const { return m_data->initial_quote_nesting_level; }
-    void set_initial_quote_nesting_level(u32 value) { m_data->initial_quote_nesting_level = value; }
 
     // https://drafts.csswg.org/css-ui/#propdef-user-select
     CSS::UserSelect user_select_used_value() const;

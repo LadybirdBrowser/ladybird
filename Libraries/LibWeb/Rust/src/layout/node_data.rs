@@ -175,7 +175,6 @@ pub struct NodeData {
     pub generated_for: u8,
     pub intrinsic_cache_epoch: u16,
     pub flags: u32,
-    pub initial_quote_nesting_level: u32,
     pub slot_generation: u8,
     pub table_column_span: u16,
     pub table_row_span: u16,
@@ -197,7 +196,6 @@ impl Default for NodeData {
             generated_for: 0,
             intrinsic_cache_epoch: 0,
             flags: 0,
-            initial_quote_nesting_level: 0,
             slot_generation: 0,
             table_column_span: 1,
             table_row_span: 1,
@@ -222,7 +220,9 @@ mod tests {
         assert_eq!(std::mem::size_of::<NodeData>(), 64);
         assert_eq!(std::mem::offset_of!(NodeData, intrinsic_cache_epoch), 30);
         assert_eq!(std::mem::offset_of!(NodeData, flags), 32);
-        assert_eq!(std::mem::offset_of!(NodeData, slot_generation), 40);
+        assert_eq!(std::mem::offset_of!(NodeData, slot_generation), 36);
+        assert_eq!(std::mem::offset_of!(NodeData, table_column_span), 38);
+        assert_eq!(std::mem::offset_of!(NodeData, table_row_span), 40);
         assert_eq!(std::mem::offset_of!(NodeData, style), 48);
         assert_eq!(std::mem::offset_of!(NodeData, shell), 56);
     }
