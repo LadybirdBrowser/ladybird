@@ -993,6 +993,18 @@ pub extern "C" fn layout_fc_run_cache_epochs_enabled() -> bool {
 }
 
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_fc_run_cache_hit_count(arena: *mut c_void) -> u64 {
+    abort_on_panic(|| {
+        assert!(!arena.is_null(), "layout node arena handle is null");
+        // SAFETY: The C++ wrapper keeps the arena alive for this call and
+        // serializes all access on the document thread.
+        unsafe { &*arena.cast::<LayoutNodeArena>() }
+            .fc_run_cache_store()
+            .hit_count()
+    })
+}
+
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_set_text_content(
     arena: *mut c_void,
     id: NodeSlotId,

@@ -71,6 +71,7 @@ struct FcRunCacheEntry {
 #[derive(Default)]
 pub(crate) struct FcRunCacheArenaStore {
     viewport: Cell<(i32, i32)>,
+    hit_count: Cell<u64>,
     entries: RefCell<Vec<Option<std::rc::Rc<FcRunCacheEntry>>>>,
 }
 
@@ -81,6 +82,10 @@ impl FcRunCacheArenaStore {
 
     pub(crate) fn viewport_size(&self) -> (i32, i32) {
         self.viewport.get()
+    }
+
+    pub(crate) fn hit_count(&self) -> u64 {
+        self.hit_count.get()
     }
 
     pub(crate) fn remove_entry(&self, slot: u32) {
@@ -233,12 +238,21 @@ impl FcRunCacheAttempt {
         let store = callbacks.arena().fc_run_cache_store();
         let validity = run_root_validity(callbacks, box_);
         match store.matching(box_.slot_index(), validity, &key) {
-            Some(entry) if mode == FcRunCacheMode::Shadow => Ok(Self::Store {
-                key,
-                validity,
-                shadow_entry: Some(entry),
-            }),
-            Some(entry) => Err(entry),
+            Some(entry) if mode == FcRunCacheMode::Shadow => {
+                // A shadow match is the same event a replay would be, so the
+                // hit counter reports it: the hit-count tests hold under the
+                // oracle as well.
+                store.hit_count.set(store.hit_count.get() + 1);
+                Ok(Self::Store {
+                    key,
+                    validity,
+                    shadow_entry: Some(entry),
+                })
+            }
+            Some(entry) => {
+                store.hit_count.set(store.hit_count.get() + 1);
+                Err(entry)
+            }
             None => Ok(Self::Store {
                 key,
                 validity,

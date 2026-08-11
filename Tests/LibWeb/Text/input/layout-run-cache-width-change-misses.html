@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #container { width: 400px; }
+    #cached {
+        overflow: hidden;
+    }
+    #inner { width: 50%; height: 40px; }
+</style>
+<div id="container">
+    <div id="cached">
+        <div id="inner"></div>
+    </div>
+</div>
+<script>
+    asyncTest(async (done) => {
+        document.body.offsetHeight;
+
+        const hitsBefore = internals.layoutRunCacheHitCount();
+
+        // Narrowing the container changes the subtree's available space, so the saved
+        // inputs no longer match.
+        document.getElementById("container").style.width = "200px";
+        document.body.offsetHeight;
+
+        const hitDelta = internals.layoutRunCacheHitCount() - hitsBefore;
+        const innerRect = document.getElementById("inner").getBoundingClientRect();
+
+        println(`hit delta: ${hitDelta}`);
+        println(`inner width: ${innerRect.width}`);
+        done();
+    });
+</script>

@@ -1,0 +1,3 @@
+hit delta: >=1
+big moved by: 30
+big rect: 9.703125,80,32

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #spacer { height: 30px; }
+    #cached {
+        display: inline-block;
+        width: 150px;
+    }
+    #content { width: 100px; height: 45px; }
+</style>
+<div id="spacer"></div>
+<div id="cached"><div id="content"></div></div>
+<script>
+    asyncTest(async (done) => {
+        document.body.offsetHeight;
+
+        const hitsBefore = internals.layoutRunCacheHitCount();
+
+        // The inline-block's auto height is resolved through
+        // compute_auto_height_for_block_formatting_context_root, which must answer from the
+        // committed height when the subtree is reused.
+        document.getElementById("spacer").style.height = "60px";
+        document.body.offsetHeight;
+
+        const hitDelta = internals.layoutRunCacheHitCount() - hitsBefore;
+        const cachedRect = document.getElementById("cached").getBoundingClientRect();
+
+        println(`hit delta: ${hitDelta}`);
+        println(`cached rect: ${cachedRect.top},${cachedRect.width},${cachedRect.height}`);
+        done();
+    });
+</script>

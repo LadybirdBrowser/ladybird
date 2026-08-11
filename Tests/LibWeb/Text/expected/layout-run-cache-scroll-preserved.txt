@@ -1,0 +1,5 @@
+hit delta: 1
+scrollTop: 120
+scrollHeight: 400
+cached top: 90
+scrollTop after set: 300

@@ -1,0 +1,3 @@
+hit delta: 1
+deep before: 0,60,60,20
+deep after: 0,90,60,20
