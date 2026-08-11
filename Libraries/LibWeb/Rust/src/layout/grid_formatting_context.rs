@@ -1130,6 +1130,14 @@ impl ParentGridData {
     }
 }
 
+/// Conservative superset of is_subgridded() for callers outside a live grid run
+/// (the fc-run-cache probe): a declared subgrid axis counts regardless of the
+/// parent-grid placement check only a run in progress can make.
+fn grid_template_declares_a_subgrid_axis(callbacks: &FfiLayoutFcCallbacks, box_: Node) -> bool {
+    let grid_style = ComputedValuesView::new(&callbacks.style_payloads(box_).groups).grid_values();
+    grid_style.template_columns.is_subgrid || grid_style.template_rows.is_subgrid
+}
+
 impl GridFormattingContext {
     pub(crate) fn new(run: &FormattingContextRun, parent_grid: Option<&GridFormattingContext>) -> Self {
         let grid_container = run.box_;

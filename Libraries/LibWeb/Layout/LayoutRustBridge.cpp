@@ -648,6 +648,18 @@ LayoutRustBridge::LayoutRustBridge() = default;
 
 LayoutRustBridge::~LayoutRustBridge() = default;
 
+// Stamps the store once per pass entry, so cache entries validate against the
+// viewport the pass actually laid out with; a new bridge entry method must call
+// this before entering Rust.
+static void note_viewport_size_for_pass(Box& pass_root)
+{
+    auto viewport_rect = pass_root.document().viewport_rect();
+    RustFFI::layout_arena_note_viewport_size(
+        pass_root.arena_handle(),
+        viewport_rect.width().raw_value(),
+        viewport_rect.height().raw_value());
+}
+
 void LayoutRustBridge::run_root_layout(Box& viewport, CSSPixels viewport_inline_size, CSSPixels viewport_block_size, bool should_collect_devtools_layout_data)
 {
     VERIFY(!m_commit_root);
@@ -657,6 +669,7 @@ void LayoutRustBridge::run_root_layout(Box& viewport, CSSPixels viewport_inline_
     };
 
     viewport.document().invalidate_stacking_context_tree();
+    note_viewport_size_for_pass(viewport);
     auto callbacks = formatting_context_callbacks();
     auto sink = commit_sink();
     {
@@ -681,6 +694,7 @@ void LayoutRustBridge::compute_subtree_layout(Box& root, Painting::Paintable& pa
     };
 
     root.document().invalidate_stacking_context_tree();
+    note_viewport_size_for_pass(root);
     auto viewport_rect = root.document().viewport_rect();
     auto callbacks = formatting_context_callbacks();
     auto sink = commit_sink();
@@ -707,6 +721,7 @@ void LayoutRustBridge::replay_saved_abspos_layout(Box& box, Painting::Paintable&
     };
 
     box.document().invalidate_stacking_context_tree();
+    note_viewport_size_for_pass(box);
     auto callbacks = formatting_context_callbacks();
     auto sink = commit_sink();
     {

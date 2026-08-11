@@ -1,0 +1,491 @@
+/*
+ * Copyright (c) 2026-present, the Ladybird developers.
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum FcRunCacheMode {
+    Disabled,
+    Enabled,
+    /// Hits do not replay: the real layout runs and the entry is verified
+    /// against it, panicking on any divergence.
+    Shadow,
+}
+
+fn fc_run_cache_mode_from_environment() -> FcRunCacheMode {
+    static MODE: std::sync::OnceLock<FcRunCacheMode> = std::sync::OnceLock::new();
+    *MODE.get_or_init(|| match std::env::var("LADYBIRD_FC_RUN_CACHE").as_deref() {
+        Ok("0") => FcRunCacheMode::Disabled,
+        Ok("1") => FcRunCacheMode::Enabled,
+        Ok("shadow") => FcRunCacheMode::Shadow,
+        Ok(unknown) => {
+            eprintln!("Unknown LADYBIRD_FC_RUN_CACHE value {unknown:?} (expected 0, 1, or shadow); disabling the run cache");
+            FcRunCacheMode::Disabled
+        }
+        Err(_) => FcRunCacheMode::Enabled,
+    })
+}
+
+/// The complete identity of a memoizable run: the layout input plus the
+/// pre-run root record state the dispatch seam captures anyway, so every
+/// value a parent hands a spawned run is part of the key.
+#[derive(Clone, Copy, PartialEq)]
+struct FcRunCacheKey {
+    fc_type: FfiFormattingContextType,
+    input: LayoutInput,
+    root_cells: UsedValuesCellState,
+}
+
+/// What must still be true for a stored entry to be replayed: the slot
+/// holds the same box (generation), nothing in its subtree was invalidated
+/// (the fragment cache epoch, whose bump walk has no propagation
+/// boundary), and the viewport is unchanged (viewport-relative styles do
+/// not necessarily funnel through per-node invalidation).
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) struct FcRunCacheValidity {
+    pub(crate) slot_generation: u8,
+    pub(crate) fragment_cache_epoch: u32,
+    pub(crate) viewport: (i32, i32),
+}
+
+struct FcRunCacheEntry {
+    key: FcRunCacheKey,
+    validity: FcRunCacheValidity,
+    outputs: RunOutputs,
+    /// Keeps every font referenced by cached line data alive: glyph runs
+    /// borrow raw font pointers, and a paint-only style change can drop
+    /// the owning computed values without touching any layout epoch.
+    ///
+    /// Cached line data also holds raw text_utf16 pointers into arena text
+    /// slots, deliberately unretained: replay never re-runs line building,
+    /// commit emits offsets rather than the pointers, and every text change
+    /// bumps epochs before the next probe, so nothing on the replay path
+    /// dereferences them. Any future consumer of cached fragment text must
+    /// snapshot the text alongside the fonts first.
+    retained_fonts: Vec<libgfx_rust::font::RetainedFont>,
+}
+
+/// Per-document store of completed run results, one entry per slot,
+/// surviving across layout passes on the node arena.
+#[derive(Default)]
+pub(crate) struct FcRunCacheArenaStore {
+    viewport: Cell<(i32, i32)>,
+    entries: RefCell<Vec<Option<std::rc::Rc<FcRunCacheEntry>>>>,
+}
+
+impl FcRunCacheArenaStore {
+    pub(crate) fn note_viewport_size(&self, inline_size_raw: i32, block_size_raw: i32) {
+        self.viewport.set((inline_size_raw, block_size_raw));
+    }
+
+    pub(crate) fn viewport_size(&self) -> (i32, i32) {
+        self.viewport.get()
+    }
+
+    pub(crate) fn remove_entry(&self, slot: u32) {
+        if let Some(entry) = self.entries.borrow_mut().get_mut(slot as usize) {
+            *entry = None;
+        }
+    }
+
+    /// A matching entry stays stored — hits hand out shared handles — while
+    /// a stale entry is evicted on sight, releasing its tree and fonts.
+    fn matching(&self, slot: u32, validity: FcRunCacheValidity, key: &FcRunCacheKey) -> Option<std::rc::Rc<FcRunCacheEntry>> {
+        let mut entries = self.entries.borrow_mut();
+        let stored = entries.get_mut(slot as usize)?;
+        let entry = stored.as_ref()?;
+        if entry.validity != validity {
+            *stored = None;
+            return None;
+        }
+        if entry.key != *key {
+            return None;
+        }
+        Some(entry.clone())
+    }
+
+    fn store(&self, slot: u32, entry: std::rc::Rc<FcRunCacheEntry>) {
+        let mut entries = self.entries.borrow_mut();
+        if entries.len() <= slot as usize {
+            entries.resize_with(slot as usize + 1, || None);
+        }
+        entries[slot as usize] = Some(entry);
+    }
+
+    /// Drops every entry the keep predicate rejects, releasing its tree and
+    /// fonts. The end-of-pass sweep uses this so entries invalidated while
+    /// their box never probes again do not accumulate for the document's
+    /// lifetime.
+    pub(crate) fn retain_entries(&self, mut keep: impl FnMut(u32, FcRunCacheValidity) -> bool) {
+        let mut entries = self.entries.borrow_mut();
+        for (slot, stored) in entries.iter_mut().enumerate() {
+            if let Some(entry) = stored
+                && !keep(slot as u32, entry.validity)
+            {
+                *stored = None;
+            }
+        }
+    }
+}
+
+fn collect_line_data_fonts(line_data: &LineData, fonts: &mut Vec<*const c_void>) {
+    for line in &line_data.line_boxes {
+        for fragment in &line.fragments {
+            if let Some(glyphs) = &fragment.glyphs
+                && !glyphs.font.is_null()
+            {
+                fonts.push(glyphs.font);
+            }
+        }
+    }
+}
+
+fn collect_fragment_tree_fonts(links: &[FragmentLink], fonts: &mut Vec<*const c_void>) {
+    for link in links {
+        if let Some(line_data) = &link.fragment.line_data {
+            collect_line_data_fonts(line_data, fonts);
+        }
+        collect_fragment_tree_fonts(&link.fragment.children, fonts);
+    }
+}
+
+fn run_root_validity(callbacks: &FfiLayoutFcCallbacks, box_: Node) -> FcRunCacheValidity {
+    let data = NodeFacts::new(callbacks, box_).data();
+    FcRunCacheValidity {
+        slot_generation: data.slot_generation,
+        fragment_cache_epoch: data.fragment_cache_epoch,
+        viewport: callbacks.arena().fc_run_cache_store().viewport.get(),
+    }
+}
+
+/// A run's cache interaction, decided at probe time and concluded after
+/// the run executes. Uncacheable classes bypass entirely: measurement and
+/// intrinsic-sizing runs produce no fragments; subgridded grid items copy
+/// the parent grid's mid-run track state, which the key cannot see;
+/// anchor()-positioned roots keep their bypass while the resolved-inset
+/// side effects are audited; pass entries and internal runs are not
+/// spawned child runs; devtools collection emits per-run callbacks a
+/// replay would skip.
+enum FcRunCacheAttempt {
+    Bypass,
+    Store {
+        key: Box<FcRunCacheKey>,
+        /// Captured at probe time and reused at store time: an invalidation
+        /// landing between probe and store makes the stored entry look stale
+        /// on its next probe (a fail-safe miss) instead of being baked into
+        /// a forever-valid entry.
+        validity: FcRunCacheValidity,
+        shadow_entry: Option<std::rc::Rc<FcRunCacheEntry>>,
+    },
+}
+
+impl FcRunCacheAttempt {
+    /// Err carries the entry the caller must replay instead of running.
+    #[expect(clippy::too_many_arguments)]
+    fn probe(
+        purpose: LayoutPurpose,
+        box_: Node,
+        parent_grid_is_present: bool,
+        fc_type: FfiFormattingContextType,
+        layout_mode: LayoutMode,
+        should_collect_devtools_layout_data: bool,
+        callbacks: &FfiLayoutFcCallbacks,
+        input: &LayoutInput,
+        root_cells: &UsedValuesCellState,
+    ) -> Result<Self, std::rc::Rc<FcRunCacheEntry>> {
+        let mode = fc_run_cache_mode_from_environment();
+        if mode == FcRunCacheMode::Disabled
+            || layout_mode != LayoutMode::Normal
+            || purpose.is_measurement()
+            || should_collect_devtools_layout_data
+            || input.participation == ParticipationInParentFormattingContext::Root
+            || matches!(
+                fc_type,
+                FfiFormattingContextType::InternalReplaced | FfiFormattingContextType::InternalDummy
+            )
+        {
+            return Ok(Self::Bypass);
+        }
+        if fc_type == FfiFormattingContextType::Grid
+            && parent_grid_is_present
+            && grid_template_declares_a_subgrid_axis(callbacks, box_)
+        {
+            return Ok(Self::Bypass);
+        }
+        // Structural invariants behind this root-flag check, to re-verify if it is ever
+        // narrowed: anchor() applies only to absolutely positioned boxes and every abspos
+        // box is the root of its own spawned run, so the flag on the run root covers every
+        // anchor consumer; anchor eligibility is resolved from used values of the same
+        // pass under the C++ anchor_lookup containing-block guard, never from a previous
+        // pass; scroll compensation compares chains that converge at the run root and
+        // registers scroll-shift side effects a replay would skip; and anchor-size()
+        // resolves to None today, so inset properties are the only anchor dependency a
+        // run can have.
+        if has_flag(NodeFacts::new(callbacks, box_).data(), NodeFlag::InsetsUseAnchorFunctions) {
+            return Ok(Self::Bypass);
+        }
+        let key = Box::new(FcRunCacheKey {
+            fc_type,
+            input: *input,
+            root_cells: *root_cells,
+        });
+        let store = callbacks.arena().fc_run_cache_store();
+        let validity = run_root_validity(callbacks, box_);
+        match store.matching(box_.slot_index(), validity, &key) {
+            Some(entry) if mode == FcRunCacheMode::Shadow => Ok(Self::Store {
+                key,
+                validity,
+                shadow_entry: Some(entry),
+            }),
+            Some(entry) => Err(entry),
+            None => Ok(Self::Store {
+                key,
+                validity,
+                shadow_entry: None,
+            }),
+        }
+    }
+
+    fn conclude(self, callbacks: &FfiLayoutFcCallbacks, box_: Node, outputs: &RunOutputs) {
+        let Self::Store {
+            key,
+            validity,
+            shadow_entry,
+        } = self
+        else {
+            return;
+        };
+        let Some(root) = &outputs.root else {
+            return;
+        };
+        let mut fonts = Vec::new();
+        if let Some(line_data) = &outputs.root_outcome.line_data {
+            collect_line_data_fonts(line_data, &mut fonts);
+        }
+        collect_fragment_tree_fonts(&root.scoped_descendants, &mut fonts);
+        fonts.sort_unstable();
+        fonts.dedup();
+        let entry = FcRunCacheEntry {
+            key: *key,
+            validity,
+            outputs: outputs.clone(),
+            retained_fonts: fonts
+                .into_iter()
+                // SAFETY: every collected font pointer is live during the
+                // pass that produced the line data now being cached.
+                .map(|font| unsafe { libgfx_rust::font::RetainedFont::retain(font) })
+                .collect(),
+        };
+        if let Some(cached) = shadow_entry {
+            verify_cached_entry_against_fresh_run(box_.slot_index(), &cached, &entry);
+        }
+        callbacks
+            .arena()
+            .fc_run_cache_store()
+            .store(box_.slot_index(), std::rc::Rc::new(entry));
+    }
+}
+
+fn verify_cached_entry_against_fresh_run(root_slot: u32, cached: &FcRunCacheEntry, fresh: &FcRunCacheEntry) {
+    assert!(
+        cached.outputs.result == fresh.outputs.result,
+        "run cache shadow: child layout result diverged for slot {root_slot}"
+    );
+    assert!(
+        cached.outputs.root_outcome.cells == fresh.outputs.root_outcome.cells,
+        "run cache shadow: body-end root record diverged for slot {root_slot}\ncached: {:?}\nfresh: {:?}",
+        cached.outputs.root_outcome.cells,
+        fresh.outputs.root_outcome.cells,
+    );
+    assert!(
+        cached.outputs.root_outcome.own_metrics_sealed == fresh.outputs.root_outcome.own_metrics_sealed,
+        "run cache shadow: root seal state diverged for slot {root_slot}"
+    );
+    let cached_fonts: Vec<_> = cached.retained_fonts.iter().map(|font| font.as_raw()).collect();
+    let fresh_fonts: Vec<_> = fresh.retained_fonts.iter().map(|font| font.as_raw()).collect();
+    assert!(
+        cached_fonts == fresh_fonts,
+        "run cache shadow: referenced fonts diverged for slot {root_slot}"
+    );
+    assert_line_data_matches(
+        root_slot,
+        cached.outputs.root_outcome.line_data.as_deref(),
+        fresh.outputs.root_outcome.line_data.as_deref(),
+    );
+    assert_rare_data_matches(
+        root_slot,
+        cached.outputs.root_outcome.rare.as_ref(),
+        fresh.outputs.root_outcome.rare.as_ref(),
+    );
+    assert_unplaced_roots_match(root_slot, cached.outputs.root.as_ref(), fresh.outputs.root.as_ref());
+}
+
+/// The comparable view of the payloads both `UsedValuesRareData` and
+/// `Fragment` carry under identical field names, so the oracle's two
+/// comparison sites cannot drift apart when a payload is added. Shared
+/// payloads compare by content through the Rc (paths through their
+/// process-unique identity first).
+macro_rules! shadow_comparable_rare_payloads {
+    ($carrier:expr) => {
+        (
+            $carrier.table_cell_coordinates,
+            $carrier.override_borders_data,
+            $carrier.computed_svg_transforms,
+            $carrier.svg_viewport_size,
+            &$carrier.computed_svg_path,
+            &$carrier.grid_layout_data,
+            &$carrier.flex_layout_data,
+            &$carrier.used_grid_tracks,
+        )
+    };
+}
+
+fn line_data_matches(cached: Option<&LineData>, fresh: Option<&LineData>) -> bool {
+    cached == fresh
+}
+
+fn assert_line_data_matches(root_slot: u32, cached: Option<&LineData>, fresh: Option<&LineData>) {
+    assert!(
+        line_data_matches(cached, fresh),
+        "run cache shadow: root line data diverged for slot {root_slot}"
+    );
+}
+
+fn assert_rare_data_matches(root_slot: u32, cached: Option<&UsedValuesRareData>, fresh: Option<&UsedValuesRareData>) {
+    assert!(
+        cached.is_some() == fresh.is_some(),
+        "run cache shadow: root rare data presence diverged for slot {root_slot}"
+    );
+    let (Some(cached), Some(fresh)) = (cached, fresh) else {
+        return;
+    };
+    assert!(
+        shadow_comparable_rare_payloads!(cached) == shadow_comparable_rare_payloads!(fresh)
+            && cached.abspos_layout_inputs == fresh.abspos_layout_inputs,
+        "run cache shadow: root rare data diverged for slot {root_slot}"
+    );
+}
+
+fn sorted_by_key<T: Clone, K: Ord>(items: &[T], key: impl Fn(&T) -> K) -> Vec<T> {
+    let mut sorted = items.to_vec();
+    sorted.sort_by_key(|item| key(item));
+    sorted
+}
+
+fn assert_unplaced_roots_match(root_slot: u32, cached: Option<&UnplacedRootFragment>, fresh: Option<&UnplacedRootFragment>) {
+    assert!(
+        cached.is_some() == fresh.is_some(),
+        "run cache shadow: unplaced root presence diverged for slot {root_slot}"
+    );
+    let (Some(cached), Some(fresh)) = (cached, fresh) else {
+        return;
+    };
+    assert!(
+        cached.node == fresh.node,
+        "run cache shadow: unplaced root node diverged for slot {root_slot}"
+    );
+
+    // Escape lists are collected partly from hash-map sweeps, whose order
+    // is not deterministic between runs; consumption sorts registrations
+    // into tree order, so the oracle compares them order-insensitively.
+    let pending_order =
+        |child: &PendingAbsposChild| (child.child_box.slot_index(), child.coordinate_space_box.slot_index());
+    let cached_pending = sorted_by_key(&cached.propagated_pending_abspos, pending_order);
+    let fresh_pending = sorted_by_key(&fresh.propagated_pending_abspos, pending_order);
+    assert!(
+        cached_pending == fresh_pending,
+        "run cache shadow: propagated abspos children diverged for slot {root_slot}\ncached: {cached_pending:#?}\nfresh: {fresh_pending:#?}"
+    );
+    let candidate_order =
+        |candidate: &AnchorCandidate| (candidate.node.slot_index(), candidate.coordinate_space_box.slot_index());
+    let cached_candidates = sorted_by_key(&cached.propagated_anchor_candidates, candidate_order);
+    let fresh_candidates = sorted_by_key(&fresh.propagated_anchor_candidates, candidate_order);
+    assert!(
+        cached_candidates == fresh_candidates,
+        "run cache shadow: propagated anchor candidates diverged for slot {root_slot}"
+    );
+    let inline_rect_order =
+        |rect: &InlineContainingBlockRect| (rect.inline_box.slot_index(), rect.coordinate_space_box.slot_index());
+    let cached_inline_rects = sorted_by_key(&cached.propagated_inline_containing_block_rects, inline_rect_order);
+    let fresh_inline_rects = sorted_by_key(&fresh.propagated_inline_containing_block_rects, inline_rect_order);
+    assert!(
+        cached_inline_rects == fresh_inline_rects,
+        "run cache shadow: propagated inline containing block rects diverged for slot {root_slot}"
+    );
+    let contribution_order = |contribution: &AbsposContainingBlockInfoContribution| contribution.child_box.slot_index();
+    let cached_contributions = sorted_by_key(&cached.propagated_abspos_containing_block_info, contribution_order);
+    let fresh_contributions = sorted_by_key(&fresh.propagated_abspos_containing_block_info, contribution_order);
+    assert!(
+        cached_contributions == fresh_contributions,
+        "run cache shadow: propagated containing block info diverged for slot {root_slot}"
+    );
+
+    assert_link_lists_match(root_slot, &cached.scoped_descendants, &fresh.scoped_descendants);
+}
+
+fn assert_link_lists_match(root_slot: u32, cached: &[FragmentLink], fresh: &[FragmentLink]) {
+    assert!(
+        cached.len() == fresh.len(),
+        "run cache shadow: fragment child count diverged for slot {root_slot}"
+    );
+    for (cached_link, fresh_link) in cached.iter().zip(fresh) {
+        assert_links_match(root_slot, cached_link, fresh_link);
+    }
+}
+
+fn assert_links_match(root_slot: u32, cached: &FragmentLink, fresh: &FragmentLink) {
+    let mut diverged = Vec::new();
+    if cached.committed_offset != fresh.committed_offset {
+        diverged.push("committed_offset");
+    }
+    if (cached.inset_left, cached.inset_right, cached.inset_top, cached.inset_bottom)
+        != (fresh.inset_left, fresh.inset_right, fresh.inset_top, fresh.inset_bottom)
+    {
+        diverged.push("insets");
+    }
+    if cached.containing_line_box_index != fresh.containing_line_box_index {
+        diverged.push("containing_line_box_index");
+    }
+    if cached.abspos_layout_inputs != fresh.abspos_layout_inputs {
+        diverged.push("abspos_layout_inputs");
+    }
+    collect_diverged_fragment_fields(&cached.fragment, &fresh.fragment, &mut diverged);
+    assert!(
+        diverged.is_empty(),
+        "run cache shadow: fragment for slot {} diverged under run root slot {root_slot}: {}",
+        fresh.fragment.node.slot_index(),
+        diverged.join(", ")
+    );
+    assert_link_lists_match(root_slot, &cached.fragment.children, &fresh.fragment.children);
+}
+
+fn collect_diverged_fragment_fields(cached: &Fragment, fresh: &Fragment, diverged: &mut Vec<&'static str>) {
+    if cached.node != fresh.node {
+        diverged.push("node");
+    }
+    if (cached.content_inline_size, cached.content_block_size) != (fresh.content_inline_size, fresh.content_block_size) {
+        diverged.push("content_size");
+    }
+    if (cached.margin_left, cached.margin_right, cached.margin_top, cached.margin_bottom)
+        != (fresh.margin_left, fresh.margin_right, fresh.margin_top, fresh.margin_bottom)
+    {
+        diverged.push("margins");
+    }
+    if (cached.border_left, cached.border_right, cached.border_top, cached.border_bottom)
+        != (fresh.border_left, fresh.border_right, fresh.border_top, fresh.border_bottom)
+    {
+        diverged.push("borders");
+    }
+    if (cached.padding_left, cached.padding_right, cached.padding_top, cached.padding_bottom)
+        != (fresh.padding_left, fresh.padding_right, fresh.padding_top, fresh.padding_bottom)
+    {
+        diverged.push("paddings");
+    }
+    if shadow_comparable_rare_payloads!(cached) != shadow_comparable_rare_payloads!(fresh) {
+        diverged.push("rare payloads");
+    }
+    if !line_data_matches(cached.line_data.as_deref(), fresh.line_data.as_deref()) {
+        diverged.push("line_data");
+    }
+}

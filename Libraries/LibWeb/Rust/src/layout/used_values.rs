@@ -120,7 +120,7 @@ pub(crate) struct LineData {
     pub(crate) inline_box_pieces: Vec<InlineBoxPieceData>,
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(crate) struct UsedValuesRareData {
     pub(crate) table_cell_coordinates: Option<FfiTableCellCoordinates>,
     pub(crate) computed_svg_path: Option<std::rc::Rc<libgfx_rust::path::OwnedPath>>,
