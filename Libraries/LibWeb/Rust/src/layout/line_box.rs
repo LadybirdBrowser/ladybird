@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct StaticPositionMarker {
     pub(crate) box_: Node,
     pub(crate) inline_offset: CssPixels,
@@ -19,7 +19,7 @@ impl StaticPositionMarker {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub(crate) struct LineBoxData {
     pub(crate) fragments: Vec<LineBoxFragmentData>,
     pub(crate) static_position_markers: Vec<StaticPositionMarker>,

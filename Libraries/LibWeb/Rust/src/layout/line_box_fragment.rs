@@ -14,7 +14,7 @@ pub(crate) fn is_ascii_space(code_unit: u16) -> bool {
     matches!(code_unit, 0x09..=0x0d | 0x20)
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub(crate) struct GlyphData {
     pub(crate) glyphs: Vec<FfiDrawGlyph>,
     pub(crate) font: *const c_void,
@@ -25,13 +25,13 @@ pub(crate) struct GlyphData {
 
 // The advance of a run's trailing whitespace, recorded at shaping time so that trimming it subtracts exactly what
 // shaping added.
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct TrailingWhitespace {
     pub(crate) length_in_code_units: usize,
     pub(crate) inline_size: CssPixels,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub(crate) struct LineBoxFragmentData {
     pub(crate) layout_node: Node,
     pub(crate) style_source: Node,

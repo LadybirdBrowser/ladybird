@@ -22,10 +22,10 @@ pub(crate) struct Fragment {
     pub(crate) padding_bottom: CssPixels,
     pub(crate) table_cell_coordinates: Option<FfiTableCellCoordinates>,
     pub(crate) override_borders_data: Option<FfiBordersData>,
-    pub(crate) line_data: Option<Box<LineData>>,
-    pub(crate) grid_layout_data: Option<OwnedGridLayoutData>,
-    pub(crate) flex_layout_data: Option<OwnedFlexLayoutData>,
-    pub(crate) used_grid_tracks: Option<OwnedUsedGridTracks>,
+    pub(crate) line_data: Option<std::rc::Rc<LineData>>,
+    pub(crate) grid_layout_data: Option<std::rc::Rc<OwnedGridLayoutData>>,
+    pub(crate) flex_layout_data: Option<std::rc::Rc<OwnedFlexLayoutData>>,
+    pub(crate) used_grid_tracks: Option<std::rc::Rc<OwnedUsedGridTracks>>,
     pub(crate) computed_svg_transforms: Option<crate::layout::FfiSvgComputedTransforms>,
     pub(crate) svg_viewport_size: Option<crate::layout::FfiCssPixelSize>,
     pub(crate) computed_svg_path: Cell<Option<libgfx_rust::path::OwnedPath>>,
@@ -156,7 +156,7 @@ fn snapshot_fragment(
     children: Vec<FragmentLink>,
     used: &UsedValues,
 ) -> std::rc::Rc<Fragment> {
-    let line_data = used.line_data.get().map(|cell| Box::new(cell.take()));
+    let line_data = used.line_data.get().map(std::cell::RefCell::take);
     let rare_payloads = used.rare_data.get().map(|cell| {
         let mut rare = cell.borrow_mut();
         (
