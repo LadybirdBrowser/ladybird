@@ -1768,14 +1768,21 @@ impl AbsposEngine {
             crate::layout::translate_static_position_rect(child.static_position_rect, translation_into_containing_block_space);
         let inputs = AbsposLayoutInputs {
             static_position_rect: child.static_position_rect,
-            containing_block_info: child.containing_block_info_override.unwrap_or_else(|| {
-                self.base_containing_block_info(
-                    child_box,
-                    inline_containing_block_rect,
-                    &containing_block_geometry,
-                    resolved.as_ref(),
-                )
-            }),
+            containing_block_info: child
+                .containing_block_info_override
+                .or_else(|| {
+                    self.fragments
+                        .as_deref()
+                        .and_then(|fragments| fragments.find_abspos_containing_block_info(child_box))
+                })
+                .unwrap_or_else(|| {
+                    self.base_containing_block_info(
+                        child_box,
+                        inline_containing_block_rect,
+                        &containing_block_geometry,
+                        resolved.as_ref(),
+                    )
+                }),
             resolved_anchor_insets: resolved,
         };
         self.layout_element(run, child_box, inputs);
