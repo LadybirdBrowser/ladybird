@@ -200,6 +200,7 @@ public:
     void begin_transition_stabilization_epoch();
     void record_transition_stabilization_baseline(DOM::AbstractElement) const;
     void commit_transition_stabilization_epoch();
+    void for_each_provisional_transition_effect(DOM::AbstractElement const&, Function<void(Animations::KeyframeEffect&)> const&) const;
 
 private:
     virtual void visit_edges(Visitor&) override;
