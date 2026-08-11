@@ -282,6 +282,7 @@ public:
             if (next_sibling)
                 next_sibling->synchronize_topology();
         }
+        note_structural_change_to_layout_caches();
     }
 
     void replace_child(NonnullRefPtr<T> new_child, T& old_child)
@@ -621,6 +622,13 @@ private:
             if (auto* next_sibling = node.next_sibling_ptr())
                 next_sibling->synchronize_topology();
         }
+        note_structural_change_to_layout_caches();
+    }
+
+    void note_structural_change_to_layout_caches()
+    {
+        if constexpr (requires { static_cast<T&>(*this).bump_fragment_cache_epoch_of_self_and_ancestors(); })
+            static_cast<T&>(*this).bump_fragment_cache_epoch_of_self_and_ancestors();
     }
 
     WeakPtr<T> m_parent;
