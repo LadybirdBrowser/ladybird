@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<style id="registration">
+    @property --x {
+        syntax: "<length>";
+        inherits: false;
+        initial-value: 0px;
+    }
+</style>
+<style>
+    #target { --x: 10px; }
+</style>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+    // A value computed under a registration serializes like its raw tokens. Once the
+    // registration is gone, the recomputed environment must not keep the stale typed value:
+    // the name now reifies as a token stream.
+    test(() => {
+        const target = document.getElementById("target");
+        println("registered: " + target.computedStyleMap().get("--x").constructor.name);
+        document.getElementById("registration").remove();
+        println("unregistered: " + target.computedStyleMap().get("--x").constructor.name);
+    });
+</script>
