@@ -709,7 +709,7 @@ impl LayoutNodeArena {
         }
     }
 
-    pub(crate) fn set_replaced_content_facts(&mut self, id: NodeSlotId, facts: FfiReplacedContentFacts) {
+    pub(crate) fn set_replaced_content_facts(&mut self, id: NodeSlotId, facts: FfiReplacedContentFacts) -> bool {
         self.assert_owner_thread();
         self.data(id);
         let index = id.slot_index() as usize;
@@ -717,10 +717,13 @@ impl LayoutNodeArena {
             self.replaced_content_facts
                 .resize_with(index + 1, ReplacedContentFactsSlot::default);
         }
+        let previous = &self.replaced_content_facts[index];
+        let changed = previous.generation != id.generation() || previous.facts != Some(facts);
         self.replaced_content_facts[index] = ReplacedContentFactsSlot {
             generation: id.generation(),
             facts: Some(facts),
         };
+        changed
     }
 
     pub(crate) fn replaced_content_facts(&self, id: NodeSlotId) -> Option<FfiReplacedContentFacts> {
@@ -987,13 +990,13 @@ pub unsafe extern "C" fn layout_arena_set_replaced_content_facts(
     arena: *mut c_void,
     id: NodeSlotId,
     facts: FfiReplacedContentFacts,
-) {
+) -> bool {
     abort_on_panic(|| {
         assert!(!arena.is_null(), "layout node arena handle is null");
         // SAFETY: The C++ wrapper keeps the arena alive for this call and
         // serializes all access on the document thread.
-        unsafe { &mut *arena.cast::<LayoutNodeArena>() }.set_replaced_content_facts(id, facts);
-    });
+        unsafe { &mut *arena.cast::<LayoutNodeArena>() }.set_replaced_content_facts(id, facts)
+    })
 }
 
 #[unsafe(no_mangle)]

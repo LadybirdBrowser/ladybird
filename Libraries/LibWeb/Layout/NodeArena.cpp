@@ -78,7 +78,7 @@ void NodeArena::sync_enrolled_replaced_content_facts()
 {
     bool any_enrolled_node_died = false;
     for (auto& weak_node : m_nodes_enrolled_for_replaced_content_facts_sync) {
-        auto const* node = weak_node.ptr();
+        auto* node = weak_node.ptr();
         if (!node) {
             any_enrolled_node_died = true;
             continue;
@@ -86,7 +86,10 @@ void NodeArena::sync_enrolled_replaced_content_facts()
         RustFFI::FfiReplacedContentFacts facts {};
         if (auto const* box = as_if<Box>(*node))
             facts = box->build_replaced_content_facts_for_arena();
-        RustFFI::layout_arena_set_replaced_content_facts(m_handle, Node::slot_id(node), facts);
+        // Changed facts invalidate cached formatting-context runs regardless of which
+        // channel produced the change, including sources with no invalidation of their own.
+        if (RustFFI::layout_arena_set_replaced_content_facts(m_handle, Node::slot_id(node), facts))
+            node->bump_fragment_cache_epoch_of_self_and_ancestors();
     }
     if (any_enrolled_node_died)
         m_nodes_enrolled_for_replaced_content_facts_sync.remove_all_matching([](auto& weak_node) { return !weak_node.ptr(); });
