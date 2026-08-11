@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/animated-pseudo-element-constant-value-ref.html">
+<style>
+body { margin: 0; }
+@keyframes green { from { background: rgb(0, 128, 0); } to { background: rgb(0, 128, 0); } }
+#a::after {
+    content: '';
+    display: block;
+    width: 100px;
+    height: 40px;
+    background: red;
+    animation: green 100s linear infinite;
+}
+</style>
+<div id="a"></div>

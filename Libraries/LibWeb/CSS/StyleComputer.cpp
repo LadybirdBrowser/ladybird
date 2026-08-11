@@ -3557,9 +3557,14 @@ StyleRecordID StyleComputer::intern_anonymous_layout_style(ComputedValues const&
 StyleEngine::StyleRecordDelta StyleComputer::record_computed_style_inputs(Optional<DOM::AbstractElement> abstract_element, ComputedValues const& values, StyleNodeID style_node_id) const
 {
     auto const& base = values.base_values();
+    // An unassigned record cannot own an animation overlay, so a layout-derived copy of an
+    // animated style interns its final merged payloads directly. Splitting off the base there
+    // would intern (and paint) the un-animated values.
+    bool const unassigned_with_animations = style_node_id == 0 && (values.has_animated_values() || values.animated_properties());
+    auto const& payload_source = unassigned_with_animations ? values : base;
     Array<void const*, to_underlying(StyleGroupIndex::Count)> payloads;
     for (size_t index = 0; index < payloads.size(); ++index)
-        payloads[index] = base.style_group_payload(static_cast<StyleGroupIndex>(index));
+        payloads[index] = payload_source.style_group_payload(static_cast<StyleGroupIndex>(index));
     auto custom_property_environment = abstract_element.has_value() ? abstract_element->custom_property_data() : nullptr;
     u8 dependency_flags = static_cast<u8>(base.depends_on_viewport_metrics())
         | (static_cast<u8>(base.font_metrics_depend_on_viewport_metrics()) << 1)
