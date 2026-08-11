@@ -1015,7 +1015,12 @@ Optional<T> StyleScope::dereference_global_tree_scoped_reference(Function<Option
                 return shadow_root.style_scope().dereference_global_tree_scoped_reference(callback);
             }
 
-            return as<DOM::Document>(root).style_scope().dereference_global_tree_scoped_reference(callback);
+            if (auto const* document = as_if<DOM::Document>(root))
+                return document->style_scope().dereference_global_tree_scoped_reference(callback);
+
+            // A detached host's node tree is rooted at an ordinary element. Such a tree carries no
+            // tree-scoped names of its own, so the inheritance chain ends here.
+            return OptionalNone {};
         }
     }
 
