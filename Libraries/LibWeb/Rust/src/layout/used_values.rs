@@ -108,6 +108,10 @@ impl<T: Copy> SealableCell<T> {
     pub(crate) fn seal(&self) {
         self.sealed.set(true);
     }
+
+    pub(crate) fn is_sealed(&self) -> bool {
+        self.sealed.get()
+    }
 }
 
 #[derive(Default)]
@@ -127,6 +131,54 @@ pub(crate) struct UsedValuesRareData {
     pub(crate) used_grid_tracks: Option<OwnedUsedGridTracks>,
     pub(crate) override_borders_data: Option<FfiBordersData>,
     pub(crate) abspos_layout_inputs: Option<AbsposLayoutInputs>,
+}
+
+impl UsedValuesRareData {
+    pub(crate) fn install_present_payloads_into(self, record: &UsedValues) {
+        let Self {
+            table_cell_coordinates,
+            computed_svg_path,
+            computed_svg_transforms,
+            svg_viewport_size,
+            grid_layout_data,
+            flex_layout_data,
+            used_grid_tracks,
+            override_borders_data,
+            abspos_layout_inputs,
+        } = self;
+        debug_assert!(
+            table_cell_coordinates.is_none() && override_borders_data.is_none() && abspos_layout_inputs.is_none(),
+            "a run authored a parent-owned rare payload on its root record"
+        );
+        if computed_svg_path.is_none()
+            && computed_svg_transforms.is_none()
+            && svg_viewport_size.is_none()
+            && grid_layout_data.is_none()
+            && flex_layout_data.is_none()
+            && used_grid_tracks.is_none()
+        {
+            return;
+        }
+        let mut rare = record.rare_data_mut();
+        if let Some(path) = computed_svg_path {
+            rare.computed_svg_path = Some(path);
+        }
+        if let Some(transforms) = computed_svg_transforms {
+            rare.computed_svg_transforms = Some(transforms);
+        }
+        if let Some(size) = svg_viewport_size {
+            rare.svg_viewport_size = Some(size);
+        }
+        if let Some(data) = grid_layout_data {
+            rare.grid_layout_data = Some(data);
+        }
+        if let Some(data) = flex_layout_data {
+            rare.flex_layout_data = Some(data);
+        }
+        if let Some(tracks) = used_grid_tracks {
+            rare.used_grid_tracks = Some(tracks);
+        }
+    }
 }
 
 /// The per-box geometry stored in a Rust-owned layout pass.
@@ -264,6 +316,10 @@ impl UsedValues {
         self.content_offset.seal();
     }
 
+    pub(crate) fn own_metrics_are_sealed(&self) -> bool {
+        self.content_inline_size.is_sealed()
+    }
+
     pub(crate) fn seal_own_metrics(&self) {
         self.content_inline_size.seal();
         self.content_block_size.seal();
@@ -279,6 +335,74 @@ impl UsedValues {
         self.padding_right.seal();
         self.padding_top.seal();
         self.padding_bottom.seal();
+    }
+}
+
+macro_rules! used_values_cell_state {
+    ($($field:ident: $type:ty,)+) => {
+        #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+        pub(crate) struct UsedValuesCellState {
+            $(pub(crate) $field: $type,)+
+        }
+
+        impl UsedValuesCellState {
+            pub(crate) fn capture(used: &UsedValues) -> Self {
+                Self {
+                    $($field: used.$field.get(),)+
+                }
+            }
+
+            pub(crate) fn apply_to_record(&self, used: &UsedValues) {
+                $(
+                    if used.$field.get() != self.$field {
+                        used.$field.set(self.$field);
+                    }
+                )+
+            }
+        }
+    };
+}
+
+used_values_cell_state! {
+    content_inline_size: CssPixels,
+    content_block_size: CssPixels,
+    margin_left: CssPixels,
+    margin_right: CssPixels,
+    margin_top: CssPixels,
+    margin_bottom: CssPixels,
+    border_left: CssPixels,
+    border_right: CssPixels,
+    border_top: CssPixels,
+    border_bottom: CssPixels,
+    padding_left: CssPixels,
+    padding_right: CssPixels,
+    padding_top: CssPixels,
+    padding_bottom: CssPixels,
+    inset_left: CssPixels,
+    inset_right: CssPixels,
+    inset_top: CssPixels,
+    inset_bottom: CssPixels,
+    has_definite_inline_size: bool,
+    has_definite_block_size: bool,
+    uses_collapsing_borders_model: bool,
+    inline_size_constraint: SizeConstraint,
+    block_size_constraint: SizeConstraint,
+    has_content_offset: bool,
+    content_offset: FfiCssPixelPoint,
+    has_first_baseline: bool,
+    first_baseline: CssPixels,
+    has_last_baseline: bool,
+    last_baseline: CssPixels,
+}
+
+impl UsedValuesCellState {
+    pub(crate) fn materialize_record(&self) -> UsedValues {
+        let record = UsedValues::default();
+        self.apply_to_record(&record);
+        if self.has_content_offset {
+            record.seal_committed_box_metrics();
+        }
+        record
     }
 }
 
