@@ -580,6 +580,21 @@ impl StyleEngine {
                 *word |= dependencies;
             }
         }
+        // caret-color and accent-color bake used values resolved against the element's own color
+        // into their group fields, even for their initial `auto`. A color change re-evaluates them
+        // whether or not either property is declared anywhere.
+        if delta
+            .properties()
+            .contains(&crate::css::property_metadata::property_id::COLOR)
+        {
+            for property in [
+                crate::css::property_metadata::property_id::CARET_COLOR,
+                crate::css::property_metadata::property_id::ACCENT_COLOR,
+            ] {
+                let index = usize::from(property - crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID);
+                computed_property_words[index / 64] |= 1 << (index % 64);
+            }
+        }
         let color_scheme_dependency_mask = delta
             .properties()
             .contains(&crate::css::property_metadata::property_id::COLOR_SCHEME)
@@ -703,6 +718,8 @@ impl StyleEngine {
                     let groups = computed_group_dependency_mask(property)?;
                     let dynamic_groups = if property == crate::css::property_metadata::property_id::COLOR {
                         current_color_dependency_mask.flatten()?
+                            | computed_group_output_mask(crate::css::property_metadata::property_id::CARET_COLOR)
+                                .unwrap_or(u32::MAX)
                     } else if property == crate::css::property_metadata::property_id::COLOR_SCHEME {
                         color_scheme_dependency_mask.flatten()?
                     } else if Some(groups) == font_group_mask {
