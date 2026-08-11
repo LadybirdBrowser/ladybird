@@ -1,0 +1,1 @@
+hit delta after paint-only change: 1

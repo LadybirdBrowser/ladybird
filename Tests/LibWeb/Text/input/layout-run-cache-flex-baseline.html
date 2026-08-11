@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; font: 16px/1 monospace; }
+    #spacer { height: 20px; }
+    #cached {
+        display: flex;
+        align-items: baseline;
+        width: 300px;
+    }
+    #cached > .item { width: 80px; }
+    #big { font-size: 32px; }
+    #line { display: inline-block; vertical-align: baseline; }
+</style>
+<div id="spacer"></div>
+<div>x<div id="cached" style="display: inline-flex;"><div class="item" id="big">A</div><div class="item">b</div></div></div>
+<script>
+    asyncTest(async (done) => {
+        document.body.offsetHeight;
+
+        const bigBefore = document.getElementById("big").getBoundingClientRect();
+        const hitsBefore = internals.layoutRunCacheHitCount();
+
+        // Baseline alignment of the reused inline-flex against surrounding text depends on
+        // the baselines restored from the committed paintable.
+        document.getElementById("spacer").style.height = "50px";
+        document.body.offsetHeight;
+
+        const hitDelta = internals.layoutRunCacheHitCount() - hitsBefore;
+        const bigAfter = document.getElementById("big").getBoundingClientRect();
+
+        println(`hit delta: ${hitDelta >= 1 ? ">=1" : hitDelta}`);
+        println(`big moved by: ${bigAfter.top - bigBefore.top}`);
+        println(`big rect: ${bigAfter.left},${bigAfter.width},${bigAfter.height}`);
+        done();
+    });
+</script>

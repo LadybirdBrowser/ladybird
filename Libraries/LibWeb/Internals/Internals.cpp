@@ -60,6 +60,7 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Internals/InternalGamepad.h>
 #include <LibWeb/Internals/Internals.h>
+#include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Layout/TreeBuilderRustFFI.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Loader/ContentBlocker.h>
@@ -642,6 +643,11 @@ WebIDL::UnsignedLongLong Internals::partial_layout_count()
 WebIDL::UnsignedLongLong Internals::full_layout_count()
 {
     return window().associated_document().full_layout_count();
+}
+
+WebIDL::UnsignedLongLong Internals::layout_run_cache_hit_count()
+{
+    return window().associated_document().layout_node_arena().formatting_context_run_cache_hit_count();
 }
 
 WebIDL::UnsignedLongLong Internals::accumulated_visual_context_tree_build_count()

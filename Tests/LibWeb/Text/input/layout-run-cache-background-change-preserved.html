@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #spacer { width: 100px; height: 50px; }
+    #cached {
+        width: 300px;
+        overflow: hidden;
+        background-color: yellow;
+    }
+    #inner { width: 120px; height: 40px; }
+</style>
+<div id="spacer"></div>
+<div id="cached">
+    <div id="inner"></div>
+</div>
+<script>
+    asyncTest(async (done) => {
+        document.body.offsetHeight;
+
+        // A paint-only background change must not invalidate the subtree's cached
+        // run; the relayout forced by the growing sibling must replay it.
+        document.getElementById("cached").style.backgroundColor = "lime";
+        const hitsBefore = internals.layoutRunCacheHitCount();
+        document.getElementById("spacer").style.height = "80px";
+        document.body.offsetHeight;
+
+        const hitDelta = internals.layoutRunCacheHitCount() - hitsBefore;
+        println(`hit delta after paint-only change: ${hitDelta}`);
+        done();
+    });
+</script>

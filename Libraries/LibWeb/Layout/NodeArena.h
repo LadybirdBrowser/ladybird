@@ -35,6 +35,7 @@ public:
     RustFFI::NodeAllocation allocate();
     void free(RustFFI::NodeSlotId, u32 generation);
     void* handle() const { return m_handle; }
+    u64 formatting_context_run_cache_hit_count() const;
 
     void enroll_text_node_for_content_sync(TextNode const&);
     void enroll_node_for_replaced_content_facts_sync(Node const&);

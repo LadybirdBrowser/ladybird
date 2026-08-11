@@ -1,0 +1,2 @@
+hit delta: 1
+cached rect: 60,150,45

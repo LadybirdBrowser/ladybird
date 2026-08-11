@@ -1,0 +1,3 @@
+grew: true
+height before: 24
+height during: 72

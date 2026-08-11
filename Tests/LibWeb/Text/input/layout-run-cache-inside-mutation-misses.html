@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #cached {
+        width: 300px;
+        overflow: hidden;
+    }
+    #inner { width: 120px; height: 40px; }
+</style>
+<div id="cached">
+    <div id="inner"></div>
+</div>
+<script>
+    asyncTest(async (done) => {
+        document.body.offsetHeight;
+
+        const hitsBefore = internals.layoutRunCacheHitCount();
+
+        // A mutation inside the subtree dirties it, so its committed output must not be
+        // reused.
+        document.getElementById("inner").style.height = "70px";
+        document.body.offsetHeight;
+
+        const hitDelta = internals.layoutRunCacheHitCount() - hitsBefore;
+        const cachedRect = document.getElementById("cached").getBoundingClientRect();
+
+        println(`hit delta: ${hitDelta}`);
+        println(`cached height: ${cachedRect.height}`);
+        done();
+    });
+</script>

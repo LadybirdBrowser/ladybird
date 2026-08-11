@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #outer { display: table; width: 200px; font-size: 12px; }
+</style>
+<div id="outer">words words words</div>
+<script>
+    asyncTest(async (done) => {
+        document.body.offsetHeight;
+
+        const heightBefore = document.getElementById("outer").getBoundingClientRect().height;
+
+        // The table box's text lives inside anonymous row and cell wrappers;
+        // the depth-two anonymous cell roots its own cacheable run, and the
+        // inherited font change reaches it only through anonymous style
+        // propagation, which must defeat the cached run via the funnel.
+        document.getElementById("outer").style.fontSize = "24px";
+        const heightAfter = document.getElementById("outer").getBoundingClientRect().height;
+
+        println(`grew: ${heightAfter > heightBefore}`);
+        println(`height before: ${heightBefore}`);
+        println(`height after: ${heightAfter}`);
+        done();
+    });
+</script>

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #outer { font-size: 12px; width: 300px; }
+    #cached { display: inline-block; width: 100px; }
+</style>
+<div id="outer"><span id="cached">words words words</span></div>
+<script>
+    asyncTest(async (done) => {
+        document.body.offsetHeight;
+
+        const heightBefore = document.getElementById("cached").getBoundingClientRect().height;
+
+        // The animation fast path restyles inheriting descendants without the
+        // per-element style invalidation walk, so the inline-block's cached
+        // run must be defeated by the style-application funnel alone.
+        const animation = document.getElementById("outer").animate(
+            [{ fontSize: "24px" }, { fontSize: "24px" }],
+            { duration: 1000, fill: "forwards" });
+        animation.currentTime = 500;
+        document.body.offsetHeight;
+
+        const heightDuring = document.getElementById("cached").getBoundingClientRect().height;
+
+        println(`grew: ${heightDuring > heightBefore}`);
+        println(`height before: ${heightBefore}`);
+        println(`height during: ${heightDuring}`);
+        done();
+    });
+</script>

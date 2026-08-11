@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #spacer { height: 40px; }
+    #cached {
+        width: 200px;
+        height: 100px;
+        overflow: auto;
+    }
+    #tall { width: 100px; height: 400px; }
+</style>
+<div id="spacer"></div>
+<div id="cached">
+    <div id="tall"></div>
+</div>
+<script>
+    asyncTest(async (done) => {
+        document.body.offsetHeight;
+
+        const cached = document.getElementById("cached");
+        cached.scrollTop = 120;
+
+        const hitsBefore = internals.layoutRunCacheHitCount();
+
+        // Moving the scroller by growing a sibling must keep its scroll offset and its
+        // (absolute-coordinate) scrollable overflow consistent with the new position.
+        document.getElementById("spacer").style.height = "90px";
+        document.body.offsetHeight;
+
+        const hitDelta = internals.layoutRunCacheHitCount() - hitsBefore;
+
+        println(`hit delta: ${hitDelta}`);
+        println(`scrollTop: ${cached.scrollTop}`);
+        println(`scrollHeight: ${cached.scrollHeight}`);
+        println(`cached top: ${cached.getBoundingClientRect().top}`);
+
+        // Scrolling after the move must still work against the shifted geometry.
+        cached.scrollTop = 300;
+        println(`scrollTop after set: ${cached.scrollTop}`);
+        done();
+    });
+</script>

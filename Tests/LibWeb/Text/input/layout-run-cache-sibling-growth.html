@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #spacer { width: 100px; height: 50px; }
+    #cached {
+        width: 300px;
+        overflow: hidden;
+    }
+    #inner { width: 120px; height: 40px; margin-top: 10px; }
+    #deep { width: 60px; height: 20px; }
+</style>
+<div id="spacer"></div>
+<div id="cached">
+    <div id="inner">
+        <div id="deep"></div>
+    </div>
+</div>
+<script>
+    function rectToString(rect) {
+        return `${rect.left},${rect.top},${rect.width},${rect.height}`;
+    }
+
+    asyncTest(async (done) => {
+        document.body.offsetHeight;
+
+        const deepBefore = document.getElementById("deep").getBoundingClientRect();
+        const hitsBefore = internals.layoutRunCacheHitCount();
+
+        // Growing the spacer moves the clean sibling subtree without changing its inputs.
+        document.getElementById("spacer").style.height = "80px";
+        document.body.offsetHeight;
+
+        const hitDelta = internals.layoutRunCacheHitCount() - hitsBefore;
+        const deepAfter = document.getElementById("deep").getBoundingClientRect();
+
+        println(`hit delta: ${hitDelta}`);
+        println(`deep before: ${rectToString(deepBefore)}`);
+        println(`deep after: ${rectToString(deepAfter)}`);
+        done();
+    });
+</script>
