@@ -1,0 +1,5 @@
+focused input: activeElement=input
+outer :focus-within: true
+after tab.focus(): activeElement=outside
+wrapper :focus-within: true
+outer :focus-within: false
