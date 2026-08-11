@@ -88,13 +88,11 @@ jobs:
               echo "host_cxx=g++" >> "$GITHUB_OUTPUT"
             fi
           elif ${{ inputs.os_name == 'macOS' }} ; then
-            if ${{ contains(inputs.runner_labels, 'blacksmith') }} ; then
-              echo "host_cc=$(xcrun --find clang)" >> "$GITHUB_OUTPUT"
-              echo "host_cxx=$(xcrun --find clang++)" >> "$GITHUB_OUTPUT"
-            else
-              echo "host_cc=$(brew --prefix llvm@21)/bin/clang" >> "$GITHUB_OUTPUT"
-              echo "host_cxx=$(brew --prefix llvm@21)/bin/clang++" >> "$GITHUB_OUTPUT"
-            fi
+            # Build with the LLVM 21 that the setup action installs, not with whichever clang the selected
+            # Xcode happens to ship. LLVM 21 is the supported toolchain, and pinning it keeps every macOS
+            # runner on one compiler instead of letting the Xcode version pick one per runner.
+            echo "host_cc=$(brew --prefix llvm@21)/bin/clang" >> "$GITHUB_OUTPUT"
+            echo "host_cxx=$(brew --prefix llvm@21)/bin/clang++" >> "$GITHUB_OUTPUT"
           fi
 
           if ${{ inputs.clang_plugins }} ; then
