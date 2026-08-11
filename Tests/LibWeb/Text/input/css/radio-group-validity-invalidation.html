@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<form>
+    <input type="radio" name="g" id="a" required>
+    <input type="radio" name="g" id="b" required>
+</form>
+<script src="../include.js"></script>
+<script>
+    // Checking one radio changes value-missing validity for every member of its radio button
+    // group, so the sibling's published :valid/:invalid state must move with it.
+    test(() => {
+        const a = document.getElementById("a");
+        const b = document.getElementById("b");
+        println("before: a invalid=" + a.matches(":invalid") + " b invalid=" + b.matches(":invalid"));
+        a.checked = true;
+        println("checked a: a valid=" + a.matches(":valid") + " b valid=" + b.matches(":valid"));
+        a.checked = false;
+        println("unchecked a: a invalid=" + a.matches(":invalid") + " b invalid=" + b.matches(":invalid"));
+    });
+</script>
