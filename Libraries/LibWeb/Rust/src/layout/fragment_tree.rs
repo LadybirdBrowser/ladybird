@@ -32,8 +32,9 @@ pub(crate) struct Fragment {
     pub(crate) children: Vec<FragmentLink>,
 }
 
+#[derive(Clone)]
 pub(crate) struct FragmentLink {
-    pub(crate) fragment: Box<Fragment>,
+    pub(crate) fragment: std::rc::Rc<Fragment>,
     pub(crate) committed_offset: FfiCssPixelPoint,
     pub(crate) inset_left: CssPixels,
     pub(crate) inset_right: CssPixels,
@@ -43,6 +44,7 @@ pub(crate) struct FragmentLink {
     pub(crate) abspos_layout_inputs: Option<AbsposLayoutInputs>,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct AnchorCandidate {
     pub(crate) node: crate::layout::node_data::NodeSlotId,
     pub(crate) border_box_rect: PhysicalRect,
@@ -51,6 +53,7 @@ pub(crate) struct AnchorCandidate {
 
 /// The padding-box rect of an inline box that acts as an abspos containing
 /// block, spanning its first and last content lines.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct InlineContainingBlockRect {
     pub(crate) inline_box: crate::layout::node_data::NodeSlotId,
     pub(crate) rect: PhysicalRect,
@@ -62,6 +65,7 @@ pub(crate) struct InlineContainingBlockRect {
 /// descendants). The rect is relative to the containing block's own content
 /// origin, so the contribution never rebases; it travels as-is to whichever
 /// run drains the child and is joined by child-box identity.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct AbsposContainingBlockInfoContribution {
     pub(crate) child_box: crate::layout::node_data::NodeSlotId,
     pub(crate) info: AbsposContainingBlockInfo,
@@ -151,7 +155,7 @@ fn snapshot_fragment(
     node: crate::layout::node_data::NodeSlotId,
     children: Vec<FragmentLink>,
     used: &UsedValues,
-) -> Box<Fragment> {
+) -> std::rc::Rc<Fragment> {
     let line_data = used.line_data.get().map(|cell| Box::new(cell.take()));
     let rare_payloads = used.rare_data.get().map(|cell| {
         let mut rare = cell.borrow_mut();
@@ -176,7 +180,7 @@ fn snapshot_fragment(
         svg_viewport_size,
         computed_svg_path,
     ) = rare_payloads.unwrap_or_default();
-    Box::new(Fragment {
+    std::rc::Rc::new(Fragment {
         node,
         content_inline_size: used.content_inline_size.get(),
         content_block_size: used.content_block_size.get(),
@@ -236,7 +240,7 @@ impl PlacementData {
     }
 }
 
-fn link_fragment(fragment: Box<Fragment>, placement: PlacementData) -> FragmentLink {
+fn link_fragment(fragment: std::rc::Rc<Fragment>, placement: PlacementData) -> FragmentLink {
     FragmentLink {
         fragment,
         committed_offset: placement.committed_offset,
@@ -249,6 +253,7 @@ fn link_fragment(fragment: Box<Fragment>, placement: PlacementData) -> FragmentL
     }
 }
 
+#[derive(Clone)]
 pub(crate) struct UnplacedRootFragment {
     pub(crate) node: crate::layout::node_data::NodeSlotId,
     pub(crate) scoped_descendants: Vec<FragmentLink>,
