@@ -1118,12 +1118,6 @@ RustFFI::FfiLayoutFcCallbacks LayoutRustBridge::formatting_context_callbacks()
         .arena = m_commit_root->arena_handle(),
         .initial_containing_block_inline_size = m_commit_root->document().viewport_rect().width().raw_value(),
         .document_in_quirks_mode = m_commit_root->document().in_quirks_mode(),
-        .needs_inset_resolution = [](void*, void* node) {
-            auto const& styled_node = *static_cast<NodeWithStyle const*>(node);
-            if (styled_node.computed_values().position() == CSS::Positioning::Relative)
-                return true;
-            auto const* box = as_if<Box>(styled_node);
-            return box && box_inset_properties_contain_anchor_functions(*box); },
         .report_unexpected_fragmented_inline = [](void*, void* node) {
             auto const& box = *static_cast<Box const*>(node);
             dbgln("FIXME: InlineFormattingContext::dimension_box_on_line got unexpected box in inline context:");
