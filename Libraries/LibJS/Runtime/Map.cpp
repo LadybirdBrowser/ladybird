@@ -114,11 +114,8 @@ void Map::account_external_memory_change(size_t old_external_memory_size)
 void Map::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    for (auto& value : m_entries) {
-        visitor.visit(value.key);
-        visitor.visit(value.value);
-    }
-    // NOTE: The entries in m_keys are already visited by the walk over m_entries above.
+    visitor.visit(m_entries);
+    // NOTE: The entries in m_keys are already visited at m_entries above.
     visitor.ignore(m_keys);
 }
 
