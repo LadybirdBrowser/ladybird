@@ -1698,7 +1698,7 @@ pub struct FfiPseudoTreeBuilderCallbacks {
     pub attach_style_resources: unsafe extern "C" fn(*mut c_void),
     pub apply_replaced_display_adjustment: unsafe extern "C" fn(*mut c_void, FfiReplacedElementDisplayAdjustment),
     pub create_nested_list_marker: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, FfiPseudoElement),
-    pub configure_layout_node: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiPseudoElement, u32),
+    pub configure_layout_node: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiPseudoElement),
     pub resolve_content:
         unsafe extern "C" fn(*mut c_void, *mut c_void, FfiPseudoElement, u32) -> FfiResolvedPseudoContentFacts,
     pub create_content_item: unsafe extern "C" fn(*mut c_void, *mut c_void, FfiPseudoElement, usize) -> NodeSlotId,
@@ -1830,7 +1830,7 @@ fn create_pseudo_element_with_frame(
 
     let initial_quote_nesting_level = state.quote_nesting_level;
     // SAFETY: The frame and element remain live throughout configuration.
-    unsafe { (callbacks.configure_layout_node)(frame, element, pseudo_element, initial_quote_nesting_level) };
+    unsafe { (callbacks.configure_layout_node)(frame, element, pseudo_element) };
     let layout_node_kind = host.layout().data(layout_node).kind;
     // https://drafts.csswg.org/css-lists-3/#list-style-position-outside
     // "the marker box is a block container and is placed outside the principal block box"

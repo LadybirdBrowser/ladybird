@@ -569,7 +569,7 @@ RustFFI::FfiPseudoTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_pseudo_tr
             VERIFY(frame.layout_node);
             auto marker_style = element.document().style_computer().compute_style({ element, CSS::PseudoElement::Marker });
             (void)builder.create_and_attach_list_item_marker(as<ListItemBox>(*frame.layout_node), element, css_pseudo_element(originating_pseudo), move(marker_style)); },
-        .configure_layout_node = [](void* frame_pointer, void* element_pointer, RustFFI::FfiPseudoElement ffi_pseudo, u32 initial_quote_nesting_level) {
+        .configure_layout_node = [](void* frame_pointer, void* element_pointer, RustFFI::FfiPseudoElement ffi_pseudo) {
             VERIFY(frame_pointer);
             VERIFY(element_pointer);
             auto& frame = *static_cast<PseudoElementFrame*>(frame_pointer);
@@ -577,7 +577,6 @@ RustFFI::FfiPseudoTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_pseudo_tr
             auto pseudo_element = css_pseudo_element(ffi_pseudo);
             VERIFY(frame.layout_node);
             frame.layout_node->set_generated_for(pseudo_element, element);
-            frame.layout_node->set_initial_quote_nesting_level(initial_quote_nesting_level);
             LayoutTreeBuilderAccess::set_synthetic_pseudo_element_node(element, pseudo_element, frame.layout_node); },
         .resolve_content = [](void* frame_pointer, void* element_pointer, RustFFI::FfiPseudoElement ffi_pseudo, u32 initial_quote_nesting_level) -> RustFFI::FfiResolvedPseudoContentFacts {
             VERIFY(frame_pointer);
