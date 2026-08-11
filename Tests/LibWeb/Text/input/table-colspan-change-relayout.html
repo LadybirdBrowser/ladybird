@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    table { border-collapse: collapse; width: 300px; table-layout: fixed; }
+    td { padding: 0; height: 20px; }
+</style>
+<table>
+    <tr>
+        <td id="first"></td>
+        <td></td>
+        <td></td>
+    </tr>
+</table>
+<script>
+    asyncTest(async (done) => {
+        document.body.offsetHeight;
+
+        const widthBefore = document.getElementById("first").getBoundingClientRect().width;
+        document.getElementById("first").setAttribute("colspan", "2");
+        const widthAfter = document.getElementById("first").getBoundingClientRect().width;
+
+        // A different attribute string with the same effective span must not relayout.
+        const layoutsBefore = internals.fullLayoutCount();
+        document.getElementById("first").setAttribute("colspan", "02");
+        document.body.offsetHeight;
+        const noopLayoutDelta = internals.fullLayoutCount() - layoutsBefore;
+
+        println(`width before: ${widthBefore}`);
+        println(`width after: ${widthAfter}`);
+        println(`no-op layout delta: ${noopLayoutDelta}`);
+        done();
+    });
+</script>

@@ -706,13 +706,13 @@ impl LayoutNodeArena {
             .and_then(|slot| slot.facts)
     }
 
-    pub(crate) fn set_raw_table_column_span(&mut self, id: NodeSlotId, value: u32) {
+    pub(crate) fn set_raw_table_column_span(&mut self, id: NodeSlotId, value: u32) -> u32 {
         self.assert_owner_thread();
         self.data(id);
         if value == 1 {
-            self.raw_table_column_spans.remove(&id);
+            self.raw_table_column_spans.remove(&id).unwrap_or(1)
         } else {
-            self.raw_table_column_spans.insert(id, value);
+            self.raw_table_column_spans.insert(id, value).unwrap_or(1)
         }
     }
 
@@ -922,13 +922,13 @@ pub unsafe extern "C" fn layout_arena_set_raw_table_column_span(
     arena: *mut c_void,
     id: NodeSlotId,
     raw_column_span: u32,
-) {
+) -> u32 {
     abort_on_panic(|| {
         assert!(!arena.is_null(), "layout node arena handle is null");
         // SAFETY: The C++ wrapper keeps the arena alive for this call and
         // serializes all access on the document thread.
-        unsafe { &mut *arena.cast::<LayoutNodeArena>() }.set_raw_table_column_span(id, raw_column_span);
-    });
+        unsafe { &mut *arena.cast::<LayoutNodeArena>() }.set_raw_table_column_span(id, raw_column_span)
+    })
 }
 
 #[cfg(test)]

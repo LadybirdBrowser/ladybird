@@ -424,7 +424,7 @@ public:
     void clear_image_observers();
     void apply_style(NonnullRefPtr<CSS::ComputedValues const>);
     void attach_style_resources();
-    void synchronize_table_span_data();
+    bool synchronize_table_span_data();
 
     Gfx::Font const& first_available_font() const;
     Vector<CSS::BackgroundLayerData> const& background_layers() const { return computed_values().background_layers(); }
