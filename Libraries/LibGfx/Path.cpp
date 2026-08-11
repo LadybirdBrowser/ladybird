@@ -8,9 +8,11 @@
 #include <LibGfx/PathSkia.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
+#include <core/SkPath.h>
 
 extern "C" {
 void ladybird_gfx_path_destroy(void*);
+bool ladybird_gfx_path_equals(void const*, void const*);
 }
 
 namespace Gfx {
@@ -51,4 +53,11 @@ ErrorOr<Gfx::Path> decode(Decoder& decoder)
 extern "C" void ladybird_gfx_path_destroy(void* path)
 {
     delete static_cast<Gfx::Path*>(path);
+}
+
+extern "C" bool ladybird_gfx_path_equals(void const* a, void const* b)
+{
+    auto const& path_a = *static_cast<Gfx::Path const*>(a);
+    auto const& path_b = *static_cast<Gfx::Path const*>(b);
+    return static_cast<Gfx::PathImplSkia const&>(path_a.impl()).sk_path() == static_cast<Gfx::PathImplSkia const&>(path_b.impl()).sk_path();
 }

@@ -95,7 +95,7 @@ pub struct FfiCommitSink {
     pub finish_line_data: unsafe extern "C" fn(*mut c_void),
     pub set_computed_svg_transforms: unsafe extern "C" fn(*mut c_void, *mut c_void, crate::layout::FfiSvgComputedTransforms),
     pub set_svg_viewport_size: unsafe extern "C" fn(*mut c_void, *mut c_void, crate::layout::FfiCssPixelSize),
-    pub set_computed_svg_path: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void),
+    pub set_computed_svg_path: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, u64),
     pub set_grid_layout_data: unsafe extern "C" fn(*mut c_void, *mut c_void, *const FfiGridLayoutData),
     pub set_flex_layout_data: unsafe extern "C" fn(*mut c_void, *mut c_void, *const FfiFlexLayoutData),
     pub set_used_grid_tracks:
@@ -195,8 +195,19 @@ fn commit_subtree(
             if let Some(viewport_size) = fragment.svg_viewport_size {
                 (sink.set_svg_viewport_size)(sink.context, paintable, viewport_size);
             }
-            if let Some(path) = fragment.computed_svg_path.take() {
-                (sink.set_computed_svg_path)(sink.context, paintable, path.as_raw());
+            // The paintable keeps its committed path across relayout and only swaps it on an
+            // identity change, which is sound only while every committed path-like fragment
+            // carries a path.
+            debug_assert!(
+                fragment.computed_svg_path.is_some()
+                    || !matches!(
+                        callbacks.node_data(node).kind,
+                        NodeKind::SVGGeometryBox | NodeKind::SVGTextBox | NodeKind::SVGTextPathBox
+                    ),
+                "committed path-like fragment carries no computed SVG path"
+            );
+            if let Some(path) = &fragment.computed_svg_path {
+                (sink.set_computed_svg_path)(sink.context, paintable, path.as_raw(), path.identity());
             }
         }
         if let Some(data) = &fragment.grid_layout_data {

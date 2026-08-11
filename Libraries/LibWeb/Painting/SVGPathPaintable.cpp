@@ -23,12 +23,6 @@ SVGPathPaintable::SVGPathPaintable(Layout::SVGGraphicsBox const& layout_box)
 {
 }
 
-void SVGPathPaintable::reset_for_relayout()
-{
-    SVGGraphicsPaintable::reset_for_relayout();
-    m_computed_path.clear();
-}
-
 Optional<CSSPixelRect> SVGPathPaintable::clip_path_geometry_bounds(Gfx::AffineTransform const& additional_transform) const
 {
     if (!contributes_to_clip_path() || !computed_path().has_value())

@@ -942,13 +942,15 @@ RustFFI::FfiCommitSink LayoutRustBridge::commit_sink()
                     CSSPixels::from_raw(viewport_size.height),
                 });
             } },
-        .set_computed_svg_path = [](void*, void* paintable_pointer, void* path_pointer) {
+        .set_computed_svg_path = [](void*, void* paintable_pointer, void* path_pointer, u64 path_identity) {
             VERIFY(path_pointer);
             auto& paintable = *static_cast<Painting::Paintable*>(paintable_pointer);
-            // The path stays owned by the Rust layout state; only its contents move out.
-            auto* path = static_cast<Gfx::Path*>(path_pointer);
+            // The path stays owned by the Rust fragment tree, which may emit it again on a
+            // later commit; the identity is process-unique per path allocation, so a match
+            // means the preserved copy is already this exact path and the copy can be skipped.
+            auto const* path = static_cast<Gfx::Path const*>(path_pointer);
             if (auto* svg_path_paintable = as_if<Painting::SVGPathPaintable>(paintable))
-                svg_path_paintable->set_computed_path(move(*path)); },
+                svg_path_paintable->set_computed_path_if_identity_changed(*path, path_identity); },
         .set_grid_layout_data = [](void*, void* paintable_pointer, RustFFI::FfiGridLayoutData const* data) {
             VERIFY(data);
             static_cast<Painting::Paintable*>(paintable_pointer)->set_grid_layout_data(build_grid_layout_data(*data)); },
