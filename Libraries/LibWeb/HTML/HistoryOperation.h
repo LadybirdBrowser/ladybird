@@ -17,11 +17,6 @@
 
 namespace Web {
 
-enum class HistoryTraversalPrecheck : u8 {
-    Needed,
-    AlreadyDone,
-};
-
 struct PushHistoryOperationParameters {
     HTML::CrossProcessId navigable_id;
     HTML::UserNavigationInvolvement user_involvement;

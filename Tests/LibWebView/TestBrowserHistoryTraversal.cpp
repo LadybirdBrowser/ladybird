@@ -15,6 +15,8 @@
 #include <LibGfx/SystemTheme.h>
 #include <LibMain/Main.h>
 #include <LibURL/Parser.h>
+#include <LibWeb/Page/InputEvent.h>
+#include <LibWeb/UIEvents/KeyCode.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/HeadlessWebView.h>
 #include <LibWebView/Utilities.h>
@@ -41,11 +43,25 @@ public:
     virtual bool should_coordinate_browser_process() const override { return false; }
 };
 
+void press_history_traversal_key(WebView::ViewImplementation& view, Web::UIEvents::KeyCode key)
+{
+    view.enqueue_input_event(Web::KeyEvent {
+        .type = Web::KeyEvent::Type::KeyDown,
+        .key = key,
+        .modifiers = WebView::ViewImplementation::history_traversal_key_modifier(),
+        .code_point = 0,
+        .browser_data = nullptr,
+    });
+}
+
 }
 
 // Browser-UI traversals resolve their target at their queue position, so a second Forward requested while one is
 // pending must select the entry after the first Forward's target instead of resolving both requests against the
 // same starting position.
+//
+// The browser's back and forward keys are matched in the UI process once WebContent reports them unhandled, so a
+// page's keydown handler must be able to consume them, and an unconsumed press must traverse the session history.
 
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
@@ -77,7 +93,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     auto url_a = URL::Parser::basic_parse("data:text/html,<title>A</title>first"sv).release_value();
     auto url_b = URL::Parser::basic_parse("data:text/html,<title>B</title>second"sv).release_value();
     auto url_c = URL::Parser::basic_parse("data:text/html,<title>C</title>third"sv).release_value();
-    auto url_d = URL::Parser::basic_parse("data:text/html,<title>D</title>fourth"sv).release_value();
+    auto url_d = URL::Parser::basic_parse("data:text/html,<title>D</title><script>window.preventNextKeydown=true;addEventListener('keydown',e=>{if(window.preventNextKeydown){window.preventNextKeydown=false;e.preventDefault()}})</script>fourth"sv).release_value();
 
     auto view_is_at = [&](URL::URL const& url) { return view->url().serialize() == url.serialize(); };
     // Waiting for the load count as well as the URL keeps the next step from racing the destination document.
@@ -111,6 +127,18 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     view->traverse_the_history_by_delta(1);
     wait_until_at(url_d);
+
+    // Page D consumes the first keydown, so only the second press may traverse. A consumed press that wrongly
+    // traversed would shift every traversal below by one entry and leave the final wait stuck short of C.
+    press_history_traversal_key(*view, Web::UIEvents::KeyCode::Key_Left);
+    press_history_traversal_key(*view, Web::UIEvents::KeyCode::Key_Left);
+    wait_until_at(url_c);
+
+    press_history_traversal_key(*view, Web::UIEvents::KeyCode::Key_Left);
+    wait_until_at(url_b);
+
+    press_history_traversal_key(*view, Web::UIEvents::KeyCode::Key_Right);
+    wait_until_at(url_c);
 
     outln("PASS: browser history traversal");
     return 0;
