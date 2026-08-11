@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<video muted loop></video>
+<script src="../include.js"></script>
+<script>
+    // :playing and :paused track the paused attribute alone: they flip synchronously on play()
+    // and load(), with no media resource loaded at all.
+    test(() => {
+        const video = document.querySelector("video");
+        println("before play: playing=" + video.matches(":playing") + " paused=" + video.matches(":paused"));
+        video.play().catch(() => {});
+        println("after play: playing=" + video.matches(":playing") + " paused=" + video.matches(":paused"));
+        video.load();
+        println("after load: playing=" + video.matches(":playing") + " paused=" + video.matches(":paused"));
+    });
+</script>

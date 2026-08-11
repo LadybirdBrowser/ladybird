@@ -1,0 +1,3 @@
+before play: playing=false paused=true
+after play: playing=true paused=false
+after load: playing=false paused=true
