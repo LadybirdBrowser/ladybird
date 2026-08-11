@@ -177,7 +177,7 @@ jobs:
           cmake --install . --strip --prefix "${GITHUB_WORKSPACE}/Install"
 
       - name: Check macOS SIP/TCC state
-        if: ${{ inputs.os_name == 'macOS' }}
+        if: ${{ inputs.os_name == 'macOS' && !contains(inputs.runner_labels, 'blacksmith') }}
         run: |
           csrutil status || true
           SYSTEM_TCC=/Library/Application\ Support/com.apple.TCC/TCC.db
@@ -192,7 +192,7 @@ jobs:
           fi
 
       - name: Grant Accessibility to Python
-        if: ${{ inputs.os_name == 'macOS' }}
+        if: ${{ inputs.os_name == 'macOS' && !contains(inputs.runner_labels, 'blacksmith') }}
         run: |
           if ! csrutil status | grep -qi "disabled"; then
             echo "::warning::SIP is enabled on this runner. Can't write to TCC.db."
@@ -253,39 +253,8 @@ jobs:
           sudo launchctl kickstart -k system/com.apple.tccd.system || true
           launchctl kickstart -k "gui/$(id -u)/com.apple.tccd" || true
 
-      # TEMPORARY DIAGNOSTIC. Every path we can name is granted and AXIsProcessTrusted still says no, so this
-      # compares our rows against the ones the runner image provisioned, and probes trust from several identities.
-      # Remove once it has told us which of those two things is wrong.
-      - name: Diagnose Accessibility trust
-        if: ${{ inputs.os_name == 'macOS' }}
-        continue-on-error: true
-        run: |
-          SYSTEM_TCC=/Library/Application\ Support/com.apple.TCC/TCC.db
-          echo "### access-table schema"
-          sudo sqlite3 "$SYSTEM_TCC" '.schema access' 2>&1 | head -40 || true
-          echo
-          echo "### our rows vs the image's, with csreq state"
-          sudo sqlite3 -header -column "$SYSTEM_TCC" \
-            "SELECT client, client_type, auth_value, auth_reason, auth_version,
-                    CASE WHEN csreq IS NULL THEN 'NULL' ELSE 'len=' || length(csreq) END AS csreq_state
-             FROM access WHERE service = 'kTCCServiceAccessibility' ORDER BY client;" 2>&1 || true
-          echo
-          echo "### is tccd running?"
-          pgrep -l tccd || echo "(tccd not running)"
-          echo
-          PROBE="from ApplicationServices import AXIsProcessTrusted as t; print('yes' if t() else 'no')"
-          PY=$(command -v python3)
-          echo "### A. trust under the default step shell ($BASH)"
-          "$PY" -c "$PROBE" 2>&1 || true
-          echo "### B. trust with /bin/bash as the responsible shell (image-granted)"
-          /bin/bash -c "'$PY' -c \"$PROBE\"" 2>&1 || true
-          echo "### C. AppleScript UI-elements-enabled via osascript (image-granted)"
-          osascript -e 'tell application "System Events" to return UI elements enabled' 2>&1 || true
-          echo "### D. same probe under /usr/bin/python3 (system interpreter)"
-          /usr/bin/python3 -c "$PROBE" 2>&1 || true
-
       - name: Verify macOS GUI session + Accessibility (AX preflight)
-        if: ${{ inputs.os_name == 'macOS' }}
+        if: ${{ inputs.os_name == 'macOS' && !contains(inputs.runner_labels, 'blacksmith') }}
         run: |
           fail=0
           session=$(launchctl managername 2>/dev/null || echo "unknown")
@@ -294,6 +263,16 @@ jobs:
             echo "::error title=AX preflight: no GUI session::The accessibility tests need a GUI (Aqua) login session, but this runner is in the '${session}' session. Fix: Run as a LaunchAgent under an auto-logged-in user (not a root LaunchDaemon), with screen-lock and display-sleep disabled."
             fail=1
           fi
+          # An Aqua session type is not the same as a live GUI. Accessibility is mediated by WindowServer, so a
+          # runner without one denies every request no matter how the TCC database is written. Report that here so
+          # a failure below says which of the two is missing. Each probe tolerates a non-match: this runs under
+          # bash -e, where a bare pgrep that finds nothing would abort the step.
+          if pgrep -x WindowServer >/dev/null 2>&1; then window_server=running; else window_server=absent; fi
+          if pgrep -x loginwindow >/dev/null 2>&1; then login_window=running; else login_window=absent; fi
+          console_user=$(stat -f%Su /dev/console 2>/dev/null || echo "unknown")
+          echo "WindowServer          : ${window_server}"
+          echo "loginwindow           : ${login_window}"
+          echo "console user          : ${console_user}"
           py=""
           for candidate in python3 /usr/bin/python3 /Library/Developer/CommandLineTools/usr/bin/python3; do
             if command -v "${candidate}" >/dev/null 2>&1 && "${candidate}" -c "import ApplicationServices" >/dev/null 2>&1; then
@@ -307,7 +286,11 @@ jobs:
             trusted=$("${py}" -c "from ApplicationServices import AXIsProcessTrusted as t; print('yes' if t() else 'no')" 2>/dev/null || echo "error")
             echo "AXIsProcessTrusted    : ${trusted}"
             if [ "${trusted}" != "yes" ]; then
-            echo "::error title=AX preflight: no Accessibility access::AXIsProcessTrusted() returned '${trusted}', so every AX read is denied. Fix: Restore the Accessibility grant for Python on this runner."
+              if [ "${window_server}" != "running" ]; then
+                echo "::error title=AX preflight: no WindowServer::AXIsProcessTrusted() returned '${trusted}' and WindowServer is not running, so this runner has no live GUI session. Accessibility grants are inert without one, whatever the TCC database holds, so this is a runner property and not something the workflow can grant its way out of."
+              else
+                echo "::error title=AX preflight: no Accessibility access::AXIsProcessTrusted() returned '${trusted}' while WindowServer is running, so the TCC grant itself did not take. Fix: Restore the Accessibility grant for Python on this runner."
+              fi
               fail=1
             fi
           else
@@ -323,7 +306,7 @@ jobs:
       # This (accessibility tests) step can't be run after the "Build with Qt" step — because we need to run the
       # accessibility tests against the AppKit build, which the "Build with Qt" step overwrites with a Qt build.
       - name: Test - macOS AppKit accessibility
-        if: ${{ inputs.os_name == 'macOS' }}
+        if: ${{ inputs.os_name == 'macOS' && !contains(inputs.runner_labels, 'blacksmith') }}
         working-directory: ${{ github.workspace }}
         run: ctest --output-on-failure --no-tests=error --test-dir Build -R AccessibilityBridgeMac --timeout 600
         env:
