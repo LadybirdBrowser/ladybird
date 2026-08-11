@@ -1014,41 +1014,6 @@ static Optional<DOM::AbstractElement> abstract_element_for_abspos_box(Box const&
     return {};
 }
 
-static bool style_value_contains_anchor(CSS::StyleValue const& value)
-{
-    if (value.is_anchor())
-        return true;
-    if (value.is_calculated())
-        return value.as_calculated().contains_anchor_function();
-    return false;
-}
-
-bool box_inset_properties_contain_anchor_functions(Box const& box)
-{
-    auto abstract_element = abstract_element_for_abspos_box(box);
-    if (!abstract_element.has_value())
-        return false;
-
-    auto const* computed = abstract_element->computed_values();
-    if (!computed)
-        return false;
-    // Anchor functions in insets only survive to used-value time inside calculated values, so
-    // when no inset is calculated (the common case), skip reconstructing the style values.
-    auto const& inset = computed->inset();
-    if (!inset.top().is_calculated() && !inset.right().is_calculated() && !inset.bottom().is_calculated() && !inset.left().is_calculated())
-        return false;
-
-    auto top = computed->computed_style_value(CSS::PropertyID::Top);
-    auto right = computed->computed_style_value(CSS::PropertyID::Right);
-    auto bottom = computed->computed_style_value(CSS::PropertyID::Bottom);
-    auto left = computed->computed_style_value(CSS::PropertyID::Left);
-    VERIFY(top && right && bottom && left);
-    return style_value_contains_anchor(*top)
-        || style_value_contains_anchor(*right)
-        || style_value_contains_anchor(*bottom)
-        || style_value_contains_anchor(*left);
-}
-
 bool can_replay_saved_abspos_layout_inputs_after_style_change(Box const& box)
 {
     if (!box.containing_block())

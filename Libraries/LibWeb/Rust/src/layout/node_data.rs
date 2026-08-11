@@ -159,6 +159,7 @@ pub enum NodeFlag {
     ProducesLineBoxFragmentWhenEmpty = 1 << 22,
     ListMarkerIsInside = 1 << 23,
     HasAnchorNames = 1 << 24,
+    InsetsUseAnchorFunctions = 1 << 25,
 }
 
 #[repr(C)]

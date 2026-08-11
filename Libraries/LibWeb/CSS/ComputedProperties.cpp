@@ -131,6 +131,38 @@ RefPtr<StyleValue const> ComputedValues::background_color_style_value() const
 
 static_assert(to_underlying(PseudoElement::KnownPseudoElementCount) <= sizeof(u64) * 8);
 
+static bool style_value_contains_anchor_function(StyleValue const& value)
+{
+    if (value.is_anchor())
+        return true;
+    if (value.is_calculated())
+        return value.as_calculated().contains_anchor_function();
+    return false;
+}
+
+bool ComputedValues::inset_properties_contain_anchor_functions() const
+{
+    // A bare anchor function is not stored in the inset length box at all: it lives in the
+    // per-side anchor inset handles kept next to it.
+    if (has_anchor_inset(PropertyID::Top) || has_anchor_inset(PropertyID::Right)
+        || has_anchor_inset(PropertyID::Bottom) || has_anchor_inset(PropertyID::Left))
+        return true;
+    // Anchor functions inside expressions survive to used-value time as calculated values, so
+    // when no inset is calculated (the common case), skip reconstructing the style values.
+    auto const& inset_box = inset();
+    if (!inset_box.top().is_calculated() && !inset_box.right().is_calculated() && !inset_box.bottom().is_calculated() && !inset_box.left().is_calculated())
+        return false;
+    auto top = computed_style_value(PropertyID::Top);
+    auto right = computed_style_value(PropertyID::Right);
+    auto bottom = computed_style_value(PropertyID::Bottom);
+    auto left = computed_style_value(PropertyID::Left);
+    VERIFY(top && right && bottom && left);
+    return style_value_contains_anchor_function(*top)
+        || style_value_contains_anchor_function(*right)
+        || style_value_contains_anchor_function(*bottom)
+        || style_value_contains_anchor_function(*left);
+}
+
 RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID property_id, WithAnimationsApplied with_animations_applied) const
 {
     if (with_animations_applied == WithAnimationsApplied::No && m_base_values)

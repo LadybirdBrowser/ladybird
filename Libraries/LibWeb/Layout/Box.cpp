@@ -59,7 +59,7 @@ bool Box::is_partial_relayout_boundary(RequireExistingPaintable require_existing
 
     // Only a full layout pass resolves anchor() functions in the inset properties to plain
     // values; a replay from saved inputs cannot.
-    if (box_inset_properties_contain_anchor_functions(*this))
+    if (insets_use_anchor_functions())
         return false;
 
     // NOTE: Content-dependent sizing (shrink-to-fit, intrinsic constraints, aspect-ratio) does
