@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<style>
+    .wrapper { display: inline-block; }
+    .box { display: inline-block; width: 50px; height: 5px; }
+</style>
+<div><div class="wrapper" id="gains"><div class="box"></div></div></div>
+<div><div class="wrapper" id="loses" style="contain: size"><div class="box"></div></div></div>
+<script src="../include.js"></script>
+<script>
+    // Size containment arriving on a kept layout node must reach layout: the node's
+    // replaced-content facts enrollment is re-evaluated on style application, not only at
+    // layout node construction.
+    test(() => {
+        const gains = document.getElementById("gains");
+        const loses = document.getElementById("loses");
+        println("before: gains=" + gains.getBoundingClientRect().width
+            + " loses=" + loses.getBoundingClientRect().width);
+        gains.style.contain = "size";
+        loses.style.contain = "none";
+        println("after: gains=" + gains.getBoundingClientRect().width
+            + " loses=" + loses.getBoundingClientRect().width);
+    });
+</script>
