@@ -36,6 +36,7 @@ include!("text_chunker.rs");
 include!("replaced_with_children_formatting_context.rs");
 include!("table_formatting_context.rs");
 include!("geometry.rs");
+include!("fc_run_cache.rs");
 mod layout_node_arena;
 pub mod node_data;
 include!("run_records.rs");

@@ -116,7 +116,9 @@ void Node::enroll_for_arena_replaced_content_facts_sync_if_eligible()
 
 bool Node::fragment_cache_epochs_enabled()
 {
-    static bool const enabled = getenv("LADYBIRD_FC_RUN_CACHE") != nullptr;
+    // The Rust cache module owns the only LADYBIRD_FC_RUN_CACHE parser; the
+    // bump walks follow whatever mode it resolved.
+    static bool const enabled = RustFFI::layout_fc_run_cache_epochs_enabled();
     return enabled;
 }
 

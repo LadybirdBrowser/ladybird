@@ -785,6 +785,7 @@ pub(crate) struct ChildLayoutResult {
     pub table_box_in_wrapper_border_box_block_size: Option<CssPixels>,
 }
 
+#[derive(Clone)]
 pub(crate) struct RunRootOutcome {
     cells: UsedValuesCellState,
     own_metrics_sealed: bool,
@@ -807,6 +808,7 @@ impl RunRootOutcome {
     }
 }
 
+#[derive(Clone)]
 pub(crate) struct RunOutputs {
     pub(crate) result: ChildLayoutResult,
     pub(crate) root: Option<UnplacedRootFragment>,
@@ -1619,6 +1621,20 @@ fn run_formatting_context(
     parent_block: Option<&BlockFormattingContext>,
 ) -> ChildLayoutResult {
     let root_cells = UsedValuesCellState::capture(parent_used);
+    let cache_attempt = match FcRunCacheAttempt::probe(
+        purpose,
+        box_,
+        parent_grid.is_some(),
+        fc_type,
+        layout_mode,
+        should_collect_devtools_layout_data,
+        &callbacks,
+        &input,
+        &root_cells,
+    ) {
+        Ok(attempt) => attempt,
+        Err(entry) => return absorb_run_outputs(parent_fragments, parent_used, box_, entry.outputs.clone()),
+    };
     let outputs = execute_formatting_context_run(
         purpose,
         root_cells,
@@ -1631,6 +1647,7 @@ fn run_formatting_context(
         input,
         parent_block,
     );
+    cache_attempt.conclude(&callbacks, box_, &outputs);
     absorb_run_outputs(parent_fragments, parent_used, box_, outputs)
 }
 
@@ -2098,6 +2115,7 @@ pub unsafe extern "C" fn rust_layout_run_root_layout(
             std::ptr::null_mut(),
             sink,
         );
+        callbacks.arena().sweep_stale_fc_run_cache_entries();
     });
 }
 
@@ -2219,6 +2237,7 @@ pub unsafe extern "C" fn rust_layout_compute_subtree_layout(
             paintable_to_replace,
             sink,
         );
+        callbacks.arena().sweep_stale_fc_run_cache_entries();
     });
 }
 
@@ -2265,5 +2284,6 @@ pub unsafe extern "C" fn rust_layout_replay_saved_abspos_layout(
             paintable_to_replace,
             sink,
         );
+        callbacks.arena().sweep_stale_fc_run_cache_entries();
     });
 }
