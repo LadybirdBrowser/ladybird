@@ -14,7 +14,7 @@ pub const GENERATED_FOR_MARKER: u8 = 6;
 // count so the style container array and the registered group indices line up.
 pub const STYLE_GROUP_COUNT: usize = 23;
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
 #[repr(C)]
 pub struct FfiReplacedContentFacts {
     pub has_auto_content_width: bool,
